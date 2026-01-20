@@ -83,27 +83,23 @@ use light_token_interface::state::{CompressedTokenAccountState, TokenData as Pro
 // }
 
 pub fn sdk_to_program_account_state(
-    sdk_state: light_token_sdk::compat::AccountState,
+    sdk_state: light_token::compat::AccountState,
 ) -> CompressedTokenAccountState {
     match sdk_state {
-        light_token_sdk::compat::AccountState::Initialized => {
-            CompressedTokenAccountState::Initialized
-        }
-        light_token_sdk::compat::AccountState::Frozen => CompressedTokenAccountState::Frozen,
+        light_token::compat::AccountState::Initialized => CompressedTokenAccountState::Initialized,
+        light_token::compat::AccountState::Frozen => CompressedTokenAccountState::Frozen,
     }
 }
 
-pub fn program_to_sdk_account_state(program_state: u8) -> light_token_sdk::compat::AccountState {
+pub fn program_to_sdk_account_state(program_state: u8) -> light_token::compat::AccountState {
     match program_state {
-        0 => light_token_sdk::compat::AccountState::Initialized,
-        1 => light_token_sdk::compat::AccountState::Frozen,
+        0 => light_token::compat::AccountState::Initialized,
+        1 => light_token::compat::AccountState::Frozen,
         _ => panic!("program_to_sdk_account_state: invalid account state"),
     }
 }
 
-pub fn sdk_to_program_token_data(
-    sdk_token: light_token_sdk::compat::TokenData,
-) -> ProgramTokenData {
+pub fn sdk_to_program_token_data(sdk_token: light_token::compat::TokenData) -> ProgramTokenData {
     ProgramTokenData {
         mint: sdk_token.mint.into(),
         owner: sdk_token.owner.into(),
@@ -116,8 +112,8 @@ pub fn sdk_to_program_token_data(
 
 pub fn program_to_sdk_token_data(
     program_token: ProgramTokenData,
-) -> light_token_sdk::compat::TokenData {
-    light_token_sdk::compat::TokenData {
+) -> light_token::compat::TokenData {
+    light_token::compat::TokenData {
         mint: program_token.mint.into(),
         owner: program_token.owner.into(),
         amount: program_token.amount,

@@ -150,7 +150,7 @@ impl CompressBuilder {
                         cpi_accounts: &light_sdk::cpi::v2::CpiAccounts<'_, #lifetime>,
                         compression_config: &light_sdk::interface::LightConfig,
                         program_id: &solana_pubkey::Pubkey,
-                    ) -> std::result::Result<Option<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>, solana_program_error::ProgramError> {
+                    ) -> std::result::Result<Option<::light_sdk::compressed_account::CompressedAccountInfo>, solana_program_error::ProgramError> {
                         let data = account_info.try_borrow_data().map_err(__anchor_to_program_error)?;
                         let discriminator = &data[0..8];
 

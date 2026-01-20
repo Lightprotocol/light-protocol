@@ -4,12 +4,12 @@ use solana_instruction::{AccountMeta, Instruction};
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-use crate::token::RENT_SPONSOR;
+use crate::instruction::RENT_SPONSOR;
 
 /// # Create a close ctoken account instruction:
 /// ```rust
 /// # use solana_pubkey::Pubkey;
-/// # use light_token_sdk::token::{CloseAccount, LIGHT_TOKEN_PROGRAM_ID};
+/// # use light_token::instruction::{CloseAccount, LIGHT_TOKEN_PROGRAM_ID};
 /// # let account = Pubkey::new_unique();
 /// # let destination = Pubkey::new_unique();
 /// # let owner = Pubkey::new_unique();
@@ -63,7 +63,7 @@ impl CloseAccount {
 
 /// # Close a ctoken account via CPI:
 /// ```rust,no_run
-/// # use light_token_sdk::token::CloseAccountCpi;
+/// # use light_token::instruction::CloseAccountCpi;
 /// # use solana_account_info::AccountInfo;
 /// # let token_program: AccountInfo = todo!();
 /// # let account: AccountInfo = todo!();

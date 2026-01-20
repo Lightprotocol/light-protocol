@@ -8,7 +8,7 @@ use light_test_utils::{
     spl::{create_mint_helper, create_token_account, mint_spl_tokens},
     RpcError,
 };
-use light_token_sdk::{
+use light_token::{
     compressed_token::{
         transfer::account_metas::{
             get_transfer_instruction_account_metas, TokenAccountsMetaConfig,

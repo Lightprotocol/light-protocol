@@ -1,12 +1,12 @@
-//! High-level builders for ctoken operations.
+//! High-level builders for Light Token operations.
 //!
 //!
 //! ## Account Creation
 //!
-//! - [`CreateAssociatedCTokenAccount`] - Create associated ctoken account (ATA) instruction
-//! - [`CreateTokenAtaCpi`] - Create associated ctoken account (ATA) via CPI
-//! - [`CreateCTokenAccount`] - Create ctoken account instruction
-//! - [`CreateTokenAccountCpi`] - Create ctoken account via CPI
+//! - [`CreateAssociatedTokenAccount`] - Create associated Light Token account (ATA) instruction
+//! - [`CreateTokenAtaCpi`] - Create associated Light Token account (ATA) via CPI
+//! - [`CreateTokenAccount`] - Create Light Token account instruction
+//! - [`CreateTokenAccountCpi`] - Create Light Token account via CPI
 //!
 //! ## Transfers
 //!
@@ -14,32 +14,32 @@
 //!
 //! ## Decompress
 //!
-//! - [`Decompress`] - Decompress compressed tokens to a cToken account
+//! - [`Decompress`] - Decompress compressed tokens to a Light Token account
 //!
 //! ## Close
 //!
-//! - [`CloseTokenAccount`] - Create close ctoken account instruction
-//! - [`CloseTokenAccountCpi`] - Close ctoken account via CPI
+//! - [`CloseAccount`] - Create close Light Token account instruction
+//! - [`CloseAccountCpi`] - Close Light Token account via CPI
 //!
 //!
 //! ## Mint
 //!
-//! - [`CreateMint`] - Create cMint
-//! - [`CreateMints`] - Create multiple cMints in a batch
-//! - [`MintTo`] - Mint tokens to ctoken accounts
+//! - [`CreateMint`] - Create Light Mint
+//! - [`create_mints`] - Create multiple Light Mints in a batch
+//! - [`MintTo`] - Mint tokens to Light Token accounts
 //!
 //! ## Revoke and Thaw
 //!
-//! - [`Revoke`] - Revoke delegation for a ctoken account
+//! - [`Revoke`] - Revoke delegation for a Light Token account
 //! - [`RevokeCpi`] - Revoke delegation via CPI
-//! - [`Thaw`] - Thaw a frozen ctoken account
-//! - [`ThawCpi`] - Thaw a frozen ctoken account via CPI
+//! - [`Thaw`] - Thaw a frozen Light Token account
+//! - [`ThawCpi`] - Thaw a frozen Light Token account via CPI
 //!
-//! # Example: Create cToken Account Instruction
+//! # Example: Create Light Token Account Instruction
 //!
 //! ```rust
 //! # use solana_pubkey::Pubkey;
-//! use light_token_sdk::token::CreateAssociatedTokenAccount;
+//! use light_token::instruction::CreateAssociatedTokenAccount;
 //! # let payer = Pubkey::new_unique();
 //! # let owner = Pubkey::new_unique();
 //! # let mint = Pubkey::new_unique();
@@ -53,7 +53,7 @@
 //! # Example: Create rent-free ATA via CPI
 //!
 //! ```rust,ignore
-//! use light_token_sdk::token::CreateTokenAtaCpi;
+//! use light_token::instruction::CreateTokenAtaCpi;
 //!
 //! CreateTokenAtaCpi {
 //!     payer: ctx.accounts.payer.to_account_info(),
@@ -64,7 +64,7 @@
 //! }
 //! .idempotent()
 //! .rent_free(
-//!     ctx.accounts.ctoken_config.to_account_info(),
+//!     ctx.accounts.light_token_config.to_account_info(),
 //!     ctx.accounts.rent_sponsor.to_account_info(),
 //!     ctx.accounts.system_program.to_account_info(),
 //! )
@@ -74,7 +74,7 @@
 //! # Example: Create rent-free vault via CPI (with PDA signing)
 //!
 //! ```rust,ignore
-//! use light_token_sdk::token::CreateTokenAccountCpi;
+//! use light_token::instruction::CreateTokenAccountCpi;
 //!
 //! CreateTokenAccountCpi {
 //!     payer: ctx.accounts.payer.to_account_info(),
@@ -83,7 +83,7 @@
 //!     owner: ctx.accounts.vault_authority.key(),
 //! }
 //! .rent_free(
-//!     ctx.accounts.ctoken_config.to_account_info(),
+//!     ctx.accounts.light_token_config.to_account_info(),
 //!     ctx.accounts.rent_sponsor.to_account_info(),
 //!     ctx.accounts.system_program.to_account_info(),
 //!     &crate::ID,
@@ -123,8 +123,9 @@ pub use close::{CloseAccount, CloseAccountCpi};
 pub use compressible::{CompressibleParams, CompressibleParamsCpi};
 pub use create::*;
 pub use create_ata::{
-    derive_token_ata, CreateAssociatedTokenAccount,
-    CreateTokenAtaCpi as CreateAssociatedAccountCpi, CreateTokenAtaCpi,
+    derive_associated_token_account, derive_associated_token_account as derive_token_ata,
+    CreateAssociatedTokenAccount, CreateTokenAtaCpi as CreateAssociatedAccountCpi,
+    CreateTokenAtaCpi,
 };
 pub use create_mint::*;
 pub use create_mints::*;
@@ -179,7 +180,7 @@ pub struct SystemAccountInfos<'info> {
 /// System accounts with Pubkey references for instruction building.
 ///
 /// ```rust
-/// # use light_token_sdk::token::SystemAccounts;
+/// # use light_token::instruction::SystemAccounts;
 /// # use solana_instruction::AccountMeta;
 /// let system_accounts = SystemAccounts::default();
 /// let accounts = vec![

@@ -5,112 +5,105 @@ use solana_instruction::{AccountMeta, Instruction};
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-/// # Mint tokens to a ctoken account with decimals validation:
+/// # Burn tokens from a ctoken account:
 /// ```rust
 /// # use solana_pubkey::Pubkey;
-/// # use light_token_sdk::token::MintToChecked;
+/// # use light_token::instruction::Burn;
+/// # let source = Pubkey::new_unique();
 /// # let mint = Pubkey::new_unique();
-/// # let destination = Pubkey::new_unique();
 /// # let authority = Pubkey::new_unique();
-/// let instruction = MintToChecked {
+/// let instruction = Burn {
+///     source,
 ///     mint,
-///     destination,
 ///     amount: 100,
-///     decimals: 8,
 ///     authority,
 ///     max_top_up: None,
 /// }.instruction()?;
 /// # Ok::<(), solana_program_error::ProgramError>(())
 /// ```
-pub struct MintToChecked {
+pub struct Burn {
+    /// Light Token account to burn from
+    pub source: Pubkey,
     /// Mint account (supply tracking)
     pub mint: Pubkey,
-    /// Destination Light Token account to mint to
-    pub destination: Pubkey,
-    /// Amount of tokens to mint
+    /// Amount of tokens to burn
     pub amount: u64,
-    /// Expected token decimals
-    pub decimals: u8,
-    /// Mint authority
+    /// Owner of the Light Token account
     pub authority: Pubkey,
     /// Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (0 = no limit)
     /// When set to a non-zero value, includes max_top_up in instruction data
     pub max_top_up: Option<u16>,
 }
 
-/// # Mint to ctoken via CPI with decimals validation:
+/// # Burn ctoken via CPI:
 /// ```rust,no_run
-/// # use light_token_sdk::token::MintToCheckedCpi;
+/// # use light_token::instruction::BurnCpi;
 /// # use solana_account_info::AccountInfo;
+/// # let source: AccountInfo = todo!();
 /// # let mint: AccountInfo = todo!();
-/// # let destination: AccountInfo = todo!();
 /// # let authority: AccountInfo = todo!();
-/// MintToCheckedCpi {
+/// BurnCpi {
+///     source,
 ///     mint,
-///     destination,
 ///     amount: 100,
-///     decimals: 8,
 ///     authority,
 ///     max_top_up: None,
 /// }
 /// .invoke()?;
 /// # Ok::<(), solana_program_error::ProgramError>(())
 /// ```
-pub struct MintToCheckedCpi<'info> {
+pub struct BurnCpi<'info> {
+    pub source: AccountInfo<'info>,
     pub mint: AccountInfo<'info>,
-    pub destination: AccountInfo<'info>,
     pub amount: u64,
-    pub decimals: u8,
     pub authority: AccountInfo<'info>,
     /// Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (0 = no limit)
     pub max_top_up: Option<u16>,
 }
 
-impl<'info> MintToCheckedCpi<'info> {
+impl<'info> BurnCpi<'info> {
     pub fn instruction(&self) -> Result<Instruction, ProgramError> {
-        MintToChecked::from(self).instruction()
+        Burn::from(self).instruction()
     }
 
     pub fn invoke(self) -> Result<(), ProgramError> {
-        let instruction = MintToChecked::from(&self).instruction()?;
-        let account_infos = [self.mint, self.destination, self.authority];
+        let instruction = Burn::from(&self).instruction()?;
+        let account_infos = [self.source, self.mint, self.authority];
         invoke(&instruction, &account_infos)
     }
 
     pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
-        let instruction = MintToChecked::from(&self).instruction()?;
-        let account_infos = [self.mint, self.destination, self.authority];
+        let instruction = Burn::from(&self).instruction()?;
+        let account_infos = [self.source, self.mint, self.authority];
         invoke_signed(&instruction, &account_infos, signer_seeds)
     }
 }
 
-impl<'info> From<&MintToCheckedCpi<'info>> for MintToChecked {
-    fn from(cpi: &MintToCheckedCpi<'info>) -> Self {
+impl<'info> From<&BurnCpi<'info>> for Burn {
+    fn from(cpi: &BurnCpi<'info>) -> Self {
         Self {
+            source: *cpi.source.key,
             mint: *cpi.mint.key,
-            destination: *cpi.destination.key,
             amount: cpi.amount,
-            decimals: cpi.decimals,
             authority: *cpi.authority.key,
             max_top_up: cpi.max_top_up,
         }
     }
 }
 
-impl MintToChecked {
+impl Burn {
     pub fn instruction(self) -> Result<Instruction, ProgramError> {
         Ok(Instruction {
             program_id: Pubkey::from(LIGHT_TOKEN_PROGRAM_ID),
             accounts: vec![
+                AccountMeta::new(self.source, false),
                 AccountMeta::new(self.mint, false),
-                AccountMeta::new(self.destination, false),
                 AccountMeta::new_readonly(self.authority, true),
             ],
             data: {
-                let mut data = vec![14u8]; // TokenMintToChecked discriminator
+                let mut data = vec![8u8]; // CTokenBurn discriminator
                 data.extend_from_slice(&self.amount.to_le_bytes());
-                data.push(self.decimals);
-                // Include max_top_up if set (11-byte format)
+                // Include max_top_up if set (10-byte format)
                 if let Some(max_top_up) = self.max_top_up {
                     data.extend_from_slice(&max_top_up.to_le_bytes());
                 }

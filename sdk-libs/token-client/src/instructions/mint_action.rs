@@ -5,6 +5,10 @@ use light_client::{
 };
 use light_compressed_account::instruction_data::traits::LightInstructionData;
 use light_compressible::config::CompressibleConfig;
+use light_token::compressed_token::{
+    create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
+    mint_action::MintActionMetaConfig,
+};
 use light_token_interface::{
     instructions::{
         extensions::{token_metadata::TokenMetadataInstructionData, ExtensionInstructionData},
@@ -17,10 +21,6 @@ use light_token_interface::{
     },
     state::Mint,
     LIGHT_TOKEN_PROGRAM_ID,
-};
-use light_token_sdk::compressed_token::{
-    create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
-    mint_action::MintActionMetaConfig,
 };
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;

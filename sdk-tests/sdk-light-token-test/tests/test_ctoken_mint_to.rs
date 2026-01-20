@@ -88,7 +88,7 @@ async fn test_ctoken_mint_to_invoke() {
 #[tokio::test]
 async fn test_ctoken_mint_to_invoke_signed() {
     use light_client::indexer::Indexer;
-    use light_token_sdk::token::CreateAssociatedTokenAccount;
+    use light_token::instruction::CreateAssociatedTokenAccount;
     use native_ctoken_examples::{CreateCmintData, MINT_SIGNER_SEED};
 
     let config = ProgramTestConfig::new_v2(true, Some(vec![("native_ctoken_examples", ID)]));
@@ -104,12 +104,12 @@ async fn test_ctoken_mint_to_invoke_signed() {
     let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
 
     // Derive compression address using the PDA mint_signer
-    let compression_address = light_token_sdk::token::derive_mint_compressed_address(
+    let compression_address = light_token::instruction::derive_mint_compressed_address(
         &mint_signer_pda,
         &address_tree.tree,
     );
 
-    let (mint_pda, mint_bump) = light_token_sdk::token::find_mint_address(&mint_signer_pda);
+    let (mint_pda, mint_bump) = light_token::instruction::find_mint_address(&mint_signer_pda);
 
     // Step 1: Create compressed mint with PDA authority using wrapper program (discriminator 14)
     {
@@ -128,9 +128,9 @@ async fn test_ctoken_mint_to_invoke_signed() {
 
         let compressed_token_program_id =
             Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
-        let default_pubkeys = light_token_sdk::utils::TokenDefaultAccounts::default();
-        let compressible_config = light_token_sdk::token::config_pda();
-        let rent_sponsor = light_token_sdk::token::rent_sponsor_pda();
+        let default_pubkeys = light_token::utils::TokenDefaultAccounts::default();
+        let compressible_config = light_token::instruction::config_pda();
+        let rent_sponsor = light_token::instruction::rent_sponsor_pda();
 
         let create_mint_data = CreateCmintData {
             decimals,
@@ -196,7 +196,8 @@ async fn test_ctoken_mint_to_invoke_signed() {
 
     // Step 2: Create ATA for payer (CreateMint now auto-decompresses)
     let ata = {
-        let (ata_address, _) = light_token_sdk::token::derive_token_ata(&payer.pubkey(), &mint_pda);
+        let (ata_address, _) =
+            light_token::instruction::derive_token_ata(&payer.pubkey(), &mint_pda);
         let create_ata =
             CreateAssociatedTokenAccount::new(payer.pubkey(), payer.pubkey(), mint_pda);
         let ata_instruction = create_ata.instruction().unwrap();

@@ -15,7 +15,7 @@ use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
 use super::{config_pda, rent_sponsor_pda};
-use crate::{compressed_token::mint_action::MintActionMetaConfig, token::SystemAccountInfos};
+use crate::{compressed_token::mint_action::MintActionMetaConfig, instruction::SystemAccountInfos};
 /// Parameters for creating a mint.
 ///
 /// Creates both a compressed mint AND a decompressed Mint Solana account
@@ -44,10 +44,10 @@ pub struct CreateMintParams {
 /// # Example
 /// ```rust,no_run
 /// # use solana_pubkey::Pubkey;
-/// use light_token_sdk::token::{
+/// use light_token::instruction::{
 ///     CreateMint, CreateMintParams, derive_mint_compressed_address, find_mint_address,
 /// };
-/// # use light_token_sdk::CompressedProof;
+/// # use light_token::CompressedProof;
 /// # let mint_seed_pubkey = Pubkey::new_unique();
 /// # let payer = Pubkey::new_unique();
 /// # let address_tree = Pubkey::new_unique();
@@ -190,7 +190,7 @@ impl CreateMint {
 
 /// # Create a mint via CPI:
 /// ```rust,no_run
-/// # use light_token_sdk::token::{CreateMintCpi, CreateMintParams, SystemAccountInfos};
+/// # use light_token::instruction::{CreateMintCpi, CreateMintParams, SystemAccountInfos};
 /// # use solana_account_info::AccountInfo;
 /// # let mint_seed: AccountInfo = todo!();
 /// # let authority: AccountInfo = todo!();

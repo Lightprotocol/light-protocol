@@ -11,6 +11,10 @@ use light_test_utils::{
         CREATE_MINT_HELPER_DECIMALS,
     },
 };
+use light_token::{
+    compressed_token::create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
+    instruction::{CompressibleParams, CreateAssociatedTokenAccount},
+};
 use light_token_client::{
     actions::{create_mint, mint_to_compressed},
     instructions::{
@@ -24,10 +28,6 @@ use light_token_client::{
 use light_token_interface::{
     instructions::{mint_action::Recipient, transfer2::CompressedTokenInstructionDataTransfer2},
     state::TokenDataVersion,
-};
-use light_token_sdk::{
-    compressed_token::create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
-    token::{CompressibleParams, CreateAssociatedTokenAccount},
 };
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
 
@@ -444,7 +444,7 @@ impl TestContext {
                 .unwrap_or(&false);
 
             // Create Light Token ATA (compressible or regular based on requirements)
-            let (ata, bump) = light_token_sdk::token::derive_token_ata(&signer.pubkey(), &mint);
+            let (ata, bump) = light_token::instruction::derive_token_ata(&signer.pubkey(), &mint);
 
             let create_ata_ix = if is_compressible {
                 println!(

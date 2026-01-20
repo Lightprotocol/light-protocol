@@ -30,8 +30,8 @@ use light_compressed_token::{
 };
 use light_hasher::Poseidon;
 use light_program_test::{indexer::TestIndexerExtensions, program_test::TestRpc};
+use light_token::compat::TokenDataWithMerkleContext;
 use light_token_interface::state::{CompressedTokenAccountState, TokenData};
-use light_token_sdk::compat::TokenDataWithMerkleContext;
 use solana_banks_client::BanksClientError;
 use solana_sdk::{
     instruction::Instruction,

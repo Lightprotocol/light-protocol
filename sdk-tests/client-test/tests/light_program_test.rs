@@ -14,7 +14,7 @@ use light_program_test::{
 };
 use light_sdk::address::{v1::derive_address, NewAddressParams};
 use light_test_utils::{system_program::create_invoke_instruction, RpcError};
-use light_token_sdk::compat::{AccountState, TokenData};
+use light_token::compat::{AccountState, TokenData};
 use solana_sdk::{
     compute_budget::ComputeBudgetInstruction,
     pubkey::Pubkey,

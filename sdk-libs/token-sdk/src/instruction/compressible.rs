@@ -2,7 +2,7 @@ use light_token_interface::{instructions::extensions::CompressToPubkey, state::T
 use solana_account_info::AccountInfo;
 use solana_pubkey::Pubkey;
 
-use crate::token::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR};
+use crate::instruction::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR};
 
 /// Parameters for creating compressible ctoken accounts.
 ///
@@ -17,7 +17,7 @@ use crate::token::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR};
 ///
 /// # Example
 /// ```rust
-/// use light_token_sdk::token::CompressibleParams;
+/// use light_token::instruction::CompressibleParams;
 ///
 /// let params = CompressibleParams::new();
 /// ```
@@ -79,7 +79,7 @@ impl CompressibleParams {
 ///
 /// # Example
 /// ```rust,no_run
-/// # use light_token_sdk::token::CompressibleParamsCpi;
+/// # use light_token::instruction::CompressibleParamsCpi;
 /// # use solana_account_info::AccountInfo;
 /// // Use ctoken::COMPRESSIBLE_CONFIG_V1 or ctoken::config_pda() to get the protocol config.
 /// // Use ctoken::RENT_SPONSOR or ctoken::rent_sponsor_pda() to get the protocol rent sponsor.

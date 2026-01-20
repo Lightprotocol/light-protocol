@@ -154,6 +154,10 @@ pub async fn run_compress_and_close_extension_test(
     config: CompressAndCloseTestConfig,
 ) -> Result<(), RpcError> {
     use light_client::indexer::Indexer;
+    use light_token::{
+        instruction::{CompressibleParams, CreateTokenAccount, TransferFromSpl},
+        spl_interface::find_spl_interface_pda_with_index,
+    };
     use light_token_client::instructions::transfer2::{
         create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,
     };
@@ -164,10 +168,6 @@ pub async fn run_compress_and_close_extension_test(
         state::{
             CompressedOnlyExtension, CompressedTokenAccountState, TokenData, TokenDataVersion,
         },
-    };
-    use light_token_sdk::{
-        spl_interface::find_spl_interface_pda_with_index,
-        token::{CompressibleParams, CreateTokenAccount, TransferFromSpl},
     };
 
     let mut context = setup_extensions_test(config.extensions).await?;

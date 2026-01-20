@@ -251,3 +251,35 @@ assert_eq!(ctoken, expected_ctoken, "CToken account should match expected");
 - Maintainable - if account layout changes, deserialization handles it
 - Readable - clear field names vs `account.data[108]`
 - Single assertion point for the entire account state
+
+### Getting Anchor Program Instruction Discriminators
+
+Anchor uses 8-byte discriminators derived from the instruction name. To get discriminators from an Anchor program:
+
+```rust
+#[cfg(test)]
+mod discriminator_tests {
+    use super::*;
+    use anchor_lang::Discriminator;
+
+    #[test]
+    fn print_instruction_discriminators() {
+        // Each instruction in the #[program] module has a corresponding struct
+        // in the `instruction` module with the DISCRIMINATOR constant
+        println!("InstructionName: {:?}", instruction::InstructionName::DISCRIMINATOR);
+    }
+}
+```
+
+Run with: `cargo test -p <program-crate> print_instruction_discriminators -- --nocapture`
+
+**Example output:**
+```
+Claim: [62, 198, 214, 193, 213, 159, 108, 210]
+CompressAndClose: [96, 94, 135, 18, 121, 42, 213, 117]
+```
+
+**When to use discriminators:**
+- Building instructions manually without Anchor's `InstructionData` trait
+- Creating SDK functions that don't depend on Anchor crate
+- Verifying instruction data in tests or validators

@@ -16,10 +16,10 @@ use light_test_utils::{
     spl::{create_additional_token_pools, create_mint_22_helper, create_mint_helper},
     Rpc, RpcError,
 };
+use light_token::spl_interface::CreateSplInterfacePda;
 use light_token_interface::{
     find_spl_interface_pda, find_spl_interface_pda_with_index, has_restricted_extensions,
 };
-use light_token_sdk::spl_interface::CreateSplInterfacePda;
 use serial_test::serial;
 use solana_sdk::{
     instruction::Instruction,

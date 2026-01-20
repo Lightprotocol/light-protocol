@@ -12,6 +12,7 @@ anchor = [
     "light-compressed-account/anchor",
     "light-sdk-types/anchor",
 ]
+idl-build = ["anchor-lang/idl-build", "anchor", "light-sdk-types/idl-build"]
 
 [dependencies]
 borsh = { workspace = true }

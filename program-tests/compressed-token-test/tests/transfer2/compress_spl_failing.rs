@@ -38,7 +38,7 @@ use light_test_utils::{
     },
     Rpc, RpcError,
 };
-use light_token_sdk::{
+use light_token::{
     compressed_token::{
         transfer2::{
             account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction,
@@ -46,8 +46,8 @@ use light_token_sdk::{
         },
         CTokenAccount2,
     },
+    instruction::{derive_token_ata, CreateAssociatedTokenAccount},
     spl_interface::find_spl_interface_pda_with_index,
-    token::{derive_token_ata, CreateAssociatedTokenAccount},
     ValidityProof,
 };
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};

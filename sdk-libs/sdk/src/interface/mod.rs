@@ -43,3 +43,4 @@ pub use decompress_runtime::{
     check_account_types, handle_packed_pda_variant, process_decompress_accounts_idempotent,
     DecompressContext, HasTokenVariant, PdaSeedDerivation, TokenSeedProvider,
 };
+pub use light_compressible::{rent, CreateAccountsProof};

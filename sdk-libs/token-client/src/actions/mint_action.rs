@@ -2,10 +2,10 @@ use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
-use light_token_interface::instructions::mint_action::Recipient;
-use light_token_sdk::compressed_token::create_compressed_mint::{
+use light_token::compressed_token::create_compressed_mint::{
     derive_mint_compressed_address, find_mint_address,
 };
+use light_token_interface::instructions::mint_action::Recipient;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signature::Signature;
@@ -105,7 +105,7 @@ pub async fn mint_action_comprehensive<R: Rpc + Indexer>(
     }
 
     if !mint_to_decompressed_recipients.is_empty() {
-        use light_token_sdk::token::derive_token_ata;
+        use light_token::instruction::derive_token_ata;
 
         let (spl_mint_pda, _) = find_mint_address(&mint_seed.pubkey());
 

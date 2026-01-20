@@ -8,8 +8,8 @@ use light_program_test::{
     program_test::LightProgramTest, utils::assert::assert_rpc_error, ProgramTestConfig, Rpc,
 };
 use light_test_utils::mint_2022::create_mint_22_with_extension_types;
+use light_token::instruction::{CompressibleParams, CreateTokenAccount};
 use light_token_interface::state::TokenDataVersion;
-use light_token_sdk::token::{CompressibleParams, CreateTokenAccount};
 use serial_test::serial;
 use solana_sdk::{signature::Keypair, signer::Signer};
 use spl_token_2022::extension::ExtensionType;

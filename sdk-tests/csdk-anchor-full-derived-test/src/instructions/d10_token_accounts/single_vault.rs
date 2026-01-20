@@ -9,7 +9,7 @@
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
 use light_sdk_macros::LightAccounts;
-use light_token_sdk::token::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR};
+use light_token::instruction::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR};
 
 /// Seed for the vault authority PDA
 pub const D10_SINGLE_VAULT_AUTH_SEED: &[u8] = b"d10_single_vault_auth";

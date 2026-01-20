@@ -12,7 +12,7 @@ use solana_pubkey::Pubkey;
 
 use crate::{
     compressed_token::mint_action::MintActionMetaConfig,
-    token::{config_pda, rent_sponsor_pda, SystemAccountInfos},
+    instruction::{config_pda, rent_sponsor_pda, SystemAccountInfos},
 };
 
 /// Decompress a compressed mint to a Mint Solana account.
@@ -271,7 +271,7 @@ pub struct DecompressCMintWithCpiContext {
 impl DecompressCMintWithCpiContext {
     pub fn instruction(self) -> Result<Instruction, ProgramError> {
         // Derive Mint PDA
-        let (mint_pda, _cmint_bump) = crate::token::find_mint_address(&self.mint_seed_pubkey);
+        let (mint_pda, _cmint_bump) = crate::instruction::find_mint_address(&self.mint_seed_pubkey);
 
         // Build DecompressMintAction
         let action = DecompressMintAction {

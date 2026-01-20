@@ -3,11 +3,10 @@ use light_client::rpc::{Rpc, RpcError};
 use light_compressed_account::TreeType;
 use light_program_test::{
     accounts::test_keypairs::TestKeypairs, program_test::TestRpc,
-    utils::register_test_forester::register_test_forester,
+    utils::register_test_forester::register_test_forester, ForesterConfig,
 };
 use light_registry::{
     protocol_config::state::ProtocolConfig, sdk::create_finalize_registration_instruction,
-    ForesterConfig,
 };
 use solana_sdk::signature::Signer;
 

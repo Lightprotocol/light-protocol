@@ -43,11 +43,11 @@ use light_test_utils::{
     pack::pack_new_address_params_assigned, spl::create_mint_helper_with_keypair,
     system_program::create_invoke_instruction,
 };
+use light_token::compat::TokenDataWithMerkleContext;
 use light_token_client::actions::{
     create_compressible_token_account, CreateCompressibleTokenAccountInputs,
 };
 use light_token_interface::state::TokenDataVersion;
-use light_token_sdk::compat::TokenDataWithMerkleContext;
 use rand::{prelude::SliceRandom, rngs::StdRng, Rng, SeedableRng};
 use serial_test::serial;
 use solana_program::{native_token::LAMPORTS_PER_SOL, pubkey::Pubkey};

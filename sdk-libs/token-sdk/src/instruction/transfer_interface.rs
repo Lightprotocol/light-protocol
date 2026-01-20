@@ -89,7 +89,7 @@ pub struct SplInterfaceCpi<'info> {
 /// # Create a transfer interface instruction that auto-routes based on account types:
 /// ```rust
 /// # use solana_pubkey::Pubkey;
-/// # use light_token_sdk::token::{TransferInterface, SplInterface, LIGHT_TOKEN_PROGRAM_ID};
+/// # use light_token::instruction::{TransferInterface, SplInterface, LIGHT_TOKEN_PROGRAM_ID};
 /// # let source = Pubkey::new_unique();
 /// # let destination = Pubkey::new_unique();
 /// # let authority = Pubkey::new_unique();
@@ -221,7 +221,7 @@ impl<'info> From<&TransferInterfaceCpi<'info>> for TransferInterface {
 
 /// # Transfer interface via CPI (auto-detects account types):
 /// ```rust,no_run
-/// # use light_token_sdk::token::{TransferInterfaceCpi, SplInterfaceCpi};
+/// # use light_token::instruction::{TransferInterfaceCpi, SplInterfaceCpi};
 /// # use solana_account_info::AccountInfo;
 /// # let source_account: AccountInfo = todo!();
 /// # let destination_account: AccountInfo = todo!();

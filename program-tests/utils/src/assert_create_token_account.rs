@@ -1,6 +1,7 @@
 use light_client::rpc::Rpc;
 use light_compressible::{compression_info::CompressionInfo, rent::RentConfig};
 use light_program_test::LightProgramTest;
+use light_token::instruction::derive_token_ata;
 use light_token_interface::{
     state::{
         extensions::CompressibleExtension, token::Token, AccountState, ExtensionStruct,
@@ -9,7 +10,6 @@ use light_token_interface::{
     },
     BASE_TOKEN_ACCOUNT_SIZE,
 };
-use light_token_sdk::token::derive_token_ata;
 use light_zero_copy::traits::ZeroCopyAt;
 use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
 use spl_token_2022::{

@@ -142,14 +142,14 @@ where
                 }
             });
 
-        crate::token::CreateTokenAccountCpi {
+        crate::instruction::CreateTokenAccountCpi {
             payer: fee_payer.clone(),
             account: (*owner_info).clone(),
             mint: (*mint_info).clone(),
             owner: derived_authority_pda, // Use derived authority PDA (like cp-swap's vault_authority)
         }
         .invoke_signed_with(
-            crate::token::CompressibleParamsCpi {
+            crate::instruction::CompressibleParamsCpi {
                 compressible_config: token_config.clone(),
                 rent_sponsor: token_rent_sponsor.clone(),
                 system_program: cpi_accounts

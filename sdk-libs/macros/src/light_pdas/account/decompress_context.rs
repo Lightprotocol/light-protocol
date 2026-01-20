@@ -106,7 +106,7 @@ pub fn generate_decompress_context_trait_impl(
     Ok(quote! {
         impl<#lifetime> light_sdk::interface::DecompressContext<#lifetime> for DecompressAccountsIdempotent<#lifetime> {
             type CompressedData = LightAccountData;
-            type PackedTokenData = light_token_sdk::compat::PackedCTokenData<#packed_token_variant_ident>;
+            type PackedTokenData = light_token::compat::PackedCTokenData<#packed_token_variant_ident>;
             type CompressedMeta = light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;
             type SeedParams = SeedParams;
 
@@ -146,7 +146,7 @@ pub fn generate_decompress_context_trait_impl(
                 solana_accounts: &[solana_account_info::AccountInfo<#lifetime>],
                 seed_params: std::option::Option<&Self::SeedParams>,
             ) -> std::result::Result<(
-                Vec<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>,
+                Vec<::light_sdk::compressed_account::CompressedAccountInfo>,
                 Vec<(Self::PackedTokenData, Self::CompressedMeta)>,
             ), solana_program_error::ProgramError> {
                 solana_msg::msg!("collect_pda_and_token: start, {} accounts", compressed_accounts.len());
@@ -201,7 +201,7 @@ pub fn generate_decompress_context_trait_impl(
                 post_system_accounts: &[solana_account_info::AccountInfo<#lifetime>],
                 has_prior_context: bool,
             ) -> std::result::Result<(), solana_program_error::ProgramError> {
-                light_token_sdk::compressible::process_decompress_tokens_runtime(
+                light_token::compressible::process_decompress_tokens_runtime(
                     remaining_accounts,
                     fee_payer,
                     token_program,

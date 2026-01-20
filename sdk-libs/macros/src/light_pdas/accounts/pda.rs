@@ -82,8 +82,8 @@ impl<'a> PdaBlockBuilder<'a> {
                 // Explicit type annotation ensures clear error if wrong type is provided.
                 // Must be PackedAddressTreeInfo (with indices), not AddressTreeInfo (with Pubkeys).
                 // If you have AddressTreeInfo, pack it client-side using pack_address_tree_info().
-                let tree_info: &light_sdk_types::instruction::PackedAddressTreeInfo = &#addr_tree_info;
-                light_compressed_account::instruction_data::data::NewAddressParamsAssignedPacked {
+                let tree_info: &::light_sdk::sdk_types::PackedAddressTreeInfo = &#addr_tree_info;
+                ::light_sdk::compressed_account::NewAddressParamsAssignedPacked {
                     seed: #account_key,
                     address_merkle_tree_account_index: tree_info.address_merkle_tree_pubkey_index,
                     address_queue_account_index: tree_info.address_queue_pubkey_index,
@@ -101,7 +101,7 @@ impl<'a> PdaBlockBuilder<'a> {
         let new_addr_params = &self.idents.new_addr_params;
 
         quote! {
-            let #address = light_compressed_account::address::derive_address(
+            let #address = ::light_sdk::compressed_account::derive_address(
                 &#new_addr_params.seed,
                 &cpi_accounts
                     .get_tree_account_info(#new_addr_params.address_merkle_tree_account_index as usize)?

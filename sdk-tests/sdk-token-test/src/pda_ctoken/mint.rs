@@ -1,10 +1,10 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke};
 use light_sdk_types::cpi_accounts::v2::CpiAccounts;
+use light_token::compressed_token::{
+    ctoken_instruction::CTokenInstruction, mint_action::MintActionCpiAccounts,
+};
 use light_token_interface::instructions::mint_action::{
     MintActionCompressedInstructionData, MintToAction, MintToCompressedAction, UpdateAuthority,
-};
-use light_token_sdk::compressed_token::{
-    ctoken_instruction::CTokenInstruction, mint_action::MintActionCpiAccounts,
 };
 
 use super::{processor::ChainedCtokenInstructionData, PdaCToken};

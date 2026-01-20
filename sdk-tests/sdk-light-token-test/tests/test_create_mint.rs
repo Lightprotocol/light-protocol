@@ -5,15 +5,15 @@ mod shared;
 use borsh::BorshSerialize;
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
+use light_token::{
+    compressed_token::mint_action::MintActionMetaConfig,
+    instruction::{config_pda, rent_sponsor_pda},
+};
 use light_token_interface::{
     instructions::extensions::{
         token_metadata::TokenMetadataInstructionData, ExtensionInstructionData,
     },
     state::AdditionalMetadata,
-};
-use light_token_sdk::{
-    compressed_token::mint_action::MintActionMetaConfig,
-    token::{config_pda, rent_sponsor_pda},
 };
 use native_ctoken_examples::{CreateCmintData, ID, MINT_SIGNER_SEED};
 use solana_sdk::{
@@ -45,12 +45,12 @@ async fn test_create_compressed_mint() {
         Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
 
     // Use SDK helper to derive the compression address correctly
-    let compression_address = light_token_sdk::token::derive_mint_compressed_address(
+    let compression_address = light_token::instruction::derive_mint_compressed_address(
         &mint_signer.pubkey(),
         &address_tree.tree,
     );
 
-    let (mint_pda, mint_bump) = light_token_sdk::token::find_mint_address(&mint_signer.pubkey());
+    let (mint_pda, mint_bump) = light_token::instruction::find_mint_address(&mint_signer.pubkey());
 
     let rpc_result = rpc
         .get_validity_proof(
@@ -153,12 +153,12 @@ async fn test_create_compressed_mint_invoke_signed() {
         Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
 
     // Use SDK helper to derive the compression address correctly
-    let compression_address = light_token_sdk::token::derive_mint_compressed_address(
+    let compression_address = light_token::instruction::derive_mint_compressed_address(
         &mint_signer_pda,
         &address_tree.tree,
     );
 
-    let (mint_pda, mint_bump) = light_token_sdk::token::find_mint_address(&mint_signer_pda);
+    let (mint_pda, mint_bump) = light_token::instruction::find_mint_address(&mint_signer_pda);
 
     let rpc_result = rpc
         .get_validity_proof(
@@ -193,7 +193,7 @@ async fn test_create_compressed_mint_invoke_signed() {
     // Build accounts manually since SDK marks mint_signer as signer, but we need it as non-signer
     // for invoke_signed (the wrapper program signs via CPI)
     // Account order matches MintActionMetaConfig::to_account_metas() with mint_signer as non-signer
-    let system_accounts = light_token_sdk::token::SystemAccounts::default();
+    let system_accounts = light_token::instruction::SystemAccounts::default();
     let wrapper_accounts = vec![
         AccountMeta::new_readonly(compressed_token_program_id, false), // [0] compressed_token_program
         AccountMeta::new_readonly(system_accounts.light_system_program, false), // [1] light_system_program

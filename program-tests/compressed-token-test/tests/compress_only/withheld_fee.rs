@@ -10,6 +10,10 @@ use light_test_utils::{
     mint_2022::{create_mint_22_with_extension_types, create_token_22_account, mint_spl_tokens_22},
     Rpc, RpcError,
 };
+use light_token::{
+    instruction::{CompressibleParams, CreateTokenAccount, TransferFromSpl},
+    spl_interface::find_spl_interface_pda_with_index,
+};
 use light_token_client::instructions::transfer2::{
     create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,
 };
@@ -19,10 +23,6 @@ use light_token_interface::{
         CompressedOnlyExtension, CompressedTokenAccountState, ExtensionStruct, Token, TokenData,
         TokenDataVersion,
     },
-};
-use light_token_sdk::{
-    spl_interface::find_spl_interface_pda_with_index,
-    token::{CompressibleParams, CreateTokenAccount, TransferFromSpl},
 };
 use serial_test::serial;
 use solana_sdk::{signature::Keypair, signer::Signer};

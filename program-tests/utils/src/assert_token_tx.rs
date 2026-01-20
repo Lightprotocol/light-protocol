@@ -4,7 +4,7 @@ use light_compressed_account::compressed_account::CompressedAccountWithMerkleCon
 use light_compressed_token::process_transfer::{get_cpi_authority_pda, TokenTransferOutputData};
 use light_event::event::PublicTransactionEvent;
 use light_program_test::indexer::TestIndexerExtensions;
-use light_token_sdk::compat::TokenDataWithMerkleContext;
+use light_token::compat::TokenDataWithMerkleContext;
 use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
 
 use crate::assert_compressed_tx::{

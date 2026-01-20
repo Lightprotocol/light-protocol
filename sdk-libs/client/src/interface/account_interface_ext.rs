@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use borsh::BorshDeserialize as _;
 use light_compressed_account::address::derive_address;
+use light_token::instruction::derive_token_ata;
 use light_token_interface::{state::Mint, MINT_ADDRESS_TREE};
-use light_token_sdk::token::derive_token_ata;
 use solana_pubkey::Pubkey;
 
 use super::{AccountInterface, AccountToFetch, MintInterface, MintState, TokenAccountInterface};

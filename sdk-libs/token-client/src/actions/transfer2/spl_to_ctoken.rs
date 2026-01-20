@@ -2,8 +2,9 @@ use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
-use light_token_sdk::{
-    constants::SPL_TOKEN_PROGRAM_ID, spl_interface::find_spl_interface_pda, token::TransferFromSpl,
+use light_token::{
+    constants::SPL_TOKEN_PROGRAM_ID, instruction::TransferFromSpl,
+    spl_interface::find_spl_interface_pda,
 };
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;

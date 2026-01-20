@@ -26,7 +26,7 @@ light-zero-copy = { workspace = true }
 light-hasher = { workspace = true, features = ["poseidon"] }
 light-compressed-account = { workspace = true, features = ["std"] }
 light-compressed-token = { workspace = true }
-light-token-sdk = { workspace = true }
+light-token = { workspace = true }
 light-indexed-array = { workspace = true }
 light-merkle-tree-reference = { workspace = true }
 light-macros = { workspace = true }

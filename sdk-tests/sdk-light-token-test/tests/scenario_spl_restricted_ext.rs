@@ -18,12 +18,12 @@ use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestCon
 use light_test_utils::mint_2022::{
     create_mint_22_with_extensions, create_token_22_account, mint_spl_tokens_22,
 };
-use light_token_sdk::{
-    spl_interface::find_spl_interface_pda_with_index,
-    token::{
+use light_token::{
+    instruction::{
         derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount, Decompress,
         TransferFromSpl,
     },
+    spl_interface::find_spl_interface_pda_with_index,
 };
 use solana_sdk::{signature::Keypair, signer::Signer};
 use spl_token_2022::pod::PodAccount;

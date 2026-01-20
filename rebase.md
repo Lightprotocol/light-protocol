@@ -9,7 +9,7 @@ Rebasing `swen/clean-decompress-base` onto `main`.
 ### 1. Package Renames
 
 - `ctoken-sdk` → `token-sdk`
-- `light_token_sdk` → `light_token_sdk`
+- `light_token` → `light_token`
 - `ctoken` module → `token` module in APIs
 - `sdk-ctoken-test` → `sdk-light-token-test`
 - `light_token_interface` → `light_token_interface`
@@ -36,21 +36,21 @@ Main deleted these that HEAD modified:
 
 1. **sdk-libs/macros/src/compressible/instructions.rs**
    - Keep user's Phase 8 changes (simplified API)
-   - Use main's naming (`light_token_sdk` not `light_token_sdk`)
+   - Use main's naming (`light_token` not `light_token`)
    - Resolution: Take HEAD's code, update package names to main's convention
 
 2. **sdk-libs/macros/src/compressible/decompress_context.rs**
    - Keep user's `RentFreeAccountData` naming
-   - Use `light_token_sdk::compat::PackedCTokenData` (main's package name)
+   - Use `light_token::compat::PackedCTokenData` (main's package name)
    - Fix trait method naming to match
 
 3. **sdk-libs/macros/src/compressible/seed_providers.rs**
    - Keep user's Phase 8 implementation (simpler trait)
-   - Update imports to `light_token_sdk`
+   - Update imports to `light_token`
 
 4. **sdk-libs/macros/src/compressible/variant_enum.rs**
    - Keep user's variant structure with idx fields
-   - Use `light_token_sdk::compat::*` imports
+   - Use `light_token::compat::*` imports
 
 5. **sdk-libs/sdk/src/compressible/decompress_runtime.rs**
    - Keep user's simplified `TokenSeedProvider` trait (no accounts struct)
@@ -85,7 +85,7 @@ Main deleted these that HEAD modified:
 
 ### Test Files
 
-- **csdk-anchor-full-derived-test** - Keep user's changes, update imports to `light_token_sdk` → `light_token_sdk`
+- **csdk-anchor-full-derived-test** - Keep user's changes, update imports to `light_token` → `light_token`
 
 ## Confidence Level
 

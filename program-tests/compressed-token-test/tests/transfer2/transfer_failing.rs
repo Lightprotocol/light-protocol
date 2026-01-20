@@ -10,12 +10,7 @@ use light_program_test::{
 };
 use light_sdk::instruction::PackedAccounts;
 use light_test_utils::{airdrop_lamports, RpcError};
-use light_token_client::actions::{create_mint, mint_to_compressed, transfer2::approve};
-use light_token_interface::{
-    instructions::{mint_action::Recipient, transfer2::MultiInputTokenDataWithContext},
-    state::TokenDataVersion,
-};
-use light_token_sdk::{
+use light_token::{
     compressed_token::{
         transfer2::{
             account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction,
@@ -24,6 +19,11 @@ use light_token_sdk::{
         CTokenAccount2,
     },
     ValidityProof,
+};
+use light_token_client::actions::{create_mint, mint_to_compressed, transfer2::approve};
+use light_token_interface::{
+    instructions::{mint_action::Recipient, transfer2::MultiInputTokenDataWithContext},
+    state::TokenDataVersion,
 };
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 // ============================================================================
@@ -72,7 +72,7 @@ async fn setup_transfer_test(
     )
     .await?;
 
-    let mint = light_token_sdk::compressed_token::create_compressed_mint::find_mint_address(
+    let mint = light_token::compressed_token::create_compressed_mint::find_mint_address(
         &mint_seed.pubkey(),
     )
     .0;
@@ -683,7 +683,7 @@ async fn setup_transfer_test_with_delegate(
     )
     .await?;
 
-    let mint = light_token_sdk::compressed_token::create_compressed_mint::find_mint_address(
+    let mint = light_token::compressed_token::create_compressed_mint::find_mint_address(
         &mint_seed.pubkey(),
     )
     .0;

@@ -1,35 +1,27 @@
-#[cfg(feature = "devenv")]
 use std::collections::HashMap;
 
-#[cfg(feature = "devenv")]
-use anchor_lang::pubkey;
-#[cfg(feature = "devenv")]
 use borsh::BorshDeserialize;
-#[cfg(feature = "devenv")]
 use light_client::rpc::{Rpc, RpcError};
-#[cfg(feature = "devenv")]
-use light_compressible::compression_info::CompressionInfo;
-#[cfg(feature = "devenv")]
-use light_compressible::config::CompressibleConfig as CtokenCompressibleConfig;
-#[cfg(feature = "devenv")]
-use light_compressible::rent::RentConfig;
-#[cfg(feature = "devenv")]
-use light_compressible::rent::SLOTS_PER_EPOCH;
-#[cfg(feature = "devenv")]
+use light_compressible::{
+    compression_info::CompressionInfo,
+    config::CompressibleConfig as CtokenCompressibleConfig,
+    rent::{RentConfig, SLOTS_PER_EPOCH},
+};
 use light_sdk::interface::LightConfig;
-#[cfg(feature = "devenv")]
-use light_token_interface::state::{Mint, Token, ACCOUNT_TYPE_MINT, ACCOUNT_TYPE_TOKEN_ACCOUNT};
-#[cfg(feature = "devenv")]
+use light_token_interface::{
+    state::{Mint, Token, ACCOUNT_TYPE_MINT, ACCOUNT_TYPE_TOKEN_ACCOUNT},
+    LIGHT_TOKEN_PROGRAM_ID,
+};
 use solana_pubkey::Pubkey;
 
-#[cfg(feature = "devenv")]
-use crate::{litesvm_extensions::LiteSvmExtensions, LightProgramTest};
+use crate::{
+    litesvm_extensions::LiteSvmExtensions, registry_sdk::REGISTRY_PROGRAM_ID, LightProgramTest,
+};
 
 /// Determines account type from account data.
 /// - If account is exactly 165 bytes: Token (legacy size without extensions)
 /// - If account is > 165 bytes: read byte 165 for discriminator
 /// - If account is < 165 bytes: invalid (returns None)
-#[cfg(feature = "devenv")]
 fn determine_account_type(data: &[u8]) -> Option<u8> {
     const ACCOUNT_TYPE_OFFSET: usize = 165;
 
@@ -42,7 +34,6 @@ fn determine_account_type(data: &[u8]) -> Option<u8> {
 
 /// Extracts CompressionInfo, account type, and compression_only from account data.
 /// Returns (CompressionInfo, account_type, compression_only) or None if parsing fails.
-#[cfg(feature = "devenv")]
 fn extract_compression_info(data: &[u8]) -> Option<(CompressionInfo, u8, bool)> {
     use light_zero_copy::traits::ZeroCopyAt;
 
@@ -83,10 +74,8 @@ fn extract_compression_info(data: &[u8]) -> Option<(CompressionInfo, u8, bool)> 
     }
 }
 
-#[cfg(feature = "devenv")]
 pub type CompressibleAccountStore = HashMap<Pubkey, StoredCompressibleAccount>;
 
-#[cfg(feature = "devenv")]
 #[derive(Eq, Hash, PartialEq)]
 pub struct StoredCompressibleAccount {
     pub pubkey: Pubkey,
@@ -98,7 +87,6 @@ pub struct StoredCompressibleAccount {
     pub compression_only: bool,
 }
 
-#[cfg(feature = "devenv")]
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct FundingPoolConfig {
     pub compressible_config_pda: Pubkey,
@@ -109,7 +97,6 @@ pub struct FundingPoolConfig {
     pub rent_sponsor_pda_bump: u8,
 }
 
-#[cfg(feature = "devenv")]
 impl FundingPoolConfig {
     pub fn new(version: u16) -> Self {
         let config = CtokenCompressibleConfig::new_light_token(
@@ -119,11 +106,8 @@ impl FundingPoolConfig {
             Pubkey::default(),
             RentConfig::default(),
         );
-        let compressible_config = CtokenCompressibleConfig::derive_pda(
-            &pubkey!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX"),
-            version,
-        )
-        .0;
+        let compressible_config =
+            CtokenCompressibleConfig::derive_pda(&REGISTRY_PROGRAM_ID, version).0;
         Self {
             compressible_config_pda: compressible_config,
             rent_sponsor_pda: config.rent_sponsor,
@@ -138,7 +122,6 @@ impl FundingPoolConfig {
     }
 }
 
-#[cfg(feature = "devenv")]
 pub async fn claim_and_compress(
     rpc: &mut LightProgramTest,
     stored_compressible_accounts: &mut CompressibleAccountStore,
@@ -151,7 +134,7 @@ pub async fn claim_and_compress(
     // Get all compressible token/mint accounts (both Token and Mint)
     let compressible_ctoken_accounts = rpc
         .context
-        .get_program_accounts(&light_compressed_token::ID);
+        .get_program_accounts(&Pubkey::from(LIGHT_TOKEN_PROGRAM_ID));
 
     // CToken base accounts are 165 bytes, filter above that to exclude empty/minimal accounts
     for account in compressible_ctoken_accounts
@@ -278,7 +261,6 @@ pub async fn claim_and_compress(
     Ok(())
 }
 
-#[cfg(feature = "devenv")]
 pub async fn auto_compress_program_pdas(
     rpc: &mut LightProgramTest,
     program_id: Pubkey,
@@ -339,7 +321,6 @@ pub async fn auto_compress_program_pdas(
     Ok(())
 }
 
-#[cfg(feature = "devenv")]
 async fn try_compress_chunk(
     rpc: &mut LightProgramTest,
     program_id: &Pubkey,
@@ -402,7 +383,6 @@ async fn try_compress_chunk(
 
 /// Compress and close a Mint account via mint_action instruction.
 /// Mint uses MintAction::CompressAndCloseMint flow instead of registry compress_and_close.
-#[cfg(feature = "devenv")]
 async fn compress_mint_forester(
     rpc: &mut LightProgramTest,
     mint_pubkey: Pubkey,
@@ -411,13 +391,10 @@ async fn compress_mint_forester(
     use light_client::indexer::Indexer;
     use light_compressed_account::instruction_data::traits::LightInstructionData;
     use light_compressible::config::CompressibleConfig;
-    use light_token_interface::{
-        instructions::mint_action::{
-            CompressAndCloseMintAction, MintActionCompressedInstructionData, MintWithContext,
-        },
-        LIGHT_TOKEN_PROGRAM_ID,
+    use light_token::compressed_token::mint_action::MintActionMetaConfig;
+    use light_token_interface::instructions::mint_action::{
+        CompressAndCloseMintAction, MintActionCompressedInstructionData, MintWithContext,
     };
-    use light_token_sdk::compressed_token::mint_action::MintActionMetaConfig;
     use solana_sdk::signature::Signer;
 
     // Get Mint account data

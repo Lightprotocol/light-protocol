@@ -10,11 +10,13 @@ use light_test_utils::{
     mint_2022::{create_token_22_account, mint_spl_tokens_22},
     Rpc,
 };
-use light_token_interface::state::TokenDataVersion;
-use light_token_sdk::{
+use light_token::{
+    instruction::{
+        CompressibleParams, CreateTokenAccount, Transfer, TransferChecked, TransferFromSpl,
+    },
     spl_interface::find_spl_interface_pda_with_index,
-    token::{CompressibleParams, CreateTokenAccount, Transfer, TransferChecked, TransferFromSpl},
 };
+use light_token_interface::state::TokenDataVersion;
 use serial_test::serial;
 use solana_sdk::{native_token::LAMPORTS_PER_SOL, signature::Keypair, signer::Signer};
 

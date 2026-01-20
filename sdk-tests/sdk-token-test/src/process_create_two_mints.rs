@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
-use light_token_sdk::{
-    token::{create_mints, CreateMintsParams as SdkCreateMintsParams, SingleMintParams},
+use light_token::{
+    instruction::{create_mints, CreateMintsParams as SdkCreateMintsParams, SingleMintParams},
     CompressedProof,
 };
 

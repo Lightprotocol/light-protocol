@@ -8,8 +8,8 @@
 //! - `solana_account::Account` for raw account data
 //! - `spl_token_2022_interface::pod::PodAccount` for parsed token data
 
+use light_token::instruction::derive_token_ata;
 use light_token_interface::state::ExtensionStruct;
-use light_token_sdk::token::derive_token_ata;
 use solana_account::Account;
 use solana_pubkey::Pubkey;
 use spl_pod::{
@@ -94,7 +94,7 @@ impl AccountInterface {
         compressed: CompressedTokenAccount,
         wallet_owner: Pubkey,
     ) -> Self {
-        use light_token_sdk::compat::AccountState as LightAccountState;
+        use light_token::compat::AccountState as LightAccountState;
         let token = &compressed.token;
         let parsed = PodAccount {
             mint: token.mint,
@@ -119,7 +119,7 @@ impl AccountInterface {
             account: Account {
                 lamports: compressed.account.lamports,
                 data,
-                owner: light_token_sdk::token::LIGHT_TOKEN_PROGRAM_ID,
+                owner: light_token::instruction::LIGHT_TOKEN_PROGRAM_ID,
                 executable: false,
                 rent_epoch: 0,
             },
@@ -265,7 +265,7 @@ impl TokenAccountInterface {
         owner_override: Pubkey,
         program_owner: Pubkey,
     ) -> Self {
-        use light_token_sdk::compat::AccountState as LightAccountState;
+        use light_token::compat::AccountState as LightAccountState;
 
         let token = &compressed.token;
 

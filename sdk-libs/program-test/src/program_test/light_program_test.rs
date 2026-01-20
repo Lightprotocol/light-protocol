@@ -33,7 +33,6 @@ pub struct LightProgramTest {
     pub test_accounts: TestAccounts,
     pub payer: Keypair,
     pub transaction_counter: usize,
-    #[cfg(feature = "devenv")]
     pub auto_mine_cold_state_programs: Vec<solana_sdk::pubkey::Pubkey>,
 }
 
@@ -79,7 +78,6 @@ impl LightProgramTest {
             payer,
             config: config.clone(),
             transaction_counter: 0,
-            #[cfg(feature = "devenv")]
             auto_mine_cold_state_programs: Vec::new(),
         };
         let keypairs = TestKeypairs::program_test_default();
@@ -359,11 +357,29 @@ impl LightProgramTest {
                 })?;
             }
 
+            // Set up protocol config and forester accounts for compress/close operations
+            // This must come AFTER loading JSON accounts to avoid being overwritten
+            crate::registry_sdk::setup_test_protocol_accounts(
+                &mut context.context,
+                &keypairs.forester.pubkey(),
+            )
+            .map_err(|e| RpcError::CustomError(e))?;
+
             // Initialize indexer with extracted batch size
             let test_accounts = context.test_accounts.clone();
             context
                 .add_indexer(&test_accounts, Some(batch_size))
                 .await?;
+
+            // Register additional programs for auto-compression of their PDAs
+            // In non-devenv mode, always register since we can't configure otherwise
+            if let Some(programs) = context.config.additional_programs.clone() {
+                for (_, pid) in programs.into_iter() {
+                    if !context.auto_mine_cold_state_programs.contains(&pid) {
+                        context.auto_mine_cold_state_programs.push(pid);
+                    }
+                }
+            }
         }
 
         // reset tx counter after program setup.

@@ -131,7 +131,8 @@ bs58 = "^0.5.1"
 litesvm = "0.7"
 # Anchor
 anchor-lang = { version = "0.31.1" }
-anchor-spl = "0.31.1"
+anchor-spl = { version = "0.31.1" }
+light-anchor-spl = { version = "0.31.1", features = ["idl-build", "memo"] }
 
 # Anchor compatibility
 borsh = { version = "0.10.4", default-features = false }
@@ -204,7 +205,7 @@ light-compressed-token = { path = "programs/compressed-token/program", version =
     "cpi",
 ] }
 light-token-types = { path = "sdk-libs/token-types", version = "0.2.1" }
-light-token-sdk = { path = "sdk-libs/token-sdk", version = "0.2.1" }
+light-token = { path = "sdk-libs/token-sdk", version = "0.2.1" }
 light-token-client = { path = "sdk-libs/token-client", version = "0.1.0" }
 light-system-program-anchor = { path = "anchor-programs/system", version = "2.0.0", features = [
     "cpi",

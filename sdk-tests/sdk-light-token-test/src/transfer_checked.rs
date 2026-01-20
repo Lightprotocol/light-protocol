@@ -1,5 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_token_sdk::token::TransferCheckedCpi;
+use light_token::instruction::TransferCheckedCpi;
 use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 use crate::{ID, TOKEN_ACCOUNT_SEED};

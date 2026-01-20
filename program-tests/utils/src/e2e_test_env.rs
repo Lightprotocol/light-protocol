@@ -134,6 +134,7 @@ use light_program_test::{
     },
     program_test::{LightProgramTest, TestRpc},
     utils::register_test_forester::register_test_forester,
+    ForesterConfig,
 };
 use light_prover_client::{
     constants::{PROVE_PATH, SERVER_ADDRESS},
@@ -145,7 +146,6 @@ use light_registry::{
     protocol_config::state::{ProtocolConfig, ProtocolConfigPda},
     sdk::create_finalize_registration_instruction,
     utils::get_protocol_config_pda_address,
-    ForesterConfig,
 };
 use light_sdk::{
     address::NewAddressParamsAssignedPacked,
@@ -154,7 +154,7 @@ use light_sdk::{
 use light_sparse_merkle_tree::{
     changelog::ChangelogEntry, indexed_changelog::IndexedChangelogEntry, SparseMerkleTree,
 };
-use light_token_sdk::compat::{AccountState, TokenDataWithMerkleContext};
+use light_token::compat::{AccountState, TokenDataWithMerkleContext};
 use log::info;
 use num_bigint::{BigUint, RandBigInt};
 use num_traits::Num;

@@ -585,7 +585,7 @@ async fn test_ctoken_transfer_max_top_up_exceeded() {
 // Transfer Checked Helper Functions
 // ============================================================================
 
-use light_token_sdk::token::TransferChecked;
+use light_token::instruction::TransferChecked;
 
 /// Setup context with two token accounts for transfer_checked tests using a real SPL Token mint
 async fn setup_transfer_checked_test_with_spl_mint(

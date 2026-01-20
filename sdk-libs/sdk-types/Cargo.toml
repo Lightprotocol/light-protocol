@@ -7,11 +7,12 @@ repository = "https://github.com/lightprotocol/light-protocol"
 description = "Core types for Light Protocol SDK"
 
 [features]
-default = ["std"]
+default = ["std", "v2"]
 std = ["alloc", "light-compressed-account/std", "solana-msg"]
 alloc = ["light-compressed-account/alloc"]
 keccak = ["light-hasher/keccak"]
 anchor = ["anchor-lang", "light-compressed-account/anchor"]
+idl-build = ["anchor-lang/idl-build", "anchor"]
 v2 = []
 cpi-context = []
 poseidon = ["light-hasher/poseidon", "light-compressed-account/poseidon"]

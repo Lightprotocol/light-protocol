@@ -341,7 +341,7 @@ fn codegen(
             write_top_up: u32,
             rent_sponsor: Pubkey,
             compression_authority: Pubkey,
-            rent_config: light_compressible::rent::RentConfig,
+            rent_config: ::light_sdk::interface::rent::RentConfig,
             address_space: Vec<Pubkey>,
         ) -> Result<()> {
             light_sdk::interface::process_initialize_light_config_checked(
@@ -369,7 +369,7 @@ fn codegen(
             ctx: Context<'_, '_, '_, 'info, UpdateCompressionConfig<'info>>,
             new_rent_sponsor: Option<Pubkey>,
             new_compression_authority: Option<Pubkey>,
-            new_rent_config: Option<light_compressible::rent::RentConfig>,
+            new_rent_config: Option<::light_sdk::interface::rent::RentConfig>,
             new_write_top_up: Option<u32>,
             new_address_space: Option<Vec<Pubkey>>,
             new_update_authority: Option<Pubkey>,

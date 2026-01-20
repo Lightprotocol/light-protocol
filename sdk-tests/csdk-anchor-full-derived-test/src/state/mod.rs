@@ -5,8 +5,8 @@ use light_sdk::{
     compressible::CompressionInfo, instruction::PackedAddressTreeInfo, LightDiscriminator,
 };
 use light_sdk_macros::LightAccount;
+use light_token::ValidityProof;
 use light_token_interface::instructions::mint_action::MintWithContext;
-use light_token_sdk::ValidityProof;
 
 // Test modules
 pub mod d1_field_types;

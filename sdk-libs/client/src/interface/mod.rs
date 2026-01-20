@@ -27,7 +27,7 @@ pub use light_program_interface::{
     ColdContext, LightProgramInterface, PdaSpec,
 };
 pub use light_sdk::interface::config::LightConfig;
-pub use light_token_sdk::compat::TokenData;
+pub use light_token::compat::TokenData;
 pub use load_accounts::{create_load_instructions, LoadAccountsError};
 pub use pack::{pack_proof, PackError, PackedProofResult};
 pub use solana_account::Account;

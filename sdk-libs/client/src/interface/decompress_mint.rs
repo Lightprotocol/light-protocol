@@ -2,12 +2,12 @@
 
 use borsh::BorshDeserialize;
 use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
+use light_token::instruction::{derive_mint_compressed_address, DecompressMint};
 use light_token_interface::{
     instructions::mint_action::{MintInstructionData, MintWithContext},
     state::Mint,
     MINT_ADDRESS_TREE,
 };
-use light_token_sdk::token::{derive_mint_compressed_address, DecompressMint};
 use solana_account::Account;
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
@@ -98,7 +98,7 @@ impl MintInterface {
 }
 
 pub const DEFAULT_RENT_PAYMENT: u8 = 2;
-pub const DEFAULT_WRITE_TOP_UP: u32 = 766;
+pub const DEFAULT_WRITE_TOP_UP: u32 = 0;
 
 /// Builds load instruction for a cold mint. Returns empty vec if already hot.
 pub fn build_decompress_mint(

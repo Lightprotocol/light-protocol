@@ -27,16 +27,16 @@ use light_registry::accounts::{
 use light_test_utils::{
     airdrop_lamports, assert_claim::assert_claim, spl::create_mint_helper, Rpc, RpcError,
 };
+use light_token::{
+    compressed_token::create_compressed_mint::find_mint_address,
+    instruction::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount, MintTo},
+};
 use light_token_client::{
     actions::{
         create_compressible_token_account, mint_action_comprehensive, transfer,
         CreateCompressibleTokenAccountInputs,
     },
     instructions::mint_action::{DecompressMintParams, NewMint},
-};
-use light_token_sdk::{
-    compressed_token::create_compressed_mint::find_mint_address,
-    token::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount, MintTo},
 };
 use solana_sdk::{
     instruction::Instruction,

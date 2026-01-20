@@ -21,11 +21,11 @@ use light_program_test::{
     program_test::TestRpc, utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig,
 };
 use light_test_utils::assert_ctoken_burn::assert_ctoken_burn;
-use light_token_client::instructions::mint_action::DecompressMintParams;
-use light_token_sdk::{
+use light_token::{
     compressed_token::create_compressed_mint::find_mint_address,
-    token::{derive_token_ata, Burn, CreateAssociatedTokenAccount, MintTo},
+    instruction::{derive_token_ata, Burn, CreateAssociatedTokenAccount, MintTo},
 };
+use light_token_client::instructions::mint_action::DecompressMintParams;
 
 use super::shared::*;
 
@@ -397,7 +397,7 @@ async fn setup_burn_test() -> BurnTestContext {
 // Burn Checked Tests
 // ============================================================================
 
-use light_token_sdk::token::BurnChecked;
+use light_token::instruction::BurnChecked;
 
 /// MintDecimalsMismatch error code (SplMintDecimalsMismatch = 6166)
 const MINT_DECIMALS_MISMATCH: u32 = 6166;

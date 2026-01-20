@@ -4,21 +4,21 @@ use anchor_lang::{
 };
 use light_program_test::{Indexer, LightProgramTest, ProgramTestConfig, Rpc};
 use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
+use light_token::{
+    compressed_token::{
+        create_compressed_mint::{create_compressed_mint, CreateMintInputs},
+        mint_to_compressed::{create_mint_to_compressed_instruction, MintToCompressedInputs},
+    },
+    instruction::{
+        config_pda, derive_token_ata, rent_sponsor_pda, CompressibleParams,
+        CreateAssociatedTokenAccount,
+    },
+};
 use light_token_client::instructions::transfer2::create_decompress_instruction;
 use light_token_interface::{
     instructions::mint_action::{MintWithContext, Recipient},
     state::{BaseMint, Mint, MintMetadata, TokenDataVersion, ACCOUNT_TYPE_MINT},
     COMPRESSED_MINT_SEED, LIGHT_TOKEN_PROGRAM_ID,
-};
-use light_token_sdk::{
-    compressed_token::{
-        create_compressed_mint::{create_compressed_mint, CreateMintInputs},
-        mint_to_compressed::{create_mint_to_compressed_instruction, MintToCompressedInputs},
-    },
-    token::{
-        config_pda, derive_token_ata, rent_sponsor_pda, CompressibleParams,
-        CreateAssociatedTokenAccount,
-    },
 };
 use sdk_token_test::instruction;
 use serial_test::serial;

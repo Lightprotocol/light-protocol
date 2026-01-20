@@ -160,6 +160,33 @@ pub use interface as compressible;
 #[cfg(feature = "merkle-tree")]
 pub mod merkle_tree;
 
+// Re-export hasher types for macro-generated code
+pub mod hasher {
+    pub use light_hasher::{
+        errors, hash_to_field_size, sha256, to_byte_array, DataHasher, Hasher, HasherError,
+        Poseidon, Sha256,
+    };
+}
+
+// Re-export compressed_account types for macro-generated code
+pub mod compressed_account {
+    pub use light_compressed_account::{
+        address::derive_address,
+        instruction_data::{
+            data::NewAddressParamsAssignedPacked, with_account_info::CompressedAccountInfo,
+        },
+    };
+}
+
+// Re-export sdk_types for macro-generated code
+pub mod sdk_types {
+    #[cfg(feature = "cpi-context")]
+    pub use light_sdk_types::cpi_context_write::CpiContextWriteAccounts;
+    pub use light_sdk_types::{
+        cpi_accounts::CpiAccountsConfig, instruction::PackedAddressTreeInfo, RentSponsor,
+    };
+}
+
 #[cfg(feature = "anchor")]
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
@@ -171,7 +198,8 @@ pub use interface::{
     MAX_ADDRESS_TREES_PER_SPACE,
 };
 pub use light_account_checks::{self, discriminator::Discriminator as LightDiscriminator};
-pub use light_hasher;
+// Re-export as extern crate so downstream crates can use `::light_hasher::` paths
+pub extern crate light_hasher;
 #[cfg(feature = "poseidon")]
 use light_hasher::DataHasher;
 pub use light_macros::{derive_light_cpi_signer, derive_light_cpi_signer_pda};

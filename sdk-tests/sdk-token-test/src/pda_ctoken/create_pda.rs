@@ -7,7 +7,7 @@ use light_sdk::{
     },
 };
 use light_sdk_types::cpi_context_write::CpiContextWriteAccounts;
-use light_token_sdk::ValidityProof;
+use light_token::ValidityProof;
 
 use crate::{process_update_deposit::CompressedEscrowPda, LIGHT_CPI_SIGNER};
 

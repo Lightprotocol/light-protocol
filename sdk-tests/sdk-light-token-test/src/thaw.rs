@@ -1,4 +1,4 @@
-use light_token_sdk::token::ThawCpi;
+use light_token::instruction::ThawCpi;
 use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 use crate::{FREEZE_AUTHORITY_SEED, ID};

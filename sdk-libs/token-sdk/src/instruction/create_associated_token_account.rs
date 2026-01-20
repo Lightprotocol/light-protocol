@@ -59,7 +59,7 @@ pub fn create_compressible_associated_token_account_idempotent(
 pub fn create_compressible_associated_token_account_with_mode<const IDEMPOTENT: bool>(
     inputs: CreateCompressibleAssociatedTokenAccountInputs,
 ) -> Result<Instruction> {
-    let (ata_pubkey, bump) = derive_token_ata(&inputs.owner, &inputs.mint);
+    let (ata_pubkey, bump) = derive_associated_token_account(&inputs.owner, &inputs.mint);
     create_compressible_associated_token_account_with_bump_and_mode::<IDEMPOTENT>(
         inputs, ata_pubkey, bump,
     )
@@ -122,7 +122,7 @@ pub fn create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
     owner: Pubkey,
     mint: Pubkey,
 ) -> Result<Instruction> {
-    let (ata_pubkey, bump) = derive_token_ata(&owner, &mint);
+    let (ata_pubkey, bump) = derive_associated_token_account(&owner, &mint);
     create_associated_token_account_with_bump_and_mode::<IDEMPOTENT>(
         payer, owner, mint, ata_pubkey, bump,
     )
@@ -227,7 +227,7 @@ fn create_ata_instruction_unified<const IDEMPOTENT: bool, const COMPRESSIBLE: bo
     })
 }
 
-pub fn derive_token_ata(owner: &Pubkey, mint: &Pubkey) -> (Pubkey, u8) {
+pub fn derive_associated_token_account(owner: &Pubkey, mint: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(
         &[
             owner.as_ref(),
@@ -262,7 +262,7 @@ pub fn create_compressible_associated_token_account2_idempotent(
 fn create_compressible_associated_token_account2_with_mode<const IDEMPOTENT: bool>(
     inputs: CreateCompressibleAssociatedTokenAccountInputs,
 ) -> Result<Instruction> {
-    let (ata_pubkey, bump) = derive_token_ata(&inputs.owner, &inputs.mint);
+    let (ata_pubkey, bump) = derive_associated_token_account(&inputs.owner, &inputs.mint);
     create_compressible_associated_token_account2_with_bump_and_mode::<IDEMPOTENT>(
         inputs, ata_pubkey, bump,
     )
@@ -316,7 +316,7 @@ fn create_associated_token_account2_with_mode<const IDEMPOTENT: bool>(
     owner: Pubkey,
     mint: Pubkey,
 ) -> Result<Instruction> {
-    let (ata_pubkey, bump) = derive_token_ata(&owner, &mint);
+    let (ata_pubkey, bump) = derive_associated_token_account(&owner, &mint);
     create_associated_token_account2_with_bump_and_mode::<IDEMPOTENT>(
         payer, owner, mint, ata_pubkey, bump,
     )

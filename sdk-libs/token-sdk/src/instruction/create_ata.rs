@@ -9,12 +9,12 @@ use solana_instruction::{AccountMeta, Instruction};
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-use crate::token::{compressible::CompressibleParamsCpi, CompressibleParams};
+use crate::instruction::{compressible::CompressibleParamsCpi, CompressibleParams};
 
 const CREATE_ATA_DISCRIMINATOR: u8 = 100;
 const CREATE_ATA_IDEMPOTENT_DISCRIMINATOR: u8 = 102;
 
-pub fn derive_token_ata(owner: &Pubkey, mint: &Pubkey) -> (Pubkey, u8) {
+pub fn derive_associated_token_account(owner: &Pubkey, mint: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(
         &[
             owner.as_ref(),
@@ -28,7 +28,7 @@ pub fn derive_token_ata(owner: &Pubkey, mint: &Pubkey) -> (Pubkey, u8) {
 /// # Create an associated ctoken account instruction:
 /// ```rust
 /// # use solana_pubkey::Pubkey;
-/// # use light_token_sdk::token::CreateAssociatedTokenAccount;
+/// # use light_token::instruction::CreateAssociatedTokenAccount;
 /// # let payer = Pubkey::new_unique();
 /// # let owner = Pubkey::new_unique();
 /// # let mint = Pubkey::new_unique();
@@ -50,7 +50,7 @@ pub struct CreateAssociatedTokenAccount {
 
 impl CreateAssociatedTokenAccount {
     pub fn new(payer: Pubkey, owner: Pubkey, mint: Pubkey) -> Self {
-        let (ata, bump) = derive_token_ata(&owner, &mint);
+        let (ata, bump) = derive_associated_token_account(&owner, &mint);
         Self {
             payer,
             owner,

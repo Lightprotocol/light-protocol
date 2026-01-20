@@ -1,10 +1,10 @@
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{assert_ctoken_mint_to::assert_ctoken_mint_to, Rpc};
-use light_token_client::instructions::mint_action::DecompressMintParams;
-use light_token_sdk::{
+use light_token::{
     compressed_token::create_compressed_mint::find_mint_address,
-    token::{derive_token_ata, CreateAssociatedTokenAccount, MintTo},
+    instruction::{derive_token_ata, CreateAssociatedTokenAccount, MintTo},
 };
+use light_token_client::instructions::mint_action::DecompressMintParams;
 use serial_test::serial;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 
@@ -153,7 +153,7 @@ async fn test_ctoken_mint_to() {
 // MintTo Checked Tests
 // ============================================================================
 
-use light_token_sdk::token::MintToChecked;
+use light_token::instruction::MintToChecked;
 
 #[tokio::test]
 #[serial]

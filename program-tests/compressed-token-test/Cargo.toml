@@ -46,7 +46,7 @@ serial_test = { workspace = true }
 light-token-interface = { workspace = true }
 light-token-client = { workspace = true }
 light-compressible = { workspace = true }
-light-token-sdk = { workspace = true }
+light-token = { workspace = true }
 spl-token-2022 = { workspace = true }
 spl-pod = { workspace = true }
 light-zero-copy = { workspace = true , features = ["std", "derive", "mut"]}

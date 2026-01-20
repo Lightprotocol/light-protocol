@@ -4,15 +4,15 @@ use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     assert_mint_action::assert_mint_action, mint_assert::assert_compressed_mint_account, Rpc,
 };
+use light_token::{
+    compressed_token::create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
+    instruction::{CompressibleParams, CreateAssociatedTokenAccount},
+};
 use light_token_client::{
     actions::create_mint,
     instructions::mint_action::{MintActionType, MintToRecipient},
 };
 use light_token_interface::state::{extensions::AdditionalMetadata, Mint, TokenDataVersion};
-use light_token_sdk::{
-    compressed_token::create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
-    token::{CompressibleParams, CreateAssociatedTokenAccount},
-};
 use serial_test::serial;
 use solana_sdk::{signature::Keypair, signer::Signer};
 
@@ -180,7 +180,8 @@ async fn functional_all_in_one_instruction() {
         },
         // 2. MintToCToken - mint to decompressed account
         MintActionType::MintToCToken {
-            account: light_token_sdk::token::derive_token_ata(&recipient.pubkey(), &spl_mint_pda).0,
+            account: light_token::instruction::derive_token_ata(&recipient.pubkey(), &spl_mint_pda)
+                .0,
             amount: 2000u64,
         },
         // 3. UpdateMintAuthority

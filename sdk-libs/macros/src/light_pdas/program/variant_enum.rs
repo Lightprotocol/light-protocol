@@ -134,8 +134,8 @@ impl<'a> LightVariantBuilder<'a> {
 
         let ctoken_variants = if self.include_ctoken {
             quote! {
-                PackedCTokenData(light_token_sdk::compat::PackedCTokenData<PackedTokenAccountVariant>),
-                CTokenData(light_token_sdk::compat::CTokenData<TokenAccountVariant>),
+                PackedCTokenData(light_token::compat::PackedCTokenData<PackedTokenAccountVariant>),
+                CTokenData(light_token::compat::CTokenData<TokenAccountVariant>),
             }
         } else {
             quote! {}
@@ -181,23 +181,23 @@ impl<'a> LightVariantBuilder<'a> {
             let inner_type = qualify_type_with_crate(&info.inner_type);
             let packed_variant_name = format_ident!("Packed{}", variant_name);
             quote! {
-                LightAccountVariant::#variant_name { data, .. } => <#inner_type as light_hasher::DataHasher>::hash::<H>(data),
-                LightAccountVariant::#packed_variant_name { .. } => Err(light_hasher::HasherError::EmptyInput),
+                LightAccountVariant::#variant_name { data, .. } => <#inner_type as ::light_sdk::hasher::DataHasher>::hash::<H>(data),
+                LightAccountVariant::#packed_variant_name { .. } => Err(::light_sdk::hasher::HasherError::EmptyInput),
             }
         });
 
         let ctoken_arms = if self.include_ctoken {
             quote! {
-                Self::PackedCTokenData(_) => Err(light_hasher::HasherError::EmptyInput),
-                Self::CTokenData(_) => Err(light_hasher::HasherError::EmptyInput),
+                Self::PackedCTokenData(_) => Err(::light_sdk::hasher::HasherError::EmptyInput),
+                Self::CTokenData(_) => Err(::light_sdk::hasher::HasherError::EmptyInput),
             }
         } else {
             quote! {}
         };
 
         quote! {
-            impl light_hasher::DataHasher for LightAccountVariant {
-                fn hash<H: light_hasher::Hasher>(&self) -> std::result::Result<[u8; 32], light_hasher::HasherError> {
+            impl ::light_sdk::hasher::DataHasher for LightAccountVariant {
+                fn hash<H: ::light_sdk::hasher::Hasher>(&self) -> std::result::Result<[u8; 32], ::light_sdk::hasher::HasherError> {
                     match self {
                         #(#hash_match_arms)*
                         #ctoken_arms
@@ -385,7 +385,7 @@ impl<'a> LightVariantBuilder<'a> {
             quote! {
                 Self::PackedCTokenData(_) => Err(solana_program_error::ProgramError::InvalidAccountData),
                 Self::CTokenData(data) => {
-                    Ok(Self::PackedCTokenData(light_token_sdk::pack::Pack::pack(data, remaining_accounts)?))
+                    Ok(Self::PackedCTokenData(light_token::pack::Pack::pack(data, remaining_accounts)?))
                 }
             }
         } else {
@@ -666,7 +666,7 @@ impl<'a> TokenVariantBuilder<'a> {
         });
 
         quote! {
-            impl light_token_sdk::pack::Pack for TokenAccountVariant {
+            impl light_token::pack::Pack for TokenAccountVariant {
                 type Packed = PackedTokenAccountVariant;
 
                 fn pack(&self, remaining_accounts: &mut light_sdk::instruction::PackedAccounts) -> std::result::Result<Self::Packed, solana_program_error::ProgramError> {
@@ -717,7 +717,7 @@ impl<'a> TokenVariantBuilder<'a> {
         });
 
         quote! {
-            impl light_token_sdk::pack::Unpack for PackedTokenAccountVariant {
+            impl light_token::pack::Unpack for PackedTokenAccountVariant {
                 type Unpacked = TokenAccountVariant;
 
                 fn unpack(
@@ -735,9 +735,9 @@ impl<'a> TokenVariantBuilder<'a> {
     /// Generate the IntoCTokenVariant implementation.
     fn generate_into_ctoken_variant_impl(&self) -> TokenStream {
         quote! {
-            impl light_sdk::interface::IntoCTokenVariant<LightAccountVariant, light_token_sdk::compat::TokenData> for TokenAccountVariant {
-                fn into_ctoken_variant(self, token_data: light_token_sdk::compat::TokenData) -> LightAccountVariant {
-                    LightAccountVariant::CTokenData(light_token_sdk::compat::CTokenData {
+            impl light_sdk::interface::IntoCTokenVariant<LightAccountVariant, light_token::compat::TokenData> for TokenAccountVariant {
+                fn into_ctoken_variant(self, token_data: light_token::compat::TokenData) -> LightAccountVariant {
+                    LightAccountVariant::CTokenData(light_token::compat::CTokenData {
                         variant: self,
                         token_data,
                     })

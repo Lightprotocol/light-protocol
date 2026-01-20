@@ -342,8 +342,8 @@ async fn test_revoke_fails() {
 use anchor_lang::AnchorDeserialize;
 use light_program_test::program_test::TestRpc;
 use light_test_utils::RpcError;
+use light_token::instruction::{Approve, CreateTokenAccount, Revoke};
 use light_token_interface::state::{Token, TokenDataVersion};
-use light_token_sdk::token::{Approve, CreateTokenAccount, Revoke};
 use solana_sdk::program_pack::Pack;
 
 use super::extensions::setup_extensions_test;

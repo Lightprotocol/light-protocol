@@ -18,15 +18,15 @@ use crate::{
         },
         CTokenAccount2,
     },
-    token::derive_token_ata,
+    instruction::derive_associated_token_account,
 };
 
 /// # Decompress compressed tokens to a cToken account
 ///
 /// ```rust
 /// # use solana_pubkey::Pubkey;
-/// # use light_token_sdk::token::Decompress;
-/// # use light_token_sdk::compat::TokenData;
+/// # use light_token::instruction::Decompress;
+/// # use light_token::compat::TokenData;
 /// # use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
 /// # let destination = Pubkey::new_unique();
 /// # let payer = Pubkey::new_unique();
@@ -106,7 +106,7 @@ impl Decompress {
         // For ATA decompress, derive the bump from wallet owner + mint
         // The signer is the wallet owner for ATAs
         let ata_bump = if is_ata {
-            let (_, bump) = derive_token_ata(&self.signer, &self.token_data.mint);
+            let (_, bump) = derive_associated_token_account(&self.signer, &self.token_data.mint);
             bump
         } else {
             0

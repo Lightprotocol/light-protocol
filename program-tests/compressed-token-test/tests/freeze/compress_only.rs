@@ -16,17 +16,17 @@ use light_test_utils::{
     },
     Rpc, RpcError,
 };
+use light_token::{
+    compat::{AccountState, TokenDataWithMerkleContext},
+    instruction::{CompressibleParams, CreateTokenAccount, TransferFromSpl},
+    spl_interface::find_spl_interface_pda_with_index,
+};
 use light_token_client::instructions::transfer2::{
     create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,
 };
 use light_token_interface::{
     instructions::extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
     state::TokenDataVersion,
-};
-use light_token_sdk::{
-    compat::{AccountState, TokenDataWithMerkleContext},
-    spl_interface::find_spl_interface_pda_with_index,
-    token::{CompressibleParams, CreateTokenAccount, TransferFromSpl},
 };
 use serial_test::serial;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};

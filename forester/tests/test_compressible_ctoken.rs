@@ -20,11 +20,11 @@ use light_registry::{
     utils::{get_forester_pda, get_protocol_config_pda_address},
     ForesterConfig,
 };
+use light_token::compressed_token::create_compressed_mint;
 use light_token_client::actions::{
     create_compressible_token_account, CreateCompressibleTokenAccountInputs,
 };
 use light_token_interface::state::TokenDataVersion;
-use light_token_sdk::compressed_token::create_compressed_mint;
 use serial_test::serial;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
 use tokio::{sync::oneshot, time::sleep};

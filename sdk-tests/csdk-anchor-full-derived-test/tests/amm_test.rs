@@ -26,11 +26,11 @@ use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest, TestRpc},
     Indexer, ProgramTestConfig, Rpc,
 };
-use light_token_interface::state::Token;
-use light_token_sdk::token::{
+use light_token::instruction::{
     find_mint_address, get_associated_token_address_and_bump, COMPRESSIBLE_CONFIG_V1,
     LIGHT_TOKEN_CPI_AUTHORITY, LIGHT_TOKEN_PROGRAM_ID, RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR,
 };
+use light_token_interface::state::Token;
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -524,7 +524,7 @@ async fn test_amm_full_lifecycle() {
         &ctx.program_id.to_bytes(),
     );
     let mint_compressed_address =
-        light_token_sdk::compressed_token::create_compressed_mint::derive_mint_compressed_address(
+        light_token::compressed_token::create_compressed_mint::derive_mint_compressed_address(
             &pdas.lp_mint_signer,
             &address_tree_pubkey,
         );

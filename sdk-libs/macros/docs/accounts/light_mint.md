@@ -118,7 +118,7 @@ pub mint: UncheckedAccount<'info>,
 The mint address is derived from the `mint_signer` field:
 
 ```rust
-let (mint_pda, bump) = light_token_sdk::token::find_mint_address(mint_signer.key);
+let (mint_pda, bump) = light_token::instruction::find_mint_address(mint_signer.key);
 ```
 
 ### Signer Seeds (mint_seeds)

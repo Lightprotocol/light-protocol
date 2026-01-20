@@ -8,7 +8,7 @@ use solana_pubkey::Pubkey;
 /// # Mint tokens to a ctoken account (simple 3-account instruction):
 /// ```rust
 /// # use solana_pubkey::Pubkey;
-/// # use light_token_sdk::token::MintTo;
+/// # use light_token::instruction::MintTo;
 /// # let mint = Pubkey::new_unique();
 /// # let destination = Pubkey::new_unique();
 /// # let authority = Pubkey::new_unique();
@@ -37,7 +37,7 @@ pub struct MintTo {
 
 /// # Mint to ctoken via CPI:
 /// ```rust,no_run
-/// # use light_token_sdk::token::MintToCpi;
+/// # use light_token::instruction::MintToCpi;
 /// # use solana_account_info::AccountInfo;
 /// # let mint: AccountInfo = todo!();
 /// # let destination: AccountInfo = todo!();

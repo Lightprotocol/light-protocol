@@ -1,4 +1,4 @@
 pub mod actions;
 pub mod instructions;
 // re-export
-pub use light_token_sdk::token;
+pub use light_token::instruction;

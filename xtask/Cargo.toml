@@ -27,7 +27,7 @@ tabled = "0.20"
 light-test-utils = { workspace = true }
 tokio = { workspace = true }
 solana-sdk = { workspace = true }
-light-program-test = { workspace = true, features = ["v2"] }
+light-program-test = { workspace = true }
 light-client = { workspace = true }
 dirs = "6.0"
 serde_json = "1.0.140"
@@ -37,5 +37,5 @@ light-batched-merkle-tree = { workspace = true }
 light-registry = { workspace = true }
 light-compressible = { workspace = true }
 anchor-lang = { workspace = true }
-light-token-sdk = { workspace = true }
+light-token = { workspace = true }
 chrono = "0.4"

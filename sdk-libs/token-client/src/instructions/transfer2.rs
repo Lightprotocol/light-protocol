@@ -3,15 +3,7 @@ use light_client::{
     rpc::Rpc,
 };
 use light_sdk::instruction::{PackedAccounts, PackedStateTreeInfo};
-use light_token_interface::{
-    instructions::{
-        extensions::ExtensionInstructionData,
-        transfer2::{MultiInputTokenDataWithContext, MultiTokenTransferOutputData},
-    },
-    state::TokenDataVersion,
-    LIGHT_TOKEN_PROGRAM_ID,
-};
-use light_token_sdk::{
+use light_token::{
     compressed_token::{
         transfer2::{
             account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction,
@@ -21,6 +13,14 @@ use light_token_sdk::{
     },
     error::TokenSdkError,
     spl_interface::find_spl_interface_pda_with_index,
+};
+use light_token_interface::{
+    instructions::{
+        extensions::ExtensionInstructionData,
+        transfer2::{MultiInputTokenDataWithContext, MultiTokenTransferOutputData},
+    },
+    state::TokenDataVersion,
+    LIGHT_TOKEN_PROGRAM_ID,
 };
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
