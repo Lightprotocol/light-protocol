@@ -3506,7 +3506,7 @@ dependencies = [
 
 [[package]]
 name = "light-batched-merkle-tree"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "aligned-sized",
  "borsh 0.10.4",
@@ -3611,7 +3611,7 @@ dependencies = [
 
 [[package]]
 name = "light-compressed-account"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "anchor-lang",
  "ark-bn254 0.5.0",
@@ -3676,7 +3676,7 @@ dependencies = [
 
 [[package]]
 name = "light-compressible"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "aligned-sized",
  "anchor-lang",
@@ -3816,7 +3816,7 @@ dependencies = [
 
 [[package]]
 name = "light-merkle-tree-metadata"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "anchor-lang",
  "borsh 0.10.4",
@@ -4282,7 +4282,7 @@ dependencies = [
 
 [[package]]
 name = "light-verifier"
-version = "6.0.0"
+version = "7.0.0"
 dependencies = [
  "groth16-solana",
  "light-compressed-account",
@@ -4294,7 +4294,7 @@ dependencies = [
 
 [[package]]
 name = "light-zero-copy"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "borsh 0.10.4",
  "light-zero-copy-derive",
@@ -4307,7 +4307,7 @@ dependencies = [
 
 [[package]]
 name = "light-zero-copy-derive"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "lazy_static",
  "proc-macro2",
