@@ -139,7 +139,8 @@ pub async fn assert_address_merkle_tree_initialized<R: Rpc>(
         rpc,
         *merkle_tree_pubkey,
     )
-    .await;
+    .await
+    .unwrap();
     let merkle_tree_account = merkle_tree.deserialized();
 
     assert_eq!(
@@ -205,7 +206,8 @@ pub async fn assert_address_merkle_tree_initialized<R: Rpc>(
         26,
         16,
     >(rpc, *merkle_tree_pubkey)
-    .await;
+    .await
+    .unwrap();
 
     assert_eq!(merkle_tree.height, merkle_tree_config.height as usize);
     assert_eq!(
@@ -349,7 +351,9 @@ pub async fn assert_queue<R: Rpc>(
     expected_next_queue: Option<Pubkey>,
     payer_pubkey: &Pubkey,
 ) {
-    let queue = AccountZeroCopy::<account_compression::QueueAccount>::new(rpc, *queue_pubkey).await;
+    let queue = AccountZeroCopy::<account_compression::QueueAccount>::new(rpc, *queue_pubkey)
+        .await
+        .unwrap();
     let queue_account = queue.deserialized();
 
     let expected_rollover_meta_data = RolloverMetadata {
@@ -378,7 +382,8 @@ pub async fn assert_queue<R: Rpc>(
     assert_eq!(queue_account.metadata, expected_queue_meta_data);
 
     let queue =
-        unsafe { get_hash_set::<account_compression::QueueAccount, R>(rpc, *queue_pubkey).await };
+        unsafe { get_hash_set::<account_compression::QueueAccount, R>(rpc, *queue_pubkey).await }
+            .unwrap();
     assert_eq!(queue.get_capacity(), queue_config.capacity as usize);
     assert_eq!(
         queue.sequence_threshold,

@@ -55,12 +55,14 @@ pub async fn setup_forester_and_advance_to_epoch<R: Rpc + TestRpc>(
             test_keypairs.nullifier_queue.pubkey(),
             TreeType::StateV1,
             false,
+            Default::default(),
         ),
         TreeAccounts::new(
             test_keypairs.address_merkle_tree.pubkey(),
             test_keypairs.address_merkle_tree_queue.pubkey(),
             TreeType::AddressV1,
             false,
+            Default::default(),
         ),
     ];
 

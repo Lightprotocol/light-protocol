@@ -63,6 +63,21 @@ impl Rpc for LightProgramTest {
         Ok(self.context.get_program_accounts(program_id))
     }
 
+    async fn get_program_accounts_with_discriminator(
+        &self,
+        program_id: &Pubkey,
+        discriminator: &[u8],
+    ) -> Result<Vec<(Pubkey, Account)>, RpcError> {
+        let all_accounts = self.context.get_program_accounts(program_id);
+        Ok(all_accounts
+            .into_iter()
+            .filter(|(_, account)| {
+                account.data.len() >= discriminator.len()
+                    && &account.data[..discriminator.len()] == discriminator
+            })
+            .collect())
+    }
+
     async fn confirm_transaction(&self, _transaction: Signature) -> Result<bool, RpcError> {
         Ok(true)
     }

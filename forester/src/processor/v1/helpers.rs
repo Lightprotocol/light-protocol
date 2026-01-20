@@ -8,10 +8,7 @@ use account_compression::{
     },
 };
 use forester_utils::{rpc_pool::SolanaRpcPool, utils::wait_for_indexer};
-use light_client::{
-    indexer::{Indexer, Items, MerkleProof, NewAddressProofWithContext},
-    rpc::Rpc,
-};
+use light_client::{indexer::Indexer, rpc::Rpc};
 use light_compressed_account::TreeType;
 use light_registry::account_compression_cpi::sdk::{
     create_nullify_instruction, create_update_address_merkle_tree_instruction,
@@ -19,8 +16,14 @@ use light_registry::account_compression_cpi::sdk::{
 };
 use reqwest::Url;
 use solana_program::instruction::Instruction;
-use tokio::join;
-use tracing::warn;
+use tokio::time::Instant;
+use tracing::{info, warn};
+
+use crate::metrics::{update_indexer_proof_count, update_indexer_response_time};
+
+const ADDRESS_PROOF_BATCH_SIZE: usize = 100;
+const ADDRESS_PROOF_MAX_RETRIES: u32 = 3;
+const ADDRESS_PROOF_RETRY_BASE_DELAY_MS: u64 = 500;
 
 use crate::{
     epoch_manager::{MerkleProofType, WorkItem},
@@ -93,48 +96,207 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
         warn!("Indexer not fully caught up, but proceeding anyway: {}", e);
     }
 
-    let (address_proofs_result, state_proofs_result) = {
-        let address_future = async {
-            if let Some((merkle_tree, addresses)) = address_data {
-                rpc.indexer()?
-                    .get_multiple_new_address_proofs(merkle_tree, addresses, None)
-                    .await
-            } else {
-                Ok(light_client::indexer::Response {
-                    context: light_client::indexer::Context::default(),
-                    value: Items::<NewAddressProofWithContext>::default(),
-                })
-            }
-        };
+    let address_proofs = if let Some((merkle_tree, addresses)) = address_data {
+        let total_addresses = addresses.len();
+        info!(
+            "Fetching {} address proofs in batches of {}",
+            total_addresses, ADDRESS_PROOF_BATCH_SIZE
+        );
 
-        let state_future = async {
-            if let Some(states) = state_data {
-                rpc.indexer()?
-                    .get_multiple_compressed_account_proofs(states, None)
-                    .await
-            } else {
-                Ok(light_client::indexer::Response {
-                    context: light_client::indexer::Context::default(),
-                    value: Items::<MerkleProof>::default(),
-                })
-            }
-        };
+        let start_time = Instant::now();
+        let mut all_proofs = Vec::with_capacity(total_addresses);
 
-        join!(address_future, state_future)
+        for (batch_idx, batch) in addresses.chunks(ADDRESS_PROOF_BATCH_SIZE).enumerate() {
+            let batch_start = Instant::now();
+            // Pass slice directly if indexer accepts it, otherwise clone
+            let batch_addresses: Vec<[u8; 32]> = batch.to_vec();
+            let batch_size = batch_addresses.len();
+
+            // Retry loop for transient network errors
+            let mut last_error = None;
+            for attempt in 0..=ADDRESS_PROOF_MAX_RETRIES {
+                if attempt > 0 {
+                    // Exponential backoff: 500ms, 1000ms, 2000ms
+                    let delay_ms = ADDRESS_PROOF_RETRY_BASE_DELAY_MS * (1 << (attempt - 1));
+                    warn!(
+                        "Retrying address proof batch {} (attempt {}/{}), waiting {}ms",
+                        batch_idx,
+                        attempt + 1,
+                        ADDRESS_PROOF_MAX_RETRIES + 1,
+                        delay_ms
+                    );
+                    tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
+                }
+
+                match rpc
+                    .indexer()?
+                    .get_multiple_new_address_proofs(merkle_tree, batch_addresses.clone(), None)
+                    .await
+                {
+                    Ok(response) => {
+                        let batch_duration = batch_start.elapsed();
+                        let proofs_received = response.value.items.len();
+
+                        info!(
+                            "Address proof batch {}: requested={}, received={}, duration={:.3}s{}",
+                            batch_idx,
+                            batch_size,
+                            proofs_received,
+                            batch_duration.as_secs_f64(),
+                            if attempt > 0 {
+                                format!(" (after {} retries)", attempt)
+                            } else {
+                                String::new()
+                            }
+                        );
+
+                        if proofs_received != batch_size {
+                            warn!(
+                                "Address proof count mismatch in batch {}: requested={}, received={}",
+                                batch_idx, batch_size, proofs_received
+                            );
+                        }
+
+                        all_proofs.extend(response.value.items);
+                        last_error = None;
+                        break;
+                    }
+                    Err(e) => {
+                        last_error = Some(e);
+                    }
+                }
+            }
+
+            // If we exhausted all retries, return the last error
+            if let Some(e) = last_error {
+                let batch_duration = batch_start.elapsed();
+                warn!(
+                    "Failed to get address proofs for batch {} after {} attempts ({:.3}s): {}",
+                    batch_idx,
+                    ADDRESS_PROOF_MAX_RETRIES + 1,
+                    batch_duration.as_secs_f64(),
+                    e
+                );
+                return Err(anyhow::anyhow!(
+                    "Failed to get address proofs for batch {} after {} retries: {}",
+                    batch_idx,
+                    ADDRESS_PROOF_MAX_RETRIES,
+                    e
+                ));
+            }
+        }
+
+        let total_duration = start_time.elapsed();
+        info!(
+            "Address proofs complete: requested={}, received={}, total_duration={:.3}s",
+            total_addresses,
+            all_proofs.len(),
+            total_duration.as_secs_f64()
+        );
+
+        update_indexer_response_time(
+            "get_multiple_new_address_proofs",
+            "AddressV1",
+            total_duration.as_secs_f64(),
+        );
+        update_indexer_proof_count("AddressV1", total_addresses as u64, all_proofs.len() as u64);
+
+        all_proofs
+    } else {
+        Vec::new()
     };
 
-    let address_proofs = match address_proofs_result {
-        Ok(response) => response.value.items,
-        Err(e) => {
-            return Err(anyhow::anyhow!("Failed to get address proofs: {}", e));
-        }
-    };
+    let state_proofs = if let Some(states) = state_data {
+        let total_states = states.len();
+        info!("Fetching {} state proofs", total_states);
 
-    let state_proofs = match state_proofs_result {
-        Ok(response) => response.value.items,
-        Err(e) => {
-            return Err(anyhow::anyhow!("Failed to get state proofs: {}", e));
+        let start_time = Instant::now();
+
+        // Retry loop for transient network errors
+        let mut last_error = None;
+        let mut proofs = None;
+
+        for attempt in 0..=ADDRESS_PROOF_MAX_RETRIES {
+            if attempt > 0 {
+                // Exponential backoff: 500ms, 1000ms, 2000ms
+                let delay_ms = ADDRESS_PROOF_RETRY_BASE_DELAY_MS * (1 << (attempt - 1));
+                warn!(
+                    "Retrying state proofs (attempt {}/{}), waiting {}ms",
+                    attempt + 1,
+                    ADDRESS_PROOF_MAX_RETRIES + 1,
+                    delay_ms
+                );
+                tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
+            }
+
+            match rpc
+                .indexer()?
+                .get_multiple_compressed_account_proofs(states.clone(), None)
+                .await
+            {
+                Ok(response) => {
+                    let duration = start_time.elapsed();
+                    let proofs_received = response.value.items.len();
+
+                    info!(
+                        "State proofs complete: requested={}, received={}, duration={:.3}s{}",
+                        total_states,
+                        proofs_received,
+                        duration.as_secs_f64(),
+                        if attempt > 0 {
+                            format!(" (after {} retries)", attempt)
+                        } else {
+                            String::new()
+                        }
+                    );
+
+                    if proofs_received != total_states {
+                        warn!(
+                            "State proof count mismatch: requested={}, received={}",
+                            total_states, proofs_received
+                        );
+                    }
+
+                    update_indexer_response_time(
+                        "get_multiple_compressed_account_proofs",
+                        "StateV1",
+                        duration.as_secs_f64(),
+                    );
+                    update_indexer_proof_count(
+                        "StateV1",
+                        total_states as u64,
+                        proofs_received as u64,
+                    );
+
+                    proofs = Some(response.value.items);
+                    last_error = None;
+                    break;
+                }
+                Err(e) => {
+                    last_error = Some(e);
+                }
+            }
         }
+
+        // If we exhausted all retries, return the last error
+        if let Some(e) = last_error {
+            let duration = start_time.elapsed();
+            warn!(
+                "Failed to get state proofs after {} attempts ({:.3}s): {}",
+                ADDRESS_PROOF_MAX_RETRIES + 1,
+                duration.as_secs_f64(),
+                e
+            );
+            return Err(anyhow::anyhow!(
+                "Failed to get state proofs after {} retries: {}",
+                ADDRESS_PROOF_MAX_RETRIES,
+                e
+            ));
+        }
+
+        proofs.unwrap_or_default()
+    } else {
+        Vec::new()
     };
 
     for (item, proof) in address_items.iter().zip(address_proofs.into_iter()) {

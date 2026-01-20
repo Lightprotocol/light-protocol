@@ -308,12 +308,14 @@ async fn test_full_nullifier_queue(
             &mut rpc,
             merkle_tree_pubkey,
         )
-        .await;
+        .await
+        .unwrap();
     assert_eq!(merkle_tree.root(), reference_merkle_tree.root());
     let leaf_index = reference_merkle_tree.get_leaf_index(&leaf).unwrap() as u64;
     let element_index = unsafe {
         get_hash_set::<QueueAccount, LightProgramTest>(&mut rpc, nullifier_queue_pubkey)
             .await
+            .unwrap()
             .find_element_index(&BigUint::from_bytes_be(&leaf), None)
             .unwrap()
     };
@@ -1223,7 +1225,8 @@ async fn functional_2_test_insert_into_nullifier_queues<R: Rpc>(
     )
     .await
     .unwrap();
-    let array = unsafe { get_hash_set::<QueueAccount, R>(rpc, *nullifier_queue_pubkey).await };
+    let array =
+        unsafe { get_hash_set::<QueueAccount, R>(rpc, *nullifier_queue_pubkey).await }.unwrap();
     let element_0 = BigUint::from_bytes_be(&elements[0]);
     let (array_element_0, _) = array.find_element(&element_0, None).unwrap().unwrap();
     assert_eq!(array_element_0.value_bytes(), [1u8; 32]);
@@ -1304,7 +1307,8 @@ async fn functional_5_test_insert_into_nullifier_queue<R: Rpc>(
     )
     .await
     .unwrap();
-    let array = unsafe { get_hash_set::<QueueAccount, R>(rpc, *nullifier_queue_pubkey).await };
+    let array =
+        unsafe { get_hash_set::<QueueAccount, R>(rpc, *nullifier_queue_pubkey).await }.unwrap();
 
     let (array_element, _) = array.find_element(&element, None).unwrap().unwrap();
     assert_eq!(array_element.value_biguint(), element);
@@ -1862,7 +1866,8 @@ pub async fn functional_3_append_leaves_to_merkle_tree<R: Rpc>(
                 context,
                 merkle_tree_pubkeys[(*i) as usize],
             )
-            .await;
+            .await
+            .unwrap();
         hash_map
             .entry(merkle_tree_pubkeys[(*i) as usize])
             .or_insert_with(|| {
@@ -1893,7 +1898,8 @@ pub async fn functional_3_append_leaves_to_merkle_tree<R: Rpc>(
 
         let merkle_tree =
             get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(context, *pubkey)
-                .await;
+                .await
+                .unwrap();
         assert_eq!(merkle_tree.next_index(), next_index + num_leaves);
         let leaves: Vec<&[u8; 32]> = leaves.iter().collect();
 
@@ -1999,7 +2005,8 @@ pub async fn nullify<R: Rpc>(
         rpc,
         *merkle_tree_pubkey,
     )
-    .await;
+    .await
+    .unwrap();
     reference_merkle_tree
         .update(&ZERO_BYTES[0], element_index as usize)
         .unwrap();
@@ -2159,7 +2166,8 @@ pub async fn assert_element_inserted_in_nullifier_queue(
 ) {
     let array = unsafe {
         get_hash_set::<QueueAccount, LightProgramTest>(rpc, *nullifier_queue_pubkey).await
-    };
+    }
+    .unwrap();
     let nullifier_bn = BigUint::from_bytes_be(&nullifier);
     let (array_element, _) = array.find_element(&nullifier_bn, None).unwrap().unwrap();
     assert_eq!(array_element.value_bytes(), nullifier);

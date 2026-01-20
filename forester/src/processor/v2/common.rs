@@ -95,6 +95,8 @@ pub struct BatchContext<R: Rpc> {
     pub confirmation_max_attempts: u32,
     /// Interval between confirmation polling attempts.
     pub confirmation_poll_interval: Duration,
+    /// Maximum batches to process per tree per iteration
+    pub max_batches_per_tree: usize,
 }
 
 impl<R: Rpc> Clone for BatchContext<R> {
@@ -117,6 +119,7 @@ impl<R: Rpc> Clone for BatchContext<R> {
             address_lookup_tables: self.address_lookup_tables.clone(),
             confirmation_max_attempts: self.confirmation_max_attempts,
             confirmation_poll_interval: self.confirmation_poll_interval,
+            max_batches_per_tree: self.max_batches_per_tree,
         }
     }
 }

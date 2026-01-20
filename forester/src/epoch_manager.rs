@@ -72,7 +72,7 @@ use crate::{
         perform_state_merkle_tree_rollover_forester,
     },
     slot_tracker::{slot_duration, wait_until_slot_reached, SlotTracker},
-    tree_data_sync::fetch_trees,
+    tree_data_sync::{fetch_protocol_group_authority, fetch_trees},
     ForesterConfig, ForesterEpochInfo, Result,
 };
 
@@ -282,7 +282,7 @@ impl<R: Rpc> EpochManager<R> {
         let (tx, mut rx) = mpsc::channel(100);
         let tx = Arc::new(tx);
 
-        let monitor_handle = tokio::spawn({
+        let mut monitor_handle = tokio::spawn({
             let self_clone = Arc::clone(&self);
             let tx_clone = Arc::clone(&tx);
             async move { self_clone.monitor_epochs(tx_clone).await }
@@ -311,32 +311,67 @@ impl<R: Rpc> EpochManager<R> {
 
         let _guard = scopeguard::guard(
             (
-                monitor_handle,
                 current_previous_handle,
                 new_tree_handle,
                 balance_check_handle,
             ),
-            |(h1, h2, h3, h4)| {
+            |(h2, h3, h4)| {
                 info!("Aborting EpochManager background tasks");
-                h1.abort();
                 h2.abort();
                 h3.abort();
                 h4.abort();
             },
         );
 
-        while let Some(epoch) = rx.recv().await {
-            debug!("Received new epoch: {}", epoch);
-
-            let self_clone = Arc::clone(&self);
-            tokio::spawn(async move {
-                if let Err(e) = self_clone.process_epoch(epoch).await {
-                    error!("Error processing epoch {}: {:?}", epoch, e);
+        let result = loop {
+            tokio::select! {
+                epoch_opt = rx.recv() => {
+                    match epoch_opt {
+                        Some(epoch) => {
+                            debug!("Received new epoch: {}", epoch);
+                            let self_clone = Arc::clone(&self);
+                            tokio::spawn(async move {
+                                if let Err(e) = self_clone.process_epoch(epoch).await {
+                                    error!("Error processing epoch {}: {:?}", epoch, e);
+                                }
+                            });
+                        }
+                        None => {
+                            error!("Epoch monitor channel closed unexpectedly!");
+                            break Err(anyhow!(
+                                "Epoch monitor channel closed - forester cannot function without it"
+                            ));
+                        }
+                    }
                 }
-            });
-        }
+                result = &mut monitor_handle => {
+                    match result {
+                        Ok(Ok(())) => {
+                            error!("Epoch monitor exited unexpectedly with Ok(())");
+                        }
+                        Ok(Err(e)) => {
+                            error!("Epoch monitor exited with error: {:?}", e);
+                        }
+                        Err(e) => {
+                            error!("Epoch monitor task panicked or was cancelled: {:?}", e);
+                        }
+                    }
+                    if let Some(pagerduty_key) = &self.config.external_services.pagerduty_routing_key {
+                        let _ = send_pagerduty_alert(
+                            pagerduty_key,
+                            &format!("Forester epoch monitor died unexpectedly on {}", self.config.payer_keypair.pubkey()),
+                            "critical",
+                            "epoch_monitor_dead",
+                        ).await;
+                    }
+                    break Err(anyhow!("Epoch monitor exited unexpectedly - forester cannot function without it"));
+                }
+            }
+        };
 
-        Ok(())
+        // Abort monitor_handle on exit
+        monitor_handle.abort();
+        result
     }
 
     async fn check_sol_balance_periodically(self: Arc<Self>) -> Result<()> {
@@ -461,10 +496,45 @@ impl<R: Rpc> EpochManager<R> {
     #[instrument(level = "debug", skip(self, tx))]
     async fn monitor_epochs(&self, tx: Arc<mpsc::Sender<u64>>) -> Result<()> {
         let mut last_epoch: Option<u64> = None;
-        debug!("Starting epoch monitor");
+        let mut consecutive_failures = 0u32;
+        const MAX_BACKOFF_SECS: u64 = 60;
+
+        info!("Starting epoch monitor");
 
         loop {
-            let (slot, current_epoch) = self.get_current_slot_and_epoch().await?;
+            let (slot, current_epoch) = match self.get_current_slot_and_epoch().await {
+                Ok(result) => {
+                    if consecutive_failures > 0 {
+                        info!(
+                            "Epoch monitor recovered after {} consecutive failures",
+                            consecutive_failures
+                        );
+                    }
+                    consecutive_failures = 0;
+                    result
+                }
+                Err(e) => {
+                    consecutive_failures += 1;
+                    let backoff_secs = 2u64.pow(consecutive_failures.min(6)).min(MAX_BACKOFF_SECS);
+                    let backoff = Duration::from_secs(backoff_secs);
+
+                    if consecutive_failures == 1 {
+                        warn!(
+                            "Epoch monitor: failed to get slot/epoch: {:?}. Retrying in {:?}",
+                            e, backoff
+                        );
+                    } else if consecutive_failures.is_multiple_of(10) {
+                        error!(
+                            "Epoch monitor: {} consecutive failures, last error: {:?}. Still retrying every {:?}",
+                            consecutive_failures, e, backoff
+                        );
+                    }
+
+                    tokio::time::sleep(backoff).await;
+                    continue;
+                }
+            };
+
             debug!(
                 "last_epoch: {:?}, current_epoch: {:?}, slot: {:?}",
                 last_epoch, current_epoch, slot
@@ -477,10 +547,10 @@ impl<R: Rpc> EpochManager<R> {
                     debug!("Sending current epoch {} for processing", current_epoch);
                     if let Err(e) = tx.send(current_epoch).await {
                         error!(
-                            "Failed to send current epoch {} for processing: {:?}",
+                            "Failed to send current epoch {} for processing: {:?}. Channel closed, exiting.",
                             current_epoch, e
                         );
-                        return Ok(());
+                        return Err(anyhow!("Epoch channel closed: {}", e));
                     }
                     last_epoch = Some(current_epoch);
                 }
@@ -612,10 +682,12 @@ impl<R: Rpc> EpochManager<R> {
 
         let forester_epoch_pda_pubkey =
             get_forester_epoch_pda_from_authority(&self.config.derivation_pubkey, epoch).0;
-        let rpc = self.rpc_pool.get_connection().await?;
-        let existing_pda = rpc
-            .get_anchor_account::<ForesterEpochPda>(&forester_epoch_pda_pubkey)
-            .await?;
+
+        let existing_pda = {
+            let rpc = self.rpc_pool.get_connection().await?;
+            rpc.get_anchor_account::<ForesterEpochPda>(&forester_epoch_pda_pubkey)
+                .await?
+        };
 
         existing_pda
             .map(|pda| async move {
@@ -695,15 +767,16 @@ impl<R: Rpc> EpochManager<R> {
         Ok(())
     }
 
-    #[instrument(level = "debug", skip(self), fields(forester = %self.config.payer_keypair.pubkey(), epoch = epoch
-    ))]
+    #[instrument(level = "debug", skip(self), fields(forester = %self.config.payer_keypair.pubkey(), epoch = epoch))]
     async fn process_epoch(&self, epoch: u64) -> Result<()> {
-        info!("Entering process_epoch");
-
+        // Clone the Arc immediately to release the DashMap shard lock.
+        // Without .clone(), the RefMut guard would be held across async operations,
+        // blocking other epochs from accessing the DashMap if they hash to the same shard.
         let processing_flag = self
             .processing_epochs
             .entry(epoch)
-            .or_insert_with(|| Arc::new(AtomicBool::new(false)));
+            .or_insert_with(|| Arc::new(AtomicBool::new(false)))
+            .clone();
 
         if processing_flag
             .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
@@ -713,6 +786,7 @@ impl<R: Rpc> EpochManager<R> {
             debug!("Epoch {} is already being processed, skipping", epoch);
             return Ok(());
         }
+
         let phases = get_epoch_phases(&self.protocol_config, epoch);
 
         // Attempt to recover registration info
@@ -1144,6 +1218,7 @@ impl<R: Rpc> EpochManager<R> {
                 queue: solana_sdk::pubkey::Pubkey::default(),
                 tree_type: TreeType::Unknown,
                 is_rolledover: false,
+                owner: solana_sdk::pubkey::Pubkey::default(),
             };
             let tree_schedule = TreeForesterSchedule::new_with_schedule(
                 &compression_tree_accounts,
@@ -1213,7 +1288,9 @@ impl<R: Rpc> EpochManager<R> {
             handles.push(handle);
         }
 
-        for result in join_all(handles).await {
+        info!("Waiting for {} tree processing tasks", handles.len());
+        let results = join_all(handles).await;
+        for result in results {
             match result {
                 Ok(Ok(())) => {
                     debug!("Queue processed successfully");
@@ -1422,7 +1499,9 @@ impl<R: Rpc> EpochManager<R> {
             )
             .await;
 
-            push_metrics(&self.config.external_services.pushgateway_url).await?;
+            if let Err(e) = push_metrics(&self.config.external_services.pushgateway_url).await {
+                warn!("Failed to push metrics: {:?}", e);
+            }
             estimated_slot = self.slot_tracker.estimated_current_slot();
 
             let sleep_duration_ms = if items_processed_this_iteration > 0 {
@@ -1509,7 +1588,7 @@ impl<R: Rpc> EpochManager<R> {
                 .check_forester_eligibility(
                     epoch_pda,
                     current_light_slot,
-                    &tree_accounts.queue,
+                    &tree_accounts.merkle_tree,
                     epoch_info.epoch,
                     epoch_info,
                 )
@@ -1551,7 +1630,9 @@ impl<R: Rpc> EpochManager<R> {
                 }
             }
 
-            push_metrics(&self.config.external_services.pushgateway_url).await?;
+            if let Err(e) = push_metrics(&self.config.external_services.pushgateway_url).await {
+                warn!("Failed to push metrics: {:?}", e);
+            }
             estimated_slot = self.slot_tracker.estimated_current_slot();
         }
 
@@ -1950,6 +2031,7 @@ impl<R: Rpc> EpochManager<R> {
             confirmation_poll_interval: Duration::from_millis(
                 self.config.transaction_config.confirmation_poll_interval_ms,
             ),
+            max_batches_per_tree: self.config.transaction_config.max_batches_per_tree,
         }
     }
 
@@ -2816,6 +2898,36 @@ pub async fn run_service<R: Rpc>(
                                         fetch_result = fetch_trees(&*rpc) => {
                                             match fetch_result {
                                                 Ok(mut fetched_trees) => {
+                                                    let group_authority = match config.general_config.group_authority {
+                                                        Some(ga) => Some(ga),
+                                                        None => {
+                                                            match fetch_protocol_group_authority(&*rpc).await {
+                                                                Ok(ga) => {
+                                                                    info!("Using protocol default group authority: {}", ga);
+                                                                    Some(ga)
+                                                                }
+                                                                Err(e) => {
+                                                                    warn!(
+                                                                        "Failed to fetch protocol group authority, processing all trees: {:?}",
+                                                                        e
+                                                                    );
+                                                                    None
+                                                                }
+                                                            }
+                                                        }
+                                                    };
+
+                                                    if let Some(group_authority) = group_authority {
+                                                        let before_count = fetched_trees.len();
+                                                        fetched_trees.retain(|tree| tree.owner == group_authority);
+                                                        info!(
+                                                            "Filtered trees by group authority {}: {} -> {} trees",
+                                                            group_authority,
+                                                            before_count,
+                                                            fetched_trees.len()
+                                                        );
+                                                    }
+
                                                     if !config.general_config.tree_ids.is_empty() {
                                                         let tree_ids = &config.general_config.tree_ids;
                                                         fetched_trees.retain(|tree| tree_ids.contains(&tree.merkle_tree));
@@ -3058,6 +3170,7 @@ mod tests {
                 sleep_after_processing_ms: 50,
                 sleep_when_idle_ms: 100,
                 queue_polling_mode: crate::cli::QueuePollingMode::Indexer,
+                group_authority: None,
             },
             rpc_pool_config: Default::default(),
             registry_pubkey: Pubkey::default(),
@@ -3158,6 +3271,7 @@ mod tests {
             queue: Pubkey::new_unique(),
             is_rolledover: false,
             tree_type: TreeType::AddressV1,
+            owner: Default::default(),
         };
 
         let work_item = WorkItem {
@@ -3179,6 +3293,7 @@ mod tests {
             queue: Pubkey::new_unique(),
             is_rolledover: false,
             tree_type: TreeType::StateV1,
+            owner: Default::default(),
         };
 
         let work_item = WorkItem {

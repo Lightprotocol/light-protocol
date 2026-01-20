@@ -335,9 +335,13 @@ pub async fn assert_registry_created_batched_state_merkle_tree<R: Rpc>(
     params: InitStateTreeAccountsInstructionData,
 ) -> Result<(), RpcError> {
     let mut merkle_tree =
-        AccountZeroCopy::<BatchedMerkleTreeMetadata>::new(rpc, merkle_tree_pubkey).await;
+        AccountZeroCopy::<BatchedMerkleTreeMetadata>::new(rpc, merkle_tree_pubkey)
+            .await
+            .unwrap();
 
-    let mut queue = AccountZeroCopy::<BatchedQueueMetadata>::new(rpc, output_queue_pubkey).await;
+    let mut queue = AccountZeroCopy::<BatchedQueueMetadata>::new(rpc, output_queue_pubkey)
+        .await
+        .unwrap();
     let mt_params = CreateTreeParams::from_state_ix_params(
         params,
         payer_pubkey.into(),
@@ -605,7 +609,9 @@ pub async fn assert_registry_created_batched_address_merkle_tree<R: Rpc>(
     params: InitAddressTreeAccountsInstructionData,
 ) -> Result<(), RpcError> {
     let mut merkle_tree =
-        AccountZeroCopy::<BatchedMerkleTreeMetadata>::new(rpc, merkle_tree_pubkey).await;
+        AccountZeroCopy::<BatchedMerkleTreeMetadata>::new(rpc, merkle_tree_pubkey)
+            .await
+            .unwrap();
 
     let mt_account_size = get_merkle_tree_account_size(
         params.input_queue_batch_size,

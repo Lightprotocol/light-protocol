@@ -194,13 +194,15 @@ pub async fn assert_rolled_over_address_merkle_tree_and_queue<R: Rpc>(
             rpc,
             old_mt_account.key(),
         )
-        .await;
+        .await
+        .unwrap();
     let struct_new =
         get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26, 16>(
             rpc,
             new_mt_account.key(),
         )
-        .await;
+        .await
+        .unwrap();
     assert_rolledover_merkle_trees(&struct_old.merkle_tree, &struct_new.merkle_tree);
     assert_eq!(
         struct_old.merkle_tree.changelog.capacity(),
@@ -257,9 +259,9 @@ pub async fn assert_rolled_over_address_merkle_tree_and_queue<R: Rpc>(
     assert_eq!(*fee_payer_prior_balance, fee_payer_post_balance + 15000);
     {
         let old_address_queue =
-            unsafe { get_hash_set::<QueueAccount, R>(rpc, *old_queue_pubkey).await };
+            unsafe { get_hash_set::<QueueAccount, R>(rpc, *old_queue_pubkey).await }.unwrap();
         let new_address_queue =
-            unsafe { get_hash_set::<QueueAccount, R>(rpc, *new_queue_pubkey).await };
+            unsafe { get_hash_set::<QueueAccount, R>(rpc, *new_queue_pubkey).await }.unwrap();
 
         assert_eq!(
             old_address_queue.get_capacity(),
@@ -295,7 +297,8 @@ pub async fn perform_address_merkle_tree_roll_over_forester<R: Rpc>(
         epoch,
         is_metadata_forester,
     )
-    .await;
+    .await
+    .unwrap();
     let blockhash = context.get_latest_blockhash().await?;
     let transaction = Transaction::new_signed_with_payer(
         &instructions,
@@ -330,7 +333,8 @@ pub async fn perform_state_merkle_tree_roll_over_forester<R: Rpc>(
         epoch,
         is_metadata_forester,
     )
-    .await;
+    .await
+    .unwrap();
     let blockhash = context.get_latest_blockhash().await?;
     let transaction = Transaction::new_signed_with_payer(
         &instructions,
