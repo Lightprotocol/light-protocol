@@ -1247,6 +1247,7 @@ async fn mint_to_token<R: Rpc>(
         amount,
         authority: mint_authority.pubkey(),
         max_top_up: None,
+        fee_payer: None,
     }
     .instruction()
     .map_err(|e| RpcError::CustomError(format!("Failed to create MintTo instruction: {:?}", e)))?;
