@@ -4210,6 +4210,7 @@ dependencies = [
  "light-heap",
  "light-macros",
  "light-program-profiler",
+ "light-token-interface",
  "light-zero-copy",
  "num-bigint 0.4.6",
  "pinocchio",
