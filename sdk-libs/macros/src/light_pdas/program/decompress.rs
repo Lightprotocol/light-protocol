@@ -161,15 +161,13 @@ impl DecompressBuilder {
     }
 
     /// Generate PDA seed provider implementations.
+    /// Returns empty Vec for mint-only or token-only programs that have no PDA seeds.
     pub fn generate_seed_provider_impls(&self) -> Result<Vec<TokenStream>> {
-        let pda_seed_specs = self.pda_seeds.as_ref().ok_or_else(|| {
-            let span_source = self
-                .account_types
-                .first()
-                .map(|t| quote::quote!(#t))
-                .unwrap_or_else(|| quote::quote!(unknown));
-            super::parsing::macro_error!(span_source, "No seed specifications provided")
-        })?;
+        // For mint-only or token-only programs, there are no PDA seeds - return empty Vec
+        let pda_seed_specs = match self.pda_seeds.as_ref() {
+            Some(specs) if !specs.is_empty() => specs,
+            _ => return Ok(Vec::new()),
+        };
 
         let mut results = Vec::with_capacity(self.pda_ctx_seeds.len());
 

@@ -101,6 +101,18 @@ pub fn generate_decompress_context_trait_impl(
         })
         .collect();
 
+    // For mint-only programs (no PDA variants), add an arm for the Empty variant
+    let empty_variant_arm = if pda_ctx_seeds.is_empty() {
+        quote! {
+            // Mint-only programs have an Empty variant that should never be decompressed
+            LightAccountVariant::Empty => {
+                return std::result::Result::Err(solana_program_error::ProgramError::InvalidAccountData);
+            }
+        }
+    } else {
+        quote! {}
+    };
+
     let packed_token_variant_ident = format_ident!("Packed{}", token_variant_ident);
 
     Ok(quote! {
@@ -177,6 +189,7 @@ pub fn generate_decompress_context_trait_impl(
                         LightAccountVariant::CTokenData(_) => {
                             return std::result::Result::Err(light_sdk::error::LightSdkError::UnexpectedUnpackedVariant.into());
                         }
+                        #empty_variant_arm
                     }
                 }
 
