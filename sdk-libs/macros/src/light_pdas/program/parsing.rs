@@ -349,11 +349,13 @@ pub fn convert_classified_to_seed_elements_vec(
 // FUNCTION WRAPPING
 // =============================================================================
 
-/// Extract the Context<T> type name from a function's parameters.
-/// Returns (struct_name, params_ident) if found.
-pub fn extract_context_and_params(fn_item: &ItemFn) -> Option<(String, Ident)> {
+/// Extract the Context<T> type name and context parameter name from a function's parameters.
+/// Returns (struct_name, params_ident, ctx_ident) if found.
+/// The ctx_ident is the actual parameter name (e.g., "ctx", "context", "anchor_ctx").
+pub fn extract_context_and_params(fn_item: &ItemFn) -> Option<(String, Ident, Ident)> {
     let mut context_type = None;
     let mut params_ident = None;
+    let mut ctx_ident = None;
 
     for input in &fn_item.sig.inputs {
         if let syn::FnArg::Typed(pat_type) = input {
@@ -362,6 +364,9 @@ pub fn extract_context_and_params(fn_item: &ItemFn) -> Option<(String, Ident)> {
                 if let syn::Type::Path(type_path) = &*pat_type.ty {
                     if let Some(segment) = type_path.path.segments.last() {
                         if segment.ident == "Context" {
+                            // Capture the context parameter name (e.g., ctx, context, anchor_ctx)
+                            ctx_ident = Some(pat_ident.ident.clone());
+
                             // Extract T from Context<'_, '_, '_, 'info, T<'info>> or Context<T>
                             if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
                                 // Find the last type argument (T or T<'info>)
@@ -376,13 +381,14 @@ pub fn extract_context_and_params(fn_item: &ItemFn) -> Option<(String, Ident)> {
                                     }
                                 }
                             }
+                            continue; // Don't consider ctx as params
                         }
                     }
                 }
 
-                // Track potential params argument (not ctx, not signer-like names)
+                // Track potential params argument (not the context param, not signer-like names)
                 let name = pat_ident.ident.to_string();
-                if name != "ctx" && !name.contains("signer") && !name.contains("bump") {
+                if !name.contains("signer") && !name.contains("bump") {
                     // Prefer "params" but accept others
                     if name == "params" || params_ident.is_none() {
                         params_ident = Some(pat_ident.ident.clone());
@@ -392,8 +398,8 @@ pub fn extract_context_and_params(fn_item: &ItemFn) -> Option<(String, Ident)> {
         }
     }
 
-    match (context_type, params_ident) {
-        (Some(ctx), Some(params)) => Some((ctx, params)),
+    match (context_type, params_ident, ctx_ident) {
+        (Some(ctx_type), Some(params), Some(ctx_name)) => Some((ctx_type, params, ctx_name)),
         _ => None,
     }
 }
@@ -401,7 +407,8 @@ pub fn extract_context_and_params(fn_item: &ItemFn) -> Option<(String, Ident)> {
 /// Check if a function body is a simple delegation (single expression that moves ctx).
 /// Returns true for patterns like `crate::module::function(ctx, params)`.
 /// Does NOT match simple returns like `Ok(())` since those don't consume ctx.
-fn is_delegation_body(block: &syn::Block) -> bool {
+/// `ctx_name` is the context parameter name to look for (e.g., "ctx", "context").
+fn is_delegation_body(block: &syn::Block, ctx_name: &str) -> bool {
     // Check if block has exactly one statement that's an expression
     if block.stmts.len() != 1 {
         return false;
@@ -410,8 +417,8 @@ fn is_delegation_body(block: &syn::Block) -> bool {
         syn::Stmt::Expr(expr, _) => {
             // Check if it's a function call that takes ctx as an argument
             match expr {
-                syn::Expr::Call(call) => call_has_ctx_arg(&call.args),
-                syn::Expr::MethodCall(call) => call_has_ctx_arg(&call.args),
+                syn::Expr::Call(call) => call_has_ctx_arg(&call.args, ctx_name),
+                syn::Expr::MethodCall(call) => call_has_ctx_arg(&call.args, ctx_name),
                 _ => false,
             }
         }
@@ -419,17 +426,21 @@ fn is_delegation_body(block: &syn::Block) -> bool {
     }
 }
 
-/// Check if any argument in the call is `ctx` (moving the context).
+/// Check if any argument in the call is the context param (moving the context).
 /// Detects: ctx, &ctx, &mut ctx, ctx.clone(), ctx.into(), etc.
-fn call_has_ctx_arg(args: &syn::punctuated::Punctuated<syn::Expr, syn::token::Comma>) -> bool {
+/// `ctx_name` is the context parameter name to look for (e.g., "ctx", "context").
+fn call_has_ctx_arg(
+    args: &syn::punctuated::Punctuated<syn::Expr, syn::token::Comma>,
+    ctx_name: &str,
+) -> bool {
     for arg in args {
         match arg {
             // Direct ctx identifier
-            syn::Expr::Path(path) if path.path.is_ident("ctx") => return true,
+            syn::Expr::Path(path) if path.path.is_ident(ctx_name) => return true,
             // Reference patterns: &ctx, &mut ctx
             syn::Expr::Reference(ref_expr) => {
                 if let syn::Expr::Path(p) = &*ref_expr.expr {
-                    if p.path.is_ident("ctx") {
+                    if p.path.is_ident(ctx_name) {
                         return true;
                     }
                 }
@@ -437,7 +448,7 @@ fn call_has_ctx_arg(args: &syn::punctuated::Punctuated<syn::Expr, syn::token::Co
             // Method call patterns: ctx.clone(), ctx.into()
             syn::Expr::MethodCall(method_call) => {
                 if let syn::Expr::Path(p) = &*method_call.receiver {
-                    if p.path.is_ident("ctx") {
+                    if p.path.is_ident(ctx_name) {
                         return true;
                     }
                 }
@@ -449,7 +460,12 @@ fn call_has_ctx_arg(args: &syn::punctuated::Punctuated<syn::Expr, syn::token::Co
 }
 
 /// Wrap a function with pre_init/finalize logic.
-pub fn wrap_function_with_light(fn_item: &ItemFn, params_ident: &Ident) -> ItemFn {
+/// `ctx_name` is the parameter name used for the Context (e.g., "ctx", "context", "anchor_ctx").
+pub fn wrap_function_with_light(
+    fn_item: &ItemFn,
+    params_ident: &Ident,
+    ctx_name: &Ident,
+) -> ItemFn {
     let fn_vis = &fn_item.vis;
     let fn_sig = &fn_item.sig;
     let fn_block = &fn_item.block;
@@ -457,7 +473,8 @@ pub fn wrap_function_with_light(fn_item: &ItemFn, params_ident: &Ident) -> ItemF
 
     // Check if this handler delegates to another function (which moves ctx)
     // In that case, skip finalize since the delegated function handles everything
-    let is_delegation = is_delegation_body(fn_block);
+    let ctx_name_str = ctx_name.to_string();
+    let is_delegation = is_delegation_body(fn_block, &ctx_name_str);
 
     if is_delegation {
         // For delegation handlers, just add pre_init before the delegation call
@@ -466,7 +483,7 @@ pub fn wrap_function_with_light(fn_item: &ItemFn, params_ident: &Ident) -> ItemF
             #fn_vis #fn_sig {
                 // Phase 1: Pre-init (creates mints via CPI context write, registers compressed addresses)
                 use light_sdk::interface::{LightPreInit, LightFinalize};
-                let _ = ctx.accounts.light_pre_init(ctx.remaining_accounts, &#params_ident)
+                let _ = #ctx_name.accounts.light_pre_init(#ctx_name.remaining_accounts, &#params_ident)
                     .map_err(|e: light_sdk::error::LightSdkError| -> solana_program_error::ProgramError {
                         e.into()
                     })?;
@@ -482,7 +499,7 @@ pub fn wrap_function_with_light(fn_item: &ItemFn, params_ident: &Ident) -> ItemF
             #fn_vis #fn_sig {
                 // Phase 1: Pre-init (creates mints via CPI context write, registers compressed addresses)
                 use light_sdk::interface::{LightPreInit, LightFinalize};
-                let __has_pre_init = ctx.accounts.light_pre_init(ctx.remaining_accounts, &#params_ident)
+                let __has_pre_init = #ctx_name.accounts.light_pre_init(#ctx_name.remaining_accounts, &#params_ident)
                     .map_err(|e: light_sdk::error::LightSdkError| -> solana_program_error::ProgramError {
                         e.into()
                     })?;
@@ -493,7 +510,7 @@ pub fn wrap_function_with_light(fn_item: &ItemFn, params_ident: &Ident) -> ItemF
                 __user_result?;
 
                 // Phase 2: Finalize (creates token accounts/ATAs via CPI)
-                ctx.accounts.light_finalize(ctx.remaining_accounts, &#params_ident, __has_pre_init)
+                #ctx_name.accounts.light_finalize(#ctx_name.remaining_accounts, &#params_ident, __has_pre_init)
                     .map_err(|e: light_sdk::error::LightSdkError| -> solana_program_error::ProgramError {
                         e.into()
                     })?;
@@ -519,62 +536,158 @@ mod tests {
     fn test_call_has_ctx_arg_direct() {
         // F001: Direct ctx identifier
         let args = parse_args("ctx");
-        assert!(call_has_ctx_arg(&args));
+        assert!(call_has_ctx_arg(&args, "ctx"));
     }
 
     #[test]
     fn test_call_has_ctx_arg_reference() {
         // F001: Reference pattern &ctx
         let args = parse_args("&ctx");
-        assert!(call_has_ctx_arg(&args));
+        assert!(call_has_ctx_arg(&args, "ctx"));
     }
 
     #[test]
     fn test_call_has_ctx_arg_mut_reference() {
         // F001: Mutable reference pattern &mut ctx
         let args = parse_args("&mut ctx");
-        assert!(call_has_ctx_arg(&args));
+        assert!(call_has_ctx_arg(&args, "ctx"));
     }
 
     #[test]
     fn test_call_has_ctx_arg_clone() {
         // F001: Method call ctx.clone()
         let args = parse_args("ctx.clone()");
-        assert!(call_has_ctx_arg(&args));
+        assert!(call_has_ctx_arg(&args, "ctx"));
     }
 
     #[test]
     fn test_call_has_ctx_arg_into() {
         // F001: Method call ctx.into()
         let args = parse_args("ctx.into()");
-        assert!(call_has_ctx_arg(&args));
+        assert!(call_has_ctx_arg(&args, "ctx"));
     }
 
     #[test]
     fn test_call_has_ctx_arg_other_name() {
-        // Non-ctx identifier should return false
+        // Non-ctx identifier should return false when looking for "ctx"
         let args = parse_args("context");
-        assert!(!call_has_ctx_arg(&args));
+        assert!(!call_has_ctx_arg(&args, "ctx"));
     }
 
     #[test]
     fn test_call_has_ctx_arg_method_on_other() {
         // Method call on non-ctx receiver
         let args = parse_args("other.clone()");
-        assert!(!call_has_ctx_arg(&args));
+        assert!(!call_has_ctx_arg(&args, "ctx"));
     }
 
     #[test]
     fn test_call_has_ctx_arg_multiple_args() {
         // F001: ctx among multiple arguments
         let args = parse_args("foo, ctx.clone(), bar");
-        assert!(call_has_ctx_arg(&args));
+        assert!(call_has_ctx_arg(&args, "ctx"));
     }
 
     #[test]
     fn test_call_has_ctx_arg_empty() {
         // Empty args should return false
         let args = parse_args("");
-        assert!(!call_has_ctx_arg(&args));
+        assert!(!call_has_ctx_arg(&args, "ctx"));
+    }
+
+    // Tests for dynamic context name detection
+    #[test]
+    fn test_call_has_ctx_arg_custom_name_context() {
+        // Direct identifier with custom name "context"
+        let args = parse_args("context");
+        assert!(call_has_ctx_arg(&args, "context"));
+    }
+
+    #[test]
+    fn test_call_has_ctx_arg_custom_name_anchor_ctx() {
+        // Direct identifier with custom name "anchor_ctx"
+        let args = parse_args("anchor_ctx");
+        assert!(call_has_ctx_arg(&args, "anchor_ctx"));
+    }
+
+    #[test]
+    fn test_call_has_ctx_arg_custom_name_reference() {
+        // Reference pattern with custom name
+        let args = parse_args("&my_context");
+        assert!(call_has_ctx_arg(&args, "my_context"));
+    }
+
+    #[test]
+    fn test_call_has_ctx_arg_custom_name_method_call() {
+        // Method call with custom name
+        let args = parse_args("c.clone()");
+        assert!(call_has_ctx_arg(&args, "c"));
+    }
+
+    #[test]
+    fn test_call_has_ctx_arg_wrong_custom_name() {
+        // Looking for wrong name should return false
+        let args = parse_args("ctx");
+        assert!(!call_has_ctx_arg(&args, "context"));
+    }
+
+    #[test]
+    fn test_extract_context_and_params_standard() {
+        let fn_item: syn::ItemFn = syn::parse_quote! {
+            pub fn handler(ctx: Context<MyAccounts>, params: Params) -> Result<()> {
+                Ok(())
+            }
+        };
+        let result = extract_context_and_params(&fn_item);
+        assert!(result.is_some());
+        let (ctx_type, params_ident, ctx_ident) = result.unwrap();
+        assert_eq!(ctx_type, "MyAccounts");
+        assert_eq!(params_ident.to_string(), "params");
+        assert_eq!(ctx_ident.to_string(), "ctx");
+    }
+
+    #[test]
+    fn test_extract_context_and_params_custom_context_name() {
+        let fn_item: syn::ItemFn = syn::parse_quote! {
+            pub fn handler(context: Context<MyAccounts>, params: Params) -> Result<()> {
+                Ok(())
+            }
+        };
+        let result = extract_context_and_params(&fn_item);
+        assert!(result.is_some());
+        let (ctx_type, params_ident, ctx_ident) = result.unwrap();
+        assert_eq!(ctx_type, "MyAccounts");
+        assert_eq!(params_ident.to_string(), "params");
+        assert_eq!(ctx_ident.to_string(), "context");
+    }
+
+    #[test]
+    fn test_extract_context_and_params_anchor_ctx_name() {
+        let fn_item: syn::ItemFn = syn::parse_quote! {
+            pub fn handler(anchor_ctx: Context<MyAccounts>, data: Data) -> Result<()> {
+                Ok(())
+            }
+        };
+        let result = extract_context_and_params(&fn_item);
+        assert!(result.is_some());
+        let (ctx_type, params_ident, ctx_ident) = result.unwrap();
+        assert_eq!(ctx_type, "MyAccounts");
+        assert_eq!(params_ident.to_string(), "data");
+        assert_eq!(ctx_ident.to_string(), "anchor_ctx");
+    }
+
+    #[test]
+    fn test_extract_context_and_params_single_letter_name() {
+        let fn_item: syn::ItemFn = syn::parse_quote! {
+            pub fn handler(c: Context<MyAccounts>, p: Params) -> Result<()> {
+                Ok(())
+            }
+        };
+        let result = extract_context_and_params(&fn_item);
+        assert!(result.is_some());
+        let (ctx_type, params_ident, ctx_ident) = result.unwrap();
+        assert_eq!(ctx_type, "MyAccounts");
+        assert_eq!(params_ident.to_string(), "p");
+        assert_eq!(ctx_ident.to_string(), "c");
     }
 }

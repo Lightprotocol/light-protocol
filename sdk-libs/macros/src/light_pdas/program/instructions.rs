@@ -529,10 +529,12 @@ pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<Tok
         for item in items.iter_mut() {
             if let Item::Fn(fn_item) = item {
                 // Check if this function uses a rentfree Accounts struct
-                if let Some((context_type, params_ident)) = extract_context_and_params(fn_item) {
+                if let Some((context_type, params_ident, ctx_name)) =
+                    extract_context_and_params(fn_item)
+                {
                     if rentfree_struct_names.contains(&context_type) {
                         // Wrap the function with pre_init/finalize logic
-                        *fn_item = wrap_function_with_light(fn_item, &params_ident);
+                        *fn_item = wrap_function_with_light(fn_item, &params_ident, &ctx_name);
                     }
                 }
             }

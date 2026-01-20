@@ -349,9 +349,10 @@ pub mod csdk_anchor_full_derived_test {
 
     /// Test instruction that creates 2 mints in a single transaction.
     /// Tests the multi-mint support in the RentFree macro.
+    /// Also tests dynamic context name detection using "context" instead of "ctx".
     #[allow(unused_variables)]
     pub fn create_two_mints<'info>(
-        ctx: Context<'_, '_, '_, 'info, CreateTwoMints<'info>>,
+        context: Context<'_, '_, '_, 'info, CreateTwoMints<'info>>,
         params: CreateTwoMintsParams,
     ) -> Result<()> {
         // Both mints are created by the RentFree macro in pre_init
@@ -361,9 +362,10 @@ pub mod csdk_anchor_full_derived_test {
 
     /// Test instruction that creates 3 mints in a single transaction.
     /// Tests the multi-mint support in the RentFree macro scales beyond 2.
+    /// Also tests dynamic context name detection using "anchor_ctx" instead of "ctx".
     #[allow(unused_variables)]
     pub fn create_three_mints<'info>(
-        ctx: Context<'_, '_, '_, 'info, CreateThreeMints<'info>>,
+        anchor_ctx: Context<'_, '_, '_, 'info, CreateThreeMints<'info>>,
         params: CreateThreeMintsParams,
     ) -> Result<()> {
         // All 3 mints are created by the RentFree macro in pre_init
@@ -373,9 +375,10 @@ pub mod csdk_anchor_full_derived_test {
 
     /// Test instruction that creates a mint with metadata.
     /// Tests the metadata support in the RentFree macro.
+    /// Also tests dynamic context name detection using "c" (single letter) instead of "ctx".
     #[allow(unused_variables)]
     pub fn create_mint_with_metadata<'info>(
-        ctx: Context<'_, '_, '_, 'info, CreateMintWithMetadata<'info>>,
+        c: Context<'_, '_, '_, 'info, CreateMintWithMetadata<'info>>,
         params: CreateMintWithMetadataParams,
     ) -> Result<()> {
         // Mint with metadata is created by the RentFree macro in pre_init
@@ -1272,9 +1275,10 @@ pub mod csdk_anchor_full_derived_test {
     /// D10: Single vault with #[light_account(init, token, ...)]
     /// This tests automatic code generation for token account creation.
     /// The macro should generate CreateTokenAccountCpi in LightFinalize.
+    /// Also tests dynamic context name detection using "my_ctx" instead of "ctx".
     #[allow(unused_variables)]
     pub fn d10_single_vault<'info>(
-        ctx: Context<'_, '_, '_, 'info, D10SingleVault<'info>>,
+        my_ctx: Context<'_, '_, '_, 'info, D10SingleVault<'info>>,
         params: D10SingleVaultParams,
     ) -> Result<()> {
         // Token account creation is handled by the LightFinalize trait implementation
@@ -1286,9 +1290,10 @@ pub mod csdk_anchor_full_derived_test {
     /// D10: Single ATA with #[light_account(init, associated_token, ...)]
     /// This tests automatic code generation for ATA creation.
     /// The macro should generate create_associated_token_account_idempotent in LightFinalize.
+    /// Also tests dynamic context name detection using "cx" instead of "ctx".
     #[allow(unused_variables)]
     pub fn d10_single_ata<'info>(
-        ctx: Context<'_, '_, '_, 'info, D10SingleAta<'info>>,
+        cx: Context<'_, '_, '_, 'info, D10SingleAta<'info>>,
         params: D10SingleAtaParams,
     ) -> Result<()> {
         // ATA creation is handled by the LightFinalize trait implementation
