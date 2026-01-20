@@ -198,7 +198,8 @@ pub use interface::{
     MAX_ADDRESS_TREES_PER_SPACE,
 };
 pub use light_account_checks::{self, discriminator::Discriminator as LightDiscriminator};
-pub use light_hasher;
+// Re-export as extern crate so downstream crates can use `::light_hasher::` paths
+pub extern crate light_hasher;
 #[cfg(feature = "poseidon")]
 use light_hasher::DataHasher;
 pub use light_macros::{derive_light_cpi_signer, derive_light_cpi_signer_pda};

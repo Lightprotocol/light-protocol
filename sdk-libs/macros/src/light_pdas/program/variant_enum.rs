@@ -181,23 +181,23 @@ impl<'a> LightVariantBuilder<'a> {
             let inner_type = qualify_type_with_crate(&info.inner_type);
             let packed_variant_name = format_ident!("Packed{}", variant_name);
             quote! {
-                LightAccountVariant::#variant_name { data, .. } => <#inner_type as ::light_hasher::DataHasher>::hash::<H>(data),
-                LightAccountVariant::#packed_variant_name { .. } => Err(::light_hasher::HasherError::EmptyInput),
+                LightAccountVariant::#variant_name { data, .. } => <#inner_type as ::light_sdk::hasher::DataHasher>::hash::<H>(data),
+                LightAccountVariant::#packed_variant_name { .. } => Err(::light_sdk::hasher::HasherError::EmptyInput),
             }
         });
 
         let ctoken_arms = if self.include_ctoken {
             quote! {
-                Self::PackedCTokenData(_) => Err(::light_hasher::HasherError::EmptyInput),
-                Self::CTokenData(_) => Err(::light_hasher::HasherError::EmptyInput),
+                Self::PackedCTokenData(_) => Err(::light_sdk::hasher::HasherError::EmptyInput),
+                Self::CTokenData(_) => Err(::light_sdk::hasher::HasherError::EmptyInput),
             }
         } else {
             quote! {}
         };
 
         quote! {
-            impl ::light_hasher::DataHasher for LightAccountVariant {
-                fn hash<H: ::light_hasher::Hasher>(&self) -> std::result::Result<[u8; 32], ::light_hasher::HasherError> {
+            impl ::light_sdk::hasher::DataHasher for LightAccountVariant {
+                fn hash<H: ::light_sdk::hasher::Hasher>(&self) -> std::result::Result<[u8; 32], ::light_sdk::hasher::HasherError> {
                     match self {
                         #(#hash_match_arms)*
                         #ctoken_arms
