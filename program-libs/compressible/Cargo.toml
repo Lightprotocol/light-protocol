@@ -1,6 +1,6 @@
 [package]
 name = "light-compressible"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 description = "Light Protocol compressible data structures"
 license = "MIT"
@@ -32,7 +32,7 @@ light-program-profiler = { workspace = true }
 light-heap = { workspace = true, optional = true }
 light-account-checks = { workspace= true }
 light-compressed-account = { workspace= true }
-light-sdk-types = { workspace = true }
+light-sdk-types = { workspace = true, features = ["std"] }
 aligned-sized = { workspace= true }
 solana-sysvar = {workspace = true, optional = true}
 

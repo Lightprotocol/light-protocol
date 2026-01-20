@@ -3676,7 +3676,7 @@ dependencies = [
 
 [[package]]
 name = "light-compressible"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "aligned-sized",
  "anchor-lang",

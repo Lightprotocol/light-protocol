@@ -190,7 +190,7 @@ light-sdk-pinocchio = { path = "sdk-libs/sdk-pinocchio", version = "0.18.0" }
 light-sdk-macros = { path = "sdk-libs/macros", version = "0.18.0" }
 light-sdk-types = { path = "sdk-libs/sdk-types", version = "0.18.0", default-features = false }
 light-compressed-account = { path = "program-libs/compressed-account", version = "0.8.0", default-features = false }
-light-compressible = { path = "program-libs/compressible", version = "0.3.0", default-features = false }
+light-compressible = { path = "program-libs/compressible", version = "0.3.1", default-features = false }
 light-token-interface = { path = "program-libs/token-interface", version = "0.2.0" }
 light-account-checks = { path = "program-libs/account-checks", version = "0.6.0", default-features = false }
 light-verifier = { path = "program-libs/verifier", version = "7.0.0" }
