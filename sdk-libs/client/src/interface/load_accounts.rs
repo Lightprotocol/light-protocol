@@ -13,7 +13,7 @@ use light_token::{
         },
         CTokenAccount2,
     },
-    token::{
+    instruction::{
         derive_token_ata, CreateAssociatedTokenAccount, DecompressMint, LIGHT_TOKEN_PROGRAM_ID,
     },
 };

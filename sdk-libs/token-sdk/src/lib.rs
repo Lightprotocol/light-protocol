@@ -64,7 +64,7 @@
 pub mod anchor;
 pub mod compressed_token;
 pub mod compressible;
-pub mod token;
+pub mod instruction;
 
 pub mod constants;
 pub mod error;

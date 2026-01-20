@@ -2,7 +2,7 @@
 
 use borsh::BorshDeserialize;
 use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
-use light_token::token::{derive_mint_compressed_address, DecompressMint};
+use light_token::instruction::{derive_mint_compressed_address, DecompressMint};
 use light_token_interface::{
     instructions::mint_action::{MintInstructionData, MintWithContext},
     state::Mint,

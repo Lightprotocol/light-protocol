@@ -15,7 +15,7 @@ use light_test_utils::{
 };
 use light_token::{
     compressed_token::create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
-    token::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount},
+    instruction::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount},
 };
 use light_token_client::{
     actions::{create_mint, mint_to_compressed, transfer, transfer2},

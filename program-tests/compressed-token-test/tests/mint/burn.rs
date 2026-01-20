@@ -2,7 +2,7 @@ use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{assert_ctoken_burn::assert_ctoken_burn, Rpc};
 use light_token::{
     compressed_token::create_compressed_mint::find_mint_address,
-    token::{derive_token_ata, Burn, CreateAssociatedTokenAccount},
+    instruction::{derive_token_ata, Burn, CreateAssociatedTokenAccount},
 };
 use light_token_client::instructions::mint_action::DecompressMintParams;
 use light_token_interface::instructions::mint_action::Recipient;

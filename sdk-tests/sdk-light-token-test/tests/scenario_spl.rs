@@ -21,10 +21,10 @@ use light_client::{indexer::Indexer, rpc::Rpc};
 use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestConfig};
 use light_test_utils::spl::{create_token_account, mint_spl_tokens};
 use light_token::{
-    spl_interface::{find_spl_interface_pda_with_index, CreateSplInterfacePda},
-    token::{
+    instruction::{
         derive_token_ata, CreateAssociatedTokenAccount, Decompress, Freeze, Thaw, TransferFromSpl,
     },
+    spl_interface::{find_spl_interface_pda_with_index, CreateSplInterfacePda},
 };
 use solana_sdk::{signature::Keypair, signer::Signer};
 use spl_token_2022::pod::PodAccount;

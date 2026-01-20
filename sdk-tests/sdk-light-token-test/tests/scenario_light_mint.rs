@@ -16,7 +16,7 @@ mod shared;
 use borsh::BorshDeserialize;
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestConfig};
-use light_token::token::{CreateAssociatedTokenAccount, Decompress, Token, Transfer};
+use light_token::instruction::{CreateAssociatedTokenAccount, Decompress, Token, Transfer};
 use solana_sdk::{signature::Keypair, signer::Signer};
 
 /// Test the complete cMint to cToken flow using direct SDK calls

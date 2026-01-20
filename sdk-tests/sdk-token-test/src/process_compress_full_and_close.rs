@@ -8,7 +8,7 @@ use light_token::{
         },
         CTokenAccount2,
     },
-    token::CloseAccount,
+    instruction::CloseAccount,
 };
 
 use crate::Generic;

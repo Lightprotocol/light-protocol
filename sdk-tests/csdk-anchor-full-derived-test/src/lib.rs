@@ -276,7 +276,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, CreatePdasAndMintAuto<'info>>,
         params: FullAutoWithMintParams,
     ) -> Result<()> {
-        use light_token::token::{
+        use light_token::instruction::{
             CreateTokenAccountCpi, CreateTokenAtaCpi, MintToCpi as CTokenMintToCpi,
         };
 
@@ -578,7 +578,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D7LightTokenConfig<'info>>,
         _params: D7LightTokenConfigParams,
     ) -> Result<()> {
-        use light_token::token::CreateTokenAccountCpi;
+        use light_token::instruction::CreateTokenAccountCpi;
 
         let mint_key = ctx.accounts.mint.key();
         // Derive the vault bump at runtime
@@ -617,7 +617,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D7AllNames<'info>>,
         params: D7AllNamesParams,
     ) -> Result<()> {
-        use light_token::token::CreateTokenAccountCpi;
+        use light_token::instruction::CreateTokenAccountCpi;
 
         // Set up the PDA record
         ctx.accounts.d7_all_record.owner = params.owner;
@@ -1318,7 +1318,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D5LightToken<'info>>,
         params: D5LightTokenParams,
     ) -> Result<()> {
-        use light_token::token::CreateTokenAccountCpi;
+        use light_token::instruction::CreateTokenAccountCpi;
 
         let mint_key = ctx.accounts.mint.key();
         CreateTokenAccountCpi {
@@ -1348,7 +1348,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D5AllMarkers<'info>>,
         params: D5AllMarkersParams,
     ) -> Result<()> {
-        use light_token::token::CreateTokenAccountCpi;
+        use light_token::instruction::CreateTokenAccountCpi;
 
         // Set up the PDA record
         ctx.accounts.d5_all_record.owner = params.owner;

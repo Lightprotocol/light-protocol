@@ -19,8 +19,8 @@ use light_test_utils::mint_2022::{
 };
 use light_token::{
     constants::CPI_AUTHORITY_PDA,
+    instruction::{CompressibleParams, CreateTokenAccount, TransferFromSpl, TransferToSpl},
     spl_interface::find_spl_interface_pda_with_index as sdk_find_spl_interface_pda,
-    token::{CompressibleParams, CreateTokenAccount, TransferFromSpl, TransferToSpl},
 };
 use light_token_client::instructions::transfer2::{
     create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,

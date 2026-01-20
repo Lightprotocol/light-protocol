@@ -5,7 +5,7 @@ mod shared;
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_client::rpc::Rpc;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
-use light_token::token::LIGHT_TOKEN_PROGRAM_ID;
+use light_token::instruction::LIGHT_TOKEN_PROGRAM_ID;
 use native_ctoken_examples::{CreateTokenAccountData, ID};
 use shared::setup_create_mint;
 use solana_sdk::{
@@ -43,7 +43,7 @@ async fn test_create_token_account_invoke() {
     };
     let instruction_data = [vec![2u8], create_token_account_data.try_to_vec().unwrap()].concat();
 
-    use light_token::token::{config_pda, rent_sponsor_pda};
+    use light_token::instruction::{config_pda, rent_sponsor_pda};
     let config = config_pda();
     let rent_sponsor = rent_sponsor_pda();
 
@@ -119,7 +119,7 @@ async fn test_create_token_account_invoke_signed() {
     // Discriminator 3 = CreateTokenAccountInvokeSigned
     let instruction_data = [vec![3u8], create_token_account_data.try_to_vec().unwrap()].concat();
 
-    use light_token::token::{config_pda, rent_sponsor_pda};
+    use light_token::instruction::{config_pda, rent_sponsor_pda};
     let config = config_pda();
     let rent_sponsor = rent_sponsor_pda();
 

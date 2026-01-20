@@ -15,8 +15,8 @@ use light_test_utils::mint_2022::{
     RESTRICTED_EXTENSIONS,
 };
 use light_token::{
+    instruction::{CompressibleParams, CreateTokenAccount, TransferFromSpl},
     spl_interface::find_spl_interface_pda_with_index,
-    token::{CompressibleParams, CreateTokenAccount, TransferFromSpl},
 };
 use light_token_client::instructions::transfer2::{
     create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,

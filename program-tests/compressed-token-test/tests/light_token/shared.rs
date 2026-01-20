@@ -14,7 +14,7 @@ pub use light_test_utils::{
     assert_transfer2::assert_transfer2_compress,
     Rpc, RpcError,
 };
-pub use light_token::token::{
+pub use light_token::instruction::{
     derive_token_ata, Approve, CloseAccount, CompressibleParams, CreateAssociatedTokenAccount,
     CreateTokenAccount, Revoke,
 };

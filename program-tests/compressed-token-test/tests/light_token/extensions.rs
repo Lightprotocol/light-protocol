@@ -80,8 +80,8 @@ async fn test_setup_mint_22_with_all_extensions() {
 #[serial]
 async fn test_mint_and_compress_with_extensions() {
     use light_token::{
+        instruction::{CompressibleParams, CreateTokenAccount, TransferFromSpl},
         spl_interface::find_spl_interface_pda_with_index,
-        token::{CompressibleParams, CreateTokenAccount, TransferFromSpl},
     };
     use light_token_interface::state::TokenDataVersion;
 
@@ -202,7 +202,7 @@ async fn test_create_ctoken_with_extensions() {
     use light_test_utils::assert_create_token_account::{
         assert_create_token_account, CompressibleData,
     };
-    use light_token::token::{CompressibleParams, CreateTokenAccount};
+    use light_token::instruction::{CompressibleParams, CreateTokenAccount};
     use light_token_interface::state::TokenDataVersion;
 
     let mut context = setup_extensions_test().await.unwrap();
@@ -285,8 +285,8 @@ async fn test_transfer_with_permanent_delegate() {
     use anchor_lang::prelude::AccountMeta;
     use anchor_spl::token_2022::spl_token_2022;
     use light_token::{
+        instruction::{CompressibleParams, CreateTokenAccount, TransferFromSpl},
         spl_interface::find_spl_interface_pda_with_index,
-        token::{CompressibleParams, CreateTokenAccount, TransferFromSpl},
     };
     use light_token_interface::state::TokenDataVersion;
     use solana_sdk::{instruction::Instruction, program_pack::Pack};
@@ -486,8 +486,8 @@ async fn test_transfer_with_owner_authority() {
     use anchor_spl::token_2022::spl_token_2022;
     use borsh::BorshDeserialize;
     use light_token::{
+        instruction::{CompressibleParams, CreateTokenAccount, TransferFromSpl},
         spl_interface::find_spl_interface_pda_with_index,
-        token::{CompressibleParams, CreateTokenAccount, TransferFromSpl},
     };
     use light_token_interface::state::{AccountState, Token, TokenDataVersion};
     use solana_sdk::{instruction::Instruction, program_pack::Pack};

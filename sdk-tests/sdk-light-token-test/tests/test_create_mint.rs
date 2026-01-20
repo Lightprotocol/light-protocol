@@ -7,7 +7,7 @@ use light_client::{indexer::Indexer, rpc::Rpc};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_token::{
     compressed_token::mint_action::MintActionMetaConfig,
-    token::{config_pda, rent_sponsor_pda},
+    instruction::{config_pda, rent_sponsor_pda},
 };
 use light_token_interface::{
     instructions::extensions::{
@@ -45,12 +45,12 @@ async fn test_create_compressed_mint() {
         Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
 
     // Use SDK helper to derive the compression address correctly
-    let compression_address = light_token::token::derive_mint_compressed_address(
+    let compression_address = light_token::instruction::derive_mint_compressed_address(
         &mint_signer.pubkey(),
         &address_tree.tree,
     );
 
-    let (mint_pda, mint_bump) = light_token::token::find_mint_address(&mint_signer.pubkey());
+    let (mint_pda, mint_bump) = light_token::instruction::find_mint_address(&mint_signer.pubkey());
 
     let rpc_result = rpc
         .get_validity_proof(
@@ -153,10 +153,12 @@ async fn test_create_compressed_mint_invoke_signed() {
         Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
 
     // Use SDK helper to derive the compression address correctly
-    let compression_address =
-        light_token::token::derive_mint_compressed_address(&mint_signer_pda, &address_tree.tree);
+    let compression_address = light_token::instruction::derive_mint_compressed_address(
+        &mint_signer_pda,
+        &address_tree.tree,
+    );
 
-    let (mint_pda, mint_bump) = light_token::token::find_mint_address(&mint_signer_pda);
+    let (mint_pda, mint_bump) = light_token::instruction::find_mint_address(&mint_signer_pda);
 
     let rpc_result = rpc
         .get_validity_proof(
@@ -191,7 +193,7 @@ async fn test_create_compressed_mint_invoke_signed() {
     // Build accounts manually since SDK marks mint_signer as signer, but we need it as non-signer
     // for invoke_signed (the wrapper program signs via CPI)
     // Account order matches MintActionMetaConfig::to_account_metas() with mint_signer as non-signer
-    let system_accounts = light_token::token::SystemAccounts::default();
+    let system_accounts = light_token::instruction::SystemAccounts::default();
     let wrapper_accounts = vec![
         AccountMeta::new_readonly(compressed_token_program_id, false), // [0] compressed_token_program
         AccountMeta::new_readonly(system_accounts.light_system_program, false), // [1] light_system_program

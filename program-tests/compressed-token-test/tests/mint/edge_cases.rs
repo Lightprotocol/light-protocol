@@ -6,7 +6,7 @@ use light_test_utils::{
 };
 use light_token::{
     compressed_token::create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
-    token::{CompressibleParams, CreateAssociatedTokenAccount},
+    instruction::{CompressibleParams, CreateAssociatedTokenAccount},
 };
 use light_token_client::{
     actions::create_mint,
@@ -180,7 +180,8 @@ async fn functional_all_in_one_instruction() {
         },
         // 2. MintToCToken - mint to decompressed account
         MintActionType::MintToCToken {
-            account: light_token::token::derive_token_ata(&recipient.pubkey(), &spl_mint_pda).0,
+            account: light_token::instruction::derive_token_ata(&recipient.pubkey(), &spl_mint_pda)
+                .0,
             amount: 2000u64,
         },
         // 3. UpdateMintAuthority

@@ -19,7 +19,7 @@ use spl_token_2022::extension::ExtensionType;
 #[tokio::test]
 #[serial]
 async fn test_create_ctoken_with_frozen_default_state() {
-    use light_token::token::{CompressibleParams, CreateTokenAccount};
+    use light_token::instruction::{CompressibleParams, CreateTokenAccount};
     use light_token_interface::state::TokenDataVersion;
 
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
@@ -107,7 +107,7 @@ async fn test_create_ctoken_with_frozen_default_state() {
 #[tokio::test]
 #[serial]
 async fn test_create_ctoken_with_initialized_default_state() {
-    use light_token::token::{CompressibleParams, CreateTokenAccount};
+    use light_token::instruction::{CompressibleParams, CreateTokenAccount};
     use light_token_interface::state::TokenDataVersion;
 
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))

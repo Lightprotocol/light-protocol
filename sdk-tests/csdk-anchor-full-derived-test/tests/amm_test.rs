@@ -26,7 +26,7 @@ use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest, TestRpc},
     Indexer, ProgramTestConfig, Rpc,
 };
-use light_token::token::{
+use light_token::instruction::{
     find_mint_address, get_associated_token_address_and_bump, COMPRESSIBLE_CONFIG_V1,
     LIGHT_TOKEN_CPI_AUTHORITY, LIGHT_TOKEN_PROGRAM_ID, RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR,
 };

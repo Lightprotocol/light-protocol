@@ -17,8 +17,8 @@ use light_test_utils::{
     Rpc,
 };
 use light_token::{
+    instruction::{CompressibleParams, CreateTokenAccount, TransferChecked, TransferFromSpl},
     spl_interface::find_spl_interface_pda_with_index,
-    token::{CompressibleParams, CreateTokenAccount, TransferChecked, TransferFromSpl},
 };
 use light_token_interface::state::TokenDataVersion;
 use serial_test::serial;

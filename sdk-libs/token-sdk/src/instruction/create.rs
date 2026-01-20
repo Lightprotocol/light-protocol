@@ -9,12 +9,12 @@ use solana_instruction::{AccountMeta, Instruction};
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-use crate::token::{compressible::CompressibleParamsCpi, CompressibleParams};
+use crate::instruction::{compressible::CompressibleParamsCpi, CompressibleParams};
 
 /// # Create a create ctoken account instruction:
 /// ```rust
 /// # use solana_pubkey::Pubkey;
-/// # use light_token::token::CreateTokenAccount;
+/// # use light_token::instruction::CreateTokenAccount;
 /// # let payer = Pubkey::new_unique();
 /// # let account = Pubkey::new_unique();
 /// # let mint = Pubkey::new_unique();

@@ -157,7 +157,7 @@ impl<'a> CreateMintsParams<'a> {
 /// # Example
 ///
 /// ```rust,ignore
-/// use light_token::token::{CreateMintsCpi, CreateMintsParams, SingleMintParams, SystemAccountInfos};
+/// use light_token::instruction::{CreateMintsCpi, CreateMintsParams, SingleMintParams, SystemAccountInfos};
 ///
 /// let params = CreateMintsParams::new(vec![mint_params_1, mint_params_2], proof);
 ///
@@ -664,7 +664,7 @@ pub fn create_mints<'a, 'info>(
 // /// # Example
 // ///
 // /// ```rust,ignore
-// /// use light_token::token::{CreateMints, CreateMintsParams, SingleMintParams};
+// /// use light_token::instruction::{CreateMints, CreateMintsParams, SingleMintParams};
 // ///
 // /// let params = CreateMintsParams::new(vec![mint1_params, mint2_params], proof);
 // ///

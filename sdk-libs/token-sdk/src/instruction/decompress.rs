@@ -18,14 +18,14 @@ use crate::{
         },
         CTokenAccount2,
     },
-    token::derive_token_ata,
+    instruction::derive_token_ata,
 };
 
 /// # Decompress compressed tokens to a cToken account
 ///
 /// ```rust
 /// # use solana_pubkey::Pubkey;
-/// # use light_token::token::Decompress;
+/// # use light_token::instruction::Decompress;
 /// # use light_token::compat::TokenData;
 /// # use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
 /// # let destination = Pubkey::new_unique();

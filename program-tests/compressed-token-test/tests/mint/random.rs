@@ -7,7 +7,7 @@ use light_test_utils::{
 };
 use light_token::{
     compressed_token::create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
-    token::CreateAssociatedTokenAccount,
+    instruction::CreateAssociatedTokenAccount,
 };
 use light_token_client::{
     actions::create_mint,
@@ -137,7 +137,7 @@ async fn test_random_mint_action() {
             .await
             .unwrap();
 
-        let ata = light_token::token::derive_token_ata(&recipient.pubkey(), &spl_mint_pda).0;
+        let ata = light_token::instruction::derive_token_ata(&recipient.pubkey(), &spl_mint_pda).0;
 
         ctoken_atas.push(ata);
     }

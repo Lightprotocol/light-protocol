@@ -6,7 +6,7 @@
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
 use light_sdk_macros::LightAccounts;
-use light_token::token::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR};
+use light_token::instruction::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR};
 
 pub const D5_VAULT_AUTH_SEED: &[u8] = b"d5_vault_auth";
 pub const D5_VAULT_SEED: &[u8] = b"d5_vault";

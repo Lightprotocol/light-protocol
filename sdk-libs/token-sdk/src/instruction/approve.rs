@@ -8,7 +8,7 @@ use solana_pubkey::Pubkey;
 /// # Approve a delegate for a Light Token account:
 /// ```rust
 /// # use solana_pubkey::Pubkey;
-/// # use light_token::token::Approve;
+/// # use light_token::instruction::Approve;
 /// # let token_account = Pubkey::new_unique();
 /// # let delegate = Pubkey::new_unique();
 /// # let owner = Pubkey::new_unique();
@@ -33,7 +33,7 @@ pub struct Approve {
 
 /// # Approve Light Token via CPI:
 /// ```rust,no_run
-/// # use light_token::token::ApproveCpi;
+/// # use light_token::instruction::ApproveCpi;
 /// # use solana_account_info::AccountInfo;
 /// # let token_account: AccountInfo = todo!();
 /// # let delegate: AccountInfo = todo!();

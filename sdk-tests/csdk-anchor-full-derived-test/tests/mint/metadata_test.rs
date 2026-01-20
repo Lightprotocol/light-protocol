@@ -25,7 +25,7 @@ async fn test_create_mint_with_metadata() {
     use csdk_anchor_full_derived_test::instruction_accounts::{
         CreateMintWithMetadataParams, METADATA_MINT_SIGNER_SEED,
     };
-    use light_token::token::{
+    use light_token::instruction::{
         find_mint_address as find_cmint_address, COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR,
     };
 

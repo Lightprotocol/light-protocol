@@ -1463,7 +1463,7 @@ async fn test_d5_light_token() {
         D5LightTokenParams, D5_VAULT_AUTH_SEED, D5_VAULT_SEED,
     };
     use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
-    use light_token::token::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR};
+    use light_token::instruction::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR};
 
     let mut ctx = TestContext::new().await;
 
@@ -1528,7 +1528,7 @@ async fn test_d5_all_markers() {
         D5AllMarkersParams, D5_ALL_AUTH_SEED, D5_ALL_VAULT_SEED,
     };
     use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
-    use light_token::token::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR};
+    use light_token::instruction::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR};
 
     let mut ctx = TestContext::new().await;
     let owner = Keypair::new().pubkey();
@@ -1612,7 +1612,9 @@ async fn test_d7_light_token_config() {
         D7LightTokenConfigParams, D7_LIGHT_TOKEN_AUTH_SEED, D7_LIGHT_TOKEN_VAULT_SEED,
     };
     use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
-    use light_token::token::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR};
+    use light_token::instruction::{
+        COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR,
+    };
 
     let mut ctx = TestContext::new().await;
 
@@ -1677,7 +1679,7 @@ async fn test_d7_all_names() {
         D7AllNamesParams, D7_ALL_AUTH_SEED, D7_ALL_VAULT_SEED,
     };
     use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
-    use light_token::token::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR};
+    use light_token::instruction::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR};
 
     let mut ctx = TestContext::new().await;
     let owner = Keypair::new().pubkey();

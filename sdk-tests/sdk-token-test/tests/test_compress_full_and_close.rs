@@ -9,7 +9,7 @@ use light_token::{
         create_compressed_mint::{create_compressed_mint, CreateMintInputs},
         mint_to_compressed::{create_mint_to_compressed_instruction, MintToCompressedInputs},
     },
-    token::{
+    instruction::{
         config_pda, derive_token_ata, rent_sponsor_pda, CompressibleParams,
         CreateAssociatedTokenAccount,
     },

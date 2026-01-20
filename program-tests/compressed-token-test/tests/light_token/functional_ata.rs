@@ -1,5 +1,5 @@
 use light_test_utils::assert_create_token_account::assert_create_associated_token_account;
-use light_token::token::{CloseAccount, CompressibleParams, CreateAssociatedTokenAccount};
+use light_token::instruction::{CloseAccount, CompressibleParams, CreateAssociatedTokenAccount};
 
 use super::shared::*;
 

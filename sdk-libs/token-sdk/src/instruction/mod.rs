@@ -39,7 +39,7 @@
 //!
 //! ```rust
 //! # use solana_pubkey::Pubkey;
-//! use light_token::token::CreateAssociatedTokenAccount;
+//! use light_token::instruction::CreateAssociatedTokenAccount;
 //! # let payer = Pubkey::new_unique();
 //! # let owner = Pubkey::new_unique();
 //! # let mint = Pubkey::new_unique();
@@ -53,7 +53,7 @@
 //! # Example: Create rent-free ATA via CPI
 //!
 //! ```rust,ignore
-//! use light_token::token::CreateTokenAtaCpi;
+//! use light_token::instruction::CreateTokenAtaCpi;
 //!
 //! CreateTokenAtaCpi {
 //!     payer: ctx.accounts.payer.to_account_info(),
@@ -74,7 +74,7 @@
 //! # Example: Create rent-free vault via CPI (with PDA signing)
 //!
 //! ```rust,ignore
-//! use light_token::token::CreateTokenAccountCpi;
+//! use light_token::instruction::CreateTokenAccountCpi;
 //!
 //! CreateTokenAccountCpi {
 //!     payer: ctx.accounts.payer.to_account_info(),
@@ -179,7 +179,7 @@ pub struct SystemAccountInfos<'info> {
 /// System accounts with Pubkey references for instruction building.
 ///
 /// ```rust
-/// # use light_token::token::SystemAccounts;
+/// # use light_token::instruction::SystemAccounts;
 /// # use solana_instruction::AccountMeta;
 /// let system_accounts = SystemAccounts::default();
 /// let accounts = vec![

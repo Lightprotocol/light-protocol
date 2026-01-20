@@ -29,7 +29,7 @@ use light_test_utils::{
 };
 use light_token::{
     compressed_token::create_compressed_mint::find_mint_address,
-    token::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount, MintTo},
+    instruction::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount, MintTo},
 };
 use light_token_client::{
     actions::{

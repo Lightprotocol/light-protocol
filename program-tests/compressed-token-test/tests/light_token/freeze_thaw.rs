@@ -10,7 +10,7 @@ use light_test_utils::{
     spl::create_mint_helper,
     Rpc, RpcError,
 };
-use light_token::token::{CompressibleParams, CreateTokenAccount, Freeze, Thaw};
+use light_token::instruction::{CompressibleParams, CreateTokenAccount, Freeze, Thaw};
 use light_token_interface::state::{AccountState, Token, TokenDataVersion};
 use serial_test::serial;
 use solana_sdk::{signature::Keypair, signer::Signer};

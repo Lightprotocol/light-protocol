@@ -46,7 +46,7 @@ use light_token::{
         },
         CTokenAccount2,
     },
-    token::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount},
+    instruction::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount},
     ValidityProof,
 };
 use light_token_interface::{

@@ -10,7 +10,9 @@ pub use light_test_utils::{
     },
     Rpc, RpcError,
 };
-pub use light_token::token::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount};
+pub use light_token::instruction::{
+    derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount,
+};
 use light_token::{
     compressed_token::{
         transfer2::{

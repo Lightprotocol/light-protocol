@@ -255,7 +255,7 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
             quote! {
                 // Mint #idx: derive PDA and build params
                 let #signer_key_ident = *self.#mint_signer.to_account_info().key;
-                let (#pda_ident, #bump_ident) = light_token::token::find_mint_address(&#signer_key_ident);
+                let (#pda_ident, #bump_ident) = light_token::instruction::find_mint_address(&#signer_key_ident);
 
                 let #mint_seeds_ident: &[&[u8]] = #mint_seeds;
                 #authority_seeds_binding
@@ -263,7 +263,7 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
 
                 let __tree_info = &#address_tree_info;
 
-                let #idx_ident = light_token::token::SingleMintParams {
+                let #idx_ident = light_token::instruction::SingleMintParams {
                     decimals: #decimals,
                     address_merkle_tree_root_index: __tree_info.root_index,
                     mint_authority: *self.#authority.to_account_info().key,
@@ -336,7 +336,7 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
             #(#mint_params_builds)*
 
             // Array of mint params
-            let __mint_params: [light_token::token::SingleMintParams<'_>; #mint_count] = [
+            let __mint_params: [light_token::instruction::SingleMintParams<'_>; #mint_count] = [
                 #(#param_idents),*
             ];
 
@@ -364,7 +364,7 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
             let __address_tree = cpi_accounts.get_tree_account_info(__address_tree_index as usize)?;
 
             // Build CreateMintsParams with tree indices
-            let __create_mints_params = light_token::token::CreateMintsParams::new(
+            let __create_mints_params = light_token::instruction::CreateMintsParams::new(
                 &__mint_params,
                 __proof,
             )
@@ -380,7 +380,7 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
 
             // Build and invoke CreateMintsCpi
             // Seeds are extracted from SingleMintParams internally
-            light_token::token::CreateMintsCpi {
+            light_token::instruction::CreateMintsCpi {
                 mint_seed_accounts: &__mint_seed_accounts,
                 payer: self.#fee_payer.to_account_info(),
                 address_tree: __address_tree.clone(),
@@ -389,7 +389,7 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
                 compressible_config: self.#light_token_config.to_account_info(),
                 mints: &__mint_accounts,
                 rent_sponsor: self.#light_token_rent_sponsor.to_account_info(),
-                system_accounts: light_token::token::SystemAccountInfos {
+                system_accounts: light_token::instruction::SystemAccountInfos {
                     light_system_program: cpi_accounts.light_system_program()?.clone(),
                     cpi_authority_pda: self.#light_token_cpi_authority.to_account_info(),
                     registered_program_pda: cpi_accounts.registered_program_pda()?.clone(),

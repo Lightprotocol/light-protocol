@@ -2,7 +2,7 @@
 
 use anchor_lang::prelude::*;
 use light_anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
-use light_token::token::MintToCpi;
+use light_token::instruction::MintToCpi;
 
 use super::states::*;
 

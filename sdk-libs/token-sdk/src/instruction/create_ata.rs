@@ -9,7 +9,7 @@ use solana_instruction::{AccountMeta, Instruction};
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-use crate::token::{compressible::CompressibleParamsCpi, CompressibleParams};
+use crate::instruction::{compressible::CompressibleParamsCpi, CompressibleParams};
 
 const CREATE_ATA_DISCRIMINATOR: u8 = 100;
 const CREATE_ATA_IDEMPOTENT_DISCRIMINATOR: u8 = 102;
@@ -28,7 +28,7 @@ pub fn derive_token_ata(owner: &Pubkey, mint: &Pubkey) -> (Pubkey, u8) {
 /// # Create an associated ctoken account instruction:
 /// ```rust
 /// # use solana_pubkey::Pubkey;
-/// # use light_token::token::CreateAssociatedTokenAccount;
+/// # use light_token::instruction::CreateAssociatedTokenAccount;
 /// # let payer = Pubkey::new_unique();
 /// # let owner = Pubkey::new_unique();
 /// # let mint = Pubkey::new_unique();

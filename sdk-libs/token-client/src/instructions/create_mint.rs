@@ -37,7 +37,7 @@ pub async fn create_compressed_mint_instruction<R: Rpc + Indexer>(
 ) -> Result<Instruction, RpcError> {
     // Get address tree for deriving compressed mint address
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
-    let compressed_mint_address = light_token::token::derive_mint_compressed_address(
+    let compressed_mint_address = light_token::instruction::derive_mint_compressed_address(
         &mint_seed.pubkey(),
         &address_tree_pubkey,
     );

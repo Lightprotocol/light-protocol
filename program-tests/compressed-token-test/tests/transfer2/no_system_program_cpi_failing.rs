@@ -50,7 +50,7 @@ use light_sdk::instruction::PackedAccounts;
 use light_test_utils::{airdrop_lamports, RpcError};
 use light_token::{
     compressed_token::create_compressed_mint::find_mint_address,
-    token::{derive_token_ata, CreateAssociatedTokenAccount},
+    instruction::{derive_token_ata, CreateAssociatedTokenAccount},
     ValidityProof,
 };
 use light_token_interface::instructions::{mint_action::Recipient, transfer2::Compression};

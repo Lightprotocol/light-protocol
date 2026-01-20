@@ -11,7 +11,7 @@ use light_sdk::{
         SystemAccountMetaConfig, ValidityProof,
     },
 };
-use light_token::token::{
+use light_token::instruction::{
     COMPRESSIBLE_CONFIG_V1, LIGHT_TOKEN_CPI_AUTHORITY, LIGHT_TOKEN_PROGRAM_ID, RENT_SPONSOR,
 };
 use solana_account::Account;

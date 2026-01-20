@@ -37,4 +37,4 @@ pub use light_sdk_macros::{
 };
 
 // Re-export token SDK types
-pub use crate::{token::*, CompressedProof, ValidityProof as ValidityProofAlias};
+pub use crate::{instruction::*, CompressedProof, ValidityProof as ValidityProofAlias};

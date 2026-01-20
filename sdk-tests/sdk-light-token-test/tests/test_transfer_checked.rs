@@ -10,8 +10,8 @@ use light_test_utils::{
     spl::{create_token_account, mint_spl_tokens},
 };
 use light_token::{
+    instruction::{derive_token_ata, CreateAssociatedTokenAccount, TransferFromSpl},
     spl_interface::{find_spl_interface_pda_with_index, CreateSplInterfacePda},
-    token::{derive_token_ata, CreateAssociatedTokenAccount, TransferFromSpl},
 };
 use light_token_interface::state::Token;
 use native_ctoken_examples::{InstructionType, TransferCheckedData, ID};
@@ -144,7 +144,7 @@ async fn test_ctoken_transfer_checked_spl_mint() {
     let mut instruction_data = vec![InstructionType::CTokenTransferCheckedInvoke as u8];
     transfer_data.serialize(&mut instruction_data).unwrap();
 
-    let light_token_program = light_token::token::LIGHT_TOKEN_PROGRAM_ID;
+    let light_token_program = light_token::instruction::LIGHT_TOKEN_PROGRAM_ID;
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
@@ -196,7 +196,7 @@ async fn test_ctoken_transfer_checked_t22_mint() {
     let (source_ata, _) = derive_token_ata(&source_owner, &mint);
     let (dest_ata, _) = derive_token_ata(&dest_owner, &mint);
 
-    use light_token::token::CompressibleParams;
+    use light_token::instruction::CompressibleParams;
     let compressible_params = CompressibleParams {
         compression_only: true,
         ..Default::default()
@@ -249,7 +249,7 @@ async fn test_ctoken_transfer_checked_t22_mint() {
     let mut instruction_data = vec![InstructionType::CTokenTransferCheckedInvoke as u8];
     transfer_data.serialize(&mut instruction_data).unwrap();
 
-    let light_token_program = light_token::token::LIGHT_TOKEN_PROGRAM_ID;
+    let light_token_program = light_token::instruction::LIGHT_TOKEN_PROGRAM_ID;
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
@@ -309,7 +309,7 @@ async fn test_ctoken_transfer_checked_mint() {
     let mut instruction_data = vec![InstructionType::CTokenTransferCheckedInvoke as u8];
     transfer_data.serialize(&mut instruction_data).unwrap();
 
-    let light_token_program = light_token::token::LIGHT_TOKEN_PROGRAM_ID;
+    let light_token_program = light_token::instruction::LIGHT_TOKEN_PROGRAM_ID;
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![

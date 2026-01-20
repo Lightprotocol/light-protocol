@@ -54,7 +54,9 @@ async fn setup_decompress_full_test(num_inputs: usize) -> (LightProgramTest, Tes
         .await
         .unwrap();
 
-    use light_token::token::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount};
+    use light_token::instruction::{
+        derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount,
+    };
 
     let mut destination_accounts = Vec::with_capacity(num_inputs);
 

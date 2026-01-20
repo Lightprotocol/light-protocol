@@ -105,7 +105,7 @@ pub async fn mint_action_comprehensive<R: Rpc + Indexer>(
     }
 
     if !mint_to_decompressed_recipients.is_empty() {
-        use light_token::token::derive_token_ata;
+        use light_token::instruction::derive_token_ata;
 
         let (spl_mint_pda, _) = find_mint_address(&mint_seed.pubkey());
 

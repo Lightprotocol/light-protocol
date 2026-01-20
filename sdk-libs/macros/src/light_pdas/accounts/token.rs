@@ -102,7 +102,7 @@ pub(super) fn generate_token_account_cpi(
     Some(quote! {
         // Create token account: #field_ident
         {
-            use light_token::token::CreateTokenAccountCpi;
+            use light_token::instruction::CreateTokenAccountCpi;
 
             // Bind seeds to local variables to extend temporary lifetimes
             #(#seed_bindings)*
@@ -150,7 +150,7 @@ pub(super) fn generate_ata_cpi(field: &AtaField, infra: &InfraRefs) -> Option<To
         .unwrap_or_else(|| {
             quote! {
                 {
-                    let (_, bump) = light_token::token::derive_token_ata(
+                    let (_, bump) = light_token::instruction::derive_token_ata(
                         self.#owner.to_account_info().key,
                         self.#mint.to_account_info().key,
                     );
@@ -162,7 +162,7 @@ pub(super) fn generate_ata_cpi(field: &AtaField, infra: &InfraRefs) -> Option<To
     Some(quote! {
         // Create ATA: #field_ident
         {
-            use light_token::token::CreateTokenAtaCpi;
+            use light_token::instruction::CreateTokenAtaCpi;
 
             CreateTokenAtaCpi {
                 payer: self.#fee_payer.to_account_info(),

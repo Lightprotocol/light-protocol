@@ -10,7 +10,7 @@ use light_token::{
         create_compressed_mint::{create_compressed_mint, CreateMintInputs},
         mint_to_compressed::{create_mint_to_compressed_instruction, MintToCompressedInputs},
     },
-    token::CreateAssociatedTokenAccount,
+    instruction::CreateAssociatedTokenAccount,
     utils::TokenDefaultAccounts,
 };
 use light_token_interface::{
@@ -95,7 +95,7 @@ async fn create_compressed_mints_and_tokens(
 
     // Create associated token account for mint1 decompression
     let (token_account1_pubkey, _bump) =
-        light_token::token::derive_token_ata(&payer.pubkey(), &mint1_pda);
+        light_token::instruction::derive_token_ata(&payer.pubkey(), &mint1_pda);
     let create_ata_instruction =
         CreateAssociatedTokenAccount::new(payer.pubkey(), payer.pubkey(), mint1_pda)
             .instruction()

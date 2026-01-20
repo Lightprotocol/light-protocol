@@ -46,8 +46,8 @@ use light_token::{
         },
         CTokenAccount2,
     },
+    instruction::{derive_token_ata, CreateAssociatedTokenAccount},
     spl_interface::find_spl_interface_pda_with_index,
-    token::{derive_token_ata, CreateAssociatedTokenAccount},
     ValidityProof,
 };
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};

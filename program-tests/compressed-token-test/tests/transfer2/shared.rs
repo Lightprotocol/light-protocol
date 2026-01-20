@@ -13,7 +13,7 @@ use light_test_utils::{
 };
 use light_token::{
     compressed_token::create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
-    token::{CompressibleParams, CreateAssociatedTokenAccount},
+    instruction::{CompressibleParams, CreateAssociatedTokenAccount},
 };
 use light_token_client::{
     actions::{create_mint, mint_to_compressed},
@@ -444,7 +444,7 @@ impl TestContext {
                 .unwrap_or(&false);
 
             // Create Light Token ATA (compressible or regular based on requirements)
-            let (ata, bump) = light_token::token::derive_token_ata(&signer.pubkey(), &mint);
+            let (ata, bump) = light_token::instruction::derive_token_ata(&signer.pubkey(), &mint);
 
             let create_ata_ix = if is_compressible {
                 println!(

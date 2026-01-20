@@ -1,5 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_token::token::MintToCpi;
+use light_token::instruction::MintToCpi;
 use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 use crate::{ID, MINT_AUTHORITY_SEED};

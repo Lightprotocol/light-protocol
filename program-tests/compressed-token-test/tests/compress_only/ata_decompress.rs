@@ -15,11 +15,11 @@ use light_test_utils::{
     Rpc, RpcError,
 };
 use light_token::{
-    spl_interface::find_spl_interface_pda_with_index,
-    token::{
+    instruction::{
         derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount, CreateTokenAccount,
         TransferFromSpl,
     },
+    spl_interface::find_spl_interface_pda_with_index,
 };
 use light_token_client::instructions::transfer2::{
     create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,

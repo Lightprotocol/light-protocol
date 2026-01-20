@@ -1,7 +1,7 @@
 use light_client::rpc::Rpc;
 use light_compressible::{compression_info::CompressionInfo, rent::RentConfig};
 use light_program_test::LightProgramTest;
-use light_token::token::derive_token_ata;
+use light_token::instruction::derive_token_ata;
 use light_token_interface::{
     state::{
         extensions::CompressibleExtension, token::Token, AccountState, ExtensionStruct,

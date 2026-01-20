@@ -3,7 +3,8 @@ use light_client::{
     rpc::{Rpc, RpcError},
 };
 use light_token::{
-    constants::SPL_TOKEN_PROGRAM_ID, spl_interface::find_spl_interface_pda, token::TransferToSpl,
+    constants::SPL_TOKEN_PROGRAM_ID, instruction::TransferToSpl,
+    spl_interface::find_spl_interface_pda,
 };
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
