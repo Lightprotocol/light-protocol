@@ -10,7 +10,9 @@ use syn::{
 };
 
 // Import unified parsing from light_account module
-use super::light_account::{parse_light_account_attr, AtaField, LightAccountField, TokenAccountField};
+use super::light_account::{
+    parse_light_account_attr, AtaField, LightAccountField, TokenAccountField,
+};
 // Import LightMintField from mint module (for type export)
 pub(super) use super::mint::LightMintField;
 
@@ -251,7 +253,7 @@ pub(super) fn parse_light_accounts_struct(
                 LightAccountField::Pda(pda) => rentfree_fields.push((*pda).into()),
                 LightAccountField::Mint(mint) => light_mint_fields.push(*mint),
                 LightAccountField::TokenAccount(token) => token_account_fields.push(*token),
-                LightAccountField::Ata(ata) => ata_fields.push(*ata),
+                LightAccountField::AssociatedToken(ata) => ata_fields.push(*ata),
             }
             continue; // Field processed, move to next
         }

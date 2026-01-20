@@ -63,8 +63,9 @@ pub(super) fn derive_light_accounts(input: &DeriveInput) -> Result<TokenStream, 
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use syn::parse_quote;
+
+    use super::*;
 
     #[test]
     fn test_token_account_with_init_generates_create_cpi() {
@@ -117,7 +118,7 @@ mod tests {
                 #[account(mut)]
                 pub fee_payer: Signer<'info>,
 
-                #[light_account(init, ata, owner = wallet, mint = my_mint)]
+                #[light_account(init, associated_token, owner = wallet, mint = my_mint)]
                 pub user_ata: Account<'info, CToken>,
 
                 pub wallet: AccountInfo<'info>,
@@ -189,7 +190,7 @@ mod tests {
                 #[light_account(init, token, authority = [b"authority"], mint = my_mint, owner = fee_payer)]
                 pub vault: Account<'info, CToken>,
 
-                #[light_account(init, ata, owner = wallet, mint = my_mint)]
+                #[light_account(init, associated_token, owner = wallet, mint = my_mint)]
                 pub user_ata: Account<'info, CToken>,
 
                 pub wallet: AccountInfo<'info>,

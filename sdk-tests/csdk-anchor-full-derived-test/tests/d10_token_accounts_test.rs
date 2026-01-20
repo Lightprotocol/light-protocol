@@ -1,6 +1,6 @@
 //! Integration tests for D10 token account macro features.
 //!
-//! Tests #[light_account(init, token, ...)] and #[light_account(init, ata, ...)]
+//! Tests #[light_account(init, token, ...)] and #[light_account(init, associated_token, ...)]
 //! automatic code generation for creating compressed token accounts.
 
 mod shared;
@@ -9,9 +9,7 @@ use anchor_lang::{InstructionData, ToAccountMetas};
 use csdk_anchor_full_derived_test::d10_token_accounts::{
     D10SingleAtaParams, D10SingleVaultParams, D10_SINGLE_VAULT_AUTH_SEED, D10_SINGLE_VAULT_SEED,
 };
-use light_compressible_client::{
-    get_create_accounts_proof, InitializeRentFreeConfig,
-};
+use light_client::interface::{get_create_accounts_proof, InitializeRentFreeConfig};
 use light_macros::pubkey;
 use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest},
@@ -151,7 +149,7 @@ async fn test_d10_single_vault() {
     ctx.assert_onchain_exists(&d10_single_vault).await;
 }
 
-/// Tests D10SingleAta: #[light_account(init, ata, ...)] automatic code generation.
+/// Tests D10SingleAta: #[light_account(init, associated_token, ...)] automatic code generation.
 /// The macro should generate create_associated_token_account_idempotent in LightFinalize.
 #[tokio::test]
 async fn test_d10_single_ata() {

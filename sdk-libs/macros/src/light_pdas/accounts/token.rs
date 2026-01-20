@@ -21,8 +21,10 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use super::light_account::{AtaField, TokenAccountField};
-use super::mint::InfraRefs;
+use super::{
+    light_account::{AtaField, TokenAccountField},
+    mint::InfraRefs,
+};
 
 /// Generate token account creation CPI code for a single token account field.
 ///
@@ -59,8 +61,10 @@ pub(super) fn generate_token_account_cpi(
         .iter()
         .enumerate()
         .map(|(i, seed)| {
-            let val_name = syn::Ident::new(&format!("__seed_{}", i), proc_macro2::Span::call_site());
-            let ref_name = syn::Ident::new(&format!("__seed_{}_ref", i), proc_macro2::Span::call_site());
+            let val_name =
+                syn::Ident::new(&format!("__seed_{}", i), proc_macro2::Span::call_site());
+            let ref_name =
+                syn::Ident::new(&format!("__seed_{}_ref", i), proc_macro2::Span::call_site());
             quote! {
                 let #val_name = #seed;
                 let #ref_name: &[u8] = #val_name.as_ref();
@@ -69,7 +73,8 @@ pub(super) fn generate_token_account_cpi(
         .collect();
     let seed_refs: Vec<TokenStream> = (0..authority_seeds.len())
         .map(|i| {
-            let ref_name = syn::Ident::new(&format!("__seed_{}_ref", i), proc_macro2::Span::call_site());
+            let ref_name =
+                syn::Ident::new(&format!("__seed_{}_ref", i), proc_macro2::Span::call_site());
             quote! { #ref_name }
         })
         .collect();

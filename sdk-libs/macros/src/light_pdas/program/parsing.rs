@@ -420,12 +420,29 @@ fn is_delegation_body(block: &syn::Block) -> bool {
 }
 
 /// Check if any argument in the call is `ctx` (moving the context).
+/// Detects: ctx, &ctx, &mut ctx, ctx.clone(), ctx.into(), etc.
 fn call_has_ctx_arg(args: &syn::punctuated::Punctuated<syn::Expr, syn::token::Comma>) -> bool {
     for arg in args {
-        if let syn::Expr::Path(path) = arg {
-            if path.path.is_ident("ctx") {
-                return true;
+        match arg {
+            // Direct ctx identifier
+            syn::Expr::Path(path) if path.path.is_ident("ctx") => return true,
+            // Reference patterns: &ctx, &mut ctx
+            syn::Expr::Reference(ref_expr) => {
+                if let syn::Expr::Path(p) = &*ref_expr.expr {
+                    if p.path.is_ident("ctx") {
+                        return true;
+                    }
+                }
             }
+            // Method call patterns: ctx.clone(), ctx.into()
+            syn::Expr::MethodCall(method_call) => {
+                if let syn::Expr::Path(p) = &*method_call.receiver {
+                    if p.path.is_ident("ctx") {
+                        return true;
+                    }
+                }
+            }
+            _ => {}
         }
     }
     false
@@ -484,5 +501,80 @@ pub fn wrap_function_with_light(fn_item: &ItemFn, params_ident: &Ident) -> ItemF
                 Ok(())
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use syn::punctuated::Punctuated;
+
+    use super::*;
+
+    fn parse_args(code: &str) -> Punctuated<syn::Expr, syn::token::Comma> {
+        let call: syn::ExprCall = syn::parse_str(&format!("f({})", code)).unwrap();
+        call.args
+    }
+
+    #[test]
+    fn test_call_has_ctx_arg_direct() {
+        // F001: Direct ctx identifier
+        let args = parse_args("ctx");
+        assert!(call_has_ctx_arg(&args));
+    }
+
+    #[test]
+    fn test_call_has_ctx_arg_reference() {
+        // F001: Reference pattern &ctx
+        let args = parse_args("&ctx");
+        assert!(call_has_ctx_arg(&args));
+    }
+
+    #[test]
+    fn test_call_has_ctx_arg_mut_reference() {
+        // F001: Mutable reference pattern &mut ctx
+        let args = parse_args("&mut ctx");
+        assert!(call_has_ctx_arg(&args));
+    }
+
+    #[test]
+    fn test_call_has_ctx_arg_clone() {
+        // F001: Method call ctx.clone()
+        let args = parse_args("ctx.clone()");
+        assert!(call_has_ctx_arg(&args));
+    }
+
+    #[test]
+    fn test_call_has_ctx_arg_into() {
+        // F001: Method call ctx.into()
+        let args = parse_args("ctx.into()");
+        assert!(call_has_ctx_arg(&args));
+    }
+
+    #[test]
+    fn test_call_has_ctx_arg_other_name() {
+        // Non-ctx identifier should return false
+        let args = parse_args("context");
+        assert!(!call_has_ctx_arg(&args));
+    }
+
+    #[test]
+    fn test_call_has_ctx_arg_method_on_other() {
+        // Method call on non-ctx receiver
+        let args = parse_args("other.clone()");
+        assert!(!call_has_ctx_arg(&args));
+    }
+
+    #[test]
+    fn test_call_has_ctx_arg_multiple_args() {
+        // F001: ctx among multiple arguments
+        let args = parse_args("foo, ctx.clone(), bar");
+        assert!(call_has_ctx_arg(&args));
+    }
+
+    #[test]
+    fn test_call_has_ctx_arg_empty() {
+        // Empty args should return false
+        let args = parse_args("");
+        assert!(!call_has_ctx_arg(&args));
     }
 }

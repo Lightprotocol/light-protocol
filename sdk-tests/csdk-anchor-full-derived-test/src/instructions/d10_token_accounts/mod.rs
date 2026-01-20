@@ -1,6 +1,6 @@
 //! D10 Test: Token Account and ATA creation via macro
 //!
-//! Tests #[light_account(init, token, ...)] and #[light_account(init, ata, ...)]
+//! Tests #[light_account(init, token, ...)] and #[light_account(init, associated_token, ...)]
 //! macro code generation for creating compressed token accounts.
 //!
 //! These tests verify:

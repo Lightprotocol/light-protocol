@@ -163,7 +163,7 @@ impl LightAccountsBuilder {
         !self.parsed.token_account_fields.is_empty()
     }
 
-    /// Query: any #[light_account(init, ata, ...)] fields?
+    /// Query: any #[light_account(init, associated_token, ...)] fields?
     pub fn has_atas(&self) -> bool {
         !self.parsed.ata_fields.is_empty()
     }

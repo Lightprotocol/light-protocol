@@ -1,6 +1,6 @@
 //! D10 Test: Single ATA creation via macro
 //!
-//! Tests #[light_account(init, ata, ...)] automatic code generation
+//! Tests #[light_account(init, associated_token, ...)] automatic code generation
 //! for creating a single compressed token associated token account.
 //!
 //! This differs from D5 tests which use mark-only mode and manual creation.
@@ -19,7 +19,7 @@ pub struct D10SingleAtaParams {
     pub ata_bump: u8,
 }
 
-/// Tests #[light_account(init, ata, ...)] automatic code generation.
+/// Tests #[light_account(init, associated_token, ...)] automatic code generation.
 /// The macro should generate CreateTokenAtaCpi in LightFinalize.
 #[derive(Accounts, LightAccounts)]
 #[instruction(params: D10SingleAtaParams)]
@@ -35,7 +35,7 @@ pub struct D10SingleAta<'info> {
 
     /// ATA account - macro should generate creation code.
     #[account(mut)]
-    #[light_account(init, ata, owner = d10_ata_owner, mint = d10_ata_mint, bump = params.ata_bump)]
+    #[light_account(init, associated_token, owner = d10_ata_owner, mint = d10_ata_mint, bump = params.ata_bump)]
     pub d10_single_ata: UncheckedAccount<'info>,
 
     #[account(address = COMPRESSIBLE_CONFIG_V1)]
