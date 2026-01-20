@@ -13,6 +13,10 @@ use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_client::indexer::Indexer;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{assert_mint_action::assert_mint_action, Rpc};
+use light_token::{
+    compressed_token::create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
+    instruction::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount},
+};
 use light_token_client::{
     actions::create_mint,
     instructions::mint_action::{
@@ -22,10 +26,6 @@ use light_token_client::{
 use light_token_interface::{
     instructions::extensions::token_metadata::TokenMetadataInstructionData,
     state::{extensions::AdditionalMetadata, Mint, TokenDataVersion},
-};
-use light_token_sdk::{
-    compressed_token::create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
-    token::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount},
 };
 use serial_test::serial;
 use solana_sdk::{signature::Keypair, signer::Signer};
