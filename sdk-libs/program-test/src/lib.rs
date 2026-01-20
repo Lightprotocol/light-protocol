@@ -133,17 +133,28 @@
 
 pub mod accounts;
 pub mod compressible;
-#[cfg(feature = "devenv")]
 pub mod forester;
 pub mod indexer;
 pub mod litesvm_extensions;
 pub mod logging;
 pub mod program_test;
+pub mod registry_sdk;
 pub mod utils;
 
 pub use light_client::{
     indexer::{AddressWithTree, Indexer},
     rpc::{Rpc, RpcError},
 };
+// When devenv is enabled, re-export types from light_registry for compatibility
+// with code that uses both light_registry and light_program_test
+#[cfg(feature = "devenv")]
+pub use light_registry::{ForesterConfig, ForesterPda};
 pub use litesvm_extensions::LiteSvmExtensions;
 pub use program_test::{config::ProgramTestConfig, LightProgramTest};
+// Export setup function for external tests to set up protocol accounts
+pub use registry_sdk::{
+    protocol_config_for_tests, setup_test_protocol_accounts, ForesterEpochPda, ProtocolConfig,
+};
+// When devenv is not enabled, use local definitions
+#[cfg(not(feature = "devenv"))]
+pub use registry_sdk::{ForesterConfig, ForesterPda};

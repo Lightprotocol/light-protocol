@@ -1,23 +1,19 @@
-use std::str::FromStr;
-
-use anchor_lang::{InstructionData, ToAccountMetas};
 use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
 use light_compressible::config::CompressibleConfig;
-use light_registry::{
-    accounts::CompressAndCloseContext as CompressAndCloseAccounts,
-    compressible::compressed_token::CompressAndCloseIndices, instruction::CompressAndClose,
-    utils::get_forester_epoch_pda_from_authority,
-};
 use light_sdk::instruction::PackedAccounts;
 use light_token_sdk::compressed_token::CompressAndCloseAccounts as CTokenCompressAndCloseAccounts;
 use solana_sdk::{
-    instruction::Instruction,
     pubkey::Pubkey,
     signature::{Keypair, Signature},
     signer::Signer,
+};
+
+use crate::registry_sdk::{
+    build_compress_and_close_instruction, get_forester_epoch_pda_from_authority,
+    CompressAndCloseIndices, REGISTRY_PROGRAM_ID,
 };
 
 /// Compress and close token accounts via the registry program
@@ -41,11 +37,9 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
     payer: &Keypair,
     destination: Option<Pubkey>,
 ) -> Result<Signature, RpcError> {
-    // Registry and compressed token program IDs
-    let registry_program_id =
-        Pubkey::from_str("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX").unwrap();
+    // Compressed token program ID
     let compressed_token_program_id =
-        Pubkey::from_str("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m").unwrap();
+        Pubkey::from_str_const("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
 
     let current_epoch = 0;
 
@@ -55,7 +49,7 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
 
     let config = CompressibleConfig::light_token_v1(Pubkey::default(), Pubkey::default());
 
-    let compressible_config = CompressibleConfig::derive_v1_config_pda(&registry_program_id).0;
+    let compressible_config = CompressibleConfig::derive_v1_config_pda(&REGISTRY_PROGRAM_ID).0;
 
     // Derive compression_authority PDA (uses u16 version)
     let compression_authority = config.compression_authority;
@@ -172,7 +166,7 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
     let authority_index =
         packed_accounts.insert_or_get_config(compression_authority_pubkey, false, true);
 
-    let config = CTokenCompressAndCloseAccounts {
+    let ctoken_config = CTokenCompressAndCloseAccounts {
         compressed_token_program: compressed_token_program_id,
         cpi_authority_pda: Pubkey::find_program_address(
             &[b"cpi_authority"],
@@ -183,37 +177,23 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
         self_program: None, // Critical: None means no light_system_cpi_authority is added
     };
     packed_accounts
-        .add_custom_system_accounts(config)
+        .add_custom_system_accounts(ctoken_config)
         .map_err(|e| RpcError::CustomError(format!("Failed to add system accounts: {:?}", e)))?;
 
     // Get account metas for remaining accounts
     let (remaining_account_metas, _, _) = packed_accounts.to_account_metas();
-    // Build accounts using Anchor's account abstraction
-    let compress_and_close_accounts = CompressAndCloseAccounts {
-        authority: authority.pubkey(),
+
+    // Build the compress_and_close instruction using local SDK
+    let compress_and_close_ix = build_compress_and_close_instruction(
+        authority.pubkey(),
         registered_forester_pda,
         compression_authority,
         compressible_config,
-    };
-
-    // Get account metas from Anchor accounts
-    let mut accounts = compress_and_close_accounts.to_account_metas(Some(true));
-
-    accounts.extend(remaining_account_metas);
-
-    let instruction = CompressAndClose {
         authority_index,
         destination_index,
-        indices: indices_vec,
-    };
-    let instruction_data = instruction.data();
-
-    // Create the instruction
-    let compress_and_close_ix = Instruction {
-        program_id: registry_program_id,
-        accounts,
-        data: instruction_data,
-    };
+        indices_vec,
+        remaining_account_metas,
+    );
 
     // Prepare signers
     let mut signers = vec![payer];

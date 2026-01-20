@@ -7,7 +7,7 @@ edition = "2021"
 
 [features]
 default = []
-devenv = ["v2","light-client/devenv", "light-prover-client/devenv", "dep:account-compression", "dep:light-compressed-token", "dep:light-compressible", "dep:light-registry", "dep:light-batched-merkle-tree", "dep:light-concurrent-merkle-tree"]
+devenv = ["v2","light-client/devenv", "light-prover-client/devenv", "dep:account-compression", "dep:light-compressed-token", "dep:light-registry", "dep:light-batched-merkle-tree", "dep:light-concurrent-merkle-tree"]
 v2 = ["light-client/v2"]
 
 [dependencies]
@@ -19,7 +19,7 @@ light-merkle-tree-metadata = { workspace = true, features = ["anchor"] }
 light-concurrent-merkle-tree = { workspace = true, optional = true }
 light-hasher = { workspace = true, features = ["poseidon", "sha256", "keccak", "std"] }
 light-token-interface = { workspace = true }
-light-compressible = { workspace = true, optional = true }
+light-compressible = { workspace = true }
 light-token-sdk = { workspace = true }
 light-compressed-account = { workspace = true, features = ["anchor", "poseidon"] }
 light-batched-merkle-tree = { workspace = true, features = ["test-only"], optional = true }
