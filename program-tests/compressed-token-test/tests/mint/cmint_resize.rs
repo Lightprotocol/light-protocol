@@ -11,15 +11,15 @@
 
 use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_client::indexer::Indexer;
-use light_ctoken_interface::{
+use light_token_interface::{
     instructions::extensions::token_metadata::TokenMetadataInstructionData,
-    state::{extensions::AdditionalMetadata, CompressedMint, TokenDataVersion},
+    state::{extensions::AdditionalMetadata, Mint, TokenDataVersion},
 };
-use light_ctoken_sdk::{
+use light_token_sdk::{
     compressed_token::create_compressed_mint::{
-        derive_cmint_compressed_address, find_cmint_address,
+        derive_mint_compressed_address, find_mint_address,
     },
-    ctoken::{derive_ctoken_ata, CompressibleParams, CreateAssociatedCTokenAccount},
+    token::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount},
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{assert_mint_action::assert_mint_action, Rpc};
@@ -52,8 +52,8 @@ async fn test_cmint_update_metadata_grow() {
 
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     let compressed_mint_address =
-        derive_cmint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
-    let (spl_mint_pda, _cmint_bump) = find_cmint_address(&mint_seed.pubkey());
+        derive_mint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
+    let (spl_mint_pda, _cmint_bump) = find_mint_address(&mint_seed.pubkey());
 
     // 1. Create compressed mint with small metadata
     create_mint(
@@ -97,7 +97,7 @@ async fn test_cmint_update_metadata_grow() {
         .await
         .unwrap()
         .expect("CMint should exist");
-    let pre_mint: CompressedMint =
+    let pre_mint: Mint =
         BorshDeserialize::deserialize(&mut cmint_account_data.data.as_slice()).unwrap();
 
     // 4. UpdateMetadataField with LONGER value (triggers resize grow)
@@ -147,8 +147,8 @@ async fn test_cmint_update_metadata_shrink() {
 
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     let compressed_mint_address =
-        derive_cmint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
-    let (spl_mint_pda, _) = find_cmint_address(&mint_seed.pubkey());
+        derive_mint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
+    let (spl_mint_pda, _) = find_mint_address(&mint_seed.pubkey());
 
     // 1. Create compressed mint with large metadata
     create_mint(
@@ -196,7 +196,7 @@ async fn test_cmint_update_metadata_shrink() {
         .await
         .unwrap()
         .expect("CMint should exist");
-    let pre_mint: CompressedMint =
+    let pre_mint: Mint =
         BorshDeserialize::deserialize(&mut cmint_account_data.data.as_slice()).unwrap();
 
     // 4. UpdateMetadataField with SHORTER value (triggers resize shrink)
@@ -244,8 +244,8 @@ async fn test_cmint_remove_metadata_key() {
 
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     let compressed_mint_address =
-        derive_cmint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
-    let (spl_mint_pda, _) = find_cmint_address(&mint_seed.pubkey());
+        derive_mint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
+    let (spl_mint_pda, _) = find_mint_address(&mint_seed.pubkey());
 
     // 1. Create compressed mint with additional metadata
     create_mint(
@@ -298,7 +298,7 @@ async fn test_cmint_remove_metadata_key() {
         .await
         .unwrap()
         .expect("CMint should exist");
-    let pre_mint: CompressedMint =
+    let pre_mint: Mint =
         BorshDeserialize::deserialize(&mut cmint_account_data.data.as_slice()).unwrap();
 
     // 4. RemoveMetadataKey (triggers resize shrink)
@@ -345,8 +345,8 @@ async fn test_cmint_multiple_metadata_changes() {
 
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     let compressed_mint_address =
-        derive_cmint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
-    let (spl_mint_pda, _) = find_cmint_address(&mint_seed.pubkey());
+        derive_mint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
+    let (spl_mint_pda, _) = find_mint_address(&mint_seed.pubkey());
 
     // 1. Create compressed mint with metadata
     create_mint(
@@ -399,7 +399,7 @@ async fn test_cmint_multiple_metadata_changes() {
         .await
         .unwrap()
         .expect("CMint should exist");
-    let pre_mint: CompressedMint =
+    let pre_mint: Mint =
         BorshDeserialize::deserialize(&mut cmint_account_data.data.as_slice()).unwrap();
 
     // 4. Multiple metadata changes (grow name, shrink symbol, remove key)
@@ -463,8 +463,8 @@ async fn test_cmint_all_operations() {
 
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     let compressed_mint_address =
-        derive_cmint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
-    let (spl_mint_pda, _) = find_cmint_address(&mint_seed.pubkey());
+        derive_mint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
+    let (spl_mint_pda, _) = find_mint_address(&mint_seed.pubkey());
 
     // 1. Create compressed mint with metadata and additional_metadata
     create_mint(
@@ -527,7 +527,7 @@ async fn test_cmint_all_operations() {
     };
 
     let create_ata_ix =
-        CreateAssociatedCTokenAccount::new(payer.pubkey(), recipient.pubkey(), spl_mint_pda)
+        CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), spl_mint_pda)
             .with_compressible(compressible_params)
             .instruction()
             .unwrap();
@@ -542,7 +542,7 @@ async fn test_cmint_all_operations() {
         .await
         .unwrap()
         .expect("CMint should exist");
-    let pre_mint: CompressedMint =
+    let pre_mint: Mint =
         BorshDeserialize::deserialize(&mut cmint_account_data.data.as_slice()).unwrap();
 
     // New authorities
@@ -562,7 +562,7 @@ async fn test_cmint_all_operations() {
         },
         // MintToCToken (decompressed recipient)
         MintActionType::MintToCToken {
-            account: derive_ctoken_ata(&recipient.pubkey(), &spl_mint_pda).0,
+            account: derive_token_ata(&recipient.pubkey(), &spl_mint_pda).0,
             amount: 2000,
         },
         // UpdateMintAuthority
@@ -655,9 +655,7 @@ async fn test_decompress_with_mint_to() {
 
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     let compressed_mint_address =
-        derive_cmint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
-    let (_, cmint_bump) = find_cmint_address(&mint_seed.pubkey());
-
+        derive_mint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
     // 1. Create compressed mint (no decompress yet)
     create_mint(
         &mut rpc,
@@ -680,14 +678,13 @@ async fn test_decompress_with_mint_to() {
         .unwrap()
         .value
         .unwrap();
-    let pre_mint: CompressedMint =
+    let pre_mint: Mint =
         BorshDeserialize::deserialize(&mut compressed_account.data.unwrap().data.as_slice())
             .unwrap();
 
     // 3. DecompressMint + MintTo in same tx
     let actions = vec![
         MintActionType::DecompressMint {
-            cmint_bump,
             rent_payment: 2,
             write_top_up: 0,
         },
@@ -737,9 +734,7 @@ async fn test_decompress_with_authority_updates() {
 
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     let compressed_mint_address =
-        derive_cmint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
-    let (_, cmint_bump) = find_cmint_address(&mint_seed.pubkey());
-
+        derive_mint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
     // 1. Create compressed mint
     create_mint(
         &mut rpc,
@@ -762,7 +757,7 @@ async fn test_decompress_with_authority_updates() {
         .unwrap()
         .value
         .unwrap();
-    let pre_mint: CompressedMint =
+    let pre_mint: Mint =
         BorshDeserialize::deserialize(&mut compressed_account.data.unwrap().data.as_slice())
             .unwrap();
 
@@ -772,7 +767,6 @@ async fn test_decompress_with_authority_updates() {
     // 3. DecompressMint + UpdateMintAuthority + UpdateFreezeAuthority
     let actions = vec![
         MintActionType::DecompressMint {
-            cmint_bump,
             rent_payment: 2,
             write_top_up: 0,
         },
@@ -821,9 +815,7 @@ async fn test_decompress_with_metadata_update() {
 
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     let compressed_mint_address =
-        derive_cmint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
-    let (_, cmint_bump) = find_cmint_address(&mint_seed.pubkey());
-
+        derive_mint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
     // 1. Create compressed mint with metadata
     create_mint(
         &mut rpc,
@@ -852,14 +844,13 @@ async fn test_decompress_with_metadata_update() {
         .unwrap()
         .value
         .unwrap();
-    let pre_mint: CompressedMint =
+    let pre_mint: Mint =
         BorshDeserialize::deserialize(&mut compressed_account.data.unwrap().data.as_slice())
             .unwrap();
 
     // 3. DecompressMint + UpdateMetadataField
     let actions = vec![
         MintActionType::DecompressMint {
-            cmint_bump,
             rent_payment: 2,
             write_top_up: 0,
         },
@@ -911,8 +902,8 @@ async fn test_decompress_with_mint_to_ctoken() {
 
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     let compressed_mint_address =
-        derive_cmint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
-    let (spl_mint_pda, cmint_bump) = find_cmint_address(&mint_seed.pubkey());
+        derive_mint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
+    let (spl_mint_pda, _) = find_mint_address(&mint_seed.pubkey());
 
     // 1. Create compressed mint
     create_mint(
@@ -943,7 +934,7 @@ async fn test_decompress_with_mint_to_ctoken() {
     };
 
     let create_ata_ix =
-        CreateAssociatedCTokenAccount::new(payer.pubkey(), recipient.pubkey(), spl_mint_pda)
+        CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), spl_mint_pda)
             .with_compressible(compressible_params)
             .instruction()
             .unwrap();
@@ -961,19 +952,18 @@ async fn test_decompress_with_mint_to_ctoken() {
         .unwrap()
         .value
         .unwrap();
-    let pre_mint: CompressedMint =
+    let pre_mint: Mint =
         BorshDeserialize::deserialize(&mut compressed_account.data.unwrap().data.as_slice())
             .unwrap();
 
     // 4. DecompressMint + MintToCToken
     let actions = vec![
         MintActionType::DecompressMint {
-            cmint_bump,
             rent_payment: 2,
             write_top_up: 0,
         },
         MintActionType::MintToCToken {
-            account: derive_ctoken_ata(&recipient.pubkey(), &spl_mint_pda).0,
+            account: derive_token_ata(&recipient.pubkey(), &spl_mint_pda).0,
             amount: 5000,
         },
     ];
@@ -1018,8 +1008,8 @@ async fn test_decompress_with_all_operations() {
 
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     let compressed_mint_address =
-        derive_cmint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
-    let (spl_mint_pda, cmint_bump) = find_cmint_address(&mint_seed.pubkey());
+        derive_mint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
+    let (spl_mint_pda, _) = find_mint_address(&mint_seed.pubkey());
 
     // 1. Create compressed mint with metadata and additional_metadata
     create_mint(
@@ -1065,7 +1055,7 @@ async fn test_decompress_with_all_operations() {
     };
 
     let create_ata_ix =
-        CreateAssociatedCTokenAccount::new(payer.pubkey(), recipient.pubkey(), spl_mint_pda)
+        CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), spl_mint_pda)
             .with_compressible(compressible_params)
             .instruction()
             .unwrap();
@@ -1083,7 +1073,7 @@ async fn test_decompress_with_all_operations() {
         .unwrap()
         .value
         .unwrap();
-    let pre_mint: CompressedMint =
+    let pre_mint: Mint =
         BorshDeserialize::deserialize(&mut compressed_account.data.unwrap().data.as_slice())
             .unwrap();
 
@@ -1096,7 +1086,6 @@ async fn test_decompress_with_all_operations() {
     let actions = vec![
         // DecompressMint
         MintActionType::DecompressMint {
-            cmint_bump,
             rent_payment: 2,
             write_top_up: 0,
         },
@@ -1110,7 +1099,7 @@ async fn test_decompress_with_all_operations() {
         },
         // MintToCToken (decompressed recipient)
         MintActionType::MintToCToken {
-            account: derive_ctoken_ata(&recipient.pubkey(), &spl_mint_pda).0,
+            account: derive_token_ata(&recipient.pubkey(), &spl_mint_pda).0,
             amount: 2000,
         },
         // UpdateMintAuthority
