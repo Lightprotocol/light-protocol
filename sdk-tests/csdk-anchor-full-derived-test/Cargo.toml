@@ -33,7 +33,7 @@ light-sdk-macros = { workspace = true }
 borsh = { workspace = true }
 light-compressed-account = { workspace = true, features = ["solana"] }
 anchor-lang = { workspace = true, features = ["idl-build"] }
-anchor-spl = { version = "0.31.1", features = ["metadata"] }
+anchor-spl = { version = "0.31.1", features = ["metadata", "idl-build"] }
 light-token-interface = { workspace = true, features = ["anchor"] }
 light-token-sdk = { workspace = true, features = ["anchor"] }
 light-token-types = { workspace = true, features = ["anchor"] }

@@ -1,8 +1,8 @@
 // Tests for TransferCTokenCheckedCpi with different mint types
 
 mod shared;
-use borsh::{BorshDeserialize, BorshSerialize};
 use anchor_spl::token::{spl_token, Mint};
+use borsh::{BorshDeserialize, BorshSerialize};
 use light_client::rpc::Rpc;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
