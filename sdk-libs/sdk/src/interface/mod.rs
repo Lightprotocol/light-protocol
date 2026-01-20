@@ -34,6 +34,7 @@ pub use config::{
     process_update_light_config, LightConfig, COMPRESSIBLE_CONFIG_SEED,
     MAX_ADDRESS_TREES_PER_SPACE,
 };
+pub use light_compressible::{rent, CreateAccountsProof};
 #[cfg(feature = "v2")]
 pub use decompress_idempotent::{
     into_compressed_meta_with_address, prepare_account_for_decompression_idempotent,

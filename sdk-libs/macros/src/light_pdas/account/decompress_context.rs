@@ -146,7 +146,7 @@ pub fn generate_decompress_context_trait_impl(
                 solana_accounts: &[solana_account_info::AccountInfo<#lifetime>],
                 seed_params: std::option::Option<&Self::SeedParams>,
             ) -> std::result::Result<(
-                Vec<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>,
+                Vec<::light_sdk::compressed_account::CompressedAccountInfo>,
                 Vec<(Self::PackedTokenData, Self::CompressedMeta)>,
             ), solana_program_error::ProgramError> {
                 solana_msg::msg!("collect_pda_and_token: start, {} accounts", compressed_accounts.len());

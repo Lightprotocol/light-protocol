@@ -11,7 +11,7 @@ crate-type = ["cdylib", "lib"]
 name = "light_sdk"
 
 [features]
-default = ["v2"]
+default = ["v2", "anchor-discriminator"]
 idl-build = ["anchor-lang/idl-build", "anchor"]
 anchor = [
     "anchor-lang",

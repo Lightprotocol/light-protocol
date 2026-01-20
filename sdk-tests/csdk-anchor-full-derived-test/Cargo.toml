@@ -35,14 +35,14 @@ light-compressed-account = { workspace = true, features = ["solana"] }
 anchor-lang = { workspace = true, features = ["idl-build"] }
 anchor-spl = { version = "=0.31.1", git = "https://github.com/lightprotocol/anchor", rev = "da005d7f", features = ["memo", "metadata", "idl-build"] }
 light-token-interface = { workspace = true, features = ["anchor"] }
-light-token-sdk = { workspace = true, features = ["anchor", "compressible"] }
+light-token-sdk = { workspace = true, features = ["anchor"] }
 light-token-types = { workspace = true, features = ["anchor"] }
 light-compressible = { workspace = true, features = ["anchor"] }
 
 [dev-dependencies]
 csdk-anchor-full-derived-test-sdk = { path = "../csdk-anchor-full-derived-test-sdk" }
 light-token-client = { workspace = true }
-light-program-test = { workspace = true, features = ["devenv", "v2"] }
+light-program-test = { workspace = true, features = ["devenv"] }
 light-client = { workspace = true, features = ["v2", "anchor"] }
 light-test-utils = { workspace = true }
 tokio = { workspace = true }

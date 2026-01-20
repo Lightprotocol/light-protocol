@@ -18,14 +18,14 @@ pub(crate) fn generate_data_hasher_impl(
 
     let hasher_impl = if context.flatten_field_exists {
         quote! {
-            impl #impl_gen ::light_hasher::DataHasher for #struct_name #type_gen #where_clause {
-                fn hash<H>(&self) -> ::std::result::Result<[u8; 32], ::light_hasher::HasherError>
+            impl #impl_gen ::light_sdk::hasher::DataHasher for #struct_name #type_gen #where_clause {
+                fn hash<H>(&self) -> ::std::result::Result<[u8; 32], ::light_sdk::hasher::HasherError>
                 where
-                    H: ::light_hasher::Hasher
+                    H: ::light_sdk::hasher::Hasher
                 {
-                    use ::light_hasher::DataHasher;
-                    use ::light_hasher::Hasher;
-                    use ::light_hasher::to_byte_array::ToByteArray;
+                    use ::light_sdk::hasher::DataHasher;
+                    use ::light_sdk::hasher::Hasher;
+                    use ::light_sdk::hasher::to_byte_array::ToByteArray;
 
                     #(#hash_to_field_size_code)*
                     let mut num_flattned_fields = 0;
@@ -40,7 +40,7 @@ pub(crate) fn generate_data_hasher_impl(
                     let mut result = H::hashv(slices.as_slice())?;
 
                     // Apply field size truncation for non-Poseidon hashers
-                    if H::ID != ::light_hasher::Poseidon::ID {
+                    if H::ID != ::light_sdk::hasher::Poseidon::ID {
                         result[0] = 0;
                     }
 
@@ -50,14 +50,14 @@ pub(crate) fn generate_data_hasher_impl(
         }
     } else {
         quote! {
-            impl #impl_gen ::light_hasher::DataHasher for #struct_name #type_gen #where_clause {
-                fn hash<H>(&self) -> ::std::result::Result<[u8; 32], ::light_hasher::HasherError>
+            impl #impl_gen ::light_sdk::hasher::DataHasher for #struct_name #type_gen #where_clause {
+                fn hash<H>(&self) -> ::std::result::Result<[u8; 32], ::light_sdk::hasher::HasherError>
                 where
-                    H: ::light_hasher::Hasher
+                    H: ::light_sdk::hasher::Hasher
                 {
-                    use ::light_hasher::DataHasher;
-                    use ::light_hasher::Hasher;
-                    use ::light_hasher::to_byte_array::ToByteArray;
+                    use ::light_sdk::hasher::DataHasher;
+                    use ::light_sdk::hasher::Hasher;
+                    use ::light_sdk::hasher::to_byte_array::ToByteArray;
                     #(#hash_to_field_size_code)*
                     #[cfg(debug_assertions)]
                    {
@@ -71,7 +71,7 @@ pub(crate) fn generate_data_hasher_impl(
                     ])?;
 
                     // Apply field size truncation for non-Poseidon hashers
-                    if H::ID != ::light_hasher::Poseidon::ID {
+                    if H::ID != ::light_sdk::hasher::Poseidon::ID {
                         result[0] = 0;
                     }
 
@@ -92,20 +92,20 @@ pub(crate) fn generate_data_hasher_impl_sha(
     let (impl_gen, type_gen, where_clause) = generics.split_for_impl();
 
     let hasher_impl = quote! {
-        impl #impl_gen ::light_hasher::DataHasher for #struct_name #type_gen #where_clause {
-            fn hash<H>(&self) -> ::std::result::Result<[u8; 32], ::light_hasher::HasherError>
+        impl #impl_gen ::light_sdk::hasher::DataHasher for #struct_name #type_gen #where_clause {
+            fn hash<H>(&self) -> ::std::result::Result<[u8; 32], ::light_sdk::hasher::HasherError>
             where
-                H: ::light_hasher::Hasher
+                H: ::light_sdk::hasher::Hasher
             {
-                use ::light_hasher::Hasher;
+                use ::light_sdk::hasher::Hasher;
                 use borsh::BorshSerialize;
 
                 // Compile-time assertion that H must be SHA256 (ID = 1)
-                use ::light_hasher::sha256::RequireSha256;
+                use ::light_sdk::hasher::sha256::RequireSha256;
                 let _ = <H as RequireSha256>::ASSERT;
 
                 // For SHA256, we serialize the whole struct and hash it in one go
-                let serialized = self.try_to_vec().map_err(|_| ::light_hasher::HasherError::BorshError)?;
+                let serialized = self.try_to_vec().map_err(|_| ::light_sdk::hasher::HasherError::BorshError)?;
                 let mut result = H::hash(&serialized)?;
                 // Truncate sha256 to 31 be bytes less than 254 bits bn254 field size.
                 result[0] = 0;

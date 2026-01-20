@@ -125,10 +125,10 @@ pub fn derive_light_rent_sponsor_pda(input: TokenStream) -> TokenStream {
 
 /// Derives a Rent Sponsor configuration struct at compile time.
 ///
-/// Returns `::light_sdk_types::RentSponsor { program_id, rent_sponsor, bump, version }`.
+/// Returns `::light_sdk::sdk_types::RentSponsor { program_id, rent_sponsor, bump, version }`.
 ///
 /// Usage:
-///   const RENT_SPONSOR: ::light_sdk_types::RentSponsor =
+///   const RENT_SPONSOR: ::light_sdk::sdk_types::RentSponsor =
 ///       derive_light_rent_sponsor!("Program1111111111111111111111111111111111", 1);
 pub fn derive_light_rent_sponsor(input: TokenStream) -> TokenStream {
     let args = parse_macro_input!(input as Args);
@@ -175,7 +175,7 @@ pub fn derive_light_rent_sponsor(input: TokenStream) -> TokenStream {
     let version_lit = proc_macro2::Literal::u16_unsuffixed(version_u16);
     let output = quote! {
         {
-            ::light_sdk_types::RentSponsor {
+            ::light_sdk::sdk_types::RentSponsor {
                 program_id: [#(#program_id_literals),*],
                 rent_sponsor: [#(#pda_literals),*],
                 bump: #bump,

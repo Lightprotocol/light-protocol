@@ -236,7 +236,7 @@ impl LightAccountsBuilder {
             let cpi_accounts = light_sdk::cpi::v2::CpiAccounts::new_with_config(
                 &self.#fee_payer,
                 _remaining,
-                light_sdk_types::cpi_accounts::CpiAccountsConfig::new_with_cpi_context(crate::LIGHT_CPI_SIGNER),
+                ::light_sdk::sdk_types::CpiAccountsConfig::new_with_cpi_context(crate::LIGHT_CPI_SIGNER),
             );
 
             // Load compression config
@@ -251,7 +251,7 @@ impl LightAccountsBuilder {
 
             // Step 1: Write PDAs to CPI context
             let cpi_context_account = cpi_accounts.cpi_context()?;
-            let cpi_context_accounts = light_sdk_types::cpi_context_write::CpiContextWriteAccounts {
+            let cpi_context_accounts = ::light_sdk::sdk_types::CpiContextWriteAccounts {
                 fee_payer: cpi_accounts.fee_payer(),
                 authority: cpi_accounts.authority()?,
                 cpi_context: cpi_context_account,

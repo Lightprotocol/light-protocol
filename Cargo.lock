@@ -44,7 +44,7 @@ version = "1.1.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
- "anchor-spl 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "anchor-spl",
  "ark-bn254 0.5.0",
  "ark-ff 0.5.0",
  "light-account-checks",
@@ -294,7 +294,7 @@ version = "2.0.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
- "anchor-spl 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "anchor-spl",
  "light-compressed-account",
  "light-hasher",
  "light-heap",
@@ -398,24 +398,10 @@ dependencies = [
 [[package]]
 name = "anchor-spl"
 version = "0.31.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c08cb5d762c0694f74bd02c9a5b04ea53cefc496e2c27b3234acffca5cd076b"
-dependencies = [
- "anchor-lang",
- "spl-associated-token-account 6.0.0",
- "spl-pod",
- "spl-token 7.0.0",
- "spl-token-2022 6.0.0",
- "spl-token-group-interface 0.5.0",
- "spl-token-metadata-interface 0.6.0",
-]
-
-[[package]]
-name = "anchor-spl"
-version = "0.31.1"
 source = "git+https://github.com/lightprotocol/anchor?rev=da005d7f#da005d7f1f977d5220eaa65da26cdae2df0fe25e"
 dependencies = [
  "anchor-lang",
+ "borsh 0.10.4",
  "mpl-token-metadata",
  "spl-associated-token-account 6.0.0",
  "spl-memo",
@@ -1420,7 +1406,7 @@ version = "1.1.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
- "anchor-spl 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "anchor-spl",
  "borsh 0.10.4",
  "forester-utils",
  "light-batched-merkle-tree",
@@ -1638,7 +1624,7 @@ name = "csdk-anchor-full-derived-test"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",
- "anchor-spl 0.31.1 (git+https://github.com/lightprotocol/anchor?rev=da005d7f)",
+ "anchor-spl",
  "bincode",
  "borsh 0.10.4",
  "csdk-anchor-full-derived-test-sdk",
@@ -4133,7 +4119,7 @@ version = "1.2.1"
 dependencies = [
  "account-compression",
  "anchor-lang",
- "anchor-spl 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "anchor-spl",
  "base64 0.13.1",
  "create-address-test-program",
  "forester-utils",
@@ -4238,6 +4224,7 @@ name = "light-token-sdk"
 version = "0.2.1"
 dependencies = [
  "anchor-lang",
+ "anchor-spl",
  "arrayvec",
  "borsh 0.10.4",
  "light-account-checks",
@@ -4248,6 +4235,7 @@ dependencies = [
  "light-macros",
  "light-program-profiler",
  "light-sdk",
+ "light-sdk-macros",
  "light-sdk-types",
  "light-token-interface",
  "light-token-types",
@@ -5585,7 +5573,7 @@ version = "1.1.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
- "anchor-spl 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "anchor-spl",
  "borsh 0.10.4",
  "forester-utils",
  "light-account-checks",
@@ -6016,7 +6004,7 @@ dependencies = [
 name = "sdk-light-token-test"
 version = "0.1.0"
 dependencies = [
- "anchor-spl 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "anchor-spl",
  "borsh 0.10.4",
  "light-client",
  "light-compressed-account",
@@ -6092,7 +6080,7 @@ name = "sdk-token-test"
 version = "1.0.0"
 dependencies = [
  "anchor-lang",
- "anchor-spl 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "anchor-spl",
  "arrayvec",
  "borsh 0.10.4",
  "light-batched-merkle-tree",
@@ -10184,7 +10172,7 @@ version = "1.1.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
- "anchor-spl 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "anchor-spl",
  "create-address-test-program",
  "light-account-checks",
  "light-batched-merkle-tree",
@@ -10214,7 +10202,7 @@ version = "0.1.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
- "anchor-spl 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "anchor-spl",
  "create-address-test-program",
  "light-account-checks",
  "light-batched-merkle-tree",
