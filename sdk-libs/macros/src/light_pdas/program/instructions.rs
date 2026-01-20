@@ -487,7 +487,8 @@ fn codegen(
 pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<TokenStream> {
     use super::crate_context::CrateContext;
     use crate::light_pdas::account::seed_extraction::{
-        extract_from_accounts_struct, get_data_fields, ExtractedSeedSpec, ExtractedTokenSpec,
+        extract_from_accounts_struct, get_data_fields, parse_instruction_arg_names,
+        ExtractedSeedSpec, ExtractedTokenSpec,
     };
 
     if module.content.is_none() {
@@ -503,7 +504,10 @@ pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<Tok
     let mut rentfree_struct_names = std::collections::HashSet::new();
 
     for item_struct in crate_ctx.structs_with_derive("Accounts") {
-        if let Some(info) = extract_from_accounts_struct(item_struct)? {
+        // Parse #[instruction(...)] attribute to get instruction arg names
+        let instruction_args = parse_instruction_arg_names(&item_struct.attrs)?;
+
+        if let Some(info) = extract_from_accounts_struct(item_struct, &instruction_args)? {
             if !info.pda_fields.is_empty()
                 || !info.token_fields.is_empty()
                 || info.has_light_mint_fields
