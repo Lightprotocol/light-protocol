@@ -172,6 +172,53 @@ impl NewAddressParamsAssignedPacked {
     }
 }
 
+/// Packed address tree info for instruction data.
+/// Contains indices to address tree accounts and root index.
+#[repr(C)]
+#[cfg_attr(
+    all(feature = "std", feature = "anchor"),
+    derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
+)]
+#[cfg_attr(
+    not(feature = "anchor"),
+    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+)]
+#[derive(Debug, Clone, Copy, PartialEq, Default, ZeroCopyMut, light_zero_copy::ZeroCopy)]
+pub struct PackedAddressTreeInfo {
+    pub address_merkle_tree_pubkey_index: u8,
+    pub address_queue_pubkey_index: u8,
+    pub root_index: u16,
+}
+
+impl PackedAddressTreeInfo {
+    pub fn into_new_address_params_packed(
+        self,
+        seed: crate::address::AddressSeed,
+    ) -> NewAddressParamsPacked {
+        NewAddressParamsPacked {
+            address_merkle_tree_account_index: self.address_merkle_tree_pubkey_index,
+            address_queue_account_index: self.address_queue_pubkey_index,
+            address_merkle_tree_root_index: self.root_index,
+            seed: seed.0,
+        }
+    }
+
+    pub fn into_new_address_params_assigned_packed(
+        self,
+        seed: crate::address::AddressSeed,
+        assigned_account_index: Option<u8>,
+    ) -> NewAddressParamsAssignedPacked {
+        NewAddressParamsAssignedPacked {
+            address_merkle_tree_account_index: self.address_merkle_tree_pubkey_index,
+            address_queue_account_index: self.address_queue_pubkey_index,
+            address_merkle_tree_root_index: self.root_index,
+            seed: seed.0,
+            assigned_account_index: assigned_account_index.unwrap_or_default(),
+            assigned_to_account: assigned_account_index.is_some(),
+        }
+    }
+}
+
 #[cfg_attr(
     all(feature = "std", feature = "anchor"),
     derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)

@@ -1,22 +1,13 @@
+// Re-export core constants from light-compressed-account
+pub use light_compressed_account::constants::{
+    ACCOUNT_COMPRESSION_AUTHORITY_PDA, ACCOUNT_COMPRESSION_PROGRAM_ID, CPI_AUTHORITY_PDA_SEED,
+    LIGHT_SYSTEM_PROGRAM_ID, REGISTERED_PROGRAM_PDA,
+};
 use light_macros::pubkey_array;
-
-/// ID of the account-compression program.
-pub const ACCOUNT_COMPRESSION_PROGRAM_ID: [u8; 32] =
-    pubkey_array!("compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq");
-/// ID of the light-system program.
-pub const LIGHT_SYSTEM_PROGRAM_ID: [u8; 32] =
-    pubkey_array!("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7");
-pub const REGISTERED_PROGRAM_PDA: [u8; 32] =
-    pubkey_array!("35hkDgaAKwMCaxRz2ocSZ6NaUrtKkyNqU6c4RV3tYJRh");
-pub const ACCOUNT_COMPRESSION_AUTHORITY_PDA: [u8; 32] =
-    pubkey_array!("HwXnGK3tPkkVY6P439H2p68AxpeuWXd5PcrAxFpbmfbA");
 
 /// ID of the light-compressed-token program.
 pub const LIGHT_TOKEN_PROGRAM_ID: [u8; 32] =
     pubkey_array!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
-
-/// Seed of the CPI authority.
-pub const CPI_AUTHORITY_PDA_SEED: &[u8] = b"cpi_authority";
 /// Seed of the rent sponsor PDA.
 pub const RENT_SPONSOR_SEED: &[u8] = b"rent_sponsor";
 pub const NOOP_PROGRAM_ID: [u8; 32] = pubkey_array!("noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV");

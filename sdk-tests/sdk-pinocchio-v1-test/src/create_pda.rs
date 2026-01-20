@@ -5,7 +5,7 @@ use light_sdk_pinocchio::{
         InvokeLightSystemProgram, LightCpiInstruction,
     },
     error::LightSdkError,
-    instruction::{PackedAddressTreeInfo, ValidityProof},
+    instruction::{PackedAddressTreeInfo, PackedAddressTreeInfoExt, ValidityProof},
     LightAccount, LightDiscriminator, LightHasher,
 };
 use pinocchio::account_info::AccountInfo;

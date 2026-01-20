@@ -171,7 +171,7 @@ fn test_rnd_create_compressed_mint_account() {
         if parsed_instruction_data.create_mint.is_none() {
             let input_account = &mut cpi_instruction_struct.input_compressed_accounts[0];
 
-            use light_sdk::instruction::PackedMerkleContext;
+            use light_compressed_account::compressed_account::PackedMerkleContext;
             let merkle_context = PackedMerkleContext {
                 merkle_tree_pubkey_index,
                 queue_pubkey_index,

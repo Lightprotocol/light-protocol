@@ -2,6 +2,22 @@ use light_hasher::hash_to_field_size::hashv_to_bn254_field_size_be_const_array;
 
 use crate::{CompressedAccountError, Pubkey};
 
+/// A seed used to derive compressed account addresses.
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub struct AddressSeed(pub [u8; 32]);
+
+impl From<[u8; 32]> for AddressSeed {
+    fn from(value: [u8; 32]) -> Self {
+        AddressSeed(value)
+    }
+}
+
+impl From<AddressSeed> for [u8; 32] {
+    fn from(address_seed: AddressSeed) -> Self {
+        address_seed.0
+    }
+}
+
 pub fn derive_address_legacy(
     merkle_tree_pubkey: &Pubkey,
     seed: &[u8; 32],

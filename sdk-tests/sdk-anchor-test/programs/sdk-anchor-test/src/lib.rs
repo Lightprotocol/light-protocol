@@ -15,7 +15,7 @@ use light_sdk::{
     derive_light_cpi_signer,
     instruction::{
         account_meta::{CompressedAccountMeta, CompressedAccountMetaBurn},
-        PackedAddressTreeInfo, ValidityProof,
+        PackedAddressTreeInfo, PackedAddressTreeInfoExt, ValidityProof,
     },
     LightDiscriminator,
     LightHasher,

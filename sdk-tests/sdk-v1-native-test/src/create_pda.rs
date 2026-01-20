@@ -6,7 +6,7 @@ use light_sdk::{
         CpiAccountsConfig, InvokeLightSystemProgram, LightCpiInstruction,
     },
     error::LightSdkError,
-    instruction::{PackedAddressTreeInfo, ValidityProof},
+    instruction::{PackedAddressTreeInfo, PackedAddressTreeInfoExt, ValidityProof},
     LightDiscriminator, LightHasher,
 };
 use solana_program::{account_info::AccountInfo, msg};
