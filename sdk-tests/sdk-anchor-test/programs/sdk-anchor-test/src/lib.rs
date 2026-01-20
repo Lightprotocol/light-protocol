@@ -4,6 +4,7 @@
 mod read_only;
 
 use anchor_lang::{prelude::*, Discriminator};
+use light_instruction_decoder::instruction_decoder;
 use light_sdk::{
     // anchor test test poseidon LightAccount, native tests sha256 LightAccount
     account::LightAccount,
@@ -26,6 +27,7 @@ declare_id!("2tzfijPBGbrR5PboyFUFKzfEoLTwdDSHUjANCw929wyt");
 pub const LIGHT_CPI_SIGNER: CpiSigner =
     derive_light_cpi_signer!("2tzfijPBGbrR5PboyFUFKzfEoLTwdDSHUjANCw929wyt");
 
+#[instruction_decoder]
 #[program]
 pub mod sdk_anchor_test {
 

@@ -1,0 +1,35 @@
+[package]
+name = "light-instruction-decoder"
+version = "0.1.0"
+description = "Instruction decoder library for litsvm tests."
+repository = "https://github.com/Lightprotocol/light-protocol"
+license = "Apache-2.0"
+edition = "2021"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_os, values("solana"))'] }
+
+[features]
+default = ["light-protocol"]
+light-protocol = [
+    "dep:light-compressed-account",
+    "dep:light-sdk-types",
+    "dep:light-token-interface",
+]
+
+[dependencies]
+solana-pubkey = { version = "2", features = ["curve25519"] }
+solana-instruction = { version = "2" }
+solana-signature = { version = "2" }
+borsh = { workspace = true, features = ["std"] }
+bs58 = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+light-instruction-decoder-derive = { workspace = true }
+
+# Light Protocol dependencies (optional, enabled by light-protocol feature)
+light-compressed-account = { workspace = true, optional = true }
+light-sdk-types = { workspace = true, optional = true }
+light-token-interface = { workspace = true, optional = true }
+
+[target.'cfg(not(target_os = "solana"))'.dependencies]
+tabled = { workspace = true }

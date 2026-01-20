@@ -20,7 +20,7 @@ pub const D9_BUMP_STR: &str = "d9_bump_str";
 // Test 1: Literal seed with bump
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9BumpLiteralParams {
     pub create_accounts_proof: CreateAccountsProof,
 }
@@ -52,7 +52,7 @@ pub struct D9BumpLiteral<'info> {
 // Test 2: Constant seed with bump
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9BumpConstantParams {
     pub create_accounts_proof: CreateAccountsProof,
 }
@@ -84,7 +84,7 @@ pub struct D9BumpConstant<'info> {
 // Test 3: Qualified path with .as_bytes() and bump
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9BumpQualifiedParams {
     pub create_accounts_proof: CreateAccountsProof,
 }
@@ -116,7 +116,7 @@ pub struct D9BumpQualified<'info> {
 // Test 4: Param seed with bump
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9BumpParamParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub owner: Pubkey,
@@ -149,7 +149,7 @@ pub struct D9BumpParam<'info> {
 // Test 5: Ctx account seed with bump
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9BumpCtxParams {
     pub create_accounts_proof: CreateAccountsProof,
 }
@@ -184,7 +184,7 @@ pub struct D9BumpCtx<'info> {
 // Test 6: Multiple seed types with bump
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9BumpMixedParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub owner: Pubkey,

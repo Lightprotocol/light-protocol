@@ -18,7 +18,7 @@ use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
 // Test 1: Standard params with single Pubkey field
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9SinglePubkeyParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub owner: Pubkey,
@@ -51,7 +51,7 @@ pub struct D9InstrSinglePubkey<'info> {
 // Test 2: Params with u64 field requiring to_le_bytes
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9U64Params {
     pub create_accounts_proof: CreateAccountsProof,
     pub amount: u64,
@@ -84,7 +84,7 @@ pub struct D9InstrU64<'info> {
 // Test 3: Multiple data fields in seeds
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9MultiFieldParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub owner: Pubkey,
@@ -118,7 +118,7 @@ pub struct D9InstrMultiField<'info> {
 // Test 4: Mixed params and ctx account in seeds
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9MixedCtxParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub data_key: Pubkey,
@@ -153,7 +153,7 @@ pub struct D9InstrMixedCtx<'info> {
 // Test 5: Three data fields
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9TripleParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub key_a: Pubkey,
@@ -188,7 +188,7 @@ pub struct D9InstrTriple<'info> {
 // Test 6: to_be_bytes conversion
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9BigEndianParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub value: u64,
@@ -221,7 +221,7 @@ pub struct D9InstrBigEndian<'info> {
 // Test 7: Multiple u64 fields
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9MultiU64Params {
     pub create_accounts_proof: CreateAccountsProof,
     pub id: u64,
@@ -255,7 +255,7 @@ pub struct D9InstrMultiU64<'info> {
 // Test 8: Pubkey with as_ref chained
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9ChainedAsRefParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub key: Pubkey,
@@ -291,7 +291,7 @@ pub struct D9InstrChainedAsRef<'info> {
 /// Local seed constant
 pub const D9_INSTR_SEED: &[u8] = b"d9_instr_const";
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9ConstMixedParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub owner: Pubkey,
@@ -324,7 +324,7 @@ pub struct D9InstrConstMixed<'info> {
 // Test 10: Complex mixed - literal + constant + ctx + params
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9ComplexMixedParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub data_owner: Pubkey,

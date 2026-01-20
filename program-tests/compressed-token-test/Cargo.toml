@@ -20,6 +20,7 @@ default = []
 [dependencies]
 anchor-lang = { workspace = true }
 light-sdk = { workspace = true, features = ["anchor"] }
+light-instruction-decoder = { workspace = true }
 
 [dev-dependencies]
 light-compressed-token = { workspace = true }

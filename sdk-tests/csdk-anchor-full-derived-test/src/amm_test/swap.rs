@@ -14,7 +14,7 @@ use light_anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 use super::states::*;
 
 /// Trade direction for swap
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
 pub enum TradeDirection {
     /// Swap token_0 for token_1
     ZeroForOne,

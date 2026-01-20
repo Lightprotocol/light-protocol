@@ -29,6 +29,9 @@ solana-msg = { workspace = true }
 solana-account-info = { workspace = true }
 solana-pubkey = { workspace = true }
 light-macros = { workspace = true, features = ["solana"] }
+light-instruction-decoder = { workspace = true }
+light-instruction-decoder-derive = { workspace = true }
+solana-instruction = { workspace = true }
 light-sdk-macros = { workspace = true }
 borsh = { workspace = true }
 light-compressed-account = { workspace = true, features = ["solana"] }
@@ -55,6 +58,7 @@ solana-signer = { workspace = true }
 solana-keypair = { workspace = true }
 solana-account = { workspace = true }
 bincode = "1.3"
+sha2 = "0.10"
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

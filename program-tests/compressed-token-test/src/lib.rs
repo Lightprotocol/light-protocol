@@ -3,9 +3,11 @@
 #![allow(deprecated)]
 
 use anchor_lang::{prelude::*, solana_program::instruction::Instruction};
+use light_instruction_decoder::instruction_decoder;
 
 declare_id!("CompressedTokenTestProgram11111111111111111");
 
+#[instruction_decoder]
 #[program]
 pub mod compressed_token_test {
     use super::*;

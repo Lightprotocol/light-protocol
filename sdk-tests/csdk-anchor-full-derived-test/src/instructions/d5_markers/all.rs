@@ -13,7 +13,7 @@ use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
 pub const D5_ALL_AUTH_SEED: &[u8] = b"d5_all_auth";
 pub const D5_ALL_VAULT_SEED: &[u8] = b"d5_all_vault";
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D5AllMarkersParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub owner: Pubkey,

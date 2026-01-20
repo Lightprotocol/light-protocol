@@ -57,7 +57,7 @@ pub static STATIC_SEED: [u8; 11] = *b"static_seed";
 // Test 1: Associated constant
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9AssocConstParams {
     pub create_accounts_proof: CreateAccountsProof,
 }
@@ -89,7 +89,7 @@ pub struct D9AssocConst<'info> {
 // Test 2: Associated constant with method
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9AssocConstMethodParams {
     pub create_accounts_proof: CreateAccountsProof,
 }
@@ -121,7 +121,7 @@ pub struct D9AssocConstMethod<'info> {
 // Test 3: Multiple associated constants
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9MultiAssocConstParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub owner: Pubkey,
@@ -154,7 +154,7 @@ pub struct D9MultiAssocConst<'info> {
 // Test 4: Const fn call
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9ConstFnParams {
     pub create_accounts_proof: CreateAccountsProof,
 }
@@ -186,7 +186,7 @@ pub struct D9ConstFn<'info> {
 // Test 5: Const fn with const generic
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9ConstFnGenericParams {
     pub create_accounts_proof: CreateAccountsProof,
 }
@@ -218,7 +218,7 @@ pub struct D9ConstFnGeneric<'info> {
 // Test 6: Trait associated constant (fully qualified)
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9TraitAssocConstParams {
     pub create_accounts_proof: CreateAccountsProof,
 }
@@ -250,7 +250,7 @@ pub struct D9TraitAssocConst<'info> {
 // Test 7: Static variable
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9StaticParams {
     pub create_accounts_proof: CreateAccountsProof,
 }
@@ -282,7 +282,7 @@ pub struct D9Static<'info> {
 // Test 8: Qualified const fn (crate path)
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9QualifiedConstFnParams {
     pub create_accounts_proof: CreateAccountsProof,
 }
@@ -314,7 +314,7 @@ pub struct D9QualifiedConstFn<'info> {
 // Test 9: Fully qualified associated constant
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9FullyQualifiedAssocParams {
     pub create_accounts_proof: CreateAccountsProof,
 }
@@ -346,7 +346,7 @@ pub struct D9FullyQualifiedAssoc<'info> {
 // Test 10: Fully qualified trait associated constant
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9FullyQualifiedTraitParams {
     pub create_accounts_proof: CreateAccountsProof,
 }
@@ -378,7 +378,7 @@ pub struct D9FullyQualifiedTrait<'info> {
 // Test 11: Fully qualified const fn with generics
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9FullyQualifiedGenericParams {
     pub create_accounts_proof: CreateAccountsProof,
 }
@@ -410,7 +410,7 @@ pub struct D9FullyQualifiedGeneric<'info> {
 // Test 12: Combined patterns with full qualification
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9ConstCombinedParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub owner: Pubkey,

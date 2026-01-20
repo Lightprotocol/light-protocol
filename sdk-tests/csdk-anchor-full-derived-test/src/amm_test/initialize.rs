@@ -19,7 +19,7 @@ use light_token::instruction::{
 
 use super::states::*;
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct InitializeParams {
     pub init_amount_0: u64,
     pub init_amount_1: u64,

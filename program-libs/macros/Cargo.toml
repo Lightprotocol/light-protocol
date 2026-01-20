@@ -15,6 +15,7 @@ pinocchio = []  # No-op feature for backward compatibility
 bs58 = "0.5"
 proc-macro2 = { workspace = true }
 quote = { workspace = true }
+sha2 = "0.10"
 syn = { workspace = true }
 solana-pubkey = { workspace = true, features = ["sha2", "curve25519"] }
 

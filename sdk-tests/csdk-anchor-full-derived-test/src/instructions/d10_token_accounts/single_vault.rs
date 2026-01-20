@@ -16,7 +16,7 @@ pub const D10_SINGLE_VAULT_AUTH_SEED: &[u8] = b"d10_single_vault_auth";
 /// Seed for the vault token account PDA
 pub const D10_SINGLE_VAULT_SEED: &[u8] = b"d10_single_vault";
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D10SingleVaultParams {
     pub create_accounts_proof: CreateAccountsProof,
     /// Bump for the d10_single_vault PDA (needed for invoke_signed)

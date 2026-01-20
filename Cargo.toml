@@ -33,6 +33,8 @@ members = [
     "sdk-libs/sdk-types",
     "sdk-libs/photon-api",
     "sdk-libs/program-test",
+    "sdk-libs/instruction-decoder",
+    "sdk-libs/instruction-decoder-derive",
     "xtask",
     "program-tests/account-compression-test",
     "program-tests/batched-merkle-tree-test",
@@ -223,6 +225,8 @@ create-address-test-program = { path = "program-tests/create-address-test-progra
     "cpi",
 ] }
 light-program-test = { path = "sdk-libs/program-test", version = "0.18.0" }
+light-instruction-decoder = { path = "sdk-libs/instruction-decoder", version = "0.1.0" }
+light-instruction-decoder-derive = { path = "sdk-libs/instruction-decoder-derive", version = "0.1.0" }
 light-batched-merkle-tree = { path = "program-libs/batched-merkle-tree", version = "0.8.0" }
 light-merkle-tree-metadata = { path = "program-libs/merkle-tree-metadata", version = "0.8.0" }
 aligned-sized = { path = "program-libs/aligned-sized", version = "1.1.0" }

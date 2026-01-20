@@ -11,7 +11,7 @@ use light_token::instruction::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR as LIGHT_TOK
 pub const D5_VAULT_AUTH_SEED: &[u8] = b"d5_vault_auth";
 pub const D5_VAULT_SEED: &[u8] = b"d5_vault";
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D5LightTokenParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub vault_bump: u8,

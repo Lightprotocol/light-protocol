@@ -12,7 +12,7 @@ use light_sdk_macros::LightAccounts;
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
 use light_token::instruction::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR};
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D10SingleAtaParams {
     pub create_accounts_proof: CreateAccountsProof,
     /// Bump for the ATA PDA

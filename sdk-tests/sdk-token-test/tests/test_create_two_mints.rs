@@ -26,10 +26,12 @@ async fn test_create_three_mints() {
 }
 
 async fn test_create_mints(n: usize) {
-    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
-        false,
-        Some(vec![("sdk_token_test", sdk_token_test::ID)]),
-    ))
+    let mut rpc = LightProgramTest::new(
+        ProgramTestConfig::new_v2(false, Some(vec![("sdk_token_test", sdk_token_test::ID)]))
+            .with_decoders(vec![Box::new(
+                sdk_token_test::SdkTokenTestInstructionDecoder,
+            )]),
+    )
     .await
     .unwrap();
 

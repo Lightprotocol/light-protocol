@@ -1,22 +1,12 @@
-//! Enhanced logging system for light-program-test
+//! LiteSVM integration for Light Protocol logging
 //!
-//! This module provides Solana Explorer-like transaction logging with:
-//! - Hierarchical instruction display with inner instructions
-//! - Account changes tracking
-//! - Light Protocol specific parsing and formatting
-//! - Configurable verbosity levels
-//! - Color-coded output
+//! This module provides the glue layer between LiteSVM and the instruction-decoder crate.
+//! All logging types, decoders, and formatting utilities are in `light-instruction-decoder`.
 //!
-//! Logging behavior:
-//! - File logging: Always enabled when `enhanced_logging.enabled = true` (default)
-//! - Log file: Written to `target/light_program_test.log`
-//! - Console output: Only when `RUST_BACKTRACE` is set AND `log_events = true`
-//! - Log file is overwritten at session start, then appended for each transaction
-
-pub mod config;
-pub mod decoder;
-pub mod formatter;
-pub mod types;
+//! This module only contains:
+//! - LiteSVM-specific transaction result parsing (`from_transaction_result`)
+//! - Log file I/O functions
+//! - Re-exports from instruction-decoder
 
 use std::{
     fs::OpenOptions,
@@ -26,13 +16,19 @@ use std::{
 };
 
 use chrono;
-pub use config::{EnhancedLoggingConfig, LogVerbosity};
-pub use formatter::TransactionFormatter;
+// Re-export everything from instruction-decoder
+pub use light_instruction_decoder::{
+    AccountAccess, AccountChange, AccountCompressionInstructionDecoder, CTokenInstructionDecoder,
+    Colors, CompressedAccountInfo, ComputeBudgetInstructionDecoder, DecodedField,
+    DecodedInstruction, DecoderRegistry, EnhancedInstructionLog, EnhancedLoggingConfig,
+    EnhancedTransactionLog, InstructionDecoder, LightProtocolEvent, LightSystemInstructionDecoder,
+    LogVerbosity, MerkleTreeChange, RegistryInstructionDecoder, SplTokenInstructionDecoder,
+    SystemInstructionDecoder, Token2022InstructionDecoder, TransactionFormatter, TransactionStatus,
+};
 use litesvm::types::TransactionResult;
-use solana_sdk::{signature::Signature, transaction::Transaction};
-pub use types::{
-    AccountChange, EnhancedInstructionLog, EnhancedTransactionLog, ParsedInstructionData,
-    TransactionStatus,
+use solana_sdk::{
+    inner_instruction::InnerInstruction, pubkey::Pubkey, signature::Signature,
+    transaction::Transaction,
 };
 
 use crate::program_test::config::ProgramTestConfig;
@@ -41,7 +37,6 @@ static SESSION_STARTED: std::sync::Once = std::sync::Once::new();
 
 /// Get the log file path in target directory
 fn get_log_file_path() -> PathBuf {
-    // Always use cargo workspace target directory
     use std::process::Command;
     if let Ok(output) = Command::new("cargo")
         .arg("metadata")
@@ -62,7 +57,6 @@ fn get_log_file_path() -> PathBuf {
         }
     }
 
-    // Fallback to current directory's target
     let mut path = PathBuf::from("target");
     path.push("light_program_test.log");
     path
@@ -77,14 +71,12 @@ fn initialize_log_file() {
             .unwrap_or_default()
             .as_secs();
 
-        // Create new log file with session header
         if let Ok(mut file) = OpenOptions::new()
             .create(true)
             .write(true)
             .truncate(true)
             .open(&log_path)
         {
-            // Format timestamp as readable date
             let datetime =
                 chrono::DateTime::from_timestamp(timestamp as i64, 0).unwrap_or(chrono::Utc::now());
             let formatted_date = datetime.format("%Y-%m-%d %H:%M:%S UTC");
@@ -100,13 +92,11 @@ fn initialize_log_file() {
 
 /// Strip ANSI escape codes from string for plain text log files
 fn strip_ansi_codes(text: &str) -> String {
-    // Simple regex-free approach to remove ANSI escape sequences
     let mut result = String::with_capacity(text.len());
     let mut chars = text.chars();
 
     while let Some(ch) = chars.next() {
         if ch == '\x1b' {
-            // Found escape character, skip until we find 'm' (end of color code)
             for next_ch in chars.by_ref() {
                 if next_ch == 'm' {
                     break;
@@ -122,20 +112,16 @@ fn strip_ansi_codes(text: &str) -> String {
 
 /// Write log entry to file (append to existing session log)
 fn write_to_log_file(content: &str) {
-    // Ensure session is initialized
     initialize_log_file();
 
     let log_path = get_log_file_path();
 
-    // Ensure parent directory exists
     if let Some(parent) = log_path.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
 
-    // Strip ANSI color codes for file output
     let clean_content = strip_ansi_codes(content);
 
-    // Append transaction log to existing file
     if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&log_path) {
         let _ = writeln!(file, "{}", clean_content);
     }
@@ -175,7 +161,7 @@ pub fn log_transaction_enhanced_with_console(
         return;
     }
 
-    let enhanced_log = EnhancedTransactionLog::from_transaction_result(
+    let enhanced_log = from_transaction_result(
         transaction,
         result,
         signature,
@@ -186,10 +172,8 @@ pub fn log_transaction_enhanced_with_console(
     let formatter = TransactionFormatter::new(&config.enhanced_logging);
     let formatted_log = formatter.format(&enhanced_log, transaction_counter);
 
-    // Always write to log file when enhanced logging is enabled
     write_to_log_file(&formatted_log);
 
-    // Print to console if requested
     if print_to_console {
         println!("{}", formatted_log);
     }
@@ -198,4 +182,180 @@ pub fn log_transaction_enhanced_with_console(
 /// Check if enhanced logging should be used instead of basic logging
 pub fn should_use_enhanced_logging(config: &ProgramTestConfig) -> bool {
     config.enhanced_logging.enabled && !config.no_logs
+}
+
+// ============================================================================
+// LiteSVM-specific conversion functions
+// ============================================================================
+
+/// Get human-readable program name from pubkey
+fn get_program_name(program_id: &Pubkey) -> String {
+    light_instruction_decoder::types::get_program_name(&solana_pubkey::Pubkey::new_from_array(
+        program_id.to_bytes(),
+    ))
+}
+
+/// Use LiteSVM's pretty logs instead of parsing raw logs
+fn get_pretty_logs_string(result: &TransactionResult) -> String {
+    match result {
+        Ok(meta) => meta.pretty_logs(),
+        Err(failed) => failed.meta.pretty_logs(),
+    }
+}
+
+/// Create EnhancedTransactionLog from LiteSVM transaction result
+pub fn from_transaction_result(
+    transaction: &Transaction,
+    result: &TransactionResult,
+    signature: &Signature,
+    slot: u64,
+    config: &EnhancedLoggingConfig,
+) -> EnhancedTransactionLog {
+    let (status, compute_consumed) = match result {
+        Ok(meta) => (TransactionStatus::Success, meta.compute_units_consumed),
+        Err(failed) => (
+            TransactionStatus::Failed(format!("{:?}", failed.err)),
+            failed.meta.compute_units_consumed,
+        ),
+    };
+
+    let estimated_fee = (transaction.signatures.len() as u64) * 5000;
+
+    // Build full instructions with accounts and data
+    let mut instructions: Vec<EnhancedInstructionLog> = transaction
+        .message
+        .instructions
+        .iter()
+        .enumerate()
+        .map(|(index, ix)| {
+            let program_id = transaction.message.account_keys[ix.program_id_index as usize];
+            let mut log = EnhancedInstructionLog::new(
+                index,
+                solana_pubkey::Pubkey::new_from_array(program_id.to_bytes()),
+                get_program_name(&program_id),
+            );
+            log.accounts = ix
+                .accounts
+                .iter()
+                .map(|&idx| {
+                    let pubkey = transaction.message.account_keys[idx as usize];
+                    solana_instruction::AccountMeta {
+                        pubkey: solana_pubkey::Pubkey::new_from_array(pubkey.to_bytes()),
+                        is_signer: transaction.message.is_signer(idx as usize),
+                        is_writable: transaction.message.is_maybe_writable(idx as usize, None),
+                    }
+                })
+                .collect();
+            log.data = ix.data.clone();
+            log
+        })
+        .collect();
+
+    // Extract inner instructions from LiteSVM metadata
+    let inner_instructions_list = match result {
+        Ok(meta) => &meta.inner_instructions,
+        Err(failed) => &failed.meta.inner_instructions,
+    };
+
+    // Apply decoder to instructions if enabled
+    if config.decode_light_instructions {
+        for instruction in instructions.iter_mut() {
+            instruction.decode(config);
+        }
+
+        // Populate inner instructions for each top-level instruction
+        for (instruction_index, inner_list) in inner_instructions_list.iter().enumerate() {
+            if let Some(instruction) = instructions.get_mut(instruction_index) {
+                instruction.inner_instructions = parse_inner_instructions(
+                    inner_list,
+                    &transaction.message.account_keys,
+                    &transaction.message,
+                    1,
+                    config,
+                );
+            }
+        }
+    }
+
+    let pretty_logs_string = get_pretty_logs_string(result);
+
+    let sig_bytes: [u8; 64] = signature.as_ref().try_into().unwrap_or([0u8; 64]);
+    let mut log = EnhancedTransactionLog::new(
+        light_instruction_decoder::solana_signature::Signature::from(sig_bytes),
+        slot,
+    );
+    log.status = status;
+    log.fee = estimated_fee;
+    log.compute_used = compute_consumed;
+    log.instructions = instructions;
+    log.program_logs_pretty = pretty_logs_string;
+    log
+}
+
+/// Parse inner instructions from Solana's InnerInstruction format with proper nesting
+fn parse_inner_instructions(
+    inner_instructions: &[InnerInstruction],
+    account_keys: &[Pubkey],
+    message: &solana_sdk::message::Message,
+    base_depth: usize,
+    config: &EnhancedLoggingConfig,
+) -> Vec<EnhancedInstructionLog> {
+    let mut result = Vec::new();
+
+    for (index, inner_ix) in inner_instructions.iter().enumerate() {
+        let program_id = account_keys[inner_ix.instruction.program_id_index as usize];
+        let program_name = get_program_name(&program_id);
+
+        let accounts: Vec<solana_instruction::AccountMeta> = inner_ix
+            .instruction
+            .accounts
+            .iter()
+            .map(|&idx| {
+                let account_index = idx as usize;
+                let pubkey = account_keys[account_index];
+
+                let is_signer = message.is_signer(account_index);
+                let is_writable = message.is_maybe_writable(account_index, None);
+
+                solana_instruction::AccountMeta {
+                    pubkey: solana_pubkey::Pubkey::new_from_array(pubkey.to_bytes()),
+                    is_signer,
+                    is_writable,
+                }
+            })
+            .collect();
+
+        let instruction_depth = base_depth + (inner_ix.stack_height as usize).saturating_sub(1);
+
+        let mut instruction_log = EnhancedInstructionLog::new(
+            index,
+            solana_pubkey::Pubkey::new_from_array(program_id.to_bytes()),
+            program_name,
+        );
+        instruction_log.accounts = accounts;
+        instruction_log.data = inner_ix.instruction.data.clone();
+        instruction_log.depth = instruction_depth;
+
+        // Decode the instruction if enabled
+        if config.decode_light_instructions {
+            instruction_log.decode(config);
+        }
+
+        // Find the correct parent for this instruction based on stack height
+        if inner_ix.stack_height <= 2 {
+            result.push(instruction_log);
+        } else {
+            let target_parent_depth = instruction_depth - 1;
+            if let Some(parent) = EnhancedInstructionLog::find_parent_for_instruction(
+                &mut result,
+                target_parent_depth,
+            ) {
+                parent.inner_instructions.push(instruction_log);
+            } else {
+                result.push(instruction_log);
+            }
+        }
+    }
+
+    result
 }

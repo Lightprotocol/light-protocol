@@ -24,6 +24,7 @@ use light_compressed_account::{
         data::{NewAddressParamsPacked, PackedReadOnlyAddress},
     },
 };
+use light_instruction_decoder::instruction_decoder;
 use light_sdk::derive_light_cpi_signer;
 use light_sdk_types::CpiSigner;
 
@@ -32,6 +33,7 @@ declare_id!("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy");
 pub const LIGHT_CPI_SIGNER: CpiSigner =
     derive_light_cpi_signer!("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy");
 
+#[instruction_decoder]
 #[program]
 pub mod system_cpi_test {
 

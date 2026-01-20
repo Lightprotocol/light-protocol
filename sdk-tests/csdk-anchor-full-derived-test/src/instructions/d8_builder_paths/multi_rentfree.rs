@@ -8,7 +8,7 @@ use light_sdk_macros::LightAccounts;
 
 use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D8MultiRentfreeParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub owner: Pubkey,

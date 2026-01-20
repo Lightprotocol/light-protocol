@@ -53,6 +53,7 @@ solana-sdk = { workspace = true }
 solana-banks-client = { workspace = true }
 solana-pubkey = { workspace = true }
 solana-instruction = { workspace = true }
+light-instruction-decoder = { workspace = true }
 solana-account = { workspace = true }
 solana-compute-budget = { workspace = true }
 rand = { workspace = true }

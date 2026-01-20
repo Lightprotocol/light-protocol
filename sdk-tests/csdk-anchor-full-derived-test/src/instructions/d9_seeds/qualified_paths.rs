@@ -22,7 +22,7 @@ pub const D9_QUALIFIED_CRATE: &[u8] = b"d9_qualified_crate";
 // Test 1: Bare constant (no path prefix)
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9QualifiedBareParams {
     pub create_accounts_proof: CreateAccountsProof,
 }
@@ -54,7 +54,7 @@ pub struct D9QualifiedBare<'info> {
 // Test 2: self:: prefix
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9QualifiedSelfParams {
     pub create_accounts_proof: CreateAccountsProof,
 }
@@ -86,7 +86,7 @@ pub struct D9QualifiedSelf<'info> {
 // Test 3: crate:: prefix
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9QualifiedCrateParams {
     pub create_accounts_proof: CreateAccountsProof,
 }
@@ -118,7 +118,7 @@ pub struct D9QualifiedCrate<'info> {
 // Test 4: Deep nested path
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9QualifiedDeepParams {
     pub create_accounts_proof: CreateAccountsProof,
 }
@@ -150,7 +150,7 @@ pub struct D9QualifiedDeep<'info> {
 // Test 5: Mixed qualified and bare in same seeds array
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9QualifiedMixedParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub owner: Pubkey,

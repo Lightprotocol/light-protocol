@@ -30,7 +30,7 @@ pub const D9_SINGLE_BYTE: &[u8] = b"x";
 // Test 1: Minimal literal (single character)
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9EdgeEmptyParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub owner: Pubkey,
@@ -63,7 +63,7 @@ pub struct D9EdgeEmpty<'info> {
 // Test 2: Single byte constant
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9EdgeSingleByteParams {
     pub create_accounts_proof: CreateAccountsProof,
 }
@@ -95,7 +95,7 @@ pub struct D9EdgeSingleByte<'info> {
 // Test 3: Single letter constant name
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9EdgeSingleLetterParams {
     pub create_accounts_proof: CreateAccountsProof,
 }
@@ -127,7 +127,7 @@ pub struct D9EdgeSingleLetter<'info> {
 // Test 4: Constant name with digits
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9EdgeDigitsParams {
     pub create_accounts_proof: CreateAccountsProof,
 }
@@ -159,7 +159,7 @@ pub struct D9EdgeDigits<'info> {
 // Test 5: Leading underscore constant
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9EdgeUnderscoreParams {
     pub create_accounts_proof: CreateAccountsProof,
 }
@@ -191,7 +191,7 @@ pub struct D9EdgeUnderscore<'info> {
 // Test 6: Many literals in same seeds array
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9EdgeManyLiteralsParams {
     pub create_accounts_proof: CreateAccountsProof,
 }
@@ -223,7 +223,7 @@ pub struct D9EdgeManyLiterals<'info> {
 // Test 7: Mixed edge cases in one struct
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9EdgeMixedParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub owner: Pubkey,

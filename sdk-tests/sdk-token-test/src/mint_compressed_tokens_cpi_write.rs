@@ -9,7 +9,7 @@ use light_token_interface::instructions::mint_action::{
 
 use crate::Generic;
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct MintCompressedTokensCpiWriteParams {
     pub compressed_mint_with_context: MintWithContext,
     pub recipients: Vec<Recipient>,
