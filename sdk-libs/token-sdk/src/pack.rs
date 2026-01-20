@@ -67,7 +67,7 @@ pub mod compat {
 
     /// TokenData using standard Solana pubkeys.
     ///
-    /// For zero-copy operations, use [`TokenData`](crate::types::TokenData) from the crate root.
+    /// For zero-copy operations, use `TokenData` from `light_token_interface`.
     #[derive(Debug, PartialEq, Eq, AnchorDeserialize, AnchorSerialize, Clone, Default)]
     pub struct TokenData {
         /// The mint associated with this account
@@ -86,7 +86,7 @@ pub mod compat {
 
     impl TokenData {
         /// TokenDataVersion 3
-        /// CompressedAccount Discriminator [0,0,0,0,0,0,0,4]
+        /// CompressedAccount Discriminator `[0,0,0,0,0,0,0,4]`
         #[inline(always)]
         pub fn hash_sha_flat(&self) -> Result<[u8; 32], HasherError> {
             use light_sdk::light_hasher::Hasher;

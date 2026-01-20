@@ -1,12 +1,12 @@
-//! High-level builders for ctoken operations.
+//! High-level builders for Light Token operations.
 //!
 //!
 //! ## Account Creation
 //!
-//! - [`CreateAssociatedCTokenAccount`] - Create associated ctoken account (ATA) instruction
-//! - [`CreateTokenAtaCpi`] - Create associated ctoken account (ATA) via CPI
-//! - [`CreateCTokenAccount`] - Create ctoken account instruction
-//! - [`CreateTokenAccountCpi`] - Create ctoken account via CPI
+//! - [`CreateAssociatedTokenAccount`] - Create associated Light Token account (ATA) instruction
+//! - [`CreateTokenAtaCpi`] - Create associated Light Token account (ATA) via CPI
+//! - [`CreateTokenAccount`] - Create Light Token account instruction
+//! - [`CreateTokenAccountCpi`] - Create Light Token account via CPI
 //!
 //! ## Transfers
 //!
@@ -14,28 +14,28 @@
 //!
 //! ## Decompress
 //!
-//! - [`Decompress`] - Decompress compressed tokens to a cToken account
+//! - [`Decompress`] - Decompress compressed tokens to a Light Token account
 //!
 //! ## Close
 //!
-//! - [`CloseTokenAccount`] - Create close ctoken account instruction
-//! - [`CloseTokenAccountCpi`] - Close ctoken account via CPI
+//! - [`CloseAccount`] - Create close Light Token account instruction
+//! - [`CloseAccountCpi`] - Close Light Token account via CPI
 //!
 //!
 //! ## Mint
 //!
-//! - [`CreateMint`] - Create cMint
-//! - [`CreateMints`] - Create multiple cMints in a batch
-//! - [`MintTo`] - Mint tokens to ctoken accounts
+//! - [`CreateMint`] - Create Light Mint
+//! - [`create_mints`] - Create multiple Light Mints in a batch
+//! - [`MintTo`] - Mint tokens to Light Token accounts
 //!
 //! ## Revoke and Thaw
 //!
-//! - [`Revoke`] - Revoke delegation for a ctoken account
+//! - [`Revoke`] - Revoke delegation for a Light Token account
 //! - [`RevokeCpi`] - Revoke delegation via CPI
-//! - [`Thaw`] - Thaw a frozen ctoken account
-//! - [`ThawCpi`] - Thaw a frozen ctoken account via CPI
+//! - [`Thaw`] - Thaw a frozen Light Token account
+//! - [`ThawCpi`] - Thaw a frozen Light Token account via CPI
 //!
-//! # Example: Create cToken Account Instruction
+//! # Example: Create Light Token Account Instruction
 //!
 //! ```rust
 //! # use solana_pubkey::Pubkey;
@@ -64,7 +64,7 @@
 //! }
 //! .idempotent()
 //! .rent_free(
-//!     ctx.accounts.ctoken_config.to_account_info(),
+//!     ctx.accounts.light_token_config.to_account_info(),
 //!     ctx.accounts.rent_sponsor.to_account_info(),
 //!     ctx.accounts.system_program.to_account_info(),
 //! )
@@ -83,7 +83,7 @@
 //!     owner: ctx.accounts.vault_authority.key(),
 //! }
 //! .rent_free(
-//!     ctx.accounts.ctoken_config.to_account_info(),
+//!     ctx.accounts.light_token_config.to_account_info(),
 //!     ctx.accounts.rent_sponsor.to_account_info(),
 //!     ctx.accounts.system_program.to_account_info(),
 //!     &crate::ID,
