@@ -407,22 +407,10 @@ impl<R: Rpc> TxSender<R> {
                 });
             }
 
-            // Use biased select to ensure the 1-second sleep branch is checked first.
-            // This guarantees periodic re-evaluation of sender eligibility even when
-            // proof_rx.recv() would otherwise block indefinitely waiting for proofs.
-            // Near epoch boundaries, this prevents getting stuck waiting on proofs
-            // when the forester's eligibility window is about to end.
-            let result = tokio::select! {
-                biased;
-                _ = tokio::time::sleep(Duration::from_secs(1)) => {
-                    continue;
-                }
-                result = proof_rx.recv() => {
-                    match result {
-                        Some(r) => r,
-                        None => break,
-                    }
-                }
+            let result = match tokio::time::timeout(Duration::from_secs(1), proof_rx.recv()).await {
+                Ok(Some(r)) => r,
+                Ok(None) => break,
+                Err(_) => continue,
             };
 
             let current_slot = self.context.slot_tracker.estimated_current_slot();
