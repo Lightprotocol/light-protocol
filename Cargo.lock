@@ -3558,7 +3558,7 @@ dependencies = [
 
 [[package]]
 name = "light-client"
-version = "0.17.2"
+version = "0.18.0"
 dependencies = [
  "anchor-lang",
  "async-trait",
@@ -3724,7 +3724,7 @@ dependencies = [
 
 [[package]]
 name = "light-event"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "borsh 0.10.4",
  "light-compressed-account",
@@ -3888,7 +3888,7 @@ dependencies = [
 
 [[package]]
 name = "light-program-test"
-version = "0.17.1"
+version = "0.18.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
@@ -3994,7 +3994,7 @@ dependencies = [
 
 [[package]]
 name = "light-sdk"
-version = "0.17.1"
+version = "0.18.0"
 dependencies = [
  "anchor-lang",
  "bincode",
@@ -4026,7 +4026,7 @@ dependencies = [
 
 [[package]]
 name = "light-sdk-macros"
-version = "0.17.1"
+version = "0.18.0"
 dependencies = [
  "borsh 0.10.4",
  "darling",
@@ -4045,7 +4045,7 @@ dependencies = [
 
 [[package]]
 name = "light-sdk-pinocchio"
-version = "0.17.1"
+version = "0.18.0"
 dependencies = [
  "borsh 0.10.4",
  "light-account-checks",
@@ -4061,7 +4061,7 @@ dependencies = [
 
 [[package]]
 name = "light-sdk-types"
-version = "0.17.1"
+version = "0.18.0"
 dependencies = [
  "anchor-lang",
  "borsh 0.10.4",
@@ -4178,7 +4178,7 @@ dependencies = [
 
 [[package]]
 name = "light-token"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "anchor-lang",
  "arrayvec",
@@ -4186,7 +4186,6 @@ dependencies = [
  "light-account-checks",
  "light-batched-merkle-tree",
  "light-compressed-account",
- "light-compressed-token",
  "light-compressible",
  "light-macros",
  "light-program-profiler",
@@ -4233,7 +4232,7 @@ dependencies = [
 
 [[package]]
 name = "light-token-interface"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "aligned-sized",
  "anchor-lang",
@@ -4247,7 +4246,6 @@ dependencies = [
  "light-heap",
  "light-macros",
  "light-program-profiler",
- "light-token-interface",
  "light-zero-copy",
  "num-bigint 0.4.6",
  "pinocchio",
@@ -4268,7 +4266,7 @@ dependencies = [
 
 [[package]]
 name = "light-token-types"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "anchor-lang",
  "borsh 0.10.4",
@@ -4953,7 +4951,7 @@ dependencies = [
 
 [[package]]
 name = "photon-api"
-version = "0.53.0"
+version = "0.54.0"
 dependencies = [
  "reqwest 0.12.26",
  "serde",

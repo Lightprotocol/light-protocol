@@ -1,6 +1,6 @@
 [package]
 name = "light-token"
-version = "0.2.1"
+version = "0.3.0"
 edition = { workspace = true }
 description = "SDK for compressed tokens on Light Protocol"
 license = "Apache-2.0"
@@ -59,7 +59,6 @@ light-sdk-macros = { workspace = true, optional = true }
 [dev-dependencies]
 light-account-checks = { workspace = true, features = ["test-only", "pinocchio", "std"] }
 anchor-lang = { workspace = true }
-light-compressed-token = { workspace = true }
 pinocchio = { workspace = true }
 
 

@@ -26,6 +26,21 @@ jobs:
           git fetch origin ${{ github.event.pull_request.base.sha }}
           git fetch origin ${{ github.event.pull_request.head.sha }}
 
+      - name: Determine release type
+        id: release-type
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          if [[ "$PR_TITLE" == *"program-libs"* ]]; then
+            echo "type=program-libs" >> $GITHUB_OUTPUT
+          elif [[ "$PR_TITLE" == *"sdk-libs"* ]]; then
+            echo "type=sdk-libs" >> $GITHUB_OUTPUT
+          else
+            echo "Error: Could not determine release type from PR title: $PR_TITLE"
+            echo "PR title must contain 'program-libs' or 'sdk-libs'"
+            exit 1
+          fi
+          echo "Detected release type: $(cat $GITHUB_OUTPUT)"
+
       - name: Set up Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
@@ -40,29 +55,32 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          RELEASE_TYPE: ${{ steps.release-type.outputs.type }}
         run: |
           echo "========================================="
           echo "Phase 1: Validation (dry-run)"
           echo "========================================="
-          ./scripts/release/validate-packages.sh "$BASE_SHA" "$HEAD_SHA"
+          ./scripts/release/validate-packages.sh "$RELEASE_TYPE" "$BASE_SHA" "$HEAD_SHA"
 
       - name: Publish packages to crates.io
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          RELEASE_TYPE: ${{ steps.release-type.outputs.type }}
         run: |
           echo ""
           echo "========================================="
           echo "Phase 2: Publishing (atomic)"
           echo "========================================="
-          ./scripts/release/validate-packages.sh --execute "$BASE_SHA" "$HEAD_SHA"
+          ./scripts/release/validate-packages.sh --execute "$RELEASE_TYPE" "$BASE_SHA" "$HEAD_SHA"
 
       - name: Create GitHub releases
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          RELEASE_TYPE: ${{ steps.release-type.outputs.type }}
         run: |
           echo ""
           echo "========================================="
@@ -70,7 +88,7 @@ jobs:
           echo "========================================="
 
           # Detect packages that were published
-          PACKAGES_STRING=$(./scripts/release/detect-version-changes.sh "$BASE_SHA" "$HEAD_SHA")
+          PACKAGES_STRING=$(./scripts/release/detect-version-changes.sh "$RELEASE_TYPE" "$BASE_SHA" "$HEAD_SHA")
           read -ra PACKAGES <<< "$PACKAGES_STRING"
 
           for pkg in "${PACKAGES[@]}"; do
@@ -105,11 +123,3 @@ jobs:
 
           echo ""
           echo "✓ GitHub releases created"
-
-      - name: Trigger docs sync
-        uses: peter-evans/repository-dispatch@v4
-        with:
-          token: ${{ secrets.DOCS_REPO_TOKEN }}
-          repository: Lightprotocol/docs
-          event-type: sync-handlers
-          client-payload: '{"commit": "${{ github.sha }}", "release": true}'

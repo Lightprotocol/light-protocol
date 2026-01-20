@@ -1,6 +1,6 @@
 [package]
 name = "light-token-interface"
-version = "0.1.1"
+version = "0.2.0"
 edition = { workspace = true }
 description = "Light Protocol token instruction data types."
 license = "MIT"
@@ -52,7 +52,6 @@ light-account-checks = { workspace = true, features = [
     "solana",
 ] }
 spl-token-metadata-interface = "0.6.0"
-light-token-interface = { workspace = true, features = ["poseidon", "test-only"] }
 light-hasher = { workspace = true, features = ["keccak", "sha256", "poseidon"] }
 
 [lints.rust.unexpected_cfgs]
