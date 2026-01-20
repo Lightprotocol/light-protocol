@@ -16,7 +16,9 @@ const ACCOUNT_SOURCE: usize = 0;
 const ACCOUNT_MINT: usize = 1;
 const ACCOUNT_DESTINATION: usize = 2;
 const ACCOUNT_AUTHORITY: usize = 3;
-const ACCOUNT_FEE_PAYER: usize = 4;
+#[allow(dead_code)]
+const ACCOUNT_SYSTEM_PROGRAM: usize = 4;
+const ACCOUNT_FEE_PAYER: usize = 5;
 
 /// Process ctoken transfer_checked instruction
 ///

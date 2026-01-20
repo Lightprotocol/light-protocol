@@ -48,12 +48,14 @@ pub struct BurnChecked {
 /// # let source: AccountInfo = todo!();
 /// # let mint: AccountInfo = todo!();
 /// # let authority: AccountInfo = todo!();
+/// # let system_program: AccountInfo = todo!();
 /// BurnCheckedCpi {
 ///     source,
 ///     mint,
 ///     amount: 100,
 ///     decimals: 8,
 ///     authority,
+///     system_program,
 ///     max_top_up: None,
 ///     fee_payer: None,
 /// }
@@ -66,6 +68,7 @@ pub struct BurnCheckedCpi<'info> {
     pub amount: u64,
     pub decimals: u8,
     pub authority: AccountInfo<'info>,
+    pub system_program: AccountInfo<'info>,
     /// Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (0 = no limit)
     pub max_top_up: Option<u16>,
     /// Optional fee payer for rent top-ups. If not provided, authority pays.
@@ -80,10 +83,16 @@ impl<'info> BurnCheckedCpi<'info> {
     pub fn invoke(self) -> Result<(), ProgramError> {
         let instruction = BurnChecked::from(&self).instruction()?;
         if let Some(fee_payer) = self.fee_payer {
-            let account_infos = [self.source, self.mint, self.authority, fee_payer];
+            let account_infos = [
+                self.source,
+                self.mint,
+                self.authority,
+                self.system_program,
+                fee_payer,
+            ];
             invoke(&instruction, &account_infos)
         } else {
-            let account_infos = [self.source, self.mint, self.authority];
+            let account_infos = [self.source, self.mint, self.authority, self.system_program];
             invoke(&instruction, &account_infos)
         }
     }
@@ -91,10 +100,16 @@ impl<'info> BurnCheckedCpi<'info> {
     pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
         let instruction = BurnChecked::from(&self).instruction()?;
         if let Some(fee_payer) = self.fee_payer {
-            let account_infos = [self.source, self.mint, self.authority, fee_payer];
+            let account_infos = [
+                self.source,
+                self.mint,
+                self.authority,
+                self.system_program,
+                fee_payer,
+            ];
             invoke_signed(&instruction, &account_infos, signer_seeds)
         } else {
-            let account_infos = [self.source, self.mint, self.authority];
+            let account_infos = [self.source, self.mint, self.authority, self.system_program];
             invoke_signed(&instruction, &account_infos, signer_seeds)
         }
     }
@@ -128,6 +143,8 @@ impl BurnChecked {
             AccountMeta::new(self.source, false),
             AccountMeta::new(self.mint, false),
             authority_meta,
+            // System program required for rent top-up CPIs
+            AccountMeta::new_readonly(Pubkey::default(), false),
         ];
 
         // Add fee_payer if provided (must be signer and writable)

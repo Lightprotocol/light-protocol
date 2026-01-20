@@ -13,11 +13,13 @@ pub(crate) type ProcessorFn = fn(&[AccountInfo], &[u8]) -> Result<(), PinocchioP
 pub(crate) const BASE_LEN_UNCHECKED: usize = 8;
 pub(crate) const BASE_LEN_CHECKED: usize = 9;
 
-/// Burn account indices: [ctoken=0, cmint=1, authority=2, fee_payer=3 (optional)]
+/// Burn account indices: [ctoken=0, cmint=1, authority=2, system_program=3, fee_payer=4 (optional)]
 const BURN_CMINT_IDX: usize = 1;
 const BURN_CTOKEN_IDX: usize = 0;
 const PAYER_IDX: usize = 2;
-const FEE_PAYER_IDX: usize = 3;
+#[allow(dead_code)]
+const SYSTEM_PROGRAM_IDX: usize = 3;
+const FEE_PAYER_IDX: usize = 4;
 
 /// Process ctoken burn instruction
 ///
@@ -29,7 +31,8 @@ const FEE_PAYER_IDX: usize = 3;
 /// 0: source CToken account (writable)
 /// 1: CMint account (writable)
 /// 2: authority (signer, readonly if fee_payer provided, writable otherwise)
-/// 3: fee_payer (optional, signer, writable) - pays for top-ups instead of authority
+/// 3: system_program (readonly) - required for rent top-up CPIs
+/// 4: fee_payer (optional, signer, writable) - pays for top-ups instead of authority
 #[profile]
 #[inline(always)]
 pub fn process_ctoken_burn(
@@ -53,7 +56,8 @@ pub fn process_ctoken_burn(
 /// 0: source CToken account (writable)
 /// 1: CMint account (writable)
 /// 2: authority (signer, readonly if fee_payer provided, writable otherwise)
-/// 3: fee_payer (optional, signer, writable) - pays for top-ups instead of authority
+/// 3: system_program (readonly) - required for rent top-up CPIs
+/// 4: fee_payer (optional, signer, writable) - pays for top-ups instead of authority
 #[profile]
 #[inline(always)]
 pub fn process_ctoken_burn_checked(

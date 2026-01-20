@@ -147,6 +147,8 @@ impl MintTo {
             AccountMeta::new(self.mint, false),
             AccountMeta::new(self.destination, false),
             authority_meta,
+            // System program required for rent top-up CPIs
+            AccountMeta::new_readonly(Pubkey::default(), false),
         ];
 
         // Add fee_payer if provided (must be signer and writable)
