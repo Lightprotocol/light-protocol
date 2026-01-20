@@ -150,7 +150,10 @@ pub(crate) fn generate_empty_ctoken_enum() -> proc_macro2::TokenStream {
 
         impl light_sdk::interface::IntoCTokenVariant<LightAccountVariant, light_token::compat::TokenData> for TokenAccountVariant {
             fn into_ctoken_variant(self, _token_data: light_token::compat::TokenData) -> LightAccountVariant {
-                LightAccountVariant::Empty
+                // This function should never be called for programs without token accounts.
+                // The Empty variant only exists in mint-only programs (no PDAs).
+                // For programs with PDAs but no tokens, this impl exists only to satisfy trait bounds.
+                unreachable!("into_ctoken_variant called on program without token accounts")
             }
         }
     }

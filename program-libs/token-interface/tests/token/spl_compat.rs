@@ -1,3 +1,4 @@
+#![cfg(feature = "test-only")]
 //! Tests token solana account - spl token account layout compatibility
 //!
 //! Tests:

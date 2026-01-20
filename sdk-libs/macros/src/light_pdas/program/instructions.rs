@@ -361,12 +361,8 @@ fn codegen(
     let token_variant_name = format_ident!("TokenAccountVariant");
 
     // Create DecompressBuilder to generate all decompress-related code
-    let decompress_builder = DecompressBuilder::new(
-        pda_ctx_seeds.clone(),
-        token_variant_name,
-        account_types.clone(),
-        pda_seeds.clone(),
-    );
+    let decompress_builder =
+        DecompressBuilder::new(pda_ctx_seeds.clone(), token_variant_name, pda_seeds.clone());
     // Note: DecompressBuilder validation is optional for now since pda_seeds may be empty for TokenOnly
 
     let decompress_accounts = decompress_builder.generate_accounts_struct()?;
