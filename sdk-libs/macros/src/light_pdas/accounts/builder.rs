@@ -338,10 +338,9 @@ impl LightAccountsBuilder {
         let first_pda_output_tree = &self.parsed.rentfree_fields[0].output_tree;
 
         let mints = &self.parsed.light_mint_fields;
-        let mint_invocation =
-            LightMintsBuilder::new(mints, &proof_access, &self.infra)
-                .with_pda_context(pda_count, quote! { #first_pda_output_tree })
-                .generate_invocation();
+        let mint_invocation = LightMintsBuilder::new(mints, &proof_access, &self.infra)
+            .with_pda_context(pda_count, quote! { #first_pda_output_tree })
+            .generate_invocation();
 
         let fee_payer = &self.infra.fee_payer;
         let compression_config = &self.infra.compression_config;
