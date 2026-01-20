@@ -32,7 +32,7 @@ impl FieldProcessingContext {
     pub fn add_hash_import(&mut self) {
         if !self.hash_to_field_size_imported {
             self.hash_to_field_size_code.push(quote! {
-                use ::light_sdk::hasher::hash_to_field_size::HashToFieldSize;
+                use ::light_hasher::hash_to_field_size::HashToFieldSize;
             });
             self.hash_to_field_size_imported = true;
         }
@@ -109,12 +109,12 @@ fn process_pubkey_field(
 ) {
     if context.flatten_field_exists {
         context.data_hasher_assignments.push(quote! {
-            field_array[#index + num_flattned_fields] = ::light_sdk::hasher::hash_to_field_size::hash_to_bn254_field_size_be(self.#field_name.as_ref()).as_slice();
+            field_array[#index + num_flattned_fields] = ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(self.#field_name.as_ref()).as_slice();
             slices[#index + num_flattned_fields] = field_array[#index + num_flattned_fields].as_slice();
         });
     } else {
         context.data_hasher_assignments.push(quote! {
-            ::light_sdk::hasher::hash_to_field_size::hash_to_bn254_field_size_be(self.#field_name.as_ref())
+            ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(self.#field_name.as_ref())
         });
     }
 }
@@ -126,12 +126,12 @@ fn process_vec_u8_field(
 ) {
     if context.flatten_field_exists {
         context.data_hasher_assignments.push(quote! {
-            field_array[#index + num_flattned_fields] = ::light_sdk::hasher::hash_to_field_size::hash_to_bn254_field_size_be(self.#field_name.as_slice()).as_slice();
+            field_array[#index + num_flattned_fields] = ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(self.#field_name.as_slice()).as_slice();
             slices[#index + num_flattned_fields] = field_array[#index + num_flattned_fields].as_slice();
         });
     } else {
         context.data_hasher_assignments.push(quote! {
-            ::light_sdk::hasher::hash_to_field_size::hash_to_bn254_field_size_be(self.#field_name.as_slice())
+            ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(self.#field_name.as_slice())
         });
     }
 }
@@ -144,7 +144,7 @@ fn process_option_vec_u8_field(
     if context.flatten_field_exists {
         context.data_hasher_assignments.push(quote! {
             field_array[#index + num_flattned_fields] = if let Some(#field_name) = &self.#field_name {
-                ::light_sdk::hasher::hash_to_field_size::hash_to_bn254_field_size_be(#field_name.as_slice())
+                ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(#field_name.as_slice())
             } else {
                 [0u8;32]
             };
@@ -154,7 +154,7 @@ fn process_option_vec_u8_field(
         context.data_hasher_assignments.push(quote! {
             {
                 if let Some(#field_name) = &self.#field_name {
-                    ::light_sdk::hasher::hash_to_field_size::hash_to_bn254_field_size_be(#field_name.as_slice())
+                    ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(#field_name.as_slice())
                 } else {
                     [0u8;32]
                 }
@@ -177,7 +177,7 @@ fn process_option_field(
                 // This cannot happen in light_hasher hash_to_field_size implementations,
                 // but third parties could implement hash_to_field_size insecurely.
                 if result == [0u8; 32] {
-                    return Err(::light_sdk::hasher::errors::HasherError::OptionHashToFieldSizeZero);
+                    return Err(::light_hasher::errors::HasherError::OptionHashToFieldSizeZero);
                 }
                 result
             } else {
@@ -194,7 +194,7 @@ fn process_option_field(
                 // This cannot happen in light_hasher hash_to_field_size implementations,
                 // but third parties could implement hash_to_field_size insecurely.
                 if result == [0u8; 32] {
-                    return Err(::light_sdk::hasher::errors::HasherError::OptionHashToFieldSizeZero);
+                    return Err(::light_hasher::errors::HasherError::OptionHashToFieldSizeZero);
                 }
                 result
             } else {
@@ -237,7 +237,7 @@ fn process_flatten_field(field: &Field, index: usize, context: &mut FieldProcess
 
     context.code.push(quote! {
         {
-            for (j, element) in <#field_type as ::light_sdk::hasher::to_byte_array::ToByteArray>::to_byte_arrays::<{#field_type::NUM_FIELDS}>(&self.#field_name)?.iter().enumerate() {
+            for (j, element) in <#field_type as ::light_hasher::to_byte_array::ToByteArray>::to_byte_arrays::<{#field_type::NUM_FIELDS}>(&self.#field_name)?.iter().enumerate() {
                 field_array[#index + j + num_flattned_fields] = *element;
                 num_flattned_fields += 1;
             }

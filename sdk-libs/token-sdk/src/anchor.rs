@@ -4,21 +4,8 @@
 
 // Re-export anchor_lang prelude
 pub use anchor_lang::prelude::*;
-
 // Re-export anchor_spl (includes memo and idl-build features from git dependency)
 pub use anchor_spl;
-
-// Re-export Light SDK macros
-pub use light_sdk_macros::{
-    // Attribute macros
-    light_program,
-    // Derive macros
-    CompressAs, Compressible, CompressiblePack, HasCompressionInfo, LightAccount, LightAccounts,
-    LightDiscriminator, LightHasher, LightHasherSha,
-    // Proc macros
-    derive_light_rent_sponsor, derive_light_rent_sponsor_pda,
-};
-
 // Re-export Light SDK core types
 pub use light_sdk::{
     account::LightAccount as LightAccountType,
@@ -33,6 +20,24 @@ pub use light_sdk::{
         Pack, Space, Unpack,
     },
     CpiSigner, LightDiscriminator as LightDiscriminatorTrait,
+};
+// Re-export Light SDK macros
+pub use light_sdk_macros::{
+    // Proc macros
+    derive_light_rent_sponsor,
+    derive_light_rent_sponsor_pda,
+    // Attribute macros
+    light_program,
+    // Derive macros
+    CompressAs,
+    Compressible,
+    CompressiblePack,
+    HasCompressionInfo,
+    LightAccount,
+    LightAccounts,
+    LightDiscriminator,
+    LightHasher,
+    LightHasherSha,
 };
 
 // Re-export token SDK types

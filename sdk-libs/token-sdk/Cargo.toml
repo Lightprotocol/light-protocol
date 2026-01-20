@@ -15,18 +15,6 @@ anchor = ["anchor-lang", "light-token-types/anchor", "light-token-interface/anch
 idl-build = ["anchor-spl/idl-build", "anchor", "anchor-lang/idl-build", "light-sdk/idl-build"]
 cpi-context = ["light-sdk/cpi-context"]
 
-# anchor-spl passthrough features - enable these to access corresponding anchor_spl functionality
-anchor-spl-associated-token = ["anchor", "anchor-spl/associated_token"]
-anchor-spl-token = ["anchor", "anchor-spl/token"]
-anchor-spl-token-2022 = ["anchor", "anchor-spl/token_2022"]
-anchor-spl-token-2022-extensions = ["anchor", "anchor-spl/token_2022_extensions"]
-anchor-spl-mint = ["anchor", "anchor-spl/mint"]
-anchor-spl-memo = ["anchor", "anchor-spl/memo"]
-anchor-spl-metadata = ["anchor", "anchor-spl/metadata"]
-anchor-spl-governance = ["anchor", "anchor-spl/governance"]
-anchor-spl-stake = ["anchor", "anchor-spl/stake"]
-anchor-spl-devnet = ["anchor", "anchor-spl/devnet"]
-anchor-spl-anchor-debug = ["anchor", "anchor-spl/anchor-debug"]
 profile-program = [
     "light-program-profiler/profile-program",
     "light-compressed-account/profile-program",

@@ -401,7 +401,6 @@ version = "0.31.1"
 source = "git+https://github.com/lightprotocol/anchor?rev=da005d7f#da005d7f1f977d5220eaa65da26cdae2df0fe25e"
 dependencies = [
  "anchor-lang",
- "borsh 0.10.4",
  "mpl-token-metadata",
  "spl-associated-token-account 6.0.0",
  "spl-memo",
@@ -4001,6 +4000,7 @@ dependencies = [
  "solana-instruction",
  "solana-loader-v3-interface",
  "solana-msg 2.2.1",
+ "solana-program",
  "solana-program-error 2.2.2",
  "solana-pubkey 2.4.0",
  "solana-system-interface 1.0.0",

@@ -180,11 +180,11 @@ pub mod compressed_account {
 
 // Re-export sdk_types for macro-generated code
 pub mod sdk_types {
+    #[cfg(feature = "cpi-context")]
+    pub use light_sdk_types::cpi_context_write::CpiContextWriteAccounts;
     pub use light_sdk_types::{
         cpi_accounts::CpiAccountsConfig, instruction::PackedAddressTreeInfo, RentSponsor,
     };
-    #[cfg(feature = "cpi-context")]
-    pub use light_sdk_types::cpi_context_write::CpiContextWriteAccounts;
 }
 
 #[cfg(feature = "anchor")]

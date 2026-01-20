@@ -49,7 +49,7 @@ use crate::hasher::{
 /// - Enums, References, SmartPointers:
 ///     - Not supported
 pub(crate) fn derive_light_hasher(input: ItemStruct) -> Result<TokenStream> {
-    derive_light_hasher_with_hasher(input, &quote!(::light_sdk::hasher::Poseidon))
+    derive_light_hasher_with_hasher(input, &quote!(::light_hasher::Poseidon))
 }
 
 pub(crate) fn derive_light_hasher_sha(input: ItemStruct) -> Result<TokenStream> {
@@ -140,15 +140,15 @@ mod tests {
         let output = derive_light_hasher(input).unwrap();
         let formatted_output = unparse(&syn::parse2(output).unwrap());
 
-        const EXPECTED_OUTPUT: &str = r#"impl ::light_sdk::hasher::to_byte_array::ToByteArray for MyAccount {
+        const EXPECTED_OUTPUT: &str = r#"impl ::light_hasher::to_byte_array::ToByteArray for MyAccount {
     const NUM_FIELDS: usize = 4usize;
     fn to_byte_array(
         &self,
-    ) -> ::std::result::Result<[u8; 32], ::light_sdk::hasher::HasherError> {
-        use ::light_sdk::hasher::to_byte_array::ToByteArray;
-        use ::light_sdk::hasher::hash_to_field_size::HashToFieldSize;
-        use ::light_sdk::hasher::Hasher;
-        let mut result = ::light_sdk::hasher::Poseidon::hashv(
+    ) -> ::std::result::Result<[u8; 32], ::light_hasher::HasherError> {
+        use ::light_hasher::to_byte_array::ToByteArray;
+        use ::light_hasher::hash_to_field_size::HashToFieldSize;
+        use ::light_hasher::Hasher;
+        let mut result = ::light_hasher::Poseidon::hashv(
             &[
                 self.a.to_byte_array()?.as_slice(),
                 self.b.to_byte_array()?.as_slice(),
@@ -156,20 +156,20 @@ mod tests {
                 self.d.to_byte_array()?.as_slice(),
             ],
         )?;
-        if ::light_sdk::hasher::Poseidon::ID != ::light_sdk::hasher::Poseidon::ID {
+        if ::light_hasher::Poseidon::ID != ::light_hasher::Poseidon::ID {
             result[0] = 0;
         }
         Ok(result)
     }
 }
-impl ::light_sdk::hasher::DataHasher for MyAccount {
-    fn hash<H>(&self) -> ::std::result::Result<[u8; 32], ::light_sdk::hasher::HasherError>
+impl ::light_hasher::DataHasher for MyAccount {
+    fn hash<H>(&self) -> ::std::result::Result<[u8; 32], ::light_hasher::HasherError>
     where
-        H: ::light_sdk::hasher::Hasher,
+        H: ::light_hasher::Hasher,
     {
-        use ::light_sdk::hasher::DataHasher;
-        use ::light_sdk::hasher::Hasher;
-        use ::light_sdk::hasher::to_byte_array::ToByteArray;
+        use ::light_hasher::DataHasher;
+        use ::light_hasher::Hasher;
+        use ::light_hasher::to_byte_array::ToByteArray;
         #[cfg(debug_assertions)]
         {
             if std::env::var("RUST_BACKTRACE").is_ok() {
@@ -188,7 +188,7 @@ impl ::light_sdk::hasher::DataHasher for MyAccount {
                 self.d.to_byte_array()?.as_slice(),
             ],
         )?;
-        if H::ID != ::light_sdk::hasher::Poseidon::ID {
+        if H::ID != ::light_hasher::Poseidon::ID {
             result[0] = 0;
         }
         Ok(result)
@@ -212,31 +212,31 @@ impl ::light_sdk::hasher::DataHasher for MyAccount {
         let output = derive_light_hasher(input).unwrap();
         let formatted_output = unparse(&syn::parse2(output).unwrap());
 
-        const EXPECTED_OUTPUT: &str = r#"impl ::light_sdk::hasher::to_byte_array::ToByteArray for OptionStruct {
+        const EXPECTED_OUTPUT: &str = r#"impl ::light_hasher::to_byte_array::ToByteArray for OptionStruct {
     const NUM_FIELDS: usize = 2usize;
     fn to_byte_array(
         &self,
-    ) -> ::std::result::Result<[u8; 32], ::light_sdk::hasher::HasherError> {
-        use ::light_sdk::hasher::to_byte_array::ToByteArray;
-        use ::light_sdk::hasher::hash_to_field_size::HashToFieldSize;
-        use ::light_sdk::hasher::Hasher;
-        let mut result = ::light_sdk::hasher::Poseidon::hashv(
+    ) -> ::std::result::Result<[u8; 32], ::light_hasher::HasherError> {
+        use ::light_hasher::to_byte_array::ToByteArray;
+        use ::light_hasher::hash_to_field_size::HashToFieldSize;
+        use ::light_hasher::Hasher;
+        let mut result = ::light_hasher::Poseidon::hashv(
             &[self.a.to_byte_array()?.as_slice(), self.b.to_byte_array()?.as_slice()],
         )?;
-        if ::light_sdk::hasher::Poseidon::ID != ::light_sdk::hasher::Poseidon::ID {
+        if ::light_hasher::Poseidon::ID != ::light_hasher::Poseidon::ID {
             result[0] = 0;
         }
         Ok(result)
     }
 }
-impl ::light_sdk::hasher::DataHasher for OptionStruct {
-    fn hash<H>(&self) -> ::std::result::Result<[u8; 32], ::light_sdk::hasher::HasherError>
+impl ::light_hasher::DataHasher for OptionStruct {
+    fn hash<H>(&self) -> ::std::result::Result<[u8; 32], ::light_hasher::HasherError>
     where
-        H: ::light_sdk::hasher::Hasher,
+        H: ::light_hasher::Hasher,
     {
-        use ::light_sdk::hasher::DataHasher;
-        use ::light_sdk::hasher::Hasher;
-        use ::light_sdk::hasher::to_byte_array::ToByteArray;
+        use ::light_hasher::DataHasher;
+        use ::light_hasher::Hasher;
+        use ::light_hasher::to_byte_array::ToByteArray;
         #[cfg(debug_assertions)]
        {
             if std::env::var("RUST_BACKTRACE").is_ok() {
@@ -250,7 +250,7 @@ impl ::light_sdk::hasher::DataHasher for OptionStruct {
         let mut result = H::hashv(
             &[self.a.to_byte_array()?.as_slice(), self.b.to_byte_array()?.as_slice()],
         )?;
-        if H::ID != ::light_sdk::hasher::Poseidon::ID {
+        if H::ID != ::light_hasher::Poseidon::ID {
             result[0] = 0;
         }
         Ok(result)
@@ -274,19 +274,19 @@ impl ::light_sdk::hasher::DataHasher for OptionStruct {
         let output = derive_light_hasher(input).unwrap();
         let formatted_output = unparse(&syn::parse2(output).unwrap());
 
-        const EXPECTED_OUTPUT: &str = r#"impl ::light_sdk::hasher::to_byte_array::ToByteArray for TruncateOptionStruct {
+        const EXPECTED_OUTPUT: &str = r#"impl ::light_hasher::to_byte_array::ToByteArray for TruncateOptionStruct {
     const NUM_FIELDS: usize = 1;
     fn to_byte_array(
         &self,
-    ) -> ::std::result::Result<[u8; 32], ::light_sdk::hasher::HasherError> {
-        use ::light_sdk::hasher::to_byte_array::ToByteArray;
-        use ::light_sdk::hasher::hash_to_field_size::HashToFieldSize;
+    ) -> ::std::result::Result<[u8; 32], ::light_hasher::HasherError> {
+        use ::light_hasher::to_byte_array::ToByteArray;
+        use ::light_hasher::hash_to_field_size::HashToFieldSize;
         Ok(
             if let Some(a) =  &self.a {
                 let result = a.hash_to_field_size()?;
                 if result == [0u8; 32] {
                     return Err(
-                        ::light_sdk::hasher::errors::HasherError::OptionHashToFieldSizeZero,
+                        ::light_hasher::errors::HasherError::OptionHashToFieldSizeZero,
                     );
                 }
                 result
@@ -296,22 +296,22 @@ impl ::light_sdk::hasher::DataHasher for OptionStruct {
         )
     }
 }
-impl ::light_sdk::hasher::DataHasher for TruncateOptionStruct {
-    fn hash<H>(&self) -> ::std::result::Result<[u8; 32], ::light_sdk::hasher::HasherError>
+impl ::light_hasher::DataHasher for TruncateOptionStruct {
+    fn hash<H>(&self) -> ::std::result::Result<[u8; 32], ::light_hasher::HasherError>
     where
-        H: ::light_sdk::hasher::Hasher,
+        H: ::light_hasher::Hasher,
     {
-        use ::light_sdk::hasher::DataHasher;
-        use ::light_sdk::hasher::Hasher;
-        use ::light_sdk::hasher::to_byte_array::ToByteArray;
-        use ::light_sdk::hasher::hash_to_field_size::HashToFieldSize;
+        use ::light_hasher::DataHasher;
+        use ::light_hasher::Hasher;
+        use ::light_hasher::to_byte_array::ToByteArray;
+        use ::light_hasher::hash_to_field_size::HashToFieldSize;
         #[cfg(debug_assertions)]
        {
             if std::env::var("RUST_BACKTRACE").is_ok() {
                 let debug_prints: Vec<[u8;32]> = vec![
                     if let Some(a) = & self.a { let result = a.hash_to_field_size() ?; if
                     result == [0u8; 32] { return
-                    Err(::light_sdk::hasher::errors::HasherError::OptionHashToFieldSizeZero); }
+                    Err(::light_hasher::errors::HasherError::OptionHashToFieldSizeZero); }
                     result } else { [0u8; 32] },
                 ];
                 println!("DataHasher::hash inputs {:?}", debug_prints);
@@ -323,7 +323,7 @@ impl ::light_sdk::hasher::DataHasher for TruncateOptionStruct {
                     let result = a.hash_to_field_size()?;
                     if result == [0u8; 32] {
                         return Err(
-                            ::light_sdk::hasher::errors::HasherError::OptionHashToFieldSizeZero,
+                            ::light_hasher::errors::HasherError::OptionHashToFieldSizeZero,
                         );
                     }
                     result
@@ -334,7 +334,7 @@ impl ::light_sdk::hasher::DataHasher for TruncateOptionStruct {
                 .as_slice(),
             ],
         )?;
-        if H::ID != ::light_sdk::hasher::Poseidon::ID {
+        if H::ID != ::light_hasher::Poseidon::ID {
             result[0] = 0;
         }
         Ok(result)
@@ -360,36 +360,36 @@ impl ::light_sdk::hasher::DataHasher for TruncateOptionStruct {
         let output = derive_light_hasher(input).unwrap();
         let formatted_output = unparse(&syn::parse2(output).unwrap());
 
-        const EXPECTED_OUTPUT: &str = r#"impl ::light_sdk::hasher::to_byte_array::ToByteArray for MixedStruct {
+        const EXPECTED_OUTPUT: &str = r#"impl ::light_hasher::to_byte_array::ToByteArray for MixedStruct {
     const NUM_FIELDS: usize = 3usize;
     fn to_byte_array(
         &self,
-    ) -> ::std::result::Result<[u8; 32], ::light_sdk::hasher::HasherError> {
-        use ::light_sdk::hasher::to_byte_array::ToByteArray;
-        use ::light_sdk::hasher::hash_to_field_size::HashToFieldSize;
-        use ::light_sdk::hasher::Hasher;
-        let mut result = ::light_sdk::hasher::Poseidon::hashv(
+    ) -> ::std::result::Result<[u8; 32], ::light_hasher::HasherError> {
+        use ::light_hasher::to_byte_array::ToByteArray;
+        use ::light_hasher::hash_to_field_size::HashToFieldSize;
+        use ::light_hasher::Hasher;
+        let mut result = ::light_hasher::Poseidon::hashv(
             &[
                 self.a.to_byte_array()?.as_slice(),
                 self.b.hash_to_field_size()?.as_slice(),
                 self.c.to_byte_array()?.as_slice(),
             ],
         )?;
-        if ::light_sdk::hasher::Poseidon::ID != ::light_sdk::hasher::Poseidon::ID {
+        if ::light_hasher::Poseidon::ID != ::light_hasher::Poseidon::ID {
             result[0] = 0;
         }
         Ok(result)
     }
 }
-impl ::light_sdk::hasher::DataHasher for MixedStruct {
-    fn hash<H>(&self) -> ::std::result::Result<[u8; 32], ::light_sdk::hasher::HasherError>
+impl ::light_hasher::DataHasher for MixedStruct {
+    fn hash<H>(&self) -> ::std::result::Result<[u8; 32], ::light_hasher::HasherError>
     where
-        H: ::light_sdk::hasher::Hasher,
+        H: ::light_hasher::Hasher,
     {
-        use ::light_sdk::hasher::DataHasher;
-        use ::light_sdk::hasher::Hasher;
-        use ::light_sdk::hasher::to_byte_array::ToByteArray;
-        use ::light_sdk::hasher::hash_to_field_size::HashToFieldSize;
+        use ::light_hasher::DataHasher;
+        use ::light_hasher::Hasher;
+        use ::light_hasher::to_byte_array::ToByteArray;
+        use ::light_hasher::hash_to_field_size::HashToFieldSize;
         #[cfg(debug_assertions)]
        {
             if std::env::var("RUST_BACKTRACE").is_ok() {
@@ -408,7 +408,7 @@ impl ::light_sdk::hasher::DataHasher for MixedStruct {
                 self.c.to_byte_array()?.as_slice(),
             ],
         )?;
-        if H::ID != ::light_sdk::hasher::Poseidon::ID {
+        if H::ID != ::light_hasher::Poseidon::ID {
             result[0] = 0;
         }
         Ok(result)
@@ -432,31 +432,31 @@ impl ::light_sdk::hasher::DataHasher for MixedStruct {
         let output = derive_light_hasher(input).unwrap();
         let formatted_output = unparse(&syn::parse2(output).unwrap());
 
-        const EXPECTED_OUTPUT: &str = r#"impl ::light_sdk::hasher::to_byte_array::ToByteArray for OuterStruct {
+        const EXPECTED_OUTPUT: &str = r#"impl ::light_hasher::to_byte_array::ToByteArray for OuterStruct {
     const NUM_FIELDS: usize = 2usize;
     fn to_byte_array(
         &self,
-    ) -> ::std::result::Result<[u8; 32], ::light_sdk::hasher::HasherError> {
-        use ::light_sdk::hasher::to_byte_array::ToByteArray;
-        use ::light_sdk::hasher::hash_to_field_size::HashToFieldSize;
-        use ::light_sdk::hasher::Hasher;
-        let mut result = ::light_sdk::hasher::Poseidon::hashv(
+    ) -> ::std::result::Result<[u8; 32], ::light_hasher::HasherError> {
+        use ::light_hasher::to_byte_array::ToByteArray;
+        use ::light_hasher::hash_to_field_size::HashToFieldSize;
+        use ::light_hasher::Hasher;
+        let mut result = ::light_hasher::Poseidon::hashv(
             &[self.a.to_byte_array()?.as_slice(), self.b.to_byte_array()?.as_slice()],
         )?;
-        if ::light_sdk::hasher::Poseidon::ID != ::light_sdk::hasher::Poseidon::ID {
+        if ::light_hasher::Poseidon::ID != ::light_hasher::Poseidon::ID {
             result[0] = 0;
         }
         Ok(result)
     }
 }
-impl ::light_sdk::hasher::DataHasher for OuterStruct {
-    fn hash<H>(&self) -> ::std::result::Result<[u8; 32], ::light_sdk::hasher::HasherError>
+impl ::light_hasher::DataHasher for OuterStruct {
+    fn hash<H>(&self) -> ::std::result::Result<[u8; 32], ::light_hasher::HasherError>
     where
-        H: ::light_sdk::hasher::Hasher,
+        H: ::light_hasher::Hasher,
     {
-        use ::light_sdk::hasher::DataHasher;
-        use ::light_sdk::hasher::Hasher;
-        use ::light_sdk::hasher::to_byte_array::ToByteArray;
+        use ::light_hasher::DataHasher;
+        use ::light_hasher::Hasher;
+        use ::light_hasher::to_byte_array::ToByteArray;
         #[cfg(debug_assertions)]
        {
             if std::env::var("RUST_BACKTRACE").is_ok() {
@@ -470,7 +470,7 @@ impl ::light_sdk::hasher::DataHasher for OuterStruct {
         let mut result = H::hashv(
             &[self.a.to_byte_array()?.as_slice(), self.b.to_byte_array()?.as_slice()],
         )?;
-        if H::ID != ::light_sdk::hasher::Poseidon::ID {
+        if H::ID != ::light_hasher::Poseidon::ID {
             result[0] = 0;
         }
         Ok(result)
