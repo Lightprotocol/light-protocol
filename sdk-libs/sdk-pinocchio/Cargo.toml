@@ -7,7 +7,7 @@ license = "Apache-2.0"
 edition = "2021"
 
 [features]
-default = ["alloc"]
+default = ["alloc", "v2"]
 alloc = ["light-compressed-account/alloc"]
 std = ["alloc"]
 v2 = ["light-sdk-types/v2"]

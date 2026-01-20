@@ -7,6 +7,7 @@ repository = "https://github.com/lightprotocol/light-protocol"
 description = "Client library for Light Protocol"
 
 [features]
+default = ["v2"]
 devenv = ["v2"]
 v2 = []
 program-test = ["solana-banks-client", "litesvm"]

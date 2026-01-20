@@ -11,7 +11,7 @@ crate-type = ["cdylib", "lib"]
 name = "light_sdk"
 
 [features]
-default = ["v2", "anchor-discriminator"]
+default = ["v2"]
 idl-build = ["anchor-lang/idl-build", "anchor", "dep:solana-program"]
 anchor = [
     "anchor-lang",
