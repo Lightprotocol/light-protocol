@@ -124,6 +124,7 @@ pub async fn setup_create_mint(
             amount: *amount,
             authority: mint_authority,
             max_top_up: None,
+            fee_payer: None,
         }
         .instruction()
         .unwrap();
@@ -244,6 +245,7 @@ pub async fn setup_create_mint_with_freeze_authority(
                 amount: *amount,
                 authority: mint_authority,
                 max_top_up: None,
+                fee_payer: None,
             }
             .instruction()
             .unwrap();
@@ -383,6 +385,7 @@ pub async fn setup_create_mint_with_compression_only(
             amount: *amount,
             authority: mint_authority,
             max_top_up: None,
+            fee_payer: None,
         }
         .instruction()
         .unwrap();

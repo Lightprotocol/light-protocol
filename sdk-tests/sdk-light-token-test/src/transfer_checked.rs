@@ -34,6 +34,7 @@ pub fn process_transfer_checked_invoke(
         decimals: data.decimals,
         authority: accounts[3].clone(),
         max_top_up: None,
+        fee_payer: None,
     }
     .invoke()?;
 
@@ -71,6 +72,7 @@ pub fn process_transfer_checked_invoke_signed(
         decimals: data.decimals,
         authority: accounts[3].clone(),
         max_top_up: None,
+        fee_payer: None,
     };
 
     // Invoke with PDA signing

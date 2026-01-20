@@ -76,6 +76,7 @@ pub fn process_withdraw(ctx: Context<Withdraw>, lp_token_amount: u64) -> Result<
         amount: lp_token_amount,
         authority: ctx.accounts.owner.to_account_info(),
         max_top_up: None,
+        fee_payer: None,
     }
     .invoke()?;
 

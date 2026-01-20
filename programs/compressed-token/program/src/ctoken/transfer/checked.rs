@@ -16,6 +16,7 @@ const ACCOUNT_SOURCE: usize = 0;
 const ACCOUNT_MINT: usize = 1;
 const ACCOUNT_DESTINATION: usize = 2;
 const ACCOUNT_AUTHORITY: usize = 3;
+const ACCOUNT_FEE_PAYER: usize = 4;
 
 /// Process ctoken transfer_checked instruction
 ///
@@ -66,12 +67,14 @@ pub fn process_ctoken_transfer_checked(
         _ => return Err(ProgramError::InvalidInstructionData),
     };
 
+    let fee_payer = accounts.get(ACCOUNT_FEE_PAYER);
     let (signer_is_validated, extension_decimals) = process_transfer_extensions_transfer_checked(
         TransferAccounts {
             source,
             destination,
             authority,
             mint: Some(mint),
+            fee_payer,
         },
         max_top_up,
     )?;

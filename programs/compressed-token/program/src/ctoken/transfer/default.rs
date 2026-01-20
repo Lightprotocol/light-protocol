@@ -10,6 +10,7 @@ use crate::shared::convert_pinocchio_token_error;
 const ACCOUNT_SOURCE: usize = 0;
 const ACCOUNT_DESTINATION: usize = 1;
 const ACCOUNT_AUTHORITY: usize = 2;
+const ACCOUNT_FEE_PAYER: usize = 3;
 
 /// Process ctoken transfer instruction
 ///
@@ -68,6 +69,7 @@ fn process_extensions(accounts: &[AccountInfo], max_top_up: u16) -> Result<bool,
     let source = &accounts[ACCOUNT_SOURCE];
     let destination = &accounts[ACCOUNT_DESTINATION];
     let authority = &accounts[ACCOUNT_AUTHORITY];
+    let fee_payer = accounts.get(ACCOUNT_FEE_PAYER);
 
     let (signer_is_validated, _) = process_transfer_extensions_transfer(
         TransferAccounts {
@@ -75,6 +77,7 @@ fn process_extensions(accounts: &[AccountInfo], max_top_up: u16) -> Result<bool,
             destination,
             authority,
             mint: None,
+            fee_payer,
         },
         max_top_up,
     )?;

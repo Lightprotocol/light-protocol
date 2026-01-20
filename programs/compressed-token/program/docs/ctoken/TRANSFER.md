@@ -51,8 +51,14 @@ After discriminator byte, the following formats are supported:
    - (signer)
    - Owner of the source account or delegate with sufficient allowance
    - Must sign the transaction
+   - If no fee_payer provided: also serves as payer for top-ups (must be writable)
+   - If fee_payer provided: readonly (only needs to sign)
 
-Note: The authority account (index 2) also serves as the payer for top-ups when accounts have compressible extension.
+4. fee_payer (optional)
+   - (signer, writable)
+   - Optional separate account to pay for rent top-ups
+   - If not provided, authority account pays for top-ups
+   - Must have sufficient lamports to cover the top-up amount
 
 **Instruction Logic and Checks:**
 

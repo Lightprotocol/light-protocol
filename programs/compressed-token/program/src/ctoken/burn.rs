@@ -13,9 +13,11 @@ pub(crate) type ProcessorFn = fn(&[AccountInfo], &[u8]) -> Result<(), PinocchioP
 pub(crate) const BASE_LEN_UNCHECKED: usize = 8;
 pub(crate) const BASE_LEN_CHECKED: usize = 9;
 
-/// Burn account indices: [ctoken=0, cmint=1, authority=2]
+/// Burn account indices: [ctoken=0, cmint=1, authority=2, fee_payer=3 (optional)]
 const BURN_CMINT_IDX: usize = 1;
 const BURN_CTOKEN_IDX: usize = 0;
+const PAYER_IDX: usize = 2;
+const FEE_PAYER_IDX: usize = 3;
 
 /// Process ctoken burn instruction
 ///
@@ -26,7 +28,8 @@ const BURN_CTOKEN_IDX: usize = 0;
 /// Account layout:
 /// 0: source CToken account (writable)
 /// 1: CMint account (writable)
-/// 2: authority (signer, also payer for top-ups)
+/// 2: authority (signer, readonly if fee_payer provided, writable otherwise)
+/// 3: fee_payer (optional, signer, writable) - pays for top-ups instead of authority
 #[profile]
 #[inline(always)]
 pub fn process_ctoken_burn(
@@ -49,7 +52,8 @@ pub fn process_ctoken_burn(
 /// Account layout (same as burn):
 /// 0: source CToken account (writable)
 /// 1: CMint account (writable)
-/// 2: authority (signer, also payer for top-ups)
+/// 2: authority (signer, readonly if fee_payer provided, writable otherwise)
+/// 3: fee_payer (optional, signer, writable) - pays for top-ups instead of authority
 #[profile]
 #[inline(always)]
 pub fn process_ctoken_burn_checked(
@@ -112,7 +116,10 @@ pub(crate) fn process_ctoken_supply_change_inner<
     // SAFETY: accounts.len() >= 3 validated at function entry
     let cmint = &accounts[CMINT_IDX];
     let ctoken = &accounts[CTOKEN_IDX];
-    let payer = accounts.get(2);
+    // Use fee_payer if provided, otherwise fall back to authority
+    let authority_payer = accounts.get(PAYER_IDX);
+    let fee_payer = accounts.get(FEE_PAYER_IDX);
+    let effective_payer = fee_payer.or(authority_payer);
 
-    calculate_and_execute_compressible_top_ups(cmint, ctoken, payer, max_top_up)
+    calculate_and_execute_compressible_top_ups(cmint, ctoken, effective_payer, max_top_up)
 }
