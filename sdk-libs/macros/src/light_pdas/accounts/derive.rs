@@ -3,18 +3,24 @@
 //! This module coordinates code generation by combining:
 //! - PDA block generation from `pda.rs`
 //! - Mint action invocation from `mint.rs`
+//! - Token account creation from `token.rs`
 //! - Parsing results from `parse.rs`
 //!
-//! Design for mints:
-//! - At mint init, we CREATE + DECOMPRESS atomically
-//! - After init, the Mint should always be in decompressed/"hot" state
+//! Design: ALL account creation happens in pre_init (before instruction handler)
 //!
-//! Flow for PDAs + mints:
-//! 1. Pre-init: ALL compression logic executes here
+//! Account types handled:
+//! - PDAs (compressed accounts)
+//! - Mints (compressed mints - CREATE + DECOMPRESS atomically)
+//! - Token accounts (vaults for transfers)
+//! - ATAs (associated token accounts)
+//!
+//! Flow:
+//! 1. Pre-init: ALL account creation executes here
 //!    a. Write PDAs to CPI context
-//!    b. Invoke mint_action with decompress + CPI context
-//!    c. Mint is now "hot" and usable
-//! 2. Instruction body: Can use hot Mint (mintTo, transfers, etc.)
+//!    b. Create mints with decompress + CPI context
+//!    c. Create token accounts (vaults)
+//!    d. Create ATAs
+//! 2. Instruction body: All accounts available for use (transfers, minting, etc.)
 //! 3. Finalize: No-op (all work done in pre_init)
 
 use proc_macro2::TokenStream;
@@ -33,26 +39,15 @@ pub(super) fn derive_light_accounts(input: &DeriveInput) -> Result<TokenStream, 
         return builder.generate_noop_impls();
     }
 
-    // Generate pre_init body based on what fields we have
-    let pre_init = if builder.has_pdas() && builder.has_mints() {
-        builder.generate_pre_init_pdas_and_mints()?
-    } else if builder.has_mints() {
-        builder.generate_pre_init_mints_only()?
-    } else if builder.has_pdas() {
-        builder.generate_pre_init_pdas_only()?
-    } else {
-        quote! { Ok(false) }
-    };
+    // Generate pre_init body for ALL account types (PDAs, mints, token accounts, ATAs)
+    // ALL account creation happens here so accounts are available during instruction handler
+    let pre_init = builder.generate_pre_init_all()?;
 
     // Generate trait implementations
     let pre_init_impl = builder.generate_pre_init_impl(pre_init)?;
 
-    // Generate finalize body - token accounts and ATAs are created here
-    let finalize_body = if builder.needs_token_finalize() {
-        builder.generate_token_finalize_body()
-    } else {
-        quote! { Ok(()) }
-    };
+    // Finalize is now a no-op - all account creation happens in pre_init
+    let finalize_body = quote! { Ok(()) };
     let finalize_impl = builder.generate_finalize_impl(finalize_body)?;
 
     Ok(quote! {
@@ -69,7 +64,7 @@ mod tests {
 
     #[test]
     fn test_token_account_with_init_generates_create_cpi() {
-        // Token account with init should generate CreateTokenAccountCpi in finalize
+        // Token account with init should generate CreateTokenAccountCpi in pre_init
         let input: DeriveInput = parse_quote! {
             #[instruction(params: CreateVaultParams)]
             pub struct CreateVault<'info> {
@@ -90,10 +85,10 @@ mod tests {
 
         let output = result.unwrap().to_string();
 
-        // Verify finalize generates token account creation
+        // Verify pre_init generates token account creation
         assert!(
-            output.contains("LightFinalize"),
-            "Should generate LightFinalize impl"
+            output.contains("LightPreInit"),
+            "Should generate LightPreInit impl"
         );
         assert!(
             output.contains("CreateTokenAccountCpi"),
@@ -111,7 +106,7 @@ mod tests {
 
     #[test]
     fn test_ata_with_init_generates_create_cpi() {
-        // ATA with init should generate create_associated_token_account_idempotent in finalize
+        // ATA with init should generate CreateTokenAtaCpi in pre_init
         let input: DeriveInput = parse_quote! {
             #[instruction(params: CreateAtaParams)]
             pub struct CreateAta<'info> {
@@ -133,10 +128,10 @@ mod tests {
 
         let output = result.unwrap().to_string();
 
-        // Verify finalize generates ATA creation
+        // Verify pre_init generates ATA creation
         assert!(
-            output.contains("LightFinalize"),
-            "Should generate LightFinalize impl"
+            output.contains("LightPreInit"),
+            "Should generate LightPreInit impl"
         );
         assert!(
             output.contains("CreateTokenAtaCpi"),
@@ -145,7 +140,7 @@ mod tests {
     }
 
     #[test]
-    fn test_token_mark_only_generates_noop_finalize() {
+    fn test_token_mark_only_generates_no_creation() {
         // Token without init should NOT generate creation code (mark-only mode)
         // Mark-only returns None from parsing, so token_account_fields is empty
         let input: DeriveInput = parse_quote! {
@@ -171,16 +166,20 @@ mod tests {
             "Mark-only should NOT generate CreateTokenAccountCpi"
         );
 
-        // Should still have LightFinalize but with Ok(())
+        // Should still generate both trait impls
+        assert!(
+            output.contains("LightPreInit"),
+            "Should generate LightPreInit impl"
+        );
         assert!(
             output.contains("LightFinalize"),
-            "Should still generate LightFinalize impl"
+            "Should generate LightFinalize impl (no-op)"
         );
     }
 
     #[test]
     fn test_mixed_token_and_ata_generates_both() {
-        // Mixed token account + ATA should generate both creation codes
+        // Mixed token account + ATA should generate both creation codes in pre_init
         let input: DeriveInput = parse_quote! {
             #[instruction(params: CreateBothParams)]
             pub struct CreateBoth<'info> {
@@ -206,7 +205,11 @@ mod tests {
 
         let output = result.unwrap().to_string();
 
-        // Should have both creation types
+        // Should have both creation types in pre_init
+        assert!(
+            output.contains("LightPreInit"),
+            "Should generate LightPreInit impl"
+        );
         assert!(
             output.contains("CreateTokenAccountCpi"),
             "Should generate CreateTokenAccountCpi for vault"

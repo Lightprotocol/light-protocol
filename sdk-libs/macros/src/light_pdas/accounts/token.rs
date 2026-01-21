@@ -5,8 +5,8 @@
 //!
 //! ## Code Generation
 //!
-//! Token accounts and ATAs are created in `LightFinalize` (after instruction logic)
-//! because they may depend on data set during the instruction handler.
+//! Token accounts and ATAs are created in `LightPreInit` (before instruction logic)
+//! so they are available for use during the instruction handler (transfers, etc.).
 //!
 //! - **Token Accounts**: Use `CreateTokenAccountCpi` with PDA signing
 //! - **ATAs**: Use `CreateTokenAtaCpi` with `idempotent()` builder
@@ -204,15 +204,18 @@ impl<'a> TokenAccountsBuilder<'a> {
     }
 
     /// Check if any token accounts or ATAs need to be created.
-    pub fn needs_finalize(&self) -> bool {
+    pub fn needs_creation(&self) -> bool {
         self.token_account_fields.iter().any(|f| f.has_init)
             || self.ata_fields.iter().any(|f| f.has_init)
     }
 
-    /// Generate the finalize body for token accounts and ATAs.
-    pub fn generate_finalize_body(&self) -> TokenStream {
-        if !self.needs_finalize() {
-            return quote! { Ok(()) };
+    /// Generate token account and ATA creation code for pre_init.
+    ///
+    /// Returns None if no token accounts or ATAs need to be created.
+    /// Otherwise returns the CPI code (without Ok() return).
+    pub fn generate_pre_init_token_creation(&self) -> Option<TokenStream> {
+        if !self.needs_creation() {
+            return None;
         }
 
         // Generate token account creation code
@@ -229,17 +232,15 @@ impl<'a> TokenAccountsBuilder<'a> {
             .filter_map(|f| generate_ata_cpi(f, self.infra))
             .collect();
 
-        quote! {
+        Some(quote! {
             // Get system program from the struct's system_program field
             let __system_program = self.system_program.to_account_info();
 
-            // Create token accounts
+            // Create token accounts (in pre_init so they're available for instruction logic)
             #(#token_account_cpis)*
 
-            // Create ATAs
+            // Create ATAs (in pre_init so they're available for instruction logic)
             #(#ata_cpis)*
-
-            Ok(())
-        }
+        })
     }
 }
