@@ -18,11 +18,12 @@ pub struct TransferCheckedData {
 /// - accounts[1]: mint (SPL, T22, or decompressed Mint)
 /// - accounts[2]: destination ctoken account
 /// - accounts[3]: authority (signer)
+/// - accounts[4]: system_program
 pub fn process_transfer_checked_invoke(
     accounts: &[AccountInfo],
     data: TransferCheckedData,
 ) -> Result<(), ProgramError> {
-    if accounts.len() < 4 {
+    if accounts.len() < 5 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
@@ -33,6 +34,7 @@ pub fn process_transfer_checked_invoke(
         amount: data.amount,
         decimals: data.decimals,
         authority: accounts[3].clone(),
+        system_program: accounts[4].clone(),
         max_top_up: None,
         fee_payer: None,
     }
@@ -48,11 +50,12 @@ pub fn process_transfer_checked_invoke(
 /// - accounts[1]: mint (SPL, T22, or decompressed Mint)
 /// - accounts[2]: destination ctoken account
 /// - accounts[3]: authority (PDA)
+/// - accounts[4]: system_program
 pub fn process_transfer_checked_invoke_signed(
     accounts: &[AccountInfo],
     data: TransferCheckedData,
 ) -> Result<(), ProgramError> {
-    if accounts.len() < 4 {
+    if accounts.len() < 5 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
@@ -71,6 +74,7 @@ pub fn process_transfer_checked_invoke_signed(
         amount: data.amount,
         decimals: data.decimals,
         authority: accounts[3].clone(),
+        system_program: accounts[4].clone(),
         max_top_up: None,
         fee_payer: None,
     };

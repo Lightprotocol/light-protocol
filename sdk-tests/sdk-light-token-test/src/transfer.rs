@@ -20,11 +20,12 @@ pub struct TransferData {
 /// - accounts[0]: source ctoken account
 /// - accounts[1]: destination ctoken account
 /// - accounts[2]: authority (signer)
+/// - accounts[3]: system_program
 pub fn process_transfer_invoke(
     accounts: &[AccountInfo],
     data: TransferData,
 ) -> Result<(), ProgramError> {
-    if accounts.len() < 3 {
+    if accounts.len() < 4 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
@@ -34,6 +35,7 @@ pub fn process_transfer_invoke(
         destination: accounts[1].clone(),
         amount: data.amount,
         authority: accounts[2].clone(),
+        system_program: accounts[3].clone(),
         max_top_up: None,
         fee_payer: None,
     }
@@ -53,11 +55,12 @@ pub fn process_transfer_invoke(
 /// - accounts[0]: source ctoken account (PDA-owned)
 /// - accounts[1]: destination ctoken account
 /// - accounts[2]: authority (PDA)
+/// - accounts[3]: system_program
 pub fn process_transfer_invoke_signed(
     accounts: &[AccountInfo],
     data: TransferData,
 ) -> Result<(), ProgramError> {
-    if accounts.len() < 3 {
+    if accounts.len() < 4 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
@@ -75,6 +78,7 @@ pub fn process_transfer_invoke_signed(
         destination: accounts[1].clone(),
         amount: data.amount,
         authority: accounts[2].clone(),
+        system_program: accounts[3].clone(),
         max_top_up: None,
         fee_payer: None,
     };
