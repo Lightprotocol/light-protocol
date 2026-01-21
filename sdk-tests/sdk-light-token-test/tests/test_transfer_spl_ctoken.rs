@@ -124,7 +124,7 @@ async fn test_spl_to_ctoken_invoke() {
         AccountMeta::new(spl_interface_pda, false),
         AccountMeta::new_readonly(anchor_spl::token::ID, false),
         AccountMeta::new_readonly(cpi_authority_pda, false),
-        AccountMeta::new_readonly(solana_sdk::system_program::ID, false),
+        AccountMeta::new_readonly(Pubkey::default(), false),
     ];
 
     let instruction = Instruction {
@@ -238,7 +238,7 @@ async fn test_ctoken_to_spl_invoke() {
             AccountMeta::new(spl_interface_pda, false),
             AccountMeta::new_readonly(anchor_spl::token::ID, false),
             AccountMeta::new_readonly(cpi_authority_pda, false),
-            AccountMeta::new_readonly(solana_sdk::system_program::ID, false),
+            AccountMeta::new_readonly(Pubkey::default(), false),
         ];
 
         let instruction = Instruction {
@@ -413,7 +413,7 @@ async fn test_spl_to_ctoken_invoke_signed() {
         AccountMeta::new(spl_interface_pda, false),
         AccountMeta::new_readonly(anchor_spl::token::ID, false),
         AccountMeta::new_readonly(cpi_authority_pda, false),
-        AccountMeta::new_readonly(solana_sdk::system_program::ID, false),
+        AccountMeta::new_readonly(Pubkey::default(), false),
     ];
 
     let instruction = Instruction {
@@ -551,7 +551,7 @@ async fn test_ctoken_to_spl_invoke_signed() {
             AccountMeta::new(spl_interface_pda, false),
             AccountMeta::new_readonly(anchor_spl::token::ID, false),
             AccountMeta::new_readonly(cpi_authority_pda, false),
-            AccountMeta::new_readonly(solana_sdk::system_program::ID, false),
+            AccountMeta::new_readonly(Pubkey::default(), false),
         ];
 
         let instruction = Instruction {
