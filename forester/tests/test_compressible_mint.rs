@@ -32,6 +32,7 @@ fn build_expected_mint(
     mint_pda: &Pubkey,
     mint_signer: &[u8; 32],
     bump: u8,
+    version: u8,
     compression: light_compressible::compression_info::CompressionInfo,
 ) -> Mint {
     Mint {
@@ -43,7 +44,7 @@ fn build_expected_mint(
             freeze_authority: None,
         },
         metadata: MintMetadata {
-            version: 1,
+            version,
             mint_decompressed: true,
             mint: (*mint_pda).into(),
             mint_signer: *mint_signer,
@@ -216,6 +217,7 @@ async fn test_compressible_mint_bootstrap() {
         &mint_pda,
         &mint_seed.pubkey().to_bytes(),
         bump,
+        mint.metadata.version,
         mint.compression,
     );
 >>>>>>> d6299d718 (feat: add hex dependency and update existing hex usage in Cargo.toml files; refactor mint compression logic to handle batching and improve error handling; enhance test cases for mint creation and compression)
