@@ -36,7 +36,7 @@ fn build_expected_mint(
 ) -> Mint {
     Mint {
         base: BaseMint {
-            mint_authority: Some(*mint_authority),
+            mint_authority: Some((*mint_authority).into()),
             supply: 0,
             decimals,
             is_initialized: true,
@@ -45,7 +45,7 @@ fn build_expected_mint(
         metadata: MintMetadata {
             version: 1,
             mint_decompressed: true,
-            mint: *mint_pda,
+            mint: (*mint_pda).into(),
             mint_signer: *mint_signer,
             bump,
         },
