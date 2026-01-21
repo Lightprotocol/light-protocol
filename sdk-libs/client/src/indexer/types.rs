@@ -962,7 +962,7 @@ impl Into<Vec<light_token::compat::TokenDataWithMerkleContext>>
                 |token_account| light_token::compat::TokenDataWithMerkleContext {
                     token_data: token_account.token,
                     compressed_account: CompressedAccountWithMerkleContext::from(
-                        token_account.account.clone(),
+                        token_account.account,
                     ),
                 },
             )
