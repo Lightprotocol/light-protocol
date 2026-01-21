@@ -95,6 +95,7 @@ async fn test_mint_to_ctoken_scenario_compression_only() {
         amount: transfer_amount,
         authority: owner1.pubkey(),
         max_top_up: None,
+        fee_payer: None,
     }
     .instruction()
     .unwrap();

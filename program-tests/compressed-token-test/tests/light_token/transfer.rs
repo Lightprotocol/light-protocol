@@ -728,6 +728,7 @@ async fn transfer_checked_and_assert(
         decimals,
         authority: authority.pubkey(),
         max_top_up: None,
+        fee_payer: None,
     }
     .instruction()
     .unwrap();
@@ -769,6 +770,7 @@ async fn transfer_checked_and_assert_fails(
         decimals,
         authority: authority.pubkey(),
         max_top_up: None,
+        fee_payer: None,
     }
     .instruction()
     .unwrap();
@@ -941,6 +943,7 @@ async fn test_ctoken_transfer_checked_max_top_up_exceeded() {
         decimals: 9,
         authority: owner_keypair.pubkey(),
         max_top_up: Some(1),
+        fee_payer: None,
     }
     .instruction()
     .unwrap();

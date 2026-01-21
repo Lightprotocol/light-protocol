@@ -20,7 +20,9 @@ pub(crate) const MINT_CTOKEN_IDX: usize = 1;
 /// Account layout:
 /// 0: CMint account (writable)
 /// 1: destination CToken account (writable)
-/// 2: authority (signer, also payer for top-ups)
+/// 2: authority (signer, readonly if fee_payer provided, writable otherwise)
+/// 3: system_program (readonly) - required for rent top-up CPIs
+/// 4: fee_payer (optional, signer, writable) - pays for top-ups instead of authority
 #[profile]
 #[inline(always)]
 pub fn process_ctoken_mint_to(
@@ -43,7 +45,9 @@ pub fn process_ctoken_mint_to(
 /// Account layout (same as mint_to):
 /// 0: CMint account (writable)
 /// 1: destination CToken account (writable)
-/// 2: authority (signer, also payer for top-ups)
+/// 2: authority (signer, readonly if fee_payer provided, writable otherwise)
+/// 3: system_program (readonly) - required for rent top-up CPIs
+/// 4: fee_payer (optional, signer, writable) - pays for top-ups instead of authority
 #[profile]
 #[inline(always)]
 pub fn process_ctoken_mint_to_checked(

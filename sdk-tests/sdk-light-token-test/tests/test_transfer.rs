@@ -50,6 +50,7 @@ async fn test_ctoken_transfer_invoke() {
             AccountMeta::new(source_ata, false),
             AccountMeta::new(dest_ata, false),
             AccountMeta::new_readonly(source_owner, true),
+            AccountMeta::new_readonly(Pubkey::default(), false), // system_program
             AccountMeta::new_readonly(LIGHT_TOKEN_PROGRAM_ID, false),
         ],
         data: instruction_data,
@@ -107,6 +108,7 @@ async fn test_ctoken_transfer_invoke_signed() {
             AccountMeta::new(source_ata, false),
             AccountMeta::new(dest_ata, false),
             AccountMeta::new_readonly(pda_owner, false), // PDA authority, not signer
+            AccountMeta::new_readonly(Pubkey::default(), false), // system_program
             AccountMeta::new_readonly(LIGHT_TOKEN_PROGRAM_ID, false),
         ],
         data: instruction_data,

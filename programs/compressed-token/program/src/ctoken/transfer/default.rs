@@ -10,6 +10,9 @@ use crate::shared::convert_pinocchio_token_error;
 const ACCOUNT_SOURCE: usize = 0;
 const ACCOUNT_DESTINATION: usize = 1;
 const ACCOUNT_AUTHORITY: usize = 2;
+#[allow(dead_code)]
+const ACCOUNT_SYSTEM_PROGRAM: usize = 3;
+const ACCOUNT_FEE_PAYER: usize = 4;
 
 /// Process ctoken transfer instruction
 ///
@@ -40,7 +43,8 @@ pub fn process_ctoken_transfer(
     let source = &accounts[ACCOUNT_SOURCE];
     let destination = &accounts[ACCOUNT_DESTINATION];
     if source.data_len() == 165 && destination.data_len() == 165 {
-        return process_transfer(accounts, &instruction_data[..8], false)
+        // Slice to exactly 3 accounts: [source, destination, authority]
+        return process_transfer(&accounts[..3], &instruction_data[..8], false)
             .map_err(convert_pinocchio_token_error);
     }
 
@@ -59,7 +63,8 @@ pub fn process_ctoken_transfer(
     let signer_is_validated = process_extensions(accounts, max_top_up)?;
 
     // Only pass the first 8 bytes (amount) to the SPL transfer processor
-    process_transfer(accounts, &instruction_data[..8], signer_is_validated)
+    // Slice to exactly 3 accounts: [source, destination, authority]
+    process_transfer(&accounts[..3], &instruction_data[..8], signer_is_validated)
         .map_err(convert_pinocchio_token_error)
 }
 
@@ -68,6 +73,7 @@ fn process_extensions(accounts: &[AccountInfo], max_top_up: u16) -> Result<bool,
     let source = &accounts[ACCOUNT_SOURCE];
     let destination = &accounts[ACCOUNT_DESTINATION];
     let authority = &accounts[ACCOUNT_AUTHORITY];
+    let fee_payer = accounts.get(ACCOUNT_FEE_PAYER);
 
     let (signer_is_validated, _) = process_transfer_extensions_transfer(
         TransferAccounts {
@@ -75,6 +81,7 @@ fn process_extensions(accounts: &[AccountInfo], max_top_up: u16) -> Result<bool,
             destination,
             authority,
             mint: None,
+            fee_payer,
         },
         max_top_up,
     )?;

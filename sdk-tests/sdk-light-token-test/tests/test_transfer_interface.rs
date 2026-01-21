@@ -99,7 +99,7 @@ async fn test_transfer_interface_spl_to_ctoken_invoke() {
         AccountMeta::new_readonly(sender.pubkey(), true),            // authority (signer)
         AccountMeta::new(payer.pubkey(), true),                      // payer
         AccountMeta::new_readonly(cpi_authority_pda, false), // compressed_token_program_authority
-        AccountMeta::new_readonly(solana_sdk::system_program::ID, false), // system_program
+        AccountMeta::new_readonly(Pubkey::default(), false), // system_program
         AccountMeta::new_readonly(mint, false),              // mint (for SPL bridge)
         AccountMeta::new(spl_interface_pda, false),          // spl_interface_pda
         AccountMeta::new_readonly(anchor_spl::token::ID, false), // spl_token_program
@@ -207,7 +207,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke() {
             AccountMeta::new_readonly(owner.pubkey(), true),
             AccountMeta::new(payer.pubkey(), true),
             AccountMeta::new_readonly(cpi_authority_pda, false),
-            AccountMeta::new_readonly(solana_sdk::system_program::ID, false),
+            AccountMeta::new_readonly(Pubkey::default(), false),
             AccountMeta::new_readonly(mint, false),
             AccountMeta::new(spl_interface_pda, false),
             AccountMeta::new_readonly(anchor_spl::token::ID, false),
@@ -237,7 +237,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke() {
         AccountMeta::new_readonly(owner.pubkey(), true), // authority
         AccountMeta::new(payer.pubkey(), true),  // payer
         AccountMeta::new_readonly(cpi_authority_pda, false),
-        AccountMeta::new_readonly(solana_sdk::system_program::ID, false),
+        AccountMeta::new_readonly(Pubkey::default(), false),
         AccountMeta::new_readonly(mint, false),
         AccountMeta::new(spl_interface_pda, false),
         AccountMeta::new_readonly(anchor_spl::token::ID, false),
@@ -352,7 +352,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke() {
             AccountMeta::new_readonly(sender.pubkey(), true),
             AccountMeta::new(payer.pubkey(), true),
             AccountMeta::new_readonly(cpi_authority_pda, false),
-            AccountMeta::new_readonly(solana_sdk::system_program::ID, false),
+            AccountMeta::new_readonly(Pubkey::default(), false),
             AccountMeta::new_readonly(mint, false),
             AccountMeta::new(spl_interface_pda, false),
             AccountMeta::new_readonly(anchor_spl::token::ID, false),
@@ -383,7 +383,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke() {
         AccountMeta::new_readonly(sender.pubkey(), true), // authority
         AccountMeta::new(payer.pubkey(), true), // payer
         AccountMeta::new_readonly(cpi_authority_pda, false),
-        AccountMeta::new_readonly(solana_sdk::system_program::ID, false), // system_program
+        AccountMeta::new_readonly(Pubkey::default(), false), // system_program
     ];
 
     let instruction = Instruction {
@@ -500,7 +500,7 @@ async fn test_transfer_interface_spl_to_ctoken_invoke_signed() {
         AccountMeta::new_readonly(authority_pda, false), // authority (PDA, not signer)
         AccountMeta::new(payer.pubkey(), true), // payer
         AccountMeta::new_readonly(cpi_authority_pda, false), // compressed_token_program_authority
-        AccountMeta::new_readonly(solana_sdk::system_program::ID, false), // system_program
+        AccountMeta::new_readonly(Pubkey::default(), false), // system_program
         AccountMeta::new_readonly(mint, false),
         AccountMeta::new(spl_interface_pda, false),
         AccountMeta::new_readonly(anchor_spl::token::ID, false),
@@ -626,7 +626,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke_signed() {
             AccountMeta::new_readonly(temp_owner.pubkey(), true),
             AccountMeta::new(payer.pubkey(), true),
             AccountMeta::new_readonly(cpi_authority_pda, false),
-            AccountMeta::new_readonly(solana_sdk::system_program::ID, false),
+            AccountMeta::new_readonly(Pubkey::default(), false),
             AccountMeta::new_readonly(mint, false),
             AccountMeta::new(spl_interface_pda, false),
             AccountMeta::new_readonly(anchor_spl::token::ID, false),
@@ -657,7 +657,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke_signed() {
         AccountMeta::new_readonly(authority_pda, false), // authority (PDA)
         AccountMeta::new(payer.pubkey(), true),  // payer
         AccountMeta::new_readonly(cpi_authority_pda, false),
-        AccountMeta::new_readonly(solana_sdk::system_program::ID, false),
+        AccountMeta::new_readonly(Pubkey::default(), false),
         AccountMeta::new_readonly(mint, false),
         AccountMeta::new(spl_interface_pda, false),
         AccountMeta::new_readonly(anchor_spl::token::ID, false),
@@ -784,7 +784,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke_signed() {
             AccountMeta::new_readonly(temp_owner.pubkey(), true),
             AccountMeta::new(payer.pubkey(), true),
             AccountMeta::new_readonly(cpi_authority_pda, false),
-            AccountMeta::new_readonly(solana_sdk::system_program::ID, false),
+            AccountMeta::new_readonly(Pubkey::default(), false),
             AccountMeta::new_readonly(mint, false),
             AccountMeta::new(spl_interface_pda, false),
             AccountMeta::new_readonly(anchor_spl::token::ID, false),
@@ -816,7 +816,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke_signed() {
         AccountMeta::new_readonly(authority_pda, false), // authority (PDA)
         AccountMeta::new(payer.pubkey(), true), // payer
         AccountMeta::new_readonly(cpi_authority_pda, false),
-        AccountMeta::new_readonly(solana_sdk::system_program::ID, false),
+        AccountMeta::new_readonly(Pubkey::default(), false),
     ];
 
     let instruction = Instruction {
@@ -919,7 +919,7 @@ async fn test_transfer_interface_spl_to_spl_invoke() {
         AccountMeta::new_readonly(sender.pubkey(), true),     // authority (signer)
         AccountMeta::new(payer.pubkey(), true),               // payer
         AccountMeta::new_readonly(cpi_authority_pda, false),  // compressed_token_program_authority
-        AccountMeta::new_readonly(solana_sdk::system_program::ID, false), // system_program
+        AccountMeta::new_readonly(Pubkey::default(), false),  // system_program
         AccountMeta::new_readonly(mint, false),               // mint (for SPL transfer_checked)
         AccountMeta::new(spl_interface_pda, false), // spl_interface_pda (passed but not used)
         AccountMeta::new_readonly(anchor_spl::token::ID, false), // spl_token_program
@@ -1038,7 +1038,7 @@ async fn test_transfer_interface_spl_to_spl_invoke_signed() {
         AccountMeta::new_readonly(authority_pda, false), // authority (PDA, not signer)
         AccountMeta::new(payer.pubkey(), true),  // payer
         AccountMeta::new_readonly(cpi_authority_pda, false), // compressed_token_program_authority
-        AccountMeta::new_readonly(solana_sdk::system_program::ID, false), // system_program
+        AccountMeta::new_readonly(Pubkey::default(), false), // system_program
         AccountMeta::new_readonly(mint, false),
         AccountMeta::new(spl_interface_pda, false),
         AccountMeta::new_readonly(anchor_spl::token::ID, false),
@@ -1150,7 +1150,7 @@ async fn test_transfer_interface_t22_to_t22_invoke() {
         AccountMeta::new_readonly(sender.pubkey(), true),     // authority (signer)
         AccountMeta::new(payer.pubkey(), true),               // payer
         AccountMeta::new_readonly(cpi_authority_pda, false),  // compressed_token_program_authority
-        AccountMeta::new_readonly(solana_sdk::system_program::ID, false), // system_program
+        AccountMeta::new_readonly(Pubkey::default(), false),  // system_program
         AccountMeta::new_readonly(mint, false),               // mint (for T22 transfer_checked)
         AccountMeta::new(spl_interface_pda, false), // spl_interface_pda (passed but not used)
         AccountMeta::new_readonly(anchor_spl::token_2022::ID, false), // T22 token program
@@ -1274,7 +1274,7 @@ async fn test_transfer_interface_t22_to_t22_invoke_signed() {
         AccountMeta::new_readonly(authority_pda, false), // authority (PDA, not signer)
         AccountMeta::new(payer.pubkey(), true),  // payer
         AccountMeta::new_readonly(cpi_authority_pda, false), // compressed_token_program_authority
-        AccountMeta::new_readonly(solana_sdk::system_program::ID, false), // system_program
+        AccountMeta::new_readonly(Pubkey::default(), false), // system_program
         AccountMeta::new_readonly(mint, false),
         AccountMeta::new(spl_interface_pda, false),
         AccountMeta::new_readonly(anchor_spl::token_2022::ID, false), // T22 token program

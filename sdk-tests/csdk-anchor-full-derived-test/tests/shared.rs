@@ -124,6 +124,7 @@ pub async fn setup_create_mint(
             amount: *amount,
             authority: mint_authority,
             max_top_up: None,
+            fee_payer: None,
         }
         .instruction()
         .unwrap();

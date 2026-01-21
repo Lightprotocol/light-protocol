@@ -16,6 +16,9 @@ const ACCOUNT_SOURCE: usize = 0;
 const ACCOUNT_MINT: usize = 1;
 const ACCOUNT_DESTINATION: usize = 2;
 const ACCOUNT_AUTHORITY: usize = 3;
+#[allow(dead_code)]
+const ACCOUNT_SYSTEM_PROGRAM: usize = 4;
+const ACCOUNT_FEE_PAYER: usize = 5;
 
 /// Process ctoken transfer_checked instruction
 ///
@@ -47,7 +50,8 @@ pub fn process_ctoken_transfer_checked(
 
     // Hot path: 165-byte accounts have no extensions, skip all extension processing
     if source.data_len() == 165 && destination.data_len() == 165 {
-        return process_transfer_checked(accounts, &instruction_data[..9], false)
+        // Slice to exactly 4 accounts: [source, mint, destination, authority]
+        return process_transfer_checked(&accounts[..4], &instruction_data[..9], false)
             .map_err(convert_pinocchio_token_error);
     }
 
@@ -66,12 +70,14 @@ pub fn process_ctoken_transfer_checked(
         _ => return Err(ProgramError::InvalidInstructionData),
     };
 
+    let fee_payer = accounts.get(ACCOUNT_FEE_PAYER);
     let (signer_is_validated, extension_decimals) = process_transfer_extensions_transfer_checked(
         TransferAccounts {
             source,
             destination,
             authority,
             mint: Some(mint),
+            fee_payer,
         },
         max_top_up,
     )?;
@@ -97,7 +103,8 @@ pub fn process_ctoken_transfer_checked(
         .map_err(convert_pinocchio_token_error)
     } else {
         check_token_program_owner(mint)?;
-        process_transfer(accounts, amount, Some(decimals), signer_is_validated)
+        // Slice to exactly 4 accounts: [source, mint, destination, authority]
+        process_transfer(&accounts[..4], amount, Some(decimals), signer_is_validated)
             .map_err(convert_pinocchio_token_error)
     }
 }

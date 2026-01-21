@@ -165,6 +165,7 @@ async fn test_transfer_requires_checked_for_restricted_extensions() {
         amount: transfer_amount,
         authority: owner.pubkey(),
         max_top_up: Some(0), // 0 = no limit, but includes system program for compressible
+        fee_payer: None,
     }
     .instruction()
     .unwrap();
@@ -188,6 +189,7 @@ async fn test_transfer_requires_checked_for_restricted_extensions() {
         decimals: 9,
         authority: owner.pubkey(),
         max_top_up: Some(0), // 0 = no limit, but includes system program for compressible
+        fee_payer: None,
     }
     .instruction()
     .unwrap();

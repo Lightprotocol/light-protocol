@@ -100,6 +100,7 @@ async fn test_ctoken_burn() {
         amount: 500,
         authority: ctx.owner_keypair.pubkey(),
         max_top_up: None,
+        fee_payer: None,
     }
     .instruction()
     .unwrap();
@@ -122,6 +123,7 @@ async fn test_ctoken_burn() {
         amount: 500,
         authority: ctx.owner_keypair.pubkey(),
         max_top_up: None,
+        fee_payer: None,
     }
     .instruction()
     .unwrap();

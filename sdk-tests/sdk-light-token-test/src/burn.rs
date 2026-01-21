@@ -17,8 +17,9 @@ pub struct BurnData {
 /// - accounts[1]: mint (writable)
 /// - accounts[2]: authority (owner, signer)
 /// - accounts[3]: light_token_program
+/// - accounts[4]: system_program
 pub fn process_burn_invoke(accounts: &[AccountInfo], amount: u64) -> Result<(), ProgramError> {
-    if accounts.len() < 4 {
+    if accounts.len() < 5 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
@@ -27,7 +28,9 @@ pub fn process_burn_invoke(accounts: &[AccountInfo], amount: u64) -> Result<(), 
         mint: accounts[1].clone(),
         amount,
         authority: accounts[2].clone(),
+        system_program: accounts[4].clone(),
         max_top_up: None,
+        fee_payer: None,
     }
     .invoke()?;
 
@@ -41,11 +44,12 @@ pub fn process_burn_invoke(accounts: &[AccountInfo], amount: u64) -> Result<(), 
 /// - accounts[1]: mint (writable)
 /// - accounts[2]: PDA authority (owner, program signs)
 /// - accounts[3]: light_token_program
+/// - accounts[4]: system_program
 pub fn process_burn_invoke_signed(
     accounts: &[AccountInfo],
     amount: u64,
 ) -> Result<(), ProgramError> {
-    if accounts.len() < 4 {
+    if accounts.len() < 5 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
@@ -63,7 +67,9 @@ pub fn process_burn_invoke_signed(
         mint: accounts[1].clone(),
         amount,
         authority: accounts[2].clone(),
+        system_program: accounts[4].clone(),
         max_top_up: None,
+        fee_payer: None,
     }
     .invoke_signed(&[signer_seeds])?;
 

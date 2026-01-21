@@ -38,7 +38,14 @@ Format 2 (11 bytes):
    - (signer)
    - Owner of the source CToken account
    - Must sign the transaction
-   - Also serves as payer for rent top-ups if needed
+   - If no fee_payer provided: also serves as payer for top-ups (must be writable)
+   - If fee_payer provided: readonly (only needs to sign)
+
+4. fee_payer (optional)
+   - (signer, writable)
+   - Optional separate account to pay for rent top-ups
+   - If not provided, authority account pays for top-ups
+   - Must have sufficient lamports to cover the top-up amount
 
 **Instruction Logic and Checks:**
 

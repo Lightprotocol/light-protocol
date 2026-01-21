@@ -30,6 +30,7 @@ pub fn process_mint_to_invoke(accounts: &[AccountInfo], amount: u64) -> Result<(
         authority: accounts[2].clone(),
         system_program: accounts[3].clone(),
         max_top_up: None,
+        fee_payer: None,
     }
     .invoke()?;
 
@@ -68,6 +69,7 @@ pub fn process_mint_to_invoke_signed(
         authority: accounts[2].clone(),
         system_program: accounts[3].clone(),
         max_top_up: None,
+        fee_payer: None,
     }
     .invoke_signed(&[signer_seeds])?;
 

@@ -135,6 +135,7 @@ impl TransferInterface {
                 amount: self.amount,
                 authority: self.authority,
                 max_top_up: self.max_top_up,
+                fee_payer: None,
             }
             .instruction(),
 

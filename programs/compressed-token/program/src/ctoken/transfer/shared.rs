@@ -49,6 +49,8 @@ pub struct TransferAccounts<'a> {
     pub destination: &'a AccountInfo,
     pub authority: &'a AccountInfo,
     pub mint: Option<&'a AccountInfo>,
+    /// Optional fee payer for rent top-ups. If not provided, authority pays.
+    pub fee_payer: Option<&'a AccountInfo>,
 }
 
 /// Process transfer extensions for CTokenTransfer instruction.
@@ -142,8 +144,11 @@ fn transfer_top_up(
                 amount: recipient_top_up,
             },
         ];
-        multi_transfer_lamports(transfer_accounts.authority, &transfers)
-            .map_err(convert_program_error)
+        // Use fee_payer if provided, otherwise fall back to authority
+        let payer = transfer_accounts
+            .fee_payer
+            .unwrap_or(transfer_accounts.authority);
+        multi_transfer_lamports(payer, &transfers).map_err(convert_program_error)
     } else {
         Ok(())
     }
