@@ -128,8 +128,8 @@ pub struct GetCompressedMintsByAuthorityOptions {
     pub cursor: Option<String>,
     /// Maximum number of results to return
     pub limit: Option<u16>,
-    /// Authority type filter. Defaults to `Some(MintAuthorityType::Either)` (both mint and freeze authorities).
-    pub authority_type: Option<MintAuthorityType>,
+    /// Authority type filter. Defaults to `MintAuthorityType::Either` (both mint and freeze authorities).
+    pub authority_type: MintAuthorityType,
 }
 
 impl Default for GetCompressedMintsByAuthorityOptions {
@@ -137,7 +137,7 @@ impl Default for GetCompressedMintsByAuthorityOptions {
         Self {
             cursor: None,
             limit: None,
-            authority_type: Some(MintAuthorityType::Either),
+            authority_type: MintAuthorityType::Either,
         }
     }
 }
@@ -158,7 +158,7 @@ impl GetCompressedMintsByAuthorityOptions {
     }
 
     pub fn with_authority_type(mut self, authority_type: MintAuthorityType) -> Self {
-        self.authority_type = Some(authority_type);
+        self.authority_type = authority_type;
         self
     }
 }
