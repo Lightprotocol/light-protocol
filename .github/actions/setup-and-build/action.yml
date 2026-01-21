@@ -112,6 +112,12 @@ runs:
       shell: bash
       run: bash scripts/devenv/install-photon.sh
 
+    - name: Install just
+      shell: bash
+      run: |
+        curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to $HOME/.local/bin
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+
     - name: Set Light Protocol environment variables
       shell: bash
       run: |
@@ -208,20 +214,14 @@ runs:
       shell: bash
       run: |
         echo "Building Rust programs..."
-        if ! npx nx build @lightprotocol/programs; then
-          echo "Failed to build programs, retrying with verbose output..."
-          npx nx build @lightprotocol/programs --verbose
-        fi
+        just build-programs
 
     - name: Build Rust program-tests
       if: steps.cache-program-tests.outputs.cache-hit != 'true'
       shell: bash
       run: |
         echo "Building Rust program-tests..."
-        if ! npx nx build @lightprotocol/program-tests; then
-          echo "Failed to build program-tests, retrying with verbose output..."
-          npx nx build @lightprotocol/program-tests --verbose
-        fi
+        just build-program-tests
 
     - name: Check for git changes
       shell: bash

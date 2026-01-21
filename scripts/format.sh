@@ -2,9 +2,11 @@
 
 set -e
 
-npx nx run-many --target=format --all
-npx nx run-many --target=lint:fix --all
+# JS formatting
+cd js/stateless.js && pnpm format && cd ../..
+cd js/compressed-token && pnpm format && cd ../..
 
+# Rust formatting
 cargo +nightly fmt --all
 cargo clippy \
         --workspace \

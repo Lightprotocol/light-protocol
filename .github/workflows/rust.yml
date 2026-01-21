@@ -35,38 +35,11 @@ jobs:
       matrix:
         group:
           - name: batched-merkle-tree-simulate
-            packages: light-batched-merkle-tree batched-merkle-tree-test
-            test_cmd: |
-              cargo test -p light-batched-merkle-tree --features test-only
-              RUST_LOG=light_prover_client=debug cargo test -p batched-merkle-tree-test -- --test test_simulate_transactions
+            test_cmd: just test-batched-merkle-tree-simulate
           - name: program-libs-fast
-            packages:
-              aligned-sized light-hasher light-compressed-account light-account-checks \
-              light-verifier light-merkle-tree-metadata light-zero-copy light-hash-set light-concurrent-merkle-tree \
-              light-array-map
-            test_cmd: |
-              cargo test -p light-macros
-              cargo test -p aligned-sized
-              cargo test -p light-array-map --all-features
-              cargo test -p light-hasher --all-features
-              cargo test -p light-compressed-account --all-features
-              cargo test -p light-account-checks  --all-features
-              cargo test -p light-verifier --all-features
-              cargo test -p light-merkle-tree-metadata --all-features
-              cargo test -p light-zero-copy --features "std, mut, derive"
-              cargo test -p light-zero-copy-derive --all-features
-              cargo test -p zero-copy-derive-test
-              cargo test -p light-hash-set --all-features
-              cargo test -p batched-merkle-tree-test -- --skip test_simulate_transactions --skip test_e2e
-              cargo test -p light-concurrent-merkle-tree
-              cargo test -p light-token-interface --features poseidon,test-only
-              cargo test -p light-compressible --all-features
+            test_cmd: just test-program-libs-fast
           - name: program-libs-slow
-            packages: light-bloom-filter light-indexed-merkle-tree batched-merkle-tree-test
-            test_cmd: |
-              cargo test -p light-bloom-filter --all-features
-              cargo test -p light-indexed-merkle-tree --all-features
-              cargo test -p batched-merkle-tree-test -- --test test_e2e
+            test_cmd: just test-program-libs-slow
 
     name: Test ${{ matrix.group.name }}
 
@@ -95,7 +68,7 @@ jobs:
 
       - name: Build CLI
         run: |
-          npx nx build @lightprotocol/zk-compression-cli
+          just build-cli
 
       - name: Run tests for ${{ matrix.group.name }}
         run: |

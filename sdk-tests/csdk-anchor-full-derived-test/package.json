@@ -5,7 +5,6 @@
   "scripts": {
     "build": "cargo build-sbf",
     "test": "cargo test-sbf -p csdk-anchor-full-derived-test -- --nocapture"
-  },
-  "nx": {}
+  }
 }
 

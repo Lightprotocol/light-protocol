@@ -42,9 +42,8 @@ Tests for Light SDK with Anchor framework (Rust tests).
 
 #### TypeScript Tests
 ```bash
-npx nx build @lightprotocol/sdk-anchor-test
-cd sdk-tests/sdk-anchor-test
-npm run test-ts
+just build-sdk-anchor-test
+cd sdk-tests/sdk-anchor-test && npm run test-ts
 ```
 TypeScript integration tests for Anchor SDK.
 

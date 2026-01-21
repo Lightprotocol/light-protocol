@@ -129,42 +129,5 @@
   "keywords": [
     "oclif"
   ],
-  "types": "dist/index.d.ts",
-  "nx": {
-    "targets": {
-      "build": {
-        "inputs": [
-          "{workspaceRoot}/js",
-          "{workspaceRoot}/programs",
-          "{workspaceRoot}/gnark-prover"
-        ],
-        "outputs": [
-          "{workspaceRoot}/bin",
-          "{workspaceRoot}/dist",
-          "{workspaceRoot}/lib",
-          "{workspaceRoot}/test_bin"
-        ]
-      },
-      "build-ci": {
-        "dependsOn": [
-          "@lightprotocol/stateless.js:build-ci",
-          "@lightprotocol/compressed-token:build-ci"
-        ],
-        "inputs": [
-          "{workspaceRoot}/js",
-          "{workspaceRoot}/gnark-prover",
-          "{projectRoot}/scripts/**"
-        ],
-        "outputs": [
-          "{workspaceRoot}/bin",
-          "{workspaceRoot}/dist",
-          "{workspaceRoot}/lib",
-          "{workspaceRoot}/test_bin"
-        ]
-      },
-      "test-ci": {
-        "dependsOn": []
-      }
-    }
-  }
+  "types": "dist/index.d.ts"
 }

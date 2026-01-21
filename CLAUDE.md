@@ -136,11 +136,11 @@ cargo test-sbf -p sdk-token-test
 Version-specific tests (V1 and V2) for JS/TS packages.
 
 ```bash
-# Build and test with Nx
-npx nx build @lightprotocol/zk-compression-cli
-npx nx test @lightprotocol/stateless.js
-npx nx test @lightprotocol/compressed-token
-npx nx test @lightprotocol/zk-compression-cli
+# Build and test with just
+just build-cli
+just test-stateless-js
+just test-compressed-token
+just test-cli
 ```
 
 **Environment variables:**

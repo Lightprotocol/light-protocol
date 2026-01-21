@@ -85,7 +85,7 @@ jobs:
 
       - name: Build CLI
         run: |
-          npx nx build @lightprotocol/zk-compression-cli
+          just build-cli
 
       - name: ${{ matrix.program }}
         run: |

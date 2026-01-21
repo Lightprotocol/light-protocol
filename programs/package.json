@@ -16,16 +16,5 @@
     "test-system": "cargo test-sbf -p system-test",
     "test-system-cpi": "cargo test-sbf -p system-cpi-test",
     "ignored-program-owned-account-test": "cargo-test-sbf -p program-owned-account-test"
-  },
-  "nx": {
-    "targets": {
-      "build": {
-        "outputs": [
-          "{workspaceRoot}/target/deploy",
-          "{workspaceRoot}/target/idl",
-          "{workspaceRoot}/target/types"
-        ]
-      }
-    }
   }
 }

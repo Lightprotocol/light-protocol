@@ -10,14 +10,5 @@
   },
   "devDependencies": {
     "@lightprotocol/zk-compression-cli": "workspace:*"
-  },
-  "nx": {
-    "targets": {
-      "build": {
-        "outputs": [
-          "{workspaceRoot}/target/release"
-        ]
-      }
-    }
   }
 }

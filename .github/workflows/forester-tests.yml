@@ -77,10 +77,10 @@ jobs:
           du -sh /home/runner/work/* | sort -hr | head -n 10
 
       - name: Build CLI
-        run: npx nx build @lightprotocol/zk-compression-cli
+        run: just build-cli
 
       - name: Test
-        run: cargo test --package forester e2e_test -- --nocapture
+        run: just test-forester
 
   compressible-tests:
     name: Forester compressible tests
@@ -112,17 +112,16 @@ jobs:
           cache-key: "rust"
 
       - name: Build CLI
-        run: npx nx build @lightprotocol/zk-compression-cli
+        run: just build-cli
 
       - name: Build test programs
-        run: |
-          cargo build-sbf --manifest-path sdk-tests/csdk-anchor-full-derived-test/Cargo.toml
+        run: just build-csdk-anchor-full-derived-test
 
       - name: Test compressible PDA
-        run: cargo test --package forester --test test_compressible_pda -- --nocapture
+        run: just test-forester-compressible-pda
 
       - name: Test compressible Mint
-        run: cargo test --package forester --test test_compressible_mint -- --nocapture
+        run: just test-forester-compressible-mint
 
       - name: Test compressible ctoken
-        run: cargo test --package forester --test test_compressible_ctoken -- --nocapture
+        run: just test-forester-compressible-ctoken
