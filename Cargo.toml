@@ -191,7 +191,7 @@ light-heap = { path = "program-libs/heap", version = "2.0.0" }
 light-prover-client = { path = "prover/client", version = "5.0.1" }
 light-sdk = { path = "sdk-libs/sdk", version = "0.18.0" }
 light-sdk-pinocchio = { path = "sdk-libs/sdk-pinocchio", version = "0.18.0" }
-light-sdk-macros = { path = "sdk-libs/macros", version = "0.18.0" }
+light-sdk-macros = { path = "sdk-libs/macros", version = "0.18.1" }
 light-sdk-types = { path = "sdk-libs/sdk-types", version = "0.18.0", default-features = false }
 light-compressed-account = { path = "program-libs/compressed-account", version = "0.8.0", default-features = false }
 light-compressible = { path = "program-libs/compressible", version = "0.3.1", default-features = false }
