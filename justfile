@@ -30,7 +30,7 @@ build-js:
     cd js/stateless.js && pnpm build
     cd js/compressed-token && pnpm build
 
-build-cli:
+build-cli: build-js
     cd cli && pnpm build
 
 build-forester:
