@@ -1,3 +1,4 @@
+#![cfg(feature = "test-only")]
 //! Contains functional zero copy tests for:
 //! - ZeroCopyNew
 //!

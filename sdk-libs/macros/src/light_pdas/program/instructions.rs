@@ -36,6 +36,7 @@ fn codegen(
     token_seeds: Option<Vec<TokenSeedSpec>>,
     instruction_data: Vec<InstructionDataSpec>,
     crate_ctx: &super::crate_context::CrateContext,
+    has_mint_fields: bool,
 ) -> Result<TokenStream> {
     let content = match module.content.as_mut() {
         Some(content) => content,
@@ -105,7 +106,98 @@ fn codegen(
         })
         .unwrap_or_default();
 
-    let enum_and_traits = LightVariantBuilder::new(&pda_ctx_seeds).build()?;
+    // Generate variant enum and traits only if there are PDA seeds
+    // For mint-only programs (no PDA state accounts), generate minimal placeholder code
+    let enum_and_traits = if pda_ctx_seeds.is_empty() {
+        // Generate minimal code for mint-only programs that matches trait signatures
+        quote! {
+            /// Placeholder enum for programs that only use Light mints without state accounts.
+            #[derive(Clone, Debug, anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize)]
+            pub enum LightAccountVariant {
+                /// Placeholder variant for mint-only programs
+                Empty,
+                PackedCTokenData(light_token::compat::PackedCTokenData<PackedTokenAccountVariant>),
+                CTokenData(light_token::compat::CTokenData<TokenAccountVariant>),
+            }
+
+            impl Default for LightAccountVariant {
+                fn default() -> Self {
+                    Self::Empty
+                }
+            }
+
+            impl ::light_sdk::hasher::DataHasher for LightAccountVariant {
+                fn hash<H: ::light_sdk::hasher::Hasher>(&self) -> std::result::Result<[u8; 32], ::light_sdk::hasher::HasherError> {
+                    match self {
+                        Self::Empty => Err(::light_sdk::hasher::HasherError::EmptyInput),
+                        Self::PackedCTokenData(_) => Err(::light_sdk::hasher::HasherError::EmptyInput),
+                        Self::CTokenData(_) => Err(::light_sdk::hasher::HasherError::EmptyInput),
+                    }
+                }
+            }
+
+            impl light_sdk::LightDiscriminator for LightAccountVariant {
+                const LIGHT_DISCRIMINATOR: [u8; 8] = [0; 8];
+                const LIGHT_DISCRIMINATOR_SLICE: &'static [u8] = &Self::LIGHT_DISCRIMINATOR;
+            }
+
+            impl light_sdk::interface::HasCompressionInfo for LightAccountVariant {
+                fn compression_info(&self) -> std::result::Result<&light_sdk::interface::CompressionInfo, solana_program_error::ProgramError> {
+                    Err(solana_program_error::ProgramError::InvalidAccountData)
+                }
+
+                fn compression_info_mut(&mut self) -> std::result::Result<&mut light_sdk::interface::CompressionInfo, solana_program_error::ProgramError> {
+                    Err(solana_program_error::ProgramError::InvalidAccountData)
+                }
+
+                fn compression_info_mut_opt(&mut self) -> &mut Option<light_sdk::interface::CompressionInfo> {
+                    panic!("compression_info_mut_opt not supported for mint-only programs")
+                }
+
+                fn set_compression_info_none(&mut self) -> std::result::Result<(), solana_program_error::ProgramError> {
+                    Err(solana_program_error::ProgramError::InvalidAccountData)
+                }
+            }
+
+            impl light_sdk::account::Size for LightAccountVariant {
+                fn size(&self) -> std::result::Result<usize, solana_program_error::ProgramError> {
+                    Err(solana_program_error::ProgramError::InvalidAccountData)
+                }
+            }
+
+            impl light_sdk::Pack for LightAccountVariant {
+                type Packed = Self;
+                fn pack(&self, _remaining_accounts: &mut light_sdk::instruction::PackedAccounts) -> std::result::Result<Self::Packed, solana_program_error::ProgramError> {
+                    Ok(Self::Empty)
+                }
+            }
+
+            impl light_sdk::Unpack for LightAccountVariant {
+                type Unpacked = Self;
+                fn unpack(&self, _remaining_accounts: &[solana_account_info::AccountInfo]) -> std::result::Result<Self::Unpacked, solana_program_error::ProgramError> {
+                    Ok(Self::Empty)
+                }
+            }
+
+            /// Wrapper for compressed account data (mint-only placeholder).
+            #[derive(Clone, Debug, anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize)]
+            pub struct LightAccountData {
+                pub meta: light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
+                pub data: LightAccountVariant,
+            }
+
+            impl Default for LightAccountData {
+                fn default() -> Self {
+                    Self {
+                        meta: light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress::default(),
+                        data: LightAccountVariant::default(),
+                    }
+                }
+            }
+        }
+    } else {
+        LightVariantBuilder::new(&pda_ctx_seeds).build()?
+    };
 
     // Collect all unique params-only seed fields across all variants for SeedParams struct
     // Use BTreeMap for deterministic ordering
@@ -245,14 +337,16 @@ fn codegen(
     let has_pda_seeds = pda_seeds.as_ref().map(|p| !p.is_empty()).unwrap_or(false);
     let has_token_seeds = token_seeds.as_ref().map(|t| !t.is_empty()).unwrap_or(false);
 
-    let instruction_variant = match (has_pda_seeds, has_token_seeds) {
-        (true, true) => InstructionVariant::Mixed,
-        (true, false) => InstructionVariant::PdaOnly,
-        (false, true) => InstructionVariant::TokenOnly,
-        (false, false) => {
+    let instruction_variant = match (has_pda_seeds, has_token_seeds, has_mint_fields) {
+        (true, true, _) => InstructionVariant::Mixed,
+        (true, false, _) => InstructionVariant::PdaOnly,
+        (false, true, _) => InstructionVariant::TokenOnly,
+        (false, false, true) => InstructionVariant::MintOnly,
+        (false, false, false) => {
             return Err(macro_error!(
                 module,
-                "At least one PDA or token seed specification must be provided"
+                "No #[light_account(init)], #[light_account(init, mint)], or #[light_account(token)] fields found.\n\
+                 At least one light account field must be provided."
             ))
         }
     };
@@ -267,12 +361,8 @@ fn codegen(
     let token_variant_name = format_ident!("TokenAccountVariant");
 
     // Create DecompressBuilder to generate all decompress-related code
-    let decompress_builder = DecompressBuilder::new(
-        pda_ctx_seeds.clone(),
-        token_variant_name,
-        account_types.clone(),
-        pda_seeds.clone(),
-    );
+    let decompress_builder =
+        DecompressBuilder::new(pda_ctx_seeds.clone(), token_variant_name, pda_seeds.clone());
     // Note: DecompressBuilder validation is optional for now since pda_seeds may be empty for TokenOnly
 
     let decompress_accounts = decompress_builder.generate_accounts_struct()?;
@@ -502,6 +592,7 @@ pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<Tok
     let mut pda_specs: Vec<ExtractedSeedSpec> = Vec::new();
     let mut token_specs: Vec<ExtractedTokenSpec> = Vec::new();
     let mut rentfree_struct_names = std::collections::HashSet::new();
+    let mut has_any_mint_fields = false;
 
     for item_struct in crate_ctx.structs_with_derive("Accounts") {
         // Parse #[instruction(...)] attribute to get instruction arg names
@@ -515,15 +606,18 @@ pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<Tok
                 rentfree_struct_names.insert(info.struct_name.to_string());
                 pda_specs.extend(info.pda_fields);
                 token_specs.extend(info.token_fields);
+                if info.has_light_mint_fields {
+                    has_any_mint_fields = true;
+                }
             }
         }
     }
 
-    // Check if we found anything
-    if pda_specs.is_empty() && token_specs.is_empty() {
+    // Check if we found anything (PDAs, tokens, or mint fields)
+    if pda_specs.is_empty() && token_specs.is_empty() && !has_any_mint_fields {
         return Err(macro_error!(
             &module,
-            "No #[light_account(init)] or #[light_account(token)] fields found in any Accounts struct.\n\
+            "No #[light_account(init)], #[light_account(init, mint)], or #[light_account(token)] fields found in any Accounts struct.\n\
              Ensure your Accounts structs are in modules declared with `pub mod xxx;`"
         ));
     }
@@ -631,5 +725,6 @@ pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<Tok
         token_seeds,
         found_data_fields,
         &crate_ctx,
+        has_any_mint_fields,
     )
 }

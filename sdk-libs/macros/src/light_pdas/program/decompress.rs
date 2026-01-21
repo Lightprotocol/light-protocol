@@ -6,7 +6,7 @@
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::{Ident, Result, Type};
+use syn::{Ident, Result};
 
 use super::{
     expr_traversal::transform_expr_for_ctx_seeds,
@@ -30,8 +30,6 @@ pub(super) struct DecompressBuilder {
     pda_ctx_seeds: Vec<PdaCtxSeedInfo>,
     /// Token variant identifier (e.g., TokenAccountVariant).
     token_variant_ident: Ident,
-    /// Account types that can be decompressed.
-    account_types: Vec<Type>,
     /// PDA seed specifications.
     pda_seeds: Option<Vec<TokenSeedSpec>>,
 }
@@ -42,18 +40,15 @@ impl DecompressBuilder {
     /// # Arguments
     /// * `pda_ctx_seeds` - PDA context seed information for each variant
     /// * `token_variant_ident` - Token variant identifier
-    /// * `account_types` - Account types that can be decompressed
     /// * `pda_seeds` - PDA seed specifications
     pub fn new(
         pda_ctx_seeds: Vec<PdaCtxSeedInfo>,
         token_variant_ident: Ident,
-        account_types: Vec<Type>,
         pda_seeds: Option<Vec<TokenSeedSpec>>,
     ) -> Self {
         Self {
             pda_ctx_seeds,
             token_variant_ident,
-            account_types,
             pda_seeds,
         }
     }
@@ -161,15 +156,34 @@ impl DecompressBuilder {
     }
 
     /// Generate PDA seed provider implementations.
+    /// Returns empty Vec for mint-only or token-only programs that have no PDA seeds.
     pub fn generate_seed_provider_impls(&self) -> Result<Vec<TokenStream>> {
-        let pda_seed_specs = self.pda_seeds.as_ref().ok_or_else(|| {
-            let span_source = self
-                .account_types
-                .first()
-                .map(|t| quote::quote!(#t))
-                .unwrap_or_else(|| quote::quote!(unknown));
-            super::parsing::macro_error!(span_source, "No seed specifications provided")
-        })?;
+        // For mint-only or token-only programs, there are no PDA seeds - return empty Vec
+        let pda_seed_specs = match self.pda_seeds.as_ref() {
+            Some(specs) if !specs.is_empty() => specs,
+            _ => {
+                // Fail fast if pda_ctx_seeds has variants but pda_seeds is missing
+                if !self.pda_ctx_seeds.is_empty() {
+                    let variant_names: Vec<_> = self
+                        .pda_ctx_seeds
+                        .iter()
+                        .map(|v| v.variant_name.to_string())
+                        .collect();
+                    return Err(syn::Error::new(
+                        proc_macro2::Span::call_site(),
+                        format!(
+                            "generate_seed_provider_impls: pda_seeds is None/empty but \
+                             pda_ctx_seeds contains {} variant(s): [{}]. \
+                             Each pda_ctx_seeds variant requires a corresponding PDA seed \
+                             specification in pda_seeds.",
+                            self.pda_ctx_seeds.len(),
+                            variant_names.join(", ")
+                        ),
+                    ));
+                }
+                return Ok(Vec::new());
+            }
+        };
 
         let mut results = Vec::with_capacity(self.pda_ctx_seeds.len());
 

@@ -49,6 +49,8 @@ pub enum InstructionVariant {
     PdaOnly,
     TokenOnly,
     Mixed,
+    /// Programs that only create Light mints without compressed state accounts
+    MintOnly,
 }
 
 #[derive(Clone)]
