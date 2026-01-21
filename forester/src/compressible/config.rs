@@ -34,7 +34,7 @@ pub const DEFAULT_PAGINATION_DELAY_MS: u64 = 100;
 
 /// Configuration for a compressible PDA program.
 ///
-/// Can be specified via CLI (using `program_id:discriminator_base58` format)
+/// Can be specified via CLI `--compressible-pda-program` (using `program_id:discriminator_base58` format)
 /// or via config file using the serialized struct format.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PdaProgramConfig {
@@ -146,7 +146,7 @@ pub struct CompressibleConfig {
     #[serde(default = "default_max_concurrent_batches")]
     pub max_concurrent_batches: usize,
     /// Compressible PDA programs to track and compress.
-    /// Can be specified in config file or via CLI `--pda-program` flags.
+    /// Can be specified in config file or via CLI `--compressible-pda-program` flags.
     /// CLI values are merged with config file values.
     #[serde(default)]
     pub pda_programs: Vec<PdaProgramConfig>,
