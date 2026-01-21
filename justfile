@@ -24,7 +24,7 @@ build-programs:
     cd programs/compressed-token/program && cargo build-sbf
 
 build-program-tests:
-    cargo build-sbf -p create-address-test-program
+    cd program-tests/create-address-test-program && cargo build-sbf
 
 build-js:
     cd js/stateless.js && pnpm build
