@@ -29,7 +29,10 @@ fn calculate_compressible_slot(mint: &Mint, lamports: u64, account_size: usize) 
         rent_exemption,
     );
 
-    Ok(last_funded_epoch * SLOTS_PER_EPOCH)
+    // Use the first unpaid epoch as the compressible boundary.
+    // is_ready_to_compress checks current_slot > compressible_slot,
+    // so we return the start of the first unpaid epoch.
+    Ok((last_funded_epoch + 1) * SLOTS_PER_EPOCH)
 }
 
 #[derive(Debug)]
