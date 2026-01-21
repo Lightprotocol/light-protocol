@@ -9,8 +9,8 @@ use super::{
     },
     Address, AddressWithTree, GetCompressedAccountsByOwnerConfig,
     GetCompressedMintsByAuthorityOptions, GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash,
-    IndexerError, IndexerRpcConfig, MerkleProof, NewAddressProofWithContext, PaginatedOptions,
-    QueueElementsV2Options, RetryConfig,
+    IndexerError, IndexerRpcConfig, MerkleProof, MintAuthorityType, NewAddressProofWithContext,
+    PaginatedOptions, QueueElementsV2Options, RetryConfig,
 };
 use crate::indexer::QueueElementsResult;
 // TODO: remove all references in input types.
@@ -213,6 +213,7 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
     async fn get_compressed_mints_by_authority(
         &self,
         authority: &Pubkey,
+        authority_type: MintAuthorityType,
         options: Option<GetCompressedMintsByAuthorityOptions>,
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<ItemsWithCursor<CompressedMint>>, IndexerError>;

@@ -3,9 +3,10 @@ use light_client::indexer::{
     Address, AddressWithTree, CompressedAccount, CompressedMint, CompressedTokenAccount,
     GetCompressedAccountsByOwnerConfig, GetCompressedMintsByAuthorityOptions,
     GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash, Indexer, IndexerError,
-    IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof, NewAddressProofWithContext,
-    OwnerBalance, PaginatedOptions, QueueElementsResult, QueueElementsV2Options, Response,
-    RetryConfig, SignatureWithMetadata, TokenBalance, ValidityProofWithContext,
+    IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof, MintAuthorityType,
+    NewAddressProofWithContext, OwnerBalance, PaginatedOptions, QueueElementsResult,
+    QueueElementsV2Options, Response, RetryConfig, SignatureWithMetadata, TokenBalance,
+    ValidityProofWithContext,
 };
 use solana_sdk::pubkey::Pubkey;
 
@@ -343,6 +344,7 @@ impl Indexer for LightProgramTest {
     async fn get_compressed_mints_by_authority(
         &self,
         authority: &Pubkey,
+        authority_type: MintAuthorityType,
         options: Option<GetCompressedMintsByAuthorityOptions>,
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<ItemsWithCursor<CompressedMint>>, IndexerError> {
@@ -350,7 +352,7 @@ impl Indexer for LightProgramTest {
             .indexer
             .as_ref()
             .ok_or(IndexerError::NotInitialized)?
-            .get_compressed_mints_by_authority(authority, options, config)
+            .get_compressed_mints_by_authority(authority, authority_type, options, config)
             .await?)
     }
 }

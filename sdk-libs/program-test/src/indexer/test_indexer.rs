@@ -27,10 +27,10 @@ use light_client::{
         AddressWithTree, CompressedAccount, CompressedMint, CompressedTokenAccount, Context,
         GetCompressedAccountsByOwnerConfig, GetCompressedMintsByAuthorityOptions,
         GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer, IndexerError,
-        IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof, NewAddressProofWithContext,
-        OwnerBalance, PaginatedOptions, QueueElementsResult, QueueElementsV2Options, Response,
-        RetryConfig, RootIndex, SignatureWithMetadata, StateMerkleTreeAccounts, TokenBalance,
-        ValidityProofWithContext,
+        IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof, MintAuthorityType,
+        NewAddressProofWithContext, OwnerBalance, PaginatedOptions, QueueElementsResult,
+        QueueElementsV2Options, Response, RetryConfig, RootIndex, SignatureWithMetadata,
+        StateMerkleTreeAccounts, TokenBalance, ValidityProofWithContext,
     },
 };
 use light_compressed_account::{
@@ -1022,6 +1022,7 @@ impl Indexer for TestIndexer {
     async fn get_compressed_mints_by_authority(
         &self,
         _authority: &Pubkey,
+        _authority_type: MintAuthorityType,
         _options: Option<GetCompressedMintsByAuthorityOptions>,
         _config: Option<IndexerRpcConfig>,
     ) -> Result<Response<ItemsWithCursor<CompressedMint>>, IndexerError> {
