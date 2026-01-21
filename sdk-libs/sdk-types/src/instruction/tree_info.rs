@@ -1,10 +1,9 @@
 use light_account_checks::AccountInfoTrait;
-use light_compressed_account::{
-    compressed_account::PackedMerkleContext,
-    instruction_data::data::{NewAddressParamsAssignedPacked, NewAddressParamsPacked},
-};
+use light_compressed_account::compressed_account::PackedMerkleContext;
+// Re-export from light-compressed-account
+pub use light_compressed_account::instruction_data::data::PackedAddressTreeInfo;
 
-use crate::{address::AddressSeed, cpi_accounts::TreeAccounts, AnchorDeserialize, AnchorSerialize};
+use crate::{cpi_accounts::TreeAccounts, AnchorDeserialize, AnchorSerialize};
 
 #[derive(Debug, Clone, Copy, AnchorDeserialize, AnchorSerialize, PartialEq, Default)]
 pub struct PackedStateTreeInfo {
@@ -26,39 +25,18 @@ impl From<PackedStateTreeInfo> for PackedMerkleContext {
     }
 }
 
-#[derive(Debug, Clone, Copy, AnchorDeserialize, AnchorSerialize, PartialEq, Default)]
-pub struct PackedAddressTreeInfo {
-    pub address_merkle_tree_pubkey_index: u8,
-    pub address_queue_pubkey_index: u8,
-    pub root_index: u16,
+/// Extension trait for PackedAddressTreeInfo SDK-specific methods.
+/// Since PackedAddressTreeInfo is defined in light-compressed-account,
+/// we use an extension trait to add methods that depend on SDK types.
+pub trait PackedAddressTreeInfoExt {
+    fn get_tree_pubkey<T: AccountInfoTrait + Clone>(
+        &self,
+        cpi_accounts: &impl TreeAccounts<T>,
+    ) -> Result<T::Pubkey, crate::error::LightSdkTypesError>;
 }
 
-impl PackedAddressTreeInfo {
-    pub fn into_new_address_params_packed(self, seed: AddressSeed) -> NewAddressParamsPacked {
-        NewAddressParamsPacked {
-            address_merkle_tree_account_index: self.address_merkle_tree_pubkey_index,
-            address_queue_account_index: self.address_queue_pubkey_index,
-            address_merkle_tree_root_index: self.root_index,
-            seed: seed.0,
-        }
-    }
-
-    pub fn into_new_address_params_assigned_packed(
-        self,
-        seed: AddressSeed,
-        assigned_account_index: Option<u8>,
-    ) -> NewAddressParamsAssignedPacked {
-        NewAddressParamsAssignedPacked {
-            address_merkle_tree_account_index: self.address_merkle_tree_pubkey_index,
-            address_queue_account_index: self.address_queue_pubkey_index,
-            address_merkle_tree_root_index: self.root_index,
-            seed: seed.0,
-            assigned_account_index: assigned_account_index.unwrap_or_default(),
-            assigned_to_account: assigned_account_index.is_some(),
-        }
-    }
-
-    pub fn get_tree_pubkey<T: AccountInfoTrait + Clone>(
+impl PackedAddressTreeInfoExt for PackedAddressTreeInfo {
+    fn get_tree_pubkey<T: AccountInfoTrait + Clone>(
         &self,
         cpi_accounts: &impl TreeAccounts<T>,
     ) -> Result<T::Pubkey, crate::error::LightSdkTypesError> {

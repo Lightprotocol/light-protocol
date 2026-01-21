@@ -50,15 +50,13 @@ light-zero-copy = { workspace = true, features = ["mut", "std", "derive"] }
 zerocopy = { workspace = true }
 anchor-compressed-token = { path = "../anchor", features = ["cpi"] }
 light-account-checks = { workspace = true, features = ["solana", "pinocchio", "msg"] }
-light-sdk = { workspace = true }
 borsh = { workspace = true }
-light-sdk-types = { workspace = true }
 light-compressible = { workspace = true, features = ["pinocchio"] }
+light-macros = { workspace = true }
 solana-pubkey = { workspace = true }
 arrayvec = { workspace = true }
 tinyvec = { workspace = true }
 pinocchio = { workspace = true, features = ["std"] }
-light-sdk-pinocchio = { workspace = true }
 light-token-interface = { workspace = true, features = ["anchor"] }
 light-array-map = { workspace = true }
 pinocchio-pubkey = { workspace = true }

@@ -7,6 +7,9 @@ npx nx run-many --target=lint --all
 cargo +nightly fmt --all -- --check
 cargo clippy --workspace --all-features --all-targets -- -D warnings
 
+# Check that program-libs and programs don't depend on sdk-libs
+./scripts/check-dependency-constraints.sh
+
 echo "Testing feature combinations..."
 
 # Test no-default-features for all library crates

@@ -6,7 +6,7 @@ use light_sdk::{
         LightCpiInstruction,
     },
     error::LightSdkError,
-    instruction::{PackedAddressTreeInfo, ValidityProof},
+    instruction::{PackedAddressTreeInfo, PackedAddressTreeInfoExt, ValidityProof},
     light_hasher::hash_to_field_size::hashv_to_bn254_field_size_be_const_array,
     LightDiscriminator,
 };

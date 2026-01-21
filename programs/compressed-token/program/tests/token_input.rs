@@ -3,8 +3,9 @@ use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_account_checks::account_info::test_account_info::pinocchio::get_account_info;
 use light_array_map::ArrayMap;
-use light_compressed_account::instruction_data::with_readonly::{
-    InAccount, InstructionDataInvokeCpiWithReadOnly,
+use light_compressed_account::{
+    compressed_account::PackedMerkleContext,
+    instruction_data::with_readonly::{InAccount, InstructionDataInvokeCpiWithReadOnly},
 };
 use light_compressed_token::{
     constants::{
@@ -19,7 +20,6 @@ use light_compressed_token::{
         token_input::set_input_compressed_account,
     },
 };
-use light_sdk::instruction::PackedMerkleContext;
 use light_token_interface::{
     hash_cache::HashCache, instructions::transfer2::MultiInputTokenDataWithContext,
     state::CompressedTokenAccountState,

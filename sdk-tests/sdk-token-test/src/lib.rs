@@ -3,7 +3,10 @@
 #![allow(deprecated)]
 
 use anchor_lang::prelude::*;
-use light_sdk::instruction::{PackedAddressTreeInfo, ValidityProof as LightValidityProof};
+use light_sdk::{
+    instruction::{PackedAddressTreeInfo, ValidityProof as LightValidityProof},
+    PackedAddressTreeInfoExt,
+};
 use light_token::{
     compressed_token::{batch_compress::Recipient, TokenAccountMeta},
     ValidityProof,

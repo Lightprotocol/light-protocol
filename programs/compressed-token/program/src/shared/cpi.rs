@@ -1,11 +1,11 @@
 use std::mem::MaybeUninit;
 
 use anchor_lang::solana_program::program_error::ProgramError;
-use light_program_profiler::profile;
-use light_sdk_types::{
+use light_compressed_account::constants::{
     ACCOUNT_COMPRESSION_AUTHORITY_PDA, ACCOUNT_COMPRESSION_PROGRAM_ID, CPI_AUTHORITY_PDA_SEED,
     LIGHT_SYSTEM_PROGRAM_ID, REGISTERED_PROGRAM_PDA,
 };
+use light_program_profiler::profile;
 use pinocchio::{
     account_info::{AccountInfo, BorrowState},
     cpi::{invoke_signed_unchecked, MAX_CPI_ACCOUNTS},

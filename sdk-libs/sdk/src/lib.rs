@@ -183,7 +183,9 @@ pub mod sdk_types {
     #[cfg(feature = "cpi-context")]
     pub use light_sdk_types::cpi_context_write::CpiContextWriteAccounts;
     pub use light_sdk_types::{
-        cpi_accounts::CpiAccountsConfig, instruction::PackedAddressTreeInfo, RentSponsor,
+        cpi_accounts::CpiAccountsConfig,
+        instruction::{PackedAddressTreeInfo, PackedAddressTreeInfoExt},
+        RentSponsor,
     };
 }
 
@@ -207,7 +209,7 @@ pub use light_sdk_macros::{
     derive_light_rent_sponsor, derive_light_rent_sponsor_pda, LightDiscriminator, LightHasher,
     LightHasherSha,
 };
-pub use light_sdk_types::{constants, CpiSigner};
+pub use light_sdk_types::{constants, instruction::PackedAddressTreeInfoExt, CpiSigner};
 use solana_account_info::AccountInfo;
 use solana_cpi::invoke_signed;
 use solana_instruction::{AccountMeta, Instruction};

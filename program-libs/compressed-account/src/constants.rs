@@ -1,11 +1,20 @@
 use light_macros::pubkey_array;
 
+/// ID of the account-compression program.
 pub const ACCOUNT_COMPRESSION_PROGRAM_ID: [u8; 32] =
     pubkey_array!("compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq");
-pub const SYSTEM_PROGRAM_ID: [u8; 32] =
+/// ID of the light-system program.
+pub const LIGHT_SYSTEM_PROGRAM_ID: [u8; 32] =
     pubkey_array!("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7");
+#[deprecated(since = "0.9.0", note = "Use LIGHT_SYSTEM_PROGRAM_ID instead")]
+pub const SYSTEM_PROGRAM_ID: [u8; 32] = LIGHT_SYSTEM_PROGRAM_ID;
 pub const REGISTERED_PROGRAM_PDA: [u8; 32] =
     pubkey_array!("35hkDgaAKwMCaxRz2ocSZ6NaUrtKkyNqU6c4RV3tYJRh");
+pub const ACCOUNT_COMPRESSION_AUTHORITY_PDA: [u8; 32] =
+    pubkey_array!("HwXnGK3tPkkVY6P439H2p68AxpeuWXd5PcrAxFpbmfbA");
+/// Seed of the CPI authority.
+pub const CPI_AUTHORITY_PDA_SEED: &[u8] = b"cpi_authority";
+
 pub const CREATE_CPI_CONTEXT_ACCOUNT: [u8; 8] = [233, 112, 71, 66, 121, 33, 178, 188];
 
 pub const ADDRESS_MERKLE_TREE_ACCOUNT_DISCRIMINATOR: [u8; 8] = [11, 161, 175, 9, 212, 229, 73, 73];

@@ -1,17 +1,5 @@
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub struct AddressSeed(pub [u8; 32]);
-
-impl From<[u8; 32]> for AddressSeed {
-    fn from(value: [u8; 32]) -> Self {
-        AddressSeed(value)
-    }
-}
-
-impl From<AddressSeed> for [u8; 32] {
-    fn from(address_seed: AddressSeed) -> Self {
-        address_seed.0
-    }
-}
+// Re-export AddressSeed from light-compressed-account
+pub use light_compressed_account::address::AddressSeed;
 
 pub type CompressedAddress = [u8; 32];
 pub mod v1 {

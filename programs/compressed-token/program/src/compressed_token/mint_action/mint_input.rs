@@ -1,9 +1,10 @@
 use anchor_lang::solana_program::program_error::ProgramError;
 use borsh::BorshSerialize;
-use light_compressed_account::instruction_data::with_readonly::ZInAccountMut;
+use light_compressed_account::{
+    compressed_account::PackedMerkleContext, instruction_data::with_readonly::ZInAccountMut,
+};
 use light_hasher::{sha256::Sha256BE, Hasher};
 use light_program_profiler::profile;
-use light_sdk::instruction::PackedMerkleContext;
 use light_token_interface::state::Mint;
 use light_zero_copy::U16;
 

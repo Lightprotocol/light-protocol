@@ -4,8 +4,8 @@ use light_compressed_account::{
         CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
     },
     constants::{
-        ACCOUNT_COMPRESSION_PROGRAM_ID, CREATE_CPI_CONTEXT_ACCOUNT, REGISTERED_PROGRAM_PDA,
-        SYSTEM_PROGRAM_ID,
+        ACCOUNT_COMPRESSION_PROGRAM_ID, CREATE_CPI_CONTEXT_ACCOUNT, LIGHT_SYSTEM_PROGRAM_ID,
+        REGISTERED_PROGRAM_PDA,
     },
     discriminators::*,
     instruction_data::{
@@ -253,7 +253,7 @@ fn wrap_program_ids(
         let discriminator: [u8; 8] = instruction[0..8].try_into().unwrap();
         if program_id == &Pubkey::default() {
             vec.push(ProgramId::SolanaSystem);
-        } else if program_id == &SYSTEM_PROGRAM_ID {
+        } else if program_id == &LIGHT_SYSTEM_PROGRAM_ID {
             if discriminator == CREATE_CPI_CONTEXT_ACCOUNT {
                 vec.push(ProgramId::Unknown);
             } else {
