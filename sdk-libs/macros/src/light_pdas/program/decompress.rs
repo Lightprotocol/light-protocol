@@ -161,7 +161,28 @@ impl DecompressBuilder {
         // For mint-only or token-only programs, there are no PDA seeds - return empty Vec
         let pda_seed_specs = match self.pda_seeds.as_ref() {
             Some(specs) if !specs.is_empty() => specs,
-            _ => return Ok(Vec::new()),
+            _ => {
+                // Fail fast if pda_ctx_seeds has variants but pda_seeds is missing
+                if !self.pda_ctx_seeds.is_empty() {
+                    let variant_names: Vec<_> = self
+                        .pda_ctx_seeds
+                        .iter()
+                        .map(|v| v.variant_name.to_string())
+                        .collect();
+                    return Err(syn::Error::new(
+                        proc_macro2::Span::call_site(),
+                        format!(
+                            "generate_seed_provider_impls: pda_seeds is None/empty but \
+                             pda_ctx_seeds contains {} variant(s): [{}]. \
+                             Each pda_ctx_seeds variant requires a corresponding PDA seed \
+                             specification in pda_seeds.",
+                            self.pda_ctx_seeds.len(),
+                            variant_names.join(", ")
+                        ),
+                    ));
+                }
+                return Ok(Vec::new());
+            }
         };
 
         let mut results = Vec::with_capacity(self.pda_ctx_seeds.len());
