@@ -1127,4 +1127,107 @@ mod tests {
         assert!(result.is_ok());
         assert!(result.unwrap().is_none());
     }
+
+    #[test]
+    fn test_parse_pda_with_direct_proof_arg_uses_proof_ident_for_defaults() {
+        // When CreateAccountsProof is passed as a direct instruction arg (not nested in params),
+        // the default address_tree_info and output_tree should reference the proof arg directly.
+        let field: syn::Field = parse_quote! {
+            #[light_account(init)]
+            pub record: Account<'info, MyRecord>
+        };
+        let field_ident = field.ident.clone().unwrap();
+
+        // Simulate passing CreateAccountsProof as direct arg named "proof"
+        let proof_ident: Ident = parse_quote!(proof);
+        let direct_proof_arg = Some(proof_ident.clone());
+
+        let result = parse_light_account_attr(&field, &field_ident, &direct_proof_arg);
+        assert!(result.is_ok(), "Should parse successfully with direct proof arg");
+        let result = result.unwrap();
+        assert!(result.is_some(), "Should return Some for init PDA");
+
+        match result.unwrap() {
+            LightAccountField::Pda(pda) => {
+                assert_eq!(pda.ident.to_string(), "record");
+
+                // Verify defaults use the direct proof identifier
+                // address_tree_info should be: proof.address_tree_info
+                let addr_tree_info = &pda.address_tree_info;
+                let addr_tree_str = quote::quote!(#addr_tree_info).to_string();
+                assert!(
+                    addr_tree_str.contains("proof"),
+                    "address_tree_info should reference 'proof', got: {}",
+                    addr_tree_str
+                );
+                assert!(
+                    addr_tree_str.contains("address_tree_info"),
+                    "address_tree_info should access .address_tree_info field, got: {}",
+                    addr_tree_str
+                );
+
+                // output_tree should be: proof.output_state_tree_index
+                let output_tree = &pda.output_tree;
+                let output_tree_str = quote::quote!(#output_tree).to_string();
+                assert!(
+                    output_tree_str.contains("proof"),
+                    "output_tree should reference 'proof', got: {}",
+                    output_tree_str
+                );
+                assert!(
+                    output_tree_str.contains("output_state_tree_index"),
+                    "output_tree should access .output_state_tree_index field, got: {}",
+                    output_tree_str
+                );
+            }
+            _ => panic!("Expected PDA field"),
+        }
+    }
+
+    #[test]
+    fn test_parse_mint_with_direct_proof_arg_uses_proof_ident_for_defaults() {
+        // When CreateAccountsProof is passed as a direct instruction arg,
+        // the default address_tree_info should reference the proof arg directly.
+        let field: syn::Field = parse_quote! {
+            #[light_account(init, mint,
+                mint_signer = mint_signer,
+                authority = authority,
+                decimals = 9,
+                mint_seeds = &[b"test"]
+            )]
+            pub cmint: UncheckedAccount<'info>
+        };
+        let field_ident = field.ident.clone().unwrap();
+
+        // Simulate passing CreateAccountsProof as direct arg named "create_proof"
+        let proof_ident: Ident = parse_quote!(create_proof);
+        let direct_proof_arg = Some(proof_ident.clone());
+
+        let result = parse_light_account_attr(&field, &field_ident, &direct_proof_arg);
+        assert!(result.is_ok(), "Should parse successfully with direct proof arg");
+        let result = result.unwrap();
+        assert!(result.is_some(), "Should return Some for init mint");
+
+        match result.unwrap() {
+            LightAccountField::Mint(mint) => {
+                assert_eq!(mint.field_ident.to_string(), "cmint");
+
+                // Verify default address_tree_info uses the direct proof identifier
+                // Should be: create_proof.address_tree_info
+                let addr_tree_info = &mint.address_tree_info;
+                let addr_tree_str = quote::quote!(#addr_tree_info).to_string();
+                assert!(
+                    addr_tree_str.contains("create_proof"),
+                    "address_tree_info should reference 'create_proof', got: {}",
+                    addr_tree_str
+                );
+                assert!(
+                    addr_tree_str.contains("address_tree_info"),
+                    "address_tree_info should access .address_tree_info field, got: {}",
+                    addr_tree_str
+                );
+            }
+            _ => panic!("Expected Mint field"),
+        }
+    }
 }

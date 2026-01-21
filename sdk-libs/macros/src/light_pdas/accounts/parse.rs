@@ -210,12 +210,34 @@ fn is_create_accounts_proof_type(ty: &Type) -> bool {
 
 /// Find if any instruction argument has type `CreateAccountsProof`.
 /// Returns the argument's name (Ident) if found.
-fn find_direct_proof_arg(instruction_args: &Option<Vec<InstructionArg>>) -> Option<Ident> {
-    instruction_args.as_ref().and_then(|args| {
-        args.iter()
-            .find(|arg| is_create_accounts_proof_type(&arg.ty))
-            .map(|arg| arg.name.clone())
-    })
+///
+/// Returns an error if multiple `CreateAccountsProof` arguments are found,
+/// as this would make proof access ambiguous.
+fn find_direct_proof_arg(instruction_args: &Option<Vec<InstructionArg>>) -> Result<Option<Ident>, Error> {
+    let Some(args) = instruction_args.as_ref() else {
+        return Ok(None);
+    };
+
+    let proof_args: Vec<_> = args
+        .iter()
+        .filter(|arg| is_create_accounts_proof_type(&arg.ty))
+        .collect();
+
+    match proof_args.len() {
+        0 => Ok(None),
+        1 => Ok(Some(proof_args[0].name.clone())),
+        _ => {
+            let names: Vec<_> = proof_args.iter().map(|a| a.name.to_string()).collect();
+            Err(Error::new_spanned(
+                &proof_args[1].name,
+                format!(
+                    "Multiple CreateAccountsProof arguments found: [{}]. \
+                     Only one CreateAccountsProof argument is allowed per instruction.",
+                    names.join(", ")
+                ),
+            ))
+        }
+    }
 }
 
 /// Parse #[instruction(...)] attribute from struct.
@@ -247,7 +269,7 @@ pub(super) fn parse_light_accounts_struct(
 
     // Check if CreateAccountsProof is passed as a direct instruction argument
     // (compute this early so we can use it for field parsing defaults)
-    let direct_proof_arg = find_direct_proof_arg(&instruction_args);
+    let direct_proof_arg = find_direct_proof_arg(&instruction_args)?;
 
     let fields = match &input.data {
         syn::Data::Struct(data) => match &data.fields {
