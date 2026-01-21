@@ -209,47 +209,142 @@ impl LightAccountsBuilder {
     /// 2. Invoke CreateMintsCpi with CPI context offset
     ///    After this, Mints are "hot" and usable in instruction body
     pub fn generate_pre_init_pdas_and_mints(&self) -> Result<TokenStream, syn::Error> {
+        let body = self.generate_pre_init_pdas_and_mints_body()?;
+        Ok(quote! {
+            #body
+            Ok(true)
+        })
+    }
+
+    /// Generate LightPreInit body for mints-only (no PDAs):
+    /// Invoke CreateMintsCpi with decompress directly
+    /// After this, Mints are "hot" and usable in instruction body
+    pub fn generate_pre_init_mints_only(&self) -> Result<TokenStream, syn::Error> {
+        let body = self.generate_pre_init_mints_only_body()?;
+        Ok(quote! {
+            #body
+            Ok(true)
+        })
+    }
+
+    /// Generate LightPreInit body for PDAs only (no mints)
+    /// After this, compressed addresses are registered
+    pub fn generate_pre_init_pdas_only(&self) -> Result<TokenStream, syn::Error> {
+        let body = self.generate_pre_init_pdas_only_body()?;
+        Ok(quote! {
+            #body
+            Ok(true)
+        })
+    }
+
+    /// Generate unified pre_init body for ALL account types.
+    ///
+    /// This method handles all combinations of:
+    /// - PDAs (compressed accounts)
+    /// - Mints (compressed mints)
+    /// - Token accounts (vaults)
+    /// - ATAs (associated token accounts)
+    ///
+    /// ALL account creation happens here so accounts are available during
+    /// the instruction handler for transfers, minting, etc.
+    pub fn generate_pre_init_all(&self) -> Result<TokenStream, syn::Error> {
+        let has_pdas = self.has_pdas();
+        let has_mints = self.has_mints();
+
+        // Generate token/ATA creation code (if any)
+        let token_creation = TokenAccountsBuilder::new(
+            &self.parsed.token_account_fields,
+            &self.parsed.ata_fields,
+            &self.infra,
+        )
+        .generate_pre_init_token_creation();
+
+        // Handle different combinations
+        match (has_pdas, has_mints, token_creation.is_some()) {
+            // PDAs + Mints + Tokens/ATAs
+            (true, true, true) => {
+                let pda_mint_body = self.generate_pre_init_pdas_and_mints_body()?;
+                let token_body = token_creation.unwrap();
+                Ok(quote! {
+                    #pda_mint_body
+                    #token_body
+                    Ok(true)
+                })
+            }
+            // PDAs + Mints (no tokens)
+            (true, true, false) => self.generate_pre_init_pdas_and_mints(),
+            // PDAs + Tokens/ATAs (no mints)
+            (true, false, true) => {
+                let pda_body = self.generate_pre_init_pdas_only_body()?;
+                let token_body = token_creation.unwrap();
+                Ok(quote! {
+                    #pda_body
+                    #token_body
+                    Ok(true)
+                })
+            }
+            // PDAs only
+            (true, false, false) => self.generate_pre_init_pdas_only(),
+            // Mints + Tokens/ATAs (no PDAs)
+            (false, true, true) => {
+                let mint_body = self.generate_pre_init_mints_only_body()?;
+                let token_body = token_creation.unwrap();
+                Ok(quote! {
+                    #mint_body
+                    #token_body
+                    Ok(true)
+                })
+            }
+            // Mints only
+            (false, true, false) => self.generate_pre_init_mints_only(),
+            // Tokens/ATAs only (no PDAs, no mints)
+            (false, false, true) => {
+                let token_body = token_creation.unwrap();
+                Ok(quote! {
+                    #token_body
+                    Ok(true)
+                })
+            }
+            // Nothing to do
+            (false, false, false) => Ok(quote! { Ok(false) }),
+        }
+    }
+
+    /// Generate PDAs + mints body WITHOUT the Ok(true) return.
+    fn generate_pre_init_pdas_and_mints_body(&self) -> Result<TokenStream, syn::Error> {
         let (compress_blocks, new_addr_idents) =
             generate_pda_compress_blocks(&self.parsed.rentfree_fields);
         let rentfree_count = self.parsed.rentfree_fields.len() as u8;
         let pda_count = self.parsed.rentfree_fields.len();
 
-        // Get instruction param ident
         let first_arg = self.get_first_instruction_arg()?;
         let params_ident = &first_arg.name;
 
-        // Get the first PDA's output tree index (for the state tree output queue)
         let first_pda_output_tree = &self.parsed.rentfree_fields[0].output_tree;
 
-        // Generate CreateMintsCpi invocation for all mints with PDA context offset
         let mints = &self.parsed.light_mint_fields;
         let mint_invocation = LightMintsBuilder::new(mints, params_ident, &self.infra)
             .with_pda_context(pda_count, quote! { #first_pda_output_tree })
             .generate_invocation();
 
-        // Infrastructure field references for quote! interpolation
         let fee_payer = &self.infra.fee_payer;
         let compression_config = &self.infra.compression_config;
 
         Ok(quote! {
-            // Build CPI accounts WITH CPI context for batching
             let cpi_accounts = light_sdk::cpi::v2::CpiAccounts::new_with_config(
                 &self.#fee_payer,
                 _remaining,
                 ::light_sdk::sdk_types::CpiAccountsConfig::new_with_cpi_context(crate::LIGHT_CPI_SIGNER),
             );
 
-            // Load compression config
             let compression_config_data = light_sdk::interface::LightConfig::load_checked(
                 &self.#compression_config,
                 &crate::ID
             )?;
 
-            // Collect compressed infos for all rentfree PDA accounts
             let mut all_compressed_infos = Vec::with_capacity(#rentfree_count as usize);
             #(#compress_blocks)*
 
-            // Step 1: Write PDAs to CPI context
             let cpi_context_account = cpi_accounts.cpi_context()?;
             let cpi_context_accounts = ::light_sdk::sdk_types::CpiContextWriteAccounts {
                 fee_payer: cpi_accounts.fee_payer(),
@@ -268,78 +363,37 @@ impl LightAccountsBuilder {
                 .write_to_cpi_context_first()
                 .invoke_write_to_cpi_context_first(cpi_context_accounts)?;
 
-            // Step 2: Create mints using CreateMintsCpi with CPI context offset
             #mint_invocation
-
-            Ok(true)
         })
     }
 
-    /// Generate LightPreInit body for mints-only (no PDAs):
-    /// Invoke CreateMintsCpi with decompress directly
-    /// After this, Mints are "hot" and usable in instruction body
-    pub fn generate_pre_init_mints_only(&self) -> Result<TokenStream, syn::Error> {
-        // Get instruction param ident
-        let first_arg = self.get_first_instruction_arg()?;
-        let params_ident = &first_arg.name;
-
-        // Generate CreateMintsCpi invocation for all mints (no PDA context)
-        let mints = &self.parsed.light_mint_fields;
-        let mint_invocation =
-            LightMintsBuilder::new(mints, params_ident, &self.infra).generate_invocation();
-
-        // Infrastructure field reference for quote! interpolation
-        let fee_payer = &self.infra.fee_payer;
-
-        Ok(quote! {
-            // Build CPI accounts with CPI context enabled (mints use CPI context for batching)
-            let cpi_accounts = light_sdk::cpi::v2::CpiAccounts::new_with_config(
-                &self.#fee_payer,
-                _remaining,
-                light_sdk::cpi::CpiAccountsConfig::new_with_cpi_context(crate::LIGHT_CPI_SIGNER),
-            );
-
-            // Create mints using CreateMintsCpi
-            #mint_invocation
-
-            Ok(true)
-        })
-    }
-
-    /// Generate LightPreInit body for PDAs only (no mints)
-    /// After this, compressed addresses are registered
-    pub fn generate_pre_init_pdas_only(&self) -> Result<TokenStream, syn::Error> {
+    /// Generate PDAs-only body WITHOUT the Ok(true) return.
+    fn generate_pre_init_pdas_only_body(&self) -> Result<TokenStream, syn::Error> {
         let (compress_blocks, new_addr_idents) =
             generate_pda_compress_blocks(&self.parsed.rentfree_fields);
         let rentfree_count = self.parsed.rentfree_fields.len() as u8;
 
-        // Get instruction param ident
         let first_arg = self.get_first_instruction_arg()?;
         let params_ident = &first_arg.name;
 
-        // Infra field references
         let fee_payer = &self.infra.fee_payer;
         let compression_config = &self.infra.compression_config;
 
         Ok(quote! {
-            // Build CPI accounts (no CPI context needed for PDAs-only)
             let cpi_accounts = light_sdk::cpi::v2::CpiAccounts::new(
                 &self.#fee_payer,
                 _remaining,
                 crate::LIGHT_CPI_SIGNER,
             );
 
-            // Load compression config
             let compression_config_data = light_sdk::interface::LightConfig::load_checked(
                 &self.#compression_config,
                 &crate::ID
             )?;
 
-            // Collect compressed infos for all rentfree accounts
             let mut all_compressed_infos = Vec::with_capacity(#rentfree_count as usize);
             #(#compress_blocks)*
 
-            // Execute Light System Program CPI directly with proof
             use light_sdk::cpi::{InvokeLightSystemProgram, LightCpiInstruction};
             light_sdk::cpi::v2::LightSystemProgramCpi::new_cpi(
                 crate::LIGHT_CPI_SIGNER,
@@ -348,8 +402,28 @@ impl LightAccountsBuilder {
                 .with_new_addresses(&[#(#new_addr_idents),*])
                 .with_account_infos(&all_compressed_infos)
                 .invoke(cpi_accounts)?;
+        })
+    }
 
-            Ok(true)
+    /// Generate mints-only body WITHOUT the Ok(true) return.
+    fn generate_pre_init_mints_only_body(&self) -> Result<TokenStream, syn::Error> {
+        let first_arg = self.get_first_instruction_arg()?;
+        let params_ident = &first_arg.name;
+
+        let mints = &self.parsed.light_mint_fields;
+        let mint_invocation =
+            LightMintsBuilder::new(mints, params_ident, &self.infra).generate_invocation();
+
+        let fee_payer = &self.infra.fee_payer;
+
+        Ok(quote! {
+            let cpi_accounts = light_sdk::cpi::v2::CpiAccounts::new_with_config(
+                &self.#fee_payer,
+                _remaining,
+                light_sdk::cpi::CpiAccountsConfig::new_with_cpi_context(crate::LIGHT_CPI_SIGNER),
+            );
+
+            #mint_invocation
         })
     }
 
@@ -402,25 +476,5 @@ impl LightAccountsBuilder {
                 }
             }
         })
-    }
-
-    /// Check if token accounts or ATAs need finalize code generation.
-    pub fn needs_token_finalize(&self) -> bool {
-        TokenAccountsBuilder::new(
-            &self.parsed.token_account_fields,
-            &self.parsed.ata_fields,
-            &self.infra,
-        )
-        .needs_finalize()
-    }
-
-    /// Generate finalize body for token accounts and ATAs.
-    pub fn generate_token_finalize_body(&self) -> TokenStream {
-        TokenAccountsBuilder::new(
-            &self.parsed.token_account_fields,
-            &self.parsed.ata_fields,
-            &self.infra,
-        )
-        .generate_finalize_body()
     }
 }
