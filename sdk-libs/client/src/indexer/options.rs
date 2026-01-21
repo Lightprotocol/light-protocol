@@ -112,3 +112,47 @@ impl QueueElementsV2Options {
         self
     }
 }
+
+/// Authority type for querying compressed mints
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum MintAuthorityType {
+    /// Query by mint authority only
+    MintAuthority,
+    /// Query by freeze authority only
+    FreezeAuthority,
+    /// Query by both mint and freeze authority (default)
+    #[default]
+    Both,
+}
+
+/// Options for fetching compressed mints by authority.
+#[derive(Debug, Clone, Default)]
+pub struct GetCompressedMintsByAuthorityOptions {
+    /// Which authority type to filter by (default: Both)
+    pub authority_type: Option<MintAuthorityType>,
+    /// Cursor for pagination
+    pub cursor: Option<String>,
+    /// Maximum number of results to return
+    pub limit: Option<u16>,
+}
+
+impl GetCompressedMintsByAuthorityOptions {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn with_authority_type(mut self, authority_type: MintAuthorityType) -> Self {
+        self.authority_type = Some(authority_type);
+        self
+    }
+
+    pub fn with_cursor(mut self, cursor: String) -> Self {
+        self.cursor = Some(cursor);
+        self
+    }
+
+    pub fn with_limit(mut self, limit: u16) -> Self {
+        self.limit = Some(limit);
+        self
+    }
+}
