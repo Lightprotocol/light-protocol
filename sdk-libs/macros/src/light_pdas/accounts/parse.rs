@@ -164,6 +164,9 @@ pub(super) struct ParsedLightAccountsStruct {
     pub instruction_args: Option<Vec<InstructionArg>>,
     /// Infrastructure fields detected by naming convention.
     pub infra_fields: InfraFields,
+    /// If CreateAccountsProof type is passed as a direct instruction arg, stores arg name.
+    /// Matched by TYPE, not by name - allows any argument name (e.g., `proof`, `create_proof`).
+    pub direct_proof_arg: Option<Ident>,
 }
 
 /// A field marked with #[light_account(init)]
@@ -190,6 +193,52 @@ impl Parse for InstructionArg {
         input.parse::<Token![:]>()?;
         let ty: Type = input.parse()?;
         Ok(Self { name, ty })
+    }
+}
+
+/// Check if a type is `CreateAccountsProof` (match last path segment).
+/// Supports both simple `CreateAccountsProof` and fully qualified paths like
+/// `light_sdk::CreateAccountsProof`.
+fn is_create_accounts_proof_type(ty: &Type) -> bool {
+    if let Type::Path(type_path) = ty {
+        if let Some(segment) = type_path.path.segments.last() {
+            return segment.ident == "CreateAccountsProof";
+        }
+    }
+    false
+}
+
+/// Find if any instruction argument has type `CreateAccountsProof`.
+/// Returns the argument's name (Ident) if found.
+///
+/// Returns an error if multiple `CreateAccountsProof` arguments are found,
+/// as this would make proof access ambiguous.
+fn find_direct_proof_arg(
+    instruction_args: &Option<Vec<InstructionArg>>,
+) -> Result<Option<Ident>, Error> {
+    let Some(args) = instruction_args.as_ref() else {
+        return Ok(None);
+    };
+
+    let proof_args: Vec<_> = args
+        .iter()
+        .filter(|arg| is_create_accounts_proof_type(&arg.ty))
+        .collect();
+
+    match proof_args.len() {
+        0 => Ok(None),
+        1 => Ok(Some(proof_args[0].name.clone())),
+        _ => {
+            let names: Vec<_> = proof_args.iter().map(|a| a.name.to_string()).collect();
+            Err(Error::new_spanned(
+                &proof_args[1].name,
+                format!(
+                    "Multiple CreateAccountsProof arguments found: [{}]. \
+                     Only one CreateAccountsProof argument is allowed per instruction.",
+                    names.join(", ")
+                ),
+            ))
+        }
     }
 }
 
@@ -220,6 +269,10 @@ pub(super) fn parse_light_accounts_struct(
 
     let instruction_args = parse_instruction_attr(&input.attrs)?;
 
+    // Check if CreateAccountsProof is passed as a direct instruction argument
+    // (compute this early so we can use it for field parsing defaults)
+    let direct_proof_arg = find_direct_proof_arg(&instruction_args)?;
+
     let fields = match &input.data {
         syn::Data::Struct(data) => match &data.fields {
             syn::Fields::Named(fields) => &fields.named,
@@ -248,7 +301,9 @@ pub(super) fn parse_light_accounts_struct(
         }
 
         // Check for #[light_account(...)] - the unified syntax
-        if let Some(light_account_field) = parse_light_account_attr(field, &field_ident)? {
+        if let Some(light_account_field) =
+            parse_light_account_attr(field, &field_ident, &direct_proof_arg)?
+        {
             match light_account_field {
                 LightAccountField::Pda(pda) => rentfree_fields.push((*pda).into()),
                 LightAccountField::Mint(mint) => light_mint_fields.push(*mint),
@@ -281,5 +336,6 @@ pub(super) fn parse_light_accounts_struct(
         ata_fields,
         instruction_args,
         infra_fields,
+        direct_proof_arg,
     })
 }

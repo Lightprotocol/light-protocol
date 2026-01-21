@@ -172,7 +172,7 @@ pub fn extract_from_accounts_struct(
         }
 
         // Check for #[light_account(token, ...)] attribute
-        let token_attr = extract_light_token_attr(&field.attrs, instruction_args);
+        let token_attr = extract_light_token_attr(&field.attrs, instruction_args)?;
 
         if has_light_account_pda {
             // Extract inner type from Account<'info, T> or Box<Account<'info, T>>
@@ -314,10 +314,11 @@ struct LightTokenAttr {
 
 /// Extract #[light_account(token, authority = [...])] attribute
 /// Variant name is derived from field name, not specified in attribute
+/// Returns Err if the attribute exists but has malformed syntax
 fn extract_light_token_attr(
     attrs: &[syn::Attribute],
     instruction_args: &InstructionArgSet,
-) -> Option<LightTokenAttr> {
+) -> syn::Result<Option<LightTokenAttr>> {
     for attr in attrs {
         if attr.path().is_ident("light_account") {
             let tokens = match &attr.meta {
@@ -332,18 +333,13 @@ fn extract_light_token_attr(
                 .any(|t| matches!(&t, proc_macro2::TokenTree::Ident(ident) if ident == "token"));
 
             if has_token {
-                // Parse authority = [...] if present
-                if let Ok(parsed) = parse_light_token_list(&tokens, instruction_args) {
-                    return Some(parsed);
-                }
-                return Some(LightTokenAttr {
-                    variant_name: None,
-                    authority_seeds: None,
-                });
+                // Parse authority = [...] - propagate errors instead of swallowing them
+                let parsed = parse_light_token_list(&tokens, instruction_args)?;
+                return Ok(Some(parsed));
             }
         }
     }
-    None
+    Ok(None)
 }
 
 /// Parse light_account(token, authority = [...]) content

@@ -289,9 +289,16 @@ fn parse_token_ata_key_values(
 /// Parse #[light_account(...)] attribute from a field.
 /// Returns None if no light_account attribute or if it's a mark-only token/ata field.
 /// Returns Some(LightAccountField) for PDA, Mint, or init Token/Ata fields.
+///
+/// # Arguments
+/// * `field` - The field to parse
+/// * `field_ident` - The field identifier
+/// * `direct_proof_arg` - If `Some`, CreateAccountsProof is passed directly as an instruction arg
+///   with this name, so defaults should use `<name>.field` instead of `params.create_accounts_proof.field`
 pub(super) fn parse_light_account_attr(
     field: &Field,
     field_ident: &Ident,
+    direct_proof_arg: &Option<Ident>,
 ) -> Result<Option<LightAccountField>, syn::Error> {
     for attr in &field.attrs {
         if attr.path().is_ident("light_account") {
@@ -316,10 +323,10 @@ pub(super) fn parse_light_account_attr(
 
             return match args.account_type {
                 LightAccountType::Pda => Ok(Some(LightAccountField::Pda(Box::new(
-                    build_pda_field(field, field_ident, &args.key_values)?,
+                    build_pda_field(field, field_ident, &args.key_values, direct_proof_arg)?,
                 )))),
                 LightAccountType::Mint => Ok(Some(LightAccountField::Mint(Box::new(
-                    build_mint_field(field_ident, &args.key_values, attr)?,
+                    build_mint_field(field_ident, &args.key_values, attr, direct_proof_arg)?,
                 )))),
                 LightAccountType::Token => Ok(Some(LightAccountField::TokenAccount(Box::new(
                     build_token_account_field(field_ident, &args.key_values, args.has_init, attr)?,
@@ -336,10 +343,14 @@ pub(super) fn parse_light_account_attr(
 }
 
 /// Build a PdaField from parsed key-value pairs.
+///
+/// # Arguments
+/// * `direct_proof_arg` - If `Some`, use `<name>.field` for defaults instead of `params.create_accounts_proof.field`
 fn build_pda_field(
     field: &Field,
     field_ident: &Ident,
     key_values: &[KeyValue],
+    direct_proof_arg: &Option<Ident>,
 ) -> Result<PdaField, syn::Error> {
     let mut address_tree_info: Option<Expr> = None;
     let mut output_tree: Option<Expr> = None;
@@ -359,11 +370,21 @@ fn build_pda_field(
         }
     }
 
-    // Use defaults if not specified
-    let address_tree_info = address_tree_info
-        .unwrap_or_else(|| syn::parse_quote!(params.create_accounts_proof.address_tree_info));
-    let output_tree = output_tree
-        .unwrap_or_else(|| syn::parse_quote!(params.create_accounts_proof.output_state_tree_index));
+    // Use defaults if not specified - depends on whether CreateAccountsProof is direct arg or nested
+    let address_tree_info = address_tree_info.unwrap_or_else(|| {
+        if let Some(proof_ident) = direct_proof_arg {
+            syn::parse_quote!(#proof_ident.address_tree_info)
+        } else {
+            syn::parse_quote!(params.create_accounts_proof.address_tree_info)
+        }
+    });
+    let output_tree = output_tree.unwrap_or_else(|| {
+        if let Some(proof_ident) = direct_proof_arg {
+            syn::parse_quote!(#proof_ident.output_state_tree_index)
+        } else {
+            syn::parse_quote!(params.create_accounts_proof.output_state_tree_index)
+        }
+    });
 
     // Validate this is an Account type (or Box<Account>)
     let (is_boxed, inner_type) = extract_account_inner_type(&field.ty).ok_or_else(|| {
@@ -384,10 +405,14 @@ fn build_pda_field(
 }
 
 /// Build a LightMintField from parsed key-value pairs.
+///
+/// # Arguments
+/// * `direct_proof_arg` - If `Some`, use `<name>.field` for defaults instead of `params.create_accounts_proof.field`
 fn build_mint_field(
     field_ident: &Ident,
     key_values: &[KeyValue],
     attr: &syn::Attribute,
+    direct_proof_arg: &Option<Ident>,
 ) -> Result<LightMintField, syn::Error> {
     // Required fields
     let mut mint_signer: Option<Expr> = None;
@@ -474,9 +499,14 @@ fn build_mint_field(
         attr,
     )?;
 
-    // address_tree_info defaults to params.create_accounts_proof.address_tree_info
-    let address_tree_info = address_tree_info
-        .unwrap_or_else(|| syn::parse_quote!(params.create_accounts_proof.address_tree_info));
+    // address_tree_info defaults - depends on whether CreateAccountsProof is direct arg or nested
+    let address_tree_info = address_tree_info.unwrap_or_else(|| {
+        if let Some(proof_ident) = direct_proof_arg {
+            syn::parse_quote!(#proof_ident.address_tree_info)
+        } else {
+            syn::parse_quote!(params.create_accounts_proof.address_tree_info)
+        }
+    });
 
     Ok(LightMintField {
         field_ident: field_ident.clone(),
@@ -707,7 +737,7 @@ mod tests {
         };
         let ident = field.ident.clone().unwrap();
 
-        let result = parse_light_account_attr(&field, &ident);
+        let result = parse_light_account_attr(&field, &ident, &None);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.is_some());
@@ -729,7 +759,7 @@ mod tests {
         };
         let ident = field.ident.clone().unwrap();
 
-        let result = parse_light_account_attr(&field, &ident);
+        let result = parse_light_account_attr(&field, &ident, &None);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.is_some());
@@ -753,7 +783,7 @@ mod tests {
         };
         let ident = field.ident.clone().unwrap();
 
-        let result = parse_light_account_attr(&field, &ident);
+        let result = parse_light_account_attr(&field, &ident, &None);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.is_some());
@@ -782,7 +812,7 @@ mod tests {
         };
         let ident = field.ident.clone().unwrap();
 
-        let result = parse_light_account_attr(&field, &ident);
+        let result = parse_light_account_attr(&field, &ident, &None);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.is_some());
@@ -805,7 +835,7 @@ mod tests {
         };
         let ident = field.ident.clone().unwrap();
 
-        let result = parse_light_account_attr(&field, &ident);
+        let result = parse_light_account_attr(&field, &ident, &None);
         assert!(result.is_err());
     }
 
@@ -817,7 +847,7 @@ mod tests {
         };
         let ident = field.ident.clone().unwrap();
 
-        let result = parse_light_account_attr(&field, &ident);
+        let result = parse_light_account_attr(&field, &ident, &None);
         assert!(result.is_err());
     }
 
@@ -835,7 +865,7 @@ mod tests {
         };
         let ident = field.ident.clone().unwrap();
 
-        let result = parse_light_account_attr(&field, &ident);
+        let result = parse_light_account_attr(&field, &ident, &None);
         assert!(result.is_err());
     }
 
@@ -846,7 +876,7 @@ mod tests {
         };
         let ident = field.ident.clone().unwrap();
 
-        let result = parse_light_account_attr(&field, &ident);
+        let result = parse_light_account_attr(&field, &ident, &None);
         assert!(result.is_ok());
         assert!(result.unwrap().is_none());
     }
@@ -864,7 +894,7 @@ mod tests {
         };
         let ident = field.ident.clone().unwrap();
 
-        let result = parse_light_account_attr(&field, &ident);
+        let result = parse_light_account_attr(&field, &ident, &None);
         assert!(result.is_ok());
         assert!(result.unwrap().is_none());
     }
@@ -877,7 +907,7 @@ mod tests {
         };
         let ident = field.ident.clone().unwrap();
 
-        let result = parse_light_account_attr(&field, &ident);
+        let result = parse_light_account_attr(&field, &ident, &None);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.is_some());
@@ -900,7 +930,7 @@ mod tests {
         };
         let ident = field.ident.clone().unwrap();
 
-        let result = parse_light_account_attr(&field, &ident);
+        let result = parse_light_account_attr(&field, &ident, &None);
         assert!(result.is_err());
         let err = result.err().unwrap().to_string();
         assert!(err.contains("authority"));
@@ -919,7 +949,7 @@ mod tests {
         };
         let ident = field.ident.clone().unwrap();
 
-        let result = parse_light_account_attr(&field, &ident);
+        let result = parse_light_account_attr(&field, &ident, &None);
         assert!(result.is_ok());
         assert!(result.unwrap().is_none());
     }
@@ -932,7 +962,7 @@ mod tests {
         };
         let ident = field.ident.clone().unwrap();
 
-        let result = parse_light_account_attr(&field, &ident);
+        let result = parse_light_account_attr(&field, &ident, &None);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.is_some());
@@ -954,7 +984,7 @@ mod tests {
         };
         let ident = field.ident.clone().unwrap();
 
-        let result = parse_light_account_attr(&field, &ident);
+        let result = parse_light_account_attr(&field, &ident, &None);
         assert!(result.is_err());
         let err = result.err().unwrap().to_string();
         assert!(err.contains("owner"));
@@ -968,7 +998,7 @@ mod tests {
         };
         let ident = field.ident.clone().unwrap();
 
-        let result = parse_light_account_attr(&field, &ident);
+        let result = parse_light_account_attr(&field, &ident, &None);
         assert!(result.is_err());
         let err = result.err().unwrap().to_string();
         assert!(err.contains("mint"));
@@ -982,7 +1012,7 @@ mod tests {
         };
         let ident = field.ident.clone().unwrap();
 
-        let result = parse_light_account_attr(&field, &ident);
+        let result = parse_light_account_attr(&field, &ident, &None);
         assert!(result.is_err());
         let err = result.err().unwrap().to_string();
         assert!(err.contains("unknown"));
@@ -996,7 +1026,7 @@ mod tests {
         };
         let ident = field.ident.clone().unwrap();
 
-        let result = parse_light_account_attr(&field, &ident);
+        let result = parse_light_account_attr(&field, &ident, &None);
         assert!(result.is_err());
         let err = result.err().unwrap().to_string();
         assert!(err.contains("unknown"));
@@ -1011,7 +1041,7 @@ mod tests {
         };
         let ident = field.ident.clone().unwrap();
 
-        let result = parse_light_account_attr(&field, &ident);
+        let result = parse_light_account_attr(&field, &ident, &None);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.is_some());
@@ -1035,7 +1065,7 @@ mod tests {
         };
         let ident = field.ident.clone().unwrap();
 
-        let result = parse_light_account_attr(&field, &ident);
+        let result = parse_light_account_attr(&field, &ident, &None);
         assert!(result.is_err());
         let err = result.err().unwrap().to_string();
         assert!(
@@ -1054,7 +1084,7 @@ mod tests {
         };
         let ident = field.ident.clone().unwrap();
 
-        let result = parse_light_account_attr(&field, &ident);
+        let result = parse_light_account_attr(&field, &ident, &None);
         assert!(result.is_err());
         let err = result.err().unwrap().to_string();
         assert!(
@@ -1073,7 +1103,7 @@ mod tests {
         };
         let ident = field.ident.clone().unwrap();
 
-        let result = parse_light_account_attr(&field, &ident);
+        let result = parse_light_account_attr(&field, &ident, &None);
         assert!(result.is_err());
         let err = result.err().unwrap().to_string();
         assert!(
@@ -1093,8 +1123,117 @@ mod tests {
         let ident = field.ident.clone().unwrap();
 
         // Mark-only mode returns Ok(None)
-        let result = parse_light_account_attr(&field, &ident);
+        let result = parse_light_account_attr(&field, &ident, &None);
         assert!(result.is_ok());
         assert!(result.unwrap().is_none());
+    }
+
+    #[test]
+    fn test_parse_pda_with_direct_proof_arg_uses_proof_ident_for_defaults() {
+        // When CreateAccountsProof is passed as a direct instruction arg (not nested in params),
+        // the default address_tree_info and output_tree should reference the proof arg directly.
+        let field: syn::Field = parse_quote! {
+            #[light_account(init)]
+            pub record: Account<'info, MyRecord>
+        };
+        let field_ident = field.ident.clone().unwrap();
+
+        // Simulate passing CreateAccountsProof as direct arg named "proof"
+        let proof_ident: Ident = parse_quote!(proof);
+        let direct_proof_arg = Some(proof_ident.clone());
+
+        let result = parse_light_account_attr(&field, &field_ident, &direct_proof_arg);
+        assert!(
+            result.is_ok(),
+            "Should parse successfully with direct proof arg"
+        );
+        let result = result.unwrap();
+        assert!(result.is_some(), "Should return Some for init PDA");
+
+        match result.unwrap() {
+            LightAccountField::Pda(pda) => {
+                assert_eq!(pda.ident.to_string(), "record");
+
+                // Verify defaults use the direct proof identifier
+                // address_tree_info should be: proof.address_tree_info
+                let addr_tree_info = &pda.address_tree_info;
+                let addr_tree_str = quote::quote!(#addr_tree_info).to_string();
+                assert!(
+                    addr_tree_str.contains("proof"),
+                    "address_tree_info should reference 'proof', got: {}",
+                    addr_tree_str
+                );
+                assert!(
+                    addr_tree_str.contains("address_tree_info"),
+                    "address_tree_info should access .address_tree_info field, got: {}",
+                    addr_tree_str
+                );
+
+                // output_tree should be: proof.output_state_tree_index
+                let output_tree = &pda.output_tree;
+                let output_tree_str = quote::quote!(#output_tree).to_string();
+                assert!(
+                    output_tree_str.contains("proof"),
+                    "output_tree should reference 'proof', got: {}",
+                    output_tree_str
+                );
+                assert!(
+                    output_tree_str.contains("output_state_tree_index"),
+                    "output_tree should access .output_state_tree_index field, got: {}",
+                    output_tree_str
+                );
+            }
+            _ => panic!("Expected PDA field"),
+        }
+    }
+
+    #[test]
+    fn test_parse_mint_with_direct_proof_arg_uses_proof_ident_for_defaults() {
+        // When CreateAccountsProof is passed as a direct instruction arg,
+        // the default address_tree_info should reference the proof arg directly.
+        let field: syn::Field = parse_quote! {
+            #[light_account(init, mint,
+                mint_signer = mint_signer,
+                authority = authority,
+                decimals = 9,
+                mint_seeds = &[b"test"]
+            )]
+            pub cmint: UncheckedAccount<'info>
+        };
+        let field_ident = field.ident.clone().unwrap();
+
+        // Simulate passing CreateAccountsProof as direct arg named "create_proof"
+        let proof_ident: Ident = parse_quote!(create_proof);
+        let direct_proof_arg = Some(proof_ident.clone());
+
+        let result = parse_light_account_attr(&field, &field_ident, &direct_proof_arg);
+        assert!(
+            result.is_ok(),
+            "Should parse successfully with direct proof arg"
+        );
+        let result = result.unwrap();
+        assert!(result.is_some(), "Should return Some for init mint");
+
+        match result.unwrap() {
+            LightAccountField::Mint(mint) => {
+                assert_eq!(mint.field_ident.to_string(), "cmint");
+
+                // Verify default address_tree_info uses the direct proof identifier
+                // Should be: create_proof.address_tree_info
+                let addr_tree_info = &mint.address_tree_info;
+                let addr_tree_str = quote::quote!(#addr_tree_info).to_string();
+                assert!(
+                    addr_tree_str.contains("create_proof"),
+                    "address_tree_info should reference 'create_proof', got: {}",
+                    addr_tree_str
+                );
+                assert!(
+                    addr_tree_str.contains("address_tree_info"),
+                    "address_tree_info should access .address_tree_info field, got: {}",
+                    addr_tree_str
+                );
+            }
+            _ => panic!("Expected Mint field"),
+        }
     }
 }

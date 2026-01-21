@@ -114,13 +114,14 @@ impl InfraRefs {
 ///
 /// Usage:
 /// ```ignore
-/// LightMintsBuilder::new(mints, params_ident, &infra)
+/// LightMintsBuilder::new(mints, &proof_access, &infra)
 ///     .with_pda_context(pda_count, quote! { #first_pda_output_tree })
 ///     .generate_invocation()
 /// ```
 pub(super) struct LightMintsBuilder<'a> {
     mints: &'a [LightMintField],
-    params_ident: &'a Ident,
+    /// TokenStream for accessing CreateAccountsProof (e.g., `proof` or `params.create_accounts_proof`)
+    proof_access: &'a TokenStream,
     infra: &'a InfraRefs,
     /// PDA context: (pda_count, output_tree_expr) for batching with PDAs
     pda_context: Option<(usize, TokenStream)>,
@@ -128,10 +129,14 @@ pub(super) struct LightMintsBuilder<'a> {
 
 impl<'a> LightMintsBuilder<'a> {
     /// Create builder with required fields.
-    pub fn new(mints: &'a [LightMintField], params_ident: &'a Ident, infra: &'a InfraRefs) -> Self {
+    pub fn new(
+        mints: &'a [LightMintField],
+        proof_access: &'a TokenStream,
+        infra: &'a InfraRefs,
+    ) -> Self {
         Self {
             mints,
-            params_ident,
+            proof_access,
             infra,
             pda_context: None,
         }
@@ -161,7 +166,7 @@ impl<'a> LightMintsBuilder<'a> {
 /// 4. Call invoke() - seeds are extracted from SingleMintParams internally
 fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
     let mints = builder.mints;
-    let params_ident = builder.params_ident;
+    let proof_access = builder.proof_access;
     let infra = builder.infra;
     let mint_count = mints.len();
 
@@ -329,7 +334,7 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
             #output_tree_setup
 
             // Extract proof from instruction params
-            let __proof: light_token::CompressedProof = #params_ident.create_accounts_proof.proof.0.clone()
+            let __proof: light_token::CompressedProof = #proof_access.proof.0.clone()
                 .expect("proof is required for mint creation");
 
             // Build SingleMintParams for each mint
@@ -354,9 +359,9 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
             // Output queue for state (compressed accounts) is at tree index 0
             // State merkle tree index comes from the proof (set by pack_proof_for_mints)
             // Address merkle tree index comes from the proof's address_tree_info
-            let __tree_info = &#params_ident.create_accounts_proof.address_tree_info;
+            let __tree_info = &#proof_access.address_tree_info;
             let __output_queue_index: u8 = 0;
-            let __state_tree_index: u8 = #params_ident.create_accounts_proof.state_tree_index
+            let __state_tree_index: u8 = #proof_access.state_tree_index
                 .ok_or(anchor_lang::prelude::ProgramError::InvalidArgument)?;
             let __address_tree_index: u8 = __tree_info.address_merkle_tree_pubkey_index;
             let __output_queue = cpi_accounts.get_tree_account_info(__output_queue_index as usize)?;

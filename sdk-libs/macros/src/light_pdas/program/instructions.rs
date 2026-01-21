@@ -627,12 +627,45 @@ pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<Tok
         for item in items.iter_mut() {
             if let Item::Fn(fn_item) = item {
                 // Check if this function uses a rentfree Accounts struct
-                if let Some((context_type, params_ident, ctx_name)) =
-                    extract_context_and_params(fn_item)
-                {
-                    if rentfree_struct_names.contains(&context_type) {
-                        // Wrap the function with pre_init/finalize logic
-                        *fn_item = wrap_function_with_light(fn_item, &params_ident, &ctx_name);
+                use crate::light_pdas::program::parsing::ExtractResult;
+                match extract_context_and_params(fn_item) {
+                    ExtractResult::Success {
+                        context_type,
+                        params_ident,
+                        ctx_ident,
+                    } => {
+                        if rentfree_struct_names.contains(&context_type) {
+                            // Wrap the function with pre_init/finalize logic
+                            *fn_item = wrap_function_with_light(fn_item, &params_ident, &ctx_ident);
+                        }
+                    }
+                    ExtractResult::MultipleParams {
+                        context_type,
+                        param_names,
+                    } => {
+                        // Only error if this is a rentfree struct that needs wrapping
+                        if rentfree_struct_names.contains(&context_type) {
+                            let fn_name = fn_item.sig.ident.to_string();
+                            let params_str = param_names.join(", ");
+                            return Err(macro_error!(
+                                fn_item,
+                                format!(
+                                    "Function '{}' has multiple instruction arguments ({}) which is not supported by #[rentfree_program].\n\
+                                     Please consolidate these into a single params struct.\n\
+                                     Example: Instead of `fn {}(ctx: Context<T>, {})`,\n\
+                                     use: `fn {}(ctx: Context<T>, params: MyParams)` where MyParams contains all fields.",
+                                    fn_name,
+                                    params_str,
+                                    fn_name,
+                                    params_str,
+                                    fn_name
+                                )
+                            ));
+                        }
+                        // Non-rentfree structs with multiple params are fine - just skip wrapping
+                    }
+                    ExtractResult::None => {
+                        // No context/params found, skip this function
                     }
                 }
             }
