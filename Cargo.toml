@@ -147,6 +147,7 @@ pinocchio-pubkey = { version = "0.3.0" }
 pinocchio-system = { version = "0.3.0" }
 bs58 = "^0.5.1"
 sha2 = "0.10"
+hex = "0.4"
 litesvm = "0.7"
 # Anchor
 anchor-lang = { version = "0.31.1" }

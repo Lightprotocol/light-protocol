@@ -16,7 +16,7 @@ use forester_utils::{
 use light_client::{
     indexer::Indexer,
     interface::{get_create_accounts_proof, CreateAccountsProofInput, InitializeRentFreeConfig},
-    local_test_validator::{spawn_validator, LightValidatorConfig},
+    local_test_validator::{spawn_validator, LightValidatorConfig, UpgradeableProgramConfig},
     rpc::{LightClient, LightClientConfig, Rpc},
 };
 use light_compressed_account::address::derive_address;
@@ -265,7 +265,7 @@ async fn test_compressible_pda_bootstrap() {
         enable_prover: true,
         wait_time: 60,
         sbf_programs: vec![],
-        upgradeable_programs: vec![(
+        upgradeable_programs: vec![UpgradeableProgramConfig::new(
             CSDK_TEST_PROGRAM_ID.to_string(),
             "../target/deploy/csdk_anchor_full_derived_test.so".to_string(),
             payer_pubkey_string(),
@@ -457,7 +457,7 @@ async fn test_compressible_pda_compression() {
         enable_prover: true,
         wait_time: 60,
         sbf_programs: vec![],
-        upgradeable_programs: vec![(
+        upgradeable_programs: vec![UpgradeableProgramConfig::new(
             CSDK_TEST_PROGRAM_ID.to_string(),
             "../target/deploy/csdk_anchor_full_derived_test.so".to_string(),
             payer_pubkey_string(),
@@ -693,7 +693,7 @@ async fn test_compressible_pda_subscription() {
         enable_prover: true,
         wait_time: 60,
         sbf_programs: vec![],
-        upgradeable_programs: vec![(
+        upgradeable_programs: vec![UpgradeableProgramConfig::new(
             CSDK_TEST_PROGRAM_ID.to_string(),
             "../target/deploy/csdk_anchor_full_derived_test.so".to_string(),
             payer_pubkey_string(),

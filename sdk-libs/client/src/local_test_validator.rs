@@ -2,6 +2,27 @@ use std::process::{Command, Stdio};
 
 use light_prover_client::helpers::get_project_root;
 
+/// Configuration for an upgradeable program to deploy to the validator.
+#[derive(Debug, Clone)]
+pub struct UpgradeableProgramConfig {
+    /// The program ID (public key) of the program
+    pub program_id: String,
+    /// Path to the compiled program (.so file)
+    pub program_path: String,
+    /// The upgrade authority for the program
+    pub upgrade_authority: String,
+}
+
+impl UpgradeableProgramConfig {
+    pub fn new(program_id: String, program_path: String, upgrade_authority: String) -> Self {
+        Self {
+            program_id,
+            program_path,
+            upgrade_authority,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct LightValidatorConfig {
     pub enable_indexer: bool,
@@ -9,9 +30,9 @@ pub struct LightValidatorConfig {
     pub wait_time: u64,
     /// Non-upgradeable programs: (program_id, program_path)
     pub sbf_programs: Vec<(String, String)>,
-    /// Upgradeable programs: (program_id, program_path, upgrade_authority)
-    /// Use this when the program needs a valid upgrade authority (e.g., for compression config)
-    pub upgradeable_programs: Vec<(String, String, String)>,
+    /// Upgradeable programs to deploy with a valid upgrade authority.
+    /// Use this when the program needs a valid upgrade authority (e.g., for compression config).
+    pub upgradeable_programs: Vec<UpgradeableProgramConfig>,
     pub limit_ledger_size: Option<u64>,
     /// Use surfpool instead of solana-test-validator
     pub use_surfpool: bool,
@@ -53,7 +74,9 @@ pub async fn spawn_validator(config: LightValidatorConfig) {
         for upgradeable_program in config.upgradeable_programs.iter() {
             path.push_str(&format!(
                 " --upgradeable-program {} {} {}",
-                upgradeable_program.0, upgradeable_program.1, upgradeable_program.2
+                upgradeable_program.program_id,
+                upgradeable_program.program_path,
+                upgradeable_program.upgrade_authority
             ));
         }
 
