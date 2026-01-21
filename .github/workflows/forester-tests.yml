@@ -87,8 +87,20 @@ jobs:
     runs-on: warp-ubuntu-latest-x64-4x
     timeout-minutes: 60
 
+    services:
+      redis:
+        image: redis:8.0.1
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     env:
       RUST_LOG: forester=debug,light_client=debug
+      REDIS_URL: redis://localhost:6379
 
     steps:
       - uses: actions/checkout@v6
@@ -96,7 +108,7 @@ jobs:
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
         with:
-          skip-components: "redis,go"
+          skip-components: "go"
           cache-key: "rust"
 
       - name: Build CLI

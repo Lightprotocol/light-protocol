@@ -182,6 +182,18 @@ export async function initTestEnv({
   await confirmServerStability(`http://127.0.0.1:${rpcPort}/health`);
   await confirmRpcReadiness(`http://127.0.0.1:${rpcPort}`);
 
+  if (prover) {
+    const config = getConfig();
+    config.proverUrl = `http://127.0.0.1:${proverPort}`;
+    setConfig(config);
+    try {
+      await startProver(proverPort);
+    } catch (error) {
+      console.error("Failed to start prover:", error);
+      throw error;
+    }
+  }
+
   if (indexer) {
     const config = getConfig();
     config.indexerUrl = `http://127.0.0.1:${indexerPort}`;
@@ -196,20 +208,6 @@ export async function initTestEnv({
       photonDatabaseUrl,
       proverUrlForIndexer,
     );
-  }
-
-  if (prover) {
-    const config = getConfig();
-    config.proverUrl = `http://127.0.0.1:${proverPort}`;
-    setConfig(config);
-    try {
-      // TODO: check if using redisUrl is better here.
-      await startProver(proverPort);
-    } catch (error) {
-      console.error("Failed to start prover:", error);
-      // Prover logs will be automatically displayed by spawnBinary in process.ts
-      throw error;
-    }
   }
 }
 
