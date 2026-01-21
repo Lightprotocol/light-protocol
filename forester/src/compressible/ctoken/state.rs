@@ -1,7 +1,8 @@
 use borsh::BorshDeserialize;
 use dashmap::DashMap;
+use light_compressible::rent::{get_rent_exemption_lamports, SLOTS_PER_EPOCH};
 use light_token_interface::state::Token;
-use solana_sdk::{pubkey::Pubkey, rent::Rent};
+use solana_sdk::pubkey::Pubkey;
 use tracing::{debug, warn};
 
 use super::types::CTokenAccountState;
@@ -11,10 +12,10 @@ use crate::{
 };
 
 fn calculate_compressible_slot(account: &Token, lamports: u64, account_size: usize) -> Result<u64> {
-    use light_compressible::rent::SLOTS_PER_EPOCH;
     use light_token_interface::state::extensions::ExtensionStruct;
 
-    let rent_exemption = Rent::default().minimum_balance(account_size);
+    let rent_exemption = get_rent_exemption_lamports(account_size as u64)
+        .map_err(|e| anyhow::anyhow!("Failed to get rent exemption: {:?}", e))?;
 
     let compression_info = account
         .extensions

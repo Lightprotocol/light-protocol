@@ -1,8 +1,8 @@
 use borsh::BorshDeserialize;
 use dashmap::DashMap;
-use light_compressible::rent::{get_last_funded_epoch, SLOTS_PER_EPOCH};
+use light_compressible::rent::{get_last_funded_epoch, get_rent_exemption_lamports, SLOTS_PER_EPOCH};
 use light_token_interface::state::{Mint, ACCOUNT_TYPE_MINT};
-use solana_sdk::{pubkey::Pubkey, rent::Rent};
+use solana_sdk::pubkey::Pubkey;
 use tracing::{debug, warn};
 
 use super::types::MintAccountState;
@@ -14,7 +14,8 @@ use crate::{
 pub const ACCOUNT_TYPE_OFFSET: usize = 165;
 
 fn calculate_compressible_slot(mint: &Mint, lamports: u64, account_size: usize) -> Result<u64> {
-    let rent_exemption = Rent::default().minimum_balance(account_size);
+    let rent_exemption = get_rent_exemption_lamports(account_size as u64)
+        .map_err(|e| anyhow::anyhow!("Failed to get rent exemption: {:?}", e))?;
     let compression_info = &mint.compression;
 
     let last_funded_epoch = get_last_funded_epoch(

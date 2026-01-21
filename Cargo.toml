@@ -106,6 +106,7 @@ solana-zk-token-sdk = "2.3"
 solana-logger = "2.3"
 solana-bn254 = "2.2"
 solana-sysvar = { version = "2.2" }
+solana-rent = { version = "2.2" }
 solana-program-error = { version = "2.2" }
 solana-account-info = { version = "2.2" }
 solana-transaction = { version = "2.2" }

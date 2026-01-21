@@ -24,8 +24,6 @@ pub fn get_rent_exemption_lamports(_num_bytes: u64) -> Result<u64, CompressibleE
     }
     #[cfg(not(all(target_os = "solana", any(feature = "pinocchio", feature = "solana"))))]
     {
-        unimplemented!(
-            "get_rent_exemption_lamports is only implemented for target os solana with pinocchio or solana feature"
-        )
+        Ok(solana_rent::Rent::default().minimum_balance(_num_bytes as usize))
     }
 }
