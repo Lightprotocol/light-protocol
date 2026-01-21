@@ -43,7 +43,8 @@ pub fn process_ctoken_transfer(
     let source = &accounts[ACCOUNT_SOURCE];
     let destination = &accounts[ACCOUNT_DESTINATION];
     if source.data_len() == 165 && destination.data_len() == 165 {
-        return process_transfer(accounts, &instruction_data[..8], false)
+        // Slice to exactly 3 accounts: [source, destination, authority]
+        return process_transfer(&accounts[..3], &instruction_data[..8], false)
             .map_err(convert_pinocchio_token_error);
     }
 
@@ -62,7 +63,8 @@ pub fn process_ctoken_transfer(
     let signer_is_validated = process_extensions(accounts, max_top_up)?;
 
     // Only pass the first 8 bytes (amount) to the SPL transfer processor
-    process_transfer(accounts, &instruction_data[..8], signer_is_validated)
+    // Slice to exactly 3 accounts: [source, destination, authority]
+    process_transfer(&accounts[..3], &instruction_data[..8], signer_is_validated)
         .map_err(convert_pinocchio_token_error)
 }
 
