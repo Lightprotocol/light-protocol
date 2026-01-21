@@ -707,7 +707,7 @@ async fn test_decompress_with_mint_to() {
         },
         &authority,
         &payer,
-        Some(&mint_seed), // Required for DecompressMint
+        None,
     )
     .await
     .unwrap();
@@ -788,7 +788,7 @@ async fn test_decompress_with_authority_updates() {
         },
         &authority,
         &payer,
-        Some(&mint_seed), // Required for DecompressMint
+        None,
     )
     .await
     .unwrap();
@@ -872,7 +872,7 @@ async fn test_decompress_with_metadata_update() {
         },
         &authority,
         &payer,
-        Some(&mint_seed), // Required for DecompressMint
+        None,
     )
     .await
     .unwrap();
@@ -978,7 +978,7 @@ async fn test_decompress_with_mint_to_ctoken() {
         },
         &authority,
         &payer,
-        Some(&mint_seed), // Required for DecompressMint
+        None,
     )
     .await
     .unwrap();
@@ -1154,7 +1154,7 @@ async fn test_decompress_with_all_operations() {
         },
         &authority,
         &payer,
-        Some(&mint_seed), // Required for DecompressMint
+        None,
     )
     .await
     .unwrap();
