@@ -6,9 +6,10 @@ use crate::indexer::{
     Address, AddressWithTree, CompressedAccount, CompressedMint, CompressedTokenAccount,
     GetCompressedAccountsByOwnerConfig, GetCompressedMintsByAuthorityOptions,
     GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash, Indexer, IndexerError,
-    IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof, NewAddressProofWithContext,
-    OwnerBalance, PaginatedOptions, QueueElementsResult, QueueElementsV2Options, QueueInfoResult,
-    Response, RetryConfig, SignatureWithMetadata, TokenBalance, ValidityProofWithContext,
+    IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof, MintAuthorityType,
+    NewAddressProofWithContext, OwnerBalance, PaginatedOptions, QueueElementsResult,
+    QueueElementsV2Options, QueueInfoResult, Response, RetryConfig, SignatureWithMetadata,
+    TokenBalance, ValidityProofWithContext,
 };
 
 #[async_trait]
@@ -346,6 +347,7 @@ impl Indexer for LightClient {
     async fn get_compressed_mints_by_authority(
         &self,
         authority: &Pubkey,
+        authority_type: MintAuthorityType,
         options: Option<GetCompressedMintsByAuthorityOptions>,
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<ItemsWithCursor<CompressedMint>>, IndexerError> {
@@ -353,7 +355,7 @@ impl Indexer for LightClient {
             .indexer
             .as_ref()
             .ok_or(IndexerError::NotInitialized)?
-            .get_compressed_mints_by_authority(authority, options, config)
+            .get_compressed_mints_by_authority(authority, authority_type, options, config)
             .await?)
     }
 }

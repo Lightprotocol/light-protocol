@@ -9,18 +9,14 @@
  */
 
 /// GetCompressedMintsByAuthorityPostRequestParams : Request for compressed mints by authority
-#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GetCompressedMintsByAuthorityPostRequestParams {
     /// A Solana public key represented as a base58 string.
     #[serde(rename = "authority")]
     pub authority: String,
-    /// Type of authority to filter by: mintAuthority, freezeAuthority, or both (default).
-    #[serde(
-        rename = "authorityType",
-        default,
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub authority_type: Option<AuthorityType>,
+    /// Type of authority to filter by: mintAuthority, freezeAuthority, or both.
+    #[serde(rename = "authorityType")]
+    pub authority_type: AuthorityType,
     /// A base 58 encoded string.
     #[serde(rename = "cursor", default, skip_serializing_if = "Option::is_none")]
     pub cursor: Option<String>,
@@ -29,10 +25,13 @@ pub struct GetCompressedMintsByAuthorityPostRequestParams {
 }
 
 impl GetCompressedMintsByAuthorityPostRequestParams {
-    pub fn new(authority: String) -> GetCompressedMintsByAuthorityPostRequestParams {
+    pub fn new(
+        authority: String,
+        authority_type: AuthorityType,
+    ) -> GetCompressedMintsByAuthorityPostRequestParams {
         GetCompressedMintsByAuthorityPostRequestParams {
             authority,
-            authority_type: None,
+            authority_type,
             cursor: None,
             limit: None,
         }

@@ -1873,29 +1873,26 @@ impl Indexer for PhotonIndexer {
     async fn get_compressed_mints_by_authority(
         &self,
         authority: &Pubkey,
+        authority_type: MintAuthorityType,
         options: Option<GetCompressedMintsByAuthorityOptions>,
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<ItemsWithCursor<CompressedMint>>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
-            let authority_type =
-                options
-                    .as_ref()
-                    .and_then(|o| o.authority_type)
-                    .map(|at| match at {
-                        MintAuthorityType::MintAuthority => {
-                            photon_api::models::AuthorityType::MintAuthority
-                        }
-                        MintAuthorityType::FreezeAuthority => {
-                            photon_api::models::AuthorityType::FreezeAuthority
-                        }
-                        MintAuthorityType::Both => photon_api::models::AuthorityType::Both,
-                    });
+            let api_authority_type = match authority_type {
+                MintAuthorityType::MintAuthority => {
+                    photon_api::models::AuthorityType::MintAuthority
+                }
+                MintAuthorityType::FreezeAuthority => {
+                    photon_api::models::AuthorityType::FreezeAuthority
+                }
+                MintAuthorityType::Either => photon_api::models::AuthorityType::Both,
+            };
 
             let request = photon_api::models::GetCompressedMintsByAuthorityPostRequest::new(
                 photon_api::models::GetCompressedMintsByAuthorityPostRequestParams {
                     authority: authority.to_string(),
-                    authority_type,
+                    authority_type: api_authority_type,
                     cursor: options.as_ref().and_then(|o| o.cursor.clone()),
                     limit: options.as_ref().and_then(|o| o.limit),
                 },

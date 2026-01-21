@@ -717,7 +717,12 @@ async fn test_compressible_mint_subscription() {
     // Test Photon API: get_compressed_mints_by_authority
     println!("Testing Photon get_compressed_mints_by_authority API...");
     let mints_by_authority = rpc
-        .get_compressed_mints_by_authority(&payer.pubkey(), None, None)
+        .get_compressed_mints_by_authority(
+            &payer.pubkey(),
+            light_client::indexer::MintAuthorityType::Either,
+            None,
+            None,
+        )
         .await
         .expect("get_compressed_mints_by_authority should succeed");
 
