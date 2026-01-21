@@ -122,12 +122,24 @@ pub enum MintAuthorityType {
 }
 
 /// Options for fetching compressed mints by authority.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct GetCompressedMintsByAuthorityOptions {
     /// Cursor for pagination
     pub cursor: Option<String>,
     /// Maximum number of results to return
     pub limit: Option<u16>,
+    /// Authority type filter. Defaults to `Some(MintAuthorityType::Either)` (both mint and freeze authorities).
+    pub authority_type: Option<MintAuthorityType>,
+}
+
+impl Default for GetCompressedMintsByAuthorityOptions {
+    fn default() -> Self {
+        Self {
+            cursor: None,
+            limit: None,
+            authority_type: Some(MintAuthorityType::Either),
+        }
+    }
 }
 
 impl GetCompressedMintsByAuthorityOptions {
@@ -142,6 +154,11 @@ impl GetCompressedMintsByAuthorityOptions {
 
     pub fn with_limit(mut self, limit: u16) -> Self {
         self.limit = Some(limit);
+        self
+    }
+
+    pub fn with_authority_type(mut self, authority_type: MintAuthorityType) -> Self {
+        self.authority_type = Some(authority_type);
         self
     }
 }
