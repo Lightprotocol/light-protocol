@@ -4983,7 +4983,7 @@ dependencies = [
 [[package]]
 name = "pinocchio-token-interface"
 version = "0.0.0"
-source = "git+https://github.com/Lightprotocol/token?rev=9ea04560a039d1a44f0411b5eaa7c0b79ed575ab#9ea04560a039d1a44f0411b5eaa7c0b79ed575ab"
+source = "git+https://github.com/Lightprotocol/token?rev=f7bee9bbc8039c224a88ea76e9ae2edd78e0f9c3#f7bee9bbc8039c224a88ea76e9ae2edd78e0f9c3"
 dependencies = [
  "pinocchio",
  "pinocchio-pubkey",
@@ -4992,7 +4992,7 @@ dependencies = [
 [[package]]
 name = "pinocchio-token-program"
 version = "0.1.0"
-source = "git+https://github.com/Lightprotocol/token?rev=9ea04560a039d1a44f0411b5eaa7c0b79ed575ab#9ea04560a039d1a44f0411b5eaa7c0b79ed575ab"
+source = "git+https://github.com/Lightprotocol/token?rev=f7bee9bbc8039c224a88ea76e9ae2edd78e0f9c3#f7bee9bbc8039c224a88ea76e9ae2edd78e0f9c3"
 dependencies = [
  "pinocchio",
  "pinocchio-log",

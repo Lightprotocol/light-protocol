@@ -22,3 +22,6 @@ mod burn;
 
 #[path = "mint/mint_to.rs"]
 mod mint_to;
+
+#[path = "mint/cmint_resize.rs"]
+mod cmint_resize;

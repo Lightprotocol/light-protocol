@@ -128,7 +128,8 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
     // Get address tree and output queue info
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
 
-    let (compressed_mint_inputs, proof, state_tree_info) = if is_creating_mint {
+    // cmint_decompressed is true when mint data lives in CMint Solana account (not in compressed account)
+    let (compressed_mint_inputs, proof, state_tree_info, cmint_decompressed) = if is_creating_mint {
         let state_tree_info = rpc.get_random_state_tree_info()?;
         // For creating mint: get address proof and create placeholder compressed mint inputs
         let rpc_proof_result = rpc
@@ -180,6 +181,7 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
             compressed_mint_inputs,
             rpc_proof_result.proof.0,
             state_tree_info,
+            false, // New mint is not decompressed
         )
     } else {
         // For existing mint: get validity proof for the compressed mint
@@ -192,11 +194,14 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
                 params.compressed_mint_address
             )))?;
 
-        // Try to deserialize the compressed mint - may be None if Mint is source of truth
+        // Try to deserialize the compressed mint - may be None if Mint is source of truth (decompressed)
         let compressed_mint: Option<Mint> = compressed_mint_account
             .data
             .as_ref()
             .and_then(|d| BorshDeserialize::deserialize(&mut d.data.as_slice()).ok());
+
+        // Track if mint is already decompressed (data lives in CMint Solana account)
+        let cmint_decompressed = compressed_mint.is_none();
 
         let rpc_proof_result = rpc
             .get_validity_proof(vec![compressed_mint_account.hash], vec![], None)
@@ -218,6 +223,7 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
             compressed_mint_inputs,
             rpc_proof_result.proof.into(),
             rpc_proof_result.accounts[0].tree_info,
+            cmint_decompressed,
         )
     };
 
@@ -346,9 +352,11 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
         config = config.with_token_accounts(ctoken_accounts);
     }
 
-    // Add compressible Mint accounts if DecompressMint or CompressAndCloseMint action is present
+    // Add CMint account handling based on operation type:
+    // 1. DecompressMint/CompressAndCloseMint: needs config, cmint, and rent_sponsor
+    // 2. Already decompressed (cmint_decompressed): only needs cmint account
+    let (mint_pda, _) = find_mint_address(&params.mint_seed);
     if has_decompress_mint || has_compress_and_close_mint {
-        let (mint_pda, _) = find_mint_address(&params.mint_seed);
         // Get config and rent_sponsor from v1 config PDA
         let config_address = CompressibleConfig::light_token_v1_config_pda();
         let compressible_config: CompressibleConfig = rpc
@@ -365,8 +373,9 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
             config_address,
             compressible_config.rent_sponsor,
         );
-        // DecompressMint does NOT need mint_signer - it uses compressed_mint.metadata.mint_signer
-        // CompressAndCloseMint does NOT need mint_signer - it verifies Mint via compressed_mint.metadata.mint
+    } else if cmint_decompressed {
+        // For operations on already-decompressed mints, only need the cmint account
+        config = config.with_mint(mint_pda);
     }
 
     // Get account metas
