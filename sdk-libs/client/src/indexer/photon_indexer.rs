@@ -10,15 +10,17 @@ use solana_pubkey::Pubkey;
 use tracing::{error, trace, warn};
 
 use super::types::{
-    CompressedAccount, CompressedTokenAccount, OwnerBalance, SignatureWithMetadata, TokenBalance,
+    CompressedAccount, CompressedMint, CompressedTokenAccount, OwnerBalance, SignatureWithMetadata,
+    TokenBalance,
 };
 use crate::indexer::{
     base58::Base58Conversions,
     config::RetryConfig,
     response::{Context, Items, ItemsWithCursor, Response},
     Address, AddressWithTree, GetCompressedAccountsByOwnerConfig,
-    GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash, Indexer, IndexerError,
-    IndexerRpcConfig, MerkleProof, NewAddressProofWithContext, PaginatedOptions,
+    GetCompressedMintsByAuthorityOptions, GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash,
+    Indexer, IndexerError, IndexerRpcConfig, MerkleProof, MintAuthorityType,
+    NewAddressProofWithContext, PaginatedOptions,
 };
 
 // Tests are in program-tests/client-test/tests/light-client.rs
@@ -1776,5 +1778,164 @@ impl Indexer for PhotonIndexer {
         {
             todo!();
         }
+    }
+
+    async fn get_compressed_mint(
+        &self,
+        address: Address,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Option<CompressedMint>>, IndexerError> {
+        let config = config.unwrap_or_default();
+        self.retry(config.retry_config, || async {
+            let request = photon_api::models::GetCompressedMintPostRequest::new(
+                photon_api::models::GetCompressedMintPostRequestParams {
+                    address: Some(bs58::encode(address).into_string()),
+                    mint_pda: None,
+                },
+            );
+
+            let result = photon_api::apis::default_api::get_compressed_mint_post(
+                &self.configuration,
+                request,
+            )
+            .await?;
+
+            let api_response = Self::extract_result_with_error_check(
+                "get_compressed_mint",
+                result.error,
+                result.result.map(|r| *r),
+            )?;
+
+            if api_response.context.slot < config.slot {
+                return Err(IndexerError::IndexerNotSyncedToSlot);
+            }
+
+            let mint = match api_response.value {
+                Some(boxed) => Some(CompressedMint::try_from(&*boxed)?),
+                None => None,
+            };
+
+            Ok(Response {
+                context: Context {
+                    slot: api_response.context.slot,
+                },
+                value: mint,
+            })
+        })
+        .await
+    }
+
+    async fn get_compressed_mint_by_pda(
+        &self,
+        mint_pda: &Pubkey,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Option<CompressedMint>>, IndexerError> {
+        let config = config.unwrap_or_default();
+        self.retry(config.retry_config, || async {
+            let request = photon_api::models::GetCompressedMintPostRequest::new(
+                photon_api::models::GetCompressedMintPostRequestParams {
+                    address: None,
+                    mint_pda: Some(mint_pda.to_string()),
+                },
+            );
+
+            let result = photon_api::apis::default_api::get_compressed_mint_post(
+                &self.configuration,
+                request,
+            )
+            .await?;
+
+            let api_response = Self::extract_result_with_error_check(
+                "get_compressed_mint_by_pda",
+                result.error,
+                result.result.map(|r| *r),
+            )?;
+
+            if api_response.context.slot < config.slot {
+                return Err(IndexerError::IndexerNotSyncedToSlot);
+            }
+
+            let mint = match api_response.value {
+                Some(boxed) => Some(CompressedMint::try_from(&*boxed)?),
+                None => None,
+            };
+
+            Ok(Response {
+                context: Context {
+                    slot: api_response.context.slot,
+                },
+                value: mint,
+            })
+        })
+        .await
+    }
+
+    async fn get_compressed_mints_by_authority(
+        &self,
+        authority: &Pubkey,
+        options: Option<GetCompressedMintsByAuthorityOptions>,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<ItemsWithCursor<CompressedMint>>, IndexerError> {
+        let config = config.unwrap_or_default();
+        self.retry(config.retry_config, || async {
+            let authority_type =
+                options
+                    .as_ref()
+                    .and_then(|o| o.authority_type)
+                    .map(|at| match at {
+                        MintAuthorityType::MintAuthority => {
+                            photon_api::models::AuthorityType::MintAuthority
+                        }
+                        MintAuthorityType::FreezeAuthority => {
+                            photon_api::models::AuthorityType::FreezeAuthority
+                        }
+                        MintAuthorityType::Both => photon_api::models::AuthorityType::Both,
+                    });
+
+            let request = photon_api::models::GetCompressedMintsByAuthorityPostRequest::new(
+                photon_api::models::GetCompressedMintsByAuthorityPostRequestParams {
+                    authority: authority.to_string(),
+                    authority_type,
+                    cursor: options.as_ref().and_then(|o| o.cursor.clone()),
+                    limit: options.as_ref().and_then(|o| o.limit),
+                },
+            );
+
+            let result = photon_api::apis::default_api::get_compressed_mints_by_authority_post(
+                &self.configuration,
+                request,
+            )
+            .await?;
+
+            let api_response = Self::extract_result_with_error_check(
+                "get_compressed_mints_by_authority",
+                result.error,
+                result.result.map(|r| *r),
+            )?;
+
+            if api_response.context.slot < config.slot {
+                return Err(IndexerError::IndexerNotSyncedToSlot);
+            }
+
+            let mints: Result<Vec<_>, _> = api_response
+                .value
+                .items
+                .iter()
+                .map(CompressedMint::try_from)
+                .collect();
+
+            let cursor = api_response.value.cursor;
+
+            Ok(Response {
+                context: Context {
+                    slot: api_response.context.slot,
+                },
+                value: ItemsWithCursor {
+                    items: mints?,
+                    cursor,
+                },
+            })
+        })
+        .await
     }
 }

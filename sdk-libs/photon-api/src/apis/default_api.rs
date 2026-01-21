@@ -349,6 +349,24 @@ pub enum GetValidityProofV2PostError {
     UnknownValue(serde_json::Value),
 }
 
+/// struct for typed errors of method [`get_compressed_mint_post`]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum GetCompressedMintPostError {
+    Status429(models::GetBatchAddressUpdateInfoPost429Response),
+    Status500(models::GetBatchAddressUpdateInfoPost429Response),
+    UnknownValue(serde_json::Value),
+}
+
+/// struct for typed errors of method [`get_compressed_mints_by_authority_post`]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum GetCompressedMintsByAuthorityPostError {
+    Status429(models::GetBatchAddressUpdateInfoPost429Response),
+    Status500(models::GetBatchAddressUpdateInfoPost429Response),
+    UnknownValue(serde_json::Value),
+}
+
 pub async fn get_batch_address_update_info_post(
     configuration: &configuration::Configuration,
     get_batch_address_update_info_post_request: models::GetBatchAddressUpdateInfoPostRequest,
@@ -1987,6 +2005,91 @@ pub async fn get_validity_proof_v2_post(
         serde_json::from_str(&local_var_content).map_err(Error::from)
     } else {
         let local_var_entity: Option<GetValidityProofV2PostError> =
+            serde_json::from_str(&local_var_content).ok();
+        let local_var_error = ResponseContent {
+            status: local_var_status,
+            content: local_var_content,
+            entity: local_var_entity,
+        };
+        Err(Error::ResponseError(local_var_error))
+    }
+}
+
+pub async fn get_compressed_mint_post(
+    configuration: &configuration::Configuration,
+    get_compressed_mint_post_request: models::GetCompressedMintPostRequest,
+) -> Result<models::GetCompressedMintPost200Response, Error<GetCompressedMintPostError>> {
+    let local_var_configuration = configuration;
+
+    let local_var_client = &local_var_configuration.client;
+
+    let local_var_uri_str = format!("{}/getCompressedMint", local_var_configuration.base_path);
+    let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
+    let mut local_var_req_builder =
+        local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
+
+    if let Some(ref local_var_user_agent) = local_var_configuration.user_agent {
+        local_var_req_builder =
+            local_var_req_builder.header(reqwest::header::USER_AGENT, local_var_user_agent.clone());
+    }
+    local_var_req_builder = local_var_req_builder.json(&get_compressed_mint_post_request);
+
+    let local_var_req = local_var_req_builder.build()?;
+    let local_var_resp = local_var_client.execute(local_var_req).await?;
+
+    let local_var_status = local_var_resp.status();
+    let local_var_content = local_var_resp.text().await?;
+
+    if !local_var_status.is_client_error() && !local_var_status.is_server_error() {
+        serde_json::from_str(&local_var_content).map_err(Error::from)
+    } else {
+        let local_var_entity: Option<GetCompressedMintPostError> =
+            serde_json::from_str(&local_var_content).ok();
+        let local_var_error = ResponseContent {
+            status: local_var_status,
+            content: local_var_content,
+            entity: local_var_entity,
+        };
+        Err(Error::ResponseError(local_var_error))
+    }
+}
+
+pub async fn get_compressed_mints_by_authority_post(
+    configuration: &configuration::Configuration,
+    get_compressed_mints_by_authority_post_request: models::GetCompressedMintsByAuthorityPostRequest,
+) -> Result<
+    models::GetCompressedMintsByAuthorityPost200Response,
+    Error<GetCompressedMintsByAuthorityPostError>,
+> {
+    let local_var_configuration = configuration;
+
+    let local_var_client = &local_var_configuration.client;
+
+    let local_var_uri_str = format!(
+        "{}/getCompressedMintsByAuthority",
+        local_var_configuration.base_path
+    );
+    let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
+    let mut local_var_req_builder =
+        local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
+
+    if let Some(ref local_var_user_agent) = local_var_configuration.user_agent {
+        local_var_req_builder =
+            local_var_req_builder.header(reqwest::header::USER_AGENT, local_var_user_agent.clone());
+    }
+    local_var_req_builder =
+        local_var_req_builder.json(&get_compressed_mints_by_authority_post_request);
+
+    let local_var_req = local_var_req_builder.build()?;
+    let local_var_resp = local_var_client.execute(local_var_req).await?;
+
+    let local_var_status = local_var_resp.status();
+    let local_var_content = local_var_resp.text().await?;
+
+    if !local_var_status.is_client_error() && !local_var_status.is_server_error() {
+        serde_json::from_str(&local_var_content).map_err(Error::from)
+    } else {
+        let local_var_entity: Option<GetCompressedMintsByAuthorityPostError> =
             serde_json::from_str(&local_var_content).ok();
         let local_var_error = ResponseContent {
             status: local_var_status,
