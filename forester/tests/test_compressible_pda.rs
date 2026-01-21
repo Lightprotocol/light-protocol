@@ -1,6 +1,8 @@
 use std::{sync::Arc, time::Duration};
 
 use anchor_lang::{InstructionData, ToAccountMetas};
+use borsh::BorshDeserialize;
+use csdk_anchor_full_derived_test::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
 use forester::compressible::{
     pda::{PdaAccountTracker, PdaCompressor, PdaProgramConfig},
     traits::CompressibleTracker,
@@ -18,6 +20,7 @@ use light_client::{
     rpc::{LightClient, LightClientConfig, Rpc},
 };
 use light_compressed_account::address::derive_address;
+use light_program_test::accounts::test_keypairs::PAYER_KEYPAIR;
 use light_registry::{
     protocol_config::state::ProtocolConfigPda,
     sdk::{
@@ -224,8 +227,13 @@ async fn register_forester<R: Rpc>(
     })
 }
 
-const PAYER_PUBKEY: &str = "";
-const PAYER_KEYPAIR: [u8; 64] = [];
+/// Get the payer pubkey string derived from the test keypair
+fn payer_pubkey_string() -> String {
+    Keypair::try_from(PAYER_KEYPAIR.as_ref())
+        .expect("Invalid PAYER_KEYPAIR")
+        .pubkey()
+        .to_string()
+}
 
 /// Test that PDA bootstrap discovers existing compressible PDAs
 ///
@@ -255,7 +263,7 @@ async fn test_compressible_pda_bootstrap() {
         upgradeable_programs: vec![(
             CSDK_TEST_PROGRAM_ID.to_string(),
             "../target/deploy/csdk_anchor_full_derived_test.so".to_string(),
-            PAYER_PUBKEY.to_string(),
+            payer_pubkey_string(),
         )],
         limit_ledger_size: None,
     })
@@ -445,7 +453,7 @@ async fn test_compressible_pda_compression() {
         upgradeable_programs: vec![(
             CSDK_TEST_PROGRAM_ID.to_string(),
             "../target/deploy/csdk_anchor_full_derived_test.so".to_string(),
-            PAYER_PUBKEY.to_string(),
+            payer_pubkey_string(),
         )],
         limit_ledger_size: None,
     })
@@ -616,17 +624,35 @@ async fn test_compressible_pda_compression() {
             "PDA should be closed after compression"
         );
 
-        // Verify compressed account has data
+        // Verify compressed account data matches expected record
         let compressed_after = rpc_from_pool
             .get_compressed_account(compressed_address, None)
             .await
             .unwrap()
             .value
             .unwrap();
-        assert!(
-            compressed_after.data.is_some()
-                && !compressed_after.data.as_ref().unwrap().data.is_empty(),
-            "Compressed account should have data"
+
+        let compressed_data = compressed_after
+            .data
+            .as_ref()
+            .expect("Compressed account should have data")
+            .data
+            .as_slice();
+
+        let deserialized = SinglePubkeyRecord::try_from_slice(compressed_data)
+            .expect("Failed to deserialize SinglePubkeyRecord from compressed account");
+
+        let compression_info = deserialized.compression_info.clone();
+
+        let expected_record = SinglePubkeyRecord {
+            compression_info,
+            owner: authority.pubkey(),
+            counter: 0,
+        };
+
+        assert_eq!(
+            deserialized, expected_record,
+            "Compressed account data should match expected SinglePubkeyRecord"
         );
 
         println!("PDA compression test completed successfully!");
@@ -661,7 +687,7 @@ async fn test_compressible_pda_subscription() {
         upgradeable_programs: vec![(
             CSDK_TEST_PROGRAM_ID.to_string(),
             "../target/deploy/csdk_anchor_full_derived_test.so".to_string(),
-            PAYER_PUBKEY.to_string(),
+            payer_pubkey_string(),
         )],
         limit_ledger_size: None,
     })

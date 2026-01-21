@@ -387,7 +387,7 @@ impl ForesterConfig {
                     }
                     None => {
                         return Err(ConfigError::InvalidArguments {
-                            field: "enable_compressible",
+                            field: "ws_rpc_url",
                             invalid_values: vec![
                                 "--ws-rpc-url is required when --enable-compressible is true or --compressible-pda-program is specified"
                                     .to_string(),
