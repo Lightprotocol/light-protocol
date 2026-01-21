@@ -1,11 +1,11 @@
 use async_trait::async_trait;
 use light_client::indexer::{
-    Address, AddressWithTree, CompressedAccount, CompressedTokenAccount,
-    GetCompressedAccountsByOwnerConfig, GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash,
-    Indexer, IndexerError, IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof,
-    NewAddressProofWithContext, OwnerBalance, PaginatedOptions, QueueElementsResult,
-    QueueElementsV2Options, Response, RetryConfig, SignatureWithMetadata, TokenBalance,
-    ValidityProofWithContext,
+    Address, AddressWithTree, CompressedAccount, CompressedMint, CompressedTokenAccount,
+    GetCompressedAccountsByOwnerConfig, GetCompressedMintsByAuthorityOptions,
+    GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash, Indexer, IndexerError,
+    IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof, NewAddressProofWithContext,
+    OwnerBalance, PaginatedOptions, QueueElementsResult, QueueElementsV2Options, Response,
+    RetryConfig, SignatureWithMetadata, TokenBalance, ValidityProofWithContext,
 };
 use solana_sdk::pubkey::Pubkey;
 
@@ -311,6 +311,46 @@ impl Indexer for LightProgramTest {
             .as_ref()
             .ok_or(IndexerError::NotInitialized)?
             .get_indexer_health(config)
+            .await?)
+    }
+
+    async fn get_compressed_mint(
+        &self,
+        address: Address,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Option<CompressedMint>>, IndexerError> {
+        Ok(self
+            .indexer
+            .as_ref()
+            .ok_or(IndexerError::NotInitialized)?
+            .get_compressed_mint(address, config)
+            .await?)
+    }
+
+    async fn get_compressed_mint_by_pda(
+        &self,
+        mint_pda: &Pubkey,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Option<CompressedMint>>, IndexerError> {
+        Ok(self
+            .indexer
+            .as_ref()
+            .ok_or(IndexerError::NotInitialized)?
+            .get_compressed_mint_by_pda(mint_pda, config)
+            .await?)
+    }
+
+    async fn get_compressed_mints_by_authority(
+        &self,
+        authority: &Pubkey,
+        options: Option<GetCompressedMintsByAuthorityOptions>,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<ItemsWithCursor<CompressedMint>>, IndexerError> {
+        Ok(self
+            .indexer
+            .as_ref()
+            .ok_or(IndexerError::NotInitialized)?
+            .get_compressed_mints_by_authority(authority, options, config)
             .await?)
     }
 }
