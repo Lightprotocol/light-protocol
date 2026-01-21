@@ -4,12 +4,13 @@ use solana_pubkey::Pubkey;
 use super::{
     response::{Items, ItemsWithCursor, Response},
     types::{
-        CompressedAccount, CompressedTokenAccount, OwnerBalance, QueueInfoResult,
+        CompressedAccount, CompressedMint, CompressedTokenAccount, OwnerBalance, QueueInfoResult,
         SignatureWithMetadata, TokenBalance, ValidityProofWithContext,
     },
     Address, AddressWithTree, GetCompressedAccountsByOwnerConfig,
-    GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash, IndexerError, IndexerRpcConfig,
-    MerkleProof, NewAddressProofWithContext, PaginatedOptions, QueueElementsV2Options, RetryConfig,
+    GetCompressedMintsByAuthorityOptions, GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash,
+    IndexerError, IndexerRpcConfig, MerkleProof, NewAddressProofWithContext, PaginatedOptions,
+    QueueElementsV2Options, RetryConfig,
 };
 use crate::indexer::QueueElementsResult;
 // TODO: remove all references in input types.
@@ -193,4 +194,26 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         merkle_tree_pubkey: [u8; 32],
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<Items<[u8; 32]>>, IndexerError>;
+
+    /// Returns the compressed mint with the given address.
+    async fn get_compressed_mint(
+        &self,
+        address: Address,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Option<CompressedMint>>, IndexerError>;
+
+    /// Returns the compressed mint with the given PDA (decompressed account address).
+    async fn get_compressed_mint_by_pda(
+        &self,
+        mint_pda: &Pubkey,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Option<CompressedMint>>, IndexerError>;
+
+    /// Returns compressed mints controlled by the given authority.
+    async fn get_compressed_mints_by_authority(
+        &self,
+        authority: &Pubkey,
+        options: Option<GetCompressedMintsByAuthorityOptions>,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<ItemsWithCursor<CompressedMint>>, IndexerError>;
 }

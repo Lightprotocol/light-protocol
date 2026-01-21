@@ -400,6 +400,10 @@ async fn test_compressible_mint_compression() {
             "Mint account should be closed after compression"
         );
 
+        wait_for_indexer(&rpc)
+            .await
+            .expect("Failed to wait for indexer");
+
         // Verify compressed mint still exists in the merkle tree
         let compressed_after = rpc
             .get_compressed_account(compression_address, None)
@@ -410,6 +414,39 @@ async fn test_compressible_mint_compression() {
             compressed_after.is_some(),
             "Compressed mint should still exist after compression"
         );
+
+        // Test Photon API: get_compressed_mint
+        println!("Testing Photon get_compressed_mint API...");
+        let mint_response = rpc
+            .get_compressed_mint(compression_address, None)
+            .await
+            .expect("get_compressed_mint should succeed");
+
+        let compressed_mint = mint_response
+            .value
+            .expect("Compressed mint should be returned by get_compressed_mint");
+
+        assert_eq!(compressed_mint.mint.decimals, 9, "Decimals should match");
+        assert_eq!(
+            compressed_mint.mint.mint_authority,
+            Some(payer.pubkey()),
+            "Mint authority should be payer"
+        );
+        println!(
+            "Photon get_compressed_mint verified: decimals={}, supply={}",
+            compressed_mint.mint.decimals, compressed_mint.mint.supply
+        );
+
+        // Test Photon API: get_compressed_mint_by_pda
+        let mint_by_pda = rpc
+            .get_compressed_mint_by_pda(&mint_pda, None)
+            .await
+            .expect("get_compressed_mint_by_pda should succeed");
+        assert!(
+            mint_by_pda.value.is_some(),
+            "Should find compressed mint by PDA"
+        );
+        println!("Photon get_compressed_mint_by_pda verified!");
 
         println!("Mint compression test completed successfully!");
     } else {
@@ -624,6 +661,89 @@ async fn test_compressible_mint_subscription() {
         compressed_after.is_some(),
         "Compressed mint should still exist after compression"
     );
+
+    wait_for_indexer(&rpc)
+        .await
+        .expect("Failed to wait for indexer");
+
+    // Test Photon API: get_compressed_mint by address
+    println!("Testing Photon get_compressed_mint API...");
+    let mint_response = rpc
+        .get_compressed_mint(compression_address_1, None)
+        .await
+        .expect("get_compressed_mint should succeed");
+
+    let compressed_mint = mint_response
+        .value
+        .expect("Compressed mint should be returned by get_compressed_mint");
+
+    // Verify mint data matches what we created
+    assert_eq!(
+        compressed_mint.mint.decimals, 9,
+        "Decimals should match what we created"
+    );
+    assert_eq!(
+        compressed_mint.mint.mint_authority,
+        Some(payer.pubkey()),
+        "Mint authority should be payer"
+    );
+    assert!(
+        !compressed_mint.mint.mint_decompressed,
+        "Mint should NOT be marked as decompressed after compression"
+    );
+    println!(
+        "get_compressed_mint verified: decimals={}, supply={}",
+        compressed_mint.mint.decimals, compressed_mint.mint.supply
+    );
+
+    // Test Photon API: get_compressed_mint_by_pda
+    println!("Testing Photon get_compressed_mint_by_pda API...");
+    let mint_by_pda = rpc
+        .get_compressed_mint_by_pda(&mint_pda_1, None)
+        .await
+        .expect("get_compressed_mint_by_pda should succeed");
+
+    assert!(
+        mint_by_pda.value.is_some(),
+        "Compressed mint should be found by PDA"
+    );
+    assert_eq!(
+        mint_by_pda.value.as_ref().unwrap().mint.decimals,
+        compressed_mint.mint.decimals,
+        "Mint found by PDA should match mint found by address"
+    );
+    println!("get_compressed_mint_by_pda verified!");
+
+    // Test Photon API: get_compressed_mints_by_authority
+    println!("Testing Photon get_compressed_mints_by_authority API...");
+    let mints_by_authority = rpc
+        .get_compressed_mints_by_authority(&payer.pubkey(), None, None)
+        .await
+        .expect("get_compressed_mints_by_authority should succeed");
+
+    // We compressed mint_pda_1 (payer is authority), and mint_pda_2 is still decompressed
+    // So we should have exactly 1 compressed mint with payer as authority
+    assert!(
+        !mints_by_authority.value.items.is_empty(),
+        "Should find at least 1 compressed mint by authority"
+    );
+    println!(
+        "get_compressed_mints_by_authority found {} mints for authority {}",
+        mints_by_authority.value.items.len(),
+        payer.pubkey()
+    );
+
+    // Verify the first mint in the list is the one we compressed
+    let found_mint = mints_by_authority
+        .value
+        .items
+        .iter()
+        .find(|m| m.mint.decimals == 9);
+    assert!(
+        found_mint.is_some(),
+        "Should find the mint with 9 decimals in authority query results"
+    );
+    println!("Photon API tests completed successfully!");
 
     // Shutdown subscribers
     shutdown_tx

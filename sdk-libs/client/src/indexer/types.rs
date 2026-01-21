@@ -1036,3 +1036,79 @@ impl TryFrom<&photon_api::models::OwnerBalance> for OwnerBalance {
         })
     }
 }
+
+/// Mint-specific data for compressed mints
+#[derive(Clone, Default, Debug, PartialEq)]
+pub struct MintData {
+    /// The PDA (decompressed account address) for this mint
+    pub mint_pda: Pubkey,
+    /// The signer/seed used for PDA derivation
+    pub mint_signer: [u8; 32],
+    /// Authority that can mint new tokens
+    pub mint_authority: Option<Pubkey>,
+    /// Authority that can freeze accounts
+    pub freeze_authority: Option<Pubkey>,
+    /// Total supply of tokens
+    pub supply: u64,
+    /// Number of decimals
+    pub decimals: u8,
+    /// Version of the mint
+    pub version: u8,
+    /// Whether the mint has been decompressed
+    pub mint_decompressed: bool,
+    /// Serialized extensions (base64 encoded)
+    pub extensions: Option<Vec<u8>>,
+}
+
+impl TryFrom<&photon_api::models::MintData> for MintData {
+    type Error = IndexerError;
+
+    fn try_from(mint_data: &photon_api::models::MintData) -> Result<Self, Self::Error> {
+        Ok(MintData {
+            mint_pda: Pubkey::new_from_array(decode_base58_to_fixed_array(&mint_data.mint_pda)?),
+            mint_signer: decode_base58_to_fixed_array(&mint_data.mint_signer)?,
+            mint_authority: mint_data
+                .mint_authority
+                .as_ref()
+                .map(|a| decode_base58_to_fixed_array(a).map(Pubkey::new_from_array))
+                .transpose()?,
+            freeze_authority: mint_data
+                .freeze_authority
+                .as_ref()
+                .map(|a| decode_base58_to_fixed_array(a).map(Pubkey::new_from_array))
+                .transpose()?,
+            supply: mint_data.supply,
+            decimals: mint_data.decimals,
+            version: mint_data.version,
+            mint_decompressed: mint_data.mint_decompressed,
+            extensions: mint_data
+                .extensions
+                .as_ref()
+                .map(|ext| {
+                    base64::decode_config(ext, base64::STANDARD_NO_PAD)
+                        .map_err(|_| IndexerError::InvalidResponseData)
+                })
+                .transpose()?,
+        })
+    }
+}
+
+/// A compressed mint with its account data
+#[derive(Clone, Default, Debug, PartialEq)]
+pub struct CompressedMint {
+    /// Mint-specific data (mint_pda, authorities, supply, decimals, etc.)
+    pub mint: MintData,
+    /// General account information (address, hash, lamports, merkle context, etc.)
+    pub account: CompressedAccount,
+}
+
+impl TryFrom<&photon_api::models::CompressedMint> for CompressedMint {
+    type Error = IndexerError;
+
+    fn try_from(compressed_mint: &photon_api::models::CompressedMint) -> Result<Self, Self::Error> {
+        let account = CompressedAccount::try_from(compressed_mint.account.as_ref())?;
+        let mint = MintData::try_from(compressed_mint.mint_data.as_ref())?;
+
+        Ok(CompressedMint { mint, account })
+    }
+}
