@@ -7,39 +7,41 @@ use solana_pubkey::Pubkey;
 use solana_signature::Signature;
 use solana_signer::Signer;
 
-use crate::instructions::transfer2::{
-    create_generic_transfer2_instruction, Transfer2InstructionType, TransferInput,
+use super::super::instructions::transfer2::{
+    create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,
 };
 
-/// Transfer compressed tokens between compressed accounts and send the transaction.
+/// Decompress compressed tokens to SPL tokens and send the transaction.
 ///
 /// # Arguments
 /// * `rpc` - RPC client with indexer capabilities
-/// * `compressed_token_account` - Slice of compressed token accounts to transfer from
-/// * `to` - Recipient pubkey for the compressed tokens
-/// * `amount` - Amount of tokens to transfer
+/// * `compressed_token_account` - Slice of compressed token accounts to decompress
+/// * `decompress_amount` - Amount of tokens to decompress
+/// * `solana_token_account` - The SPL token account to receive the decompressed tokens
 /// * `authority` - Authority that can spend from the compressed token account
 /// * `payer` - Transaction fee payer keypair
 ///
 /// # Returns
 /// `Result<Signature, RpcError>` - The transaction signature
-pub async fn transfer<R: Rpc + Indexer>(
+pub async fn decompress<R: Rpc + Indexer>(
     rpc: &mut R,
     compressed_token_account: &[CompressedTokenAccount],
-    to: Pubkey,
-    amount: u64,
+    decompress_amount: u64,
+    solana_token_account: Pubkey,
     authority: &Keypair,
     payer: &Keypair,
+    decimals: u8,
 ) -> Result<Signature, RpcError> {
     let ix = create_generic_transfer2_instruction(
         rpc,
-        vec![Transfer2InstructionType::Transfer(TransferInput {
+        vec![Transfer2InstructionType::Decompress(DecompressInput {
             compressed_token_account: compressed_token_account.to_vec(),
-            to,
-            amount,
-            is_delegate_transfer: false, // Regular transfer, owner is signer
-            mint: None,                  // Not needed when input accounts are provided
-            change_amount: None,
+            decompress_amount,
+            solana_token_account,
+            amount: decompress_amount,
+            pool_index: None,
+            decimals,
+            in_tlv: None,
         })],
         payer.pubkey(),
         false,

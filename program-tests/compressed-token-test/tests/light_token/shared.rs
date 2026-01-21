@@ -6,6 +6,7 @@ pub use light_program_test::{
 };
 use light_registry::compressible::compressed_token::CompressAndCloseIndices;
 pub use light_test_utils::{
+    actions::legacy::{instructions::transfer2::CompressInput, transfer2::compress},
     assert_close_token_account::assert_close_token_account,
     assert_create_token_account::{
         assert_create_associated_token_account, assert_create_token_account, CompressibleData,
@@ -17,9 +18,6 @@ pub use light_test_utils::{
 pub use light_token::instruction::{
     derive_token_ata, Approve, CloseAccount, CompressibleParams, CreateAssociatedTokenAccount,
     CreateTokenAccount, Revoke,
-};
-pub use light_token_client::{
-    actions::transfer2::compress, instructions::transfer2::CompressInput,
 };
 pub use serial_test::serial;
 pub use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
@@ -575,7 +573,7 @@ pub async fn compress_and_close_and_assert_fails(
     name: &str,
     expected_error_code: u32,
 ) {
-    use light_token_client::instructions::transfer2::{
+    use light_test_utils::actions::legacy::instructions::transfer2::{
         create_generic_transfer2_instruction, CompressAndCloseInput, Transfer2InstructionType,
     };
 

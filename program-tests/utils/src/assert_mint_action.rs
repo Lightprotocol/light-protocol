@@ -5,9 +5,10 @@ use light_client::indexer::Indexer;
 use light_compressed_account::compressed_account::CompressedAccountData;
 use light_compressible::compression_info::CompressionInfo;
 use light_program_test::{LightProgramTest, Rpc};
-use light_token_client::instructions::mint_action::MintActionType;
 use light_token_interface::state::{extensions::AdditionalMetadata, ExtensionStruct, Mint, Token};
 use solana_sdk::pubkey::Pubkey;
+
+use crate::actions::legacy::instructions::mint_action::MintActionType;
 
 /// Extract CompressionInfo from Light Token's Compressible extension
 fn get_ctoken_compression_info(ctoken: &Token) -> Option<CompressionInfo> {

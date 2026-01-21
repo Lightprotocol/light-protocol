@@ -1,0 +1,29 @@
+[package]
+name = "token-client-test"
+version = "0.1.0"
+description = "Integration tests for light-token-client actions"
+repository = "https://github.com/Lightprotocol/light-protocol"
+license = "Apache-2.0"
+edition = "2021"
+
+[features]
+test-sbf = []
+
+[dev-dependencies]
+light-program-test = { workspace = true, features = ["devenv"] }
+light-client = { workspace = true, features = ["v2"] }
+light-token-client = { workspace = true }
+light-token = { workspace = true }
+light-token-interface = { workspace = true }
+light-test-utils = { workspace = true }
+tokio = { workspace = true }
+solana-sdk = { workspace = true }
+borsh = { workspace = true }
+spl-token = { workspace = true }
+
+[lints.rust.unexpected_cfgs]
+level = "allow"
+check-cfg = [
+    'cfg(target_os, values("solana"))',
+    'cfg(feature, values("frozen-abi", "no-entrypoint"))',
+]

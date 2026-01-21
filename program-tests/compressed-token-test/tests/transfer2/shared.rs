@@ -7,6 +7,17 @@ use light_compressed_token_sdk::compressed_token::create_compressed_mint::{
 };
 use light_program_test::{indexer::TestIndexerExtensions, LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
+    actions::{
+        create_mint,
+        legacy::instructions::{
+            mint_action::MintActionType,
+            transfer2::{
+                create_generic_transfer2_instruction, ApproveInput, CompressAndCloseInput,
+                CompressInput, DecompressInput, Transfer2InstructionType, TransferInput,
+            },
+        },
+        mint_to_compressed,
+    },
     airdrop_lamports,
     assert_transfer2::assert_transfer2,
     spl::{
@@ -15,16 +26,6 @@ use light_test_utils::{
     },
 };
 use light_token::instruction::{CompressibleParams, CreateAssociatedTokenAccount};
-use light_token_client::{
-    actions::{create_mint, mint_to_compressed},
-    instructions::{
-        mint_action::MintActionType,
-        transfer2::{
-            create_generic_transfer2_instruction, ApproveInput, CompressAndCloseInput,
-            CompressInput, DecompressInput, Transfer2InstructionType, TransferInput,
-        },
-    },
-};
 use light_token_interface::{
     instructions::{mint_action::Recipient, transfer2::CompressedTokenInstructionDataTransfer2},
     state::TokenDataVersion,
@@ -496,9 +497,9 @@ impl TestContext {
                 let compressed_mint_address =
                     derive_mint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
 
-                light_token_client::actions::mint_action(
+                light_test_utils::actions::mint_action(
                     &mut rpc,
-                    light_token_client::instructions::mint_action::MintActionParams {
+                    light_test_utils::actions::legacy::instructions::mint_action::MintActionParams {
                         compressed_mint_address,
                         mint_seed: mint_seed.pubkey(),
                         authority: mint_authority.pubkey(),

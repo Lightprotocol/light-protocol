@@ -1,16 +1,36 @@
-mod create_compressible_token_account;
-mod create_mint;
-mod mint_action;
-mod mint_to_compressed;
-mod spl_interface;
-mod transfer;
-pub mod transfer2;
-mod update_compressed_mint;
+//! Clean action interfaces for Light Token operations.
+//!
+//! These actions provide simple, ergonomic interfaces for common Light Token operations.
+//!
+//! All actions use a params struct pattern with an `execute` method:
+//! ```ignore
+//! Transfer {
+//!     source,
+//!     destination,
+//!     amount: 1000,
+//!     ..Default::default()
+//! }.execute(&mut rpc, &payer, &authority).await?;
+//! ```
 
-pub use create_compressible_token_account::*;
-pub use create_mint::*;
-pub use mint_action::*;
-pub use mint_to_compressed::*;
-pub use spl_interface::*;
-pub use transfer::*;
-pub use update_compressed_mint::*;
+pub mod approve;
+pub mod create_ata;
+pub mod create_mint;
+pub mod mint_to;
+pub mod revoke;
+pub mod transfer;
+pub mod transfer_checked;
+pub mod transfer_interface;
+pub mod unwrap;
+pub mod wrap;
+
+// Re-export all action structs
+pub use approve::Approve;
+pub use create_ata::{derive_ata_address, get_ata_address, CreateAta};
+pub use create_mint::{CreateMint, TokenMetadata};
+pub use mint_to::MintTo;
+pub use revoke::Revoke;
+pub use transfer::Transfer;
+pub use transfer_checked::TransferChecked;
+pub use transfer_interface::TransferInterface;
+pub use unwrap::Unwrap;
+pub use wrap::Wrap;

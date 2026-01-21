@@ -10,7 +10,7 @@ use solana_signer::Signer;
 use spl_pod::bytemuck::pod_from_bytes;
 use spl_token_2022::pod::PodAccount;
 
-use crate::instructions::transfer2::{
+use super::super::instructions::transfer2::{
     create_generic_transfer2_instruction, CompressInput, Transfer2InstructionType,
 };
 

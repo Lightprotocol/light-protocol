@@ -11,7 +11,7 @@ use solana_pubkey::Pubkey;
 use solana_signature::Signature;
 use solana_signer::Signer;
 
-use crate::instructions::mint_action::{
+use super::instructions::mint_action::{
     create_mint_action_instruction, DecompressMintParams, MintActionParams, MintActionType,
     MintToRecipient,
 };
@@ -79,7 +79,7 @@ pub async fn mint_action_comprehensive<R: Rpc + Indexer>(
     update_mint_authority: Option<Pubkey>,
     update_freeze_authority: Option<Pubkey>,
     // Parameters for mint creation (required when creating a new mint)
-    new_mint: Option<crate::instructions::mint_action::NewMint>,
+    new_mint: Option<super::instructions::mint_action::NewMint>,
 ) -> Result<Signature, RpcError> {
     // Derive addresses
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;

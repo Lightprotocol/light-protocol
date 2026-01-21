@@ -3,13 +3,13 @@ use std::collections::HashMap;
 use anchor_spl::token_2022::spl_token_2022;
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_program_test::LightProgramTest;
-use light_token_client::instructions::transfer2::{
-    CompressInput, DecompressInput, Transfer2InstructionType, TransferInput,
-};
 use light_token_interface::LIGHT_TOKEN_PROGRAM_ID;
 use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
 
 use crate::{
+    actions::legacy::instructions::transfer2::{
+        CompressInput, DecompressInput, Transfer2InstructionType, TransferInput,
+    },
     assert_close_token_account::assert_close_token_account,
     assert_ctoken_transfer::assert_compressible_for_account,
 };
@@ -606,7 +606,7 @@ pub async fn assert_transfer2_compress(rpc: &mut LightProgramTest, compress_inpu
 /// Automatically retrieves pre-state from the cached context
 pub async fn assert_transfer2_compress_and_close(
     rpc: &mut LightProgramTest,
-    compress_and_close_input: light_token_client::instructions::transfer2::CompressAndCloseInput,
+    compress_and_close_input: crate::actions::legacy::instructions::transfer2::CompressAndCloseInput,
 ) {
     // Get the destination account
     let destination_pubkey = compress_and_close_input

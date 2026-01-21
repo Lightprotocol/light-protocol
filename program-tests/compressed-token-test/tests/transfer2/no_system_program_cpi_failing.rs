@@ -130,7 +130,7 @@ async fn setup_no_system_program_cpi_test(
         vec![]
     };
 
-    light_token_client::actions::mint_action_comprehensive(
+    light_test_utils::actions::mint_action_comprehensive(
         &mut rpc,
         &mint_seed,
         &mint_authority,
@@ -141,14 +141,16 @@ async fn setup_no_system_program_cpi_test(
         decompressed_recipients, // mint to source Light Token ATA (empty if token_amount is 0)
         None,
         None,
-        Some(light_token_client::instructions::mint_action::NewMint {
-            decimals: 6,
-            supply: 0,
-            mint_authority: mint_authority.pubkey(),
-            freeze_authority: None,
-            metadata: None,
-            version: 3, // ShaFlat
-        }),
+        Some(
+            light_test_utils::actions::legacy::instructions::mint_action::NewMint {
+                decimals: 6,
+                supply: 0,
+                mint_authority: mint_authority.pubkey(),
+                freeze_authority: None,
+                metadata: None,
+                version: 3, // ShaFlat
+            },
+        ),
     )
     .await
     .unwrap();
@@ -738,7 +740,7 @@ async fn test_too_many_mints() {
         // Create mint and mint tokens to source Light Token ATA
         let decompressed_recipients = vec![Recipient::new(context.owner.pubkey(), 1000)];
 
-        light_token_client::actions::mint_action_comprehensive(
+        light_test_utils::actions::mint_action_comprehensive(
             &mut context.rpc,
             &mint_seed,
             &mint_authority,
@@ -749,14 +751,16 @@ async fn test_too_many_mints() {
             decompressed_recipients, // mint to source Light Token ATA
             None,
             None,
-            Some(light_token_client::instructions::mint_action::NewMint {
-                decimals: 6,
-                supply: 0,
-                mint_authority: mint_authority.pubkey(),
-                freeze_authority: None,
-                metadata: None,
-                version: 3, // ShaFlat
-            }),
+            Some(
+                light_test_utils::actions::legacy::instructions::mint_action::NewMint {
+                    decimals: 6,
+                    supply: 0,
+                    mint_authority: mint_authority.pubkey(),
+                    freeze_authority: None,
+                    metadata: None,
+                    version: 3, // ShaFlat
+                },
+            ),
         )
         .await
         .unwrap();

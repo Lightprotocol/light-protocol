@@ -21,7 +21,7 @@ use light_registry::{
     utils::{get_forester_pda, get_protocol_config_pda_address},
     ForesterConfig,
 };
-use light_token_client::actions::{
+use light_test_utils::actions::legacy::{
     create_compressible_token_account, CreateCompressibleTokenAccountInputs,
 };
 use light_token_interface::state::TokenDataVersion;

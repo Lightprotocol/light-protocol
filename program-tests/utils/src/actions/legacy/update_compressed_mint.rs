@@ -8,7 +8,7 @@ use solana_pubkey::Pubkey;
 use solana_signature::Signature;
 use solana_signer::Signer;
 
-use crate::instructions::update_compressed_mint::update_compressed_mint_instruction;
+use super::instructions::update_compressed_mint::update_compressed_mint_instruction;
 
 /// Update compressed mint authority action
 ///

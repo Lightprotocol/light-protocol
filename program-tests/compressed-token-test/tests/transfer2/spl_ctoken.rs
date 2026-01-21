@@ -14,6 +14,7 @@ use light_compressed_token_sdk::{
 use light_program_test::utils::assert::assert_rpc_error;
 pub use light_program_test::{LightProgramTest, ProgramTestConfig};
 pub use light_test_utils::{
+    actions::transfer2::{self},
     airdrop_lamports,
     spl::{
         create_mint_helper, create_token_2022_account, mint_spl_tokens, CREATE_MINT_HELPER_DECIMALS,
@@ -24,7 +25,6 @@ pub use light_token::instruction::{
     derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount,
 };
 use light_token::ValidityProof;
-pub use light_token_client::actions::transfer2::{self};
 use light_token_interface::instructions::transfer2::{Compression, MultiTokenTransferOutputData};
 use solana_sdk::pubkey::Pubkey;
 pub use solana_sdk::{instruction::Instruction, signature::Keypair, signer::Signer};

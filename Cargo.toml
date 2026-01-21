@@ -58,6 +58,7 @@ members = [
     "sdk-tests/sdk-v1-native-test",
     "sdk-tests/sdk-token-test",
     "sdk-tests/sdk-light-token-test",
+    "sdk-tests/token-client-test",
     "sdk-tests/csdk-anchor-full-derived-test",
     "sdk-tests/csdk-anchor-full-derived-test-sdk",
     "sdk-tests/single-mint-test",

@@ -5,14 +5,14 @@
 
 use light_program_test::{utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
+    actions::legacy::instructions::transfer2::{
+        create_generic_transfer2_instruction, CompressInput, Transfer2InstructionType,
+    },
     mint_2022::{
         create_mint_22_with_extensions, create_token_22_account, mint_spl_tokens_22,
         Token22ExtensionConfig,
     },
     Rpc, RpcError,
-};
-use light_token_client::instructions::transfer2::{
-    create_generic_transfer2_instruction, CompressInput, Transfer2InstructionType,
 };
 use light_token_interface::state::{
     ExtensionStruct, PausableAccountExtension, PermanentDelegateAccountExtension,

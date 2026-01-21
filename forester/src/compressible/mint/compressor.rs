@@ -6,7 +6,7 @@ use std::sync::{
 use forester_utils::rpc_pool::SolanaRpcPool;
 use futures::StreamExt;
 use light_client::{indexer::Indexer, rpc::Rpc};
-use light_token_client::instructions::mint_action::{
+use light_test_utils::actions::legacy::instructions::mint_action::{
     create_mint_action_instruction, MintActionParams, MintActionType,
 };
 use solana_sdk::{

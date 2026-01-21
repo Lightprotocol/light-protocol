@@ -9,6 +9,9 @@ use light_program_test::{
     program_test::TestRpc, utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig,
 };
 use light_test_utils::{
+    actions::legacy::instructions::transfer2::{
+        create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,
+    },
     mint_2022::{
         create_mint_22_with_extension_types, create_token_22_account, mint_spl_tokens_22,
         RESTRICTED_EXTENSIONS,
@@ -18,9 +21,6 @@ use light_test_utils::{
 use light_token::instruction::{
     derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount, CreateTokenAccount,
     TransferFromSpl,
-};
-use light_token_client::instructions::transfer2::{
-    create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,
 };
 use light_token_interface::{
     instructions::extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},

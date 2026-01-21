@@ -15,15 +15,19 @@ use light_compressed_token_sdk::compressed_token::create_compressed_mint::{
     derive_mint_compressed_address, find_mint_address,
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig};
-use light_test_utils::{assert_mint_action::assert_mint_action, Rpc};
+use light_test_utils::{
+    actions::{
+        create_mint,
+        legacy::instructions::mint_action::{
+            DecompressMintParams, MintActionParams, MintActionType, MintToRecipient,
+        },
+        mint_action, mint_action_comprehensive,
+    },
+    assert_mint_action::assert_mint_action,
+    Rpc,
+};
 use light_token::instruction::{
     derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount,
-};
-use light_token_client::{
-    actions::create_mint,
-    instructions::mint_action::{
-        DecompressMintParams, MintActionParams, MintActionType, MintToRecipient,
-    },
 };
 use light_token_interface::{
     instructions::extensions::token_metadata::TokenMetadataInstructionData,
@@ -75,7 +79,7 @@ async fn test_cmint_update_metadata_grow() {
     .unwrap();
 
     // 2. Decompress to CMint (creates on-chain account)
-    light_token_client::actions::mint_action_comprehensive(
+    mint_action_comprehensive(
         &mut rpc,
         &mint_seed,
         &authority,
@@ -110,7 +114,7 @@ async fn test_cmint_update_metadata_grow() {
             .to_vec(),
     }];
 
-    light_token_client::actions::mint_action(
+    mint_action(
         &mut rpc,
         MintActionParams {
             compressed_mint_address,
@@ -174,7 +178,7 @@ async fn test_cmint_update_metadata_shrink() {
     .unwrap();
 
     // 2. Decompress to CMint
-    light_token_client::actions::mint_action_comprehensive(
+    mint_action_comprehensive(
         &mut rpc,
         &mint_seed,
         &authority,
@@ -207,7 +211,7 @@ async fn test_cmint_update_metadata_shrink() {
         value: "Short".as_bytes().to_vec(),
     }];
 
-    light_token_client::actions::mint_action(
+    mint_action(
         &mut rpc,
         MintActionParams {
             compressed_mint_address,
@@ -276,7 +280,7 @@ async fn test_cmint_remove_metadata_key() {
     .unwrap();
 
     // 2. Decompress to CMint
-    light_token_client::actions::mint_action_comprehensive(
+    mint_action_comprehensive(
         &mut rpc,
         &mint_seed,
         &authority,
@@ -308,7 +312,7 @@ async fn test_cmint_remove_metadata_key() {
         idempotent: 0,
     }];
 
-    light_token_client::actions::mint_action(
+    mint_action(
         &mut rpc,
         MintActionParams {
             compressed_mint_address,
@@ -377,7 +381,7 @@ async fn test_cmint_multiple_metadata_changes() {
     .unwrap();
 
     // 2. Decompress to CMint
-    light_token_client::actions::mint_action_comprehensive(
+    mint_action_comprehensive(
         &mut rpc,
         &mint_seed,
         &authority,
@@ -423,7 +427,7 @@ async fn test_cmint_multiple_metadata_changes() {
         },
     ];
 
-    light_token_client::actions::mint_action(
+    mint_action(
         &mut rpc,
         MintActionParams {
             compressed_mint_address,
@@ -495,7 +499,7 @@ async fn test_cmint_all_operations() {
     .unwrap();
 
     // 2. Decompress to CMint
-    light_token_client::actions::mint_action_comprehensive(
+    mint_action_comprehensive(
         &mut rpc,
         &mint_seed,
         &authority,
@@ -614,7 +618,7 @@ async fn test_cmint_all_operations() {
         },
     ];
 
-    light_token_client::actions::mint_action(
+    mint_action(
         &mut rpc,
         MintActionParams {
             compressed_mint_address,
@@ -697,7 +701,7 @@ async fn test_decompress_with_mint_to() {
         },
     ];
 
-    light_token_client::actions::mint_action(
+    mint_action(
         &mut rpc,
         MintActionParams {
             compressed_mint_address,
@@ -778,7 +782,7 @@ async fn test_decompress_with_authority_updates() {
         },
     ];
 
-    light_token_client::actions::mint_action(
+    mint_action(
         &mut rpc,
         MintActionParams {
             compressed_mint_address,
@@ -862,7 +866,7 @@ async fn test_decompress_with_metadata_update() {
         },
     ];
 
-    light_token_client::actions::mint_action(
+    mint_action(
         &mut rpc,
         MintActionParams {
             compressed_mint_address,
@@ -968,7 +972,7 @@ async fn test_decompress_with_mint_to_ctoken() {
         },
     ];
 
-    light_token_client::actions::mint_action(
+    mint_action(
         &mut rpc,
         MintActionParams {
             compressed_mint_address,
@@ -1144,7 +1148,7 @@ async fn test_decompress_with_all_operations() {
         },
     ];
 
-    light_token_client::actions::mint_action(
+    mint_action(
         &mut rpc,
         MintActionParams {
             compressed_mint_address,

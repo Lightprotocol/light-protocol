@@ -4166,6 +4166,7 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "base64 0.13.1",
+ "borsh 0.10.4",
  "create-address-test-program",
  "forester-utils",
  "light-account-checks",
@@ -4191,6 +4192,7 @@ dependencies = [
  "light-token",
  "light-token-client",
  "light-token-interface",
+ "light-token-types",
  "light-zero-copy",
  "log",
  "num-bigint 0.4.6",
@@ -4198,7 +4200,13 @@ dependencies = [
  "rand 0.8.5",
  "reqwest 0.12.26",
  "solana-banks-client",
+ "solana-instruction",
+ "solana-keypair",
+ "solana-msg 2.2.1",
+ "solana-pubkey 2.4.0",
  "solana-sdk",
+ "solana-signature",
+ "solana-signer",
  "solana-system-interface 1.0.0",
  "spl-pod",
  "spl-token 7.0.0",
@@ -10592,6 +10600,22 @@ name = "tinyvec_macros"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
+
+[[package]]
+name = "token-client-test"
+version = "0.1.0"
+dependencies = [
+ "borsh 0.10.4",
+ "light-client",
+ "light-program-test",
+ "light-test-utils",
+ "light-token",
+ "light-token-client",
+ "light-token-interface",
+ "solana-sdk",
+ "spl-token 7.0.0",
+ "tokio",
+]
 
 [[package]]
 name = "tokio"

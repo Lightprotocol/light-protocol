@@ -55,3 +55,11 @@ light-token = { workspace = true }
 light-compressed-token-sdk = { workspace = true }
 light-token-client = { workspace = true }
 light-compressible = { workspace = true }
+light-token-types = { workspace = true }
+solana-pubkey = { workspace = true }
+solana-keypair = { workspace = true }
+solana-signer = { workspace = true }
+solana-signature = { workspace = true }
+solana-instruction = { workspace = true }
+solana-msg = { workspace = true }
+borsh = { workspace = true }

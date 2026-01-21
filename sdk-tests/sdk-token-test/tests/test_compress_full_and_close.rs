@@ -8,11 +8,11 @@ use light_compressed_token_sdk::compressed_token::{
 };
 use light_program_test::{Indexer, LightProgramTest, ProgramTestConfig, Rpc};
 use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
+use light_test_utils::actions::legacy::instructions::transfer2::create_decompress_instruction;
 use light_token::instruction::{
     config_pda, derive_token_ata, rent_sponsor_pda, CompressibleParams,
     CreateAssociatedTokenAccount,
 };
-use light_token_client::instructions::transfer2::create_decompress_instruction;
 use light_token_interface::{
     instructions::mint_action::{MintWithContext, Recipient},
     state::{BaseMint, Mint, MintMetadata, TokenDataVersion, ACCOUNT_TYPE_MINT},
