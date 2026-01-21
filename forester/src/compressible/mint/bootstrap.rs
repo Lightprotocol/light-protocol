@@ -6,9 +6,7 @@ use tracing::{debug, info};
 use super::state::MintAccountTracker;
 use crate::{
     compressible::{
-        bootstrap_helpers::{
-            bootstrap_standard_api, bootstrap_v2_api, is_localhost, RawAccountData,
-        },
+        bootstrap_helpers::{run_bootstrap, RawAccountData},
         config::{ACCOUNT_TYPE_OFFSET, MINT_ACCOUNT_TYPE_FILTER},
         traits::CompressibleTracker,
     },
@@ -21,31 +19,18 @@ pub async fn bootstrap_mint_accounts(
     tracker: Arc<MintAccountTracker>,
     shutdown_rx: Option<oneshot::Receiver<()>>,
 ) -> Result<()> {
-    info!("Starting bootstrap of decompressed Mint accounts");
-
-    // Set up shutdown flag
-    let shutdown_flag = Arc::new(std::sync::atomic::AtomicBool::new(false));
-
-    if let Some(rx) = shutdown_rx {
-        let shutdown_flag_clone = shutdown_flag.clone();
-        tokio::spawn(async move {
-            let _ = rx.await;
-            shutdown_flag_clone.store(true, std::sync::atomic::Ordering::SeqCst);
-        });
-    }
-
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(30))
-        .build()?;
-
     // Light Token Program ID
     let program_id =
         solana_sdk::pubkey::Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
 
-    info!(
-        "Bootstrapping decompressed Mint accounts from program {}",
-        program_id
-    );
+    // Filter for decompressed Mint accounts (account_type = 1)
+    let filters = Some(vec![serde_json::json!({
+        "memcmp": {
+            "offset": ACCOUNT_TYPE_OFFSET,
+            "bytes": MINT_ACCOUNT_TYPE_FILTER,
+            "encoding": "base58"
+        }
+    })]);
 
     // Process function that updates tracker
     let process_account = |raw_data: RawAccountData| -> bool {
@@ -58,50 +43,21 @@ pub async fn bootstrap_mint_accounts(
         true
     };
 
-    // Filter for decompressed Mint accounts (account_type = 1)
-    let filters = Some(vec![serde_json::json!({
-        "memcmp": {
-            "offset": ACCOUNT_TYPE_OFFSET,
-            "bytes": MINT_ACCOUNT_TYPE_FILTER,
-            "encoding": "base58"
-        }
-    })]);
-
-    if is_localhost(&rpc_url) {
-        let (total_fetched, total_inserted) = bootstrap_standard_api(
-            &client,
-            &rpc_url,
-            &program_id,
-            filters,
-            Some(&shutdown_flag),
-            process_account,
-        )
-        .await?;
-
-        info!(
-            "Mint bootstrap complete: {} fetched, {} decompressed mints tracked",
-            total_fetched, total_inserted
-        );
-    } else {
-        let (page_count, total_fetched, total_inserted) = bootstrap_v2_api(
-            &client,
-            &rpc_url,
-            &program_id,
-            filters,
-            Some(&shutdown_flag),
-            process_account,
-        )
-        .await?;
-
-        info!(
-            "Mint bootstrap finished: {} pages, {} fetched, {} decompressed mints tracked",
-            page_count, total_fetched, total_inserted
-        );
-    }
+    let result = run_bootstrap(
+        &rpc_url,
+        &program_id,
+        filters,
+        shutdown_rx,
+        process_account,
+        "Mint",
+    )
+    .await?;
 
     info!(
-        "Mint bootstrap finished: {} total mints tracked",
-        tracker.len()
+        "Mint bootstrap finished: {} total mints tracked (fetched: {}, pages: {})",
+        tracker.len(),
+        result.fetched,
+        result.pages
     );
 
     Ok(())

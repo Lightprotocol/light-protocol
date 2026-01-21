@@ -216,7 +216,7 @@ async fn test_compressible_mint_bootstrap() {
         &mint_pda,
         &mint_seed.pubkey().to_bytes(),
         bump,
-        mint.compression.clone(),
+        mint.compression,
     );
 >>>>>>> d6299d718 (feat: add hex dependency and update existing hex usage in Cargo.toml files; refactor mint compression logic to handle batching and improve error handling; enhance test cases for mint creation and compression)
 
@@ -410,95 +410,95 @@ async fn test_compressible_mint_compression() {
     let ready_accounts = tracker.get_ready_to_compress(current_slot);
     println!("Ready to compress: {} mints", ready_accounts.len());
 
-    if !ready_accounts.is_empty() {
-        // Create compressor and compress
-        let compressor =
-            MintCompressor::new(rpc_pool.clone(), tracker.clone(), payer.insecure_clone());
+    assert!(
+        !ready_accounts.is_empty(),
+        "Mint should be ready to compress with rent_payment=0"
+    );
 
-        println!("Compressing Mint...");
-        let compress_result = compressor.compress_batch(&ready_accounts).await;
+    // Create compressor and compress
+    let compressor = MintCompressor::new(rpc_pool.clone(), tracker.clone(), payer.insecure_clone());
 
-        let signatures = compress_result.expect("Compression should succeed");
-        let signature = signatures
-            .last()
-            .expect("Should have at least one signature");
-        println!("Compression transaction sent: {}", signature);
+    println!("Compressing Mint...");
+    let compress_result = compressor.compress_batch(&ready_accounts).await;
 
-        // Wait for account to be closed
-        let start = tokio::time::Instant::now();
-        let timeout = Duration::from_secs(30);
-        let mut account_closed = false;
+    let signatures = compress_result.expect("Compression should succeed");
+    let signature = signatures
+        .last()
+        .expect("Should have at least one signature");
+    println!("Compression transaction sent: {}", signature);
 
-        while start.elapsed() < timeout {
-            let mint_after = rpc
-                .get_account(mint_pda)
-                .await
-                .expect("Failed to query mint account");
-            if mint_after.is_none() {
-                account_closed = true;
-                println!("Mint account closed successfully!");
-                break;
-            }
-            sleep(Duration::from_millis(500)).await;
+    // Wait for account to be closed
+    let start = tokio::time::Instant::now();
+    let timeout = Duration::from_secs(30);
+    let mut account_closed = false;
+
+    while start.elapsed() < timeout {
+        let mint_after = rpc
+            .get_account(mint_pda)
+            .await
+            .expect("Failed to query mint account");
+        if mint_after.is_none() {
+            account_closed = true;
+            println!("Mint account closed successfully!");
+            break;
         }
-
-        assert!(
-            account_closed,
-            "Mint account should be closed after compression"
-        );
-
-        wait_for_indexer(&rpc)
-            .await
-            .expect("Failed to wait for indexer");
-
-        // Verify compressed mint still exists in the merkle tree
-        let compressed_after = rpc
-            .get_compressed_account(compression_address, None)
-            .await
-            .unwrap()
-            .value;
-        assert!(
-            compressed_after.is_some(),
-            "Compressed mint should still exist after compression"
-        );
-
-        // Test Photon API: get_compressed_mint
-        println!("Testing Photon get_compressed_mint API...");
-        let mint_response = rpc
-            .get_compressed_mint(compression_address, None)
-            .await
-            .expect("get_compressed_mint should succeed");
-
-        let compressed_mint = mint_response
-            .value
-            .expect("Compressed mint should be returned by get_compressed_mint");
-
-        assert_eq!(compressed_mint.mint.decimals, 9, "Decimals should match");
-        assert_eq!(
-            compressed_mint.mint.mint_authority,
-            Some(payer.pubkey()),
-            "Mint authority should be payer"
-        );
-        println!(
-            "Photon get_compressed_mint verified: decimals={}, supply={}",
-            compressed_mint.mint.decimals, compressed_mint.mint.supply
-        );
-
-        // Test Photon API: get_compressed_mint_by_pda
-        let mint_by_pda = rpc
-            .get_compressed_mint_by_pda(&mint_pda, None)
-            .await
-            .expect("get_compressed_mint_by_pda should succeed");
-        assert!(
-            mint_by_pda.value.is_some(),
-            "Should find compressed mint by PDA"
-        );
-        println!("Photon get_compressed_mint_by_pda verified!");
-
-        println!("Mint compression test completed successfully!");
-    } else {
-        panic!("Mint should be ready to compress with rent_payment=0");
+        sleep(Duration::from_millis(500)).await;
     }
+
+    assert!(
+        account_closed,
+        "Mint account should be closed after compression"
+    );
+
+    wait_for_indexer(&rpc)
+        .await
+        .expect("Failed to wait for indexer");
+
+    // Verify compressed mint still exists in the merkle tree
+    let compressed_after = rpc
+        .get_compressed_account(compression_address, None)
+        .await
+        .unwrap()
+        .value;
+    assert!(
+        compressed_after.is_some(),
+        "Compressed mint should still exist after compression"
+    );
+
+    // Test Photon API: get_compressed_mint
+    println!("Testing Photon get_compressed_mint API...");
+    let mint_response = rpc
+        .get_compressed_mint(compression_address, None)
+        .await
+        .expect("get_compressed_mint should succeed");
+
+    let compressed_mint = mint_response
+        .value
+        .expect("Compressed mint should be returned by get_compressed_mint");
+
+    assert_eq!(compressed_mint.mint.decimals, 9, "Decimals should match");
+    assert_eq!(
+        compressed_mint.mint.mint_authority,
+        Some(payer.pubkey()),
+        "Mint authority should be payer"
+    );
+    println!(
+        "Photon get_compressed_mint verified: decimals={}, supply={}",
+        compressed_mint.mint.decimals, compressed_mint.mint.supply
+    );
+
+    // Test Photon API: get_compressed_mint_by_pda
+    let mint_by_pda = rpc
+        .get_compressed_mint_by_pda(&mint_pda, None)
+        .await
+        .expect("get_compressed_mint_by_pda should succeed");
+    assert!(
+        mint_by_pda.value.is_some(),
+        "Should find compressed mint by PDA"
+    );
+    println!("Photon get_compressed_mint_by_pda verified!");
+
+    println!("Mint compression test completed successfully!");
 }
 
 /// Test AccountSubscriber for Mint accounts
