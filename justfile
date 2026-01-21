@@ -115,7 +115,7 @@ test-sdk-libs:
     cargo test -p light-client
     cargo test -p light-sparse-merkle-tree
     cargo test -p light-token-types
-    cargo test -p light-token-sdk --all-features
+    cargo test -p light-token --all-features
 
 test-js: test-stateless-js test-compressed-token
 
