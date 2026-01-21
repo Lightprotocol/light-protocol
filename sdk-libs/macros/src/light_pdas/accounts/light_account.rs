@@ -1143,7 +1143,10 @@ mod tests {
         let direct_proof_arg = Some(proof_ident.clone());
 
         let result = parse_light_account_attr(&field, &field_ident, &direct_proof_arg);
-        assert!(result.is_ok(), "Should parse successfully with direct proof arg");
+        assert!(
+            result.is_ok(),
+            "Should parse successfully with direct proof arg"
+        );
         let result = result.unwrap();
         assert!(result.is_some(), "Should return Some for init PDA");
 
@@ -1204,7 +1207,10 @@ mod tests {
         let direct_proof_arg = Some(proof_ident.clone());
 
         let result = parse_light_account_attr(&field, &field_ident, &direct_proof_arg);
-        assert!(result.is_ok(), "Should parse successfully with direct proof arg");
+        assert!(
+            result.is_ok(),
+            "Should parse successfully with direct proof arg"
+        );
         let result = result.unwrap();
         assert!(result.is_some(), "Should return Some for init mint");
 

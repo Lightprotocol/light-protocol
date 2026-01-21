@@ -213,7 +213,9 @@ fn is_create_accounts_proof_type(ty: &Type) -> bool {
 ///
 /// Returns an error if multiple `CreateAccountsProof` arguments are found,
 /// as this would make proof access ambiguous.
-fn find_direct_proof_arg(instruction_args: &Option<Vec<InstructionArg>>) -> Result<Option<Ident>, Error> {
+fn find_direct_proof_arg(
+    instruction_args: &Option<Vec<InstructionArg>>,
+) -> Result<Option<Ident>, Error> {
     let Some(args) = instruction_args.as_ref() else {
         return Ok(None);
     };
