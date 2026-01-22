@@ -61,14 +61,14 @@ jobs:
 
       - name: Build CLI
         run: |
-          npx nx build @lightprotocol/zk-compression-cli
+          just cli build
 
       - name: Run stateless.js tests with V1
         run: |
           echo "Running stateless.js tests with retry logic (max 2 attempts)..."
           attempt=1
           max_attempts=2
-          until npx nx test @lightprotocol/stateless.js; do
+          until just js test-stateless; do
             attempt=$((attempt + 1))
             if [ $attempt -gt $max_attempts ]; then
               echo "Tests failed after $max_attempts attempts"
@@ -84,7 +84,7 @@ jobs:
           echo "Running compressed-token tests with retry logic (max 2 attempts)..."
           attempt=1
           max_attempts=2
-          until npx nx test @lightprotocol/compressed-token; do
+          until just js test-compressed-token; do
             attempt=$((attempt + 1))
             if [ $attempt -gt $max_attempts ]; then
               echo "Tests failed after $max_attempts attempts"

@@ -85,7 +85,7 @@ jobs:
 
       - name: Build CLI
         run: |
-          npx nx build @lightprotocol/zk-compression-cli
+          just cli build
 
       - name: ${{ matrix.program }}
         run: |
@@ -113,7 +113,7 @@ jobs:
             else
               RUSTFLAGS="-D warnings" eval "$subtest"
               if [ "$subtest" == "cargo-test-sbf -p e2e-test" ]; then
-                pnpm --filter @lightprotocol/programs run build-compressed-token-small
+                just programs build-compressed-token-small
                 RUSTFLAGS="-D warnings" eval "$subtest -- --test test_10_all"
               fi
             fi

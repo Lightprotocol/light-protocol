@@ -112,6 +112,9 @@ runs:
       shell: bash
       run: bash scripts/devenv/install-photon.sh
 
+    - name: Install just
+      uses: extractions/setup-just@v2
+
     - name: Set Light Protocol environment variables
       shell: bash
       run: |
@@ -208,20 +211,14 @@ runs:
       shell: bash
       run: |
         echo "Building Rust programs..."
-        if ! npx nx build @lightprotocol/programs; then
-          echo "Failed to build programs, retrying with verbose output..."
-          npx nx build @lightprotocol/programs --verbose
-        fi
+        just programs build
 
     - name: Build Rust program-tests
       if: steps.cache-program-tests.outputs.cache-hit != 'true'
       shell: bash
       run: |
         echo "Building Rust program-tests..."
-        if ! npx nx build @lightprotocol/program-tests; then
-          echo "Failed to build program-tests, retrying with verbose output..."
-          npx nx build @lightprotocol/program-tests --verbose
-        fi
+        just program-tests build
 
     - name: Check for git changes
       shell: bash

@@ -1,0 +1,27 @@
+# Light Protocol - JavaScript Packages
+
+default:
+    @just --list
+
+build:
+    cd stateless.js && pnpm build
+    cd compressed-token && pnpm build
+
+test: test-stateless test-compressed-token
+
+test-stateless:
+    cd stateless.js && pnpm test
+
+test-compressed-token:
+    cd compressed-token && pnpm test
+
+test-compressed-token-unit-v2:
+    cd compressed-token && pnpm test:unit:all:v2
+
+lint:
+    cd stateless.js && pnpm lint
+    cd compressed-token && pnpm lint
+
+format:
+    cd stateless.js && pnpm format
+    cd compressed-token && pnpm format

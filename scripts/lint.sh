@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 
 set -e
-npx nx run-many --target=format:check --all
-npx nx run-many --target=lint --all
 
+# JS linting
+cd js/stateless.js && pnpm prettier --check . && pnpm lint && cd ../..
+cd js/compressed-token && pnpm prettier --check . && pnpm lint && cd ../..
+
+# Rust linting
 cargo +nightly fmt --all -- --check
 cargo clippy --workspace --all-features --all-targets -- -D warnings
 

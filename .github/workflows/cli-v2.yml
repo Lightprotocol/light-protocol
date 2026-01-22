@@ -61,11 +61,11 @@ jobs:
 
       - name: Build CLI with V2
         run: |
-          npx nx build @lightprotocol/zk-compression-cli
+          just cli build
 
       - name: Run CLI tests with V2
         run: |
-          npx nx test @lightprotocol/zk-compression-cli
+          just cli test
 
       - name: Display prover logs on failure
         if: failure()

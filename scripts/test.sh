@@ -6,4 +6,4 @@ fi
 
 set -eux
 
-npx nx run-many --target=test --all --parallel=false
+just test

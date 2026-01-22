@@ -38,7 +38,7 @@ main() {
             *)
                 echo "Unknown option: $1"
                 echo "Usage: $0 [--full-keys] [--no-reset] [--skip-components <comma-separated-list>] [--force-reinstall]"
-                echo "Components that can be skipped: go,rust,node,pnpm,solana,anchor,jq,photon,keys,dependencies,redis"
+                echo "Components that can be skipped: go,rust,node,pnpm,solana,anchor,jq,photon,keys,dependencies,redis,just"
                 exit 1
                 ;;
         esac
@@ -64,6 +64,7 @@ main() {
     should_skip "keys" || bash "${SCRIPT_DIR}/download-gnark-keys.sh" "$key_type"
     should_skip "dependencies" || bash "${SCRIPT_DIR}/install-dependencies.sh"
     should_skip "redis" || bash "${SCRIPT_DIR}/install-redis.sh"
+    should_skip "just" || bash "${SCRIPT_DIR}/install-just.sh"
 
     echo "✨ Light Protocol development dependencies installed"
     if [ -n "$skip_components" ]; then

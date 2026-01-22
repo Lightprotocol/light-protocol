@@ -1,0 +1,17 @@
+# Light Protocol - SDK Libraries
+
+default:
+    @just --list
+
+test:
+    cargo test -p light-sdk-macros
+    cargo test -p light-sdk-macros --all-features
+    cargo test -p light-sdk
+    cargo test -p light-sdk --all-features
+    cargo test -p light-program-test
+    cargo test -p light-client
+    cargo test -p light-sparse-merkle-tree
+    cargo test -p light-token-types
+    cargo test -p light-token --all-features
+    cargo test -p light-token-client
+    cargo test -p light-token-client --all-features

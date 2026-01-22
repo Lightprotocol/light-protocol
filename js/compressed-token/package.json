@@ -156,26 +156,5 @@
         "light",
         "stateless",
         "solana"
-    ],
-    "nx": {
-        "targets": {
-            "build": {
-                "inputs": [
-                    "{workspaceRoot}/cli",
-                    "{workspaceRoot}/target/idl",
-                    "{workspaceRoot}/target/types"
-                ]
-            },
-            "build-ci": {
-                "dependsOn": [
-                    "@lightprotocol/stateless.js:build-ci"
-                ]
-            },
-            "test-ci": {
-                "dependsOn": [
-                    "@lightprotocol/stateless.js:test-ci"
-                ]
-            }
-        }
-    }
+    ]
 }

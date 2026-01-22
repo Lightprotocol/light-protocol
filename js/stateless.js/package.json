@@ -117,22 +117,5 @@
         "build-ci": "if [ \"$LIGHT_PROTOCOL_VERSION\" = \"V2\" ]; then LIGHT_PROTOCOL_VERSION=V2 pnpm build:bundle; else LIGHT_PROTOCOL_VERSION=V1 pnpm build:bundle; fi",
         "format": "prettier --write .",
         "lint": "eslint ."
-    },
-    "nx": {
-        "targets": {
-            "build": {
-                "inputs": [
-                    "{workspaceRoot}/cli",
-                    "{workspaceRoot}/target/idl",
-                    "{workspaceRoot}/target/types"
-                ]
-            },
-            "build-ci": {
-                "dependsOn": []
-            },
-            "test-ci": {
-                "dependsOn": []
-            }
-        }
     }
 }

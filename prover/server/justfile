@@ -1,0 +1,66 @@
+# Light Prover Server
+
+export TEST_REDIS_URL := env_var_or_default("TEST_REDIS_URL", "redis://localhost:6379/15")
+
+default:
+    @just --list
+
+# === Build ===
+build:
+    go build ./...
+
+build-binary:
+    go build -o light-prover .
+
+# === Tests (no Redis required) ===
+test-unit:
+    go test ./prover/... -timeout 60m
+
+test-worker-selection:
+    go test -v -run TestWorkerSelection -timeout 5m
+
+test-batch-operations:
+    go test -v -run TestBatchOperations -timeout 5m
+
+test-no-redis: test-unit test-worker-selection test-batch-operations
+
+# === Tests (Redis required) ===
+test-redis:
+    go test -v -run TestRedis -timeout 10m
+
+test-cleanup:
+    go test -v -run TestCleanup -timeout 5m
+
+test-job-processing-flow:
+    go test -v -run TestJobProcessingFlow -timeout 5m
+
+test-failed-job-status:
+    go test -v -run TestFailedJobStatus -timeout 5m
+
+test-with-redis: test-redis test-cleanup test-job-processing-flow test-failed-job-status
+
+# === Integration Tests ===
+test-lightweight:
+    go test -run TestLightweight -timeout 15m
+
+test-lightweight-lazy:
+    go test -run TestLightweightLazy -timeout 15m
+
+# Excluded from test-integration and test due to 120m timeout; run manually for exhaustive testing
+test-full:
+    go test -run TestFull -timeout 120m
+
+test-integration: test-lightweight test-lightweight-lazy
+
+# === All Tests ===
+# Note: test-full excluded to avoid slow CI runs
+test: test-no-redis test-with-redis test-integration
+
+# === Formal Verification ===
+extract-circuit: build-binary
+    ./light-prover extract-circuit --output formal-verification/FormalVerification/Circuit.lean --address-tree-height 40 --compressed-accounts 8 --state-tree-height 32
+
+lean-build:
+    cd formal-verification && lake exe cache get && lake build
+
+verify: extract-circuit lean-build

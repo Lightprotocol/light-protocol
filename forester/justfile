@@ -1,0 +1,37 @@
+# Light Protocol - Forester Service
+
+export TEST_MODE := env_var_or_default("TEST_MODE", "local")
+export TEST_V1_STATE := env_var_or_default("TEST_V1_STATE", "true")
+export TEST_V2_STATE := env_var_or_default("TEST_V2_STATE", "true")
+export TEST_V1_ADDRESS := env_var_or_default("TEST_V1_ADDRESS", "true")
+export TEST_V2_ADDRESS := env_var_or_default("TEST_V2_ADDRESS", "true")
+export RUST_BACKTRACE := env_var_or_default("RUST_BACKTRACE", "1")
+
+default:
+    @just --list
+
+build:
+    cargo build -p forester --release
+
+# Builds test program dependency
+build-test-deps:
+    cd ../program-tests/create-address-test-program && cargo build-sbf
+
+test: build-test-deps
+    cargo test --package forester e2e_test -- --nocapture
+
+# Builds csdk-anchor-full-derived-test program for compressible tests
+build-compressible-test-deps:
+    cargo build-sbf --manifest-path ../sdk-tests/csdk-anchor-full-derived-test/Cargo.toml
+
+test-compressible-pda: build-compressible-test-deps
+    RUST_LOG=forester=debug,light_client=debug \
+    cargo test --package forester --test test_compressible_pda -- --nocapture
+
+test-compressible-mint: build-compressible-test-deps
+    RUST_LOG=forester=debug,light_client=debug \
+    cargo test --package forester --test test_compressible_mint -- --nocapture
+
+test-compressible-ctoken: build-compressible-test-deps
+    RUST_LOG=forester=debug,light_client=debug \
+    cargo test --package forester --test test_compressible_ctoken -- --nocapture

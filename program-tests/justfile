@@ -1,0 +1,15 @@
+# Light Protocol - Program Tests
+
+default:
+    @just --list
+
+build:
+    cd create-address-test-program && cargo build-sbf
+
+test: build
+    RUSTFLAGS="-D warnings" cargo test-sbf -p account-compression-test
+    RUSTFLAGS="-D warnings" cargo test-sbf -p registry-test
+    RUSTFLAGS="-D warnings" cargo test-sbf -p system-test
+    RUSTFLAGS="-D warnings" cargo test-sbf -p system-cpi-test
+    RUSTFLAGS="-D warnings" cargo test-sbf -p compressed-token-test
+    RUSTFLAGS="-D warnings" cargo test-sbf -p e2e-test
