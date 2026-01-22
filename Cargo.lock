@@ -2292,6 +2292,7 @@ version = "1.1.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
+ "anchor-spl 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "anyhow",
  "async-channel 2.5.0",
  "async-trait",
@@ -2341,6 +2342,7 @@ dependencies = [
  "solana-pubkey 2.4.0",
  "solana-rpc-client-api",
  "solana-sdk",
+ "solana-system-interface 1.0.0",
  "solana-transaction-status",
  "thiserror 2.0.17",
  "tokio",
