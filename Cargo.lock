@@ -3643,6 +3643,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-compressed-token-sdk"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "arrayvec",
+ "borsh 0.10.4",
+ "light-account-checks",
+ "light-compressed-account",
+ "light-program-profiler",
+ "light-sdk",
+ "light-sdk-types",
+ "light-token-interface",
+ "light-token-types",
+ "light-zero-copy",
+ "solana-account-info",
+ "solana-cpi",
+ "solana-instruction",
+ "solana-msg 2.2.1",
+ "solana-program-error 2.2.2",
+ "solana-pubkey 2.4.0",
+ "thiserror 2.0.17",
+]
+
+[[package]]
 name = "light-compressible"
 version = "0.4.0"
 dependencies = [
@@ -4186,6 +4210,7 @@ dependencies = [
  "light-batched-merkle-tree",
  "light-compressed-account",
  "light-compressed-token",
+ "light-compressed-token-sdk",
  "light-compressible",
  "light-macros",
  "light-program-profiler",

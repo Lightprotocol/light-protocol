@@ -59,16 +59,12 @@
 
 #[cfg(feature = "anchor")]
 pub mod anchor;
-pub mod compressed_token;
 pub mod compressible;
-pub mod instruction;
-
-pub mod constants;
 pub mod error;
+pub mod instruction;
 pub mod pack;
-pub mod spl_interface;
-pub mod utils;
 
+// Re-export modules from light-compressed-token-sdk
 // Conditional anchor re-exports
 #[cfg(feature = "anchor")]
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
@@ -77,8 +73,10 @@ use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSeria
 pub use light_compressed_account::instruction_data::compressed_proof::{
     CompressedProof, ValidityProof,
 };
+pub use light_compressed_token_sdk::{compressed_token, constants, spl_interface, utils};
 pub use light_token_interface::{
     instructions::extensions::{ExtensionInstructionData, TokenMetadataInstructionData},
     state::AdditionalMetadata,
 };
+// Re-export pack::compat as the main compat module (has full type definitions including CTokenData, PackedCTokenData)
 pub use pack::compat;

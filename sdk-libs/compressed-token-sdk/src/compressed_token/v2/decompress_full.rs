@@ -1,4 +1,6 @@
-use light_compressed_account::compressed_account::PackedMerkleContext;
+use light_compressed_account::{
+    compressed_account::PackedMerkleContext, instruction_data::compressed_proof::ValidityProof,
+};
 use light_program_profiler::profile;
 use light_sdk::{
     error::LightSdkError,
@@ -21,7 +23,7 @@ use super::{
 };
 use crate::{
     compat::TokenData, error::TokenSdkError, utils::TokenDefaultAccounts, AnchorDeserialize,
-    AnchorSerialize, ValidityProof,
+    AnchorSerialize,
 };
 
 /// Struct to hold all the data needed for DecompressFull operation
