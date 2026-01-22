@@ -132,32 +132,11 @@ pub async fn get_current_slot(client: &reqwest::Client, rpc_url: &str) -> Result
         "params": [{"commitment": "confirmed"}]
     });
 
-    let result = timeout(RPC_REQUEST_TIMEOUT, async {
-        let response = client
-            .post(rpc_url)
-            .json(&payload)
-            .send()
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to get slot: {:?}", e))?;
+    let result = send_rpc_request(client, rpc_url, &payload).await?;
 
-        let json: serde_json::Value = response
-            .json()
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to parse slot response: {:?}", e))?;
-
-        json.get("result")
-            .and_then(|v| v.as_u64())
-            .ok_or_else(|| anyhow::anyhow!("Failed to extract slot from response"))
-    })
-    .await;
-
-    match result {
-        Ok(inner) => inner,
-        Err(_) => Err(anyhow::anyhow!(
-            "getSlot request timed out after {}s",
-            RPC_REQUEST_TIMEOUT.as_secs()
-        )),
-    }
+    result
+        .as_u64()
+        .ok_or_else(|| anyhow::anyhow!("Failed to extract slot from response: expected u64"))
 }
 
 /// Extract accounts array from V2 API response (handles various response formats)

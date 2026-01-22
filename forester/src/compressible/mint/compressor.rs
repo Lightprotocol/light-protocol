@@ -137,14 +137,17 @@ impl<R: Rpc + Indexer> MintCompressor<R> {
                 self.tracker.remove(&mint_state.pubkey);
             }
             info!("Batched CompressAndCloseMint tx confirmed: {}", signature);
+            Ok(signature)
         } else {
             tracing::warn!(
-                "CompressAndCloseMint tx not confirmed: {} - accounts kept in tracker for retry",
+                "Batch CompressAndCloseMint tx not confirmed: {} - accounts kept in tracker for retry",
                 signature
             );
+            Err(anyhow::anyhow!(
+                "Batch CompressAndCloseMint tx not confirmed: {}",
+                signature
+            ))
         }
-
-        Ok(signature)
     }
 
     /// Compress a batch of decompressed Mint accounts with concurrent execution.
@@ -161,6 +164,15 @@ impl<R: Rpc + Indexer> MintCompressor<R> {
     {
         if mint_states.is_empty() {
             return Vec::new();
+        }
+
+        // Guard against max_concurrent == 0 to avoid buffer_unordered panic
+        if max_concurrent == 0 {
+            return mint_states
+                .iter()
+                .cloned()
+                .map(|mint_state| Err((mint_state, anyhow::anyhow!("max_concurrent must be > 0"))))
+                .collect();
         }
 
         // Create futures for each mint

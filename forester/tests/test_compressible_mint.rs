@@ -15,7 +15,7 @@ use light_client::{
 use light_token::instruction::{
     derive_mint_compressed_address, find_mint_address, CreateMint, CreateMintParams,
 };
-use light_token_interface::state::Mint;
+use light_token_interface::state::{BaseMint, Mint, MintMetadata, ACCOUNT_TYPE_MINT};
 use serial_test::serial;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 use tokio::{
@@ -54,7 +54,7 @@ async fn create_decompressed_mint(
         .unwrap()
         .value;
 
-    // Build params - CreateMint auto-decompresses (rent_payment > 0)
+    // Build params - rent_payment = 0 makes the mint immediately compressible (no auto-decompress period)
     let params = CreateMintParams {
         decimals,
         address_merkle_tree_root_index: rpc_result.addresses[0].root_index,
@@ -129,7 +129,7 @@ async fn test_compressible_mint_bootstrap() {
         .expect("Failed to wait for indexer");
 
     // Create a decompressed mint
-    let (mint_pda, compression_address, _mint_seed) =
+    let (mint_pda, compression_address, mint_seed) =
         create_decompressed_mint(&mut rpc, &payer, payer.pubkey(), 9).await;
 
     println!("Created decompressed mint at: {}", mint_pda);
@@ -139,13 +139,39 @@ async fn test_compressible_mint_bootstrap() {
     let mint_account = rpc.get_account(mint_pda).await.unwrap();
     assert!(mint_account.is_some(), "Mint should exist after creation");
 
-    // Verify mint is decompressed
+    // Verify mint is decompressed using single assert_eq against expected Mint
     let mint_data = mint_account.unwrap();
     let mint = Mint::deserialize(&mut &mint_data.data[..]).expect("Failed to deserialize Mint");
-    assert!(
-        mint.metadata.mint_decompressed,
-        "Mint should be marked as decompressed"
-    );
+
+    // Extract runtime-specific compression info from deserialized mint
+    let compression = mint.compression;
+
+    // Derive the bump from mint_seed
+    let (_, bump) = find_mint_address(&mint_seed.pubkey());
+
+    // Build expected Mint
+    let expected_mint = Mint {
+        base: BaseMint {
+            mint_authority: Some(payer.pubkey().to_bytes().into()),
+            supply: 0,
+            decimals: 9,
+            is_initialized: true,
+            freeze_authority: None,
+        },
+        metadata: MintMetadata {
+            version: 1,
+            mint_decompressed: true,
+            mint: mint_pda.to_bytes().into(),
+            mint_signer: mint_seed.pubkey().to_bytes(),
+            bump,
+        },
+        reserved: [0u8; 16],
+        account_type: ACCOUNT_TYPE_MINT,
+        compression,
+        extensions: None,
+    };
+
+    assert_eq!(mint, expected_mint, "Mint should match expected state");
 
     // Wait for indexer
     wait_for_indexer(&rpc)
@@ -257,7 +283,7 @@ async fn test_compressible_mint_compression() {
         .expect("Failed to wait for indexer");
 
     // Create a decompressed mint
-    let (mint_pda, compression_address, _mint_seed) =
+    let (mint_pda, compression_address, mint_seed) =
         create_decompressed_mint(&mut rpc, &payer, payer.pubkey(), 9).await;
 
     println!("Created decompressed mint at: {}", mint_pda);
@@ -266,13 +292,39 @@ async fn test_compressible_mint_compression() {
     let mint_account = rpc.get_account(mint_pda).await.unwrap();
     assert!(mint_account.is_some(), "Mint should exist");
 
-    // Verify mint is decompressed
+    // Verify mint is decompressed using single assert_eq against expected Mint
     let mint_data = mint_account.clone().unwrap();
     let mint = Mint::deserialize(&mut &mint_data.data[..]).expect("Failed to deserialize Mint");
-    assert!(
-        mint.metadata.mint_decompressed,
-        "Mint should be marked as decompressed"
-    );
+
+    // Extract runtime-specific compression info from deserialized mint
+    let compression = mint.compression;
+
+    // Derive the bump from mint_seed
+    let (_, bump) = find_mint_address(&mint_seed.pubkey());
+
+    // Build expected Mint
+    let expected_mint = Mint {
+        base: BaseMint {
+            mint_authority: Some(payer.pubkey().to_bytes().into()),
+            supply: 0,
+            decimals: 9,
+            is_initialized: true,
+            freeze_authority: None,
+        },
+        metadata: MintMetadata {
+            version: 1,
+            mint_decompressed: true,
+            mint: mint_pda.to_bytes().into(),
+            mint_signer: mint_seed.pubkey().to_bytes(),
+            bump,
+        },
+        reserved: [0u8; 16],
+        account_type: ACCOUNT_TYPE_MINT,
+        compression,
+        extensions: None,
+    };
+
+    assert_eq!(mint, expected_mint, "Mint should match expected state");
 
     // Wait for indexer after mint creation
     wait_for_indexer(&rpc)

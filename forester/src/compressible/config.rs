@@ -34,7 +34,7 @@ pub const DEFAULT_PAGINATION_DELAY_MS: u64 = 100;
 
 /// Configuration for a compressible PDA program.
 ///
-/// Can be specified via CLI (using `program_id:discriminator_hex` format)
+/// Can be specified via CLI (using `program_id:discriminator_base58` format)
 /// or via config file using the serialized struct format.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PdaProgramConfig {
