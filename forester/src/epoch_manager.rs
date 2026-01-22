@@ -2032,7 +2032,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 )
                 .await;
 
-            // Process results and update tracker
+            // Process results (tracker cleanup already done by compressor)
             for result in results {
                 match result {
                     Ok((sig, account_state)) => {
@@ -2040,7 +2040,6 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                             "Compressed PDA {} for program {}: {}",
                             account_state.pubkey, program_config.program_id, sig
                         );
-                        pda_tracker.remove(&account_state.pubkey);
                         total_compressed += 1;
                     }
                     Err((account_state, e)) => {
@@ -2106,13 +2105,12 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             .compress_batch_concurrent(&accounts, config.max_concurrent_batches, cancelled)
             .await;
 
-        // Process results and update tracker
+        // Process results (tracker cleanup already done by compressor)
         let mut total_compressed = 0;
         for result in results {
             match result {
                 Ok((sig, mint_state)) => {
                     debug!("Compressed Mint {}: {}", mint_state.pubkey, sig);
-                    mint_tracker.remove(&mint_state.pubkey);
                     total_compressed += 1;
                 }
                 Err((mint_state, e)) => {

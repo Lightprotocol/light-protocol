@@ -5,6 +5,7 @@ pub mod mint;
 pub mod pda;
 pub mod subscriber;
 pub mod traits;
+pub mod validation;
 
 pub use config::{
     CompressibleConfig, PdaProgramConfig, ACCOUNT_TYPE_OFFSET, CTOKEN_ACCOUNT_TYPE_FILTER,
@@ -15,5 +16,6 @@ pub use ctoken::{
 };
 pub use mint::{bootstrap_mint_accounts, MintAccountState, MintAccountTracker, MintCompressor};
 pub use pda::{PdaAccountState, PdaAccountTracker, PdaCompressor};
-pub use subscriber::{AccountSubscriber, MemcmpFilter, SubscriptionConfig};
+pub use subscriber::{AccountSubscriber, MemcmpFilter, ReconnectConfig, SubscriptionConfig};
 pub use traits::SubscriptionHandler;
+pub use validation::validate_compressible_config;

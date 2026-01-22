@@ -1,4 +1,4 @@
-use std::{str::FromStr, sync::Arc};
+use std::{str::FromStr, sync::Arc, time::Duration};
 
 use futures::StreamExt;
 use light_token_interface::LIGHT_TOKEN_PROGRAM_ID;
@@ -11,7 +11,7 @@ use solana_client::{
 use solana_rpc_client_api::filter::{Memcmp, MemcmpEncodedBytes, RpcFilterType};
 use solana_sdk::{commitment_config::CommitmentConfig, pubkey::Pubkey};
 use tokio::sync::broadcast;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 use super::{
     config::{ACCOUNT_TYPE_OFFSET, CTOKEN_ACCOUNT_TYPE_FILTER, MINT_ACCOUNT_TYPE_FILTER},
@@ -36,6 +36,35 @@ pub struct SubscriptionConfig {
 pub struct MemcmpFilter {
     pub offset: usize,
     pub bytes: String, // Base58-encoded
+}
+
+/// Configuration for WebSocket reconnection with exponential backoff
+#[derive(Debug, Clone)]
+pub struct ReconnectConfig {
+    /// Initial delay before first reconnection attempt
+    pub initial_delay: Duration,
+    /// Maximum delay between reconnection attempts
+    pub max_delay: Duration,
+    /// Multiplier for exponential backoff (e.g., 2.0 doubles delay each attempt)
+    pub backoff_multiplier: f64,
+}
+
+impl Default for ReconnectConfig {
+    fn default() -> Self {
+        Self {
+            initial_delay: Duration::from_secs(1),
+            max_delay: Duration::from_secs(60),
+            backoff_multiplier: 2.0,
+        }
+    }
+}
+
+/// Result of a single connection session
+enum ConnectionResult {
+    /// Shutdown signal received
+    Shutdown,
+    /// Stream closed unexpectedly (should reconnect)
+    StreamClosed,
 }
 
 impl SubscriptionConfig {
@@ -82,10 +111,12 @@ impl SubscriptionConfig {
 
 /// Generic subscriber for account changes.
 /// Works with any tracker that implements SubscriptionHandler.
+/// Automatically reconnects with exponential backoff on connection loss.
 pub struct AccountSubscriber<H: SubscriptionHandler> {
     ws_url: String,
     handler: Arc<H>,
     config: SubscriptionConfig,
+    reconnect_config: ReconnectConfig,
     shutdown_rx: broadcast::Receiver<()>,
 }
 
@@ -100,8 +131,14 @@ impl<H: SubscriptionHandler + 'static> AccountSubscriber<H> {
             ws_url,
             handler,
             config,
+            reconnect_config: ReconnectConfig::default(),
             shutdown_rx,
         }
+    }
+
+    pub fn with_reconnect_config(mut self, reconnect_config: ReconnectConfig) -> Self {
+        self.reconnect_config = reconnect_config;
+        self
     }
 
     pub async fn run(&mut self) -> Result<()> {
@@ -110,6 +147,46 @@ impl<H: SubscriptionHandler + 'static> AccountSubscriber<H> {
             self.config.name, self.ws_url
         );
 
+        let mut current_delay = self.reconnect_config.initial_delay;
+        let mut attempt: u32 = 0;
+
+        loop {
+            match self.run_connection().await {
+                Ok(ConnectionResult::Shutdown) => {
+                    info!("{} subscriber stopped", self.config.name);
+                    return Ok(());
+                }
+                Ok(ConnectionResult::StreamClosed) | Err(_) => {
+                    attempt += 1;
+                    warn!(
+                        "{} connection lost (attempt {}), reconnecting in {:?}...",
+                        self.config.name, attempt, current_delay
+                    );
+
+                    // Wait with backoff, but check for shutdown signal
+                    tokio::select! {
+                        _ = tokio::time::sleep(current_delay) => {}
+                        _ = self.shutdown_rx.recv() => {
+                            info!("Shutdown signal received for {} subscriber during reconnect backoff", self.config.name);
+                            return Ok(());
+                        }
+                    }
+
+                    // Exponential backoff
+                    current_delay = Duration::from_secs_f64(
+                        (current_delay.as_secs_f64() * self.reconnect_config.backoff_multiplier)
+                            .min(self.reconnect_config.max_delay.as_secs_f64()),
+                    );
+                }
+            }
+        }
+    }
+
+    /// Runs a single connection session. Returns when:
+    /// - Shutdown signal received (Ok(Shutdown))
+    /// - Stream closed unexpectedly (Ok(StreamClosed))
+    /// - Connection/subscription error (Err)
+    async fn run_connection(&mut self) -> Result<ConnectionResult> {
         // Connect to WebSocket
         let pubsub_client = PubsubClient::new(&self.ws_url)
             .await
@@ -157,20 +234,17 @@ impl<H: SubscriptionHandler + 'static> AccountSubscriber<H> {
                         None => {
                             error!("{} subscription stream closed unexpectedly", self.config.name);
                             unsubscribe().await;
-                            return Err(anyhow::anyhow!("{} subscription stream closed", self.config.name));
+                            return Ok(ConnectionResult::StreamClosed);
                         }
                     }
                 }
                 _ = self.shutdown_rx.recv() => {
                     info!("Shutdown signal received for {} subscriber", self.config.name);
                     unsubscribe().await;
-                    break;
+                    return Ok(ConnectionResult::Shutdown);
                 }
             }
         }
-
-        info!("{} subscriber stopped", self.config.name);
-        Ok(())
     }
 
     async fn handle_account_update(&self, response: RpcResponse<RpcKeyedAccount>) {

@@ -95,6 +95,15 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
         let config = LightConfig::try_from_slice(&config_account.data)
             .map_err(|e| anyhow::anyhow!("Failed to deserialize config: {:?}", e))?;
 
+        // Validate config at startup to fail fast on misconfigurations
+        config.validate().map_err(|e| {
+            anyhow::anyhow!(
+                "LightConfig validation failed for program {}: {:?}",
+                program_id,
+                e
+            )
+        })?;
+
         let rent_sponsor = config.rent_sponsor;
         let compression_authority = config.compression_authority;
         let address_tree = *config

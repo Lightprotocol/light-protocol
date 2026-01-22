@@ -213,6 +213,9 @@ pub async fn run_pipeline<R: Rpc + Indexer>(
     let (compressible_tracker, pda_tracker, mint_tracker) = if let Some(compressible_config) =
         &config.compressible_config
     {
+        // Validate on-chain CompressibleConfig at startup (fail fast on misconfiguration)
+        compressible::validate_compressible_config(&config.external_services.rpc_url).await?;
+
         if let Some(shutdown_rx) = shutdown_compressible {
             // Create all shutdown receivers upfront (before any are moved)
             let shutdown_rx_ctoken = shutdown_rx.resubscribe();
