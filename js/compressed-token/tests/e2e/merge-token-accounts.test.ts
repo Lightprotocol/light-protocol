@@ -5,11 +5,11 @@ import {
     bn,
     defaultTestStateTreeAccounts,
     newAccountWithLamports,
-    getTestRpc,
     TreeInfo,
     selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
-import { WasmFactory } from '@lightprotocol/hasher.rs';
+import { NobleHasherFactory } from '@lightprotocol/program-test';
+import { getTestRpc } from '@lightprotocol/program-test';
 
 import { createMint, mintTo, mergeTokenAccounts } from '../../src/actions';
 
@@ -22,7 +22,7 @@ describe('mergeTokenAccounts', () => {
     let stateTreeInfo: TreeInfo;
 
     beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
+        const lightWasm = await NobleHasherFactory.getInstance();
         rpc = await getTestRpc(lightWasm);
         payer = await newAccountWithLamports(rpc, 1e9);
         mintAuthority = Keypair.generate();

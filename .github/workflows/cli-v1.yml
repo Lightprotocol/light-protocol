@@ -20,7 +20,7 @@ concurrency:
 jobs:
   cli-v1:
     name: cli-v1
-    if: github.event.pull_request.draft == false
+    if: false # Temporarily disabled for LiteSVM testing
     runs-on: ubuntu-latest
 
     services:

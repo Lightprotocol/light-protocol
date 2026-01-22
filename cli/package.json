@@ -54,6 +54,7 @@
   },
   "devDependencies": {
     "@eslint/js": "9.36.0",
+    "@lightprotocol/program-test": "workspace:*",
     "@oclif/test": "^4.1.14",
     "@solana/spl-token": "^0.3.11",
     "@types/bn.js": "^5.1.5",
@@ -148,7 +149,8 @@
       "build-ci": {
         "dependsOn": [
           "@lightprotocol/stateless.js:build-ci",
-          "@lightprotocol/compressed-token:build-ci"
+          "@lightprotocol/compressed-token:build-ci",
+          "@lightprotocol/program-test:build"
         ],
         "inputs": [
           "{workspaceRoot}/js",

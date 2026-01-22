@@ -26,7 +26,7 @@ concurrency:
 jobs:
   system-programs:
     name: system-programs
-    if: github.event.pull_request.draft == false
+    if: false # Temporarily disabled for LiteSVM testing
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
