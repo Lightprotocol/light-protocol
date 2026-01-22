@@ -64,13 +64,17 @@ describe.sequential("test-rpc with LiteSVM", () => {
     assert.equal(compressedTestAccount.data?.data, null);
 
     postCompressBalance = await rpc.getBalance(payer.publicKey);
-    assert.equal(
-      postCompressBalance,
-      preCompressBalance -
+    const expectedBalance = featureFlags.isV2()
+      ? preCompressBalance -
         compressLamportsAmount -
         5000 -
-        STATE_MERKLE_TREE_ROLLOVER_FEE.toNumber(),
-    );
+        STATE_MERKLE_TREE_ROLLOVER_FEE.toNumber() -
+        STATE_MERKLE_TREE_NETWORK_FEE.toNumber()
+      : preCompressBalance -
+        compressLamportsAmount -
+        5000 -
+        STATE_MERKLE_TREE_ROLLOVER_FEE.toNumber();
+    assert.equal(postCompressBalance, expectedBalance);
   });
 
   it("getCompressedAccountProof", async () => {
