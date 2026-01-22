@@ -58,6 +58,7 @@ pub use programs::{
 pub use registry::DecoderRegistry;
 #[cfg(not(target_os = "solana"))]
 pub use types::{
-    AccountAccess, AccountChange, CompressedAccountInfo, EnhancedInstructionLog,
-    EnhancedTransactionLog, LightProtocolEvent, MerkleTreeChange, TransactionStatus,
+    AccountAccess, AccountChange, AccountStateSnapshot, CompressedAccountInfo,
+    EnhancedInstructionLog, EnhancedTransactionLog, LightProtocolEvent, MerkleTreeChange,
+    TransactionStatus,
 };

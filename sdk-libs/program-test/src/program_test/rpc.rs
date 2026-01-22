@@ -392,7 +392,9 @@ impl LightProgramTest {
         let signature = transaction.signatures[0];
         let transaction_for_logging = transaction.clone(); // Clone for logging
 
-        // Cache the current context before transaction execution
+        // Capture lightweight pre-transaction account states for logging
+        let pre_states = crate::logging::capture_account_states(&self.context, &transaction);
+        // Clone context for test assertions (get_pre_transaction_account needs full account data)
         let pre_context_snapshot = self.context.clone();
 
         // Simulate the transaction. Currently, in banks-client/server, only
@@ -405,6 +407,10 @@ impl LightProgramTest {
         let transaction_result = self.context.send_transaction(transaction.clone());
         let slot = self.context.get_sysvar::<Clock>().slot;
 
+        // Capture post-transaction account states for logging
+        let post_states =
+            crate::logging::capture_account_states(&self.context, &transaction_for_logging);
+
         // Always try enhanced logging for file output (both success and failure)
         if crate::logging::should_use_enhanced_logging(&self.config) {
             crate::logging::log_transaction_enhanced(
@@ -414,6 +420,8 @@ impl LightProgramTest {
                 &signature,
                 slot,
                 self.transaction_counter,
+                Some(&pre_states),
+                Some(&post_states),
             );
         }
 
@@ -429,6 +437,8 @@ impl LightProgramTest {
                     slot,
                     self.transaction_counter,
                     true, // Enable console output
+                    Some(&pre_states),
+                    Some(&post_states),
                 );
             }
             RpcError::TransactionError(x.err.clone())
@@ -446,6 +456,8 @@ impl LightProgramTest {
                     slot,
                     self.transaction_counter,
                     true, // Enable console output
+                    Some(&pre_states),
+                    Some(&post_states),
                 );
 
                 // if self.config.log_light_protocol_events {

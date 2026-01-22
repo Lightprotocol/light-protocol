@@ -9,6 +9,7 @@
 //! - Re-exports from instruction-decoder
 
 use std::{
+    collections::HashMap,
     fs::OpenOptions,
     io::Write,
     path::PathBuf,
@@ -18,18 +19,37 @@ use std::{
 use chrono;
 // Re-export everything from instruction-decoder
 pub use light_instruction_decoder::{
-    AccountAccess, AccountChange, AccountCompressionInstructionDecoder, CTokenInstructionDecoder,
-    Colors, CompressedAccountInfo, ComputeBudgetInstructionDecoder, DecodedField,
-    DecodedInstruction, DecoderRegistry, EnhancedInstructionLog, EnhancedLoggingConfig,
-    EnhancedTransactionLog, InstructionDecoder, LightProtocolEvent, LightSystemInstructionDecoder,
-    LogVerbosity, MerkleTreeChange, RegistryInstructionDecoder, SplTokenInstructionDecoder,
-    SystemInstructionDecoder, Token2022InstructionDecoder, TransactionFormatter, TransactionStatus,
+    AccountAccess, AccountChange, AccountCompressionInstructionDecoder, AccountStateSnapshot,
+    CTokenInstructionDecoder, Colors, CompressedAccountInfo, ComputeBudgetInstructionDecoder,
+    DecodedField, DecodedInstruction, DecoderRegistry, EnhancedInstructionLog,
+    EnhancedLoggingConfig, EnhancedTransactionLog, InstructionDecoder, LightProtocolEvent,
+    LightSystemInstructionDecoder, LogVerbosity, MerkleTreeChange, RegistryInstructionDecoder,
+    SplTokenInstructionDecoder, SystemInstructionDecoder, Token2022InstructionDecoder,
+    TransactionFormatter, TransactionStatus,
 };
-use litesvm::types::TransactionResult;
+use litesvm::{types::TransactionResult, LiteSVM};
 use solana_sdk::{
     inner_instruction::InnerInstruction, pubkey::Pubkey, signature::Signature,
     transaction::Transaction,
 };
+
+/// Lightweight pre-transaction account state capture.
+/// Maps pubkey -> (lamports, data_len) for accounts in a transaction.
+pub type AccountStates = HashMap<Pubkey, (u64, usize)>;
+
+/// Capture account states from LiteSVM context.
+/// Call this before and after sending the transaction.
+pub fn capture_account_states(context: &LiteSVM, transaction: &Transaction) -> AccountStates {
+    let mut states = HashMap::new();
+    for pubkey in &transaction.message.account_keys {
+        if let Some(account) = context.get_account(pubkey) {
+            states.insert(*pubkey, (account.lamports, account.data.len()));
+        } else {
+            states.insert(*pubkey, (0, 0));
+        }
+    }
+    states
+}
 
 use crate::program_test::config::ProgramTestConfig;
 
@@ -128,6 +148,7 @@ fn write_to_log_file(content: &str) {
 }
 
 /// Main entry point for enhanced transaction logging
+#[allow(clippy::too_many_arguments)]
 pub fn log_transaction_enhanced(
     config: &ProgramTestConfig,
     transaction: &Transaction,
@@ -135,6 +156,8 @@ pub fn log_transaction_enhanced(
     signature: &Signature,
     slot: u64,
     transaction_counter: usize,
+    pre_states: Option<&AccountStates>,
+    post_states: Option<&AccountStates>,
 ) {
     log_transaction_enhanced_with_console(
         config,
@@ -144,10 +167,13 @@ pub fn log_transaction_enhanced(
         slot,
         transaction_counter,
         false,
+        pre_states,
+        post_states,
     )
 }
 
 /// Enhanced transaction logging with console output control
+#[allow(clippy::too_many_arguments)]
 pub fn log_transaction_enhanced_with_console(
     config: &ProgramTestConfig,
     transaction: &Transaction,
@@ -156,6 +182,8 @@ pub fn log_transaction_enhanced_with_console(
     slot: u64,
     transaction_counter: usize,
     print_to_console: bool,
+    pre_states: Option<&AccountStates>,
+    post_states: Option<&AccountStates>,
 ) {
     if !config.enhanced_logging.enabled {
         return;
@@ -167,6 +195,8 @@ pub fn log_transaction_enhanced_with_console(
         signature,
         slot,
         &config.enhanced_logging,
+        pre_states,
+        post_states,
     );
 
     let formatter = TransactionFormatter::new(&config.enhanced_logging);
@@ -205,12 +235,19 @@ fn get_pretty_logs_string(result: &TransactionResult) -> String {
 }
 
 /// Create EnhancedTransactionLog from LiteSVM transaction result
+///
+/// If pre_states and post_states are provided, captures account state snapshots
+/// for all accounts in the transaction.
+///
+/// Use `capture_pre_account_states` before and after sending the transaction.
 pub fn from_transaction_result(
     transaction: &Transaction,
     result: &TransactionResult,
     signature: &Signature,
     slot: u64,
     config: &EnhancedLoggingConfig,
+    pre_states: Option<&AccountStates>,
+    post_states: Option<&AccountStates>,
 ) -> EnhancedTransactionLog {
     let (status, compute_consumed) = match result {
         Ok(meta) => (TransactionStatus::Success, meta.compute_units_consumed),
@@ -221,6 +258,28 @@ pub fn from_transaction_result(
     };
 
     let estimated_fee = (transaction.signatures.len() as u64) * 5000;
+
+    // Capture account states if both pre and post states are provided
+    let account_states = if let (Some(pre), Some(post)) = (pre_states, post_states) {
+        let mut states = HashMap::new();
+        for pubkey in &transaction.message.account_keys {
+            let (lamports_before, data_len_before) = pre.get(pubkey).copied().unwrap_or((0, 0));
+            let (lamports_after, data_len_after) = post.get(pubkey).copied().unwrap_or((0, 0));
+
+            states.insert(
+                solana_pubkey::Pubkey::new_from_array(pubkey.to_bytes()),
+                AccountStateSnapshot {
+                    lamports_before,
+                    lamports_after,
+                    data_len_before,
+                    data_len_after,
+                },
+            );
+        }
+        Some(states)
+    } else {
+        None
+    };
 
     // Build full instructions with accounts and data
     let mut instructions: Vec<EnhancedInstructionLog> = transaction
@@ -290,6 +349,7 @@ pub fn from_transaction_result(
     log.compute_used = compute_consumed;
     log.instructions = instructions;
     log.program_logs_pretty = pretty_logs_string;
+    log.account_states = account_states;
     log
 }
 
