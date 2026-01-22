@@ -61,14 +61,14 @@ jobs:
 
       - name: Build CLI
         run: |
-          just build-cli
+          just cli build
 
       - name: Run stateless.js tests with V2
         run: |
           echo "Running stateless.js tests with retry logic (max 2 attempts)..."
           attempt=1
           max_attempts=2
-          until just test-stateless-js; do
+          until just js test-stateless; do
             attempt=$((attempt + 1))
             if [ $attempt -gt $max_attempts ]; then
               echo "Tests failed after $max_attempts attempts"
@@ -84,7 +84,7 @@ jobs:
           echo "Running compressed-token unit tests with retry logic (max 2 attempts)..."
           attempt=1
           max_attempts=2
-          until just test-compressed-token-unit-v2; do
+          until just js test-compressed-token-unit-v2; do
             attempt=$((attempt + 1))
             if [ $attempt -gt $max_attempts ]; then
               echo "Tests failed after $max_attempts attempts"
@@ -114,7 +114,7 @@ jobs:
 
       - name: Run sdk-anchor-test TypeScript tests with V2
         run: |
-          just build-sdk-anchor-test
+          just sdk-tests build-anchor-test
           cd sdk-tests/sdk-anchor-test && npm run test-ts
 
       - name: Display prover logs on failure

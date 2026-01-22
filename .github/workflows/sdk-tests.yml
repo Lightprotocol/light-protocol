@@ -54,7 +54,7 @@ jobs:
           - program: token test
             sub-tests: '["cargo-test-sbf -p sdk-token-test"]'
           - program: sdk-libs
-            test_cmd: just test-sdk-libs
+            test_cmd: just sdk-libs test
     steps:
       - name: Checkout sources
         uses: actions/checkout@v6
@@ -67,7 +67,7 @@ jobs:
 
       - name: Build CLI
         run: |
-          just build-cli
+          just cli build
 
       - name: Install bun
         if: matrix.program == 'sdk-libs'

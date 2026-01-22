@@ -35,11 +35,11 @@ jobs:
       matrix:
         group:
           - name: batched-merkle-tree-simulate
-            test_cmd: just test-batched-merkle-tree-simulate
+            test_cmd: just program-libs test-simulate
           - name: program-libs-fast
-            test_cmd: just test-program-libs-fast
+            test_cmd: just program-libs test-fast
           - name: program-libs-slow
-            test_cmd: just test-program-libs-slow
+            test_cmd: just program-libs test-slow
 
     name: Test ${{ matrix.group.name }}
 
@@ -68,7 +68,7 @@ jobs:
 
       - name: Build CLI
         run: |
-          just build-cli
+          just cli build
 
       - name: Run tests for ${{ matrix.group.name }}
         run: |

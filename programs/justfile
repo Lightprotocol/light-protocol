@@ -1,0 +1,13 @@
+# Light Protocol - Solana Programs
+
+default:
+    @just --list
+
+build:
+    cd system && cargo build-sbf
+    cd account-compression && cargo build-sbf --features 'test, migrate-state'
+    cd registry && cargo build-sbf
+    cd compressed-token/program && cargo build-sbf
+
+build-compressed-token-small:
+    cd compressed-token && cargo build-sbf --features cpi-without-program-ids

@@ -1,0 +1,12 @@
+# Light Protocol - SDK Tests
+
+default:
+    @just --list
+
+build-anchor-test:
+    cd sdk-anchor-test && pnpm build
+
+test:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p sdk-native-test
+    RUSTFLAGS="-D warnings" cargo test-sbf -p sdk-anchor-test
+    RUSTFLAGS="-D warnings" cargo test-sbf -p sdk-token-test

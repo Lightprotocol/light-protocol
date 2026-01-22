@@ -1,0 +1,10 @@
+# Light Protocol - CLI
+
+default:
+    @just --list
+
+build:
+    pnpm build
+
+test:
+    pnpm test

@@ -211,14 +211,14 @@ runs:
       shell: bash
       run: |
         echo "Building Rust programs..."
-        just build-programs
+        just programs build
 
     - name: Build Rust program-tests
       if: steps.cache-program-tests.outputs.cache-hit != 'true'
       shell: bash
       run: |
         echo "Building Rust program-tests..."
-        just build-program-tests
+        just program-tests build
 
     - name: Check for git changes
       shell: bash
