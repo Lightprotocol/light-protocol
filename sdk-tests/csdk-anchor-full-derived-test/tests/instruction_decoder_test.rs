@@ -3,6 +3,7 @@
 //! This test demonstrates how to use the `#[derive(InstructionDecoder)]` macro
 //! to generate instruction decoders for Anchor programs.
 
+use anchor_lang::Discriminator;
 use light_instruction_decoder_derive::InstructionDecoder;
 use light_program_test::logging::{DecoderRegistry, InstructionDecoder as InstructionDecoderTrait};
 use solana_pubkey::Pubkey;
@@ -56,11 +57,12 @@ fn test_instruction_decoder_can_be_registered() {
 
 #[test]
 fn test_instruction_decoder_decodes_instructions() {
+    use sha2::{Digest, Sha256};
+
     let decoder = TestInstructionDecoder;
 
     // Test decoding an instruction with valid discriminator
-    // We need to compute the expected discriminator for "initialize"
-    use sha2::{Digest, Sha256};
+    // Compute the expected discriminator for "initialize"
     let hash = Sha256::digest(b"global:initialize");
     let discriminator: [u8; 8] = hash[..8].try_into().unwrap();
 
@@ -85,19 +87,17 @@ fn test_instruction_decoder_returns_none_for_unknown() {
 
 #[test]
 fn test_instruction_decoder_with_fields() {
+    use sha2::{Digest, Sha256};
+
     let decoder = TestInstructionDecoder;
 
     // Test decoding CreateRecord instruction
-    use sha2::{Digest, Sha256};
     let hash = Sha256::digest(b"global:create_record");
     let discriminator: [u8; 8] = hash[..8].try_into().unwrap();
 
-    #[allow(unused_mut)]
     let mut data = discriminator.to_vec();
     // Add dummy owner pubkey data (32 bytes)
     data.extend_from_slice(&[1u8; 32]);
-    #[allow(unused_mut)]
-    let data = data;
 
     let result = decoder.decode(&data, &[]);
     assert!(result.is_some());
@@ -115,7 +115,6 @@ fn test_instruction_decoder_with_fields() {
 #[test]
 fn test_enhanced_decoder_account_names() {
     use csdk_anchor_full_derived_test::CsdkTestInstructionDecoder;
-    use sha2::{Digest, Sha256};
 
     let decoder = CsdkTestInstructionDecoder;
 
@@ -126,9 +125,8 @@ fn test_enhanced_decoder_account_names() {
     assert_eq!(decoder.program_id(), expected_id);
     assert_eq!(decoder.program_name(), "Csdk Anchor Full Derived Test");
 
-    // Compute discriminator for create_two_mints
-    let hash = Sha256::digest(b"global:create_two_mints");
-    let discriminator: [u8; 8] = hash[..8].try_into().unwrap();
+    // Use Anchor's generated discriminator for create_two_mints
+    let discriminator = csdk_anchor_full_derived_test::instruction::CreateTwoMints::DISCRIMINATOR;
 
     // Build minimal instruction data (discriminator + enough bytes for params)
     let mut data = discriminator.to_vec();
@@ -190,13 +188,11 @@ fn test_enhanced_decoder_params_decoding() {
     use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
     use light_compressible::CreateAccountsProof;
     use light_sdk_types::instruction::PackedAddressTreeInfo;
-    use sha2::{Digest, Sha256};
 
     let decoder = CsdkTestInstructionDecoder;
 
-    // Compute discriminator for create_two_mints
-    let hash = Sha256::digest(b"global:create_two_mints");
-    let discriminator: [u8; 8] = hash[..8].try_into().unwrap();
+    // Use Anchor's generated discriminator for create_two_mints
+    let discriminator = csdk_anchor_full_derived_test::instruction::CreateTwoMints::DISCRIMINATOR;
 
     // Build instruction data with actual serialized params
     let params = CreateTwoMintsParams {
@@ -268,7 +264,6 @@ fn test_enhanced_decoder_unknown_instruction() {
 #[test]
 fn test_attribute_macro_decoder() {
     use csdk_anchor_full_derived_test::CsdkAnchorFullDerivedTestInstructionDecoder;
-    use sha2::{Digest, Sha256};
 
     let decoder = CsdkAnchorFullDerivedTestInstructionDecoder;
 
@@ -278,9 +273,8 @@ fn test_attribute_macro_decoder() {
         .unwrap();
     assert_eq!(decoder.program_id(), expected_id);
 
-    // Test decoding create_two_mints instruction
-    let hash = Sha256::digest(b"global:create_two_mints");
-    let discriminator: [u8; 8] = hash[..8].try_into().unwrap();
+    // Test decoding create_two_mints instruction using Anchor's generated discriminator
+    let discriminator = csdk_anchor_full_derived_test::instruction::CreateTwoMints::DISCRIMINATOR;
 
     let mut data = discriminator.to_vec();
     data.extend_from_slice(&[0u8; 100]); // dummy data
@@ -303,13 +297,12 @@ fn test_attribute_macro_decoder() {
 #[test]
 fn test_attribute_macro_decoder_account_names() {
     use csdk_anchor_full_derived_test::CsdkAnchorFullDerivedTestInstructionDecoder;
-    use sha2::{Digest, Sha256};
 
     let decoder = CsdkAnchorFullDerivedTestInstructionDecoder;
 
-    // Test create_pdas_and_mint_auto
-    let hash = Sha256::digest(b"global:create_pdas_and_mint_auto");
-    let discriminator: [u8; 8] = hash[..8].try_into().unwrap();
+    // Test create_pdas_and_mint_auto using Anchor's generated discriminator
+    let discriminator =
+        csdk_anchor_full_derived_test::instruction::CreatePdasAndMintAuto::DISCRIMINATOR;
     let mut data = discriminator.to_vec();
     data.extend_from_slice(&[0u8; 100]);
 
@@ -358,12 +351,11 @@ fn test_attribute_macro_decoder_account_names() {
 #[test]
 fn test_attribute_macro_decoder_initialize_pool() {
     use csdk_anchor_full_derived_test::CsdkAnchorFullDerivedTestInstructionDecoder;
-    use sha2::{Digest, Sha256};
 
     let decoder = CsdkAnchorFullDerivedTestInstructionDecoder;
 
-    let hash = Sha256::digest(b"global:initialize_pool");
-    let discriminator: [u8; 8] = hash[..8].try_into().unwrap();
+    // Use Anchor's generated discriminator for initialize_pool
+    let discriminator = csdk_anchor_full_derived_test::instruction::InitializePool::DISCRIMINATOR;
     let mut data = discriminator.to_vec();
     data.extend_from_slice(&[0u8; 100]);
 
@@ -403,13 +395,11 @@ fn test_attribute_macro_decoder_with_instruction_data() {
     use light_compressible::CreateAccountsProof;
     use light_program_test::logging::InstructionDecoder;
     use light_sdk_types::instruction::PackedAddressTreeInfo;
-    use sha2::{Digest, Sha256};
 
     let decoder = CsdkAnchorFullDerivedTestInstructionDecoder;
 
-    // Compute discriminator for create_two_mints
-    let hash = Sha256::digest(b"global:create_two_mints");
-    let discriminator: [u8; 8] = hash[..8].try_into().unwrap();
+    // Use Anchor's generated discriminator for create_two_mints
+    let discriminator = csdk_anchor_full_derived_test::instruction::CreateTwoMints::DISCRIMINATOR;
 
     // Build instruction data with actual serialized params
     let params = CreateTwoMintsParams {
@@ -465,4 +455,42 @@ fn test_attribute_macro_decoder_with_instruction_data() {
         "Params should contain 'mint_signer_b_bump: 255', got: {}",
         params_value
     );
+}
+
+/// Test that InstructionDecoder discriminators match Anchor's DISCRIMINATOR constants.
+/// This validates consistency between the InstructionDecoder macro and Anchor's instruction generation.
+#[test]
+fn test_discriminators_match_anchor_constants() {
+    use sha2::{Digest, Sha256};
+
+    // Verify the sha256 computation matches Anchor's DISCRIMINATOR for each instruction
+    let instructions: &[(&str, &[u8])] = &[
+        (
+            "create_two_mints",
+            csdk_anchor_full_derived_test::instruction::CreateTwoMints::DISCRIMINATOR,
+        ),
+        (
+            "create_three_mints",
+            csdk_anchor_full_derived_test::instruction::CreateThreeMints::DISCRIMINATOR,
+        ),
+        (
+            "create_pdas_and_mint_auto",
+            csdk_anchor_full_derived_test::instruction::CreatePdasAndMintAuto::DISCRIMINATOR,
+        ),
+        (
+            "initialize_pool",
+            csdk_anchor_full_derived_test::instruction::InitializePool::DISCRIMINATOR,
+        ),
+    ];
+
+    for (name, anchor_discriminator) in instructions {
+        let hash = Sha256::digest(format!("global:{}", name).as_bytes());
+        let computed = &hash[..8];
+
+        assert_eq!(
+            computed, *anchor_discriminator,
+            "Discriminator mismatch for '{}': computed {:?} != anchor {:?}",
+            name, computed, anchor_discriminator
+        );
+    }
 }
