@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use tokio::sync::oneshot;
 use tracing::{debug, error, info};
@@ -39,7 +39,10 @@ pub async fn bootstrap_pda_accounts(
         });
     }
 
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(30))
+        .build()
+        .expect("Failed to build HTTP client");
 
     for program_config in programs {
         if shutdown_flag.load(std::sync::atomic::Ordering::SeqCst) {
@@ -101,7 +104,8 @@ async fn bootstrap_program(
     let filters = Some(vec![serde_json::json!({
         "memcmp": {
             "offset": 0,
-            "bytes": discriminator_base58
+            "bytes": discriminator_base58,
+            "encoding": "base58"
         }
     })]);
 

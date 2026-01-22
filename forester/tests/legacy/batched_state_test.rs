@@ -22,7 +22,7 @@ use solana_sdk::{
     commitment_config::CommitmentConfig, pubkey::Pubkey, signature::Keypair, signer::Signer,
 };
 use tokio::{
-    sync::{mpsc, oneshot, Mutex},
+    sync::{mpsc, oneshot},
     time::timeout,
 };
 use tracing::log::info;
@@ -234,12 +234,13 @@ async fn test_state_batched() {
     let (shutdown_sender, shutdown_receiver) = oneshot::channel();
     let (work_report_sender, mut work_report_receiver) = mpsc::channel(100);
 
-    let service_handle = tokio::spawn(run_pipeline::<LightClient, TestIndexer>(
+    let service_handle = tokio::spawn(run_pipeline::<LightClient>(
         Arc::from(config.clone()),
         None,
         None,
-        Arc::new(Mutex::new(e2e_env.indexer)),
         shutdown_receiver,
+        None,
+        None,
         work_report_sender,
     ));
 

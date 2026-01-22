@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use tokio::sync::oneshot;
 use tracing::{debug, info};
@@ -34,7 +34,10 @@ pub async fn bootstrap_mint_accounts(
         });
     }
 
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(30))
+        .build()
+        .expect("Failed to build HTTP client");
 
     // Light Token Program ID
     let program_id =

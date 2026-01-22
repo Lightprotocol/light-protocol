@@ -5,7 +5,7 @@
 
 use std::str::FromStr;
 
-use anchor_lang::AnchorDeserialize;
+use anchor_lang::AccountDeserialize;
 use light_compressible::config::CompressibleConfig as OnChainCompressibleConfig;
 use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_sdk::pubkey::Pubkey;
@@ -43,8 +43,8 @@ pub async fn validate_compressible_config(rpc_url: &str) -> Result<()> {
         )
     })?;
 
-    // Deserialize using AnchorDeserialize (no discriminator prefix for this type)
-    let config = OnChainCompressibleConfig::deserialize(&mut account.data.as_slice())
+    // Deserialize using AccountDeserialize to validate the discriminator
+    let config = OnChainCompressibleConfig::try_deserialize(&mut account.data.as_slice())
         .map_err(|e| anyhow::anyhow!("Failed to deserialize CompressibleConfig: {:?}", e))?;
 
     // Validate state is not Inactive (0)

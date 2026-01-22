@@ -156,29 +156,36 @@ impl<H: SubscriptionHandler + 'static> AccountSubscriber<H> {
                     info!("{} subscriber stopped", self.config.name);
                     return Ok(());
                 }
-                Ok(ConnectionResult::StreamClosed) | Err(_) => {
+                Ok(ConnectionResult::StreamClosed) => {
                     attempt += 1;
                     warn!(
                         "{} connection lost (attempt {}), reconnecting in {:?}...",
                         self.config.name, attempt, current_delay
                     );
-
-                    // Wait with backoff, but check for shutdown signal
-                    tokio::select! {
-                        _ = tokio::time::sleep(current_delay) => {}
-                        _ = self.shutdown_rx.recv() => {
-                            info!("Shutdown signal received for {} subscriber during reconnect backoff", self.config.name);
-                            return Ok(());
-                        }
-                    }
-
-                    // Exponential backoff
-                    current_delay = Duration::from_secs_f64(
-                        (current_delay.as_secs_f64() * self.reconnect_config.backoff_multiplier)
-                            .min(self.reconnect_config.max_delay.as_secs_f64()),
+                }
+                Err(e) => {
+                    attempt += 1;
+                    warn!(
+                        "{} connection error (attempt {}): {:?}, reconnecting in {:?}...",
+                        self.config.name, attempt, e, current_delay
                     );
                 }
             }
+
+            // Wait with backoff, but check for shutdown signal
+            tokio::select! {
+                _ = tokio::time::sleep(current_delay) => {}
+                _ = self.shutdown_rx.recv() => {
+                    info!("Shutdown signal received for {} subscriber during reconnect backoff", self.config.name);
+                    return Ok(());
+                }
+            }
+
+            // Exponential backoff
+            current_delay = Duration::from_secs_f64(
+                (current_delay.as_secs_f64() * self.reconnect_config.backoff_multiplier)
+                    .min(self.reconnect_config.max_delay.as_secs_f64()),
+            );
         }
     }
 

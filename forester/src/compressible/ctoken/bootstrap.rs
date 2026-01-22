@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use borsh::BorshDeserialize;
 use light_token_interface::{state::Token, LIGHT_TOKEN_PROGRAM_ID};
@@ -41,11 +41,18 @@ pub async fn bootstrap_ctoken_accounts(
     }
 
     // Filter for decompressed CToken accounts (account_type = 2)
-    let filters = vec![
-        json!({"memcmp": {"offset": ACCOUNT_TYPE_OFFSET, "bytes": CTOKEN_ACCOUNT_TYPE_FILTER}}),
-    ];
+    let filters = vec![json!({
+        "memcmp": {
+            "offset": ACCOUNT_TYPE_OFFSET,
+            "bytes": CTOKEN_ACCOUNT_TYPE_FILTER,
+            "encoding": "base58"
+        }
+    })];
 
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(30))
+        .build()
+        .expect("Failed to build HTTP client");
 
     // Process function that deserializes Token and updates tracker
     let process_account = |raw_data: RawAccountData| -> bool {
