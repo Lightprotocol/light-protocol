@@ -175,12 +175,6 @@ importers:
         specifier: ^5.9.2
         version: 5.9.2
 
-  forester:
-    devDependencies:
-      '@lightprotocol/zk-compression-cli':
-        specifier: workspace:*
-        version: link:../cli
-
   js/compressed-token:
     dependencies:
       '@coral-xyz/borsh':
@@ -440,12 +434,6 @@ importers:
       vitest:
         specifier: ^2.1.1
         version: 2.1.1(@types/node@22.16.5)(terser@5.43.1)
-
-  program-tests: {}
-
-  programs: {}
-
-  sdk-tests/csdk-anchor-full-derived-test: {}
 
   sdk-tests/sdk-anchor-test:
     dependencies:

@@ -46,12 +46,14 @@ test-lightweight:
 test-lightweight-lazy:
     go test -run TestLightweightLazy -timeout 15m
 
+# Excluded from test-integration and test due to 120m timeout; run manually for exhaustive testing
 test-full:
     go test -run TestFull -timeout 120m
 
 test-integration: test-lightweight test-lightweight-lazy
 
 # === All Tests ===
+# Note: test-full excluded to avoid slow CI runs
 test: test-no-redis test-with-redis test-integration
 
 # === Formal Verification ===
@@ -59,6 +61,6 @@ extract-circuit: build-binary
     ./light-prover extract-circuit --output formal-verification/FormalVerification/Circuit.lean --address-tree-height 40 --compressed-accounts 8 --state-tree-height 32
 
 lean-build:
-    cd formal-verification && ~/.elan/bin/lake exe cache get && ~/.elan/bin/lake build
+    cd formal-verification && lake exe cache get && lake build
 
 verify: extract-circuit lean-build
