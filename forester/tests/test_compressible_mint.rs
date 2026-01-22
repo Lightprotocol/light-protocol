@@ -143,8 +143,9 @@ async fn test_compressible_mint_bootstrap() {
     let mint_data = mint_account.unwrap();
     let mint = Mint::deserialize(&mut &mint_data.data[..]).expect("Failed to deserialize Mint");
 
-    // Extract runtime-specific compression info from deserialized mint
+    // Extract runtime-specific values from deserialized mint
     let compression = mint.compression;
+    let metadata_version = mint.metadata.version;
 
     // Derive the bump from mint_seed
     let (_, bump) = find_mint_address(&mint_seed.pubkey());
@@ -159,7 +160,7 @@ async fn test_compressible_mint_bootstrap() {
             freeze_authority: None,
         },
         metadata: MintMetadata {
-            version: 1,
+            version: metadata_version,
             mint_decompressed: true,
             mint: mint_pda.to_bytes().into(),
             mint_signer: mint_seed.pubkey().to_bytes(),
@@ -296,8 +297,9 @@ async fn test_compressible_mint_compression() {
     let mint_data = mint_account.clone().unwrap();
     let mint = Mint::deserialize(&mut &mint_data.data[..]).expect("Failed to deserialize Mint");
 
-    // Extract runtime-specific compression info from deserialized mint
+    // Extract runtime-specific values from deserialized mint
     let compression = mint.compression;
+    let metadata_version = mint.metadata.version;
 
     // Derive the bump from mint_seed
     let (_, bump) = find_mint_address(&mint_seed.pubkey());
@@ -312,7 +314,7 @@ async fn test_compressible_mint_compression() {
             freeze_authority: None,
         },
         metadata: MintMetadata {
-            version: 1,
+            version: metadata_version,
             mint_decompressed: true,
             mint: mint_pda.to_bytes().into(),
             mint_signer: mint_seed.pubkey().to_bytes(),
