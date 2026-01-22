@@ -1,6 +1,6 @@
 [package]
 name = "light-token-interface"
-version = "0.2.0"
+version = "0.3.0"
 edition = { workspace = true }
 description = "Light Protocol token instruction data types."
 license = "MIT"

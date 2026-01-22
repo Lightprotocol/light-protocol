@@ -1,6 +1,6 @@
 [package]
 name = "light-array-map"
-version = "0.1.1"
+version = "0.2.0"
 description = "Generic array-backed map with O(n) lookup for small collections"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"

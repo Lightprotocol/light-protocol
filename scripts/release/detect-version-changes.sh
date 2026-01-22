@@ -2,35 +2,17 @@
 set -euo pipefail
 
 # Detect packages with version changes between two git refs
-# Usage: ./scripts/detect-version-changes.sh <release-type> [base-ref] [head-ref]
+# Usage: ./scripts/release/detect-version-changes.sh [base-ref] [head-ref]
 # Arguments:
-#   release-type: Type of release (program-libs or sdk-libs)
 #   base-ref: Base reference to compare against (default: origin/main)
 #   head-ref: Head reference to compare (default: HEAD)
 # Outputs: Space-separated list of package names to stdout
 
-if [ $# -lt 1 ]; then
-    echo "Usage: $0 <program-libs|sdk-libs> [base-ref] [head-ref]" >&2
-    exit 1
-fi
+BASE_REF="${1:-origin/main}"
+HEAD_REF="${2:-HEAD}"
 
-RELEASE_TYPE=$1
-BASE_REF="${2:-origin/main}"
-HEAD_REF="${3:-HEAD}"
-
-# Set the grep pattern based on release type
-case "$RELEASE_TYPE" in
-  program-libs)
-    GREP_PATTERN='program-libs/'
-    ;;
-  sdk-libs)
-    GREP_PATTERN='(sdk-libs|program-tests/merkle-tree|sparse-merkle-tree|prover)/'
-    ;;
-  *)
-    echo "Error: Release type must be 'program-libs' or 'sdk-libs'" >&2
-    exit 1
-    ;;
-esac
+# Scan all lib directories
+GREP_PATTERN='(program-libs|sdk-libs|prover/client|sparse-merkle-tree)/'
 
 # Fetch if comparing against remote refs
 if [[ "$BASE_REF" == origin/* ]]; then
@@ -50,7 +32,7 @@ else
   DIFF_ARGS=("$BASE_REF...$HEAD_REF")
 fi
 
-# Get list of changed Cargo.toml files in the specified directory
+# Get list of changed Cargo.toml files in the specified directories
 for file in $(git diff "${DIFF_ARGS[@]}" --name-only -- '**/Cargo.toml' | grep -E "$GREP_PATTERN"); do
   # Extract old and new version from the diff
   versions=$(git diff "${DIFF_ARGS[@]}" -- "$file" | grep -E '^\+version|^-version' | grep -v '+++\|---')
@@ -69,7 +51,7 @@ for file in $(git diff "${DIFF_ARGS[@]}" --name-only -- '**/Cargo.toml' | grep -
 done
 
 if [ ${#PACKAGES[@]} -eq 0 ]; then
-  echo "No packages with version changes detected in $RELEASE_TYPE" >&2
+  echo "No packages with version changes detected" >&2
   exit 1
 fi
 
