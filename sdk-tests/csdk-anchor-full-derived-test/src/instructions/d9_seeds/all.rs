@@ -16,7 +16,7 @@ use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
 
 pub const D9_ALL_SEED: &[u8] = b"d9_all_const";
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9AllParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub owner: Pubkey,

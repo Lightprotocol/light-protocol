@@ -10,7 +10,7 @@ use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
 
 pub const D9_CONSTANT_SEED: &[u8] = b"d9_constant";
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9ConstantParams {
     pub create_accounts_proof: CreateAccountsProof,
 }

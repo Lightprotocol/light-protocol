@@ -20,7 +20,7 @@ pub const D9_COMPLEX_NAMESPACE: &str = "namespace";
 // Test 1: Three seeds - literal + constant + param
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9ComplexThreeParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub owner: Pubkey,
@@ -53,7 +53,7 @@ pub struct D9ComplexThree<'info> {
 // Test 2: Four seeds - mixed types
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9ComplexFourParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub owner: Pubkey,
@@ -87,7 +87,7 @@ pub struct D9ComplexFour<'info> {
 // Test 3: Five seeds - ctx account included
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9ComplexFiveParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub owner: Pubkey,
@@ -124,7 +124,7 @@ pub struct D9ComplexFive<'info> {
 // Test 4: Qualified paths mixed with local
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9ComplexQualifiedMixParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub owner: Pubkey,
@@ -157,7 +157,7 @@ pub struct D9ComplexQualifiedMix<'info> {
 // Test 5: Function call + other seeds
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9ComplexFuncParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub key_a: Pubkey,
@@ -192,7 +192,7 @@ pub struct D9ComplexFunc<'info> {
 // Test 6: All qualified paths
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9ComplexAllQualifiedParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub owner: Pubkey,
@@ -229,7 +229,7 @@ pub struct D9ComplexAllQualified<'info> {
 // Test 7: Static function (program ID) as seed
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9ComplexProgramIdParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub owner: Pubkey,
@@ -262,7 +262,7 @@ pub struct D9ComplexProgramId<'info> {
 // Test 8: Static id() function call as seed
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9ComplexIdFuncParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub owner: Pubkey,

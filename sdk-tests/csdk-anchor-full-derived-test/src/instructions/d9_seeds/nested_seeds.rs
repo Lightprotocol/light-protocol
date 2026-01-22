@@ -16,14 +16,14 @@ use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
 // ============================================================================
 
 /// Inner nested struct
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct InnerNested {
     pub owner: Pubkey,
     pub id: u64,
 }
 
 /// Outer nested struct containing inner
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct OuterNested {
     pub array: [u8; 16],
     pub nested: InnerNested,
@@ -33,7 +33,7 @@ pub struct OuterNested {
 // Test 1: Simple nested struct access
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9NestedSimpleParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub nested: InnerNested,
@@ -66,7 +66,7 @@ pub struct D9NestedSimple<'info> {
 // Test 2: Double nested struct access
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9NestedDoubleParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub outer: OuterNested,
@@ -99,7 +99,7 @@ pub struct D9NestedDouble<'info> {
 // Test 3: Nested array field access
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9NestedArrayFieldParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub outer: OuterNested,
@@ -132,7 +132,7 @@ pub struct D9NestedArrayField<'info> {
 // Test 4: Array indexing - params.arrays[2].as_slice()
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9ArrayIndexParams {
     pub create_accounts_proof: CreateAccountsProof,
     /// 2D array: 10 arrays of 16 bytes each
@@ -166,7 +166,7 @@ pub struct D9ArrayIndex<'info> {
 // Test 5: Combined nested struct + bytes conversion
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9NestedBytesParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub nested: InnerNested,
@@ -199,7 +199,7 @@ pub struct D9NestedBytes<'info> {
 // Test 6: Multiple nested seeds combined
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9NestedCombinedParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub outer: OuterNested,

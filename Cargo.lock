@@ -1390,6 +1390,7 @@ dependencies = [
  "light-compressed-account",
  "light-compressed-token",
  "light-compressible",
+ "light-instruction-decoder",
  "light-program-test",
  "light-prover-client",
  "light-registry",
@@ -1529,6 +1530,7 @@ dependencies = [
  "anchor-lang",
  "light-compressed-account",
  "light-hasher",
+ "light-instruction-decoder",
  "light-sdk",
  "light-sdk-types",
  "light-system-program-anchor",
@@ -1609,6 +1611,8 @@ dependencies = [
  "light-compressible",
  "light-hasher",
  "light-heap",
+ "light-instruction-decoder",
+ "light-instruction-decoder-derive",
  "light-macros",
  "light-program-test",
  "light-sdk",
@@ -1619,6 +1623,7 @@ dependencies = [
  "light-token-client",
  "light-token-interface",
  "light-token-types",
+ "sha2 0.10.9",
  "solana-account",
  "solana-account-info",
  "solana-instruction",
@@ -3764,6 +3769,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-instruction-decoder"
+version = "0.1.0"
+dependencies = [
+ "borsh 0.10.4",
+ "bs58",
+ "light-compressed-account",
+ "light-instruction-decoder-derive",
+ "light-sdk-types",
+ "light-token-interface",
+ "serde",
+ "solana-instruction",
+ "solana-pubkey 2.4.0",
+ "solana-signature",
+ "tabled",
+]
+
+[[package]]
+name = "light-instruction-decoder-derive"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "darling",
+ "heck 0.5.0",
+ "light-instruction-decoder",
+ "proc-macro2",
+ "quote",
+ "sha2 0.10.9",
+ "syn 2.0.111",
+]
+
+[[package]]
 name = "light-macros"
 version = "2.2.0"
 dependencies = [
@@ -3868,6 +3904,7 @@ dependencies = [
  "light-hasher",
  "light-indexed-array",
  "light-indexed-merkle-tree",
+ "light-instruction-decoder",
  "light-merkle-tree-metadata",
  "light-merkle-tree-reference",
  "light-prover-client",
@@ -5897,13 +5934,13 @@ dependencies = [
  "light-client",
  "light-compressed-account",
  "light-hasher",
+ "light-instruction-decoder",
  "light-program-test",
  "light-prover-client",
  "light-sdk",
  "light-sdk-types",
  "light-test-utils",
  "serial_test",
- "solana-pubkey 2.4.0",
  "solana-sdk",
  "tokio",
 ]
@@ -5996,6 +6033,8 @@ dependencies = [
  "light-compressed-account",
  "light-compressible",
  "light-hasher",
+ "light-instruction-decoder",
+ "light-instruction-decoder-derive",
  "light-program-profiler",
  "light-program-test",
  "light-sdk",
@@ -6008,6 +6047,7 @@ dependencies = [
  "light-zero-copy",
  "serial_test",
  "solana-account-info",
+ "solana-instruction",
  "solana-pubkey 2.4.0",
  "solana-sdk",
  "tokio",
@@ -10205,6 +10245,7 @@ dependencies = [
  "light-compressed-account",
  "light-compressed-token",
  "light-hasher",
+ "light-instruction-decoder",
  "light-merkle-tree-metadata",
  "light-program-test",
  "light-prover-client",

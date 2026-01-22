@@ -19,14 +19,14 @@ use light_token_interface::instructions::transfer2::MultiInputTokenDataWithConte
 
 use crate::{process_update_deposit::CompressedEscrowPda, PdaParams, LIGHT_CPI_SIGNER};
 
-#[derive(Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct TransferParams {
     pub transfer_amount: u64,
     pub token_metas: Vec<MultiInputTokenDataWithContext>,
     pub recipient: u8,
 }
 
-#[derive(Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressParams {
     pub mint: u8,
     pub amount: u64,
@@ -35,7 +35,7 @@ pub struct CompressParams {
     pub authority: u8,
 }
 
-#[derive(Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct FourTransfer2Params {
     pub compress_1: CompressParams,
     pub transfer_2: TransferParams,

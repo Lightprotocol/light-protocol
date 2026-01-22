@@ -35,6 +35,7 @@ light-merkle-tree-metadata = { workspace = true, features = ["anchor"] }
 light-account-checks = { workspace = true }
 light-sdk = { workspace = true, features = ["v2", "cpi-context"] }
 light-sdk-types = { workspace = true, features = ["v2", "cpi-context"] }
+light-instruction-decoder = { workspace = true }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }

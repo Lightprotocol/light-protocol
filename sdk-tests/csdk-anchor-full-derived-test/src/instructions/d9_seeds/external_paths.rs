@@ -15,7 +15,7 @@ use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
 // Test 1: External crate constant (light_sdk_types)
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9ExternalSdkTypesParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub owner: Pubkey,
@@ -48,7 +48,7 @@ pub struct D9ExternalSdkTypes<'info> {
 // Test 2: External crate constant (light_token_types)
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9ExternalCtokenParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub owner: Pubkey,
@@ -81,7 +81,7 @@ pub struct D9ExternalCtoken<'info> {
 // Test 3: Multiple external crate constants mixed
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9ExternalMixedParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub owner: Pubkey,
@@ -121,7 +121,7 @@ pub struct D9ExternalMixed<'info> {
 /// Local constant to mix with external
 pub const D9_EXTERNAL_LOCAL: &[u8] = b"d9_ext_local";
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9ExternalWithLocalParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub owner: Pubkey,
@@ -154,7 +154,7 @@ pub struct D9ExternalWithLocal<'info> {
 // Test 5: External constant with bump
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9ExternalBumpParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub owner: Pubkey,
@@ -190,7 +190,7 @@ pub struct D9ExternalBump<'info> {
 /// Re-export from external crate for path testing
 pub use light_sdk_types::constants::CPI_AUTHORITY_PDA_SEED as REEXPORTED_SEED;
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9ExternalReexportParams {
     pub create_accounts_proof: CreateAccountsProof,
 }

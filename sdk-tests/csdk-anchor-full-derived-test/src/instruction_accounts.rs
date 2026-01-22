@@ -4,7 +4,7 @@ use light_sdk_macros::LightAccounts;
 
 use crate::state::*;
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct FullAutoWithMintParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub owner: Pubkey,
@@ -124,7 +124,7 @@ pub const VAULT_SEED: &[u8] = b"vault";
 pub const MINT_SIGNER_A_SEED: &[u8] = b"mint_signer_a";
 pub const MINT_SIGNER_B_SEED: &[u8] = b"mint_signer_b";
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct CreateTwoMintsParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub mint_signer_a_bump: u8,
@@ -199,7 +199,7 @@ pub struct CreateTwoMints<'info> {
 
 pub const MINT_SIGNER_C_SEED: &[u8] = b"mint_signer_c";
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct CreateThreeMintsParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub mint_signer_a_bump: u8,
@@ -292,7 +292,7 @@ pub struct CreateThreeMints<'info> {
 
 pub const METADATA_MINT_SIGNER_SEED: &[u8] = b"metadata_mint_signer";
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct CreateMintWithMetadataParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub mint_signer_bump: u8,

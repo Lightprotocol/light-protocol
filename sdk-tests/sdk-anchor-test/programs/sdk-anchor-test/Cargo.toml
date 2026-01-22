@@ -26,8 +26,8 @@ light-hasher = { workspace = true, features = ["solana", "poseidon", "sha256", "
 anchor-lang = { workspace = true }
 light-sdk = { workspace = true, features = ["anchor", "v2", "poseidon"] }
 light-sdk-types = { workspace = true }
+light-instruction-decoder = { workspace = true }
 serial_test = { workspace = true }
-solana-pubkey = { workspace = true }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }

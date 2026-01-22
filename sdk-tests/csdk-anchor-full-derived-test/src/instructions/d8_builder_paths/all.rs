@@ -11,7 +11,7 @@ use crate::state::{
     d2_compress_as::multiple::MultipleCompressAsRecord,
 };
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D8AllParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub owner: Pubkey,

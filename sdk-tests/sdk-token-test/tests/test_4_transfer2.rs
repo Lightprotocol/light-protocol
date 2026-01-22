@@ -30,10 +30,12 @@ use solana_sdk::{
 #[tokio::test]
 async fn test_4_transfer2() {
     // Initialize the test environment
-    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
-        false,
-        Some(vec![("sdk_token_test", sdk_token_test::ID)]),
-    ))
+    let mut rpc = LightProgramTest::new(
+        ProgramTestConfig::new_v2(false, Some(vec![("sdk_token_test", sdk_token_test::ID)]))
+            .with_decoders(vec![Box::new(
+                sdk_token_test::SdkTokenTestInstructionDecoder,
+            )]),
+    )
     .await
     .unwrap();
 

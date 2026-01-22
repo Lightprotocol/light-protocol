@@ -66,11 +66,15 @@ async fn test_create_pdas_and_mint_auto() {
     }
 
     let program_id = csdk_anchor_full_derived_test::ID;
-    let mut config = ProgramTestConfig::new_v2(
+    let config = ProgramTestConfig::new_v2(
         true,
         Some(vec![("csdk_anchor_full_derived_test", program_id)]),
-    );
-    config = config.with_light_protocol_events();
+    )
+    .with_decoders(vec![
+        Box::new(csdk_anchor_full_derived_test::CsdkTestInstructionDecoder),
+        Box::new(csdk_anchor_full_derived_test::CsdkAnchorFullDerivedTestInstructionDecoder),
+    ])
+    .with_light_protocol_events();
 
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
@@ -515,11 +519,15 @@ async fn test_create_two_mints() {
     };
 
     let program_id = csdk_anchor_full_derived_test::ID;
-    let mut config = ProgramTestConfig::new_v2(
+    let config = ProgramTestConfig::new_v2(
         true,
         Some(vec![("csdk_anchor_full_derived_test", program_id)]),
-    );
-    config = config.with_light_protocol_events();
+    )
+    .with_decoders(vec![
+        Box::new(csdk_anchor_full_derived_test::CsdkTestInstructionDecoder),
+        Box::new(csdk_anchor_full_derived_test::CsdkAnchorFullDerivedTestInstructionDecoder),
+    ])
+    .with_light_protocol_events();
 
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();

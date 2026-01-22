@@ -6,7 +6,7 @@ use light_token::{
 
 /// Parameters for a single mint within a batch creation.
 /// Does not include proof since proof is shared across all mints.
-#[derive(Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(Clone, AnchorSerialize, AnchorDeserialize, Debug)]
 pub struct MintParams {
     pub decimals: u8,
     pub address_merkle_tree_root_index: u16,
@@ -26,7 +26,7 @@ pub struct MintParams {
 /// Flow:
 /// - N=1: Single CPI (create + decompress)
 /// - N>1: 2N-1 CPIs (N-1 writes + 1 execute with decompress + N-1 decompress)
-#[derive(Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(Clone, AnchorSerialize, AnchorDeserialize, Debug)]
 pub struct CreateMintsParams {
     /// Parameters for each mint to create
     pub mints: Vec<MintParams>,

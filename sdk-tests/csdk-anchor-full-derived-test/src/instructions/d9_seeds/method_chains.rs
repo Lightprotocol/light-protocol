@@ -23,7 +23,7 @@ pub const D9_METHOD_BYTES: &[u8] = b"d9_method_bytes";
 // Test 1: Constant with .as_ref()
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9MethodAsRefParams {
     pub create_accounts_proof: CreateAccountsProof,
 }
@@ -55,7 +55,7 @@ pub struct D9MethodAsRef<'info> {
 // Test 2: String constant with .as_bytes()
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9MethodAsBytesParams {
     pub create_accounts_proof: CreateAccountsProof,
 }
@@ -87,7 +87,7 @@ pub struct D9MethodAsBytes<'info> {
 // Test 3: Qualified path with .as_bytes()
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9MethodQualifiedAsBytesParams {
     pub create_accounts_proof: CreateAccountsProof,
 }
@@ -119,7 +119,7 @@ pub struct D9MethodQualifiedAsBytes<'info> {
 // Test 4: Param with .to_le_bytes().as_ref()
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9MethodToLeBytesParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub id: u64,
@@ -152,7 +152,7 @@ pub struct D9MethodToLeBytes<'info> {
 // Test 5: Param with .to_be_bytes().as_ref()
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9MethodToBeBytesParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub id: u64,
@@ -185,7 +185,7 @@ pub struct D9MethodToBeBytes<'info> {
 // Test 6: Mixed methods in same seeds array
 // ============================================================================
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9MethodMixedParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub owner: Pubkey,

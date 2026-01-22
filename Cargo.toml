@@ -33,6 +33,8 @@ members = [
     "sdk-libs/sdk-types",
     "sdk-libs/photon-api",
     "sdk-libs/program-test",
+    "sdk-libs/instruction-decoder",
+    "sdk-libs/instruction-decoder-derive",
     "xtask",
     "program-tests/account-compression-test",
     "program-tests/batched-merkle-tree-test",
@@ -132,6 +134,7 @@ pinocchio = { version = "0.9" }
 pinocchio-pubkey = { version = "0.3.0" }
 pinocchio-system = { version = "0.3.0" }
 bs58 = "^0.5.1"
+sha2 = "0.10"
 litesvm = "0.7"
 # Anchor
 anchor-lang = { version = "0.31.1" }
@@ -150,6 +153,7 @@ proc-macro2 = "1.0"
 quote = "1.0"
 syn = { version = "2.0", features = ["visit", "visit-mut", "full"] }
 darling = "0.21"
+heck = "0.5"
 
 # Async ecosystem
 futures = "0.3.31"
@@ -223,6 +227,8 @@ create-address-test-program = { path = "program-tests/create-address-test-progra
     "cpi",
 ] }
 light-program-test = { path = "sdk-libs/program-test", version = "0.18.0" }
+light-instruction-decoder = { path = "sdk-libs/instruction-decoder", version = "0.1.0" }
+light-instruction-decoder-derive = { path = "sdk-libs/instruction-decoder-derive", version = "0.1.0" }
 light-batched-merkle-tree = { path = "program-libs/batched-merkle-tree", version = "0.8.0" }
 light-merkle-tree-metadata = { path = "program-libs/merkle-tree-metadata", version = "0.8.0" }
 aligned-sized = { path = "program-libs/aligned-sized", version = "1.1.0" }

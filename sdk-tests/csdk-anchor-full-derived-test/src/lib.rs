@@ -2,6 +2,7 @@
 #![allow(clippy::useless_asref)] // Testing macro handling of .as_ref() patterns
 
 use anchor_lang::prelude::*;
+use light_instruction_decoder_derive::instruction_decoder;
 use light_sdk::{derive_light_cpi_signer, derive_light_rent_sponsor_pda};
 use light_sdk_macros::light_program;
 use light_sdk_types::CpiSigner;
@@ -83,6 +84,7 @@ pub fn program_rent_sponsor() -> Pubkey {
 
 pub const GAME_SESSION_SEED: &str = "game_session";
 
+#[instruction_decoder]
 #[light_program]
 #[program]
 pub mod csdk_anchor_full_derived_test {
@@ -1418,4 +1420,46 @@ pub mod csdk_anchor_full_derived_test {
         // This handler can be empty - the macro handles everything.
         Ok(())
     }
+}
+
+// =============================================================================
+// Custom Instruction Decoder with Account Names and Params Decoding
+// =============================================================================
+
+/// Custom instruction decoder enum that provides account names and decoded params.
+/// This uses the enhanced `#[derive(InstructionDecoder)]` macro with variant-level attributes
+/// that reference Anchor's generated types.
+#[derive(light_instruction_decoder_derive::InstructionDecoder)]
+#[instruction_decoder(
+    program_id = "FAMipfVEhN4hjCLpKCvjDXXfzLsoVTqQccXzePz1L1ah",
+    program_name = "Csdk Anchor Full Derived Test"
+)]
+pub enum CsdkTestInstruction {
+    /// Create PDAs and mint in auto mode
+    #[instruction_decoder(
+        accounts = instruction_accounts::CreatePdasAndMintAuto,
+        params = instruction_accounts::FullAutoWithMintParams
+    )]
+    CreatePdasAndMintAuto,
+
+    /// Create two mints in a single transaction
+    #[instruction_decoder(
+        accounts = instruction_accounts::CreateTwoMints,
+        params = instruction_accounts::CreateTwoMintsParams
+    )]
+    CreateTwoMints,
+
+    /// Create three mints in a single transaction
+    #[instruction_decoder(
+        accounts = instruction_accounts::CreateThreeMints,
+        params = instruction_accounts::CreateThreeMintsParams
+    )]
+    CreateThreeMints,
+
+    /// Create mint with metadata
+    #[instruction_decoder(
+        accounts = instruction_accounts::CreateMintWithMetadata,
+        params = instruction_accounts::CreateMintWithMetadataParams
+    )]
+    CreateMintWithMetadata,
 }

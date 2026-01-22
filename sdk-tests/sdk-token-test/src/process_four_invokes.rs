@@ -12,7 +12,7 @@ use light_token::compressed_token::{
 
 use crate::{process_update_deposit::process_update_escrow_pda, PdaParams};
 
-#[derive(Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct TransferParams {
     pub mint: Pubkey,
     pub transfer_amount: u64,
@@ -21,7 +21,7 @@ pub struct TransferParams {
     pub recipient_bump: u8,
 }
 
-#[derive(Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressParams {
     pub mint: Pubkey,
     pub amount: u64,
@@ -30,7 +30,7 @@ pub struct CompressParams {
     pub token_account: Pubkey,
 }
 
-#[derive(Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct FourInvokesParams {
     pub compress_1: CompressParams,
     pub transfer_2: TransferParams,

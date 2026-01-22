@@ -3,6 +3,7 @@
 #![allow(deprecated)]
 
 use anchor_lang::prelude::*;
+use light_instruction_decoder::instruction_decoder;
 use light_sdk::{
     instruction::{PackedAddressTreeInfo, ValidityProof as LightValidityProof},
     PackedAddressTreeInfoExt,
@@ -54,7 +55,7 @@ use light_sdk::{cpi::CpiSigner, derive_light_cpi_signer};
 pub const LIGHT_CPI_SIGNER: CpiSigner =
     derive_light_cpi_signer!("5p1t1GAaKtK1FKCh5Hd2Gu8JCu3eREhJm4Q2qYfTEPYK");
 
-#[derive(Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(Clone, AnchorSerialize, AnchorDeserialize, Debug)]
 pub struct TokenParams {
     pub deposit_amount: u64,
     pub depositing_token_metas: Vec<TokenAccountMeta>,
@@ -63,7 +64,7 @@ pub struct TokenParams {
     pub recipient_bump: u8,
 }
 
-#[derive(Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(Clone, AnchorSerialize, AnchorDeserialize, Debug)]
 pub struct PdaParams {
     pub account_meta: CompressedAccountMeta,
     pub existing_amount: u64,
@@ -75,6 +76,8 @@ use crate::{
     process_create_compressed_account::deposit_tokens, process_four_transfer2::FourTransfer2Params,
     process_update_deposit::process_update_deposit,
 };
+
+#[instruction_decoder]
 #[program]
 pub mod sdk_token_test {
 

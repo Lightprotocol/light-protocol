@@ -27,3 +27,4 @@ account-compression = { workspace = true, features = ["cpi"] }
 light-compressed-account = { workspace = true, features = ["anchor"] }
 light-sdk = { workspace = true, features = ["anchor", "v2"] }
 light-sdk-types = { workspace = true }
+light-instruction-decoder = { workspace = true }
