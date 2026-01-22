@@ -58,7 +58,6 @@ solana-signer = { workspace = true }
 solana-keypair = { workspace = true }
 solana-account = { workspace = true }
 bincode = "1.3"
-sha2 = "0.10"
 
 [lints.rust.unexpected_cfgs]
 level = "allow"
