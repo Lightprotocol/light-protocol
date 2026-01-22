@@ -8,6 +8,7 @@ packages:
   - "sdk-tests/**"
   - "js/stateless.js/**"
   - "js/compressed-token/**"
+  - "js/program-test/**"
   - "examples/**"
   - "forester/**"
   - "program-tests/**"

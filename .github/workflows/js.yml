@@ -20,7 +20,6 @@ concurrency:
 jobs:
   stateless-js-v1:
     name: stateless-js-v1
-    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
 
     services:
@@ -46,7 +45,7 @@ jobs:
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
         with:
-          skip-components: "redis,disk-cleanup,go"
+          skip-components: "redis,disk-cleanup,go,photon"
           cache-key: "js"
 
       - name: Build stateless.js with V1
@@ -62,6 +61,16 @@ jobs:
       - name: Build CLI
         run: |
           npx nx build @lightprotocol/zk-compression-cli
+
+      - name: Build program-test
+        run: |
+          cd js/program-test
+          pnpm build:v1
+
+      - name: Run program-test tests with V1
+        run: |
+          source ./scripts/devenv.sh
+          npx nx test @lightprotocol/program-test
 
       - name: Run stateless.js tests with V1
         run: |

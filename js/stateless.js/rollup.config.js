@@ -39,25 +39,27 @@ const rolls = (fmt, env) => ({
         }),
         env === 'browser' ? nodePolyfills() : undefined,
         json(),
-        terser({
-            compress: {
-                drop_console: false,
-                drop_debugger: true,
-                passes: 3,
-                booleans_as_integers: true,
-                keep_fargs: false,
-                keep_fnames: false,
-                keep_infinity: true,
-                reduce_funcs: true,
-                reduce_vars: true,
-            },
-            mangle: {
-                toplevel: true,
-            },
-            output: {
-                comments: false,
-            },
-        }),
+        fmt === 'cjs'
+            ? terser({
+                  compress: {
+                      drop_console: false,
+                      drop_debugger: true,
+                      passes: 3,
+                      booleans_as_integers: true,
+                      keep_fargs: false,
+                      keep_fnames: false,
+                      keep_infinity: true,
+                      reduce_funcs: true,
+                      reduce_vars: true,
+                  },
+                  mangle: {
+                      toplevel: true,
+                  },
+                  output: {
+                      comments: false,
+                  },
+              })
+            : undefined,
     ].filter(Boolean),
     onwarn(warning, warn) {
         if (warning.code !== 'CIRCULAR_DEPENDENCY') {
@@ -76,5 +78,6 @@ export default [
     rolls('cjs', 'browser'),
     rolls('cjs', 'node'),
     rolls('es', 'browser'),
+    rolls('es', 'node'),
     typesConfig,
 ];

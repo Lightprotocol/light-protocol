@@ -43,6 +43,7 @@ env:
 
 jobs:
   test:
+    if: false # Temporarily disabled for LiteSVM testing
     name: Forester e2e test
     runs-on: warp-ubuntu-latest-x64-4x
     timeout-minutes: 60

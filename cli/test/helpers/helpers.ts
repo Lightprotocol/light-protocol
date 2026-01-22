@@ -11,9 +11,9 @@ import {
   buildAndSignTx,
   confirmTx,
   dedupeSigner,
-  getTestRpc,
   sendAndConfirmTx,
 } from "@lightprotocol/stateless.js";
+import { getTestRpc } from "@lightprotocol/program-test";
 import { createMint, mintTo } from "@lightprotocol/compressed-token";
 import {
   MINT_SIZE,

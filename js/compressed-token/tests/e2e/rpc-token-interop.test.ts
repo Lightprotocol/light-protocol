@@ -5,18 +5,18 @@ import {
     newAccountWithLamports,
     bn,
     createRpc,
-    getTestRpc,
     defaultTestStateTreeAccounts,
     TreeInfo,
     selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
-import { WasmFactory } from '@lightprotocol/hasher.rs';
+import { NobleHasherFactory } from '@lightprotocol/program-test';
 import { createMint, mintTo, transfer } from '../../src/actions';
 import {
     getTokenPoolInfos,
     selectTokenPoolInfo,
     TokenPoolInfo,
 } from '../../src/utils/get-token-pool-infos';
+import { getTestRpc } from '@lightprotocol/program-test';
 
 const TEST_TOKEN_DECIMALS = 2;
 
@@ -32,7 +32,7 @@ describe('rpc-interop token', () => {
     let tokenPoolInfo: TokenPoolInfo;
 
     beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
+        const lightWasm = await NobleHasherFactory.getInstance();
         rpc = createRpc();
         testRpc = await getTestRpc(lightWasm);
         payer = await newAccountWithLamports(rpc);

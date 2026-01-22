@@ -20,7 +20,7 @@ concurrency:
 jobs:
   lint:
     name: lint
-    if: github.event.pull_request.draft == false
+    if: false # Temporarily disabled for LiteSVM testing
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources

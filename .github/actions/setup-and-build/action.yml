@@ -101,6 +101,7 @@ runs:
       run: bash scripts/devenv/install-anchor.sh
 
     - name: Cache Photon indexer
+      if: "!contains(inputs.skip-components, 'photon')"
       id: cache-photon
       uses: actions/cache@v4
       with:
@@ -108,7 +109,7 @@ runs:
         key: ${{ runner.os }}-photon-${{ steps.versions.outputs.photon }}-${{ steps.versions.outputs.photon_commit }}
 
     - name: Install Photon indexer
-      if: steps.cache-photon.outputs.cache-hit != 'true'
+      if: "!contains(inputs.skip-components, 'photon') && steps.cache-photon.outputs.cache-hit != 'true'"
       shell: bash
       run: bash scripts/devenv/install-photon.sh
 
