@@ -37,7 +37,6 @@ jobs:
       LIGHT_PROTOCOL_VERSION: V1
       REDIS_URL: redis://localhost:6379
       CI: true
-      NODE_OPTIONS: "--max-old-space-size=512"
 
     steps:
       - name: Checkout sources
@@ -69,11 +68,15 @@ jobs:
           pnpm build:v1
 
       - name: Run program-test tests with V1
+        env:
+          NODE_OPTIONS: "--max-old-space-size=512"
         run: |
           source ./scripts/devenv.sh
           npx nx test @lightprotocol/program-test
 
       - name: Run stateless.js tests with V1
+        env:
+          NODE_OPTIONS: "--max-old-space-size=512"
         run: |
           echo "Running stateless.js tests with retry logic (max 2 attempts)..."
           attempt=1
@@ -90,6 +93,8 @@ jobs:
           echo "Tests passed on attempt $attempt"
 
       - name: Run compressed-token tests with V1
+        env:
+          NODE_OPTIONS: "--max-old-space-size=512"
         run: |
           echo "Running compressed-token tests with retry logic (max 2 attempts)..."
           attempt=1

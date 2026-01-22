@@ -37,7 +37,6 @@ jobs:
       LIGHT_PROTOCOL_VERSION: V2
       REDIS_URL: redis://localhost:6379
       CI: true
-      NODE_OPTIONS: "--max-old-space-size=512"
 
     steps:
       - name: Checkout sources
@@ -69,11 +68,15 @@ jobs:
           pnpm build:v2
 
       - name: Run program-test tests with V2
+        env:
+          NODE_OPTIONS: "--max-old-space-size=512"
         run: |
           source ./scripts/devenv.sh
           npx nx test @lightprotocol/program-test
 
       - name: Run stateless.js tests with V2
+        env:
+          NODE_OPTIONS: "--max-old-space-size=512"
         run: |
           echo "Running stateless.js tests with retry logic (max 2 attempts)..."
           attempt=1
@@ -90,6 +93,8 @@ jobs:
           echo "Tests passed on attempt $attempt"
 
       - name: Run compressed-token unit tests with V2
+        env:
+          NODE_OPTIONS: "--max-old-space-size=512"
         run: |
           echo "Running compressed-token unit tests with retry logic (max 2 attempts)..."
           attempt=1
@@ -106,6 +111,8 @@ jobs:
           echo "Tests passed on attempt $attempt"
 
       - name: Run compressed-token ctoken tests with V2
+        env:
+          NODE_OPTIONS: "--max-old-space-size=512"
         run: |
           echo "Running compressed-token ctoken tests with retry logic (max 2 attempts)..."
           attempt=1
@@ -123,6 +130,8 @@ jobs:
           echo "Tests passed on attempt $attempt"
 
       - name: Run sdk-anchor-test TypeScript tests with V2
+        env:
+          NODE_OPTIONS: "--max-old-space-size=512"
         run: |
           npx nx build @lightprotocol/sdk-anchor-test
           cd sdk-tests/sdk-anchor-test
