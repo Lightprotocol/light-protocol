@@ -694,24 +694,27 @@ impl TransactionFormatter {
                         .unwrap_or_else(|| self.get_account_name(&account.pubkey));
 
                     // Get account state if available
-                    let (data_len, lamports, lamports_change) =
-                        if let Some(state) = states.get(&account.pubkey) {
-                            let change = state.lamports_after as i64 - state.lamports_before as i64;
-                            let change_str = if change > 0 {
-                                format!("+{}", format_signed_with_thousands_separator(change))
-                            } else if change < 0 {
-                                format_signed_with_thousands_separator(change)
-                            } else {
-                                "0".to_string()
-                            };
-                            (
-                                format_with_thousands_separator(state.data_len_before as u64),
-                                format_with_thousands_separator(state.lamports_before),
-                                change_str,
-                            )
+                    let (data_len, lamports, lamports_change) = if let Some(state) =
+                        states.get(&account.pubkey)
+                    {
+                        let change = (state.lamports_after as i128 - state.lamports_before as i128)
+                            .clamp(i64::MIN as i128, i64::MAX as i128)
+                            as i64;
+                        let change_str = if change > 0 {
+                            format!("+{}", format_signed_with_thousands_separator(change))
+                        } else if change < 0 {
+                            format_signed_with_thousands_separator(change)
                         } else {
-                            ("-".to_string(), "-".to_string(), "-".to_string())
+                            "0".to_string()
                         };
+                        (
+                            format_with_thousands_separator(state.data_len_before as u64),
+                            format_with_thousands_separator(state.lamports_before),
+                            change_str,
+                        )
+                    } else {
+                        ("-".to_string(), "-".to_string(), "-".to_string())
+                    };
 
                     outer_rows.push(OuterAccountRow {
                         symbol: access.symbol(idx + 1),
