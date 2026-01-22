@@ -10,4 +10,4 @@ build:
     cd compressed-token/program && cargo build-sbf
 
 build-compressed-token-small:
-    cd compressed-token && cargo build-sbf --features cpi-without-program-ids
+    cd compressed-token/program && cargo build-sbf --features cpi-without-program-ids
