@@ -1,4 +1,4 @@
-import { describe, it, assert, beforeAll } from "vitest";
+import { describe, it, assert, beforeAll, afterAll } from "vitest";
 import { Keypair } from "@solana/web3.js";
 import {
   createLiteSVMRpc,
@@ -20,6 +20,12 @@ describe("transfer", () => {
     bob = await newAccountWithLamports(rpc, 2e9);
 
     await compress(rpc, payer, 1e9, payer.publicKey);
+  });
+
+  afterAll(() => {
+    if (rpc && typeof rpc.clear === "function") {
+      rpc.clear();
+    }
   });
 
   const numberOfTransfers = 10;

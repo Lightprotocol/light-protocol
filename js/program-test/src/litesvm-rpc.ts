@@ -27,6 +27,8 @@ export class LiteSVMRpc extends TestRpc {
     string,
     Transaction | VersionedTransaction
   >;
+  /** Maximum number of transactions to store before evicting oldest */
+  private static readonly MAX_STORED_TRANSACTIONS = 100;
 
   constructor(
     lightWasm: any,
@@ -66,11 +68,10 @@ export class LiteSVMRpc extends TestRpc {
     if (config?.initialLamports !== undefined) {
       this.litesvm = this.litesvm.withLamports(config.initialLamports);
     }
-    if (config?.transactionHistorySize !== undefined) {
-      this.litesvm = this.litesvm.withTransactionHistory(
-        config.transactionHistorySize,
-      );
-    }
+    // Configure transaction history size (defaults to 1 to reduce memory usage)
+    // Setting to 1 instead of 0 preserves minimal functionality while reducing memory
+    const txHistorySize = config?.transactionHistorySize ?? BigInt(1);
+    this.litesvm = this.litesvm.withTransactionHistory(txHistorySize);
 
     // Load Light Protocol programs
     this.loadLightPrograms();
@@ -369,6 +370,18 @@ export class LiteSVMRpc extends TestRpc {
         }),
       }),
     );
+
+    // Evict oldest transactions if we've reached the limit (LRU eviction)
+    if (
+      this.storedTransactions.size >= LiteSVMRpc.MAX_STORED_TRANSACTIONS &&
+      !this.storedTransactions.has(signature)
+    ) {
+      const firstKey = this.storedTransactions.keys().next().value;
+      if (firstKey) {
+        this.storedTransactions.delete(firstKey);
+        this.storedRawTransactions.delete(firstKey);
+      }
+    }
 
     // Store transaction metadata for TestRpc to query later
     this.storedTransactions.set(signature, {
@@ -993,6 +1006,15 @@ export class LiteSVMRpc extends TestRpc {
    */
   expireBlockhash(): void {
     this.litesvm.expireBlockhash();
+  }
+
+  /**
+   * Clear accumulated transaction data to free memory.
+   * Call this in afterAll() hooks to prevent memory buildup across tests.
+   */
+  clear(): void {
+    this.storedTransactions.clear();
+    this.storedRawTransactions.clear();
   }
 }
 

@@ -1,4 +1,4 @@
-import { describe, it, assert, beforeAll, expect } from "vitest";
+import { describe, it, assert, beforeAll, afterAll, expect } from "vitest";
 import { Keypair } from "@solana/web3.js";
 import {
   createLiteSVMRpc,
@@ -17,6 +17,12 @@ describe("compress with LiteSVM", () => {
 
     // Create test account with lamports
     payer = await newAccountWithLamports(rpc, 10e9);
+  });
+
+  afterAll(() => {
+    if (rpc && typeof rpc.clear === "function") {
+      rpc.clear();
+    }
   });
 
   it("should compress SOL", async () => {

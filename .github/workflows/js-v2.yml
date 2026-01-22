@@ -37,6 +37,7 @@ jobs:
       LIGHT_PROTOCOL_VERSION: V2
       REDIS_URL: redis://localhost:6379
       CI: true
+      NODE_OPTIONS: "--max-old-space-size=512"
 
     steps:
       - name: Checkout sources

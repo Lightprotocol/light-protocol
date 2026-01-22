@@ -1,4 +1,4 @@
-import { describe, it, assert, beforeAll, expect } from "vitest";
+import { describe, it, assert, beforeAll, afterAll, expect } from "vitest";
 import { Keypair } from "@solana/web3.js";
 import {
   STATE_MERKLE_TREE_NETWORK_FEE,
@@ -44,6 +44,12 @@ describe.sequential("test-rpc with LiteSVM", () => {
     preCompressBalance = await rpc.getBalance(payer.publicKey);
 
     await compress(rpc, payer, compressLamportsAmount, payer.publicKey);
+  });
+
+  afterAll(() => {
+    if (rpc && typeof rpc.clear === "function") {
+      rpc.clear();
+    }
   });
 
   it("getCompressedAccountsByOwner", async () => {
