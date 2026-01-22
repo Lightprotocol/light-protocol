@@ -47,7 +47,7 @@ async fn test_burn_invoke() {
     };
     burn_data.serialize(&mut instruction_data).unwrap();
 
-    let light_token_program = Pubkey::from(LIGHT_TOKEN_PROGRAM_ID);
+    let light_token_program = LIGHT_TOKEN_PROGRAM_ID;
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
@@ -113,7 +113,7 @@ async fn test_burn_invoke_signed() {
     };
     burn_data.serialize(&mut instruction_data).unwrap();
 
-    let light_token_program = Pubkey::from(LIGHT_TOKEN_PROGRAM_ID);
+    let light_token_program = LIGHT_TOKEN_PROGRAM_ID;
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![

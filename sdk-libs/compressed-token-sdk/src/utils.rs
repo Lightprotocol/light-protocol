@@ -1,8 +1,13 @@
 //! Utility functions and default account configurations.
 
+use light_sdk::constants::REGISTERED_PROGRAM_PDA;
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
 use light_token_interface::{
     instructions::transfer2::MultiInputTokenDataWithContext, state::Token,
+};
+use light_token_types::{
+    ACCOUNT_COMPRESSION_AUTHORITY_PDA, ACCOUNT_COMPRESSION_PROGRAM_ID, CPI_AUTHORITY_PDA,
+    LIGHT_SYSTEM_PROGRAM_ID, NOOP_PROGRAM_ID, PROGRAM_ID as LIGHT_COMPRESSED_TOKEN_PROGRAM_ID,
 };
 use solana_account_info::AccountInfo;
 use solana_instruction::AccountMeta;
@@ -65,16 +70,11 @@ pub fn account_meta_from_account_info(account_info: &AccountInfo) -> AccountMeta
     }
 }
 
-#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(Debug, Clone)]
 pub struct AccountInfoToCompress<'info> {
     pub account_info: AccountInfo<'info>,
     pub signer_seeds: Vec<Vec<u8>>,
 }
-use light_sdk::constants::REGISTERED_PROGRAM_PDA;
-use light_token_types::{
-    ACCOUNT_COMPRESSION_AUTHORITY_PDA, ACCOUNT_COMPRESSION_PROGRAM_ID, CPI_AUTHORITY_PDA,
-    LIGHT_SYSTEM_PROGRAM_ID, NOOP_PROGRAM_ID, PROGRAM_ID as LIGHT_COMPRESSED_TOKEN_PROGRAM_ID,
-};
 
 /// Standard pubkeys for compressed token instructions
 #[derive(Debug, Copy, Clone)]

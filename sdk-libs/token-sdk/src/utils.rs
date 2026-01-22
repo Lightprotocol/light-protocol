@@ -2,7 +2,6 @@
 
 // Re-export TokenDefaultAccounts from compressed-token-sdk
 pub use light_compressed_token_sdk::utils::TokenDefaultAccounts;
-use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
 use light_token_interface::state::Token;
 use solana_account_info::AccountInfo;
 use solana_pubkey::Pubkey;
@@ -36,7 +35,7 @@ pub fn get_token_account_balance(token_account_info: &AccountInfo) -> Result<u64
 /// Returns `Ok(false)` if owner is SPL Token or Token-2022.
 /// Returns `Err` if owner is unrecognized.
 pub fn is_light_token_owner(owner: &Pubkey) -> Result<bool, TokenSdkError> {
-    let light_token_program_id = Pubkey::from(LIGHT_TOKEN_PROGRAM_ID);
+    let light_token_program_id = PROGRAM_ID;
 
     if owner == &light_token_program_id {
         return Ok(true);

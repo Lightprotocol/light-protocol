@@ -50,7 +50,7 @@ async fn test_freeze_invoke() {
     // Build freeze instruction via wrapper program
     let instruction_data = vec![InstructionType::FreezeInvoke as u8];
 
-    let light_token_program = Pubkey::from(LIGHT_TOKEN_PROGRAM_ID);
+    let light_token_program = LIGHT_TOKEN_PROGRAM_ID;
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
@@ -108,7 +108,7 @@ async fn test_freeze_invoke_signed() {
     // Build freeze instruction via wrapper program using invoke_signed
     let instruction_data = vec![InstructionType::FreezeInvokeSigned as u8];
 
-    let light_token_program = Pubkey::from(LIGHT_TOKEN_PROGRAM_ID);
+    let light_token_program = LIGHT_TOKEN_PROGRAM_ID;
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
@@ -144,7 +144,7 @@ async fn test_thaw_invoke() {
     let payer = rpc.get_payer().insecure_clone();
 
     let freeze_authority = Keypair::new();
-    let light_token_program = Pubkey::from(LIGHT_TOKEN_PROGRAM_ID);
+    let light_token_program = LIGHT_TOKEN_PROGRAM_ID;
 
     // Create a compressed mint with freeze_authority and an ATA for the payer with 1000 tokens
     let (mint_pda, _compression_address, ata_pubkeys) = setup_create_mint_with_freeze_authority(
@@ -230,7 +230,7 @@ async fn test_thaw_invoke_signed() {
 
     // Derive the PDA that will be the freeze authority
     let (pda_freeze_authority, _bump) = Pubkey::find_program_address(&[FREEZE_AUTHORITY_SEED], &ID);
-    let light_token_program = Pubkey::from(LIGHT_TOKEN_PROGRAM_ID);
+    let light_token_program = LIGHT_TOKEN_PROGRAM_ID;
 
     // Create a compressed mint with PDA freeze_authority and an ATA for the payer with 1000 tokens
     let (mint_pda, _compression_address, ata_pubkeys) = setup_create_mint_with_freeze_authority(

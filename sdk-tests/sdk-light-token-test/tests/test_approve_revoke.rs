@@ -44,7 +44,7 @@ async fn test_approve_invoke() {
     };
     approve_data.serialize(&mut instruction_data).unwrap();
 
-    let light_token_program = Pubkey::from(LIGHT_TOKEN_PROGRAM_ID);
+    let light_token_program = LIGHT_TOKEN_PROGRAM_ID;
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
@@ -102,7 +102,7 @@ async fn test_approve_invoke_signed() {
     };
     approve_data.serialize(&mut instruction_data).unwrap();
 
-    let light_token_program = Pubkey::from(LIGHT_TOKEN_PROGRAM_ID);
+    let light_token_program = LIGHT_TOKEN_PROGRAM_ID;
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
@@ -155,7 +155,7 @@ async fn test_revoke_invoke() {
     let ata = ata_pubkeys[0];
     let delegate = Keypair::new();
     let approve_amount = 100u64;
-    let light_token_program = Pubkey::from(LIGHT_TOKEN_PROGRAM_ID);
+    let light_token_program = LIGHT_TOKEN_PROGRAM_ID;
 
     // First approve a delegate
     let mut approve_instruction_data = vec![InstructionType::ApproveInvoke as u8];
@@ -240,7 +240,7 @@ async fn test_revoke_invoke_signed() {
     let ata = ata_pubkeys[0];
     let delegate = Keypair::new();
     let approve_amount = 100u64;
-    let light_token_program = Pubkey::from(LIGHT_TOKEN_PROGRAM_ID);
+    let light_token_program = LIGHT_TOKEN_PROGRAM_ID;
 
     // First approve a delegate using invoke_signed
     let mut approve_instruction_data = vec![InstructionType::ApproveInvokeSigned as u8];

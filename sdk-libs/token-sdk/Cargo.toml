@@ -13,7 +13,7 @@ anchor-discriminator = ["light-sdk/anchor-discriminator", "light-compressed-toke
 anchor = ["anchor-lang", "light-token-types/anchor", "light-token-interface/anchor", "light-compressed-token-sdk/anchor", "dep:light-sdk-macros"]
 # idl-build feature enables IDL generation for client-side tooling and SDK generation
 idl-build = ["anchor", "anchor-lang/idl-build", "light-sdk/idl-build", "light-compressed-token-sdk/idl-build"]
-cpi-context = ["light-sdk/cpi-context"]
+cpi-context = ["light-sdk/cpi-context", "light-compressed-token-sdk/cpi-context"]
 
 profile-program = [
     "light-program-profiler/profile-program",

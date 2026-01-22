@@ -215,8 +215,8 @@ impl Default for SystemAccounts {
 // Re-export constants for backwards compatibility
 pub use crate::{
     constants::{
-        config_pda, rent_sponsor_pda, COMPRESSIBLE_CONFIG_V1, LIGHT_TOKEN_CPI_AUTHORITY,
-        LIGHT_TOKEN_PROGRAM_ID, RENT_SPONSOR_V1 as RENT_SPONSOR,
+        compression_authority_pda, config_pda, rent_sponsor_pda, COMPRESSIBLE_CONFIG_V1,
+        LIGHT_TOKEN_CPI_AUTHORITY, LIGHT_TOKEN_PROGRAM_ID, RENT_SPONSOR_V1 as RENT_SPONSOR,
     },
     cpi_authority, id,
     spl_interface::get_spl_interface_pda_and_bump,

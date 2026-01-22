@@ -90,7 +90,7 @@ async fn test_create_compressed_mint() {
         decimals,
         address_merkle_tree_root_index: rpc_result.addresses[0].root_index,
         mint_authority,
-        proof: proof.clone(),
+        proof,
         compression_address,
         mint: mint_pda,
         bump: mint_bump,

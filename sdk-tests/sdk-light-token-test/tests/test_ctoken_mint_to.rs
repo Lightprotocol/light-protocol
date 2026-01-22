@@ -47,7 +47,7 @@ async fn test_ctoken_mint_to_invoke() {
     };
     mint_data.serialize(&mut instruction_data).unwrap();
 
-    let light_token_program = Pubkey::from(LIGHT_TOKEN_PROGRAM_ID);
+    let light_token_program = LIGHT_TOKEN_PROGRAM_ID;
     let system_program = Pubkey::default();
     let instruction = Instruction {
         program_id: ID,
@@ -222,7 +222,7 @@ async fn test_ctoken_mint_to_invoke_signed() {
     };
     mint_data.serialize(&mut instruction_data).unwrap();
 
-    let light_token_program = Pubkey::from(LIGHT_TOKEN_PROGRAM_ID);
+    let light_token_program = LIGHT_TOKEN_PROGRAM_ID;
     let system_program = Pubkey::default();
     let instruction = Instruction {
         program_id: ID,

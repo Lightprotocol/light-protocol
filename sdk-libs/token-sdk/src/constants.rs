@@ -8,9 +8,6 @@ pub use light_compressed_token_sdk::constants::*;
 use light_compressible::config::CompressibleConfig;
 use solana_pubkey::{pubkey, Pubkey};
 
-/// Compressed Token Program ID: `cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m`
-pub const LIGHT_TOKEN_PROGRAM_ID: Pubkey = pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
-
 /// CPI Authority PDA for the Compressed Token Program
 pub const LIGHT_TOKEN_CPI_AUTHORITY: Pubkey =
     pubkey!("GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy");
