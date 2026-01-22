@@ -107,17 +107,43 @@ done
 echo "All packages compile successfully"
 echo ""
 
+# Function to check if packages have interdependencies
+has_interdependencies() {
+  local packages=("$@")
+  for pkg in "${packages[@]}"; do
+    # Find Cargo.toml for this package
+    local cargo_toml=$(find program-libs sdk-libs prover/client sparse-merkle-tree -name "Cargo.toml" -exec grep -l "^name = \"$pkg\"" {} \; 2>/dev/null | head -1)
+    if [ -z "$cargo_toml" ]; then
+      continue
+    fi
+
+    # Check if this package depends on any other package in the release
+    for dep_pkg in "${packages[@]}"; do
+      if [ "$pkg" != "$dep_pkg" ]; then
+        if grep -q "^$dep_pkg *= *{" "$cargo_toml" 2>/dev/null; then
+          echo "Detected interdependency: $pkg depends on $dep_pkg"
+          return 0
+        fi
+      fi
+    done
+  done
+  return 1
+}
+
 # Then: Either publish or dry-run
 if [ -n "$EXECUTE_FLAG" ]; then
   # Publish with --no-verify to avoid cargo bug with unpublished deps
   cargo publish $PACKAGE_ARGS --no-verify
 else
-  # Dry-run validation - allow dirty state and skip verification
-  # Skip if all packages are new (no existing packages to validate)
-  if [ -n "$(echo $PACKAGE_ARGS | tr -d ' ')" ]; then
-    cargo publish $PACKAGE_ARGS --dry-run --allow-dirty --no-verify
-  else
+  # Check for interdependencies
+  if has_interdependencies "${PACKAGES[@]}"; then
+    echo "Skipping cargo publish dry-run (interdependent packages detected)"
+    echo "The compilation check above already validated the packages"
+  elif [ -z "$(echo $PACKAGE_ARGS | tr -d ' ')" ]; then
     echo "Skipping cargo publish dry-run (all packages are new)"
+  else
+    # Dry-run validation - allow dirty state and skip verification
+    cargo publish $PACKAGE_ARGS --dry-run --allow-dirty --no-verify
   fi
 fi
 
