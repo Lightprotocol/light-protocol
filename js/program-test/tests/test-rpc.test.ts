@@ -1,5 +1,6 @@
 import { describe, it, assert, beforeAll, afterAll, expect } from "vitest";
 import { Keypair } from "@solana/web3.js";
+import { WasmFactory } from "@lightprotocol/hasher.rs";
 import {
   STATE_MERKLE_TREE_NETWORK_FEE,
   STATE_MERKLE_TREE_ROLLOVER_FEE,
@@ -11,11 +12,7 @@ import {
   bn,
   CompressedAccountWithMerkleContext,
 } from "@lightprotocol/stateless.js";
-import {
-  createLiteSVMRpc,
-  newAccountWithLamports,
-  NobleHasherFactory,
-} from "../src";
+import { createLiteSVMRpc, newAccountWithLamports } from "../src";
 
 describe.sequential("test-rpc with LiteSVM", () => {
   const { merkleTree } = defaultTestStateTreeAccounts();
@@ -30,7 +27,7 @@ describe.sequential("test-rpc with LiteSVM", () => {
   const refCompressLamports = 1e7;
 
   beforeAll(async () => {
-    const lightWasm = await NobleHasherFactory.getInstance();
+    const lightWasm = await WasmFactory.getInstance();
     rpc = await createLiteSVMRpc(lightWasm);
 
     refPayer = await newAccountWithLamports(rpc, 1e9);

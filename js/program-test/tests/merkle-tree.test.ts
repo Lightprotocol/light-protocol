@@ -1,10 +1,10 @@
 import { IndexedArray, IndexedElement } from "../src/merkle-tree/indexed-array";
 import { beforeAll, describe, expect, it } from "vitest";
+import { WasmFactory } from "@lightprotocol/hasher.rs";
 import { HIGHEST_ADDRESS_PLUS_ONE, bn } from "@lightprotocol/stateless.js";
 import { MerkleTree } from "../src/merkle-tree/merkle-tree";
 
 describe("MerkleTree", () => {
-  let WasmFactory: any;
   const refIndexedMerkleTreeInitedRoot = [
     33, 133, 56, 184, 142, 166, 110, 161, 4, 140, 169, 247, 115, 33, 15, 181,
     76, 89, 48, 126, 58, 86, 204, 81, 16, 121, 185, 77, 75, 152, 43, 15,
@@ -33,10 +33,6 @@ describe("MerkleTree", () => {
   const refIndexedArrayElem2 = new IndexedElement(2, bn(30), 1);
 
   describe("IndexedArray", () => {
-    beforeAll(async () => {
-      WasmFactory = (await import("../src")).NobleHasherFactory;
-    });
-
     it("should findLowElementIndex", () => {
       const indexedArray = new IndexedArray(
         [refIndexedArrayElem0, refIndexedArrayElem1, refIndexedArrayElem2],
