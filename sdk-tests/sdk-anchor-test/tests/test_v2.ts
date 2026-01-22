@@ -3,18 +3,23 @@ import { Program, web3 } from "@coral-xyz/anchor";
 import idl from "../target/idl/sdk_anchor_test.json";
 import {
   bn,
-  CompressedAccountWithMerkleContext,
-  createRpc,
+  type CompressedAccountWithMerkleContext,
+  defaultTestStateTreeAccounts,
   deriveAddressSeedV2,
   deriveAddressV2,
   PackedAccounts,
-  Rpc,
-  sleep,
+  type Rpc,
   SystemAccountMetaConfig,
 } from "@lightprotocol/stateless.js";
-const path = require("path");
-const os = require("os");
-require("dotenv").config();
+import {
+  createLiteSVMRpc,
+  newAccountWithLamports,
+} from "@lightprotocol/program-test";
+import { WasmFactory } from "@lightprotocol/hasher.rs";
+import path from "path";
+import os from "os";
+import dotenv from "dotenv";
+dotenv.config();
 
 const anchorWalletPath = path.join(os.homedir(), ".config/solana/id.json");
 process.env.ANCHOR_WALLET = anchorWalletPath;
@@ -30,15 +35,19 @@ describe("sdk-anchor-test-v2", () => {
   const coder = new anchor.BorshCoder(idl as anchor.Idl);
 
   it("create, update, and close compressed account (v2)", async () => {
-    let signer = new web3.Keypair();
-    let rpc = createRpc(
-      "http://127.0.0.1:8899",
-      "http://127.0.0.1:8784",
-      "http://127.0.0.1:3001",
-      {
-        commitment: "confirmed",
-      }
+    const lightWasm = await WasmFactory.getInstance();
+    const programPath = path.join(
+      __dirname,
+      "../../../target/deploy/sdk_anchor_test.so"
     );
+    const rpc = await createLiteSVMRpc(lightWasm, {
+      customPrograms: [
+        {
+          programId,
+          programPath,
+        },
+      ],
+    });
 
     // Get existing tree infos
     const existingTreeInfos = await rpc.getStateTreeInfos();
@@ -47,9 +56,7 @@ describe("sdk-anchor-test-v2", () => {
       console.log(`  Tree: ${info.tree.toBase58()}, Type: ${info.treeType}`);
     });
 
-    let lamports = web3.LAMPORTS_PER_SOL;
-    await rpc.requestAirdrop(signer.publicKey, lamports);
-    await sleep(2000);
+    let signer = await newAccountWithLamports(rpc, web3.LAMPORTS_PER_SOL);
 
     // Use an actual existing state tree from the environment
     const stateTreeInfo = existingTreeInfos.find(
@@ -79,7 +86,6 @@ describe("sdk-anchor-test-v2", () => {
       signer,
       name
     );
-    await sleep(2000);
 
     let compressedAccount = await rpc.getCompressedAccount(
       bn(address.toBytes())
@@ -112,7 +118,6 @@ describe("sdk-anchor-test-v2", () => {
       coder,
       newNestedData
     );
-    await sleep(2000);
 
     compressedAccount = await rpc.getCompressedAccount(bn(address.toBytes()));
     console.log("Updated account:", compressedAccount);
@@ -127,7 +132,6 @@ describe("sdk-anchor-test-v2", () => {
       signer,
       coder
     );
-    await sleep(2000);
 
     const closedAccount = await rpc.getCompressedAccount(bn(address.toBytes()));
     console.log("Closed account:", closedAccount);
@@ -239,7 +243,7 @@ async function updateCompressedAccount(
   // Decode current account state
   const myCompressedAccount = coder.types.decode(
     "MyCompressedAccount",
-    compressedAccount.data.data
+    Buffer.from(compressedAccount.data.data)
   );
 
   let proof = {
@@ -315,7 +319,7 @@ async function closeCompressedAccount(
   // Decode current account state
   const myCompressedAccount = coder.types.decode(
     "MyCompressedAccount",
-    compressedAccount.data.data
+    Buffer.from(compressedAccount.data.data)
   );
 
   let proof = {

@@ -101,7 +101,6 @@ import {
     proofFromJsonStruct,
     negateAndCompressProof,
 } from './utils/parse-validity-proof';
-import { LightWasm } from './test-helpers';
 import {
     getAllStateTreeInfos,
     getStateTreeInfoByPubkey,
@@ -491,68 +490,6 @@ export function convertNonInclusionMerkleProofInputsToHex(
         inputs.push(input);
     }
     return inputs;
-}
-
-function calculateTwoInputsHashChain(
-    hashesFirst: BN[],
-    hashesSecond: BN[],
-    lightWasm: LightWasm,
-): BN {
-    if (hashesFirst.length !== hashesSecond.length) {
-        throw new Error('Input lengths must match.');
-    }
-    if (hashesFirst.length === 0) {
-        return bn(0);
-    }
-
-    let hashChain = lightWasm.poseidonHashBN([
-        hashesFirst[0].toString(),
-        hashesSecond[0].toString(),
-    ]);
-
-    for (let i = 1; i < hashesFirst.length; i++) {
-        hashChain = lightWasm.poseidonHashBN([
-            hashChain.toString(),
-            hashesFirst[i].toString(),
-            hashesSecond[i].toString(),
-        ]);
-    }
-
-    return hashChain;
-}
-
-export function getPublicInputHash(
-    accountProofs: MerkleContextWithMerkleProof[],
-    accountHashes: BN254[],
-    newAddressProofs: MerkleContextWithNewAddressProof[],
-    lightWasm: LightWasm,
-): BN {
-    const accountRoots = accountProofs.map(x => x.root);
-    const inclusionHashChain = calculateTwoInputsHashChain(
-        accountRoots,
-        accountHashes,
-        lightWasm,
-    );
-
-    const newAddressHashes = newAddressProofs.map(x => x.value);
-    const newAddressRoots = newAddressProofs.map(x => x.root);
-    const nonInclusionHashChain = calculateTwoInputsHashChain(
-        newAddressRoots,
-        newAddressHashes,
-        lightWasm,
-    );
-
-    if (!nonInclusionHashChain.isZero()) {
-        return nonInclusionHashChain;
-    } else if (!inclusionHashChain.isZero()) {
-        return inclusionHashChain;
-    } else {
-        return calculateTwoInputsHashChain(
-            [inclusionHashChain],
-            [nonInclusionHashChain],
-            lightWasm,
-        );
-    }
 }
 
 export interface NullifierMetadata {

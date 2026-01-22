@@ -8,7 +8,7 @@ export GO_VERSION=$(grep '^go ' "${REPO_ROOT}/prover/server/go.mod" | awk '{prin
 export PNPM_VERSION=$(grep 'packageManager' "${REPO_ROOT}/package.json" | sed 's/.*pnpm@\([^"]*\).*/\1/')
 
 # Versions to bump manually (edit below)
-export NODE_VERSION="22.16.0"
+export NODE_VERSION="24.4.0"
 export SOLANA_VERSION="2.2.15"
 export ANCHOR_VERSION="0.31.1"
 export JQ_VERSION="1.8.0"

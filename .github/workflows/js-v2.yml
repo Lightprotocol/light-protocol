@@ -20,7 +20,6 @@ concurrency:
 jobs:
   stateless-js-v2:
     name: stateless-js-v2
-    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
 
     services:
@@ -46,7 +45,7 @@ jobs:
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
         with:
-          skip-components: "redis,disk-cleanup,go"
+          skip-components: "redis,disk-cleanup,go,photon"
           cache-key: "js"
 
       - name: Build stateless.js with V2
@@ -63,7 +62,27 @@ jobs:
         run: |
           npx nx build @lightprotocol/zk-compression-cli
 
+      - name: Build program-test
+        run: |
+          cd js/program-test
+          pnpm build:v2
+
+      - name: Start prover server
+        run: |
+          source ./scripts/devenv.sh
+          light start-prover &
+          sleep 5
+
+      - name: Run program-test tests with V2
+        env:
+          NODE_OPTIONS: "--max-old-space-size=1024"
+        run: |
+          source ./scripts/devenv.sh
+          npx nx test @lightprotocol/program-test
+
       - name: Run stateless.js tests with V2
+        env:
+          NODE_OPTIONS: "--max-old-space-size=1024"
         run: |
           echo "Running stateless.js tests with retry logic (max 2 attempts)..."
           attempt=1
@@ -80,6 +99,8 @@ jobs:
           echo "Tests passed on attempt $attempt"
 
       - name: Run compressed-token unit tests with V2
+        env:
+          NODE_OPTIONS: "--max-old-space-size=1024"
         run: |
           echo "Running compressed-token unit tests with retry logic (max 2 attempts)..."
           attempt=1
@@ -96,6 +117,8 @@ jobs:
           echo "Tests passed on attempt $attempt"
 
       - name: Run compressed-token ctoken tests with V2
+        env:
+          NODE_OPTIONS: "--max-old-space-size=1024"
         run: |
           echo "Running compressed-token ctoken tests with retry logic (max 2 attempts)..."
           attempt=1
@@ -113,6 +136,8 @@ jobs:
           echo "Tests passed on attempt $attempt"
 
       - name: Run sdk-anchor-test TypeScript tests with V2
+        env:
+          NODE_OPTIONS: "--max-old-space-size=1024"
         run: |
           npx nx build @lightprotocol/sdk-anchor-test
           cd sdk-tests/sdk-anchor-test

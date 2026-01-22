@@ -101,6 +101,7 @@ runs:
       run: bash scripts/devenv/install-anchor.sh
 
     - name: Cache Photon indexer
+      if: "!contains(inputs.skip-components, 'photon')"
       id: cache-photon
       uses: actions/cache@v4
       with:
@@ -108,7 +109,7 @@ runs:
         key: ${{ runner.os }}-photon-${{ steps.versions.outputs.photon }}-${{ steps.versions.outputs.photon_commit }}
 
     - name: Install Photon indexer
-      if: steps.cache-photon.outputs.cache-hit != 'true'
+      if: "!contains(inputs.skip-components, 'photon') && steps.cache-photon.outputs.cache-hit != 'true'"
       shell: bash
       run: bash scripts/devenv/install-photon.sh
 
@@ -177,34 +178,17 @@ runs:
         mkdir -p ./target/deploy
         cp ./third-party/solana-program-library/spl_noop.so ./target/deploy/spl_noop.so
 
-    - name: Cache Solana programs
-      id: cache-programs
+    - name: Cache target/deploy
+      id: cache-deploy
       uses: actions/cache@v4
       with:
-        path: |
-          target/deploy/*.so
-          target/idl
-          target/types
-        key: ${{ runner.os }}-programs-${{ hashFiles('programs/**/Cargo.toml', 'programs/**/Cargo.lock', 'programs/**/*.rs', 'program-libs/**/*.rs') }}
+        path: target/deploy
+        key: ${{ runner.os }}-deploy-${{ hashFiles('programs/**/*.rs', 'program-libs/**/*.rs', 'program-tests/**/*.rs', 'test-programs/**/*.rs', 'sdk-tests/**/*.rs', '**/Cargo.toml', '**/Cargo.lock') }}
         restore-keys: |
-          ${{ runner.os }}-programs-
-
-    - name: Cache Solana program-tests
-      id: cache-program-tests
-      uses: actions/cache@v4
-      with:
-        path: |
-          target/deploy/create_address_test_program.so
-          target/deploy/sdk_anchor_test.so
-          target/deploy/sdk-compressible-test.so
-          target/deploy/csdk_anchor_derived_test.so
-          target/deploy/csdk_anchor_full_derived_test.so
-        key: ${{ runner.os }}-program-tests-${{ hashFiles('program-tests/**/Cargo.toml', 'program-tests/**/Cargo.lock', 'program-tests/**/*.rs', 'test-programs/**/Cargo.toml', 'test-programs/**/*.rs', 'sdk-tests/**/Cargo.toml', 'sdk-tests/**/*.rs') }}
-        restore-keys: |
-          ${{ runner.os }}-program-tests-
+          ${{ runner.os }}-deploy-
 
     - name: Build Rust programs
-      if: steps.cache-programs.outputs.cache-hit != 'true'
+      if: steps.cache-deploy.outputs.cache-hit != 'true'
       shell: bash
       run: |
         echo "Building Rust programs..."
@@ -214,7 +198,7 @@ runs:
         fi
 
     - name: Build Rust program-tests
-      if: steps.cache-program-tests.outputs.cache-hit != 'true'
+      if: steps.cache-deploy.outputs.cache-hit != 'true'
       shell: bash
       run: |
         echo "Building Rust program-tests..."
@@ -222,6 +206,14 @@ runs:
           echo "Failed to build program-tests, retrying with verbose output..."
           npx nx build @lightprotocol/program-tests --verbose
         fi
+
+    - name: Save deploy cache
+      # Save cache even on failure to speed up retries
+      if: steps.cache-deploy.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: target/deploy
+        key: ${{ runner.os }}-deploy-${{ hashFiles('programs/**/*.rs', 'program-libs/**/*.rs', 'program-tests/**/*.rs', 'test-programs/**/*.rs', 'sdk-tests/**/*.rs', '**/Cargo.toml', '**/Cargo.lock') }}
 
     - name: Check for git changes
       shell: bash
