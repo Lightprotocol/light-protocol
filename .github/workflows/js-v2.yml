@@ -67,16 +67,22 @@ jobs:
           cd js/program-test
           pnpm build:v2
 
+      - name: Start prover server
+        run: |
+          source ./scripts/devenv.sh
+          light start-prover &
+          sleep 5
+
       - name: Run program-test tests with V2
         env:
-          NODE_OPTIONS: "--max-old-space-size=512"
+          NODE_OPTIONS: "--max-old-space-size=1024"
         run: |
           source ./scripts/devenv.sh
           npx nx test @lightprotocol/program-test
 
       - name: Run stateless.js tests with V2
         env:
-          NODE_OPTIONS: "--max-old-space-size=512"
+          NODE_OPTIONS: "--max-old-space-size=1024"
         run: |
           echo "Running stateless.js tests with retry logic (max 2 attempts)..."
           attempt=1
@@ -94,7 +100,7 @@ jobs:
 
       - name: Run compressed-token unit tests with V2
         env:
-          NODE_OPTIONS: "--max-old-space-size=512"
+          NODE_OPTIONS: "--max-old-space-size=1024"
         run: |
           echo "Running compressed-token unit tests with retry logic (max 2 attempts)..."
           attempt=1
@@ -112,7 +118,7 @@ jobs:
 
       - name: Run compressed-token ctoken tests with V2
         env:
-          NODE_OPTIONS: "--max-old-space-size=512"
+          NODE_OPTIONS: "--max-old-space-size=1024"
         run: |
           echo "Running compressed-token ctoken tests with retry logic (max 2 attempts)..."
           attempt=1
@@ -131,7 +137,7 @@ jobs:
 
       - name: Run sdk-anchor-test TypeScript tests with V2
         env:
-          NODE_OPTIONS: "--max-old-space-size=512"
+          NODE_OPTIONS: "--max-old-space-size=1024"
         run: |
           npx nx build @lightprotocol/sdk-anchor-test
           cd sdk-tests/sdk-anchor-test
