@@ -36,7 +36,7 @@ build-cli: build-js
 build-forester:
     cargo build -p forester --release
 
-test-forester:
+test-forester: build-program-tests
     TEST_MODE=local \
     TEST_V1_STATE=true \
     TEST_V2_STATE=true \
@@ -62,7 +62,7 @@ test-forester-compressible-ctoken:
 # === Test ===
 test: test-programs test-sdk test-js
 
-test-programs:
+test-programs: build-program-tests
     RUSTFLAGS="-D warnings" cargo test-sbf -p account-compression-test
     RUSTFLAGS="-D warnings" cargo test-sbf -p registry-test
     RUSTFLAGS="-D warnings" cargo test-sbf -p system-test
@@ -99,11 +99,11 @@ test-program-libs-fast:
 test-program-libs-slow:
     cargo test -p light-bloom-filter --all-features
     cargo test -p light-indexed-merkle-tree --all-features
-    cargo test -p batched-merkle-tree-test -- --test test_e2e
+    cargo test -p batched-merkle-tree-test -- test_e2e
 
 test-batched-merkle-tree-simulate:
     cargo test -p light-batched-merkle-tree --features test-only
-    RUST_LOG=light_prover_client=debug cargo test -p batched-merkle-tree-test -- --test test_simulate_transactions
+    RUST_LOG=light_prover_client=debug cargo test -p batched-merkle-tree-test -- test_simulate_transactions
 
 # SDK libs tests (matching CI in sdk-tests.yml)
 test-sdk-libs:
