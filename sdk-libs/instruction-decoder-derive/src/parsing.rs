@@ -157,6 +157,12 @@ pub struct VariantDecoderArgs {
     /// The function must have signature `fn(&ParamsType, &[AccountMeta]) -> String`.
     #[darling(default)]
     pub pretty_formatter: Option<syn::Path>,
+
+    /// Optional function to resolve account names dynamically from parsed params.
+    /// The function must have signature `fn(&ParamsType, &[AccountMeta]) -> Vec<String>`.
+    /// When specified, this takes precedence over `accounts` and `account_names`.
+    #[darling(default)]
+    pub account_names_resolver_from_params: Option<syn::Path>,
 }
 
 impl VariantDecoderArgs {

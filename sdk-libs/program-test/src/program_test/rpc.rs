@@ -414,6 +414,8 @@ impl LightProgramTest {
                 &signature,
                 slot,
                 self.transaction_counter,
+                Some(&pre_context_snapshot),
+                Some(&self.context),
             );
         }
 
@@ -429,6 +431,8 @@ impl LightProgramTest {
                     slot,
                     self.transaction_counter,
                     true, // Enable console output
+                    Some(&pre_context_snapshot),
+                    Some(&self.context),
                 );
             }
             RpcError::TransactionError(x.err.clone())
@@ -446,6 +450,8 @@ impl LightProgramTest {
                     slot,
                     self.transaction_counter,
                     true, // Enable console output
+                    Some(&pre_context_snapshot),
+                    Some(&self.context),
                 );
 
                 // if self.config.log_light_protocol_events {

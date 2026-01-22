@@ -546,6 +546,82 @@ pub fn format_invoke_cpi_readonly(
     output
 }
 
+/// Resolve account names dynamically for InvokeCpiWithReadOnly.
+///
+/// Account layout depends on CPI context mode:
+///
+/// **CPI Context Write Mode** (`set_context || first_set_context`):
+/// - fee_payer, cpi_authority_pda, cpi_context
+///
+/// **Normal Mode**:
+/// 1. Fixed: fee_payer, authority, registered_program_pda, account_compression_authority,
+///    account_compression_program, system_program
+/// 2. Optional: cpi_context_account (if cpi_context is present)
+/// 3. Tree accounts: named based on usage in instruction data
+#[cfg(not(target_os = "solana"))]
+pub fn resolve_invoke_cpi_readonly_account_names(
+    data: &InstructionDataInvokeCpiWithReadOnly,
+    accounts: &[AccountMeta],
+) -> Vec<String> {
+    use std::collections::HashMap;
+
+    let mut names = Vec::with_capacity(accounts.len());
+    let mut idx = 0;
+    let mut known_pubkeys: HashMap<[u8; 32], String> = HashMap::new();
+
+    let mut add_name = |name: &str,
+                        accounts: &[AccountMeta],
+                        idx: &mut usize,
+                        known: &mut HashMap<[u8; 32], String>| {
+        if *idx < accounts.len() {
+            names.push(name.to_string());
+            known.insert(accounts[*idx].pubkey.to_bytes(), name.to_string());
+            *idx += 1;
+            true
+        } else {
+            false
+        }
+    };
+
+    // Check if we're in CPI context write mode
+    let cpi_context_write_mode = data.cpi_context.set_context || data.cpi_context.first_set_context;
+
+    if cpi_context_write_mode {
+        // CPI Context Write Mode: only 3 accounts
+        add_name("fee_payer", accounts, &mut idx, &mut known_pubkeys);
+        add_name("cpi_authority_pda", accounts, &mut idx, &mut known_pubkeys);
+        add_name("cpi_context", accounts, &mut idx, &mut known_pubkeys);
+        return names;
+    }
+
+    // Normal Mode: Fixed LightSystemAccounts (6 accounts)
+    add_name("fee_payer", accounts, &mut idx, &mut known_pubkeys);
+    add_name("authority", accounts, &mut idx, &mut known_pubkeys);
+    add_name(
+        "registered_program_pda",
+        accounts,
+        &mut idx,
+        &mut known_pubkeys,
+    );
+    add_name(
+        "account_compression_authority",
+        accounts,
+        &mut idx,
+        &mut known_pubkeys,
+    );
+    add_name(
+        "account_compression_program",
+        accounts,
+        &mut idx,
+        &mut known_pubkeys,
+    );
+    add_name("system_program", accounts, &mut idx, &mut known_pubkeys);
+
+    // Don't provide names for remaining accounts (cpi_context_account, tree/queue accounts)
+    // - let the formatter use the transaction-level account names
+    names
+}
+
 /// Format InvokeCpiWithAccountInfo instruction data.
 ///
 /// Note: This instruction does NOT have the 4-byte Anchor prefix - it uses pure borsh.
@@ -587,6 +663,82 @@ pub fn format_invoke_cpi_account_info(
     );
 
     output
+}
+
+/// Resolve account names dynamically for InvokeCpiWithAccountInfo.
+///
+/// Account layout depends on CPI context mode:
+///
+/// **CPI Context Write Mode** (`set_context || first_set_context`):
+/// - fee_payer, cpi_authority_pda, cpi_context
+///
+/// **Normal Mode**:
+/// 1. Fixed: fee_payer, authority, registered_program_pda, account_compression_authority,
+///    account_compression_program, system_program
+/// 2. Optional: cpi_context_account (if cpi_context is present)
+/// 3. Tree accounts: named based on usage in instruction data
+#[cfg(not(target_os = "solana"))]
+pub fn resolve_invoke_cpi_account_info_account_names(
+    data: &InstructionDataInvokeCpiWithAccountInfo,
+    accounts: &[AccountMeta],
+) -> Vec<String> {
+    use std::collections::HashMap;
+
+    let mut names = Vec::with_capacity(accounts.len());
+    let mut idx = 0;
+    let mut known_pubkeys: HashMap<[u8; 32], String> = HashMap::new();
+
+    let mut add_name = |name: &str,
+                        accounts: &[AccountMeta],
+                        idx: &mut usize,
+                        known: &mut HashMap<[u8; 32], String>| {
+        if *idx < accounts.len() {
+            names.push(name.to_string());
+            known.insert(accounts[*idx].pubkey.to_bytes(), name.to_string());
+            *idx += 1;
+            true
+        } else {
+            false
+        }
+    };
+
+    // Check if we're in CPI context write mode
+    let cpi_context_write_mode = data.cpi_context.set_context || data.cpi_context.first_set_context;
+
+    if cpi_context_write_mode {
+        // CPI Context Write Mode: only 3 accounts
+        add_name("fee_payer", accounts, &mut idx, &mut known_pubkeys);
+        add_name("cpi_authority_pda", accounts, &mut idx, &mut known_pubkeys);
+        add_name("cpi_context", accounts, &mut idx, &mut known_pubkeys);
+        return names;
+    }
+
+    // Normal Mode: Fixed LightSystemAccounts (6 accounts)
+    add_name("fee_payer", accounts, &mut idx, &mut known_pubkeys);
+    add_name("authority", accounts, &mut idx, &mut known_pubkeys);
+    add_name(
+        "registered_program_pda",
+        accounts,
+        &mut idx,
+        &mut known_pubkeys,
+    );
+    add_name(
+        "account_compression_authority",
+        accounts,
+        &mut idx,
+        &mut known_pubkeys,
+    );
+    add_name(
+        "account_compression_program",
+        accounts,
+        &mut idx,
+        &mut known_pubkeys,
+    );
+    add_name("system_program", accounts, &mut idx, &mut known_pubkeys);
+
+    // Don't provide names for remaining accounts (cpi_context_account, tree/queue accounts)
+    // - let the formatter use the transaction-level account names
+    names
 }
 
 /// Wrapper type for Invoke instruction that handles the 4-byte Anchor prefix.
@@ -720,7 +872,7 @@ pub enum LightSystemInstruction {
     /// Has 4-byte Anchor vec length prefix after discriminator.
     #[discriminator(26, 16, 169, 7, 21, 202, 242, 25)]
     #[instruction_decoder(
-        account_names = ["fee_payer", "authority", "registered_program_pda", "noop_program", "account_compression_authority", "account_compression_program", "self_program"],
+        account_names = ["fee_payer", "authority", "registered_program_pda", "log_program", "account_compression_authority", "account_compression_program", "self_program"],
         params = InvokeWrapper,
         pretty_formatter = crate::programs::light_system::format_invoke_wrapper
     )]
@@ -730,28 +882,30 @@ pub enum LightSystemInstruction {
     /// Has 4-byte Anchor vec length prefix after discriminator.
     #[discriminator(49, 212, 191, 129, 39, 194, 43, 196)]
     #[instruction_decoder(
-        account_names = ["fee_payer", "authority", "registered_program_pda", "noop_program", "account_compression_authority", "account_compression_program", "invoking_program", "cpi_signer"],
+        account_names = ["fee_payer", "authority", "registered_program_pda", "log_program", "account_compression_authority", "account_compression_program", "invoking_program", "cpi_signer"],
         params = InvokeCpiWrapper,
         pretty_formatter = crate::programs::light_system::format_invoke_cpi_wrapper
     )]
     InvokeCpi,
 
-    /// CPI with read-only compressed accounts.
+    /// CPI with read-only compressed accounts (V2 account layout).
     /// Uses pure borsh serialization (no 4-byte prefix).
+    /// Note: V2 instructions have no log_program account.
     #[discriminator(86, 47, 163, 166, 21, 223, 92, 8)]
     #[instruction_decoder(
-        account_names = ["fee_payer", "authority", "registered_program_pda", "noop_program", "account_compression_authority", "account_compression_program", "invoking_program", "cpi_signer"],
         params = InstructionDataInvokeCpiWithReadOnly,
+        account_names_resolver_from_params = crate::programs::light_system::resolve_invoke_cpi_readonly_account_names,
         pretty_formatter = crate::programs::light_system::format_invoke_cpi_readonly
     )]
     InvokeCpiWithReadOnly,
 
-    /// CPI with full account info for each compressed account.
+    /// CPI with full account info for each compressed account (V2 account layout).
     /// Uses pure borsh serialization (no 4-byte prefix).
+    /// Note: V2 instructions have no log_program account.
     #[discriminator(228, 34, 128, 84, 47, 139, 86, 240)]
     #[instruction_decoder(
-        account_names = ["fee_payer", "authority", "registered_program_pda", "noop_program", "account_compression_authority", "account_compression_program", "invoking_program", "cpi_signer"],
         params = InstructionDataInvokeCpiWithAccountInfo,
+        account_names_resolver_from_params = crate::programs::light_system::resolve_invoke_cpi_account_info_account_names,
         pretty_formatter = crate::programs::light_system::format_invoke_cpi_account_info
     )]
     InvokeCpiWithAccountInfo,

@@ -139,12 +139,13 @@ fn generate_match_arms(instructions: &[InstructionInfo]) -> Vec<TokenStream2> {
                 quote! { Vec::new() }
             } else {
                 let params_struct_name = format_ident!("{}DecoderParams", pascal_name);
-                // Generate field accessors for each parameter - use empty name to print value directly
+                // Generate field accessors for each parameter with their field names
                 let field_pushes: Vec<TokenStream2> = info.params.iter().map(|param| {
                     let field_name = &param.name;
+                    let field_name_str = field_name.to_string();
                     quote! {
                         fields.push(light_instruction_decoder::DecodedField::new(
-                            "",
+                            #field_name_str,
                             format!("{:#?}", params.#field_name),
                         ));
                     }

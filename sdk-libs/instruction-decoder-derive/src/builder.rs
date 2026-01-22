@@ -133,9 +133,9 @@ impl<'a> InstructionDecoderBuilder<'a> {
         variant_args: &VariantDecoderArgs,
     ) -> syn::Result<TokenStream2> {
         let instruction_name = variant.ident.to_string();
-        // Pass crate_ctx to resolve struct field names at compile time
-        let account_names_code = variant_args.account_names_code(self.crate_ctx.as_ref());
-        let fields_code = self.generate_fields_code(variant, variant_args)?;
+
+        // Generate the body code based on whether we have a dynamic resolver
+        let body_code = self.generate_match_arm_body(variant, variant_args)?;
 
         match self.args.discriminator_size {
             1 => {
@@ -173,8 +173,7 @@ impl<'a> InstructionDecoderBuilder<'a> {
                 };
                 Ok(quote! {
                     #disc => {
-                        let account_names: Vec<String> = #account_names_code;
-                        let fields = { #fields_code };
+                        #body_code
                         Some(light_instruction_decoder::DecodedInstruction::with_fields_and_accounts(
                             #instruction_name,
                             fields,
@@ -207,8 +206,7 @@ impl<'a> InstructionDecoderBuilder<'a> {
                 };
                 Ok(quote! {
                     #disc => {
-                        let account_names: Vec<String> = #account_names_code;
-                        let fields = { #fields_code };
+                        #body_code
                         Some(light_instruction_decoder::DecodedInstruction::with_fields_and_accounts(
                             #instruction_name,
                             fields,
@@ -237,8 +235,7 @@ impl<'a> InstructionDecoderBuilder<'a> {
                 let disc_array = discriminator.iter();
                 Ok(quote! {
                     [#(#disc_array),*] => {
-                        let account_names: Vec<String> = #account_names_code;
-                        let fields = { #fields_code };
+                        #body_code
                         Some(light_instruction_decoder::DecodedInstruction::with_fields_and_accounts(
                             #instruction_name,
                             fields,
@@ -251,6 +248,77 @@ impl<'a> InstructionDecoderBuilder<'a> {
                 variant.ident.span(),
                 "unsupported discriminator size",
             )),
+        }
+    }
+
+    /// Generate the body code for a match arm.
+    ///
+    /// When `account_names_resolver_from_params` is specified, this generates code that:
+    /// 1. Parses params first
+    /// 2. Calls the resolver function with params and accounts to get dynamic account names
+    /// 3. Calls the formatter if specified
+    ///
+    /// Otherwise, it uses static account names from `accounts` or `account_names`.
+    fn generate_match_arm_body(
+        &self,
+        variant: &syn::Variant,
+        variant_args: &VariantDecoderArgs,
+    ) -> syn::Result<TokenStream2> {
+        // Check if we have a dynamic account names resolver
+        if let (Some(resolver_path), Some(params_ty)) = (
+            &variant_args.account_names_resolver_from_params,
+            variant_args.params_type(),
+        ) {
+            // Dynamic resolver mode: parse params first, then call resolver
+            let fields_code = if let Some(formatter_path) = &variant_args.pretty_formatter {
+                // Use custom formatter
+                quote! {
+                    let mut fields = Vec::new();
+                    let formatted = #formatter_path(&params, accounts);
+                    fields.push(light_instruction_decoder::DecodedField::new(
+                        "",
+                        formatted,
+                    ));
+                    fields
+                }
+            } else {
+                // Use Debug formatting
+                quote! {
+                    let mut fields = Vec::new();
+                    fields.push(light_instruction_decoder::DecodedField::new(
+                        "",
+                        format!("{:#?}", params),
+                    ));
+                    fields
+                }
+            };
+
+            Ok(quote! {
+                let (account_names, fields) = if let Ok(params) = <#params_ty as borsh::BorshDeserialize>::try_from_slice(remaining) {
+                    let account_names = #resolver_path(&params, accounts);
+                    let fields = { #fields_code };
+                    (account_names, fields)
+                } else {
+                    let account_names: Vec<String> = Vec::new();
+                    let mut fields = Vec::new();
+                    if !remaining.is_empty() {
+                        fields.push(light_instruction_decoder::DecodedField::new(
+                            "data_len",
+                            remaining.len().to_string(),
+                        ));
+                    }
+                    (account_names, fields)
+                };
+            })
+        } else {
+            // Static account names mode
+            let account_names_code = variant_args.account_names_code(self.crate_ctx.as_ref());
+            let fields_code = self.generate_fields_code(variant, variant_args)?;
+
+            Ok(quote! {
+                let account_names: Vec<String> = #account_names_code;
+                let fields = { #fields_code };
+            })
         }
     }
 

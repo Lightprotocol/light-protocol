@@ -24,9 +24,67 @@ use light_token_interface::instructions::{
 };
 use solana_instruction::AccountMeta;
 
-/// Standard token accounts (before packed_accounts).
-/// Transfer2 has 10 fixed accounts at indices 0-9.
-const PACKED_ACCOUNTS_START: usize = 10;
+/// Calculate the packed accounts start position for Transfer2.
+///
+/// The start position depends on the instruction path and optional accounts:
+/// - Path A (compressions-only): start = 2 (cpi_authority_pda, fee_payer)
+/// - Path B (CPI context write): start = 4 (light_system, fee_payer, cpi_authority, cpi_context)
+/// - Path C (full transfer): start = 7 + optional accounts
+///   - +1 for sol_pool_pda (when lamports imbalance)
+///   - +1 for sol_decompression_recipient (when decompressing SOL)
+///   - +1 for cpi_context_account (when cpi_context present but not writing)
+#[cfg(not(target_os = "solana"))]
+fn calculate_packed_accounts_start(data: &CompressedTokenInstructionDataTransfer2) -> usize {
+    let no_compressed_accounts = data.in_token_data.is_empty() && data.out_token_data.is_empty();
+    let cpi_context_write_required = data
+        .cpi_context
+        .as_ref()
+        .map(|ctx| ctx.set_context || ctx.first_set_context)
+        .unwrap_or(false);
+
+    if no_compressed_accounts {
+        // Path A: compressions-only
+        // [cpi_authority_pda, fee_payer, ...packed_accounts]
+        2
+    } else if cpi_context_write_required {
+        // Path B: CPI context write
+        // [light_system_program, fee_payer, cpi_authority_pda, cpi_context]
+        // No packed accounts in this path (return 4 to indicate end of accounts)
+        4
+    } else {
+        // Path C: Full transfer
+        // Base: [light_system_program, fee_payer, cpi_authority_pda, registered_program_pda,
+        //        account_compression_authority, account_compression_program, system_program]
+        let mut start = 7;
+
+        // Optional: sol_pool_pda (when lamports imbalance exists)
+        let in_lamports: u64 = data
+            .in_lamports
+            .as_ref()
+            .map(|v| v.iter().sum())
+            .unwrap_or(0);
+        let out_lamports: u64 = data
+            .out_lamports
+            .as_ref()
+            .map(|v| v.iter().sum())
+            .unwrap_or(0);
+        if in_lamports != out_lamports {
+            start += 1; // sol_pool_pda
+        }
+
+        // Optional: sol_decompression_recipient (when decompressing SOL)
+        if out_lamports > in_lamports {
+            start += 1; // sol_decompression_recipient
+        }
+
+        // Optional: cpi_context_account (when cpi_context present but not writing)
+        if data.cpi_context.is_some() {
+            start += 1; // cpi_context_account
+        }
+
+        start
+    }
+}
 
 /// Format Transfer2 instruction data with resolved pubkeys.
 ///
@@ -34,16 +92,8 @@ const PACKED_ACCOUNTS_START: usize = 10;
 /// resolving account indices to actual pubkeys from the instruction accounts.
 ///
 /// Mode detection:
-/// - CPI context mode (cpi_context is Some): Packed accounts are passed via CPI context account,
-///   not in the instruction's accounts array. Shows raw indices only.
-/// - Direct mode (cpi_context is None): Packed accounts are in the accounts array at
-///   PACKED_ACCOUNTS_START offset. Resolves indices to actual pubkeys.
-///
-/// Index resolution:
-/// - In CPI context mode: all indices shown as packed[N] (stored in CPI context account)
-/// - In direct mode: all indices (owner, mint, delegate, merkle_tree, queue) are resolved
-///   using PACKED_ACCOUNTS_START offset. Note: this assumes a specific account layout and
-///   may show OUT_OF_BOUNDS if the actual layout differs.
+/// - CPI context mode (cpi_context.set_context || first_set_context): Shows raw indices
+/// - Direct mode: Resolves packed account indices using dynamically calculated start position
 #[cfg(not(target_os = "solana"))]
 pub fn format_transfer2(
     data: &CompressedTokenInstructionDataTransfer2,
@@ -52,32 +102,34 @@ pub fn format_transfer2(
     use std::fmt::Write;
     let mut output = String::new();
 
-    // Determine if packed accounts are in CPI context (not directly in accounts array)
-    // When cpi_context is Some, packed accounts are stored in/read from a CPI context account
-    let uses_cpi_context = data.cpi_context.is_some();
+    // Determine if packed accounts are in CPI context write mode
+    let cpi_context_write_mode = data
+        .cpi_context
+        .as_ref()
+        .map(|ctx| ctx.set_context || ctx.first_set_context)
+        .unwrap_or(false);
+
+    // Calculate where packed accounts start based on instruction path
+    let packed_accounts_start = calculate_packed_accounts_start(data);
 
     // Helper to resolve account index
-    // In CPI context mode: all indices are packed indices stored in CPI context
-    // In direct mode: packed indices are offset by PACKED_ACCOUNTS_START
     let resolve = |index: u8| -> String {
-        if uses_cpi_context {
-            // All accounts (including trees/queues) are in CPI context
+        if cpi_context_write_mode {
+            // All accounts are in CPI context
             format!("packed[{}]", index)
         } else {
             accounts
-                .get(PACKED_ACCOUNTS_START + index as usize)
+                .get(packed_accounts_start + index as usize)
                 .map(|a| a.pubkey.to_string())
-                .unwrap_or_else(|| {
-                    format!("OUT_OF_BOUNDS({})", PACKED_ACCOUNTS_START + index as usize)
-                })
+                .unwrap_or_else(|| format!("OUT_OF_BOUNDS({})", index))
         }
     };
 
     // Header with mode indicator
-    if uses_cpi_context {
+    if cpi_context_write_mode {
         let _ = writeln!(
             output,
-            "[CPI Context Mode - packed accounts in CPI context]"
+            "[CPI Context Write Mode - packed accounts in CPI context]"
         );
     }
 
@@ -153,16 +205,505 @@ pub fn format_transfer2(
     output
 }
 
+/// Resolve Transfer2 account names dynamically based on instruction data.
+///
+/// Transfer2 has a dynamic account layout with three mutually exclusive paths:
+///
+/// **Path A: Compressions-only** (`in_token_data.is_empty() && out_token_data.is_empty()`)
+/// - Account 0: `compressions_only_cpi_authority_pda`
+/// - Account 1: `compressions_only_fee_payer`
+/// - Remaining: packed_accounts
+///
+/// **Path B: CPI Context Write** (`cpi_context.set_context || cpi_context.first_set_context`)
+/// - Account 0: `light_system_program`
+/// - Account 1: `fee_payer`
+/// - Account 2: `cpi_authority_pda`
+/// - Account 3: `cpi_context`
+/// - No packed accounts
+///
+/// **Path C: Full Transfer** (default)
+/// - 7 fixed accounts: light_system_program, fee_payer, cpi_authority_pda, registered_program_pda,
+///   account_compression_authority, account_compression_program, system_program
+/// - Optional: sol_pool_pda (when lamports imbalance exists)
+/// - Optional: sol_decompression_recipient (when decompressing SOL)
+/// - Optional: cpi_context_account (when cpi_context is present but not writing)
+/// - Remaining: packed_accounts
+#[cfg(not(target_os = "solana"))]
+pub fn resolve_transfer2_account_names(
+    data: &CompressedTokenInstructionDataTransfer2,
+    accounts: &[AccountMeta],
+) -> Vec<String> {
+    use std::collections::HashMap;
+
+    let mut names = Vec::with_capacity(accounts.len());
+    let mut idx = 0;
+    let mut known_pubkeys: HashMap<[u8; 32], String> = HashMap::new();
+
+    let mut add_name = |name: &str,
+                        accounts: &[AccountMeta],
+                        idx: &mut usize,
+                        known: &mut HashMap<[u8; 32], String>| {
+        if *idx < accounts.len() {
+            names.push(name.to_string());
+            known.insert(accounts[*idx].pubkey.to_bytes(), name.to_string());
+            *idx += 1;
+            true
+        } else {
+            false
+        }
+    };
+
+    // Determine path from instruction data
+    let no_compressed_accounts = data.in_token_data.is_empty() && data.out_token_data.is_empty();
+    let cpi_context_write_required = data
+        .cpi_context
+        .as_ref()
+        .map(|ctx| ctx.set_context || ctx.first_set_context)
+        .unwrap_or(false);
+
+    if no_compressed_accounts {
+        // Path A: Compressions-only
+        add_name(
+            "compressions_only_cpi_authority_pda",
+            accounts,
+            &mut idx,
+            &mut known_pubkeys,
+        );
+        add_name(
+            "compressions_only_fee_payer",
+            accounts,
+            &mut idx,
+            &mut known_pubkeys,
+        );
+    } else if cpi_context_write_required {
+        // Path B: CPI Context Write
+        add_name(
+            "light_system_program",
+            accounts,
+            &mut idx,
+            &mut known_pubkeys,
+        );
+        add_name("fee_payer", accounts, &mut idx, &mut known_pubkeys);
+        add_name("cpi_authority_pda", accounts, &mut idx, &mut known_pubkeys);
+        add_name("cpi_context", accounts, &mut idx, &mut known_pubkeys);
+        // No packed accounts in this path
+        return names;
+    } else {
+        // Path C: Full Transfer
+        add_name(
+            "light_system_program",
+            accounts,
+            &mut idx,
+            &mut known_pubkeys,
+        );
+        add_name("fee_payer", accounts, &mut idx, &mut known_pubkeys);
+        add_name("cpi_authority_pda", accounts, &mut idx, &mut known_pubkeys);
+        add_name(
+            "registered_program_pda",
+            accounts,
+            &mut idx,
+            &mut known_pubkeys,
+        );
+        add_name(
+            "account_compression_authority",
+            accounts,
+            &mut idx,
+            &mut known_pubkeys,
+        );
+        add_name(
+            "account_compression_program",
+            accounts,
+            &mut idx,
+            &mut known_pubkeys,
+        );
+        add_name("system_program", accounts, &mut idx, &mut known_pubkeys);
+
+        // Optional accounts - determine from instruction data
+        // sol_pool_pda: when lamports imbalance exists
+        let in_lamports: u64 = data
+            .in_lamports
+            .as_ref()
+            .map(|v| v.iter().sum())
+            .unwrap_or(0);
+        let out_lamports: u64 = data
+            .out_lamports
+            .as_ref()
+            .map(|v| v.iter().sum())
+            .unwrap_or(0);
+        let with_sol_pool = in_lamports != out_lamports;
+        if with_sol_pool {
+            add_name("sol_pool_pda", accounts, &mut idx, &mut known_pubkeys);
+        }
+
+        // sol_decompression_recipient: when decompressing SOL (out > in)
+        let with_sol_decompression = out_lamports > in_lamports;
+        if with_sol_decompression {
+            add_name(
+                "sol_decompression_recipient",
+                accounts,
+                &mut idx,
+                &mut known_pubkeys,
+            );
+        }
+
+        // cpi_context_account: add placeholder - formatter will use transaction-level name
+        if data.cpi_context.is_some() {
+            names.push(String::new()); // Empty = use formatter's KNOWN_ACCOUNTS lookup
+            idx += 1;
+        }
+    }
+
+    // Build a map of packed account index -> role name from instruction data
+    let mut packed_roles: HashMap<u8, String> = HashMap::new();
+    let mut owner_count = 0u8;
+    let mut mint_count = 0u8;
+    let mut delegate_count = 0u8;
+    let mut in_merkle_count = 0u8;
+    let mut in_queue_count = 0u8;
+    let mut compress_mint_count = 0u8;
+    let mut compress_source_count = 0u8;
+    let mut compress_auth_count = 0u8;
+
+    // output_queue
+    packed_roles
+        .entry(data.output_queue)
+        .or_insert_with(|| "output_queue".to_string());
+
+    // Input token data
+    for token in data.in_token_data.iter() {
+        packed_roles.entry(token.owner).or_insert_with(|| {
+            let name = if owner_count == 0 {
+                "owner".to_string()
+            } else {
+                format!("owner_{}", owner_count)
+            };
+            owner_count = owner_count.saturating_add(1);
+            name
+        });
+        packed_roles.entry(token.mint).or_insert_with(|| {
+            let name = if mint_count == 0 {
+                "mint".to_string()
+            } else {
+                format!("mint_{}", mint_count)
+            };
+            mint_count = mint_count.saturating_add(1);
+            name
+        });
+        if token.has_delegate {
+            packed_roles.entry(token.delegate).or_insert_with(|| {
+                let name = if delegate_count == 0 {
+                    "delegate".to_string()
+                } else {
+                    format!("delegate_{}", delegate_count)
+                };
+                delegate_count = delegate_count.saturating_add(1);
+                name
+            });
+        }
+        packed_roles
+            .entry(token.merkle_context.merkle_tree_pubkey_index)
+            .or_insert_with(|| {
+                let name = if in_merkle_count == 0 {
+                    "in_merkle_tree".to_string()
+                } else {
+                    format!("in_merkle_tree_{}", in_merkle_count)
+                };
+                in_merkle_count = in_merkle_count.saturating_add(1);
+                name
+            });
+        packed_roles
+            .entry(token.merkle_context.queue_pubkey_index)
+            .or_insert_with(|| {
+                let name = if in_queue_count == 0 {
+                    "in_nullifier_queue".to_string()
+                } else {
+                    format!("in_nullifier_queue_{}", in_queue_count)
+                };
+                in_queue_count = in_queue_count.saturating_add(1);
+                name
+            });
+    }
+
+    // Output token data
+    for token in data.out_token_data.iter() {
+        packed_roles.entry(token.owner).or_insert_with(|| {
+            let name = if owner_count == 0 {
+                "owner".to_string()
+            } else {
+                format!("owner_{}", owner_count)
+            };
+            owner_count = owner_count.saturating_add(1);
+            name
+        });
+        packed_roles.entry(token.mint).or_insert_with(|| {
+            let name = if mint_count == 0 {
+                "mint".to_string()
+            } else {
+                format!("mint_{}", mint_count)
+            };
+            mint_count = mint_count.saturating_add(1);
+            name
+        });
+        if token.has_delegate {
+            packed_roles.entry(token.delegate).or_insert_with(|| {
+                let name = if delegate_count == 0 {
+                    "delegate".to_string()
+                } else {
+                    format!("delegate_{}", delegate_count)
+                };
+                delegate_count = delegate_count.saturating_add(1);
+                name
+            });
+        }
+    }
+
+    // Compressions
+    if let Some(compressions) = &data.compressions {
+        for comp in compressions.iter() {
+            packed_roles.entry(comp.mint).or_insert_with(|| {
+                let name = if compress_mint_count == 0 {
+                    "compress_mint".to_string()
+                } else {
+                    format!("compress_mint_{}", compress_mint_count)
+                };
+                compress_mint_count = compress_mint_count.saturating_add(1);
+                name
+            });
+            packed_roles
+                .entry(comp.source_or_recipient)
+                .or_insert_with(|| {
+                    let name = if compress_source_count == 0 {
+                        "compress_source".to_string()
+                    } else {
+                        format!("compress_source_{}", compress_source_count)
+                    };
+                    compress_source_count = compress_source_count.saturating_add(1);
+                    name
+                });
+            packed_roles.entry(comp.authority).or_insert_with(|| {
+                let name = if compress_auth_count == 0 {
+                    "compress_authority".to_string()
+                } else {
+                    format!("compress_authority_{}", compress_auth_count)
+                };
+                compress_auth_count = compress_auth_count.saturating_add(1);
+                name
+            });
+        }
+    }
+
+    // Remaining accounts are packed - prioritize role names from instruction data
+    let mut packed_idx: u8 = 0;
+    while idx < accounts.len() {
+        let pubkey_bytes = accounts[idx].pubkey.to_bytes();
+
+        // First check if we have a semantic role from instruction data
+        if let Some(role) = packed_roles.get(&packed_idx) {
+            // Use the role name, and note if it matches a known account
+            if let Some(known_name) = known_pubkeys.get(&pubkey_bytes) {
+                names.push(format!("{} (={})", role, known_name));
+            } else {
+                names.push(role.clone());
+                known_pubkeys.insert(pubkey_bytes, role.clone());
+            }
+        } else if let Some(known_name) = known_pubkeys.get(&pubkey_bytes) {
+            // No role, but matches a known account
+            names.push(format!("packed_{} (={})", packed_idx, known_name));
+        } else {
+            // Unknown packed account
+            names.push(format!("packed_account_{}", packed_idx));
+        }
+        idx += 1;
+        packed_idx = packed_idx.saturating_add(1);
+    }
+
+    names
+}
+
+/// Resolve MintAction account names dynamically based on instruction data.
+///
+/// MintAction has a dynamic account layout that depends on:
+/// - `create_mint`: whether creating a new compressed mint
+/// - `cpi_context`: whether using CPI context mode
+/// - `mint` (None = decompressed): whether mint is decompressed to CMint
+/// - `actions`: may contain DecompressMint, CompressAndCloseMint, MintToCompressed
+///
+/// Account layout (see plan for full details):
+/// 1. Fixed: light_system_program, [mint_signer if create_mint], authority
+/// 2. CPI Context Mode: fee_payer, cpi_authority_pda, cpi_context
+/// 3. Executing Mode:
+///    - Optional: compressible_config, cmint, rent_sponsor
+///    - LightSystemAccounts (6 required)
+///    - Optional: cpi_context_account
+///    - Tree accounts
+///    - Packed accounts (identified by pubkey when possible)
+#[cfg(not(target_os = "solana"))]
+pub fn resolve_mint_action_account_names(
+    data: &MintActionCompressedInstructionData,
+    accounts: &[AccountMeta],
+) -> Vec<String> {
+    use std::collections::HashMap;
+
+    use light_token_interface::instructions::mint_action::Action;
+
+    let mut names = Vec::with_capacity(accounts.len());
+    let mut idx = 0;
+    // Track known pubkeys -> name for identifying packed accounts
+    let mut known_pubkeys: HashMap<[u8; 32], String> = HashMap::new();
+
+    // Helper to add name and track pubkey
+    let mut add_name = |name: &str,
+                        accounts: &[AccountMeta],
+                        idx: &mut usize,
+                        known: &mut HashMap<[u8; 32], String>| {
+        if *idx < accounts.len() {
+            names.push(name.to_string());
+            known.insert(accounts[*idx].pubkey.to_bytes(), name.to_string());
+            *idx += 1;
+            true
+        } else {
+            false
+        }
+    };
+
+    // Index 0: light_system_program (always)
+    add_name(
+        "light_system_program",
+        accounts,
+        &mut idx,
+        &mut known_pubkeys,
+    );
+
+    // Index 1: mint_signer (optional - only if creating mint)
+    if data.create_mint.is_some() {
+        add_name("mint_signer", accounts, &mut idx, &mut known_pubkeys);
+    }
+
+    // Next: authority (always)
+    add_name("authority", accounts, &mut idx, &mut known_pubkeys);
+
+    // Determine flags from instruction data
+    let write_to_cpi_context = data
+        .cpi_context
+        .as_ref()
+        .map(|ctx| ctx.first_set_context || ctx.set_context)
+        .unwrap_or(false);
+
+    if write_to_cpi_context {
+        // CPI Context Mode: CpiContextLightSystemAccounts (3 accounts)
+        add_name("fee_payer", accounts, &mut idx, &mut known_pubkeys);
+        add_name("cpi_authority_pda", accounts, &mut idx, &mut known_pubkeys);
+        add_name("cpi_context", accounts, &mut idx, &mut known_pubkeys);
+        // No more accounts in this mode
+    } else {
+        // Executing Mode
+        let has_decompress_mint_action = data
+            .actions
+            .iter()
+            .any(|action| matches!(action, Action::DecompressMint(_)));
+
+        let has_compress_and_close_cmint_action = data
+            .actions
+            .iter()
+            .any(|action| matches!(action, Action::CompressAndCloseMint(_)));
+
+        let needs_compressible_accounts =
+            has_decompress_mint_action || has_compress_and_close_cmint_action;
+
+        let cmint_decompressed = data.mint.is_none();
+        let needs_cmint_account =
+            cmint_decompressed || has_decompress_mint_action || has_compress_and_close_cmint_action;
+
+        // Optional: compressible_config
+        if needs_compressible_accounts {
+            add_name(
+                "compressible_config",
+                accounts,
+                &mut idx,
+                &mut known_pubkeys,
+            );
+        }
+
+        // Optional: cmint
+        if needs_cmint_account {
+            add_name("cmint", accounts, &mut idx, &mut known_pubkeys);
+        }
+
+        // Optional: rent_sponsor
+        if needs_compressible_accounts {
+            add_name("rent_sponsor", accounts, &mut idx, &mut known_pubkeys);
+        }
+
+        // LightSystemAccounts (6 required)
+        add_name("fee_payer", accounts, &mut idx, &mut known_pubkeys);
+        add_name("cpi_authority_pda", accounts, &mut idx, &mut known_pubkeys);
+        add_name(
+            "registered_program_pda",
+            accounts,
+            &mut idx,
+            &mut known_pubkeys,
+        );
+        add_name(
+            "account_compression_authority",
+            accounts,
+            &mut idx,
+            &mut known_pubkeys,
+        );
+        add_name(
+            "account_compression_program",
+            accounts,
+            &mut idx,
+            &mut known_pubkeys,
+        );
+        add_name("system_program", accounts, &mut idx, &mut known_pubkeys);
+
+        // Note: cpi_context_account and tree accounts are NOT named here -
+        // let the formatter use the transaction-level account names
+    }
+
+    names
+}
+
+/// Format MintAction instruction data with resolved pubkeys.
+///
+/// Calculate the packed accounts start position for MintAction.
+///
+/// MintAction has a simpler layout than Transfer2:
+/// - 6 fixed LightSystemAccounts: fee_payer, cpi_authority_pda, registered_program_pda,
+///   account_compression_authority, account_compression_program, system_program
+/// - Optional: cpi_context_account (when cpi_context is present but not writing)
+/// - Then: packed accounts
+#[cfg(not(target_os = "solana"))]
+fn calculate_mint_action_packed_accounts_start(
+    data: &MintActionCompressedInstructionData,
+) -> usize {
+    let cpi_context_write_mode = data
+        .cpi_context
+        .as_ref()
+        .map(|ctx| ctx.set_context || ctx.first_set_context)
+        .unwrap_or(false);
+
+    if cpi_context_write_mode {
+        // CPI context write mode: [fee_payer, cpi_authority_pda, cpi_context]
+        3
+    } else {
+        // Normal mode: 6 LightSystemAccounts + optional cpi_context_account
+        let mut start = 6;
+        if data.cpi_context.is_some() {
+            start += 1; // cpi_context_account
+        }
+        start
+    }
+}
+
 /// Format MintAction instruction data with resolved pubkeys.
 ///
 /// This formatter provides a human-readable view of the mint action instruction,
 /// resolving account indices to actual pubkeys from the instruction accounts.
 ///
 /// Mode detection:
-/// - CPI context mode (cpi_context.set_context || first_set_context): Packed accounts are passed
-///   via CPI context account, not in the instruction's accounts array. Shows raw indices only.
-/// - Direct mode: Packed accounts are in the accounts array at PACKED_ACCOUNTS_START offset.
-///   Resolves indices to actual pubkeys.
+/// - CPI context write mode (cpi_context.set_context || first_set_context): Shows raw indices
+/// - Direct mode: Resolves packed account indices using dynamically calculated start position
 #[cfg(not(target_os = "solana"))]
 pub fn format_mint_action(
     data: &MintActionCompressedInstructionData,
@@ -173,32 +714,33 @@ pub fn format_mint_action(
     use light_token_interface::instructions::mint_action::Action;
     let mut output = String::new();
 
-    // CPI context mode: set_context OR first_set_context means packed accounts in CPI context
-    let uses_cpi_context = data
+    // CPI context write mode: set_context OR first_set_context means packed accounts in CPI context
+    let cpi_context_write_mode = data
         .cpi_context
         .as_ref()
         .map(|ctx| ctx.set_context || ctx.first_set_context)
         .unwrap_or(false);
 
+    // Calculate where packed accounts start based on instruction configuration
+    let packed_accounts_start = calculate_mint_action_packed_accounts_start(data);
+
     // Helper to resolve account index
     let resolve = |index: u8| -> String {
-        if uses_cpi_context {
+        if cpi_context_write_mode {
             format!("packed[{}]", index)
         } else {
             accounts
-                .get(PACKED_ACCOUNTS_START + index as usize)
+                .get(packed_accounts_start + index as usize)
                 .map(|a| a.pubkey.to_string())
-                .unwrap_or_else(|| {
-                    format!("OUT_OF_BOUNDS({})", PACKED_ACCOUNTS_START + index as usize)
-                })
+                .unwrap_or_else(|| format!("OUT_OF_BOUNDS({})", index))
         }
     };
 
     // Header with mode indicator
-    if uses_cpi_context {
+    if cpi_context_write_mode {
         let _ = writeln!(
             output,
-            "[CPI Context Mode - packed accounts in CPI context]"
+            "[CPI Context Write Mode - packed accounts in CPI context]"
         );
     }
 
@@ -456,10 +998,11 @@ pub enum CTokenInstruction {
     CreateAssociatedTokenAccount,
 
     /// Transfer v2 with additional options (discriminator 101)
+    /// Uses dynamic account names resolver because the account layout depends on instruction data.
     #[discriminator = 101]
     #[instruction_decoder(
-        account_names = ["fee_payer", "authority", "registered_program_pda", "noop_program", "account_compression_authority", "account_compression_program", "self_program", "cpi_signer", "light_system_program", "system_program"],
         params = CompressedTokenInstructionDataTransfer2,
+        account_names_resolver_from_params = crate::programs::ctoken::resolve_transfer2_account_names,
         pretty_formatter = crate::programs::ctoken::format_transfer2
     )]
     Transfer2,
@@ -470,10 +1013,11 @@ pub enum CTokenInstruction {
     CreateAssociatedTokenAccountIdempotent,
 
     /// Mint action for compressed tokens (discriminator 103)
+    /// Uses dynamic account names resolver because the account layout depends on instruction data.
     #[discriminator = 103]
     #[instruction_decoder(
-        account_names = ["fee_payer", "authority", "registered_program_pda", "noop_program", "account_compression_authority", "account_compression_program", "self_program", "cpi_signer", "light_system_program", "system_program"],
         params = MintActionCompressedInstructionData,
+        account_names_resolver_from_params = crate::programs::ctoken::resolve_mint_action_account_names,
         pretty_formatter = crate::programs::ctoken::format_mint_action
     )]
     MintAction,

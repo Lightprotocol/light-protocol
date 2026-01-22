@@ -1,6 +1,9 @@
 //! Transaction formatting utilities for explorer-style output
 
-use std::fmt::{self, Write};
+use std::{
+    collections::HashMap,
+    fmt::{self, Write},
+};
 
 use solana_pubkey::Pubkey;
 use tabled::{Table, Tabled};
@@ -8,10 +11,32 @@ use tabled::{Table, Tabled};
 use crate::{
     config::{EnhancedLoggingConfig, LogVerbosity},
     types::{
-        AccountAccess, AccountChange, EnhancedInstructionLog, EnhancedTransactionLog,
-        TransactionStatus,
+        AccountAccess, AccountChange, AccountStateSnapshot, EnhancedInstructionLog,
+        EnhancedTransactionLog, TransactionStatus,
     },
 };
+
+/// Format a number with thousands separators (e.g., 1000000 -> "1,000,000")
+fn format_with_thousands_separator(n: u64) -> String {
+    let s = n.to_string();
+    let mut result = String::with_capacity(s.len() + s.len() / 3);
+    for (i, c) in s.chars().enumerate() {
+        if i > 0 && (s.len() - i).is_multiple_of(3) {
+            result.push(',');
+        }
+        result.push(c);
+    }
+    result
+}
+
+/// Format a signed number with thousands separators, preserving the sign
+fn format_signed_with_thousands_separator(n: i64) -> String {
+    if n >= 0 {
+        format_with_thousands_separator(n as u64)
+    } else {
+        format!("-{}", format_with_thousands_separator(n.unsigned_abs()))
+    }
+}
 
 /// Known test accounts and programs mapped to human-readable names
 static KNOWN_ACCOUNTS: &[(&str, &str)] = &[
@@ -107,10 +132,54 @@ static KNOWN_ACCOUNTS: &[(&str, &str)] = &[
         "amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx",
         "v2 address merkle tree",
     ),
-    // CPI authority
+    // CPI authorities
     (
         "HZH7qSLcpAeDqCopVU4e5XkhT9j3JFsQiq8CmruY3aru",
-        "cpi authority pda",
+        "light system cpi authority",
+    ),
+    (
+        "GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy",
+        "light token cpi authority",
+    ),
+    // Rent sponsor
+    (
+        "r18WwUxfG8kQ69bQPAB2jV6zGNKy3GosFGctjQoV4ti",
+        "rent sponsor",
+    ),
+    // Compressible config PDA
+    (
+        "ACXg8a7VaqecBWrSbdu73W4Pg9gsqXJ3EXAqkHyhvVXg",
+        "compressible config",
+    ),
+    // Registered program PDA
+    (
+        "35hkDgaAKwMCaxRz2ocSZ6NaUrtKkyNqU6c4RV3tYJRh",
+        "registered program pda",
+    ),
+    // Config counter PDA
+    (
+        "8gH9tmziWsS8Wc4fnoN5ax3jsSumNYoRDuSBvmH2GMH8",
+        "config counter pda",
+    ),
+    // Registered registry program PDA
+    (
+        "DumMsyvkaGJG4QnQ1BhTgvoRMXsgGxfpKDUCr22Xqu4w",
+        "registered registry program pda",
+    ),
+    // Account compression authority PDA
+    (
+        "HwXnGK3tPkkVY6P439H2p68AxpeuWXd5PcrAxFpbmfbA",
+        "account compression authority pda",
+    ),
+    // Sol pool PDA
+    (
+        "CHK57ywWSDncAoRu1F8QgwYJeXuAJyyBYT4LixLXvMZ1",
+        "sol pool pda",
+    ),
+    // SPL Noop program
+    (
+        "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV",
+        "noop program",
     ),
     // Solana native programs
     ("11111111111111111111111111111111", "system program"),
@@ -128,7 +197,7 @@ static KNOWN_ACCOUNTS: &[(&str, &str)] = &[
     ),
 ];
 
-/// Row for account table display
+/// Row for account table display (4 columns - used for inner instructions)
 #[derive(Tabled)]
 struct AccountRow {
     #[tabled(rename = "#")]
@@ -139,6 +208,25 @@ struct AccountRow {
     access: String,
     #[tabled(rename = "Name")]
     name: String,
+}
+
+/// Row for outer instruction account table display (7 columns - includes account state)
+#[derive(Tabled)]
+struct OuterAccountRow {
+    #[tabled(rename = "#")]
+    symbol: String,
+    #[tabled(rename = "Account")]
+    pubkey: String,
+    #[tabled(rename = "Type")]
+    access: String,
+    #[tabled(rename = "Name")]
+    name: String,
+    #[tabled(rename = "Data Len")]
+    data_len: String,
+    #[tabled(rename = "Lamports")]
+    lamports: String,
+    #[tabled(rename = "Change")]
+    lamports_change: String,
 }
 
 /// Colors for terminal output
@@ -450,19 +538,24 @@ impl TransactionFormatter {
         writeln!(output, "{}│{}", self.colors.gray, self.colors.reset)?;
 
         for (i, instruction) in log.instructions.iter().enumerate() {
-            self.write_instruction(output, instruction, 0, i + 1)?;
+            self.write_instruction(output, instruction, 0, i + 1, log.account_states.as_ref())?;
         }
 
         Ok(())
     }
 
     /// Write single instruction with proper indentation and hierarchy
+    ///
+    /// For outer instructions (depth=0), if account_states is provided, displays
+    /// a 7-column table with Data Len, Lamports, and Change columns.
+    /// For inner instructions, displays a 4-column table.
     fn write_instruction(
         &self,
         output: &mut String,
         instruction: &EnhancedInstructionLog,
         depth: usize,
         number: usize,
+        account_states: Option<&HashMap<Pubkey, AccountStateSnapshot>>,
     ) -> fmt::Result {
         let indent = self.get_tree_indent(depth);
         let prefix = if depth == 0 { "├─" } else { "└─" };
@@ -575,49 +668,118 @@ impl TransactionFormatter {
                 self.colors.reset
             )?;
 
-            // Create a table for better account formatting
-            let mut account_rows: Vec<AccountRow> = Vec::new();
+            // For outer instructions (depth=0) with account states, use 7-column table
+            // For inner instructions, use 4-column table
+            if let (0, Some(states)) = (depth, account_states) {
+                let mut outer_rows: Vec<OuterAccountRow> = Vec::new();
 
-            for (idx, account) in instruction.accounts.iter().enumerate() {
-                let access = if account.is_signer && account.is_writable {
-                    AccountAccess::SignerWritable
-                } else if account.is_signer {
-                    AccountAccess::Signer
-                } else if account.is_writable {
-                    AccountAccess::Writable
-                } else {
-                    AccountAccess::Readonly
-                };
+                for (idx, account) in instruction.accounts.iter().enumerate() {
+                    let access = if account.is_signer && account.is_writable {
+                        AccountAccess::SignerWritable
+                    } else if account.is_signer {
+                        AccountAccess::Signer
+                    } else if account.is_writable {
+                        AccountAccess::Writable
+                    } else {
+                        AccountAccess::Readonly
+                    };
 
-                // Try to get account name from decoded instruction first, then fall back to lookup
-                let account_name = instruction
-                    .decoded_instruction
-                    .as_ref()
-                    .and_then(|decoded| decoded.account_names.get(idx).cloned())
-                    .unwrap_or_else(|| self.get_account_name(&account.pubkey));
-                account_rows.push(AccountRow {
-                    symbol: access.symbol(idx + 1),
-                    pubkey: account.pubkey.to_string(),
-                    access: access.text().to_string(),
-                    name: account_name,
-                });
-            }
+                    // Try to get account name from decoded instruction first, then fall back to lookup
+                    // Empty names from resolver indicate "use KNOWN_ACCOUNTS lookup"
+                    let account_name = instruction
+                        .decoded_instruction
+                        .as_ref()
+                        .and_then(|decoded| decoded.account_names.get(idx).cloned())
+                        .filter(|name| !name.is_empty())
+                        .unwrap_or_else(|| self.get_account_name(&account.pubkey));
 
-            if !account_rows.is_empty() {
-                let table = Table::new(account_rows)
-                    .to_string()
-                    .lines()
-                    .map(|line| format!("{}{}", accounts_indent, line))
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                writeln!(output, "{}", table)?;
+                    // Get account state if available
+                    let (data_len, lamports, lamports_change) =
+                        if let Some(state) = states.get(&account.pubkey) {
+                            let change = state.lamports_after as i64 - state.lamports_before as i64;
+                            let change_str = if change > 0 {
+                                format!("+{}", format_signed_with_thousands_separator(change))
+                            } else if change < 0 {
+                                format_signed_with_thousands_separator(change)
+                            } else {
+                                "0".to_string()
+                            };
+                            (
+                                format_with_thousands_separator(state.data_len_before as u64),
+                                format_with_thousands_separator(state.lamports_before),
+                                change_str,
+                            )
+                        } else {
+                            ("-".to_string(), "-".to_string(), "-".to_string())
+                        };
+
+                    outer_rows.push(OuterAccountRow {
+                        symbol: access.symbol(idx + 1),
+                        pubkey: account.pubkey.to_string(),
+                        access: access.text().to_string(),
+                        name: account_name,
+                        data_len,
+                        lamports,
+                        lamports_change,
+                    });
+                }
+
+                if !outer_rows.is_empty() {
+                    let table = Table::new(outer_rows)
+                        .to_string()
+                        .lines()
+                        .map(|line| format!("{}{}", accounts_indent, line))
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                    writeln!(output, "{}", table)?;
+                }
+            } else {
+                // Inner instructions or no account states - use 4-column table
+                let mut account_rows: Vec<AccountRow> = Vec::new();
+
+                for (idx, account) in instruction.accounts.iter().enumerate() {
+                    let access = if account.is_signer && account.is_writable {
+                        AccountAccess::SignerWritable
+                    } else if account.is_signer {
+                        AccountAccess::Signer
+                    } else if account.is_writable {
+                        AccountAccess::Writable
+                    } else {
+                        AccountAccess::Readonly
+                    };
+
+                    // Try to get account name from decoded instruction first, then fall back to lookup
+                    // Empty names from resolver indicate "use KNOWN_ACCOUNTS lookup"
+                    let account_name = instruction
+                        .decoded_instruction
+                        .as_ref()
+                        .and_then(|decoded| decoded.account_names.get(idx).cloned())
+                        .filter(|name| !name.is_empty())
+                        .unwrap_or_else(|| self.get_account_name(&account.pubkey));
+                    account_rows.push(AccountRow {
+                        symbol: access.symbol(idx + 1),
+                        pubkey: account.pubkey.to_string(),
+                        access: access.text().to_string(),
+                        name: account_name,
+                    });
+                }
+
+                if !account_rows.is_empty() {
+                    let table = Table::new(account_rows)
+                        .to_string()
+                        .lines()
+                        .map(|line| format!("{}{}", accounts_indent, line))
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                    writeln!(output, "{}", table)?;
+                }
             }
         }
 
-        // Write inner instructions recursively
+        // Write inner instructions recursively (inner instructions don't get account states)
         for (i, inner) in instruction.inner_instructions.iter().enumerate() {
             if depth < self.config.max_cpi_depth {
-                self.write_instruction(output, inner, depth + 1, i + 1)?;
+                self.write_instruction(output, inner, depth + 1, i + 1, None)?;
             }
         }
 
@@ -1023,10 +1185,7 @@ impl TransactionFormatter {
                     "account compression authority",
                 ),
                 (constants::NOOP_PROGRAM_ID, "noop program"),
-                (
-                    constants::LIGHT_TOKEN_PROGRAM_ID,
-                    "compressed token program",
-                ),
+                (constants::LIGHT_TOKEN_PROGRAM_ID, "light token program"),
                 (constants::ADDRESS_TREE_V1, "address tree v1"),
                 (constants::ADDRESS_QUEUE_V1, "address queue v1"),
                 (constants::SOL_POOL_PDA, "sol pool pda"),
@@ -1053,5 +1212,34 @@ impl TransactionFormatter {
         } else {
             "unknown pda".to_string()
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_format_with_thousands_separator() {
+        assert_eq!(format_with_thousands_separator(0), "0");
+        assert_eq!(format_with_thousands_separator(1), "1");
+        assert_eq!(format_with_thousands_separator(12), "12");
+        assert_eq!(format_with_thousands_separator(123), "123");
+        assert_eq!(format_with_thousands_separator(1234), "1,234");
+        assert_eq!(format_with_thousands_separator(12345), "12,345");
+        assert_eq!(format_with_thousands_separator(123456), "123,456");
+        assert_eq!(format_with_thousands_separator(1234567), "1,234,567");
+        assert_eq!(format_with_thousands_separator(1000000000), "1,000,000,000");
+    }
+
+    #[test]
+    fn test_format_signed_with_thousands_separator() {
+        assert_eq!(format_signed_with_thousands_separator(0), "0");
+        assert_eq!(format_signed_with_thousands_separator(1234), "1,234");
+        assert_eq!(format_signed_with_thousands_separator(-1234), "-1,234");
+        assert_eq!(
+            format_signed_with_thousands_separator(-1000000),
+            "-1,000,000"
+        );
     }
 }

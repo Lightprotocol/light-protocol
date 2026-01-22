@@ -4,11 +4,22 @@
 //! and transaction logging. These types are independent of any test framework
 //! (LiteSVM, etc.) and can be used in standalone tools.
 
+use std::collections::HashMap;
+
 use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;
 use solana_signature::Signature;
 
 use crate::{DecodedInstruction, DecoderRegistry, EnhancedLoggingConfig};
+
+/// Pre and post transaction account state snapshot
+#[derive(Debug, Clone, Default)]
+pub struct AccountStateSnapshot {
+    pub lamports_before: u64,
+    pub lamports_after: u64,
+    pub data_len_before: usize,
+    pub data_len_after: usize,
+}
 
 /// Enhanced transaction log containing all formatting information
 #[derive(Debug, Clone)]
@@ -23,6 +34,8 @@ pub struct EnhancedTransactionLog {
     pub account_changes: Vec<AccountChange>,
     pub program_logs_pretty: String,
     pub light_events: Vec<LightProtocolEvent>,
+    /// Pre and post transaction account state snapshots (keyed by pubkey)
+    pub account_states: Option<HashMap<Pubkey, AccountStateSnapshot>>,
 }
 
 impl EnhancedTransactionLog {
@@ -39,6 +52,7 @@ impl EnhancedTransactionLog {
             account_changes: Vec::new(),
             program_logs_pretty: String::new(),
             light_events: Vec::new(),
+            account_states: None,
         }
     }
 }
@@ -218,7 +232,7 @@ pub fn get_program_name(program_id: &Pubkey, registry: Option<&DecoderRegistry>)
         "ComputeBudget111111111111111111111111111111" => "Compute Budget".to_string(),
         "SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7" => "Light System Program".to_string(),
         "compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq" => "Account Compression".to_string(),
-        "cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m" => "Compressed Token Program".to_string(),
+        "cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m" => "Light Token Program".to_string(),
         _ => format!("Unknown Program ({})", program_id),
     }
 }
