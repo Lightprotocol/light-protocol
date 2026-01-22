@@ -4,6 +4,7 @@
 //! decompressed to the exact same ATA pubkey that was originally compressed.
 
 use light_client::indexer::Indexer;
+use light_compressed_token_sdk::spl_interface::find_spl_interface_pda_with_index;
 use light_program_test::{
     program_test::TestRpc, utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig,
 };
@@ -14,12 +15,9 @@ use light_test_utils::{
     },
     Rpc, RpcError,
 };
-use light_token::{
-    instruction::{
-        derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount, CreateTokenAccount,
-        TransferFromSpl,
-    },
-    spl_interface::find_spl_interface_pda_with_index,
+use light_token::instruction::{
+    derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount, CreateTokenAccount,
+    TransferFromSpl,
 };
 use light_token_client::instructions::transfer2::{
     create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,
@@ -790,10 +788,10 @@ async fn test_decompress_skips_delegate_if_destination_has_delegate() {
 async fn test_ata_decompress_with_mismatched_amount_fails() {
     use borsh::BorshSerialize;
     use light_compressed_account::compressed_account::PackedMerkleContext;
-    use light_sdk::instruction::PackedAccounts;
-    use light_token::compressed_token::transfer2::account_metas::{
+    use light_compressed_token_sdk::compressed_token::transfer2::account_metas::{
         get_transfer2_instruction_account_metas, Transfer2AccountsMetaConfig,
     };
+    use light_sdk::instruction::PackedAccounts;
     use light_token_interface::{
         instructions::transfer2::{
             CompressedTokenInstructionDataTransfer2, Compression, CompressionMode,

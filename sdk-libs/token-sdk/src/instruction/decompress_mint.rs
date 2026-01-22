@@ -1,6 +1,7 @@
 use light_compressed_account::instruction_data::{
     compressed_proof::ValidityProof, traits::LightInstructionData,
 };
+use light_compressed_token_sdk::compressed_token::mint_action::MintActionMetaConfig;
 use light_token_interface::instructions::mint_action::{
     CpiContext, DecompressMintAction, MintActionCompressedInstructionData, MintWithContext,
 };
@@ -10,10 +11,7 @@ use solana_instruction::Instruction;
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-use crate::{
-    compressed_token::mint_action::MintActionMetaConfig,
-    instruction::{config_pda, rent_sponsor_pda, SystemAccountInfos},
-};
+use crate::instruction::{config_pda, rent_sponsor_pda, SystemAccountInfos};
 
 /// Decompress a compressed mint to a Mint Solana account.
 ///

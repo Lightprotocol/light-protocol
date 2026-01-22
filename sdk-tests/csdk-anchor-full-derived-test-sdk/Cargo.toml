@@ -12,6 +12,7 @@ csdk-anchor-full-derived-test = { path = "../csdk-anchor-full-derived-test", fea
 light-client = { workspace = true, features = ["v2", "anchor"] }
 light-sdk = { workspace = true, features = ["anchor", "v2"] }
 light-token = { workspace = true, features = ["anchor"] }
+light-compressed-token-sdk = { workspace = true, features = ["anchor"] }
 
 anchor-lang = { workspace = true }
 solana-pubkey = { workspace = true }

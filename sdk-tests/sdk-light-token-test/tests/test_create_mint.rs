@@ -4,11 +4,9 @@ mod shared;
 
 use borsh::BorshSerialize;
 use light_client::{indexer::Indexer, rpc::Rpc};
+use light_compressed_token_sdk::compressed_token::mint_action::MintActionMetaConfig;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
-use light_token::{
-    compressed_token::mint_action::MintActionMetaConfig,
-    instruction::{config_pda, rent_sponsor_pda},
-};
+use light_token::instruction::{config_pda, rent_sponsor_pda};
 use light_token_interface::{
     instructions::extensions::{
         token_metadata::TokenMetadataInstructionData, ExtensionInstructionData,

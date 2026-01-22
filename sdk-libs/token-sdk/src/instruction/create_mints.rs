@@ -11,6 +11,10 @@
 
 use light_batched_merkle_tree::queue::BatchedQueueAccount;
 use light_compressed_account::instruction_data::traits::LightInstructionData;
+use light_compressed_token_sdk::compressed_token::mint_action::{
+    get_mint_action_instruction_account_metas_cpi_write, MintActionMetaConfig,
+    MintActionMetaConfigCpiWrite,
+};
 use light_token_interface::{
     instructions::{
         extensions::{ExtensionInstructionData, TokenMetadataInstructionData},
@@ -28,10 +32,6 @@ use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
 use super::SystemAccountInfos;
-use crate::compressed_token::mint_action::{
-    get_mint_action_instruction_account_metas_cpi_write, MintActionMetaConfig,
-    MintActionMetaConfigCpiWrite,
-};
 
 /// Default rent payment epochs (~24 hours)
 pub const DEFAULT_RENT_PAYMENT: u8 = 16;

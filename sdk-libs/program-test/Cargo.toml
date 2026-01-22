@@ -21,6 +21,7 @@ light-hasher = { workspace = true, features = ["poseidon", "sha256", "keccak", "
 light-token-interface = { workspace = true }
 light-compressible = { workspace = true }
 light-token = { workspace = true }
+light-compressed-token-sdk = { workspace = true }
 light-compressed-account = { workspace = true, features = ["anchor", "poseidon"] }
 light-batched-merkle-tree = { workspace = true, features = ["test-only"], optional = true }
 light-event = { workspace = true }

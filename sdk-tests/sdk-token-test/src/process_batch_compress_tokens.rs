@@ -1,5 +1,5 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke};
-use light_token::compressed_token::batch_compress::{
+use light_compressed_token_sdk::compressed_token::batch_compress::{
     create_batch_compress_instruction, BatchCompressInputs, Recipient,
 };
 use light_token_types::account_infos::BatchCompressAccountInfos;

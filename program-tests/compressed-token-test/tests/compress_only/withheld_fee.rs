@@ -5,15 +5,13 @@
 
 use borsh::BorshDeserialize;
 use light_client::indexer::Indexer;
+use light_compressed_token_sdk::spl_interface::find_spl_interface_pda_with_index;
 use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     mint_2022::{create_mint_22_with_extension_types, create_token_22_account, mint_spl_tokens_22},
     Rpc, RpcError,
 };
-use light_token::{
-    instruction::{CompressibleParams, CreateTokenAccount, TransferFromSpl},
-    spl_interface::find_spl_interface_pda_with_index,
-};
+use light_token::instruction::{CompressibleParams, CreateTokenAccount, TransferFromSpl};
 use light_token_client::instructions::transfer2::{
     create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,
 };

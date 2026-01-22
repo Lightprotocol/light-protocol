@@ -524,7 +524,7 @@ async fn test_amm_full_lifecycle() {
         &ctx.program_id.to_bytes(),
     );
     let mint_compressed_address =
-        light_token::compressed_token::create_compressed_mint::derive_mint_compressed_address(
+        light_compressed_token_sdk::compressed_token::create_compressed_mint::derive_mint_compressed_address(
             &pdas.lp_mint_signer,
             &address_tree_pubkey,
         );

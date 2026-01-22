@@ -16,6 +16,7 @@ fn get_token_compression_info(token: &Token) -> Option<CompressionInfo> {
         _ => None,
     })
 }
+use light_compressed_token_sdk::compressed_token::create_compressed_mint::find_mint_address;
 use light_program_test::{
     forester::claim_forester, program_test::TestRpc, utils::assert::assert_rpc_error,
     LightProgramTest, ProgramTestConfig,
@@ -27,9 +28,8 @@ use light_registry::accounts::{
 use light_test_utils::{
     airdrop_lamports, assert_claim::assert_claim, spl::create_mint_helper, Rpc, RpcError,
 };
-use light_token::{
-    compressed_token::create_compressed_mint::find_mint_address,
-    instruction::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount, MintTo},
+use light_token::instruction::{
+    derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount, MintTo,
 };
 use light_token_client::{
     actions::{

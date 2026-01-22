@@ -64,7 +64,6 @@ pub mod error;
 pub mod instruction;
 pub mod pack;
 
-// Re-export modules from light-compressed-token-sdk
 // Conditional anchor re-exports
 #[cfg(feature = "anchor")]
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
@@ -73,7 +72,6 @@ use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSeria
 pub use light_compressed_account::instruction_data::compressed_proof::{
     CompressedProof, ValidityProof,
 };
-pub use light_compressed_token_sdk::{compressed_token, constants, spl_interface, utils};
 pub use light_token_interface::{
     instructions::extensions::{ExtensionInstructionData, TokenMetadataInstructionData},
     state::AdditionalMetadata,

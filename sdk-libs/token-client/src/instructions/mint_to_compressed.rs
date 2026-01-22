@@ -3,7 +3,7 @@ use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
-use light_token::compressed_token::{
+use light_compressed_token_sdk::compressed_token::{
     create_compressed_mint::derive_mint_from_spl_mint,
     mint_to_compressed::{
         create_mint_to_compressed_instruction, DecompressedMintConfig, MintToCompressedInputs,
@@ -63,7 +63,8 @@ pub async fn mint_to_compressed_instruction<R: Rpc + Indexer>(
         unimplemented!("SPL mint synchronization for decompressed Mint not yet implemented");
     }
     let decompressed_mint_config: Option<DecompressedMintConfig<Pubkey>> = None;
-    let spl_interface_pda: Option<light_token::spl_interface::SplInterfacePda> = None;
+    let spl_interface_pda: Option<light_compressed_token_sdk::spl_interface::SplInterfacePda> =
+        None;
 
     // Prepare compressed mint inputs
     let compressed_mint_inputs = MintWithContext {

@@ -1,4 +1,11 @@
 use anchor_lang::{prelude::AccountMeta, AccountDeserialize, InstructionData};
+use light_compressed_token_sdk::{
+    compressed_token::transfer::account_metas::{
+        get_transfer_instruction_account_metas, TokenAccountsMetaConfig,
+    },
+    spl_interface::get_spl_interface_pda,
+    utils::TokenDefaultAccounts,
+};
 use light_program_test::{AddressWithTree, Indexer, LightProgramTest, ProgramTestConfig, Rpc};
 use light_sdk::{
     address::v1::derive_address,
@@ -8,17 +15,7 @@ use light_test_utils::{
     spl::{create_mint_helper, create_token_account, mint_spl_tokens},
     RpcError,
 };
-use light_token::{
-    compressed_token::{
-        transfer::account_metas::{
-            get_transfer_instruction_account_metas, TokenAccountsMetaConfig,
-        },
-        TokenAccountMeta,
-    },
-    spl_interface::get_spl_interface_pda,
-    utils::TokenDefaultAccounts,
-};
-use light_token_types::SPL_TOKEN_PROGRAM_ID;
+use light_token_types::{TokenAccountMeta, SPL_TOKEN_PROGRAM_ID};
 use solana_sdk::{
     instruction::Instruction,
     pubkey::Pubkey,

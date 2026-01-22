@@ -1,4 +1,10 @@
 use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
+use light_compressed_token_sdk::compressed_token::{
+    transfer2::{
+        create_transfer2_instruction, Transfer2AccountsMetaConfig, Transfer2Config, Transfer2Inputs,
+    },
+    CTokenAccount2,
+};
 use light_program_profiler::profile;
 use light_token_interface::instructions::transfer2::{Compression, MultiTokenTransferOutputData};
 use solana_account_info::AccountInfo;
@@ -6,13 +12,6 @@ use solana_cpi::{invoke, invoke_signed};
 use solana_instruction::{AccountMeta, Instruction};
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
-
-use crate::compressed_token::{
-    transfer2::{
-        create_transfer2_instruction, Transfer2AccountsMetaConfig, Transfer2Config, Transfer2Inputs,
-    },
-    CTokenAccount2,
-};
 
 /// # Create a transfer ctoken to SPL instruction:
 /// ```rust

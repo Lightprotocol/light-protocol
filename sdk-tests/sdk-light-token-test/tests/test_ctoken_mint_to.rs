@@ -128,7 +128,7 @@ async fn test_ctoken_mint_to_invoke_signed() {
 
         let compressed_token_program_id =
             Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
-        let default_pubkeys = light_token::utils::TokenDefaultAccounts::default();
+        let default_pubkeys = light_compressed_token_sdk::utils::TokenDefaultAccounts::default();
         let compressible_config = light_token::instruction::config_pda();
         let rent_sponsor = light_token::instruction::rent_sponsor_pda();
 

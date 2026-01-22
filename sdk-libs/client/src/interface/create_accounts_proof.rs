@@ -2,8 +2,8 @@
 //! Programs must pass this to light accounts that they initialize.
 
 use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
+use light_compressed_token_sdk::compressed_token::create_compressed_mint::derive_mint_compressed_address;
 use light_sdk::instruction::PackedAddressTreeInfo;
-use light_token::compressed_token::create_compressed_mint::derive_mint_compressed_address;
 use light_token_interface::MINT_ADDRESS_TREE;
 use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;

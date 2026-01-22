@@ -8,6 +8,7 @@
 //! in compress_only/invalid_extension_state.rs. It succeeds with invalid extension
 //! state because it exits compressed state without creating new compressed accounts.
 
+use light_compressed_token_sdk::spl_interface::find_spl_interface_pda_with_index;
 use light_program_test::utils::assert::assert_rpc_error;
 use light_test_utils::{
     mint_2022::{
@@ -16,9 +17,8 @@ use light_test_utils::{
     },
     Rpc,
 };
-use light_token::{
-    instruction::{CompressibleParams, CreateTokenAccount, TransferChecked, TransferFromSpl},
-    spl_interface::find_spl_interface_pda_with_index,
+use light_token::instruction::{
+    CompressibleParams, CreateTokenAccount, TransferChecked, TransferFromSpl,
 };
 use light_token_interface::state::TokenDataVersion;
 use serial_test::serial;

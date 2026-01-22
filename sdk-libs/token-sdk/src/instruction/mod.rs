@@ -201,7 +201,7 @@ pub struct SystemAccounts {
 
 impl Default for SystemAccounts {
     fn default() -> Self {
-        use crate::utils::TokenDefaultAccounts;
+        use light_compressed_token_sdk::utils::TokenDefaultAccounts;
         let defaults = TokenDefaultAccounts::default();
         Self {
             light_system_program: defaults.light_system_program,

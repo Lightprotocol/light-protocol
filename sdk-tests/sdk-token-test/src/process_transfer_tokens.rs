@@ -1,14 +1,12 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke};
-use light_token::{
-    compressed_token::{
-        transfer::{
-            instruction::{transfer, TransferInputs},
-            TransferAccountInfos,
-        },
-        CTokenAccount, TokenAccountMeta,
+use light_compressed_token_sdk::compressed_token::{
+    transfer::{
+        instruction::{transfer, TransferInputs},
+        TransferAccountInfos,
     },
-    ValidityProof,
+    CTokenAccount, TokenAccountMeta,
 };
+use light_token::ValidityProof;
 
 use crate::Generic;
 

@@ -54,7 +54,7 @@ where
     }
 
     let mut token_decompress_indices: Vec<
-        crate::compressed_token::decompress_full::DecompressFullIndices,
+        light_compressed_token_sdk::compressed_token::decompress_full::DecompressFullIndices,
     > = Vec::with_capacity(token_accounts.len());
     // Only program-owned tokens need signer seeds
     let mut token_signers_seed_groups: Vec<Vec<Vec<u8>>> = Vec::with_capacity(token_accounts.len());
@@ -175,12 +175,13 @@ where
             merkle_context: meta.tree_info.into(),
             root_index: meta.tree_info.root_index,
         };
-        let decompress_index = crate::compressed_token::decompress_full::DecompressFullIndices {
-            source,
-            destination_index: owner_index,
-            tlv: None,
-            is_ata: false, // Program-owned token: owner is a signer (via CPI seeds)
-        };
+        let decompress_index =
+            light_compressed_token_sdk::compressed_token::decompress_full::DecompressFullIndices {
+                source,
+                destination_index: owner_index,
+                tlv: None,
+                is_ata: false, // Program-owned token: owner is a signer (via CPI seeds)
+            };
         token_decompress_indices.push(decompress_index);
         token_signers_seed_groups.push(ctoken_signer_seeds);
     }
@@ -190,7 +191,7 @@ where
     }
 
     let ctoken_ix =
-        crate::compressed_token::decompress_full::decompress_full_token_accounts_with_indices(
+        light_compressed_token_sdk::compressed_token::decompress_full::decompress_full_token_accounts_with_indices(
             *fee_payer.key,
             proof,
             cpi_context_pubkey,

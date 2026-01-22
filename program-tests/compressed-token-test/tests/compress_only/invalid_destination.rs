@@ -8,6 +8,7 @@
 
 use anchor_spl::token_2022::spl_token_2022;
 use light_client::indexer::Indexer;
+use light_compressed_token_sdk::spl_interface::find_spl_interface_pda_with_index;
 use light_program_test::{
     program_test::{LightProgramTest, TestRpc},
     utils::assert::assert_rpc_error,
@@ -17,10 +18,7 @@ use light_test_utils::mint_2022::{
     create_mint_22_with_extension_types, create_token_22_account, mint_spl_tokens_22,
     RESTRICTED_EXTENSIONS,
 };
-use light_token::{
-    instruction::{CompressibleParams, CreateTokenAccount, TransferFromSpl},
-    spl_interface::find_spl_interface_pda_with_index,
-};
+use light_token::instruction::{CompressibleParams, CreateTokenAccount, TransferFromSpl};
 use light_token_client::instructions::transfer2::{
     create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,
 };

@@ -4,13 +4,13 @@ mod shared;
 
 use borsh::BorshSerialize;
 use light_client::rpc::Rpc;
+use light_compressed_token_sdk::spl_interface::find_spl_interface_pda_with_index;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::spl::{
     create_mint_helper, create_token_2022_account, mint_spl_tokens, CREATE_MINT_HELPER_DECIMALS,
 };
-use light_token::{
-    instruction::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount},
-    spl_interface::find_spl_interface_pda_with_index,
+use light_token::instruction::{
+    derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount,
 };
 use light_token_types::CPI_AUTHORITY_PDA;
 use native_ctoken_examples::{

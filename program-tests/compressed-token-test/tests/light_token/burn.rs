@@ -17,14 +17,12 @@
 //!
 //! **Note**: Max top-up exceeded test requires compressible accounts with time warp.
 //! For comprehensive max_top_up testing, see sdk-tests/sdk-light-token-test/tests/test_burn.rs
+use light_compressed_token_sdk::compressed_token::create_compressed_mint::find_mint_address;
 use light_program_test::{
     program_test::TestRpc, utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig,
 };
 use light_test_utils::assert_ctoken_burn::assert_ctoken_burn;
-use light_token::{
-    compressed_token::create_compressed_mint::find_mint_address,
-    instruction::{derive_token_ata, Burn, CreateAssociatedTokenAccount, MintTo},
-};
+use light_token::instruction::{derive_token_ata, Burn, CreateAssociatedTokenAccount, MintTo};
 use light_token_client::instructions::mint_action::DecompressMintParams;
 
 use super::shared::*;

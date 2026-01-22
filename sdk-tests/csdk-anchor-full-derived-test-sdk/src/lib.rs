@@ -279,7 +279,7 @@ impl AmmSdk {
 
     pub fn derive_lp_mint_compressed_address(&self, address_tree: &Pubkey) -> Option<[u8; 32]> {
         self.lp_mint_signer.map(|signer| {
-            light_token::compressed_token::create_compressed_mint::derive_mint_compressed_address(
+            light_compressed_token_sdk::compressed_token::create_compressed_mint::derive_mint_compressed_address(
                 &signer,
                 address_tree,
             )

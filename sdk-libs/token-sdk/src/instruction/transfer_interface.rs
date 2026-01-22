@@ -1,3 +1,4 @@
+use light_compressed_token_sdk::utils::is_light_token_owner;
 use solana_account_info::AccountInfo;
 use solana_instruction::{AccountMeta, Instruction};
 use solana_program_error::ProgramError;
@@ -30,8 +31,6 @@ fn determine_transfer_type(
     source_owner: &Pubkey,
     destination_owner: &Pubkey,
 ) -> Result<TransferType, ProgramError> {
-    use crate::utils::is_light_token_owner;
-
     let source_is_light = is_light_token_owner(source_owner)
         .map_err(|_| ProgramError::Custom(LightTokenError::CannotDetermineAccountType.into()))?;
     let dest_is_light = is_light_token_owner(destination_owner)

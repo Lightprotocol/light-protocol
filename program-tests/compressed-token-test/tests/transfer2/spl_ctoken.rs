@@ -1,6 +1,16 @@
 use anchor_lang::prelude::{AccountMeta, ProgramError};
 // Re-export all necessary imports for test modules
 pub use anchor_spl::token_2022::spl_token_2022;
+use light_compressed_token_sdk::{
+    compressed_token::{
+        transfer2::{
+            create_transfer2_instruction, Transfer2AccountsMetaConfig, Transfer2Config,
+            Transfer2Inputs,
+        },
+        CTokenAccount2,
+    },
+    spl_interface::find_spl_interface_pda_with_index,
+};
 use light_program_test::utils::assert::assert_rpc_error;
 pub use light_program_test::{LightProgramTest, ProgramTestConfig};
 pub use light_test_utils::{
@@ -13,17 +23,7 @@ pub use light_test_utils::{
 pub use light_token::instruction::{
     derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount,
 };
-use light_token::{
-    compressed_token::{
-        transfer2::{
-            create_transfer2_instruction, Transfer2AccountsMetaConfig, Transfer2Config,
-            Transfer2Inputs,
-        },
-        CTokenAccount2,
-    },
-    spl_interface::find_spl_interface_pda_with_index,
-    ValidityProof,
-};
+use light_token::ValidityProof;
 pub use light_token_client::actions::transfer2::{self};
 use light_token_interface::instructions::transfer2::{Compression, MultiTokenTransferOutputData};
 use solana_sdk::pubkey::Pubkey;

@@ -3,16 +3,15 @@
 use light_compressed_account::{
     compressed_account::PackedMerkleContext, instruction_data::compressed_proof::ValidityProof,
 };
+use light_compressed_token_sdk::compressed_token::{
+    transfer2::{
+        create_transfer2_instruction, Transfer2AccountsMetaConfig, Transfer2Config, Transfer2Inputs,
+    },
+    CTokenAccount2,
+};
 use light_sdk::{compressible::Pack, instruction::PackedAccounts};
 use light_token::{
     compat::AccountState,
-    compressed_token::{
-        transfer2::{
-            create_transfer2_instruction, Transfer2AccountsMetaConfig, Transfer2Config,
-            Transfer2Inputs,
-        },
-        CTokenAccount2,
-    },
     instruction::{
         derive_token_ata, CreateAssociatedTokenAccount, DecompressMint, LIGHT_TOKEN_PROGRAM_ID,
     },

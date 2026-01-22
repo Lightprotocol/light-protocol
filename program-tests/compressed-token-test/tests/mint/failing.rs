@@ -2,14 +2,14 @@
 
 use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_client::indexer::Indexer;
+use light_compressed_token_sdk::compressed_token::create_compressed_mint::{
+    derive_mint_compressed_address, find_mint_address,
+};
 use light_program_test::{utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     assert_mint_action::assert_mint_action, mint_assert::assert_compressed_mint_account, Rpc,
 };
-use light_token::{
-    compressed_token::create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
-    instruction::{CompressibleParams, CreateAssociatedTokenAccount},
-};
+use light_token::instruction::{CompressibleParams, CreateAssociatedTokenAccount};
 use light_token_client::{
     actions::create_mint,
     instructions::mint_action::{MintActionType, MintToRecipient},
@@ -811,7 +811,7 @@ async fn functional_and_failing_tests() {
 #[serial]
 async fn test_mint_to_ctoken_max_top_up_exceeded() {
     use light_compressed_account::instruction_data::traits::LightInstructionData;
-    use light_token::compressed_token::{
+    use light_compressed_token_sdk::compressed_token::{
         create_compressed_mint::derive_mint_compressed_address, mint_action::MintActionMetaConfig,
     };
     use light_token_interface::{
@@ -1023,9 +1023,9 @@ async fn test_create_mint_non_signer_mint_signer() {
 #[tokio::test]
 #[serial]
 async fn test_compress_and_close_mint_must_be_only_action() {
+    use light_compressed_token_sdk::compressed_token::create_compressed_mint::derive_mint_compressed_address;
     use light_compressible::rent::SLOTS_PER_EPOCH;
     use light_program_test::program_test::TestRpc;
-    use light_token::compressed_token::create_compressed_mint::derive_mint_compressed_address;
     use light_token_client::instructions::mint_action::DecompressMintParams;
 
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))

@@ -389,8 +389,8 @@ async fn compress_mint_forester(
 ) -> Result<(), RpcError> {
     use light_client::indexer::Indexer;
     use light_compressed_account::instruction_data::traits::LightInstructionData;
+    use light_compressed_token_sdk::compressed_token::mint_action::MintActionMetaConfig;
     use light_compressible::config::CompressibleConfig;
-    use light_token::compressed_token::mint_action::MintActionMetaConfig;
     use light_token_interface::instructions::mint_action::{
         CompressAndCloseMintAction, MintActionCompressedInstructionData, MintWithContext,
     };
