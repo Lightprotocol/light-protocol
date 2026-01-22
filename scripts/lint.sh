@@ -3,8 +3,8 @@
 set -e
 
 # JS linting
-cd js/stateless.js && pnpm format:check && pnpm lint && cd ../..
-cd js/compressed-token && pnpm format:check && pnpm lint && cd ../..
+cd js/stateless.js && pnpm prettier --check . && pnpm lint && cd ../..
+cd js/compressed-token && pnpm prettier --check . && pnpm lint && cd ../..
 
 # Rust linting
 cargo +nightly fmt --all -- --check

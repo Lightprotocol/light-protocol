@@ -3,8 +3,13 @@
 default:
     @just --list
 
-build:
+# Build JS dependencies first, then CLI
+build: build-js-deps
     pnpm build
+
+build-js-deps:
+    cd ../js/stateless.js && pnpm build
+    cd ../js/compressed-token && pnpm build
 
 test:
     pnpm test
