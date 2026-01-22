@@ -220,6 +220,7 @@ pub async fn run_pipeline<R: Rpc + Indexer>(
             // Create all shutdown receivers upfront (before any are moved)
             let shutdown_rx_ctoken = shutdown_rx.resubscribe();
             let shutdown_rx_mint = shutdown_rx.resubscribe();
+            let shutdown_rx_mint_bootstrap = shutdown_rx.resubscribe();
             // Keep original for PDA subscriptions (will resubscribe per-program)
             let shutdown_rx_pda_base = shutdown_rx;
 
@@ -305,27 +306,34 @@ pub async fn run_pipeline<R: Rpc + Indexer>(
                     });
                 }
 
-                // Spawn bootstrap task for PDAs (runs to completion, no shutdown signal)
+                // Spawn bootstrap task for PDAs with shutdown support
                 let pda_tracker_clone = pda_tracker.clone();
                 let rpc_url = config.external_services.rpc_url.clone();
+                let mut shutdown_rx_pda_bootstrap = shutdown_rx_pda_base.resubscribe();
 
                 tokio::spawn(async move {
                     let retry_config = RetryConfig::new("PDA bootstrap")
                         .with_max_attempts(3)
                         .with_initial_delay(Duration::from_secs(5));
 
-                    let result = retry_with_backoff(retry_config, || {
+                    let bootstrap_future = retry_with_backoff(retry_config, || {
                         let rpc_url = rpc_url.clone();
                         let tracker = pda_tracker_clone.clone();
                         async move {
                             compressible::pda::bootstrap_pda_accounts(rpc_url, tracker, None).await
                         }
-                    })
-                    .await;
+                    });
 
-                    match result {
-                        Ok(()) => tracing::info!("PDA bootstrap complete"),
-                        Err(e) => tracing::error!("PDA bootstrap failed after retries: {:?}", e),
+                    tokio::select! {
+                        result = bootstrap_future => {
+                            match result {
+                                Ok(()) => tracing::info!("PDA bootstrap complete"),
+                                Err(e) => tracing::error!("PDA bootstrap failed after retries: {:?}", e),
+                            }
+                        }
+                        _ = shutdown_rx_pda_bootstrap.recv() => {
+                            tracing::info!("PDA bootstrap interrupted by shutdown signal");
+                        }
                     }
                 });
 
@@ -354,28 +362,35 @@ pub async fn run_pipeline<R: Rpc + Indexer>(
                     }
                 });
 
-                // Spawn bootstrap task for Mints (runs to completion, no shutdown signal)
+                // Spawn bootstrap task for Mints with shutdown support
                 let mint_tracker_clone = mint_tracker.clone();
                 let rpc_url = config.external_services.rpc_url.clone();
+                let mut shutdown_rx_mint_bootstrap = shutdown_rx_mint_bootstrap;
 
                 tokio::spawn(async move {
                     let retry_config = RetryConfig::new("Mint bootstrap")
                         .with_max_attempts(3)
                         .with_initial_delay(Duration::from_secs(5));
 
-                    let result = retry_with_backoff(retry_config, || {
+                    let bootstrap_future = retry_with_backoff(retry_config, || {
                         let rpc_url = rpc_url.clone();
                         let tracker = mint_tracker_clone.clone();
                         async move {
                             compressible::mint::bootstrap_mint_accounts(rpc_url, tracker, None)
                                 .await
                         }
-                    })
-                    .await;
+                    });
 
-                    match result {
-                        Ok(()) => tracing::info!("Mint bootstrap complete"),
-                        Err(e) => tracing::error!("Mint bootstrap failed after retries: {:?}", e),
+                    tokio::select! {
+                        result = bootstrap_future => {
+                            match result {
+                                Ok(()) => tracing::info!("Mint bootstrap complete"),
+                                Err(e) => tracing::error!("Mint bootstrap failed after retries: {:?}", e),
+                            }
+                        }
+                        _ = shutdown_rx_mint_bootstrap.recv() => {
+                            tracing::info!("Mint bootstrap interrupted by shutdown signal");
+                        }
                     }
                 });
 

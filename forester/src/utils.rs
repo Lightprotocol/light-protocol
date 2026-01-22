@@ -14,7 +14,7 @@ use tracing::{debug, info, warn};
 #[derive(Debug, Clone)]
 pub struct RetryConfig {
     /// Maximum number of attempts. None means infinite retry.
-    pub max_attempts: Option<u32>,
+    pub max_attempts: Option<u64>,
     /// Initial delay before first retry.
     pub initial_delay: Duration,
     /// Maximum delay between retries.
@@ -36,7 +36,7 @@ impl RetryConfig {
     }
 
     /// Sets the maximum number of attempts.
-    pub fn with_max_attempts(mut self, max_attempts: u32) -> Self {
+    pub fn with_max_attempts(mut self, max_attempts: u64) -> Self {
         self.max_attempts = Some(max_attempts);
         self
     }
@@ -96,7 +96,7 @@ where
     E: std::fmt::Debug,
 {
     let mut current_delay = config.initial_delay;
-    let mut attempt = 0u32;
+    let mut attempt = 0u64;
 
     loop {
         attempt += 1;
