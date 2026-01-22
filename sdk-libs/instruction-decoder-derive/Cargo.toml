@@ -1,6 +1,6 @@
 [package]
 name = "light-instruction-decoder-derive"
-version = "0.1.0"
+version = "0.2.0"
 description = "Derive macros for InstructionDecoder implementations in Light Protocol"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
@@ -14,9 +14,6 @@ proc-macro2 = { workspace = true }
 quote = { workspace = true }
 sha2 = "0.10"
 syn = { workspace = true }
-
-[dev-dependencies]
-light-instruction-decoder = { workspace = true }
 
 [lib]
 proc-macro = true

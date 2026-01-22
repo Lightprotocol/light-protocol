@@ -26,22 +26,5 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Determine release type
-        id: release-type
-        env:
-          PR_TITLE: ${{ github.event.pull_request.title }}
-        run: |
-          if [[ "$PR_TITLE" == *"program-libs"* ]]; then
-            echo "type=program-libs" >> "$GITHUB_OUTPUT"
-          elif [[ "$PR_TITLE" == *"sdk-libs"* ]]; then
-            echo "type=sdk-libs" >> "$GITHUB_OUTPUT"
-          else
-            echo "Error: Could not determine release type from PR title: $PR_TITLE"
-            echo "PR title must contain 'program-libs' or 'sdk-libs'"
-            exit 1
-          fi
-
       - name: Validate packages for publishing
-        env:
-          RELEASE_TYPE: ${{ steps.release-type.outputs.type }}
-        run: ./scripts/release/validate-packages.sh "$RELEASE_TYPE"
+        run: ./scripts/release/validate-packages.sh

@@ -1,8 +1,8 @@
 [package]
 name = "light-token-types"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
-description = "ctoken and compressed token types for Light Protocol"
+description = "Light token sdk types"
 license = "Apache-2.0"
 repository = "https://github.com/Lightprotocol/light-protocol"
 
