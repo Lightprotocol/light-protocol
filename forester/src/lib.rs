@@ -242,8 +242,8 @@ pub async fn run_pipeline<R: Rpc + Indexer>(
                 }
             });
 
-            // Spawn bootstrap task for ctokens
-            if let Some(shutdown_bootstrap_rx) = shutdown_bootstrap {
+            // Spawn bootstrap task for ctokens with shutdown support
+            if let Some(mut shutdown_bootstrap_rx) = shutdown_bootstrap {
                 let tracker_clone = ctoken_tracker.clone();
                 let rpc_url = config.external_services.rpc_url.clone();
 
@@ -252,22 +252,25 @@ pub async fn run_pipeline<R: Rpc + Indexer>(
                         .with_max_attempts(3)
                         .with_initial_delay(Duration::from_secs(5));
 
-                    let result = retry_with_backoff(retry_config, || {
+                    let bootstrap_future = retry_with_backoff(retry_config, || {
                         let rpc_url = rpc_url.clone();
                         let tracker = tracker_clone.clone();
                         async move {
                             compressible::bootstrap_ctoken_accounts(rpc_url, tracker, None).await
                         }
-                    })
-                    .await;
+                    });
 
-                    match result {
-                        Ok(()) => tracing::info!("CToken bootstrap complete"),
-                        Err(e) => tracing::error!("CToken bootstrap failed after retries: {:?}", e),
+                    tokio::select! {
+                        result = bootstrap_future => {
+                            match result {
+                                Ok(()) => tracing::info!("CToken bootstrap complete"),
+                                Err(e) => tracing::error!("CToken bootstrap failed after retries: {:?}", e),
+                            }
+                        }
+                        _ = &mut shutdown_bootstrap_rx => {
+                            tracing::info!("CToken bootstrap interrupted by shutdown signal");
+                        }
                     }
-
-                    // Signal that bootstrap is done (success or failure)
-                    drop(shutdown_bootstrap_rx);
                 });
             }
 

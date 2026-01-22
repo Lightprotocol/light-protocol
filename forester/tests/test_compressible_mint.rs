@@ -381,8 +381,11 @@ async fn test_compressible_mint_compression() {
         let mut account_closed = false;
 
         while start.elapsed() < timeout {
-            let mint_after = rpc.get_account(mint_pda).await.unwrap();
-            if mint_after.is_none() || mint_after.as_ref().map(|a| a.lamports) == Some(0) {
+            let mint_after = rpc
+                .get_account(mint_pda)
+                .await
+                .expect("Failed to query mint account");
+            if mint_after.is_none() {
                 account_closed = true;
                 println!("Mint account closed successfully!");
                 break;
@@ -460,17 +463,18 @@ async fn test_compressible_mint_subscription() {
     let (shutdown_tx, shutdown_rx) = broadcast::channel(1);
 
     // Spawn account subscriber to track new/updated mint accounts
+    // Use oneshot channel to surface failures immediately
     let mut account_subscriber = AccountSubscriber::new(
         "ws://localhost:8900".to_string(),
         tracker.clone(),
         SubscriptionConfig::mint(),
         shutdown_rx,
     );
+    let (subscriber_result_tx, mut subscriber_result_rx) =
+        oneshot::channel::<Result<(), anyhow::Error>>();
     let account_subscriber_handle = tokio::spawn(async move {
-        account_subscriber
-            .run()
-            .await
-            .expect("Account subscriber failed to run");
+        let result = account_subscriber.run().await;
+        let _ = subscriber_result_tx.send(result);
     });
 
     // Give subscribers time to connect
@@ -485,6 +489,10 @@ async fn test_compressible_mint_subscription() {
     let start = tokio::time::Instant::now();
     let timeout = Duration::from_secs(30);
     while start.elapsed() < timeout {
+        // Check for early subscriber failure
+        if let Ok(result) = subscriber_result_rx.try_recv() {
+            result.expect("Account subscriber failed early");
+        }
         if tracker.len() >= 1 {
             break;
         }
@@ -507,6 +515,10 @@ async fn test_compressible_mint_subscription() {
     // Wait for subscriber to pick up the second account
     let start = tokio::time::Instant::now();
     while start.elapsed() < timeout {
+        // Check for early subscriber failure
+        if let Ok(result) = subscriber_result_rx.try_recv() {
+            result.expect("Account subscriber failed early");
+        }
         if tracker.len() >= 2 {
             break;
         }
@@ -570,8 +582,11 @@ async fn test_compressible_mint_subscription() {
     let start = tokio::time::Instant::now();
     let mut account_closed = false;
     while start.elapsed() < timeout {
-        let mint_after = rpc.get_account(mint_pda_1).await.unwrap();
-        if mint_after.is_none() || mint_after.as_ref().map(|a| a.lamports) == Some(0) {
+        let mint_after = rpc
+            .get_account(mint_pda_1)
+            .await
+            .expect("Failed to query mint account");
+        if mint_after.is_none() {
             account_closed = true;
             println!("First mint account closed successfully!");
             break;
@@ -614,6 +629,10 @@ async fn test_compressible_mint_subscription() {
     account_subscriber_handle
         .await
         .expect("Account subscriber task panicked");
+    // Check if subscriber returned an error (if not already consumed by try_recv)
+    if let Ok(result) = subscriber_result_rx.try_recv() {
+        result.expect("Account subscriber failed");
+    }
 
     println!("Mint subscription test completed successfully!");
 }
