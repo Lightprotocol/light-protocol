@@ -513,6 +513,24 @@ pub(super) fn parse_light_account_attr(
                         }
                     }
                 }
+                // For mark-only associated_token, both authority and mint are required
+                // (needed to derive the ATA PDA at runtime)
+                if args.account_type == LightAccountType::AssociatedToken {
+                    let has_authority = args.key_values.iter().any(|kv| kv.key == "authority");
+                    let has_mint = args.key_values.iter().any(|kv| kv.key == "mint");
+                    if !has_authority {
+                        return Err(Error::new_spanned(
+                            attr,
+                            "#[light_account(associated_token, ...)] requires `associated_token::authority` parameter",
+                        ));
+                    }
+                    if !has_mint {
+                        return Err(Error::new_spanned(
+                            attr,
+                            "#[light_account(associated_token, ...)] requires `associated_token::mint` parameter",
+                        ));
+                    }
+                }
                 return Ok(None);
             }
 
@@ -1870,6 +1888,123 @@ mod tests {
         assert!(
             err.contains("Missing namespace prefix") || err.contains("mint::authority"),
             "Expected helpful migration error, got: {}",
+            err
+        );
+    }
+
+    // ========================================================================
+    // Mark-Only Associated Token Validation Tests
+    // ========================================================================
+
+    #[test]
+    fn test_parse_associated_token_mark_only_missing_authority_fails() {
+        // Mark-only associated_token requires authority
+        let field: syn::Field = parse_quote! {
+            #[light_account(associated_token, associated_token::mint = mint)]
+            pub user_ata: Account<'info, CToken>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident, &None);
+        assert!(result.is_err());
+        let err = result.err().unwrap().to_string();
+        assert!(
+            err.contains("authority"),
+            "Expected error about missing authority, got: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn test_parse_associated_token_mark_only_missing_mint_fails() {
+        // Mark-only associated_token requires mint
+        let field: syn::Field = parse_quote! {
+            #[light_account(associated_token, associated_token::authority = owner)]
+            pub user_ata: Account<'info, CToken>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident, &None);
+        assert!(result.is_err());
+        let err = result.err().unwrap().to_string();
+        assert!(
+            err.contains("mint"),
+            "Expected error about missing mint, got: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn test_parse_associated_token_mark_only_with_both_params_succeeds() {
+        // Mark-only associated_token with both authority and mint should succeed (returns None)
+        let field: syn::Field = parse_quote! {
+            #[light_account(associated_token, associated_token::authority = owner, associated_token::mint = mint)]
+            pub user_ata: Account<'info, CToken>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident, &None);
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none()); // Mark-only returns None
+    }
+
+    // ========================================================================
+    // Mixed Namespace Prefix Tests
+    // ========================================================================
+
+    #[test]
+    fn test_parse_mixed_token_and_associated_token_prefix_fails() {
+        // Mixing token:: with associated_token type should fail
+        let field: syn::Field = parse_quote! {
+            #[light_account(associated_token, associated_token::authority = owner, token::mint = mint)]
+            pub user_ata: Account<'info, CToken>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident, &None);
+        assert!(result.is_err());
+        let err = result.err().unwrap().to_string();
+        assert!(
+            err.contains("doesn't match account type"),
+            "Expected namespace mismatch error, got: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn test_parse_mixed_associated_token_and_token_prefix_fails() {
+        // Mixing associated_token:: with token type should fail
+        let field: syn::Field = parse_quote! {
+            #[light_account(token, token::authority = [b"auth"], associated_token::mint = mint)]
+            pub vault: Account<'info, CToken>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident, &None);
+        assert!(result.is_err());
+        let err = result.err().unwrap().to_string();
+        assert!(
+            err.contains("doesn't match account type"),
+            "Expected namespace mismatch error, got: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn test_parse_init_mixed_token_and_mint_prefix_fails() {
+        // Mixing token:: with mint:: in init mode should fail
+        let field: syn::Field = parse_quote! {
+            #[light_account(init, token, token::authority = [b"auth"], mint::decimals = 9)]
+            pub vault: Account<'info, CToken>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident, &None);
+        assert!(result.is_err());
+        let err = result.err().unwrap().to_string();
+        assert!(
+            err.contains("doesn't match account type"),
+            "Expected namespace mismatch error, got: {}",
             err
         );
     }

@@ -15,7 +15,7 @@ All parameters use the Anchor-style `mint::` namespace prefix. The account type 
     mint::signer = mint_signer,
     mint::authority = authority,
     mint::decimals = 9,
-    mint::seeds = &[b"mint_signer", &[ctx.bumps.mint_signer]]
+    mint::seeds = &[b"mint_signer"]
 )]
 pub mint: UncheckedAccount<'info>,
 ```
@@ -43,7 +43,7 @@ pub struct CreateMint<'info> {
         mint::signer = mint_signer,
         mint::authority = authority,
         mint::decimals = 9,
-        mint::seeds = &[b"mint_signer", &[ctx.bumps.mint_signer]]
+        mint::seeds = &[b"mint_signer"]
     )]
     pub mint: UncheckedAccount<'info>,
 
@@ -62,18 +62,18 @@ pub struct CreateMint<'info> {
 | `mint::signer` | Field reference | The AccountInfo that seeds the mint PDA. The mint address is derived from this signer. |
 | `mint::authority` | Field reference | The mint authority. Either a transaction signer or a PDA (if `mint::authority_seeds` is provided). |
 | `mint::decimals` | Expression | Token decimals (e.g., `9` for 9 decimal places). |
-| `mint::seeds` | Slice expression | PDA signer seeds for `mint_signer`. Must be a `&[&[u8]]` expression that matches the `#[account(seeds = ...)]` on `mint_signer`, **including the bump**. |
+| `mint::seeds` | Slice expression | Base PDA signer seeds for `mint_signer`. Must be a `&[&[u8]]` expression matching the base seeds in `#[account(seeds = ...)]` on `mint_signer`. The bump is appended automatically (see `mint::bump`). |
 
 ## Optional Attributes
 
 | Attribute | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `mint::bump` | Expression | Auto-derived | Explicit bump seed for the mint signer PDA. If not provided, uses `find_program_address`. |
+| `mint::bump` | Expression | Auto-derived | Bump seed for the mint signer PDA, automatically appended to `mint::seeds`. If not provided, uses `ctx.bumps.<mint_signer_field>`. |
 | `mint::freeze_authority` | Field reference | None | Optional freeze authority field. |
 | `mint::authority_seeds` | Slice expression | None | PDA signer seeds for `authority`. If not provided, `authority` must be a transaction signer. |
 | `mint::authority_bump` | Expression | Auto-derived | Explicit bump seed for authority PDA. |
-| `mint::rent_payment` | Expression | `2u8` | Rent payment epochs for decompression. |
-| `mint::write_top_up` | Expression | `0u32` | Write top-up lamports for decompression. |
+| `mint::rent_payment` | Expression | `16u8` | Rent payment epochs for decompression. |
+| `mint::write_top_up` | Expression | `766u32` | Write top-up lamports for decompression. |
 
 ## TokenMetadata Fields
 
@@ -99,7 +99,8 @@ Optional fields for creating a mint with the TokenMetadata extension:
     mint::signer = mint_signer,
     mint::authority = fee_payer,
     mint::decimals = 9,
-    mint::seeds = &[SEED, self.authority.key().as_ref(), &[params.bump]],
+    mint::seeds = &[SEED, self.authority.key().as_ref()],
+    mint::bump = params.bump,
     // TokenMetadata fields
     mint::name = params.name.clone(),
     mint::symbol = params.symbol.clone(),
@@ -138,14 +139,14 @@ let (mint_pda, bump) = light_token::instruction::find_mint_address(mint_signer.k
 
 ### Signer Seeds (mint::seeds)
 
-The `mint::seeds` attribute provides the PDA signer seeds used for `invoke_signed` when calling the light token program. These seeds must derive to the `mint_signer` pubkey for the CPI to succeed.
+The `mint::seeds` attribute provides the **base** PDA signer seeds used for `invoke_signed` when calling the light token program. The bump is automatically appended to these seeds (from `mint::bump` or `ctx.bumps.<mint_signer_field>`). The complete seeds must derive to the `mint_signer` pubkey for the CPI to succeed.
 
 ```rust
 #[light_account(init,
     mint::signer = mint_signer,
     mint::authority = mint_authority,
     mint::decimals = 9,
-    mint::seeds = &[LP_MINT_SIGNER_SEED, self.authority.to_account_info().key.as_ref(), &[params.mint_signer_bump]],
+    mint::seeds = &[LP_MINT_SIGNER_SEED, self.authority.to_account_info().key.as_ref()],
     mint::bump = params.mint_signer_bump
 )]
 pub mint: UncheckedAccount<'info>,
@@ -156,10 +157,10 @@ pub mint: UncheckedAccount<'info>,
 - Use `.to_account_info().key` to get account pubkeys
 - The bump can be provided explicitly via `mint::bump` or auto-derived
 
-The generated code uses these seeds to sign the CPI:
+The generated code appends the bump and uses these seeds to sign the CPI:
 
 ```rust
-let mint_seeds: &[&[u8]] = &[...]; // from mint::seeds attribute
+let mint_seeds: &[&[u8]] = &[...base_seeds..., &[bump]]; // base from mint::seeds, bump appended
 invoke_signed(&mint_action_ix, &account_infos, &[mint_seeds])?;
 ```
 
@@ -198,7 +199,7 @@ pub struct CreateBasicMint<'info> {
         mint::signer = mint_signer,
         mint::authority = authority,
         mint::decimals = 6,
-        mint::seeds = &[b"mint", &[ctx.bumps.mint_signer]]
+        mint::seeds = &[b"mint"]
     )]
     pub mint: UncheckedAccount<'info>,
 
@@ -229,8 +230,8 @@ pub struct CreateMintWithPdaAuthority<'info> {
         mint::signer = mint_signer,
         mint::authority = authority,
         mint::decimals = 9,
-        mint::seeds = &[b"mint", &[ctx.bumps.mint_signer]],
-        mint::authority_seeds = &[b"authority", &[ctx.bumps.authority]],
+        mint::seeds = &[b"mint"],
+        mint::authority_seeds = &[b"authority"],
         mint::authority_bump = params.authority_bump
     )]
     pub mint: UncheckedAccount<'info>,
@@ -246,7 +247,7 @@ pub struct CreateMintWithPdaAuthority<'info> {
     mint::signer = mint_signer,
     mint::authority = authority,
     mint::decimals = 9,
-    mint::seeds = &[b"mint", &[bump]],
+    mint::seeds = &[b"mint"],
     mint::freeze_authority = freeze_auth
 )]
 pub mint: UncheckedAccount<'info>,
@@ -262,7 +263,7 @@ pub freeze_auth: Signer<'info>,
     mint::signer = mint_signer,
     mint::authority = authority,
     mint::decimals = 9,
-    mint::seeds = &[b"mint", &[bump]],
+    mint::seeds = &[b"mint"],
     mint::rent_payment = 4,      // 4 epochs of rent
     mint::write_top_up = 1000    // Extra lamports for writes
 )]
@@ -288,7 +289,7 @@ pub struct CreateMintAndPda<'info> {
         mint::signer = mint_signer,
         mint::authority = authority,
         mint::decimals = 9,
-        mint::seeds = &[b"mint", &[ctx.bumps.mint_signer]]
+        mint::seeds = &[b"mint"]
     )]
     pub mint: UncheckedAccount<'info>,
 

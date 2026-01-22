@@ -480,9 +480,14 @@ fn parse_light_token_list(
                                     )?;
                                 let mut seeds = Vec::new();
                                 for elem in &elems {
-                                    if let Ok(seed) = classify_seed_expr(elem, &instruction_args) {
-                                        seeds.push(seed);
-                                    }
+                                    let seed = classify_seed_expr(elem, &instruction_args)
+                                        .map_err(|e| {
+                                            syn::Error::new_spanned(
+                                                elem,
+                                                format!("invalid authority seed: {}", e),
+                                            )
+                                        })?;
+                                    seeds.push(seed);
                                 }
                                 authority_seeds = Some(seeds);
                             } else {
