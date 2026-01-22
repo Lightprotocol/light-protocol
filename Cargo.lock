@@ -1623,7 +1623,6 @@ dependencies = [
  "light-token-client",
  "light-token-interface",
  "light-token-types",
- "sha2 0.10.9",
  "solana-account",
  "solana-account-info",
  "solana-instruction",
@@ -3806,7 +3805,6 @@ dependencies = [
  "bs58",
  "proc-macro2",
  "quote",
- "sha2 0.10.9",
  "solana-pubkey 2.4.0",
  "syn 2.0.111",
 ]
