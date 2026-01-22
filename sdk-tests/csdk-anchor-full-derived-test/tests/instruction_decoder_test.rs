@@ -229,9 +229,9 @@ fn test_enhanced_decoder_params_decoding() {
         "Fields should contain decoded params"
     );
 
-    // The params field should contain the Debug output
-    let params_field = decoded.fields.iter().find(|f| f.name == "params");
-    assert!(params_field.is_some(), "Should have a 'params' field");
+    // The params field has empty name for inline display
+    let params_field = decoded.fields.first();
+    assert!(params_field.is_some(), "Should have a params field");
 
     let params_value = &params_field.unwrap().value;
     assert!(
@@ -450,7 +450,8 @@ fn test_attribute_macro_decoder_with_instruction_data() {
 
     // The attribute macro decodes params - requires Debug impl (compile error if missing)
     assert_eq!(decoded.fields.len(), 1, "Should have 1 field (params)");
-    assert_eq!(decoded.fields[0].name, "params");
+    // Field name is empty for inline params display
+    assert_eq!(decoded.fields[0].name, "");
 
     // Verify params contain expected values
     let params_value = &decoded.fields[0].value;
