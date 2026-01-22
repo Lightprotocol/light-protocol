@@ -1,7 +1,7 @@
 use std::{sync::Arc, time::Duration};
 
 use forester::compressible::{
-    AccountSubscriber, CompressibleAccountTracker, Compressor, LogSubscriber,
+    traits::CompressibleTracker, AccountSubscriber, CTokenAccountTracker, CTokenCompressor,
 };
 use forester_utils::{
     forester_epoch::get_epoch_phases,
@@ -192,6 +192,7 @@ async fn test_compressible_ctoken_compression() {
         enable_prover: false,
         wait_time: 10,
         sbf_programs: vec![],
+        upgradeable_programs: vec![],
         limit_ledger_size: None,
     })
     .await;
@@ -206,14 +207,14 @@ async fn test_compressible_ctoken_compression() {
         .await
         .expect("Failed to airdrop lamports");
     // Setup tracker and subscribers
-    let tracker = Arc::new(CompressibleAccountTracker::new());
+    let tracker = Arc::new(CTokenAccountTracker::new());
     let (shutdown_tx, shutdown_rx) = tokio::sync::broadcast::channel(1);
-    let shutdown_rx_log = shutdown_tx.subscribe();
 
     // Spawn account subscriber to track new/updated accounts
     let mut account_subscriber = AccountSubscriber::new(
         "ws://localhost:8900".to_string(),
         tracker.clone(),
+        forester::compressible::SubscriptionConfig::ctoken(),
         shutdown_rx,
     );
     let account_subscriber_handle = tokio::spawn(async move {
@@ -223,18 +224,6 @@ async fn test_compressible_ctoken_compression() {
             .expect("Account subscriber failed to run");
     });
 
-    // Spawn log subscriber to detect compress_and_close operations
-    let mut log_subscriber = LogSubscriber::new(
-        "ws://localhost:8900".to_string(),
-        tracker.clone(),
-        shutdown_rx_log,
-    );
-    let log_subscriber_handle = tokio::spawn(async move {
-        log_subscriber
-            .run()
-            .await
-            .expect("Log subscriber failed to run");
-    });
     sleep(Duration::from_secs(2)).await;
     // Create mint
     let mint_seed = Keypair::new();
@@ -261,7 +250,7 @@ async fn test_compressible_ctoken_compression() {
     .expect("Failed to create compressible token account");
     // Verify tracker has the account
     assert_eq!(tracker.len(), 1, "Tracker should have 1 account");
-    let accounts = tracker.get_compressible_accounts();
+    let accounts = tracker.get_all_token_accounts();
     assert_eq!(accounts.len(), 1);
     let account_state = &accounts[0];
     assert_eq!(account_state.pubkey, token_account_pubkey);
@@ -277,7 +266,7 @@ async fn test_compressible_ctoken_compression() {
     rpc.airdrop_lamports(&account_state.pubkey, 10_000_000)
         .await
         .expect("Failed to airdrop to token account");
-    let accounts = tracker.get_compressible_accounts();
+    let accounts = tracker.get_all_token_accounts();
     assert_eq!(accounts[0].lamports, lamports + 10_000_000);
     // Create second account with 0 epochs rent
     let token_account_pubkey_2 = create_compressible_token_account(
@@ -309,7 +298,8 @@ async fn test_compressible_ctoken_compression() {
         &ctx.forester_keypair.pubkey(),
         ctx.epoch.epoch,
     );
-    let compressor = Compressor::new(ctx.rpc_pool.clone(), tracker.clone(), ctx.forester_keypair);
+    let compressor =
+        CTokenCompressor::new(ctx.rpc_pool.clone(), tracker.clone(), ctx.forester_keypair);
     let compressor_handle = tokio::spawn(async move {
         compressor
             .compress_batch(&ready_accounts, registered_forester_pda)
@@ -346,7 +336,7 @@ async fn test_compressible_ctoken_compression() {
         1,
         "Tracker should have 1 account after compression"
     );
-    let remaining_accounts = tracker.get_compressible_accounts();
+    let remaining_accounts = tracker.get_all_token_accounts();
     assert_eq!(remaining_accounts.len(), 1);
     assert_eq!(remaining_accounts[0].pubkey, token_account_pubkey);
     // Shutdown
@@ -356,9 +346,6 @@ async fn test_compressible_ctoken_compression() {
     account_subscriber_handle
         .await
         .expect("Account subscriber task panicked");
-    log_subscriber_handle
-        .await
-        .expect("Log subscriber task panicked");
 }
 
 /// Test that bootstrap process picks up existing compressible token accounts
@@ -376,6 +363,7 @@ async fn test_compressible_ctoken_bootstrap() {
         enable_prover: false,
         wait_time: 10,
         sbf_programs: vec![],
+        upgradeable_programs: vec![],
         limit_ledger_size: None,
     })
     .await;
@@ -454,7 +442,7 @@ async fn run_bootstrap_test(
     );
 
     // Create empty tracker - should start with 0 accounts
-    let tracker = Arc::new(CompressibleAccountTracker::new());
+    let tracker = Arc::new(CTokenAccountTracker::new());
     assert_eq!(tracker.len(), 0, "Tracker should start empty");
 
     // Setup bootstrap
@@ -464,10 +452,10 @@ async fn run_bootstrap_test(
 
     println!("Starting bootstrap...");
     let bootstrap_handle = tokio::spawn(async move {
-        if let Err(e) = forester::compressible::bootstrap_compressible_accounts(
+        if let Err(e) = forester::compressible::bootstrap_ctoken_accounts(
             rpc_url_clone,
             tracker_clone,
-            shutdown_rx,
+            Some(shutdown_rx),
         )
         .await
         {
@@ -505,7 +493,7 @@ async fn run_bootstrap_test(
     }
 
     // Get all compressible accounts from tracker
-    let accounts = tracker.get_compressible_accounts();
+    let accounts = tracker.get_all_token_accounts();
 
     if let Some((expected_pubkeys, expected_mint)) = expected_data {
         // Verify specific accounts (localhost test)
@@ -584,6 +572,7 @@ async fn run_bootstrap_test(
 /// Requires MAINNET_RPC_URL environment variable to be set
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[serial]
+#[ignore = "requires mainnet RPC URL - run with: cargo test -p forester --test test_compressible_ctoken -- --ignored --nocapture"]
 async fn test_compressible_ctoken_bootstrap_mainnet() {
     use std::env;
 

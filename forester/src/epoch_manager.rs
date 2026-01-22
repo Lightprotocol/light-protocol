@@ -16,7 +16,7 @@ use forester_utils::{
 };
 use futures::future::join_all;
 use light_client::{
-    indexer::{MerkleProof, NewAddressProofWithContext},
+    indexer::{Indexer, MerkleProof, NewAddressProofWithContext},
     rpc::{LightClient, LightClientConfig, RetryConfig, Rpc, RpcError},
 };
 use light_compressed_account::TreeType;
@@ -46,7 +46,7 @@ use tokio::{
 use tracing::{debug, error, info, info_span, instrument, trace, warn};
 
 use crate::{
-    compressible::{CompressibleAccountTracker, Compressor},
+    compressible::{traits::CompressibleTracker, CTokenAccountTracker, CTokenCompressor},
     errors::{
         ChannelError, ForesterError, InitializationError, RegistrationError, WorkReportError,
     },
@@ -189,7 +189,7 @@ pub enum MerkleProofType {
 }
 
 #[derive(Debug)]
-pub struct EpochManager<R: Rpc> {
+pub struct EpochManager<R: Rpc + Indexer> {
     config: Arc<ForesterConfig>,
     protocol_config: Arc<ProtocolConfig>,
     rpc_pool: Arc<SolanaRpcPool<R>>,
@@ -207,13 +207,15 @@ pub struct EpochManager<R: Rpc> {
     proof_caches: Arc<DashMap<Pubkey, Arc<SharedProofCache>>>,
     state_processors: StateBatchProcessorMap<R>,
     address_processors: AddressBatchProcessorMap<R>,
-    compressible_tracker: Option<Arc<CompressibleAccountTracker>>,
+    compressible_tracker: Option<Arc<CTokenAccountTracker>>,
+    pda_tracker: Option<Arc<crate::compressible::pda::PdaAccountTracker>>,
+    mint_tracker: Option<Arc<crate::compressible::mint::MintAccountTracker>>,
     /// Cached zkp_batch_size per tree to filter queue updates below threshold
     zkp_batch_sizes: Arc<DashMap<Pubkey, u64>>,
     address_lookup_tables: Arc<Vec<AddressLookupTableAccount>>,
 }
 
-impl<R: Rpc> Clone for EpochManager<R> {
+impl<R: Rpc + Indexer> Clone for EpochManager<R> {
     fn clone(&self) -> Self {
         Self {
             config: self.config.clone(),
@@ -233,13 +235,15 @@ impl<R: Rpc> Clone for EpochManager<R> {
             state_processors: self.state_processors.clone(),
             address_processors: self.address_processors.clone(),
             compressible_tracker: self.compressible_tracker.clone(),
+            pda_tracker: self.pda_tracker.clone(),
+            mint_tracker: self.mint_tracker.clone(),
             zkp_batch_sizes: self.zkp_batch_sizes.clone(),
             address_lookup_tables: self.address_lookup_tables.clone(),
         }
     }
 }
 
-impl<R: Rpc> EpochManager<R> {
+impl<R: Rpc + Indexer> EpochManager<R> {
     #[allow(clippy::too_many_arguments)]
     pub async fn new(
         config: Arc<ForesterConfig>,
@@ -251,7 +255,9 @@ impl<R: Rpc> EpochManager<R> {
         new_tree_sender: broadcast::Sender<TreeAccounts>,
         tx_cache: Arc<Mutex<ProcessedHashCache>>,
         ops_cache: Arc<Mutex<ProcessedHashCache>>,
-        compressible_tracker: Option<Arc<CompressibleAccountTracker>>,
+        compressible_tracker: Option<Arc<CTokenAccountTracker>>,
+        pda_tracker: Option<Arc<crate::compressible::pda::PdaAccountTracker>>,
+        mint_tracker: Option<Arc<crate::compressible::mint::MintAccountTracker>>,
         address_lookup_tables: Arc<Vec<AddressLookupTableAccount>>,
     ) -> Result<Self> {
         let authority = Arc::new(config.payer_keypair.insecure_clone());
@@ -273,6 +279,8 @@ impl<R: Rpc> EpochManager<R> {
             state_processors: Arc::new(DashMap::new()),
             address_processors: Arc::new(DashMap::new()),
             compressible_tracker,
+            pda_tracker,
+            mint_tracker,
             zkp_batch_sizes: Arc::new(DashMap::new()),
             address_lookup_tables,
         })
@@ -1780,7 +1788,7 @@ impl<R: Rpc> EpochManager<R> {
             config.batch_size
         );
 
-        let compressor = Compressor::new(
+        let compressor = CTokenCompressor::new(
             self.rpc_pool.clone(),
             tracker.clone(),
             self.config.payer_keypair.insecure_clone(),
@@ -1901,9 +1909,219 @@ impl<R: Rpc> EpochManager<R> {
         }
 
         info!(
-            "Completed compression for epoch {}: compressed {} accounts",
+            "Completed ctoken compression for epoch {}: compressed {} accounts",
             epoch_info.epoch, total_compressed
         );
+
+        // Process PDA compression if configured
+        let pda_compressed = self
+            .dispatch_pda_compression(consecutive_eligibility_end)
+            .await
+            .unwrap_or_else(|e| {
+                error!("PDA compression failed: {:?}", e);
+                0
+            });
+
+        // Process Mint compression
+        let mint_compressed = self
+            .dispatch_mint_compression(consecutive_eligibility_end)
+            .await
+            .unwrap_or_else(|e| {
+                error!("Mint compression failed: {:?}", e);
+                0
+            });
+
+        let total = total_compressed + pda_compressed + mint_compressed;
+        info!(
+            "Completed all compression for epoch {}: {} ctoken + {} PDA + {} Mint = {} total",
+            epoch_info.epoch, total_compressed, pda_compressed, mint_compressed, total
+        );
+        Ok(total)
+    }
+
+    async fn dispatch_pda_compression(&self, consecutive_eligibility_end: u64) -> Result<usize> {
+        let pda_tracker = match &self.pda_tracker {
+            Some(tracker) => tracker,
+            None => return Ok(0),
+        };
+
+        let config = match &self.config.compressible_config {
+            Some(cfg) => cfg,
+            None => return Ok(0),
+        };
+
+        if config.pda_programs.is_empty() {
+            return Ok(0);
+        }
+
+        let current_slot = self.slot_tracker.estimated_current_slot();
+        if current_slot >= consecutive_eligibility_end {
+            debug!(
+                "Skipping PDA compression: forester no longer eligible (current_slot={}, eligibility_end={})",
+                current_slot, consecutive_eligibility_end
+            );
+            return Ok(0);
+        }
+
+        let mut total_compressed = 0;
+
+        // Shared cancellation flag across all programs
+        let cancelled = Arc::new(AtomicBool::new(false));
+
+        // Process each configured PDA program
+        for program_config in &config.pda_programs {
+            // Check cancellation at program level
+            if cancelled.load(Ordering::Relaxed) {
+                break;
+            }
+
+            let accounts = pda_tracker
+                .get_ready_to_compress_for_program(&program_config.program_id, current_slot);
+
+            if accounts.is_empty() {
+                trace!(
+                    "No compressible PDA accounts ready for program {}",
+                    program_config.program_id
+                );
+                continue;
+            }
+
+            info!(
+                "Processing {} compressible PDA accounts for program {}",
+                accounts.len(),
+                program_config.program_id
+            );
+
+            let pda_compressor = crate::compressible::pda::PdaCompressor::new(
+                self.rpc_pool.clone(),
+                pda_tracker.clone(),
+                self.config.payer_keypair.insecure_clone(),
+            );
+
+            // Fetch and cache config once per program
+            let cached_config = match pda_compressor.fetch_program_config(program_config).await {
+                Ok(cfg) => cfg,
+                Err(e) => {
+                    error!(
+                        "Failed to fetch config for program {}: {:?}",
+                        program_config.program_id, e
+                    );
+                    continue;
+                }
+            };
+
+            // Check eligibility before processing
+            let current_slot = self.slot_tracker.estimated_current_slot();
+            if current_slot >= consecutive_eligibility_end {
+                cancelled.store(true, Ordering::Relaxed);
+                warn!(
+                    "Stopping PDA compression: forester no longer eligible (current_slot={}, eligibility_end={})",
+                    current_slot, consecutive_eligibility_end
+                );
+                break;
+            }
+
+            // Process all accounts for this program concurrently
+            let results = pda_compressor
+                .compress_batch_concurrent(
+                    &accounts,
+                    program_config,
+                    &cached_config,
+                    config.max_concurrent_batches,
+                    cancelled.clone(),
+                )
+                .await;
+
+            // Process results (tracker cleanup already done by compressor)
+            for result in results {
+                match result {
+                    Ok((sig, account_state)) => {
+                        debug!(
+                            "Compressed PDA {} for program {}: {}",
+                            account_state.pubkey, program_config.program_id, sig
+                        );
+                        total_compressed += 1;
+                    }
+                    Err((account_state, e)) => {
+                        if e.to_string() != "Cancelled" {
+                            error!(
+                                "Failed to compress PDA {} for program {}: {:?}",
+                                account_state.pubkey, program_config.program_id, e
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
+        info!("Completed PDA compression: {} accounts", total_compressed);
+        Ok(total_compressed)
+    }
+
+    async fn dispatch_mint_compression(&self, consecutive_eligibility_end: u64) -> Result<usize> {
+        let mint_tracker = match &self.mint_tracker {
+            Some(tracker) => tracker,
+            None => return Ok(0),
+        };
+
+        let config = match &self.config.compressible_config {
+            Some(cfg) => cfg,
+            None => return Ok(0),
+        };
+
+        let current_slot = self.slot_tracker.estimated_current_slot();
+        if current_slot >= consecutive_eligibility_end {
+            debug!(
+                "Skipping Mint compression: forester no longer eligible (current_slot={}, eligibility_end={})",
+                current_slot, consecutive_eligibility_end
+            );
+            return Ok(0);
+        }
+
+        let accounts = mint_tracker.get_ready_to_compress(current_slot);
+
+        if accounts.is_empty() {
+            trace!("No compressible Mint accounts ready");
+            return Ok(0);
+        }
+
+        info!(
+            "Processing {} compressible Mint accounts concurrently (max_concurrent={})",
+            accounts.len(),
+            config.max_concurrent_batches
+        );
+
+        let mint_compressor = crate::compressible::mint::MintCompressor::new(
+            self.rpc_pool.clone(),
+            mint_tracker.clone(),
+            self.config.payer_keypair.insecure_clone(),
+        );
+
+        // Shared cancellation flag
+        let cancelled = Arc::new(AtomicBool::new(false));
+
+        // Process all mints concurrently
+        let results = mint_compressor
+            .compress_batch_concurrent(&accounts, config.max_concurrent_batches, cancelled)
+            .await;
+
+        // Process results (tracker cleanup already done by compressor)
+        let mut total_compressed = 0;
+        for result in results {
+            match result {
+                Ok((sig, mint_state)) => {
+                    debug!("Compressed Mint {}: {}", mint_state.pubkey, sig);
+                    total_compressed += 1;
+                }
+                Err((mint_state, e)) => {
+                    if e.to_string() != "Cancelled" {
+                        error!("Failed to compress Mint {}: {:?}", mint_state.pubkey, e);
+                    }
+                }
+            }
+        }
+
+        info!("Completed Mint compression: {} accounts", total_compressed);
         Ok(total_compressed)
     }
 
@@ -2841,7 +3059,7 @@ fn should_skip_tree(config: &ForesterConfig, tree_type: &TreeType) -> bool {
     fields(forester = %config.payer_keypair.pubkey())
 )]
 #[allow(clippy::too_many_arguments)]
-pub async fn run_service<R: Rpc>(
+pub async fn run_service<R: Rpc + Indexer>(
     config: Arc<ForesterConfig>,
     protocol_config: Arc<ProtocolConfig>,
     rpc_pool: Arc<SolanaRpcPool<R>>,
@@ -2850,7 +3068,9 @@ pub async fn run_service<R: Rpc>(
     slot_tracker: Arc<SlotTracker>,
     tx_cache: Arc<Mutex<ProcessedHashCache>>,
     ops_cache: Arc<Mutex<ProcessedHashCache>>,
-    compressible_tracker: Option<Arc<CompressibleAccountTracker>>,
+    compressible_tracker: Option<Arc<CTokenAccountTracker>>,
+    pda_tracker: Option<Arc<crate::compressible::pda::PdaAccountTracker>>,
+    mint_tracker: Option<Arc<crate::compressible::mint::MintAccountTracker>>,
 ) -> Result<()> {
     info_span!("run_service", forester = %config.payer_keypair.pubkey())
         .in_scope(|| async {
@@ -3038,6 +3258,8 @@ pub async fn run_service<R: Rpc>(
                     tx_cache.clone(),
                     ops_cache.clone(),
                     compressible_tracker.clone(),
+                    pda_tracker.clone(),
+                    mint_tracker.clone(),
                     address_lookup_tables,
                 )
                 .await

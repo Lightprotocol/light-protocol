@@ -106,6 +106,7 @@ solana-zk-token-sdk = "2.3"
 solana-logger = "2.3"
 solana-bn254 = "2.2"
 solana-sysvar = { version = "2.2" }
+solana-rent = { version = "2.2" }
 solana-program-error = { version = "2.2" }
 solana-account-info = { version = "2.2" }
 solana-transaction = { version = "2.2" }
@@ -240,6 +241,7 @@ light-indexed-array = { path = "program-libs/indexed-array", version = "0.3.0" }
 light-array-map = { path = "program-libs/array-map", version = "0.1.1" }
 light-program-profiler = { version = "0.1.0" }
 create-address-program-test = { path = "program-tests/create-address-test-program", version = "1.0.0" }
+sdk-compressible-test = { path = "sdk-tests/sdk-compressible-test", version = "0.1.0" }
 groth16-solana = { version = "0.2.0" }
 bytemuck = { version = "1.19.0" }
 arrayvec = "0.7"

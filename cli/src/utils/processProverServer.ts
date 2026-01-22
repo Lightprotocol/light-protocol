@@ -102,6 +102,7 @@ export async function startProver(proverPort: number, redisUrl?: string) {
 
   spawnBinary(getProverPathByArch(), args);
   await waitForServers([{ port: proverPort, path: "/" }]);
+  await new Promise((r) => setTimeout(r, 5000));
   console.log(`Prover started successfully!`);
 }
 

@@ -5,3 +5,5 @@ logs
 .env.devnet
 *.json
 !package.json
+spawn.sh
+spawn_devnet.sh

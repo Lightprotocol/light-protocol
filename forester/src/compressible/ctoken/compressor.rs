@@ -2,17 +2,15 @@ use std::{str::FromStr, sync::Arc};
 
 use anchor_lang::{InstructionData, ToAccountMetas};
 use forester_utils::rpc_pool::SolanaRpcPool;
-use light_client::{indexer::TreeInfo, rpc::Rpc};
-use light_compressed_account::TreeType;
+use light_client::{indexer::Indexer, rpc::Rpc};
 use light_compressible::config::CompressibleConfig;
 use light_registry::{
     accounts::CompressAndCloseContext, compressible::compressed_token::CompressAndCloseIndices,
     instruction::CompressAndClose,
 };
 use light_sdk::instruction::PackedAccounts;
-use light_token::compressed_token::compress_and_close::CompressAndCloseAccounts as CTokenAccounts;
+use light_token::compressed_token::CompressAndCloseAccounts as CTokenAccounts;
 use light_token_interface::LIGHT_TOKEN_PROGRAM_ID;
-use solana_pubkey::pubkey;
 use solana_sdk::{
     instruction::Instruction,
     pubkey::Pubkey,
@@ -21,19 +19,20 @@ use solana_sdk::{
 };
 use tracing::{debug, info};
 
-use super::{state::CompressibleAccountTracker, types::CompressibleAccountState};
-use crate::Result;
+use super::{state::CTokenAccountTracker, types::CTokenAccountState};
+use crate::{
+    compressible::{config::REGISTRY_PROGRAM_ID, traits::CompressibleTracker},
+    Result,
+};
 
-const REGISTRY_PROGRAM_ID_STR: &str = "Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX";
-
-/// Compression executor that builds and sends compress_and_close transactions via registry program
-pub struct Compressor<R: Rpc> {
+/// Compression executor for CToken accounts via the registry program's compress_and_close instruction.
+pub struct CTokenCompressor<R: Rpc + Indexer> {
     rpc_pool: Arc<SolanaRpcPool<R>>,
-    tracker: Arc<CompressibleAccountTracker>,
+    tracker: Arc<CTokenAccountTracker>,
     payer_keypair: Keypair,
 }
 
-impl<R: Rpc> Clone for Compressor<R> {
+impl<R: Rpc + Indexer> Clone for CTokenCompressor<R> {
     fn clone(&self) -> Self {
         Self {
             rpc_pool: Arc::clone(&self.rpc_pool),
@@ -43,10 +42,10 @@ impl<R: Rpc> Clone for Compressor<R> {
     }
 }
 
-impl<R: Rpc> Compressor<R> {
+impl<R: Rpc + Indexer> CTokenCompressor<R> {
     pub fn new(
         rpc_pool: Arc<SolanaRpcPool<R>>,
-        tracker: Arc<CompressibleAccountTracker>,
+        tracker: Arc<CTokenAccountTracker>,
         payer_keypair: Keypair,
     ) -> Self {
         Self {
@@ -58,10 +57,10 @@ impl<R: Rpc> Compressor<R> {
 
     pub async fn compress_batch(
         &self,
-        account_states: &[CompressibleAccountState],
+        account_states: &[CTokenAccountState],
         registered_forester_pda: Pubkey,
     ) -> Result<Signature> {
-        let registry_program_id = Pubkey::from_str(REGISTRY_PROGRAM_ID_STR)?;
+        let registry_program_id = Pubkey::from_str(REGISTRY_PROGRAM_ID)?;
         let compressed_token_program_id = Pubkey::new_from_array(LIGHT_TOKEN_PROGRAM_ID);
 
         // Derive compression_authority PDA deterministically (version = 1)
@@ -86,21 +85,13 @@ impl<R: Rpc> Compressor<R> {
         // Get output tree from RPC
         let mut rpc = self.rpc_pool.get_connection().await?;
 
-        // FIXME: Use latest active state tree after updating lookup tables
-        // rpc.get_latest_active_state_trees()
-        //     .await
-        //     .map_err(|e| anyhow::anyhow!("Failed to get state tree info: {}", e))?;
-        // let output_tree_info = rpc
-        //     .get_random_state_tree_info()
-        //     .map_err(|e| anyhow::anyhow!("Failed to get state tree info: {}", e))?;
-
-        let output_tree_info = TreeInfo {
-            tree: pubkey!("bmt1LryLZUMmF7ZtqESaw7wifBXLfXHQYoE4GAmrahU"),
-            queue: pubkey!("oq1na8gojfdUhsfCpyjNt6h4JaDWtHf1yQj4koBWfto"),
-            cpi_context: Some(pubkey!("cpi15BoVPKgEPw5o8wc2T816GE7b378nMXnhH3Xbq4y")),
-            tree_type: TreeType::StateV2,
-            next_tree_info: None,
-        };
+        // Fetch latest active state trees and get a random one
+        rpc.get_latest_active_state_trees()
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to get state tree info: {}", e))?;
+        let output_tree_info = rpc
+            .get_random_state_tree_info()
+            .map_err(|e| anyhow::anyhow!("Failed to get random state tree info: {}", e))?;
 
         let output_queue = output_tree_info
             .get_output_pubkey()
@@ -224,8 +215,6 @@ impl<R: Rpc> Compressor<R> {
         };
 
         // Send transaction
-        // Note: Account removal from tracker is handled by LogSubscriber which parses
-        // the "compress_and_close:<pubkey>" logs emitted by the registry program
         let signature = rpc
             .create_and_send_transaction(
                 &[ix],
@@ -240,6 +229,26 @@ impl<R: Rpc> Compressor<R> {
             account_states.iter().map(|a| a.pubkey.to_string()),
             signature
         );
+
+        // Wait for confirmation before removing from tracker
+        let confirmed = rpc
+            .confirm_transaction(signature)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to confirm transaction: {}", e))?;
+
+        if confirmed {
+            // Only remove from tracker after confirmed
+            for account_state in account_states {
+                self.tracker.remove(&account_state.pubkey);
+            }
+            info!("compress_and_close tx confirmed: {}", signature);
+        } else {
+            // Transaction not confirmed - keep accounts in tracker for retry
+            tracing::warn!(
+                "compress_and_close tx not confirmed: {} - accounts kept in tracker for retry",
+                signature
+            );
+        }
 
         Ok(signature)
     }

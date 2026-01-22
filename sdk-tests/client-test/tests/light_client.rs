@@ -53,6 +53,7 @@ async fn test_all_endpoints() {
         enable_prover: true,
         wait_time: 10,
         sbf_programs: vec![],
+        upgradeable_programs: vec![],
         limit_ledger_size: None,
     };
 

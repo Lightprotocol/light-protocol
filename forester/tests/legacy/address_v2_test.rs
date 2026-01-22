@@ -60,6 +60,7 @@ async fn test_create_v2_address() {
             "FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy".to_string(),
             "../target/deploy/create_address_test_program.so".to_string(),
         )],
+        upgradeable_programs: vec![],
         limit_ledger_size: Some(500000),
     }))
     .await;

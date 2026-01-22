@@ -362,16 +362,34 @@ impl ForesterConfig {
             derivation_pubkey: derivation,
             address_tree_data: vec![],
             state_tree_data: vec![],
-            compressible_config: if args.enable_compressible {
+            compressible_config: if args.enable_compressible
+                || !args.compressible_pda_programs.is_empty()
+            {
                 match &args.ws_rpc_url {
-                    Some(ws_url) => Some(crate::compressible::config::CompressibleConfig::new(
-                        ws_url.clone(),
-                    )),
+                    Some(ws_url) => {
+                        // Parse PDA program configurations
+                        let pda_programs: Vec<crate::compressible::config::PdaProgramConfig> = args
+                            .compressible_pda_programs
+                            .iter()
+                            .map(|s| {
+                                s.parse::<crate::compressible::config::PdaProgramConfig>()
+                                    .map_err(|e| ConfigError::InvalidArguments {
+                                        field: "compressible_pda_programs",
+                                        invalid_values: vec![e],
+                                    })
+                            })
+                            .collect::<std::result::Result<Vec<_>, _>>()?;
+
+                        Some(
+                            crate::compressible::config::CompressibleConfig::new(ws_url.clone())
+                                .with_pda_programs(pda_programs),
+                        )
+                    }
                     None => {
                         return Err(ConfigError::InvalidArguments {
-                            field: "enable_compressible",
+                            field: "ws_rpc_url",
                             invalid_values: vec![
-                                "--ws-rpc-url is required when --enable-compressible is true"
+                                "--ws-rpc-url is required when --enable-compressible is true or --compressible-pda-program is specified"
                                     .to_string(),
                             ],
                         }

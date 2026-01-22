@@ -23,7 +23,7 @@ use solana_sdk::{
     signature::Keypair, signer::Signer,
 };
 use tokio::{
-    sync::{mpsc, oneshot, Mutex},
+    sync::{mpsc, oneshot},
     time::sleep,
 };
 
@@ -38,6 +38,7 @@ async fn test_epoch_monitor_with_2_foresters() {
         enable_prover: true,
         wait_time: 90,
         sbf_programs: vec![],
+        upgradeable_programs: vec![],
         limit_ledger_size: None,
     }))
     .await;
@@ -215,22 +216,22 @@ async fn test_epoch_monitor_with_2_foresters() {
     let (work_report_sender1, mut work_report_receiver1) = mpsc::channel(100);
     let (work_report_sender2, mut work_report_receiver2) = mpsc::channel(100);
 
-    let indexer = Arc::new(Mutex::new(env.indexer));
-
-    let service_handle1 = tokio::spawn(run_pipeline::<LightClient, TestIndexer>(
+    let service_handle1 = tokio::spawn(run_pipeline::<LightClient>(
         config1.clone(),
         None,
         None,
-        indexer.clone(),
         shutdown_receiver1,
+        None,
+        None,
         work_report_sender1,
     ));
-    let service_handle2 = tokio::spawn(run_pipeline::<LightClient, TestIndexer>(
+    let service_handle2 = tokio::spawn(run_pipeline::<LightClient>(
         config2.clone(),
         None,
         None,
-        indexer,
         shutdown_receiver2,
+        None,
+        None,
         work_report_sender2,
     ));
 
@@ -384,6 +385,7 @@ async fn test_epoch_double_registration() {
         enable_prover: true,
         wait_time: 90,
         sbf_programs: vec![],
+        upgradeable_programs: vec![],
         limit_ledger_size: None,
     }))
     .await;
@@ -453,22 +455,18 @@ async fn test_epoch_double_registration() {
 
     let config = Arc::new(config);
 
-    let mut indexer: TestIndexer =
-        TestIndexer::init_from_acounts(&config.payer_keypair, &test_accounts, 0).await;
-    indexer.state_merkle_trees.remove(1);
-    let indexer = Arc::new(Mutex::new(indexer));
-
     for _ in 0..10 {
         let (shutdown_sender, shutdown_receiver) = oneshot::channel();
         let (work_report_sender, _work_report_receiver) = mpsc::channel(100);
 
         // Run the forester pipeline
-        let service_handle = tokio::spawn(run_pipeline::<LightClient, TestIndexer>(
+        let service_handle = tokio::spawn(run_pipeline::<LightClient>(
             config.clone(),
             None,
             None,
-            indexer.clone(),
             shutdown_receiver,
+            None,
+            None,
             work_report_sender.clone(),
         ));
 

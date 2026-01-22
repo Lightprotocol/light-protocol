@@ -333,7 +333,7 @@ async fn try_compress_chunk(
     use solana_sdk::signature::Signer;
 
     // Attempt compression per-account idempotently.
-    for (pda, acc) in chunk.iter() {
+    for (pda, _acc) in chunk.iter() {
         // v2 address derive using PDA as seed
         let addr = derive_address(
             &pda.to_bytes(),
@@ -363,7 +363,6 @@ async fn try_compress_chunk(
             program_id,
             &instructions::COMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR,
             &[*pda],
-            std::slice::from_ref(acc),
             program_metas,
             proof_with_context,
         )

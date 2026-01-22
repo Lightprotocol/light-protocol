@@ -42,7 +42,7 @@ use solana_sdk::{
     signer::Signer,
 };
 use tokio::{
-    sync::{mpsc, oneshot, Mutex},
+    sync::{mpsc, oneshot},
     time::{sleep, timeout},
 };
 
@@ -81,6 +81,7 @@ async fn test_state_indexer_async_batched() {
         enable_prover: true,
         wait_time: 30,
         sbf_programs: vec![],
+        upgradeable_programs: vec![],
         limit_ledger_size: None,
     }))
     .await;
@@ -283,13 +284,13 @@ async fn setup_forester_pipeline(
     let (shutdown_sender, shutdown_receiver) = oneshot::channel();
     let (work_report_sender, work_report_receiver) = mpsc::channel(100);
 
-    let forester_photon_indexer = create_photon_indexer();
-    let service_handle = tokio::spawn(run_pipeline::<LightClient, PhotonIndexer>(
+    let service_handle = tokio::spawn(run_pipeline::<LightClient>(
         Arc::from(config.clone()),
         None,
         None,
-        Arc::new(Mutex::new(forester_photon_indexer)),
         shutdown_receiver,
+        None,
+        None,
         work_report_sender,
     ));
 

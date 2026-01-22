@@ -32,8 +32,8 @@ litesvm = { workspace = true }
 spl-token-2022 = { workspace = true }
 
 
-light-registry = { workspace = true, version = "2.0.0", features = ["cpi"], optional = true }
-light-compressed-token = { workspace = true, version = "2.0.0", features = ["cpi"], optional = true }
+light-registry = { workspace = true, features = ["cpi"], optional = true }
+light-compressed-token = { workspace = true, features = ["cpi"], optional = true }
 account-compression = { workspace = true, features = ["cpi"], optional = true }
 photon-api = { workspace = true }
 

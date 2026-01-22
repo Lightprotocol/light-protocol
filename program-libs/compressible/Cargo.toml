@@ -34,6 +34,7 @@ light-account-checks = { workspace= true }
 light-compressed-account = { workspace= true }
 aligned-sized = { workspace= true }
 solana-sysvar = {workspace = true, optional = true}
+solana-rent = { workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }

@@ -29,6 +29,7 @@ light-sdk = { workspace = true, features = ["anchor"] }
 light-program-test = { workspace = true }
 light-compressible = { workspace = true, default-features = false, features = ["solana"] }
 light-token-interface = { workspace = true }
+light-token-client = { workspace = true }
 light-token = { workspace = true }
 solana-rpc-client-api = { workspace = true }
 solana-transaction-status = { workspace = true }
@@ -42,6 +43,7 @@ futures = { workspace = true }
 thiserror = { workspace = true }
 borsh = { workspace = true }
 bs58 = { workspace = true }
+hex = "0.4"
 env_logger = { workspace = true }
 async-trait = { workspace = true }
 tracing = { workspace = true }
@@ -64,7 +66,7 @@ serial_test = { workspace = true }
 light-prover-client = { workspace = true, features = ["devenv"] }
 light-test-utils = { workspace = true }
 light-program-test = { workspace = true, features = ["devenv"] }
-light-token-client = { workspace = true }
 light-compressed-token = { workspace = true }
 rand = { workspace = true }
 create-address-test-program = { workspace = true }
+csdk-anchor-full-derived-test = { path = "../sdk-tests/csdk-anchor-full-derived-test", features = ["no-entrypoint"] }

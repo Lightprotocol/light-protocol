@@ -21,6 +21,7 @@ class SetupCommand extends Command {
     "$ light test-validator --geyser-config ./config.json",
     '$ light test-validator --validator-args "--limit-ledger-size 50000000"',
     "$ light test-validator --sbf-program <address> <path/program>",
+    "$ light test-validator --upgradeable-program <address> <path/program> <upgrade_authority>",
     "$ light test-validator --devnet",
     "$ light test-validator --mainnet",
   ];
@@ -111,6 +112,14 @@ class SetupCommand extends Command {
       multiple: true,
       summary: "Usage: --sbf-program <address> <path/program_name.so>",
     }),
+    "upgradeable-program": Flags.string({
+      description:
+        "Add an upgradeable SBF program to the genesis configuration. Required for programs that need compressible config initialization. If the ledger already exists then this parameter is silently ignored.",
+      required: false,
+      multiple: true,
+      summary:
+        "Usage: --upgradeable-program <address> <path/program_name.so> <upgrade_authority>",
+    }),
     devnet: Flags.boolean({
       description:
         "Clone Light Protocol programs and accounts from devnet instead of loading local binaries.",
@@ -134,10 +143,22 @@ class SetupCommand extends Command {
     }),
   };
 
-  validatePrograms(programs: { address: string; path: string }[]): void {
-    // Check for duplicate addresses among provided programs
+  validatePrograms(
+    programs: { address: string; path: string }[],
+    upgradeablePrograms: {
+      address: string;
+      path: string;
+      upgradeAuthority: string;
+    }[],
+  ): void {
+    // Check for duplicate addresses among all provided programs
     const addresses = new Set<string>();
-    for (const program of programs) {
+    const allPrograms = [
+      ...programs.map((p) => ({ ...p, type: "sbf" })),
+      ...upgradeablePrograms.map((p) => ({ ...p, type: "upgradeable" })),
+    ];
+
+    for (const program of allPrograms) {
       if (addresses.has(program.address)) {
         this.error(`Duplicate program address detected: ${program.address}`);
       }
@@ -192,24 +213,46 @@ class SetupCommand extends Command {
       });
       this.log("\nTest validator stopped successfully \x1b[32m✔\x1b[0m");
     } else {
-      const rawValues = flags["sbf-program"] || [];
-
-      if (rawValues.length % 2 !== 0) {
+      // Parse --sbf-program flags (2 arguments each: address, path)
+      const rawSbfValues = flags["sbf-program"] || [];
+      if (rawSbfValues.length % 2 !== 0) {
         this.error("Each --sbf-program flag must have exactly two arguments");
       }
 
       const programs: { address: string; path: string }[] = [];
-      for (let i = 0; i < rawValues.length; i += 2) {
+      for (let i = 0; i < rawSbfValues.length; i += 2) {
         programs.push({
-          address: rawValues[i],
-          path: rawValues[i + 1],
+          address: rawSbfValues[i],
+          path: rawSbfValues[i + 1],
         });
       }
 
-      this.validatePrograms(programs);
+      // Parse --upgradeable-program flags (3 arguments each: address, path, upgrade_authority)
+      const rawUpgradeableValues = flags["upgradeable-program"] || [];
+      if (rawUpgradeableValues.length % 3 !== 0) {
+        this.error(
+          "Each --upgradeable-program flag must have exactly three arguments: <address> <path> <upgrade_authority>",
+        );
+      }
+
+      const upgradeablePrograms: {
+        address: string;
+        path: string;
+        upgradeAuthority: string;
+      }[] = [];
+      for (let i = 0; i < rawUpgradeableValues.length; i += 3) {
+        upgradeablePrograms.push({
+          address: rawUpgradeableValues[i],
+          path: rawUpgradeableValues[i + 1],
+          upgradeAuthority: rawUpgradeableValues[i + 2],
+        });
+      }
+
+      this.validatePrograms(programs, upgradeablePrograms);
 
       await initTestEnv({
         additionalPrograms: programs,
+        upgradeablePrograms: upgradeablePrograms,
         checkPhotonVersion: !flags["relax-indexer-version-constraint"],
         indexer: !flags["skip-indexer"],
         limitLedgerSize: flags["limit-ledger-size"],

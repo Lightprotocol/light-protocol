@@ -9,7 +9,7 @@ use light_sdk_macros::LightAccount;
 
 /// A struct with exactly one Pubkey field.
 /// PackedSinglePubkeyRecord will have: owner_index: u8
-#[derive(Default, Debug, InitSpace, LightAccount)]
+#[derive(Default, Debug, PartialEq, InitSpace, LightAccount)]
 #[account]
 pub struct SinglePubkeyRecord {
     pub compression_info: Option<CompressionInfo>,

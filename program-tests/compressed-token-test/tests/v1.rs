@@ -4890,6 +4890,7 @@ async fn test_transfer_with_photon_and_batched_tree() {
         enable_prover: true,
         wait_time: 15,
         sbf_programs: vec![],
+        upgradeable_programs: vec![],
         limit_ledger_size: None,
     })
     .await;

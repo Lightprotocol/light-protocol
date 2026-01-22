@@ -81,3 +81,48 @@ jobs:
 
       - name: Test
         run: cargo test --package forester e2e_test -- --nocapture
+
+  compressible-tests:
+    name: Forester compressible tests
+    runs-on: warp-ubuntu-latest-x64-4x
+    timeout-minutes: 60
+
+    services:
+      redis:
+        image: redis:8.0.1
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      RUST_LOG: forester=debug,light_client=debug
+      REDIS_URL: redis://localhost:6379
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup and build
+        uses: ./.github/actions/setup-and-build
+        with:
+          skip-components: "go"
+          cache-key: "rust"
+
+      - name: Build CLI
+        run: npx nx build @lightprotocol/zk-compression-cli
+
+      - name: Build test programs
+        run: |
+          cargo build-sbf --manifest-path sdk-tests/csdk-anchor-full-derived-test/Cargo.toml
+
+      - name: Test compressible PDA
+        run: cargo test --package forester --test test_compressible_pda -- --nocapture
+
+      - name: Test compressible Mint
+        run: cargo test --package forester --test test_compressible_mint -- --nocapture
+
+      - name: Test compressible ctoken
+        run: cargo test --package forester --test test_compressible_ctoken -- --nocapture
