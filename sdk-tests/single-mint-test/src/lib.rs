@@ -42,11 +42,12 @@ pub struct CreateMint<'info> {
 
     /// CHECK: Initialized by light_mint CPI
     #[account(mut)]
-    #[light_account(init, mint,
-        mint_signer = mint_signer,
-        authority = fee_payer,
-        decimals = 9,
-        mint_seeds = &[MINT_SIGNER_SEED, self.authority.to_account_info().key.as_ref(), &[params.mint_signer_bump]]
+    #[light_account(init,
+        mint::signer = mint_signer,
+        mint::authority = fee_payer,
+        mint::decimals = 9,
+        mint::seeds = &[MINT_SIGNER_SEED, self.authority.to_account_info().key.as_ref()],
+        mint::bump = params.mint_signer_bump
     )]
     pub mint: UncheckedAccount<'info>,
 

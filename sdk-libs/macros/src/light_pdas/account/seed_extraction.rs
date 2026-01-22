@@ -8,7 +8,12 @@ use std::collections::HashSet;
 use syn::{Expr, Ident, ItemStruct, Type};
 
 use crate::{
-    light_pdas::shared_utils::{extract_terminal_ident, is_constant_identifier},
+    light_pdas::{
+        light_account_keywords::{
+            is_standalone_keyword, unknown_key_error, valid_keys_for_namespace,
+        },
+        shared_utils::{extract_terminal_ident, is_constant_identifier},
+    },
     utils::snake_to_camel_case,
 };
 
@@ -139,8 +144,10 @@ pub struct ExtractedAccountsInfo {
     pub struct_name: Ident,
     pub pda_fields: Vec<ExtractedSeedSpec>,
     pub token_fields: Vec<ExtractedTokenSpec>,
-    /// True if struct has any #[light_account(init)] fields
+    /// True if struct has any #[light_account(init, mint::...)] fields
     pub has_light_mint_fields: bool,
+    /// True if struct has any #[light_account(init, associated_token::...)] fields
+    pub has_light_ata_fields: bool,
 }
 
 /// Extract rentfree field info from an Accounts struct
@@ -156,6 +163,7 @@ pub fn extract_from_accounts_struct(
     let mut pda_fields = Vec::new();
     let mut token_fields = Vec::new();
     let mut has_light_mint_fields = false;
+    let mut has_light_ata_fields = false;
 
     for field in fields {
         let field_ident = match &field.ident {
@@ -164,11 +172,14 @@ pub fn extract_from_accounts_struct(
         };
 
         // Check for #[light_account(...)] attribute and determine its type
-        let (has_light_account_pda, has_light_account_mint) =
+        let (has_light_account_pda, has_light_account_mint, has_light_account_ata) =
             check_light_account_type(&field.attrs);
 
         if has_light_account_mint {
             has_light_mint_fields = true;
+        }
+        if has_light_account_ata {
+            has_light_ata_fields = true;
         }
 
         // Check for #[light_account(token, ...)] attribute
@@ -222,8 +233,12 @@ pub fn extract_from_accounts_struct(
         }
     }
 
-    // If no rentfree/light_mint fields found, return None
-    if pda_fields.is_empty() && token_fields.is_empty() && !has_light_mint_fields {
+    // If no rentfree/light_mint/ata fields found, return None
+    if pda_fields.is_empty()
+        && token_fields.is_empty()
+        && !has_light_mint_fields
+        && !has_light_ata_fields
+    {
         return Ok(None);
     }
 
@@ -269,12 +284,19 @@ pub fn extract_from_accounts_struct(
         pda_fields,
         token_fields,
         has_light_mint_fields,
+        has_light_ata_fields,
     }))
 }
 
-/// Check #[light_account(...)] attributes for PDA or mint type.
-/// Returns (has_pda, has_mint) indicating which type was detected.
-fn check_light_account_type(attrs: &[syn::Attribute]) -> (bool, bool) {
+/// Check #[light_account(...)] attributes for PDA, mint, or ATA type.
+/// Returns (has_pda, has_mint, has_ata) indicating which type was detected.
+///
+/// Types:
+/// - PDA: `#[light_account(init)]` only (no namespace prefix)
+/// - Mint: `#[light_account(init, mint::...)]`
+/// - Token: `#[light_account(init, token::...)]` or `#[light_account(token::...)]`
+/// - ATA: `#[light_account(init, associated_token::...)]` or `#[light_account(associated_token::...)]`
+fn check_light_account_type(attrs: &[syn::Attribute]) -> (bool, bool, bool) {
     for attr in attrs {
         if attr.path().is_ident("light_account") {
             // Parse the content to determine if it's init-only (PDA) or init+mint (Mint)
@@ -283,38 +305,68 @@ fn check_light_account_type(attrs: &[syn::Attribute]) -> (bool, bool) {
                 _ => continue,
             };
 
-            // Single pass to check for both "init" and "mint" keywords
-            let mut has_mint = false;
-            let mut has_init = false;
-            for token in tokens {
-                if let proc_macro2::TokenTree::Ident(ident) = token {
-                    if ident == "mint" {
-                        has_mint = true;
-                    } else if ident == "init" {
-                        has_init = true;
-                    }
-                }
-            }
+            let token_vec: Vec<_> = tokens.clone().into_iter().collect();
+
+            // Helper to check for a namespace prefix (e.g., "mint", "token", "associated_token")
+            let has_namespace_prefix = |namespace: &str| {
+                token_vec.windows(2).any(|window| {
+                    matches!(
+                        (&window[0], &window[1]),
+                        (
+                            proc_macro2::TokenTree::Ident(ident),
+                            proc_macro2::TokenTree::Punct(punct)
+                        ) if ident == namespace && punct.as_char() == ':'
+                    )
+                })
+            };
+
+            let has_mint_namespace = has_namespace_prefix("mint");
+            let has_token_namespace = has_namespace_prefix("token");
+            let has_ata_namespace = has_namespace_prefix("associated_token");
+
+            // Check for init keyword
+            let has_init = token_vec
+                .iter()
+                .any(|t| matches!(t, proc_macro2::TokenTree::Ident(ident) if ident == "init"));
 
             if has_init {
-                // If has mint, it's a mint field; otherwise it's a PDA
-                return (!has_mint, has_mint);
+                // If has mint namespace, it's a mint field
+                if has_mint_namespace {
+                    return (false, true, false);
+                }
+                // If has associated_token namespace, it's an ATA field
+                if has_ata_namespace {
+                    return (false, false, true);
+                }
+                // If has token namespace, it's NOT a PDA (handled separately)
+                if has_token_namespace {
+                    return (false, false, false);
+                }
+                // Otherwise it's a plain PDA init
+                return (true, false, false);
             }
         }
     }
-    (false, false)
+    (false, false, false)
 }
 
-/// Parsed #[light_account(token, ...)] attribute
+/// Parsed #[light_account(token, ...)] or #[light_account(associated_token, ...)] attribute
 struct LightTokenAttr {
     /// Optional variant name - if None, derived from field name
     variant_name: Option<Ident>,
     authority_seeds: Option<Vec<ClassifiedSeed>>,
+    /// The account type: "token" or "associated_token"
+    #[allow(dead_code)]
+    account_type: String,
 }
 
-/// Extract #[light_account(token, authority = [...])] attribute
+/// Extract #[light_account(token::..., ...)] attribute
 /// Variant name is derived from field name, not specified in attribute
 /// Returns Err if the attribute exists but has malformed syntax
+///
+/// Note: This function currently only handles `token` accounts, not `associated_token`.
+/// Associated token accounts are handled differently (they use `authority` instead of `owner`).
+/// The ExtractedTokenSpec struct is designed for token accounts with authority seeds.
 fn extract_light_token_attr(
     attrs: &[syn::Attribute],
     instruction_args: &InstructionArgSet,
@@ -326,15 +378,22 @@ fn extract_light_token_attr(
                 _ => continue,
             };
 
-            // Check if "token" keyword is present (without requiring "init")
-            let has_token = tokens
-                .clone()
-                .into_iter()
-                .any(|t| matches!(&t, proc_macro2::TokenTree::Ident(ident) if ident == "token"));
+            // Check for token namespace (token::...) - new syntax
+            // Look for pattern: ident "token" followed by "::"
+            let token_vec: Vec<_> = tokens.clone().into_iter().collect();
+            let has_token_namespace = token_vec.windows(2).any(|window| {
+                matches!(
+                    (&window[0], &window[1]),
+                    (
+                        proc_macro2::TokenTree::Ident(ident),
+                        proc_macro2::TokenTree::Punct(punct)
+                    ) if ident == "token" && punct.as_char() == ':'
+                )
+            });
 
-            if has_token {
-                // Parse authority = [...] - propagate errors instead of swallowing them
-                let parsed = parse_light_token_list(&tokens, instruction_args)?;
+            if has_token_namespace {
+                // Parse attribute content - propagate errors instead of swallowing them
+                let parsed = parse_light_token_list(&tokens, instruction_args, "token")?;
                 return Ok(Some(parsed));
             }
         }
@@ -342,51 +401,139 @@ fn extract_light_token_attr(
     Ok(None)
 }
 
-/// Parse light_account(token, authority = [...]) content
+/// Parse light_account(token::..., ...) content with namespace::key syntax
 fn parse_light_token_list(
     tokens: &proc_macro2::TokenStream,
     instruction_args: &InstructionArgSet,
+    account_type: &str,
 ) -> syn::Result<LightTokenAttr> {
     use syn::parse::Parser;
 
-    // Capture instruction_args for use in closure
+    // Capture instruction_args and account_type for use in closure
     let instruction_args = instruction_args.clone();
+    let account_type_owned = account_type.to_string();
+    let valid_keys = valid_keys_for_namespace(account_type);
+
     let parser = move |input: syn::parse::ParseStream| -> syn::Result<LightTokenAttr> {
         let mut authority_seeds = None;
 
-        // Parse comma-separated items looking for "token" and "authority = [...]"
+        // Parse comma-separated items
         while !input.is_empty() {
             if input.peek(Ident) {
                 let ident: Ident = input.parse()?;
+                let ident_str = ident.to_string();
 
-                if ident == "token" {
-                    // Skip the token keyword, continue parsing
-                } else if ident == "authority" {
-                    // Parse authority = [...]
-                    input.parse::<syn::Token![=]>()?;
-                    let array: syn::ExprArray = input.parse()?;
-                    let mut seeds = Vec::new();
-                    for elem in &array.elems {
-                        if let Ok(seed) = classify_seed_expr(elem, &instruction_args) {
-                            seeds.push(seed);
-                        }
+                // Check for namespace::key syntax FIRST (before standalone keywords)
+                // because "token" can be both a standalone keyword and a namespace prefix
+                if input.peek(syn::Token![:]) {
+                    // Namespace::key syntax (e.g., token::authority = [...])
+                    // Parse first colon
+                    input.parse::<syn::Token![:]>()?;
+                    // Parse second colon
+                    if input.peek(syn::Token![:]) {
+                        input.parse::<syn::Token![:]>()?;
                     }
-                    authority_seeds = Some(seeds);
+
+                    let key: Ident = input.parse()?;
+                    let key_str = key.to_string();
+
+                    // Validate namespace matches expected account type
+                    if ident_str != account_type_owned {
+                        // Different namespace, skip (might be associated_token::)
+                        // Just consume any value after =
+                        if input.peek(syn::Token![=]) {
+                            input.parse::<syn::Token![=]>()?;
+                            let _expr: syn::Expr = input.parse()?;
+                        }
+                    } else {
+                        // Validate key for this namespace
+                        if !valid_keys.contains(&key_str.as_str()) {
+                            return Err(syn::Error::new_spanned(
+                                &key,
+                                unknown_key_error(&account_type_owned, &key_str),
+                            ));
+                        }
+
+                        // Check if value follows
+                        if input.peek(syn::Token![=]) {
+                            input.parse::<syn::Token![=]>()?;
+
+                            if key_str == "authority" {
+                                // Parse authority = [...] array
+                                // The array is represented as a Group(Bracket) in proc_macro2
+                                // Use input.step to manually handle the Group
+                                let array_content = input.step(|cursor| {
+                                    if let Some((group, _span, rest)) =
+                                        cursor.group(proc_macro2::Delimiter::Bracket)
+                                    {
+                                        Ok((group.token_stream(), rest))
+                                    } else {
+                                        Err(cursor.error("expected bracketed array"))
+                                    }
+                                })?;
+
+                                // Parse the array content
+                                let elems: syn::punctuated::Punctuated<syn::Expr, syn::Token![,]> =
+                                    syn::parse::Parser::parse2(
+                                        syn::punctuated::Punctuated::parse_terminated,
+                                        array_content,
+                                    )?;
+                                let mut seeds = Vec::new();
+                                for elem in &elems {
+                                    let seed = classify_seed_expr(elem, &instruction_args)
+                                        .map_err(|e| {
+                                            syn::Error::new_spanned(
+                                                elem,
+                                                format!("invalid authority seed: {}", e),
+                                            )
+                                        })?;
+                                    seeds.push(seed);
+                                }
+                                authority_seeds = Some(seeds);
+                            } else {
+                                // Other keys (mint, owner, bump) - just consume the value
+                                let _expr: syn::Expr = input.parse()?;
+                            }
+                        }
+                        // If no = follows for shorthand keys, it's fine - we don't need the value
+                    }
+                } else if is_standalone_keyword(&ident_str) {
+                    // Standalone keywords (init, token, associated_token, mint)
+                    // Just continue - these don't require values
+                } else {
+                    // Unknown standalone identifier (not a keyword, not namespace::key)
+                    return Err(syn::Error::new_spanned(
+                        &ident,
+                        format!(
+                            "Unknown keyword `{}` in #[light_account(...)]. \
+                             Use namespaced syntax: `{}::authority = [...]`, `{}::mint`, etc.",
+                            ident_str, account_type_owned, account_type_owned
+                        ),
+                    ));
                 }
+            } else {
+                // Non-identifier token - error
+                let valid_kw_str = valid_keys.join(", ");
+                return Err(syn::Error::new(
+                    input.span(),
+                    format!(
+                        "Expected keyword in #[light_account(...)]. \
+                         Valid namespaced keys: {}::{{{}}}, or standalone: init",
+                        account_type_owned, valid_kw_str
+                    ),
+                ));
             }
 
-            // Skip comma if present
+            // Consume comma if present
             if input.peek(syn::Token![,]) {
                 input.parse::<syn::Token![,]>()?;
-            } else if !input.is_empty() {
-                // Skip unexpected tokens
-                let _: proc_macro2::TokenTree = input.parse()?;
             }
         }
 
         Ok(LightTokenAttr {
             variant_name: None, // Variant name is always derived from field name
             authority_seeds,
+            account_type: account_type_owned.clone(),
         })
     };
 
@@ -1032,5 +1179,75 @@ mod tests {
         assert!(args.contains("owner"));
         assert!(args.contains("amount"));
         assert!(args.contains("flag"));
+    }
+
+    #[test]
+    fn test_check_light_account_type_mint_namespace() {
+        // Test that mint:: namespace is detected correctly
+        let attrs: Vec<syn::Attribute> = vec![parse_quote!(
+            #[light_account(init,
+                mint::signer = mint_signer,
+                mint::authority = fee_payer,
+                mint::decimals = 6
+            )]
+        )];
+        let (has_pda, has_mint, has_ata) = check_light_account_type(&attrs);
+        assert!(!has_pda, "Should NOT be detected as PDA");
+        assert!(has_mint, "Should be detected as mint");
+        assert!(!has_ata, "Should NOT be detected as ATA");
+    }
+
+    #[test]
+    fn test_check_light_account_type_pda_only() {
+        // Test that plain init (no mint::) is detected as PDA
+        let attrs: Vec<syn::Attribute> = vec![parse_quote!(
+            #[light_account(init)]
+        )];
+        let (has_pda, has_mint, has_ata) = check_light_account_type(&attrs);
+        assert!(has_pda, "Should be detected as PDA");
+        assert!(!has_mint, "Should NOT be detected as mint");
+        assert!(!has_ata, "Should NOT be detected as ATA");
+    }
+
+    #[test]
+    fn test_check_light_account_type_token_namespace() {
+        // Test that token:: namespace is not detected as mint (it's neither PDA nor mint nor ATA)
+        let attrs: Vec<syn::Attribute> = vec![parse_quote!(
+            #[light_account(token::authority = [b"auth"])]
+        )];
+        let (has_pda, has_mint, has_ata) = check_light_account_type(&attrs);
+        assert!(!has_pda, "Should NOT be detected as PDA (no init)");
+        assert!(!has_mint, "Should NOT be detected as mint");
+        assert!(!has_ata, "Should NOT be detected as ATA");
+    }
+
+    #[test]
+    fn test_check_light_account_type_associated_token_init() {
+        // Test that associated_token:: with init is detected as ATA
+        let attrs: Vec<syn::Attribute> = vec![parse_quote!(
+            #[light_account(init,
+                associated_token::authority = owner,
+                associated_token::mint = mint
+            )]
+        )];
+        let (has_pda, has_mint, has_ata) = check_light_account_type(&attrs);
+        assert!(!has_pda, "Should NOT be detected as PDA");
+        assert!(!has_mint, "Should NOT be detected as mint");
+        assert!(has_ata, "Should be detected as ATA");
+    }
+
+    #[test]
+    fn test_check_light_account_type_token_init() {
+        // Test that token:: with init is NOT detected as PDA
+        let attrs: Vec<syn::Attribute> = vec![parse_quote!(
+            #[light_account(init,
+                token::authority = [b"vault_auth"],
+                token::mint = mint
+            )]
+        )];
+        let (has_pda, has_mint, has_ata) = check_light_account_type(&attrs);
+        assert!(!has_pda, "Should NOT be detected as PDA");
+        assert!(!has_mint, "Should NOT be detected as mint");
+        assert!(!has_ata, "Should NOT be detected as ATA");
     }
 }

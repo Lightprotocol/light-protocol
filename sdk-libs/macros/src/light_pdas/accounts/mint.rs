@@ -32,14 +32,20 @@ pub(super) struct LightMintField {
     pub authority: Expr,
     /// Decimals for the mint
     pub decimals: Expr,
-    /// Address tree info expression
+    /// Address tree info expression (auto-fetched from CreateAccountsProof)
     pub address_tree_info: Expr,
+    /// Output state tree index expression (auto-fetched from CreateAccountsProof)
+    pub output_tree: Expr,
     /// Optional freeze authority
     pub freeze_authority: Option<Ident>,
-    /// Signer seeds for the mint_signer PDA (required)
+    /// Signer seeds for the mint_signer PDA (required, WITHOUT bump - bump is auto-derived or provided via mint_bump)
     pub mint_seeds: Expr,
-    /// Signer seeds for the authority PDA (optional - if not provided, authority must be a tx signer)
+    /// Optional bump for mint_seeds. If None, auto-derived using find_program_address.
+    pub mint_bump: Option<Expr>,
+    /// Signer seeds for the authority PDA (optional - if not provided, authority must be a tx signer, WITHOUT bump)
     pub authority_seeds: Option<Expr>,
+    /// Optional bump for authority_seeds. If None, auto-derived using find_program_address.
+    pub authority_bump: Option<Expr>,
     /// Rent payment epochs for decompression (default: 2)
     pub rent_payment: Option<Expr>,
     /// Write top-up lamports for decompression (default: 0)
@@ -210,17 +216,56 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
             let bump_ident = format_ident!("__mint_bump_{}", idx);
             let signer_key_ident = format_ident!("__mint_signer_key_{}", idx);
             let mint_seeds_ident = format_ident!("__mint_seeds_{}", idx);
+            let mint_seeds_with_bump_ident = format_ident!("__mint_seeds_with_bump_{}", idx);
+            let mint_signer_bump_ident = format_ident!("__mint_signer_bump_{}", idx);
             let authority_seeds_ident = format_ident!("__authority_seeds_{}", idx);
+            let authority_seeds_with_bump_ident = format_ident!("__authority_seeds_with_bump_{}", idx);
+            let authority_bump_ident = format_ident!("__authority_bump_{}", idx);
             let token_metadata_ident = format_ident!("__mint_token_metadata_{}", idx);
 
-            // Generate optional authority seeds binding
+            // Generate mint_seeds binding with bump derivation/appending
+            // User provides base seeds WITHOUT bump, we auto-derive or use provided bump
+            let mint_bump_derivation = mint.mint_bump
+                .as_ref()
+                .map(|b| quote! { let #mint_signer_bump_ident: u8 = #b; })
+                .unwrap_or_else(|| {
+                    // Auto-derive bump from mint_seeds
+                    quote! {
+                        let #mint_signer_bump_ident: u8 = {
+                            let (_, bump) = solana_pubkey::Pubkey::find_program_address(#mint_seeds_ident, &crate::ID);
+                            bump
+                        };
+                    }
+                });
+
+            // Generate optional authority seeds binding with bump derivation/appending
             let authority_seeds_binding = match authority_seeds {
-                Some(seeds) => quote! {
-                    let #authority_seeds_ident: &[&[u8]] = #seeds;
-                    let #authority_seeds_ident = Some(#authority_seeds_ident);
+                Some(seeds) => {
+                    let authority_bump_derivation = mint.authority_bump
+                        .as_ref()
+                        .map(|b| quote! { let #authority_bump_ident: u8 = #b; })
+                        .unwrap_or_else(|| {
+                            // Auto-derive bump from authority_seeds
+                            quote! {
+                                let #authority_bump_ident: u8 = {
+                                    let base_seeds: &[&[u8]] = #seeds;
+                                    let (_, bump) = solana_pubkey::Pubkey::find_program_address(base_seeds, &crate::ID);
+                                    bump
+                                };
+                            }
+                        });
+                    quote! {
+                        let #authority_seeds_ident: &[&[u8]] = #seeds;
+                        #authority_bump_derivation
+                        // Build Vec with bump appended (using Vec since we can't create fixed-size array at compile time)
+                        let mut #authority_seeds_with_bump_ident: Vec<&[u8]> = #authority_seeds_ident.to_vec();
+                        let __auth_bump_slice: &[u8] = &[#authority_bump_ident];
+                        #authority_seeds_with_bump_ident.push(__auth_bump_slice);
+                        let #authority_seeds_with_bump_ident: Option<Vec<&[u8]>> = Some(#authority_seeds_with_bump_ident);
+                    }
                 },
                 None => quote! {
-                    let #authority_seeds_ident: Option<&[&[u8]]> = None;
+                    let #authority_seeds_with_bump_ident: Option<Vec<&[u8]>> = None;
                 },
             };
 
@@ -262,7 +307,14 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
                 let #signer_key_ident = *self.#mint_signer.to_account_info().key;
                 let (#pda_ident, #bump_ident) = light_token::instruction::find_mint_address(&#signer_key_ident);
 
+                // Bind base mint_seeds (WITHOUT bump) and derive/get bump
                 let #mint_seeds_ident: &[&[u8]] = #mint_seeds;
+                #mint_bump_derivation
+                // Build Vec with bump appended
+                let mut #mint_seeds_with_bump_ident: Vec<&[u8]> = #mint_seeds_ident.to_vec();
+                let __mint_bump_slice: &[u8] = &[#mint_signer_bump_ident];
+                #mint_seeds_with_bump_ident.push(__mint_bump_slice);
+
                 #authority_seeds_binding
                 #token_metadata_binding
 
@@ -277,8 +329,8 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
                     bump: #bump_ident,
                     freeze_authority: #freeze_authority,
                     mint_seed_pubkey: #signer_key_ident,
-                    authority_seeds: #authority_seeds_ident,
-                    mint_signer_seeds: Some(#mint_seeds_ident),
+                    authority_seeds: #authority_seeds_with_bump_ident.as_deref(),
+                    mint_signer_seeds: Some(&#mint_seeds_with_bump_ident[..]),
                     token_metadata: #token_metadata_ident.as_ref(),
                 };
             }
@@ -311,9 +363,10 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
         })
         .collect();
 
-    // Get rent_payment and write_top_up from first mint (all mints share same params for now)
+    // Get shared params from first mint (all mints share same params for now)
     let rent_payment = quote_option_or(&mints[0].rent_payment, quote! { 16u8 });
     let write_top_up = quote_option_or(&mints[0].write_top_up, quote! { 766u32 });
+    let output_tree = &mints[0].output_tree;
 
     // Authority signer check for mints without authority_seeds
     let authority_signer_checks: Vec<TokenStream> = mints
@@ -356,11 +409,11 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
             ];
 
             // Get tree accounts and indices
-            // Output queue for state (compressed accounts) is at tree index 0
+            // Output queue for state (compressed accounts) uses output_state_tree_index from proof
             // State merkle tree index comes from the proof (set by pack_proof_for_mints)
             // Address merkle tree index comes from the proof's address_tree_info
             let __tree_info = &#proof_access.address_tree_info;
-            let __output_queue_index: u8 = 0;
+            let __output_queue_index: u8 = #output_tree;
             let __state_tree_index: u8 = #proof_access.state_tree_index
                 .ok_or(anchor_lang::prelude::ProgramError::InvalidArgument)?;
             let __address_tree_index: u8 = __tree_info.address_merkle_tree_pubkey_index;

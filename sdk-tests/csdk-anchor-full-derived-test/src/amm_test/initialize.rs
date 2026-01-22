@@ -77,12 +77,14 @@ pub struct InitializePool<'info> {
     pub lp_mint_signer: UncheckedAccount<'info>, // TODO: check where the cpi gets the seeds from
 
     #[account(mut)]
-    #[light_account(init, mint,
-        mint_signer = lp_mint_signer,
-        authority = authority,
-        decimals = 9,
-        mint_seeds = &[POOL_LP_MINT_SIGNER_SEED, self.pool_state.to_account_info().key.as_ref(), &[params.lp_mint_signer_bump]],
-        authority_seeds = &[AUTH_SEED.as_bytes(), &[params.authority_bump]]  // TODO: get the authority seeds from authority if defined
+    #[light_account(init,
+        mint::signer = lp_mint_signer,
+        mint::authority = authority,
+        mint::decimals = 9,
+        mint::seeds = &[POOL_LP_MINT_SIGNER_SEED, self.pool_state.to_account_info().key.as_ref()],
+        mint::bump = params.lp_mint_signer_bump,
+        mint::authority_seeds = &[AUTH_SEED.as_bytes()],
+        mint::authority_bump = params.authority_bump
     )]
     pub lp_mint: UncheckedAccount<'info>,
 
@@ -112,7 +114,7 @@ pub struct InitializePool<'info> {
         ],
         bump,
     )]
-    #[light_account(token, authority = [AUTH_SEED.as_bytes()])]
+    #[light_account(token::authority = [AUTH_SEED.as_bytes()])]
     pub token_0_vault: UncheckedAccount<'info>,
 
     #[account(
@@ -124,7 +126,7 @@ pub struct InitializePool<'info> {
         ],
         bump,
     )]
-    #[light_account(token, authority = [AUTH_SEED.as_bytes()])]
+    #[light_account(token::authority = [AUTH_SEED.as_bytes()])]
     pub token_1_vault: UncheckedAccount<'info>,
 
     #[account(

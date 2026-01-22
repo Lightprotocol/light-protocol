@@ -1,15 +1,29 @@
-# `#[light_account(init, mint,...)]` Attribute
+# `#[light_account(init, mint::...)]` Attribute
 
 ## Overview
 
-The `#[light_account(init, mint,...)]` attribute marks a field in an Anchor Accounts struct for compressed mint creation. When applied to a `Mint` account field, it generates code to create a compressed mint with automatic decompression support.
+The `#[light_account(init, mint::...)]` attribute marks a field in an Anchor Accounts struct for compressed mint creation. When applied to a `Mint` account field, it generates code to create a compressed mint with automatic decompression support.
 
-**Source**: `sdk-libs/macros/src/rentfree/accounts/light_mint.rs`
+**Source**: `sdk-libs/macros/src/light_pdas/accounts/light_account.rs`
+
+## Syntax
+
+All parameters use the Anchor-style `mint::` namespace prefix. The account type is inferred from the namespace:
+
+```rust
+#[light_account(init,
+    mint::signer = mint_signer,
+    mint::authority = authority,
+    mint::decimals = 9,
+    mint::seeds = &[b"mint_signer"]
+)]
+pub mint: UncheckedAccount<'info>,
+```
 
 ## Usage
 
 ```rust
-use light_sdk_macros::RentFree;
+use light_sdk_macros::LightAccounts;
 use anchor_lang::prelude::*;
 
 #[derive(Accounts, LightAccounts)]
@@ -25,13 +39,13 @@ pub struct CreateMint<'info> {
     pub authority: Signer<'info>,
 
     /// The Mint account to create
-    #[light_account(init, mint,
-        mint_signer = mint_signer,
-        authority = authority,
-        decimals = 9,
-        mint_seeds = &[b"mint_signer", &[ctx.bumps.mint_signer]]
+    #[light_account(init,
+        mint::signer = mint_signer,
+        mint::authority = authority,
+        mint::decimals = 9,
+        mint::seeds = &[b"mint_signer"]
     )]
-    pub mint: Account<'info, Mint>,
+    pub mint: UncheckedAccount<'info>,
 
     // Infrastructure accounts (auto-detected by name)
     pub light_token_compressible_config: Account<'info, CtokenConfig>,
@@ -45,20 +59,21 @@ pub struct CreateMint<'info> {
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
-| `mint_signer` | Field reference | The AccountInfo that seeds the mint PDA. The mint address is derived from this signer. |
-| `authority` | Field reference | The mint authority. Either a transaction signer or a PDA (if `authority_seeds` is provided). |
-| `decimals` | Expression | Token decimals (e.g., `9` for 9 decimal places). |
-| `mint_seeds` | Slice expression | PDA signer seeds for `mint_signer`. Must be a `&[&[u8]]` expression that matches the `#[account(seeds = ...)]` on `mint_signer`, **including the bump**. |
+| `mint::signer` | Field reference | The AccountInfo that seeds the mint PDA. The mint address is derived from this signer. |
+| `mint::authority` | Field reference | The mint authority. Either a transaction signer or a PDA (if `mint::authority_seeds` is provided). |
+| `mint::decimals` | Expression | Token decimals (e.g., `9` for 9 decimal places). |
+| `mint::seeds` | Slice expression | Base PDA signer seeds for `mint_signer`. Must be a `&[&[u8]]` expression matching the base seeds in `#[account(seeds = ...)]` on `mint_signer`. The bump is appended automatically (see `mint::bump`). |
 
 ## Optional Attributes
 
 | Attribute | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `address_tree_info` | Expression | `params.create_accounts_proof.address_tree_info` | `PackedAddressTreeInfo` containing tree indices. |
-| `freeze_authority` | Field reference | None | Optional freeze authority field. |
-| `authority_seeds` | Slice expression | None | PDA signer seeds for `authority`. If not provided, `authority` must be a transaction signer. |
-| `rent_payment` | Expression | `2u8` | Rent payment epochs for decompression. |
-| `write_top_up` | Expression | `0u32` | Write top-up lamports for decompression. |
+| `mint::bump` | Expression | Auto-derived | Bump seed for the mint signer PDA, automatically appended to `mint::seeds`. If not provided, uses `ctx.bumps.<mint_signer_field>`. |
+| `mint::freeze_authority` | Field reference | None | Optional freeze authority field. |
+| `mint::authority_seeds` | Slice expression | None | PDA signer seeds for `authority`. If not provided, `authority` must be a transaction signer. |
+| `mint::authority_bump` | Expression | Auto-derived | Explicit bump seed for authority PDA. |
+| `mint::rent_payment` | Expression | `16u8` | Rent payment epochs for decompression. |
+| `mint::write_top_up` | Expression | `766u32` | Write top-up lamports for decompression. |
 
 ## TokenMetadata Fields
 
@@ -66,31 +81,32 @@ Optional fields for creating a mint with the TokenMetadata extension:
 
 | Attribute | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `name` | Expression | - | Token name (expression yielding `Vec<u8>`). |
-| `symbol` | Expression | - | Token symbol (expression yielding `Vec<u8>`). |
-| `uri` | Expression | - | Token URI (expression yielding `Vec<u8>`). |
-| `update_authority` | Field reference | None | Optional update authority for metadata. |
-| `additional_metadata` | Expression | None | Additional key-value metadata (expression yielding `Option<Vec<AdditionalMetadata>>`). |
+| `mint::name` | Expression | - | Token name (expression yielding `Vec<u8>`). |
+| `mint::symbol` | Expression | - | Token symbol (expression yielding `Vec<u8>`). |
+| `mint::uri` | Expression | - | Token URI (expression yielding `Vec<u8>`). |
+| `mint::update_authority` | Field reference | None | Optional update authority for metadata. |
+| `mint::additional_metadata` | Expression | None | Additional key-value metadata (expression yielding `Option<Vec<AdditionalMetadata>>`). |
 
 ### Validation Rules
 
-1. **Core fields are all-or-nothing**: `name`, `symbol`, and `uri` must ALL be specified together, or none at all.
-2. **Optional fields require core fields**: `update_authority` and `additional_metadata` require `name`, `symbol`, and `uri` to also be specified.
+1. **Core fields are all-or-nothing**: `mint::name`, `mint::symbol`, and `mint::uri` must ALL be specified together, or none at all.
+2. **Optional fields require core fields**: `mint::update_authority` and `mint::additional_metadata` require `mint::name`, `mint::symbol`, and `mint::uri` to also be specified.
 
 ### Metadata Example
 
 ```rust
-#[light_account(init, mint,
-    mint_signer = mint_signer,
-    authority = fee_payer,
-    decimals = 9,
-    mint_seeds = &[SEED, self.authority.key().as_ref(), &[params.bump]],
+#[light_account(init,
+    mint::signer = mint_signer,
+    mint::authority = fee_payer,
+    mint::decimals = 9,
+    mint::seeds = &[SEED, self.authority.key().as_ref()],
+    mint::bump = params.bump,
     // TokenMetadata fields
-    name = params.name.clone(),
-    symbol = params.symbol.clone(),
-    uri = params.uri.clone(),
-    update_authority = authority,
-    additional_metadata = params.additional_metadata.clone()
+    mint::name = params.name.clone(),
+    mint::symbol = params.symbol.clone(),
+    mint::uri = params.uri.clone(),
+    mint::update_authority = authority,
+    mint::additional_metadata = params.additional_metadata.clone()
 )]
 pub mint: UncheckedAccount<'info>,
 ```
@@ -99,15 +115,15 @@ pub mint: UncheckedAccount<'info>,
 
 ```rust
 // ERROR: name without symbol and uri
-#[light_account(init, mint,
-    ...,
-    name = params.name.clone()
+#[light_account(init,
+    mint::signer = ...,
+    mint::name = params.name.clone()
 )]
 
 // ERROR: additional_metadata without name, symbol, uri
-#[light_account(init, mint,
-    ...,
-    additional_metadata = params.additional_metadata.clone()
+#[light_account(init,
+    mint::signer = ...,
+    mint::additional_metadata = params.additional_metadata.clone()
 )]
 ```
 
@@ -121,16 +137,17 @@ The mint address is derived from the `mint_signer` field:
 let (mint_pda, bump) = light_token::instruction::find_mint_address(mint_signer.key);
 ```
 
-### Signer Seeds (mint_seeds)
+### Signer Seeds (mint::seeds)
 
-The `mint_seeds` attribute provides the PDA signer seeds used for `invoke_signed` when calling the light token program. These seeds must derive to the `mint_signer` pubkey for the CPI to succeed.
+The `mint::seeds` attribute provides the **base** PDA signer seeds used for `invoke_signed` when calling the light token program. The bump is automatically appended to these seeds (from `mint::bump` or `ctx.bumps.<mint_signer_field>`). The complete seeds must derive to the `mint_signer` pubkey for the CPI to succeed.
 
 ```rust
-#[light_account(init, mint,
-    mint_signer = mint_signer,
-    authority = mint_authority,
-    decimals = 9,
-    mint_seeds = &[LP_MINT_SIGNER_SEED, self.authority.to_account_info().key.as_ref(), &[params.mint_signer_bump]]
+#[light_account(init,
+    mint::signer = mint_signer,
+    mint::authority = mint_authority,
+    mint::decimals = 9,
+    mint::seeds = &[LP_MINT_SIGNER_SEED, self.authority.to_account_info().key.as_ref()],
+    mint::bump = params.mint_signer_bump
 )]
 pub mint: UncheckedAccount<'info>,
 ```
@@ -138,12 +155,12 @@ pub mint: UncheckedAccount<'info>,
 **Syntax notes:**
 - Use `self.field` to reference accounts in the struct
 - Use `.to_account_info().key` to get account pubkeys
-- The bump must be passed explicitly (typically via instruction params)
+- The bump can be provided explicitly via `mint::bump` or auto-derived
 
-The generated code uses these seeds to sign the CPI:
+The generated code appends the bump and uses these seeds to sign the CPI:
 
 ```rust
-let mint_seeds: &[&[u8]] = &[...]; // from mint_seeds attribute
+let mint_seeds: &[&[u8]] = &[...base_seeds..., &[bump]]; // base from mint::seeds, bump appended
 invoke_signed(&mint_action_ix, &account_infos, &[mint_seeds])?;
 ```
 
@@ -178,13 +195,13 @@ pub struct CreateBasicMint<'info> {
 
     pub authority: Signer<'info>,
 
-    #[light_account(init, mint,
-        mint_signer = mint_signer,
-        authority = authority,
-        decimals = 6,
-        mint_seeds = &[b"mint", &[ctx.bumps.mint_signer]]
+    #[light_account(init,
+        mint::signer = mint_signer,
+        mint::authority = authority,
+        mint::decimals = 6,
+        mint::seeds = &[b"mint"]
     )]
-    pub mint: Account<'info, Mint>,
+    pub mint: UncheckedAccount<'info>,
 
     // ... infrastructure accounts
 }
@@ -192,7 +209,7 @@ pub struct CreateBasicMint<'info> {
 
 ### Mint with PDA Authority
 
-When the authority is a PDA, provide `authority_seeds`:
+When the authority is a PDA, provide `mint::authority_seeds`:
 
 ```rust
 #[derive(Accounts, LightAccounts)]
@@ -209,14 +226,15 @@ pub struct CreateMintWithPdaAuthority<'info> {
     #[account(seeds = [b"authority"], bump)]
     pub authority: AccountInfo<'info>,
 
-    #[light_account(init, mint,
-        mint_signer = mint_signer,
-        authority = authority,
-        decimals = 9,
-        mint_seeds = &[b"mint", &[ctx.bumps.mint_signer]],
-        authority_seeds = &[b"authority", &[ctx.bumps.authority]]
+    #[light_account(init,
+        mint::signer = mint_signer,
+        mint::authority = authority,
+        mint::decimals = 9,
+        mint::seeds = &[b"mint"],
+        mint::authority_seeds = &[b"authority"],
+        mint::authority_bump = params.authority_bump
     )]
-    pub mint: Account<'info, Mint>,
+    pub mint: UncheckedAccount<'info>,
 
     // ... infrastructure accounts
 }
@@ -225,14 +243,14 @@ pub struct CreateMintWithPdaAuthority<'info> {
 ### Mint with Freeze Authority
 
 ```rust
-#[light_account(init, mint,
-    mint_signer = mint_signer,
-    authority = authority,
-    decimals = 9,
-    mint_seeds = &[b"mint", &[bump]],
-    freeze_authority = freeze_auth
+#[light_account(init,
+    mint::signer = mint_signer,
+    mint::authority = authority,
+    mint::decimals = 9,
+    mint::seeds = &[b"mint"],
+    mint::freeze_authority = freeze_auth
 )]
-pub mint: Account<'info, Mint>,
+pub mint: UncheckedAccount<'info>,
 
 /// Optional freeze authority
 pub freeze_auth: Signer<'info>,
@@ -241,15 +259,15 @@ pub freeze_auth: Signer<'info>,
 ### Custom Decompression Settings
 
 ```rust
-#[light_account(init, mint,
-    mint_signer = mint_signer,
-    authority = authority,
-    decimals = 9,
-    mint_seeds = &[b"mint", &[bump]],
-    rent_payment = 4,      // 4 epochs of rent
-    write_top_up = 1000    // Extra lamports for writes
+#[light_account(init,
+    mint::signer = mint_signer,
+    mint::authority = authority,
+    mint::decimals = 9,
+    mint::seeds = &[b"mint"],
+    mint::rent_payment = 4,      // 4 epochs of rent
+    mint::write_top_up = 1000    // Extra lamports for writes
 )]
-pub mint: Account<'info, Mint>,
+pub mint: UncheckedAccount<'info>,
 ```
 
 ### Combined with #[light_account(init)] PDAs
@@ -267,13 +285,13 @@ pub struct CreateMintAndPda<'info> {
 
     pub authority: Signer<'info>,
 
-    #[light_account(init, mint,
-        mint_signer = mint_signer,
-        authority = authority,
-        decimals = 9,
-        mint_seeds = &[b"mint", &[ctx.bumps.mint_signer]]
+    #[light_account(init,
+        mint::signer = mint_signer,
+        mint::authority = authority,
+        mint::decimals = 9,
+        mint::seeds = &[b"mint"]
     )]
-    pub mint: Account<'info, Mint>,
+    pub mint: UncheckedAccount<'info>,
 
     #[account(
         init,
@@ -289,7 +307,7 @@ pub struct CreateMintAndPda<'info> {
 }
 ```
 
-When both `#[light_account(init)]` and `#[light_account(init)]` are present, the macro:
+When both `#[light_account(init)]` and `#[light_account(init, mint::...)]` are present, the macro:
 1. Processes PDAs first, writing them to the CPI context
 2. Invokes mint_action with CPI context to batch the mint creation
 3. Uses `assigned_account_index` to order the mint relative to PDAs
@@ -309,12 +327,12 @@ The macro requires certain infrastructure accounts, auto-detected by naming conv
 ## Validation
 
 The macro validates at compile time:
-- `mint_signer`, `authority`, `decimals`, and `mint_seeds` are required
+- `mint::signer`, `mint::authority`, `mint::decimals`, and `mint::seeds` are required
 - `#[instruction(...)]` attribute must be present on the struct
-- If `authority_seeds` is not provided, the generated code verifies `authority` is a transaction signer at runtime
+- If `mint::authority_seeds` is not provided, the generated code verifies `authority` is a transaction signer at runtime
 
 ## Related Documentation
 
-- **`../rentfree.md`** - Full RentFree derive macro documentation
-- **`../rentfree_program/`** - Program-level `#[rentfree_program]` macro
+- **`../CLAUDE.md`** - Main entry point for sdk-libs/macros
+- **`../light_program/`** - Program-level `#[light_program]` macro
 - **`../account/`** - Trait derives for data structs

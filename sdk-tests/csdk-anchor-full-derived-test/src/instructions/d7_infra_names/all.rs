@@ -55,7 +55,7 @@ pub struct D7AllNames<'info> {
         seeds = [D7_ALL_VAULT_SEED, mint.key().as_ref()],
         bump,
     )]
-    #[light_account(token, authority = [D7_ALL_AUTH_SEED])]
+    #[light_account(token::authority = [D7_ALL_AUTH_SEED])]
     pub d7_all_vault: UncheckedAccount<'info>,
 
     #[account(address = COMPRESSIBLE_CONFIG_V1)]

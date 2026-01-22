@@ -29,6 +29,11 @@ use super::{
 /// Generate token account creation CPI code for a single token account field.
 ///
 /// Generated code uses `CreateTokenAccountCpi` with rent-free mode and PDA signing.
+///
+/// Bump handling:
+/// - If `bump` parameter is provided, uses that value
+/// - If `bump` is not provided, auto-derives using `Pubkey::find_program_address()`
+/// - Bump is always appended as the final seed in the signer seeds
 #[allow(dead_code)]
 pub(super) fn generate_token_account_cpi(
     field: &TokenAccountField,
@@ -44,18 +49,18 @@ pub(super) fn generate_token_account_cpi(
     let light_token_rent_sponsor = &infra.light_token_rent_sponsor;
     let fee_payer = &infra.fee_payer;
 
-    // Generate authority seeds array from parsed seeds
+    // Generate authority seeds array from parsed seeds (WITHOUT bump - bump is added separately)
     // Bind each seed to a local variable first, then call .as_ref() to avoid
     // temporary lifetime issues (e.g., self.mint.key() creates a Pubkey that
     // would be dropped before .as_ref() completes if done in one expression)
     //
-    // User provides expressions WITHOUT .as_ref() - code generation adds it:
-    //   authority = [SEED, self.mint.key(), &[bump]]
+    // User provides expressions WITHOUT bump in the array:
+    //   authority = [SEED, self.mint.key()]
     // Generates:
     //   let __seed_0 = SEED; let __seed_0_ref: &[u8] = __seed_0.as_ref();
     //   let __seed_1 = self.mint.key(); let __seed_1_ref: &[u8] = __seed_1.as_ref();
-    //   let __seed_2 = &[bump]; let __seed_2_ref: &[u8] = __seed_2.as_ref();
-    //   &[__seed_0_ref, __seed_1_ref, __seed_2_ref]
+    //   // bump is auto-derived or provided via bump parameter
+    //   &[__seed_0_ref, __seed_1_ref, &[bump]]
     let authority_seeds = &field.authority_seeds;
     let seed_bindings: Vec<TokenStream> = authority_seeds
         .iter()
@@ -78,10 +83,37 @@ pub(super) fn generate_token_account_cpi(
             quote! { #ref_name }
         })
         .collect();
+
+    // Get bump - either from parameter or auto-derive using find_program_address
+    let bump_derivation = field
+        .bump
+        .as_ref()
+        .map(|b| quote! { let __bump: u8 = #b; })
+        .unwrap_or_else(|| {
+            // Auto-derive bump from seeds
+            if authority_seeds.is_empty() {
+                quote! {
+                    let __bump: u8 = {
+                        let (_, bump) = solana_pubkey::Pubkey::find_program_address(&[], &crate::ID);
+                        bump
+                    };
+                }
+            } else {
+                quote! {
+                    let __bump: u8 = {
+                        let seeds: &[&[u8]] = &[#(#seed_refs),*];
+                        let (_, bump) = solana_pubkey::Pubkey::find_program_address(seeds, &crate::ID);
+                        bump
+                    };
+                }
+            }
+        });
+
+    // Build seeds array with bump appended as final seed
     let seeds_array_expr = if authority_seeds.is_empty() {
-        quote! { &[] }
+        quote! { &[&__bump_slice[..]] }
     } else {
-        quote! { &[#(#seed_refs),*] }
+        quote! { &[#(#seed_refs,)* &__bump_slice[..]] }
     };
 
     // Get mint and owner from field or derive from context
@@ -106,6 +138,10 @@ pub(super) fn generate_token_account_cpi(
 
             // Bind seeds to local variables to extend temporary lifetimes
             #(#seed_bindings)*
+
+            // Get bump - either provided or auto-derived
+            #bump_derivation
+            let __bump_slice: [u8; 1] = [__bump];
             let __token_account_seeds: &[&[u8]] = #seeds_array_expr;
 
             CreateTokenAccountCpi {
