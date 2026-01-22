@@ -47,7 +47,7 @@ pub struct D10SingleVault<'info> {
         seeds = [D10_SINGLE_VAULT_SEED, d10_mint.key().as_ref()],
         bump,
     )]
-    #[light_account(init, token, authority = [D10_SINGLE_VAULT_SEED, self.d10_mint.key(), &[params.vault_bump]], mint = d10_mint, owner = d10_vault_authority)]
+    #[light_account(init, token, authority = [D10_SINGLE_VAULT_SEED, self.d10_mint.key()], mint = d10_mint, owner = d10_vault_authority, bump = params.vault_bump)]
     pub d10_single_vault: UncheckedAccount<'info>,
 
     #[account(address = COMPRESSIBLE_CONFIG_V1)]

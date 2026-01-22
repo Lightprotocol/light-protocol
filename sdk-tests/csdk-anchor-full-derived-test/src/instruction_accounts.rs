@@ -75,7 +75,8 @@ pub struct CreatePdasAndMintAuto<'info> {
         mint_signer = mint_signer,
         authority = mint_authority,
         decimals = 9,
-        mint_seeds = &[LP_MINT_SIGNER_SEED, self.authority.to_account_info().key.as_ref(), &[params.mint_signer_bump]]
+        mint_seeds = &[LP_MINT_SIGNER_SEED, self.authority.to_account_info().key.as_ref()],
+        mint_bump = params.mint_signer_bump
     )]
     pub mint: UncheckedAccount<'info>,
 
@@ -160,7 +161,8 @@ pub struct CreateTwoMints<'info> {
         mint_signer = mint_signer_a,
         authority = fee_payer,
         decimals = 6,
-        mint_seeds = &[MINT_SIGNER_A_SEED, self.authority.to_account_info().key.as_ref(), &[params.mint_signer_a_bump]]
+        mint_seeds = &[MINT_SIGNER_A_SEED, self.authority.to_account_info().key.as_ref()],
+        mint_bump = params.mint_signer_a_bump
     )]
     pub cmint_a: UncheckedAccount<'info>,
 
@@ -170,7 +172,8 @@ pub struct CreateTwoMints<'info> {
         mint_signer = mint_signer_b,
         authority = fee_payer,
         decimals = 9,
-        mint_seeds = &[MINT_SIGNER_B_SEED, self.authority.to_account_info().key.as_ref(), &[params.mint_signer_b_bump]]
+        mint_seeds = &[MINT_SIGNER_B_SEED, self.authority.to_account_info().key.as_ref()],
+        mint_bump = params.mint_signer_b_bump
     )]
     pub cmint_b: UncheckedAccount<'info>,
 
@@ -243,7 +246,8 @@ pub struct CreateThreeMints<'info> {
         mint_signer = mint_signer_a,
         authority = fee_payer,
         decimals = 6,
-        mint_seeds = &[MINT_SIGNER_A_SEED, self.authority.to_account_info().key.as_ref(), &[params.mint_signer_a_bump]]
+        mint_seeds = &[MINT_SIGNER_A_SEED, self.authority.to_account_info().key.as_ref()],
+        mint_bump = params.mint_signer_a_bump
     )]
     pub cmint_a: UncheckedAccount<'info>,
 
@@ -253,7 +257,8 @@ pub struct CreateThreeMints<'info> {
         mint_signer = mint_signer_b,
         authority = fee_payer,
         decimals = 8,
-        mint_seeds = &[MINT_SIGNER_B_SEED, self.authority.to_account_info().key.as_ref(), &[params.mint_signer_b_bump]]
+        mint_seeds = &[MINT_SIGNER_B_SEED, self.authority.to_account_info().key.as_ref()],
+        mint_bump = params.mint_signer_b_bump
     )]
     pub cmint_b: UncheckedAccount<'info>,
 
@@ -263,7 +268,8 @@ pub struct CreateThreeMints<'info> {
         mint_signer = mint_signer_c,
         authority = fee_payer,
         decimals = 9,
-        mint_seeds = &[MINT_SIGNER_C_SEED, self.authority.to_account_info().key.as_ref(), &[params.mint_signer_c_bump]]
+        mint_seeds = &[MINT_SIGNER_C_SEED, self.authority.to_account_info().key.as_ref()],
+        mint_bump = params.mint_signer_c_bump
     )]
     pub cmint_c: UncheckedAccount<'info>,
 
@@ -325,7 +331,8 @@ pub struct CreateMintWithMetadata<'info> {
         mint_signer = mint_signer,
         authority = fee_payer,
         decimals = 9,
-        mint_seeds = &[METADATA_MINT_SIGNER_SEED, self.authority.to_account_info().key.as_ref(), &[params.mint_signer_bump]],
+        mint_seeds = &[METADATA_MINT_SIGNER_SEED, self.authority.to_account_info().key.as_ref()],
+        mint_bump = params.mint_signer_bump,
         name = params.name.clone(),
         symbol = params.symbol.clone(),
         uri = params.uri.clone(),

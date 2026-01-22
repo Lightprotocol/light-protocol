@@ -15,6 +15,9 @@ use syn::{
 
 use super::mint::LightMintField;
 pub(super) use crate::light_pdas::account::seed_extraction::extract_account_inner_type;
+use crate::light_pdas::light_account_keywords::{
+    is_shorthand_keyword, unknown_keyword_error, valid_keywords_for_type,
+};
 
 // ============================================================================
 // Account Type Classification
@@ -62,11 +65,14 @@ pub struct TokenAccountField {
     /// True if `init` keyword is present (generate creation code)
     pub has_init: bool,
     /// Authority seeds for the PDA owner (from authority = [...] parameter)
+    /// Note: Seeds should NOT include the bump - it's auto-derived or passed via `bump` parameter
     pub authority_seeds: Vec<Expr>,
     /// Mint reference (extracted from seeds or explicit parameter)
     pub mint: Option<Expr>,
     /// Owner reference (the PDA that owns this token account)
     pub owner: Option<Expr>,
+    /// Optional bump seed. If None, bump is auto-derived using find_program_address.
+    pub bump: Option<Expr>,
 }
 
 /// A field marked with #[light_account([init,] ata, ...)] (Associated Token Account).
@@ -201,12 +207,8 @@ fn parse_token_ata_key_values(
 ) -> syn::Result<Vec<KeyValue>> {
     let mut key_values = Vec::new();
     let mut seen_keys = std::collections::HashSet::new();
-    let valid_keys = if account_type_name == "token" {
-        &["authority", "mint", "owner"][..]
-    } else {
-        // associated_token
-        &["owner", "mint", "bump"][..]
-    };
+    let account_type_str = account_type_name.to_string();
+    let valid_keys = valid_keywords_for_type(&account_type_str);
 
     while !input.is_empty() {
         input.parse::<Token![,]>()?;
@@ -233,13 +235,7 @@ fn parse_token_ata_key_values(
         if !valid_keys.contains(&key_str.as_str()) {
             return Err(Error::new_spanned(
                 &key,
-                format!(
-                    "Unknown argument `{}` in #[light_account({}, ...)]. \
-                     Allowed: {}",
-                    key,
-                    account_type_name,
-                    valid_keys.join(", ")
-                ),
+                unknown_keyword_error(&key_str, &account_type_str),
             ));
         }
 
@@ -266,7 +262,7 @@ fn parse_token_ata_key_values(
             }
         } else {
             // Shorthand: key alone means key = key (for mint, owner, bump)
-            if key_str == "mint" || key_str == "owner" || key_str == "bump" {
+            if is_shorthand_keyword(&key_str) {
                 syn::parse_quote!(#key)
             } else {
                 return Err(Error::new_spanned(
@@ -306,7 +302,32 @@ pub(super) fn parse_light_account_attr(
 
             // Mark-only mode (token/ata without init) - handled by light_program macro
             // Return None so LightAccounts derive skips them
+            // But still validate that required parameters are present
             if args.is_token && !args.has_init {
+                // For mark-only token, authority is required but mint/owner are NOT allowed
+                if args.account_type == LightAccountType::Token {
+                    let has_authority = args.key_values.iter().any(|kv| kv.key == "authority");
+                    if !has_authority {
+                        return Err(Error::new_spanned(
+                            attr,
+                            "#[light_account(token, ...)] requires `authority = [...]` parameter",
+                        ));
+                    }
+                    // mint and owner are only for init mode
+                    for kv in &args.key_values {
+                        let key = kv.key.to_string();
+                        if key == "mint" || key == "owner" {
+                            return Err(Error::new_spanned(
+                                &kv.key,
+                                format!(
+                                    "`{}` is only allowed with `init`. \
+                                     For mark-only token, use: #[light_account(token, authority = [...])]",
+                                    key
+                                ),
+                            ));
+                        }
+                    }
+                }
                 return Ok(None);
             }
 
@@ -352,39 +373,33 @@ fn build_pda_field(
     key_values: &[KeyValue],
     direct_proof_arg: &Option<Ident>,
 ) -> Result<PdaField, syn::Error> {
-    let mut address_tree_info: Option<Expr> = None;
-    let mut output_tree: Option<Expr> = None;
-
-    for kv in key_values {
-        match kv.key.to_string().as_str() {
-            "address_tree_info" => address_tree_info = Some(kv.value.clone()),
-            "output_tree" => output_tree = Some(kv.value.clone()),
-            other => {
-                return Err(Error::new_spanned(
-                    &kv.key,
-                    format!(
-                        "Unknown argument `{other}` for PDA. Expected: address_tree_info, output_tree"
-                    ),
-                ));
-            }
-        }
+    // Reject any key-value pairs - PDA only needs `init`
+    // Tree info is always auto-fetched from CreateAccountsProof
+    if !key_values.is_empty() {
+        let keys: Vec<_> = key_values.iter().map(|kv| kv.key.to_string()).collect();
+        return Err(Error::new_spanned(
+            &key_values[0].key,
+            format!(
+                "Unexpected arguments for PDA: {}. \
+                 #[light_account(init)] takes no additional arguments. \
+                 address_tree_info and output_tree are automatically sourced from CreateAccountsProof.",
+                keys.join(", ")
+            ),
+        ));
     }
 
-    // Use defaults if not specified - depends on whether CreateAccountsProof is direct arg or nested
-    let address_tree_info = address_tree_info.unwrap_or_else(|| {
-        if let Some(proof_ident) = direct_proof_arg {
-            syn::parse_quote!(#proof_ident.address_tree_info)
-        } else {
-            syn::parse_quote!(params.create_accounts_proof.address_tree_info)
-        }
-    });
-    let output_tree = output_tree.unwrap_or_else(|| {
-        if let Some(proof_ident) = direct_proof_arg {
-            syn::parse_quote!(#proof_ident.output_state_tree_index)
-        } else {
-            syn::parse_quote!(params.create_accounts_proof.output_state_tree_index)
-        }
-    });
+    // Always fetch from CreateAccountsProof
+    let (address_tree_info, output_tree) = if let Some(proof_ident) = direct_proof_arg {
+        (
+            syn::parse_quote!(#proof_ident.address_tree_info),
+            syn::parse_quote!(#proof_ident.output_state_tree_index),
+        )
+    } else {
+        (
+            syn::parse_quote!(params.create_accounts_proof.address_tree_info),
+            syn::parse_quote!(params.create_accounts_proof.output_state_tree_index),
+        )
+    };
 
     // Validate this is an Account type (or Box<Account>)
     let (is_boxed, inner_type) = extract_account_inner_type(&field.ty).ok_or_else(|| {
@@ -421,9 +436,10 @@ fn build_mint_field(
     let mut mint_seeds: Option<Expr> = None;
 
     // Optional fields
-    let mut address_tree_info: Option<Expr> = None;
     let mut freeze_authority: Option<Ident> = None;
     let mut authority_seeds: Option<Expr> = None;
+    let mut mint_bump: Option<Expr> = None;
+    let mut authority_bump: Option<Expr> = None;
     let mut rent_payment: Option<Expr> = None;
     let mut write_top_up: Option<Expr> = None;
 
@@ -440,11 +456,18 @@ fn build_mint_field(
             "authority" => authority = Some(kv.value.clone()),
             "decimals" => decimals = Some(kv.value.clone()),
             "mint_seeds" => mint_seeds = Some(kv.value.clone()),
-            "address_tree_info" => address_tree_info = Some(kv.value.clone()),
+            "address_tree_info" | "output_tree" => {
+                return Err(Error::new_spanned(
+                    &kv.key,
+                    "address_tree_info and output_tree are automatically sourced from CreateAccountsProof",
+                ));
+            }
             "freeze_authority" => {
                 freeze_authority = Some(expr_to_ident(&kv.value, "freeze_authority")?);
             }
             "authority_seeds" => authority_seeds = Some(kv.value.clone()),
+            "mint_bump" => mint_bump = Some(kv.value.clone()),
+            "authority_bump" => authority_bump = Some(kv.value.clone()),
             "rent_payment" => rent_payment = Some(kv.value.clone()),
             "write_top_up" => write_top_up = Some(kv.value.clone()),
             "name" => name = Some(kv.value.clone()),
@@ -499,14 +522,18 @@ fn build_mint_field(
         attr,
     )?;
 
-    // address_tree_info defaults - depends on whether CreateAccountsProof is direct arg or nested
-    let address_tree_info = address_tree_info.unwrap_or_else(|| {
-        if let Some(proof_ident) = direct_proof_arg {
-            syn::parse_quote!(#proof_ident.address_tree_info)
-        } else {
-            syn::parse_quote!(params.create_accounts_proof.address_tree_info)
-        }
-    });
+    // Always fetch from CreateAccountsProof - depends on whether proof is direct arg or nested
+    let (address_tree_info, output_tree) = if let Some(proof_ident) = direct_proof_arg {
+        (
+            syn::parse_quote!(#proof_ident.address_tree_info),
+            syn::parse_quote!(#proof_ident.output_state_tree_index),
+        )
+    } else {
+        (
+            syn::parse_quote!(params.create_accounts_proof.address_tree_info),
+            syn::parse_quote!(params.create_accounts_proof.output_state_tree_index),
+        )
+    };
 
     Ok(LightMintField {
         field_ident: field_ident.clone(),
@@ -514,9 +541,12 @@ fn build_mint_field(
         authority,
         decimals,
         address_tree_info,
+        output_tree,
         freeze_authority,
         mint_seeds,
+        mint_bump,
         authority_seeds,
+        authority_bump,
         rent_payment,
         write_top_up,
         name,
@@ -537,30 +567,48 @@ fn build_token_account_field(
     let mut authority: Option<Expr> = None;
     let mut mint: Option<Expr> = None;
     let mut owner: Option<Expr> = None;
+    let mut bump: Option<Expr> = None;
 
     for kv in key_values {
         match kv.key.to_string().as_str() {
             "authority" => authority = Some(kv.value.clone()),
             "mint" => mint = Some(kv.value.clone()),
             "owner" => owner = Some(kv.value.clone()),
+            "bump" => bump = Some(kv.value.clone()),
             other => {
                 return Err(Error::new_spanned(
                     &kv.key,
                     format!(
                         "Unknown argument `{other}` for token. \
-                         Expected: authority, mint, owner"
+                         Expected: authority, mint, owner, bump"
                     ),
                 ));
             }
         }
     }
 
-    // Validate required fields for init mode
-    if has_init && authority.is_none() {
+    // authority is ALWAYS required (mark-only and init modes)
+    if authority.is_none() {
         return Err(Error::new_spanned(
             attr,
-            "#[light_account(init, token, ...)] requires `authority = [...]` parameter",
+            "#[light_account(token, ...)] requires `authority = [...]` parameter",
         ));
+    }
+
+    // mint and owner are required for init mode
+    if has_init {
+        if mint.is_none() {
+            return Err(Error::new_spanned(
+                attr,
+                "#[light_account(init, token, ...)] requires `mint` parameter",
+            ));
+        }
+        if owner.is_none() {
+            return Err(Error::new_spanned(
+                attr,
+                "#[light_account(init, token, ...)] requires `owner` parameter",
+            ));
+        }
     }
 
     // Extract authority seeds from the array expression
@@ -584,6 +632,7 @@ fn build_token_account_field(
         authority_seeds,
         mint,
         owner,
+        bump,
     })
 }
 
@@ -752,7 +801,8 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_light_account_pda_with_options() {
+    fn test_parse_pda_tree_keywords_rejected() {
+        // Tree keywords are no longer allowed - they're auto-fetched from CreateAccountsProof
         let field: syn::Field = parse_quote! {
             #[light_account(init, address_tree_info = custom_tree, output_tree = custom_output)]
             pub record: Account<'info, MyRecord>
@@ -760,14 +810,13 @@ mod tests {
         let ident = field.ident.clone().unwrap();
 
         let result = parse_light_account_attr(&field, &ident, &None);
-        assert!(result.is_ok());
-        let result = result.unwrap();
-        assert!(result.is_some());
-
-        match result.unwrap() {
-            LightAccountField::Pda(_) => {}
-            _ => panic!("Expected PDA field"),
-        }
+        assert!(result.is_err());
+        let err = result.err().unwrap().to_string();
+        assert!(
+            err.contains("Unexpected arguments") || err.contains("automatically sourced"),
+            "Expected error about rejected tree keywords, got: {}",
+            err
+        );
     }
 
     #[test]
@@ -902,7 +951,7 @@ mod tests {
     #[test]
     fn test_parse_token_init_creates_field() {
         let field: syn::Field = parse_quote! {
-            #[light_account(init, token, authority = [b"authority"])]
+            #[light_account(init, token, authority = [b"authority"], mint = token_mint, owner = vault_authority)]
             pub vault: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();
@@ -917,6 +966,8 @@ mod tests {
                 assert_eq!(token.field_ident.to_string(), "vault");
                 assert!(token.has_init);
                 assert!(!token.authority_seeds.is_empty());
+                assert!(token.mint.is_some());
+                assert!(token.owner.is_some());
             }
             _ => panic!("Expected TokenAccount field"),
         }
@@ -934,6 +985,126 @@ mod tests {
         assert!(result.is_err());
         let err = result.err().unwrap().to_string();
         assert!(err.contains("authority"));
+    }
+
+    #[test]
+    fn test_parse_token_mark_only_missing_authority_fails() {
+        // Mark-only token now requires authority
+        let field: syn::Field = parse_quote! {
+            #[light_account(token)]
+            pub vault: Account<'info, CToken>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident, &None);
+        assert!(result.is_err());
+        let err = result.err().unwrap().to_string();
+        assert!(
+            err.contains("authority"),
+            "Expected error about missing authority, got: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn test_parse_token_mark_only_rejects_mint() {
+        // Mark-only token should not allow mint parameter
+        let field: syn::Field = parse_quote! {
+            #[light_account(token, authority = [b"auth"], mint = token_mint)]
+            pub vault: Account<'info, CToken>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident, &None);
+        assert!(result.is_err());
+        let err = result.err().unwrap().to_string();
+        assert!(
+            err.contains("mint") && err.contains("only allowed with `init`"),
+            "Expected error about mint only for init, got: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn test_parse_token_mark_only_rejects_owner() {
+        // Mark-only token should not allow owner parameter
+        let field: syn::Field = parse_quote! {
+            #[light_account(token, authority = [b"auth"], owner = vault_authority)]
+            pub vault: Account<'info, CToken>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident, &None);
+        assert!(result.is_err());
+        let err = result.err().unwrap().to_string();
+        assert!(
+            err.contains("owner") && err.contains("only allowed with `init`"),
+            "Expected error about owner only for init, got: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn test_parse_token_init_missing_mint_fails() {
+        // Token init requires mint parameter
+        let field: syn::Field = parse_quote! {
+            #[light_account(init, token, authority = [b"authority"], owner = vault_authority)]
+            pub vault: Account<'info, CToken>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident, &None);
+        assert!(result.is_err());
+        let err = result.err().unwrap().to_string();
+        assert!(
+            err.contains("mint"),
+            "Expected error about missing mint, got: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn test_parse_token_init_missing_owner_fails() {
+        // Token init requires owner parameter
+        let field: syn::Field = parse_quote! {
+            #[light_account(init, token, authority = [b"authority"], mint = token_mint)]
+            pub vault: Account<'info, CToken>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident, &None);
+        assert!(result.is_err());
+        let err = result.err().unwrap().to_string();
+        assert!(
+            err.contains("owner"),
+            "Expected error about missing owner, got: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn test_parse_mint_tree_keywords_rejected() {
+        // Tree keywords are no longer allowed for mint - they're auto-fetched from CreateAccountsProof
+        let field: syn::Field = parse_quote! {
+            #[light_account(init, mint,
+                mint_signer = mint_signer,
+                authority = authority,
+                decimals = 9,
+                mint_seeds = &[b"test"],
+                address_tree_info = custom_tree
+            )]
+            pub cmint: UncheckedAccount<'info>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident, &None);
+        assert!(result.is_err());
+        let err = result.err().unwrap().to_string();
+        assert!(
+            err.contains("automatically sourced"),
+            "Expected error about auto-sourced tree info, got: {}",
+            err
+        );
     }
 
     // ========================================================================
@@ -1098,7 +1269,7 @@ mod tests {
     fn test_parse_token_init_empty_authority_fails() {
         // F007: Empty authority seeds with init should be rejected
         let field: syn::Field = parse_quote! {
-            #[light_account(init, token, authority = [])]
+            #[light_account(init, token, authority = [], mint = token_mint, owner = vault_authority)]
             pub vault: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();
@@ -1232,8 +1403,246 @@ mod tests {
                     "address_tree_info should access .address_tree_info field, got: {}",
                     addr_tree_str
                 );
+
+                // Verify default output_tree uses the direct proof identifier
+                // Should be: create_proof.output_state_tree_index
+                let output_tree = &mint.output_tree;
+                let output_tree_str = quote::quote!(#output_tree).to_string();
+                assert!(
+                    output_tree_str.contains("create_proof"),
+                    "output_tree should reference 'create_proof', got: {}",
+                    output_tree_str
+                );
+                assert!(
+                    output_tree_str.contains("output_state_tree_index"),
+                    "output_tree should access .output_state_tree_index field, got: {}",
+                    output_tree_str
+                );
             }
             _ => panic!("Expected Mint field"),
+        }
+    }
+
+    // ========================================================================
+    // Bump Parameter Tests
+    // ========================================================================
+
+    #[test]
+    fn test_parse_token_with_bump_parameter() {
+        // Test token with explicit bump parameter
+        let field: syn::Field = parse_quote! {
+            #[light_account(init, token,
+                authority = [b"vault", self.offer.key()],
+                mint = token_mint,
+                owner = vault_authority,
+                bump = params.vault_bump
+            )]
+            pub vault: Account<'info, CToken>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident, &None);
+        assert!(
+            result.is_ok(),
+            "Should parse successfully with bump parameter"
+        );
+        let result = result.unwrap();
+        assert!(result.is_some());
+
+        match result.unwrap() {
+            LightAccountField::TokenAccount(token) => {
+                assert_eq!(token.field_ident.to_string(), "vault");
+                assert!(token.has_init);
+                assert!(!token.authority_seeds.is_empty());
+                assert!(token.bump.is_some(), "bump should be Some when provided");
+            }
+            _ => panic!("Expected TokenAccount field"),
+        }
+    }
+
+    #[test]
+    fn test_parse_token_without_bump_backwards_compatible() {
+        // Test token without bump (backwards compatible - bump will be auto-derived)
+        let field: syn::Field = parse_quote! {
+            #[light_account(init, token,
+                authority = [b"vault", self.offer.key()],
+                mint = token_mint,
+                owner = vault_authority
+            )]
+            pub vault: Account<'info, CToken>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident, &None);
+        assert!(
+            result.is_ok(),
+            "Should parse successfully without bump parameter"
+        );
+        let result = result.unwrap();
+        assert!(result.is_some());
+
+        match result.unwrap() {
+            LightAccountField::TokenAccount(token) => {
+                assert_eq!(token.field_ident.to_string(), "vault");
+                assert!(token.has_init);
+                assert!(!token.authority_seeds.is_empty());
+                assert!(
+                    token.bump.is_none(),
+                    "bump should be None when not provided"
+                );
+            }
+            _ => panic!("Expected TokenAccount field"),
+        }
+    }
+
+    #[test]
+    fn test_parse_mint_with_mint_bump() {
+        // Test mint with explicit mint_bump parameter
+        let field: syn::Field = parse_quote! {
+            #[light_account(init, mint,
+                mint_signer = mint_signer,
+                authority = authority,
+                decimals = 9,
+                mint_seeds = &[b"mint"],
+                mint_bump = params.mint_bump
+            )]
+            pub cmint: UncheckedAccount<'info>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident, &None);
+        assert!(
+            result.is_ok(),
+            "Should parse successfully with mint_bump parameter"
+        );
+        let result = result.unwrap();
+        assert!(result.is_some());
+
+        match result.unwrap() {
+            LightAccountField::Mint(mint) => {
+                assert_eq!(mint.field_ident.to_string(), "cmint");
+                assert!(
+                    mint.mint_bump.is_some(),
+                    "mint_bump should be Some when provided"
+                );
+            }
+            _ => panic!("Expected Mint field"),
+        }
+    }
+
+    #[test]
+    fn test_parse_mint_with_authority_bump() {
+        // Test mint with authority_seeds and authority_bump
+        let field: syn::Field = parse_quote! {
+            #[light_account(init, mint,
+                mint_signer = mint_signer,
+                authority = authority,
+                decimals = 9,
+                mint_seeds = &[b"mint"],
+                authority_seeds = &[b"auth"],
+                authority_bump = params.auth_bump
+            )]
+            pub cmint: UncheckedAccount<'info>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident, &None);
+        assert!(
+            result.is_ok(),
+            "Should parse successfully with authority_bump parameter"
+        );
+        let result = result.unwrap();
+        assert!(result.is_some());
+
+        match result.unwrap() {
+            LightAccountField::Mint(mint) => {
+                assert_eq!(mint.field_ident.to_string(), "cmint");
+                assert!(
+                    mint.authority_seeds.is_some(),
+                    "authority_seeds should be Some"
+                );
+                assert!(
+                    mint.authority_bump.is_some(),
+                    "authority_bump should be Some when provided"
+                );
+            }
+            _ => panic!("Expected Mint field"),
+        }
+    }
+
+    #[test]
+    fn test_parse_mint_without_bumps_backwards_compatible() {
+        // Test mint without bump parameters (backwards compatible - bumps will be auto-derived)
+        let field: syn::Field = parse_quote! {
+            #[light_account(init, mint,
+                mint_signer = mint_signer,
+                authority = authority,
+                decimals = 9,
+                mint_seeds = &[b"mint"],
+                authority_seeds = &[b"auth"]
+            )]
+            pub cmint: UncheckedAccount<'info>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident, &None);
+        assert!(
+            result.is_ok(),
+            "Should parse successfully without bump parameters"
+        );
+        let result = result.unwrap();
+        assert!(result.is_some());
+
+        match result.unwrap() {
+            LightAccountField::Mint(mint) => {
+                assert_eq!(mint.field_ident.to_string(), "cmint");
+                assert!(
+                    mint.mint_bump.is_none(),
+                    "mint_bump should be None when not provided"
+                );
+                assert!(
+                    mint.authority_seeds.is_some(),
+                    "authority_seeds should be Some"
+                );
+                assert!(
+                    mint.authority_bump.is_none(),
+                    "authority_bump should be None when not provided"
+                );
+            }
+            _ => panic!("Expected Mint field"),
+        }
+    }
+
+    #[test]
+    fn test_parse_token_bump_shorthand_syntax() {
+        // Test token with bump shorthand syntax (bump = bump)
+        let field: syn::Field = parse_quote! {
+            #[light_account(init, token,
+                authority = [b"vault"],
+                mint = token_mint,
+                owner = vault_authority,
+                bump
+            )]
+            pub vault: Account<'info, CToken>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident, &None);
+        assert!(
+            result.is_ok(),
+            "Should parse successfully with bump shorthand"
+        );
+        let result = result.unwrap();
+        assert!(result.is_some());
+
+        match result.unwrap() {
+            LightAccountField::TokenAccount(token) => {
+                assert!(
+                    token.bump.is_some(),
+                    "bump should be Some with shorthand syntax"
+                );
+            }
+            _ => panic!("Expected TokenAccount field"),
         }
     }
 }

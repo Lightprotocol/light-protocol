@@ -84,6 +84,45 @@ impl LightAccountsBuilder {
         // Validate infrastructure fields are present
         self.validate_infra_fields()?;
 
+        // Validate CreateAccountsProof is available
+        self.validate_create_accounts_proof()?;
+
+        Ok(())
+    }
+
+    /// Validate that CreateAccountsProof is available when needed.
+    ///
+    /// CreateAccountsProof is required when there are any init fields (PDAs, mints).
+    /// It can be provided either:
+    /// - As a direct argument: `proof: CreateAccountsProof`
+    /// - As a field on the first instruction arg: `params.create_accounts_proof`
+    fn validate_create_accounts_proof(&self) -> Result<(), syn::Error> {
+        let needs_proof = self.has_pdas() || self.has_mints();
+
+        if !needs_proof {
+            return Ok(());
+        }
+
+        // Check if CreateAccountsProof is available
+        let has_direct_proof = self.parsed.direct_proof_arg.is_some();
+        let has_instruction_args = self
+            .parsed
+            .instruction_args
+            .as_ref()
+            .map(|args| !args.is_empty())
+            .unwrap_or(false);
+
+        if !has_direct_proof && !has_instruction_args {
+            return Err(syn::Error::new_spanned(
+                &self.parsed.struct_name,
+                "CreateAccountsProof is required for #[light_account(init)] fields.\n\
+                 \n\
+                 Provide it either:\n\
+                 1. As a direct argument: #[instruction(proof: CreateAccountsProof)]\n\
+                 2. As a field on params: #[instruction(params: MyParams)] where MyParams has a `create_accounts_proof: CreateAccountsProof` field",
+            ));
+        }
+
         Ok(())
     }
 

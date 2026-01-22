@@ -46,7 +46,8 @@ pub struct CreateMint<'info> {
         mint_signer = mint_signer,
         authority = fee_payer,
         decimals = 9,
-        mint_seeds = &[MINT_SIGNER_SEED, self.authority.to_account_info().key.as_ref(), &[params.mint_signer_bump]]
+        mint_seeds = &[MINT_SIGNER_SEED, self.authority.to_account_info().key.as_ref()],
+        mint_bump = params.mint_signer_bump
     )]
     pub mint: UncheckedAccount<'info>,
 

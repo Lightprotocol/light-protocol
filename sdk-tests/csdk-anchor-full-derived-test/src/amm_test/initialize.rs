@@ -81,8 +81,10 @@ pub struct InitializePool<'info> {
         mint_signer = lp_mint_signer,
         authority = authority,
         decimals = 9,
-        mint_seeds = &[POOL_LP_MINT_SIGNER_SEED, self.pool_state.to_account_info().key.as_ref(), &[params.lp_mint_signer_bump]],
-        authority_seeds = &[AUTH_SEED.as_bytes(), &[params.authority_bump]]  // TODO: get the authority seeds from authority if defined
+        mint_seeds = &[POOL_LP_MINT_SIGNER_SEED, self.pool_state.to_account_info().key.as_ref()],
+        mint_bump = params.lp_mint_signer_bump,
+        authority_seeds = &[AUTH_SEED.as_bytes()],
+        authority_bump = params.authority_bump
     )]
     pub lp_mint: UncheckedAccount<'info>,
 

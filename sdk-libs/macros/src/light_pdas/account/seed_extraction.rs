@@ -8,7 +8,12 @@ use std::collections::HashSet;
 use syn::{Expr, Ident, ItemStruct, Type};
 
 use crate::{
-    light_pdas::shared_utils::{extract_terminal_ident, is_constant_identifier},
+    light_pdas::{
+        light_account_keywords::{
+            is_standalone_keyword, unknown_keyword_error, valid_keywords_for_type,
+        },
+        shared_utils::{extract_terminal_ident, is_constant_identifier},
+    },
     utils::snake_to_camel_case,
 };
 
@@ -305,16 +310,23 @@ fn check_light_account_type(attrs: &[syn::Attribute]) -> (bool, bool) {
     (false, false)
 }
 
-/// Parsed #[light_account(token, ...)] attribute
+/// Parsed #[light_account(token, ...)] or #[light_account(associated_token, ...)] attribute
 struct LightTokenAttr {
     /// Optional variant name - if None, derived from field name
     variant_name: Option<Ident>,
     authority_seeds: Option<Vec<ClassifiedSeed>>,
+    /// The account type: "token" or "associated_token"
+    #[allow(dead_code)]
+    account_type: String,
 }
 
-/// Extract #[light_account(token, authority = [...])] attribute
+/// Extract #[light_account(token, ...)] attribute
 /// Variant name is derived from field name, not specified in attribute
 /// Returns Err if the attribute exists but has malformed syntax
+///
+/// Note: This function currently only handles `token` accounts, not `associated_token`.
+/// Associated token accounts are handled differently (they use `owner` instead of `authority`).
+/// The ExtractedTokenSpec struct is designed for token accounts with authority seeds.
 fn extract_light_token_attr(
     attrs: &[syn::Attribute],
     instruction_args: &InstructionArgSet,
@@ -327,14 +339,15 @@ fn extract_light_token_attr(
             };
 
             // Check if "token" keyword is present (without requiring "init")
+            // Note: associated_token is not handled here as it has different semantics
             let has_token = tokens
                 .clone()
                 .into_iter()
                 .any(|t| matches!(&t, proc_macro2::TokenTree::Ident(ident) if ident == "token"));
 
             if has_token {
-                // Parse authority = [...] - propagate errors instead of swallowing them
-                let parsed = parse_light_token_list(&tokens, instruction_args)?;
+                // Parse attribute content - propagate errors instead of swallowing them
+                let parsed = parse_light_token_list(&tokens, instruction_args, "token")?;
                 return Ok(Some(parsed));
             }
         }
@@ -342,26 +355,33 @@ fn extract_light_token_attr(
     Ok(None)
 }
 
-/// Parse light_account(token, authority = [...]) content
+/// Parse light_account(token, ...) or light_account(associated_token, ...) content
+/// Uses shared keywords from light_account_keywords module for consistent validation.
 fn parse_light_token_list(
     tokens: &proc_macro2::TokenStream,
     instruction_args: &InstructionArgSet,
+    account_type: &str,
 ) -> syn::Result<LightTokenAttr> {
     use syn::parse::Parser;
 
-    // Capture instruction_args for use in closure
+    // Capture instruction_args and account_type for use in closure
     let instruction_args = instruction_args.clone();
+    let account_type_owned = account_type.to_string();
+    let valid_keys = valid_keywords_for_type(account_type);
+
     let parser = move |input: syn::parse::ParseStream| -> syn::Result<LightTokenAttr> {
         let mut authority_seeds = None;
 
-        // Parse comma-separated items looking for "token" and "authority = [...]"
+        // Parse comma-separated items
         while !input.is_empty() {
             if input.peek(Ident) {
                 let ident: Ident = input.parse()?;
+                let ident_str = ident.to_string();
 
-                if ident == "token" {
-                    // Skip the token keyword, continue parsing
-                } else if ident == "authority" {
+                // Check if it's a standalone keyword (init, token, associated_token)
+                if is_standalone_keyword(&ident_str) {
+                    // Standalone keywords, continue parsing
+                } else if ident_str == "authority" {
                     // Parse authority = [...]
                     input.parse::<syn::Token![=]>()?;
                     let array: syn::ExprArray = input.parse()?;
@@ -372,21 +392,44 @@ fn parse_light_token_list(
                         }
                     }
                     authority_seeds = Some(seeds);
+                } else if valid_keys.contains(&ident_str.as_str()) {
+                    // Valid keyword for this account type (mint, owner, bump)
+                    // Check if it has a value (= expr) or is shorthand
+                    if input.peek(syn::Token![=]) {
+                        input.parse::<syn::Token![=]>()?;
+                        let _expr: syn::Expr = input.parse()?;
+                    }
+                    // If no = follows, it's shorthand syntax (e.g., `mint` means `mint = mint`)
+                    // For seed_extraction, we just ignore the value as it's informational
+                } else {
+                    // Unknown keyword - generate error using shared function
+                    return Err(syn::Error::new_spanned(
+                        &ident,
+                        unknown_keyword_error(&ident_str, &account_type_owned),
+                    ));
                 }
+            } else {
+                // Non-identifier token - error
+                let valid_kw_str = valid_keys.join(", ");
+                return Err(syn::Error::new(
+                    input.span(),
+                    format!(
+                        "Expected keyword in #[light_account({}, ...)]. Valid keywords: init, {}, {}",
+                        account_type_owned, account_type_owned, valid_kw_str
+                    ),
+                ));
             }
 
-            // Skip comma if present
+            // Consume comma if present
             if input.peek(syn::Token![,]) {
                 input.parse::<syn::Token![,]>()?;
-            } else if !input.is_empty() {
-                // Skip unexpected tokens
-                let _: proc_macro2::TokenTree = input.parse()?;
             }
         }
 
         Ok(LightTokenAttr {
             variant_name: None, // Variant name is always derived from field name
             authority_seeds,
+            account_type: account_type_owned.clone(),
         })
     };
 
