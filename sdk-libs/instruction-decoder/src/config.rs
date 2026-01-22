@@ -122,16 +122,18 @@ impl EnhancedLoggingConfig {
     }
 
     /// Register custom decoders
+    ///
+    /// Note: Uses Arc::get_mut which works correctly in the builder pattern since
+    /// there's only one Arc reference. If the Arc has been cloned, a new registry
+    /// is created with built-in decoders plus the custom ones.
     pub fn with_decoders(mut self, decoders: Vec<Box<dyn InstructionDecoder>>) -> Self {
-        // Since with_decoders takes self by value, there can only be one reference
-        // to the Arc at this point, so get_mut will succeed
         if let Some(ref mut arc) = self.decoder_registry {
             if let Some(registry) = Arc::get_mut(arc) {
                 registry.register_all(decoders);
                 return self;
             }
         }
-        // Create new registry if none exists
+        // Create new registry if none exists or Arc has multiple references
         let mut registry = DecoderRegistry::new();
         registry.register_all(decoders);
         self.decoder_registry = Some(Arc::new(registry));

@@ -28,28 +28,21 @@ pub(crate) fn into_token_stream(result: syn::Result<TokenStream2>) -> TokenStrea
     result.unwrap_or_else(|err| err.to_compile_error()).into()
 }
 
-/// Convert PascalCase to snake_case.
+/// Convert PascalCase to snake_case using heck for proper acronym handling.
+///
+/// Uses heck's ToSnakeCase to match Anchor's discriminator calculation behavior,
+/// which groups consecutive capitals as acronyms (e.g., "CreateATA" -> "create_ata").
 ///
 /// # Examples
 ///
 /// ```ignore
 /// assert_eq!(to_snake_case("CreateRecord"), "create_record");
-/// assert_eq!(to_snake_case("HTTPHandler"), "h_t_t_p_handler");
+/// assert_eq!(to_snake_case("CreateATA"), "create_ata");
 /// assert_eq!(to_snake_case("Init"), "init");
 /// ```
 pub(crate) fn to_snake_case(name: &str) -> String {
-    let mut result = String::new();
-    for (i, c) in name.chars().enumerate() {
-        if c.is_uppercase() {
-            if i > 0 {
-                result.push('_');
-            }
-            result.push(c.to_ascii_lowercase());
-        } else {
-            result.push(c);
-        }
-    }
-    result
+    use heck::ToSnakeCase;
+    name.to_snake_case()
 }
 
 /// Convert snake_case to PascalCase.
@@ -97,7 +90,7 @@ pub(crate) fn compute_anchor_discriminator(instruction_name: &str) -> [u8; 8] {
 ///
 /// ```ignore
 /// assert_eq!(pascal_to_display("CreateRecord"), "Create Record");
-/// assert_eq!(pascal_to_display("HTTPHandler"), "H T T P Handler");
+/// assert_eq!(pascal_to_display("MyProgram"), "My Program");
 /// ```
 pub(crate) fn pascal_to_display(name: &str) -> String {
     let mut result = String::new();
@@ -159,7 +152,9 @@ mod tests {
         assert_eq!(to_snake_case("CreateRecord"), "create_record");
         assert_eq!(to_snake_case("UpdateScore"), "update_score");
         assert_eq!(to_snake_case("Init"), "init");
-        assert_eq!(to_snake_case("HTTPHandler"), "h_t_t_p_handler");
+        // heck properly handles acronyms - consecutive capitals stay grouped
+        assert_eq!(to_snake_case("CreateATA"), "create_ata");
+        assert_eq!(to_snake_case("HTTPHandler"), "http_handler");
     }
 
     #[test]

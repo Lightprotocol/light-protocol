@@ -161,16 +161,16 @@ pub enum RegistryInstruction {
     #[instruction_decoder(account_names = ["update_authority", "compressible_config", "new_update_authority", "new_withdrawal_authority"])]
     UpdateCompressibleConfig,
 
-    /// Pause a compressible config
-    #[instruction_decoder(account_names = ["update_authority", "compressible_config", "new_update_authority", "new_withdrawal_authority"])]
+    /// Pause a compressible config (only requires update_authority and compressible_config)
+    #[instruction_decoder(account_names = ["update_authority", "compressible_config"])]
     PauseCompressibleConfig,
 
-    /// Unpause a compressible config
-    #[instruction_decoder(account_names = ["update_authority", "compressible_config", "new_update_authority", "new_withdrawal_authority"])]
+    /// Unpause a compressible config (only requires update_authority and compressible_config)
+    #[instruction_decoder(account_names = ["update_authority", "compressible_config"])]
     UnpauseCompressibleConfig,
 
-    /// Deprecate a compressible config
-    #[instruction_decoder(account_names = ["update_authority", "compressible_config", "new_update_authority", "new_withdrawal_authority"])]
+    /// Deprecate a compressible config (only requires update_authority and compressible_config)
+    #[instruction_decoder(account_names = ["update_authority", "compressible_config"])]
     DeprecateCompressibleConfig,
 
     // ========================================================================

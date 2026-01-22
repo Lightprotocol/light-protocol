@@ -140,14 +140,36 @@ impl<'a> InstructionDecoderBuilder<'a> {
         match self.args.discriminator_size {
             1 => {
                 let disc = match &self.explicit_discriminators[index] {
-                    Some(ExplicitDiscriminator::U32(d)) => *d as u8,
+                    Some(ExplicitDiscriminator::U32(d)) => {
+                        if *d > u8::MAX as u32 {
+                            return Err(syn::Error::new(
+                                variant.ident.span(),
+                                format!(
+                                    "discriminator value {} exceeds u8::MAX (255) for 1-byte discriminator size",
+                                    d
+                                ),
+                            ));
+                        }
+                        *d as u8
+                    }
                     Some(ExplicitDiscriminator::Array(_)) => {
                         return Err(syn::Error::new(
                             variant.ident.span(),
                             "array discriminator not supported for 1-byte discriminator size",
                         ));
                     }
-                    None => index as u8,
+                    None => {
+                        if index > u8::MAX as usize {
+                            return Err(syn::Error::new(
+                                variant.ident.span(),
+                                format!(
+                                    "variant index {} exceeds u8::MAX (255) for 1-byte discriminator size",
+                                    index
+                                ),
+                            ));
+                        }
+                        index as u8
+                    }
                 };
                 Ok(quote! {
                     #disc => {
@@ -170,7 +192,18 @@ impl<'a> InstructionDecoderBuilder<'a> {
                             "array discriminator not supported for 4-byte discriminator size",
                         ));
                     }
-                    None => index as u32,
+                    None => {
+                        if index > u32::MAX as usize {
+                            return Err(syn::Error::new(
+                                variant.ident.span(),
+                                format!(
+                                    "variant index {} exceeds u32::MAX for 4-byte discriminator size",
+                                    index
+                                ),
+                            ));
+                        }
+                        index as u32
+                    }
                 };
                 Ok(quote! {
                     #disc => {
@@ -527,7 +560,7 @@ fn generate_field_parser(field_name: &str, type_str: &str, offset: usize) -> (To
             quote! {
                 fields.push(light_instruction_decoder::DecodedField::new(
                     #field_name,
-                    format!("({}bytes)", remaining.len() - #offset),
+                    format!("({}bytes)", remaining.len().saturating_sub(#offset)),
                 ));
             },
             0,
