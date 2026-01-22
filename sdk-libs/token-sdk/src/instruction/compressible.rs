@@ -2,7 +2,7 @@ use light_token_interface::{instructions::extensions::CompressToPubkey, state::T
 use solana_account_info::AccountInfo;
 use solana_pubkey::Pubkey;
 
-use crate::instruction::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR};
+use crate::constants::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR_V1 as RENT_SPONSOR};
 
 /// Parameters for creating compressible ctoken accounts.
 ///

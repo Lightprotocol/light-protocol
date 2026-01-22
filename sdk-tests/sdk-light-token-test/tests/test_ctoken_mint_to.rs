@@ -5,7 +5,7 @@ mod shared;
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_client::rpc::Rpc;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
-use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
+use light_token::LIGHT_TOKEN_PROGRAM_ID;
 use light_token_interface::state::Token;
 use native_ctoken_examples::{InstructionType, MintToData, ID, MINT_AUTHORITY_SEED};
 use shared::*;
@@ -128,7 +128,7 @@ async fn test_ctoken_mint_to_invoke_signed() {
 
         let compressed_token_program_id =
             Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
-        let default_pubkeys = light_compressed_token_sdk::utils::TokenDefaultAccounts::default();
+        let default_pubkeys = light_token::utils::TokenDefaultAccounts::default();
         let compressible_config = light_token::instruction::config_pda();
         let rent_sponsor = light_token::instruction::rent_sponsor_pda();
 

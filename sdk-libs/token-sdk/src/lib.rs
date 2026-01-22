@@ -60,15 +60,22 @@
 #[cfg(feature = "anchor")]
 pub mod anchor;
 pub mod compressible;
+pub mod constants;
 pub mod error;
 pub mod instruction;
 pub mod pack;
+pub mod spl_interface;
+pub mod utils;
 
 // Conditional anchor re-exports
 #[cfg(feature = "anchor")]
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
+// Re-export key constants and functions from constants module
+pub use constants::{
+    config_pda, cpi_authority, id, LIGHT_TOKEN_CPI_AUTHORITY, LIGHT_TOKEN_PROGRAM_ID,
+};
 pub use light_compressed_account::instruction_data::compressed_proof::{
     CompressedProof, ValidityProof,
 };

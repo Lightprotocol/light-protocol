@@ -4,15 +4,15 @@ mod shared;
 use anchor_spl::token::{spl_token, Mint};
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_client::rpc::Rpc;
-use light_compressed_token_sdk::spl_interface::{
-    find_spl_interface_pda_with_index, CreateSplInterfacePda,
-};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     mint_2022::{create_mint_22_with_extensions, create_token_22_account, mint_spl_tokens_22},
     spl::{create_token_account, mint_spl_tokens},
 };
-use light_token::instruction::{derive_token_ata, CreateAssociatedTokenAccount, TransferFromSpl};
+use light_token::{
+    instruction::{derive_token_ata, CreateAssociatedTokenAccount, TransferFromSpl},
+    spl_interface::{find_spl_interface_pda_with_index, CreateSplInterfacePda},
+};
 use light_token_interface::state::Token;
 use native_ctoken_examples::{InstructionType, TransferCheckedData, ID};
 use shared::*;

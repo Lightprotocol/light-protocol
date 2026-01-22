@@ -4,7 +4,7 @@ use solana_instruction::{AccountMeta, Instruction};
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-use crate::instruction::RENT_SPONSOR;
+use crate::constants::RENT_SPONSOR_V1 as RENT_SPONSOR;
 
 /// # Create a close ctoken account instruction:
 /// ```rust

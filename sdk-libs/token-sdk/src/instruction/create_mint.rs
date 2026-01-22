@@ -15,8 +15,10 @@ use solana_instruction::Instruction;
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-use super::{config_pda, rent_sponsor_pda};
-use crate::instruction::SystemAccountInfos;
+use crate::{
+    constants::{config_pda, rent_sponsor_pda},
+    instruction::SystemAccountInfos,
+};
 /// Parameters for creating a mint.
 ///
 /// Creates both a compressed mint AND a decompressed Mint Solana account

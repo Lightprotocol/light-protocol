@@ -11,7 +11,10 @@ use solana_instruction::Instruction;
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-use crate::instruction::{config_pda, rent_sponsor_pda, SystemAccountInfos};
+use crate::{
+    constants::{config_pda, rent_sponsor_pda},
+    instruction::SystemAccountInfos,
+};
 
 /// Decompress a compressed mint to a Mint Solana account.
 ///

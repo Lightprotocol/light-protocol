@@ -132,7 +132,6 @@ pub use create_mints::*;
 pub use decompress::Decompress;
 pub use decompress_mint::*;
 pub use freeze::*;
-use light_compressible::config::CompressibleConfig;
 pub use light_token_interface::{
     instructions::{
         extensions::{CompressToPubkey, ExtensionInstructionData, TokenMetadataInstructionData},
@@ -140,12 +139,11 @@ pub use light_token_interface::{
     },
     state::{AdditionalMetadata, Token, TokenDataVersion},
 };
-use light_token_types::POOL_SEED;
 pub use mint_to::{MintTo, MintToCpi};
 pub use mint_to_checked::*;
 pub use revoke::{Revoke, RevokeCpi};
 use solana_account_info::AccountInfo;
-use solana_pubkey::{pubkey, Pubkey};
+use solana_pubkey::Pubkey;
 pub use thaw::{Thaw, ThawCpi};
 pub use transfer::*;
 pub use transfer_checked::*;
@@ -214,53 +212,13 @@ impl Default for SystemAccounts {
     }
 }
 
-/// Compressed Token Program ID: `cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m`
-pub const LIGHT_TOKEN_PROGRAM_ID: Pubkey = pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
-
-pub const LIGHT_TOKEN_CPI_AUTHORITY: Pubkey =
-    pubkey!("GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy");
-
-pub const COMPRESSIBLE_CONFIG_V1: Pubkey = pubkey!("ACXg8a7VaqecBWrSbdu73W4Pg9gsqXJ3EXAqkHyhvVXg");
-
-pub const RENT_SPONSOR: Pubkey = pubkey!("r18WwUxfG8kQ69bQPAB2jV6zGNKy3GosFGctjQoV4ti");
-
-/// Returns the program ID for the Compressed Token Program
-pub fn id() -> Pubkey {
-    LIGHT_TOKEN_PROGRAM_ID
-}
-
-/// Return the cpi authority pda of the Compressed Token Program.
-pub fn cpi_authority() -> Pubkey {
-    LIGHT_TOKEN_CPI_AUTHORITY
-}
-
-pub fn get_spl_interface_pda_and_bump(mint: &Pubkey) -> (Pubkey, u8) {
-    Pubkey::find_program_address(&[POOL_SEED, mint.as_ref()], &LIGHT_TOKEN_PROGRAM_ID)
-}
-
-/// Returns the associated token address for a given owner and mint.
-pub fn get_associated_token_address(owner: &Pubkey, mint: &Pubkey) -> Pubkey {
-    get_associated_token_address_and_bump(owner, mint).0
-}
-
-/// Returns the associated token address and bump for a given owner and mint.
-pub fn get_associated_token_address_and_bump(owner: &Pubkey, mint: &Pubkey) -> (Pubkey, u8) {
-    Pubkey::find_program_address(
-        &[&owner.to_bytes(), &id().to_bytes(), &mint.to_bytes()],
-        &id(),
-    )
-}
-
-/// Returns the default compressible config PDA.
-pub fn config_pda() -> Pubkey {
-    COMPRESSIBLE_CONFIG_V1
-}
-
-/// Returns the default rent sponsor PDA.
-pub fn rent_sponsor_pda() -> Pubkey {
-    RENT_SPONSOR
-}
-
-pub fn compression_authority_pda() -> Pubkey {
-    CompressibleConfig::light_token_v1_compression_authority_pda()
-}
+// Re-export constants for backwards compatibility
+pub use crate::{
+    constants::{
+        config_pda, rent_sponsor_pda, COMPRESSIBLE_CONFIG_V1, LIGHT_TOKEN_CPI_AUTHORITY,
+        LIGHT_TOKEN_PROGRAM_ID, RENT_SPONSOR_V1 as RENT_SPONSOR,
+    },
+    cpi_authority, id,
+    spl_interface::get_spl_interface_pda_and_bump,
+    utils::{get_associated_token_address, get_associated_token_address_and_bump},
+};
