@@ -36,8 +36,7 @@ pub async fn bootstrap_mint_accounts(
 
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(30))
-        .build()
-        .expect("Failed to build HTTP client");
+        .build()?;
 
     // Light Token Program ID
     let program_id =

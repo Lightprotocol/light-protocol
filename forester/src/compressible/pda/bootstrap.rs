@@ -41,8 +41,7 @@ pub async fn bootstrap_pda_accounts(
 
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(30))
-        .build()
-        .expect("Failed to build HTTP client");
+        .build()?;
 
     for program_config in programs {
         if shutdown_flag.load(std::sync::atomic::Ordering::SeqCst) {

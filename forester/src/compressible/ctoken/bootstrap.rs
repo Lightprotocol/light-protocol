@@ -51,8 +51,7 @@ pub async fn bootstrap_ctoken_accounts(
 
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(30))
-        .build()
-        .expect("Failed to build HTTP client");
+        .build()?;
 
     // Process function that deserializes Token and updates tracker
     let process_account = |raw_data: RawAccountData| -> bool {

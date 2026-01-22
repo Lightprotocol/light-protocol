@@ -46,7 +46,7 @@ use crate::{
         print_state_v2_output_queue_info,
     },
     slot_tracker::SlotTracker,
-    utils::{get_protocol_config_with_retry, get_slot_with_retry},
+    utils::{get_protocol_config_with_retry, get_slot_with_retry, retry_with_backoff, RetryConfig},
 };
 
 pub async fn run_queue_info(
@@ -247,17 +247,26 @@ pub async fn run_pipeline<R: Rpc + Indexer>(
                 let rpc_url = config.external_services.rpc_url.clone();
 
                 tokio::spawn(async move {
-                    if let Err(e) = compressible::bootstrap_ctoken_accounts(
-                        rpc_url,
-                        tracker_clone,
-                        Some(shutdown_bootstrap_rx),
-                    )
-                    .await
-                    {
-                        tracing::error!("CToken bootstrap failed: {:?}", e);
-                    } else {
-                        tracing::info!("CToken bootstrap complete");
+                    let retry_config = RetryConfig::new("CToken bootstrap")
+                        .with_max_attempts(3)
+                        .with_initial_delay(Duration::from_secs(5));
+
+                    let result = retry_with_backoff(retry_config, || {
+                        let rpc_url = rpc_url.clone();
+                        let tracker = tracker_clone.clone();
+                        async move {
+                            compressible::bootstrap_ctoken_accounts(rpc_url, tracker, None).await
+                        }
+                    })
+                    .await;
+
+                    match result {
+                        Ok(()) => tracing::info!("CToken bootstrap complete"),
+                        Err(e) => tracing::error!("CToken bootstrap failed after retries: {:?}", e),
                     }
+
+                    // Signal that bootstrap is done (success or failure)
+                    drop(shutdown_bootstrap_rx);
                 });
             }
 
@@ -301,16 +310,22 @@ pub async fn run_pipeline<R: Rpc + Indexer>(
                 let rpc_url = config.external_services.rpc_url.clone();
 
                 tokio::spawn(async move {
-                    if let Err(e) = compressible::pda::bootstrap_pda_accounts(
-                        rpc_url,
-                        pda_tracker_clone,
-                        None, // Bootstrap runs to completion
-                    )
-                    .await
-                    {
-                        tracing::error!("PDA bootstrap failed: {:?}", e);
-                    } else {
-                        tracing::info!("PDA bootstrap complete");
+                    let retry_config = RetryConfig::new("PDA bootstrap")
+                        .with_max_attempts(3)
+                        .with_initial_delay(Duration::from_secs(5));
+
+                    let result = retry_with_backoff(retry_config, || {
+                        let rpc_url = rpc_url.clone();
+                        let tracker = pda_tracker_clone.clone();
+                        async move {
+                            compressible::pda::bootstrap_pda_accounts(rpc_url, tracker, None).await
+                        }
+                    })
+                    .await;
+
+                    match result {
+                        Ok(()) => tracing::info!("PDA bootstrap complete"),
+                        Err(e) => tracing::error!("PDA bootstrap failed after retries: {:?}", e),
                     }
                 });
 
@@ -344,16 +359,23 @@ pub async fn run_pipeline<R: Rpc + Indexer>(
                 let rpc_url = config.external_services.rpc_url.clone();
 
                 tokio::spawn(async move {
-                    if let Err(e) = compressible::mint::bootstrap_mint_accounts(
-                        rpc_url,
-                        mint_tracker_clone,
-                        None, // Bootstrap runs to completion
-                    )
-                    .await
-                    {
-                        tracing::error!("Mint bootstrap failed: {:?}", e);
-                    } else {
-                        tracing::info!("Mint bootstrap complete");
+                    let retry_config = RetryConfig::new("Mint bootstrap")
+                        .with_max_attempts(3)
+                        .with_initial_delay(Duration::from_secs(5));
+
+                    let result = retry_with_backoff(retry_config, || {
+                        let rpc_url = rpc_url.clone();
+                        let tracker = mint_tracker_clone.clone();
+                        async move {
+                            compressible::mint::bootstrap_mint_accounts(rpc_url, tracker, None)
+                                .await
+                        }
+                    })
+                    .await;
+
+                    match result {
+                        Ok(()) => tracing::info!("Mint bootstrap complete"),
+                        Err(e) => tracing::error!("Mint bootstrap failed after retries: {:?}", e),
                     }
                 });
 
