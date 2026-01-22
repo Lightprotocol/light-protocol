@@ -137,10 +137,14 @@ Version-specific tests (V1 and V2) for JS/TS packages.
 
 ```bash
 # Build and test with just
-just build-cli
-just test-stateless-js
-just test-compressed-token
-just test-cli
+just cli::build
+just js::test-stateless
+just js::test-compressed-token
+just cli::test
+
+# Or use root-level aggregates that include cli and js targets
+just build
+just test
 ```
 
 **Environment variables:**

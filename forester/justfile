@@ -5,6 +5,7 @@ export TEST_V1_STATE := env_var_or_default("TEST_V1_STATE", "true")
 export TEST_V2_STATE := env_var_or_default("TEST_V2_STATE", "true")
 export TEST_V1_ADDRESS := env_var_or_default("TEST_V1_ADDRESS", "true")
 export TEST_V2_ADDRESS := env_var_or_default("TEST_V2_ADDRESS", "true")
+export RUST_BACKTRACE := env_var_or_default("RUST_BACKTRACE", "1")
 
 default:
     @just --list
