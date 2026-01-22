@@ -8,7 +8,7 @@ use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;
 use solana_signature::Signature;
 
-use crate::{DecodedInstruction, EnhancedLoggingConfig};
+use crate::{DecodedInstruction, DecoderRegistry, EnhancedLoggingConfig};
 
 /// Enhanced transaction log containing all formatting information
 #[derive(Debug, Clone)]
@@ -202,7 +202,17 @@ pub struct MerkleTreeChange {
 }
 
 /// Get human-readable program name from pubkey
-pub fn get_program_name(program_id: &Pubkey) -> String {
+///
+/// First consults the decoder registry if provided, then falls back to hardcoded mappings.
+pub fn get_program_name(program_id: &Pubkey, registry: Option<&DecoderRegistry>) -> String {
+    // First try to get the name from the decoder registry
+    if let Some(reg) = registry {
+        if let Some(decoder) = reg.get_decoder(program_id) {
+            return decoder.program_name().to_string();
+        }
+    }
+
+    // Fall back to hardcoded mappings for programs without decoders
     match program_id.to_string().as_str() {
         "11111111111111111111111111111111" => "System Program".to_string(),
         "ComputeBudget111111111111111111111111111111" => "Compute Budget".to_string(),

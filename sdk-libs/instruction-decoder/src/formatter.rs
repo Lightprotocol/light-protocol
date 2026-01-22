@@ -246,7 +246,7 @@ impl TransactionFormatter {
         if line.contains('|') && !line.trim_start().starts_with('|') {
             // This is a table content line, not a border
             let mut new_line = String::new();
-            let mut modified = false;
+            let mut any_modified = false;
 
             // Split by table separators while preserving them
             let parts: Vec<&str> = line.split('|').collect();
@@ -256,22 +256,24 @@ impl TransactionFormatter {
                 }
 
                 // Check if this cell contains a long value
+                let mut cell_modified = false;
                 for word in part.split_whitespace() {
                     if word.len() > 44 && word.chars().all(|c| c.is_alphanumeric()) {
                         let indent = " ".repeat(leading_chars.len() + 2); // Extra space for table formatting
                         let formatted_word = self.format_long_value_with_indent(word, 44, &indent);
                         new_line.push_str(&part.replace(word, &formatted_word));
-                        modified = true;
+                        cell_modified = true;
+                        any_modified = true;
                         break;
                     }
                 }
 
-                if !modified {
+                if !cell_modified {
                     new_line.push_str(part);
                 }
             }
 
-            if modified {
+            if any_modified {
                 return Some(new_line);
             }
         }
@@ -313,7 +315,8 @@ impl TransactionFormatter {
                     } else {
                         result.push_str(&format!("\n{}{}", indent, current_line));
                     }
-                    current_line = part.to_string();
+                    // Use addition to preserve the ", " separator for non-first items
+                    current_line = addition;
                 } else {
                     current_line.push_str(&addition);
                 }

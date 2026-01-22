@@ -190,9 +190,10 @@ pub fn should_use_enhanced_logging(config: &ProgramTestConfig) -> bool {
 
 /// Get human-readable program name from pubkey
 fn get_program_name(program_id: &Pubkey) -> String {
-    light_instruction_decoder::types::get_program_name(&solana_pubkey::Pubkey::new_from_array(
-        program_id.to_bytes(),
-    ))
+    light_instruction_decoder::types::get_program_name(
+        &solana_pubkey::Pubkey::new_from_array(program_id.to_bytes()),
+        None,
+    )
 }
 
 /// Use LiteSVM's pretty logs instead of parsing raw logs
