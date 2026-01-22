@@ -52,7 +52,7 @@ pub struct CreateTokenVault<'info> {
         seeds = [VAULT_SEED, mint.key().as_ref()],
         bump,
     )]
-    #[light_account(init, token, authority = [VAULT_SEED, self.mint.key()], mint = mint, owner = vault_authority, bump = params.vault_bump)]
+    #[light_account(init, token::authority = [VAULT_SEED, self.mint.key()], token::mint = mint, token::owner = vault_authority, token::bump = params.vault_bump)]
     pub vault: UncheckedAccount<'info>,
 
     #[account(address = COMPRESSIBLE_CONFIG_V1)]

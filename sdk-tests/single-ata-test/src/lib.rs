@@ -39,7 +39,7 @@ pub struct CreateAta<'info> {
 
     /// ATA account - macro should generate creation code.
     #[account(mut)]
-    #[light_account(init, associated_token, owner = ata_owner, mint = ata_mint, bump = params.ata_bump)]
+    #[light_account(init, associated_token::authority = ata_owner, associated_token::mint = ata_mint, associated_token::bump = params.ata_bump)]
     pub ata: UncheckedAccount<'info>,
 
     #[account(address = COMPRESSIBLE_CONFIG_V1)]

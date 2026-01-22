@@ -71,12 +71,12 @@ pub struct CreatePdasAndMintAuto<'info> {
 
     /// CHECK: Initialized by mint_action
     #[account(mut)]
-    #[light_account(init, mint,
-        mint_signer = mint_signer,
-        authority = mint_authority,
-        decimals = 9,
-        mint_seeds = &[LP_MINT_SIGNER_SEED, self.authority.to_account_info().key.as_ref()],
-        mint_bump = params.mint_signer_bump
+    #[light_account(init,
+        mint::signer = mint_signer,
+        mint::authority = mint_authority,
+        mint::decimals = 9,
+        mint::seeds = &[LP_MINT_SIGNER_SEED, self.authority.to_account_info().key.as_ref()],
+        mint::bump = params.mint_signer_bump
     )]
     pub mint: UncheckedAccount<'info>,
 
@@ -86,7 +86,7 @@ pub struct CreatePdasAndMintAuto<'info> {
         seeds = [VAULT_SEED, mint.key().as_ref()],
         bump,
     )]
-    #[light_account(token, authority = [b"vault_authority"])]
+    #[light_account(token::authority = [b"vault_authority"])]
     pub vault: UncheckedAccount<'info>,
 
     /// CHECK: PDA used as vault owner
@@ -157,23 +157,23 @@ pub struct CreateTwoMints<'info> {
 
     /// CHECK: Initialized by mint_action - first mint
     #[account(mut)]
-    #[light_account(init, mint,
-        mint_signer = mint_signer_a,
-        authority = fee_payer,
-        decimals = 6,
-        mint_seeds = &[MINT_SIGNER_A_SEED, self.authority.to_account_info().key.as_ref()],
-        mint_bump = params.mint_signer_a_bump
+    #[light_account(init,
+        mint::signer = mint_signer_a,
+        mint::authority = fee_payer,
+        mint::decimals = 6,
+        mint::seeds = &[MINT_SIGNER_A_SEED, self.authority.to_account_info().key.as_ref()],
+        mint::bump = params.mint_signer_a_bump
     )]
     pub cmint_a: UncheckedAccount<'info>,
 
     /// CHECK: Initialized by mint_action - second mint
     #[account(mut)]
-    #[light_account(init, mint,
-        mint_signer = mint_signer_b,
-        authority = fee_payer,
-        decimals = 9,
-        mint_seeds = &[MINT_SIGNER_B_SEED, self.authority.to_account_info().key.as_ref()],
-        mint_bump = params.mint_signer_b_bump
+    #[light_account(init,
+        mint::signer = mint_signer_b,
+        mint::authority = fee_payer,
+        mint::decimals = 9,
+        mint::seeds = &[MINT_SIGNER_B_SEED, self.authority.to_account_info().key.as_ref()],
+        mint::bump = params.mint_signer_b_bump
     )]
     pub cmint_b: UncheckedAccount<'info>,
 
@@ -242,34 +242,34 @@ pub struct CreateThreeMints<'info> {
 
     /// CHECK: Initialized by light_mint CPI
     #[account(mut)]
-    #[light_account(init, mint,
-        mint_signer = mint_signer_a,
-        authority = fee_payer,
-        decimals = 6,
-        mint_seeds = &[MINT_SIGNER_A_SEED, self.authority.to_account_info().key.as_ref()],
-        mint_bump = params.mint_signer_a_bump
+    #[light_account(init,
+        mint::signer = mint_signer_a,
+        mint::authority = fee_payer,
+        mint::decimals = 6,
+        mint::seeds = &[MINT_SIGNER_A_SEED, self.authority.to_account_info().key.as_ref()],
+        mint::bump = params.mint_signer_a_bump
     )]
     pub cmint_a: UncheckedAccount<'info>,
 
     /// CHECK: Initialized by light_mint CPI
     #[account(mut)]
-    #[light_account(init, mint,
-        mint_signer = mint_signer_b,
-        authority = fee_payer,
-        decimals = 8,
-        mint_seeds = &[MINT_SIGNER_B_SEED, self.authority.to_account_info().key.as_ref()],
-        mint_bump = params.mint_signer_b_bump
+    #[light_account(init,
+        mint::signer = mint_signer_b,
+        mint::authority = fee_payer,
+        mint::decimals = 8,
+        mint::seeds = &[MINT_SIGNER_B_SEED, self.authority.to_account_info().key.as_ref()],
+        mint::bump = params.mint_signer_b_bump
     )]
     pub cmint_b: UncheckedAccount<'info>,
 
     /// CHECK: Initialized by light_mint CPI
     #[account(mut)]
-    #[light_account(init, mint,
-        mint_signer = mint_signer_c,
-        authority = fee_payer,
-        decimals = 9,
-        mint_seeds = &[MINT_SIGNER_C_SEED, self.authority.to_account_info().key.as_ref()],
-        mint_bump = params.mint_signer_c_bump
+    #[light_account(init,
+        mint::signer = mint_signer_c,
+        mint::authority = fee_payer,
+        mint::decimals = 9,
+        mint::seeds = &[MINT_SIGNER_C_SEED, self.authority.to_account_info().key.as_ref()],
+        mint::bump = params.mint_signer_c_bump
     )]
     pub cmint_c: UncheckedAccount<'info>,
 
@@ -327,17 +327,17 @@ pub struct CreateMintWithMetadata<'info> {
 
     /// CHECK: Initialized by light_mint CPI with metadata
     #[account(mut)]
-    #[light_account(init, mint,
-        mint_signer = mint_signer,
-        authority = fee_payer,
-        decimals = 9,
-        mint_seeds = &[METADATA_MINT_SIGNER_SEED, self.authority.to_account_info().key.as_ref()],
-        mint_bump = params.mint_signer_bump,
-        name = params.name.clone(),
-        symbol = params.symbol.clone(),
-        uri = params.uri.clone(),
-        update_authority = authority,
-        additional_metadata = params.additional_metadata.clone()
+    #[light_account(init,
+        mint::signer = mint_signer,
+        mint::authority = fee_payer,
+        mint::decimals = 9,
+        mint::seeds = &[METADATA_MINT_SIGNER_SEED, self.authority.to_account_info().key.as_ref()],
+        mint::bump = params.mint_signer_bump,
+        mint::name = params.name.clone(),
+        mint::symbol = params.symbol.clone(),
+        mint::uri = params.uri.clone(),
+        mint::update_authority = authority,
+        mint::additional_metadata = params.additional_metadata.clone()
     )]
     pub cmint: UncheckedAccount<'info>,
 

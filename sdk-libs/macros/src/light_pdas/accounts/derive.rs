@@ -71,7 +71,7 @@ mod tests {
                 #[account(mut)]
                 pub fee_payer: Signer<'info>,
 
-                #[light_account(init, token, authority = [b"authority"], mint = my_mint, owner = fee_payer)]
+                #[light_account(init, token::authority = [b"authority"], token::mint = my_mint, token::owner = fee_payer)]
                 pub vault: Account<'info, CToken>,
 
                 pub light_token_compressible_config: Account<'info, CompressibleConfig>,
@@ -113,7 +113,7 @@ mod tests {
                 #[account(mut)]
                 pub fee_payer: Signer<'info>,
 
-                #[light_account(init, associated_token, owner = wallet, mint = my_mint)]
+                #[light_account(init, associated_token::authority = wallet, associated_token::mint = my_mint)]
                 pub user_ata: Account<'info, CToken>,
 
                 pub wallet: AccountInfo<'info>,
@@ -149,8 +149,8 @@ mod tests {
                 #[account(mut)]
                 pub fee_payer: Signer<'info>,
 
-                // Mark-only: no init keyword
-                #[light_account(token, authority = [b"authority"])]
+                // Mark-only: no init keyword, type inferred from namespace
+                #[light_account(token::authority = [b"authority"])]
                 pub vault: Account<'info, CToken>,
             }
         };
@@ -186,10 +186,10 @@ mod tests {
                 #[account(mut)]
                 pub fee_payer: Signer<'info>,
 
-                #[light_account(init, token, authority = [b"authority"], mint = my_mint, owner = fee_payer)]
+                #[light_account(init, token::authority = [b"authority"], token::mint = my_mint, token::owner = fee_payer)]
                 pub vault: Account<'info, CToken>,
 
-                #[light_account(init, associated_token, owner = wallet, mint = my_mint)]
+                #[light_account(init, associated_token::authority = wallet, associated_token::mint = my_mint)]
                 pub user_ata: Account<'info, CToken>,
 
                 pub wallet: AccountInfo<'info>,

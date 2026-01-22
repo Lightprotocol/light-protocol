@@ -55,7 +55,7 @@ pub struct D5AllMarkers<'info> {
         seeds = [D5_ALL_VAULT_SEED, mint.key().as_ref()],
         bump,
     )]
-    #[light_account(token, authority = [D5_ALL_AUTH_SEED])]
+    #[light_account(token::authority = [D5_ALL_AUTH_SEED])]
     pub d5_all_vault: UncheckedAccount<'info>,
 
     #[account(address = COMPRESSIBLE_CONFIG_V1)]

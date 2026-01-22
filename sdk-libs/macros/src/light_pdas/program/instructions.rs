@@ -29,6 +29,7 @@ use crate::{
 
 /// Orchestrates all code generation for the rentfree module.
 #[inline(never)]
+#[allow(clippy::too_many_arguments)]
 fn codegen(
     module: &mut ItemMod,
     account_types: Vec<Type>,
@@ -37,6 +38,7 @@ fn codegen(
     instruction_data: Vec<InstructionDataSpec>,
     crate_ctx: &super::crate_context::CrateContext,
     has_mint_fields: bool,
+    has_ata_fields: bool,
 ) -> Result<TokenStream> {
     let content = match module.content.as_mut() {
         Some(content) => content,
@@ -337,15 +339,16 @@ fn codegen(
     let has_pda_seeds = pda_seeds.as_ref().map(|p| !p.is_empty()).unwrap_or(false);
     let has_token_seeds = token_seeds.as_ref().map(|t| !t.is_empty()).unwrap_or(false);
 
-    let instruction_variant = match (has_pda_seeds, has_token_seeds, has_mint_fields) {
-        (true, true, _) => InstructionVariant::Mixed,
-        (true, false, _) => InstructionVariant::PdaOnly,
-        (false, true, _) => InstructionVariant::TokenOnly,
-        (false, false, true) => InstructionVariant::MintOnly,
-        (false, false, false) => {
+    let instruction_variant = match (has_pda_seeds, has_token_seeds, has_mint_fields, has_ata_fields) {
+        (true, true, _, _) => InstructionVariant::Mixed,
+        (true, false, _, _) => InstructionVariant::PdaOnly,
+        (false, true, _, _) => InstructionVariant::TokenOnly,
+        (false, false, true, _) => InstructionVariant::MintOnly,
+        (false, false, false, true) => InstructionVariant::AtaOnly,
+        (false, false, false, false) => {
             return Err(macro_error!(
                 module,
-                "No #[light_account(init)], #[light_account(init, mint)], or #[light_account(token)] fields found.\n\
+                "No #[light_account(init)], #[light_account(init, mint::...)], #[light_account(init, associated_token::...)], or #[light_account(token::...)] fields found.\n\
                  At least one light account field must be provided."
             ))
         }
@@ -593,6 +596,7 @@ pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<Tok
     let mut token_specs: Vec<ExtractedTokenSpec> = Vec::new();
     let mut rentfree_struct_names = std::collections::HashSet::new();
     let mut has_any_mint_fields = false;
+    let mut has_any_ata_fields = false;
 
     for item_struct in crate_ctx.structs_with_derive("Accounts") {
         // Parse #[instruction(...)] attribute to get instruction arg names
@@ -602,6 +606,7 @@ pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<Tok
             if !info.pda_fields.is_empty()
                 || !info.token_fields.is_empty()
                 || info.has_light_mint_fields
+                || info.has_light_ata_fields
             {
                 rentfree_struct_names.insert(info.struct_name.to_string());
                 pda_specs.extend(info.pda_fields);
@@ -609,15 +614,19 @@ pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<Tok
                 if info.has_light_mint_fields {
                     has_any_mint_fields = true;
                 }
+                if info.has_light_ata_fields {
+                    has_any_ata_fields = true;
+                }
             }
         }
     }
 
-    // Check if we found anything (PDAs, tokens, or mint fields)
-    if pda_specs.is_empty() && token_specs.is_empty() && !has_any_mint_fields {
+    // Check if we found anything (PDAs, tokens, mint fields, or ATA fields)
+    if pda_specs.is_empty() && token_specs.is_empty() && !has_any_mint_fields && !has_any_ata_fields
+    {
         return Err(macro_error!(
             &module,
-            "No #[light_account(init)], #[light_account(init, mint)], or #[light_account(token)] fields found in any Accounts struct.\n\
+            "No #[light_account(init)], #[light_account(init, mint::...)], #[light_account(init, associated_token::...)], or #[light_account(token::...)] fields found in any Accounts struct.\n\
              Ensure your Accounts structs are in modules declared with `pub mod xxx;`"
         ));
     }
@@ -759,5 +768,6 @@ pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<Tok
         found_data_fields,
         &crate_ctx,
         has_any_mint_fields,
+        has_any_ata_fields,
     )
 }

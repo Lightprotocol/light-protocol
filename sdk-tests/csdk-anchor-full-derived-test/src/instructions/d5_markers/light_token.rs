@@ -38,7 +38,7 @@ pub struct D5LightToken<'info> {
         seeds = [D5_VAULT_SEED, mint.key().as_ref()],
         bump,
     )]
-    #[light_account(token, authority = [D5_VAULT_AUTH_SEED])]
+    #[light_account(token::authority = [D5_VAULT_AUTH_SEED])]
     pub d5_token_vault: UncheckedAccount<'info>,
 
     #[account(address = COMPRESSIBLE_CONFIG_V1)]

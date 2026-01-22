@@ -51,6 +51,8 @@ pub enum InstructionVariant {
     Mixed,
     /// Programs that only create Light mints without compressed state accounts
     MintOnly,
+    /// Programs that only create Light ATAs without compressed state accounts
+    AtaOnly,
 }
 
 #[derive(Clone)]
