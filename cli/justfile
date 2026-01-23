@@ -1,15 +1,39 @@
 # Light Protocol - CLI
 
+root_dir := `git rev-parse --show-toplevel`
+bin_dir := root_dir / "cli/bin"
+deploy_dir := root_dir / "target/deploy"
+
 default:
     @just --list
 
-# Build JS dependencies first, then CLI
-build: build-js-deps
+# Build everything: programs, JS deps, then CLI
+build: build-programs build-js-deps copy-programs
+    pnpm build
+
+# Build only JS (skip programs, assumes binaries exist)
+build-js: build-js-deps copy-programs
     pnpm build
 
 build-js-deps:
     cd ../js/stateless.js && pnpm build
     cd ../js/compressed-token && pnpm build
+
+# Build Solana programs
+build-programs:
+    cd ../programs/system && cargo build-sbf
+    cd ../programs/account-compression && cargo build-sbf --features 'test, migrate-state'
+    cd ../programs/registry && cargo build-sbf
+    cd ../programs/compressed-token/program && cargo build-sbf
+
+# Copy program binaries to cli/bin
+copy-programs:
+    mkdir -p {{ bin_dir }}
+    cp {{ deploy_dir }}/account_compression.so {{ bin_dir }}/
+    cp {{ deploy_dir }}/light_system_program_pinocchio.so {{ bin_dir }}/
+    cp {{ deploy_dir }}/light_compressed_token.so {{ bin_dir }}/
+    cp {{ deploy_dir }}/light_registry.so {{ bin_dir }}/
+    cp {{ root_dir }}/third-party/solana-program-library/spl_noop.so {{ bin_dir }}/
 
 test:
     pnpm test
