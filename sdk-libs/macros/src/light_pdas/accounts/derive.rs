@@ -30,14 +30,21 @@ use syn::DeriveInput;
 use super::builder::LightAccountsBuilder;
 
 /// Main orchestration - shows the high-level flow clearly.
+///
+/// When structs contain `AccountLoader<'info, Mint>` fields,
+/// we must generate Anchor trait implementations ourselves because Anchor's
+/// `#[derive(Accounts)]` doesn't know about this type.
+///
+/// Users should use ONLY `#[derive(LightAccounts)]` (not both Accounts and LightAccounts)
+/// when they have these fields.
 pub(super) fn derive_light_accounts(input: &DeriveInput) -> Result<TokenStream, syn::Error> {
     let builder = LightAccountsBuilder::parse(input)?;
     builder.validate()?;
 
-    // Check if struct has LightMint<'info> type fields.
+    // Check if struct has AccountLoader<'info, Mint> type fields.
     // When present, we must generate Anchor trait implementations ourselves
-    // because Anchor's #[derive(Accounts)] doesn't know about LightMint.
-    let anchor_impls = if builder.has_light_mint_type_fields() {
+    // because Anchor's #[derive(Accounts)] doesn't know about this type.
+    let anchor_impls = if builder.has_light_loader_fields() {
         builder.generate_anchor_accounts_impl()?
     } else {
         quote! {}

@@ -1,29 +1,33 @@
 //! Anchor wrapper for Light Protocol mint accounts.
 //!
-//! Provides `LightMint<'info>` - a type-safe wrapper for mint accounts that are
-//! initialized via CPI to the Light Token Program. This wrapper allows Anchor programs
-//! to access mint data after CPI initialization completes.
+//! Provides `AccountLoader<'info, T>` - a type-safe wrapper for Light Protocol accounts that
+//! provides zero-copy access. Named `AccountLoader` for API familiarity with Anchor users.
+//!
+//! # Key Insight: Why This Works with Anchor
+//!
+//! Anchor's codegen for ALL field types calls `Accounts::try_accounts()`. Our `AccountLoader`
+//! implements this trait with no-op validation, allowing the account to be uninitialized
+//! before CPI. Validation happens lazily when `load()` is called.
 //!
 //! # Usage
 //!
-//! Use `LightMint<'info>` to wrap an account and access mint data via zero-copy:
+//! Use `AccountLoader<'info, Mint>` in Anchor accounts structs:
 //!
 //! ```ignore
-//! use light_token_interface::state::mint::LightMint;
+//! use light_token_interface::state::mint::{AccountLoader, Mint};
 //!
-//! #[derive(Accounts, LightAccounts)]
+//! #[derive(Accounts, LightAccounts)]  // Both derives work together!
+//! #[instruction(params: CreateMintParams)]
 //! pub struct CreateMint<'info> {
 //!     #[account(mut)]
 //!     #[light_account(init, mint::signer = mint_signer, ...)]
-//!     pub cmint: UncheckedAccount<'info>,
+//!     pub mint: AccountLoader<'info, Mint>,
 //! }
 //!
 //! pub fn handler(ctx: Context<CreateMint>) -> Result<()> {
-//!     // After CPI completes, wrap and access mint data via zero-copy:
-//!     let light_mint = LightMint::new(ctx.accounts.cmint.to_account_info());
-//!     let mint_data = light_mint.load()?;
+//!     // After CPI completes, access mint data via zero-copy:
+//!     let mint_data = ctx.accounts.mint.load()?;
 //!     msg!("Decimals: {}", mint_data.decimals);
-//!     msg!("Initialized: {}", mint_data.is_initialized());
 //!     Ok(())
 //! }
 //! ```
@@ -35,22 +39,34 @@
 //! directly to account data. Since zero-copy writes directly, `AccountsExit::exit()`
 //! is a no-op.
 
-use std::ops::Deref;
+use std::{marker::PhantomData, ops::Deref};
 
 use anchor_lang::prelude::*;
 
 use super::{Mint, ZMint, ZMintMut, IS_INITIALIZED_OFFSET};
 use crate::{TokenError, LIGHT_TOKEN_PROGRAM_ID};
 
-/// A wrapper around `AccountInfo` for Light Protocol mint accounts.
+/// Marker trait for types that can be loaded via AccountLoader.
 ///
-/// This struct provides type-safe zero-copy access to mint data after CPI initialization.
-/// Each call to `load()` or `load_mut()` creates a fresh zero-copy view into the account
-/// data without allocation.
+/// This trait marks types that have zero-copy serialization support
+/// and can be accessed through the AccountLoader pattern.
+pub trait LightZeroCopy {}
+
+impl LightZeroCopy for Mint {}
+
+/// Zero-copy account loader for Light Protocol accounts.
+///
+/// Named `AccountLoader` for API familiarity with Anchor users.
+/// Unlike Anchor's AccountLoader, this performs NO validation in `try_accounts`
+/// - validation happens lazily when `load()` is called.
+///
+/// # Type Parameter
+///
+/// - `T`: The account type to load (e.g., `Mint`). Must implement `LightZeroCopy`.
 ///
 /// # Anchor Integration
 ///
-/// `LightMint` implements all required Anchor traits, allowing it to be used
+/// `AccountLoader` implements all required Anchor traits, allowing it to be used
 /// in `#[derive(Accounts)]` structs. During account deserialization
 /// (`try_accounts`), no validation is performed - this allows the account to
 /// be uninitialized before CPI. Validation happens when `load()` is called.
@@ -63,12 +79,13 @@ use crate::{TokenError, LIGHT_TOKEN_PROGRAM_ID};
 /// - Writes via `load_mut()` are immediately reflected in account data
 /// - `AccountsExit::exit()` is a no-op since there's nothing to serialize
 #[derive(Debug, Clone)]
-pub struct LightMint<'info> {
+pub struct AccountLoader<'info, T> {
     info: AccountInfo<'info>,
+    _phantom: PhantomData<T>,
 }
 
-impl<'info> LightMint<'info> {
-    /// Creates a new `LightMint` wrapper from an `AccountInfo`.
+impl<'info, T> AccountLoader<'info, T> {
+    /// Creates a new `AccountLoader` wrapper from an `AccountInfo`.
     ///
     /// This does not perform any validation - the account may be uninitialized.
     /// Validation occurs when `load()` is called.
@@ -77,14 +94,36 @@ impl<'info> LightMint<'info> {
     ///
     /// ```ignore
     /// // In an Anchor instruction handler, after CPI:
-    /// let light_mint = LightMint::new(ctx.accounts.cmint.to_account_info());
-    /// let mint_data = light_mint.load()?;
+    /// let loader = AccountLoader::<Mint>::new(ctx.accounts.mint.to_account_info());
+    /// let mint_data = loader.load()?;
     /// assert!(mint_data.is_initialized());
     /// ```
     pub fn new(info: AccountInfo<'info>) -> Self {
-        Self { info }
+        Self {
+            info,
+            _phantom: PhantomData,
+        }
     }
 
+    /// Returns a clone of the underlying `AccountInfo`.
+    ///
+    /// This is required for macro-generated code that calls `.to_account_info()`
+    /// on account fields in `#[derive(LightAccounts)]` structs.
+    pub fn to_account_info(&self) -> AccountInfo<'info> {
+        self.info.clone()
+    }
+
+    /// Returns a reference to the account's public key.
+    pub fn key(&self) -> &Pubkey {
+        self.info.key
+    }
+}
+
+// =============================================================================
+// Mint-specific methods
+// =============================================================================
+
+impl<'info> AccountLoader<'info, Mint> {
     /// Loads and validates the mint data, returning an immutable zero-copy view.
     ///
     /// This method:
@@ -149,14 +188,6 @@ impl<'info> LightMint<'info> {
         Ok(mint)
     }
 
-    /// Returns a clone of the underlying `AccountInfo`.
-    ///
-    /// This is required for macro-generated code that calls `.to_account_info()`
-    /// on account fields in `#[derive(LightAccounts)]` structs.
-    pub fn to_account_info(&self) -> AccountInfo<'info> {
-        self.info.clone()
-    }
-
     /// Returns true if the mint account appears to be initialized.
     ///
     /// This performs a quick check without fully parsing the account.
@@ -183,9 +214,11 @@ impl<'info> LightMint<'info> {
     }
 }
 
-// === Deref, AsRef, and ToAccountInfo implementations ===
+// =============================================================================
+// Deref, AsRef, and ToAccountInfo implementations
+// =============================================================================
 
-impl<'info> Deref for LightMint<'info> {
+impl<'info, T> Deref for AccountLoader<'info, T> {
     type Target = AccountInfo<'info>;
 
     fn deref(&self) -> &Self::Target {
@@ -193,16 +226,17 @@ impl<'info> Deref for LightMint<'info> {
     }
 }
 
-impl<'info> AsRef<AccountInfo<'info>> for LightMint<'info> {
+impl<'info, T> AsRef<AccountInfo<'info>> for AccountLoader<'info, T> {
     fn as_ref(&self) -> &AccountInfo<'info> {
         &self.info
     }
 }
 
+// =============================================================================
+// Anchor trait implementations
+// =============================================================================
 
-// === Anchor trait implementations ===
-
-impl<'info, B> Accounts<'info, B> for LightMint<'info> {
+impl<'info, T, B> Accounts<'info, B> for AccountLoader<'info, T> {
     fn try_accounts(
         _program_id: &Pubkey,
         accounts: &mut &'info [AccountInfo<'info>],
@@ -210,23 +244,25 @@ impl<'info, B> Accounts<'info, B> for LightMint<'info> {
         _bumps: &mut B,
         _reallocs: &mut std::collections::BTreeSet<Pubkey>,
     ) -> Result<Self> {
+        // NO validation - just grab AccountInfo
+        // This allows the account to be uninitialized before CPI
         if accounts.is_empty() {
             return Err(ErrorCode::AccountNotEnoughKeys.into());
         }
         let account = accounts[0].clone();
         *accounts = &accounts[1..];
-        Ok(LightMint::new(account))
+        Ok(AccountLoader::new(account))
     }
 }
 
-impl<'info> AccountsExit<'info> for LightMint<'info> {
+impl<'info, T> AccountsExit<'info> for AccountLoader<'info, T> {
     fn exit(&self, _program_id: &Pubkey) -> Result<()> {
         // No-op: zero-copy writes directly to account data
         Ok(())
     }
 }
 
-impl<'info> ToAccountMetas for LightMint<'info> {
+impl<T> ToAccountMetas for AccountLoader<'_, T> {
     fn to_account_metas(&self, is_signer: Option<bool>) -> Vec<AccountMeta> {
         let is_signer = is_signer.unwrap_or(self.info.is_signer);
         if self.info.is_writable {
@@ -237,13 +273,13 @@ impl<'info> ToAccountMetas for LightMint<'info> {
     }
 }
 
-impl<'info> ToAccountInfos<'info> for LightMint<'info> {
+impl<'info, T> ToAccountInfos<'info> for AccountLoader<'info, T> {
     fn to_account_infos(&self) -> Vec<AccountInfo<'info>> {
         vec![self.info.clone()]
     }
 }
 
-impl<'info> anchor_lang::Key for LightMint<'info> {
+impl<T> anchor_lang::Key for AccountLoader<'_, T> {
     fn key(&self) -> Pubkey {
         *self.info.key
     }
@@ -279,7 +315,7 @@ mod tests {
     }
 
     #[test]
-    fn test_light_mint_new() {
+    fn test_account_loader_new() {
         let key = SolanaPubkey::new_unique();
         let owner = SolanaPubkey::new_from_array(LIGHT_TOKEN_PROGRAM_ID);
         let mut lamports = 1_000_000u64;
@@ -287,8 +323,8 @@ mod tests {
 
         let info = create_mock_account_info(&key, &owner, &mut lamports, &mut data, true, false);
 
-        let light_mint = LightMint::new(info);
-        assert_eq!(light_mint.key(), key);
+        let loader: AccountLoader<'_, Mint> = AccountLoader::new(info);
+        assert_eq!(*loader.key(), key);
     }
 
     #[test]
@@ -300,11 +336,11 @@ mod tests {
 
         let info = create_mock_account_info(&key, &owner, &mut lamports, &mut data, true, false);
 
-        let light_mint = LightMint::new(info);
+        let loader: AccountLoader<'_, Mint> = AccountLoader::new(info);
 
         // Deref should provide access to AccountInfo fields
-        assert!(light_mint.is_writable);
-        assert!(!light_mint.is_signer);
+        assert!(loader.is_writable);
+        assert!(!loader.is_signer);
     }
 
     #[test]
@@ -317,9 +353,9 @@ mod tests {
         let info =
             create_mock_account_info(&key, &wrong_owner, &mut lamports, &mut data, true, false);
 
-        let light_mint = LightMint::new(info);
+        let loader: AccountLoader<'_, Mint> = AccountLoader::new(info);
 
-        let result = light_mint.load();
+        let result = loader.load();
         assert!(matches!(result, Err(TokenError::InvalidMintOwner)));
     }
 
@@ -333,9 +369,9 @@ mod tests {
 
         let info = create_mock_account_info(&key, &owner, &mut lamports, &mut data, true, false);
 
-        let light_mint = LightMint::new(info);
+        let loader: AccountLoader<'_, Mint> = AccountLoader::new(info);
 
-        let result = light_mint.load();
+        let result = loader.load();
         // Will fail during validation
         assert!(result.is_err());
     }
@@ -349,9 +385,9 @@ mod tests {
 
         let info = create_mock_account_info(&key, &owner, &mut lamports, &mut data, true, false);
 
-        let light_mint = LightMint::new(info);
+        let loader: AccountLoader<'_, Mint> = AccountLoader::new(info);
 
-        let metas = light_mint.to_account_metas(None);
+        let metas = loader.to_account_metas(None);
         assert_eq!(metas.len(), 1);
         assert_eq!(metas[0].pubkey, key);
         assert!(metas[0].is_writable);
@@ -367,9 +403,9 @@ mod tests {
 
         let info = create_mock_account_info(&key, &owner, &mut lamports, &mut data, false, false);
 
-        let light_mint = LightMint::new(info);
+        let loader: AccountLoader<'_, Mint> = AccountLoader::new(info);
 
-        let metas = light_mint.to_account_metas(None);
+        let metas = loader.to_account_metas(None);
         assert_eq!(metas.len(), 1);
         assert!(!metas[0].is_writable);
     }
@@ -383,8 +419,8 @@ mod tests {
 
         let info = create_mock_account_info(&key, &owner, &mut lamports, &mut data, true, false);
 
-        let light_mint = LightMint::new(info);
-        assert_eq!(light_mint.key(), key);
+        let loader: AccountLoader<'_, Mint> = AccountLoader::new(info);
+        assert_eq!(anchor_lang::Key::key(&loader), key);
     }
 
     #[test]
@@ -399,8 +435,8 @@ mod tests {
         let info =
             create_mock_account_info(&key, &wrong_owner, &mut lamports, &mut data, true, false);
 
-        let light_mint = LightMint::new(info);
-        assert!(!light_mint.is_initialized());
+        let loader: AccountLoader<'_, Mint> = AccountLoader::new(info);
+        assert!(!loader.is_initialized());
     }
 
     #[test]
@@ -413,8 +449,8 @@ mod tests {
 
         let info = create_mock_account_info(&key, &owner, &mut lamports, &mut data, true, false);
 
-        let light_mint = LightMint::new(info);
-        assert!(!light_mint.is_initialized());
+        let loader: AccountLoader<'_, Mint> = AccountLoader::new(info);
+        assert!(!loader.is_initialized());
     }
 
     #[test]
@@ -428,7 +464,7 @@ mod tests {
 
         let info = create_mock_account_info(&key, &owner, &mut lamports, &mut data, true, false);
 
-        let light_mint = LightMint::new(info);
-        assert!(light_mint.is_initialized());
+        let loader: AccountLoader<'_, Mint> = AccountLoader::new(info);
+        assert!(loader.is_initialized());
     }
 }

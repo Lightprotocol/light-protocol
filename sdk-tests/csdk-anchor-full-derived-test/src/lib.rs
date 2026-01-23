@@ -265,7 +265,7 @@ pub mod csdk_anchor_full_derived_test {
             D9U64Params,
         },
         instruction_accounts::{
-            CreateMintWithLightMint, CreateMintWithLightMintParams, CreateMintWithMetadata,
+            CreateMintWithAccountLoader, CreateMintWithAccountLoaderParams, CreateMintWithMetadata,
             CreateMintWithMetadataParams, CreatePdasAndMintAuto, CreateThreeMints,
             CreateThreeMintsParams, CreateTwoMints, CreateTwoMintsParams,
         },
@@ -413,13 +413,13 @@ pub mod csdk_anchor_full_derived_test {
     }
 
     /// Test instruction demonstrating type-safe mint access after CPI initialization.
-    /// Uses LightMint directly in the Accounts struct for zero-copy access.
-    pub fn create_mint_with_light_mint<'info>(
-        ctx: Context<'_, '_, '_, 'info, CreateMintWithLightMint<'info>>,
-        _params: CreateMintWithLightMintParams,
+    /// Uses AccountLoader<'info, Mint> directly in the Accounts struct for zero-copy access.
+    pub fn create_mint_with_account_loader<'info>(
+        ctx: Context<'_, '_, '_, 'info, CreateMintWithAccountLoader<'info>>,
+        _params: CreateMintWithAccountLoaderParams,
     ) -> Result<()> {
-        // Direct zero-copy access via LightMint field
-        // No wrapping needed - cmint is already LightMint<'info>
+        // Direct zero-copy access via AccountLoader field
+        // No wrapping needed - cmint is already AccountLoader<'info, Mint>
         let mint_data = ctx.accounts.cmint.load().map_err(|e| {
             solana_msg::msg!("Failed to load mint: {:?}", e);
             anchor_lang::error::ErrorCode::AccountDidNotDeserialize

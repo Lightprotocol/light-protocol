@@ -594,8 +594,8 @@ pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<Tok
     // Find all structs with #[derive(Accounts)] OR #[derive(LightAccounts)] and extract rentfree field info
     // We need both because:
     // - #[derive(Accounts, LightAccounts)] is for regular PDA accounts
-    // - #[derive(LightAccounts)] alone is used when the struct contains LightMint<'info> fields
-    //   (Anchor's #[derive(Accounts)] doesn't recognize LightMint, so LightAccounts generates all Anchor traits)
+    // - #[derive(LightAccounts)] alone is used when the struct contains AccountLoader<'info, Mint> fields
+    //   (Anchor's #[derive(Accounts)] doesn't recognize AccountLoader, so LightAccounts generates all Anchor traits)
     let mut pda_specs: Vec<ExtractedSeedSpec> = Vec::new();
     let mut token_specs: Vec<ExtractedTokenSpec> = Vec::new();
     let mut rentfree_struct_names = std::collections::HashSet::new();

@@ -153,28 +153,6 @@ impl InfraFields {
     }
 }
 
-/// Parsed representation of a struct with rentfree and light_mint fields.
-pub(super) struct ParsedLightAccountsStruct {
-    pub struct_name: Ident,
-    pub generics: syn::Generics,
-    pub rentfree_fields: Vec<ParsedPdaField>,
-    pub light_mint_fields: Vec<LightMintField>,
-    pub token_account_fields: Vec<TokenAccountField>,
-    pub ata_fields: Vec<AtaField>,
-    pub instruction_args: Option<Vec<InstructionArg>>,
-    /// Infrastructure fields detected by naming convention.
-    pub infra_fields: InfraFields,
-    /// If CreateAccountsProof type is passed as a direct instruction arg, stores arg name.
-    /// Matched by TYPE, not by name - allows any argument name (e.g., `proof`, `create_proof`).
-    pub direct_proof_arg: Option<Ident>,
-    /// All fields in the struct (for generating Accounts trait when LightMint fields present).
-    pub all_fields: Vec<ParsedField>,
-    /// True if any field has `LightMint<'info>` type.
-    /// When true, LightAccounts must generate the Accounts trait implementation
-    /// because Anchor's derive doesn't know about LightMint.
-    pub has_light_mint_type_fields: bool,
-}
-
 /// A parsed field from the struct (for Accounts trait generation).
 #[derive(Clone)]
 pub(super) struct ParsedField {
@@ -186,11 +164,28 @@ pub(super) struct ParsedField {
     pub is_signer: bool,
 }
 
-/// Check if a type is `LightMint<'info>`.
-fn is_light_mint_type(ty: &Type) -> bool {
+/// Check if a type is `AccountLoader<'info, T>` from light_token_interface.
+///
+/// Note: This checks if it's our custom AccountLoader, not Anchor's. The heuristic is:
+/// - `AccountLoader<'info, Mint>` is ours (Anchor's requires ZeroCopy which Mint doesn't have)
+fn is_light_loader_type(ty: &Type) -> bool {
     if let Type::Path(type_path) = ty {
         if let Some(segment) = type_path.path.segments.last() {
-            return segment.ident == "LightMint";
+            // AccountLoader with Mint type parameter is ours
+            if segment.ident == "AccountLoader" {
+                // Check if the type parameter is Mint
+                if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
+                    for arg in &args.args {
+                        if let syn::GenericArgument::Type(Type::Path(inner_path)) = arg {
+                            if let Some(inner_seg) = inner_path.path.segments.last() {
+                                if inner_seg.ident == "Mint" {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
     false
@@ -222,6 +217,28 @@ fn has_mut_attribute(attrs: &[syn::Attribute]) -> bool {
         }
     }
     false
+}
+
+/// Parsed representation of a struct with rentfree and light_mint fields.
+pub(super) struct ParsedLightAccountsStruct {
+    pub struct_name: Ident,
+    pub generics: syn::Generics,
+    pub rentfree_fields: Vec<ParsedPdaField>,
+    pub light_mint_fields: Vec<LightMintField>,
+    pub token_account_fields: Vec<TokenAccountField>,
+    pub ata_fields: Vec<AtaField>,
+    pub instruction_args: Option<Vec<InstructionArg>>,
+    /// Infrastructure fields detected by naming convention.
+    pub infra_fields: InfraFields,
+    /// If CreateAccountsProof type is passed as a direct instruction arg, stores arg name.
+    /// Matched by TYPE, not by name - allows any argument name (e.g., `proof`, `create_proof`).
+    pub direct_proof_arg: Option<Ident>,
+    /// All fields in the struct (for generating Accounts trait when LightAccountLoader fields present).
+    pub all_fields: Vec<ParsedField>,
+    /// True if any field has `AccountLoader<'info, Mint>` type.
+    /// When true, LightAccounts must generate the Accounts trait implementation
+    /// because Anchor's derive doesn't know about this type.
+    pub has_light_loader_fields: bool,
 }
 
 /// A field marked with #[light_account(init)]
@@ -342,7 +359,7 @@ pub(super) fn parse_light_accounts_struct(
     let mut ata_fields = Vec::new();
     let mut infra_fields = InfraFields::default();
     let mut all_fields = Vec::new();
-    let mut has_light_mint_type_fields = false;
+    let mut has_light_loader_fields = false;
 
     for field in fields {
         let field_ident = field
@@ -357,9 +374,9 @@ pub(super) fn parse_light_accounts_struct(
             infra_fields.set(field_type, field_ident.clone())?;
         }
 
-        // Check if field type is LightMint<'info>
-        if is_light_mint_type(&field.ty) {
-            has_light_mint_type_fields = true;
+        // Check if field type is AccountLoader<'info, Mint>
+        if is_light_loader_type(&field.ty) {
+            has_light_loader_fields = true;
         }
 
         // Track all fields for Accounts trait generation
@@ -408,6 +425,6 @@ pub(super) fn parse_light_accounts_struct(
         infra_fields,
         direct_proof_arg,
         all_fields,
-        has_light_mint_type_fields,
+        has_light_loader_fields,
     })
 }

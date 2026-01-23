@@ -1,11 +1,11 @@
-//! Integration test for LightMint wrapper functionality.
+//! Integration test for AccountLoader wrapper functionality.
 //!
 //! Tests that mint data can be accessed after CPI initialization using
 //! type-safe deserialization patterns.
 
 use anchor_lang::{InstructionData, ToAccountMetas};
 use csdk_anchor_full_derived_test::instruction_accounts::{
-    CreateMintWithLightMintParams, LIGHT_MINT_TEST_SIGNER_SEED,
+    CreateMintWithAccountLoaderParams, LIGHT_MINT_TEST_SIGNER_SEED,
 };
 use light_client::interface::{get_create_accounts_proof, CreateAccountsProofInput};
 use light_program_test::{
@@ -22,7 +22,7 @@ use solana_signer::Signer;
 /// Test creating a mint and verifying the handler can access mint data after CPI.
 /// This demonstrates the pattern for accessing type-safe mint data after initialization.
 #[tokio::test]
-async fn test_create_mint_with_light_mint_wrapper() {
+async fn test_create_mint_with_account_loader_wrapper() {
     use light_token::instruction::find_mint_address as find_cmint_address;
 
     let program_id = csdk_anchor_full_derived_test::ID;
@@ -72,7 +72,7 @@ async fn test_create_mint_with_light_mint_wrapper() {
     .unwrap();
 
     // Build the instruction
-    let accounts = csdk_anchor_full_derived_test::accounts::CreateMintWithLightMint {
+    let accounts = csdk_anchor_full_derived_test::accounts::CreateMintWithAccountLoader {
         fee_payer: payer.pubkey(),
         authority: authority.pubkey(),
         mint_signer: mint_signer_pda,
@@ -85,12 +85,13 @@ async fn test_create_mint_with_light_mint_wrapper() {
         system_program: solana_sdk::system_program::ID,
     };
 
-    let instruction_data = csdk_anchor_full_derived_test::instruction::CreateMintWithLightMint {
-        _params: CreateMintWithLightMintParams {
-            create_accounts_proof: proof_result.create_accounts_proof,
-            mint_signer_bump,
-        },
-    };
+    let instruction_data =
+        csdk_anchor_full_derived_test::instruction::CreateMintWithAccountLoader {
+            _params: CreateMintWithAccountLoaderParams {
+                create_accounts_proof: proof_result.create_accounts_proof,
+                mint_signer_bump,
+            },
+        };
 
     let instruction = Instruction {
         program_id,
@@ -107,7 +108,7 @@ async fn test_create_mint_with_light_mint_wrapper() {
     // 2. In the handler, access and verify the mint data
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer, &authority])
         .await
-        .expect("CreateMintWithLightMint should succeed");
+        .expect("CreateMintWithAccountLoader should succeed");
 
     // Verify mint exists on-chain with expected data
     let cmint_account = rpc

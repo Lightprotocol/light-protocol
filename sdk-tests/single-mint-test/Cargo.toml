@@ -32,6 +32,7 @@ light-anchor-spl = { workspace = true, features = ["metadata", "idl-build"] }
 light-token = { workspace = true, features = ["anchor"] }
 light-token-types = { workspace = true, features = ["anchor"] }
 light-compressible = { workspace = true, features = ["anchor"] }
+light-token-interface = { workspace = true, features = ["anchor"] }
 solana-program = { workspace = true }
 solana-pubkey = { workspace = true }
 solana-msg = { workspace = true }

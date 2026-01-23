@@ -7,7 +7,7 @@ mod zero_copy;
 mod anchor_wrapper;
 
 #[cfg(feature = "anchor")]
-pub use anchor_wrapper::*;
+pub use anchor_wrapper::{AccountLoader, LightZeroCopy};
 pub use compressed_mint::*;
 pub use top_up::*;
 pub use zero_copy::*;
