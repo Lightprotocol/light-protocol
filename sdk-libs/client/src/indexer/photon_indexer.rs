@@ -1788,10 +1788,9 @@ impl Indexer for PhotonIndexer {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             let request = photon_api::models::GetCompressedMintPostRequest::new(
-                photon_api::models::GetCompressedMintPostRequestParams {
-                    address: Some(bs58::encode(address).into_string()),
-                    mint_pda: None,
-                },
+                photon_api::models::GetCompressedMintPostRequestParams::with_address(
+                    bs58::encode(address).into_string(),
+                ),
             );
 
             let result = photon_api::apis::default_api::get_compressed_mint_post(
@@ -1833,10 +1832,9 @@ impl Indexer for PhotonIndexer {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             let request = photon_api::models::GetCompressedMintPostRequest::new(
-                photon_api::models::GetCompressedMintPostRequestParams {
-                    address: None,
-                    mint_pda: Some(mint_pda.to_string()),
-                },
+                photon_api::models::GetCompressedMintPostRequestParams::with_mint_pda(
+                    mint_pda.to_string(),
+                ),
             );
 
             let result = photon_api::apis::default_api::get_compressed_mint_post(
