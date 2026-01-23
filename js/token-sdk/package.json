@@ -1,0 +1,73 @@
+{
+    "name": "@lightprotocol/token-sdk",
+    "version": "0.1.0",
+    "description": "Light Protocol Token SDK for Solana Kit (web3.js v2)",
+    "type": "module",
+    "main": "./dist/index.js",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "import": "./dist/index.js",
+            "types": "./dist/index.d.ts"
+        },
+        "./codecs": {
+            "import": "./dist/codecs/index.js",
+            "types": "./dist/codecs/index.d.ts"
+        },
+        "./instructions": {
+            "import": "./dist/instructions/index.js",
+            "types": "./dist/instructions/index.d.ts"
+        }
+    },
+    "files": [
+        "dist",
+        "src"
+    ],
+    "scripts": {
+        "build": "tsc",
+        "clean": "rm -rf dist",
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "lint": "eslint .",
+        "format": "prettier --write .",
+        "prepublishOnly": "pnpm run build"
+    },
+    "peerDependencies": {
+        "@solana/kit": "^2.1.0"
+    },
+    "dependencies": {
+        "@solana/addresses": "^2.1.0",
+        "@solana/codecs": "^2.1.0",
+        "@solana/instructions": "^2.1.0",
+        "@solana/signers": "^2.1.0",
+        "@solana/transaction-messages": "^2.1.0",
+        "@solana/keys": "^2.1.0"
+    },
+    "devDependencies": {
+        "@solana/kit": "^2.1.0",
+        "@eslint/js": "9.36.0",
+        "@typescript-eslint/eslint-plugin": "^8.44.0",
+        "@typescript-eslint/parser": "^8.44.0",
+        "eslint": "^9.36.0",
+        "prettier": "^3.3.3",
+        "typescript": "^5.7.3",
+        "vitest": "^2.1.8"
+    },
+    "engines": {
+        "node": ">=18"
+    },
+    "keywords": [
+        "solana",
+        "light-protocol",
+        "compressed-token",
+        "zk-compression",
+        "web3"
+    ],
+    "license": "Apache-2.0",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/Lightprotocol/light-protocol.git",
+        "directory": "js/token-sdk"
+    }
+}
