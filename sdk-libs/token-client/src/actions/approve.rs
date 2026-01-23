@@ -96,12 +96,26 @@ impl Approve {
     ///
     /// # Returns
     /// `Result<Signature, RpcError>` - The transaction signature
+    ///
+    /// # Errors
+    /// Returns an error if `self.owner` is `Some` and does not equal `owner.pubkey()`.
     pub async fn execute_with_owner<R: Rpc>(
         self,
         rpc: &mut R,
         payer: &Keypair,
         owner: &Keypair,
     ) -> Result<Signature, RpcError> {
+        // Guard: if self.owner is set, it must match the provided owner keypair
+        if let Some(expected_owner) = self.owner {
+            if expected_owner != owner.pubkey() {
+                return Err(RpcError::CustomError(format!(
+                    "owner mismatch: self.owner ({}) does not match owner.pubkey() ({})",
+                    expected_owner,
+                    owner.pubkey()
+                )));
+            }
+        }
+
         let ix = ApproveInstruction {
             token_account: self.token_account,
             delegate: self.delegate,

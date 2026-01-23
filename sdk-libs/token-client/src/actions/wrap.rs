@@ -4,8 +4,9 @@
 
 use light_client::rpc::{Rpc, RpcError};
 use light_token::{
-    constants::SPL_TOKEN_PROGRAM_ID,
-    instruction::{get_spl_interface_pda_and_bump, TransferFromSpl},
+    constants::SPL_TOKEN_2022_PROGRAM_ID,
+    instruction::TransferFromSpl,
+    spl_interface::{find_spl_interface_pda, has_restricted_extensions},
 };
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -57,7 +58,25 @@ impl Wrap {
         payer: &Keypair,
         authority: &Keypair,
     ) -> Result<Signature, RpcError> {
-        let (spl_interface_pda, bump) = get_spl_interface_pda_and_bump(&self.mint);
+        // Get the source account to determine the token program
+        let source_account_info = rpc.get_account(self.source_spl_ata).await?.ok_or_else(|| {
+            RpcError::CustomError("Source SPL token account not found".to_string())
+        })?;
+
+        let spl_token_program = source_account_info.owner;
+
+        // Check for restricted extensions if using Token-2022
+        let restricted = if spl_token_program == SPL_TOKEN_2022_PROGRAM_ID {
+            let mint_account = rpc
+                .get_account(self.mint)
+                .await?
+                .ok_or_else(|| RpcError::CustomError("Mint account not found".to_string()))?;
+            has_restricted_extensions(&mint_account.data)
+        } else {
+            false
+        };
+
+        let (spl_interface_pda, bump) = find_spl_interface_pda(&self.mint, restricted);
 
         let ix = TransferFromSpl {
             amount: self.amount,
@@ -69,7 +88,7 @@ impl Wrap {
             mint: self.mint,
             payer: payer.pubkey(),
             spl_interface_pda,
-            spl_token_program: SPL_TOKEN_PROGRAM_ID,
+            spl_token_program,
         }
         .instruction()
         .map_err(|e| RpcError::CustomError(format!("Failed to create instruction: {}", e)))?;
