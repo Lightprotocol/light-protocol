@@ -63,6 +63,7 @@ Some crates depend on external Light Protocol crates not in program-libs:
 ## Testing
 
 Unit tests run with `cargo test`:
+
 ```bash
 cargo test -p light-hasher --all-features
 cargo test -p light-compressed-account --all-features

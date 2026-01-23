@@ -393,16 +393,17 @@ where
 {
     info!("Starting bootstrap of {} accounts", label);
 
-    // Set up shutdown flag
+    // Set up shutdown flag and listener task
     let shutdown_flag = Arc::new(AtomicBool::new(false));
 
-    if let Some(rx) = shutdown_rx {
+    // Spawn shutdown listener and keep handle for cleanup
+    let shutdown_listener_handle = shutdown_rx.map(|rx| {
         let shutdown_flag_clone = shutdown_flag.clone();
         tokio::spawn(async move {
             let _ = rx.await;
             shutdown_flag_clone.store(true, Ordering::SeqCst);
-        });
-    }
+        })
+    });
 
     let client = reqwest::Client::new();
 
@@ -413,7 +414,7 @@ where
 
     let result = if is_localhost(rpc_url) {
         debug!("Detected localhost, using standard getProgramAccounts");
-        let (fetched, inserted) = bootstrap_standard_api(
+        let api_result = bootstrap_standard_api(
             &client,
             rpc_url,
             program_id,
@@ -421,7 +422,14 @@ where
             Some(&shutdown_flag),
             process_fn,
         )
-        .await?;
+        .await;
+
+        // Abort shutdown listener before returning (success or error)
+        if let Some(handle) = shutdown_listener_handle {
+            handle.abort();
+        }
+
+        let (fetched, inserted) = api_result?;
 
         info!(
             "{} bootstrap complete: {} fetched, {} inserted",
@@ -435,7 +443,7 @@ where
         }
     } else {
         debug!("Using getProgramAccountsV2 with pagination");
-        let (pages, fetched, inserted) = bootstrap_v2_api(
+        let api_result = bootstrap_v2_api(
             &client,
             rpc_url,
             program_id,
@@ -443,7 +451,14 @@ where
             Some(&shutdown_flag),
             process_fn,
         )
-        .await?;
+        .await;
+
+        // Abort shutdown listener before returning (success or error)
+        if let Some(handle) = shutdown_listener_handle {
+            handle.abort();
+        }
+
+        let (pages, fetched, inserted) = api_result?;
 
         info!(
             "{} bootstrap complete: {} pages, {} fetched, {} inserted",

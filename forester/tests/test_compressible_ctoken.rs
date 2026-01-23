@@ -535,7 +535,7 @@ async fn run_bootstrap_test(
             let account_state = accounts
                 .iter()
                 .find(|acc| acc.pubkey == *pubkey)
-                .expect(&format!("Bootstrap should have found account {}", pubkey));
+                .unwrap_or_else(|| panic!("Bootstrap should have found account {}", pubkey));
 
             println!(
                 "Verifying account {}: mint={:?}, lamports={}",
