@@ -10,7 +10,7 @@
 
 use crate::models;
 
-#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GetCompressedMintPostRequest {
     /// An ID to identify the request.
     #[serde(rename = "id")]
