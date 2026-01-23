@@ -31,7 +31,6 @@ light-compressible = { workspace = true, default-features = false, features = ["
 light-token-interface = { workspace = true }
 light-token-client = { workspace = true }
 light-token = { workspace = true }
-light-test-utils = { workspace = true }
 light-compressed-token-sdk = { workspace = true }
 solana-rpc-client-api = { workspace = true }
 solana-transaction-status = { workspace = true }

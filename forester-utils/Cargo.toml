@@ -28,6 +28,9 @@ light-prover-client = { workspace = true }
 light-registry = { workspace = true, features = ["cpi"] }
 account-compression = { workspace = true, features = ["cpi"] }
 light-token-interface = { workspace = true }
+light-compressed-token-sdk = { workspace = true }
+light-compressible = { workspace = true }
+borsh = { workspace = true }
 
 solana-instruction = { workspace = true }
 solana-pubkey = { workspace = true }

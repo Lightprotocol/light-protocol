@@ -90,4 +90,21 @@ if [ "$CONSTRAINT_FAILED" -eq 1 ]; then
     exit 1
 fi
 
+# Check that no crates have light-test-utils as a regular dependency
+# (dev-dependencies are allowed, --edges normal excludes them)
+# Excludes: program-tests/*, sdk-tests/*, xtask (these are test/build crates)
+echo ""
+echo "Checking that no crates depend on light-test-utils (dev-deps allowed)..."
+
+# Use inverse lookup to find what depends on light-test-utils
+# Skip the first line (light-test-utils itself) and filter out test crates
+dependents=$(cargo tree --workspace --edges normal -i light-test-utils 2>/dev/null | tail -n +2 | grep -v "program-tests/" | grep -v "sdk-tests/" | grep -v "xtask" || true)
+if [ -n "$dependents" ]; then
+    echo "ERROR: Found crates with light-test-utils as a regular dependency:"
+    echo "$dependents"
+    echo ""
+    echo "FAILED: light-test-utils should only be used as a dev-dependency."
+    exit 1
+fi
+
 echo "All dependency constraints satisfied."

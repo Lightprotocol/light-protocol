@@ -4,7 +4,7 @@
 
 use light_client::rpc::{Rpc, RpcError};
 use light_token::{
-    constants::SPL_TOKEN_2022_PROGRAM_ID,
+    constants::{SPL_TOKEN_2022_PROGRAM_ID, SPL_TOKEN_PROGRAM_ID},
     instruction::TransferToSpl,
     spl_interface::{find_spl_interface_pda, has_restricted_extensions},
 };
@@ -66,6 +66,20 @@ impl Unwrap {
             })?;
 
         let spl_token_program = destination_account_info.owner;
+
+        // Validate that the destination account is owned by a supported SPL token program
+        if spl_token_program != SPL_TOKEN_PROGRAM_ID
+            && spl_token_program != SPL_TOKEN_2022_PROGRAM_ID
+        {
+            return Err(RpcError::CustomError(format!(
+                "Destination SPL token account {} is owned by an unsupported program {}. \
+                 Expected SPL Token ({}) or Token-2022 ({}).",
+                self.destination_spl_ata,
+                destination_account_info.owner,
+                SPL_TOKEN_PROGRAM_ID,
+                SPL_TOKEN_2022_PROGRAM_ID
+            )));
+        }
 
         // Check for restricted extensions if using Token-2022
         let restricted = if spl_token_program == SPL_TOKEN_2022_PROGRAM_ID {
