@@ -145,6 +145,55 @@ impl LightConfig {
 
         Ok(config)
     }
+
+    /// Client-side version of load_checked for off-chain validation.
+    ///
+    /// Validates config account data fetched via RPC, checking owner and PDA derivation.
+    /// This mirrors the on-chain `load_checked` but works with client-side Account data.
+    ///
+    /// # Arguments
+    /// * `account_data` - The account data bytes from RPC
+    /// * `account_owner` - The owner pubkey of the fetched account
+    /// * `account_key` - The pubkey of the fetched account (config_pda)
+    /// * `program_id` - The program that should own the config
+    ///
+    /// # Returns
+    /// * `Ok(LightConfig)` if validation passes
+    /// * `Err(String)` with description if validation fails
+    pub fn load_checked_client(
+        account_data: &[u8],
+        account_owner: &Pubkey,
+        account_key: &Pubkey,
+        program_id: &Pubkey,
+    ) -> Result<Self, String> {
+        // CHECK: Owner matches program_id
+        if account_owner != program_id {
+            return Err(format!(
+                "Config account owner mismatch. Expected: {}. Found: {}",
+                program_id, account_owner
+            ));
+        }
+
+        // Deserialize config
+        let config = Self::try_from_slice(account_data)
+            .map_err(|err| format!("Failed to deserialize config data: {:?}", err))?;
+
+        // Validate config (checks version, address_space, config_bump)
+        config
+            .validate()
+            .map_err(|err| format!("Config validation failed: {:?}", err))?;
+
+        // CHECK: PDA derivation matches account key
+        let (expected_pda, _) = Self::derive_pda(program_id, config.config_bump);
+        if expected_pda != *account_key {
+            return Err(format!(
+                "Config PDA derivation mismatch. Expected: {}. Found: {}",
+                expected_pda, account_key
+            ));
+        }
+
+        Ok(config)
+    }
 }
 
 /// Creates a new compressible config PDA

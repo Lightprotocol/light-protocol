@@ -3,7 +3,6 @@ use std::sync::{
     Arc,
 };
 
-use borsh::BorshDeserialize;
 use forester_utils::rpc_pool::SolanaRpcPool;
 use futures::StreamExt;
 use light_client::{
@@ -81,7 +80,7 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
         // Get the compressible config PDA for this program (config_bump = 0)
         let (config_pda, _) = LightConfig::derive_pda(program_id, 0);
 
-        // Fetch the config to get rent_sponsor and address_space
+        // Fetch the config account
         let rpc = self.rpc_pool.get_connection().await?;
         let config_account = rpc
             .get_account(config_pda)
@@ -91,37 +90,21 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
                 anyhow::anyhow!("Config account not found for program {}", program_id)
             })?;
 
-        // Verify account owner matches program_id (mirrors LightConfig::load_checked)
-        if config_account.owner != *program_id {
-            return Err(anyhow::anyhow!(
-                "Config account owner mismatch. Expected: {}. Found: {}",
-                program_id,
-                config_account.owner
-            ));
-        }
-
-        // Deserialize config
-        let config = LightConfig::try_from_slice(&config_account.data)
-            .map_err(|e| anyhow::anyhow!("Failed to deserialize config: {:?}", e))?;
-
-        // Validate config (checks config_bump == 0 and other constraints)
-        config.validate().map_err(|e| {
+        // Load and validate config using SDK validator
+        // This checks: owner == program_id, config_bump == 0, PDA derivation, and other constraints
+        let config = LightConfig::load_checked_client(
+            &config_account.data,
+            &config_account.owner,
+            &config_pda,
+            program_id,
+        )
+        .map_err(|e| {
             anyhow::anyhow!(
-                "LightConfig validation failed for program {}: {:?}",
+                "LightConfig validation failed for program {}: {}",
                 program_id,
                 e
             )
         })?;
-
-        // Verify PDA derivation matches (mirrors LightConfig::load_checked)
-        let (expected_pda, _) = LightConfig::derive_pda(program_id, config.config_bump);
-        if expected_pda != config_pda {
-            return Err(anyhow::anyhow!(
-                "Config PDA derivation mismatch. Expected: {}. Found: {}",
-                expected_pda,
-                config_pda
-            ));
-        }
 
         let rent_sponsor = config.rent_sponsor;
         let compression_authority = config.compression_authority;
