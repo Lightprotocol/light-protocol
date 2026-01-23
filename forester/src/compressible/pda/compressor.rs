@@ -91,11 +91,20 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
                 anyhow::anyhow!("Config account not found for program {}", program_id)
             })?;
 
-        // LightConfig is stored with raw Borsh serialization (no Anchor discriminator)
+        // Verify account owner matches program_id (mirrors LightConfig::load_checked)
+        if config_account.owner != *program_id {
+            return Err(anyhow::anyhow!(
+                "Config account owner mismatch. Expected: {}. Found: {}",
+                program_id,
+                config_account.owner
+            ));
+        }
+
+        // Deserialize config
         let config = LightConfig::try_from_slice(&config_account.data)
             .map_err(|e| anyhow::anyhow!("Failed to deserialize config: {:?}", e))?;
 
-        // Validate config at startup to fail fast on misconfigurations
+        // Validate config (checks config_bump == 0 and other constraints)
         config.validate().map_err(|e| {
             anyhow::anyhow!(
                 "LightConfig validation failed for program {}: {:?}",
@@ -103,6 +112,16 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
                 e
             )
         })?;
+
+        // Verify PDA derivation matches (mirrors LightConfig::load_checked)
+        let (expected_pda, _) = LightConfig::derive_pda(program_id, config.config_bump);
+        if expected_pda != config_pda {
+            return Err(anyhow::anyhow!(
+                "Config PDA derivation mismatch. Expected: {}. Found: {}",
+                expected_pda,
+                config_pda
+            ));
+        }
 
         let rent_sponsor = config.rent_sponsor;
         let compression_authority = config.compression_authority;
