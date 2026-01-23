@@ -6,14 +6,16 @@
 //! - Generates all necessary types, enums, and instruction handlers
 
 mod compress;
-pub mod crate_context;
 mod decompress;
 pub mod expr_traversal;
 pub mod instructions;
-mod parsing;
 pub mod seed_codegen;
 pub mod seed_utils;
 pub mod variant_enum;
-pub mod visitors;
+
+// Made pub(crate) for testing in light_pdas_tests module
+pub(crate) mod crate_context;
+pub(crate) mod parsing;
+pub(crate) mod visitors;
 
 pub use instructions::light_program_impl;

@@ -13,12 +13,14 @@
 //! - `derive.rs` - Orchestration layer that wires everything together
 
 mod builder;
-mod derive;
-mod light_account;
-mod mint;
-mod parse;
 mod pda;
 mod token;
+
+// Made pub(crate) for testing in light_pdas_tests module
+pub(crate) mod derive;
+pub(crate) mod light_account;
+pub(crate) mod mint;
+pub(crate) mod parse;
 
 use proc_macro2::TokenStream;
 use syn::DeriveInput;
