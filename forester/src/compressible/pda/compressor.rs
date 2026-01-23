@@ -105,6 +105,17 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
             )
         })?;
 
+        /*
+             // Verify PDA derivation matches (mirrors LightConfig::load_checked)
+        let (expected_pda, _) = LightConfig::derive_pda(program_id, config.config_bump);
+        if expected_pda != config_pda {
+            return Err(anyhow::anyhow!(
+                "Config PDA derivation mismatch. Expected: {}. Found: {}",
+                expected_pda,
+                config_pda
+            ));
+        }
+        */
         let rent_sponsor = config.rent_sponsor;
         let compression_authority = config.compression_authority;
         let address_tree = *config
