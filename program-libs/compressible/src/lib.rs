@@ -4,6 +4,11 @@ pub mod error;
 pub mod registry_instructions;
 pub mod rent;
 
+/// Decompressed PDA discriminator - marks a compressed account as a decompressed PDA placeholder.
+/// When a CMint or other PDA is decompressed to a Solana account, the compressed account
+/// stores this discriminator and the PDA pubkey (hashed) to preserve the address.
+pub const DECOMPRESSED_PDA_DISCRIMINATOR: [u8; 8] = [255u8; 8];
+
 #[cfg(feature = "anchor")]
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]

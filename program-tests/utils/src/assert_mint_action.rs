@@ -2,8 +2,7 @@ use std::collections::HashMap;
 
 use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_client::indexer::Indexer;
-use light_compressed_account::compressed_account::CompressedAccountData;
-use light_compressible::compression_info::CompressionInfo;
+use light_compressible::{compression_info::CompressionInfo, DECOMPRESSED_PDA_DISCRIMINATOR};
 use light_program_test::{LightProgramTest, Rpc};
 use light_token_client::instructions::mint_action::MintActionType;
 use light_token_interface::state::{extensions::AdditionalMetadata, ExtensionStruct, Mint, Token};
@@ -183,7 +182,7 @@ pub async fn assert_mint_action(
         "Mint state should match expected after applying actions"
     );
 
-    // Verify compressed account has sentinel values when decompressed
+    // Verify compressed account has decompressed PDA format when decompressed
     if post_decompressed {
         let sentinel_account = rpc
             .indexer()
@@ -193,10 +192,17 @@ pub async fn assert_mint_action(
             .unwrap()
             .value
             .expect("Compressed mint account not found");
+        let sentinel_data = sentinel_account.data.as_ref().unwrap();
+        // Decompressed PDAs have DECOMPRESSED_PDA_DISCRIMINATOR and data contains PDA pubkey
         assert_eq!(
-            *sentinel_account.data.as_ref().unwrap(),
-            CompressedAccountData::default(),
-            "Compressed mint should have sentinel values when Mint is source of truth"
+            sentinel_data.discriminator, DECOMPRESSED_PDA_DISCRIMINATOR,
+            "Compressed mint should have DECOMPRESSED_PDA_DISCRIMINATOR when decompressed"
+        );
+        let mint_pda = Pubkey::from(pre_compressed_mint.metadata.mint);
+        assert_eq!(
+            sentinel_data.data,
+            mint_pda.to_bytes().to_vec(),
+            "Compressed mint data should contain the mint PDA pubkey when decompressed"
         );
     }
 
