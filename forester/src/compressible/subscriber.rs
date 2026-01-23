@@ -67,7 +67,6 @@ enum ConnectionResult {
     StreamClosed,
 }
 
-
 impl SubscriptionConfig {
     /// Create subscription config for Light Token accounts (ctokens)
     pub fn ctoken() -> Self {
