@@ -763,10 +763,10 @@ async fn test_compressible_mint_subscription() {
         .value
         .items
         .iter()
-        .find(|m| m.mint.decimals == 9);
+        .find(|m| m.account.address == Some(compression_address_1));
     assert!(
         found_mint.is_some(),
-        "Should find the mint with 9 decimals in authority query results"
+        "Should find the mint with compression_address_1 in authority query results"
     );
     println!("Photon API tests completed successfully!");
 
