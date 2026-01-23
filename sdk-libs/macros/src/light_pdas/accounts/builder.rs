@@ -13,6 +13,7 @@ use super::{
     pda::generate_pda_compress_blocks,
     token::TokenAccountsBuilder,
 };
+use crate::utils::to_snake_case;
 
 /// Builder for RentFree derive macro code generation.
 ///
@@ -527,6 +528,253 @@ impl LightAccountsBuilder {
                 ) -> std::result::Result<(), light_sdk::error::LightSdkError> {
                     use anchor_lang::ToAccountInfo;
                     #body
+                }
+            }
+        })
+    }
+
+    /// Query: any field with `LightMint<'info>` type?
+    pub fn has_light_mint_type_fields(&self) -> bool {
+        self.parsed.has_light_mint_type_fields
+    }
+
+    /// Generate Anchor trait implementations for structs with LightMint fields.
+    ///
+    /// When a struct contains `LightMint<'info>` fields, Anchor's `#[derive(Accounts)]`
+    /// fails because `LightMint` is not in Anchor's hardcoded primitive type whitelist.
+    /// This method generates the necessary trait implementations manually.
+    ///
+    /// Generated traits:
+    /// - `Accounts<'info, B>` - Account deserialization
+    /// - `AccountsExit<'info>` - Account serialization on exit
+    /// - `ToAccountInfos<'info>` - Convert to account info list
+    /// - `ToAccountMetas` - Convert to account meta list
+    /// - `Bumps` - Anchor Bumps trait for Context compatibility
+    pub fn generate_anchor_accounts_impl(&self) -> Result<TokenStream, syn::Error> {
+        let struct_name = &self.parsed.struct_name;
+        let (impl_generics, ty_generics, where_clause) = self.parsed.generics.split_for_impl();
+        let fields = &self.parsed.all_fields;
+
+        // Generate field assignments for try_accounts
+        let field_assignments: Vec<TokenStream> = fields
+            .iter()
+            .map(|f| {
+                let field_ident = &f.ident;
+                let field_ty = &f.ty;
+                quote! {
+                    let #field_ident: #field_ty = anchor_lang::Accounts::try_accounts(
+                        __program_id,
+                        __accounts,
+                        __ix_data,
+                        __bumps,
+                        __reallocs,
+                    )?;
+                }
+            })
+            .collect();
+
+        let field_names: Vec<&syn::Ident> = fields.iter().map(|f| &f.ident).collect();
+
+        // Generate exit calls - only for mutable fields
+        // Non-mutable fields like Program<'info, System> don't implement AccountsExit
+        let exit_calls: Vec<TokenStream> = fields
+            .iter()
+            .filter(|f| f.is_mut)
+            .map(|f| {
+                let field_ident = &f.ident;
+                quote! {
+                    anchor_lang::AccountsExit::exit(&self.#field_ident, program_id)?;
+                }
+            })
+            .collect();
+
+        // Generate to_account_infos calls
+        let account_info_calls: Vec<TokenStream> = fields
+            .iter()
+            .map(|f| {
+                let field_ident = &f.ident;
+                quote! {
+                    account_infos.extend(anchor_lang::ToAccountInfos::to_account_infos(&self.#field_ident));
+                }
+            })
+            .collect();
+
+        // Generate to_account_metas calls
+        let account_meta_calls: Vec<TokenStream> = fields
+            .iter()
+            .map(|f| {
+                let field_ident = &f.ident;
+                quote! {
+                    account_metas.extend(anchor_lang::ToAccountMetas::to_account_metas(&self.#field_ident, None));
+                }
+            })
+            .collect();
+
+        let field_count = fields.len();
+
+        // Generate the Bumps struct for Anchor compatibility
+        let bumps_struct_name = syn::Ident::new(
+            &format!("{}Bumps", struct_name),
+            struct_name.span(),
+        );
+
+        // Generate client accounts module name (snake_case of struct name)
+        let struct_name_str = struct_name.to_string();
+        let client_module_name = syn::Ident::new(
+            &format!(
+                "__client_accounts_{}",
+                to_snake_case(&struct_name_str)
+            ),
+            struct_name.span(),
+        );
+
+        // Generate fields for the client accounts struct
+        // Each field maps to a Pubkey (accounts are represented by their keys in client code)
+        let client_struct_fields: Vec<TokenStream> = fields
+            .iter()
+            .map(|f| {
+                let field_ident = &f.ident;
+                quote! {
+                    pub #field_ident: anchor_lang::prelude::Pubkey,
+                }
+            })
+            .collect();
+
+        // Generate ToAccountMetas for client struct
+        let client_to_account_metas: Vec<TokenStream> = fields
+            .iter()
+            .map(|f| {
+                let field_ident = &f.ident;
+                if f.is_mut {
+                    if f.is_signer {
+                        quote! {
+                            account_metas.push(anchor_lang::prelude::AccountMeta::new(self.#field_ident, true));
+                        }
+                    } else {
+                        quote! {
+                            account_metas.push(anchor_lang::prelude::AccountMeta::new(self.#field_ident, false));
+                        }
+                    }
+                } else if f.is_signer {
+                    quote! {
+                        account_metas.push(anchor_lang::prelude::AccountMeta::new_readonly(self.#field_ident, true));
+                    }
+                } else {
+                    quote! {
+                        account_metas.push(anchor_lang::prelude::AccountMeta::new_readonly(self.#field_ident, false));
+                    }
+                }
+            })
+            .collect();
+
+        Ok(quote! {
+            /// Auto-generated client accounts module for Anchor compatibility.
+            /// This module is required by Anchor's #[program] macro.
+            pub mod #client_module_name {
+                use super::*;
+
+                /// Client-side representation of the accounts struct.
+                /// Used for building instructions in client code.
+                #[derive(Clone)]
+                pub struct #struct_name {
+                    #(#client_struct_fields)*
+                }
+
+                impl anchor_lang::ToAccountMetas for #struct_name {
+                    fn to_account_metas(&self, _is_signer: Option<bool>) -> Vec<anchor_lang::prelude::AccountMeta> {
+                        let mut account_metas = Vec::with_capacity(#field_count);
+                        #(#client_to_account_metas)*
+                        account_metas
+                    }
+                }
+            }
+
+            /// Auto-generated Bumps struct for Anchor compatibility.
+            #[derive(Default, Debug, Clone)]
+            pub struct #bumps_struct_name {
+                // Empty - bumps are handled separately for LightMint fields
+            }
+
+            impl #bumps_struct_name {
+                /// Get a bump by name (returns None for LightMint-based structs).
+                pub fn get(&self, _name: &str) -> Option<u8> {
+                    None
+                }
+            }
+
+            /// Anchor Bumps trait implementation for Context compatibility.
+            #[automatically_derived]
+            impl #impl_generics anchor_lang::Bumps for #struct_name #ty_generics #where_clause {
+                type Bumps = #bumps_struct_name;
+            }
+
+            /// IDL generation method required by Anchor's #[program] macro.
+            /// This generates a minimal IDL representation for LightMint-based structs.
+            impl #impl_generics #struct_name #ty_generics #where_clause {
+                pub fn __anchor_private_gen_idl_accounts(
+                    _accounts: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlAccount>,
+                    _types: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlTypeDef>,
+                ) -> Vec<anchor_lang::idl::types::IdlInstructionAccountItem> {
+                    // Generate minimal account info for each field
+                    vec![
+                        #(
+                            anchor_lang::idl::types::IdlInstructionAccountItem::Single(
+                                anchor_lang::idl::types::IdlInstructionAccount {
+                                    name: stringify!(#field_names).into(),
+                                    docs: vec![],
+                                    writable: false, // Could be enhanced to check is_mut
+                                    signer: false,   // Could be enhanced to check is_signer
+                                    optional: false,
+                                    address: None,
+                                    pda: None,
+                                    relations: vec![],
+                                }
+                            )
+                        ),*
+                    ]
+                }
+            }
+
+            #[automatically_derived]
+            impl #impl_generics anchor_lang::Accounts<'info, #bumps_struct_name> for #struct_name #ty_generics #where_clause {
+                fn try_accounts(
+                    __program_id: &anchor_lang::prelude::Pubkey,
+                    __accounts: &mut &'info [anchor_lang::prelude::AccountInfo<'info>],
+                    __ix_data: &[u8],
+                    __bumps: &mut #bumps_struct_name,
+                    __reallocs: &mut std::collections::BTreeSet<anchor_lang::prelude::Pubkey>,
+                ) -> anchor_lang::Result<Self> {
+                    #(#field_assignments)*
+
+                    Ok(Self {
+                        #(#field_names),*
+                    })
+                }
+            }
+
+            #[automatically_derived]
+            impl #impl_generics anchor_lang::AccountsExit<'info> for #struct_name #ty_generics #where_clause {
+                fn exit(&self, program_id: &anchor_lang::prelude::Pubkey) -> anchor_lang::Result<()> {
+                    #(#exit_calls)*
+                    Ok(())
+                }
+            }
+
+            #[automatically_derived]
+            impl #impl_generics anchor_lang::ToAccountInfos<'info> for #struct_name #ty_generics #where_clause {
+                fn to_account_infos(&self) -> Vec<anchor_lang::prelude::AccountInfo<'info>> {
+                    let mut account_infos = Vec::with_capacity(#field_count);
+                    #(#account_info_calls)*
+                    account_infos
+                }
+            }
+
+            #[automatically_derived]
+            impl #impl_generics anchor_lang::ToAccountMetas for #struct_name #ty_generics #where_clause {
+                fn to_account_metas(&self, _is_signer: Option<bool>) -> Vec<anchor_lang::prelude::AccountMeta> {
+                    let mut account_metas = Vec::with_capacity(#field_count);
+                    #(#account_meta_calls)*
+                    account_metas
                 }
             }
         })

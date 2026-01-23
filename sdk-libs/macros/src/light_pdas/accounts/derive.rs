@@ -34,9 +34,22 @@ pub(super) fn derive_light_accounts(input: &DeriveInput) -> Result<TokenStream, 
     let builder = LightAccountsBuilder::parse(input)?;
     builder.validate()?;
 
+    // Check if struct has LightMint<'info> type fields.
+    // When present, we must generate Anchor trait implementations ourselves
+    // because Anchor's #[derive(Accounts)] doesn't know about LightMint.
+    let anchor_impls = if builder.has_light_mint_type_fields() {
+        builder.generate_anchor_accounts_impl()?
+    } else {
+        quote! {}
+    };
+
     // No instruction args = no-op impls (backwards compatibility)
     if !builder.has_instruction_args() {
-        return builder.generate_noop_impls();
+        let noop_impls = builder.generate_noop_impls()?;
+        return Ok(quote! {
+            #anchor_impls
+            #noop_impls
+        });
     }
 
     // Generate pre_init body for ALL account types (PDAs, mints, token accounts, ATAs)
@@ -51,6 +64,7 @@ pub(super) fn derive_light_accounts(input: &DeriveInput) -> Result<TokenStream, 
     let finalize_impl = builder.generate_finalize_impl(finalize_body)?;
 
     Ok(quote! {
+        #anchor_impls
         #pre_init_impl
         #finalize_impl
     })

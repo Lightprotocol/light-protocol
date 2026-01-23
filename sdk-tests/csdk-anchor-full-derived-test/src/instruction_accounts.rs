@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
 use light_sdk_macros::LightAccounts;
+use light_token_interface::state::mint::LightMint;
 
 use crate::state::*;
 
@@ -340,6 +341,71 @@ pub struct CreateMintWithMetadata<'info> {
         mint::additional_metadata = params.additional_metadata.clone()
     )]
     pub cmint: UncheckedAccount<'info>,
+
+    /// CHECK: Compression config
+    pub compression_config: AccountInfo<'info>,
+
+    /// CHECK: CToken config
+    pub light_token_compressible_config: AccountInfo<'info>,
+
+    /// CHECK: CToken rent sponsor
+    #[account(mut)]
+    pub rent_sponsor: AccountInfo<'info>,
+
+    /// CHECK: CToken program
+    pub light_token_program: AccountInfo<'info>,
+
+    /// CHECK: CToken CPI authority
+    pub light_token_cpi_authority: AccountInfo<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
+// =============================================================================
+// LightMint Wrapper Test
+// =============================================================================
+
+pub const LIGHT_MINT_TEST_SIGNER_SEED: &[u8] = b"light_mint_test_signer";
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
+pub struct CreateMintWithLightMintParams {
+    pub create_accounts_proof: CreateAccountsProof,
+    pub mint_signer_bump: u8,
+}
+
+/// Test instruction to verify LightMint wrapper works correctly.
+/// Uses `LightMint<'info>` directly in the Accounts struct to demonstrate
+/// type-safe access to mint data after CPI initialization.
+///
+/// Note: Uses `#[derive(LightAccounts)]` alone (not with `#[derive(Accounts)]`)
+/// because Anchor's derive doesn't know about `LightMint` type.
+/// The `LightAccounts` macro generates the necessary Anchor trait implementations.
+#[derive(LightAccounts)]
+#[instruction(params: CreateMintWithLightMintParams)]
+pub struct CreateMintWithLightMint<'info> {
+    #[account(mut)]
+    pub fee_payer: Signer<'info>,
+
+    pub authority: Signer<'info>,
+
+    /// CHECK: PDA derived from authority for mint signer
+    #[account(
+        seeds = [LIGHT_MINT_TEST_SIGNER_SEED, authority.key().as_ref()],
+        bump,
+    )]
+    pub mint_signer: UncheckedAccount<'info>,
+
+    /// Mint account with zero-copy access after CPI initialization.
+    /// LightMint provides type-safe access to mint data without manual wrapping.
+    #[account(mut)]
+    #[light_account(init,
+        mint::signer = mint_signer,
+        mint::authority = fee_payer,
+        mint::decimals = 6,
+        mint::seeds = &[LIGHT_MINT_TEST_SIGNER_SEED, self.authority.to_account_info().key.as_ref()],
+        mint::bump = params.mint_signer_bump
+    )]
+    pub cmint: LightMint<'info>,
 
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,

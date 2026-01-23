@@ -10,7 +10,7 @@ use light_zero_copy::{
 };
 use spl_pod::solana_msg::msg;
 
-use super::compressed_mint::{MintMetadata, ACCOUNT_TYPE_MINT};
+use super::compressed_mint::{MintMetadata, ACCOUNT_TYPE_MINT, IS_INITIALIZED_OFFSET};
 use crate::{
     instructions::mint_action::MintInstructionData,
     state::{
@@ -107,8 +107,7 @@ impl<'a> ZeroCopyNew<'a> for Mint {
         bytes: &'a mut [u8],
         config: Self::ZeroCopyConfig,
     ) -> Result<(Self::Output, &'a mut [u8]), light_zero_copy::errors::ZeroCopyError> {
-        // Check that the account is not already initialized (is_initialized byte at offset 45)
-        const IS_INITIALIZED_OFFSET: usize = 45; // 4 + 32 + 8 + 1 = 45
+        // Check that the account is not already initialized
         if bytes.len() > IS_INITIALIZED_OFFSET && bytes[IS_INITIALIZED_OFFSET] != 0 {
             return Err(light_zero_copy::errors::ZeroCopyError::MemoryNotZeroed);
         }

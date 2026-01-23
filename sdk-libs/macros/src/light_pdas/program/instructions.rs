@@ -2,7 +2,7 @@
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::{Item, ItemMod, Result, Type};
+use syn::{Item, ItemMod, ItemStruct, Result, Type};
 
 // Re-export types from parsing for external use
 pub use super::parsing::{
@@ -591,14 +591,30 @@ pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<Tok
     // Parse the crate following mod declarations (Anchor-style)
     let crate_ctx = CrateContext::parse_from_manifest()?;
 
-    // Find all structs with #[derive(Accounts)] and extract rentfree field info
+    // Find all structs with #[derive(Accounts)] OR #[derive(LightAccounts)] and extract rentfree field info
+    // We need both because:
+    // - #[derive(Accounts, LightAccounts)] is for regular PDA accounts
+    // - #[derive(LightAccounts)] alone is used when the struct contains LightMint<'info> fields
+    //   (Anchor's #[derive(Accounts)] doesn't recognize LightMint, so LightAccounts generates all Anchor traits)
     let mut pda_specs: Vec<ExtractedSeedSpec> = Vec::new();
     let mut token_specs: Vec<ExtractedTokenSpec> = Vec::new();
     let mut rentfree_struct_names = std::collections::HashSet::new();
     let mut has_any_mint_fields = false;
     let mut has_any_ata_fields = false;
 
-    for item_struct in crate_ctx.structs_with_derive("Accounts") {
+    // Collect structs with either derive
+    let accounts_structs = crate_ctx.structs_with_derive("Accounts");
+    let light_accounts_structs = crate_ctx.structs_with_derive("LightAccounts");
+
+    // Combine and deduplicate (some structs may have both derives)
+    let mut all_structs: Vec<&ItemStruct> = accounts_structs;
+    for s in light_accounts_structs {
+        if !all_structs.iter().any(|existing| existing.ident == s.ident) {
+            all_structs.push(s);
+        }
+    }
+
+    for item_struct in all_structs {
         // Parse #[instruction(...)] attribute to get instruction arg names
         let instruction_args = parse_instruction_arg_names(&item_struct.attrs)?;
 

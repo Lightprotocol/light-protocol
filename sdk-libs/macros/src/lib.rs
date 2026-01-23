@@ -447,7 +447,10 @@ pub fn derive_light_rent_sponsor(input: TokenStream) -> TokenStream {
 /// - `ID`: Program ID (from declare_id!)
 ///
 /// The struct should have fields named `fee_payer` (or `payer`) and `compression_config`.
-#[proc_macro_derive(LightAccounts, attributes(light_account, instruction))]
+/// When using `LightMint<'info>` directly in a struct, use ONLY `#[derive(LightAccounts)]`
+/// (not `#[derive(Accounts, LightAccounts)]`), as Anchor's derive doesn't know about LightMint.
+/// The LightAccounts macro will generate all necessary Anchor trait implementations.
+#[proc_macro_derive(LightAccounts, attributes(light_account, instruction, account))]
 pub fn light_accounts_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     into_token_stream(light_pdas::accounts::derive_light_accounts(input))

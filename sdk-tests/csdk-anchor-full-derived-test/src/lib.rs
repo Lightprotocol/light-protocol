@@ -265,8 +265,9 @@ pub mod csdk_anchor_full_derived_test {
             D9U64Params,
         },
         instruction_accounts::{
-            CreateMintWithMetadata, CreateMintWithMetadataParams, CreatePdasAndMintAuto,
-            CreateThreeMints, CreateThreeMintsParams, CreateTwoMints, CreateTwoMintsParams,
+            CreateMintWithLightMint, CreateMintWithLightMintParams, CreateMintWithMetadata,
+            CreateMintWithMetadataParams, CreatePdasAndMintAuto, CreateThreeMints,
+            CreateThreeMintsParams, CreateTwoMints, CreateTwoMintsParams,
         },
         instructions::d10_token_accounts::{
             D10SingleAta, D10SingleAtaParams, D10SingleVault, D10SingleVaultParams,
@@ -408,6 +409,33 @@ pub mod csdk_anchor_full_derived_test {
     ) -> Result<()> {
         // Mint with metadata is created by the RentFree macro in pre_init
         // Nothing to do here - metadata is part of the mint creation
+        Ok(())
+    }
+
+    /// Test instruction demonstrating type-safe mint access after CPI initialization.
+    /// Uses LightMint directly in the Accounts struct for zero-copy access.
+    pub fn create_mint_with_light_mint<'info>(
+        ctx: Context<'_, '_, '_, 'info, CreateMintWithLightMint<'info>>,
+        _params: CreateMintWithLightMintParams,
+    ) -> Result<()> {
+        // Direct zero-copy access via LightMint field
+        // No wrapping needed - cmint is already LightMint<'info>
+        let mint_data = ctx.accounts.cmint.load().map_err(|e| {
+            solana_msg::msg!("Failed to load mint: {:?}", e);
+            anchor_lang::error::ErrorCode::AccountDidNotDeserialize
+        })?;
+
+        // Verify the mint was initialized correctly using zero-copy accessors
+        solana_msg::msg!("Mint zero-copy load succeeded!");
+        solana_msg::msg!("  decimals: {}", mint_data.decimals);
+        solana_msg::msg!("  is_initialized: {}", mint_data.is_initialized());
+        solana_msg::msg!("  supply: {}", u64::from(mint_data.supply));
+
+        // Verify expected values from the #[light_account(init)] attributes
+        assert!(mint_data.is_initialized(), "Mint should be initialized");
+        assert_eq!(mint_data.decimals, 6, "Decimals should be 6");
+        assert_eq!(u64::from(mint_data.supply), 0, "Initial supply should be 0");
+
         Ok(())
     }
 
