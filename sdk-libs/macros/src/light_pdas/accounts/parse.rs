@@ -153,6 +153,72 @@ impl InfraFields {
     }
 }
 
+/// A parsed field from the struct (for Accounts trait generation).
+#[derive(Clone)]
+pub(super) struct ParsedField {
+    pub ident: Ident,
+    pub ty: Type,
+    /// True if the field has a `#[account(mut)]` attribute
+    pub is_mut: bool,
+    /// True if the field is a Signer type
+    pub is_signer: bool,
+}
+
+/// Check if a type is `AccountLoader<'info, T>` from light_token_interface.
+///
+/// Note: This checks if it's our custom AccountLoader, not Anchor's. The heuristic is:
+/// - `AccountLoader<'info, Mint>` is ours (Anchor's requires ZeroCopy which Mint doesn't have)
+fn is_light_loader_type(ty: &Type) -> bool {
+    if let Type::Path(type_path) = ty {
+        if let Some(segment) = type_path.path.segments.last() {
+            // AccountLoader with Mint type parameter is ours
+            if segment.ident == "AccountLoader" {
+                // Check if the type parameter is Mint
+                if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
+                    for arg in &args.args {
+                        if let syn::GenericArgument::Type(Type::Path(inner_path)) = arg {
+                            if let Some(inner_seg) = inner_path.path.segments.last() {
+                                if inner_seg.ident == "Mint" {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    false
+}
+
+/// Check if a type is `Signer<'info>`.
+fn is_signer_type(ty: &Type) -> bool {
+    if let Type::Path(type_path) = ty {
+        if let Some(segment) = type_path.path.segments.last() {
+            return segment.ident == "Signer";
+        }
+    }
+    false
+}
+
+/// Check if field has `#[account(mut)]` attribute.
+fn has_mut_attribute(attrs: &[syn::Attribute]) -> bool {
+    for attr in attrs {
+        if attr.path().is_ident("account") {
+            // Parse the attribute content to look for `mut`
+            let tokens = match &attr.meta {
+                syn::Meta::List(list) => list.tokens.clone(),
+                _ => continue,
+            };
+            let token_str = tokens.to_string();
+            if token_str.contains("mut") {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 /// Parsed representation of a struct with rentfree and light_mint fields.
 pub(super) struct ParsedLightAccountsStruct {
     pub struct_name: Ident,
@@ -167,6 +233,12 @@ pub(super) struct ParsedLightAccountsStruct {
     /// If CreateAccountsProof type is passed as a direct instruction arg, stores arg name.
     /// Matched by TYPE, not by name - allows any argument name (e.g., `proof`, `create_proof`).
     pub direct_proof_arg: Option<Ident>,
+    /// All fields in the struct (for generating Accounts trait when LightAccountLoader fields present).
+    pub all_fields: Vec<ParsedField>,
+    /// True if any field has `AccountLoader<'info, Mint>` type.
+    /// When true, LightAccounts must generate the Accounts trait implementation
+    /// because Anchor's derive doesn't know about this type.
+    pub has_light_loader_fields: bool,
 }
 
 /// A field marked with #[light_account(init)]
@@ -286,6 +358,8 @@ pub(super) fn parse_light_accounts_struct(
     let mut token_account_fields = Vec::new();
     let mut ata_fields = Vec::new();
     let mut infra_fields = InfraFields::default();
+    let mut all_fields = Vec::new();
+    let mut has_light_loader_fields = false;
 
     for field in fields {
         let field_ident = field
@@ -299,6 +373,19 @@ pub(super) fn parse_light_accounts_struct(
         if let Some(field_type) = InfraFieldClassifier::classify(&field_name) {
             infra_fields.set(field_type, field_ident.clone())?;
         }
+
+        // Check if field type is AccountLoader<'info, Mint>
+        if is_light_loader_type(&field.ty) {
+            has_light_loader_fields = true;
+        }
+
+        // Track all fields for Accounts trait generation
+        all_fields.push(ParsedField {
+            ident: field_ident.clone(),
+            ty: field.ty.clone(),
+            is_mut: has_mut_attribute(&field.attrs),
+            is_signer: is_signer_type(&field.ty),
+        });
 
         // Check for #[light_account(...)] - the unified syntax
         if let Some(light_account_field) =
@@ -337,5 +424,7 @@ pub(super) fn parse_light_accounts_struct(
         instruction_args,
         infra_fields,
         direct_proof_arg,
+        all_fields,
+        has_light_loader_fields,
     })
 }

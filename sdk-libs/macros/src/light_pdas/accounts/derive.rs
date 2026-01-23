@@ -30,13 +30,33 @@ use syn::DeriveInput;
 use super::builder::LightAccountsBuilder;
 
 /// Main orchestration - shows the high-level flow clearly.
+///
+/// When structs contain `AccountLoader<'info, Mint>` fields,
+/// we must generate Anchor trait implementations ourselves because Anchor's
+/// `#[derive(Accounts)]` doesn't know about this type.
+///
+/// Users should use ONLY `#[derive(LightAccounts)]` (not both Accounts and LightAccounts)
+/// when they have these fields.
 pub(super) fn derive_light_accounts(input: &DeriveInput) -> Result<TokenStream, syn::Error> {
     let builder = LightAccountsBuilder::parse(input)?;
     builder.validate()?;
 
+    // Check if struct has AccountLoader<'info, Mint> type fields.
+    // When present, we must generate Anchor trait implementations ourselves
+    // because Anchor's #[derive(Accounts)] doesn't know about this type.
+    let anchor_impls = if builder.has_light_loader_fields() {
+        builder.generate_anchor_accounts_impl()?
+    } else {
+        quote! {}
+    };
+
     // No instruction args = no-op impls (backwards compatibility)
     if !builder.has_instruction_args() {
-        return builder.generate_noop_impls();
+        let noop_impls = builder.generate_noop_impls()?;
+        return Ok(quote! {
+            #anchor_impls
+            #noop_impls
+        });
     }
 
     // Generate pre_init body for ALL account types (PDAs, mints, token accounts, ATAs)
@@ -51,6 +71,7 @@ pub(super) fn derive_light_accounts(input: &DeriveInput) -> Result<TokenStream, 
     let finalize_impl = builder.generate_finalize_impl(finalize_body)?;
 
     Ok(quote! {
+        #anchor_impls
         #pre_init_impl
         #finalize_impl
     })

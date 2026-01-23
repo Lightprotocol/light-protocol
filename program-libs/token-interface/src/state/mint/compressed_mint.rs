@@ -15,6 +15,10 @@ use crate::{
 /// AccountType::Mint discriminator value
 pub const ACCOUNT_TYPE_MINT: u8 = 1;
 
+/// Byte offset of `is_initialized` field in Mint account data.
+/// Layout: 4 (COption prefix) + 32 (pubkey) + 8 (supply) + 1 (decimals) = 45
+pub const IS_INITIALIZED_OFFSET: usize = 45;
+
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Clone, BorshSerialize, BorshDeserialize)]
 pub struct Mint {

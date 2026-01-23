@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
 use light_sdk_macros::LightAccounts;
+use light_token_interface::state::mint::{AccountLoader, Mint};
 
 use crate::state::*;
 
@@ -133,7 +134,7 @@ pub struct CreateTwoMintsParams {
 }
 
 /// Test instruction with 2 #[light_account(init)] fields to verify multi-mint support.
-#[derive(Accounts, LightAccounts)]
+#[derive(LightAccounts)]
 #[instruction(params: CreateTwoMintsParams)]
 pub struct CreateTwoMints<'info> {
     #[account(mut)]
@@ -155,7 +156,7 @@ pub struct CreateTwoMints<'info> {
     )]
     pub mint_signer_b: UncheckedAccount<'info>,
 
-    /// CHECK: Initialized by mint_action - first mint
+    /// First mint with zero-copy access after CPI initialization.
     #[account(mut)]
     #[light_account(init,
         mint::signer = mint_signer_a,
@@ -164,9 +165,9 @@ pub struct CreateTwoMints<'info> {
         mint::seeds = &[MINT_SIGNER_A_SEED, self.authority.to_account_info().key.as_ref()],
         mint::bump = params.mint_signer_a_bump
     )]
-    pub cmint_a: UncheckedAccount<'info>,
+    pub cmint_a: AccountLoader<'info, Mint>,
 
-    /// CHECK: Initialized by mint_action - second mint
+    /// Second mint with zero-copy access after CPI initialization.
     #[account(mut)]
     #[light_account(init,
         mint::signer = mint_signer_b,
@@ -175,7 +176,7 @@ pub struct CreateTwoMints<'info> {
         mint::seeds = &[MINT_SIGNER_B_SEED, self.authority.to_account_info().key.as_ref()],
         mint::bump = params.mint_signer_b_bump
     )]
-    pub cmint_b: UncheckedAccount<'info>,
+    pub cmint_b: AccountLoader<'info, Mint>,
 
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
@@ -211,7 +212,7 @@ pub struct CreateThreeMintsParams {
 }
 
 /// Test instruction with 3 #[light_account(init)] fields to verify multi-mint support.
-#[derive(Accounts, LightAccounts)]
+#[derive(LightAccounts)]
 #[instruction(params: CreateThreeMintsParams)]
 pub struct CreateThreeMints<'info> {
     #[account(mut)]
@@ -240,7 +241,7 @@ pub struct CreateThreeMints<'info> {
     )]
     pub mint_signer_c: UncheckedAccount<'info>,
 
-    /// CHECK: Initialized by light_mint CPI
+    /// First mint with zero-copy access after CPI initialization.
     #[account(mut)]
     #[light_account(init,
         mint::signer = mint_signer_a,
@@ -249,9 +250,9 @@ pub struct CreateThreeMints<'info> {
         mint::seeds = &[MINT_SIGNER_A_SEED, self.authority.to_account_info().key.as_ref()],
         mint::bump = params.mint_signer_a_bump
     )]
-    pub cmint_a: UncheckedAccount<'info>,
+    pub cmint_a: AccountLoader<'info, Mint>,
 
-    /// CHECK: Initialized by light_mint CPI
+    /// Second mint with zero-copy access after CPI initialization.
     #[account(mut)]
     #[light_account(init,
         mint::signer = mint_signer_b,
@@ -260,9 +261,9 @@ pub struct CreateThreeMints<'info> {
         mint::seeds = &[MINT_SIGNER_B_SEED, self.authority.to_account_info().key.as_ref()],
         mint::bump = params.mint_signer_b_bump
     )]
-    pub cmint_b: UncheckedAccount<'info>,
+    pub cmint_b: AccountLoader<'info, Mint>,
 
-    /// CHECK: Initialized by light_mint CPI
+    /// Third mint with zero-copy access after CPI initialization.
     #[account(mut)]
     #[light_account(init,
         mint::signer = mint_signer_c,
@@ -271,7 +272,7 @@ pub struct CreateThreeMints<'info> {
         mint::seeds = &[MINT_SIGNER_C_SEED, self.authority.to_account_info().key.as_ref()],
         mint::bump = params.mint_signer_c_bump
     )]
-    pub cmint_c: UncheckedAccount<'info>,
+    pub cmint_c: AccountLoader<'info, Mint>,
 
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
@@ -310,7 +311,7 @@ pub struct CreateMintWithMetadataParams {
 
 /// Test instruction with #[light_account(init)] with metadata fields.
 /// Tests the metadata support in the RentFree macro.
-#[derive(Accounts, LightAccounts)]
+#[derive(LightAccounts)]
 #[instruction(params: CreateMintWithMetadataParams)]
 pub struct CreateMintWithMetadata<'info> {
     #[account(mut)]
@@ -325,7 +326,7 @@ pub struct CreateMintWithMetadata<'info> {
     )]
     pub mint_signer: UncheckedAccount<'info>,
 
-    /// CHECK: Initialized by light_mint CPI with metadata
+    /// Mint with metadata and zero-copy access after CPI initialization.
     #[account(mut)]
     #[light_account(init,
         mint::signer = mint_signer,
@@ -339,7 +340,72 @@ pub struct CreateMintWithMetadata<'info> {
         mint::update_authority = authority,
         mint::additional_metadata = params.additional_metadata.clone()
     )]
-    pub cmint: UncheckedAccount<'info>,
+    pub cmint: AccountLoader<'info, Mint>,
+
+    /// CHECK: Compression config
+    pub compression_config: AccountInfo<'info>,
+
+    /// CHECK: CToken config
+    pub light_token_compressible_config: AccountInfo<'info>,
+
+    /// CHECK: CToken rent sponsor
+    #[account(mut)]
+    pub rent_sponsor: AccountInfo<'info>,
+
+    /// CHECK: CToken program
+    pub light_token_program: AccountInfo<'info>,
+
+    /// CHECK: CToken CPI authority
+    pub light_token_cpi_authority: AccountInfo<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
+// =============================================================================
+// AccountLoader Wrapper Test
+// =============================================================================
+
+pub const LIGHT_MINT_TEST_SIGNER_SEED: &[u8] = b"light_mint_test_signer";
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
+pub struct CreateMintWithAccountLoaderParams {
+    pub create_accounts_proof: CreateAccountsProof,
+    pub mint_signer_bump: u8,
+}
+
+/// Test instruction to verify AccountLoader wrapper works correctly.
+/// Uses `AccountLoader<'info, Mint>` directly in the Accounts struct to demonstrate
+/// type-safe access to mint data after CPI initialization.
+///
+/// Note: Uses `#[derive(LightAccounts)]` alone (not with `#[derive(Accounts)]`)
+/// because Anchor's derive doesn't know about `AccountLoader` type.
+/// The `LightAccounts` macro generates the necessary Anchor trait implementations.
+#[derive(LightAccounts)]
+#[instruction(params: CreateMintWithAccountLoaderParams)]
+pub struct CreateMintWithAccountLoader<'info> {
+    #[account(mut)]
+    pub fee_payer: Signer<'info>,
+
+    pub authority: Signer<'info>,
+
+    /// CHECK: PDA derived from authority for mint signer
+    #[account(
+        seeds = [LIGHT_MINT_TEST_SIGNER_SEED, authority.key().as_ref()],
+        bump,
+    )]
+    pub mint_signer: UncheckedAccount<'info>,
+
+    /// Mint account with zero-copy access after CPI initialization.
+    /// AccountLoader provides type-safe access to mint data without manual wrapping.
+    #[account(mut)]
+    #[light_account(init,
+        mint::signer = mint_signer,
+        mint::authority = fee_payer,
+        mint::decimals = 6,
+        mint::seeds = &[LIGHT_MINT_TEST_SIGNER_SEED, self.authority.to_account_info().key.as_ref()],
+        mint::bump = params.mint_signer_bump
+    )]
+    pub cmint: AccountLoader<'info, Mint>,
 
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,

@@ -10,6 +10,7 @@ use light_compressible::CreateAccountsProof;
 use light_sdk::derive_light_cpi_signer;
 use light_sdk_macros::{light_program, LightAccounts};
 use light_sdk_types::CpiSigner;
+use light_token_interface::state::mint::{AccountLoader, Mint};
 
 declare_id!("Mint111111111111111111111111111111111111111");
 
@@ -25,7 +26,9 @@ pub struct CreateMintParams {
 }
 
 /// Minimal accounts struct for testing single mint creation.
-#[derive(Accounts, LightAccounts)]
+/// Uses only #[derive(LightAccounts)] because it contains AccountLoader<'info, Mint> field.
+/// The LightAccounts macro generates all necessary Anchor trait implementations.
+#[derive(LightAccounts)]
 #[instruction(params: CreateMintParams)]
 pub struct CreateMint<'info> {
     #[account(mut)]
@@ -40,7 +43,7 @@ pub struct CreateMint<'info> {
     )]
     pub mint_signer: UncheckedAccount<'info>,
 
-    /// CHECK: Initialized by light_mint CPI
+    /// Mint account with zero-copy access after CPI initialization.
     #[account(mut)]
     #[light_account(init,
         mint::signer = mint_signer,
@@ -49,7 +52,7 @@ pub struct CreateMint<'info> {
         mint::seeds = &[MINT_SIGNER_SEED, self.authority.to_account_info().key.as_ref()],
         mint::bump = params.mint_signer_bump
     )]
-    pub mint: UncheckedAccount<'info>,
+    pub mint: AccountLoader<'info, Mint>,
 
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
