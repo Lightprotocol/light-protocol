@@ -160,11 +160,8 @@ async fn register_forester(
     println!("Active phase reached for epoch {}", target_epoch);
 
     // Finalize registration
-    let finalize_ix = create_finalize_registration_instruction(
-        &forester_pubkey,
-        &forester_pubkey,
-        target_epoch,
-    );
+    let finalize_ix =
+        create_finalize_registration_instruction(&forester_pubkey, &forester_pubkey, target_epoch);
 
     let (blockhash, _) = rpc.get_latest_blockhash().await?;
     let tx = Transaction::new_signed_with_payer(
