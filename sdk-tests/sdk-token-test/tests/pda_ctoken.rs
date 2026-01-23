@@ -4,11 +4,13 @@ use anchor_lang::{
 use anchor_spl::token_interface::spl_token_2022;
 use light_client::indexer::Indexer;
 use light_compressed_account::{address::derive_address, hash_to_bn254_field_size_be};
+use light_compressed_token_sdk::compressed_token::create_compressed_mint::{
+    derive_mint_compressed_address, find_mint_address,
+};
 use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc, RpcError};
 use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
-use light_token::{
-    compressed_token::create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
-    instruction::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount},
+use light_token::instruction::{
+    derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount,
 };
 use light_token_interface::{
     instructions::{

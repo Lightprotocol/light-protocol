@@ -5,7 +5,7 @@ mod shared;
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_client::rpc::Rpc;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
-use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
+use light_token::LIGHT_TOKEN_PROGRAM_ID;
 use light_token_interface::state::Token;
 use native_ctoken_examples::{BurnData, InstructionType, ID, TOKEN_ACCOUNT_SEED};
 use shared::*;
@@ -47,7 +47,7 @@ async fn test_burn_invoke() {
     };
     burn_data.serialize(&mut instruction_data).unwrap();
 
-    let light_token_program = Pubkey::from(LIGHT_TOKEN_PROGRAM_ID);
+    let light_token_program = LIGHT_TOKEN_PROGRAM_ID;
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
@@ -113,7 +113,7 @@ async fn test_burn_invoke_signed() {
     };
     burn_data.serialize(&mut instruction_data).unwrap();
 
-    let light_token_program = Pubkey::from(LIGHT_TOKEN_PROGRAM_ID);
+    let light_token_program = LIGHT_TOKEN_PROGRAM_ID;
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![

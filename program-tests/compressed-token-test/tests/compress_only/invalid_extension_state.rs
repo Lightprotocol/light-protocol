@@ -9,6 +9,10 @@
 
 use anchor_lang::{system_program, InstructionData, ToAccountMetas};
 use light_client::indexer::Indexer;
+use light_compressed_token_sdk::{
+    constants::CPI_AUTHORITY_PDA,
+    spl_interface::find_spl_interface_pda_with_index as sdk_find_spl_interface_pda,
+};
 use light_program_test::{
     program_test::{LightProgramTest, TestRpc},
     utils::assert::assert_rpc_error,
@@ -17,10 +21,8 @@ use light_program_test::{
 use light_test_utils::mint_2022::{
     create_token_22_account, mint_spl_tokens_22, set_mint_transfer_fee, set_mint_transfer_hook,
 };
-use light_token::{
-    constants::CPI_AUTHORITY_PDA,
-    instruction::{CompressibleParams, CreateTokenAccount, TransferFromSpl, TransferToSpl},
-    spl_interface::find_spl_interface_pda_with_index as sdk_find_spl_interface_pda,
+use light_token::instruction::{
+    CompressibleParams, CreateTokenAccount, TransferFromSpl, TransferToSpl,
 };
 use light_token_client::instructions::transfer2::{
     create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,

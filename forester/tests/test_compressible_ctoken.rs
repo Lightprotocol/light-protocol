@@ -11,6 +11,7 @@ use light_client::{
     local_test_validator::{spawn_validator, LightValidatorConfig},
     rpc::{LightClient, LightClientConfig, Rpc},
 };
+use light_compressed_token_sdk::compressed_token::create_compressed_mint;
 use light_registry::{
     protocol_config::state::ProtocolConfigPda,
     sdk::{
@@ -20,7 +21,6 @@ use light_registry::{
     utils::{get_forester_pda, get_protocol_config_pda_address},
     ForesterConfig,
 };
-use light_token::compressed_token::create_compressed_mint;
 use light_token_client::actions::{
     create_compressible_token_account, CreateCompressibleTokenAccountInputs,
 };

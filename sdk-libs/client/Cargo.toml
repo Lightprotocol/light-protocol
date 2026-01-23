@@ -48,6 +48,7 @@ light-sdk = { workspace = true, features = ["v2", "cpi-context"] }
 light-hasher = { workspace = true, features = ["poseidon"] }
 light-compressed-account = { workspace = true, features = ["solana", "poseidon"] }
 light-token = { workspace = true, features = ["cpi-context"] }
+light-compressed-token-sdk = { workspace = true }
 light-token-interface = { workspace = true }
 light-event = { workspace = true }
 light-compressible = { workspace = true }

@@ -1,13 +1,13 @@
 use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_client::indexer::Indexer;
+use light_compressed_token_sdk::compressed_token::create_compressed_mint::{
+    derive_mint_compressed_address, find_mint_address,
+};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     assert_mint_action::assert_mint_action, mint_assert::assert_compressed_mint_account, Rpc,
 };
-use light_token::{
-    compressed_token::create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
-    instruction::{CompressibleParams, CreateAssociatedTokenAccount},
-};
+use light_token::instruction::{CompressibleParams, CreateAssociatedTokenAccount};
 use light_token_client::{
     actions::create_mint,
     instructions::mint_action::{MintActionType, MintToRecipient},

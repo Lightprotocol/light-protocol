@@ -4,17 +4,15 @@
 //! TransferFee, TransferHook) cannot use CTokenTransfer and must use CTokenTransferChecked.
 
 use anchor_spl::token_2022::spl_token_2022;
+use light_compressed_token_sdk::spl_interface::find_spl_interface_pda_with_index;
 use light_program_test::utils::assert::assert_rpc_error;
 use light_test_utils::{
     assert_ctoken_transfer::assert_ctoken_transfer,
     mint_2022::{create_token_22_account, mint_spl_tokens_22},
     Rpc,
 };
-use light_token::{
-    instruction::{
-        CompressibleParams, CreateTokenAccount, Transfer, TransferChecked, TransferFromSpl,
-    },
-    spl_interface::find_spl_interface_pda_with_index,
+use light_token::instruction::{
+    CompressibleParams, CreateTokenAccount, Transfer, TransferChecked, TransferFromSpl,
 };
 use light_token_interface::state::TokenDataVersion;
 use serial_test::serial;

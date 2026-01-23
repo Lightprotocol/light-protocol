@@ -194,7 +194,7 @@ async fn test_create_mint_with_metadata() {
     use light_token_interface::MINT_ADDRESS_TREE;
     let mint_address_tree = solana_pubkey::Pubkey::new_from_array(MINT_ADDRESS_TREE);
     let mint_compressed_address =
-        light_token::compressed_token::create_compressed_mint::derive_mint_compressed_address(
+        light_compressed_token_sdk::compressed_token::create_compressed_mint::derive_mint_compressed_address(
             &mint_signer_pda,
             &mint_address_tree,
         );

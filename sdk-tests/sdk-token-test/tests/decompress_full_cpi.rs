@@ -4,12 +4,12 @@ use anchor_lang::{AnchorDeserialize, InstructionData};
 /// Test input range for multi-input tests
 const TEST_INPUT_RANGE: [usize; 4] = [1, 2, 3, 4];
 
+use light_compressed_token_sdk::compressed_token::{
+    create_compressed_mint::find_mint_address, decompress_full::DecompressFullAccounts,
+};
 use light_program_test::{Indexer, LightProgramTest, ProgramTestConfig, Rpc};
 use light_sdk::instruction::PackedAccounts;
 use light_test_utils::airdrop_lamports;
-use light_token::compressed_token::{
-    create_compressed_mint::find_mint_address, decompress_full::DecompressFullAccounts,
-};
 use light_token_client::{actions::mint_action_comprehensive, instructions::mint_action::NewMint};
 use light_token_interface::instructions::mint_action::{MintWithContext, Recipient};
 use sdk_token_test::mint_compressed_tokens_cpi_write::MintCompressedTokensCpiWriteParams;
@@ -240,7 +240,7 @@ async fn test_decompress_full_cpi() {
             .zip(ctx.destination_accounts.iter())
             .zip(versions.iter())
             .map(|(((token, tree_info), &dest_pubkey), &version)| {
-                light_token::compressed_token::decompress_full::pack_for_decompress_full(
+                light_compressed_token_sdk::compressed_token::decompress_full::pack_for_decompress_full(
                     token,
                     tree_info,
                     dest_pubkey,
@@ -350,7 +350,7 @@ async fn test_decompress_full_cpi_with_context() {
 
         let address_tree_info = rpc.get_address_tree_v2();
         let compressed_mint_address =
-            light_token::compressed_token::create_compressed_mint::derive_mint_compressed_address(
+            light_compressed_token_sdk::compressed_token::create_compressed_mint::derive_mint_compressed_address(
                 &ctx.mint_seed.pubkey(),
                 &address_tree_info.tree,
             );
@@ -446,7 +446,7 @@ async fn test_decompress_full_cpi_with_context() {
             .zip(ctx.destination_accounts.iter())
             .zip(versions.iter())
             .map(|(((token, tree_info), &dest_pubkey), &version)| {
-                light_token::compressed_token::decompress_full::pack_for_decompress_full(
+                light_compressed_token_sdk::compressed_token::decompress_full::pack_for_decompress_full(
                     token,
                     tree_info,
                     dest_pubkey,

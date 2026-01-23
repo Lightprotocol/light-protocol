@@ -1,0 +1,64 @@
+[package]
+name = "light-compressed-token-sdk"
+version = "0.1.0"
+edition = { workspace = true }
+description = "Low-level SDK for compressed token operations on Light Protocol"
+license = "Apache-2.0"
+repository = "https://github.com/Lightprotocol/light-protocol"
+
+[features]
+default = ["anchor-discriminator"]
+v1 = []
+anchor-discriminator = ["light-sdk/anchor-discriminator"]
+anchor = ["anchor-lang", "light-token-types/anchor", "light-token-interface/anchor"]
+# idl-build feature enables IDL generation for client-side tooling and SDK generation
+idl-build = ["anchor", "anchor-lang/idl-build", "light-sdk/idl-build"]
+cpi-context = ["light-sdk/cpi-context"]
+
+profile-program = [
+    "light-program-profiler/profile-program",
+    "light-compressed-account/profile-program",
+    "light-token-interface/profile-program",
+]
+profile-heap = [
+    "light-program-profiler/profile-heap",
+    "light-compressed-account/profile-heap",
+    "light-token-interface/profile-heap",
+]
+
+[dependencies]
+# Light Protocol dependencies
+light-token-types = { workspace = true }
+light-compressed-account = { workspace = true, features = ["std", "solana"] }
+light-token-interface = { workspace = true }
+light-sdk = { workspace = true, features = ["v2"] }
+light-sdk-types = { workspace = true, features = ["v2"] }
+light-account-checks = { workspace = true, features = ["solana"] }
+light-zero-copy = { workspace = true }
+light-program-profiler = { workspace = true }
+
+# Serialization
+borsh = { workspace = true }
+thiserror = { workspace = true }
+solana-msg = { workspace = true }
+
+# Solana dependencies
+solana-pubkey = { workspace = true, features = ["sha2", "curve25519"] }
+solana-instruction = { workspace = true }
+solana-account-info = { workspace = true }
+solana-cpi = { workspace = true }
+solana-program-error = { workspace = true }
+arrayvec = { workspace = true }
+
+# Optional Anchor dependency
+anchor-lang = { workspace = true, optional = true }
+
+[dev-dependencies]
+light-account-checks = { workspace = true, features = ["test-only", "pinocchio", "std"] }
+
+[lints.rust.unexpected_cfgs]
+level = "allow"
+check-cfg = [
+    'cfg(target_os, values("solana"))',
+    'cfg(feature, values("frozen-abi", "no-entrypoint"))',
+]

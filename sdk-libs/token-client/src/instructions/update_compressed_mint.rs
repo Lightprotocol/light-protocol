@@ -3,7 +3,7 @@ use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
-use light_token::compressed_token::update_compressed_mint::{
+use light_compressed_token_sdk::compressed_token::update_compressed_mint::{
     update_compressed_mint, UpdateMintInputs,
 };
 use light_token_interface::{

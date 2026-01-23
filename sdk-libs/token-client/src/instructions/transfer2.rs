@@ -2,8 +2,7 @@ use light_client::{
     indexer::{CompressedTokenAccount, Indexer},
     rpc::Rpc,
 };
-use light_sdk::instruction::{PackedAccounts, PackedStateTreeInfo};
-use light_token::{
+use light_compressed_token_sdk::{
     compressed_token::{
         transfer2::{
             account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction,
@@ -11,9 +10,10 @@ use light_token::{
         },
         CTokenAccount2,
     },
-    error::TokenSdkError,
     spl_interface::find_spl_interface_pda_with_index,
 };
+use light_sdk::instruction::{PackedAccounts, PackedStateTreeInfo};
+use light_token::error::TokenSdkError;
 use light_token_interface::{
     instructions::{
         extensions::ExtensionInstructionData,

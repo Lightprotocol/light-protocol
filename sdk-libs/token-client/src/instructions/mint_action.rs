@@ -4,11 +4,11 @@ use light_client::{
     rpc::{Rpc, RpcError},
 };
 use light_compressed_account::instruction_data::traits::LightInstructionData;
-use light_compressible::config::CompressibleConfig;
-use light_token::compressed_token::{
+use light_compressed_token_sdk::compressed_token::{
     create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
     mint_action::MintActionMetaConfig,
 };
+use light_compressible::config::CompressibleConfig;
 use light_token_interface::{
     instructions::{
         extensions::{token_metadata::TokenMetadataInstructionData, ExtensionInstructionData},

@@ -5,7 +5,7 @@ use light_client::{
     rpc::Rpc,
 };
 use light_compressed_token::instructions::create_token_pool::find_token_pool_pda_with_index;
-use light_token::compressed_token::create_compressed_mint::derive_mint_from_spl_mint;
+use light_compressed_token_sdk::compressed_token::create_compressed_mint::derive_mint_from_spl_mint;
 use light_token_interface::{
     instructions::mint_action::Recipient, state::Mint, LIGHT_TOKEN_PROGRAM_ID,
 };

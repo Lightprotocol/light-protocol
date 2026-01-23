@@ -1,3 +1,4 @@
+use light_compressed_token_sdk::utils::is_light_token_owner;
 use solana_account_info::AccountInfo;
 use solana_instruction::{AccountMeta, Instruction};
 use solana_program_error::ProgramError;
@@ -6,7 +7,7 @@ use solana_pubkey::Pubkey;
 use super::{
     transfer::Transfer, transfer_from_spl::TransferFromSpl, transfer_to_spl::TransferToSpl,
 };
-use crate::error::TokenSdkError;
+use crate::error::LightTokenError;
 
 /// Internal enum to classify transfer types based on account owners.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -30,12 +31,10 @@ fn determine_transfer_type(
     source_owner: &Pubkey,
     destination_owner: &Pubkey,
 ) -> Result<TransferType, ProgramError> {
-    use crate::utils::is_light_token_owner;
-
     let source_is_light = is_light_token_owner(source_owner)
-        .map_err(|_| ProgramError::Custom(TokenSdkError::CannotDetermineAccountType.into()))?;
+        .map_err(|_| ProgramError::Custom(LightTokenError::CannotDetermineAccountType.into()))?;
     let dest_is_light = is_light_token_owner(destination_owner)
-        .map_err(|_| ProgramError::Custom(TokenSdkError::CannotDetermineAccountType.into()))?;
+        .map_err(|_| ProgramError::Custom(LightTokenError::CannotDetermineAccountType.into()))?;
 
     match (source_is_light, dest_is_light) {
         (true, true) => Ok(TransferType::LightToLight),
@@ -47,7 +46,7 @@ fn determine_transfer_type(
                 Ok(TransferType::SplToSpl)
             } else {
                 Err(ProgramError::Custom(
-                    TokenSdkError::SplTokenProgramMismatch.into(),
+                    LightTokenError::SplTokenProgramMismatch.into(),
                 ))
             }
         }
@@ -141,7 +140,7 @@ impl TransferInterface {
 
             TransferType::LightToSpl => {
                 let spl = self.spl_interface.ok_or_else(|| {
-                    ProgramError::Custom(TokenSdkError::SplInterfaceRequired.into())
+                    ProgramError::Custom(LightTokenError::SplInterfaceRequired.into())
                 })?;
                 TransferToSpl {
                     source: self.source,
@@ -160,7 +159,7 @@ impl TransferInterface {
 
             TransferType::SplToLight => {
                 let spl = self.spl_interface.ok_or_else(|| {
-                    ProgramError::Custom(TokenSdkError::SplInterfaceRequired.into())
+                    ProgramError::Custom(LightTokenError::SplInterfaceRequired.into())
                 })?;
                 TransferFromSpl {
                     source_spl_token_account: self.source,
@@ -179,7 +178,7 @@ impl TransferInterface {
 
             TransferType::SplToSpl => {
                 let spl = self.spl_interface.ok_or_else(|| {
-                    ProgramError::Custom(TokenSdkError::SplInterfaceRequired.into())
+                    ProgramError::Custom(LightTokenError::SplInterfaceRequired.into())
                 })?;
 
                 // Build SPL transfer_checked instruction manually
@@ -303,16 +302,16 @@ impl<'info> TransferInterfaceCpi<'info> {
         spl_interface_pda_bump: Option<u8>,
     ) -> Result<Self, ProgramError> {
         let mint =
-            mint.ok_or_else(|| ProgramError::Custom(TokenSdkError::MissingMintAccount.into()))?;
+            mint.ok_or_else(|| ProgramError::Custom(LightTokenError::MissingMintAccount.into()))?;
 
         let spl_token_program = spl_token_program
-            .ok_or_else(|| ProgramError::Custom(TokenSdkError::MissingSplTokenProgram.into()))?;
+            .ok_or_else(|| ProgramError::Custom(LightTokenError::MissingSplTokenProgram.into()))?;
 
         let spl_interface_pda = spl_interface_pda
-            .ok_or_else(|| ProgramError::Custom(TokenSdkError::MissingSplInterfacePda.into()))?;
+            .ok_or_else(|| ProgramError::Custom(LightTokenError::MissingSplInterfacePda.into()))?;
 
         let spl_interface_pda_bump = spl_interface_pda_bump.ok_or_else(|| {
-            ProgramError::Custom(TokenSdkError::MissingSplInterfacePdaBump.into())
+            ProgramError::Custom(LightTokenError::MissingSplInterfacePdaBump.into())
         })?;
 
         self.spl_interface = Some(SplInterfaceCpi {
@@ -351,7 +350,7 @@ impl<'info> TransferInterfaceCpi<'info> {
 
             TransferType::LightToSpl => {
                 let config = self.spl_interface.ok_or_else(|| {
-                    ProgramError::Custom(TokenSdkError::SplInterfaceRequired.into())
+                    ProgramError::Custom(LightTokenError::SplInterfaceRequired.into())
                 })?;
                 let account_infos = [
                     self.compressed_token_program_authority,
@@ -368,7 +367,7 @@ impl<'info> TransferInterfaceCpi<'info> {
 
             TransferType::SplToLight => {
                 let config = self.spl_interface.ok_or_else(|| {
-                    ProgramError::Custom(TokenSdkError::SplInterfaceRequired.into())
+                    ProgramError::Custom(LightTokenError::SplInterfaceRequired.into())
                 })?;
                 let account_infos = [
                     self.compressed_token_program_authority,
@@ -386,7 +385,7 @@ impl<'info> TransferInterfaceCpi<'info> {
 
             TransferType::SplToSpl => {
                 let config = self.spl_interface.ok_or_else(|| {
-                    ProgramError::Custom(TokenSdkError::SplInterfaceRequired.into())
+                    ProgramError::Custom(LightTokenError::SplInterfaceRequired.into())
                 })?;
                 let account_infos = [
                     self.source_account,
@@ -421,7 +420,7 @@ impl<'info> TransferInterfaceCpi<'info> {
 
             TransferType::LightToSpl => {
                 let config = self.spl_interface.ok_or_else(|| {
-                    ProgramError::Custom(TokenSdkError::SplInterfaceRequired.into())
+                    ProgramError::Custom(LightTokenError::SplInterfaceRequired.into())
                 })?;
                 let account_infos = [
                     self.compressed_token_program_authority,
@@ -438,7 +437,7 @@ impl<'info> TransferInterfaceCpi<'info> {
 
             TransferType::SplToLight => {
                 let config = self.spl_interface.ok_or_else(|| {
-                    ProgramError::Custom(TokenSdkError::SplInterfaceRequired.into())
+                    ProgramError::Custom(LightTokenError::SplInterfaceRequired.into())
                 })?;
                 let account_infos = [
                     self.compressed_token_program_authority,
@@ -456,7 +455,7 @@ impl<'info> TransferInterfaceCpi<'info> {
 
             TransferType::SplToSpl => {
                 let config = self.spl_interface.ok_or_else(|| {
-                    ProgramError::Custom(TokenSdkError::SplInterfaceRequired.into())
+                    ProgramError::Custom(LightTokenError::SplInterfaceRequired.into())
                 })?;
                 let account_infos = [
                     self.source_account,

@@ -6,8 +6,8 @@ use borsh::BorshSerialize;
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_token::{
-    compressed_token::mint_action::MintActionMetaConfig,
-    instruction::{config_pda, rent_sponsor_pda},
+    constants::{config_pda, rent_sponsor_pda},
+    instruction::{CreateMint, CreateMintParams},
 };
 use light_token_interface::{
     instructions::extensions::{
@@ -65,54 +65,74 @@ async fn test_create_compressed_mint() {
         .unwrap()
         .value;
 
-    // Create instruction data for wrapper program with TokenMetadata extension
-    let create_mint_data = CreateCmintData {
+    // Build params for CreateMint (used for both instruction data and account metas)
+    let proof = rpc_result.proof.0.unwrap();
+    let extensions = Some(vec![ExtensionInstructionData::TokenMetadata(
+        TokenMetadataInstructionData {
+            update_authority: Some(payer.pubkey().to_bytes().into()),
+            name: b"Test Token".to_vec(),
+            symbol: b"TEST".to_vec(),
+            uri: b"https://example.com/metadata.json".to_vec(),
+            additional_metadata: Some(vec![
+                AdditionalMetadata {
+                    key: b"test1".to_vec(),
+                    value: b"value1".to_vec(),
+                },
+                AdditionalMetadata {
+                    key: b"test2".to_vec(),
+                    value: b"value2".to_vec(),
+                },
+            ]),
+        },
+    )]);
+
+    let create_mint_params = CreateMintParams {
         decimals,
         address_merkle_tree_root_index: rpc_result.addresses[0].root_index,
         mint_authority,
-        proof: rpc_result.proof.0.unwrap(),
+        proof,
         compression_address,
         mint: mint_pda,
         bump: mint_bump,
         freeze_authority: None,
-        extensions: Some(vec![ExtensionInstructionData::TokenMetadata(
-            TokenMetadataInstructionData {
-                update_authority: Some(payer.pubkey().to_bytes().into()),
-                name: b"Test Token".to_vec(),
-                symbol: b"TEST".to_vec(),
-                uri: b"https://example.com/metadata.json".to_vec(),
-                additional_metadata: Some(vec![
-                    AdditionalMetadata {
-                        key: b"test1".to_vec(),
-                        value: b"value1".to_vec(),
-                    },
-                    AdditionalMetadata {
-                        key: b"test2".to_vec(),
-                        value: b"value2".to_vec(),
-                    },
-                ]),
-            },
-        )]),
+        extensions: extensions.clone(),
+        rent_payment: 16,
+        write_top_up: 766,
+    };
+
+    // Create instruction data for wrapper program
+    let create_mint_data = CreateCmintData {
+        decimals,
+        address_merkle_tree_root_index: rpc_result.addresses[0].root_index,
+        mint_authority,
+        proof,
+        compression_address,
+        mint: mint_pda,
+        bump: mint_bump,
+        freeze_authority: None,
+        extensions,
         rent_payment: 16,
         write_top_up: 766,
     };
     let instruction_data = [vec![0u8], create_mint_data.try_to_vec().unwrap()].concat();
+
+    // Use CreateMint builder to get the correct account metas
+    let create_mint_ix = CreateMint::new(
+        create_mint_params,
+        mint_signer.pubkey(),
+        payer.pubkey(),
+        address_tree.tree,
+        output_queue,
+    )
+    .instruction()
+    .unwrap();
 
     // Add compressed token program as first account for CPI, then all SDK-generated accounts
     let mut wrapper_accounts = vec![AccountMeta::new_readonly(
         compressed_token_program_id,
         false,
     )];
-    let account_metas = MintActionMetaConfig::new_create_mint(
-        payer.pubkey(),
-        mint_authority,
-        mint_signer.pubkey(),
-        address_tree.tree,
-        output_queue,
-    )
-    .with_compressible_mint(mint_pda, config_pda(), rent_sponsor_pda())
-    .to_account_metas();
-    wrapper_accounts.extend(account_metas);
+    wrapper_accounts.extend(create_mint_ix.accounts);
 
     let instruction = Instruction {
         program_id: ID,

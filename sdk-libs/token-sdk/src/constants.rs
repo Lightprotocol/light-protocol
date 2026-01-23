@@ -1,22 +1,44 @@
-use solana_pubkey::Pubkey;
+//! Constants for Light Token SDK.
+//!
+//! Re-exports constants from `light_compressed_token_sdk::constants` and adds
+//! Light Token specific constants.
 
-pub const SPL_TOKEN_PROGRAM_ID: Pubkey =
-    Pubkey::new_from_array(light_token_types::SPL_TOKEN_PROGRAM_ID);
+// Re-export all constants from compressed-token-sdk
+pub use light_compressed_token_sdk::constants::*;
+use light_compressible::config::CompressibleConfig;
+use solana_pubkey::{pubkey, Pubkey};
 
-pub const SPL_TOKEN_2022_PROGRAM_ID: Pubkey =
-    Pubkey::new_from_array(light_token_types::SPL_TOKEN_2022_PROGRAM_ID);
+/// CPI Authority PDA for the Compressed Token Program
+pub const LIGHT_TOKEN_CPI_AUTHORITY: Pubkey =
+    pubkey!("GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy");
 
-pub const LIGHT_SYSTEM_PROGRAM_ID: Pubkey =
-    Pubkey::new_from_array(light_token_types::LIGHT_SYSTEM_PROGRAM_ID);
+/// Returns the program ID for the Compressed Token Program
+pub fn id() -> Pubkey {
+    LIGHT_TOKEN_PROGRAM_ID
+}
 
-pub const ACCOUNT_COMPRESSION_PROGRAM_ID: Pubkey =
-    Pubkey::new_from_array(light_token_types::ACCOUNT_COMPRESSION_PROGRAM_ID);
+/// Return the cpi authority pda of the Compressed Token Program.
+pub fn cpi_authority() -> Pubkey {
+    LIGHT_TOKEN_CPI_AUTHORITY
+}
 
-pub const ACCOUNT_COMPRESSION_AUTHORITY_PDA: Pubkey =
-    Pubkey::new_from_array(light_token_types::ACCOUNT_COMPRESSION_AUTHORITY_PDA);
+/// Default compressible config PDA (V1)
+pub const COMPRESSIBLE_CONFIG_V1: Pubkey = pubkey!("ACXg8a7VaqecBWrSbdu73W4Pg9gsqXJ3EXAqkHyhvVXg");
 
-pub const NOOP_PROGRAM_ID: Pubkey = Pubkey::new_from_array(light_token_types::NOOP_PROGRAM_ID);
+/// Default rent sponsor PDA (V1)
+pub const RENT_SPONSOR_V1: Pubkey = pubkey!("r18WwUxfG8kQ69bQPAB2jV6zGNKy3GosFGctjQoV4ti");
 
-pub const CPI_AUTHORITY_PDA: Pubkey = Pubkey::new_from_array(light_token_types::CPI_AUTHORITY_PDA);
+/// Returns the default compressible config PDA.
+pub fn config_pda() -> Pubkey {
+    CompressibleConfig::light_token_v1_config_pda()
+}
 
-pub const LIGHT_TOKEN_PROGRAM_ID: Pubkey = Pubkey::new_from_array(light_token_types::PROGRAM_ID);
+/// Returns the default rent sponsor PDA.
+pub fn rent_sponsor_pda() -> Pubkey {
+    CompressibleConfig::light_token_v1_rent_sponsor_pda()
+}
+
+/// Returns the compression authority PDA.
+pub fn compression_authority_pda() -> Pubkey {
+    CompressibleConfig::light_token_v1_compression_authority_pda()
+}

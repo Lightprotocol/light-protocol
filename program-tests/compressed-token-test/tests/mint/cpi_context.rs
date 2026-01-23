@@ -2,15 +2,15 @@ use anchor_lang::InstructionData;
 use compressed_token_test::ID as WRAPPER_PROGRAM_ID;
 use light_client::indexer::Indexer;
 use light_compressed_account::instruction_data::traits::LightInstructionData;
-use light_program_test::{utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig};
-use light_test_utils::Rpc;
-use light_token::compressed_token::{
+use light_compressed_token_sdk::compressed_token::{
     create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
     mint_action::{
         get_mint_action_instruction_account_metas_cpi_write, MintActionMetaConfig,
         MintActionMetaConfigCpiWrite,
     },
 };
+use light_program_test::{utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig};
+use light_test_utils::Rpc;
 use light_token_interface::{
     instructions::mint_action::{
         CpiContext, DecompressMintAction, MintActionCompressedInstructionData, MintInstructionData,

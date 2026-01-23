@@ -1,18 +1,18 @@
 use anchor_lang::{prelude::AccountMeta, InstructionData};
+use light_compressed_token_sdk::{
+    compressed_token::{
+        create_compressed_mint::{create_compressed_mint, CreateMintInputs},
+        mint_to_compressed::{create_mint_to_compressed_instruction, MintToCompressedInputs},
+    },
+    utils::TokenDefaultAccounts,
+};
 use light_program_test::{AddressWithTree, Indexer, LightProgramTest, ProgramTestConfig, Rpc};
 use light_sdk::{
     address::v1::derive_address,
     instruction::{PackedAccounts, PackedStateTreeInfo, SystemAccountMetaConfig},
 };
 use light_test_utils::RpcError;
-use light_token::{
-    compressed_token::{
-        create_compressed_mint::{create_compressed_mint, CreateMintInputs},
-        mint_to_compressed::{create_mint_to_compressed_instruction, MintToCompressedInputs},
-    },
-    instruction::CreateAssociatedTokenAccount,
-    utils::TokenDefaultAccounts,
-};
+use light_token::instruction::CreateAssociatedTokenAccount;
 use light_token_interface::{
     instructions::{
         mint_action::{MintWithContext, Recipient},

@@ -1,6 +1,10 @@
 use anchor_lang::prelude::*;
 use light_batched_merkle_tree::queue::BatchedQueueAccount;
 use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
+use light_compressed_token_sdk::compressed_token::{
+    transfer::instruction::{TransferConfig, TransferInputs},
+    CTokenAccount, TokenAccountMeta,
+};
 use light_sdk::{
     account::LightAccount,
     cpi::{
@@ -12,10 +16,6 @@ use light_sdk::{
     LightDiscriminator, LightHasher,
 };
 use light_sdk_types::cpi_accounts::CpiAccountsConfig;
-use light_token::compressed_token::{
-    transfer::instruction::{TransferConfig, TransferInputs},
-    CTokenAccount, TokenAccountMeta,
-};
 
 use crate::{PdaParams, TokenParams};
 
@@ -105,7 +105,10 @@ fn merge_escrow_token_accounts<'info>(
         amount: total_escrowed_amount,
     };
     let instruction =
-        light_token::compressed_token::transfer::instruction::transfer(transfer_inputs).unwrap();
+        light_compressed_token_sdk::compressed_token::transfer::instruction::transfer(
+            transfer_inputs,
+        )
+        .unwrap();
 
     let account_infos = [&[fee_payer, authority][..], remaining_accounts].concat();
 
@@ -194,7 +197,10 @@ pub fn transfer_tokens_to_escrow_pda<'a, 'info>(
         amount,
     };
     let instruction =
-        light_token::compressed_token::transfer::instruction::transfer(transfer_inputs).unwrap();
+        light_compressed_token_sdk::compressed_token::transfer::instruction::transfer(
+            transfer_inputs,
+        )
+        .unwrap();
 
     let account_infos = [&[cpi_accounts.fee_payer().clone()][..], remaining_accounts].concat();
 

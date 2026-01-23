@@ -29,6 +29,16 @@
 // 5.3. recipient out of bounds
 
 use anchor_spl::token_2022::spl_token_2022;
+use light_compressed_token_sdk::{
+    compressed_token::{
+        transfer2::{
+            account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction,
+            Transfer2Config, Transfer2Inputs,
+        },
+        CTokenAccount2,
+    },
+    spl_interface::find_spl_interface_pda_with_index,
+};
 use light_program_test::{utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig};
 use light_sdk::instruction::PackedAccounts;
 use light_test_utils::{
@@ -39,15 +49,7 @@ use light_test_utils::{
     Rpc, RpcError,
 };
 use light_token::{
-    compressed_token::{
-        transfer2::{
-            account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction,
-            Transfer2Config, Transfer2Inputs,
-        },
-        CTokenAccount2,
-    },
     instruction::{derive_token_ata, CreateAssociatedTokenAccount},
-    spl_interface::find_spl_interface_pda_with_index,
     ValidityProof,
 };
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};

@@ -8,26 +8,29 @@ repository = "https://github.com/Lightprotocol/light-protocol"
 
 [features]
 default = ["anchor-discriminator"]
-v1 = []
-anchor-discriminator = ["light-sdk/anchor-discriminator"]
-anchor = ["anchor-lang", "light-token-types/anchor", "light-token-interface/anchor", "dep:light-sdk-macros"]
+v1 = ["light-compressed-token-sdk/v1"]
+anchor-discriminator = ["light-sdk/anchor-discriminator", "light-compressed-token-sdk/anchor-discriminator"]
+anchor = ["anchor-lang", "light-token-types/anchor", "light-token-interface/anchor", "light-compressed-token-sdk/anchor", "dep:light-sdk-macros"]
 # idl-build feature enables IDL generation for client-side tooling and SDK generation
-idl-build = ["anchor", "anchor-lang/idl-build", "light-sdk/idl-build"]
-cpi-context = ["light-sdk/cpi-context"]
+idl-build = ["anchor", "anchor-lang/idl-build", "light-sdk/idl-build", "light-compressed-token-sdk/idl-build"]
+cpi-context = ["light-sdk/cpi-context", "light-compressed-token-sdk/cpi-context"]
 
 profile-program = [
     "light-program-profiler/profile-program",
     "light-compressed-account/profile-program",
     "light-token-interface/profile-program",
+    "light-compressed-token-sdk/profile-program",
 ]
 profile-heap = [
     "light-program-profiler/profile-heap",
     "light-compressed-account/profile-heap",
     "light-token-interface/profile-heap",
+    "light-compressed-token-sdk/profile-heap",
 ]
 
 [dependencies]
 # Light Protocol dependencies
+light-compressed-token-sdk = { workspace = true }
 light-token-types = { workspace = true }
 light-compressed-account = { workspace = true, features = ["std", "solana"] }
 light-compressible = { workspace = true }

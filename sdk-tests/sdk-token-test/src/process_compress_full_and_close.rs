@@ -1,15 +1,12 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke};
-use light_sdk_types::cpi_accounts::{v2::CpiAccounts, CpiAccountsConfig};
-use light_token::{
-    compressed_token::{
-        transfer2::{
-            account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction,
-            Transfer2Inputs,
-        },
-        CTokenAccount2,
+use light_compressed_token_sdk::compressed_token::{
+    transfer2::{
+        account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction, Transfer2Inputs,
     },
-    instruction::CloseAccount,
+    CTokenAccount2,
 };
+use light_sdk_types::cpi_accounts::{v2::CpiAccounts, CpiAccountsConfig};
+use light_token::instruction::CloseAccount;
 
 use crate::Generic;
 

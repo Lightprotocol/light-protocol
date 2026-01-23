@@ -1,6 +1,7 @@
 use light_compressed_account::instruction_data::{
     compressed_proof::CompressedProof, traits::LightInstructionData,
 };
+use light_compressed_token_sdk::compressed_token::mint_action::MintActionMetaConfig;
 use light_token_interface::{
     instructions::{
         extensions::ExtensionInstructionData,
@@ -14,8 +15,10 @@ use solana_instruction::Instruction;
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-use super::{config_pda, rent_sponsor_pda};
-use crate::{compressed_token::mint_action::MintActionMetaConfig, instruction::SystemAccountInfos};
+use crate::{
+    constants::{config_pda, rent_sponsor_pda},
+    instruction::SystemAccountInfos,
+};
 /// Parameters for creating a mint.
 ///
 /// Creates both a compressed mint AND a decompressed Mint Solana account

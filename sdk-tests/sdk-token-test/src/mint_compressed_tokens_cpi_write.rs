@@ -1,5 +1,5 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke};
-use light_token::compressed_token::{
+use light_compressed_token_sdk::compressed_token::{
     ctoken_instruction::CTokenInstruction, mint_action::MintActionCpiWriteAccounts,
     transfer2::Transfer2CpiAccounts,
 };

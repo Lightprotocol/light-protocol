@@ -14,6 +14,7 @@ light-token-interface = { workspace = true }
 light-sdk = { workspace = true }
 light-client = { workspace = true, features = ["v2"] }
 light-token = { workspace = true }
+light-compressed-token-sdk = { workspace = true }
 light-zero-copy = { workspace = true }
 
 # Solana dependencies

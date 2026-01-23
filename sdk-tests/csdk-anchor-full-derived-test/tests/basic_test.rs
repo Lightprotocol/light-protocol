@@ -162,7 +162,7 @@ async fn test_create_pdas_and_mint_auto() {
         &program_id.to_bytes(),
     );
     let mint_compressed_address =
-        light_token::compressed_token::create_compressed_mint::derive_mint_compressed_address(
+        light_compressed_token_sdk::compressed_token::create_compressed_mint::derive_mint_compressed_address(
             &mint_signer_pda,
             &address_tree_pubkey,
         );
@@ -661,7 +661,7 @@ async fn test_create_two_mints() {
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
 
     let mint_a_compressed_address =
-        light_token::compressed_token::create_compressed_mint::derive_mint_compressed_address(
+        light_compressed_token_sdk::compressed_token::create_compressed_mint::derive_mint_compressed_address(
             &mint_signer_a_pda,
             &address_tree_pubkey,
         );
@@ -678,7 +678,7 @@ async fn test_create_two_mints() {
     );
 
     let mint_b_compressed_address =
-        light_token::compressed_token::create_compressed_mint::derive_mint_compressed_address(
+        light_compressed_token_sdk::compressed_token::create_compressed_mint::derive_mint_compressed_address(
             &mint_signer_b_pda,
             &address_tree_pubkey,
         );

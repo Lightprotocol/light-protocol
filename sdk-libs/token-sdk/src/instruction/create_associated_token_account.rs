@@ -11,7 +11,7 @@ use solana_account_info::AccountInfo;
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 
-use crate::error::{Result, TokenSdkError};
+use crate::error::{LightTokenError, LightTokenResult};
 
 /// Discriminators for create ATA instructions
 const CREATE_ATA_DISCRIMINATOR: u8 = 100;
@@ -44,21 +44,21 @@ pub struct CreateCompressibleAssociatedTokenAccountInputs {
 /// Creates a compressible associated token account instruction (non-idempotent)
 pub fn create_compressible_associated_token_account(
     inputs: CreateCompressibleAssociatedTokenAccountInputs,
-) -> Result<Instruction> {
+) -> LightTokenResult<Instruction> {
     create_compressible_associated_token_account_with_mode::<false>(inputs)
 }
 
 /// Creates a compressible associated token account instruction (idempotent)
 pub fn create_compressible_associated_token_account_idempotent(
     inputs: CreateCompressibleAssociatedTokenAccountInputs,
-) -> Result<Instruction> {
+) -> LightTokenResult<Instruction> {
     create_compressible_associated_token_account_with_mode::<true>(inputs)
 }
 
 /// Creates a compressible associated token account instruction with compile-time idempotent mode
 pub fn create_compressible_associated_token_account_with_mode<const IDEMPOTENT: bool>(
     inputs: CreateCompressibleAssociatedTokenAccountInputs,
-) -> Result<Instruction> {
+) -> LightTokenResult<Instruction> {
     let (ata_pubkey, bump) = derive_associated_token_account(&inputs.owner, &inputs.mint);
     create_compressible_associated_token_account_with_bump_and_mode::<IDEMPOTENT>(
         inputs, ata_pubkey, bump,
@@ -70,7 +70,7 @@ pub fn create_compressible_associated_token_account_with_bump(
     inputs: CreateCompressibleAssociatedTokenAccountInputs,
     ata_pubkey: Pubkey,
     bump: u8,
-) -> Result<Instruction> {
+) -> LightTokenResult<Instruction> {
     create_compressible_associated_token_account_with_bump_and_mode::<false>(
         inputs, ata_pubkey, bump,
     )
@@ -81,7 +81,7 @@ pub fn create_compressible_associated_token_account_with_bump_and_mode<const IDE
     inputs: CreateCompressibleAssociatedTokenAccountInputs,
     ata_pubkey: Pubkey,
     bump: u8,
-) -> Result<Instruction> {
+) -> LightTokenResult<Instruction> {
     create_ata_instruction_unified::<IDEMPOTENT, true>(
         inputs.payer,
         inputs.owner,
@@ -103,7 +103,7 @@ pub fn create_associated_token_account(
     payer: Pubkey,
     owner: Pubkey,
     mint: Pubkey,
-) -> Result<Instruction> {
+) -> LightTokenResult<Instruction> {
     create_associated_token_account_with_mode::<false>(payer, owner, mint)
 }
 
@@ -112,7 +112,7 @@ pub fn create_associated_token_account_idempotent(
     payer: Pubkey,
     owner: Pubkey,
     mint: Pubkey,
-) -> Result<Instruction> {
+) -> LightTokenResult<Instruction> {
     create_associated_token_account_with_mode::<true>(payer, owner, mint)
 }
 
@@ -121,7 +121,7 @@ pub fn create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
     payer: Pubkey,
     owner: Pubkey,
     mint: Pubkey,
-) -> Result<Instruction> {
+) -> LightTokenResult<Instruction> {
     let (ata_pubkey, bump) = derive_associated_token_account(&owner, &mint);
     create_associated_token_account_with_bump_and_mode::<IDEMPOTENT>(
         payer, owner, mint, ata_pubkey, bump,
@@ -135,7 +135,7 @@ pub fn create_associated_token_account_with_bump(
     mint: Pubkey,
     ata_pubkey: Pubkey,
     bump: u8,
-) -> Result<Instruction> {
+) -> LightTokenResult<Instruction> {
     create_associated_token_account_with_bump_and_mode::<false>(
         payer, owner, mint, ata_pubkey, bump,
     )
@@ -148,7 +148,7 @@ pub fn create_associated_token_account_with_bump_and_mode<const IDEMPOTENT: bool
     mint: Pubkey,
     ata_pubkey: Pubkey,
     bump: u8,
-) -> Result<Instruction> {
+) -> LightTokenResult<Instruction> {
     create_ata_instruction_unified::<IDEMPOTENT, false>(payer, owner, mint, ata_pubkey, bump, None)
 }
 
@@ -160,7 +160,7 @@ fn create_ata_instruction_unified<const IDEMPOTENT: bool, const COMPRESSIBLE: bo
     ata_pubkey: Pubkey,
     bump: u8,
     compressible_config: Option<(u8, Option<u32>, Pubkey, Pubkey, TokenDataVersion)>, // (pre_pay_num_epochs, lamports_per_write, rent_sponsor, compressible_config_account, token_account_version)
-) -> Result<Instruction> {
+) -> LightTokenResult<Instruction> {
     // Select discriminator based on idempotent mode
     let discriminator = if IDEMPOTENT {
         CREATE_ATA_IDEMPOTENT_DISCRIMINATOR
@@ -181,7 +181,7 @@ fn create_ata_instruction_unified<const IDEMPOTENT: bool, const COMPRESSIBLE: bo
                 compress_to_account_pubkey: None, // Not used for ATA creation
             })
         } else {
-            return Err(TokenSdkError::InvalidAccountData);
+            return Err(LightTokenError::InvalidAccountData);
         }
     } else {
         None
@@ -199,7 +199,7 @@ fn create_ata_instruction_unified<const IDEMPOTENT: bool, const COMPRESSIBLE: bo
     data.push(discriminator);
     instruction_data
         .serialize(&mut data)
-        .map_err(|_| TokenSdkError::SerializationError)?;
+        .map_err(|_| LightTokenError::SerializationError)?;
 
     // Build accounts list based on whether it's compressible
     let mut accounts = vec![
@@ -246,7 +246,7 @@ pub fn derive_associated_token_account(owner: &Pubkey, mint: &Pubkey) -> (Pubkey
 /// Owner and mint are passed as account infos instead of instruction data
 pub fn create_compressible_associated_token_account2(
     inputs: CreateCompressibleAssociatedTokenAccountInputs,
-) -> Result<Instruction> {
+) -> LightTokenResult<Instruction> {
     create_compressible_associated_token_account2_with_mode::<false>(inputs)
 }
 
@@ -254,14 +254,14 @@ pub fn create_compressible_associated_token_account2(
 /// Owner and mint are passed as account infos instead of instruction data
 pub fn create_compressible_associated_token_account2_idempotent(
     inputs: CreateCompressibleAssociatedTokenAccountInputs,
-) -> Result<Instruction> {
+) -> LightTokenResult<Instruction> {
     create_compressible_associated_token_account2_with_mode::<true>(inputs)
 }
 
 /// Creates a compressible associated token account instruction v2 with compile-time idempotent mode
 fn create_compressible_associated_token_account2_with_mode<const IDEMPOTENT: bool>(
     inputs: CreateCompressibleAssociatedTokenAccountInputs,
-) -> Result<Instruction> {
+) -> LightTokenResult<Instruction> {
     let (ata_pubkey, bump) = derive_associated_token_account(&inputs.owner, &inputs.mint);
     create_compressible_associated_token_account2_with_bump_and_mode::<IDEMPOTENT>(
         inputs, ata_pubkey, bump,
@@ -273,7 +273,7 @@ fn create_compressible_associated_token_account2_with_bump_and_mode<const IDEMPO
     inputs: CreateCompressibleAssociatedTokenAccountInputs,
     ata_pubkey: Pubkey,
     bump: u8,
-) -> Result<Instruction> {
+) -> LightTokenResult<Instruction> {
     create_ata2_instruction_unified::<IDEMPOTENT, true>(
         inputs.payer,
         inputs.owner,
@@ -296,7 +296,7 @@ pub fn create_associated_token_account2(
     payer: Pubkey,
     owner: Pubkey,
     mint: Pubkey,
-) -> Result<Instruction> {
+) -> LightTokenResult<Instruction> {
     create_associated_token_account2_with_mode::<false>(payer, owner, mint)
 }
 
@@ -306,7 +306,7 @@ pub fn create_associated_token_account2_idempotent(
     payer: Pubkey,
     owner: Pubkey,
     mint: Pubkey,
-) -> Result<Instruction> {
+) -> LightTokenResult<Instruction> {
     create_associated_token_account2_with_mode::<true>(payer, owner, mint)
 }
 
@@ -315,7 +315,7 @@ fn create_associated_token_account2_with_mode<const IDEMPOTENT: bool>(
     payer: Pubkey,
     owner: Pubkey,
     mint: Pubkey,
-) -> Result<Instruction> {
+) -> LightTokenResult<Instruction> {
     let (ata_pubkey, bump) = derive_associated_token_account(&owner, &mint);
     create_associated_token_account2_with_bump_and_mode::<IDEMPOTENT>(
         payer, owner, mint, ata_pubkey, bump,
@@ -329,7 +329,7 @@ fn create_associated_token_account2_with_bump_and_mode<const IDEMPOTENT: bool>(
     mint: Pubkey,
     ata_pubkey: Pubkey,
     bump: u8,
-) -> Result<Instruction> {
+) -> LightTokenResult<Instruction> {
     create_ata2_instruction_unified::<IDEMPOTENT, false>(payer, owner, mint, ata_pubkey, bump, None)
 }
 
@@ -342,7 +342,7 @@ fn create_ata2_instruction_unified<const IDEMPOTENT: bool, const COMPRESSIBLE: b
     ata_pubkey: Pubkey,
     bump: u8,
     compressible_config: Option<(u8, Option<u32>, Pubkey, Pubkey, TokenDataVersion)>,
-) -> Result<Instruction> {
+) -> LightTokenResult<Instruction> {
     let discriminator = if IDEMPOTENT {
         CREATE_ATA2_IDEMPOTENT_DISCRIMINATOR
     } else {
@@ -361,7 +361,7 @@ fn create_ata2_instruction_unified<const IDEMPOTENT: bool, const COMPRESSIBLE: b
                 compress_to_account_pubkey: None,
             })
         } else {
-            return Err(TokenSdkError::InvalidAccountData);
+            return Err(LightTokenError::InvalidAccountData);
         }
     } else {
         None
@@ -376,7 +376,7 @@ fn create_ata2_instruction_unified<const IDEMPOTENT: bool, const COMPRESSIBLE: b
     data.push(discriminator);
     instruction_data
         .serialize(&mut data)
-        .map_err(|_| TokenSdkError::SerializationError)?;
+        .map_err(|_| LightTokenError::SerializationError)?;
 
     let mut accounts = vec![
         solana_instruction::AccountMeta::new_readonly(owner, false),

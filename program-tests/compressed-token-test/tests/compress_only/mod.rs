@@ -154,10 +154,8 @@ pub async fn run_compress_and_close_extension_test(
     config: CompressAndCloseTestConfig,
 ) -> Result<(), RpcError> {
     use light_client::indexer::Indexer;
-    use light_token::{
-        instruction::{CompressibleParams, CreateTokenAccount, TransferFromSpl},
-        spl_interface::find_spl_interface_pda_with_index,
-    };
+    use light_compressed_token_sdk::spl_interface::find_spl_interface_pda_with_index;
+    use light_token::instruction::{CompressibleParams, CreateTokenAccount, TransferFromSpl};
     use light_token_client::instructions::transfer2::{
         create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,
     };

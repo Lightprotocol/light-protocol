@@ -21,7 +21,6 @@ light-token = { workspace = true }
 light-token-types = { workspace = true }
 light-token-interface = { workspace = true }
 light-sdk = { workspace = true, features = ["v2"] }
-light-sdk-types = { workspace = true }
 light-client = { workspace = true, optional = true }
 
 # Solana dependencies

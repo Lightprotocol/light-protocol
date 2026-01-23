@@ -5,7 +5,7 @@
 
 use forester_utils::instructions::create_account::create_account_instruction;
 use light_client::rpc::Rpc;
-use light_token::spl_interface::{find_spl_interface_pda, CreateSplInterfacePda};
+use light_compressed_token_sdk::spl_interface::{find_spl_interface_pda, CreateSplInterfacePda};
 use light_token_interface::RESTRICTED_EXTENSION_TYPES;
 use solana_sdk::{
     instruction::Instruction,

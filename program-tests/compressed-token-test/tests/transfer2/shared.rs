@@ -2,6 +2,9 @@ use std::collections::HashMap;
 
 use anchor_lang::AnchorDeserialize;
 use light_client::{indexer::Indexer, rpc::Rpc};
+use light_compressed_token_sdk::compressed_token::create_compressed_mint::{
+    derive_mint_compressed_address, find_mint_address,
+};
 use light_program_test::{indexer::TestIndexerExtensions, LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     airdrop_lamports,
@@ -11,10 +14,7 @@ use light_test_utils::{
         CREATE_MINT_HELPER_DECIMALS,
     },
 };
-use light_token::{
-    compressed_token::create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
-    instruction::{CompressibleParams, CreateAssociatedTokenAccount},
-};
+use light_token::instruction::{CompressibleParams, CreateAssociatedTokenAccount};
 use light_token_client::{
     actions::{create_mint, mint_to_compressed},
     instructions::{

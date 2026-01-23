@@ -38,6 +38,7 @@ serial_test = { workspace = true }
 light-batched-merkle-tree = { workspace = true }
 light-account-checks = { workspace = true }
 light-token = { workspace = true }
+light-compressed-token-sdk = { workspace = true }
 light-compressible = { workspace = true }
 light-token-client = { workspace = true }
 light-token-interface = { workspace = true }

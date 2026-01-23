@@ -1,5 +1,8 @@
 use anchor_lang::{prelude::borsh::BorshDeserialize, solana_program::program_pack::Pack};
 use light_client::indexer::Indexer;
+use light_compressed_token_sdk::compressed_token::create_compressed_mint::{
+    derive_mint_compressed_address, find_mint_address,
+};
 use light_compressible::{compression_info::CompressionInfo, rent::SLOTS_PER_EPOCH};
 use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
@@ -13,9 +16,8 @@ use light_test_utils::{
     mint_assert::assert_compressed_mint_account,
     Rpc,
 };
-use light_token::{
-    compressed_token::create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
-    instruction::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount},
+use light_token::instruction::{
+    derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount,
 };
 use light_token_client::{
     actions::{create_mint, mint_to_compressed, transfer, transfer2},

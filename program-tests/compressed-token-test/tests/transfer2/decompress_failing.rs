@@ -32,20 +32,20 @@
 //
 
 use light_client::indexer::{CompressedTokenAccount, Indexer};
+use light_compressed_token_sdk::compressed_token::{
+    create_compressed_mint::find_mint_address,
+    transfer2::{
+        account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction, Transfer2Config,
+        Transfer2Inputs,
+    },
+    CTokenAccount2,
+};
 use light_program_test::{
     utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig, Rpc,
 };
 use light_sdk::instruction::PackedAccounts;
 use light_test_utils::RpcError;
 use light_token::{
-    compressed_token::{
-        create_compressed_mint::find_mint_address,
-        transfer2::{
-            account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction,
-            Transfer2Config, Transfer2Inputs,
-        },
-        CTokenAccount2,
-    },
     instruction::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount},
     ValidityProof,
 };

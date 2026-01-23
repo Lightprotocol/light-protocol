@@ -7,6 +7,7 @@ use light_client::indexer::{CompressedTokenAccount, Indexer};
 use light_compressed_token::freeze::sdk::{
     create_instruction, CreateInstructionInputs as FreezeInputs,
 };
+use light_compressed_token_sdk::spl_interface::find_spl_interface_pda_with_index;
 use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     conversions::sdk_to_program_token_data,
@@ -19,7 +20,6 @@ use light_test_utils::{
 use light_token::{
     compat::{AccountState, TokenDataWithMerkleContext},
     instruction::{CompressibleParams, CreateTokenAccount, TransferFromSpl},
-    spl_interface::find_spl_interface_pda_with_index,
 };
 use light_token_client::instructions::transfer2::{
     create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,

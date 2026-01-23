@@ -1,4 +1,11 @@
 use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
+use light_compressed_token_sdk::compressed_token::{
+    decompress_full::pack_for_decompress_full_with_ata,
+    transfer2::{
+        create_transfer2_instruction, Transfer2AccountsMetaConfig, Transfer2Config, Transfer2Inputs,
+    },
+    CTokenAccount2,
+};
 use light_sdk::instruction::{PackedAccounts, PackedStateTreeInfo};
 use light_token_interface::{
     instructions::extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
@@ -10,14 +17,6 @@ use solana_pubkey::Pubkey;
 
 use crate::{
     compat::{AccountState, TokenData},
-    compressed_token::{
-        decompress_full::pack_for_decompress_full_with_ata,
-        transfer2::{
-            create_transfer2_instruction, Transfer2AccountsMetaConfig, Transfer2Config,
-            Transfer2Inputs,
-        },
-        CTokenAccount2,
-    },
     instruction::derive_associated_token_account,
 };
 

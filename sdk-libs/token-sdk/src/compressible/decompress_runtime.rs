@@ -1,5 +1,8 @@
 //! Runtime helpers for token decompression.
 // Re-export TokenSeedProvider from sdk (canonical definition).
+use light_compressed_token_sdk::compressed_token::decompress_full::{
+    decompress_full_token_accounts_with_indices, DecompressFullIndices,
+};
 pub use light_sdk::interface::TokenSeedProvider;
 use light_sdk::{cpi::v2::CpiAccounts, instruction::ValidityProof};
 use light_sdk_types::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;
@@ -53,9 +56,8 @@ where
         return Ok(());
     }
 
-    let mut token_decompress_indices: Vec<
-        crate::compressed_token::decompress_full::DecompressFullIndices,
-    > = Vec::with_capacity(token_accounts.len());
+    let mut token_decompress_indices: Vec<DecompressFullIndices> =
+        Vec::with_capacity(token_accounts.len());
     // Only program-owned tokens need signer seeds
     let mut token_signers_seed_groups: Vec<Vec<Vec<u8>>> = Vec::with_capacity(token_accounts.len());
     let packed_accounts = post_system_accounts;
@@ -175,7 +177,7 @@ where
             merkle_context: meta.tree_info.into(),
             root_index: meta.tree_info.root_index,
         };
-        let decompress_index = crate::compressed_token::decompress_full::DecompressFullIndices {
+        let decompress_index = DecompressFullIndices {
             source,
             destination_index: owner_index,
             tlv: None,
@@ -189,15 +191,14 @@ where
         return Ok(());
     }
 
-    let ctoken_ix =
-        crate::compressed_token::decompress_full::decompress_full_token_accounts_with_indices(
-            *fee_payer.key,
-            proof,
-            cpi_context_pubkey,
-            &token_decompress_indices,
-            packed_accounts,
-        )
-        .map_err(ProgramError::from)?;
+    let ctoken_ix = decompress_full_token_accounts_with_indices(
+        *fee_payer.key,
+        proof,
+        cpi_context_pubkey,
+        &token_decompress_indices,
+        packed_accounts,
+    )
+    .map_err(ProgramError::from)?;
 
     // Build account infos for CPI. Must include all accounts needed by the transfer2 instruction:
     // - System accounts (light_system_program, registered_program_pda, etc.)
