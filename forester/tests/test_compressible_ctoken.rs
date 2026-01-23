@@ -90,12 +90,40 @@ async fn register_forester(
     // Calculate epoch info
     let current_slot = rpc.get_slot().await?;
     let current_epoch = protocol_config.get_current_epoch(current_slot);
-    println!("current_epoch {:?}", current_epoch);
     let phases = get_epoch_phases(&protocol_config, current_epoch);
-    let register_phase_start = phases.registration.start;
-    let active_phase_start = phases.active.start;
-    println!("phases {:?}", phases);
-    println!("current_slot {}", current_slot);
+
+    println!(
+        "Current slot: {}, current_epoch: {}, phases: {:?}",
+        current_slot, current_epoch, phases
+    );
+
+    // Determine which epoch to register for:
+    // If we're already past the registration phase start, we might be in active phase
+    // and need to wait for the next epoch's registration
+    let (target_epoch, target_phases) = if current_slot >= phases.active.start {
+        // Already in active phase, register for next epoch
+        let next_epoch = current_epoch + 1;
+        let next_phases = get_epoch_phases(&protocol_config, next_epoch);
+        println!(
+            "Already in active phase, registering for next epoch {}, phases: {:?}",
+            next_epoch, next_phases
+        );
+        (next_epoch, next_phases)
+    } else if current_slot >= phases.registration.start {
+        // In registration phase, register for current epoch
+        println!("In registration phase for epoch {}", current_epoch);
+        (current_epoch, phases)
+    } else {
+        // Before registration phase, wait for it
+        println!(
+            "Waiting for registration phase (starts at slot {})",
+            phases.registration.start
+        );
+        (current_epoch, phases)
+    };
+
+    let register_phase_start = target_phases.registration.start;
+    let active_phase_start = target_phases.active.start;
 
     // Warp to registration phase
     if rpc.get_slot().await? < register_phase_start {
@@ -104,10 +132,12 @@ async fn register_forester(
             .expect("warp_to_slot to registration phase");
     }
 
-    // Register for epoch 0
-    let epoch = 0u64;
-    let register_epoch_ix =
-        create_register_forester_epoch_pda_instruction(&forester_pubkey, &forester_pubkey, epoch);
+    // Register for the target epoch
+    let register_epoch_ix = create_register_forester_epoch_pda_instruction(
+        &forester_pubkey,
+        &forester_pubkey,
+        target_epoch,
+    );
 
     let (blockhash, _) = rpc.get_latest_blockhash().await?;
     let tx = Transaction::new_signed_with_payer(
@@ -118,12 +148,7 @@ async fn register_forester(
     );
     rpc.process_transaction(tx).await?;
 
-    println!("Registered for epoch {}", epoch);
-
-    println!(
-        "Waiting for active phase (current slot: {}, active phase starts at: {})...",
-        current_slot, active_phase_start
-    );
+    println!("Registered for epoch {}", target_epoch);
 
     // Warp to active phase
     if rpc.get_slot().await? < active_phase_start {
@@ -132,11 +157,14 @@ async fn register_forester(
             .expect("warp_to_slot to active phase");
     }
 
-    println!("Active phase reached");
+    println!("Active phase reached for epoch {}", target_epoch);
 
     // Finalize registration
-    let finalize_ix =
-        create_finalize_registration_instruction(&forester_pubkey, &forester_pubkey, epoch);
+    let finalize_ix = create_finalize_registration_instruction(
+        &forester_pubkey,
+        &forester_pubkey,
+        target_epoch,
+    );
 
     let (blockhash, _) = rpc.get_latest_blockhash().await?;
     let tx = Transaction::new_signed_with_payer(
@@ -164,10 +192,10 @@ async fn register_forester(
     use light_registry::protocol_config::state::EpochState;
 
     let epoch_struct = Epoch {
-        epoch,
+        epoch: target_epoch,
         epoch_pda: solana_sdk::pubkey::Pubkey::default(),
         forester_epoch_pda: solana_sdk::pubkey::Pubkey::default(),
-        phases,
+        phases: target_phases,
         state: EpochState::Active,
         merkle_trees: vec![],
     };
@@ -473,7 +501,7 @@ async fn run_bootstrap_test(
     });
 
     if expected_count > 0 {
-        // Wait for bootstrap to find expected number of accounts (with timeout)
+        // Wait for bootstrap to find at least expected number of accounts (with timeout)
         let start = tokio::time::Instant::now();
         let timeout = Duration::from_secs(60);
 
@@ -485,12 +513,13 @@ async fn run_bootstrap_test(
             sleep(Duration::from_millis(500)).await;
         }
 
-        // Assert bootstrap picked up all accounts
-        assert_eq!(
-            tracker.len(),
+        // Assert bootstrap picked up at least the expected accounts
+        // (there may be more from previous tests sharing the validator)
+        assert!(
+            tracker.len() >= expected_count,
+            "Bootstrap should have found at least {} accounts, found {}",
             expected_count,
-            "Bootstrap should have found all {} accounts",
-            expected_count
+            tracker.len()
         );
     } else {
         // Mainnet test: wait a bit for bootstrap to run
@@ -504,14 +533,13 @@ async fn run_bootstrap_test(
     if let Some((expected_pubkeys, expected_mint)) = expected_data {
         // Verify specific accounts (localhost test)
 
-        // Verify all created accounts are in tracker
+        // Verify all created accounts are in tracker and have correct data
         for pubkey in &expected_pubkeys {
-            let found = accounts.iter().any(|acc| acc.pubkey == *pubkey);
-            assert!(found, "Bootstrap should have found account {}", pubkey);
-        }
+            let account_state = accounts
+                .iter()
+                .find(|acc| acc.pubkey == *pubkey)
+                .expect(&format!("Bootstrap should have found account {}", pubkey));
 
-        // Verify account data is correct
-        for account_state in &accounts {
             println!(
                 "Verifying account {}: mint={:?}, lamports={}",
                 account_state.pubkey, account_state.account.mint, account_state.lamports

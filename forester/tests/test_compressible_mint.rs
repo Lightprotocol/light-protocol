@@ -179,37 +179,6 @@ async fn test_compressible_mint_bootstrap() {
     let mint_data = mint_account.unwrap();
     let mint = Mint::deserialize(&mut &mint_data.data[..]).expect("Failed to deserialize Mint");
 
-    // Extract runtime-specific values from deserialized mint
-    let compression = mint.compression;
-    let metadata_version = mint.metadata.version;
-
-    // Build expected Mint
-    let expected_mint = Mint {
-        base: BaseMint {
-            mint_authority: Some(payer.pubkey().to_bytes().into()),
-            supply: 0,
-            decimals: 9,
-            is_initialized: true,
-            freeze_authority: None,
-        },
-        metadata: MintMetadata {
-            version: metadata_version,
-            mint_decompressed: true,
-            mint: mint_pda.to_bytes().into(),
-            mint_signer: mint_seed.pubkey().to_bytes(),
-            bump,
-        },
-        reserved: [0u8; 16],
-        account_type: ACCOUNT_TYPE_MINT,
-        compression,
-        extensions: None,
-    };
-
-    assert_eq!(mint, expected_mint, "Mint should match expected state");
-=======
-    let mint_data = mint_account.unwrap();
-    let mint = Mint::deserialize(&mut &mint_data.data[..]).expect("Failed to deserialize Mint");
-
     // Build expected mint using known values plus runtime compression info
     let expected_mint = build_expected_mint(
         &payer.pubkey(),
@@ -220,7 +189,6 @@ async fn test_compressible_mint_bootstrap() {
         mint.metadata.version,
         mint.compression,
     );
->>>>>>> d6299d718 (feat: add hex dependency and update existing hex usage in Cargo.toml files; refactor mint compression logic to handle batching and improve error handling; enhance test cases for mint creation and compression)
 
     assert_eq!(mint, expected_mint, "Mint should match expected structure");
 
