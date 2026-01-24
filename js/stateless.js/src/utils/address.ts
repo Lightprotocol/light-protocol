@@ -30,7 +30,6 @@ export function deriveAddressLegacy(
     addressMerkleTreePubkey: PublicKey = defaultTestStateTreeAccounts()
         .addressTree,
 ): PublicKey {
-
     if (seed.length != 32) {
         throw new Error('Seed length is not 32 bytes.');
     }

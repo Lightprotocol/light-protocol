@@ -50,7 +50,9 @@ export class PackedAccounts {
         if (featureFlags.isV2()) {
             this.systemAccounts.push(...getLightSystemAccountMetasV2(config));
         } else {
-            this.systemAccounts.push(...getLightSystemAccountMetasLegacy(config));
+            this.systemAccounts.push(
+                ...getLightSystemAccountMetasLegacy(config),
+            );
         }
     }
 
@@ -209,7 +211,6 @@ export function getLightSystemAccountMetasLegacy(
         });
     }
     return metas;
-
 }
 
 /**
