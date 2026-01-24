@@ -234,8 +234,8 @@ pub trait LightProgramInterface: Sized {
     #[must_use]
     fn light_config_pda(&self) -> Pubkey;
 
-    /// Returns the program's rent sponsor PDA for cPDAs.
-    /// Derived via `derive_light_rent_sponsor_pda!` macro.
+    /// Returns the program's rent sponsor PDA for cPDAs (version 1).
+    /// Derived via `derive_light_rent_sponsors!` macro.
     #[must_use]
     fn light_rent_sponsor_pda(&self) -> Pubkey;
 

@@ -7,6 +7,7 @@ use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSeria
 use light_sdk::interface::config::LightConfig;
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
+use solana_system_interface::instruction as system_instruction;
 
 /// Default address tree v2 pubkey.
 pub const ADDRESS_TREE_V2: Pubkey =
@@ -26,12 +27,15 @@ pub struct InitializeCompressionConfigAnchorData {
 }
 
 /// Builder for `initialize_compression_config` instruction with sensible defaults.
+///
+/// Automatically includes a transfer instruction to fund the rent sponsor PDA.
 pub struct InitializeRentFreeConfig {
     program_id: Pubkey,
     fee_payer: Pubkey,
     program_data_pda: Pubkey,
     authority: Option<Pubkey>,
     rent_sponsor: Pubkey,
+    rent_sponsor_funding: u64,
     compression_authority: Pubkey,
     rent_config: light_compressible::rent::RentConfig,
     write_top_up: u32,
@@ -40,12 +44,18 @@ pub struct InitializeRentFreeConfig {
 }
 
 impl InitializeRentFreeConfig {
+    /// Creates a new builder for initializing rent-free config.
+    ///
+    /// # Arguments
+    /// * `rent_sponsor_funding` - Lamports to transfer to the rent sponsor PDA.
+    ///   This funds the PDA that will pay rent for compressed accounts.
     pub fn new(
         program_id: &Pubkey,
         fee_payer: &Pubkey,
         program_data_pda: &Pubkey,
         rent_sponsor: Pubkey,
         compression_authority: Pubkey,
+        rent_sponsor_funding: u64,
     ) -> Self {
         Self {
             program_id: *program_id,
@@ -53,6 +63,7 @@ impl InitializeRentFreeConfig {
             program_data_pda: *program_data_pda,
             authority: None,
             rent_sponsor,
+            rent_sponsor_funding,
             compression_authority,
             rent_config: light_compressible::rent::RentConfig::default(),
             write_top_up: DEFAULT_INIT_WRITE_TOP_UP,
@@ -86,10 +97,25 @@ impl InitializeRentFreeConfig {
         self
     }
 
-    pub fn build(self) -> (Instruction, Pubkey) {
+    /// Builds the instructions to initialize rent-free config.
+    ///
+    /// Returns a vector containing:
+    /// 1. Transfer instruction to fund the rent sponsor PDA
+    /// 2. Initialize compression config instruction
+    ///
+    /// Both instructions should be sent in a single atomic transaction.
+    pub fn build(self) -> (Vec<Instruction>, Pubkey) {
         let authority = self.authority.unwrap_or(self.fee_payer);
         let (config_pda, _) = LightConfig::derive_pda(&self.program_id, self.config_bump);
 
+        // 1. Transfer to fund rent sponsor PDA
+        let transfer_ix = system_instruction::transfer(
+            &self.fee_payer,
+            &self.rent_sponsor,
+            self.rent_sponsor_funding,
+        );
+
+        // 2. Initialize compression config
         let accounts = vec![
             AccountMeta::new(self.fee_payer, true), // payer
             AccountMeta::new(config_pda, false),    // config
@@ -121,12 +147,12 @@ impl InitializeRentFreeConfig {
         data.extend_from_slice(&DISCRIMINATOR);
         data.extend_from_slice(&serialized_data);
 
-        let instruction = Instruction {
+        let init_config_ix = Instruction {
             program_id: self.program_id,
             accounts,
             data,
         };
 
-        (instruction, config_pda)
+        (vec![transfer_ix, init_config_ix], config_pda)
     }
 }

@@ -81,16 +81,17 @@ async fn test_create_pdas_and_mint_auto() {
 
     let program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
-    let (init_config_ix, config_pda) = InitializeRentFreeConfig::new(
+    let (init_config_ixs, config_pda) = InitializeRentFreeConfig::new(
         &program_id,
         &payer.pubkey(),
         &program_data_pda,
         RENT_SPONSOR,
         payer.pubkey(),
+        10_000_000_000,
     )
     .build();
 
-    rpc.create_and_send_transaction(&[init_config_ix], &payer.pubkey(), &[&payer])
+    rpc.create_and_send_transaction(&init_config_ixs, &payer.pubkey(), &[&payer])
         .await
         .expect("Initialize config should succeed");
 
@@ -537,16 +538,17 @@ async fn test_create_two_mints() {
 
     let program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
-    let (init_config_ix, config_pda) = InitializeRentFreeConfig::new(
+    let (init_config_ixs, config_pda) = InitializeRentFreeConfig::new(
         &program_id,
         &payer.pubkey(),
         &program_data_pda,
         RENT_SPONSOR,
         payer.pubkey(),
+        10_000_000_000,
     )
     .build();
 
-    rpc.create_and_send_transaction(&[init_config_ix], &payer.pubkey(), &[&payer])
+    rpc.create_and_send_transaction(&init_config_ixs, &payer.pubkey(), &[&payer])
         .await
         .expect("Initialize config should succeed");
 
@@ -733,16 +735,17 @@ async fn test_create_multi_mints() {
 
     let program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
-    let (init_config_ix, config_pda) = InitializeRentFreeConfig::new(
+    let (init_config_ixs, config_pda) = InitializeRentFreeConfig::new(
         &program_id,
         &payer.pubkey(),
         &program_data_pda,
         RENT_SPONSOR,
         payer.pubkey(),
+        10_000_000_000,
     )
     .build();
 
-    rpc.create_and_send_transaction(&[init_config_ix], &payer.pubkey(), &[&payer])
+    rpc.create_and_send_transaction(&init_config_ixs, &payer.pubkey(), &[&payer])
         .await
         .expect("Initialize config should succeed");
 
@@ -887,16 +890,17 @@ async fn setup_d9_test_context() -> (LightProgramTest, Keypair, Pubkey, Pubkey) 
 
     let program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
-    let (init_config_ix, config_pda) = InitializeRentFreeConfig::new(
+    let (init_config_ixs, config_pda) = InitializeRentFreeConfig::new(
         &program_id,
         &payer.pubkey(),
         &program_data_pda,
         RENT_SPONSOR,
         payer.pubkey(),
+        10_000_000_000,
     )
     .build();
 
-    rpc.create_and_send_transaction(&[init_config_ix], &payer.pubkey(), &[&payer])
+    rpc.create_and_send_transaction(&init_config_ixs, &payer.pubkey(), &[&payer])
         .await
         .expect("Initialize config should succeed");
 

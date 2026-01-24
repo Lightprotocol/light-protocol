@@ -339,38 +339,28 @@ pub fn light_account_derive(input: TokenStream) -> TokenStream {
     into_token_stream(light_pdas::account::light_compressible::derive_light_account(input))
 }
 
-/// Derives a Rent Sponsor PDA for a program at compile time.
+/// Derives 4 Rent Sponsor PDAs (versions 1-4) at compile time.
 ///
-/// Seeds: ["rent_sponsor", <u16 version little-endian>]
-///
-/// ## Example
-///
-/// ```ignore
-/// use light_sdk_macros::derive_light_rent_sponsor_pda;
-///
-/// pub const RENT_SPONSOR_DATA: ([u8; 32], u8) =
-///     derive_light_rent_sponsor_pda!("8Ld9pGkCNfU6A7KdKe1YrTNYJWKMCFqVHqmUvjNmER7B", 1);
-/// ```
-#[proc_macro]
-pub fn derive_light_rent_sponsor_pda(input: TokenStream) -> TokenStream {
-    rent_sponsor::derive_light_rent_sponsor_pda(input)
-}
-
-/// Derives a complete Rent Sponsor configuration for a program at compile time.
-///
-/// Returns ::light_sdk_types::RentSponsor { program_id, rent_sponsor, bump, version }.
+/// Returns a `RentSponsors` struct containing an array of 4 `RentSponsor` entries.
+/// Version 1 is always the default, accessed via `.default()` or index `[0]`.
 ///
 /// ## Example
 ///
 /// ```ignore
-/// use light_sdk_macros::derive_light_rent_sponsor;
+/// use light_sdk_macros::derive_light_rent_sponsors;
 ///
-/// pub const RENT_SPONSOR: ::light_sdk_types::RentSponsor =
-///     derive_light_rent_sponsor!("8Ld9pGkCNfU6A7KdKe1YrTNYJWKMCFqVHqmUvjNmER7B", 1);
+/// pub const RENT_SPONSORS: ::light_sdk::sdk_types::RentSponsors =
+///     derive_light_rent_sponsors!("8Ld9pGkCNfU6A7KdKe1YrTNYJWKMCFqVHqmUvjNmER7B");
+///
+/// // Get default (version 1)
+/// let default_sponsor = RENT_SPONSORS.default();
+///
+/// // Get specific version
+/// let v2_sponsor = RENT_SPONSORS.get(2).unwrap();
 /// ```
 #[proc_macro]
-pub fn derive_light_rent_sponsor(input: TokenStream) -> TokenStream {
-    rent_sponsor::derive_light_rent_sponsor(input)
+pub fn derive_light_rent_sponsors(input: TokenStream) -> TokenStream {
+    rent_sponsor::derive_light_rent_sponsors(input)
 }
 
 /// Generates `LightFinalize` trait implementation for Light Protocol accounts.

@@ -30,16 +30,17 @@ async fn test_create_single_mint() {
 
     let program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
-    let (init_config_ix, config_pda) = InitializeRentFreeConfig::new(
+    let (init_config_ixs, config_pda) = InitializeRentFreeConfig::new(
         &program_id,
         &payer.pubkey(),
         &program_data_pda,
         RENT_SPONSOR,
         payer.pubkey(),
+        10_000_000_000,
     )
     .build();
 
-    rpc.create_and_send_transaction(&[init_config_ix], &payer.pubkey(), &[&payer])
+    rpc.create_and_send_transaction(&init_config_ixs, &payer.pubkey(), &[&payer])
         .await
         .expect("Initialize config should succeed");
 

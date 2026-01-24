@@ -284,13 +284,8 @@ async fn test_compressible_pda_bootstrap() {
         .await
         .expect("Failed to airdrop to authority");
 
-    // Fund rent sponsor
-    rpc.airdrop_lamports(&RENT_SPONSOR, 10_000_000_000)
-        .await
-        .expect("Failed to fund rent sponsor");
-
-    // Initialize compression config
-    let (init_config_ix, config_pda) = InitializeRentFreeConfig::new(
+    // Initialize compression config (includes rent sponsor funding)
+    let (init_config_ixs, config_pda) = InitializeRentFreeConfig::new(
         &program_id,
         &authority.pubkey(),
         &Pubkey::find_program_address(
@@ -300,10 +295,11 @@ async fn test_compressible_pda_bootstrap() {
         .0,
         RENT_SPONSOR,
         authority.pubkey(),
+        10_000_000_000,
     )
     .build();
 
-    rpc.create_and_send_transaction(&[init_config_ix], &authority.pubkey(), &[&authority])
+    rpc.create_and_send_transaction(&init_config_ixs, &authority.pubkey(), &[&authority])
         .await
         .expect("Initialize config should succeed");
 
@@ -474,13 +470,8 @@ async fn test_compressible_pda_compression() {
         .await
         .expect("Failed to airdrop to authority");
 
-    // Fund rent sponsor
-    rpc.airdrop_lamports(&RENT_SPONSOR, 10_000_000_000)
-        .await
-        .expect("Failed to fund rent sponsor");
-
-    // Initialize compression config
-    let (init_config_ix, config_pda) = InitializeRentFreeConfig::new(
+    // Initialize compression config (includes rent sponsor funding)
+    let (init_config_ixs, config_pda) = InitializeRentFreeConfig::new(
         &program_id,
         &authority.pubkey(),
         &Pubkey::find_program_address(
@@ -490,10 +481,11 @@ async fn test_compressible_pda_compression() {
         .0,
         RENT_SPONSOR,
         authority.pubkey(),
+        10_000_000_000,
     )
     .build();
 
-    rpc.create_and_send_transaction(&[init_config_ix], &authority.pubkey(), &[&authority])
+    rpc.create_and_send_transaction(&init_config_ixs, &authority.pubkey(), &[&authority])
         .await
         .expect("Initialize config should succeed");
 
@@ -706,17 +698,14 @@ async fn test_compressible_pda_subscription() {
     rpc.airdrop_lamports(&authority.pubkey(), 10_000_000_000)
         .await
         .expect("Failed to airdrop to authority");
-    rpc.airdrop_lamports(&RENT_SPONSOR, 10_000_000_000)
-        .await
-        .expect("Failed to fund rent sponsor");
 
     // Wait for indexer
     wait_for_indexer(&rpc)
         .await
         .expect("Failed to wait for indexer");
 
-    // Initialize compression config
-    let (init_config_ix, config_pda) = InitializeRentFreeConfig::new(
+    // Initialize compression config (includes rent sponsor funding)
+    let (init_config_ixs, config_pda) = InitializeRentFreeConfig::new(
         &program_id,
         &authority.pubkey(),
         &Pubkey::find_program_address(
@@ -726,10 +715,11 @@ async fn test_compressible_pda_subscription() {
         .0,
         RENT_SPONSOR,
         authority.pubkey(),
+        10_000_000_000,
     )
     .build();
 
-    rpc.create_and_send_transaction(&[init_config_ix], &authority.pubkey(), &[&authority])
+    rpc.create_and_send_transaction(&init_config_ixs, &authority.pubkey(), &[&authority])
         .await
         .expect("Initialize config should succeed");
 

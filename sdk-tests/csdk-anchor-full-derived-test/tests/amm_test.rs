@@ -138,24 +138,22 @@ async fn setup() -> AmmTestContext {
     // Setup mock program data and compression config
     let program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
-    // Get program's rent sponsor PDA (derived via derive_light_rent_sponsor_pda! macro)
-    let program_rent_sponsor = csdk_anchor_full_derived_test::program_rent_sponsor();
+    // Construct SDK and use trait method for rent sponsor PDA
+    let sdk = AmmSdk::new();
+    let program_rent_sponsor = sdk.light_rent_sponsor_pda();
 
-    // Fund the rent sponsor PDA before config init
-    light_test_utils::airdrop_lamports(&mut rpc, &program_rent_sponsor, 10_000_000_000)
-        .await
-        .unwrap();
-
-    let (init_config_ix, config_pda) = InitializeRentFreeConfig::new(
+    // Initialize config with rent sponsor funding (transfer + init in one tx)
+    let (init_config_ixs, config_pda) = InitializeRentFreeConfig::new(
         &program_id,
         &payer.pubkey(),
         &program_data_pda,
         program_rent_sponsor,
         payer.pubkey(),
+        10_000_000_000, // rent sponsor funding
     )
     .build();
 
-    rpc.create_and_send_transaction(&[init_config_ix], &payer.pubkey(), &[&payer])
+    rpc.create_and_send_transaction(&init_config_ixs, &payer.pubkey(), &[&payer])
         .await
         .expect("Initialize config should succeed");
 

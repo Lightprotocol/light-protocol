@@ -20,8 +20,7 @@ pub use light_sdk::{
 // Re-export Light SDK macros
 pub use light_sdk_macros::{
     // Proc macros
-    derive_light_rent_sponsor,
-    derive_light_rent_sponsor_pda,
+    derive_light_rent_sponsors,
     // Attribute macros
     light_program,
     // Derive macros

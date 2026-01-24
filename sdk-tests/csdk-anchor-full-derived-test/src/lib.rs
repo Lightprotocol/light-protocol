@@ -1,11 +1,10 @@
-#![allow(deprecated)]
 #![allow(clippy::useless_asref)] // Testing macro handling of .as_ref() patterns
 
 use anchor_lang::prelude::*;
 use light_instruction_decoder_derive::instruction_decoder;
-use light_sdk::{derive_light_cpi_signer, derive_light_rent_sponsor_pda};
+use light_sdk::{derive_light_cpi_signer, derive_light_rent_sponsors};
 use light_sdk_macros::light_program;
-use light_sdk_types::CpiSigner;
+use light_sdk_types::{CpiSigner, RentSponsors};
 
 pub mod amm_test;
 pub mod d5_markers;
@@ -74,12 +73,12 @@ declare_id!("FAMipfVEhN4hjCLpKCvjDXXfzLsoVTqQccXzePz1L1ah");
 pub const LIGHT_CPI_SIGNER: CpiSigner =
     derive_light_cpi_signer!("FAMipfVEhN4hjCLpKCvjDXXfzLsoVTqQccXzePz1L1ah");
 
-pub const PROGRAM_RENT_SPONSOR_DATA: ([u8; 32], u8) =
-    derive_light_rent_sponsor_pda!("FAMipfVEhN4hjCLpKCvjDXXfzLsoVTqQccXzePz1L1ah", 1);
+pub const RENT_SPONSORS: RentSponsors =
+    derive_light_rent_sponsors!("FAMipfVEhN4hjCLpKCvjDXXfzLsoVTqQccXzePz1L1ah");
 
 #[inline]
 pub fn program_rent_sponsor() -> Pubkey {
-    Pubkey::from(PROGRAM_RENT_SPONSOR_DATA.0)
+    Pubkey::from(RENT_SPONSORS.default().rent_sponsor)
 }
 
 pub const GAME_SESSION_SEED: &str = "game_session";
@@ -1462,4 +1461,50 @@ pub enum CsdkTestInstruction {
         params = instruction_accounts::CreateMintWithMetadataParams
     )]
     CreateMintWithMetadata,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_derive_light_rent_sponsors_macro_matches_runtime() {
+        let runtime_sponsors = light_sdk::utils::derive_rent_sponsors(&crate::ID);
+
+        for version in 1u16..=4u16 {
+            let macro_sponsor = RENT_SPONSORS.get(version).unwrap();
+            let runtime_sponsor = runtime_sponsors.get(version).unwrap();
+
+            assert_eq!(
+                macro_sponsor, runtime_sponsor,
+                "Macro-derived sponsor for version {} should match runtime (all)",
+                version
+            );
+
+            // Also verify single-version function matches
+            let (single_pda, single_bump) =
+                light_sdk::utils::derive_rent_sponsor_pda(&crate::ID, version);
+            assert_eq!(
+                macro_sponsor.rent_sponsor,
+                single_pda.to_bytes(),
+                "Macro-derived PDA for version {} should match runtime (single)",
+                version
+            );
+            assert_eq!(macro_sponsor.bump, single_bump);
+        }
+    }
+
+    #[test]
+    fn test_rent_sponsors_default_is_version_1() {
+        let default = RENT_SPONSORS.default();
+        let v1 = RENT_SPONSORS.get(1).unwrap();
+        assert_eq!(default, v1, "Default should be version 1");
+        assert_eq!(default.version, 1);
+    }
+
+    #[test]
+    fn test_rent_sponsors_invalid_versions() {
+        assert!(RENT_SPONSORS.get(0).is_none(), "Version 0 should be None");
+        assert!(RENT_SPONSORS.get(5).is_none(), "Version 5 should be None");
+    }
 }
