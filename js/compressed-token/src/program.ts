@@ -24,7 +24,21 @@ import {
     CompressedProof,
     featureFlags,
     TreeType,
+    batchMerkleTree1,
+    batchQueue1,
+    batchCpiContext1,
 } from '@lightprotocol/stateless.js';
+
+/**
+ * Hardcoded V2 tree for V1→V2 migration in transfer/merge.
+ */
+const DEFAULT_V2_MIGRATION_TREE: TreeInfo = {
+    tree: new PublicKey(batchMerkleTree1),
+    queue: new PublicKey(batchQueue1),
+    cpiContext: new PublicKey(batchCpiContext1),
+    treeType: TreeType.StateV2,
+    nextTreeInfo: null,
+};
 import {
     MINT_SIZE,
     TOKEN_2022_PROGRAM_ID,
@@ -1037,7 +1051,9 @@ export class CompressedTokenProgram {
     }
 
     /**
-     * Construct transfer instruction for compressed tokens
+     * Construct transfer instruction for compressed tokens.
+     *
+     * V1 inputs automatically migrate to V2 outputs when in V2 mode.
      *
      * @param payer                         Fee payer.
      * @param inputCompressedTokenAccounts  Source compressed token accounts.
@@ -1063,6 +1079,15 @@ export class CompressedTokenProgram {
                 amount,
             );
 
+        // Determine output tree: V1 inputs in V2 mode -> hardcoded V2 tree
+        const inputTreeType =
+            inputCompressedTokenAccounts[0]?.compressedAccount.treeInfo
+                .treeType;
+        const outputStateTreeInfo =
+            inputTreeType === TreeType.StateV1 && featureFlags.isV2()
+                ? DEFAULT_V2_MIGRATION_TREE
+                : undefined;
+
         const {
             inputTokenDataWithContext,
             packedOutputTokenData,
@@ -1071,6 +1096,7 @@ export class CompressedTokenProgram {
             inputCompressedTokenAccounts,
             rootIndices: recentInputStateRootIndices,
             tokenTransferOutputs,
+            outputStateTreeInfo,
         });
 
         const { mint } = parseTokenData(inputCompressedTokenAccounts);
@@ -1443,7 +1469,7 @@ export class CompressedTokenProgram {
     }
 
     /**
-     * Create `mergeTokenAccounts` instruction
+     * Create `mergeTokenAccounts` instruction.
      *
      * @param payer                         Fee payer.
      * @param owner                         Owner of the compressed token
@@ -1452,7 +1478,6 @@ export class CompressedTokenProgram {
      * @param mint                          SPL Token mint address.
      * @param recentValidityProof           Recent validity proof.
      * @param recentInputStateRootIndices   Recent state root indices.
-     *
      * @returns instruction
      */
     static async mergeTokenAccounts({

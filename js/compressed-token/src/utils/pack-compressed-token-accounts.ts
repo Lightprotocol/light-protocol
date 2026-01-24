@@ -18,9 +18,9 @@ export type PackCompressedTokenAccountsParams = {
     /** Input state to be consumed */
     inputCompressedTokenAccounts: ParsedTokenAccount[];
     /**
-     * State trees that the output should be inserted into. Defaults to the 0th
-     * state tree of the input state. Gets padded to the length of
-     * outputCompressedAccounts.
+     * Output state tree. Required for mint/compress (no inputs).
+     * For transfer/merge with V1 inputs: pass a V2 tree for migration.
+     * If not provided with inputs, uses input tree.
      */
     outputStateTreeInfo?: TreeInfo;
     /** Optional remaining accounts to append to */
@@ -96,26 +96,25 @@ export function packCompressedTokenAccounts(
         },
     );
 
-    if (inputCompressedTokenAccounts.length > 0 && outputStateTreeInfo) {
-        throw new Error(
-            'Cannot specify both input accounts and outputStateTreeInfo',
-        );
-    }
+    // Determine output tree:
+    // 1. If outputStateTreeInfo provided, use it (enables V1→V2 migration)
+    // 2. Otherwise use input tree (requires inputs)
+    let outputTreeInfo: TreeInfo;
 
-    let treeInfo: TreeInfo;
-    if (inputCompressedTokenAccounts.length > 0) {
-        treeInfo = inputCompressedTokenAccounts[0].compressedAccount.treeInfo;
-    } else if (outputStateTreeInfo) {
-        treeInfo = outputStateTreeInfo;
+    if (outputStateTreeInfo) {
+        outputTreeInfo = outputStateTreeInfo;
+    } else if (inputCompressedTokenAccounts.length > 0) {
+        outputTreeInfo =
+            inputCompressedTokenAccounts[0].compressedAccount.treeInfo;
     } else {
         throw new Error(
-            'Neither input accounts nor outputStateTreeInfo are available',
+            'Either input accounts or outputStateTreeInfo must be provided',
         );
     }
 
     // Use next tree if available, otherwise fall back to current tree.
     // `nextTreeInfo` always takes precedence.
-    const activeTreeInfo = treeInfo.nextTreeInfo || treeInfo;
+    const activeTreeInfo = outputTreeInfo.nextTreeInfo || outputTreeInfo;
     let activeTreeOrQueue = activeTreeInfo.tree;
 
     if (activeTreeInfo.treeType === TreeType.StateV2) {

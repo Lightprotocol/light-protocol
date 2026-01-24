@@ -1985,9 +1985,13 @@ export class Rpc extends Connection implements CompressionApiInterface {
     ): Promise<WithContext<ValidityProofWithContext>> {
         validateNumbersForProof(hashes.length, newAddresses.length);
 
+        // V2 endpoint is backward compatible - it generates correct proofs
+        // for both V1 and V2 trees based on tree height, not endpoint choice.
+        const endpoint = versionedEndpoint('getValidityProof');
+
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
-            versionedEndpoint('getValidityProof'),
+            endpoint,
             {
                 hashes: hashes.map(({ hash }) => encodeBN254toBase58(hash)),
                 newAddressesWithTrees: newAddresses.map(
@@ -1999,8 +2003,10 @@ export class Rpc extends Connection implements CompressionApiInterface {
             },
         );
 
+        const useV2Parsing = featureFlags.isV2();
+
         let res;
-        if (featureFlags.isV2()) {
+        if (useV2Parsing) {
             res = create(
                 unsafeRes,
                 jsonRpcResultAndContext(ValidityProofResultV2),
@@ -2026,7 +2032,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
         const value = res.result.value as any;
 
-        if (featureFlags.isV2()) {
+        if (useV2Parsing) {
             return {
                 value: {
                     compressedProof: value.compressedProof,
