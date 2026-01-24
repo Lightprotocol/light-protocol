@@ -1,0 +1,56 @@
+[package]
+name = "single-account-loader-test"
+version = "0.1.0"
+description = "Minimal Anchor program test for single AccountLoader (zero-copy) macro validation"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "single_account_loader_test"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+custom-heap = ["light-heap", "light-sdk/custom-heap"]
+default = []
+idl-build = ["anchor-lang/idl-build", "light-sdk/idl-build"]
+test-sbf = []
+
+[dependencies]
+light-heap = { workspace = true, optional = true }
+light-sdk = { workspace = true, features = ["anchor", "idl-build", "v2", "anchor-discriminator", "cpi-context"] }
+light-sdk-types = { workspace = true, features = ["v2", "cpi-context"] }
+light-sdk-macros = { workspace = true }
+borsh = { workspace = true }
+bytemuck = { workspace = true, features = ["derive"] }
+light-compressible = { workspace = true, features = ["anchor"] }
+light-token = { workspace = true, features = ["anchor"] }
+anchor-lang = { workspace = true, features = ["idl-build"] }
+solana-program = { workspace = true }
+solana-pubkey = { workspace = true }
+solana-msg = { workspace = true }
+solana-program-error = { workspace = true }
+solana-account-info = { workspace = true }
+
+[dev-dependencies]
+light-program-test = { workspace = true, features = ["devenv"] }
+light-client = { workspace = true, features = ["v2", "anchor"] }
+light-test-utils = { workspace = true }
+light-token = { workspace = true }
+light-compressed-account = { workspace = true, features = ["solana"] }
+light-compressible = { workspace = true, features = ["anchor"] }
+tokio = { workspace = true }
+solana-sdk = { workspace = true }
+solana-instruction = { workspace = true }
+solana-pubkey = { workspace = true }
+solana-keypair = { workspace = true }
+solana-signer = { workspace = true }
+
+[lints.rust.unexpected_cfgs]
+level = "allow"
+check-cfg = [
+    'cfg(target_os, values("solana"))',
+    'cfg(feature, values("frozen-abi", "no-entrypoint"))',
+]

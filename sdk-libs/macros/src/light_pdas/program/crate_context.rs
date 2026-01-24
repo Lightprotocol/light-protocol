@@ -1,7 +1,7 @@
-//! Anchor-style crate context parser for `#[rentfree_program]`.
+//! Anchor-style crate context parser for `#[light_program]`.
 //!
 //! This module recursively reads all module files at macro expansion time,
-//! allowing `#[rentfree_program]` to discover all `#[derive(LightAccounts)]` structs
+//! allowing `#[light_program]` to discover all `#[derive(LightAccounts)]` structs
 //! across the entire crate.
 //!
 //! Based on Anchor's `CrateContext::parse()` pattern from `anchor-syn/src/parser/context.rs`.

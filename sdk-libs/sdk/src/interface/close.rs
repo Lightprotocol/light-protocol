@@ -5,7 +5,7 @@ use crate::error::{LightSdkError, Result};
 // close native solana account
 pub fn close<'info>(
     info: &mut AccountInfo<'info>,
-    sol_destination: AccountInfo<'info>,
+    sol_destination: &AccountInfo<'info>,
 ) -> Result<()> {
     let system_program_id = solana_pubkey::pubkey!("11111111111111111111111111111111");
 

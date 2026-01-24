@@ -11,9 +11,9 @@ Documentation for the rentfree macro system in `light-sdk-macros`. These macros 
 | **`CLAUDE.md`** | This file - documentation structure guide |
 | **`../CLAUDE.md`** | Main entry point for sdk-libs/macros |
 | **`rentfree.md`** | `#[derive(LightAccounts)]` macro and trait derives |
-| **`rentfree_program/`** | `#[rentfree_program]` attribute macro |
-| **`rentfree_program/architecture.md`** | Architecture overview, usage, generated items |
-| **`rentfree_program/codegen.md`** | Technical implementation details (code generation) |
+| **`light_program/`** | `#[light_program]` attribute macro |
+| **`light_program/architecture.md`** | Architecture overview, usage, generated items |
+| **`light_program/codegen.md`** | Technical implementation details (code generation) |
 | **`accounts/`** | Field-level attributes for Accounts structs |
 | **`account/`** | Trait derive macros for account data structs |
 
@@ -43,13 +43,13 @@ See also: `#[light_account(init)]` attribute documented in `rentfree.md`
 
 - **Data struct traits**: Start with `account/light_compressible.md` for the all-in-one derive macro for compressible data structs
 - **Building account structs**: Use `rentfree.md` for the accounts-level derive macro that marks fields for compression
-- **Program-level integration**: Use `rentfree_program/architecture.md` for program-level auto-discovery and instruction generation
-- **Implementation details**: Use `rentfree_program/codegen.md` for technical code generation details
+- **Program-level integration**: Use `light_program/architecture.md` for program-level auto-discovery and instruction generation
+- **Implementation details**: Use `light_program/codegen.md` for technical code generation details
 
 ### Macro Hierarchy
 
 ```
-#[rentfree_program]          <- Program-level (rentfree_program/)
+#[light_program]          <- Program-level (light_program/)
     |
     +-- Discovers #[derive(LightAccounts)] structs
     |
@@ -77,7 +77,7 @@ See also: `#[light_account(init)]` attribute documented in `rentfree.md`
 sdk-libs/macros/src/rentfree/
 ├── account/         # Trait derive macros for account data structs
 ├── accounts/        # #[derive(LightAccounts)] implementation
-├── program/         # #[rentfree_program] implementation
+├── program/         # #[light_program] implementation
 ├── shared_utils.rs  # Common utilities
 └── mod.rs           # Module exports
 ```

@@ -199,78 +199,81 @@ where
         packed_accounts,
     )
     .map_err(ProgramError::from)?;
+    // TODO: extract into function and reuse existing system accounts builder.
+    {
+        // Build account infos for CPI. Must include all accounts needed by the transfer2 instruction:
+        // - System accounts (light_system_program, registered_program_pda, etc.)
+        // - Fee payer, ctoken accounts
+        // - CPI context (if present)
+        // - All packed accounts (post_system_accounts)
+        let mut all_account_infos: Vec<AccountInfo<'info>> =
+            Vec::with_capacity(12 + post_system_accounts.len());
+        all_account_infos.push(fee_payer.clone());
+        all_account_infos.push(token_cpi_authority.clone());
+        all_account_infos.push(token_program.clone());
+        all_account_infos.push(token_rent_sponsor.clone());
+        all_account_infos.push(config.clone());
 
-    // Build account infos for CPI. Must include all accounts needed by the transfer2 instruction:
-    // - System accounts (light_system_program, registered_program_pda, etc.)
-    // - Fee payer, ctoken accounts
-    // - CPI context (if present)
-    // - All packed accounts (post_system_accounts)
-    let mut all_account_infos: Vec<AccountInfo<'info>> =
-        Vec::with_capacity(12 + post_system_accounts.len());
-    all_account_infos.push(fee_payer.clone());
-    all_account_infos.push(token_cpi_authority.clone());
-    all_account_infos.push(token_program.clone());
-    all_account_infos.push(token_rent_sponsor.clone());
-    all_account_infos.push(config.clone());
+        // Add required system accounts for transfer2 instruction
+        // Light system program is at index 0 in the cpi_accounts slice
+        all_account_infos.push(
+            cpi_accounts
+                .account_infos()
+                .first()
+                .ok_or(ProgramError::NotEnoughAccountKeys)?
+                .clone(),
+        );
+        all_account_infos.push(
+            cpi_accounts
+                .registered_program_pda()
+                .map_err(|_| ProgramError::InvalidAccountData)?
+                .clone(),
+        );
+        all_account_infos.push(
+            cpi_accounts
+                .account_compression_authority()
+                .map_err(|_| ProgramError::InvalidAccountData)?
+                .clone(),
+        );
+        all_account_infos.push(
+            cpi_accounts
+                .account_compression_program()
+                .map_err(|_| ProgramError::InvalidAccountData)?
+                .clone(),
+        );
+        all_account_infos.push(
+            cpi_accounts
+                .system_program()
+                .map_err(|_| ProgramError::InvalidAccountData)?
+                .clone(),
+        );
 
-    // Add required system accounts for transfer2 instruction
-    // Light system program is at index 0 in the cpi_accounts slice
-    all_account_infos.push(
-        cpi_accounts
-            .account_infos()
-            .first()
-            .ok_or(ProgramError::NotEnoughAccountKeys)?
-            .clone(),
-    );
-    all_account_infos.push(
-        cpi_accounts
-            .registered_program_pda()
-            .map_err(|_| ProgramError::InvalidAccountData)?
-            .clone(),
-    );
-    all_account_infos.push(
-        cpi_accounts
-            .account_compression_authority()
-            .map_err(|_| ProgramError::InvalidAccountData)?
-            .clone(),
-    );
-    all_account_infos.push(
-        cpi_accounts
-            .account_compression_program()
-            .map_err(|_| ProgramError::InvalidAccountData)?
-            .clone(),
-    );
-    all_account_infos.push(
-        cpi_accounts
-            .system_program()
-            .map_err(|_| ProgramError::InvalidAccountData)?
-            .clone(),
-    );
+        // Add CPI context if present
+        if let Ok(cpi_context) = cpi_accounts.cpi_context() {
+            all_account_infos.push(cpi_context.clone());
+        }
 
-    // Add CPI context if present
-    if let Ok(cpi_context) = cpi_accounts.cpi_context() {
-        all_account_infos.push(cpi_context.clone());
-    }
+        all_account_infos.extend_from_slice(post_system_accounts);
 
-    all_account_infos.extend_from_slice(post_system_accounts);
+        // Only include signer seeds for program-owned tokens
+        if token_signers_seed_groups.is_empty() {
+            // All tokens were ATAs - no program signing needed
+            solana_cpi::invoke(&ctoken_ix, all_account_infos.as_slice())?;
+        } else {
+            // TODO: try to reduce allocs. we already alloc before.
+            let signer_seed_refs: Vec<Vec<&[u8]>> = token_signers_seed_groups
+                .iter()
+                .map(|group| group.iter().map(|s| s.as_slice()).collect())
+                .collect();
+            let signer_seed_slices: Vec<&[&[u8]]> =
+                signer_seed_refs.iter().map(|g| g.as_slice()).collect();
 
-    // Only include signer seeds for program-owned tokens
-    if token_signers_seed_groups.is_empty() {
-        // All tokens were ATAs - no program signing needed
-        solana_cpi::invoke(&ctoken_ix, all_account_infos.as_slice())?;
-    } else {
-        let signer_seed_refs: Vec<Vec<&[u8]>> = token_signers_seed_groups
-            .iter()
-            .map(|group| group.iter().map(|s| s.as_slice()).collect())
-            .collect();
-        let signer_seed_slices: Vec<&[&[u8]]> =
-            signer_seed_refs.iter().map(|g| g.as_slice()).collect();
-
-        solana_cpi::invoke_signed(
-            &ctoken_ix,
-            all_account_infos.as_slice(),
-            signer_seed_slices.as_slice(),
-        )?;
+            solana_cpi::invoke_signed(
+                &ctoken_ix,
+                all_account_infos.as_slice(),
+                signer_seed_slices.as_slice(),
+            )?;
+        }
     }
 
     Ok(())

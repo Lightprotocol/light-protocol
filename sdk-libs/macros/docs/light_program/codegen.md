@@ -1,13 +1,13 @@
-# `#[rentfree_program]` Code Generation
+# `#[light_program]` Code Generation
 
-Technical implementation details for the `#[rentfree_program]` attribute macro.
+Technical implementation details for the `#[light_program]` attribute macro.
 
 ## 1. Source Code Structure
 
 ```
 sdk-libs/macros/src/rentfree/program/
-|-- mod.rs                 # Module exports, main entry point rentfree_program_impl
-|-- instructions.rs        # Main orchestration: codegen(), rentfree_program_impl()
+|-- mod.rs                 # Module exports, main entry point light_program_impl
+|-- instructions.rs        # Main orchestration: codegen(), light_program_impl()
 |-- parsing.rs             # Core types (TokenSeedSpec, SeedElement, InstructionDataSpec)
 |                          # Expression analysis, seed conversion, function wrapping
 |-- compress.rs            # CompressAccountsIdempotent generation
@@ -44,11 +44,11 @@ sdk-libs/macros/src/rentfree/
 ## 2. Code Generation Flow
 
 ```
-                    #[rentfree_program]
+                    #[light_program]
                            |
                            v
             +-----------------------------+
-            |   rentfree_program_impl()   |
+            |   light_program_impl()   |
             |   (instructions.rs:405)     |
             +-----------------------------+
                            |

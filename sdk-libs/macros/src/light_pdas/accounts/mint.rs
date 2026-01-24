@@ -408,57 +408,38 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
                 #(#mint_account_exprs),*
             ];
 
-            // Get tree accounts and indices
-            // Output queue for state (compressed accounts) uses output_state_tree_index from proof
-            // State merkle tree index comes from the proof (set by pack_proof_for_mints)
-            // Address merkle tree index comes from the proof's address_tree_info
+            // Get tree indices from proof
             let __tree_info = &#proof_access.address_tree_info;
             let __output_queue_index: u8 = #output_tree;
             let __state_tree_index: u8 = #proof_access.state_tree_index
                 .ok_or(anchor_lang::prelude::ProgramError::InvalidArgument)?;
             let __address_tree_index: u8 = __tree_info.address_merkle_tree_pubkey_index;
-            let __output_queue = cpi_accounts.get_tree_account_info(__output_queue_index as usize)?;
-            let __state_merkle_tree = cpi_accounts.get_tree_account_info(__state_tree_index as usize)?;
-            let __address_tree = cpi_accounts.get_tree_account_info(__address_tree_index as usize)?;
-
-            // Build CreateMintsParams with tree indices
-            let __create_mints_params = light_token::instruction::CreateMintsParams::new(
-                &__mint_params,
-                __proof,
-            )
-            .with_rent_payment(#rent_payment)
-            .with_write_top_up(#write_top_up) // TODO: discuss to allow a different one per mint.
-            .with_cpi_context_offset(#cpi_context_offset)
-            .with_output_queue_index(__output_queue_index)
-            .with_address_tree_index(__address_tree_index)
-            .with_state_tree_index(__state_tree_index);
 
             // Check authority signers for mints without authority_seeds
             #(#authority_signer_checks)*
 
-            // Build and invoke CreateMintsCpi
-            // Seeds are extracted from SingleMintParams internally
-            light_token::instruction::CreateMintsCpi {
-                mint_seed_accounts: &__mint_seed_accounts,
-                payer: self.#fee_payer.to_account_info(),
-                address_tree: __address_tree.clone(),
-                output_queue: __output_queue.clone(),
-                state_merkle_tree: __state_merkle_tree.clone(),
-                compressible_config: self.#light_token_config.to_account_info(),
-                mints: &__mint_accounts,
-                rent_sponsor: self.#light_token_rent_sponsor.to_account_info(),
-                system_accounts: light_token::instruction::SystemAccountInfos {
-                    light_system_program: cpi_accounts.light_system_program()?.clone(),
-                    cpi_authority_pda: self.#light_token_cpi_authority.to_account_info(),
-                    registered_program_pda: cpi_accounts.registered_program_pda()?.clone(),
-                    account_compression_authority: cpi_accounts.account_compression_authority()?.clone(),
-                    account_compression_program: cpi_accounts.account_compression_program()?.clone(),
-                    system_program: cpi_accounts.system_program()?.clone(),
+            // Build params and invoke CreateMintsCpi via helper
+            light_token::compressible::invoke_create_mints(
+                &__mint_seed_accounts,
+                &__mint_accounts,
+                light_token::instruction::CreateMintsParams {
+                    mints: &__mint_params,
+                    proof: __proof,
+                    rent_payment: #rent_payment,
+                    write_top_up: #write_top_up,
+                    cpi_context_offset: #cpi_context_offset,
+                    output_queue_index: __output_queue_index,
+                    address_tree_index: __address_tree_index,
+                    state_tree_index: __state_tree_index,
                 },
-                cpi_context_account: cpi_accounts.cpi_context()?.clone(),
-                params: __create_mints_params,
-            }
-            .invoke()?;
+                light_token::compressible::CreateMintsInfraAccounts {
+                    fee_payer: self.#fee_payer.to_account_info(),
+                    compressible_config: self.#light_token_config.to_account_info(),
+                    rent_sponsor: self.#light_token_rent_sponsor.to_account_info(),
+                    cpi_authority: self.#light_token_cpi_authority.to_account_info(),
+                },
+                &cpi_accounts,
+            )?;
         }
     }
 }

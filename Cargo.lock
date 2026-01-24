@@ -4028,6 +4028,7 @@ dependencies = [
  "anchor-lang",
  "bincode",
  "borsh 0.10.4",
+ "bytemuck",
  "light-account-checks",
  "light-compressed-account",
  "light-compressible",
@@ -4035,6 +4036,7 @@ dependencies = [
  "light-hasher",
  "light-heap",
  "light-macros",
+ "light-program-profiler",
  "light-sdk-macros",
  "light-sdk-types",
  "light-zero-copy",
@@ -6411,6 +6413,35 @@ name = "simd-adler32"
 version = "0.3.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e320a6c5ad31d271ad523dcf3ad13e2767ad8b1cb8f047f75a8aeaf8da139da2"
+
+[[package]]
+name = "single-account-loader-test"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "borsh 0.10.4",
+ "bytemuck",
+ "light-client",
+ "light-compressed-account",
+ "light-compressible",
+ "light-heap",
+ "light-program-test",
+ "light-sdk",
+ "light-sdk-macros",
+ "light-sdk-types",
+ "light-test-utils",
+ "light-token",
+ "solana-account-info",
+ "solana-instruction",
+ "solana-keypair",
+ "solana-msg 2.2.1",
+ "solana-program",
+ "solana-program-error 2.2.2",
+ "solana-pubkey 2.4.0",
+ "solana-sdk",
+ "solana-signer",
+ "tokio",
+]
 
 [[package]]
 name = "single-ata-test"

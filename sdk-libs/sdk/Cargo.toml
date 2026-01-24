@@ -28,6 +28,10 @@ sha256 = ["light-hasher/sha256", "light-compressed-account/sha256"]
 merkle-tree = ["light-concurrent-merkle-tree/solana"]
 anchor-discriminator = ["light-sdk-macros/anchor-discriminator"]
 custom-heap = ["light-heap"]
+profile-program = [
+]
+profile-heap = [
+]
 
 [dependencies]
 solana-pubkey = { workspace = true, features = ["borsh", "sha2", "curve25519"] }
@@ -46,9 +50,11 @@ solana-program = { workspace = true, optional = true }
 num-bigint = { workspace = true }
 
 borsh = { workspace = true }
+bytemuck = { workspace = true }
 thiserror = { workspace = true }
 bincode = "1"
 
+light-program-profiler = { workspace = true }
 light-sdk-macros = { workspace = true }
 light-sdk-types = { workspace = true, features = ["std"] }
 light-macros = { workspace = true }

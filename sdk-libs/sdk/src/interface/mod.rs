@@ -20,13 +20,16 @@ pub mod decompress_runtime;
 #[cfg(feature = "v2")]
 pub use close::close;
 #[cfg(feature = "v2")]
-pub use compress_account::prepare_account_for_compression;
+pub use compress_account::{prepare_account_for_compression, prepare_account_for_compression_pod};
 #[cfg(feature = "v2")]
-pub use compress_account_on_init::prepare_compressed_account_on_init;
+pub use compress_account_on_init::{
+    prepare_compressed_account_on_init, prepare_compressed_account_on_init_pod,
+};
 #[cfg(feature = "v2")]
 pub use compress_runtime::{process_compress_pda_accounts_idempotent, CompressContext};
 pub use compression_info::{
-    CompressAs, CompressedInitSpace, CompressionInfo, HasCompressionInfo, Pack, Space, Unpack,
+    CompressAs, CompressedInitSpace, CompressionInfo, CompressionInfoField, CompressionState,
+    HasCompressionInfo, Pack, PodCompressionInfoField, Space, Unpack, COMPRESSION_INFO_SIZE,
     OPTION_COMPRESSION_INFO_SPACE,
 };
 pub use config::{
@@ -36,11 +39,12 @@ pub use config::{
 };
 #[cfg(feature = "v2")]
 pub use decompress_idempotent::{
-    into_compressed_meta_with_address, prepare_account_for_decompression_idempotent,
+    compute_data_hash, into_compressed_meta_with_address,
+    prepare_account_for_decompression_idempotent, prepare_account_for_decompression_idempotent_pod,
 };
 #[cfg(all(feature = "v2", feature = "cpi-context"))]
 pub use decompress_runtime::{
-    check_account_types, handle_packed_pda_variant, process_decompress_accounts_idempotent,
-    DecompressContext, HasTokenVariant, PdaSeedDerivation, TokenSeedProvider,
+    check_account_types, process_decompress_accounts_idempotent, DecompressContext, DecompressCtx,
+    DecompressibleAccount, HasTokenVariant, PdaSeedDerivation, TokenSeedProvider,
 };
 pub use light_compressible::{rent, CreateAccountsProof};

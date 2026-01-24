@@ -4,7 +4,6 @@ use light_sdk_types::{
     instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress, CpiSigner,
 };
 use solana_account_info::AccountInfo;
-use solana_msg::msg;
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
@@ -46,21 +45,10 @@ where
 
     let compression_config = crate::interface::LightConfig::load_checked(ctx.config(), program_id)?;
 
-    if *ctx.rent_sponsor().key != compression_config.rent_sponsor {
-        msg!(
-            "invalid rent sponsor {:?} != {:?}, expected",
-            *ctx.rent_sponsor().key,
-            compression_config.rent_sponsor
-        );
-        return Err(ProgramError::Custom(0));
-    }
-    if *ctx.compression_authority().key != compression_config.compression_authority {
-        msg!(
-            "invalid rent sponsor {:?} != {:?}, expected",
-            *ctx.compression_authority().key,
-            compression_config.compression_authority
-        );
-        return Err(ProgramError::Custom(0));
+    if *ctx.rent_sponsor().key != compression_config.rent_sponsor
+        || *ctx.compression_authority().key != compression_config.compression_authority
+    {
+        return Err(crate::error::LightSdkError::ConstraintViolation.into());
     }
 
     let system_accounts_offset_usize = system_accounts_offset as usize;
@@ -80,19 +68,13 @@ where
         Vec::with_capacity(compressed_accounts.len());
     let mut pda_indices_to_close: Vec<usize> = Vec::with_capacity(compressed_accounts.len());
 
-    let system_accounts_start = cpi_accounts.system_accounts_end_offset();
-    let account_infos = cpi_accounts.to_account_infos();
-    let all_post_system = account_infos
-        .get(system_accounts_start..)
-        .ok_or_else(|| ProgramError::from(crate::error::LightSdkError::ConstraintViolation))?;
-
     // PDAs are at the end of remaining_accounts, after all the merkle tree/queue accounts
-    let pda_start_in_all_accounts = all_post_system
+    let pda_accounts_start = remaining_accounts
         .len()
         .checked_sub(compressed_accounts.len())
         .ok_or_else(|| ProgramError::from(crate::error::LightSdkError::ConstraintViolation))?;
-    let solana_accounts = all_post_system
-        .get(pda_start_in_all_accounts..)
+    let solana_accounts = remaining_accounts
+        .get(pda_accounts_start..)
         .ok_or_else(|| ProgramError::from(crate::error::LightSdkError::ConstraintViolation))?;
 
     for (i, account_info) in solana_accounts.iter().enumerate() {
@@ -125,7 +107,7 @@ where
 
         for idx in pda_indices_to_close {
             let mut info = solana_accounts[idx].clone();
-            crate::interface::close::close(&mut info, ctx.rent_sponsor().clone())
+            crate::interface::close::close(&mut info, ctx.rent_sponsor())
                 .map_err(ProgramError::from)?;
         }
     }

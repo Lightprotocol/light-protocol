@@ -586,6 +586,6 @@ When no `#[instruction]` attribute is present, the macro generates no-op impleme
 
 ## 6. Related Documentation
 
-- **`sdk-libs/macros/docs/rentfree_program/`** - Program-level `#[rentfree_program]` attribute macro (architecture.md + codegen.md)
+- **`sdk-libs/macros/docs/light_program/`** - Program-level `#[light_program]` attribute macro (architecture.md + codegen.md)
 - **`sdk-libs/macros/README.md`** - Package overview
 - **`sdk-libs/sdk/`** - Runtime SDK with `LightPreInit`, `LightFinalize` trait definitions

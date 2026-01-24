@@ -67,6 +67,9 @@ pub struct TokenSeedSpec {
     /// Preserves the full type path for code generation.
     /// Only set for PDAs extracted from #[light_account(init)] fields; None for parsed specs
     pub inner_type: Option<syn::Type>,
+    /// True if the field uses zero-copy serialization (AccountLoader).
+    /// Only set for PDAs extracted from #[light_account(init, zero_copy)] fields; false by default.
+    pub is_zero_copy: bool,
 }
 
 impl Parse for TokenSeedSpec {
@@ -150,7 +153,8 @@ impl Parse for TokenSeedSpec {
             is_token,
             seeds,
             authority,
-            inner_type: None, // Set by caller for #[light_account(init)] fields
+            inner_type: None,   // Set by caller for #[light_account(init)] fields
+            is_zero_copy: false, // Set by caller for #[light_account(init, zero_copy)] fields
         })
     }
 }

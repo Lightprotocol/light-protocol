@@ -3,8 +3,10 @@
 //! This macro is equivalent to deriving:
 //! - `LightHasherSha` (SHA256 hashing)
 //! - `LightDiscriminator` (unique discriminator)
-//! - `Compressible` (HasCompressionInfo + CompressAs + Size + CompressedInitSpace)
+//! - `Compressible` (CompressionInfoField + CompressAs + Size + CompressedInitSpace)
 //! - `CompressiblePack` (Pack + Unpack + Packed struct generation)
+//!
+//! Note: `HasCompressionInfo` is provided via blanket impl for types implementing `CompressionInfoField`.
 
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -21,7 +23,7 @@ use crate::{
 /// This is a convenience macro that combines:
 /// - `LightHasherSha` - SHA256-based DataHasher and ToByteArray implementations (type 3 ShaFlat)
 /// - `LightDiscriminator` - Unique 8-byte discriminator for the account type
-/// - `Compressible` - HasCompressionInfo, CompressAs, Size, CompressedInitSpace traits
+/// - `Compressible` - CompressionInfoField (blanket impl provides HasCompressionInfo), CompressAs, Size, CompressedInitSpace traits
 /// - `CompressiblePack` - Pack/Unpack traits with Packed struct generation for Pubkey compression
 ///
 /// # Example
@@ -150,10 +152,10 @@ mod tests {
             "Should have discriminator constant"
         );
 
-        // Should contain Compressible output (HasCompressionInfo, CompressAs, Size)
+        // Should contain Compressible output (CompressionInfoField, CompressAs, Size)
         assert!(
-            output.contains("HasCompressionInfo"),
-            "Should implement HasCompressionInfo"
+            output.contains("CompressionInfoField"),
+            "Should implement CompressionInfoField (blanket impl provides HasCompressionInfo)"
         );
         assert!(output.contains("CompressAs"), "Should implement CompressAs");
         assert!(output.contains("Size"), "Should implement Size");
@@ -218,8 +220,8 @@ mod tests {
             "Should implement LightDiscriminator"
         );
         assert!(
-            output.contains("HasCompressionInfo"),
-            "Should implement HasCompressionInfo"
+            output.contains("CompressionInfoField"),
+            "Should implement CompressionInfoField (blanket impl provides HasCompressionInfo)"
         );
 
         // For structs without Pubkey fields, PackedSimpleRecord should be a type alias

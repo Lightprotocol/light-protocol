@@ -2,7 +2,7 @@
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::{Item, ItemMod, Result, Type};
+use syn::{Item, ItemMod, Result};
 
 // Re-export types from parsing for external use
 pub use super::parsing::{
@@ -10,7 +10,7 @@ pub use super::parsing::{
     SeedElement, TokenSeedSpec,
 };
 use super::{
-    compress::CompressBuilder,
+    compress::{CompressBuilder, CompressibleAccountInfo},
     decompress::DecompressBuilder,
     parsing::{
         convert_classified_to_seed_elements, convert_classified_to_seed_elements_vec,
@@ -32,7 +32,7 @@ use crate::{
 #[allow(clippy::too_many_arguments)]
 fn codegen(
     module: &mut ItemMod,
-    account_types: Vec<Type>,
+    compressible_accounts: Vec<CompressibleAccountInfo>,
     pda_seeds: Option<Vec<TokenSeedSpec>>,
     token_seeds: Option<Vec<TokenSeedSpec>>,
     instruction_data: Vec<InstructionDataSpec>,
@@ -102,6 +102,7 @@ fn codegen(
                         ctx_fields,
                         state_field_names,
                         params_only_seed_fields,
+                        spec.is_zero_copy,
                     )
                 })
                 .collect()
@@ -196,6 +197,34 @@ fn codegen(
                     }
                 }
             }
+
+            impl light_sdk::interface::DecompressibleAccount for LightAccountVariant {
+                fn is_token(&self) -> bool {
+                    match self {
+                        Self::Empty => false,
+                        Self::PackedCTokenData(_) => true,
+                        Self::CTokenData(_) => true,
+                    }
+                }
+
+                fn prepare<'a, 'info>(
+                    self,
+                    _ctx: &light_sdk::interface::DecompressCtx<'a, 'info>,
+                    _solana_account: &solana_account_info::AccountInfo<'info>,
+                    _meta: &light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
+                    _index: usize,
+                ) -> std::result::Result<
+                    std::option::Option<light_sdk::compressed_account::CompressedAccountInfo>,
+                    solana_program_error::ProgramError
+                > {
+                    match self {
+                        Self::Empty => Err(solana_program_error::ProgramError::InvalidAccountData),
+                        Self::PackedCTokenData(_) | Self::CTokenData(_) => {
+                            Err(light_sdk::error::LightSdkError::TokenPrepareCalled.into())
+                        }
+                    }
+                }
+            }
         }
     } else {
         LightVariantBuilder::new(&pda_ctx_seeds).build()?
@@ -282,21 +311,57 @@ fn codegen(
                     })
                 }).collect();
                 // Only generate verifications for data fields that exist on the state struct
+                // For zero_copy accounts, convert Pubkey to bytes for comparison
+                let is_zero_copy = ctx_info.is_zero_copy;
                 let data_verifications: Vec<_> = data_fields.iter().filter_map(|field| {
                     let field_str = field.to_string();
                     // Skip fields that don't exist on the state struct (e.g., params-only seeds)
                     if !ctx_info.state_field_names.contains(&field_str) {
                         return None;
                     }
-                    Some(quote! {
-                        if data.#field != seeds.#field {
-                            return std::result::Result::Err(LightInstructionError::SeedMismatch.into());
-                        }
-                    })
+                    if is_zero_copy {
+                        // For zero_copy accounts, Pod types use [u8; 32] instead of Pubkey,
+                        // so convert the seed's Pubkey to bytes for comparison
+                        Some(quote! {
+                            if data.#field != seeds.#field.to_bytes() {
+                                return std::result::Result::Err(LightInstructionError::SeedMismatch.into());
+                            }
+                        })
+                    } else {
+                        Some(quote! {
+                            if data.#field != seeds.#field {
+                                return std::result::Result::Err(LightInstructionError::SeedMismatch.into());
+                            }
+                        })
+                    }
                 }).collect();
 
                 // Extract params-only field names from ctx_info for variant construction
                 let params_only_field_names: Vec<_> = params_only_fields.iter().map(|(f, _, _)| f).collect();
+
+                // Generate different code for zero_copy vs Borsh accounts
+                let (deserialize_code, variant_data) = if is_zero_copy {
+                    // For zero_copy accounts, account_data contains stripped bytes (CompressionInfo removed).
+                    // Use unpack_stripped to reconstruct full Pod for seed verification.
+                    // Store stripped bytes in variant - packing will keep them stripped.
+                    (
+                        quote! {
+                            // Reconstruct full Pod from stripped bytes (zeros at CompressionInfo offset)
+                            let data: #inner_type = <#inner_type as light_sdk::interface::PodCompressionInfoField>::unpack_stripped(account_data)
+                                .map_err(|_| anchor_lang::error::Error::from(anchor_lang::error::ErrorCode::AccountDidNotDeserialize))?;
+                        },
+                        quote! { account_data.to_vec() }
+                    )
+                } else {
+                    // For Borsh accounts, deserialize and use the data directly
+                    (
+                        quote! {
+                            use anchor_lang::AnchorDeserialize;
+                            let data = #inner_type::deserialize(&mut &account_data[..])?;
+                        },
+                        quote! { data }
+                    )
+                };
 
                 quote! {
                     #[derive(Clone, Debug)]
@@ -309,16 +374,14 @@ fn codegen(
                             account_data: &[u8],
                             seeds: #seeds_struct_name,
                         ) -> std::result::Result<Self, anchor_lang::error::Error> {
-                            use anchor_lang::AnchorDeserialize;
-                            // Deserialize using inner_type
-                            let data = #inner_type::deserialize(&mut &account_data[..])?;
+                            #deserialize_code
 
                             #(#data_verifications)*
 
                             // Use variant_name for the enum variant
                             // Include ctx fields and params-only fields from seeds
                             std::result::Result::Ok(Self::#variant_name {
-                                data,
+                                data: #variant_data,
                                 #(#ctx_fields: seeds.#ctx_fields,)*
                                 #(#params_only_field_names: seeds.#params_only_field_names,)*
                             })
@@ -355,7 +418,7 @@ fn codegen(
     };
 
     // Create CompressBuilder to generate all compress-related code
-    let compress_builder = CompressBuilder::new(account_types.clone(), instruction_variant);
+    let compress_builder = CompressBuilder::new(compressible_accounts.clone(), instruction_variant);
     compress_builder.validate()?;
 
     let size_validation_checks = compress_builder.generate_size_validation()?;
@@ -377,7 +440,8 @@ fn codegen(
 
             impl light_sdk::interface::HasTokenVariant for LightAccountData {
                 fn is_packed_token(&self) -> bool {
-                    matches!(self.data, LightAccountVariant::PackedCTokenData(_))
+                    use light_sdk::interface::DecompressibleAccount;
+                    self.data.is_token()
                 }
             }
         }
@@ -659,7 +723,7 @@ pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<Tok
                             return Err(macro_error!(
                                 fn_item,
                                 format!(
-                                    "Function '{}' has multiple instruction arguments ({}) which is not supported by #[rentfree_program].\n\
+                                    "Function '{}' has multiple instruction arguments ({}) which is not supported by #[light_program].\n\
                                      Please consolidate these into a single params struct.\n\
                                      Example: Instead of `fn {}(ctx: Context<T>, {})`,\n\
                                      use: `fn {}(ctx: Context<T>, params: MyParams)` where MyParams contains all fields.",
@@ -685,7 +749,7 @@ pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<Tok
     // Deduplicate based on variant_name (field name) - field names must be globally unique
     let mut found_pda_seeds: Vec<TokenSeedSpec> = Vec::new();
     let mut found_data_fields: Vec<InstructionDataSpec> = Vec::new();
-    let mut account_types: Vec<Type> = Vec::new();
+    let mut compressible_accounts: Vec<CompressibleAccountInfo> = Vec::new();
     let mut seen_variants: std::collections::HashSet<String> = std::collections::HashSet::new();
 
     for pda in &pda_specs {
@@ -696,7 +760,10 @@ pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<Tok
             continue; // Skip duplicate field names
         }
 
-        account_types.push(pda.inner_type.clone());
+        compressible_accounts.push(CompressibleAccountInfo {
+            account_type: pda.inner_type.clone(),
+            is_zero_copy: pda.is_zero_copy,
+        });
 
         let seed_elements = convert_classified_to_seed_elements(&pda.seeds);
 
@@ -725,6 +792,7 @@ pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<Tok
             authority: None,
             // Store inner_type for type references (deserialization, trait bounds)
             inner_type: Some(pda.inner_type.clone()),
+            is_zero_copy: pda.is_zero_copy,
         });
     }
 
@@ -743,7 +811,8 @@ pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<Tok
             is_token: Some(true),
             seeds: seed_elements,
             authority: authority_elements,
-            inner_type: None, // Token specs don't have inner type
+            inner_type: None,    // Token specs don't have inner type
+            is_zero_copy: false, // Token specs don't use zero-copy
         });
     }
 
@@ -762,7 +831,7 @@ pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<Tok
     // Use the shared generation logic
     codegen(
         &mut module,
-        account_types,
+        compressible_accounts,
         pda_seeds,
         token_seeds,
         found_data_fields,

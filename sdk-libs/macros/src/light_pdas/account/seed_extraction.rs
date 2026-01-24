@@ -121,6 +121,8 @@ pub struct ExtractedSeedSpec {
     pub inner_type: Type,
     /// Classified seeds from #[account(seeds = [...])]
     pub seeds: Vec<ClassifiedSeed>,
+    /// True if the field uses zero-copy serialization (AccountLoader)
+    pub is_zero_copy: bool,
 }
 
 /// Extracted token specification for a #[light_account(token, ...)] field
@@ -172,7 +174,7 @@ pub fn extract_from_accounts_struct(
         };
 
         // Check for #[light_account(...)] attribute and determine its type
-        let (has_light_account_pda, has_light_account_mint, has_light_account_ata) =
+        let (has_light_account_pda, has_light_account_mint, has_light_account_ata, has_zero_copy) =
             check_light_account_type(&field.attrs);
 
         if has_light_account_mint {
@@ -211,6 +213,7 @@ pub fn extract_from_accounts_struct(
                 variant_name,
                 inner_type,
                 seeds,
+                is_zero_copy: has_zero_copy,
             });
         } else if let Some(token_attr) = token_attr {
             // Token field - derive variant name from field name if not provided
@@ -289,14 +292,15 @@ pub fn extract_from_accounts_struct(
 }
 
 /// Check #[light_account(...)] attributes for PDA, mint, or ATA type.
-/// Returns (has_pda, has_mint, has_ata) indicating which type was detected.
+/// Returns (has_pda, has_mint, has_ata, has_zero_copy) indicating which type was detected.
 ///
 /// Types:
 /// - PDA: `#[light_account(init)]` only (no namespace prefix)
 /// - Mint: `#[light_account(init, mint::...)]`
 /// - Token: `#[light_account(init, token::...)]` or `#[light_account(token::...)]`
 /// - ATA: `#[light_account(init, associated_token::...)]` or `#[light_account(associated_token::...)]`
-fn check_light_account_type(attrs: &[syn::Attribute]) -> (bool, bool, bool) {
+/// - Zero-copy: `#[light_account(init, zero_copy)]` - only valid with PDA
+fn check_light_account_type(attrs: &[syn::Attribute]) -> (bool, bool, bool, bool) {
     for attr in attrs {
         if attr.path().is_ident("light_account") {
             // Parse the content to determine if it's init-only (PDA) or init+mint (Mint)
@@ -329,25 +333,30 @@ fn check_light_account_type(attrs: &[syn::Attribute]) -> (bool, bool, bool) {
                 .iter()
                 .any(|t| matches!(t, proc_macro2::TokenTree::Ident(ident) if ident == "init"));
 
+            // Check for zero_copy keyword
+            let has_zero_copy = token_vec
+                .iter()
+                .any(|t| matches!(t, proc_macro2::TokenTree::Ident(ident) if ident == "zero_copy"));
+
             if has_init {
                 // If has mint namespace, it's a mint field
                 if has_mint_namespace {
-                    return (false, true, false);
+                    return (false, true, false, false);
                 }
                 // If has associated_token namespace, it's an ATA field
                 if has_ata_namespace {
-                    return (false, false, true);
+                    return (false, false, true, false);
                 }
                 // If has token namespace, it's NOT a PDA (handled separately)
                 if has_token_namespace {
-                    return (false, false, false);
+                    return (false, false, false, false);
                 }
                 // Otherwise it's a plain PDA init
-                return (true, false, false);
+                return (true, false, false, has_zero_copy);
             }
         }
     }
-    (false, false, false)
+    (false, false, false, false)
 }
 
 /// Parsed #[light_account(token, ...)] or #[light_account(associated_token, ...)] attribute
@@ -1191,10 +1200,11 @@ mod tests {
                 mint::decimals = 6
             )]
         )];
-        let (has_pda, has_mint, has_ata) = check_light_account_type(&attrs);
+        let (has_pda, has_mint, has_ata, has_zero_copy) = check_light_account_type(&attrs);
         assert!(!has_pda, "Should NOT be detected as PDA");
         assert!(has_mint, "Should be detected as mint");
         assert!(!has_ata, "Should NOT be detected as ATA");
+        assert!(!has_zero_copy, "Should NOT be detected as zero_copy");
     }
 
     #[test]
@@ -1203,10 +1213,11 @@ mod tests {
         let attrs: Vec<syn::Attribute> = vec![parse_quote!(
             #[light_account(init)]
         )];
-        let (has_pda, has_mint, has_ata) = check_light_account_type(&attrs);
+        let (has_pda, has_mint, has_ata, has_zero_copy) = check_light_account_type(&attrs);
         assert!(has_pda, "Should be detected as PDA");
         assert!(!has_mint, "Should NOT be detected as mint");
         assert!(!has_ata, "Should NOT be detected as ATA");
+        assert!(!has_zero_copy, "Should NOT be detected as zero_copy");
     }
 
     #[test]
@@ -1215,10 +1226,11 @@ mod tests {
         let attrs: Vec<syn::Attribute> = vec![parse_quote!(
             #[light_account(token::authority = [b"auth"])]
         )];
-        let (has_pda, has_mint, has_ata) = check_light_account_type(&attrs);
+        let (has_pda, has_mint, has_ata, has_zero_copy) = check_light_account_type(&attrs);
         assert!(!has_pda, "Should NOT be detected as PDA (no init)");
         assert!(!has_mint, "Should NOT be detected as mint");
         assert!(!has_ata, "Should NOT be detected as ATA");
+        assert!(!has_zero_copy, "Should NOT be detected as zero_copy");
     }
 
     #[test]
@@ -1230,10 +1242,11 @@ mod tests {
                 associated_token::mint = mint
             )]
         )];
-        let (has_pda, has_mint, has_ata) = check_light_account_type(&attrs);
+        let (has_pda, has_mint, has_ata, has_zero_copy) = check_light_account_type(&attrs);
         assert!(!has_pda, "Should NOT be detected as PDA");
         assert!(!has_mint, "Should NOT be detected as mint");
         assert!(has_ata, "Should be detected as ATA");
+        assert!(!has_zero_copy, "Should NOT be detected as zero_copy");
     }
 
     #[test]
@@ -1245,9 +1258,23 @@ mod tests {
                 token::mint = mint
             )]
         )];
-        let (has_pda, has_mint, has_ata) = check_light_account_type(&attrs);
+        let (has_pda, has_mint, has_ata, has_zero_copy) = check_light_account_type(&attrs);
         assert!(!has_pda, "Should NOT be detected as PDA");
         assert!(!has_mint, "Should NOT be detected as mint");
         assert!(!has_ata, "Should NOT be detected as ATA");
+        assert!(!has_zero_copy, "Should NOT be detected as zero_copy");
+    }
+
+    #[test]
+    fn test_check_light_account_type_pda_zero_copy() {
+        // Test that zero_copy with init is detected correctly
+        let attrs: Vec<syn::Attribute> = vec![parse_quote!(
+            #[light_account(init, zero_copy)]
+        )];
+        let (has_pda, has_mint, has_ata, has_zero_copy) = check_light_account_type(&attrs);
+        assert!(has_pda, "Should be detected as PDA");
+        assert!(!has_mint, "Should NOT be detected as mint");
+        assert!(!has_ata, "Should NOT be detected as ATA");
+        assert!(has_zero_copy, "Should be detected as zero_copy");
     }
 }

@@ -1,4 +1,10 @@
 //! Traits and processor for decompress_accounts_idempotent instruction.
+//!
+//! This module provides:
+//! - `DecompressCtx` - A context struct holding all data needed for decompression
+//! - `DecompressibleAccount` - A trait for account variants that can be decompressed
+//! - `process_decompress_accounts_idempotent` - The main processor function
+
 use light_compressed_account::instruction_data::{
     cpi_context::CompressedCpiContext,
     with_account_info::{CompressedAccountInfo, InstructionDataInvokeCpiWithAccountInfo},
@@ -8,14 +14,66 @@ use light_sdk_types::{
     instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress, CpiSigner,
 };
 use solana_account_info::AccountInfo;
-use solana_msg::msg;
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-use crate::{
-    cpi::{v2::CpiAccounts, InvokeLightSystemProgram},
-    AnchorDeserialize, AnchorSerialize, LightDiscriminator,
-};
+use crate::cpi::{v2::CpiAccounts, InvokeLightSystemProgram};
+
+// =============================================================================
+// NEW SIMPLIFIED ARCHITECTURE
+// =============================================================================
+
+/// Context struct for decompression operations.
+///
+/// This replaces the complex `DecompressContext` trait with a simple struct
+/// containing all the data needed for decompression.
+pub struct DecompressCtx<'a, 'info> {
+    /// The program ID for PDA derivation
+    pub program_id: &'a Pubkey,
+    /// The address space for compressed account derivation
+    pub address_space: Pubkey,
+    /// CPI accounts for invoking the Light system program
+    pub cpi_accounts: &'a CpiAccounts<'a, 'info>,
+    /// Remaining accounts for resolving packed indices
+    pub remaining_accounts: &'a [AccountInfo<'info>],
+    /// Account to sponsor rent for decompressed accounts
+    pub rent_sponsor: &'a AccountInfo<'info>,
+    /// Rent sysvar for calculating minimum balance
+    pub rent: &'a solana_sysvar::rent::Rent,
+    /// Current slot for compression info
+    pub current_slot: u64,
+}
+
+/// Trait for account variants that can be decompressed.
+///
+/// Each packed account variant implements this trait to handle its own
+/// decompression logic, eliminating complex match statements in the processor.
+pub trait DecompressibleAccount {
+    /// Returns true if this is a token account variant.
+    fn is_token(&self) -> bool;
+
+    /// Prepare this account for decompression.
+    ///
+    /// This method:
+    /// 1. Resolves any packed indices to actual Pubkeys
+    /// 2. Unpacks the data
+    /// 3. Derives and verifies the PDA
+    /// 4. Creates the Solana account and writes data
+    ///
+    /// Returns `Some(CompressedAccountInfo)` if decompression was performed,
+    /// or `None` if the account was already decompressed (idempotent).
+    fn prepare<'a, 'info>(
+        self,
+        ctx: &DecompressCtx<'a, 'info>,
+        solana_account: &AccountInfo<'info>,
+        meta: &CompressedAccountMetaNoLamportsNoAddress,
+        index: usize,
+    ) -> Result<Option<CompressedAccountInfo>, ProgramError>;
+}
+
+// =============================================================================
+// LEGACY TRAITS (kept for backward compatibility during transition)
+// =============================================================================
 
 /// Trait for account variants that can be checked for token or PDA type.
 pub trait HasTokenVariant {
@@ -49,9 +107,6 @@ pub trait DecompressContext<'info> {
     /// Compressed account metadata type (standardized)
     type CompressedMeta: Clone;
 
-    /// Seed parameters type containing data.* field values from instruction data
-    type SeedParams;
-
     // Account accessors
     fn fee_payer(&self) -> &AccountInfo<'info>;
     fn config(&self) -> &AccountInfo<'info>;
@@ -70,7 +125,8 @@ pub trait DecompressContext<'info> {
         address_space: Pubkey,
         compressed_accounts: Vec<Self::CompressedData>,
         solana_accounts: &[AccountInfo<'info>],
-        seed_params: Option<&Self::SeedParams>,
+        rent: &solana_sysvar::rent::Rent,
+        current_slot: u64,
     ) -> Result<(
         Vec<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>,
         Vec<(Self::PackedTokenData, Self::CompressedMeta)>
@@ -123,84 +179,6 @@ pub fn check_account_types<T: HasTokenVariant>(compressed_accounts: &[T]) -> (bo
     (has_tokens, has_pdas)
 }
 
-/// Handler for unpacking and preparing a single PDA variant for decompression.
-#[inline(never)]
-#[allow(clippy::too_many_arguments)]
-pub fn handle_packed_pda_variant<'a, 'b, 'info, T, P, A, S>(
-    accounts_rent_sponsor: &AccountInfo<'info>,
-    cpi_accounts: &CpiAccounts<'b, 'info>,
-    address_space: Pubkey,
-    solana_account: &AccountInfo<'info>,
-    index: usize,
-    packed: &P,
-    meta: &CompressedAccountMetaNoLamportsNoAddress,
-    post_system_accounts: &[AccountInfo<'info>],
-    compressed_pda_infos: &mut Vec<CompressedAccountInfo>,
-    program_id: &Pubkey,
-    seed_accounts: &A,
-    seed_params: Option<&S>,
-) -> Result<(), ProgramError>
-where
-    T: PdaSeedDerivation<A, S>
-        + Clone
-        + crate::account::Size
-        + LightDiscriminator
-        + Default
-        + AnchorSerialize
-        + AnchorDeserialize
-        + crate::interface::HasCompressionInfo
-        + 'info,
-    P: crate::interface::Unpack<Unpacked = T>,
-    S: Default,
-{
-    let data: T = P::unpack(packed, post_system_accounts)?;
-
-    let (seeds_vec, derived_pda) = if let Some(params) = seed_params {
-        data.derive_pda_seeds_with_accounts(program_id, seed_accounts, params)?
-    } else {
-        let default_params = S::default();
-        data.derive_pda_seeds_with_accounts(program_id, seed_accounts, &default_params)?
-    };
-    if derived_pda != *solana_account.key {
-        msg!(
-            "Derived PDA does not match account at index {}: expected {:?}, got {:?}, seeds: {:?}",
-            index,
-            solana_account.key,
-            derived_pda,
-            seeds_vec
-        );
-        return Err(ProgramError::from(
-            crate::error::LightSdkError::ConstraintViolation,
-        ));
-    }
-
-    let compressed_infos = {
-        // Use fixed-size array to avoid heap allocation (MAX_SEEDS = 16)
-        const MAX_SEEDS: usize = 16;
-        let mut seed_refs: [&[u8]; MAX_SEEDS] = [&[]; MAX_SEEDS];
-        let len = seeds_vec.len().min(MAX_SEEDS);
-        for i in 0..len {
-            seed_refs[i] = seeds_vec[i].as_slice();
-        }
-        crate::interface::decompress_idempotent::prepare_account_for_decompression_idempotent::<T>(
-            program_id,
-            data,
-            crate::interface::decompress_idempotent::into_compressed_meta_with_address(
-                meta,
-                solana_account,
-                address_space,
-                program_id,
-            ),
-            solana_account,
-            accounts_rent_sponsor,
-            cpi_accounts,
-            &seed_refs[..len],
-        )?
-    };
-    compressed_pda_infos.extend(compressed_infos);
-    Ok(())
-}
-
 /// Processor for decompress_accounts_idempotent.
 ///
 /// CPI context batching rules:
@@ -216,7 +194,8 @@ pub fn process_decompress_accounts_idempotent<'info, Ctx>(
     system_accounts_offset: u8,
     cpi_signer: CpiSigner,
     program_id: &Pubkey,
-    seed_params: Option<&Ctx::SeedParams>,
+    rent: &solana_sysvar::rent::Rent,
+    current_slot: u64,
 ) -> Result<(), ProgramError>
 where
     Ctx: DecompressContext<'info>,
@@ -265,7 +244,8 @@ where
         address_space,
         compressed_accounts,
         solana_accounts,
-        seed_params,
+        rent,
+        current_slot,
     )?;
 
     let has_pdas = !compressed_pda_infos.is_empty();
