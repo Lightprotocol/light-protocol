@@ -1,6 +1,7 @@
 //! Integration tests for mint with metadata support in #[light_account(init)] macro.
 
 use anchor_lang::{InstructionData, ToAccountMetas};
+use csdk_anchor_full_derived_test::light_rent_sponsor;
 use light_client::interface::{
     decompress_mint::decompress_mint, get_create_accounts_proof, AccountInterfaceExt,
     CreateAccountsProofInput, InitializeRentFreeConfig,
@@ -26,7 +27,8 @@ async fn test_create_mint_with_metadata() {
         CreateMintWithMetadataParams, METADATA_MINT_SIGNER_SEED,
     };
     use light_token::instruction::{
-        find_mint_address as find_cmint_address, COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR,
+        find_mint_address as find_cmint_address, COMPRESSIBLE_CONFIG_V1,
+        RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR,
     };
 
     let program_id = csdk_anchor_full_derived_test::ID;
@@ -41,11 +43,12 @@ async fn test_create_mint_with_metadata() {
 
     let program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
+    // Use program's own rent sponsor for LightConfig initialization
     let (init_config_ixs, config_pda) = InitializeRentFreeConfig::new(
         &program_id,
         &payer.pubkey(),
         &program_data_pda,
-        RENT_SPONSOR,
+        light_rent_sponsor(),
         payer.pubkey(),
         10_000_000_000,
     )
@@ -97,7 +100,7 @@ async fn test_create_mint_with_metadata() {
         cmint: cmint_pda,
         compression_config: config_pda,
         light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
-        rent_sponsor: RENT_SPONSOR,
+        rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         system_program: solana_sdk::system_program::ID,

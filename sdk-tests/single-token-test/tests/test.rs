@@ -7,11 +7,17 @@ use light_program_test::{
     Indexer, ProgramTestConfig, Rpc,
 };
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
-use light_token::instruction::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR};
+use light_token::instruction::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR};
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
+
+/// Derive the program's rent sponsor PDA (version 1).
+fn program_rent_sponsor(program_id: &Pubkey) -> Pubkey {
+    let (pda, _) = Pubkey::find_program_address(&[b"rent_sponsor", &1u16.to_le_bytes()], program_id);
+    pda
+}
 
 /// Setup helper: Creates a compressed mint directly using the ctoken SDK.
 /// Returns (mint_pda, mint_seed_keypair)
@@ -92,11 +98,12 @@ async fn test_create_single_token_vault() {
 
     let program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
+    // Use program's own rent sponsor for LightConfig initialization
     let (init_config_ixs, _config_pda) = InitializeRentFreeConfig::new(
         &program_id,
         &payer.pubkey(),
         &program_data_pda,
-        RENT_SPONSOR,
+        program_rent_sponsor(&program_id),
         payer.pubkey(),
         10_000_000_000,
     )
@@ -133,7 +140,7 @@ async fn test_create_single_token_vault() {
         vault_authority,
         vault,
         light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
-        light_token_rent_sponsor: RENT_SPONSOR,
+        light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         system_program: solana_sdk::system_program::ID,

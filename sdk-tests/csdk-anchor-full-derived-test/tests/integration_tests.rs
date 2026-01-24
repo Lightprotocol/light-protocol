@@ -8,13 +8,12 @@
 mod shared;
 
 use anchor_lang::{InstructionData, ToAccountMetas};
-use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::LightAccountVariant;
+use csdk_anchor_full_derived_test::{csdk_anchor_full_derived_test::LightAccountVariant, light_rent_sponsor};
 use light_client::interface::{
     create_load_instructions, get_create_accounts_proof, AccountInterfaceExt, AccountSpec,
     CreateAccountsProofInput, InitializeRentFreeConfig, PdaSpec,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
-use light_macros::pubkey;
 use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest, TestRpc},
     Indexer, ProgramTestConfig, Rpc,
@@ -24,8 +23,6 @@ use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
-
-const RENT_SPONSOR: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
 
 /// Test context shared across instruction tests
 #[allow(dead_code)]
@@ -50,11 +47,12 @@ impl TestContext {
 
         let program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
+        // Use program's own rent sponsor for LightConfig initialization
         let (init_config_ixs, config_pda) = InitializeRentFreeConfig::new(
             &program_id,
             &payer.pubkey(),
             &program_data_pda,
-            RENT_SPONSOR,
+            light_rent_sponsor(),
             payer.pubkey(),
             10_000_000_000,
         )

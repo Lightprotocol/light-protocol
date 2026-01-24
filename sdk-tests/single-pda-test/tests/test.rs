@@ -8,11 +8,16 @@ use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest},
     ProgramTestConfig, Rpc,
 };
-use light_token::instruction::RENT_SPONSOR;
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
+
+/// Derive the program's rent sponsor PDA (version 1).
+fn program_rent_sponsor(program_id: &Pubkey) -> Pubkey {
+    let (pda, _) = Pubkey::find_program_address(&[b"rent_sponsor", &1u16.to_le_bytes()], program_id);
+    pda
+}
 
 /// Test creating a single compressible PDA using the macro.
 /// Validates that #[light_account(init)] works in isolation for PDAs.
@@ -29,11 +34,12 @@ async fn test_create_single_pda() {
 
     let program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
+    // Use program's own rent sponsor for LightConfig initialization
     let (init_config_ixs, config_pda) = InitializeRentFreeConfig::new(
         &program_id,
         &payer.pubkey(),
         &program_data_pda,
-        RENT_SPONSOR,
+        program_rent_sponsor(&program_id),
         payer.pubkey(),
         10_000_000_000,
     )

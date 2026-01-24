@@ -323,7 +323,7 @@ impl LightProgramInterface for AmmSdk {
     }
 
     fn light_rent_sponsor_pda(&self) -> Pubkey {
-        csdk_anchor_full_derived_test::program_rent_sponsor()
+        csdk_anchor_full_derived_test::light_rent_sponsor()
     }
 
     fn from_keyed_accounts(accounts: &[AccountInterface]) -> Result<Self, Self::Error> {
