@@ -22,7 +22,7 @@ pub(super) use super::mint::LightMintField;
 
 /// Classification of infrastructure fields by naming convention.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum InfraFieldType {
+pub(crate) enum InfraFieldType {
     FeePayer,
     CompressionConfig,
     LightTokenConfig,
@@ -58,7 +58,7 @@ impl InfraFieldType {
 }
 
 /// Classifier for infrastructure fields by naming convention.
-pub(super) struct InfraFieldClassifier;
+pub(crate) struct InfraFieldClassifier;
 
 impl InfraFieldClassifier {
     /// Classify a field name into its infrastructure type, if any.
@@ -80,7 +80,7 @@ impl InfraFieldClassifier {
 
 /// Collected infrastructure field identifiers.
 #[derive(Default)]
-pub(super) struct InfraFields {
+pub(crate) struct InfraFields {
     pub fee_payer: Option<Ident>,
     pub compression_config: Option<Ident>,
     pub light_token_config: Option<Ident>,

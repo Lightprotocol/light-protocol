@@ -12,6 +12,9 @@ mod light_pdas;
 mod rent_sponsor;
 mod utils;
 
+#[cfg(test)]
+mod light_pdas_tests;
+
 #[proc_macro_derive(LightDiscriminator)]
 pub fn light_discriminator(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);

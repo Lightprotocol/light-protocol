@@ -30,6 +30,8 @@ light-macros = { workspace = true }
 light-account-checks = { workspace = true }
 light-hasher = { workspace = true , features = ["poseidon", "keccak"]}
 light-poseidon = { workspace = true }
+rand = "0.8"
+proptest = "1.4"
 
 [lib]
 proc-macro = true

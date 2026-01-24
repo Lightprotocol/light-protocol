@@ -226,7 +226,7 @@ fn find_module_file(parent_dir: &Path, parent_name: &str, mod_name: &str) -> Opt
 }
 
 /// Check if a struct has a specific derive attribute.
-fn has_derive_attribute(attrs: &[syn::Attribute], derive_name: &str) -> bool {
+pub(crate) fn has_derive_attribute(attrs: &[syn::Attribute], derive_name: &str) -> bool {
     for attr in attrs {
         if !attr.path().is_ident("derive") {
             continue;
@@ -253,35 +253,4 @@ fn has_derive_attribute(attrs: &[syn::Attribute], derive_name: &str) -> bool {
         }
     }
     false
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_has_derive_attribute() {
-        let code = quote::quote! {
-            #[derive(Accounts, LightAccounts)]
-            pub struct CreateUser<'info> {
-                pub fee_payer: Signer<'info>,
-            }
-        };
-        let item: ItemStruct = syn::parse2(code).unwrap();
-        assert!(has_derive_attribute(&item.attrs, "LightAccounts"));
-        assert!(has_derive_attribute(&item.attrs, "Accounts"));
-        assert!(!has_derive_attribute(&item.attrs, "Clone"));
-    }
-
-    #[test]
-    fn test_has_derive_attribute_qualified() {
-        let code = quote::quote! {
-            #[derive(light_sdk::LightAccounts)]
-            pub struct CreateUser<'info> {
-                pub fee_payer: Signer<'info>,
-            }
-        };
-        let item: ItemStruct = syn::parse2(code).unwrap();
-        assert!(has_derive_attribute(&item.attrs, "LightAccounts"));
-    }
 }

@@ -103,22 +103,29 @@ impl From<MetaExpr> for Expr {
 
 /// Check if an identifier string is a constant (SCREAMING_SNAKE_CASE).
 ///
-/// Returns true if the string is non-empty and all characters are uppercase letters,
-/// underscores, or ASCII digits.
+/// Returns true if the string:
+/// - Is non-empty
+/// - Starts with an uppercase letter
+/// - All subsequent characters are uppercase letters, underscores, or ASCII digits
 ///
 /// # Examples
 /// ```ignore
 /// assert!(is_constant_identifier("MY_CONSTANT"));
 /// assert!(is_constant_identifier("SEED_123"));
 /// assert!(!is_constant_identifier("myVariable"));
+/// assert!(!is_constant_identifier("123_INVALID")); // must start with letter
 /// assert!(!is_constant_identifier(""));
 /// ```
 #[inline]
 pub fn is_constant_identifier(ident: &str) -> bool {
-    !ident.is_empty()
-        && ident
-            .chars()
-            .all(|c| c.is_uppercase() || c == '_' || c.is_ascii_digit())
+    let mut chars = ident.chars();
+    // Must start with uppercase letter
+    match chars.next() {
+        Some(first) if first.is_ascii_uppercase() => {}
+        _ => return false,
+    }
+    // Rest must be uppercase, underscore, or digit
+    chars.all(|c| c.is_uppercase() || c == '_' || c.is_ascii_digit())
 }
 
 /// Extract the terminal identifier from an expression.
@@ -160,21 +167,4 @@ pub fn extract_terminal_ident(expr: &Expr, key_method_only: bool) -> Option<Iden
 #[inline]
 pub fn is_base_path(expr: &Expr, base: &str) -> bool {
     matches!(expr, Expr::Path(p) if p.path.segments.first().is_some_and(|s| s.ident == base))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_is_constant_identifier() {
-        assert!(is_constant_identifier("MY_CONSTANT"));
-        assert!(is_constant_identifier("SEED"));
-        assert!(is_constant_identifier("SEED_123"));
-        assert!(is_constant_identifier("A"));
-        assert!(!is_constant_identifier("myVariable"));
-        assert!(!is_constant_identifier("my_variable"));
-        assert!(!is_constant_identifier("MyConstant"));
-        assert!(!is_constant_identifier(""));
-    }
 }
