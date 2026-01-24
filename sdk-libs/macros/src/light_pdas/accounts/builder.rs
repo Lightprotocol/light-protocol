@@ -388,34 +388,23 @@ impl LightAccountsBuilder {
             let cpi_accounts = light_sdk::cpi::v2::CpiAccounts::new_with_config(
                 &self.#fee_payer,
                 _remaining,
-                ::light_sdk::sdk_types::CpiAccountsConfig::new_with_cpi_context(crate::LIGHT_CPI_SIGNER),
+                light_sdk::cpi::CpiAccountsConfig::new_with_cpi_context(crate::LIGHT_CPI_SIGNER),
             );
-
             let compression_config_data = light_sdk::interface::LightConfig::load_checked(
                 &self.#compression_config,
-                &crate::ID
+                &crate::ID,
             )?;
 
             let mut all_compressed_infos = Vec::with_capacity(#rentfree_count as usize);
             #(#compress_blocks)*
 
-            let cpi_context_account = cpi_accounts.cpi_context()?;
-            let cpi_context_accounts = ::light_sdk::sdk_types::CpiContextWriteAccounts {
-                fee_payer: cpi_accounts.fee_payer(),
-                authority: cpi_accounts.authority()?,
-                cpi_context: cpi_context_account,
-                cpi_signer: crate::LIGHT_CPI_SIGNER,
-            };
-
-            use light_sdk::cpi::{InvokeLightSystemProgram, LightCpiInstruction};
-            light_sdk::cpi::v2::LightSystemProgramCpi::new_cpi(
+            light_token::compressible::invoke_write_pdas_to_cpi_context(
                 crate::LIGHT_CPI_SIGNER,
-                #proof_access.proof.clone()
-            )
-                .with_new_addresses(&[#(#new_addr_idents),*])
-                .with_account_infos(&all_compressed_infos)
-                .write_to_cpi_context_first()
-                .invoke_write_to_cpi_context_first(cpi_context_accounts)?;
+                #proof_access.proof.clone(),
+                &[#(#new_addr_idents),*],
+                &all_compressed_infos,
+                &cpi_accounts,
+            )?;
 
             #mint_invocation
         })
@@ -434,24 +423,24 @@ impl LightAccountsBuilder {
         let compression_config = &self.infra.compression_config;
 
         Ok(quote! {
+            use light_sdk::cpi::{LightCpiInstruction, InvokeLightSystemProgram};
+
             let cpi_accounts = light_sdk::cpi::v2::CpiAccounts::new(
                 &self.#fee_payer,
                 _remaining,
                 crate::LIGHT_CPI_SIGNER,
             );
-
             let compression_config_data = light_sdk::interface::LightConfig::load_checked(
                 &self.#compression_config,
-                &crate::ID
+                &crate::ID,
             )?;
 
             let mut all_compressed_infos = Vec::with_capacity(#rentfree_count as usize);
             #(#compress_blocks)*
 
-            use light_sdk::cpi::{InvokeLightSystemProgram, LightCpiInstruction};
             light_sdk::cpi::v2::LightSystemProgramCpi::new_cpi(
                 crate::LIGHT_CPI_SIGNER,
-                #proof_access.proof.clone()
+                #proof_access.proof.clone(),
             )
                 .with_new_addresses(&[#(#new_addr_idents),*])
                 .with_account_infos(&all_compressed_infos)

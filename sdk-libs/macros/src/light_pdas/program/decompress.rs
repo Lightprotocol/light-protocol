@@ -63,7 +63,6 @@ impl DecompressBuilder {
 
         let trait_impl =
             crate::light_pdas::account::decompress_context::generate_decompress_context_trait_impl(
-                self.pda_ctx_seeds.clone(),
                 self.token_variant_ident.clone(),
                 lifetime,
             )?;
@@ -88,6 +87,9 @@ impl DecompressBuilder {
                 compressed_accounts: Vec<LightAccountData>,
                 system_accounts_offset: u8,
             ) -> Result<()> {
+                use solana_program::sysvar::Sysvar;
+                let rent = solana_program::sysvar::rent::Rent::get()?;
+                let current_slot = solana_program::sysvar::clock::Clock::get()?.slot;
                 light_sdk::interface::process_decompress_accounts_idempotent(
                     accounts,
                     remaining_accounts,
@@ -96,7 +98,8 @@ impl DecompressBuilder {
                     system_accounts_offset,
                     LIGHT_CPI_SIGNER,
                     &crate::ID,
-                    None,
+                    &rent,
+                    current_slot,
                 )
                 .map_err(|e: solana_program_error::ProgramError| -> anchor_lang::error::Error { e.into() })
             }

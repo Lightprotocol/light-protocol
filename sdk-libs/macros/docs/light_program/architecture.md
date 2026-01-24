@@ -1,8 +1,8 @@
-# `#[rentfree_program]` Attribute Macro
+# `#[light_program]` Attribute Macro
 
 ## 1. Overview
 
-The `#[rentfree_program]` attribute macro provides program-level auto-discovery and instruction wrapping for Light Protocol's rent-free compression system. It eliminates boilerplate by automatically generating compression infrastructure from your existing Anchor code.
+The `#[light_program]` attribute macro provides program-level auto-discovery and instruction wrapping for Light Protocol's rent-free compression system. It eliminates boilerplate by automatically generating compression infrastructure from your existing Anchor code.
 
 **Location**: `sdk-libs/macros/src/rentfree/program/`
 
@@ -10,7 +10,7 @@ The `#[rentfree_program]` attribute macro provides program-level auto-discovery 
 
 | Location | Macro | Purpose |
 |----------|-------|---------|
-| Program module | `#[rentfree_program]` | Discovers fields, generates instructions, wraps handlers |
+| Program module | `#[light_program]` | Discovers fields, generates instructions, wraps handlers |
 | Accounts struct | `#[derive(LightAccounts)]` | Generates `LightPreInit`/`LightFinalize` trait impls |
 | Account field | `#[light_account(init)]` | Marks PDA for compression |
 | Account field | `#[light_account(token, authority=[...])]` | Marks token account for compression |
@@ -39,7 +39,7 @@ The `#[rentfree_program]` attribute macro provides program-level auto-discovery 
 The macro reads your crate at compile time to find compressible accounts:
 
 ```
-#[rentfree_program]
+#[light_program]
 #[program]
 pub mod my_program {
     pub mod accounts;     <-- Macro follows this to accounts.rs

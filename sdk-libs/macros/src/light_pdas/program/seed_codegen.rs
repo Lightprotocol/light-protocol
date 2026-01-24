@@ -165,6 +165,7 @@ pub fn generate_client_seed_functions(
                     seeds: syn::punctuated::Punctuated::new(),
                     authority: None,
                     inner_type: spec.inner_type.clone(),
+                    is_zero_copy: spec.is_zero_copy,
                 };
 
                 for auth_seed in authority_seeds {

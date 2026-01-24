@@ -103,6 +103,8 @@ pub struct PdaField {
     pub output_tree: Expr,
     /// True if the field is Box<Account<T>>, false if Account<T>
     pub is_boxed: bool,
+    /// True if the field uses zero-copy serialization (AccountLoader)
+    pub is_zero_copy: bool,
 }
 
 /// A field marked with #[light_account([init,] token, ...)] (Token Account).
@@ -206,6 +208,8 @@ struct LightAccountArgs {
     has_init: bool,
     /// True if `token` keyword is present (marks token fields - skip in LightAccounts derive).
     is_token: bool,
+    /// True if `zero_copy` keyword is present (for AccountLoader fields using Pod serialization).
+    has_zero_copy: bool,
     /// The account type (Pda, Mint, etc.).
     account_type: LightAccountType,
     /// Namespaced key-value pairs for additional arguments.
@@ -272,6 +276,7 @@ impl Parse for LightAccountArgs {
             return Ok(Self {
                 has_init: false,
                 is_token: true, // Skip in LightAccounts derive (for mark-only mode)
+                has_zero_copy: false,
                 account_type,
                 key_values,
             });
@@ -288,6 +293,7 @@ impl Parse for LightAccountArgs {
             return Ok(Self {
                 has_init: false,
                 is_token: true,
+                has_zero_copy: false,
                 account_type,
                 key_values,
             });
@@ -302,6 +308,7 @@ impl Parse for LightAccountArgs {
 
         let mut account_type = LightAccountType::Pda;
         let mut key_values = Vec::new();
+        let mut has_zero_copy = false;
 
         // Parse remaining tokens
         while !input.is_empty() {
@@ -315,6 +322,13 @@ impl Parse for LightAccountArgs {
             if input.peek(Ident) {
                 let lookahead = input.fork();
                 let ident: Ident = lookahead.parse()?;
+
+                // Check for zero_copy keyword (standalone flag)
+                if ident == "zero_copy" {
+                    input.parse::<Ident>()?; // consume it
+                    has_zero_copy = true;
+                    continue;
+                }
 
                 // If followed by `::`, infer type from namespace
                 if lookahead.peek(Token![::]) {
@@ -368,6 +382,7 @@ impl Parse for LightAccountArgs {
         Ok(Self {
             has_init: true,
             is_token: false,
+            has_zero_copy,
             account_type,
             key_values,
         })
@@ -547,7 +562,7 @@ pub(crate) fn parse_light_account_attr(
 
             return match args.account_type {
                 LightAccountType::Pda => Ok(Some(LightAccountField::Pda(Box::new(
-                    build_pda_field(field, field_ident, &args.key_values, direct_proof_arg)?,
+                    build_pda_field(field, field_ident, &args.key_values, direct_proof_arg, args.has_zero_copy)?,
                 )))),
                 LightAccountType::Mint => Ok(Some(LightAccountField::Mint(Box::new(
                     build_mint_field(field_ident, &args.key_values, attr, direct_proof_arg)?,
@@ -566,15 +581,29 @@ pub(crate) fn parse_light_account_attr(
     Ok(None)
 }
 
+/// Check if a type is AccountLoader<'info, T>
+fn is_account_loader_type(ty: &Type) -> bool {
+    if let Type::Path(type_path) = ty {
+        return type_path
+            .path
+            .segments
+            .iter()
+            .any(|seg| seg.ident == "AccountLoader");
+    }
+    false
+}
+
 /// Build a PdaField from parsed key-value pairs.
 ///
 /// # Arguments
 /// * `direct_proof_arg` - If `Some`, use `<name>.field` for defaults instead of `params.create_accounts_proof.field`
+/// * `has_zero_copy` - True if `zero_copy` keyword was present in the attribute
 fn build_pda_field(
     field: &Field,
     field_ident: &Ident,
     key_values: &[NamespacedKeyValue],
     direct_proof_arg: &Option<Ident>,
+    has_zero_copy: bool,
 ) -> Result<PdaField, syn::Error> {
     // Reject any key-value pairs - PDA only needs `init`
     // Tree info is always auto-fetched from CreateAccountsProof
@@ -607,11 +636,33 @@ fn build_pda_field(
         )
     };
 
-    // Validate this is an Account type (or Box<Account>)
+    // Detect if field type is AccountLoader
+    let is_account_loader = is_account_loader_type(&field.ty);
+
+    // Validate AccountLoader requires zero_copy
+    if is_account_loader && !has_zero_copy {
+        return Err(Error::new_spanned(
+            &field.ty,
+            "AccountLoader fields require #[light_account(init, zero_copy)]. \
+             AccountLoader uses zero-copy (Pod) serialization which is incompatible \
+             with the default Borsh decompression path.",
+        ));
+    }
+
+    // Validate non-AccountLoader forbids zero_copy
+    if !is_account_loader && has_zero_copy {
+        return Err(Error::new_spanned(
+            &field.ty,
+            "zero_copy can only be used with AccountLoader fields. \
+             For Account<'info, T> fields, remove the zero_copy keyword.",
+        ));
+    }
+
+    // Validate this is an Account type (or Box<Account>) or AccountLoader
     let (is_boxed, inner_type) = extract_account_inner_type(&field.ty).ok_or_else(|| {
         Error::new_spanned(
             &field.ty,
-            "#[light_account(init)] can only be applied to Account<...> or Box<Account<...>> fields. \
+            "#[light_account(init)] can only be applied to Account<...>, Box<Account<...>>, or AccountLoader<...> fields. \
              Nested Box<Box<...>> is not supported.",
         )
     })?;
@@ -622,6 +673,7 @@ fn build_pda_field(
         address_tree_info,
         output_tree,
         is_boxed,
+        is_zero_copy: has_zero_copy,
     })
 }
 
@@ -1003,6 +1055,7 @@ impl From<PdaField> for super::parse::ParsedPdaField {
             address_tree_info: pda.address_tree_info,
             output_tree: pda.output_tree,
             is_boxed: pda.is_boxed,
+            is_zero_copy: pda.is_zero_copy,
         }
     }
 }

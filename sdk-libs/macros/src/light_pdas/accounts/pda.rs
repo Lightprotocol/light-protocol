@@ -112,19 +112,29 @@ impl<'a> PdaBlockBuilder<'a> {
         }
     }
 
-    /// Generate mutable reference to account data (handles Box<Account> vs Account).
+    /// Generate mutable reference to account data (handles Box<Account>, Account, AccountLoader).
     fn account_data_extraction(&self) -> TokenStream {
         let ident = &self.field.ident;
         let account_data = &self.idents.account_data;
 
-        let deref_expr = if self.field.is_boxed {
-            quote! { &mut **self.#ident }
+        if self.field.is_zero_copy {
+            // AccountLoader uses load_init() for newly initialized accounts
+            // Must keep guard alive while accessing data
+            // Convert anchor_lang::error::Error to ProgramError using .into()
+            let account_guard = format_ident!("{}_guard", ident);
+            quote! {
+                let mut #account_guard = self.#ident.load_init()
+                    .map_err(|_| solana_program_error::ProgramError::InvalidAccountData)?;
+                let #account_data = &mut *#account_guard;
+            }
+        } else if self.field.is_boxed {
+            quote! {
+                let #account_data = &mut **self.#ident;
+            }
         } else {
-            quote! { &mut *self.#ident }
-        };
-
-        quote! {
-            let #account_data = #deref_expr;
+            quote! {
+                let #account_data = &mut *self.#ident;
+            }
         }
     }
 
@@ -138,18 +148,39 @@ impl<'a> PdaBlockBuilder<'a> {
         let new_addr_params = &self.idents.new_addr_params;
         let compressed_infos = &self.idents.compressed_infos;
 
+        // Use pod variant for zero_copy accounts (AccountLoader with Pod types)
+        let prepare_call = if self.field.is_zero_copy {
+            quote! {
+                light_sdk::interface::prepare_compressed_account_on_init_pod::<#inner_type>(
+                    &#account_info,
+                    #account_data,
+                    &compression_config_data,
+                    #address,
+                    #new_addr_params,
+                    #output_tree,
+                    &cpi_accounts,
+                    &compression_config_data.address_space,
+                    false, // at init, we do not compress_and_close the pda, we just "register" the empty compressed account with the derived address.
+                )?
+            }
+        } else {
+            quote! {
+                light_sdk::interface::prepare_compressed_account_on_init::<#inner_type>(
+                    &#account_info,
+                    #account_data,
+                    &compression_config_data,
+                    #address,
+                    #new_addr_params,
+                    #output_tree,
+                    &cpi_accounts,
+                    &compression_config_data.address_space,
+                    false, // at init, we do not compress_and_close the pda, we just "register" the empty compressed account with the derived address.
+                )?
+            }
+        };
+
         quote! {
-            let #compressed_infos = light_sdk::interface::prepare_compressed_account_on_init::<#inner_type>(
-                &#account_info,
-                #account_data,
-                &compression_config_data,
-                #address,
-                #new_addr_params,
-                #output_tree,
-                &cpi_accounts,
-                &compression_config_data.address_space,
-                false, // at init, we do not compress_and_close the pda, we just "register" the empty compressed account with the derived address.
-            )?;
+            let #compressed_infos = #prepare_call;
             all_compressed_infos.push(#compressed_infos);
         }
     }

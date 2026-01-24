@@ -14,7 +14,7 @@ This crate provides macros that enable rent-free compressed accounts on Solana w
 | Macro | Type | Purpose |
 |-------|------|---------|
 | `#[derive(LightAccounts)]` | Derive | Generates `LightPreInit`/`LightFinalize` for Accounts structs |
-| `#[rentfree_program]` | Attribute | Program-level auto-discovery and instruction generation |
+| `#[light_program]` | Attribute | Program-level auto-discovery and instruction generation |
 | `#[derive(LightCompressible)]` | Derive | Combined traits for compressible account data |
 | `#[derive(Compressible)]` | Derive | Compression traits (HasCompressionInfo, CompressAs, Size) |
 | `#[derive(CompressiblePack)]` | Derive | Pack/Unpack with Pubkey-to-index compression |
@@ -25,7 +25,7 @@ Detailed macro documentation is in the `docs/` directory:
 
 - **`docs/CLAUDE.md`** - Documentation structure guide
 - **`docs/rentfree.md`** - `#[derive(LightAccounts)]` and trait derives
-- **`docs/rentfree_program/`** - `#[rentfree_program]` attribute macro (architecture.md + codegen.md)
+- **`docs/light_program/`** - `#[light_program]` attribute macro (architecture.md + codegen.md)
 
 ## Source Structure
 
@@ -35,7 +35,7 @@ src/
 ├── rentfree/              # LightAccounts macro system
 │   ├── account/           # Trait derive macros for account data structs
 │   ├── accounts/          # #[derive(LightAccounts)] for Accounts structs
-│   ├── program/           # #[rentfree_program] attribute macro
+│   ├── program/           # #[light_program] attribute macro
 │   └── shared_utils.rs    # Common utilities
 └── hasher/                # LightHasherSha derive macro
 ```
@@ -43,7 +43,7 @@ src/
 ## Usage Example
 
 ```rust
-use light_sdk_macros::{rentfree_program, LightAccounts, LightCompressible};
+use light_sdk_macros::{light_program, LightAccounts, LightCompressible};
 
 // State account with compression support
 #[derive(Default, Debug, InitSpace, LightCompressible)]
@@ -67,7 +67,7 @@ pub struct Create<'info> {
 }
 
 // Program with auto-wrapped instructions
-#[rentfree_program]
+#[light_program]
 #[program]
 pub mod my_program {
     pub fn create(ctx: Context<Create>, params: CreateParams) -> Result<()> {

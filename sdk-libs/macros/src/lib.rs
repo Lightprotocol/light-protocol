@@ -455,3 +455,43 @@ pub fn light_accounts_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     into_token_stream(light_pdas::accounts::derive_light_accounts(input))
 }
+
+/// Derives PodCompressionInfoField for Pod (zero-copy) structs.
+///
+/// This derive macro generates the `PodCompressionInfoField` trait implementation
+/// for structs that use zero-copy serialization via `bytemuck::Pod`.
+///
+/// ## Requirements
+///
+/// 1. The struct must have `#[repr(C)]` attribute for predictable field layout
+/// 2. The struct must have a `compression_info: CompressionInfo` field
+///    (non-optional, using `light_compressible::compression_info::CompressionInfo`)
+/// 3. The struct must implement `bytemuck::Pod` and `bytemuck::Zeroable`
+///
+/// ## Example
+///
+/// ```ignore
+/// use light_sdk_macros::PodCompressionInfoField;
+/// use light_compressible::compression_info::CompressionInfo;
+/// use bytemuck::{Pod, Zeroable};
+///
+/// #[derive(Clone, Copy, Pod, Zeroable, PodCompressionInfoField)]
+/// #[repr(C)]
+/// pub struct MyPodAccount {
+///     pub owner: [u8; 32],
+///     pub data: u64,
+///     pub compression_info: CompressionInfo,
+/// }
+/// ```
+///
+/// ## Differences from Borsh Compression
+///
+/// - Pod accounts use non-optional `CompressionInfo` (compression state is indicated
+///   by `config_account_version`: 0 = uninitialized, >= 1 = initialized)
+/// - Uses `core::mem::offset_of!()` for compile-time offset calculation
+/// - More efficient for fixed-size accounts with zero-copy serialization
+#[proc_macro_derive(PodCompressionInfoField)]
+pub fn pod_compression_info_field(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    into_token_stream(light_pdas::account::traits::derive_pod_compression_info_field(input))
+}

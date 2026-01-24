@@ -170,6 +170,7 @@ pub(super) struct ParsedLightAccountsStruct {
 }
 
 /// A field marked with #[light_account(init)]
+#[allow(dead_code)] // is_zero_copy is read via From<PdaField> conversion in program module
 pub(super) struct ParsedPdaField {
     pub ident: Ident,
     /// The inner type T from Account<'info, T> or Box<Account<'info, T>>
@@ -179,6 +180,8 @@ pub(super) struct ParsedPdaField {
     pub output_tree: Expr,
     /// True if the field is Box<Account<T>>, false if Account<T>
     pub is_boxed: bool,
+    /// True if the field uses zero-copy serialization (AccountLoader)
+    pub is_zero_copy: bool,
 }
 
 /// Instruction argument from #[instruction(...)]

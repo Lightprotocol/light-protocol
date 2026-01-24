@@ -14,32 +14,38 @@ use crate::light_pdas::shared_utils::qualify_type_with_crate;
 // COMPRESS BUILDER
 // =============================================================================
 
+/// Information about a compressible account type.
+#[derive(Clone)]
+pub struct CompressibleAccountInfo {
+    /// The account type.
+    pub account_type: Type,
+    /// True if the account uses zero-copy (Pod) serialization.
+    pub is_zero_copy: bool,
+}
+
 /// Builder for generating compress instruction code.
 ///
 /// Encapsulates the account types and variant configuration needed to generate
 /// all compress-related code: context implementation, processor function,
 /// instruction entrypoint, and accounts struct.
 pub(super) struct CompressBuilder {
-    /// Account types that can be compressed.
-    account_types: Vec<Type>,
+    /// Account types that can be compressed with their zero_copy flags.
+    accounts: Vec<CompressibleAccountInfo>,
     /// The instruction variant (PdaOnly, TokenOnly, or Mixed).
     variant: InstructionVariant,
 }
 
 impl CompressBuilder {
-    /// Create a new CompressBuilder with the given account types and variant.
+    /// Create a new CompressBuilder with the given account infos and variant.
     ///
     /// # Arguments
-    /// * `account_types` - The account types that can be compressed
+    /// * `accounts` - The account types with their zero_copy flags
     /// * `variant` - The instruction variant determining what gets generated
     ///
     /// # Returns
     /// A new CompressBuilder instance
-    pub fn new(account_types: Vec<Type>, variant: InstructionVariant) -> Self {
-        Self {
-            account_types,
-            variant,
-        }
+    pub fn new(accounts: Vec<CompressibleAccountInfo>, variant: InstructionVariant) -> Self {
+        Self { accounts, variant }
     }
 
     // -------------------------------------------------------------------------
@@ -66,7 +72,7 @@ impl CompressBuilder {
     /// `Ok(())` if validation passes, or a `syn::Error` describing the issue.
     pub fn validate(&self) -> Result<()> {
         // For variants that include PDAs, require at least one account type
-        if self.has_pdas() && self.account_types.is_empty() {
+        if self.has_pdas() && self.accounts.is_empty() {
             return Err(syn::Error::new(
                 proc_macro2::Span::call_site(),
                 "CompressBuilder requires at least one account type for PDA compression",
@@ -86,25 +92,51 @@ impl CompressBuilder {
     pub fn generate_context_impl(&self) -> Result<syn::ItemMod> {
         let lifetime: syn::Lifetime = syn::parse_quote!('info);
 
-        let compress_arms: Vec<_> = self.account_types.iter().map(|account_type| {
-            let name = qualify_type_with_crate(account_type);
-            quote! {
-                d if d == #name::LIGHT_DISCRIMINATOR => {
-                    drop(data);
-                    let data_borrow = account_info.try_borrow_data().map_err(__anchor_to_program_error)?;
-                    let mut account_data = #name::try_deserialize(&mut &data_borrow[..])
-                        .map_err(__anchor_to_program_error)?;
-                    drop(data_borrow);
+        let compress_arms: Vec<_> = self.accounts.iter().map(|info| {
+            let name = qualify_type_with_crate(&info.account_type);
 
-                    let compressed_info = light_sdk::interface::compress_account::prepare_account_for_compression::<#name>(
-                        program_id,
-                        account_info,
-                        &mut account_data,
-                        meta,
-                        cpi_accounts,
-                        &compression_config.address_space,
-                    )?;
-                    Ok(Some(compressed_info))
+            if info.is_zero_copy {
+                // Pod (zero-copy) path: use bytemuck instead of Borsh
+                quote! {
+                    d if d == #name::LIGHT_DISCRIMINATOR => {
+                        drop(data);
+                        let data_borrow = account_info.try_borrow_data().map_err(__anchor_to_program_error)?;
+                        // Skip 8-byte discriminator and read Pod data directly
+                        let pod_bytes = &data_borrow[8..8 + core::mem::size_of::<#name>()];
+                        let mut account_data: #name = *bytemuck::from_bytes(pod_bytes);
+                        drop(data_borrow);
+
+                        let compressed_info = light_sdk::interface::compress_account::prepare_account_for_compression_pod::<#name>(
+                            program_id,
+                            account_info,
+                            &mut account_data,
+                            meta,
+                            cpi_accounts,
+                            &compression_config.address_space,
+                        )?;
+                        Ok(Some(compressed_info))
+                    }
+                }
+            } else {
+                // Borsh path: use anchor deserialization
+                quote! {
+                    d if d == #name::LIGHT_DISCRIMINATOR => {
+                        drop(data);
+                        let data_borrow = account_info.try_borrow_data().map_err(__anchor_to_program_error)?;
+                        let mut account_data = #name::try_deserialize(&mut &data_borrow[..])
+                            .map_err(__anchor_to_program_error)?;
+                        drop(data_borrow);
+
+                        let compressed_info = light_sdk::interface::compress_account::prepare_account_for_compression::<#name>(
+                            program_id,
+                            account_info,
+                            &mut account_data,
+                            meta,
+                            cpi_accounts,
+                            &compression_config.address_space,
+                        )?;
+                        Ok(Some(compressed_info))
+                    }
                 }
             }
         }).collect();
@@ -236,17 +268,33 @@ impl CompressBuilder {
 
     /// Generate compile-time size validation for compressed accounts.
     pub fn generate_size_validation(&self) -> Result<TokenStream> {
-        let size_checks: Vec<_> = self.account_types.iter().map(|account_type| {
-            let qualified_type = qualify_type_with_crate(account_type);
-            quote! {
-                const _: () = {
-                    const COMPRESSED_SIZE: usize = 8 + <#qualified_type as light_sdk::interface::compression_info::CompressedInitSpace>::COMPRESSED_INIT_SPACE;
-                    if COMPRESSED_SIZE > 800 {
-                        panic!(concat!(
-                            "Compressed account '", stringify!(#qualified_type), "' exceeds 800-byte compressible account size limit. If you need support for larger accounts, send a message to team@lightprotocol.com"
-                        ));
-                    }
-                };
+        let size_checks: Vec<_> = self.accounts.iter().map(|info| {
+            let qualified_type = qualify_type_with_crate(&info.account_type);
+
+            if info.is_zero_copy {
+                // For Pod types, use core::mem::size_of for size calculation
+                quote! {
+                    const _: () = {
+                        const COMPRESSED_SIZE: usize = 8 + core::mem::size_of::<#qualified_type>();
+                        if COMPRESSED_SIZE > 800 {
+                            panic!(concat!(
+                                "Compressed account '", stringify!(#qualified_type), "' exceeds 800-byte compressible account size limit. If you need support for larger accounts, send a message to team@lightprotocol.com"
+                            ));
+                        }
+                    };
+                }
+            } else {
+                // For Borsh types, use CompressedInitSpace trait
+                quote! {
+                    const _: () = {
+                        const COMPRESSED_SIZE: usize = 8 + <#qualified_type as light_sdk::interface::compression_info::CompressedInitSpace>::COMPRESSED_INIT_SPACE;
+                        if COMPRESSED_SIZE > 800 {
+                            panic!(concat!(
+                                "Compressed account '", stringify!(#qualified_type), "' exceeds 800-byte compressible account size limit. If you need support for larger accounts, send a message to team@lightprotocol.com"
+                            ));
+                        }
+                    };
+                }
             }
         }).collect();
 
