@@ -6,8 +6,8 @@ import {
   CompressedAccountWithMerkleContext,
   createRpc,
   defaultTestStateTreeAccounts,
-  deriveAddressSeed,
-  deriveAddress,
+  deriveAddressSeedLegacy,
+  deriveAddressLegacy,
   PackedAccounts,
   Rpc,
   sleep,
@@ -52,8 +52,8 @@ describe("sdk-anchor-test-v1", () => {
     const name = "test-account";
     const accountSeed = new TextEncoder().encode("compressed");
     const nameSeed = new TextEncoder().encode(name);
-    const seed = deriveAddressSeed([accountSeed, nameSeed], program.programId);
-    const address = deriveAddress(seed, addressTree);
+    const seed = deriveAddressSeedLegacy([accountSeed, nameSeed], program.programId);
+    const address = deriveAddressLegacy(seed, addressTree);
 
     console.log("Creating compressed account with name:", name);
     await createCompressedAccount(
