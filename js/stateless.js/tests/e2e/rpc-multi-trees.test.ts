@@ -12,10 +12,7 @@ import {
     featureFlags,
     selectStateTreeInfo,
 } from '../../src';
-import {
-    deriveAddressLegacy,
-    deriveAddressSeedLegacy,
-} from '../../src/utils/address';
+import { deriveAddress, deriveAddressSeed } from '../../src/utils/address';
 import { getTestRpc, TestRpc } from '../../src/test-helpers/test-rpc';
 import { transfer } from '../../src/actions/transfer';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
@@ -89,11 +86,11 @@ describe('rpc-multi-trees', () => {
             const tree = selectStateTreeInfo(await rpc.getStateTreeInfos());
 
             const seed = randomBytes(32);
-            const addressSeed = deriveAddressSeedLegacy(
+            const addressSeed = deriveAddressSeed(
                 [seed],
                 LightSystemProgram.programId,
             );
-            address = deriveAddressLegacy(addressSeed);
+            address = deriveAddress(addressSeed);
 
             await createAccount(
                 rpc,
@@ -157,11 +154,11 @@ describe('rpc-multi-trees', () => {
             const hash = bn(senderAccounts.items[0].hash);
 
             const newAddressSeeds = [new Uint8Array(randomBytes(32))];
-            const newAddressSeed = deriveAddressSeedLegacy(
+            const newAddressSeed = deriveAddressSeed(
                 newAddressSeeds,
                 LightSystemProgram.programId,
             );
-            const newAddress = bn(deriveAddressLegacy(newAddressSeed).toBytes());
+            const newAddress = bn(deriveAddress(newAddressSeed).toBytes());
 
             const validityProof = await rpc.getValidityProof(
                 [hash],

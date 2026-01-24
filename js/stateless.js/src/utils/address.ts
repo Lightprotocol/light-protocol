@@ -4,7 +4,7 @@ import {
     hashvToBn254FieldSizeBe,
     hashvToBn254FieldSizeBeU8Array,
 } from './conversion';
-import { defaultTestStateTreeAccounts } from '../constants';
+import { defaultTestStateTreeAccounts, featureFlags } from '../constants';
 import { getIndexOrAdd } from '../programs/system/pack';
 import { keccak_256 } from '@noble/hashes/sha3';
 
@@ -45,31 +45,58 @@ export function deriveAddressLegacy(
 }
 
 /**
- * Derive an address seed from multiple seed components.
- * This is the V2 derivation method - does NOT include programId in seed hash.
- * ProgramId is included in the final deriveAddress step instead.
- *
- * @param seeds Array of seed bytes to combine
- * @returns 32-byte address seed
+ * Explicit V2 address seed derivation - always uses V2 behavior regardless of feature flag.
+ * Use this when you explicitly want V2 derivation (e.g., in tests).
  */
-export function deriveAddressSeed(seeds: Uint8Array[]): Uint8Array {
+export function deriveAddressSeedV2(seeds: Uint8Array[]): Uint8Array {
     const combinedSeeds: Uint8Array[] = seeds.map(seed =>
         Uint8Array.from(seed),
     );
-    const hash = hashvToBn254FieldSizeBeU8Array(combinedSeeds);
-    return hash;
+    return hashvToBn254FieldSizeBeU8Array(combinedSeeds);
 }
 
 /**
- * Derive an address for a compressed account.
- * This is the V2 derivation method (matching Rust's derive_address_from_seed).
+ * Derive an address seed from multiple seed components.
  *
- * @param addressSeed              The address seed (32 bytes) from deriveAddressSeed
- * @param addressMerkleTreePubkey  Address tree public key
- * @param programId                Program ID that owns the account
- * @returns                        Derived address
+ * V2 mode: Does NOT include programId in seed hash. Do not pass programId.
+ * V1 mode: Includes programId in seed hash. Must pass programId.
+ *
+ * @param seeds     Array of seed bytes to combine
+ * @param programId (V1 only) Program ID - required in V1 mode, must be omitted in V2 mode
+ * @returns 32-byte address seed
  */
-export function deriveAddress(
+export function deriveAddressSeed(
+    seeds: Uint8Array[],
+    programId?: PublicKey,
+): Uint8Array {
+    const isV2 = featureFlags.isV2();
+
+    if (programId !== undefined) {
+        if (isV2) {
+            throw new Error(
+                'deriveAddressSeed: programId must not be passed in V2 mode. ' +
+                    'For V2, omit programId here and pass it to deriveAddress instead. ' +
+                    'If you need V1 behavior, set LIGHT_PROTOCOL_VERSION=V1.',
+            );
+        }
+        return deriveAddressSeedLegacy(seeds, programId);
+    }
+
+    if (!isV2) {
+        throw new Error(
+            'deriveAddressSeed: programId is required in V1 mode. ' +
+                'Pass programId as the second argument. ' +
+                'If you need V2 behavior, set LIGHT_PROTOCOL_VERSION=V2.',
+        );
+    }
+    return deriveAddressSeedV2(seeds);
+}
+
+/**
+ * Explicit V2 address derivation - always uses V2 behavior regardless of feature flag.
+ * Use this when you explicitly want V2 derivation (e.g., in tests).
+ */
+export function deriveAddressV2(
     addressSeed: Uint8Array,
     addressMerkleTreePubkey: PublicKey,
     programId: PublicKey,
@@ -79,7 +106,6 @@ export function deriveAddress(
     }
     const merkleTreeBytes = addressMerkleTreePubkey.toBytes();
     const programIdBytes = programId.toBytes();
-    // Match Rust implementation: hash [seed, merkle_tree_pubkey, program_id]
     const combined = [
         Uint8Array.from(addressSeed),
         Uint8Array.from(merkleTreeBytes),
@@ -89,9 +115,44 @@ export function deriveAddress(
     return new PublicKey(hash);
 }
 
-// Backward compat aliases for existing code using V2 suffix
-export const deriveAddressSeedV2 = deriveAddressSeed;
-export const deriveAddressV2 = deriveAddress;
+/**
+ * Derive an address for a compressed account.
+ *
+ * V2 mode: Requires programId, includes it in final hash.
+ * V1 mode: Must not pass programId, uses legacy derivation.
+ *
+ * @param addressSeed              The address seed (32 bytes) from deriveAddressSeed
+ * @param addressMerkleTreePubkey  Address tree public key
+ * @param programId                (V2 only) Program ID - required in V2 mode, must be omitted in V1 mode
+ * @returns                        Derived address
+ */
+export function deriveAddress(
+    addressSeed: Uint8Array,
+    addressMerkleTreePubkey: PublicKey,
+    programId?: PublicKey,
+): PublicKey {
+    const isV2 = featureFlags.isV2();
+
+    if (programId === undefined) {
+        if (isV2) {
+            throw new Error(
+                'deriveAddress: programId is required in V2 mode. ' +
+                    'Pass programId as the third argument. ' +
+                    'If you need V1 behavior, set LIGHT_PROTOCOL_VERSION=V1.',
+            );
+        }
+        return deriveAddressLegacy(addressSeed, addressMerkleTreePubkey);
+    }
+
+    if (!isV2) {
+        throw new Error(
+            'deriveAddress: programId must not be passed in V1 mode. ' +
+                'Omit programId from deriveAddress. ' +
+                'If you need V2 behavior, set LIGHT_PROTOCOL_VERSION=V2.',
+        );
+    }
+    return deriveAddressV2(addressSeed, addressMerkleTreePubkey, programId);
+}
 
 export interface NewAddressParams {
     /**
