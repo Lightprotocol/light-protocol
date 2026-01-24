@@ -63,14 +63,16 @@ pub fn into_compressed_meta_with_address<'info>(
 
 // TODO: consider folding into main fn.
 /// Helper to invoke create_account on heap.
+/// Both the rent_sponsor (funder) and the new account (PDA) need to sign.
 #[inline(never)]
 fn invoke_create_account_with_heap<'info>(
     rent_sponsor: &AccountInfo<'info>,
+    rent_sponsor_seeds: &[&[u8]],
     solana_account: &AccountInfo<'info>,
     rent_minimum_balance: u64,
     space: u64,
     program_id: &Pubkey,
-    seeds: &[&[u8]],
+    pda_seeds: &[&[u8]],
     system_program: &AccountInfo<'info>,
 ) -> Result<(), LightSdkError> {
     let create_account_ix = system_instruction::create_account(
@@ -88,7 +90,7 @@ fn invoke_create_account_with_heap<'info>(
             solana_account.clone(),
             system_program.clone(),
         ],
-        &[seeds],
+        &[rent_sponsor_seeds, pda_seeds],
     )
     .map_err(|e| LightSdkError::ProgramError(e))
 }
@@ -103,8 +105,9 @@ pub fn prepare_account_for_decompression_idempotent<'a, 'info, T>(
     compressed_meta: CompressedAccountMeta,
     solana_account: &AccountInfo<'info>,
     rent_sponsor: &AccountInfo<'info>,
+    rent_sponsor_seeds: &[&[u8]],
     cpi_accounts: &CpiAccounts<'a, 'info>,
-    signer_seeds: &[&[u8]],
+    pda_signer_seeds: &[&[u8]],
 ) -> Result<
     Option<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>,
     LightSdkError,
@@ -138,11 +141,12 @@ where
 
     invoke_create_account_with_heap(
         rent_sponsor,
+        rent_sponsor_seeds,
         solana_account,
         rent_minimum_balance,
         space as u64,
         &cpi_accounts.self_program_id(),
-        signer_seeds,
+        pda_signer_seeds,
         cpi_accounts.system_program()?,
     )?;
 

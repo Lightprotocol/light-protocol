@@ -1,4 +1,4 @@
-use light_sdk_types::{RentSponsor, RentSponsors};
+use light_sdk_types::RentSponsor;
 use solana_pubkey::Pubkey;
 
 #[allow(unused_imports)]
@@ -21,37 +21,18 @@ pub fn get_light_cpi_signer_seeds(program_id: &Pubkey) -> ([Vec<u8>; 2], Pubkey)
     (signer_seeds, pda)
 }
 
-/// Derives a single rent sponsor PDA for a given program and version.
+/// Derives the rent sponsor PDA for a given program (version 1, hardcoded).
 ///
-/// Seeds: ["rent_sponsor", <u16 version little-endian>]
+/// Seeds: ["rent_sponsor", <1u16 little-endian>]
 #[inline]
-pub fn derive_rent_sponsor_pda(program_id: &Pubkey, version: u16) -> (Pubkey, u8) {
-    let version_bytes = version.to_le_bytes();
+pub fn derive_rent_sponsor(program_id: &Pubkey) -> RentSponsor {
+    const VERSION: u16 = 1;
+    let version_bytes = VERSION.to_le_bytes();
     let seeds = &[RENT_SPONSOR_SEED, &version_bytes[..]];
-    Pubkey::find_program_address(seeds, program_id)
-}
-
-/// Derives all 4 rent sponsor PDAs (versions 1-4) for a given program at runtime.
-///
-/// Seeds: ["rent_sponsor", <u16 version little-endian>]
-pub fn derive_rent_sponsors(program_id: &Pubkey) -> RentSponsors {
-    let program_id_bytes = program_id.to_bytes();
-    let mut sponsors = [RentSponsor {
-        program_id: program_id_bytes,
-        rent_sponsor: [0u8; 32],
-        bump: 0,
-        version: 0,
-    }; 4];
-
-    for (i, version) in (1u16..=4u16).enumerate() {
-        let (pda, bump) = derive_rent_sponsor_pda(program_id, version);
-        sponsors[i] = RentSponsor {
-            program_id: program_id_bytes,
-            rent_sponsor: pda.to_bytes(),
-            bump,
-            version,
-        };
+    let (pda, bump) = Pubkey::find_program_address(seeds, program_id);
+    RentSponsor {
+        program_id: program_id.to_bytes(),
+        rent_sponsor: pda.to_bytes(),
+        bump,
     }
-
-    RentSponsors { sponsors }
 }

@@ -339,28 +339,26 @@ pub fn light_account_derive(input: TokenStream) -> TokenStream {
     into_token_stream(light_pdas::account::light_compressible::derive_light_account(input))
 }
 
-/// Derives 4 Rent Sponsor PDAs (versions 1-4) at compile time.
+/// Derives the Rent Sponsor PDA at compile time (version 1, hardcoded).
 ///
-/// Returns a `RentSponsors` struct containing an array of 4 `RentSponsor` entries.
-/// Version 1 is always the default, accessed via `.default()` or index `[0]`.
+/// Returns a `RentSponsor` struct with the PDA address and bump.
 ///
 /// ## Example
 ///
 /// ```ignore
-/// use light_sdk_macros::derive_light_rent_sponsors;
+/// use light_sdk_macros::derive_light_rent_sponsor;
 ///
-/// pub const RENT_SPONSORS: ::light_sdk::sdk_types::RentSponsors =
-///     derive_light_rent_sponsors!("8Ld9pGkCNfU6A7KdKe1YrTNYJWKMCFqVHqmUvjNmER7B");
+/// pub const RENT_SPONSOR: ::light_sdk::sdk_types::RentSponsor =
+///     derive_light_rent_sponsor!("8Ld9pGkCNfU6A7KdKe1YrTNYJWKMCFqVHqmUvjNmER7B");
 ///
-/// // Get default (version 1)
-/// let default_sponsor = RENT_SPONSORS.default();
-///
-/// // Get specific version
-/// let v2_sponsor = RENT_SPONSORS.get(2).unwrap();
+/// // Access the pubkey
+/// let pubkey = Pubkey::from(RENT_SPONSOR.rent_sponsor);
+/// // Access the bump for signing
+/// let bump = RENT_SPONSOR.bump;
 /// ```
 #[proc_macro]
-pub fn derive_light_rent_sponsors(input: TokenStream) -> TokenStream {
-    rent_sponsor::derive_light_rent_sponsors(input)
+pub fn derive_light_rent_sponsor(input: TokenStream) -> TokenStream {
+    rent_sponsor::derive_light_rent_sponsor(input)
 }
 
 /// Generates `LightFinalize` trait implementation for Light Protocol accounts.

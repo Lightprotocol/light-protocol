@@ -21,6 +21,7 @@ pub const DEFAULT_INIT_WRITE_TOP_UP: u32 = 5_000;
 pub struct InitializeCompressionConfigAnchorData {
     pub write_top_up: u32,
     pub rent_sponsor: Pubkey,
+    pub rent_sponsor_bump: u8,
     pub compression_authority: Pubkey,
     pub rent_config: light_compressible::rent::RentConfig,
     pub address_space: Vec<Pubkey>,
@@ -108,6 +109,17 @@ impl InitializeRentFreeConfig {
         let authority = self.authority.unwrap_or(self.fee_payer);
         let (config_pda, _) = LightConfig::derive_pda(&self.program_id, self.config_bump);
 
+        // Derive rent sponsor bump (version 1, hardcoded)
+        let (derived_rent_sponsor, rent_sponsor_bump) = Pubkey::find_program_address(
+            &[b"rent_sponsor", &1u16.to_le_bytes()],
+            &self.program_id,
+        );
+        assert_eq!(
+            derived_rent_sponsor, self.rent_sponsor,
+            "Rent sponsor PDA mismatch: derived {:?} != provided {:?}",
+            derived_rent_sponsor, self.rent_sponsor
+        );
+
         // 1. Transfer to fund rent sponsor PDA
         let transfer_ix = system_instruction::transfer(
             &self.fee_payer,
@@ -130,6 +142,7 @@ impl InitializeRentFreeConfig {
         let instruction_data = InitializeCompressionConfigAnchorData {
             write_top_up: self.write_top_up,
             rent_sponsor: self.rent_sponsor,
+            rent_sponsor_bump,
             compression_authority: self.compression_authority,
             rent_config: self.rent_config,
             address_space: self.address_space,

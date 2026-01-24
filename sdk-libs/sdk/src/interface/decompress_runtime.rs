@@ -71,6 +71,7 @@ pub trait DecompressContext<'info> {
         compressed_accounts: Vec<Self::CompressedData>,
         solana_accounts: &[AccountInfo<'info>],
         seed_params: Option<&Self::SeedParams>,
+        rent_sponsor_seeds: &[&[u8]],
     ) -> Result<(
         Vec<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>,
         Vec<(Self::PackedTokenData, Self::CompressedMeta)>
@@ -128,6 +129,7 @@ pub fn check_account_types<T: HasTokenVariant>(compressed_accounts: &[T]) -> (bo
 #[allow(clippy::too_many_arguments)]
 pub fn handle_packed_pda_variant<'a, 'b, 'info, T, P, A, S>(
     accounts_rent_sponsor: &AccountInfo<'info>,
+    rent_sponsor_seeds: &[&[u8]],
     cpi_accounts: &CpiAccounts<'b, 'info>,
     address_space: Pubkey,
     solana_account: &AccountInfo<'info>,
@@ -193,6 +195,7 @@ where
             ),
             solana_account,
             accounts_rent_sponsor,
+            rent_sponsor_seeds,
             cpi_accounts,
             &seed_refs[..len],
         )?
@@ -223,6 +226,10 @@ where
 {
     let compression_config = crate::interface::LightConfig::load_checked(ctx.config(), program_id)?;
     let address_space = compression_config.address_space[0];
+
+    // Get rent sponsor signer seeds from config
+    let (seed_buf, version_bytes, bump_bytes) = compression_config.rent_sponsor_signer_seeds();
+    let rent_sponsor_seeds: &[&[u8]] = &[&seed_buf, &version_bytes, &bump_bytes];
 
     let (has_tokens, has_pdas) = check_account_types(&compressed_accounts);
 
@@ -266,6 +273,7 @@ where
         compressed_accounts,
         solana_accounts,
         seed_params,
+        rent_sponsor_seeds,
     )?;
 
     let has_pdas = !compressed_pda_infos.is_empty();

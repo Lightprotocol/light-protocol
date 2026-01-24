@@ -185,7 +185,7 @@ pub mod sdk_types {
     pub use light_sdk_types::{
         cpi_accounts::CpiAccountsConfig,
         instruction::{PackedAddressTreeInfo, PackedAddressTreeInfoExt},
-        RentSponsor, RentSponsors,
+        RentSponsor,
     };
 }
 
@@ -206,7 +206,7 @@ pub extern crate light_hasher;
 use light_hasher::DataHasher;
 pub use light_macros::{derive_light_cpi_signer, derive_light_cpi_signer_pda};
 pub use light_sdk_macros::{
-    derive_light_rent_sponsors, LightDiscriminator, LightHasher, LightHasherSha,
+    derive_light_rent_sponsor, LightDiscriminator, LightHasher, LightHasherSha,
 };
 pub use light_sdk_types::{constants, instruction::PackedAddressTreeInfoExt, CpiSigner};
 use solana_account_info::AccountInfo;
