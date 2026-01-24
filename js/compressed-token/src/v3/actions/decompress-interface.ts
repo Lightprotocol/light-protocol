@@ -12,6 +12,7 @@ import {
     dedupeSigner,
     ParsedTokenAccount,
 } from '@lightprotocol/stateless.js';
+import { assertV2Only } from '../assert-v2-only';
 import {
     createAssociatedTokenAccountIdempotentInstruction,
     getAssociatedTokenAddress,
@@ -65,6 +66,9 @@ export async function decompressInterface(
         return null; // Nothing to decompress
     }
 
+    // v3 interface only supports V2 trees
+    assertV2Only(compressedAccounts);
+
     // Calculate total and determine amount
     const totalBalance = compressedAccounts.reduce(
         (sum, acc) => sum + BigInt(acc.parsed.amount.toString()),
@@ -79,7 +83,7 @@ export async function decompressInterface(
         );
     }
 
-    // Select accounts to use (for now, use all - could optimize later)
+    // Select minimum accounts needed for the amount
     const accountsToUse: ParsedTokenAccount[] = [];
     let accumulatedAmount = BigInt(0);
     for (const acc of compressedAccounts) {

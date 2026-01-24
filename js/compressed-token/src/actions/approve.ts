@@ -11,14 +11,12 @@ import {
     buildAndSignTx,
     Rpc,
     dedupeSigner,
-    TreeType,
-    featureFlags,
 } from '@lightprotocol/stateless.js';
 import BN from 'bn.js';
 import { CompressedTokenProgram } from '../program';
 import {
     selectTokenAccountsForApprove,
-    groupAccountsByTreeType,
+    selectAccountsByPreferredTreeType,
 } from '../utils';
 
 /**
@@ -51,37 +49,11 @@ export async function approve(
         },
     );
 
-    // Prefer inputs matching SDK mode (V2 by default), fall back if insufficient
-    const preferredTreeType = featureFlags.isV2()
-        ? TreeType.StateV2
-        : TreeType.StateV1;
-
-    const accountsByTreeType = groupAccountsByTreeType(
+    // Select accounts from preferred tree type (V2 in V2 mode) with fallback
+    const { accounts: accountsToUse } = selectAccountsByPreferredTreeType(
         compressedTokenAccounts.items,
+        amount,
     );
-
-    let accountsToUse = accountsByTreeType.get(preferredTreeType) || [];
-
-    const preferredBalance = accountsToUse.reduce(
-        (sum, acc) => sum.add(acc.parsed.amount),
-        bn(0),
-    );
-
-    if (preferredBalance.lt(amount)) {
-        const fallbackType =
-            preferredTreeType === TreeType.StateV2
-                ? TreeType.StateV1
-                : TreeType.StateV2;
-        const fallbackAccounts = accountsByTreeType.get(fallbackType) || [];
-        const fallbackBalance = fallbackAccounts.reduce(
-            (sum, acc) => sum.add(acc.parsed.amount),
-            bn(0),
-        );
-
-        if (fallbackBalance.gte(amount)) {
-            accountsToUse = fallbackAccounts;
-        }
-    }
 
     const [inputAccounts] = selectTokenAccountsForApprove(
         accountsToUse,

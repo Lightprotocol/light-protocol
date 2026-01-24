@@ -2,6 +2,7 @@ import {
     bn,
     ParsedTokenAccount,
     TreeType,
+    featureFlags,
 } from '@lightprotocol/stateless.js';
 
 import BN from 'bn.js';
@@ -51,7 +52,8 @@ function validateSameTreeType(accounts: ParsedTokenAccount[]): void {
     );
     if (accountsWithTreeInfo.length <= 1) return;
 
-    const firstTreeType = accountsWithTreeInfo[0].compressedAccount.treeInfo.treeType;
+    const firstTreeType =
+        accountsWithTreeInfo[0].compressedAccount.treeInfo.treeType;
     const hasMixedTypes = accountsWithTreeInfo.some(
         acc => acc.compressedAccount.treeInfo.treeType !== firstTreeType,
     );
@@ -77,6 +79,77 @@ export function groupAccountsByTreeType(
     }
 
     return groups;
+}
+
+/**
+ * Result of selectAccountsByPreferredTreeType
+ */
+export interface SelectedAccountsResult {
+    /** The selected accounts (all from the same tree type) */
+    accounts: ParsedTokenAccount[];
+    /** The tree type of the selected accounts */
+    treeType: TreeType;
+    /** Total balance of selected accounts */
+    totalBalance: BN;
+}
+
+/**
+ * Selects accounts by preferred tree type with automatic fallback.
+ *
+ * In V2 mode, prefers StateV2 accounts. Falls back to StateV1 if V2
+ * has insufficient balance.
+ *
+ * This ensures all returned accounts are from the same tree type,
+ * preventing mixed V1/V2 batch proof failures.
+ *
+ * @param accounts All available accounts (can be mixed V1/V2)
+ * @param requiredAmount Minimum amount needed (optional - if not provided, returns all from preferred type)
+ * @returns Selected accounts from a single tree type
+ */
+export function selectAccountsByPreferredTreeType(
+    accounts: ParsedTokenAccount[],
+    requiredAmount?: BN,
+): SelectedAccountsResult {
+    const preferredTreeType = featureFlags.isV2()
+        ? TreeType.StateV2
+        : TreeType.StateV1;
+
+    const accountsByTreeType = groupAccountsByTreeType(accounts);
+
+    // Try preferred tree type first
+    let selectedTreeType = preferredTreeType;
+    let selectedAccounts = accountsByTreeType.get(preferredTreeType) || [];
+    let totalBalance = selectedAccounts.reduce(
+        (sum, acc) => sum.add(acc.parsed.amount),
+        bn(0),
+    );
+
+    // If insufficient balance in preferred type and requiredAmount specified, try fallback
+    if (requiredAmount && totalBalance.lt(requiredAmount)) {
+        const fallbackType =
+            preferredTreeType === TreeType.StateV2
+                ? TreeType.StateV1
+                : TreeType.StateV2;
+        const fallbackAccounts = accountsByTreeType.get(fallbackType) || [];
+        const fallbackBalance = fallbackAccounts.reduce(
+            (sum, acc) => sum.add(acc.parsed.amount),
+            bn(0),
+        );
+
+        if (fallbackBalance.gte(requiredAmount)) {
+            selectedTreeType = fallbackType;
+            selectedAccounts = fallbackAccounts;
+            totalBalance = fallbackBalance;
+        }
+        // If neither type has enough, proceed with preferred type
+        // and let downstream selection throw the insufficient balance error
+    }
+
+    return {
+        accounts: selectedAccounts,
+        treeType: selectedTreeType,
+        totalBalance,
+    };
 }
 
 /**

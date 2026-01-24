@@ -4,9 +4,10 @@ import {
     buildAndSignTx,
     sendAndConfirmTx,
     dedupeSigner,
-    bn,
     ParsedTokenAccount,
+    bn,
 } from '@lightprotocol/stateless.js';
+import { assertV2Only } from '../assert-v2-only';
 import {
     PublicKey,
     TransactionInstruction,
@@ -143,6 +144,15 @@ export async function createLoadAtaInstructions(
 ): Promise<TransactionInstruction[]> {
     payer ??= owner;
 
+    // v3 interface only supports V2 trees - check early before doing work
+    const compressedAccounts = await rpc.getCompressedTokenAccountsByOwner(
+        owner,
+        { mint },
+    );
+    if (compressedAccounts.items.length > 0) {
+        assertV2Only(compressedAccounts.items);
+    }
+
     // Validation happens inside getAtaInterface via checkAtaAddress helper:
     // - Always validates ata matches mint+owner derivation
     // - For wrap=true, additionally requires c-token ATA
@@ -210,6 +220,13 @@ export async function createLoadAtaInstructionsFromInterface(
     const owner = ata._owner;
     const mint = ata._mint;
     const sources = ata._sources ?? [];
+
+    // v3 interface only supports V2 trees - check cold sources early
+    const compressedAccountsToCheck =
+        getCompressedTokenAccountsFromAtaSources(sources);
+    if (compressedAccountsToCheck.length > 0) {
+        assertV2Only(compressedAccountsToCheck);
+    }
 
     // Derive addresses
     const ctokenAtaAddress = getAssociatedTokenAddressInterface(mint, owner);
@@ -344,11 +361,14 @@ export async function createLoadAtaInstructionsFromInterface(
         }
 
         // 4. Decompress compressed tokens to c-token ATA
+        // Note: v3 interface only supports V2 trees
         if (coldBalance > BigInt(0) && ctokenColdSource) {
             const compressedAccounts =
                 getCompressedTokenAccountsFromAtaSources(sources);
 
             if (compressedAccounts.length > 0) {
+                assertV2Only(compressedAccounts);
+
                 const proof = await rpc.getValidityProofV0(
                     compressedAccounts.map(acc => ({
                         hash: acc.compressedAccount.hash,
@@ -378,6 +398,8 @@ export async function createLoadAtaInstructionsFromInterface(
                 getCompressedTokenAccountsFromAtaSources(sources);
 
             if (compressedAccounts.length > 0) {
+                assertV2Only(compressedAccounts);
+
                 const proof = await rpc.getValidityProofV0(
                     compressedAccounts.map(acc => ({
                         hash: acc.compressedAccount.hash,

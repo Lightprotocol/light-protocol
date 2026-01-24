@@ -11,14 +11,12 @@ import {
     buildAndSignTx,
     Rpc,
     dedupeSigner,
-    TreeType,
-    featureFlags,
 } from '@lightprotocol/stateless.js';
 import BN from 'bn.js';
 import { CompressedTokenProgram } from '../program';
 import {
     selectMinCompressedTokenAccountsForTransfer,
-    groupAccountsByTreeType,
+    selectAccountsByPreferredTreeType,
 } from '../utils';
 import {
     selectSplInterfaceInfosForDecompression,
@@ -58,40 +56,11 @@ export async function decompress(
         { mint },
     );
 
-    // Prefer inputs matching SDK mode (V2 by default), fall back if insufficient
-    const preferredTreeType = featureFlags.isV2()
-        ? TreeType.StateV2
-        : TreeType.StateV1;
-
-    // Group accounts by tree type to ensure consistent selection
-    const accountsByTreeType = groupAccountsByTreeType(
+    // Select accounts from preferred tree type (V2 in V2 mode) with fallback
+    const { accounts: accountsToUse } = selectAccountsByPreferredTreeType(
         compressedTokenAccounts.items,
+        amount,
     );
-
-    // Try to select from preferred tree type first
-    let accountsToUse = accountsByTreeType.get(preferredTreeType) || [];
-
-    // If insufficient balance in preferred type, fall back to other type
-    const preferredBalance = accountsToUse.reduce(
-        (sum, acc) => sum.add(acc.parsed.amount),
-        bn(0),
-    );
-
-    if (preferredBalance.lt(amount)) {
-        const fallbackType =
-            preferredTreeType === TreeType.StateV2
-                ? TreeType.StateV1
-                : TreeType.StateV2;
-        const fallbackAccounts = accountsByTreeType.get(fallbackType) || [];
-        const fallbackBalance = fallbackAccounts.reduce(
-            (sum, acc) => sum.add(acc.parsed.amount),
-            bn(0),
-        );
-
-        if (fallbackBalance.gte(amount)) {
-            accountsToUse = fallbackAccounts;
-        }
-    }
 
     const [inputAccounts] = selectMinCompressedTokenAccountsForTransfer(
         accountsToUse,

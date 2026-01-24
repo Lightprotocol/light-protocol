@@ -14,6 +14,7 @@ import {
     dedupeSigner,
     ParsedTokenAccount,
 } from '@lightprotocol/stateless.js';
+import { assertV2Only } from '../assert-v2-only';
 import {
     TOKEN_PROGRAM_ID,
     TOKEN_2022_PROGRAM_ID,
@@ -317,7 +318,10 @@ export async function transferInterface(
     }
 
     // Decompress compressed tokens if they exist
+    // Note: v3 interface only supports V2 trees
     if (compressedBalance > BigInt(0) && compressedAccounts.length > 0) {
+        assertV2Only(compressedAccounts);
+
         const proof = await rpc.getValidityProofV0(
             compressedAccounts.map(acc => ({
                 hash: acc.compressedAccount.hash,

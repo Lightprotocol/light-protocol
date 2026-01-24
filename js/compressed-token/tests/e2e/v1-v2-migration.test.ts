@@ -47,6 +47,7 @@ import {
     compress,
     decompress,
     mergeTokenAccounts,
+    approve,
 } from '../../src/actions';
 import {
     getTokenPoolInfos,
@@ -54,7 +55,10 @@ import {
     selectTokenPoolInfosForDecompression,
     TokenPoolInfo,
 } from '../../src/utils/get-token-pool-infos';
-import { createAssociatedTokenAccount, mintTo as splMintTo } from '@solana/spl-token';
+import {
+    createAssociatedTokenAccount,
+    mintTo as splMintTo,
+} from '@solana/spl-token';
 import { TokenDataVersion } from '../../src/constants';
 
 // Force V2 mode for all tests
@@ -361,10 +365,12 @@ describe('v1-v2-migration', () => {
             await transfer(rpc, payer, mint, bn(600), sender, recipient);
 
             // Sender change is now in V2 tree (auto-migrated)
-            const senderAccounts =
-                await rpc.getCompressedTokenAccountsByOwner(sender.publicKey, {
+            const senderAccounts = await rpc.getCompressedTokenAccountsByOwner(
+                sender.publicKey,
+                {
                     mint,
-                });
+                },
+            );
             expect(senderAccounts.items.length).toBe(1);
             assertAccountInV2Tree(senderAccounts.items[0]);
             expect(senderAccounts.items[0].parsed.amount.eq(bn(400))).toBe(
@@ -425,10 +431,12 @@ describe('v1-v2-migration', () => {
             assertAccountInV2Tree(recipientAccounts.items[0]);
 
             // Sender change is also V2
-            const senderAccounts =
-                await rpc.getCompressedTokenAccountsByOwner(sender.publicKey, {
+            const senderAccounts = await rpc.getCompressedTokenAccountsByOwner(
+                sender.publicKey,
+                {
                     mint,
-                });
+                },
+            );
             expect(senderAccounts.items.length).toBe(1);
             expect(senderAccounts.items[0].parsed.amount.eq(bn(50))).toBe(true);
             assertAccountInV2Tree(senderAccounts.items[0]);
@@ -551,7 +559,9 @@ describe('v1-v2-migration', () => {
                 rpc.getValidityProof(
                     accounts.items.map(a => bn(a.compressedAccount.hash)),
                 ),
-            ).rejects.toThrow('Requested hashes belong to different tree types');
+            ).rejects.toThrow(
+                'Requested hashes belong to different tree types',
+            );
         });
 
         it('transfer with mixed V1+V2 - selects from V2 first (preferred)', async () => {
@@ -584,7 +594,9 @@ describe('v1-v2-migration', () => {
 
             // Recipient should get V2 tokens (preferred type)
             const recipientAccounts =
-                await rpc.getCompressedTokenAccountsByOwner(recipient, { mint });
+                await rpc.getCompressedTokenAccountsByOwner(recipient, {
+                    mint,
+                });
             expect(recipientAccounts.items.length).toBe(1);
             assertAccountInV2Tree(recipientAccounts.items[0]);
         });
@@ -619,7 +631,9 @@ describe('v1-v2-migration', () => {
 
             // Recipient should get V2 tokens (auto-migrated from V1 input)
             const recipientAccounts =
-                await rpc.getCompressedTokenAccountsByOwner(recipient, { mint });
+                await rpc.getCompressedTokenAccountsByOwner(recipient, {
+                    mint,
+                });
             expect(recipientAccounts.items.length).toBe(1);
             assertAccountInV2Tree(recipientAccounts.items[0]);
         });
@@ -872,7 +886,9 @@ describe('v1-v2-migration', () => {
             // Note: merged V1 becomes V2, so we have 2 V2 now
             expect(v2Accounts.length).toBe(2);
             // One is the original 50, other is merged 300
-            const amounts = v2Accounts.map(a => a.parsed.amount.toNumber()).sort((a, b) => a - b);
+            const amounts = v2Accounts
+                .map(a => a.parsed.amount.toNumber())
+                .sort((a, b) => a - b);
             expect(amounts).toEqual([50, 300]);
         });
     });
@@ -1263,7 +1279,9 @@ describe('v1-v2-migration', () => {
                 { mint },
             );
             expect(friend1Accounts.items.length).toBe(1);
-            expect(friend1Accounts.items[0].parsed.amount.eq(bn(100))).toBe(true);
+            expect(friend1Accounts.items[0].parsed.amount.eq(bn(100))).toBe(
+                true,
+            );
             // Friend receives V2 tokens
             assertAccountInV2Tree(friend1Accounts.items[0]);
 
@@ -1276,7 +1294,9 @@ describe('v1-v2-migration', () => {
                 { mint },
             );
             expect(friend2Accounts.items.length).toBe(1);
-            expect(friend2Accounts.items[0].parsed.amount.eq(bn(200))).toBe(true);
+            expect(friend2Accounts.items[0].parsed.amount.eq(bn(200))).toBe(
+                true,
+            );
             // Friend receives V2 tokens
             assertAccountInV2Tree(friend2Accounts.items[0]);
 
@@ -1291,6 +1311,35 @@ describe('v1-v2-migration', () => {
             );
             // 475 - 100 - 200 = 175
             expect(remainingBalance.eq(bn(175))).toBe(true);
+        });
+
+        it('user can use approve with V1 accounts', async () => {
+            const walletOwner = await newAccountWithLamports(rpc, 2e9);
+            const delegate = Keypair.generate();
+
+            // Create V1 tokens
+            await mintTo(
+                rpc,
+                payer,
+                mint,
+                walletOwner.publicKey,
+                mintAuthority,
+                bn(1000),
+                v1TreeInfo,
+                selectTokenPoolInfo(tokenPoolInfos),
+            );
+
+            // Approve should work with V1 accounts (selects V1 since no V2)
+            const sig = await approve(
+                rpc,
+                payer,
+                mint,
+                bn(500),
+                walletOwner,
+                delegate.publicKey,
+            );
+
+            expect(sig).toBeDefined();
         });
 
         it('user can merge V1 accounts to V2 then transfer', async () => {
@@ -1333,12 +1382,14 @@ describe('v1-v2-migration', () => {
             const recipient = Keypair.generate().publicKey;
             await transfer(rpc, payer, mint, bn(250), walletOwner, recipient);
 
-            const recipientAccounts = await rpc.getCompressedTokenAccountsByOwner(
-                recipient,
-                { mint },
-            );
+            const recipientAccounts =
+                await rpc.getCompressedTokenAccountsByOwner(recipient, {
+                    mint,
+                });
             expect(recipientAccounts.items.length).toBe(1);
-            expect(recipientAccounts.items[0].parsed.amount.eq(bn(250))).toBe(true);
+            expect(recipientAccounts.items[0].parsed.amount.eq(bn(250))).toBe(
+                true,
+            );
             assertAccountInV2Tree(recipientAccounts.items[0]);
 
             // Verify change is also V2

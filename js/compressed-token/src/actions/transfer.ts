@@ -11,14 +11,12 @@ import {
     buildAndSignTx,
     Rpc,
     dedupeSigner,
-    TreeType,
-    featureFlags,
 } from '@lightprotocol/stateless.js';
 import BN from 'bn.js';
 import { CompressedTokenProgram } from '../program';
 import {
     selectMinCompressedTokenAccountsForTransfer,
-    groupAccountsByTreeType,
+    selectAccountsByPreferredTreeType,
 } from '../utils';
 
 /**
@@ -53,44 +51,11 @@ export async function transfer(
         { mint },
     );
 
-    // Prefer inputs matching SDK mode (V2 by default), fall back if insufficient
-    const isV2Mode = featureFlags.isV2();
-    const preferredTreeType = isV2Mode ? TreeType.StateV2 : TreeType.StateV1;
-
-    // Group accounts by tree type to ensure consistent selection
-    const accountsByTreeType = groupAccountsByTreeType(
+    // Select accounts from preferred tree type (V2 in V2 mode) with fallback
+    const { accounts: accountsToUse } = selectAccountsByPreferredTreeType(
         compressedTokenAccounts.items,
+        amount,
     );
-
-    // Try to select from preferred tree type first
-    let selectedTreeType = preferredTreeType;
-    let accountsToUse = accountsByTreeType.get(preferredTreeType) || [];
-
-    // If insufficient balance in preferred type, fall back to other type
-    const preferredBalance = accountsToUse.reduce(
-        (sum, acc) => sum.add(acc.parsed.amount),
-        bn(0),
-    );
-
-    if (preferredBalance.lt(amount)) {
-        // Try the other tree type
-        const fallbackType =
-            preferredTreeType === TreeType.StateV2
-                ? TreeType.StateV1
-                : TreeType.StateV2;
-        const fallbackAccounts = accountsByTreeType.get(fallbackType) || [];
-        const fallbackBalance = fallbackAccounts.reduce(
-            (sum, acc) => sum.add(acc.parsed.amount),
-            bn(0),
-        );
-
-        if (fallbackBalance.gte(amount)) {
-            selectedTreeType = fallbackType;
-            accountsToUse = fallbackAccounts;
-        }
-        // If neither type has enough, proceed with preferred type
-        // and let selectMinCompressedTokenAccountsForTransfer throw
-    }
 
     const [inputAccounts] = selectMinCompressedTokenAccountsForTransfer(
         accountsToUse,

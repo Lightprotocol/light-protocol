@@ -12,10 +12,9 @@ import {
     sendAndConfirmTx,
     bn,
     TreeType,
-    featureFlags,
 } from '@lightprotocol/stateless.js';
 import { CompressedTokenProgram } from '../program';
-import { groupAccountsByTreeType } from '../utils';
+import { selectAccountsByPreferredTreeType } from '../utils';
 
 /**
  * Max input accounts per merge.
@@ -65,48 +64,46 @@ export async function mergeTokenAccounts(
         throw new Error('Only one token account exists, nothing to merge');
     }
 
-    // Prefer inputs matching SDK mode (V2 by default), fall back if insufficient
-    const isV2Mode = featureFlags.isV2();
-    const preferredTreeType = isV2Mode ? TreeType.StateV2 : TreeType.StateV1;
+    // Select accounts from preferred tree type (V2 in V2 mode) - for merge need at least 2
+    const { accounts: preferredAccounts, treeType: preferredTreeType } =
+        selectAccountsByPreferredTreeType(compressedTokenAccounts.items);
 
-    // Group accounts by tree type - we can only merge same tree type
-    const accountsByTreeType = groupAccountsByTreeType(
-        compressedTokenAccounts.items,
-    );
-
-    // Select accounts from preferred tree type, fall back to other if needed
+    let selectedAccounts = preferredAccounts;
     let selectedTreeType = preferredTreeType;
-    let accountsToMerge = accountsByTreeType.get(preferredTreeType) || [];
 
-    if (accountsToMerge.length < 2) {
-        // Not enough accounts in preferred type, try the other
+    // For merge, need at least 2 accounts of the same type
+    // If preferred type has < 2, try fallback type
+    if (selectedAccounts.length < 2) {
         const fallbackType =
             preferredTreeType === TreeType.StateV2
                 ? TreeType.StateV1
                 : TreeType.StateV2;
-        const fallbackAccounts = accountsByTreeType.get(fallbackType) || [];
+        const fallbackAccounts = compressedTokenAccounts.items.filter(
+            acc => acc.compressedAccount.treeInfo.treeType === fallbackType,
+        );
 
         if (fallbackAccounts.length >= 2) {
+            selectedAccounts = fallbackAccounts;
             selectedTreeType = fallbackType;
-            accountsToMerge = fallbackAccounts;
-        } else if (accountsToMerge.length === 1 && fallbackAccounts.length === 1) {
+        } else if (
+            selectedAccounts.length === 1 &&
+            fallbackAccounts.length === 1
+        ) {
             // Have 1 V1 and 1 V2 - can't merge mixed types
             throw new Error(
                 'Cannot merge accounts from different tree types (V1/V2). ' +
                     'You have 1 V1 and 1 V2 account - nothing to merge within same type.',
             );
+        } else {
+            throw new Error(
+                `Not enough accounts of the same tree type to merge. ` +
+                    `Found: ${selectedAccounts.length} ${selectedTreeType === TreeType.StateV1 ? 'V1' : 'V2'} accounts.`,
+            );
         }
     }
 
-    if (accountsToMerge.length < 2) {
-        throw new Error(
-            `Not enough accounts of the same tree type to merge. ` +
-                `Found: ${accountsToMerge.length} ${selectedTreeType === TreeType.StateV1 ? 'V1' : 'V2'} accounts.`,
-        );
-    }
-
     // Take up to MAX_MERGE_ACCOUNTS to merge in this transaction
-    const batch = accountsToMerge.slice(0, MAX_MERGE_ACCOUNTS);
+    const batch = selectedAccounts.slice(0, MAX_MERGE_ACCOUNTS);
 
     const proof = await rpc.getValidityProof(
         batch.map(account => bn(account.compressedAccount.hash)),
