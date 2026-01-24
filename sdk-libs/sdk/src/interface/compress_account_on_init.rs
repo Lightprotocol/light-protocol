@@ -1,7 +1,9 @@
 use light_compressed_account::instruction_data::{
-    data::NewAddressParamsAssignedPacked, with_account_info::CompressedAccountInfo,
+    data::NewAddressParamsAssignedPacked,
+    with_account_info::{CompressedAccountInfo, OutAccountInfo},
 };
-use light_hasher::DataHasher;
+use light_compressible::DECOMPRESSED_PDA_DISCRIMINATOR;
+use light_hasher::{sha256::Sha256BE, DataHasher, Hasher};
 use solana_account_info::AccountInfo;
 use solana_msg::msg;
 use solana_pubkey::Pubkey;
@@ -11,6 +13,22 @@ use crate::{
     cpi::v2::CpiAccounts, error::LightSdkError, light_account_checks::AccountInfoTrait,
     AnchorDeserialize, AnchorSerialize, LightDiscriminator, ProgramError,
 };
+
+/// Set output for decompressed PDA format.
+/// Isolated in separate function to reduce stack usage.
+#[inline(never)]
+#[cfg(feature = "v2")]
+fn set_decompressed_pda_output(
+    output: &mut OutAccountInfo,
+    pda_pubkey_bytes: &[u8; 32],
+) -> Result<(), ProgramError> {
+    output.data = pda_pubkey_bytes.to_vec();
+    output.data_hash = Sha256BE::hash(pda_pubkey_bytes)
+        .map_err(LightSdkError::from)
+        .map_err(ProgramError::from)?;
+    output.discriminator = DECOMPRESSED_PDA_DISCRIMINATOR;
+    Ok(())
+}
 
 /// Prepare a compressed account on init.
 ///
@@ -112,5 +130,15 @@ where
         compressed_account.remove_data();
     }
 
-    compressed_account.to_account_info()
+    let mut account_info_result = compressed_account.to_account_info()?;
+
+    // For decompressed PDAs (with_data = false), store the PDA pubkey in data
+    // and set the decompressed discriminator
+    if !with_data {
+        if let Some(output) = account_info_result.output.as_mut() {
+            set_decompressed_pda_output(output, &account_info.key())?;
+        }
+    }
+
+    Ok(account_info_result)
 }

@@ -2,7 +2,7 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use borsh::BorshSerialize;
 use light_compressed_account::instruction_data::data::ZOutputCompressedAccountWithPackedContextMut;
-use light_compressible::rent::get_rent_exemption_lamports;
+use light_compressible::{rent::get_rent_exemption_lamports, DECOMPRESSED_PDA_DISCRIMINATOR};
 use light_hasher::{sha256::Sha256BE, Hasher};
 use light_program_profiler::profile;
 use light_token_interface::{
@@ -50,7 +50,12 @@ pub fn process_output_compressed_account<'a>(
         serialize_decompressed_mint(validated_accounts, accounts_config, &mut compressed_mint)?;
     }
 
-    serialize_compressed_mint(mint_account, compressed_mint, queue_indices)
+    serialize_compressed_mint(
+        mint_account,
+        compressed_mint,
+        queue_indices,
+        validated_accounts,
+    )
 }
 
 #[inline(always)]
@@ -72,6 +77,7 @@ fn serialize_compressed_mint<'a>(
     mint_account: &'a mut ZOutputCompressedAccountWithPackedContextMut<'a>,
     compressed_mint: Mint,
     queue_indices: &QueueIndices,
+    validated_accounts: &MintActionAccounts,
 ) -> Result<(), ProgramError> {
     let compressed_account_data = mint_account
         .compressed_account
@@ -80,17 +86,25 @@ fn serialize_compressed_mint<'a>(
         .ok_or(ErrorCode::MintActionOutputSerializationFailed)?;
 
     let (discriminator, data_hash) = if compressed_mint.metadata.mint_decompressed {
-        if !compressed_account_data.data.is_empty() {
+        // When decompressed, store the PDA pubkey (32 bytes) in the data field
+        if compressed_account_data.data.len() != 32 {
             msg!(
-                "Data allocation for output mint account is wrong: {} (expected) != {} ",
-                0,
+                "Data allocation for decompressed mint account is wrong: 32 (expected) != {}",
                 compressed_account_data.data.len()
             );
             return Err(ProgramError::InvalidAccountData);
         }
-        // Zeroed discriminator and data hash preserve the address
-        // of a closed compressed account without any data.
-        ([0u8; 8], [0u8; 32])
+        let cmint_account = validated_accounts
+            .get_cmint()
+            .ok_or(ErrorCode::CMintNotFound)?;
+        // Store the PDA pubkey in the data field and hash it
+        compressed_account_data
+            .data
+            .copy_from_slice(cmint_account.key());
+        (
+            DECOMPRESSED_PDA_DISCRIMINATOR,
+            Sha256BE::hash(compressed_account_data.data)?,
+        )
     } else {
         let data = compressed_mint
             .try_to_vec()

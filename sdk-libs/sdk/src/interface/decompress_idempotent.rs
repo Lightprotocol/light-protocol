@@ -1,6 +1,10 @@
 #![allow(clippy::all)] // TODO: Remove.
 
-use light_compressed_account::address::derive_address;
+use light_compressed_account::{
+    address::derive_address, instruction_data::with_account_info::OutAccountInfo,
+};
+use light_compressible::DECOMPRESSED_PDA_DISCRIMINATOR;
+use light_hasher::{sha256::Sha256BE, Hasher};
 use light_sdk_types::instruction::account_meta::{
     CompressedAccountMeta, CompressedAccountMetaNoLamportsNoAddress,
 };
@@ -18,6 +22,20 @@ use crate::{
     error::LightSdkError,
     AnchorDeserialize, AnchorSerialize, LightDiscriminator,
 };
+
+/// Set output for decompressed PDA format.
+/// Isolated in separate function to reduce stack usage.
+#[inline(never)]
+#[cfg(feature = "v2")]
+fn set_decompressed_pda_output(
+    output: &mut OutAccountInfo,
+    pda_pubkey_bytes: &[u8; 32],
+) -> Result<(), LightSdkError> {
+    output.data = pda_pubkey_bytes.to_vec();
+    output.data_hash = Sha256BE::hash(pda_pubkey_bytes)?;
+    output.discriminator = DECOMPRESSED_PDA_DISCRIMINATOR;
+    Ok(())
+}
 
 /// Convert a `CompressedAccountMetaNoLamportsNoAddress` to a
 /// `CompressedAccountMeta` by deriving the compressed address from the solana
@@ -141,5 +159,15 @@ where
             LightSdkError::Borsh
         })?;
 
-    Ok(Some(light_account.to_account_info()?))
+    let mut account_info_result = light_account.to_account_info()?;
+
+    // Set output to use decompressed PDA format:
+    // - discriminator: DECOMPRESSED_PDA_DISCRIMINATOR
+    // - data: PDA pubkey (32 bytes)
+    // - data_hash: Sha256BE(pda_pubkey)
+    if let Some(output) = account_info_result.output.as_mut() {
+        set_decompressed_pda_output(output, &solana_account.key.to_bytes())?;
+    }
+
+    Ok(Some(account_info_result))
 }

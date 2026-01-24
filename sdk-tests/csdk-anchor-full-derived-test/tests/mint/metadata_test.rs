@@ -5,7 +5,7 @@ use light_client::interface::{
     decompress_mint::decompress_mint, get_create_accounts_proof, AccountInterfaceExt,
     CreateAccountsProofInput, InitializeRentFreeConfig,
 };
-use light_compressible::rent::SLOTS_PER_EPOCH;
+use light_compressible::{rent::SLOTS_PER_EPOCH, DECOMPRESSED_PDA_DISCRIMINATOR};
 use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest, TestRpc},
     Indexer, ProgramTestConfig, Rpc,
@@ -210,10 +210,16 @@ async fn test_create_mint_with_metadata() {
         "Mint compressed address should be registered"
     );
 
-    // Verify compressed mint account has empty data (decompressed to on-chain)
-    assert!(
-        compressed_mint.data.as_ref().unwrap().data.is_empty(),
-        "Mint compressed data should be empty (decompressed)"
+    // Verify compressed mint account has decompressed PDA format
+    let cmint_data = compressed_mint.data.as_ref().unwrap();
+    assert_eq!(
+        cmint_data.discriminator, DECOMPRESSED_PDA_DISCRIMINATOR,
+        "Decompressed PDA should have DECOMPRESSED_PDA_DISCRIMINATOR"
+    );
+    assert_eq!(
+        cmint_data.data,
+        cmint_pda.to_bytes().to_vec(),
+        "Decompressed PDA data should contain the PDA pubkey"
     );
 
     // Helper functions for lifecycle assertions

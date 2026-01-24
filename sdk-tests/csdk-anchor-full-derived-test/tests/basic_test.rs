@@ -3,7 +3,7 @@ use light_client::interface::{
     get_create_accounts_proof, AccountInterfaceExt, CreateAccountsProofInput,
     InitializeRentFreeConfig,
 };
-use light_compressible::rent::SLOTS_PER_EPOCH;
+use light_compressible::{rent::SLOTS_PER_EPOCH, DECOMPRESSED_PDA_DISCRIMINATOR};
 use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest, TestRpc},
     Indexer, ProgramTestConfig, Rpc,
@@ -235,7 +235,7 @@ async fn test_create_pdas_and_mint_auto() {
     assert_eq!(user_ata_data.owner, payer.pubkey().to_bytes());
     assert_eq!(user_ata_data.amount, user_ata_mint_amount);
 
-    // Verify compressed addresses registered (empty data - decompressed to on-chain)
+    // Verify compressed addresses registered (decompressed PDA: data contains PDA pubkey)
     let compressed_cmint = rpc
         .get_compressed_account(mint_compressed_address, None)
         .await
@@ -243,7 +243,10 @@ async fn test_create_pdas_and_mint_auto() {
         .value
         .unwrap();
     assert_eq!(compressed_cmint.address.unwrap(), mint_compressed_address);
-    assert!(compressed_cmint.data.as_ref().unwrap().data.is_empty());
+    // Decompressed PDAs have DECOMPRESSED_PDA_DISCRIMINATOR and data contains PDA pubkey
+    let cmint_data = compressed_cmint.data.as_ref().unwrap();
+    assert_eq!(cmint_data.discriminator, DECOMPRESSED_PDA_DISCRIMINATOR);
+    assert_eq!(cmint_data.data, mint_pda.to_bytes().to_vec());
 
     // Verify GameSession initial state before compression
     // Fields with compress_as overrides should have their original values
@@ -694,14 +697,16 @@ async fn test_create_two_mints() {
         "Mint B compressed address should be registered"
     );
 
-    // Verify both compressed mint accounts have empty data (decompressed to on-chain)
-    assert!(
-        compressed_mint_a.data.as_ref().unwrap().data.is_empty(),
-        "Mint A compressed data should be empty (decompressed)"
+    // Verify both compressed mint accounts have decompressed PDA format (data contains PDA pubkey)
+    assert_eq!(
+        compressed_mint_a.data.as_ref().unwrap().data,
+        cmint_a_pda.to_bytes(),
+        "Mint A decompressed PDA data should contain the PDA pubkey"
     );
-    assert!(
-        compressed_mint_b.data.as_ref().unwrap().data.is_empty(),
-        "Mint B compressed data should be empty (decompressed)"
+    assert_eq!(
+        compressed_mint_b.data.as_ref().unwrap().data,
+        cmint_b_pda.to_bytes(),
+        "Mint B decompressed PDA data should contain the PDA pubkey"
     );
 }
 

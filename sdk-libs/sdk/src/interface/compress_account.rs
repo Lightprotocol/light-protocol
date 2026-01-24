@@ -1,6 +1,8 @@
-use light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo;
-use light_compressible::rent::AccountRentState;
-use light_hasher::DataHasher;
+use light_compressed_account::instruction_data::with_account_info::{
+    CompressedAccountInfo, InAccountInfo,
+};
+use light_compressible::{rent::AccountRentState, DECOMPRESSED_PDA_DISCRIMINATOR};
+use light_hasher::{sha256::Sha256BE, DataHasher, Hasher};
 use light_sdk_types::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;
 use solana_account_info::AccountInfo;
 use solana_clock::Clock;
@@ -16,6 +18,21 @@ use crate::{
     instruction::account_meta::CompressedAccountMeta,
     AnchorDeserialize, AnchorSerialize, LightDiscriminator, ProgramError,
 };
+
+/// Set input for decompressed PDA format.
+/// Isolated in separate function to reduce stack usage.
+#[inline(never)]
+#[cfg(feature = "v2")]
+fn set_decompressed_pda_input(
+    input: &mut InAccountInfo,
+    pda_pubkey_bytes: &[u8; 32],
+) -> Result<(), ProgramError> {
+    input.data_hash = Sha256BE::hash(pda_pubkey_bytes)
+        .map_err(LightSdkError::from)
+        .map_err(ProgramError::from)?;
+    input.discriminator = DECOMPRESSED_PDA_DISCRIMINATOR;
+    Ok(())
+}
 /// Prepare account for compression.
 ///
 /// # Arguments
@@ -133,5 +150,14 @@ where
         }
     }
 
-    compressed_account.to_account_info()
+    let mut account_info_result = compressed_account.to_account_info()?;
+
+    // Fix input to use the decompressed PDA format:
+    // - discriminator: DECOMPRESSED_PDA_DISCRIMINATOR
+    // - data_hash: Sha256BE(pda_pubkey)
+    if let Some(input) = account_info_result.input.as_mut() {
+        set_decompressed_pda_input(input, &account_info.key.to_bytes())?;
+    }
+
+    Ok(account_info_result)
 }

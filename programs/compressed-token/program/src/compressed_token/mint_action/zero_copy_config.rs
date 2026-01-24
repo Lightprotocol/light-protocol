@@ -99,9 +99,9 @@ pub fn get_zero_copy_configs(
         output_accounts: {
             let mut outputs = ArrayVec::new();
             // First output is always the mint account
-            // When CMint is decompressed, use data_len=0 (zero discriminator & hash)
+            // When CMint is decompressed, use data_len=32 (PDA pubkey stored in data)
             let mint_data_len = if cmint_is_decompressed {
-                0
+                32
             } else {
                 mint_data_len(&output_mint_config)
             };

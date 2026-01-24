@@ -3,6 +3,7 @@ use borsh::BorshSerialize;
 use light_compressed_account::{
     compressed_account::PackedMerkleContext, instruction_data::with_readonly::ZInAccountMut,
 };
+use light_compressible::DECOMPRESSED_PDA_DISCRIMINATOR;
 use light_hasher::{sha256::Sha256BE, Hasher};
 use light_program_profiler::profile;
 use light_token_interface::state::Mint;
@@ -18,7 +19,7 @@ use crate::{
 /// but processes existing compressed mint accounts as inputs.
 ///
 /// Steps:
-/// 1. Determine if CMint is decompressed (use zero values) or data from instruction
+/// 1. Determine if CMint is decompressed (use PDA discriminator and hash) or data from instruction
 /// 2. Set InAccount fields (discriminator, merkle hash, address)
 #[profile]
 pub fn create_input_compressed_mint_account(
@@ -28,9 +29,13 @@ pub fn create_input_compressed_mint_account(
     accounts_config: &AccountsConfig,
     compressed_mint: &Mint,
 ) -> Result<(), ProgramError> {
-    // When CMint was decompressed (input state BEFORE actions), use zero values
+    // When CMint was decompressed (input state BEFORE actions), use PDA discriminator and hash of PDA pubkey
     let (discriminator, input_data_hash) = if accounts_config.cmint_decompressed {
-        ([0u8; 8], [0u8; 32])
+        // The mint pubkey is the CMint PDA - hash it for the data_hash
+        (
+            DECOMPRESSED_PDA_DISCRIMINATOR,
+            Sha256BE::hash(&compressed_mint.metadata.mint.to_bytes())?,
+        )
     } else {
         // Data from instruction - compute hash
         let bytes = compressed_mint
