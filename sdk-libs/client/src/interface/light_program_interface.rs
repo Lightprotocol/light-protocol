@@ -229,6 +229,16 @@ pub trait LightProgramInterface: Sized {
     #[must_use]
     fn program_id(&self) -> Pubkey;
 
+    /// Returns the program's LightConfig PDA.
+    /// Used for PDA decompression instructions.
+    #[must_use]
+    fn light_config_pda(&self) -> Pubkey;
+
+    /// Returns the program's rent sponsor PDA for cPDAs.
+    /// Derived via `derive_light_rent_sponsor_pda!` macro.
+    #[must_use]
+    fn light_rent_sponsor_pda(&self) -> Pubkey;
+
     /// Construct SDK from root account(s).
     fn from_keyed_accounts(accounts: &[AccountInterface]) -> Result<Self, Self::Error>;
 

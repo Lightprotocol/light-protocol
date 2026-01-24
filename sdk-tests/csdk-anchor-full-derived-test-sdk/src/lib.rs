@@ -318,6 +318,14 @@ impl LightProgramInterface for AmmSdk {
         PROGRAM_ID
     }
 
+    fn light_config_pda(&self) -> Pubkey {
+        light_sdk::LightConfig::derive_default_pda(&PROGRAM_ID).0
+    }
+
+    fn light_rent_sponsor_pda(&self) -> Pubkey {
+        csdk_anchor_full_derived_test::program_rent_sponsor()
+    }
+
     fn from_keyed_accounts(accounts: &[AccountInterface]) -> Result<Self, Self::Error> {
         let mut sdk = Self::new();
 

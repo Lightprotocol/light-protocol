@@ -21,7 +21,6 @@ use light_client::interface::{
     CreateAccountsProofInput, InitializeRentFreeConfig, LightProgramInterface,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
-use light_macros::pubkey;
 use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest, TestRpc},
     Indexer, ProgramTestConfig, Rpc,
@@ -35,8 +34,6 @@ use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
-
-const RENT_SPONSOR: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
 
 async fn assert_onchain_exists(rpc: &mut LightProgramTest, pda: &Pubkey) {
     assert!(
@@ -141,11 +138,19 @@ async fn setup() -> AmmTestContext {
     // Setup mock program data and compression config
     let program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
+    // Get program's rent sponsor PDA (derived via derive_light_rent_sponsor_pda! macro)
+    let program_rent_sponsor = csdk_anchor_full_derived_test::program_rent_sponsor();
+
+    // Fund the rent sponsor PDA before config init
+    light_test_utils::airdrop_lamports(&mut rpc, &program_rent_sponsor, 10_000_000_000)
+        .await
+        .unwrap();
+
     let (init_config_ix, config_pda) = InitializeRentFreeConfig::new(
         &program_id,
         &payer.pubkey(),
         &program_data_pda,
-        RENT_SPONSOR,
+        program_rent_sponsor,
         payer.pubkey(),
     )
     .build();
@@ -590,8 +595,8 @@ async fn test_amm_full_lifecycle() {
     let decompress_ixs = create_load_instructions(
         &all_specs,
         ctx.payer.pubkey(),
-        ctx.config_pda,
-        ctx.payer.pubkey(),
+        sdk.light_config_pda(),
+        sdk.light_rent_sponsor_pda(),
         &ctx.rpc,
     )
     .await
