@@ -1,6 +1,8 @@
-use core::ops::{Deref, DerefMut};
+use core::ops::Deref;
 
-use light_zero_copy::{errors::ZeroCopyError, slice::ZeroCopySliceBorsh, traits::ZeroCopyAt};
+use light_zero_copy::{
+    errors::ZeroCopyError, slice::ZeroCopySliceBorsh, traits::ZeroCopyAt, ZeroCopyMut,
+};
 use zerocopy::{
     little_endian::{U16, U32, U64},
     FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned,
@@ -39,7 +41,8 @@ use crate::{
     not(feature = "anchor"),
     derive(borsh::BorshDeserialize, borsh::BorshSerialize)
 )]
-#[derive(Debug, Default, PartialEq, Clone)]
+#[repr(C)]
+#[derive(Debug, Default, PartialEq, Clone, ZeroCopyMut)]
 pub struct InAccountInfo {
     pub discriminator: [u8; 8],
     /// Data hash
@@ -101,7 +104,8 @@ pub struct ZInAccountInfo {
     not(feature = "anchor"),
     derive(borsh::BorshDeserialize, borsh::BorshSerialize)
 )]
-#[derive(Debug, Default, PartialEq, Clone)]
+#[repr(C)]
+#[derive(Debug, Default, PartialEq, Clone, ZeroCopyMut)]
 pub struct OutAccountInfo {
     pub discriminator: [u8; 8],
     /// Data hash
@@ -305,27 +309,6 @@ impl Deref for ZOutAccountInfo<'_> {
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub struct ZOutAccountInfoMut<'a> {
-    meta: Ref<&'a mut [u8], ZOutAccountInfoMeta>,
-    /// Account data.
-    pub data: &'a mut [u8],
-}
-
-impl Deref for ZOutAccountInfoMut<'_> {
-    type Target = ZOutAccountInfoMeta;
-
-    fn deref(&self) -> &Self::Target {
-        &self.meta
-    }
-}
-
-impl DerefMut for ZOutAccountInfoMut<'_> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.meta
-    }
-}
-
 #[cfg_attr(
     all(feature = "std", feature = "anchor"),
     derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
@@ -334,7 +317,8 @@ impl DerefMut for ZOutAccountInfoMut<'_> {
     not(feature = "anchor"),
     derive(borsh::BorshDeserialize, borsh::BorshSerialize)
 )]
-#[derive(Debug, PartialEq, Clone, Default)]
+#[repr(C)]
+#[derive(Debug, PartialEq, Clone, Default, ZeroCopyMut)]
 pub struct CompressedAccountInfo {
     /// Address.
     pub address: Option<[u8; 32]>,
@@ -383,7 +367,8 @@ impl<'a> CompressedAccountInfo {
     not(feature = "anchor"),
     derive(borsh::BorshDeserialize, borsh::BorshSerialize)
 )]
-#[derive(Debug, PartialEq, Default, Clone)]
+#[repr(C)]
+#[derive(Debug, PartialEq, Default, Clone, ZeroCopyMut)]
 pub struct InstructionDataInvokeCpiWithAccountInfo {
     /// 0 V1 instruction accounts.
     /// 1 Optimized V2 instruction accounts.
