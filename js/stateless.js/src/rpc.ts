@@ -91,6 +91,7 @@ import {
     batchAddressTree,
     CTOKEN_PROGRAM_ID,
     getDefaultAddressSpace,
+    assertBetaEnabled,
 } from './constants';
 import { setDevnetCompat } from './devnet-compat';
 import BN from 'bn.js';
@@ -2118,9 +2119,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         isCold: boolean;
         loadContext?: MerkleContext;
     } | null> {
-        if (!featureFlags.isV2()) {
-            throw new Error('getAccountInfoInterface requires feature flag V2');
-        }
+        assertBetaEnabled();
 
         addressSpace = addressSpace ?? getDefaultAddressSpace();
 
@@ -2208,6 +2207,8 @@ export class Rpc extends Connection implements CompressionApiInterface {
         options?: SignaturesForAddressOptions,
         compressedOptions?: PaginatedOptions,
     ): Promise<SignaturesForAddressInterfaceResult> {
+        assertBetaEnabled();
+
         const [solanaResult, compressedResult] = await Promise.allSettled([
             this.getSignaturesForAddress(address, options),
             this.getCompressionSignaturesForAddress(address, compressedOptions),
@@ -2245,6 +2246,8 @@ export class Rpc extends Connection implements CompressionApiInterface {
         options?: SignaturesForAddressOptions,
         compressedOptions?: PaginatedOptions,
     ): Promise<SignaturesForAddressInterfaceResult> {
+        assertBetaEnabled();
+
         const [solanaResult, compressedResult] = await Promise.allSettled([
             this.getSignaturesForAddress(owner, options),
             this.getCompressionSignaturesForOwner(owner, compressedOptions),
@@ -2285,6 +2288,8 @@ export class Rpc extends Connection implements CompressionApiInterface {
         mint: PublicKey,
         commitment?: Commitment,
     ): Promise<UnifiedTokenBalance> {
+        assertBetaEnabled();
+
         const [onChainResult, compressedResult] = await Promise.allSettled([
             this.getTokenAccountBalance(address, commitment),
             this.getCompressedTokenBalancesByOwner(owner, { mint }),
@@ -2334,6 +2339,8 @@ export class Rpc extends Connection implements CompressionApiInterface {
         address: PublicKey,
         commitment?: Commitment,
     ): Promise<UnifiedBalance> {
+        assertBetaEnabled();
+
         const [onChainResult, compressedResult] = await Promise.allSettled([
             this.getBalance(address, commitment),
             this.getCompressedBalanceByOwner(address),

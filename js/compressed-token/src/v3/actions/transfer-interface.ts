@@ -13,6 +13,7 @@ import {
     CTOKEN_PROGRAM_ID,
     dedupeSigner,
     ParsedTokenAccount,
+    assertBetaEnabled,
 } from '@lightprotocol/stateless.js';
 import { assertV2Only } from '../assert-v2-only';
 import {
@@ -106,6 +107,8 @@ export async function transferInterface(
     options?: InterfaceOptions,
     wrap = false,
 ): Promise<TransactionSignature> {
+    assertBetaEnabled();
+
     const amountBigInt = BigInt(amount.toString());
     const { splInterfaceInfos: providedSplInterfaceInfos } = options ?? {};
 

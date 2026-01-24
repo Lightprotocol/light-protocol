@@ -11,6 +11,7 @@ import {
     sendAndConfirmTx,
     dedupeSigner,
     ParsedTokenAccount,
+    assertBetaEnabled,
 } from '@lightprotocol/stateless.js';
 import { assertV2Only } from '../assert-v2-only';
 import {
@@ -52,6 +53,8 @@ export async function decompressInterface(
     splInterfaceInfo?: SplInterfaceInfo,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature | null> {
+    assertBetaEnabled();
+
     // Determine if this is SPL or c-token destination
     const isSplDestination = splInterfaceInfo !== undefined;
 

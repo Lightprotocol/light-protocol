@@ -12,6 +12,7 @@ import {
     DerivationMode,
     bn,
     CTOKEN_PROGRAM_ID,
+    assertBetaEnabled,
 } from '@lightprotocol/stateless.js';
 import {
     createUpdateMintAuthorityInstruction,
@@ -37,6 +38,8 @@ export async function updateMintAuthority(
     newMintAuthority: PublicKey | null,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
+    assertBetaEnabled();
+
     const mintInterface = await getMintInterface(
         rpc,
         mint,
@@ -104,6 +107,8 @@ export async function updateFreezeAuthority(
     newFreezeAuthority: PublicKey | null,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
+    assertBetaEnabled();
+
     const mintInterface = await getMintInterface(
         rpc,
         mint,

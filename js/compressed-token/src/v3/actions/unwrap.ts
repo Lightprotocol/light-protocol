@@ -10,6 +10,7 @@ import {
     buildAndSignTx,
     sendAndConfirmTx,
     dedupeSigner,
+    assertBetaEnabled,
 } from '@lightprotocol/stateless.js';
 import { getMint } from '@solana/spl-token';
 import BN from 'bn.js';
@@ -45,6 +46,8 @@ export async function unwrap(
     splInterfaceInfo?: SplInterfaceInfo,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
+    assertBetaEnabled();
+
     // 1. Get SPL interface info if not provided
     let resolvedSplInterfaceInfo = splInterfaceInfo;
     if (!resolvedSplInterfaceInfo) {

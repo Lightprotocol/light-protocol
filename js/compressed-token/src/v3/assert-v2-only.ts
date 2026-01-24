@@ -1,4 +1,11 @@
-import { ParsedTokenAccount, TreeType } from '@lightprotocol/stateless.js';
+import {
+    ParsedTokenAccount,
+    TreeType,
+    assertBetaEnabled,
+} from '@lightprotocol/stateless.js';
+
+// Re-export for convenience
+export { assertBetaEnabled };
 
 /**
  * Throws if any V1 compressed accounts are present.

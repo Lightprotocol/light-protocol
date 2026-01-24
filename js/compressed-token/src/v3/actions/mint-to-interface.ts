@@ -11,6 +11,7 @@ import {
     sendAndConfirmTx,
     DerivationMode,
     bn,
+    assertBetaEnabled,
 } from '@lightprotocol/stateless.js';
 import { createMintToInterfaceInstruction } from '../instructions/mint-to-interface';
 import { getMintInterface } from '../get-mint-interface';
@@ -45,6 +46,8 @@ export async function mintToInterface(
     confirmOptions?: ConfirmOptions,
     programId?: PublicKey,
 ): Promise<TransactionSignature> {
+    assertBetaEnabled();
+
     // Fetch mint interface (auto-detects program type if not provided)
     const mintInterface = await getMintInterface(
         rpc,

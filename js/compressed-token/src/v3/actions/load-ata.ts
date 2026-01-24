@@ -6,6 +6,7 @@ import {
     dedupeSigner,
     ParsedTokenAccount,
     bn,
+    assertBetaEnabled,
 } from '@lightprotocol/stateless.js';
 import { assertV2Only } from '../assert-v2-only';
 import {
@@ -142,6 +143,8 @@ export async function createLoadAtaInstructions(
     options?: InterfaceOptions,
     wrap = false,
 ): Promise<TransactionInstruction[]> {
+    assertBetaEnabled();
+
     payer ??= owner;
 
     // Validation happens inside getAtaInterface via checkAtaAddress helper:
@@ -511,6 +514,8 @@ export async function loadAta(
     interfaceOptions?: InterfaceOptions,
     wrap = false,
 ): Promise<TransactionSignature | null> {
+    assertBetaEnabled();
+
     payer ??= owner;
 
     const ixs = await createLoadAtaInstructions(
