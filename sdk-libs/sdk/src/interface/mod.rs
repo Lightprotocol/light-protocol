@@ -34,13 +34,20 @@ pub use config::{
     process_update_light_config, LightConfig, COMPRESSIBLE_CONFIG_SEED,
     MAX_ADDRESS_TREES_PER_SPACE,
 };
+#[cfg(all(feature = "v2", feature = "cpi-context"))]
+pub use decompress_idempotent::derive_verify_create_and_write_pda;
 #[cfg(feature = "v2")]
 pub use decompress_idempotent::{
     into_compressed_meta_with_address, prepare_account_for_decompression_idempotent,
+    prepare_account_for_decompression_with_vec_seeds, verify_pda_match, MAX_SEEDS,
 };
 #[cfg(all(feature = "v2", feature = "cpi-context"))]
 pub use decompress_runtime::{
-    check_account_types, handle_packed_pda_variant, process_decompress_accounts_idempotent,
+    build_decompression_cpi_config, check_account_types, process_decompress_accounts_idempotent,
     DecompressContext, HasTokenVariant, PdaSeedDerivation, TokenSeedProvider,
+    MAX_DECOMPRESS_ACCOUNTS, PDA_OUTPUT_DATA_LEN,
 };
+// Re-export ZCompressedAccountInfoMut for use in macro-generated code
+#[cfg(all(feature = "v2", feature = "cpi-context"))]
+pub use light_compressed_account::instruction_data::with_account_info::ZCompressedAccountInfoMut;
 pub use light_compressible::{rent, CreateAccountsProof};

@@ -1,27 +1,35 @@
 //! Traits and processor for decompress_accounts_idempotent instruction.
+//!
+//! This module implements a zero-allocation two-pass approach for PDA decompression:
+//! - Pass 1: Count PDAs, collect pda_indices, collect tokens
+//! - Pass 2: Allocate CPI buffer, create PDAs, write directly to zero-copy buffer
+//!
+//! Stack usage is minimal (~128 bytes for pda_indices array).
 use light_compressed_account::{
     discriminators::INVOKE_CPI_WITH_ACCOUNT_INFO_INSTRUCTION,
     instruction_data::{
         compressed_proof::CompressedProof,
         cpi_context::CompressedCpiContext,
         with_account_info::{
-            CompressedAccountInfo, CompressedAccountInfoConfig, InAccountInfoConfig,
+            CompressedAccountInfoConfig, InAccountInfoConfig,
             InstructionDataInvokeCpiWithAccountInfo, InstructionDataInvokeCpiWithAccountInfoConfig,
-            OutAccountInfoConfig,
+            OutAccountInfoConfig, ZCompressedAccountInfoMut,
         },
     },
 };
 use light_sdk_types::{
-    cpi_accounts::CpiAccountsConfig, cpi_context_write::CpiContextWriteAccounts,
-    instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress, CpiSigner,
+    cpi_accounts::CpiAccountsConfig, cpi_context_write::CpiContextWriteAccounts, CpiSigner,
 };
 use light_zero_copy::{traits::ZeroCopyAtMut, ZeroCopyNew};
 use solana_account_info::AccountInfo;
-use solana_msg::msg;
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-use crate::{cpi::v2::CpiAccounts, AnchorDeserialize, AnchorSerialize, LightDiscriminator};
+use crate::cpi::v2::CpiAccounts;
+
+/// Maximum number of accounts that can be decompressed in a single instruction.
+/// Stack usage: pda_indices[usize; 16] = 128 bytes
+pub const MAX_DECOMPRESS_ACCOUNTS: usize = 16;
 
 /// Trait for account variants that can be checked for token or PDA type.
 pub trait HasTokenVariant {
@@ -44,7 +52,11 @@ pub trait TokenSeedProvider: Copy {
     ) -> Result<(Vec<Vec<u8>>, Pubkey), ProgramError>;
 }
 
-/// Context trait for decompression.
+/// Context trait for decompression with zero-allocation two-pass approach.
+///
+/// The trait provides two key methods for the two-pass approach:
+/// - `collect_layout_and_tokens`: Pass 1 - count PDAs, collect output_data_lens, collect tokens
+/// - `create_and_write_pda`: Pass 2 - create PDA on Solana, write to zero-copy buffer
 pub trait DecompressContext<'info> {
     /// The compressed account data type (wraps program's variant enum)
     type CompressedData: HasTokenVariant;
@@ -67,20 +79,57 @@ pub trait DecompressContext<'info> {
     fn token_cpi_authority(&self) -> Option<&AccountInfo<'info>>;
     fn token_config(&self) -> Option<&AccountInfo<'info>>;
 
-    /// Collect and unpack compressed accounts into PDAs and tokens.
+    /// Pass 1: Count non-initialized PDAs and collect tokens.
+    ///
+    /// Iterates through compressed accounts and:
+    /// - For each PDA: checks if already initialized, if not: stores index in pda_indices
+    /// - For each token: collects into the returned Vec
+    ///
+    /// # Arguments
+    /// * `compressed_accounts` - The compressed accounts to process
+    /// * `solana_accounts` - The corresponding Solana accounts (to check if already initialized)
+    /// * `pda_indices` - Array to fill with indices of PDAs that need decompression
+    ///
+    /// # Returns
+    /// * `pda_count` - Number of PDAs that need decompression (not already initialized)
+    /// * `tokens` - Vec of (PackedTokenData, CompressedMeta) for token accounts
     #[allow(clippy::type_complexity)]
+    fn collect_layout_and_tokens(
+        &self,
+        compressed_accounts: &[Self::CompressedData],
+        solana_accounts: &[AccountInfo<'info>],
+        pda_indices: &mut [usize; MAX_DECOMPRESS_ACCOUNTS],
+    ) -> Result<(usize, Vec<(Self::PackedTokenData, Self::CompressedMeta)>), ProgramError>;
+
+    /// Pass 2: Create single PDA on Solana and write directly to zero-copy buffer.
+    ///
+    /// This method:
+    /// 1. Unpacks the compressed data to get the account state
+    /// 2. Derives PDA seeds and verifies against solana_account
+    /// 3. Creates the PDA account on Solana (via create_account CPI)
+    /// 4. Writes address, input, and output directly to the zero-copy buffer
+    ///
+    /// # Arguments
+    /// * `cpi_accounts` - CPI accounts for system program calls
+    /// * `address_space` - The address space for deriving compressed addresses
+    /// * `compressed_data` - The compressed account data to decompress (includes meta)
+    /// * `solana_account` - The target Solana PDA account
+    /// * `seed_params` - Optional seed parameters for PDA derivation
+    /// * `zc_info` - Mutable reference to zero-copy buffer to write directly into
+    ///
+    /// # Returns
+    /// * `true` if PDA was created and written
+    /// * `false` if account was already initialized (idempotent skip)
     #[allow(clippy::too_many_arguments)]
-    fn collect_pda_and_token<'b>(
+    fn create_and_write_pda<'b, 'c>(
         &self,
         cpi_accounts: &CpiAccounts<'b, 'info>,
-        address_space: Pubkey,
-        compressed_accounts: Vec<Self::CompressedData>,
-        solana_accounts: &[AccountInfo<'info>],
+        address_space: &Pubkey,
+        compressed_data: &Self::CompressedData,
+        solana_account: &AccountInfo<'info>,
         seed_params: Option<&Self::SeedParams>,
-    ) -> Result<(
-        Vec<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>,
-        Vec<(Self::PackedTokenData, Self::CompressedMeta)>
-    ), ProgramError>;
+        zc_info: &mut ZCompressedAccountInfoMut<'c>,
+    ) -> Result<bool, ProgramError>;
 
     /// Process token decompression.
     #[allow(clippy::too_many_arguments)]
@@ -111,74 +160,36 @@ pub trait PdaSeedDerivation<A, S> {
     ) -> Result<(Vec<Vec<u8>>, Pubkey), ProgramError>;
 }
 
-/// Configuration for a single account in the decompress CPI.
-/// Used to build `CompressedAccountInfoConfig` for zero-copy allocation.
-#[derive(Debug, Clone, Copy)]
-pub struct DecompressAccountConfig {
-    /// Whether the account has an address
-    pub has_address: bool,
-    /// Whether the account has an input (being nullified)
-    pub has_input: bool,
-    /// Whether the account has an output (being created)
-    pub has_output: bool,
-    /// Length of output data (only used if has_output is true)
-    pub output_data_len: u32,
-}
+/// Output data length for decompressed PDAs (always 32 bytes = PDA pubkey).
+pub const PDA_OUTPUT_DATA_LEN: u32 = 32;
 
-impl DecompressAccountConfig {
-    /// Create config for a decompression account (has both input and output with address)
-    pub fn decompress(output_data_len: u32) -> Self {
-        Self {
-            has_address: true,
-            has_input: true,
-            has_output: true,
-            output_data_len,
-        }
-    }
-
-    /// Create config for input-only account
-    pub fn input_only(has_address: bool) -> Self {
-        Self {
-            has_address,
-            has_input: true,
-            has_output: false,
-            output_data_len: 0,
-        }
-    }
-
-    /// Create config for output-only account
-    pub fn output_only(has_address: bool, output_data_len: u32) -> Self {
-        Self {
-            has_address,
-            has_input: false,
-            has_output: true,
-            output_data_len,
-        }
-    }
-}
-
-/// Build the CPI config for decompression.
+/// Build CPI config for PDA decompression.
+///
+/// For PDA decompression, all accounts have identical config structure:
+/// - has_address: true
+/// - has_input: true
+/// - has_output: true
+/// - output_data_len: 32 (PDA pubkey)
 ///
 /// # Arguments
-/// * `account_configs` - Configuration for each account (address, input, output)
+/// * `pda_count` - Number of PDAs to decompress
 /// * `has_proof` - Whether a validity proof is included
 ///
 /// # Returns
 /// `InstructionDataInvokeCpiWithAccountInfoConfig` ready for `byte_len()` and `new_zero_copy()`
 #[inline(never)]
-pub fn build_decompress_cpi_config(
-    account_configs: &[DecompressAccountConfig],
+pub fn build_decompression_cpi_config(
+    pda_count: usize,
     has_proof: bool,
 ) -> InstructionDataInvokeCpiWithAccountInfoConfig {
-    let account_infos = account_configs
-        .iter()
-        .map(|cfg| CompressedAccountInfoConfig {
-            address: (cfg.has_address, ()),
-            input: (cfg.has_input, InAccountInfoConfig { merkle_context: () }),
+    let account_infos = (0..pda_count)
+        .map(|_| CompressedAccountInfoConfig {
+            address: (true, ()),
+            input: (true, InAccountInfoConfig { merkle_context: () }),
             output: (
-                cfg.has_output,
+                true,
                 OutAccountInfoConfig {
-                    data: cfg.output_data_len,
+                    data: PDA_OUTPUT_DATA_LEN,
                 },
             ),
         })
@@ -192,109 +203,6 @@ pub fn build_decompress_cpi_config(
         read_only_addresses: vec![],
         read_only_accounts: vec![],
     }
-}
-
-/// Build config from collected CompressedAccountInfo list.
-///
-/// This is a convenience function that extracts config metadata from
-/// an existing list of CompressedAccountInfo.
-#[inline(never)]
-pub fn build_config_from_account_infos(
-    account_infos: &[CompressedAccountInfo],
-    has_proof: bool,
-) -> InstructionDataInvokeCpiWithAccountInfoConfig {
-    let configs: Vec<DecompressAccountConfig> = account_infos
-        .iter()
-        .map(|info| DecompressAccountConfig {
-            has_address: info.address.is_some(),
-            has_input: info.input.is_some(),
-            has_output: info.output.is_some(),
-            output_data_len: info
-                .output
-                .as_ref()
-                .map(|o| o.data.len() as u32)
-                .unwrap_or(0),
-        })
-        .collect();
-
-    build_decompress_cpi_config(&configs, has_proof)
-}
-
-/// Populate a zero-copy mutable struct from collected CompressedAccountInfo.
-///
-/// This copies data from the collected `CompressedAccountInfo` list into
-/// the zero-copy mutable struct fields.
-#[inline(never)]
-pub fn populate_zero_copy_cpi<'a>(
-    cpi_struct: &mut <InstructionDataInvokeCpiWithAccountInfo as ZeroCopyAtMut<'a>>::ZeroCopyAtMut,
-    bump: u8,
-    invoking_program_id: &Pubkey,
-    proof: Option<&CompressedProof>,
-    cpi_context: &CompressedCpiContext,
-    with_cpi_context: bool,
-    account_infos: &[CompressedAccountInfo],
-) -> Result<(), ProgramError> {
-    // Set meta fields via DerefMut
-    cpi_struct.mode = 1; // V2 mode
-    cpi_struct.bump = bump;
-    cpi_struct.invoking_program_id = (*invoking_program_id).into();
-    cpi_struct.compress_or_decompress_lamports = 0u64.into();
-    cpi_struct.is_compress = 0; // false
-    cpi_struct.with_cpi_context = with_cpi_context as u8;
-    cpi_struct.with_transaction_hash = 0; // false
-
-    // Set CPI context
-    cpi_struct.cpi_context.cpi_context_account_index = cpi_context.cpi_context_account_index;
-    cpi_struct.cpi_context.first_set_context = cpi_context.first_set_context as u8;
-    cpi_struct.cpi_context.set_context = cpi_context.set_context as u8;
-
-    // Set proof if present
-    if let Some(input_proof) = proof {
-        if let Some(ref mut proof_ref) = cpi_struct.proof {
-            proof_ref.a = input_proof.a;
-            proof_ref.b = input_proof.b;
-            proof_ref.c = input_proof.c;
-        }
-    }
-
-    // Populate account_infos
-    let zc_account_infos = cpi_struct.account_infos.as_mut_slice();
-    for (i, info) in account_infos.iter().enumerate() {
-        let zc_info = &mut zc_account_infos[i];
-
-        // Set address if present
-        if let (Some(addr), Some(ref mut zc_addr)) = (&info.address, &mut zc_info.address) {
-            zc_addr.copy_from_slice(addr);
-        }
-
-        // Set input if present
-        if let (Some(input), Some(ref mut zc_input)) = (&info.input, &mut zc_info.input) {
-            zc_input.discriminator = input.discriminator;
-            zc_input.data_hash = input.data_hash;
-            // Set merkle_context fields
-            zc_input.merkle_context.merkle_tree_pubkey_index =
-                input.merkle_context.merkle_tree_pubkey_index;
-            zc_input.merkle_context.queue_pubkey_index = input.merkle_context.queue_pubkey_index;
-            zc_input
-                .merkle_context
-                .leaf_index
-                .set(input.merkle_context.leaf_index);
-            zc_input.merkle_context.prove_by_index = input.merkle_context.prove_by_index as u8;
-            zc_input.root_index.set(input.root_index);
-            zc_input.lamports.set(input.lamports);
-        }
-
-        // Set output if present
-        if let (Some(output), Some(ref mut zc_output)) = (&info.output, &mut zc_info.output) {
-            zc_output.discriminator = output.discriminator;
-            zc_output.data_hash = output.data_hash;
-            zc_output.output_merkle_tree_index = output.output_merkle_tree_index;
-            zc_output.lamports.set(output.lamports);
-            zc_output.data.copy_from_slice(&output.data);
-        }
-    }
-
-    Ok(())
 }
 
 /// Allocate CPI instruction bytes with discriminator.
@@ -315,67 +223,46 @@ pub fn allocate_decompress_cpi_bytes(
     Ok(cpi_bytes)
 }
 
-/// Execute CPI to light-system-program with pre-populated instruction bytes.
-///
-/// This is the SDK version of the zero-copy CPI pattern. It takes pre-allocated
-/// and populated CPI bytes and invokes the Light system program.
-///
-/// # Arguments
-/// * `cpi_accounts` - The CPI accounts struct
-/// * `cpi_bytes` - Pre-allocated and populated instruction bytes (with discriminator)
-/// * `bump` - The CPI authority bump seed
-///
-/// # Returns
-/// `Result<(), ProgramError>` - Success or error from the CPI call
+/// Core CPI invocation to light-system-program.
+/// Shared by both direct execution and CPI context write paths.
 #[inline(never)]
-pub fn execute_cpi_invoke_sdk<'info>(
-    cpi_accounts: &CpiAccounts<'_, 'info>,
+fn invoke_light_system_cpi(
+    account_metas: Vec<crate::AccountMeta>,
+    account_infos: &[AccountInfo<'_>],
     cpi_bytes: Vec<u8>,
     bump: u8,
 ) -> Result<(), ProgramError> {
     use light_sdk_types::constants::{CPI_AUTHORITY_PDA_SEED, LIGHT_SYSTEM_PROGRAM_ID};
 
-    // Verify bump is set (basic sanity check)
-    if cpi_bytes.len() < 10 || cpi_bytes[9] == 0 {
-        msg!("Bump not set in cpi struct.");
-        return Err(ProgramError::InvalidInstructionData);
-    }
-
-    // Get account metas and infos from CpiAccounts
-    let account_metas = crate::cpi::v2::lowlevel::to_account_metas(cpi_accounts)?;
-    let account_infos = cpi_accounts.to_account_infos();
-
-    // Build instruction with raw bytes
     let instruction = solana_instruction::Instruction {
         program_id: LIGHT_SYSTEM_PROGRAM_ID.into(),
         accounts: account_metas,
         data: cpi_bytes,
     };
 
-    // Invoke with PDA signer
     let signer_seeds = [CPI_AUTHORITY_PDA_SEED, &[bump]];
-    solana_cpi::invoke_signed(&instruction, &account_infos, &[signer_seeds.as_slice()])
+    solana_cpi::invoke_signed(&instruction, account_infos, &[signer_seeds.as_slice()])
 }
 
-/// Execute CPI to write to CPI context.
-///
-/// This is used when PDAs and tokens both need to be processed - PDAs write
-/// to CPI context first, then tokens execute and consume the context.
+/// Execute CPI to light-system-program with full account set.
+#[inline(never)]
+pub fn execute_cpi_invoke_sdk<'info>(
+    cpi_accounts: &CpiAccounts<'_, 'info>,
+    cpi_bytes: Vec<u8>,
+    bump: u8,
+) -> Result<(), ProgramError> {
+    let account_metas = crate::cpi::v2::lowlevel::to_account_metas(cpi_accounts)?;
+    let account_infos = cpi_accounts.to_account_infos();
+    invoke_light_system_cpi(account_metas, &account_infos, cpi_bytes, bump)
+}
+
+/// Execute CPI to write to CPI context (minimal accounts).
 #[inline(never)]
 pub fn execute_cpi_write_to_context<'info>(
     accounts: &CpiContextWriteAccounts<'_, AccountInfo<'info>>,
     cpi_bytes: Vec<u8>,
     bump: u8,
 ) -> Result<(), ProgramError> {
-    use light_sdk_types::constants::{CPI_AUTHORITY_PDA_SEED, LIGHT_SYSTEM_PROGRAM_ID};
-
-    // Verify bump is set
-    if cpi_bytes.len() < 10 || cpi_bytes[9] == 0 {
-        msg!("Bump not set in cpi struct.");
-        return Err(ProgramError::InvalidInstructionData);
-    }
-
-    // Build minimal account metas for CPI context write
     let account_metas = vec![
         crate::AccountMeta {
             pubkey: *accounts.fee_payer.key,
@@ -393,61 +280,12 @@ pub fn execute_cpi_write_to_context<'info>(
             is_signer: false,
         },
     ];
-
     let account_infos = [
         accounts.fee_payer.clone(),
         accounts.authority.clone(),
         accounts.cpi_context.clone(),
     ];
-
-    let instruction = solana_instruction::Instruction {
-        program_id: LIGHT_SYSTEM_PROGRAM_ID.into(),
-        accounts: account_metas,
-        data: cpi_bytes,
-    };
-
-    let signer_seeds = [CPI_AUTHORITY_PDA_SEED, &[bump]];
-    solana_cpi::invoke_signed(&instruction, &account_infos, &[signer_seeds.as_slice()])
-}
-
-/// Execute CPI using zero-copy pattern for PDA decompression.
-///
-/// This function builds the config, allocates bytes, populates the zero-copy
-/// struct, and executes the CPI in one call.
-#[inline(never)]
-pub fn invoke_zero_copy_cpi<'info>(
-    cpi_accounts: &CpiAccounts<'_, 'info>,
-    bump: u8,
-    invoking_program_id: &Pubkey,
-    proof: Option<&CompressedProof>,
-    cpi_context: &CompressedCpiContext,
-    with_cpi_context: bool,
-    account_infos: &[CompressedAccountInfo],
-) -> Result<(), ProgramError> {
-    // Build config from collected account infos
-    let config = build_config_from_account_infos(account_infos, proof.is_some());
-
-    // Allocate CPI bytes
-    let mut cpi_bytes = allocate_decompress_cpi_bytes(&config)?;
-
-    // Get zero-copy mutable struct
-    let (mut cpi_struct, _remaining) =
-        InstructionDataInvokeCpiWithAccountInfo::new_zero_copy(&mut cpi_bytes[8..], config)
-            .map_err(|_| ProgramError::InvalidAccountData)?;
-
-    // Populate the struct
-    populate_zero_copy_cpi(
-        &mut cpi_struct,
-        bump,
-        invoking_program_id,
-        proof,
-        cpi_context,
-        with_cpi_context,
-        account_infos,
-    )?;
-
-    // Execute CPI
-    execute_cpi_invoke_sdk(cpi_accounts, cpi_bytes, bump)
+    invoke_light_system_cpi(account_metas, &account_infos, cpi_bytes, bump)
 }
 
 /// Check what types of accounts are in the batch.
@@ -468,89 +306,50 @@ pub fn check_account_types<T: HasTokenVariant>(compressed_accounts: &[T]) -> (bo
     (has_tokens, has_pdas)
 }
 
-/// Handler for unpacking and preparing a single PDA variant for decompression.
+/// Populate CPI struct metadata (mode, bump, program_id, proof, cpi_context).
 #[inline(never)]
-#[allow(clippy::too_many_arguments)]
-pub fn handle_packed_pda_variant<'a, 'b, 'info, T, P, A, S>(
-    accounts_rent_sponsor: &AccountInfo<'info>,
-    cpi_accounts: &CpiAccounts<'b, 'info>,
-    address_space: Pubkey,
-    solana_account: &AccountInfo<'info>,
-    index: usize,
-    packed: &P,
-    meta: &CompressedAccountMetaNoLamportsNoAddress,
-    post_system_accounts: &[AccountInfo<'info>],
-    compressed_pda_infos: &mut Vec<CompressedAccountInfo>,
-    program_id: &Pubkey,
-    seed_accounts: &A,
-    seed_params: Option<&S>,
-) -> Result<(), ProgramError>
-where
-    T: PdaSeedDerivation<A, S>
-        + Clone
-        + crate::account::Size
-        + LightDiscriminator
-        + Default
-        + AnchorSerialize
-        + AnchorDeserialize
-        + crate::interface::HasCompressionInfo
-        + 'info,
-    P: crate::interface::Unpack<Unpacked = T>,
-    S: Default,
-{
-    let data: T = P::unpack(packed, post_system_accounts)?;
+fn populate_cpi_metadata<'a>(
+    cpi_struct: &mut <InstructionDataInvokeCpiWithAccountInfo as ZeroCopyAtMut<'a>>::ZeroCopyAtMut,
+    bump: u8,
+    invoking_program_id: &Pubkey,
+    proof: Option<&CompressedProof>,
+    cpi_context: &CompressedCpiContext,
+    with_cpi_context: bool,
+) {
+    cpi_struct.mode = 1;
+    cpi_struct.bump = bump;
+    cpi_struct.invoking_program_id = invoking_program_id.to_bytes().into();
+    cpi_struct.compress_or_decompress_lamports = 0u64.into();
+    cpi_struct.is_compress = 0;
+    cpi_struct.with_cpi_context = with_cpi_context as u8;
+    cpi_struct.with_transaction_hash = 0;
+    cpi_struct.cpi_context.cpi_context_account_index = cpi_context.cpi_context_account_index;
+    cpi_struct.cpi_context.first_set_context = cpi_context.first_set_context as u8;
+    cpi_struct.cpi_context.set_context = cpi_context.set_context as u8;
 
-    let (seeds_vec, derived_pda) = if let Some(params) = seed_params {
-        data.derive_pda_seeds_with_accounts(program_id, seed_accounts, params)?
-    } else {
-        let default_params = S::default();
-        data.derive_pda_seeds_with_accounts(program_id, seed_accounts, &default_params)?
-    };
-    if derived_pda != *solana_account.key {
-        msg!(
-            "Derived PDA does not match account at index {}: expected {:?}, got {:?}, seeds: {:?}",
-            index,
-            solana_account.key,
-            derived_pda,
-            seeds_vec
-        );
-        return Err(ProgramError::from(
-            crate::error::LightSdkError::ConstraintViolation,
-        ));
-    }
-
-    let compressed_infos = {
-        // Use fixed-size array to avoid heap allocation (MAX_SEEDS = 16)
-        const MAX_SEEDS: usize = 16;
-        let mut seed_refs: [&[u8]; MAX_SEEDS] = [&[]; MAX_SEEDS];
-        let len = seeds_vec.len().min(MAX_SEEDS);
-        for i in 0..len {
-            seed_refs[i] = seeds_vec[i].as_slice();
+    if let Some(input_proof) = proof {
+        if let Some(ref mut proof_ref) = cpi_struct.proof {
+            proof_ref.a = input_proof.a;
+            proof_ref.b = input_proof.b;
+            proof_ref.c = input_proof.c;
         }
-        crate::interface::decompress_idempotent::prepare_account_for_decompression_idempotent::<T>(
-            program_id,
-            data,
-            crate::interface::decompress_idempotent::into_compressed_meta_with_address(
-                meta,
-                solana_account,
-                address_space,
-                program_id,
-            ),
-            solana_account,
-            accounts_rent_sponsor,
-            cpi_accounts,
-            &seed_refs[..len],
-        )?
-    };
-    compressed_pda_infos.extend(compressed_infos);
-    Ok(())
+    }
 }
 
-/// Processor for decompress_accounts_idempotent.
+/// Processor for decompress_accounts_idempotent using zero-allocation two-pass approach.
+///
+/// This function implements the two-pass approach for minimal stack usage:
+/// - Pass 1: Count PDAs, collect pda_indices, collect tokens
+/// - Pass 2: Allocate CPI buffer, create PDAs, write directly to zero-copy buffer
 ///
 /// CPI context batching rules:
 /// - Can use inputs from N trees
 /// - All inputs must use the FIRST CPI context account of the FIRST input
+///
+/// # Stack Usage
+/// - pda_indices: [usize; 16] = 128 bytes
+/// - Counters = ~16 bytes
+/// - Total: ~144 bytes (acceptable)
 #[inline(never)]
 #[allow(clippy::too_many_arguments)]
 pub fn process_decompress_accounts_idempotent<'info, Ctx>(
@@ -581,7 +380,6 @@ where
     }
 
     // Use CPI context batching when we have both PDAs and tokens
-    // CPI context can handle inputs from N trees - all use FIRST cpi context of FIRST input
     let needs_cpi_context = has_tokens && has_pdas;
     let cpi_accounts = if needs_cpi_context {
         CpiAccounts::new_with_config(
@@ -605,15 +403,14 @@ where
         .get(pda_accounts_start..)
         .ok_or_else(|| ProgramError::from(crate::error::LightSdkError::ConstraintViolation))?;
 
-    let (compressed_pda_infos, compressed_token_accounts) = ctx.collect_pda_and_token(
-        &cpi_accounts,
-        address_space,
-        compressed_accounts,
-        solana_accounts,
-        seed_params,
-    )?;
+    // Stack array for tracking PDA indices
+    let mut pda_indices: [usize; MAX_DECOMPRESS_ACCOUNTS] = [0; MAX_DECOMPRESS_ACCOUNTS];
 
-    let has_pdas = !compressed_pda_infos.is_empty();
+    // Pass 1: Collect layout and tokens (checks which PDAs need decompression)
+    let (pda_count, compressed_token_accounts) =
+        ctx.collect_layout_and_tokens(&compressed_accounts, solana_accounts, &mut pda_indices)?;
+
+    let has_pdas = pda_count > 0;
     let has_tokens = !compressed_token_accounts.is_empty();
 
     if !has_pdas && !has_tokens {
@@ -622,24 +419,57 @@ where
 
     let fee_payer = ctx.fee_payer();
 
-    // Process PDAs (if any) using zero-copy pattern
+    // Process PDAs (if any) using zero-copy pattern with two-pass approach
     if has_pdas {
         let cpi_signer_config = cpi_accounts.config().cpi_signer;
 
-        if !has_tokens {
-            // PDAs only - execute directly using zero-copy
-            invoke_zero_copy_cpi(
+        // Build CPI config from pda_count
+        let cpi_config = build_decompression_cpi_config(pda_count, proof.0.is_some());
+
+        // Allocate CPI bytes (single acceptable allocation)
+        let mut cpi_bytes = allocate_decompress_cpi_bytes(&cpi_config)?;
+
+        // Get zero-copy mutable struct
+        let (mut cpi_struct, _remaining) =
+            InstructionDataInvokeCpiWithAccountInfo::new_zero_copy(&mut cpi_bytes[8..], cpi_config)
+                .map_err(|_| ProgramError::InvalidAccountData)?;
+
+        // Populate CPI metadata (mode, bump, program_id, proof, cpi_context)
+        let cpi_context_for_pdas = if has_tokens {
+            CompressedCpiContext::first()
+        } else {
+            CompressedCpiContext::default()
+        };
+        populate_cpi_metadata(
+            &mut cpi_struct,
+            cpi_signer_config.bump,
+            &cpi_signer_config.program_id.into(),
+            proof.0.as_ref(),
+            &cpi_context_for_pdas,
+            has_tokens, // with_cpi_context
+        );
+
+        // Pass 2: Create PDAs and write directly to zero-copy buffer
+        let zc_account_infos = cpi_struct.account_infos.as_mut_slice();
+        for (zc_idx, &account_idx) in pda_indices[..pda_count].iter().enumerate() {
+            let zc_info = &mut zc_account_infos[zc_idx];
+
+            // Create PDA and write directly to zero-copy buffer
+            ctx.create_and_write_pda(
                 &cpi_accounts,
-                cpi_signer_config.bump,
-                &cpi_signer_config.program_id.into(),
-                proof.0.as_ref(),
-                &CompressedCpiContext::default(),
-                false, // with_cpi_context
-                &compressed_pda_infos,
+                &address_space,
+                &compressed_accounts[account_idx],
+                &solana_accounts[account_idx],
+                seed_params,
+                zc_info,
             )?;
+        }
+
+        // Execute CPI
+        if !has_tokens {
+            execute_cpi_invoke_sdk(&cpi_accounts, cpi_bytes, cpi_signer_config.bump)?;
         } else {
             // PDAs + tokens - write to CPI context first, tokens will execute
-            // For CPI context write, we need a minimal accounts set
             let authority = cpi_accounts
                 .authority()
                 .map_err(|_| ProgramError::MissingRequiredSignature)?;
@@ -652,26 +482,6 @@ where
                 cpi_context: cpi_context_account,
                 cpi_signer,
             };
-
-            // Build zero-copy CPI for writing to context
-            let config = build_config_from_account_infos(&compressed_pda_infos, proof.0.is_some());
-            let mut cpi_bytes = allocate_decompress_cpi_bytes(&config)?;
-
-            let (mut cpi_struct, _remaining) =
-                InstructionDataInvokeCpiWithAccountInfo::new_zero_copy(&mut cpi_bytes[8..], config)
-                    .map_err(|_| ProgramError::InvalidAccountData)?;
-
-            populate_zero_copy_cpi(
-                &mut cpi_struct,
-                cpi_signer.bump,
-                &cpi_signer.program_id.into(),
-                proof.0.as_ref(),
-                &CompressedCpiContext::first(),
-                true, // with_cpi_context
-                &compressed_pda_infos,
-            )?;
-
-            // Execute CPI to write to context
             execute_cpi_write_to_context(&system_cpi_accounts, cpi_bytes, cpi_signer.bump)?;
         }
     }
