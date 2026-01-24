@@ -9,6 +9,7 @@ import {
     compress,
     createAccount,
     createAccountWithLamports,
+    defaultTestStateTreeAccounts,
     featureFlags,
     selectStateTreeInfo,
 } from '../../src';
@@ -90,7 +91,10 @@ describe('rpc-multi-trees', () => {
                 [seed],
                 LightSystemProgram.programId,
             );
-            address = deriveAddress(addressSeed);
+            address = deriveAddress(
+                addressSeed,
+                defaultTestStateTreeAccounts().addressTree,
+            );
 
             await createAccount(
                 rpc,
@@ -158,7 +162,12 @@ describe('rpc-multi-trees', () => {
                 newAddressSeeds,
                 LightSystemProgram.programId,
             );
-            const newAddress = bn(deriveAddress(newAddressSeed).toBytes());
+            const newAddress = bn(
+                deriveAddress(
+                    newAddressSeed,
+                    defaultTestStateTreeAccounts().addressTree,
+                ).toBytes(),
+            );
 
             const validityProof = await rpc.getValidityProof(
                 [hash],

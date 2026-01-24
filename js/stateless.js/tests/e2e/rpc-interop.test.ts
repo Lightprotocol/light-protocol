@@ -350,13 +350,21 @@ describe('rpc-interop', () => {
     /// This assumes support for getMultipleNewAddressProofs in Photon.
     it('getMultipleNewAddressProofs [noforester] should match', async () => {
         const addressTreeInfo = getDefaultAddressTreeInfo();
-        const newAddress = bn(
-            deriveAddress(
-                deriveAddressSeed([new Uint8Array(randomBytes(32))]),
-                addressTreeInfo.tree,
-                LightSystemProgram.programId,
-            ).toBytes(),
-        );
+        const seed = new Uint8Array(randomBytes(32));
+        const newAddress = featureFlags.isV2()
+            ? bn(
+                  deriveAddress(
+                      deriveAddressSeed([seed]),
+                      addressTreeInfo.tree,
+                      LightSystemProgram.programId,
+                  ).toBytes(),
+              )
+            : bn(
+                  deriveAddress(
+                      deriveAddressSeed([seed], LightSystemProgram.programId),
+                      addressTreeInfo.tree,
+                  ).toBytes(),
+              );
         const newAddressProof = (
             await rpc.getMultipleNewAddressProofs([newAddress])
         )[0];
