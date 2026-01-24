@@ -9,7 +9,6 @@
 //!
 //! - `v1` - Enable v1 compressed token support
 //! - `anchor` - Enable Anchor framework integration
-//! - `anchor-discriminator` - Use Anchor-style discriminators (default)
 //!
 //! ## Modules
 //!

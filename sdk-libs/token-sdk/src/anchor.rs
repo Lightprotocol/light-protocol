@@ -25,6 +25,7 @@ pub use light_sdk_macros::{
     // Attribute macros
     light_program,
     // Derive macros
+    AnchorDiscriminator,
     CompressAs,
     Compressible,
     CompressiblePack,

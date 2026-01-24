@@ -11,7 +11,7 @@ use quote::quote;
 use syn::{DeriveInput, Fields, ItemStruct, Result};
 
 use crate::{
-    discriminator::discriminator,
+    discriminator::light_discriminator,
     hasher::derive_light_hasher_sha,
     light_pdas::account::{pack_unpack::derive_compressible_pack, traits::derive_compressible},
 };
@@ -61,7 +61,7 @@ pub fn derive_light_account(input: DeriveInput) -> Result<TokenStream> {
     let hasher_impl = derive_light_hasher_sha(item_struct.clone())?;
 
     // Generate LightDiscriminator implementation
-    let discriminator_impl = discriminator(item_struct)?;
+    let discriminator_impl = light_discriminator(item_struct)?;
 
     // Generate Compressible implementation (HasCompressionInfo + CompressAs + Size + CompressedInitSpace)
     let compressible_impl = derive_compressible(input.clone())?;
