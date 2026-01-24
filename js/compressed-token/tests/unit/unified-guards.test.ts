@@ -4,7 +4,11 @@ import {
     TOKEN_PROGRAM_ID,
     getAssociatedTokenAddressSync,
 } from '@solana/spl-token';
-import { Rpc, CTOKEN_PROGRAM_ID, featureFlags } from '@lightprotocol/stateless.js';
+import {
+    Rpc,
+    CTOKEN_PROGRAM_ID,
+    featureFlags,
+} from '@lightprotocol/stateless.js';
 import { getAtaProgramId } from '../../src/v3/ata-utils';
 
 import {

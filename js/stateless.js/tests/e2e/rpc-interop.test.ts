@@ -154,7 +154,9 @@ describe('rpc-interop', () => {
                 LightSystemProgram.programId,
             );
 
-            const newAddress = bn(deriveAddressLegacy(newAddressSeed).toBuffer());
+            const newAddress = bn(
+                deriveAddressLegacy(newAddressSeed).toBuffer(),
+            );
 
             /// consistent proof metadata for same address
             const validityProof = await rpc.getValidityProof([], [newAddress]);
@@ -236,7 +238,9 @@ describe('rpc-interop', () => {
                 newAddressSeeds,
                 LightSystemProgram.programId,
             );
-            const newAddress = bn(deriveAddressLegacy(newAddressSeed).toBytes());
+            const newAddress = bn(
+                deriveAddressLegacy(newAddressSeed).toBytes(),
+            );
 
             const validityProof = await rpc.getValidityProof(
                 [hash],
@@ -707,7 +711,10 @@ describe('rpc-interop', () => {
         '[test-rpc missing] getCompressionSignaturesForAddress should work',
         async () => {
             const seeds = [new Uint8Array(randomBytes(32))];
-            const seed = deriveAddressSeedLegacy(seeds, LightSystemProgram.programId);
+            const seed = deriveAddressSeedLegacy(
+                seeds,
+                LightSystemProgram.programId,
+            );
             const addressTreeInfo = getDefaultAddressTreeInfo();
             const address = deriveAddressLegacy(seed, addressTreeInfo.tree);
 
@@ -752,7 +759,10 @@ describe('rpc-interop', () => {
         '[test-rpc missing] getCompressedAccount with address param should work ',
         async () => {
             const seeds = [new Uint8Array(randomBytes(32))];
-            const seed = deriveAddressSeedLegacy(seeds, LightSystemProgram.programId);
+            const seed = deriveAddressSeedLegacy(
+                seeds,
+                LightSystemProgram.programId,
+            );
 
             const addressTreeInfo = getDefaultAddressTreeInfo();
             const address = deriveAddressLegacy(seed, addressTreeInfo.tree);

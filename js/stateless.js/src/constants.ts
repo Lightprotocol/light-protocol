@@ -37,7 +37,10 @@ export const featureFlags = {
      * Runtime only - check LIGHT_PROTOCOL_BETA env var.
      */
     isBeta: (): boolean => {
-        if (typeof process !== 'undefined' && process.env?.LIGHT_PROTOCOL_BETA) {
+        if (
+            typeof process !== 'undefined' &&
+            process.env?.LIGHT_PROTOCOL_BETA
+        ) {
             const val = process.env.LIGHT_PROTOCOL_BETA.toLowerCase();
             return val === 'true' || val === '1';
         }
