@@ -509,22 +509,9 @@ async function getUnifiedAccountInterface(
     const fetchTypes: TokenAccountSource['type'][] = [];
     const fetchAddresses: PublicKey[] = [];
 
-    // c-token hot + cold
+    // c-token hot
     fetchPromises.push(_tryFetchCTokenHot(rpc, cTokenAta, commitment));
     fetchTypes.push(TokenAccountSourceType.CTokenHot);
-    fetchAddresses.push(cTokenAta);
-
-    fetchPromises.push(
-        fetchByOwner
-            ? _tryFetchCTokenColdByOwner(
-                  rpc,
-                  fetchByOwner.owner,
-                  fetchByOwner.mint,
-                  cTokenAta,
-              )
-            : _tryFetchCTokenColdByAddress(rpc, address!),
-    );
-    fetchTypes.push(TokenAccountSourceType.CTokenCold);
     fetchAddresses.push(cTokenAta);
 
     // SPL / Token-2022 (only when wrap is enabled)
@@ -560,13 +547,23 @@ async function getUnifiedAccountInterface(
         fetchAddresses.push(token2022Ata);
     }
 
-    const results = await Promise.allSettled(fetchPromises);
+    // Fetch ALL cold c-token accounts (not just one) - important for V1/V2 detection
+    const coldAccountsPromise = fetchByOwner
+        ? rpc.getCompressedTokenAccountsByOwner(fetchByOwner.owner, {
+              mint: fetchByOwner.mint,
+          })
+        : rpc.getCompressedTokenAccountsByOwner(address!);
 
-    // collect all successful results
+    const [hotResults, coldResult] = await Promise.all([
+        Promise.allSettled(fetchPromises),
+        coldAccountsPromise.catch(() => ({ items: [] })),
+    ]);
+
+    // collect all successful hot results
     const sources: TokenAccountSource[] = [];
 
-    for (let i = 0; i < results.length; i++) {
-        const result = results[i];
+    for (let i = 0; i < hotResults.length; i++) {
+        const result = hotResults[i];
         if (result.status === 'fulfilled') {
             const value = result.value;
             sources.push({
@@ -576,6 +573,27 @@ async function getUnifiedAccountInterface(
                 accountInfo: value.accountInfo,
                 loadContext: value.loadContext,
                 parsed: value.parsed,
+            });
+        }
+    }
+
+    // Add ALL cold c-token accounts (handles both V1 and V2)
+    for (const item of coldResult.items) {
+        const compressedAccount = item.compressedAccount;
+        if (
+            compressedAccount &&
+            compressedAccount.data &&
+            compressedAccount.data.data.length > 0 &&
+            compressedAccount.owner.equals(CTOKEN_PROGRAM_ID)
+        ) {
+            const parsed = parseCTokenCold(cTokenAta, compressedAccount);
+            sources.push({
+                type: TokenAccountSourceType.CTokenCold,
+                address: cTokenAta,
+                amount: parsed.parsed.amount,
+                accountInfo: parsed.accountInfo,
+                loadContext: parsed.loadContext,
+                parsed: parsed.parsed,
             });
         }
     }

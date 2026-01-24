@@ -144,15 +144,6 @@ export async function createLoadAtaInstructions(
 ): Promise<TransactionInstruction[]> {
     payer ??= owner;
 
-    // v3 interface only supports V2 trees - check early before doing work
-    const compressedAccounts = await rpc.getCompressedTokenAccountsByOwner(
-        owner,
-        { mint },
-    );
-    if (compressedAccounts.items.length > 0) {
-        assertV2Only(compressedAccounts.items);
-    }
-
     // Validation happens inside getAtaInterface via checkAtaAddress helper:
     // - Always validates ata matches mint+owner derivation
     // - For wrap=true, additionally requires c-token ATA

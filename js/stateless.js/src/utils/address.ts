@@ -8,7 +8,11 @@ import { defaultTestStateTreeAccounts } from '../constants';
 import { getIndexOrAdd } from '../programs/system/pack';
 import { keccak_256 } from '@noble/hashes/sha3';
 
-export function deriveAddressSeed(
+/**
+ * @deprecated Use deriveAddressSeed (no programId param) for V2.
+ * V1 seed derivation includes programId in hash.
+ */
+export function deriveAddressSeedLegacy(
     seeds: Uint8Array[],
     programId: PublicKey,
 ): Uint8Array {
@@ -17,20 +21,16 @@ export function deriveAddressSeed(
     return hash;
 }
 
-/*
- * Derive an address for a compressed account from a seed and an address Merkle
- * tree public key.
- *
- * @param seed                     Seed to derive the address from
- * @param addressMerkleTreePubkey  Merkle tree public key. Defaults to
- *                                 defaultTestStateTreeAccounts().addressTree
- * @returns                        Derived address
+/**
+ * @deprecated Use deriveAddress with programId param for V2.
+ * V1 address derivation doesn't include programId.
  */
-export function deriveAddress(
+export function deriveAddressLegacy(
     seed: Uint8Array,
     addressMerkleTreePubkey: PublicKey = defaultTestStateTreeAccounts()
         .addressTree,
 ): PublicKey {
+
     if (seed.length != 32) {
         throw new Error('Seed length is not 32 bytes.');
     }
@@ -45,7 +45,15 @@ export function deriveAddress(
     return new PublicKey(buf);
 }
 
-export function deriveAddressSeedV2(seeds: Uint8Array[]): Uint8Array {
+/**
+ * Derive an address seed from multiple seed components.
+ * This is the V2 derivation method - does NOT include programId in seed hash.
+ * ProgramId is included in the final deriveAddress step instead.
+ *
+ * @param seeds Array of seed bytes to combine
+ * @returns 32-byte address seed
+ */
+export function deriveAddressSeed(seeds: Uint8Array[]): Uint8Array {
     const combinedSeeds: Uint8Array[] = seeds.map(seed =>
         Uint8Array.from(seed),
     );
@@ -54,14 +62,15 @@ export function deriveAddressSeedV2(seeds: Uint8Array[]): Uint8Array {
 }
 
 /**
- * Derives an address from a seed using the v2 method (matching Rust's derive_address_from_seed)
+ * Derive an address for a compressed account.
+ * This is the V2 derivation method (matching Rust's derive_address_from_seed).
  *
- * @param addressSeed              The address seed (32 bytes)
- * @param addressMerkleTreePubkey  Merkle tree public key
- * @param programId                Program ID
+ * @param addressSeed              The address seed (32 bytes) from deriveAddressSeed
+ * @param addressMerkleTreePubkey  Address tree public key
+ * @param programId                Program ID that owns the account
  * @returns                        Derived address
  */
-export function deriveAddressV2(
+export function deriveAddress(
     addressSeed: Uint8Array,
     addressMerkleTreePubkey: PublicKey,
     programId: PublicKey,
@@ -80,6 +89,10 @@ export function deriveAddressV2(
     const hash = hashvToBn254FieldSizeBeU8Array(combined);
     return new PublicKey(hash);
 }
+
+// Backward compat aliases for existing code using V2 suffix
+export const deriveAddressSeedV2 = deriveAddressSeed;
+export const deriveAddressV2 = deriveAddress;
 
 export interface NewAddressParams {
     /**
@@ -173,13 +186,13 @@ if (import.meta.vitest) {
         '7yucc7fL3JGbyMwg4neUaenNSdySS39hbAk89Ao3t1Hz',
     );
 
-    describe('derive address seed', () => {
-        it('should derive a valid address seed', () => {
+    describe('derive address seed (legacy/V1)', () => {
+        it('should derive a valid address seed with programId', () => {
             const seeds: Uint8Array[] = [
                 new TextEncoder().encode('foo'),
                 new TextEncoder().encode('bar'),
             ];
-            expect(deriveAddressSeed(seeds, programId)).toStrictEqual(
+            expect(deriveAddressSeedLegacy(seeds, programId)).toStrictEqual(
                 new Uint8Array([
                     0, 246, 150, 3, 192, 95, 53, 123, 56, 139, 206, 179, 253,
                     133, 115, 103, 120, 155, 251, 72, 250, 47, 117, 217, 118,
@@ -188,12 +201,12 @@ if (import.meta.vitest) {
             );
         });
 
-        it('should derive a valid address seed', () => {
+        it('should derive a valid address seed with programId', () => {
             const seeds: Uint8Array[] = [
                 new TextEncoder().encode('ayy'),
                 new TextEncoder().encode('lmao'),
             ];
-            expect(deriveAddressSeed(seeds, programId)).toStrictEqual(
+            expect(deriveAddressSeedLegacy(seeds, programId)).toStrictEqual(
                 new Uint8Array([
                     0, 202, 44, 25, 221, 74, 144, 92, 69, 168, 38, 19, 206, 208,
                     29, 162, 53, 27, 120, 214, 152, 116, 15, 107, 212, 168, 33,
@@ -203,17 +216,17 @@ if (import.meta.vitest) {
         });
     });
 
-    describe('deriveAddress function', () => {
+    describe('deriveAddress function (legacy/V1)', () => {
         it('should derive a valid address from a seed and a merkle tree public key', async () => {
             const seeds: Uint8Array[] = [
                 new TextEncoder().encode('foo'),
                 new TextEncoder().encode('bar'),
             ];
-            const seed = deriveAddressSeed(seeds, programId);
+            const seed = deriveAddressSeedLegacy(seeds, programId);
             const merkleTreePubkey = new PublicKey(
                 '11111111111111111111111111111111',
             );
-            const derivedAddress = deriveAddress(seed, merkleTreePubkey);
+            const derivedAddress = deriveAddressLegacy(seed, merkleTreePubkey);
             expect(derivedAddress).toBeInstanceOf(PublicKey);
             expect(derivedAddress).toStrictEqual(
                 new PublicKey('139uhyyBtEh4e1CBDJ68ooK5nCeWoncZf9HPyAfRrukA'),
@@ -225,11 +238,11 @@ if (import.meta.vitest) {
                 new TextEncoder().encode('ayy'),
                 new TextEncoder().encode('lmao'),
             ];
-            const seed = deriveAddressSeed(seeds, programId);
+            const seed = deriveAddressSeedLegacy(seeds, programId);
             const merkleTreePubkey = new PublicKey(
                 '11111111111111111111111111111111',
             );
-            const derivedAddress = deriveAddress(seed, merkleTreePubkey);
+            const derivedAddress = deriveAddressLegacy(seed, merkleTreePubkey);
             expect(derivedAddress).toBeInstanceOf(PublicKey);
             expect(derivedAddress).toStrictEqual(
                 new PublicKey('12bhHm6PQjbNmEn3Yu1Gq9k7XwVn2rZpzYokmLwbFazN'),

@@ -1,5 +1,5 @@
 import { AccountMeta, PublicKey, SystemProgram } from '@solana/web3.js';
-import { defaultStaticAccountsStruct } from '../constants';
+import { defaultStaticAccountsStruct, featureFlags } from '../constants';
 import { LightSystemProgram } from '../programs';
 
 export class PackedAccounts {
@@ -8,6 +8,10 @@ export class PackedAccounts {
     private nextIndex: number = 0;
     private map: Map<PublicKey, [number, AccountMeta]> = new Map();
 
+    /**
+     * Create PackedAccounts with system accounts pre-added.
+     * Auto-selects V1 or V2 account layout based on featureFlags.
+     */
     static newWithSystemAccounts(
         config: SystemAccountMetaConfig,
     ): PackedAccounts {
@@ -16,6 +20,9 @@ export class PackedAccounts {
         return instance;
     }
 
+    /**
+     * @deprecated Use newWithSystemAccounts - it auto-selects V2 when appropriate.
+     */
     static newWithSystemAccountsV2(
         config: SystemAccountMetaConfig,
     ): PackedAccounts {
@@ -36,10 +43,20 @@ export class PackedAccounts {
         this.preAccounts.push(accountMeta);
     }
 
+    /**
+     * Add Light system accounts. Auto-selects V1 or V2 layout based on featureFlags.
+     */
     addSystemAccounts(config: SystemAccountMetaConfig): void {
-        this.systemAccounts.push(...getLightSystemAccountMetas(config));
+        if (featureFlags.isV2()) {
+            this.systemAccounts.push(...getLightSystemAccountMetasV2(config));
+        } else {
+            this.systemAccounts.push(...getLightSystemAccountMetasLegacy(config));
+        }
     }
 
+    /**
+     * @deprecated Use addSystemAccounts - it auto-selects V2 when appropriate.
+     */
     addSystemAccountsV2(config: SystemAccountMetaConfig): void {
         this.systemAccounts.push(...getLightSystemAccountMetasV2(config));
     }
@@ -128,7 +145,10 @@ export class SystemAccountMetaConfig {
     }
 }
 
-export function getLightSystemAccountMetas(
+/**
+ * @deprecated V1 system account layout. Use getLightSystemAccountMetas which auto-selects.
+ */
+export function getLightSystemAccountMetasLegacy(
     config: SystemAccountMetaConfig,
 ): AccountMeta[] {
     let signerSeed = new TextEncoder().encode('cpi_authority');
@@ -189,6 +209,19 @@ export function getLightSystemAccountMetas(
         });
     }
     return metas;
+
+}
+
+/**
+ * Get Light system account metas. Auto-selects V1 or V2 layout based on featureFlags.
+ */
+export function getLightSystemAccountMetas(
+    config: SystemAccountMetaConfig,
+): AccountMeta[] {
+    if (featureFlags.isV2()) {
+        return getLightSystemAccountMetasV2(config);
+    }
+    return getLightSystemAccountMetasLegacy(config);
 }
 
 export function getLightSystemAccountMetasV2(
