@@ -177,13 +177,31 @@ export {
 } from './instructions/index.js';
 
 // ============================================================================
-// RPC CLIENT (Placeholder)
+// CLIENT TYPES (Indexer & load functions in @lightprotocol/token-client)
 // ============================================================================
 
 export {
-    createLightRpcClient,
-    isLightRpcAvailable,
-    type LightRpcClient,
-    type ParsedTokenAccount,
+    // Validation
+    assertV2Tree,
+
+    // Types
+    TreeType,
+    AccountState,
+    IndexerErrorCode,
+    IndexerError,
+    type TreeInfo,
+    type CompressedAccountData,
+    type CompressedAccount,
+    type TokenData,
+    type CompressedTokenAccount,
     type ValidityProof,
-} from './rpc/index.js';
+    type RootIndex,
+    type AccountProofInputs,
+    type AddressProofInputs,
+    type ValidityProofWithContext,
+    type AddressWithTree,
+    type GetCompressedTokenAccountsOptions,
+    type ResponseContext,
+    type IndexerResponse,
+    type ItemsWithCursor,
+} from './client/index.js';

@@ -27,7 +27,9 @@
     "scripts": {
         "build": "tsc",
         "clean": "rm -rf dist",
-        "test": "vitest run",
+        "test": "vitest run tests/unit/",
+        "test:unit": "vitest run tests/unit/",
+        "test:e2e": "vitest run tests/e2e/",
         "test:watch": "vitest",
         "lint": "eslint .",
         "format": "prettier --write .",

@@ -435,6 +435,28 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1(@types/node@22.16.5)(terser@5.43.1)
 
+  js/token-client:
+    dependencies:
+      '@lightprotocol/token-sdk':
+        specifier: workspace:*
+        version: link:../token-sdk
+      '@solana/addresses':
+        specifier: ^2.1.0
+        version: 2.3.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
+      '@solana/codecs':
+        specifier: ^2.1.0
+        version: 2.3.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
+      '@solana/kit':
+        specifier: ^2.1.0
+        version: 2.3.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(ws@8.18.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))
+    devDependencies:
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.16.5)(terser@5.43.1)
+
   js/token-idl:
     devDependencies:
       '@codama/nodes':
