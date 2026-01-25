@@ -189,6 +189,25 @@ pub struct Create<'info> {
 
 ---
 
+## CreateAccountsProof Requirement
+
+Instructions with `#[light_account(init)]` fields require `create_accounts_proof: CreateAccountsProof` as an instruction argument.
+
+Can be in params struct:
+```rust
+pub fn create(ctx: Context<Create>, params: CreateParams) -> Result<()>
+// where CreateParams has create_accounts_proof field
+```
+
+Or directly in instruction:
+```rust
+pub fn create(ctx: Context<Create>, create_accounts_proof: CreateAccountsProof, owner: Pubkey) -> Result<()>
+```
+
+Position in struct doesn't matter.
+
+---
+
 ## Traits
 
 ### LightAccountVariant

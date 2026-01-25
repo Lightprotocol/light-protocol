@@ -58,6 +58,24 @@ Expression suffixes stripped:
 
 ---
 
+## CompressionInfo Handling
+
+**In packed data:**
+- `compression_info` excluded from `PackedXxx` struct
+- Bytes are cut off during pack (not field-by-field exclusion)
+- Same approach for both borsh and zero-copy accounts
+
+**When hashing:**
+- `compression_info` IS included in hash
+- Set to `CompressionInfo::compressed()` before hashing
+- At decompress, set to same value to reproduce the hash
+
+**Requirement:**
+- `compression_info` field must be first or last in struct (not nested)
+- Macro validates this at compile time
+
+---
+
 ## Zero-Copy Pod Accounts
 
 Requirements:

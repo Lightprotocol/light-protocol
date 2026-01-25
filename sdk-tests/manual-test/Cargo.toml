@@ -1,12 +1,12 @@
 [package]
-name = "single-pda-test"
+name = "manual-test"
 version = "0.1.0"
-description = "Minimal Anchor program test for single PDA macro validation"
+description = "Manual LightAccount implementation test without macros"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "single_pda_test"
+name = "manual_test"
 
 [features]
 no-entrypoint = []

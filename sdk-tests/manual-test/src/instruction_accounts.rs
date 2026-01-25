@@ -2,7 +2,6 @@
 
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
-use light_sdk_macros::LightAccounts;
 
 use crate::state::MinimalRecord;
 

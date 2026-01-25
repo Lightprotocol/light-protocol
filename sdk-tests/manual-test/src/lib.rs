@@ -10,9 +10,11 @@ use light_sdk::derive_light_cpi_signer;
 use light_sdk_types::CpiSigner;
 
 pub mod instruction_accounts;
+pub mod light_account;
 pub mod state;
 
 pub use instruction_accounts::*;
+pub use light_account::*;
 pub use state::*;
 
 declare_id!("PdaT111111111111111111111111111111111111111");
@@ -22,7 +24,7 @@ pub const LIGHT_CPI_SIGNER: CpiSigner =
 
 // #[light_program]
 #[program]
-pub mod single_pda_test {
+pub mod manual_test {
     use super::*;
 
     /// Create a single compressible PDA.
