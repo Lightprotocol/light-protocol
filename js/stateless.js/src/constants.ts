@@ -9,10 +9,11 @@ export enum VERSION {
 }
 
 /**
-/**
  * @internal
  * Feature flags. Only use if you know what you are doing.
  */
+let _betaEnabled = true; // Default to enabled for beta releases
+
 export const featureFlags = {
     version: ((): VERSION => {
         // Check if we're in a build environment (replaced by rollup)
@@ -34,9 +35,12 @@ export const featureFlags = {
         featureFlags.version.replace(/['"]/g, '').toUpperCase() === 'V2',
     /**
      * Beta flag for interface methods (not yet deployed on mainnet).
-     * Runtime only - check LIGHT_PROTOCOL_BETA env var.
+     * Checks programmatic override first, then env var LIGHT_PROTOCOL_BETA.
      */
     isBeta: (): boolean => {
+        if (_betaEnabled) {
+            return true;
+        }
         if (
             typeof process !== 'undefined' &&
             process.env?.LIGHT_PROTOCOL_BETA
@@ -45,6 +49,25 @@ export const featureFlags = {
             return val === 'true' || val === '1';
         }
         return false;
+    },
+    /**
+     * Enable beta features programmatically.
+     * Call this once at app initialization to unlock interface methods.
+     *
+     * @example
+     * ```typescript
+     * import { featureFlags } from '@lightprotocol/stateless.js';
+     * featureFlags.enableBeta();
+     * ```
+     */
+    enableBeta: (): void => {
+        _betaEnabled = true;
+    },
+    /**
+     * Disable beta features programmatically.
+     */
+    disableBeta: (): void => {
+        _betaEnabled = false;
     },
 };
 
