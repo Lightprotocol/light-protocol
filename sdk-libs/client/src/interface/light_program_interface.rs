@@ -9,10 +9,7 @@
 use std::fmt::Debug;
 
 use light_sdk::interface::Pack;
-use light_token::{
-    constants::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR_V1},
-    instruction::derive_token_ata,
-};
+use light_token::instruction::derive_token_ata;
 use solana_pubkey::Pubkey;
 
 use super::{AccountInterface, TokenAccountInterface};
@@ -241,30 +238,6 @@ pub trait LightProgramInterface: Sized {
     /// Derived via `derive_light_rent_sponsors!` macro.
     #[must_use]
     fn light_rent_sponsor_pda(&self) -> Pubkey;
-
-    /// Returns the ctoken program's rent sponsor PDA for token operations.
-    ///
-    /// This is the rent sponsor used by the Light Compressed Token program
-    /// (`cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m`) for funding token
-    /// account decompression and receiving rent on token compression.
-    ///
-    /// Override this if using a custom compressible config with a different
-    /// rent sponsor.
-    #[must_use]
-    fn light_token_rent_sponsor_pda(&self) -> Pubkey {
-        RENT_SPONSOR_V1
-    }
-
-    /// Returns the ctoken program's compressible config PDA.
-    ///
-    /// This is the global config account owned by the Light Registry program
-    /// that stores rent parameters for compressible token accounts.
-    ///
-    /// Override this if using a custom compressible config.
-    #[must_use]
-    fn light_token_config_pda(&self) -> Pubkey {
-        COMPRESSIBLE_CONFIG_V1
-    }
 
     /// Construct SDK from root account(s).
     fn from_keyed_accounts(accounts: &[AccountInterface]) -> Result<Self, Self::Error>;
