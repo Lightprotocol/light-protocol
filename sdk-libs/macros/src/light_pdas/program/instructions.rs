@@ -746,19 +746,34 @@ pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<Tok
     }
 
     // Convert extracted specs to the format expected by codegen
-    // Deduplicate based on variant_name (field name) - field names must be globally unique
+    // Check for duplicate field names - each compressible field must have a unique name
     let mut found_pda_seeds: Vec<TokenSeedSpec> = Vec::new();
     let mut found_data_fields: Vec<InstructionDataSpec> = Vec::new();
     let mut compressible_accounts: Vec<CompressibleAccountInfo> = Vec::new();
-    let mut seen_variants: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut seen_variants: std::collections::HashMap<String, &ExtractedSeedSpec> =
+        std::collections::HashMap::new();
 
     for pda in &pda_specs {
-        // Deduplicate based on variant_name (derived from field name)
-        // If same field name is used in multiple instruction structs, only add once
+        // Check for duplicate field names - each compressible field must be unique across the program
         let variant_str = pda.variant_name.to_string();
-        if !seen_variants.insert(variant_str) {
-            continue; // Skip duplicate field names
+        if let Some(existing) = seen_variants.get(&variant_str) {
+            return Err(syn::Error::new(
+                pda.variant_name.span(),
+                format!(
+                    "Duplicate compressible field name '{}' found in multiple instruction structs.\n\
+                     Each compressible field must have a unique name across the program.\n\
+                     \n\
+                     First: struct '{}'\n\
+                     Second: struct '{}'\n\
+                     \n\
+                     Rename one of the fields to be unique.",
+                    variant_str,
+                    existing.struct_name,
+                    pda.struct_name,
+                ),
+            ));
         }
+        seen_variants.insert(variant_str, pda);
 
         compressible_accounts.push(CompressibleAccountInfo {
             account_type: pda.inner_type.clone(),
@@ -772,7 +787,9 @@ pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<Tok
             let field_type: syn::Type = if conversion.is_some() {
                 syn::parse_quote!(u64)
             } else {
-                syn::parse_quote!(solana_pubkey::Pubkey)
+                // Use Pubkey (from anchor_lang::prelude) instead of solana_pubkey::Pubkey
+                // because Anchor's IDL build feature requires IdlBuild trait implementations
+                syn::parse_quote!(Pubkey)
             };
 
             if !found_data_fields.iter().any(|f| f.field_name == field_name) {

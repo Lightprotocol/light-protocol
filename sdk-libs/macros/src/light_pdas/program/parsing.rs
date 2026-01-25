@@ -339,6 +339,10 @@ pub fn convert_classified_to_seed_elements(
                 let expr: Expr = syn::parse_quote!(#func(#(#args),*));
                 SeedElement::Expression(Box::new(expr))
             }
+            ClassifiedSeed::Complex(expr) => {
+                // Pass through the complex expression unchanged
+                SeedElement::Expression(expr.clone())
+            }
         };
         result.push(elem);
     }

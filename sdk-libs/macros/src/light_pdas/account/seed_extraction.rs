@@ -106,6 +106,9 @@ pub enum ClassifiedSeed {
         /// Account references used as arguments
         ctx_args: Vec<Ident>,
     },
+    /// Complex expression that should be passed through unchanged.
+    /// Used for: function calls with non-ctx arguments, type-qualified paths, etc.
+    Complex(Box<Expr>),
 }
 
 /// Extracted seed specification for a compressible field
@@ -123,6 +126,8 @@ pub struct ExtractedSeedSpec {
     pub seeds: Vec<ClassifiedSeed>,
     /// True if the field uses zero-copy serialization (AccountLoader)
     pub is_zero_copy: bool,
+    /// The instruction struct name this field was extracted from (for error messages)
+    pub struct_name: String,
 }
 
 /// Extracted token specification for a #[light_account(token, ...)] field
@@ -214,6 +219,7 @@ pub fn extract_from_accounts_struct(
                 inner_type,
                 seeds,
                 is_zero_copy: has_zero_copy,
+                struct_name: item.ident.to_string(),
             });
         } else if let Some(token_attr) = token_attr {
             // Token field - derive variant name from field name if not provided
@@ -722,6 +728,12 @@ pub fn classify_seed_expr(
 
         // CONSTANT (all uppercase path) or bare instruction arg
         Expr::Path(path) => {
+            // Check for type-qualified path like <Type as Trait>::CONSTANT
+            // These have a qself (qualified self) that must be preserved
+            if path.qself.is_some() {
+                return Ok(ClassifiedSeed::Complex(Box::new(expr.clone())));
+            }
+
             if let Some(ident) = path.path.get_ident() {
                 let name = ident.to_string();
 
@@ -776,18 +788,27 @@ pub fn classify_seed_expr(
             let func = match &*call.func {
                 Expr::Path(p) => p.path.clone(),
                 _ => {
-                    return Err(syn::Error::new_spanned(
-                        expr,
-                        "Expected path for function call",
-                    ))
+                    // Complex function call (e.g., closure) - store as Complex
+                    return Ok(ClassifiedSeed::Complex(Box::new(expr.clone())));
                 }
             };
 
             let mut ctx_args = Vec::new();
+            let mut has_non_ctx_args = false;
+
             for arg in &call.args {
                 if let Some(ident) = extract_terminal_ident(arg, true) {
                     ctx_args.push(ident);
+                } else {
+                    // Argument is not a ctx account reference (e.g., literal, complex expr)
+                    has_non_ctx_args = true;
+                    break;
                 }
+            }
+
+            // If any non-ctx argument, store as Complex to preserve the full expression
+            if has_non_ctx_args {
+                return Ok(ClassifiedSeed::Complex(Box::new(expr.clone())));
             }
 
             Ok(ClassifiedSeed::FunctionCall { func, ctx_args })
@@ -980,7 +1001,9 @@ pub fn get_params_only_seed_fields_from_spec(
                     let field_type: syn::Type = if has_conversion {
                         syn::parse_quote!(u64)
                     } else {
-                        syn::parse_quote!(solana_pubkey::Pubkey)
+                        // Use Pubkey (from anchor_lang::prelude) instead of solana_pubkey::Pubkey
+                        // because Anchor's IDL build feature requires IdlBuild trait implementations
+                        syn::parse_quote!(Pubkey)
                     };
                     fields.push((field_name, field_type, has_conversion));
                 }

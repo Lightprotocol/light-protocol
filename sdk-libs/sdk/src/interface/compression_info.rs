@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use bytemuck::{Pod, Zeroable};
 use light_compressible::rent::RentConfig;
 use light_sdk_types::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;
 use solana_account_info::AccountInfo;
@@ -158,7 +159,9 @@ pub trait CompressAs {
 /// - `rent_config`: RentConfig @ offset 16 (8 bytes, 2-byte aligned)
 ///
 /// Fields are ordered for optimal alignment to achieve exactly 24 bytes.
-#[derive(Debug, Clone, Copy, Default, PartialEq, AnchorSerialize, AnchorDeserialize)]
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, AnchorSerialize, AnchorDeserialize, Pod, Zeroable,
+)]
 #[repr(C)]
 pub struct CompressionInfo {
     /// Slot when rent was last claimed (epoch boundary accounting).
@@ -173,10 +176,6 @@ pub struct CompressionInfo {
     /// Rent function parameters for determining compressibility/claims.
     pub rent_config: RentConfig,
 }
-
-// Safety: CompressionInfo is #[repr(C)] with all Pod fields and no padding gaps
-unsafe impl bytemuck::Pod for CompressionInfo {}
-unsafe impl bytemuck::Zeroable for CompressionInfo {}
 
 /// Compression state for SDK CompressionInfo.
 ///
@@ -623,7 +622,8 @@ mod tests {
 
     // Manual impl of PodCompressionInfoField since we can't use the derive macro in unit tests
     impl PodCompressionInfoField for TestPodAccount {
-        const COMPRESSION_INFO_OFFSET: usize = core::mem::offset_of!(TestPodAccount, compression_info);
+        const COMPRESSION_INFO_OFFSET: usize =
+            core::mem::offset_of!(TestPodAccount, compression_info);
     }
 
     #[test]
@@ -675,9 +675,19 @@ mod tests {
         let info: &CompressionInfo = bytemuck::from_bytes(info_bytes);
 
         // Verify decompressed state using SDK CompressionInfo fields
-        assert_eq!(info.config_version, 1, "config_version should be 1 (initialized)");
-        assert_eq!(info.last_claimed_slot, current_slot, "last_claimed_slot should match current_slot");
-        assert_eq!(info.state, CompressionState::Decompressed, "state should be Decompressed");
+        assert_eq!(
+            info.config_version, 1,
+            "config_version should be 1 (initialized)"
+        );
+        assert_eq!(
+            info.last_claimed_slot, current_slot,
+            "last_claimed_slot should match current_slot"
+        );
+        assert_eq!(
+            info.state,
+            CompressionState::Decompressed,
+            "state should be Decompressed"
+        );
         assert_eq!(info.lamports_per_write, 0, "lamports_per_write should be 0");
     }
 
@@ -758,12 +768,15 @@ mod tests {
         let stripped = TestPodAccount::pack_stripped(&original);
 
         // Unpack it
-        let reconstructed = TestPodAccount::unpack_stripped(&stripped)
-            .expect("unpack_stripped should succeed");
+        let reconstructed =
+            TestPodAccount::unpack_stripped(&stripped).expect("unpack_stripped should succeed");
 
         // Verify non-compression_info fields are preserved
         assert_eq!(reconstructed.owner, original.owner, "owner should match");
-        assert_eq!(reconstructed.counter, original.counter, "counter should match");
+        assert_eq!(
+            reconstructed.counter, original.counter,
+            "counter should match"
+        );
 
         // Verify compression_info has canonical compressed values (for hash consistency)
         assert_eq!(
@@ -809,8 +822,8 @@ mod tests {
         let stripped = TestPodAccount::pack_stripped(&original);
 
         // Unpack (reconstruct with canonical compressed CompressionInfo)
-        let reconstructed = TestPodAccount::unpack_stripped(&stripped)
-            .expect("unpack should succeed");
+        let reconstructed =
+            TestPodAccount::unpack_stripped(&stripped).expect("unpack should succeed");
 
         // Verify data fields are intact
         assert_eq!(reconstructed.owner, original.owner);
@@ -840,8 +853,8 @@ mod tests {
         let stripped = TestPodAccount::pack_stripped(&with_canonical);
 
         // Reconstruct (what decompression does)
-        let reconstructed = TestPodAccount::unpack_stripped(&stripped)
-            .expect("unpack should succeed");
+        let reconstructed =
+            TestPodAccount::unpack_stripped(&stripped).expect("unpack should succeed");
 
         // Get reconstructed full bytes (what decompression would hash)
         let decompression_bytes = bytemuck::bytes_of(&reconstructed);
