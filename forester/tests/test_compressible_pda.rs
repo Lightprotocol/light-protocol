@@ -286,9 +286,6 @@ async fn test_compressible_pda_bootstrap() {
         .await
         .expect("Failed to airdrop to authority");
 
-    // for rate limit airdrop
-    tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
-
     // Initialize compression config (includes rent sponsor funding)
     let rent_sponsor = program_rent_sponsor();
     let (init_config_ixs, config_pda) = InitializeRentFreeConfig::new(
