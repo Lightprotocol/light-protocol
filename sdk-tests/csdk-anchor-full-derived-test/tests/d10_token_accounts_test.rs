@@ -18,7 +18,7 @@ use light_program_test::{
     ProgramTestConfig, Rpc,
 };
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
-use light_token::instruction::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR};
+use light_token::instruction::{light_token_config_pda, light_token_rent_sponsor_pda};
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -96,6 +96,8 @@ impl D10TestContext {
 /// The macro should generate CreateTokenAccountCpi in LightFinalize.
 #[tokio::test]
 async fn test_d10_single_vault() {
+    let light_token_config = light_token_config_pda();
+    let light_token_rent_sponsor = light_token_rent_sponsor_pda();
     let mut ctx = D10TestContext::new().await;
 
     // Setup mint
@@ -118,8 +120,8 @@ async fn test_d10_single_vault() {
         d10_mint: mint,
         d10_vault_authority,
         d10_single_vault,
-        light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
-        light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
+        light_token_compressible_config: light_token_config,
+        light_token_rent_sponsor,
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         system_program: solana_sdk::system_program::ID,
@@ -155,6 +157,8 @@ async fn test_d10_single_vault() {
 /// The macro should generate create_associated_token_account_idempotent in LightFinalize.
 #[tokio::test]
 async fn test_d10_single_ata() {
+    let light_token_config = light_token_config_pda();
+    let light_token_rent_sponsor = light_token_rent_sponsor_pda();
     let mut ctx = D10TestContext::new().await;
 
     // Setup mint
@@ -177,8 +181,8 @@ async fn test_d10_single_ata() {
         d10_ata_mint: mint,
         d10_ata_owner: ata_owner,
         d10_single_ata,
-        light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
-        light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
+        light_token_compressible_config: light_token_config,
+        light_token_rent_sponsor,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         system_program: solana_sdk::system_program::ID,
     };

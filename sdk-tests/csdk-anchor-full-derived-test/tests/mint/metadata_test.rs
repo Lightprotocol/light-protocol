@@ -12,6 +12,7 @@ use light_program_test::{
     Indexer, ProgramTestConfig, Rpc,
 };
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
+use light_token::instruction::{light_token_config_pda, light_token_rent_sponsor_pda};
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -26,11 +27,10 @@ async fn test_create_mint_with_metadata() {
     use csdk_anchor_full_derived_test::instruction_accounts::{
         CreateMintWithMetadataParams, METADATA_MINT_SIGNER_SEED,
     };
-    use light_token::instruction::{
-        find_mint_address as find_cmint_address, COMPRESSIBLE_CONFIG_V1,
-        RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR,
-    };
+    use light_token::instruction::find_mint_address as find_cmint_address;
 
+    let light_token_config = light_token_config_pda();
+    let light_token_rent_sponsor = light_token_rent_sponsor_pda();
     let program_id = csdk_anchor_full_derived_test::ID;
     let mut config = ProgramTestConfig::new_v2(
         true,
@@ -99,8 +99,8 @@ async fn test_create_mint_with_metadata() {
         mint_signer: mint_signer_pda,
         cmint: cmint_pda,
         compression_config: config_pda,
-        light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
-        rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
+        light_token_compressible_config: light_token_config,
+        rent_sponsor: light_token_rent_sponsor,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         system_program: solana_sdk::system_program::ID,

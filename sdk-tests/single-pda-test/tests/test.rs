@@ -15,7 +15,8 @@ use solana_signer::Signer;
 
 /// Derive the program's rent sponsor PDA (version 1).
 fn program_rent_sponsor(program_id: &Pubkey) -> Pubkey {
-    let (pda, _) = Pubkey::find_program_address(&[b"rent_sponsor", &1u16.to_le_bytes()], program_id);
+    let (pda, _) =
+        Pubkey::find_program_address(&[b"rent_sponsor", &1u16.to_le_bytes()], program_id);
     pda
 }
 

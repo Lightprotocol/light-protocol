@@ -1,4 +1,5 @@
-#![allow(clippy::useless_asref)] // Testing macro handling of .as_ref() patterns
+// anchor's #[program] uses deprecated AccountInfo::realloc internally
+#![allow(clippy::useless_asref, deprecated)]
 
 use anchor_lang::prelude::*;
 use light_instruction_decoder_derive::instruction_decoder;

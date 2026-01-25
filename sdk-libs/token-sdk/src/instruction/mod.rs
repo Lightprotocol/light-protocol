@@ -222,3 +222,15 @@ pub use crate::{
     spl_interface::get_spl_interface_pda_and_bump,
     utils::{get_associated_token_address, get_associated_token_address_and_bump},
 };
+
+/// Returns the default compressible config PDA for Light Token.
+#[inline]
+pub fn light_token_config_pda() -> solana_pubkey::Pubkey {
+    COMPRESSIBLE_CONFIG_V1
+}
+
+/// Returns the default rent sponsor PDA for Light Token.
+#[inline]
+pub fn light_token_rent_sponsor_pda() -> solana_pubkey::Pubkey {
+    RENT_SPONSOR
+}

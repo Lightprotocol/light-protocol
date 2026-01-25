@@ -110,10 +110,8 @@ impl InitializeRentFreeConfig {
         let (config_pda, _) = LightConfig::derive_pda(&self.program_id, self.config_bump);
 
         // Derive rent sponsor bump (version 1, hardcoded)
-        let (derived_rent_sponsor, rent_sponsor_bump) = Pubkey::find_program_address(
-            &[b"rent_sponsor", &1u16.to_le_bytes()],
-            &self.program_id,
-        );
+        let (derived_rent_sponsor, rent_sponsor_bump) =
+            Pubkey::find_program_address(&[b"rent_sponsor", &1u16.to_le_bytes()], &self.program_id);
         assert_eq!(
             derived_rent_sponsor, self.rent_sponsor,
             "Rent sponsor PDA mismatch: derived {:?} != provided {:?}",

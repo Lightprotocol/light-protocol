@@ -26,8 +26,8 @@ use light_program_test::{
     Indexer, ProgramTestConfig, Rpc,
 };
 use light_token::instruction::{
-    find_mint_address, get_associated_token_address_and_bump, COMPRESSIBLE_CONFIG_V1,
-    LIGHT_TOKEN_CPI_AUTHORITY, LIGHT_TOKEN_PROGRAM_ID, RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR,
+    find_mint_address, get_associated_token_address_and_bump, LIGHT_TOKEN_CPI_AUTHORITY,
+    LIGHT_TOKEN_PROGRAM_ID,
 };
 use light_token_interface::state::Token;
 use solana_instruction::Instruction;
@@ -117,6 +117,10 @@ struct AmmTestContext {
     program_id: Pubkey,
     token_0_mint: Pubkey,
     token_1_mint: Pubkey,
+    /// CToken program's compressible config PDA (from SDK trait)
+    light_token_config_pda: Pubkey,
+    /// CToken program's rent sponsor PDA (from SDK trait)
+    light_token_rent_sponsor_pda: Pubkey,
     creator: Keypair,
     creator_token_0: Pubkey,
     creator_token_1: Pubkey,
@@ -203,6 +207,9 @@ async fn setup() -> AmmTestContext {
         program_id,
         token_0_mint,
         token_1_mint,
+        // Use SDK trait methods for token config/rent sponsor
+        light_token_config_pda: sdk.light_token_config_pda(),
+        light_token_rent_sponsor_pda: sdk.light_token_rent_sponsor_pda(),
         creator,
         creator_token_0,
         creator_token_1,
@@ -350,8 +357,8 @@ async fn test_amm_full_lifecycle() {
         system_program: solana_sdk::system_program::ID,
         rent: solana_sdk::sysvar::rent::ID,
         compression_config: ctx.config_pda,
-        light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
-        rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
+        light_token_compressible_config: ctx.light_token_config_pda,
+        rent_sponsor: ctx.light_token_rent_sponsor_pda,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID,
         light_token_cpi_authority: LIGHT_TOKEN_CPI_AUTHORITY,
     };
