@@ -12,7 +12,7 @@ use crate::{
         light_account_keywords::{
             is_standalone_keyword, unknown_key_error, valid_keys_for_namespace,
         },
-        shared_utils::{extract_terminal_ident, is_constant_identifier},
+        shared_utils::is_constant_identifier,
     },
     utils::snake_to_camel_case,
 };
@@ -85,30 +85,32 @@ impl syn::parse::Parse for InstructionArg {
     }
 }
 
-/// Classified seed element from Anchor's seeds array
+/// Classified seed element from Anchor's seeds array.
+///
+/// Uses prefix detection + passthrough strategy:
+/// - Identifies the root (ctx/data/constant/literal) to determine which namespace
+/// - Passes through the full expression unchanged for code generation
+/// - Complex expressions like `identity_seed::<12>(b"seed")` become Passthrough
 #[derive(Clone, Debug)]
 pub enum ClassifiedSeed {
     /// b"literal" or "string" - hardcoded bytes
     Literal(Vec<u8>),
-    /// CONSTANT - uppercase identifier, resolved as crate::CONSTANT
+    /// CONSTANT or path::CONSTANT - uppercase identifier
     Constant(syn::Path),
-    /// account.key().as_ref() - reference to account in struct
-    CtxAccount(Ident),
-    /// params.field.as_ref() or params.field.to_le_bytes().as_ref()
-    DataField {
-        field_name: Ident,
-        /// Method like to_le_bytes, or None for direct .as_ref()
-        conversion: Option<Ident>,
+    /// Expression rooted in ctx account (e.g., authority.key().as_ref())
+    /// `account` is the root identifier, `expr` is the full expression for codegen
+    CtxRooted {
+        account: Ident,
+        expr: Box<syn::Expr>,
     },
-    /// Function call like max_key(&a.key(), &b.key())
-    FunctionCall {
-        func: syn::Path,
-        /// Account references used as arguments
-        ctx_args: Vec<Ident>,
+    /// Expression rooted in instruction arg (e.g., params.owner.as_ref())
+    /// `root` is the instruction arg name, `expr` is the full expression for codegen
+    DataRooted {
+        root: Ident,
+        expr: Box<syn::Expr>,
     },
-    /// Complex expression that should be passed through unchanged.
-    /// Used for: function calls with non-ctx arguments, type-qualified paths, etc.
-    Complex(Box<Expr>),
+    /// Everything else - pass through unchanged
+    Passthrough(Box<syn::Expr>),
 }
 
 /// Extracted seed specification for a compressible field
@@ -706,277 +708,234 @@ fn classify_seeds_array(
     Ok(seeds)
 }
 
-/// Classify a single seed expression
+/// Classify a single seed expression using prefix detection + passthrough.
+///
+/// Strategy:
+/// 1. Byte literals -> Literal
+/// 2. Uppercase paths -> Constant
+/// 3. Check if rooted in instruction arg -> DataRooted (pass through full expr)
+/// 4. Check if rooted in ctx account -> CtxRooted (pass through full expr)
+/// 5. Everything else -> Passthrough
 pub fn classify_seed_expr(
     expr: &Expr,
     instruction_args: &InstructionArgSet,
 ) -> syn::Result<ClassifiedSeed> {
+    // Handle byte string literals
+    if let Some(bytes) = extract_byte_literal(expr) {
+        return Ok(ClassifiedSeed::Literal(bytes));
+    }
+
+    // Handle constants (uppercase paths)
+    if let Some(path) = extract_constant_path(expr) {
+        return Ok(ClassifiedSeed::Constant(path));
+    }
+
+    // Check if rooted in instruction arg
+    if let Some(root) = get_instruction_arg_root(expr, instruction_args) {
+        return Ok(ClassifiedSeed::DataRooted {
+            root,
+            expr: Box::new(expr.clone()),
+        });
+    }
+
+    // Check if rooted in ctx account
+    if let Some(account) = get_ctx_account_root(expr) {
+        return Ok(ClassifiedSeed::CtxRooted {
+            account,
+            expr: Box::new(expr.clone()),
+        });
+    }
+
+    // Everything else: passthrough
+    Ok(ClassifiedSeed::Passthrough(Box::new(expr.clone())))
+}
+
+/// Extract byte literal from expression.
+/// Handles: b"literal", "string", b"literal"[..]
+fn extract_byte_literal(expr: &Expr) -> Option<Vec<u8>> {
     match expr {
-        // b"literal"
         Expr::Lit(lit) => {
             if let syn::Lit::ByteStr(bs) = &lit.lit {
-                return Ok(ClassifiedSeed::Literal(bs.value()));
+                return Some(bs.value());
             }
             if let syn::Lit::Str(s) = &lit.lit {
-                return Ok(ClassifiedSeed::Literal(s.value().into_bytes()));
+                return Some(s.value().into_bytes());
             }
-            Err(syn::Error::new_spanned(
-                expr,
-                "Unsupported literal in seeds",
-            ))
+            None
         }
-
-        // CONSTANT (all uppercase path) or bare instruction arg
-        Expr::Path(path) => {
-            // Check for type-qualified path like <Type as Trait>::CONSTANT
-            // These have a qself (qualified self) that must be preserved
-            if path.qself.is_some() {
-                return Ok(ClassifiedSeed::Complex(Box::new(expr.clone())));
-            }
-
-            if let Some(ident) = path.path.get_ident() {
-                let name = ident.to_string();
-
-                // Check uppercase constant first
-                if is_constant_identifier(&name) {
-                    return Ok(ClassifiedSeed::Constant(path.path.clone()));
-                }
-
-                // Check if this is a bare instruction arg (Format 2)
-                // e.g., #[instruction(owner: Pubkey)] -> seeds = [owner.as_ref()]
-                if instruction_args.contains(&name) {
-                    return Ok(ClassifiedSeed::DataField {
-                        field_name: ident.clone(),
-                        conversion: None,
-                    });
-                }
-
-                // Otherwise treat as ctx account reference
-                return Ok(ClassifiedSeed::CtxAccount(ident.clone()));
-            }
-            // Multi-segment path is a constant
-            Ok(ClassifiedSeed::Constant(path.path.clone()))
-        }
-
-        // method_call.as_ref() - most common case
-        Expr::MethodCall(mc) => classify_method_call(mc, instruction_args),
-
-        // Reference like &account.key()
-        Expr::Reference(r) => classify_seed_expr(&r.expr, instruction_args),
-
-        // Field access like params.owner or params.nested.owner - direct field reference
-        Expr::Field(field) => {
-            if let syn::Member::Named(field_name) = &field.member {
-                // Check if root of the expression is an instruction arg
-                if is_instruction_arg_rooted(&field.base, instruction_args) {
-                    return Ok(ClassifiedSeed::DataField {
-                        field_name: field_name.clone(),
-                        conversion: None,
-                    });
-                }
-                // ctx.field or account.field - treat as ctx account
-                return Ok(ClassifiedSeed::CtxAccount(field_name.clone()));
-            }
-            Err(syn::Error::new_spanned(
-                expr,
-                "Unsupported field expression",
-            ))
-        }
-
-        // Function call like max_key(&a.key(), &b.key()).as_ref()
-        Expr::Call(call) => {
-            let func = match &*call.func {
-                Expr::Path(p) => p.path.clone(),
-                _ => {
-                    // Complex function call (e.g., closure) - store as Complex
-                    return Ok(ClassifiedSeed::Complex(Box::new(expr.clone())));
-                }
-            };
-
-            let mut ctx_args = Vec::new();
-            let mut has_non_ctx_args = false;
-
-            for arg in &call.args {
-                if let Some(ident) = extract_terminal_ident(arg, true) {
-                    ctx_args.push(ident);
-                } else {
-                    // Argument is not a ctx account reference (e.g., literal, complex expr)
-                    has_non_ctx_args = true;
-                    break;
-                }
-            }
-
-            // If any non-ctx argument, store as Complex to preserve the full expression
-            if has_non_ctx_args {
-                return Ok(ClassifiedSeed::Complex(Box::new(expr.clone())));
-            }
-
-            Ok(ClassifiedSeed::FunctionCall { func, ctx_args })
-        }
-
-        // Index expression - handles two cases:
-        // 1. b"literal"[..] - converts [u8; N] to &[u8]
-        // 2. params.arrays[2] - array indexing on instruction arg field
+        // Handle b"literal"[..] - full range slice
         Expr::Index(idx) => {
-            // Case 1: Check if the index is a full range (..) on byte literal
             if let Expr::Range(range) = &*idx.index {
                 if range.start.is_none() && range.end.is_none() {
-                    // This is a full range [..], now check if expr is a byte string literal
                     if let Expr::Lit(lit) = &*idx.expr {
                         if let syn::Lit::ByteStr(bs) = &lit.lit {
-                            return Ok(ClassifiedSeed::Literal(bs.value()));
+                            return Some(bs.value());
                         }
                     }
                 }
             }
-
-            // Case 2: Array indexing on instruction arg field like params.arrays[2]
-            if is_instruction_arg_rooted(&idx.expr, instruction_args) {
-                if let Some(field_name) = extract_terminal_field(&idx.expr) {
-                    return Ok(ClassifiedSeed::DataField {
-                        field_name,
-                        conversion: None,
-                    });
-                }
-            }
-
-            Err(syn::Error::new_spanned(
-                expr,
-                format!("Unsupported index expression in seeds: {:?}", expr),
-            ))
+            None
         }
-
-        _ => Err(syn::Error::new_spanned(
-            expr,
-            format!("Unsupported seed expression: {:?}", expr),
-        )),
-    }
-}
-
-/// Classify a method call expression like account.key().as_ref()
-fn classify_method_call(
-    mc: &syn::ExprMethodCall,
-    instruction_args: &InstructionArgSet,
-) -> syn::Result<ClassifiedSeed> {
-    // Unwrap .as_ref(), .as_bytes(), or .as_slice() at the end - these are terminal conversions
-    if mc.method == "as_ref" || mc.method == "as_bytes" || mc.method == "as_slice" {
-        return classify_seed_expr(&mc.receiver, instruction_args);
-    }
-
-    // Handle instruction_arg.field.to_le_bytes() or instruction_arg.nested.field.to_le_bytes()
-    // Also handle bare instruction arg: amount.to_le_bytes() where amount is a direct instruction arg
-    if mc.method == "to_le_bytes" || mc.method == "to_be_bytes" {
-        // Check for bare instruction arg like amount.to_le_bytes()
-        if let Expr::Path(path) = &*mc.receiver {
-            if let Some(ident) = path.path.get_ident() {
-                if instruction_args.contains(&ident.to_string()) {
-                    return Ok(ClassifiedSeed::DataField {
-                        field_name: ident.clone(),
-                        conversion: Some(mc.method.clone()),
-                    });
-                }
-            }
-        }
-
-        // Check for field access on instruction arg
-        if is_instruction_arg_rooted(&mc.receiver, instruction_args) {
-            if let Some(field_name) = extract_terminal_field(&mc.receiver) {
-                return Ok(ClassifiedSeed::DataField {
-                    field_name,
-                    conversion: Some(mc.method.clone()),
-                });
-            }
-        }
-    }
-
-    // Handle account.key()
-    if mc.method == "key" {
-        if let Some(ident) = extract_terminal_ident(&mc.receiver, false) {
-            // Check if it's rooted in an instruction arg
-            if is_instruction_arg_rooted(&mc.receiver, instruction_args) {
-                if let Some(field_name) = extract_terminal_field(&mc.receiver) {
-                    return Ok(ClassifiedSeed::DataField {
-                        field_name,
-                        conversion: None,
-                    });
-                }
-            }
-            return Ok(ClassifiedSeed::CtxAccount(ident));
-        }
-    }
-
-    // instruction_arg.field or instruction_arg.nested.field - check for instruction-arg-rooted access
-    if is_instruction_arg_rooted(&mc.receiver, instruction_args) {
-        if let Some(field_name) = extract_terminal_field(&mc.receiver) {
-            return Ok(ClassifiedSeed::DataField {
-                field_name,
-                conversion: None,
-            });
-        }
-    }
-
-    Err(syn::Error::new_spanned(
-        mc,
-        "Unsupported method call in seeds",
-    ))
-}
-
-/// Check if an expression is rooted in an instruction argument.
-/// Works with ANY instruction arg name, not just "params".
-fn is_instruction_arg_rooted(expr: &Expr, instruction_args: &InstructionArgSet) -> bool {
-    match expr {
-        Expr::Path(path) => {
-            if let Some(ident) = path.path.get_ident() {
-                instruction_args.contains(&ident.to_string())
-            } else {
-                false
-            }
-        }
-        Expr::Field(field) => {
-            // Recursively check the base
-            is_instruction_arg_rooted(&field.base, instruction_args)
-        }
-        Expr::Index(idx) => {
-            // For array indexing like params.arrays[2], check the base
-            is_instruction_arg_rooted(&idx.expr, instruction_args)
-        }
-        _ => false,
-    }
-}
-
-/// Extract the terminal field name from a nested field access (e.g., params.nested.owner -> owner)
-fn extract_terminal_field(expr: &Expr) -> Option<Ident> {
-    match expr {
-        Expr::Field(field) => {
-            if let syn::Member::Named(field_name) = &field.member {
-                Some(field_name.clone())
-            } else {
-                None
-            }
-        }
-        Expr::Index(idx) => {
-            // For indexed access, get the field name from the base
-            extract_terminal_field(&idx.expr)
-        }
+        // Unwrap references
+        Expr::Reference(r) => extract_byte_literal(&r.expr),
         _ => None,
     }
 }
 
-/// Get data field names from classified seeds
+/// Extract constant path from expression.
+/// Handles: CONSTANT, path::CONSTANT
+/// Does NOT handle type-qualified paths like <T as Trait>::CONST (returns None for passthrough)
+fn extract_constant_path(expr: &Expr) -> Option<syn::Path> {
+    match expr {
+        Expr::Path(path) => {
+            // Type-qualified paths go to passthrough
+            if path.qself.is_some() {
+                return None;
+            }
+
+            if let Some(ident) = path.path.get_ident() {
+                // Single-segment uppercase path
+                if is_constant_identifier(&ident.to_string()) {
+                    return Some(path.path.clone());
+                }
+            } else if let Some(last_seg) = path.path.segments.last() {
+                // Multi-segment path - check if last segment is uppercase
+                if is_constant_identifier(&last_seg.ident.to_string()) {
+                    return Some(path.path.clone());
+                }
+            }
+            None
+        }
+        // Unwrap references
+        Expr::Reference(r) => extract_constant_path(&r.expr),
+        _ => None,
+    }
+}
+
+/// Get the root instruction arg identifier if expression is rooted in one.
+/// Returns the instruction arg name (e.g., "params", "owner", "data").
+fn get_instruction_arg_root(expr: &Expr, instruction_args: &InstructionArgSet) -> Option<Ident> {
+    match expr {
+        // Bare identifier: owner, amount (Format 2)
+        Expr::Path(path) => {
+            if let Some(ident) = path.path.get_ident() {
+                let name = ident.to_string();
+                // Skip uppercase (constants) and check if it's an instruction arg
+                if !is_constant_identifier(&name) && instruction_args.contains(&name) {
+                    return Some(ident.clone());
+                }
+            }
+            None
+        }
+        // Field access: params.owner, data.field.nested
+        Expr::Field(field) => get_instruction_arg_root(&field.base, instruction_args),
+        // Method call: params.owner.as_ref(), owner.to_le_bytes()
+        Expr::MethodCall(mc) => get_instruction_arg_root(&mc.receiver, instruction_args),
+        // Index: params.arrays[0]
+        Expr::Index(idx) => get_instruction_arg_root(&idx.expr, instruction_args),
+        // Reference: &params.owner
+        Expr::Reference(r) => get_instruction_arg_root(&r.expr, instruction_args),
+        _ => None,
+    }
+}
+
+/// Get the root ctx account identifier if expression is rooted in one.
+/// Returns the account name (e.g., "authority", "owner").
+fn get_ctx_account_root(expr: &Expr) -> Option<Ident> {
+    match expr {
+        // Bare identifier (not uppercase): authority, owner
+        Expr::Path(path) => {
+            if let Some(ident) = path.path.get_ident() {
+                let name = ident.to_string();
+                // Skip uppercase (constants)
+                if !is_constant_identifier(&name) {
+                    return Some(ident.clone());
+                }
+            }
+            None
+        }
+        // Field access: authority.key, ctx.accounts.authority
+        Expr::Field(field) => {
+            // First check if terminal member is named
+            if let syn::Member::Named(field_name) = &field.member {
+                // If base is a simple path (like ctx.accounts), return the field
+                // Otherwise recurse into the base
+                match &*field.base {
+                    Expr::Path(_) => Some(field_name.clone()),
+                    Expr::Field(_) => {
+                        // For ctx.accounts.authority - take terminal field
+                        Some(field_name.clone())
+                    }
+                    _ => get_ctx_account_root(&field.base),
+                }
+            } else {
+                None
+            }
+        }
+        // Method call: authority.key().as_ref()
+        Expr::MethodCall(mc) => get_ctx_account_root(&mc.receiver),
+        // Reference: &authority.key()
+        Expr::Reference(r) => get_ctx_account_root(&r.expr),
+        _ => None,
+    }
+}
+
+
+/// Get data field names from classified seeds.
+/// Extracts the terminal field name from DataRooted expressions.
 pub fn get_data_fields(seeds: &[ClassifiedSeed]) -> Vec<(Ident, Option<Ident>)> {
     let mut fields = Vec::new();
     for seed in seeds {
-        if let ClassifiedSeed::DataField {
-            field_name,
-            conversion,
-        } = seed
-        {
-            if !fields.iter().any(|(f, _): &(Ident, _)| f == field_name) {
-                fields.push((field_name.clone(), conversion.clone()));
+        if let ClassifiedSeed::DataRooted { expr, .. } = seed {
+            if let Some((field_name, conversion)) = extract_data_field_info(expr) {
+                if !fields.iter().any(|(f, _): &(Ident, _)| f == &field_name) {
+                    fields.push((field_name, conversion));
+                }
             }
         }
     }
     fields
+}
+
+/// Extract field name and conversion method from a data-rooted expression.
+/// Returns (field_name, Some(method)) for expressions like `params.field.to_le_bytes()`.
+pub fn extract_data_field_info(expr: &Expr) -> Option<(Ident, Option<Ident>)> {
+    match expr {
+        // Bare identifier: amount (Format 2 instruction arg used directly)
+        Expr::Path(path) => {
+            if let Some(ident) = path.path.get_ident() {
+                return Some((ident.clone(), None));
+            }
+            None
+        }
+        // Field access: params.owner, data.field
+        Expr::Field(field) => {
+            if let syn::Member::Named(field_name) = &field.member {
+                return Some((field_name.clone(), None));
+            }
+            None
+        }
+        // Method call: params.field.to_le_bytes(), amount.as_ref()
+        Expr::MethodCall(mc) => {
+            let method_name = mc.method.to_string();
+            // Check for conversion methods
+            if method_name == "to_le_bytes" || method_name == "to_be_bytes" {
+                if let Some((field_name, _)) = extract_data_field_info(&mc.receiver) {
+                    return Some((field_name, Some(mc.method.clone())));
+                }
+            }
+            // Skip .as_ref(), .as_bytes(), etc. and recurse
+            if method_name == "as_ref" || method_name == "as_bytes" || method_name == "as_slice" {
+                return extract_data_field_info(&mc.receiver);
+            }
+            None
+        }
+        // Index: params.arrays[0]
+        Expr::Index(idx) => extract_data_field_info(&idx.expr),
+        // Reference: &params.owner
+        Expr::Reference(r) => extract_data_field_info(&r.expr),
+        _ => None,
+    }
 }
 
 /// Get params-only seed fields from a TokenSeedSpec.
@@ -1058,45 +1017,46 @@ mod tests {
 
     #[test]
     fn test_bare_pubkey_instruction_arg() {
+        // Format 2: bare instruction arg "owner" should be DataRooted
         let args = make_instruction_args(&["owner", "amount"]);
         let expr: syn::Expr = parse_quote!(owner);
         let result = classify_seed_expr(&expr, &args).unwrap();
         assert!(
-            matches!(result, ClassifiedSeed::DataField { field_name, .. } if field_name == "owner")
+            matches!(result, ClassifiedSeed::DataRooted { root, .. } if root == "owner")
         );
     }
 
     #[test]
     fn test_bare_primitive_with_to_le_bytes() {
+        // Format 2: amount.to_le_bytes() should be DataRooted with root "amount"
         let args = make_instruction_args(&["amount"]);
         let expr: syn::Expr = parse_quote!(amount.to_le_bytes().as_ref());
         let result = classify_seed_expr(&expr, &args).unwrap();
         assert!(matches!(
             result,
-            ClassifiedSeed::DataField {
-                field_name,
-                conversion: Some(conv)
-            } if field_name == "amount" && conv == "to_le_bytes"
+            ClassifiedSeed::DataRooted { root, .. } if root == "amount"
         ));
     }
 
     #[test]
     fn test_custom_struct_param_name() {
+        // Custom param name "input" - should be DataRooted with root "input"
         let args = make_instruction_args(&["input"]);
         let expr: syn::Expr = parse_quote!(input.owner.as_ref());
         let result = classify_seed_expr(&expr, &args).unwrap();
         assert!(
-            matches!(result, ClassifiedSeed::DataField { field_name, .. } if field_name == "owner")
+            matches!(result, ClassifiedSeed::DataRooted { root, .. } if root == "input")
         );
     }
 
     #[test]
     fn test_nested_field_access() {
+        // data.inner.key should be DataRooted with root "data"
         let args = make_instruction_args(&["data"]);
         let expr: syn::Expr = parse_quote!(data.inner.key.as_ref());
         let result = classify_seed_expr(&expr, &args).unwrap();
         assert!(
-            matches!(result, ClassifiedSeed::DataField { field_name, .. } if field_name == "key")
+            matches!(result, ClassifiedSeed::DataRooted { root, .. } if root == "data")
         );
     }
 
@@ -1107,7 +1067,7 @@ mod tests {
         let result = classify_seed_expr(&expr, &args).unwrap();
         assert!(matches!(
             result,
-            ClassifiedSeed::CtxAccount(ident) if ident == "authority"
+            ClassifiedSeed::CtxRooted { account, .. } if account == "authority"
         ));
     }
 
@@ -1117,7 +1077,7 @@ mod tests {
         let expr: syn::Expr = parse_quote!(owner);
         let result = classify_seed_expr(&expr, &args).unwrap();
         // Without instruction args, bare ident treated as ctx account
-        assert!(matches!(result, ClassifiedSeed::CtxAccount(_)));
+        assert!(matches!(result, ClassifiedSeed::CtxRooted { account, .. } if account == "owner"));
     }
 
     #[test]
@@ -1143,7 +1103,7 @@ mod tests {
         let expr: syn::Expr = parse_quote!(params.owner.as_ref());
         let result = classify_seed_expr(&expr, &args).unwrap();
         assert!(
-            matches!(result, ClassifiedSeed::DataField { field_name, .. } if field_name == "owner")
+            matches!(result, ClassifiedSeed::DataRooted { root, .. } if root == "params")
         );
     }
 
@@ -1154,7 +1114,7 @@ mod tests {
         let expr: syn::Expr = parse_quote!(args.key.as_ref());
         let result = classify_seed_expr(&expr, &args).unwrap();
         assert!(
-            matches!(result, ClassifiedSeed::DataField { field_name, .. } if field_name == "key")
+            matches!(result, ClassifiedSeed::DataRooted { root, .. } if root == "args")
         );
     }
 
@@ -1166,10 +1126,7 @@ mod tests {
         let result = classify_seed_expr(&expr, &args).unwrap();
         assert!(matches!(
             result,
-            ClassifiedSeed::DataField {
-                field_name,
-                conversion: Some(conv)
-            } if field_name == "value" && conv == "to_le_bytes"
+            ClassifiedSeed::DataRooted { root, .. } if root == "data"
         ));
     }
 
@@ -1181,18 +1138,63 @@ mod tests {
         let expr1: syn::Expr = parse_quote!(owner.as_ref());
         let result1 = classify_seed_expr(&expr1, &args).unwrap();
         assert!(
-            matches!(result1, ClassifiedSeed::DataField { field_name, .. } if field_name == "owner")
+            matches!(result1, ClassifiedSeed::DataRooted { root, .. } if root == "owner")
         );
 
         let expr2: syn::Expr = parse_quote!(amount.to_le_bytes().as_ref());
         let result2 = classify_seed_expr(&expr2, &args).unwrap();
         assert!(matches!(
             result2,
-            ClassifiedSeed::DataField {
-                field_name,
-                conversion: Some(_)
-            } if field_name == "amount"
+            ClassifiedSeed::DataRooted { root, .. } if root == "amount"
         ));
+    }
+
+    #[test]
+    fn test_passthrough_for_complex_expressions() {
+        // Type-qualified paths should become Passthrough
+        let args = InstructionArgSet::empty();
+        let expr: syn::Expr = parse_quote!(<Type as Trait>::CONST);
+        let result = classify_seed_expr(&expr, &args).unwrap();
+        assert!(matches!(result, ClassifiedSeed::Passthrough(_)));
+    }
+
+    #[test]
+    fn test_passthrough_for_generic_function_call() {
+        // Complex function calls should become Passthrough
+        let args = InstructionArgSet::empty();
+        let expr: syn::Expr = parse_quote!(identity_seed::<12>(b"seed"));
+        let result = classify_seed_expr(&expr, &args).unwrap();
+        assert!(matches!(result, ClassifiedSeed::Passthrough(_)));
+    }
+
+    #[test]
+    fn test_literal_sliced() {
+        // b"literal"[..] - byte literal with full range slice
+        let args = InstructionArgSet::empty();
+        let expr: syn::Expr = parse_quote!(b"literal"[..]);
+        let result = classify_seed_expr(&expr, &args).unwrap();
+        assert!(matches!(result, ClassifiedSeed::Literal(bytes) if bytes == b"literal"));
+    }
+
+    #[test]
+    fn test_constant_qualified() {
+        // crate::path::CONSTANT - qualified constant path
+        let args = InstructionArgSet::empty();
+        let expr: syn::Expr = parse_quote!(crate::state::SEED_CONSTANT);
+        let result = classify_seed_expr(&expr, &args).unwrap();
+        assert!(matches!(result, ClassifiedSeed::Constant(path) if path.segments.last().unwrap().ident == "SEED_CONSTANT"));
+    }
+
+    #[test]
+    fn test_ctx_account_nested() {
+        // ctx.accounts.authority.key().as_ref() - nested ctx account access
+        // The macro extracts the terminal field "authority" as the account root
+        let args = InstructionArgSet::empty();
+        let expr: syn::Expr = parse_quote!(ctx.accounts.authority.key().as_ref());
+        let result = classify_seed_expr(&expr, &args).unwrap();
+        assert!(
+            matches!(result, ClassifiedSeed::CtxRooted { account, .. } if account == "authority")
+        );
     }
 
     #[test]

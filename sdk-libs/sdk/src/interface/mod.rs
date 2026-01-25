@@ -5,7 +5,7 @@ pub mod finalize;
 pub mod traits;
 
 pub use finalize::{LightFinalize, LightPreInit};
-pub use traits::{IntoCTokenVariant, IntoVariant};
+pub use traits::{IntoCTokenVariant, IntoVariant, PdaSeeds};
 
 #[cfg(feature = "v2")]
 pub mod compress_account;

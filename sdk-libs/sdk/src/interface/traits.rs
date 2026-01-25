@@ -62,3 +62,7 @@ pub trait IntoCTokenVariant<V, T> {
     /// The constructed variant containing both CToken variant and token data
     fn into_ctoken_variant(self, token_data: T) -> V;
 }
+
+pub trait PdaSeeds<Accounts, const N: usize> {
+    fn seeds<'a>(&'a self, accounts: &'a Accounts) -> [&'a [u8]; N];
+}

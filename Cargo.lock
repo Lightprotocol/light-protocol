@@ -6146,6 +6146,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "seed-extraction-test"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "borsh 0.10.4",
+ "light-account-checks",
+ "light-compressed-account",
+ "light-compressible",
+ "light-hasher",
+ "light-heap",
+ "light-macros",
+ "light-program-test",
+ "light-sdk",
+ "light-sdk-macros",
+ "light-sdk-types",
+ "light-token",
+ "light-token-types",
+ "solana-account-info",
+ "solana-msg 2.2.1",
+ "solana-program",
+ "solana-program-error 2.2.2",
+ "solana-pubkey 2.4.0",
+ "tokio",
+]
+
+[[package]]
 name = "semver"
 version = "1.0.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"

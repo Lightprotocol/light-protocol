@@ -55,12 +55,6 @@ pub fn seed_element_to_ref_expr(seed: &SeedElement, config: &SeedConversionConfi
 
             // Handle uppercase constants (single-segment and multi-segment paths)
             if let syn::Expr::Path(path_expr) = &**expr {
-                // Check for type-qualified path like <SeedHolder as HasSeed>::TRAIT_SEED
-                // These have a qself that must be preserved - use the full expression
-                if path_expr.qself.is_some() {
-                    return quote! { { let __seed: &[u8] = (#expr).as_ref(); __seed } };
-                }
-
                 if let Some(ident) = path_expr.path.get_ident() {
                     // Single-segment path like AUTH_SEED
                     let ident_str = ident.to_string();

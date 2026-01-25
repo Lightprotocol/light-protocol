@@ -492,3 +492,9 @@ pub fn pod_compression_info_field(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     into_token_stream(light_pdas::account::traits::derive_pod_compression_info_field(input))
 }
+
+#[proc_macro_derive(DeriveSeed, attributes(instruction))]
+pub fn derive_seed(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    into_token_stream(light_pdas::seeds::derive_seed(input))
+}

@@ -65,6 +65,7 @@ members = [
     "sdk-tests/single-account-loader-test",
     "sdk-tests/single-ata-test",
     "sdk-tests/single-token-test",
+    "sdk-tests/seed-extraction-test",
     "forester-utils",
     "forester",
     "sparse-merkle-tree",

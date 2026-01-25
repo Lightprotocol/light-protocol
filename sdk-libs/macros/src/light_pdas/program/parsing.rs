@@ -289,21 +289,26 @@ pub fn extract_data_seed_fields(
 // SEED CONVERSION
 // =============================================================================
 
-/// Convert ClassifiedSeed to SeedElement (Punctuated)
+/// Convert ClassifiedSeed to SeedElement (Punctuated).
+///
+/// Produces simplified expressions for downstream processing:
+/// - CtxRooted: generates `ctx.account` (not the full expression)
+/// - DataRooted: generates `data.field` with optional conversion method
+/// - Passthrough: uses expression as-is (for complex patterns)
 pub fn convert_classified_to_seed_elements(
     seeds: &[crate::light_pdas::account::seed_extraction::ClassifiedSeed],
 ) -> Punctuated<SeedElement, Token![,]> {
-    use crate::light_pdas::account::seed_extraction::ClassifiedSeed;
+    use crate::light_pdas::account::seed_extraction::{extract_data_field_info, ClassifiedSeed};
 
     let mut result = Punctuated::new();
     for seed in seeds {
         let elem = match seed {
             ClassifiedSeed::Literal(bytes) => {
-                // Convert to string literal
+                // Convert to string literal if valid UTF-8
                 if let Ok(s) = std::str::from_utf8(bytes) {
                     SeedElement::Literal(syn::LitStr::new(s, proc_macro2::Span::call_site()))
                 } else {
-                    // Byte array - use expression
+                    // Non-UTF8 byte array - use expression
                     let byte_values: Vec<_> = bytes.iter().map(|b| quote!(#b)).collect();
                     let expr: Expr = syn::parse_quote!(&[#(#byte_values),*]);
                     SeedElement::Expression(Box::new(expr))
@@ -313,34 +318,26 @@ pub fn convert_classified_to_seed_elements(
                 let expr: Expr = syn::parse_quote!(#path);
                 SeedElement::Expression(Box::new(expr))
             }
-            ClassifiedSeed::CtxAccount(ident) => {
-                let expr: Expr = syn::parse_quote!(ctx.#ident);
+            ClassifiedSeed::CtxRooted { account, .. } => {
+                // Generate simplified ctx.account expression
+                let expr: Expr = syn::parse_quote!(ctx.#account);
                 SeedElement::Expression(Box::new(expr))
             }
-            ClassifiedSeed::DataField {
-                field_name,
-                conversion: None,
-            } => {
-                let expr: Expr = syn::parse_quote!(data.#field_name);
-                SeedElement::Expression(Box::new(expr))
+            ClassifiedSeed::DataRooted { expr, .. } => {
+                // Extract the field name and optional conversion method
+                if let Some((field_name, conversion)) = extract_data_field_info(expr) {
+                    let expr: Expr = if let Some(method) = conversion {
+                        syn::parse_quote!(data.#field_name.#method())
+                    } else {
+                        syn::parse_quote!(data.#field_name)
+                    };
+                    SeedElement::Expression(Box::new(expr))
+                } else {
+                    // Fallback: pass through as-is
+                    SeedElement::Expression(expr.clone())
+                }
             }
-            ClassifiedSeed::DataField {
-                field_name,
-                conversion: Some(method),
-            } => {
-                let expr: Expr = syn::parse_quote!(data.#field_name.#method());
-                SeedElement::Expression(Box::new(expr))
-            }
-            ClassifiedSeed::FunctionCall { func, ctx_args } => {
-                let args: Vec<Expr> = ctx_args
-                    .iter()
-                    .map(|arg| syn::parse_quote!(&ctx.#arg.key()))
-                    .collect();
-                let expr: Expr = syn::parse_quote!(#func(#(#args),*));
-                SeedElement::Expression(Box::new(expr))
-            }
-            ClassifiedSeed::Complex(expr) => {
-                // Pass through the complex expression unchanged
+            ClassifiedSeed::Passthrough(expr) => {
                 SeedElement::Expression(expr.clone())
             }
         };

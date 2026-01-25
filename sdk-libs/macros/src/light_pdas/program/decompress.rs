@@ -322,14 +322,6 @@ fn generate_pda_seed_derivation_for_trait_with_ctx_seeds(
 
                 // Handle uppercase constants (single-segment and multi-segment paths)
                 if let syn::Expr::Path(path_expr) = &**expr {
-                    // Check for type-qualified path like <SeedHolder as HasSeed>::TRAIT_SEED
-                    // These have a qself that must be preserved - use the full expression
-                    if path_expr.qself.is_some() {
-                        seed_refs
-                            .push(quote! { { let __seed: &[u8] = (#expr).as_ref(); __seed } });
-                        continue;
-                    }
-
                     if let Some(ident) = path_expr.path.get_ident() {
                         // Single-segment path like AUTH_SEED
                         let ident_str = ident.to_string();
