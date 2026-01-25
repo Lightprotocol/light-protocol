@@ -48,8 +48,10 @@ const CSDK_TEST_PROGRAM_ID: &str = "FAMipfVEhN4hjCLpKCvjDXXfzLsoVTqQccXzePz1L1ah
 // This needs to match the discriminator from csdk_anchor_full_derived_test::state::d1_field_types::single_pubkey::SinglePubkeyRecord
 const SINGLE_PUBKEY_RECORD_DISCRIMINATOR: [u8; 8] = csdk_anchor_full_derived_test::state::d1_field_types::single_pubkey::SinglePubkeyRecord::LIGHT_DISCRIMINATOR;
 
-// Rent sponsor pubkey used in tests
-const RENT_SPONSOR: Pubkey = solana_sdk::pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
+/// Get the program's derived rent sponsor PDA
+fn program_rent_sponsor() -> Pubkey {
+    csdk_anchor_full_derived_test::light_rent_sponsor()
+}
 
 /// Context returned from forester registration
 struct ForesterContext {
@@ -285,6 +287,7 @@ async fn test_compressible_pda_bootstrap() {
         .expect("Failed to airdrop to authority");
 
     // Initialize compression config (includes rent sponsor funding)
+    let rent_sponsor = program_rent_sponsor();
     let (init_config_ixs, config_pda) = InitializeRentFreeConfig::new(
         &program_id,
         &authority.pubkey(),
@@ -293,7 +296,7 @@ async fn test_compressible_pda_bootstrap() {
             &solana_sdk::pubkey!("BPFLoaderUpgradeab1e11111111111111111111111"),
         )
         .0,
-        RENT_SPONSOR,
+        rent_sponsor,
         authority.pubkey(),
         10_000_000_000,
     )
@@ -471,6 +474,7 @@ async fn test_compressible_pda_compression() {
         .expect("Failed to airdrop to authority");
 
     // Initialize compression config (includes rent sponsor funding)
+    let rent_sponsor = program_rent_sponsor();
     let (init_config_ixs, config_pda) = InitializeRentFreeConfig::new(
         &program_id,
         &authority.pubkey(),
@@ -479,7 +483,7 @@ async fn test_compressible_pda_compression() {
             &solana_sdk::pubkey!("BPFLoaderUpgradeab1e11111111111111111111111"),
         )
         .0,
-        RENT_SPONSOR,
+        rent_sponsor,
         authority.pubkey(),
         10_000_000_000,
     )
@@ -705,6 +709,7 @@ async fn test_compressible_pda_subscription() {
         .expect("Failed to wait for indexer");
 
     // Initialize compression config (includes rent sponsor funding)
+    let rent_sponsor = program_rent_sponsor();
     let (init_config_ixs, config_pda) = InitializeRentFreeConfig::new(
         &program_id,
         &authority.pubkey(),
@@ -713,7 +718,7 @@ async fn test_compressible_pda_subscription() {
             &solana_sdk::pubkey!("BPFLoaderUpgradeab1e11111111111111111111111"),
         )
         .0,
-        RENT_SPONSOR,
+        rent_sponsor,
         authority.pubkey(),
         10_000_000_000,
     )
