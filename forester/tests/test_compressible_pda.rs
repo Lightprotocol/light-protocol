@@ -99,8 +99,8 @@ async fn register_forester<R: Rpc>(
         .config;
 
     // Use airdrop for forester
-    println!("Funding forester {} with 10 SOL", forester_pubkey);
-    rpc.airdrop_lamports(&forester_pubkey, 10_000_000_000)
+    println!("Funding forester {} with 2 SOL", forester_pubkey);
+    rpc.airdrop_lamports(&forester_pubkey, 2_000_000_000)
         .await?;
     sleep(Duration::from_millis(500)).await;
 
@@ -281,10 +281,13 @@ async fn test_compressible_pda_bootstrap() {
     // Use PAYER_KEYPAIR as it's the upgrade authority for the program
     let authority = Keypair::try_from(PAYER_KEYPAIR.as_ref()).expect("Invalid PAYER_KEYPAIR");
 
-    // Fund the authority account (extra for tx fees + rent sponsor funding)
-    rpc.airdrop_lamports(&authority.pubkey(), 20_000_000_000)
+    // Fund the authority account
+    rpc.airdrop_lamports(&authority.pubkey(), 2_000_000_000)
         .await
         .expect("Failed to airdrop to authority");
+
+    // for rate limit airdrop
+    tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
 
     // Initialize compression config (includes rent sponsor funding)
     let rent_sponsor = program_rent_sponsor();
@@ -298,7 +301,7 @@ async fn test_compressible_pda_bootstrap() {
         .0,
         rent_sponsor,
         authority.pubkey(),
-        10_000_000_000,
+        500_000_000, // 0.5 SOL for rent sponsor
     )
     .build();
 
@@ -468,8 +471,8 @@ async fn test_compressible_pda_compression() {
     // Use PAYER_KEYPAIR as it's the upgrade authority for the program
     let authority = Keypair::try_from(PAYER_KEYPAIR.as_ref()).expect("Invalid PAYER_KEYPAIR");
 
-    // Fund the authority account (extra for tx fees + rent sponsor funding)
-    rpc.airdrop_lamports(&authority.pubkey(), 20_000_000_000)
+    // Fund the authority account
+    rpc.airdrop_lamports(&authority.pubkey(), 2_000_000_000)
         .await
         .expect("Failed to airdrop to authority");
 
@@ -485,7 +488,7 @@ async fn test_compressible_pda_compression() {
         .0,
         rent_sponsor,
         authority.pubkey(),
-        10_000_000_000,
+        500_000_000, // 0.5 SOL for rent sponsor
     )
     .build();
 
@@ -698,8 +701,8 @@ async fn test_compressible_pda_subscription() {
 
     let authority = Keypair::try_from(&PAYER_KEYPAIR[..]).unwrap();
 
-    // Fund accounts (extra for tx fees + rent sponsor funding)
-    rpc.airdrop_lamports(&authority.pubkey(), 20_000_000_000)
+    // Fund accounts
+    rpc.airdrop_lamports(&authority.pubkey(), 2_000_000_000)
         .await
         .expect("Failed to airdrop to authority");
 
@@ -720,7 +723,7 @@ async fn test_compressible_pda_subscription() {
         .0,
         rent_sponsor,
         authority.pubkey(),
-        10_000_000_000,
+        500_000_000, // 0.5 SOL for rent sponsor
     )
     .build();
 
