@@ -203,6 +203,8 @@ async fn test_compressible_ctoken_compression() {
         .await
         .expect("Failed to get state trees");
     let payer = rpc.get_payer().insecure_clone();
+    // Sleep to avoid airdrop rate limit
+    sleep(Duration::from_secs(3)).await;
     rpc.airdrop_lamports(&payer.pubkey(), 10_000_000_000)
         .await
         .expect("Failed to airdrop lamports");
@@ -376,6 +378,8 @@ async fn test_compressible_ctoken_bootstrap() {
         .expect("Failed to get state trees");
 
     let payer = rpc.get_payer().insecure_clone();
+    // Sleep to avoid airdrop rate limit
+    sleep(Duration::from_secs(3)).await;
     rpc.airdrop_lamports(&payer.pubkey(), 10_000_000_000)
         .await
         .expect("Failed to airdrop lamports");
