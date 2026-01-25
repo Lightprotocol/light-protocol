@@ -23,6 +23,7 @@ light-heap = { workspace = true, optional = true }
 light-sdk = { workspace = true, features = ["anchor", "idl-build", "v2", "anchor-discriminator", "cpi-context"] }
 light-sdk-types = { workspace = true, features = ["v2", "cpi-context"] }
 light-hasher = { workspace = true, features = ["solana"] }
+bytemuck = { workspace = true, features = ["derive"] }
 solana-program = { workspace = true }
 solana-program-error = { workspace = true }
 solana-msg = { workspace = true }

@@ -1605,6 +1605,7 @@ dependencies = [
  "anchor-lang",
  "bincode",
  "borsh 0.10.4",
+ "bytemuck",
  "csdk-anchor-full-derived-test-sdk",
  "light-anchor-spl",
  "light-client",

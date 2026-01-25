@@ -10,6 +10,7 @@ use light_token_interface::instructions::mint_action::MintWithContext;
 
 // Test modules
 pub mod d1_field_types;
+pub mod d11_zero_copy;
 pub mod d2_compress_as;
 pub mod d4_composition;
 
