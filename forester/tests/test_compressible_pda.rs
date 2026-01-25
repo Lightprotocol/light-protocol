@@ -281,8 +281,8 @@ async fn test_compressible_pda_bootstrap() {
     // Use PAYER_KEYPAIR as it's the upgrade authority for the program
     let authority = Keypair::try_from(PAYER_KEYPAIR.as_ref()).expect("Invalid PAYER_KEYPAIR");
 
-    // Fund the authority account
-    rpc.airdrop_lamports(&authority.pubkey(), 10_000_000_000)
+    // Fund the authority account (extra for tx fees + rent sponsor funding)
+    rpc.airdrop_lamports(&authority.pubkey(), 20_000_000_000)
         .await
         .expect("Failed to airdrop to authority");
 
@@ -468,8 +468,8 @@ async fn test_compressible_pda_compression() {
     // Use PAYER_KEYPAIR as it's the upgrade authority for the program
     let authority = Keypair::try_from(PAYER_KEYPAIR.as_ref()).expect("Invalid PAYER_KEYPAIR");
 
-    // Fund the authority account
-    rpc.airdrop_lamports(&authority.pubkey(), 10_000_000_000)
+    // Fund the authority account (extra for tx fees + rent sponsor funding)
+    rpc.airdrop_lamports(&authority.pubkey(), 20_000_000_000)
         .await
         .expect("Failed to airdrop to authority");
 
@@ -698,8 +698,8 @@ async fn test_compressible_pda_subscription() {
 
     let authority = Keypair::try_from(&PAYER_KEYPAIR[..]).unwrap();
 
-    // Fund accounts
-    rpc.airdrop_lamports(&authority.pubkey(), 10_000_000_000)
+    // Fund accounts (extra for tx fees + rent sponsor funding)
+    rpc.airdrop_lamports(&authority.pubkey(), 20_000_000_000)
         .await
         .expect("Failed to airdrop to authority");
 
