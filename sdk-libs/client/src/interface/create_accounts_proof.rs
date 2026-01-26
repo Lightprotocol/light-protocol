@@ -128,6 +128,7 @@ pub async fn get_create_accounts_proof<R: Rpc + Indexer>(
                 address_tree_info: PackedAddressTreeInfo::default(),
                 output_state_tree_index: packed.output_tree_index,
                 state_tree_index: None,
+                system_accounts_offset: packed.system_accounts_offset,
             },
             remaining_accounts: packed.remaining_accounts,
         });
@@ -205,6 +206,7 @@ pub async fn get_create_accounts_proof<R: Rpc + Indexer>(
             address_tree_info,
             output_state_tree_index: packed.output_tree_index,
             state_tree_index: packed.state_tree_index,
+            system_accounts_offset: packed.system_accounts_offset,
         },
         remaining_accounts: packed.remaining_accounts,
     })

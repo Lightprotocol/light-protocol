@@ -193,6 +193,21 @@ pub struct Create<'info> {
 
 Instructions with `#[light_account(init)]` fields require `create_accounts_proof: CreateAccountsProof` as an instruction argument.
 
+```rust
+pub struct CreateAccountsProof {
+    /// The validity proof.
+    pub proof: ValidityProof,
+    /// Single packed address tree info (all accounts use same tree).
+    pub address_tree_info: PackedAddressTreeInfo,
+    /// Output state tree index for new compressed accounts.
+    pub output_state_tree_index: u8,
+    /// State merkle tree index (needed for mint creation decompress validation).
+    pub state_tree_index: Option<u8>,
+    /// Offset in remaining_accounts where Light system accounts start.
+    pub system_accounts_offset: u8,
+}
+```
+
 Can be in params struct:
 ```rust
 pub fn create(ctx: Context<Create>, params: CreateParams) -> Result<()>
@@ -250,24 +265,25 @@ trait PackedLightAccountVariant: Sized + Clone + AnchorSerialize + AnchorDeseria
 ### LightPreInit
 
 ```rust
-trait LightPreInit<'info> {
+trait LightPreInit<'info, P> {
     fn light_pre_init(
         &mut self,
-        proof: &CreateAccountsProof,
         remaining_accounts: &[AccountInfo<'info>],
-        system_accounts_offset: u8,
-    ) -> Result<()>;
+        params: &P,
+    ) -> std::result::Result<bool, LightSdkError>;
 }
 ```
 
 ### LightFinalize
 
 ```rust
-trait LightFinalize<'info> {
+trait LightFinalize<'info, P> {
     fn light_finalize(
         &mut self,
         remaining_accounts: &[AccountInfo<'info>],
-    ) -> Result<()>;
+        params: &P,
+        has_pre_init: bool,
+    ) -> std::result::Result<(), LightSdkError>;
 }
 ```
 
@@ -463,15 +479,20 @@ pub struct Create<'info> {
 ```
 
 ```rust
-impl<'info> LightPreInit<'info> for Create<'info> {
+impl<'info> LightPreInit<'info, CreateParams> for Create<'info> {
     fn light_pre_init(
         &mut self,
-        proof: &CreateAccountsProof,
         remaining_accounts: &[AccountInfo<'info>],
-        system_accounts_offset: u8,
-    ) -> Result<()> {
-        // CPI accounts constructed internally from remaining_accounts + offset
-        let cpi_accounts = CpiAccounts::new(remaining_accounts, system_accounts_offset);
+        params: &CreateParams,
+    ) -> std::result::Result<bool, LightSdkError> {
+        let proof = &params.create_accounts_proof;
+        // CPI accounts constructed from remaining_accounts sliced at system_accounts_offset
+        let system_accounts_offset = proof.system_accounts_offset as usize;
+        let cpi_accounts = CpiAccounts::new(
+            &self.fee_payer,
+            &remaining_accounts[system_accounts_offset..],
+            LIGHT_CPI_SIGNER,
+        );
 
         // 1. Collect CompressedAccountInfo from each PDA
         let mut compressed_accounts = Vec::new();
@@ -508,16 +529,18 @@ impl<'info> LightPreInit<'info> for Create<'info> {
         )?;
 
         // existing_token: no pre_init (no `init` attribute)
-        Ok(())
+        Ok(false) // Return true if mints were created and need CPI context execution
     }
 }
 
-impl<'info> LightFinalize<'info> for Create<'info> {
+impl<'info> LightFinalize<'info, CreateParams> for Create<'info> {
     fn light_finalize(
         &mut self,
         remaining_accounts: &[AccountInfo<'info>],
-    ) -> Result<()> {
-        // Finalize is Noop
+        params: &CreateParams,
+        has_pre_init: bool,
+    ) -> std::result::Result<(), LightSdkError> {
+        // Finalize is Noop for PDA-only flows
         Ok(())
     }
 }
@@ -538,8 +561,12 @@ pub fn light_pre_init_pda<V: LightAccountVariant>(
 ```
 
 **What it does:**
-1. Derives the compressed address from the PDA pubkey
-2. Returns a `CompressedAccountInfo` to be collected for batch initialization
+1. Derives the compressed address from the PDA pubkey (address_seed = pda_pubkey.to_bytes())
+2. Creates a `CompressedAccountInfo` with:
+   - **Discriminator**: `[255, 255, 255, 255, 255, 255, 255, 0]` - marks this as a rent-free PDA placeholder
+   - **Data**: PDA pubkey bytes (32 bytes) - allows lookup/verification by on-chain PDA address
+   - **Data hash**: SHA256 hash of the PDA pubkey bytes
+3. Returns the `CompressedAccountInfo` to be collected for batch initialization
 
 ### `light_init_pdas`
 
@@ -554,9 +581,12 @@ pub fn light_init_pdas(
 
 **What it does:**
 1. Takes all collected `CompressedAccountInfo` from `light_pre_init_pda` calls
-2. Creates empty compressed accounts with addresses derived from PDA pubkeys in a single CPI
-3. Anchor handles creating and initializing the on-chain PDA accounts
-4. Uses `proof` for the ZK proof required to create the compressed accounts
+2. Creates compressed accounts with:
+   - Addresses derived from PDA pubkeys
+   - Discriminator `[255, 255, 255, 255, 255, 255, 255, 0]` (rent-free PDA placeholder)
+   - Data containing the PDA pubkey bytes (32 bytes)
+3. Invokes Light System Program CPI with the proof and new addresses
+4. Anchor handles creating and initializing the on-chain PDA accounts
 
 ### `light_pre_init_mint`
 
@@ -652,4 +682,3 @@ Seeds are extracted from Anchor's `#[account(seeds = [...])]` attribute:
 - light_decompress_mints - SDK function
 - light_pre_init_token - SDK function
 - light_pre_init_ata - SDK function
-- add system_accounts_offset to  CreateAccountsProof
