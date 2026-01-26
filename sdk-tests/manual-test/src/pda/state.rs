@@ -10,8 +10,7 @@ use light_sdk::{compressible::CompressionInfo, LightDiscriminator, LightHasherSh
 /// Minimal record struct for testing PDA creation.
 /// Contains only compression_info and one field.
 ///
-/// Note: #[account] already derives Clone, AnchorSerialize, AnchorDeserialize
-#[derive(Default, Debug, InitSpace, LightDiscriminator, LightHasherSha)]
+#[derive(Default, Debug, InitSpace, LightDiscriminator, LightHasherSha)] // LightAccount
 #[account]
 pub struct MinimalRecord {
     pub compression_info: CompressionInfo,

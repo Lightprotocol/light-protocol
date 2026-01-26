@@ -12,10 +12,13 @@ use light_sdk::instruction::PackedAccounts;
 /// account type marked with `#[light_account(init)]`.
 ///
 /// # Type Parameters
+/// * `SEED_COUNT` - Number of seeds including bump for CPI signing
 /// * `Seeds` - The seeds struct type (e.g., `UserRecordSeeds`)
 /// * `Data` - The account data type (e.g., `UserRecord`)
 /// * `Packed` - The packed variant type for serialization
-pub trait LightAccountVariant: Sized + Clone + AnchorSerialize + AnchorDeserialize {
+pub trait LightAccountVariant<const SEED_COUNT: usize>:
+    Sized + Clone + AnchorSerialize + AnchorDeserialize
+{
     /// The seeds struct type containing seed values.
     type Seeds;
 
@@ -23,10 +26,7 @@ pub trait LightAccountVariant: Sized + Clone + AnchorSerialize + AnchorDeseriali
     type Data;
 
     /// The packed variant type for efficient serialization.
-    type Packed: PackedLightAccountVariant<Unpacked = Self>;
-
-    /// Number of seeds used for PDA derivation.
-    const SEED_COUNT: usize;
+    type Packed: PackedLightAccountVariant<SEED_COUNT, Unpacked = Self>;
 
     /// Get a reference to the seeds.
     fn seeds(&self) -> &Self::Seeds;
@@ -37,31 +37,33 @@ pub trait LightAccountVariant: Sized + Clone + AnchorSerialize + AnchorDeseriali
     /// Get a mutable reference to the account data.
     fn data_mut(&mut self) -> &mut Self::Data;
 
-    /// Get seed references as byte slices for PDA derivation.
-    fn seed_refs(&self) -> Vec<Vec<u8>>;
+    /// Get seed values as owned byte vectors for PDA derivation.
+    fn seed_vec(&self) -> Vec<Vec<u8>>;
+
+    /// Get seed references with bump for CPI signing.
+    /// Returns a fixed-size array that can be passed to invoke_signed.
+    fn seed_refs_with_bump<'a>(&'a self, bump_storage: &'a [u8; 1]) -> [&'a [u8]; SEED_COUNT];
 
     /// Derive the PDA address and bump seed.
     fn derive_pda(&self, program_id: &Pubkey) -> (Pubkey, u8) {
-        let seeds = self.seed_refs();
+        let seeds = self.seed_vec();
         let seed_slices: Vec<&[u8]> = seeds.iter().map(|s| s.as_slice()).collect();
         Pubkey::find_program_address(&seed_slices, program_id)
     }
 
     /// Pack this variant for efficient serialization.
-    fn pack(
-        &self,
-        accounts: &mut PackedAccounts,
-        program_id: &Pubkey,
-    ) -> Result<Self::Packed>;
+    fn pack(&self, accounts: &mut PackedAccounts, program_id: &Pubkey) -> Result<Self::Packed>;
 }
 
 /// Trait for packed compressed account variants.
 ///
 /// Packed variants use u8 indices instead of 32-byte Pubkeys for efficient
 /// serialization. They can be unpacked back to full variants using account info.
-pub trait PackedLightAccountVariant: Sized + Clone + AnchorSerialize + AnchorDeserialize {
+pub trait PackedLightAccountVariant<const SEED_COUNT: usize>:
+    Sized + Clone + AnchorSerialize + AnchorDeserialize
+{
     /// The unpacked variant type with full Pubkey values.
-    type Unpacked: LightAccountVariant;
+    type Unpacked: LightAccountVariant<SEED_COUNT>;
 
     /// Get the PDA bump seed.
     fn bump(&self) -> u8;

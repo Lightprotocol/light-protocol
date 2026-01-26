@@ -1,5 +1,8 @@
 use super::accounts::{CreatePda, CreatePdaParams};
+use super::derived_state::PackedMinimalRecord;
+use super::state::MinimalRecord;
 use crate::sdk_functions::prepare_compressed_account_on_init;
+use crate::traits::{LightAccount, LightAccountVariant, PackedLightAccountVariant};
 use anchor_lang::prelude::*;
 use light_compressed_account::instruction_data::{
     cpi_context::CompressedCpiContext, with_account_info::InstructionDataInvokeCpiWithAccountInfo,
@@ -7,10 +10,12 @@ use light_compressed_account::instruction_data::{
 use light_sdk::{
     cpi::{v2::CpiAccounts, CpiAccountsConfig, InvokeLightSystemProgram},
     error::LightSdkError,
-    instruction::PackedAddressTreeInfoExt,
+    instruction::{PackedAccounts, PackedAddressTreeInfoExt},
     interface::{LightFinalize, LightPreInit},
+    light_account_checks::packed_accounts::ProgramPackedAccounts,
     sdk_types::CpiContextWriteAccounts,
 };
+use solana_program_error::ProgramError;
 
 // ============================================================================
 // Manual LightPreInit Implementation
@@ -56,9 +61,9 @@ impl<'info> LightPreInit<'info, CreatePdaParams> for CreatePda<'info> {
         let mut account_infos = Vec::with_capacity(NUM_LIGHT_PDAS);
 
         // 3. Prepare compressed account using helper function
-        let pda_pubkey = self.record.key();
+        // Dynamic code 0-N variants depending on the accounts struct
         prepare_compressed_account_on_init(
-            &pda_pubkey,
+            &self.record.key(),
             &address_tree_pubkey,
             address_tree_info,
             output_tree_index,
@@ -124,5 +129,148 @@ impl<'info> LightFinalize<'info, CreatePdaParams> for CreatePda<'info> {
     ) -> std::result::Result<(), LightSdkError> {
         // No-op for PDA-only flow - compression CPI already executed in light_pre_init
         Ok(())
+    }
+}
+
+// ============================================================================
+// Seeds Structs
+// Extracted from: seeds = [b"minimal_record", params.owner.as_ref()]
+// ============================================================================
+
+/// Seeds for MinimalRecord PDA.
+/// Contains the dynamic seed values (static prefix "minimal_record" is in seed_refs).
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
+pub struct MinimalRecordSeeds {
+    pub owner: Pubkey,
+}
+
+/// Packed seeds with u8 indices instead of Pubkeys.
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
+pub struct PackedMinimalRecordSeeds {
+    pub owner_idx: u8,
+    pub bump: u8,
+}
+
+// ============================================================================
+// Variant Structs
+// ============================================================================
+
+/// Full variant combining seeds + data.
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
+pub struct MinimalRecordVariant {
+    pub seeds: MinimalRecordSeeds,
+    pub data: MinimalRecord,
+}
+
+/// Packed variant for efficient serialization.
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
+pub struct PackedMinimalRecordVariant {
+    pub seeds: PackedMinimalRecordSeeds,
+    pub data: PackedMinimalRecord,
+}
+
+// ============================================================================
+// LightAccountVariant Implementation
+// ============================================================================
+
+impl LightAccountVariant<3> for MinimalRecordVariant {
+    type Seeds = MinimalRecordSeeds;
+    type Data = MinimalRecord;
+    type Packed = PackedMinimalRecordVariant;
+
+    fn seeds(&self) -> &Self::Seeds {
+        &self.seeds
+    }
+
+    fn data(&self) -> &Self::Data {
+        &self.data
+    }
+
+    fn data_mut(&mut self) -> &mut Self::Data {
+        &mut self.data
+    }
+
+    /// Get seed values as owned byte vectors for PDA derivation.
+    /// Generated from: seeds = [b"minimal_record", params.owner.as_ref()]
+    fn seed_vec(&self) -> Vec<Vec<u8>> {
+        vec![
+            b"minimal_record".to_vec(),
+            self.seeds.owner.to_bytes().to_vec(),
+        ]
+    }
+
+    /// Get seed references with bump for CPI signing.
+    /// Generated from: seeds = [b"minimal_record", params.owner.as_ref()]
+    fn seed_refs_with_bump<'a>(&'a self, bump_storage: &'a [u8; 1]) -> [&'a [u8]; 3] {
+        [b"minimal_record", self.seeds.owner.as_ref(), bump_storage]
+    }
+
+    fn pack(&self, accounts: &mut PackedAccounts, program_id: &Pubkey) -> Result<Self::Packed> {
+        let (_, bump) = self.derive_pda(program_id);
+        let packed_data = self
+            .data
+            .pack(accounts)
+            .map_err(|_| anchor_lang::error::ErrorCode::InvalidProgramId)?;
+        Ok(PackedMinimalRecordVariant {
+            seeds: PackedMinimalRecordSeeds {
+                owner_idx: accounts.insert_or_get(self.seeds.owner),
+                bump,
+            },
+            data: packed_data,
+        })
+    }
+}
+
+// ============================================================================
+// PackedLightAccountVariant Implementation
+// ============================================================================
+
+impl PackedLightAccountVariant<3> for PackedMinimalRecordVariant {
+    type Unpacked = MinimalRecordVariant;
+
+    fn bump(&self) -> u8 {
+        self.seeds.bump
+    }
+
+    fn unpack(&self, accounts: &[AccountInfo]) -> Result<Self::Unpacked> {
+        let owner = accounts
+            .get(self.seeds.owner_idx as usize)
+            .ok_or(anchor_lang::error::ErrorCode::AccountNotEnoughKeys)?;
+
+        // Build ProgramPackedAccounts for LightAccount::unpack
+        let packed_accounts = ProgramPackedAccounts { accounts };
+        let data = MinimalRecord::unpack(&self.data, &packed_accounts)
+            .map_err(|_| anchor_lang::error::ErrorCode::InvalidProgramId)?; // TODO: propagate error
+
+        Ok(MinimalRecordVariant {
+            seeds: MinimalRecordSeeds { owner: *owner.key },
+            data,
+        })
+    }
+}
+
+// ============================================================================
+// CPI Signing Helper
+// ============================================================================
+
+impl PackedMinimalRecordVariant {
+    /// Get seed refs with bump for CPI signing.
+    /// Returns seeds in the format needed for invoke_signed.
+    ///
+    /// # Arguments
+    /// * `accounts` - The remaining accounts slice to resolve indices from
+    /// * `bump_storage` - A 1-byte array to store the bump (must outlive the return value)
+    ///
+    /// # Returns
+    /// An array of seed slices: [b"minimal_record", owner_pubkey, bump]
+    pub fn seed_refs_with_bump<'a>(
+        &'a self,
+        accounts: &'a [AccountInfo],
+        bump_storage: &'a [u8; 1],
+    ) -> std::result::Result<[&'a [u8]; 3], ProgramError> {
+        let owner = accounts
+            .get(self.seeds.owner_idx as usize)
+            .ok_or(ProgramError::InvalidAccountData)?;
+        Ok([b"minimal_record", owner.key.as_ref(), bump_storage])
     }
 }

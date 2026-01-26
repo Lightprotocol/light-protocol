@@ -12,7 +12,7 @@ pub struct CreatePdaParams {
 }
 
 /// Minimal accounts struct for testing single PDA creation.
-#[derive(Accounts)]
+#[derive(Accounts)] // LightAccounts
 #[instruction(params: CreatePdaParams)]
 pub struct CreatePda<'info> {
     #[account(mut)]
