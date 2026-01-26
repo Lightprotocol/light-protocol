@@ -23,6 +23,18 @@ use light_sdk::{
 use solana_program_error::ProgramError;
 
 // ============================================================================
+// Compile-time Size Validation (800-byte limit for compressed accounts)
+// ============================================================================
+
+const _: () = {
+    const COMPRESSED_SIZE: usize = 8 + core::mem::size_of::<ZeroCopyRecord>();
+    assert!(
+        COMPRESSED_SIZE <= 800,
+        "Compressed account 'ZeroCopyRecord' exceeds 800-byte compressible account size limit"
+    );
+};
+
+// ============================================================================
 // Manual LightPreInit Implementation
 // ============================================================================
 

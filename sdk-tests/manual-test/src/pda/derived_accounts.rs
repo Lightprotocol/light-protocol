@@ -18,6 +18,19 @@ use light_sdk::{
 use solana_program_error::ProgramError;
 
 // ============================================================================
+// Compile-time Size Validation (800-byte limit for compressed accounts)
+// ============================================================================
+
+const _: () = {
+    // Use Anchor's Space trait (from #[derive(InitSpace)])
+    const COMPRESSED_SIZE: usize = 8 + <MinimalRecord as anchor_lang::Space>::INIT_SPACE;
+    assert!(
+        COMPRESSED_SIZE <= 800,
+        "Compressed account 'MinimalRecord' exceeds 800-byte compressible account size limit"
+    );
+};
+
+// ============================================================================
 // Manual LightPreInit Implementation
 // ============================================================================
 
