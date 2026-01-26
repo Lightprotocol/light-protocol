@@ -25,6 +25,7 @@ light-sdk-types = { workspace = true, features = ["v2", "cpi-context"] }
 light-macros = { workspace = true, features = ["solana"] }
 light-sdk-macros = { workspace = true }
 borsh = { workspace = true }
+bytemuck = { workspace = true }
 light-compressed-account = { workspace = true, features = ["solana"] }
 anchor-lang = { workspace = true, features = ["idl-build"] }
 light-compressible = { workspace = true, features = ["anchor"] }

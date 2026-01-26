@@ -6,6 +6,8 @@ use anchor_lang::prelude::*;
 use light_sdk::interface::compression_info::CompressedAccountData;
 use solana_program_error::ProgramError;
 
+use crate::account_loader::derived_accounts::PackedZeroCopyRecordVariant;
+use crate::account_loader::ZeroCopyRecordVariant;
 use crate::pda::derived_accounts::{MinimalRecordVariant, PackedMinimalRecordVariant};
 use crate::sdk_functions::decompress::{
     prepare_account_for_decompression, DecompressCtx, DecompressVariant,
@@ -20,7 +22,7 @@ use crate::sdk_functions::decompress::{
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub enum ProgramAccountVariant {
     MinimalRecord(MinimalRecordVariant),
-    // Future: OtherRecord(OtherRecordVariant),
+    ZeroCopyRecord(ZeroCopyRecordVariant),
 }
 
 /// Packed variant enum for efficient serialization.
@@ -28,7 +30,7 @@ pub enum ProgramAccountVariant {
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub enum PackedProgramAccountVariant {
     MinimalRecord(PackedMinimalRecordVariant),
-    // Future: OtherRecord(PackedOtherRecordVariant),
+    ZeroCopyRecord(PackedZeroCopyRecordVariant),
 }
 
 /// Type alias matching the client's CompressedAccountData<PackedVariant> structure.
@@ -55,7 +57,15 @@ impl<'info> DecompressVariant<'info> for LightAccountData {
                     pda_account,
                     ctx,
                 )
-            } // Future: PackedProgramAccountVariant::OtherRecord(packed_data) => { ... }
+            }
+            PackedProgramAccountVariant::ZeroCopyRecord(packed_data) => {
+                prepare_account_for_decompression::<3, PackedZeroCopyRecordVariant>(
+                    packed_data,
+                    &self.meta,
+                    pda_account,
+                    ctx,
+                )
+            }
         }
     }
 }

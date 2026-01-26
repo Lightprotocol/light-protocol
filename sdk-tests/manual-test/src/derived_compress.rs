@@ -8,6 +8,7 @@ use light_sdk::LightDiscriminator;
 use light_sdk_types::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;
 use solana_program_error::ProgramError;
 
+use crate::account_loader::ZeroCopyRecord;
 use crate::pda::MinimalRecord;
 use crate::sdk_functions::compress::{
     prepare_account_for_compression, process_compress_pda_accounts_idempotent, CompressCtx,
@@ -40,24 +41,25 @@ fn compress_dispatch<'info>(
 
     match discriminator {
         d if d == MinimalRecord::LIGHT_DISCRIMINATOR => {
-            // 1. Deserialize account data
+            // Borsh path: deserialize using try_from_slice
             let mut account_data = MinimalRecord::try_from_slice(&data[8..])
                 .map_err(|_| ProgramError::InvalidAccountData)?;
             drop(data);
 
-            // 2. Call prepare with deserialized data
+            // Call prepare with deserialized data
             prepare_account_for_compression(account_info, &mut account_data, meta, index, ctx)
         }
-        // MACRO-GENERATED: Additional arms for other account types would go here.
-        // Example (if we had another type):
-        //
-        // d if d == OtherRecord::LIGHT_DISCRIMINATOR => {
-        //     let mut account_data = OtherRecord::try_from_slice(&data[8..])
-        //         .map_err(|_| ProgramError::InvalidAccountData)?;
-        //     drop(data);
-        //     prepare_account_for_compression(account_info, &mut account_data, meta, index, ctx)
-        // }
+        d if d == ZeroCopyRecord::LIGHT_DISCRIMINATOR => {
+            // Pod/Zero-copy path: read using bytemuck
+            // The data is in fixed Pod layout, so we can directly cast it
+            let record_bytes = &data[8..8 + core::mem::size_of::<ZeroCopyRecord>()];
+            let mut account_data: ZeroCopyRecord = *bytemuck::from_bytes(record_bytes);
+            drop(data);
 
+            // Same prepare function works - hashing uses try_to_vec() which ZeroCopyRecord supports
+            // via its AnchorSerialize implementation
+            prepare_account_for_compression(account_info, &mut account_data, meta, index, ctx)
+        }
         // Unknown discriminator - skip (not an error, could be different account type)
         _ => Ok(()),
     }

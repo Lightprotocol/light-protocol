@@ -1,0 +1,90 @@
+//! LightAccount implementation for ZeroCopyRecord.
+//!
+//! This follows the same pattern as MinimalRecord's derived_state.rs,
+//! but for a Pod/zero-copy account type.
+
+use anchor_lang::prelude::*;
+use light_sdk::{
+    compressible::CompressionInfo,
+    instruction::PackedAccounts,
+    interface::LightConfig,
+    light_account_checks::{packed_accounts::ProgramPackedAccounts, AccountInfoTrait},
+};
+use solana_program_error::ProgramError;
+
+use super::state::ZeroCopyRecord;
+use crate::traits::{AccountType, LightAccount};
+
+// ============================================================================
+// PackedZeroCopyRecord (compression_info excluded per implementation_details.md)
+// ============================================================================
+
+/// Packed version of ZeroCopyRecord for efficient transmission.
+/// compression_info is excluded - it's cut off during pack.
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
+pub struct PackedZeroCopyRecord {
+    /// Index into remaining_accounts instead of full Pubkey
+    pub owner: u8,
+    /// Value field (transmitted as-is)
+    pub value: u64,
+}
+
+// ============================================================================
+// LightAccount Implementation for ZeroCopyRecord
+// ============================================================================
+
+impl LightAccount for ZeroCopyRecord {
+    const ACCOUNT_TYPE: AccountType = AccountType::PdaZeroCopy;
+
+    type Packed = PackedZeroCopyRecord;
+
+    // CompressionInfo (24) + owner (32) + value (8) = 64 bytes
+    const INIT_SPACE: usize = core::mem::size_of::<Self>();
+
+    fn compression_info(&self) -> &CompressionInfo {
+        &self.compression_info
+    }
+
+    fn compression_info_mut(&mut self) -> &mut CompressionInfo {
+        &mut self.compression_info
+    }
+
+    fn set_decompressed(&mut self, config: &LightConfig, current_slot: u64) {
+        self.compression_info = CompressionInfo::new_from_config(config, current_slot);
+    }
+
+    fn size(&self) -> usize {
+        // For Pod types, size is fixed at compile time
+        core::mem::size_of::<Self>()
+    }
+
+    fn pack(
+        &self,
+        accounts: &mut PackedAccounts,
+    ) -> std::result::Result<Self::Packed, ProgramError> {
+        // compression_info excluded from packed struct (same as Borsh accounts)
+        Ok(PackedZeroCopyRecord {
+            owner: accounts.insert_or_get(Pubkey::new_from_array(self.owner)),
+            value: self.value,
+        })
+    }
+
+    fn unpack<A: AccountInfoTrait>(
+        packed: &Self::Packed,
+        accounts: &ProgramPackedAccounts<A>,
+    ) -> std::result::Result<Self, ProgramError> {
+        // Use get_u8 with a descriptive name for better error messages
+        let owner_account = accounts
+            .get_u8(packed.owner, "ZeroCopyRecord: owner")
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+
+        // Set compression_info to compressed() for hash verification at decompress
+        // (Same pattern as Borsh accounts - canonical compressed state for hashing)
+        // Note: key() returns [u8; 32] directly, no conversion needed
+        Ok(ZeroCopyRecord {
+            compression_info: CompressionInfo::compressed(),
+            owner: owner_account.key(),
+            value: packed.value,
+        })
+    }
+}

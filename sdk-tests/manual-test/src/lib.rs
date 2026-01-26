@@ -2,6 +2,9 @@
 //!
 //! This program tests ONLY the compressible PDA creation macro in isolation,
 //! ensuring the simplest PDA-only program compiles and works correctly.
+//!
+//! Supports both Borsh-serialized accounts (Account<T>) and zero-copy accounts
+//! (AccountLoader<T>) for demonstrating different compressible PDA patterns.
 
 #![allow(deprecated)]
 
@@ -11,6 +14,7 @@ use light_sdk::interface::{LightFinalize, LightPreInit};
 use light_sdk_types::CpiSigner;
 use solana_program_error::ProgramError;
 
+pub mod account_loader;
 pub mod derived_compress;
 pub mod derived_decompress;
 pub mod derived_light_config;
@@ -19,6 +23,12 @@ pub mod pda;
 pub mod sdk_functions;
 pub mod traits;
 
+// Re-export account_loader accounts at crate root (required for Anchor's #[program] macro)
+pub use account_loader::accounts::*;
+pub use account_loader::{
+    PackedZeroCopyRecord, PackedZeroCopyRecordSeeds, PackedZeroCopyRecordVariant, ZeroCopyRecord,
+    ZeroCopyRecordSeeds, ZeroCopyRecordVariant,
+};
 pub use derived_compress::*;
 pub use derived_decompress::*;
 pub use derived_light_config::*;
@@ -105,9 +115,34 @@ pub mod manual_test {
         ctx: Context<'_, '_, '_, 'info, DecompressIdempotent>,
         instruction_data: Vec<u8>,
     ) -> Result<()> {
-        derived_decompress::process_decompress_idempotent(
-            ctx.remaining_accounts,
-            &instruction_data,
-        )
+        derived_decompress::process_decompress_idempotent(ctx.remaining_accounts, &instruction_data)
+    }
+
+    /// Create a single zero-copy compressible PDA using AccountLoader.
+    /// Demonstrates zero-copy access pattern with `load_init()`.
+    pub fn create_zero_copy<'info>(
+        ctx: Context<'_, '_, '_, 'info, CreateZeroCopy<'info>>,
+        params: CreateZeroCopyParams,
+    ) -> Result<()> {
+        // 1. Pre-init: creates compressed address via Light System Program CPI
+        //    and sets compression_info on the account
+        let has_pre_init = ctx
+            .accounts
+            .light_pre_init(ctx.remaining_accounts, &params)
+            .map_err(|e| anchor_lang::error::Error::from(ProgramError::from(e)))?;
+
+        // 2. Business logic: set account data using load_init() pattern
+        {
+            let mut record = ctx.accounts.record.load_init()?;
+            record.owner = params.owner.to_bytes();
+            record.value = params.value;
+        }
+
+        // 3. Finalize: no-op for PDA-only flow
+        ctx.accounts
+            .light_finalize(ctx.remaining_accounts, &params, has_pre_init)
+            .map_err(|e| anchor_lang::error::Error::from(ProgramError::from(e)))?;
+
+        Ok(())
     }
 }
