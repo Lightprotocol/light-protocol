@@ -50,9 +50,6 @@ pub trait LightAccount:
     /// Set compression info to decompressed state (used at decompression)
     fn set_decompressed(&mut self, config: &LightConfig, current_slot: u64);
 
-    /// Runtime serialized size
-    fn size(&self) -> usize;
-
     /// Convert to packed form (Pubkeys -> indices)
     fn pack(
         &self,

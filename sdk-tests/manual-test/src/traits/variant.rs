@@ -28,14 +28,8 @@ pub trait LightAccountVariant<const SEED_COUNT: usize>:
     /// The packed variant type for efficient serialization.
     type Packed: PackedLightAccountVariant<SEED_COUNT, Unpacked = Self>;
 
-    /// Get a reference to the seeds.
-    fn seeds(&self) -> &Self::Seeds;
-
     /// Get a reference to the account data.
     fn data(&self) -> &Self::Data;
-
-    /// Get a mutable reference to the account data.
-    fn data_mut(&mut self) -> &mut Self::Data;
 
     /// Get seed values as owned byte vectors for PDA derivation.
     fn seed_vec(&self) -> Vec<Vec<u8>>;

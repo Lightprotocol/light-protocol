@@ -53,11 +53,6 @@ impl LightAccount for ZeroCopyRecord {
         self.compression_info = CompressionInfo::new_from_config(config, current_slot);
     }
 
-    fn size(&self) -> usize {
-        // For Pod types, size is fixed at compile time
-        core::mem::size_of::<Self>()
-    }
-
     fn pack(
         &self,
         accounts: &mut PackedAccounts,

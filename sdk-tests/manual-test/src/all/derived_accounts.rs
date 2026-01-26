@@ -59,16 +59,8 @@ impl LightAccountVariant<3> for AllBorshVariant {
     type Data = MinimalRecord;
     type Packed = PackedAllBorshVariant;
 
-    fn seeds(&self) -> &Self::Seeds {
-        &self.seeds
-    }
-
     fn data(&self) -> &Self::Data {
         &self.data
-    }
-
-    fn data_mut(&mut self) -> &mut Self::Data {
-        &mut self.data
     }
 
     /// Get seed values as owned byte vectors for PDA derivation.
@@ -183,16 +175,8 @@ impl LightAccountVariant<3> for AllZeroCopyVariant {
     type Data = ZeroCopyRecord;
     type Packed = PackedAllZeroCopyVariant;
 
-    fn seeds(&self) -> &Self::Seeds {
-        &self.seeds
-    }
-
     fn data(&self) -> &Self::Data {
         &self.data
-    }
-
-    fn data_mut(&mut self) -> &mut Self::Data {
-        &mut self.data
     }
 
     /// Get seed values as owned byte vectors for PDA derivation.

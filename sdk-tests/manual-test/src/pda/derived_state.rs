@@ -46,10 +46,6 @@ impl LightAccount for MinimalRecord {
         self.compression_info = CompressionInfo::new_from_config(config, current_slot);
     }
 
-    fn size(&self) -> usize {
-        self.try_to_vec().map(|v| v.len()).unwrap_or(0)
-    }
-
     fn pack(
         &self,
         accounts: &mut PackedAccounts,

@@ -213,16 +213,8 @@ impl LightAccountVariant<4> for MinimalRecordVariant {
     type Data = MinimalRecord;
     type Packed = PackedMinimalRecordVariant;
 
-    fn seeds(&self) -> &Self::Seeds {
-        &self.seeds
-    }
-
     fn data(&self) -> &Self::Data {
         &self.data
-    }
-
-    fn data_mut(&mut self) -> &mut Self::Data {
-        &mut self.data
     }
 
     /// Get seed values as owned byte vectors for PDA derivation.
@@ -236,10 +228,12 @@ impl LightAccountVariant<4> for MinimalRecordVariant {
     }
 
     /// Get seed references with bump for CPI signing.
-    /// Note: Cannot return reference to nonce bytes without storage.
-    /// Use packed variant for CPI signing.
+    /// Note: For unpacked variants with computed bytes (like nonce.to_le_bytes()),
+    /// we cannot return references to temporaries. Use the packed variant instead.
     fn seed_refs_with_bump<'a>(&'a self, _bump_storage: &'a [u8; 1]) -> [&'a [u8]; 4] {
-        unimplemented!("Use packed variant for CPI signing - cannot return reference to computed nonce bytes")
+        // The packed variant stores nonce_bytes as [u8; 8], so it can return references.
+        // This unpacked variant computes nonce.to_le_bytes() which creates a temporary.
+        panic!("Use PackedMinimalRecordVariant::seed_refs_with_bump instead")
     }
 
     fn pack(&self, accounts: &mut PackedAccounts, program_id: &Pubkey) -> Result<Self::Packed> {

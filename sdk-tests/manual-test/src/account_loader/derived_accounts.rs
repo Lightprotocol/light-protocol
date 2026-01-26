@@ -215,16 +215,8 @@ impl LightAccountVariant<4> for ZeroCopyRecordVariant {
     type Data = ZeroCopyRecord;
     type Packed = PackedZeroCopyRecordVariant;
 
-    fn seeds(&self) -> &Self::Seeds {
-        &self.seeds
-    }
-
     fn data(&self) -> &Self::Data {
         &self.data
-    }
-
-    fn data_mut(&mut self) -> &mut Self::Data {
-        &mut self.data
     }
 
     /// Get seed values as owned byte vectors for PDA derivation.
