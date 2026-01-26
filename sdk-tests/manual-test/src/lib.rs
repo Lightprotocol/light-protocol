@@ -22,9 +22,7 @@ pub mod derived_decompress;
 pub mod derived_light_config;
 pub mod derived_variants;
 pub mod pda;
-pub mod sdk_functions;
 pub mod token_account;
-pub mod traits;
 pub mod two_mints;
 
 // Re-export account_loader accounts at crate root (required for Anchor's #[program] macro)
@@ -36,14 +34,16 @@ pub use account_loader::{
 pub use derived_compress::*;
 pub use derived_decompress::*;
 pub use derived_light_config::*;
-pub use derived_variants::{LightAccountData, PackedProgramAccountVariant, ProgramAccountVariant};
+pub use derived_variants::{PackedProgramAccountVariant, ProgramAccountVariant};
 pub use pda::accounts::*;
 pub use pda::{
     MinimalRecord, MinimalRecordSeeds, MinimalRecordVariant, PackedMinimalRecord,
     PackedMinimalRecordSeeds, PackedMinimalRecordVariant,
 };
-pub use sdk_functions::{CompressAndCloseParams, DecompressIdempotentParams, DecompressVariant};
-pub use traits::{AccountType, LightAccount, LightAccountVariant, PackedLightAccountVariant};
+pub use light_sdk::interface::{
+    AccountType, CompressAndCloseParams, DecompressIdempotentParams, DecompressVariant,
+    LightAccount, LightAccountVariant, PackedLightAccountVariant,
+};
 pub use token_account::accounts::*;
 pub use two_mints::accounts::*;
 pub use ata::accounts::*;

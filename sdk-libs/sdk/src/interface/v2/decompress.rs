@@ -10,7 +10,7 @@ use light_compressed_account::{
     instruction_data::with_account_info::{CompressedAccountInfo, InAccountInfo, OutAccountInfo},
 };
 use light_hasher::{Hasher, Sha256};
-use light_sdk::{
+use crate::{
     cpi::{
         v2::{CpiAccounts, LightSystemProgramCpi},
         InvokeLightSystemProgram, LightCpiInstruction,
@@ -27,7 +27,8 @@ use solana_program::rent::Rent;
 use solana_program::sysvar::Sysvar;
 use solana_program_error::ProgramError;
 
-use crate::traits::{LightAccount, LightAccountVariant, PackedLightAccountVariant};
+use super::traits::{LightAccount, LightAccountVariant, PackedLightAccountVariant};
+use crate::interface::compression_info::CompressedAccountData;
 
 // ============================================================================
 // DecompressVariant Trait (implemented by program's PackedProgramAccountVariant)
@@ -47,6 +48,7 @@ pub trait DecompressVariant<'info>: AnchorSerialize + AnchorDeserialize + Clone 
     /// `prepare_account_for_decompression::<SEED_COUNT, PackedVariantType>(packed, pda_account, ctx)`.
     fn decompress(
         &self,
+        meta: &CompressedAccountMetaNoLamportsNoAddress,
         pda_account: &AccountInfo<'info>,
         ctx: &mut DecompressCtx<'_, 'info>,
     ) -> std::result::Result<(), ProgramError>;
@@ -67,8 +69,8 @@ where
 {
     /// Validity proof for compressed account verification
     pub proof: ValidityProof,
-    /// Accounts to decompress - each variant contains packed data and metadata
-    pub accounts: Vec<V>,
+    /// Accounts to decompress - wrapped in CompressedAccountData for metadata
+    pub accounts: Vec<CompressedAccountData<V>>,
     /// Offset into remaining_accounts where Light system accounts begin
     pub system_accounts_offset: u8,
 }
@@ -164,12 +166,12 @@ where
         .ok_or(ProgramError::InvalidInstructionData)?;
     let pda_accounts = &remaining_accounts[pda_accounts_start..];
 
-    // Process each account using trait dispatch
-    for (i, packed_variant) in params.accounts.iter().enumerate() {
+    // Process each account using trait dispatch on inner variant
+    for (i, account_data) in params.accounts.iter().enumerate() {
         let pda_account = &pda_accounts[i];
 
         // Dispatch via trait - implementation is in program's PackedProgramAccountVariant
-        packed_variant.decompress(pda_account, &mut decompress_ctx)?;
+        account_data.data.decompress(&account_data.meta, pda_account, &mut decompress_ctx)?;
     }
 
     // CPI to Light System Program with proof

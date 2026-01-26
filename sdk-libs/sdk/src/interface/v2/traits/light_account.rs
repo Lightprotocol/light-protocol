@@ -5,7 +5,7 @@
 
 use anchor_lang::prelude::*;
 use light_hasher::DataHasher;
-use light_sdk::{
+use crate::{
     compressible::CompressionInfo,
     instruction::PackedAccounts,
     interface::LightConfig,
@@ -31,7 +31,7 @@ pub trait LightAccount:
     + Clone
     + AnchorSerialize
     + AnchorDeserialize
-    + light_sdk::light_account_checks::discriminator::Discriminator
+    + crate::light_account_checks::discriminator::Discriminator
     + DataHasher
 {
     const ACCOUNT_TYPE: AccountType;

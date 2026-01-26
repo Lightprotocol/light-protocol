@@ -10,7 +10,7 @@ use solana_program_error::ProgramError;
 
 use crate::account_loader::{PackedZeroCopyRecord, ZeroCopyRecord};
 use crate::pda::{MinimalRecord, PackedMinimalRecord};
-use crate::traits::{LightAccount, LightAccountVariant, PackedLightAccountVariant};
+use light_sdk::interface::{LightAccount, LightAccountVariant, PackedLightAccountVariant};
 
 use super::accounts::{ALL_BORSH_SEED, ALL_ZERO_COPY_SEED};
 

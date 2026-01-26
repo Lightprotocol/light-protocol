@@ -8,7 +8,7 @@ use light_sdk::{
 use solana_program_error::ProgramError;
 
 use super::state::MinimalRecord;
-use crate::traits::{AccountType, LightAccount};
+use light_sdk::interface::{AccountType, LightAccount};
 
 // ============================================================================
 // PackedMinimalRecord (compression_info excluded per implementation_details.md)

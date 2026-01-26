@@ -5,7 +5,7 @@ use light_compressed_account::{
     instruction_data::{data::NewAddressParamsAssignedPacked, with_account_info::OutAccountInfo},
 };
 use light_hasher::errors::HasherError;
-use light_sdk::{compressed_account::CompressedAccountInfo, instruction::PackedAddressTreeInfo};
+use crate::{compressed_account::CompressedAccountInfo, instruction::PackedAddressTreeInfo};
 use solana_pubkey::Pubkey;
 
 /// Prepare a compressed account for a PDA during initialization.

@@ -5,8 +5,8 @@
 
 use anchor_lang::prelude::*;
 
-use crate::derived_variants::LightAccountData;
-use crate::sdk_functions::decompress::process_decompress_pda_accounts_idempotent;
+use crate::derived_variants::PackedProgramAccountVariant;
+use light_sdk::interface::process_decompress_pda_accounts_idempotent;
 
 /// Empty Accounts struct - everything in remaining_accounts.
 ///
@@ -17,18 +17,18 @@ pub struct DecompressIdempotent {}
 /// MACRO-GENERATED: Process handler - forwards to SDK function with program's variant type.
 ///
 /// The SDK's `process_decompress_pda_accounts_idempotent` handles:
-/// - Deserializing params (including `LightAccountData` = `CompressedAccountData<PackedProgramAccountVariant>`)
+/// - Deserializing params (including `CompressedAccountData<PackedProgramAccountVariant>`)
 /// - Account validation
 /// - Trait-based dispatch to prepare_account_for_decompression
 /// - CPI to Light System Program
 ///
-/// The type parameter `LightAccountData` provides the program-specific
+/// The type parameter `PackedProgramAccountVariant` provides the program-specific
 /// dispatch logic via its `DecompressVariant` trait implementation.
 pub fn process_decompress_idempotent<'info>(
     remaining_accounts: &[AccountInfo<'info>],
     instruction_data: &[u8],
 ) -> Result<()> {
-    process_decompress_pda_accounts_idempotent::<LightAccountData>(
+    process_decompress_pda_accounts_idempotent::<PackedProgramAccountVariant>(
         remaining_accounts,
         instruction_data,
         crate::LIGHT_CPI_SIGNER,

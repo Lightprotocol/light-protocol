@@ -6,8 +6,10 @@
 use super::accounts::{CreateZeroCopy, CreateZeroCopyParams};
 use super::derived_state::PackedZeroCopyRecord;
 use super::state::ZeroCopyRecord;
-use crate::sdk_functions::prepare_compressed_account_on_init;
-use crate::traits::{LightAccount, LightAccountVariant, PackedLightAccountVariant};
+use light_sdk::interface::{
+    prepare_compressed_account_on_init, LightAccount, LightAccountVariant,
+    PackedLightAccountVariant,
+};
 use anchor_lang::prelude::*;
 use light_compressed_account::instruction_data::{
     cpi_context::CompressedCpiContext, with_account_info::InstructionDataInvokeCpiWithAccountInfo,
@@ -44,7 +46,7 @@ impl<'info> LightPreInit<'info, CreateZeroCopyParams> for CreateZeroCopy<'info> 
         remaining_accounts: &[AccountInfo<'info>],
         params: &CreateZeroCopyParams,
     ) -> std::result::Result<bool, LightSdkError> {
-        use crate::traits::LightAccount;
+        use light_sdk::interface::LightAccount;
         use light_sdk::interface::config::LightConfig;
         use solana_program::clock::Clock;
         use solana_program::sysvar::Sysvar;

@@ -13,7 +13,7 @@ use light_sdk::{
 use solana_program_error::ProgramError;
 
 use super::state::ZeroCopyRecord;
-use crate::traits::{AccountType, LightAccount};
+use light_sdk::interface::{AccountType, LightAccount};
 
 // ============================================================================
 // PackedZeroCopyRecord (compression_info excluded per implementation_details.md)

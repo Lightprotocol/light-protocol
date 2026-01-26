@@ -31,8 +31,7 @@ use solana_program_error::ProgramError;
 use super::accounts::{
     CreateAllAccounts, CreateAllParams, ALL_MINT_SIGNER_SEED, ALL_TOKEN_VAULT_SEED,
 };
-use crate::sdk_functions::prepare_compressed_account_on_init;
-use crate::traits::LightAccount;
+use light_sdk::interface::{prepare_compressed_account_on_init, LightAccount};
 
 // ============================================================================
 // LightPreInit Implementation - Creates all accounts at START of instruction

@@ -11,7 +11,7 @@ use light_compressed_account::{
 };
 use light_compressible::rent::AccountRentState;
 use light_hasher::{Hasher, Sha256};
-use light_sdk::{
+use crate::{
     cpi::{
         v2::{CpiAccounts, LightSystemProgramCpi},
         InvokeLightSystemProgram, LightCpiInstruction,
@@ -31,7 +31,7 @@ use solana_program::rent::Rent;
 use solana_program::sysvar::Sysvar;
 use solana_program_error::ProgramError;
 
-use crate::traits::LightAccount;
+use super::traits::LightAccount;
 
 const DEFAULT_DATA_HASH: [u8; 32] = [0u8; 32];
 
@@ -185,7 +185,7 @@ pub fn process_compress_pda_accounts_idempotent<'info>(
         // Close the PDA accounts
         for idx in compress_ctx.pda_indices_to_close {
             let mut info = pda_accounts[idx].clone();
-            light_sdk::interface::close::close(&mut info, rent_sponsor)
+            crate::interface::close::close(&mut info, rent_sponsor)
                 .map_err(ProgramError::from)?;
         }
     }
@@ -277,7 +277,7 @@ where
     // Create compressed account with canonical compressed CompressionInfo for hashing
     let mut compressed_data = account_data.clone();
     *compressed_data.compression_info_mut() =
-        light_sdk::compressible::CompressionInfo::compressed();
+        crate::compressible::CompressionInfo::compressed();
 
     // Hash the data (discriminator NOT included per protocol convention)
     let data_bytes = compressed_data

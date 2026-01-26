@@ -10,7 +10,7 @@ use solana_program_error::ProgramError;
 
 use crate::account_loader::ZeroCopyRecord;
 use crate::pda::MinimalRecord;
-use crate::sdk_functions::compress::{
+use light_sdk::interface::{
     prepare_account_for_compression, process_compress_pda_accounts_idempotent, CompressCtx,
 };
 
