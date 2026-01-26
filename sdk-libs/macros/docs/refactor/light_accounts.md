@@ -245,6 +245,9 @@ Uses a **const generic** for `SEED_COUNT` instead of an associated const:
 trait LightAccountVariant<const SEED_COUNT: usize>:
     Sized + Clone + AnchorSerialize + AnchorDeserialize
 {
+    /// Program ID for PDA derivation (avoids passing program_id everywhere)
+    const PROGRAM_ID: Pubkey;
+
     /// The seeds struct type containing seed values.
     type Seeds;
 
@@ -264,23 +267,25 @@ trait LightAccountVariant<const SEED_COUNT: usize>:
     /// Returns a fixed-size array that can be passed to invoke_signed.
     fn seed_refs_with_bump<'a>(&'a self, bump_storage: &'a [u8; 1]) -> [&'a [u8]; SEED_COUNT];
 
-    /// Derive the PDA address and bump seed.
-    fn derive_pda(&self, program_id: &Pubkey) -> (Pubkey, u8) {
+    /// Derive the PDA address and bump seed using Self::PROGRAM_ID.
+    fn derive_pda(&self) -> (Pubkey, u8) {
         let seeds = self.seed_vec();
         let seed_slices: Vec<&[u8]> = seeds.iter().map(|s| s.as_slice()).collect();
-        Pubkey::find_program_address(&seed_slices, program_id)
+        Pubkey::find_program_address(&seed_slices, &Self::PROGRAM_ID)
     }
 
     /// Pack this variant for efficient serialization.
-    fn pack(&self, accounts: &mut PackedAccounts, program_id: &Pubkey) -> Result<Self::Packed>;
+    fn pack(&self, accounts: &mut PackedAccounts) -> Result<Self::Packed>;
 }
 ```
 
 **Key differences from previous spec:**
 - `SEED_COUNT` is a const generic, not an associated const
+- `const PROGRAM_ID: Pubkey` - program ID stored in trait, not passed to methods
 - `seed_refs()` replaced with `seed_vec()` (returns owned) and `seed_refs_with_bump()` (returns refs)
 - `seeds()` and `data_mut()` removed
 - `type Data` has no `LightAccount` bound
+- `derive_pda()` and `pack()` no longer take `program_id` parameter
 
 ### PackedLightAccountVariant
 
@@ -381,6 +386,8 @@ pub struct PackedUserRecordVariant {
 ```rust
 // Note: SEED_COUNT = 3 includes bump (b"user", authority, owner + bump for signing)
 impl LightAccountVariant<3> for UserRecordVariant {
+    const PROGRAM_ID: Pubkey = crate::ID;
+
     type Seeds = UserRecordSeeds;
     type Data = UserRecord;
     type Packed = PackedUserRecordVariant;
@@ -407,8 +414,9 @@ impl LightAccountVariant<3> for UserRecordVariant {
         ]
     }
 
-    fn pack(&self, accounts: &mut PackedAccounts, program_id: &Pubkey) -> Result<Self::Packed> {
-        let (_, bump) = self.derive_pda(program_id);
+    // No program_id parameter - uses Self::PROGRAM_ID
+    fn pack(&self, accounts: &mut PackedAccounts) -> Result<Self::Packed> {
+        let (_, bump) = self.derive_pda();  // Uses Self::PROGRAM_ID
         Ok(PackedUserRecordVariant {
             seeds: PackedUserRecordSeeds {
                 authority_idx: accounts.insert_or_get(self.seeds.authority),

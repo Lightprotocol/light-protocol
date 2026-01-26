@@ -55,6 +55,8 @@ pub struct PackedAllBorshVariant {
 // ============================================================================
 
 impl LightAccountVariant<3> for AllBorshVariant {
+    const PROGRAM_ID: Pubkey = crate::ID;
+
     type Seeds = AllBorshSeeds;
     type Data = MinimalRecord;
     type Packed = PackedAllBorshVariant;
@@ -75,8 +77,8 @@ impl LightAccountVariant<3> for AllBorshVariant {
         [ALL_BORSH_SEED, self.seeds.owner.as_ref(), bump_storage]
     }
 
-    fn pack(&self, accounts: &mut PackedAccounts, program_id: &Pubkey) -> Result<Self::Packed> {
-        let (_, bump) = self.derive_pda(program_id);
+    fn pack(&self, accounts: &mut PackedAccounts) -> Result<Self::Packed> {
+        let (_, bump) = self.derive_pda();
         let packed_data = self
             .data
             .pack(accounts)
@@ -171,6 +173,8 @@ pub struct PackedAllZeroCopyVariant {
 // ============================================================================
 
 impl LightAccountVariant<3> for AllZeroCopyVariant {
+    const PROGRAM_ID: Pubkey = crate::ID;
+
     type Seeds = AllZeroCopySeeds;
     type Data = ZeroCopyRecord;
     type Packed = PackedAllZeroCopyVariant;
@@ -194,8 +198,8 @@ impl LightAccountVariant<3> for AllZeroCopyVariant {
         [ALL_ZERO_COPY_SEED, self.seeds.owner.as_ref(), bump_storage]
     }
 
-    fn pack(&self, accounts: &mut PackedAccounts, program_id: &Pubkey) -> Result<Self::Packed> {
-        let (_, bump) = self.derive_pda(program_id);
+    fn pack(&self, accounts: &mut PackedAccounts) -> Result<Self::Packed> {
+        let (_, bump) = self.derive_pda();
         let packed_data = self
             .data
             .pack(accounts)
@@ -292,7 +296,7 @@ impl light_sdk::compressible::Pack for AllBorshVariant {
         accounts: &mut PackedAccounts,
     ) -> std::result::Result<Self::Packed, ProgramError> {
         // Use the LightAccountVariant::pack method to get PackedAllBorshVariant
-        let packed = <Self as LightAccountVariant<3>>::pack(self, accounts, &crate::ID)
+        let packed = <Self as LightAccountVariant<3>>::pack(self, accounts)
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
         Ok(crate::derived_variants::PackedProgramAccountVariant::AllBorsh(packed))
@@ -343,7 +347,7 @@ impl light_sdk::compressible::Pack for AllZeroCopyVariant {
         accounts: &mut PackedAccounts,
     ) -> std::result::Result<Self::Packed, ProgramError> {
         // Use the LightAccountVariant::pack method to get PackedAllZeroCopyVariant
-        let packed = <Self as LightAccountVariant<3>>::pack(self, accounts, &crate::ID)
+        let packed = <Self as LightAccountVariant<3>>::pack(self, accounts)
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
         Ok(crate::derived_variants::PackedProgramAccountVariant::AllZeroCopy(packed))

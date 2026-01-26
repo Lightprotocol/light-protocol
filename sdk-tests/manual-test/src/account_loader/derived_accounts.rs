@@ -213,6 +213,8 @@ pub struct PackedZeroCopyRecordVariant {
 // ============================================================================
 
 impl LightAccountVariant<4> for ZeroCopyRecordVariant {
+    const PROGRAM_ID: Pubkey = crate::ID;
+
     type Seeds = ZeroCopyRecordSeeds;
     type Data = ZeroCopyRecord;
     type Packed = PackedZeroCopyRecordVariant;
@@ -242,8 +244,8 @@ impl LightAccountVariant<4> for ZeroCopyRecordVariant {
         ]
     }
 
-    fn pack(&self, accounts: &mut PackedAccounts, program_id: &Pubkey) -> Result<Self::Packed> {
-        let (_, bump) = self.derive_pda(program_id);
+    fn pack(&self, accounts: &mut PackedAccounts) -> Result<Self::Packed> {
+        let (_, bump) = self.derive_pda();
         let packed_data = self
             .data
             .pack(accounts)
@@ -350,7 +352,7 @@ impl light_sdk::compressible::Pack for ZeroCopyRecordVariant {
         accounts: &mut PackedAccounts,
     ) -> std::result::Result<Self::Packed, ProgramError> {
         // Use the LightAccountVariant::pack method to get PackedZeroCopyRecordVariant
-        let packed = <Self as LightAccountVariant<4>>::pack(self, accounts, &crate::ID)
+        let packed = <Self as LightAccountVariant<4>>::pack(self, accounts)
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
         Ok(crate::derived_variants::PackedProgramAccountVariant::ZeroCopyRecord(packed))

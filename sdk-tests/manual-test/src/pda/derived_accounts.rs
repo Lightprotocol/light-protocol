@@ -211,6 +211,8 @@ pub struct PackedMinimalRecordVariant {
 // ============================================================================
 
 impl LightAccountVariant<4> for MinimalRecordVariant {
+    const PROGRAM_ID: Pubkey = crate::ID;
+
     type Seeds = MinimalRecordSeeds;
     type Data = MinimalRecord;
     type Packed = PackedMinimalRecordVariant;
@@ -238,8 +240,8 @@ impl LightAccountVariant<4> for MinimalRecordVariant {
         panic!("Use PackedMinimalRecordVariant::seed_refs_with_bump instead")
     }
 
-    fn pack(&self, accounts: &mut PackedAccounts, program_id: &Pubkey) -> Result<Self::Packed> {
-        let (_, bump) = self.derive_pda(program_id);
+    fn pack(&self, accounts: &mut PackedAccounts) -> Result<Self::Packed> {
+        let (_, bump) = self.derive_pda();
         let packed_data = self
             .data
             .pack(accounts)
@@ -345,7 +347,7 @@ impl light_sdk::compressible::Pack for MinimalRecordVariant {
         accounts: &mut PackedAccounts,
     ) -> std::result::Result<Self::Packed, ProgramError> {
         // Use the LightAccountVariant::pack method to get PackedMinimalRecordVariant
-        let packed = <Self as LightAccountVariant<4>>::pack(self, accounts, &crate::ID)
+        let packed = <Self as LightAccountVariant<4>>::pack(self, accounts)
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
         Ok(crate::derived_variants::PackedProgramAccountVariant::MinimalRecord(packed))
