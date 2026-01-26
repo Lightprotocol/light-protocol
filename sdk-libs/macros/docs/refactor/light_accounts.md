@@ -103,8 +103,16 @@ pub user_ata: UncheckedAccount<'info>,
 | `associated_token::mint = <expr>` | Yes | The mint for the ATA |
 | `associated_token::authority = <expr>` | Yes | The owner of the ATA |
 | `associated_token::bump = <expr>` | No | Explicit bump (auto-derived if omitted) |
+| `associated_token::idempotent = <bool>` | No | Don't fail if ATA already exists (default: false) |
 
 **Shorthand:** `associated_token::mint`, `associated_token::authority`, `associated_token::bump` assume same-named variables.
+
+**Idempotent ATA creation:**
+```rust
+#[light_account(init, associated_token, associated_token::mint = mint, associated_token::authority = authority, associated_token::idempotent = true)]
+pub user_ata: UncheckedAccount<'info>,
+// Won't fail if ATA already exists
+```
 
 ### Mint
 

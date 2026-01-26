@@ -48,6 +48,19 @@ pub mod my_program {
 | Collect | Gather all generated variant types from `#[derive(LightAccounts)]` |
 | Validate | **Enforce unique field names** across entire program |
 
+**Why unique field names?**
+
+Accounts structs can be reused across multiple instructions:
+
+```rust
+// Same struct used in multiple instructions
+pub fn create(ctx: Context<UserAccounts>, ...) -> Result<()> { ... }
+pub fn update(ctx: Context<UserAccounts>, ...) -> Result<()> { ... }
+pub fn delete(ctx: Context<UserAccounts>, ...) -> Result<()> { ... }
+```
+
+The program-wide `ProgramAccountVariant` enum uses field names as variant identifiers. Since the same Accounts struct (and its `#[light_account]` fields) can appear in multiple instructions, the enum must deduplicate by field name.
+
 **Error on duplicate:**
 ```
 error: Duplicate light_account field name 'user_record' found in Create and Update structs.

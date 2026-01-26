@@ -15,6 +15,7 @@ use light_sdk_types::CpiSigner;
 use solana_program_error::ProgramError;
 
 pub mod account_loader;
+pub mod all;
 pub mod ata;
 pub mod derived_compress;
 pub mod derived_decompress;
@@ -46,6 +47,11 @@ pub use traits::{AccountType, LightAccount, LightAccountVariant, PackedLightAcco
 pub use token_account::accounts::*;
 pub use two_mints::accounts::*;
 pub use ata::accounts::*;
+pub use all::accounts::*;
+pub use all::{
+    AllBorshSeeds, AllBorshVariant, AllZeroCopySeeds, AllZeroCopyVariant, PackedAllBorshSeeds,
+    PackedAllBorshVariant, PackedAllZeroCopySeeds, PackedAllZeroCopyVariant,
+};
 
 declare_id!("PdaT111111111111111111111111111111111111111");
 
@@ -214,6 +220,41 @@ pub mod manual_test {
         // 2. No business logic for ATA-only creation
 
         // 3. Finalize: no-op for ATA-only flow
+        ctx.accounts
+            .light_finalize(ctx.remaining_accounts, &params, has_pre_init)
+            .map_err(|e| anchor_lang::error::Error::from(ProgramError::from(e)))?;
+
+        Ok(())
+    }
+
+    /// Create all account types in a single instruction.
+    /// Demonstrates combining PDAs + Mints + Token vault + ATA in one transaction.
+    ///
+    /// Account types created:
+    /// - Borsh PDA (MinimalRecord)
+    /// - ZeroCopy PDA (ZeroCopyRecord)
+    /// - Compressed Mint
+    /// - Token Vault
+    /// - Associated Token Account (ATA)
+    pub fn create_all<'a, 'info>(
+        ctx: Context<'a, '_, 'info, 'info, CreateAllAccounts<'info>>,
+        params: CreateAllParams,
+    ) -> Result<()> {
+        // 1. Pre-init: creates all accounts via CPIs
+        let has_pre_init = ctx
+            .accounts
+            .light_pre_init(ctx.remaining_accounts, &params)
+            .map_err(|e| anchor_lang::error::Error::from(ProgramError::from(e)))?;
+
+        // 2. Business logic: set PDA data
+        ctx.accounts.borsh_record.owner = params.owner;
+        {
+            let mut record = ctx.accounts.zero_copy_record.load_init()?;
+            record.owner = params.owner.to_bytes();
+            record.value = params.value;
+        }
+
+        // 3. Finalize: no-op for this flow
         ctx.accounts
             .light_finalize(ctx.remaining_accounts, &params, has_pre_init)
             .map_err(|e| anchor_lang::error::Error::from(ProgramError::from(e)))?;

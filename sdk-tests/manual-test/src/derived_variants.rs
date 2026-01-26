@@ -8,6 +8,9 @@ use solana_program_error::ProgramError;
 
 use crate::account_loader::derived_accounts::PackedZeroCopyRecordVariant;
 use crate::account_loader::ZeroCopyRecordVariant;
+use crate::all::derived_accounts::{
+    AllBorshVariant, AllZeroCopyVariant, PackedAllBorshVariant, PackedAllZeroCopyVariant,
+};
 use crate::pda::derived_accounts::{MinimalRecordVariant, PackedMinimalRecordVariant};
 use crate::sdk_functions::decompress::{
     prepare_account_for_decompression, DecompressCtx, DecompressVariant,
@@ -23,6 +26,8 @@ use crate::sdk_functions::decompress::{
 pub enum ProgramAccountVariant {
     MinimalRecord(MinimalRecordVariant),
     ZeroCopyRecord(ZeroCopyRecordVariant),
+    AllBorsh(AllBorshVariant),
+    AllZeroCopy(AllZeroCopyVariant),
 }
 
 /// Packed variant enum for efficient serialization.
@@ -31,6 +36,8 @@ pub enum ProgramAccountVariant {
 pub enum PackedProgramAccountVariant {
     MinimalRecord(PackedMinimalRecordVariant),
     ZeroCopyRecord(PackedZeroCopyRecordVariant),
+    AllBorsh(PackedAllBorshVariant),
+    AllZeroCopy(PackedAllZeroCopyVariant),
 }
 
 /// Type alias matching the client's CompressedAccountData<PackedVariant> structure.
@@ -60,6 +67,22 @@ impl<'info> DecompressVariant<'info> for LightAccountData {
             }
             PackedProgramAccountVariant::ZeroCopyRecord(packed_data) => {
                 prepare_account_for_decompression::<3, PackedZeroCopyRecordVariant>(
+                    packed_data,
+                    &self.meta,
+                    pda_account,
+                    ctx,
+                )
+            }
+            PackedProgramAccountVariant::AllBorsh(packed_data) => {
+                prepare_account_for_decompression::<3, PackedAllBorshVariant>(
+                    packed_data,
+                    &self.meta,
+                    pda_account,
+                    ctx,
+                )
+            }
+            PackedProgramAccountVariant::AllZeroCopy(packed_data) => {
+                prepare_account_for_decompression::<3, PackedAllZeroCopyVariant>(
                     packed_data,
                     &self.meta,
                     pda_account,
