@@ -12,16 +12,18 @@ use light_sdk_types::CpiSigner;
 use solana_program_error::ProgramError;
 
 pub mod derived_compress;
+pub mod derived_decompress;
 pub mod derived_light_config;
 pub mod pda;
 pub mod sdk_functions;
 pub mod traits;
 
 pub use derived_compress::*;
+pub use derived_decompress::*;
 pub use derived_light_config::*;
 pub use pda::accounts::*;
 pub use pda::{MinimalRecord, PackedMinimalRecord};
-pub use sdk_functions::CompressAndCloseParams;
+pub use sdk_functions::{CompressAndCloseParams, DecompressIdempotentParams};
 pub use traits::{AccountType, LightAccount, LightAccountVariant, PackedLightAccountVariant};
 
 declare_id!("PdaT111111111111111111111111111111111111111");
@@ -80,5 +82,19 @@ pub mod manual_test {
         params: CompressAndCloseParams,
     ) -> Result<()> {
         derived_compress::process_compress_and_close(ctx, params)
+    }
+
+    /// Decompress compressed accounts back into PDAs idempotently.
+    ///
+    /// NOTE: Empty Accounts struct - everything in remaining_accounts.
+    /// Deserialization happens inside process_decompress_pda_accounts_idempotent.
+    pub fn decompress_idempotent<'info>(
+        ctx: Context<'_, '_, '_, 'info, DecompressIdempotent>,
+        instruction_data: Vec<u8>,
+    ) -> Result<()> {
+        derived_decompress::process_decompress_idempotent(
+            ctx.remaining_accounts,
+            &instruction_data,
+        )
     }
 }

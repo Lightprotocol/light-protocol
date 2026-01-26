@@ -4,7 +4,7 @@ use light_compressed_account::{
     address::derive_address,
     instruction_data::{data::NewAddressParamsAssignedPacked, with_account_info::OutAccountInfo},
 };
-use light_hasher::{errors::HasherError, sha256::Sha256BE, Hasher};
+use light_hasher::errors::HasherError;
 use light_sdk::{compressed_account::CompressedAccountInfo, instruction::PackedAddressTreeInfo};
 use solana_pubkey::Pubkey;
 
@@ -41,10 +41,10 @@ pub fn prepare_compressed_account_on_init(
     new_address_params: &mut Vec<NewAddressParamsAssignedPacked>,
     account_infos: &mut Vec<CompressedAccountInfo>,
 ) -> Result<(), HasherError> {
-    // Standard discriminator for PDA init
-    let discriminator = [255u8, 255u8, 255u8, 255u8, 255u8, 255u8, 255u8, 0u8];
-    // Data is always the PDA pubkey bytes
-    let data = pda_pubkey.to_bytes().to_vec();
+    // // Standard discriminator for PDA init TODO: restore after rebase
+    // let discriminator = [255u8, 255u8, 255u8, 255u8, 255u8, 255u8, 255u8, 0u8];
+    // // Data is always the PDA pubkey bytes
+    // let data = pda_pubkey.to_bytes().to_vec();
 
     // Derive compressed address from PDA pubkey seed
     let address_seed = pda_pubkey.to_bytes();
@@ -65,18 +65,18 @@ pub fn prepare_compressed_account_on_init(
     });
 
     // Hash the data for the compressed account
-    let data_hash = Sha256BE::hash(&data)?;
+    // let data_hash = Sha256BE::hash(&data)?;
 
     // Create and push CompressedAccountInfo
     account_infos.push(CompressedAccountInfo {
         address: Some(address),
         input: None,
         output: Some(OutAccountInfo {
-            discriminator,
+            discriminator: [0u8; 8],
             output_merkle_tree_index: output_tree_index,
             lamports: 0,
-            data,
-            data_hash,
+            data: vec![],
+            data_hash: [0u8; 32],
         }),
     });
 

@@ -127,8 +127,12 @@ fn create_pda_account_with_lamports<'info>(
 }
 
 /// Creates a PDA account, handling the case where the account already has lamports.
+///
+/// This function handles the edge case where an attacker might have donated lamports
+/// to the PDA address before decompression. In that case, `CreateAccount` would fail,
+/// so we fall back to `Assign + Allocate + Transfer`.
 #[inline(never)]
-fn create_pda_account<'info>(
+pub fn create_pda_account<'info>(
     rent_sponsor: &AccountInfo<'info>,
     solana_account: &AccountInfo<'info>,
     lamports: u64,

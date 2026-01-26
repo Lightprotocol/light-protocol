@@ -39,7 +39,7 @@ pub use config::{
 };
 #[cfg(feature = "v2")]
 pub use decompress_idempotent::{
-    compute_data_hash, into_compressed_meta_with_address,
+    compute_data_hash, create_pda_account, into_compressed_meta_with_address,
     prepare_account_for_decompression_idempotent, prepare_account_for_decompression_idempotent_pod,
 };
 #[cfg(all(feature = "v2", feature = "cpi-context"))]
