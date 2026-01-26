@@ -22,6 +22,7 @@ pub mod derived_variants;
 pub mod pda;
 pub mod sdk_functions;
 pub mod traits;
+pub mod two_mints;
 
 // Re-export account_loader accounts at crate root (required for Anchor's #[program] macro)
 pub use account_loader::accounts::*;
@@ -40,6 +41,7 @@ pub use pda::{
 };
 pub use sdk_functions::{CompressAndCloseParams, DecompressIdempotentParams, DecompressVariant};
 pub use traits::{AccountType, LightAccount, LightAccountVariant, PackedLightAccountVariant};
+pub use two_mints::accounts::*;
 
 declare_id!("PdaT111111111111111111111111111111111111111");
 
@@ -144,5 +146,15 @@ pub mod manual_test {
             .map_err(|e| anchor_lang::error::Error::from(ProgramError::from(e)))?;
 
         Ok(())
+    }
+
+    /// Create two compressed mints using derived PDAs as mint signers.
+    /// Manual implementation of what #[light_account(init, mint::...)] generates.
+    /// Demonstrates minimal params pattern where program derives everything from accounts.
+    pub fn create_derived_mints<'a, 'info>(
+        ctx: Context<'a, '_, 'info, 'info, CreateDerivedMintsAccounts<'info>>,
+        params: CreateDerivedMintsParams,
+    ) -> Result<()> {
+        two_mints::process_create_derived_mints(ctx, params)
     }
 }

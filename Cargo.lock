@@ -4466,6 +4466,8 @@ dependencies = [
  "light-sdk-types",
  "light-test-utils",
  "light-token",
+ "light-token-client",
+ "light-token-interface",
  "light-token-types",
  "solana-account-info",
  "solana-instruction",

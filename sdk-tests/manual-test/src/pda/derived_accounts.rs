@@ -54,76 +54,83 @@ impl<'info> LightPreInit<'info, CreatePdaParams> for CreatePda<'info> {
         let current_account_index: u8 = 0;
         // Is true if the instruction creates 1 or more light mints in addition to 1 or more light pda accounts.
         const WITH_CPI_CONTEXT: bool = false;
-        // Is first if the instruction creates 1 or more light mints in addition to 1 or more light pda accounts.
-        let cpi_context = if WITH_CPI_CONTEXT {
-            CompressedCpiContext::first()
-        } else {
-            CompressedCpiContext::default()
-        };
+
         const NUM_LIGHT_PDAS: usize = 1;
-        let mut new_address_params = Vec::with_capacity(NUM_LIGHT_PDAS);
-        let mut account_infos = Vec::with_capacity(NUM_LIGHT_PDAS);
+
         // 6. Set compression_info from config
         let light_config = LightConfig::load_checked(&self.compression_config, &crate::ID)
             .map_err(|_| LightSdkError::from(ProgramError::InvalidAccountData))?;
         let current_slot = Clock::get()
             .map_err(|_| LightSdkError::from(ProgramError::InvalidAccountData))?
             .slot;
-
-        // 3. Prepare compressed account using helper function
-        // Dynamic code 0-N variants depending on the accounts struct
-        prepare_compressed_account_on_init(
-            &self.record.key(),
-            &address_tree_pubkey,
-            address_tree_info,
-            output_tree_index,
-            current_account_index,
-            &crate::ID,
-            &mut new_address_params,
-            &mut account_infos,
-        )?;
-        self.record.set_decompressed(&light_config, current_slot);
-
-        // current_account_index += 1;
-        // For multiple accounts, repeat the pattern:
-        // let prepared2 = prepare_compressed_account_on_init(..., current_account_index, ...)?;
-        // current_account_index += 1;
-
-        // 4. Build instruction data manually (no builder pattern)
-        let instruction_data = InstructionDataInvokeCpiWithAccountInfo {
-            mode: 1, // V2 mode
-            bump: crate::LIGHT_CPI_SIGNER.bump,
-            invoking_program_id: crate::LIGHT_CPI_SIGNER.program_id.into(),
-            compress_or_decompress_lamports: 0,
-            is_compress: false,
-            with_cpi_context: WITH_CPI_CONTEXT,
-            with_transaction_hash: false,
-            cpi_context,
-            proof: params.create_accounts_proof.proof.0,
-            new_address_params,
-            account_infos,
-            read_only_addresses: vec![],
-            read_only_accounts: vec![],
-        };
-        if !WITH_CPI_CONTEXT {
-            // 5. Invoke Light System Program CPI
-            instruction_data
-                .invoke(cpi_accounts)
-                .map_err(LightSdkError::from)?;
-        } else {
-            // For flows that combine light mints with light PDAs, write to CPI context first.
-            // The authority and cpi_context accounts must be provided in remaining_accounts.
-            let cpi_context_accounts = CpiContextWriteAccounts {
-                fee_payer: cpi_accounts.fee_payer(),
-                authority: cpi_accounts.authority().map_err(LightSdkError::from)?,
-                cpi_context: cpi_accounts.cpi_context().map_err(LightSdkError::from)?,
-                cpi_signer: crate::LIGHT_CPI_SIGNER,
+        // Dynamic derived light pda specific. Only exists if NUM_LIGHT_PDAS > 0
+        // =====================================================================
+        {
+            // Is first if the instruction creates 1 or more light mints in addition to 1 or more light pda accounts.
+            let cpi_context = if WITH_CPI_CONTEXT {
+                CompressedCpiContext::first()
+            } else {
+                CompressedCpiContext::default()
             };
-            instruction_data
-                .invoke_write_to_cpi_context_first(cpi_context_accounts)
-                .map_err(LightSdkError::from)?;
-        }
+            let mut new_address_params = Vec::with_capacity(NUM_LIGHT_PDAS);
+            let mut account_infos = Vec::with_capacity(NUM_LIGHT_PDAS);
+            // 3. Prepare compressed account using helper function
+            // Dynamic code 0-N variants depending on the accounts struct
+            // =====================================================================
+            prepare_compressed_account_on_init(
+                &self.record.key(),
+                &address_tree_pubkey,
+                address_tree_info,
+                output_tree_index,
+                current_account_index,
+                &crate::ID,
+                &mut new_address_params,
+                &mut account_infos,
+            )?;
+            self.record.set_decompressed(&light_config, current_slot);
+            // =====================================================================
 
+            // current_account_index += 1;
+            // For multiple accounts, repeat the pattern:
+            // let prepared2 = prepare_compressed_account_on_init(..., current_account_index, ...)?;
+            // current_account_index += 1;
+
+            // 4. Build instruction data manually (no builder pattern)
+            let instruction_data = InstructionDataInvokeCpiWithAccountInfo {
+                mode: 1, // V2 mode
+                bump: crate::LIGHT_CPI_SIGNER.bump,
+                invoking_program_id: crate::LIGHT_CPI_SIGNER.program_id.into(),
+                compress_or_decompress_lamports: 0,
+                is_compress: false,
+                with_cpi_context: WITH_CPI_CONTEXT,
+                with_transaction_hash: false,
+                cpi_context,
+                proof: params.create_accounts_proof.proof.0,
+                new_address_params,
+                account_infos,
+                read_only_addresses: vec![],
+                read_only_accounts: vec![],
+            };
+            if !WITH_CPI_CONTEXT {
+                // 5. Invoke Light System Program CPI
+                instruction_data
+                    .invoke(cpi_accounts)
+                    .map_err(LightSdkError::from)?;
+            } else {
+                // For flows that combine light mints with light PDAs, write to CPI context first.
+                // The authority and cpi_context accounts must be provided in remaining_accounts.
+                let cpi_context_accounts = CpiContextWriteAccounts {
+                    fee_payer: cpi_accounts.fee_payer(),
+                    authority: cpi_accounts.authority().map_err(LightSdkError::from)?,
+                    cpi_context: cpi_accounts.cpi_context().map_err(LightSdkError::from)?,
+                    cpi_signer: crate::LIGHT_CPI_SIGNER,
+                };
+                instruction_data
+                    .invoke_write_to_cpi_context_first(cpi_context_accounts)
+                    .map_err(LightSdkError::from)?;
+            }
+        }
+        // =====================================================================
         Ok(false) // No mints, so no CPI context write
     }
 }
