@@ -11,10 +11,12 @@ use light_sdk::interface::{LightFinalize, LightPreInit};
 use light_sdk_types::CpiSigner;
 use solana_program_error::ProgramError;
 
+pub mod light_config;
 pub mod pda;
 pub mod sdk_functions;
 pub mod traits;
 
+pub use light_config::*;
 pub use pda::accounts::*;
 pub use pda::{MinimalRecord, PackedMinimalRecord};
 pub use traits::{AccountType, LightAccount, LightAccountVariant, PackedLightAccountVariant};
@@ -51,5 +53,21 @@ pub mod manual_test {
             .map_err(|e| anchor_lang::error::Error::from(ProgramError::from(e)))?;
 
         Ok(())
+    }
+
+    /// Initialize the compression config for this program.
+    pub fn initialize_config<'info>(
+        ctx: Context<'_, '_, '_, 'info, InitializeConfig<'info>>,
+        params: InitConfigParams,
+    ) -> Result<()> {
+        light_config::process_initialize_config(ctx, params)
+    }
+
+    /// Update the compression config for this program.
+    pub fn update_config<'info>(
+        ctx: Context<'_, '_, '_, 'info, UpdateConfig<'info>>,
+        params: UpdateConfigParams,
+    ) -> Result<()> {
+        light_config::process_update_config(ctx, params)
     }
 }
