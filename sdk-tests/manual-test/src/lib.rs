@@ -22,7 +22,7 @@ pub mod traits;
 pub use derived_compress::*;
 pub use derived_decompress::*;
 pub use derived_light_config::*;
-pub use derived_variants::{PackedProgramAccountVariant, ProgramAccountVariant};
+pub use derived_variants::{LightAccountData, PackedProgramAccountVariant, ProgramAccountVariant};
 pub use pda::accounts::*;
 pub use pda::{
     MinimalRecord, MinimalRecordSeeds, MinimalRecordVariant, PackedMinimalRecord,
@@ -49,6 +49,7 @@ pub mod manual_test {
         params: CreatePdaParams,
     ) -> Result<()> {
         // 1. Pre-init: creates compressed address via Light System Program CPI
+        //    and sets compression_info on the account
         let has_pre_init = ctx
             .accounts
             .light_pre_init(ctx.remaining_accounts, &params)
@@ -66,7 +67,8 @@ pub mod manual_test {
     }
 
     /// Initialize the compression config for this program.
-    pub fn initialize_config<'info>(
+    /// Named to match SDK's InitializeRentFreeConfig discriminator.
+    pub fn initialize_compression_config<'info>(
         ctx: Context<'_, '_, '_, 'info, InitializeConfig<'info>>,
         params: InitConfigParams,
     ) -> Result<()> {
@@ -74,7 +76,8 @@ pub mod manual_test {
     }
 
     /// Update the compression config for this program.
-    pub fn update_config<'info>(
+    /// Named to match SDK's expected discriminator.
+    pub fn update_compression_config<'info>(
         ctx: Context<'_, '_, '_, 'info, UpdateConfig<'info>>,
         params: UpdateConfigParams,
     ) -> Result<()> {
@@ -82,10 +85,11 @@ pub mod manual_test {
     }
 
     /// Compress and close PDA accounts, returning rent to the sponsor.
+    /// Named to match SDK/forester expected discriminator.
     ///
     /// NOTE: Empty Accounts struct - everything in remaining_accounts.
     /// Deserialization happens inside process_compress_pda_accounts_idempotent.
-    pub fn compress_and_close<'info>(
+    pub fn compress_accounts_idempotent<'info>(
         ctx: Context<'_, '_, '_, 'info, CompressAndClose>,
         instruction_data: Vec<u8>,
     ) -> Result<()> {
@@ -93,10 +97,11 @@ pub mod manual_test {
     }
 
     /// Decompress compressed accounts back into PDAs idempotently.
+    /// Named to match SDK expected discriminator.
     ///
     /// NOTE: Empty Accounts struct - everything in remaining_accounts.
     /// Deserialization happens inside process_decompress_pda_accounts_idempotent.
-    pub fn decompress_idempotent<'info>(
+    pub fn decompress_accounts_idempotent<'info>(
         ctx: Context<'_, '_, '_, 'info, DecompressIdempotent>,
         instruction_data: Vec<u8>,
     ) -> Result<()> {

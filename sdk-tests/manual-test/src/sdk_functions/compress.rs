@@ -35,23 +35,16 @@ use crate::traits::LightAccount;
 
 const DEFAULT_DATA_HASH: [u8; 32] = [0u8; 32];
 
-/// Per-account data for compression.
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
-pub struct CompressAccountData {
-    /// Compressed account metadata (tree info, output tree index)
-    pub meta: CompressedAccountMetaNoLamportsNoAddress,
-}
-
 /// Parameters for compress_and_close instruction.
-/// Fully generic - just metadata per account. Discriminator read from PDA.
+/// Matches SDK's SaveAccountsData field order for compatibility.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct CompressAndCloseParams {
     /// Validity proof for compressed account verification
     pub proof: ValidityProof,
+    /// Accounts to compress (meta only - data read from PDA)
+    pub compressed_accounts: Vec<CompressedAccountMetaNoLamportsNoAddress>,
     /// Offset into remaining_accounts where Light system accounts begin
     pub system_accounts_offset: u8,
-    /// Accounts to compress
-    pub accounts: Vec<CompressAccountData>,
 }
 
 /// Context struct holding all data needed for compression.
@@ -78,7 +71,7 @@ pub struct CompressCtx<'a, 'info> {
 /// 3. Calling prepare_account_for_compression with the deserialized data
 pub type CompressDispatchFn<'info> = fn(
     account_info: &AccountInfo<'info>,
-    meta: &CompressedAccountMetaNoLamportsNoAddress,
+    compressed_account_meta: &CompressedAccountMetaNoLamportsNoAddress,
     index: usize,
     ctx: &mut CompressCtx<'_, 'info>,
 ) -> std::result::Result<(), ProgramError>;
@@ -117,8 +110,9 @@ pub fn process_compress_pda_accounts_idempotent<'info>(
     let rent_sponsor = account_iter
         .next_mut("rent_sponsor")
         .map_err(ProgramError::from)?;
+    // TODO: make compression_authority a signer
     let compression_authority = account_iter
-        .next_signer("compression_authority")
+        .next_account("compression_authority")
         .map_err(ProgramError::from)?;
 
     // Load and validate config
@@ -150,18 +144,18 @@ pub fn process_compress_pda_accounts_idempotent<'info>(
         remaining_accounts,
         rent_sponsor,
         light_config: &light_config,
-        compressed_account_infos: Vec::with_capacity(params.accounts.len()),
-        pda_indices_to_close: Vec::with_capacity(params.accounts.len()),
+        compressed_account_infos: Vec::with_capacity(params.compressed_accounts.len()),
+        pda_indices_to_close: Vec::with_capacity(params.compressed_accounts.len()),
     };
 
     // PDA accounts at end of remaining_accounts
     let pda_accounts_start = remaining_accounts
         .len()
-        .checked_sub(params.accounts.len())
+        .checked_sub(params.compressed_accounts.len())
         .ok_or(ProgramError::InvalidInstructionData)?;
     let pda_accounts = &remaining_accounts[pda_accounts_start..];
 
-    for (i, account_data) in params.accounts.iter().enumerate() {
+    for (i, account_data) in params.compressed_accounts.iter().enumerate() {
         let pda_account = &pda_accounts[i];
 
         // Skip empty accounts or accounts not owned by this program
@@ -178,7 +172,7 @@ pub fn process_compress_pda_accounts_idempotent<'info>(
         // 1. Reads the discriminator from account data
         // 2. Deserializes based on discriminator
         // 3. Calls prepare_account_for_compression
-        dispatch_fn(pda_account, &account_data.meta, i, &mut compress_ctx)?;
+        dispatch_fn(pda_account, account_data, i, &mut compress_ctx)?;
     }
 
     // CPI to Light System Program

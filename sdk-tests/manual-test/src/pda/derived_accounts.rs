@@ -27,6 +27,10 @@ impl<'info> LightPreInit<'info, CreatePdaParams> for CreatePda<'info> {
         remaining_accounts: &[AccountInfo<'info>],
         params: &CreatePdaParams,
     ) -> std::result::Result<bool, LightSdkError> {
+        use crate::traits::LightAccount;
+        use light_sdk::interface::config::LightConfig;
+        use solana_program::clock::Clock;
+        use solana_program::sysvar::Sysvar;
         use solana_program_error::ProgramError;
 
         // 1. Build CPI accounts (slice remaining_accounts at system_accounts_offset)
@@ -59,6 +63,12 @@ impl<'info> LightPreInit<'info, CreatePdaParams> for CreatePda<'info> {
         const NUM_LIGHT_PDAS: usize = 1;
         let mut new_address_params = Vec::with_capacity(NUM_LIGHT_PDAS);
         let mut account_infos = Vec::with_capacity(NUM_LIGHT_PDAS);
+        // 6. Set compression_info from config
+        let light_config = LightConfig::load_checked(&self.compression_config, &crate::ID)
+            .map_err(|_| LightSdkError::from(ProgramError::InvalidAccountData))?;
+        let current_slot = Clock::get()
+            .map_err(|_| LightSdkError::from(ProgramError::InvalidAccountData))?
+            .slot;
 
         // 3. Prepare compressed account using helper function
         // Dynamic code 0-N variants depending on the accounts struct
@@ -72,6 +82,8 @@ impl<'info> LightPreInit<'info, CreatePdaParams> for CreatePda<'info> {
             &mut new_address_params,
             &mut account_infos,
         )?;
+        self.record.set_decompressed(&light_config, current_slot);
+
         // current_account_index += 1;
         // For multiple accounts, repeat the pattern:
         // let prepared2 = prepare_compressed_account_on_init(..., current_account_index, ...)?;
@@ -258,5 +270,55 @@ impl PackedLightAccountVariant<3> for PackedMinimalRecordVariant {
             .get(self.seeds.owner_idx as usize)
             .ok_or(ProgramError::InvalidAccountData)?;
         Ok([b"minimal_record", owner.key.as_ref(), bump_storage])
+    }
+}
+
+// ============================================================================
+// IntoVariant Implementation for Seeds (client-side API)
+// ============================================================================
+
+/// Implement IntoVariant to allow building variant from seeds + compressed data.
+/// This enables the high-level `create_load_instructions` API.
+#[cfg(not(target_os = "solana"))]
+impl light_sdk::interface::IntoVariant<MinimalRecordVariant> for MinimalRecordSeeds {
+    fn into_variant(
+        self,
+        data: &[u8],
+    ) -> std::result::Result<MinimalRecordVariant, anchor_lang::error::Error> {
+        // Deserialize the compressed data (which includes compression_info)
+        let record: MinimalRecord = AnchorDeserialize::deserialize(&mut &data[..])
+            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
+
+        // Verify the owner in data matches the seed
+        if record.owner != self.owner {
+            return Err(anchor_lang::error::ErrorCode::ConstraintSeeds.into());
+        }
+
+        Ok(MinimalRecordVariant {
+            seeds: self,
+            data: record,
+        })
+    }
+}
+
+// ============================================================================
+// Pack Implementation for MinimalRecordVariant (client-side API)
+// ============================================================================
+
+/// Implement Pack trait to allow MinimalRecordVariant to be used with `create_load_instructions`.
+/// Transforms the variant into PackedProgramAccountVariant for efficient serialization.
+#[cfg(not(target_os = "solana"))]
+impl light_sdk::compressible::Pack for MinimalRecordVariant {
+    type Packed = crate::derived_variants::PackedProgramAccountVariant;
+
+    fn pack(
+        &self,
+        accounts: &mut PackedAccounts,
+    ) -> std::result::Result<Self::Packed, ProgramError> {
+        // Use the LightAccountVariant::pack method to get PackedMinimalRecordVariant
+        let packed = <Self as LightAccountVariant<3>>::pack(self, accounts, &crate::ID)
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+
+        Ok(crate::derived_variants::PackedProgramAccountVariant::MinimalRecord(packed))
     }
 }

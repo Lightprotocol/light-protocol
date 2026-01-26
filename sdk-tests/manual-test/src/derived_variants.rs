@@ -24,32 +24,38 @@ pub enum ProgramAccountVariant {
 }
 
 /// Packed variant enum for efficient serialization.
-/// Each variant wraps CompressedAccountData containing packed data + metadata.
+/// Does NOT wrap CompressedAccountData - that wrapper is added by the client library.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub enum PackedProgramAccountVariant {
-    MinimalRecord(CompressedAccountData<PackedMinimalRecordVariant>),
-    // Future: OtherRecord(CompressedAccountData<PackedOtherRecordVariant>),
+    MinimalRecord(PackedMinimalRecordVariant),
+    // Future: OtherRecord(PackedOtherRecordVariant),
 }
+
+/// Type alias matching the client's CompressedAccountData<PackedVariant> structure.
+/// This is what the program deserializes from instruction data.
+pub type LightAccountData = CompressedAccountData<PackedProgramAccountVariant>;
 
 // ============================================================================
 // DecompressVariant Implementation (MACRO-GENERATED)
 // ============================================================================
 
-impl<'info> DecompressVariant<'info> for PackedProgramAccountVariant {
+/// Implementation for CompressedAccountData<PackedProgramAccountVariant>.
+/// This matches the client library's instruction format.
+impl<'info> DecompressVariant<'info> for LightAccountData {
     fn decompress(
         &self,
         pda_account: &AccountInfo<'info>,
         ctx: &mut DecompressCtx<'_, 'info>,
     ) -> std::result::Result<(), ProgramError> {
-        match self {
-            PackedProgramAccountVariant::MinimalRecord(account_data) => {
+        match &self.data {
+            PackedProgramAccountVariant::MinimalRecord(packed_data) => {
                 prepare_account_for_decompression::<3, PackedMinimalRecordVariant>(
-                    &account_data.data,
-                    &account_data.meta,
+                    packed_data,
+                    &self.meta,
                     pda_account,
                     ctx,
                 )
-            } // Future: PackedProgramAccountVariant::OtherRecord(account_data) => { ... }
+            } // Future: PackedProgramAccountVariant::OtherRecord(packed_data) => { ... }
         }
     }
 }

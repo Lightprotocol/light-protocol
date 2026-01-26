@@ -5,7 +5,7 @@ pub mod decompress;
 pub mod init;
 
 pub use compress::{
-    prepare_account_for_compression, process_compress_pda_accounts_idempotent, CompressAccountData,
+    prepare_account_for_compression, process_compress_pda_accounts_idempotent,
     CompressAndCloseParams, CompressCtx,
 };
 pub use decompress::{

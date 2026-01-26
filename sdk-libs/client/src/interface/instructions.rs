@@ -269,15 +269,19 @@ where
         accounts.push(AccountMeta::new(*addr, false));
     }
 
+    // system_accounts_offset must account for program_account_metas
+    let full_offset = program_account_metas.len() + system_accounts_offset;
     let ix_data = LoadAccountsData {
         proof: proof.proof,
         compressed_accounts: typed_accounts,
-        system_accounts_offset: system_accounts_offset as u8,
+        system_accounts_offset: full_offset as u8,
     };
 
     let serialized = ix_data.try_to_vec()?;
-    let mut data = Vec::with_capacity(discriminator.len() + serialized.len());
+    // Wrap in Vec<u8> format (4-byte length prefix) for Anchor compatibility
+    let mut data = Vec::with_capacity(discriminator.len() + 4 + serialized.len());
     data.extend_from_slice(discriminator);
+    data.extend_from_slice(&(serialized.len() as u32).to_le_bytes());
     data.extend_from_slice(&serialized);
 
     Ok(Instruction {
@@ -328,15 +332,19 @@ pub fn build_compress_accounts_idempotent(
         accounts.push(AccountMeta::new(*pubkey, false));
     }
 
+    // system_accounts_offset must account for program_account_metas
+    let full_offset = program_account_metas.len() + system_accounts_offset;
     let ix_data = SaveAccountsData {
         proof: proof.proof,
         compressed_accounts: cold_metas,
-        system_accounts_offset: system_accounts_offset as u8,
+        system_accounts_offset: full_offset as u8,
     };
 
     let serialized = ix_data.try_to_vec()?;
-    let mut data = Vec::with_capacity(discriminator.len() + serialized.len());
+    // Wrap in Vec<u8> format (4-byte length prefix) for Anchor compatibility
+    let mut data = Vec::with_capacity(discriminator.len() + 4 + serialized.len());
     data.extend_from_slice(discriminator);
+    data.extend_from_slice(&(serialized.len() as u32).to_le_bytes());
     data.extend_from_slice(&serialized);
 
     Ok(Instruction {

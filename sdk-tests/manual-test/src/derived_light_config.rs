@@ -4,26 +4,32 @@ use anchor_lang::prelude::*;
 use light_compressible::rent::RentConfig;
 use light_sdk::interface::config::{process_initialize_light_config, process_update_light_config};
 
+/// Params order matches SDK's InitializeCompressionConfigAnchorData.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct InitConfigParams {
+    pub write_top_up: u32,
     pub rent_sponsor: Pubkey,
     pub compression_authority: Pubkey,
     pub rent_config: RentConfig,
-    pub write_top_up: u32,
     pub address_space: Vec<Pubkey>,
 }
 
+/// Account order matches SDK's InitializeRentFreeConfig::build().
+/// Order: [payer, config, program_data, authority, system_program]
 #[derive(Accounts)]
 pub struct InitializeConfig<'info> {
     #[account(mut)]
     pub fee_payer: Signer<'info>,
 
-    #[account(mut)]
-    pub authority: Signer<'info>,
-
     /// CHECK: Initialized by SDK function
     #[account(mut)]
     pub config: AccountInfo<'info>,
+
+    /// CHECK: Program data PDA for upgrade authority verification
+    pub program_data: AccountInfo<'info>,
+
+    #[account(mut)]
+    pub authority: Signer<'info>,
 
     pub system_program: Program<'info, System>,
 }

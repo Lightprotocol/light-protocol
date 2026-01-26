@@ -58,6 +58,8 @@ pub trait DecompressVariant<'info>: AnchorSerialize + AnchorDeserialize + Clone 
 
 /// Parameters for decompress_idempotent instruction.
 /// Generic over the variant type - each program defines its own `PackedProgramAccountVariant`.
+///
+/// Field order matches `LoadAccountsData` from light-client for compatibility.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct DecompressIdempotentParams<V>
 where
@@ -65,10 +67,10 @@ where
 {
     /// Validity proof for compressed account verification
     pub proof: ValidityProof,
-    /// Offset into remaining_accounts where Light system accounts begin
-    pub system_accounts_offset: u8,
     /// Accounts to decompress - each variant contains packed data and metadata
     pub accounts: Vec<V>,
+    /// Offset into remaining_accounts where Light system accounts begin
+    pub system_accounts_offset: u8,
 }
 
 /// Context struct holding all data needed for decompression.
@@ -218,13 +220,16 @@ where
     }
 
     // 2. Get bump and seeds from packed variant
+    // Packed indices are relative to packed_accounts (after system accounts offset)
+    let packed_accounts = ctx.cpi_accounts.packed_accounts();
+
     let bump = packed.bump();
     let bump_storage = [bump];
-    let seeds = packed.seed_refs_with_bump(ctx.remaining_accounts, &bump_storage)?;
+    let seeds = packed.seed_refs_with_bump(packed_accounts, &bump_storage)?;
 
     // 3. Unpack to get the data
     let unpacked = packed
-        .unpack(ctx.remaining_accounts)
+        .unpack(packed_accounts)
         .map_err(|_| ProgramError::InvalidAccountData)?;
     let account_data = unpacked.data().clone();
 
@@ -240,8 +245,7 @@ where
     type Data<const N: usize, P> =
         <<P as PackedLightAccountVariant<N>>::Unpacked as LightAccountVariant<N>>::Data;
     let discriminator_len = 8;
-    let space =
-        discriminator_len + data_len.max(<Data<SEED_COUNT, P> as LightAccount>::INIT_SPACE);
+    let space = discriminator_len + data_len.max(<Data<SEED_COUNT, P> as LightAccount>::INIT_SPACE);
     let rent_minimum = ctx.rent.minimum_balance(space);
 
     let system_program = ctx

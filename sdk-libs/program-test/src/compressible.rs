@@ -293,12 +293,12 @@ pub async fn auto_compress_program_pdas(
     // 1. fee_payer (signer, writable)
     // 2. config (read-only)
     // 3. rent_sponsor (writable)
-    // 4. compression_authority (writable - per generated struct)
+    // 4. compression_authority (read-only)
     let program_metas = vec![
         AccountMeta::new(payer.pubkey(), true),
         AccountMeta::new_readonly(config_pda, false),
         AccountMeta::new(rent_sponsor, false),
-        AccountMeta::new(compression_authority, false),
+        AccountMeta::new_readonly(compression_authority, false),
     ];
 
     const BATCH_SIZE: usize = 5;
