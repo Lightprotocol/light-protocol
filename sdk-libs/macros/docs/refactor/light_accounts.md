@@ -656,19 +656,46 @@ pub fn light_pre_init_ata<V: LightAccountVariant>(
 
 ## Seed Extraction
 
-Seeds are extracted from Anchor's `#[account(seeds = [...])]` attribute:
+Seeds are extracted from Anchor's `#[account(seeds = [...])]` attribute and classified into three categories:
 
-| Seed Expression | Classification | Goes In |
-|-----------------|----------------|---------|
-| `b"user"` | Literal | `seed_refs()` directly |
-| `authority.key()` | Ctx field | `Seeds` struct as `Pubkey` |
-| `params.owner` | Params field | `Seeds` struct as `Pubkey` |
-| `CONSTANT` | Constant | `seed_refs()` directly |
+| Category | Examples | Detection | Stored In |
+|----------|----------|-----------|-----------|
+| **Constant** | `b"user"`, `SEED`, `crate::SEED` | Literals, uppercase identifiers | `seed_refs()` directly |
+| **Account** | `authority.key()`, `owner.key()` | Not in `#[instruction(...)]` args | `Seeds` struct as `Pubkey` |
+| **InstructionData** | `owner`, `params.owner`, `amount.to_le_bytes()` | Matches `#[instruction(...)]` arg | `Seeds` struct (type varies) |
+
+### Detection Order
+
+1. Literals (`b"user"`) and uppercase (`SEED`) -> **Constant**
+2. Root matches `#[instruction(...)]` arg name -> **InstructionData**
+3. Fallback -> **Account** (assumed ctx field)
+
+### No Prefix Required for Instruction Data
 
 ```rust
-#[account(seeds = [b"user", authority.key().as_ref(), params.owner.as_ref()], bump)]
-//                  ^^^^^   ^^^^^^^^^^^^^^^^^^^^^^^   ^^^^^^^^^^^^^^^^^^^^
-//                  Literal  Ctx field -> Seeds.authority  Params -> Seeds.owner
+// Format 1: struct parameter
+#[instruction(params: CreateParams)]
+#[account(seeds = [b"user", params.owner.as_ref()], bump)]
+
+// Format 2: individual parameters - no prefix needed
+#[instruction(owner: Pubkey, amount: u64)]
+#[account(seeds = [b"user", owner.as_ref()], bump)]  // bare 'owner' works
+```
+
+### Account Seeds Must Be Struct Fields
+
+```rust
+#[account(seeds = [b"vault", authority.key().as_ref()], bump)]
+// authority must be a declared field in the Accounts struct
+// remaining_accounts are NOT permitted as seeds
+```
+
+### Example
+
+```rust
+#[account(seeds = [b"user", authority.key().as_ref(), owner.as_ref()], bump)]
+//                  ^^^^^   ^^^^^^^^^^^^^^^^^^^^^^^   ^^^^^^^^^^^^
+//                  Constant Account -> Seeds.authority  InstructionData -> Seeds.owner
 ```
 
 ---

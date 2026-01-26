@@ -21,6 +21,7 @@ pub mod derived_light_config;
 pub mod derived_variants;
 pub mod pda;
 pub mod sdk_functions;
+pub mod token_account;
 pub mod traits;
 pub mod two_mints;
 
@@ -41,6 +42,7 @@ pub use pda::{
 };
 pub use sdk_functions::{CompressAndCloseParams, DecompressIdempotentParams, DecompressVariant};
 pub use traits::{AccountType, LightAccount, LightAccountVariant, PackedLightAccountVariant};
+pub use token_account::accounts::*;
 pub use two_mints::accounts::*;
 
 declare_id!("PdaT111111111111111111111111111111111111111");
@@ -156,5 +158,15 @@ pub mod manual_test {
         params: CreateDerivedMintsParams,
     ) -> Result<()> {
         two_mints::process_create_derived_mints(ctx, params)
+    }
+
+    /// Create a PDA token vault using CreateTokenAccountCpi.
+    /// Manual implementation of what #[light_account(init, token::...)] generates.
+    /// Demonstrates rent-free token account creation for program-owned vaults.
+    pub fn create_token_vault<'a, 'info>(
+        ctx: Context<'a, '_, 'info, 'info, CreateTokenVaultAccounts<'info>>,
+        params: CreateTokenVaultParams,
+    ) -> Result<()> {
+        token_account::process_create_token_vault(ctx, params)
     }
 }
