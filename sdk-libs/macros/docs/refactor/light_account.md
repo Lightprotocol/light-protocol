@@ -33,20 +33,28 @@ enum AccountType {
 ## Trait Definition
 
 ```rust
-trait LightAccount: Sized + Clone + AnchorSerialize + AnchorDeserialize {
+use light_hasher::DataHasher;
+use light_account_checks::discriminator::Discriminator;
+
+/// Supertraits:
+/// - `Discriminator` from light-account-checks for the 8-byte discriminator
+/// - `DataHasher` from light-hasher for Merkle tree hashing
+trait LightAccount:
+    Sized
+    + Clone
+    + AnchorSerialize
+    + AnchorDeserialize
+    + Discriminator
+    + DataHasher
+{
+    /// Account type for dispatch
+    const ACCOUNT_TYPE: AccountType;
+
     /// Packed version (Pubkeys -> u8 indices)
     type Packed: AnchorSerialize + AnchorDeserialize;
 
-    /// 8-byte discriminator for compressed account identification
-    const DISCRIMINATOR: [u8; 8];
-
     /// Compile-time size for space allocation
     const INIT_SPACE: usize;
-
-    // --- Hashing ---
-
-    /// Hash the account data for Merkle tree storage (SHA256)
-    fn hash<H: Hasher>(&self) -> Result<[u8; 32], HasherError>;
 
     // --- Compression Info ---
 
@@ -56,10 +64,8 @@ trait LightAccount: Sized + Clone + AnchorSerialize + AnchorDeserialize {
     /// Get mutable compression info reference
     fn compression_info_mut(&mut self) -> &mut CompressionInfo;
 
-    // --- Size ---
-
-    /// Runtime serialized size
-    fn size(&self) -> usize;
+    /// Set compression info to decompressed state (used at decompression)
+    fn set_decompressed(&mut self, config: &LightConfig, current_slot: u64);
 
     // --- Pack/Unpack ---
 
@@ -67,9 +73,16 @@ trait LightAccount: Sized + Clone + AnchorSerialize + AnchorDeserialize {
     fn pack(&self, accounts: &mut PackedAccounts) -> Result<Self::Packed, ProgramError>;
 
     /// Convert from packed form (indices -> Pubkeys from remaining_accounts)
-    fn unpack(packed: &Self::Packed, accounts: &[AccountInfo]) -> Result<Self, ProgramError>;
+    fn unpack<A: AccountInfoTrait>(
+        packed: &Self::Packed,
+        accounts: &ProgramPackedAccounts<A>,
+    ) -> Result<Self, ProgramError>;
 }
 ```
+
+**Supertraits provide:**
+- `Discriminator::DISCRIMINATOR: [u8; 8]` - 8-byte account discriminator
+- `DataHasher::hash(&self) -> Result<[u8; 32], HasherError>` - Merkle tree hashing
 
 ---
 
@@ -79,8 +92,9 @@ trait LightAccount: Sized + Clone + AnchorSerialize + AnchorDeserialize {
 
 ```rust
 use light_sdk::LightAccount;
+use light_sdk_macros::{LightDiscriminator, LightHasherSha};
 
-#[derive(LightAccount)]
+#[derive(LightAccount, LightDiscriminator, LightHasherSha)]
 pub struct UserRecord {
     pub owner: Pubkey,
     pub score: u64,
@@ -98,21 +112,30 @@ pub struct PackedUserRecord {
     // Note: compression_info is NOT included in packed struct
 }
 
-impl LightAccount for UserRecord {
-    type Packed = PackedUserRecord;
-
+// Discriminator trait (from #[derive(LightDiscriminator)])
+impl Discriminator for UserRecord {
     const DISCRIMINATOR: [u8; 8] = {
         // SHA256("light:UserRecord")[..8]
         let hash = sha256(b"light:UserRecord");
         [hash[0], hash[1], hash[2], hash[3], hash[4], hash[5], hash[6], hash[7]]
     };
+}
 
-    const INIT_SPACE: usize = 32 + 8 + 1 + std::mem::size_of::<CompressionInfo>();
-
+// DataHasher trait (from #[derive(LightHasherSha)])
+impl DataHasher for UserRecord {
     fn hash<H: Hasher>(&self) -> Result<[u8; 32], HasherError> {
         let bytes = self.try_to_vec().map_err(|_| HasherError::BorshError)?;
-        H::hash(&bytes)
+        Sha256::hash(&bytes)
     }
+}
+
+// LightAccount trait (from #[derive(LightAccount)])
+impl LightAccount for UserRecord {
+    const ACCOUNT_TYPE: AccountType = AccountType::Pda;
+
+    type Packed = PackedUserRecord;
+
+    const INIT_SPACE: usize = 32 + 8 + std::mem::size_of::<CompressionInfo>();
 
     fn compression_info(&self) -> &CompressionInfo {
         &self.compression_info
@@ -122,8 +145,8 @@ impl LightAccount for UserRecord {
         &mut self.compression_info
     }
 
-    fn size(&self) -> usize {
-        self.try_to_vec().map(|v| v.len()).unwrap_or(0)
+    fn set_decompressed(&mut self, config: &LightConfig, current_slot: u64) {
+        *self.compression_info_mut() = CompressionInfo::decompressed(config, current_slot);
     }
 
     fn pack(&self, accounts: &mut PackedAccounts) -> Result<Self::Packed, ProgramError> {
@@ -134,10 +157,12 @@ impl LightAccount for UserRecord {
         })
     }
 
-    fn unpack(packed: &Self::Packed, accounts: &[AccountInfo]) -> Result<Self, ProgramError> {
+    fn unpack<A: AccountInfoTrait>(
+        packed: &Self::Packed,
+        accounts: &ProgramPackedAccounts<A>,
+    ) -> Result<Self, ProgramError> {
         Ok(UserRecord {
-            owner: *accounts.get(packed.owner as usize)
-                .ok_or(ProgramError::InvalidAccountData)?.key,
+            owner: accounts.get_pubkey(packed.owner as usize)?,
             score: packed.score,
             // Insert canonical CompressionInfo::compressed() for hash verification
             compression_info: CompressionInfo::compressed(),
@@ -263,24 +288,36 @@ The SDK provides `LightAccount` implementation for token data:
 
 ```rust
 // In light_sdk (pre-implemented, not generated)
-impl LightAccount for TokenData {
-    type Packed = PackedTokenData;
-
+// Discriminator supertrait
+impl Discriminator for TokenData {
     const DISCRIMINATOR: [u8; 8] = [0, 0, 0, 0, 0, 0, 0, 4];  // TokenDataVersion::ShaFlat
-    const INIT_SPACE: usize = 32 + 32 + 8 + 33 + 1 + 64;
+}
 
+// DataHasher supertrait
+impl DataHasher for TokenData {
     fn hash<H: Hasher>(&self) -> Result<[u8; 32], HasherError> {
         // SHA256 flat hash for tokens
         self.hash_sha_flat()
     }
+}
+
+impl LightAccount for TokenData {
+    const ACCOUNT_TYPE: AccountType = AccountType::Token;
+
+    type Packed = PackedTokenData;
+
+    const INIT_SPACE: usize = 32 + 32 + 8 + 33 + 1 + 64;
 
     // TokenData does not have compression_info - tokens are always compressed
     fn compression_info(&self) -> &CompressionInfo { unimplemented!() }
     fn compression_info_mut(&mut self) -> &mut CompressionInfo { unimplemented!() }
+    fn set_decompressed(&mut self, _config: &LightConfig, _current_slot: u64) { unimplemented!() }
 
-    fn size(&self) -> usize { ... }
     fn pack(&self, accounts: &mut PackedAccounts) -> Result<Self::Packed, ProgramError> { ... }
-    fn unpack(packed: &Self::Packed, accounts: &[AccountInfo]) -> Result<Self, ProgramError> { ... }
+    fn unpack<A: AccountInfoTrait>(
+        packed: &Self::Packed,
+        accounts: &ProgramPackedAccounts<A>,
+    ) -> Result<Self, ProgramError> { ... }
 }
 ```
 
@@ -339,11 +376,13 @@ pub struct UserRecordVariant {
     pub data: UserRecord,  // <-- implements LightAccount
 }
 
-impl LightAccountVariant for UserRecordVariant {
-    type Data = UserRecord;  // <-- LightAccount bound
+impl LightAccountVariant<3> for UserRecordVariant {
+    type Data = UserRecord;  // <-- No LightAccount bound (flexibility)
     ...
 }
 ```
+
+Note: `LightAccountVariant` uses a const generic `SEED_COUNT` instead of an associated const.
 
 ---
 

@@ -19,6 +19,9 @@ use crate::instruction::PackedAccounts;
 pub trait LightAccountVariant<const SEED_COUNT: usize>:
     Sized + Clone + AnchorSerialize + AnchorDeserialize
 {
+    /// The program ID that owns accounts of this variant type.
+    const PROGRAM_ID: Pubkey;
+
     /// The seeds struct type containing seed values.
     type Seeds;
 
@@ -38,15 +41,15 @@ pub trait LightAccountVariant<const SEED_COUNT: usize>:
     /// Returns a fixed-size array that can be passed to invoke_signed.
     fn seed_refs_with_bump<'a>(&'a self, bump_storage: &'a [u8; 1]) -> [&'a [u8]; SEED_COUNT];
 
-    /// Derive the PDA address and bump seed.
-    fn derive_pda(&self, program_id: &Pubkey) -> (Pubkey, u8) {
+    /// Derive the PDA address and bump seed using PROGRAM_ID.
+    fn derive_pda(&self) -> (Pubkey, u8) {
         let seeds = self.seed_vec();
         let seed_slices: Vec<&[u8]> = seeds.iter().map(|s| s.as_slice()).collect();
-        Pubkey::find_program_address(&seed_slices, program_id)
+        Pubkey::find_program_address(&seed_slices, &Self::PROGRAM_ID)
     }
 
     /// Pack this variant for efficient serialization.
-    fn pack(&self, accounts: &mut PackedAccounts, program_id: &Pubkey) -> Result<Self::Packed>;
+    fn pack(&self, accounts: &mut PackedAccounts) -> Result<Self::Packed>;
 }
 
 use solana_program_error::ProgramError;

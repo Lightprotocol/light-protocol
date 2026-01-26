@@ -93,46 +93,66 @@ pub enum PackedProgramAccountVariant {
 }
 ```
 
-**Trait implementation (delegates to inner variants):**
+**Note:** The program-wide enum does NOT implement `LightAccountVariant` directly because variants have different `SEED_COUNT` values. Instead, it implements `DecompressVariant` for trait-based dispatch:
 
 ```rust
-impl LightAccountVariant for ProgramAccountVariant {
-    type Seeds = ProgramAccountSeeds;  // enum of all seed types
-    type Data = ProgramAccountData;    // enum of all data types
-    type Packed = PackedProgramAccountVariant;
-
-    const SEED_COUNT: usize = 0;  // varies per variant
-
-    fn seeds(&self) -> &Self::Seeds {
+impl<'info> DecompressVariant<'info> for PackedProgramAccountVariant {
+    fn decompress(
+        &self,
+        meta: &CompressedAccountMetaNoLamportsNoAddress,
+        pda_account: &AccountInfo<'info>,
+        ctx: &mut DecompressCtx<'_, 'info>,
+    ) -> Result<(), ProgramError> {
         match self {
-            Self::UserRecord(v) => ProgramAccountSeeds::UserRecord(v.seeds()),
-            Self::Vault(v) => ProgramAccountSeeds::Vault(v.seeds()),
-            Self::MyMint(v) => ProgramAccountSeeds::MyMint(v.seeds()),
+            Self::UserRecord(packed) => {
+                // SEED_COUNT = 3 for UserRecord
+                prepare_account_for_decompression::<3, PackedUserRecordVariant>(
+                    packed, meta, pda_account, ctx
+                )
+            }
+            Self::Vault(packed) => {
+                // SEED_COUNT = 2 for Vault
+                prepare_account_for_decompression::<2, PackedVaultVariant>(
+                    packed, meta, pda_account, ctx
+                )
+            }
+            Self::MyMint(packed) => {
+                // SEED_COUNT = 3 for MyMint
+                prepare_account_for_decompression::<3, PackedMyMintVariant>(
+                    packed, meta, pda_account, ctx
+                )
+            }
         }
     }
+}
+```
 
-    fn data(&self) -> &Self::Data {
-        match self {
-            Self::UserRecord(v) => ProgramAccountData::UserRecord(v.data()),
-            Self::Vault(v) => ProgramAccountData::Vault(v.data()),
-            Self::MyMint(v) => ProgramAccountData::MyMint(v.data()),
-        }
-    }
+**For compression, the dispatch function uses discriminator matching:**
 
-    fn seed_refs(&self) -> Vec<&[u8]> {
-        match self {
-            Self::UserRecord(v) => v.seed_refs().to_vec(),
-            Self::Vault(v) => v.seed_refs().to_vec(),
-            Self::MyMint(v) => v.seed_refs().to_vec(),
-        }
-    }
+```rust
+fn compress_dispatch<'info>(
+    account_info: &AccountInfo<'info>,
+    meta: &CompressedAccountMetaNoLamportsNoAddress,
+    index: usize,
+    ctx: &mut CompressCtx<'_, 'info>,
+) -> Result<(), ProgramError> {
+    let data = account_info.try_borrow_data()?;
+    let discriminator: [u8; 8] = data[..8].try_into().map_err(|_| ProgramError::InvalidAccountData)?;
 
-    fn pack(&self, accounts: &mut PackedAccounts, program_id: &Pubkey) -> Result<Self::Packed, ProgramError> {
-        match self {
-            Self::UserRecord(v) => Ok(PackedProgramAccountVariant::UserRecord(v.pack(accounts, program_id)?)),
-            Self::Vault(v) => Ok(PackedProgramAccountVariant::Vault(v.pack(accounts, program_id)?)),
-            Self::MyMint(v) => Ok(PackedProgramAccountVariant::MyMint(v.pack(accounts, program_id)?)),
+    match discriminator {
+        UserRecord::LIGHT_DISCRIMINATOR => {
+            let mut account = UserRecord::try_from_slice(&data[8..])?;
+            prepare_account_for_compression(account_info, &mut account, meta, index, ctx)
         }
+        VaultData::LIGHT_DISCRIMINATOR => {
+            let mut account = VaultData::try_from_slice(&data[8..])?;
+            prepare_account_for_compression(account_info, &mut account, meta, index, ctx)
+        }
+        MyMintData::LIGHT_DISCRIMINATOR => {
+            let mut account = MyMintData::try_from_slice(&data[8..])?;
+            prepare_account_for_compression(account_info, &mut account, meta, index, ctx)
+        }
+        _ => Err(ProgramError::InvalidAccountData),
     }
 }
 ```
@@ -144,54 +164,72 @@ impl LightAccountVariant for ProgramAccountVariant {
 #### `compress_and_close`
 
 ```rust
-pub fn compress_and_close(ctx: Context<CompressAndClose>) -> Result<()> {
-    light_sdk::compress_and_close::<ProgramAccountVariant>(
-        ctx.accounts.data.as_ref(),
-        ctx.remaining_accounts,
+/// Compress PDA accounts idempotently.
+/// Uses dispatch callback pattern for discriminator-based routing.
+pub fn compress_and_close<'info>(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo<'info>],
+    instruction_data: &[u8],
+) -> ProgramResult {
+    process_compress_pda_accounts_idempotent(
+        accounts,
+        instruction_data,
+        compress_dispatch,  // Macro-generated dispatch function
         CpiSigner::new(&crate::LIGHT_CPI_SIGNER),
+        program_id,
     )
 }
+```
 
-#[derive(Accounts)]
-pub struct CompressAndClose<'info> {
-    #[account(mut)]
-    pub fee_payer: Signer<'info>,
-
-    pub data: AccountInfo<'info>,
-
-    // System accounts via remaining_accounts
+**Parameters (in instruction data):**
+```rust
+#[derive(AnchorSerialize, AnchorDeserialize)]
+pub struct CompressAndCloseParams {
+    /// Validity proof for compressed account verification
+    pub proof: ValidityProof,
+    /// Accounts to compress (meta only - data read from PDA)
+    pub compressed_accounts: Vec<CompressedAccountMetaNoLamportsNoAddress>,
+    /// Offset into remaining_accounts where Light system accounts begin
+    pub system_accounts_offset: u8,
 }
 ```
 
 #### `decompress_idempotent`
 
 ```rust
-pub fn decompress_idempotent(
-    ctx: Context<DecompressIdempotent>,
-    params: DecompressParams,
-) -> Result<()> {
-    light_sdk::decompress_idempotent::<DecompressParams, ProgramAccountVariant>(
-        ctx.accounts.data.as_ref(),
-        ctx.remaining_accounts,
+/// Decompress PDA accounts idempotently.
+/// Uses trait-based dispatch via DecompressVariant.
+pub fn decompress_idempotent<'info>(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo<'info>],
+    instruction_data: &[u8],
+) -> ProgramResult {
+    process_decompress_pda_accounts_idempotent::<PackedProgramAccountVariant>(
+        accounts,
+        instruction_data,
         CpiSigner::new(&crate::LIGHT_CPI_SIGNER),
+        program_id,
     )
 }
+```
 
-#[derive(Accounts)]
-pub struct DecompressIdempotent<'info> {
-    #[account(mut)]
-    pub fee_payer: Signer<'info>,
-
-    pub data: AccountInfo<'info>,
-
-    // System accounts via remaining_accounts
+**Parameters (in instruction data):**
+```rust
+#[derive(AnchorSerialize, AnchorDeserialize)]
+pub struct DecompressIdempotentParams<V> {
+    /// Validity proof for compressed account verification
+    pub proof: ValidityProof,
+    /// Accounts to decompress - wrapped in CompressedAccountData for metadata
+    pub accounts: Vec<CompressedAccountData<V>>,
+    /// Offset into remaining_accounts where Light system accounts begin
+    pub system_accounts_offset: u8,
 }
 
+/// Wrapper containing metadata and packed variant data
 #[derive(AnchorSerialize, AnchorDeserialize)]
-pub struct DecompressParams {
-    pub variant: PackedProgramAccountVariant,
-    pub proof: DecompressProof,
-    pub instruction_data: DecompressInstructionData,
+pub struct CompressedAccountData<V> {
+    pub meta: CompressedAccountMetaNoLamportsNoAddress,
+    pub data: V,  // PackedProgramAccountVariant
 }
 ```
 
@@ -417,44 +455,235 @@ The SDK's `decompress_idempotent` function:
 
 ---
 
-## SDK Functions (called by generated instructions)
+## Remaining Accounts Layout
 
-### `compress_and_close<V>`
+Both compress and decompress use a standardized remaining accounts layout:
+
+```
+[0]: fee_payer (Signer, mut)
+[1]: config (LightConfig PDA)
+[2]: rent_sponsor (mut)
+[3]: compression_authority (Signer) - for compress only
+[system_accounts_offset..]: Light system accounts for CPI
+[remaining_accounts.len() - num_pda_accounts..]: PDA accounts to compress/decompress
+```
+
+---
+
+## Dispatch Patterns
+
+### Compress: CompressDispatchFn Callback
+
+The compress flow uses a **function pointer callback** for discriminator-based dispatch:
 
 ```rust
-pub fn compress_and_close<V: LightAccountVariant>(
-    data: &[u8],
-    accounts: &[AccountInfo],
+/// Callback type for discriminator-based dispatch.
+/// MACRO-GENERATED: Just a match statement routing to prepare_account_for_compression.
+/// Takes &mut CompressCtx and pushes CompressedAccountInfo into ctx.compressed_account_infos.
+pub type CompressDispatchFn<'info> = fn(
+    account_info: &AccountInfo<'info>,
+    compressed_account_meta: &CompressedAccountMetaNoLamportsNoAddress,
+    index: usize,
+    ctx: &mut CompressCtx<'_, 'info>,
+) -> Result<(), ProgramError>;
+```
+
+**Macro generates:**
+```rust
+fn compress_dispatch<'info>(
+    account_info: &AccountInfo<'info>,
+    meta: &CompressedAccountMetaNoLamportsNoAddress,
+    index: usize,
+    ctx: &mut CompressCtx<'_, 'info>,
+) -> Result<(), ProgramError> {
+    let data = account_info.try_borrow_data()?;
+    let discriminator: [u8; 8] = data[..8].try_into().unwrap();
+
+    match discriminator {
+        UserRecord::LIGHT_DISCRIMINATOR => {
+            let mut account = UserRecord::deserialize(&mut &data[8..])?;
+            prepare_account_for_compression(account_info, &mut account, meta, index, ctx)
+        }
+        // ... other variants
+        _ => Err(ProgramError::InvalidAccountData),
+    }
+}
+```
+
+### Decompress: DecompressVariant Trait
+
+The decompress flow uses a **trait-based dispatch** pattern:
+
+```rust
+/// Trait for packed program account variants that support decompression.
+///
+/// MACRO-GENERATED: The implementation contains a match statement routing each
+/// enum variant to the appropriate `prepare_account_for_decompression` call.
+pub trait DecompressVariant<'info>: AnchorSerialize + AnchorDeserialize + Clone {
+    /// Decompress this variant into a PDA account.
+    fn decompress(
+        &self,
+        meta: &CompressedAccountMetaNoLamportsNoAddress,
+        pda_account: &AccountInfo<'info>,
+        ctx: &mut DecompressCtx<'_, 'info>,
+    ) -> Result<(), ProgramError>;
+}
+```
+
+**Macro generates:**
+```rust
+impl<'info> DecompressVariant<'info> for PackedProgramAccountVariant {
+    fn decompress(
+        &self,
+        meta: &CompressedAccountMetaNoLamportsNoAddress,
+        pda_account: &AccountInfo<'info>,
+        ctx: &mut DecompressCtx<'_, 'info>,
+    ) -> Result<(), ProgramError> {
+        match self {
+            Self::UserRecord(packed) => {
+                prepare_account_for_decompression::<3, PackedUserRecordVariant>(
+                    packed, meta, pda_account, ctx
+                )
+            }
+            // ... other variants
+        }
+    }
+}
+```
+
+---
+
+## Context Structs
+
+### CompressCtx
+
+```rust
+/// Context struct holding all data needed for compression.
+/// Contains internal vec for collecting CompressedAccountInfo results.
+pub struct CompressCtx<'a, 'info> {
+    pub program_id: &'a Pubkey,
+    pub cpi_accounts: &'a CpiAccounts<'a, 'info>,
+    pub remaining_accounts: &'a [AccountInfo<'info>],
+    pub rent_sponsor: &'a AccountInfo<'info>,
+    pub light_config: &'a LightConfig,
+    /// Internal vec - dispatch functions push results here
+    pub compressed_account_infos: Vec<CompressedAccountInfo>,
+    /// Track which PDA indices to close
+    pub pda_indices_to_close: Vec<usize>,
+}
+```
+
+### DecompressCtx
+
+```rust
+/// Context struct holding all data needed for decompression.
+/// Contains internal vec for collecting CompressedAccountInfo results.
+pub struct DecompressCtx<'a, 'info> {
+    pub program_id: &'a Pubkey,
+    pub cpi_accounts: &'a CpiAccounts<'a, 'info>,
+    pub remaining_accounts: &'a [AccountInfo<'info>],
+    pub rent_sponsor: &'a AccountInfo<'info>,
+    pub light_config: &'a LightConfig,
+    pub rent: &'a Rent,
+    pub current_slot: u64,
+    /// Internal vec - dispatch functions push results here
+    pub compressed_account_infos: Vec<CompressedAccountInfo>,
+}
+```
+
+---
+
+## SDK Processor Functions
+
+### `process_compress_pda_accounts_idempotent`
+
+```rust
+/// Runtime processor - handles all the plumbing, delegates dispatch to callback.
+///
+/// **Takes raw instruction data** and deserializes internally - minimizes macro code.
+/// **Uses only remaining_accounts** - no Context struct needed.
+pub fn process_compress_pda_accounts_idempotent<'info>(
+    remaining_accounts: &[AccountInfo<'info>],
+    instruction_data: &[u8],
+    dispatch_fn: CompressDispatchFn<'info>,
     cpi_signer: CpiSigner,
-) -> Result<()>
+    program_id: &Pubkey,
+) -> Result<(), ProgramError>
 ```
 
 **What it does:**
-1. Deserialize variant from `data`
-2. Hash account data
-3. CPI to Light system program to insert into Merkle tree
-4. Close the on-chain PDA account
+1. Deserialize `CompressAndCloseParams` from instruction data
+2. Extract fee_payer, config, rent_sponsor from remaining_accounts
+3. Load and validate LightConfig
+4. Build CompressCtx with internal vecs
+5. For each PDA account, call dispatch_fn (macro-generated match)
+6. CPI to Light System Program with collected CompressedAccountInfos
+7. Close the PDA accounts
 
-### `decompress_idempotent<V>`
+### `process_decompress_pda_accounts_idempotent`
 
 ```rust
-pub fn decompress_idempotent<V: LightAccountVariant>(
-    params: &DecompressParams,
-    accounts: &[AccountInfo],
+/// Runtime processor - handles all the plumbing, dispatches via DecompressVariant trait.
+///
+/// **Takes raw instruction data** and deserializes internally - minimizes macro code.
+/// **Uses only remaining_accounts** - no Context struct needed.
+/// **Generic over V** - the program's `PackedProgramAccountVariant` enum.
+pub fn process_decompress_pda_accounts_idempotent<'info, V>(
+    remaining_accounts: &[AccountInfo<'info>],
+    instruction_data: &[u8],
     cpi_signer: CpiSigner,
-) -> Result<()>
+    program_id: &Pubkey,
+) -> Result<(), ProgramError>
+where
+    V: DecompressVariant<'info>,
 ```
 
 **What it does:**
-1. Deserialize packed variant from params
-2. Verify proof against Merkle tree
-3. Reconstruct seeds:
-   - Constant seeds: compile-time known
-   - Account seeds: resolve from `accounts` using packed indices
-   - Instruction data seeds: extract from `params.instruction_data`
-4. Derive PDA from reconstructed seeds and verify it matches
-5. Create/rehydrate on-chain PDA account (idempotent)
-6. Write account data
+1. Deserialize `DecompressIdempotentParams<V>` from instruction data
+2. Extract fee_payer, config, rent_sponsor from remaining_accounts
+3. Load and validate LightConfig
+4. Build DecompressCtx with internal vec
+5. For each account, call `variant.decompress()` (trait dispatch)
+6. CPI to Light System Program with collected CompressedAccountInfos
+
+### `prepare_account_for_compression`
+
+```rust
+/// Generic prepare_account_for_compression.
+/// Called by the dispatch function after deserializing the account.
+/// Pushes CompressedAccountInfo into ctx.compressed_account_infos.
+pub fn prepare_account_for_compression<'info, A>(
+    account_info: &AccountInfo<'info>,
+    account_data: &mut A,
+    compressed_account_meta: &CompressedAccountMetaNoLamportsNoAddress,
+    pda_index: usize,
+    ctx: &mut CompressCtx<'_, 'info>,
+) -> Result<(), ProgramError>
+where
+    A: LightAccount + LightDiscriminator + Clone + AnchorSerialize,
+```
+
+### `prepare_account_for_decompression`
+
+```rust
+/// Generic prepare_account_for_decompression.
+/// Called by DecompressVariant::decompress() implementation.
+/// Pushes CompressedAccountInfo into ctx.compressed_account_infos.
+pub fn prepare_account_for_decompression<'info, const SEED_COUNT: usize, P>(
+    packed: &P,
+    meta: &CompressedAccountMetaNoLamportsNoAddress,
+    pda_account: &AccountInfo<'info>,
+    ctx: &mut DecompressCtx<'_, 'info>,
+) -> Result<(), ProgramError>
+where
+    P: PackedLightAccountVariant<SEED_COUNT>,
+    <P::Unpacked as LightAccountVariant<SEED_COUNT>>::Data:
+        LightAccount + LightDiscriminator + Clone + AnchorSerialize + AnchorDeserialize,
+```
+
+---
+
+## Legacy SDK Functions
 
 ### `initialize_compression_config`
 

@@ -235,40 +235,85 @@ Position in struct doesn't matter.
 
 ### LightAccountVariant
 
+Uses a **const generic** for `SEED_COUNT` instead of an associated const:
+
 ```rust
-trait LightAccountVariant: Sized + Clone + AnchorSerialize + AnchorDeserialize {
+/// Trait for unpacked compressed account variants with seeds.
+///
+/// # Type Parameters
+/// * `SEED_COUNT` - Number of seeds including bump for CPI signing
+trait LightAccountVariant<const SEED_COUNT: usize>:
+    Sized + Clone + AnchorSerialize + AnchorDeserialize
+{
+    /// The seeds struct type containing seed values.
     type Seeds;
-    type Data: LightAccount;
-    type Packed: PackedLightAccountVariant<Unpacked = Self>;
 
-    const SEED_COUNT: usize;
+    /// The account data type (no LightAccount bound for flexibility).
+    type Data;
 
-    fn seeds(&self) -> &Self::Seeds;
+    /// The packed variant type for efficient serialization.
+    type Packed: PackedLightAccountVariant<SEED_COUNT, Unpacked = Self>;
+
+    /// Get a reference to the account data.
     fn data(&self) -> &Self::Data;
-    fn data_mut(&mut self) -> &mut Self::Data;
 
-    fn seed_refs(&self) -> [&[u8]; Self::SEED_COUNT];
+    /// Get seed values as owned byte vectors for PDA derivation.
+    fn seed_vec(&self) -> Vec<Vec<u8>>;
 
+    /// Get seed references with bump for CPI signing.
+    /// Returns a fixed-size array that can be passed to invoke_signed.
+    fn seed_refs_with_bump<'a>(&'a self, bump_storage: &'a [u8; 1]) -> [&'a [u8]; SEED_COUNT];
+
+    /// Derive the PDA address and bump seed.
     fn derive_pda(&self, program_id: &Pubkey) -> (Pubkey, u8) {
-        let seeds = self.seed_refs();
-        Pubkey::find_program_address(&seeds, program_id)
+        let seeds = self.seed_vec();
+        let seed_slices: Vec<&[u8]> = seeds.iter().map(|s| s.as_slice()).collect();
+        Pubkey::find_program_address(&seed_slices, program_id)
     }
 
-    fn pack(&self, accounts: &mut PackedAccounts, program_id: &Pubkey) -> Result<Self::Packed, ProgramError>;
+    /// Pack this variant for efficient serialization.
+    fn pack(&self, accounts: &mut PackedAccounts, program_id: &Pubkey) -> Result<Self::Packed>;
 }
 ```
+
+**Key differences from previous spec:**
+- `SEED_COUNT` is a const generic, not an associated const
+- `seed_refs()` replaced with `seed_vec()` (returns owned) and `seed_refs_with_bump()` (returns refs)
+- `seeds()` and `data_mut()` removed
+- `type Data` has no `LightAccount` bound
 
 ### PackedLightAccountVariant
 
 ```rust
-trait PackedLightAccountVariant: Sized + Clone + AnchorSerialize + AnchorDeserialize {
-    type Unpacked: LightAccountVariant;
+/// Trait for packed compressed account variants.
+///
+/// Packed variants use u8 indices instead of 32-byte Pubkeys for efficient
+/// serialization. They can be unpacked back to full variants using account info.
+trait PackedLightAccountVariant<const SEED_COUNT: usize>:
+    Sized + Clone + AnchorSerialize + AnchorDeserialize
+{
+    /// The unpacked variant type with full Pubkey values.
+    type Unpacked: LightAccountVariant<SEED_COUNT>;
 
+    /// Get the PDA bump seed.
     fn bump(&self) -> u8;
 
-    fn unpack(&self, accounts: &[AccountInfo]) -> Result<Self::Unpacked, ProgramError>;
+    /// Unpack this variant by resolving u8 indices to Pubkeys.
+    fn unpack(&self, accounts: &[AccountInfo]) -> Result<Self::Unpacked>;
+
+    /// Get seed references with bump for CPI signing.
+    /// Resolves u8 indices to pubkey refs from accounts slice.
+    fn seed_refs_with_bump<'a>(
+        &'a self,
+        accounts: &'a [AccountInfo],
+        bump_storage: &'a [u8; 1],
+    ) -> Result<[&'a [u8]; SEED_COUNT], ProgramError>;
 }
 ```
+
+**Key difference from previous spec:**
+- `SEED_COUNT` is a const generic
+- Added `seed_refs_with_bump()` method for CPI signing
 
 ### LightPreInit
 
@@ -334,27 +379,35 @@ pub struct PackedUserRecordVariant {
 ### Trait Implementations
 
 ```rust
-impl LightAccountVariant for UserRecordVariant {
+// Note: SEED_COUNT = 3 includes bump (b"user", authority, owner + bump for signing)
+impl LightAccountVariant<3> for UserRecordVariant {
     type Seeds = UserRecordSeeds;
     type Data = UserRecord;
     type Packed = PackedUserRecordVariant;
 
-    const SEED_COUNT: usize = 3;
-
-    fn seeds(&self) -> &Self::Seeds { &self.seeds }
     fn data(&self) -> &Self::Data { &self.data }
-    fn data_mut(&mut self) -> &mut Self::Data { &mut self.data }
 
-    // Generated from seeds = [b"user", authority.key(), params.owner]
-    fn seed_refs(&self) -> [&[u8]; 3] {
-        [
-            b"user",
-            self.seeds.authority.as_ref(),
-            self.seeds.owner.as_ref(),
+    // Returns owned byte vectors for PDA derivation (without bump)
+    fn seed_vec(&self) -> Vec<Vec<u8>> {
+        vec![
+            b"user".to_vec(),
+            self.seeds.authority.to_bytes().to_vec(),
+            self.seeds.owner.to_bytes().to_vec(),
         ]
     }
 
-    fn pack(&self, accounts: &mut PackedAccounts, program_id: &Pubkey) -> Result<Self::Packed, ProgramError> {
+    // Returns seed refs with bump for CPI signing
+    fn seed_refs_with_bump<'a>(&'a self, bump_storage: &'a [u8; 1]) -> [&'a [u8]; 3] {
+        [
+            b"user",
+            self.seeds.authority.as_ref(),
+            // Note: For 3 seeds including bump, the last position is bump
+            // This example shows 2 seeds + bump = 3
+            bump_storage.as_slice(),
+        ]
+    }
+
+    fn pack(&self, accounts: &mut PackedAccounts, program_id: &Pubkey) -> Result<Self::Packed> {
         let (_, bump) = self.derive_pda(program_id);
         Ok(PackedUserRecordVariant {
             seeds: PackedUserRecordSeeds {
@@ -367,12 +420,12 @@ impl LightAccountVariant for UserRecordVariant {
     }
 }
 
-impl PackedLightAccountVariant for PackedUserRecordVariant {
+impl PackedLightAccountVariant<3> for PackedUserRecordVariant {
     type Unpacked = UserRecordVariant;
 
     fn bump(&self) -> u8 { self.seeds.bump }
 
-    fn unpack(&self, accounts: &[AccountInfo]) -> Result<Self::Unpacked, ProgramError> {
+    fn unpack(&self, accounts: &[AccountInfo]) -> Result<Self::Unpacked> {
         Ok(UserRecordVariant {
             seeds: UserRecordSeeds {
                 authority: *accounts.get(self.seeds.authority_idx as usize)
@@ -383,15 +436,13 @@ impl PackedLightAccountVariant for PackedUserRecordVariant {
             data: UserRecord::unpack(&self.data, accounts)?,
         })
     }
-}
-```
 
-### CPI Signing Helper
-
-```rust
-impl PackedUserRecordVariant {
-    // For CPI signing with bump
-    fn seed_refs_with_bump(&self, accounts: &[AccountInfo]) -> Result<[&[u8]; 4], ProgramError> {
+    // Resolves u8 indices to pubkey refs from accounts slice
+    fn seed_refs_with_bump<'a>(
+        &'a self,
+        accounts: &'a [AccountInfo],
+        bump_storage: &'a [u8; 1],
+    ) -> Result<[&'a [u8]; 3], ProgramError> {
         let authority = accounts.get(self.seeds.authority_idx as usize)
             .ok_or(ProgramError::InvalidAccountData)?;
         let owner = accounts.get(self.seeds.owner_idx as usize)
@@ -399,12 +450,13 @@ impl PackedUserRecordVariant {
         Ok([
             b"user",
             authority.key.as_ref(),
-            owner.key.as_ref(),
-            &[self.seeds.bump],
+            bump_storage.as_slice(),
         ])
     }
 }
 ```
+
+Note: The `seed_refs_with_bump` method is now part of the trait rather than an inherent impl.
 
 ---
 
@@ -439,31 +491,34 @@ impl TokenSeeds for VaultSeeds {
 ### Uses SDK Pre-implemented Types
 
 ```rust
-// SDK provides:
-pub struct TokenVariant<S: TokenSeeds> {
+// SDK provides (with const generic SEED_COUNT):
+pub struct TokenVariant<S: TokenSeeds, const SEED_COUNT: usize> {
     pub seeds: S,
     pub data: TokenData,
 }
 
-impl<S: TokenSeeds> LightAccountVariant for TokenVariant<S> { ... }
+impl<S: TokenSeeds, const SEED_COUNT: usize> LightAccountVariant<SEED_COUNT>
+    for TokenVariant<S, SEED_COUNT> { ... }
 
-pub struct AtaVariant<S: AtaSeeds> {
+pub struct AtaVariant<S: AtaSeeds, const SEED_COUNT: usize> {
     pub seeds: S,
     pub data: TokenData,
 }
 
-impl<S: AtaSeeds> LightAccountVariant for AtaVariant<S> { ... }
+impl<S: AtaSeeds, const SEED_COUNT: usize> LightAccountVariant<SEED_COUNT>
+    for AtaVariant<S, SEED_COUNT> { ... }
 
-pub struct MintVariant<S: MintSeeds> {
+pub struct MintVariant<S: MintSeeds, const SEED_COUNT: usize> {
     pub seeds: S,
     pub data: MintData,
 }
 
-impl<S: MintSeeds> LightAccountVariant for MintVariant<S> { ... }
+impl<S: MintSeeds, const SEED_COUNT: usize> LightAccountVariant<SEED_COUNT>
+    for MintVariant<S, SEED_COUNT> { ... }
 
-// Macro generates type aliases:
-type VaultVariant = TokenVariant<VaultSeeds>;
-type PackedVaultVariant = PackedTokenVariant<PackedVaultSeeds>;
+// Macro generates type aliases with concrete SEED_COUNT:
+type VaultVariant = TokenVariant<VaultSeeds, 3>;  // e.g., b"vault" + owner + bump
+type PackedVaultVariant = PackedTokenVariant<PackedVaultSeeds, 3>;
 ```
 
 ---
