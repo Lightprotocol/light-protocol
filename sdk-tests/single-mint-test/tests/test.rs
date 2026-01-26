@@ -58,7 +58,7 @@ async fn test_create_single_mint() {
     let proof_result = get_create_accounts_proof(
         &rpc,
         &program_id,
-        vec![CreateAccountsProofInput::mint(mint_signer_pda)],
+        vec![CreateAccountsProofInput::mint(mint_pda)],
     )
     .await
     .unwrap();

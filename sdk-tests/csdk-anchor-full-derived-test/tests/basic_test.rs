@@ -143,7 +143,7 @@ async fn test_create_pdas_and_mint_auto() {
         vec![
             CreateAccountsProofInput::pda(user_record_pda),
             CreateAccountsProofInput::pda(game_session_pda),
-            CreateAccountsProofInput::mint(mint_signer_pda),
+            CreateAccountsProofInput::mint(mint_pda),
         ],
     )
     .await
@@ -571,8 +571,8 @@ async fn test_create_two_mints() {
         &rpc,
         &program_id,
         vec![
-            CreateAccountsProofInput::mint(mint_signer_a_pda),
-            CreateAccountsProofInput::mint(mint_signer_b_pda),
+            CreateAccountsProofInput::mint(cmint_a_pda),
+            CreateAccountsProofInput::mint(cmint_b_pda),
         ],
     )
     .await
@@ -772,9 +772,9 @@ async fn test_create_multi_mints() {
         &rpc,
         &program_id,
         vec![
-            CreateAccountsProofInput::mint(mint_signer_a_pda),
-            CreateAccountsProofInput::mint(mint_signer_b_pda),
-            CreateAccountsProofInput::mint(mint_signer_c_pda),
+            CreateAccountsProofInput::mint(cmint_a_pda),
+            CreateAccountsProofInput::mint(cmint_b_pda),
+            CreateAccountsProofInput::mint(cmint_c_pda),
         ],
     )
     .await
