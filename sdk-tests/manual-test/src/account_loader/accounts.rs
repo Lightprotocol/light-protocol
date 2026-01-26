@@ -10,6 +10,7 @@ pub struct CreateZeroCopyParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub owner: Pubkey,
     pub value: u64,
+    pub name: String,
 }
 
 /// Accounts struct for creating a zero-copy compressible PDA.
@@ -29,7 +30,7 @@ pub struct CreateZeroCopy<'info> {
         init,
         payer = fee_payer,
         space = 8 + ZeroCopyRecord::INIT_SPACE,
-        seeds = [b"zero_copy", params.owner.as_ref()],
+        seeds = [b"zero_copy", params.owner.as_ref(), params.name.as_bytes()],
         bump,
     )]
     pub record: AccountLoader<'info, ZeroCopyRecord>,

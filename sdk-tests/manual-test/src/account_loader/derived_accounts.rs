@@ -164,12 +164,14 @@ impl<'info> LightFinalize<'info, CreateZeroCopyParams> for CreateZeroCopy<'info>
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct ZeroCopyRecordSeeds {
     pub owner: Pubkey,
+    pub name: String,
 }
 
 /// Packed seeds with u8 indices instead of Pubkeys.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct PackedZeroCopyRecordSeeds {
     pub owner_idx: u8,
+    pub name: String,
     pub bump: u8,
 }
 
@@ -196,7 +198,7 @@ pub struct PackedZeroCopyRecordVariant {
 // LightAccountVariant Implementation
 // ============================================================================
 
-impl LightAccountVariant<3> for ZeroCopyRecordVariant {
+impl LightAccountVariant<4> for ZeroCopyRecordVariant {
     type Seeds = ZeroCopyRecordSeeds;
     type Data = ZeroCopyRecord;
     type Packed = PackedZeroCopyRecordVariant;
@@ -214,15 +216,24 @@ impl LightAccountVariant<3> for ZeroCopyRecordVariant {
     }
 
     /// Get seed values as owned byte vectors for PDA derivation.
-    /// Generated from: seeds = [b"zero_copy", params.owner.as_ref()]
+    /// Generated from: seeds = [b"zero_copy", params.owner.as_ref(), params.name.as_bytes()]
     fn seed_vec(&self) -> Vec<Vec<u8>> {
-        vec![b"zero_copy".to_vec(), self.seeds.owner.to_bytes().to_vec()]
+        vec![
+            b"zero_copy".to_vec(),
+            self.seeds.owner.to_bytes().to_vec(),
+            self.seeds.name.as_bytes().to_vec(),
+        ]
     }
 
     /// Get seed references with bump for CPI signing.
-    /// Generated from: seeds = [b"zero_copy", params.owner.as_ref()]
-    fn seed_refs_with_bump<'a>(&'a self, bump_storage: &'a [u8; 1]) -> [&'a [u8]; 3] {
-        [b"zero_copy", self.seeds.owner.as_ref(), bump_storage]
+    /// Generated from: seeds = [b"zero_copy", params.owner.as_ref(), params.name.as_bytes()]
+    fn seed_refs_with_bump<'a>(&'a self, bump_storage: &'a [u8; 1]) -> [&'a [u8]; 4] {
+        [
+            b"zero_copy",
+            self.seeds.owner.as_ref(),
+            self.seeds.name.as_bytes(),
+            bump_storage,
+        ]
     }
 
     fn pack(&self, accounts: &mut PackedAccounts, program_id: &Pubkey) -> Result<Self::Packed> {
@@ -234,6 +245,7 @@ impl LightAccountVariant<3> for ZeroCopyRecordVariant {
         Ok(PackedZeroCopyRecordVariant {
             seeds: PackedZeroCopyRecordSeeds {
                 owner_idx: accounts.insert_or_get(self.seeds.owner),
+                name: self.seeds.name.clone(),
                 bump,
             },
             data: packed_data,
@@ -245,7 +257,7 @@ impl LightAccountVariant<3> for ZeroCopyRecordVariant {
 // PackedLightAccountVariant Implementation
 // ============================================================================
 
-impl PackedLightAccountVariant<3> for PackedZeroCopyRecordVariant {
+impl PackedLightAccountVariant<4> for PackedZeroCopyRecordVariant {
     type Unpacked = ZeroCopyRecordVariant;
 
     fn bump(&self) -> u8 {
@@ -263,7 +275,10 @@ impl PackedLightAccountVariant<3> for PackedZeroCopyRecordVariant {
             .map_err(|_| anchor_lang::error::ErrorCode::InvalidProgramId)?;
 
         Ok(ZeroCopyRecordVariant {
-            seeds: ZeroCopyRecordSeeds { owner: *owner.key },
+            seeds: ZeroCopyRecordSeeds {
+                owner: *owner.key,
+                name: self.seeds.name.clone(),
+            },
             data,
         })
     }
@@ -272,11 +287,16 @@ impl PackedLightAccountVariant<3> for PackedZeroCopyRecordVariant {
         &'a self,
         accounts: &'a [AccountInfo],
         bump_storage: &'a [u8; 1],
-    ) -> std::result::Result<[&'a [u8]; 3], ProgramError> {
+    ) -> std::result::Result<[&'a [u8]; 4], ProgramError> {
         let owner = accounts
             .get(self.seeds.owner_idx as usize)
             .ok_or(ProgramError::InvalidAccountData)?;
-        Ok([b"zero_copy", owner.key.as_ref(), bump_storage])
+        Ok([
+            b"zero_copy",
+            owner.key.as_ref(),
+            self.seeds.name.as_bytes(),
+            bump_storage,
+        ])
     }
 }
 
@@ -324,7 +344,7 @@ impl light_sdk::compressible::Pack for ZeroCopyRecordVariant {
         accounts: &mut PackedAccounts,
     ) -> std::result::Result<Self::Packed, ProgramError> {
         // Use the LightAccountVariant::pack method to get PackedZeroCopyRecordVariant
-        let packed = <Self as LightAccountVariant<3>>::pack(self, accounts, &crate::ID)
+        let packed = <Self as LightAccountVariant<4>>::pack(self, accounts, &crate::ID)
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
         Ok(crate::derived_variants::PackedProgramAccountVariant::ZeroCopyRecord(packed))

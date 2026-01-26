@@ -29,10 +29,13 @@ async fn test_zero_copy_create_compress_decompress() {
 
     let owner = Keypair::new().pubkey();
     let value: u64 = 12345;
+    let name = "my_record".to_string();
 
     // Derive PDA for zero-copy record
-    let (record_pda, _) =
-        Pubkey::find_program_address(&[b"zero_copy", owner.as_ref()], &program_id);
+    let (record_pda, _) = Pubkey::find_program_address(
+        &[b"zero_copy", owner.as_ref(), name.as_bytes()],
+        &program_id,
+    );
 
     // Get proof for the PDA
     let proof_result = get_create_accounts_proof(
@@ -55,6 +58,7 @@ async fn test_zero_copy_create_compress_decompress() {
             create_accounts_proof: proof_result.create_accounts_proof,
             owner,
             value,
+            name: name.clone(),
         },
     };
 
@@ -123,8 +127,11 @@ async fn test_zero_copy_create_compress_decompress() {
     );
 
     // Build variant using IntoVariant - verify seeds match the compressed data
-    let variant = ZeroCopyRecordSeeds { owner }
-        .into_variant(&account_interface.account.data[8..])
+    let variant = ZeroCopyRecordSeeds {
+        owner,
+        name: name.clone(),
+    }
+    .into_variant(&account_interface.account.data[8..])
         .expect("Seed verification failed");
 
     // Verify the data from the compressed account

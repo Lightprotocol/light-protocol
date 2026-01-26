@@ -28,10 +28,13 @@ async fn test_create_compress_decompress() {
     let (mut rpc, payer, config_pda) = shared::setup_test_env().await;
 
     let owner = Keypair::new().pubkey();
+    let nonce: u64 = 12345;
 
     // Derive PDA for record
-    let (record_pda, _) =
-        Pubkey::find_program_address(&[b"minimal_record", owner.as_ref()], &program_id);
+    let (record_pda, _) = Pubkey::find_program_address(
+        &[b"minimal_record", owner.as_ref(), &nonce.to_le_bytes()],
+        &program_id,
+    );
 
     // Get proof for the PDA
     let proof_result = get_create_accounts_proof(
@@ -53,6 +56,7 @@ async fn test_create_compress_decompress() {
         params: CreatePdaParams {
             create_accounts_proof: proof_result.create_accounts_proof,
             owner,
+            nonce,
         },
     };
 
@@ -121,7 +125,7 @@ async fn test_create_compress_decompress() {
     );
 
     // Build variant using IntoVariant - verify seeds match the compressed data
-    let variant = MinimalRecordSeeds { owner }
+    let variant = MinimalRecordSeeds { owner, nonce }
         .into_variant(&account_interface.account.data[8..])
         .expect("Seed verification failed");
 

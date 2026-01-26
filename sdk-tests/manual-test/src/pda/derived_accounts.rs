@@ -161,12 +161,14 @@ impl<'info> LightFinalize<'info, CreatePdaParams> for CreatePda<'info> {
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct MinimalRecordSeeds {
     pub owner: Pubkey,
+    pub nonce: u64,
 }
 
 /// Packed seeds with u8 indices instead of Pubkeys.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct PackedMinimalRecordSeeds {
     pub owner_idx: u8,
+    pub nonce_bytes: [u8; 8],
     pub bump: u8,
 }
 
@@ -193,7 +195,7 @@ pub struct PackedMinimalRecordVariant {
 // LightAccountVariant Implementation
 // ============================================================================
 
-impl LightAccountVariant<3> for MinimalRecordVariant {
+impl LightAccountVariant<4> for MinimalRecordVariant {
     type Seeds = MinimalRecordSeeds;
     type Data = MinimalRecord;
     type Packed = PackedMinimalRecordVariant;
@@ -211,18 +213,20 @@ impl LightAccountVariant<3> for MinimalRecordVariant {
     }
 
     /// Get seed values as owned byte vectors for PDA derivation.
-    /// Generated from: seeds = [b"minimal_record", params.owner.as_ref()]
+    /// Generated from: seeds = [b"minimal_record", params.owner.as_ref(), &params.nonce.to_le_bytes()]
     fn seed_vec(&self) -> Vec<Vec<u8>> {
         vec![
             b"minimal_record".to_vec(),
             self.seeds.owner.to_bytes().to_vec(),
+            self.seeds.nonce.to_le_bytes().to_vec(),
         ]
     }
 
     /// Get seed references with bump for CPI signing.
-    /// Generated from: seeds = [b"minimal_record", params.owner.as_ref()]
-    fn seed_refs_with_bump<'a>(&'a self, bump_storage: &'a [u8; 1]) -> [&'a [u8]; 3] {
-        [b"minimal_record", self.seeds.owner.as_ref(), bump_storage]
+    /// Note: Cannot return reference to nonce bytes without storage.
+    /// Use packed variant for CPI signing.
+    fn seed_refs_with_bump<'a>(&'a self, _bump_storage: &'a [u8; 1]) -> [&'a [u8]; 4] {
+        unimplemented!("Use packed variant for CPI signing - cannot return reference to computed nonce bytes")
     }
 
     fn pack(&self, accounts: &mut PackedAccounts, program_id: &Pubkey) -> Result<Self::Packed> {
@@ -234,6 +238,7 @@ impl LightAccountVariant<3> for MinimalRecordVariant {
         Ok(PackedMinimalRecordVariant {
             seeds: PackedMinimalRecordSeeds {
                 owner_idx: accounts.insert_or_get(self.seeds.owner),
+                nonce_bytes: self.seeds.nonce.to_le_bytes(),
                 bump,
             },
             data: packed_data,
@@ -245,7 +250,7 @@ impl LightAccountVariant<3> for MinimalRecordVariant {
 // PackedLightAccountVariant Implementation
 // ============================================================================
 
-impl PackedLightAccountVariant<3> for PackedMinimalRecordVariant {
+impl PackedLightAccountVariant<4> for PackedMinimalRecordVariant {
     type Unpacked = MinimalRecordVariant;
 
     fn bump(&self) -> u8 {
@@ -263,7 +268,10 @@ impl PackedLightAccountVariant<3> for PackedMinimalRecordVariant {
             .map_err(|_| anchor_lang::error::ErrorCode::InvalidProgramId)?; // TODO: propagate error
 
         Ok(MinimalRecordVariant {
-            seeds: MinimalRecordSeeds { owner: *owner.key },
+            seeds: MinimalRecordSeeds {
+                owner: *owner.key,
+                nonce: u64::from_le_bytes(self.seeds.nonce_bytes),
+            },
             data,
         })
     }
@@ -272,11 +280,16 @@ impl PackedLightAccountVariant<3> for PackedMinimalRecordVariant {
         &'a self,
         accounts: &'a [AccountInfo],
         bump_storage: &'a [u8; 1],
-    ) -> std::result::Result<[&'a [u8]; 3], ProgramError> {
+    ) -> std::result::Result<[&'a [u8]; 4], ProgramError> {
         let owner = accounts
             .get(self.seeds.owner_idx as usize)
             .ok_or(ProgramError::InvalidAccountData)?;
-        Ok([b"minimal_record", owner.key.as_ref(), bump_storage])
+        Ok([
+            b"minimal_record",
+            owner.key.as_ref(),
+            &self.seeds.nonce_bytes,
+            bump_storage,
+        ])
     }
 }
 
@@ -323,7 +336,7 @@ impl light_sdk::compressible::Pack for MinimalRecordVariant {
         accounts: &mut PackedAccounts,
     ) -> std::result::Result<Self::Packed, ProgramError> {
         // Use the LightAccountVariant::pack method to get PackedMinimalRecordVariant
-        let packed = <Self as LightAccountVariant<3>>::pack(self, accounts, &crate::ID)
+        let packed = <Self as LightAccountVariant<4>>::pack(self, accounts, &crate::ID)
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
         Ok(crate::derived_variants::PackedProgramAccountVariant::MinimalRecord(packed))

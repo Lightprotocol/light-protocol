@@ -9,6 +9,7 @@ use light_compressible::CreateAccountsProof;
 pub struct CreatePdaParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub owner: Pubkey,
+    pub nonce: u64,
 }
 
 /// Minimal accounts struct for testing single PDA creation.
@@ -25,7 +26,7 @@ pub struct CreatePda<'info> {
         init,
         payer = fee_payer,
         space = 8 + MinimalRecord::INIT_SPACE,
-        seeds = [b"minimal_record", params.owner.as_ref()],
+        seeds = [b"minimal_record", params.owner.as_ref(), &params.nonce.to_le_bytes()],
         bump,
     )]
     // #[light_account(init)]

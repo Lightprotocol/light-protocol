@@ -58,7 +58,7 @@ impl<'info> DecompressVariant<'info> for LightAccountData {
     ) -> std::result::Result<(), ProgramError> {
         match &self.data {
             PackedProgramAccountVariant::MinimalRecord(packed_data) => {
-                prepare_account_for_decompression::<3, PackedMinimalRecordVariant>(
+                prepare_account_for_decompression::<4, PackedMinimalRecordVariant>(
                     packed_data,
                     &self.meta,
                     pda_account,
@@ -66,7 +66,7 @@ impl<'info> DecompressVariant<'info> for LightAccountData {
                 )
             }
             PackedProgramAccountVariant::ZeroCopyRecord(packed_data) => {
-                prepare_account_for_decompression::<3, PackedZeroCopyRecordVariant>(
+                prepare_account_for_decompression::<4, PackedZeroCopyRecordVariant>(
                     packed_data,
                     &self.meta,
                     pda_account,
