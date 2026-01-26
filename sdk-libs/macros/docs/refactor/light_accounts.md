@@ -700,6 +700,67 @@ Seeds are extracted from Anchor's `#[account(seeds = [...])]` attribute and clas
 
 ---
 
+## Bump Handling
+
+Bumps are NOT classified as seeds. They come from one of three sources:
+
+| Source | Syntax | Description |
+|--------|--------|-------------|
+| **Derived** | (default) | Macro calls `find_program_address()` at runtime |
+| **Instruction Data** | `token::bump = params.vault_bump` | Client passes pre-computed bump |
+| **Anchor Bump** | `token::bump = bump` | Use bump from `#[account(seeds=[...], bump)]` |
+
+### Derived (Default)
+
+When no explicit bump is provided, the macro derives it:
+
+```rust
+#[light_account(init, token, token::mint = mint, token::authority = [b"vault", owner.key().as_ref()])]
+pub vault: UncheckedAccount<'info>,
+// bump computed via find_program_address(&[b"vault", owner_key], program_id)
+```
+
+### Instruction Data Bump
+
+Client pre-computes and passes the bump:
+
+```rust
+#[instruction(params: CreateParams)]  // params.vault_bump: u8
+#[light_account(init, token, token::bump = params.vault_bump, ...)]
+pub vault: UncheckedAccount<'info>,
+```
+
+### Anchor Bump
+
+Use the bump from an Anchor PDA in the same struct:
+
+```rust
+#[account(seeds = [b"authority", owner.key().as_ref()], bump)]
+pub authority: Account<'info, AuthorityAccount>,
+
+#[light_account(init, token, token::bump = bump, token::authority = [b"authority", owner.key().as_ref()])]
+pub vault: UncheckedAccount<'info>,
+// Uses the bump Anchor derived for the authority PDA
+```
+
+### Bump at Compress vs Decompress
+
+| Flow | Bump Source |
+|------|-------------|
+| **Init** | Not needed - Anchor creates PDA |
+| **Compress** | Derived via `find_program_address()` and stored in packed variant |
+| **Decompress** | Read from packed variant (was stored at compress time) |
+
+The bump is stored in the packed seeds struct during compress and recovered during decompress:
+
+```rust
+pub struct PackedVaultSeeds {
+    pub owner_idx: u8,
+    pub bump: u8,  // stored at compress, used at decompress
+}
+```
+
+---
 
  # Missing (Need Implementation)
 

@@ -1,5 +1,5 @@
 //! Derived code - what the macro would generate.
-//! Contains LightPreInit/LightFinalize trait implementations and process function.
+//! Contains LightPreInit/LightFinalize trait implementations.
 
 use anchor_lang::prelude::*;
 use light_sdk::{
@@ -197,38 +197,4 @@ impl<'info> LightFinalize<'info, CreateDerivedMintsParams> for CreateDerivedMint
         // No-op for mint-only flow - create_mints already executed in light_pre_init
         Ok(())
     }
-}
-
-// ============================================================================
-// Instruction Handler - Just calls traits (all logic in LightPreInit)
-// ============================================================================
-
-/// Process create_derived_mints - manually implements macro-generated code.
-/// All mint creation logic is in LightPreInit, handler just orchestrates.
-pub fn process_create_derived_mints<'a, 'info>(
-    ctx: Context<'a, '_, 'info, 'info, CreateDerivedMintsAccounts<'info>>,
-    params: CreateDerivedMintsParams,
-) -> Result<()> {
-    use light_sdk::interface::{LightFinalize, LightPreInit};
-
-    // Phase 1: Pre-init (all mint creation logic here)
-    let has_pre_init = ctx
-        .accounts
-        .light_pre_init(ctx.remaining_accounts, &params)
-        .map_err(|e| {
-            msg!("light_pre_init error: {:?}", e);
-            anchor_lang::error::Error::from(solana_program_error::ProgramError::from(e))
-        })?;
-
-    // Phase 2: Business logic (if any) would go here
-
-    // Phase 3: Finalize (no-op for mint-only)
-    ctx.accounts
-        .light_finalize(ctx.remaining_accounts, &params, has_pre_init)
-        .map_err(|e| {
-            msg!("light_finalize error: {:?}", e);
-            anchor_lang::error::Error::from(solana_program_error::ProgramError::from(e))
-        })?;
-
-    Ok(())
 }

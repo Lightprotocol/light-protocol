@@ -15,6 +15,7 @@ use light_sdk_types::CpiSigner;
 use solana_program_error::ProgramError;
 
 pub mod account_loader;
+pub mod ata;
 pub mod derived_compress;
 pub mod derived_decompress;
 pub mod derived_light_config;
@@ -44,6 +45,7 @@ pub use sdk_functions::{CompressAndCloseParams, DecompressIdempotentParams, Deco
 pub use traits::{AccountType, LightAccount, LightAccountVariant, PackedLightAccountVariant};
 pub use token_account::accounts::*;
 pub use two_mints::accounts::*;
+pub use ata::accounts::*;
 
 declare_id!("PdaT111111111111111111111111111111111111111");
 
@@ -157,7 +159,20 @@ pub mod manual_test {
         ctx: Context<'a, '_, 'info, 'info, CreateDerivedMintsAccounts<'info>>,
         params: CreateDerivedMintsParams,
     ) -> Result<()> {
-        two_mints::process_create_derived_mints(ctx, params)
+        // 1. Pre-init: creates mints via Light Token Program CPI
+        let has_pre_init = ctx
+            .accounts
+            .light_pre_init(ctx.remaining_accounts, &params)
+            .map_err(|e| anchor_lang::error::Error::from(ProgramError::from(e)))?;
+
+        // 2. No business logic for mint-only creation
+
+        // 3. Finalize: no-op for mint-only flow
+        ctx.accounts
+            .light_finalize(ctx.remaining_accounts, &params, has_pre_init)
+            .map_err(|e| anchor_lang::error::Error::from(ProgramError::from(e)))?;
+
+        Ok(())
     }
 
     /// Create a PDA token vault using CreateTokenAccountCpi.
@@ -167,6 +182,42 @@ pub mod manual_test {
         ctx: Context<'a, '_, 'info, 'info, CreateTokenVaultAccounts<'info>>,
         params: CreateTokenVaultParams,
     ) -> Result<()> {
-        token_account::process_create_token_vault(ctx, params)
+        // 1. Pre-init: creates token vault via Light Token Program CPI
+        let has_pre_init = ctx
+            .accounts
+            .light_pre_init(ctx.remaining_accounts, &params)
+            .map_err(|e| anchor_lang::error::Error::from(ProgramError::from(e)))?;
+
+        // 2. No business logic for token vault-only creation
+
+        // 3. Finalize: no-op for token vault-only flow
+        ctx.accounts
+            .light_finalize(ctx.remaining_accounts, &params, has_pre_init)
+            .map_err(|e| anchor_lang::error::Error::from(ProgramError::from(e)))?;
+
+        Ok(())
+    }
+
+    /// Create an Associated Token Account using CreateTokenAtaCpi.
+    /// Manual implementation of what #[light_account(init, associated_token::...)] generates.
+    /// Demonstrates rent-free ATA creation for user wallets.
+    pub fn create_ata<'a, 'info>(
+        ctx: Context<'a, '_, 'info, 'info, CreateAtaAccounts<'info>>,
+        params: CreateAtaParams,
+    ) -> Result<()> {
+        // 1. Pre-init: creates ATA via Light Token Program CPI
+        let has_pre_init = ctx
+            .accounts
+            .light_pre_init(ctx.remaining_accounts, &params)
+            .map_err(|e| anchor_lang::error::Error::from(ProgramError::from(e)))?;
+
+        // 2. No business logic for ATA-only creation
+
+        // 3. Finalize: no-op for ATA-only flow
+        ctx.accounts
+            .light_finalize(ctx.remaining_accounts, &params, has_pre_init)
+            .map_err(|e| anchor_lang::error::Error::from(ProgramError::from(e)))?;
+
+        Ok(())
     }
 }

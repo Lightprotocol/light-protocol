@@ -58,31 +58,3 @@ impl<'info> LightFinalize<'info, CreateTokenVaultParams> for CreateTokenVaultAcc
         Ok(())
     }
 }
-
-// ============================================================================
-// Instruction Handler
-// ============================================================================
-
-pub fn process_create_token_vault<'a, 'info>(
-    ctx: Context<'a, '_, 'info, 'info, CreateTokenVaultAccounts<'info>>,
-    params: CreateTokenVaultParams,
-) -> Result<()> {
-    use light_sdk::interface::{LightFinalize, LightPreInit};
-
-    let has_pre_init = ctx
-        .accounts
-        .light_pre_init(ctx.remaining_accounts, &params)
-        .map_err(|e| {
-            msg!("light_pre_init error: {:?}", e);
-            anchor_lang::error::Error::from(solana_program_error::ProgramError::from(e))
-        })?;
-
-    ctx.accounts
-        .light_finalize(ctx.remaining_accounts, &params, has_pre_init)
-        .map_err(|e| {
-            msg!("light_finalize error: {:?}", e);
-            anchor_lang::error::Error::from(solana_program_error::ProgramError::from(e))
-        })?;
-
-    Ok(())
-}
