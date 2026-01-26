@@ -1,16 +1,14 @@
-//! State module for single-pda-test.
-
 use anchor_lang::prelude::*;
 use light_sdk::{
     compressible::CompressionInfo,
     instruction::PackedAccounts,
     interface::LightConfig,
     light_account_checks::{packed_accounts::ProgramPackedAccounts, AccountInfoTrait},
-    LightDiscriminator, LightHasherSha,
 };
 use solana_program_error::ProgramError;
 
-use crate::{light_account::LightAccount, AccountType};
+use super::state::MinimalRecord;
+use crate::traits::{AccountType, LightAccount};
 
 // ============================================================================
 // PackedMinimalRecord (compression_info excluded per implementation_details.md)
@@ -22,21 +20,6 @@ use crate::{light_account::LightAccount, AccountType};
 pub struct PackedMinimalRecord {
     /// Index into remaining_accounts instead of full Pubkey
     pub owner: u8,
-}
-
-// ============================================================================
-// MinimalRecord with derive macros
-// ============================================================================
-
-/// Minimal record struct for testing PDA creation.
-/// Contains only compression_info and one field.
-///
-/// Note: #[account] already derives Clone, AnchorSerialize, AnchorDeserialize
-#[derive(Default, Debug, InitSpace, LightDiscriminator, LightHasherSha)]
-#[account]
-pub struct MinimalRecord {
-    pub compression_info: CompressionInfo,
-    pub owner: Pubkey,
 }
 
 // ============================================================================

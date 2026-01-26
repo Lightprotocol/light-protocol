@@ -1,11 +1,9 @@
-//! Accounts module for single-pda-test.
-
-use crate::{init::prepare_compressed_account_on_init, state::MinimalRecord};
+use super::accounts::{CreatePda, CreatePdaParams};
+use crate::sdk_functions::prepare_compressed_account_on_init;
 use anchor_lang::prelude::*;
 use light_compressed_account::instruction_data::{
     cpi_context::CompressedCpiContext, with_account_info::InstructionDataInvokeCpiWithAccountInfo,
 };
-use light_compressible::CreateAccountsProof;
 use light_sdk::{
     cpi::{v2::CpiAccounts, CpiAccountsConfig, InvokeLightSystemProgram},
     error::LightSdkError,
@@ -13,35 +11,6 @@ use light_sdk::{
     interface::{LightFinalize, LightPreInit},
     sdk_types::CpiContextWriteAccounts,
 };
-
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
-pub struct CreatePdaParams {
-    pub create_accounts_proof: CreateAccountsProof,
-    pub owner: Pubkey,
-}
-
-/// Minimal accounts struct for testing single PDA creation.
-#[derive(Accounts)]
-#[instruction(params: CreatePdaParams)]
-pub struct CreatePda<'info> {
-    #[account(mut)]
-    pub fee_payer: Signer<'info>,
-
-    /// CHECK: Compression config
-    pub compression_config: AccountInfo<'info>,
-
-    #[account(
-        init,
-        payer = fee_payer,
-        space = 8 + MinimalRecord::INIT_SPACE,
-        seeds = [b"minimal_record", params.owner.as_ref()],
-        bump,
-    )]
-    // #[light_account(init)]
-    pub record: Account<'info, MinimalRecord>,
-
-    pub system_program: Program<'info, System>,
-}
 
 // ============================================================================
 // Manual LightPreInit Implementation

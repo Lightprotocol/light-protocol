@@ -11,14 +11,13 @@ use light_sdk::interface::{LightFinalize, LightPreInit};
 use light_sdk_types::CpiSigner;
 use solana_program_error::ProgramError;
 
-pub mod init;
-pub mod instruction_accounts;
-pub mod light_account;
-pub mod state;
+pub mod pda;
+pub mod sdk_functions;
+pub mod traits;
 
-pub use instruction_accounts::*;
-pub use light_account::*;
-pub use state::*;
+pub use pda::accounts::*;
+pub use pda::{MinimalRecord, PackedMinimalRecord};
+pub use traits::{AccountType, LightAccount, LightAccountVariant, PackedLightAccountVariant};
 
 declare_id!("PdaT111111111111111111111111111111111111111");
 
