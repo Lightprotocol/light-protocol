@@ -11,14 +11,17 @@ use light_sdk::interface::{LightFinalize, LightPreInit};
 use light_sdk_types::CpiSigner;
 use solana_program_error::ProgramError;
 
-pub mod light_config;
+pub mod derived_compress;
+pub mod derived_light_config;
 pub mod pda;
 pub mod sdk_functions;
 pub mod traits;
 
-pub use light_config::*;
+pub use derived_compress::*;
+pub use derived_light_config::*;
 pub use pda::accounts::*;
 pub use pda::{MinimalRecord, PackedMinimalRecord};
+pub use sdk_functions::CompressAndCloseParams;
 pub use traits::{AccountType, LightAccount, LightAccountVariant, PackedLightAccountVariant};
 
 declare_id!("PdaT111111111111111111111111111111111111111");
@@ -60,7 +63,7 @@ pub mod manual_test {
         ctx: Context<'_, '_, '_, 'info, InitializeConfig<'info>>,
         params: InitConfigParams,
     ) -> Result<()> {
-        light_config::process_initialize_config(ctx, params)
+        derived_light_config::process_initialize_config(ctx, params)
     }
 
     /// Update the compression config for this program.
@@ -68,6 +71,14 @@ pub mod manual_test {
         ctx: Context<'_, '_, '_, 'info, UpdateConfig<'info>>,
         params: UpdateConfigParams,
     ) -> Result<()> {
-        light_config::process_update_config(ctx, params)
+        derived_light_config::process_update_config(ctx, params)
+    }
+
+    /// Compress and close PDA accounts, returning rent to the sponsor.
+    pub fn compress_and_close<'info>(
+        ctx: Context<'_, '_, '_, 'info, CompressAndClose<'info>>,
+        params: CompressAndCloseParams,
+    ) -> Result<()> {
+        derived_compress::process_compress_and_close(ctx, params)
     }
 }
