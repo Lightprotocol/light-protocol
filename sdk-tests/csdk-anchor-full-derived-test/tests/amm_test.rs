@@ -18,7 +18,7 @@ use csdk_anchor_full_derived_test::amm_test::{
 use csdk_anchor_full_derived_test_sdk::{AmmInstruction, AmmSdk};
 use light_client::interface::{
     create_load_instructions, get_create_accounts_proof, AccountInterfaceExt,
-    CreateAccountsProofInput, InitializeRentFreeConfig, LightProgramInterface,
+    InitializeRentFreeConfig, LightProgramInterface,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_macros::pubkey;
@@ -299,17 +299,14 @@ async fn test_amm_full_lifecycle() {
         &ctx.creator.pubkey(),
     );
 
-    let proof_result = get_create_accounts_proof(
-        &ctx.rpc,
-        &ctx.program_id,
-        vec![
-            CreateAccountsProofInput::pda(pdas.pool_state),
-            CreateAccountsProofInput::pda(pdas.observation_state),
-            CreateAccountsProofInput::mint(pdas.lp_mint_signer),
-        ],
-    )
-    .await
-    .unwrap();
+    let proof_inputs = AmmSdk::create_initialize_pool_proof_inputs(
+        pdas.pool_state,
+        pdas.observation_state,
+        pdas.lp_mint,
+    );
+    let proof_result = get_create_accounts_proof(&ctx.rpc, &ctx.program_id, proof_inputs)
+        .await
+        .unwrap();
 
     let init_amount_0 = 1000u64;
     let init_amount_1 = 1000u64;

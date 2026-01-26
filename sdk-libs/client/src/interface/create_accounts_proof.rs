@@ -2,9 +2,9 @@
 //! Programs must pass this to light accounts that they initialize.
 
 use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
-use light_compressed_token_sdk::compressed_token::create_compressed_mint::derive_mint_compressed_address;
+use light_compressed_token_sdk::compressed_token::create_compressed_mint::find_mint_address;
 use light_sdk::instruction::PackedAddressTreeInfo;
-use light_token_interface::MINT_ADDRESS_TREE;
+use light_token_interface::{LIGHT_TOKEN_PROGRAM_ID, MINT_ADDRESS_TREE};
 use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;
 use thiserror::Error;
@@ -39,7 +39,7 @@ pub enum CreateAccountsProofInput {
     Pda(Pubkey),
     /// PDA with explicit owner (for cross-program accounts)
     PdaWithOwner { pda: Pubkey, owner: Pubkey },
-    /// Mint (always uses LIGHT_TOKEN_PROGRAM_ID internally)
+    /// Mint account (the on-chain mint address)
     Mint(Pubkey),
 }
 
@@ -56,10 +56,17 @@ impl CreateAccountsProofInput {
         Self::PdaWithOwner { pda, owner }
     }
 
-    /// Compressed mint (Mint).
-    /// Address derived: `derive_mint_compressed_address(&mint_signer, &tree)`
-    pub fn mint(mint_signer: Pubkey) -> Self {
-        Self::Mint(mint_signer)
+    /// Compressed mint using the on-chain mint address.
+    /// Pass the actual mint PDA (from `find_mint_address(signer)`), not the signer.
+    pub fn mint(mint: Pubkey) -> Self {
+        Self::Mint(mint)
+    }
+
+    /// Compressed mint using the signer seed. Derives mint address internally.
+    /// Use when you only have the mint signer PDA, not the derived mint address.
+    pub fn mint_from_signer(signer: Pubkey) -> Self {
+        let (mint, _) = find_mint_address(&signer);
+        Self::Mint(mint)
     }
 
     /// Derive the cold address (mints always use MINT_ADDRESS_TREE).
@@ -75,10 +82,11 @@ impl CreateAccountsProofInput {
                 &address_tree.to_bytes(),
                 &owner.to_bytes(),
             ),
-            // Mints always use MINT_ADDRESS_TREE regardless of passed tree
-            Self::Mint(signer) => {
-                derive_mint_compressed_address(signer, &Pubkey::new_from_array(MINT_ADDRESS_TREE))
-            }
+            Self::Mint(mint) => light_compressed_account::address::derive_address(
+                &mint.to_bytes(),
+                &MINT_ADDRESS_TREE,
+                &LIGHT_TOKEN_PROGRAM_ID,
+            ),
         }
     }
 

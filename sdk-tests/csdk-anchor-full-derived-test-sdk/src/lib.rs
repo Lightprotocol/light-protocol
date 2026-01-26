@@ -14,7 +14,7 @@ use csdk_anchor_full_derived_test::{
 };
 use light_client::interface::{
     matches_discriminator, AccountInterface, AccountSpec, AccountToFetch, ColdContext,
-    LightProgramInterface, PdaSpec,
+    CreateAccountsProofInput, LightProgramInterface, PdaSpec,
 };
 use light_sdk::LightDiscriminator;
 use solana_pubkey::Pubkey;
@@ -439,5 +439,19 @@ impl AmmSdk {
                 .token_1_mint
                 .ok_or(AmmSdkError::MissingField("token_1_mint"))?,
         })
+    }
+
+    /// Creates proof inputs for InitializePool instruction.
+    /// Pass on-chain addresses (pool_state PDA, observation_state PDA, lp_mint).
+    pub fn create_initialize_pool_proof_inputs(
+        pool_state: Pubkey,
+        observation_state: Pubkey,
+        lp_mint: Pubkey,
+    ) -> Vec<CreateAccountsProofInput> {
+        vec![
+            CreateAccountsProofInput::pda(pool_state),
+            CreateAccountsProofInput::pda(observation_state),
+            CreateAccountsProofInput::mint(lp_mint),
+        ]
     }
 }
