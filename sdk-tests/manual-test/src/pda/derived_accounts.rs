@@ -163,6 +163,7 @@ pub struct MinimalRecordVariant {
 }
 
 /// Packed variant for efficient serialization.
+/// Contains packed seeds and data with u8 indices for Pubkey deduplication.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct PackedMinimalRecordVariant {
     pub seeds: PackedMinimalRecordSeeds,
@@ -247,23 +248,8 @@ impl PackedLightAccountVariant<3> for PackedMinimalRecordVariant {
             data,
         })
     }
-}
 
-// ============================================================================
-// CPI Signing Helper
-// ============================================================================
-
-impl PackedMinimalRecordVariant {
-    /// Get seed refs with bump for CPI signing.
-    /// Returns seeds in the format needed for invoke_signed.
-    ///
-    /// # Arguments
-    /// * `accounts` - The remaining accounts slice to resolve indices from
-    /// * `bump_storage` - A 1-byte array to store the bump (must outlive the return value)
-    ///
-    /// # Returns
-    /// An array of seed slices: [b"minimal_record", owner_pubkey, bump]
-    pub fn seed_refs_with_bump<'a>(
+    fn seed_refs_with_bump<'a>(
         &'a self,
         accounts: &'a [AccountInfo],
         bump_storage: &'a [u8; 1],

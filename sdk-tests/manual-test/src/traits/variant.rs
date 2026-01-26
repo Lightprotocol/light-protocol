@@ -55,6 +55,8 @@ pub trait LightAccountVariant<const SEED_COUNT: usize>:
     fn pack(&self, accounts: &mut PackedAccounts, program_id: &Pubkey) -> Result<Self::Packed>;
 }
 
+use solana_program_error::ProgramError;
+
 /// Trait for packed compressed account variants.
 ///
 /// Packed variants use u8 indices instead of 32-byte Pubkeys for efficient
@@ -70,4 +72,12 @@ pub trait PackedLightAccountVariant<const SEED_COUNT: usize>:
 
     /// Unpack this variant by resolving u8 indices to Pubkeys.
     fn unpack(&self, accounts: &[AccountInfo]) -> Result<Self::Unpacked>;
+
+    /// Get seed references with bump for CPI signing.
+    /// Resolves u8 indices to pubkey refs from accounts slice.
+    fn seed_refs_with_bump<'a>(
+        &'a self,
+        accounts: &'a [AccountInfo],
+        bump_storage: &'a [u8; 1],
+    ) -> std::result::Result<[&'a [u8]; SEED_COUNT], ProgramError>;
 }

@@ -5,6 +5,7 @@
 
 use anchor_lang::prelude::*;
 use light_compressed_account::{
+    address::derive_address,
     compressed_account::PackedMerkleContext,
     instruction_data::with_account_info::{CompressedAccountInfo, InAccountInfo, OutAccountInfo},
 };
@@ -14,42 +15,60 @@ use light_sdk::{
         v2::{CpiAccounts, LightSystemProgramCpi},
         InvokeLightSystemProgram, LightCpiInstruction,
     },
+    instruction::ValidityProof,
     interface::{create_pda_account, LightConfig},
     light_account_checks::{account_iterator::AccountIterator, checks::check_data_is_zeroed},
-    proof::borsh_compat::ValidityProof,
     LightDiscriminator,
 };
-use light_sdk_types::instruction::account_meta::CompressedAccountMeta;
+use light_sdk_types::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;
 use light_sdk_types::CpiSigner;
 use solana_program::clock::Clock;
 use solana_program::rent::Rent;
 use solana_program::sysvar::Sysvar;
 use solana_program_error::ProgramError;
 
-use crate::traits::LightAccount;
+use crate::traits::{LightAccount, LightAccountVariant, PackedLightAccountVariant};
 
-/// Per-account data for decompression.
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
-pub struct DecompressAccountData {
-    /// Account discriminator to determine type
-    pub discriminator: [u8; 8],
-    /// Packed variant data (seeds + data, Pubkeys converted to indices)
-    /// Includes bump in the packed seeds
-    pub packed_variant: Vec<u8>,
-    /// Compressed account metadata (tree info, address, output tree index)
-    pub meta: CompressedAccountMeta,
+// ============================================================================
+// DecompressVariant Trait (implemented by program's PackedProgramAccountVariant)
+// ============================================================================
+
+/// Trait for packed program account variants that support decompression.
+///
+/// This trait is implemented by the program's `PackedProgramAccountVariant` enum
+/// to handle type-specific dispatch during decompression.
+///
+/// MACRO-GENERATED: The implementation contains a match statement routing each
+/// enum variant to the appropriate `prepare_account_for_decompression` call.
+pub trait DecompressVariant<'info>: AnchorSerialize + AnchorDeserialize + Clone {
+    /// Decompress this variant into a PDA account.
+    ///
+    /// The implementation should match on the enum variant and call
+    /// `prepare_account_for_decompression::<SEED_COUNT, PackedVariantType>(packed, pda_account, ctx)`.
+    fn decompress(
+        &self,
+        pda_account: &AccountInfo<'info>,
+        ctx: &mut DecompressCtx<'_, 'info>,
+    ) -> std::result::Result<(), ProgramError>;
 }
 
+// ============================================================================
+// Parameters and Context
+// ============================================================================
+
 /// Parameters for decompress_idempotent instruction.
-/// Fully generic - discriminator + raw packed bytes. No program-specific params needed.
+/// Generic over the variant type - each program defines its own `PackedProgramAccountVariant`.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
-pub struct DecompressIdempotentParams {
-    /// Accounts to decompress
-    pub accounts: Vec<DecompressAccountData>,
+pub struct DecompressIdempotentParams<V>
+where
+    V: AnchorSerialize + AnchorDeserialize + Clone,
+{
     /// Validity proof for compressed account verification
     pub proof: ValidityProof,
     /// Offset into remaining_accounts where Light system accounts begin
     pub system_accounts_offset: u8,
+    /// Accounts to decompress - each variant contains packed data and metadata
+    pub accounts: Vec<V>,
 }
 
 /// Context struct holding all data needed for decompression.
@@ -66,21 +85,9 @@ pub struct DecompressCtx<'a, 'info> {
     pub compressed_account_infos: Vec<CompressedAccountInfo>,
 }
 
-/// Callback type for discriminator-based dispatch.
-/// MACRO-GENERATED: Just a match statement routing to prepare_account_for_decompression.
-/// Takes &mut DecompressCtx and pushes CompressedAccountInfo into ctx.compressed_account_infos.
-///
-/// The dispatch function is responsible for:
-/// 1. Deserializing the packed variant (type-specific)
-/// 2. Extracting signer seeds via variant.seed_refs_with_bump()
-/// 3. Calling prepare_account_for_decompression with the seeds
-pub type DecompressDispatchFn<'info> = fn(
-    discriminator: [u8; 8],
-    packed_variant: &[u8],
-    pda_account: &AccountInfo<'info>,
-    meta: &CompressedAccountMeta,
-    ctx: &mut DecompressCtx<'_, 'info>,
-) -> std::result::Result<(), ProgramError>;
+// ============================================================================
+// Processor Function
+// ============================================================================
 
 /// Remaining accounts layout:
 /// [0]: fee_payer (Signer, mut)
@@ -89,19 +96,22 @@ pub type DecompressDispatchFn<'info> = fn(
 /// [system_accounts_offset..]: Light system accounts for CPI
 /// [remaining_accounts.len() - num_pda_accounts..]: PDA accounts to decompress
 
-/// Runtime processor - handles all the plumbing, delegates dispatch to callback.
+/// Runtime processor - handles all the plumbing, dispatches via DecompressVariant trait.
 ///
 /// **Takes raw instruction data** and deserializes internally - minimizes macro code.
 /// **Uses only remaining_accounts** - no Context struct needed.
-pub fn process_decompress_pda_accounts_idempotent<'info>(
+/// **Generic over V** - the program's `PackedProgramAccountVariant` enum.
+pub fn process_decompress_pda_accounts_idempotent<'info, V>(
     remaining_accounts: &[AccountInfo<'info>],
     instruction_data: &[u8],
-    dispatch_fn: DecompressDispatchFn<'info>,
     cpi_signer: CpiSigner,
     program_id: &Pubkey,
-) -> std::result::Result<(), ProgramError> {
+) -> std::result::Result<(), ProgramError>
+where
+    V: DecompressVariant<'info>,
+{
     // Deserialize params internally
-    let params = DecompressIdempotentParams::try_from_slice(instruction_data)
+    let params = DecompressIdempotentParams::<V>::try_from_slice(instruction_data)
         .map_err(|_| ProgramError::InvalidInstructionData)?;
 
     // Extract and validate accounts using AccountIterator
@@ -152,21 +162,12 @@ pub fn process_decompress_pda_accounts_idempotent<'info>(
         .ok_or(ProgramError::InvalidInstructionData)?;
     let pda_accounts = &remaining_accounts[pda_accounts_start..];
 
-    for (i, account_data) in params.accounts.iter().enumerate() {
+    // Process each account using trait dispatch
+    for (i, packed_variant) in params.accounts.iter().enumerate() {
         let pda_account = &pda_accounts[i];
 
-        // Delegate to dispatch callback (macro-generated match)
-        // The dispatch function:
-        // 1. Deserializes the packed variant (type-specific)
-        // 2. Extracts signer seeds via variant.seed_refs_with_bump()
-        // 3. Calls prepare_account_for_decompression with the seeds
-        dispatch_fn(
-            account_data.discriminator,
-            &account_data.packed_variant,
-            pda_account,
-            &account_data.meta,
-            &mut decompress_ctx,
-        )?;
+        // Dispatch via trait - implementation is in program's PackedProgramAccountVariant
+        packed_variant.decompress(pda_account, &mut decompress_ctx)?;
     }
 
     // CPI to Light System Program with proof
@@ -179,30 +180,33 @@ pub fn process_decompress_pda_accounts_idempotent<'info>(
 
     Ok(())
 }
+
+// ============================================================================
+// Helper Function for Trait Implementations
+// ============================================================================
+
 /// Generic prepare_account_for_decompression.
 ///
-/// Called by the dispatch function after it has:
-/// 1. Deserialized the packed variant
-/// 2. Extracted signer seeds via variant.seed_refs_with_bump()
-/// 3. Unpacked the data
+/// Takes a packed variant and metadata, handles:
+/// 1. Getting seeds from packed variant
+/// 2. Unpacking data
+/// 3. Creating PDA and writing data
+/// 4. Deriving compressed address from PDA key
+/// 5. Building CompressedAccountInfo for CPI
 ///
-/// Pushes CompressedAccountInfo into ctx.compressed_account_infos.
-///
-/// # Arguments
-/// * `account_data` - Unpacked account data (already has CompressionInfo::compressed())
-/// * `pda_account` - The PDA account to create/initialize
-/// * `compressed_meta` - Compressed account metadata
-/// * `signer_seeds` - Seeds for PDA signing (from variant.seed_refs_with_bump)
-/// * `ctx` - Mutable context ref - pushes result here
-pub fn prepare_account_for_decompression<'info, A>(
-    account_data: A,
+/// # Type Parameters
+/// * `SEED_COUNT` - Number of seeds including bump
+/// * `P` - Packed variant type implementing PackedLightAccountVariant
+pub fn prepare_account_for_decompression<'info, const SEED_COUNT: usize, P>(
+    packed: &P,
+    meta: &CompressedAccountMetaNoLamportsNoAddress,
     pda_account: &AccountInfo<'info>,
-    compressed_meta: &CompressedAccountMeta,
-    signer_seeds: &[&[u8]],
     ctx: &mut DecompressCtx<'_, 'info>,
 ) -> std::result::Result<(), ProgramError>
 where
-    A: LightAccount + LightDiscriminator + Clone + AnchorSerialize + AnchorDeserialize,
+    P: PackedLightAccountVariant<SEED_COUNT>,
+    <P::Unpacked as LightAccountVariant<SEED_COUNT>>::Data:
+        LightAccount + LightDiscriminator + Clone + AnchorSerialize + AnchorDeserialize,
 {
     // 1. Idempotency check - if PDA already has data (non-zero discriminator), skip
     if !pda_account.data_is_empty() {
@@ -213,8 +217,18 @@ where
         }
     }
 
-    // 2. Hash with canonical CompressionInfo::compressed() for input verification
-    // The unpacked data already has compression_info set to compressed()
+    // 2. Get bump and seeds from packed variant
+    let bump = packed.bump();
+    let bump_storage = [bump];
+    let seeds = packed.seed_refs_with_bump(ctx.remaining_accounts, &bump_storage)?;
+
+    // 3. Unpack to get the data
+    let unpacked = packed
+        .unpack(ctx.remaining_accounts)
+        .map_err(|_| ProgramError::InvalidAccountData)?;
+    let account_data = unpacked.data().clone();
+
+    // 4. Hash with canonical CompressionInfo::compressed() for input verification
     let data_bytes = account_data
         .try_to_vec()
         .map_err(|_| ProgramError::InvalidAccountData)?;
@@ -222,9 +236,12 @@ where
     let mut input_data_hash = Sha256::hash(&data_bytes).map_err(|_| ProgramError::Custom(100))?;
     input_data_hash[0] = 0; // Zero first byte per protocol convention
 
-    // 3. Calculate space and create PDA
+    // 5. Calculate space and create PDA
+    type Data<const N: usize, P> =
+        <<P as PackedLightAccountVariant<N>>::Unpacked as LightAccountVariant<N>>::Data;
     let discriminator_len = 8;
-    let space = discriminator_len + data_len.max(A::INIT_SPACE);
+    let space =
+        discriminator_len + data_len.max(<Data<SEED_COUNT, P> as LightAccount>::INIT_SPACE);
     let rent_minimum = ctx.rent.minimum_balance(space);
 
     let system_program = ctx
@@ -238,15 +255,16 @@ where
         rent_minimum,
         space as u64,
         ctx.program_id,
-        signer_seeds,
+        &seeds,
         system_program,
     )?;
 
-    // 4. Write discriminator + data to PDA
+    // 6. Write discriminator + data to PDA
     let mut pda_data = pda_account.try_borrow_mut_data()?;
-    pda_data[..8].copy_from_slice(&A::LIGHT_DISCRIMINATOR);
+    pda_data[..8]
+        .copy_from_slice(&<Data<SEED_COUNT, P> as LightDiscriminator>::LIGHT_DISCRIMINATOR);
 
-    // 5. Set decompressed state and serialize
+    // 7. Set decompressed state and serialize
     let mut decompressed = account_data;
     decompressed.set_decompressed(ctx.light_config, ctx.current_slot);
     let writer = &mut &mut pda_data[8..];
@@ -254,8 +272,15 @@ where
         .serialize(writer)
         .map_err(|_| ProgramError::InvalidAccountData)?;
 
-    // 6. Build CompressedAccountInfo for CPI
-    let tree_info = compressed_meta.tree_info;
+    // 8. Derive compressed address from PDA key (saves instruction data size)
+    let address = derive_address(
+        &pda_account.key.to_bytes(),
+        &ctx.light_config.address_space[0].to_bytes(),
+        &ctx.program_id.to_bytes(),
+    );
+
+    // 9. Build CompressedAccountInfo for CPI
+    let tree_info = meta.tree_info;
     let input = InAccountInfo {
         data_hash: input_data_hash,
         lamports: 0,
@@ -266,21 +291,21 @@ where
             prove_by_index: tree_info.prove_by_index,
         },
         root_index: tree_info.root_index,
-        discriminator: A::LIGHT_DISCRIMINATOR,
+        discriminator: <Data<SEED_COUNT, P> as LightDiscriminator>::LIGHT_DISCRIMINATOR,
     };
 
     // Output is empty (nullifying the compressed account)
     let output = OutAccountInfo {
         lamports: 0,
-        output_merkle_tree_index: compressed_meta.output_state_tree_index,
+        output_merkle_tree_index: meta.output_state_tree_index,
         discriminator: [0u8; 8],
         data: Vec::new(),
         data_hash: [0u8; 32],
     };
 
-    // 7. Push to ctx's internal vec
+    // 10. Push to ctx's internal vec
     ctx.compressed_account_infos.push(CompressedAccountInfo {
-        address: Some(compressed_meta.address),
+        address: Some(address),
         input: Some(input),
         output: Some(output),
     });

@@ -14,6 +14,7 @@ use solana_program_error::ProgramError;
 pub mod derived_compress;
 pub mod derived_decompress;
 pub mod derived_light_config;
+pub mod derived_variants;
 pub mod pda;
 pub mod sdk_functions;
 pub mod traits;
@@ -21,9 +22,13 @@ pub mod traits;
 pub use derived_compress::*;
 pub use derived_decompress::*;
 pub use derived_light_config::*;
+pub use derived_variants::{PackedProgramAccountVariant, ProgramAccountVariant};
 pub use pda::accounts::*;
-pub use pda::{MinimalRecord, PackedMinimalRecord};
-pub use sdk_functions::{CompressAndCloseParams, DecompressIdempotentParams};
+pub use pda::{
+    MinimalRecord, MinimalRecordSeeds, MinimalRecordVariant, PackedMinimalRecord,
+    PackedMinimalRecordSeeds, PackedMinimalRecordVariant,
+};
+pub use sdk_functions::{CompressAndCloseParams, DecompressIdempotentParams, DecompressVariant};
 pub use traits::{AccountType, LightAccount, LightAccountVariant, PackedLightAccountVariant};
 
 declare_id!("PdaT111111111111111111111111111111111111111");
@@ -77,11 +82,14 @@ pub mod manual_test {
     }
 
     /// Compress and close PDA accounts, returning rent to the sponsor.
+    ///
+    /// NOTE: Empty Accounts struct - everything in remaining_accounts.
+    /// Deserialization happens inside process_compress_pda_accounts_idempotent.
     pub fn compress_and_close<'info>(
-        ctx: Context<'_, '_, '_, 'info, CompressAndClose<'info>>,
-        params: CompressAndCloseParams,
+        ctx: Context<'_, '_, '_, 'info, CompressAndClose>,
+        instruction_data: Vec<u8>,
     ) -> Result<()> {
-        derived_compress::process_compress_and_close(ctx, params)
+        derived_compress::process_compress_and_close(ctx.remaining_accounts, &instruction_data)
     }
 
     /// Decompress compressed accounts back into PDAs idempotently.
