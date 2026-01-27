@@ -50,11 +50,12 @@ pub fn decode_base58_to_fixed_array<const N: usize>(input: &str) -> Result<[u8; 
     Ok(buffer)
 }
 
-pub fn decode_base58_option_to_pubkey(
-    value: &Option<String>,
+/// Decode an Option<SerializablePubkey> newtype wrapper to Option<Pubkey>
+pub fn decode_serializable_pubkey_option(
+    value: &Option<photon_api::models::SerializablePubkey>,
 ) -> Result<Option<Pubkey>, IndexerError> {
     value
         .as_ref()
-        .map(|ctx| decode_base58_to_fixed_array(ctx).map(Pubkey::new_from_array))
+        .map(|ctx| decode_base58_to_fixed_array(&ctx.0).map(Pubkey::new_from_array))
         .transpose()
 }

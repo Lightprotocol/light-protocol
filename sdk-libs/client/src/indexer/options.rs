@@ -44,10 +44,10 @@ pub struct GetCompressedAccountsFilter {
 impl Into<FilterSelector> for GetCompressedAccountsFilter {
     fn into(self) -> FilterSelector {
         FilterSelector {
-            memcmp: Some(Box::new(Memcmp {
-                offset: self.offset,
-                bytes: base64::encode(&self.bytes), // TODO: double check
-            })),
+            memcmp: Some(Memcmp {
+                offset: self.offset as u64,
+                bytes: photon_api::models::Base58String(base64::encode(&self.bytes)), // TODO: double check
+            }),
         }
     }
 }

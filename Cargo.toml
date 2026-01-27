@@ -1,4 +1,5 @@
 [workspace]
+exclude = ["external/photon"]
 
 members = [
     "program-libs/account-checks",
