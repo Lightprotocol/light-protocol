@@ -3,12 +3,11 @@ use std::sync::{
     Arc,
 };
 
-use forester_utils::rpc_pool::SolanaRpcPool;
+use forester_utils::{
+    instructions::create_compress_and_close_mint_instruction, rpc_pool::SolanaRpcPool,
+};
 use futures::StreamExt;
 use light_client::{indexer::Indexer, rpc::Rpc};
-use light_token_client::instructions::mint_action::{
-    create_mint_action_instruction, MintActionParams, MintActionType,
-};
 use solana_sdk::{
     instruction::Instruction,
     signature::{Keypair, Signature},
@@ -71,24 +70,21 @@ impl<R: Rpc + Indexer> MintCompressor<R> {
             async move {
                 let mut rpc = rpc_pool.get_connection().await?;
 
-                let params = MintActionParams {
-                    compressed_mint_address: compressed_address,
-                    mint_seed,
-                    authority: payer,
+                let ix = create_compress_and_close_mint_instruction(
+                    &mut *rpc,
                     payer,
-                    actions: vec![MintActionType::CompressAndCloseMint { idempotent: true }],
-                    new_mint: None,
-                };
-
-                let ix = create_mint_action_instruction(&mut *rpc, params)
-                    .await
-                    .map_err(|e| {
-                        anyhow::anyhow!(
-                            "Failed to build CompressAndCloseMint instruction for {}: {:?}",
-                            mint_pda,
-                            e
-                        )
-                    })?;
+                    compressed_address,
+                    mint_seed,
+                    true, // idempotent
+                )
+                .await
+                .map_err(|e| {
+                    anyhow::anyhow!(
+                        "Failed to build CompressAndCloseMint instruction for {}: {:?}",
+                        mint_pda,
+                        e
+                    )
+                })?;
 
                 Ok::<Instruction, anyhow::Error>(ix)
             }
@@ -219,22 +215,19 @@ impl<R: Rpc + Indexer> MintCompressor<R> {
 
         let mut rpc = self.rpc_pool.get_connection().await?;
 
-        // Build the CompressAndCloseMint instruction using the mint action builder
+        // Build the CompressAndCloseMint instruction
         // This is idempotent - succeeds silently if mint doesn't exist or is already compressed
-        let params = MintActionParams {
-            compressed_mint_address: compressed_address,
-            mint_seed: *mint_seed,
-            authority: self.payer_keypair.pubkey(),
-            payer: self.payer_keypair.pubkey(),
-            actions: vec![MintActionType::CompressAndCloseMint { idempotent: true }],
-            new_mint: None,
-        };
-
-        let ix = create_mint_action_instruction(&mut *rpc, params)
-            .await
-            .map_err(|e| {
-                anyhow::anyhow!("Failed to build CompressAndCloseMint instruction: {:?}", e)
-            })?;
+        let ix = create_compress_and_close_mint_instruction(
+            &mut *rpc,
+            self.payer_keypair.pubkey(),
+            compressed_address,
+            *mint_seed,
+            true, // idempotent
+        )
+        .await
+        .map_err(|e| {
+            anyhow::anyhow!("Failed to build CompressAndCloseMint instruction: {:?}", e)
+        })?;
 
         debug!(
             "Built CompressAndCloseMint instruction for Mint {}",

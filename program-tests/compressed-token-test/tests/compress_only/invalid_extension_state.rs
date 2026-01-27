@@ -18,14 +18,16 @@ use light_program_test::{
     utils::assert::assert_rpc_error,
     ProgramTestConfig, Rpc,
 };
-use light_test_utils::mint_2022::{
-    create_token_22_account, mint_spl_tokens_22, set_mint_transfer_fee, set_mint_transfer_hook,
+use light_test_utils::{
+    actions::legacy::instructions::transfer2::{
+        create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,
+    },
+    mint_2022::{
+        create_token_22_account, mint_spl_tokens_22, set_mint_transfer_fee, set_mint_transfer_hook,
+    },
 };
 use light_token::instruction::{
     CompressibleParams, CreateTokenAccount, TransferFromSpl, TransferToSpl,
-};
-use light_token_client::instructions::transfer2::{
-    create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,
 };
 use light_token_interface::{
     find_spl_interface_pda_with_index,

@@ -1,8 +1,10 @@
 use light_compressed_token_sdk::compressed_token::create_compressed_mint::find_mint_address;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
-use light_test_utils::{assert_ctoken_mint_to::assert_ctoken_mint_to, Rpc};
+use light_test_utils::{
+    actions::legacy::instructions::mint_action::DecompressMintParams,
+    assert_ctoken_mint_to::assert_ctoken_mint_to, Rpc,
+};
 use light_token::instruction::{derive_token_ata, CreateAssociatedTokenAccount, MintTo};
-use light_token_client::instructions::mint_action::DecompressMintParams;
 use serial_test::serial;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 
@@ -48,7 +50,7 @@ async fn setup_mint_to_test() -> MintToTestContext {
         .unwrap();
 
     // Step 2: Create compressed mint + Mint (no recipients - we'll mint via MintTo)
-    light_token_client::actions::mint_action_comprehensive(
+    light_test_utils::actions::mint_action_comprehensive(
         &mut rpc,
         &mint_seed,
         &mint_authority,
@@ -59,14 +61,16 @@ async fn setup_mint_to_test() -> MintToTestContext {
         vec![],                                // No ctoken recipients - we'll mint separately
         None,                                  // No mint authority update
         None,                                  // No freeze authority update
-        Some(light_token_client::instructions::mint_action::NewMint {
-            decimals: 8,
-            supply: 0,
-            mint_authority: mint_authority.pubkey(),
-            freeze_authority: None,
-            metadata: None,
-            version: 3,
-        }),
+        Some(
+            light_test_utils::actions::legacy::instructions::mint_action::NewMint {
+                decimals: 8,
+                supply: 0,
+                mint_authority: mint_authority.pubkey(),
+                freeze_authority: None,
+                metadata: None,
+                version: 3,
+            },
+        ),
     )
     .await
     .unwrap();

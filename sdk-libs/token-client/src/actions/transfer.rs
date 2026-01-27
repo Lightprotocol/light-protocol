@@ -1,78 +1,75 @@
+//! Transfer actions for Light Token.
+//!
+//! These actions provide clean interfaces for transferring Light Tokens.
+
 use light_client::rpc::{Rpc, RpcError};
-use solana_instruction::{AccountMeta, Instruction};
+use light_token::instruction::Transfer as TransferInstruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signature::Signature;
 use solana_signer::Signer;
 
-const SYSTEM_PROGRAM_ID: [u8; 32] = [0u8; 32];
-
-/// Transfer from one token account to another.
+/// Parameters for transferring Light Tokens between accounts.
 ///
-/// # Arguments
-/// * `rpc` - RPC client
-/// * `source` - Source token account (decompressed compressed token account)
-/// * `destination` - Destination token account
-/// * `amount` - Amount of tokens to transfer
-/// * `authority` - Authority that can spend from the source token account
-/// * `payer` - Transaction fee payer keypair
-///
-/// # Returns
-/// `Result<Signature, RpcError>` - The transaction signature
-pub async fn transfer<R: Rpc>(
-    rpc: &mut R,
-    source: Pubkey,
-    destination: Pubkey,
-    amount: u64,
-    authority: &Keypair,
-    payer: &Keypair,
-) -> Result<Signature, RpcError> {
-    let transfer_instruction =
-        create_transfer_token_instruction(source, destination, amount, authority.pubkey())?;
-
-    let mut signers = vec![payer];
-    if authority.pubkey() != payer.pubkey() {
-        signers.push(authority);
-    }
-
-    rpc.create_and_send_transaction(&[transfer_instruction], &payer.pubkey(), &signers)
-        .await
+/// # Example
+/// ```ignore
+/// Transfer {
+///     source,
+///     destination,
+///     amount: 1000,
+///     ..Default::default()
+/// }.execute(&mut rpc, &payer, &authority).await?;
+/// ```
+#[derive(Default, Clone, Debug)]
+pub struct Transfer {
+    /// Source token account.
+    pub source: Pubkey,
+    /// Destination token account.
+    pub destination: Pubkey,
+    /// Amount of tokens to transfer.
+    pub amount: u64,
 }
 
-// TODO: consume the variant from compressed-token-sdk instead
-/// Create a token transfer instruction.
-///
-/// # Arguments
-/// * `source` - Source token account
-/// * `destination` - Destination token account
-/// * `amount` - Amount to transfer
-/// * `authority` - Authority pubkey
-///
-/// # Returns
-/// `Result<Instruction, RpcError>`
-#[allow(clippy::result_large_err)]
-pub fn create_transfer_token_instruction(
-    source: Pubkey,
-    destination: Pubkey,
-    amount: u64,
-    authority: Pubkey,
-) -> Result<Instruction, RpcError> {
-    let transfer_instruction = Instruction {
-        program_id: Pubkey::from(light_token_interface::LIGHT_TOKEN_PROGRAM_ID),
-        accounts: vec![
-            AccountMeta::new(source, false),      // Source token account
-            AccountMeta::new(destination, false), // Destination token account
-            AccountMeta::new(authority, true), // Authority must be writable for potential top-ups
-            AccountMeta::new_readonly(Pubkey::from(SYSTEM_PROGRAM_ID), false), // System program for rent top-ups
-        ],
-        data: {
-            // CTokenTransfer discriminator
-            let mut data = vec![3u8];
-            // Add SPL Token Transfer instruction data exactly like SPL does
-            data.extend_from_slice(&amount.to_le_bytes()); // Amount as u64 little-endian
-            data
-        },
-    };
+impl Transfer {
+    /// Execute the transfer action via RPC.
+    ///
+    /// # Arguments
+    /// * `rpc` - RPC client
+    /// * `payer` - Transaction fee payer keypair (also pays for rent top-ups)
+    /// * `authority` - Authority that can spend from the source account
+    ///
+    /// # Returns
+    /// `Result<Signature, RpcError>` - The transaction signature
+    pub async fn execute<R: Rpc>(
+        self,
+        rpc: &mut R,
+        payer: &Keypair,
+        authority: &Keypair,
+    ) -> Result<Signature, RpcError> {
+        // Only set fee_payer if payer differs from authority
+        let fee_payer = if payer.pubkey() != authority.pubkey() {
+            Some(payer.pubkey())
+        } else {
+            None
+        };
 
-    Ok(transfer_instruction)
+        let ix = TransferInstruction {
+            source: self.source,
+            destination: self.destination,
+            amount: self.amount,
+            authority: authority.pubkey(),
+            max_top_up: None,
+            fee_payer,
+        }
+        .instruction()
+        .map_err(|e| RpcError::CustomError(format!("Failed to create instruction: {}", e)))?;
+
+        let mut signers = vec![payer];
+        if authority.pubkey() != payer.pubkey() {
+            signers.push(authority);
+        }
+
+        rpc.create_and_send_transaction(&[ix], &payer.pubkey(), &signers)
+            .await
+    }
 }

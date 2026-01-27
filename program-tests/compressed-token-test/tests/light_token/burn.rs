@@ -21,9 +21,11 @@ use light_compressed_token_sdk::compressed_token::create_compressed_mint::find_m
 use light_program_test::{
     program_test::TestRpc, utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig,
 };
-use light_test_utils::assert_ctoken_burn::assert_ctoken_burn;
+use light_test_utils::{
+    actions::legacy::instructions::mint_action::DecompressMintParams,
+    assert_ctoken_burn::assert_ctoken_burn,
+};
 use light_token::instruction::{derive_token_ata, Burn, CreateAssociatedTokenAccount, MintTo};
-use light_token_client::instructions::mint_action::DecompressMintParams;
 
 use super::shared::*;
 
@@ -346,7 +348,7 @@ async fn setup_burn_test() -> BurnTestContext {
         .unwrap();
 
     // Step 2: Create compressed mint + Mint (no recipients)
-    light_token_client::actions::mint_action_comprehensive(
+    light_test_utils::actions::mint_action_comprehensive(
         &mut rpc,
         &mint_seed,
         &mint_authority,
@@ -357,14 +359,16 @@ async fn setup_burn_test() -> BurnTestContext {
         vec![],                                // No ctoken recipients
         None,                                  // No mint authority update
         None,                                  // No freeze authority update
-        Some(light_token_client::instructions::mint_action::NewMint {
-            decimals: 8,
-            supply: 0,
-            mint_authority: mint_authority.pubkey(),
-            freeze_authority: None,
-            metadata: None,
-            version: 3,
-        }),
+        Some(
+            light_test_utils::actions::legacy::instructions::mint_action::NewMint {
+                decimals: 8,
+                supply: 0,
+                mint_authority: mint_authority.pubkey(),
+                freeze_authority: None,
+                metadata: None,
+                version: 3,
+            },
+        ),
     )
     .await
     .unwrap();

@@ -9,8 +9,10 @@ use light_compressed_token_sdk::compressed_token::{
 };
 use light_program_test::{Indexer, LightProgramTest, ProgramTestConfig, Rpc};
 use light_sdk::instruction::PackedAccounts;
-use light_test_utils::airdrop_lamports;
-use light_token_client::{actions::mint_action_comprehensive, instructions::mint_action::NewMint};
+use light_test_utils::{
+    actions::{legacy::instructions::mint_action::NewMint, mint_action_comprehensive},
+    airdrop_lamports,
+};
 use light_token_interface::instructions::mint_action::{MintWithContext, Recipient};
 use sdk_token_test::mint_compressed_tokens_cpi_write::MintCompressedTokensCpiWriteParams;
 use solana_sdk::{

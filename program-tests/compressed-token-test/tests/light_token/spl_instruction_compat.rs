@@ -426,7 +426,7 @@ async fn test_spl_instruction_compatibility() {
 async fn test_spl_instruction_compatibility_with_mint() {
     use light_compressed_token_sdk::compressed_token::create_compressed_mint::find_mint_address;
     use light_program_test::ProgramTestConfig;
-    use light_token_client::instructions::mint_action::DecompressMintParams;
+    use light_test_utils::actions::legacy::instructions::mint_action::DecompressMintParams;
 
     // Set up test environment
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
@@ -446,7 +446,7 @@ async fn test_spl_instruction_compatibility_with_mint() {
     println!("Creating decompressed mint with freeze authority...");
 
     // Create compressed mint + Mint (decompressed mint)
-    light_token_client::actions::mint_action_comprehensive(
+    light_test_utils::actions::mint_action_comprehensive(
         &mut rpc,
         &mint_seed,
         &mint_authority,
@@ -457,14 +457,16 @@ async fn test_spl_instruction_compatibility_with_mint() {
         vec![],                                // No ctoken recipients
         None,                                  // No mint authority update
         None,                                  // No freeze authority update
-        Some(light_token_client::instructions::mint_action::NewMint {
-            decimals,
-            supply: 0,
-            mint_authority: mint_authority.pubkey(),
-            freeze_authority: Some(freeze_authority.pubkey()),
-            metadata: None,
-            version: 3,
-        }),
+        Some(
+            light_test_utils::actions::legacy::instructions::mint_action::NewMint {
+                decimals,
+                supply: 0,
+                mint_authority: mint_authority.pubkey(),
+                freeze_authority: Some(freeze_authority.pubkey()),
+                metadata: None,
+                version: 3,
+            },
+        ),
     )
     .await
     .unwrap();

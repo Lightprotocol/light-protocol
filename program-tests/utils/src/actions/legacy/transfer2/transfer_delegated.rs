@@ -7,7 +7,7 @@ use solana_pubkey::Pubkey;
 use solana_signature::Signature;
 use solana_signer::Signer;
 
-use crate::instructions::transfer2::{
+use super::super::instructions::transfer2::{
     create_generic_transfer2_instruction, Transfer2InstructionType, TransferInput,
 };
 

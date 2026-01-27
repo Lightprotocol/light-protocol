@@ -1,4 +1,4 @@
 pub mod actions;
-pub mod instructions;
-// re-export
-pub use light_token::instruction;
+
+// Re-export actions at crate root for convenience
+pub use actions::*;

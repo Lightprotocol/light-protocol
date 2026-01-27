@@ -7,44 +7,39 @@ use solana_pubkey::Pubkey;
 use solana_signature::Signature;
 use solana_signer::Signer;
 
-use crate::instructions::transfer2::{
-    create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,
+use super::super::instructions::transfer2::{
+    create_generic_transfer2_instruction, ApproveInput, Transfer2InstructionType,
 };
 
-/// Decompress compressed tokens to SPL tokens and send the transaction.
+/// Approve a delegate for compressed tokens and send the transaction.
 ///
 /// # Arguments
 /// * `rpc` - RPC client with indexer capabilities
-/// * `compressed_token_account` - Slice of compressed token accounts to decompress
-/// * `decompress_amount` - Amount of tokens to decompress
-/// * `solana_token_account` - The SPL token account to receive the decompressed tokens
-/// * `authority` - Authority that can spend from the compressed token account
+/// * `compressed_token_account` - Slice of compressed token accounts to approve from
+/// * `delegate` - The delegate pubkey to approve
+/// * `delegate_amount` - Amount of tokens to delegate
+/// * `authority` - Authority that owns the compressed token account
 /// * `payer` - Transaction fee payer keypair
 ///
 /// # Returns
 /// `Result<Signature, RpcError>` - The transaction signature
-pub async fn decompress<R: Rpc + Indexer>(
+pub async fn approve<R: Rpc + Indexer>(
     rpc: &mut R,
     compressed_token_account: &[CompressedTokenAccount],
-    decompress_amount: u64,
-    solana_token_account: Pubkey,
+    delegate: Pubkey,
+    delegate_amount: u64,
     authority: &Keypair,
     payer: &Keypair,
-    decimals: u8,
 ) -> Result<Signature, RpcError> {
     let ix = create_generic_transfer2_instruction(
         rpc,
-        vec![Transfer2InstructionType::Decompress(DecompressInput {
+        vec![Transfer2InstructionType::Approve(ApproveInput {
             compressed_token_account: compressed_token_account.to_vec(),
-            decompress_amount,
-            solana_token_account,
-            amount: decompress_amount,
-            pool_index: None,
-            decimals,
-            in_tlv: None,
+            delegate,
+            delegate_amount,
         })],
         payer.pubkey(),
-        false,
+        true,
     )
     .await
     .map_err(|e| RpcError::CustomError(e.to_string()))?;

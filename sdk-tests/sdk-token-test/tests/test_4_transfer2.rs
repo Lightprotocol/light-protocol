@@ -123,7 +123,7 @@ async fn create_compressed_mints_and_tokens(
         .expect("Compressed token account for mint1 should exist");
 
     let decompress_instruction =
-        light_token_client::instructions::transfer2::create_decompress_instruction(
+        light_test_utils::actions::legacy::instructions::transfer2::create_decompress_instruction(
             rpc,
             std::slice::from_ref(mint1_token_account),
             decompress_amount,

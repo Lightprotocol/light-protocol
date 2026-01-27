@@ -26,17 +26,18 @@ use light_registry::accounts::{
     WithdrawFundingPool as WithdrawFundingPoolAccounts,
 };
 use light_test_utils::{
-    airdrop_lamports, assert_claim::assert_claim, spl::create_mint_helper, Rpc, RpcError,
+    actions::{
+        create_compressible_token_account,
+        legacy::instructions::mint_action::{DecompressMintParams, NewMint},
+        mint_action_comprehensive, transfer, CreateCompressibleTokenAccountInputs,
+    },
+    airdrop_lamports,
+    assert_claim::assert_claim,
+    spl::create_mint_helper,
+    Rpc, RpcError,
 };
 use light_token::instruction::{
     derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount, MintTo,
-};
-use light_token_client::{
-    actions::{
-        create_compressible_token_account, mint_action_comprehensive, transfer,
-        CreateCompressibleTokenAccountInputs,
-    },
-    instructions::mint_action::{DecompressMintParams, NewMint},
 };
 use solana_sdk::{
     instruction::Instruction,

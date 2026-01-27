@@ -118,7 +118,7 @@ async fn setup_decompression_test(
     let compressed_recipients = vec![Recipient::new(owner.pubkey(), compressed_amount)];
     let decompressed_recipients = vec![Recipient::new(owner.pubkey(), 0)];
 
-    light_token_client::actions::mint_action_comprehensive(
+    light_test_utils::actions::mint_action_comprehensive(
         &mut rpc,
         &mint_seed,
         &mint_authority,
@@ -129,14 +129,16 @@ async fn setup_decompression_test(
         decompressed_recipients, // mint 1 token to decompressed Light Token ATA
         None,                    // no mint authority update
         None,                    // no freeze authority update
-        Some(light_token_client::instructions::mint_action::NewMint {
-            decimals: 6,
-            supply: 0,
-            mint_authority: mint_authority.pubkey(),
-            freeze_authority: None,
-            metadata: None,
-            version: 3, // ShaFlat for mint hashing
-        }),
+        Some(
+            light_test_utils::actions::legacy::instructions::mint_action::NewMint {
+                decimals: 6,
+                supply: 0,
+                mint_authority: mint_authority.pubkey(),
+                freeze_authority: None,
+                metadata: None,
+                version: 3, // ShaFlat for mint hashing
+            },
+        ),
     )
     .await?;
 

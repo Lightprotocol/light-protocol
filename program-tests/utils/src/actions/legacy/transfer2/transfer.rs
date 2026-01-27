@@ -7,39 +7,42 @@ use solana_pubkey::Pubkey;
 use solana_signature::Signature;
 use solana_signer::Signer;
 
-use crate::instructions::transfer2::{
-    create_generic_transfer2_instruction, ApproveInput, Transfer2InstructionType,
+use super::super::instructions::transfer2::{
+    create_generic_transfer2_instruction, Transfer2InstructionType, TransferInput,
 };
 
-/// Approve a delegate for compressed tokens and send the transaction.
+/// Transfer compressed tokens between compressed accounts and send the transaction.
 ///
 /// # Arguments
 /// * `rpc` - RPC client with indexer capabilities
-/// * `compressed_token_account` - Slice of compressed token accounts to approve from
-/// * `delegate` - The delegate pubkey to approve
-/// * `delegate_amount` - Amount of tokens to delegate
-/// * `authority` - Authority that owns the compressed token account
+/// * `compressed_token_account` - Slice of compressed token accounts to transfer from
+/// * `to` - Recipient pubkey for the compressed tokens
+/// * `amount` - Amount of tokens to transfer
+/// * `authority` - Authority that can spend from the compressed token account
 /// * `payer` - Transaction fee payer keypair
 ///
 /// # Returns
 /// `Result<Signature, RpcError>` - The transaction signature
-pub async fn approve<R: Rpc + Indexer>(
+pub async fn transfer<R: Rpc + Indexer>(
     rpc: &mut R,
     compressed_token_account: &[CompressedTokenAccount],
-    delegate: Pubkey,
-    delegate_amount: u64,
+    to: Pubkey,
+    amount: u64,
     authority: &Keypair,
     payer: &Keypair,
 ) -> Result<Signature, RpcError> {
     let ix = create_generic_transfer2_instruction(
         rpc,
-        vec![Transfer2InstructionType::Approve(ApproveInput {
+        vec![Transfer2InstructionType::Transfer(TransferInput {
             compressed_token_account: compressed_token_account.to_vec(),
-            delegate,
-            delegate_amount,
+            to,
+            amount,
+            is_delegate_transfer: false, // Regular transfer, owner is signer
+            mint: None,                  // Not needed when input accounts are provided
+            change_amount: None,
         })],
         payer.pubkey(),
-        true,
+        false,
     )
     .await
     .map_err(|e| RpcError::CustomError(e.to_string()))?;

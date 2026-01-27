@@ -16,6 +16,7 @@ use solana_sdk::{
     signature::{Keypair, Signature, Signer},
     transaction,
 };
+pub mod actions;
 pub mod address;
 pub mod address_tree_rollover;
 pub mod assert_claim;

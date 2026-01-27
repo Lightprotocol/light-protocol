@@ -93,7 +93,6 @@
 //!
 
 mod approve;
-mod approve_checked;
 mod burn;
 mod burn_checked;
 mod close;
@@ -116,7 +115,6 @@ mod transfer_interface;
 mod transfer_to_spl;
 
 pub use approve::*;
-pub use approve_checked::*;
 pub use burn::*;
 pub use burn_checked::*;
 pub use close::{CloseAccount, CloseAccountCpi};

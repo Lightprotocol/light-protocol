@@ -7,13 +7,15 @@ use light_compressed_token_sdk::compressed_token::create_compressed_mint::{
 };
 use light_program_test::{utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
-    assert_mint_action::assert_mint_action, mint_assert::assert_compressed_mint_account, Rpc,
+    actions::{
+        create_mint,
+        legacy::instructions::mint_action::{MintActionType, MintToRecipient},
+    },
+    assert_mint_action::assert_mint_action,
+    mint_assert::assert_compressed_mint_account,
+    Rpc,
 };
 use light_token::instruction::{CompressibleParams, CreateAssociatedTokenAccount};
-use light_token_client::{
-    actions::create_mint,
-    instructions::mint_action::{MintActionType, MintToRecipient},
-};
 use light_token_interface::state::{extensions::AdditionalMetadata, Mint};
 use serial_test::serial;
 use solana_sdk::{
@@ -116,7 +118,7 @@ async fn functional_and_failing_tests() {
     // 2. FAIL - Create mint with duplicate metadata keys
     {
         let duplicate_mint_seed = Keypair::new();
-        let result = light_token_client::actions::create_mint(
+        let result = light_test_utils::actions::create_mint(
             &mut rpc,
             &duplicate_mint_seed, // Use new mint seed
             8, // decimals
@@ -186,7 +188,7 @@ async fn functional_and_failing_tests() {
 
     // 3. MintToCompressed with invalid mint authority
     {
-        let result = light_token_client::actions::mint_to_compressed(
+        let result = light_test_utils::actions::mint_to_compressed(
             &mut rpc,
             spl_mint_pda,
             vec![
@@ -224,7 +226,7 @@ async fn functional_and_failing_tests() {
         .unwrap();
 
         let recipient = Keypair::new().pubkey();
-        let result = light_token_client::actions::mint_to_compressed(
+        let result = light_test_utils::actions::mint_to_compressed(
             &mut rpc,
             spl_mint_pda,
             vec![
@@ -268,7 +270,7 @@ async fn functional_and_failing_tests() {
 
     // 5. UpdateMintAuthority with invalid mint authority
     {
-        let result = light_token_client::actions::update_mint_authority(
+        let result = light_test_utils::actions::update_mint_authority(
             &mut rpc,
             &invalid_mint_authority, // Invalid authority
             Some(Keypair::new().pubkey()),
@@ -301,7 +303,7 @@ async fn functional_and_failing_tests() {
         )
         .unwrap();
 
-        let result = light_token_client::actions::update_mint_authority(
+        let result = light_test_utils::actions::update_mint_authority(
             &mut rpc,
             &mint_authority, // Valid current authority
             Some(new_mint_authority.pubkey()),
@@ -338,7 +340,7 @@ async fn functional_and_failing_tests() {
             .value
             .unwrap();
 
-        let result = light_token_client::actions::update_freeze_authority(
+        let result = light_test_utils::actions::update_freeze_authority(
             &mut rpc,
             &invalid_freeze_authority, // Invalid authority
             Some(Keypair::new().pubkey()),
@@ -372,7 +374,7 @@ async fn functional_and_failing_tests() {
         )
         .unwrap();
 
-        let result = light_token_client::actions::update_freeze_authority(
+        let result = light_test_utils::actions::update_freeze_authority(
             &mut rpc,
             &freeze_authority, // Valid current freeze authority
             Some(new_freeze_authority.pubkey()),
@@ -413,7 +415,7 @@ async fn functional_and_failing_tests() {
             .unwrap();
 
         // Try to mint with invalid authority
-        let result = light_token_client::actions::mint_action_comprehensive(
+        let result = light_test_utils::actions::mint_action_comprehensive(
             &mut rpc,
             &mint_seed,
             &invalid_mint_authority, // Invalid authority
@@ -471,7 +473,7 @@ async fn functional_and_failing_tests() {
             light_token::instruction::derive_token_ata(&recipient2.pubkey(), &spl_mint_pda).0;
 
         // Try to mint with valid NEW authority (since we updated it)
-        let result = light_token_client::actions::mint_action_comprehensive(
+        let result = light_test_utils::actions::mint_action_comprehensive(
             &mut rpc,
             &mint_seed,
             &new_mint_authority, // Valid NEW authority after update
@@ -508,9 +510,9 @@ async fn functional_and_failing_tests() {
 
     // 11. UpdateMetadataField with invalid metadata authority
     {
-        let result = light_token_client::actions::mint_action(
+        let result = light_test_utils::actions::mint_action(
             &mut rpc,
-            light_token_client::instructions::mint_action::MintActionParams {
+            light_test_utils::actions::legacy::instructions::mint_action::MintActionParams {
                 compressed_mint_address,
                 mint_seed: mint_seed.pubkey(),
                 authority: invalid_metadata_authority.pubkey(), // Invalid authority
@@ -558,9 +560,9 @@ async fn functional_and_failing_tests() {
             value: "Updated Token Name".as_bytes().to_vec(),
         }];
 
-        let result = light_token_client::actions::mint_action(
+        let result = light_test_utils::actions::mint_action(
             &mut rpc,
-            light_token_client::instructions::mint_action::MintActionParams {
+            light_test_utils::actions::legacy::instructions::mint_action::MintActionParams {
                 compressed_mint_address,
                 mint_seed: mint_seed.pubkey(),
                 authority: metadata_authority.pubkey(), // Valid metadata authority
@@ -591,9 +593,9 @@ async fn functional_and_failing_tests() {
 
     // 13. UpdateMetadataAuthority with invalid metadata authority
     {
-        let result = light_token_client::actions::mint_action(
+        let result = light_test_utils::actions::mint_action(
             &mut rpc,
-            light_token_client::instructions::mint_action::MintActionParams {
+            light_test_utils::actions::legacy::instructions::mint_action::MintActionParams {
                 compressed_mint_address,
                 mint_seed: mint_seed.pubkey(),
                 authority: invalid_metadata_authority.pubkey(), // Invalid authority
@@ -637,9 +639,9 @@ async fn functional_and_failing_tests() {
             new_authority: new_metadata_authority.pubkey(),
         }];
 
-        let result = light_token_client::actions::mint_action(
+        let result = light_test_utils::actions::mint_action(
             &mut rpc,
-            light_token_client::instructions::mint_action::MintActionParams {
+            light_test_utils::actions::legacy::instructions::mint_action::MintActionParams {
                 compressed_mint_address,
                 mint_seed: mint_seed.pubkey(),
                 authority: metadata_authority.pubkey(), // Valid current metadata authority
@@ -670,9 +672,9 @@ async fn functional_and_failing_tests() {
 
     // 15. RemoveMetadataKey with invalid metadata authority
     {
-        let result = light_token_client::actions::mint_action(
+        let result = light_test_utils::actions::mint_action(
             &mut rpc,
-            light_token_client::instructions::mint_action::MintActionParams {
+            light_test_utils::actions::legacy::instructions::mint_action::MintActionParams {
                 compressed_mint_address,
                 mint_seed: mint_seed.pubkey(),
                 authority: invalid_metadata_authority.pubkey(), // Invalid authority
@@ -718,9 +720,9 @@ async fn functional_and_failing_tests() {
             idempotent: 0,         // 0 = false
         }];
 
-        let result = light_token_client::actions::mint_action(
+        let result = light_test_utils::actions::mint_action(
             &mut rpc,
-            light_token_client::instructions::mint_action::MintActionParams {
+            light_test_utils::actions::legacy::instructions::mint_action::MintActionParams {
                 compressed_mint_address,
                 mint_seed: mint_seed.pubkey(),
                 authority: new_metadata_authority.pubkey(), // Valid NEW metadata authority after update
@@ -771,9 +773,9 @@ async fn functional_and_failing_tests() {
             idempotent: 1,         // 1 = true (won't error if key doesn't exist)
         }];
 
-        let result = light_token_client::actions::mint_action(
+        let result = light_test_utils::actions::mint_action(
             &mut rpc,
-            light_token_client::instructions::mint_action::MintActionParams {
+            light_test_utils::actions::legacy::instructions::mint_action::MintActionParams {
                 compressed_mint_address,
                 mint_seed: mint_seed.pubkey(),
                 authority: new_metadata_authority.pubkey(), // Valid NEW metadata authority
@@ -977,7 +979,7 @@ async fn test_create_mint_non_signer_mint_signer() {
 
     // Create the instruction using the helper function
     let mut instruction =
-        light_token_client::instructions::create_mint::create_compressed_mint_instruction(
+        light_test_utils::actions::legacy::instructions::create_mint::create_compressed_mint_instruction(
             &mut rpc,
             &mint_seed,
             8, // decimals
@@ -1026,7 +1028,7 @@ async fn test_compress_and_close_mint_must_be_only_action() {
     use light_compressed_token_sdk::compressed_token::create_compressed_mint::derive_mint_compressed_address;
     use light_compressible::rent::SLOTS_PER_EPOCH;
     use light_program_test::program_test::TestRpc;
-    use light_token_client::instructions::mint_action::DecompressMintParams;
+    use light_test_utils::actions::legacy::instructions::mint_action::DecompressMintParams;
 
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
         .await
@@ -1048,7 +1050,7 @@ async fn test_compress_and_close_mint_must_be_only_action() {
         derive_mint_compressed_address(&mint_seed.pubkey(), &address_tree_pubkey);
 
     // 1. Create compressed mint with Mint (decompressed)
-    light_token_client::actions::mint_action_comprehensive(
+    light_test_utils::actions::mint_action_comprehensive(
         &mut rpc,
         &mint_seed,
         &mint_authority,
@@ -1059,14 +1061,16 @@ async fn test_compress_and_close_mint_must_be_only_action() {
         vec![],
         None,
         None,
-        Some(light_token_client::instructions::mint_action::NewMint {
-            decimals: 9,
-            supply: 0,
-            mint_authority: mint_authority.pubkey(),
-            freeze_authority: None,
-            metadata: None,
-            version: 3,
-        }),
+        Some(
+            light_test_utils::actions::legacy::instructions::mint_action::NewMint {
+                decimals: 9,
+                supply: 0,
+                mint_authority: mint_authority.pubkey(),
+                freeze_authority: None,
+                metadata: None,
+                version: 3,
+            },
+        ),
     )
     .await
     .unwrap();
@@ -1076,9 +1080,9 @@ async fn test_compress_and_close_mint_must_be_only_action() {
 
     // 2. Try to combine CompressAndCloseMint with UpdateMintAuthority
     let new_authority = Keypair::new();
-    let result = light_token_client::actions::mint_action(
+    let result = light_test_utils::actions::mint_action(
         &mut rpc,
-        light_token_client::instructions::mint_action::MintActionParams {
+        light_test_utils::actions::legacy::instructions::mint_action::MintActionParams {
             compressed_mint_address,
             mint_seed: mint_seed.pubkey(),
             authority: mint_authority.pubkey(),

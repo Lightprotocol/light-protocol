@@ -409,10 +409,10 @@ pub async fn setup_create_compressed_only_mint(
     mint_authority: Pubkey,
     decimals: u8,
 ) -> (Pubkey, [u8; 32], Keypair) {
-    use light_token::instruction::{derive_mint_compressed_address, find_mint_address};
-    use light_token_client::instructions::mint_action::{
+    use light_test_utils::actions::legacy::instructions::mint_action::{
         create_mint_action_instruction, MintActionParams, NewMint,
     };
+    use light_token::instruction::{derive_mint_compressed_address, find_mint_address};
 
     let mint_seed = Keypair::new();
     let address_tree = rpc.get_address_tree_v2();

@@ -8,7 +8,7 @@ use solana_pubkey::Pubkey;
 use solana_signature::Signature;
 use solana_signer::Signer;
 
-use crate::instructions::mint_to_compressed::mint_to_compressed_instruction;
+use super::instructions::mint_to_compressed::mint_to_compressed_instruction;
 
 /// Mints compressed tokens to recipients using a higher-level action
 ///

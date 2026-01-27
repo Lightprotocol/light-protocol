@@ -5,13 +5,15 @@ use light_compressed_token_sdk::compressed_token::create_compressed_mint::{
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
-    assert_mint_action::assert_mint_action, mint_assert::assert_compressed_mint_account, Rpc,
+    actions::{
+        create_mint,
+        legacy::instructions::mint_action::{MintActionType, MintToRecipient},
+    },
+    assert_mint_action::assert_mint_action,
+    mint_assert::assert_compressed_mint_account,
+    Rpc,
 };
 use light_token::instruction::{CompressibleParams, CreateAssociatedTokenAccount};
-use light_token_client::{
-    actions::create_mint,
-    instructions::mint_action::{MintActionType, MintToRecipient},
-};
 use light_token_interface::state::{extensions::AdditionalMetadata, Mint, TokenDataVersion};
 use serial_test::serial;
 use solana_sdk::{signature::Keypair, signer::Signer};
@@ -249,9 +251,9 @@ async fn functional_all_in_one_instruction() {
     .unwrap();
 
     // Execute all actions in a single instruction
-    let result = light_token_client::actions::mint_action(
+    let result = light_test_utils::actions::mint_action(
         &mut rpc,
-        light_token_client::instructions::mint_action::MintActionParams {
+        light_test_utils::actions::legacy::instructions::mint_action::MintActionParams {
             compressed_mint_address,
             mint_seed: mint_seed.pubkey(),
             authority: authority.pubkey(),

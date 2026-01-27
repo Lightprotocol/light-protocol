@@ -101,7 +101,7 @@ async fn test_compress_and_close_owner_scenarios() {
             .unwrap();
 
         // Create compress_and_close instruction with is_compressible=false for non-compressible account
-        use light_token_client::instructions::transfer2::{
+        use light_test_utils::actions::legacy::instructions::transfer2::{
             create_generic_transfer2_instruction, CompressAndCloseInput, Transfer2InstructionType,
         };
 
@@ -180,7 +180,7 @@ async fn test_compress_and_close_owner_scenarios() {
         context.rpc.set_account(ata_pubkey, ata_account);
 
         // Create compress_and_close instruction manually for ATA
-        use light_token_client::instructions::transfer2::{
+        use light_test_utils::actions::legacy::instructions::transfer2::{
             create_generic_transfer2_instruction, CompressAndCloseInput, Transfer2InstructionType,
         };
 
@@ -289,8 +289,10 @@ async fn test_compress_and_close_rent_authority_scenarios() {
         .unwrap();
 
         // Assert compress and close succeeded
-        use light_test_utils::assert_transfer2::assert_transfer2_compress_and_close;
-        use light_token_client::instructions::transfer2::CompressAndCloseInput;
+        use light_test_utils::{
+            actions::legacy::instructions::transfer2::CompressAndCloseInput,
+            assert_transfer2::assert_transfer2_compress_and_close,
+        };
 
         let output_queue = context.rpc.get_random_state_tree_info().unwrap().queue;
         assert_transfer2_compress_and_close(
@@ -342,8 +344,10 @@ async fn test_compress_and_close_rent_authority_scenarios() {
         .unwrap();
 
         // Assert compress and close succeeded
-        use light_test_utils::assert_transfer2::assert_transfer2_compress_and_close;
-        use light_token_client::instructions::transfer2::CompressAndCloseInput;
+        use light_test_utils::{
+            actions::legacy::instructions::transfer2::CompressAndCloseInput,
+            assert_transfer2::assert_transfer2_compress_and_close,
+        };
 
         let output_queue = context.rpc.get_random_state_tree_info().unwrap().queue;
         assert_transfer2_compress_and_close(
@@ -400,8 +404,10 @@ async fn test_compress_and_close_rent_authority_scenarios() {
         .unwrap();
 
         // Assert compress and close succeeded
-        use light_test_utils::assert_transfer2::assert_transfer2_compress_and_close;
-        use light_token_client::instructions::transfer2::CompressAndCloseInput;
+        use light_test_utils::{
+            actions::legacy::instructions::transfer2::CompressAndCloseInput,
+            assert_transfer2::assert_transfer2_compress_and_close,
+        };
 
         let output_queue = context.rpc.get_random_state_tree_info().unwrap().queue;
         assert_transfer2_compress_and_close(
@@ -481,8 +487,10 @@ async fn test_compress_and_close_compress_to_pubkey() {
         .unwrap();
 
         // Assert compress and close succeeded - the owner in compressed output should be the token_account_pubkey
-        use light_test_utils::assert_transfer2::assert_transfer2_compress_and_close;
-        use light_token_client::instructions::transfer2::CompressAndCloseInput;
+        use light_test_utils::{
+            actions::legacy::instructions::transfer2::CompressAndCloseInput,
+            assert_transfer2::assert_transfer2_compress_and_close,
+        };
 
         let output_queue = context.rpc.get_random_state_tree_info().unwrap().queue;
         assert_transfer2_compress_and_close(
@@ -880,8 +888,10 @@ async fn test_compress_and_close_output_validation_errors() {
         .unwrap();
 
         // Assert compress and close succeeded
-        use light_test_utils::assert_transfer2::assert_transfer2_compress_and_close;
-        use light_token_client::instructions::transfer2::CompressAndCloseInput;
+        use light_test_utils::{
+            actions::legacy::instructions::transfer2::CompressAndCloseInput,
+            assert_transfer2::assert_transfer2_compress_and_close,
+        };
 
         let output_queue = context.rpc.get_random_state_tree_info().unwrap().queue;
         assert_transfer2_compress_and_close(
@@ -957,8 +967,10 @@ async fn test_compress_and_close_output_validation_errors() {
         .unwrap();
 
         // Assert compress and close succeeded
-        use light_test_utils::assert_transfer2::assert_transfer2_compress_and_close;
-        use light_token_client::instructions::transfer2::CompressAndCloseInput;
+        use light_test_utils::{
+            actions::legacy::instructions::transfer2::CompressAndCloseInput,
+            assert_transfer2::assert_transfer2_compress_and_close,
+        };
 
         let output_queue = context.rpc.get_random_state_tree_info().unwrap().queue;
         assert_transfer2_compress_and_close(

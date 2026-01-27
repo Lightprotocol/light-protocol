@@ -39,14 +39,14 @@ use light_hasher::Poseidon;
 use light_program_test::accounts::test_accounts::TestAccounts;
 use light_prover_client::prover::spawn_prover;
 use light_test_utils::{
-    conversions::sdk_to_program_token_data, get_concurrent_merkle_tree, get_indexed_merkle_tree,
-    pack::pack_new_address_params_assigned, spl::create_mint_helper_with_keypair,
+    actions::{create_compressible_token_account, CreateCompressibleTokenAccountInputs},
+    conversions::sdk_to_program_token_data,
+    get_concurrent_merkle_tree, get_indexed_merkle_tree,
+    pack::pack_new_address_params_assigned,
+    spl::create_mint_helper_with_keypair,
     system_program::create_invoke_instruction,
 };
 use light_token::compat::TokenDataWithMerkleContext;
-use light_token_client::actions::{
-    create_compressible_token_account, CreateCompressibleTokenAccountInputs,
-};
 use light_token_interface::state::TokenDataVersion;
 use rand::{prelude::SliceRandom, rngs::StdRng, Rng, SeedableRng};
 use serial_test::serial;

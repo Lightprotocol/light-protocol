@@ -16,9 +16,11 @@ use light_program_test::{
     utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig, Rpc,
 };
 use light_sdk::instruction::PackedAccounts;
-use light_test_utils::{airdrop_lamports, RpcError};
+use light_test_utils::{
+    actions::{create_mint, mint_to_compressed, transfer2::approve},
+    airdrop_lamports, RpcError,
+};
 use light_token::ValidityProof;
-use light_token_client::actions::{create_mint, mint_to_compressed, transfer2::approve};
 use light_token_interface::{
     instructions::{mint_action::Recipient, transfer2::MultiInputTokenDataWithContext},
     state::TokenDataVersion,

@@ -117,7 +117,7 @@ async fn setup_compression_test(token_amount: u64) -> Result<CompressionTestCont
     // Use mint_action_comprehensive to create mint AND mint to decompressed Light Token ATA
     let decompressed_recipients = vec![Recipient::new(owner.pubkey(), token_amount)];
 
-    light_token_client::actions::mint_action_comprehensive(
+    light_test_utils::actions::mint_action_comprehensive(
         &mut rpc,
         &mint_seed,
         &mint_authority,
@@ -128,14 +128,16 @@ async fn setup_compression_test(token_amount: u64) -> Result<CompressionTestCont
         decompressed_recipients, // mint to decompressed Light Token ATA
         None,                    // no mint authority update
         None,                    // no freeze authority update
-        Some(light_token_client::instructions::mint_action::NewMint {
-            decimals: 6,
-            supply: 0,
-            mint_authority: mint_authority.pubkey(),
-            freeze_authority: None,
-            metadata: None,
-            version: 3, // ShaFlat for compressible accounts
-        }),
+        Some(
+            light_test_utils::actions::legacy::instructions::mint_action::NewMint {
+                decimals: 6,
+                supply: 0,
+                mint_authority: mint_authority.pubkey(),
+                freeze_authority: None,
+                metadata: None,
+                version: 3, // ShaFlat for compressible accounts
+            },
+        ),
     )
     .await?;
 
@@ -628,7 +630,7 @@ async fn test_compression_max_top_up_exceeded() -> Result<(), RpcError> {
     let token_amount = 1000u64;
     let decompressed_recipients = vec![Recipient::new(owner.pubkey(), token_amount)];
 
-    light_token_client::actions::mint_action_comprehensive(
+    light_test_utils::actions::mint_action_comprehensive(
         &mut rpc,
         &mint_seed,
         &mint_authority,
@@ -639,14 +641,16 @@ async fn test_compression_max_top_up_exceeded() -> Result<(), RpcError> {
         decompressed_recipients, // mint to decompressed Light Token ATA
         None,
         None,
-        Some(light_token_client::instructions::mint_action::NewMint {
-            decimals: 6,
-            supply: 0,
-            mint_authority: mint_authority.pubkey(),
-            freeze_authority: None,
-            metadata: None,
-            version: 3, // ShaFlat for compressible accounts
-        }),
+        Some(
+            light_test_utils::actions::legacy::instructions::mint_action::NewMint {
+                decimals: 6,
+                supply: 0,
+                mint_authority: mint_authority.pubkey(),
+                freeze_authority: None,
+                metadata: None,
+                version: 3, // ShaFlat for compressible accounts
+            },
+        ),
     )
     .await?;
 

@@ -8,7 +8,7 @@ use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
 
-use crate::instructions::mint_action::{create_mint_action_instruction, MintActionParams, NewMint};
+use super::mint_action::{create_mint_action_instruction, MintActionParams, NewMint};
 
 /// Create a compressed-only mint instruction (no decompression).
 ///

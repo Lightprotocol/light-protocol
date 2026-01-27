@@ -7,10 +7,10 @@ use borsh::BorshDeserialize;
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_compressible::compression_info::CompressionInfo;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
-use light_token::instruction::derive_mint_compressed_address;
-use light_token_client::instructions::mint_action::{
+use light_test_utils::actions::legacy::instructions::mint_action::{
     create_mint_action_instruction, MintActionParams, MintActionType,
 };
+use light_token::instruction::derive_mint_compressed_address;
 use light_token_interface::state::Mint;
 use solana_sdk::signer::Signer;
 

@@ -6,6 +6,17 @@ use light_compressed_token_sdk::compressed_token::create_compressed_mint::{
 use light_compressible::{compression_info::CompressionInfo, rent::SLOTS_PER_EPOCH};
 use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
+    actions::{
+        create_mint,
+        legacy::instructions::{
+            mint_action::{DecompressMintParams, MintActionType},
+            transfer2::{
+                create_decompress_instruction, create_generic_transfer2_instruction, CompressInput,
+                DecompressInput, Transfer2InstructionType, TransferInput,
+            },
+        },
+        mint_to_compressed, transfer, transfer2,
+    },
     assert_ctoken_transfer::assert_ctoken_transfer,
     assert_mint_action::assert_mint_action,
     assert_mint_to_compressed::{assert_mint_to_compressed, assert_mint_to_compressed_one},
@@ -18,16 +29,6 @@ use light_test_utils::{
 };
 use light_token::instruction::{
     derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount,
-};
-use light_token_client::{
-    actions::{create_mint, mint_to_compressed, transfer, transfer2},
-    instructions::{
-        mint_action::{DecompressMintParams, MintActionType},
-        transfer2::{
-            create_decompress_instruction, create_generic_transfer2_instruction, CompressInput,
-            DecompressInput, Transfer2InstructionType, TransferInput,
-        },
-    },
 };
 use light_token_interface::{
     instructions::{
@@ -185,7 +186,7 @@ async fn test_create_compressed_mint() {
     // Verify the transfer was successful using new transfer wrapper
     assert_transfer2_transfer(
         &mut rpc,
-        light_token_client::instructions::transfer2::TransferInput {
+        light_test_utils::actions::legacy::instructions::transfer2::TransferInput {
             compressed_token_account: compressed_token_accounts,
             to: new_recipient,
             amount: transfer_amount,
@@ -258,7 +259,7 @@ async fn test_create_compressed_mint() {
             // Use comprehensive decompress assertion
             assert_transfer2_decompress(
                 &mut rpc,
-                light_token_client::instructions::transfer2::DecompressInput {
+                light_test_utils::actions::legacy::instructions::transfer2::DecompressInput {
                     pool_index: None,
                     compressed_token_account: vec![compressed_token_account.clone()],
                     decompress_amount,
@@ -317,7 +318,7 @@ async fn test_create_compressed_mint() {
     // Use comprehensive compress assertion
     assert_transfer2_compress(
         &mut rpc,
-        light_token_client::instructions::transfer2::CompressInput {
+        light_test_utils::actions::legacy::instructions::transfer2::CompressInput {
             compressed_token_account: None,
             solana_token_account: ctoken_ata_pubkey,
             to: compress_recipient.pubkey(),
@@ -567,7 +568,7 @@ async fn test_update_compressed_mint_authority() {
         .unwrap();
 
     // 2. Update mint authority
-    let _signature = light_token_client::actions::update_mint_authority(
+    let _signature = light_test_utils::actions::update_mint_authority(
         &mut rpc,
         &initial_mint_authority,
         Some(new_mint_authority.pubkey()),
@@ -594,7 +595,7 @@ async fn test_update_compressed_mint_authority() {
         new_mint_authority.pubkey()
     );
     // 3. Update freeze authority (need to preserve mint authority)
-    let _signature = light_token_client::actions::update_freeze_authority(
+    let _signature = light_test_utils::actions::update_freeze_authority(
         &mut rpc,
         &initial_freeze_authority,
         Some(new_freeze_authority.pubkey()),
@@ -639,7 +640,7 @@ async fn test_update_compressed_mint_authority() {
         .find(|account| account.address == Some(compressed_mint_address))
         .expect("Updated compressed mint account not found");
 
-    let _signature = light_token_client::actions::update_mint_authority(
+    let _signature = light_test_utils::actions::update_mint_authority(
         &mut rpc,
         &new_mint_authority,
         None, // Revoke authority
@@ -719,7 +720,7 @@ async fn test_ctoken_transfer() {
         amount: 100000000u64,
     }];
 
-    let signature = light_token_client::actions::mint_action_comprehensive(
+    let signature = light_test_utils::actions::mint_action_comprehensive(
         &mut rpc,
         &mint_seed,
         &mint_authority,
@@ -730,14 +731,16 @@ async fn test_ctoken_transfer() {
         decompressed_recipients, // mint to decompressed recipients
         None,                    // no mint authority update
         None,                    // no freeze authority update
-        Some(light_token_client::instructions::mint_action::NewMint {
-            decimals,
-            supply: 0,
-            mint_authority: mint_authority.pubkey(),
-            freeze_authority: Some(freeze_authority.pubkey()),
-            metadata: None, // No metadata for simplicity
-            version: 3,
-        }),
+        Some(
+            light_test_utils::actions::legacy::instructions::mint_action::NewMint {
+                decimals,
+                supply: 0,
+                mint_authority: mint_authority.pubkey(),
+                freeze_authority: Some(freeze_authority.pubkey()),
+                metadata: None, // No metadata for simplicity
+                version: 3,
+            },
+        ),
     )
     .await
     .unwrap();
@@ -929,7 +932,7 @@ async fn test_ctoken_transfer() {
     // Use comprehensive compress assertion
     assert_transfer2_compress(
         &mut rpc,
-        light_token_client::instructions::transfer2::CompressInput {
+        light_test_utils::actions::legacy::instructions::transfer2::CompressInput {
             pool_index: None,
             compressed_token_account: None,
             solana_token_account: second_recipient_ata,
@@ -1171,7 +1174,7 @@ async fn test_mint_actions() {
     rpc.context.warp_to_slot(1);
     // === SINGLE MINT ACTION INSTRUCTION ===
     // Execute ONE instruction with ALL actions
-    let signature = light_token_client::actions::mint_action_comprehensive(
+    let signature = light_test_utils::actions::mint_action_comprehensive(
         &mut rpc,
         &mint_seed,
         &mint_authority,
@@ -1182,7 +1185,7 @@ async fn test_mint_actions() {
         vec![],                              // mint_to_decompressed_recipients
         Some(new_mint_authority.pubkey()),   // update_mint_authority
         None,                                // update_freeze_authority
-        Some(light_token_client::instructions::mint_action::NewMint {
+        Some(light_test_utils::actions::legacy::instructions::mint_action::NewMint {
             decimals,
             supply: 0,
             mint_authority: mint_authority.pubkey(),
@@ -1326,7 +1329,7 @@ async fn test_mint_actions() {
     let additional_mint_amount = 7500u64;
     rpc.context.warp_to_slot(3);
     // Execute mint_action on existing mint (no creation)
-    let signature2 = light_token_client::actions::mint_action_comprehensive(
+    let signature2 = light_test_utils::actions::mint_action_comprehensive(
         &mut rpc,
         &mint_seed,
         &new_mint_authority, // Current authority from first test (now the authority for this mint)
@@ -1418,7 +1421,7 @@ async fn test_create_compressed_mint_with_mint() {
     let (mint_pda, _mint_bump) = find_mint_address(&mint_seed.pubkey());
 
     // Create mint + decompress in single instruction
-    let signature = light_token_client::actions::mint_action_comprehensive(
+    let signature = light_test_utils::actions::mint_action_comprehensive(
         &mut rpc,
         &mint_seed,
         &mint_authority,
@@ -1429,14 +1432,16 @@ async fn test_create_compressed_mint_with_mint() {
         vec![],                                // no decompressed recipients
         None,                                  // no mint authority update
         None,                                  // no freeze authority update
-        Some(light_token_client::instructions::mint_action::NewMint {
-            decimals,
-            supply: 0,
-            mint_authority: mint_authority.pubkey(),
-            freeze_authority: Some(freeze_authority.pubkey()),
-            metadata: None,
-            version: 3,
-        }),
+        Some(
+            light_test_utils::actions::legacy::instructions::mint_action::NewMint {
+                decimals,
+                supply: 0,
+                mint_authority: mint_authority.pubkey(),
+                freeze_authority: Some(freeze_authority.pubkey()),
+                metadata: None,
+                version: 3,
+            },
+        ),
     )
     .await
     .unwrap();
@@ -1495,7 +1500,7 @@ async fn test_create_compressed_mint_with_mint() {
             .expect("Failed to deserialize Mint data");
 
     // Compress and close Mint (permissionless when rent expired)
-    let close_signature = light_token_client::actions::mint_action_comprehensive(
+    let close_signature = light_test_utils::actions::mint_action_comprehensive(
         &mut rpc,
         &mint_seed,
         &mint_authority,
@@ -1552,7 +1557,7 @@ async fn test_compress_and_close_mint_idempotent() {
     let (mint_pda, _) = find_mint_address(&mint_seed.pubkey());
 
     // 1. Create compressed mint WITH Mint (decompress_mint = true)
-    light_token_client::actions::mint_action_comprehensive(
+    light_test_utils::actions::mint_action_comprehensive(
         &mut rpc,
         &mint_seed,
         &mint_authority,
@@ -1563,14 +1568,16 @@ async fn test_compress_and_close_mint_idempotent() {
         vec![],
         None,
         None,
-        Some(light_token_client::instructions::mint_action::NewMint {
-            decimals,
-            supply: 0,
-            mint_authority: mint_authority.pubkey(),
-            freeze_authority: Some(freeze_authority.pubkey()),
-            metadata: None,
-            version: 3,
-        }),
+        Some(
+            light_test_utils::actions::legacy::instructions::mint_action::NewMint {
+                decimals,
+                supply: 0,
+                mint_authority: mint_authority.pubkey(),
+                freeze_authority: Some(freeze_authority.pubkey()),
+                metadata: None,
+                version: 3,
+            },
+        ),
     )
     .await
     .unwrap();
@@ -1579,7 +1586,7 @@ async fn test_compress_and_close_mint_idempotent() {
     rpc.warp_to_slot(SLOTS_PER_EPOCH * 2).unwrap();
 
     // 2. Compress and close Mint (first time - should succeed)
-    light_token_client::actions::mint_action_comprehensive(
+    light_test_utils::actions::mint_action_comprehensive(
         &mut rpc,
         &mint_seed,
         &mint_authority,
@@ -1609,9 +1616,9 @@ async fn test_compress_and_close_mint_idempotent() {
     use solana_sdk::compute_budget::ComputeBudgetInstruction;
 
     let mint_action_ix =
-        light_token_client::instructions::mint_action::create_mint_action_instruction(
+        light_test_utils::actions::legacy::instructions::mint_action::create_mint_action_instruction(
             &mut rpc,
-            light_token_client::instructions::mint_action::MintActionParams {
+            light_test_utils::actions::legacy::instructions::mint_action::MintActionParams {
                 compressed_mint_address,
                 mint_seed: mint_seed.pubkey(),
                 authority: mint_authority.pubkey(),
@@ -1738,7 +1745,7 @@ async fn test_decompress_existing_mint_to_mint() {
     );
 
     // === STEP 3: Decompress existing mint to Mint ===
-    let signature = light_token_client::actions::mint_action_comprehensive(
+    let signature = light_test_utils::actions::mint_action_comprehensive(
         &mut rpc,
         &mint_seed,
         &mint_authority,
