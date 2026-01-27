@@ -6,47 +6,47 @@
 mod shared;
 
 use anchor_lang::{InstructionData, ToAccountMetas};
+// Import generated variant/seeds types from the program module
+use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::LightAccountVariant;
 use csdk_anchor_full_derived_test::d11_zero_copy::{
+    // mixed_zc_borsh
+    D11MixedZcBorshParams,
+    // multiple_zc
+    D11MultipleZcParams,
+    // with_ata
+    D11ZcWithAtaParams,
+    // with_ctx_seeds
+    D11ZcWithCtxSeedsParams,
+    // with_mint_to
+    D11ZcWithMintToParams,
+    // with_params_seeds
+    D11ZcWithParamsSeedsParams,
+    // with_vault
+    D11ZcWithVaultParams,
     // State types
     ZcBasicRecord,
     ZcWithParamsRecord,
     ZcWithSeedsRecord,
-    // with_vault
-    D11ZcWithVaultParams,
-    D11_ZC_RECORD_SEED,
-    D11_ZC_VAULT_AUTH_SEED,
-    D11_ZC_VAULT_SEED,
-    // with_ata
-    D11ZcWithAtaParams,
-    D11_ZC_ATA_RECORD_SEED,
-    // multiple_zc
-    D11MultipleZcParams,
-    D11_ZC1_SEED,
-    D11_ZC2_SEED,
-    // mixed_zc_borsh
-    D11MixedZcBorshParams,
     D11_BORSH_MIXED_SEED,
-    D11_ZC_MIXED_SEED,
-    // with_ctx_seeds
-    D11ZcWithCtxSeedsParams,
-    D11_ZC_CTX_SEED,
-    // with_params_seeds
-    D11ZcWithParamsSeedsParams,
-    D11_ZC_PARAMS_SEED,
-    // with_mint_to
-    D11ZcWithMintToParams,
     D11_MINT_VAULT_AUTH_SEED,
     D11_MINT_VAULT_SEED,
     D11_MINT_ZC_RECORD_SEED,
+    D11_ZC1_SEED,
+    D11_ZC2_SEED,
+    D11_ZC_ATA_RECORD_SEED,
+    D11_ZC_CTX_SEED,
+    D11_ZC_MIXED_SEED,
+    D11_ZC_PARAMS_SEED,
+    D11_ZC_RECORD_SEED,
+    D11_ZC_VAULT_AUTH_SEED,
+    D11_ZC_VAULT_SEED,
 };
-// Import generated variant/seeds types from the program module
-use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::LightAccountVariant;
 use light_client::interface::{
     create_load_instructions, get_create_accounts_proof, AccountInterfaceExt, AccountSpec,
     CreateAccountsProofInput, InitializeRentFreeConfig, PdaSpec,
 };
-use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_compressed_account::address::derive_address;
+use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_macros::pubkey;
 use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest, TestRpc},
@@ -306,8 +306,7 @@ async fn test_d11_zc_with_vault() {
     let data = &record_account.data[8..];
     let record: &ZcBasicRecord = bytemuck::from_bytes(data);
     assert_eq!(
-        record.owner,
-        owner,
+        record.owner, owner,
         "Record owner should match after decompression"
     );
     assert_eq!(
@@ -513,21 +512,13 @@ async fn test_d11_multiple_zc() {
     let record_1_account = ctx.rpc.get_account(zc_pda_1).await.unwrap().unwrap();
     let data_1 = &record_1_account.data[8..];
     let record_1: &ZcBasicRecord = bytemuck::from_bytes(data_1);
-    assert_eq!(
-        record_1.owner,
-        owner,
-        "Record 1 owner should match"
-    );
+    assert_eq!(record_1.owner, owner, "Record 1 owner should match");
     assert_eq!(record_1.counter, 1, "Record 1 counter should be 1");
 
     let record_2_account = ctx.rpc.get_account(zc_pda_2).await.unwrap().unwrap();
     let data_2 = &record_2_account.data[8..];
     let record_2: &ZcBasicRecord = bytemuck::from_bytes(data_2);
-    assert_eq!(
-        record_2.owner,
-        owner,
-        "Record 2 owner should match"
-    );
+    assert_eq!(record_2.owner, owner, "Record 2 owner should match");
     assert_eq!(record_2.counter, 2, "Record 2 counter should be 2");
 
     // PHASE 2: Warp time to trigger forester auto-compression
@@ -557,8 +548,7 @@ async fn test_d11_multiple_zc() {
             .expect("Seed verification failed for record 1");
 
     let spec_1 = PdaSpec::new(account_interface_1.clone(), variant_1, ctx.program_id);
-    let specs_1: Vec<AccountSpec<LightAccountVariant>> =
-        vec![AccountSpec::Pda(spec_1)];
+    let specs_1: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Pda(spec_1)];
 
     let decompress_instructions_1 = create_load_instructions(
         &specs_1,
@@ -593,8 +583,7 @@ async fn test_d11_multiple_zc() {
             .expect("Seed verification failed for record 2");
 
     let spec_2 = PdaSpec::new(account_interface_2.clone(), variant_2, ctx.program_id);
-    let specs_2: Vec<AccountSpec<LightAccountVariant>> =
-        vec![AccountSpec::Pda(spec_2)];
+    let specs_2: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Pda(spec_2)];
 
     let decompress_instructions_2 = create_load_instructions(
         &specs_2,
@@ -706,11 +695,7 @@ async fn test_d11_mixed_zc_borsh() {
     let zc_account = ctx.rpc.get_account(zc_pda).await.unwrap().unwrap();
     let zc_data = &zc_account.data[8..];
     let zc_record: &ZcBasicRecord = bytemuck::from_bytes(zc_data);
-    assert_eq!(
-        zc_record.owner,
-        owner,
-        "ZC record owner should match"
-    );
+    assert_eq!(zc_record.owner, owner, "ZC record owner should match");
     assert_eq!(zc_record.counter, 100, "ZC record counter should be 100");
 
     // Verify Borsh record data
@@ -749,8 +734,7 @@ async fn test_d11_mixed_zc_borsh() {
             .expect("Seed verification failed for zc record");
 
     let spec_zc = PdaSpec::new(account_interface_zc.clone(), variant_zc, ctx.program_id);
-    let specs_zc: Vec<AccountSpec<LightAccountVariant>> =
-        vec![AccountSpec::Pda(spec_zc)];
+    let specs_zc: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Pda(spec_zc)];
 
     let decompress_instructions_zc = create_load_instructions(
         &specs_zc,
@@ -788,8 +772,7 @@ async fn test_d11_mixed_zc_borsh() {
         variant_borsh,
         ctx.program_id,
     );
-    let specs_borsh: Vec<AccountSpec<LightAccountVariant>> =
-        vec![AccountSpec::Pda(spec_borsh)];
+    let specs_borsh: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Pda(spec_borsh)];
 
     let decompress_instructions_borsh = create_load_instructions(
         &specs_borsh,
@@ -930,8 +913,7 @@ async fn test_d11_zc_with_ctx_seeds() {
         .expect("Seed verification failed");
 
     let spec = PdaSpec::new(account_interface.clone(), variant, ctx.program_id);
-    let specs: Vec<AccountSpec<LightAccountVariant>> =
-        vec![AccountSpec::Pda(spec)];
+    let specs: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Pda(spec)];
 
     let decompress_instructions = create_load_instructions(
         &specs,
@@ -974,7 +956,11 @@ async fn test_d11_zc_with_params_seeds() {
 
     // Derive PDA using owner and category_id as seeds
     let (zc_pda, _) = Pubkey::find_program_address(
-        &[D11_ZC_PARAMS_SEED, owner.as_ref(), &category_id.to_le_bytes()],
+        &[
+            D11_ZC_PARAMS_SEED,
+            owner.as_ref(),
+            &category_id.to_le_bytes(),
+        ],
         &ctx.program_id,
     );
 
@@ -1061,8 +1047,7 @@ async fn test_d11_zc_with_params_seeds() {
         .expect("Seed verification failed");
 
     let spec = PdaSpec::new(account_interface.clone(), variant, ctx.program_id);
-    let specs: Vec<AccountSpec<LightAccountVariant>> =
-        vec![AccountSpec::Pda(spec)];
+    let specs: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Pda(spec)];
 
     let decompress_instructions = create_load_instructions(
         &specs,

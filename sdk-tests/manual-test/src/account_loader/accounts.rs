@@ -1,8 +1,9 @@
 //! Accounts module for zero-copy account instruction.
 
-use super::state::ZeroCopyRecord;
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
+
+use super::state::ZeroCopyRecord;
 
 /// Parameters for creating a zero-copy compressible PDA.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]

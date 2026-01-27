@@ -104,15 +104,10 @@ pub enum ClassifiedSeed {
     },
     /// Expression rooted in ctx account (e.g., authority.key().as_ref())
     /// `account` is the root identifier
-    CtxRooted {
-        account: Ident,
-    },
+    CtxRooted { account: Ident },
     /// Expression rooted in instruction arg (e.g., params.owner.as_ref())
     /// `root` is the instruction arg name, `expr` is the full expression for codegen
-    DataRooted {
-        root: Ident,
-        expr: Box<syn::Expr>,
-    },
+    DataRooted { root: Ident, expr: Box<syn::Expr> },
     /// Function call with dynamic arguments (e.g., crate::max_key(&params.key_a, &params.key_b).as_ref())
     /// Detected when `Expr::Call` or `Expr::MethodCall(receiver=Expr::Call)` has args
     /// rooted in instruction data or ctx accounts.
@@ -786,9 +781,7 @@ pub fn classify_seed_expr(
 
     // Check if rooted in ctx account
     if let Some(account) = get_ctx_account_root(expr) {
-        return Ok(ClassifiedSeed::CtxRooted {
-            account,
-        });
+        return Ok(ClassifiedSeed::CtxRooted { account });
     }
 
     // Check for function calls with dynamic arguments
@@ -1042,7 +1035,6 @@ fn get_ctx_account_root(expr: &Expr) -> Option<Ident> {
     }
 }
 
-
 /// Get data field names from classified seeds.
 /// Extracts the terminal field name from DataRooted expressions.
 pub fn get_data_fields(seeds: &[ClassifiedSeed]) -> Vec<(Ident, Option<Ident>)> {
@@ -1128,12 +1120,7 @@ pub fn get_params_only_seed_fields_from_spec(
         if let SeedElement::Expression(expr) = seed {
             // Extract data fields from top-level expressions (e.g., data.owner.as_ref())
             if let Some((field_name, has_conversion)) = extract_data_field_from_expr(expr) {
-                add_params_only_field(
-                    &field_name,
-                    has_conversion,
-                    state_field_names,
-                    &mut fields,
-                );
+                add_params_only_field(&field_name, has_conversion, state_field_names, &mut fields);
             }
             // Also extract data fields from function call arguments
             // (e.g., crate::max_key(&data.key_a, &data.key_b).as_ref())
@@ -1175,12 +1162,7 @@ fn extract_data_fields_from_nested_calls(
         syn::Expr::Call(call) => {
             for arg in &call.args {
                 if let Some((field_name, has_conversion)) = extract_data_field_from_expr(arg) {
-                    add_params_only_field(
-                        &field_name,
-                        has_conversion,
-                        state_field_names,
-                        fields,
-                    );
+                    add_params_only_field(&field_name, has_conversion, state_field_names, fields);
                 }
                 extract_data_fields_from_nested_calls(arg, state_field_names, fields);
             }
@@ -1261,9 +1243,7 @@ mod tests {
         let args = make_instruction_args(&["owner", "amount"]);
         let expr: syn::Expr = parse_quote!(owner);
         let result = classify_seed_expr(&expr, &args).unwrap();
-        assert!(
-            matches!(result, ClassifiedSeed::DataRooted { root, .. } if root == "owner")
-        );
+        assert!(matches!(result, ClassifiedSeed::DataRooted { root, .. } if root == "owner"));
     }
 
     #[test]
@@ -1284,9 +1264,7 @@ mod tests {
         let args = make_instruction_args(&["input"]);
         let expr: syn::Expr = parse_quote!(input.owner.as_ref());
         let result = classify_seed_expr(&expr, &args).unwrap();
-        assert!(
-            matches!(result, ClassifiedSeed::DataRooted { root, .. } if root == "input")
-        );
+        assert!(matches!(result, ClassifiedSeed::DataRooted { root, .. } if root == "input"));
     }
 
     #[test]
@@ -1295,9 +1273,7 @@ mod tests {
         let args = make_instruction_args(&["data"]);
         let expr: syn::Expr = parse_quote!(data.inner.key.as_ref());
         let result = classify_seed_expr(&expr, &args).unwrap();
-        assert!(
-            matches!(result, ClassifiedSeed::DataRooted { root, .. } if root == "data")
-        );
+        assert!(matches!(result, ClassifiedSeed::DataRooted { root, .. } if root == "data"));
     }
 
     #[test]
@@ -1342,9 +1318,7 @@ mod tests {
         let args = make_instruction_args(&["params"]);
         let expr: syn::Expr = parse_quote!(params.owner.as_ref());
         let result = classify_seed_expr(&expr, &args).unwrap();
-        assert!(
-            matches!(result, ClassifiedSeed::DataRooted { root, .. } if root == "params")
-        );
+        assert!(matches!(result, ClassifiedSeed::DataRooted { root, .. } if root == "params"));
     }
 
     #[test]
@@ -1353,9 +1327,7 @@ mod tests {
         let args = make_instruction_args(&["args"]);
         let expr: syn::Expr = parse_quote!(args.key.as_ref());
         let result = classify_seed_expr(&expr, &args).unwrap();
-        assert!(
-            matches!(result, ClassifiedSeed::DataRooted { root, .. } if root == "args")
-        );
+        assert!(matches!(result, ClassifiedSeed::DataRooted { root, .. } if root == "args"));
     }
 
     #[test]
@@ -1377,9 +1349,7 @@ mod tests {
 
         let expr1: syn::Expr = parse_quote!(owner.as_ref());
         let result1 = classify_seed_expr(&expr1, &args).unwrap();
-        assert!(
-            matches!(result1, ClassifiedSeed::DataRooted { root, .. } if root == "owner")
-        );
+        assert!(matches!(result1, ClassifiedSeed::DataRooted { root, .. } if root == "owner"));
 
         let expr2: syn::Expr = parse_quote!(amount.to_le_bytes().as_ref());
         let result2 = classify_seed_expr(&expr2, &args).unwrap();
@@ -1515,7 +1485,9 @@ mod tests {
         let args = InstructionArgSet::empty();
         let expr: syn::Expr = parse_quote!(crate::state::SEED_CONSTANT);
         let result = classify_seed_expr(&expr, &args).unwrap();
-        assert!(matches!(result, ClassifiedSeed::Constant { path, .. } if path.segments.last().unwrap().ident == "SEED_CONSTANT"));
+        assert!(
+            matches!(result, ClassifiedSeed::Constant { path, .. } if path.segments.last().unwrap().ident == "SEED_CONSTANT")
+        );
     }
 
     #[test]

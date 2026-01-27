@@ -9,8 +9,10 @@
 #![allow(deprecated)]
 
 use anchor_lang::prelude::*;
-use light_sdk::derive_light_cpi_signer;
-use light_sdk::interface::{LightFinalize, LightPreInit};
+use light_sdk::{
+    derive_light_cpi_signer,
+    interface::{LightFinalize, LightPreInit},
+};
 use light_sdk_types::CpiSigner;
 use solana_program_error::ProgramError;
 
@@ -26,15 +28,13 @@ pub mod token_account;
 pub mod two_mints;
 
 // Re-export account_loader accounts at crate root (required for Anchor's #[program] macro)
-pub use account_loader::accounts::*;
 pub use account_loader::{
-    PackedZeroCopyRecord, PackedZeroCopyRecordSeeds, PackedZeroCopyRecordVariant, ZeroCopyRecord,
-    ZeroCopyRecordSeeds, ZeroCopyRecordVariant,
+    accounts::*, PackedZeroCopyRecord, PackedZeroCopyRecordSeeds, PackedZeroCopyRecordVariant,
+    ZeroCopyRecord, ZeroCopyRecordSeeds, ZeroCopyRecordVariant,
 };
-pub use all::accounts::*;
 pub use all::{
-    AllBorshSeeds, AllBorshVariant, AllZeroCopySeeds, AllZeroCopyVariant, PackedAllBorshSeeds,
-    PackedAllBorshVariant, PackedAllZeroCopySeeds, PackedAllZeroCopyVariant,
+    accounts::*, AllBorshSeeds, AllBorshVariant, AllZeroCopySeeds, AllZeroCopyVariant,
+    PackedAllBorshSeeds, PackedAllBorshVariant, PackedAllZeroCopySeeds, PackedAllZeroCopyVariant,
 };
 pub use ata::accounts::*;
 pub use derived_compress::*;
@@ -45,9 +45,8 @@ pub use light_sdk::interface::{
     AccountType, CompressAndCloseParams, DecompressIdempotentParams, DecompressVariant,
     LightAccount,
 };
-pub use pda::accounts::*;
 pub use pda::{
-    MinimalRecord, MinimalRecordSeeds, MinimalRecordVariant, PackedMinimalRecord,
+    accounts::*, MinimalRecord, MinimalRecordSeeds, MinimalRecordVariant, PackedMinimalRecord,
     PackedMinimalRecordSeeds, PackedMinimalRecordVariant,
 };
 pub use token_account::accounts::*;
@@ -112,7 +111,7 @@ pub mod manual_test {
     /// NOTE: Empty Accounts struct - everything in remaining_accounts.
     /// Deserialization happens inside process_compress_pda_accounts_idempotent.
     pub fn compress_accounts_idempotent<'info>(
-        ctx: Context<'_, '_, '_, 'info, CompressAndClose>,
+        ctx: Context<'_, '_, '_, 'info, CompressAndClose<'info>>,
         instruction_data: Vec<u8>,
     ) -> Result<()> {
         derived_compress::process_compress_and_close(ctx.remaining_accounts, &instruction_data)
@@ -121,10 +120,10 @@ pub mod manual_test {
     /// Decompress compressed accounts back into PDAs idempotently.
     /// Named to match SDK expected discriminator.
     ///
-    /// NOTE: Empty Accounts struct - everything in remaining_accounts.
+    /// NOTE: PhantomData struct - all accounts in remaining_accounts.
     /// Deserialization happens inside process_decompress_pda_accounts_idempotent.
     pub fn decompress_accounts_idempotent<'info>(
-        ctx: Context<'_, '_, '_, 'info, DecompressIdempotent>,
+        ctx: Context<'_, '_, '_, 'info, DecompressIdempotent<'info>>,
         instruction_data: Vec<u8>,
     ) -> Result<()> {
         derived_decompress::process_decompress_idempotent(ctx.remaining_accounts, &instruction_data)

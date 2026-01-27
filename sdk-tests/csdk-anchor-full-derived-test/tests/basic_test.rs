@@ -306,7 +306,10 @@ async fn test_create_pdas_and_mint_auto() {
     // PHASE 3: Decompress all accounts via create_load_instructions
     use anchor_lang::AnchorDeserialize;
     use csdk_anchor_full_derived_test::{
-        csdk_anchor_full_derived_test::{LightAccountVariant, TokenAccountVariant, UserRecordVariant, UserRecordSeeds, GameSessionVariant, GameSessionSeeds},
+        csdk_anchor_full_derived_test::{
+            GameSessionSeeds, GameSessionVariant, LightAccountVariant, TokenAccountVariant,
+            UserRecordSeeds, UserRecordVariant,
+        },
         GameSession as GameSessionState, UserRecord,
     };
     use light_client::interface::{
@@ -493,7 +496,7 @@ async fn test_create_pdas_and_mint_auto() {
     );
 
     // Extract runtime-specific value (compression_info set during transaction)
-    let compression_info = game_session.compression_info.clone();
+    let compression_info = game_session.compression_info;
 
     // Build expected struct with compress_as overrides applied:
     // #[compress_as(start_time = 0, end_time = None, score = 0)]

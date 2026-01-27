@@ -316,7 +316,8 @@ fn test_packed_struct_has_u8_pubkey_fields() {
         owner: 0,
         delegate: 1,
         authority: 2,
-        close_authority: Some(close_authority),        name: "test".to_string(),
+        close_authority: Some(close_authority),
+        name: "test".to_string(),
         hash: [0u8; 32],
         start_time: 100,
         cached_time: 0, // overridden by compress_as
@@ -522,27 +523,3 @@ fn test_pack_reuses_duplicate_pubkeys_for_direct_fields() {
     let stored_pubkeys = packed_accounts.packed_pubkeys();
     assert_eq!(stored_pubkeys.len(), 2, "should have 2 unique pubkeys");
 }
-
-#[test]
-fn test_pack_sets_compression_info_to_none() {
-    let record = AllCompositionRecord {
-        owner: Pubkey::new_unique(),
-        delegate: Pubkey::new_unique(),
-        authority: Pubkey::new_unique(),
-        close_authority: Some(Pubkey::new_unique()),
-        compression_info: CompressionInfo::default(),
-        name: "test".to_string(),
-        hash: [0u8; 32],
-        start_time: 100,
-        cached_time: 200,
-        end_time: Some(300),
-        counter_1: 1,
-        counter_2: 2,
-        counter_3: 3,
-        flag_1: true,
-        flag_2: false,
-        score: Some(50),
-    };
-
-    let mut packed_accounts = PackedAccounts::default();
-    let packed = record.pack(&mut packed_accounts).unwrap();}

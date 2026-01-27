@@ -107,10 +107,13 @@ impl CompressBuilder {
                     }
                 }
             } else {
-                // Borsh path: use try_from_slice
+                // Borsh path: use deserialize (not try_from_slice which requires all bytes consumed)
+                // Anchor allocates INIT_SPACE (max size) but actual Borsh data may be shorter
+                // due to variable-length fields (String, Vec), leaving trailing bytes.
                 quote! {
                     d if d == #name::LIGHT_DISCRIMINATOR => {
-                        let mut account_data = #name::try_from_slice(&data[8..])
+                        let mut reader = &data[8..];
+                        let mut account_data = #name::deserialize(&mut reader)
                             .map_err(|_| solana_program_error::ProgramError::InvalidAccountData)?;
                         drop(data);
                         light_sdk::interface::prepare_account_for_compression(
@@ -171,7 +174,7 @@ impl CompressBuilder {
         Ok(syn::parse_quote! {
             #[inline(never)]
             pub fn compress_accounts_idempotent<'info>(
-                ctx: Context<'_, '_, '_, 'info, CompressAccountsIdempotent>,
+                ctx: Context<'_, '_, '_, 'info, CompressAccountsIdempotent<'info>>,
                 instruction_data: Vec<u8>,
             ) -> Result<()> {
                 __processor_functions::process_compress_accounts_idempotent(
@@ -182,14 +185,128 @@ impl CompressBuilder {
         })
     }
 
-    /// Generate the compress accounts struct.
+    /// Generate the compress accounts struct and manual Anchor trait impls.
     ///
-    /// Empty struct - all accounts are passed via remaining_accounts
-    /// and validated by the SDK's process_compress_pda_accounts_idempotent.
+    /// Uses PhantomData for the `<'info>` lifetime so Anchor's CPI codegen
+    /// can reference `CompressAccountsIdempotent<'info>`.
+    /// All accounts are passed via remaining_accounts.
     pub fn generate_accounts_struct(&self) -> Result<syn::ItemStruct> {
         Ok(syn::parse_quote! {
-            #[derive(Accounts)]
-            pub struct CompressAccountsIdempotent {}
+            pub struct CompressAccountsIdempotent<'info>(
+                std::marker::PhantomData<&'info ()>,
+            );
+        })
+    }
+
+    /// Generate manual Anchor trait implementations for the empty accounts struct.
+    pub fn generate_accounts_trait_impls(&self) -> Result<TokenStream> {
+        Ok(quote! {
+            impl<'info> anchor_lang::Accounts<'info, CompressAccountsIdempotentBumps>
+                for CompressAccountsIdempotent<'info>
+            {
+                fn try_accounts(
+                    _program_id: &anchor_lang::solana_program::pubkey::Pubkey,
+                    _accounts: &mut &'info [anchor_lang::solana_program::account_info::AccountInfo<'info>],
+                    _ix_data: &[u8],
+                    _bumps: &mut CompressAccountsIdempotentBumps,
+                    _reallocs: &mut std::collections::BTreeSet<anchor_lang::solana_program::pubkey::Pubkey>,
+                ) -> anchor_lang::Result<Self> {
+                    Ok(CompressAccountsIdempotent(std::marker::PhantomData))
+                }
+            }
+
+            #[derive(Debug, Default)]
+            pub struct CompressAccountsIdempotentBumps {}
+
+            impl<'info> anchor_lang::Bumps for CompressAccountsIdempotent<'info> {
+                type Bumps = CompressAccountsIdempotentBumps;
+            }
+
+            impl<'info> anchor_lang::ToAccountInfos<'info> for CompressAccountsIdempotent<'info> {
+                fn to_account_infos(
+                    &self,
+                ) -> Vec<anchor_lang::solana_program::account_info::AccountInfo<'info>> {
+                    Vec::new()
+                }
+            }
+
+            impl<'info> anchor_lang::ToAccountMetas for CompressAccountsIdempotent<'info> {
+                fn to_account_metas(
+                    &self,
+                    _is_signer: Option<bool>,
+                ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
+                    Vec::new()
+                }
+            }
+
+            impl<'info> anchor_lang::AccountsExit<'info> for CompressAccountsIdempotent<'info> {
+                fn exit(
+                    &self,
+                    _program_id: &anchor_lang::solana_program::pubkey::Pubkey,
+                ) -> anchor_lang::Result<()> {
+                    Ok(())
+                }
+            }
+
+            impl<'info> CompressAccountsIdempotent<'info> {
+                pub fn __anchor_private_gen_idl_accounts(
+                    _accounts: &mut std::collections::BTreeMap<
+                        String,
+                        anchor_lang::idl::types::IdlAccount,
+                    >,
+                    _types: &mut std::collections::BTreeMap<
+                        String,
+                        anchor_lang::idl::types::IdlTypeDef,
+                    >,
+                ) -> Vec<anchor_lang::idl::types::IdlInstructionAccountItem> {
+                    Vec::new()
+                }
+            }
+
+            pub(crate) mod __client_accounts_compress_accounts_idempotent {
+                use super::*;
+                pub struct CompressAccountsIdempotent<'info>(
+                    std::marker::PhantomData<&'info ()>,
+                );
+                impl<'info> borsh::ser::BorshSerialize for CompressAccountsIdempotent<'info> {
+                    fn serialize<W: borsh::maybestd::io::Write>(
+                        &self,
+                        _writer: &mut W,
+                    ) -> ::core::result::Result<(), borsh::maybestd::io::Error> {
+                        Ok(())
+                    }
+                }
+                impl<'info> anchor_lang::ToAccountMetas for CompressAccountsIdempotent<'info> {
+                    fn to_account_metas(
+                        &self,
+                        _is_signer: Option<bool>,
+                    ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
+                        Vec::new()
+                    }
+                }
+            }
+
+            pub(crate) mod __cpi_client_accounts_compress_accounts_idempotent {
+                use super::*;
+                pub struct CompressAccountsIdempotent<'info>(
+                    std::marker::PhantomData<&'info ()>,
+                );
+                impl<'info> anchor_lang::ToAccountMetas for CompressAccountsIdempotent<'info> {
+                    fn to_account_metas(
+                        &self,
+                        _is_signer: Option<bool>,
+                    ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
+                        Vec::new()
+                    }
+                }
+                impl<'info> anchor_lang::ToAccountInfos<'info> for CompressAccountsIdempotent<'info> {
+                    fn to_account_infos(
+                        &self,
+                    ) -> Vec<anchor_lang::solana_program::account_info::AccountInfo<'info>> {
+                        Vec::new()
+                    }
+                }
+            }
         })
     }
 

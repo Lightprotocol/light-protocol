@@ -223,7 +223,8 @@ fn test_hash_differs_for_different_category_id() {
 fn test_packed_struct_has_u8_owner() {
     // Verify PackedUserRecord has the expected structure
     // The Packed struct uses the same field name but changes type to u8
-    let packed = PackedUserRecord {owner: 0,
+    let packed = PackedUserRecord {
+        owner: 0,
         name: "test".to_string(),
         score: 42,
         category_id: 1,
@@ -324,8 +325,6 @@ fn test_pack_different_pubkeys_get_different_indices() {
         "different pubkeys should produce different indices"
     );
 }
-
-
 
 #[test]
 fn test_pack_stores_pubkeys_in_packed_accounts() {

@@ -219,7 +219,8 @@ fn test_hash_differs_for_different_open_time() {
 #[test]
 fn test_packed_struct_has_u8_pubkey_indices() {
     // PoolState has 10 Pubkey fields, so PackedPoolState should have 10 u8 fields
-    let packed = PackedPoolState {        amm_config: 0,
+    let packed = PackedPoolState {
+        amm_config: 0,
         pool_creator: 1,
         token_0_vault: 2,
         token_1_vault: 3,
@@ -402,38 +403,6 @@ fn test_pack_preserves_numeric_fields() {
     assert_eq!(packed.recent_epoch, 999);
     assert_eq!(packed.padding[0], 42);
 }
-
-#[test]
-fn test_pack_sets_compression_info_to_none() {
-    let pool_with_info = PoolState {
-        compression_info: CompressionInfo::default(),
-        amm_config: Pubkey::new_unique(),
-        pool_creator: Pubkey::new_unique(),
-        token_0_vault: Pubkey::new_unique(),
-        token_1_vault: Pubkey::new_unique(),
-        lp_mint: Pubkey::new_unique(),
-        token_0_mint: Pubkey::new_unique(),
-        token_1_mint: Pubkey::new_unique(),
-        token_0_program: Pubkey::new_unique(),
-        token_1_program: Pubkey::new_unique(),
-        observation_key: Pubkey::new_unique(),
-        auth_bump: 0,
-        status: 0,
-        lp_mint_decimals: 9,
-        mint_0_decimals: 9,
-        mint_1_decimals: 6,
-        lp_supply: 0,
-        protocol_fees_token_0: 0,
-        protocol_fees_token_1: 0,
-        fund_fees_token_0: 0,
-        fund_fees_token_1: 0,
-        open_time: 0,
-        recent_epoch: 0,
-        padding: [0u64; 1],
-    };
-
-    let mut packed_accounts = PackedAccounts::default();
-    let packed = pool_with_info.pack(&mut packed_accounts).unwrap();}
 
 #[test]
 fn test_pack_different_pubkeys_get_different_indices() {

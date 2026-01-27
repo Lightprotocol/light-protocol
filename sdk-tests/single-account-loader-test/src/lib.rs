@@ -68,7 +68,7 @@ pub mod single_account_loader_test {
     ) -> Result<()> {
         // Initialize the record data using load_init for zero-copy access
         let mut record = ctx.accounts.record.load_init()?;
-        record.owner = params.owner.to_bytes();
+        record.owner = params.owner;
         record.counter = 0;
         // compression_info is handled by the macro-generated LightPreInit
         Ok(())

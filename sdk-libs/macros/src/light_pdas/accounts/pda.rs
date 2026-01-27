@@ -195,9 +195,7 @@ impl<'a> PdaBlockBuilder<'a> {
 ///
 /// Returns a vector of TokenStreams for compression blocks.
 /// The blocks push into `all_new_address_params` and `all_compressed_infos` vectors.
-pub(super) fn generate_pda_compress_blocks(
-    fields: &[ParsedPdaField],
-) -> Vec<TokenStream> {
+pub(super) fn generate_pda_compress_blocks(fields: &[ParsedPdaField]) -> Vec<TokenStream> {
     fields
         .iter()
         .enumerate()

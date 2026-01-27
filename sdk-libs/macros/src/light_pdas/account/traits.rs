@@ -284,4 +284,3 @@ pub fn derive_compressible(input: DeriveInput) -> Result<TokenStream> {
         #compressed_init_space_impl
     })
 }
-

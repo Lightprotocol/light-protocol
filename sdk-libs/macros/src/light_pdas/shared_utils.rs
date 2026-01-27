@@ -138,7 +138,8 @@ pub fn to_pascal_case(s: &str) -> String {
             let mut chars = part.chars();
             match chars.next() {
                 Some(first) => {
-                    first.to_uppercase().collect::<String>() + chars.as_str().to_lowercase().as_str()
+                    first.to_uppercase().collect::<String>()
+                        + chars.as_str().to_lowercase().as_str()
                 }
                 None => String::new(),
             }

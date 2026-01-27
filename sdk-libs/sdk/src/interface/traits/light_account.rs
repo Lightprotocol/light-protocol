@@ -5,13 +5,14 @@
 
 use anchor_lang::prelude::*;
 use light_hasher::DataHasher;
+use solana_program_error::ProgramError;
+
 use crate::{
     compressible::CompressionInfo,
     instruction::PackedAccounts,
     interface::LightConfig,
     light_account_checks::{packed_accounts::ProgramPackedAccounts, AccountInfoTrait},
 };
-use solana_program_error::ProgramError;
 
 pub enum AccountType {
     Pda,

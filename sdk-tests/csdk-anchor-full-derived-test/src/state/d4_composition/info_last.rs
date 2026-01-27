@@ -3,7 +3,7 @@
 //! Exercises struct validation with compression_info in non-first position.
 
 use anchor_lang::prelude::*;
-use light_sdk::compressible::CompressionInfo;
+use light_sdk::{compressible::CompressionInfo, LightDiscriminator};
 use light_sdk_macros::LightAccount;
 
 /// Struct with compression_info as last field.

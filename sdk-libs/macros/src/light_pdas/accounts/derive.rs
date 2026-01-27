@@ -34,8 +34,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::DeriveInput;
 
-use super::builder::LightAccountsBuilder;
-use super::variant::generate_variants;
+use super::{builder::LightAccountsBuilder, variant::generate_variants};
 use crate::light_pdas::seeds::extract_seed_specs;
 
 /// Main orchestration - shows the high-level flow clearly.
@@ -65,7 +64,12 @@ pub(super) fn derive_light_accounts(input: &DeriveInput) -> Result<TokenStream, 
                 semi_token: None,
             }
         }
-        _ => return Err(syn::Error::new_spanned(input, "LightAccounts requires a struct")),
+        _ => {
+            return Err(syn::Error::new_spanned(
+                input,
+                "LightAccounts requires a struct",
+            ))
+        }
     };
 
     // Extract seed specs and generate variant code for PDA fields
@@ -317,7 +321,11 @@ mod tests {
         };
 
         let result = derive_light_accounts(&input);
-        assert!(result.is_ok(), "PDA derive should succeed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "PDA derive should succeed: {:?}",
+            result.err()
+        );
 
         let output = result.unwrap().to_string();
 
@@ -365,18 +373,24 @@ mod tests {
         };
 
         let result = derive_light_accounts(&input);
-        assert!(result.is_ok(), "PDA derive should succeed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "PDA derive should succeed: {:?}",
+            result.err()
+        );
 
         let output = result.unwrap().to_string();
 
         // Seeds struct should have both authority (account) and owner (data) fields
         assert!(
             output.contains("pub authority : Pubkey"),
-            "UserRecordSeeds should have authority field: {}", output
+            "UserRecordSeeds should have authority field: {}",
+            output
         );
         assert!(
             output.contains("pub owner : Pubkey"),
-            "UserRecordSeeds should have owner field: {}", output
+            "UserRecordSeeds should have owner field: {}",
+            output
         );
 
         // Packed seeds should have authority_idx (u8) and owner (Pubkey - data seeds stay as Pubkey)
@@ -387,7 +401,8 @@ mod tests {
         // Owner is a data seed, should be stored as Pubkey not u8
         assert!(
             output.contains("pub owner : Pubkey"),
-            "PackedUserRecordSeeds should have owner as Pubkey (data seed): {}", output
+            "PackedUserRecordSeeds should have owner as Pubkey (data seed): {}",
+            output
         );
     }
 }

@@ -132,7 +132,7 @@ async fn test_zero_copy_create_compress_decompress() {
         name: name.clone(),
     }
     .into_variant(&account_interface.account.data[8..])
-        .expect("Seed verification failed");
+    .expect("Seed verification failed");
 
     // Verify the data from the compressed account
     assert_eq!(variant.data.value, value, "Compressed value should match");

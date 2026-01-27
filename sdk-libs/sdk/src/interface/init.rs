@@ -5,8 +5,9 @@ use light_compressed_account::{
     instruction_data::{data::NewAddressParamsAssignedPacked, with_account_info::OutAccountInfo},
 };
 use light_hasher::errors::HasherError;
-use crate::{compressed_account::CompressedAccountInfo, instruction::PackedAddressTreeInfo};
 use solana_pubkey::Pubkey;
+
+use crate::{compressed_account::CompressedAccountInfo, instruction::PackedAddressTreeInfo};
 
 /// Prepare a compressed account for a PDA during initialization.
 ///
@@ -31,6 +32,7 @@ use solana_pubkey::Pubkey;
 /// * `new_address_params` - Vector to push new address params into
 /// * `account_infos` - Vector to push compressed account info into
 #[inline(never)]
+#[allow(clippy::too_many_arguments)]
 pub fn prepare_compressed_account_on_init(
     pda_pubkey: &Pubkey,
     address_tree_pubkey: &Pubkey,

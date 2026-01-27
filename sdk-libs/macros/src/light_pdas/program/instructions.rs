@@ -395,8 +395,7 @@ fn codegen(
     let error_codes = compress_builder.generate_error_codes()?;
 
     // Create DecompressBuilder to generate all decompress-related code
-    let decompress_builder =
-        DecompressBuilder::new(pda_ctx_seeds.clone(), pda_seeds.clone());
+    let decompress_builder = DecompressBuilder::new(pda_ctx_seeds.clone(), pda_seeds.clone());
     // Note: DecompressBuilder validation is optional for now since pda_seeds may be empty for TokenOnly
 
     let decompress_accounts = decompress_builder.generate_accounts_struct()?;
@@ -609,6 +608,9 @@ fn codegen(
     content.1.push(Item::Verbatim(enum_and_traits));
     content.1.push(Item::Verbatim(ctoken_enum));
     content.1.push(Item::Struct(decompress_accounts));
+    content.1.push(Item::Verbatim(
+        decompress_builder.generate_accounts_trait_impls()?,
+    ));
     if let Some(trait_impls) = trait_impls {
         content.1.push(Item::Mod(trait_impls));
     }
@@ -617,6 +619,9 @@ fn codegen(
         content.1.push(Item::Fn(decompress_instruction));
     }
     content.1.push(Item::Struct(compress_accounts));
+    content.1.push(Item::Verbatim(
+        compress_builder.generate_accounts_trait_impls()?,
+    ));
     content.1.push(Item::Fn(compress_instruction));
     content.1.push(Item::Struct(init_config_accounts));
     content.1.push(Item::Struct(update_config_accounts));
@@ -707,7 +712,9 @@ pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<Tok
         // Parse #[instruction(...)] attribute to get instruction arg names
         let instruction_args = parse_instruction_arg_names(&item_struct.attrs)?;
 
-        if let Some(info) = extract_from_accounts_struct(item_struct, &instruction_args, module_path)? {
+        if let Some(info) =
+            extract_from_accounts_struct(item_struct, &instruction_args, module_path)?
+        {
             if !info.pda_fields.is_empty()
                 || !info.token_fields.is_empty()
                 || info.has_light_mint_fields
@@ -821,7 +828,8 @@ pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<Tok
             is_zero_copy: pda.is_zero_copy,
         });
 
-        let seed_elements = convert_classified_to_seed_elements(&pda.seeds, &pda.module_path, &crate_ctx);
+        let seed_elements =
+            convert_classified_to_seed_elements(&pda.seeds, &pda.module_path, &crate_ctx);
 
         // Extract data field types from seeds
         for (field_name, conversion) in get_data_fields(&pda.seeds) {
@@ -857,11 +865,11 @@ pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<Tok
     // Convert token specs
     let mut found_token_seeds: Vec<TokenSeedSpec> = Vec::new();
     for token in &token_specs {
-        let seed_elements = convert_classified_to_seed_elements(&token.seeds, &token.module_path, &crate_ctx);
-        let authority_elements = token
-            .authority_seeds
-            .as_ref()
-            .map(|seeds| convert_classified_to_seed_elements_vec(seeds, &token.module_path, &crate_ctx));
+        let seed_elements =
+            convert_classified_to_seed_elements(&token.seeds, &token.module_path, &crate_ctx);
+        let authority_elements = token.authority_seeds.as_ref().map(|seeds| {
+            convert_classified_to_seed_elements_vec(seeds, &token.module_path, &crate_ctx)
+        });
 
         found_token_seeds.push(TokenSeedSpec {
             variant: token.variant_name.clone(),

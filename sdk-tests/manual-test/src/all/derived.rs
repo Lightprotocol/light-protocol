@@ -14,7 +14,7 @@ use light_sdk::{
     cpi::{v2::CpiAccounts, CpiAccountsConfig, InvokeLightSystemProgram},
     error::LightSdkError,
     instruction::PackedAddressTreeInfoExt,
-    interface::{LightFinalize, LightPreInit},
+    interface::{prepare_compressed_account_on_init, LightAccount, LightFinalize, LightPreInit},
     sdk_types::CpiContextWriteAccounts,
 };
 use light_token::{
@@ -31,7 +31,6 @@ use solana_program_error::ProgramError;
 use super::accounts::{
     CreateAllAccounts, CreateAllParams, ALL_MINT_SIGNER_SEED, ALL_TOKEN_VAULT_SEED,
 };
-use light_sdk::interface::{prepare_compressed_account_on_init, LightAccount};
 
 // ============================================================================
 // LightPreInit Implementation - Creates all accounts at START of instruction
@@ -44,8 +43,7 @@ impl<'info> LightPreInit<'info, CreateAllParams> for CreateAllAccounts<'info> {
         params: &CreateAllParams,
     ) -> std::result::Result<bool, LightSdkError> {
         use light_sdk::interface::config::LightConfig;
-        use solana_program::clock::Clock;
-        use solana_program::sysvar::Sysvar;
+        use solana_program::{clock::Clock, sysvar::Sysvar};
 
         // Constants for this instruction
         const NUM_LIGHT_PDAS: usize = 2;

@@ -30,7 +30,5 @@ mod types;
 
 // Re-export from extract
 pub use extract::extract_seed_specs;
-
 // Re-export from types
 pub use types::SeedSpec;
-

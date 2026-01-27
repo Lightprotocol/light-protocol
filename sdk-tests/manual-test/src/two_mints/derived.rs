@@ -58,6 +58,7 @@ impl<'info> LightPreInit<'info, CreateDerivedMintsParams> for CreateDerivedMints
         // Constants for this instruction (mirrors macro-generated code)
         const NUM_LIGHT_MINTS: usize = 2;
         const NUM_LIGHT_PDAS: usize = 0; // Set to actual PDA count when combining PDAs + mints
+        #[allow(clippy::absurd_extreme_comparisons)]
         const WITH_CPI_CONTEXT: bool = NUM_LIGHT_PDAS > 0 && NUM_LIGHT_MINTS > 0; // true if combining mints + PDAs
 
         // ====================================================================

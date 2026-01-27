@@ -15,9 +15,11 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{Ident, Type};
 
-use crate::light_pdas::account::seed_extraction::{ClassifiedSeed, FnArgKind};
-use crate::light_pdas::seeds::SeedSpec;
-use crate::light_pdas::shared_utils::{make_packed_type, to_pascal_case};
+use crate::light_pdas::{
+    account::seed_extraction::{ClassifiedSeed, FnArgKind},
+    seeds::SeedSpec,
+    shared_utils::{make_packed_type, to_pascal_case},
+};
 
 /// Information about a single seed for code generation.
 #[derive(Clone, Debug)]
@@ -116,7 +118,7 @@ impl VariantBuilder {
             })
             .collect();
 
-        // Use borsh derives + empty IdlBuild impl to avoid Anchor IDL issues with Pubkey
+        // AnchorSerialize derive provides IdlBuild impl when idl-build feature is enabled
         if fields.is_empty() {
             quote! {
                 #[doc = #doc]
@@ -137,7 +139,10 @@ impl VariantBuilder {
     /// Generate the `Packed{Field}Seeds` struct.
     fn generate_packed_seeds_struct(&self) -> TokenStream {
         let struct_name = format_ident!("Packed{}Seeds", self.variant_name);
-        let doc = format!("Packed seeds with u8 indices for {} PDA.", self.variant_name);
+        let doc = format!(
+            "Packed seeds with u8 indices for {} PDA.",
+            self.variant_name
+        );
 
         // Generate packed fields
         let fields: Vec<_> = self
@@ -161,9 +166,6 @@ impl VariantBuilder {
                 #(#fields,)*
                 pub bump: u8,
             }
-
-            #[cfg(feature = "idl-build")]
-            impl anchor_lang::idl::IdlBuild for #struct_name {}
         }
     }
 
@@ -172,7 +174,10 @@ impl VariantBuilder {
         let struct_name = format_ident!("{}Variant", self.variant_name);
         let seeds_struct_name = format_ident!("{}Seeds", self.variant_name);
         let inner_type = &self.inner_type;
-        let doc = format!("Full variant combining seeds + data for {}.", self.variant_name);
+        let doc = format!(
+            "Full variant combining seeds + data for {}.",
+            self.variant_name
+        );
 
         quote! {
             #[doc = #doc]
@@ -181,9 +186,6 @@ impl VariantBuilder {
                 pub seeds: #seeds_struct_name,
                 pub data: #inner_type,
             }
-
-            #[cfg(feature = "idl-build")]
-            impl anchor_lang::idl::IdlBuild for #struct_name {}
         }
     }
 
@@ -215,9 +217,6 @@ impl VariantBuilder {
                 pub seeds: #packed_seeds_struct_name,
                 pub data: #data_type,
             }
-
-            #[cfg(feature = "idl-build")]
-            impl anchor_lang::idl::IdlBuild for #struct_name {}
         }
     }
 
@@ -339,7 +338,9 @@ impl VariantBuilder {
         self.seeds
             .iter()
             .map(|seed| match seed {
-                ClassifiedSeed::Literal(_) | ClassifiedSeed::Constant { .. } | ClassifiedSeed::Passthrough(_) => {
+                ClassifiedSeed::Literal(_)
+                | ClassifiedSeed::Constant { .. }
+                | ClassifiedSeed::Passthrough(_) => {
                     let expr = seed_to_expr(seed);
                     quote! { (#expr).to_vec() }
                 }
@@ -354,7 +355,11 @@ impl VariantBuilder {
                         quote! { self.seeds.#field.to_bytes().to_vec() }
                     }
                 }
-                ClassifiedSeed::FunctionCall { func_expr, args, has_as_ref } => {
+                ClassifiedSeed::FunctionCall {
+                    func_expr,
+                    args,
+                    has_as_ref,
+                } => {
                     // Reconstruct call with self.seeds.X args
                     let rewritten = rewrite_fn_call_for_self(func_expr, args);
                     if *has_as_ref {
@@ -381,9 +386,15 @@ impl VariantBuilder {
                     // E.g., crate::id().as_ref() -- the Pubkey temporary is dropped before the
                     // returned array reference is used.
                     if expr_contains_call(pass_expr) {
+                        // Use a typed block to avoid `!` type causing unreachable expression warnings
+                        // in the surrounding array literal.
                         quote! {
-                            panic!("seed_refs_with_bump not supported for function call seeds on unpacked variant. \
-                                   Use packed variant or derive_pda() + seed_vec() instead.")
+                            {
+                                panic!("seed_refs_with_bump not supported for function call seeds on unpacked variant. \
+                                       Use packed variant or derive_pda() + seed_vec() instead.");
+                                #[allow(unreachable_code)]
+                                { bump_storage as &[u8] }
+                            }
                         }
                     } else {
                         let expr = seed_to_expr(seed);
@@ -396,20 +407,30 @@ impl VariantBuilder {
                 ClassifiedSeed::DataRooted { root, expr, .. } => {
                     let field = extract_data_field_name(root, expr);
                     if is_le_bytes_expr(expr) {
-                        // Numeric data seeds: can't return reference to temporary
+                        // Numeric data seeds: can't return reference to temporary.
+                        // Use a typed block to avoid `!` type causing unreachable expression warnings.
                         quote! {
-                            panic!("seed_refs_with_bump not supported for numeric data seeds on unpacked variant. \
-                                   Use packed variant or derive_pda() + seed_vec() instead.")
+                            {
+                                panic!("seed_refs_with_bump not supported for numeric data seeds on unpacked variant. \
+                                       Use packed variant or derive_pda() + seed_vec() instead.");
+                                #[allow(unreachable_code)]
+                                { bump_storage as &[u8] }
+                            }
                         }
                     } else {
                         quote! { self.seeds.#field.as_ref() }
                     }
                 }
                 ClassifiedSeed::FunctionCall { .. } => {
-                    // FunctionCall produces temporaries -- can't use seed_refs_with_bump
+                    // FunctionCall produces temporaries -- can't use seed_refs_with_bump.
+                    // Use a typed block to avoid `!` type causing unreachable expression warnings.
                     quote! {
-                        panic!("seed_refs_with_bump not supported for function call seeds on unpacked variant. \
-                               Use packed variant or derive_pda() + seed_vec() instead.")
+                        {
+                            panic!("seed_refs_with_bump not supported for function call seeds on unpacked variant. \
+                                   Use packed variant or derive_pda() + seed_vec() instead.");
+                            #[allow(unreachable_code)]
+                            { bump_storage as &[u8] }
+                        }
                     }
                 }
             })
@@ -490,9 +511,14 @@ impl VariantBuilder {
                 }
                 ClassifiedSeed::Passthrough(pass_expr) => {
                     if expr_contains_call(pass_expr) {
+                        // Use a typed block to avoid `!` type causing unreachable expression warnings.
                         quote! {
-                            panic!("seed_refs_with_bump not supported for function call seeds on packed variant. \
-                                   Use derive_pda() + seed_vec() instead.")
+                            {
+                                panic!("seed_refs_with_bump not supported for function call seeds on packed variant. \
+                                       Use derive_pda() + seed_vec() instead.");
+                                #[allow(unreachable_code)]
+                                { bump_storage as &[u8] }
+                            }
                         }
                     } else {
                         let expr = seed_to_expr(seed);
@@ -521,10 +547,15 @@ impl VariantBuilder {
                 ClassifiedSeed::FunctionCall { .. } => {
                     // FunctionCall args are packed as individual fields (account = idx, data = Pubkey)
                     // The packed_seed_refs_items needs the full reconstructed seed, but that's
-                    // impossible without temporary allocations. Use panic similar to numeric data seeds.
+                    // impossible without temporary allocations.
+                    // Use a typed block to avoid `!` type causing unreachable expression warnings.
                     quote! {
-                        panic!("seed_refs_with_bump not supported for function call seeds on packed variant. \
-                               Use derive_pda() + seed_vec() instead.")
+                        {
+                            panic!("seed_refs_with_bump not supported for function call seeds on packed variant. \
+                                   Use derive_pda() + seed_vec() instead.");
+                            #[allow(unreachable_code)]
+                            { bump_storage as &[u8] }
+                        }
                     }
                 }
             })
@@ -538,7 +569,9 @@ fn extract_seed_fields(seeds: &[ClassifiedSeed]) -> Vec<SeedFieldInfo> {
 
     for seed in seeds {
         match seed {
-            ClassifiedSeed::Literal(_) | ClassifiedSeed::Constant { .. } | ClassifiedSeed::Passthrough(_) => {
+            ClassifiedSeed::Literal(_)
+            | ClassifiedSeed::Constant { .. }
+            | ClassifiedSeed::Passthrough(_) => {
                 // Constants/literals/passthrough don't need fields - inlined
             }
             ClassifiedSeed::CtxRooted { account, .. } => {
@@ -699,9 +732,10 @@ pub(super) fn generate_variants(seed_specs: &[SeedSpec]) -> TokenStream {
 
 #[cfg(test)]
 mod tests {
+    use syn::parse_quote;
+
     use super::*;
     use crate::light_pdas::account::seed_extraction::ClassifiedSeed;
-    use syn::parse_quote;
 
     #[test]
     fn test_to_pascal_case_ident() {
@@ -734,13 +768,30 @@ mod tests {
         let code = builder.build();
         let code_str = code.to_string();
 
-        assert!(code_str.contains("UserRecordSeeds"), "Missing UserRecordSeeds: {}", code_str);
-        assert!(code_str.contains("PackedUserRecordSeeds"), "Missing PackedUserRecordSeeds: {}", code_str);
-        assert!(code_str.contains("UserRecordVariant"), "Missing UserRecordVariant: {}", code_str);
-        assert!(code_str.contains("PackedUserRecordVariant"), "Missing PackedUserRecordVariant: {}", code_str);
+        assert!(
+            code_str.contains("UserRecordSeeds"),
+            "Missing UserRecordSeeds: {}",
+            code_str
+        );
+        assert!(
+            code_str.contains("PackedUserRecordSeeds"),
+            "Missing PackedUserRecordSeeds: {}",
+            code_str
+        );
+        assert!(
+            code_str.contains("UserRecordVariant"),
+            "Missing UserRecordVariant: {}",
+            code_str
+        );
+        assert!(
+            code_str.contains("PackedUserRecordVariant"),
+            "Missing PackedUserRecordVariant: {}",
+            code_str
+        );
         // Check for LightAccountVariantTrait impl - the spacing varies based on quote! output
         assert!(
-            code_str.contains("LightAccountVariantTrait <") || code_str.contains("LightAccountVariantTrait<"),
+            code_str.contains("LightAccountVariantTrait <")
+                || code_str.contains("LightAccountVariantTrait<"),
             "Missing LightAccountVariantTrait impl: {}",
             code_str
         );

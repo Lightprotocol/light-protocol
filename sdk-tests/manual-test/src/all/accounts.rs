@@ -4,8 +4,7 @@ use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
 use solana_account_info::AccountInfo;
 
-use crate::account_loader::ZeroCopyRecord;
-use crate::pda::MinimalRecord;
+use crate::{account_loader::ZeroCopyRecord, pda::MinimalRecord};
 
 /// Seed constants for ALL module (DIFFERENT from pda/account_loader modules)
 pub const ALL_BORSH_SEED: &[u8] = b"all_borsh";

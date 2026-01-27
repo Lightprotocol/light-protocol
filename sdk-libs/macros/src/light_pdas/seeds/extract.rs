@@ -235,8 +235,7 @@ pub fn extract_seed_specs(item: &ItemStruct) -> syn::Result<Vec<SeedSpec>> {
         };
 
         // Extract seeds using the unified classifier
-        let seeds =
-            extract_seeds_from_attribute(&field.attrs, &instruction_args, &account_fields)?;
+        let seeds = extract_seeds_from_attribute(&field.attrs, &instruction_args, &account_fields)?;
 
         specs.push(SeedSpec::new(field_ident, inner_type, seeds, is_zero_copy));
     }

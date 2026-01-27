@@ -184,7 +184,8 @@ fn test_packed_struct_has_u8_owner() {
     let packed = PackedInfoLastRecord {
         owner: 0,
         counter: 42,
-        flag: true};
+        flag: true,
+    };
 
     assert_eq!(packed.owner, 0u8);
     assert_eq!(packed.counter, 42u64);
@@ -269,8 +270,6 @@ fn test_pack_preserves_counter_and_flag() {
     assert_eq!(packed.counter, counter);
     assert_eq!(packed.flag, flag);
 }
-
-
 
 #[test]
 fn test_pack_different_pubkeys_get_different_indices() {

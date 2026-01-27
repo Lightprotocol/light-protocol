@@ -184,7 +184,10 @@ pub enum ClientSeedInfo {
     /// Byte literal: b"seed" -> &[...]
     ByteLiteral(Vec<u8>),
     /// Constant: fully qualified path -> path.as_ref()
-    Constant { path: syn::Path, is_cpi_signer: bool },
+    Constant {
+        path: syn::Path,
+        is_cpi_signer: bool,
+    },
     /// ctx.field or ctx.accounts.field -> Pubkey parameter
     CtxField { field: Ident, method: Option<Ident> },
     /// data.field -> typed parameter from instruction_data

@@ -3,32 +3,32 @@
 //! These functions are generic over account types and can be reused by the macro.
 //! The decompress flow creates PDAs from compressed state (needs validity proof, packed data, seeds).
 
-use anchor_lang::prelude::*;
+use anchor_lang::{
+    prelude::*,
+    solana_program::{clock::Clock, rent::Rent, sysvar::Sysvar},
+};
 use light_compressed_account::{
     address::derive_address,
     compressed_account::PackedMerkleContext,
     instruction_data::with_account_info::{CompressedAccountInfo, InAccountInfo, OutAccountInfo},
 };
 use light_hasher::{Hasher, Sha256};
+use light_sdk_types::{
+    instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress, CpiSigner,
+};
+use solana_program_error::ProgramError;
+
+use super::traits::{LightAccount, LightAccountVariantTrait, PackedLightAccountVariantTrait};
 use crate::{
     cpi::{
         v2::{CpiAccounts, LightSystemProgramCpi},
         InvokeLightSystemProgram, LightCpiInstruction,
     },
     instruction::ValidityProof,
-    interface::{create_pda_account, LightConfig},
+    interface::{compression_info::CompressedAccountData, create_pda_account, LightConfig},
     light_account_checks::{account_iterator::AccountIterator, checks::check_data_is_zeroed},
     LightDiscriminator,
 };
-use light_sdk_types::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;
-use light_sdk_types::CpiSigner;
-use anchor_lang::solana_program::clock::Clock;
-use anchor_lang::solana_program::rent::Rent;
-use anchor_lang::solana_program::sysvar::Sysvar;
-use solana_program_error::ProgramError;
-
-use super::traits::{LightAccount, LightAccountVariantTrait, PackedLightAccountVariantTrait};
-use crate::interface::compression_info::CompressedAccountData;
 
 // ============================================================================
 // DecompressVariant Trait (implemented by program's PackedProgramAccountVariant)
@@ -99,7 +99,7 @@ pub struct DecompressCtx<'a, 'info> {
 /// [2]: rent_sponsor (mut)
 /// [system_accounts_offset..]: Light system accounts for CPI
 /// [remaining_accounts.len() - num_pda_accounts..]: PDA accounts to decompress
-
+///
 /// Runtime processor - handles all the plumbing, dispatches via DecompressVariant trait.
 ///
 /// **Takes raw instruction data** and deserializes internally - minimizes macro code.
@@ -171,12 +171,14 @@ where
         let pda_account = &pda_accounts[i];
 
         // Dispatch via trait - implementation is in program's PackedProgramAccountVariant
-        account_data.data.decompress(&account_data.meta, pda_account, &mut decompress_ctx)?;
+        account_data
+            .data
+            .decompress(&account_data.meta, pda_account, &mut decompress_ctx)?;
     }
 
     // CPI to Light System Program with proof
     if !decompress_ctx.compressed_account_infos.is_empty() {
-        LightSystemProgramCpi::new_cpi(cpi_signer, params.proof.into())
+        LightSystemProgramCpi::new_cpi(cpi_signer, params.proof)
             .with_account_infos(&decompress_ctx.compressed_account_infos)
             .invoke(cpi_accounts.clone())
             .map_err(|_| ProgramError::Custom(200))?;
@@ -221,19 +223,21 @@ where
         }
     }
 
-    // 2. Get bump and seeds from packed variant
-    // Packed indices are relative to packed_accounts (after system accounts offset)
+    // 2. Unpack to get the data (must happen before seed derivation so seed_vec() works
+    //    with function-call seeds that produce temporaries)
     let packed_accounts = ctx.cpi_accounts.packed_accounts();
 
-    let bump = packed.bump();
-    let bump_storage = [bump];
-    let seeds = packed.seed_refs_with_bump(packed_accounts, &bump_storage)?;
-
-    // 3. Unpack to get the data
     let unpacked = packed
         .unpack(packed_accounts)
         .map_err(|_| ProgramError::InvalidAccountData)?;
     let account_data = unpacked.data().clone();
+
+    // 3. Get seeds from unpacked variant using seed_vec() (owned data, no lifetime issues)
+    let bump = packed.bump();
+    let bump_bytes = [bump];
+    let mut seed_vecs = unpacked.seed_vec();
+    seed_vecs.push(bump_bytes.to_vec());
+    let seed_slices: Vec<&[u8]> = seed_vecs.iter().map(|v| v.as_slice()).collect();
 
     // 4. Hash with canonical CompressionInfo::compressed() for input verification
     let data_bytes = account_data
@@ -261,7 +265,7 @@ where
         rent_minimum,
         space as u64,
         ctx.program_id,
-        &seeds,
+        &seed_slices,
         system_program,
     )?;
 

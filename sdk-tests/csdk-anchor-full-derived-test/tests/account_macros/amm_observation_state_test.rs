@@ -225,7 +225,8 @@ fn test_hash_differs_for_different_observation_data() {
 #[test]
 fn test_packed_struct_has_u8_pool_id_index() {
     // ObservationState has 1 Pubkey field (pool_id), so PackedObservationState should have 1 u8 field
-    let packed = PackedObservationState {        initialized: false,
+    let packed = PackedObservationState {
+        initialized: false,
         observation_index: 0,
         pool_id: 0,
         observations: [
@@ -352,31 +353,6 @@ fn test_pack_preserves_all_fields() {
     assert_eq!(packed.observations[1].cumulative_token_1_price_x32, 8000);
     assert_eq!(packed.padding, [111, 222, 333, 444]);
 }
-
-#[test]
-fn test_pack_sets_compression_info_to_none() {
-    let observation_with_info = ObservationState {
-        compression_info: CompressionInfo::default(),
-        initialized: false,
-        observation_index: 0,
-        pool_id: Pubkey::new_unique(),
-        observations: [
-            Observation {
-                block_timestamp: 0,
-                cumulative_token_0_price_x32: 0,
-                cumulative_token_1_price_x32: 0,
-            },
-            Observation {
-                block_timestamp: 0,
-                cumulative_token_0_price_x32: 0,
-                cumulative_token_1_price_x32: 0,
-            },
-        ],
-        padding: [0u64; 4],
-    };
-
-    let mut packed_accounts = PackedAccounts::default();
-    let packed = observation_with_info.pack(&mut packed_accounts).unwrap();}
 
 #[test]
 fn test_pack_different_pool_ids_get_different_indices() {

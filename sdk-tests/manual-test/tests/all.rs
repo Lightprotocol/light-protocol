@@ -17,7 +17,9 @@ use light_token::instruction::{
     config_pda, derive_associated_token_account, find_mint_address, rent_sponsor_pda,
     LIGHT_TOKEN_PROGRAM_ID,
 };
-use light_token_interface::state::{AccountState, BaseMint, Mint, MintMetadata, Token, ACCOUNT_TYPE_MINT};
+use light_token_interface::state::{
+    AccountState, BaseMint, Mint, MintMetadata, Token, ACCOUNT_TYPE_MINT,
+};
 use manual_test::{
     CreateAllParams, MinimalRecord, ZeroCopyRecord, ALL_BORSH_SEED, ALL_MINT_SIGNER_SEED,
     ALL_TOKEN_VAULT_SEED, ALL_ZERO_COPY_SEED,

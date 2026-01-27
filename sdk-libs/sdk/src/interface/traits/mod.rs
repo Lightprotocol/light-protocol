@@ -1,7 +1,6 @@
-//! Traits for decompression variant construction.
-//!
-//! These traits enable ergonomic client-side construction of `RentFreeDecompressAccount`
-//! from seeds and compressed account data.
+//! Traits for decompression variant construction and manual Light Protocol implementation.
+
+// --- v1 trait definitions (always available) ---
 
 #[cfg(feature = "anchor")]
 use anchor_lang::error::Error;
@@ -66,3 +65,15 @@ pub trait IntoCTokenVariant<V, T> {
 pub trait PdaSeeds<Accounts, const N: usize> {
     fn seeds<'a>(&'a self, accounts: &'a Accounts) -> [&'a [u8]; N];
 }
+
+// --- v2 trait submodules (anchor-gated) ---
+
+#[cfg(feature = "anchor")]
+pub mod light_account;
+#[cfg(feature = "anchor")]
+pub mod variant;
+
+#[cfg(feature = "anchor")]
+pub use light_account::{AccountType, LightAccount};
+#[cfg(feature = "anchor")]
+pub use variant::{LightAccountVariantTrait, PackedLightAccountVariantTrait};

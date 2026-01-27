@@ -125,9 +125,11 @@ where
 
     let mut out = Vec::new();
 
+    // 1. DecompressAccountsIdempotent for all cold PDAs (including token PDAs).
+    //    Token PDAs are created on-chain via CPI inside DecompressVariant.
     for (spec, proof) in cold_pdas.iter().zip(pda_proofs) {
         out.push(build_pda_load(
-            &[*spec],
+            &[spec],
             proof,
             fee_payer,
             compression_config,
@@ -135,11 +137,13 @@ where
         )?);
     }
 
+    // 2. ATA loads (CreateAssociatedTokenAccount + Transfer2)
     let ata_chunks: Vec<_> = cold_atas.chunks(MAX_ATAS_PER_IX).collect();
     for (chunk, proof) in ata_chunks.into_iter().zip(ata_proofs) {
         out.extend(build_ata_load(chunk, proof, fee_payer)?);
     }
 
+    // 3. Mint loads
     for (iface, proof) in cold_mints.iter().zip(mint_proofs) {
         out.push(build_mint_load(iface, proof, fee_payer)?);
     }

@@ -3,26 +3,28 @@
 //! This follows the same pattern as MinimalRecord's derived_accounts.rs,
 //! adapted for the AccountLoader (zero-copy) access pattern.
 
-use super::accounts::{CreateZeroCopy, CreateZeroCopyParams};
-use super::derived_state::PackedZeroCopyRecord;
-use super::state::ZeroCopyRecord;
 use anchor_lang::prelude::*;
 use light_compressed_account::instruction_data::{
     cpi_context::CompressedCpiContext, with_account_info::InstructionDataInvokeCpiWithAccountInfo,
-};
-use light_sdk::interface::{
-    prepare_compressed_account_on_init, LightAccount, LightAccountVariantTrait,
-    PackedLightAccountVariantTrait,
 };
 use light_sdk::{
     cpi::{v2::CpiAccounts, CpiAccountsConfig, InvokeLightSystemProgram},
     error::LightSdkError,
     instruction::{PackedAccounts, PackedAddressTreeInfoExt},
-    interface::{LightFinalize, LightPreInit},
+    interface::{
+        prepare_compressed_account_on_init, LightAccount, LightAccountVariantTrait, LightFinalize,
+        LightPreInit, PackedLightAccountVariantTrait,
+    },
     light_account_checks::packed_accounts::ProgramPackedAccounts,
     sdk_types::CpiContextWriteAccounts,
 };
 use solana_program_error::ProgramError;
+
+use super::{
+    accounts::{CreateZeroCopy, CreateZeroCopyParams},
+    derived_state::PackedZeroCopyRecord,
+    state::ZeroCopyRecord,
+};
 
 // ============================================================================
 // Compile-time Size Validation (800-byte limit for compressed accounts)
@@ -46,10 +48,8 @@ impl<'info> LightPreInit<'info, CreateZeroCopyParams> for CreateZeroCopy<'info> 
         remaining_accounts: &[AccountInfo<'info>],
         params: &CreateZeroCopyParams,
     ) -> std::result::Result<bool, LightSdkError> {
-        use light_sdk::interface::config::LightConfig;
-        use light_sdk::interface::LightAccount;
-        use solana_program::clock::Clock;
-        use solana_program::sysvar::Sysvar;
+        use light_sdk::interface::{config::LightConfig, LightAccount};
+        use solana_program::{clock::Clock, sysvar::Sysvar};
         use solana_program_error::ProgramError;
 
         // 1. Build CPI accounts (slice remaining_accounts at system_accounts_offset)

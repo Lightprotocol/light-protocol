@@ -12,8 +12,10 @@
 
 use csdk_anchor_full_derived_test::NoPubkeyRecord;
 use light_hasher::{DataHasher, Sha256};
-use light_sdk::interface::{CompressAs, CompressionInfo};
-use light_sdk::compressible::CompressionState;
+use light_sdk::{
+    compressible::CompressionState,
+    interface::{CompressAs, CompressionInfo},
+};
 
 use super::shared::CompressibleTestFactory;
 use crate::generate_trait_tests;
@@ -87,7 +89,10 @@ fn test_compress_as_when_compression_info_already_compressed() {
     let compressed = record.compress_as();
 
     // Should still work and preserve fields
-    assert_eq!(compressed.compression_info.state, CompressionState::Compressed);
+    assert_eq!(
+        compressed.compression_info.state,
+        CompressionState::Compressed
+    );
     assert_eq!(compressed.counter, counter);
     assert_eq!(compressed.flag, flag);
     assert_eq!(compressed.value, value);

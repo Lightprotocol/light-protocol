@@ -63,7 +63,8 @@ pub fn seed_element_to_ref_expr(seed: &SeedElement, config: &SeedConversionConfi
                     if let Some(last_seg) = path_expr.path.segments.last() {
                         if is_constant_identifier(&last_seg.ident.to_string()) {
                             let path = &path_expr.path;
-                            if config.handle_light_cpi_signer && last_seg.ident == "LIGHT_CPI_SIGNER"
+                            if config.handle_light_cpi_signer
+                                && last_seg.ident == "LIGHT_CPI_SIGNER"
                             {
                                 return quote! { #path.cpi_signer.as_ref() };
                             }

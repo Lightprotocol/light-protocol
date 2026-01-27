@@ -4,6 +4,7 @@
 //! supporting both unpacked (with Pubkeys) and packed (with u8 indices) representations.
 
 use anchor_lang::prelude::*;
+
 use crate::instruction::PackedAccounts;
 
 /// Trait for unpacked compressed account variants with seeds.

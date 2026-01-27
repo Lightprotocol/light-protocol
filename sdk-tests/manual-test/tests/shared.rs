@@ -42,6 +42,7 @@ pub async fn setup_test_env() -> (LightProgramTest, Keypair, Pubkey) {
 }
 
 /// Create a test mint using the two_mints instruction and return the mint pubkey.
+#[allow(dead_code)]
 pub async fn create_test_mint(rpc: &mut LightProgramTest, payer: &Keypair) -> Pubkey {
     use anchor_lang::ToAccountMetas;
     use manual_test::{CreateDerivedMintsParams, MINT_SIGNER_0_SEED, MINT_SIGNER_1_SEED};
@@ -89,7 +90,7 @@ pub async fn create_test_mint(rpc: &mut LightProgramTest, payer: &Keypair) -> Pu
         mint_1,
         compressible_config: light_token::instruction::config_pda(),
         rent_sponsor: light_token::instruction::rent_sponsor_pda(),
-        light_token_program: light_token::instruction::LIGHT_TOKEN_PROGRAM_ID.into(),
+        light_token_program: light_token::instruction::LIGHT_TOKEN_PROGRAM_ID,
         cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         system_program: solana_sdk::system_program::ID,
     };

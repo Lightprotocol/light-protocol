@@ -7,8 +7,10 @@ use light_sdk::cpi::v2::CpiAccounts;
 use solana_account_info::AccountInfo;
 use solana_program_error::ProgramError;
 
-use crate::error::LightTokenError;
-use crate::instruction::{CreateMintsCpi, CreateMintsParams, SystemAccountInfos};
+use crate::{
+    error::LightTokenError,
+    instruction::{CreateMintsCpi, CreateMintsParams, SystemAccountInfos},
+};
 
 /// Infrastructure accounts needed for mint creation CPI.
 ///

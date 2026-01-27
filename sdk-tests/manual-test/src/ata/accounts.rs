@@ -35,7 +35,6 @@ pub struct CreateAtaAccounts<'info> {
     pub user_ata: UncheckedAccount<'info>,
 
     // ========== Infrastructure accounts for CreateTokenAtaCpi ==========
-
     /// CHECK: CompressibleConfig for light-token program
     pub compressible_config: AccountInfo<'info>,
 

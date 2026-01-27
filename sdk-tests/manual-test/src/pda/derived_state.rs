@@ -2,13 +2,12 @@ use anchor_lang::prelude::*;
 use light_sdk::{
     compressible::CompressionInfo,
     instruction::PackedAccounts,
-    interface::LightConfig,
+    interface::{AccountType, LightAccount, LightConfig},
     light_account_checks::{packed_accounts::ProgramPackedAccounts, AccountInfoTrait},
 };
 use solana_program_error::ProgramError;
 
 use super::state::MinimalRecord;
-use light_sdk::interface::{AccountType, LightAccount};
 
 // ============================================================================
 // PackedMinimalRecord (compression_info excluded per implementation_details.md)

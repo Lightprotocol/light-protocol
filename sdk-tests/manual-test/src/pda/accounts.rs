@@ -1,9 +1,9 @@
 //! Accounts module for single-pda-test.
 
-use crate::pda::MinimalRecord;
 use anchor_lang::prelude::*;
-
 use light_compressible::CreateAccountsProof;
+
+use crate::pda::MinimalRecord;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct CreatePdaParams {

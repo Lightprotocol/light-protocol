@@ -561,9 +561,15 @@ pub(super) fn parse_light_account_attr(
             }
 
             return match args.account_type {
-                LightAccountType::Pda => Ok(Some(LightAccountField::Pda(Box::new(
-                    build_pda_field(field, field_ident, &args.key_values, direct_proof_arg, args.has_zero_copy)?,
-                )))),
+                LightAccountType::Pda => {
+                    Ok(Some(LightAccountField::Pda(Box::new(build_pda_field(
+                        field,
+                        field_ident,
+                        &args.key_values,
+                        direct_proof_arg,
+                        args.has_zero_copy,
+                    )?))))
+                }
                 LightAccountType::Mint => Ok(Some(LightAccountField::Mint(Box::new(
                     build_mint_field(field_ident, &args.key_values, attr, direct_proof_arg)?,
                 )))),

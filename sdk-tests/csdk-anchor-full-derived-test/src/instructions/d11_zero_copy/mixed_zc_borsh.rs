@@ -7,8 +7,9 @@ use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
 use light_sdk_macros::LightAccounts;
 
-use crate::state::d11_zero_copy::ZcBasicRecord;
-use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
+use crate::state::{
+    d11_zero_copy::ZcBasicRecord, d1_field_types::single_pubkey::SinglePubkeyRecord,
+};
 
 /// Seed for the zero-copy record PDA.
 pub const D11_ZC_MIXED_SEED: &[u8] = b"d11_zc_mixed";

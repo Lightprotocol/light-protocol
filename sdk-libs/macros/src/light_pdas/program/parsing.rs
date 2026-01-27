@@ -153,7 +153,7 @@ impl Parse for TokenSeedSpec {
             is_token,
             seeds,
             authority,
-            inner_type: None,   // Set by caller for #[light_account(init)] fields
+            inner_type: None,    // Set by caller for #[light_account(init)] fields
             is_zero_copy: false, // Set by caller for #[light_account(init, zero_copy)] fields
         })
     }
@@ -345,8 +345,8 @@ pub fn convert_classified_to_seed_elements(
                         .find_const_module_path(&const_name)
                         .filter(|p| crate_ctx.is_module_path_public(p))
                         .unwrap_or("crate");
-                    let mod_path: syn::Path = syn::parse_str(resolved)
-                        .unwrap_or_else(|_| syn::parse_quote!(crate));
+                    let mod_path: syn::Path =
+                        syn::parse_str(resolved).unwrap_or_else(|_| syn::parse_quote!(crate));
                     syn::parse_quote!(#mod_path::#path)
                 } else {
                     syn::parse_quote!(#path)
@@ -391,9 +391,7 @@ pub fn convert_classified_to_seed_elements(
                 };
                 SeedElement::Expression(Box::new(expr))
             }
-            ClassifiedSeed::Passthrough(expr) => {
-                SeedElement::Expression(expr.clone())
-            }
+            ClassifiedSeed::Passthrough(expr) => SeedElement::Expression(expr.clone()),
         };
         result.push(elem);
     }
@@ -415,8 +413,9 @@ fn rewrite_fn_call_for_scope(
     module_path: &str,
     crate_ctx: &super::crate_context::CrateContext,
 ) -> Expr {
-    use crate::light_pdas::account::seed_extraction::FnArgKind;
     use quote::quote;
+
+    use crate::light_pdas::account::seed_extraction::FnArgKind;
 
     if let Expr::Call(call) = func_expr {
         // Qualify bare function names via CrateContext lookup.
@@ -428,8 +427,8 @@ fn rewrite_fn_call_for_scope(
                     .find_fn_module_path(&fn_name)
                     .filter(|p| crate_ctx.is_module_path_public(p))
                     .unwrap_or(module_path);
-                let mod_path: syn::Path = syn::parse_str(resolved)
-                    .unwrap_or_else(|_| syn::parse_quote!(crate));
+                let mod_path: syn::Path =
+                    syn::parse_str(resolved).unwrap_or_else(|_| syn::parse_quote!(crate));
                 let ident = &path_expr.path.segments[0].ident;
                 syn::parse_quote!(#mod_path::#ident)
             } else {

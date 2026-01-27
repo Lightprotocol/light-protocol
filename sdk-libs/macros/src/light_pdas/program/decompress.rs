@@ -38,10 +38,7 @@ impl DecompressBuilder {
     /// # Arguments
     /// * `pda_ctx_seeds` - PDA context seed information for each variant
     /// * `pda_seeds` - PDA seed specifications
-    pub fn new(
-        pda_ctx_seeds: Vec<PdaCtxSeedInfo>,
-        pda_seeds: Option<Vec<TokenSeedSpec>>,
-    ) -> Self {
+    pub fn new(pda_ctx_seeds: Vec<PdaCtxSeedInfo>, pda_seeds: Option<Vec<TokenSeedSpec>>) -> Self {
         Self {
             pda_ctx_seeds,
             pda_seeds,
@@ -80,7 +77,7 @@ impl DecompressBuilder {
         Ok(syn::parse_quote! {
             #[inline(never)]
             pub fn decompress_accounts_idempotent<'info>(
-                ctx: Context<'_, '_, '_, 'info, DecompressAccountsIdempotent>,
+                ctx: Context<'_, '_, '_, 'info, DecompressAccountsIdempotent<'info>>,
                 instruction_data: Vec<u8>,
             ) -> Result<()> {
                 __processor_functions::process_decompress_accounts_idempotent(
@@ -91,14 +88,128 @@ impl DecompressBuilder {
         })
     }
 
-    /// Generate the decompress accounts struct.
+    /// Generate the decompress accounts struct and manual Anchor trait impls.
     ///
-    /// Empty struct - all accounts are passed via remaining_accounts
-    /// and validated by the SDK's process_decompress_pda_accounts_idempotent.
+    /// Uses PhantomData for the `<'info>` lifetime so Anchor's CPI codegen
+    /// can reference `DecompressAccountsIdempotent<'info>`.
+    /// All accounts are passed via remaining_accounts.
     pub fn generate_accounts_struct(&self) -> Result<syn::ItemStruct> {
         Ok(syn::parse_quote! {
-            #[derive(Accounts)]
-            pub struct DecompressAccountsIdempotent {}
+            pub struct DecompressAccountsIdempotent<'info>(
+                std::marker::PhantomData<&'info ()>,
+            );
+        })
+    }
+
+    /// Generate manual Anchor trait implementations for the empty accounts struct.
+    pub fn generate_accounts_trait_impls(&self) -> Result<TokenStream> {
+        Ok(quote! {
+            impl<'info> anchor_lang::Accounts<'info, DecompressAccountsIdempotentBumps>
+                for DecompressAccountsIdempotent<'info>
+            {
+                fn try_accounts(
+                    _program_id: &anchor_lang::solana_program::pubkey::Pubkey,
+                    _accounts: &mut &'info [anchor_lang::solana_program::account_info::AccountInfo<'info>],
+                    _ix_data: &[u8],
+                    _bumps: &mut DecompressAccountsIdempotentBumps,
+                    _reallocs: &mut std::collections::BTreeSet<anchor_lang::solana_program::pubkey::Pubkey>,
+                ) -> anchor_lang::Result<Self> {
+                    Ok(DecompressAccountsIdempotent(std::marker::PhantomData))
+                }
+            }
+
+            #[derive(Debug, Default)]
+            pub struct DecompressAccountsIdempotentBumps {}
+
+            impl<'info> anchor_lang::Bumps for DecompressAccountsIdempotent<'info> {
+                type Bumps = DecompressAccountsIdempotentBumps;
+            }
+
+            impl<'info> anchor_lang::ToAccountInfos<'info> for DecompressAccountsIdempotent<'info> {
+                fn to_account_infos(
+                    &self,
+                ) -> Vec<anchor_lang::solana_program::account_info::AccountInfo<'info>> {
+                    Vec::new()
+                }
+            }
+
+            impl<'info> anchor_lang::ToAccountMetas for DecompressAccountsIdempotent<'info> {
+                fn to_account_metas(
+                    &self,
+                    _is_signer: Option<bool>,
+                ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
+                    Vec::new()
+                }
+            }
+
+            impl<'info> anchor_lang::AccountsExit<'info> for DecompressAccountsIdempotent<'info> {
+                fn exit(
+                    &self,
+                    _program_id: &anchor_lang::solana_program::pubkey::Pubkey,
+                ) -> anchor_lang::Result<()> {
+                    Ok(())
+                }
+            }
+
+            impl<'info> DecompressAccountsIdempotent<'info> {
+                pub fn __anchor_private_gen_idl_accounts(
+                    _accounts: &mut std::collections::BTreeMap<
+                        String,
+                        anchor_lang::idl::types::IdlAccount,
+                    >,
+                    _types: &mut std::collections::BTreeMap<
+                        String,
+                        anchor_lang::idl::types::IdlTypeDef,
+                    >,
+                ) -> Vec<anchor_lang::idl::types::IdlInstructionAccountItem> {
+                    Vec::new()
+                }
+            }
+
+            pub(crate) mod __client_accounts_decompress_accounts_idempotent {
+                use super::*;
+                pub struct DecompressAccountsIdempotent<'info>(
+                    std::marker::PhantomData<&'info ()>,
+                );
+                impl<'info> borsh::ser::BorshSerialize for DecompressAccountsIdempotent<'info> {
+                    fn serialize<W: borsh::maybestd::io::Write>(
+                        &self,
+                        _writer: &mut W,
+                    ) -> ::core::result::Result<(), borsh::maybestd::io::Error> {
+                        Ok(())
+                    }
+                }
+                impl<'info> anchor_lang::ToAccountMetas for DecompressAccountsIdempotent<'info> {
+                    fn to_account_metas(
+                        &self,
+                        _is_signer: Option<bool>,
+                    ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
+                        Vec::new()
+                    }
+                }
+            }
+
+            pub(crate) mod __cpi_client_accounts_decompress_accounts_idempotent {
+                use super::*;
+                pub struct DecompressAccountsIdempotent<'info>(
+                    std::marker::PhantomData<&'info ()>,
+                );
+                impl<'info> anchor_lang::ToAccountMetas for DecompressAccountsIdempotent<'info> {
+                    fn to_account_metas(
+                        &self,
+                        _is_signer: Option<bool>,
+                    ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
+                        Vec::new()
+                    }
+                }
+                impl<'info> anchor_lang::ToAccountInfos<'info> for DecompressAccountsIdempotent<'info> {
+                    fn to_account_infos(
+                        &self,
+                    ) -> Vec<anchor_lang::solana_program::account_info::AccountInfo<'info>> {
+                        Vec::new()
+                    }
+                }
+            }
         })
     }
 
@@ -281,8 +392,9 @@ fn generate_pda_seed_derivation_for_trait_with_ctx_seeds(
                             // Use the full ExprPath (not just path) to preserve qself
                             // for type-qualified paths like <SeedHolder as HasSeed>::TRAIT_SEED
                             let full_expr = &**expr;
-                            seed_refs
-                                .push(quote! { { let __seed: &[u8] = #full_expr.as_ref(); __seed } });
+                            seed_refs.push(
+                                quote! { { let __seed: &[u8] = #full_expr.as_ref(); __seed } },
+                            );
                             continue;
                         }
                     }
@@ -339,10 +451,8 @@ fn generate_pda_seed_derivation_for_trait_with_ctx_seeds(
                 //
                 // Before: let seed_0 = crate::id().as_ref();  // ERROR: temporary dropped
                 // After:  let seed_0 = crate::id();  seed_0.as_ref()  // OK: owned value lives long enough
-                let (stripped_expr, trailing_method) =
-                    strip_trailing_ref_method(&mapped_expr);
-                let ref_method =
-                    trailing_method.unwrap_or_else(|| format_ident!("as_ref"));
+                let (stripped_expr, trailing_method) = strip_trailing_ref_method(&mapped_expr);
+                let ref_method = trailing_method.unwrap_or_else(|| format_ident!("as_ref"));
 
                 bindings.push(quote! {
                     let #binding_name = #stripped_expr;

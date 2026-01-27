@@ -4,7 +4,7 @@
 //! generating a PackedX struct with multiple u8 index fields.
 
 use anchor_lang::prelude::*;
-use light_sdk::compressible::CompressionInfo;
+use light_sdk::{compressible::CompressionInfo, LightDiscriminator};
 use light_sdk_macros::LightAccount;
 
 /// A struct with multiple Pubkey fields.

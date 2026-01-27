@@ -51,8 +51,7 @@ async fn test_create_zero_copy_record() {
     let owner = Keypair::new().pubkey();
 
     // Derive PDA for record using the same seeds as the program
-    let (record_pda, _) =
-        Pubkey::find_program_address(&[RECORD_SEED, owner.as_ref()], &program_id);
+    let (record_pda, _) = Pubkey::find_program_address(&[RECORD_SEED, owner.as_ref()], &program_id);
 
     // Get proof for the PDA
     let proof_result = get_create_accounts_proof(
@@ -105,7 +104,7 @@ async fn test_create_zero_copy_record() {
     let record: &ZeroCopyRecord = bytemuck::from_bytes(data);
 
     // Verify owner field
-    assert_eq!(record.owner, owner.to_bytes(), "Record owner should match");
+    assert_eq!(record.owner, owner, "Record owner should match");
 
     // Verify counter field
     assert_eq!(record.counter, 0, "Record counter should be 0");
@@ -113,7 +112,8 @@ async fn test_create_zero_copy_record() {
     // Verify compression_info is set (state == Decompressed indicates initialized)
     use light_sdk::interface::CompressionState;
     assert_eq!(
-        record.compression_info.state, CompressionState::Decompressed,
+        record.compression_info.state,
+        CompressionState::Decompressed,
         "state should be Decompressed (initialized)"
     );
     assert_eq!(
@@ -152,8 +152,7 @@ async fn test_zero_copy_record_full_lifecycle() {
     let owner = Keypair::new().pubkey();
 
     // Derive PDA for record using the same seeds as the program
-    let (record_pda, _) =
-        Pubkey::find_program_address(&[RECORD_SEED, owner.as_ref()], &program_id);
+    let (record_pda, _) = Pubkey::find_program_address(&[RECORD_SEED, owner.as_ref()], &program_id);
 
     // Get proof for the PDA
     let proof_result = get_create_accounts_proof(
@@ -237,7 +236,10 @@ async fn test_zero_copy_record_full_lifecycle() {
         .get_account_interface(&record_pda, &program_id)
         .await
         .expect("failed to get account interface");
-    assert!(account_interface.is_cold(), "Account should be cold (compressed)");
+    assert!(
+        account_interface.is_cold(),
+        "Account should be cold (compressed)"
+    );
 
     // Build variant using IntoVariant - verify seeds match the compressed data
     let variant = RecordSeeds { owner }
@@ -248,15 +250,10 @@ async fn test_zero_copy_record_full_lifecycle() {
     let spec = PdaSpec::new(account_interface.clone(), variant, program_id);
     let specs: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Pda(spec)];
 
-    let decompress_instructions = create_load_instructions(
-        &specs,
-        payer.pubkey(),
-        config_pda,
-        payer.pubkey(),
-        &rpc,
-    )
-    .await
-    .expect("create_load_instructions should succeed");
+    let decompress_instructions =
+        create_load_instructions(&specs, payer.pubkey(), config_pda, payer.pubkey(), &rpc)
+            .await
+            .expect("create_load_instructions should succeed");
 
     rpc.create_and_send_transaction(&decompress_instructions, &payer.pubkey(), &[&payer])
         .await
@@ -274,12 +271,13 @@ async fn test_zero_copy_record_full_lifecycle() {
     let data = &record_account.data[discriminator_len..];
     let record: &ZeroCopyRecord = bytemuck::from_bytes(data);
 
-    assert_eq!(record.owner, owner.to_bytes(), "Record owner should match");
+    assert_eq!(record.owner, owner, "Record owner should match");
     assert_eq!(record.counter, 0, "Record counter should still be 0");
     // state should be Decompressed after decompression
     use light_sdk::interface::CompressionState;
     assert_eq!(
-        record.compression_info.state, CompressionState::Decompressed,
+        record.compression_info.state,
+        CompressionState::Decompressed,
         "state should be Decompressed after decompression"
     );
     assert!(

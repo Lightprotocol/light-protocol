@@ -223,7 +223,8 @@ fn test_hash_differs_for_different_counter() {
 fn test_packed_struct_has_u8_owner() {
     // Verify PackedPlaceholderRecord has the expected structure
     // The Packed struct uses the same field name but changes type to u8
-    let packed = PackedPlaceholderRecord {owner: 0,
+    let packed = PackedPlaceholderRecord {
+        owner: 0,
         name: "test".to_string(),
         placeholder_id: 1,
         counter: 42,
@@ -324,8 +325,6 @@ fn test_pack_different_pubkeys_get_different_indices() {
         "different pubkeys should produce different indices"
     );
 }
-
-
 
 #[test]
 fn test_pack_stores_pubkeys_in_packed_accounts() {

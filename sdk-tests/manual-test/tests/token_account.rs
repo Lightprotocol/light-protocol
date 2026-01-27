@@ -59,7 +59,8 @@ async fn test_create_token_vault() {
         .unwrap()
         .expect("Token vault should exist");
 
-    let token = Token::deserialize(&mut &vault_account.data[..]).expect("Should deserialize as Token");
+    let token =
+        Token::deserialize(&mut &vault_account.data[..]).expect("Should deserialize as Token");
 
     assert_eq!(token.mint.to_bytes(), mint.to_bytes());
     assert_eq!(token.owner.to_bytes(), vault_owner.pubkey().to_bytes());

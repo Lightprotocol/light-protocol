@@ -66,9 +66,9 @@ fn test_compress_as_when_compression_info_already_none() {
         value,
     };
 
-    let compressed = record.compress_as();
+    let _compressed = record.compress_as();
 
-    // Should still work and preserve fields    assert_eq!(compressed.value, value);
+    // Should still work and preserve fields    assert_eq!(_compressed.value, value);
 }
 
 // =============================================================================

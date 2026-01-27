@@ -3,7 +3,7 @@
 //! Tests `#[light_account(init, zero_copy)]` with params-only seeds (not on struct).
 
 use anchor_lang::prelude::*;
-use light_sdk::interface::CompressionInfo;
+use light_sdk::{interface::CompressionInfo, LightDiscriminator};
 use light_sdk_macros::LightAccount;
 
 /// Zero-copy record for testing params-only seeds (category_id in seeds but not on struct).

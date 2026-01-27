@@ -251,8 +251,10 @@ impl<'a> LightVariantBuilder<'a> {
 
         let ctoken_arm = if self.include_ctoken {
             quote! {
-                Self::CTokenData(_) => {
-                    Err(solana_program_error::ProgramError::InvalidAccountData)
+                Self::CTokenData(ctoken) => {
+                    let packed = light_token::pack::Pack::pack(ctoken, accounts)
+                        .map_err(|_| solana_program_error::ProgramError::InvalidAccountData)?;
+                    Ok(PackedLightAccountVariant::PackedCTokenData(packed))
                 }
             }
         } else {
@@ -275,7 +277,6 @@ impl<'a> LightVariantBuilder<'a> {
             }
         }
     }
-
 }
 
 // =============================================================================

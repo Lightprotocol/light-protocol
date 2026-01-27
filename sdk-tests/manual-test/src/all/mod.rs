@@ -13,8 +13,8 @@
 //! - Token vault and ATA are separate CPIs (don't participate in CPI context)
 
 pub mod accounts;
-pub mod derived_accounts;
 mod derived;
+pub mod derived_accounts;
 
 pub use accounts::*;
 pub use derived_accounts::{

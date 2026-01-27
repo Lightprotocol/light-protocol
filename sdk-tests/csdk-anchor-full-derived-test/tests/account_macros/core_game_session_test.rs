@@ -12,7 +12,7 @@
 use csdk_anchor_full_derived_test::{GameSession, PackedGameSession};
 use light_hasher::{DataHasher, Sha256};
 use light_sdk::{
-    compressible::{CompressAs, CompressionInfo, CompressionState, Pack},
+    compressible::{CompressAs, CompressionInfo, Pack},
     instruction::PackedAccounts,
 };
 use solana_pubkey::Pubkey;
@@ -297,7 +297,8 @@ fn test_hash_differs_for_different_game_type() {
 fn test_packed_struct_has_u8_player() {
     // Verify PackedGameSession has the expected structure
     // The Packed struct uses the same field name but changes type to u8
-    let packed = PackedGameSession {session_id: 1,
+    let packed = PackedGameSession {
+        session_id: 1,
         player: 0,
         game_type: "test".to_string(),
         start_time: 100,
@@ -407,8 +408,6 @@ fn test_pack_different_pubkeys_get_different_indices() {
         "different pubkeys should produce different indices"
     );
 }
-
-
 
 #[test]
 fn test_pack_stores_pubkeys_in_packed_accounts() {

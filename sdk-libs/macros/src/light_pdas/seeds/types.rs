@@ -50,13 +50,12 @@ impl SeedSpec {
     pub fn account_fields(&self) -> impl Iterator<Item = &Ident> {
         self.seeds.iter().filter_map(|s| match s {
             ClassifiedSeed::CtxRooted { account, .. } => Some(account),
-            ClassifiedSeed::FunctionCall { args, .. } => {
-                args.iter()
-                    .find(|a| {
-                        a.kind == crate::light_pdas::account::seed_extraction::FnArgKind::CtxAccount
-                    })
-                    .map(|a| &a.field_name)
-            }
+            ClassifiedSeed::FunctionCall { args, .. } => args
+                .iter()
+                .find(|a| {
+                    a.kind == crate::light_pdas::account::seed_extraction::FnArgKind::CtxAccount
+                })
+                .map(|a| &a.field_name),
             _ => None,
         })
     }
@@ -65,13 +64,12 @@ impl SeedSpec {
     pub fn data_fields(&self) -> impl Iterator<Item = &Ident> {
         self.seeds.iter().filter_map(|s| match s {
             ClassifiedSeed::DataRooted { root, .. } => Some(root),
-            ClassifiedSeed::FunctionCall { args, .. } => {
-                args.iter()
-                    .find(|a| {
-                        a.kind == crate::light_pdas::account::seed_extraction::FnArgKind::DataField
-                    })
-                    .map(|a| &a.field_name)
-            }
+            ClassifiedSeed::FunctionCall { args, .. } => args
+                .iter()
+                .find(|a| {
+                    a.kind == crate::light_pdas::account::seed_extraction::FnArgKind::DataField
+                })
+                .map(|a| &a.field_name),
             _ => None,
         })
     }

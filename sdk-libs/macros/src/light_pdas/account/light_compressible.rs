@@ -12,13 +12,12 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{punctuated::Punctuated, DeriveInput, Field, Fields, Ident, ItemStruct, Result, Token};
 
+use super::traits::{parse_compress_as_overrides, CompressAsFields};
 use crate::{
     discriminator::discriminator,
     hasher::derive_light_hasher_sha,
     light_pdas::account::utils::{extract_fields_from_derive_input, is_copy_type, is_pubkey_type},
 };
-
-use super::traits::{parse_compress_as_overrides, CompressAsFields};
 
 /// Checks if the struct has `#[account(zero_copy)]` attribute, indicating a zero-copy (Pod) type.
 /// We check for `zero_copy` inside `#[account(...)]` to distinguish from regular `#[account]`
@@ -34,7 +33,6 @@ fn is_zero_copy(attrs: &[syn::Attribute]) -> bool {
         false
     })
 }
-
 
 /// Derives all required traits for a compressible account.
 ///

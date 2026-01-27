@@ -3,7 +3,7 @@
 //! Exercises the code path where multiple fields have compress_as overrides.
 
 use anchor_lang::prelude::*;
-use light_sdk::compressible::CompressionInfo;
+use light_sdk::{compressible::CompressionInfo, LightDiscriminator};
 use light_sdk_macros::LightAccount;
 
 /// A struct with multiple compress_as overrides.

@@ -3,7 +3,7 @@
 //! Tests `#[light_account(init, zero_copy)]` with context account seeds.
 
 use anchor_lang::prelude::*;
-use light_sdk::interface::CompressionInfo;
+use light_sdk::{interface::CompressionInfo, LightDiscriminator};
 use light_sdk_macros::LightAccount;
 
 /// Zero-copy record with authority field for testing ctx.accounts.* seed packing.

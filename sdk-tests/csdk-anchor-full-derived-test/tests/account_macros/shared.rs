@@ -8,7 +8,7 @@ use std::borrow::Cow;
 use light_hasher::{DataHasher, Sha256};
 use light_sdk::{
     account::Size,
-    compressible::{CompressAs, CompressedInitSpace, CompressionInfo, CompressionState, HasCompressionInfo},
+    compressible::{CompressAs, CompressedInitSpace, CompressionState, HasCompressionInfo},
     LightDiscriminator,
 };
 
@@ -125,7 +125,10 @@ pub fn assert_set_compression_info_none_works<T: HasCompressionInfo + Compressib
     let initial = record
         .compression_info()
         .expect("compression_info should return Ok");
-    assert_eq!(initial.state, light_sdk::compressible::CompressionState::default());
+    assert_eq!(
+        initial.state,
+        light_sdk::compressible::CompressionState::default()
+    );
 
     record
         .set_compression_info_none()
@@ -181,7 +184,8 @@ pub fn assert_compress_as_sets_compression_info_to_compressed<
         .compression_info()
         .expect("compression_info should return Ok");
     assert_eq!(
-        info.state, CompressionState::Compressed,
+        info.state,
+        CompressionState::Compressed,
         "compress_as should set compression_info to Compressed state"
     );
 }

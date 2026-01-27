@@ -17,10 +17,9 @@
 use csdk_anchor_full_derived_test::{AllFieldTypesRecord, PackedAllFieldTypesRecord};
 use light_hasher::{DataHasher, Sha256};
 use light_sdk::{
-    compressible::{CompressAs, CompressionInfo, Pack},
+    compressible::{CompressAs, CompressionInfo, CompressionState, Pack},
     instruction::PackedAccounts,
 };
-use light_sdk::compressible::CompressionState;
 use solana_pubkey::Pubkey;
 
 use super::shared::CompressibleTestFactory;
@@ -140,7 +139,10 @@ fn test_compress_as_when_compression_info_already_compressed() {
     let compressed = record.compress_as();
 
     // Should still work and preserve all fields
-    assert_eq!(compressed.compression_info.state, CompressionState::Compressed);
+    assert_eq!(
+        compressed.compression_info.state,
+        CompressionState::Compressed
+    );
     assert_eq!(compressed.owner, owner);
     assert_eq!(compressed.counter, counter);
     assert_eq!(compressed.name, name);
@@ -410,7 +412,8 @@ fn test_packed_struct_has_all_types_converted() {
     // Verify PackedAllFieldTypesRecord has the correct field types
     // Note: Option<Pubkey> is NOT converted to Option<u8> - it stays as Option<Pubkey>
     let close_authority = Pubkey::new_unique();
-    let packed = PackedAllFieldTypesRecord {        owner: 0,
+    let packed = PackedAllFieldTypesRecord {
+        owner: 0,
         delegate: 1,
         authority: 2,
         close_authority: Some(close_authority),

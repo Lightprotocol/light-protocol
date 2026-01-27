@@ -38,7 +38,7 @@ async fn test_create_ata() {
         user_ata,
         compressible_config: config_pda(),
         rent_sponsor: rent_sponsor_pda(),
-        light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
+        light_token_program: LIGHT_TOKEN_PROGRAM_ID,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -59,7 +59,8 @@ async fn test_create_ata() {
         .unwrap()
         .expect("ATA should exist");
 
-    let token = Token::deserialize(&mut &ata_account.data[..]).expect("Should deserialize as Token");
+    let token =
+        Token::deserialize(&mut &ata_account.data[..]).expect("Should deserialize as Token");
 
     assert_eq!(token.mint.to_bytes(), mint.to_bytes());
     assert_eq!(token.owner.to_bytes(), ata_owner.pubkey().to_bytes());
@@ -85,7 +86,7 @@ async fn test_create_ata_idempotent() {
         user_ata,
         compressible_config: config_pda(),
         rent_sponsor: rent_sponsor_pda(),
-        light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
+        light_token_program: LIGHT_TOKEN_PROGRAM_ID,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -99,7 +100,7 @@ async fn test_create_ata_idempotent() {
     };
 
     // First creation
-    rpc.create_and_send_transaction(&[ix.clone()], &payer.pubkey(), &[&payer])
+    rpc.create_and_send_transaction(std::slice::from_ref(&ix), &payer.pubkey(), &[&payer])
         .await
         .expect("First CreateAta should succeed");
 

@@ -257,7 +257,8 @@ fn test_hash_differs_for_different_owner() {
 
 #[test]
 fn test_packed_struct_has_u8_owner() {
-    let packed = PackedMultipleCompressAsRecord {        owner: 0,
+    let packed = PackedMultipleCompressAsRecord {
+        owner: 0,
         start: 42,
         score: 43,
         cached: 44,
@@ -354,30 +355,6 @@ fn test_pack_different_pubkeys_get_different_indices() {
         "different pubkeys should produce different indices"
     );
 }
-
-#[test]
-fn test_pack_sets_compression_info_to_none() {
-    let record_with_info = MultipleCompressAsRecord {
-        compression_info: CompressionInfo::default(),
-        owner: Pubkey::new_unique(),
-        start: 100,
-        score: 100,
-        cached: 100,
-        counter: 100,
-    };
-
-    let record_without_info = MultipleCompressAsRecord {
-        compression_info: CompressionInfo::compressed(),
-        owner: Pubkey::new_unique(),
-        start: 200,
-        score: 200,
-        cached: 200,
-        counter: 200,
-    };
-
-    let mut packed_accounts = PackedAccounts::default();
-    let packed1 = record_with_info.pack(&mut packed_accounts).unwrap();
-    let packed2 = record_without_info.pack(&mut packed_accounts).unwrap();}
 
 #[test]
 fn test_pack_stores_pubkeys_in_packed_accounts() {
