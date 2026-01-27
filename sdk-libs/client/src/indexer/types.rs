@@ -18,7 +18,7 @@ use solana_pubkey::Pubkey;
 use tracing::warn;
 
 use super::{
-    base58::{decode_base58_option_to_pubkey, decode_base58_to_fixed_array},
+    base58::{decode_base58_to_fixed_array, decode_serializable_pubkey_option},
     tree_info::QUEUE_TREE_MAPPING,
     IndexerError,
 };
@@ -281,20 +281,20 @@ impl RootIndex {
 }
 
 impl AccountProofInputs {
-    pub fn from_api_model(
+    pub fn from_api_account_proof_inputs(
         value: &photon_api::models::AccountProofInputs,
     ) -> Result<Self, IndexerError> {
-        let root_index = {
+        let root_idx = {
             if value.root_index.prove_by_index {
                 RootIndex::new_none()
             } else {
-                RootIndex::new_some(value.root_index.root_index)
+                RootIndex::new_some(value.root_index.root_index as u16)
             }
         };
         Ok(Self {
             hash: decode_base58_to_fixed_array(&value.hash)?,
             root: decode_base58_to_fixed_array(&value.root)?,
-            root_index,
+            root_index: root_idx,
             leaf_index: value.leaf_index,
             tree_info: TreeInfo::from_api_model(&value.merkle_context)?,
         })
@@ -310,7 +310,7 @@ pub struct AddressProofInputs {
 }
 
 impl AddressProofInputs {
-    pub fn from_api_model(
+    pub fn from_api_address_proof_inputs(
         value: &photon_api::models::AddressProofInputs,
     ) -> Result<Self, IndexerError> {
         Ok(Self {
@@ -404,21 +404,9 @@ impl ValidityProofWithContext {
         num_hashes: usize,
     ) -> Result<Self, IndexerError> {
         let proof = ValidityProof::new(Some(CompressedProof {
-            a: value
-                .compressed_proof
-                .a
-                .try_into()
-                .map_err(|_| IndexerError::InvalidResponseData)?,
-            b: value
-                .compressed_proof
-                .b
-                .try_into()
-                .map_err(|_| IndexerError::InvalidResponseData)?,
-            c: value
-                .compressed_proof
-                .c
-                .try_into()
-                .map_err(|_| IndexerError::InvalidResponseData)?,
+            a: decode_base58_to_fixed_array(&value.compressed_proof.a)?,
+            b: decode_base58_to_fixed_array(&value.compressed_proof.b)?,
+            c: decode_base58_to_fixed_array(&value.compressed_proof.c)?,
         }));
 
         // Convert account data from V1 flat arrays to V2 structured format
@@ -487,33 +475,25 @@ impl ValidityProofWithContext {
     ) -> Result<Self, IndexerError> {
         let proof = if let Some(proof) = value.compressed_proof {
             ValidityProof::new(Some(CompressedProof {
-                a: proof
-                    .a
-                    .try_into()
-                    .map_err(|_| IndexerError::InvalidResponseData)?,
-                b: proof
-                    .b
-                    .try_into()
-                    .map_err(|_| IndexerError::InvalidResponseData)?,
-                c: proof
-                    .c
-                    .try_into()
-                    .map_err(|_| IndexerError::InvalidResponseData)?,
+                a: decode_base58_to_fixed_array(&proof.a)?,
+                b: decode_base58_to_fixed_array(&proof.b)?,
+                c: decode_base58_to_fixed_array(&proof.c)?,
             }))
         } else {
             ValidityProof::new(None)
         };
 
+        // The V2 API returns structured accounts and addresses arrays directly.
         let accounts = value
             .accounts
             .iter()
-            .map(AccountProofInputs::from_api_model)
+            .map(AccountProofInputs::from_api_account_proof_inputs)
             .collect::<Result<Vec<_>, IndexerError>>()?;
 
         let addresses = value
             .addresses
             .iter()
-            .map(AddressProofInputs::from_api_model)
+            .map(AddressProofInputs::from_api_address_proof_inputs)
             .collect::<Result<Vec<_>, IndexerError>>()?;
 
         Ok(Self {
@@ -553,9 +533,9 @@ impl NextTreeInfo {
     ) -> Result<Self, IndexerError> {
         Ok(Self {
             tree_type: TreeType::from(value.tree_type as u64),
-            tree: Pubkey::new_from_array(decode_base58_to_fixed_array(&value.tree)?),
-            queue: Pubkey::new_from_array(decode_base58_to_fixed_array(&value.queue)?),
-            cpi_context: decode_base58_option_to_pubkey(&value.cpi_context)?,
+            tree: Pubkey::new_from_array(decode_base58_to_fixed_array(&value.tree.0)?),
+            queue: Pubkey::new_from_array(decode_base58_to_fixed_array(&value.queue.0)?),
+            cpi_context: decode_serializable_pubkey_option(&value.cpi_context)?,
         })
     }
 }
@@ -566,9 +546,9 @@ impl TryFrom<&photon_api::models::TreeContextInfo> for NextTreeInfo {
     fn try_from(value: &photon_api::models::TreeContextInfo) -> Result<Self, Self::Error> {
         Ok(Self {
             tree_type: TreeType::from(value.tree_type as u64),
-            tree: Pubkey::new_from_array(decode_base58_to_fixed_array(&value.tree)?),
-            queue: Pubkey::new_from_array(decode_base58_to_fixed_array(&value.queue)?),
-            cpi_context: decode_base58_option_to_pubkey(&value.cpi_context)?,
+            tree: Pubkey::new_from_array(decode_base58_to_fixed_array(&value.tree.0)?),
+            queue: Pubkey::new_from_array(decode_base58_to_fixed_array(&value.queue.0)?),
+            cpi_context: decode_serializable_pubkey_option(&value.cpi_context)?,
         })
     }
 }
@@ -612,13 +592,13 @@ impl TreeInfo {
     ) -> Result<Self, IndexerError> {
         Ok(Self {
             tree_type: TreeType::from(value.tree_type as u64),
-            tree: Pubkey::new_from_array(decode_base58_to_fixed_array(&value.tree)?),
-            queue: Pubkey::new_from_array(decode_base58_to_fixed_array(&value.queue)?),
-            cpi_context: decode_base58_option_to_pubkey(&value.cpi_context)?,
+            tree: Pubkey::new_from_array(decode_base58_to_fixed_array(&value.tree.0)?),
+            queue: Pubkey::new_from_array(decode_base58_to_fixed_array(&value.queue.0)?),
+            cpi_context: decode_serializable_pubkey_option(&value.cpi_context)?,
             next_tree_info: value
                 .next_tree_context
                 .as_ref()
-                .map(|tree_info| NextTreeInfo::from_api_model(tree_info.as_ref()))
+                .map(|tree_info| NextTreeInfo::from_api_model(tree_info))
                 .transpose()?,
         })
     }
@@ -719,37 +699,37 @@ impl TryFrom<&photon_api::models::AccountV2> for CompressedAccount {
     fn try_from(account: &photon_api::models::AccountV2) -> Result<Self, Self::Error> {
         let data = if let Some(data) = &account.data {
             Ok::<Option<CompressedAccountData>, IndexerError>(Some(CompressedAccountData {
-                discriminator: data.discriminator.to_le_bytes(),
-                data: base64::decode_config(&data.data, base64::STANDARD_NO_PAD)
+                discriminator: (data.discriminator.0).to_le_bytes(),
+                data: base64::decode_config(&data.data.0, base64::STANDARD_NO_PAD)
                     .map_err(|_| IndexerError::InvalidResponseData)?,
-                data_hash: decode_base58_to_fixed_array(&data.data_hash)?,
+                data_hash: decode_base58_to_fixed_array(&data.data_hash.0)?,
             }))
         } else {
             Ok::<Option<CompressedAccountData>, IndexerError>(None)
         }?;
 
-        let owner = Pubkey::new_from_array(decode_base58_to_fixed_array(&account.owner)?);
+        let owner = Pubkey::new_from_array(decode_base58_to_fixed_array(&account.owner.0)?);
         let address = account
             .address
             .as_ref()
-            .map(|address| decode_base58_to_fixed_array(address))
+            .map(|address| decode_base58_to_fixed_array(&address.0))
             .transpose()?;
-        let hash = decode_base58_to_fixed_array(&account.hash)?;
+        let hash = decode_base58_to_fixed_array(&account.hash.0)?;
 
         let tree_info = TreeInfo {
             tree: Pubkey::new_from_array(decode_base58_to_fixed_array(
-                &account.merkle_context.tree,
+                &account.merkle_context.tree.0,
             )?),
             queue: Pubkey::new_from_array(decode_base58_to_fixed_array(
-                &account.merkle_context.queue,
+                &account.merkle_context.queue.0,
             )?),
             tree_type: TreeType::from(account.merkle_context.tree_type as u64),
-            cpi_context: decode_base58_option_to_pubkey(&account.merkle_context.cpi_context)?,
+            cpi_context: decode_serializable_pubkey_option(&account.merkle_context.cpi_context)?,
             next_tree_info: account
                 .merkle_context
                 .next_tree_context
                 .as_ref()
-                .map(|ctx| NextTreeInfo::try_from(ctx.as_ref()))
+                .map(|ctx| NextTreeInfo::try_from(ctx))
                 .transpose()?,
         };
 
@@ -758,10 +738,10 @@ impl TryFrom<&photon_api::models::AccountV2> for CompressedAccount {
             address,
             data,
             hash,
-            lamports: account.lamports,
-            leaf_index: account.leaf_index,
-            seq: account.seq,
-            slot_created: account.slot_created,
+            lamports: account.lamports.0,
+            leaf_index: account.leaf_index.0 as u32,
+            seq: account.seq.as_ref().map(|s| s.0),
+            slot_created: account.slot_created.0,
             tree_info,
             prove_by_index: account.prove_by_index,
         })
@@ -774,28 +754,28 @@ impl TryFrom<&photon_api::models::Account> for CompressedAccount {
     fn try_from(account: &photon_api::models::Account) -> Result<Self, Self::Error> {
         let data = if let Some(data) = &account.data {
             Ok::<Option<CompressedAccountData>, IndexerError>(Some(CompressedAccountData {
-                discriminator: data.discriminator.to_le_bytes(),
-                data: base64::decode_config(&data.data, base64::STANDARD_NO_PAD)
+                discriminator: (data.discriminator.0).to_le_bytes(),
+                data: base64::decode_config(&data.data.0, base64::STANDARD_NO_PAD)
                     .map_err(|_| IndexerError::InvalidResponseData)?,
-                data_hash: decode_base58_to_fixed_array(&data.data_hash)?,
+                data_hash: decode_base58_to_fixed_array(&data.data_hash.0)?,
             }))
         } else {
             Ok::<Option<CompressedAccountData>, IndexerError>(None)
         }?;
-        let owner = Pubkey::new_from_array(decode_base58_to_fixed_array(&account.owner)?);
+        let owner = Pubkey::new_from_array(decode_base58_to_fixed_array(&account.owner.0)?);
         let address = account
             .address
             .as_ref()
-            .map(|address| decode_base58_to_fixed_array(address))
+            .map(|address| decode_base58_to_fixed_array(&address.0))
             .transpose()?;
-        let hash = decode_base58_to_fixed_array(&account.hash)?;
-        let seq = account.seq;
-        let slot_created = account.slot_created;
-        let lamports = account.lamports;
-        let leaf_index = account.leaf_index;
+        let hash = decode_base58_to_fixed_array(&account.hash.0)?;
+        let seq = account.seq.as_ref().map(|s| s.0);
+        let slot_created = account.slot_created.0;
+        let lamports = account.lamports.0;
+        let leaf_index = account.leaf_index.0 as u32;
 
         let tree_info = QUEUE_TREE_MAPPING
-            .get(&account.tree)
+            .get(&account.tree.0)
             .ok_or(IndexerError::InvalidResponseData)?;
 
         let tree_info = TreeInfo {
@@ -860,21 +840,21 @@ impl TryFrom<&photon_api::models::TokenAccount> for CompressedTokenAccount {
     type Error = IndexerError;
 
     fn try_from(token_account: &photon_api::models::TokenAccount) -> Result<Self, Self::Error> {
-        let account = CompressedAccount::try_from(token_account.account.as_ref())?;
+        let account = CompressedAccount::try_from(&token_account.account)?;
 
         let token = TokenData {
             mint: Pubkey::new_from_array(decode_base58_to_fixed_array(
-                &token_account.token_data.mint,
+                &token_account.token_data.mint.0,
             )?),
             owner: Pubkey::new_from_array(decode_base58_to_fixed_array(
-                &token_account.token_data.owner,
+                &token_account.token_data.owner.0,
             )?),
-            amount: token_account.token_data.amount,
+            amount: token_account.token_data.amount.0,
             delegate: token_account
                 .token_data
                 .delegate
                 .as_ref()
-                .map(|d| decode_base58_to_fixed_array(d).map(Pubkey::new_from_array))
+                .map(|d| decode_base58_to_fixed_array(&d.0).map(Pubkey::new_from_array))
                 .transpose()?,
             state: match token_account.token_data.state {
                 photon_api::models::AccountState::Initialized => AccountState::Initialized,
@@ -885,7 +865,7 @@ impl TryFrom<&photon_api::models::TokenAccount> for CompressedTokenAccount {
                 .tlv
                 .as_ref()
                 .map(|tlv| {
-                    let bytes = base64::decode_config(tlv, base64::STANDARD_NO_PAD)
+                    let bytes = base64::decode_config(&tlv.0, base64::STANDARD_NO_PAD)
                         .map_err(|_| IndexerError::InvalidResponseData)?;
                     Vec::<ExtensionStruct>::deserialize(&mut bytes.as_slice())
                         .map_err(|_| IndexerError::InvalidResponseData)
@@ -901,21 +881,21 @@ impl TryFrom<&photon_api::models::TokenAccountV2> for CompressedTokenAccount {
     type Error = IndexerError;
 
     fn try_from(token_account: &photon_api::models::TokenAccountV2) -> Result<Self, Self::Error> {
-        let account = CompressedAccount::try_from(token_account.account.as_ref())?;
+        let account = CompressedAccount::try_from(&token_account.account)?;
 
         let token = TokenData {
             mint: Pubkey::new_from_array(decode_base58_to_fixed_array(
-                &token_account.token_data.mint,
+                &token_account.token_data.mint.0,
             )?),
             owner: Pubkey::new_from_array(decode_base58_to_fixed_array(
-                &token_account.token_data.owner,
+                &token_account.token_data.owner.0,
             )?),
-            amount: token_account.token_data.amount,
+            amount: token_account.token_data.amount.0,
             delegate: token_account
                 .token_data
                 .delegate
                 .as_ref()
-                .map(|d| decode_base58_to_fixed_array(d).map(Pubkey::new_from_array))
+                .map(|d| decode_base58_to_fixed_array(&d.0).map(Pubkey::new_from_array))
                 .transpose()?,
             state: match token_account.token_data.state {
                 photon_api::models::AccountState::Initialized => AccountState::Initialized,
@@ -926,7 +906,7 @@ impl TryFrom<&photon_api::models::TokenAccountV2> for CompressedTokenAccount {
                 .tlv
                 .as_ref()
                 .map(|tlv| {
-                    let bytes = base64::decode_config(tlv, base64::STANDARD_NO_PAD)
+                    let bytes = base64::decode_config(&tlv.0, base64::STANDARD_NO_PAD)
                         .map_err(|_| IndexerError::InvalidResponseData)?;
                     Vec::<ExtensionStruct>::deserialize(&mut bytes.as_slice())
                         .map_err(|_| IndexerError::InvalidResponseData)
@@ -996,8 +976,8 @@ impl TryFrom<&photon_api::models::TokenBalance> for TokenBalance {
 
     fn try_from(token_balance: &photon_api::models::TokenBalance) -> Result<Self, Self::Error> {
         Ok(TokenBalance {
-            balance: token_balance.balance,
-            mint: Pubkey::new_from_array(decode_base58_to_fixed_array(&token_balance.mint)?),
+            balance: token_balance.balance.0,
+            mint: Pubkey::new_from_array(decode_base58_to_fixed_array(&token_balance.mint.0)?),
         })
     }
 }
@@ -1014,9 +994,9 @@ impl TryFrom<&photon_api::models::SignatureInfo> for SignatureWithMetadata {
 
     fn try_from(sig_info: &photon_api::models::SignatureInfo) -> Result<Self, Self::Error> {
         Ok(SignatureWithMetadata {
-            block_time: sig_info.block_time,
-            signature: sig_info.signature.clone(),
-            slot: sig_info.slot,
+            block_time: sig_info.block_time.0 as u64,
+            signature: sig_info.signature.0.clone(),
+            slot: sig_info.slot.0,
         })
     }
 }
@@ -1032,8 +1012,8 @@ impl TryFrom<&photon_api::models::OwnerBalance> for OwnerBalance {
 
     fn try_from(owner_balance: &photon_api::models::OwnerBalance) -> Result<Self, Self::Error> {
         Ok(OwnerBalance {
-            balance: owner_balance.balance,
-            owner: Pubkey::new_from_array(decode_base58_to_fixed_array(&owner_balance.owner)?),
+            balance: owner_balance.balance.0,
+            owner: Pubkey::new_from_array(decode_base58_to_fixed_array(&owner_balance.owner.0)?),
         })
     }
 }
