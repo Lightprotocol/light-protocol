@@ -1,0 +1,3 @@
+[submodule "external/photon"]
+	path = external/photon
+	url = https://github.com/helius-labs/photon
