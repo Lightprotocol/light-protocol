@@ -1112,3 +1112,229 @@ impl TryFrom<&photon_api::models::CompressedMint> for CompressedMint {
         Ok(CompressedMint { mint, account })
     }
 }
+
+// ============ Interface Types ============
+// These types are used by the Interface endpoints that race hot (on-chain) and cold (compressed) lookups
+
+/// Indicates the source of the resolved account data
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ResolvedFrom {
+    /// Account data comes from on-chain (hot) lookup
+    Onchain,
+    /// Account data comes from compressed (cold) lookup
+    Compressed,
+}
+
+impl TryFrom<photon_api::models::ResolvedFrom> for ResolvedFrom {
+    type Error = IndexerError;
+
+    fn try_from(value: photon_api::models::ResolvedFrom) -> Result<Self, Self::Error> {
+        match value {
+            photon_api::models::ResolvedFrom::Onchain => Ok(ResolvedFrom::Onchain),
+            photon_api::models::ResolvedFrom::Compressed => Ok(ResolvedFrom::Compressed),
+        }
+    }
+}
+
+/// Context information for compressed accounts (only present when resolved_from = Compressed)
+#[derive(Clone, Debug, PartialEq)]
+pub struct CompressedContext {
+    /// The hash of the compressed account (leaf hash in Merkle tree)
+    pub hash: [u8; 32],
+    /// The Merkle tree address
+    pub tree: Pubkey,
+    /// The leaf index in the Merkle tree
+    pub leaf_index: u64,
+    /// Sequence number (None if in output queue, Some once inserted into Merkle tree)
+    pub seq: Option<u64>,
+    /// Whether the account can be proven by index (in output queue)
+    pub prove_by_index: bool,
+}
+
+impl TryFrom<&photon_api::models::CompressedContext> for CompressedContext {
+    type Error = IndexerError;
+
+    fn try_from(ctx: &photon_api::models::CompressedContext) -> Result<Self, Self::Error> {
+        Ok(CompressedContext {
+            hash: decode_base58_to_fixed_array(&ctx.hash)?,
+            tree: Pubkey::new_from_array(decode_base58_to_fixed_array(&ctx.tree)?),
+            leaf_index: ctx.leaf_index,
+            seq: ctx.seq,
+            prove_by_index: ctx.prove_by_index,
+        })
+    }
+}
+
+/// Unified account interface that represents either on-chain or compressed account data
+#[derive(Clone, Debug, PartialEq)]
+pub struct AccountInterface {
+    /// The account address
+    pub address: Pubkey,
+    /// Account lamports balance
+    pub lamports: u64,
+    /// The program owner of this account
+    pub owner: Pubkey,
+    /// Account data as bytes
+    pub data: Vec<u8>,
+    /// Whether the account is executable (always false for compressed)
+    pub executable: bool,
+    /// Rent epoch (always 0 for compressed)
+    pub rent_epoch: u64,
+    /// Source of the account data
+    pub resolved_from: ResolvedFrom,
+    /// Slot at which the account data was resolved
+    pub resolved_slot: u64,
+    /// Additional context for compressed accounts (None for on-chain)
+    pub compressed_context: Option<CompressedContext>,
+}
+
+impl TryFrom<&photon_api::models::AccountInterface> for AccountInterface {
+    type Error = IndexerError;
+
+    fn try_from(ai: &photon_api::models::AccountInterface) -> Result<Self, Self::Error> {
+        let compressed_context = ai
+            .compressed_context
+            .as_ref()
+            .map(|ctx| CompressedContext::try_from(ctx.as_ref()))
+            .transpose()?;
+
+        let data = base64::decode_config(&ai.data, base64::STANDARD_NO_PAD)
+            .map_err(|_| IndexerError::InvalidResponseData)?;
+
+        Ok(AccountInterface {
+            address: Pubkey::new_from_array(decode_base58_to_fixed_array(&ai.address)?),
+            lamports: ai.lamports,
+            owner: Pubkey::new_from_array(decode_base58_to_fixed_array(&ai.owner)?),
+            data,
+            executable: ai.executable,
+            rent_epoch: ai.rent_epoch,
+            resolved_from: ResolvedFrom::try_from(ai.resolved_from)?,
+            resolved_slot: ai.resolved_slot,
+            compressed_context,
+        })
+    }
+}
+
+impl TryFrom<&photon_api::models::InterfaceResult> for AccountInterface {
+    type Error = IndexerError;
+
+    fn try_from(ir: &photon_api::models::InterfaceResult) -> Result<Self, Self::Error> {
+        match ir {
+            photon_api::models::InterfaceResult::Account(ai) => AccountInterface::try_from(ai),
+            photon_api::models::InterfaceResult::Token(tai) => {
+                AccountInterface::try_from(&tai.account)
+            }
+            photon_api::models::InterfaceResult::Mint(mi) => {
+                AccountInterface::try_from(&mi.account)
+            }
+        }
+    }
+}
+
+/// Token account interface with parsed token data
+#[derive(Clone, Debug, PartialEq)]
+pub struct TokenAccountInterface {
+    /// Base account interface data
+    pub account: AccountInterface,
+    /// Parsed token data (same as CompressedTokenAccount.token)
+    pub token: TokenData,
+}
+
+impl TryFrom<&photon_api::models::TokenAccountInterface> for TokenAccountInterface {
+    type Error = IndexerError;
+
+    fn try_from(tai: &photon_api::models::TokenAccountInterface) -> Result<Self, Self::Error> {
+        let compressed_context = tai
+            .account
+            .compressed_context
+            .as_ref()
+            .map(|ctx| CompressedContext::try_from(ctx.as_ref()))
+            .transpose()?;
+
+        let data = base64::decode_config(&tai.account.data, base64::STANDARD_NO_PAD)
+            .map_err(|_| IndexerError::InvalidResponseData)?;
+
+        let account = AccountInterface {
+            address: Pubkey::new_from_array(decode_base58_to_fixed_array(&tai.account.address)?),
+            lamports: tai.account.lamports,
+            owner: Pubkey::new_from_array(decode_base58_to_fixed_array(&tai.account.owner)?),
+            data,
+            executable: tai.account.executable,
+            rent_epoch: tai.account.rent_epoch,
+            resolved_from: ResolvedFrom::try_from(tai.account.resolved_from)?,
+            resolved_slot: tai.account.resolved_slot,
+            compressed_context,
+        };
+
+        // Parse token data - same pattern as CompressedTokenAccount
+        let token = TokenData {
+            mint: Pubkey::new_from_array(decode_base58_to_fixed_array(&tai.token_data.mint)?),
+            owner: Pubkey::new_from_array(decode_base58_to_fixed_array(&tai.token_data.owner)?),
+            amount: tai.token_data.amount,
+            delegate: tai
+                .token_data
+                .delegate
+                .as_ref()
+                .map(|d| decode_base58_to_fixed_array(d).map(Pubkey::new_from_array))
+                .transpose()?,
+            state: match tai.token_data.state {
+                photon_api::models::AccountState::Initialized => AccountState::Initialized,
+                photon_api::models::AccountState::Frozen => AccountState::Frozen,
+            },
+            tlv: tai
+                .token_data
+                .tlv
+                .as_ref()
+                .map(|tlv| {
+                    let bytes = base64::decode_config(tlv, base64::STANDARD_NO_PAD)
+                        .map_err(|_| IndexerError::InvalidResponseData)?;
+                    Vec::<ExtensionStruct>::deserialize(&mut bytes.as_slice())
+                        .map_err(|_| IndexerError::InvalidResponseData)
+                })
+                .transpose()?,
+        };
+
+        Ok(TokenAccountInterface { account, token })
+    }
+}
+
+/// Mint account interface with parsed mint data
+#[derive(Clone, Debug, PartialEq)]
+pub struct MintInterface {
+    /// Base account interface data
+    pub account: AccountInterface,
+    /// Parsed mint data
+    pub mint_data: MintData,
+}
+
+impl TryFrom<&photon_api::models::MintInterface> for MintInterface {
+    type Error = IndexerError;
+
+    fn try_from(mi: &photon_api::models::MintInterface) -> Result<Self, Self::Error> {
+        let compressed_context = mi
+            .account
+            .compressed_context
+            .as_ref()
+            .map(|ctx| CompressedContext::try_from(ctx.as_ref()))
+            .transpose()?;
+
+        let data = base64::decode_config(&mi.account.data, base64::STANDARD_NO_PAD)
+            .map_err(|_| IndexerError::InvalidResponseData)?;
+
+        let account = AccountInterface {
+            address: Pubkey::new_from_array(decode_base58_to_fixed_array(&mi.account.address)?),
+            lamports: mi.account.lamports,
+            owner: Pubkey::new_from_array(decode_base58_to_fixed_array(&mi.account.owner)?),
+            data,
+            executable: mi.account.executable,
+            rent_epoch: mi.account.rent_epoch,
+            resolved_from: ResolvedFrom::try_from(mi.account.resolved_from)?,
+            resolved_slot: mi.account.resolved_slot,
+            compressed_context,
+        };
+
+        let mint_data = MintData::try_from(&mi.mint_data)?;
+
+        Ok(MintInterface { account, mint_data })
+    }
+}

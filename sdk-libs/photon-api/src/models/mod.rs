@@ -366,3 +366,61 @@ pub mod _get_compressed_mints_by_authority_post_200_response_result;
 pub use self::_get_compressed_mints_by_authority_post_200_response_result::GetCompressedMintsByAuthorityPost200ResponseResult;
 pub mod _get_compressed_mints_by_authority_post_200_response;
 pub use self::_get_compressed_mints_by_authority_post_200_response::GetCompressedMintsByAuthorityPost200Response;
+// Interface types
+pub mod resolved_from;
+pub use self::resolved_from::ResolvedFrom;
+pub mod compressed_context;
+pub use self::compressed_context::CompressedContext;
+pub mod account_interface;
+pub use self::account_interface::AccountInterface;
+pub mod token_account_interface;
+pub use self::token_account_interface::TokenAccountInterface;
+pub mod mint_interface;
+pub use self::mint_interface::MintInterface;
+pub mod interface_result;
+pub use self::interface_result::InterfaceResult;
+// getAccountInterface
+pub mod _get_account_interface_post_request_params;
+pub use self::_get_account_interface_post_request_params::GetAccountInterfacePostRequestParams;
+pub mod _get_account_interface_post_request;
+pub use self::_get_account_interface_post_request::GetAccountInterfacePostRequest;
+pub mod _get_account_interface_post_200_response_result;
+pub use self::_get_account_interface_post_200_response_result::GetAccountInterfacePost200ResponseResult;
+pub mod _get_account_interface_post_200_response;
+pub use self::_get_account_interface_post_200_response::GetAccountInterfacePost200Response;
+// getTokenAccountInterface
+pub mod _get_token_account_interface_post_request_params;
+pub use self::_get_token_account_interface_post_request_params::GetTokenAccountInterfacePostRequestParams;
+pub mod _get_token_account_interface_post_request;
+pub use self::_get_token_account_interface_post_request::GetTokenAccountInterfacePostRequest;
+pub mod _get_token_account_interface_post_200_response_result;
+pub use self::_get_token_account_interface_post_200_response_result::GetTokenAccountInterfacePost200ResponseResult;
+pub mod _get_token_account_interface_post_200_response;
+pub use self::_get_token_account_interface_post_200_response::GetTokenAccountInterfacePost200Response;
+// getAtaInterface
+pub mod _get_ata_interface_post_request_params;
+pub use self::_get_ata_interface_post_request_params::GetAtaInterfacePostRequestParams;
+pub mod _get_ata_interface_post_request;
+pub use self::_get_ata_interface_post_request::GetAtaInterfacePostRequest;
+pub mod _get_ata_interface_post_200_response_result;
+pub use self::_get_ata_interface_post_200_response_result::GetAtaInterfacePost200ResponseResult;
+pub mod _get_ata_interface_post_200_response;
+pub use self::_get_ata_interface_post_200_response::GetAtaInterfacePost200Response;
+// getMintInterface
+pub mod _get_mint_interface_post_request_params;
+pub use self::_get_mint_interface_post_request_params::GetMintInterfacePostRequestParams;
+pub mod _get_mint_interface_post_request;
+pub use self::_get_mint_interface_post_request::GetMintInterfacePostRequest;
+pub mod _get_mint_interface_post_200_response_result;
+pub use self::_get_mint_interface_post_200_response_result::GetMintInterfacePost200ResponseResult;
+pub mod _get_mint_interface_post_200_response;
+pub use self::_get_mint_interface_post_200_response::GetMintInterfacePost200Response;
+// getMultipleAccountInterfaces
+pub mod _get_multiple_account_interfaces_post_request_params;
+pub use self::_get_multiple_account_interfaces_post_request_params::GetMultipleAccountInterfacesPostRequestParams;
+pub mod _get_multiple_account_interfaces_post_request;
+pub use self::_get_multiple_account_interfaces_post_request::GetMultipleAccountInterfacesPostRequest;
+pub mod _get_multiple_account_interfaces_post_200_response_result;
+pub use self::_get_multiple_account_interfaces_post_200_response_result::GetMultipleAccountInterfacesPost200ResponseResult;
+pub mod _get_multiple_account_interfaces_post_200_response;
+pub use self::_get_multiple_account_interfaces_post_200_response::GetMultipleAccountInterfacesPost200Response;

@@ -74,8 +74,11 @@ if [ -z "${CI:-}" ]; then
     alias light="${LIGHT_PROTOCOL_TOPLEVEL}/cli/test_bin/run"
 fi
 
-# Define GOROOT for Go.
 export GOROOT="${LIGHT_PROTOCOL_TOPLEVEL}/.local/go"
+export GOTOOLCHAIN=local
+unset GOBIN
+# Disable mise entirely to prevent its hooks from overriding our paths.
+export MISE_DISABLED=1
 
 # Ensure Rust binaries are in PATH
 PATH="${CARGO_HOME}/bin:${PATH}"

@@ -1,0 +1,4 @@
+# Disable mise's Go management for this project.
+# We use our own Go installation via devenv.sh.
+[settings]
+disable_tools = ["go"]
