@@ -63,7 +63,7 @@ pub mod compressible;
 pub mod constants;
 pub mod error;
 pub mod instruction;
-pub mod pack;
+// pub mod pack;
 pub mod spl_interface;
 pub mod utils;
 
@@ -84,4 +84,4 @@ pub use light_token_interface::{
     state::AdditionalMetadata,
 };
 // Re-export pack::compat as the main compat module (has full type definitions including CTokenData, PackedCTokenData)
-pub use pack::compat;
+// pub use pack::compat;
