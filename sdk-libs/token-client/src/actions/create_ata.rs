@@ -66,6 +66,9 @@ impl CreateAta {
             .create_and_send_transaction(&[ix], &payer.pubkey(), &[payer])
             .await?;
 
-        Ok((signature, get_associated_token_address(&self.owner, &self.mint)))
+        Ok((
+            signature,
+            get_associated_token_address(&self.owner, &self.mint),
+        ))
     }
 }

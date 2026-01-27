@@ -26,11 +26,11 @@ pub mod wrap;
 // Re-export all action structs
 pub use approve::Approve;
 pub use create_ata::CreateAta;
+pub use create_mint::{CreateMint, TokenMetadata};
 pub use light_token::instruction::{
     derive_associated_token_account, get_associated_token_address,
     get_associated_token_address_and_bump,
 };
-pub use create_mint::{CreateMint, TokenMetadata};
 pub use mint_to::MintTo;
 pub use revoke::Revoke;
 pub use transfer::Transfer;
