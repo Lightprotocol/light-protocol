@@ -7,9 +7,9 @@ use std::collections::HashSet;
 
 use syn::{Expr, Ident, ItemStruct};
 
-use super::{
-    classify::classify_seed,
-    types::{Seed, SeedSpec},
+use super::types::SeedSpec;
+use crate::light_pdas::account::seed_extraction::{
+    classify_seed_expr, ClassifiedSeed, InstructionArgSet,
 };
 
 /// Parse `#[instruction(...)]` attribute and return instruction argument names.
@@ -18,36 +18,8 @@ use super::{
 /// - Format 1: `#[instruction(params: CreateParams)]` -> returns `{"params"}`
 /// - Format 2: `#[instruction(owner: Pubkey, amount: u64)]` -> returns `{"owner", "amount"}`
 pub fn parse_instruction_args(attrs: &[syn::Attribute]) -> syn::Result<HashSet<String>> {
-    for attr in attrs {
-        if attr.path().is_ident("instruction") {
-            let content = attr.parse_args_with(|input: syn::parse::ParseStream| {
-                let args: syn::punctuated::Punctuated<InstructionArg, syn::Token![,]> =
-                    syn::punctuated::Punctuated::parse_terminated(input)?;
-                Ok(args
-                    .into_iter()
-                    .map(|a| a.name.to_string())
-                    .collect::<HashSet<_>>())
-            })?;
-            return Ok(content);
-        }
-    }
-    Ok(HashSet::new())
-}
-
-/// Helper struct for parsing instruction args.
-struct InstructionArg {
-    name: Ident,
-    #[allow(dead_code)]
-    ty: syn::Type,
-}
-
-impl syn::parse::Parse for InstructionArg {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let name = input.parse()?;
-        input.parse::<syn::Token![:]>()?;
-        let ty = input.parse()?;
-        Ok(Self { name, ty })
-    }
+    let arg_set = crate::light_pdas::account::seed_extraction::parse_instruction_arg_names(attrs)?;
+    Ok(arg_set.names)
 }
 
 /// Extract account field names from an Accounts struct.
@@ -73,8 +45,11 @@ pub fn extract_account_fields(item: &ItemStruct) -> HashSet<String> {
 pub fn extract_seeds_from_attribute(
     attrs: &[syn::Attribute],
     instruction_args: &HashSet<String>,
-    account_fields: &HashSet<String>,
-) -> syn::Result<Vec<Seed>> {
+    _account_fields: &HashSet<String>,
+) -> syn::Result<Vec<ClassifiedSeed>> {
+    // Convert HashSet<String> to InstructionArgSet for the unified classifier
+    let arg_set = InstructionArgSet::from_names(instruction_args.iter().cloned());
+
     for attr in attrs {
         if !attr.path().is_ident("account") {
             continue;
@@ -95,7 +70,7 @@ pub fn extract_seeds_from_attribute(
         if let Ok(items) = &parsed {
             for item in items {
                 if item.key == "seeds" {
-                    return classify_seeds_array(&item.value, instruction_args, account_fields);
+                    return classify_seeds_array(&item.value, &arg_set);
                 }
             }
         }
@@ -138,9 +113,8 @@ impl syn::parse::Parse for AccountAttrItem {
 /// Classify seeds from an array expression `[seed1, seed2, ...]`.
 fn classify_seeds_array(
     expr: &Expr,
-    instruction_args: &HashSet<String>,
-    account_fields: &HashSet<String>,
-) -> syn::Result<Vec<Seed>> {
+    instruction_args: &InstructionArgSet,
+) -> syn::Result<Vec<ClassifiedSeed>> {
     let array = match expr {
         Expr::Array(arr) => arr,
         Expr::Reference(r) => {
@@ -155,7 +129,7 @@ fn classify_seeds_array(
 
     let mut seeds = Vec::new();
     for elem in &array.elems {
-        seeds.push(classify_seed(elem, instruction_args, account_fields)?);
+        seeds.push(classify_seed_expr(elem, instruction_args)?);
     }
 
     Ok(seeds)
@@ -166,53 +140,7 @@ fn classify_seeds_array(
 ///
 /// Returns `(is_boxed, inner_type)` preserving the full type path.
 pub fn extract_account_inner_type(ty: &syn::Type) -> Option<(bool, syn::Type)> {
-    match ty {
-        syn::Type::Path(type_path) => {
-            let segment = type_path.path.segments.last()?;
-            let ident_str = segment.ident.to_string();
-
-            match ident_str.as_str() {
-                "Account" | "AccountLoader" | "InterfaceAccount" => {
-                    if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
-                        for arg in &args.args {
-                            if let syn::GenericArgument::Type(inner_ty) = arg {
-                                // Skip lifetime 'info
-                                if let syn::Type::Path(inner_path) = inner_ty {
-                                    if let Some(inner_seg) = inner_path.path.segments.last() {
-                                        if inner_seg.ident != "info" {
-                                            return Some((false, inner_ty.clone()));
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    None
-                }
-                "Box" => {
-                    if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
-                        if let Some(syn::GenericArgument::Type(inner_ty)) = args.args.first() {
-                            // Check for nested Box<Box<...>>
-                            if let syn::Type::Path(inner_path) = inner_ty {
-                                if let Some(inner_seg) = inner_path.path.segments.last() {
-                                    if inner_seg.ident == "Box" {
-                                        return None;
-                                    }
-                                }
-                            }
-
-                            if let Some((_, inner_type)) = extract_account_inner_type(inner_ty) {
-                                return Some((true, inner_type));
-                            }
-                        }
-                    }
-                    None
-                }
-                _ => None,
-            }
-        }
-        _ => None,
-    }
+    crate::light_pdas::account::seed_extraction::extract_account_inner_type(ty)
 }
 
 /// Check if a field has `#[light_account(init)]` attribute (PDA type).
@@ -276,7 +204,9 @@ pub fn extract_seed_specs(item: &ItemStruct) -> syn::Result<Vec<SeedSpec>> {
     // Parse instruction args from struct attributes
     let instruction_args = parse_instruction_args(&item.attrs)?;
 
-    // Get all account field names
+    // Get all account field names (used as context for classify_seed, but
+    // classify_seed_expr treats unknown idents as CtxRooted, so this
+    // gives the same result)
     let account_fields = extract_account_fields(item);
 
     let mut specs = Vec::new();
@@ -304,8 +234,9 @@ pub fn extract_seed_specs(item: &ItemStruct) -> syn::Result<Vec<SeedSpec>> {
             }
         };
 
-        // Extract seeds
-        let seeds = extract_seeds_from_attribute(&field.attrs, &instruction_args, &account_fields)?;
+        // Extract seeds using the unified classifier
+        let seeds =
+            extract_seeds_from_attribute(&field.attrs, &instruction_args, &account_fields)?;
 
         specs.push(SeedSpec::new(field_ident, inner_type, seeds, is_zero_copy));
     }
@@ -374,15 +305,14 @@ mod tests {
         )];
 
         let instruction_args = HashSet::new();
-        let mut account_fields = HashSet::new();
-        account_fields.insert("authority".to_string());
+        let account_fields: HashSet<String> = ["authority".to_string()].into();
 
         let seeds = extract_seeds_from_attribute(&attrs, &instruction_args, &account_fields)
             .expect("should extract");
 
         assert_eq!(seeds.len(), 2);
-        assert!(seeds[0].is_constant());
-        assert!(seeds[1].is_account());
+        assert!(matches!(seeds[0], ClassifiedSeed::Literal(_)));
+        assert!(matches!(seeds[1], ClassifiedSeed::CtxRooted { .. }));
     }
 
     #[test]

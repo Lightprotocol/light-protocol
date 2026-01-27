@@ -95,8 +95,13 @@ impl syn::parse::Parse for InstructionArg {
 pub enum ClassifiedSeed {
     /// b"literal" or "string" - hardcoded bytes
     Literal(Vec<u8>),
-    /// CONSTANT or path::CONSTANT - uppercase identifier
-    Constant(syn::Path),
+    /// CONSTANT or path::CONSTANT - uppercase identifier.
+    /// `path` is the extracted constant path (for crate:: qualification).
+    /// `expr` is the full original expression (e.g., `SEED.as_bytes()`) for codegen.
+    Constant {
+        path: syn::Path,
+        expr: Box<syn::Expr>,
+    },
     /// Expression rooted in ctx account (e.g., authority.key().as_ref())
     /// `account` is the root identifier, `expr` is the full expression for codegen
     CtxRooted {
@@ -109,8 +114,39 @@ pub enum ClassifiedSeed {
         root: Ident,
         expr: Box<syn::Expr>,
     },
+    /// Function call with dynamic arguments (e.g., crate::max_key(&params.key_a, &params.key_b).as_ref())
+    /// Detected when `Expr::Call` or `Expr::MethodCall(receiver=Expr::Call)` has args
+    /// rooted in instruction data or ctx accounts.
+    FunctionCall {
+        /// The full function call expression (without trailing .as_ref()/.as_bytes())
+        func_expr: Box<syn::Expr>,
+        /// Classified arguments to the function
+        args: Vec<ClassifiedFnArg>,
+        /// Whether the original expression had trailing .as_ref() or .as_bytes()
+        has_as_ref: bool,
+    },
     /// Everything else - pass through unchanged
     Passthrough(Box<syn::Expr>),
+}
+
+/// A classified argument to a function call seed.
+#[derive(Clone, Debug)]
+pub struct ClassifiedFnArg {
+    /// The field name extracted from the argument (e.g., `key_a` from `&params.key_a`)
+    pub field_name: Ident,
+    /// Whether this is a ctx account or instruction data field
+    pub kind: FnArgKind,
+    /// The original argument expression (for codegen reconstruction)
+    pub original_expr: Box<syn::Expr>,
+}
+
+/// Classification of a function call argument.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum FnArgKind {
+    /// Argument is rooted in a ctx account field
+    CtxAccount,
+    /// Argument is rooted in instruction data
+    DataField,
 }
 
 /// Extracted seed specification for a compressible field
@@ -130,6 +166,9 @@ pub struct ExtractedSeedSpec {
     pub is_zero_copy: bool,
     /// The instruction struct name this field was extracted from (for error messages)
     pub struct_name: String,
+    /// The full module path where this struct was defined (e.g., "crate::instructions::create")
+    /// Used to qualify bare constant/function names in seed expressions.
+    pub module_path: String,
 }
 
 /// Extracted token specification for a #[light_account(token, ...)] field
@@ -145,6 +184,9 @@ pub struct ExtractedTokenSpec {
     pub authority_field: Option<Ident>,
     /// Authority seeds (from the authority field's #[account(seeds)])
     pub authority_seeds: Option<Vec<ClassifiedSeed>>,
+    /// The full module path where this struct was defined (e.g., "crate::instructions::create")
+    /// Used to qualify bare constant/function names in seed expressions.
+    pub module_path: String,
 }
 
 /// All extracted info from an Accounts struct
@@ -163,6 +205,7 @@ pub struct ExtractedAccountsInfo {
 pub fn extract_from_accounts_struct(
     item: &ItemStruct,
     instruction_args: &InstructionArgSet,
+    module_path: &str,
 ) -> syn::Result<Option<ExtractedAccountsInfo>> {
     let fields = match &item.fields {
         syn::Fields::Named(named) => &named.named,
@@ -222,6 +265,7 @@ pub fn extract_from_accounts_struct(
                 seeds,
                 is_zero_copy: has_zero_copy,
                 struct_name: item.ident.to_string(),
+                module_path: module_path.to_string(),
             });
         } else if let Some(token_attr) = token_attr {
             // Token field - derive variant name from field name if not provided
@@ -240,6 +284,7 @@ pub fn extract_from_accounts_struct(
                 authority_field: None,
                 // Use authority from attribute if provided
                 authority_seeds: token_attr.authority_seeds,
+                module_path: module_path.to_string(),
             });
         }
     }
@@ -715,7 +760,8 @@ fn classify_seeds_array(
 /// 2. Uppercase paths -> Constant
 /// 3. Check if rooted in instruction arg -> DataRooted (pass through full expr)
 /// 4. Check if rooted in ctx account -> CtxRooted (pass through full expr)
-/// 5. Everything else -> Passthrough
+/// 5. Function calls with dynamic args -> FunctionCall
+/// 6. Everything else -> Passthrough
 pub fn classify_seed_expr(
     expr: &Expr,
     instruction_args: &InstructionArgSet,
@@ -727,7 +773,10 @@ pub fn classify_seed_expr(
 
     // Handle constants (uppercase paths)
     if let Some(path) = extract_constant_path(expr) {
-        return Ok(ClassifiedSeed::Constant(path));
+        return Ok(ClassifiedSeed::Constant {
+            path,
+            expr: Box::new(expr.clone()),
+        });
     }
 
     // Check if rooted in instruction arg
@@ -746,8 +795,125 @@ pub fn classify_seed_expr(
         });
     }
 
+    // Check for function calls with dynamic arguments
+    if let Some(fc) = classify_function_call(expr, instruction_args) {
+        return Ok(fc);
+    }
+
     // Everything else: passthrough
     Ok(ClassifiedSeed::Passthrough(Box::new(expr.clone())))
+}
+
+/// Attempt to classify an expression as a FunctionCall seed.
+///
+/// Detects patterns like:
+/// - `func(arg1, arg2)` -> Expr::Call
+/// - `func(arg1, arg2).as_ref()` -> Expr::MethodCall(receiver=Expr::Call)
+///
+/// Returns `Some(ClassifiedSeed::FunctionCall{...})` if:
+/// - The expression contains an `Expr::Call` (at top-level or as receiver of `.as_ref()`)
+/// - At least one argument is rooted in instruction data or ctx accounts
+///
+/// Returns `None` if:
+/// - Not a function call pattern
+/// - No dynamic arguments (falls through to Passthrough)
+fn classify_function_call(
+    expr: &Expr,
+    instruction_args: &InstructionArgSet,
+) -> Option<ClassifiedSeed> {
+    // Strip trailing .as_ref() / .as_bytes() to find the call expression
+    let (call_expr, has_as_ref) = strip_trailing_as_ref(expr);
+
+    // Check if the (possibly stripped) expression is a function call
+    let call = match call_expr {
+        Expr::Call(c) => c,
+        _ => return None,
+    };
+
+    // Classify each argument
+    let mut classified_args = Vec::new();
+    let mut has_dynamic = false;
+
+    for arg in &call.args {
+        // Unwrap references for classification
+        let inner = unwrap_references(arg);
+
+        // Check if rooted in instruction arg
+        if let Some(root) = get_instruction_arg_root(inner, instruction_args) {
+            // Extract terminal field name (e.g., key_a from params.key_a)
+            let field_name = extract_terminal_field_name(inner).unwrap_or(root);
+            classified_args.push(ClassifiedFnArg {
+                field_name,
+                kind: FnArgKind::DataField,
+                original_expr: Box::new(arg.clone()),
+            });
+            has_dynamic = true;
+            continue;
+        }
+
+        // Check if rooted in ctx account
+        if let Some(account) = get_ctx_account_root(inner) {
+            classified_args.push(ClassifiedFnArg {
+                field_name: account,
+                kind: FnArgKind::CtxAccount,
+                original_expr: Box::new(arg.clone()),
+            });
+            has_dynamic = true;
+            continue;
+        }
+
+        // Not dynamic -- skip this arg (will be inlined as-is in codegen)
+    }
+
+    if !has_dynamic {
+        return None;
+    }
+
+    Some(ClassifiedSeed::FunctionCall {
+        func_expr: Box::new(Expr::Call(call.clone())),
+        args: classified_args,
+        has_as_ref,
+    })
+}
+
+/// Strip trailing `.as_ref()` or `.as_bytes()` method calls from an expression.
+/// Returns the inner expression and a flag indicating whether stripping occurred.
+fn strip_trailing_as_ref(expr: &Expr) -> (&Expr, bool) {
+    if let Expr::MethodCall(mc) = expr {
+        let method = mc.method.to_string();
+        if (method == "as_ref" || method == "as_bytes") && mc.args.is_empty() {
+            return (&mc.receiver, true);
+        }
+    }
+    (expr, false)
+}
+
+/// Unwrap reference expressions (&expr, &mut expr) to get the inner expression.
+fn unwrap_references(expr: &Expr) -> &Expr {
+    match expr {
+        Expr::Reference(r) => unwrap_references(&r.expr),
+        _ => expr,
+    }
+}
+
+/// Extract the terminal (deepest) field name from an expression.
+/// For `params.key_a.as_ref()` returns `key_a`.
+/// For `params.key_a` returns `key_a`.
+/// For bare `owner` returns `owner`.
+fn extract_terminal_field_name(expr: &Expr) -> Option<Ident> {
+    match expr {
+        Expr::Field(field) => {
+            if let syn::Member::Named(name) = &field.member {
+                Some(name.clone())
+            } else {
+                None
+            }
+        }
+        Expr::MethodCall(mc) => extract_terminal_field_name(&mc.receiver),
+        Expr::Reference(r) => extract_terminal_field_name(&r.expr),
+        Expr::Path(path) => path.path.get_ident().cloned(),
+        _ => None,
+    }
 }
 
 /// Extract byte literal from expression.
@@ -783,7 +949,7 @@ fn extract_byte_literal(expr: &Expr) -> Option<Vec<u8>> {
 }
 
 /// Extract constant path from expression.
-/// Handles: CONSTANT, path::CONSTANT
+/// Handles: CONSTANT, path::CONSTANT, CONSTANT.as_bytes(), CONSTANT.as_ref()
 /// Does NOT handle type-qualified paths like <T as Trait>::CONST (returns None for passthrough)
 fn extract_constant_path(expr: &Expr) -> Option<syn::Path> {
     match expr {
@@ -808,6 +974,8 @@ fn extract_constant_path(expr: &Expr) -> Option<syn::Path> {
         }
         // Unwrap references
         Expr::Reference(r) => extract_constant_path(&r.expr),
+        // Handle method calls on constants: CONSTANT.as_bytes(), CONSTANT.as_ref()
+        Expr::MethodCall(mc) => extract_constant_path(&mc.receiver),
         _ => None,
     }
 }
@@ -886,12 +1054,27 @@ fn get_ctx_account_root(expr: &Expr) -> Option<Ident> {
 pub fn get_data_fields(seeds: &[ClassifiedSeed]) -> Vec<(Ident, Option<Ident>)> {
     let mut fields = Vec::new();
     for seed in seeds {
-        if let ClassifiedSeed::DataRooted { expr, .. } = seed {
-            if let Some((field_name, conversion)) = extract_data_field_info(expr) {
-                if !fields.iter().any(|(f, _): &(Ident, _)| f == &field_name) {
-                    fields.push((field_name, conversion));
+        match seed {
+            ClassifiedSeed::DataRooted { expr, .. } => {
+                if let Some((field_name, conversion)) = extract_data_field_info(expr) {
+                    if !fields.iter().any(|(f, _): &(Ident, _)| f == &field_name) {
+                        fields.push((field_name, conversion));
+                    }
                 }
             }
+            ClassifiedSeed::FunctionCall { args, .. } => {
+                // Include DataField args from function calls (e.g., max_key(&params.key_a, &params.key_b))
+                for arg in args {
+                    if matches!(arg.kind, FnArgKind::DataField) {
+                        let field_name = arg.field_name.clone();
+                        if !fields.iter().any(|(f, _): &(Ident, _)| *f == field_name) {
+                            // FunctionCall data args are Pubkey by default (no conversion)
+                            fields.push((field_name, None));
+                        }
+                    }
+                }
+            }
+            _ => {}
         }
     }
     fields
@@ -949,27 +1132,90 @@ pub fn get_params_only_seed_fields_from_spec(
     let mut fields = Vec::new();
     for seed in &spec.seeds {
         if let SeedElement::Expression(expr) = seed {
+            // Extract data fields from top-level expressions (e.g., data.owner.as_ref())
             if let Some((field_name, has_conversion)) = extract_data_field_from_expr(expr) {
-                let field_str = field_name.to_string();
-                // Only include fields that are NOT on the state struct and not already added
-                if !state_field_names.contains(&field_str)
-                    && !fields
-                        .iter()
-                        .any(|(f, _, _): &(Ident, _, _)| f == &field_name)
-                {
-                    let field_type: syn::Type = if has_conversion {
-                        syn::parse_quote!(u64)
-                    } else {
-                        // Use Pubkey (from anchor_lang::prelude) instead of solana_pubkey::Pubkey
-                        // because Anchor's IDL build feature requires IdlBuild trait implementations
-                        syn::parse_quote!(Pubkey)
-                    };
-                    fields.push((field_name, field_type, has_conversion));
-                }
+                add_params_only_field(
+                    &field_name,
+                    has_conversion,
+                    state_field_names,
+                    &mut fields,
+                );
             }
+            // Also extract data fields from function call arguments
+            // (e.g., crate::max_key(&data.key_a, &data.key_b).as_ref())
+            extract_data_fields_from_nested_calls(expr, state_field_names, &mut fields);
         }
     }
     fields
+}
+
+/// Add a params-only field if it's not on the state struct and not already added.
+fn add_params_only_field(
+    field_name: &Ident,
+    has_conversion: bool,
+    state_field_names: &std::collections::HashSet<String>,
+    fields: &mut Vec<(Ident, syn::Type, bool)>,
+) {
+    let field_str = field_name.to_string();
+    if !state_field_names.contains(&field_str)
+        && !fields
+            .iter()
+            .any(|(f, _, _): &(Ident, _, _)| f == field_name)
+    {
+        let field_type: syn::Type = if has_conversion {
+            syn::parse_quote!(u64)
+        } else {
+            syn::parse_quote!(Pubkey)
+        };
+        fields.push((field_name.clone(), field_type, has_conversion));
+    }
+}
+
+/// Recursively extract data fields from function call arguments within an expression.
+fn extract_data_fields_from_nested_calls(
+    expr: &syn::Expr,
+    state_field_names: &std::collections::HashSet<String>,
+    fields: &mut Vec<(Ident, syn::Type, bool)>,
+) {
+    match expr {
+        syn::Expr::Call(call) => {
+            for arg in &call.args {
+                if let Some((field_name, has_conversion)) = extract_data_field_from_expr(arg) {
+                    add_params_only_field(
+                        &field_name,
+                        has_conversion,
+                        state_field_names,
+                        fields,
+                    );
+                }
+                extract_data_fields_from_nested_calls(arg, state_field_names, fields);
+            }
+        }
+        syn::Expr::MethodCall(mc) => {
+            extract_data_fields_from_nested_calls(&mc.receiver, state_field_names, fields);
+            for arg in &mc.args {
+                extract_data_fields_from_nested_calls(arg, state_field_names, fields);
+            }
+        }
+        syn::Expr::Reference(r) => {
+            extract_data_fields_from_nested_calls(&r.expr, state_field_names, fields);
+        }
+        _ => {}
+    }
+}
+
+/// Extract the terminal field name from a DataRooted seed expression.
+///
+/// For `params.owner.as_ref()` returns `owner`.
+/// For `params.nonce.to_le_bytes()` returns `nonce`.
+/// For bare `owner` returns `owner`.
+pub fn extract_data_field_name_from_expr(expr: &syn::Expr) -> Option<Ident> {
+    // Try extract_data_field_info first (works for most expressions)
+    if let Some((field, _)) = extract_data_field_info(expr) {
+        return Some(field);
+    }
+    // Fallback: try extract_data_field_from_expr (handles data.X pattern)
+    extract_data_field_from_expr(expr).map(|(name, _)| name)
 }
 
 /// Extract data field name and conversion info from an expression.
@@ -1093,7 +1339,7 @@ mod tests {
         let args = InstructionArgSet::empty();
         let expr: syn::Expr = parse_quote!(SEED_PREFIX);
         let result = classify_seed_expr(&expr, &args).unwrap();
-        assert!(matches!(result, ClassifiedSeed::Constant(_)));
+        assert!(matches!(result, ClassifiedSeed::Constant { .. }));
     }
 
     #[test]
@@ -1160,11 +1406,104 @@ mod tests {
 
     #[test]
     fn test_passthrough_for_generic_function_call() {
-        // Complex function calls should become Passthrough
+        // Complex function calls with no dynamic args should become Passthrough
         let args = InstructionArgSet::empty();
         let expr: syn::Expr = parse_quote!(identity_seed::<12>(b"seed"));
         let result = classify_seed_expr(&expr, &args).unwrap();
         assert!(matches!(result, ClassifiedSeed::Passthrough(_)));
+    }
+
+    #[test]
+    fn test_function_call_with_data_args() {
+        // crate::max_key(&params.key_a, &params.key_b).as_ref() should be FunctionCall
+        let args = make_instruction_args(&["params"]);
+        let expr: syn::Expr = parse_quote!(crate::max_key(&params.key_a, &params.key_b).as_ref());
+        let result = classify_seed_expr(&expr, &args).unwrap();
+        match result {
+            ClassifiedSeed::FunctionCall {
+                args: fn_args,
+                has_as_ref,
+                ..
+            } => {
+                assert!(has_as_ref, "Should detect trailing .as_ref()");
+                assert_eq!(fn_args.len(), 2, "Should have 2 classified args");
+                assert_eq!(fn_args[0].field_name.to_string(), "key_a");
+                assert_eq!(fn_args[0].kind, FnArgKind::DataField);
+                assert_eq!(fn_args[1].field_name.to_string(), "key_b");
+                assert_eq!(fn_args[1].kind, FnArgKind::DataField);
+            }
+            other => panic!("Expected FunctionCall, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_function_call_with_ctx_args() {
+        // some_func(&fee_payer, &authority).as_ref() with no instruction args
+        let args = InstructionArgSet::empty();
+        let expr: syn::Expr = parse_quote!(some_func(&fee_payer, &authority).as_ref());
+        let result = classify_seed_expr(&expr, &args).unwrap();
+        match result {
+            ClassifiedSeed::FunctionCall {
+                args: fn_args,
+                has_as_ref,
+                ..
+            } => {
+                assert!(has_as_ref);
+                assert_eq!(fn_args.len(), 2);
+                assert_eq!(fn_args[0].kind, FnArgKind::CtxAccount);
+                assert_eq!(fn_args[1].kind, FnArgKind::CtxAccount);
+            }
+            other => panic!("Expected FunctionCall, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_function_call_no_dynamic_args_becomes_passthrough() {
+        // crate::id().as_ref() -- no dynamic args -> Passthrough
+        let args = InstructionArgSet::empty();
+        let expr: syn::Expr = parse_quote!(crate::id().as_ref());
+        let result = classify_seed_expr(&expr, &args).unwrap();
+        assert!(
+            matches!(result, ClassifiedSeed::Passthrough(_)),
+            "No-arg function call should be Passthrough, got {:?}",
+            result
+        );
+    }
+
+    #[test]
+    fn test_constant_method_call_not_function_call() {
+        // SeedHolder::NAMESPACE.as_bytes() should be Constant, not FunctionCall
+        let args = InstructionArgSet::empty();
+        let expr: syn::Expr = parse_quote!(SeedHolder::NAMESPACE.as_bytes());
+        let result = classify_seed_expr(&expr, &args).unwrap();
+        assert!(
+            matches!(result, ClassifiedSeed::Constant { .. }),
+            "Method call on constant should be Constant, got {:?}",
+            result
+        );
+    }
+
+    #[test]
+    fn test_function_call_mixed_args() {
+        // func(&params.key_a, &authority).as_ref() - mixed data + ctx args
+        let args = make_instruction_args(&["params"]);
+        let expr: syn::Expr = parse_quote!(func(&params.key_a, &authority).as_ref());
+        let result = classify_seed_expr(&expr, &args).unwrap();
+        match result {
+            ClassifiedSeed::FunctionCall {
+                args: fn_args,
+                has_as_ref,
+                ..
+            } => {
+                assert!(has_as_ref);
+                assert_eq!(fn_args.len(), 2);
+                assert_eq!(fn_args[0].field_name.to_string(), "key_a");
+                assert_eq!(fn_args[0].kind, FnArgKind::DataField);
+                assert_eq!(fn_args[1].field_name.to_string(), "authority");
+                assert_eq!(fn_args[1].kind, FnArgKind::CtxAccount);
+            }
+            other => panic!("Expected FunctionCall, got {:?}", other),
+        }
     }
 
     #[test]
@@ -1182,7 +1521,7 @@ mod tests {
         let args = InstructionArgSet::empty();
         let expr: syn::Expr = parse_quote!(crate::state::SEED_CONSTANT);
         let result = classify_seed_expr(&expr, &args).unwrap();
-        assert!(matches!(result, ClassifiedSeed::Constant(path) if path.segments.last().unwrap().ident == "SEED_CONSTANT"));
+        assert!(matches!(result, ClassifiedSeed::Constant { path, .. } if path.segments.last().unwrap().ident == "SEED_CONSTANT"));
     }
 
     #[test]

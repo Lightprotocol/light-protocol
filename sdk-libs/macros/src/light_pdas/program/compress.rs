@@ -85,132 +85,75 @@ impl CompressBuilder {
     // Code Generation Methods
     // -------------------------------------------------------------------------
 
-    /// Generate the compress context implementation module.
+    /// Generate the compress dispatch function.
     ///
-    /// Creates a module containing the `CompressContext` trait implementation
-    /// that handles discriminator-based deserialization and compression.
-    pub fn generate_context_impl(&self) -> Result<syn::ItemMod> {
-        let lifetime: syn::Lifetime = syn::parse_quote!('info);
-
+    /// Creates a function matching `CompressDispatchFn` signature that handles
+    /// discriminator-based deserialization and compression dispatch.
+    /// This function is placed inside the processor module.
+    pub fn generate_dispatch_fn(&self) -> Result<syn::ItemFn> {
         let compress_arms: Vec<_> = self.accounts.iter().map(|info| {
             let name = qualify_type_with_crate(&info.account_type);
 
             if info.is_zero_copy {
-                // Pod (zero-copy) path: use bytemuck instead of Borsh
+                // Pod (zero-copy) path: use bytemuck
                 quote! {
                     d if d == #name::LIGHT_DISCRIMINATOR => {
-                        drop(data);
-                        let data_borrow = account_info.try_borrow_data().map_err(__anchor_to_program_error)?;
-                        // Skip 8-byte discriminator and read Pod data directly
-                        let pod_bytes = &data_borrow[8..8 + core::mem::size_of::<#name>()];
+                        let pod_bytes = &data[8..8 + core::mem::size_of::<#name>()];
                         let mut account_data: #name = *bytemuck::from_bytes(pod_bytes);
-                        drop(data_borrow);
-
-                        let compressed_info = light_sdk::interface::compress_account::prepare_account_for_compression_pod::<#name>(
-                            program_id,
-                            account_info,
-                            &mut account_data,
-                            meta,
-                            cpi_accounts,
-                            &compression_config.address_space,
-                        )?;
-                        Ok(Some(compressed_info))
+                        drop(data);
+                        light_sdk::interface::prepare_account_for_compression(
+                            account_info, &mut account_data, meta, index, ctx,
+                        )
                     }
                 }
             } else {
-                // Borsh path: use anchor deserialization
+                // Borsh path: use try_from_slice
                 quote! {
                     d if d == #name::LIGHT_DISCRIMINATOR => {
+                        let mut account_data = #name::try_from_slice(&data[8..])
+                            .map_err(|_| solana_program_error::ProgramError::InvalidAccountData)?;
                         drop(data);
-                        let data_borrow = account_info.try_borrow_data().map_err(__anchor_to_program_error)?;
-                        let mut account_data = #name::try_deserialize(&mut &data_borrow[..])
-                            .map_err(__anchor_to_program_error)?;
-                        drop(data_borrow);
-
-                        let compressed_info = light_sdk::interface::compress_account::prepare_account_for_compression::<#name>(
-                            program_id,
-                            account_info,
-                            &mut account_data,
-                            meta,
-                            cpi_accounts,
-                            &compression_config.address_space,
-                        )?;
-                        Ok(Some(compressed_info))
+                        light_sdk::interface::prepare_account_for_compression(
+                            account_info, &mut account_data, meta, index, ctx,
+                        )
                     }
                 }
             }
         }).collect();
 
         Ok(syn::parse_quote! {
-            mod __compress_context_impl {
-                use super::*;
+            fn __compress_dispatch<'info>(
+                account_info: &anchor_lang::prelude::AccountInfo<'info>,
+                meta: &light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
+                index: usize,
+                ctx: &mut light_sdk::interface::CompressCtx<'_, 'info>,
+            ) -> std::result::Result<(), solana_program_error::ProgramError> {
                 use light_sdk::LightDiscriminator;
-                use light_sdk::interface::HasCompressionInfo;
-
-                #[inline(always)]
-                fn __anchor_to_program_error<E: Into<anchor_lang::error::Error>>(e: E) -> solana_program_error::ProgramError {
-                    let err: anchor_lang::error::Error = e.into();
-                    let program_error: anchor_lang::prelude::ProgramError = err.into();
-                    let code = match program_error {
-                        anchor_lang::prelude::ProgramError::Custom(code) => code,
-                        _ => 0,
-                    };
-                    solana_program_error::ProgramError::Custom(code)
-                }
-
-                impl<#lifetime> light_sdk::interface::CompressContext<#lifetime> for CompressAccountsIdempotent<#lifetime> {
-                    fn fee_payer(&self) -> &solana_account_info::AccountInfo<#lifetime> {
-                        &*self.fee_payer
-                    }
-
-                    fn config(&self) -> &solana_account_info::AccountInfo<#lifetime> {
-                        &self.config
-                    }
-
-                    fn rent_sponsor(&self) -> &solana_account_info::AccountInfo<#lifetime> {
-                        &self.rent_sponsor
-                    }
-
-                    fn compression_authority(&self) -> &solana_account_info::AccountInfo<#lifetime> {
-                        &self.compression_authority
-                    }
-
-                    fn compress_pda_account(
-                        &self,
-                        account_info: &solana_account_info::AccountInfo<#lifetime>,
-                        meta: &light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
-                        cpi_accounts: &light_sdk::cpi::v2::CpiAccounts<'_, #lifetime>,
-                        compression_config: &light_sdk::interface::LightConfig,
-                        program_id: &solana_pubkey::Pubkey,
-                    ) -> std::result::Result<Option<::light_sdk::compressed_account::CompressedAccountInfo>, solana_program_error::ProgramError> {
-                        let data = account_info.try_borrow_data().map_err(__anchor_to_program_error)?;
-                        let discriminator = &data[0..8];
-
-                        match discriminator {
-                            #(#compress_arms)*
-                            _ => Err(__anchor_to_program_error(anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch))
-                        }
-                    }
+                use borsh::BorshDeserialize;
+                let data = account_info.try_borrow_data()?;
+                let discriminator: [u8; 8] = data[..8]
+                    .try_into()
+                    .map_err(|_| solana_program_error::ProgramError::InvalidAccountData)?;
+                match discriminator {
+                    #(#compress_arms)*
+                    _ => Ok(()),
                 }
             }
         })
     }
 
-    /// Generate the processor function for compress accounts.
+    /// Generate the processor function for compress accounts (v2 interface).
     pub fn generate_processor(&self) -> Result<syn::ItemFn> {
         Ok(syn::parse_quote! {
             #[inline(never)]
             pub fn process_compress_accounts_idempotent<'info>(
-                accounts: &CompressAccountsIdempotent<'info>,
                 remaining_accounts: &[solana_account_info::AccountInfo<'info>],
-                compressed_accounts: Vec<light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress>,
-                system_accounts_offset: u8,
+                instruction_data: &[u8],
             ) -> Result<()> {
-                light_sdk::interface::compress_runtime::process_compress_pda_accounts_idempotent(
-                    accounts,
+                light_sdk::interface::process_compress_pda_accounts_idempotent(
                     remaining_accounts,
-                    compressed_accounts,
-                    system_accounts_offset,
+                    instruction_data,
+                    __compress_dispatch,
                     LIGHT_CPI_SIGNER,
                     &crate::ID,
                 )
@@ -219,22 +162,21 @@ impl CompressBuilder {
         })
     }
 
-    /// Generate the compress instruction entrypoint function.
+    /// Generate the compress instruction entrypoint function (v2 interface).
+    ///
+    /// Accepts `instruction_data: Vec<u8>` as a single parameter.
+    /// The SDK client wraps the serialized data in a Vec<u8> (4-byte length prefix),
+    /// and Anchor deserializes Vec<u8> correctly with this format.
     pub fn generate_entrypoint(&self) -> Result<syn::ItemFn> {
         Ok(syn::parse_quote! {
             #[inline(never)]
-            #[allow(clippy::too_many_arguments)]
             pub fn compress_accounts_idempotent<'info>(
-                ctx: Context<'_, '_, '_, 'info, CompressAccountsIdempotent<'info>>,
-                proof: light_sdk::instruction::ValidityProof,
-                compressed_accounts: Vec<light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress>,
-                system_accounts_offset: u8,
+                ctx: Context<'_, '_, '_, 'info, CompressAccountsIdempotent>,
+                instruction_data: Vec<u8>,
             ) -> Result<()> {
                 __processor_functions::process_compress_accounts_idempotent(
-                    &ctx.accounts,
-                    &ctx.remaining_accounts,
-                    compressed_accounts,
-                    system_accounts_offset,
+                    ctx.remaining_accounts,
+                    &instruction_data,
                 )
             }
         })
@@ -242,27 +184,12 @@ impl CompressBuilder {
 
     /// Generate the compress accounts struct.
     ///
-    /// The accounts struct is the same for all variants since it provides
-    /// shared infrastructure for compression operations. For `TokenOnly`,
-    /// the struct is still generated but PDA compression will return errors.
+    /// Empty struct - all accounts are passed via remaining_accounts
+    /// and validated by the SDK's process_compress_pda_accounts_idempotent.
     pub fn generate_accounts_struct(&self) -> Result<syn::ItemStruct> {
-        // All variants use the same accounts struct - it's shared infrastructure
-        // for compression operations. The variant behavior is determined by
-        // the context impl, not the accounts struct.
         Ok(syn::parse_quote! {
             #[derive(Accounts)]
-            pub struct CompressAccountsIdempotent<'info> {
-                #[account(mut)]
-                pub fee_payer: Signer<'info>,
-                /// CHECK: Checked by SDK
-                pub config: AccountInfo<'info>,
-                /// CHECK: Checked by SDK
-                #[account(mut)]
-                pub rent_sponsor: AccountInfo<'info>,
-                /// CHECK: Checked by SDK
-                #[account(mut)]
-                pub compression_authority: AccountInfo<'info>,
-            }
+            pub struct CompressAccountsIdempotent {}
         })
     }
 

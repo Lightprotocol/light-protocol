@@ -288,49 +288,55 @@ pub fn compressible_pack(input: TokenStream) -> TokenStream {
     ))
 }
 
-/// Consolidates all required traits for Light Protocol state accounts into a single derive.
+/// Generates a unified `LightAccount` trait implementation for compressible account structs.
 ///
-/// This macro is equivalent to deriving:
-/// - `LightHasherSha` (SHA256/ShaFlat hashing - type 3)
-/// - `LightDiscriminator` (unique discriminator)
-/// - `Compressible` (HasCompressionInfo + CompressAs + Size + CompressedInitSpace)
-/// - `CompressiblePack` (Pack + Unpack + Packed struct generation)
+/// This macro generates:
+/// - `LightHasherSha` (SHA256/ShaFlat hashing via DataHasher + ToByteArray)
+/// - `LightDiscriminator` (unique 8-byte discriminator)
+/// - `impl LightAccount for T` (unified trait with pack/unpack, compression_info accessors)
+/// - `PackedT` struct (Pubkeys -> u8 indices, compression_info excluded to save 24 bytes)
 ///
 /// ## Example
 ///
 /// ```ignore
-/// use light_sdk_macros::LightAccount;
-/// use light_sdk::interface::CompressionInfo;
+/// use light_sdk_macros::{LightAccount, LightDiscriminator, LightHasherSha};
+/// use light_sdk::compressible::CompressionInfo;
 /// use solana_pubkey::Pubkey;
 ///
-/// #[derive(Default, Debug, InitSpace, LightAccount)]
+/// #[derive(Default, Debug, InitSpace, LightAccount, LightDiscriminator, LightHasherSha)]
 /// #[account]
 /// pub struct UserRecord {
+///     pub compression_info: CompressionInfo,  // Non-Option, first or last field
 ///     pub owner: Pubkey,
 ///     #[max_len(32)]
 ///     pub name: String,
 ///     pub score: u64,
-///     pub compression_info: Option<CompressionInfo>,
 /// }
 /// ```
 ///
-/// This is equivalent to:
-/// ```ignore
-/// #[derive(Default, Debug, InitSpace, LightHasherSha, LightDiscriminator, Compressible, CompressiblePack)]
-/// #[account]
-/// pub struct UserRecord { ... }
-/// ```
+/// ## Generated Code
+///
+/// The macro generates:
+/// - `PackedUserRecord` struct with Pubkeys replaced by u8 indices and compression_info excluded
+/// - `impl LightAccount for UserRecord` with:
+///   - `const ACCOUNT_TYPE: AccountType = AccountType::Pda`
+///   - `const INIT_SPACE: usize` (from Anchor's Space trait)
+///   - `fn compression_info(&self)` / `fn compression_info_mut(&mut self)`
+///   - `fn set_decompressed(&mut self, config, slot)` (resets transient fields)
+///   - `fn pack(&self, accounts)` / `fn unpack(packed, accounts)`
+/// - Compile-time assertion that INIT_SPACE <= 800 bytes
 ///
 /// ## Attributes
 ///
-/// - `#[compress_as(...)]` - Optional: specify field values to reset during compression
+/// - `#[compress_as(field = value)]` - Optional: reset field values during set_decompressed
+/// - `#[skip]` - Exclude fields from compression/hashing entirely
 ///
-/// ## Notes
+/// ## Requirements
 ///
-/// - The `compression_info` field is auto-detected and handled (no `#[skip]` needed)
-/// - SHA256 (ShaFlat) hashes the entire serialized struct (no `#[hash]` needed)
-/// - The struct must have a `compression_info: Option<CompressionInfo>` field
-#[proc_macro_derive(LightAccount, attributes(compress_as))]
+/// - The `compression_info` field must be non-Option `CompressionInfo` type
+/// - The `compression_info` field must be first or last field in the struct
+/// - SHA256 hashing serializes the entire struct (no `#[hash]` needed)
+#[proc_macro_derive(LightAccount, attributes(compress_as, skip))]
 pub fn light_account_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     into_token_stream(light_pdas::account::light_compressible::derive_light_account(input))
@@ -451,50 +457,4 @@ pub fn derive_light_rent_sponsor(input: TokenStream) -> TokenStream {
 pub fn light_accounts_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     into_token_stream(light_pdas::accounts::derive_light_accounts(input))
-}
-
-/// Derives PodCompressionInfoField for Pod (zero-copy) structs.
-///
-/// This derive macro generates the `PodCompressionInfoField` trait implementation
-/// for structs that use zero-copy serialization via `bytemuck::Pod`.
-///
-/// ## Requirements
-///
-/// 1. The struct must have `#[repr(C)]` attribute for predictable field layout
-/// 2. The struct must have a `compression_info: CompressionInfo` field
-///    (non-optional, using `light_compressible::compression_info::CompressionInfo`)
-/// 3. The struct must implement `bytemuck::Pod` and `bytemuck::Zeroable`
-///
-/// ## Example
-///
-/// ```ignore
-/// use light_sdk_macros::PodCompressionInfoField;
-/// use light_compressible::compression_info::CompressionInfo;
-/// use bytemuck::{Pod, Zeroable};
-///
-/// #[derive(Clone, Copy, Pod, Zeroable, PodCompressionInfoField)]
-/// #[repr(C)]
-/// pub struct MyPodAccount {
-///     pub owner: [u8; 32],
-///     pub data: u64,
-///     pub compression_info: CompressionInfo,
-/// }
-/// ```
-///
-/// ## Differences from Borsh Compression
-///
-/// - Pod accounts use non-optional `CompressionInfo` (compression state is indicated
-///   by `config_account_version`: 0 = uninitialized, >= 1 = initialized)
-/// - Uses `core::mem::offset_of!()` for compile-time offset calculation
-/// - More efficient for fixed-size accounts with zero-copy serialization
-#[proc_macro_derive(PodCompressionInfoField)]
-pub fn pod_compression_info_field(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as DeriveInput);
-    into_token_stream(light_pdas::account::traits::derive_pod_compression_info_field(input))
-}
-
-#[proc_macro_derive(DeriveSeed, attributes(instruction))]
-pub fn derive_seed(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as DeriveInput);
-    into_token_stream(light_pdas::seeds::derive_seed(input))
 }

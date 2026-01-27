@@ -10,16 +10,16 @@ use super::utils::{
 };
 
 /// A single field override in #[compress_as(field = expr)]
-struct CompressAsField {
-    name: Ident,
-    value: Expr,
+pub(crate) struct CompressAsField {
+    pub name: Ident,
+    pub value: Expr,
 }
 
 /// Collection of field overrides parsed from #[compress_as(...)]
 /// Uses darling's FromMeta to collect arbitrary name=value pairs.
 #[derive(Default)]
-struct CompressAsFields {
-    fields: Vec<CompressAsField>,
+pub(crate) struct CompressAsFields {
+    pub fields: Vec<CompressAsField>,
 }
 
 impl FromMeta for CompressAsFields {
@@ -40,6 +40,24 @@ impl FromMeta for CompressAsFields {
             })
             .collect::<darling::Result<Vec<_>>>()
             .map(|fields| CompressAsFields { fields })
+    }
+}
+
+/// Parses compress_as overrides from struct attributes.
+/// Used by LightAccount derive to extract field override values.
+pub(crate) fn parse_compress_as_overrides(
+    attrs: &[syn::Attribute],
+) -> Result<Option<CompressAsFields>> {
+    let compress_as_attr = attrs
+        .iter()
+        .find(|attr| attr.path().is_ident("compress_as"));
+
+    if let Some(attr) = compress_as_attr {
+        let parsed = CompressAsFields::from_meta(&attr.meta)
+            .map_err(|e| syn::Error::new_spanned(attr, e.to_string()))?;
+        Ok(Some(parsed))
+    } else {
+        Ok(None)
     }
 }
 
@@ -82,7 +100,10 @@ fn validate_compression_info_field(
 
 /// Generates the CompressionInfoField trait implementation.
 /// HasCompressionInfo is provided via blanket impl in light-sdk.
-fn generate_has_compression_info_impl(struct_name: &Ident, compression_info_first: bool) -> TokenStream {
+fn generate_has_compression_info_impl(
+    struct_name: &Ident,
+    compression_info_first: bool,
+) -> TokenStream {
     quote! {
         impl light_sdk::interface::CompressionInfoField for #struct_name {
             const COMPRESSION_INFO_FIRST: bool = #compression_info_first;
@@ -217,7 +238,10 @@ pub fn derive_has_compression_info(input: syn::ItemStruct) -> Result<TokenStream
     let fields = extract_fields_from_item_struct(&input)?;
 
     let compression_info_first = validate_compression_info_field(fields, struct_name)?;
-    Ok(generate_has_compression_info_impl(struct_name, compression_info_first))
+    Ok(generate_has_compression_info_impl(
+        struct_name,
+        compression_info_first,
+    ))
 }
 
 pub fn derive_compressible(input: DeriveInput) -> Result<TokenStream> {
@@ -242,7 +266,8 @@ pub fn derive_compressible(input: DeriveInput) -> Result<TokenStream> {
     let compression_info_first = validate_compression_info_field(fields, struct_name)?;
 
     // Generate all trait implementations using helper functions
-    let has_compression_info_impl = generate_has_compression_info_impl(struct_name, compression_info_first);
+    let has_compression_info_impl =
+        generate_has_compression_info_impl(struct_name, compression_info_first);
 
     let field_assignments = generate_compress_as_field_assignments(fields, &compress_as_fields);
     let compress_as_impl = generate_compress_as_impl(struct_name, &field_assignments);
@@ -267,9 +292,11 @@ fn validate_pod_compression_info_field(
     fields: &Punctuated<Field, Token![,]>,
     struct_name: &Ident,
 ) -> Result<()> {
-    let has_compression_info = fields
-        .iter()
-        .any(|f| f.ident.as_ref().is_some_and(|name| name == "compression_info"));
+    let has_compression_info = fields.iter().any(|f| {
+        f.ident
+            .as_ref()
+            .is_some_and(|name| name == "compression_info")
+    });
 
     if !has_compression_info {
         return Err(syn::Error::new_spanned(
@@ -302,52 +329,4 @@ fn validate_repr_c(attrs: &[syn::Attribute], struct_name: &Ident) -> Result<()> 
         ));
     }
     Ok(())
-}
-
-/// Generates the PodCompressionInfoField trait implementation for Pod (zero-copy) structs.
-///
-/// Uses `core::mem::offset_of!()` for compile-time offset calculation.
-/// This requires the struct to be `#[repr(C)]` for predictable field layout.
-fn generate_pod_compression_info_impl(struct_name: &Ident) -> TokenStream {
-    quote! {
-        impl light_sdk::interface::PodCompressionInfoField for #struct_name {
-            const COMPRESSION_INFO_OFFSET: usize = core::mem::offset_of!(#struct_name, compression_info);
-        }
-    }
-}
-
-/// Derives PodCompressionInfoField for a `#[repr(C)]` struct.
-///
-/// Requirements:
-/// 1. Struct must have `#[repr(C)]` attribute
-/// 2. Struct must have `compression_info: CompressionInfo` field (non-optional)
-/// 3. Struct must implement `bytemuck::Pod` and `bytemuck::Zeroable`
-///
-/// # Example
-///
-/// ```ignore
-/// use light_sdk_macros::PodCompressionInfoField;
-/// use light_compressible::compression_info::CompressionInfo;
-/// use bytemuck::{Pod, Zeroable};
-///
-/// #[derive(Pod, Zeroable, PodCompressionInfoField)]
-/// #[repr(C)]
-/// pub struct MyPodAccount {
-///     pub owner: [u8; 32],
-///     pub data: u64,
-///     pub compression_info: CompressionInfo,
-/// }
-/// ```
-pub fn derive_pod_compression_info_field(input: DeriveInput) -> Result<TokenStream> {
-    let struct_name = &input.ident;
-    let fields = extract_fields_from_derive_input(&input)?;
-
-    // Validate #[repr(C)] attribute
-    validate_repr_c(&input.attrs, struct_name)?;
-
-    // Validate compression_info field exists
-    validate_pod_compression_info_field(fields, struct_name)?;
-
-    // Generate trait implementation
-    Ok(generate_pod_compression_info_impl(struct_name))
 }

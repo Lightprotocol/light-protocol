@@ -4,7 +4,7 @@
 //! which triggers the `.clone()` path in pack/unpack generation.
 
 use anchor_lang::prelude::*;
-use light_sdk::{compressible::CompressionInfo, LightDiscriminator};
+use light_sdk::compressible::CompressionInfo;
 use light_sdk_macros::LightAccount;
 
 /// A struct with a String field (non-Copy type).
@@ -12,7 +12,7 @@ use light_sdk_macros::LightAccount;
 #[derive(Default, Debug, InitSpace, LightAccount)]
 #[account]
 pub struct NonCopyRecord {
-    pub compression_info: Option<CompressionInfo>,
+    pub compression_info: CompressionInfo,
     #[max_len(64)]
     pub name: String,
     #[max_len(128)]

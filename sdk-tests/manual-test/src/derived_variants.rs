@@ -21,7 +21,7 @@ use light_sdk::interface::{prepare_account_for_decompression, DecompressCtx, Dec
 /// Unpacked variant enum for all account types in this program.
 /// Each variant contains the full seeds + data.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
-pub enum ProgramAccountVariant {
+pub enum LightAccountVariant {
     MinimalRecord(MinimalRecordVariant),
     ZeroCopyRecord(ZeroCopyRecordVariant),
     AllBorsh(AllBorshVariant),
@@ -31,7 +31,7 @@ pub enum ProgramAccountVariant {
 /// Packed variant enum for efficient serialization.
 /// Does NOT wrap CompressedAccountData - that wrapper is added by the client library.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
-pub enum PackedProgramAccountVariant {
+pub enum PackedLightAccountVariant {
     MinimalRecord(PackedMinimalRecordVariant),
     ZeroCopyRecord(PackedZeroCopyRecordVariant),
     AllBorsh(PackedAllBorshVariant),
@@ -42,9 +42,9 @@ pub enum PackedProgramAccountVariant {
 // DecompressVariant Implementation (MACRO-GENERATED)
 // ============================================================================
 
-/// Implementation for PackedProgramAccountVariant.
+/// Implementation for PackedLightAccountVariant.
 /// Implements on the inner variant type to satisfy orphan rules.
-impl<'info> DecompressVariant<'info> for PackedProgramAccountVariant {
+impl<'info> DecompressVariant<'info> for PackedLightAccountVariant {
     fn decompress(
         &self,
         meta: &CompressedAccountMetaNoLamportsNoAddress,
@@ -52,7 +52,7 @@ impl<'info> DecompressVariant<'info> for PackedProgramAccountVariant {
         ctx: &mut DecompressCtx<'_, 'info>,
     ) -> std::result::Result<(), ProgramError> {
         match self {
-            PackedProgramAccountVariant::MinimalRecord(packed_data) => {
+            PackedLightAccountVariant::MinimalRecord(packed_data) => {
                 prepare_account_for_decompression::<4, PackedMinimalRecordVariant>(
                     packed_data,
                     meta,
@@ -60,7 +60,7 @@ impl<'info> DecompressVariant<'info> for PackedProgramAccountVariant {
                     ctx,
                 )
             }
-            PackedProgramAccountVariant::ZeroCopyRecord(packed_data) => {
+            PackedLightAccountVariant::ZeroCopyRecord(packed_data) => {
                 prepare_account_for_decompression::<4, PackedZeroCopyRecordVariant>(
                     packed_data,
                     meta,
@@ -68,7 +68,7 @@ impl<'info> DecompressVariant<'info> for PackedProgramAccountVariant {
                     ctx,
                 )
             }
-            PackedProgramAccountVariant::AllBorsh(packed_data) => {
+            PackedLightAccountVariant::AllBorsh(packed_data) => {
                 prepare_account_for_decompression::<3, PackedAllBorshVariant>(
                     packed_data,
                     meta,
@@ -76,7 +76,7 @@ impl<'info> DecompressVariant<'info> for PackedProgramAccountVariant {
                     ctx,
                 )
             }
-            PackedProgramAccountVariant::AllZeroCopy(packed_data) => {
+            PackedLightAccountVariant::AllZeroCopy(packed_data) => {
                 prepare_account_for_decompression::<3, PackedAllZeroCopyVariant>(
                     packed_data,
                     meta,

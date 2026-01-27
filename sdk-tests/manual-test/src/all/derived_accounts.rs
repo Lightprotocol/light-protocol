@@ -3,14 +3,13 @@
 
 use anchor_lang::prelude::*;
 use light_sdk::{
-    instruction::PackedAccounts,
-    light_account_checks::packed_accounts::ProgramPackedAccounts,
+    instruction::PackedAccounts, light_account_checks::packed_accounts::ProgramPackedAccounts,
 };
 use solana_program_error::ProgramError;
 
 use crate::account_loader::{PackedZeroCopyRecord, ZeroCopyRecord};
 use crate::pda::{MinimalRecord, PackedMinimalRecord};
-use light_sdk::interface::{LightAccount, LightAccountVariant, PackedLightAccountVariant};
+use light_sdk::interface::{LightAccount, LightAccountVariantTrait, PackedLightAccountVariantTrait};
 
 use super::accounts::{ALL_BORSH_SEED, ALL_ZERO_COPY_SEED};
 
@@ -54,7 +53,7 @@ pub struct PackedAllBorshVariant {
 // LightAccountVariant Implementation for AllBorshVariant
 // ============================================================================
 
-impl LightAccountVariant<3> for AllBorshVariant {
+impl LightAccountVariantTrait<3> for AllBorshVariant {
     const PROGRAM_ID: Pubkey = crate::ID;
 
     type Seeds = AllBorshSeeds;
@@ -68,7 +67,10 @@ impl LightAccountVariant<3> for AllBorshVariant {
     /// Get seed values as owned byte vectors for PDA derivation.
     /// Generated from: seeds = [b"all_borsh", params.owner.as_ref()]
     fn seed_vec(&self) -> Vec<Vec<u8>> {
-        vec![ALL_BORSH_SEED.to_vec(), self.seeds.owner.to_bytes().to_vec()]
+        vec![
+            ALL_BORSH_SEED.to_vec(),
+            self.seeds.owner.to_bytes().to_vec(),
+        ]
     }
 
     /// Get seed references with bump for CPI signing.
@@ -97,7 +99,7 @@ impl LightAccountVariant<3> for AllBorshVariant {
 // PackedLightAccountVariant Implementation for PackedAllBorshVariant
 // ============================================================================
 
-impl PackedLightAccountVariant<3> for PackedAllBorshVariant {
+impl PackedLightAccountVariantTrait<3> for PackedAllBorshVariant {
     type Unpacked = AllBorshVariant;
 
     fn bump(&self) -> u8 {
@@ -172,7 +174,7 @@ pub struct PackedAllZeroCopyVariant {
 // LightAccountVariant Implementation for AllZeroCopyVariant
 // ============================================================================
 
-impl LightAccountVariant<3> for AllZeroCopyVariant {
+impl LightAccountVariantTrait<3> for AllZeroCopyVariant {
     const PROGRAM_ID: Pubkey = crate::ID;
 
     type Seeds = AllZeroCopySeeds;
@@ -218,7 +220,7 @@ impl LightAccountVariant<3> for AllZeroCopyVariant {
 // PackedLightAccountVariant Implementation for PackedAllZeroCopyVariant
 // ============================================================================
 
-impl PackedLightAccountVariant<3> for PackedAllZeroCopyVariant {
+impl PackedLightAccountVariantTrait<3> for PackedAllZeroCopyVariant {
     type Unpacked = AllZeroCopyVariant;
 
     fn bump(&self) -> u8 {
@@ -286,20 +288,20 @@ impl light_sdk::interface::IntoVariant<AllBorshVariant> for AllBorshSeeds {
 // ============================================================================
 
 /// Implement Pack trait to allow AllBorshVariant to be used with `create_load_instructions`.
-/// Transforms the variant into PackedProgramAccountVariant for efficient serialization.
+/// Transforms the variant into PackedLightAccountVariant for efficient serialization.
 #[cfg(not(target_os = "solana"))]
 impl light_sdk::compressible::Pack for AllBorshVariant {
-    type Packed = crate::derived_variants::PackedProgramAccountVariant;
+    type Packed = crate::derived_variants::PackedLightAccountVariant;
 
     fn pack(
         &self,
         accounts: &mut PackedAccounts,
     ) -> std::result::Result<Self::Packed, ProgramError> {
         // Use the LightAccountVariant::pack method to get PackedAllBorshVariant
-        let packed = <Self as LightAccountVariant<3>>::pack(self, accounts)
+        let packed = <Self as LightAccountVariantTrait<3>>::pack(self, accounts)
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
-        Ok(crate::derived_variants::PackedProgramAccountVariant::AllBorsh(packed))
+        Ok(crate::derived_variants::PackedLightAccountVariant::AllBorsh(packed))
     }
 }
 
@@ -337,19 +339,19 @@ impl light_sdk::interface::IntoVariant<AllZeroCopyVariant> for AllZeroCopySeeds 
 // ============================================================================
 
 /// Implement Pack trait to allow AllZeroCopyVariant to be used with `create_load_instructions`.
-/// Transforms the variant into PackedProgramAccountVariant for efficient serialization.
+/// Transforms the variant into PackedLightAccountVariant for efficient serialization.
 #[cfg(not(target_os = "solana"))]
 impl light_sdk::compressible::Pack for AllZeroCopyVariant {
-    type Packed = crate::derived_variants::PackedProgramAccountVariant;
+    type Packed = crate::derived_variants::PackedLightAccountVariant;
 
     fn pack(
         &self,
         accounts: &mut PackedAccounts,
     ) -> std::result::Result<Self::Packed, ProgramError> {
         // Use the LightAccountVariant::pack method to get PackedAllZeroCopyVariant
-        let packed = <Self as LightAccountVariant<3>>::pack(self, accounts)
+        let packed = <Self as LightAccountVariantTrait<3>>::pack(self, accounts)
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
-        Ok(crate::derived_variants::PackedProgramAccountVariant::AllZeroCopy(packed))
+        Ok(crate::derived_variants::PackedLightAccountVariant::AllZeroCopy(packed))
     }
 }

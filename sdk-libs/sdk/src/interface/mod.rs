@@ -46,7 +46,7 @@ pub mod v2;
 #[cfg(feature = "anchor")]
 pub use v2::{
     // New traits from v2
-    traits::{AccountType, LightAccount, LightAccountVariant, PackedLightAccountVariant},
+    traits::{AccountType, LightAccount, LightAccountVariantTrait, PackedLightAccountVariantTrait},
     // Compress functions with v2 signatures
     compress::{
         prepare_account_for_compression, process_compress_pda_accounts_idempotent,

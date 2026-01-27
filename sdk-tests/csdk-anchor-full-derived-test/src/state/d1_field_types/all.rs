@@ -8,14 +8,14 @@
 //! - Option<primitives> (-> unchanged)
 
 use anchor_lang::prelude::*;
-use light_sdk::{compressible::CompressionInfo, LightDiscriminator};
+use light_sdk::compressible::CompressionInfo;
 use light_sdk_macros::LightAccount;
 
 /// Comprehensive struct with all field type variations.
 #[derive(Default, Debug, InitSpace, LightAccount)]
 #[account]
 pub struct AllFieldTypesRecord {
-    pub compression_info: Option<CompressionInfo>,
+    pub compression_info: CompressionInfo,
     // Multiple Pubkeys -> _index: u8 fields
     pub owner: Pubkey,
     pub delegate: Pubkey,

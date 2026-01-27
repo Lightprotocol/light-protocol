@@ -26,9 +26,9 @@ use crate::{
 };
 use light_sdk_types::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;
 use light_sdk_types::CpiSigner;
-use solana_program::clock::Clock;
-use solana_program::rent::Rent;
-use solana_program::sysvar::Sysvar;
+use anchor_lang::solana_program::clock::Clock;
+use anchor_lang::solana_program::rent::Rent;
+use anchor_lang::solana_program::sysvar::Sysvar;
 use solana_program_error::ProgramError;
 
 use super::traits::LightAccount;

@@ -71,6 +71,96 @@ impl CrateContext {
             .collect()
     }
 
+    /// Find structs that have a specific derive attribute, returning their module paths.
+    ///
+    /// Returns `Vec<(&str, &ItemStruct)>` where the first element is the module path
+    /// (e.g., `"crate::instructions::create"`) and the second is the struct.
+    pub fn structs_with_derive_and_path(&self, derive_name: &str) -> Vec<(&str, &ItemStruct)> {
+        self.modules
+            .iter()
+            .flat_map(|(path, module)| {
+                module
+                    .structs()
+                    .filter(|s| has_derive_attribute(&s.attrs, derive_name))
+                    .map(move |s| (path.as_str(), s))
+            })
+            .collect()
+    }
+
+    /// Find the module path where a constant is defined.
+    ///
+    /// Searches all parsed modules for a `const` item matching the given name.
+    /// Returns the module path (e.g., `"crate::amm_test::states"`) if found.
+    pub fn find_const_module_path(&self, const_name: &str) -> Option<&str> {
+        for (path, module) in &self.modules {
+            for item in &module.items {
+                if let Item::Const(item_const) = item {
+                    if item_const.ident == const_name {
+                        return Some(path.as_str());
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    /// Find the module path where a function is defined.
+    ///
+    /// Searches all parsed modules for an `fn` item matching the given name.
+    /// Returns the module path (e.g., `"crate::utils"`) if found.
+    pub fn find_fn_module_path(&self, fn_name: &str) -> Option<&str> {
+        for (path, module) in &self.modules {
+            for item in &module.items {
+                if let Item::Fn(item_fn) = item {
+                    if item_fn.sig.ident == fn_name {
+                        return Some(path.as_str());
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    /// Check if a module path is publicly accessible from the crate root.
+    ///
+    /// Verifies that every module declaration along the path uses `pub`.
+    /// For example, `crate::amm_test::states` requires both `pub mod amm_test`
+    /// in the crate root and `pub mod states` inside `amm_test`.
+    pub fn is_module_path_public(&self, module_path: &str) -> bool {
+        // "crate" is always accessible
+        if module_path == "crate" {
+            return true;
+        }
+
+        let segments: Vec<&str> = module_path.split("::").collect();
+
+        // Check each module declaration along the path
+        for i in 1..segments.len() {
+            let parent_path = segments[..i].join("::");
+            let child_name = segments[i];
+
+            if let Some(parent_module) = self.modules.get(&parent_path) {
+                let is_pub = parent_module.items.iter().any(|item| {
+                    if let Item::Mod(item_mod) = item {
+                        item_mod.ident == child_name
+                            && matches!(item_mod.vis, syn::Visibility::Public(_))
+                    } else {
+                        false
+                    }
+                });
+
+                if !is_pub {
+                    return false;
+                }
+            } else {
+                // Parent module not found -- can't verify accessibility
+                return false;
+            }
+        }
+
+        true
+    }
+
     /// Get the field names of a struct by its type.
     ///
     /// The type can be a simple identifier (e.g., "SinglePubkeyRecord") or

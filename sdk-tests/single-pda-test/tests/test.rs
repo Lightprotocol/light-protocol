@@ -101,9 +101,9 @@ async fn test_create_single_pda() {
     // Verify owner field
     assert_eq!(record.owner, owner, "Record owner should match");
 
-    // Verify compression_info is set (indicates compressible registration)
+    // Verify compression_info state is decompressed (indicates compressible registration)
     assert!(
-        record.compression_info.is_some(),
-        "Record should have compression_info set"
+        !record.compression_info.is_compressed(),
+        "Record should be in decompressed state"
     );
 }

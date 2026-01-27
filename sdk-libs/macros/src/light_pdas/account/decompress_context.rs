@@ -4,6 +4,120 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{Ident, Result};
 
+/// Generate DecompressContext impl for PDA-only programs (no token support).
+/// Uses `()` as PackedTokenData and returns empty token vec.
+pub fn generate_pda_only_decompress_context_trait_impl(
+    lifetime: syn::Lifetime,
+) -> Result<TokenStream> {
+    Ok(quote! {
+        impl<#lifetime> light_sdk::interface::DecompressContext<#lifetime> for DecompressAccountsIdempotent<#lifetime> {
+            type CompressedData = LightAccountData;
+            type PackedTokenData = ();
+            type CompressedMeta = light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;
+
+            fn fee_payer(&self) -> &solana_account_info::AccountInfo<#lifetime> {
+                &*self.fee_payer
+            }
+
+            fn config(&self) -> &solana_account_info::AccountInfo<#lifetime> {
+                &self.config
+            }
+
+            fn rent_sponsor(&self) -> &solana_account_info::AccountInfo<#lifetime> {
+                &self.rent_sponsor
+            }
+
+            fn token_rent_sponsor(&self) -> std::option::Option<&solana_account_info::AccountInfo<#lifetime>> {
+                None
+            }
+
+            fn token_program(&self) -> std::option::Option<&solana_account_info::AccountInfo<#lifetime>> {
+                None
+            }
+
+            fn token_cpi_authority(&self) -> std::option::Option<&solana_account_info::AccountInfo<#lifetime>> {
+                None
+            }
+
+            fn token_config(&self) -> std::option::Option<&solana_account_info::AccountInfo<#lifetime>> {
+                None
+            }
+
+            fn collect_pda_and_token<'b>(
+                &self,
+                cpi_accounts: &light_sdk::cpi::v2::CpiAccounts<'b, #lifetime>,
+                _address_space: solana_pubkey::Pubkey,
+                compressed_accounts: Vec<Self::CompressedData>,
+                solana_accounts: &[solana_account_info::AccountInfo<#lifetime>],
+                rent: &solana_program::sysvar::rent::Rent,
+                current_slot: u64,
+            ) -> std::result::Result<(
+                Vec<::light_sdk::compressed_account::CompressedAccountInfo>,
+                Vec<(Self::PackedTokenData, Self::CompressedMeta)>,
+            ), solana_program_error::ProgramError> {
+                use light_sdk::interface::DecompressVariant;
+
+                let post_system_offset = cpi_accounts.system_accounts_end_offset();
+                let all_infos = cpi_accounts.account_infos();
+                let remaining_accounts = &all_infos[post_system_offset..];
+                let program_id = &crate::ID;
+
+                // Load LightConfig from the config AccountInfo
+                let light_config = light_sdk::interface::LightConfig::load_checked(&self.config, &crate::ID)
+                    .map_err(|_| solana_program_error::ProgramError::InvalidAccountData)?;
+
+                let mut compressed_pda_infos = Vec::with_capacity(compressed_accounts.len());
+
+                for (i, compressed_data) in compressed_accounts.into_iter().enumerate() {
+                    let meta = compressed_data.meta;
+
+                    // PDA-only programs don't have tokens - all accounts are PDAs
+                    let mut ctx = light_sdk::interface::DecompressCtx {
+                        program_id,
+                        cpi_accounts,
+                        remaining_accounts,
+                        rent_sponsor: &*self.rent_sponsor,
+                        light_config: &light_config,
+                        rent,
+                        current_slot,
+                        compressed_account_infos: Vec::new(),
+                    };
+
+                    // Call decompress on the PackedLightAccountVariant - returns () not Option
+                    compressed_data.data.decompress(&meta, &solana_accounts[i], &mut ctx)?;
+                    // Push all collected infos from ctx
+                    compressed_pda_infos.extend(ctx.compressed_account_infos);
+                }
+
+                // Return empty token vec for PDA-only programs
+                std::result::Result::Ok((compressed_pda_infos, Vec::new()))
+            }
+
+            #[inline(never)]
+            #[allow(clippy::too_many_arguments)]
+            fn process_tokens<'b>(
+                &self,
+                _remaining_accounts: &[solana_account_info::AccountInfo<#lifetime>],
+                _fee_payer: &solana_account_info::AccountInfo<#lifetime>,
+                _token_program: &solana_account_info::AccountInfo<#lifetime>,
+                _token_rent_sponsor: &solana_account_info::AccountInfo<#lifetime>,
+                _token_cpi_authority: &solana_account_info::AccountInfo<#lifetime>,
+                _token_config: &solana_account_info::AccountInfo<#lifetime>,
+                _config: &solana_account_info::AccountInfo<#lifetime>,
+                _token_accounts: Vec<(Self::PackedTokenData, Self::CompressedMeta)>,
+                _proof: light_sdk::instruction::ValidityProof,
+                _cpi_accounts: &light_sdk::cpi::v2::CpiAccounts<'b, #lifetime>,
+                _post_system_accounts: &[solana_account_info::AccountInfo<#lifetime>],
+                _has_prior_context: bool,
+            ) -> std::result::Result<(), solana_program_error::ProgramError> {
+                // PDA-only programs don't process tokens
+                Ok(())
+            }
+        }
+    })
+}
+
+/// Generate DecompressContext impl for programs with token support.
 pub fn generate_decompress_context_trait_impl(
     token_variant_ident: Ident,
     lifetime: syn::Lifetime,
@@ -47,7 +161,7 @@ pub fn generate_decompress_context_trait_impl(
             fn collect_pda_and_token<'b>(
                 &self,
                 cpi_accounts: &light_sdk::cpi::v2::CpiAccounts<'b, #lifetime>,
-                address_space: solana_pubkey::Pubkey,
+                _address_space: solana_pubkey::Pubkey,
                 compressed_accounts: Vec<Self::CompressedData>,
                 solana_accounts: &[solana_account_info::AccountInfo<#lifetime>],
                 rent: &solana_program::sysvar::rent::Rent,
@@ -56,12 +170,16 @@ pub fn generate_decompress_context_trait_impl(
                 Vec<::light_sdk::compressed_account::CompressedAccountInfo>,
                 Vec<(Self::PackedTokenData, Self::CompressedMeta)>,
             ), solana_program_error::ProgramError> {
-                use light_sdk::interface::DecompressibleAccount;
+                use light_sdk::interface::DecompressVariant;
 
                 let post_system_offset = cpi_accounts.system_accounts_end_offset();
                 let all_infos = cpi_accounts.account_infos();
                 let remaining_accounts = &all_infos[post_system_offset..];
                 let program_id = &crate::ID;
+
+                // Load LightConfig from the config AccountInfo
+                let light_config = light_sdk::interface::LightConfig::load_checked(&self.config, &crate::ID)
+                    .map_err(|_| solana_program_error::ProgramError::InvalidAccountData)?;
 
                 let mut compressed_pda_infos = Vec::with_capacity(compressed_accounts.len());
                 let mut compressed_token_accounts = Vec::with_capacity(compressed_accounts.len());
@@ -69,36 +187,29 @@ pub fn generate_decompress_context_trait_impl(
                 for (i, compressed_data) in compressed_accounts.into_iter().enumerate() {
                     let meta = compressed_data.meta;
 
-                    if compressed_data.data.is_token() {
-                        match compressed_data.data {
-                            LightAccountVariant::PackedCTokenData(mut data) => {
-                                data.token_data.version = 3;
-                                compressed_token_accounts.push((data, meta));
-                            }
-                            LightAccountVariant::CTokenData(_) => {
-                                return std::result::Result::Err(
-                                    light_sdk::error::LightSdkError::UnexpectedUnpackedVariant.into()
-                                );
-                            }
-                            _ => {
-                                return std::result::Result::Err(
-                                    solana_program_error::ProgramError::InvalidAccountData
-                                );
-                            }
+                    // Check if this is a token variant by matching
+                    match &compressed_data.data {
+                        PackedLightAccountVariant::PackedCTokenData(mut data) => {
+                            data.token_data.version = 3;
+                            compressed_token_accounts.push((data.clone(), meta));
                         }
-                    } else {
-                        let ctx = light_sdk::interface::DecompressCtx {
-                            program_id,
-                            address_space,
-                            cpi_accounts,
-                            remaining_accounts,
-                            rent_sponsor: &*self.rent_sponsor,
-                            rent,
-                            current_slot,
-                        };
+                        _ => {
+                            // PDA variant - use DecompressVariant trait
+                            let mut ctx = light_sdk::interface::DecompressCtx {
+                                program_id,
+                                cpi_accounts,
+                                remaining_accounts,
+                                rent_sponsor: &*self.rent_sponsor,
+                                light_config: &light_config,
+                                rent,
+                                current_slot,
+                                compressed_account_infos: Vec::new(),
+                            };
 
-                        if let Some(info) = compressed_data.data.prepare(&ctx, &solana_accounts[i], &meta, i)? {
-                            compressed_pda_infos.push(info);
+                            // Call decompress on the PackedLightAccountVariant
+                            compressed_data.data.decompress(&meta, &solana_accounts[i], &mut ctx)?;
+                            // Push all collected infos from ctx
+                            compressed_pda_infos.extend(ctx.compressed_account_infos);
                         }
                     }
                 }

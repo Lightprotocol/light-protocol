@@ -6,13 +6,13 @@
 use super::accounts::{CreateZeroCopy, CreateZeroCopyParams};
 use super::derived_state::PackedZeroCopyRecord;
 use super::state::ZeroCopyRecord;
-use light_sdk::interface::{
-    prepare_compressed_account_on_init, LightAccount, LightAccountVariant,
-    PackedLightAccountVariant,
-};
 use anchor_lang::prelude::*;
 use light_compressed_account::instruction_data::{
     cpi_context::CompressedCpiContext, with_account_info::InstructionDataInvokeCpiWithAccountInfo,
+};
+use light_sdk::interface::{
+    prepare_compressed_account_on_init, LightAccount, LightAccountVariantTrait,
+    PackedLightAccountVariantTrait,
 };
 use light_sdk::{
     cpi::{v2::CpiAccounts, CpiAccountsConfig, InvokeLightSystemProgram},
@@ -46,8 +46,8 @@ impl<'info> LightPreInit<'info, CreateZeroCopyParams> for CreateZeroCopy<'info> 
         remaining_accounts: &[AccountInfo<'info>],
         params: &CreateZeroCopyParams,
     ) -> std::result::Result<bool, LightSdkError> {
-        use light_sdk::interface::LightAccount;
         use light_sdk::interface::config::LightConfig;
+        use light_sdk::interface::LightAccount;
         use solana_program::clock::Clock;
         use solana_program::sysvar::Sysvar;
         use solana_program_error::ProgramError;
@@ -212,7 +212,7 @@ pub struct PackedZeroCopyRecordVariant {
 // LightAccountVariant Implementation
 // ============================================================================
 
-impl LightAccountVariant<4> for ZeroCopyRecordVariant {
+impl LightAccountVariantTrait<4> for ZeroCopyRecordVariant {
     const PROGRAM_ID: Pubkey = crate::ID;
 
     type Seeds = ZeroCopyRecordSeeds;
@@ -265,7 +265,7 @@ impl LightAccountVariant<4> for ZeroCopyRecordVariant {
 // PackedLightAccountVariant Implementation
 // ============================================================================
 
-impl PackedLightAccountVariant<4> for PackedZeroCopyRecordVariant {
+impl PackedLightAccountVariantTrait<4> for PackedZeroCopyRecordVariant {
     type Unpacked = ZeroCopyRecordVariant;
 
     fn bump(&self) -> u8 {
@@ -342,19 +342,19 @@ impl light_sdk::interface::IntoVariant<ZeroCopyRecordVariant> for ZeroCopyRecord
 // ============================================================================
 
 /// Implement Pack trait to allow ZeroCopyRecordVariant to be used with `create_load_instructions`.
-/// Transforms the variant into PackedProgramAccountVariant for efficient serialization.
+/// Transforms the variant into PackedLightAccountVariant for efficient serialization.
 #[cfg(not(target_os = "solana"))]
 impl light_sdk::compressible::Pack for ZeroCopyRecordVariant {
-    type Packed = crate::derived_variants::PackedProgramAccountVariant;
+    type Packed = crate::derived_variants::PackedLightAccountVariant;
 
     fn pack(
         &self,
         accounts: &mut PackedAccounts,
     ) -> std::result::Result<Self::Packed, ProgramError> {
         // Use the LightAccountVariant::pack method to get PackedZeroCopyRecordVariant
-        let packed = <Self as LightAccountVariant<4>>::pack(self, accounts)
+        let packed = <Self as LightAccountVariantTrait<4>>::pack(self, accounts)
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
-        Ok(crate::derived_variants::PackedProgramAccountVariant::ZeroCopyRecord(packed))
+        Ok(crate::derived_variants::PackedLightAccountVariant::ZeroCopyRecord(packed))
     }
 }

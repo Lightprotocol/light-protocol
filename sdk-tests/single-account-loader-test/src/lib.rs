@@ -70,7 +70,7 @@ pub mod single_account_loader_test {
         let mut record = ctx.accounts.record.load_init()?;
         record.owner = params.owner.to_bytes();
         record.counter = 0;
-        // compression_info is handled by the macro-generated LightFinalize
+        // compression_info is handled by the macro-generated LightPreInit
         Ok(())
     }
 }

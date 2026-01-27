@@ -162,6 +162,29 @@ pub fn is_base_path(expr: &Expr, base: &str) -> bool {
     matches!(expr, Expr::Path(p) if p.path.segments.first().is_some_and(|s| s.ident == base))
 }
 
+/// Convert a snake_case string to PascalCase.
+///
+/// # Examples
+/// ```ignore
+/// assert_eq!(to_pascal_case("user_record"), "UserRecord");
+/// assert_eq!(to_pascal_case("my_data"), "MyData");
+/// assert_eq!(to_pascal_case("record"), "Record");
+/// ```
+pub fn to_pascal_case(s: &str) -> String {
+    s.split('_')
+        .filter(|part| !part.is_empty())
+        .map(|part| {
+            let mut chars = part.chars();
+            match chars.next() {
+                Some(first) => {
+                    first.to_uppercase().collect::<String>() + chars.as_str().to_lowercase().as_str()
+                }
+                None => String::new(),
+            }
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -176,5 +199,14 @@ mod tests {
         assert!(!is_constant_identifier("my_variable"));
         assert!(!is_constant_identifier("MyConstant"));
         assert!(!is_constant_identifier(""));
+    }
+
+    #[test]
+    fn test_to_pascal_case() {
+        assert_eq!(to_pascal_case("user_record"), "UserRecord");
+        assert_eq!(to_pascal_case("my_data"), "MyData");
+        assert_eq!(to_pascal_case("record"), "Record");
+        assert_eq!(to_pascal_case("a_b_c"), "ABC");
+        assert_eq!(to_pascal_case(""), "");
     }
 }

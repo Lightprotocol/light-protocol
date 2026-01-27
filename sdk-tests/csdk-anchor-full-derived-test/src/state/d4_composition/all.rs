@@ -3,7 +3,7 @@
 //! Exercises a large struct with all field type variants from D1.
 
 use anchor_lang::prelude::*;
-use light_sdk::{compressible::CompressionInfo, LightDiscriminator};
+use light_sdk::compressible::CompressionInfo;
 use light_sdk_macros::LightAccount;
 
 /// Comprehensive large struct with all field types.
@@ -12,7 +12,7 @@ use light_sdk_macros::LightAccount;
 #[compress_as(cached_time = 0, end_time = None)]
 #[account]
 pub struct AllCompositionRecord {
-    pub compression_info: Option<CompressionInfo>,
+    pub compression_info: CompressionInfo,
     pub owner: Pubkey,
     pub delegate: Pubkey,
     pub authority: Pubkey,

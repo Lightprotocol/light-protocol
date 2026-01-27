@@ -1,106 +1,11 @@
-//! Core types for the simplified seed classification system.
+//! Core types for the seed classification system.
 //!
-//! This module defines a 3-category classification based on what the client needs to send:
-//! - **Constant**: Known at compile time (literals, constants) - client sends nothing
-//! - **Account**: Account pubkey reference - client must include the account
-//! - **Data**: Instruction data field - client must include in params
+//! This module defines `SeedSpec` which wraps `ClassifiedSeed` (from `account/seed_extraction`)
+//! with field-level metadata needed for variant code generation.
 
-use syn::{Expr, Ident, Type};
+use syn::{Ident, Type};
 
-/// Primary seed classification based on what the client needs to send.
-///
-/// This is a semantic classification, not syntax-based:
-/// - `Constant`: Client doesn't send anything (compile-time known)
-/// - `Account`: Client must include this account's pubkey
-/// - `Data`: Client must include this value in instruction data
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum SeedKind {
-    /// Compile-time constant - client doesn't send anything.
-    ///
-    /// Includes:
-    /// - Byte literals: `b"literal"`, `"string"`, `b"literal"[..]`
-    /// - Uppercase constants: `SEED_PREFIX`, `crate::state::SEED_CONSTANT`
-    /// - Complex expressions that don't reference accounts or params (passthrough)
-    Constant,
-
-    /// Account reference - client must include this account's pubkey.
-    ///
-    /// Includes:
-    /// - Bare account: `authority.key().as_ref()`
-    /// - Nested ctx access: `ctx.accounts.authority.key().as_ref()`
-    Account,
-
-    /// Instruction data - client must include in instruction params.
-    ///
-    /// Includes:
-    /// - Struct field access: `params.owner.as_ref()`, `params.id.to_le_bytes()`
-    /// - Bare instruction arg: `owner.as_ref()` (Format 2)
-    Data,
-}
-
-/// A classified seed with its original expression and optional field name.
-#[derive(Clone, Debug)]
-pub struct Seed {
-    /// Primary classification determining what the client needs to send
-    pub kind: SeedKind,
-
-    /// The original expression for code generation.
-    ///
-    /// For Account and Data kinds, this is the stripped expression
-    /// (e.g., `authority.key().as_ref()` not `ctx.accounts.authority.key().as_ref()`).
-    pub expr: Expr,
-
-    /// Extracted field name (for Account and Data kinds).
-    ///
-    /// - For `Account`: The account field name (e.g., `authority`)
-    /// - For `Data`: The data field name (e.g., `owner`, `id`)
-    /// - For `Constant`: Always `None`
-    pub field: Option<Ident>,
-}
-
-impl Seed {
-    /// Create a new Constant seed (literals, constants, passthrough).
-    pub fn constant(expr: Expr) -> Self {
-        Self {
-            kind: SeedKind::Constant,
-            expr,
-            field: None,
-        }
-    }
-
-    /// Create a new Account seed.
-    pub fn account(expr: Expr, field: Ident) -> Self {
-        Self {
-            kind: SeedKind::Account,
-            expr,
-            field: Some(field),
-        }
-    }
-
-    /// Create a new Data seed.
-    pub fn data(expr: Expr, field: Ident) -> Self {
-        Self {
-            kind: SeedKind::Data,
-            expr,
-            field: Some(field),
-        }
-    }
-
-    /// Check if this is a constant seed.
-    pub fn is_constant(&self) -> bool {
-        self.kind == SeedKind::Constant
-    }
-
-    /// Check if this is an account seed.
-    pub fn is_account(&self) -> bool {
-        self.kind == SeedKind::Account
-    }
-
-    /// Check if this is a data seed.
-    pub fn is_data(&self) -> bool {
-        self.kind == SeedKind::Data
-    }
-}
+use crate::light_pdas::account::seed_extraction::ClassifiedSeed;
 
 /// Collection of seeds for a single PDA field.
 ///
@@ -116,7 +21,7 @@ pub struct SeedSpec {
     pub inner_type: Type,
 
     /// Classified seeds from `#[account(seeds = [...])]`.
-    pub seeds: Vec<Seed>,
+    pub seeds: Vec<ClassifiedSeed>,
 
     /// True if the field uses zero-copy serialization (AccountLoader).
     pub is_zero_copy: bool,
@@ -124,7 +29,12 @@ pub struct SeedSpec {
 
 impl SeedSpec {
     /// Create a new SeedSpec.
-    pub fn new(field_name: Ident, inner_type: Type, seeds: Vec<Seed>, is_zero_copy: bool) -> Self {
+    pub fn new(
+        field_name: Ident,
+        inner_type: Type,
+        seeds: Vec<ClassifiedSeed>,
+        is_zero_copy: bool,
+    ) -> Self {
         Self {
             field_name,
             inner_type,
@@ -135,18 +45,34 @@ impl SeedSpec {
 
     /// Get all account fields referenced in seeds.
     pub fn account_fields(&self) -> impl Iterator<Item = &Ident> {
-        self.seeds
-            .iter()
-            .filter(|s| s.is_account())
-            .filter_map(|s| s.field.as_ref())
+        self.seeds.iter().filter_map(|s| match s {
+            ClassifiedSeed::CtxRooted { account, .. } => Some(account),
+            ClassifiedSeed::FunctionCall { args, .. } => {
+                // Return first CtxAccount arg field name (if any)
+                // Note: for full iteration over all args, use a different method
+                args.iter()
+                    .find(|a| {
+                        a.kind == crate::light_pdas::account::seed_extraction::FnArgKind::CtxAccount
+                    })
+                    .map(|a| &a.field_name)
+            }
+            _ => None,
+        })
     }
 
     /// Get all data fields referenced in seeds.
     pub fn data_fields(&self) -> impl Iterator<Item = &Ident> {
-        self.seeds
-            .iter()
-            .filter(|s| s.is_data())
-            .filter_map(|s| s.field.as_ref())
+        self.seeds.iter().filter_map(|s| match s {
+            ClassifiedSeed::DataRooted { root, .. } => Some(root),
+            ClassifiedSeed::FunctionCall { args, .. } => {
+                args.iter()
+                    .find(|a| {
+                        a.kind == crate::light_pdas::account::seed_extraction::FnArgKind::DataField
+                    })
+                    .map(|a| &a.field_name)
+            }
+            _ => None,
+        })
     }
 
     /// Get the number of seeds (for const generic array sizing).
@@ -156,57 +82,45 @@ impl SeedSpec {
 
     /// Check if any seeds reference instruction data.
     pub fn has_data_seeds(&self) -> bool {
-        self.seeds.iter().any(|s| s.is_data())
+        self.seeds.iter().any(|s| {
+            matches!(s, ClassifiedSeed::DataRooted { .. })
+                || matches!(s, ClassifiedSeed::FunctionCall { args, .. }
+                    if args.iter().any(|a| a.kind == crate::light_pdas::account::seed_extraction::FnArgKind::DataField))
+        })
     }
 
     /// Check if any seeds reference accounts.
     pub fn has_account_seeds(&self) -> bool {
-        self.seeds.iter().any(|s| s.is_account())
+        self.seeds.iter().any(|s| {
+            matches!(s, ClassifiedSeed::CtxRooted { .. })
+                || matches!(s, ClassifiedSeed::FunctionCall { args, .. }
+                    if args.iter().any(|a| a.kind == crate::light_pdas::account::seed_extraction::FnArgKind::CtxAccount))
+        })
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::light_pdas::account::seed_extraction::{ClassifiedFnArg, FnArgKind};
 
     fn make_ident(s: &str) -> Ident {
         Ident::new(s, proc_macro2::Span::call_site())
-    }
-
-    fn make_lit_expr() -> Expr {
-        syn::parse_quote!(b"seed")
-    }
-
-    fn make_account_expr() -> Expr {
-        syn::parse_quote!(authority.key().as_ref())
-    }
-
-    fn make_data_expr() -> Expr {
-        syn::parse_quote!(owner.as_ref())
-    }
-
-    #[test]
-    fn test_seed_constructors() {
-        let const_seed = Seed::constant(make_lit_expr());
-        assert!(const_seed.is_constant());
-        assert!(const_seed.field.is_none());
-
-        let account_seed = Seed::account(make_account_expr(), make_ident("authority"));
-        assert!(account_seed.is_account());
-        assert_eq!(account_seed.field.as_ref().unwrap().to_string(), "authority");
-
-        let data_seed = Seed::data(make_data_expr(), make_ident("owner"));
-        assert!(data_seed.is_data());
-        assert_eq!(data_seed.field.as_ref().unwrap().to_string(), "owner");
     }
 
     #[test]
     fn test_seed_spec_queries() {
         let inner_type: syn::Type = syn::parse_quote!(UserRecord);
         let seeds = vec![
-            Seed::constant(make_lit_expr()),
-            Seed::account(make_account_expr(), make_ident("authority")),
-            Seed::data(make_data_expr(), make_ident("owner")),
+            ClassifiedSeed::Literal(b"seed".to_vec()),
+            ClassifiedSeed::CtxRooted {
+                account: make_ident("authority"),
+                expr: Box::new(syn::parse_quote!(authority.key().as_ref())),
+            },
+            ClassifiedSeed::DataRooted {
+                root: make_ident("owner"),
+                expr: Box::new(syn::parse_quote!(owner.as_ref())),
+            },
         ];
 
         let spec = SeedSpec::new(make_ident("user_record"), inner_type, seeds, false);
@@ -222,5 +136,40 @@ mod tests {
         let data_fields: Vec<_> = spec.data_fields().collect();
         assert_eq!(data_fields.len(), 1);
         assert_eq!(data_fields[0].to_string(), "owner");
+    }
+
+    #[test]
+    fn test_seed_spec_with_function_call() {
+        let inner_type: syn::Type = syn::parse_quote!(PoolAccount);
+        let seeds = vec![
+            ClassifiedSeed::Literal(b"pool".to_vec()),
+            ClassifiedSeed::FunctionCall {
+                func_expr: Box::new(syn::parse_quote!(crate::max_key(
+                    &params.key_a,
+                    &params.key_b
+                ))),
+                args: vec![
+                    ClassifiedFnArg {
+                        field_name: make_ident("key_a"),
+                        kind: FnArgKind::DataField,
+                        original_expr: Box::new(syn::parse_quote!(&params.key_a)),
+                    },
+                    ClassifiedFnArg {
+                        field_name: make_ident("key_b"),
+                        kind: FnArgKind::DataField,
+                        original_expr: Box::new(syn::parse_quote!(&params.key_b)),
+                    },
+                ],
+                has_as_ref: true,
+            },
+        ];
+
+        let spec = SeedSpec::new(make_ident("pool"), inner_type, seeds, false);
+
+        assert_eq!(spec.seed_count(), 2);
+        assert!(spec.has_data_seeds());
+        // FunctionCall with DataField args shows up in data_fields()
+        let data_fields: Vec<_> = spec.data_fields().collect();
+        assert_eq!(data_fields.len(), 1); // first match from iterator
     }
 }

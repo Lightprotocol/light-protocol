@@ -4,7 +4,7 @@
 //! These remain unchanged in the packed struct (not converted to u8 index).
 
 use anchor_lang::prelude::*;
-use light_sdk::{compressible::CompressionInfo, LightDiscriminator};
+use light_sdk::compressible::CompressionInfo;
 use light_sdk_macros::LightAccount;
 
 /// A struct with Option<primitive> fields.
@@ -12,7 +12,7 @@ use light_sdk_macros::LightAccount;
 #[derive(Default, Debug, InitSpace, LightAccount)]
 #[account]
 pub struct OptionPrimitiveRecord {
-    pub compression_info: Option<CompressionInfo>,
+    pub compression_info: CompressionInfo,
     pub counter: u64,
     pub end_time: Option<u64>,
     pub enabled: Option<bool>,

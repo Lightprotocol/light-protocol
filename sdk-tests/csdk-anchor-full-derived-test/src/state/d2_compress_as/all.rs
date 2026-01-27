@@ -6,7 +6,7 @@
 //! - Fields without override (use self.field)
 
 use anchor_lang::prelude::*;
-use light_sdk::{compressible::CompressionInfo, LightDiscriminator};
+use light_sdk::compressible::CompressionInfo;
 use light_sdk_macros::LightAccount;
 
 /// Comprehensive struct with all compress_as variations.
@@ -14,7 +14,7 @@ use light_sdk_macros::LightAccount;
 #[compress_as(time = 0, end = None, score = 0, cached = 0)]
 #[account]
 pub struct AllCompressAsRecord {
-    pub compression_info: Option<CompressionInfo>,
+    pub compression_info: CompressionInfo,
     pub owner: Pubkey,
     // Override with 0
     pub time: u64,

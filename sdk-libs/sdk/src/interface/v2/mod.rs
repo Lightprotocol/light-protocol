@@ -14,4 +14,4 @@ pub use decompress::{
     DecompressIdempotentParams, DecompressVariant,
 };
 pub use init::prepare_compressed_account_on_init;
-pub use traits::{AccountType, LightAccount, LightAccountVariant, PackedLightAccountVariant};
+pub use traits::{AccountType, LightAccount, LightAccountVariantTrait, PackedLightAccountVariantTrait};

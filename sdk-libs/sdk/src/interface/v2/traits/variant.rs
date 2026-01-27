@@ -1,4 +1,4 @@
-//! LightAccountVariant traits for typed compressed account handling.
+//! LightAccountVariantTrait traits for typed compressed account handling.
 //!
 //! These traits enable type-safe handling of compressed accounts with seeds,
 //! supporting both unpacked (with Pubkeys) and packed (with u8 indices) representations.
@@ -16,7 +16,7 @@ use crate::instruction::PackedAccounts;
 /// * `Seeds` - The seeds struct type (e.g., `UserRecordSeeds`)
 /// * `Data` - The account data type (e.g., `UserRecord`)
 /// * `Packed` - The packed variant type for serialization
-pub trait LightAccountVariant<const SEED_COUNT: usize>:
+pub trait LightAccountVariantTrait<const SEED_COUNT: usize>:
     Sized + Clone + AnchorSerialize + AnchorDeserialize
 {
     /// The program ID that owns accounts of this variant type.
@@ -29,7 +29,7 @@ pub trait LightAccountVariant<const SEED_COUNT: usize>:
     type Data;
 
     /// The packed variant type for efficient serialization.
-    type Packed: PackedLightAccountVariant<SEED_COUNT, Unpacked = Self>;
+    type Packed: PackedLightAccountVariantTrait<SEED_COUNT, Unpacked = Self>;
 
     /// Get a reference to the account data.
     fn data(&self) -> &Self::Data;
@@ -58,11 +58,11 @@ use solana_program_error::ProgramError;
 ///
 /// Packed variants use u8 indices instead of 32-byte Pubkeys for efficient
 /// serialization. They can be unpacked back to full variants using account info.
-pub trait PackedLightAccountVariant<const SEED_COUNT: usize>:
+pub trait PackedLightAccountVariantTrait<const SEED_COUNT: usize>:
     Sized + Clone + AnchorSerialize + AnchorDeserialize
 {
     /// The unpacked variant type with full Pubkey values.
-    type Unpacked: LightAccountVariant<SEED_COUNT>;
+    type Unpacked: LightAccountVariantTrait<SEED_COUNT>;
 
     /// Get the PDA bump seed.
     fn bump(&self) -> u8;

@@ -1,13 +1,13 @@
 use super::accounts::{CreatePda, CreatePdaParams};
 use super::derived_state::PackedMinimalRecord;
 use super::state::MinimalRecord;
-use light_sdk::interface::{
-    prepare_compressed_account_on_init, LightAccount, LightAccountVariant,
-    PackedLightAccountVariant,
-};
 use anchor_lang::prelude::*;
 use light_compressed_account::instruction_data::{
     cpi_context::CompressedCpiContext, with_account_info::InstructionDataInvokeCpiWithAccountInfo,
+};
+use light_sdk::interface::{
+    prepare_compressed_account_on_init, LightAccount, LightAccountVariantTrait,
+    PackedLightAccountVariantTrait,
 };
 use light_sdk::{
     cpi::{v2::CpiAccounts, CpiAccountsConfig, InvokeLightSystemProgram},
@@ -42,8 +42,8 @@ impl<'info> LightPreInit<'info, CreatePdaParams> for CreatePda<'info> {
         remaining_accounts: &[AccountInfo<'info>],
         params: &CreatePdaParams,
     ) -> std::result::Result<bool, LightSdkError> {
-        use light_sdk::interface::LightAccount;
         use light_sdk::interface::config::LightConfig;
+        use light_sdk::interface::LightAccount;
         use solana_program::clock::Clock;
         use solana_program::sysvar::Sysvar;
         use solana_program_error::ProgramError;
@@ -210,7 +210,7 @@ pub struct PackedMinimalRecordVariant {
 // LightAccountVariant Implementation
 // ============================================================================
 
-impl LightAccountVariant<4> for MinimalRecordVariant {
+impl LightAccountVariantTrait<4> for MinimalRecordVariant {
     const PROGRAM_ID: Pubkey = crate::ID;
 
     type Seeds = MinimalRecordSeeds;
@@ -261,7 +261,7 @@ impl LightAccountVariant<4> for MinimalRecordVariant {
 // PackedLightAccountVariant Implementation
 // ============================================================================
 
-impl PackedLightAccountVariant<4> for PackedMinimalRecordVariant {
+impl PackedLightAccountVariantTrait<4> for PackedMinimalRecordVariant {
     type Unpacked = MinimalRecordVariant;
 
     fn bump(&self) -> u8 {
@@ -337,19 +337,19 @@ impl light_sdk::interface::IntoVariant<MinimalRecordVariant> for MinimalRecordSe
 // ============================================================================
 
 /// Implement Pack trait to allow MinimalRecordVariant to be used with `create_load_instructions`.
-/// Transforms the variant into PackedProgramAccountVariant for efficient serialization.
+/// Transforms the variant into PackedLightAccountVariant for efficient serialization.
 #[cfg(not(target_os = "solana"))]
 impl light_sdk::compressible::Pack for MinimalRecordVariant {
-    type Packed = crate::derived_variants::PackedProgramAccountVariant;
+    type Packed = crate::derived_variants::PackedLightAccountVariant;
 
     fn pack(
         &self,
         accounts: &mut PackedAccounts,
     ) -> std::result::Result<Self::Packed, ProgramError> {
         // Use the LightAccountVariant::pack method to get PackedMinimalRecordVariant
-        let packed = <Self as LightAccountVariant<4>>::pack(self, accounts)
+        let packed = <Self as LightAccountVariantTrait<4>>::pack(self, accounts)
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
-        Ok(crate::derived_variants::PackedProgramAccountVariant::MinimalRecord(packed))
+        Ok(crate::derived_variants::PackedLightAccountVariant::MinimalRecord(packed))
     }
 }

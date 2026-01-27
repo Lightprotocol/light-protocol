@@ -53,23 +53,22 @@ pub fn seed_element_to_ref_expr(seed: &SeedElement, config: &SeedConversionConfi
                 }
             }
 
-            // Handle uppercase constants (single-segment and multi-segment paths)
+            // Handle uppercase constants (paths are already fully qualified by
+            // convert_classified_to_seed_elements, so both single-segment and
+            // multi-segment paths are handled uniformly here).
+            // Skip type-qualified paths (qself) like <T as Trait>::CONST --
+            // those need the full expression to preserve the type qualification.
             if let syn::Expr::Path(path_expr) = &**expr {
-                if let Some(ident) = path_expr.path.get_ident() {
-                    // Single-segment path like AUTH_SEED
-                    let ident_str = ident.to_string();
-                    if is_constant_identifier(&ident_str) {
-                        if config.handle_light_cpi_signer && ident_str == "LIGHT_CPI_SIGNER" {
-                            return quote! { crate::#ident.cpi_signer.as_ref() };
-                        } else {
-                            return quote! { { let __seed: &[u8] = crate::#ident.as_ref(); __seed } };
+                if path_expr.qself.is_none() {
+                    if let Some(last_seg) = path_expr.path.segments.last() {
+                        if is_constant_identifier(&last_seg.ident.to_string()) {
+                            let path = &path_expr.path;
+                            if config.handle_light_cpi_signer && last_seg.ident == "LIGHT_CPI_SIGNER"
+                            {
+                                return quote! { #path.cpi_signer.as_ref() };
+                            }
+                            return quote! { { let __seed: &[u8] = #path.as_ref(); __seed } };
                         }
-                    }
-                } else if let Some(last_seg) = path_expr.path.segments.last() {
-                    // Multi-segment path like crate::AUTH_SEED
-                    if is_constant_identifier(&last_seg.ident.to_string()) {
-                        let path = &path_expr.path;
-                        return quote! { { let __seed: &[u8] = #path.as_ref(); __seed } };
                     }
                 }
             }

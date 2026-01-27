@@ -22,12 +22,12 @@ use crate::{
 };
 use light_sdk_types::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;
 use light_sdk_types::CpiSigner;
-use solana_program::clock::Clock;
-use solana_program::rent::Rent;
-use solana_program::sysvar::Sysvar;
+use anchor_lang::solana_program::clock::Clock;
+use anchor_lang::solana_program::rent::Rent;
+use anchor_lang::solana_program::sysvar::Sysvar;
 use solana_program_error::ProgramError;
 
-use super::traits::{LightAccount, LightAccountVariant, PackedLightAccountVariant};
+use super::traits::{LightAccount, LightAccountVariantTrait, PackedLightAccountVariantTrait};
 use crate::interface::compression_info::CompressedAccountData;
 
 // ============================================================================
@@ -200,7 +200,7 @@ where
 ///
 /// # Type Parameters
 /// * `SEED_COUNT` - Number of seeds including bump
-/// * `P` - Packed variant type implementing PackedLightAccountVariant
+/// * `P` - Packed variant type implementing PackedLightAccountVariantTrait
 pub fn prepare_account_for_decompression<'info, const SEED_COUNT: usize, P>(
     packed: &P,
     meta: &CompressedAccountMetaNoLamportsNoAddress,
@@ -208,8 +208,8 @@ pub fn prepare_account_for_decompression<'info, const SEED_COUNT: usize, P>(
     ctx: &mut DecompressCtx<'_, 'info>,
 ) -> std::result::Result<(), ProgramError>
 where
-    P: PackedLightAccountVariant<SEED_COUNT>,
-    <P::Unpacked as LightAccountVariant<SEED_COUNT>>::Data:
+    P: PackedLightAccountVariantTrait<SEED_COUNT>,
+    <P::Unpacked as LightAccountVariantTrait<SEED_COUNT>>::Data:
         LightAccount + LightDiscriminator + Clone + AnchorSerialize + AnchorDeserialize,
 {
     // 1. Idempotency check - if PDA already has data (non-zero discriminator), skip
@@ -245,7 +245,7 @@ where
 
     // 5. Calculate space and create PDA
     type Data<const N: usize, P> =
-        <<P as PackedLightAccountVariant<N>>::Unpacked as LightAccountVariant<N>>::Data;
+        <<P as PackedLightAccountVariantTrait<N>>::Unpacked as LightAccountVariantTrait<N>>::Data;
     let discriminator_len = 8;
     let space = discriminator_len + data_len.max(<Data<SEED_COUNT, P> as LightAccount>::INIT_SPACE);
     let rent_minimum = ctx.rent.minimum_balance(space);

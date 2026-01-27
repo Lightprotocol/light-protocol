@@ -3,6 +3,7 @@
 //! This module provides `#[derive(LightAccounts)]` which generates:
 //! - `LightPreInit` trait implementation for pre-instruction compression setup
 //! - `LightFinalize` trait implementation for post-instruction cleanup
+//! - Per-field variant structs and trait implementations
 //! - Supports Light PDAs, Light token accounts, and light mints
 //!
 //! Module structure:
@@ -10,6 +11,7 @@
 //! - `parse.rs` - Struct-level parsing and field classification
 //! - `pda.rs` - PDA block code generation
 //! - `mint.rs` - Mint action invocation code generation
+//! - `variant.rs` - Per-field variant struct and trait generation
 //! - `derive.rs` - Orchestration layer that wires everything together
 
 mod builder;
@@ -19,6 +21,7 @@ mod mint;
 mod parse;
 mod pda;
 mod token;
+mod variant;
 
 use proc_macro2::TokenStream;
 use syn::DeriveInput;

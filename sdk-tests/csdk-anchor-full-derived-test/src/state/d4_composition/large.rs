@@ -3,14 +3,14 @@
 //! Exercises the hash mode selection for large structs (SHA256 path).
 
 use anchor_lang::prelude::*;
-use light_sdk::{compressible::CompressionInfo, LightDiscriminator};
+use light_sdk::compressible::CompressionInfo;
 use light_sdk_macros::LightAccount;
 
 /// Large struct with 12+ fields for SHA256 hash mode.
 #[derive(Default, Debug, InitSpace, LightAccount)]
 #[account]
 pub struct LargeRecord {
-    pub compression_info: Option<CompressionInfo>,
+    pub compression_info: CompressionInfo,
     pub field_01: u64,
     pub field_02: u64,
     pub field_03: u64,

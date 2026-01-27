@@ -1,9 +1,7 @@
 //! State structs for the test program and test cases organized by dimension.
 
 use anchor_lang::prelude::*;
-use light_sdk::{
-    compressible::CompressionInfo, instruction::PackedAddressTreeInfo, LightDiscriminator,
-};
+use light_sdk::{compressible::CompressionInfo, instruction::PackedAddressTreeInfo};
 use light_sdk_macros::LightAccount;
 use light_token::ValidityProof;
 use light_token_interface::instructions::mint_action::MintWithContext;
@@ -19,7 +17,7 @@ pub mod d4_composition;
 #[derive(Default, Debug, InitSpace, LightAccount)]
 #[account]
 pub struct UserRecord {
-    pub compression_info: Option<CompressionInfo>,
+    pub compression_info: CompressionInfo,
     pub owner: Pubkey,
     #[max_len(32)]
     pub name: String,
@@ -31,7 +29,7 @@ pub struct UserRecord {
 #[compress_as(start_time = 0, end_time = None, score = 0)]
 #[account]
 pub struct GameSession {
-    pub compression_info: Option<CompressionInfo>,
+    pub compression_info: CompressionInfo,
     pub session_id: u64,
     pub player: Pubkey,
     #[max_len(32)]
@@ -44,7 +42,7 @@ pub struct GameSession {
 #[derive(Default, Debug, InitSpace, LightAccount)]
 #[account]
 pub struct PlaceholderRecord {
-    pub compression_info: Option<CompressionInfo>,
+    pub compression_info: CompressionInfo,
     pub owner: Pubkey,
     #[max_len(32)]
     pub name: String,

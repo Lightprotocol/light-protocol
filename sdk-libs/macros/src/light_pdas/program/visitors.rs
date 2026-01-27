@@ -183,8 +183,8 @@ pub enum ClientSeedInfo {
     Literal(String),
     /// Byte literal: b"seed" -> &[...]
     ByteLiteral(Vec<u8>),
-    /// Constant: SEED -> crate::SEED.as_ref()
-    Constant { name: Ident, is_cpi_signer: bool },
+    /// Constant: fully qualified path -> path.as_ref()
+    Constant { path: syn::Path, is_cpi_signer: bool },
     /// ctx.field or ctx.accounts.field -> Pubkey parameter
     CtxField { field: Ident, method: Option<Ident> },
     /// data.field -> typed parameter from instruction_data
@@ -293,6 +293,14 @@ fn classify_method_call(method_call: &syn::ExprMethodCall) -> syn::Result<Client
         }
     }
 
+    // Check if receiver is a function call (e.g., func(args).as_ref())
+    // Strip the trailing method call and classify the inner call as FunctionCall.
+    // This handles expressions like crate::max_key(&ctx.fee_payer, &ctx.authority).as_ref()
+    // and crate::id().as_ref() in standalone seed helper functions.
+    if let syn::Expr::Call(call_expr) = &*method_call.receiver {
+        return classify_call_expr(call_expr);
+    }
+
     // Check if receiver is a path identifier (e.g., ident.as_ref())
     if let syn::Expr::Path(path_expr) = &*method_call.receiver {
         if let Some(ident) = path_expr.path.get_ident() {
@@ -317,15 +325,34 @@ fn classify_lit_expr(lit_expr: &syn::ExprLit) -> syn::Result<ClientSeedInfo> {
 }
 
 /// Classify a path expression (constant or identifier).
+///
+/// Constants are detected by checking if the last path segment is an uppercase identifier.
+/// After `convert_classified_to_seed_elements`, constants are fully qualified
+/// (e.g., `crate::module::CONSTANT`), so we store the full path.
+///
+/// Type-qualified paths like `<SeedHolder as HasSeed>::TRAIT_SEED` are NOT classified
+/// as constants because stripping the qself would lose the type qualification.
 fn classify_path_expr(path_expr: &syn::ExprPath) -> syn::Result<ClientSeedInfo> {
-    if let Some(ident) = path_expr.path.get_ident() {
-        let ident_str = ident.to_string();
-        if is_constant_identifier(&ident_str) {
+    // Type-qualified paths (qself present) must be preserved as raw expressions
+    // to keep the <Type as Trait>:: qualification intact.
+    if path_expr.qself.is_some() {
+        return Ok(ClientSeedInfo::RawExpr(Box::new(syn::Expr::Path(
+            path_expr.clone(),
+        ))));
+    }
+
+    // Check last segment for constant pattern (works for both single and multi-segment paths)
+    if let Some(last_seg) = path_expr.path.segments.last() {
+        let last_str = last_seg.ident.to_string();
+        if is_constant_identifier(&last_str) {
             return Ok(ClientSeedInfo::Constant {
-                name: ident.clone(),
-                is_cpi_signer: ident_str == "LIGHT_CPI_SIGNER",
+                path: path_expr.path.clone(),
+                is_cpi_signer: last_str == "LIGHT_CPI_SIGNER",
             });
         }
+    }
+    // Single-segment non-constant identifiers become Identifier
+    if let Some(ident) = path_expr.path.get_ident() {
         return Ok(ClientSeedInfo::Identifier(ident.clone()));
     }
     Ok(ClientSeedInfo::RawExpr(Box::new(syn::Expr::Path(
@@ -389,6 +416,12 @@ fn map_call_arg(
                                 }
                                 return Ok(quote! { #field_name });
                             }
+                            // data.field not in instruction_data (e.g., from FunctionCall args)
+                            // Default to Pubkey parameter
+                            if seen_params.insert(field_name.to_string()) {
+                                parameters.push(quote! { #field_name: &solana_pubkey::Pubkey });
+                            }
+                            return Ok(quote! { #field_name });
                         } else if segment.ident == "ctx" {
                             if seen_params.insert(field_name.to_string()) {
                                 parameters.push(quote! { #field_name: &solana_pubkey::Pubkey });
@@ -464,13 +497,13 @@ pub fn generate_client_seed_code(
         }
 
         ClientSeedInfo::Constant {
-            name,
+            path,
             is_cpi_signer,
         } => {
             let expr = if *is_cpi_signer {
-                quote! { crate::#name.cpi_signer.as_ref() }
+                quote! { #path.cpi_signer.as_ref() }
             } else {
-                quote! { { let __seed: &[u8] = crate::#name.as_ref(); __seed } }
+                quote! { { let __seed: &[u8] = #path.as_ref(); __seed } }
             };
             expressions.push(expr);
         }

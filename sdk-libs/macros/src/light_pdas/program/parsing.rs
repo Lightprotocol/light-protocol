@@ -294,9 +294,17 @@ pub fn extract_data_seed_fields(
 /// Produces simplified expressions for downstream processing:
 /// - CtxRooted: generates `ctx.account` (not the full expression)
 /// - DataRooted: generates `data.field` with optional conversion method
+/// - Constant: single-segment constants are qualified with their definition module path
+/// - FunctionCall: bare function names are qualified with their definition module path
 /// - Passthrough: uses expression as-is (for complex patterns)
+///
+/// `module_path` is the module where the Accounts struct was found (used as fallback
+/// for function calls). `crate_ctx` is used to look up where constants and functions
+/// are actually defined, to generate fully qualified paths.
 pub fn convert_classified_to_seed_elements(
     seeds: &[crate::light_pdas::account::seed_extraction::ClassifiedSeed],
+    module_path: &str,
+    crate_ctx: &super::crate_context::CrateContext,
 ) -> Punctuated<SeedElement, Token![,]> {
     use crate::light_pdas::account::seed_extraction::{extract_data_field_info, ClassifiedSeed};
 
@@ -314,8 +322,35 @@ pub fn convert_classified_to_seed_elements(
                     SeedElement::Expression(Box::new(expr))
                 }
             }
-            ClassifiedSeed::Constant(path) => {
-                let expr: Expr = syn::parse_quote!(#path);
+            ClassifiedSeed::Constant { path, .. } => {
+                // Single-segment bare constant names (e.g., POOL_SEED, A) need to be
+                // fully qualified because the generated code lives in the program module,
+                // not where the Accounts struct is defined.
+                //
+                // Resolution strategy:
+                // 1. Look up where the constant is defined in the crate (CrateContext)
+                // 2. If found AND the module path is publicly accessible, use it
+                //    (e.g., crate::instructions::edge_cases::A)
+                // 3. Otherwise fall back to crate:: prefix (e.g., crate::POOL_SEED)
+                //    which works for constants re-exported at the crate root
+                //
+                // Multi-segment paths are left as-is because they may be:
+                // - Already qualified: crate::state::CONSTANT
+                // - External crate paths: light_sdk_types::constants::X
+                // - Self-qualified: self::CONSTANT
+                let is_single_segment = path.segments.len() == 1;
+                let expr: Expr = if is_single_segment {
+                    let const_name = path.segments[0].ident.to_string();
+                    let resolved = crate_ctx
+                        .find_const_module_path(&const_name)
+                        .filter(|p| crate_ctx.is_module_path_public(p))
+                        .unwrap_or("crate");
+                    let mod_path: syn::Path = syn::parse_str(resolved)
+                        .unwrap_or_else(|_| syn::parse_quote!(crate));
+                    syn::parse_quote!(#mod_path::#path)
+                } else {
+                    syn::parse_quote!(#path)
+                };
                 SeedElement::Expression(Box::new(expr))
             }
             ClassifiedSeed::CtxRooted { account, .. } => {
@@ -337,6 +372,25 @@ pub fn convert_classified_to_seed_elements(
                     SeedElement::Expression(expr.clone())
                 }
             }
+            ClassifiedSeed::FunctionCall {
+                func_expr,
+                args: fn_args,
+                has_as_ref,
+            } => {
+                // Reconstruct the function call with rewritten args for ctx/data scope.
+                // Each classified arg gets rewritten:
+                // - CtxAccount `field` -> `ctx.field`
+                // - DataField `field` -> `data.field`
+                // Bare function names are qualified via CrateContext lookup.
+                let rewritten_call =
+                    rewrite_fn_call_for_scope(func_expr, fn_args, module_path, crate_ctx);
+                let expr: Expr = if *has_as_ref {
+                    syn::parse_quote!(#rewritten_call.as_ref())
+                } else {
+                    rewritten_call
+                };
+                SeedElement::Expression(Box::new(expr))
+            }
             ClassifiedSeed::Passthrough(expr) => {
                 SeedElement::Expression(expr.clone())
             }
@@ -346,10 +400,79 @@ pub fn convert_classified_to_seed_elements(
     result
 }
 
+/// Rewrite a FunctionCall expression's arguments for the program scope.
+///
+/// Each classified arg gets rewritten:
+/// - CtxAccount `field` -> `&ctx.field`
+/// - DataField `field` -> `&data.field`
+///
+/// Bare function names (single-segment paths) are qualified by looking up
+/// the function's definition module in CrateContext, falling back to `module_path`.
+/// Non-classified args are passed through unchanged.
+fn rewrite_fn_call_for_scope(
+    func_expr: &Expr,
+    fn_args: &[crate::light_pdas::account::seed_extraction::ClassifiedFnArg],
+    module_path: &str,
+    crate_ctx: &super::crate_context::CrateContext,
+) -> Expr {
+    use crate::light_pdas::account::seed_extraction::FnArgKind;
+    use quote::quote;
+
+    if let Expr::Call(call) = func_expr {
+        // Qualify bare function names via CrateContext lookup.
+        // Use definition path if found in a public module, else fall back to module_path.
+        let func_path: Expr = if let Expr::Path(path_expr) = &*call.func {
+            if path_expr.path.segments.len() == 1 {
+                let fn_name = path_expr.path.segments[0].ident.to_string();
+                let resolved = crate_ctx
+                    .find_fn_module_path(&fn_name)
+                    .filter(|p| crate_ctx.is_module_path_public(p))
+                    .unwrap_or(module_path);
+                let mod_path: syn::Path = syn::parse_str(resolved)
+                    .unwrap_or_else(|_| syn::parse_quote!(crate));
+                let ident = &path_expr.path.segments[0].ident;
+                syn::parse_quote!(#mod_path::#ident)
+            } else {
+                Expr::Path(path_expr.clone())
+            }
+        } else {
+            (*call.func).clone()
+        };
+
+        let rewritten_args: Vec<Expr> = call
+            .args
+            .iter()
+            .map(|arg| {
+                // Check if this arg matches any classified arg
+                let arg_str = quote!(#arg).to_string();
+                for classified in fn_args {
+                    let field = &classified.field_name;
+                    let field_str = field.to_string();
+                    if arg_str.contains(&field_str) {
+                        return match classified.kind {
+                            FnArgKind::CtxAccount => syn::parse_quote!(&ctx.#field),
+                            FnArgKind::DataField => syn::parse_quote!(&data.#field),
+                        };
+                    }
+                }
+                // Non-dynamic arg: pass through
+                arg.clone()
+            })
+            .collect();
+
+        syn::parse_quote!(#func_path(#(#rewritten_args),*))
+    } else {
+        // Shouldn't happen -- FunctionCall always wraps an Expr::Call
+        func_expr.clone()
+    }
+}
+
 pub fn convert_classified_to_seed_elements_vec(
     seeds: &[crate::light_pdas::account::seed_extraction::ClassifiedSeed],
+    module_path: &str,
+    crate_ctx: &super::crate_context::CrateContext,
 ) -> Vec<SeedElement> {
-    convert_classified_to_seed_elements(seeds)
+    convert_classified_to_seed_elements(seeds, module_path, crate_ctx)
         .into_iter()
         .collect()
 }

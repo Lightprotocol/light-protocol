@@ -4,6 +4,7 @@
 //! - PDA block generation from `pda.rs`
 //! - Mint action invocation from `mint.rs`
 //! - Token account creation from `token.rs`
+//! - Variant struct generation from `variant.rs`
 //! - Parsing results from `parse.rs`
 //!
 //! Design: ALL account creation happens in pre_init (before instruction handler)
@@ -22,21 +23,66 @@
 //!    d. Create ATAs
 //! 2. Instruction body: All accounts available for use (transfers, minting, etc.)
 //! 3. Finalize: No-op (all work done in pre_init)
+//!
+//! Additionally generates per-field variant types for PDA fields:
+//! - `{Field}Seeds` / `Packed{Field}Seeds` structs
+//! - `{Field}Variant` / `Packed{Field}Variant` structs
+//! - `LightAccountVariant<N>` trait implementations
+//! - `PackedLightAccountVariant<N>` trait implementations
 
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::DeriveInput;
 
 use super::builder::LightAccountsBuilder;
+use super::variant::generate_variants;
+use crate::light_pdas::seeds::extract_seed_specs;
 
 /// Main orchestration - shows the high-level flow clearly.
 pub(super) fn derive_light_accounts(input: &DeriveInput) -> Result<TokenStream, syn::Error> {
     let builder = LightAccountsBuilder::parse(input)?;
     builder.validate()?;
 
+    // Extract seed specs for variant generation
+    let item_struct = match &input.data {
+        syn::Data::Struct(data) => {
+            let fields = match &data.fields {
+                syn::Fields::Named(named) => named,
+                _ => {
+                    return Err(syn::Error::new_spanned(
+                        input,
+                        "LightAccounts requires named fields",
+                    ))
+                }
+            };
+            syn::ItemStruct {
+                attrs: input.attrs.clone(),
+                vis: input.vis.clone(),
+                struct_token: data.struct_token,
+                ident: input.ident.clone(),
+                generics: input.generics.clone(),
+                fields: syn::Fields::Named(fields.clone()),
+                semi_token: None,
+            }
+        }
+        _ => return Err(syn::Error::new_spanned(input, "LightAccounts requires a struct")),
+    };
+
+    // Extract seed specs and generate variant code for PDA fields
+    let seed_specs = extract_seed_specs(&item_struct)?;
+    let variant_code = if !seed_specs.is_empty() {
+        generate_variants(&seed_specs)
+    } else {
+        quote! {}
+    };
+
     // No instruction args = no-op impls (backwards compatibility)
     if !builder.has_instruction_args() {
-        return builder.generate_noop_impls();
+        let noop_impls = builder.generate_noop_impls()?;
+        return Ok(quote! {
+            #variant_code
+            #noop_impls
+        });
     }
 
     // Generate pre_init body for ALL account types (PDAs, mints, token accounts, ATAs)
@@ -51,6 +97,7 @@ pub(super) fn derive_light_accounts(input: &DeriveInput) -> Result<TokenStream, 
     let finalize_impl = builder.generate_finalize_impl(finalize_body)?;
 
     Ok(quote! {
+        #variant_code
         #pre_init_impl
         #finalize_impl
     })
@@ -248,6 +295,99 @@ mod tests {
         assert!(
             output.contains("Ok (false)") || output.contains("Ok(false)"),
             "Should return Ok(false) in pre_init"
+        );
+    }
+
+    #[test]
+    fn test_pda_field_generates_variant_code() {
+        // PDA field with #[light_account(init)] should generate variant structs
+        let input: DeriveInput = parse_quote! {
+            #[instruction(params: CreateParams)]
+            pub struct Create<'info> {
+                #[account(mut)]
+                pub fee_payer: Signer<'info>,
+
+                #[account(init, payer = fee_payer, space = 100, seeds = [b"user", authority.key().as_ref()], bump)]
+                #[light_account(init)]
+                pub user_record: Account<'info, UserRecord>,
+
+                pub authority: AccountInfo<'info>,
+                pub compression_config: Account<'info, CompressionConfig>,
+            }
+        };
+
+        let result = derive_light_accounts(&input);
+        assert!(result.is_ok(), "PDA derive should succeed: {:?}", result.err());
+
+        let output = result.unwrap().to_string();
+
+        // Should generate variant structs
+        assert!(
+            output.contains("UserRecordSeeds"),
+            "Should generate UserRecordSeeds struct: {}",
+            output
+        );
+        assert!(
+            output.contains("PackedUserRecordSeeds"),
+            "Should generate PackedUserRecordSeeds struct"
+        );
+        assert!(
+            output.contains("UserRecordVariant"),
+            "Should generate UserRecordVariant struct"
+        );
+        assert!(
+            output.contains("PackedUserRecordVariant"),
+            "Should generate PackedUserRecordVariant struct"
+        );
+        // Should also generate trait impls
+        assert!(
+            output.contains("LightPreInit"),
+            "Should generate LightPreInit impl"
+        );
+    }
+
+    #[test]
+    fn test_pda_field_with_data_seed_generates_correct_code() {
+        // PDA field with data seed (params.owner) should generate variant with Pubkey stored
+        let input: DeriveInput = parse_quote! {
+            #[instruction(params: CreateParams)]
+            pub struct Create<'info> {
+                #[account(mut)]
+                pub fee_payer: Signer<'info>,
+
+                #[account(init, payer = fee_payer, space = 100, seeds = [b"user", authority.key().as_ref(), params.owner.as_ref()], bump)]
+                #[light_account(init)]
+                pub user_record: Account<'info, UserRecord>,
+
+                pub authority: AccountInfo<'info>,
+                pub compression_config: Account<'info, CompressionConfig>,
+            }
+        };
+
+        let result = derive_light_accounts(&input);
+        assert!(result.is_ok(), "PDA derive should succeed: {:?}", result.err());
+
+        let output = result.unwrap().to_string();
+
+        // Seeds struct should have both authority (account) and owner (data) fields
+        assert!(
+            output.contains("pub authority : Pubkey"),
+            "UserRecordSeeds should have authority field: {}", output
+        );
+        assert!(
+            output.contains("pub owner : Pubkey"),
+            "UserRecordSeeds should have owner field: {}", output
+        );
+
+        // Packed seeds should have authority_idx (u8) and owner (Pubkey - data seeds stay as Pubkey)
+        assert!(
+            output.contains("authority_idx : u8") || output.contains("authority_idx: u8"),
+            "PackedUserRecordSeeds should have authority_idx field"
+        );
+        // Owner is a data seed, should be stored as Pubkey not u8
+        assert!(
+            output.contains("pub owner : Pubkey"),
+            "PackedUserRecordSeeds should have owner as Pubkey (data seed): {}", output
         );
     }
 }

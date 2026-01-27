@@ -366,8 +366,7 @@ impl LightAccountsBuilder {
 
     /// Generate PDAs + mints body WITHOUT the Ok(true) return.
     fn generate_pre_init_pdas_and_mints_body(&self) -> Result<TokenStream, syn::Error> {
-        let (compress_blocks, new_addr_idents) =
-            generate_pda_compress_blocks(&self.parsed.rentfree_fields);
+        let compress_blocks = generate_pda_compress_blocks(&self.parsed.rentfree_fields);
         let rentfree_count = self.parsed.rentfree_fields.len() as u8;
         let pda_count = self.parsed.rentfree_fields.len();
 
@@ -395,13 +394,14 @@ impl LightAccountsBuilder {
                 &crate::ID,
             )?;
 
+            let mut all_new_address_params = Vec::with_capacity(#rentfree_count as usize);
             let mut all_compressed_infos = Vec::with_capacity(#rentfree_count as usize);
             #(#compress_blocks)*
 
             light_token::compressible::invoke_write_pdas_to_cpi_context(
                 crate::LIGHT_CPI_SIGNER,
                 #proof_access.proof.clone(),
-                &[#(#new_addr_idents),*],
+                &all_new_address_params,
                 &all_compressed_infos,
                 &cpi_accounts,
             )?;
@@ -412,8 +412,7 @@ impl LightAccountsBuilder {
 
     /// Generate PDAs-only body WITHOUT the Ok(true) return.
     fn generate_pre_init_pdas_only_body(&self) -> Result<TokenStream, syn::Error> {
-        let (compress_blocks, new_addr_idents) =
-            generate_pda_compress_blocks(&self.parsed.rentfree_fields);
+        let compress_blocks = generate_pda_compress_blocks(&self.parsed.rentfree_fields);
         let rentfree_count = self.parsed.rentfree_fields.len() as u8;
 
         // Get proof access expression (direct arg or nested in params)
@@ -435,6 +434,7 @@ impl LightAccountsBuilder {
                 &crate::ID,
             )?;
 
+            let mut all_new_address_params = Vec::with_capacity(#rentfree_count as usize);
             let mut all_compressed_infos = Vec::with_capacity(#rentfree_count as usize);
             #(#compress_blocks)*
 
@@ -442,7 +442,7 @@ impl LightAccountsBuilder {
                 crate::LIGHT_CPI_SIGNER,
                 #proof_access.proof.clone(),
             )
-                .with_new_addresses(&[#(#new_addr_idents),*])
+                .with_new_addresses(&all_new_address_params)
                 .with_account_infos(&all_compressed_infos)
                 .invoke(cpi_accounts)?;
         })
