@@ -21,22 +21,22 @@ use light_client::interface::{
     CreateAccountsProofInput, InitializeRentFreeConfig, LightProgramInterface,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
-use light_macros::pubkey;
 use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest, TestRpc},
     Indexer, ProgramTestConfig, Rpc,
 };
-use light_token::instruction::{
-    find_mint_address, get_associated_token_address_and_bump, COMPRESSIBLE_CONFIG_V1,
-    LIGHT_TOKEN_CPI_AUTHORITY, LIGHT_TOKEN_PROGRAM_ID, RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR,
+use light_token::{
+    constants::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR_V1},
+    instruction::{
+        find_mint_address, get_associated_token_address_and_bump, LIGHT_TOKEN_CPI_AUTHORITY,
+        LIGHT_TOKEN_PROGRAM_ID,
+    },
 };
 use light_token_interface::state::Token;
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
-
-const RENT_SPONSOR: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
 
 async fn assert_onchain_exists(rpc: &mut LightProgramTest, pda: &Pubkey) {
     assert!(
@@ -141,16 +141,22 @@ async fn setup() -> AmmTestContext {
     // Setup mock program data and compression config
     let program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
-    let (init_config_ix, config_pda) = InitializeRentFreeConfig::new(
+    // Construct SDK and use trait method for rent sponsor PDA
+    let sdk = AmmSdk::new();
+    let program_rent_sponsor = sdk.light_rent_sponsor_pda();
+
+    // Initialize config with rent sponsor funding (transfer + init in one tx)
+    let (init_config_ixs, config_pda) = InitializeRentFreeConfig::new(
         &program_id,
         &payer.pubkey(),
         &program_data_pda,
-        RENT_SPONSOR,
+        program_rent_sponsor,
         payer.pubkey(),
+        10_000_000_000, // rent sponsor funding
     )
     .build();
 
-    rpc.create_and_send_transaction(&[init_config_ix], &payer.pubkey(), &[&payer])
+    rpc.create_and_send_transaction(&init_config_ixs, &payer.pubkey(), &[&payer])
         .await
         .expect("Initialize config should succeed");
 
@@ -348,7 +354,7 @@ async fn test_amm_full_lifecycle() {
         rent: solana_sdk::sysvar::rent::ID,
         compression_config: ctx.config_pda,
         light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
-        rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
+        rent_sponsor: RENT_SPONSOR_V1,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID,
         light_token_cpi_authority: LIGHT_TOKEN_CPI_AUTHORITY,
     };
@@ -590,8 +596,8 @@ async fn test_amm_full_lifecycle() {
     let decompress_ixs = create_load_instructions(
         &all_specs,
         ctx.payer.pubkey(),
-        ctx.config_pda,
-        ctx.payer.pubkey(),
+        sdk.light_config_pda(),
+        sdk.light_rent_sponsor_pda(),
         &ctx.rpc,
     )
     .await

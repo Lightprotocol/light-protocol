@@ -21,7 +21,6 @@ pub use light_sdk::{
 pub use light_sdk_macros::{
     // Proc macros
     derive_light_rent_sponsor,
-    derive_light_rent_sponsor_pda,
     // Attribute macros
     light_program,
     // Derive macros

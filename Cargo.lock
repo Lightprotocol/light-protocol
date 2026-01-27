@@ -3592,6 +3592,7 @@ dependencies = [
  "solana-rpc-client",
  "solana-rpc-client-api",
  "solana-signature",
+ "solana-system-interface 1.0.0",
  "solana-transaction",
  "solana-transaction-error",
  "solana-transaction-status-client-types",

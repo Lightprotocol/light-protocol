@@ -37,6 +37,7 @@ solana-address-lookup-table-interface = { version = "2.2.1", features = [
     "bincode",
 ] }
 solana-message = { workspace = true }
+solana-system-interface = { workspace = true }
 spl-token-2022-interface = { workspace = true }
 spl-pod = { workspace = true }
 

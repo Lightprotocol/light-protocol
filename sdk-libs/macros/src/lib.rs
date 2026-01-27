@@ -339,34 +339,22 @@ pub fn light_account_derive(input: TokenStream) -> TokenStream {
     into_token_stream(light_pdas::account::light_compressible::derive_light_account(input))
 }
 
-/// Derives a Rent Sponsor PDA for a program at compile time.
+/// Derives the Rent Sponsor PDA at compile time (version 1, hardcoded).
 ///
-/// Seeds: ["rent_sponsor", <u16 version little-endian>]
-///
-/// ## Example
-///
-/// ```ignore
-/// use light_sdk_macros::derive_light_rent_sponsor_pda;
-///
-/// pub const RENT_SPONSOR_DATA: ([u8; 32], u8) =
-///     derive_light_rent_sponsor_pda!("8Ld9pGkCNfU6A7KdKe1YrTNYJWKMCFqVHqmUvjNmER7B", 1);
-/// ```
-#[proc_macro]
-pub fn derive_light_rent_sponsor_pda(input: TokenStream) -> TokenStream {
-    rent_sponsor::derive_light_rent_sponsor_pda(input)
-}
-
-/// Derives a complete Rent Sponsor configuration for a program at compile time.
-///
-/// Returns ::light_sdk_types::RentSponsor { program_id, rent_sponsor, bump, version }.
+/// Returns a `RentSponsor` struct with the PDA address and bump.
 ///
 /// ## Example
 ///
 /// ```ignore
 /// use light_sdk_macros::derive_light_rent_sponsor;
 ///
-/// pub const RENT_SPONSOR: ::light_sdk_types::RentSponsor =
-///     derive_light_rent_sponsor!("8Ld9pGkCNfU6A7KdKe1YrTNYJWKMCFqVHqmUvjNmER7B", 1);
+/// pub const RENT_SPONSOR: ::light_sdk::sdk_types::RentSponsor =
+///     derive_light_rent_sponsor!("8Ld9pGkCNfU6A7KdKe1YrTNYJWKMCFqVHqmUvjNmER7B");
+///
+/// // Access the pubkey
+/// let pubkey = Pubkey::from(RENT_SPONSOR.rent_sponsor);
+/// // Access the bump for signing
+/// let bump = RENT_SPONSOR.bump;
 /// ```
 #[proc_macro]
 pub fn derive_light_rent_sponsor(input: TokenStream) -> TokenStream {
