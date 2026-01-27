@@ -14,6 +14,7 @@ import {
     CTOKEN_PROGRAM_ID,
     selectStateTreeInfo,
     TreeInfo,
+    assertBetaEnabled,
 } from '@lightprotocol/stateless.js';
 import { createMintToCompressedInstruction } from '../instructions/mint-to-compressed';
 import { getMintInterface } from '../get-mint-interface';
@@ -40,6 +41,8 @@ export async function mintToCompressed(
     tokenAccountVersion: number = 3,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
+    assertBetaEnabled();
+
     const mintInfo = await getMintInterface(
         rpc,
         mint,

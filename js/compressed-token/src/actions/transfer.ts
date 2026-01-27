@@ -11,15 +11,19 @@ import {
     buildAndSignTx,
     Rpc,
     dedupeSigner,
-    StateTreeInfo,
-    selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
 import BN from 'bn.js';
 import { CompressedTokenProgram } from '../program';
-import { selectMinCompressedTokenAccountsForTransfer } from '../utils';
+import {
+    selectMinCompressedTokenAccountsForTransfer,
+    selectAccountsByPreferredTreeType,
+} from '../utils';
 
 /**
- * Transfer compressed tokens from one owner to another
+ * Transfer compressed tokens from one owner to another.
+ *
+ * Supports automatic V1 -> V2 migration: when running in V2 mode,
+ * V1 token inputs will produce V2 token outputs.
  *
  * @param rpc                   Rpc connection to use
  * @param payer                 Fee payer
@@ -41,15 +45,20 @@ export async function transfer(
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     amount = bn(amount);
+
     const compressedTokenAccounts = await rpc.getCompressedTokenAccountsByOwner(
         owner.publicKey,
-        {
-            mint,
-        },
+        { mint },
+    );
+
+    // Select accounts from preferred tree type (V2 in V2 mode) with fallback
+    const { accounts: accountsToUse } = selectAccountsByPreferredTreeType(
+        compressedTokenAccounts.items,
+        amount,
     );
 
     const [inputAccounts] = selectMinCompressedTokenAccountsForTransfer(
-        compressedTokenAccounts.items,
+        accountsToUse,
         amount,
     );
 
@@ -61,6 +70,7 @@ export async function transfer(
         })),
     );
 
+    // V1→V2 migration handled inside CompressedTokenProgram.transfer
     const ix = await CompressedTokenProgram.transfer({
         payer: payer.publicKey,
         inputCompressedTokenAccounts: inputAccounts,

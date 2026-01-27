@@ -14,7 +14,10 @@ import {
 } from '@lightprotocol/stateless.js';
 import BN from 'bn.js';
 import { CompressedTokenProgram } from '../program';
-import { selectMinCompressedTokenAccountsForTransfer } from '../utils';
+import {
+    selectMinCompressedTokenAccountsForTransfer,
+    selectAccountsByPreferredTreeType,
+} from '../utils';
 
 /**
  * Transfer delegated compressed tokens to another owner
@@ -44,8 +47,14 @@ export async function transferDelegated(
             mint,
         });
 
-    const [inputAccounts] = selectMinCompressedTokenAccountsForTransfer(
+    // Select accounts from preferred tree type (V2 in V2 mode) with fallback
+    const { accounts: accountsToUse } = selectAccountsByPreferredTreeType(
         compressedTokenAccounts.items,
+        amount,
+    );
+
+    const [inputAccounts] = selectMinCompressedTokenAccountsForTransfer(
+        accountsToUse,
         amount,
     );
 

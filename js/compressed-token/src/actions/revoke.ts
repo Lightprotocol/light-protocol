@@ -12,6 +12,7 @@ import {
     ParsedTokenAccount,
 } from '@lightprotocol/stateless.js';
 import { CompressedTokenProgram } from '../program';
+import { groupAccountsByTreeType } from '../utils';
 
 /**
  * Revoke one or more delegated token accounts
@@ -19,6 +20,7 @@ import { CompressedTokenProgram } from '../program';
  * @param rpc                   Rpc connection to use
  * @param payer                 Fee payer
  * @param accounts              Delegated compressed token accounts to revoke
+ *                              (must all be from the same tree type)
  * @param owner                 Owner of the compressed tokens
  * @param confirmOptions        Options for confirming the transaction
  *
@@ -31,6 +33,15 @@ export async function revoke(
     owner: Signer,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
+    // Validate all accounts are from the same tree type
+    const accountsByTreeType = groupAccountsByTreeType(accounts);
+    if (accountsByTreeType.size > 1) {
+        throw new Error(
+            'Cannot revoke accounts from different tree types (V1/V2) in the same transaction. ' +
+                'Revoke V1 and V2 accounts separately.',
+        );
+    }
+
     const proof = await rpc.getValidityProofV0(
         accounts.map(account => ({
             hash: account.compressedAccount.hash,

@@ -11,6 +11,7 @@ import {
     CTOKEN_PROGRAM_ID,
     buildAndSignTx,
     sendAndConfirmTx,
+    assertBetaEnabled,
 } from '@lightprotocol/stateless.js';
 import {
     createAssociatedTokenAccountInterfaceInstruction,
@@ -51,6 +52,8 @@ export async function createAtaInterface(
     associatedTokenProgramId?: PublicKey,
     ctokenConfig?: CTokenConfig,
 ): Promise<PublicKey> {
+    assertBetaEnabled();
+
     const effectiveAtaProgramId =
         associatedTokenProgramId ?? getAtaProgramId(programId);
 
@@ -125,6 +128,8 @@ export async function createAtaInterfaceIdempotent(
     associatedTokenProgramId?: PublicKey,
     ctokenConfig?: CTokenConfig,
 ): Promise<PublicKey> {
+    assertBetaEnabled();
+
     const effectiveAtaProgramId =
         associatedTokenProgramId ?? getAtaProgramId(programId);
 

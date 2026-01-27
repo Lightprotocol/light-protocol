@@ -194,7 +194,11 @@ export async function execute(command: string): Promise<string> {
   }
 }
 
-export function spawnBinary(command: string, args: string[] = []) {
+export function spawnBinary(
+  command: string,
+  args: string[] = [],
+  env?: NodeJS.ProcessEnv,
+) {
   const logDir = "test-ledger";
   const binaryName = path.basename(command);
 
@@ -212,7 +216,7 @@ export function spawnBinary(command: string, args: string[] = []) {
       stdio: ["ignore", out, err],
       shell: false,
       detached: true,
-      env: {
+      env: env ?? {
         ...process.env,
         RUST_LOG: process.env.RUST_LOG || "debug",
       },

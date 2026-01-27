@@ -8,6 +8,7 @@ import {
   defaultTestStateTreeAccounts,
   deriveAddressSeed,
   deriveAddress,
+  featureFlags,
   PackedAccounts,
   Rpc,
   sleep,
@@ -21,7 +22,10 @@ const anchorWalletPath = path.join(os.homedir(), ".config/solana/id.json");
 process.env.ANCHOR_WALLET = anchorWalletPath;
 process.env.ANCHOR_PROVIDER_URL = "http://localhost:8899";
 
-describe("sdk-anchor-test-v1", () => {
+// Skip V1 tests when running in V2 mode
+const describeV1 = featureFlags.isV2() ? describe.skip : describe;
+
+describeV1("sdk-anchor-test-v1", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
   const programId = new web3.PublicKey(

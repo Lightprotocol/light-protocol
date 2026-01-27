@@ -4,9 +4,11 @@ import {
     buildAndSignTx,
     sendAndConfirmTx,
     dedupeSigner,
-    bn,
     ParsedTokenAccount,
+    bn,
+    assertBetaEnabled,
 } from '@lightprotocol/stateless.js';
+import { assertV2Only } from '../assert-v2-only';
 import {
     PublicKey,
     TransactionInstruction,
@@ -141,6 +143,8 @@ export async function createLoadAtaInstructions(
     options?: InterfaceOptions,
     wrap = false,
 ): Promise<TransactionInstruction[]> {
+    assertBetaEnabled();
+
     payer ??= owner;
 
     // Validation happens inside getAtaInterface via checkAtaAddress helper:
@@ -210,6 +214,13 @@ export async function createLoadAtaInstructionsFromInterface(
     const owner = ata._owner;
     const mint = ata._mint;
     const sources = ata._sources ?? [];
+
+    // v3 interface only supports V2 trees - check cold sources early
+    const compressedAccountsToCheck =
+        getCompressedTokenAccountsFromAtaSources(sources);
+    if (compressedAccountsToCheck.length > 0) {
+        assertV2Only(compressedAccountsToCheck);
+    }
 
     // Derive addresses
     const ctokenAtaAddress = getAssociatedTokenAddressInterface(mint, owner);
@@ -344,11 +355,14 @@ export async function createLoadAtaInstructionsFromInterface(
         }
 
         // 4. Decompress compressed tokens to c-token ATA
+        // Note: v3 interface only supports V2 trees
         if (coldBalance > BigInt(0) && ctokenColdSource) {
             const compressedAccounts =
                 getCompressedTokenAccountsFromAtaSources(sources);
 
             if (compressedAccounts.length > 0) {
+                assertV2Only(compressedAccounts);
+
                 const proof = await rpc.getValidityProofV0(
                     compressedAccounts.map(acc => ({
                         hash: acc.compressedAccount.hash,
@@ -378,6 +392,8 @@ export async function createLoadAtaInstructionsFromInterface(
                 getCompressedTokenAccountsFromAtaSources(sources);
 
             if (compressedAccounts.length > 0) {
+                assertV2Only(compressedAccounts);
+
                 const proof = await rpc.getValidityProofV0(
                     compressedAccounts.map(acc => ({
                         hash: acc.compressedAccount.hash,
@@ -498,6 +514,8 @@ export async function loadAta(
     interfaceOptions?: InterfaceOptions,
     wrap = false,
 ): Promise<TransactionSignature | null> {
+    assertBetaEnabled();
+
     payer ??= owner;
 
     const ixs = await createLoadAtaInstructions(

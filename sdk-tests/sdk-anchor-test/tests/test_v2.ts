@@ -7,6 +7,7 @@ import {
   createRpc,
   deriveAddressSeedV2,
   deriveAddressV2,
+  featureFlags,
   PackedAccounts,
   Rpc,
   sleep,
@@ -20,7 +21,10 @@ const anchorWalletPath = path.join(os.homedir(), ".config/solana/id.json");
 process.env.ANCHOR_WALLET = anchorWalletPath;
 process.env.ANCHOR_PROVIDER_URL = "http://localhost:8899";
 
-describe("sdk-anchor-test-v2", () => {
+// Skip V2 tests when running in V1 mode
+const describeV2 = featureFlags.isV2() ? describe : describe.skip;
+
+describeV2("sdk-anchor-test-v2", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
   const programId = new web3.PublicKey(

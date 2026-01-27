@@ -4,7 +4,11 @@ import {
     TOKEN_PROGRAM_ID,
     getAssociatedTokenAddressSync,
 } from '@solana/spl-token';
-import { Rpc, CTOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
+import {
+    Rpc,
+    CTOKEN_PROGRAM_ID,
+    featureFlags,
+} from '@lightprotocol/stateless.js';
 import { getAtaProgramId } from '../../src/v3/ata-utils';
 
 import {
@@ -43,24 +47,34 @@ describe('unified guards', () => {
         ).not.toThrow();
     });
 
-    it('throws when unified createLoadAtaInstructions receives non c-token ATA', async () => {
-        const rpc = {} as Rpc;
-        const owner = Keypair.generate().publicKey;
-        const mint = Keypair.generate().publicKey;
+    // Skip unless V2+beta - createLoadAtaInstructions is a V2-only interface method requiring beta
+    it.skipIf(!featureFlags.isV2() || !featureFlags.isBeta())(
+        'throws when unified createLoadAtaInstructions receives non c-token ATA',
+        async () => {
+            const rpc = {} as Rpc;
+            const owner = Keypair.generate().publicKey;
+            const mint = Keypair.generate().publicKey;
 
-        // Derive SPL ATA using base function (not unified)
-        const wrongAta = getAssociatedTokenAddressSync(
-            mint,
-            owner,
-            false,
-            TOKEN_PROGRAM_ID,
-            getAtaProgramId(TOKEN_PROGRAM_ID),
-        );
+            // Derive SPL ATA using base function (not unified)
+            const wrongAta = getAssociatedTokenAddressSync(
+                mint,
+                owner,
+                false,
+                TOKEN_PROGRAM_ID,
+                getAtaProgramId(TOKEN_PROGRAM_ID),
+            );
 
-        await expect(
-            unifiedCreateLoadAtaInstructions(rpc, wrongAta, owner, mint, owner),
-        ).rejects.toThrow(
-            'For wrap=true, ata must be the c-token ATA. Got spl ATA instead.',
-        );
-    });
+            await expect(
+                unifiedCreateLoadAtaInstructions(
+                    rpc,
+                    wrongAta,
+                    owner,
+                    mint,
+                    owner,
+                ),
+            ).rejects.toThrow(
+                'For wrap=true, ata must be the c-token ATA. Got spl ATA instead.',
+            );
+        },
+    );
 });

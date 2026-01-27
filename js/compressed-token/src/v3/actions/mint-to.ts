@@ -14,6 +14,7 @@ import {
     CTOKEN_PROGRAM_ID,
     selectStateTreeInfo,
     TreeInfo,
+    assertBetaEnabled,
 } from '@lightprotocol/stateless.js';
 import { createMintToInstruction } from '../instructions/mint-to';
 import { getMintInterface } from '../get-mint-interface';
@@ -28,6 +29,8 @@ export async function mintTo(
     outputQueue?: PublicKey,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
+    assertBetaEnabled();
+
     const mintInfo = await getMintInterface(
         rpc,
         mint,

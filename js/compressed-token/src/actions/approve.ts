@@ -15,8 +15,8 @@ import {
 import BN from 'bn.js';
 import { CompressedTokenProgram } from '../program';
 import {
-    selectMinCompressedTokenAccountsForTransfer,
     selectTokenAccountsForApprove,
+    selectAccountsByPreferredTreeType,
 } from '../utils';
 
 /**
@@ -49,8 +49,14 @@ export async function approve(
         },
     );
 
-    const [inputAccounts] = selectTokenAccountsForApprove(
+    // Select accounts from preferred tree type (V2 in V2 mode) with fallback
+    const { accounts: accountsToUse } = selectAccountsByPreferredTreeType(
         compressedTokenAccounts.items,
+        amount,
+    );
+
+    const [inputAccounts] = selectTokenAccountsForApprove(
+        accountsToUse,
         amount,
     );
 

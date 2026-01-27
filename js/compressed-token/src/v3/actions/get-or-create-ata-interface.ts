@@ -3,6 +3,7 @@ import {
     CTOKEN_PROGRAM_ID,
     buildAndSignTx,
     sendAndConfirmTx,
+    assertBetaEnabled,
 } from '@lightprotocol/stateless.js';
 import {
     getAssociatedTokenAddressSync,
@@ -70,6 +71,8 @@ export async function getOrCreateAtaInterface(
     programId = CTOKEN_PROGRAM_ID,
     associatedTokenProgramId = getAtaProgramId(programId),
 ): Promise<AccountInterface> {
+    assertBetaEnabled();
+
     return _getOrCreateAtaInterface(
         rpc,
         payer,
