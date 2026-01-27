@@ -10,8 +10,8 @@ use solana_pubkey::Pubkey;
 use tracing::{error, trace, warn};
 
 use super::types::{
-    CompressedAccount, CompressedMint, CompressedTokenAccount, OwnerBalance, SignatureWithMetadata,
-    TokenBalance,
+    AccountInterface, CompressedAccount, CompressedMint, CompressedTokenAccount, MintInterface,
+    OwnerBalance, SignatureWithMetadata, TokenAccountInterface, TokenBalance,
 };
 use crate::indexer::{
     base58::Base58Conversions,
@@ -1929,6 +1929,245 @@ impl Indexer for PhotonIndexer {
                     items: mints?,
                     cursor,
                 },
+            })
+        })
+        .await
+    }
+}
+
+// ============ Interface Methods ============
+// These methods use the Interface endpoints that race hot (on-chain) and cold (compressed) lookups
+
+impl PhotonIndexer {
+    /// Get account data from either on-chain or compressed sources.
+    /// Races both lookups and returns the result with the higher slot.
+    pub async fn get_account_interface(
+        &self,
+        address: &Pubkey,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Option<AccountInterface>>, IndexerError> {
+        let config = config.unwrap_or_default();
+        self.retry(config.retry_config, || async {
+            let request = photon_api::models::GetAccountInterfacePostRequest::new(
+                photon_api::models::GetAccountInterfacePostRequestParams::new(address.to_string()),
+            );
+
+            let result = photon_api::apis::default_api::get_account_interface_post(
+                &self.configuration,
+                request,
+            )
+            .await?;
+
+            let api_response = Self::extract_result_with_error_check(
+                "get_account_interface",
+                result.error,
+                result.result.map(|r| *r),
+            )?;
+
+            if api_response.context.slot < config.slot {
+                return Err(IndexerError::IndexerNotSyncedToSlot);
+            }
+
+            let account = match api_response.value {
+                Some(boxed) => Some(AccountInterface::try_from(boxed.as_ref())?),
+                None => None,
+            };
+
+            Ok(Response {
+                context: Context {
+                    slot: api_response.context.slot,
+                },
+                value: account,
+            })
+        })
+        .await
+    }
+
+    /// Get token account data from either on-chain or compressed sources.
+    /// Races both lookups and returns the result with the higher slot.
+    pub async fn get_token_account_interface(
+        &self,
+        address: &Pubkey,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Option<TokenAccountInterface>>, IndexerError> {
+        let config = config.unwrap_or_default();
+        self.retry(config.retry_config, || async {
+            let request = photon_api::models::GetTokenAccountInterfacePostRequest::new(
+                photon_api::models::GetTokenAccountInterfacePostRequestParams::new(
+                    address.to_string(),
+                ),
+            );
+
+            let result = photon_api::apis::default_api::get_token_account_interface_post(
+                &self.configuration,
+                request,
+            )
+            .await?;
+
+            let api_response = Self::extract_result_with_error_check(
+                "get_token_account_interface",
+                result.error,
+                result.result.map(|r| *r),
+            )?;
+
+            if api_response.context.slot < config.slot {
+                return Err(IndexerError::IndexerNotSyncedToSlot);
+            }
+
+            let account = match api_response.value {
+                Some(boxed) => Some(TokenAccountInterface::try_from(boxed.as_ref())?),
+                None => None,
+            };
+
+            Ok(Response {
+                context: Context {
+                    slot: api_response.context.slot,
+                },
+                value: account,
+            })
+        })
+        .await
+    }
+
+    /// Get Associated Token Account data from either on-chain or compressed sources.
+    /// Derives the Light Protocol ATA address from owner+mint, then races hot/cold lookups.
+    pub async fn get_ata_interface(
+        &self,
+        owner: &Pubkey,
+        mint: &Pubkey,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Option<TokenAccountInterface>>, IndexerError> {
+        let config = config.unwrap_or_default();
+        self.retry(config.retry_config, || async {
+            let request = photon_api::models::GetAtaInterfacePostRequest::new(
+                photon_api::models::GetAtaInterfacePostRequestParams::new(
+                    owner.to_string(),
+                    mint.to_string(),
+                ),
+            );
+
+            let result =
+                photon_api::apis::default_api::get_ata_interface_post(&self.configuration, request)
+                    .await?;
+
+            let api_response = Self::extract_result_with_error_check(
+                "get_ata_interface",
+                result.error,
+                result.result.map(|r| *r),
+            )?;
+
+            if api_response.context.slot < config.slot {
+                return Err(IndexerError::IndexerNotSyncedToSlot);
+            }
+
+            let account = match api_response.value {
+                Some(boxed) => Some(TokenAccountInterface::try_from(boxed.as_ref())?),
+                None => None,
+            };
+
+            Ok(Response {
+                context: Context {
+                    slot: api_response.context.slot,
+                },
+                value: account,
+            })
+        })
+        .await
+    }
+
+    /// Get mint data from either on-chain or compressed sources.
+    /// Races both lookups and returns the result with the higher slot.
+    pub async fn get_mint_interface(
+        &self,
+        address: &Pubkey,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Option<MintInterface>>, IndexerError> {
+        let config = config.unwrap_or_default();
+        self.retry(config.retry_config, || async {
+            let request = photon_api::models::GetMintInterfacePostRequest::new(
+                photon_api::models::GetMintInterfacePostRequestParams::new(address.to_string()),
+            );
+
+            let result = photon_api::apis::default_api::get_mint_interface_post(
+                &self.configuration,
+                request,
+            )
+            .await?;
+
+            let api_response = Self::extract_result_with_error_check(
+                "get_mint_interface",
+                result.error,
+                result.result.map(|r| *r),
+            )?;
+
+            if api_response.context.slot < config.slot {
+                return Err(IndexerError::IndexerNotSyncedToSlot);
+            }
+
+            let mint = match api_response.value {
+                Some(boxed) => Some(MintInterface::try_from(boxed.as_ref())?),
+                None => None,
+            };
+
+            Ok(Response {
+                context: Context {
+                    slot: api_response.context.slot,
+                },
+                value: mint,
+            })
+        })
+        .await
+    }
+
+    /// Get multiple account interfaces in a batch.
+    /// Returns a vector where each element corresponds to an input address.
+    pub async fn get_multiple_account_interfaces(
+        &self,
+        addresses: Vec<&Pubkey>,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Vec<Option<AccountInterface>>>, IndexerError> {
+        let config = config.unwrap_or_default();
+        self.retry(config.retry_config, || async {
+            let address_strings: Vec<String> =
+                addresses.iter().map(|addr| addr.to_string()).collect();
+
+            let request = photon_api::models::GetMultipleAccountInterfacesPostRequest::new(
+                photon_api::models::GetMultipleAccountInterfacesPostRequestParams::new(
+                    address_strings,
+                ),
+            );
+
+            let result = photon_api::apis::default_api::get_multiple_account_interfaces_post(
+                &self.configuration,
+                request,
+            )
+            .await?;
+
+            let api_response = Self::extract_result_with_error_check(
+                "get_multiple_account_interfaces",
+                result.error,
+                result.result.map(|r| *r),
+            )?;
+
+            if api_response.context.slot < config.slot {
+                return Err(IndexerError::IndexerNotSyncedToSlot);
+            }
+
+            let accounts: Result<Vec<Option<AccountInterface>>, IndexerError> = api_response
+                .value
+                .into_iter()
+                .map(|maybe_acc| {
+                    maybe_acc
+                        .map(|ai| AccountInterface::try_from(&ai))
+                        .transpose()
+                })
+                .collect();
+
+            Ok(Response {
+                context: Context {
+                    slot: api_response.context.slot,
+                },
+                value: accounts?,
             })
         })
         .await
