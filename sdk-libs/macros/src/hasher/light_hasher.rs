@@ -170,6 +170,16 @@ impl ::light_hasher::DataHasher for MyAccount {
         use ::light_hasher::DataHasher;
         use ::light_hasher::Hasher;
         use ::light_hasher::to_byte_array::ToByteArray;
+        #[cfg(debug_assertions)]
+        {
+            if std::env::var("RUST_BACKTRACE").is_ok() {
+                let debug_prints: Vec<[u8; 32]> = vec![
+                    self.a.to_byte_array() ?, self.b.to_byte_array() ?, self.c
+                    .to_byte_array() ?, self.d.to_byte_array() ?,
+                ];
+                println!("DataHasher::hash inputs {:?}", debug_prints);
+            }
+        }
         let mut result = H::hashv(
             &[
                 self.a.to_byte_array()?.as_slice(),
@@ -227,6 +237,16 @@ impl ::light_hasher::DataHasher for OptionStruct {
         use ::light_hasher::DataHasher;
         use ::light_hasher::Hasher;
         use ::light_hasher::to_byte_array::ToByteArray;
+        #[cfg(debug_assertions)]
+       {
+            if std::env::var("RUST_BACKTRACE").is_ok() {
+                let debug_prints: Vec<[u8;32]> = vec![
+                    self.a.to_byte_array()?,
+                    self.b.to_byte_array()?,
+                ];
+                println!("DataHasher::hash inputs {:?}", debug_prints);
+            }
+       }
         let mut result = H::hashv(
             &[self.a.to_byte_array()?.as_slice(), self.b.to_byte_array()?.as_slice()],
         )?;
@@ -285,6 +305,18 @@ impl ::light_hasher::DataHasher for TruncateOptionStruct {
         use ::light_hasher::Hasher;
         use ::light_hasher::to_byte_array::ToByteArray;
         use ::light_hasher::hash_to_field_size::HashToFieldSize;
+        #[cfg(debug_assertions)]
+       {
+            if std::env::var("RUST_BACKTRACE").is_ok() {
+                let debug_prints: Vec<[u8;32]> = vec![
+                    if let Some(a) = & self.a { let result = a.hash_to_field_size() ?; if
+                    result == [0u8; 32] { return
+                    Err(::light_hasher::errors::HasherError::OptionHashToFieldSizeZero); }
+                    result } else { [0u8; 32] },
+                ];
+                println!("DataHasher::hash inputs {:?}", debug_prints);
+            }
+       }
         let mut result = H::hashv(
             &[
                 if let Some(a) = &self.a {
@@ -358,6 +390,17 @@ impl ::light_hasher::DataHasher for MixedStruct {
         use ::light_hasher::Hasher;
         use ::light_hasher::to_byte_array::ToByteArray;
         use ::light_hasher::hash_to_field_size::HashToFieldSize;
+        #[cfg(debug_assertions)]
+       {
+            if std::env::var("RUST_BACKTRACE").is_ok() {
+                let debug_prints: Vec<[u8;32]> = vec![
+                    self.a.to_byte_array()?,
+                    self.b.hash_to_field_size()?,
+                    self.c.to_byte_array()?,
+                ];
+                println!("DataHasher::hash inputs {:?}", debug_prints);
+            }
+       }
         let mut result = H::hashv(
             &[
                 self.a.to_byte_array()?.as_slice(),
@@ -414,6 +457,16 @@ impl ::light_hasher::DataHasher for OuterStruct {
         use ::light_hasher::DataHasher;
         use ::light_hasher::Hasher;
         use ::light_hasher::to_byte_array::ToByteArray;
+        #[cfg(debug_assertions)]
+       {
+            if std::env::var("RUST_BACKTRACE").is_ok() {
+                let debug_prints: Vec<[u8;32]> = vec![
+                    self.a.to_byte_array()?,
+                    self.b.to_byte_array()?,
+                ];
+                println!("DataHasher::hash inputs {:?}", debug_prints);
+            }
+       }
         let mut result = H::hashv(
             &[self.a.to_byte_array()?.as_slice(), self.b.to_byte_array()?.as_slice()],
         )?;

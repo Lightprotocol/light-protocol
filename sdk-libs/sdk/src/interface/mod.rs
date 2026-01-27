@@ -31,8 +31,7 @@ pub use compress::{
 };
 pub use compression_info::{
     CompressAs, CompressedInitSpace, CompressionInfo, CompressionInfoField, CompressionState,
-    HasCompressionInfo, Pack, PodCompressionInfoField, Space, Unpack, COMPRESSION_INFO_SIZE,
-    OPTION_COMPRESSION_INFO_SPACE,
+    HasCompressionInfo, Pack, Space, Unpack, COMPRESSION_INFO_SIZE, OPTION_COMPRESSION_INFO_SPACE,
 };
 pub use config::{
     process_initialize_light_config, process_initialize_light_config_checked,

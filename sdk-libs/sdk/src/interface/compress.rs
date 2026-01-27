@@ -96,22 +96,11 @@ pub fn process_compress_pda_accounts_idempotent<'info>(
     cpi_signer: CpiSigner,
     program_id: &Pubkey,
 ) -> std::result::Result<(), ProgramError> {
-    solana_msg::msg!(
-        "compress: enter, remaining_accounts={}, ix_data_len={}",
-        remaining_accounts.len(),
-        instruction_data.len()
-    );
-
     // Deserialize params internally
     let params = CompressAndCloseParams::try_from_slice(instruction_data).map_err(|e| {
         solana_msg::msg!("compress: params deser failed: {:?}", e);
         ProgramError::InvalidInstructionData
     })?;
-    solana_msg::msg!(
-        "compress: params ok, compressed_accounts={}, system_accounts_offset={}",
-        params.compressed_accounts.len(),
-        params.system_accounts_offset
-    );
 
     // Extract and validate accounts using AccountIterator
     let mut account_iter = AccountIterator::new(remaining_accounts);
@@ -119,24 +108,16 @@ pub fn process_compress_pda_accounts_idempotent<'info>(
         solana_msg::msg!("compress: fee_payer failed: {:?}", e);
         ProgramError::from(e)
     })?;
-    solana_msg::msg!("compress: fee_payer ok: {:?}", fee_payer.key);
 
     let config = account_iter.next_non_mut("config").map_err(|e| {
         solana_msg::msg!("compress: config account failed: {:?}", e);
         ProgramError::from(e)
     })?;
-    solana_msg::msg!(
-        "compress: config ok: {:?}, owner={:?}, data_len={}",
-        config.key,
-        config.owner,
-        config.data_len()
-    );
 
     let rent_sponsor = account_iter.next_mut("rent_sponsor").map_err(|e| {
         solana_msg::msg!("compress: rent_sponsor account failed: {:?}", e);
         ProgramError::from(e)
     })?;
-    solana_msg::msg!("compress: rent_sponsor ok: {:?}", rent_sponsor.key);
 
     // TODO: make compression_authority a signer and validate against config
     let _compression_authority =
@@ -146,18 +127,12 @@ pub fn process_compress_pda_accounts_idempotent<'info>(
                 solana_msg::msg!("compress: compression_authority failed: {:?}", e);
                 ProgramError::from(e)
             })?;
-    solana_msg::msg!("compress: compression_authority ok");
 
     // Load and validate config
-    solana_msg::msg!("compress: loading config, program_id={:?}", program_id);
     let light_config = LightConfig::load_checked(config, program_id).map_err(|e| {
         solana_msg::msg!("compress: LightConfig::load_checked failed: {:?}", e);
         ProgramError::InvalidAccountData
     })?;
-    solana_msg::msg!(
-        "compress: config loaded, rent_sponsor={:?}",
-        light_config.rent_sponsor
-    );
 
     // Validate rent_sponsor matches config
     if *rent_sponsor.key != light_config.rent_sponsor {
@@ -168,7 +143,6 @@ pub fn process_compress_pda_accounts_idempotent<'info>(
         );
         return Err(ProgramError::InvalidAccountData);
     }
-    solana_msg::msg!("compress: rent_sponsor validated");
     // TODO: validate compression_authority matches config
     // if *compression_authority.key != light_config.compression_authority {
     //     return Err(ProgramError::InvalidAccountData);
@@ -189,7 +163,6 @@ pub fn process_compress_pda_accounts_idempotent<'info>(
         &remaining_accounts[system_accounts_offset_usize..],
         cpi_signer,
     );
-    solana_msg::msg!("compress: cpi_accounts created");
 
     // Build context struct with all needed data (includes internal vec)
     let mut compress_ctx = CompressCtx {
@@ -211,48 +184,25 @@ pub fn process_compress_pda_accounts_idempotent<'info>(
             ProgramError::InvalidInstructionData
         })?;
     let pda_accounts = &remaining_accounts[pda_accounts_start..];
-    solana_msg::msg!(
-        "compress: pda_accounts_start={}, num_pdas={}",
-        pda_accounts_start,
-        pda_accounts.len()
-    );
 
     for (i, account_data) in params.compressed_accounts.iter().enumerate() {
         let pda_account = &pda_accounts[i];
-        solana_msg::msg!(
-            "compress: pda[{}] key={:?}, owner={:?}, data_len={}, empty={}",
-            i,
-            pda_account.key,
-            pda_account.owner,
-            pda_account.data_len(),
-            pda_account.data_is_empty()
-        );
 
         // Skip empty accounts or accounts not owned by this program
         if pda_account.data_is_empty() {
-            solana_msg::msg!("compress: pda[{}] skipped (empty)", i);
             continue;
         }
 
         if pda_account.owner != program_id {
-            solana_msg::msg!("compress: pda[{}] skipped (wrong owner)", i);
             continue;
         }
 
         // Delegate to dispatch callback (macro-generated match)
-        solana_msg::msg!("compress: dispatching pda[{}]", i);
         dispatch_fn(pda_account, account_data, i, &mut compress_ctx)?;
-        solana_msg::msg!("compress: dispatch pda[{}] ok", i);
     }
-
-    solana_msg::msg!(
-        "compress: dispatch loop done, infos={}",
-        compress_ctx.compressed_account_infos.len()
-    );
 
     // CPI to Light System Program
     if !compress_ctx.compressed_account_infos.is_empty() {
-        solana_msg::msg!("compress: invoking CPI");
         LightSystemProgramCpi::new_cpi(cpi_signer, params.proof)
             .with_account_infos(&compress_ctx.compressed_account_infos)
             .invoke(cpi_accounts.clone())
@@ -260,18 +210,14 @@ pub fn process_compress_pda_accounts_idempotent<'info>(
                 solana_msg::msg!("compress: CPI failed: {:?}", e);
                 ProgramError::Custom(200)
             })?;
-        solana_msg::msg!("compress: CPI ok");
 
         // Close the PDA accounts
         for idx in compress_ctx.pda_indices_to_close {
-            solana_msg::msg!("compress: closing pda[{}]", idx);
             let mut info = pda_accounts[idx].clone();
             crate::interface::close::close(&mut info, rent_sponsor).map_err(ProgramError::from)?;
         }
-        solana_msg::msg!("compress: all pdas closed");
     }
 
-    solana_msg::msg!("compress: done");
     Ok(())
 }
 
