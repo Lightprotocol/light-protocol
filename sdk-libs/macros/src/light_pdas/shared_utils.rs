@@ -65,12 +65,6 @@ pub fn make_packed_type(ty: &Type) -> Option<Type> {
     }
 }
 
-/// Creates a packed variant name (Ident) from a variant name.
-/// For `Record` returns `PackedRecord`
-pub fn make_packed_variant_name(variant_name: &Ident) -> Ident {
-    format_ident!("Packed{}", variant_name)
-}
-
 /// Creates a simple type from an identifier (for cases where we only have variant name).
 /// Converts `MyRecord` Ident to `MyRecord` Type.
 pub fn ident_to_type(ident: &Ident) -> Type {
@@ -119,39 +113,6 @@ pub fn is_constant_identifier(ident: &str) -> bool {
         && ident
             .chars()
             .all(|c| c.is_uppercase() || c == '_' || c.is_ascii_digit())
-}
-
-/// Extract the terminal identifier from an expression.
-///
-/// This handles various expression patterns:
-/// - `Path`: Returns the identifier directly
-/// - `Field`: Returns the field name
-/// - `MethodCall`: Recursively extracts from receiver
-/// - `Reference`: Recursively extracts from referenced expression
-///
-/// If `key_method_only` is true, only returns an identifier from MethodCall
-/// expressions where the method is `key`.
-#[inline]
-pub fn extract_terminal_ident(expr: &Expr, key_method_only: bool) -> Option<Ident> {
-    match expr {
-        Expr::Path(path) => path.path.get_ident().cloned(),
-        Expr::Field(field) => {
-            if let syn::Member::Named(name) = &field.member {
-                Some(name.clone())
-            } else {
-                None
-            }
-        }
-        Expr::MethodCall(mc) => {
-            if key_method_only && mc.method != "key" {
-                None
-            } else {
-                extract_terminal_ident(&mc.receiver, key_method_only)
-            }
-        }
-        Expr::Reference(r) => extract_terminal_ident(&r.expr, key_method_only),
-        _ => None,
-    }
 }
 
 /// Check if an expression is a path starting with the given base identifier.

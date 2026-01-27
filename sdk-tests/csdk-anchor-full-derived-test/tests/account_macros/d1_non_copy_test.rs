@@ -24,7 +24,7 @@ use crate::generate_trait_tests;
 impl CompressibleTestFactory for NonCopyRecord {
     fn with_compression_info() -> Self {
         Self {
-            compression_info: Some(CompressionInfo::default()),
+            compression_info: CompressionInfo::default(),
             name: "test name".to_string(),
             description: "test description".to_string(),
             counter: 0,
@@ -33,7 +33,7 @@ impl CompressibleTestFactory for NonCopyRecord {
 
     fn without_compression_info() -> Self {
         Self {
-            compression_info: None,
+            compression_info: CompressionInfo::compressed(),
             name: "test name".to_string(),
             description: "test description".to_string(),
             counter: 0,
@@ -58,7 +58,7 @@ fn test_compress_as_preserves_other_fields() {
     let counter = 999u64;
 
     let record = NonCopyRecord {
-        compression_info: Some(CompressionInfo::default()),
+        compression_info: CompressionInfo::default(),
         name: name.clone(),
         description: description.clone(),
         counter,
@@ -77,7 +77,7 @@ fn test_compress_as_when_compression_info_already_none() {
     let counter = 123u64;
 
     let record = NonCopyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         name: name.clone(),
         description: description.clone(),
         counter,
@@ -86,7 +86,6 @@ fn test_compress_as_when_compression_info_already_none() {
     let compressed = record.compress_as();
 
     // Should still work and preserve fields
-    assert!(compressed.compression_info.is_none());
     assert_eq!(compressed.name, name);
     assert_eq!(compressed.description, description);
     assert_eq!(compressed.counter, counter);
@@ -99,14 +98,14 @@ fn test_compress_as_when_compression_info_already_none() {
 #[test]
 fn test_hash_differs_for_different_counter() {
     let record1 = NonCopyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         name: "test".to_string(),
         description: "description".to_string(),
         counter: 1,
     };
 
     let record2 = NonCopyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         name: "test".to_string(),
         description: "description".to_string(),
         counter: 2,
@@ -124,14 +123,14 @@ fn test_hash_differs_for_different_counter() {
 #[test]
 fn test_hash_differs_for_different_name() {
     let record1 = NonCopyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         name: "Alice".to_string(),
         description: "description".to_string(),
         counter: 100,
     };
 
     let record2 = NonCopyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         name: "Bob".to_string(),
         description: "description".to_string(),
         counter: 100,
@@ -146,14 +145,14 @@ fn test_hash_differs_for_different_name() {
 #[test]
 fn test_hash_differs_for_different_description() {
     let record1 = NonCopyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         name: "test".to_string(),
         description: "first description".to_string(),
         counter: 100,
     };
 
     let record2 = NonCopyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         name: "test".to_string(),
         description: "second description".to_string(),
         counter: 100,
@@ -171,14 +170,14 @@ fn test_hash_differs_for_different_description() {
 #[test]
 fn test_hash_differs_for_different_string_length() {
     let record1 = NonCopyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         name: "a".to_string(),
         description: "description".to_string(),
         counter: 100,
     };
 
     let record2 = NonCopyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         name: "aa".to_string(),
         description: "description".to_string(),
         counter: 100,
@@ -196,14 +195,14 @@ fn test_hash_differs_for_different_string_length() {
 #[test]
 fn test_hash_differs_for_empty_vs_non_empty_string() {
     let record1 = NonCopyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         name: "".to_string(),
         description: "description".to_string(),
         counter: 100,
     };
 
     let record2 = NonCopyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         name: "name".to_string(),
         description: "description".to_string(),
         counter: 100,

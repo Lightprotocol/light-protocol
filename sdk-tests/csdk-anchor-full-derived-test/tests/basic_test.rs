@@ -306,7 +306,7 @@ async fn test_create_pdas_and_mint_auto() {
     // PHASE 3: Decompress all accounts via create_load_instructions
     use anchor_lang::AnchorDeserialize;
     use csdk_anchor_full_derived_test::{
-        csdk_anchor_full_derived_test::{LightAccountVariant, TokenAccountVariant},
+        csdk_anchor_full_derived_test::{LightAccountVariant, TokenAccountVariant, UserRecordVariant, UserRecordSeeds, GameSessionVariant, GameSessionSeeds},
         GameSession as GameSessionState, UserRecord,
     };
     use light_client::interface::{
@@ -337,21 +337,28 @@ async fn test_create_pdas_and_mint_auto() {
     // Build PdaSpec for UserRecord
     let user_data = UserRecord::deserialize(&mut &user_interface.account.data[8..])
         .expect("Failed to parse UserRecord");
-    let user_variant = LightAccountVariant::UserRecord {
+    let user_variant = LightAccountVariant::UserRecord(UserRecordVariant {
+        seeds: UserRecordSeeds {
+            authority: authority.pubkey(),
+            mint_authority: mint_authority.pubkey(),
+            owner,
+            category_id,
+        },
         data: user_data,
-        authority: authority.pubkey(),
-        mint_authority: mint_authority.pubkey(),
-    };
+    });
     let user_spec = PdaSpec::new(user_interface.clone(), user_variant, program_id);
 
     // Build PdaSpec for GameSession
     let game_data = GameSessionState::deserialize(&mut &game_interface.account.data[8..])
         .expect("Failed to parse GameSession");
-    let game_variant = LightAccountVariant::GameSession {
+    let game_variant = LightAccountVariant::GameSession(GameSessionVariant {
+        seeds: GameSessionSeeds {
+            fee_payer: payer.pubkey(),
+            authority: authority.pubkey(),
+            session_id,
+        },
         data: game_data,
-        fee_payer: payer.pubkey(),
-        authority: authority.pubkey(),
-    };
+    });
     let game_spec = PdaSpec::new(game_interface.clone(), game_variant, program_id);
 
     // Build PdaSpec for Vault (CToken)
@@ -920,7 +927,7 @@ async fn test_d9_instr_single_pubkey() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9InstrSinglePubkey {
         fee_payer: payer.pubkey(),
         compression_config: config_pda,
-        record: record_pda,
+        d9_instr_single_pubkey_record: record_pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -973,7 +980,7 @@ async fn test_d9_instr_u64() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9InstrU64 {
         fee_payer: payer.pubkey(),
         compression_config: config_pda,
-        record: record_pda,
+        d9_instr_u64_record: record_pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -1029,7 +1036,7 @@ async fn test_d9_instr_multi_field() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9InstrMultiField {
         fee_payer: payer.pubkey(),
         compression_config: config_pda,
-        record: record_pda,
+        d9_instr_multi_field_record: record_pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -1091,7 +1098,7 @@ async fn test_d9_instr_mixed_ctx() {
         fee_payer: payer.pubkey(),
         authority: authority.pubkey(),
         compression_config: config_pda,
-        record: record_pda,
+        d9_instr_mixed_ctx_record: record_pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -1152,7 +1159,7 @@ async fn test_d9_instr_triple() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9InstrTriple {
         fee_payer: payer.pubkey(),
         compression_config: config_pda,
-        record: record_pda,
+        d9_instr_triple_record: record_pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -1207,7 +1214,7 @@ async fn test_d9_instr_big_endian() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9InstrBigEndian {
         fee_payer: payer.pubkey(),
         compression_config: config_pda,
-        record: record_pda,
+        d9_instr_big_endian_record: record_pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -1267,7 +1274,7 @@ async fn test_d9_instr_multi_u64() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9InstrMultiU64 {
         fee_payer: payer.pubkey(),
         compression_config: config_pda,
-        record: record_pda,
+        d9_instr_multi_u64_record: record_pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -1321,7 +1328,7 @@ async fn test_d9_instr_chained_as_ref() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9InstrChainedAsRef {
         fee_payer: payer.pubkey(),
         compression_config: config_pda,
-        record: record_pda,
+        d9_instr_chained_as_ref_record: record_pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -1376,7 +1383,7 @@ async fn test_d9_instr_const_mixed() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9InstrConstMixed {
         fee_payer: payer.pubkey(),
         compression_config: config_pda,
-        record: record_pda,
+        d9_instr_const_mixed_record: record_pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -1439,7 +1446,7 @@ async fn test_d9_instr_complex_mixed() {
         fee_payer: payer.pubkey(),
         authority: authority.pubkey(),
         compression_config: config_pda,
-        record: record_pda,
+        d9_instr_complex_mixed_record: record_pda,
         system_program: solana_sdk::system_program::ID,
     };
 

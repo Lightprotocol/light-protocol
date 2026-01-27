@@ -721,7 +721,6 @@ mod tests {
             ClassifiedSeed::Literal(b"user".to_vec()),
             ClassifiedSeed::CtxRooted {
                 account: Ident::new("authority", proc_macro2::Span::call_site()),
-                expr: Box::new(parse_quote!(authority.key().as_ref())),
             },
         ];
 

@@ -34,5 +34,3 @@ pub use extract::extract_seed_specs;
 // Re-export from types
 pub use types::SeedSpec;
 
-// Re-export ClassifiedSeed from account::seed_extraction for convenience
-pub use crate::light_pdas::account::seed_extraction::ClassifiedSeed;

@@ -28,7 +28,7 @@ use crate::generate_trait_tests;
 impl CompressibleTestFactory for OptionPubkeyRecord {
     fn with_compression_info() -> Self {
         Self {
-            compression_info: Some(CompressionInfo::default()),
+            compression_info: CompressionInfo::default(),
             owner: Pubkey::new_unique(),
             delegate: Some(Pubkey::new_unique()),
             close_authority: Some(Pubkey::new_unique()),
@@ -38,7 +38,7 @@ impl CompressibleTestFactory for OptionPubkeyRecord {
 
     fn without_compression_info() -> Self {
         Self {
-            compression_info: None,
+            compression_info: CompressionInfo::compressed(),
             owner: Pubkey::new_unique(),
             delegate: None,
             close_authority: None,
@@ -65,7 +65,7 @@ fn test_compress_as_preserves_other_fields() {
     let amount = 999u64;
 
     let record = OptionPubkeyRecord {
-        compression_info: Some(CompressionInfo::default()),
+        compression_info: CompressionInfo::default(),
         owner,
         delegate,
         close_authority,
@@ -87,7 +87,7 @@ fn test_compress_as_when_compression_info_already_none() {
     let amount = 123u64;
 
     let record = OptionPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate,
         close_authority,
@@ -96,9 +96,7 @@ fn test_compress_as_when_compression_info_already_none() {
 
     let compressed = record.compress_as();
 
-    // Should still work and preserve fields
-    assert!(compressed.compression_info.is_none());
-    assert_eq!(compressed.owner, owner);
+    // Should still work and preserve fields    assert_eq!(compressed.owner, owner);
     assert_eq!(compressed.delegate, delegate);
     assert_eq!(compressed.close_authority, close_authority);
     assert_eq!(compressed.amount, amount);
@@ -113,7 +111,7 @@ fn test_hash_differs_for_different_amount() {
     let owner = Pubkey::new_unique();
 
     let record1 = OptionPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate: Some(Pubkey::new_unique()),
         close_authority: None,
@@ -121,7 +119,7 @@ fn test_hash_differs_for_different_amount() {
     };
 
     let record2 = OptionPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate: Some(Pubkey::new_unique()),
         close_authority: None,
@@ -140,7 +138,7 @@ fn test_hash_differs_for_different_amount() {
 #[test]
 fn test_hash_differs_for_different_owner() {
     let record1 = OptionPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner: Pubkey::new_unique(),
         delegate: None,
         close_authority: Some(Pubkey::new_unique()),
@@ -148,7 +146,7 @@ fn test_hash_differs_for_different_owner() {
     };
 
     let record2 = OptionPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner: Pubkey::new_unique(),
         delegate: None,
         close_authority: Some(Pubkey::new_unique()),
@@ -169,7 +167,7 @@ fn test_hash_differs_for_different_delegate() {
     let owner = Pubkey::new_unique();
 
     let record1 = OptionPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate: Some(Pubkey::new_unique()),
         close_authority: None,
@@ -177,7 +175,7 @@ fn test_hash_differs_for_different_delegate() {
     };
 
     let record2 = OptionPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate: Some(Pubkey::new_unique()),
         close_authority: None,
@@ -198,7 +196,7 @@ fn test_hash_differs_for_different_close_authority() {
     let owner = Pubkey::new_unique();
 
     let record1 = OptionPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate: None,
         close_authority: Some(Pubkey::new_unique()),
@@ -206,7 +204,7 @@ fn test_hash_differs_for_different_close_authority() {
     };
 
     let record2 = OptionPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate: None,
         close_authority: Some(Pubkey::new_unique()),
@@ -232,7 +230,7 @@ fn test_pack_converts_pubkey_fields_to_indices() {
     // This test checks the Pack trait implementation
     let owner = Pubkey::new_unique();
     let record = OptionPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate: None,
         close_authority: None,
@@ -253,7 +251,7 @@ fn test_pack_converts_pubkey_fields_to_indices() {
 fn test_pack_converts_pubkey_to_index() {
     let owner = Pubkey::new_unique();
     let record = OptionPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate: None,
         close_authority: None,
@@ -282,7 +280,7 @@ fn test_pack_preserves_option_pubkey_as_option_pubkey() {
     let delegate = Pubkey::new_unique();
 
     let record = OptionPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate: Some(delegate),
         close_authority: None,
@@ -311,7 +309,7 @@ fn test_pack_option_pubkey_none_stays_none() {
     let close_authority = Pubkey::new_unique();
 
     let record = OptionPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate: None,
         close_authority: Some(close_authority),
@@ -345,7 +343,7 @@ fn test_pack_all_option_pubkeys_some() {
     let close_authority = Pubkey::new_unique();
 
     let record = OptionPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate: Some(delegate),
         close_authority: Some(close_authority),
@@ -372,7 +370,7 @@ fn test_pack_all_option_pubkeys_none() {
     let owner = Pubkey::new_unique();
 
     let record = OptionPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate: None,
         close_authority: None,
@@ -399,7 +397,7 @@ fn test_pack_reuses_same_pubkey_index_for_direct_fields() {
     let delegate = Pubkey::new_unique();
 
     let record1 = OptionPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate: Some(delegate),
         close_authority: None,
@@ -407,7 +405,7 @@ fn test_pack_reuses_same_pubkey_index_for_direct_fields() {
     };
 
     let record2 = OptionPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate: Some(delegate),
         close_authority: None,

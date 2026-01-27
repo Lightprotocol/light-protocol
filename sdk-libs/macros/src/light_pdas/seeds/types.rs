@@ -42,14 +42,15 @@ impl SeedSpec {
             is_zero_copy,
         }
     }
+}
 
+#[cfg(test)]
+impl SeedSpec {
     /// Get all account fields referenced in seeds.
     pub fn account_fields(&self) -> impl Iterator<Item = &Ident> {
         self.seeds.iter().filter_map(|s| match s {
             ClassifiedSeed::CtxRooted { account, .. } => Some(account),
             ClassifiedSeed::FunctionCall { args, .. } => {
-                // Return first CtxAccount arg field name (if any)
-                // Note: for full iteration over all args, use a different method
                 args.iter()
                     .find(|a| {
                         a.kind == crate::light_pdas::account::seed_extraction::FnArgKind::CtxAccount
@@ -115,7 +116,6 @@ mod tests {
             ClassifiedSeed::Literal(b"seed".to_vec()),
             ClassifiedSeed::CtxRooted {
                 account: make_ident("authority"),
-                expr: Box::new(syn::parse_quote!(authority.key().as_ref())),
             },
             ClassifiedSeed::DataRooted {
                 root: make_ident("owner"),
@@ -152,12 +152,10 @@ mod tests {
                     ClassifiedFnArg {
                         field_name: make_ident("key_a"),
                         kind: FnArgKind::DataField,
-                        original_expr: Box::new(syn::parse_quote!(&params.key_a)),
                     },
                     ClassifiedFnArg {
                         field_name: make_ident("key_b"),
                         kind: FnArgKind::DataField,
-                        original_expr: Box::new(syn::parse_quote!(&params.key_b)),
                     },
                 ],
                 has_as_ref: true,

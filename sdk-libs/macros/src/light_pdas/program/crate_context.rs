@@ -64,13 +64,6 @@ impl CrateContext {
         self.modules.values().flat_map(|module| module.structs())
     }
 
-    /// Find structs that have a specific derive attribute (e.g., "LightAccounts").
-    pub fn structs_with_derive(&self, derive_name: &str) -> Vec<&ItemStruct> {
-        self.structs()
-            .filter(|s| has_derive_attribute(&s.attrs, derive_name))
-            .collect()
-    }
-
     /// Find structs that have a specific derive attribute, returning their module paths.
     ///
     /// Returns `Vec<(&str, &ItemStruct)>` where the first element is the module path

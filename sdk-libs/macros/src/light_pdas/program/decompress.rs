@@ -6,7 +6,7 @@
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::{Ident, Result};
+use syn::Result;
 
 use super::{
     expr_traversal::transform_expr_for_ctx_seeds,
@@ -28,8 +28,6 @@ use crate::light_pdas::shared_utils::{is_constant_identifier, qualify_type_with_
 pub(super) struct DecompressBuilder {
     /// PDA context seed information for each variant.
     pda_ctx_seeds: Vec<PdaCtxSeedInfo>,
-    /// Token variant identifier (e.g., TokenAccountVariant).
-    token_variant_ident: Ident,
     /// PDA seed specifications.
     pda_seeds: Option<Vec<TokenSeedSpec>>,
 }
@@ -39,16 +37,13 @@ impl DecompressBuilder {
     ///
     /// # Arguments
     /// * `pda_ctx_seeds` - PDA context seed information for each variant
-    /// * `token_variant_ident` - Token variant identifier
     /// * `pda_seeds` - PDA seed specifications
     pub fn new(
         pda_ctx_seeds: Vec<PdaCtxSeedInfo>,
-        token_variant_ident: Ident,
         pda_seeds: Option<Vec<TokenSeedSpec>>,
     ) -> Self {
         Self {
             pda_ctx_seeds,
-            token_variant_ident,
             pda_seeds,
         }
     }

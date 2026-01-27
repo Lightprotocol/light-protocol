@@ -11,7 +11,9 @@ use std::collections::HashSet;
 
 use csdk_anchor_full_derived_test::{
     amm_test::{ObservationState, PoolState},
-    csdk_anchor_full_derived_test::LightAccountVariant,
+    csdk_anchor_full_derived_test::{
+        LightAccountVariant, ObservationStateSeeds, ObservationStateVariant,
+    },
 };
 use csdk_anchor_full_derived_test_sdk::{AmmInstruction, AmmSdk, AmmSdkError};
 use light_client::interface::{
@@ -430,10 +432,12 @@ fn test_edge_all_hot_check() {
     );
     let hot_spec = PdaSpec::new(
         hot_interface,
-        LightAccountVariant::ObservationState {
+        LightAccountVariant::ObservationState(ObservationStateVariant {
+            seeds: ObservationStateSeeds {
+                pool_state: Pubkey::new_unique(),
+            },
             data: ObservationState::default(),
-            pool_state: Pubkey::new_unique(),
-        },
+        }),
         csdk_anchor_full_derived_test_sdk::PROGRAM_ID,
     );
     let specs: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Pda(hot_spec)];
@@ -943,10 +947,10 @@ fn test_canonical_variant_independent_of_alias() {
     for spec in &specs {
         if let AccountSpec::Pda(pda) = spec {
             match &pda.variant {
-                LightAccountVariant::PoolState { .. } => {
+                LightAccountVariant::PoolState(..) => {
                     // Canonical: PoolState
                 }
-                LightAccountVariant::ObservationState { .. } => {
+                LightAccountVariant::ObservationState(..) => {
                     // Canonical: ObservationState
                 }
                 LightAccountVariant::CTokenData(ctoken) => {

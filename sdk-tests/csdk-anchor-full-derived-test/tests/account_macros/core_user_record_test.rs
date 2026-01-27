@@ -9,7 +9,7 @@
 use csdk_anchor_full_derived_test::{PackedUserRecord, UserRecord};
 use light_hasher::{DataHasher, Sha256};
 use light_sdk::{
-    compressible::{CompressAs, CompressionInfo, Pack},
+    compressible::{CompressAs, CompressionInfo, CompressionState, Pack},
     instruction::PackedAccounts,
 };
 use solana_pubkey::Pubkey;
@@ -24,7 +24,7 @@ use crate::generate_trait_tests;
 impl CompressibleTestFactory for UserRecord {
     fn with_compression_info() -> Self {
         Self {
-            compression_info: Some(CompressionInfo::default()),
+            compression_info: CompressionInfo::default(),
             owner: Pubkey::new_unique(),
             name: "test user".to_string(),
             score: 0,
@@ -34,7 +34,7 @@ impl CompressibleTestFactory for UserRecord {
 
     fn without_compression_info() -> Self {
         Self {
-            compression_info: None,
+            compression_info: CompressionInfo::compressed(),
             owner: Pubkey::new_unique(),
             name: "test user".to_string(),
             score: 0,
@@ -61,7 +61,7 @@ fn test_compress_as_preserves_other_fields() {
     let category_id = 42u64;
 
     let record = UserRecord {
-        compression_info: Some(CompressionInfo::default()),
+        compression_info: CompressionInfo::default(),
         owner,
         name: name.clone(),
         score,
@@ -83,7 +83,7 @@ fn test_compress_as_when_compression_info_already_none() {
     let category_id = 5u64;
 
     let record = UserRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         name: name.clone(),
         score,
@@ -93,7 +93,7 @@ fn test_compress_as_when_compression_info_already_none() {
     let compressed = record.compress_as();
 
     // Should still work and preserve fields
-    assert!(compressed.compression_info.is_none());
+    assert!(compressed.compression_info.state == CompressionState::Compressed);
     assert_eq!(compressed.owner, owner);
     assert_eq!(compressed.name, name);
     assert_eq!(compressed.score, score);
@@ -107,7 +107,7 @@ fn test_compress_as_when_compression_info_already_none() {
 #[test]
 fn test_hash_differs_for_different_owner() {
     let record1 = UserRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner: Pubkey::new_unique(),
         name: "test user".to_string(),
         score: 100,
@@ -115,7 +115,7 @@ fn test_hash_differs_for_different_owner() {
     };
 
     let record2 = UserRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner: Pubkey::new_unique(),
         name: "test user".to_string(),
         score: 100,
@@ -136,7 +136,7 @@ fn test_hash_differs_for_different_name() {
     let owner = Pubkey::new_unique();
 
     let record1 = UserRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         name: "user1".to_string(),
         score: 100,
@@ -144,7 +144,7 @@ fn test_hash_differs_for_different_name() {
     };
 
     let record2 = UserRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         name: "user2".to_string(),
         score: 100,
@@ -162,7 +162,7 @@ fn test_hash_differs_for_different_score() {
     let owner = Pubkey::new_unique();
 
     let record1 = UserRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         name: "test user".to_string(),
         score: 100,
@@ -170,7 +170,7 @@ fn test_hash_differs_for_different_score() {
     };
 
     let record2 = UserRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         name: "test user".to_string(),
         score: 200,
@@ -191,7 +191,7 @@ fn test_hash_differs_for_different_category_id() {
     let owner = Pubkey::new_unique();
 
     let record1 = UserRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         name: "test user".to_string(),
         score: 100,
@@ -199,7 +199,7 @@ fn test_hash_differs_for_different_category_id() {
     };
 
     let record2 = UserRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         name: "test user".to_string(),
         score: 100,
@@ -223,9 +223,7 @@ fn test_hash_differs_for_different_category_id() {
 fn test_packed_struct_has_u8_owner() {
     // Verify PackedUserRecord has the expected structure
     // The Packed struct uses the same field name but changes type to u8
-    let packed = PackedUserRecord {
-        compression_info: None,
-        owner: 0,
+    let packed = PackedUserRecord {owner: 0,
         name: "test".to_string(),
         score: 42,
         category_id: 1,
@@ -240,7 +238,7 @@ fn test_packed_struct_has_u8_owner() {
 fn test_pack_converts_pubkey_to_index() {
     let owner = Pubkey::new_unique();
     let record = UserRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         name: "test user".to_string(),
         score: 100,
@@ -272,7 +270,7 @@ fn test_pack_reuses_same_pubkey_index() {
     let owner = Pubkey::new_unique();
 
     let record1 = UserRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         name: "user1".to_string(),
         score: 1,
@@ -280,7 +278,7 @@ fn test_pack_reuses_same_pubkey_index() {
     };
 
     let record2 = UserRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         name: "user2".to_string(),
         score: 2,
@@ -301,7 +299,7 @@ fn test_pack_reuses_same_pubkey_index() {
 #[test]
 fn test_pack_different_pubkeys_get_different_indices() {
     let record1 = UserRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner: Pubkey::new_unique(),
         name: "user1".to_string(),
         score: 1,
@@ -309,7 +307,7 @@ fn test_pack_different_pubkeys_get_different_indices() {
     };
 
     let record2 = UserRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner: Pubkey::new_unique(),
         name: "user2".to_string(),
         score: 2,
@@ -327,38 +325,7 @@ fn test_pack_different_pubkeys_get_different_indices() {
     );
 }
 
-#[test]
-fn test_pack_sets_compression_info_to_none() {
-    let record_with_info = UserRecord {
-        compression_info: Some(CompressionInfo::default()),
-        owner: Pubkey::new_unique(),
-        name: "test".to_string(),
-        score: 100,
-        category_id: 1,
-    };
 
-    let record_without_info = UserRecord {
-        compression_info: None,
-        owner: Pubkey::new_unique(),
-        name: "test".to_string(),
-        score: 200,
-        category_id: 2,
-    };
-
-    let mut packed_accounts = PackedAccounts::default();
-    let packed1 = record_with_info.pack(&mut packed_accounts).unwrap();
-    let packed2 = record_without_info.pack(&mut packed_accounts).unwrap();
-
-    // Both packed structs should have compression_info = None
-    assert!(
-        packed1.compression_info.is_none(),
-        "pack should set compression_info to None (even if input has Some)"
-    );
-    assert!(
-        packed2.compression_info.is_none(),
-        "pack should set compression_info to None"
-    );
-}
 
 #[test]
 fn test_pack_stores_pubkeys_in_packed_accounts() {
@@ -366,7 +333,7 @@ fn test_pack_stores_pubkeys_in_packed_accounts() {
     let owner2 = Pubkey::new_unique();
 
     let record1 = UserRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner: owner1,
         name: "user1".to_string(),
         score: 1,
@@ -374,7 +341,7 @@ fn test_pack_stores_pubkeys_in_packed_accounts() {
     };
 
     let record2 = UserRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner: owner2,
         name: "user2".to_string(),
         score: 2,

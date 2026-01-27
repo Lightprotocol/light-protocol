@@ -24,7 +24,7 @@ use crate::generate_trait_tests;
 impl CompressibleTestFactory for SingleCompressAsRecord {
     fn with_compression_info() -> Self {
         Self {
-            compression_info: Some(CompressionInfo::default()),
+            compression_info: CompressionInfo::default(),
             owner: Pubkey::new_unique(),
             cached: 999,
             counter: 0,
@@ -33,7 +33,7 @@ impl CompressibleTestFactory for SingleCompressAsRecord {
 
     fn without_compression_info() -> Self {
         Self {
-            compression_info: None,
+            compression_info: CompressionInfo::compressed(),
             owner: Pubkey::new_unique(),
             cached: 999,
             counter: 0,
@@ -57,7 +57,7 @@ fn test_compress_as_overrides_cached_to_zero() {
     let counter = 100u64;
 
     let record = SingleCompressAsRecord {
-        compression_info: Some(CompressionInfo::default()),
+        compression_info: CompressionInfo::default(),
         owner,
         cached: 999, // Original value
         counter,
@@ -77,7 +77,7 @@ fn test_compress_as_preserves_counter() {
     let counter = 555u64;
 
     let record = SingleCompressAsRecord {
-        compression_info: Some(CompressionInfo::default()),
+        compression_info: CompressionInfo::default(),
         owner,
         cached: 999,
         counter,
@@ -94,7 +94,7 @@ fn test_compress_as_with_multiple_cached_values() {
 
     for cached_val in &[0u64, 100, 999, u64::MAX] {
         let record = SingleCompressAsRecord {
-            compression_info: Some(CompressionInfo::default()),
+            compression_info: CompressionInfo::default(),
             owner,
             cached: *cached_val,
             counter: 0,
@@ -118,14 +118,14 @@ fn test_hash_differs_for_different_counter() {
     let owner = Pubkey::new_unique();
 
     let record1 = SingleCompressAsRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         cached: 0,
         counter: 1,
     };
 
     let record2 = SingleCompressAsRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         cached: 0,
         counter: 2,
@@ -145,14 +145,14 @@ fn test_hash_differs_for_different_cached() {
     let owner = Pubkey::new_unique();
 
     let record1 = SingleCompressAsRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         cached: 1,
         counter: 0,
     };
 
     let record2 = SingleCompressAsRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         cached: 2,
         counter: 0,
@@ -170,14 +170,14 @@ fn test_hash_differs_for_different_cached() {
 #[test]
 fn test_hash_differs_for_different_owner() {
     let record1 = SingleCompressAsRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner: Pubkey::new_unique(),
         cached: 100,
         counter: 100,
     };
 
     let record2 = SingleCompressAsRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner: Pubkey::new_unique(),
         cached: 100,
         counter: 100,
@@ -198,9 +198,7 @@ fn test_hash_differs_for_different_owner() {
 
 #[test]
 fn test_packed_struct_has_u8_owner() {
-    let packed = PackedSingleCompressAsRecord {
-        compression_info: None,
-        owner: 0,
+    let packed = PackedSingleCompressAsRecord {        owner: 0,
         cached: 42,
         counter: 100,
     };
@@ -214,7 +212,7 @@ fn test_packed_struct_has_u8_owner() {
 fn test_pack_converts_pubkey_to_index() {
     let owner = Pubkey::new_unique();
     let record = SingleCompressAsRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         cached: 50,
         counter: 100,
@@ -233,14 +231,14 @@ fn test_pack_reuses_same_pubkey_index() {
     let owner = Pubkey::new_unique();
 
     let record1 = SingleCompressAsRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         cached: 1,
         counter: 1,
     };
 
     let record2 = SingleCompressAsRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         cached: 2,
         counter: 2,
@@ -259,14 +257,14 @@ fn test_pack_reuses_same_pubkey_index() {
 #[test]
 fn test_pack_different_pubkeys_get_different_indices() {
     let record1 = SingleCompressAsRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner: Pubkey::new_unique(),
         cached: 1,
         counter: 1,
     };
 
     let record2 = SingleCompressAsRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner: Pubkey::new_unique(),
         cached: 2,
         counter: 2,
@@ -285,14 +283,14 @@ fn test_pack_different_pubkeys_get_different_indices() {
 #[test]
 fn test_pack_sets_compression_info_to_none() {
     let record_with_info = SingleCompressAsRecord {
-        compression_info: Some(CompressionInfo::default()),
+        compression_info: CompressionInfo::default(),
         owner: Pubkey::new_unique(),
         cached: 100,
         counter: 100,
     };
 
     let record_without_info = SingleCompressAsRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner: Pubkey::new_unique(),
         cached: 200,
         counter: 200,
@@ -300,17 +298,7 @@ fn test_pack_sets_compression_info_to_none() {
 
     let mut packed_accounts = PackedAccounts::default();
     let packed1 = record_with_info.pack(&mut packed_accounts).unwrap();
-    let packed2 = record_without_info.pack(&mut packed_accounts).unwrap();
-
-    assert!(
-        packed1.compression_info.is_none(),
-        "pack should set compression_info to None"
-    );
-    assert!(
-        packed2.compression_info.is_none(),
-        "pack should set compression_info to None"
-    );
-}
+    let packed2 = record_without_info.pack(&mut packed_accounts).unwrap();}
 
 #[test]
 fn test_pack_stores_pubkeys_in_packed_accounts() {
@@ -318,14 +306,14 @@ fn test_pack_stores_pubkeys_in_packed_accounts() {
     let owner2 = Pubkey::new_unique();
 
     let record1 = SingleCompressAsRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner: owner1,
         cached: 1,
         counter: 1,
     };
 
     let record2 = SingleCompressAsRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner: owner2,
         cached: 2,
         counter: 2,
@@ -356,7 +344,7 @@ fn test_pack_index_assignment_order() {
 
     for owner in &owners {
         let record = SingleCompressAsRecord {
-            compression_info: None,
+            compression_info: CompressionInfo::compressed(),
             owner: *owner,
             cached: 0,
             counter: 0,

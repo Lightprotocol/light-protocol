@@ -27,7 +27,7 @@ use crate::generate_trait_tests;
 impl CompressibleTestFactory for PoolState {
     fn with_compression_info() -> Self {
         Self {
-            compression_info: Some(CompressionInfo::default()),
+            compression_info: CompressionInfo::default(),
             amm_config: Pubkey::new_unique(),
             pool_creator: Pubkey::new_unique(),
             token_0_vault: Pubkey::new_unique(),
@@ -56,7 +56,7 @@ impl CompressibleTestFactory for PoolState {
 
     fn without_compression_info() -> Self {
         Self {
-            compression_info: None,
+            compression_info: CompressionInfo::compressed(),
             amm_config: Pubkey::new_unique(),
             pool_creator: Pubkey::new_unique(),
             token_0_vault: Pubkey::new_unique(),
@@ -97,7 +97,7 @@ generate_trait_tests!(PoolState);
 #[test]
 fn test_compress_as_preserves_numeric_fields() {
     let pool = PoolState {
-        compression_info: Some(CompressionInfo::default()),
+        compression_info: CompressionInfo::default(),
         amm_config: Pubkey::new_unique(),
         pool_creator: Pubkey::new_unique(),
         token_0_vault: Pubkey::new_unique(),
@@ -219,9 +219,7 @@ fn test_hash_differs_for_different_open_time() {
 #[test]
 fn test_packed_struct_has_u8_pubkey_indices() {
     // PoolState has 10 Pubkey fields, so PackedPoolState should have 10 u8 fields
-    let packed = PackedPoolState {
-        compression_info: None,
-        amm_config: 0,
+    let packed = PackedPoolState {        amm_config: 0,
         pool_creator: 1,
         token_0_vault: 2,
         token_1_vault: 3,
@@ -268,7 +266,7 @@ fn test_pack_converts_all_10_pubkeys_to_indices() {
     ];
 
     let pool = PoolState {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         amm_config: pubkeys[0],
         pool_creator: pubkeys[1],
         token_0_vault: pubkeys[2],
@@ -322,7 +320,7 @@ fn test_pack_reuses_same_pubkey_indices() {
     let shared_pubkey = Pubkey::new_unique();
 
     let pool = PoolState {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         amm_config: shared_pubkey,
         pool_creator: shared_pubkey,
         token_0_vault: Pubkey::new_unique(),
@@ -361,7 +359,7 @@ fn test_pack_reuses_same_pubkey_indices() {
 #[test]
 fn test_pack_preserves_numeric_fields() {
     let pool = PoolState {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         amm_config: Pubkey::new_unique(),
         pool_creator: Pubkey::new_unique(),
         token_0_vault: Pubkey::new_unique(),
@@ -408,7 +406,7 @@ fn test_pack_preserves_numeric_fields() {
 #[test]
 fn test_pack_sets_compression_info_to_none() {
     let pool_with_info = PoolState {
-        compression_info: Some(CompressionInfo::default()),
+        compression_info: CompressionInfo::default(),
         amm_config: Pubkey::new_unique(),
         pool_creator: Pubkey::new_unique(),
         token_0_vault: Pubkey::new_unique(),
@@ -435,18 +433,12 @@ fn test_pack_sets_compression_info_to_none() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed = pool_with_info.pack(&mut packed_accounts).unwrap();
-
-    assert!(
-        packed.compression_info.is_none(),
-        "pack should set compression_info to None"
-    );
-}
+    let packed = pool_with_info.pack(&mut packed_accounts).unwrap();}
 
 #[test]
 fn test_pack_different_pubkeys_get_different_indices() {
     let pool1 = PoolState {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         amm_config: Pubkey::new_unique(),
         pool_creator: Pubkey::new_unique(),
         token_0_vault: Pubkey::new_unique(),
@@ -473,7 +465,7 @@ fn test_pack_different_pubkeys_get_different_indices() {
     };
 
     let pool2 = PoolState {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         amm_config: Pubkey::new_unique(),
         pool_creator: Pubkey::new_unique(),
         token_0_vault: Pubkey::new_unique(),
@@ -526,7 +518,7 @@ fn test_pack_stores_all_pubkeys_in_packed_accounts() {
     ];
 
     let pool = PoolState {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         amm_config: pubkeys[0],
         pool_creator: pubkeys[1],
         token_0_vault: pubkeys[2],

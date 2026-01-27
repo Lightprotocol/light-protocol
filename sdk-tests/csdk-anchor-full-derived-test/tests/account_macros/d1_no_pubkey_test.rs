@@ -13,6 +13,7 @@
 use csdk_anchor_full_derived_test::NoPubkeyRecord;
 use light_hasher::{DataHasher, Sha256};
 use light_sdk::interface::{CompressAs, CompressionInfo};
+use light_sdk::compressible::CompressionState;
 
 use super::shared::CompressibleTestFactory;
 use crate::generate_trait_tests;
@@ -24,7 +25,7 @@ use crate::generate_trait_tests;
 impl CompressibleTestFactory for NoPubkeyRecord {
     fn with_compression_info() -> Self {
         Self {
-            compression_info: Some(CompressionInfo::default()),
+            compression_info: CompressionInfo::default(),
             counter: 0,
             flag: false,
             value: 0,
@@ -33,7 +34,7 @@ impl CompressibleTestFactory for NoPubkeyRecord {
 
     fn without_compression_info() -> Self {
         Self {
-            compression_info: None,
+            compression_info: CompressionInfo::compressed(),
             counter: 0,
             flag: false,
             value: 0,
@@ -58,7 +59,7 @@ fn test_compress_as_preserves_other_fields() {
     let value = 42u32;
 
     let record = NoPubkeyRecord {
-        compression_info: Some(CompressionInfo::default()),
+        compression_info: CompressionInfo::default(),
         counter,
         flag,
         value,
@@ -71,13 +72,13 @@ fn test_compress_as_preserves_other_fields() {
 }
 
 #[test]
-fn test_compress_as_when_compression_info_already_none() {
+fn test_compress_as_when_compression_info_already_compressed() {
     let counter = 123u64;
     let flag = false;
     let value = 789u32;
 
     let record = NoPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         counter,
         flag,
         value,
@@ -86,7 +87,7 @@ fn test_compress_as_when_compression_info_already_none() {
     let compressed = record.compress_as();
 
     // Should still work and preserve fields
-    assert!(compressed.compression_info.is_none());
+    assert_eq!(compressed.compression_info.state, CompressionState::Compressed);
     assert_eq!(compressed.counter, counter);
     assert_eq!(compressed.flag, flag);
     assert_eq!(compressed.value, value);
@@ -99,14 +100,14 @@ fn test_compress_as_when_compression_info_already_none() {
 #[test]
 fn test_hash_differs_for_different_counter() {
     let record1 = NoPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         counter: 1,
         flag: true,
         value: 100,
     };
 
     let record2 = NoPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         counter: 2,
         flag: true,
         value: 100,
@@ -124,14 +125,14 @@ fn test_hash_differs_for_different_counter() {
 #[test]
 fn test_hash_differs_for_different_flag() {
     let record1 = NoPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         counter: 100,
         flag: true,
         value: 50,
     };
 
     let record2 = NoPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         counter: 100,
         flag: false,
         value: 50,
@@ -146,14 +147,14 @@ fn test_hash_differs_for_different_flag() {
 #[test]
 fn test_hash_differs_for_different_value() {
     let record1 = NoPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         counter: 100,
         flag: true,
         value: 1,
     };
 
     let record2 = NoPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         counter: 100,
         flag: true,
         value: 2,

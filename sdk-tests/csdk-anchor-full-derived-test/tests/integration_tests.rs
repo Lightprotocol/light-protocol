@@ -1781,7 +1781,7 @@ async fn test_d9_qualified_bare() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9QualifiedBare {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_qualified_bare_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -1835,7 +1835,7 @@ async fn test_d9_qualified_self() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9QualifiedSelf {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_qualified_self_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -1889,7 +1889,7 @@ async fn test_d9_qualified_crate() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9QualifiedCrate {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_qualified_crate_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -1940,7 +1940,7 @@ async fn test_d9_qualified_deep() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9QualifiedDeep {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_qualified_deep_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -1998,7 +1998,7 @@ async fn test_d9_qualified_mixed() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9QualifiedMixed {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_qualified_mixed_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -2056,7 +2056,7 @@ async fn test_d9_method_as_ref() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9MethodAsRef {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_method_as_ref_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -2109,7 +2109,7 @@ async fn test_d9_method_as_bytes() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9MethodAsBytes {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_method_as_bytes_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -2163,7 +2163,7 @@ async fn test_d9_method_qualified_as_bytes() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9MethodQualifiedAsBytes {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_method_qualified_as_bytes_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -2216,7 +2216,7 @@ async fn test_d9_method_to_le_bytes() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9MethodToLeBytes {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_method_to_le_bytes_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -2270,7 +2270,7 @@ async fn test_d9_method_to_be_bytes() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9MethodToBeBytes {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_method_to_be_bytes_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -2333,7 +2333,7 @@ async fn test_d9_method_mixed() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9MethodMixed {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_method_mixed_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -2390,7 +2390,7 @@ async fn test_d9_bump_literal() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9BumpLiteral {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_bump_lit_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -2443,7 +2443,7 @@ async fn test_d9_bump_constant() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9BumpConstant {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_bump_const_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -2496,7 +2496,7 @@ async fn test_d9_bump_qualified() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9BumpQualified {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_bump_qual_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -2549,7 +2549,7 @@ async fn test_d9_bump_param() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9BumpParam {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_bump_param_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -2606,7 +2606,7 @@ async fn test_d9_bump_ctx() {
         fee_payer: ctx.payer.pubkey(),
         authority: authority.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_bump_ctx_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -2669,7 +2669,7 @@ async fn test_d9_bump_mixed() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9BumpMixed {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_bump_mixed_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -2732,7 +2732,7 @@ async fn test_d9_complex_three() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9ComplexThree {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_complex_three_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -2797,7 +2797,7 @@ async fn test_d9_complex_four() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9ComplexFour {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_complex_four_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -2866,7 +2866,7 @@ async fn test_d9_complex_five() {
         fee_payer: ctx.payer.pubkey(),
         authority: authority.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_complex_five_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -2926,7 +2926,7 @@ async fn test_d9_complex_qualified_mix() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9ComplexQualifiedMix {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_complex_qualified_mix_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -2987,7 +2987,7 @@ async fn test_d9_complex_func() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9ComplexFunc {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_complex_func_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -3052,7 +3052,7 @@ async fn test_d9_complex_all_qualified() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9ComplexAllQualified {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_complex_all_qualified_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -3108,7 +3108,7 @@ async fn test_d9_complex_program_id() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9ComplexProgramId {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_complex_program_id_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -3164,7 +3164,7 @@ async fn test_d9_complex_id_func() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9ComplexIdFunc {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_complex_id_func_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -3224,7 +3224,7 @@ async fn test_d9_edge_empty() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9EdgeEmpty {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_edge_empty_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -3278,7 +3278,7 @@ async fn test_d9_edge_single_byte() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9EdgeSingleByte {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_edge_single_byte_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -3329,7 +3329,7 @@ async fn test_d9_edge_single_letter() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9EdgeSingleLetter {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_edge_single_letter_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -3380,7 +3380,7 @@ async fn test_d9_edge_digits() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9EdgeDigits {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_edge_digits_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -3433,7 +3433,7 @@ async fn test_d9_edge_underscore() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9EdgeUnderscore {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_edge_underscore_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -3484,7 +3484,7 @@ async fn test_d9_edge_many_literals() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9EdgeManyLiterals {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_edge_many_literals_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -3542,7 +3542,7 @@ async fn test_d9_edge_mixed() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9EdgeMixed {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_edge_mixed_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -3606,7 +3606,7 @@ async fn test_d9_external_sdk_types() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9ExternalSdkTypes {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_external_sdk_types_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -3666,7 +3666,7 @@ async fn test_d9_external_ctoken() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9ExternalCtoken {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_external_ctoken_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -3726,7 +3726,7 @@ async fn test_d9_external_mixed() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9ExternalMixed {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_external_mixed_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -3788,7 +3788,7 @@ async fn test_d9_external_with_local() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9ExternalWithLocal {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_external_with_local_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -3844,7 +3844,7 @@ async fn test_d9_external_bump() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9ExternalBump {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_external_bump_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -3898,7 +3898,7 @@ async fn test_d9_external_reexport() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9ExternalReexport {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_external_reexport_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -3957,7 +3957,7 @@ async fn test_d9_nested_simple() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9NestedSimple {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_nested_simple_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -4014,7 +4014,7 @@ async fn test_d9_nested_double() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9NestedDouble {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_nested_double_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -4075,7 +4075,7 @@ async fn test_d9_nested_array_field() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9NestedArrayField {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_nested_array_field_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -4135,7 +4135,7 @@ async fn test_d9_array_index() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9ArrayIndex {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_array_index_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -4192,7 +4192,7 @@ async fn test_d9_nested_bytes() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9NestedBytes {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_nested_bytes_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -4252,7 +4252,7 @@ async fn test_d9_nested_combined() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9NestedCombined {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_nested_combined_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -4311,7 +4311,7 @@ async fn test_d9_assoc_const() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9AssocConst {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_assoc_const_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -4365,7 +4365,7 @@ async fn test_d9_assoc_const_method() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9AssocConstMethod {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_assoc_const_method_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -4423,7 +4423,7 @@ async fn test_d9_multi_assoc_const() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9MultiAssocConst {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_multi_assoc_const_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -4475,7 +4475,7 @@ async fn test_d9_const_fn() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9ConstFn {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_const_fn_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -4529,7 +4529,7 @@ async fn test_d9_const_fn_generic() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9ConstFnGeneric {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_const_fn_generic_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -4584,7 +4584,7 @@ async fn test_d9_trait_assoc_const() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9TraitAssocConst {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_trait_assoc_const_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -4635,7 +4635,7 @@ async fn test_d9_static() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9Static {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_static_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -4688,7 +4688,7 @@ async fn test_d9_qualified_const_fn() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9QualifiedConstFn {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_qualified_const_fn_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -4741,7 +4741,7 @@ async fn test_d9_fully_qualified_assoc() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9FullyQualifiedAssoc {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_fully_qualified_assoc_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -4796,7 +4796,7 @@ async fn test_d9_fully_qualified_trait() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9FullyQualifiedTrait {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_fully_qualified_trait_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -4850,7 +4850,7 @@ async fn test_d9_fully_qualified_generic() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9FullyQualifiedGeneric {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_fully_qualified_generic_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -4908,7 +4908,7 @@ async fn test_d9_const_combined() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9ConstCombined {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
-        record: pda,
+        d9_const_combined_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
 

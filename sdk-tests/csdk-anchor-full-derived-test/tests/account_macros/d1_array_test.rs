@@ -13,6 +13,7 @@
 use csdk_anchor_full_derived_test::ArrayRecord;
 use light_hasher::{DataHasher, Sha256};
 use light_sdk::interface::{CompressAs, CompressionInfo};
+use light_sdk::compressible::CompressionState;
 
 use super::shared::CompressibleTestFactory;
 use crate::generate_trait_tests;
@@ -24,7 +25,7 @@ use crate::generate_trait_tests;
 impl CompressibleTestFactory for ArrayRecord {
     fn with_compression_info() -> Self {
         Self {
-            compression_info: Some(CompressionInfo::default()),
+            compression_info: CompressionInfo::default(),
             hash: [0u8; 32],
             short_data: [0u8; 8],
             counter: 0,
@@ -33,7 +34,7 @@ impl CompressibleTestFactory for ArrayRecord {
 
     fn without_compression_info() -> Self {
         Self {
-            compression_info: None,
+            compression_info: CompressionInfo::compressed(),
             hash: [0u8; 32],
             short_data: [0u8; 8],
             counter: 0,
@@ -64,7 +65,7 @@ fn test_compress_as_preserves_other_fields() {
     let counter = 999u64;
 
     let record = ArrayRecord {
-        compression_info: Some(CompressionInfo::default()),
+        compression_info: CompressionInfo::default(),
         hash,
         short_data,
         counter,
@@ -77,7 +78,7 @@ fn test_compress_as_preserves_other_fields() {
 }
 
 #[test]
-fn test_compress_as_when_compression_info_already_none() {
+fn test_compress_as_when_compression_info_already_compressed() {
     let mut hash = [0u8; 32];
     hash[15] = 128;
 
@@ -87,7 +88,7 @@ fn test_compress_as_when_compression_info_already_none() {
     let counter = 123u64;
 
     let record = ArrayRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         hash,
         short_data,
         counter,
@@ -96,7 +97,7 @@ fn test_compress_as_when_compression_info_already_none() {
     let compressed = record.compress_as();
 
     // Should still work and preserve fields
-    assert!(compressed.compression_info.is_none());
+    assert_eq!(compressed.compression_info.state, CompressionState::Compressed);
     assert_eq!(compressed.hash, hash);
     assert_eq!(compressed.short_data, short_data);
     assert_eq!(compressed.counter, counter);
@@ -112,14 +113,14 @@ fn test_hash_differs_for_different_counter() {
     let short_data = [10u8; 8];
 
     let record1 = ArrayRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         hash,
         short_data,
         counter: 1,
     };
 
     let record2 = ArrayRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         hash,
         short_data,
         counter: 2,
@@ -145,14 +146,14 @@ fn test_hash_differs_for_different_hash_array() {
     let short_data = [10u8; 8];
 
     let record1 = ArrayRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         hash: hash1_array,
         short_data,
         counter: 100,
     };
 
     let record2 = ArrayRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         hash: hash2_array,
         short_data,
         counter: 100,
@@ -178,14 +179,14 @@ fn test_hash_differs_for_different_short_data_array() {
     short_data2[0] = 2;
 
     let record1 = ArrayRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         hash,
         short_data: short_data1,
         counter: 100,
     };
 
     let record2 = ArrayRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         hash,
         short_data: short_data2,
         counter: 100,
@@ -211,14 +212,14 @@ fn test_hash_differs_for_different_array_position() {
     hash2_array[31] = 5; // same value, different position
 
     let record1 = ArrayRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         hash: hash1_array,
         short_data,
         counter: 100,
     };
 
     let record2 = ArrayRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         hash: hash2_array,
         short_data,
         counter: 100,
@@ -240,14 +241,14 @@ fn test_hash_differs_for_zero_vs_nonzero_array() {
     let short_data = [10u8; 8];
 
     let record1 = ArrayRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         hash: zero_hash,
         short_data,
         counter: 100,
     };
 
     let record2 = ArrayRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         hash: nonzero_hash,
         short_data,
         counter: 100,

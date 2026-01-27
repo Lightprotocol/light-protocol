@@ -105,7 +105,6 @@ fn codegen(
                         ctx_fields,
                         state_field_names,
                         params_only_seed_fields,
-                        spec.is_zero_copy,
                         seed_count,
                     )
                 })
@@ -363,9 +362,6 @@ fn codegen(
                         }
                     }
                 };
-                if variant_name == "GameSession" || variant_name == "D9AllFunc" || variant_name == "D9FuncRecord" || variant_name == "D9ComplexFuncRecord" {
-                    eprintln!("=== CONSTRUCTOR {} ===\n{}\n=== END ===", variant_name, generated);
-                }
                 generated
             })
             .collect()
@@ -398,11 +394,9 @@ fn codegen(
     let size_validation_checks = compress_builder.generate_size_validation()?;
     let error_codes = compress_builder.generate_error_codes()?;
 
-    let token_variant_name = format_ident!("TokenAccountVariant");
-
     // Create DecompressBuilder to generate all decompress-related code
     let decompress_builder =
-        DecompressBuilder::new(pda_ctx_seeds.clone(), token_variant_name, pda_seeds.clone());
+        DecompressBuilder::new(pda_ctx_seeds.clone(), pda_seeds.clone());
     // Note: DecompressBuilder validation is optional for now since pda_seeds may be empty for TokenOnly
 
     let decompress_accounts = decompress_builder.generate_accounts_struct()?;

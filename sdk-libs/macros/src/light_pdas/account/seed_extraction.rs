@@ -103,10 +103,9 @@ pub enum ClassifiedSeed {
         expr: Box<syn::Expr>,
     },
     /// Expression rooted in ctx account (e.g., authority.key().as_ref())
-    /// `account` is the root identifier, `expr` is the full expression for codegen
+    /// `account` is the root identifier
     CtxRooted {
         account: Ident,
-        expr: Box<syn::Expr>,
     },
     /// Expression rooted in instruction arg (e.g., params.owner.as_ref())
     /// `root` is the instruction arg name, `expr` is the full expression for codegen
@@ -136,8 +135,6 @@ pub struct ClassifiedFnArg {
     pub field_name: Ident,
     /// Whether this is a ctx account or instruction data field
     pub kind: FnArgKind,
-    /// The original argument expression (for codegen reconstruction)
-    pub original_expr: Box<syn::Expr>,
 }
 
 /// Classification of a function call argument.
@@ -791,7 +788,6 @@ pub fn classify_seed_expr(
     if let Some(account) = get_ctx_account_root(expr) {
         return Ok(ClassifiedSeed::CtxRooted {
             account,
-            expr: Box::new(expr.clone()),
         });
     }
 
@@ -845,7 +841,6 @@ fn classify_function_call(
             classified_args.push(ClassifiedFnArg {
                 field_name,
                 kind: FnArgKind::DataField,
-                original_expr: Box::new(arg.clone()),
             });
             has_dynamic = true;
             continue;
@@ -856,7 +851,6 @@ fn classify_function_call(
             classified_args.push(ClassifiedFnArg {
                 field_name: account,
                 kind: FnArgKind::CtxAccount,
-                original_expr: Box::new(arg.clone()),
             });
             has_dynamic = true;
             continue;

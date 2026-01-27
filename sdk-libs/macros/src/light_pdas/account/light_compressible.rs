@@ -626,9 +626,11 @@ fn generate_compress_as_impl_body(
     compress_as_fields: &Option<CompressAsFields>,
 ) -> TokenStream {
     let Some(overrides) = compress_as_fields else {
-        // No overrides - just borrow self
+        // No overrides - clone and set compression_info to Compressed
         return quote! {
-            std::borrow::Cow::Borrowed(self)
+            let mut result = self.clone();
+            result.compression_info = light_sdk::compressible::CompressionInfo::compressed();
+            std::borrow::Cow::Owned(result)
         };
     };
 
@@ -659,14 +661,17 @@ fn generate_compress_as_impl_body(
         .collect();
 
     if assignments.is_empty() {
-        // No actual overrides - just borrow self
-        quote! {
-            std::borrow::Cow::Borrowed(self)
-        }
-    } else {
-        // Clone and apply overrides
+        // No field overrides - clone and set compression_info to Compressed
         quote! {
             let mut result = self.clone();
+            result.compression_info = light_sdk::compressible::CompressionInfo::compressed();
+            std::borrow::Cow::Owned(result)
+        }
+    } else {
+        // Clone, set compression_info to Compressed, and apply overrides
+        quote! {
+            let mut result = self.clone();
+            result.compression_info = light_sdk::compressible::CompressionInfo::compressed();
             #(#assignments)*
             std::borrow::Cow::Owned(result)
         }

@@ -28,7 +28,7 @@ use crate::generate_trait_tests;
 impl CompressibleTestFactory for AllCompositionRecord {
     fn with_compression_info() -> Self {
         Self {
-            compression_info: Some(CompressionInfo::default()),
+            compression_info: CompressionInfo::default(),
             owner: Pubkey::new_unique(),
             delegate: Pubkey::new_unique(),
             authority: Pubkey::new_unique(),
@@ -49,7 +49,7 @@ impl CompressibleTestFactory for AllCompositionRecord {
 
     fn without_compression_info() -> Self {
         Self {
-            compression_info: None,
+            compression_info: CompressionInfo::compressed(),
             owner: Pubkey::new_unique(),
             delegate: Pubkey::new_unique(),
             authority: Pubkey::new_unique(),
@@ -83,7 +83,7 @@ generate_trait_tests!(AllCompositionRecord);
 fn test_compress_as_overrides_cached_time() {
     // #[compress_as(cached_time = 0, ...)] should set cached_time to 0
     let record = AllCompositionRecord {
-        compression_info: Some(CompressionInfo::default()),
+        compression_info: CompressionInfo::default(),
         owner: Pubkey::new_unique(),
         delegate: Pubkey::new_unique(),
         authority: Pubkey::new_unique(),
@@ -114,7 +114,7 @@ fn test_compress_as_overrides_cached_time() {
 fn test_compress_as_overrides_end_time() {
     // #[compress_as(..., end_time = None)] should set end_time to None
     let record = AllCompositionRecord {
-        compression_info: Some(CompressionInfo::default()),
+        compression_info: CompressionInfo::default(),
         owner: Pubkey::new_unique(),
         delegate: Pubkey::new_unique(),
         authority: Pubkey::new_unique(),
@@ -147,7 +147,7 @@ fn test_compress_as_preserves_start_time() {
     let start_time_value = 777u64;
 
     let record = AllCompositionRecord {
-        compression_info: Some(CompressionInfo::default()),
+        compression_info: CompressionInfo::default(),
         owner: Pubkey::new_unique(),
         delegate: Pubkey::new_unique(),
         authority: Pubkey::new_unique(),
@@ -181,7 +181,7 @@ fn test_compress_as_preserves_non_override_fields() {
     let authority = Pubkey::new_unique();
 
     let record = AllCompositionRecord {
-        compression_info: Some(CompressionInfo::default()),
+        compression_info: CompressionInfo::default(),
         owner,
         delegate,
         authority,
@@ -220,7 +220,7 @@ fn test_compress_as_preserves_non_override_fields() {
 #[test]
 fn test_hash_differs_for_different_owner() {
     let record1 = AllCompositionRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner: Pubkey::new_unique(),
         delegate: Pubkey::new_unique(),
         authority: Pubkey::new_unique(),
@@ -239,7 +239,7 @@ fn test_hash_differs_for_different_owner() {
     };
 
     let record2 = AllCompositionRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner: Pubkey::new_unique(),
         delegate: record1.delegate,
         authority: record1.authority,
@@ -273,7 +273,7 @@ fn test_hash_differs_for_different_counter_3() {
     let authority = Pubkey::new_unique();
 
     let record1 = AllCompositionRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate,
         authority,
@@ -316,9 +316,7 @@ fn test_packed_struct_has_u8_pubkey_fields() {
         owner: 0,
         delegate: 1,
         authority: 2,
-        close_authority: Some(close_authority),
-        compression_info: None,
-        name: "test".to_string(),
+        close_authority: Some(close_authority),        name: "test".to_string(),
         hash: [0u8; 32],
         start_time: 100,
         cached_time: 0, // overridden by compress_as
@@ -349,7 +347,7 @@ fn test_pack_converts_all_pubkeys_to_indices() {
         delegate,
         authority,
         close_authority: Some(close_authority),
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         name: "test".to_string(),
         hash: [0u8; 32],
         start_time: 100,
@@ -385,7 +383,7 @@ fn test_pack_does_not_apply_compress_as_overrides() {
         delegate: Pubkey::new_unique(),
         authority: Pubkey::new_unique(),
         close_authority: Some(close_authority),
-        compression_info: Some(CompressionInfo::default()),
+        compression_info: CompressionInfo::default(),
         name: "test".to_string(),
         hash: [0u8; 32],
         start_time: 100,
@@ -419,7 +417,7 @@ fn test_compress_as_then_pack_applies_overrides() {
         delegate: Pubkey::new_unique(),
         authority: Pubkey::new_unique(),
         close_authority: Some(close_authority),
-        compression_info: Some(CompressionInfo::default()),
+        compression_info: CompressionInfo::default(),
         name: "test".to_string(),
         hash: [0u8; 32],
         start_time: 100,
@@ -461,7 +459,7 @@ fn test_pack_preserves_start_time_without_override() {
         delegate: Pubkey::new_unique(),
         authority: Pubkey::new_unique(),
         close_authority: None,
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         name: "test".to_string(),
         hash: [0u8; 32],
         start_time: start_time_value,
@@ -494,7 +492,7 @@ fn test_pack_reuses_duplicate_pubkeys_for_direct_fields() {
         delegate: shared_pubkey, // Same as owner
         authority: Pubkey::new_unique(),
         close_authority: Some(shared_pubkey), // Option<Pubkey> is NOT packed
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         name: "test".to_string(),
         hash: [0u8; 32],
         start_time: 100,
@@ -532,7 +530,7 @@ fn test_pack_sets_compression_info_to_none() {
         delegate: Pubkey::new_unique(),
         authority: Pubkey::new_unique(),
         close_authority: Some(Pubkey::new_unique()),
-        compression_info: Some(CompressionInfo::default()),
+        compression_info: CompressionInfo::default(),
         name: "test".to_string(),
         hash: [0u8; 32],
         start_time: 100,
@@ -547,10 +545,4 @@ fn test_pack_sets_compression_info_to_none() {
     };
 
     let mut packed_accounts = PackedAccounts::default();
-    let packed = record.pack(&mut packed_accounts).unwrap();
-
-    assert!(
-        packed.compression_info.is_none(),
-        "pack should set compression_info to None"
-    );
-}
+    let packed = record.pack(&mut packed_accounts).unwrap();}

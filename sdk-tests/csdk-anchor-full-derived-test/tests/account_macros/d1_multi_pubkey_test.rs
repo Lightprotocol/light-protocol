@@ -24,7 +24,7 @@ use crate::generate_trait_tests;
 impl CompressibleTestFactory for MultiPubkeyRecord {
     fn with_compression_info() -> Self {
         Self {
-            compression_info: Some(CompressionInfo::default()),
+            compression_info: CompressionInfo::default(),
             owner: Pubkey::new_unique(),
             delegate: Pubkey::new_unique(),
             authority: Pubkey::new_unique(),
@@ -34,7 +34,7 @@ impl CompressibleTestFactory for MultiPubkeyRecord {
 
     fn without_compression_info() -> Self {
         Self {
-            compression_info: None,
+            compression_info: CompressionInfo::compressed(),
             owner: Pubkey::new_unique(),
             delegate: Pubkey::new_unique(),
             authority: Pubkey::new_unique(),
@@ -61,7 +61,7 @@ fn test_compress_as_preserves_other_fields() {
     let amount = 999u64;
 
     let record = MultiPubkeyRecord {
-        compression_info: Some(CompressionInfo::default()),
+        compression_info: CompressionInfo::default(),
         owner,
         delegate,
         authority,
@@ -83,7 +83,7 @@ fn test_compress_as_when_compression_info_already_none() {
     let amount = 123u64;
 
     let record = MultiPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate,
         authority,
@@ -93,7 +93,10 @@ fn test_compress_as_when_compression_info_already_none() {
     let compressed = record.compress_as();
 
     // Should still work and preserve fields
-    assert!(compressed.compression_info.is_none());
+    assert_eq!(
+        compressed.compression_info.state,
+        light_sdk::compressible::CompressionState::Compressed
+    );
     assert_eq!(compressed.owner, owner);
     assert_eq!(compressed.delegate, delegate);
     assert_eq!(compressed.authority, authority);
@@ -111,7 +114,7 @@ fn test_hash_differs_for_different_amount() {
     let authority = Pubkey::new_unique();
 
     let record1 = MultiPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate,
         authority,
@@ -119,7 +122,7 @@ fn test_hash_differs_for_different_amount() {
     };
 
     let record2 = MultiPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate,
         authority,
@@ -141,7 +144,7 @@ fn test_hash_differs_for_different_owner() {
     let authority = Pubkey::new_unique();
 
     let record1 = MultiPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner: Pubkey::new_unique(),
         delegate,
         authority,
@@ -149,7 +152,7 @@ fn test_hash_differs_for_different_owner() {
     };
 
     let record2 = MultiPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner: Pubkey::new_unique(),
         delegate,
         authority,
@@ -171,7 +174,7 @@ fn test_hash_differs_for_different_delegate() {
     let authority = Pubkey::new_unique();
 
     let record1 = MultiPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate: Pubkey::new_unique(),
         authority,
@@ -179,7 +182,7 @@ fn test_hash_differs_for_different_delegate() {
     };
 
     let record2 = MultiPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate: Pubkey::new_unique(),
         authority,
@@ -201,7 +204,7 @@ fn test_hash_differs_for_different_authority() {
     let delegate = Pubkey::new_unique();
 
     let record1 = MultiPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate,
         authority: Pubkey::new_unique(),
@@ -209,7 +212,7 @@ fn test_hash_differs_for_different_authority() {
     };
 
     let record2 = MultiPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate,
         authority: Pubkey::new_unique(),
@@ -232,8 +235,8 @@ fn test_hash_differs_for_different_authority() {
 #[test]
 fn test_packed_struct_has_u8_indices() {
     // Verify PackedMultiPubkeyRecord has three u8 index fields
+    // Note: PackedMultiPubkeyRecord no longer has compression_info field
     let packed = PackedMultiPubkeyRecord {
-        compression_info: None,
         owner: 0,
         delegate: 1,
         authority: 2,
@@ -253,7 +256,7 @@ fn test_pack_converts_all_pubkeys_to_indices() {
     let authority = Pubkey::new_unique();
 
     let record = MultiPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate,
         authority,
@@ -283,7 +286,7 @@ fn test_pack_reuses_pubkey_indices() {
     let authority = Pubkey::new_unique();
 
     let record1 = MultiPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate,
         authority,
@@ -291,7 +294,7 @@ fn test_pack_reuses_pubkey_indices() {
     };
 
     let record2 = MultiPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate,
         authority,
@@ -315,7 +318,7 @@ fn test_pack_reuses_pubkey_indices() {
 #[test]
 fn test_pack_different_pubkeys_get_different_indices() {
     let record1 = MultiPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner: Pubkey::new_unique(),
         delegate: Pubkey::new_unique(),
         authority: Pubkey::new_unique(),
@@ -323,7 +326,7 @@ fn test_pack_different_pubkeys_get_different_indices() {
     };
 
     let record2 = MultiPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner: Pubkey::new_unique(),
         delegate: Pubkey::new_unique(),
         authority: Pubkey::new_unique(),
@@ -350,39 +353,6 @@ fn test_pack_different_pubkeys_get_different_indices() {
 }
 
 #[test]
-fn test_pack_sets_compression_info_to_none() {
-    let record_with_info = MultiPubkeyRecord {
-        compression_info: Some(CompressionInfo::default()),
-        owner: Pubkey::new_unique(),
-        delegate: Pubkey::new_unique(),
-        authority: Pubkey::new_unique(),
-        amount: 100,
-    };
-
-    let record_without_info = MultiPubkeyRecord {
-        compression_info: None,
-        owner: Pubkey::new_unique(),
-        delegate: Pubkey::new_unique(),
-        authority: Pubkey::new_unique(),
-        amount: 200,
-    };
-
-    let mut packed_accounts = PackedAccounts::default();
-    let packed1 = record_with_info.pack(&mut packed_accounts).unwrap();
-    let packed2 = record_without_info.pack(&mut packed_accounts).unwrap();
-
-    // Both packed structs should have compression_info = None
-    assert!(
-        packed1.compression_info.is_none(),
-        "pack should set compression_info to None (even if input has Some)"
-    );
-    assert!(
-        packed2.compression_info.is_none(),
-        "pack should set compression_info to None"
-    );
-}
-
-#[test]
 fn test_pack_stores_all_pubkeys_in_packed_accounts() {
     let owner1 = Pubkey::new_unique();
     let delegate1 = Pubkey::new_unique();
@@ -393,7 +363,7 @@ fn test_pack_stores_all_pubkeys_in_packed_accounts() {
     let authority2 = Pubkey::new_unique();
 
     let record1 = MultiPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner: owner1,
         delegate: delegate1,
         authority: authority1,
@@ -401,7 +371,7 @@ fn test_pack_stores_all_pubkeys_in_packed_accounts() {
     };
 
     let record2 = MultiPubkeyRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner: owner2,
         delegate: delegate2,
         authority: authority2,
