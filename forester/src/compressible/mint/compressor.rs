@@ -77,14 +77,14 @@ impl<R: Rpc + Indexer> MintCompressor<R> {
                     mint_seed,
                     true, // idempotent
                 )
-                    .await
-                    .map_err(|e| {
-                        anyhow::anyhow!(
+                .await
+                .map_err(|e| {
+                    anyhow::anyhow!(
                         "Failed to build CompressAndCloseMint instruction for {}: {:?}",
                         mint_pda,
                         e
                     )
-                    })?;
+                })?;
 
                 Ok::<Instruction, anyhow::Error>(ix)
             }
@@ -224,10 +224,10 @@ impl<R: Rpc + Indexer> MintCompressor<R> {
             *mint_seed,
             true, // idempotent
         )
-            .await
-            .map_err(|e| {
-                anyhow::anyhow!("Failed to build CompressAndCloseMint instruction: {:?}", e)
-            })?;
+        .await
+        .map_err(|e| {
+            anyhow::anyhow!("Failed to build CompressAndCloseMint instruction: {:?}", e)
+        })?;
 
         debug!(
             "Built CompressAndCloseMint instruction for Mint {}",
