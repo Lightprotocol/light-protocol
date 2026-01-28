@@ -4040,6 +4040,7 @@ dependencies = [
  "light-program-profiler",
  "light-sdk-macros",
  "light-sdk-types",
+ "light-token-interface",
  "light-zero-copy",
  "num-bigint 0.4.6",
  "solana-account-info",

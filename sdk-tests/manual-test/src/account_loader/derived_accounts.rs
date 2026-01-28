@@ -268,6 +268,9 @@ impl LightAccountVariantTrait<4> for ZeroCopyRecordVariant {
 impl PackedLightAccountVariantTrait<4> for PackedZeroCopyRecordVariant {
     type Unpacked = ZeroCopyRecordVariant;
 
+    const ACCOUNT_TYPE: light_sdk::interface::AccountType =
+        <ZeroCopyRecord as LightAccount>::ACCOUNT_TYPE;
+
     fn bump(&self) -> u8 {
         self.seeds.bump
     }
@@ -305,6 +308,14 @@ impl PackedLightAccountVariantTrait<4> for PackedZeroCopyRecordVariant {
             self.seeds.name.as_bytes(),
             bump_storage,
         ])
+    }
+
+    fn into_in_token_data(&self) -> Result<light_token_interface::instructions::transfer2::MultiInputTokenDataWithContext> {
+        Err(ProgramError::InvalidAccountData.into())
+    }
+
+    fn into_in_tlv(&self) -> Result<Option<Vec<light_token_interface::instructions::extensions::ExtensionInstructionData>>> {
+        Ok(None)
     }
 }
 

@@ -5,7 +5,7 @@ use light_program_profiler::profile;
 use light_sdk::{
     error::LightSdkError,
     instruction::{AccountMetasVec, PackedAccounts, PackedStateTreeInfo, SystemAccountMetaConfig},
-    Pack,
+    Pack, Unpack,
 };
 use light_token_interface::instructions::{
     extensions::ExtensionInstructionData,
@@ -44,7 +44,7 @@ pub struct DecompressFullIndices {
 /// Unpacked input data for token decompression.
 /// Implements `light_sdk::Pack` to produce `DecompressFullIndices`,
 /// converting Pubkeys (owner, mint, delegate, destination) to u8 indices.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct DecompressFullInput {
     pub token: TokenData,
     pub tree_info: PackedStateTreeInfo,
@@ -91,6 +91,60 @@ impl Pack for DecompressFullInput {
             source,
             destination_index: remaining_accounts.insert_or_get(self.destination),
             tlv: self.tlv.clone(),
+            is_ata: self.is_ata,
+        })
+    }
+}
+
+impl Unpack for DecompressFullIndices {
+    type Unpacked = DecompressFullInput;
+
+    fn unpack(
+        &self,
+        remaining_accounts: &[AccountInfo],
+    ) -> Result<Self::Unpacked, solana_program_error::ProgramError> {
+        let owner = *remaining_accounts
+            .get(self.source.owner as usize)
+            .ok_or(solana_program_error::ProgramError::InvalidAccountData)?
+            .key;
+        let mint = *remaining_accounts
+            .get(self.source.mint as usize)
+            .ok_or(solana_program_error::ProgramError::InvalidAccountData)?
+            .key;
+        let delegate = if self.source.has_delegate {
+            Some(
+                *remaining_accounts
+                    .get(self.source.delegate as usize)
+                    .ok_or(solana_program_error::ProgramError::InvalidAccountData)?
+                    .key,
+            )
+        } else {
+            None
+        };
+        let destination = *remaining_accounts
+            .get(self.destination_index as usize)
+            .ok_or(solana_program_error::ProgramError::InvalidAccountData)?
+            .key;
+
+        Ok(DecompressFullInput {
+            token: TokenData {
+                owner,
+                mint,
+                amount: self.source.amount,
+                delegate,
+                state: crate::compat::AccountState::Initialized,
+                tlv: None,
+            },
+            tree_info: PackedStateTreeInfo {
+                root_index: self.source.root_index,
+                prove_by_index: self.source.merkle_context.prove_by_index,
+                merkle_tree_pubkey_index: self.source.merkle_context.merkle_tree_pubkey_index,
+                queue_pubkey_index: self.source.merkle_context.queue_pubkey_index,
+                leaf_index: self.source.merkle_context.leaf_index,
+            },
+            destination,
+            tlv: self.tlv.clone(),
+            version: self.source.version,
             is_ata: self.is_ata,
         })
     }

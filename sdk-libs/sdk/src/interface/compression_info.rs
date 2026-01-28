@@ -382,6 +382,14 @@ pub struct CompressedAccountData<T> {
     pub data: T,
 }
 
+impl Unpack for CompressedAccountData<Vec<u8>> {
+    type Unpacked = Vec<u8>;
+
+    fn unpack(&self, _remaining_accounts: &[AccountInfo]) -> Result<Self::Unpacked, ProgramError> {
+        unimplemented!()
+    }
+}
+
 /// Claim completed-epoch rent to the provided rent sponsor and update last_claimed_slot.
 /// Returns Some(claimed) if any lamports were claimed; None if account is compressible or nothing to claim.
 pub fn claim_completed_epoch_rent<'info, A>(

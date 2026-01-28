@@ -104,6 +104,9 @@ impl LightAccountVariantTrait<3> for AllBorshVariant {
 impl PackedLightAccountVariantTrait<3> for PackedAllBorshVariant {
     type Unpacked = AllBorshVariant;
 
+    const ACCOUNT_TYPE: light_sdk::interface::AccountType =
+        <MinimalRecord as LightAccount>::ACCOUNT_TYPE;
+
     fn bump(&self) -> u8 {
         self.seeds.bump
     }
@@ -133,6 +136,14 @@ impl PackedLightAccountVariantTrait<3> for PackedAllBorshVariant {
             .get(self.seeds.owner_idx as usize)
             .ok_or(ProgramError::InvalidAccountData)?;
         Ok([ALL_BORSH_SEED, owner.key.as_ref(), bump_storage])
+    }
+
+    fn into_in_token_data(&self) -> anchor_lang::Result<light_token_interface::instructions::transfer2::MultiInputTokenDataWithContext> {
+        Err(ProgramError::InvalidAccountData.into())
+    }
+
+    fn into_in_tlv(&self) -> anchor_lang::Result<Option<Vec<light_token_interface::instructions::extensions::ExtensionInstructionData>>> {
+        Ok(None)
     }
 }
 
@@ -225,6 +236,9 @@ impl LightAccountVariantTrait<3> for AllZeroCopyVariant {
 impl PackedLightAccountVariantTrait<3> for PackedAllZeroCopyVariant {
     type Unpacked = AllZeroCopyVariant;
 
+    const ACCOUNT_TYPE: light_sdk::interface::AccountType =
+        <ZeroCopyRecord as LightAccount>::ACCOUNT_TYPE;
+
     fn bump(&self) -> u8 {
         self.seeds.bump
     }
@@ -254,6 +268,14 @@ impl PackedLightAccountVariantTrait<3> for PackedAllZeroCopyVariant {
             .get(self.seeds.owner_idx as usize)
             .ok_or(ProgramError::InvalidAccountData)?;
         Ok([ALL_ZERO_COPY_SEED, owner.key.as_ref(), bump_storage])
+    }
+
+    fn into_in_token_data(&self) -> anchor_lang::Result<light_token_interface::instructions::transfer2::MultiInputTokenDataWithContext> {
+        Err(ProgramError::InvalidAccountData.into())
+    }
+
+    fn into_in_tlv(&self) -> anchor_lang::Result<Option<Vec<light_token_interface::instructions::extensions::ExtensionInstructionData>>> {
+        Ok(None)
     }
 }
 

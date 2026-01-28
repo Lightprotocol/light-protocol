@@ -45,16 +45,10 @@ pub struct UpdateConfigData {
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct LoadAccountsData<T> {
+    pub system_accounts_offset: u8,
+    pub token_accounts_offset: u8,
     pub proof: ValidityProof,
     pub compressed_accounts: Vec<CompressedAccountData<T>>,
-    pub system_accounts_offset: u8,
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
-pub struct SaveAccountsData {
-    pub proof: ValidityProof,
-    pub compressed_accounts: Vec<CompressedAccountMetaNoLamportsNoAddress>,
-    pub system_accounts_offset: u8,
 }
 
 // Discriminators (match on-chain instruction names)
@@ -271,10 +265,12 @@ where
 
     // system_accounts_offset must account for program_account_metas
     let full_offset = program_account_metas.len() + system_accounts_offset;
+    let token_accounts_offset = pda_indices.len() as u8;
     let ix_data = LoadAccountsData {
         proof: proof.proof,
         compressed_accounts: typed_accounts,
         system_accounts_offset: full_offset as u8,
+        token_accounts_offset,
     };
 
     let serialized = ix_data.try_to_vec()?;

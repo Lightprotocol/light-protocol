@@ -1518,7 +1518,7 @@ async fn test_d5_light_token() {
     // Verify token vault exists
     ctx.assert_onchain_exists(&vault).await;
 
-    // Note: Token vault decompression not tested - requires TokenAccountVariant
+    // TODO: Test token vault decompression using token variant seeds
 }
 
 /// Tests D5AllMarkers: #[light_account(init)] + #[light_account(token)] combined
@@ -1597,7 +1597,7 @@ async fn test_d5_all_markers() {
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D5AllRecordSeeds;
     ctx.assert_lifecycle(&d5_all_record, D5AllRecordSeeds { owner })
         .await;
-    // Note: Token vault decompression not tested - requires TokenAccountVariant
+    // TODO: Test token vault decompression using token variant seeds
 }
 
 // =============================================================================
@@ -1669,7 +1669,7 @@ async fn test_d7_light_token_config() {
     // Verify token vault exists
     ctx.assert_onchain_exists(&d7_light_token_vault).await;
 
-    // Note: Token vault decompression not tested - requires TokenAccountVariant
+    // TODO: Test token vault decompression using token variant seeds
 }
 
 /// Tests D7AllNames: payer + light_token_config/rent_sponsor naming combined
@@ -1748,7 +1748,7 @@ async fn test_d7_all_names() {
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D7AllRecordSeeds;
     ctx.assert_lifecycle(&d7_all_record, D7AllRecordSeeds { owner })
         .await;
-    // Note: Token vault decompression not tested - requires TokenAccountVariant
+    // TODO: Test token vault decompression using token variant seeds
 }
 
 // =============================================================================

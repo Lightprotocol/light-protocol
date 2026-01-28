@@ -549,33 +549,45 @@ fn test_variant_seed_values_distinguish_instances() {
     //
     // The variant enum encodes WHICH account this is via the variant name AND seed values.
 
-    use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::TokenAccountVariant;
+    use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::{
+        Token0VaultSeeds, Token1VaultSeeds,
+    };
+    use light_sdk::interface::token::TokenDataWithSeeds;
 
     let pool_state = Pubkey::new_unique();
     let token_0_mint = Pubkey::new_unique();
     let token_1_mint = Pubkey::new_unique();
 
-    let variant_0 = TokenAccountVariant::Token0Vault {
-        pool_state,
-        token_0_mint,
-    };
-    let variant_1 = TokenAccountVariant::Token1Vault {
-        pool_state,
-        token_1_mint,
-    };
+    let variant_0 = LightAccountVariant::Token0Vault(TokenDataWithSeeds {
+        seeds: Token0VaultSeeds {
+            pool_state,
+            token_0_mint,
+        },
+        token_data: Default::default(),
+        tree_info: Default::default(),
+        version: 0,
+    });
+    let variant_1 = LightAccountVariant::Token1Vault(TokenDataWithSeeds {
+        seeds: Token1VaultSeeds {
+            pool_state,
+            token_1_mint,
+        },
+        token_data: Default::default(),
+        tree_info: Default::default(),
+        version: 0,
+    });
 
     // These are different enum variants (type-level distinction)
     // Even if they were the same variant type, the seed values differ
     match (&variant_0, &variant_1) {
         (
-            TokenAccountVariant::Token0Vault {
-                token_0_mint: m0, ..
-            },
-            TokenAccountVariant::Token1Vault {
-                token_1_mint: m1, ..
-            },
+            LightAccountVariant::Token0Vault(data_0),
+            LightAccountVariant::Token1Vault(data_1),
         ) => {
-            assert_ne!(m0, m1, "Vault seed values must differ");
+            assert_ne!(
+                data_0.seeds.token_0_mint, data_1.seeds.token_1_mint,
+                "Vault seed values must differ"
+            );
         }
         _ => panic!("Expected Token0Vault and Token1Vault"),
     }
@@ -953,13 +965,11 @@ fn test_canonical_variant_independent_of_alias() {
                 LightAccountVariant::ObservationState(..) => {
                     // Canonical: ObservationState
                 }
-                LightAccountVariant::CTokenData(ctoken) => {
-                    // Canonical: Token0Vault or Token1Vault
-                    match &ctoken.variant {
-                        csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::TokenAccountVariant::Token0Vault { .. } => {}
-                        csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::TokenAccountVariant::Token1Vault { .. } => {}
-                        _ => {}
-                    }
+                LightAccountVariant::Token0Vault(_) => {
+                    // Canonical: Token0Vault
+                }
+                LightAccountVariant::Token1Vault(_) => {
+                    // Canonical: Token1Vault
                 }
                 _ => {
                     // Other variants from the program (not AMM-related)

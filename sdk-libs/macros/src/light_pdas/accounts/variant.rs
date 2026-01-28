@@ -307,6 +307,9 @@ impl VariantBuilder {
             impl light_sdk::interface::PackedLightAccountVariantTrait<#seed_count> for #packed_variant_name {
                 type Unpacked = #variant_name;
 
+                const ACCOUNT_TYPE: light_sdk::interface::AccountType =
+                    <#inner_type as light_sdk::interface::LightAccount>::ACCOUNT_TYPE;
+
                 fn bump(&self) -> u8 {
                     self.seeds.bump
                 }
@@ -328,6 +331,14 @@ impl VariantBuilder {
                     bump_storage: &'a [u8; 1],
                 ) -> std::result::Result<[&'a [u8]; #seed_count], solana_program_error::ProgramError> {
                     Ok([#(#packed_seed_refs_items,)* bump_storage])
+                }
+
+                fn into_in_token_data(&self) -> anchor_lang::Result<light_token_interface::instructions::transfer2::MultiInputTokenDataWithContext> {
+                    Err(solana_program_error::ProgramError::InvalidAccountData.into())
+                }
+
+                fn into_in_tlv(&self) -> anchor_lang::Result<Option<Vec<light_token_interface::instructions::extensions::ExtensionInstructionData>>> {
+                    Ok(None)
                 }
             }
         }

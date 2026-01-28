@@ -4,6 +4,7 @@ use anchor_lang::prelude::*;
 use light_sdk::{
     error::LightSdkError,
     interface::{LightFinalize, LightPreInit},
+    Pack, Unpack,
 };
 use light_token::instruction::CreateTokenAccountCpi;
 use solana_account_info::AccountInfo;
@@ -56,5 +57,45 @@ impl<'info> LightFinalize<'info, CreateTokenVaultParams> for CreateTokenVaultAcc
         _has_pre_init: bool,
     ) -> std::result::Result<(), LightSdkError> {
         Ok(())
+    }
+}
+/* inside of in_tlv for (i, token) in params.token_accounts.iter().enumerate() {
+    if let Some(extension) = token.extension.clone() {
+        vec[i] = Some(vec![ExtensionInstructionData::CompressedOnly(extension)]);
+    }
+}*/
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
+pub struct TokenVaultSeeds {
+    /// Index into remaining_accounts instead of full Pubkey
+    pub mint: Pubkey,
+}
+
+impl Pack for TokenVaultSeeds {
+    type Packed = PackedTokenVaultSeeds;
+    fn pack(
+        &self,
+        remaining_accounts: &mut light_token::anchor::PackedAccounts,
+    ) -> std::result::Result<Self::Packed, ProgramError> {
+        let mint = remaining_accounts
+            .insert_or_get(self.mint)
+            .ok_or(ProgramError::NotEnoughAccountKeys)?;
+        Ok(TokenVaultSeeds { mint })
+    }
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
+pub struct PackedTokenVaultSeeds {
+    /// Index into remaining_accounts instead of full Pubkey
+    pub mint: u8,
+}
+
+impl Unpack for PackedTokenVaultSeeds {
+    type Unpacked = TokenVaultSeeds;
+
+    fn unpack(remaining_accounts: &[AccountInfo]) -> Result<Self> {
+        let mint = remaining_accounts
+            .get(index)
+            .ok_or(ProgramError::NotEnoughAccountKeys)?;
+        Ok(Self { mint })
     }
 }

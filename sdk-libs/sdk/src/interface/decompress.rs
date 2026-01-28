@@ -7,27 +7,29 @@ use anchor_lang::{
     prelude::*,
     solana_program::{clock::Clock, rent::Rent, sysvar::Sysvar},
 };
-use light_compressed_account::{
-    address::derive_address,
-    compressed_account::PackedMerkleContext,
-    instruction_data::with_account_info::{CompressedAccountInfo, InAccountInfo, OutAccountInfo},
+use light_compressed_account::instruction_data::{
+    cpi_context::CompressedCpiContext, with_account_info::CompressedAccountInfo,
 };
-use light_hasher::{Hasher, Sha256};
 use light_sdk_types::{
+    cpi_context_write::CpiContextWriteAccounts,
     instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress, CpiSigner,
 };
+use light_token_interface::{
+    instructions::{
+        extensions::ExtensionInstructionData,
+        transfer2::{CompressedTokenInstructionDataTransfer2, MultiInputTokenDataWithContext},
+    },
+    LIGHT_TOKEN_PROGRAM_ID, TRANSFER2,
+};
+use solana_instruction::Instruction;
+use solana_program::program::invoke_signed;
 use solana_program_error::ProgramError;
 
-use super::traits::{LightAccount, LightAccountVariantTrait, PackedLightAccountVariantTrait};
 use crate::{
-    cpi::{
-        v2::{CpiAccounts, LightSystemProgramCpi},
-        InvokeLightSystemProgram, LightCpiInstruction,
-    },
+    cpi::{v2::CpiAccounts, InvokeLightSystemProgram},
     instruction::ValidityProof,
-    interface::{compression_info::CompressedAccountData, create_pda_account, LightConfig},
-    light_account_checks::{account_iterator::AccountIterator, checks::check_data_is_zeroed},
-    LightDiscriminator,
+    interface::{compression_info::CompressedAccountData, LightConfig},
+    light_account_checks::account_iterator::AccountIterator,
 };
 
 // ============================================================================
@@ -48,7 +50,7 @@ pub trait DecompressVariant<'info>: AnchorSerialize + AnchorDeserialize + Clone 
     /// `prepare_account_for_decompression::<SEED_COUNT, PackedVariantType>(packed, pda_account, ctx)`.
     fn decompress(
         &self,
-        meta: &CompressedAccountMetaNoLamportsNoAddress,
+        meta: &CompressedAccountMetaNoLamportsNoAddress, //TODO: pull into variant
         pda_account: &AccountInfo<'info>,
         ctx: &mut DecompressCtx<'_, 'info>,
     ) -> std::result::Result<(), ProgramError>;
@@ -67,12 +69,14 @@ pub struct DecompressIdempotentParams<V>
 where
     V: AnchorSerialize + AnchorDeserialize + Clone,
 {
+    /// Offset into remaining_accounts where Light system accounts begin
+    pub system_accounts_offset: u8,
+    /// All account variants less than offset are pda acccounts.
+    pub token_accounts_offset: u8,
     /// Validity proof for compressed account verification
     pub proof: ValidityProof,
     /// Accounts to decompress - wrapped in CompressedAccountData for metadata
     pub accounts: Vec<CompressedAccountData<V>>,
-    /// Offset into remaining_accounts where Light system accounts begin
-    pub system_accounts_offset: u8,
 }
 
 /// Context struct holding all data needed for decompression.
@@ -87,6 +91,9 @@ pub struct DecompressCtx<'a, 'info> {
     pub current_slot: u64,
     /// Internal vec - dispatch functions push results here
     pub compressed_account_infos: Vec<CompressedAccountInfo>,
+    pub in_token_data: Vec<MultiInputTokenDataWithContext>,
+    pub in_tlv: Option<Vec<Vec<ExtensionInstructionData>>>,
+    pub token_seeds: Vec<Vec<u8>>,
 }
 
 // ============================================================================
@@ -157,168 +164,148 @@ where
         rent: &rent,
         current_slot,
         compressed_account_infos: Vec::new(),
+        in_token_data: Vec::new(),
+        in_tlv: None,
+        token_seeds: Vec::new(),
     };
-
-    // PDA accounts at end of remaining_accounts
-    let pda_accounts_start = remaining_accounts
-        .len()
-        .checked_sub(params.accounts.len())
-        .ok_or(ProgramError::InvalidInstructionData)?;
-    let pda_accounts = &remaining_accounts[pda_accounts_start..];
+    // TODO: check that lengths match
+    let (pda_accounts, token_accounts) = params
+        .accounts
+        .split_at_checked(params.token_accounts_offset as usize)
+        .ok_or(ProgramError::NotEnoughAccountKeys)?;
+    let (pda_account_infos, token_account_infos) = remaining_accounts
+        .split_at_checked(params.token_accounts_offset as usize)
+        .ok_or(ProgramError::NotEnoughAccountKeys)?;
 
     // Process each account using trait dispatch on inner variant
-    for (i, account_data) in params.accounts.iter().enumerate() {
-        let pda_account = &pda_accounts[i];
-
+    for (pda_account, pda_account_info) in pda_accounts.iter().zip(pda_account_infos) {
         // Dispatch via trait - implementation is in program's PackedProgramAccountVariant
-        account_data
+        pda_account
             .data
-            .decompress(&account_data.meta, pda_account, &mut decompress_ctx)?;
+            .decompress(&pda_account.meta, pda_account_info, &mut decompress_ctx)?;
+    }
+    // Process each account using trait dispatch on inner variant
+    for (token_account, token_account_info) in token_accounts.iter().zip(token_account_infos) {
+        // Dispatch via trait - implementation is in program's PackedProgramAccountVariant
+        token_account.data.decompress(
+            &token_account.meta,
+            token_account_info,
+            &mut decompress_ctx,
+        )?;
     }
 
-    // CPI to Light System Program with proof
-    if !decompress_ctx.compressed_account_infos.is_empty() {
-        LightSystemProgramCpi::new_cpi(cpi_signer, params.proof)
-            .with_account_infos(&decompress_ctx.compressed_account_infos)
-            .invoke(cpi_accounts.clone())
-            .map_err(|_| ProgramError::Custom(200))?;
-    }
+    let has_pda_accounts = !pda_accounts.is_empty();
+    let has_token_accounts = !token_accounts.is_empty();
 
-    Ok(())
-}
+    if !has_pda_accounts {
+        // CPI to Light System Program with proof
+        if !has_token_accounts {
+            // Manual construction to avoid extra allocations
+            let instruction_data = light_compressed_account::instruction_data::with_account_info::InstructionDataInvokeCpiWithAccountInfo {
+                mode: 1,
+                bump: cpi_signer.bump,
+                invoking_program_id: cpi_signer.program_id.into(),
+                compress_or_decompress_lamports: 0,
+                is_compress: false,
+                with_cpi_context: false,
+                with_transaction_hash: false,
+                cpi_context: CompressedCpiContext::default(),
+                proof: params.proof.0,
+                new_address_params: Vec::new(),
+                account_infos: decompress_ctx.compressed_account_infos,
+                read_only_addresses: Vec::new(),
+                read_only_accounts: Vec::new(),
+            };
+            instruction_data.invoke(cpi_accounts.clone())?;
+        } else {
+            // PDAs + tokens - write to CPI context first, tokens will execute
+            let authority = cpi_accounts
+                .authority()
+                .map_err(|_| ProgramError::MissingRequiredSignature)?;
+            let cpi_context_account = cpi_accounts
+                .cpi_context()
+                .map_err(|_| ProgramError::MissingRequiredSignature)?;
+            let system_cpi_accounts = CpiContextWriteAccounts {
+                fee_payer,
+                authority,
+                cpi_context: cpi_context_account,
+                cpi_signer,
+            };
 
-// ============================================================================
-// Helper Function for Trait Implementations
-// ============================================================================
-
-/// Generic prepare_account_for_decompression.
-///
-/// Takes a packed variant and metadata, handles:
-/// 1. Getting seeds from packed variant
-/// 2. Unpacking data
-/// 3. Creating PDA and writing data
-/// 4. Deriving compressed address from PDA key
-/// 5. Building CompressedAccountInfo for CPI
-///
-/// # Type Parameters
-/// * `SEED_COUNT` - Number of seeds including bump
-/// * `P` - Packed variant type implementing PackedLightAccountVariantTrait
-pub fn prepare_account_for_decompression<'info, const SEED_COUNT: usize, P>(
-    packed: &P,
-    meta: &CompressedAccountMetaNoLamportsNoAddress,
-    pda_account: &AccountInfo<'info>,
-    ctx: &mut DecompressCtx<'_, 'info>,
-) -> std::result::Result<(), ProgramError>
-where
-    P: PackedLightAccountVariantTrait<SEED_COUNT>,
-    <P::Unpacked as LightAccountVariantTrait<SEED_COUNT>>::Data:
-        LightAccount + LightDiscriminator + Clone + AnchorSerialize + AnchorDeserialize,
-{
-    // 1. Idempotency check - if PDA already has data (non-zero discriminator), skip
-    if !pda_account.data_is_empty() {
-        let data = pda_account.try_borrow_data()?;
-        if check_data_is_zeroed::<8>(&data).is_err() {
-            // Already initialized - skip
-            return Ok(());
+            // Manual construction to avoid extra allocations
+            let instruction_data = light_compressed_account::instruction_data::with_account_info::InstructionDataInvokeCpiWithAccountInfo {
+                mode: 1,
+                bump: cpi_signer.bump,
+                invoking_program_id: cpi_signer.program_id.into(),
+                compress_or_decompress_lamports: 0,
+                is_compress: false,
+                with_cpi_context: true,
+                with_transaction_hash: false,
+                cpi_context: CompressedCpiContext::first(),
+                proof: None,
+                new_address_params: Vec::new(),
+                account_infos: decompress_ctx.compressed_account_infos,
+                read_only_addresses: Vec::new(),
+                read_only_accounts: Vec::new(),
+            };
+            instruction_data.invoke_write_to_cpi_context_first(system_cpi_accounts)?;
         }
     }
 
-    // 2. Unpack to get the data (must happen before seed derivation so seed_vec() works
-    //    with function-call seeds that produce temporaries)
-    let packed_accounts = ctx.cpi_accounts.packed_accounts();
+    if has_token_accounts {
+        let mut cpi = CompressedTokenInstructionDataTransfer2 {
+            with_transaction_hash: false,
+            in_token_data: decompress_ctx.in_token_data.clone(),
+            in_tlv: decompress_ctx.in_tlv.clone(),
+            with_lamports_change_account_merkle_tree_index: false,
+            lamports_change_account_merkle_tree_index: 0,
+            lamports_change_account_owner_index: 0,
+            output_queue: 0,
+            max_top_up: 0,
+            cpi_context: None,
+            compressions: None,
+            proof: params.proof.0,
+            out_token_data: Vec::new(),
+            in_lamports: None,
+            out_lamports: None,
+            out_tlv: None,
+        };
+        if has_pda_accounts {
+            cpi.cpi_context = Some(
+                light_token_interface::instructions::transfer2::CompressedCpiContext {
+                    set_context: false,
+                    first_set_context: false,
+                },
+            )
+        }
 
-    let unpacked = packed
-        .unpack(packed_accounts)
-        .map_err(|_| ProgramError::InvalidAccountData)?;
-    let account_data = unpacked.data().clone();
+        let account_metas = remaining_accounts
+            .iter()
+            .map(|account| AccountMeta {
+                pubkey: *account.key,
+                is_signer: account.is_signer,
+                is_writable: account.is_writable,
+            })
+            .collect::<Vec<_>>();
+        let mut instruction_data = vec![TRANSFER2];
+        cpi.serialize(&mut instruction_data).unwrap();
+        let instruction = Instruction {
+            program_id: LIGHT_TOKEN_PROGRAM_ID.into(),
+            accounts: account_metas,
+            data: instruction_data,
+        };
+        let signer_seed_refs: Vec<&[u8]> = decompress_ctx
+            .token_seeds
+            .iter()
+            .map(|s| s.as_slice())
+            .collect();
 
-    // 3. Get seeds from unpacked variant using seed_vec() (owned data, no lifetime issues)
-    let bump = packed.bump();
-    let bump_bytes = [bump];
-    let mut seed_vecs = unpacked.seed_vec();
-    seed_vecs.push(bump_bytes.to_vec());
-    let seed_slices: Vec<&[u8]> = seed_vecs.iter().map(|v| v.as_slice()).collect();
-
-    // 4. Hash with canonical CompressionInfo::compressed() for input verification
-    let data_bytes = account_data
-        .try_to_vec()
-        .map_err(|_| ProgramError::InvalidAccountData)?;
-    let data_len = data_bytes.len();
-    let mut input_data_hash = Sha256::hash(&data_bytes).map_err(|_| ProgramError::Custom(100))?;
-    input_data_hash[0] = 0; // Zero first byte per protocol convention
-
-    // 5. Calculate space and create PDA
-    type Data<const N: usize, P> =
-        <<P as PackedLightAccountVariantTrait<N>>::Unpacked as LightAccountVariantTrait<N>>::Data;
-    let discriminator_len = 8;
-    let space = discriminator_len + data_len.max(<Data<SEED_COUNT, P> as LightAccount>::INIT_SPACE);
-    let rent_minimum = ctx.rent.minimum_balance(space);
-
-    let system_program = ctx
-        .cpi_accounts
-        .system_program()
-        .map_err(|_| ProgramError::InvalidAccountData)?;
-
-    create_pda_account(
-        ctx.rent_sponsor,
-        pda_account,
-        rent_minimum,
-        space as u64,
-        ctx.program_id,
-        &seed_slices,
-        system_program,
-    )?;
-
-    // 6. Write discriminator + data to PDA
-    let mut pda_data = pda_account.try_borrow_mut_data()?;
-    pda_data[..8]
-        .copy_from_slice(&<Data<SEED_COUNT, P> as LightDiscriminator>::LIGHT_DISCRIMINATOR);
-
-    // 7. Set decompressed state and serialize
-    let mut decompressed = account_data;
-    decompressed.set_decompressed(ctx.light_config, ctx.current_slot);
-    let writer = &mut &mut pda_data[8..];
-    decompressed
-        .serialize(writer)
-        .map_err(|_| ProgramError::InvalidAccountData)?;
-
-    // 8. Derive compressed address from PDA key (saves instruction data size)
-    let address = derive_address(
-        &pda_account.key.to_bytes(),
-        &ctx.light_config.address_space[0].to_bytes(),
-        &ctx.program_id.to_bytes(),
-    );
-
-    // 9. Build CompressedAccountInfo for CPI
-    let tree_info = meta.tree_info;
-    let input = InAccountInfo {
-        data_hash: input_data_hash,
-        lamports: 0,
-        merkle_context: PackedMerkleContext {
-            merkle_tree_pubkey_index: tree_info.merkle_tree_pubkey_index,
-            queue_pubkey_index: tree_info.queue_pubkey_index,
-            leaf_index: tree_info.leaf_index,
-            prove_by_index: tree_info.prove_by_index,
-        },
-        root_index: tree_info.root_index,
-        discriminator: <Data<SEED_COUNT, P> as LightDiscriminator>::LIGHT_DISCRIMINATOR,
-    };
-
-    // Output is empty (nullifying the compressed account)
-    let output = OutAccountInfo {
-        lamports: 0,
-        output_merkle_tree_index: meta.output_state_tree_index,
-        discriminator: [0u8; 8],
-        data: Vec::new(),
-        data_hash: [0u8; 32],
-    };
-
-    // 10. Push to ctx's internal vec
-    ctx.compressed_account_infos.push(CompressedAccountInfo {
-        address: Some(address),
-        input: Some(input),
-        output: Some(output),
-    });
+        invoke_signed(
+            &instruction,
+            remaining_accounts,
+            &[signer_seed_refs.as_slice()],
+        )?;
+    }
 
     Ok(())
 }

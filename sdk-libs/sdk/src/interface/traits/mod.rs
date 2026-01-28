@@ -33,35 +33,6 @@ pub trait IntoVariant<V> {
     fn into_variant(self, data: &[u8]) -> Result<V, Error>;
 }
 
-/// Trait for CToken account variant types that can construct a full variant with token data.
-///
-/// Implemented by generated `TokenAccountVariant` enum.
-/// The macro generates the impl that wraps variant + token_data into `RentFreeAccountVariant`.
-///
-/// # Example (generated code)
-/// ```ignore
-/// impl IntoCTokenVariant<RentFreeAccountVariant> for TokenAccountVariant {
-///     fn into_ctoken_variant(self, token_data: TokenData) -> RentFreeAccountVariant {
-///         RentFreeAccountVariant::CTokenData(CTokenData {
-///             variant: self,
-///             token_data,
-///         })
-///     }
-/// }
-/// ```
-///
-/// Type parameter `T` is typically `light_token::compat::TokenData`.
-pub trait IntoCTokenVariant<V, T> {
-    /// Construct variant from CToken variant and token data.
-    ///
-    /// # Arguments
-    /// * `token_data` - The parsed `TokenData` from compressed account bytes
-    ///
-    /// # Returns
-    /// The constructed variant containing both CToken variant and token data
-    fn into_ctoken_variant(self, token_data: T) -> V;
-}
-
 pub trait PdaSeeds<Accounts, const N: usize> {
     fn seeds<'a>(&'a self, accounts: &'a Accounts) -> [&'a [u8]; N];
 }

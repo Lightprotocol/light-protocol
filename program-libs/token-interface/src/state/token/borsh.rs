@@ -1,10 +1,10 @@
-use borsh::{BorshDeserialize, BorshSerialize};
+use crate::{AnchorDeserialize, AnchorSerialize};
 use light_compressed_account::Pubkey;
 
 use crate::state::{AccountState, ExtensionStruct, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT};
 
 // Manual implementation of BorshSerialize for SPL compatibility
-impl BorshSerialize for Token {
+impl AnchorSerialize for Token {
     fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
         // Write mint (32 bytes)
         writer.write_all(&self.mint.to_bytes())?;
@@ -61,7 +61,7 @@ impl BorshSerialize for Token {
 }
 
 // Manual implementation of BorshDeserialize for SPL compatibility
-impl BorshDeserialize for Token {
+impl AnchorDeserialize for Token {
     fn deserialize_reader<R: std::io::Read>(buf: &mut R) -> std::io::Result<Self> {
         // Read mint (32 bytes)
         let mut mint_bytes = [0u8; 32];

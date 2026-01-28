@@ -16,7 +16,7 @@ use super::{
         convert_classified_to_seed_elements, convert_classified_to_seed_elements_vec,
         extract_context_and_params, macro_error, wrap_function_with_light,
     },
-    variant_enum::{LightVariantBuilder, PdaCtxSeedInfo, TokenVariantBuilder},
+    variant_enum::{LightVariantBuilder, PdaCtxSeedInfo},
 };
 use crate::{
     light_pdas::shared_utils::{ident_to_type, qualify_type_with_crate},
@@ -52,15 +52,6 @@ fn codegen(
         use anchor_lang::prelude::*;
     };
     content.1.insert(0, anchor_import);
-    let ctoken_enum = if let Some(ref token_seed_specs) = token_seeds {
-        if !token_seed_specs.is_empty() {
-            TokenVariantBuilder::new(token_seed_specs).build()?
-        } else {
-            crate::light_pdas::account::utils::generate_empty_ctoken_enum()
-        }
-    } else {
-        crate::light_pdas::account::utils::generate_empty_ctoken_enum()
-    };
 
     if let Some(ref token_seed_specs) = token_seeds {
         for spec in token_seed_specs {
@@ -125,8 +116,6 @@ fn codegen(
             pub enum LightAccountVariant {
                 /// Placeholder variant for mint-only programs
                 Empty,
-                PackedCTokenData(light_token::compat::PackedCTokenData<PackedTokenAccountVariant>),
-                CTokenData(light_token::compat::CTokenData<TokenAccountVariant>),
             }
 
             impl Default for LightAccountVariant {
@@ -139,8 +128,6 @@ fn codegen(
                 fn hash<H: ::light_sdk::hasher::Hasher>(&self) -> std::result::Result<[u8; 32], ::light_sdk::hasher::HasherError> {
                     match self {
                         Self::Empty => Err(::light_sdk::hasher::HasherError::EmptyInput),
-                        Self::PackedCTokenData(_) => Err(::light_sdk::hasher::HasherError::EmptyInput),
-                        Self::CTokenData(_) => Err(::light_sdk::hasher::HasherError::EmptyInput),
                     }
                 }
             }
@@ -208,10 +195,14 @@ fn codegen(
             // since they don't have PDAs to decompress.
         }
     } else {
-        // Include CToken variants only if the program has token fields
+        // Include token variants as first-class members if the program has token fields
         let builder = LightVariantBuilder::new(&pda_ctx_seeds);
-        let builder = if has_token_seeds_early {
-            builder.with_ctoken()
+        let builder = if let Some(ref token_seed_specs) = token_seeds {
+            if !token_seed_specs.is_empty() {
+                builder.with_token_seeds(token_seed_specs)
+            } else {
+                builder
+            }
         } else {
             builder
         };
@@ -405,16 +396,29 @@ fn codegen(
     // v2 interface: no DecompressContext trait needed - uses DecompressVariant on PackedLightAccountVariant.
     let (trait_impls, decompress_processor_fn, decompress_instruction) =
         if !pda_ctx_seeds.is_empty() && has_token_seeds_early {
-            // Mixed program: PDAs + Tokens - generate full impl with token checking
-            // Use direct pattern matching on PackedLightAccountVariant instead of
-            // DecompressibleAccount trait, since the packed enum doesn't implement it.
+            // Mixed program: PDAs + Tokens - generate full impl with token checking.
+            // Token variants are now first-class members of PackedLightAccountVariant,
+            // so we match against the individual token variant names.
+            let token_variant_names: Vec<_> = token_seeds
+                .as_ref()
+                .map(|specs| specs.iter().map(|s| &s.variant).collect())
+                .unwrap_or_default();
+
+            let token_match_arms: Vec<_> = token_variant_names
+                .iter()
+                .map(|name| quote! { PackedLightAccountVariant::#name(_) => true, })
+                .collect();
+
             let trait_impls: syn::ItemMod = syn::parse_quote! {
                 mod __trait_impls {
                     use super::*;
 
                     impl light_sdk::interface::HasTokenVariant for LightAccountData {
                         fn is_packed_token(&self) -> bool {
-                            matches!(self.data, PackedLightAccountVariant::PackedCTokenData(_))
+                            match &self.data {
+                                #(#token_match_arms)*
+                                _ => false,
+                            }
                         }
                     }
                 }
@@ -455,11 +459,9 @@ fn codegen(
 
                     impl light_sdk::interface::HasTokenVariant for LightAccountData {
                         fn is_packed_token(&self) -> bool {
-                            // Mint-only programs have no PDA variants to check
                             match &self.data {
-                                LightAccountVariant::PackedCTokenData(_) => true,
-                                LightAccountVariant::CTokenData(_) => true,
                                 LightAccountVariant::Empty => false,
+                                _ => true,
                             }
                         }
                     }
@@ -606,7 +608,6 @@ fn codegen(
 
     content.1.push(Item::Verbatim(size_validation_checks));
     content.1.push(Item::Verbatim(enum_and_traits));
-    content.1.push(Item::Verbatim(ctoken_enum));
     content.1.push(Item::Struct(decompress_accounts));
     content.1.push(Item::Verbatim(
         decompress_builder.generate_accounts_trait_impls()?,
@@ -636,13 +637,15 @@ fn codegen(
         }
     }
 
-    // Add ctoken seed provider impl
+    // Add ctoken seed provider impls (one per token variant)
     if let Some(ref seeds) = token_seeds {
         if !seeds.is_empty() {
             let impl_code =
                 super::seed_codegen::generate_ctoken_seed_provider_implementation(seeds)?;
-            let ctoken_impl: syn::ItemImpl = syn::parse2(impl_code)?;
-            content.1.push(Item::Impl(ctoken_impl));
+            let impl_file: syn::File = syn::parse2(impl_code)?;
+            for item in impl_file.items {
+                content.1.push(item);
+            }
         }
     }
 

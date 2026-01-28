@@ -4,7 +4,11 @@
 //! supporting both unpacked (with Pubkeys) and packed (with u8 indices) representations.
 
 use anchor_lang::prelude::*;
+use light_token_interface::instructions::{
+    extensions::ExtensionInstructionData, transfer2::MultiInputTokenDataWithContext,
+};
 
+use super::light_account::AccountType;
 use crate::instruction::PackedAccounts;
 
 /// Trait for unpacked compressed account variants with seeds.
@@ -65,6 +69,9 @@ pub trait PackedLightAccountVariantTrait<const SEED_COUNT: usize>:
     /// The unpacked variant type with full Pubkey values.
     type Unpacked: LightAccountVariantTrait<SEED_COUNT>;
 
+    /// The account type (Pda, Token, Ata, etc.) for dispatch.
+    const ACCOUNT_TYPE: AccountType;
+
     /// Get the PDA bump seed.
     fn bump(&self) -> u8;
 
@@ -78,4 +85,16 @@ pub trait PackedLightAccountVariantTrait<const SEED_COUNT: usize>:
         accounts: &'a [AccountInfo],
         bump_storage: &'a [u8; 1],
     ) -> std::result::Result<[&'a [u8]; SEED_COUNT], ProgramError>;
+
+    /// Extract token data for compressed token CPI.
+    ///
+    /// Returns the packed token data needed for the token transfer instruction.
+    /// Only meaningful for token account variants; PDA variants should not override.
+    fn into_in_token_data(&self) -> Result<MultiInputTokenDataWithContext>;
+
+    /// Extract TLV extension data for compressed token CPI.
+    ///
+    /// Returns extension instruction data if the token account has extensions.
+    /// Only meaningful for token account variants; PDA variants return `None`.
+    fn into_in_tlv(&self) -> Result<Option<Vec<ExtensionInstructionData>>>;
 }

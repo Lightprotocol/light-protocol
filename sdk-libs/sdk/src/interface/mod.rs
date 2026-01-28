@@ -5,6 +5,15 @@ pub mod config;
 pub mod finalize;
 pub mod traits;
 
+// --- anchor-feature-gated modules (these depend on AnchorSerialize/AnchorDeserialize) ---
+#[cfg(feature = "anchor")]
+mod pda;
+#[cfg(feature = "anchor")]
+pub mod token;
+
+#[cfg(feature = "anchor")]
+pub use pda::prepare_account_for_decompression;
+
 // --- v2-feature-gated modules ---
 #[cfg(feature = "v2")]
 pub mod decompress_idempotent;
@@ -40,13 +49,13 @@ pub use config::{
 };
 #[cfg(feature = "anchor")]
 pub use decompress::{
-    prepare_account_for_decompression, process_decompress_pda_accounts_idempotent, DecompressCtx,
-    DecompressIdempotentParams, DecompressVariant,
+    process_decompress_pda_accounts_idempotent, DecompressCtx, DecompressIdempotentParams,
+    DecompressVariant,
 };
 #[cfg(feature = "v2")]
 pub use decompress_idempotent::create_pda_account;
 #[cfg(all(feature = "v2", feature = "cpi-context"))]
-pub use decompress_runtime::{HasTokenVariant, PdaSeedDerivation, TokenSeedProvider};
+pub use decompress_runtime::{HasTokenVariant, PdaSeedDerivation};
 pub use finalize::{LightFinalize, LightPreInit};
 #[cfg(feature = "anchor")]
 pub use init::prepare_compressed_account_on_init;
@@ -55,4 +64,4 @@ pub use light_compressible::{rent, CreateAccountsProof};
 pub use traits::{
     AccountType, LightAccount, LightAccountVariantTrait, PackedLightAccountVariantTrait,
 };
-pub use traits::{IntoCTokenVariant, IntoVariant, PdaSeeds};
+pub use traits::{IntoVariant, PdaSeeds};
