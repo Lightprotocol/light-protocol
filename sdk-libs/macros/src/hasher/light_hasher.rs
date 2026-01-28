@@ -652,7 +652,7 @@ impl ::light_hasher::DataHasher for OuterStruct {
             "SHA256 hasher should work with large structs"
         );
 
-        let sha_discriminator_result = crate::discriminator::discriminator(input.clone());
+        let sha_discriminator_result = crate::discriminator::light_discriminator(input.clone());
         assert!(
             sha_discriminator_result.is_ok(),
             "SHA256 discriminator should work with large structs"
@@ -736,7 +736,7 @@ impl ::light_hasher::DataHasher for OuterStruct {
             "SHA256 hasher must handle complex real-world structs"
         );
 
-        let sha_discriminator_result = crate::discriminator::discriminator(input.clone());
+        let sha_discriminator_result = crate::discriminator::light_discriminator(input.clone());
         assert!(
             sha_discriminator_result.is_ok(),
             "SHA256 discriminator must handle complex real-world structs"
