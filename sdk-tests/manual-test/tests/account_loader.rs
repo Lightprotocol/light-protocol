@@ -147,7 +147,7 @@ async fn test_zero_copy_create_compress_decompress() {
     let specs: Vec<AccountSpec<ZeroCopyRecordVariant>> = vec![AccountSpec::Pda(spec)];
 
     let decompress_instructions =
-        create_load_instructions(&specs, payer.pubkey(), config_pda, payer.pubkey(), &rpc)
+        create_load_instructions(&specs, payer.pubkey(), config_pda, &rpc)
             .await
             .expect("create_load_instructions should succeed");
 

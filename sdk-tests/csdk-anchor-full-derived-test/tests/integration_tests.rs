@@ -139,7 +139,6 @@ impl TestContext {
             &specs,
             self.payer.pubkey(),
             self.config_pda,
-            self.payer.pubkey(),
             &self.rpc,
         )
         .await
@@ -455,7 +454,6 @@ async fn test_d8_multi_rentfree() {
         &specs,
         ctx.payer.pubkey(),
         ctx.config_pda,
-        ctx.payer.pubkey(),
         &ctx.rpc,
     )
     .await
@@ -481,7 +479,6 @@ async fn test_d8_multi_rentfree() {
         &specs,
         ctx.payer.pubkey(),
         ctx.config_pda,
-        ctx.payer.pubkey(),
         &ctx.rpc,
     )
     .await
@@ -582,7 +579,6 @@ async fn test_d8_all() {
         &specs,
         ctx.payer.pubkey(),
         ctx.config_pda,
-        ctx.payer.pubkey(),
         &ctx.rpc,
     )
     .await
@@ -608,7 +604,6 @@ async fn test_d8_all() {
         &specs,
         ctx.payer.pubkey(),
         ctx.config_pda,
-        ctx.payer.pubkey(),
         &ctx.rpc,
     )
     .await
@@ -1301,15 +1296,10 @@ async fn test_d9_all() {
         let variant = seeds.into_variant(&interface.account.data[8..]).unwrap();
         let spec = PdaSpec::new(interface.clone(), variant, ctx.program_id);
         let specs: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Pda(spec)];
-        let decompress_instructions = create_load_instructions(
-            &specs,
-            ctx.payer.pubkey(),
-            ctx.config_pda,
-            ctx.payer.pubkey(),
-            &ctx.rpc,
-        )
-        .await
-        .unwrap();
+        let decompress_instructions =
+            create_load_instructions(&specs, ctx.payer.pubkey(), ctx.config_pda, &ctx.rpc)
+                .await
+                .unwrap();
         ctx.rpc
             .create_and_send_transaction(
                 &decompress_instructions,
@@ -1435,7 +1425,6 @@ async fn test_d8_pda_only_full_lifecycle() {
         &specs,
         ctx.payer.pubkey(),
         ctx.config_pda,
-        ctx.payer.pubkey(),
         &ctx.rpc,
     )
     .await

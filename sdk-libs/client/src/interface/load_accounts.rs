@@ -9,7 +9,7 @@ use light_compressed_token_sdk::compressed_token::{
     },
     CTokenAccount2,
 };
-use light_sdk::{compressible::Pack, instruction::PackedAccounts};
+use light_sdk::{compressible::Pack, instruction::PackedAccounts, utils::derive_rent_sponsor_pda};
 use light_token::{
     compat::AccountState,
     instruction::{
@@ -68,13 +68,16 @@ pub enum LoadAccountsError {
 const MAX_ATAS_PER_IX: usize = 8;
 
 /// Build load instructions for cold accounts. Returns empty vec if all hot.
+///
+/// The rent sponsor PDA is derived internally from the program_id.
+/// Seeds: ["rent_sponsor"]
+///
 /// TODO: reduce ixn count and txn size, reduce roundtrips.
 #[allow(clippy::too_many_arguments)]
 pub async fn create_load_instructions<V, I>(
     specs: &[AccountSpec<V>],
     fee_payer: Pubkey,
     compression_config: Pubkey,
-    rent_sponsor: Pubkey,
     indexer: &I,
 ) -> Result<Vec<Instruction>, LoadAccountsError>
 where
@@ -133,7 +136,6 @@ where
             proof,
             fee_payer,
             compression_config,
-            rent_sponsor,
         )?);
     }
 
@@ -147,7 +149,6 @@ where
     for (iface, proof) in cold_mints.iter().zip(mint_proofs) {
         out.push(build_mint_load(iface, proof, fee_payer)?);
     }
-    println!("instructions {:?}", out);
     Ok(out)
 }
 
@@ -236,7 +237,6 @@ fn build_pda_load<V>(
     proof: ValidityProofWithContext,
     fee_payer: Pubkey,
     compression_config: Pubkey,
-    rent_sponsor: Pubkey,
 ) -> Result<Instruction, LoadAccountsError>
 where
     V: Pack + Clone + std::fmt::Debug,
@@ -246,6 +246,10 @@ where
             .map(|c| c.owner == LIGHT_TOKEN_PROGRAM_ID)
             .unwrap_or(false)
     });
+
+    // Derive rent sponsor PDA from program_id
+    let program_id = specs.first().map(|s| s.program_id()).unwrap_or_default();
+    let (rent_sponsor, _) = derive_rent_sponsor_pda(&program_id);
 
     let metas = if has_tokens {
         instructions::load::accounts(fee_payer, compression_config, rent_sponsor)

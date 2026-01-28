@@ -284,7 +284,6 @@ async fn test_d11_zc_with_vault() {
         &specs,
         ctx.payer.pubkey(),
         ctx.config_pda,
-        ctx.payer.pubkey(),
         &ctx.rpc,
     )
     .await
@@ -423,7 +422,6 @@ async fn test_d11_zc_with_ata() {
         &specs,
         ctx.payer.pubkey(),
         ctx.config_pda,
-        ctx.payer.pubkey(),
         &ctx.rpc,
     )
     .await
@@ -554,7 +552,6 @@ async fn test_d11_multiple_zc() {
         &specs_1,
         ctx.payer.pubkey(),
         ctx.config_pda,
-        ctx.payer.pubkey(),
         &ctx.rpc,
     )
     .await
@@ -589,7 +586,6 @@ async fn test_d11_multiple_zc() {
         &specs_2,
         ctx.payer.pubkey(),
         ctx.config_pda,
-        ctx.payer.pubkey(),
         &ctx.rpc,
     )
     .await
@@ -740,7 +736,6 @@ async fn test_d11_mixed_zc_borsh() {
         &specs_zc,
         ctx.payer.pubkey(),
         ctx.config_pda,
-        ctx.payer.pubkey(),
         &ctx.rpc,
     )
     .await
@@ -778,7 +773,6 @@ async fn test_d11_mixed_zc_borsh() {
         &specs_borsh,
         ctx.payer.pubkey(),
         ctx.config_pda,
-        ctx.payer.pubkey(),
         &ctx.rpc,
     )
     .await
@@ -919,7 +913,6 @@ async fn test_d11_zc_with_ctx_seeds() {
         &specs,
         ctx.payer.pubkey(),
         ctx.config_pda,
-        ctx.payer.pubkey(),
         &ctx.rpc,
     )
     .await
@@ -1053,7 +1046,6 @@ async fn test_d11_zc_with_params_seeds() {
         &specs,
         ctx.payer.pubkey(),
         ctx.config_pda,
-        ctx.payer.pubkey(),
         &ctx.rpc,
     )
     .await
@@ -1199,7 +1191,6 @@ async fn test_d11_zc_with_mint_to() {
         &specs,
         ctx.payer.pubkey(),
         ctx.config_pda,
-        ctx.payer.pubkey(),
         &ctx.rpc,
     )
     .await

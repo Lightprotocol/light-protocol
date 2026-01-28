@@ -8,6 +8,7 @@ use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest, TestRpc},
     Indexer, ProgramTestConfig, Rpc,
 };
+use light_sdk::utils::derive_rent_sponsor_pda;
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
 use light_token::instruction::find_mint_address as find_cmint_address;
 use solana_instruction::Instruction;
@@ -81,11 +82,19 @@ async fn test_create_pdas_and_mint_auto() {
 
     let program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
+    // Derive rent sponsor PDA for this program
+    let (rent_sponsor, _) = derive_rent_sponsor_pda(&program_id);
+
+    // Fund the rent sponsor PDA so it can pay for decompression
+    rpc.airdrop_lamports(&rent_sponsor, 10_000_000_000)
+        .await
+        .expect("Airdrop to rent sponsor should succeed");
+
     let (init_config_ix, config_pda) = InitializeRentFreeConfig::new(
         &program_id,
         &payer.pubkey(),
         &program_data_pda,
-        RENT_SPONSOR,
+        rent_sponsor,
         payer.pubkey(),
     )
     .build();
@@ -432,7 +441,7 @@ async fn test_create_pdas_and_mint_auto() {
 
     // Load all accounts with single call
     let all_instructions =
-        create_load_instructions(&specs, payer.pubkey(), config_pda, payer.pubkey(), &rpc)
+        create_load_instructions(&specs, payer.pubkey(), config_pda, &rpc)
             .await
             .expect("create_load_instructions should succeed");
 
@@ -445,10 +454,39 @@ async fn test_create_pdas_and_mint_auto() {
         "Should have 6 instructions: 1 PDA, 1 Token, 2 create_ata, 1 decompress_ata, 1 mint"
     );
 
+    // Capture rent sponsor balance before decompression
+    let rent_sponsor_balance_before = rpc
+        .get_account(rent_sponsor)
+        .await
+        .expect("get rent sponsor account")
+        .map(|a| a.lamports)
+        .unwrap_or(0);
+
     // Execute all instructions
     rpc.create_and_send_transaction(&all_instructions, &payer.pubkey(), &[&payer])
         .await
         .expect("Decompression should succeed");
+
+    // Assert rent sponsor balance decreased (paid for PDA creation rent)
+    let rent_sponsor_balance_after = rpc
+        .get_account(rent_sponsor)
+        .await
+        .expect("get rent sponsor account")
+        .map(|a| a.lamports)
+        .unwrap_or(0);
+
+    // The rent sponsor should have paid for creating UserRecord, GameSession, and Vault accounts
+    assert!(
+        rent_sponsor_balance_before > rent_sponsor_balance_after,
+        "Rent sponsor balance should decrease after decompression. Before: {}, After: {}",
+        rent_sponsor_balance_before,
+        rent_sponsor_balance_after
+    );
+
+    println!(
+        "Rent sponsor paid {} lamports for decompression",
+        rent_sponsor_balance_before - rent_sponsor_balance_after
+    );
 
     // Assert all accounts are back on-chain
     assert_onchain_exists(&mut rpc, &user_record_pda).await;

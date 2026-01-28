@@ -8,7 +8,7 @@ use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest},
     ProgramTestConfig, Rpc,
 };
-use light_token::instruction::RENT_SPONSOR;
+use light_sdk::utils::derive_rent_sponsor_pda;
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -29,11 +29,14 @@ async fn test_create_single_pda() {
 
     let program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
+    // Derive rent sponsor PDA for this program
+    let (rent_sponsor, _) = derive_rent_sponsor_pda(&program_id);
+
     let (init_config_ix, config_pda) = InitializeRentFreeConfig::new(
         &program_id,
         &payer.pubkey(),
         &program_data_pda,
-        RENT_SPONSOR,
+        rent_sponsor,
         payer.pubkey(),
     )
     .build();

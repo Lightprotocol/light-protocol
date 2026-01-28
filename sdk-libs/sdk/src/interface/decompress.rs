@@ -34,6 +34,7 @@ use crate::{
     instruction::ValidityProof,
     interface::{compression_info::CompressedAccountData, LightConfig},
     light_account_checks::account_iterator::AccountIterator,
+    utils::derive_rent_sponsor_pda,
 };
 
 // ============================================================================
@@ -93,6 +94,8 @@ pub struct DecompressCtx<'a, 'info> {
     pub cpi_accounts: &'a CpiAccounts<'a, 'info>,
     pub remaining_accounts: &'a [AccountInfo<'info>],
     pub rent_sponsor: &'a AccountInfo<'info>,
+    /// Rent sponsor PDA bump for signing
+    pub rent_sponsor_bump: u8,
     pub light_config: &'a LightConfig,
     /// Token (ctoken) rent sponsor for creating token accounts
     pub ctoken_rent_sponsor: &'a AccountInfo<'info>,
@@ -153,6 +156,18 @@ where
     // Load and validate config
     let light_config = LightConfig::load_checked(config, program_id)
         .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    // Validate rent sponsor matches derived PDA and get bump for signing
+    let (expected_rent_sponsor, rent_sponsor_bump) = derive_rent_sponsor_pda(program_id);
+    if *rent_sponsor.key != expected_rent_sponsor {
+        msg!(
+            "Invalid rent sponsor: expected {:?}, got {:?}",
+            expected_rent_sponsor,
+            rent_sponsor.key
+        );
+        return Err(ProgramError::InvalidAccountData);
+    }
+
     let rent = Rent::get()?;
     let current_slot = Clock::get()?.slot;
 
@@ -207,6 +222,7 @@ where
         cpi_accounts: &cpi_accounts,
         remaining_accounts,
         rent_sponsor,
+        rent_sponsor_bump,
         light_config: &light_config,
         ctoken_rent_sponsor,
         ctoken_compressible_config,

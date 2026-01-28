@@ -592,7 +592,6 @@ async fn test_amm_full_lifecycle() {
         &all_specs,
         ctx.payer.pubkey(),
         ctx.config_pda,
-        ctx.payer.pubkey(),
         &ctx.rpc,
     )
     .await

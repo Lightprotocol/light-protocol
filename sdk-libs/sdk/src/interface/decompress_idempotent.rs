@@ -10,6 +10,7 @@ use crate::error::LightSdkError;
 #[cold]
 fn create_pda_account_with_lamports<'info>(
     rent_sponsor: &AccountInfo<'info>,
+    rent_sponsor_seeds: &[&[u8]],
     solana_account: &AccountInfo<'info>,
     lamports: u64,
     space: u64,
@@ -44,6 +45,7 @@ fn create_pda_account_with_lamports<'info>(
             solana_account.key,
             lamports - current_lamports,
         );
+        // Include rent sponsor seeds so the PDA can sign for the transfer
         invoke_signed(
             &transfer_ix,
             &[
@@ -51,7 +53,7 @@ fn create_pda_account_with_lamports<'info>(
                 solana_account.clone(),
                 system_program.clone(),
             ],
-            &[],
+            &[rent_sponsor_seeds],
         )
         .map_err(LightSdkError::ProgramError)?;
     }
@@ -64,9 +66,20 @@ fn create_pda_account_with_lamports<'info>(
 /// This function handles the edge case where an attacker might have donated lamports
 /// to the PDA address before decompression. In that case, `CreateAccount` would fail,
 /// so we fall back to `Assign + Allocate + Transfer`.
+///
+/// # Arguments
+/// * `rent_sponsor` - Account paying for rent (must be a PDA derived from the calling program)
+/// * `rent_sponsor_seeds` - Seeds for the rent sponsor PDA (including bump) for signing
+/// * `solana_account` - The PDA account to create
+/// * `lamports` - Amount of lamports for rent-exemption
+/// * `space` - Size of the account in bytes
+/// * `owner` - Program that will own the account
+/// * `seeds` - Seeds for the target PDA (including bump) for signing
+/// * `system_program` - System program
 #[inline(never)]
 pub fn create_pda_account<'info>(
     rent_sponsor: &AccountInfo<'info>,
+    rent_sponsor_seeds: &[&[u8]],
     solana_account: &AccountInfo<'info>,
     lamports: u64,
     space: u64,
@@ -78,6 +91,7 @@ pub fn create_pda_account<'info>(
     if solana_account.lamports() > 0 {
         return create_pda_account_with_lamports(
             rent_sponsor,
+            rent_sponsor_seeds,
             solana_account,
             lamports,
             space,
@@ -88,6 +102,7 @@ pub fn create_pda_account<'info>(
     }
 
     // Normal path: CreateAccount
+    // Include both rent sponsor seeds (payer) and PDA seeds (new account)
     let create_account_ix = system_instruction::create_account(
         rent_sponsor.key,
         solana_account.key,
@@ -103,7 +118,7 @@ pub fn create_pda_account<'info>(
             solana_account.clone(),
             system_program.clone(),
         ],
-        &[seeds],
+        &[rent_sponsor_seeds, seeds],
     )
     .map_err(LightSdkError::ProgramError)
 }

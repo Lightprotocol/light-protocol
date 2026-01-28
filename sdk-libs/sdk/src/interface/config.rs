@@ -84,7 +84,8 @@ impl LightConfig {
         Self::derive_pda(program_id, 0)
     }
 
-    /// Derives the rent sponsor PDA address for a program
+    /// Derives the rent sponsor PDA address for a program.
+    /// Seeds: ["rent_sponsor"]
     pub fn derive_rent_sponsor_pda(program_id: &Pubkey) -> (Pubkey, u8) {
         Pubkey::find_program_address(&[RENT_SPONSOR_SEED], program_id)
     }

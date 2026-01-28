@@ -5,7 +5,7 @@ use light_compressed_account::{
     instruction_data::with_account_info::{CompressedAccountInfo, InAccountInfo, OutAccountInfo},
 };
 use light_hasher::{Hasher, Sha256};
-use light_sdk_types::instruction::PackedStateTreeInfo;
+use light_sdk_types::{constants::RENT_SPONSOR_SEED, instruction::PackedStateTreeInfo};
 use solana_account_info::AccountInfo;
 use solana_program_error::ProgramError;
 
@@ -85,8 +85,13 @@ where
         .system_program()
         .map_err(|_| ProgramError::InvalidAccountData)?;
 
+    // Construct rent sponsor seeds for PDA signing
+    let rent_sponsor_bump_bytes = [ctx.rent_sponsor_bump];
+    let rent_sponsor_seeds: &[&[u8]] = &[RENT_SPONSOR_SEED, &rent_sponsor_bump_bytes];
+
     create_pda_account(
         ctx.rent_sponsor,
+        rent_sponsor_seeds,
         pda_account,
         rent_minimum,
         space as u64,
