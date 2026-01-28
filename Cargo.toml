@@ -143,7 +143,7 @@ litesvm = "0.7"
 # Anchor
 anchor-lang = { version = "0.31.1" }
 anchor-spl = { version = "0.31.1" }
-light-anchor-spl = { version = "0.31.1", features = ["idl-build", "memo"] }
+light-anchor-spl = { version = "0.31.1", features = ["memo", "idl-build"] }
 
 # Anchor compatibility
 borsh = { version = "0.10.4", default-features = false }
@@ -197,7 +197,7 @@ light-macros = { path = "program-libs/macros", version = "2.2.0" }
 light-merkle-tree-reference = { path = "program-tests/merkle-tree", version = "4.0.0" }
 light-heap = { path = "program-libs/heap", version = "2.0.0" }
 light-prover-client = { path = "prover/client", version = "6.0.0" }
-light-sdk = { path = "sdk-libs/sdk", version = "0.19.0" }
+light-sdk = { path = "sdk-libs/sdk", version = "0.19.0", features = ["idl-build"] }
 light-sdk-pinocchio = { path = "sdk-libs/sdk-pinocchio", version = "0.19.0" }
 light-sdk-macros = { path = "sdk-libs/macros", version = "0.19.0" }
 light-sdk-types = { path = "sdk-libs/sdk-types", version = "0.19.0", default-features = false }
@@ -274,6 +274,8 @@ governor = "0.8.0"
 rand = "0.8.5"
 
 [patch.crates-io]
+# Use local light-anchor-spl with idl-build inherent methods fix
+light-anchor-spl = { path = "/Users/ananas/dev/anchor/spl" }
 # Profiling logs and state is handled here
 solana-program-runtime = { git = "https://github.com/Lightprotocol/agave", rev = "3a9e4e0a4411df4d9961aaa7c9f190d3fa15bc21" }
 # Profiling syscalls are defined here

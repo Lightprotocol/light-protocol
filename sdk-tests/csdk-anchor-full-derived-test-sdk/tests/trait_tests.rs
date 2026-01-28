@@ -558,32 +558,37 @@ fn test_variant_seed_values_distinguish_instances() {
     let token_0_mint = Pubkey::new_unique();
     let token_1_mint = Pubkey::new_unique();
 
+    let default_token = light_sdk::interface::token::Token {
+        mint: Default::default(),
+        owner: Default::default(),
+        amount: 0,
+        delegate: None,
+        state: light_sdk::interface::token::AccountState::Initialized,
+        is_native: None,
+        delegated_amount: 0,
+        close_authority: None,
+        account_type: 0,
+        extensions: None,
+    };
     let variant_0 = LightAccountVariant::Token0Vault(TokenDataWithSeeds {
         seeds: Token0VaultSeeds {
             pool_state,
             token_0_mint,
         },
-        token_data: Default::default(),
-        tree_info: Default::default(),
-        version: 0,
+        token_data: default_token.clone(),
     });
     let variant_1 = LightAccountVariant::Token1Vault(TokenDataWithSeeds {
         seeds: Token1VaultSeeds {
             pool_state,
             token_1_mint,
         },
-        token_data: Default::default(),
-        tree_info: Default::default(),
-        version: 0,
+        token_data: default_token,
     });
 
     // These are different enum variants (type-level distinction)
     // Even if they were the same variant type, the seed values differ
     match (&variant_0, &variant_1) {
-        (
-            LightAccountVariant::Token0Vault(data_0),
-            LightAccountVariant::Token1Vault(data_1),
-        ) => {
+        (LightAccountVariant::Token0Vault(data_0), LightAccountVariant::Token1Vault(data_1)) => {
             assert_ne!(
                 data_0.seeds.token_0_mint, data_1.seeds.token_1_mint,
                 "Vault seed values must differ"

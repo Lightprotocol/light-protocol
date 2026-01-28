@@ -336,6 +336,8 @@ fn generate_light_account_impl(input: &DeriveInput) -> Result<TokenStream> {
         }
 
         // V1 compatibility: Pack trait (delegates to LightAccount::pack)
+        // Pack trait is only available off-chain (client-side)
+        #[cfg(not(target_os = "solana"))]
         impl light_sdk::interface::Pack for #struct_name {
             type Packed = #packed_struct_name;
 

@@ -190,8 +190,7 @@ impl AmmSdk {
         account: &AccountInterface,
         is_vault_0: bool,
     ) -> Result<(), AmmSdkError> {
-        use light_sdk::interface::token::TokenDataWithSeeds;
-        use light_token_interface::state::Token;
+        use light_sdk::interface::token::{Token, TokenDataWithSeeds};
 
         let pool_state = self
             .pool_state_pubkey
@@ -210,8 +209,6 @@ impl AmmSdk {
                     token_0_mint,
                 },
                 token_data: token,
-                tree_info: Default::default(),
-                version: 0,
             })
         } else {
             let token_1_mint = self
@@ -223,8 +220,6 @@ impl AmmSdk {
                     token_1_mint,
                 },
                 token_data: token,
-                tree_info: Default::default(),
-                version: 0,
             })
         };
 

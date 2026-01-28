@@ -5,24 +5,28 @@
 
 use anchor_lang::{
     prelude::*,
-    solana_program::{clock::Clock, rent::Rent, sysvar::Sysvar},
+    solana_program::{clock::Clock, program::invoke_signed, rent::Rent, sysvar::Sysvar},
 };
 use light_compressed_account::instruction_data::{
     cpi_context::CompressedCpiContext, with_account_info::CompressedAccountInfo,
 };
+#[cfg(feature = "cpi-context")]
+use light_sdk_types::cpi_context_write::CpiContextWriteAccounts;
 use light_sdk_types::{
-    cpi_context_write::CpiContextWriteAccounts,
-    instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress, CpiSigner,
+    cpi_accounts::CpiAccountsConfig, instruction::PackedStateTreeInfo, CpiSigner,
+    ACCOUNT_COMPRESSION_AUTHORITY_PDA, ACCOUNT_COMPRESSION_PROGRAM_ID, LIGHT_SYSTEM_PROGRAM_ID,
+    REGISTERED_PROGRAM_PDA,
 };
 use light_token_interface::{
     instructions::{
         extensions::ExtensionInstructionData,
-        transfer2::{CompressedTokenInstructionDataTransfer2, MultiInputTokenDataWithContext},
+        transfer2::{
+            CompressedTokenInstructionDataTransfer2, Compression, MultiInputTokenDataWithContext,
+        },
     },
-    LIGHT_TOKEN_PROGRAM_ID, TRANSFER2,
+    CPI_AUTHORITY, LIGHT_TOKEN_PROGRAM_ID, TRANSFER2,
 };
 use solana_instruction::Instruction;
-use solana_program::program::invoke_signed;
 use solana_program_error::ProgramError;
 
 use crate::{
@@ -50,7 +54,7 @@ pub trait DecompressVariant<'info>: AnchorSerialize + AnchorDeserialize + Clone 
     /// `prepare_account_for_decompression::<SEED_COUNT, PackedVariantType>(packed, pda_account, ctx)`.
     fn decompress(
         &self,
-        meta: &CompressedAccountMetaNoLamportsNoAddress, //TODO: pull into variant
+        meta: &PackedStateTreeInfo,
         pda_account: &AccountInfo<'info>,
         ctx: &mut DecompressCtx<'_, 'info>,
     ) -> std::result::Result<(), ProgramError>;
@@ -72,7 +76,10 @@ where
     /// Offset into remaining_accounts where Light system accounts begin
     pub system_accounts_offset: u8,
     /// All account variants less than offset are pda acccounts.
+    /// 255 if no token accounts
     pub token_accounts_offset: u8,
+    /// Packed index of the output queue in remaining_accounts.
+    pub output_queue_index: u8,
     /// Validity proof for compressed account verification
     pub proof: ValidityProof,
     /// Accounts to decompress - wrapped in CompressedAccountData for metadata
@@ -87,8 +94,14 @@ pub struct DecompressCtx<'a, 'info> {
     pub remaining_accounts: &'a [AccountInfo<'info>],
     pub rent_sponsor: &'a AccountInfo<'info>,
     pub light_config: &'a LightConfig,
+    /// Token (ctoken) rent sponsor for creating token accounts
+    pub ctoken_rent_sponsor: &'a AccountInfo<'info>,
+    /// Token (ctoken) compressible config for creating token accounts
+    pub ctoken_compressible_config: &'a AccountInfo<'info>,
     pub rent: &'a Rent,
     pub current_slot: u64,
+    /// Packed index of the output queue in remaining_accounts.
+    pub output_queue_index: u8,
     /// Internal vec - dispatch functions push results here
     pub compressed_account_infos: Vec<CompressedAccountInfo>,
     pub in_token_data: Vec<MultiInputTokenDataWithContext>,
@@ -147,12 +160,46 @@ where
     if system_accounts_offset_usize > remaining_accounts.len() {
         return Err(ProgramError::InvalidInstructionData);
     }
+    let (pda_accounts, token_accounts) = params
+        .accounts
+        .split_at_checked(params.token_accounts_offset as usize)
+        .ok_or(ProgramError::NotEnoughAccountKeys)?;
 
-    let cpi_accounts = CpiAccounts::new(
+    // PDA and token account infos are at the tail of remaining_accounts.
+    let num_hot_accounts = params.accounts.len();
+    let hot_accounts_start = remaining_accounts
+        .len()
+        .checked_sub(num_hot_accounts)
+        .ok_or(ProgramError::NotEnoughAccountKeys)?;
+    let hot_account_infos = &remaining_accounts[hot_accounts_start..];
+    let (pda_account_infos, token_account_infos) = hot_account_infos
+        .split_at_checked(params.token_accounts_offset as usize)
+        .ok_or(ProgramError::NotEnoughAccountKeys)?;
+
+    let has_pda_accounts = !pda_accounts.is_empty();
+    let has_token_accounts = !token_accounts.is_empty();
+    let cpi_context = has_pda_accounts && has_token_accounts;
+    let config = CpiAccountsConfig {
+        sol_compression_recipient: false,
+        sol_pool_pda: false,
+        cpi_context,
+        cpi_signer,
+    };
+    let cpi_accounts = CpiAccounts::new_with_config(
         fee_payer,
         &remaining_accounts[system_accounts_offset_usize..],
-        cpi_signer,
+        config,
     );
+
+    // Token (ctoken) accounts layout in remaining_accounts:
+    // [0]fee_payer, [1]pda_config, [2]pda_rent_sponsor, [3]ctoken_rent_sponsor,
+    // [4]light_token_program, [5]cpi_authority, [6]ctoken_compressible_config
+    let ctoken_rent_sponsor = remaining_accounts
+        .get(3)
+        .ok_or(ProgramError::NotEnoughAccountKeys)?;
+    let ctoken_compressible_config = remaining_accounts
+        .get(6)
+        .ok_or(ProgramError::NotEnoughAccountKeys)?;
 
     // Build context struct with all needed data (includes internal vec)
     let mut decompress_ctx = DecompressCtx {
@@ -161,45 +208,42 @@ where
         remaining_accounts,
         rent_sponsor,
         light_config: &light_config,
+        ctoken_rent_sponsor,
+        ctoken_compressible_config,
         rent: &rent,
         current_slot,
+        output_queue_index: params.output_queue_index,
         compressed_account_infos: Vec::new(),
         in_token_data: Vec::new(),
         in_tlv: None,
         token_seeds: Vec::new(),
     };
-    // TODO: check that lengths match
-    let (pda_accounts, token_accounts) = params
-        .accounts
-        .split_at_checked(params.token_accounts_offset as usize)
-        .ok_or(ProgramError::NotEnoughAccountKeys)?;
-    let (pda_account_infos, token_account_infos) = remaining_accounts
-        .split_at_checked(params.token_accounts_offset as usize)
-        .ok_or(ProgramError::NotEnoughAccountKeys)?;
 
     // Process each account using trait dispatch on inner variant
     for (pda_account, pda_account_info) in pda_accounts.iter().zip(pda_account_infos) {
-        // Dispatch via trait - implementation is in program's PackedProgramAccountVariant
-        pda_account
-            .data
-            .decompress(&pda_account.meta, pda_account_info, &mut decompress_ctx)?;
+        pda_account.data.decompress(
+            &pda_account.tree_info,
+            pda_account_info,
+            &mut decompress_ctx,
+        )?;
     }
-    // Process each account using trait dispatch on inner variant
+    // Process token accounts
     for (token_account, token_account_info) in token_accounts.iter().zip(token_account_infos) {
-        // Dispatch via trait - implementation is in program's PackedProgramAccountVariant
         token_account.data.decompress(
-            &token_account.meta,
+            &token_account.tree_info,
             token_account_info,
             &mut decompress_ctx,
         )?;
     }
 
-    let has_pda_accounts = !pda_accounts.is_empty();
-    let has_token_accounts = !token_accounts.is_empty();
-
-    if !has_pda_accounts {
+    if has_pda_accounts {
         // CPI to Light System Program with proof
-        if !has_token_accounts {
+        #[cfg(feature = "cpi-context")]
+        let pda_only = !cpi_context;
+        #[cfg(not(feature = "cpi-context"))]
+        let pda_only = true;
+
+        if pda_only {
             // Manual construction to avoid extra allocations
             let instruction_data = light_compressed_account::instruction_data::with_account_info::InstructionDataInvokeCpiWithAccountInfo {
                 mode: 1,
@@ -218,41 +262,54 @@ where
             };
             instruction_data.invoke(cpi_accounts.clone())?;
         } else {
-            // PDAs + tokens - write to CPI context first, tokens will execute
-            let authority = cpi_accounts
-                .authority()
-                .map_err(|_| ProgramError::MissingRequiredSignature)?;
-            let cpi_context_account = cpi_accounts
-                .cpi_context()
-                .map_err(|_| ProgramError::MissingRequiredSignature)?;
-            let system_cpi_accounts = CpiContextWriteAccounts {
-                fee_payer,
-                authority,
-                cpi_context: cpi_context_account,
-                cpi_signer,
-            };
+            #[cfg(feature = "cpi-context")]
+            {
+                // PDAs + tokens - write to CPI context first, tokens will execute
+                let authority = cpi_accounts
+                    .authority()
+                    .map_err(|_| ProgramError::MissingRequiredSignature)?;
+                let cpi_context_account = cpi_accounts
+                    .cpi_context()
+                    .map_err(|_| ProgramError::MissingRequiredSignature)?;
+                let system_cpi_accounts = CpiContextWriteAccounts {
+                    fee_payer,
+                    authority,
+                    cpi_context: cpi_context_account,
+                    cpi_signer,
+                };
 
-            // Manual construction to avoid extra allocations
-            let instruction_data = light_compressed_account::instruction_data::with_account_info::InstructionDataInvokeCpiWithAccountInfo {
-                mode: 1,
-                bump: cpi_signer.bump,
-                invoking_program_id: cpi_signer.program_id.into(),
-                compress_or_decompress_lamports: 0,
-                is_compress: false,
-                with_cpi_context: true,
-                with_transaction_hash: false,
-                cpi_context: CompressedCpiContext::first(),
-                proof: None,
-                new_address_params: Vec::new(),
-                account_infos: decompress_ctx.compressed_account_infos,
-                read_only_addresses: Vec::new(),
-                read_only_accounts: Vec::new(),
-            };
-            instruction_data.invoke_write_to_cpi_context_first(system_cpi_accounts)?;
+                // Manual construction to avoid extra allocations
+                let instruction_data = light_compressed_account::instruction_data::with_account_info::InstructionDataInvokeCpiWithAccountInfo {
+                    mode: 1,
+                    bump: cpi_signer.bump,
+                    invoking_program_id: cpi_signer.program_id.into(),
+                    compress_or_decompress_lamports: 0,
+                    is_compress: false,
+                    with_cpi_context: true,
+                    with_transaction_hash: false,
+                    cpi_context: CompressedCpiContext::first(),
+                    proof: None,
+                    new_address_params: Vec::new(),
+                    account_infos: decompress_ctx.compressed_account_infos,
+                    read_only_addresses: Vec::new(),
+                    read_only_accounts: Vec::new(),
+                };
+                instruction_data.invoke_write_to_cpi_context_first(system_cpi_accounts)?;
+            }
+            #[cfg(not(feature = "cpi-context"))]
+            {
+                return Err(ProgramError::InvalidInstructionData);
+            }
         }
     }
 
     if has_token_accounts {
+        let mut compressions = Vec::new();
+        // Assumes is compressed to pubkey.
+        decompress_ctx
+            .in_token_data
+            .iter()
+            .for_each(|a| compressions.push(Compression::decompress(a.amount, a.mint, a.owner)));
         let mut cpi = CompressedTokenInstructionDataTransfer2 {
             with_transaction_hash: false,
             in_token_data: decompress_ctx.in_token_data.clone(),
@@ -263,7 +320,7 @@ where
             output_queue: 0,
             max_top_up: 0,
             cpi_context: None,
-            compressions: None,
+            compressions: Some(compressions),
             proof: params.proof.0,
             out_token_data: Vec::new(),
             in_lamports: None,
@@ -279,14 +336,50 @@ where
             )
         }
 
-        let account_metas = remaining_accounts
-            .iter()
-            .map(|account| AccountMeta {
+        // Build Transfer2 account_metas in the order the handler expects:
+        // [0] light_system_program (readonly)
+        // [1] fee_payer (signer, writable)
+        // [2] cpi_authority_pda (readonly)
+        // [3] registered_program_pda (readonly)
+        // [4] account_compression_authority (readonly)
+        // [5] account_compression_program (readonly)
+        // [6] system_program (readonly)
+        // [7] cpi_context (optional, writable)
+        // [N+] packed_accounts
+        let mut account_metas = vec![
+            AccountMeta::new_readonly(Pubkey::new_from_array(LIGHT_SYSTEM_PROGRAM_ID), false),
+            AccountMeta::new(*fee_payer.key, true),
+            AccountMeta::new_readonly(Pubkey::new_from_array(CPI_AUTHORITY), false),
+            AccountMeta::new_readonly(Pubkey::new_from_array(REGISTERED_PROGRAM_PDA), false),
+            AccountMeta::new_readonly(
+                Pubkey::new_from_array(ACCOUNT_COMPRESSION_AUTHORITY_PDA),
+                false,
+            ),
+            AccountMeta::new_readonly(
+                Pubkey::new_from_array(ACCOUNT_COMPRESSION_PROGRAM_ID),
+                false,
+            ),
+            AccountMeta::new_readonly(Pubkey::default(), false),
+        ];
+        if cpi_context {
+            let cpi_ctx = cpi_accounts
+                .cpi_context()
+                .map_err(|_| ProgramError::NotEnoughAccountKeys)?;
+            account_metas.push(AccountMeta::new(*cpi_ctx.key, false));
+        }
+        let transfer2_packed_start = account_metas.len();
+        let packed_accounts_offset =
+            system_accounts_offset_usize + cpi_accounts.system_accounts_end_offset();
+        for account in &remaining_accounts[packed_accounts_offset..] {
+            account_metas.push(AccountMeta {
                 pubkey: *account.key,
                 is_signer: account.is_signer,
                 is_writable: account.is_writable,
-            })
-            .collect::<Vec<_>>();
+            });
+        }
+        cpi.in_token_data.iter().for_each(|data| {
+            account_metas[data.owner as usize + transfer2_packed_start].is_signer = true;
+        });
         let mut instruction_data = vec![TRANSFER2];
         cpi.serialize(&mut instruction_data).unwrap();
         let instruction = Instruction {
@@ -294,17 +387,25 @@ where
             accounts: account_metas,
             data: instruction_data,
         };
-        let signer_seed_refs: Vec<&[u8]> = decompress_ctx
-            .token_seeds
-            .iter()
-            .map(|s| s.as_slice())
-            .collect();
+        // For ATAs, no PDA signing is needed (wallet owner signed at transaction level).
+        // For regular token accounts, use invoke_signed with PDA seeds.
+        if decompress_ctx.token_seeds.is_empty() {
+            // All tokens are ATAs - use regular invoke (no PDA signing needed)
+            anchor_lang::solana_program::program::invoke(&instruction, remaining_accounts)?;
+        } else {
+            // At least one regular token account - use invoke_signed with PDA seeds
+            let signer_seed_refs: Vec<&[u8]> = decompress_ctx
+                .token_seeds
+                .iter()
+                .map(|s| s.as_slice())
+                .collect();
 
-        invoke_signed(
-            &instruction,
-            remaining_accounts,
-            &[signer_seed_refs.as_slice()],
-        )?;
+            invoke_signed(
+                &instruction,
+                remaining_accounts,
+                &[signer_seed_refs.as_slice()],
+            )?;
+        }
     }
 
     Ok(())

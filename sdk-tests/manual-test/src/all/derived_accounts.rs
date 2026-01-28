@@ -80,21 +80,6 @@ impl LightAccountVariantTrait<3> for AllBorshVariant {
     fn seed_refs_with_bump<'a>(&'a self, bump_storage: &'a [u8; 1]) -> [&'a [u8]; 3] {
         [ALL_BORSH_SEED, self.seeds.owner.as_ref(), bump_storage]
     }
-
-    fn pack(&self, accounts: &mut PackedAccounts) -> Result<Self::Packed> {
-        let (_, bump) = self.derive_pda();
-        let packed_data = self
-            .data
-            .pack(accounts)
-            .map_err(|_| anchor_lang::error::ErrorCode::InvalidProgramId)?;
-        Ok(PackedAllBorshVariant {
-            seeds: PackedAllBorshSeeds {
-                owner_idx: accounts.insert_or_get(self.seeds.owner),
-                bump,
-            },
-            data: packed_data,
-        })
-    }
 }
 
 // ============================================================================
@@ -138,11 +123,18 @@ impl PackedLightAccountVariantTrait<3> for PackedAllBorshVariant {
         Ok([ALL_BORSH_SEED, owner.key.as_ref(), bump_storage])
     }
 
-    fn into_in_token_data(&self) -> anchor_lang::Result<light_token_interface::instructions::transfer2::MultiInputTokenDataWithContext> {
+    fn into_in_token_data(
+        &self,
+        _tree_info: &light_sdk::instruction::PackedStateTreeInfo,
+        _output_queue_index: u8,
+    ) -> anchor_lang::Result<light_sdk::interface::token::MultiInputTokenDataWithContext> {
         Err(ProgramError::InvalidAccountData.into())
     }
 
-    fn into_in_tlv(&self) -> anchor_lang::Result<Option<Vec<light_token_interface::instructions::extensions::ExtensionInstructionData>>> {
+    fn into_in_tlv(
+        &self,
+    ) -> anchor_lang::Result<Option<Vec<light_sdk::interface::token::ExtensionInstructionData>>>
+    {
         Ok(None)
     }
 }
@@ -212,21 +204,6 @@ impl LightAccountVariantTrait<3> for AllZeroCopyVariant {
     fn seed_refs_with_bump<'a>(&'a self, bump_storage: &'a [u8; 1]) -> [&'a [u8]; 3] {
         [ALL_ZERO_COPY_SEED, self.seeds.owner.as_ref(), bump_storage]
     }
-
-    fn pack(&self, accounts: &mut PackedAccounts) -> Result<Self::Packed> {
-        let (_, bump) = self.derive_pda();
-        let packed_data = self
-            .data
-            .pack(accounts)
-            .map_err(|_| anchor_lang::error::ErrorCode::InvalidProgramId)?;
-        Ok(PackedAllZeroCopyVariant {
-            seeds: PackedAllZeroCopySeeds {
-                owner_idx: accounts.insert_or_get(self.seeds.owner),
-                bump,
-            },
-            data: packed_data,
-        })
-    }
 }
 
 // ============================================================================
@@ -270,11 +247,18 @@ impl PackedLightAccountVariantTrait<3> for PackedAllZeroCopyVariant {
         Ok([ALL_ZERO_COPY_SEED, owner.key.as_ref(), bump_storage])
     }
 
-    fn into_in_token_data(&self) -> anchor_lang::Result<light_token_interface::instructions::transfer2::MultiInputTokenDataWithContext> {
+    fn into_in_token_data(
+        &self,
+        _tree_info: &light_sdk::instruction::PackedStateTreeInfo,
+        _output_queue_index: u8,
+    ) -> anchor_lang::Result<light_sdk::interface::token::MultiInputTokenDataWithContext> {
         Err(ProgramError::InvalidAccountData.into())
     }
 
-    fn into_in_tlv(&self) -> anchor_lang::Result<Option<Vec<light_token_interface::instructions::extensions::ExtensionInstructionData>>> {
+    fn into_in_tlv(
+        &self,
+    ) -> anchor_lang::Result<Option<Vec<light_sdk::interface::token::ExtensionInstructionData>>>
+    {
         Ok(None)
     }
 }
@@ -321,10 +305,19 @@ impl light_sdk::compressible::Pack for AllBorshVariant {
         &self,
         accounts: &mut PackedAccounts,
     ) -> std::result::Result<Self::Packed, ProgramError> {
-        // Use the LightAccountVariant::pack method to get PackedAllBorshVariant
-        let packed = <Self as LightAccountVariantTrait<3>>::pack(self, accounts)
+        use light_sdk::interface::LightAccountVariantTrait;
+        let (_, bump) = self.derive_pda();
+        let packed_data = self
+            .data
+            .pack(accounts)
             .map_err(|_| ProgramError::InvalidAccountData)?;
-
+        let packed = PackedAllBorshVariant {
+            seeds: PackedAllBorshSeeds {
+                owner_idx: accounts.insert_or_get(self.seeds.owner),
+                bump,
+            },
+            data: packed_data,
+        };
         Ok(crate::derived_variants::PackedLightAccountVariant::AllBorsh(packed))
     }
 }
@@ -372,10 +365,19 @@ impl light_sdk::compressible::Pack for AllZeroCopyVariant {
         &self,
         accounts: &mut PackedAccounts,
     ) -> std::result::Result<Self::Packed, ProgramError> {
-        // Use the LightAccountVariant::pack method to get PackedAllZeroCopyVariant
-        let packed = <Self as LightAccountVariantTrait<3>>::pack(self, accounts)
+        use light_sdk::interface::LightAccountVariantTrait;
+        let (_, bump) = self.derive_pda();
+        let packed_data = self
+            .data
+            .pack(accounts)
             .map_err(|_| ProgramError::InvalidAccountData)?;
-
+        let packed = PackedAllZeroCopyVariant {
+            seeds: PackedAllZeroCopySeeds {
+                owner_idx: accounts.insert_or_get(self.seeds.owner),
+                bump,
+            },
+            data: packed_data,
+        };
         Ok(crate::derived_variants::PackedLightAccountVariant::AllZeroCopy(packed))
     }
 }

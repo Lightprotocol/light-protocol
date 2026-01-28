@@ -8,7 +8,7 @@ use syn::Result;
 
 use super::{
     instructions::{InstructionDataSpec, TokenSeedSpec},
-    seed_utils::{generate_seed_derivation_body, seed_element_to_ref_expr, SeedConversionConfig},
+    seed_utils::generate_seed_derivation_body,
     visitors::{classify_seed, generate_client_seed_code},
 };
 

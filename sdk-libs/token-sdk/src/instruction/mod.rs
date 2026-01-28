@@ -102,6 +102,8 @@ mod create;
 mod create_ata;
 mod create_mint;
 mod create_mints;
+// Decompress instruction builder is client-side only (uses PackedAccounts)
+#[cfg(not(target_os = "solana"))]
 mod decompress;
 mod decompress_mint;
 mod freeze;
@@ -129,6 +131,7 @@ pub use create_ata::{
 };
 pub use create_mint::*;
 pub use create_mints::*;
+#[cfg(not(target_os = "solana"))]
 pub use decompress::Decompress;
 pub use decompress_mint::*;
 pub use freeze::*;

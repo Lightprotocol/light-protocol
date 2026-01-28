@@ -243,22 +243,6 @@ impl LightAccountVariantTrait<4> for ZeroCopyRecordVariant {
             bump_storage,
         ]
     }
-
-    fn pack(&self, accounts: &mut PackedAccounts) -> Result<Self::Packed> {
-        let (_, bump) = self.derive_pda();
-        let packed_data = self
-            .data
-            .pack(accounts)
-            .map_err(|_| anchor_lang::error::ErrorCode::InvalidProgramId)?;
-        Ok(PackedZeroCopyRecordVariant {
-            seeds: PackedZeroCopyRecordSeeds {
-                owner_idx: accounts.insert_or_get(self.seeds.owner),
-                name: self.seeds.name.clone(),
-                bump,
-            },
-            data: packed_data,
-        })
-    }
 }
 
 // ============================================================================
@@ -310,11 +294,17 @@ impl PackedLightAccountVariantTrait<4> for PackedZeroCopyRecordVariant {
         ])
     }
 
-    fn into_in_token_data(&self) -> Result<light_token_interface::instructions::transfer2::MultiInputTokenDataWithContext> {
+    fn into_in_token_data(
+        &self,
+        _tree_info: &light_sdk::instruction::PackedStateTreeInfo,
+        _output_queue_index: u8,
+    ) -> Result<light_sdk::interface::token::MultiInputTokenDataWithContext> {
         Err(ProgramError::InvalidAccountData.into())
     }
 
-    fn into_in_tlv(&self) -> Result<Option<Vec<light_token_interface::instructions::extensions::ExtensionInstructionData>>> {
+    fn into_in_tlv(
+        &self,
+    ) -> Result<Option<Vec<light_sdk::interface::token::ExtensionInstructionData>>> {
         Ok(None)
     }
 }
@@ -362,10 +352,20 @@ impl light_sdk::compressible::Pack for ZeroCopyRecordVariant {
         &self,
         accounts: &mut PackedAccounts,
     ) -> std::result::Result<Self::Packed, ProgramError> {
-        // Use the LightAccountVariant::pack method to get PackedZeroCopyRecordVariant
-        let packed = <Self as LightAccountVariantTrait<4>>::pack(self, accounts)
+        use light_sdk::interface::LightAccountVariantTrait;
+        let (_, bump) = self.derive_pda();
+        let packed_data = self
+            .data
+            .pack(accounts)
             .map_err(|_| ProgramError::InvalidAccountData)?;
-
+        let packed = PackedZeroCopyRecordVariant {
+            seeds: PackedZeroCopyRecordSeeds {
+                owner_idx: accounts.insert_or_get(self.seeds.owner),
+                name: self.seeds.name.clone(),
+                bump,
+            },
+            data: packed_data,
+        };
         Ok(crate::derived_variants::PackedLightAccountVariant::ZeroCopyRecord(packed))
     }
 }

@@ -38,10 +38,11 @@ use solana_signer::Signer;
 
 const RENT_SPONSOR: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
 
-async fn assert_onchain_exists(rpc: &mut LightProgramTest, pda: &Pubkey) {
+async fn assert_onchain_exists(rpc: &mut LightProgramTest, pda: &Pubkey, name: &str) {
     assert!(
         rpc.get_account(*pda).await.unwrap().is_some(),
-        "Account {} should exist on-chain",
+        "Account {} {} should exist on-chain",
+        name,
         pda
     );
 }
@@ -376,12 +377,12 @@ async fn test_amm_full_lifecycle() {
         .await
         .expect("Initialize pool should succeed");
 
-    assert_onchain_exists(&mut ctx.rpc, &pdas.pool_state).await;
-    assert_onchain_exists(&mut ctx.rpc, &pdas.observation_state).await;
-    assert_onchain_exists(&mut ctx.rpc, &pdas.lp_mint).await;
-    assert_onchain_exists(&mut ctx.rpc, &pdas.token_0_vault).await;
-    assert_onchain_exists(&mut ctx.rpc, &pdas.token_1_vault).await;
-    assert_onchain_exists(&mut ctx.rpc, &pdas.creator_lp_token).await;
+    assert_onchain_exists(&mut ctx.rpc, &pdas.pool_state, "pool state").await;
+    assert_onchain_exists(&mut ctx.rpc, &pdas.observation_state, "observation state").await;
+    assert_onchain_exists(&mut ctx.rpc, &pdas.lp_mint, "LP mint").await;
+    assert_onchain_exists(&mut ctx.rpc, &pdas.token_0_vault, "token 0 vault").await;
+    assert_onchain_exists(&mut ctx.rpc, &pdas.token_1_vault, "token 1 vault").await;
+    assert_onchain_exists(&mut ctx.rpc, &pdas.creator_lp_token, "creator LP token").await;
 
     let lp_token_data = parse_token(
         &ctx.rpc
@@ -606,12 +607,12 @@ async fn test_amm_full_lifecycle() {
         .await
         .expect("Decompression should succeed");
 
-    assert_onchain_exists(&mut ctx.rpc, &pdas.pool_state).await;
-    assert_onchain_exists(&mut ctx.rpc, &pdas.observation_state).await;
-    assert_onchain_exists(&mut ctx.rpc, &pdas.lp_mint).await;
-    assert_onchain_exists(&mut ctx.rpc, &pdas.token_0_vault).await;
-    assert_onchain_exists(&mut ctx.rpc, &pdas.token_1_vault).await;
-    assert_onchain_exists(&mut ctx.rpc, &pdas.creator_lp_token).await;
+    assert_onchain_exists(&mut ctx.rpc, &pdas.pool_state, "pool_state").await;
+    assert_onchain_exists(&mut ctx.rpc, &pdas.observation_state, "observation_state").await;
+    assert_onchain_exists(&mut ctx.rpc, &pdas.lp_mint, "lp_mint").await;
+    assert_onchain_exists(&mut ctx.rpc, &pdas.token_0_vault, "token_0_vault").await;
+    assert_onchain_exists(&mut ctx.rpc, &pdas.token_1_vault, "token_1_vault").await;
+    assert_onchain_exists(&mut ctx.rpc, &pdas.creator_lp_token, "creator_lp_token").await;
 
     // Verify LP token balance
     let lp_token_after_decompression = parse_token(

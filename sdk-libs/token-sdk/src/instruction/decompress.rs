@@ -7,10 +7,9 @@ use light_compressed_token_sdk::compressed_token::{
     CTokenAccount2,
 };
 use light_sdk::instruction::{PackedAccounts, PackedStateTreeInfo};
-use light_token_interface::state::TokenData;
 use light_token_interface::{
     instructions::extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
-    state::{AccountState, ExtensionStruct, TokenDataVersion},
+    state::{AccountState, ExtensionStruct, TokenData, TokenDataVersion},
 };
 use solana_instruction::Instruction;
 use solana_program_error::ProgramError;
@@ -106,8 +105,10 @@ impl Decompress {
         // For ATA decompress, derive the bump from wallet owner + mint
         // The signer is the wallet owner for ATAs
         let ata_bump = if is_ata {
-            let (_, bump) =
-                derive_associated_token_account(&self.signer, &self.token_data.mint.into());
+            let (_, bump) = derive_associated_token_account(
+                &self.signer,
+                &Pubkey::from(self.token_data.mint.to_bytes()),
+            );
             bump
         } else {
             0

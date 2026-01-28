@@ -99,7 +99,8 @@ pub enum PackedProgramAccountVariant {
 impl<'info> DecompressVariant<'info> for PackedProgramAccountVariant {
     fn decompress(
         &self,
-        meta: &CompressedAccountMetaNoLamportsNoAddress,
+        tree_info: &PackedStateTreeInfo,
+        output_queue_index: u8,
         pda_account: &AccountInfo<'info>,
         ctx: &mut DecompressCtx<'_, 'info>,
     ) -> Result<(), ProgramError> {
@@ -107,19 +108,19 @@ impl<'info> DecompressVariant<'info> for PackedProgramAccountVariant {
             Self::UserRecord(packed) => {
                 // SEED_COUNT = 3 for UserRecord
                 prepare_account_for_decompression::<3, PackedUserRecordVariant>(
-                    packed, meta, pda_account, ctx
+                    packed, tree_info, output_queue_index, pda_account, ctx
                 )
             }
             Self::Vault(packed) => {
                 // SEED_COUNT = 2 for Vault
                 prepare_account_for_decompression::<2, PackedVaultVariant>(
-                    packed, meta, pda_account, ctx
+                    packed, tree_info, output_queue_index, pda_account, ctx
                 )
             }
             Self::MyMint(packed) => {
                 // SEED_COUNT = 3 for MyMint
                 prepare_account_for_decompression::<3, PackedMyMintVariant>(
-                    packed, meta, pda_account, ctx
+                    packed, tree_info, output_queue_index, pda_account, ctx
                 )
             }
         }
@@ -671,7 +672,8 @@ where
 /// Pushes CompressedAccountInfo into ctx.compressed_account_infos.
 pub fn prepare_account_for_decompression<'info, const SEED_COUNT: usize, P>(
     packed: &P,
-    meta: &CompressedAccountMetaNoLamportsNoAddress,
+    state_tree_info: &PackedStateTreeInfo,
+    output_queue_index: u8,
     pda_account: &AccountInfo<'info>,
     ctx: &mut DecompressCtx<'_, 'info>,
 ) -> Result<(), ProgramError>

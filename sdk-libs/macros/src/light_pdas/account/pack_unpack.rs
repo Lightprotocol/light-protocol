@@ -63,6 +63,8 @@ fn generate_with_packed_struct(
     });
 
     let pack_impl = quote! {
+        // Pack trait is only available off-chain (client-side)
+        #[cfg(not(target_os = "solana"))]
         impl light_sdk::interface::Pack for #struct_name {
             type Packed = #packed_struct_name;
 
@@ -90,6 +92,8 @@ fn generate_with_packed_struct(
     };
 
     let pack_impl_packed = quote! {
+        // Pack trait is only available off-chain (client-side)
+        #[cfg(not(target_os = "solana"))]
         impl light_sdk::interface::Pack for #packed_struct_name {
             type Packed = Self;
 
@@ -154,6 +158,8 @@ fn generate_identity_pack_unpack(struct_name: &syn::Ident) -> Result<TokenStream
     };
 
     let pack_impl = quote! {
+        // Pack trait is only available off-chain (client-side)
+        #[cfg(not(target_os = "solana"))]
         impl light_sdk::interface::Pack for #struct_name {
             type Packed = #struct_name;
 

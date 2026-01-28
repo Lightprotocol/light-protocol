@@ -1,8 +1,8 @@
 use light_program_profiler::profile;
-use light_sdk::{
-    error::LightSdkError,
-    instruction::{AccountMetasVec, PackedAccounts, SystemAccountMetaConfig},
-};
+use light_sdk::error::LightSdkError;
+// PackedAccounts and AccountMetasVec are only available off-chain (client-side)
+#[cfg(not(target_os = "solana"))]
+use light_sdk::instruction::{AccountMetasVec, PackedAccounts, SystemAccountMetaConfig};
 use light_token_interface::{instructions::transfer2::CompressedCpiContext, state::Token};
 use light_zero_copy::traits::ZeroCopyAt;
 use solana_account_info::AccountInfo;
@@ -35,7 +35,7 @@ pub struct CompressAndCloseIndices {
 }
 
 /// Use in the client not in solana program.
-///
+#[cfg(not(target_os = "solana"))]
 pub fn pack_for_compress_and_close(
     ctoken_account_pubkey: Pubkey,
     ctoken_account_data: &[u8],
@@ -393,6 +393,7 @@ impl CompressAndCloseAccounts {
     }
 }
 
+#[cfg(not(target_os = "solana"))]
 impl AccountMetasVec for CompressAndCloseAccounts {
     /// Adds:
     /// 1. system accounts if not set

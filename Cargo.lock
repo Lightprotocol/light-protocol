@@ -3458,8 +3458,6 @@ dependencies = [
 [[package]]
 name = "light-anchor-spl"
 version = "0.31.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e1c802e3de6de4bb03bc9e9bacbba8aa94823a083046aaf0ef275b1321984e3"
 dependencies = [
  "anchor-lang",
  "mpl-token-metadata",

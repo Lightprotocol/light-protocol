@@ -4,8 +4,14 @@ use light_compressed_account::{
 use light_program_profiler::profile;
 use light_sdk::{
     error::LightSdkError,
-    instruction::{AccountMetasVec, PackedAccounts, PackedStateTreeInfo, SystemAccountMetaConfig},
-    Pack, Unpack,
+    instruction::PackedStateTreeInfo,
+    Unpack,
+};
+// Pack and PackedAccounts only available off-chain (client-side)
+#[cfg(not(target_os = "solana"))]
+use light_sdk::{
+    instruction::{AccountMetasVec, PackedAccounts, SystemAccountMetaConfig},
+    Pack,
 };
 use light_token_interface::instructions::{
     extensions::ExtensionInstructionData,
@@ -54,6 +60,7 @@ pub struct DecompressFullInput {
     pub is_ata: bool,
 }
 
+#[cfg(not(target_os = "solana"))]
 impl Pack for DecompressFullInput {
     type Packed = DecompressFullIndices;
 
@@ -265,6 +272,7 @@ pub fn decompress_full_token_accounts_with_indices<'info>(
 /// Delegates to `DecompressFullInput::pack()`.
 ///
 /// For non-ATA decompress: owner is marked as a signer.
+#[cfg(not(target_os = "solana"))]
 #[profile]
 pub fn pack_for_decompress_full(
     token: &TokenData,
@@ -295,6 +303,7 @@ pub fn pack_for_decompress_full(
 ///
 /// For non-ATA decompress:
 /// - Owner is added as signer (normal case)
+#[cfg(not(target_os = "solana"))]
 #[profile]
 pub fn pack_for_decompress_full_with_ata(
     token: &TokenData,
@@ -342,6 +351,7 @@ impl DecompressFullAccounts {
     }
 }
 
+#[cfg(not(target_os = "solana"))]
 impl AccountMetasVec for DecompressFullAccounts {
     /// Adds:
     /// 1. system accounts if not set

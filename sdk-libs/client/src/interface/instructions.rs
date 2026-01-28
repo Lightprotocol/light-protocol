@@ -47,8 +47,16 @@ pub struct UpdateConfigData {
 pub struct LoadAccountsData<T> {
     pub system_accounts_offset: u8,
     pub token_accounts_offset: u8,
+    pub output_queue_index: u8,
     pub proof: ValidityProof,
     pub compressed_accounts: Vec<CompressedAccountData<T>>,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
+pub struct SaveAccountsData {
+    pub proof: ValidityProof,
+    pub compressed_accounts: Vec<CompressedAccountMetaNoLamportsNoAddress>,
+    pub system_accounts_offset: u8,
 }
 
 // Discriminators (match on-chain instruction names)
@@ -193,28 +201,25 @@ where
 
     let mut remaining_accounts = PackedAccounts::default();
 
-    let mut has_tokens = false;
-    let mut has_pdas = false;
-    for (acc, _) in cold_accounts.iter() {
+    // Separate PDA and token indices so PDAs come first in the output.
+    let mut pda_indices = Vec::new();
+    let mut token_indices = Vec::new();
+    for (i, (acc, _)) in cold_accounts.iter().enumerate() {
         if acc.owner == LIGHT_TOKEN_PROGRAM_ID {
-            has_tokens = true;
+            token_indices.push(i);
         } else {
-            has_pdas = true;
-        }
-        if has_tokens && has_pdas {
-            break;
+            pda_indices.push(i);
         }
     }
+    let has_pdas = !pda_indices.is_empty();
+    let has_tokens = !token_indices.is_empty();
     if !has_tokens && !has_pdas {
         return Err("No tokens or PDAs found".into());
     }
 
     // When mixing PDAs + tokens, use first token's CPI context
     if has_pdas && has_tokens {
-        let first_token_acc = cold_accounts
-            .iter()
-            .find(|(acc, _)| acc.owner == LIGHT_TOKEN_PROGRAM_ID)
-            .ok_or("expected at least one token account when has_tokens is true")?;
+        let first_token_acc = &cold_accounts[token_indices[0]];
         let first_token_cpi = first_token_acc
             .0
             .tree_info
@@ -239,7 +244,9 @@ where
     let mut accounts = program_account_metas.to_vec();
     let mut typed_accounts = Vec::with_capacity(cold_accounts.len());
 
-    for (i, (acc, data)) in cold_accounts.iter().enumerate() {
+    // Process PDAs first, then tokens, to match on-chain split_at(token_accounts_offset).
+    for &i in pda_indices.iter().chain(token_indices.iter()) {
+        let (acc, data) = &cold_accounts[i];
         let _queue_index = remaining_accounts.insert_or_get(acc.tree_info.queue);
         let tree_info = tree_infos
             .get(i)
@@ -248,10 +255,7 @@ where
 
         let packed_data = data.pack(&mut remaining_accounts)?;
         typed_accounts.push(CompressedAccountData {
-            meta: CompressedAccountMetaNoLamportsNoAddress {
-                tree_info,
-                output_state_tree_index,
-            },
+            tree_info,
             data: packed_data,
         });
     }
@@ -259,8 +263,9 @@ where
     let (system_accounts, system_accounts_offset, _) = remaining_accounts.to_account_metas();
     accounts.extend(system_accounts);
 
-    for addr in hot_addresses {
-        accounts.push(AccountMeta::new(*addr, false));
+    // Append hot addresses in the same order: PDAs first, then tokens.
+    for &i in pda_indices.iter().chain(token_indices.iter()) {
+        accounts.push(AccountMeta::new(hot_addresses[i], false));
     }
 
     // system_accounts_offset must account for program_account_metas
@@ -271,6 +276,7 @@ where
         compressed_accounts: typed_accounts,
         system_accounts_offset: full_offset as u8,
         token_accounts_offset,
+        output_queue_index: output_state_tree_index,
     };
 
     let serialized = ix_data.try_to_vec()?;

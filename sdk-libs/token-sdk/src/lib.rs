@@ -79,9 +79,8 @@ pub use constants::{
 pub use light_compressed_account::instruction_data::compressed_proof::{
     CompressedProof, ValidityProof,
 };
+pub use light_compressed_token_sdk::compat;
 pub use light_token_interface::{
     instructions::extensions::{ExtensionInstructionData, TokenMetadataInstructionData},
     state::AdditionalMetadata,
 };
-// Re-export pack::compat as the main compat module (has full type definitions including CTokenData, PackedCTokenData)
-// pub use pack::compat;

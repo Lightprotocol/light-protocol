@@ -103,4 +103,3 @@ pub(crate) fn is_pubkey_type(ty: &Type) -> bool {
         false
     }
 }
-

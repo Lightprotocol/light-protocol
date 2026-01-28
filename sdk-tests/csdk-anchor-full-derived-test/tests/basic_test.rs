@@ -307,8 +307,8 @@ async fn test_create_pdas_and_mint_auto() {
     use anchor_lang::AnchorDeserialize;
     use csdk_anchor_full_derived_test::{
         csdk_anchor_full_derived_test::{
-            GameSessionSeeds, GameSessionVariant, LightAccountVariant, VaultSeeds,
-            UserRecordSeeds, UserRecordVariant,
+            GameSessionSeeds, GameSessionVariant, LightAccountVariant, UserRecordSeeds,
+            UserRecordVariant, VaultSeeds,
         },
         GameSession as GameSessionState, UserRecord,
     };
@@ -366,13 +366,12 @@ async fn test_create_pdas_and_mint_auto() {
 
     // Build PdaSpec for Vault (CToken)
     // Vault is fetched as token account but decompressed as PDA, so convert cold context
-    let token = light_token_interface::state::Token::deserialize(&mut &vault_interface.account.data[..])
-        .expect("Failed to parse Token");
+    let token =
+        light_token_interface::state::Token::deserialize(&mut &vault_interface.account.data[..])
+            .expect("Failed to parse Token");
     let vault_variant = LightAccountVariant::Vault(TokenDataWithSeeds {
         seeds: VaultSeeds { mint: mint_pda },
         token_data: token,
-        tree_info: Default::default(),
-        version: 0,
     });
     let vault_compressed = vault_interface
         .compressed()

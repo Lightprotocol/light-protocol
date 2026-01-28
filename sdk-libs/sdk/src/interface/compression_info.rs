@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use bytemuck::{Pod, Zeroable};
 use light_compressible::rent::RentConfig;
-use light_sdk_types::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;
+use light_sdk_types::instruction::PackedStateTreeInfo;
 use solana_account_info::AccountInfo;
 use solana_clock::Clock;
 use solana_cpi::invoke;
@@ -10,10 +10,15 @@ use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
 use solana_sysvar::Sysvar;
 
-use crate::{instruction::PackedAccounts, AnchorDeserialize, AnchorSerialize, ProgramError};
+use crate::{AnchorDeserialize, AnchorSerialize, ProgramError};
+
+// Only available off-chain (client-side) - PackedAccounts contains sorting code
+#[cfg(not(target_os = "solana"))]
+use crate::instruction::PackedAccounts;
 
 /// Replace 32-byte Pubkeys with 1-byte indices to save space.
 /// If your type has no Pubkeys, just return self.
+#[cfg(not(target_os = "solana"))]
 pub trait Pack {
     type Packed: AnchorSerialize + Clone + std::fmt::Debug;
 
@@ -378,7 +383,7 @@ pub const COMPRESSION_INFO_SIZE: usize = core::mem::size_of::<CompressionInfo>()
 /// Compressed account data used when decompressing.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct CompressedAccountData<T> {
-    pub meta: CompressedAccountMetaNoLamportsNoAddress,
+    pub tree_info: PackedStateTreeInfo,
     pub data: T,
 }
 

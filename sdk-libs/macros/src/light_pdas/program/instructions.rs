@@ -161,6 +161,8 @@ fn codegen(
                 }
             }
 
+            // Pack trait is only available off-chain (client-side)
+            #[cfg(not(target_os = "solana"))]
             impl light_sdk::Pack for LightAccountVariant {
                 type Packed = Self;
                 fn pack(&self, _remaining_accounts: &mut light_sdk::instruction::PackedAccounts) -> std::result::Result<Self::Packed, solana_program_error::ProgramError> {

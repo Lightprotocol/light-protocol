@@ -47,4 +47,6 @@ pub mod variant;
 #[cfg(feature = "anchor")]
 pub use light_account::{AccountType, LightAccount};
 #[cfg(feature = "anchor")]
-pub use variant::{LightAccountVariantTrait, PackedLightAccountVariantTrait};
+pub use variant::{
+    LightAccountVariantTrait, PackedLightAccountVariantTrait, PackedTokenSeeds, UnpackedTokenSeeds,
+};

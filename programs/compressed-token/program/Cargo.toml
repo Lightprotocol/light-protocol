@@ -32,6 +32,7 @@ profile-heap = [
 ]
 cpi-context = []
 cpi-without-program-ids = []
+idl-build = ["anchor-compressed-token/idl-build", "anchor-lang/idl-build"]
 
 [dependencies]
 light-program-profiler = { workspace = true }

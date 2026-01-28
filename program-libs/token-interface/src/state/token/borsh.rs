@@ -1,7 +1,9 @@
-use crate::{AnchorDeserialize, AnchorSerialize};
 use light_compressed_account::Pubkey;
 
-use crate::state::{AccountState, ExtensionStruct, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT};
+use crate::{
+    state::{AccountState, ExtensionStruct, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT},
+    AnchorDeserialize, AnchorSerialize,
+};
 
 // Manual implementation of BorshSerialize for SPL compatibility
 impl AnchorSerialize for Token {

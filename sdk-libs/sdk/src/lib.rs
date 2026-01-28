@@ -196,9 +196,12 @@ use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSeria
 pub use interface::{
     process_initialize_light_config, process_initialize_light_config_checked,
     process_update_light_config, CompressAs, CompressedInitSpace, CompressionInfo,
-    HasCompressionInfo, LightConfig, Pack, PdaSeeds, Space, Unpack, COMPRESSIBLE_CONFIG_SEED,
+    HasCompressionInfo, LightConfig, PdaSeeds, Space, Unpack, COMPRESSIBLE_CONFIG_SEED,
     MAX_ADDRESS_TREES_PER_SPACE,
 };
+// Pack trait is only available off-chain (client-side) - uses PackedAccounts
+#[cfg(not(target_os = "solana"))]
+pub use interface::Pack;
 pub use light_account_checks::{self, discriminator::Discriminator as LightDiscriminator};
 // Re-export as extern crate so downstream crates can use `::light_hasher::` paths
 pub extern crate light_hasher;

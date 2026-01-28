@@ -40,8 +40,11 @@ pub use compress::{
 };
 pub use compression_info::{
     CompressAs, CompressedInitSpace, CompressionInfo, CompressionInfoField, CompressionState,
-    HasCompressionInfo, Pack, Space, Unpack, COMPRESSION_INFO_SIZE, OPTION_COMPRESSION_INFO_SPACE,
+    HasCompressionInfo, Space, Unpack, COMPRESSION_INFO_SIZE, OPTION_COMPRESSION_INFO_SPACE,
 };
+// Pack trait is only available off-chain (client-side) - uses PackedAccounts
+#[cfg(not(target_os = "solana"))]
+pub use compression_info::Pack;
 pub use config::{
     process_initialize_light_config, process_initialize_light_config_checked,
     process_update_light_config, LightConfig, COMPRESSIBLE_CONFIG_SEED,
@@ -63,5 +66,6 @@ pub use light_compressible::{rent, CreateAccountsProof};
 #[cfg(feature = "anchor")]
 pub use traits::{
     AccountType, LightAccount, LightAccountVariantTrait, PackedLightAccountVariantTrait,
+    PackedTokenSeeds, UnpackedTokenSeeds,
 };
 pub use traits::{IntoVariant, PdaSeeds};

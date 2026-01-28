@@ -66,7 +66,6 @@ impl<'info> LightFinalize<'info, CreateTokenVaultParams> for CreateTokenVaultAcc
 }*/
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct TokenVaultSeeds {
-    /// Index into remaining_accounts instead of full Pubkey
     pub mint: Pubkey,
 }
 
@@ -74,28 +73,32 @@ impl Pack for TokenVaultSeeds {
     type Packed = PackedTokenVaultSeeds;
     fn pack(
         &self,
-        remaining_accounts: &mut light_token::anchor::PackedAccounts,
+        remaining_accounts: &mut light_sdk::instruction::PackedAccounts,
     ) -> std::result::Result<Self::Packed, ProgramError> {
-        let mint = remaining_accounts
-            .insert_or_get(self.mint)
-            .ok_or(ProgramError::NotEnoughAccountKeys)?;
-        Ok(TokenVaultSeeds { mint })
+        Ok(PackedTokenVaultSeeds {
+            mint_idx: remaining_accounts.insert_or_get(self.mint),
+            bump: 0,
+        })
     }
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct PackedTokenVaultSeeds {
-    /// Index into remaining_accounts instead of full Pubkey
-    pub mint: u8,
+    pub mint_idx: u8,
+    pub bump: u8,
 }
 
 impl Unpack for PackedTokenVaultSeeds {
     type Unpacked = TokenVaultSeeds;
 
-    fn unpack(remaining_accounts: &[AccountInfo]) -> Result<Self> {
-        let mint = remaining_accounts
-            .get(index)
-            .ok_or(ProgramError::NotEnoughAccountKeys)?;
-        Ok(Self { mint })
+    fn unpack(
+        &self,
+        remaining_accounts: &[AccountInfo],
+    ) -> std::result::Result<Self::Unpacked, ProgramError> {
+        let mint = *remaining_accounts
+            .get(self.mint_idx as usize)
+            .ok_or(ProgramError::InvalidAccountData)?
+            .key;
+        Ok(TokenVaultSeeds { mint })
     }
 }

@@ -149,6 +149,13 @@ impl<'a> LightVariantBuilder<'a> {
                     })
                     .collect();
 
+                // Seed refs for find_program_address bump derivation
+                let bump_seed_refs: Vec<_> = spec
+                    .seeds
+                    .iter()
+                    .map(seed_to_unpacked_ref)
+                    .collect();
+
                 // Unpack impl: u8 index -> Pubkey
                 let unpack_resolve_stmts: Vec<_> = ctx_fields
                     .iter()
@@ -188,6 +195,8 @@ impl<'a> LightVariantBuilder<'a> {
                         pub bump: u8,
                     }
 
+                    // Pack trait is only available off-chain (client-side)
+                    #[cfg(not(target_os = "solana"))]
                     impl light_sdk::Pack for #seeds_name {
                         type Packed = #packed_seeds_name;
 
@@ -195,9 +204,14 @@ impl<'a> LightVariantBuilder<'a> {
                             &self,
                             remaining_accounts: &mut light_sdk::instruction::PackedAccounts,
                         ) -> std::result::Result<Self::Packed, solana_program_error::ProgramError> {
+                            let __seeds: &[&[u8]] = &[#(#bump_seed_refs),*];
+                            let (_, __bump) = solana_pubkey::Pubkey::find_program_address(
+                                __seeds,
+                                &crate::ID,
+                            );
                             Ok(#packed_seeds_name {
                                 #(#pack_stmts,)*
-                                bump: 0, // Bump is derived on-chain via find_program_address
+                                bump: __bump,
                             })
                         }
                     }
@@ -215,6 +229,7 @@ impl<'a> LightVariantBuilder<'a> {
                             })
                         }
                     }
+
                 }
             })
             .collect();
@@ -226,30 +241,28 @@ impl<'a> LightVariantBuilder<'a> {
     // TOKEN VARIANT TRAIT IMPLS
     // =========================================================================
 
-    /// Generate `LightAccountVariantTrait<N>` and `PackedLightAccountVariantTrait<N>` impls
-    /// for each token variant.
+    /// Generate `UnpackedTokenSeeds<N>` and `PackedTokenSeeds<N>` impls
+    /// on the local seed structs. The blanket impls in `light_sdk::interface::token`
+    /// then provide `LightAccountVariantTrait` / `PackedLightAccountVariantTrait`.
     fn generate_token_variant_trait_impls(&self) -> TokenStream {
         let impls: Vec<_> = self
             .token_seeds
             .iter()
             .map(|spec| {
-                let variant_name = &spec.variant;
-                let packed_seeds_name = format_ident!("Packed{}Seeds", variant_name);
-                let seeds_name = format_ident!("{}Seeds", variant_name);
-                let ctx_fields = extract_ctx_fields_from_token_spec(spec);
+                let seeds_name = format_ident!("{}Seeds", spec.variant);
+                let packed_seeds_name = format_ident!("Packed{}Seeds", spec.variant);
 
                 // seed_count = number of seeds + 1 for bump
                 let seed_count = spec.seeds.len() + 1;
 
-                // --- Unpacked seed refs (for LightAccountVariantTrait) ---
-                // Uses self.seeds.field_name.as_ref() for ctx field seeds
+                // --- Unpacked seed refs (self is the seeds struct directly) ---
                 let unpacked_seed_ref_items: Vec<_> = spec
                     .seeds
                     .iter()
-                    .map(|seed| seed_to_unpacked_ref(seed))
+                    .map(seed_to_unpacked_ref)
                     .collect();
 
-                // seed_vec items (owned Vec<u8> for each seed)
+                // seed_vec items (owned Vec<u8> for each seed, self is seeds struct)
                 let seed_vec_items: Vec<_> = spec
                     .seeds
                     .iter()
@@ -261,9 +274,8 @@ impl<'a> LightVariantBuilder<'a> {
                             }
                             SeedElement::Expression(expr) => {
                                 if let Some(field_name) = extract_ctx_field_from_expr(expr) {
-                                    quote! { self.seeds.#field_name.as_ref().to_vec() }
+                                    quote! { self.#field_name.as_ref().to_vec() }
                                 } else {
-                                    // Constants, byte strings, etc.
                                     if let syn::Expr::Lit(lit_expr) = &**expr {
                                         if let syn::Lit::ByteStr(byte_str) = &lit_expr.lit {
                                             let bytes = byte_str.value();
@@ -287,50 +299,20 @@ impl<'a> LightVariantBuilder<'a> {
                     })
                     .collect();
 
-                // --- Packed seed refs (for PackedLightAccountVariantTrait) ---
-                // Uses accounts[idx].key.as_ref() for ctx field seeds
+                // --- Packed seed refs (self is the packed seeds struct directly) ---
                 let packed_seed_ref_items: Vec<_> = spec
                     .seeds
                     .iter()
-                    .map(|seed| seed_to_packed_ref(seed))
+                    .map(seed_to_packed_ref)
                     .collect();
-
-                // Generate unpack seed statements
-                let unpack_seed_stmts: Vec<_> = ctx_fields
-                    .iter()
-                    .map(|f| {
-                        let idx = format_ident!("{}_idx", f);
-                        quote! {
-                            let #f = *accounts
-                                .get(self.seeds.#idx as usize)
-                                .ok_or(anchor_lang::error::ErrorCode::AccountNotEnoughKeys)?
-                                .key;
-                        }
-                    })
-                    .collect();
-                let unpack_seed_fields: Vec<_> = ctx_fields.iter().map(|f| quote! { #f }).collect();
-
-                // The type aliases for the wrappers
-                let packed_type = quote! {
-                    light_sdk::interface::token::TokenDataWithPackedSeeds<#packed_seeds_name>
-                };
-                let unpacked_type = quote! {
-                    light_sdk::interface::token::TokenDataWithSeeds<#seeds_name>
-                };
 
                 quote! {
-                    // Unpacked trait impl
-                    impl light_sdk::interface::LightAccountVariantTrait<#seed_count>
-                        for #unpacked_type
+                    impl light_sdk::interface::UnpackedTokenSeeds<#seed_count>
+                        for #seeds_name
                     {
-                        const PROGRAM_ID: Pubkey = crate::ID;
-                        type Seeds = #seeds_name;
-                        type Data = light_token_interface::state::Token;
-                        type Packed = #packed_type;
+                        type Packed = #packed_seeds_name;
 
-                        fn data(&self) -> &Self::Data {
-                            &self.token_data
-                        }
+                        const PROGRAM_ID: Pubkey = crate::ID;
 
                         fn seed_vec(&self) -> Vec<Vec<u8>> {
                             vec![#(#seed_vec_items),*]
@@ -339,33 +321,15 @@ impl<'a> LightVariantBuilder<'a> {
                         fn seed_refs_with_bump<'a>(&'a self, bump_storage: &'a [u8; 1]) -> [&'a [u8]; #seed_count] {
                             [#(#unpacked_seed_ref_items,)* bump_storage]
                         }
-
-                        fn pack(&self, accounts: &mut light_sdk::instruction::PackedAccounts) -> anchor_lang::Result<Self::Packed> {
-                            light_sdk::Pack::pack(self, accounts)
-                                .map_err(|e| anchor_lang::error::Error::from(e))
-                        }
                     }
 
-                    // Packed trait impl
-                    impl light_sdk::interface::PackedLightAccountVariantTrait<#seed_count>
-                        for #packed_type
+                    impl light_sdk::interface::PackedTokenSeeds<#seed_count>
+                        for #packed_seeds_name
                     {
-                        type Unpacked = #unpacked_type;
-
-                        const ACCOUNT_TYPE: light_sdk::interface::AccountType =
-                            light_sdk::interface::AccountType::Token;
-
                         fn bump(&self) -> u8 {
-                            self.seeds.bump
+                            self.bump
                         }
 
-                        fn unpack(&self, accounts: &[anchor_lang::prelude::AccountInfo]) -> anchor_lang::Result<Self::Unpacked> {
-                            #(#unpack_seed_stmts)*
-                            let _unpacked_seeds = #seeds_name {
-                                #(#unpack_seed_fields,)*
-                            };
-                            light_sdk::Unpack::unpack(self, accounts)
-                        }
 
                         fn seed_refs_with_bump<'a>(
                             &'a self,
@@ -373,16 +337,6 @@ impl<'a> LightVariantBuilder<'a> {
                             bump_storage: &'a [u8; 1],
                         ) -> std::result::Result<[&'a [u8]; #seed_count], solana_program_error::ProgramError> {
                             Ok([#(#packed_seed_ref_items,)* bump_storage])
-                        }
-
-                        fn into_in_token_data(&self) -> anchor_lang::Result<light_token_interface::instructions::transfer2::MultiInputTokenDataWithContext> {
-                            Ok(self.token_data.clone())
-                        }
-
-                        fn into_in_tlv(&self) -> anchor_lang::Result<Option<Vec<light_token_interface::instructions::extensions::ExtensionInstructionData>>> {
-                            Ok(self.extension.as_ref().map(|ext| {
-                                vec![light_token_interface::instructions::extensions::ExtensionInstructionData::CompressedOnly(ext.clone())]
-                            }))
                         }
                     }
                 }
@@ -420,8 +374,6 @@ impl<'a> LightVariantBuilder<'a> {
             })
             .collect();
 
-        // Use borsh derives instead of anchor to avoid IdlBuild requirements on Token types.
-        // Since AnchorSerialize = BorshSerialize, these are trait-compatible.
         quote! {
             /// Program-wide unpacked variant enum collecting all per-field variants.
             #[derive(anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize, Clone, Debug)]
@@ -484,7 +436,8 @@ impl<'a> LightVariantBuilder<'a> {
                     Self::#variant_name(packed_data) => {
                         light_sdk::interface::prepare_account_for_decompression::<#seed_count, #packed_variant_type>(
                             packed_data,
-                            meta,
+                            tree_info,
+                            output_queue_index,
                             pda_account,
                             ctx,
                         )
@@ -503,8 +456,13 @@ impl<'a> LightVariantBuilder<'a> {
 
                 quote! {
                     Self::#variant_name(packed_data) => {
-                        light_sdk::interface::token::prepare_token_account_for_decompression::<#seed_count, light_sdk::interface::token::TokenDataWithPackedSeeds<#packed_seeds_name>>(
+                        light_sdk::interface::token::prepare_token_account_for_decompression::<
+                            #seed_count,
+                            light_sdk::interface::token::TokenDataWithPackedSeeds<#packed_seeds_name>,
+                        >(
                             packed_data,
+                            tree_info,
+                            output_queue_index,
                             pda_account,
                             ctx,
                         )
@@ -517,10 +475,11 @@ impl<'a> LightVariantBuilder<'a> {
             impl<'info> light_sdk::interface::DecompressVariant<'info> for PackedLightAccountVariant {
                 fn decompress(
                     &self,
-                    meta: &light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
+                    tree_info: &light_sdk::instruction::PackedStateTreeInfo,
                     pda_account: &anchor_lang::prelude::AccountInfo<'info>,
                     ctx: &mut light_sdk::interface::DecompressCtx<'_, 'info>,
                 ) -> std::result::Result<(), solana_program_error::ProgramError> {
+                    let output_queue_index = ctx.output_queue_index;
                     match self {
                         #(#pda_arms)*
                         #(#token_arms)*
@@ -541,12 +500,10 @@ impl<'a> LightVariantBuilder<'a> {
             .iter()
             .map(|info| {
                 let variant_name = &info.variant_name;
-                let seed_count = info.seed_count;
 
                 quote! {
                     Self::#variant_name(variant) => {
-                        let packed = light_sdk::interface::LightAccountVariantTrait::<#seed_count>::pack(variant, accounts)
-                            .map_err(|_| solana_program_error::ProgramError::InvalidAccountData)?;
+                        let packed = light_sdk::Pack::pack(variant, accounts)?;
                         Ok(PackedLightAccountVariant::#variant_name(packed))
                     }
                 }
@@ -559,8 +516,8 @@ impl<'a> LightVariantBuilder<'a> {
             .map(|spec| {
                 let variant_name = &spec.variant;
                 quote! {
-                    Self::#variant_name(variant) => {
-                        let packed = light_sdk::Pack::pack(variant, accounts)?;
+                    Self::#variant_name(data) => {
+                        let packed = light_sdk::Pack::pack(data, accounts)?;
                         Ok(PackedLightAccountVariant::#variant_name(packed))
                     }
                 }
@@ -568,6 +525,8 @@ impl<'a> LightVariantBuilder<'a> {
             .collect();
 
         quote! {
+            // Pack trait is only available off-chain (client-side)
+            #[cfg(not(target_os = "solana"))]
             impl light_sdk::Pack for LightAccountVariant {
                 type Packed = PackedLightAccountVariant;
 
@@ -666,9 +625,13 @@ pub fn extract_ctx_fields_from_token_spec(spec: &TokenSeedSpec) -> Vec<Ident> {
 /// Extract a single ctx field name from an expression.
 /// Returns `Some(field_name)` for expressions like `ctx.accounts.mint.key()` or `ctx.mint.key()`.
 fn extract_ctx_field_from_expr(expr: &syn::Expr) -> Option<Ident> {
-    let fields =
-        super::visitors::FieldExtractor::ctx_fields(&["fee_payer", "rent_sponsor", "config", "compression_authority"])
-            .extract(expr);
+    let fields = super::visitors::FieldExtractor::ctx_fields(&[
+        "fee_payer",
+        "rent_sponsor",
+        "config",
+        "compression_authority",
+    ])
+    .extract(expr);
     fields.into_iter().next()
 }
 
@@ -689,7 +652,9 @@ fn seed_to_unpacked_ref(seed: &SeedElement) -> TokenStream {
             if let syn::Expr::Path(path_expr) = &**expr {
                 if path_expr.qself.is_none() {
                     if let Some(last_seg) = path_expr.path.segments.last() {
-                        if crate::light_pdas::shared_utils::is_constant_identifier(&last_seg.ident.to_string()) {
+                        if crate::light_pdas::shared_utils::is_constant_identifier(
+                            &last_seg.ident.to_string(),
+                        ) {
                             let path = &path_expr.path;
                             return quote! { { let __seed: &[u8] = #path.as_ref(); __seed } };
                         }
@@ -697,7 +662,7 @@ fn seed_to_unpacked_ref(seed: &SeedElement) -> TokenStream {
                 }
             }
             if let Some(field_name) = extract_ctx_field_from_expr(expr) {
-                return quote! { self.seeds.#field_name.as_ref() };
+                return quote! { self.#field_name.as_ref() };
             }
             quote! { { let __seed: &[u8] = (#expr).as_ref(); __seed } }
         }
@@ -721,7 +686,9 @@ fn seed_to_packed_ref(seed: &SeedElement) -> TokenStream {
             if let syn::Expr::Path(path_expr) = &**expr {
                 if path_expr.qself.is_none() {
                     if let Some(last_seg) = path_expr.path.segments.last() {
-                        if crate::light_pdas::shared_utils::is_constant_identifier(&last_seg.ident.to_string()) {
+                        if crate::light_pdas::shared_utils::is_constant_identifier(
+                            &last_seg.ident.to_string(),
+                        ) {
                             let path = &path_expr.path;
                             return quote! { { let __seed: &[u8] = #path.as_ref(); __seed } };
                         }
@@ -732,7 +699,7 @@ fn seed_to_packed_ref(seed: &SeedElement) -> TokenStream {
                 let idx_field = format_ident!("{}_idx", field_name);
                 return quote! {
                     accounts
-                        .get(self.seeds.#idx_field as usize)
+                        .get(self.#idx_field as usize)
                         .ok_or(solana_program_error::ProgramError::InvalidAccountData)?
                         .key
                         .as_ref()

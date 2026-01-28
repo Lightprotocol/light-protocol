@@ -91,6 +91,7 @@ impl VariantBuilder {
         let packed_variant_struct = self.generate_packed_variant_struct();
         let light_account_variant_impl = self.generate_light_account_variant_impl();
         let packed_light_account_variant_impl = self.generate_packed_light_account_variant_impl();
+        let pack_impl = self.generate_pack_impl();
 
         quote! {
             #seeds_struct
@@ -99,6 +100,7 @@ impl VariantBuilder {
             #packed_variant_struct
             #light_account_variant_impl
             #packed_light_account_variant_impl
+            #pack_impl
         }
     }
 
@@ -225,7 +227,6 @@ impl VariantBuilder {
         let variant_name = format_ident!("{}Variant", self.variant_name);
         let seeds_struct_name = format_ident!("{}Seeds", self.variant_name);
         let packed_variant_name = format_ident!("Packed{}Variant", self.variant_name);
-        let packed_seeds_struct_name = format_ident!("Packed{}Seeds", self.variant_name);
         let inner_type = &self.inner_type;
         let seed_count = self.seed_count;
 
@@ -235,14 +236,7 @@ impl VariantBuilder {
         // Generate seed_refs_with_bump body
         let seed_refs_items = self.generate_seed_refs_items();
 
-        // Generate pack body
-        let pack_seed_fields = self.generate_pack_seed_fields();
-
-        // Use LightAccount::pack for all accounts (including zero-copy)
-        let pack_data = quote! {
-            <#inner_type as light_sdk::interface::LightAccount>::pack(&self.data, accounts)
-                .map_err(|_| anchor_lang::error::ErrorCode::InvalidProgramId)?
-        };
+        // NOTE: pack() is NOT generated here - it's in the Pack trait impl (off-chain only)
 
         quote! {
             impl light_sdk::interface::LightAccountVariantTrait<#seed_count> for #variant_name {
@@ -262,17 +256,6 @@ impl VariantBuilder {
 
                 fn seed_refs_with_bump<'a>(&'a self, bump_storage: &'a [u8; 1]) -> [&'a [u8]; #seed_count] {
                     [#(#seed_refs_items,)* bump_storage]
-                }
-
-                fn pack(&self, accounts: &mut light_sdk::instruction::PackedAccounts) -> anchor_lang::Result<Self::Packed> {
-                    let (_, bump) = self.derive_pda();
-                    Ok(#packed_variant_name {
-                        seeds: #packed_seeds_struct_name {
-                            #(#pack_seed_fields,)*
-                            bump,
-                        },
-                        data: #pack_data,
-                    })
                 }
             }
         }
@@ -333,12 +316,54 @@ impl VariantBuilder {
                     Ok([#(#packed_seed_refs_items,)* bump_storage])
                 }
 
-                fn into_in_token_data(&self) -> anchor_lang::Result<light_token_interface::instructions::transfer2::MultiInputTokenDataWithContext> {
+                fn into_in_token_data(&self, _tree_info: &light_sdk::instruction::PackedStateTreeInfo, _output_queue_index: u8) -> anchor_lang::Result<light_sdk::interface::token::MultiInputTokenDataWithContext> {
                     Err(solana_program_error::ProgramError::InvalidAccountData.into())
                 }
 
-                fn into_in_tlv(&self) -> anchor_lang::Result<Option<Vec<light_token_interface::instructions::extensions::ExtensionInstructionData>>> {
+                fn into_in_tlv(&self) -> anchor_lang::Result<Option<Vec<light_sdk::interface::token::ExtensionInstructionData>>> {
                     Ok(None)
+                }
+            }
+        }
+    }
+
+    /// Generate `impl Pack` for the variant struct.
+    ///
+    /// This is off-chain only (client-side packing). Gated with `#[cfg(not(target_os = "solana"))]`.
+    fn generate_pack_impl(&self) -> TokenStream {
+        let variant_name = format_ident!("{}Variant", self.variant_name);
+        let packed_variant_name = format_ident!("Packed{}Variant", self.variant_name);
+        let packed_seeds_struct_name = format_ident!("Packed{}Seeds", self.variant_name);
+        let inner_type = &self.inner_type;
+
+        // Generate pack body for seed fields
+        let pack_seed_fields = self.generate_pack_seed_fields();
+
+        // Use LightAccount::pack for all accounts (including zero-copy)
+        let pack_data = quote! {
+            <#inner_type as light_sdk::interface::LightAccount>::pack(&self.data, accounts)
+                .map_err(|_| solana_program_error::ProgramError::InvalidAccountData)?
+        };
+
+        quote! {
+            // Pack trait is only available off-chain (client-side packing)
+            #[cfg(not(target_os = "solana"))]
+            impl light_sdk::Pack for #variant_name {
+                type Packed = #packed_variant_name;
+
+                fn pack(
+                    &self,
+                    accounts: &mut light_sdk::instruction::PackedAccounts,
+                ) -> std::result::Result<Self::Packed, solana_program_error::ProgramError> {
+                    use light_sdk::interface::LightAccountVariantTrait;
+                    let (_, bump) = self.derive_pda();
+                    Ok(#packed_variant_name {
+                        seeds: #packed_seeds_struct_name {
+                            #(#pack_seed_fields,)*
+                            bump,
+                        },
+                        data: #pack_data,
+                    })
                 }
             }
         }

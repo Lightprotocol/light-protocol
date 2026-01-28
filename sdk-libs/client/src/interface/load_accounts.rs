@@ -147,7 +147,7 @@ where
     for (iface, proof) in cold_mints.iter().zip(mint_proofs) {
         out.push(build_mint_load(iface, proof, fee_payer)?);
     }
-
+    println!("instructions {:?}", out);
     Ok(out)
 }
 

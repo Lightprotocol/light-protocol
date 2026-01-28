@@ -1,20 +1,20 @@
+use anchor_lang::prelude::*;
 use light_compressed_account::{
     address::derive_address,
     compressed_account::PackedMerkleContext,
     instruction_data::with_account_info::{CompressedAccountInfo, InAccountInfo, OutAccountInfo},
 };
 use light_hasher::{Hasher, Sha256};
-use light_sdk_types::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;
+use light_sdk_types::instruction::PackedStateTreeInfo;
 use solana_account_info::AccountInfo;
 use solana_program_error::ProgramError;
 
 use super::traits::{LightAccount, LightAccountVariantTrait, PackedLightAccountVariantTrait};
-use crate::interface::DecompressCtx;
 use crate::{
-    interface::create_pda_account, light_account_checks::checks::check_data_is_zeroed,
+    interface::{create_pda_account, DecompressCtx},
+    light_account_checks::checks::check_data_is_zeroed,
     LightDiscriminator,
 };
-use anchor_lang::prelude::*;
 
 /// Generic prepare_account_for_decompression.
 ///
@@ -30,7 +30,8 @@ use anchor_lang::prelude::*;
 /// * `P` - Packed variant type implementing PackedLightAccountVariantTrait
 pub fn prepare_account_for_decompression<'info, const SEED_COUNT: usize, P>(
     packed: &P,
-    meta: &CompressedAccountMetaNoLamportsNoAddress, //TODO: replace with PackedStateTreeInfo, and one output_tree_index
+    tree_info: &PackedStateTreeInfo,
+    output_queue_index: u8,
     pda_account: &AccountInfo<'info>,
     ctx: &mut DecompressCtx<'_, 'info>,
 ) -> std::result::Result<(), ProgramError>
@@ -115,7 +116,7 @@ where
     );
 
     // 9. Build CompressedAccountInfo for CPI
-    let tree_info = meta.tree_info;
+
     let input = InAccountInfo {
         data_hash: input_data_hash,
         lamports: 0,
@@ -132,7 +133,7 @@ where
     // Output is empty (nullifying the compressed account)
     let output = OutAccountInfo {
         lamports: 0,
-        output_merkle_tree_index: meta.output_state_tree_index,
+        output_merkle_tree_index: output_queue_index,
         discriminator: [0u8; 8],
         data: Vec::new(),
         data_hash: [0u8; 32],

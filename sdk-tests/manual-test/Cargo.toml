@@ -20,14 +20,14 @@ test-sbf = []
 
 [dependencies]
 light-heap = { workspace = true, optional = true }
-light-sdk = { workspace = true, features = ["anchor", "idl-build", "v2", "anchor-discriminator", "cpi-context"] }
+light-sdk = { workspace = true, features = ["anchor", "v2", "anchor-discriminator", "cpi-context"] }
 light-sdk-types = { workspace = true, features = ["v2", "cpi-context"] }
 light-macros = { workspace = true, features = ["solana"] }
 light-sdk-macros = { workspace = true }
 borsh = { workspace = true }
 bytemuck = { workspace = true }
 light-compressed-account = { workspace = true, features = ["solana"] }
-anchor-lang = { workspace = true, features = ["idl-build"] }
+anchor-lang = { workspace = true }
 light-compressible = { workspace = true, features = ["anchor"] }
 light-hasher = { workspace = true, features = ["solana"] }
 light-token = { workspace = true, features = ["anchor"] }

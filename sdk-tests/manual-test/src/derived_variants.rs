@@ -4,7 +4,7 @@
 
 use anchor_lang::prelude::*;
 use light_sdk::interface::{prepare_account_for_decompression, DecompressCtx, DecompressVariant};
-use light_sdk_types::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;
+use light_sdk_types::instruction::PackedStateTreeInfo;
 use solana_program_error::ProgramError;
 
 use crate::{
@@ -48,15 +48,17 @@ pub enum PackedLightAccountVariant {
 impl<'info> DecompressVariant<'info> for PackedLightAccountVariant {
     fn decompress(
         &self,
-        meta: &CompressedAccountMetaNoLamportsNoAddress,
+        tree_info: &PackedStateTreeInfo,
         pda_account: &AccountInfo<'info>,
         ctx: &mut DecompressCtx<'_, 'info>,
     ) -> std::result::Result<(), ProgramError> {
+        let output_queue_index = ctx.output_queue_index;
         match self {
             PackedLightAccountVariant::MinimalRecord(packed_data) => {
                 prepare_account_for_decompression::<4, PackedMinimalRecordVariant>(
                     packed_data,
-                    meta,
+                    tree_info,
+                    output_queue_index,
                     pda_account,
                     ctx,
                 )
@@ -64,7 +66,8 @@ impl<'info> DecompressVariant<'info> for PackedLightAccountVariant {
             PackedLightAccountVariant::ZeroCopyRecord(packed_data) => {
                 prepare_account_for_decompression::<4, PackedZeroCopyRecordVariant>(
                     packed_data,
-                    meta,
+                    tree_info,
+                    output_queue_index,
                     pda_account,
                     ctx,
                 )
@@ -72,7 +75,8 @@ impl<'info> DecompressVariant<'info> for PackedLightAccountVariant {
             PackedLightAccountVariant::AllBorsh(packed_data) => {
                 prepare_account_for_decompression::<3, PackedAllBorshVariant>(
                     packed_data,
-                    meta,
+                    tree_info,
+                    output_queue_index,
                     pda_account,
                     ctx,
                 )
@@ -80,7 +84,8 @@ impl<'info> DecompressVariant<'info> for PackedLightAccountVariant {
             PackedLightAccountVariant::AllZeroCopy(packed_data) => {
                 prepare_account_for_decompression::<3, PackedAllZeroCopyVariant>(
                     packed_data,
-                    meta,
+                    tree_info,
+                    output_queue_index,
                     pda_account,
                     ctx,
                 )
