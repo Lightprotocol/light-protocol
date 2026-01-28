@@ -135,14 +135,10 @@ impl TestContext {
         let specs: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Pda(spec)];
 
         // Create and execute decompression
-        let decompress_instructions = create_load_instructions(
-            &specs,
-            self.payer.pubkey(),
-            self.config_pda,
-            &self.rpc,
-        )
-        .await
-        .expect("create_load_instructions should succeed");
+        let decompress_instructions =
+            create_load_instructions(&specs, self.payer.pubkey(), self.config_pda, &self.rpc)
+                .await
+                .expect("create_load_instructions should succeed");
 
         self.rpc
             .create_and_send_transaction(
@@ -450,14 +446,10 @@ async fn test_d8_multi_rentfree() {
         .unwrap();
     let spec1 = PdaSpec::new(interface1.clone(), variant1, ctx.program_id);
     let specs: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Pda(spec1)];
-    let decompress_instructions = create_load_instructions(
-        &specs,
-        ctx.payer.pubkey(),
-        ctx.config_pda,
-        &ctx.rpc,
-    )
-    .await
-    .unwrap();
+    let decompress_instructions =
+        create_load_instructions(&specs, ctx.payer.pubkey(), ctx.config_pda, &ctx.rpc)
+            .await
+            .unwrap();
     ctx.rpc
         .create_and_send_transaction(&decompress_instructions, &ctx.payer.pubkey(), &[&ctx.payer])
         .await
@@ -475,14 +467,10 @@ async fn test_d8_multi_rentfree() {
         .unwrap();
     let spec2 = PdaSpec::new(interface2.clone(), variant2, ctx.program_id);
     let specs: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Pda(spec2)];
-    let decompress_instructions = create_load_instructions(
-        &specs,
-        ctx.payer.pubkey(),
-        ctx.config_pda,
-        &ctx.rpc,
-    )
-    .await
-    .unwrap();
+    let decompress_instructions =
+        create_load_instructions(&specs, ctx.payer.pubkey(), ctx.config_pda, &ctx.rpc)
+            .await
+            .unwrap();
     ctx.rpc
         .create_and_send_transaction(&decompress_instructions, &ctx.payer.pubkey(), &[&ctx.payer])
         .await
@@ -575,14 +563,10 @@ async fn test_d8_all() {
         .unwrap();
     let spec_single = PdaSpec::new(interface_single.clone(), variant_single, ctx.program_id);
     let specs: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Pda(spec_single)];
-    let decompress_instructions = create_load_instructions(
-        &specs,
-        ctx.payer.pubkey(),
-        ctx.config_pda,
-        &ctx.rpc,
-    )
-    .await
-    .unwrap();
+    let decompress_instructions =
+        create_load_instructions(&specs, ctx.payer.pubkey(), ctx.config_pda, &ctx.rpc)
+            .await
+            .unwrap();
     ctx.rpc
         .create_and_send_transaction(&decompress_instructions, &ctx.payer.pubkey(), &[&ctx.payer])
         .await
@@ -600,14 +584,10 @@ async fn test_d8_all() {
         .unwrap();
     let spec_multi = PdaSpec::new(interface_multi.clone(), variant_multi, ctx.program_id);
     let specs: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Pda(spec_multi)];
-    let decompress_instructions = create_load_instructions(
-        &specs,
-        ctx.payer.pubkey(),
-        ctx.config_pda,
-        &ctx.rpc,
-    )
-    .await
-    .unwrap();
+    let decompress_instructions =
+        create_load_instructions(&specs, ctx.payer.pubkey(), ctx.config_pda, &ctx.rpc)
+            .await
+            .unwrap();
     ctx.rpc
         .create_and_send_transaction(&decompress_instructions, &ctx.payer.pubkey(), &[&ctx.payer])
         .await
@@ -1421,14 +1401,10 @@ async fn test_d8_pda_only_full_lifecycle() {
     let spec = PdaSpec::new(account_interface.clone(), variant, ctx.program_id);
     let specs: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Pda(spec)];
 
-    let decompress_instructions = create_load_instructions(
-        &specs,
-        ctx.payer.pubkey(),
-        ctx.config_pda,
-        &ctx.rpc,
-    )
-    .await
-    .expect("create_load_instructions should succeed");
+    let decompress_instructions =
+        create_load_instructions(&specs, ctx.payer.pubkey(), ctx.config_pda, &ctx.rpc)
+            .await
+            .expect("create_load_instructions should succeed");
 
     ctx.rpc
         .create_and_send_transaction(&decompress_instructions, &ctx.payer.pubkey(), &[&ctx.payer])

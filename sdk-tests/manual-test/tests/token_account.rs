@@ -38,7 +38,7 @@ async fn test_create_token_vault() {
         token_vault,
         compressible_config: config_pda(),
         rent_sponsor: rent_sponsor_pda(),
-        light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
+        light_token_program: LIGHT_TOKEN_PROGRAM_ID,
         system_program: solana_sdk::system_program::ID,
     };
 

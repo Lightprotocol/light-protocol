@@ -280,14 +280,10 @@ async fn test_d11_zc_with_vault() {
     let spec = PdaSpec::new(account_interface.clone(), variant, ctx.program_id);
     let specs: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Pda(spec)];
 
-    let decompress_instructions = create_load_instructions(
-        &specs,
-        ctx.payer.pubkey(),
-        ctx.config_pda,
-        &ctx.rpc,
-    )
-    .await
-    .expect("create_load_instructions should succeed");
+    let decompress_instructions =
+        create_load_instructions(&specs, ctx.payer.pubkey(), ctx.config_pda, &ctx.rpc)
+            .await
+            .expect("create_load_instructions should succeed");
 
     ctx.rpc
         .create_and_send_transaction(&decompress_instructions, &ctx.payer.pubkey(), &[&ctx.payer])
@@ -418,14 +414,10 @@ async fn test_d11_zc_with_ata() {
     let spec = PdaSpec::new(account_interface.clone(), variant, ctx.program_id);
     let specs: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Pda(spec)];
 
-    let decompress_instructions = create_load_instructions(
-        &specs,
-        ctx.payer.pubkey(),
-        ctx.config_pda,
-        &ctx.rpc,
-    )
-    .await
-    .expect("create_load_instructions should succeed");
+    let decompress_instructions =
+        create_load_instructions(&specs, ctx.payer.pubkey(), ctx.config_pda, &ctx.rpc)
+            .await
+            .expect("create_load_instructions should succeed");
 
     ctx.rpc
         .create_and_send_transaction(&decompress_instructions, &ctx.payer.pubkey(), &[&ctx.payer])
@@ -548,14 +540,10 @@ async fn test_d11_multiple_zc() {
     let spec_1 = PdaSpec::new(account_interface_1.clone(), variant_1, ctx.program_id);
     let specs_1: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Pda(spec_1)];
 
-    let decompress_instructions_1 = create_load_instructions(
-        &specs_1,
-        ctx.payer.pubkey(),
-        ctx.config_pda,
-        &ctx.rpc,
-    )
-    .await
-    .expect("create_load_instructions should succeed for record 1");
+    let decompress_instructions_1 =
+        create_load_instructions(&specs_1, ctx.payer.pubkey(), ctx.config_pda, &ctx.rpc)
+            .await
+            .expect("create_load_instructions should succeed for record 1");
 
     ctx.rpc
         .create_and_send_transaction(
@@ -582,14 +570,10 @@ async fn test_d11_multiple_zc() {
     let spec_2 = PdaSpec::new(account_interface_2.clone(), variant_2, ctx.program_id);
     let specs_2: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Pda(spec_2)];
 
-    let decompress_instructions_2 = create_load_instructions(
-        &specs_2,
-        ctx.payer.pubkey(),
-        ctx.config_pda,
-        &ctx.rpc,
-    )
-    .await
-    .expect("create_load_instructions should succeed for record 2");
+    let decompress_instructions_2 =
+        create_load_instructions(&specs_2, ctx.payer.pubkey(), ctx.config_pda, &ctx.rpc)
+            .await
+            .expect("create_load_instructions should succeed for record 2");
 
     ctx.rpc
         .create_and_send_transaction(
@@ -732,14 +716,10 @@ async fn test_d11_mixed_zc_borsh() {
     let spec_zc = PdaSpec::new(account_interface_zc.clone(), variant_zc, ctx.program_id);
     let specs_zc: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Pda(spec_zc)];
 
-    let decompress_instructions_zc = create_load_instructions(
-        &specs_zc,
-        ctx.payer.pubkey(),
-        ctx.config_pda,
-        &ctx.rpc,
-    )
-    .await
-    .expect("create_load_instructions should succeed for zc record");
+    let decompress_instructions_zc =
+        create_load_instructions(&specs_zc, ctx.payer.pubkey(), ctx.config_pda, &ctx.rpc)
+            .await
+            .expect("create_load_instructions should succeed for zc record");
 
     ctx.rpc
         .create_and_send_transaction(
@@ -769,14 +749,10 @@ async fn test_d11_mixed_zc_borsh() {
     );
     let specs_borsh: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Pda(spec_borsh)];
 
-    let decompress_instructions_borsh = create_load_instructions(
-        &specs_borsh,
-        ctx.payer.pubkey(),
-        ctx.config_pda,
-        &ctx.rpc,
-    )
-    .await
-    .expect("create_load_instructions should succeed for borsh record");
+    let decompress_instructions_borsh =
+        create_load_instructions(&specs_borsh, ctx.payer.pubkey(), ctx.config_pda, &ctx.rpc)
+            .await
+            .expect("create_load_instructions should succeed for borsh record");
 
     ctx.rpc
         .create_and_send_transaction(
@@ -909,14 +885,10 @@ async fn test_d11_zc_with_ctx_seeds() {
     let spec = PdaSpec::new(account_interface.clone(), variant, ctx.program_id);
     let specs: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Pda(spec)];
 
-    let decompress_instructions = create_load_instructions(
-        &specs,
-        ctx.payer.pubkey(),
-        ctx.config_pda,
-        &ctx.rpc,
-    )
-    .await
-    .expect("create_load_instructions should succeed");
+    let decompress_instructions =
+        create_load_instructions(&specs, ctx.payer.pubkey(), ctx.config_pda, &ctx.rpc)
+            .await
+            .expect("create_load_instructions should succeed");
 
     ctx.rpc
         .create_and_send_transaction(&decompress_instructions, &ctx.payer.pubkey(), &[&ctx.payer])
@@ -1042,14 +1014,10 @@ async fn test_d11_zc_with_params_seeds() {
     let spec = PdaSpec::new(account_interface.clone(), variant, ctx.program_id);
     let specs: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Pda(spec)];
 
-    let decompress_instructions = create_load_instructions(
-        &specs,
-        ctx.payer.pubkey(),
-        ctx.config_pda,
-        &ctx.rpc,
-    )
-    .await
-    .expect("create_load_instructions should succeed");
+    let decompress_instructions =
+        create_load_instructions(&specs, ctx.payer.pubkey(), ctx.config_pda, &ctx.rpc)
+            .await
+            .expect("create_load_instructions should succeed");
 
     ctx.rpc
         .create_and_send_transaction(&decompress_instructions, &ctx.payer.pubkey(), &[&ctx.payer])
@@ -1187,14 +1155,10 @@ async fn test_d11_zc_with_mint_to() {
     let spec = PdaSpec::new(account_interface.clone(), variant, ctx.program_id);
     let specs: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Pda(spec)];
 
-    let decompress_instructions = create_load_instructions(
-        &specs,
-        ctx.payer.pubkey(),
-        ctx.config_pda,
-        &ctx.rpc,
-    )
-    .await
-    .expect("create_load_instructions should succeed");
+    let decompress_instructions =
+        create_load_instructions(&specs, ctx.payer.pubkey(), ctx.config_pda, &ctx.rpc)
+            .await
+            .expect("create_load_instructions should succeed");
 
     ctx.rpc
         .create_and_send_transaction(&decompress_instructions, &ctx.payer.pubkey(), &[&ctx.payer])

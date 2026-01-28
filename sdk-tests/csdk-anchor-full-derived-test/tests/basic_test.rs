@@ -440,10 +440,9 @@ async fn test_create_pdas_and_mint_auto() {
     ];
 
     // Load all accounts with single call
-    let all_instructions =
-        create_load_instructions(&specs, payer.pubkey(), config_pda, &rpc)
-            .await
-            .expect("create_load_instructions should succeed");
+    let all_instructions = create_load_instructions(&specs, payer.pubkey(), config_pda, &rpc)
+        .await
+        .expect("create_load_instructions should succeed");
 
     println!("all_instructions.len() = {:?}", all_instructions);
 

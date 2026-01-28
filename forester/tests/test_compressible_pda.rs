@@ -642,7 +642,7 @@ async fn test_compressible_pda_compression() {
         let deserialized = SinglePubkeyRecord::try_from_slice(compressed_data)
             .expect("Failed to deserialize SinglePubkeyRecord from compressed account");
 
-        let compression_info = deserialized.compression_info.clone();
+        let compression_info = deserialized.compression_info;
 
         let expected_record = SinglePubkeyRecord {
             compression_info,

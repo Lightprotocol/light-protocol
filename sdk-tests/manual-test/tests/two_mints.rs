@@ -67,7 +67,7 @@ async fn test_create_derived_mints() {
         mint_1,
         compressible_config: config_pda(),
         rent_sponsor: rent_sponsor_pda(),
-        light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
+        light_token_program: LIGHT_TOKEN_PROGRAM_ID,
         cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         system_program: solana_sdk::system_program::ID,
     };
@@ -103,7 +103,7 @@ async fn test_create_derived_mints() {
 
     // Deserialize and verify mint 0
     let mint_0_data = Mint::deserialize(&mut &mint_0_account.data[..]).unwrap();
-    let compression_0 = mint_0_data.compression.clone();
+    let compression_0 = mint_0_data.compression;
 
     let expected_mint_0 = Mint {
         base: BaseMint {
@@ -130,7 +130,7 @@ async fn test_create_derived_mints() {
 
     // Deserialize and verify mint 1
     let mint_1_data = Mint::deserialize(&mut &mint_1_account.data[..]).unwrap();
-    let compression_1 = mint_1_data.compression.clone();
+    let compression_1 = mint_1_data.compression;
 
     let expected_mint_1 = Mint {
         base: BaseMint {

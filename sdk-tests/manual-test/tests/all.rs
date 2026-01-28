@@ -100,7 +100,7 @@ async fn test_create_all() {
         user_ata,
         compressible_config: config_pda(),
         rent_sponsor: rent_sponsor_pda(),
-        light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
+        light_token_program: LIGHT_TOKEN_PROGRAM_ID,
         cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         system_program: solana_sdk::system_program::ID,
     };
@@ -156,7 +156,7 @@ async fn test_create_all() {
         .expect("Mint should exist");
 
     let mint_data = Mint::deserialize(&mut &mint_account.data[..]).expect("Should deserialize");
-    let compression = mint_data.compression.clone();
+    let compression = mint_data.compression;
 
     let expected_mint = Mint {
         base: BaseMint {

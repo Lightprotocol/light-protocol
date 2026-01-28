@@ -64,6 +64,7 @@ impl<'info> LightFinalize<'info, CreateTokenVaultParams> for CreateTokenVaultAcc
         vec[i] = Some(vec![ExtensionInstructionData::CompressedOnly(extension)]);
     }
 }*/
+#[allow(dead_code)]
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct TokenVaultSeeds {
     pub mint: Pubkey,
@@ -82,6 +83,7 @@ impl Pack for TokenVaultSeeds {
     }
 }
 
+#[allow(dead_code)]
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct PackedTokenVaultSeeds {
     pub mint_idx: u8,

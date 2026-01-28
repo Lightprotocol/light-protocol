@@ -64,9 +64,9 @@ pub struct Token {
 impl anchor_lang::IdlBuild for Token {}
 
 // IDL inherent methods required for UFCS calls from AnchorSerialize derive macro.
-// When anchor-lang/idl-build is enabled (by ANY crate in the dependency tree),
-// the macro generates code like `<Token>::get_full_path()`. These calls need
-// inherent methods since the IdlBuild trait may not be in scope at the call site.
+// When anchor-lang/idl-build is enabled, the macro generates code like
+// `<Token>::get_full_path()`. These calls need inherent methods since the
+// IdlBuild trait may not be in scope at the call site.
 #[cfg(feature = "idl-build")]
 impl Token {
     #[doc(hidden)]

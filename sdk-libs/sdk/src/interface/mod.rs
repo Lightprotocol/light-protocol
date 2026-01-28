@@ -38,13 +38,13 @@ pub use compress::{
     prepare_account_for_compression, process_compress_pda_accounts_idempotent,
     CompressAndCloseParams, CompressCtx,
 };
+// Pack trait is only available off-chain (client-side) - uses PackedAccounts
+#[cfg(not(target_os = "solana"))]
+pub use compression_info::Pack;
 pub use compression_info::{
     CompressAs, CompressedInitSpace, CompressionInfo, CompressionInfoField, CompressionState,
     HasCompressionInfo, Space, Unpack, COMPRESSION_INFO_SIZE, OPTION_COMPRESSION_INFO_SPACE,
 };
-// Pack trait is only available off-chain (client-side) - uses PackedAccounts
-#[cfg(not(target_os = "solana"))]
-pub use compression_info::Pack;
 pub use config::{
     process_initialize_light_config, process_initialize_light_config_checked,
     process_update_light_config, LightConfig, COMPRESSIBLE_CONFIG_SEED,

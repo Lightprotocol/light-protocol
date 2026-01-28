@@ -19,6 +19,9 @@ use solana_instruction::{AccountMeta, Instruction};
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
+// Pack trait and PackedAccounts only available off-chain (client-side packing)
+#[cfg(not(target_os = "solana"))]
+use crate::{instruction::PackedAccounts, Pack};
 use crate::{
     interface::{
         AccountType, DecompressCtx, LightAccountVariantTrait, PackedLightAccountVariantTrait,
@@ -26,10 +29,6 @@ use crate::{
     },
     AnchorDeserialize, AnchorSerialize, Unpack,
 };
-
-// Pack trait and PackedAccounts only available off-chain (client-side packing)
-#[cfg(not(target_os = "solana"))]
-use crate::{instruction::PackedAccounts, Pack};
 
 #[derive(Clone, Debug, AnchorSerialize, AnchorDeserialize)]
 pub struct TokenDataWithSeeds<S> {

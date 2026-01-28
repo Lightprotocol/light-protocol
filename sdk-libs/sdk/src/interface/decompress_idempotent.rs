@@ -8,6 +8,7 @@ use crate::error::LightSdkError;
 /// Cold path: Account already has lamports (e.g., attacker donation).
 /// Uses Assign + Allocate + Transfer instead of CreateAccount which would fail.
 #[cold]
+#[allow(clippy::too_many_arguments)]
 fn create_pda_account_with_lamports<'info>(
     rent_sponsor: &AccountInfo<'info>,
     rent_sponsor_seeds: &[&[u8]],
@@ -77,6 +78,7 @@ fn create_pda_account_with_lamports<'info>(
 /// * `seeds` - Seeds for the target PDA (including bump) for signing
 /// * `system_program` - System program
 #[inline(never)]
+#[allow(clippy::too_many_arguments)]
 pub fn create_pda_account<'info>(
     rent_sponsor: &AccountInfo<'info>,
     rent_sponsor_seeds: &[&[u8]],

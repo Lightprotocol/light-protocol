@@ -588,14 +588,10 @@ async fn test_amm_full_lifecycle() {
     let mut all_specs = specs;
     all_specs.push(AccountSpec::Ata(creator_lp_interface));
 
-    let decompress_ixs = create_load_instructions(
-        &all_specs,
-        ctx.payer.pubkey(),
-        ctx.config_pda,
-        &ctx.rpc,
-    )
-    .await
-    .expect("create_load_instructions should succeed");
+    let decompress_ixs =
+        create_load_instructions(&all_specs, ctx.payer.pubkey(), ctx.config_pda, &ctx.rpc)
+            .await
+            .expect("create_load_instructions should succeed");
 
     ctx.rpc
         .create_and_send_transaction(

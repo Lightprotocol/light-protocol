@@ -10,8 +10,7 @@ use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest, TestRpc},
     Indexer, ProgramTestConfig, Rpc,
 };
-use light_sdk::interface::IntoVariant;
-use light_sdk::utils::derive_rent_sponsor_pda;
+use light_sdk::{interface::IntoVariant, utils::derive_rent_sponsor_pda};
 use single_account_loader_test::{
     single_account_loader_test::{LightAccountVariant, RecordSeeds},
     CreateRecordParams, ZeroCopyRecord, RECORD_SEED,

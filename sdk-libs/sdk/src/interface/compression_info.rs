@@ -10,11 +10,10 @@ use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
 use solana_sysvar::Sysvar;
 
-use crate::{AnchorDeserialize, AnchorSerialize, ProgramError};
-
 // Only available off-chain (client-side) - PackedAccounts contains sorting code
 #[cfg(not(target_os = "solana"))]
 use crate::instruction::PackedAccounts;
+use crate::{AnchorDeserialize, AnchorSerialize, ProgramError};
 
 /// Replace 32-byte Pubkeys with 1-byte indices to save space.
 /// If your type has no Pubkeys, just return self.
