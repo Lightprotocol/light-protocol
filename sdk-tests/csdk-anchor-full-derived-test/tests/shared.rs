@@ -1,4 +1,4 @@
-#![cfg(allow(dead_code))]
+#![allow(dead_code)]
 // Shared test utilities for csdk-anchor-full-derived-test
 
 use light_client::{indexer::Indexer, rpc::Rpc};

@@ -159,6 +159,62 @@ impl SeedSpec {
     }
 }
 
+// =============================================================================
+// EXTRACTED SPEC TYPES (for #[light_program] macro)
+// =============================================================================
+
+/// Extracted seed specification for a light account field.
+///
+/// This is a richer version of `SeedSpec` with additional metadata needed
+/// for code generation in the `#[light_program]` macro.
+#[derive(Clone, Debug)]
+pub struct ExtractedSeedSpec {
+    /// The variant name derived from field_name (snake_case -> CamelCase)
+    pub variant_name: Ident,
+    /// The inner type (e.g., crate::state::UserRecord from Account<'info, UserRecord>)
+    /// Preserves the full type path for code generation.
+    pub inner_type: Type,
+    /// Classified seeds from #[account(seeds = [...])]
+    pub seeds: Vec<ClassifiedSeed>,
+    /// True if the field uses zero-copy serialization (AccountLoader)
+    pub is_zero_copy: bool,
+    /// The instruction struct name this field was extracted from (for error messages)
+    pub struct_name: String,
+    /// The full module path where this struct was defined (e.g., "crate::instructions::create")
+    /// Used to qualify bare constant/function names in seed expressions.
+    pub module_path: String,
+}
+
+/// Extracted token specification for a #[light_account(token, ...)] field
+#[derive(Clone, Debug)]
+pub struct ExtractedTokenSpec {
+    /// The field name in the Accounts struct
+    pub field_name: Ident,
+    /// The variant name derived from field name
+    pub variant_name: Ident,
+    /// Seeds from #[account(seeds = [...])]
+    pub seeds: Vec<ClassifiedSeed>,
+    /// Authority field name (if specified or auto-detected)
+    pub authority_field: Option<Ident>,
+    /// Authority seeds (from the authority field's #[account(seeds)])
+    pub authority_seeds: Option<Vec<ClassifiedSeed>>,
+    /// The full module path where this struct was defined (e.g., "crate::instructions::create")
+    /// Used to qualify bare constant/function names in seed expressions.
+    pub module_path: String,
+}
+
+/// All extracted info from an Accounts struct
+#[derive(Clone, Debug)]
+pub struct ExtractedAccountsInfo {
+    pub struct_name: Ident,
+    pub pda_fields: Vec<ExtractedSeedSpec>,
+    pub token_fields: Vec<ExtractedTokenSpec>,
+    /// True if struct has any #[light_account(init, mint::...)] fields
+    pub has_light_mint_fields: bool,
+    /// True if struct has any #[light_account(init, associated_token::...)] fields
+    pub has_light_ata_fields: bool,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

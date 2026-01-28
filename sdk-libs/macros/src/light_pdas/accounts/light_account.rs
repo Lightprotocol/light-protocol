@@ -60,7 +60,7 @@ use syn::{
 };
 
 use super::mint::LightMintField;
-pub(super) use crate::light_pdas::account::seed_extraction::extract_account_inner_type;
+pub(super) use crate::light_pdas::seeds::extract_account_inner_type;
 use crate::light_pdas::light_account_keywords::{
     is_shorthand_key, is_standalone_keyword, missing_namespace_error, valid_keys_for_namespace,
     validate_namespaced_key,

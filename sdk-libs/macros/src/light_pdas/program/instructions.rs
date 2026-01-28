@@ -694,10 +694,10 @@ fn codegen(
 #[inline(never)]
 pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<TokenStream> {
     use super::crate_context::CrateContext;
-    use crate::light_pdas::account::seed_extraction::{
-        extract_from_accounts_struct, ExtractedSeedSpec, ExtractedTokenSpec,
+    use crate::light_pdas::seeds::{
+        extract_from_accounts_struct, get_data_fields, parse_instruction_arg_names,
+        ExtractedSeedSpec, ExtractedTokenSpec,
     };
-    use crate::light_pdas::seeds::{get_data_fields, parse_instruction_arg_names};
 
     if module.content.is_none() {
         return Err(macro_error!(&module, "Module must have a body"));

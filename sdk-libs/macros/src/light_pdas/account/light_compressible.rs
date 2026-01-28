@@ -216,8 +216,7 @@ fn generate_light_account_impl(input: &DeriveInput) -> Result<TokenStream> {
     let pack_body = generate_pack_body(&packed_struct_name, fields, has_pubkey_fields)?;
 
     // Generate unpack method body
-    let unpack_body =
-        generate_unpack_body(struct_name, &packed_struct_name, fields, has_pubkey_fields)?;
+    let unpack_body = generate_unpack_body(struct_name, fields, has_pubkey_fields)?;
 
     // Generate compress_as body for set_decompressed
     let compress_as_assignments = generate_compress_as_assignments(fields, &compress_as_fields);
@@ -493,7 +492,6 @@ fn generate_pack_body(
 /// Generates the unpack method body.
 fn generate_unpack_body(
     struct_name: &Ident,
-    _packed_struct_name: &Ident,
     fields: &Punctuated<Field, Token![,]>,
     has_pubkey_fields: bool,
 ) -> Result<TokenStream> {

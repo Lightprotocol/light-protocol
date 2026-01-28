@@ -1,15 +1,12 @@
-//! Shared trait derive macros for compressible accounts.
+//! Shared trait derive macros for light accounts.
 //!
 //! This module provides:
-//! - `seed_extraction` - Seed extraction from Anchor account attributes
 //! - `light_compressible` - Combined LightAccount derive macro
-//! - `pack_unpack` - Pack/Unpack trait implementations
 //! - `traits` - HasCompressionInfo, Compressible, CompressAs traits
 //! - `utils` - Shared utility functions
+//! - `validation` - Shared validation utilities
 
 pub mod light_compressible;
-pub mod pack_unpack;
-pub mod seed_extraction;
 #[allow(clippy::module_inception)]
 pub mod traits;
 pub mod utils;

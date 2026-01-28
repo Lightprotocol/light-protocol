@@ -4,7 +4,6 @@
 //! - LightHasherSha -> DataHasher + ToByteArray
 //! - LightDiscriminator -> LIGHT_DISCRIMINATOR constant
 //! - Compressible -> HasCompressionInfo + CompressAs + Size + CompressedInitSpace
-//! - CompressiblePack -> Pack + Unpack (identity implementation with array fields)
 //!
 //! Note: Since ArrayRecord has no Pubkey fields, the Pack trait generates an identity
 //! implementation where Packed = Self. Array fields are directly copied in pack/unpack.

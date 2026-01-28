@@ -259,36 +259,7 @@ pub fn compressible_derive(input: TokenStream) -> TokenStream {
     into_token_stream(light_pdas::account::traits::derive_compressible(input))
 }
 
-/// Automatically implements Pack and Unpack traits for compressible accounts.
-///
-/// For types with Pubkey fields, generates a PackedXxx struct and proper packing.
-/// For types without Pubkeys, generates identity Pack/Unpack implementations.
-///
-/// ## Example
-///
-/// ```ignore
-/// use light_sdk_macros::CompressiblePack;
-/// use light_compressible::CompressionInfo;
-/// use solana_pubkey::Pubkey;
-///
-/// #[derive(CompressiblePack)]
-/// pub struct UserRecord {
-///     pub compression_info: Option<CompressionInfo>,
-///     pub owner: Pubkey,  // Will be packed as u8 index
-///     pub name: String,   // Kept as-is
-///     pub score: u64,     // Kept as-is
-/// }
-/// // This generates PackedUserRecord struct + Pack/Unpack implementations
-/// ```
-#[proc_macro_derive(CompressiblePack)]
-pub fn compressible_pack(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as DeriveInput);
-    into_token_stream(light_pdas::account::pack_unpack::derive_compressible_pack(
-        input,
-    ))
-}
-
-/// Generates a unified `LightAccount` trait implementation for compressible account structs.
+/// Generates a unified `LightAccount` trait implementation for light account structs.
 ///
 /// This macro generates:
 /// - `LightHasherSha` (SHA256/ShaFlat hashing via DataHasher + ToByteArray)

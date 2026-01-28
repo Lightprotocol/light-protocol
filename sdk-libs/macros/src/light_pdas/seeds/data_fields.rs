@@ -328,4 +328,41 @@ mod tests {
         assert!(result.is_some());
         assert_eq!(result.unwrap().to_string(), "owner");
     }
+
+    #[test]
+    fn test_extract_data_field_info_nested() {
+        // Nested field access should extract terminal field name
+        let expr: syn::Expr = parse_quote!(params.inner.authority.as_ref());
+        let result = extract_data_field_info(&expr);
+        assert!(result.is_some());
+        let (field, conversion) = result.unwrap();
+        assert_eq!(field.to_string(), "authority", "Should extract terminal field 'authority', not 'inner'");
+        assert!(conversion.is_none());
+    }
+
+    #[test]
+    fn test_get_data_fields_nested() {
+        // Nested field access in seed should use terminal field name in struct
+        let seeds = vec![ClassifiedSeed::DataRooted {
+            root: make_ident("params"),
+            expr: Box::new(parse_quote!(params.inner.authority.as_ref())),
+        }];
+
+        let fields = get_data_fields(&seeds);
+        assert_eq!(fields.len(), 1);
+        assert_eq!(fields[0].0.to_string(), "authority", "Seed struct should use terminal field 'authority'");
+    }
+
+    #[test]
+    fn test_get_data_fields_deeply_nested() {
+        // Deeply nested field access
+        let seeds = vec![ClassifiedSeed::DataRooted {
+            root: make_ident("data"),
+            expr: Box::new(parse_quote!(data.level1.level2.level3.key.as_ref())),
+        }];
+
+        let fields = get_data_fields(&seeds);
+        assert_eq!(fields.len(), 1);
+        assert_eq!(fields[0].0.to_string(), "key", "Should extract deepest terminal field 'key'");
+    }
 }

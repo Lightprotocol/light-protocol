@@ -21,6 +21,7 @@ mod mint;
 mod parse;
 mod pda;
 mod token;
+mod validation;
 mod variant;
 
 use proc_macro2::TokenStream;

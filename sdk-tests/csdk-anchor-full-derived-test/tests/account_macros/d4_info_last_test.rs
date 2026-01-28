@@ -4,7 +4,6 @@
 //! - LightHasherSha -> DataHasher + ToByteArray
 //! - LightDiscriminator -> LIGHT_DISCRIMINATOR constant
 //! - Compressible -> HasCompressionInfo + CompressAs + Size + CompressedInitSpace
-//! - CompressiblePack -> Pack + Unpack + PackedInfoLastRecord
 //!
 //! InfoLastRecord has 1 Pubkey field (owner) and demonstrates that
 //! compression_info can be placed in non-first position (ordering test).

@@ -43,18 +43,39 @@ pub fn classify_seed_expr(
 
     // Check if rooted in instruction arg
     if let Some(root) = get_instruction_arg_root(expr, instruction_args) {
-        // Error on name collision: bare identifier that matches instruction arg
-        // could also be a ctx account with the same name
-        if is_bare_identifier_collision(expr, &root) {
-            return Err(syn::Error::new_spanned(
-                expr,
-                format!(
-                    "Ambiguous seed: '{}' matches both an instruction argument and could be a \
-                     context account. Use explicit field access (e.g., `params.{}`) for instruction \
-                     data, or rename the instruction argument to avoid collision.",
-                    root, root
-                ),
-            ));
+        if let Some(terminal_field) = get_terminal_field_name(expr) {
+            let terminal_str = terminal_field.to_string();
+
+            // Case 1: Bare identifier (terminal == root) - ambiguous with ctx account
+            // e.g., #[instruction(authority: Pubkey)] with seeds = [authority.as_ref()]
+            // Could mean instruction arg OR ctx account named "authority"
+            if terminal_field == root && is_bare_identifier(expr) {
+                return Err(syn::Error::new_spanned(
+                    expr,
+                    format!(
+                        "Ambiguous seed: '{}' matches an instruction argument but could also be \
+                         a context account. Use explicit field access (e.g., `params.{}`) for \
+                         instruction data, or use `{}.key().as_ref()` for a context account.",
+                        root, root, root
+                    ),
+                ));
+            }
+
+            // Case 2: Terminal field matches a DIFFERENT instruction arg
+            // e.g., #[instruction(params: MyParams, authority: Pubkey)]
+            //       seeds = [params.authority.as_ref()]
+            // "authority" is both a field on params AND a separate instruction arg
+            if terminal_field != root && instruction_args.contains(&terminal_str) {
+                return Err(syn::Error::new_spanned(
+                    expr,
+                    format!(
+                        "Ambiguous seed: '{}' is both a field on '{}' and a separate instruction \
+                         argument. Use the bare instruction argument '{}' directly, or rename to \
+                         avoid collision.",
+                        terminal_field, root, terminal_field
+                    ),
+                ));
+            }
         }
         return Ok(ClassifiedSeed::DataRooted {
             root,
@@ -250,31 +271,44 @@ fn extract_constant_path(expr: &Expr) -> Option<syn::Path> {
     }
 }
 
-/// Check if expression is a bare identifier collision.
-///
-/// Returns true if the expression root is a bare identifier (not a field access like `params.field`)
-/// that matches an instruction arg. This is ambiguous because the same name could refer to
-/// either the instruction arg or a ctx account.
+/// Check if expression is a bare identifier (not field access).
 ///
 /// Examples:
-/// - `owner.as_ref()` with instruction_args={"owner"} -> true (ambiguous)
-/// - `params.owner.as_ref()` with instruction_args={"params"} -> false (clearly instruction data)
-/// - `owner.key().as_ref()` with instruction_args={"owner"} -> true (ambiguous)
-fn is_bare_identifier_collision(expr: &Expr, root: &Ident) -> bool {
-    // Unwrap method calls and references to find the base expression
-    let base = unwrap_to_base(expr);
-
-    // Check if the base is a bare identifier (single-segment path)
-    matches!(base, Expr::Path(path) if path.path.get_ident().is_some_and(|id| id == root))
+/// - `owner` -> true
+/// - `owner.as_ref()` -> true (method call on bare identifier)
+/// - `params.owner` -> false (field access)
+/// - `params.owner.as_ref()` -> false (method call on field access)
+fn is_bare_identifier(expr: &Expr) -> bool {
+    match expr {
+        Expr::Path(path) => path.path.get_ident().is_some(),
+        Expr::MethodCall(mc) => is_bare_identifier(&mc.receiver),
+        Expr::Reference(r) => is_bare_identifier(&r.expr),
+        Expr::Paren(p) => is_bare_identifier(&p.expr),
+        _ => false,
+    }
 }
 
-/// Unwrap method calls, references, and other wrappers to find the base expression.
-fn unwrap_to_base(expr: &Expr) -> &Expr {
+/// Get the terminal (deepest) field name from an expression.
+///
+/// Examples:
+/// - `params.owner.as_ref()` -> Some("owner")
+/// - `owner.as_ref()` -> Some("owner")
+/// - `params.inner.key` -> Some("key")
+fn get_terminal_field_name(expr: &Expr) -> Option<Ident> {
     match expr {
-        Expr::MethodCall(mc) => unwrap_to_base(&mc.receiver),
-        Expr::Reference(r) => unwrap_to_base(&r.expr),
-        Expr::Paren(p) => unwrap_to_base(&p.expr),
-        _ => expr,
+        Expr::Path(path) => path.path.get_ident().cloned(),
+        Expr::Field(field) => {
+            if let syn::Member::Named(name) = &field.member {
+                Some(name.clone())
+            } else {
+                None
+            }
+        }
+        Expr::MethodCall(mc) => get_terminal_field_name(&mc.receiver),
+        Expr::Reference(r) => get_terminal_field_name(&r.expr),
+        Expr::Paren(p) => get_terminal_field_name(&p.expr),
+        Expr::Index(idx) => get_terminal_field_name(&idx.expr),
+        _ => None,
     }
 }
 
@@ -363,23 +397,24 @@ mod tests {
 
     #[test]
     fn test_bare_pubkey_instruction_arg() {
-        // Format 2: bare instruction arg "owner" should be DataRooted
+        // Format 2: bare instruction arg "owner" is ambiguous (could be ctx account)
+        // Users must use explicit field access: params.owner or owner.key().as_ref()
         let args = make_instruction_args(&["owner", "amount"]);
         let expr: syn::Expr = parse_quote!(owner);
-        let result = classify_seed_expr(&expr, &args).unwrap();
-        assert!(matches!(result, ClassifiedSeed::DataRooted { root, .. } if root == "owner"));
+        let result = classify_seed_expr(&expr, &args);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Ambiguous seed"));
     }
 
     #[test]
     fn test_bare_primitive_with_to_le_bytes() {
-        // Format 2: amount.to_le_bytes() should be DataRooted with root "amount"
+        // Format 2: bare instruction arg "amount" is ambiguous (could be ctx account)
+        // Users must use explicit field access: params.amount
         let args = make_instruction_args(&["amount"]);
         let expr: syn::Expr = parse_quote!(amount.to_le_bytes().as_ref());
-        let result = classify_seed_expr(&expr, &args).unwrap();
-        assert!(matches!(
-            result,
-            ClassifiedSeed::DataRooted { root, .. } if root == "amount"
-        ));
+        let result = classify_seed_expr(&expr, &args);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Ambiguous seed"));
     }
 
     #[test]
@@ -469,18 +504,18 @@ mod tests {
     #[test]
     fn test_format2_multiple_params() {
         // Format 2: #[instruction(owner: Pubkey, amount: u64)]
+        // Bare identifiers matching instruction args are ambiguous
         let args = make_instruction_args(&["owner", "amount"]);
 
         let expr1: syn::Expr = parse_quote!(owner.as_ref());
-        let result1 = classify_seed_expr(&expr1, &args).unwrap();
-        assert!(matches!(result1, ClassifiedSeed::DataRooted { root, .. } if root == "owner"));
+        let result1 = classify_seed_expr(&expr1, &args);
+        assert!(result1.is_err());
+        assert!(result1.unwrap_err().to_string().contains("Ambiguous seed"));
 
         let expr2: syn::Expr = parse_quote!(amount.to_le_bytes().as_ref());
-        let result2 = classify_seed_expr(&expr2, &args).unwrap();
-        assert!(matches!(
-            result2,
-            ClassifiedSeed::DataRooted { root, .. } if root == "amount"
-        ));
+        let result2 = classify_seed_expr(&expr2, &args);
+        assert!(result2.is_err());
+        assert!(result2.unwrap_err().to_string().contains("Ambiguous seed"));
     }
 
     #[test]
@@ -694,25 +729,40 @@ mod tests {
     }
 
     #[test]
-    fn test_is_bare_identifier_collision() {
+    fn test_is_bare_identifier() {
         // Test the helper function directly
-        let authority = syn::Ident::new("authority", proc_macro2::Span::call_site());
 
-        // Bare identifier - is collision
+        // Bare identifier - is bare
         let expr1: syn::Expr = parse_quote!(authority);
-        assert!(is_bare_identifier_collision(&expr1, &authority));
+        assert!(is_bare_identifier(&expr1));
 
-        // Bare identifier with method - is collision
+        // Bare identifier with method - is bare
         let expr2: syn::Expr = parse_quote!(authority.as_ref());
-        assert!(is_bare_identifier_collision(&expr2, &authority));
+        assert!(is_bare_identifier(&expr2));
 
-        // Field access - not a collision (clearly instruction data)
-        let params = syn::Ident::new("params", proc_macro2::Span::call_site());
+        // Field access - not bare
         let expr3: syn::Expr = parse_quote!(params.authority);
-        assert!(!is_bare_identifier_collision(&expr3, &params));
+        assert!(!is_bare_identifier(&expr3));
 
-        // Nested field access - not a collision
+        // Nested field access - not bare
         let expr4: syn::Expr = parse_quote!(params.inner.authority.as_ref());
-        assert!(!is_bare_identifier_collision(&expr4, &params));
+        assert!(!is_bare_identifier(&expr4));
+    }
+
+    #[test]
+    fn test_terminal_field_collision_with_instruction_arg() {
+        // When params.authority is used and "authority" is also an instruction arg,
+        // we should get an error because the intent is ambiguous.
+        let args = make_instruction_args(&["params", "authority"]);
+
+        let expr: syn::Expr = parse_quote!(params.authority.as_ref());
+        let result = classify_seed_expr(&expr, &args);
+        assert!(result.is_err(), "Expected error for terminal field matching instruction arg");
+        let err = result.unwrap_err().to_string();
+        assert!(
+            err.contains("Ambiguous seed"),
+            "Error should mention ambiguity: {}",
+            err
+        );
     }
 }

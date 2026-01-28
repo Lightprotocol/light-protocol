@@ -4,7 +4,6 @@
 //! - LightHasherSha -> DataHasher + ToByteArray
 //! - LightDiscriminator -> LIGHT_DISCRIMINATOR constant
 //! - Compressible -> HasCompressionInfo + CompressAs + Size + CompressedInitSpace
-//! - CompressiblePack -> Pack + Unpack (identity implementation: PackedOptionPrimitiveRecord = OptionPrimitiveRecord)
 //!
 //! Note: Since OptionPrimitiveRecord has no Pubkey fields, the Pack trait generates an identity
 //! implementation where Packed = Self. Option<primitive> types remain unchanged in the packed

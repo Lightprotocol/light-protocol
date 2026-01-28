@@ -4,7 +4,6 @@
 //! - LightHasherSha -> DataHasher + ToByteArray
 //! - LightDiscriminator -> LIGHT_DISCRIMINATOR constant
 //! - Compressible -> HasCompressionInfo + CompressAs + Size + CompressedInitSpace
-//! - CompressiblePack -> Pack + Unpack + PackedUserRecord
 
 use csdk_anchor_full_derived_test::{PackedUserRecord, UserRecord};
 use light_hasher::{DataHasher, Sha256};

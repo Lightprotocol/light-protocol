@@ -4,7 +4,6 @@
 //! - LightHasherSha -> DataHasher + ToByteArray
 //! - LightDiscriminator -> LIGHT_DISCRIMINATOR constant
 //! - Compressible -> HasCompressionInfo + CompressAs + Size + CompressedInitSpace
-//! - CompressiblePack -> Pack + Unpack + PackedSinglePubkeyRecord
 
 use csdk_anchor_full_derived_test::{PackedSinglePubkeyRecord, SinglePubkeyRecord};
 use light_hasher::{DataHasher, Sha256};

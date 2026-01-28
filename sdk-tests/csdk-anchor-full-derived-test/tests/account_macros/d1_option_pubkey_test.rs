@@ -4,7 +4,6 @@
 //! - LightHasherSha -> DataHasher + ToByteArray
 //! - LightDiscriminator -> LIGHT_DISCRIMINATOR constant
 //! - Compressible -> HasCompressionInfo + CompressAs + Size + CompressedInitSpace
-//! - CompressiblePack -> Pack + Unpack + PackedOptionPubkeyRecord
 //!
 //! IMPORTANT: Option<Pubkey> fields are NOT converted to Option<u8> in the packed struct.
 //! Only direct Pubkey fields (like `owner: Pubkey`) are converted to u8 indices.

@@ -4,7 +4,6 @@
 //! - LightHasherSha -> DataHasher + ToByteArray
 //! - LightDiscriminator -> LIGHT_DISCRIMINATOR constant
 //! - Compressible -> HasCompressionInfo + CompressAs + Size + CompressedInitSpace
-//! - CompressiblePack -> Pack + Unpack (identity implementation with clone() path)
 //!
 //! Note: Since NonCopyRecord has no Pubkey fields, the Pack trait generates an identity
 //! implementation where Packed = Self. String fields use the clone() code path in pack/unpack.

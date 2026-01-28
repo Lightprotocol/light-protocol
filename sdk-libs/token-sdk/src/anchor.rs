@@ -30,7 +30,6 @@ pub use light_sdk_macros::{
     // Derive macros
     CompressAs,
     Compressible,
-    CompressiblePack,
     HasCompressionInfo,
     LightAccount,
     LightAccounts,

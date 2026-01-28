@@ -4,7 +4,6 @@
 //! - LightHasherSha -> DataHasher + ToByteArray
 //! - LightDiscriminator -> LIGHT_DISCRIMINATOR constant
 //! - Compressible -> HasCompressionInfo + CompressAs + Size + CompressedInitSpace
-//! - CompressiblePack -> Pack + Unpack + PackedAllFieldTypesRecord
 //!
 //! Comprehensive test exercising all field type code paths:
 //! - Multiple Pubkeys (owner, delegate, authority) -> u8 indices

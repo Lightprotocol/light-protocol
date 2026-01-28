@@ -4,7 +4,6 @@
 //! - LightHasherSha -> DataHasher + ToByteArray
 //! - LightDiscriminator -> LIGHT_DISCRIMINATOR constant
 //! - Compressible -> HasCompressionInfo + CompressAs + Size + CompressedInitSpace
-//! - CompressiblePack -> Pack + Unpack + PackedAllCompositionRecord
 //!
 //! AllCompositionRecord has 3 Pubkey fields + 1 Option<Pubkey> field and uses
 //! #[compress_as(cached_time = 0, end_time = None)] to override field values.
