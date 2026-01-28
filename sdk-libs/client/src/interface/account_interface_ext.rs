@@ -243,9 +243,10 @@ impl<T: Rpc + Indexer> AccountInterfaceExt for T {
                 AccountToFetch::Pda {
                     address,
                     program_id,
-                } => self.get_account_interface(address, program_id).await?,
+                } => AccountInterfaceExt::get_account_interface(self, address, program_id).await?,
                 AccountToFetch::Token { address } => {
-                    let token_iface = self.get_token_account_interface(address).await?;
+                    let token_iface =
+                        AccountInterfaceExt::get_token_account_interface(self, address).await?;
                     AccountInterface {
                         key: token_iface.key,
                         account: token_iface.account,
@@ -253,7 +254,8 @@ impl<T: Rpc + Indexer> AccountInterfaceExt for T {
                     }
                 }
                 AccountToFetch::Ata { wallet_owner, mint } => {
-                    let token_iface = self.get_ata_interface(wallet_owner, mint).await?;
+                    let token_iface =
+                        AccountInterfaceExt::get_ata_interface(self, wallet_owner, mint).await?;
                     AccountInterface {
                         key: token_iface.key,
                         account: token_iface.account,
@@ -261,7 +263,7 @@ impl<T: Rpc + Indexer> AccountInterfaceExt for T {
                     }
                 }
                 AccountToFetch::Mint { address } => {
-                    let mint_iface = self.get_mint_interface(address).await?;
+                    let mint_iface = AccountInterfaceExt::get_mint_interface(self, address).await?;
                     match mint_iface.state {
                         MintState::Hot { account } => AccountInterface {
                             key: mint_iface.mint,
