@@ -1,7 +1,7 @@
 //! Client SDK for the AMM test program.
 //!
-//! Implements the `LightProgramInterface` trait to provide a Jupiter-style
-//! interface for clients to build decompression instructions.
+//! Implements `LightProgramInterface` and `LightAmmInterface` traits to provide
+//! a Jupiter-style interface for clients to build decompression instructions.
 
 use std::collections::HashMap;
 
@@ -13,8 +13,8 @@ use csdk_anchor_full_derived_test::{
     },
 };
 use light_client::interface::{
-    matches_discriminator, AccountInterface, AccountSpec, AccountToFetch, ColdContext,
-    CreateAccountsProofInput, LightProgramInterface, PdaSpec,
+    matches_discriminator, AccountInterface, AccountSpec, AccountToFetch, ColdAccountSpec,
+    ColdContext, CreateAccountsProofInput, LightAmmInterface, LightProgramInterface, PdaSpec,
 };
 use light_sdk::LightDiscriminator;
 use solana_pubkey::Pubkey;
@@ -39,14 +39,21 @@ pub enum AccountKind {
 pub struct AccountRequirement {
     pub pubkey: Option<Pubkey>,
     pub kind: AccountKind,
+    /// Whether this account is compressible (can go cold).
+    pub compressible: bool,
 }
 
 impl AccountRequirement {
-    fn new(pubkey: Option<Pubkey>, kind: AccountKind) -> Self {
-        Self { pubkey, kind }
+    fn new(pubkey: Option<Pubkey>, kind: AccountKind, compressible: bool) -> Self {
+        Self {
+            pubkey,
+            kind,
+            compressible,
+        }
     }
 }
 
+/// Instruction kinds for the AMM program.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AmmInstruction {
     Swap,
@@ -75,7 +82,7 @@ impl std::fmt::Display for AmmSdkError {
 
 impl std::error::Error for AmmSdkError {}
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AmmSdk {
     pool_state_pubkey: Option<Pubkey>,
     amm_config: Option<Pubkey>,
@@ -188,13 +195,38 @@ impl AmmSdk {
         is_vault_0: bool,
     ) -> Result<(), AmmSdkError> {
         use light_token::compat::TokenData;
+        use light_token_interface::state::Token;
 
         let pool_state = self
             .pool_state_pubkey
             .ok_or(AmmSdkError::PoolStateNotParsed)?;
 
-        let token_data = TokenData::deserialize(&mut &account.data()[..])
-            .map_err(|e| AmmSdkError::ParseError(e.to_string()))?;
+        // Hot accounts use SPL-compatible Token layout, cold use compressed TokenData
+        let token_data = if account.is_hot() {
+            // On-chain accounts use Token struct (SPL-compatible layout)
+            let token = Token::deserialize(&mut &account.data()[..])
+                .map_err(|e| AmmSdkError::ParseError(format!("Token deser error: {} data_len={}", e, account.data().len())))?;
+            // Convert Token to compressed TokenData format
+            TokenData {
+                mint: solana_pubkey::Pubkey::new_from_array(token.mint.to_bytes()),
+                owner: solana_pubkey::Pubkey::new_from_array(token.owner.to_bytes()),
+                amount: token.amount,
+                delegate: token
+                    .delegate
+                    .map(|d| solana_pubkey::Pubkey::new_from_array(d.to_bytes())),
+                state: match token.state {
+                    light_token_interface::state::AccountState::Initialized => {
+                        light_token::compat::AccountState::Initialized
+                    }
+                    _ => light_token::compat::AccountState::Frozen,
+                },
+                tlv: None,
+            }
+        } else {
+            // Compressed accounts use TokenData format directly
+            TokenData::deserialize(&mut &account.data()[..])
+                .map_err(|e| AmmSdkError::ParseError(e.to_string()))?
+        };
 
         let variant = if is_vault_0 {
             let token_0_mint = self
@@ -286,32 +318,46 @@ impl AmmSdk {
         })
     }
 
-    fn account_requirements(&self, ix: &AmmInstruction) -> Vec<AccountRequirement> {
-        match ix {
+    fn account_requirements(&self, kind: AmmInstruction) -> Vec<AccountRequirement> {
+        match kind {
             AmmInstruction::Swap => {
                 vec![
-                    AccountRequirement::new(self.pool_state_pubkey, AccountKind::Pda),
-                    AccountRequirement::new(self.token_0_vault, AccountKind::Token),
-                    AccountRequirement::new(self.token_1_vault, AccountKind::Token),
-                    AccountRequirement::new(self.observation_key, AccountKind::Pda),
+                    AccountRequirement::new(self.pool_state_pubkey, AccountKind::Pda, true),
+                    AccountRequirement::new(self.token_0_vault, AccountKind::Token, true),
+                    AccountRequirement::new(self.token_1_vault, AccountKind::Token, true),
+                    AccountRequirement::new(self.observation_key, AccountKind::Pda, true),
                 ]
             }
             AmmInstruction::Deposit | AmmInstruction::Withdraw => {
                 vec![
-                    AccountRequirement::new(self.pool_state_pubkey, AccountKind::Pda),
-                    AccountRequirement::new(self.token_0_vault, AccountKind::Token),
-                    AccountRequirement::new(self.token_1_vault, AccountKind::Token),
-                    AccountRequirement::new(self.observation_key, AccountKind::Pda),
-                    AccountRequirement::new(self.lp_mint, AccountKind::Mint),
+                    AccountRequirement::new(self.pool_state_pubkey, AccountKind::Pda, true),
+                    AccountRequirement::new(self.token_0_vault, AccountKind::Token, true),
+                    AccountRequirement::new(self.token_1_vault, AccountKind::Token, true),
+                    AccountRequirement::new(self.observation_key, AccountKind::Pda, true),
+                    AccountRequirement::new(self.lp_mint, AccountKind::Mint, true),
                 ]
             }
         }
+    }
+
+    /// Get all compressible account pubkeys.
+    fn all_compressible_accounts(&self) -> Vec<Pubkey> {
+        [
+            self.pool_state_pubkey,
+            self.token_0_vault,
+            self.token_1_vault,
+            self.observation_key,
+            self.lp_mint,
+        ]
+        .into_iter()
+        .flatten()
+        .collect()
     }
 }
 
 impl LightProgramInterface for AmmSdk {
     type Variant = LightAccountVariant;
-    type Instruction = AmmInstruction;
+    type InstructionKind = AmmInstruction;
     type Error = AmmSdkError;
 
     fn program_id(&self) -> Pubkey {
@@ -333,8 +379,12 @@ impl LightProgramInterface for AmmSdk {
         Ok(sdk)
     }
 
-    fn get_accounts_to_update(&self, ix: &Self::Instruction) -> Vec<AccountToFetch> {
-        self.account_requirements(ix)
+    fn get_compressible_accounts(&self) -> Vec<Pubkey> {
+        self.all_compressible_accounts()
+    }
+
+    fn get_accounts_for_instruction(&self, kind: Self::InstructionKind) -> Vec<AccountToFetch> {
+        self.account_requirements(kind)
             .into_iter()
             .filter_map(|req| {
                 req.pubkey.map(|pubkey| match req.kind {
@@ -346,8 +396,36 @@ impl LightProgramInterface for AmmSdk {
             .collect()
     }
 
-    fn update(&mut self, accounts: &[AccountInterface]) -> Result<(), Self::Error> {
+    fn get_compressible_accounts_for_instruction(
+        &self,
+        kind: Self::InstructionKind,
+    ) -> Vec<Pubkey> {
+        self.account_requirements(kind)
+            .into_iter()
+            .filter_map(|req| if req.compressible { req.pubkey } else { None })
+            .collect()
+    }
+
+    fn update_with_interfaces(&mut self, accounts: &[AccountInterface]) -> Result<(), Self::Error> {
         for account in accounts {
+            // Handle decompression: if account was cold but now hot, remove from specs
+            if account.is_hot() {
+                // Remove stale cold entry if account is now hot
+                if self
+                    .program_owned_specs
+                    .get(&account.key)
+                    .map_or(false, |s| s.is_cold())
+                {
+                    self.program_owned_specs.remove(&account.key);
+                }
+                if self
+                    .mint_specs
+                    .get(&account.key)
+                    .map_or(false, |s| s.is_cold())
+                {
+                    self.mint_specs.remove(&account.key);
+                }
+            }
             self.parse_account(account)?;
         }
         Ok(())
@@ -365,8 +443,11 @@ impl LightProgramInterface for AmmSdk {
         specs
     }
 
-    fn get_specs_for_instruction(&self, ix: &Self::Instruction) -> Vec<AccountSpec<Self::Variant>> {
-        let requirements = self.account_requirements(ix);
+    fn get_specs_for_instruction(
+        &self,
+        kind: Self::InstructionKind,
+    ) -> Vec<AccountSpec<Self::Variant>> {
+        let requirements = self.account_requirements(kind);
         let mut specs = Vec::new();
 
         for req in &requirements {
@@ -389,6 +470,77 @@ impl LightProgramInterface for AmmSdk {
         }
 
         specs
+    }
+
+    fn get_cold_specs_for_instruction(
+        &self,
+        kind: Self::InstructionKind,
+    ) -> Vec<ColdAccountSpec<Self::Variant>> {
+        let requirements = self.account_requirements(kind);
+        let mut cold_specs = Vec::new();
+
+        for req in &requirements {
+            if !req.compressible {
+                continue;
+            }
+            match req.kind {
+                AccountKind::Pda => {
+                    if let Some(pubkey) = req.pubkey {
+                        if let Some(spec) = self.program_owned_specs.get(&pubkey) {
+                            if spec.is_cold() {
+                                if let Some(compressed) = spec.compressed() {
+                                    cold_specs.push(ColdAccountSpec::Pda {
+                                        key: pubkey,
+                                        compressed: compressed.clone(),
+                                        variant: spec.variant.clone(),
+                                        program_id: PROGRAM_ID,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+                AccountKind::Token => {
+                    if let Some(pubkey) = req.pubkey {
+                        if let Some(spec) = self.program_owned_specs.get(&pubkey) {
+                            if spec.is_cold() {
+                                // Token vaults use ColdContext::Account after conversion
+                                if let Some(compressed) = spec.compressed() {
+                                    cold_specs.push(ColdAccountSpec::Pda {
+                                        key: pubkey,
+                                        compressed: compressed.clone(),
+                                        variant: spec.variant.clone(),
+                                        program_id: PROGRAM_ID,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+                AccountKind::Mint => {
+                    if let Some(mint_pubkey) = req.pubkey {
+                        if let Some(spec) = self.mint_specs.get(&mint_pubkey) {
+                            if spec.is_cold() {
+                                if let Some(compressed) = spec.as_compressed_account() {
+                                    cold_specs.push(ColdAccountSpec::Mint {
+                                        key: mint_pubkey,
+                                        compressed: compressed.clone(),
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        cold_specs
+    }
+}
+
+impl LightAmmInterface for AmmSdk {
+    fn swap_instruction_kind(&self) -> Self::InstructionKind {
+        AmmInstruction::Swap
     }
 }
 
@@ -454,4 +606,225 @@ impl AmmSdk {
             CreateAccountsProofInput::mint(lp_mint),
         ]
     }
+
+    /// Get reserve vault amounts for quoting.
+    pub fn get_vault_amounts(&self) -> Option<(u64, u64)> {
+        let vault_0 = self.token_0_vault?;
+        let vault_1 = self.token_1_vault?;
+
+        let spec_0 = self.program_owned_specs.get(&vault_0)?;
+        let spec_1 = self.program_owned_specs.get(&vault_1)?;
+
+        // Parse token amounts from variant
+        let amount_0 = match &spec_0.variant {
+            LightAccountVariant::CTokenData(ct) => ct.token_data.amount,
+            _ => return None,
+        };
+        let amount_1 = match &spec_1.variant {
+            LightAccountVariant::CTokenData(ct) => ct.token_data.amount,
+            _ => return None,
+        };
+
+        Some((amount_0, amount_1))
+    }
 }
+
+// =============================================================================
+// Jupiter Amm Trait Implementation
+// =============================================================================
+
+mod jupiter_impl {
+    use super::*;
+    use jupiter_amm_interface::{
+        AccountMap, Amm, AmmContext, KeyedAccount, Quote, QuoteParams, SwapAndAccountMetas,
+        SwapParams,
+    };
+
+    /// Error type for Jupiter Amm trait operations.
+    #[derive(Debug)]
+    pub struct JupiterAmmError(pub String);
+
+    impl std::fmt::Display for JupiterAmmError {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "JupiterAmmError: {}", self.0)
+        }
+    }
+
+    impl std::error::Error for JupiterAmmError {}
+
+    impl From<AmmSdkError> for JupiterAmmError {
+        fn from(e: AmmSdkError) -> Self {
+            JupiterAmmError(e.to_string())
+        }
+    }
+
+    impl Amm for AmmSdk {
+        fn from_keyed_account(
+            keyed_account: &KeyedAccount,
+            _amm_context: &AmmContext,
+        ) -> Result<Self, anyhow::Error>
+        where
+            Self: Sized,
+        {
+            let interface = AccountInterface::hot(keyed_account.key, keyed_account.account.clone());
+            let sdk = <AmmSdk as LightProgramInterface>::from_keyed_accounts(&[interface])
+                .map_err(|e| anyhow::anyhow!("{}", e))?;
+            Ok(sdk)
+        }
+
+        fn label(&self) -> String {
+            "LightAMM".to_string()
+        }
+
+        fn program_id(&self) -> Pubkey {
+            PROGRAM_ID
+        }
+
+        fn key(&self) -> Pubkey {
+            self.pool_state_pubkey.unwrap_or_default()
+        }
+
+        fn get_reserve_mints(&self) -> Vec<Pubkey> {
+            [self.token_0_mint, self.token_1_mint]
+                .into_iter()
+                .flatten()
+                .collect()
+        }
+
+        fn get_accounts_to_update(&self) -> Vec<Pubkey> {
+            // For Jupiter, return all accounts for swap
+            self.get_swap_accounts()
+                .into_iter()
+                .map(|a| a.pubkey())
+                .collect()
+        }
+
+        fn update(&mut self, account_map: &AccountMap) -> Result<(), anyhow::Error> {
+            // Convert AccountMap entries to AccountInterface
+            let interfaces: Vec<AccountInterface> = account_map
+                .iter()
+                .map(|(key, account)| AccountInterface::hot(*key, account.clone()))
+                .collect();
+
+            self.update_with_interfaces(&interfaces)
+                .map_err(|e| anyhow::anyhow!("{}", e))
+        }
+
+        fn quote(&self, params: &QuoteParams) -> Result<Quote, anyhow::Error> {
+            // Simple constant product quote for testing
+            let (reserve_0, reserve_1) = self
+                .get_vault_amounts()
+                .ok_or_else(|| anyhow::anyhow!("Missing vault amounts"))?;
+
+            let (input_reserve, output_reserve) = if params.input_mint == self.token_0_mint.unwrap()
+            {
+                (reserve_0, reserve_1)
+            } else {
+                (reserve_1, reserve_0)
+            };
+
+            // Constant product: (x + dx) * (y - dy) = x * y
+            // dy = y * dx / (x + dx)
+            let input_amount = params.amount;
+            let output_amount = (output_reserve as u128)
+                .checked_mul(input_amount as u128)
+                .and_then(|n| n.checked_div((input_reserve as u128) + (input_amount as u128)))
+                .ok_or_else(|| anyhow::anyhow!("Quote calculation overflow"))?
+                as u64;
+
+            Ok(Quote {
+                in_amount: input_amount,
+                out_amount: output_amount,
+                fee_amount: 0,
+                fee_mint: params.input_mint,
+                fee_pct: rust_decimal::Decimal::ZERO,
+            })
+        }
+
+        fn get_swap_and_account_metas(
+            &self,
+            params: &SwapParams,
+        ) -> Result<SwapAndAccountMetas, anyhow::Error> {
+            use anchor_lang::ToAccountMetas;
+            use csdk_anchor_full_derived_test::amm_test::TradeDirection;
+
+            let pool_state = self
+                .pool_state_pubkey
+                .ok_or_else(|| anyhow::anyhow!("Pool state not set"))?;
+            let authority = self
+                .authority
+                .ok_or_else(|| anyhow::anyhow!("Authority not set"))?;
+            let observation = self
+                .observation_key
+                .ok_or_else(|| anyhow::anyhow!("Observation not set"))?;
+
+            // Determine direction based on input mint
+            let is_zero_for_one = params.source_mint == self.token_0_mint.unwrap();
+            let (input_vault, output_vault, input_mint, output_mint) = if is_zero_for_one {
+                (
+                    self.token_0_vault.unwrap(),
+                    self.token_1_vault.unwrap(),
+                    self.token_0_mint.unwrap(),
+                    self.token_1_mint.unwrap(),
+                )
+            } else {
+                (
+                    self.token_1_vault.unwrap(),
+                    self.token_0_vault.unwrap(),
+                    self.token_1_mint.unwrap(),
+                    self.token_0_mint.unwrap(),
+                )
+            };
+
+            let accounts = csdk_anchor_full_derived_test::accounts::Swap {
+                payer: params.source_token_account,
+                authority,
+                pool_state,
+                input_token_account: params.source_token_account,
+                output_token_account: params.destination_token_account,
+                input_vault,
+                output_vault,
+                input_token_program: light_token::instruction::LIGHT_TOKEN_PROGRAM_ID,
+                output_token_program: light_token::instruction::LIGHT_TOKEN_PROGRAM_ID,
+                input_token_mint: input_mint,
+                output_token_mint: output_mint,
+                observation_state: observation,
+            };
+
+            let direction = if is_zero_for_one {
+                TradeDirection::ZeroForOne
+            } else {
+                TradeDirection::OneForZero
+            };
+
+            let _ix_data = csdk_anchor_full_derived_test::instruction::Swap {
+                amount_in: params.in_amount,
+                minimum_amount_out: params.out_amount,
+                direction,
+            };
+
+            Ok(SwapAndAccountMetas {
+                swap: jupiter_amm_interface::Swap::TokenSwap,
+                account_metas: accounts.to_account_metas(None),
+            })
+        }
+
+        fn clone_amm(&self) -> Box<dyn Amm + Send + Sync> {
+            Box::new(self.clone())
+        }
+
+        fn has_dynamic_accounts(&self) -> bool {
+            false
+        }
+
+        fn supports_exact_out(&self) -> bool {
+            false
+        }
+
+        fn is_active(&self) -> bool {
+            self.pool_state_pubkey.is_some()
+        }
+    }
+}
+
+pub use jupiter_impl::JupiterAmmError;

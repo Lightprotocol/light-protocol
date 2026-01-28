@@ -7,6 +7,8 @@
 /// 4. Advance epochs to trigger auto-compression
 /// 5. Decompress all accounts
 /// 6. Deposit after decompression to verify pool works
+///
+/// Also includes aggregator-style test flow using LightAmmInterface.
 mod shared;
 
 use anchor_lang::{InstructionData, ToAccountMetas};
@@ -16,9 +18,10 @@ use csdk_anchor_full_derived_test::amm_test::{
 };
 // SDK for AmmSdk-based approach
 use csdk_anchor_full_derived_test_sdk::{AmmInstruction, AmmSdk};
+use jupiter_amm_interface::{Amm, AmmContext, KeyedAccount, QuoteParams, SwapMode, SwapParams};
 use light_client::interface::{
     create_load_instructions, get_create_accounts_proof, AccountInterfaceExt,
-    InitializeRentFreeConfig, LightProgramInterface,
+    InitializeRentFreeConfig, LightAmmInterface, LightProgramInterface,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_macros::pubkey;
@@ -560,7 +563,7 @@ async fn test_amm_full_lifecycle() {
     let mut sdk = AmmSdk::from_keyed_accounts(&[pool_interface])
         .expect("ProgrammSdk::from_keyed_accounts should succeed");
 
-    let accounts_to_fetch = sdk.get_accounts_to_update(&AmmInstruction::Deposit);
+    let accounts_to_fetch = sdk.get_accounts_for_instruction(AmmInstruction::Deposit);
 
     let keyed_accounts = ctx
         .rpc
@@ -568,10 +571,10 @@ async fn test_amm_full_lifecycle() {
         .await
         .expect("get_multiple_account_interfaces should succeed");
 
-    sdk.update(&keyed_accounts)
+    sdk.update_with_interfaces(&keyed_accounts)
         .expect("sdk.update should succeed");
 
-    let specs = sdk.get_specs_for_instruction(&AmmInstruction::Deposit);
+    let specs = sdk.get_specs_for_instruction(AmmInstruction::Deposit);
 
     let creator_lp_interface = ctx
         .rpc
@@ -660,4 +663,459 @@ async fn test_amm_full_lifecycle() {
         remaining_creator_lp.is_empty(),
         "Compressed creator_lp_token should be consumed"
     );
+}
+
+/// Aggregator-style test flow demonstrating LightAmmInterface usage.
+///
+/// This test simulates how a DEX aggregator (like Jupiter) would:
+/// 1. Discover a pool via pool_state account
+/// 2. Use get_swap_accounts() to know what to fetch/cache
+/// 3. Detect cold accounts via swap_needs_loading()
+/// 4. Use get_cold_swap_specs() to build load instructions
+/// 5. Execute load + swap atomically
+#[tokio::test]
+async fn test_aggregator_flow() {
+    let mut ctx = setup().await;
+
+    let pdas = derive_amm_pdas(
+        &ctx.program_id,
+        &ctx.amm_config.pubkey(),
+        &ctx.token_0_mint,
+        &ctx.token_1_mint,
+        &ctx.creator.pubkey(),
+    );
+
+    // Initialize pool (same as above)
+    let proof_inputs = AmmSdk::create_initialize_pool_proof_inputs(
+        pdas.pool_state,
+        pdas.observation_state,
+        pdas.lp_mint,
+    );
+    let proof_result = get_create_accounts_proof(&ctx.rpc, &ctx.program_id, proof_inputs)
+        .await
+        .unwrap();
+
+    let init_params = InitializeParams {
+        init_amount_0: 1000u64,
+        init_amount_1: 1000u64,
+        open_time: 0u64,
+        create_accounts_proof: proof_result.create_accounts_proof,
+        lp_mint_signer_bump: pdas.lp_mint_signer_bump,
+        creator_lp_token_bump: pdas.creator_lp_token_bump,
+        authority_bump: pdas.authority_bump,
+    };
+
+    let accounts = csdk_anchor_full_derived_test::accounts::InitializePool {
+        creator: ctx.creator.pubkey(),
+        amm_config: ctx.amm_config.pubkey(),
+        authority: pdas.authority,
+        pool_state: pdas.pool_state,
+        token_0_mint: ctx.token_0_mint,
+        token_1_mint: ctx.token_1_mint,
+        lp_mint_signer: pdas.lp_mint_signer,
+        lp_mint: pdas.lp_mint,
+        creator_token_0: ctx.creator_token_0,
+        creator_token_1: ctx.creator_token_1,
+        creator_lp_token: pdas.creator_lp_token,
+        token_0_vault: pdas.token_0_vault,
+        token_1_vault: pdas.token_1_vault,
+        observation_state: pdas.observation_state,
+        token_program: LIGHT_TOKEN_PROGRAM_ID,
+        token_0_program: LIGHT_TOKEN_PROGRAM_ID,
+        token_1_program: LIGHT_TOKEN_PROGRAM_ID,
+        associated_token_program: LIGHT_TOKEN_PROGRAM_ID,
+        system_program: solana_sdk::system_program::ID,
+        rent: solana_sdk::sysvar::rent::ID,
+        compression_config: ctx.config_pda,
+        light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
+        rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
+        light_token_program: LIGHT_TOKEN_PROGRAM_ID,
+        light_token_cpi_authority: LIGHT_TOKEN_CPI_AUTHORITY,
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: csdk_anchor_full_derived_test::instruction::InitializePool {
+            params: init_params,
+        }
+        .data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(
+            &[instruction],
+            &ctx.payer.pubkey(),
+            &[&ctx.payer, &ctx.creator],
+        )
+        .await
+        .expect("Initialize pool should succeed");
+
+    // ==========================================================================
+    // AGGREGATOR FLOW: Pool is now hot - simulate aggregator discovering it
+    // ==========================================================================
+
+    // Step 1: Aggregator discovers pool via pool_state pubkey
+    let pool_interface = ctx
+        .rpc
+        .get_account_interface(&pdas.pool_state, &ctx.program_id)
+        .await
+        .expect("failed to get pool_state");
+
+    // Step 2: Create SDK from pool discovery
+    let mut sdk = AmmSdk::from_keyed_accounts(&[pool_interface])
+        .expect("AmmSdk::from_keyed_accounts should succeed");
+
+    // Step 3: Use LightAmmInterface methods to get swap-relevant accounts
+    let swap_accounts = sdk.get_swap_accounts();
+    assert!(!swap_accounts.is_empty(), "Swap should require accounts");
+
+    // Step 4: Fetch all swap accounts
+    let keyed_accounts = ctx
+        .rpc
+        .get_multiple_account_interfaces(&swap_accounts)
+        .await
+        .expect("get_multiple_account_interfaces should succeed");
+
+    sdk.update_with_interfaces(&keyed_accounts)
+        .expect("sdk.update should succeed");
+
+    // Step 5: Check if any swap accounts are cold (they're all hot at this point)
+    assert!(
+        !sdk.swap_needs_loading(),
+        "Fresh pool should have all hot accounts"
+    );
+
+    // ==========================================================================
+    // AGGREGATOR FLOW: Accounts go cold - simulate compression
+    // ==========================================================================
+
+    // Advance epochs to trigger auto-compression
+    ctx.rpc
+        .warp_slot_forward(SLOTS_PER_EPOCH * 30)
+        .await
+        .unwrap();
+
+    // Re-fetch pool to check if cold
+    let pool_interface = ctx
+        .rpc
+        .get_account_interface(&pdas.pool_state, &ctx.program_id)
+        .await
+        .expect("failed to get pool_state after compression");
+
+    assert!(pool_interface.is_cold(), "pool_state should be cold now");
+
+    // Re-initialize SDK with cold pool
+    let mut sdk = AmmSdk::from_keyed_accounts(&[pool_interface])
+        .expect("AmmSdk::from_keyed_accounts should succeed with cold account");
+
+    // Fetch swap accounts again (now cold)
+    let swap_accounts = sdk.get_swap_accounts();
+    let keyed_accounts = ctx
+        .rpc
+        .get_multiple_account_interfaces(&swap_accounts)
+        .await
+        .expect("get_multiple_account_interfaces should succeed");
+
+    sdk.update_with_interfaces(&keyed_accounts)
+        .expect("sdk.update should succeed");
+
+    // Step 6: Check cold status using LightAmmInterface
+    assert!(
+        sdk.swap_needs_loading(),
+        "Compressed pool should need loading for swap"
+    );
+
+    // Step 7: Get cold specs for swap (lean, no redundant Account data)
+    let cold_specs = sdk.get_cold_swap_specs();
+    assert!(!cold_specs.is_empty(), "Should have cold specs for swap");
+
+    // Verify cold specs have the expected keys
+    let cold_keys: std::collections::HashSet<_> = cold_specs.iter().map(|s| s.key()).collect();
+    assert!(
+        cold_keys.contains(&pdas.pool_state),
+        "Cold specs should include pool_state"
+    );
+    assert!(
+        cold_keys.contains(&pdas.token_0_vault),
+        "Cold specs should include token_0_vault"
+    );
+    assert!(
+        cold_keys.contains(&pdas.token_1_vault),
+        "Cold specs should include token_1_vault"
+    );
+    assert!(
+        cold_keys.contains(&pdas.observation_state),
+        "Cold specs should include observation_key"
+    );
+
+    // Step 8: Build load instructions from full specs
+    let specs = sdk.get_swap_specs();
+    let load_ixs = create_load_instructions(
+        &specs,
+        ctx.payer.pubkey(),
+        ctx.config_pda,
+        ctx.payer.pubkey(),
+        &ctx.rpc,
+    )
+    .await
+    .expect("create_load_instructions should succeed");
+
+    assert!(
+        !load_ixs.is_empty(),
+        "Should have load instructions for cold accounts"
+    );
+
+    // Step 9: Execute load instructions
+    ctx.rpc
+        .create_and_send_transaction(&load_ixs, &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("Load instructions should succeed");
+
+    // Verify accounts are now on-chain
+    assert_onchain_exists(&mut ctx.rpc, &pdas.pool_state).await;
+    assert_onchain_exists(&mut ctx.rpc, &pdas.token_0_vault).await;
+    assert_onchain_exists(&mut ctx.rpc, &pdas.token_1_vault).await;
+    assert_onchain_exists(&mut ctx.rpc, &pdas.observation_state).await;
+
+    // Step 10: Re-fetch and verify no longer needs loading
+    let keyed_accounts = ctx
+        .rpc
+        .get_multiple_account_interfaces(&sdk.get_swap_accounts())
+        .await
+        .expect("get_multiple_account_interfaces should succeed");
+
+    sdk.update_with_interfaces(&keyed_accounts)
+        .expect("sdk.update should succeed");
+
+    assert!(
+        !sdk.swap_needs_loading(),
+        "After decompression, swap should not need loading"
+    );
+}
+
+/// Jupiter Amm trait test - exercises the actual Jupiter interface.
+///
+/// This test demonstrates how Jupiter would use the AmmSdk:
+/// 1. Discover pool via KeyedAccount
+/// 2. Use Amm::from_keyed_account() to create SDK
+/// 3. Use Amm::get_accounts_to_update() and Amm::update()
+/// 4. Use Amm::quote() to get a swap quote
+/// 5. Use Amm::get_swap_and_account_metas() to build swap instruction
+#[tokio::test]
+async fn test_jupiter_amm_trait() {
+    let mut ctx = setup().await;
+
+    let pdas = derive_amm_pdas(
+        &ctx.program_id,
+        &ctx.amm_config.pubkey(),
+        &ctx.token_0_mint,
+        &ctx.token_1_mint,
+        &ctx.creator.pubkey(),
+    );
+
+    // Initialize pool
+    let proof_inputs = AmmSdk::create_initialize_pool_proof_inputs(
+        pdas.pool_state,
+        pdas.observation_state,
+        pdas.lp_mint,
+    );
+    let proof_result = get_create_accounts_proof(&ctx.rpc, &ctx.program_id, proof_inputs)
+        .await
+        .unwrap();
+
+    let init_params = InitializeParams {
+        init_amount_0: 10_000u64,
+        init_amount_1: 10_000u64,
+        open_time: 0u64,
+        create_accounts_proof: proof_result.create_accounts_proof,
+        lp_mint_signer_bump: pdas.lp_mint_signer_bump,
+        creator_lp_token_bump: pdas.creator_lp_token_bump,
+        authority_bump: pdas.authority_bump,
+    };
+
+    let accounts = csdk_anchor_full_derived_test::accounts::InitializePool {
+        creator: ctx.creator.pubkey(),
+        amm_config: ctx.amm_config.pubkey(),
+        authority: pdas.authority,
+        pool_state: pdas.pool_state,
+        token_0_mint: ctx.token_0_mint,
+        token_1_mint: ctx.token_1_mint,
+        lp_mint_signer: pdas.lp_mint_signer,
+        lp_mint: pdas.lp_mint,
+        creator_token_0: ctx.creator_token_0,
+        creator_token_1: ctx.creator_token_1,
+        creator_lp_token: pdas.creator_lp_token,
+        token_0_vault: pdas.token_0_vault,
+        token_1_vault: pdas.token_1_vault,
+        observation_state: pdas.observation_state,
+        token_program: LIGHT_TOKEN_PROGRAM_ID,
+        token_0_program: LIGHT_TOKEN_PROGRAM_ID,
+        token_1_program: LIGHT_TOKEN_PROGRAM_ID,
+        associated_token_program: LIGHT_TOKEN_PROGRAM_ID,
+        system_program: solana_sdk::system_program::ID,
+        rent: solana_sdk::sysvar::rent::ID,
+        compression_config: ctx.config_pda,
+        light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
+        rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
+        light_token_program: LIGHT_TOKEN_PROGRAM_ID,
+        light_token_cpi_authority: LIGHT_TOKEN_CPI_AUTHORITY,
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: csdk_anchor_full_derived_test::instruction::InitializePool {
+            params: init_params,
+        }
+        .data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(
+            &[instruction],
+            &ctx.payer.pubkey(),
+            &[&ctx.payer, &ctx.creator],
+        )
+        .await
+        .expect("Initialize pool should succeed");
+
+    // ==========================================================================
+    // JUPITER AMM TRAIT FLOW
+    // ==========================================================================
+
+    // Step 1: Jupiter discovers pool - fetches pool_state account
+    let pool_account = ctx
+        .rpc
+        .get_account(pdas.pool_state)
+        .await
+        .unwrap()
+        .expect("Pool state should exist");
+
+    // Step 2: Create KeyedAccount (Jupiter's input format)
+    let keyed_account = KeyedAccount {
+        key: pdas.pool_state,
+        account: pool_account,
+        params: None,
+    };
+
+    // Step 3: Use Amm::from_keyed_account() - Jupiter's entry point
+    let amm_context = AmmContext {
+        clock_ref: Default::default(),
+    };
+    let mut amm = AmmSdk::from_keyed_account(&keyed_account, &amm_context)
+        .expect("Amm::from_keyed_account should succeed");
+
+    // Verify identity methods
+    assert_eq!(amm.label(), "LightAMM");
+    assert_eq!(amm.program_id(), ctx.program_id);
+    assert_eq!(amm.key(), pdas.pool_state);
+    assert!(amm.is_active());
+
+    // Verify reserve mints
+    let reserve_mints = amm.get_reserve_mints();
+    assert_eq!(reserve_mints.len(), 2);
+    assert!(reserve_mints.contains(&ctx.token_0_mint));
+    assert!(reserve_mints.contains(&ctx.token_1_mint));
+
+    // Step 4: Get accounts to update (Jupiter calls this)
+    let accounts_to_update = amm.get_accounts_to_update();
+    assert!(!accounts_to_update.is_empty(), "Should have accounts to update");
+
+    // Step 5: Fetch accounts and update (Jupiter's cache update)
+    let fetched_accounts = ctx
+        .rpc
+        .get_multiple_accounts(&accounts_to_update)
+        .await
+        .unwrap();
+
+    let account_map: jupiter_amm_interface::AccountMap = accounts_to_update
+        .iter()
+        .zip(fetched_accounts.iter())
+        .filter_map(|(pubkey, opt_account)| {
+            opt_account.as_ref().map(|account| (*pubkey, account.clone()))
+        })
+        .collect();
+
+    Amm::update(&mut amm, &account_map).expect("Amm::update should succeed");
+
+    // Step 6: Get a quote (Jupiter's quoting)
+    // Note: The test AMM doesn't transfer tokens in initialize, so vaults have 0 balance
+    // This tests the quote interface works, even with empty pools
+    let quote_params = QuoteParams {
+        amount: 100,
+        input_mint: ctx.token_0_mint,
+        output_mint: ctx.token_1_mint,
+        swap_mode: SwapMode::ExactIn,
+    };
+
+    let quote = amm.quote(&quote_params).expect("Amm::quote should succeed");
+
+    assert_eq!(quote.in_amount, 100, "Input amount should match");
+    assert_eq!(quote.fee_mint, ctx.token_0_mint, "Fee mint should be input mint");
+    // With 0/0 reserves, output is 0 (empty pool)
+    assert_eq!(quote.out_amount, 0, "Empty pool should return 0 output");
+
+    // Step 7: Build swap instruction (Jupiter's swap building)
+    let jupiter_program_id = solana_pubkey::pubkey!("JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4");
+    let swap_params = SwapParams {
+        swap_mode: SwapMode::ExactIn,
+        in_amount: quote.in_amount,
+        out_amount: quote.out_amount,
+        source_mint: ctx.token_0_mint,
+        destination_mint: ctx.token_1_mint,
+        source_token_account: ctx.creator_token_0,
+        destination_token_account: ctx.creator_token_1,
+        token_transfer_authority: ctx.creator.pubkey(),
+        quote_mint_to_referrer: None,
+        jupiter_program_id: &jupiter_program_id,
+        missing_dynamic_accounts_as_default: false,
+    };
+
+    let swap_result = amm
+        .get_swap_and_account_metas(&swap_params)
+        .expect("Amm::get_swap_and_account_metas should succeed");
+
+    // Verify swap instruction structure
+    assert!(
+        !swap_result.account_metas.is_empty(),
+        "Swap should have account metas"
+    );
+
+    // Verify expected accounts are in the metas
+    let account_keys: Vec<Pubkey> = swap_result
+        .account_metas
+        .iter()
+        .map(|m| m.pubkey)
+        .collect();
+
+    assert!(
+        account_keys.contains(&pdas.pool_state),
+        "Swap accounts should include pool_state"
+    );
+    assert!(
+        account_keys.contains(&pdas.token_0_vault),
+        "Swap accounts should include token_0_vault"
+    );
+    assert!(
+        account_keys.contains(&pdas.token_1_vault),
+        "Swap accounts should include token_1_vault"
+    );
+    assert!(
+        account_keys.contains(&pdas.observation_state),
+        "Swap accounts should include observation_state"
+    );
+
+    // Step 8: Verify clone_amm works
+    let cloned = amm.clone_amm();
+    assert_eq!(cloned.key(), pdas.pool_state, "Cloned AMM should have same key");
+    assert_eq!(cloned.label(), "LightAMM", "Cloned AMM should have same label");
 }

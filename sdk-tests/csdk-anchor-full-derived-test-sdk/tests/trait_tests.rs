@@ -6,6 +6,7 @@
 //! - Multi-operation scenarios with overlapping/divergent accounts
 //! - Invariants (idempotency, commutativity, spec consistency)
 //! - Edge cases (hot/cold mixed, missing accounts, etc.)
+//! - LightAmmInterface extension methods
 
 use std::collections::HashSet;
 
@@ -15,7 +16,8 @@ use csdk_anchor_full_derived_test::{
 };
 use csdk_anchor_full_derived_test_sdk::{AmmInstruction, AmmSdk, AmmSdkError};
 use light_client::interface::{
-    all_hot, any_cold, Account, AccountInterface, AccountSpec, LightProgramInterface, PdaSpec,
+    all_hot, any_cold, Account, AccountInterface, AccountSpec, LightAmmInterface,
+    LightProgramInterface, PdaSpec,
 };
 use light_sdk::LightDiscriminator;
 use solana_pubkey::Pubkey;
@@ -105,7 +107,7 @@ fn test_from_keyed_zero_length_data() {
 }
 
 // =============================================================================
-// 2. CORE TRAIT METHOD TESTS: get_accounts_to_update
+// 2. CORE TRAIT METHOD TESTS: get_accounts_for_instruction
 // =============================================================================
 
 #[test]
@@ -113,8 +115,8 @@ fn test_get_accounts_before_init() {
     // T1.2.4: Returns empty before pool parsed
     let sdk = AmmSdk::new();
 
-    let swap_accounts = sdk.get_accounts_to_update(&AmmInstruction::Swap);
-    let deposit_accounts = sdk.get_accounts_to_update(&AmmInstruction::Deposit);
+    let swap_accounts = sdk.get_accounts_for_instruction(AmmInstruction::Swap);
+    let deposit_accounts = sdk.get_accounts_for_instruction(AmmInstruction::Deposit);
 
     assert!(
         swap_accounts.is_empty(),
@@ -134,9 +136,9 @@ fn test_get_accounts_swap_vs_deposit() {
 
     let sdk = AmmSdk::new();
     // Without pool state, both return empty
-    let _swap_accounts = sdk.get_accounts_to_update(&AmmInstruction::Swap);
-    let deposit_accounts = sdk.get_accounts_to_update(&AmmInstruction::Deposit);
-    let withdraw_accounts = sdk.get_accounts_to_update(&AmmInstruction::Withdraw);
+    let _swap_accounts = sdk.get_accounts_for_instruction(AmmInstruction::Swap);
+    let deposit_accounts = sdk.get_accounts_for_instruction(AmmInstruction::Deposit);
+    let withdraw_accounts = sdk.get_accounts_for_instruction(AmmInstruction::Withdraw);
 
     // Verify Deposit and Withdraw have same requirements
     assert_eq!(
@@ -159,7 +161,7 @@ fn test_update_before_root_errors() {
     let vault_keyed = keyed_hot(Pubkey::new_unique(), vault_data);
 
     // This should either error or skip (depending on implementation)
-    let result = sdk.update(&[vault_keyed]);
+    let result = sdk.update_with_interfaces(&[vault_keyed]);
 
     // Current impl: skips unknown accounts, doesn't error
     assert!(result.is_ok(), "Update with unknown should skip, not error");
@@ -174,10 +176,10 @@ fn test_update_idempotent() {
     let keyed = keyed_hot(Pubkey::new_unique(), data.clone());
 
     // Update twice with same data
-    let _ = sdk.update(std::slice::from_ref(&keyed));
+    let _ = sdk.update_with_interfaces(std::slice::from_ref(&keyed));
     let specs_after_first = sdk.get_all_specs();
 
-    let _ = sdk.update(std::slice::from_ref(&keyed));
+    let _ = sdk.update_with_interfaces(std::slice::from_ref(&keyed));
     let specs_after_second = sdk.get_all_specs();
 
     // Should be same
@@ -196,7 +198,7 @@ fn test_update_unknown_account_skipped() {
     let unknown_data = vec![0xDE, 0xAD, 0xBE, 0xEF, 0x00, 0x00, 0x00, 0x00];
     let keyed = keyed_hot(Pubkey::new_unique(), unknown_data);
 
-    let result = sdk.update(&[keyed]);
+    let result = sdk.update_with_interfaces(&[keyed]);
     assert!(result.is_ok(), "Unknown account should be skipped");
 
     let specs = sdk.get_all_specs();
@@ -347,12 +349,12 @@ fn test_multi_op_deposit_superset_of_swap() {
     let sdk = AmmSdk::new();
 
     let swap_accounts: HashSet<Pubkey> = sdk
-        .get_accounts_to_update(&AmmInstruction::Swap)
+        .get_accounts_for_instruction(AmmInstruction::Swap)
         .into_iter()
         .map(|a| a.pubkey())
         .collect();
     let deposit_accounts: HashSet<Pubkey> = sdk
-        .get_accounts_to_update(&AmmInstruction::Deposit)
+        .get_accounts_for_instruction(AmmInstruction::Deposit)
         .into_iter()
         .map(|a| a.pubkey())
         .collect();
@@ -371,8 +373,8 @@ fn test_multi_op_withdraw_equals_deposit() {
     // T3.1: Withdraw should have same accounts as Deposit
     let sdk = AmmSdk::new();
 
-    let deposit_accounts = sdk.get_accounts_to_update(&AmmInstruction::Deposit);
-    let withdraw_accounts = sdk.get_accounts_to_update(&AmmInstruction::Withdraw);
+    let deposit_accounts = sdk.get_accounts_for_instruction(AmmInstruction::Deposit);
+    let withdraw_accounts = sdk.get_accounts_for_instruction(AmmInstruction::Withdraw);
 
     assert_eq!(
         deposit_accounts, withdraw_accounts,
@@ -397,10 +399,10 @@ fn test_same_pubkey_same_spec() {
     let keyed1 = keyed_hot(pubkey, data.clone());
     let keyed2 = keyed_hot(pubkey, data.clone());
 
-    let _ = sdk.update(&[keyed1]);
+    let _ = sdk.update_with_interfaces(&[keyed1]);
     let specs_after_first = sdk.get_all_specs();
 
-    let _ = sdk.update(&[keyed2]);
+    let _ = sdk.update_with_interfaces(&[keyed2]);
     let specs_after_second = sdk.get_all_specs();
 
     // Should have same count (not doubled)
@@ -458,7 +460,7 @@ fn test_edge_duplicate_accounts_in_update() {
     let keyed = keyed_hot(pubkey, data);
 
     // Update with same account twice in same call
-    let _ = sdk.update(&[keyed.clone(), keyed.clone()]);
+    let _ = sdk.update_with_interfaces(&[keyed.clone(), keyed.clone()]);
 
     // Should not have duplicates in specs
     let specs = sdk.get_all_specs();
@@ -477,21 +479,21 @@ fn test_edge_duplicate_accounts_in_update() {
 // =============================================================================
 
 #[test]
-fn test_get_accounts_to_update_empty() {
-    // get_accounts_to_update should return empty for uninitialized SDK
+fn test_get_accounts_for_instruction_empty() {
+    // get_accounts_for_instruction should return empty for uninitialized SDK
     let sdk = AmmSdk::new();
 
-    let typed = sdk.get_accounts_to_update(&AmmInstruction::Swap);
+    let typed = sdk.get_accounts_for_instruction(AmmInstruction::Swap);
     assert!(typed.is_empty(), "Typed should be empty before init");
 }
 
 #[test]
-fn test_get_accounts_to_update_categories() {
+fn test_get_accounts_for_instruction_categories() {
     // Verify typed accounts have correct categories
     use light_client::interface::AccountToFetch;
 
     let sdk = AmmSdk::new();
-    let typed = sdk.get_accounts_to_update(&AmmInstruction::Deposit);
+    let typed = sdk.get_accounts_for_instruction(AmmInstruction::Deposit);
 
     // All should be one of Pda, Token, Ata, or Mint
     for acc in &typed {
@@ -588,7 +590,7 @@ fn test_specs_contain_all_vaults_not_merged() {
     let sdk = AmmSdk::new();
 
     // Before init, specs are empty
-    let specs = sdk.get_specs_for_instruction(&AmmInstruction::Swap);
+    let specs = sdk.get_specs_for_instruction(AmmInstruction::Swap);
 
     // Count of specs should match number of unique accounts
     // When SDK is properly initialized with pool_state and vaults,
@@ -657,11 +659,11 @@ fn test_updating_vault_0_does_not_affect_vault_1() {
     let vault_1_keyed = keyed_hot(vault_1_pubkey, vault_1_data);
 
     // Update with both
-    let _ = sdk.update(&[vault_0_keyed.clone(), vault_1_keyed.clone()]);
+    let _ = sdk.update_with_interfaces(&[vault_0_keyed.clone(), vault_1_keyed.clone()]);
 
     // Now update vault_0 again with different data
     let vault_0_updated = keyed_hot(vault_0_pubkey, vec![0xCCu8; 100]);
-    let _ = sdk.update(&[vault_0_updated]);
+    let _ = sdk.update_with_interfaces(&[vault_0_updated]);
 
     // Verify: vault_1 should still have its original data (if tracked)
     // The key point: updating by pubkey only affects that specific entry
@@ -690,7 +692,7 @@ fn test_operation_returns_all_required_instances() {
     let sdk = AmmSdk::new();
 
     // Get accounts needed for Swap
-    let swap_accounts = sdk.get_accounts_to_update(&AmmInstruction::Swap);
+    let swap_accounts = sdk.get_accounts_for_instruction(AmmInstruction::Swap);
 
     // Without pool state, this is empty, but document the contract:
     // When properly initialized, Swap should request both vaults
@@ -700,7 +702,7 @@ fn test_operation_returns_all_required_instances() {
     // Each vault is a separate entry, not merged
 
     // Verify Deposit requests more accounts than Swap
-    let deposit_accounts = sdk.get_accounts_to_update(&AmmInstruction::Deposit);
+    let deposit_accounts = sdk.get_accounts_for_instruction(AmmInstruction::Deposit);
 
     // Even when empty, the contract holds:
     // len(deposit_accounts) >= len(swap_accounts) because Deposit is a superset
@@ -761,11 +763,11 @@ fn test_swap_returns_both_vaults_regardless_of_role() {
 
     let sdk = AmmSdk::new();
 
-    let swap_accounts = sdk.get_accounts_to_update(&AmmInstruction::Swap);
+    let swap_accounts = sdk.get_accounts_for_instruction(AmmInstruction::Swap);
 
     // Without pool state initialized, this is empty, but the contract is:
     // When pool_state has token_0_vault and token_1_vault set,
-    // get_accounts_to_update(Swap) returns BOTH.
+    // get_accounts_for_instruction(Swap) returns BOTH.
     //
     // This is because the SDK doesn't know which vault will be "input" vs "output"
     // at runtime - that depends on trade direction chosen by the user.
@@ -833,8 +835,8 @@ fn test_sdk_doesnt_need_trade_direction() {
 
     let sdk = AmmSdk::new();
 
-    // Both directions use the same set of accounts from get_accounts_to_update
-    let accounts = sdk.get_accounts_to_update(&AmmInstruction::Swap);
+    // Both directions use the same set of accounts from get_accounts_for_instruction
+    let accounts = sdk.get_accounts_for_instruction(AmmInstruction::Swap);
 
     // The SDK's contract: return [token_0_vault, token_1_vault] for Swap
     // The client then passes them to the instruction as input_vault/output_vault
@@ -895,8 +897,8 @@ fn test_swap_and_deposit_share_vault_specs() {
 
     let sdk = AmmSdk::new();
 
-    let swap_accounts = sdk.get_accounts_to_update(&AmmInstruction::Swap);
-    let deposit_accounts = sdk.get_accounts_to_update(&AmmInstruction::Deposit);
+    let swap_accounts = sdk.get_accounts_for_instruction(AmmInstruction::Swap);
+    let deposit_accounts = sdk.get_accounts_for_instruction(AmmInstruction::Deposit);
 
     // Swap: [token_0_vault, token_1_vault]
     // Deposit: [token_0_vault, token_1_vault, observation, lp_mint]
@@ -937,7 +939,7 @@ fn test_canonical_variant_independent_of_alias() {
     let sdk = AmmSdk::new();
 
     // Get specs
-    let specs = sdk.get_specs_for_instruction(&AmmInstruction::Swap);
+    let specs = sdk.get_specs_for_instruction(AmmInstruction::Swap);
 
     // All specs should have canonical variants
     for spec in &specs {
@@ -989,7 +991,7 @@ fn test_swap_loads_decompresses_before_execution() {
     let sdk = AmmSdk::new();
 
     // Step 1-2: Get accounts
-    let _accounts = sdk.get_accounts_to_update(&AmmInstruction::Swap);
+    let _accounts = sdk.get_accounts_for_instruction(AmmInstruction::Swap);
 
     // Step 3-4: Decompression (direction-agnostic)
     // Both vaults decompressed regardless of which is input/output
@@ -1054,7 +1056,7 @@ fn test_multiple_operations_same_underlying_account() {
 
 #[test]
 fn test_invariant_get_accounts_subset_of_specs() {
-    // INVARIANT: For all operations, get_accounts_to_update() pubkeys
+    // INVARIANT: For all operations, get_accounts_for_instruction() pubkeys
     // must be a subset of get_specs_for_instruction() addresses.
     //
     // This catches bugs where one method was updated but not the other.
@@ -1067,12 +1069,12 @@ fn test_invariant_get_accounts_subset_of_specs() {
         AmmInstruction::Withdraw,
     ] {
         let update_keys: HashSet<_> = sdk
-            .get_accounts_to_update(&op)
+            .get_accounts_for_instruction(op)
             .into_iter()
             .map(|a| a.pubkey())
             .collect();
         let spec_keys: HashSet<_> = sdk
-            .get_specs_for_instruction(&op)
+            .get_specs_for_instruction(op)
             .iter()
             .map(|s| s.pubkey())
             .collect();
@@ -1080,7 +1082,7 @@ fn test_invariant_get_accounts_subset_of_specs() {
         // When SDK is empty, both should be empty
         assert!(
             update_keys.is_subset(&spec_keys) || (update_keys.is_empty() && spec_keys.is_empty()),
-            "get_accounts_to_update must return subset of get_specs_for_instruction for {:?}\n  update_keys: {:?}\n  spec_keys: {:?}",
+            "get_accounts_for_instruction must return subset of get_specs_for_instruction for {:?}\n  update_keys: {:?}\n  spec_keys: {:?}",
             op, update_keys, spec_keys
         );
     }
@@ -1088,8 +1090,8 @@ fn test_invariant_get_accounts_subset_of_specs() {
 
 #[test]
 fn test_invariant_typed_matches_untyped_pubkeys() {
-    // INVARIANT: get_accounts_to_update() must return the same pubkeys
-    // as get_accounts_to_update(), just with type information.
+    // INVARIANT: get_accounts_for_instruction() must return the same pubkeys
+    // when called multiple times (idempotent).
     // (Now they're the same method, so this test is essentially a no-op)
 
     let sdk = AmmSdk::new();
@@ -1100,12 +1102,12 @@ fn test_invariant_typed_matches_untyped_pubkeys() {
         AmmInstruction::Withdraw,
     ] {
         let untyped: HashSet<_> = sdk
-            .get_accounts_to_update(&op)
+            .get_accounts_for_instruction(op)
             .into_iter()
             .map(|a| a.pubkey())
             .collect();
         let typed: HashSet<_> = sdk
-            .get_accounts_to_update(&op)
+            .get_accounts_for_instruction(op)
             .iter()
             .map(|a| a.pubkey())
             .collect();
@@ -1120,18 +1122,16 @@ fn test_invariant_typed_matches_untyped_pubkeys() {
 
 #[test]
 fn test_invariant_all_methods_derive_from_account_requirements() {
-    // DESIGN INVARIANT: All three methods must derive from account_requirements()
+    // DESIGN INVARIANT: All methods must derive from account_requirements()
     //
-    // get_accounts_to_update()       -> account_requirements().map(pubkey)
-    // get_accounts_to_update() -> account_requirements().map(to_fetch)
-    // get_specs_for_instruction()      -> account_requirements().filter_map(spec_lookup)
+    // get_accounts_for_instruction() -> account_requirements().map(to_fetch)
+    // get_specs_for_instruction()    -> account_requirements().filter_map(spec_lookup)
     //
     // This ensures they can NEVER drift out of sync.
 
     // Verify by code inspection:
-    // 1. get_accounts_to_update() calls self.account_requirements(op)
-    // 2. get_accounts_to_update() calls self.account_requirements(op)
-    // 3. get_specs_for_instruction() calls self.account_requirements(op)
+    // 1. get_accounts_for_instruction() calls self.account_requirements(op)
+    // 2. get_specs_for_instruction() calls self.account_requirements(op)
     //
     // All derive from the SAME source.
 
@@ -1143,9 +1143,9 @@ fn test_invariant_all_methods_derive_from_account_requirements() {
         AmmInstruction::Deposit,
         AmmInstruction::Withdraw,
     ] {
-        let pubkeys = sdk.get_accounts_to_update(&op);
-        let typed = sdk.get_accounts_to_update(&op);
-        let specs = sdk.get_specs_for_instruction(&op);
+        let pubkeys = sdk.get_accounts_for_instruction(op);
+        let typed = sdk.get_accounts_for_instruction(op);
+        let specs = sdk.get_specs_for_instruction(op);
 
         // All should be empty for uninitialized SDK
         assert!(pubkeys.is_empty(), "Empty SDK should return no pubkeys");
@@ -1161,8 +1161,8 @@ fn test_invariant_all_methods_derive_from_account_requirements() {
 fn test_swap_observation_included_after_refactor() {
     // Regression test: Swap must include observation after the single-source-of-truth refactor.
     //
-    // Before fix: get_accounts_to_update(Swap) returned [vault_0, vault_1] - MISSING observation!
-    // After fix: get_accounts_to_update(Swap) returns [pool_state, vault_0, vault_1, observation]
+    // Before fix: get_accounts_for_instruction(Swap) returned [vault_0, vault_1] - MISSING observation!
+    // After fix: get_accounts_for_instruction(Swap) returns [pool_state, vault_0, vault_1, observation]
 
     // Create a mock initialized SDK state
     // We can't fully initialize without real data, but we can verify the count
@@ -1170,8 +1170,8 @@ fn test_swap_observation_included_after_refactor() {
     let sdk = AmmSdk::new();
 
     // For an uninitialized SDK, both return empty
-    let swap_accounts = sdk.get_accounts_to_update(&AmmInstruction::Swap);
-    let deposit_accounts = sdk.get_accounts_to_update(&AmmInstruction::Deposit);
+    let swap_accounts = sdk.get_accounts_for_instruction(AmmInstruction::Swap);
+    let deposit_accounts = sdk.get_accounts_for_instruction(AmmInstruction::Deposit);
 
     // The key invariant: Swap and Deposit should now have the same number of
     // non-mint accounts when pool_state is set (pool_state, vault_0, vault_1, observation)

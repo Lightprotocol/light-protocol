@@ -24,7 +24,7 @@ pub use initialize_config::InitializeRentFreeConfig;
 pub use light_compressible::CreateAccountsProof;
 pub use light_program_interface::{
     all_hot, any_cold, discriminator, matches_discriminator, AccountSpec, AccountToFetch,
-    ColdContext, LightProgramInterface, PdaSpec,
+    ColdAccountSpec, ColdContext, LightAmmInterface, LightProgramInterface, PdaSpec,
 };
 pub use light_sdk::interface::config::LightConfig;
 pub use light_token::compat::TokenData;
