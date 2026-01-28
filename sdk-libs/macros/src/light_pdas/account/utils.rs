@@ -29,12 +29,23 @@ pub(crate) fn extract_fields_from_derive_input(
     match &input.data {
         Data::Struct(data) => match &data.fields {
             Fields::Named(fields) => Ok(&fields.named),
-            _ => Err(syn::Error::new_spanned(
+            Fields::Unnamed(_) => Err(syn::Error::new_spanned(
                 input,
-                "Only structs with named fields are supported",
+                "Only structs with named fields are supported. Tuple structs cannot be light accounts.",
+            )),
+            Fields::Unit => Err(syn::Error::new_spanned(
+                input,
+                "Only structs with named fields are supported. Unit structs cannot be light accounts.",
             )),
         },
-        _ => Err(syn::Error::new_spanned(input, "Only structs are supported")),
+        Data::Enum(_) => Err(syn::Error::new_spanned(
+            input,
+            "Only structs are supported. Enums cannot be light accounts.",
+        )),
+        Data::Union(_) => Err(syn::Error::new_spanned(
+            input,
+            "Only structs are supported. Unions cannot be light accounts.",
+        )),
     }
 }
 

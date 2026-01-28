@@ -16,8 +16,7 @@ use quote::{format_ident, quote};
 use syn::{Ident, Type};
 
 use crate::light_pdas::{
-    account::seed_extraction::{ClassifiedSeed, FnArgKind},
-    seeds::SeedSpec,
+    seeds::{ClassifiedSeed, FnArgKind, SeedSpec},
     shared_utils::{make_packed_type, to_pascal_case},
 };
 
@@ -711,14 +710,14 @@ fn expr_contains_call(expr: &syn::Expr) -> bool {
 /// Falls back to the root identifier if no field access found.
 fn extract_data_field_name(root: &Ident, expr: &syn::Expr) -> Ident {
     // Use the extraction helper from seed_extraction
-    crate::light_pdas::account::seed_extraction::extract_data_field_name_from_expr(expr)
+    crate::light_pdas::seeds::extract_data_field_name_from_expr(expr)
         .unwrap_or_else(|| root.clone())
 }
 
 /// Rewrite a function call expression so each classified arg uses `self.seeds.X`.
 fn rewrite_fn_call_for_self(
     func_expr: &syn::Expr,
-    args: &[crate::light_pdas::account::seed_extraction::ClassifiedFnArg],
+    args: &[crate::light_pdas::seeds::ClassifiedFnArg],
 ) -> TokenStream {
     // Clone the call expression and rewrite its arguments
     if let syn::Expr::Call(call) = func_expr {
@@ -771,7 +770,7 @@ mod tests {
     use syn::parse_quote;
 
     use super::*;
-    use crate::light_pdas::account::seed_extraction::ClassifiedSeed;
+    use crate::light_pdas::seeds::ClassifiedSeed;
 
     #[test]
     fn test_to_pascal_case_ident() {

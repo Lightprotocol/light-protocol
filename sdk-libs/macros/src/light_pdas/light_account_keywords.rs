@@ -50,9 +50,10 @@ pub const MINT_NAMESPACE_KEYS: &[&str] = &[
 ];
 
 /// Standalone keywords that don't require a value (flags).
-/// These can appear as bare identifiers without `= value`.
-pub const STANDALONE_KEYWORDS: &[&str] =
-    &["init", "token", "associated_token", "mint", "zero_copy"];
+/// Only `init` can appear as a truly standalone keyword.
+/// `mint` and `zero_copy` are only valid after `init`.
+/// `token` and `associated_token` require namespaced syntax.
+pub const STANDALONE_KEYWORDS: &[&str] = &["init"];
 
 /// Keywords that support shorthand syntax within their namespace.
 /// For example, `token::mint` alone is equivalent to `token::mint = mint`.
@@ -209,11 +210,14 @@ mod tests {
 
     #[test]
     fn test_standalone_keywords() {
+        // Only init is a true standalone keyword
         assert!(is_standalone_keyword("init"));
-        assert!(is_standalone_keyword("token"));
-        assert!(is_standalone_keyword("associated_token"));
-        assert!(is_standalone_keyword("mint"));
-        assert!(is_standalone_keyword("zero_copy"));
+        // mint and zero_copy are only valid after init, not standalone
+        assert!(!is_standalone_keyword("mint"));
+        assert!(!is_standalone_keyword("zero_copy"));
+        // token and associated_token require namespaced syntax
+        assert!(!is_standalone_keyword("token"));
+        assert!(!is_standalone_keyword("associated_token"));
         assert!(!is_standalone_keyword("authority"));
     }
 

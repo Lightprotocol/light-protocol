@@ -3,15 +3,17 @@
 //! This module provides a single unified syntax for all Light Protocol account types:
 //! - `#[light_account(init)]` - PDAs
 //! - `#[light_account(init, mint, ...)]` - Light Mints
-//! - `#[light_account(token, ...)]` - Light token accounts
+//! - `#[light_account(token::...)]` - Light token accounts (namespaced syntax required)
+//! - `#[light_account(associated_token::...)]` - Light ATAs (namespaced syntax required)
 //!
 //! ## Syntax (Anchor-style namespace::key)
 //!
-//! All parameters require a namespace prefix matching the account type:
+//! All parameters require a namespace prefix matching the account type.
+//! Token and associated_token types MUST use namespaced-first syntax (no standalone keyword).
 //!
-//! ### Token Account
+//! ### Token Account (init)
 //! ```ignore
-//! #[light_account(init, token,
+//! #[light_account(init,
 //!     token::authority = [VAULT_SEED, self.offer.key()],
 //!     token::mint = token_mint_a,
 //!     token::owner = authority,
@@ -19,13 +21,23 @@
 //! )]
 //! ```
 //!
-//! ### Associated Token Account
+//! ### Token Account (mark-only, no init)
 //! ```ignore
-//! #[light_account(init, associated_token,
+//! #[light_account(token::authority = [VAULT_SEED, self.offer.key()])]
+//! ```
+//!
+//! ### Associated Token Account (init)
+//! ```ignore
+//! #[light_account(init,
 //!     associated_token::authority = owner,
 //!     associated_token::mint = mint,
 //!     associated_token::bump = params.ata_bump
 //! )]
+//! ```
+//!
+//! ### Associated Token Account (mark-only, no init)
+//! ```ignore
+//! #[light_account(associated_token::authority = owner, associated_token::mint = mint)]
 //! ```
 //!
 //! ### Mint
@@ -216,8 +228,63 @@ struct LightAccountArgs {
     key_values: Vec<NamespacedKeyValue>,
 }
 
+/// Tracks seen standalone keywords to detect duplicates during parsing.
+#[derive(Default)]
+struct SeenKeywords {
+    init: Option<Ident>,
+    zero_copy: Option<Ident>,
+    account_type_keyword: Option<Ident>,
+}
+
+impl SeenKeywords {
+    /// Check and set the `init` keyword. Returns error if already seen.
+    fn set_init(&mut self, ident: &Ident) -> syn::Result<()> {
+        if self.init.is_some() {
+            return Err(Error::new_spanned(ident, "Duplicate `init` keyword"));
+        }
+        self.init = Some(ident.clone());
+        Ok(())
+    }
+
+    /// Check and set the `zero_copy` keyword. Returns error if already seen.
+    fn set_zero_copy(&mut self, ident: &Ident) -> syn::Result<()> {
+        if self.zero_copy.is_some() {
+            return Err(Error::new_spanned(ident, "Duplicate `zero_copy` keyword"));
+        }
+        self.zero_copy = Some(ident.clone());
+        Ok(())
+    }
+
+    /// Check and set an account type keyword (mint, token, associated_token).
+    /// Returns error if already seen (duplicate or conflicting type).
+    fn set_account_type(&mut self, ident: &Ident) -> syn::Result<()> {
+        if let Some(ref prev) = self.account_type_keyword {
+            let prev_name = prev.to_string();
+            let new_name = ident.to_string();
+            if prev_name == new_name {
+                return Err(Error::new_spanned(
+                    ident,
+                    format!("Duplicate `{}` keyword", new_name),
+                ));
+            } else {
+                return Err(Error::new_spanned(
+                    ident,
+                    format!(
+                        "Conflicting account type: `{}` was already specified, cannot also use `{}`",
+                        prev_name, new_name
+                    ),
+                ));
+            }
+        }
+        self.account_type_keyword = Some(ident.clone());
+        Ok(())
+    }
+}
+
 impl Parse for LightAccountArgs {
     fn parse(input: ParseStream) -> syn::Result<Self> {
+        let mut seen = SeenKeywords::default();
+
         // First token must be `init`, `token::`, `associated_token::`, or a namespaced key
         let first: Ident = input.parse()?;
 
@@ -225,6 +292,7 @@ impl Parse for LightAccountArgs {
         // This allows: #[light_account(token::authority = [...])]
         if input.peek(Token![::]) {
             let account_type = infer_type_from_namespace(&first)?;
+            seen.set_account_type(&first)?;
 
             // Parse the first namespaced key-value (we already have the namespace)
             input.parse::<Token![::]>()?;
@@ -263,36 +331,20 @@ impl Parse for LightAccountArgs {
                 }
             };
 
+            let key_str = key.to_string();
             let mut key_values = vec![NamespacedKeyValue {
                 namespace: first.clone(),
                 key,
                 value,
             }];
 
-            // Parse remaining key-values
-            let remaining = parse_namespaced_key_values(input, account_type)?;
+            // Parse remaining key-values, passing the first key as already-seen
+            let remaining = parse_namespaced_key_values(input, account_type, &[&key_str])?;
             key_values.extend(remaining);
 
             return Ok(Self {
                 has_init: false,
                 is_token: true, // Skip in LightAccounts derive (for mark-only mode)
-                has_zero_copy: false,
-                account_type,
-                key_values,
-            });
-        }
-
-        // Handle old-style standalone keywords (backward compatibility)
-        if first == "token" || first == "associated_token" {
-            let account_type = if first == "token" {
-                LightAccountType::Token
-            } else {
-                LightAccountType::AssociatedToken
-            };
-            let key_values = parse_namespaced_key_values(input, account_type)?;
-            return Ok(Self {
-                has_init: false,
-                is_token: true,
                 has_zero_copy: false,
                 account_type,
                 key_values,
@@ -305,6 +357,8 @@ impl Parse for LightAccountArgs {
                 "First argument to #[light_account] must be `init` or a namespaced key (e.g., `token::authority`)",
             ));
         }
+
+        seen.set_init(&first)?;
 
         let mut account_type = LightAccountType::Pda;
         let mut key_values = Vec::new();
@@ -323,9 +377,17 @@ impl Parse for LightAccountArgs {
                 let lookahead = input.fork();
                 let ident: Ident = lookahead.parse()?;
 
+                // Check for init keyword (duplicate check)
+                if ident == "init" {
+                    let consumed: Ident = input.parse()?;
+                    seen.set_init(&consumed)?;
+                    continue;
+                }
+
                 // Check for zero_copy keyword (standalone flag)
                 if ident == "zero_copy" {
-                    input.parse::<Ident>()?; // consume it
+                    let consumed: Ident = input.parse()?;
+                    seen.set_zero_copy(&consumed)?;
                     has_zero_copy = true;
                     continue;
                 }
@@ -335,8 +397,11 @@ impl Parse for LightAccountArgs {
                     // Infer account type from namespace
                     let inferred_type = infer_type_from_namespace(&ident)?;
 
-                    // If this is the first namespaced key, set account type
-                    if account_type == LightAccountType::Pda {
+                    // Check for duplicate/conflicting account type
+                    if account_type != LightAccountType::Pda {
+                        seen.set_account_type(&ident)?; // Will error on conflict
+                    } else {
+                        seen.set_account_type(&ident)?;
                         account_type = inferred_type;
                     }
 
@@ -344,28 +409,31 @@ impl Parse for LightAccountArgs {
                     let kv: NamespacedKeyValue = input.parse()?;
                     key_values.push(kv);
 
-                    // Parse remaining key-values
-                    let remaining = parse_namespaced_key_values(input, account_type)?;
+                    // Parse remaining key-values, passing the first key as already-seen
+                    let first_key = key_values.last().map(|kv| kv.key.to_string()).unwrap_or_default();
+                    let remaining = parse_namespaced_key_values(input, account_type, &[&first_key])?;
                     key_values.extend(remaining);
                     break;
                 }
 
-                // Check for explicit type keywords (backward compatibility)
+                // Check for explicit mint type keyword (token/associated_token require namespaced syntax)
                 if ident == "mint" {
-                    input.parse::<Ident>()?; // consume it
+                    let consumed: Ident = input.parse()?;
+                    seen.set_account_type(&consumed)?;
                     account_type = LightAccountType::Mint;
-                    key_values = parse_namespaced_key_values(input, account_type)?;
+                    key_values = parse_namespaced_key_values(input, account_type, &[])?;
                     break;
-                } else if ident == "token" {
-                    input.parse::<Ident>()?; // consume it
-                    account_type = LightAccountType::Token;
-                    key_values = parse_namespaced_key_values(input, account_type)?;
-                    break;
-                } else if ident == "associated_token" {
-                    input.parse::<Ident>()?; // consume it
-                    account_type = LightAccountType::AssociatedToken;
-                    key_values = parse_namespaced_key_values(input, account_type)?;
-                    break;
+                }
+
+                // Standalone token/associated_token keywords are not allowed - must use namespaced syntax
+                if ident == "token" || ident == "associated_token" {
+                    return Err(Error::new_spanned(
+                        &ident,
+                        format!(
+                            "Standalone `{}` keyword is not allowed. Use namespaced syntax: `{}::authority = [...]`",
+                            ident, ident
+                        ),
+                    ));
                 }
 
                 // Old syntax - give helpful error
@@ -408,12 +476,17 @@ fn infer_type_from_namespace(namespace: &Ident) -> Result<LightAccountType, syn:
 
 /// Parse namespaced key-value pairs for token, associated_token, and mint attributes.
 /// Syntax: `namespace::key = value` (e.g., `token::mint = token_mint`)
+///
+/// `already_seen` contains keys that were already parsed before calling this function
+/// (e.g., the first key in namespaced-first syntax like `#[light_account(token::authority = ...)]`).
 fn parse_namespaced_key_values(
     input: ParseStream,
     account_type: LightAccountType,
+    already_seen: &[&str],
 ) -> syn::Result<Vec<NamespacedKeyValue>> {
     let mut key_values = Vec::new();
-    let mut seen_keys = std::collections::HashSet::new();
+    let mut seen_keys: std::collections::HashSet<String> =
+        already_seen.iter().map(|s| s.to_string()).collect();
     let expected_namespace = account_type.namespace();
 
     while !input.is_empty() {
@@ -521,7 +594,7 @@ pub(super) fn parse_light_account_attr(
                                 &kv.key,
                                 format!(
                                     "`token::{}` is only allowed with `init`. \
-                                     For mark-only token, use: #[light_account(token, token::authority = [...])]",
+                                     For mark-only token, use: #[light_account(token::authority = [...])]",
                                     key
                                 ),
                             ));
@@ -630,6 +703,12 @@ fn build_pda_field(
     }
 
     // Always fetch from CreateAccountsProof
+    // TODO: This assumes `params.create_accounts_proof` exists in the instruction parameters.
+    // Currently there's no compile-time validation that the instruction actually has this field.
+    // A future improvement could:
+    // 1. Parse the instruction's params struct to verify the field exists
+    // 2. Provide a clearer error at macro expansion time if missing
+    // 3. Support alternative field names via attribute syntax
     let (address_tree_info, output_tree) = if let Some(proof_ident) = direct_proof_arg {
         (
             syn::parse_quote!(#proof_ident.address_tree_info),
@@ -665,13 +744,8 @@ fn build_pda_field(
     }
 
     // Validate this is an Account type (or Box<Account>) or AccountLoader
-    let (is_boxed, inner_type) = extract_account_inner_type(&field.ty).ok_or_else(|| {
-        Error::new_spanned(
-            &field.ty,
-            "#[light_account(init)] can only be applied to Account<...>, Box<Account<...>>, or AccountLoader<...> fields. \
-             Nested Box<Box<...>> is not supported.",
-        )
-    })?;
+    let (is_boxed, inner_type) = extract_account_inner_type(&field.ty)
+        .map_err(|e| e.into_syn_error(&field.ty))?;
 
     Ok(PdaField {
         ident: field_ident.clone(),
@@ -1226,7 +1300,7 @@ mod tests {
     fn test_parse_token_mark_only_returns_none() {
         // Mark-only mode (no init) should return None for LightAccounts derive
         let field: syn::Field = parse_quote! {
-            #[light_account(token, token::authority = [b"authority"])]
+            #[light_account(token::authority = [b"authority"])]
             pub vault: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();
@@ -1239,7 +1313,7 @@ mod tests {
     #[test]
     fn test_parse_token_init_creates_field() {
         let field: syn::Field = parse_quote! {
-            #[light_account(init, token, token::authority = [b"authority"], token::mint = token_mint, token::owner = vault_authority)]
+            #[light_account(init, token::authority = [b"authority"], token::mint = token_mint, token::owner = vault_authority)]
             pub vault: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();
@@ -1298,7 +1372,7 @@ mod tests {
     fn test_parse_token_mark_only_rejects_mint() {
         // Mark-only token should not allow mint parameter
         let field: syn::Field = parse_quote! {
-            #[light_account(token, token::authority = [b"auth"], token::mint = token_mint)]
+            #[light_account(token::authority = [b"auth"], token::mint = token_mint)]
             pub vault: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();
@@ -1317,7 +1391,7 @@ mod tests {
     fn test_parse_token_mark_only_rejects_owner() {
         // Mark-only token should not allow owner parameter
         let field: syn::Field = parse_quote! {
-            #[light_account(token, token::authority = [b"auth"], token::owner = vault_authority)]
+            #[light_account(token::authority = [b"auth"], token::owner = vault_authority)]
             pub vault: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();
@@ -1336,7 +1410,7 @@ mod tests {
     fn test_parse_token_init_missing_mint_fails() {
         // Token init requires mint parameter
         let field: syn::Field = parse_quote! {
-            #[light_account(init, token, token::authority = [b"authority"], token::owner = vault_authority)]
+            #[light_account(init, token::authority = [b"authority"], token::owner = vault_authority)]
             pub vault: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();
@@ -1355,7 +1429,7 @@ mod tests {
     fn test_parse_token_init_missing_owner_fails() {
         // Token init requires owner parameter
         let field: syn::Field = parse_quote! {
-            #[light_account(init, token, token::authority = [b"authority"], token::mint = token_mint)]
+            #[light_account(init, token::authority = [b"authority"], token::mint = token_mint)]
             pub vault: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();
@@ -1378,7 +1452,7 @@ mod tests {
     fn test_parse_associated_token_mark_only_returns_none() {
         // Mark-only mode (no init) should return None for LightAccounts derive
         let field: syn::Field = parse_quote! {
-            #[light_account(associated_token, associated_token::authority = owner, associated_token::mint = mint)]
+            #[light_account(associated_token::authority = owner, associated_token::mint = mint)]
             pub user_ata: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();
@@ -1391,7 +1465,7 @@ mod tests {
     #[test]
     fn test_parse_associated_token_init_creates_field() {
         let field: syn::Field = parse_quote! {
-            #[light_account(init, associated_token, associated_token::authority = owner, associated_token::mint = mint)]
+            #[light_account(init, associated_token::authority = owner, associated_token::mint = mint)]
             pub user_ata: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();
@@ -1413,7 +1487,7 @@ mod tests {
     #[test]
     fn test_parse_associated_token_init_missing_authority_fails() {
         let field: syn::Field = parse_quote! {
-            #[light_account(init, associated_token, associated_token::mint = mint)]
+            #[light_account(init, associated_token::mint = mint)]
             pub user_ata: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();
@@ -1427,7 +1501,7 @@ mod tests {
     #[test]
     fn test_parse_associated_token_init_missing_mint_fails() {
         let field: syn::Field = parse_quote! {
-            #[light_account(init, associated_token, associated_token::authority = owner)]
+            #[light_account(init, associated_token::authority = owner)]
             pub user_ata: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();
@@ -1441,7 +1515,7 @@ mod tests {
     #[test]
     fn test_parse_token_unknown_argument_fails() {
         let field: syn::Field = parse_quote! {
-            #[light_account(token, token::authority = [b"auth"], token::unknown = foo)]
+            #[light_account(token::authority = [b"auth"], token::unknown = foo)]
             pub vault: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();
@@ -1455,7 +1529,7 @@ mod tests {
     #[test]
     fn test_parse_associated_token_unknown_argument_fails() {
         let field: syn::Field = parse_quote! {
-            #[light_account(associated_token, associated_token::authority = owner, associated_token::mint = mint, associated_token::unknown = foo)]
+            #[light_account(associated_token::authority = owner, associated_token::mint = mint, associated_token::unknown = foo)]
             pub user_ata: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();
@@ -1470,7 +1544,7 @@ mod tests {
     fn test_parse_associated_token_shorthand_syntax() {
         // Test shorthand syntax: mint, authority, bump without = value
         let field: syn::Field = parse_quote! {
-            #[light_account(init, associated_token, associated_token::authority, associated_token::mint, associated_token::bump)]
+            #[light_account(init, associated_token::authority, associated_token::mint, associated_token::bump)]
             pub user_ata: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();
@@ -1494,7 +1568,7 @@ mod tests {
     fn test_parse_token_duplicate_key_fails() {
         // Duplicate keys should be rejected
         let field: syn::Field = parse_quote! {
-            #[light_account(token, token::authority = [b"auth1"], token::authority = [b"auth2"])]
+            #[light_account(token::authority = [b"auth1"], token::authority = [b"auth2"])]
             pub vault: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();
@@ -1513,7 +1587,7 @@ mod tests {
     fn test_parse_associated_token_duplicate_key_fails() {
         // Duplicate keys in associated_token should also be rejected
         let field: syn::Field = parse_quote! {
-            #[light_account(init, associated_token, associated_token::authority = foo, associated_token::authority = bar, associated_token::mint)]
+            #[light_account(init, associated_token::authority = foo, associated_token::authority = bar, associated_token::mint)]
             pub user_ata: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();
@@ -1532,7 +1606,7 @@ mod tests {
     fn test_parse_token_init_empty_authority_fails() {
         // Empty authority seeds with init should be rejected
         let field: syn::Field = parse_quote! {
-            #[light_account(init, token, token::authority = [], token::mint = token_mint, token::owner = vault_authority)]
+            #[light_account(init, token::authority = [], token::mint = token_mint, token::owner = vault_authority)]
             pub vault: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();
@@ -1551,7 +1625,7 @@ mod tests {
     fn test_parse_token_non_init_empty_authority_allowed() {
         // Empty authority seeds without init should be allowed (mark-only mode)
         let field: syn::Field = parse_quote! {
-            #[light_account(token, token::authority = [])]
+            #[light_account(token::authority = [])]
             pub vault: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();
@@ -1694,7 +1768,7 @@ mod tests {
     fn test_parse_token_with_bump_parameter() {
         // Test token with explicit bump parameter
         let field: syn::Field = parse_quote! {
-            #[light_account(init, token,
+            #[light_account(init,
                 token::authority = [b"vault", self.offer.key()],
                 token::mint = token_mint,
                 token::owner = vault_authority,
@@ -1727,7 +1801,7 @@ mod tests {
     fn test_parse_token_without_bump_backwards_compatible() {
         // Test token without bump (backwards compatible - bump will be auto-derived)
         let field: syn::Field = parse_quote! {
-            #[light_account(init, token,
+            #[light_account(init,
                 token::authority = [b"vault", self.offer.key()],
                 token::mint = token_mint,
                 token::owner = vault_authority
@@ -1880,7 +1954,7 @@ mod tests {
     fn test_parse_token_bump_shorthand_syntax() {
         // Test token with bump shorthand syntax (token::bump = bump)
         let field: syn::Field = parse_quote! {
-            #[light_account(init, token,
+            #[light_account(init,
                 token::authority = [b"vault"],
                 token::mint = token_mint,
                 token::owner = vault_authority,
@@ -1917,7 +1991,7 @@ mod tests {
     fn test_parse_wrong_namespace_fails() {
         // Using mint:: namespace with token account type should fail
         let field: syn::Field = parse_quote! {
-            #[light_account(token, mint::authority = [b"auth"])]
+            #[light_account(token::authority = [b"auth"], mint::decimals = 9)]
             pub vault: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();
@@ -1959,7 +2033,7 @@ mod tests {
     fn test_parse_associated_token_mark_only_missing_authority_fails() {
         // Mark-only associated_token requires authority
         let field: syn::Field = parse_quote! {
-            #[light_account(associated_token, associated_token::mint = mint)]
+            #[light_account(associated_token::mint = mint)]
             pub user_ata: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();
@@ -1978,7 +2052,7 @@ mod tests {
     fn test_parse_associated_token_mark_only_missing_mint_fails() {
         // Mark-only associated_token requires mint
         let field: syn::Field = parse_quote! {
-            #[light_account(associated_token, associated_token::authority = owner)]
+            #[light_account(associated_token::authority = owner)]
             pub user_ata: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();
@@ -1997,7 +2071,7 @@ mod tests {
     fn test_parse_associated_token_mark_only_with_both_params_succeeds() {
         // Mark-only associated_token with both authority and mint should succeed (returns None)
         let field: syn::Field = parse_quote! {
-            #[light_account(associated_token, associated_token::authority = owner, associated_token::mint = mint)]
+            #[light_account(associated_token::authority = owner, associated_token::mint = mint)]
             pub user_ata: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();
@@ -2015,7 +2089,7 @@ mod tests {
     fn test_parse_mixed_token_and_associated_token_prefix_fails() {
         // Mixing token:: with associated_token type should fail
         let field: syn::Field = parse_quote! {
-            #[light_account(associated_token, associated_token::authority = owner, token::mint = mint)]
+            #[light_account(associated_token::authority = owner, token::mint = mint)]
             pub user_ata: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();
@@ -2034,7 +2108,7 @@ mod tests {
     fn test_parse_mixed_associated_token_and_token_prefix_fails() {
         // Mixing associated_token:: with token type should fail
         let field: syn::Field = parse_quote! {
-            #[light_account(token, token::authority = [b"auth"], associated_token::mint = mint)]
+            #[light_account(token::authority = [b"auth"], associated_token::mint = mint)]
             pub vault: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();
@@ -2053,7 +2127,7 @@ mod tests {
     fn test_parse_init_mixed_token_and_mint_prefix_fails() {
         // Mixing token:: with mint:: in init mode should fail
         let field: syn::Field = parse_quote! {
-            #[light_account(init, token, token::authority = [b"auth"], mint::decimals = 9)]
+            #[light_account(init, token::authority = [b"auth"], mint::decimals = 9)]
             pub vault: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();
@@ -2064,6 +2138,93 @@ mod tests {
         assert!(
             err.contains("doesn't match account type"),
             "Expected namespace mismatch error, got: {}",
+            err
+        );
+    }
+
+    // ========================================================================
+    // Duplicate Keyword Tests
+    // ========================================================================
+
+    #[test]
+    fn test_parse_duplicate_init_fails() {
+        let field: syn::Field = parse_quote! {
+            #[light_account(init, init)]
+            pub record: Account<'info, MyRecord>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident, &None);
+        assert!(result.is_err());
+        let err = result.err().unwrap().to_string();
+        assert!(
+            err.contains("Duplicate") && err.contains("init"),
+            "Expected duplicate init error, got: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn test_parse_duplicate_zero_copy_fails() {
+        let field: syn::Field = parse_quote! {
+            #[light_account(init, zero_copy, zero_copy)]
+            pub record: AccountLoader<'info, MyRecord>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident, &None);
+        assert!(result.is_err());
+        let err = result.err().unwrap().to_string();
+        assert!(
+            err.contains("Duplicate") && err.contains("zero_copy"),
+            "Expected duplicate zero_copy error, got: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn test_parse_duplicate_token_type_fails() {
+        // Duplicate token keyword should fail
+        let field: syn::Field = parse_quote! {
+            #[light_account(init, token, token, token::authority = [b"auth"], token::mint = mint, token::owner = owner)]
+            pub vault: Account<'info, CToken>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident, &None);
+        assert!(result.is_err());
+        let err = result.err().unwrap().to_string();
+        // After first `token`, parser expects namespaced keys, so second bare `token` causes syntax error
+        assert!(
+            err.contains("Duplicate") || err.contains("::"),
+            "Expected duplicate or syntax error, got: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn test_parse_conflicting_type_via_namespace_fails() {
+        // Test conflict detection via namespaced keys (the valid syntax path)
+        // Using token:: namespace after mint:: should detect conflict
+        let field: syn::Field = parse_quote! {
+            #[light_account(init,
+                mint::signer = mint_signer,
+                mint::authority = authority,
+                mint::decimals = 9,
+                mint::seeds = &[b"test"],
+                token::mint = some_mint
+            )]
+            pub cmint: UncheckedAccount<'info>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident, &None);
+        assert!(result.is_err());
+        let err = result.err().unwrap().to_string();
+        // Either conflicts at account_type level or at namespace validation level
+        assert!(
+            err.contains("Conflicting") || err.contains("doesn't match account type"),
+            "Expected conflicting or namespace mismatch error, got: {}",
             err
         );
     }

@@ -302,11 +302,11 @@ pub fn extract_data_seed_fields(
 /// for function calls). `crate_ctx` is used to look up where constants and functions
 /// are actually defined, to generate fully qualified paths.
 pub fn convert_classified_to_seed_elements(
-    seeds: &[crate::light_pdas::account::seed_extraction::ClassifiedSeed],
+    seeds: &[crate::light_pdas::seeds::ClassifiedSeed],
     module_path: &str,
     crate_ctx: &super::crate_context::CrateContext,
 ) -> Punctuated<SeedElement, Token![,]> {
-    use crate::light_pdas::account::seed_extraction::{extract_data_field_info, ClassifiedSeed};
+    use crate::light_pdas::seeds::{extract_data_field_info, ClassifiedSeed};
 
     let mut result = Punctuated::new();
     for seed in seeds {
@@ -409,13 +409,13 @@ pub fn convert_classified_to_seed_elements(
 /// Non-classified args are passed through unchanged.
 fn rewrite_fn_call_for_scope(
     func_expr: &Expr,
-    fn_args: &[crate::light_pdas::account::seed_extraction::ClassifiedFnArg],
+    fn_args: &[crate::light_pdas::seeds::ClassifiedFnArg],
     module_path: &str,
     crate_ctx: &super::crate_context::CrateContext,
 ) -> Expr {
     use quote::quote;
 
-    use crate::light_pdas::account::seed_extraction::FnArgKind;
+    use crate::light_pdas::seeds::FnArgKind;
 
     if let Expr::Call(call) = func_expr {
         // Qualify bare function names via CrateContext lookup.
@@ -467,7 +467,7 @@ fn rewrite_fn_call_for_scope(
 }
 
 pub fn convert_classified_to_seed_elements_vec(
-    seeds: &[crate::light_pdas::account::seed_extraction::ClassifiedSeed],
+    seeds: &[crate::light_pdas::seeds::ClassifiedSeed],
     module_path: &str,
     crate_ctx: &super::crate_context::CrateContext,
 ) -> Vec<SeedElement> {

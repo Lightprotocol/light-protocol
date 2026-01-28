@@ -13,3 +13,4 @@ pub mod seed_extraction;
 #[allow(clippy::module_inception)]
 pub mod traits;
 pub mod utils;
+pub mod validation;

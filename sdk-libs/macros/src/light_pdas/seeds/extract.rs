@@ -3,143 +3,25 @@
 //! This module handles parsing `#[account(seeds = [...], bump)]` attributes
 //! and extracting field information from Accounts structs.
 
-use std::collections::HashSet;
+use syn::ItemStruct;
 
-use syn::{Expr, Ident, ItemStruct};
-
+use super::anchor_extraction::extract_anchor_seeds;
+use super::instruction_args::parse_instruction_arg_names;
 use super::types::SeedSpec;
-use crate::light_pdas::account::seed_extraction::{
-    classify_seed_expr, ClassifiedSeed, InstructionArgSet,
-};
-
-/// Parse `#[instruction(...)]` attribute and return instruction argument names.
-///
-/// Supports two formats:
-/// - Format 1: `#[instruction(params: CreateParams)]` -> returns `{"params"}`
-/// - Format 2: `#[instruction(owner: Pubkey, amount: u64)]` -> returns `{"owner", "amount"}`
-pub fn parse_instruction_args(attrs: &[syn::Attribute]) -> syn::Result<HashSet<String>> {
-    let arg_set = crate::light_pdas::account::seed_extraction::parse_instruction_arg_names(attrs)?;
-    Ok(arg_set.names)
-}
-
-/// Extract account field names from an Accounts struct.
-///
-/// Returns a set of field names that can be used as account references in seeds.
-pub fn extract_account_fields(item: &ItemStruct) -> HashSet<String> {
-    let mut fields = HashSet::new();
-
-    if let syn::Fields::Named(named) = &item.fields {
-        for field in &named.named {
-            if let Some(ident) = &field.ident {
-                fields.insert(ident.to_string());
-            }
-        }
-    }
-
-    fields
-}
-
-/// Extract seeds from `#[account(seeds = [...], bump)]` attribute.
-///
-/// Returns a vector of classified seeds, or an empty vector if no seeds found.
-pub fn extract_seeds_from_attribute(
-    attrs: &[syn::Attribute],
-    instruction_args: &HashSet<String>,
-    _account_fields: &HashSet<String>,
-) -> syn::Result<Vec<ClassifiedSeed>> {
-    // Convert HashSet<String> to InstructionArgSet for the unified classifier
-    let arg_set = InstructionArgSet::from_names(instruction_args.iter().cloned());
-
-    for attr in attrs {
-        if !attr.path().is_ident("account") {
-            continue;
-        }
-
-        let tokens = match &attr.meta {
-            syn::Meta::List(list) => list.tokens.clone(),
-            _ => continue,
-        };
-
-        // Parse as comma-separated key-value pairs
-        let parsed: syn::Result<syn::punctuated::Punctuated<AccountAttrItem, syn::Token![,]>> =
-            syn::parse::Parser::parse2(
-                syn::punctuated::Punctuated::parse_terminated,
-                tokens.clone(),
-            );
-
-        if let Ok(items) = &parsed {
-            for item in items {
-                if item.key == "seeds" {
-                    return classify_seeds_array(&item.value, &arg_set);
-                }
-            }
-        }
-    }
-
-    Ok(Vec::new())
-}
-
-/// Helper struct for parsing account attribute items.
-struct AccountAttrItem {
-    key: Ident,
-    value: Expr,
-}
-
-impl syn::parse::Parse for AccountAttrItem {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        // Handle keywords like `mut` as well as identifiers
-        let key: Ident = if input.peek(syn::Token![mut]) {
-            input.parse::<syn::Token![mut]>()?;
-            Ident::new("mut", proc_macro2::Span::call_site())
-        } else {
-            input.parse()?
-        };
-
-        // Handle bare identifiers like `mut`, `init`, `bump`
-        if !input.peek(syn::Token![=]) {
-            return Ok(AccountAttrItem {
-                key: key.clone(),
-                value: syn::parse_quote!(true),
-            });
-        }
-
-        input.parse::<syn::Token![=]>()?;
-        let value: Expr = input.parse()?;
-
-        Ok(AccountAttrItem { key, value })
-    }
-}
-
-/// Classify seeds from an array expression `[seed1, seed2, ...]`.
-fn classify_seeds_array(
-    expr: &Expr,
-    instruction_args: &InstructionArgSet,
-) -> syn::Result<Vec<ClassifiedSeed>> {
-    let array = match expr {
-        Expr::Array(arr) => arr,
-        Expr::Reference(r) => {
-            if let Expr::Array(arr) = &*r.expr {
-                arr
-            } else {
-                return Err(syn::Error::new_spanned(expr, "Expected seeds array"));
-            }
-        }
-        _ => return Err(syn::Error::new_spanned(expr, "Expected seeds array")),
-    };
-
-    let mut seeds = Vec::new();
-    for elem in &array.elems {
-        seeds.push(classify_seed_expr(elem, instruction_args)?);
-    }
-
-    Ok(seeds)
-}
+use crate::light_pdas::account::validation::AccountTypeError;
 
 /// Extract inner type from `Account<'info, T>`, `Box<Account<'info, T>>`,
 /// `AccountLoader<'info, T>`, or `InterfaceAccount<'info, T>`.
 ///
 /// Returns `(is_boxed, inner_type)` preserving the full type path.
-pub fn extract_account_inner_type(ty: &syn::Type) -> Option<(bool, syn::Type)> {
+///
+/// # Errors
+/// - `AccountTypeError::WrongType` if the type is not a recognized account wrapper
+/// - `AccountTypeError::NestedBox` if nested Box<Box<...>> is detected
+/// - `AccountTypeError::ExtractionFailed` if generic arguments couldn't be extracted
+pub fn extract_account_inner_type(
+    ty: &syn::Type,
+) -> Result<(bool, syn::Type), AccountTypeError> {
     crate::light_pdas::account::seed_extraction::extract_account_inner_type(ty)
 }
 
@@ -202,12 +84,7 @@ pub fn extract_seed_specs(item: &ItemStruct) -> syn::Result<Vec<SeedSpec>> {
     };
 
     // Parse instruction args from struct attributes
-    let instruction_args = parse_instruction_args(&item.attrs)?;
-
-    // Get all account field names (used as context for classify_seed, but
-    // classify_seed_expr treats unknown idents as CtxRooted, so this
-    // gives the same result)
-    let account_fields = extract_account_fields(item);
+    let instruction_args = parse_instruction_arg_names(&item.attrs)?;
 
     let mut specs = Vec::new();
 
@@ -224,18 +101,11 @@ pub fn extract_seed_specs(item: &ItemStruct) -> syn::Result<Vec<SeedSpec>> {
         }
 
         // Extract inner type
-        let (_, inner_type) = match extract_account_inner_type(&field.ty) {
-            Some(result) => result,
-            None => {
-                return Err(syn::Error::new_spanned(
-                    &field.ty,
-                    "#[light_account(init)] requires Account<'info, T> or Box<Account<'info, T>>",
-                ));
-            }
-        };
+        let (_, inner_type) = extract_account_inner_type(&field.ty)
+            .map_err(|e| e.into_syn_error(&field.ty))?;
 
-        // Extract seeds using the unified classifier
-        let seeds = extract_seeds_from_attribute(&field.attrs, &instruction_args, &account_fields)?;
+        // Extract seeds using the anchor extraction
+        let seeds = extract_anchor_seeds(&field.attrs, &instruction_args)?;
 
         specs.push(SeedSpec::new(field_ident, inner_type, seeds, is_zero_copy));
     }
@@ -245,54 +115,39 @@ pub fn extract_seed_specs(item: &ItemStruct) -> syn::Result<Vec<SeedSpec>> {
 
 #[cfg(test)]
 mod tests {
+    use super::super::instruction_args::InstructionArgSet;
+    use super::super::types::ClassifiedSeed;
     use syn::parse_quote;
 
     use super::*;
 
     #[test]
-    fn test_parse_instruction_args_format1() {
+    fn test_parse_instruction_arg_names_format1() {
         let attrs: Vec<syn::Attribute> = vec![parse_quote!(#[instruction(params: CreateParams)])];
-        let args = parse_instruction_args(&attrs).expect("should parse");
-        assert!(args.contains("params"));
-        assert_eq!(args.len(), 1);
+        let arg_set = parse_instruction_arg_names(&attrs).expect("should parse");
+        assert!(arg_set.names.contains("params"));
+        assert_eq!(arg_set.names.len(), 1);
     }
 
     #[test]
-    fn test_parse_instruction_args_format2() {
+    fn test_parse_instruction_arg_names_format2() {
         let attrs: Vec<syn::Attribute> =
             vec![parse_quote!(#[instruction(owner: Pubkey, amount: u64)])];
-        let args = parse_instruction_args(&attrs).expect("should parse");
-        assert!(args.contains("owner"));
-        assert!(args.contains("amount"));
-        assert_eq!(args.len(), 2);
+        let arg_set = parse_instruction_arg_names(&attrs).expect("should parse");
+        assert!(arg_set.names.contains("owner"));
+        assert!(arg_set.names.contains("amount"));
+        assert_eq!(arg_set.names.len(), 2);
     }
 
     #[test]
-    fn test_parse_instruction_args_empty() {
+    fn test_parse_instruction_arg_names_empty() {
         let attrs: Vec<syn::Attribute> = vec![];
-        let args = parse_instruction_args(&attrs).expect("should parse");
-        assert!(args.is_empty());
+        let arg_set = parse_instruction_arg_names(&attrs).expect("should parse");
+        assert!(arg_set.names.is_empty());
     }
 
     #[test]
-    fn test_extract_account_fields() {
-        let item: ItemStruct = parse_quote! {
-            pub struct MyAccounts<'info> {
-                pub fee_payer: Signer<'info>,
-                pub authority: Signer<'info>,
-                pub record: Account<'info, Record>,
-            }
-        };
-
-        let fields = extract_account_fields(&item);
-        assert!(fields.contains("fee_payer"));
-        assert!(fields.contains("authority"));
-        assert!(fields.contains("record"));
-        assert_eq!(fields.len(), 3);
-    }
-
-    #[test]
-    fn test_extract_seeds_from_attribute() {
+    fn test_extract_anchor_seeds() {
         let attrs: Vec<syn::Attribute> = vec![parse_quote!(
             #[account(
                 init,
@@ -303,11 +158,9 @@ mod tests {
             )]
         )];
 
-        let instruction_args = HashSet::new();
-        let account_fields: HashSet<String> = ["authority".to_string()].into();
+        let arg_set = InstructionArgSet::empty();
 
-        let seeds = extract_seeds_from_attribute(&attrs, &instruction_args, &account_fields)
-            .expect("should extract");
+        let seeds = extract_anchor_seeds(&attrs, &arg_set).expect("should extract");
 
         assert_eq!(seeds.len(), 2);
         assert!(matches!(seeds[0], ClassifiedSeed::Literal(_)));
@@ -317,7 +170,9 @@ mod tests {
     #[test]
     fn test_extract_account_inner_type() {
         let ty: syn::Type = parse_quote!(Account<'info, UserRecord>);
-        let (is_boxed, inner) = extract_account_inner_type(&ty).expect("should extract");
+        let result = extract_account_inner_type(&ty);
+        assert!(result.is_ok(), "Should extract Account inner type");
+        let (is_boxed, inner) = result.unwrap();
         assert!(!is_boxed);
 
         if let syn::Type::Path(path) = inner {
@@ -333,7 +188,9 @@ mod tests {
     #[test]
     fn test_extract_account_inner_type_boxed() {
         let ty: syn::Type = parse_quote!(Box<Account<'info, UserRecord>>);
-        let (is_boxed, inner) = extract_account_inner_type(&ty).expect("should extract");
+        let result = extract_account_inner_type(&ty);
+        assert!(result.is_ok(), "Should extract Box<Account> inner type");
+        let (is_boxed, inner) = result.unwrap();
         assert!(is_boxed);
 
         if let syn::Type::Path(path) = inner {
@@ -344,6 +201,28 @@ mod tests {
         } else {
             panic!("Expected path type");
         }
+    }
+
+    #[test]
+    fn test_extract_account_inner_type_nested_box_fails() {
+        use crate::light_pdas::account::validation::AccountTypeError;
+        let ty: syn::Type = parse_quote!(Box<Box<Account<'info, UserRecord>>>);
+        let result = extract_account_inner_type(&ty);
+        assert!(
+            matches!(result, Err(AccountTypeError::NestedBox)),
+            "Nested Box should return NestedBox error"
+        );
+    }
+
+    #[test]
+    fn test_extract_account_inner_type_wrong_type_fails() {
+        use crate::light_pdas::account::validation::AccountTypeError;
+        let ty: syn::Type = parse_quote!(String);
+        let result = extract_account_inner_type(&ty);
+        assert!(
+            matches!(result, Err(AccountTypeError::WrongType { .. })),
+            "Wrong type should return WrongType error"
+        );
     }
 
     #[test]
@@ -370,5 +249,167 @@ mod tests {
         )];
         let (is_pda, _) = check_light_account_init(&attrs);
         assert!(!is_pda);
+    }
+
+    #[test]
+    fn test_full_extraction_create_example() {
+        // Full pipeline test with the example from issue
+        let item: syn::ItemStruct = parse_quote!(
+            #[derive(Accounts, LightAccounts)]
+            #[instruction(params: CreateParams)]
+            pub struct Create<'info> {
+                #[account(mut)]
+                pub fee_payer: Signer<'info>,
+
+                #[account(
+                    init,
+                    payer = fee_payer,
+                    space = 100,
+                    seeds = [b"user", SEED_PREFIX, authority.key().as_ref(), params.owner.as_ref()],
+                    bump
+                )]
+                #[light_account(init)]
+                pub user_record: Account<'info, UserRecord>,
+            }
+        );
+
+        // Step 1: Parse instruction args from struct attributes
+        let instruction_args = parse_instruction_arg_names(&item.attrs)
+            .expect("should parse instruction args");
+        assert!(instruction_args.contains("params"));
+
+        // Step 2: Use full extraction
+        let specs = extract_seed_specs(&item).expect("should extract seed specs");
+        assert_eq!(specs.len(), 1, "Should have one PDA field");
+
+        let spec = &specs[0];
+        assert_eq!(spec.field_name.to_string(), "user_record");
+        assert!(!spec.is_zero_copy);
+        assert_eq!(spec.seeds.len(), 4, "Should have 4 seeds");
+
+        // Verify seed classification
+        assert!(matches!(spec.seeds[0], ClassifiedSeed::Literal(_)), "Seed 0: Literal b\"user\"");
+        assert!(matches!(spec.seeds[1], ClassifiedSeed::Constant { .. }), "Seed 1: Constant SEED_PREFIX");
+        assert!(matches!(spec.seeds[2], ClassifiedSeed::CtxRooted { .. }), "Seed 2: CtxRooted authority");
+        assert!(matches!(spec.seeds[3], ClassifiedSeed::DataRooted { .. }), "Seed 3: DataRooted params.owner");
+    }
+
+    #[test]
+    fn test_edge_case_empty_seeds() {
+        // Empty seeds array should return no seeds
+        let item: syn::ItemStruct = parse_quote!(
+            #[derive(Accounts)]
+            pub struct Test<'info> {
+                #[account(seeds = [], bump)]
+                #[light_account(init)]
+                pub account: Account<'info, MyType>,
+            }
+        );
+
+        let specs = extract_seed_specs(&item).expect("should extract");
+        assert_eq!(specs.len(), 1);
+        assert_eq!(specs[0].seeds.len(), 0);
+    }
+
+    #[test]
+    fn test_edge_case_no_instruction_attribute() {
+        // No #[instruction] attribute - instruction_args should be empty
+        // When no instruction args present, the classification follows this path:
+        // - params (base) is NOT in instruction_args (empty set) -> falls through
+        // - params is checked as ctx account root -> returns Some("params")
+        // - But for nested access like params.owner, get_ctx_account_root extracts "owner"
+        //   as the terminal field name
+        let item: syn::ItemStruct = parse_quote!(
+            #[derive(Accounts)]
+            pub struct Test<'info> {
+                #[account(
+                    init,
+                    seeds = [b"seed", params.owner.as_ref()],
+                    bump
+                )]
+                #[light_account(init)]
+                pub account: Account<'info, MyType>,
+            }
+        );
+
+        let specs = extract_seed_specs(&item).expect("should extract");
+        assert_eq!(specs.len(), 1);
+        assert_eq!(specs[0].seeds.len(), 2);
+
+        // With no instruction args, params.owner should be classified as CtxRooted
+        // The account root is extracted as the terminal field "owner" from params.owner
+        match &specs[0].seeds[1] {
+            ClassifiedSeed::CtxRooted { account } => {
+                assert_eq!(account.to_string(), "owner");
+            }
+            other => panic!("Expected CtxRooted, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_edge_case_field_without_light_account_init() {
+        // Field without #[light_account(init)] should be skipped
+        let item: syn::ItemStruct = parse_quote!(
+            #[derive(Accounts)]
+            pub struct Test<'info> {
+                #[account(
+                    init,
+                    seeds = [b"seed"],
+                    bump
+                )]
+                pub regular_field: Account<'info, MyType>,
+
+                #[account(
+                    init,
+                    seeds = [b"pda"],
+                    bump
+                )]
+                #[light_account(init)]
+                pub pda_field: Account<'info, MyType>,
+            }
+        );
+
+        let specs = extract_seed_specs(&item).expect("should extract");
+        assert_eq!(specs.len(), 1, "Should only extract PDA field");
+        assert_eq!(specs[0].field_name.to_string(), "pda_field");
+    }
+
+    #[test]
+    fn test_edge_case_multiple_light_account_fields() {
+        // Multiple #[light_account(init)] fields should all be extracted
+        let item: syn::ItemStruct = parse_quote!(
+            #[derive(Accounts)]
+            pub struct Test<'info> {
+                #[account(init, seeds = [b"pda1"], bump)]
+                #[light_account(init)]
+                pub pda_field1: Account<'info, Type1>,
+
+                #[account(init, seeds = [b"pda2"], bump)]
+                #[light_account(init)]
+                pub pda_field2: Account<'info, Type2>,
+            }
+        );
+
+        let specs = extract_seed_specs(&item).expect("should extract");
+        assert_eq!(specs.len(), 2);
+        assert_eq!(specs[0].field_name.to_string(), "pda_field1");
+        assert_eq!(specs[1].field_name.to_string(), "pda_field2");
+    }
+
+    #[test]
+    fn test_edge_case_zero_copy_field() {
+        // #[light_account(init, zero_copy)] should be detected
+        let item: syn::ItemStruct = parse_quote!(
+            #[derive(Accounts)]
+            pub struct Test<'info> {
+                #[account(init, seeds = [b"pda"], bump)]
+                #[light_account(init, zero_copy)]
+                pub account: Account<'info, MyType>,
+            }
+        );
+
+        let specs = extract_seed_specs(&item).expect("should extract");
+        assert_eq!(specs.len(), 1);
+        assert!(specs[0].is_zero_copy);
     }
 }

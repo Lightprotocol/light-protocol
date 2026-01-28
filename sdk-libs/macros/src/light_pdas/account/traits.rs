@@ -8,6 +8,7 @@ use syn::{punctuated::Punctuated, DeriveInput, Expr, Field, Ident, ItemStruct, R
 use super::utils::{
     extract_fields_from_derive_input, extract_fields_from_item_struct, is_copy_type,
 };
+use super::validation::validate_compression_info_field;
 
 /// A single field override in #[compress_as(field = expr)]
 pub(crate) struct CompressAsField {
@@ -58,43 +59,6 @@ pub(crate) fn parse_compress_as_overrides(
         Ok(Some(parsed))
     } else {
         Ok(None)
-    }
-}
-
-/// Validates that the struct has a `compression_info` field as first or last field.
-/// Returns `Ok(true)` if first, `Ok(false)` if last, `Err` if missing or in middle.
-fn validate_compression_info_field(
-    fields: &Punctuated<Field, Token![,]>,
-    struct_name: &Ident,
-) -> Result<bool> {
-    let field_count = fields.len();
-    if field_count == 0 {
-        return Err(syn::Error::new_spanned(
-            struct_name,
-            "Struct must have at least one field",
-        ));
-    }
-
-    let first_is_compression_info = fields
-        .first()
-        .and_then(|f| f.ident.as_ref())
-        .is_some_and(|name| name == "compression_info");
-
-    let last_is_compression_info = fields
-        .last()
-        .and_then(|f| f.ident.as_ref())
-        .is_some_and(|name| name == "compression_info");
-
-    if first_is_compression_info {
-        Ok(true)
-    } else if last_is_compression_info {
-        Ok(false)
-    } else {
-        Err(syn::Error::new_spanned(
-            struct_name,
-            "Field 'compression_info: Option<CompressionInfo>' must be the first or last field in the struct \
-             for efficient serialization. Move it to the beginning or end of your struct definition.",
-        ))
     }
 }
 

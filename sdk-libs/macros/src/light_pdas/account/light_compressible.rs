@@ -13,6 +13,7 @@ use quote::{format_ident, quote};
 use syn::{punctuated::Punctuated, DeriveInput, Field, Fields, Ident, ItemStruct, Result, Token};
 
 use super::traits::{parse_compress_as_overrides, CompressAsFields};
+use super::validation::validate_compression_info_field;
 use crate::{
     discriminator::discriminator,
     hasher::derive_light_hasher_sha,
@@ -132,43 +133,6 @@ fn derive_input_to_item_struct(input: &DeriveInput) -> Result<ItemStruct> {
         fields,
         semi_token: data.semi_token,
     })
-}
-
-/// Validates that the struct has a `compression_info` field as first or last field.
-/// Returns `Ok(true)` if first, `Ok(false)` if last, `Err` if missing or in middle.
-fn validate_compression_info_field(
-    fields: &Punctuated<Field, Token![,]>,
-    struct_name: &Ident,
-) -> Result<bool> {
-    let field_count = fields.len();
-    if field_count == 0 {
-        return Err(syn::Error::new_spanned(
-            struct_name,
-            "Struct must have at least one field",
-        ));
-    }
-
-    let first_is_compression_info = fields
-        .first()
-        .and_then(|f| f.ident.as_ref())
-        .is_some_and(|name| name == "compression_info");
-
-    let last_is_compression_info = fields
-        .last()
-        .and_then(|f| f.ident.as_ref())
-        .is_some_and(|name| name == "compression_info");
-
-    if first_is_compression_info {
-        Ok(true)
-    } else if last_is_compression_info {
-        Ok(false)
-    } else {
-        Err(syn::Error::new_spanned(
-            struct_name,
-            "Field 'compression_info: CompressionInfo' must be the first or last field in the struct \
-             for efficient serialization. Move it to the beginning or end of your struct definition.",
-        ))
-    }
 }
 
 /// Generates `AnchorSerialize` and `AnchorDeserialize` impls for zero-copy (Pod) types.

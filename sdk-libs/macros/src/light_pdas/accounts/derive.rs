@@ -317,6 +317,7 @@ mod tests {
 
                 pub authority: AccountInfo<'info>,
                 pub compression_config: Account<'info, CompressionConfig>,
+                pub pda_rent_sponsor: Account<'info, RentSponsor>,
             }
         };
 
@@ -369,6 +370,7 @@ mod tests {
 
                 pub authority: AccountInfo<'info>,
                 pub compression_config: Account<'info, CompressionConfig>,
+                pub pda_rent_sponsor: Account<'info, RentSponsor>,
             }
         };
 

@@ -1,11 +1,76 @@
 //! Core types for the seed classification system.
 //!
-//! This module defines `SeedSpec` which wraps `ClassifiedSeed` (from `account/seed_extraction`)
-//! with field-level metadata needed for variant code generation.
+//! This module defines the primary types for seed classification:
+//! - `ClassifiedSeed` - Individual seed classification (Literal, Constant, CtxRooted, DataRooted, FunctionCall, Passthrough)
+//! - `ClassifiedFnArg` - Classified argument to a function call seed
+//! - `FnArgKind` - Classification of a function call argument (CtxAccount or DataField)
+//! - `SeedSpec` - Collection of seeds for a single PDA field with metadata
 
 use syn::{Ident, Type};
 
-use crate::light_pdas::account::seed_extraction::ClassifiedSeed;
+// =============================================================================
+// CLASSIFIED SEED TYPES
+// =============================================================================
+
+/// Classified seed element from Anchor's seeds array.
+///
+/// Uses prefix detection + passthrough strategy:
+/// - Identifies the root (ctx/data/constant/literal) to determine which namespace
+/// - Passes through the full expression unchanged for code generation
+/// - Complex expressions like `identity_seed::<12>(b"seed")` become Passthrough
+#[derive(Clone, Debug)]
+pub enum ClassifiedSeed {
+    /// b"literal" or "string" - hardcoded bytes
+    Literal(Vec<u8>),
+    /// CONSTANT or path::CONSTANT - uppercase identifier.
+    /// `path` is the extracted constant path (for crate:: qualification).
+    /// `expr` is the full original expression (e.g., `SEED.as_bytes()`) for codegen.
+    Constant {
+        path: syn::Path,
+        expr: Box<syn::Expr>,
+    },
+    /// Expression rooted in ctx account (e.g., authority.key().as_ref())
+    /// `account` is the root identifier
+    CtxRooted { account: Ident },
+    /// Expression rooted in instruction arg (e.g., params.owner.as_ref())
+    /// `root` is the instruction arg name, `expr` is the full expression for codegen
+    DataRooted { root: Ident, expr: Box<syn::Expr> },
+    /// Function call with dynamic arguments (e.g., crate::max_key(&params.key_a, &params.key_b).as_ref())
+    /// Detected when `Expr::Call` or `Expr::MethodCall(receiver=Expr::Call)` has args
+    /// rooted in instruction data or ctx accounts.
+    FunctionCall {
+        /// The full function call expression (without trailing .as_ref()/.as_bytes())
+        func_expr: Box<syn::Expr>,
+        /// Classified arguments to the function
+        args: Vec<ClassifiedFnArg>,
+        /// Whether the original expression had trailing .as_ref() or .as_bytes()
+        has_as_ref: bool,
+    },
+    /// Everything else - pass through unchanged
+    Passthrough(Box<syn::Expr>),
+}
+
+/// A classified argument to a function call seed.
+#[derive(Clone, Debug)]
+pub struct ClassifiedFnArg {
+    /// The field name extracted from the argument (e.g., `key_a` from `&params.key_a`)
+    pub field_name: Ident,
+    /// Whether this is a ctx account or instruction data field
+    pub kind: FnArgKind,
+}
+
+/// Classification of a function call argument.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum FnArgKind {
+    /// Argument is rooted in a ctx account field
+    CtxAccount,
+    /// Argument is rooted in instruction data
+    DataField,
+}
+
+// =============================================================================
+// SEED SPEC TYPE
+// =============================================================================
 
 /// Collection of seeds for a single PDA field.
 ///
@@ -52,9 +117,7 @@ impl SeedSpec {
             ClassifiedSeed::CtxRooted { account, .. } => Some(account),
             ClassifiedSeed::FunctionCall { args, .. } => args
                 .iter()
-                .find(|a| {
-                    a.kind == crate::light_pdas::account::seed_extraction::FnArgKind::CtxAccount
-                })
+                .find(|a| a.kind == FnArgKind::CtxAccount)
                 .map(|a| &a.field_name),
             _ => None,
         })
@@ -66,9 +129,7 @@ impl SeedSpec {
             ClassifiedSeed::DataRooted { root, .. } => Some(root),
             ClassifiedSeed::FunctionCall { args, .. } => args
                 .iter()
-                .find(|a| {
-                    a.kind == crate::light_pdas::account::seed_extraction::FnArgKind::DataField
-                })
+                .find(|a| a.kind == FnArgKind::DataField)
                 .map(|a| &a.field_name),
             _ => None,
         })
@@ -84,7 +145,7 @@ impl SeedSpec {
         self.seeds.iter().any(|s| {
             matches!(s, ClassifiedSeed::DataRooted { .. })
                 || matches!(s, ClassifiedSeed::FunctionCall { args, .. }
-                    if args.iter().any(|a| a.kind == crate::light_pdas::account::seed_extraction::FnArgKind::DataField))
+                    if args.iter().any(|a| a.kind == FnArgKind::DataField))
         })
     }
 
@@ -93,7 +154,7 @@ impl SeedSpec {
         self.seeds.iter().any(|s| {
             matches!(s, ClassifiedSeed::CtxRooted { .. })
                 || matches!(s, ClassifiedSeed::FunctionCall { args, .. }
-                    if args.iter().any(|a| a.kind == crate::light_pdas::account::seed_extraction::FnArgKind::CtxAccount))
+                    if args.iter().any(|a| a.kind == FnArgKind::CtxAccount))
         })
     }
 }
@@ -101,7 +162,6 @@ impl SeedSpec {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::light_pdas::account::seed_extraction::{ClassifiedFnArg, FnArgKind};
 
     fn make_ident(s: &str) -> Ident {
         Ident::new(s, proc_macro2::Span::call_site())

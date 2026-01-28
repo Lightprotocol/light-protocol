@@ -49,6 +49,10 @@ fn generate_with_packed_struct(
         let field_name = field.ident.as_ref()?;
         let field_type = &field.ty;
 
+        // Note: compression_info is excluded from packed form because it's protocol
+        // metadata (hash, address, etc.) not user data. The field is validated to exist
+        // as first or last field by validate_compression_info_field() in validation.rs.
+        // The packed struct has compression_info: Option<CompressionInfo> = None.
         Some(if *field_name == "compression_info" {
             quote! { #field_name: None }
         } else if is_pubkey_type(field_type) {

@@ -100,64 +100,99 @@ impl InfraFields {
     pub fn set(&mut self, field_type: InfraFieldType, ident: Ident) -> Result<(), Error> {
         match field_type {
             InfraFieldType::FeePayer => {
-                if self.fee_payer.is_some() {
+                if let Some(ref existing) = self.fee_payer {
                     return Err(Error::new_spanned(
                         &ident,
-                        "duplicate infrastructure field: fee_payer",
+                        format!(
+                            "Duplicate fee payer: `{}` conflicts with `{}`. Only one of {} allowed.",
+                            ident,
+                            existing,
+                            InfraFieldType::FeePayer.accepted_names().join(", ")
+                        ),
                     ));
                 }
                 self.fee_payer = Some(ident);
             }
             InfraFieldType::CompressionConfig => {
-                if self.compression_config.is_some() {
+                if let Some(ref existing) = self.compression_config {
                     return Err(Error::new_spanned(
                         &ident,
-                        "duplicate infrastructure field: compression_config",
+                        format!(
+                            "Duplicate compression config: `{}` conflicts with `{}`. Only one of {} allowed.",
+                            ident,
+                            existing,
+                            InfraFieldType::CompressionConfig.accepted_names().join(", ")
+                        ),
                     ));
                 }
                 self.compression_config = Some(ident);
             }
             InfraFieldType::PdaRentSponsor => {
-                if self.pda_rent_sponsor.is_some() {
+                if let Some(ref existing) = self.pda_rent_sponsor {
                     return Err(Error::new_spanned(
                         &ident,
-                        "duplicate infrastructure field: pda_rent_sponsor",
+                        format!(
+                            "Duplicate PDA rent sponsor: `{}` conflicts with `{}`. Only one of {} allowed.",
+                            ident,
+                            existing,
+                            InfraFieldType::PdaRentSponsor.accepted_names().join(", ")
+                        ),
                     ));
                 }
                 self.pda_rent_sponsor = Some(ident);
             }
             InfraFieldType::LightTokenConfig => {
-                if self.light_token_config.is_some() {
+                if let Some(ref existing) = self.light_token_config {
                     return Err(Error::new_spanned(
                         &ident,
-                        "duplicate infrastructure field: light_token_config",
+                        format!(
+                            "Duplicate light token config: `{}` conflicts with `{}`. Only one of {} allowed.",
+                            ident,
+                            existing,
+                            InfraFieldType::LightTokenConfig.accepted_names().join(", ")
+                        ),
                     ));
                 }
                 self.light_token_config = Some(ident);
             }
             InfraFieldType::LightTokenRentSponsor => {
-                if self.light_token_rent_sponsor.is_some() {
+                if let Some(ref existing) = self.light_token_rent_sponsor {
                     return Err(Error::new_spanned(
                         &ident,
-                        "duplicate infrastructure field: light_token_rent_sponsor",
+                        format!(
+                            "Duplicate light token rent sponsor: `{}` conflicts with `{}`. Only one of {} allowed.",
+                            ident,
+                            existing,
+                            InfraFieldType::LightTokenRentSponsor.accepted_names().join(", ")
+                        ),
                     ));
                 }
                 self.light_token_rent_sponsor = Some(ident);
             }
             InfraFieldType::LightTokenProgram => {
-                if self.light_token_program.is_some() {
+                if let Some(ref existing) = self.light_token_program {
                     return Err(Error::new_spanned(
                         &ident,
-                        "duplicate infrastructure field: light_token_program",
+                        format!(
+                            "Duplicate light token program: `{}` conflicts with `{}`. Only one of {} allowed.",
+                            ident,
+                            existing,
+                            InfraFieldType::LightTokenProgram.accepted_names().join(", ")
+                        ),
                     ));
                 }
                 self.light_token_program = Some(ident);
             }
             InfraFieldType::LightTokenCpiAuthority => {
-                if self.light_token_cpi_authority.is_some() {
+                if let Some(ref existing) = self.light_token_cpi_authority {
                     return Err(Error::new_spanned(
                         &ident,
-                        "duplicate infrastructure field: light_token_cpi_authority",
+                        format!(
+                            "Duplicate light token CPI authority: `{}` conflicts with `{}`. Only one of {} allowed.",
+                            ident,
+                            existing,
+                            InfraFieldType::LightTokenCpiAuthority.accepted_names().join(", ")
+                        ),
                     ));
                 }
                 self.light_token_cpi_authority = Some(ident);

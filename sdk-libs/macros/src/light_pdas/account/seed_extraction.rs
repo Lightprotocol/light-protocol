@@ -7,6 +7,7 @@ use std::collections::HashSet;
 
 use syn::{Expr, Ident, ItemStruct, Type};
 
+use super::validation::{type_name, AccountTypeError};
 use crate::{
     light_pdas::{
         light_account_keywords::{
@@ -232,15 +233,8 @@ pub fn extract_from_accounts_struct(
         if has_light_account_pda {
             // Extract inner type from Account<'info, T> or Box<Account<'info, T>>
             // Note: is_boxed is not needed for ExtractedSeedSpec, only inner_type
-            let (_, inner_type) = match extract_account_inner_type(&field.ty) {
-                Some(result) => result,
-                None => {
-                    return Err(syn::Error::new_spanned(
-                        &field.ty,
-                        "#[light_account(init)] requires Account<'info, T> or Box<Account<'info, T>>",
-                    ));
-                }
-            };
+            let (_, inner_type) = extract_account_inner_type(&field.ty)
+                .map_err(|e| e.into_syn_error(&field.ty))?;
 
             // Extract seeds from #[account(seeds = [...])]
             let seeds = extract_anchor_seeds(&field.attrs, instruction_args)?;
@@ -599,10 +593,22 @@ fn parse_light_token_list(
 ///
 /// Returns the full type path (e.g., `crate::module::MyRecord`) to preserve
 /// module qualification for code generation.
-pub fn extract_account_inner_type(ty: &Type) -> Option<(bool, Type)> {
+///
+/// # Returns
+/// - `Ok((is_boxed, inner_type))` on success
+/// - `Err(AccountTypeError::WrongType)` if the type is not Account/Box/AccountLoader/InterfaceAccount
+/// - `Err(AccountTypeError::NestedBox)` if nested Box<Box<...>> is detected
+/// - `Err(AccountTypeError::ExtractionFailed)` if generic arguments couldn't be extracted
+pub fn extract_account_inner_type(ty: &Type) -> Result<(bool, Type), AccountTypeError> {
     match ty {
         Type::Path(type_path) => {
-            let segment = type_path.path.segments.last()?;
+            let segment = type_path
+                .path
+                .segments
+                .last()
+                .ok_or_else(|| AccountTypeError::WrongType {
+                    got: type_name(ty),
+                })?;
             let ident_str = segment.ident.to_string();
 
             match ident_str.as_str() {
@@ -617,14 +623,14 @@ pub fn extract_account_inner_type(ty: &Type) -> Option<(bool, Type)> {
                                         // Skip lifetime 'info TODO: add a helper that is generalized to strip lifetimes or check whether a crate already has this
                                         if inner_seg.ident != "info" {
                                             // Return the full type, preserving the path
-                                            return Some((false, inner_ty.clone()));
+                                            return Ok((false, inner_ty.clone()));
                                         }
                                     }
                                 }
                             }
                         }
                     }
-                    None
+                    Err(AccountTypeError::ExtractionFailed)
                 }
                 "Box" => {
                     // Check for Box<Account<'info, T>>
@@ -634,23 +640,29 @@ pub fn extract_account_inner_type(ty: &Type) -> Option<(bool, Type)> {
                             if let Type::Path(inner_path) = inner_ty {
                                 if let Some(inner_seg) = inner_path.path.segments.last() {
                                     if inner_seg.ident == "Box" {
-                                        // Nested Box detected - return None to signal unsupported type
-                                        return None;
+                                        // Nested Box detected - explicit error
+                                        return Err(AccountTypeError::NestedBox);
                                     }
                                 }
                             }
 
-                            if let Some((_, inner_type)) = extract_account_inner_type(inner_ty) {
-                                return Some((true, inner_type));
-                            }
+                            // Recurse to extract from Box<Account<...>>
+                            return match extract_account_inner_type(inner_ty) {
+                                Ok((_, inner_type)) => Ok((true, inner_type)),
+                                Err(e) => Err(e),
+                            };
                         }
                     }
-                    None
+                    Err(AccountTypeError::ExtractionFailed)
                 }
-                _ => None,
+                _ => Err(AccountTypeError::WrongType {
+                    got: type_name(ty),
+                }),
             }
         }
-        _ => None,
+        _ => Err(AccountTypeError::WrongType {
+            got: type_name(ty),
+        }),
     }
 }
 

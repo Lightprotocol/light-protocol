@@ -8,14 +8,14 @@ The `#[light_account(...)]` attribute supports four account types, each with its
 
 | Type | Namespace | Documentation | Description |
 |------|-----------|---------------|-------------|
-| PDA | (none) | [pda.md](pda.md) | Compressed PDAs with address registration |
-| Mint | `mint::` | [mint.md](mint.md) | Compressed mints with optional metadata |
+| PDA | (none) | [pda.md](pda.md) | Light PDAs with address registration |
+| Mint | `mint::` | [mint.md](mint.md) | Light mints with optional metadata |
 | Token | `token::` | [token.md](token.md) | PDA-owned token accounts (vaults) |
-| Associated Token | `associated_token::` | [associated_token.md](associated_token.md) | User ATAs for compressed tokens |
+| Associated Token | `associated_token::` | [associated_token.md](associated_token.md) | User ATAs for light tokens |
 
 ### 1.1 Overview
 
-The `#[derive(LightAccounts)]` macro and associated trait derives enable rent-free compressed accounts on Solana with minimal boilerplate. These macros generate code for:
+The `#[derive(LightAccounts)]` macro and associated trait derives enable rent-free light accounts on Solana with minimal boilerplate. These macros generate code for:
 
 - Pre-instruction compression setup (`LightPreInit` trait)
 - Post-instruction cleanup (`LightFinalize` trait)

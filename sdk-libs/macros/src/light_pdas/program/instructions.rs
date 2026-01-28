@@ -85,7 +85,7 @@ fn codegen(
                         .unwrap_or_default();
 
                     // Extract params-only seed fields (data.* fields that don't exist on state)
-                    let params_only_seed_fields = crate::light_pdas::account::seed_extraction::get_params_only_seed_fields_from_spec(spec, &state_field_names);
+                    let params_only_seed_fields = crate::light_pdas::seeds::get_params_only_seed_fields_from_spec(spec, &state_field_names);
 
                     // Calculate seed_count = number of seeds + 1 (for bump)
                     let seed_count = spec.seeds.len() + 1;
@@ -695,9 +695,9 @@ fn codegen(
 pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<TokenStream> {
     use super::crate_context::CrateContext;
     use crate::light_pdas::account::seed_extraction::{
-        extract_from_accounts_struct, get_data_fields, parse_instruction_arg_names,
-        ExtractedSeedSpec, ExtractedTokenSpec,
+        extract_from_accounts_struct, ExtractedSeedSpec, ExtractedTokenSpec,
     };
+    use crate::light_pdas::seeds::{get_data_fields, parse_instruction_arg_names};
 
     if module.content.is_none() {
         return Err(macro_error!(&module, "Module must have a body"));
