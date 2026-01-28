@@ -367,10 +367,14 @@ pub use self::_get_compressed_mints_by_authority_post_200_response_result::GetCo
 pub mod _get_compressed_mints_by_authority_post_200_response;
 pub use self::_get_compressed_mints_by_authority_post_200_response::GetCompressedMintsByAuthorityPost200Response;
 // Interface types
-pub mod resolved_from;
-pub use self::resolved_from::ResolvedFrom;
-pub mod compressed_context;
-pub use self::compressed_context::CompressedContext;
+pub mod solana_account_data;
+pub use self::solana_account_data::SolanaAccountData;
+pub mod cold_data;
+pub use self::cold_data::ColdData;
+pub mod tree_info;
+pub use self::tree_info::TreeInfo as InterfaceTreeInfo;
+pub mod cold_context;
+pub use self::cold_context::ColdContext;
 pub mod account_interface;
 pub use self::account_interface::AccountInterface;
 pub mod token_account_interface;

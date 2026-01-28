@@ -1116,102 +1116,165 @@ impl TryFrom<&photon_api::models::CompressedMint> for CompressedMint {
 // ============ Interface Types ============
 // These types are used by the Interface endpoints that race hot (on-chain) and cold (compressed) lookups
 
-/// Indicates the source of the resolved account data
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ResolvedFrom {
-    /// Account data comes from on-chain (hot) lookup
-    Onchain,
-    /// Account data comes from compressed (cold) lookup
-    Compressed,
-}
-
-impl TryFrom<photon_api::models::ResolvedFrom> for ResolvedFrom {
-    type Error = IndexerError;
-
-    fn try_from(value: photon_api::models::ResolvedFrom) -> Result<Self, Self::Error> {
-        match value {
-            photon_api::models::ResolvedFrom::Onchain => Ok(ResolvedFrom::Onchain),
-            photon_api::models::ResolvedFrom::Compressed => Ok(ResolvedFrom::Compressed),
-        }
-    }
-}
-
-/// Context information for compressed accounts (only present when resolved_from = Compressed)
+/// Standard Solana account fields
 #[derive(Clone, Debug, PartialEq)]
-pub struct CompressedContext {
-    /// The hash of the compressed account (leaf hash in Merkle tree)
-    pub hash: [u8; 32],
-    /// The Merkle tree address
-    pub tree: Pubkey,
-    /// The leaf index in the Merkle tree
-    pub leaf_index: u64,
-    /// Sequence number (None if in output queue, Some once inserted into Merkle tree)
-    pub seq: Option<u64>,
-    /// Whether the account can be proven by index (in output queue)
-    pub prove_by_index: bool,
+pub struct SolanaAccountData {
+    pub lamports: u64,
+    pub data: Vec<u8>,
+    pub owner: Pubkey,
+    pub executable: bool,
+    pub rent_epoch: u64,
 }
 
-impl TryFrom<&photon_api::models::CompressedContext> for CompressedContext {
-    type Error = IndexerError;
+/// Merkle tree info for compressed accounts
+#[derive(Clone, Debug, PartialEq)]
+pub struct InterfaceTreeInfo {
+    pub tree: Pubkey,
+    pub seq: Option<u64>,
+}
 
-    fn try_from(ctx: &photon_api::models::CompressedContext) -> Result<Self, Self::Error> {
-        Ok(CompressedContext {
-            hash: decode_base58_to_fixed_array(&ctx.hash)?,
-            tree: Pubkey::new_from_array(decode_base58_to_fixed_array(&ctx.tree)?),
-            leaf_index: ctx.leaf_index,
-            seq: ctx.seq,
-            prove_by_index: ctx.prove_by_index,
-        })
+/// Structured compressed account data (discriminator separated)
+#[derive(Clone, Debug, PartialEq)]
+pub struct ColdData {
+    pub discriminator: Vec<u8>,
+    pub data: Vec<u8>,
+}
+
+/// Compressed account context — present when account is in compressed state
+#[derive(Clone, Debug, PartialEq)]
+pub enum ColdContext {
+    Account {
+        hash: [u8; 32],
+        leaf_index: u64,
+        tree_info: InterfaceTreeInfo,
+        data: ColdData,
+    },
+    Token {
+        hash: [u8; 32],
+        leaf_index: u64,
+        tree_info: InterfaceTreeInfo,
+        data: ColdData,
+    },
+    Mint {
+        hash: [u8; 32],
+        leaf_index: u64,
+        tree_info: InterfaceTreeInfo,
+        data: ColdData,
+    },
+}
+
+/// Helper to convert photon_api ColdContext to client ColdContext
+fn convert_cold_context(
+    cold: &photon_api::models::ColdContext,
+) -> Result<ColdContext, IndexerError> {
+    match cold {
+        photon_api::models::ColdContext::Account {
+            hash,
+            leaf_index,
+            tree_info,
+            data,
+        } => Ok(ColdContext::Account {
+            hash: decode_base58_to_fixed_array(hash)?,
+            leaf_index: *leaf_index,
+            tree_info: InterfaceTreeInfo {
+                tree: Pubkey::new_from_array(decode_base58_to_fixed_array(&tree_info.tree)?),
+                seq: tree_info.seq,
+            },
+            data: ColdData {
+                discriminator: data.discriminator.clone(),
+                data: base64::decode_config(&data.data, base64::STANDARD_NO_PAD)
+                    .map_err(|_| IndexerError::InvalidResponseData)?,
+            },
+        }),
+        photon_api::models::ColdContext::Token {
+            hash,
+            leaf_index,
+            tree_info,
+            data,
+        } => Ok(ColdContext::Token {
+            hash: decode_base58_to_fixed_array(hash)?,
+            leaf_index: *leaf_index,
+            tree_info: InterfaceTreeInfo {
+                tree: Pubkey::new_from_array(decode_base58_to_fixed_array(&tree_info.tree)?),
+                seq: tree_info.seq,
+            },
+            data: ColdData {
+                discriminator: data.discriminator.clone(),
+                data: base64::decode_config(&data.data, base64::STANDARD_NO_PAD)
+                    .map_err(|_| IndexerError::InvalidResponseData)?,
+            },
+        }),
+        photon_api::models::ColdContext::Mint {
+            hash,
+            leaf_index,
+            tree_info,
+            data,
+        } => Ok(ColdContext::Mint {
+            hash: decode_base58_to_fixed_array(hash)?,
+            leaf_index: *leaf_index,
+            tree_info: InterfaceTreeInfo {
+                tree: Pubkey::new_from_array(decode_base58_to_fixed_array(&tree_info.tree)?),
+                seq: tree_info.seq,
+            },
+            data: ColdData {
+                discriminator: data.discriminator.clone(),
+                data: base64::decode_config(&data.data, base64::STANDARD_NO_PAD)
+                    .map_err(|_| IndexerError::InvalidResponseData)?,
+            },
+        }),
     }
 }
 
-/// Unified account interface that represents either on-chain or compressed account data
+/// Unified account interface — works for both on-chain and compressed accounts
 #[derive(Clone, Debug, PartialEq)]
 pub struct AccountInterface {
-    /// The account address
-    pub address: Pubkey,
-    /// Account lamports balance
-    pub lamports: u64,
-    /// The program owner of this account
-    pub owner: Pubkey,
-    /// Account data as bytes
-    pub data: Vec<u8>,
-    /// Whether the account is executable (always false for compressed)
-    pub executable: bool,
-    /// Rent epoch (always 0 for compressed)
-    pub rent_epoch: u64,
-    /// Source of the account data
-    pub resolved_from: ResolvedFrom,
-    /// Slot at which the account data was resolved
-    pub resolved_slot: u64,
-    /// Additional context for compressed accounts (None for on-chain)
-    pub compressed_context: Option<CompressedContext>,
+    /// The on-chain Solana pubkey
+    pub key: Pubkey,
+    /// Standard Solana account fields
+    pub account: SolanaAccountData,
+    /// Compressed context — None if on-chain, Some if compressed
+    pub cold: Option<ColdContext>,
+}
+
+impl AccountInterface {
+    /// Returns true if this account is on-chain (hot)
+    pub fn is_hot(&self) -> bool {
+        self.cold.is_none()
+    }
+
+    /// Returns true if this account is compressed (cold)
+    pub fn is_cold(&self) -> bool {
+        self.cold.is_some()
+    }
+}
+
+/// Helper to convert photon_api AccountInterface to client AccountInterface
+fn convert_account_interface(
+    ai: &photon_api::models::AccountInterface,
+) -> Result<AccountInterface, IndexerError> {
+    let cold = ai.cold.as_ref().map(convert_cold_context).transpose()?;
+
+    let data = base64::decode_config(&ai.account.data, base64::STANDARD_NO_PAD)
+        .map_err(|_| IndexerError::InvalidResponseData)?;
+
+    Ok(AccountInterface {
+        key: Pubkey::new_from_array(decode_base58_to_fixed_array(&ai.key)?),
+        account: SolanaAccountData {
+            lamports: ai.account.lamports,
+            data,
+            owner: Pubkey::new_from_array(decode_base58_to_fixed_array(&ai.account.owner)?),
+            executable: ai.account.executable,
+            rent_epoch: ai.account.rent_epoch,
+        },
+        cold,
+    })
 }
 
 impl TryFrom<&photon_api::models::AccountInterface> for AccountInterface {
     type Error = IndexerError;
 
     fn try_from(ai: &photon_api::models::AccountInterface) -> Result<Self, Self::Error> {
-        let compressed_context = ai
-            .compressed_context
-            .as_ref()
-            .map(|ctx| CompressedContext::try_from(ctx.as_ref()))
-            .transpose()?;
-
-        let data = base64::decode_config(&ai.data, base64::STANDARD_NO_PAD)
-            .map_err(|_| IndexerError::InvalidResponseData)?;
-
-        Ok(AccountInterface {
-            address: Pubkey::new_from_array(decode_base58_to_fixed_array(&ai.address)?),
-            lamports: ai.lamports,
-            owner: Pubkey::new_from_array(decode_base58_to_fixed_array(&ai.owner)?),
-            data,
-            executable: ai.executable,
-            rent_epoch: ai.rent_epoch,
-            resolved_from: ResolvedFrom::try_from(ai.resolved_from)?,
-            resolved_slot: ai.resolved_slot,
-            compressed_context,
-        })
+        convert_account_interface(ai)
     }
 }
 
@@ -1244,27 +1307,7 @@ impl TryFrom<&photon_api::models::TokenAccountInterface> for TokenAccountInterfa
     type Error = IndexerError;
 
     fn try_from(tai: &photon_api::models::TokenAccountInterface) -> Result<Self, Self::Error> {
-        let compressed_context = tai
-            .account
-            .compressed_context
-            .as_ref()
-            .map(|ctx| CompressedContext::try_from(ctx.as_ref()))
-            .transpose()?;
-
-        let data = base64::decode_config(&tai.account.data, base64::STANDARD_NO_PAD)
-            .map_err(|_| IndexerError::InvalidResponseData)?;
-
-        let account = AccountInterface {
-            address: Pubkey::new_from_array(decode_base58_to_fixed_array(&tai.account.address)?),
-            lamports: tai.account.lamports,
-            owner: Pubkey::new_from_array(decode_base58_to_fixed_array(&tai.account.owner)?),
-            data,
-            executable: tai.account.executable,
-            rent_epoch: tai.account.rent_epoch,
-            resolved_from: ResolvedFrom::try_from(tai.account.resolved_from)?,
-            resolved_slot: tai.account.resolved_slot,
-            compressed_context,
-        };
+        let account = convert_account_interface(&tai.account)?;
 
         // Parse token data - same pattern as CompressedTokenAccount
         let token = TokenData {
@@ -1311,28 +1354,7 @@ impl TryFrom<&photon_api::models::MintInterface> for MintInterface {
     type Error = IndexerError;
 
     fn try_from(mi: &photon_api::models::MintInterface) -> Result<Self, Self::Error> {
-        let compressed_context = mi
-            .account
-            .compressed_context
-            .as_ref()
-            .map(|ctx| CompressedContext::try_from(ctx.as_ref()))
-            .transpose()?;
-
-        let data = base64::decode_config(&mi.account.data, base64::STANDARD_NO_PAD)
-            .map_err(|_| IndexerError::InvalidResponseData)?;
-
-        let account = AccountInterface {
-            address: Pubkey::new_from_array(decode_base58_to_fixed_array(&mi.account.address)?),
-            lamports: mi.account.lamports,
-            owner: Pubkey::new_from_array(decode_base58_to_fixed_array(&mi.account.owner)?),
-            data,
-            executable: mi.account.executable,
-            rent_epoch: mi.account.rent_epoch,
-            resolved_from: ResolvedFrom::try_from(mi.account.resolved_from)?,
-            resolved_slot: mi.account.resolved_slot,
-            compressed_context,
-        };
-
+        let account = convert_account_interface(&mi.account)?;
         let mint_data = MintData::try_from(&mi.mint_data)?;
 
         Ok(MintInterface { account, mint_data })

@@ -31,7 +31,10 @@ use tracing::warn;
 
 use super::LightClientConfig;
 use crate::{
-    indexer::{photon_indexer::PhotonIndexer, Indexer, TreeInfo},
+    indexer::{
+        photon_indexer::PhotonIndexer, AccountInterface, Indexer, IndexerRpcConfig, MintInterface,
+        Response, TokenAccountInterface, TreeInfo,
+    },
     rpc::{
         errors::RpcError,
         get_light_state_tree_infos::{
@@ -925,6 +928,82 @@ impl Rpc for LightClient {
             next_tree_info: None,
             tree_type: TreeType::AddressV2,
         }
+    }
+
+    async fn get_account_interface(
+        &self,
+        address: &Pubkey,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Option<AccountInterface>>, RpcError> {
+        let indexer = self
+            .indexer
+            .as_ref()
+            .ok_or(RpcError::IndexerNotInitialized)?;
+        indexer
+            .get_account_interface(address, config)
+            .await
+            .map_err(|e| RpcError::CustomError(format!("Indexer error: {e}")))
+    }
+
+    async fn get_token_account_interface(
+        &self,
+        address: &Pubkey,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Option<TokenAccountInterface>>, RpcError> {
+        let indexer = self
+            .indexer
+            .as_ref()
+            .ok_or(RpcError::IndexerNotInitialized)?;
+        indexer
+            .get_token_account_interface(address, config)
+            .await
+            .map_err(|e| RpcError::CustomError(format!("Indexer error: {e}")))
+    }
+
+    async fn get_ata_interface(
+        &self,
+        owner: &Pubkey,
+        mint: &Pubkey,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Option<TokenAccountInterface>>, RpcError> {
+        let indexer = self
+            .indexer
+            .as_ref()
+            .ok_or(RpcError::IndexerNotInitialized)?;
+        indexer
+            .get_ata_interface(owner, mint, config)
+            .await
+            .map_err(|e| RpcError::CustomError(format!("Indexer error: {e}")))
+    }
+
+    async fn get_mint_interface(
+        &self,
+        address: &Pubkey,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Option<MintInterface>>, RpcError> {
+        let indexer = self
+            .indexer
+            .as_ref()
+            .ok_or(RpcError::IndexerNotInitialized)?;
+        indexer
+            .get_mint_interface(address, config)
+            .await
+            .map_err(|e| RpcError::CustomError(format!("Indexer error: {e}")))
+    }
+
+    async fn get_multiple_account_interfaces(
+        &self,
+        addresses: Vec<&Pubkey>,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Vec<Option<AccountInterface>>>, RpcError> {
+        let indexer = self
+            .indexer
+            .as_ref()
+            .ok_or(RpcError::IndexerNotInitialized)?;
+        indexer
+            .get_multiple_account_interfaces(addresses, config)
+            .await
+            .map_err(|e| RpcError::CustomError(format!("Indexer error: {e}")))
     }
 }
 
