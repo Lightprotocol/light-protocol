@@ -3,7 +3,6 @@ use std::sync::{
     Arc,
 };
 
-use borsh::BorshDeserialize;
 use forester_utils::rpc_pool::SolanaRpcPool;
 use futures::StreamExt;
 use light_client::{
@@ -81,7 +80,7 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
         // Get the compressible config PDA for this program (config_bump = 0)
         let (config_pda, _) = LightConfig::derive_pda(program_id, 0);
 
-        // Fetch the config to get rent_sponsor and address_space
+        // Fetch the config account
         let rpc = self.rpc_pool.get_connection().await?;
         let config_account = rpc
             .get_account(config_pda)
@@ -91,14 +90,17 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
                 anyhow::anyhow!("Config account not found for program {}", program_id)
             })?;
 
-        // LightConfig is stored with raw Borsh serialization (no Anchor discriminator)
-        let config = LightConfig::try_from_slice(&config_account.data)
-            .map_err(|e| anyhow::anyhow!("Failed to deserialize config: {:?}", e))?;
-
-        // Validate config at startup to fail fast on misconfigurations
-        config.validate().map_err(|e| {
+        // Load and validate config using SDK validator
+        // This checks: owner == program_id, config_bump == 0, PDA derivation, and other constraints
+        let config = LightConfig::load_checked_client(
+            &config_account.data,
+            &config_account.owner,
+            &config_pda,
+            program_id,
+        )
+        .map_err(|e| {
             anyhow::anyhow!(
-                "LightConfig validation failed for program {}: {:?}",
+                "LightConfig validation failed for program {}: {}",
                 program_id,
                 e
             )
@@ -305,14 +307,17 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
                 "Batched compress_accounts_idempotent tx confirmed: {}",
                 signature
             );
+            Ok(signature)
         } else {
             tracing::warn!(
                 "compress_accounts_idempotent tx not confirmed: {} - accounts kept in tracker for retry",
                 signature
             );
+            Err(anyhow::anyhow!(
+                "Batch transaction not confirmed: {}",
+                signature
+            ))
         }
-
-        Ok(signature)
     }
 
     /// Compress a single PDA account using cached config

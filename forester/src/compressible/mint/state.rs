@@ -19,16 +19,31 @@ fn calculate_compressible_slot(mint: &Mint, lamports: u64, account_size: usize) 
     let rent_exemption = get_rent_exemption_lamports(account_size as u64)
         .map_err(|e| anyhow::anyhow!("Failed to get rent exemption: {:?}", e))?;
     let compression_info = &mint.compression;
+    let config = &compression_info.rent_config;
+
+    // Calculate available balance after rent exemption and compression cost
+    let available_balance = lamports
+        .saturating_sub(rent_exemption)
+        .saturating_sub(config.compression_cost as u64);
+    let rent_per_epoch = config.rent_curve_per_epoch(account_size as u64);
+
+    // If no epochs are funded (rent_payment=0), the account is immediately compressible
+    if rent_per_epoch == 0 || available_balance / rent_per_epoch == 0 {
+        return Ok(0);
+    }
 
     let last_funded_epoch = get_last_funded_epoch(
         account_size as u64,
         lamports,
         compression_info.last_claimed_slot,
-        &compression_info.rent_config,
+        config,
         rent_exemption,
     );
 
-    Ok(last_funded_epoch * SLOTS_PER_EPOCH)
+    // Use the first unpaid epoch as the compressible boundary.
+    // is_ready_to_compress checks current_slot > compressible_slot,
+    // so we return the start of the first unpaid epoch.
+    Ok((last_funded_epoch + 1) * SLOTS_PER_EPOCH)
 }
 
 #[derive(Debug)]
