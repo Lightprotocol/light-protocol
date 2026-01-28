@@ -407,7 +407,7 @@ async fn test_compressible_mint_compression() {
             .get_account(mint_pda)
             .await
             .expect("Failed to query mint account");
-        if mint_after.is_none() {
+        if mint_after.is_none() || mint_after.as_ref().map(|a| a.lamports) == Some(0) {
             account_closed = true;
             println!("Mint account closed successfully!");
             break;

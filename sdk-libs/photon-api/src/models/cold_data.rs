@@ -12,13 +12,13 @@
 #[serde(rename_all = "camelCase")]
 pub struct ColdData {
     /// First 8 bytes of the account data (discriminator)
-    pub discriminator: Vec<u8>,
+    pub discriminator: [u8; 8],
     /// Remaining account data after discriminator, base64 encoded
     pub data: String,
 }
 
 impl ColdData {
-    pub fn new(discriminator: Vec<u8>, data: String) -> Self {
+    pub fn new(discriminator: [u8; 8], data: String) -> Self {
         Self {
             discriminator,
             data,

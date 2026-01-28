@@ -1056,7 +1056,7 @@ pub struct MintData {
     pub version: u8,
     /// Whether the mint has been decompressed
     pub mint_decompressed: bool,
-    /// Serialized extensions (base64 encoded)
+    /// Serialized extensions (decoded bytes; base64 decoded in `TryFrom`)
     pub extensions: Option<Vec<u8>>,
 }
 
@@ -1136,7 +1136,7 @@ pub struct InterfaceTreeInfo {
 /// Structured compressed account data (discriminator separated)
 #[derive(Clone, Debug, PartialEq)]
 pub struct ColdData {
-    pub discriminator: Vec<u8>,
+    pub discriminator: [u8; 8],
     pub data: Vec<u8>,
 }
 
@@ -1181,7 +1181,7 @@ fn convert_cold_context(
                 seq: tree_info.seq,
             },
             data: ColdData {
-                discriminator: data.discriminator.clone(),
+                discriminator: data.discriminator,
                 data: base64::decode_config(&data.data, base64::STANDARD_NO_PAD)
                     .map_err(|_| IndexerError::InvalidResponseData)?,
             },
@@ -1199,7 +1199,7 @@ fn convert_cold_context(
                 seq: tree_info.seq,
             },
             data: ColdData {
-                discriminator: data.discriminator.clone(),
+                discriminator: data.discriminator,
                 data: base64::decode_config(&data.data, base64::STANDARD_NO_PAD)
                     .map_err(|_| IndexerError::InvalidResponseData)?,
             },
@@ -1217,7 +1217,7 @@ fn convert_cold_context(
                 seq: tree_info.seq,
             },
             data: ColdData {
-                discriminator: data.discriminator.clone(),
+                discriminator: data.discriminator,
                 data: base64::decode_config(&data.data, base64::STANDARD_NO_PAD)
                     .map_err(|_| IndexerError::InvalidResponseData)?,
             },

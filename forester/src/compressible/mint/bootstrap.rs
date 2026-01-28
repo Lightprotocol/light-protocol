@@ -54,9 +54,10 @@ pub async fn bootstrap_mint_accounts(
     .await?;
 
     info!(
-        "Mint bootstrap finished: {} total mints tracked (fetched: {}, pages: {})",
+        "Mint bootstrap finished: {} total mints tracked (fetched: {}, inserted: {}, pages: {})",
         tracker.len(),
         result.fetched,
+        result.inserted,
         result.pages
     );
 
