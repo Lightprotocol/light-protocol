@@ -18,7 +18,10 @@ use solana_transaction_status_client_types::TransactionStatus;
 
 use super::client::RpcUrl;
 use crate::{
-    indexer::{Indexer, TreeInfo},
+    indexer::{
+        AccountInterface, Indexer, IndexerRpcConfig, MintInterface, Response,
+        TokenAccountInterface, TreeInfo,
+    },
     rpc::errors::RpcError,
 };
 
@@ -234,4 +237,43 @@ pub trait Rpc: Send + Sync + Debug + 'static {
     fn get_address_tree_v1(&self) -> TreeInfo;
 
     fn get_address_tree_v2(&self) -> TreeInfo;
+
+    // ============ Interface Methods ============
+    // These race hot (on-chain) and cold (compressed) lookups in the indexer.
+
+    /// Get account data from either on-chain or compressed sources.
+    async fn get_account_interface(
+        &self,
+        address: &Pubkey,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Option<AccountInterface>>, RpcError>;
+
+    /// Get token account data from either on-chain or compressed sources.
+    async fn get_token_account_interface(
+        &self,
+        address: &Pubkey,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Option<TokenAccountInterface>>, RpcError>;
+
+    /// Get ATA data from either on-chain or compressed sources.
+    async fn get_ata_interface(
+        &self,
+        owner: &Pubkey,
+        mint: &Pubkey,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Option<TokenAccountInterface>>, RpcError>;
+
+    /// Get mint data from either on-chain or compressed sources.
+    async fn get_mint_interface(
+        &self,
+        address: &Pubkey,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Option<MintInterface>>, RpcError>;
+
+    /// Get multiple account interfaces in a batch.
+    async fn get_multiple_account_interfaces(
+        &self,
+        addresses: Vec<&Pubkey>,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Vec<Option<AccountInterface>>>, RpcError>;
 }

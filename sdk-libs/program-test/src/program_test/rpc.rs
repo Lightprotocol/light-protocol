@@ -366,6 +366,72 @@ impl Rpc for LightProgramTest {
             "create_and_send_versioned_transaction is unimplemented for LightProgramTest"
         );
     }
+
+    async fn get_account_interface(
+        &self,
+        _address: &Pubkey,
+        _config: Option<light_client::indexer::IndexerRpcConfig>,
+    ) -> Result<
+        light_client::indexer::Response<Option<light_client::indexer::AccountInterface>>,
+        RpcError,
+    > {
+        Err(RpcError::CustomError(
+            "get_account_interface is not supported in program-test context".into(),
+        ))
+    }
+
+    async fn get_token_account_interface(
+        &self,
+        _address: &Pubkey,
+        _config: Option<light_client::indexer::IndexerRpcConfig>,
+    ) -> Result<
+        light_client::indexer::Response<Option<light_client::indexer::TokenAccountInterface>>,
+        RpcError,
+    > {
+        Err(RpcError::CustomError(
+            "get_token_account_interface is not supported in program-test context".into(),
+        ))
+    }
+
+    async fn get_ata_interface(
+        &self,
+        _owner: &Pubkey,
+        _mint: &Pubkey,
+        _config: Option<light_client::indexer::IndexerRpcConfig>,
+    ) -> Result<
+        light_client::indexer::Response<Option<light_client::indexer::TokenAccountInterface>>,
+        RpcError,
+    > {
+        Err(RpcError::CustomError(
+            "get_ata_interface is not supported in program-test context".into(),
+        ))
+    }
+
+    async fn get_mint_interface(
+        &self,
+        _address: &Pubkey,
+        _config: Option<light_client::indexer::IndexerRpcConfig>,
+    ) -> Result<
+        light_client::indexer::Response<Option<light_client::indexer::MintInterface>>,
+        RpcError,
+    > {
+        Err(RpcError::CustomError(
+            "get_mint_interface is not supported in program-test context".into(),
+        ))
+    }
+
+    async fn get_multiple_account_interfaces(
+        &self,
+        _addresses: Vec<&Pubkey>,
+        _config: Option<light_client::indexer::IndexerRpcConfig>,
+    ) -> Result<
+        light_client::indexer::Response<Vec<Option<light_client::indexer::AccountInterface>>>,
+        RpcError,
+    > {
+        Err(RpcError::CustomError(
+            "get_multiple_account_interfaces is not supported in program-test context".into(),
+        ))
+    }
 }
 
 impl LightProgramTest {
