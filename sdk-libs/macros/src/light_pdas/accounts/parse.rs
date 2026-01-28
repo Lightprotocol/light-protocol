@@ -25,6 +25,7 @@ pub(super) use super::mint::LightMintField;
 pub(super) enum InfraFieldType {
     FeePayer,
     CompressionConfig,
+    PdaRentSponsor,
     LightTokenConfig,
     LightTokenRentSponsor,
     LightTokenProgram,
@@ -37,6 +38,7 @@ impl InfraFieldType {
         match self {
             InfraFieldType::FeePayer => &["fee_payer", "payer", "creator"],
             InfraFieldType::CompressionConfig => &["compression_config"],
+            InfraFieldType::PdaRentSponsor => &["pda_rent_sponsor", "compression_rent_sponsor"],
             InfraFieldType::LightTokenConfig => &["light_token_compressible_config"],
             InfraFieldType::LightTokenRentSponsor => &["light_token_rent_sponsor", "rent_sponsor"],
             InfraFieldType::LightTokenProgram => &["light_token_program"],
@@ -49,6 +51,7 @@ impl InfraFieldType {
         match self {
             InfraFieldType::FeePayer => "fee payer (transaction signer)",
             InfraFieldType::CompressionConfig => "compression config",
+            InfraFieldType::PdaRentSponsor => "PDA rent sponsor (for rent reimbursement)",
             InfraFieldType::LightTokenConfig => "light token compressible config",
             InfraFieldType::LightTokenRentSponsor => "light token rent sponsor",
             InfraFieldType::LightTokenProgram => "light token program",
@@ -67,6 +70,7 @@ impl InfraFieldClassifier {
         match name {
             "fee_payer" | "payer" | "creator" => Some(InfraFieldType::FeePayer),
             "compression_config" => Some(InfraFieldType::CompressionConfig),
+            "pda_rent_sponsor" | "compression_rent_sponsor" => Some(InfraFieldType::PdaRentSponsor),
             "light_token_compressible_config" => Some(InfraFieldType::LightTokenConfig),
             "light_token_rent_sponsor" | "rent_sponsor" => {
                 Some(InfraFieldType::LightTokenRentSponsor)
@@ -83,6 +87,7 @@ impl InfraFieldClassifier {
 pub(super) struct InfraFields {
     pub fee_payer: Option<Ident>,
     pub compression_config: Option<Ident>,
+    pub pda_rent_sponsor: Option<Ident>,
     pub light_token_config: Option<Ident>,
     pub light_token_rent_sponsor: Option<Ident>,
     pub light_token_program: Option<Ident>,
@@ -111,6 +116,15 @@ impl InfraFields {
                     ));
                 }
                 self.compression_config = Some(ident);
+            }
+            InfraFieldType::PdaRentSponsor => {
+                if self.pda_rent_sponsor.is_some() {
+                    return Err(Error::new_spanned(
+                        &ident,
+                        "duplicate infrastructure field: pda_rent_sponsor",
+                    ));
+                }
+                self.pda_rent_sponsor = Some(ident);
             }
             InfraFieldType::LightTokenConfig => {
                 if self.light_token_config.is_some() {

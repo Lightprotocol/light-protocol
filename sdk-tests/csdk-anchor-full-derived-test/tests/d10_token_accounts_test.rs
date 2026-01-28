@@ -10,7 +10,6 @@ use csdk_anchor_full_derived_test::d10_token_accounts::{
     D10SingleAtaParams, D10SingleVaultParams, D10_SINGLE_VAULT_AUTH_SEED, D10_SINGLE_VAULT_SEED,
 };
 use light_client::interface::{get_create_accounts_proof, InitializeRentFreeConfig};
-use light_macros::pubkey;
 use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest},
     ProgramTestConfig, Rpc,
@@ -21,8 +20,6 @@ use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
-
-const RENT_SPONSOR_PUBKEY: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
 
 /// Test context for D10 token account tests
 struct D10TestContext {
@@ -51,7 +48,7 @@ impl D10TestContext {
             &program_id,
             &payer.pubkey(),
             &program_data_pda,
-            RENT_SPONSOR_PUBKEY,
+            csdk_anchor_full_derived_test::program_rent_sponsor(),
             payer.pubkey(),
         )
         .build();
@@ -66,14 +63,6 @@ impl D10TestContext {
             config_pda,
             program_id,
         }
-    }
-
-    async fn assert_onchain_exists(&mut self, account: &Pubkey) {
-        assert!(
-            self.rpc.get_account(*account).await.unwrap().is_some(),
-            "Account {} should exist on-chain",
-            account
-        );
     }
 
     /// Setup a mint for token-based tests.
@@ -146,7 +135,7 @@ async fn test_d10_single_vault() {
         .expect("D10SingleVault instruction should succeed");
 
     // Verify token vault exists on-chain
-    ctx.assert_onchain_exists(&d10_single_vault).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &d10_single_vault, "d10_single_vault").await;
 }
 
 /// Tests D10SingleAta: #[light_account(init, associated_token, ...)] automatic code generation.
@@ -204,5 +193,5 @@ async fn test_d10_single_ata() {
         .expect("D10SingleAta instruction should succeed");
 
     // Verify ATA exists on-chain
-    ctx.assert_onchain_exists(&d10_single_ata).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &d10_single_ata, "d10_single_ata").await;
 }

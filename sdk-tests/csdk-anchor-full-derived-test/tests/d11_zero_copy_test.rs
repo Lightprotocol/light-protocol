@@ -47,10 +47,9 @@ use light_client::interface::{
 };
 use light_compressed_account::address::derive_address;
 use light_compressible::rent::SLOTS_PER_EPOCH;
-use light_macros::pubkey;
 use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest, TestRpc},
-    Indexer, ProgramTestConfig, Rpc,
+    ProgramTestConfig, Rpc,
 };
 use light_sdk::interface::{CompressionState, IntoVariant};
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
@@ -59,8 +58,6 @@ use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
-
-const RENT_SPONSOR_PUBKEY: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
 
 /// Test context for D11 zero-copy tests.
 struct D11TestContext {
@@ -88,7 +85,7 @@ impl D11TestContext {
             &program_id,
             &payer.pubkey(),
             &program_data_pda,
-            RENT_SPONSOR_PUBKEY,
+            csdk_anchor_full_derived_test::program_rent_sponsor(),
             payer.pubkey(),
         )
         .build();
@@ -105,23 +102,6 @@ impl D11TestContext {
         }
     }
 
-    async fn assert_onchain_exists(&mut self, account: &Pubkey) {
-        assert!(
-            self.rpc.get_account(*account).await.unwrap().is_some(),
-            "Account {} should exist on-chain",
-            account
-        );
-    }
-
-    async fn assert_onchain_closed(&mut self, account: &Pubkey) {
-        let acc = self.rpc.get_account(*account).await.unwrap();
-        assert!(
-            acc.is_none() || acc.unwrap().lamports == 0,
-            "Account {} should be closed after compression",
-            account
-        );
-    }
-
     async fn warp_to_compress(&mut self) {
         self.rpc
             .warp_slot_forward(SLOTS_PER_EPOCH * 30)
@@ -136,25 +116,6 @@ impl D11TestContext {
             &address_tree_pubkey.to_bytes(),
             &self.program_id.to_bytes(),
         )
-    }
-
-    async fn assert_compressed_exists(&mut self, compressed_address: [u8; 32]) {
-        let compressed_acc = self
-            .rpc
-            .get_compressed_account(compressed_address, None)
-            .await
-            .unwrap()
-            .value
-            .unwrap();
-        assert_eq!(
-            compressed_acc.address.unwrap(),
-            compressed_address,
-            "Compressed account address should match"
-        );
-        assert!(
-            !compressed_acc.data.as_ref().unwrap().data.is_empty(),
-            "Compressed account should have data"
-        );
     }
 
     /// Setup a mint for token-based tests.
@@ -203,6 +164,7 @@ async fn test_d11_zc_with_vault() {
     let accounts = csdk_anchor_full_derived_test::accounts::D11ZcWithVault {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: csdk_anchor_full_derived_test::program_rent_sponsor(),
         zc_vault_record: zc_pda,
         d11_mint: mint,
         d11_vault_authority: vault_authority,
@@ -238,8 +200,8 @@ async fn test_d11_zc_with_vault() {
         .expect("D11ZcWithVault instruction should succeed");
 
     // PHASE 1: Verify PDAs exist on-chain
-    ctx.assert_onchain_exists(&zc_pda).await;
-    ctx.assert_onchain_exists(&vault_pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &zc_pda, "zc_pda").await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &vault_pda, "vault_pda").await;
 
     // Verify zero-copy record data
     let record_account = ctx.rpc.get_account(zc_pda).await.unwrap().unwrap();
@@ -252,12 +214,12 @@ async fn test_d11_zc_with_vault() {
     ctx.warp_to_compress().await;
 
     // Verify zc_pda is closed (compressed by forester)
-    ctx.assert_onchain_closed(&zc_pda).await;
+    shared::assert_onchain_closed(&mut ctx.rpc, &zc_pda, "zc_pda").await;
     // Note: vault_pda is a token account and doesn't get compressed
 
     // PHASE 3: Verify compressed account exists
     let compressed_address = ctx.get_compressed_address(&zc_pda);
-    ctx.assert_compressed_exists(compressed_address).await;
+    shared::assert_compressed_exists_with_data(&mut ctx.rpc,compressed_address, "compressed_account").await;
 
     // PHASE 4: Decompress account
     let account_interface = ctx
@@ -342,6 +304,7 @@ async fn test_d11_zc_with_ata() {
     let accounts = csdk_anchor_full_derived_test::accounts::D11ZcWithAta {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: csdk_anchor_full_derived_test::program_rent_sponsor(),
         zc_ata_record: zc_pda,
         d11_ata_mint: mint,
         d11_ata_owner: ata_owner,
@@ -376,8 +339,8 @@ async fn test_d11_zc_with_ata() {
         .expect("D11ZcWithAta instruction should succeed");
 
     // PHASE 1: Verify PDAs exist on-chain
-    ctx.assert_onchain_exists(&zc_pda).await;
-    ctx.assert_onchain_exists(&ata_pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &zc_pda, "zc_pda").await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &ata_pda, "ata_pda").await;
 
     // Verify zero-copy record data
     let record_account = ctx.rpc.get_account(zc_pda).await.unwrap().unwrap();
@@ -389,11 +352,11 @@ async fn test_d11_zc_with_ata() {
     ctx.warp_to_compress().await;
 
     // Verify zc_pda is closed (compressed by forester)
-    ctx.assert_onchain_closed(&zc_pda).await;
+    shared::assert_onchain_closed(&mut ctx.rpc, &zc_pda, "zc_pda").await;
 
     // PHASE 3: Verify compressed account exists
     let compressed_address = ctx.get_compressed_address(&zc_pda);
-    ctx.assert_compressed_exists(compressed_address).await;
+    shared::assert_compressed_exists_with_data(&mut ctx.rpc,compressed_address, "compressed_account").await;
 
     // PHASE 4: Decompress account
     let account_interface = ctx
@@ -425,7 +388,7 @@ async fn test_d11_zc_with_ata() {
         .expect("Decompression should succeed");
 
     // PHASE 5: Verify account is back on-chain
-    ctx.assert_onchain_exists(&zc_pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &zc_pda, "zc_pda").await;
     let record_account = ctx.rpc.get_account(zc_pda).await.unwrap().unwrap();
     let data = &record_account.data[8..];
     let record: &ZcBasicRecord = bytemuck::from_bytes(data);
@@ -467,6 +430,7 @@ async fn test_d11_multiple_zc() {
     let accounts = csdk_anchor_full_derived_test::accounts::D11MultipleZc {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: csdk_anchor_full_derived_test::program_rent_sponsor(),
         zc_record_1: zc_pda_1,
         zc_record_2: zc_pda_2,
         system_program: solana_sdk::system_program::ID,
@@ -495,8 +459,8 @@ async fn test_d11_multiple_zc() {
         .expect("D11MultipleZc instruction should succeed");
 
     // PHASE 1: Verify both PDAs exist on-chain
-    ctx.assert_onchain_exists(&zc_pda_1).await;
-    ctx.assert_onchain_exists(&zc_pda_2).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &zc_pda_1, "zc_pda_1").await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &zc_pda_2, "zc_pda_2").await;
 
     // Verify zero-copy record data for both
     let record_1_account = ctx.rpc.get_account(zc_pda_1).await.unwrap().unwrap();
@@ -515,14 +479,14 @@ async fn test_d11_multiple_zc() {
     ctx.warp_to_compress().await;
 
     // Verify both PDAs are closed (compressed by forester)
-    ctx.assert_onchain_closed(&zc_pda_1).await;
-    ctx.assert_onchain_closed(&zc_pda_2).await;
+    shared::assert_onchain_closed(&mut ctx.rpc, &zc_pda_1, "zc_pda_1").await;
+    shared::assert_onchain_closed(&mut ctx.rpc, &zc_pda_2, "zc_pda_2").await;
 
     // PHASE 3: Verify both compressed accounts exist
     let compressed_address_1 = ctx.get_compressed_address(&zc_pda_1);
     let compressed_address_2 = ctx.get_compressed_address(&zc_pda_2);
-    ctx.assert_compressed_exists(compressed_address_1).await;
-    ctx.assert_compressed_exists(compressed_address_2).await;
+    shared::assert_compressed_exists_with_data(&mut ctx.rpc,compressed_address_1, "compressed_account_1").await;
+    shared::assert_compressed_exists_with_data(&mut ctx.rpc,compressed_address_2, "compressed_account_2").await;
 
     // PHASE 4: Decompress first account
     let account_interface_1 = ctx
@@ -585,8 +549,8 @@ async fn test_d11_multiple_zc() {
         .expect("Decompression of record 2 should succeed");
 
     // PHASE 5: Verify both accounts are back on-chain with correct data
-    ctx.assert_onchain_exists(&zc_pda_1).await;
-    ctx.assert_onchain_exists(&zc_pda_2).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &zc_pda_1, "zc_pda_1").await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &zc_pda_2, "zc_pda_2").await;
 
     let record_1_account = ctx.rpc.get_account(zc_pda_1).await.unwrap().unwrap();
     let data_1 = &record_1_account.data[8..];
@@ -640,6 +604,7 @@ async fn test_d11_mixed_zc_borsh() {
     let accounts = csdk_anchor_full_derived_test::accounts::D11MixedZcBorsh {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: csdk_anchor_full_derived_test::program_rent_sponsor(),
         zc_mixed_record: zc_pda,
         borsh_record: borsh_pda,
         system_program: solana_sdk::system_program::ID,
@@ -668,8 +633,8 @@ async fn test_d11_mixed_zc_borsh() {
         .expect("D11MixedZcBorsh instruction should succeed");
 
     // PHASE 1: Verify both PDAs exist on-chain
-    ctx.assert_onchain_exists(&zc_pda).await;
-    ctx.assert_onchain_exists(&borsh_pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &zc_pda, "zc_pda").await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &borsh_pda, "borsh_pda").await;
 
     // Verify zero-copy record data
     let zc_account = ctx.rpc.get_account(zc_pda).await.unwrap().unwrap();
@@ -692,14 +657,14 @@ async fn test_d11_mixed_zc_borsh() {
     ctx.warp_to_compress().await;
 
     // Verify both PDAs are closed (compressed by forester)
-    ctx.assert_onchain_closed(&zc_pda).await;
-    ctx.assert_onchain_closed(&borsh_pda).await;
+    shared::assert_onchain_closed(&mut ctx.rpc, &zc_pda, "zc_pda").await;
+    shared::assert_onchain_closed(&mut ctx.rpc, &borsh_pda, "borsh_pda").await;
 
     // PHASE 3: Verify both compressed accounts exist
     let compressed_address_zc = ctx.get_compressed_address(&zc_pda);
     let compressed_address_borsh = ctx.get_compressed_address(&borsh_pda);
-    ctx.assert_compressed_exists(compressed_address_zc).await;
-    ctx.assert_compressed_exists(compressed_address_borsh).await;
+    shared::assert_compressed_exists_with_data(&mut ctx.rpc,compressed_address_zc, "zc_record").await;
+    shared::assert_compressed_exists_with_data(&mut ctx.rpc,compressed_address_borsh, "borsh_record").await;
 
     // PHASE 4: Decompress zero-copy account
     let account_interface_zc = ctx
@@ -764,8 +729,8 @@ async fn test_d11_mixed_zc_borsh() {
         .expect("Decompression of borsh record should succeed");
 
     // PHASE 5: Verify both accounts are back on-chain with correct data
-    ctx.assert_onchain_exists(&zc_pda).await;
-    ctx.assert_onchain_exists(&borsh_pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &zc_pda, "zc_pda").await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &borsh_pda, "borsh_pda").await;
 
     let zc_account = ctx.rpc.get_account(zc_pda).await.unwrap().unwrap();
     let zc_data = &zc_account.data[8..];
@@ -807,6 +772,7 @@ async fn test_d11_zc_with_ctx_seeds() {
     let accounts = csdk_anchor_full_derived_test::accounts::D11ZcWithCtxSeeds {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: csdk_anchor_full_derived_test::program_rent_sponsor(),
         authority: authority.pubkey(),
         zc_ctx_record: zc_pda,
         system_program: solana_sdk::system_program::ID,
@@ -839,7 +805,7 @@ async fn test_d11_zc_with_ctx_seeds() {
         .expect("D11ZcWithCtxSeeds instruction should succeed");
 
     // PHASE 1: Verify PDA exists on-chain
-    ctx.assert_onchain_exists(&zc_pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &zc_pda, "zc_pda").await;
 
     // Verify zero-copy record data
     let record_account = ctx.rpc.get_account(zc_pda).await.unwrap().unwrap();
@@ -857,11 +823,11 @@ async fn test_d11_zc_with_ctx_seeds() {
     ctx.warp_to_compress().await;
 
     // Verify PDA is closed (compressed by forester)
-    ctx.assert_onchain_closed(&zc_pda).await;
+    shared::assert_onchain_closed(&mut ctx.rpc, &zc_pda, "zc_pda").await;
 
     // PHASE 3: Verify compressed account exists
     let compressed_address = ctx.get_compressed_address(&zc_pda);
-    ctx.assert_compressed_exists(compressed_address).await;
+    shared::assert_compressed_exists_with_data(&mut ctx.rpc,compressed_address, "compressed_account").await;
 
     // PHASE 4: Decompress account
     let account_interface = ctx
@@ -896,7 +862,7 @@ async fn test_d11_zc_with_ctx_seeds() {
         .expect("Decompression should succeed");
 
     // PHASE 5: Verify account is back on-chain with correct data
-    ctx.assert_onchain_exists(&zc_pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &zc_pda, "zc_pda").await;
 
     let record_account = ctx.rpc.get_account(zc_pda).await.unwrap().unwrap();
     let data = &record_account.data[8..];
@@ -942,6 +908,7 @@ async fn test_d11_zc_with_params_seeds() {
     let accounts = csdk_anchor_full_derived_test::accounts::D11ZcWithParamsSeeds {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: csdk_anchor_full_derived_test::program_rent_sponsor(),
         zc_params_record: zc_pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -970,7 +937,7 @@ async fn test_d11_zc_with_params_seeds() {
         .expect("D11ZcWithParamsSeeds instruction should succeed");
 
     // PHASE 1: Verify PDA exists on-chain
-    ctx.assert_onchain_exists(&zc_pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &zc_pda, "zc_pda").await;
 
     // Verify zero-copy record data
     let record_account = ctx.rpc.get_account(zc_pda).await.unwrap().unwrap();
@@ -986,11 +953,11 @@ async fn test_d11_zc_with_params_seeds() {
     ctx.warp_to_compress().await;
 
     // Verify PDA is closed (compressed by forester)
-    ctx.assert_onchain_closed(&zc_pda).await;
+    shared::assert_onchain_closed(&mut ctx.rpc, &zc_pda, "zc_pda").await;
 
     // PHASE 3: Verify compressed account exists
     let compressed_address = ctx.get_compressed_address(&zc_pda);
-    ctx.assert_compressed_exists(compressed_address).await;
+    shared::assert_compressed_exists_with_data(&mut ctx.rpc,compressed_address, "compressed_account").await;
 
     // PHASE 4: Decompress account
     let account_interface = ctx
@@ -1025,7 +992,7 @@ async fn test_d11_zc_with_params_seeds() {
         .expect("Decompression should succeed");
 
     // PHASE 5: Verify account is back on-chain with correct data
-    ctx.assert_onchain_exists(&zc_pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &zc_pda, "zc_pda").await;
 
     let record_account = ctx.rpc.get_account(zc_pda).await.unwrap().unwrap();
     let data = &record_account.data[8..];
@@ -1075,6 +1042,7 @@ async fn test_d11_zc_with_mint_to() {
     let accounts = csdk_anchor_full_derived_test::accounts::D11ZcWithMintTo {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: csdk_anchor_full_derived_test::program_rent_sponsor(),
         zc_mint_record: zc_pda,
         d11_mint: mint,
         mint_authority: ctx.payer.pubkey(),
@@ -1112,8 +1080,8 @@ async fn test_d11_zc_with_mint_to() {
         .expect("D11ZcWithMintTo instruction should succeed");
 
     // PHASE 1: Verify PDAs exist on-chain
-    ctx.assert_onchain_exists(&zc_pda).await;
-    ctx.assert_onchain_exists(&vault_pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &zc_pda, "zc_pda").await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &vault_pda, "vault_pda").await;
 
     // Verify zero-copy record data
     let record_account = ctx.rpc.get_account(zc_pda).await.unwrap().unwrap();
@@ -1129,12 +1097,12 @@ async fn test_d11_zc_with_mint_to() {
     ctx.warp_to_compress().await;
 
     // Verify zc_pda is closed (compressed by forester)
-    ctx.assert_onchain_closed(&zc_pda).await;
+    shared::assert_onchain_closed(&mut ctx.rpc, &zc_pda, "zc_pda").await;
     // Note: vault_pda is a token account and doesn't get compressed
 
     // PHASE 3: Verify compressed account exists
     let compressed_address = ctx.get_compressed_address(&zc_pda);
-    ctx.assert_compressed_exists(compressed_address).await;
+    shared::assert_compressed_exists_with_data(&mut ctx.rpc,compressed_address, "compressed_account").await;
 
     // PHASE 4: Decompress account
     let account_interface = ctx
@@ -1166,7 +1134,7 @@ async fn test_d11_zc_with_mint_to() {
         .expect("Decompression should succeed");
 
     // PHASE 5: Verify account is back on-chain with correct data
-    ctx.assert_onchain_exists(&zc_pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &zc_pda, "zc_pda").await;
 
     let record_account = ctx.rpc.get_account(zc_pda).await.unwrap().unwrap();
     let data = &record_account.data[8..];

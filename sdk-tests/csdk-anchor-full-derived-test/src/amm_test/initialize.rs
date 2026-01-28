@@ -149,6 +149,10 @@ pub struct InitializePool<'info> {
 
     pub compression_config: AccountInfo<'info>,
 
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
+
     #[account(address = COMPRESSIBLE_CONFIG_V1)]
     pub light_token_compressible_config: AccountInfo<'info>,
 

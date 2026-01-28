@@ -34,6 +34,10 @@ pub struct D9InstrSinglePubkey<'info> {
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
 
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
+
     #[account(
         init,
         payer = fee_payer,
@@ -66,6 +70,10 @@ pub struct D9InstrU64<'info> {
 
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
+
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
 
     #[account(
         init,
@@ -100,6 +108,10 @@ pub struct D9InstrMultiField<'info> {
 
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
+
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
 
     #[account(
         init,
@@ -136,6 +148,10 @@ pub struct D9InstrMixedCtx<'info> {
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
 
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
+
     #[account(
         init,
         payer = fee_payer,
@@ -171,6 +187,10 @@ pub struct D9InstrTriple<'info> {
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
 
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
+
     #[account(
         init,
         payer = fee_payer,
@@ -203,6 +223,10 @@ pub struct D9InstrBigEndian<'info> {
 
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
+
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
 
     #[account(
         init,
@@ -238,6 +262,10 @@ pub struct D9InstrMultiU64<'info> {
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
 
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
+
     #[account(
         init,
         payer = fee_payer,
@@ -270,6 +298,10 @@ pub struct D9InstrChainedAsRef<'info> {
 
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
+
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
 
     #[account(
         init,
@@ -307,6 +339,10 @@ pub struct D9InstrConstMixed<'info> {
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
 
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
+
     #[account(
         init,
         payer = fee_payer,
@@ -342,6 +378,10 @@ pub struct D9InstrComplexMixed<'info> {
 
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
+
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
 
     #[account(
         init,

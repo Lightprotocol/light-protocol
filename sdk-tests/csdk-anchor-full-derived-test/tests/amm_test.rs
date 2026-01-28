@@ -21,7 +21,6 @@ use light_client::interface::{
     CreateAccountsProofInput, InitializeRentFreeConfig, LightProgramInterface,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
-use light_macros::pubkey;
 use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest, TestRpc},
     Indexer, ProgramTestConfig, Rpc,
@@ -36,57 +35,8 @@ use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
 
-const RENT_SPONSOR: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
-
-async fn assert_onchain_exists(rpc: &mut LightProgramTest, pda: &Pubkey, name: &str) {
-    assert!(
-        rpc.get_account(*pda).await.unwrap().is_some(),
-        "Account {} {} should exist on-chain",
-        name,
-        pda
-    );
-}
-
-async fn assert_onchain_closed(rpc: &mut LightProgramTest, pda: &Pubkey) {
-    let acc = rpc.get_account(*pda).await.unwrap();
-    assert!(
-        acc.is_none() || acc.unwrap().lamports == 0,
-        "Account {} should be closed",
-        pda
-    );
-}
-
 fn parse_token(data: &[u8]) -> Token {
     borsh::BorshDeserialize::deserialize(&mut &data[..]).unwrap()
-}
-
-async fn assert_compressed_exists_with_data(rpc: &mut LightProgramTest, addr: [u8; 32]) {
-    let acc = rpc
-        .get_compressed_account(addr, None)
-        .await
-        .unwrap()
-        .value
-        .unwrap();
-    assert_eq!(acc.address.unwrap(), addr);
-    assert!(!acc.data.as_ref().unwrap().data.is_empty());
-}
-
-async fn assert_compressed_token_exists(
-    rpc: &mut LightProgramTest,
-    owner: &Pubkey,
-    expected_amount: u64,
-) {
-    let accs = rpc
-        .get_compressed_token_accounts_by_owner(owner, None, None)
-        .await
-        .unwrap()
-        .value
-        .items;
-    assert!(!accs.is_empty(), "Compressed token account should exist");
-    assert_eq!(
-        accs[0].token.amount, expected_amount,
-        "Compressed token amount mismatch"
-    );
 }
 
 /// Stores all AMM-related PDAs
@@ -146,7 +96,7 @@ async fn setup() -> AmmTestContext {
         &program_id,
         &payer.pubkey(),
         &program_data_pda,
-        RENT_SPONSOR,
+        csdk_anchor_full_derived_test::program_rent_sponsor(),
         payer.pubkey(),
     )
     .build();
@@ -348,6 +298,7 @@ async fn test_amm_full_lifecycle() {
         system_program: solana_sdk::system_program::ID,
         rent: solana_sdk::sysvar::rent::ID,
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: csdk_anchor_full_derived_test::program_rent_sponsor(),
         light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
         rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID,
@@ -377,12 +328,12 @@ async fn test_amm_full_lifecycle() {
         .await
         .expect("Initialize pool should succeed");
 
-    assert_onchain_exists(&mut ctx.rpc, &pdas.pool_state, "pool state").await;
-    assert_onchain_exists(&mut ctx.rpc, &pdas.observation_state, "observation state").await;
-    assert_onchain_exists(&mut ctx.rpc, &pdas.lp_mint, "LP mint").await;
-    assert_onchain_exists(&mut ctx.rpc, &pdas.token_0_vault, "token 0 vault").await;
-    assert_onchain_exists(&mut ctx.rpc, &pdas.token_1_vault, "token 1 vault").await;
-    assert_onchain_exists(&mut ctx.rpc, &pdas.creator_lp_token, "creator LP token").await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pdas.pool_state, "pool state").await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pdas.observation_state, "observation state").await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pdas.lp_mint, "LP mint").await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pdas.token_0_vault, "token 0 vault").await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pdas.token_1_vault, "token 1 vault").await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pdas.creator_lp_token, "creator LP token").await;
 
     let lp_token_data = parse_token(
         &ctx.rpc
@@ -531,25 +482,35 @@ async fn test_amm_full_lifecycle() {
         );
 
     // Assert compression (assert_after_compression)
-    assert_onchain_closed(&mut ctx.rpc, &pdas.pool_state).await;
-    assert_onchain_closed(&mut ctx.rpc, &pdas.observation_state).await;
-    assert_onchain_closed(&mut ctx.rpc, &pdas.lp_mint).await;
-    assert_onchain_closed(&mut ctx.rpc, &pdas.token_0_vault).await;
-    assert_onchain_closed(&mut ctx.rpc, &pdas.token_1_vault).await;
-    assert_onchain_closed(&mut ctx.rpc, &pdas.creator_lp_token).await;
+    shared::assert_onchain_closed(&mut ctx.rpc, &pdas.pool_state, "pool_state").await;
+    shared::assert_onchain_closed(&mut ctx.rpc, &pdas.observation_state, "observation_state").await;
+    shared::assert_onchain_closed(&mut ctx.rpc, &pdas.lp_mint, "lp_mint").await;
+    shared::assert_onchain_closed(&mut ctx.rpc, &pdas.token_0_vault, "token_0_vault").await;
+    shared::assert_onchain_closed(&mut ctx.rpc, &pdas.token_1_vault, "token_1_vault").await;
+    shared::assert_onchain_closed(&mut ctx.rpc, &pdas.creator_lp_token, "creator_lp_token").await;
 
     // Verify compressed accounts exist with non-empty data
-    assert_compressed_exists_with_data(&mut ctx.rpc, pool_compressed_address).await;
-    assert_compressed_exists_with_data(&mut ctx.rpc, observation_compressed_address).await;
-    assert_compressed_exists_with_data(&mut ctx.rpc, mint_compressed_address).await;
+    shared::assert_compressed_exists_with_data(&mut ctx.rpc, pool_compressed_address, "pool_state")
+        .await;
+    shared::assert_compressed_exists_with_data(
+        &mut ctx.rpc,
+        observation_compressed_address,
+        "observation_state",
+    )
+    .await;
+    shared::assert_compressed_exists_with_data(&mut ctx.rpc, mint_compressed_address, "lp_mint")
+        .await;
 
     // Verify compressed token accounts
-    assert_compressed_token_exists(&mut ctx.rpc, &pdas.token_0_vault, 0).await;
-    assert_compressed_token_exists(&mut ctx.rpc, &pdas.token_1_vault, 0).await;
-    assert_compressed_token_exists(
+    shared::assert_compressed_token_exists(&mut ctx.rpc, &pdas.token_0_vault, 0, "token_0_vault")
+        .await;
+    shared::assert_compressed_token_exists(&mut ctx.rpc, &pdas.token_1_vault, 0, "token_1_vault")
+        .await;
+    shared::assert_compressed_token_exists(
         &mut ctx.rpc,
         &pdas.creator_lp_token,
         expected_balance_after_withdraw,
+        "creator_lp_token",
     )
     .await;
 
@@ -602,12 +563,12 @@ async fn test_amm_full_lifecycle() {
         .await
         .expect("Decompression should succeed");
 
-    assert_onchain_exists(&mut ctx.rpc, &pdas.pool_state, "pool_state").await;
-    assert_onchain_exists(&mut ctx.rpc, &pdas.observation_state, "observation_state").await;
-    assert_onchain_exists(&mut ctx.rpc, &pdas.lp_mint, "lp_mint").await;
-    assert_onchain_exists(&mut ctx.rpc, &pdas.token_0_vault, "token_0_vault").await;
-    assert_onchain_exists(&mut ctx.rpc, &pdas.token_1_vault, "token_1_vault").await;
-    assert_onchain_exists(&mut ctx.rpc, &pdas.creator_lp_token, "creator_lp_token").await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pdas.pool_state, "pool_state").await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pdas.observation_state, "observation_state").await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pdas.lp_mint, "lp_mint").await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pdas.token_0_vault, "token_0_vault").await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pdas.token_1_vault, "token_1_vault").await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pdas.creator_lp_token, "creator_lp_token").await;
 
     // Verify LP token balance
     let lp_token_after_decompression = parse_token(

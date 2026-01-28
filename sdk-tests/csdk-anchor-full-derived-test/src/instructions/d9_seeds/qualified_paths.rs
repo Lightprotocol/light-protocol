@@ -37,6 +37,10 @@ pub struct D9QualifiedBare<'info> {
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
 
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
+
     #[account(
         init,
         payer = fee_payer,
@@ -68,6 +72,10 @@ pub struct D9QualifiedSelf<'info> {
 
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
+
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
 
     #[account(
         init,
@@ -101,6 +109,10 @@ pub struct D9QualifiedCrate<'info> {
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
 
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
+
     #[account(
         init,
         payer = fee_payer,
@@ -132,6 +144,10 @@ pub struct D9QualifiedDeep<'info> {
 
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
+
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
 
     #[account(
         init,
@@ -165,6 +181,10 @@ pub struct D9QualifiedMixed<'info> {
 
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
+
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
 
     #[account(
         init,

@@ -36,6 +36,10 @@ pub struct D9ComplexThree<'info> {
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
 
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
+
     #[account(
         init,
         payer = fee_payer,
@@ -69,6 +73,10 @@ pub struct D9ComplexFour<'info> {
 
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
+
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
 
     #[account(
         init,
@@ -107,6 +115,10 @@ pub struct D9ComplexFive<'info> {
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
 
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
+
     #[account(
         init,
         payer = fee_payer,
@@ -139,6 +151,10 @@ pub struct D9ComplexQualifiedMix<'info> {
 
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
+
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
 
     #[account(
         init,
@@ -175,6 +191,10 @@ pub struct D9ComplexFunc<'info> {
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
 
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
+
     #[account(
         init,
         payer = fee_payer,
@@ -207,6 +227,10 @@ pub struct D9ComplexAllQualified<'info> {
 
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
+
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
 
     #[account(
         init,
@@ -245,6 +269,10 @@ pub struct D9ComplexProgramId<'info> {
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
 
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
+
     #[account(
         init,
         payer = fee_payer,
@@ -277,6 +305,10 @@ pub struct D9ComplexIdFunc<'info> {
 
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
+
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
 
     #[account(
         init,

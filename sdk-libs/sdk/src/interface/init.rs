@@ -5,7 +5,11 @@ use light_compressed_account::{
     instruction_data::{data::NewAddressParamsAssignedPacked, with_account_info::OutAccountInfo},
 };
 use light_hasher::errors::HasherError;
+use light_sdk_types::constants::RENT_SPONSOR_SEED;
+use solana_account_info::AccountInfo;
+use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
+use solana_sysvar::{rent::Rent, Sysvar};
 
 use crate::{compressed_account::CompressedAccountInfo, instruction::PackedAddressTreeInfo};
 
@@ -81,6 +85,69 @@ pub fn prepare_compressed_account_on_init(
             data_hash: [0u8; 32],
         }),
     });
+
+    Ok(())
+}
+
+/// Reimburse the fee payer for rent paid during PDA initialization.
+///
+/// When using Anchor's `#[account(init)]` with `#[light_account(init)]`, the fee_payer
+/// pays for rent-exemption. Since these become rent-free compressed accounts, this function
+/// transfers the total rent amount back to the fee_payer from the program's rent sponsor PDA.
+///
+/// # Arguments
+/// * `created_accounts` - Slice of AccountInfo for the PDAs that were created
+/// * `fee_payer` - The account that paid for rent (will receive reimbursement)
+/// * `rent_sponsor` - The program's rent sponsor PDA (must be mutable, pays reimbursement)
+/// * `program_id` - The program ID (for deriving rent sponsor PDA bump)
+///
+/// # Seeds
+/// The rent sponsor PDA is derived using: `[RENT_SPONSOR_SEED]`
+pub fn reimburse_rent<'info>(
+    created_accounts: &[AccountInfo<'info>],
+    fee_payer: &AccountInfo<'info>,
+    rent_sponsor: &AccountInfo<'info>,
+    program_id: &Pubkey,
+) -> Result<(), ProgramError> {
+    if created_accounts.is_empty() {
+        return Ok(());
+    }
+
+    // Calculate total rent-exemption for all created accounts
+    let rent = Rent::get()?;
+    let total_lamports: u64 = created_accounts
+        .iter()
+        .map(|acc| rent.minimum_balance(acc.data_len()))
+        .sum();
+
+    if total_lamports == 0 {
+        return Ok(());
+    }
+
+    // Derive rent sponsor bump
+    let (expected_rent_sponsor, rent_sponsor_bump) =
+        Pubkey::find_program_address(&[RENT_SPONSOR_SEED], program_id);
+
+    // Verify the rent sponsor account matches expected PDA
+    if rent_sponsor.key != &expected_rent_sponsor {
+        return Err(ProgramError::InvalidSeeds);
+    }
+
+    // Transfer from rent sponsor to fee payer
+    let transfer_ix = solana_system_interface::instruction::transfer(
+        rent_sponsor.key,
+        fee_payer.key,
+        total_lamports,
+    );
+
+    let bump_bytes = [rent_sponsor_bump];
+    let rent_sponsor_seeds: &[&[u8]] = &[RENT_SPONSOR_SEED, &bump_bytes];
+
+    solana_cpi::invoke_signed(
+        &transfer_ix,
+        &[rent_sponsor.clone(), fee_payer.clone()],
+        &[rent_sponsor_seeds],
+    )?;
 
     Ok(())
 }

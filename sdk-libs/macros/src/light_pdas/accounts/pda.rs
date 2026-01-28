@@ -4,12 +4,13 @@
 //! marked with `#[light_account(init)]`. Each PDA field generates code for:
 //! - Account extraction (get account info and key)
 //! - Address derivation and registration via prepare_compressed_account_on_init
+//! - Rent reimbursement from rent sponsor PDA to fee payer
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::Ident;
 
-use super::parse::ParsedPdaField;
+use super::{mint::InfraRefs, parse::ParsedPdaField};
 
 /// Generated identifier names for a PDA field.
 pub(super) struct PdaIdents {
@@ -201,4 +202,46 @@ pub(super) fn generate_pda_compress_blocks(fields: &[ParsedPdaField]) -> Vec<Tok
         .enumerate()
         .map(|(idx, field)| PdaBlockBuilder::new(field, idx).build())
         .collect()
+}
+
+/// Generate rent reimbursement code that calls the SDK reimburse_rent function.
+///
+/// This generates a single call to `reimburse_rent` with all created PDA account infos,
+/// which transfers the total rent-exemption amount from the rent sponsor PDA to the fee payer.
+pub(super) fn generate_rent_reimbursement_block(
+    fields: &[ParsedPdaField],
+    infra: &InfraRefs,
+) -> TokenStream {
+    if fields.is_empty() {
+        return quote! {};
+    }
+
+    let fee_payer = &infra.fee_payer;
+    let rent_sponsor = &infra.pda_rent_sponsor;
+
+    // Collect account info expressions for all PDA fields
+    let account_info_exprs: Vec<TokenStream> = fields
+        .iter()
+        .map(|field| {
+            let ident = &field.ident;
+            quote! { self.#ident.to_account_info() }
+        })
+        .collect();
+
+    let count = fields.len();
+
+    quote! {
+        // Reimburse fee_payer for rent paid to Anchor for all PDAs
+        {
+            let __created_accounts: [solana_account_info::AccountInfo<'info>; #count] = [
+                #(#account_info_exprs),*
+            ];
+            ::light_sdk::interface::reimburse_rent(
+                &__created_accounts,
+                &self.#fee_payer.to_account_info(),
+                &self.#rent_sponsor.to_account_info(),
+                &crate::ID,
+            )?;
+        }
+    }
 }

@@ -33,6 +33,10 @@ pub struct D11MixedZcBorsh<'info> {
     /// CHECK: Compression config PDA.
     pub compression_config: AccountInfo<'info>,
 
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
+
     /// Zero-copy account using AccountLoader.
     #[account(
         init,

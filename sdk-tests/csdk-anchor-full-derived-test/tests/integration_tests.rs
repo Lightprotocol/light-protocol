@@ -14,10 +14,9 @@ use light_client::interface::{
     CreateAccountsProofInput, InitializeRentFreeConfig, PdaSpec,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
-use light_macros::pubkey;
 use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest, TestRpc},
-    Indexer, ProgramTestConfig, Rpc,
+    ProgramTestConfig, Rpc,
 };
 use light_sdk::interface::IntoVariant;
 use solana_instruction::Instruction;
@@ -25,7 +24,13 @@ use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
 
-const RENT_SPONSOR: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
+/// Light Token's rent sponsor - used for Light Token operations
+use light_token::instruction::RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR_CONST;
+
+/// Program's own rent sponsor PDA - used for PDA rent reimbursement
+fn program_rent_sponsor() -> Pubkey {
+    csdk_anchor_full_derived_test::program_rent_sponsor()
+}
 
 /// Test context shared across instruction tests
 #[allow(dead_code)]
@@ -54,7 +59,7 @@ impl TestContext {
             &program_id,
             &payer.pubkey(),
             &program_data_pda,
-            RENT_SPONSOR,
+            LIGHT_TOKEN_RENT_SPONSOR_CONST,
             payer.pubkey(),
         )
         .build();
@@ -71,35 +76,6 @@ impl TestContext {
         }
     }
 
-    async fn assert_onchain_exists(&mut self, pda: &Pubkey) {
-        assert!(
-            self.rpc.get_account(*pda).await.unwrap().is_some(),
-            "Account {} should exist on-chain",
-            pda
-        );
-    }
-
-    async fn assert_onchain_closed(&mut self, pda: &Pubkey) {
-        let acc = self.rpc.get_account(*pda).await.unwrap();
-        assert!(
-            acc.is_none() || acc.unwrap().lamports == 0,
-            "Account {} should be closed",
-            pda
-        );
-    }
-
-    async fn assert_compressed_exists(&mut self, addr: [u8; 32]) {
-        let acc = self
-            .rpc
-            .get_compressed_account(addr, None)
-            .await
-            .unwrap()
-            .value
-            .unwrap();
-        assert_eq!(acc.address.unwrap(), addr);
-        assert!(!acc.data.as_ref().unwrap().data.is_empty());
-    }
-
     /// Runs the full compression/decompression lifecycle for a single PDA.
     async fn assert_lifecycle<S>(&mut self, pda: &Pubkey, seeds: S)
     where
@@ -110,7 +86,7 @@ impl TestContext {
             .warp_slot_forward(SLOTS_PER_EPOCH * 30)
             .await
             .unwrap();
-        self.assert_onchain_closed(pda).await;
+        shared::assert_onchain_closed(&mut self.rpc, pda, "pda").await;
 
         // Get account interface
         let account_interface = self
@@ -150,7 +126,7 @@ impl TestContext {
             .expect("Decompression should succeed");
 
         // Verify account is back on-chain
-        self.assert_onchain_exists(pda).await;
+        shared::assert_onchain_exists(&mut self.rpc, pda, "pda").await;
     }
 
     /// Setup a mint for token-based tests.
@@ -196,6 +172,7 @@ async fn test_d6_account() {
     let accounts = csdk_anchor_full_derived_test::accounts::D6Account {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d6_account_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -223,7 +200,7 @@ async fn test_d6_account() {
         .expect("D6Account instruction should succeed");
 
     // Verify account exists on-chain
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 
     // Full lifecycle: compression + decompression
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D6AccountRecordSeeds;
@@ -255,6 +232,7 @@ async fn test_d6_boxed() {
     let accounts = csdk_anchor_full_derived_test::accounts::D6Boxed {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d6_boxed_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -282,7 +260,7 @@ async fn test_d6_boxed() {
         .expect("D6Boxed instruction should succeed");
 
     // Verify account exists on-chain
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 
     // Full lifecycle: compression + decompression
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D6BoxedRecordSeeds;
@@ -318,6 +296,7 @@ async fn test_d8_pda_only() {
     let accounts = csdk_anchor_full_derived_test::accounts::D8PdaOnly {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d8_pda_only_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -345,7 +324,7 @@ async fn test_d8_pda_only() {
         .expect("D8PdaOnly instruction should succeed");
 
     // Verify account exists on-chain
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 
     // Full lifecycle: compression + decompression
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D8PdaOnlyRecordSeeds;
@@ -389,6 +368,7 @@ async fn test_d8_multi_rentfree() {
     let accounts = csdk_anchor_full_derived_test::accounts::D8MultiRentfree {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d8_multi_record1: pda1,
         d8_multi_record2: pda2,
         system_program: solana_sdk::system_program::ID,
@@ -419,8 +399,8 @@ async fn test_d8_multi_rentfree() {
         .expect("D8MultiRentfree instruction should succeed");
 
     // Verify both accounts exist on-chain
-    ctx.assert_onchain_exists(&pda1).await;
-    ctx.assert_onchain_exists(&pda2).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda1, "pda1").await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda2, "pda2").await;
 
     // Full lifecycle: compression + decompression (multi-PDA, one at a time)
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::{
@@ -432,8 +412,8 @@ async fn test_d8_multi_rentfree() {
         .warp_slot_forward(SLOTS_PER_EPOCH * 30)
         .await
         .unwrap();
-    ctx.assert_onchain_closed(&pda1).await;
-    ctx.assert_onchain_closed(&pda2).await;
+    shared::assert_onchain_closed(&mut ctx.rpc, &pda1, "pda1").await;
+    shared::assert_onchain_closed(&mut ctx.rpc, &pda2, "pda2").await;
 
     // Decompress first account
     let interface1 = ctx
@@ -454,7 +434,7 @@ async fn test_d8_multi_rentfree() {
         .create_and_send_transaction(&decompress_instructions, &ctx.payer.pubkey(), &[&ctx.payer])
         .await
         .unwrap();
-    ctx.assert_onchain_exists(&pda1).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda1, "pda1").await;
 
     // Decompress second account
     let interface2 = ctx
@@ -475,7 +455,7 @@ async fn test_d8_multi_rentfree() {
         .create_and_send_transaction(&decompress_instructions, &ctx.payer.pubkey(), &[&ctx.payer])
         .await
         .unwrap();
-    ctx.assert_onchain_exists(&pda2).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda2, "pda2").await;
 }
 
 /// Tests D8All: Multiple #[light_account(init)] fields of different types
@@ -508,6 +488,7 @@ async fn test_d8_all() {
     let accounts = csdk_anchor_full_derived_test::accounts::D8All {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d8_all_single: pda_single,
         d8_all_multi: pda_multi,
         system_program: solana_sdk::system_program::ID,
@@ -536,8 +517,8 @@ async fn test_d8_all() {
         .expect("D8All instruction should succeed");
 
     // Verify both accounts exist on-chain
-    ctx.assert_onchain_exists(&pda_single).await;
-    ctx.assert_onchain_exists(&pda_multi).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda_single, "pda_single").await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda_multi, "pda_multi").await;
 
     // Full lifecycle: compression + decompression (multi-PDA, one at a time)
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::{
@@ -549,8 +530,8 @@ async fn test_d8_all() {
         .warp_slot_forward(SLOTS_PER_EPOCH * 30)
         .await
         .unwrap();
-    ctx.assert_onchain_closed(&pda_single).await;
-    ctx.assert_onchain_closed(&pda_multi).await;
+    shared::assert_onchain_closed(&mut ctx.rpc, &pda_single, "pda_single").await;
+    shared::assert_onchain_closed(&mut ctx.rpc, &pda_multi, "pda_multi").await;
 
     // Decompress first account (single type)
     let interface_single = ctx
@@ -571,7 +552,7 @@ async fn test_d8_all() {
         .create_and_send_transaction(&decompress_instructions, &ctx.payer.pubkey(), &[&ctx.payer])
         .await
         .unwrap();
-    ctx.assert_onchain_exists(&pda_single).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda_single, "pda_single").await;
 
     // Decompress second account (multi type)
     let interface_multi = ctx
@@ -592,7 +573,7 @@ async fn test_d8_all() {
         .create_and_send_transaction(&decompress_instructions, &ctx.payer.pubkey(), &[&ctx.payer])
         .await
         .unwrap();
-    ctx.assert_onchain_exists(&pda_multi).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda_multi, "pda_multi").await;
 }
 
 // =============================================================================
@@ -622,6 +603,7 @@ async fn test_d9_literal() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9Literal {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_literal_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -648,7 +630,7 @@ async fn test_d9_literal() {
         .expect("D9Literal instruction should succeed");
 
     // Verify account exists on-chain
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 
     // Full lifecycle: compression + decompression
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D9LiteralRecordSeeds;
@@ -678,6 +660,7 @@ async fn test_d9_constant() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9Constant {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_constant_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -704,7 +687,7 @@ async fn test_d9_constant() {
         .expect("D9Constant instruction should succeed");
 
     // Verify account exists on-chain
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 
     // Full lifecycle: compression + decompression
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D9ConstantRecordSeeds;
@@ -737,6 +720,7 @@ async fn test_d9_ctx_account() {
         fee_payer: ctx.payer.pubkey(),
         authority: authority.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_ctx_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -763,7 +747,7 @@ async fn test_d9_ctx_account() {
         .expect("D9CtxAccount instruction should succeed");
 
     // Verify account exists on-chain
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 
     // Full lifecycle: compression + decompression
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D9CtxRecordSeeds;
@@ -800,6 +784,7 @@ async fn test_d9_param() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9Param {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_param_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -827,7 +812,7 @@ async fn test_d9_param() {
         .expect("D9Param instruction should succeed");
 
     // Verify account exists on-chain
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 
     // Full lifecycle: compression + decompression
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D9ParamRecordSeeds;
@@ -862,6 +847,7 @@ async fn test_d9_param_bytes() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9ParamBytes {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_param_bytes_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -889,7 +875,7 @@ async fn test_d9_param_bytes() {
         .expect("D9ParamBytes instruction should succeed");
 
     // Verify account exists on-chain
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 
     // Full lifecycle: compression + decompression
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D9ParamBytesRecordSeeds;
@@ -926,6 +912,7 @@ async fn test_d9_mixed() {
         fee_payer: ctx.payer.pubkey(),
         authority: authority.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_mixed_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -953,7 +940,7 @@ async fn test_d9_mixed() {
         .expect("D9Mixed instruction should succeed");
 
     // Verify account exists on-chain
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 
     // Full lifecycle: compression + decompression
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D9MixedRecordSeeds;
@@ -995,6 +982,7 @@ async fn test_d7_payer() {
     let accounts = csdk_anchor_full_derived_test::accounts::D7Payer {
         payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d7_payer_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -1021,7 +1009,7 @@ async fn test_d7_payer() {
         .await
         .expect("D7Payer instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 
     // Full lifecycle: compression + decompression
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D7PayerRecordSeeds;
@@ -1053,6 +1041,7 @@ async fn test_d7_creator() {
     let accounts = csdk_anchor_full_derived_test::accounts::D7Creator {
         creator: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d7_creator_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -1079,7 +1068,7 @@ async fn test_d7_creator() {
         .await
         .expect("D7Creator instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 
     // Full lifecycle: compression + decompression
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D7CreatorRecordSeeds;
@@ -1117,6 +1106,7 @@ async fn test_d9_function_call() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9FunctionCall {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_func_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -1144,7 +1134,7 @@ async fn test_d9_function_call() {
         .await
         .expect("D9FunctionCall instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 
     // Full lifecycle: compression + decompression
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D9FuncRecordSeeds;
@@ -1202,6 +1192,7 @@ async fn test_d9_all() {
         fee_payer: ctx.payer.pubkey(),
         authority: authority.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_all_lit: pda_lit,
         d9_all_const: pda_const,
         d9_all_ctx: pda_ctx,
@@ -1237,12 +1228,12 @@ async fn test_d9_all() {
         .expect("D9All instruction should succeed");
 
     // Verify all 6 accounts exist
-    ctx.assert_onchain_exists(&pda_lit).await;
-    ctx.assert_onchain_exists(&pda_const).await;
-    ctx.assert_onchain_exists(&pda_ctx).await;
-    ctx.assert_onchain_exists(&pda_param).await;
-    ctx.assert_onchain_exists(&pda_bytes).await;
-    ctx.assert_onchain_exists(&pda_func).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda_lit, "pda_lit").await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda_const, "pda_const").await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda_ctx, "pda_ctx").await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda_param, "pda_param").await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda_bytes, "pda_bytes").await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda_func, "pda_func").await;
 
     // Full lifecycle: compression + decompression (6 PDAs, one at a time)
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::{
@@ -1255,12 +1246,12 @@ async fn test_d9_all() {
         .warp_slot_forward(SLOTS_PER_EPOCH * 30)
         .await
         .unwrap();
-    ctx.assert_onchain_closed(&pda_lit).await;
-    ctx.assert_onchain_closed(&pda_const).await;
-    ctx.assert_onchain_closed(&pda_ctx).await;
-    ctx.assert_onchain_closed(&pda_param).await;
-    ctx.assert_onchain_closed(&pda_bytes).await;
-    ctx.assert_onchain_closed(&pda_func).await;
+    shared::assert_onchain_closed(&mut ctx.rpc, &pda_lit, "pda_lit").await;
+    shared::assert_onchain_closed(&mut ctx.rpc, &pda_const, "pda_const").await;
+    shared::assert_onchain_closed(&mut ctx.rpc, &pda_ctx, "pda_ctx").await;
+    shared::assert_onchain_closed(&mut ctx.rpc, &pda_param, "pda_param").await;
+    shared::assert_onchain_closed(&mut ctx.rpc, &pda_bytes, "pda_bytes").await;
+    shared::assert_onchain_closed(&mut ctx.rpc, &pda_func, "pda_func").await;
 
     // Helper to decompress a single account
     async fn decompress_one<S: IntoVariant<LightAccountVariant>>(
@@ -1288,7 +1279,7 @@ async fn test_d9_all() {
             )
             .await
             .unwrap();
-        ctx.assert_onchain_exists(pda).await;
+        shared::assert_onchain_exists(&mut ctx.rpc, pda, "pda").await;
     }
 
     // Decompress all 6 accounts one at a time
@@ -1338,6 +1329,7 @@ async fn test_d8_pda_only_full_lifecycle() {
     let accounts = csdk_anchor_full_derived_test::accounts::D8PdaOnly {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d8_pda_only_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -1365,7 +1357,7 @@ async fn test_d8_pda_only_full_lifecycle() {
         .expect("D8PdaOnly instruction should succeed");
 
     // PHASE 1: Verify account exists on-chain
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 
     // PHASE 2: Warp to trigger auto-compression
     ctx.rpc
@@ -1374,7 +1366,7 @@ async fn test_d8_pda_only_full_lifecycle() {
         .unwrap();
 
     // Verify account is compressed (on-chain closed)
-    ctx.assert_onchain_closed(&pda).await;
+    shared::assert_onchain_closed(&mut ctx.rpc, &pda, "pda").await;
 
     // Derive compressed address
     let address_tree_pubkey = ctx.rpc.get_address_tree_v2().tree;
@@ -1385,7 +1377,7 @@ async fn test_d8_pda_only_full_lifecycle() {
     );
 
     // Verify compressed account exists with data
-    ctx.assert_compressed_exists(compressed_address).await;
+    shared::assert_compressed_exists_with_data(&mut ctx.rpc, compressed_address, "pda").await;
 
     // PHASE 3: Decompress account
     let account_interface = ctx
@@ -1412,7 +1404,7 @@ async fn test_d8_pda_only_full_lifecycle() {
         .expect("Decompression should succeed");
 
     // PHASE 4: Verify account is back on-chain
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 // =============================================================================
@@ -1428,7 +1420,7 @@ async fn test_d5_light_token() {
         D5LightTokenParams, D5_VAULT_AUTH_SEED, D5_VAULT_SEED,
     };
     use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
-    use light_token::instruction::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR};
+    use light_token::instruction::COMPRESSIBLE_CONFIG_V1;
 
     let mut ctx = TestContext::new().await;
 
@@ -1452,7 +1444,7 @@ async fn test_d5_light_token() {
         vault_authority,
         d5_token_vault: vault,
         light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
-        light_token_rent_sponsor: RENT_SPONSOR,
+        light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR_CONST,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         system_program: solana_sdk::system_program::ID,
@@ -1481,7 +1473,7 @@ async fn test_d5_light_token() {
         .expect("D5LightToken instruction should succeed");
 
     // Verify token vault exists
-    ctx.assert_onchain_exists(&vault).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &vault, "vault").await;
 
     // TODO: Test token vault decompression using token variant seeds
 }
@@ -1493,7 +1485,7 @@ async fn test_d5_all_markers() {
         D5AllMarkersParams, D5_ALL_AUTH_SEED, D5_ALL_VAULT_SEED,
     };
     use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
-    use light_token::instruction::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR};
+    use light_token::instruction::COMPRESSIBLE_CONFIG_V1;
 
     let mut ctx = TestContext::new().await;
     let owner = Keypair::new().pubkey();
@@ -1522,11 +1514,12 @@ async fn test_d5_all_markers() {
         fee_payer: ctx.payer.pubkey(),
         mint,
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d5_all_authority,
         d5_all_record,
         d5_all_vault,
         light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
-        light_token_rent_sponsor: RENT_SPONSOR,
+        light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR_CONST,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         system_program: solana_sdk::system_program::ID,
@@ -1555,8 +1548,8 @@ async fn test_d5_all_markers() {
         .expect("D5AllMarkers instruction should succeed");
 
     // Verify both PDA record and token vault exist
-    ctx.assert_onchain_exists(&d5_all_record).await;
-    ctx.assert_onchain_exists(&d5_all_vault).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &d5_all_record, "d5_all_record").await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &d5_all_vault, "d5_all_vault").await;
 
     // Full lifecycle: compression + decompression (PDA only)
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D5AllRecordSeeds;
@@ -1578,7 +1571,7 @@ async fn test_d7_light_token_config() {
     };
     use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
     use light_token::instruction::{
-        COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR,
+        COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR as LIGHT_TOKEN_LIGHT_TOKEN_RENT_SPONSOR_CONST,
     };
 
     let mut ctx = TestContext::new().await;
@@ -1604,7 +1597,7 @@ async fn test_d7_light_token_config() {
         d7_light_token_authority,
         d7_light_token_vault,
         light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
-        light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
+        light_token_rent_sponsor: LIGHT_TOKEN_LIGHT_TOKEN_RENT_SPONSOR_CONST,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         system_program: solana_sdk::system_program::ID,
@@ -1632,7 +1625,7 @@ async fn test_d7_light_token_config() {
         .expect("D7LightTokenConfig instruction should succeed");
 
     // Verify token vault exists
-    ctx.assert_onchain_exists(&d7_light_token_vault).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &d7_light_token_vault, "d7_light_token_vault").await;
 
     // TODO: Test token vault decompression using token variant seeds
 }
@@ -1644,7 +1637,7 @@ async fn test_d7_all_names() {
         D7AllNamesParams, D7_ALL_AUTH_SEED, D7_ALL_VAULT_SEED,
     };
     use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
-    use light_token::instruction::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR};
+    use light_token::instruction::COMPRESSIBLE_CONFIG_V1;
 
     let mut ctx = TestContext::new().await;
     let owner = Keypair::new().pubkey();
@@ -1673,11 +1666,12 @@ async fn test_d7_all_names() {
         payer: ctx.payer.pubkey(),
         mint,
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d7_all_authority,
         d7_all_record,
         d7_all_vault,
         light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
-        rent_sponsor: RENT_SPONSOR,
+        rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR_CONST,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         system_program: solana_sdk::system_program::ID,
@@ -1706,8 +1700,8 @@ async fn test_d7_all_names() {
         .expect("D7AllNames instruction should succeed");
 
     // Verify both PDA record and token vault exist
-    ctx.assert_onchain_exists(&d7_all_record).await;
-    ctx.assert_onchain_exists(&d7_all_vault).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &d7_all_record, "d7_all_record").await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &d7_all_vault, "d7_all_vault").await;
 
     // Full lifecycle: compression + decompression (PDA only)
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D7AllRecordSeeds;
@@ -1746,6 +1740,7 @@ async fn test_d9_qualified_bare() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9QualifiedBare {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_qualified_bare_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -1771,7 +1766,7 @@ async fn test_d9_qualified_bare() {
         .await
         .expect("D9QualifiedBare instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9QualifiedSelf: self:: prefix path qualification
@@ -1800,6 +1795,7 @@ async fn test_d9_qualified_self() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9QualifiedSelf {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_qualified_self_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -1825,7 +1821,7 @@ async fn test_d9_qualified_self() {
         .await
         .expect("D9QualifiedSelf instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9QualifiedCrate: crate:: prefix path qualification
@@ -1854,6 +1850,7 @@ async fn test_d9_qualified_crate() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9QualifiedCrate {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_qualified_crate_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -1879,7 +1876,7 @@ async fn test_d9_qualified_crate() {
         .await
         .expect("D9QualifiedCrate instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9QualifiedDeep: Deeply nested crate path
@@ -1905,6 +1902,7 @@ async fn test_d9_qualified_deep() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9QualifiedDeep {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_qualified_deep_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -1930,7 +1928,7 @@ async fn test_d9_qualified_deep() {
         .await
         .expect("D9QualifiedDeep instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9QualifiedMixed: Mixed qualified and bare paths in same seeds
@@ -1963,6 +1961,7 @@ async fn test_d9_qualified_mixed() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9QualifiedMixed {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_qualified_mixed_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -1989,7 +1988,7 @@ async fn test_d9_qualified_mixed() {
         .await
         .expect("D9QualifiedMixed instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 // =============================================================================
@@ -2021,6 +2020,7 @@ async fn test_d9_method_as_ref() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9MethodAsRef {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_method_as_ref_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -2046,7 +2046,7 @@ async fn test_d9_method_as_ref() {
         .await
         .expect("D9MethodAsRef instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9MethodAsBytes: string_constant.as_bytes()
@@ -2074,6 +2074,7 @@ async fn test_d9_method_as_bytes() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9MethodAsBytes {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_method_as_bytes_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -2099,7 +2100,7 @@ async fn test_d9_method_as_bytes() {
         .await
         .expect("D9MethodAsBytes instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9MethodQualifiedAsBytes: crate::path::CONST.as_bytes()
@@ -2128,6 +2129,7 @@ async fn test_d9_method_qualified_as_bytes() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9MethodQualifiedAsBytes {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_method_qualified_as_bytes_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -2153,7 +2155,7 @@ async fn test_d9_method_qualified_as_bytes() {
         .await
         .expect("D9MethodQualifiedAsBytes instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9MethodToLeBytes: params.field.to_le_bytes().as_ref()
@@ -2181,6 +2183,7 @@ async fn test_d9_method_to_le_bytes() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9MethodToLeBytes {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_method_to_le_bytes_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -2207,7 +2210,7 @@ async fn test_d9_method_to_le_bytes() {
         .await
         .expect("D9MethodToLeBytes instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9MethodToBeBytes: params.field.to_be_bytes().as_ref()
@@ -2235,6 +2238,7 @@ async fn test_d9_method_to_be_bytes() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9MethodToBeBytes {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_method_to_be_bytes_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -2261,7 +2265,7 @@ async fn test_d9_method_to_be_bytes() {
         .await
         .expect("D9MethodToBeBytes instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9MethodMixed: Mixed methods in seeds
@@ -2298,6 +2302,7 @@ async fn test_d9_method_mixed() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9MethodMixed {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_method_mixed_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -2325,7 +2330,7 @@ async fn test_d9_method_mixed() {
         .await
         .expect("D9MethodMixed instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 // =============================================================================
@@ -2355,6 +2360,7 @@ async fn test_d9_bump_literal() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9BumpLiteral {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_bump_lit_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -2380,7 +2386,7 @@ async fn test_d9_bump_literal() {
         .await
         .expect("D9BumpLiteral instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9BumpConstant: Constant seed with bump
@@ -2408,6 +2414,7 @@ async fn test_d9_bump_constant() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9BumpConstant {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_bump_const_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -2433,7 +2440,7 @@ async fn test_d9_bump_constant() {
         .await
         .expect("D9BumpConstant instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9BumpQualified: Qualified path with bump
@@ -2461,6 +2468,7 @@ async fn test_d9_bump_qualified() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9BumpQualified {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_bump_qual_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -2486,7 +2494,7 @@ async fn test_d9_bump_qualified() {
         .await
         .expect("D9BumpQualified instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9BumpParam: Param seed with bump
@@ -2514,6 +2522,7 @@ async fn test_d9_bump_param() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9BumpParam {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_bump_param_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -2540,7 +2549,7 @@ async fn test_d9_bump_param() {
         .await
         .expect("D9BumpParam instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9BumpCtx: Ctx account seed with bump
@@ -2571,6 +2580,7 @@ async fn test_d9_bump_ctx() {
         fee_payer: ctx.payer.pubkey(),
         authority: authority.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_bump_ctx_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -2596,7 +2606,7 @@ async fn test_d9_bump_ctx() {
         .await
         .expect("D9BumpCtx instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9BumpMixed: Multiple seeds with bump
@@ -2634,6 +2644,7 @@ async fn test_d9_bump_mixed() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9BumpMixed {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_bump_mixed_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -2661,7 +2672,7 @@ async fn test_d9_bump_mixed() {
         .await
         .expect("D9BumpMixed instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 // =============================================================================
@@ -2697,6 +2708,7 @@ async fn test_d9_complex_three() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9ComplexThree {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_complex_three_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -2723,7 +2735,7 @@ async fn test_d9_complex_three() {
         .await
         .expect("D9ComplexThree instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9ComplexFour: 4 seeds - version + namespace + param + bytes
@@ -2762,6 +2774,7 @@ async fn test_d9_complex_four() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9ComplexFour {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_complex_four_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -2789,7 +2802,7 @@ async fn test_d9_complex_four() {
         .await
         .expect("D9ComplexFour instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9ComplexFive: 5 seeds with ctx account
@@ -2831,6 +2844,7 @@ async fn test_d9_complex_five() {
         fee_payer: ctx.payer.pubkey(),
         authority: authority.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_complex_five_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -2858,7 +2872,7 @@ async fn test_d9_complex_five() {
         .await
         .expect("D9ComplexFive instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9ComplexQualifiedMix: Qualified paths mixed with local
@@ -2891,6 +2905,7 @@ async fn test_d9_complex_qualified_mix() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9ComplexQualifiedMix {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_complex_qualified_mix_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -2917,7 +2932,7 @@ async fn test_d9_complex_qualified_mix() {
         .await
         .expect("D9ComplexQualifiedMix instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9ComplexFunc: Function call combined with other seeds
@@ -2952,6 +2967,7 @@ async fn test_d9_complex_func() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9ComplexFunc {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_complex_func_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -2980,7 +2996,7 @@ async fn test_d9_complex_func() {
         .await
         .expect("D9ComplexFunc instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9ComplexAllQualified: All paths being fully qualified
@@ -3017,6 +3033,7 @@ async fn test_d9_complex_all_qualified() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9ComplexAllQualified {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_complex_all_qualified_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -3043,7 +3060,7 @@ async fn test_d9_complex_all_qualified() {
         .await
         .expect("D9ComplexAllQualified instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9ComplexProgramId: Program ID as seed
@@ -3073,6 +3090,7 @@ async fn test_d9_complex_program_id() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9ComplexProgramId {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_complex_program_id_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -3099,7 +3117,7 @@ async fn test_d9_complex_program_id() {
         .await
         .expect("D9ComplexProgramId instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9ComplexIdFunc: id() function call as seed
@@ -3129,6 +3147,7 @@ async fn test_d9_complex_id_func() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9ComplexIdFunc {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_complex_id_func_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -3155,7 +3174,7 @@ async fn test_d9_complex_id_func() {
         .await
         .expect("D9ComplexIdFunc instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 // =============================================================================
@@ -3189,6 +3208,7 @@ async fn test_d9_edge_empty() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9EdgeEmpty {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_edge_empty_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -3215,7 +3235,7 @@ async fn test_d9_edge_empty() {
         .await
         .expect("D9EdgeEmpty instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9EdgeSingleByte: Single byte constant
@@ -3243,6 +3263,7 @@ async fn test_d9_edge_single_byte() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9EdgeSingleByte {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_edge_single_byte_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -3268,7 +3289,7 @@ async fn test_d9_edge_single_byte() {
         .await
         .expect("D9EdgeSingleByte instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9EdgeSingleLetter: Single letter constant name
@@ -3294,6 +3315,7 @@ async fn test_d9_edge_single_letter() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9EdgeSingleLetter {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_edge_single_letter_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -3319,7 +3341,7 @@ async fn test_d9_edge_single_letter() {
         .await
         .expect("D9EdgeSingleLetter instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9EdgeDigits: Constant name with digits
@@ -3345,6 +3367,7 @@ async fn test_d9_edge_digits() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9EdgeDigits {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_edge_digits_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -3370,7 +3393,7 @@ async fn test_d9_edge_digits() {
         .await
         .expect("D9EdgeDigits instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9EdgeUnderscore: Leading underscore constant
@@ -3398,6 +3421,7 @@ async fn test_d9_edge_underscore() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9EdgeUnderscore {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_edge_underscore_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -3423,7 +3447,7 @@ async fn test_d9_edge_underscore() {
         .await
         .expect("D9EdgeUnderscore instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9EdgeManyLiterals: Many literals in seeds
@@ -3449,6 +3473,7 @@ async fn test_d9_edge_many_literals() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9EdgeManyLiterals {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_edge_many_literals_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -3474,7 +3499,7 @@ async fn test_d9_edge_many_literals() {
         .await
         .expect("D9EdgeManyLiterals instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9EdgeMixed: Mixed edge cases
@@ -3507,6 +3532,7 @@ async fn test_d9_edge_mixed() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9EdgeMixed {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_edge_mixed_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -3533,7 +3559,7 @@ async fn test_d9_edge_mixed() {
         .await
         .expect("D9EdgeMixed instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 // =============================================================================
@@ -3571,6 +3597,7 @@ async fn test_d9_external_sdk_types() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9ExternalSdkTypes {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_external_sdk_types_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -3597,7 +3624,7 @@ async fn test_d9_external_sdk_types() {
         .await
         .expect("D9ExternalSdkTypes instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9ExternalCtoken: External crate (light_token_types)
@@ -3631,6 +3658,7 @@ async fn test_d9_external_ctoken() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9ExternalCtoken {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_external_ctoken_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -3657,7 +3685,7 @@ async fn test_d9_external_ctoken() {
         .await
         .expect("D9ExternalCtoken instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9ExternalMixed: Multiple external crates mixed
@@ -3691,6 +3719,7 @@ async fn test_d9_external_mixed() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9ExternalMixed {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_external_mixed_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -3717,7 +3746,7 @@ async fn test_d9_external_mixed() {
         .await
         .expect("D9ExternalMixed instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9ExternalWithLocal: External with local constant
@@ -3753,6 +3782,7 @@ async fn test_d9_external_with_local() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9ExternalWithLocal {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_external_with_local_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -3779,7 +3809,7 @@ async fn test_d9_external_with_local() {
         .await
         .expect("D9ExternalWithLocal instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9ExternalBump: External constant with bump
@@ -3809,6 +3839,7 @@ async fn test_d9_external_bump() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9ExternalBump {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_external_bump_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -3835,7 +3866,7 @@ async fn test_d9_external_bump() {
         .await
         .expect("D9ExternalBump instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9ExternalReexport: Re-exported external constant
@@ -3863,6 +3894,7 @@ async fn test_d9_external_reexport() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9ExternalReexport {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_external_reexport_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -3888,7 +3920,7 @@ async fn test_d9_external_reexport() {
         .await
         .expect("D9ExternalReexport instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 // =============================================================================
@@ -3922,6 +3954,7 @@ async fn test_d9_nested_simple() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9NestedSimple {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_nested_simple_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -3948,7 +3981,7 @@ async fn test_d9_nested_simple() {
         .await
         .expect("D9NestedSimple instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9NestedDouble: Double nested struct access
@@ -3979,6 +4012,7 @@ async fn test_d9_nested_double() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9NestedDouble {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_nested_double_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -4008,7 +4042,7 @@ async fn test_d9_nested_double() {
         .await
         .expect("D9NestedDouble instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9NestedArrayField: Nested array field access
@@ -4040,6 +4074,7 @@ async fn test_d9_nested_array_field() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9NestedArrayField {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_nested_array_field_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -4069,7 +4104,7 @@ async fn test_d9_nested_array_field() {
         .await
         .expect("D9NestedArrayField instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9ArrayIndex: Array indexing params.arrays[2].as_slice()
@@ -4100,6 +4135,7 @@ async fn test_d9_array_index() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9ArrayIndex {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_array_index_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -4126,7 +4162,7 @@ async fn test_d9_array_index() {
         .await
         .expect("D9ArrayIndex instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9NestedBytes: Nested struct with bytes conversion
@@ -4157,6 +4193,7 @@ async fn test_d9_nested_bytes() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9NestedBytes {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_nested_bytes_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -4183,7 +4220,7 @@ async fn test_d9_nested_bytes() {
         .await
         .expect("D9NestedBytes instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9NestedCombined: Multiple nested seeds combined
@@ -4217,6 +4254,7 @@ async fn test_d9_nested_combined() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9NestedCombined {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_nested_combined_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -4246,7 +4284,7 @@ async fn test_d9_nested_combined() {
         .await
         .expect("D9NestedCombined instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 // =============================================================================
@@ -4276,6 +4314,7 @@ async fn test_d9_assoc_const() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9AssocConst {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_assoc_const_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -4301,7 +4340,7 @@ async fn test_d9_assoc_const() {
         .await
         .expect("D9AssocConst instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9AssocConstMethod: Associated constant with method
@@ -4330,6 +4369,7 @@ async fn test_d9_assoc_const_method() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9AssocConstMethod {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_assoc_const_method_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -4355,7 +4395,7 @@ async fn test_d9_assoc_const_method() {
         .await
         .expect("D9AssocConstMethod instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9MultiAssocConst: Multiple associated constants
@@ -4388,6 +4428,7 @@ async fn test_d9_multi_assoc_const() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9MultiAssocConst {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_multi_assoc_const_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -4414,7 +4455,7 @@ async fn test_d9_multi_assoc_const() {
         .await
         .expect("D9MultiAssocConst instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9ConstFn: Const fn call
@@ -4440,6 +4481,7 @@ async fn test_d9_const_fn() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9ConstFn {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_const_fn_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -4465,7 +4507,7 @@ async fn test_d9_const_fn() {
         .await
         .expect("D9ConstFn instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9ConstFnGeneric: Const fn with generic
@@ -4494,6 +4536,7 @@ async fn test_d9_const_fn_generic() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9ConstFnGeneric {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_const_fn_generic_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -4519,7 +4562,7 @@ async fn test_d9_const_fn_generic() {
         .await
         .expect("D9ConstFnGeneric instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9TraitAssocConst: Trait associated constant
@@ -4549,6 +4592,7 @@ async fn test_d9_trait_assoc_const() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9TraitAssocConst {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_trait_assoc_const_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -4574,7 +4618,7 @@ async fn test_d9_trait_assoc_const() {
         .await
         .expect("D9TraitAssocConst instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9Static: Static variable
@@ -4600,6 +4644,7 @@ async fn test_d9_static() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9Static {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_static_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -4625,7 +4670,7 @@ async fn test_d9_static() {
         .await
         .expect("D9Static instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9QualifiedConstFn: Qualified const fn
@@ -4653,6 +4698,7 @@ async fn test_d9_qualified_const_fn() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9QualifiedConstFn {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_qualified_const_fn_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -4678,7 +4724,7 @@ async fn test_d9_qualified_const_fn() {
         .await
         .expect("D9QualifiedConstFn instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9FullyQualifiedAssoc: Fully qualified associated constant
@@ -4706,6 +4752,7 @@ async fn test_d9_fully_qualified_assoc() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9FullyQualifiedAssoc {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_fully_qualified_assoc_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -4731,7 +4778,7 @@ async fn test_d9_fully_qualified_assoc() {
         .await
         .expect("D9FullyQualifiedAssoc instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9FullyQualifiedTrait: Fully qualified trait associated constant
@@ -4761,6 +4808,7 @@ async fn test_d9_fully_qualified_trait() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9FullyQualifiedTrait {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_fully_qualified_trait_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -4786,7 +4834,7 @@ async fn test_d9_fully_qualified_trait() {
         .await
         .expect("D9FullyQualifiedTrait instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9FullyQualifiedGeneric: Fully qualified const fn with generic
@@ -4815,6 +4863,7 @@ async fn test_d9_fully_qualified_generic() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9FullyQualifiedGeneric {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_fully_qualified_generic_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -4840,7 +4889,7 @@ async fn test_d9_fully_qualified_generic() {
         .await
         .expect("D9FullyQualifiedGeneric instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }
 
 /// Tests D9ConstCombined: Combined const patterns
@@ -4873,6 +4922,7 @@ async fn test_d9_const_combined() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9ConstCombined {
         fee_payer: ctx.payer.pubkey(),
         compression_config: ctx.config_pda,
+        pda_rent_sponsor: program_rent_sponsor(),
         d9_const_combined_record: pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -4899,5 +4949,5 @@ async fn test_d9_const_combined() {
         .await
         .expect("D9ConstCombined instruction should succeed");
 
-    ctx.assert_onchain_exists(&pda).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
 }

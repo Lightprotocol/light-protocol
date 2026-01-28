@@ -324,6 +324,7 @@ fn test_attribute_macro_decoder_account_names() {
         "vault_authority",
         "user_ata",
         "compression_config",
+        "pda_rent_sponsor",
         "light_token_compressible_config",
         "rent_sponsor",
         "light_token_program",

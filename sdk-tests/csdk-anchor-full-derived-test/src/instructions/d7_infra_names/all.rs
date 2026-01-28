@@ -34,6 +34,10 @@ pub struct D7AllNames<'info> {
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
 
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
+
     #[account(
         seeds = [D7_ALL_AUTH_SEED],
         bump,

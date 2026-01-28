@@ -1,6 +1,19 @@
-# RentFree Derive Macro and Trait Derives
+# LightAccounts Derive Macro and Trait Derives
 
 ## 1. Overview
+
+### 1.0 `#[light_account(...)]` Account Types
+
+The `#[light_account(...)]` attribute supports four account types, each with its own namespace:
+
+| Type | Namespace | Documentation | Description |
+|------|-----------|---------------|-------------|
+| PDA | (none) | [pda.md](pda.md) | Compressed PDAs with address registration |
+| Mint | `mint::` | [mint.md](mint.md) | Compressed mints with optional metadata |
+| Token | `token::` | [token.md](token.md) | PDA-owned token accounts (vaults) |
+| Associated Token | `associated_token::` | [associated_token.md](associated_token.md) | User ATAs for compressed tokens |
+
+### 1.1 Overview
 
 The `#[derive(LightAccounts)]` macro and associated trait derives enable rent-free compressed accounts on Solana with minimal boilerplate. These macros generate code for:
 
@@ -12,26 +25,33 @@ The `#[derive(LightAccounts)]` macro and associated trait derives enable rent-fr
 ### 1.1 Module Structure
 
 ```
-sdk-libs/macros/src/rentfree/
+sdk-libs/macros/src/light_pdas/
 |-- mod.rs                    # Module exports
 |-- shared_utils.rs           # Common utilities (constant detection, identifier extraction)
+|-- light_account_keywords.rs # Keyword validation for #[light_account] parsing
 |
 |-- accounts/                 # #[derive(LightAccounts)] for Accounts structs
 |   |-- mod.rs                # Module entry point
 |   |-- derive.rs             # Orchestration layer
 |   |-- builder.rs            # Code generation builder
-|   |-- parse.rs              # Attribute parsing with darling
+|   |-- parse.rs              # Struct-level parsing and field classification
+|   |-- light_account.rs      # Unified #[light_account] attribute parsing
 |   |-- pda.rs                # PDA block code generation
-|   +-- light_mint.rs         # Mint action CPI generation
+|   |-- mint.rs               # Mint action CPI generation
+|   |-- token.rs              # Token account and ATA CPI generation
+|   +-- variant.rs            # Variant enum generation for light_program
 |
-+-- traits/                   # Trait derive macros for data structs
+|-- account/                  # Trait derive macros for data structs
+|   |-- mod.rs                # Module entry point
+|   |-- light_compressible.rs # LightAccount derive implementation
+|   |-- seed_extraction.rs    # Anchor seed extraction from #[account(...)]
+|   +-- utils.rs              # Shared utilities (field extraction, type checks)
+|
++-- seeds/                    # Simplified seed extraction (3-category system)
     |-- mod.rs                # Module entry point
-    |-- traits.rs             # HasCompressionInfo, Compressible, CompressAs, Size
-    |-- pack_unpack.rs        # Pack/Unpack traits with Packed struct generation
-    |-- light_compressible.rs # Combined LightCompressible derive
-    |-- seed_extraction.rs    # Anchor seed extraction from #[account(...)]
-    |-- decompress_context.rs # Decompression context utilities
-    +-- utils.rs              # Shared utilities (field extraction, type checks)
+    |-- types.rs              # ClassifiedSeed, SeedSource enums
+    |-- extract.rs            # Seed extraction from Anchor attributes
+    +-- classify.rs           # Seed classification logic
 ```
 
 ---
@@ -40,15 +60,15 @@ sdk-libs/macros/src/rentfree/
 
 ### 2.1 Purpose
 
-Generates `LightPreInit` and `LightFinalize` trait implementations for Anchor Accounts structs. These traits enable automatic compression of PDA accounts and mint creation during instruction execution.
+Generates `LightPreInit` and `LightFinalize` trait implementations for Anchor Accounts structs. These traits enable automatic compression of PDA accounts, mint creation, and token account creation during instruction execution.
 
-**Source**: `sdk-libs/macros/src/rentfree/accounts/derive.rs`
+**Source**: `sdk-libs/macros/src/light_pdas/accounts/derive.rs`
 
 ### 2.2 Supported Attributes
 
 #### `#[light_account(init)]` - Mark PDA Fields for Compression
 
-Applied to `Account<'info, T>` or `Box<Account<'info, T>>` fields.
+Applied to `Account<'info, T>`, `Box<Account<'info, T>>`, or `AccountLoader<'info, T>` fields.
 
 ```rust
 #[derive(Accounts, LightAccounts)]
@@ -61,44 +81,140 @@ pub struct CreateAccounts<'info> {
         seeds = [b"user", params.owner.as_ref()],
         bump
     )]
-    #[light_account(init)]  // Uses default address_tree_info and output_tree from params
+    #[light_account(init)]  // Uses address_tree_info and output_tree from CreateAccountsProof
     pub user_record: Account<'info, UserRecord>,
 }
 ```
 
-**Optional arguments**:
-- `address_tree_info` - Expression of type `PackedAddressTreeInfo` containing packed tree indices (default: `params.create_accounts_proof.address_tree_info`). Note: If you have an `AddressTreeInfo` with Pubkeys, you must pack it client-side using `pack_address_tree_info()` before passing to the instruction.
-- `output_tree` - Expression for output tree index (default: `params.create_accounts_proof.output_state_tree_index`)
+**Note**: Tree info is automatically sourced from `CreateAccountsProof` in the instruction parameters. No additional arguments needed.
+
+#### `#[light_account(init, zero_copy)]` - Zero-Copy PDA Fields
+
+For `AccountLoader<'info, T>` fields using Pod (zero-copy) serialization:
 
 ```rust
-#[rentfree(
-    address_tree_info = custom_tree_info,
-    output_tree = custom_output_index
+#[account(
+    init,
+    payer = fee_payer,
+    space = 8 + core::mem::size_of::<ZcRecord>(),
+    seeds = [b"zc_record", params.owner.as_ref()],
+    bump,
 )]
-pub user_record: Account<'info, UserRecord>,
+#[light_account(init, zero_copy)]
+pub zc_record: AccountLoader<'info, ZcRecord>,
 ```
 
-#### `#[light_account(init, mint,...)]` - Mark Mint Fields
+**Requirements**:
+- The `zero_copy` keyword is required for `AccountLoader` fields
+- `AccountLoader` uses Pod serialization which is incompatible with Borsh decompression
+- The data type must implement `bytemuck::Pod` and `bytemuck::Zeroable`
 
-Creates a compressed mint with automatic decompression.
+### 2.3 Namespace Syntax for `#[light_account]`
+
+The `#[light_account]` attribute uses Anchor-style namespace prefixes to specify parameters for different account types.
+
+#### Token Account Parameters (`token::`)
+
+```rust
+#[light_account(init, token,
+    token::authority = [VAULT_SEED, self.offer.key()],  // PDA owner seeds (required)
+    token::mint = token_mint_a,                          // Mint account field (required for init)
+    token::owner = authority,                            // Owner field (required for init)
+    token::bump = params.vault_bump                      // Optional: explicit bump
+)]
+pub vault: UncheckedAccount<'info>,
+```
+
+| Parameter | Description | Required |
+|-----------|-------------|----------|
+| `token::authority` | PDA seeds for the token account owner (array expression) | Yes |
+| `token::mint` | Field reference for the token mint | Yes (init only) |
+| `token::owner` | Field reference for the PDA owner | Yes (init only) |
+| `token::bump` | Explicit bump seed (auto-derived if omitted) | No |
+
+#### Mint Parameters (`mint::`)
 
 ```rust
 #[light_account(init, mint,
-    mint_signer = mint_signer,      // AccountInfo that seeds the mint PDA (required)
-    authority = authority,           // Mint authority (required)
-    decimals = 9,                    // Token decimals (required)
-    mint_seeds = &[b"mint", &[bump]], // PDA signer seeds for mint_signer (required)
-    freeze_authority = freeze_auth,  // Optional freeze authority
-    authority_seeds = &[b"auth", &[auth_bump]], // PDA signer seeds for authority (optional - if not provided, authority must be a tx signer)
-    rent_payment = 2,                // Rent payment epochs (default: 2)
-    write_top_up = 0                 // Write top-up lamports (default: 0)
+    mint::signer = mint_signer,                           // AccountInfo that seeds the mint PDA (required)
+    mint::authority = authority,                          // Mint authority field (required)
+    mint::decimals = params.decimals,                     // Token decimals (required)
+    mint::seeds = &[MINT_SIGNER_SEED, self.authority.key().as_ref()],  // PDA signer seeds (required)
+    mint::bump = params.mint_signer_bump,                 // Optional: explicit bump
+    mint::freeze_authority = freeze_auth,                 // Optional: freeze authority field
+    mint::authority_seeds = &[b"auth", &[auth_bump]],     // Optional: PDA seeds if authority is a PDA
+    mint::authority_bump = params.auth_bump,              // Optional: bump for authority_seeds
+    mint::rent_payment = 16,                              // Optional: rent payment epochs (default: 16)
+    mint::write_top_up = 766,                             // Optional: write top-up lamports (default: 766)
+    mint::name = params.name.clone(),                     // Optional: TokenMetadata name
+    mint::symbol = params.symbol.clone(),                 // Optional: TokenMetadata symbol
+    mint::uri = params.uri.clone(),                       // Optional: TokenMetadata URI
+    mint::update_authority = update_auth,                 // Optional: metadata update authority
+    mint::additional_metadata = params.extra_metadata     // Optional: additional metadata
 )]
-pub mint: Account<'info, Mint>,
+pub cmint: UncheckedAccount<'info>,
 ```
+
+| Parameter | Description | Required |
+|-----------|-------------|----------|
+| `mint::signer` | AccountInfo that seeds the mint PDA | Yes |
+| `mint::authority` | Mint authority field reference | Yes |
+| `mint::decimals` | Token decimals (expression) | Yes |
+| `mint::seeds` | PDA signer seeds for mint_signer (without bump) | Yes |
+| `mint::bump` | Explicit bump for mint_seeds (auto-derived if omitted) | No |
+| `mint::freeze_authority` | Optional freeze authority field | No |
+| `mint::authority_seeds` | PDA seeds if authority is a PDA (without bump) | No |
+| `mint::authority_bump` | Explicit bump for authority_seeds | No |
+| `mint::rent_payment` | Rent payment epochs (default: 16) | No |
+| `mint::write_top_up` | Write top-up lamports (default: 766) | No |
+| `mint::name` | TokenMetadata name | No* |
+| `mint::symbol` | TokenMetadata symbol | No* |
+| `mint::uri` | TokenMetadata URI | No* |
+| `mint::update_authority` | Metadata update authority field | No |
+| `mint::additional_metadata` | Additional metadata key-value pairs | No |
+
+*Note: `name`, `symbol`, and `uri` must all be specified together or none at all.
+
+#### Associated Token Account Parameters (`associated_token::`)
+
+```rust
+#[light_account(init, associated_token,
+    associated_token::authority = owner,  // ATA owner field (required)
+    associated_token::mint = mint,        // ATA mint field (required)
+    associated_token::bump = params.ata_bump  // Optional: explicit bump
+)]
+pub user_ata: UncheckedAccount<'info>,
+```
+
+| Parameter | Description | Required |
+|-----------|-------------|----------|
+| `associated_token::authority` | ATA owner field reference | Yes |
+| `associated_token::mint` | ATA mint field reference | Yes |
+| `associated_token::bump` | Explicit bump (auto-derived if omitted) | No |
+
+### 2.4 Mark-Only Mode
+
+For token accounts and ATAs that are NOT being initialized (just marked for light_program discovery), omit `init`:
+
+```rust
+// Mark-only token - requires authority for seed derivation
+#[light_account(token::authority = [VAULT_SEED, self.offer.key()])]
+pub existing_vault: Account<'info, CToken>,
+
+// Mark-only ATA - requires authority and mint for ATA derivation
+#[light_account(associated_token::authority = owner, associated_token::mint = mint)]
+pub existing_ata: Account<'info, CToken>,
+```
+
+Mark-only mode:
+- Returns `None` from parsing (skipped by LightAccounts derive)
+- Processed by `#[light_program]` for decompress/compress instruction generation
+- Token: requires `token::authority`, forbids `token::mint` and `token::owner`
+- ATA: requires both `associated_token::authority` and `associated_token::mint`
 
 #### `#[instruction(...)]` - Specify Instruction Parameters (Required)
 
-Must be present on the struct when using `#[light_account(init)]` or `#[light_account(init)]`.
+Must be present on the struct when using `#[light_account(init)]`.
 
 ```rust
 #[derive(Accounts, LightAccounts)]
@@ -106,7 +222,7 @@ Must be present on the struct when using `#[light_account(init)]` or `#[light_ac
 pub struct CreateAccounts<'info> { ... }
 ```
 
-### 2.3 Infrastructure Field Detection
+### 2.5 Infrastructure Field Detection
 
 Infrastructure fields are auto-detected by naming convention. No attribute required.
 
@@ -114,44 +230,47 @@ Infrastructure fields are auto-detected by naming convention. No attribute requi
 |------------|----------------|
 | Fee Payer | `fee_payer`, `payer`, `creator` |
 | Compression Config | `compression_config` |
-| CToken Config | `light_token_compressible_config`, `ctoken_config`, `light_token_config_account` |
-| CToken Rent Sponsor | `ctoken_rent_sponsor`, `light_token_rent_sponsor` |
-| CToken Program | `ctoken_program`, `light_token_program` |
-| CToken CPI Authority | `light_token_cpi_authority`, `light_token_program_cpi_authority`, `compress_token_program_cpi_authority` |
+| PDA Rent Sponsor | `pda_rent_sponsor`, `compression_rent_sponsor` |
+| Light Token Config | `light_token_compressible_config` |
+| Light Token Rent Sponsor | `light_token_rent_sponsor`, `rent_sponsor` |
+| Light Token Program | `light_token_program` |
+| Light Token CPI Authority | `light_token_cpi_authority` |
 
-**Source**: `sdk-libs/macros/src/rentfree/accounts/parse.rs` (lines 30-53)
+**Source**: `sdk-libs/macros/src/light_pdas/accounts/parse.rs`
 
-### 2.4 Code Generation Flow
+### 2.6 Code Generation Flow
 
 ```
 1. Parse
-   |-- parse_rentfree_struct() extracts:
+   |-- parse_light_accounts_struct() extracts:
    |   - Struct name and generics
-   |   - #[light_account(init)] fields -> RentFreeField
-   |   - #[light_account(init)] fields -> LightMintField
+   |   - #[light_account(init)] fields -> PdaField (with zero_copy flag)
+   |   - #[light_account(init, mint, ...)] fields -> LightMintField
+   |   - #[light_account(init, token, ...)] fields -> TokenAccountField
+   |   - #[light_account(init, associated_token, ...)] fields -> AtaField
    |   - #[instruction] args
    |   - Infrastructure fields by naming convention
    |
 2. Validate
    |-- Total fields <= 255 (u8 index limit)
-   |-- #[instruction] required when #[light_account(init)] or #[light_account(init)] present
+   |-- #[instruction] required when #[light_account] present
+   |-- AccountLoader requires zero_copy keyword
+   |-- Non-AccountLoader forbids zero_copy keyword
    |
 3. Generate pre_init Body
-   |-- PDAs + Mints: generate_pre_init_pdas_and_mints()
-   |   - Write PDAs to CPI context
-   |   - Invoke mint_action with decompress + CPI context
-   |-- Mints only: generate_pre_init_mints_only()
-   |-- PDAs only: generate_pre_init_pdas_only()
-   |-- Neither: Ok(false)
+   |-- Token accounts + ATAs: generate in pre_init (before instruction logic)
+   |-- PDAs + Mints: generate compression CPI code
+   |   - Zero-copy PDAs use different serialization path
+   |   - Borsh PDAs use standard compression
    |
 4. Wrap in Trait Impls
    |-- LightPreInit<'info, ParamsType>
    +-- LightFinalize<'info, ParamsType>
 ```
 
-**Source**: `sdk-libs/macros/src/rentfree/accounts/derive.rs`
+**Source**: `sdk-libs/macros/src/light_pdas/accounts/derive.rs`
 
-### 2.5 Generated Code Example
+### 2.7 Generated Code Example
 
 **Input**:
 
@@ -243,349 +362,202 @@ impl<'info> light_sdk::compressible::LightFinalize<'info, CreateParams> for Crea
 
 ---
 
-## 3. Trait Derives (traits/)
+## 3. Program Variants
 
-### 3.0 Trait Composition Overview
+The `#[derive(LightAccounts)]` macro supports five program variants based on the types of light_account fields present:
 
-The following diagram shows how the derive macros compose together to enable rent-free compressed accounts:
+| Variant | Description | Fields |
+|---------|-------------|--------|
+| **PDA-only** | Only PDA fields with `#[light_account(init)]` | PDAs |
+| **Token-only** | Only token account fields | `token::` |
+| **Mint-only** | Only mint fields | `mint::` |
+| **ATA-only** | Only associated token account fields | `associated_token::` |
+| **Mixed** | Combination of any above | Multiple types |
 
-```
-                            ACCOUNT STRUCT LEVEL
-                            ====================
+Each variant generates appropriate code for the specific account types present.
 
-                        +--------------------+
-                        | #[derive(LightAccounts)]|  <-- Applied to Anchor Accounts struct
-                        +--------------------+
-                                 |
-                                 | generates
-                                 v
-                   +---------------------------+
-                   | LightPreInit + LightFinalize |
-                   +---------------------------+
-                                 |
-                                 | uses traits from
-                                 v
-                            DATA STRUCT LEVEL
-                            =================
+---
 
-+-------------------------------------------------------------------------+
-|                      #[derive(LightCompressible)]                       |
-|                   (convenience macro - expands to all below)            |
-+-------------------------------------------------------------------------+
-         |                    |                    |                    |
-         | expands to         | expands to         | expands to         | expands to
-         v                    v                    v                    v
-+----------------+   +------------------+   +--------------+   +-----------------+
-| LightHasherSha |   | LightDiscriminator|   | Compressible |   | CompressiblePack|
-+----------------+   +------------------+   +--------------+   +-----------------+
-         |                    |                    |                    |
-         | generates          | generates          | generates          | generates
-         v                    v                    v                    v
-+----------------+   +------------------+   +--------------+   +-----------------+
-| - DataHasher   |   | - LightDiscriminator|  | (see below)|   | - Pack          |
-| - ToByteArray  |   |   (8-byte unique ID) |  |            |   | - Unpack        |
-+----------------+   +------------------+   +--------------+   | - Packed{Name}  |
-                                                   |           |   struct         |
-                                                   v           +-----------------+
-                                    +-----------------------------+
-                                    |        Compressible         |
-                                    |    (combined derive macro)  |
-                                    +-----------------------------+
-                                       |      |       |       |
-                                       v      v       v       v
-                            +------------------+  +------------------+
-                            | HasCompressionInfo|  |    CompressAs   |
-                            +------------------+  +------------------+
-                            | - compression_info()| | - compress_as() |
-                            | - compression_info_mut()| Creates compressed |
-                            | - set_compression_info_none()| representation|
-                            +------------------+  +------------------+
-                                       |                   |
-                                       v                   v
-                            +------------------+  +------------------+
-                            |       Size       |  | CompressedInitSpace|
-                            +------------------+  +------------------+
-                            | - size()         |  | - INIT_SPACE     |
-                            | Serialized size  |  | Compressed account|
-                            +------------------+  +------------------+
+## 3.1 Direct Proof Argument Support
 
-
-                          RELATIONSHIP SUMMARY
-                          ====================
-
-    +-------------------------------------------------------------------+
-    |                     USER'S PROGRAM CODE                           |
-    +-------------------------------------------------------------------+
-    |                                                                   |
-    |  // Data struct - apply LightCompressible                         |
-    |  #[derive(LightCompressible)]                                     |
-    |  #[account]                                                       |
-    |  pub struct UserRecord {                                          |
-    |      pub owner: Pubkey,                                           |
-    |      pub score: u64,                                              |
-    |      pub compression_info: Option<CompressionInfo>,  <-- Required |
-    |  }                                                                |
-    |                                                                   |
-    |  // Accounts struct - apply RentFree                              |
-    |  #[derive(Accounts, LightAccounts)]                                    |
-    |  #[instruction(params: CreateParams)]                             |
-    |  pub struct Create<'info> {                                       |
-    |      #[account(init, ...)]                                        |
-    |      #[light_account(init)]                       <-- Marks for compression  |
-    |      pub user_record: Account<'info, UserRecord>,                 |
-    |  }                                                                |
-    |                                                                   |
-    +-------------------------------------------------------------------+
-                                    |
-                                    | At runtime, RentFree uses traits from
-                                    | LightCompressible to:
-                                    v
-    +-------------------------------------------------------------------+
-    | 1. Hash account data (DataHasher, ToByteArray)                    |
-    | 2. Get discriminator (LightDiscriminator)                         |
-    | 3. Create compressed representation (CompressAs)                  |
-    | 4. Calculate sizes (Size, CompressedInitSpace)                    |
-    | 5. Pack Pubkeys to indices (Pack, Unpack)                         |
-    | 6. Access compression info (HasCompressionInfo)                   |
-    +-------------------------------------------------------------------+
-```
-
-### 3.1 HasCompressionInfo
-
-Provides accessors for the `compression_info` field.
-
-**Source**: `sdk-libs/macros/src/rentfree/traits/traits.rs` (lines 69-88)
-
-**Requirements**: Struct must have `compression_info: Option<CompressionInfo>` field.
-
-**Generated methods**:
-- `compression_info(&self) -> &CompressionInfo`
-- `compression_info_mut(&mut self) -> &mut CompressionInfo`
-- `compression_info_mut_opt(&mut self) -> &mut Option<CompressionInfo>`
-- `set_compression_info_none(&mut self)`
-
-### 3.2 Compressible
-
-Combined derive that generates:
-- `HasCompressionInfo` - Accessor for compression_info field
-- `CompressAs` - Creates compressed representation
-- `Size` - Calculates serialized size
-- `CompressedInitSpace` - INIT_SPACE for compressed accounts
-
-**Source**: `sdk-libs/macros/src/rentfree/traits/traits.rs` (lines 233-272)
-
-**Optional attribute** `#[compress_as(field = expr, ...)]`:
-- Override field values in compressed representation
-- Useful for zeroing out fields that shouldn't be hashed
+By default, the macro expects `CreateAccountsProof` to be nested inside a params struct:
 
 ```rust
-#[derive(Compressible)]
-#[compress_as(start_time = 0, cached_value = 0)]
-pub struct GameSession {
-    pub session_id: u64,
-    pub player: Pubkey,
-    pub start_time: u64,      // Will be 0 in compressed form
-    pub cached_value: u64,    // Will be 0 in compressed form
-    pub compression_info: Option<CompressionInfo>,
-}
+#[instruction(params: CreateParams)]  // params.create_accounts_proof
 ```
 
-**Auto-skipped fields**:
-- `compression_info` (always handled specially)
-- Fields with `#[skip]` attribute
-
-#### `#[skip]` - Exclude Fields from Compression
-
-Mark fields to exclude from `CompressAs` and `Size` calculations:
+You can also pass `CreateAccountsProof` directly as an instruction argument:
 
 ```rust
-#[derive(Compressible)]
-pub struct CachedData {
-    pub id: u64,
-    #[skip]  // Not included in compressed representation
-    pub cached_timestamp: u64,
-    pub compression_info: Option<CompressionInfo>,
-}
+#[instruction(proof: CreateAccountsProof)]
 ```
 
-### 3.3 Pack/Unpack (CompressiblePack)
+When `CreateAccountsProof` is detected as a direct instruction argument, the generated code automatically uses the correct field access (e.g., `proof.address_tree_info` instead of `params.create_accounts_proof.address_tree_info`).
 
-Generates `Pack` and `Unpack` traits with a `Packed{StructName}` struct where direct Pubkey fields are compressed to u8 indices.
+---
 
-**Source**: `sdk-libs/macros/src/rentfree/traits/pack_unpack.rs`
+## 3.2 Infrastructure Requirements Summary
 
-**Limitation**: Only direct `Pubkey` fields are converted to `u8` indices. `Option<Pubkey>` fields are **NOT** converted - they remain as `Option<Pubkey>` in the packed struct. This is because `Option<Pubkey>` can be `None`, which doesn't map cleanly to an index.
+The macro auto-detects infrastructure fields by naming convention. No attribute required.
 
-**Input**:
-```rust
-#[derive(CompressiblePack)]
-pub struct UserRecord {
-    pub owner: Pubkey,
-    pub authority: Pubkey,
-    pub score: u64,
-    pub compression_info: Option<CompressionInfo>,
-}
+### For PDAs
+
+| Field Type | Accepted Names |
+|------------|----------------|
+| Fee Payer | `fee_payer`, `payer`, `creator` |
+| Compression Config | `compression_config` |
+| PDA Rent Sponsor | `pda_rent_sponsor`, `compression_rent_sponsor` |
+
+### For Mints, Tokens, ATAs
+
+| Field Type | Accepted Names |
+|------------|----------------|
+| Fee Payer | `fee_payer`, `payer`, `creator` |
+| Light Token Config | `light_token_compressible_config` |
+| Light Token Rent Sponsor | `light_token_rent_sponsor`, `rent_sponsor` |
+| Light Token Program | `light_token_program` |
+| Light Token CPI Authority | `light_token_cpi_authority` |
+
+---
+
+## 3.3 Validation Rules Summary
+
+The macro validates at compile time:
+
+### PDA Fields
+- `init` is required
+- `zero_copy` is required for `AccountLoader` fields
+- `zero_copy` is forbidden for non-`AccountLoader` fields
+- No additional namespace parameters allowed (tree info auto-fetched)
+
+### Token Fields
+- `token::authority` is always required
+- For init mode: `token::mint` and `token::owner` are required
+- For mark-only mode: `token::mint` and `token::owner` are NOT allowed
+
+### Associated Token Fields
+- `associated_token::authority` and `associated_token::mint` are always required
+
+### Mint Fields
+- `mint::signer`, `mint::authority`, `mint::decimals`, `mint::seeds` are required
+- TokenMetadata fields (`name`, `symbol`, `uri`) must all be specified together
+- `update_authority` and `additional_metadata` require core metadata fields
+
+### Namespace Validation
+- Parameters must use the correct namespace for the account type
+- Mixing namespaces (e.g., `token::authority` with `associated_token::mint`) causes a compile error
+- Duplicate keys within the same attribute cause a compile error
+
+---
+
+## 4. Data Struct Derives (account/)
+
+The `#[derive(LightAccount)]` macro generates all traits needed for compressible account data structs.
+
+See **`../account/architecture.md`** for detailed documentation.
+
+### Quick Reference
+
+```
+#[derive(LightAccounts)]              <- Accounts struct (this file)
+    |
+    +-- Generates LightPreInit + LightFinalize impls
+    |
+    +-- Uses traits from data struct derives:
+        |
+        +-- #[derive(LightAccount)]   <- Data struct (account/architecture.md)
+            |
+            +-- DataHasher + ToByteArray (SHA256 hashing)
+            +-- LightDiscriminator (8-byte unique ID)
+            +-- Pack + Unpack + Packed{Name} struct
+            +-- compression_info accessors
 ```
 
-**Generated**:
+### Usage
+
 ```rust
-#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
-pub struct PackedUserRecord {
-    pub owner: u8,           // Pubkey -> u8 index
-    pub authority: u8,       // Pubkey -> u8 index
-    pub score: u64,          // Non-Pubkey unchanged
-    pub compression_info: Option<CompressionInfo>,
-}
-
-impl Pack for UserRecord {
-    type Packed = PackedUserRecord;
-    fn pack(&self, remaining_accounts: &mut PackedAccounts) -> Self::Packed {
-        PackedUserRecord {
-            owner: remaining_accounts.insert_or_get(self.owner),
-            authority: remaining_accounts.insert_or_get(self.authority),
-            score: self.score,
-            compression_info: None,
-        }
-    }
-}
-
-impl Unpack for PackedUserRecord {
-    type Unpacked = UserRecord;
-    fn unpack(&self, remaining_accounts: &[AccountInfo]) -> Result<Self::Unpacked, ProgramError> {
-        Ok(UserRecord {
-            owner: *remaining_accounts[self.owner as usize].key,
-            authority: *remaining_accounts[self.authority as usize].key,
-            score: self.score,
-            compression_info: None,
-        })
-    }
-}
-```
-
-**No Pubkey fields**: If struct has no Pubkey fields, generates identity implementations:
-```rust
-pub type PackedUserRecord = UserRecord;  // Type alias
-// Pack::pack returns self.clone()
-// Unpack::unpack returns self.clone()
-```
-
-### 3.4 LightCompressible
-
-Convenience derive that combines all traits needed for a compressible account.
-
-**Source**: `sdk-libs/macros/src/rentfree/traits/light_compressible.rs`
-
-**Equivalent to**:
-```rust
-#[derive(LightHasherSha, LightDiscriminator, Compressible, CompressiblePack)]
-```
-
-**Generated traits**:
-- `DataHasher` + `ToByteArray` (SHA256 hashing via LightHasherSha)
-- `LightDiscriminator` (unique 8-byte discriminator)
-- `HasCompressionInfo` + `CompressAs` + `Size` + `CompressedInitSpace` (via Compressible)
-- `Pack` + `Unpack` + `Packed{Name}` struct (via CompressiblePack)
-
-**Usage**:
-```rust
-#[derive(Default, Debug, InitSpace, LightCompressible)]
+// Data struct - apply LightAccount
+#[derive(LightAccount, LightDiscriminator, LightHasherSha)]
 #[account]
 pub struct UserRecord {
+    pub compression_info: CompressionInfo,  // Required, first or last field
     pub owner: Pubkey,
-    #[max_len(32)]
-    pub name: String,
     pub score: u64,
-    pub compression_info: Option<CompressionInfo>,
+}
+
+// Accounts struct - apply LightAccounts
+#[derive(Accounts, LightAccounts)]
+#[instruction(params: CreateParams)]
+pub struct Create<'info> {
+    #[account(init, ...)]
+    #[light_account(init)]
+    pub user_record: Account<'info, UserRecord>,
 }
 ```
 
-**Notes**:
-- `compression_info` field is auto-detected and handled specially (no `#[skip]` needed)
-- SHA256 hashes the entire struct via borsh serialization, so no `#[hash]` attributes needed
-- **Important**: `compression_info` IS included in the hash. Set it to `None` before hashing for consistent results.
-
 ---
 
-## 4. Source Code Structure
+## 5. Source Code Structure
 
 ```
-sdk-libs/macros/src/rentfree/
+sdk-libs/macros/src/light_pdas/
 |
-|-- mod.rs
-|   Purpose: Module exports for rentfree macro system
+|-- mod.rs                  Module exports
+|-- shared_utils.rs         Common utilities (MetaExpr, type helpers)
+|-- light_account_keywords.rs  Keyword validation for #[light_account]
 |
-|-- shared_utils.rs
-|   Purpose: Common utilities shared across modules
-|   Types:
-|   - MetaExpr - darling wrapper for parsing Expr from attributes
-|   Functions:
-|   - qualify_type_with_crate(ty: &Type) -> Type - ensures crate:: prefix
-|   - make_packed_type(ty: &Type) -> Option<Type> - creates Packed{Type} path
-|   - make_packed_variant_name(variant_name: &Ident) -> Ident
-|   - ident_to_type(ident: &Ident) -> Type
-|   - is_constant_identifier(ident: &str) -> bool
-|   - extract_terminal_ident(expr: &Expr, key_method_only: bool) -> Option<Ident>
-|   - is_base_path(expr: &Expr, base: &str) -> bool
+|-- accounts/               #[derive(LightAccounts)] for ACCOUNTS structs
+|   |-- mod.rs              Entry point, exports derive_light_accounts()
+|   |-- derive.rs           Orchestration: parse -> validate -> generate
+|   |-- builder.rs          LightAccountsBuilder for code generation
+|   |-- parse.rs            Struct-level parsing and field classification
+|   |-- light_account.rs    #[light_account] attribute parsing
+|   |-- pda.rs              PDA compression block generation
+|   |-- mint.rs             Mint action CPI generation
+|   |-- token.rs            Token account and ATA CPI generation
+|   +-- variant.rs          Variant enum generation for light_program
 |
-|-- accounts/
-|   |-- mod.rs           Entry point, exports derive_rentfree()
-|   |-- derive.rs        Orchestration: parse -> validate -> generate
-|   |-- builder.rs       RentFreeBuilder for code generation
-|   |-- parse.rs         Attribute parsing with darling
-|   |   - ParsedRentFreeStruct
-|   |   - RentFreeField (#[light_account(init)] data)
-|   |   - InfraFields (auto-detected infrastructure)
-|   |   - InfraFieldClassifier (naming convention matching)
-|   |-- pda.rs           PDA compression block generation
-|   |   - PdaBlockBuilder
-|   |   - generate_pda_compress_blocks()
-|   +-- light_mint.rs    Mint action CPI generation
-|       - LightMintField (#[light_account(init)] data)
-|       - InfraRefs - resolved infrastructure field references
-|       - LightMintBuilder - builder pattern for mint CPI generation
-|       - CpiContextParts - encapsulates CPI context branching logic
-|
-+-- traits/
++-- account/                #[derive(LightAccount)] for DATA structs
     |-- mod.rs              Entry point for trait derives
-    |-- traits.rs           Core traits
-    |   - derive_has_compression_info()
-    |   - derive_compress_as()
-    |   - derive_compressible() [combined]
-    |-- pack_unpack.rs      Pack/Unpack trait generation
-    |   - derive_compressible_pack()
-    |-- light_compressible.rs  Combined derive
-    |   - derive_rentfree_account() [LightCompressible]
+    |-- light_compressible.rs  LightAccount derive implementation
     |-- seed_extraction.rs  Anchor seed parsing
-    |   - ClassifiedSeed enum
-    |   - ExtractedSeedSpec, ExtractedTokenSpec
-    |   - extract_anchor_seeds()
-    |   - extract_account_inner_type()
-    |-- decompress_context.rs  Decompression utilities
     +-- utils.rs            Shared utilities
-        - extract_fields_from_derive_input()
-        - is_copy_type(), is_pubkey_type()
 ```
 
 ---
 
-## 5. Limitations
+## 6. Limitations
 
 ### Field Limits
-- **Maximum 255 fields**: Total `#[light_account(init)]` + `#[light_account(init)]` fields must be <= 255 (u8 index limit)
-- **Single mint field**: Currently only the first `#[light_account(init)]` field is processed
+- **Maximum 255 fields**: Total `#[light_account]` fields must be <= 255 (u8 index limit)
+- **Single instruction param**: Only one `#[instruction(param: Type)]` is supported
 
 ### Type Restrictions
-- `#[light_account(init)]` only applies to `Account<'info, T>` or `Box<Account<'info, T>>` fields
+- `#[light_account(init)]` applies to `Account<'info, T>`, `Box<Account<'info, T>>`, or `AccountLoader<'info, T>` fields
 - Nested `Box<Box<Account<...>>>` is not supported
-- `#[light_account(init)]` and `#[light_account(init)]` are mutually exclusive on the same field
+- `AccountLoader` requires `zero_copy` keyword; `Account` forbids it
+
+### Zero-Copy Constraints
+- Zero-copy accounts use Pod serialization, incompatible with Borsh decompression
+- Data types must implement `bytemuck::Pod` and `bytemuck::Zeroable`
+- Zero-copy is for performance-critical accounts with fixed layouts
 
 ### No-op Fallback
 When no `#[instruction]` attribute is present, the macro generates no-op implementations for backwards compatibility with non-compressible Accounts structs.
 
 ---
 
-## 6. Related Documentation
+## 7. Related Documentation
 
-- **`sdk-libs/macros/docs/light_program/`** - Program-level `#[light_program]` attribute macro (architecture.md + codegen.md)
-- **`sdk-libs/macros/README.md`** - Package overview
+### Account Type Documentation
+
+- **`pda.md`** - Compressed PDA creation with `#[light_account(init)]`
+- **`mint.md`** - Compressed mint creation with `#[light_account(init, mint::...)]`
+- **`token.md`** - Token account creation with `#[light_account(init, token::...)]`
+- **`associated_token.md`** - ATA creation with `#[light_account(init, associated_token::...)]`
+
+### Other References
+
+- **`../light_program/`** - Program-level `#[light_program]` attribute macro (architecture.md + codegen.md)
+- **`../../README.md`** - Package overview
 - **`sdk-libs/sdk/`** - Runtime SDK with `LightPreInit`, `LightFinalize` trait definitions

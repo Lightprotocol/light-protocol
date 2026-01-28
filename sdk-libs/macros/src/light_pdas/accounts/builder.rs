@@ -10,7 +10,7 @@ use syn::DeriveInput;
 use super::{
     mint::{InfraRefs, LightMintsBuilder},
     parse::{InfraFieldType, ParsedLightAccountsStruct},
-    pda::generate_pda_compress_blocks,
+    pda::{generate_pda_compress_blocks, generate_rent_reimbursement_block},
     token::TokenAccountsBuilder,
 };
 
@@ -145,9 +145,14 @@ impl LightAccountsBuilder {
             missing.push(InfraFieldType::FeePayer);
         }
 
-        // PDAs require compression_config
-        if has_pdas && self.parsed.infra_fields.compression_config.is_none() {
-            missing.push(InfraFieldType::CompressionConfig);
+        // PDAs require compression_config and pda_rent_sponsor
+        if has_pdas {
+            if self.parsed.infra_fields.compression_config.is_none() {
+                missing.push(InfraFieldType::CompressionConfig);
+            }
+            if self.parsed.infra_fields.pda_rent_sponsor.is_none() {
+                missing.push(InfraFieldType::PdaRentSponsor);
+            }
         }
 
         // Mints, token accounts, and ATAs require light_token infrastructure
@@ -367,6 +372,8 @@ impl LightAccountsBuilder {
     /// Generate PDAs + mints body WITHOUT the Ok(true) return.
     fn generate_pre_init_pdas_and_mints_body(&self) -> Result<TokenStream, syn::Error> {
         let compress_blocks = generate_pda_compress_blocks(&self.parsed.rentfree_fields);
+        let rent_reimbursement =
+            generate_rent_reimbursement_block(&self.parsed.rentfree_fields, &self.infra);
         let rentfree_count = self.parsed.rentfree_fields.len() as u8;
         let pda_count = self.parsed.rentfree_fields.len();
 
@@ -398,6 +405,9 @@ impl LightAccountsBuilder {
             let mut all_compressed_infos = Vec::with_capacity(#rentfree_count as usize);
             #(#compress_blocks)*
 
+            // Reimburse fee payer for rent paid during PDA creation
+            #rent_reimbursement
+
             light_token::compressible::invoke_write_pdas_to_cpi_context(
                 crate::LIGHT_CPI_SIGNER,
                 #proof_access.proof.clone(),
@@ -413,6 +423,8 @@ impl LightAccountsBuilder {
     /// Generate PDAs-only body WITHOUT the Ok(true) return.
     fn generate_pre_init_pdas_only_body(&self) -> Result<TokenStream, syn::Error> {
         let compress_blocks = generate_pda_compress_blocks(&self.parsed.rentfree_fields);
+        let rent_reimbursement =
+            generate_rent_reimbursement_block(&self.parsed.rentfree_fields, &self.infra);
         let rentfree_count = self.parsed.rentfree_fields.len() as u8;
 
         // Get proof access expression (direct arg or nested in params)
@@ -437,6 +449,9 @@ impl LightAccountsBuilder {
             let mut all_new_address_params = Vec::with_capacity(#rentfree_count as usize);
             let mut all_compressed_infos = Vec::with_capacity(#rentfree_count as usize);
             #(#compress_blocks)*
+
+            // Reimburse fee payer for rent paid during PDA creation
+            #rent_reimbursement
 
             light_sdk::cpi::v2::LightSystemProgramCpi::new_cpi(
                 crate::LIGHT_CPI_SIGNER,

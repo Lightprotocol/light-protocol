@@ -344,7 +344,7 @@ pub fn light_account_derive(input: TokenStream) -> TokenStream {
 
 /// Derives a Rent Sponsor PDA for a program at compile time.
 ///
-/// Seeds: ["rent_sponsor", <u16 version little-endian>]
+/// Seeds: ["rent_sponsor"]
 ///
 /// ## Example
 ///
@@ -352,7 +352,7 @@ pub fn light_account_derive(input: TokenStream) -> TokenStream {
 /// use light_sdk_macros::derive_light_rent_sponsor_pda;
 ///
 /// pub const RENT_SPONSOR_DATA: ([u8; 32], u8) =
-///     derive_light_rent_sponsor_pda!("8Ld9pGkCNfU6A7KdKe1YrTNYJWKMCFqVHqmUvjNmER7B", 1);
+///     derive_light_rent_sponsor_pda!("8Ld9pGkCNfU6A7KdKe1YrTNYJWKMCFqVHqmUvjNmER7B");
 /// ```
 #[proc_macro]
 pub fn derive_light_rent_sponsor_pda(input: TokenStream) -> TokenStream {
@@ -361,7 +361,7 @@ pub fn derive_light_rent_sponsor_pda(input: TokenStream) -> TokenStream {
 
 /// Derives a complete Rent Sponsor configuration for a program at compile time.
 ///
-/// Returns ::light_sdk_types::RentSponsor { program_id, rent_sponsor, bump, version }.
+/// Returns ::light_sdk_types::RentSponsor { program_id, rent_sponsor, bump }.
 ///
 /// ## Example
 ///
@@ -369,7 +369,7 @@ pub fn derive_light_rent_sponsor_pda(input: TokenStream) -> TokenStream {
 /// use light_sdk_macros::derive_light_rent_sponsor;
 ///
 /// pub const RENT_SPONSOR: ::light_sdk_types::RentSponsor =
-///     derive_light_rent_sponsor!("8Ld9pGkCNfU6A7KdKe1YrTNYJWKMCFqVHqmUvjNmER7B", 1);
+///     derive_light_rent_sponsor!("8Ld9pGkCNfU6A7KdKe1YrTNYJWKMCFqVHqmUvjNmER7B");
 /// ```
 #[proc_macro]
 pub fn derive_light_rent_sponsor(input: TokenStream) -> TokenStream {
