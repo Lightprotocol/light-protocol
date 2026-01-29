@@ -10,9 +10,11 @@ use solana_account_info::AccountInfo;
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-use super::traits::{LightAccount, LightAccountVariantTrait, PackedLightAccountVariantTrait};
 use crate::{
-    interface::{create_pda_account, DecompressCtx},
+    interface::{
+        create_pda_account, DecompressCtx, LightAccount, LightAccountVariantTrait,
+        PackedLightAccountVariantTrait,
+    },
     LightDiscriminator,
 };
 

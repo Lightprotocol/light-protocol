@@ -10,28 +10,8 @@ use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
 use solana_sysvar::Sysvar;
 
-// Only available off-chain (client-side) - PackedAccounts contains sorting code
-#[cfg(not(target_os = "solana"))]
-use crate::instruction::PackedAccounts;
+use super::pack::Unpack;
 use crate::{AnchorDeserialize, AnchorSerialize, ProgramError};
-
-/// Replace 32-byte Pubkeys with 1-byte indices to save space.
-/// If your type has no Pubkeys, just return self.
-#[cfg(not(target_os = "solana"))]
-pub trait Pack {
-    type Packed: AnchorSerialize + Clone + std::fmt::Debug;
-
-    fn pack(&self, remaining_accounts: &mut PackedAccounts) -> Result<Self::Packed, ProgramError>;
-}
-
-pub trait Unpack {
-    type Unpacked;
-
-    fn unpack(
-        &self,
-        remaining_accounts: &[AccountInfo],
-    ) -> Result<Self::Unpacked, crate::ProgramError>;
-}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
 #[repr(u8)]
