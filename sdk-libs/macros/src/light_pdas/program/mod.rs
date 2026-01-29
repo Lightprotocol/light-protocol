@@ -6,7 +6,6 @@
 //! - Generates all necessary types, enums, and instruction handlers
 
 mod compress;
-pub mod crate_context;
 mod decompress;
 pub mod expr_traversal;
 pub mod instructions;

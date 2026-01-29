@@ -151,7 +151,6 @@ impl DecompressBuilder {
                 }
             }
 
-            #[cfg(feature = "idl-build")]
             impl<'info> DecompressAccountsIdempotent<'info> {
                 pub fn __anchor_private_gen_idl_accounts(
                     _accounts: &mut std::collections::BTreeMap<

@@ -6,6 +6,13 @@
 //! - **Extraction**: `extract_seed_specs()` for parsing Accounts structs
 //! - **Anchor**: `extract_anchor_seeds()` for extracting seeds from #[account(...)] attributes
 //! - **Data Fields**: `get_data_fields()`, `extract_data_field_info()` for data field extraction
+//! - **InstructionArgSet**: Canonical type for instruction argument name tracking
+//!
+//! # Relationship with `parsing/` Module
+//!
+//! The `parsing/` module provides unified struct parsing and re-exports `InstructionArgSet`
+//! from this module. The classification types (`ClassifiedSeed`, etc.) remain here as the
+//! canonical location for seed classification logic.
 //!
 //! # Example
 //!
@@ -18,7 +25,7 @@
 //! }
 //! ```
 
-mod anchor_extraction;
+pub(crate) mod anchor_extraction;
 mod classification;
 mod data_fields;
 mod extract;
@@ -33,7 +40,7 @@ pub use data_fields::{
 // Re-export from extract
 pub use extract::{extract_account_inner_type, extract_from_accounts_struct, extract_seed_specs};
 // Re-export from instruction_args
-pub use instruction_args::parse_instruction_arg_names;
+pub use instruction_args::InstructionArgSet;
 // Re-export from types - public API
 pub use types::{
     ClassifiedFnArg, ClassifiedSeed, ExtractedSeedSpec, ExtractedTokenSpec, FnArgKind, SeedSpec,

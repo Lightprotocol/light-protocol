@@ -19,13 +19,12 @@ use light_program_test::{
     ProgramTestConfig, Rpc,
 };
 use light_sdk::interface::IntoVariant;
+/// Light Token's rent sponsor - used for Light Token operations
+use light_token::instruction::RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR_CONST;
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
-
-/// Light Token's rent sponsor - used for Light Token operations
-use light_token::instruction::RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR_CONST;
 
 /// Program's own rent sponsor PDA - used for PDA rent reimbursement
 fn program_rent_sponsor() -> Pubkey {
@@ -1420,7 +1419,7 @@ async fn test_d5_light_token() {
         D5LightTokenParams, D5_VAULT_AUTH_SEED, D5_VAULT_SEED,
     };
     use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
-    use light_token::instruction::COMPRESSIBLE_CONFIG_V1;
+    use light_token::instruction::LIGHT_TOKEN_CONFIG;
 
     let mut ctx = TestContext::new().await;
 
@@ -1443,7 +1442,7 @@ async fn test_d5_light_token() {
         mint,
         vault_authority,
         d5_token_vault: vault,
-        light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
+        light_token_compressible_config: LIGHT_TOKEN_CONFIG,
         light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR_CONST,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
@@ -1485,7 +1484,7 @@ async fn test_d5_all_markers() {
         D5AllMarkersParams, D5_ALL_AUTH_SEED, D5_ALL_VAULT_SEED,
     };
     use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
-    use light_token::instruction::COMPRESSIBLE_CONFIG_V1;
+    use light_token::instruction::LIGHT_TOKEN_CONFIG;
 
     let mut ctx = TestContext::new().await;
     let owner = Keypair::new().pubkey();
@@ -1518,7 +1517,7 @@ async fn test_d5_all_markers() {
         d5_all_authority,
         d5_all_record,
         d5_all_vault,
-        light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
+        light_token_compressible_config: LIGHT_TOKEN_CONFIG,
         light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR_CONST,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
@@ -1571,7 +1570,7 @@ async fn test_d7_light_token_config() {
     };
     use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
     use light_token::instruction::{
-        COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR as LIGHT_TOKEN_LIGHT_TOKEN_RENT_SPONSOR_CONST,
+        LIGHT_TOKEN_CONFIG, RENT_SPONSOR as LIGHT_TOKEN_LIGHT_TOKEN_RENT_SPONSOR_CONST,
     };
 
     let mut ctx = TestContext::new().await;
@@ -1596,7 +1595,7 @@ async fn test_d7_light_token_config() {
         mint,
         d7_light_token_authority,
         d7_light_token_vault,
-        light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
+        light_token_compressible_config: LIGHT_TOKEN_CONFIG,
         light_token_rent_sponsor: LIGHT_TOKEN_LIGHT_TOKEN_RENT_SPONSOR_CONST,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
@@ -1604,7 +1603,7 @@ async fn test_d7_light_token_config() {
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D7LightTokenConfig {
-        _params: D7LightTokenConfigParams {
+        params: D7LightTokenConfigParams {
             create_accounts_proof: proof_result.create_accounts_proof,
         },
     };
@@ -1625,7 +1624,8 @@ async fn test_d7_light_token_config() {
         .expect("D7LightTokenConfig instruction should succeed");
 
     // Verify token vault exists
-    shared::assert_onchain_exists(&mut ctx.rpc, &d7_light_token_vault, "d7_light_token_vault").await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &d7_light_token_vault, "d7_light_token_vault")
+        .await;
 
     // TODO: Test token vault decompression using token variant seeds
 }
@@ -1637,7 +1637,7 @@ async fn test_d7_all_names() {
         D7AllNamesParams, D7_ALL_AUTH_SEED, D7_ALL_VAULT_SEED,
     };
     use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
-    use light_token::instruction::COMPRESSIBLE_CONFIG_V1;
+    use light_token::instruction::LIGHT_TOKEN_CONFIG;
 
     let mut ctx = TestContext::new().await;
     let owner = Keypair::new().pubkey();
@@ -1670,7 +1670,7 @@ async fn test_d7_all_names() {
         d7_all_authority,
         d7_all_record,
         d7_all_vault,
-        light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
+        light_token_compressible_config: LIGHT_TOKEN_CONFIG,
         rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR_CONST,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),

@@ -1,4 +1,19 @@
 //! Shared validation utilities for light account macros.
+//!
+//! # Validation Rules
+//!
+//! 1. **compression_info field position** - The `compression_info` field must be either
+//!    the first or last field in the struct for efficient serialization
+//!
+//! 2. **Non-empty struct** - Struct must have at least one field
+//!
+//! 3. **Account type extraction** - Field types must be one of:
+//!    - `Account<'info, T>`
+//!    - `Box<Account<'info, T>>`
+//!    - `AccountLoader<'info, T>`
+//!    - `InterfaceAccount<'info, T>`
+//!
+//! 4. **No nested Box** - `Box<Box<...>>` patterns are not supported
 
 use std::fmt;
 

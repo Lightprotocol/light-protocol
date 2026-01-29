@@ -36,7 +36,7 @@ fn codegen(
     pda_seeds: Option<Vec<TokenSeedSpec>>,
     token_seeds: Option<Vec<TokenSeedSpec>>,
     instruction_data: Vec<InstructionDataSpec>,
-    crate_ctx: &super::crate_context::CrateContext,
+    crate_ctx: &crate::light_pdas::parsing::CrateContext,
     has_mint_fields: bool,
     has_ata_fields: bool,
 ) -> Result<TokenStream> {
@@ -53,12 +53,16 @@ fn codegen(
     };
     content.1.insert(0, anchor_import);
 
+    // TODO: Unify seed extraction - currently #[light_program] extracts seeds from Anchor's
+    // #[account(seeds = [...])] automatically, while #[derive(LightAccounts)] requires
+    // explicit token::seeds = [...] in #[light_account]. Consider removing the duplicate
+    // seed specification requirement and always using Anchor seeds.
     if let Some(ref token_seed_specs) = token_seeds {
         for spec in token_seed_specs {
-            if spec.authority.is_none() {
+            if spec.seeds.is_empty() {
                 return Err(macro_error!(
                     &spec.variant,
-                    "Token account '{}' must specify authority = <seed_expr> for compression signing.",
+                    "Token account '{}' must have seeds in #[account(seeds = [...])] for PDA signing.",
                     spec.variant
                 ));
             }
@@ -85,7 +89,11 @@ fn codegen(
                         .unwrap_or_default();
 
                     // Extract params-only seed fields (data.* fields that don't exist on state)
-                    let params_only_seed_fields = crate::light_pdas::seeds::get_params_only_seed_fields_from_spec(spec, &state_field_names);
+                    let params_only_seed_fields =
+                        crate::light_pdas::seeds::get_params_only_seed_fields_from_spec(
+                            spec,
+                            &state_field_names,
+                        );
 
                     // Calculate seed_count = number of seeds + 1 (for bump)
                     let seed_count = spec.seeds.len() + 1;
@@ -693,10 +701,11 @@ fn codegen(
 /// ```
 #[inline(never)]
 pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<TokenStream> {
-    use super::crate_context::CrateContext;
-    use crate::light_pdas::seeds::{
-        extract_from_accounts_struct, get_data_fields, parse_instruction_arg_names,
-        ExtractedSeedSpec, ExtractedTokenSpec,
+    use crate::light_pdas::{
+        parsing::{parse_instruction_arg_names, CrateContext},
+        seeds::{
+            extract_from_accounts_struct, get_data_fields, ExtractedSeedSpec, ExtractedTokenSpec,
+        },
     };
 
     if module.content.is_none() {
@@ -860,7 +869,7 @@ pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<Tok
             _eq: syn::parse_quote!(=),
             is_token: Some(false),
             seeds: seed_elements,
-            authority: None,
+            owner_seeds: None,
             // Store inner_type for type references (deserialization, trait bounds)
             inner_type: Some(pda.inner_type.clone()),
             is_zero_copy: pda.is_zero_copy,
@@ -872,7 +881,7 @@ pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<Tok
     for token in &token_specs {
         let seed_elements =
             convert_classified_to_seed_elements(&token.seeds, &token.module_path, &crate_ctx);
-        let authority_elements = token.authority_seeds.as_ref().map(|seeds| {
+        let owner_seeds_elements = token.owner_seeds.as_ref().map(|seeds| {
             convert_classified_to_seed_elements_vec(seeds, &token.module_path, &crate_ctx)
         });
 
@@ -881,7 +890,7 @@ pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<Tok
             _eq: syn::parse_quote!(=),
             is_token: Some(true),
             seeds: seed_elements,
-            authority: authority_elements,
+            owner_seeds: owner_seeds_elements,
             inner_type: None,    // Token specs don't have inner type
             is_zero_copy: false, // Token specs don't use zero-copy
         });

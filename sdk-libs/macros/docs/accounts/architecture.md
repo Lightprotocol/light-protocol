@@ -35,6 +35,7 @@ sdk-libs/macros/src/light_pdas/
 |   |-- derive.rs             # Orchestration layer
 |   |-- builder.rs            # Code generation builder
 |   |-- parse.rs              # Struct-level parsing and field classification
+|   |-- validation.rs         # Struct-level validation rules
 |   |-- light_account.rs      # Unified #[light_account] attribute parsing
 |   |-- pda.rs                # PDA block code generation
 |   |-- mint.rs               # Mint action CPI generation
@@ -43,8 +44,8 @@ sdk-libs/macros/src/light_pdas/
 |
 |-- account/                  # Trait derive macros for data structs
 |   |-- mod.rs                # Module entry point
-|   |-- light_compressible.rs # LightAccount derive implementation
-|   |-- seed_extraction.rs    # Anchor seed extraction from #[account(...)]
+|   |-- derive.rs             # LightAccount derive implementation
+|   |-- validation.rs         # Shared validation utilities
 |   +-- utils.rs              # Shared utilities (field extraction, type checks)
 |
 +-- seeds/                    # Simplified seed extraction (3-category system)
@@ -448,6 +449,11 @@ The macro validates at compile time:
 - Mixing namespaces (e.g., `token::authority` with `associated_token::mint`) causes a compile error
 - Duplicate keys within the same attribute cause a compile error
 
+### Struct-Level Validation
+- `#[instruction]` with no `#[light_account(init)]` fields causes a compile error
+- `#[derive(LightAccounts)]` is only for instructions that create light accounts
+- Mark-only fields (without `init`) don't count - they're for `#[light_program]` discovery
+
 ---
 
 ## 4. Data Struct Derives (account/)
@@ -511,6 +517,7 @@ sdk-libs/macros/src/light_pdas/
 |   |-- derive.rs           Orchestration: parse -> validate -> generate
 |   |-- builder.rs          LightAccountsBuilder for code generation
 |   |-- parse.rs            Struct-level parsing and field classification
+|   |-- validation.rs       Struct-level validation rules
 |   |-- light_account.rs    #[light_account] attribute parsing
 |   |-- pda.rs              PDA compression block generation
 |   |-- mint.rs             Mint action CPI generation
@@ -519,8 +526,8 @@ sdk-libs/macros/src/light_pdas/
 |
 +-- account/                #[derive(LightAccount)] for DATA structs
     |-- mod.rs              Entry point for trait derives
-    |-- light_compressible.rs  LightAccount derive implementation
-    |-- seed_extraction.rs  Anchor seed parsing
+    |-- derive.rs           LightAccount derive implementation
+    |-- validation.rs       Shared validation utilities
     +-- utils.rs            Shared utilities
 ```
 
@@ -538,12 +545,14 @@ sdk-libs/macros/src/light_pdas/
 - `AccountLoader` requires `zero_copy` keyword; `Account` forbids it
 
 ### Zero-Copy Constraints
-- Zero-copy accounts use Pod serialization, incompatible with Borsh decompression
-- Data types must implement `bytemuck::Pod` and `bytemuck::Zeroable`
+- Zero-copy accounts use Pod serialization, and Borsh for decompression
+- Data types must implement `bytemuck::Pod`, `bytemuck::Zeroable` and `borsh::{Serialize, Deserialize}`
 - Zero-copy is for performance-critical accounts with fixed layouts
 
-### No-op Fallback
-When no `#[instruction]` attribute is present, the macro generates no-op implementations for backwards compatibility with non-compressible Accounts structs.
+### Required Usage
+- `#[derive(LightAccounts)]` requires `#[light_account(init)]` fields when `#[instruction]` is present
+- The derive macro is only for instructions that create light accounts (rent-free PDAs, mints, tokens, ATAs)
+- Mark-only fields (without `init`) are for `#[light_program]` discovery, not `#[derive(LightAccounts)]`
 
 ---
 

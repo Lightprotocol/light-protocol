@@ -310,7 +310,7 @@ pub fn compressible_derive(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(LightAccount, attributes(compress_as, skip))]
 pub fn light_account_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    into_token_stream(light_pdas::account::light_compressible::derive_light_account(input))
+    into_token_stream(light_pdas::account::derive::derive_light_account(input))
 }
 
 /// Derives a Rent Sponsor PDA for a program at compile time.

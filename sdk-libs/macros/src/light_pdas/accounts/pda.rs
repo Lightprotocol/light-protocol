@@ -49,19 +49,23 @@ impl<'a> PdaBlockBuilder<'a> {
 
     /// Generate account extraction (get account info and key).
     fn account_extraction(&self) -> TokenStream {
-        let ident = &self.field.ident;
+        let field_name = &self.field.field_name;
         let account_info = &self.idents.account_info;
         let account_key = &self.idents.account_key;
 
         quote! {
-            let #account_info = self.#ident.to_account_info();
+            let #account_info = self.#field_name.to_account_info();
             let #account_key = *#account_info.key;
         }
     }
 
     /// Generate address tree pubkey extraction.
     fn address_tree_extraction(&self) -> TokenStream {
-        let addr_tree_info = &self.field.address_tree_info;
+        let addr_tree_info = self
+            .field
+            .address_tree_info
+            .as_ref()
+            .expect("address_tree_info required for derive macro");
         let address_tree_pubkey = &self.idents.address_tree_pubkey;
 
         quote! {
@@ -78,7 +82,7 @@ impl<'a> PdaBlockBuilder<'a> {
 
     /// Generate account data initialization (set CompressionInfo).
     fn account_data_init(&self) -> TokenStream {
-        let ident = &self.field.ident;
+        let ident = &self.field.field_name;
         let account_data = &self.idents.account_data;
 
         if self.field.is_zero_copy {
@@ -147,8 +151,16 @@ impl<'a> PdaBlockBuilder<'a> {
 
     /// Generate the call to prepare_compressed_account_on_init.
     fn prepare_call(&self) -> TokenStream {
-        let addr_tree_info = &self.field.address_tree_info;
-        let output_tree = &self.field.output_tree;
+        let addr_tree_info = self
+            .field
+            .address_tree_info
+            .as_ref()
+            .expect("address_tree_info required for derive macro");
+        let output_tree = self
+            .field
+            .output_tree
+            .as_ref()
+            .expect("output_tree required for derive macro");
         let account_key = &self.idents.account_key;
         let address_tree_pubkey = &self.idents.address_tree_pubkey;
         let idx = self.idents.idx;
@@ -223,8 +235,8 @@ pub(super) fn generate_rent_reimbursement_block(
     let account_info_exprs: Vec<TokenStream> = fields
         .iter()
         .map(|field| {
-            let ident = &field.ident;
-            quote! { self.#ident.to_account_info() }
+            let field_name = &field.field_name;
+            quote! { self.#field_name.to_account_info() }
         })
         .collect();
 

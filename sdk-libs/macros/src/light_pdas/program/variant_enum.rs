@@ -591,7 +591,7 @@ impl PdaCtxSeedInfo {
 // HELPER FUNCTIONS
 // =============================================================================
 
-/// Extract ctx.* field names from seed elements (both token seeds and authority seeds).
+/// Extract ctx.* field names from seed elements (both token seeds and owner seeds).
 ///
 /// Uses the visitor-based FieldExtractor for clean AST traversal.
 pub fn extract_ctx_fields_from_token_spec(spec: &TokenSeedSpec) -> Vec<Ident> {
@@ -605,7 +605,7 @@ pub fn extract_ctx_fields_from_token_spec(spec: &TokenSeedSpec) -> Vec<Ident> {
     let mut all_fields = Vec::new();
     let mut seen = std::collections::HashSet::new();
 
-    for seed in spec.seeds.iter().chain(spec.authority.iter().flatten()) {
+    for seed in spec.seeds.iter().chain(spec.owner_seeds.iter().flatten()) {
         if let SeedElement::Expression(expr) = seed {
             // Extract fields from this expression using the visitor
             let fields = super::visitors::FieldExtractor::ctx_fields(EXCLUDED).extract(expr);

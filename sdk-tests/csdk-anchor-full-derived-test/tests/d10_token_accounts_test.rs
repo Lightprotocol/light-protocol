@@ -15,7 +15,7 @@ use light_program_test::{
     ProgramTestConfig, Rpc,
 };
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
-use light_token::instruction::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR};
+use light_token::instruction::{LIGHT_TOKEN_CONFIG, RENT_SPONSOR};
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -105,7 +105,7 @@ async fn test_d10_single_vault() {
         d10_mint: mint,
         d10_vault_authority,
         d10_single_vault,
-        light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
+        light_token_compressible_config: LIGHT_TOKEN_CONFIG,
         light_token_rent_sponsor: RENT_SPONSOR,
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
@@ -164,7 +164,7 @@ async fn test_d10_single_ata() {
         d10_ata_mint: mint,
         d10_ata_owner: ata_owner,
         d10_single_ata,
-        light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
+        light_token_compressible_config: LIGHT_TOKEN_CONFIG,
         light_token_rent_sponsor: RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         system_program: solana_sdk::system_program::ID,

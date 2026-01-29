@@ -86,7 +86,7 @@ pub struct CreatePdasAndMintAuto<'info> {
         seeds = [VAULT_SEED, mint.key().as_ref()],
         bump,
     )]
-    #[light_account(token::authority = [b"vault_authority"])]
+    #[light_account(init, token::seeds = [VAULT_SEED, self.mint.key()], token::mint = mint, token::owner = vault_authority, token::owner_seeds = [b"vault_authority"])]
     pub vault: UncheckedAccount<'info>,
 
     /// CHECK: PDA used as vault owner

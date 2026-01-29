@@ -62,7 +62,9 @@ pub struct TokenSeedSpec {
     pub _eq: Token![=],
     pub is_token: Option<bool>,
     pub seeds: Punctuated<SeedElement, Token![,]>,
-    pub authority: Option<Vec<SeedElement>>,
+    /// Owner PDA seeds - used when the token owner is a PDA that needs to sign.
+    /// Must contain only constant values (byte literals, const references).
+    pub owner_seeds: Option<Vec<SeedElement>>,
     /// The inner type (e.g., crate::state::SinglePubkeyRecord - used for type references)
     /// Preserves the full type path for code generation.
     /// Only set for PDAs extracted from #[light_account(init)] fields; None for parsed specs
@@ -82,10 +84,10 @@ impl Parse for TokenSeedSpec {
 
         // New explicit syntax:
         //   PDA:   TypeName = (seeds = (...))
-        //   Token: TypeName = (is_token, seeds = (...), authority = (...))
+        //   Token: TypeName = (is_token, seeds = (...), owner_seeds = (...))
         let mut is_token = None;
         let mut seeds = Punctuated::new();
-        let mut authority = None;
+        let mut owner_seeds = None;
 
         while !content.is_empty() {
             if content.peek(Ident) {
@@ -105,17 +107,17 @@ impl Parse for TokenSeedSpec {
                         syn::parenthesized!(seeds_content in content);
                         seeds = parse_seed_elements(&seeds_content)?;
                     }
-                    "authority" => {
+                    "owner_seeds" => {
                         let _eq: Token![=] = content.parse()?;
-                        authority = Some(parse_authority_seeds(&content)?);
+                        owner_seeds = Some(parse_owner_seeds(&content)?);
                     }
                     _ => {
                         return Err(syn::Error::new_spanned(
                             &ident,
                             format!(
-                                "Unknown keyword '{}'. Expected: is_token, seeds, or authority.\n\
+                                "Unknown keyword '{}'. Expected: is_token, seeds, or owner_seeds.\n\
                                  Use explicit syntax: TypeName = (seeds = (\"seed\", ctx.account, ...))\n\
-                                 For tokens: TypeName = (is_token, seeds = (...), authority = (...))",
+                                 For tokens: TypeName = (is_token, seeds = (...), owner_seeds = (...))",
                                 ident_str
                             ),
                         ));
@@ -124,9 +126,9 @@ impl Parse for TokenSeedSpec {
             } else {
                 return Err(syn::Error::new(
                     content.span(),
-                    "Expected keyword (is_token, seeds, or authority). Use explicit syntax:\n\
+                    "Expected keyword (is_token, seeds, or owner_seeds). Use explicit syntax:\n\
                      - PDA: TypeName = (seeds = (\"seed\", ctx.account, ...))\n\
-                     - Token: TypeName = (is_token, seeds = (...), authority = (...))",
+                     - Token: TypeName = (is_token, seeds = (...), owner_seeds = (...))",
                 ));
             }
 
@@ -152,7 +154,7 @@ impl Parse for TokenSeedSpec {
             _eq,
             is_token,
             seeds,
-            authority,
+            owner_seeds,
             inner_type: None,    // Set by caller for #[light_account(init)] fields
             is_zero_copy: false, // Set by caller for #[light_account(init, zero_copy)] fields
         })
@@ -179,8 +181,8 @@ fn parse_seed_elements(content: ParseStream) -> Result<Punctuated<SeedElement, T
     Ok(seeds)
 }
 
-/// Parse authority seeds - either parenthesized tuple or single expression
-fn parse_authority_seeds(content: ParseStream) -> Result<Vec<SeedElement>> {
+/// Parse owner seeds - either parenthesized tuple or single expression
+fn parse_owner_seeds(content: ParseStream) -> Result<Vec<SeedElement>> {
     if content.peek(syn::token::Paren) {
         let auth_content;
         syn::parenthesized!(auth_content in content);
@@ -304,7 +306,7 @@ pub fn extract_data_seed_fields(
 pub fn convert_classified_to_seed_elements(
     seeds: &[crate::light_pdas::seeds::ClassifiedSeed],
     module_path: &str,
-    crate_ctx: &super::crate_context::CrateContext,
+    crate_ctx: &crate::light_pdas::parsing::CrateContext,
 ) -> Punctuated<SeedElement, Token![,]> {
     use crate::light_pdas::seeds::{extract_data_field_info, ClassifiedSeed};
 
@@ -411,7 +413,7 @@ fn rewrite_fn_call_for_scope(
     func_expr: &Expr,
     fn_args: &[crate::light_pdas::seeds::ClassifiedFnArg],
     module_path: &str,
-    crate_ctx: &super::crate_context::CrateContext,
+    crate_ctx: &crate::light_pdas::parsing::CrateContext,
 ) -> Expr {
     use quote::quote;
 
@@ -469,7 +471,7 @@ fn rewrite_fn_call_for_scope(
 pub fn convert_classified_to_seed_elements_vec(
     seeds: &[crate::light_pdas::seeds::ClassifiedSeed],
     module_path: &str,
-    crate_ctx: &super::crate_context::CrateContext,
+    crate_ctx: &crate::light_pdas::parsing::CrateContext,
 ) -> Vec<SeedElement> {
     convert_classified_to_seed_elements(seeds, module_path, crate_ctx)
         .into_iter()

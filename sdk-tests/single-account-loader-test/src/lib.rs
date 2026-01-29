@@ -39,6 +39,10 @@ pub struct CreateRecord<'info> {
     /// CHECK: Compression config PDA
     pub compression_config: AccountInfo<'info>,
 
+    /// CHECK: PDA rent sponsor for rent reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
+
     /// The zero-copy record account.
     /// Uses AccountLoader which requires `#[light_account(init, zero_copy)]`.
     #[account(

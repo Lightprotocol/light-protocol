@@ -5,10 +5,10 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{punctuated::Punctuated, DeriveInput, Expr, Field, Ident, ItemStruct, Result, Token};
 
-use super::utils::{
-    extract_fields_from_derive_input, extract_fields_from_item_struct, is_copy_type,
+use super::{
+    utils::{extract_fields_from_derive_input, extract_fields_from_item_struct, is_copy_type},
+    validation::validate_compression_info_field,
 };
-use super::validation::validate_compression_info_field;
 
 /// A single field override in #[compress_as(field = expr)]
 pub(crate) struct CompressAsField {

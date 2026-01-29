@@ -6,7 +6,7 @@
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
 use light_sdk_macros::LightAccounts;
-use light_token::instruction::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR};
+use light_token::instruction::{LIGHT_TOKEN_CONFIG, RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR};
 
 use crate::state::d11_zero_copy::ZcBasicRecord;
 
@@ -70,10 +70,10 @@ pub struct D11ZcWithMintTo<'info> {
         seeds = [D11_MINT_VAULT_SEED, d11_mint.key().as_ref()],
         bump,
     )]
-    #[light_account(init, token::authority = [D11_MINT_VAULT_SEED, self.d11_mint.key()], token::mint = d11_mint, token::owner = d11_vault_authority, token::bump = params.vault_bump)]
+    #[light_account(init, token::seeds = [D11_MINT_VAULT_SEED, self.d11_mint.key()], token::mint = d11_mint, token::owner = d11_vault_authority, token::bump = params.vault_bump, token::owner_seeds = [D11_MINT_VAULT_AUTH_SEED])]
     pub d11_mint_vault: UncheckedAccount<'info>,
 
-    #[account(address = COMPRESSIBLE_CONFIG_V1)]
+    #[account(address = LIGHT_TOKEN_CONFIG)]
     pub light_token_compressible_config: AccountInfo<'info>,
 
     #[account(mut, address = LIGHT_TOKEN_RENT_SPONSOR)]

@@ -5,15 +5,23 @@
 
 use syn::{Ident, ItemStruct, Type};
 
-use super::anchor_extraction::extract_anchor_seeds;
-use super::classification::classify_seed_expr;
-use super::instruction_args::InstructionArgSet;
-use super::types::{ClassifiedSeed, ExtractedAccountsInfo, ExtractedSeedSpec, ExtractedTokenSpec, SeedSpec};
-use crate::light_pdas::account::validation::{type_name, AccountTypeError};
-use crate::light_pdas::light_account_keywords::{
-    is_standalone_keyword, unknown_key_error, valid_keys_for_namespace,
+use super::{
+    anchor_extraction::extract_anchor_seeds,
+    classification::classify_seed_expr,
+    instruction_args::InstructionArgSet,
+    types::{
+        ClassifiedSeed, ExtractedAccountsInfo, ExtractedSeedSpec, ExtractedTokenSpec, SeedSpec,
+    },
 };
-use crate::utils::snake_to_camel_case;
+use crate::{
+    light_pdas::{
+        account::validation::{type_name, AccountTypeError},
+        light_account_keywords::{
+            is_standalone_keyword, unknown_key_error, valid_keys_for_namespace,
+        },
+    },
+    utils::snake_to_camel_case,
+};
 
 // =============================================================================
 // ACCOUNT TYPE EXTRACTION
@@ -35,9 +43,7 @@ pub fn extract_account_inner_type(ty: &Type) -> Result<(bool, Type), AccountType
                 .path
                 .segments
                 .last()
-                .ok_or_else(|| AccountTypeError::WrongType {
-                    got: type_name(ty),
-                })?;
+                .ok_or_else(|| AccountTypeError::WrongType { got: type_name(ty) })?;
             let ident_str = segment.ident.to_string();
 
             match ident_str.as_str() {
@@ -84,14 +90,10 @@ pub fn extract_account_inner_type(ty: &Type) -> Result<(bool, Type), AccountType
                     }
                     Err(AccountTypeError::ExtractionFailed)
                 }
-                _ => Err(AccountTypeError::WrongType {
-                    got: type_name(ty),
-                }),
+                _ => Err(AccountTypeError::WrongType { got: type_name(ty) }),
             }
         }
-        _ => Err(AccountTypeError::WrongType {
-            got: type_name(ty),
-        }),
+        _ => Err(AccountTypeError::WrongType { got: type_name(ty) }),
     }
 }
 
@@ -224,7 +226,9 @@ fn check_light_account_type(attrs: &[syn::Attribute]) -> (bool, bool, bool, bool
 struct LightTokenAttr {
     /// Optional variant name - if None, derived from field name
     variant_name: Option<Ident>,
-    authority_seeds: Option<Vec<ClassifiedSeed>>,
+    /// Owner PDA seeds - used when the token owner is a PDA that needs to sign.
+    /// Must contain only constant values (byte literals, const references).
+    owner_seeds: Option<Vec<ClassifiedSeed>>,
 }
 
 /// Extract #[light_account(token::..., ...)] attribute
@@ -282,7 +286,7 @@ fn parse_light_token_list(
     let valid_keys = valid_keys_for_namespace(account_type);
 
     let parser = move |input: syn::parse::ParseStream| -> syn::Result<LightTokenAttr> {
-        let mut authority_seeds = None;
+        let mut owner_seeds = None;
 
         // Parse comma-separated items
         while !input.is_empty() {
@@ -293,7 +297,7 @@ fn parse_light_token_list(
                 // Check for namespace::key syntax FIRST (before standalone keywords)
                 // because "token" can be both a standalone keyword and a namespace prefix
                 if input.peek(syn::Token![:]) {
-                    // Namespace::key syntax (e.g., token::authority = [...])
+                    // Namespace::key syntax (e.g., token::owner_seeds = [...])
                     // Parse first colon
                     input.parse::<syn::Token![:]>()?;
                     // Parse second colon
@@ -325,8 +329,8 @@ fn parse_light_token_list(
                         if input.peek(syn::Token![=]) {
                             input.parse::<syn::Token![=]>()?;
 
-                            if key_str == "authority" {
-                                // Parse authority = [...] array
+                            if key_str == "owner_seeds" {
+                                // Parse owner_seeds = [...] array
                                 // The array is represented as a Group(Bracket) in proc_macro2
                                 // Use input.step to manually handle the Group
                                 let array_content = input.step(|cursor| {
@@ -351,12 +355,12 @@ fn parse_light_token_list(
                                         .map_err(|e| {
                                             syn::Error::new_spanned(
                                                 elem,
-                                                format!("invalid authority seed: {}", e),
+                                                format!("invalid owner seed: {}", e),
                                             )
                                         })?;
                                     seeds.push(seed);
                                 }
-                                authority_seeds = Some(seeds);
+                                owner_seeds = Some(seeds);
                             } else {
                                 // Other keys (mint, owner, bump) - just consume the value
                                 let _expr: syn::Expr = input.parse()?;
@@ -373,7 +377,7 @@ fn parse_light_token_list(
                         &ident,
                         format!(
                             "Unknown keyword `{}` in #[light_account(...)]. \
-                             Use namespaced syntax: `{}::authority = [...]`, `{}::mint`, etc.",
+                             Use namespaced syntax: `{}::owner_seeds = [...]`, `{}::mint`, etc.",
                             ident_str, account_type_owned, account_type_owned
                         ),
                     ));
@@ -397,13 +401,73 @@ fn parse_light_token_list(
             }
         }
 
+        // Validate that owner_seeds contain only constants
+        if let Some(ref seeds) = owner_seeds {
+            validate_owner_seeds_are_constants(seeds)?;
+        }
+
         Ok(LightTokenAttr {
             variant_name: None, // Variant name is always derived from field name
-            authority_seeds,
+            owner_seeds,
         })
     };
 
     parser.parse2(tokens.clone())
+}
+
+/// Validate that owner_seeds contain only constant values.
+///
+/// owner_seeds must only contain:
+/// - `Literal(Vec<u8>)` - byte literals like b"seed"
+/// - `Constant { path, expr }` - constant references like SEED.as_bytes()
+///
+/// The following are NOT allowed (they are dynamic values):
+/// - `CtxRooted { account }` - ctx account references
+/// - `DataRooted { root, expr }` - instruction data references
+/// - `FunctionCall { ... }` - dynamic function calls
+/// - `Passthrough(expr)` - unknown expressions
+fn validate_owner_seeds_are_constants(seeds: &[ClassifiedSeed]) -> syn::Result<()> {
+    for seed in seeds {
+        match seed {
+            ClassifiedSeed::Literal(_) | ClassifiedSeed::Constant { .. } => {
+                // These are allowed - they are compile-time constants
+                continue;
+            }
+            ClassifiedSeed::CtxRooted { account } => {
+                return Err(syn::Error::new(
+                    account.span(),
+                    "owner_seeds must be constants only. \
+                     Dynamic ctx account references like `authority.key()` are not allowed. \
+                     Use only byte literals (b\"seed\") or const references (SEED.as_bytes()).",
+                ));
+            }
+            ClassifiedSeed::DataRooted { root, .. } => {
+                return Err(syn::Error::new(
+                    root.span(),
+                    "owner_seeds must be constants only. \
+                     Instruction data references like `params.owner` are not allowed. \
+                     Use only byte literals (b\"seed\") or const references (SEED.as_bytes()).",
+                ));
+            }
+            ClassifiedSeed::FunctionCall { func_expr, .. } => {
+                return Err(syn::Error::new_spanned(
+                    func_expr,
+                    "owner_seeds must be constants only. \
+                     Dynamic function calls are not allowed. \
+                     Use only byte literals (b\"seed\") or const references (SEED.as_bytes()).",
+                ));
+            }
+            ClassifiedSeed::Passthrough(expr) => {
+                return Err(syn::Error::new_spanned(
+                    expr,
+                    "owner_seeds must be constants only. \
+                     This expression type is not recognized as a constant. \
+                     Use only byte literals (b\"seed\") or const references (SEED.as_bytes()).",
+                ));
+            }
+        }
+    }
+    Ok(())
 }
 
 // =============================================================================
@@ -420,7 +484,7 @@ pub fn extract_seed_specs(item: &ItemStruct) -> syn::Result<Vec<SeedSpec>> {
     };
 
     // Parse instruction args from struct attributes
-    let instruction_args = super::instruction_args::parse_instruction_arg_names(&item.attrs)?;
+    let instruction_args = crate::light_pdas::parsing::parse_instruction_arg_names(&item.attrs)?;
 
     let mut specs = Vec::new();
 
@@ -437,8 +501,8 @@ pub fn extract_seed_specs(item: &ItemStruct) -> syn::Result<Vec<SeedSpec>> {
         }
 
         // Extract inner type
-        let (_, inner_type) = extract_account_inner_type(&field.ty)
-            .map_err(|e| e.into_syn_error(&field.ty))?;
+        let (_, inner_type) =
+            extract_account_inner_type(&field.ty).map_err(|e| e.into_syn_error(&field.ty))?;
 
         // Extract seeds using the anchor extraction
         let seeds = extract_anchor_seeds(&field.attrs, &instruction_args)?;
@@ -493,8 +557,8 @@ pub fn extract_from_accounts_struct(
         if has_light_account_pda {
             // Extract inner type from Account<'info, T> or Box<Account<'info, T>>
             // Note: is_boxed is not needed for ExtractedSeedSpec, only inner_type
-            let (_, inner_type) = extract_account_inner_type(&field.ty)
-                .map_err(|e| e.into_syn_error(&field.ty))?;
+            let (_, inner_type) =
+                extract_account_inner_type(&field.ty).map_err(|e| e.into_syn_error(&field.ty))?;
 
             // Extract seeds from #[account(seeds = [...])]
             let seeds = extract_anchor_seeds(&field.attrs, instruction_args)?;
@@ -527,9 +591,8 @@ pub fn extract_from_accounts_struct(
                 field_name: field_ident,
                 variant_name,
                 seeds,
-                authority_field: None,
-                // Use authority from attribute if provided
-                authority_seeds: token_attr.authority_seeds,
+                // Use owner_seeds from attribute if provided
+                owner_seeds: token_attr.owner_seeds,
                 module_path: module_path.to_string(),
             });
         }
@@ -544,40 +607,18 @@ pub fn extract_from_accounts_struct(
         return Ok(None);
     }
 
-    // Resolve authority for token fields (only if not already provided in attribute)
-    for token in &mut token_fields {
-        // Skip if authority was already provided in the attribute
-        if token.authority_seeds.is_some() {
-            continue;
-        }
-
-        // Try to find authority field by convention: {field_name}_authority or vault_authority
-        let authority_candidates = [
-            format!("{}_authority", token.field_name),
-            "vault_authority".to_string(),
-            "authority".to_string(),
-        ];
-
-        for candidate in &authority_candidates {
-            // Search fields directly instead of using a separate all_fields collection
-            if let Some(auth_field_info) = fields
-                .iter()
-                .find(|f| f.ident.as_ref().map(|i| i.to_string()) == Some(candidate.clone()))
-            {
-                if let Some(auth_ident) = &auth_field_info.ident {
-                    token.authority_field = Some(auth_ident.clone());
-
-                    // Try to extract authority seeds from the authority field
-                    if let Ok(auth_seeds) =
-                        extract_anchor_seeds(&auth_field_info.attrs, instruction_args)
-                    {
-                        if !auth_seeds.is_empty() {
-                            token.authority_seeds = Some(auth_seeds);
-                        }
-                    }
-                    break;
-                }
-            }
+    // Validate that all token fields have owner_seeds (required for decompression)
+    for token in &token_fields {
+        if token.owner_seeds.is_none() {
+            return Err(syn::Error::new(
+                token.field_name.span(),
+                format!(
+                    "Token account field '{}' requires owner_seeds. \
+                     The owner must be a PDA derived from constant seeds for decompression.\n\
+                     Add `token::owner_seeds = [b\"seed\", CONSTANT.as_bytes()]` to the #[light_account(...)] attribute.",
+                    token.field_name,
+                ),
+            ));
         }
     }
 
@@ -592,11 +633,12 @@ pub fn extract_from_accounts_struct(
 
 #[cfg(test)]
 mod tests {
-    use super::super::instruction_args::InstructionArgSet;
-    use super::super::types::ClassifiedSeed;
     use syn::parse_quote;
 
-    use super::*;
+    use super::{
+        super::{instruction_args::InstructionArgSet, types::ClassifiedSeed},
+        *,
+    };
 
     #[test]
     fn test_extract_account_inner_type() {
@@ -788,7 +830,7 @@ mod tests {
         );
 
         // Step 1: Parse instruction args from struct attributes
-        let instruction_args = super::super::instruction_args::parse_instruction_arg_names(&item.attrs)
+        let instruction_args = crate::light_pdas::parsing::parse_instruction_arg_names(&item.attrs)
             .expect("should parse instruction args");
         assert!(instruction_args.contains("params"));
 
@@ -802,9 +844,21 @@ mod tests {
         assert_eq!(spec.seeds.len(), 4, "Should have 4 seeds");
 
         // Verify seed classification
-        assert!(matches!(spec.seeds[0], ClassifiedSeed::Literal(_)), "Seed 0: Literal b\"user\"");
-        assert!(matches!(spec.seeds[1], ClassifiedSeed::Constant { .. }), "Seed 1: Constant SEED_PREFIX");
-        assert!(matches!(spec.seeds[2], ClassifiedSeed::CtxRooted { .. }), "Seed 2: CtxRooted authority");
-        assert!(matches!(spec.seeds[3], ClassifiedSeed::DataRooted { .. }), "Seed 3: DataRooted params.owner");
+        assert!(
+            matches!(spec.seeds[0], ClassifiedSeed::Literal(_)),
+            "Seed 0: Literal b\"user\""
+        );
+        assert!(
+            matches!(spec.seeds[1], ClassifiedSeed::Constant { .. }),
+            "Seed 1: Constant SEED_PREFIX"
+        );
+        assert!(
+            matches!(spec.seeds[2], ClassifiedSeed::CtxRooted { .. }),
+            "Seed 2: CtxRooted authority"
+        );
+        assert!(
+            matches!(spec.seeds[3], ClassifiedSeed::DataRooted { .. }),
+            "Seed 3: DataRooted params.owner"
+        );
     }
 }

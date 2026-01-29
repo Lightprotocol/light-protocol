@@ -5,8 +5,10 @@
 
 use syn::{Expr, Ident};
 
-use super::instruction_args::InstructionArgSet;
-use super::types::{ClassifiedFnArg, ClassifiedSeed, FnArgKind};
+use super::{
+    instruction_args::InstructionArgSet,
+    types::{ClassifiedFnArg, ClassifiedSeed, FnArgKind},
+};
 use crate::light_pdas::shared_utils::is_constant_identifier;
 
 /// Classify a single seed expression using prefix detection + passthrough.
@@ -671,22 +673,33 @@ mod tests {
         // Case 1: ctx.accounts.authority.key().as_ref() -> "authority"
         let expr1: syn::Expr = parse_quote!(ctx.accounts.authority.key().as_ref());
         let result1 = get_ctx_account_root(&expr1);
-        assert_eq!(result1.as_ref().map(|i| i.to_string()).as_deref(), Some("authority"));
+        assert_eq!(
+            result1.as_ref().map(|i| i.to_string()).as_deref(),
+            Some("authority")
+        );
 
         // Case 2: authority.key().as_ref() -> "authority"
         let expr2: syn::Expr = parse_quote!(authority.key().as_ref());
         let result2 = get_ctx_account_root(&expr2);
-        assert_eq!(result2.as_ref().map(|i| i.to_string()).as_deref(), Some("authority"));
+        assert_eq!(
+            result2.as_ref().map(|i| i.to_string()).as_deref(),
+            Some("authority")
+        );
 
         // Case 3: ctx.accounts.authority -> "authority"
         let expr3: syn::Expr = parse_quote!(ctx.accounts.authority);
         let result3 = get_ctx_account_root(&expr3);
-        assert_eq!(result3.as_ref().map(|i| i.to_string()).as_deref(), Some("authority"));
+        assert_eq!(
+            result3.as_ref().map(|i| i.to_string()).as_deref(),
+            Some("authority")
+        );
 
         // Case 4: Verify it integrates correctly with classify_seed_expr
         let expr4: syn::Expr = parse_quote!(authority.key().as_ref());
         let classified = classify_seed_expr(&expr4, &args).unwrap();
-        assert!(matches!(classified, ClassifiedSeed::CtxRooted { account, .. } if account == "authority"));
+        assert!(
+            matches!(classified, ClassifiedSeed::CtxRooted { account, .. } if account == "authority")
+        );
     }
 
     #[test]
@@ -706,7 +719,10 @@ mod tests {
         // Bare identifier with method call - should error
         let expr: syn::Expr = parse_quote!(authority.as_ref());
         let result = classify_seed_expr(&expr, &args);
-        assert!(result.is_err(), "Expected error for ambiguous bare identifier");
+        assert!(
+            result.is_err(),
+            "Expected error for ambiguous bare identifier"
+        );
         let err = result.unwrap_err().to_string();
         assert!(
             err.contains("Ambiguous seed"),
@@ -757,7 +773,10 @@ mod tests {
 
         let expr: syn::Expr = parse_quote!(params.authority.as_ref());
         let result = classify_seed_expr(&expr, &args);
-        assert!(result.is_err(), "Expected error for terminal field matching instruction arg");
+        assert!(
+            result.is_err(),
+            "Expected error for terminal field matching instruction arg"
+        );
         let err = result.unwrap_err().to_string();
         assert!(
             err.contains("Ambiguous seed"),

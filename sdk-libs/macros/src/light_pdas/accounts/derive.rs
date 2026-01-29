@@ -122,7 +122,7 @@ mod tests {
                 #[account(mut)]
                 pub fee_payer: Signer<'info>,
 
-                #[light_account(init, token::authority = [b"authority"], token::mint = my_mint, token::owner = fee_payer)]
+                #[light_account(init, token::seeds = [b"vault"], token::mint = my_mint, token::owner = fee_payer)]
                 pub vault: Account<'info, CToken>,
 
                 pub light_token_compressible_config: Account<'info, CompressibleConfig>,
@@ -191,40 +191,27 @@ mod tests {
     }
 
     #[test]
-    fn test_token_mark_only_generates_no_creation() {
-        // Token without init should NOT generate creation code (mark-only mode)
-        // Mark-only returns None from parsing, so token_account_fields is empty
+    fn test_token_without_init_fails() {
+        // Token without init should fail - init is required for all light_account fields.
         let input: DeriveInput = parse_quote! {
             #[instruction(params: UseVaultParams)]
             pub struct UseVault<'info> {
                 #[account(mut)]
                 pub fee_payer: Signer<'info>,
 
-                // Mark-only: no init keyword, type inferred from namespace
-                #[light_account(token::authority = [b"authority"])]
+                // Missing init keyword
+                #[light_account(token::seeds = [b"vault"])]
                 pub vault: Account<'info, CToken>,
             }
         };
 
         let result = derive_light_accounts(&input);
-        assert!(result.is_ok(), "Mark-only token derive should succeed");
-
-        let output = result.unwrap().to_string();
-
-        // Mark-only should NOT have token account creation
+        assert!(result.is_err(), "Token without init should error");
+        let err = result.unwrap_err().to_string();
         assert!(
-            !output.contains("CreateTokenAccountCpi"),
-            "Mark-only should NOT generate CreateTokenAccountCpi"
-        );
-
-        // Should still generate both trait impls
-        assert!(
-            output.contains("LightPreInit"),
-            "Should generate LightPreInit impl"
-        );
-        assert!(
-            output.contains("LightFinalize"),
-            "Should generate LightFinalize impl (no-op)"
+            err.contains("init"),
+            "Error should mention missing init, got: {}",
+            err
         );
     }
 
@@ -237,7 +224,7 @@ mod tests {
                 #[account(mut)]
                 pub fee_payer: Signer<'info>,
 
-                #[light_account(init, token::authority = [b"authority"], token::mint = my_mint, token::owner = fee_payer)]
+                #[light_account(init, token::seeds = [b"vault"], token::mint = my_mint, token::owner = fee_payer)]
                 pub vault: Account<'info, CToken>,
 
                 #[light_account(init, associated_token::authority = wallet, associated_token::mint = my_mint)]

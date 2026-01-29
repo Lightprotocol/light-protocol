@@ -63,6 +63,7 @@ async fn test_create_single_pda() {
     let accounts = single_pda_test::accounts::CreatePda {
         fee_payer: payer.pubkey(),
         compression_config: config_pda,
+        pda_rent_sponsor: rent_sponsor,
         record: record_pda,
         system_program: solana_sdk::system_program::ID,
     };

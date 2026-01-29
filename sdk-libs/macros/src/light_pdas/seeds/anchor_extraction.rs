@@ -5,9 +5,9 @@
 
 use syn::{Expr, Ident};
 
-use super::classification::classify_seed_expr;
-use super::instruction_args::InstructionArgSet;
-use super::types::ClassifiedSeed;
+use super::{
+    classification::classify_seed_expr, instruction_args::InstructionArgSet, types::ClassifiedSeed,
+};
 
 /// Extract seeds from #[account(seeds = [...], bump)] attribute
 pub fn extract_anchor_seeds(
@@ -102,8 +102,6 @@ fn classify_seeds_array(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
-
     use syn::parse_quote;
 
     use super::*;

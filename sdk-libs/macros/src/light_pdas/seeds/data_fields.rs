@@ -336,7 +336,11 @@ mod tests {
         let result = extract_data_field_info(&expr);
         assert!(result.is_some());
         let (field, conversion) = result.unwrap();
-        assert_eq!(field.to_string(), "authority", "Should extract terminal field 'authority', not 'inner'");
+        assert_eq!(
+            field.to_string(),
+            "authority",
+            "Should extract terminal field 'authority', not 'inner'"
+        );
         assert!(conversion.is_none());
     }
 
@@ -350,7 +354,11 @@ mod tests {
 
         let fields = get_data_fields(&seeds);
         assert_eq!(fields.len(), 1);
-        assert_eq!(fields[0].0.to_string(), "authority", "Seed struct should use terminal field 'authority'");
+        assert_eq!(
+            fields[0].0.to_string(),
+            "authority",
+            "Seed struct should use terminal field 'authority'"
+        );
     }
 
     #[test]
@@ -363,6 +371,10 @@ mod tests {
 
         let fields = get_data_fields(&seeds);
         assert_eq!(fields.len(), 1);
-        assert_eq!(fields[0].0.to_string(), "key", "Should extract deepest terminal field 'key'");
+        assert_eq!(
+            fields[0].0.to_string(),
+            "key",
+            "Should extract deepest terminal field 'key'"
+        );
     }
 }

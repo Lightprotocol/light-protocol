@@ -419,7 +419,12 @@ where
     P: PackedLightAccountVariantTrait<SEED_COUNT>,
 {
     // Return early for idempotency - check if account already has token data
-    if !token_account_info.data_is_empty() && token_account_info.try_borrow_data()?[107] != 0 {
+    // State byte at offset 108: 0=Uninitialized, 1=Initialized, 2=Frozen
+    const STATE_OFFSET: usize = 108;
+    if !token_account_info.data_is_empty()
+        && token_account_info.data_len() > STATE_OFFSET
+        && token_account_info.try_borrow_data()?[STATE_OFFSET] != 0
+    {
         solana_msg::msg!("Token account is already decompressed");
         return Ok(());
     }

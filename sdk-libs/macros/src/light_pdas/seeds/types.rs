@@ -194,10 +194,9 @@ pub struct ExtractedTokenSpec {
     pub variant_name: Ident,
     /// Seeds from #[account(seeds = [...])]
     pub seeds: Vec<ClassifiedSeed>,
-    /// Authority field name (if specified or auto-detected)
-    pub authority_field: Option<Ident>,
-    /// Authority seeds (from the authority field's #[account(seeds)])
-    pub authority_seeds: Option<Vec<ClassifiedSeed>>,
+    /// Owner PDA seeds - used when the token owner is a PDA that needs to sign.
+    /// Must contain only constant values (byte literals, const references).
+    pub owner_seeds: Option<Vec<ClassifiedSeed>>,
     /// The full module path where this struct was defined (e.g., "crate::instructions::create")
     /// Used to qualify bare constant/function names in seed expressions.
     pub module_path: String,

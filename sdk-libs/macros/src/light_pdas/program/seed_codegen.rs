@@ -70,52 +70,52 @@ pub fn generate_client_seed_functions(
             };
             functions.push(function);
 
-            if let Some(authority_seeds) = &spec.authority {
-                let authority_function_name = format_ident!(
-                    "get_{}_authority_seeds",
+            if let Some(owner_seeds_list) = &spec.owner_seeds {
+                let owner_seeds_function_name = format_ident!(
+                    "get_{}_owner_seeds",
                     variant_name.to_string().to_lowercase()
                 );
 
-                let mut authority_spec = TokenSeedSpec {
+                let mut owner_seeds_spec = TokenSeedSpec {
                     variant: spec.variant.clone(),
                     _eq: spec._eq,
                     is_token: spec.is_token,
                     seeds: syn::punctuated::Punctuated::new(),
-                    authority: None,
+                    owner_seeds: None,
                     inner_type: spec.inner_type.clone(),
                     is_zero_copy: spec.is_zero_copy,
                 };
 
-                for auth_seed in authority_seeds {
-                    authority_spec.seeds.push(auth_seed.clone());
+                for owner_seed in owner_seeds_list {
+                    owner_seeds_spec.seeds.push(owner_seed.clone());
                 }
 
-                let (auth_parameters, auth_seed_expressions) =
-                    analyze_seed_spec_for_client(&authority_spec, instruction_data)?;
+                let (owner_parameters, owner_seed_expressions) =
+                    analyze_seed_spec_for_client(&owner_seeds_spec, instruction_data)?;
 
-                let (fn_params, fn_body) = if auth_parameters.is_empty() {
+                let (fn_params, fn_body) = if owner_parameters.is_empty() {
                     (
                         quote! { _program_id: &solana_pubkey::Pubkey },
                         generate_seed_derivation_body(
-                            &auth_seed_expressions,
+                            &owner_seed_expressions,
                             quote! { _program_id },
                         ),
                     )
                 } else {
                     (
-                        quote! { #(#auth_parameters),* },
+                        quote! { #(#owner_parameters),* },
                         generate_seed_derivation_body(
-                            &auth_seed_expressions,
+                            &owner_seed_expressions,
                             quote! { &crate::ID },
                         ),
                     )
                 };
-                let authority_function = quote! {
-                    pub fn #authority_function_name(#fn_params) -> (Vec<Vec<u8>>, solana_pubkey::Pubkey) {
+                let owner_seeds_function = quote! {
+                    pub fn #owner_seeds_function_name(#fn_params) -> (Vec<Vec<u8>>, solana_pubkey::Pubkey) {
                         #fn_body
                     }
                 };
-                functions.push(authority_function);
+                functions.push(owner_seeds_function);
             }
         }
     }

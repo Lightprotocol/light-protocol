@@ -67,6 +67,7 @@ async fn test_create_zero_copy_record() {
     let accounts = single_account_loader_test::accounts::CreateRecord {
         fee_payer: payer.pubkey(),
         compression_config: config_pda,
+        pda_rent_sponsor: rent_sponsor,
         record: record_pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -171,6 +172,7 @@ async fn test_zero_copy_record_full_lifecycle() {
     let accounts = single_account_loader_test::accounts::CreateRecord {
         fee_payer: payer.pubkey(),
         compression_config: config_pda,
+        pda_rent_sponsor: rent_sponsor,
         record: record_pda,
         system_program: solana_sdk::system_program::ID,
     };

@@ -53,7 +53,7 @@ use light_program_test::{
 };
 use light_sdk::interface::{CompressionState, IntoVariant};
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
-use light_token::instruction::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR};
+use light_token::instruction::{LIGHT_TOKEN_CONFIG, RENT_SPONSOR};
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -169,7 +169,7 @@ async fn test_d11_zc_with_vault() {
         d11_mint: mint,
         d11_vault_authority: vault_authority,
         d11_zc_vault: vault_pda,
-        light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
+        light_token_compressible_config: LIGHT_TOKEN_CONFIG,
         light_token_rent_sponsor: RENT_SPONSOR,
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
@@ -219,7 +219,12 @@ async fn test_d11_zc_with_vault() {
 
     // PHASE 3: Verify compressed account exists
     let compressed_address = ctx.get_compressed_address(&zc_pda);
-    shared::assert_compressed_exists_with_data(&mut ctx.rpc,compressed_address, "compressed_account").await;
+    shared::assert_compressed_exists_with_data(
+        &mut ctx.rpc,
+        compressed_address,
+        "compressed_account",
+    )
+    .await;
 
     // PHASE 4: Decompress account
     let account_interface = ctx
@@ -309,7 +314,7 @@ async fn test_d11_zc_with_ata() {
         d11_ata_mint: mint,
         d11_ata_owner: ata_owner,
         d11_user_ata: ata_pda,
-        light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
+        light_token_compressible_config: LIGHT_TOKEN_CONFIG,
         light_token_rent_sponsor: RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         system_program: solana_sdk::system_program::ID,
@@ -356,7 +361,12 @@ async fn test_d11_zc_with_ata() {
 
     // PHASE 3: Verify compressed account exists
     let compressed_address = ctx.get_compressed_address(&zc_pda);
-    shared::assert_compressed_exists_with_data(&mut ctx.rpc,compressed_address, "compressed_account").await;
+    shared::assert_compressed_exists_with_data(
+        &mut ctx.rpc,
+        compressed_address,
+        "compressed_account",
+    )
+    .await;
 
     // PHASE 4: Decompress account
     let account_interface = ctx
@@ -485,8 +495,18 @@ async fn test_d11_multiple_zc() {
     // PHASE 3: Verify both compressed accounts exist
     let compressed_address_1 = ctx.get_compressed_address(&zc_pda_1);
     let compressed_address_2 = ctx.get_compressed_address(&zc_pda_2);
-    shared::assert_compressed_exists_with_data(&mut ctx.rpc,compressed_address_1, "compressed_account_1").await;
-    shared::assert_compressed_exists_with_data(&mut ctx.rpc,compressed_address_2, "compressed_account_2").await;
+    shared::assert_compressed_exists_with_data(
+        &mut ctx.rpc,
+        compressed_address_1,
+        "compressed_account_1",
+    )
+    .await;
+    shared::assert_compressed_exists_with_data(
+        &mut ctx.rpc,
+        compressed_address_2,
+        "compressed_account_2",
+    )
+    .await;
 
     // PHASE 4: Decompress first account
     let account_interface_1 = ctx
@@ -663,8 +683,14 @@ async fn test_d11_mixed_zc_borsh() {
     // PHASE 3: Verify both compressed accounts exist
     let compressed_address_zc = ctx.get_compressed_address(&zc_pda);
     let compressed_address_borsh = ctx.get_compressed_address(&borsh_pda);
-    shared::assert_compressed_exists_with_data(&mut ctx.rpc,compressed_address_zc, "zc_record").await;
-    shared::assert_compressed_exists_with_data(&mut ctx.rpc,compressed_address_borsh, "borsh_record").await;
+    shared::assert_compressed_exists_with_data(&mut ctx.rpc, compressed_address_zc, "zc_record")
+        .await;
+    shared::assert_compressed_exists_with_data(
+        &mut ctx.rpc,
+        compressed_address_borsh,
+        "borsh_record",
+    )
+    .await;
 
     // PHASE 4: Decompress zero-copy account
     let account_interface_zc = ctx
@@ -827,7 +853,12 @@ async fn test_d11_zc_with_ctx_seeds() {
 
     // PHASE 3: Verify compressed account exists
     let compressed_address = ctx.get_compressed_address(&zc_pda);
-    shared::assert_compressed_exists_with_data(&mut ctx.rpc,compressed_address, "compressed_account").await;
+    shared::assert_compressed_exists_with_data(
+        &mut ctx.rpc,
+        compressed_address,
+        "compressed_account",
+    )
+    .await;
 
     // PHASE 4: Decompress account
     let account_interface = ctx
@@ -957,7 +988,12 @@ async fn test_d11_zc_with_params_seeds() {
 
     // PHASE 3: Verify compressed account exists
     let compressed_address = ctx.get_compressed_address(&zc_pda);
-    shared::assert_compressed_exists_with_data(&mut ctx.rpc,compressed_address, "compressed_account").await;
+    shared::assert_compressed_exists_with_data(
+        &mut ctx.rpc,
+        compressed_address,
+        "compressed_account",
+    )
+    .await;
 
     // PHASE 4: Decompress account
     let account_interface = ctx
@@ -1048,7 +1084,7 @@ async fn test_d11_zc_with_mint_to() {
         mint_authority: ctx.payer.pubkey(),
         d11_vault_authority: vault_authority,
         d11_mint_vault: vault_pda,
-        light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
+        light_token_compressible_config: LIGHT_TOKEN_CONFIG,
         light_token_rent_sponsor: RENT_SPONSOR,
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
@@ -1102,7 +1138,12 @@ async fn test_d11_zc_with_mint_to() {
 
     // PHASE 3: Verify compressed account exists
     let compressed_address = ctx.get_compressed_address(&zc_pda);
-    shared::assert_compressed_exists_with_data(&mut ctx.rpc,compressed_address, "compressed_account").await;
+    shared::assert_compressed_exists_with_data(
+        &mut ctx.rpc,
+        compressed_address,
+        "compressed_account",
+    )
+    .await;
 
     // PHASE 4: Decompress account
     let account_interface = ctx

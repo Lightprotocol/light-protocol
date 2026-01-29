@@ -12,7 +12,7 @@ use light_sdk::{
     },
 };
 use light_token::constants::{
-    COMPRESSIBLE_CONFIG_V1, LIGHT_TOKEN_CPI_AUTHORITY, LIGHT_TOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_CPI_AUTHORITY, LIGHT_TOKEN_PROGRAM_ID,
     RENT_SPONSOR_V1 as RENT_SPONSOR,
 };
 use solana_instruction::{AccountMeta, Instruction};
@@ -81,7 +81,7 @@ pub mod load {
             AccountMeta::new(RENT_SPONSOR, false),
             AccountMeta::new_readonly(LIGHT_TOKEN_PROGRAM_ID, false),
             AccountMeta::new_readonly(LIGHT_TOKEN_CPI_AUTHORITY, false),
-            AccountMeta::new_readonly(COMPRESSIBLE_CONFIG_V1, false),
+            AccountMeta::new_readonly(LIGHT_TOKEN_CONFIG, false),
         ]
     }
 
@@ -98,7 +98,7 @@ pub mod load {
             AccountMeta::new(rent_sponsor, false), // placeholder for ctoken_rent_sponsor
             AccountMeta::new_readonly(LIGHT_TOKEN_PROGRAM_ID, false),
             AccountMeta::new_readonly(LIGHT_TOKEN_CPI_AUTHORITY, false),
-            AccountMeta::new_readonly(COMPRESSIBLE_CONFIG_V1, false),
+            AccountMeta::new_readonly(LIGHT_TOKEN_CONFIG, false),
         ]
     }
 }

@@ -28,7 +28,7 @@ async fn test_create_pdas_and_mint_auto() {
         FullAutoWithMintParams, GameSession,
     };
     use light_token::instruction::{
-        get_associated_token_address_and_bump, COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR,
+        get_associated_token_address_and_bump, LIGHT_TOKEN_CONFIG, RENT_SPONSOR,
     };
     use light_token_interface::state::Token;
 
@@ -160,7 +160,7 @@ async fn test_create_pdas_and_mint_auto() {
         user_ata: user_ata_pda,
         compression_config: config_pda,
         pda_rent_sponsor: rent_sponsor,
-        light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
+        light_token_compressible_config: LIGHT_TOKEN_CONFIG,
         rent_sponsor: RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
@@ -284,8 +284,13 @@ async fn test_create_pdas_and_mint_auto() {
 
     // Compressed token accounts should exist with correct balances
     shared::assert_compressed_token_exists(&mut rpc, &vault_pda, vault_mint_amount, "Vault").await;
-    shared::assert_compressed_token_exists(&mut rpc, &user_ata_pda, user_ata_mint_amount, "UserATA")
-        .await;
+    shared::assert_compressed_token_exists(
+        &mut rpc,
+        &user_ata_pda,
+        user_ata_mint_amount,
+        "UserATA",
+    )
+    .await;
 
     // PHASE 3: Decompress all accounts via create_load_instructions
     use anchor_lang::AnchorDeserialize;
@@ -526,7 +531,7 @@ async fn test_create_two_mints() {
         CreateTwoMintsParams, MINT_SIGNER_A_SEED, MINT_SIGNER_B_SEED,
     };
     use light_token::instruction::{
-        find_mint_address as find_cmint_address, COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR,
+        find_mint_address as find_cmint_address, LIGHT_TOKEN_CONFIG, RENT_SPONSOR,
     };
 
     let program_id = csdk_anchor_full_derived_test::ID;
@@ -604,7 +609,7 @@ async fn test_create_two_mints() {
         cmint_a: cmint_a_pda,
         cmint_b: cmint_b_pda,
         compression_config: config_pda,
-        light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
+        light_token_compressible_config: LIGHT_TOKEN_CONFIG,
         rent_sponsor: RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
@@ -724,7 +729,7 @@ async fn test_create_multi_mints() {
         CreateThreeMintsParams, MINT_SIGNER_A_SEED, MINT_SIGNER_B_SEED, MINT_SIGNER_C_SEED,
     };
     use light_token::instruction::{
-        find_mint_address as find_cmint_address, COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR,
+        find_mint_address as find_cmint_address, LIGHT_TOKEN_CONFIG, RENT_SPONSOR,
     };
 
     let program_id = csdk_anchor_full_derived_test::ID;
@@ -796,7 +801,7 @@ async fn test_create_multi_mints() {
         cmint_b: cmint_b_pda,
         cmint_c: cmint_c_pda,
         compression_config: config_pda,
-        light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
+        light_token_compressible_config: LIGHT_TOKEN_CONFIG,
         rent_sponsor: RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),

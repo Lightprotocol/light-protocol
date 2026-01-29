@@ -1,7 +1,7 @@
-//! Instruction argument parsing from `#[instruction(...)]` attributes.
+//! Instruction argument set for seed classification.
 //!
-//! This module extracts instruction argument names from Anchor's attribute syntax
-//! to enable proper seed classification.
+//! This module provides `InstructionArgSet` for tracking instruction argument names.
+//! The parsing logic has been consolidated into `parsing/instruction_arg.rs`.
 
 use std::collections::HashSet;
 
@@ -39,61 +39,9 @@ impl InstructionArgSet {
     }
 }
 
-/// Parse #[instruction(...)] attribute from a struct's attributes and return InstructionArgSet
-pub fn parse_instruction_arg_names(attrs: &[syn::Attribute]) -> syn::Result<InstructionArgSet> {
-    for attr in attrs {
-        if attr.path().is_ident("instruction") {
-            let content = attr.parse_args_with(|input: syn::parse::ParseStream| {
-                let args: syn::punctuated::Punctuated<InstructionArg, syn::Token![,]> =
-                    syn::punctuated::Punctuated::parse_terminated(input)?;
-                Ok(args
-                    .into_iter()
-                    .map(|a| a.name.to_string())
-                    .collect::<Vec<_>>())
-            })?;
-            return Ok(InstructionArgSet::from_names(content));
-        }
-    }
-    Ok(InstructionArgSet::empty())
-}
-
-/// Helper struct for parsing instruction args
-struct InstructionArg {
-    name: syn::Ident,
-}
-
-impl syn::parse::Parse for InstructionArg {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let name = input.parse()?;
-        input.parse::<syn::Token![:]>()?;
-        input.parse::<syn::Type>()?;
-        Ok(Self { name })
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use syn::parse_quote;
-
     use super::*;
-
-    #[test]
-    fn test_parse_instruction_arg_names() {
-        // Test that we can parse instruction attributes
-        let attrs: Vec<syn::Attribute> = vec![parse_quote!(#[instruction(owner: Pubkey)])];
-        let args = parse_instruction_arg_names(&attrs).unwrap();
-        assert!(args.contains("owner"));
-    }
-
-    #[test]
-    fn test_parse_instruction_arg_names_multiple() {
-        let attrs: Vec<syn::Attribute> =
-            vec![parse_quote!(#[instruction(owner: Pubkey, amount: u64, flag: bool)])];
-        let args = parse_instruction_arg_names(&attrs).unwrap();
-        assert!(args.contains("owner"));
-        assert!(args.contains("amount"));
-        assert!(args.contains("flag"));
-    }
 
     #[test]
     fn test_instruction_arg_set_empty() {

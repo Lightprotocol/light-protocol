@@ -16,9 +16,9 @@
 
 mod builder;
 mod derive;
-mod light_account;
-mod mint;
-mod parse;
+pub(crate) mod light_account;
+pub(crate) mod mint;
+pub(crate) mod parse;
 mod pda;
 mod token;
 mod validation;

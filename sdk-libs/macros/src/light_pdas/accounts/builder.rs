@@ -73,8 +73,16 @@ impl LightAccountsBuilder {
             has_compression_config: self.parsed.infra_fields.compression_config.is_some(),
             has_pda_rent_sponsor: self.parsed.infra_fields.pda_rent_sponsor.is_some(),
             has_light_token_config: self.parsed.infra_fields.light_token_config.is_some(),
-            has_light_token_rent_sponsor: self.parsed.infra_fields.light_token_rent_sponsor.is_some(),
-            has_light_token_cpi_authority: self.parsed.infra_fields.light_token_cpi_authority.is_some(),
+            has_light_token_rent_sponsor: self
+                .parsed
+                .infra_fields
+                .light_token_rent_sponsor
+                .is_some(),
+            has_light_token_cpi_authority: self
+                .parsed
+                .infra_fields
+                .light_token_cpi_authority
+                .is_some(),
             has_instruction_args: self
                 .parsed
                 .instruction_args
@@ -82,9 +90,9 @@ impl LightAccountsBuilder {
                 .map(|args| !args.is_empty())
                 .unwrap_or(false),
             has_direct_proof_arg: self.parsed.direct_proof_arg.is_some(),
-            total_account_count: self.parsed.rentfree_fields.len()
-                + self.parsed.light_mint_fields.len()
-                + self.parsed.token_account_fields.len()
+            total_account_count: self.parsed.pda_fields.len()
+                + self.parsed.mint_fields.len()
+                + self.parsed.token_fields.len()
                 + self.parsed.ata_fields.len(),
         };
         validate_struct(&ctx)
@@ -92,17 +100,17 @@ impl LightAccountsBuilder {
 
     /// Query: any #[light_account(init)] PDA fields?
     pub fn has_pdas(&self) -> bool {
-        !self.parsed.rentfree_fields.is_empty()
+        !self.parsed.pda_fields.is_empty()
     }
 
     /// Query: any #[light_account(init, mint, ...)] fields?
     pub fn has_mints(&self) -> bool {
-        !self.parsed.light_mint_fields.is_empty()
+        !self.parsed.mint_fields.is_empty()
     }
 
     /// Query: any #[light_account(init, token, ...)] fields?
     pub fn has_token_accounts(&self) -> bool {
-        !self.parsed.token_account_fields.is_empty()
+        !self.parsed.token_fields.is_empty()
     }
 
     /// Query: any #[light_account(init, associated_token, ...)] fields?
@@ -195,7 +203,7 @@ impl LightAccountsBuilder {
 
         // Generate token/ATA creation code (if any)
         let token_creation = TokenAccountsBuilder::new(
-            &self.parsed.token_account_fields,
+            &self.parsed.token_fields,
             &self.parsed.ata_fields,
             &self.infra,
         )
@@ -254,18 +262,21 @@ impl LightAccountsBuilder {
 
     /// Generate PDAs + mints body WITHOUT the Ok(true) return.
     fn generate_pre_init_pdas_and_mints_body(&self) -> Result<TokenStream, syn::Error> {
-        let compress_blocks = generate_pda_compress_blocks(&self.parsed.rentfree_fields);
+        let compress_blocks = generate_pda_compress_blocks(&self.parsed.pda_fields);
         let rent_reimbursement =
-            generate_rent_reimbursement_block(&self.parsed.rentfree_fields, &self.infra);
-        let rentfree_count = self.parsed.rentfree_fields.len() as u8;
-        let pda_count = self.parsed.rentfree_fields.len();
+            generate_rent_reimbursement_block(&self.parsed.pda_fields, &self.infra);
+        let pda_count = self.parsed.pda_fields.len();
+        let rentfree_count = pda_count as u8;
 
         // Get proof access expression (direct arg or nested in params)
         let proof_access = self.get_proof_access()?;
 
-        let first_pda_output_tree = &self.parsed.rentfree_fields[0].output_tree;
+        let first_pda_output_tree = self.parsed.pda_fields[0]
+            .output_tree
+            .as_ref()
+            .expect("output_tree required for derive macro");
 
-        let mints = &self.parsed.light_mint_fields;
+        let mints = &self.parsed.mint_fields;
         let mint_invocation = LightMintsBuilder::new(mints, &proof_access, &self.infra)
             .with_pda_context(pda_count, quote! { #first_pda_output_tree })
             .generate_invocation();
@@ -305,10 +316,10 @@ impl LightAccountsBuilder {
 
     /// Generate PDAs-only body WITHOUT the Ok(true) return.
     fn generate_pre_init_pdas_only_body(&self) -> Result<TokenStream, syn::Error> {
-        let compress_blocks = generate_pda_compress_blocks(&self.parsed.rentfree_fields);
+        let compress_blocks = generate_pda_compress_blocks(&self.parsed.pda_fields);
         let rent_reimbursement =
-            generate_rent_reimbursement_block(&self.parsed.rentfree_fields, &self.infra);
-        let rentfree_count = self.parsed.rentfree_fields.len() as u8;
+            generate_rent_reimbursement_block(&self.parsed.pda_fields, &self.infra);
+        let rentfree_count = self.parsed.pda_fields.len() as u8;
 
         // Get proof access expression (direct arg or nested in params)
         let proof_access = self.get_proof_access()?;
@@ -351,7 +362,7 @@ impl LightAccountsBuilder {
         // Get proof access expression (direct arg or nested in params)
         let proof_access = self.get_proof_access()?;
 
-        let mints = &self.parsed.light_mint_fields;
+        let mints = &self.parsed.mint_fields;
         let mint_invocation =
             LightMintsBuilder::new(mints, &proof_access, &self.infra).generate_invocation();
 

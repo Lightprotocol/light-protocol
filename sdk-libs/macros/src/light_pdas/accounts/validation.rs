@@ -30,6 +30,10 @@
 //!    - Direct instruction argument: `#[instruction(proof: CreateAccountsProof)]`
 //!    - Nested in params struct: `#[instruction(params: MyParams)]` where `MyParams`
 //!      has `create_accounts_proof` field
+//!
+//! 9. **Light account fields required** - When `#[instruction]` is present,
+//!    at least one `#[light_account]` field must exist. `#[derive(LightAccounts)]`
+//!    is only needed for instructions that create light accounts.
 
 use super::parse::InfraFieldType;
 
@@ -59,6 +63,7 @@ pub(super) struct ValidationContext<'a> {
 /// Perform all struct-level validations.
 pub(super) fn validate_struct(ctx: &ValidationContext) -> Result<(), syn::Error> {
     validate_account_count(ctx)?;
+    validate_light_account_fields_required(ctx)?;
     validate_infra_fields(ctx)?;
     validate_proof_availability(ctx)?;
     Ok(())
@@ -79,6 +84,34 @@ fn validate_account_count(ctx: &ValidationContext) -> Result<(), syn::Error> {
             ),
         ));
     }
+    Ok(())
+}
+
+/// Validate that `#[light_account]` fields exist when `#[instruction]` is present.
+///
+/// `#[derive(LightAccounts)]` is only needed for instructions that create light accounts
+/// (rent-free PDAs, mints, token accounts, or ATAs). If there's an `#[instruction]`
+/// attribute but no `#[light_account(init, ...)]` fields, the derive macro is unnecessary.
+///
+/// Note: All `#[light_account]` fields require `init` keyword.
+fn validate_light_account_fields_required(ctx: &ValidationContext) -> Result<(), syn::Error> {
+    let has_light_account_fields = ctx.has_pdas || ctx.has_mints || ctx.has_tokens || ctx.has_atas;
+
+    if ctx.has_instruction_args && !has_light_account_fields {
+        return Err(syn::Error::new_spanned(
+            ctx.struct_name,
+            "#[derive(LightAccounts)] with #[instruction(...)] requires at least one \
+             #[light_account] field.\n\
+             \n\
+             This derive macro is only needed for instructions that create light accounts \
+             (rent-free PDAs, mints, token accounts, or ATAs).\n\
+             \n\
+             Either:\n\
+             1. Add #[light_account(init)] to fields that should be light accounts\n\
+             2. Remove #[derive(LightAccounts)] if this instruction doesn't create light accounts",
+        ));
+    }
+
     Ok(())
 }
 

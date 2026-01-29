@@ -12,8 +12,10 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{punctuated::Punctuated, DeriveInput, Field, Fields, Ident, ItemStruct, Result, Token};
 
-use super::traits::{parse_compress_as_overrides, CompressAsFields};
-use super::validation::validate_compression_info_field;
+use super::{
+    traits::{parse_compress_as_overrides, CompressAsFields},
+    validation::validate_compression_info_field,
+};
 use crate::{
     discriminator::discriminator,
     hasher::derive_light_hasher_sha,
