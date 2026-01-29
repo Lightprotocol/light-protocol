@@ -2,6 +2,7 @@
 name = "light-verifier"
 version = "8.0.0"
 description = "ZKP proof verifier used in Light Protocol"
+readme = "README.md"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
 edition = "2021"

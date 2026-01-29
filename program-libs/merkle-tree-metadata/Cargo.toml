@@ -2,6 +2,7 @@
 name = "light-merkle-tree-metadata"
 version = "0.9.0"
 description = "Merkle tree metadata for light-concurrent-merkle-tree, light-indexed-merkle-tree, light-batched-merkle-tree."
+readme = "README.md"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
 edition = "2021"
