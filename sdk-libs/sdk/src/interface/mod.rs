@@ -91,10 +91,10 @@ pub use account::{
     pack::Unpack,
 };
 // --- Re-exports from accounts/ ---
-pub use accounts::finalize::{LightFinalize, LightPreInit};
 #[cfg(feature = "v2")]
-pub use accounts::init::create_pda::create_pda_account;
-pub use accounts::init::init_compressed_account::{
+pub use accounts::create_pda::create_pda_account;
+pub use accounts::finalize::{LightFinalize, LightPreInit};
+pub use accounts::init_compressed_account::{
     prepare_compressed_account_on_init, prepare_compressed_account_on_init_checked, reimburse_rent,
 };
 // --- Re-exports from external crates ---
