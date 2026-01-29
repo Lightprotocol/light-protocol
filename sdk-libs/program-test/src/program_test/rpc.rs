@@ -548,26 +548,68 @@ impl Rpc for LightProgramTest {
         // Not found
         Ok(Response {
             context: Context { slot },
-            value: Some(MintInterface {
-                mint: *address,
-                address_tree,
-                compressed_address,
-                state: MintState::None,
-            }),
+            value: None,
         })
     }
 
     async fn get_multiple_account_interfaces(
         &self,
         addresses: Vec<&Pubkey>,
-        config: Option<light_client::indexer::IndexerRpcConfig>,
+        _config: Option<light_client::indexer::IndexerRpcConfig>,
     ) -> Result<Response<Vec<Option<AccountInterface>>>, RpcError> {
         let slot = self.context.get_sysvar::<Clock>().slot;
-        let mut results = Vec::with_capacity(addresses.len());
+        let mut results: Vec<Option<AccountInterface>> = vec![None; addresses.len()];
 
-        for address in addresses {
-            let result = self.get_account_interface(address, config.clone()).await?;
-            results.push(result.value);
+        // Batch fetch on-chain accounts (hot path)
+        let owned_addresses: Vec<Pubkey> = addresses.iter().map(|a| **a).collect();
+        let on_chain_accounts: Vec<Option<Account>> = owned_addresses
+            .iter()
+            .map(|addr| self.context.get_account(addr))
+            .collect();
+
+        // Track which addresses still need cold lookup
+        let mut cold_lookup_indices: Vec<usize> = Vec::new();
+        let mut cold_lookup_pubkeys: Vec<[u8; 32]> = Vec::new();
+
+        for (i, (address, maybe_account)) in addresses
+            .iter()
+            .zip(on_chain_accounts.into_iter())
+            .enumerate()
+        {
+            if let Some(account) = maybe_account {
+                if account.lamports > 0 {
+                    results[i] = Some(AccountInterface::hot(**address, account));
+                    continue;
+                }
+            }
+            // Not found on-chain or has 0 lamports, need cold lookup
+            cold_lookup_indices.push(i);
+            cold_lookup_pubkeys.push(address.to_bytes());
+        }
+
+        // Batch lookup cold accounts from TestIndexer
+        if !cold_lookup_pubkeys.is_empty() {
+            if let Some(indexer) = self.indexer.as_ref() {
+                let cold_results = indexer
+                    .find_multiple_compressed_accounts_by_onchain_pubkeys(&cold_lookup_pubkeys);
+
+                for (lookup_idx, maybe_compressed) in cold_results.into_iter().enumerate() {
+                    let original_idx = cold_lookup_indices[lookup_idx];
+                    if let Some(compressed_with_ctx) = maybe_compressed {
+                        let owner: Pubkey = compressed_with_ctx.compressed_account.owner.into();
+                        let compressed: CompressedAccount =
+                            compressed_with_ctx.clone().try_into().map_err(|e| {
+                                RpcError::CustomError(format!("conversion error: {:?}", e))
+                            })?;
+
+                        results[original_idx] = Some(AccountInterface::cold(
+                            *addresses[original_idx],
+                            compressed,
+                            owner,
+                        ));
+                    }
+                }
+            }
         }
 
         Ok(Response {

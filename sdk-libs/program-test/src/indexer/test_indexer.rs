@@ -1412,6 +1412,17 @@ impl TestIndexer {
         })
     }
 
+    /// Find multiple compressed accounts by their on-chain pubkeys.
+    pub fn find_multiple_compressed_accounts_by_onchain_pubkeys(
+        &self,
+        onchain_pubkeys: &[[u8; 32]],
+    ) -> Vec<Option<&CompressedAccountWithMerkleContext>> {
+        onchain_pubkeys
+            .iter()
+            .map(|pubkey| self.find_compressed_account_by_onchain_pubkey(pubkey))
+            .collect()
+    }
+
     /// Find a token compressed account by its on-chain pubkey.
     pub fn find_token_account_by_onchain_pubkey(
         &self,
