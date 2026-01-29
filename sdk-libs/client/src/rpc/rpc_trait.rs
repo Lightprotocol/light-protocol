@@ -271,6 +271,14 @@ pub trait Rpc: Send + Sync + Debug + 'static {
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<Option<MintInterface>>, RpcError>;
 
+    /// Get a token account interface by owner and mint.
+    async fn get_token_account_by_owner_mint(
+        &self,
+        owner: &Pubkey,
+        mint: &Pubkey,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Option<TokenAccountInterface>>, RpcError>;
+
     /// Get multiple account interfaces in a batch.
     async fn get_multiple_account_interfaces(
         &self,
@@ -307,6 +315,19 @@ pub trait Rpc: Send + Sync + Debug + 'static {
                         .value
                         .ok_or_else(|| {
                             RpcError::CustomError(format!("Token account not found: {}", address))
+                        })?;
+                    tai.into()
+                }
+                AccountToFetch::TokenByOwnerMint { owner, mint } => {
+                    let tai = self
+                        .get_token_account_by_owner_mint(owner, mint, config.clone())
+                        .await?
+                        .value
+                        .ok_or_else(|| {
+                            RpcError::CustomError(format!(
+                                "Token account not found for owner {} mint {}",
+                                owner, mint
+                            ))
                         })?;
                     tai.into()
                 }

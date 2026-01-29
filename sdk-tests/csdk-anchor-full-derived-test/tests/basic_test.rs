@@ -456,20 +456,7 @@ async fn test_create_pdas_and_mint_auto() {
     assert!(mint_interface.is_cold(), "Mint should be cold after warp");
 
     // Convert MintInterface to AccountInterface for use in AccountSpec
-    let (compressed, _mint_data) = mint_interface
-        .compressed()
-        .expect("cold mint must have compressed data");
-    let mint_account_interface = AccountInterface {
-        key: mint_pda,
-        account: solana_account::Account {
-            lamports: 0,
-            data: vec![],
-            owner: light_token::instruction::LIGHT_TOKEN_PROGRAM_ID,
-            executable: false,
-            rent_epoch: 0,
-        },
-        cold: Some(ColdContext::Account(compressed.clone())),
-    };
+    let mint_account_interface: AccountInterface = mint_interface.into();
 
     // Build AccountSpec slice for all accounts
     let specs: Vec<AccountSpec<LightAccountVariant>> = vec![

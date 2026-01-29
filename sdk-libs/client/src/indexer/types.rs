@@ -1113,12 +1113,15 @@ impl MintData {
         let mint_signer_pubkey = Pubkey::new_from_array(self.mint_signer);
         let (derived_pda, bump) = find_mint_address(&mint_signer_pubkey);
 
-        // Verify derived PDA matches stored mint_pda (sanity check)
+        // Verify derived PDA matches stored mint_pda (fail fast on mismatch)
         if derived_pda != self.mint_pda {
-            warn!(
-                "Derived mint PDA {} does not match stored mint_pda {}",
-                derived_pda, self.mint_pda
-            );
+            return Err(IndexerError::DataDecodeError {
+                field: "mint_pda".to_string(),
+                message: format!(
+                    "Derived mint PDA {} (bump={}) does not match stored mint_pda {}",
+                    derived_pda, bump, self.mint_pda
+                ),
+            });
         }
 
         // Parse extensions if present

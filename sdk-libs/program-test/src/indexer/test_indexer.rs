@@ -14,9 +14,6 @@ pub(crate) const DEFAULT_BATCH_STATE_TREE_HEIGHT: usize = 32;
 pub(crate) const DEFAULT_BATCH_ADDRESS_TREE_HEIGHT: usize = 40;
 pub(crate) const DEFAULT_BATCH_ROOT_HISTORY_LEN: usize = 200;
 
-/// Discriminator for compressible accounts that store onchain_pubkey in the first 32 bytes of data.
-/// This matches Photon's DECOMPRESSED_ACCOUNT_DISCRIMINATOR.
-pub const DECOMPRESSED_ACCOUNT_DISCRIMINATOR: u64 = 0x00FFFFFFFFFFFFFF;
 use async_trait::async_trait;
 use borsh::BorshDeserialize;
 #[cfg(feature = "devenv")]
@@ -43,6 +40,9 @@ use light_compressed_account::{
     tx_hash::create_tx_hash,
     TreeType,
 };
+/// Discriminator for compressible accounts that store onchain_pubkey in the first 32 bytes of data.
+/// Re-exported from light_compressible for convenience.
+pub use light_compressible::DECOMPRESSED_PDA_DISCRIMINATOR;
 use light_event::event::PublicTransactionEvent;
 use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
 use light_merkle_tree_reference::MerkleTree;
@@ -1390,9 +1390,8 @@ impl TestIndexer {
         data: Option<&light_compressed_account::compressed_account::CompressedAccountData>,
     ) -> Option<[u8; 32]> {
         let data = data?;
-        // Check discriminator (as little-endian u64)
-        let discriminator = u64::from_le_bytes(data.discriminator);
-        if discriminator == DECOMPRESSED_ACCOUNT_DISCRIMINATOR && data.data.len() >= 32 {
+        // Check discriminator matches DECOMPRESSED_PDA_DISCRIMINATOR
+        if data.discriminator == DECOMPRESSED_PDA_DISCRIMINATOR && data.data.len() >= 32 {
             // onchain_pubkey is stored in the first 32 bytes of data (after discriminator)
             data.data[..32].try_into().ok()
         } else {
@@ -1435,6 +1434,64 @@ impl TestIndexer {
             .as_ref()
                 == Some(onchain_pubkey)
         })
+    }
+
+    /// Find a compressed account by its PDA pubkey
+    pub fn find_compressed_account_by_pda_seed(
+        &self,
+        pda_pubkey: &[u8; 32],
+    ) -> Option<&CompressedAccountWithMerkleContext> {
+        // Try each address tree to find an account whose address matches
+        for address_tree in &self.address_merkle_trees {
+            let tree_pubkey = address_tree.accounts.merkle_tree.to_bytes();
+
+            // For each compressed account with an address, check if it was derived from this seed
+            for acc in &self.compressed_accounts {
+                if let Some(address) = acc.compressed_account.address {
+                    // Try deriving with this tree and the account's owner as program_id
+                    let owner_bytes = acc.compressed_account.owner.to_bytes();
+                    let derived = light_compressed_account::address::derive_address(
+                        pda_pubkey,
+                        &tree_pubkey,
+                        &owner_bytes,
+                    );
+
+                    if derived == address {
+                        return Some(acc);
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    /// Find a token compressed account by its PDA pubkey
+    pub fn find_token_account_by_pda_seed(
+        &self,
+        pda_pubkey: &[u8; 32],
+    ) -> Option<&TokenDataWithMerkleContext> {
+        // Try each address tree to find an account whose address matches
+        for address_tree in &self.address_merkle_trees {
+            let tree_pubkey = address_tree.accounts.merkle_tree.to_bytes();
+
+            // For each token compressed account with an address, check if it was derived from this seed
+            for acc in &self.token_compressed_accounts {
+                if let Some(address) = acc.compressed_account.compressed_account.address {
+                    // Try deriving with this tree and the account's owner as program_id
+                    let owner_bytes = acc.compressed_account.compressed_account.owner.to_bytes();
+                    let derived = light_compressed_account::address::derive_address(
+                        pda_pubkey,
+                        &tree_pubkey,
+                        &owner_bytes,
+                    );
+
+                    if derived == address {
+                        return Some(acc);
+                    }
+                }
+            }
+        }
+        None
     }
 
     /// Get the sequence number for a state merkle tree by its pubkey.

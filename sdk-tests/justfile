@@ -10,3 +10,4 @@ test:
     RUSTFLAGS="-D warnings" cargo test-sbf -p sdk-native-test
     RUSTFLAGS="-D warnings" cargo test-sbf -p sdk-anchor-test
     RUSTFLAGS="-D warnings" cargo test-sbf -p sdk-token-test
+    RUSTFLAGS="-D warnings" cargo test-sbf -p csdk-anchor-full-derived-test

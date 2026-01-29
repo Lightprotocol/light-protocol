@@ -132,7 +132,7 @@ impl From<MintInterface> for AccountInterface {
                         executable: false,
                         rent_epoch: 0,
                     },
-                    cold: Some(ColdContext::Account(compressed)),
+                    cold: Some(ColdContext::Mint(compressed)),
                 }
             }
             MintState::None => Self {

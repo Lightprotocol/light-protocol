@@ -150,6 +150,7 @@ impl AccountInterface {
         match &self.cold {
             Some(ColdContext::Account(c)) => Some(c.hash),
             Some(ColdContext::Token(c)) => Some(c.account.hash),
+            Some(ColdContext::Mint(c)) => Some(c.hash),
             None => None,
         }
     }
@@ -159,6 +160,7 @@ impl AccountInterface {
         match &self.cold {
             Some(ColdContext::Account(c)) => Some(&c.tree_info),
             Some(ColdContext::Token(c)) => Some(&c.account.tree_info),
+            Some(ColdContext::Mint(c)) => Some(&c.tree_info),
             None => None,
         }
     }
@@ -168,14 +170,16 @@ impl AccountInterface {
         match &self.cold {
             Some(ColdContext::Account(c)) => Some(c.leaf_index),
             Some(ColdContext::Token(c)) => Some(c.account.leaf_index),
+            Some(ColdContext::Mint(c)) => Some(c.leaf_index),
             None => None,
         }
     }
 
-    /// Get as CompressedAccount if cold account type.
+    /// Get as CompressedAccount if cold account or mint type.
     pub fn as_compressed_account(&self) -> Option<&CompressedAccount> {
         match &self.cold {
             Some(ColdContext::Account(c)) => Some(c),
+            Some(ColdContext::Mint(c)) => Some(c),
             _ => None,
         }
     }
@@ -191,7 +195,7 @@ impl AccountInterface {
     /// Try to parse as Mint. Returns None if not a mint or parse fails.
     pub fn as_mint(&self) -> Option<light_token_interface::state::Mint> {
         match &self.cold {
-            Some(ColdContext::Account(ca)) => {
+            Some(ColdContext::Mint(ca)) => {
                 let data = ca.data.as_ref()?;
                 borsh::BorshDeserialize::deserialize(&mut data.data.as_slice()).ok()
             }

@@ -387,8 +387,25 @@ impl Rpc for LightProgramTest {
 
         // Cold: check TestIndexer by onchain pubkey (mirrors Photon behavior)
         if let Some(indexer) = self.indexer.as_ref() {
+            // First try: lookup by onchain_pubkey (for accounts with DECOMPRESSED_PDA_DISCRIMINATOR)
             if let Some(compressed_with_ctx) =
                 indexer.find_compressed_account_by_onchain_pubkey(&address.to_bytes())
+            {
+                let owner: Pubkey = compressed_with_ctx.compressed_account.owner.into();
+                let compressed: CompressedAccount = compressed_with_ctx
+                    .clone()
+                    .try_into()
+                    .map_err(|e| RpcError::CustomError(format!("conversion error: {:?}", e)))?;
+
+                return Ok(Response {
+                    context: Context { slot },
+                    value: Some(AccountInterface::cold(*address, compressed, owner)),
+                });
+            }
+
+            // Second try: lookup by PDA seed (for accounts whose address was derived from this pubkey)
+            if let Some(compressed_with_ctx) =
+                indexer.find_compressed_account_by_pda_seed(&address.to_bytes())
             {
                 let owner: Pubkey = compressed_with_ctx.compressed_account.owner.into();
                 let compressed: CompressedAccount = compressed_with_ctx
@@ -436,11 +453,17 @@ impl Rpc for LightProgramTest {
             }
         }
 
-        // Cold: check TestIndexer by onchain_pubkey
+        // Cold: check TestIndexer by onchain_pubkey, PDA seed, or token_data.owner
         if let Some(indexer) = self.indexer.as_ref() {
-            if let Some(token_acc) =
-                indexer.find_token_account_by_onchain_pubkey(&address.to_bytes())
-            {
+            // First try: lookup by onchain_pubkey (for accounts with DECOMPRESSED_PDA_DISCRIMINATOR)
+            let token_acc = indexer
+                .find_token_account_by_onchain_pubkey(&address.to_bytes())
+                .or_else(|| {
+                    // Second try: lookup by PDA seed (for accounts whose address was derived from this pubkey)
+                    indexer.find_token_account_by_pda_seed(&address.to_bytes())
+                });
+
+            if let Some(token_acc) = token_acc {
                 // Convert to CompressedTokenAccount
                 let compressed_account: CompressedAccount = token_acc
                     .compressed_account
@@ -463,6 +486,24 @@ impl Rpc for LightProgramTest {
                     )),
                 });
             }
+
+            // Third try: lookup by token_data.owner (for tokens where owner == address)
+            let result = indexer
+                .get_compressed_token_accounts_by_owner(address, None, None)
+                .await
+                .map_err(|e| RpcError::CustomError(format!("indexer error: {}", e)))?;
+
+            if let Some(token_acc) = result.value.items.into_iter().next() {
+                return Ok(Response {
+                    context: Context { slot },
+                    value: Some(TokenAccountInterface::cold(
+                        *address,
+                        token_acc,
+                        *address, // owner = hot address for program-owned tokens
+                        light_token_program_id,
+                    )),
+                });
+            }
         }
 
         Ok(Response {
@@ -475,12 +516,107 @@ impl Rpc for LightProgramTest {
         &self,
         owner: &Pubkey,
         mint: &Pubkey,
-        config: Option<light_client::indexer::IndexerRpcConfig>,
+        _config: Option<light_client::indexer::IndexerRpcConfig>,
     ) -> Result<Response<Option<TokenAccountInterface>>, RpcError> {
+        use light_client::indexer::GetCompressedTokenAccountsByOwnerOrDelegateOptions;
+        use light_sdk::constants::LIGHT_TOKEN_PROGRAM_ID;
         use light_token::instruction::derive_token_ata;
 
         let (ata, _bump) = derive_token_ata(owner, mint);
-        self.get_token_account_interface(&ata, config).await
+        let light_token_program_id: Pubkey = LIGHT_TOKEN_PROGRAM_ID.into();
+        let slot = self.context.get_sysvar::<Clock>().slot;
+
+        // First try: on-chain (hot) lookup
+        // We handle this directly instead of using get_token_account_interface
+        // because we need to control owner_override for ata_bump() to work
+        if let Some(account) = self.context.get_account(&ata) {
+            if account.lamports > 0 && account.owner == light_token_program_id {
+                match TokenAccountInterface::hot(ata, account) {
+                    Ok(iface) => {
+                        return Ok(Response {
+                            context: Context { slot },
+                            value: Some(iface),
+                        });
+                    }
+                    Err(_) => {
+                        // Fall through to cold lookup if parsing failed
+                    }
+                }
+            }
+        }
+
+        // Cold: search compressed tokens by ata_pubkey + mint
+        // In Light Protocol, token_data.owner is the token account pubkey (ATA), not wallet owner
+        // But we need to pass the wallet owner for TokenAccountInterface::cold so ata_bump() works
+        if let Some(indexer) = self.indexer.as_ref() {
+            let options = Some(GetCompressedTokenAccountsByOwnerOrDelegateOptions {
+                mint: Some(*mint),
+                ..Default::default()
+            });
+            let result = indexer
+                .get_compressed_token_accounts_by_owner(&ata, options, None)
+                .await
+                .map_err(|e| RpcError::CustomError(format!("indexer error: {}", e)))?;
+
+            if let Some(token_acc) = result.value.items.into_iter().next() {
+                return Ok(Response {
+                    context: Context { slot },
+                    value: Some(TokenAccountInterface::cold(
+                        ata, // key = ATA pubkey
+                        token_acc,
+                        *owner, // owner_override = wallet owner (for ata_bump() to work)
+                        light_token_program_id,
+                    )),
+                });
+            }
+        }
+
+        Ok(Response {
+            context: Context { slot },
+            value: None,
+        })
+    }
+
+    async fn get_token_account_by_owner_mint(
+        &self,
+        owner: &Pubkey,
+        mint: &Pubkey,
+        _config: Option<light_client::indexer::IndexerRpcConfig>,
+    ) -> Result<Response<Option<TokenAccountInterface>>, RpcError> {
+        use light_client::indexer::GetCompressedTokenAccountsByOwnerOrDelegateOptions;
+        use light_sdk::constants::LIGHT_TOKEN_PROGRAM_ID;
+
+        let light_token_program_id: Pubkey = LIGHT_TOKEN_PROGRAM_ID.into();
+        let slot = self.context.get_sysvar::<Clock>().slot;
+
+        // Search in compressed token accounts by owner with mint filter
+        if let Some(indexer) = self.indexer.as_ref() {
+            let options = Some(GetCompressedTokenAccountsByOwnerOrDelegateOptions {
+                mint: Some(*mint),
+                ..Default::default()
+            });
+            let result = indexer
+                .get_compressed_token_accounts_by_owner(owner, options, None)
+                .await
+                .map_err(|e| RpcError::CustomError(format!("indexer error: {}", e)))?;
+
+            if let Some(token_acc) = result.value.items.into_iter().next() {
+                return Ok(Response {
+                    context: Context { slot },
+                    value: Some(TokenAccountInterface::cold(
+                        *owner, // key = owner for program-owned tokens
+                        token_acc,
+                        *owner,
+                        light_token_program_id,
+                    )),
+                });
+            }
+        }
+
+        Ok(Response {
+            context: Context { slot },
+            value: None,
+        })
     }
 
     async fn get_mint_interface(
