@@ -38,10 +38,13 @@ pub fn decode_base58_to_fixed_array<const N: usize>(input: &str) -> Result<[u8; 
     let mut buffer = [0u8; N];
     let decoded_len = bs58::decode(input)
         .onto(&mut buffer)
-        .map_err(|_| IndexerError::InvalidResponseData)?;
+        .map_err(|e| IndexerError::base58_decode_error("base58", e))?;
 
     if decoded_len != N {
-        return Err(IndexerError::InvalidResponseData);
+        return Err(IndexerError::base58_decode_error(
+            "base58",
+            format!("expected {} bytes, got {}", N, decoded_len),
+        ));
     }
 
     Ok(buffer)

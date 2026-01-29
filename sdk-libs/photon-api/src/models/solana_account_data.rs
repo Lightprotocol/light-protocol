@@ -16,6 +16,7 @@ pub struct SolanaAccountData {
     pub owner: String,
     pub executable: bool,
     pub rent_epoch: u64,
+    pub space: u64,
 }
 
 impl SolanaAccountData {
@@ -25,6 +26,7 @@ impl SolanaAccountData {
         owner: String,
         executable: bool,
         rent_epoch: u64,
+        space: u64,
     ) -> Self {
         Self {
             lamports,
@@ -32,6 +34,7 @@ impl SolanaAccountData {
             owner,
             executable,
             rent_epoch,
+            space,
         }
     }
 }

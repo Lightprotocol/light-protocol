@@ -13,6 +13,7 @@ use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 use thiserror::Error;
 
+use super::{AccountInterface, ColdContext};
 use crate::indexer::{CompressedAccount, Indexer, ValidityProofWithContext};
 
 /// Error type for mint load operations.
@@ -38,7 +39,7 @@ pub enum DecompressMintError {
 }
 
 /// Mint state: hot (on-chain), cold (compressed), or none.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Default)]
 #[allow(clippy::large_enum_variant)]
 pub enum MintState {
     /// On-chain.
@@ -49,11 +50,12 @@ pub enum MintState {
         mint_data: Mint,
     },
     /// Doesn't exist.
+    #[default]
     None,
 }
 
 /// Mint interface for hot/cold handling.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct MintInterface {
     pub mint: Pubkey,
     pub address_tree: Pubkey,
@@ -93,6 +95,51 @@ impl MintInterface {
                 mint_data,
             } => Some((compressed, mint_data)),
             _ => None,
+        }
+    }
+}
+
+impl From<MintInterface> for AccountInterface {
+    fn from(mi: MintInterface) -> Self {
+        match mi.state {
+            MintState::Hot { account } => Self {
+                key: mi.mint,
+                account,
+                cold: None,
+            },
+            MintState::Cold {
+                compressed,
+                mint_data: _,
+            } => {
+                let data = compressed
+                    .data
+                    .as_ref()
+                    .map(|d| {
+                        let mut buf = d.discriminator.to_vec();
+                        buf.extend_from_slice(&d.data);
+                        buf
+                    })
+                    .unwrap_or_default();
+
+                Self {
+                    key: mi.mint,
+                    account: Account {
+                        lamports: compressed.lamports,
+                        data,
+                        owner: Pubkey::new_from_array(
+                            light_token_interface::LIGHT_TOKEN_PROGRAM_ID,
+                        ),
+                        executable: false,
+                        rent_epoch: 0,
+                    },
+                    cold: Some(ColdContext::Account(compressed)),
+                }
+            }
+            MintState::None => Self {
+                key: mi.mint,
+                account: Account::default(),
+                cold: None,
+            },
         }
     }
 }

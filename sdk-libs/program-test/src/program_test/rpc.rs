@@ -4,7 +4,8 @@ use anchor_lang::pubkey;
 use async_trait::async_trait;
 use borsh::BorshDeserialize;
 use light_client::{
-    indexer::{Indexer, TreeInfo},
+    indexer::{CompressedAccount, CompressedTokenAccount, Context, Indexer, Response, TreeInfo},
+    interface::{AccountInterface, MintInterface, MintState, TokenAccountInterface},
     rpc::{LightClientConfig, Rpc, RpcError},
 };
 use light_compressed_account::TreeType;
@@ -369,68 +370,210 @@ impl Rpc for LightProgramTest {
 
     async fn get_account_interface(
         &self,
-        _address: &Pubkey,
+        address: &Pubkey,
         _config: Option<light_client::indexer::IndexerRpcConfig>,
-    ) -> Result<
-        light_client::indexer::Response<Option<light_client::indexer::AccountInterface>>,
-        RpcError,
-    > {
-        Err(RpcError::CustomError(
-            "get_account_interface is not supported in program-test context".into(),
-        ))
+    ) -> Result<Response<Option<AccountInterface>>, RpcError> {
+        let slot = self.context.get_sysvar::<Clock>().slot;
+
+        // Hot: check on-chain first
+        if let Some(account) = self.context.get_account(address) {
+            if account.lamports > 0 {
+                return Ok(Response {
+                    context: Context { slot },
+                    value: Some(AccountInterface::hot(*address, account)),
+                });
+            }
+        }
+
+        // Cold: check TestIndexer by onchain pubkey (mirrors Photon behavior)
+        if let Some(indexer) = self.indexer.as_ref() {
+            if let Some(compressed_with_ctx) =
+                indexer.find_compressed_account_by_onchain_pubkey(&address.to_bytes())
+            {
+                let owner: Pubkey = compressed_with_ctx.compressed_account.owner.into();
+                let compressed: CompressedAccount = compressed_with_ctx
+                    .clone()
+                    .try_into()
+                    .map_err(|e| RpcError::CustomError(format!("conversion error: {:?}", e)))?;
+
+                return Ok(Response {
+                    context: Context { slot },
+                    value: Some(AccountInterface::cold(*address, compressed, owner)),
+                });
+            }
+        }
+
+        Ok(Response {
+            context: Context { slot },
+            value: None,
+        })
     }
 
     async fn get_token_account_interface(
         &self,
-        _address: &Pubkey,
+        address: &Pubkey,
         _config: Option<light_client::indexer::IndexerRpcConfig>,
-    ) -> Result<
-        light_client::indexer::Response<Option<light_client::indexer::TokenAccountInterface>>,
-        RpcError,
-    > {
-        Err(RpcError::CustomError(
-            "get_token_account_interface is not supported in program-test context".into(),
-        ))
+    ) -> Result<Response<Option<TokenAccountInterface>>, RpcError> {
+        use light_sdk::constants::LIGHT_TOKEN_PROGRAM_ID;
+
+        let light_token_program_id: Pubkey = LIGHT_TOKEN_PROGRAM_ID.into();
+        let slot = self.context.get_sysvar::<Clock>().slot;
+
+        // Hot: check on-chain first (must be owned by LIGHT_TOKEN_PROGRAM_ID)
+        if let Some(account) = self.context.get_account(address) {
+            if account.lamports > 0 && account.owner == light_token_program_id {
+                match TokenAccountInterface::hot(*address, account) {
+                    Ok(iface) => {
+                        return Ok(Response {
+                            context: Context { slot },
+                            value: Some(iface),
+                        });
+                    }
+                    Err(_) => {
+                        // Fall through to cold lookup if parsing failed
+                    }
+                }
+            }
+        }
+
+        // Cold: check TestIndexer by onchain_pubkey
+        if let Some(indexer) = self.indexer.as_ref() {
+            if let Some(token_acc) =
+                indexer.find_token_account_by_onchain_pubkey(&address.to_bytes())
+            {
+                // Convert to CompressedTokenAccount
+                let compressed_account: CompressedAccount = token_acc
+                    .compressed_account
+                    .clone()
+                    .try_into()
+                    .map_err(|e| RpcError::CustomError(format!("conversion error: {:?}", e)))?;
+
+                let compressed_token = CompressedTokenAccount {
+                    token: token_acc.token_data.clone(),
+                    account: compressed_account,
+                };
+
+                return Ok(Response {
+                    context: Context { slot },
+                    value: Some(TokenAccountInterface::cold(
+                        *address,
+                        compressed_token,
+                        *address, // owner = hot address for program-owned tokens
+                        light_token_program_id,
+                    )),
+                });
+            }
+        }
+
+        Ok(Response {
+            context: Context { slot },
+            value: None,
+        })
     }
 
     async fn get_ata_interface(
         &self,
-        _owner: &Pubkey,
-        _mint: &Pubkey,
-        _config: Option<light_client::indexer::IndexerRpcConfig>,
-    ) -> Result<
-        light_client::indexer::Response<Option<light_client::indexer::TokenAccountInterface>>,
-        RpcError,
-    > {
-        Err(RpcError::CustomError(
-            "get_ata_interface is not supported in program-test context".into(),
-        ))
+        owner: &Pubkey,
+        mint: &Pubkey,
+        config: Option<light_client::indexer::IndexerRpcConfig>,
+    ) -> Result<Response<Option<TokenAccountInterface>>, RpcError> {
+        use light_token::instruction::derive_token_ata;
+
+        let (ata, _bump) = derive_token_ata(owner, mint);
+        self.get_token_account_interface(&ata, config).await
     }
 
     async fn get_mint_interface(
         &self,
-        _address: &Pubkey,
+        address: &Pubkey,
         _config: Option<light_client::indexer::IndexerRpcConfig>,
-    ) -> Result<
-        light_client::indexer::Response<Option<light_client::indexer::MintInterface>>,
-        RpcError,
-    > {
-        Err(RpcError::CustomError(
-            "get_mint_interface is not supported in program-test context".into(),
-        ))
+    ) -> Result<Response<Option<MintInterface>>, RpcError> {
+        use borsh::BorshDeserialize as _;
+        use light_compressed_account::address::derive_address;
+        use light_token_interface::{state::Mint, MINT_ADDRESS_TREE};
+
+        let slot = self.context.get_sysvar::<Clock>().slot;
+        let address_tree = Pubkey::new_from_array(MINT_ADDRESS_TREE);
+        let compressed_address = derive_address(
+            &address.to_bytes(),
+            &address_tree.to_bytes(),
+            &light_token_interface::LIGHT_TOKEN_PROGRAM_ID,
+        );
+
+        // Hot: check on-chain first
+        if let Some(account) = self.context.get_account(address) {
+            if account.lamports > 0 {
+                return Ok(Response {
+                    context: Context { slot },
+                    value: Some(MintInterface {
+                        mint: *address,
+                        address_tree,
+                        compressed_address,
+                        state: MintState::Hot { account },
+                    }),
+                });
+            }
+        }
+
+        // Cold: check indexer by compressed address
+        if let Some(indexer) = self.indexer.as_ref() {
+            let result = indexer
+                .get_compressed_account(compressed_address, None)
+                .await
+                .map_err(|e| RpcError::CustomError(format!("indexer error: {}", e)))?;
+
+            if let Some(compressed) = result.value {
+                if let Some(data) = compressed.data.as_ref() {
+                    if !data.data.is_empty() {
+                        let mint_data = Mint::try_from_slice(&data.data).map_err(|e| {
+                            RpcError::CustomError(format!("mint parse error: {}", e))
+                        })?;
+                        return Ok(Response {
+                            context: Context { slot },
+                            value: Some(MintInterface {
+                                mint: *address,
+                                address_tree,
+                                compressed_address,
+                                state: MintState::Cold {
+                                    compressed,
+                                    mint_data,
+                                },
+                            }),
+                        });
+                    }
+                }
+            }
+        }
+
+        // Not found
+        Ok(Response {
+            context: Context { slot },
+            value: Some(MintInterface {
+                mint: *address,
+                address_tree,
+                compressed_address,
+                state: MintState::None,
+            }),
+        })
     }
 
     async fn get_multiple_account_interfaces(
         &self,
-        _addresses: Vec<&Pubkey>,
-        _config: Option<light_client::indexer::IndexerRpcConfig>,
-    ) -> Result<
-        light_client::indexer::Response<Vec<Option<light_client::indexer::AccountInterface>>>,
-        RpcError,
-    > {
-        Err(RpcError::CustomError(
-            "get_multiple_account_interfaces is not supported in program-test context".into(),
-        ))
+        addresses: Vec<&Pubkey>,
+        config: Option<light_client::indexer::IndexerRpcConfig>,
+    ) -> Result<Response<Vec<Option<AccountInterface>>>, RpcError> {
+        let slot = self.context.get_sysvar::<Clock>().slot;
+        let mut results = Vec::with_capacity(addresses.len());
+
+        for address in addresses {
+            let result = self.get_account_interface(address, config.clone()).await?;
+            results.push(result.value);
+        }
+
+        Ok(Response {
+            context: Context { slot },
+            value: results,
+        })
     }
 }
 

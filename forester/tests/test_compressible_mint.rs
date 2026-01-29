@@ -391,10 +391,7 @@ async fn test_compressible_mint_compression() {
     println!("Compressing Mint...");
     let compress_result = compressor.compress_batch(&ready_accounts).await;
 
-    let signatures = compress_result.expect("Compression should succeed");
-    let signature = signatures
-        .last()
-        .expect("Should have at least one signature");
+    let signature = compress_result.expect("Compression should succeed");
     println!("Compression transaction sent: {}", signature);
 
     // Wait for account to be closed
@@ -628,13 +625,10 @@ async fn test_compressible_mint_subscription() {
         .clone();
 
     println!("Compressing first mint: {}", mint_pda_1);
-    let signatures = compressor
+    let signature = compressor
         .compress_batch(&[first_mint_state])
         .await
         .expect("Compression should succeed");
-    let signature = signatures
-        .last()
-        .expect("Should have at least one signature");
 
     println!("Compression tx sent: {}", signature);
 

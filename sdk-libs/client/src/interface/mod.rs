@@ -1,7 +1,6 @@
 //! Client utilities for hot/cold account handling.
 
 pub mod account_interface;
-pub mod account_interface_ext;
 pub mod create_accounts_proof;
 pub mod decompress_mint;
 pub mod initialize_config;
@@ -12,7 +11,6 @@ pub mod pack;
 pub mod tx_size;
 
 pub use account_interface::{AccountInterface, AccountInterfaceError, TokenAccountInterface};
-pub use account_interface_ext::AccountInterfaceExt;
 pub use create_accounts_proof::{
     get_create_accounts_proof, CreateAccountsProofError, CreateAccountsProofInput,
     CreateAccountsProofResult,

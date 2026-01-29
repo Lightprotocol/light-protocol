@@ -3,8 +3,7 @@ mod shared;
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_account::derive_rent_sponsor_pda;
 use light_client::interface::{
-    get_create_accounts_proof, AccountInterfaceExt, CreateAccountsProofInput,
-    InitializeRentFreeConfig,
+    get_create_accounts_proof, CreateAccountsProofInput, InitializeRentFreeConfig,
 };
 use light_compressible::{rent::SLOTS_PER_EPOCH, DECOMPRESSED_PDA_DISCRIMINATOR};
 use light_program_test::{
@@ -360,21 +359,27 @@ async fn test_create_pdas_and_mint_auto() {
 
     // Fetch unified interfaces (hot/cold transparent)
     let user_interface = rpc
-        .get_account_interface(&user_record_pda, &program_id)
+        .get_account_interface(&user_record_pda, None)
         .await
-        .expect("failed to get user");
+        .expect("failed to get user")
+        .value
+        .expect("user should exist");
     assert!(user_interface.is_cold(), "UserRecord should be cold");
 
     let game_interface = rpc
-        .get_account_interface(&game_session_pda, &program_id)
+        .get_account_interface(&game_session_pda, None)
         .await
-        .expect("failed to get game");
+        .expect("failed to get game")
+        .value
+        .expect("game should exist");
     assert!(game_interface.is_cold(), "GameSession should be cold");
 
     let vault_interface = rpc
-        .get_token_account_interface(&vault_pda)
+        .get_token_account_interface(&vault_pda, None)
         .await
-        .expect("failed to get vault");
+        .expect("failed to get vault")
+        .value
+        .expect("vault should exist");
     assert!(vault_interface.is_cold(), "Vault should be cold");
     assert_eq!(vault_interface.amount(), vault_mint_amount);
 
@@ -427,9 +432,11 @@ async fn test_create_pdas_and_mint_auto() {
 
     // get_ata_interface: fetches ATA with unified handling using standard SPL types
     let ata_interface = rpc
-        .get_ata_interface(&payer.pubkey(), &mint_pda)
+        .get_ata_interface(&payer.pubkey(), &mint_pda, None)
         .await
-        .expect("get_ata_interface should succeed");
+        .expect("get_ata_interface should succeed")
+        .value
+        .expect("ATA should exist");
     assert!(ata_interface.is_cold(), "ATA should be cold after warp");
     assert_eq!(ata_interface.amount(), user_ata_mint_amount);
     assert_eq!(ata_interface.mint(), mint_pda);
@@ -441,9 +448,11 @@ async fn test_create_pdas_and_mint_auto() {
 
     // Fetch mint interface
     let mint_interface = rpc
-        .get_mint_interface(&mint_pda)
+        .get_mint_interface(&mint_pda, None)
         .await
-        .expect("get_mint_interface should succeed");
+        .expect("get_mint_interface should succeed")
+        .value
+        .expect("Mint should exist");
     assert!(mint_interface.is_cold(), "Mint should be cold after warp");
 
     // Convert MintInterface to AccountInterface for use in AccountSpec

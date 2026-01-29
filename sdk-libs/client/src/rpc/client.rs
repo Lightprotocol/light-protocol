@@ -32,9 +32,11 @@ use tracing::warn;
 use super::LightClientConfig;
 use crate::{
     indexer::{
-        photon_indexer::PhotonIndexer, AccountInterface, Indexer, IndexerRpcConfig, MintInterface,
-        Response, TokenAccountInterface, TreeInfo,
+        photon_indexer::PhotonIndexer, AccountInterface as IndexerAccountInterface, Indexer,
+        IndexerRpcConfig, MintInterface as IndexerMintInterface, Response,
+        TokenAccountInterface as IndexerTokenAccountInterface, TreeInfo,
     },
+    interface::{AccountInterface, MintInterface, MintState, TokenAccountInterface},
     rpc::{
         errors::RpcError,
         get_light_state_tree_infos::{
@@ -459,6 +461,277 @@ impl LightClient {
             .await
             .map_err(|e| RpcError::CustomError(format!("warp_to_slot response error: {e}")))?;
         Ok(result)
+    }
+}
+
+// Conversion helpers from indexer types to interface types
+
+fn convert_account_interface(indexer_ai: IndexerAccountInterface) -> AccountInterface {
+    use light_compressed_account::compressed_account::CompressedAccountData;
+
+    use crate::indexer::{ColdContext as IndexerColdContext, CompressedAccount};
+
+    let account = Account {
+        lamports: indexer_ai.account.lamports,
+        data: indexer_ai.account.data,
+        owner: indexer_ai.account.owner,
+        executable: indexer_ai.account.executable,
+        rent_epoch: indexer_ai.account.rent_epoch,
+    };
+
+    match indexer_ai.cold {
+        None => AccountInterface::hot(indexer_ai.key, account),
+        Some(IndexerColdContext::Account {
+            hash,
+            leaf_index,
+            tree_info,
+            data,
+        }) => {
+            let compressed = CompressedAccount {
+                address: None,
+                data: Some(CompressedAccountData {
+                    discriminator: data.discriminator,
+                    data: data.data,
+                    data_hash: [0u8; 32], // Computed on demand if needed
+                }),
+                hash,
+                lamports: indexer_ai.account.lamports,
+                leaf_index: leaf_index as u32,
+                owner: indexer_ai.account.owner,
+                prove_by_index: false,
+                seq: tree_info.seq,
+                slot_created: 0,
+                tree_info: TreeInfo {
+                    tree: tree_info.tree,
+                    queue: tree_info.tree, // TODO: proper queue mapping
+                    cpi_context: None,
+                    next_tree_info: None,
+                    tree_type: TreeType::StateV1,
+                },
+            };
+            AccountInterface::cold(indexer_ai.key, compressed, indexer_ai.account.owner)
+        }
+        Some(IndexerColdContext::Token {
+            hash,
+            leaf_index,
+            tree_info,
+            data,
+        }) => {
+            use light_token::compat::TokenData;
+
+            use crate::indexer::CompressedTokenAccount;
+
+            // Parse token data from the cold data
+            let token_data: TokenData =
+                borsh::BorshDeserialize::deserialize(&mut data.data.as_slice()).unwrap_or_default();
+
+            let compressed_account = CompressedAccount {
+                address: None,
+                data: Some(CompressedAccountData {
+                    discriminator: data.discriminator,
+                    data: data.data,
+                    data_hash: [0u8; 32],
+                }),
+                hash,
+                lamports: indexer_ai.account.lamports,
+                leaf_index: leaf_index as u32,
+                owner: indexer_ai.account.owner,
+                prove_by_index: false,
+                seq: tree_info.seq,
+                slot_created: 0,
+                tree_info: TreeInfo {
+                    tree: tree_info.tree,
+                    queue: tree_info.tree,
+                    cpi_context: None,
+                    next_tree_info: None,
+                    tree_type: TreeType::StateV1,
+                },
+            };
+            let compressed_token = CompressedTokenAccount {
+                token: token_data,
+                account: compressed_account.clone(),
+            };
+            AccountInterface::cold_token(indexer_ai.key, compressed_token, indexer_ai.account.owner)
+        }
+        Some(IndexerColdContext::Mint {
+            hash,
+            leaf_index,
+            tree_info,
+            data,
+        }) => {
+            let compressed = CompressedAccount {
+                address: None,
+                data: Some(CompressedAccountData {
+                    discriminator: data.discriminator,
+                    data: data.data,
+                    data_hash: [0u8; 32],
+                }),
+                hash,
+                lamports: indexer_ai.account.lamports,
+                leaf_index: leaf_index as u32,
+                owner: indexer_ai.account.owner,
+                prove_by_index: false,
+                seq: tree_info.seq,
+                slot_created: 0,
+                tree_info: TreeInfo {
+                    tree: tree_info.tree,
+                    queue: tree_info.tree,
+                    cpi_context: None,
+                    next_tree_info: None,
+                    tree_type: TreeType::StateV1,
+                },
+            };
+            AccountInterface::cold(indexer_ai.key, compressed, indexer_ai.account.owner)
+        }
+    }
+}
+
+fn convert_token_account_interface(
+    indexer_tai: IndexerTokenAccountInterface,
+) -> Result<TokenAccountInterface, RpcError> {
+    use light_compressed_account::compressed_account::CompressedAccountData;
+
+    use crate::indexer::{
+        ColdContext as IndexerColdContext, CompressedAccount, CompressedTokenAccount,
+    };
+
+    let account = Account {
+        lamports: indexer_tai.account.account.lamports,
+        data: indexer_tai.account.account.data.clone(),
+        owner: indexer_tai.account.account.owner,
+        executable: indexer_tai.account.account.executable,
+        rent_epoch: indexer_tai.account.account.rent_epoch,
+    };
+
+    match indexer_tai.account.cold {
+        None => TokenAccountInterface::hot(indexer_tai.account.key, account)
+            .map_err(|e| RpcError::CustomError(format!("parse error: {}", e))),
+        Some(IndexerColdContext::Token {
+            hash,
+            leaf_index,
+            tree_info,
+            data,
+        }) => {
+            let compressed_account = CompressedAccount {
+                address: None,
+                data: Some(CompressedAccountData {
+                    discriminator: data.discriminator,
+                    data: data.data,
+                    data_hash: [0u8; 32],
+                }),
+                hash,
+                lamports: indexer_tai.account.account.lamports,
+                leaf_index: leaf_index as u32,
+                owner: indexer_tai.account.account.owner,
+                prove_by_index: false,
+                seq: tree_info.seq,
+                slot_created: 0,
+                tree_info: TreeInfo {
+                    tree: tree_info.tree,
+                    queue: tree_info.tree,
+                    cpi_context: None,
+                    next_tree_info: None,
+                    tree_type: TreeType::StateV1,
+                },
+            };
+            let compressed_token = CompressedTokenAccount {
+                token: indexer_tai.token,
+                account: compressed_account,
+            };
+            Ok(TokenAccountInterface::cold(
+                indexer_tai.account.key,
+                compressed_token,
+                indexer_tai.account.key, // owner_override
+                indexer_tai.account.account.owner,
+            ))
+        }
+        _ => Err(RpcError::CustomError(
+            "unexpected cold context type for token account".into(),
+        )),
+    }
+}
+
+fn convert_mint_interface(indexer_mi: IndexerMintInterface) -> Result<MintInterface, RpcError> {
+    use light_compressed_account::{
+        address::derive_address, compressed_account::CompressedAccountData,
+    };
+    use light_token_interface::{state::Mint, MINT_ADDRESS_TREE};
+
+    use crate::indexer::{ColdContext as IndexerColdContext, CompressedAccount};
+
+    let address_tree = Pubkey::new_from_array(MINT_ADDRESS_TREE);
+    let compressed_address = derive_address(
+        &indexer_mi.account.key.to_bytes(),
+        &address_tree.to_bytes(),
+        &light_token_interface::LIGHT_TOKEN_PROGRAM_ID,
+    );
+
+    let account = Account {
+        lamports: indexer_mi.account.account.lamports,
+        data: indexer_mi.account.account.data.clone(),
+        owner: indexer_mi.account.account.owner,
+        executable: indexer_mi.account.account.executable,
+        rent_epoch: indexer_mi.account.account.rent_epoch,
+    };
+
+    match indexer_mi.account.cold {
+        None => Ok(MintInterface {
+            mint: indexer_mi.account.key,
+            address_tree,
+            compressed_address,
+            state: MintState::Hot { account },
+        }),
+        Some(IndexerColdContext::Mint {
+            hash,
+            leaf_index,
+            tree_info,
+            data,
+        })
+        | Some(IndexerColdContext::Account {
+            hash,
+            leaf_index,
+            tree_info,
+            data,
+        }) => {
+            let mint_data = Mint::try_from_slice(&data.data)
+                .map_err(|e| RpcError::CustomError(format!("mint parse error: {}", e)))?;
+
+            let compressed = CompressedAccount {
+                address: None,
+                data: Some(CompressedAccountData {
+                    discriminator: data.discriminator,
+                    data: data.data,
+                    data_hash: [0u8; 32],
+                }),
+                hash,
+                lamports: indexer_mi.account.account.lamports,
+                leaf_index: leaf_index as u32,
+                owner: indexer_mi.account.account.owner,
+                prove_by_index: false,
+                seq: tree_info.seq,
+                slot_created: 0,
+                tree_info: TreeInfo {
+                    tree: tree_info.tree,
+                    queue: tree_info.tree,
+                    cpi_context: None,
+                    next_tree_info: None,
+                    tree_type: TreeType::StateV1,
+                },
+            };
+
+            Ok(MintInterface {
+                mint: indexer_mi.account.key,
+                address_tree,
+                compressed_address,
+                state: MintState::Cold {
+                    compressed,
+                    mint_data,
+                },
+            })
+        }
+        _ => Err(RpcError::CustomError(
+            "unexpected cold context type for mint".into(),
+        )),
     }
 }
 
@@ -939,10 +1212,15 @@ impl Rpc for LightClient {
             .indexer
             .as_ref()
             .ok_or(RpcError::IndexerNotInitialized)?;
-        indexer
+        let resp = indexer
             .get_account_interface(address, config)
             .await
-            .map_err(|e| RpcError::CustomError(format!("Indexer error: {e}")))
+            .map_err(|e| RpcError::CustomError(format!("Indexer error: {e}")))?;
+
+        Ok(Response {
+            context: resp.context,
+            value: resp.value.map(convert_account_interface),
+        })
     }
 
     async fn get_token_account_interface(
@@ -954,10 +1232,20 @@ impl Rpc for LightClient {
             .indexer
             .as_ref()
             .ok_or(RpcError::IndexerNotInitialized)?;
-        indexer
+        let resp = indexer
             .get_token_account_interface(address, config)
             .await
-            .map_err(|e| RpcError::CustomError(format!("Indexer error: {e}")))
+            .map_err(|e| RpcError::CustomError(format!("Indexer error: {e}")))?;
+
+        let value = match resp.value {
+            Some(tai) => Some(convert_token_account_interface(tai)?),
+            None => None,
+        };
+
+        Ok(Response {
+            context: resp.context,
+            value,
+        })
     }
 
     async fn get_ata_interface(
@@ -970,10 +1258,20 @@ impl Rpc for LightClient {
             .indexer
             .as_ref()
             .ok_or(RpcError::IndexerNotInitialized)?;
-        indexer
+        let resp = indexer
             .get_ata_interface(owner, mint, config)
             .await
-            .map_err(|e| RpcError::CustomError(format!("Indexer error: {e}")))
+            .map_err(|e| RpcError::CustomError(format!("Indexer error: {e}")))?;
+
+        let value = match resp.value {
+            Some(tai) => Some(convert_token_account_interface(tai)?),
+            None => None,
+        };
+
+        Ok(Response {
+            context: resp.context,
+            value,
+        })
     }
 
     async fn get_mint_interface(
@@ -985,10 +1283,20 @@ impl Rpc for LightClient {
             .indexer
             .as_ref()
             .ok_or(RpcError::IndexerNotInitialized)?;
-        indexer
+        let resp = indexer
             .get_mint_interface(address, config)
             .await
-            .map_err(|e| RpcError::CustomError(format!("Indexer error: {e}")))
+            .map_err(|e| RpcError::CustomError(format!("Indexer error: {e}")))?;
+
+        let value = match resp.value {
+            Some(mi) => Some(convert_mint_interface(mi)?),
+            None => None,
+        };
+
+        Ok(Response {
+            context: resp.context,
+            value,
+        })
     }
 
     async fn get_multiple_account_interfaces(
@@ -1000,10 +1308,19 @@ impl Rpc for LightClient {
             .indexer
             .as_ref()
             .ok_or(RpcError::IndexerNotInitialized)?;
-        indexer
+        let resp = indexer
             .get_multiple_account_interfaces(addresses, config)
             .await
-            .map_err(|e| RpcError::CustomError(format!("Indexer error: {e}")))
+            .map_err(|e| RpcError::CustomError(format!("Indexer error: {e}")))?;
+
+        Ok(Response {
+            context: resp.context,
+            value: resp
+                .value
+                .into_iter()
+                .map(|opt| opt.map(convert_account_interface))
+                .collect(),
+        })
     }
 }
 
