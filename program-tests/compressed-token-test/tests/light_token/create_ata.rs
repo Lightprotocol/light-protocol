@@ -892,9 +892,9 @@ async fn test_create_ata_failing() {
             .create_and_send_transaction(&[create_ata_ix], &payer_pubkey, &[&context.payer])
             .await;
 
-        // Should fail with InstructionError::InvalidAccountData (3) because is_valid_mint returns false
-        // for token accounts (AccountType=2 at offset 165)
-        light_program_test::utils::assert::assert_rpc_error(result, 0, 3).unwrap();
+        // Should fail with InstructionError::UninitializedAccount (10) because the token account
+        // is not a valid mint
+        light_program_test::utils::assert::assert_rpc_error(result, 0, 10).unwrap();
     }
 }
 
