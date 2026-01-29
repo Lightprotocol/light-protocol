@@ -1,84 +1,116 @@
-#![allow(clippy::all)] // TODO: Remove.
-
-use light_compressed_account::{
-    address::derive_address, instruction_data::with_account_info::OutAccountInfo,
-};
-use light_compressible::DECOMPRESSED_PDA_DISCRIMINATOR;
-use light_hasher::{sha256::Sha256BE, Hasher};
-use light_sdk_types::instruction::account_meta::{
-    CompressedAccountMeta, CompressedAccountMetaNoLamportsNoAddress,
-};
 use solana_account_info::AccountInfo;
 use solana_cpi::invoke_signed;
-use solana_msg::msg;
 use solana_pubkey::Pubkey;
 use solana_system_interface::instruction as system_instruction;
-use solana_sysvar::{rent::Rent, Sysvar};
 
-use crate::{
-    account::sha::LightAccount,
-    compressible::compression_info::{CompressionInfo, HasCompressionInfo},
-    cpi::v2::CpiAccounts,
-    error::LightSdkError,
-    AnchorDeserialize, AnchorSerialize, LightDiscriminator,
-};
+use crate::error::LightSdkError;
 
-/// Set output for decompressed PDA format.
-/// Isolated in separate function to reduce stack usage.
-#[inline(never)]
-#[cfg(feature = "v2")]
-fn set_decompressed_pda_output(
-    output: &mut OutAccountInfo,
-    pda_pubkey_bytes: &[u8; 32],
-) -> Result<(), LightSdkError> {
-    output.data = pda_pubkey_bytes.to_vec();
-    output.data_hash = Sha256BE::hash(pda_pubkey_bytes)?;
-    output.discriminator = DECOMPRESSED_PDA_DISCRIMINATOR;
-    Ok(())
-}
-
-/// Convert a `CompressedAccountMetaNoLamportsNoAddress` to a
-/// `CompressedAccountMeta` by deriving the compressed address from the solana
-/// account's pubkey.
-pub fn into_compressed_meta_with_address<'info>(
-    compressed_meta_no_lamports_no_address: &CompressedAccountMetaNoLamportsNoAddress,
-    solana_account: &AccountInfo<'info>,
-    address_space: Pubkey,
-    program_id: &Pubkey,
-) -> CompressedAccountMeta {
-    let derived_c_pda = derive_address(
-        &solana_account.key.to_bytes(),
-        &address_space.to_bytes(),
-        &program_id.to_bytes(),
-    );
-
-    let meta_with_address = CompressedAccountMeta {
-        tree_info: compressed_meta_no_lamports_no_address.tree_info,
-        address: derived_c_pda,
-        output_state_tree_index: compressed_meta_no_lamports_no_address.output_state_tree_index,
-    };
-
-    meta_with_address
-}
-
-// TODO: consider folding into main fn.
-/// Helper to invoke create_account on heap.
-#[inline(never)]
-fn invoke_create_account_with_heap<'info>(
+/// Cold path: Account already has lamports (e.g., attacker donation).
+/// Uses Assign + Allocate + Transfer instead of CreateAccount which would fail.
+#[cold]
+#[allow(clippy::too_many_arguments)]
+fn create_pda_account_with_lamports<'info>(
     rent_sponsor: &AccountInfo<'info>,
+    rent_sponsor_seeds: &[&[u8]],
     solana_account: &AccountInfo<'info>,
-    rent_minimum_balance: u64,
+    lamports: u64,
     space: u64,
-    program_id: &Pubkey,
+    owner: &Pubkey,
     seeds: &[&[u8]],
     system_program: &AccountInfo<'info>,
 ) -> Result<(), LightSdkError> {
+    let current_lamports = solana_account.lamports();
+
+    // Assign owner
+    let assign_ix = system_instruction::assign(solana_account.key, owner);
+    invoke_signed(
+        &assign_ix,
+        &[solana_account.clone(), system_program.clone()],
+        &[seeds],
+    )
+    .map_err(LightSdkError::ProgramError)?;
+
+    // Allocate space
+    let allocate_ix = system_instruction::allocate(solana_account.key, space);
+    invoke_signed(
+        &allocate_ix,
+        &[solana_account.clone(), system_program.clone()],
+        &[seeds],
+    )
+    .map_err(LightSdkError::ProgramError)?;
+
+    // Transfer remaining lamports for rent-exemption if needed
+    if lamports > current_lamports {
+        let transfer_ix = system_instruction::transfer(
+            rent_sponsor.key,
+            solana_account.key,
+            lamports - current_lamports,
+        );
+        // Include rent sponsor seeds so the PDA can sign for the transfer
+        invoke_signed(
+            &transfer_ix,
+            &[
+                rent_sponsor.clone(),
+                solana_account.clone(),
+                system_program.clone(),
+            ],
+            &[rent_sponsor_seeds],
+        )
+        .map_err(LightSdkError::ProgramError)?;
+    }
+
+    Ok(())
+}
+
+/// Creates a PDA account, handling the case where the account already has lamports.
+///
+/// This function handles the edge case where an attacker might have donated lamports
+/// to the PDA address before decompression. In that case, `CreateAccount` would fail,
+/// so we fall back to `Assign + Allocate + Transfer`.
+///
+/// # Arguments
+/// * `rent_sponsor` - Account paying for rent (must be a PDA derived from the calling program)
+/// * `rent_sponsor_seeds` - Seeds for the rent sponsor PDA (including bump) for signing
+/// * `solana_account` - The PDA account to create
+/// * `lamports` - Amount of lamports for rent-exemption
+/// * `space` - Size of the account in bytes
+/// * `owner` - Program that will own the account
+/// * `seeds` - Seeds for the target PDA (including bump) for signing
+/// * `system_program` - System program
+#[inline(never)]
+#[allow(clippy::too_many_arguments)]
+pub fn create_pda_account<'info>(
+    rent_sponsor: &AccountInfo<'info>,
+    rent_sponsor_seeds: &[&[u8]],
+    solana_account: &AccountInfo<'info>,
+    lamports: u64,
+    space: u64,
+    owner: &Pubkey,
+    seeds: &[&[u8]],
+    system_program: &AccountInfo<'info>,
+) -> Result<(), LightSdkError> {
+    // Cold path: account already has lamports (e.g., attacker donation)
+    if solana_account.lamports() > 0 {
+        return create_pda_account_with_lamports(
+            rent_sponsor,
+            rent_sponsor_seeds,
+            solana_account,
+            lamports,
+            space,
+            owner,
+            seeds,
+            system_program,
+        );
+    }
+
+    // Normal path: CreateAccount
+    // Include both rent sponsor seeds (payer) and PDA seeds (new account)
     let create_account_ix = system_instruction::create_account(
         rent_sponsor.key,
         solana_account.key,
-        rent_minimum_balance,
+        lamports,
         space,
-        program_id,
+        owner,
     );
 
     invoke_signed(
@@ -88,86 +120,7 @@ fn invoke_create_account_with_heap<'info>(
             solana_account.clone(),
             system_program.clone(),
         ],
-        &[seeds],
+        &[rent_sponsor_seeds, seeds],
     )
-    .map_err(|e| LightSdkError::ProgramError(e))
-}
-
-/// Helper function to decompress a compressed account into a PDA
-/// idempotently with seeds.
-#[inline(never)]
-#[cfg(feature = "v2")]
-pub fn prepare_account_for_decompression_idempotent<'a, 'info, T>(
-    program_id: &Pubkey,
-    data: T,
-    compressed_meta: CompressedAccountMeta,
-    solana_account: &AccountInfo<'info>,
-    rent_sponsor: &AccountInfo<'info>,
-    cpi_accounts: &CpiAccounts<'a, 'info>,
-    signer_seeds: &[&[u8]],
-) -> Result<
-    Option<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>,
-    LightSdkError,
->
-where
-    T: Clone
-        + crate::account::Size
-        + LightDiscriminator
-        + Default
-        + AnchorSerialize
-        + AnchorDeserialize
-        + HasCompressionInfo
-        + 'info,
-{
-    if !solana_account.data_is_empty() {
-        msg!("Account already initialized, skipping");
-        return Ok(None);
-    }
-    let rent = Rent::get().map_err(|err| {
-        msg!("Failed to get rent: {:?}", err);
-        LightSdkError::Borsh
-    })?;
-
-    let light_account = LightAccount::<T>::new_close(program_id, &compressed_meta, data)?;
-
-    // Account space needs to include discriminator + serialized data
-    // T::size() already includes the full Option<CompressionInfo> footprint
-    let discriminator_len = T::LIGHT_DISCRIMINATOR.len();
-    let space = discriminator_len + T::size(&light_account.account)?;
-    let rent_minimum_balance = rent.minimum_balance(space);
-
-    invoke_create_account_with_heap(
-        rent_sponsor,
-        solana_account,
-        rent_minimum_balance,
-        space as u64,
-        &cpi_accounts.self_program_id(),
-        signer_seeds,
-        cpi_accounts.system_program()?,
-    )?;
-
-    let mut decompressed_pda = light_account.account.clone();
-    *decompressed_pda.compression_info_mut_opt() = Some(CompressionInfo::new_decompressed()?);
-
-    let mut account_data = solana_account.try_borrow_mut_data()?;
-    let discriminator_len = T::LIGHT_DISCRIMINATOR.len();
-    account_data[..discriminator_len].copy_from_slice(&T::LIGHT_DISCRIMINATOR);
-    decompressed_pda
-        .serialize(&mut &mut account_data[discriminator_len..])
-        .map_err(|err| {
-            msg!("Failed to serialize decompressed PDA: {:?}", err);
-            LightSdkError::Borsh
-        })?;
-
-    let mut account_info_result = light_account.to_account_info()?;
-
-    // Set output to use decompressed PDA format:
-    // - discriminator: DECOMPRESSED_PDA_DISCRIMINATOR
-    // - data: PDA pubkey (32 bytes)
-    // - data_hash: Sha256BE(pda_pubkey)
-    if let Some(output) = account_info_result.output.as_mut() {
-        set_decompressed_pda_output(output, &solana_account.key.to_bytes())?;
-    }
-
-    Ok(Some(account_info_result))
+    .map_err(LightSdkError::ProgramError)
 }

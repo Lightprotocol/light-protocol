@@ -9,14 +9,17 @@ pub use light_sdk::{
     cpi::{v2::CpiAccounts, InvokeLightSystemProgram, LightCpiInstruction},
     derive_light_cpi_signer, derive_light_cpi_signer_pda,
     error::LightSdkError,
-    instruction::{PackedAccounts, ValidityProof},
+    instruction::ValidityProof,
     interface::{
         CompressAs as CompressAsTrait, CompressedInitSpace, CompressionInfo,
         HasCompressionInfo as HasCompressionInfoTrait, LightConfig, LightFinalize, LightPreInit,
-        Pack, Space, Unpack,
+        Space, Unpack,
     },
     CpiSigner, LightDiscriminator as LightDiscriminatorTrait,
 };
+// Pack and PackedAccounts only available off-chain (client-side)
+#[cfg(not(target_os = "solana"))]
+pub use light_sdk::{instruction::PackedAccounts, interface::Pack};
 // Re-export Light SDK macros
 pub use light_sdk_macros::{
     // Proc macros
@@ -27,7 +30,6 @@ pub use light_sdk_macros::{
     // Derive macros
     CompressAs,
     Compressible,
-    CompressiblePack,
     HasCompressionInfo,
     LightAccount,
     LightAccounts,

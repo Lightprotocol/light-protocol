@@ -12,7 +12,7 @@ use light_sdk_macros::LightAccount;
 #[compress_as(cached = 0)]
 #[account]
 pub struct SingleCompressAsRecord {
-    pub compression_info: Option<CompressionInfo>,
+    pub compression_info: CompressionInfo,
     pub owner: Pubkey,
     pub cached: u64,
     pub counter: u64,

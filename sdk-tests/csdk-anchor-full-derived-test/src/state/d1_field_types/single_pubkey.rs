@@ -12,7 +12,7 @@ use light_sdk_macros::LightAccount;
 #[derive(Default, Debug, PartialEq, InitSpace, LightAccount)]
 #[account]
 pub struct SinglePubkeyRecord {
-    pub compression_info: Option<CompressionInfo>,
+    pub compression_info: CompressionInfo,
     pub owner: Pubkey,
     pub counter: u64,
 }

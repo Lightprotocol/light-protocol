@@ -320,7 +320,7 @@ pub mod sdk {
             .data()
         };
 
-        let accounts = crate::accounts::FreezeInstruction {
+        let accounts = crate::__client_accounts_freeze_instruction::FreezeInstruction {
             fee_payer: inputs.fee_payer,
             authority: inputs.authority,
             cpi_authority_pda,

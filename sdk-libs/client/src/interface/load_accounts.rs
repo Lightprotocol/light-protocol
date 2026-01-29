@@ -9,7 +9,7 @@ use light_compressed_token_sdk::compressed_token::{
     },
     CTokenAccount2,
 };
-use light_sdk::{compressible::Pack, instruction::PackedAccounts};
+use light_sdk::{compressible::Pack, instruction::PackedAccounts, utils::derive_rent_sponsor_pda};
 use light_token::{
     compat::AccountState,
     instruction::{
@@ -68,13 +68,16 @@ pub enum LoadAccountsError {
 const MAX_ATAS_PER_IX: usize = 8;
 
 /// Build load instructions for cold accounts. Returns empty vec if all hot.
+///
+/// The rent sponsor PDA is derived internally from the program_id.
+/// Seeds: ["rent_sponsor"]
+///
 /// TODO: reduce ixn count and txn size, reduce roundtrips.
 #[allow(clippy::too_many_arguments)]
 pub async fn create_load_instructions<V, I>(
     specs: &[AccountSpec<V>],
     fee_payer: Pubkey,
     compression_config: Pubkey,
-    rent_sponsor: Pubkey,
     indexer: &I,
 ) -> Result<Vec<Instruction>, LoadAccountsError>
 where
@@ -125,25 +128,27 @@ where
 
     let mut out = Vec::new();
 
+    // 1. DecompressAccountsIdempotent for all cold PDAs (including token PDAs).
+    //    Token PDAs are created on-chain via CPI inside DecompressVariant.
     for (spec, proof) in cold_pdas.iter().zip(pda_proofs) {
         out.push(build_pda_load(
-            &[*spec],
+            &[spec],
             proof,
             fee_payer,
             compression_config,
-            rent_sponsor,
         )?);
     }
 
+    // 2. ATA loads (CreateAssociatedTokenAccount + Transfer2)
     let ata_chunks: Vec<_> = cold_atas.chunks(MAX_ATAS_PER_IX).collect();
     for (chunk, proof) in ata_chunks.into_iter().zip(ata_proofs) {
         out.extend(build_ata_load(chunk, proof, fee_payer)?);
     }
 
+    // 3. Mint loads
     for (iface, proof) in cold_mints.iter().zip(mint_proofs) {
         out.push(build_mint_load(iface, proof, fee_payer)?);
     }
-
     Ok(out)
 }
 
@@ -232,7 +237,6 @@ fn build_pda_load<V>(
     proof: ValidityProofWithContext,
     fee_payer: Pubkey,
     compression_config: Pubkey,
-    rent_sponsor: Pubkey,
 ) -> Result<Instruction, LoadAccountsError>
 where
     V: Pack + Clone + std::fmt::Debug,
@@ -242,6 +246,10 @@ where
             .map(|c| c.owner == LIGHT_TOKEN_PROGRAM_ID)
             .unwrap_or(false)
     });
+
+    // Derive rent sponsor PDA from program_id
+    let program_id = specs.first().map(|s| s.program_id()).unwrap_or_default();
+    let (rent_sponsor, _) = derive_rent_sponsor_pda(&program_id);
 
     let metas = if has_tokens {
         instructions::load::accounts(fee_payer, compression_config, rent_sponsor)

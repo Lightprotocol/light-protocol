@@ -10,7 +10,7 @@ use light_sdk_macros::LightAccount;
 #[derive(Default, Debug, InitSpace, LightAccount)]
 #[account]
 pub struct LargeRecord {
-    pub compression_info: Option<CompressionInfo>,
+    pub compression_info: CompressionInfo,
     pub field_01: u64,
     pub field_02: u64,
     pub field_03: u64,

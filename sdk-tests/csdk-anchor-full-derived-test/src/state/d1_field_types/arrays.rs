@@ -11,7 +11,7 @@ use light_sdk_macros::LightAccount;
 #[derive(Default, Debug, InitSpace, LightAccount)]
 #[account]
 pub struct ArrayRecord {
-    pub compression_info: Option<CompressionInfo>,
+    pub compression_info: CompressionInfo,
     pub hash: [u8; 32],
     pub short_data: [u8; 8],
     pub counter: u64,

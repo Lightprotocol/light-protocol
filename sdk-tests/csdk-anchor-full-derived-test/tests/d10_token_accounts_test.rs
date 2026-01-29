@@ -10,19 +10,16 @@ use csdk_anchor_full_derived_test::d10_token_accounts::{
     D10SingleAtaParams, D10SingleVaultParams, D10_SINGLE_VAULT_AUTH_SEED, D10_SINGLE_VAULT_SEED,
 };
 use light_client::interface::{get_create_accounts_proof, InitializeRentFreeConfig};
-use light_macros::pubkey;
 use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest},
     ProgramTestConfig, Rpc,
 };
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
-use light_token::instruction::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR};
+use light_token::instruction::{LIGHT_TOKEN_CONFIG, RENT_SPONSOR};
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
-
-const RENT_SPONSOR_PUBKEY: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
 
 /// Test context for D10 token account tests
 struct D10TestContext {
@@ -51,7 +48,7 @@ impl D10TestContext {
             &program_id,
             &payer.pubkey(),
             &program_data_pda,
-            RENT_SPONSOR_PUBKEY,
+            csdk_anchor_full_derived_test::program_rent_sponsor(),
             payer.pubkey(),
         )
         .build();
@@ -66,14 +63,6 @@ impl D10TestContext {
             config_pda,
             program_id,
         }
-    }
-
-    async fn assert_onchain_exists(&mut self, account: &Pubkey) {
-        assert!(
-            self.rpc.get_account(*account).await.unwrap().is_some(),
-            "Account {} should exist on-chain",
-            account
-        );
     }
 
     /// Setup a mint for token-based tests.
@@ -116,7 +105,7 @@ async fn test_d10_single_vault() {
         d10_mint: mint,
         d10_vault_authority,
         d10_single_vault,
-        light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
+        light_token_compressible_config: LIGHT_TOKEN_CONFIG,
         light_token_rent_sponsor: RENT_SPONSOR,
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
@@ -146,7 +135,7 @@ async fn test_d10_single_vault() {
         .expect("D10SingleVault instruction should succeed");
 
     // Verify token vault exists on-chain
-    ctx.assert_onchain_exists(&d10_single_vault).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &d10_single_vault, "d10_single_vault").await;
 }
 
 /// Tests D10SingleAta: #[light_account(init, associated_token, ...)] automatic code generation.
@@ -175,7 +164,7 @@ async fn test_d10_single_ata() {
         d10_ata_mint: mint,
         d10_ata_owner: ata_owner,
         d10_single_ata,
-        light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
+        light_token_compressible_config: LIGHT_TOKEN_CONFIG,
         light_token_rent_sponsor: RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         system_program: solana_sdk::system_program::ID,
@@ -204,5 +193,114 @@ async fn test_d10_single_ata() {
         .expect("D10SingleAta instruction should succeed");
 
     // Verify ATA exists on-chain
-    ctx.assert_onchain_exists(&d10_single_ata).await;
+    shared::assert_onchain_exists(&mut ctx.rpc, &d10_single_ata, "d10_single_ata").await;
+}
+
+/// Tests idempotent ATA creation.
+/// Creating the same ATA twice should succeed (idempotent).
+#[tokio::test]
+async fn test_d10_single_ata_idempotent_creation() {
+    let mut ctx = D10TestContext::new().await;
+
+    // Setup mint
+    let (mint, _compression_addr, _atas, _mint_seed) = ctx.setup_mint().await;
+
+    // The ATA owner will be the payer
+    let ata_owner = ctx.payer.pubkey();
+
+    // Derive the ATA address
+    let (d10_single_ata, ata_bump) = light_token::instruction::derive_token_ata(&ata_owner, &mint);
+
+    // Get proof for first creation
+    let proof_result = get_create_accounts_proof(&ctx.rpc, &ctx.program_id, vec![])
+        .await
+        .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D10SingleAta {
+        fee_payer: ctx.payer.pubkey(),
+        d10_ata_mint: mint,
+        d10_ata_owner: ata_owner,
+        d10_single_ata,
+        light_token_compressible_config: LIGHT_TOKEN_CONFIG,
+        light_token_rent_sponsor: RENT_SPONSOR,
+        light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D10SingleAta {
+        params: D10SingleAtaParams {
+            create_accounts_proof: proof_result.create_accounts_proof.clone(),
+            ata_bump,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts.clone(),
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    // First creation should succeed
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("First D10SingleAta creation should succeed");
+
+    // Verify ATA exists on-chain
+    shared::assert_onchain_exists(&mut ctx.rpc, &d10_single_ata, "d10_single_ata").await;
+
+    // Get balance after first creation
+    let ata_account_1 = ctx.rpc.get_account(d10_single_ata).await.unwrap().unwrap();
+    let balance_after_first = ata_account_1.lamports;
+
+    // Get fresh proof for second creation
+    let proof_result_2 = get_create_accounts_proof(&ctx.rpc, &ctx.program_id, vec![])
+        .await
+        .unwrap();
+
+    let accounts_2 = csdk_anchor_full_derived_test::accounts::D10SingleAta {
+        fee_payer: ctx.payer.pubkey(),
+        d10_ata_mint: mint,
+        d10_ata_owner: ata_owner,
+        d10_single_ata,
+        light_token_compressible_config: LIGHT_TOKEN_CONFIG,
+        light_token_rent_sponsor: RENT_SPONSOR,
+        light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data_2 = csdk_anchor_full_derived_test::instruction::D10SingleAta {
+        params: D10SingleAtaParams {
+            create_accounts_proof: proof_result_2.create_accounts_proof,
+            ata_bump,
+        },
+    };
+
+    let instruction_2 = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts_2.to_account_metas(None),
+            proof_result_2.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data_2.data(),
+    };
+
+    // Second creation should also succeed (idempotent)
+    ctx.rpc
+        .create_and_send_transaction(&[instruction_2], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("Second D10SingleAta creation should succeed (idempotent)");
+
+    // Verify ATA still exists with same balance
+    let ata_account_2 = ctx.rpc.get_account(d10_single_ata).await.unwrap().unwrap();
+    assert_eq!(
+        ata_account_2.lamports, balance_after_first,
+        "ATA balance should be unchanged after idempotent second creation"
+    );
 }

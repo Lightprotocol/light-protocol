@@ -12,6 +12,9 @@ use solana_sysvar::{rent::Rent, Sysvar};
 use crate::{error::LightSdkError, AnchorDeserialize, AnchorSerialize};
 
 pub const COMPRESSIBLE_CONFIG_SEED: &[u8] = b"compressible_config";
+
+// Re-export from sdk-types
+pub use light_sdk_types::constants::RENT_SPONSOR_SEED;
 pub const MAX_ADDRESS_TREES_PER_SPACE: usize = 1;
 const BPF_LOADER_UPGRADEABLE_ID: Pubkey =
     Pubkey::from_str_const("BPFLoaderUpgradeab1e11111111111111111111111");
@@ -79,6 +82,12 @@ impl LightConfig {
     /// Derives the default config PDA address (config_bump = 0)
     pub fn derive_default_pda(program_id: &Pubkey) -> (Pubkey, u8) {
         Self::derive_pda(program_id, 0)
+    }
+
+    /// Derives the rent sponsor PDA address for a program.
+    /// Seeds: ["rent_sponsor"]
+    pub fn derive_rent_sponsor_pda(program_id: &Pubkey) -> (Pubkey, u8) {
+        Pubkey::find_program_address(&[RENT_SPONSOR_SEED], program_id)
     }
 
     /// Checks the config account

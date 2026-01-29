@@ -4,7 +4,6 @@
 //! - LightHasherSha -> DataHasher + ToByteArray
 //! - LightDiscriminator -> LIGHT_DISCRIMINATOR constant
 //! - Compressible -> HasCompressionInfo + CompressAs + Size + CompressedInitSpace
-//! - CompressiblePack -> Pack + Unpack + PackedAllFieldTypesRecord
 //!
 //! Comprehensive test exercising all field type code paths:
 //! - Multiple Pubkeys (owner, delegate, authority) -> u8 indices
@@ -17,7 +16,7 @@
 use csdk_anchor_full_derived_test::{AllFieldTypesRecord, PackedAllFieldTypesRecord};
 use light_hasher::{DataHasher, Sha256};
 use light_sdk::{
-    compressible::{CompressAs, CompressionInfo, Pack},
+    compressible::{CompressAs, CompressionInfo, CompressionState, Pack},
     instruction::PackedAccounts,
 };
 use solana_pubkey::Pubkey;
@@ -32,7 +31,7 @@ use crate::generate_trait_tests;
 impl CompressibleTestFactory for AllFieldTypesRecord {
     fn with_compression_info() -> Self {
         Self {
-            compression_info: Some(CompressionInfo::default()),
+            compression_info: CompressionInfo::default(),
             owner: Pubkey::new_unique(),
             delegate: Pubkey::new_unique(),
             authority: Pubkey::new_unique(),
@@ -48,7 +47,7 @@ impl CompressibleTestFactory for AllFieldTypesRecord {
 
     fn without_compression_info() -> Self {
         Self {
-            compression_info: None,
+            compression_info: CompressionInfo::compressed(),
             owner: Pubkey::new_unique(),
             delegate: Pubkey::new_unique(),
             authority: Pubkey::new_unique(),
@@ -88,7 +87,7 @@ fn test_compress_as_preserves_all_field_types() {
     let flag = true;
 
     let record = AllFieldTypesRecord {
-        compression_info: Some(CompressionInfo::default()),
+        compression_info: CompressionInfo::default(),
         owner,
         delegate,
         authority,
@@ -115,7 +114,7 @@ fn test_compress_as_preserves_all_field_types() {
 }
 
 #[test]
-fn test_compress_as_when_compression_info_already_none() {
+fn test_compress_as_when_compression_info_already_compressed() {
     let owner = Pubkey::new_unique();
     let delegate = Pubkey::new_unique();
     let authority = Pubkey::new_unique();
@@ -123,7 +122,7 @@ fn test_compress_as_when_compression_info_already_none() {
     let counter = 123u64;
 
     let record = AllFieldTypesRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate,
         authority,
@@ -139,7 +138,10 @@ fn test_compress_as_when_compression_info_already_none() {
     let compressed = record.compress_as();
 
     // Should still work and preserve all fields
-    assert!(compressed.compression_info.is_none());
+    assert_eq!(
+        compressed.compression_info.state,
+        CompressionState::Compressed
+    );
     assert_eq!(compressed.owner, owner);
     assert_eq!(compressed.counter, counter);
     assert_eq!(compressed.name, name);
@@ -155,7 +157,7 @@ fn test_hash_differs_for_different_pubkey_field() {
     let authority = Pubkey::new_unique();
 
     let record1 = AllFieldTypesRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner: Pubkey::new_unique(),
         delegate,
         authority,
@@ -169,7 +171,7 @@ fn test_hash_differs_for_different_pubkey_field() {
     };
 
     let record2 = AllFieldTypesRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner: Pubkey::new_unique(),
         delegate,
         authority,
@@ -198,7 +200,7 @@ fn test_hash_differs_for_different_option_pubkey_field() {
     let authority = Pubkey::new_unique();
 
     let record1 = AllFieldTypesRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate,
         authority,
@@ -212,7 +214,7 @@ fn test_hash_differs_for_different_option_pubkey_field() {
     };
 
     let record2 = AllFieldTypesRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate,
         authority,
@@ -239,7 +241,7 @@ fn test_hash_differs_for_different_string_field() {
     let owner = Pubkey::new_unique();
 
     let record1 = AllFieldTypesRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate: Pubkey::new_unique(),
         authority: Pubkey::new_unique(),
@@ -253,7 +255,7 @@ fn test_hash_differs_for_different_string_field() {
     };
 
     let record2 = AllFieldTypesRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate: Pubkey::new_unique(),
         authority: Pubkey::new_unique(),
@@ -282,7 +284,7 @@ fn test_hash_differs_for_different_array_field() {
     hash2_array[0] = 2;
 
     let record1 = AllFieldTypesRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate: Pubkey::new_unique(),
         authority: Pubkey::new_unique(),
@@ -296,7 +298,7 @@ fn test_hash_differs_for_different_array_field() {
     };
 
     let record2 = AllFieldTypesRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate: Pubkey::new_unique(),
         authority: Pubkey::new_unique(),
@@ -323,7 +325,7 @@ fn test_hash_differs_for_different_option_primitive() {
     let owner = Pubkey::new_unique();
 
     let record1 = AllFieldTypesRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate: Pubkey::new_unique(),
         authority: Pubkey::new_unique(),
@@ -337,7 +339,7 @@ fn test_hash_differs_for_different_option_primitive() {
     };
 
     let record2 = AllFieldTypesRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate: Pubkey::new_unique(),
         authority: Pubkey::new_unique(),
@@ -364,7 +366,7 @@ fn test_hash_differs_for_different_primitive() {
     let owner = Pubkey::new_unique();
 
     let record1 = AllFieldTypesRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate: Pubkey::new_unique(),
         authority: Pubkey::new_unique(),
@@ -378,7 +380,7 @@ fn test_hash_differs_for_different_primitive() {
     };
 
     let record2 = AllFieldTypesRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate: Pubkey::new_unique(),
         authority: Pubkey::new_unique(),
@@ -410,7 +412,6 @@ fn test_packed_struct_has_all_types_converted() {
     // Note: Option<Pubkey> is NOT converted to Option<u8> - it stays as Option<Pubkey>
     let close_authority = Pubkey::new_unique();
     let packed = PackedAllFieldTypesRecord {
-        compression_info: None,
         owner: 0,
         delegate: 1,
         authority: 2,
@@ -441,7 +442,7 @@ fn test_pack_converts_all_pubkey_types() {
     let name = "test".to_string();
 
     let record = AllFieldTypesRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate,
         authority,
@@ -482,7 +483,7 @@ fn test_pack_with_option_pubkey_none() {
     let authority = Pubkey::new_unique();
 
     let record = AllFieldTypesRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate,
         authority,
@@ -518,7 +519,7 @@ fn test_pack_reuses_pubkey_indices() {
     let authority = Pubkey::new_unique();
 
     let record1 = AllFieldTypesRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate,
         authority,
@@ -532,7 +533,7 @@ fn test_pack_reuses_pubkey_indices() {
     };
 
     let record2 = AllFieldTypesRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         delegate,
         authority,
@@ -570,7 +571,7 @@ fn test_pack_preserves_non_pubkey_fields() {
     let flag = true;
 
     let record = AllFieldTypesRecord {
-        compression_info: Some(CompressionInfo::default()),
+        compression_info: CompressionInfo::default(),
         owner: Pubkey::new_unique(),
         delegate: Pubkey::new_unique(),
         authority: Pubkey::new_unique(),

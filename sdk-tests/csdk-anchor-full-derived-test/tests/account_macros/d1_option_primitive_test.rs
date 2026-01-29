@@ -4,7 +4,6 @@
 //! - LightHasherSha -> DataHasher + ToByteArray
 //! - LightDiscriminator -> LIGHT_DISCRIMINATOR constant
 //! - Compressible -> HasCompressionInfo + CompressAs + Size + CompressedInitSpace
-//! - CompressiblePack -> Pack + Unpack (identity implementation: PackedOptionPrimitiveRecord = OptionPrimitiveRecord)
 //!
 //! Note: Since OptionPrimitiveRecord has no Pubkey fields, the Pack trait generates an identity
 //! implementation where Packed = Self. Option<primitive> types remain unchanged in the packed
@@ -24,7 +23,7 @@ use crate::generate_trait_tests;
 impl CompressibleTestFactory for OptionPrimitiveRecord {
     fn with_compression_info() -> Self {
         Self {
-            compression_info: Some(CompressionInfo::default()),
+            compression_info: CompressionInfo::default(),
             counter: 0,
             end_time: Some(1000),
             enabled: Some(true),
@@ -34,7 +33,7 @@ impl CompressibleTestFactory for OptionPrimitiveRecord {
 
     fn without_compression_info() -> Self {
         Self {
-            compression_info: None,
+            compression_info: CompressionInfo::compressed(),
             counter: 0,
             end_time: None,
             enabled: None,
@@ -61,7 +60,7 @@ fn test_compress_as_preserves_other_fields() {
     let score = Some(100u32);
 
     let record = OptionPrimitiveRecord {
-        compression_info: Some(CompressionInfo::default()),
+        compression_info: CompressionInfo::default(),
         counter,
         end_time,
         enabled,
@@ -83,7 +82,7 @@ fn test_compress_as_when_compression_info_already_none() {
     let score = None;
 
     let record = OptionPrimitiveRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         counter,
         end_time,
         enabled,
@@ -92,9 +91,7 @@ fn test_compress_as_when_compression_info_already_none() {
 
     let compressed = record.compress_as();
 
-    // Should still work and preserve fields
-    assert!(compressed.compression_info.is_none());
-    assert_eq!(compressed.counter, counter);
+    // Should still work and preserve fields    assert_eq!(compressed.counter, counter);
     assert_eq!(compressed.end_time, end_time);
     assert_eq!(compressed.enabled, enabled);
     assert_eq!(compressed.score, score);
@@ -107,7 +104,7 @@ fn test_compress_as_when_compression_info_already_none() {
 #[test]
 fn test_hash_differs_for_different_counter() {
     let record1 = OptionPrimitiveRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         counter: 1,
         end_time: Some(1000),
         enabled: Some(true),
@@ -115,7 +112,7 @@ fn test_hash_differs_for_different_counter() {
     };
 
     let record2 = OptionPrimitiveRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         counter: 2,
         end_time: Some(1000),
         enabled: Some(true),
@@ -134,7 +131,7 @@ fn test_hash_differs_for_different_counter() {
 #[test]
 fn test_hash_differs_for_different_end_time() {
     let record1 = OptionPrimitiveRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         counter: 100,
         end_time: Some(1000),
         enabled: Some(true),
@@ -142,7 +139,7 @@ fn test_hash_differs_for_different_end_time() {
     };
 
     let record2 = OptionPrimitiveRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         counter: 100,
         end_time: Some(2000),
         enabled: Some(true),
@@ -161,7 +158,7 @@ fn test_hash_differs_for_different_end_time() {
 #[test]
 fn test_hash_differs_for_different_enabled() {
     let record1 = OptionPrimitiveRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         counter: 100,
         end_time: Some(1000),
         enabled: Some(true),
@@ -169,7 +166,7 @@ fn test_hash_differs_for_different_enabled() {
     };
 
     let record2 = OptionPrimitiveRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         counter: 100,
         end_time: Some(1000),
         enabled: Some(false),
@@ -188,7 +185,7 @@ fn test_hash_differs_for_different_enabled() {
 #[test]
 fn test_hash_differs_for_different_score() {
     let record1 = OptionPrimitiveRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         counter: 100,
         end_time: Some(1000),
         enabled: Some(true),
@@ -196,7 +193,7 @@ fn test_hash_differs_for_different_score() {
     };
 
     let record2 = OptionPrimitiveRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         counter: 100,
         end_time: Some(1000),
         enabled: Some(true),
@@ -215,7 +212,7 @@ fn test_hash_differs_for_different_score() {
 #[test]
 fn test_hash_differs_when_option_is_none_vs_some() {
     let record1 = OptionPrimitiveRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         counter: 100,
         end_time: None,
         enabled: Some(true),
@@ -223,7 +220,7 @@ fn test_hash_differs_when_option_is_none_vs_some() {
     };
 
     let record2 = OptionPrimitiveRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         counter: 100,
         end_time: Some(1000),
         enabled: Some(true),

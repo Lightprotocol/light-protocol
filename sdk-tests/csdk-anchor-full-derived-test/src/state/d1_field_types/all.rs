@@ -15,7 +15,7 @@ use light_sdk_macros::LightAccount;
 #[derive(Default, Debug, InitSpace, LightAccount)]
 #[account]
 pub struct AllFieldTypesRecord {
-    pub compression_info: Option<CompressionInfo>,
+    pub compression_info: CompressionInfo,
     // Multiple Pubkeys -> _index: u8 fields
     pub owner: Pubkey,
     pub delegate: Pubkey,

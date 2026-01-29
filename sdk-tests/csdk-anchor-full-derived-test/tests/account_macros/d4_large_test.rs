@@ -23,7 +23,7 @@ use crate::generate_trait_tests;
 impl CompressibleTestFactory for LargeRecord {
     fn with_compression_info() -> Self {
         Self {
-            compression_info: Some(CompressionInfo::default()),
+            compression_info: CompressionInfo::default(),
             field_01: 1,
             field_02: 2,
             field_03: 3,
@@ -41,7 +41,7 @@ impl CompressibleTestFactory for LargeRecord {
 
     fn without_compression_info() -> Self {
         Self {
-            compression_info: None,
+            compression_info: CompressionInfo::compressed(),
             field_01: 1,
             field_02: 2,
             field_03: 3,
@@ -71,7 +71,7 @@ generate_trait_tests!(LargeRecord);
 #[test]
 fn test_compress_as_preserves_all_fields() {
     let record = LargeRecord {
-        compression_info: Some(CompressionInfo::default()),
+        compression_info: CompressionInfo::default(),
         field_01: 100,
         field_02: 200,
         field_03: 300,
@@ -106,7 +106,7 @@ fn test_compress_as_preserves_all_fields() {
 #[test]
 fn test_compress_as_when_compression_info_already_none() {
     let record = LargeRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         field_01: 1,
         field_02: 2,
         field_03: 3,
@@ -123,9 +123,7 @@ fn test_compress_as_when_compression_info_already_none() {
 
     let compressed = record.compress_as();
 
-    // Should still work and preserve all fields
-    assert!(compressed.compression_info.is_none());
-    assert_eq!(compressed.field_01, 1);
+    // Should still work and preserve all fields    assert_eq!(compressed.field_01, 1);
     assert_eq!(compressed.field_12, 12);
 }
 

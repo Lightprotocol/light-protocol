@@ -1,5 +1,8 @@
 //! Integration tests for mint with metadata support in #[light_account(init)] macro.
 
+#[path = "../shared.rs"]
+mod shared;
+
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_client::interface::{
     decompress_mint::decompress_mint, get_create_accounts_proof, AccountInterfaceExt,
@@ -26,7 +29,7 @@ async fn test_create_mint_with_metadata() {
         CreateMintWithMetadataParams, METADATA_MINT_SIGNER_SEED,
     };
     use light_token::instruction::{
-        find_mint_address as find_cmint_address, COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR,
+        find_mint_address as find_cmint_address, LIGHT_TOKEN_CONFIG, RENT_SPONSOR,
     };
 
     let program_id = csdk_anchor_full_derived_test::ID;
@@ -95,7 +98,7 @@ async fn test_create_mint_with_metadata() {
         mint_signer: mint_signer_pda,
         cmint: cmint_pda,
         compression_config: config_pda,
-        light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
+        light_token_compressible_config: LIGHT_TOKEN_CONFIG,
         rent_sponsor: RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
@@ -222,33 +225,14 @@ async fn test_create_mint_with_metadata() {
         "Decompressed PDA data should contain the PDA pubkey"
     );
 
-    // Helper functions for lifecycle assertions
-    async fn assert_onchain_exists(rpc: &mut LightProgramTest, pda: &Pubkey) {
-        assert!(rpc.get_account(*pda).await.unwrap().is_some());
-    }
-    async fn assert_onchain_closed(rpc: &mut LightProgramTest, pda: &Pubkey) {
-        let acc = rpc.get_account(*pda).await.unwrap();
-        assert!(acc.is_none() || acc.unwrap().lamports == 0);
-    }
-    async fn assert_compressed_exists_with_data(rpc: &mut LightProgramTest, addr: [u8; 32]) {
-        let acc = rpc
-            .get_compressed_account(addr, None)
-            .await
-            .unwrap()
-            .value
-            .unwrap();
-        assert_eq!(acc.address.unwrap(), addr);
-        assert!(!acc.data.as_ref().unwrap().data.is_empty());
-    }
-
     // PHASE 2: Warp to trigger auto-compression by forester
     rpc.warp_slot_forward(SLOTS_PER_EPOCH * 30).await.unwrap();
 
     // After warp: mint should be closed on-chain
-    assert_onchain_closed(&mut rpc, &cmint_pda).await;
+    shared::assert_onchain_closed(&mut rpc, &cmint_pda, "cmint").await;
 
     // Compressed mint should exist with non-empty data (now compressed)
-    assert_compressed_exists_with_data(&mut rpc, mint_compressed_address).await;
+    shared::assert_compressed_exists_with_data(&mut rpc, mint_compressed_address, "cmint").await;
 
     // PHASE 3: Decompress mint and verify metadata is preserved
 
@@ -278,7 +262,7 @@ async fn test_create_mint_with_metadata() {
         .expect("Mint decompression should succeed");
 
     // Verify mint is back on-chain
-    assert_onchain_exists(&mut rpc, &cmint_pda).await;
+    shared::assert_onchain_exists(&mut rpc, &cmint_pda, "cmint").await;
 
     // Re-parse and verify mint data with metadata preserved
     let cmint_account_after = rpc

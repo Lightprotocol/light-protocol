@@ -2,7 +2,6 @@
 //!
 //! These tests verify correctness properties of:
 //! - `is_constant_identifier` - SCREAMING_SNAKE_CASE detection
-//! - `extract_terminal_ident` - Expression identifier extraction
 //! - `is_base_path` - Path base matching
 
 #[cfg(test)]
@@ -10,9 +9,7 @@ mod tests {
     use proptest::prelude::*;
     use syn::parse_str;
 
-    use crate::light_pdas::shared_utils::{
-        extract_terminal_ident, is_base_path, is_constant_identifier,
-    };
+    use crate::light_pdas::shared_utils::{is_base_path, is_constant_identifier};
 
     // ========================================================================
     // Constants
@@ -164,186 +161,6 @@ mod tests {
                 "Identifier with special char '{}' should be rejected",
                 name
             );
-        }
-    }
-
-    // ========================================================================
-    // Property Tests: extract_terminal_ident
-    // ========================================================================
-
-    proptest! {
-        /// Simple path expressions should extract the identifier directly.
-        #[test]
-        fn prop_path_extracts_ident(name in arb_lowercase_ident()) {
-            prop_assume!(!name.is_empty());
-
-            if let Ok(expr) = parse_str::<syn::Expr>(&name) {
-                let result = extract_terminal_ident(&expr, false);
-                prop_assert!(
-                    result.is_some(),
-                    "Path expression '{}' should extract an ident",
-                    name
-                );
-                prop_assert_eq!(
-                    result.unwrap().to_string(),
-                    name,
-                    "Extracted ident should match input"
-                );
-            }
-        }
-
-        /// Field access should extract the field name.
-        #[test]
-        fn prop_field_extracts_name(base in arb_lowercase_ident(), field in arb_lowercase_ident()) {
-            prop_assume!(!base.is_empty() && !field.is_empty());
-
-            let expr_str = format!("{}.{}", base, field);
-            if let Ok(expr) = parse_str::<syn::Expr>(&expr_str) {
-                let result = extract_terminal_ident(&expr, false);
-                prop_assert!(
-                    result.is_some(),
-                    "Field expression '{}' should extract an ident",
-                    expr_str
-                );
-                let extracted = result.unwrap().to_string();
-                let expected = field.clone();
-                prop_assert_eq!(
-                    extracted,
-                    expected,
-                    "Should extract field name from '{}'",
-                    expr_str
-                );
-            }
-        }
-
-        /// Method call should extract receiver when key_method_only=false.
-        #[test]
-        fn prop_method_extracts_receiver_any(base in arb_lowercase_ident(), method in arb_lowercase_ident()) {
-            prop_assume!(!base.is_empty() && !method.is_empty());
-
-            let expr_str = format!("{}.{}()", base, method);
-            if let Ok(expr) = parse_str::<syn::Expr>(&expr_str) {
-                let result = extract_terminal_ident(&expr, false);
-                prop_assert!(
-                    result.is_some(),
-                    "Method call '{}' should extract receiver when key_method_only=false",
-                    expr_str
-                );
-                let extracted = result.unwrap().to_string();
-                let expected = base.clone();
-                prop_assert_eq!(
-                    extracted,
-                    expected,
-                    "Should extract receiver from '{}'",
-                    expr_str
-                );
-            }
-        }
-
-        /// key() method should extract receiver when key_method_only=true.
-        #[test]
-        fn prop_key_method_extracts_receiver(base in arb_lowercase_ident()) {
-            prop_assume!(!base.is_empty());
-
-            let expr_str = format!("{}.key()", base);
-            if let Ok(expr) = parse_str::<syn::Expr>(&expr_str) {
-                let result = extract_terminal_ident(&expr, true);
-                prop_assert!(
-                    result.is_some(),
-                    "key() method '{}' should extract receiver",
-                    expr_str
-                );
-                prop_assert_eq!(
-                    result.unwrap().to_string(),
-                    base,
-                    "Should extract receiver from key() call"
-                );
-            }
-        }
-
-        /// Non-key methods should return None when key_method_only=true.
-        #[test]
-        fn prop_non_key_method_filtered(base in arb_lowercase_ident(), method in "[a-z]{2,8}") {
-            prop_assume!(!base.is_empty() && method != "key");
-
-            let expr_str = format!("{}.{}()", base, method);
-            if let Ok(expr) = parse_str::<syn::Expr>(&expr_str) {
-                let result = extract_terminal_ident(&expr, true);
-                prop_assert!(
-                    result.is_none(),
-                    "Non-key method '{}' should return None when key_method_only=true",
-                    expr_str
-                );
-            }
-        }
-
-        /// Reference expressions should be transparent.
-        #[test]
-        fn prop_reference_transparent(name in arb_lowercase_ident()) {
-            prop_assume!(!name.is_empty());
-
-            let base_str = name.clone();
-            let ref_str = format!("&{}", name);
-
-            if let (Ok(base_expr), Ok(ref_expr)) = (
-                parse_str::<syn::Expr>(&base_str),
-                parse_str::<syn::Expr>(&ref_str)
-            ) {
-                let base_result = extract_terminal_ident(&base_expr, false);
-                let ref_result = extract_terminal_ident(&ref_expr, false);
-
-                prop_assert_eq!(
-                    base_result.map(|i| i.to_string()),
-                    ref_result.map(|i| i.to_string()),
-                    "Reference should be transparent: '{}' vs '&{}'",
-                    name,
-                    name
-                );
-            }
-        }
-
-        /// Nested field access should extract terminal field name.
-        #[test]
-        fn prop_nested_field_extracts_terminal(
-            a in arb_lowercase_ident(),
-            b in arb_lowercase_ident(),
-            c in arb_lowercase_ident()
-        ) {
-            prop_assume!(!a.is_empty() && !b.is_empty() && !c.is_empty());
-
-            let expr_str = format!("{}.{}.{}", a, b, c);
-            if let Ok(expr) = parse_str::<syn::Expr>(&expr_str) {
-                let result = extract_terminal_ident(&expr, false);
-                prop_assert!(
-                    result.is_some(),
-                    "Nested field '{}' should extract terminal",
-                    expr_str
-                );
-                let extracted = result.unwrap().to_string();
-                let expected = c.clone();
-                prop_assert_eq!(
-                    extracted,
-                    expected,
-                    "Should extract terminal field from '{}'",
-                    expr_str
-                );
-            }
-        }
-
-        /// Extraction should be deterministic.
-        #[test]
-        fn prop_extract_deterministic(name in arb_lowercase_ident()) {
-            prop_assume!(!name.is_empty());
-
-            if let Ok(expr) = parse_str::<syn::Expr>(&name) {
-                let result1 = extract_terminal_ident(&expr, false);
-                let result2 = extract_terminal_ident(&expr, false);
-                prop_assert_eq!(
-                    result1.map(|i| i.to_string()),
-                    result2.map(|i| i.to_string()),
-                    "extract_terminal_ident should be deterministic"
-                );
-            }
         }
     }
 

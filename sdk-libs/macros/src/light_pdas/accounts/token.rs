@@ -49,20 +49,21 @@ pub(super) fn generate_token_account_cpi(
     let light_token_rent_sponsor = &infra.light_token_rent_sponsor;
     let fee_payer = &infra.fee_payer;
 
-    // Generate authority seeds array from parsed seeds (WITHOUT bump - bump is added separately)
+    // Generate token account PDA seeds array from parsed seeds (WITHOUT bump - bump is added separately)
+    // These are the seeds for the token account itself (for PDA signing), NOT the authority seeds.
     // Bind each seed to a local variable first, then call .as_ref() to avoid
     // temporary lifetime issues (e.g., self.mint.key() creates a Pubkey that
     // would be dropped before .as_ref() completes if done in one expression)
     //
     // User provides expressions WITHOUT bump in the array:
-    //   authority = [SEED, self.mint.key()]
+    //   seeds = [VAULT_SEED, self.mint.key()]
     // Generates:
-    //   let __seed_0 = SEED; let __seed_0_ref: &[u8] = __seed_0.as_ref();
+    //   let __seed_0 = VAULT_SEED; let __seed_0_ref: &[u8] = __seed_0.as_ref();
     //   let __seed_1 = self.mint.key(); let __seed_1_ref: &[u8] = __seed_1.as_ref();
     //   // bump is auto-derived or provided via bump parameter
     //   &[__seed_0_ref, __seed_1_ref, &[bump]]
-    let authority_seeds = &field.authority_seeds;
-    let seed_bindings: Vec<TokenStream> = authority_seeds
+    let token_seeds = &field.seeds;
+    let seed_bindings: Vec<TokenStream> = token_seeds
         .iter()
         .enumerate()
         .map(|(i, seed)| {
@@ -76,7 +77,7 @@ pub(super) fn generate_token_account_cpi(
             }
         })
         .collect();
-    let seed_refs: Vec<TokenStream> = (0..authority_seeds.len())
+    let seed_refs: Vec<TokenStream> = (0..token_seeds.len())
         .map(|i| {
             let ref_name =
                 syn::Ident::new(&format!("__seed_{}_ref", i), proc_macro2::Span::call_site());
@@ -91,7 +92,7 @@ pub(super) fn generate_token_account_cpi(
         .map(|b| quote! { let __bump: u8 = #b; })
         .unwrap_or_else(|| {
             // Auto-derive bump from seeds
-            if authority_seeds.is_empty() {
+            if token_seeds.is_empty() {
                 quote! {
                     let __bump: u8 = {
                         let (_, bump) = solana_pubkey::Pubkey::find_program_address(&[], &crate::ID);
@@ -110,7 +111,7 @@ pub(super) fn generate_token_account_cpi(
         });
 
     // Build seeds array with bump appended as final seed
-    let seeds_array_expr = if authority_seeds.is_empty() {
+    let seeds_array_expr = if token_seeds.is_empty() {
         quote! { &[&__bump_slice[..]] }
     } else {
         quote! { &[#(#seed_refs,)* &__bump_slice[..]] }

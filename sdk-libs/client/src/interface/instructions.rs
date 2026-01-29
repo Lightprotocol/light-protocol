@@ -12,7 +12,7 @@ use light_sdk::{
     },
 };
 use light_token::constants::{
-    COMPRESSIBLE_CONFIG_V1, LIGHT_TOKEN_CPI_AUTHORITY, LIGHT_TOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_CPI_AUTHORITY, LIGHT_TOKEN_PROGRAM_ID,
     RENT_SPONSOR_V1 as RENT_SPONSOR,
 };
 use solana_instruction::{AccountMeta, Instruction};
@@ -45,9 +45,11 @@ pub struct UpdateConfigData {
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct LoadAccountsData<T> {
+    pub system_accounts_offset: u8,
+    pub token_accounts_offset: u8,
+    pub output_queue_index: u8,
     pub proof: ValidityProof,
     pub compressed_accounts: Vec<CompressedAccountData<T>>,
-    pub system_accounts_offset: u8,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
@@ -79,7 +81,7 @@ pub mod load {
             AccountMeta::new(RENT_SPONSOR, false),
             AccountMeta::new_readonly(LIGHT_TOKEN_PROGRAM_ID, false),
             AccountMeta::new_readonly(LIGHT_TOKEN_CPI_AUTHORITY, false),
-            AccountMeta::new_readonly(COMPRESSIBLE_CONFIG_V1, false),
+            AccountMeta::new_readonly(LIGHT_TOKEN_CONFIG, false),
         ]
     }
 
@@ -96,7 +98,7 @@ pub mod load {
             AccountMeta::new(rent_sponsor, false), // placeholder for ctoken_rent_sponsor
             AccountMeta::new_readonly(LIGHT_TOKEN_PROGRAM_ID, false),
             AccountMeta::new_readonly(LIGHT_TOKEN_CPI_AUTHORITY, false),
-            AccountMeta::new_readonly(COMPRESSIBLE_CONFIG_V1, false),
+            AccountMeta::new_readonly(LIGHT_TOKEN_CONFIG, false),
         ]
     }
 }
@@ -199,28 +201,25 @@ where
 
     let mut remaining_accounts = PackedAccounts::default();
 
-    let mut has_tokens = false;
-    let mut has_pdas = false;
-    for (acc, _) in cold_accounts.iter() {
+    // Separate PDA and token indices so PDAs come first in the output.
+    let mut pda_indices = Vec::new();
+    let mut token_indices = Vec::new();
+    for (i, (acc, _)) in cold_accounts.iter().enumerate() {
         if acc.owner == LIGHT_TOKEN_PROGRAM_ID {
-            has_tokens = true;
+            token_indices.push(i);
         } else {
-            has_pdas = true;
-        }
-        if has_tokens && has_pdas {
-            break;
+            pda_indices.push(i);
         }
     }
+    let has_pdas = !pda_indices.is_empty();
+    let has_tokens = !token_indices.is_empty();
     if !has_tokens && !has_pdas {
         return Err("No tokens or PDAs found".into());
     }
 
     // When mixing PDAs + tokens, use first token's CPI context
     if has_pdas && has_tokens {
-        let first_token_acc = cold_accounts
-            .iter()
-            .find(|(acc, _)| acc.owner == LIGHT_TOKEN_PROGRAM_ID)
-            .ok_or("expected at least one token account when has_tokens is true")?;
+        let first_token_acc = &cold_accounts[token_indices[0]];
         let first_token_cpi = first_token_acc
             .0
             .tree_info
@@ -245,7 +244,9 @@ where
     let mut accounts = program_account_metas.to_vec();
     let mut typed_accounts = Vec::with_capacity(cold_accounts.len());
 
-    for (i, (acc, data)) in cold_accounts.iter().enumerate() {
+    // Process PDAs first, then tokens, to match on-chain split_at(token_accounts_offset).
+    for &i in pda_indices.iter().chain(token_indices.iter()) {
+        let (acc, data) = &cold_accounts[i];
         let _queue_index = remaining_accounts.insert_or_get(acc.tree_info.queue);
         let tree_info = tree_infos
             .get(i)
@@ -254,10 +255,7 @@ where
 
         let packed_data = data.pack(&mut remaining_accounts)?;
         typed_accounts.push(CompressedAccountData {
-            meta: CompressedAccountMetaNoLamportsNoAddress {
-                tree_info,
-                output_state_tree_index,
-            },
+            tree_info,
             data: packed_data,
         });
     }
@@ -265,19 +263,27 @@ where
     let (system_accounts, system_accounts_offset, _) = remaining_accounts.to_account_metas();
     accounts.extend(system_accounts);
 
-    for addr in hot_addresses {
-        accounts.push(AccountMeta::new(*addr, false));
+    // Append hot addresses in the same order: PDAs first, then tokens.
+    for &i in pda_indices.iter().chain(token_indices.iter()) {
+        accounts.push(AccountMeta::new(hot_addresses[i], false));
     }
 
+    // system_accounts_offset must account for program_account_metas
+    let full_offset = program_account_metas.len() + system_accounts_offset;
+    let token_accounts_offset = pda_indices.len() as u8;
     let ix_data = LoadAccountsData {
         proof: proof.proof,
         compressed_accounts: typed_accounts,
-        system_accounts_offset: system_accounts_offset as u8,
+        system_accounts_offset: full_offset as u8,
+        token_accounts_offset,
+        output_queue_index: output_state_tree_index,
     };
 
     let serialized = ix_data.try_to_vec()?;
-    let mut data = Vec::with_capacity(discriminator.len() + serialized.len());
+    // Wrap in Vec<u8> format (4-byte length prefix) for Anchor compatibility
+    let mut data = Vec::with_capacity(discriminator.len() + 4 + serialized.len());
     data.extend_from_slice(discriminator);
+    data.extend_from_slice(&(serialized.len() as u32).to_le_bytes());
     data.extend_from_slice(&serialized);
 
     Ok(Instruction {
@@ -328,15 +334,19 @@ pub fn build_compress_accounts_idempotent(
         accounts.push(AccountMeta::new(*pubkey, false));
     }
 
+    // system_accounts_offset must account for program_account_metas
+    let full_offset = program_account_metas.len() + system_accounts_offset;
     let ix_data = SaveAccountsData {
         proof: proof.proof,
         compressed_accounts: cold_metas,
-        system_accounts_offset: system_accounts_offset as u8,
+        system_accounts_offset: full_offset as u8,
     };
 
     let serialized = ix_data.try_to_vec()?;
-    let mut data = Vec::with_capacity(discriminator.len() + serialized.len());
+    // Wrap in Vec<u8> format (4-byte length prefix) for Anchor compatibility
+    let mut data = Vec::with_capacity(discriminator.len() + 4 + serialized.len());
     data.extend_from_slice(discriminator);
+    data.extend_from_slice(&(serialized.len() as u32).to_le_bytes());
     data.extend_from_slice(&serialized);
 
     Ok(Instruction {

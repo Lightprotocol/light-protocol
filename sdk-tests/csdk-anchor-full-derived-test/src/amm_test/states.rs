@@ -14,7 +14,7 @@ pub const AUTH_SEED: &str = "vault_and_lp_mint_auth_seed";
 #[account]
 #[repr(C)]
 pub struct PoolState {
-    pub compression_info: Option<CompressionInfo>,
+    pub compression_info: CompressionInfo,
     pub amm_config: Pubkey,
     pub pool_creator: Pubkey,
     pub token_0_vault: Pubkey,
@@ -52,7 +52,7 @@ pub struct Observation {
 #[derive(Default, Debug, InitSpace, LightAccount)]
 #[account]
 pub struct ObservationState {
-    pub compression_info: Option<CompressionInfo>,
+    pub compression_info: CompressionInfo,
     pub initialized: bool,
     pub observation_index: u16,
     pub pool_id: Pubkey,

@@ -675,54 +675,7 @@ pub mod __internal {
             input_account_meta: &impl CompressedAccountMetaTrait,
             input_account: A,
         ) -> Result<Self, ProgramError> {
-            let input_account_info = {
-                // For HASH_FLAT = true, use direct serialization
-                let data = input_account
-                    .try_to_vec()
-                    .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
-                let mut input_data_hash = H::hash(data.as_slice())
-                    .map_err(LightSdkError::from)
-                    .map_err(ProgramError::from)?;
-                input_data_hash[0] = 0;
-                let tree_info = input_account_meta.get_tree_info();
-                InAccountInfo {
-                    data_hash: input_data_hash,
-                    lamports: input_account_meta.get_lamports().unwrap_or_default(),
-                    merkle_context: PackedMerkleContext {
-                        merkle_tree_pubkey_index: tree_info.merkle_tree_pubkey_index,
-                        queue_pubkey_index: tree_info.queue_pubkey_index,
-                        leaf_index: tree_info.leaf_index,
-                        prove_by_index: tree_info.prove_by_index,
-                    },
-                    root_index: input_account_meta.get_root_index().unwrap_or_default(),
-                    discriminator: A::LIGHT_DISCRIMINATOR,
-                }
-            };
-            let output_account_info = {
-                let output_merkle_tree_index = input_account_meta
-                    .get_output_state_tree_index()
-                    .ok_or(LightSdkError::OutputStateTreeIndexIsNone)
-                    .map_err(ProgramError::from)?;
-                OutAccountInfo {
-                    lamports: input_account_meta.get_lamports().unwrap_or_default(),
-                    output_merkle_tree_index,
-                    discriminator: A::LIGHT_DISCRIMINATOR,
-                    ..Default::default()
-                }
-            };
-
-            Ok(Self {
-                owner: owner.to_solana_pubkey(),
-                account: input_account,
-                account_info: CompressedAccountInfo {
-                    address: input_account_meta.get_address(),
-                    input: Some(input_account_info),
-                    output: Some(output_account_info),
-                },
-                should_remove_data: false,
-                read_only_account_hash: None,
-                _hasher: PhantomData,
-            })
+            Ok(Self::new_mut_inner(owner, input_account_meta, input_account)?.0)
         }
 
         // TODO: add in a different pr and release
@@ -1063,6 +1016,67 @@ pub mod __internal {
             } else {
                 Ok(None)
             }
+        }
+
+        pub(crate) fn new_mut_inner(
+            owner: &impl crate::PubkeyTrait,
+            input_account_meta: &impl CompressedAccountMetaTrait,
+            input_account: A,
+        ) -> Result<(LightAccountInner<H, A, true>, Vec<u8>), ProgramError> {
+            let (input_account_info, data) = {
+                // For HASH_FLAT = true, use direct serialization
+                let data = input_account
+                    .try_to_vec()
+                    .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
+                let mut input_data_hash = H::hash(data.as_slice())
+                    .map_err(LightSdkError::from)
+                    .map_err(ProgramError::from)?;
+                input_data_hash[0] = 0;
+                let tree_info = input_account_meta.get_tree_info();
+                (
+                    InAccountInfo {
+                        data_hash: input_data_hash,
+                        lamports: input_account_meta.get_lamports().unwrap_or_default(),
+                        merkle_context: PackedMerkleContext {
+                            merkle_tree_pubkey_index: tree_info.merkle_tree_pubkey_index,
+                            queue_pubkey_index: tree_info.queue_pubkey_index,
+                            leaf_index: tree_info.leaf_index,
+                            prove_by_index: tree_info.prove_by_index,
+                        },
+                        root_index: input_account_meta.get_root_index().unwrap_or_default(),
+                        discriminator: A::LIGHT_DISCRIMINATOR,
+                    },
+                    data,
+                )
+            };
+            let output_account_info = {
+                let output_merkle_tree_index = input_account_meta
+                    .get_output_state_tree_index()
+                    .ok_or(LightSdkError::OutputStateTreeIndexIsNone)
+                    .map_err(ProgramError::from)?;
+                OutAccountInfo {
+                    lamports: input_account_meta.get_lamports().unwrap_or_default(),
+                    output_merkle_tree_index,
+                    discriminator: A::LIGHT_DISCRIMINATOR,
+                    ..Default::default()
+                }
+            };
+
+            Ok((
+                LightAccountInner {
+                    owner: owner.to_solana_pubkey(),
+                    account: input_account,
+                    account_info: CompressedAccountInfo {
+                        address: input_account_meta.get_address(),
+                        input: Some(input_account_info),
+                        output: Some(output_account_info),
+                    },
+                    should_remove_data: false,
+                    read_only_account_hash: None,
+                    _hasher: PhantomData,
+                },
+                data,
+            ))
         }
     }
 }

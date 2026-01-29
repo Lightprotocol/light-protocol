@@ -59,6 +59,33 @@ pub struct Token {
     pub extensions: Option<Vec<ExtensionStruct>>,
 }
 
+// IdlBuild trait impl (provides default implementations)
+#[cfg(feature = "idl-build")]
+impl anchor_lang::IdlBuild for Token {}
+
+// IDL inherent methods required for UFCS calls from AnchorSerialize derive macro.
+// When anchor-lang/idl-build is enabled, the macro generates code like
+// `<Token>::get_full_path()`. These calls need inherent methods since the
+// IdlBuild trait may not be in scope at the call site.
+#[cfg(feature = "idl-build")]
+impl Token {
+    #[doc(hidden)]
+    pub fn get_full_path() -> String {
+        std::any::type_name::<Self>().into()
+    }
+
+    #[doc(hidden)]
+    pub fn create_type() -> Option<anchor_lang::idl::types::IdlTypeDef> {
+        None
+    }
+
+    #[doc(hidden)]
+    pub fn insert_types(
+        _types: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlTypeDef>,
+    ) {
+    }
+}
+
 impl Token {
     /// Extract amount directly from account data slice using hardcoded offset
     /// Token layout: mint (32 bytes) + owner (32 bytes) + amount (8 bytes)

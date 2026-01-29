@@ -37,6 +37,10 @@ pub struct D9QualifiedBare<'info> {
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
 
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
+
     #[account(
         init,
         payer = fee_payer,
@@ -45,7 +49,7 @@ pub struct D9QualifiedBare<'info> {
         bump,
     )]
     #[light_account(init)]
-    pub record: Account<'info, SinglePubkeyRecord>,
+    pub d9_qualified_bare_record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
 }
@@ -69,6 +73,10 @@ pub struct D9QualifiedSelf<'info> {
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
 
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
+
     #[account(
         init,
         payer = fee_payer,
@@ -77,7 +85,7 @@ pub struct D9QualifiedSelf<'info> {
         bump,
     )]
     #[light_account(init)]
-    pub record: Account<'info, SinglePubkeyRecord>,
+    pub d9_qualified_self_record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
 }
@@ -101,6 +109,10 @@ pub struct D9QualifiedCrate<'info> {
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
 
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
+
     #[account(
         init,
         payer = fee_payer,
@@ -109,7 +121,7 @@ pub struct D9QualifiedCrate<'info> {
         bump,
     )]
     #[light_account(init)]
-    pub record: Account<'info, SinglePubkeyRecord>,
+    pub d9_qualified_crate_record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
 }
@@ -133,6 +145,10 @@ pub struct D9QualifiedDeep<'info> {
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
 
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
+
     #[account(
         init,
         payer = fee_payer,
@@ -141,7 +157,7 @@ pub struct D9QualifiedDeep<'info> {
         bump,
     )]
     #[light_account(init)]
-    pub record: Account<'info, SinglePubkeyRecord>,
+    pub d9_qualified_deep_record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
 }
@@ -166,6 +182,10 @@ pub struct D9QualifiedMixed<'info> {
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
 
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
+
     #[account(
         init,
         payer = fee_payer,
@@ -174,7 +194,7 @@ pub struct D9QualifiedMixed<'info> {
         bump,
     )]
     #[light_account(init)]
-    pub record: Account<'info, SinglePubkeyRecord>,
+    pub d9_qualified_mixed_record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
 }

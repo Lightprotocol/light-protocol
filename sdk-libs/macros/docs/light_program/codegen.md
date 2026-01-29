@@ -1,13 +1,13 @@
-# `#[rentfree_program]` Code Generation
+# `#[light_program]` Code Generation
 
-Technical implementation details for the `#[rentfree_program]` attribute macro.
+Technical implementation details for the `#[light_program]` attribute macro.
 
 ## 1. Source Code Structure
 
 ```
-sdk-libs/macros/src/rentfree/program/
-|-- mod.rs                 # Module exports, main entry point rentfree_program_impl
-|-- instructions.rs        # Main orchestration: codegen(), rentfree_program_impl()
+sdk-libs/macros/src/light_pdas/program/
+|-- mod.rs                 # Module exports, main entry point light_program_impl
+|-- instructions.rs        # Main orchestration: codegen(), light_program_impl()
 |-- parsing.rs             # Core types (TokenSeedSpec, SeedElement, InstructionDataSpec)
 |                          # Expression analysis, seed conversion, function wrapping
 |-- compress.rs            # CompressAccountsIdempotent generation
@@ -31,24 +31,23 @@ sdk-libs/macros/src/rentfree/program/
 ### Related Files
 
 ```
-sdk-libs/macros/src/rentfree/
-|-- traits/
+sdk-libs/macros/src/light_pdas/
+|-- account/
 |   |-- seed_extraction.rs    # ClassifiedSeed enum, Anchor seed parsing
-|   |                         # extract_from_accounts_struct()
-|   |-- decompress_context.rs # DecompressContext trait impl generation
 |   |-- utils.rs              # Shared utilities (is_pubkey_type, etc.)
 |-- shared_utils.rs           # Cross-module utilities (is_constant_identifier, etc.)
+|-- light_account_keywords.rs # Keyword validation for #[light_account] parsing
 ```
 
 
 ## 2. Code Generation Flow
 
 ```
-                    #[rentfree_program]
+                    #[light_program]
                            |
                            v
             +-----------------------------+
-            |   rentfree_program_impl()   |
+            |   light_program_impl()   |
             |   (instructions.rs:405)     |
             +-----------------------------+
                            |
@@ -59,7 +58,7 @@ sdk-libs/macros/src/rentfree/
 | CrateContext     |              | extract_context_and_ |
 | ::parse_from_    |              | params() + wrap_     |
 | manifest()       |              | function_with_       |
-| (crate_context.rs)|              | rentfree()          |
+| (crate_context.rs)|              | light()             |
 +------------------+              | (parsing.rs)         |
          |                        +----------------------+
          v                                   |
@@ -157,9 +156,14 @@ const _: () = {
 
 ### Instruction Variants
 
-The macro supports three instruction variants based on field types:
-- `PdaOnly`: Only `#[light_account(init)]` PDA fields
-- `TokenOnly`: Only `#[light_account(token)]` token fields
-- `Mixed`: Both PDA and token fields (most common)
+The macro supports five instruction variants based on field types:
 
-Currently, only `Mixed` variant is fully implemented. `PdaOnly` and `TokenOnly` will error at runtime.
+| Variant | Field Types | Description |
+|---------|-------------|-------------|
+| `PdaOnly` | Only `#[light_account(init)]` PDA fields | Generates PDA-only compress/decompress |
+| `TokenOnly` | Only `#[light_account(token)]` token fields | Generates token-only instructions |
+| `MintOnly` | Only `#[light_account(init, mint)]` mint fields | Generates mint-only instructions |
+| `AtaOnly` | Only `#[light_account(init, associated_token)]` ATA fields | Generates ATA-only instructions |
+| `Mixed` | Combination of above | Most common, handles multiple field types |
+
+All variants are implemented and generate appropriate code paths.

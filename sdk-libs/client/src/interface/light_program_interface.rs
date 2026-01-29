@@ -124,10 +124,26 @@ impl<V> PdaSpec<V> {
         self.interface.is_hot()
     }
 
-    /// Get the compressed account if cold.
+    /// Get the compressed account if cold (handles both Account and Token cold contexts).
     #[must_use]
     pub fn compressed(&self) -> Option<&CompressedAccount> {
-        self.interface.as_compressed_account()
+        match &self.interface.cold {
+            Some(ColdContext::Account(c)) => Some(c),
+            Some(ColdContext::Token(c)) => Some(&c.account),
+            None => None,
+        }
+    }
+
+    /// Get the compressed token account if this is a cold token PDA.
+    #[must_use]
+    pub fn compressed_token(&self) -> Option<&CompressedTokenAccount> {
+        self.interface.as_compressed_token()
+    }
+
+    /// Whether this spec is for a token PDA (cold context is Token variant).
+    #[must_use]
+    pub fn is_token_pda(&self) -> bool {
+        self.interface.as_compressed_token().is_some()
     }
 
     /// Get the cold account hash.

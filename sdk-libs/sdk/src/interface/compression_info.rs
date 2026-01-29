@@ -1,16 +1,23 @@
 use std::borrow::Cow;
 
+use bytemuck::{Pod, Zeroable};
 use light_compressible::rent::RentConfig;
-use light_sdk_types::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;
+use light_sdk_types::instruction::PackedStateTreeInfo;
 use solana_account_info::AccountInfo;
 use solana_clock::Clock;
+use solana_cpi::invoke;
+use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
 use solana_sysvar::Sysvar;
 
-use crate::{instruction::PackedAccounts, AnchorDeserialize, AnchorSerialize, ProgramError};
+// Only available off-chain (client-side) - PackedAccounts contains sorting code
+#[cfg(not(target_os = "solana"))]
+use crate::instruction::PackedAccounts;
+use crate::{AnchorDeserialize, AnchorSerialize, ProgramError};
 
 /// Replace 32-byte Pubkeys with 1-byte indices to save space.
 /// If your type has no Pubkeys, just return self.
+#[cfg(not(target_os = "solana"))]
 pub trait Pack {
     type Packed: AnchorSerialize + Clone + std::fmt::Debug;
 
@@ -40,6 +47,90 @@ pub trait HasCompressionInfo {
     fn set_compression_info_none(&mut self) -> Result<(), ProgramError>;
 }
 
+/// Simple field accessor trait for types with a `compression_info: Option<CompressionInfo>` field.
+/// Implement this trait and get `HasCompressionInfo` for free via blanket impl.
+pub trait CompressionInfoField {
+    /// True if `compression_info` is the first field, false if last.
+    /// This enables efficient serialization by skipping at a known offset.
+    const COMPRESSION_INFO_FIRST: bool;
+
+    fn compression_info_field(&self) -> &Option<CompressionInfo>;
+    fn compression_info_field_mut(&mut self) -> &mut Option<CompressionInfo>;
+
+    /// Write `Some(CompressionInfo::new_decompressed())` directly into serialized account data.
+    ///
+    /// This avoids re-serializing the entire account by writing only the compression_info
+    /// bytes at the correct offset (first or last field position).
+    ///
+    /// # Arguments
+    /// * `data` - Mutable slice of the serialized account data (WITHOUT discriminator prefix)
+    /// * `current_slot` - Current slot for initializing `last_claimed_slot`
+    ///
+    /// # Returns
+    /// * `Ok(())` on success
+    /// * `Err` if serialization fails or data is too small
+    fn write_decompressed_info_to_slice(
+        data: &mut [u8],
+        current_slot: u64,
+    ) -> Result<(), ProgramError> {
+        use crate::AnchorSerialize;
+
+        let info = CompressionInfo {
+            last_claimed_slot: current_slot,
+            lamports_per_write: 0,
+            config_version: 0,
+            state: CompressionState::Decompressed,
+            _padding: 0,
+            rent_config: light_compressible::rent::RentConfig::default(),
+        };
+
+        // Option<T> serializes as: 1 byte discriminant + T if Some
+        let option_size = OPTION_COMPRESSION_INFO_SPACE;
+
+        let offset = if Self::COMPRESSION_INFO_FIRST {
+            0
+        } else {
+            data.len().saturating_sub(option_size)
+        };
+
+        if data.len() < offset + option_size {
+            return Err(ProgramError::AccountDataTooSmall);
+        }
+
+        let target = &mut data[offset..offset + option_size];
+        // Write Some discriminant
+        target[0] = 1;
+        // Write CompressionInfo
+        info.serialize(&mut &mut target[1..])
+            .map_err(|_| ProgramError::BorshIoError("compression_info serialize failed".into()))?;
+
+        Ok(())
+    }
+}
+
+impl<T: CompressionInfoField> HasCompressionInfo for T {
+    fn compression_info(&self) -> Result<&CompressionInfo, ProgramError> {
+        self.compression_info_field()
+            .as_ref()
+            .ok_or(crate::error::LightSdkError::MissingCompressionInfo.into())
+    }
+
+    fn compression_info_mut(&mut self) -> Result<&mut CompressionInfo, ProgramError> {
+        self.compression_info_field_mut()
+            .as_mut()
+            .ok_or(crate::error::LightSdkError::MissingCompressionInfo.into())
+    }
+
+    fn compression_info_mut_opt(&mut self) -> &mut Option<CompressionInfo> {
+        self.compression_info_field_mut()
+    }
+
+    fn set_compression_info_none(&mut self) -> Result<(), ProgramError> {
+        *self.compression_info_field_mut() = None;
+        Ok(())
+    }
+}
+
 /// Account space when compressed.
 pub trait CompressedInitSpace {
     const COMPRESSED_INIT_SPACE: usize;
@@ -58,29 +149,75 @@ pub trait CompressAs {
     fn compress_as(&self) -> Cow<'_, Self::Output>;
 }
 
-#[derive(Debug, Clone, Default, PartialEq, AnchorSerialize, AnchorDeserialize)]
+/// SDK CompressionInfo - a compact 24-byte struct for custom zero-copy PDAs.
+///
+/// This is the lightweight version of compression info used in the SDK.
+/// CToken has its own compression handling via `light_compressible::CompressionInfo`.
+///
+/// # Memory Layout (24 bytes with #[repr(C)])
+/// - `last_claimed_slot`: u64 @ offset 0 (8 bytes, 8-byte aligned)
+/// - `lamports_per_write`: u32 @ offset 8 (4 bytes)
+/// - `config_version`: u16 @ offset 12 (2 bytes)
+/// - `state`: CompressionState @ offset 14 (1 byte)
+/// - `_padding`: u8 @ offset 15 (1 byte)
+/// - `rent_config`: RentConfig @ offset 16 (8 bytes, 2-byte aligned)
+///
+/// Fields are ordered for optimal alignment to achieve exactly 24 bytes.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, AnchorSerialize, AnchorDeserialize, Pod, Zeroable,
+)]
+#[repr(C)]
 pub struct CompressionInfo {
-    /// Version of the compressible config used to initialize this account.
-    pub config_version: u16,
-    /// Lamports to top up on each write (from config, stored per-account to avoid passing config on every write)
-    pub lamports_per_write: u32,
     /// Slot when rent was last claimed (epoch boundary accounting).
     pub last_claimed_slot: u64,
-    /// Rent function parameters for determining compressibility/claims.
-    pub rent_config: RentConfig,
+    /// Lamports to top up on each write (from config, stored per-account to avoid passing config on every write)
+    pub lamports_per_write: u32,
+    /// Version of the compressible config used to initialize this account.
+    pub config_version: u16,
     /// Account compression state.
     pub state: CompressionState,
+    pub _padding: u8,
+    /// Rent function parameters for determining compressibility/claims.
+    pub rent_config: RentConfig,
 }
 
-#[derive(Debug, Clone, Default, AnchorSerialize, AnchorDeserialize, PartialEq)]
+/// Compression state for SDK CompressionInfo.
+///
+/// This enum uses #[repr(u8)] for Pod compatibility:
+/// - Uninitialized = 0 (default, account not yet set up)
+/// - Decompressed = 1 (account is decompressed/active on Solana)
+/// - Compressed = 2 (account is compressed in Merkle tree)
+#[derive(Debug, Clone, Copy, Default, AnchorSerialize, AnchorDeserialize, PartialEq, Eq)]
+#[repr(u8)]
 pub enum CompressionState {
     #[default]
-    Uninitialized,
-    Decompressed,
-    Compressed,
+    Uninitialized = 0,
+    Decompressed = 1,
+    Compressed = 2,
 }
 
+// Safety: CompressionState is #[repr(u8)] with explicit discriminants
+unsafe impl bytemuck::Pod for CompressionState {}
+unsafe impl bytemuck::Zeroable for CompressionState {}
+
 impl CompressionInfo {
+    pub fn compressed() -> Self {
+        Self {
+            last_claimed_slot: 0,
+            lamports_per_write: 0,
+            config_version: 0,
+            state: CompressionState::Compressed,
+            _padding: 0,
+            rent_config: RentConfig {
+                base_rent: 0,
+                compression_cost: 0,
+                lamports_per_byte_per_epoch: 0,
+                max_funded_epochs: 0,
+                max_top_up: 0,
+            },
+        }
+    }
+
     /// Create a new CompressionInfo initialized from a compressible config.
     ///
     /// Rent sponsor is always the config's rent_sponsor (not stored per-account).
@@ -88,11 +225,12 @@ impl CompressionInfo {
     /// regardless of who paid for account creation.
     pub fn new_from_config(cfg: &crate::interface::LightConfig, current_slot: u64) -> Self {
         Self {
-            config_version: cfg.version as u16,
-            lamports_per_write: cfg.write_top_up,
             last_claimed_slot: current_slot,
-            rent_config: cfg.rent_config,
+            lamports_per_write: cfg.write_top_up,
+            config_version: cfg.version as u16,
             state: CompressionState::Decompressed,
+            _padding: 0,
+            rent_config: cfg.rent_config,
         }
     }
 
@@ -100,11 +238,12 @@ impl CompressionInfo {
     /// Rent will flow to config's rent_sponsor upon compression.
     pub fn new_decompressed() -> Result<Self, crate::ProgramError> {
         Ok(Self {
-            config_version: 0,
-            lamports_per_write: 0,
             last_claimed_slot: Clock::get()?.slot,
-            rent_config: RentConfig::default(),
+            lamports_per_write: 0,
+            config_version: 0,
             state: CompressionState::Decompressed,
+            _padding: 0,
+            rent_config: RentConfig::default(),
         })
     }
 
@@ -223,8 +362,8 @@ pub trait Space {
 }
 
 impl Space for CompressionInfo {
-    // 2 (u16 config_version) + 4 (u32 lamports_per_write) + 8 (u64 last_claimed_slot) + size_of::<RentConfig>() + 1 (CompressionState)
-    const INIT_SPACE: usize = 2 + 4 + 8 + core::mem::size_of::<RentConfig>() + 1;
+    // 8 (u64 last_claimed_slot) + 4 (u32 lamports_per_write) + 2 (u16 config_version) + 1 (CompressionState) + 1 padding + 8 (RentConfig) = 24 bytes
+    const INIT_SPACE: usize = core::mem::size_of::<CompressionInfo>();
 }
 
 #[cfg(feature = "anchor")]
@@ -236,11 +375,23 @@ impl anchor_lang::Space for CompressionInfo {
 /// Use this constant in account space calculations.
 pub const OPTION_COMPRESSION_INFO_SPACE: usize = 1 + CompressionInfo::INIT_SPACE;
 
+/// Size of SDK CompressionInfo in bytes (24 bytes).
+/// Used for stripping CompressionInfo from Pod data during packing.
+pub const COMPRESSION_INFO_SIZE: usize = core::mem::size_of::<CompressionInfo>();
+
 /// Compressed account data used when decompressing.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct CompressedAccountData<T> {
-    pub meta: CompressedAccountMetaNoLamportsNoAddress,
+    pub tree_info: PackedStateTreeInfo,
     pub data: T,
+}
+
+impl Unpack for CompressedAccountData<Vec<u8>> {
+    type Unpacked = Vec<u8>;
+
+    fn unpack(&self, _remaining_accounts: &[AccountInfo]) -> Result<Self::Unpacked, ProgramError> {
+        unimplemented!()
+    }
 }
 
 /// Claim completed-epoch rent to the provided rent sponsor and update last_claimed_slot.
@@ -325,21 +476,12 @@ fn transfer_lamports_cpi<'a>(
     system_program: &AccountInfo<'a>,
     lamports: u64,
 ) -> Result<(), ProgramError> {
-    use solana_cpi::invoke;
-    use solana_instruction::{AccountMeta, Instruction};
-
-    // System Program ID
-    const SYSTEM_PROGRAM_ID: [u8; 32] = [
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0,
-    ];
-
     // System Program Transfer instruction discriminator: 2 (u32 little-endian)
     let mut instruction_data = vec![2, 0, 0, 0];
     instruction_data.extend_from_slice(&lamports.to_le_bytes());
 
     let transfer_instruction = Instruction {
-        program_id: Pubkey::from(SYSTEM_PROGRAM_ID),
+        program_id: Pubkey::default(), // System Program ID
         accounts: vec![
             AccountMeta::new(*from.key, true),
             AccountMeta::new(*to.key, false),

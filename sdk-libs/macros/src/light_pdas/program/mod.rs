@@ -14,7 +14,6 @@ pub mod seed_utils;
 pub mod variant_enum;
 
 // Made pub(crate) for testing in light_pdas_tests module
-pub(crate) mod crate_context;
 pub(crate) mod parsing;
 pub(crate) mod visitors;
 

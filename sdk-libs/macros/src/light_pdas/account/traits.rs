@@ -5,21 +5,22 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{punctuated::Punctuated, DeriveInput, Expr, Field, Ident, ItemStruct, Result, Token};
 
-use super::utils::{
-    extract_fields_from_derive_input, extract_fields_from_item_struct, is_copy_type,
+use super::{
+    utils::{extract_fields_from_derive_input, extract_fields_from_item_struct, is_copy_type},
+    validation::validate_compression_info_field,
 };
 
 /// A single field override in #[compress_as(field = expr)]
-struct CompressAsField {
-    name: Ident,
-    value: Expr,
+pub(crate) struct CompressAsField {
+    pub name: Ident,
+    pub value: Expr,
 }
 
 /// Collection of field overrides parsed from #[compress_as(...)]
 /// Uses darling's FromMeta to collect arbitrary name=value pairs.
 #[derive(Default)]
-struct CompressAsFields {
-    fields: Vec<CompressAsField>,
+pub(crate) struct CompressAsFields {
+    pub fields: Vec<CompressAsField>,
 }
 
 impl FromMeta for CompressAsFields {
@@ -43,47 +44,39 @@ impl FromMeta for CompressAsFields {
     }
 }
 
-/// Validates that the struct has a `compression_info` field
-fn validate_compression_info_field(
-    fields: &Punctuated<Field, Token![,]>,
-    struct_name: &Ident,
-) -> Result<()> {
-    let has_compression_info_field = fields.iter().any(|field| {
-        field
-            .ident
-            .as_ref()
-            .is_some_and(|name| name == "compression_info")
-    });
+/// Parses compress_as overrides from struct attributes.
+/// Used by LightAccount derive to extract field override values.
+pub(crate) fn parse_compress_as_overrides(
+    attrs: &[syn::Attribute],
+) -> Result<Option<CompressAsFields>> {
+    let compress_as_attr = attrs
+        .iter()
+        .find(|attr| attr.path().is_ident("compress_as"));
 
-    if !has_compression_info_field {
-        return Err(syn::Error::new_spanned(
-            struct_name,
-            "Struct must have a 'compression_info' field of type Option<CompressionInfo>",
-        ));
+    if let Some(attr) = compress_as_attr {
+        let parsed = CompressAsFields::from_meta(&attr.meta)
+            .map_err(|e| syn::Error::new_spanned(attr, e.to_string()))?;
+        Ok(Some(parsed))
+    } else {
+        Ok(None)
     }
-
-    Ok(())
 }
 
-/// Generates the HasCompressionInfo trait implementation
-fn generate_has_compression_info_impl(struct_name: &Ident) -> TokenStream {
+/// Generates the CompressionInfoField trait implementation.
+/// HasCompressionInfo is provided via blanket impl in light-sdk.
+fn generate_has_compression_info_impl(
+    struct_name: &Ident,
+    compression_info_first: bool,
+) -> TokenStream {
     quote! {
-        impl light_sdk::interface::HasCompressionInfo for #struct_name {
-            fn compression_info(&self) -> std::result::Result<&light_sdk::interface::CompressionInfo, solana_program_error::ProgramError> {
-                self.compression_info.as_ref().ok_or(light_sdk::error::LightSdkError::MissingCompressionInfo.into())
-            }
+        impl light_sdk::interface::CompressionInfoField for #struct_name {
+            const COMPRESSION_INFO_FIRST: bool = #compression_info_first;
 
-            fn compression_info_mut(&mut self) -> std::result::Result<&mut light_sdk::interface::CompressionInfo, solana_program_error::ProgramError> {
-                self.compression_info.as_mut().ok_or(light_sdk::error::LightSdkError::MissingCompressionInfo.into())
+            fn compression_info_field(&self) -> &Option<light_sdk::interface::CompressionInfo> {
+                &self.compression_info
             }
-
-            fn compression_info_mut_opt(&mut self) -> &mut Option<light_sdk::interface::CompressionInfo> {
+            fn compression_info_field_mut(&mut self) -> &mut Option<light_sdk::interface::CompressionInfo> {
                 &mut self.compression_info
-            }
-
-            fn set_compression_info_none(&mut self) -> std::result::Result<(), solana_program_error::ProgramError> {
-                self.compression_info = None;
-                Ok(())
             }
         }
     }
@@ -155,43 +148,20 @@ fn generate_compress_as_impl(
     }
 }
 
-/// Generates size calculation fields for the Size trait.
-/// Auto-skips `compression_info` field and fields marked with `#[skip]`.
-fn generate_size_fields(fields: &Punctuated<Field, Token![,]>) -> Vec<TokenStream> {
-    let mut size_fields = Vec::new();
-
-    for field in fields.iter() {
-        let Some(field_name) = field.ident.as_ref() else {
-            continue;
-        };
-
-        // Auto-skip compression_info field (handled separately in Size impl)
-        if field_name == "compression_info" {
-            continue;
-        }
-
-        // Also skip fields explicitly marked with #[skip]
-        if field.attrs.iter().any(|attr| attr.path().is_ident("skip")) {
-            continue;
-        }
-
-        size_fields.push(quote! {
-            + self.#field_name.try_to_vec().expect("Failed to serialize").len()
-        });
-    }
-
-    size_fields
-}
-
-/// Generates the Size trait implementation
-fn generate_size_impl(struct_name: &Ident, size_fields: &[TokenStream]) -> TokenStream {
+/// Generates the Size trait implementation.
+/// Uses max(INIT_SPACE, serialized_len) to ensure enough space while handling edge cases.
+fn generate_size_impl(struct_name: &Ident) -> TokenStream {
     quote! {
         impl light_sdk::account::Size for #struct_name {
+            #[inline]
             fn size(&self) -> std::result::Result<usize, solana_program_error::ProgramError> {
-                // Always allocate space for Some(CompressionInfo) since it will be set during decompression
-                // CompressionInfo size: 1 byte (Option discriminant) + <CompressionInfo as Space>::INIT_SPACE
-                let compression_info_size = 1 + <light_sdk::interface::CompressionInfo as light_sdk::interface::Space>::INIT_SPACE;
-                Ok(compression_info_size #(#size_fields)*)
+                // Use Anchor's compile-time INIT_SPACE as the baseline.
+                // Fall back to serialized length if it's somehow larger (edge case safety).
+                let init_space = <Self as anchor_lang::Space>::INIT_SPACE;
+                let serialized_len = self.try_to_vec()
+                    .map_err(|_| solana_program_error::ProgramError::BorshIoError("serialization failed".to_string()))?
+                    .len();
+                Ok(core::cmp::max(init_space, serialized_len))
             }
         }
     }
@@ -231,8 +201,11 @@ pub fn derive_has_compression_info(input: syn::ItemStruct) -> Result<TokenStream
     let struct_name = &input.ident;
     let fields = extract_fields_from_item_struct(&input)?;
 
-    validate_compression_info_field(fields, struct_name)?;
-    Ok(generate_has_compression_info_impl(struct_name))
+    let compression_info_first = validate_compression_info_field(fields, struct_name)?;
+    Ok(generate_has_compression_info_impl(
+        struct_name,
+        compression_info_first,
+    ))
 }
 
 pub fn derive_compressible(input: DeriveInput) -> Result<TokenStream> {
@@ -253,17 +226,17 @@ pub fn derive_compressible(input: DeriveInput) -> Result<TokenStream> {
         None
     };
 
-    // Validate compression_info field exists
-    validate_compression_info_field(fields, struct_name)?;
+    // Validate compression_info field exists and get its position
+    let compression_info_first = validate_compression_info_field(fields, struct_name)?;
 
     // Generate all trait implementations using helper functions
-    let has_compression_info_impl = generate_has_compression_info_impl(struct_name);
+    let has_compression_info_impl =
+        generate_has_compression_info_impl(struct_name, compression_info_first);
 
     let field_assignments = generate_compress_as_field_assignments(fields, &compress_as_fields);
     let compress_as_impl = generate_compress_as_impl(struct_name, &field_assignments);
 
-    let size_fields = generate_size_fields(fields);
-    let size_impl = generate_size_impl(struct_name, &size_fields);
+    let size_impl = generate_size_impl(struct_name);
 
     let compressed_init_space_impl = generate_compressed_init_space_impl(struct_name);
 

@@ -1,0 +1,9 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 103ee048949e9346b47d0eeffdbe34c3b7cf97ff3574549dc11e0dbc5ff9f583 # shrinks to _struct_name = "Aaa", _param_type = "AaaParams"
+cc 9220edbf14135d128ec4e07036e08f6b16963bca9765013b2dd7b0d8dbba964f # shrinks to struct_name = "Aaa", param_type = "AaaParams"
+cc 6b78783879173c83c333668a8262ceb52aa5db698d00d63e63e14a6512c6d905 # shrinks to struct_name = "Aaa", _field_name = "a", _param_type = "AaaParams"

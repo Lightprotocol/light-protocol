@@ -9,8 +9,8 @@ mod tests {
     use proptest::prelude::*;
     use syn::Ident;
 
-    // Access parse module from parent (accounts module)
-    use crate::light_pdas::accounts::parse::{InfraFieldClassifier, InfraFieldType, InfraFields};
+    // Access infra module from parsing
+    use crate::light_pdas::parsing::infra::{InfraFieldClassifier, InfraFieldType, InfraFields};
 
     // ========================================================================
     // Helper functions
@@ -27,6 +27,7 @@ mod tests {
         vec![
             InfraFieldType::FeePayer,
             InfraFieldType::CompressionConfig,
+            InfraFieldType::PdaRentSponsor,
             InfraFieldType::LightTokenConfig,
             InfraFieldType::LightTokenRentSponsor,
             InfraFieldType::LightTokenProgram,
@@ -41,6 +42,8 @@ mod tests {
             "payer",
             "creator",
             "compression_config",
+            "pda_rent_sponsor",
+            "compression_rent_sponsor",
             "light_token_compressible_config",
             "light_token_rent_sponsor",
             "rent_sponsor",
@@ -150,20 +153,21 @@ mod tests {
             }
         }
 
-        /// All 6 InfraFieldType variants should be reachable via classification.
+        /// All 7 InfraFieldType variants should be reachable via classification.
         #[test]
         fn prop_exhaustive_coverage(_seed in 0u32..1000) {
-            let mut covered = vec![false; 6];
+            let mut covered = vec![false; 7];
 
             for name in all_known_field_names() {
                 if let Some(field_type) = InfraFieldClassifier::classify(name) {
                     let index = match field_type {
                         InfraFieldType::FeePayer => 0,
                         InfraFieldType::CompressionConfig => 1,
-                        InfraFieldType::LightTokenConfig => 2,
-                        InfraFieldType::LightTokenRentSponsor => 3,
-                        InfraFieldType::LightTokenProgram => 4,
-                        InfraFieldType::LightTokenCpiAuthority => 5,
+                        InfraFieldType::PdaRentSponsor => 2,
+                        InfraFieldType::LightTokenConfig => 3,
+                        InfraFieldType::LightTokenRentSponsor => 4,
+                        InfraFieldType::LightTokenProgram => 5,
+                        InfraFieldType::LightTokenCpiAuthority => 6,
                     };
                     covered[index] = true;
                 }
@@ -243,6 +247,7 @@ mod tests {
             let is_set = match field_type {
                 InfraFieldType::FeePayer => fields.fee_payer.is_some(),
                 InfraFieldType::CompressionConfig => fields.compression_config.is_some(),
+                InfraFieldType::PdaRentSponsor => fields.pda_rent_sponsor.is_some(),
                 InfraFieldType::LightTokenConfig => fields.light_token_config.is_some(),
                 InfraFieldType::LightTokenRentSponsor => fields.light_token_rent_sponsor.is_some(),
                 InfraFieldType::LightTokenProgram => fields.light_token_program.is_some(),
@@ -269,7 +274,7 @@ mod tests {
             if let Err(err) = result {
                 let err_msg = err.to_string();
                 prop_assert!(
-                    err_msg.contains("duplicate"),
+                    err_msg.contains("Duplicate") || err_msg.contains("duplicate"),
                     "Error message should mention 'duplicate', got: {}",
                     err_msg
                 );
@@ -288,6 +293,7 @@ mod tests {
             let set_count = [
                 fields.fee_payer.is_some(),
                 fields.compression_config.is_some(),
+                fields.pda_rent_sponsor.is_some(),
                 fields.light_token_config.is_some(),
                 fields.light_token_rent_sponsor.is_some(),
                 fields.light_token_program.is_some(),

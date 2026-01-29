@@ -25,7 +25,9 @@ pub use d7_infra_names::*;
 pub use d8_builder_paths::*;
 pub use d9_seeds::*;
 pub mod d10_token_accounts;
+pub mod d11_zero_copy;
 pub use d10_token_accounts::*;
+pub use d11_zero_copy::*;
 pub use instruction_accounts::*;
 pub use instructions::{
     d7_infra_names::{
@@ -75,7 +77,7 @@ pub const LIGHT_CPI_SIGNER: CpiSigner =
     derive_light_cpi_signer!("FAMipfVEhN4hjCLpKCvjDXXfzLsoVTqQccXzePz1L1ah");
 
 pub const PROGRAM_RENT_SPONSOR_DATA: ([u8; 32], u8) =
-    derive_light_rent_sponsor_pda!("FAMipfVEhN4hjCLpKCvjDXXfzLsoVTqQccXzePz1L1ah", 1);
+    derive_light_rent_sponsor_pda!("FAMipfVEhN4hjCLpKCvjDXXfzLsoVTqQccXzePz1L1ah");
 
 #[inline]
 pub fn program_rent_sponsor() -> Pubkey {
@@ -105,6 +107,10 @@ pub mod csdk_anchor_full_derived_test {
             D8All, D8AllParams, D8MultiRentfree, D8MultiRentfreeParams, D8PdaOnly, D8PdaOnlyParams,
         },
         d9_seeds::{
+            const_seed,
+            identity_seed,
+            // Helper types for const patterns
+            AnotherHolder,
             // Original tests
             D9All,
             D9AllParams,
@@ -263,6 +269,10 @@ pub mod csdk_anchor_full_derived_test {
             D9TraitAssocConstParams,
             D9TripleParams,
             D9U64Params,
+            HasSeed,
+            SeedHolder,
+            // Constant for qualified paths
+            D9_QUALIFIED_LOCAL,
         },
         instruction_accounts::{
             CreateMintWithMetadata, CreateMintWithMetadataParams, CreatePdasAndMintAuto,
@@ -271,6 +281,29 @@ pub mod csdk_anchor_full_derived_test {
         instructions::d10_token_accounts::{
             D10SingleAta, D10SingleAtaParams, D10SingleVault, D10SingleVaultParams,
         },
+        instructions::d11_zero_copy::{
+            // mixed_zc_borsh
+            D11MixedZcBorsh,
+            D11MixedZcBorshParams,
+            // multiple_zc
+            D11MultipleZc,
+            D11MultipleZcParams,
+            // with_ata
+            D11ZcWithAta,
+            D11ZcWithAtaParams,
+            // with_ctx_seeds
+            D11ZcWithCtxSeeds,
+            D11ZcWithCtxSeedsParams,
+            // with_mint_to
+            D11ZcWithMintTo,
+            D11ZcWithMintToParams,
+            // with_params_seeds
+            D11ZcWithParamsSeeds,
+            D11ZcWithParamsSeedsParams,
+            // with_vault
+            D11ZcWithVault,
+            D11ZcWithVaultParams,
+        },
         FullAutoWithMintParams, LIGHT_CPI_SIGNER,
     };
 
@@ -278,9 +311,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, CreatePdasAndMintAuto<'info>>,
         params: FullAutoWithMintParams,
     ) -> Result<()> {
-        use light_token::instruction::{
-            CreateTokenAccountCpi, CreateTokenAtaCpi, MintToCpi as CTokenMintToCpi,
-        };
+        use light_token::instruction::{CreateTokenAtaCpi, MintToCpi as CTokenMintToCpi};
 
         let user_record = &mut ctx.accounts.user_record;
         user_record.owner = params.owner;
@@ -296,26 +327,7 @@ pub mod csdk_anchor_full_derived_test {
         game_session.end_time = None;
         game_session.score = 0;
 
-        let cmint_key = ctx.accounts.mint.key();
-        CreateTokenAccountCpi {
-            payer: ctx.accounts.fee_payer.to_account_info(),
-            account: ctx.accounts.vault.to_account_info(),
-            mint: ctx.accounts.mint.to_account_info(),
-            owner: ctx.accounts.vault_authority.key(),
-        }
-        .rent_free(
-            ctx.accounts
-                .light_token_compressible_config
-                .to_account_info(),
-            ctx.accounts.rent_sponsor.to_account_info(),
-            ctx.accounts.system_program.to_account_info(),
-            &crate::ID,
-        )
-        .invoke_signed(&[
-            crate::instruction_accounts::VAULT_SEED,
-            cmint_key.as_ref(),
-            &[params.vault_bump],
-        ])?;
+        // vault is auto-created by macro via #[light_account(init, token::...)]
 
         CreateTokenAtaCpi {
             payer: ctx.accounts.fee_payer.to_account_info(),
@@ -578,41 +590,12 @@ pub mod csdk_anchor_full_derived_test {
     }
 
     /// D7: "light_token_config" naming variant for token accounts
+    #[allow(unused_variables)]
     pub fn d7_light_token_config<'info>(
         ctx: Context<'_, '_, '_, 'info, D7LightTokenConfig<'info>>,
-        _params: D7LightTokenConfigParams,
+        params: D7LightTokenConfigParams,
     ) -> Result<()> {
-        use light_token::instruction::CreateTokenAccountCpi;
-
-        let mint_key = ctx.accounts.mint.key();
-        // Derive the vault bump at runtime
-        let (_, vault_bump) = Pubkey::find_program_address(
-            &[
-                crate::d7_infra_names::D7_LIGHT_TOKEN_VAULT_SEED,
-                mint_key.as_ref(),
-            ],
-            &crate::ID,
-        );
-
-        CreateTokenAccountCpi {
-            payer: ctx.accounts.fee_payer.to_account_info(),
-            account: ctx.accounts.d7_light_token_vault.to_account_info(),
-            mint: ctx.accounts.mint.to_account_info(),
-            owner: ctx.accounts.d7_light_token_authority.key(),
-        }
-        .rent_free(
-            ctx.accounts
-                .light_token_compressible_config
-                .to_account_info(),
-            ctx.accounts.light_token_rent_sponsor.to_account_info(),
-            ctx.accounts.system_program.to_account_info(),
-            &crate::ID,
-        )
-        .invoke_signed(&[
-            crate::d7_infra_names::D7_LIGHT_TOKEN_VAULT_SEED,
-            mint_key.as_ref(),
-            &[vault_bump],
-        ])?;
+        // Token vault is auto-created by macro via #[light_account(init, token::...)]
         Ok(())
     }
 
@@ -621,38 +604,9 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D7AllNames<'info>>,
         params: D7AllNamesParams,
     ) -> Result<()> {
-        use light_token::instruction::CreateTokenAccountCpi;
-
         // Set up the PDA record
         ctx.accounts.d7_all_record.owner = params.owner;
-
-        // Create token vault
-        let mint_key = ctx.accounts.mint.key();
-        // Derive the vault bump at runtime
-        let (_, vault_bump) = Pubkey::find_program_address(
-            &[crate::d7_infra_names::D7_ALL_VAULT_SEED, mint_key.as_ref()],
-            &crate::ID,
-        );
-
-        CreateTokenAccountCpi {
-            payer: ctx.accounts.payer.to_account_info(),
-            account: ctx.accounts.d7_all_vault.to_account_info(),
-            mint: ctx.accounts.mint.to_account_info(),
-            owner: ctx.accounts.d7_all_authority.key(),
-        }
-        .rent_free(
-            ctx.accounts
-                .light_token_compressible_config
-                .to_account_info(),
-            ctx.accounts.rent_sponsor.to_account_info(),
-            ctx.accounts.system_program.to_account_info(),
-            &crate::ID,
-        )
-        .invoke_signed(&[
-            crate::d7_infra_names::D7_ALL_VAULT_SEED,
-            mint_key.as_ref(),
-            &[vault_bump],
-        ])?;
+        // Token vault is auto-created by macro via #[light_account(init, token::...)]
         Ok(())
     }
 
@@ -692,7 +646,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9QualifiedBare<'info>>,
         _params: D9QualifiedBareParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = ctx.accounts.fee_payer.key();
+        ctx.accounts.d9_qualified_bare_record.owner = ctx.accounts.fee_payer.key();
         Ok(())
     }
 
@@ -701,7 +655,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9QualifiedSelf<'info>>,
         _params: D9QualifiedSelfParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = ctx.accounts.fee_payer.key();
+        ctx.accounts.d9_qualified_self_record.owner = ctx.accounts.fee_payer.key();
         Ok(())
     }
 
@@ -710,7 +664,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9QualifiedCrate<'info>>,
         _params: D9QualifiedCrateParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = ctx.accounts.fee_payer.key();
+        ctx.accounts.d9_qualified_crate_record.owner = ctx.accounts.fee_payer.key();
         Ok(())
     }
 
@@ -719,7 +673,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9QualifiedDeep<'info>>,
         _params: D9QualifiedDeepParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = ctx.accounts.fee_payer.key();
+        ctx.accounts.d9_qualified_deep_record.owner = ctx.accounts.fee_payer.key();
         Ok(())
     }
 
@@ -728,7 +682,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9QualifiedMixed<'info>>,
         params: D9QualifiedMixedParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = params.owner;
+        ctx.accounts.d9_qualified_mixed_record.owner = params.owner;
         Ok(())
     }
 
@@ -741,7 +695,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9MethodAsRef<'info>>,
         _params: D9MethodAsRefParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = ctx.accounts.fee_payer.key();
+        ctx.accounts.d9_method_as_ref_record.owner = ctx.accounts.fee_payer.key();
         Ok(())
     }
 
@@ -750,7 +704,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9MethodAsBytes<'info>>,
         _params: D9MethodAsBytesParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = ctx.accounts.fee_payer.key();
+        ctx.accounts.d9_method_as_bytes_record.owner = ctx.accounts.fee_payer.key();
         Ok(())
     }
 
@@ -759,7 +713,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9MethodQualifiedAsBytes<'info>>,
         _params: D9MethodQualifiedAsBytesParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = ctx.accounts.fee_payer.key();
+        ctx.accounts.d9_method_qualified_as_bytes_record.owner = ctx.accounts.fee_payer.key();
         Ok(())
     }
 
@@ -768,7 +722,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9MethodToLeBytes<'info>>,
         _params: D9MethodToLeBytesParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = ctx.accounts.fee_payer.key();
+        ctx.accounts.d9_method_to_le_bytes_record.owner = ctx.accounts.fee_payer.key();
         Ok(())
     }
 
@@ -777,7 +731,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9MethodToBeBytes<'info>>,
         _params: D9MethodToBeBytesParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = ctx.accounts.fee_payer.key();
+        ctx.accounts.d9_method_to_be_bytes_record.owner = ctx.accounts.fee_payer.key();
         Ok(())
     }
 
@@ -786,7 +740,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9MethodMixed<'info>>,
         params: D9MethodMixedParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = params.owner;
+        ctx.accounts.d9_method_mixed_record.owner = params.owner;
         Ok(())
     }
 
@@ -799,7 +753,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9BumpLiteral<'info>>,
         _params: D9BumpLiteralParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = ctx.accounts.fee_payer.key();
+        ctx.accounts.d9_bump_lit_record.owner = ctx.accounts.fee_payer.key();
         Ok(())
     }
 
@@ -808,7 +762,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9BumpConstant<'info>>,
         _params: D9BumpConstantParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = ctx.accounts.fee_payer.key();
+        ctx.accounts.d9_bump_const_record.owner = ctx.accounts.fee_payer.key();
         Ok(())
     }
 
@@ -817,7 +771,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9BumpQualified<'info>>,
         _params: D9BumpQualifiedParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = ctx.accounts.fee_payer.key();
+        ctx.accounts.d9_bump_qual_record.owner = ctx.accounts.fee_payer.key();
         Ok(())
     }
 
@@ -826,7 +780,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9BumpParam<'info>>,
         params: D9BumpParamParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = params.owner;
+        ctx.accounts.d9_bump_param_record.owner = params.owner;
         Ok(())
     }
 
@@ -835,7 +789,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9BumpCtx<'info>>,
         _params: D9BumpCtxParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = ctx.accounts.authority.key();
+        ctx.accounts.d9_bump_ctx_record.owner = ctx.accounts.authority.key();
         Ok(())
     }
 
@@ -844,7 +798,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9BumpMixed<'info>>,
         params: D9BumpMixedParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = params.owner;
+        ctx.accounts.d9_bump_mixed_record.owner = params.owner;
         Ok(())
     }
 
@@ -857,7 +811,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9ComplexThree<'info>>,
         params: D9ComplexThreeParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = params.owner;
+        ctx.accounts.d9_complex_three_record.owner = params.owner;
         Ok(())
     }
 
@@ -866,7 +820,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9ComplexFour<'info>>,
         params: D9ComplexFourParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = params.owner;
+        ctx.accounts.d9_complex_four_record.owner = params.owner;
         Ok(())
     }
 
@@ -875,7 +829,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9ComplexFive<'info>>,
         params: D9ComplexFiveParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = params.owner;
+        ctx.accounts.d9_complex_five_record.owner = params.owner;
         Ok(())
     }
 
@@ -884,7 +838,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9ComplexQualifiedMix<'info>>,
         params: D9ComplexQualifiedMixParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = params.owner;
+        ctx.accounts.d9_complex_qualified_mix_record.owner = params.owner;
         Ok(())
     }
 
@@ -893,7 +847,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9ComplexFunc<'info>>,
         params: D9ComplexFuncParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = params.key_a;
+        ctx.accounts.d9_complex_func_record.owner = params.key_a;
         Ok(())
     }
 
@@ -902,7 +856,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9ComplexAllQualified<'info>>,
         params: D9ComplexAllQualifiedParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = params.owner;
+        ctx.accounts.d9_complex_all_qualified_record.owner = params.owner;
         Ok(())
     }
 
@@ -911,7 +865,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9ComplexProgramId<'info>>,
         params: D9ComplexProgramIdParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = params.owner;
+        ctx.accounts.d9_complex_program_id_record.owner = params.owner;
         Ok(())
     }
 
@@ -920,7 +874,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9ComplexIdFunc<'info>>,
         params: D9ComplexIdFuncParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = params.owner;
+        ctx.accounts.d9_complex_id_func_record.owner = params.owner;
         Ok(())
     }
 
@@ -933,7 +887,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9EdgeEmpty<'info>>,
         params: D9EdgeEmptyParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = params.owner;
+        ctx.accounts.d9_edge_empty_record.owner = params.owner;
         Ok(())
     }
 
@@ -942,7 +896,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9EdgeSingleByte<'info>>,
         _params: D9EdgeSingleByteParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = ctx.accounts.fee_payer.key();
+        ctx.accounts.d9_edge_single_byte_record.owner = ctx.accounts.fee_payer.key();
         Ok(())
     }
 
@@ -951,7 +905,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9EdgeSingleLetter<'info>>,
         _params: D9EdgeSingleLetterParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = ctx.accounts.fee_payer.key();
+        ctx.accounts.d9_edge_single_letter_record.owner = ctx.accounts.fee_payer.key();
         Ok(())
     }
 
@@ -960,7 +914,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9EdgeDigits<'info>>,
         _params: D9EdgeDigitsParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = ctx.accounts.fee_payer.key();
+        ctx.accounts.d9_edge_digits_record.owner = ctx.accounts.fee_payer.key();
         Ok(())
     }
 
@@ -969,7 +923,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9EdgeUnderscore<'info>>,
         _params: D9EdgeUnderscoreParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = ctx.accounts.fee_payer.key();
+        ctx.accounts.d9_edge_underscore_record.owner = ctx.accounts.fee_payer.key();
         Ok(())
     }
 
@@ -978,7 +932,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9EdgeManyLiterals<'info>>,
         _params: D9EdgeManyLiteralsParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = ctx.accounts.fee_payer.key();
+        ctx.accounts.d9_edge_many_literals_record.owner = ctx.accounts.fee_payer.key();
         Ok(())
     }
 
@@ -987,7 +941,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9EdgeMixed<'info>>,
         params: D9EdgeMixedParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = params.owner;
+        ctx.accounts.d9_edge_mixed_record.owner = params.owner;
         Ok(())
     }
 
@@ -1000,7 +954,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9ExternalSdkTypes<'info>>,
         params: D9ExternalSdkTypesParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = params.owner;
+        ctx.accounts.d9_external_sdk_types_record.owner = params.owner;
         Ok(())
     }
 
@@ -1009,7 +963,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9ExternalCtoken<'info>>,
         params: D9ExternalCtokenParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = params.owner;
+        ctx.accounts.d9_external_ctoken_record.owner = params.owner;
         Ok(())
     }
 
@@ -1018,7 +972,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9ExternalMixed<'info>>,
         params: D9ExternalMixedParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = params.owner;
+        ctx.accounts.d9_external_mixed_record.owner = params.owner;
         Ok(())
     }
 
@@ -1027,7 +981,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9ExternalWithLocal<'info>>,
         params: D9ExternalWithLocalParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = params.owner;
+        ctx.accounts.d9_external_with_local_record.owner = params.owner;
         Ok(())
     }
 
@@ -1036,7 +990,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9ExternalBump<'info>>,
         params: D9ExternalBumpParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = params.owner;
+        ctx.accounts.d9_external_bump_record.owner = params.owner;
         Ok(())
     }
 
@@ -1045,7 +999,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9ExternalReexport<'info>>,
         _params: D9ExternalReexportParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = ctx.accounts.fee_payer.key();
+        ctx.accounts.d9_external_reexport_record.owner = ctx.accounts.fee_payer.key();
         Ok(())
     }
 
@@ -1058,7 +1012,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9NestedSimple<'info>>,
         params: D9NestedSimpleParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = params.nested.owner;
+        ctx.accounts.d9_nested_simple_record.owner = params.nested.owner;
         Ok(())
     }
 
@@ -1067,7 +1021,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9NestedDouble<'info>>,
         params: D9NestedDoubleParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = params.outer.nested.owner;
+        ctx.accounts.d9_nested_double_record.owner = params.outer.nested.owner;
         Ok(())
     }
 
@@ -1076,7 +1030,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9NestedArrayField<'info>>,
         params: D9NestedArrayFieldParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = params.outer.nested.owner;
+        ctx.accounts.d9_nested_array_field_record.owner = params.outer.nested.owner;
         Ok(())
     }
 
@@ -1085,7 +1039,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9ArrayIndex<'info>>,
         _params: D9ArrayIndexParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = ctx.accounts.fee_payer.key();
+        ctx.accounts.d9_array_index_record.owner = ctx.accounts.fee_payer.key();
         Ok(())
     }
 
@@ -1094,7 +1048,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9NestedBytes<'info>>,
         params: D9NestedBytesParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = params.nested.owner;
+        ctx.accounts.d9_nested_bytes_record.owner = params.nested.owner;
         Ok(())
     }
 
@@ -1103,7 +1057,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9NestedCombined<'info>>,
         params: D9NestedCombinedParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = params.outer.nested.owner;
+        ctx.accounts.d9_nested_combined_record.owner = params.outer.nested.owner;
         Ok(())
     }
 
@@ -1116,7 +1070,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9AssocConst<'info>>,
         _params: D9AssocConstParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = ctx.accounts.fee_payer.key();
+        ctx.accounts.d9_assoc_const_record.owner = ctx.accounts.fee_payer.key();
         Ok(())
     }
 
@@ -1125,7 +1079,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9AssocConstMethod<'info>>,
         _params: D9AssocConstMethodParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = ctx.accounts.fee_payer.key();
+        ctx.accounts.d9_assoc_const_method_record.owner = ctx.accounts.fee_payer.key();
         Ok(())
     }
 
@@ -1134,7 +1088,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9MultiAssocConst<'info>>,
         params: D9MultiAssocConstParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = params.owner;
+        ctx.accounts.d9_multi_assoc_const_record.owner = params.owner;
         Ok(())
     }
 
@@ -1143,7 +1097,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9ConstFn<'info>>,
         _params: D9ConstFnParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = ctx.accounts.fee_payer.key();
+        ctx.accounts.d9_const_fn_record.owner = ctx.accounts.fee_payer.key();
         Ok(())
     }
 
@@ -1152,7 +1106,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9ConstFnGeneric<'info>>,
         _params: D9ConstFnGenericParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = ctx.accounts.fee_payer.key();
+        ctx.accounts.d9_const_fn_generic_record.owner = ctx.accounts.fee_payer.key();
         Ok(())
     }
 
@@ -1161,7 +1115,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9TraitAssocConst<'info>>,
         _params: D9TraitAssocConstParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = ctx.accounts.fee_payer.key();
+        ctx.accounts.d9_trait_assoc_const_record.owner = ctx.accounts.fee_payer.key();
         Ok(())
     }
 
@@ -1170,7 +1124,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9Static<'info>>,
         _params: D9StaticParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = ctx.accounts.fee_payer.key();
+        ctx.accounts.d9_static_record.owner = ctx.accounts.fee_payer.key();
         Ok(())
     }
 
@@ -1179,7 +1133,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9QualifiedConstFn<'info>>,
         _params: D9QualifiedConstFnParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = ctx.accounts.fee_payer.key();
+        ctx.accounts.d9_qualified_const_fn_record.owner = ctx.accounts.fee_payer.key();
         Ok(())
     }
 
@@ -1188,7 +1142,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9FullyQualifiedAssoc<'info>>,
         _params: D9FullyQualifiedAssocParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = ctx.accounts.fee_payer.key();
+        ctx.accounts.d9_fully_qualified_assoc_record.owner = ctx.accounts.fee_payer.key();
         Ok(())
     }
 
@@ -1197,7 +1151,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9FullyQualifiedTrait<'info>>,
         _params: D9FullyQualifiedTraitParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = ctx.accounts.fee_payer.key();
+        ctx.accounts.d9_fully_qualified_trait_record.owner = ctx.accounts.fee_payer.key();
         Ok(())
     }
 
@@ -1206,7 +1160,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9FullyQualifiedGeneric<'info>>,
         _params: D9FullyQualifiedGenericParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = ctx.accounts.fee_payer.key();
+        ctx.accounts.d9_fully_qualified_generic_record.owner = ctx.accounts.fee_payer.key();
         Ok(())
     }
 
@@ -1215,7 +1169,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9ConstCombined<'info>>,
         params: D9ConstCombinedParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = params.owner;
+        ctx.accounts.d9_const_combined_record.owner = params.owner;
         Ok(())
     }
 
@@ -1228,7 +1182,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9InstrSinglePubkey<'info>>,
         params: D9SinglePubkeyParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = params.owner;
+        ctx.accounts.d9_instr_single_pubkey_record.owner = params.owner;
         Ok(())
     }
 
@@ -1237,7 +1191,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9InstrU64<'info>>,
         _params: D9U64Params,
     ) -> Result<()> {
-        ctx.accounts.record.owner = ctx.accounts.fee_payer.key();
+        ctx.accounts.d9_instr_u64_record.owner = ctx.accounts.fee_payer.key();
         Ok(())
     }
 
@@ -1246,7 +1200,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9InstrMultiField<'info>>,
         params: D9MultiFieldParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = params.owner;
+        ctx.accounts.d9_instr_multi_field_record.owner = params.owner;
         Ok(())
     }
 
@@ -1255,7 +1209,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9InstrMixedCtx<'info>>,
         params: D9MixedCtxParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = params.data_key;
+        ctx.accounts.d9_instr_mixed_ctx_record.owner = params.data_key;
         Ok(())
     }
 
@@ -1264,7 +1218,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9InstrTriple<'info>>,
         params: D9TripleParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = params.key_a;
+        ctx.accounts.d9_instr_triple_record.owner = params.key_a;
         Ok(())
     }
 
@@ -1273,7 +1227,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9InstrBigEndian<'info>>,
         _params: D9BigEndianParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = ctx.accounts.fee_payer.key();
+        ctx.accounts.d9_instr_big_endian_record.owner = ctx.accounts.fee_payer.key();
         Ok(())
     }
 
@@ -1282,7 +1236,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9InstrMultiU64<'info>>,
         _params: D9MultiU64Params,
     ) -> Result<()> {
-        ctx.accounts.record.owner = ctx.accounts.fee_payer.key();
+        ctx.accounts.d9_instr_multi_u64_record.owner = ctx.accounts.fee_payer.key();
         Ok(())
     }
 
@@ -1291,7 +1245,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9InstrChainedAsRef<'info>>,
         params: D9ChainedAsRefParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = params.key;
+        ctx.accounts.d9_instr_chained_as_ref_record.owner = params.key;
         Ok(())
     }
 
@@ -1300,7 +1254,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9InstrConstMixed<'info>>,
         params: D9ConstMixedParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = params.owner;
+        ctx.accounts.d9_instr_const_mixed_record.owner = params.owner;
         Ok(())
     }
 
@@ -1309,7 +1263,7 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D9InstrComplexMixed<'info>>,
         params: D9ComplexMixedParams,
     ) -> Result<()> {
-        ctx.accounts.record.owner = params.data_owner;
+        ctx.accounts.d9_instr_complex_mixed_record.owner = params.data_owner;
         Ok(())
     }
 
@@ -1318,32 +1272,12 @@ pub mod csdk_anchor_full_derived_test {
     // =========================================================================
 
     /// D5: #[light_account(token)] attribute test
+    #[allow(unused_variables)]
     pub fn d5_light_token<'info>(
         ctx: Context<'_, '_, '_, 'info, D5LightToken<'info>>,
         params: D5LightTokenParams,
     ) -> Result<()> {
-        use light_token::instruction::CreateTokenAccountCpi;
-
-        let mint_key = ctx.accounts.mint.key();
-        CreateTokenAccountCpi {
-            payer: ctx.accounts.fee_payer.to_account_info(),
-            account: ctx.accounts.d5_token_vault.to_account_info(),
-            mint: ctx.accounts.mint.to_account_info(),
-            owner: ctx.accounts.vault_authority.key(),
-        }
-        .rent_free(
-            ctx.accounts
-                .light_token_compressible_config
-                .to_account_info(),
-            ctx.accounts.light_token_rent_sponsor.to_account_info(),
-            ctx.accounts.system_program.to_account_info(),
-            &crate::ID,
-        )
-        .invoke_signed(&[
-            crate::d5_markers::D5_VAULT_SEED,
-            mint_key.as_ref(),
-            &[params.vault_bump],
-        ])?;
+        // Token vault is auto-created by macro via #[light_account(init, token::...)]
         Ok(())
     }
 
@@ -1352,38 +1286,9 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D5AllMarkers<'info>>,
         params: D5AllMarkersParams,
     ) -> Result<()> {
-        use light_token::instruction::CreateTokenAccountCpi;
-
         // Set up the PDA record
         ctx.accounts.d5_all_record.owner = params.owner;
-
-        // Create token vault
-        let mint_key = ctx.accounts.mint.key();
-        // Derive the vault bump at runtime
-        let (_, vault_bump) = Pubkey::find_program_address(
-            &[crate::d5_markers::D5_ALL_VAULT_SEED, mint_key.as_ref()],
-            &crate::ID,
-        );
-
-        CreateTokenAccountCpi {
-            payer: ctx.accounts.fee_payer.to_account_info(),
-            account: ctx.accounts.d5_all_vault.to_account_info(),
-            mint: ctx.accounts.mint.to_account_info(),
-            owner: ctx.accounts.d5_all_authority.key(),
-        }
-        .rent_free(
-            ctx.accounts
-                .light_token_compressible_config
-                .to_account_info(),
-            ctx.accounts.light_token_rent_sponsor.to_account_info(),
-            ctx.accounts.system_program.to_account_info(),
-            &crate::ID,
-        )
-        .invoke_signed(&[
-            crate::d5_markers::D5_ALL_VAULT_SEED,
-            mint_key.as_ref(),
-            &[vault_bump],
-        ])?;
+        // Token vault is auto-created by macro via #[light_account(init, token::...)]
         Ok(())
     }
 
@@ -1418,6 +1323,137 @@ pub mod csdk_anchor_full_derived_test {
         // ATA creation is handled by the LightFinalize trait implementation
         // generated by the #[light_account(init, associated_token, ...)] macro.
         // This handler can be empty - the macro handles everything.
+        Ok(())
+    }
+
+    // =========================================================================
+    // D11 Zero-copy (AccountLoader) Tests
+    // =========================================================================
+
+    /// D11: Zero-copy + Token Vault
+    /// Tests `#[light_account(init, zero_copy)]` combined with token vault creation.
+    /// Token vault creation is handled automatically by the `#[light_account(init, token, ...)]` macro.
+    pub fn d11_zc_with_vault<'info>(
+        ctx: Context<'_, '_, '_, 'info, D11ZcWithVault<'info>>,
+        params: D11ZcWithVaultParams,
+    ) -> Result<()> {
+        // Initialize zero-copy record
+        let mut record = ctx.accounts.zc_vault_record.load_init()?;
+        record.owner = params.owner;
+        record.counter = 0;
+        // Token vault creation is handled by the LightFinalize trait implementation
+        // generated by the #[light_account(init, token, ...)] macro.
+        Ok(())
+    }
+
+    /// D11: Zero-copy + ATA
+    /// Tests `#[light_account(init, zero_copy)]` combined with ATA creation.
+    /// ATA creation is handled automatically by the `#[light_account(init, associated_token, ...)]` macro.
+    pub fn d11_zc_with_ata<'info>(
+        ctx: Context<'_, '_, '_, 'info, D11ZcWithAta<'info>>,
+        params: D11ZcWithAtaParams,
+    ) -> Result<()> {
+        // Initialize zero-copy record
+        let mut record = ctx.accounts.zc_ata_record.load_init()?;
+        record.owner = params.owner;
+        record.counter = 0;
+        // ATA creation is handled by the LightFinalize trait implementation
+        // generated by the #[light_account(init, associated_token, ...)] macro.
+        Ok(())
+    }
+
+    /// D11: Multiple zero-copy PDAs
+    /// Tests `#[light_account(init, zero_copy)]` with multiple AccountLoader fields.
+    pub fn d11_multiple_zc<'info>(
+        ctx: Context<'_, '_, '_, 'info, D11MultipleZc<'info>>,
+        params: D11MultipleZcParams,
+    ) -> Result<()> {
+        let mut record1 = ctx.accounts.zc_record_1.load_init()?;
+        record1.owner = params.owner;
+        record1.counter = 1;
+
+        let mut record2 = ctx.accounts.zc_record_2.load_init()?;
+        record2.owner = params.owner;
+        record2.counter = 2;
+
+        Ok(())
+    }
+
+    /// D11: Mixed zero-copy and Borsh accounts
+    /// Tests `#[light_account(init, zero_copy)]` alongside regular `#[light_account(init)]`.
+    pub fn d11_mixed_zc_borsh<'info>(
+        ctx: Context<'_, '_, '_, 'info, D11MixedZcBorsh<'info>>,
+        params: D11MixedZcBorshParams,
+    ) -> Result<()> {
+        // Initialize zero-copy account
+        let mut zc = ctx.accounts.zc_mixed_record.load_init()?;
+        zc.owner = params.owner;
+        zc.counter = 100;
+
+        // Initialize Borsh account
+        ctx.accounts.borsh_record.owner = params.owner;
+        ctx.accounts.borsh_record.counter = 200;
+
+        Ok(())
+    }
+
+    /// D11: Zero-copy with ctx.accounts.* seeds
+    /// Tests `#[light_account(init, zero_copy)]` with context account seeds.
+    pub fn d11_zc_with_ctx_seeds<'info>(
+        ctx: Context<'_, '_, '_, 'info, D11ZcWithCtxSeeds<'info>>,
+        params: D11ZcWithCtxSeedsParams,
+    ) -> Result<()> {
+        let mut record = ctx.accounts.zc_ctx_record.load_init()?;
+        record.owner = params.owner;
+        record.authority = ctx.accounts.authority.key();
+        record.value = 42;
+
+        Ok(())
+    }
+
+    /// D11: Zero-copy with params-only seeds
+    /// Tests `#[light_account(init, zero_copy)]` with params seeds not on struct.
+    pub fn d11_zc_with_params_seeds<'info>(
+        ctx: Context<'_, '_, '_, 'info, D11ZcWithParamsSeeds<'info>>,
+        params: D11ZcWithParamsSeedsParams,
+    ) -> Result<()> {
+        let mut record = ctx.accounts.zc_params_record.load_init()?;
+        record.owner = params.owner;
+        record.data = params.category_id;
+
+        Ok(())
+    }
+
+    /// D11: Zero-copy + Vault + MintTo
+    /// Tests `#[light_account(init, zero_copy)]` combined with vault and token minting.
+    /// Token vault creation is handled automatically by the `#[light_account(init, token, ...)]` macro.
+    pub fn d11_zc_with_mint_to<'info>(
+        ctx: Context<'_, '_, '_, 'info, D11ZcWithMintTo<'info>>,
+        params: D11ZcWithMintToParams,
+    ) -> Result<()> {
+        use light_token::instruction::MintToCpi;
+
+        // Initialize zero-copy record
+        let mut record = ctx.accounts.zc_mint_record.load_init()?;
+        record.owner = params.owner;
+        record.counter = params.mint_amount;
+        // Token vault creation is handled by the LightFinalize trait implementation
+        // generated by the #[light_account(init, token, ...)] macro.
+
+        // Mint tokens to vault (this is additional business logic)
+        if params.mint_amount > 0 {
+            MintToCpi {
+                mint: ctx.accounts.d11_mint.to_account_info(),
+                destination: ctx.accounts.d11_mint_vault.to_account_info(),
+                amount: params.mint_amount,
+                authority: ctx.accounts.mint_authority.to_account_info(),
+                system_program: ctx.accounts.system_program.to_account_info(),
+                max_top_up: None,
+                fee_payer: None,
+            }
+            .invoke()?;
+        }
+
         Ok(())
     }
 }

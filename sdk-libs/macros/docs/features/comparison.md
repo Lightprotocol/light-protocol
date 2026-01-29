@@ -207,7 +207,7 @@ pub struct MyData {
 1. **Add derives**: Add `RentFree`, `Compressible`, `HasCompressionInfo`
 2. **Add compression_info**: Add field to data structs
 3. **Add compress_as**: Annotate fields for hashing
-4. **Update program attribute**: Add `#[rentfree_program]`
+4. **Update program attribute**: Add `#[light_program]`
 5. **Add Light accounts**: Include protocol programs in accounts struct
 6. **Update token handling**: Convert `mint::*` to `#[light_account(init)]`
 

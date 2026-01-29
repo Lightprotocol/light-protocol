@@ -12,7 +12,7 @@ use light_sdk_macros::LightAccount;
 #[derive(Default, Debug, InitSpace, LightAccount)]
 #[account]
 pub struct NoCompressAsRecord {
-    pub compression_info: Option<CompressionInfo>,
+    pub compression_info: CompressionInfo,
     pub owner: Pubkey,
     pub counter: u64,
     pub flag: bool,

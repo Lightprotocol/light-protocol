@@ -20,11 +20,9 @@ pub fn get_light_cpi_signer_seeds(program_id: &Pubkey) -> ([Vec<u8>; 2], Pubkey)
     (signer_seeds, pda)
 }
 
-/// Derives the rent sponsor PDA for a given program and version.
+/// Derives the rent sponsor PDA for a given program.
 ///
-/// Seeds: ["rent_sponsor", <u16 version little-endian>]
-pub fn derive_rent_sponsor_pda(program_id: &Pubkey, version: u16) -> (Pubkey, u8) {
-    let version_bytes = version.to_le_bytes();
-    let seeds = &[RENT_SPONSOR_SEED, &version_bytes[..]];
-    Pubkey::find_program_address(seeds, program_id)
+/// Seeds: ["rent_sponsor"]
+pub fn derive_rent_sponsor_pda(program_id: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(&[RENT_SPONSOR_SEED], program_id)
 }

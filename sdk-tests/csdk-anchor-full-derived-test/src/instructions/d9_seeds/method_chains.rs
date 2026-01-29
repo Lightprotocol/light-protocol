@@ -38,6 +38,10 @@ pub struct D9MethodAsRef<'info> {
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
 
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
+
     #[account(
         init,
         payer = fee_payer,
@@ -46,7 +50,7 @@ pub struct D9MethodAsRef<'info> {
         bump,
     )]
     #[light_account(init)]
-    pub record: Account<'info, SinglePubkeyRecord>,
+    pub d9_method_as_ref_record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
 }
@@ -70,6 +74,10 @@ pub struct D9MethodAsBytes<'info> {
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
 
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
+
     #[account(
         init,
         payer = fee_payer,
@@ -78,7 +86,7 @@ pub struct D9MethodAsBytes<'info> {
         bump,
     )]
     #[light_account(init)]
-    pub record: Account<'info, SinglePubkeyRecord>,
+    pub d9_method_as_bytes_record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
 }
@@ -102,6 +110,10 @@ pub struct D9MethodQualifiedAsBytes<'info> {
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
 
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
+
     #[account(
         init,
         payer = fee_payer,
@@ -110,7 +122,7 @@ pub struct D9MethodQualifiedAsBytes<'info> {
         bump,
     )]
     #[light_account(init)]
-    pub record: Account<'info, SinglePubkeyRecord>,
+    pub d9_method_qualified_as_bytes_record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
 }
@@ -135,6 +147,10 @@ pub struct D9MethodToLeBytes<'info> {
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
 
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
+
     #[account(
         init,
         payer = fee_payer,
@@ -143,7 +159,7 @@ pub struct D9MethodToLeBytes<'info> {
         bump,
     )]
     #[light_account(init)]
-    pub record: Account<'info, SinglePubkeyRecord>,
+    pub d9_method_to_le_bytes_record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
 }
@@ -168,6 +184,10 @@ pub struct D9MethodToBeBytes<'info> {
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
 
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
+
     #[account(
         init,
         payer = fee_payer,
@@ -176,7 +196,7 @@ pub struct D9MethodToBeBytes<'info> {
         bump,
     )]
     #[light_account(init)]
-    pub record: Account<'info, SinglePubkeyRecord>,
+    pub d9_method_to_be_bytes_record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
 }
@@ -202,6 +222,10 @@ pub struct D9MethodMixed<'info> {
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
 
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
+
     #[account(
         init,
         payer = fee_payer,
@@ -210,7 +234,7 @@ pub struct D9MethodMixed<'info> {
         bump,
     )]
     #[light_account(init)]
-    pub record: Account<'info, SinglePubkeyRecord>,
+    pub d9_method_mixed_record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
 }

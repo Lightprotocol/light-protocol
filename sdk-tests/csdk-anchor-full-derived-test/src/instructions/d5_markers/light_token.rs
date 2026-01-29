@@ -6,7 +6,7 @@
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
 use light_sdk_macros::LightAccounts;
-use light_token::instruction::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR};
+use light_token::instruction::{LIGHT_TOKEN_CONFIG, RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR};
 
 pub const D5_VAULT_AUTH_SEED: &[u8] = b"d5_vault_auth";
 pub const D5_VAULT_SEED: &[u8] = b"d5_vault";
@@ -38,10 +38,10 @@ pub struct D5LightToken<'info> {
         seeds = [D5_VAULT_SEED, mint.key().as_ref()],
         bump,
     )]
-    #[light_account(token::authority = [D5_VAULT_AUTH_SEED])]
+    #[light_account(init, token::seeds = [D5_VAULT_SEED, self.mint.key()], token::mint = mint, token::owner = vault_authority, token::owner_seeds = [D5_VAULT_AUTH_SEED])]
     pub d5_token_vault: UncheckedAccount<'info>,
 
-    #[account(address = COMPRESSIBLE_CONFIG_V1)]
+    #[account(address = LIGHT_TOKEN_CONFIG)]
     pub light_token_compressible_config: AccountInfo<'info>,
 
     #[account(mut, address = LIGHT_TOKEN_RENT_SPONSOR)]

@@ -127,7 +127,7 @@ pub struct CreateMint<'info> {
 
 ---
 
-### 5. `#[rentfree_program]`
+### 5. `#[light_program]`
 
 **Purpose**: Program-level attribute that generates compression lifecycle hooks.
 
@@ -139,7 +139,7 @@ pub struct CreateMint<'info> {
 
 **Example**:
 ```rust
-#[rentfree_program]
+#[light_program]
 #[program]
 pub mod my_program {
     use super::*;
@@ -463,7 +463,7 @@ pub struct UserProfile {
     pub compression_info: CompressionInfo,
 }
 
-#[rentfree_program]
+#[light_program]
 #[program]
 pub mod my_program {
     use super::*;

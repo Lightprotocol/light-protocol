@@ -252,7 +252,7 @@ async fn test_t22_restricted_to_ctoken_scenario() {
         .value;
 
     // Get token data and discriminator from compressed account
-    let token_data = compressed_accounts[0].token.clone();
+    let token_data = compressed_accounts[0].token.clone().into();
     let discriminator = compressed_accounts[0]
         .account
         .data

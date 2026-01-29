@@ -10,7 +10,7 @@ pub fn process_create_single_record(
     ctx: Context<'_, '_, '_, '_, D5RentfreeBare<'_>>,
     params: D5RentfreeBareParams,
 ) -> Result<()> {
-    let record = &mut ctx.accounts.record;
+    let record = &mut ctx.accounts.d5_bare_record;
     record.owner = params.owner;
     record.counter = 0;
     Ok(())

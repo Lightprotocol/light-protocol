@@ -414,14 +414,15 @@ pub mod mint_sdk {
         } else {
             anchor_spl::token::ID
         };
-        let accounts = crate::accounts::CreateTokenPoolInstruction {
-            fee_payer: *fee_payer,
-            token_pool_pda,
-            system_program: system_program::ID,
-            mint: *mint,
-            token_program,
-            cpi_authority_pda: get_cpi_authority_pda().0,
-        };
+        let accounts =
+            crate::__client_accounts_create_token_pool_instruction::CreateTokenPoolInstruction {
+                fee_payer: *fee_payer,
+                token_pool_pda,
+                system_program: system_program::ID,
+                mint: *mint,
+                token_program,
+                cpi_authority_pda: get_cpi_authority_pda().0,
+            };
 
         Instruction {
             program_id: crate::ID,
@@ -446,15 +447,16 @@ pub mod mint_sdk {
         } else {
             anchor_spl::token::ID
         };
-        let accounts = crate::accounts::AddTokenPoolInstruction {
-            fee_payer: *fee_payer,
-            token_pool_pda,
-            system_program: system_program::ID,
-            mint: *mint,
-            token_program,
-            cpi_authority_pda: get_cpi_authority_pda().0,
-            existing_token_pool_pda,
-        };
+        let accounts =
+            crate::__client_accounts_add_token_pool_instruction::AddTokenPoolInstruction {
+                fee_payer: *fee_payer,
+                token_pool_pda,
+                system_program: system_program::ID,
+                mint: *mint,
+                token_program,
+                cpi_authority_pda: get_cpi_authority_pda().0,
+                existing_token_pool_pda,
+            };
 
         Instruction {
             program_id: crate::ID,
@@ -493,7 +495,7 @@ pub mod mint_sdk {
             anchor_spl::token::ID
         };
 
-        let accounts = crate::accounts::MintToInstruction {
+        let accounts = crate::__client_accounts_mint_to_instruction::MintToInstruction {
             fee_payer: *fee_payer,
             authority: *authority,
             cpi_authority_pda: get_cpi_authority_pda().0,

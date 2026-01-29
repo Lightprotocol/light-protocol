@@ -24,5 +24,4 @@ pub struct RentSponsor {
     pub program_id: [u8; 32],
     pub rent_sponsor: [u8; 32],
     pub bump: u8,
-    pub version: u16,
 }

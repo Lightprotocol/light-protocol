@@ -23,7 +23,7 @@ pub fn cpi_authority() -> Pubkey {
 }
 
 /// Default compressible config PDA (V1)
-pub const COMPRESSIBLE_CONFIG_V1: Pubkey = pubkey!("ACXg8a7VaqecBWrSbdu73W4Pg9gsqXJ3EXAqkHyhvVXg");
+pub const LIGHT_TOKEN_CONFIG: Pubkey = pubkey!("ACXg8a7VaqecBWrSbdu73W4Pg9gsqXJ3EXAqkHyhvVXg");
 
 /// Default rent sponsor PDA (V1)
 pub const RENT_SPONSOR_V1: Pubkey = pubkey!("r18WwUxfG8kQ69bQPAB2jV6zGNKy3GosFGctjQoV4ti");

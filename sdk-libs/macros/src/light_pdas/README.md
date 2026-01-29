@@ -12,8 +12,8 @@ rentfree/
 │   ├── mod.rs          # Entry point: derive_rentfree()
 │   ├── parse.rs        # Parsing #[light_account(init)], #[light_account(init)] attributes
 │   └── codegen.rs      # LightPreInit/LightFinalize trait generation
-├── program/            # #[rentfree_program] implementation
-│   ├── mod.rs          # Entry point: rentfree_program_impl()
+├── program/            # #[light_program] implementation
+│   ├── mod.rs          # Entry point: light_program_impl()
 │   ├── instructions.rs # Instruction generation and handler wrapping
 │   ├── crate_context.rs # Crate scanning for #[derive(Accounts)] structs
 │   ├── variant_enum.rs # LightAccountVariant enum generation
@@ -39,7 +39,7 @@ Implements `#[derive(LightAccounts)]` for Anchor Accounts structs:
 
 ### `program/` - RentFree Program Macro
 
-Implements `#[rentfree_program]` attribute macro:
+Implements `#[light_program]` attribute macro:
 
 - **instructions.rs** - Main macro logic, generates compress/decompress handlers
 - **crate_context.rs** - Scans crate for `#[derive(Accounts)]` structs

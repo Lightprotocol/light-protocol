@@ -9,7 +9,7 @@ use light_program_test::{
     ProgramTestConfig, Rpc,
 };
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
-use light_token::instruction::{find_mint_address, COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR};
+use light_token::instruction::{find_mint_address, LIGHT_TOKEN_CONFIG, RENT_SPONSOR};
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -69,7 +69,7 @@ async fn test_create_single_mint() {
         mint_signer: mint_signer_pda,
         mint: mint_pda,
         compression_config: config_pda,
-        light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
+        light_token_compressible_config: LIGHT_TOKEN_CONFIG,
         rent_sponsor: RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
