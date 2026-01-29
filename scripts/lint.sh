@@ -117,3 +117,14 @@ for crate in "${NO_DEFAULT_CRATES[@]}"; do
     echo "Checking $crate with --no-default-features..."
     cargo test -p "$crate" --no-run
 done
+
+# Check that READMEs are up-to-date with cargo-rdme
+echo "Checking READMEs are up-to-date..."
+if ! command -v cargo-rdme &> /dev/null; then
+    cargo install cargo-rdme
+fi
+for toml in $(find program-libs sdk-libs -name '.cargo-rdme.toml' -type f); do
+    crate_dir=$(dirname "$toml")
+    echo "Checking README in $crate_dir..."
+    (cd "$crate_dir" && cargo rdme --check --no-fail-on-warnings)
+done
