@@ -35,7 +35,7 @@ use crate::{
 /// # let token_data = TokenData::default();
 /// # let discriminator = [0, 0, 0, 0, 0, 0, 0, 4]; // ShaFlat
 /// let instruction = Decompress {
-///     token_data,
+///     token_data: token_data.into(),
 ///     discriminator,
 ///     merkle_tree,
 ///     queue,

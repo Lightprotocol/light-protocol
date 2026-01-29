@@ -48,8 +48,9 @@ const CSDK_TEST_PROGRAM_ID: &str = "FAMipfVEhN4hjCLpKCvjDXXfzLsoVTqQccXzePz1L1ah
 // This needs to match the discriminator from csdk_anchor_full_derived_test::state::d1_field_types::single_pubkey::SinglePubkeyRecord
 const SINGLE_PUBKEY_RECORD_DISCRIMINATOR: [u8; 8] = csdk_anchor_full_derived_test::state::d1_field_types::single_pubkey::SinglePubkeyRecord::LIGHT_DISCRIMINATOR;
 
-// Rent sponsor pubkey used in tests
-const RENT_SPONSOR: Pubkey = solana_sdk::pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
+// Rent sponsor pubkey used in tests - must match the program's rent sponsor PDA
+const RENT_SPONSOR: Pubkey =
+    Pubkey::new_from_array(csdk_anchor_full_derived_test::PROGRAM_RENT_SPONSOR_DATA.0);
 
 /// Context returned from forester registration
 struct ForesterContext {
