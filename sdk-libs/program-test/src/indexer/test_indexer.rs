@@ -108,7 +108,6 @@ pub struct TestIndexer {
     pub token_nullified_compressed_accounts: Vec<TokenDataWithMerkleContext>,
     pub events: Vec<PublicTransactionEvent>,
     /// Index mapping onchain_pubkey to compressed account index.
-    /// Used for interface lookups (like Photon's onchain_pubkey column).
     pub onchain_pubkey_index: HashMap<[u8; 32], usize>,
 }
 
@@ -1405,10 +1404,23 @@ impl TestIndexer {
         &self,
         onchain_pubkey: &[u8; 32],
     ) -> Option<&CompressedAccountWithMerkleContext> {
-        self.compressed_accounts.iter().find(|acc| {
-            Self::extract_onchain_pubkey_from_data(acc.compressed_account.data.as_ref()).as_ref()
-                == Some(onchain_pubkey)
-        })
+        let matches: Vec<_> = self
+            .compressed_accounts
+            .iter()
+            .filter(|acc| {
+                Self::extract_onchain_pubkey_from_data(acc.compressed_account.data.as_ref())
+                    .as_ref()
+                    == Some(onchain_pubkey)
+            })
+            .collect();
+
+        debug_assert!(
+            matches.len() <= 1,
+            "find_compressed_account_by_onchain_pubkey: found {} matches, expected at most 1",
+            matches.len()
+        );
+
+        matches.into_iter().next()
     }
 
     /// Find multiple compressed accounts by their on-chain pubkeys.
@@ -1427,13 +1439,25 @@ impl TestIndexer {
         &self,
         onchain_pubkey: &[u8; 32],
     ) -> Option<&TokenDataWithMerkleContext> {
-        self.token_compressed_accounts.iter().find(|acc| {
-            Self::extract_onchain_pubkey_from_data(
-                acc.compressed_account.compressed_account.data.as_ref(),
-            )
-            .as_ref()
-                == Some(onchain_pubkey)
-        })
+        let matches: Vec<_> = self
+            .token_compressed_accounts
+            .iter()
+            .filter(|acc| {
+                Self::extract_onchain_pubkey_from_data(
+                    acc.compressed_account.compressed_account.data.as_ref(),
+                )
+                .as_ref()
+                    == Some(onchain_pubkey)
+            })
+            .collect();
+
+        debug_assert!(
+            matches.len() <= 1,
+            "find_token_account_by_onchain_pubkey: found {} matches, expected at most 1",
+            matches.len()
+        );
+
+        matches.into_iter().next()
     }
 
     /// Find a compressed account by its PDA pubkey

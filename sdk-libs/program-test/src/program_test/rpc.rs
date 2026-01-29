@@ -392,10 +392,14 @@ impl Rpc for LightProgramTest {
                 indexer.find_compressed_account_by_onchain_pubkey(&address.to_bytes())
             {
                 let owner: Pubkey = compressed_with_ctx.compressed_account.owner.into();
-                let compressed: CompressedAccount = compressed_with_ctx
-                    .clone()
-                    .try_into()
-                    .map_err(|e| RpcError::CustomError(format!("conversion error: {:?}", e)))?;
+                let compressed: CompressedAccount = compressed_with_ctx.clone().try_into().map_err(
+                    |e| {
+                        RpcError::CustomError(format!(
+                            "CompressedAccountWithMerkleContext conversion failed for address {}: {:?}",
+                            address, e
+                        ))
+                    },
+                )?;
 
                 return Ok(Response {
                     context: Context { slot },
@@ -408,10 +412,14 @@ impl Rpc for LightProgramTest {
                 indexer.find_compressed_account_by_pda_seed(&address.to_bytes())
             {
                 let owner: Pubkey = compressed_with_ctx.compressed_account.owner.into();
-                let compressed: CompressedAccount = compressed_with_ctx
-                    .clone()
-                    .try_into()
-                    .map_err(|e| RpcError::CustomError(format!("conversion error: {:?}", e)))?;
+                let compressed: CompressedAccount = compressed_with_ctx.clone().try_into().map_err(
+                    |e| {
+                        RpcError::CustomError(format!(
+                            "CompressedAccountWithMerkleContext conversion failed for PDA seed {}: {:?}",
+                            address, e
+                        ))
+                    },
+                )?;
 
                 return Ok(Response {
                     context: Context { slot },
@@ -493,11 +501,26 @@ impl Rpc for LightProgramTest {
                 .await
                 .map_err(|e| RpcError::CustomError(format!("indexer error: {}", e)))?;
 
-            if let Some(token_acc) = result.value.items.into_iter().next() {
+            let items = result.value.items;
+            if items.len() > 1 {
+                return Err(RpcError::CustomError(format!(
+                    "Ambiguous lookup: found {} compressed token accounts for address {}. \
+                     Use get_compressed_token_accounts_by_owner for multiple accounts.",
+                    items.len(),
+                    address
+                )));
+            }
+
+            if let Some(token_acc) = items.into_iter().next() {
+                let key = token_acc
+                    .account
+                    .address
+                    .map(Pubkey::new_from_array)
+                    .unwrap_or(*address);
                 return Ok(Response {
                     context: Context { slot },
                     value: Some(TokenAccountInterface::cold(
-                        *address,
+                        key,
                         token_acc,
                         *address, // owner = hot address for program-owned tokens
                         light_token_program_id,
@@ -558,11 +581,23 @@ impl Rpc for LightProgramTest {
                 .await
                 .map_err(|e| RpcError::CustomError(format!("indexer error: {}", e)))?;
 
-            if let Some(token_acc) = result.value.items.into_iter().next() {
+            let items = result.value.items;
+            if items.len() > 1 {
+                return Err(RpcError::CustomError(format!(
+                    "Ambiguous lookup: found {} compressed token accounts for ATA {} (owner: {}, mint: {}). \
+                     Use get_compressed_token_accounts_by_owner for multiple accounts.",
+                    items.len(),
+                    ata,
+                    owner,
+                    mint
+                )));
+            }
+
+            if let Some(token_acc) = items.into_iter().next() {
                 return Ok(Response {
                     context: Context { slot },
                     value: Some(TokenAccountInterface::cold(
-                        ata, // key = ATA pubkey
+                        ata, // key = ATA pubkey (derived, so we use it directly)
                         token_acc,
                         *owner, // owner_override = wallet owner (for ata_bump() to work)
                         light_token_program_id,
@@ -600,11 +635,27 @@ impl Rpc for LightProgramTest {
                 .await
                 .map_err(|e| RpcError::CustomError(format!("indexer error: {}", e)))?;
 
-            if let Some(token_acc) = result.value.items.into_iter().next() {
+            let items = result.value.items;
+            if items.len() > 1 {
+                return Err(RpcError::CustomError(format!(
+                    "Ambiguous lookup: found {} compressed token accounts for owner {} and mint {}. \
+                     Use get_compressed_token_accounts_by_owner for multiple accounts.",
+                    items.len(),
+                    owner,
+                    mint
+                )));
+            }
+
+            if let Some(token_acc) = items.into_iter().next() {
+                let key = token_acc
+                    .account
+                    .address
+                    .map(Pubkey::new_from_array)
+                    .unwrap_or(*owner);
                 return Ok(Response {
                     context: Context { slot },
                     value: Some(TokenAccountInterface::cold(
-                        *owner, // key = owner for program-owned tokens
+                        key,
                         token_acc,
                         *owner,
                         light_token_program_id,
@@ -630,15 +681,16 @@ impl Rpc for LightProgramTest {
 
         let slot = self.context.get_sysvar::<Clock>().slot;
         let address_tree = Pubkey::new_from_array(MINT_ADDRESS_TREE);
+        let light_token_program_id: Pubkey =
+            Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
         let compressed_address = derive_address(
             &address.to_bytes(),
             &address_tree.to_bytes(),
             &light_token_interface::LIGHT_TOKEN_PROGRAM_ID,
         );
 
-        // Hot: check on-chain first
         if let Some(account) = self.context.get_account(address) {
-            if account.lamports > 0 {
+            if account.lamports > 0 && account.owner == light_token_program_id {
                 return Ok(Response {
                     context: Context { slot },
                     value: Some(MintInterface {
