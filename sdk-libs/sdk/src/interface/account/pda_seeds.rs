@@ -22,7 +22,3 @@ pub trait PdaSeedDerivation<A, S> {
         seed_params: &S,
     ) -> Result<(Vec<Vec<u8>>, Pubkey), ProgramError>;
 }
-
-pub trait PdaSeeds<Accounts, const N: usize> {
-    fn seeds<'a>(&'a self, accounts: &'a Accounts) -> [&'a [u8]; N];
-}

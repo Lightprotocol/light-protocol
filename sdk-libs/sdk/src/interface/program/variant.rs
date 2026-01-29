@@ -1,7 +1,7 @@
 //! Traits for decompression variant construction and manual Light Protocol implementation.
 //!
 //! This module contains traits for typed compressed account handling:
-//! - Base traits (`IntoVariant`, `PdaSeeds`) - always available
+//! - Base traits (`IntoVariant`) - always available
 //! - Variant traits (`LightAccountVariantTrait`, `PackedLightAccountVariantTrait`) - anchor-gated
 //! - Token seed traits (`UnpackedTokenSeeds`, `PackedTokenSeeds`) - anchor-gated
 

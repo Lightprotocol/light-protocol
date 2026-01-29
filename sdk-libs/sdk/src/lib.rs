@@ -199,7 +199,7 @@ pub use interface::Pack;
 pub use interface::{
     process_initialize_light_config, process_initialize_light_config_checked,
     process_update_light_config, CompressAs, CompressedInitSpace, CompressionInfo,
-    HasCompressionInfo, LightConfig, PdaSeeds, Space, Unpack, COMPRESSIBLE_CONFIG_SEED,
+    HasCompressionInfo, LightConfig, Space, Unpack, COMPRESSIBLE_CONFIG_SEED,
     MAX_ADDRESS_TREES_PER_SPACE,
 };
 pub use light_account_checks::{self, discriminator::Discriminator as LightDiscriminator};

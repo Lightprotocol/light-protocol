@@ -57,12 +57,12 @@ pub mod finalize {
 pub mod traits {
     #[cfg(feature = "anchor")]
     pub use super::account::light_account::{AccountType, LightAccount};
+    pub use super::program::variant::IntoVariant;
     #[cfg(feature = "anchor")]
     pub use super::program::variant::{
         LightAccountVariantTrait, PackedLightAccountVariantTrait, PackedTokenSeeds,
         UnpackedTokenSeeds,
     };
-    pub use super::{account::pda_seeds::PdaSeeds, program::variant::IntoVariant};
 }
 
 // =============================================================================
@@ -79,7 +79,6 @@ pub use account::light_account::{AccountType, LightAccount};
 #[cfg(not(target_os = "solana"))]
 pub use account::pack::Pack;
 // --- Re-exports from program/variant ---
-pub use account::pda_seeds::PdaSeeds;
 #[cfg(all(feature = "v2", feature = "cpi-context"))]
 pub use account::pda_seeds::{HasTokenVariant, PdaSeedDerivation};
 pub use account::{
@@ -93,9 +92,12 @@ pub use account::{
 // --- Re-exports from accounts/ ---
 #[cfg(feature = "v2")]
 pub use accounts::create_pda::create_pda_account;
-pub use accounts::finalize::{LightFinalize, LightPreInit};
-pub use accounts::init_compressed_account::{
-    prepare_compressed_account_on_init, prepare_compressed_account_on_init_checked, reimburse_rent,
+pub use accounts::{
+    finalize::{LightFinalize, LightPreInit},
+    init_compressed_account::{
+        prepare_compressed_account_on_init, prepare_compressed_account_on_init_checked,
+        reimburse_rent,
+    },
 };
 // --- Re-exports from external crates ---
 pub use light_compressible::{rent, CreateAccountsProof};
