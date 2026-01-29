@@ -5,14 +5,24 @@
 //! ## Light Token Accounts
 //! - are on Solana devnet.
 //! - are Solana accounts.
-//! - can hold Light Mint and SPL Mint tokens.
+//! - are functionally equivalent to SPL token accounts.
+//! - can hold tokens of Light, SPL and Token 2022 mints.
 //! - cost 17,288 lamports to create with 24 hours rent.
 //! - are rentfree:
-//!     - rent exemption is sponsored by the protocol.
+//!     - rent exemption is sponsored by the token program.
 //!     - rent is 388 lamports per rent epoch (1.5 hours).
-//!     - once the account's lamports balance is insufficient, it is compressed to a compressed token account.
+//!     - once the account's lamports balance is insufficient, it is auto-compressed to a compressed token account.
+//!     - the accounts state is cryptographically preserved on the Solana ledger.
 //!     - compressed tokens can be decompressed to a Light Token account.
 //!     - configurable lamports per write (eg transfer) keep the Light Token account perpetually funded when used. So you don't have to worry about funding rent.
+//!     - users load a compressed account into a light account in-flight when using the account again.
+//!
+//! ## Light Mints
+//! - are on Solana devnet.
+//! - are Compressed accounts.
+//! - cost 15,000 lamports to create.
+//! - support `TokenMetadata`.
+//! - have the same rent-config as light token accounts
 //!
 //! ## Compressed Token Accounts
 //! - are on Solana mainnet.
@@ -21,20 +31,23 @@
 //! - cost 5,000 lamports to create.
 //! - are well suited for airdrops and reward distribution.
 //!
-//! ## Light Mints
-//! - are on Solana devnet.
-//! - are Compressed accounts.
-//! - cost 15,000 lamports to create.
-//! - support `TokenMetadata`.
-//!
-//!
 //! For full program examples, see the [Light Token Examples](https://github.com/Lightprotocol/examples-light-token).
-//! For detailed documentation, visit [zkcompression.com](https://www.zkcompression.com/).
-//! For rust client development see [`light-client`](https://docs.rs/light-client).
-//! For rust program testing see [`light-program-test`](https://docs.rs/light-program-test).
-//! For local test validator with light system programs see [Light CLI](https://www.npmjs.com/package/@lightprotocol/zk-compression-cli).
 //!
-//!
+//! | Operation | Docs guide | GitHub example |
+//! |-----------|-----------|----------------|
+//! | `CreateAssociatedAccountCpi` | [create-ata](https://zkcompression.com/light-token/cookbook/create-ata) | [example](https://github.com/Lightprotocol/examples-light-token/tree/main/program-examples/anchor/basic-instructions/create-ata) |
+//! | `CreateTokenAccountCpi` | [create-token-account](https://zkcompression.com/light-token/cookbook/create-token-account) | [example](https://github.com/Lightprotocol/examples-light-token/tree/main/program-examples/anchor/basic-instructions/create-token-account) |
+//! | `CreateMintCpi` | [create-mint](https://zkcompression.com/light-token/cookbook/create-mint) | [example](https://github.com/Lightprotocol/examples-light-token/tree/main/program-examples/anchor/basic-instructions/create-mint) |
+//! | `MintToCpi` | [mint-to](https://zkcompression.com/light-token/cookbook/mint-to) | [example](https://github.com/Lightprotocol/examples-light-token/tree/main/program-examples/anchor/basic-instructions/mint-to) |
+//! | `MintToCheckedCpi` | [mint-to](https://zkcompression.com/light-token/cookbook/mint-to) | [example](https://github.com/Lightprotocol/examples-light-token/tree/main/program-examples/anchor/basic-instructions/mint-to-checked) |
+//! | `BurnCpi` | [burn](https://zkcompression.com/light-token/cookbook/burn) | [example](https://github.com/Lightprotocol/examples-light-token/tree/main/program-examples/anchor/basic-instructions/burn) |
+//! | `TransferCheckedCpi` | [transfer-checked](https://zkcompression.com/light-token/cookbook/transfer-checked) | [example](https://github.com/Lightprotocol/examples-light-token/tree/main/program-examples/anchor/basic-instructions/transfer-checked) |
+//! | `TransferInterfaceCpi` | [transfer-interface](https://zkcompression.com/light-token/cookbook/transfer-interface) | [example](https://github.com/Lightprotocol/examples-light-token/tree/main/program-examples/anchor/basic-instructions/transfer-interface) |
+//! | `ApproveCpi` | [approve-revoke](https://zkcompression.com/light-token/cookbook/approve-revoke) | [example](https://github.com/Lightprotocol/examples-light-token/tree/main/program-examples/anchor/basic-instructions/approve) |
+//! | `RevokeCpi` | [approve-revoke](https://zkcompression.com/light-token/cookbook/approve-revoke) | [example](https://github.com/Lightprotocol/examples-light-token/tree/main/program-examples/anchor/basic-instructions/revoke) |
+//! | `FreezeCpi` | [freeze-thaw](https://zkcompression.com/light-token/cookbook/freeze-thaw) | [example](https://github.com/Lightprotocol/examples-light-token/tree/main/program-examples/anchor/basic-instructions/freeze) |
+//! | `ThawCpi` | [freeze-thaw](https://zkcompression.com/light-token/cookbook/freeze-thaw) | [example](https://github.com/Lightprotocol/examples-light-token/tree/main/program-examples/anchor/basic-instructions/thaw) |
+//! | `CloseAccountCpi` | [close-token-account](https://zkcompression.com/light-token/cookbook/close-token-account) | [example](https://github.com/Lightprotocol/examples-light-token/tree/main/program-examples/anchor/basic-instructions/close-token-account) |
 //!
 //! ## Features
 //!

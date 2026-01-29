@@ -1,4 +1,8 @@
 //! The base library to use Compressed Accounts in Solana on-chain Rust and Anchor programs.
+//! Compressed accounts do not require rent-exemption, which makes them suitable for:
+//! - user owned accounts
+//! - not for config accounts which are often read
+//! - not pool accounts, since compressed accounts cannot be used concurrently
 //!
 //! Compressed Accounts store state as account hashes in State Merkle trees.
 //! and unique addresses in Address Merkle trees.
@@ -16,6 +20,12 @@
 //! For rust client development see [`light-client`](https://docs.rs/light-client).
 //! For rust program testing see [`light-program-test`](https://docs.rs/light-program-test).
 //! For local test validator with light system programs see [Light CLI](https://www.npmjs.com/package/@lightprotocol/zk-compression-cli).
+//!
+//! ## Difference to Light-Accounts (Light-PDA)
+//! Light-PDAs are Solana accounts with sponsored rent-exemption.
+//! There is no proof required for interactions with Light-PDAs which makes
+//! them suitable for Defi Usecases. Compressed PDAs don't require rent-exemption,
+//! but a proof for interactions.
 //!
 //! #  Using Compressed Accounts in Solana Programs
 //! 1. [`Instruction`](crate::instruction)

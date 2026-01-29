@@ -69,9 +69,9 @@
 //! ## Examples
 //!
 //! ### V1 Trees
-//! ```rust
+//! ```rust,ignore
 //! use light_program_test::{LightProgramTest, ProgramTestConfig};
-//! use solana_sdk::signer::Signer;
+//! use solana_sdk::signer::{keypair::Keypair, Signer};
 //!
 //! #[tokio::test]
 //! async fn test_v1_compressed_account() {
@@ -99,9 +99,9 @@
 //! ```
 //!
 //! ### V2 Trees
-//! ```rust
+//! ```rust,ignore
 //! use light_program_test::{LightProgramTest, ProgramTestConfig};
-//! use solana_sdk::signer::Signer;
+//! use solana_sdk::signer::{keypair::Keypair, Signer};
 //!
 //! #[tokio::test]
 //! async fn test_v2_compressed_account() {

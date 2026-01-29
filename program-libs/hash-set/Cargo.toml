@@ -2,6 +2,7 @@
 name = "light-hash-set"
 version = "4.0.0"
 description = "Hash set which can be stored on a Solana account"
+readme = "README.md"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
 edition = "2021"

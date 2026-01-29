@@ -1,0 +1,151 @@
+<!-- cargo-rdme start -->
+
+The base library to use Compressed Accounts in Solana on-chain Rust and Anchor programs.
+Compressed accounts do not require rent-exemption, which makes them suitable for:
+- user owned accounts
+- not for config accounts which are often read
+- not pool accounts, since compressed accounts cannot be used concurrently
+
+Compressed Accounts store state as account hashes in State Merkle trees.
+and unique addresses in Address Merkle trees.
+Validity proofs (zero-knowledge proofs) verify that compressed account
+state exists and new addresses do not exist yet.
+
+- No rent exemption payment required.
+- Constant 128-byte validity proof per transaction for one or multiple compressed accounts and addresses.
+- Compressed account data is sent as instruction data when accessed.
+- State and address trees are managed by the protocol.
+
+For full program examples, see the [Program Examples](https://github.com/Lightprotocol/program-examples).
+For detailed documentation, visit [zkcompression.com](https://www.zkcompression.com/).
+For pinocchio solana program development see [`light-sdk-pinocchio`](https://docs.rs/light-sdk-pinocchio).
+For rust client development see [`light-client`](https://docs.rs/light-client).
+For rust program testing see [`light-program-test`](https://docs.rs/light-program-test).
+For local test validator with light system programs see [Light CLI](https://www.npmjs.com/package/@lightprotocol/zk-compression-cli).
+
+## Difference to Light-Accounts (Light-PDA)
+Light-PDAs are Solana accounts with sponsored rent-exemption.
+There is no proof required for interactions with Light-PDAs which makes
+them suitable for Defi Usecases. Compressed PDAs don't require rent-exemption,
+but a proof for interactions.
+
+#  Using Compressed Accounts in Solana Programs
+1. [`Instruction`](https://docs.rs/light-sdk/latest/light_sdk/instruction/)
+    - `CompressedAccountMeta` - Compressed account metadata structs for instruction data.
+    - `PackedAccounts` - Abstraction to prepare accounts offchain for instructions with compressed accounts.
+    - `ValidityProof` - Proves that new addresses don't exist yet, and compressed account state exists.
+2. Compressed Account in Program
+    - [`LightAccount`](https://docs.rs/light-sdk/latest/light_sdk/account/) - Compressed account abstraction similar to anchor Account.
+    - [`derive_address`](https://docs.rs/light-sdk/latest/light_sdk/address/) - Create a compressed account address.
+    - [`LightDiscriminator`] - DeriveMacro to derive a compressed account discriminator.
+3. [`Cpi`](https://docs.rs/light-sdk/latest/light_sdk/cpi/)
+    - `CpiAccounts` - Prepare accounts to cpi the light system program.
+    - `LightSystemProgramCpi` - Prepare instruction data to cpi the light system program.
+    - [`InvokeLightSystemProgram::invoke`](https://docs.rs/light-sdk/latest/light_sdk/cpi/) - Invoke the light system program via cpi.
+
+#  Client Program Interaction Flow
+```text
+ ├─ 𝐂𝐥𝐢𝐞𝐧𝐭
+ │  ├─ Get ValidityProof from RPC.
+ │  ├─ pack accounts with PackedAccounts into PackedAddressTreeInfo and PackedStateTreeInfo.
+ │  ├─ pack CompressedAccountMeta.
+ │  ├─ Build Instruction from PackedAccounts and CompressedAccountMetas.
+ │  └─ Send transaction.
+ │
+ └─ 𝐂𝐮𝐬𝐭𝐨𝐦 𝐏𝐫𝐨𝐠𝐫𝐚𝐦
+    ├─ CpiAccounts parse accounts consistent with PackedAccounts.
+    ├─ LightAccount instantiates from CompressedAccountMeta.
+    │
+    └─ 𝐋𝐢𝐠𝐡𝐭 𝐒𝐲𝐬𝐭𝐞𝐦 𝐏𝐫𝐨𝐠𝐫𝐚𝐦 𝐂𝐏𝐈
+       ├─ Verify ValidityProof.
+       ├─ Update State Merkle tree.
+       ├─ Update Address Merkle tree.
+       └─ Complete atomic state transition.
+```
+
+# Features
+1. `anchor` - Derives AnchorSerialize, AnchorDeserialize instead of BorshSerialize, BorshDeserialize.
+
+2. `v2`
+    - available on devnet, localnet, and light-program-test.
+    - Support for optimized v2 light system program instructions.
+
+3. `cpi-context` - Enables CPI context operations for batched compressed account operations.
+   - available on devnet, localnet, and light-program-test.
+   - Enables the use of one validity proof across multiple cpis from different programs in one instruction.
+   - For example spending compressed tokens (owned by the ctoken program) and updating a compressed pda (owned by a custom program)
+     with one validity proof.
+   - An instruction should not use more than one validity proof.
+   - Requires the v2 feature.
+
+### Example Solana program code to create a compressed account
+```rust, compile_fail
+use anchor_lang::{prelude::*, Discriminator};
+use light_sdk::{
+    account::LightAccount,
+    address::v1::derive_address,
+    cpi::{v1::LightSystemProgramCpi, CpiAccounts, InvokeLightSystemProgram, LightCpiInstruction},
+    derive_light_cpi_signer,
+    instruction::{account_meta::CompressedAccountMeta, PackedAddressTreeInfo},
+    CpiSigner, LightDiscriminator, LightHasher, ValidityProof,
+};
+
+declare_id!("2tzfijPBGbrR5PboyFUFKzfEoLTwdDSHUjANCw929wyt");
+
+pub const LIGHT_CPI_SIGNER: CpiSigner =
+    derive_light_cpi_signer!("2tzfijPBGbrR5PboyFUFKzfEoLTwdDSHUjANCw929wyt");
+
+#[program]
+pub mod counter {
+
+    use super::*;
+
+    pub fn create_compressed_account<'info>(
+        ctx: Context<'_, '_, '_, 'info, CreateCompressedAccount<'info>>,
+        proof: ValidityProof,
+        address_tree_info: PackedAddressTreeInfo,
+        output_tree_index: u8,
+    ) -> Result<()> {
+        let light_cpi_accounts = CpiAccounts::new(
+            ctx.accounts.fee_payer.as_ref(),
+            ctx.remaining_accounts,
+            crate::LIGHT_CPI_SIGNER,
+        )?;
+
+        let (address, address_seed) = derive_address(
+            &[b"counter", ctx.accounts.fee_payer.key().as_ref()],
+            &address_tree_info.get_tree_pubkey(&light_cpi_accounts)?,
+            &crate::ID,
+        );
+        let new_address_params = address_tree_info
+            .into_new_address_params_packed(address_seed);
+
+        let mut my_compressed_account = LightAccount::<CounterAccount>::new_init(
+            &crate::ID,
+            Some(address),
+            output_tree_index,
+        );
+
+        my_compressed_account.owner = ctx.accounts.fee_payer.key();
+
+        LightSystemProgramCpi::new_cpi(crate::LIGHT_CPI_SIGNER, proof)
+            .with_light_account(my_compressed_account)?
+            .with_new_addresses(&[new_address_params])
+            .invoke(light_cpi_accounts)
+    }
+}
+
+#[derive(Accounts)]
+pub struct CreateCompressedAccount<'info> {
+   #[account(mut)]
+   pub fee_payer: Signer<'info>,
+}
+
+#[derive(Clone, Debug, Default, LightDiscriminator)]
+pub struct CounterAccount {
+   pub owner: Pubkey,
+   pub counter: u64
+}
+```
+
+<!-- cargo-rdme end -->
