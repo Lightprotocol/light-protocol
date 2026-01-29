@@ -33,7 +33,6 @@ use crate::{
     cpi::{v2::CpiAccounts, InvokeLightSystemProgram},
     instruction::ValidityProof,
     interface::{compression_info::CompressedAccountData, LightConfig},
-    light_account_checks::account_iterator::AccountIterator,
 };
 
 // ============================================================================
@@ -140,24 +139,13 @@ where
     let params = DecompressIdempotentParams::<V>::try_from_slice(instruction_data)
         .map_err(|_| ProgramError::InvalidInstructionData)?;
 
-    // Extract and validate accounts using AccountIterator
-    let mut account_iter = AccountIterator::new(remaining_accounts);
-    let fee_payer = account_iter
-        .next_signer_mut("fee_payer")
-        .map_err(ProgramError::from)?;
-    let config = account_iter
-        .next_non_mut("config")
-        .map_err(ProgramError::from)?;
-    let rent_sponsor = account_iter
-        .next_mut("rent_sponsor")
-        .map_err(ProgramError::from)?;
-
-    // Load and validate config
-    let light_config = LightConfig::load_checked(config, program_id)
-        .map_err(|_| ProgramError::InvalidAccountData)?;
-
-    // Validate rent sponsor matches config and get stored bump for signing
-    let rent_sponsor_bump = light_config.validate_rent_sponsor(rent_sponsor)?;
+    // Extract and validate accounts using shared validation
+    let validated_ctx =
+        crate::interface::validation::validate_decompress_accounts(remaining_accounts, program_id)?;
+    let fee_payer = &validated_ctx.fee_payer;
+    let rent_sponsor = &validated_ctx.rent_sponsor;
+    let rent_sponsor_bump = validated_ctx.rent_sponsor_bump;
+    let light_config = validated_ctx.light_config;
 
     let rent = Rent::get()?;
     let current_slot = Clock::get()?.slot;

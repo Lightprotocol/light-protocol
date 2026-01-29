@@ -30,7 +30,6 @@ use crate::{
         ValidityProof,
     },
     interface::LightConfig,
-    light_account_checks::account_iterator::AccountIterator,
     LightDiscriminator,
 };
 
@@ -100,65 +99,19 @@ pub fn process_compress_pda_accounts_idempotent<'info>(
         ProgramError::InvalidInstructionData
     })?;
 
-    // Extract and validate accounts using AccountIterator
-    let mut account_iter = AccountIterator::new(remaining_accounts);
-    let fee_payer = account_iter.next_signer_mut("fee_payer").map_err(|e| {
-        solana_msg::msg!("compress: fee_payer failed: {:?}", e);
-        ProgramError::from(e)
-    })?;
+    // Extract and validate accounts using shared validation
+    let validated_ctx =
+        crate::interface::validation::validate_compress_accounts(remaining_accounts, program_id)?;
+    let fee_payer = &validated_ctx.fee_payer;
+    let rent_sponsor = &validated_ctx.rent_sponsor;
+    let light_config = validated_ctx.light_config;
 
-    let config = account_iter.next_non_mut("config").map_err(|e| {
-        solana_msg::msg!("compress: config account failed: {:?}", e);
-        ProgramError::from(e)
-    })?;
+    let (_, system_accounts) = crate::interface::validation::split_at_system_accounts_offset(
+        remaining_accounts,
+        params.system_accounts_offset,
+    )?;
 
-    let rent_sponsor = account_iter.next_mut("rent_sponsor").map_err(|e| {
-        solana_msg::msg!("compress: rent_sponsor account failed: {:?}", e);
-        ProgramError::from(e)
-    })?;
-
-    // TODO: make compression_authority a signer and validate against config
-    let _compression_authority =
-        account_iter
-            .next_account("compression_authority")
-            .map_err(|e| {
-                solana_msg::msg!("compress: compression_authority failed: {:?}", e);
-                ProgramError::from(e)
-            })?;
-
-    // Load and validate config
-    let light_config = LightConfig::load_checked(config, program_id).map_err(|e| {
-        solana_msg::msg!("compress: LightConfig::load_checked failed: {:?}", e);
-        ProgramError::InvalidAccountData
-    })?;
-
-    // Validate rent_sponsor matches config
-    let _ = light_config
-        .validate_rent_sponsor(rent_sponsor)
-        .map_err(|e| {
-            solana_msg::msg!("compress: validate_rent_sponsor failed: {:?}", e);
-            e
-        })?;
-    // TODO: validate compression_authority matches config
-    // if *compression_authority.key != light_config.compression_authority {
-    //     return Err(ProgramError::InvalidAccountData);
-    // }
-
-    let system_accounts_offset_usize = params.system_accounts_offset as usize;
-    if system_accounts_offset_usize > remaining_accounts.len() {
-        solana_msg::msg!(
-            "compress: system_accounts_offset {} > remaining_accounts {}",
-            system_accounts_offset_usize,
-            remaining_accounts.len()
-        );
-        return Err(ProgramError::InvalidInstructionData);
-    }
-
-    let cpi_accounts = CpiAccounts::new(
-        fee_payer,
-        &remaining_accounts[system_accounts_offset_usize..],
-        cpi_signer,
-    );
+    let cpi_accounts = CpiAccounts::new(fee_payer, system_accounts, cpi_signer);
 
     // Build context struct with all needed data (includes internal vec)
     let mut compress_ctx = CompressCtx {
@@ -172,24 +125,16 @@ pub fn process_compress_pda_accounts_idempotent<'info>(
     };
 
     // PDA accounts at end of remaining_accounts
-    let pda_accounts_start = remaining_accounts
-        .len()
-        .checked_sub(params.compressed_accounts.len())
-        .ok_or_else(|| {
-            solana_msg::msg!("compress: pda_accounts_start underflow");
-            ProgramError::InvalidInstructionData
-        })?;
-    let pda_accounts = &remaining_accounts[pda_accounts_start..];
+    let pda_accounts = crate::interface::validation::extract_tail_accounts(
+        remaining_accounts,
+        params.compressed_accounts.len(),
+    )?;
 
     for (i, account_data) in params.compressed_accounts.iter().enumerate() {
         let pda_account = &pda_accounts[i];
 
         // Skip empty accounts or accounts not owned by this program
-        if pda_account.data_is_empty() {
-            continue;
-        }
-
-        if pda_account.owner != program_id {
+        if crate::interface::validation::should_skip_compression(pda_account, program_id) {
             continue;
         }
 

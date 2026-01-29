@@ -4,6 +4,7 @@ pub mod compression_info;
 pub mod config;
 pub mod finalize;
 pub mod traits;
+pub mod validation;
 
 // --- anchor-feature-gated modules (these depend on AnchorSerialize/AnchorDeserialize) ---
 #[cfg(feature = "anchor")]
@@ -61,7 +62,9 @@ pub use decompress_idempotent::create_pda_account;
 pub use decompress_runtime::{HasTokenVariant, PdaSeedDerivation};
 pub use finalize::{LightFinalize, LightPreInit};
 #[cfg(feature = "anchor")]
-pub use init::{prepare_compressed_account_on_init, reimburse_rent};
+pub use init::{
+    prepare_compressed_account_on_init, prepare_compressed_account_on_init_checked, reimburse_rent,
+};
 pub use light_compressible::{rent, CreateAccountsProof};
 #[cfg(feature = "anchor")]
 pub use traits::{

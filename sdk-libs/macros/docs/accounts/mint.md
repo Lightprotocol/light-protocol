@@ -1,297 +1,370 @@
-# Compressed Mint Creation with `#[light_account(init, mint::...)]`
+# Compressed Mint Lifecycle
 
-## Overview
-
-Compressed mint creation uses `#[light_account(init, mint::...)]` to create compressed mints with automatic address registration and optional TokenMetadata extension for embedded metadata (name, symbol, URI).
-
-The mint address is derived from a signer AccountInfo using `find_mint_address()`. Tree info is automatically fetched from `CreateAccountsProof` in the instruction parameters.
-
-**Source**: `sdk-libs/macros/src/light_pdas/accounts/mint.rs`
-
----
-
-## Required Parameters
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `mint::signer` | Field reference | AccountInfo that seeds the mint PDA. The mint address is derived from this signer using `find_mint_address()`. |
-| `mint::authority` | Field reference | Mint authority. Either a transaction signer or a PDA (if `mint::authority_seeds` provided). |
-| `mint::decimals` | Expression | Token decimals (e.g., `9`). |
-| `mint::seeds` | Slice expression | Base PDA signer seeds for `mint_signer` (WITHOUT bump - bump is auto-derived or provided via `mint::bump`). |
-
----
-
-## Optional Parameters
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `mint::bump` | Expression | Auto-derived | Bump for mint_signer PDA. If omitted, derived using `find_program_address`. |
-| `mint::freeze_authority` | Field reference | None | Optional freeze authority field. |
-| `mint::authority_seeds` | Slice expression | None | PDA seeds if authority is a PDA (without bump). |
-| `mint::authority_bump` | Expression | Auto-derived | Bump for authority_seeds. |
-| `mint::rent_payment` | Expression | `16u8` | Decompression rent payment epochs. |
-| `mint::write_top_up` | Expression | `766u32` | Decompression write top-up lamports. |
-
----
-
-## TokenMetadata Extension Parameters
-
-The TokenMetadata extension allows embedding metadata directly in the compressed mint. This follows an **all-or-nothing rule**: `name`, `symbol`, and `uri` must ALL be specified together, or none at all.
-
-### Core Metadata Fields
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `mint::name` | Expression | Token name. Must yield `Vec<u8>`. |
-| `mint::symbol` | Expression | Token symbol. Must yield `Vec<u8>`. |
-| `mint::uri` | Expression | Token URI. Must yield `Vec<u8>`. |
-
-### Optional Metadata Fields
-
-These require the core metadata fields (`name`, `symbol`, `uri`) to be present:
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `mint::update_authority` | Field reference | Metadata update authority field. |
-| `mint::additional_metadata` | Expression | Additional metadata key-value pairs. Must yield `Option<Vec<AdditionalMetadata>>`. |
-
----
-
-## Validation Rules
-
-1. **Required fields**: `mint::signer`, `mint::authority`, `mint::decimals`, `mint::seeds` must all be specified.
-
-2. **TokenMetadata all-or-nothing**: `name`, `symbol`, and `uri` must all be specified together, or none at all. Specifying only some causes a compile error.
-
-3. **Optional metadata requires core**: `update_authority` and `additional_metadata` require `name`, `symbol`, and `uri` to be present.
-
-4. **Authority signer check**: If `authority_seeds` is not provided, the authority must be a transaction signer. This is checked at runtime with `MissingRequiredSignature` error.
-
----
-
-## Infrastructure Requirements
-
-The macro auto-detects infrastructure fields by naming convention:
-
-| Field Type | Accepted Names |
-|------------|----------------|
-| Fee Payer | `fee_payer`, `payer`, `creator` |
-| Light Token Config | `light_token_config` |
-| Light Token Rent Sponsor | `light_token_rent_sponsor`, `rent_sponsor` |
-| Light Token Program | `light_token_program` |
-| Light Token CPI Authority | `light_token_cpi_authority` |
-
----
-
-## Examples
-
-### Basic Mint
-
-Creates a compressed mint with minimal configuration:
+## Usage
 
 ```rust
-pub const MINT_SEED: &[u8] = b"mint";
+#[derive(Accounts, LightAccounts)]
+```
 
+### Field Attribute
+
+```
+#[light_account(init, mint::signer = ..., mint::authority = ..., mint::decimals = ..., mint::seeds = ...)]
+```
+
+### Required Parameters
+
+| Parameter | Description |
+|-----------|-------------|
+| `mint::signer` | AccountInfo that seeds the mint PDA |
+| `mint::authority` | Mint authority (signer or PDA) |
+| `mint::decimals` | Token decimals |
+| `mint::seeds` | PDA signer seeds (without bump) |
+
+### Optional Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `mint::bump` | Auto-derived | Bump for mint_signer PDA |
+| `mint::freeze_authority` | None | Freeze authority field |
+| `mint::authority_seeds` | None | PDA seeds if authority is a PDA |
+| `mint::authority_bump` | Auto-derived | Bump for authority_seeds |
+| `mint::rent_payment` | `16u8` | Decompression rent epochs (~24h) |
+| `mint::write_top_up` | `766u32` | Write top-up lamports |
+
+### TokenMetadata Extension (all-or-nothing)
+
+| Parameter | Description |
+|-----------|-------------|
+| `mint::name` | Token name (`Vec<u8>`) |
+| `mint::symbol` | Token symbol (`Vec<u8>`) |
+| `mint::uri` | Token URI (`Vec<u8>`) |
+| `mint::update_authority` | Metadata update authority field |
+| `mint::additional_metadata` | Additional key-value pairs |
+
+### Infrastructure (auto-detected by name)
+
+```
+fee_payer                            # Pays tx fee
+light_token_config                   # Token program config
+light_token_rent_sponsor             # Funds rent-free creation
+light_token_cpi_authority            # CPI authority for signing
+light_token_program                  # CToken program
+system_program                       # System program
+```
+
+### Example
+
+```rust
 #[derive(Accounts, LightAccounts)]
 #[instruction(params: CreateMintParams)]
 pub struct CreateMint<'info> {
     #[account(mut)]
     pub fee_payer: Signer<'info>,
-
-    /// CHECK: Authority for the mint
     pub authority: Signer<'info>,
 
-    /// CHECK: Seeds the mint PDA
-    #[account(seeds = [MINT_SEED], bump)]
+    #[account(seeds = [b"mint"], bump)]
     pub mint_signer: AccountInfo<'info>,
 
     #[light_account(init,
         mint::signer = mint_signer,
         mint::authority = authority,
         mint::decimals = 6,
-        mint::seeds = &[MINT_SEED]
+        mint::seeds = &[b"mint"]
     )]
     pub mint: UncheckedAccount<'info>,
 
-    // Infrastructure accounts
-    #[account(address = COMPRESSIBLE_CONFIG)]
     pub light_token_config: AccountInfo<'info>,
-
-    #[account(mut, address = RENT_SPONSOR)]
+    #[account(mut)]
     pub light_token_rent_sponsor: AccountInfo<'info>,
-
     pub light_token_cpi_authority: AccountInfo<'info>,
     pub light_token_program: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
 }
 ```
 
-### Mint with PDA Authority
+---
 
-When the mint authority is a PDA rather than a signer:
+## Mint Derivation
+
+Mints are derived from a `mint_signer` pubkey:
 
 ```rust
-pub const MINT_SEED: &[u8] = b"mint";
-pub const AUTHORITY_SEED: &[u8] = b"authority";
-
-#[derive(Accounts, LightAccounts)]
-#[instruction(params: CreateMintParams)]
-pub struct CreateMintWithPdaAuthority<'info> {
-    #[account(mut)]
-    pub fee_payer: Signer<'info>,
-
-    /// CHECK: PDA authority for the mint
-    #[account(seeds = [AUTHORITY_SEED], bump)]
-    pub authority: AccountInfo<'info>,
-
-    /// CHECK: Seeds the mint PDA
-    #[account(seeds = [MINT_SEED], bump)]
-    pub mint_signer: AccountInfo<'info>,
-
-    #[light_account(init,
-        mint::signer = mint_signer,
-        mint::authority = authority,
-        mint::decimals = 9,
-        mint::seeds = &[MINT_SEED],
-        mint::authority_seeds = &[AUTHORITY_SEED],
-        mint::authority_bump = params.authority_bump
-    )]
-    pub mint: UncheckedAccount<'info>,
-
-    // Infrastructure accounts...
+pub fn find_mint_address(mint_seed: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &[COMPRESSED_MINT_SEED, mint_seed.as_ref()],
+        &LIGHT_TOKEN_PROGRAM_ID,
+    )
 }
 ```
 
-### Mint with TokenMetadata Extension
+**Key characteristics:**
+- Mint address derived from `mint_signer` pubkey
+- `COMPRESSED_MINT_SEED` is a constant prefix
+- Derived by light-token-program
 
-Creates a compressed mint with embedded metadata:
+---
+
+## Runtime
+
+State machine: **No Account -> Compressed+Decompressed -> Compressed <-> Decompressed**
+
+### Lifecycle Comparison
+
+| Aspect | PDA | Mint |
+|--------|-----|------|
+| State tracking | `CompressionInfo` embedded | `CompressionInfo` + `MintMetadata` |
+| Derivation | User-defined seeds | From `mint_signer` pubkey |
+| Creation | Compressed only OR decompressed | Both compressed AND decompressed |
+| Compress | Authority required | Permissionless (when rent expired) |
+| Decompress | Authority required | Authority required |
+
+---
+
+## 1. Init Phase (Creation)
+
+Creates **both** a compressed mint **and** a decompressed Mint Solana account in a single instruction.
+
+### Accounts Layout
+
+```
+[0] light_system_program   (readonly)
+[1] mint_seed              (signer)     - Seeds the mint PDA
+[2] authority              (signer)     - Mint authority
+[3] compressible_config    (readonly)   - Light token config
+[4] mint                   (writable)   - Mint PDA to create
+[5] rent_sponsor           (writable)   - Rent sponsor
+[6] fee_payer              (signer)     - Pays for creation
+[7..] system accounts                   - CPI accounts
+```
+
+### Checks
+
+| Check | Error |
+|-------|-------|
+| Mint signer is signer | `ProgramError::MissingRequiredSignature` |
+| Authority is signer (if no authority_seeds) | `ProgramError::MissingRequiredSignature` |
+| Config version valid | `TokenError::InvalidAccountData` |
+| Proof valid | `SystemProgramError::ProofVerificationFailed` |
+
+### State Changes
+
+- **On-chain**: Mint PDA created with `CompressionInfo`
+- **Off-chain**: Compressed mint registered with address
+- **Mint metadata**: `mint_decompressed = false` initially
+
+### CreateMintParams
 
 ```rust
-pub const SEED: &[u8] = b"mint";
-
-#[derive(Accounts, LightAccounts)]
-#[instruction(params: CreateMintWithMetadataParams)]
-pub struct CreateMintWithMetadata<'info> {
-    #[account(mut)]
-    pub fee_payer: Signer<'info>,
-
-    /// CHECK: Authority for the mint and metadata
-    pub authority: Signer<'info>,
-
-    /// CHECK: Seeds the mint PDA
-    #[account(seeds = [SEED, authority.key().as_ref()], bump)]
-    pub mint_signer: AccountInfo<'info>,
-
-    #[light_account(init,
-        mint::signer = mint_signer,
-        mint::authority = fee_payer,
-        mint::decimals = 9,
-        mint::seeds = &[SEED, self.authority.to_account_info().key.as_ref()],
-        mint::bump = params.mint_signer_bump,
-        mint::name = params.name.clone(),
-        mint::symbol = params.symbol.clone(),
-        mint::uri = params.uri.clone(),
-        mint::update_authority = authority,
-        mint::additional_metadata = params.additional_metadata.clone()
-    )]
-    pub mint: UncheckedAccount<'info>,
-
-    // Infrastructure accounts...
+pub struct CreateMintParams {
+    pub decimals: u8,
+    pub address_merkle_tree_root_index: u16,
+    pub mint_authority: Pubkey,
+    pub proof: CompressedProof,
+    pub compression_address: [u8; 32],
+    pub mint: Pubkey,
+    pub bump: u8,
+    pub freeze_authority: Option<Pubkey>,
+    pub extensions: Option<Vec<ExtensionInstructionData>>,
+    pub rent_payment: u8,      // Default: 16 (~24 hours)
+    pub write_top_up: u32,     // Default: 766 (~3 hours per write)
 }
 ```
 
-### Mint with Freeze Authority
+---
+
+## 2. Compress Phase
+
+Compresses and closes the Mint Solana account. **Permissionless** when `is_compressible()` returns true (rent expired).
+
+### Checks
+
+| Check | Error |
+|-------|-------|
+| Mint exists (unless idempotent) | `InvalidAccountData` |
+| `is_compressible()` returns true | `InvalidAccountData` |
+| Not combined with DecompressMint | `InvalidInstructionData` |
+
+### State Changes
+
+- **On-chain**: Mint PDA closed, lamports returned to `rent_sponsor`
+- **Off-chain**: Compressed mint state preserved
+- **Mint metadata**: `mint_decompressed = false`
+
+### CompressAndCloseMintAction
 
 ```rust
-#[light_account(init,
-    mint::signer = mint_signer,
-    mint::authority = authority,
-    mint::decimals = 6,
-    mint::seeds = &[b"mint"],
-    mint::freeze_authority = freeze_auth
-)]
-pub mint: UncheckedAccount<'info>,
+pub struct CompressAndCloseMintAction {
+    /// If non-zero, succeed silently when Mint doesn't exist
+    pub idempotent: u8,
+}
 ```
 
-### Mint with Custom Rent Settings
+**Idempotent mode**: Useful for foresters to handle already-compressed mints without failing.
+
+---
+
+## 3. Decompress Phase
+
+Creates an on-chain Mint PDA from compressed state. Requires authority signature.
+
+### Accounts Layout
+
+```
+[0] light_system_program              (readonly)
+[1] authority                         (signer)   - Mint authority
+[2] compressible_config               (readonly)
+[3] mint                              (writable) - Mint PDA to create
+[4] rent_sponsor                      (writable)
+[5] fee_payer                         (signer)
+[6] cpi_authority_pda                 (readonly) - CPI infrastructure
+[7] registered_program_pda            (readonly)
+[8] account_compression_authority     (readonly)
+[9] account_compression_program       (readonly)
+[10] system_program                   (readonly)
+[11] output_queue                     (writable)
+[12] state_tree                       (readonly)
+[13] input_queue                      (readonly)
+```
+
+Note: `mint_seed` is not included for decompress (only needed for create/init).
+
+### Checks
+
+| Check | Error |
+|-------|-------|
+| Compressed mint proof valid | `SystemProgramError::ProofVerificationFailed` |
+| Authority matches compressed mint authority | `TokenError::InvalidAccountData` |
+| `rent_payment >= 2` | `ProgramError::InvalidInstructionData` |
+
+### State Changes
+
+- **On-chain**: Mint PDA created/updated
+- **Off-chain**: Compressed mint updated with `mint_decompressed = true`
+
+### DecompressMintAction
 
 ```rust
-#[light_account(init,
-    mint::signer = mint_signer,
-    mint::authority = authority,
-    mint::decimals = 6,
-    mint::seeds = &[b"mint"],
-    mint::rent_payment = 32u8,       // Custom rent payment epochs
-    mint::write_top_up = 1000u32     // Custom write top-up lamports
-)]
-pub mint: UncheckedAccount<'info>,
+pub struct DecompressMintAction {
+    pub rent_payment: u8,    // Epochs (must be >= 2)
+    pub write_top_up: u32,   // Lamports for future writes
+}
 ```
 
 ---
 
-## Generated Code
-
-The macro generates code that:
-
-1. **Derives the mint PDA** using `light_token::instruction::find_mint_address()` from the mint_signer key
-2. **Builds signer seeds** with the bump appended (auto-derived or provided)
-3. **Constructs `SingleMintParams`** with all mint configuration
-4. **Builds `TokenMetadataInstructionData`** if metadata fields are provided
-5. **Invokes `CreateMintsCpi`** via `light_token::compressible::invoke_create_mints()`
-
-### Key Code Flow
+## 4. Mint Data Structure
 
 ```rust
-// 1. Get mint signer key and derive mint address
-let signer_key = *self.mint_signer.to_account_info().key;
-let (mint_pda, mint_bump) = light_token::instruction::find_mint_address(&signer_key);
+pub struct Mint {
+    pub base: BaseMint,
+    pub metadata: MintMetadata,
+    pub reserved: [u8; 16],              // T22 layout compatibility
+    pub account_type: u8,                // ACCOUNT_TYPE_MINT = 1
+    pub compression: CompressionInfo,
+    pub extensions: Option<Vec<ExtensionStruct>>,
+}
 
-// 2. Build signer seeds with bump
-let mint_seeds: &[&[u8]] = &[MINT_SEED];
-let mint_signer_bump = params.mint_signer_bump;  // or auto-derived
-let mut mint_seeds_with_bump = mint_seeds.to_vec();
-mint_seeds_with_bump.push(&[mint_signer_bump]);
+pub struct BaseMint {
+    pub mint_authority: Option<Pubkey>,
+    pub supply: u64,
+    pub decimals: u8,
+    pub is_initialized: bool,
+    pub freeze_authority: Option<Pubkey>,
+}
 
-// 3. Build SingleMintParams
-let mint_param = SingleMintParams {
-    decimals: 9,
-    address_merkle_tree_root_index: tree_info.root_index,
-    mint_authority: *self.authority.key,
-    compression_address: mint_pda.to_bytes(),
-    mint: mint_pda,
-    bump: mint_bump,
-    freeze_authority: None,
-    mint_seed_pubkey: signer_key,
-    authority_seeds: None,  // or Some(...) if PDA authority
-    mint_signer_seeds: Some(&mint_seeds_with_bump[..]),
-    token_metadata: metadata.as_ref(),  // or None
-};
+pub struct MintMetadata {
+    pub version: u8,                     // Version 3 = ShaFlat
+    pub mint_decompressed: bool,         // true = on-chain is source of truth
+    pub mint: Pubkey,                    // PDA derived from mint_signer
+    pub mint_signer: [u8; 32],           // Signer used to derive mint
+    pub bump: u8,                        // Bump from PDA derivation
+}
+```
 
-// 4. Invoke CreateMintsCpi
-light_token::compressible::invoke_create_mints(
-    &[mint_signer_account_info],
-    &[mint_account_info],
-    CreateMintsParams { mints: &[mint_param], ... },
-    CreateMintsInfraAccounts { ... },
-    &cpi_accounts,
-)?;
+### Hash Computation
+
+```rust
+impl Mint {
+    pub fn hash(&self) -> Result<[u8; 32], TokenError> {
+        match self.metadata.version {
+            3 => Ok(Sha256BE::hash(self.try_to_vec()?.as_slice())?),
+            _ => Err(TokenError::InvalidTokenDataVersion),
+        }
+    }
+}
 ```
 
 ---
 
-## Source References
+## 5. Verification
 
-- **Mint code generation**: `sdk-libs/macros/src/light_pdas/accounts/mint.rs`
-- **Keyword definitions**: `sdk-libs/macros/src/light_pdas/light_account_keywords.rs` (`MINT_NAMESPACE_KEYS`)
-- **Attribute parsing**: `sdk-libs/macros/src/light_pdas/accounts/light_account.rs`
-- **Light Token types**: `light_token::instruction::SingleMintParams`, `CreateMintsParams`
+### Mint Decompressed
+
+1. Mint PDA exists at derived address: `find_mint_address(mint_signer)`
+2. `base.is_initialized == true`
+3. `account_type == ACCOUNT_TYPE_MINT` (1)
+4. `metadata.mint_decompressed == true`
+5. Owner is `LIGHT_TOKEN_PROGRAM_ID`
+
+### Mint Compressed
+
+1. On-chain Mint PDA closed (data empty)
+2. Compressed mint exists (query via RPC)
+3. `metadata.mint_decompressed == false`
+4. `metadata.version == 3`
+
+### Derivation Verification
+
+```rust
+use light_token::instruction::find_mint_address;
+
+let (expected_mint, expected_bump) = find_mint_address(&mint_signer);
+assert_eq!(mint_pubkey, expected_mint);
+```
+
+### Compressed Address Derivation
+
+```rust
+pub fn derive_mint_compressed_address(
+    mint_seed: &Pubkey,
+    address_tree_pubkey: &Pubkey,
+) -> [u8; 32] {
+    derive_address(
+        &find_mint_address(mint_seed).0.to_bytes(),
+        &address_tree_pubkey.to_bytes(),
+        &LIGHT_TOKEN_PROGRAM_ID,
+    )
+}
+```
 
 ---
 
-## Related Documentation
+## 6. Validation Rules
 
-- **`architecture.md`** - Overall `#[derive(LightAccounts)]` architecture and code generation
-- **`pda.md`** - Compressed PDAs
-- **`token.md`** - Token accounts (PDA-owned vaults)
-- **`associated_token.md`** - Associated token accounts
-- **`../light_program/`** - Program-level `#[light_program]` macro
+1. **Required fields**: `mint::signer`, `mint::authority`, `mint::decimals`, `mint::seeds`
+
+2. **TokenMetadata all-or-nothing**: `name`, `symbol`, `uri` must all be specified together
+
+3. **Optional metadata requires core**: `update_authority` and `additional_metadata` require core metadata fields
+
+4. **Authority signer check**: If `authority_seeds` not provided, authority must be a transaction signer
+
+---
+
+## Source Files
+
+| Component | Location |
+|-----------|----------|
+| Mint creation | `token-sdk/src/instruction/create_mint.rs` |
+| Mint decompression | `token-sdk/src/instruction/decompress_mint.rs` |
+| Mint structure | `token-interface/src/state/mint/compressed_mint.rs` |
+| Compress action | `token-interface/src/instructions/mint_action/compress_and_close_mint.rs` |
+| Derivation | `token-sdk/src/instruction/create_mint.rs:391-396` |
+
+## Related
+
+- [pda.md](./pda.md) - Compressed PDAs
+- [token.md](./token.md) - Token accounts (vaults)
+- [associated_token.md](./associated_token.md) - Associated token accounts
+- [architecture.md](./architecture.md) - LightAccounts overview

@@ -9,7 +9,10 @@ use solana_pubkey::Pubkey;
 use solana_system_interface::instruction as system_instruction;
 use solana_sysvar::{rent::Rent, Sysvar};
 
-use crate::{error::LightSdkError, AnchorDeserialize, AnchorSerialize};
+use crate::{
+    error::LightSdkError, light_account_checks::checks::check_signer, AnchorDeserialize,
+    AnchorSerialize,
+};
 
 pub const COMPRESSIBLE_CONFIG_SEED: &[u8] = b"compressible_config";
 
@@ -105,7 +108,7 @@ impl LightConfig {
                 self.rent_sponsor,
                 rent_sponsor.key
             );
-            return Err(crate::ProgramError::InvalidAccountData);
+            return Err(LightSdkError::InvalidRentSponsor.into());
         }
         Ok(self.rent_sponsor_bump)
     }
@@ -243,10 +246,9 @@ pub fn process_initialize_light_config<'info>(
     validate_address_space_no_duplicates(&address_space)?;
 
     // CHECK: signer
-    if !update_authority.is_signer {
+    check_signer(update_authority).inspect_err(|_| {
         msg!("Update authority must be signer for initial config creation");
-        return Err(LightSdkError::ConstraintViolation.into());
-    }
+    })?;
 
     // CHECK: pda derivation
     let (derived_pda, bump) = LightConfig::derive_pda(program_id, config_bump);
@@ -264,7 +266,7 @@ pub fn process_initialize_light_config<'info>(
             derived_rent_sponsor,
             rent_sponsor
         );
-        return Err(LightSdkError::ConstraintViolation.into());
+        return Err(LightSdkError::InvalidRentSponsor.into());
     }
 
     let rent = Rent::get().map_err(LightSdkError::from)?;
@@ -352,10 +354,9 @@ pub fn process_update_light_config<'info>(
     let mut config = LightConfig::load_checked(config_account, owner_program_id)?;
 
     // CHECK: signer
-    if !authority.is_signer {
+    check_signer(authority).inspect_err(|_| {
         msg!("Update authority must be signer");
-        return Err(LightSdkError::ConstraintViolation.into());
-    }
+    })?;
     // CHECK: authority
     if *authority.key != config.update_authority {
         msg!("Invalid update authority");
@@ -463,10 +464,9 @@ pub fn check_program_upgrade_authority(
     };
 
     // CHECK: upgrade authority is signer
-    if !authority.is_signer {
+    check_signer(authority).inspect_err(|_| {
         msg!("Authority must be signer");
-        return Err(LightSdkError::ConstraintViolation.into());
-    }
+    })?;
 
     // CHECK: upgrade authority is program's upgrade authority
     if *authority.key != upgrade_authority {

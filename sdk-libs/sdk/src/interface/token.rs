@@ -418,7 +418,10 @@ pub fn prepare_token_account_for_decompression<'info, const SEED_COUNT: usize, P
 where
     P: PackedLightAccountVariantTrait<SEED_COUNT>,
 {
-    let packed_accounts = ctx.cpi_accounts.packed_accounts();
+    let packed_accounts = ctx
+        .cpi_accounts
+        .packed_accounts()
+        .map_err(|_| ProgramError::NotEnoughAccountKeys)?;
     let mut token_data = packed.into_in_token_data(tree_info, output_queue_index)?;
 
     // Get TLV extension early to detect ATA

@@ -96,7 +96,7 @@ State machine: **No Account -> Decompressed <-> Compressed**
 | State tracking | `CompressionInfo` embedded | `CompressedOnly` extension |
 | Derivation | User-defined seeds | Fixed (owner, program_id, mint) |
 | Creation signer | Program PDA | Light Token Program |
-| Compress/Decompress | Separate CPI | Transfer2 instruction |
+| Compress/Decompress | Separate compress/decompress CPI | Transfer2 instruction |
 
 ---
 
@@ -132,13 +132,13 @@ State machine: **No Account -> Decompressed <-> Compressed**
 
 ## 2. Compress Phase
 
-ATAs are compressed via Transfer2 instruction.
+ATAs are compressed via Transfer2 instruction (compress variant).
 
 ### Checks
 
 | Check | Error |
 |-------|-------|
-| ATA owner matches signer | `ConstraintOwner` |
+| ATA owner matches signer | `InvalidAccountData` |
 | Has CompressedOnly extension | `InvalidAccountData` |
 | is_ata flag set | `InvalidAccountData` |
 
@@ -191,7 +191,7 @@ pub struct Token {
     pub is_native: Option<u64>,
     pub delegated_amount: u64,
     pub close_authority: Option<Pubkey>,
-    pub account_type: u8,       // ShaFlat = 3
+    pub account_type: u8,       // ACCOUNT_TYPE_TOKEN_ACCOUNT = 2
     pub extensions: Option<Vec<ExtensionStruct>>,
 }
 

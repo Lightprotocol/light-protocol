@@ -12,7 +12,10 @@ use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 use solana_sysvar::{rent::Rent, Sysvar};
 
-use crate::{compressed_account::CompressedAccountInfo, instruction::PackedAddressTreeInfo};
+use crate::{
+    compressed_account::CompressedAccountInfo, error::LightSdkError,
+    instruction::PackedAddressTreeInfo, light_account_checks::checks::check_mut,
+};
 
 /// Prepare a compressed account for a PDA during initialization.
 ///
@@ -88,6 +91,66 @@ pub fn prepare_compressed_account_on_init(
     Ok(())
 }
 
+/// Safe variant that validates PDA derivation before preparing compressed account.
+///
+/// # Arguments
+/// * `pda_pubkey` - The PDA's pubkey (used as address seed and data)
+/// * `pda_seeds` - Seeds used to derive the PDA (without bump)
+/// * `pda_bump` - The bump seed for the PDA
+/// * `address_tree_pubkey` - The address Merkle tree pubkey
+/// * `address_tree_info` - Packed address tree info from CreateAccountsProof
+/// * `output_tree_index` - Output state tree index
+/// * `assigned_account_index` - Index in the accounts array
+/// * `program_id` - The program ID (owner of the compressed account)
+/// * `new_address_params` - Vector to push new address params into
+/// * `account_infos` - Vector to push compressed account info into
+#[inline(never)]
+#[allow(clippy::too_many_arguments)]
+pub fn prepare_compressed_account_on_init_checked(
+    pda_pubkey: &Pubkey,
+    pda_seeds: &[&[u8]],
+    pda_bump: u8,
+    address_tree_pubkey: &Pubkey,
+    address_tree_info: &PackedAddressTreeInfo,
+    output_tree_index: u8,
+    assigned_account_index: u8,
+    program_id: &Pubkey,
+    new_address_params: &mut Vec<NewAddressParamsAssignedPacked>,
+    account_infos: &mut Vec<CompressedAccountInfo>,
+) -> Result<(), ProgramError> {
+    // Validate PDA derivation
+    let bump_slice = [pda_bump];
+    let seeds_with_bump: Vec<&[u8]> = pda_seeds
+        .iter()
+        .copied()
+        .chain(std::iter::once(bump_slice.as_slice()))
+        .collect();
+
+    let expected_pda = Pubkey::create_program_address(&seeds_with_bump, program_id)
+        .map_err(|_| ProgramError::InvalidSeeds)?;
+
+    if pda_pubkey != &expected_pda {
+        solana_msg::msg!(
+            "PDA key mismatch: expected {:?}, got {:?}",
+            expected_pda,
+            pda_pubkey
+        );
+        return Err(ProgramError::InvalidSeeds);
+    }
+
+    prepare_compressed_account_on_init(
+        pda_pubkey,
+        address_tree_pubkey,
+        address_tree_info,
+        output_tree_index,
+        assigned_account_index,
+        program_id,
+        new_address_params,
+        account_infos,
+    )
+    .map_err(|e| LightSdkError::from(e).into())
+}
+
 /// Reimburse the fee payer for rent paid during PDA initialization.
 ///
 /// When using Anchor's `#[account(init)]` with `#[light_account(init)]`, the fee_payer
@@ -129,8 +192,17 @@ pub fn reimburse_rent<'info>(
 
     // Verify the rent sponsor account matches expected PDA
     if rent_sponsor.key != &expected_rent_sponsor {
-        return Err(ProgramError::InvalidSeeds);
+        solana_msg::msg!(
+            "rent_sponsor mismatch: expected {:?}, got {:?}",
+            expected_rent_sponsor,
+            rent_sponsor.key
+        );
+        return Err(LightSdkError::InvalidRentSponsor.into());
     }
+
+    // Validate accounts are writable for transfer
+    check_mut(rent_sponsor).map_err(ProgramError::from)?;
+    check_mut(fee_payer).map_err(ProgramError::from)?;
 
     // Transfer from rent sponsor to fee payer
     let transfer_ix = solana_system_interface::instruction::transfer(

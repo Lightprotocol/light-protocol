@@ -119,6 +119,8 @@ pub enum LightSdkError {
     TokenPrepareCalled,
     #[error("Cannot access compression_info on zero_copy unpacked variant (stores raw bytes)")]
     ZeroCopyUnpackedVariant,
+    #[error("Rent sponsor account does not match the expected PDA from config")]
+    InvalidRentSponsor,
 }
 
 impl From<LightSdkError> for ProgramError {
@@ -214,6 +216,7 @@ impl From<LightSdkError> for u32 {
             LightSdkError::UnexpectedUnpackedVariant => 16047,
             LightSdkError::TokenPrepareCalled => 16048,
             LightSdkError::ZeroCopyUnpackedVariant => 16049,
+            LightSdkError::InvalidRentSponsor => 16050,
         }
     }
 }

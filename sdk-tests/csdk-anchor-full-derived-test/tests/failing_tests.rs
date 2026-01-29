@@ -208,8 +208,8 @@ async fn test_pda_wrong_rent_sponsor() {
         .create_and_send_transaction(&decompress_instructions, &ctx.payer.pubkey(), &[&ctx.payer])
         .await;
 
-    // Should fail with InvalidAccountData (3)
-    assert_rpc_error(result, 0, 3).unwrap();
+    // Should fail with InvalidRentSponsor (16050)
+    assert_rpc_error(result, 0, 16050).unwrap();
 }
 
 /// Test: Double decompression should be a noop (idempotent).
@@ -476,8 +476,8 @@ async fn test_missing_system_accounts() {
         .create_and_send_transaction(&decompress_instructions, &ctx.payer.pubkey(), &[&ctx.payer])
         .await;
 
-    // Should fail with CpiAccountsMissing (16031 = 16000 + 31)
-    assert_rpc_error(result, 0, 16031).unwrap();
+    // Should fail with NotEnoughAccountKeys (11) - gracefully handled missing accounts
+    assert_rpc_error(result, 0, 11).unwrap();
 }
 
 /// Test: Wrong PDA account (mismatch between seeds and account) should fail.
@@ -519,9 +519,9 @@ async fn test_pda_account_mismatch() {
         .create_and_send_transaction(&decompress_instructions, &ctx.payer.pubkey(), &[&ctx.payer])
         .await;
 
-    // Should fail with PrivilegeEscalation (19) - trying to sign with seeds that
-    // don't derive to the given address
-    assert_rpc_error(result, 0, 19).unwrap();
+    // Should fail with InvalidSeeds (14) - PDA derivation validation catches
+    // the mismatch before attempting CPI
+    assert_rpc_error(result, 0, 14).unwrap();
 }
 
 /// Test: Fee payer not a signer should fail with MissingRequiredSignature (8).
