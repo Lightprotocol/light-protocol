@@ -97,22 +97,44 @@ impl From<MetaExpr> for Expr {
 
 /// Check if an identifier string is a constant (SCREAMING_SNAKE_CASE).
 ///
-/// Returns true if the string is non-empty and all characters are uppercase letters,
-/// underscores, or ASCII digits.
+/// Returns true if:
+/// - Non-empty
+/// - First character is an uppercase letter OR underscore followed by uppercase
+/// - All characters are uppercase letters, underscores, or ASCII digits
 ///
 /// # Examples
 /// ```ignore
 /// assert!(is_constant_identifier("MY_CONSTANT"));
 /// assert!(is_constant_identifier("SEED_123"));
+/// assert!(is_constant_identifier("_UNDERSCORE_CONST")); // underscore-prefixed constant
 /// assert!(!is_constant_identifier("myVariable"));
 /// assert!(!is_constant_identifier(""));
+/// assert!(!is_constant_identifier("0ABC")); // cannot start with digit
+/// assert!(!is_constant_identifier("_lowercase")); // underscore + lowercase is not a constant
 /// ```
 #[inline]
 pub fn is_constant_identifier(ident: &str) -> bool {
-    !ident.is_empty()
-        && ident
-            .chars()
-            .all(|c| c.is_uppercase() || c == '_' || c.is_ascii_digit())
+    if ident.is_empty() {
+        return false;
+    }
+
+    let mut chars = ident.chars();
+    let first = chars.next().unwrap();
+
+    // Check first character: must be uppercase OR underscore
+    if first == '_' {
+        // Underscore-prefixed constant: next char must be uppercase
+        // e.g., _UNDERSCORE_CONST
+        match chars.next() {
+            Some(c) if c.is_uppercase() => {}
+            _ => return false, // Just "_" or "_lowercase" is not a constant
+        }
+    } else if !first.is_uppercase() {
+        return false;
+    }
+
+    // All remaining characters must be uppercase, underscore, or digit
+    chars.all(|c| c.is_uppercase() || c == '_' || c.is_ascii_digit())
 }
 
 /// Check if an expression is a path starting with the given base identifier.
@@ -153,14 +175,25 @@ mod tests {
 
     #[test]
     fn test_is_constant_identifier() {
+        // Standard SCREAMING_SNAKE_CASE
         assert!(is_constant_identifier("MY_CONSTANT"));
         assert!(is_constant_identifier("SEED"));
         assert!(is_constant_identifier("SEED_123"));
         assert!(is_constant_identifier("A"));
+
+        // Underscore-prefixed constants (still SCREAMING_SNAKE_CASE after the underscore)
+        assert!(is_constant_identifier("_UNDERSCORE_CONST"));
+        assert!(is_constant_identifier("_A"));
+        assert!(is_constant_identifier("_SEED_PREFIX"));
+
+        // Not constants
         assert!(!is_constant_identifier("myVariable"));
         assert!(!is_constant_identifier("my_variable"));
         assert!(!is_constant_identifier("MyConstant"));
         assert!(!is_constant_identifier(""));
+        assert!(!is_constant_identifier("_")); // Just underscore
+        assert!(!is_constant_identifier("_lowercase")); // Underscore + lowercase
+        assert!(!is_constant_identifier("_mixedCase")); // Underscore + mixed case
     }
 
     #[test]

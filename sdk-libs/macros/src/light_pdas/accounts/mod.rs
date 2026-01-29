@@ -15,7 +15,7 @@
 //! - `derive.rs` - Orchestration layer that wires everything together
 
 mod builder;
-mod derive;
+pub(crate) mod derive;
 pub(crate) mod light_account;
 pub(crate) mod mint;
 pub(crate) mod parse;

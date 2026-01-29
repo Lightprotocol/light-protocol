@@ -26,7 +26,7 @@
 //! ```
 
 pub(crate) mod anchor_extraction;
-mod classification;
+pub(crate) mod classification;
 mod data_fields;
 mod extract;
 mod instruction_args;

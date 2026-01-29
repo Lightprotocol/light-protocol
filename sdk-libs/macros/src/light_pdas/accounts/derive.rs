@@ -38,7 +38,7 @@ use super::{builder::LightAccountsBuilder, variant::generate_variants};
 use crate::light_pdas::seeds::extract_seed_specs;
 
 /// Main orchestration - shows the high-level flow clearly.
-pub(super) fn derive_light_accounts(input: &DeriveInput) -> Result<TokenStream, syn::Error> {
+pub(crate) fn derive_light_accounts(input: &DeriveInput) -> Result<TokenStream, syn::Error> {
     let builder = LightAccountsBuilder::parse(input)?;
     builder.validate()?;
 

@@ -14,7 +14,7 @@ mod tests {
     use syn::parse_str;
 
     use crate::light_pdas::{
-        account::seed_extraction::{classify_seed_expr, ClassifiedSeed, InstructionArgSet},
+        seeds::{classification::classify_seed_expr, ClassifiedSeed, InstructionArgSet},
         shared_utils::is_constant_identifier,
     };
 
@@ -27,11 +27,17 @@ mod tests {
         matches!(
             (a, b),
             (ClassifiedSeed::Literal(_), ClassifiedSeed::Literal(_))
-                | (ClassifiedSeed::Constant(_), ClassifiedSeed::Constant(_))
-                | (ClassifiedSeed::CtxAccount(_), ClassifiedSeed::CtxAccount(_))
                 | (
-                    ClassifiedSeed::DataField { .. },
-                    ClassifiedSeed::DataField { .. }
+                    ClassifiedSeed::Constant { .. },
+                    ClassifiedSeed::Constant { .. }
+                )
+                | (
+                    ClassifiedSeed::CtxRooted { .. },
+                    ClassifiedSeed::CtxRooted { .. }
+                )
+                | (
+                    ClassifiedSeed::DataRooted { .. },
+                    ClassifiedSeed::DataRooted { .. }
                 )
                 | (
                     ClassifiedSeed::FunctionCall { .. },
@@ -142,7 +148,7 @@ mod tests {
 
                 if let Ok(classified) = result {
                     prop_assert!(
-                        matches!(classified, ClassifiedSeed::Constant(_)),
+                        matches!(classified, ClassifiedSeed::Constant { .. }),
                         "Uppercase identifier '{}' should be Constant, got {:?}",
                         name,
                         classified
@@ -163,7 +169,7 @@ mod tests {
 
                 if let Ok(classified) = result {
                     prop_assert!(
-                        !matches!(classified, ClassifiedSeed::Constant(_)),
+                        !matches!(classified, ClassifiedSeed::Constant { .. }),
                         "Lowercase identifier '{}' should NOT be Constant, got {:?}",
                         name,
                         classified
@@ -184,7 +190,7 @@ mod tests {
 
                 if let Ok(classified) = result {
                     prop_assert!(
-                        !matches!(classified, ClassifiedSeed::Constant(_)),
+                        !matches!(classified, ClassifiedSeed::Constant { .. }),
                         "Mixed-case identifier '{}' should NOT be Constant",
                         name
                     );
@@ -198,9 +204,9 @@ mod tests {
     // ========================================================================
 
     proptest! {
-        /// An identifier that IS in instruction_args should become DataField.
+        /// An identifier that IS in instruction_args should become DataRooted.
         #[test]
-        fn instruction_arg_becomes_data_field(name in arb_lowercase_ident()) {
+        fn instruction_arg_becomes_data_rooted(name in arb_lowercase_ident()) {
             prop_assume!(!name.is_empty());
             prop_assume!(!is_constant_identifier(&name));
 
@@ -210,8 +216,8 @@ mod tests {
 
                 if let Ok(classified) = result {
                     prop_assert!(
-                        matches!(classified, ClassifiedSeed::DataField { .. }),
-                        "Identifier '{}' in instruction_args should be DataField, got {:?}",
+                        matches!(classified, ClassifiedSeed::DataRooted { .. }),
+                        "Identifier '{}' in instruction_args should be DataRooted, got {:?}",
                         name,
                         classified
                     );
@@ -219,9 +225,9 @@ mod tests {
             }
         }
 
-        /// An identifier that is NOT in instruction_args should become CtxAccount.
+        /// An identifier that is NOT in instruction_args should become CtxRooted.
         #[test]
-        fn non_instruction_arg_becomes_ctx_account(name in arb_lowercase_ident()) {
+        fn non_instruction_arg_becomes_ctx_rooted(name in arb_lowercase_ident()) {
             prop_assume!(!name.is_empty());
             prop_assume!(!is_constant_identifier(&name));
 
@@ -231,8 +237,8 @@ mod tests {
 
                 if let Ok(classified) = result {
                     prop_assert!(
-                        matches!(classified, ClassifiedSeed::CtxAccount(_)),
-                        "Identifier '{}' NOT in instruction_args should be CtxAccount, got {:?}",
+                        matches!(classified, ClassifiedSeed::CtxRooted { .. }),
+                        "Identifier '{}' NOT in instruction_args should be CtxRooted, got {:?}",
                         name,
                         classified
                     );
@@ -240,7 +246,7 @@ mod tests {
             }
         }
 
-        /// Field access on instruction arg should extract the field name.
+        /// Field access on instruction arg should result in DataRooted.
         #[test]
         fn instruction_arg_field_access(
             param_name in arb_lowercase_ident(),
@@ -254,11 +260,11 @@ mod tests {
                 let args = InstructionArgSet::from_names(vec![param_name.clone()]);
                 let result = classify_seed_expr(&expr, &args);
 
-                if let Ok(ClassifiedSeed::DataField { field_name: extracted, .. }) = result {
+                if let Ok(ClassifiedSeed::DataRooted { root, .. }) = result {
                     prop_assert_eq!(
-                        extracted.to_string(),
-                        field_name,
-                        "Field name should be extracted correctly"
+                        root.to_string(),
+                        param_name,
+                        "Root should be extracted correctly"
                     );
                 }
             }
@@ -401,9 +407,9 @@ mod tests {
     // ========================================================================
 
     proptest! {
-        /// params.field_name.as_ref() should extract the correct field name.
+        /// params.field_name.as_ref() should be classified as DataRooted.
         #[test]
-        fn extracts_correct_field_name(field in arb_lowercase_ident()) {
+        fn extracts_data_rooted_for_params_field(field in arb_lowercase_ident()) {
             prop_assume!(!field.is_empty());
 
             let expr_str = format!("params.{}.as_ref()", field);
@@ -411,21 +417,21 @@ mod tests {
                 let args = InstructionArgSet::from_names(vec!["params".to_string()]);
                 let result = classify_seed_expr(&expr, &args);
 
-                if let Ok(ClassifiedSeed::DataField { field_name, .. }) = result {
+                if let Ok(ClassifiedSeed::DataRooted { root, .. }) = result {
                     prop_assert_eq!(
-                        field_name.to_string(),
-                        field,
-                        "Field name should be extracted correctly"
+                        root.to_string(),
+                        "params",
+                        "Root should be 'params'"
                     );
                 } else {
-                    prop_assert!(false, "Expected DataField variant for params.{}.as_ref()", field);
+                    prop_assert!(false, "Expected DataRooted variant for params.{}.as_ref()", field);
                 }
             }
         }
 
-        /// Nested field access should extract the terminal field name.
+        /// Nested field access should be classified as DataRooted.
         #[test]
-        fn extracts_terminal_field_from_nested(
+        fn extracts_data_rooted_from_nested(
             middle in arb_lowercase_ident(),
             terminal in arb_lowercase_ident()
         ) {
@@ -437,11 +443,11 @@ mod tests {
                 let args = InstructionArgSet::from_names(vec!["params".to_string()]);
                 let result = classify_seed_expr(&expr, &args);
 
-                if let Ok(ClassifiedSeed::DataField { field_name, .. }) = result {
+                if let Ok(ClassifiedSeed::DataRooted { root, .. }) = result {
                     prop_assert_eq!(
-                        field_name.to_string(),
-                        terminal,
-                        "Terminal field name should be extracted from nested access"
+                        root.to_string(),
+                        "params",
+                        "Root should be 'params' for nested access"
                     );
                 }
             }
@@ -453,9 +459,9 @@ mod tests {
     // ========================================================================
 
     proptest! {
-        /// to_le_bytes() conversion should be captured in the result.
+        /// to_le_bytes() should result in DataRooted classification.
         #[test]
-        fn captures_to_le_bytes_conversion(field in arb_lowercase_ident()) {
+        fn to_le_bytes_results_in_data_rooted(field in arb_lowercase_ident()) {
             prop_assume!(!field.is_empty());
 
             let expr_str = format!("params.{}.to_le_bytes().as_ref()", field);
@@ -463,30 +469,21 @@ mod tests {
                 let args = InstructionArgSet::from_names(vec!["params".to_string()]);
                 let result = classify_seed_expr(&expr, &args);
 
-                if let Ok(ClassifiedSeed::DataField { conversion, field_name, .. }) = result {
+                if let Ok(ClassifiedSeed::DataRooted { root, .. }) = result {
                     prop_assert_eq!(
-                        field_name.to_string(),
-                        field,
-                        "Field name should match"
-                    );
-                    prop_assert!(
-                        conversion.is_some(),
-                        "Conversion should be captured"
-                    );
-                    prop_assert_eq!(
-                        conversion.map(|c| c.to_string()),
-                        Some("to_le_bytes".to_string()),
-                        "Conversion should be to_le_bytes"
+                        root.to_string(),
+                        "params",
+                        "Root should be 'params'"
                     );
                 } else {
-                    prop_assert!(false, "Expected DataField variant");
+                    prop_assert!(false, "Expected DataRooted variant");
                 }
             }
         }
 
-        /// to_be_bytes() conversion should also be captured.
+        /// to_be_bytes() should also result in DataRooted.
         #[test]
-        fn captures_to_be_bytes_conversion(field in arb_lowercase_ident()) {
+        fn to_be_bytes_results_in_data_rooted(field in arb_lowercase_ident()) {
             prop_assume!(!field.is_empty());
 
             let expr_str = format!("params.{}.to_be_bytes().as_ref()", field);
@@ -494,19 +491,16 @@ mod tests {
                 let args = InstructionArgSet::from_names(vec!["params".to_string()]);
                 let result = classify_seed_expr(&expr, &args);
 
-                if let Ok(ClassifiedSeed::DataField { conversion, .. }) = result {
-                    prop_assert_eq!(
-                        conversion.map(|c| c.to_string()),
-                        Some("to_be_bytes".to_string()),
-                        "Conversion should be to_be_bytes"
-                    );
-                }
+                prop_assert!(
+                    matches!(result, Ok(ClassifiedSeed::DataRooted { .. })),
+                    "Expected DataRooted variant"
+                );
             }
         }
 
-        /// Bare instruction arg with to_le_bytes should capture conversion.
+        /// Bare instruction arg with to_le_bytes should be DataRooted.
         #[test]
-        fn bare_arg_captures_conversion(arg_name in arb_lowercase_ident()) {
+        fn bare_arg_to_le_bytes_is_data_rooted(arg_name in arb_lowercase_ident()) {
             prop_assume!(!arg_name.is_empty());
             prop_assume!(!is_constant_identifier(&arg_name));
 
@@ -515,16 +509,11 @@ mod tests {
                 let args = InstructionArgSet::from_names(vec![arg_name.clone()]);
                 let result = classify_seed_expr(&expr, &args);
 
-                if let Ok(ClassifiedSeed::DataField { field_name, conversion }) = result {
+                if let Ok(ClassifiedSeed::DataRooted { root, .. }) = result {
                     prop_assert_eq!(
-                        field_name.to_string(),
+                        root.to_string(),
                         arg_name,
-                        "Field name should be the arg name itself"
-                    );
-                    prop_assert_eq!(
-                        conversion.map(|c| c.to_string()),
-                        Some("to_le_bytes".to_string()),
-                        "Conversion should be captured"
+                        "Root should be the arg name itself"
                     );
                 }
             }
@@ -536,9 +525,9 @@ mod tests {
     // ========================================================================
 
     proptest! {
-        /// account.key().as_ref() should be classified as CtxAccount.
+        /// account.key().as_ref() should be classified as CtxRooted.
         #[test]
-        fn account_key_as_ref_is_ctx_account(account in arb_lowercase_ident()) {
+        fn account_key_as_ref_is_ctx_rooted(account in arb_lowercase_ident()) {
             prop_assume!(!account.is_empty());
             prop_assume!(!is_constant_identifier(&account));
 
@@ -549,8 +538,8 @@ mod tests {
 
                 if let Ok(classified) = result {
                     prop_assert!(
-                        matches!(classified, ClassifiedSeed::CtxAccount(ref ident) if *ident == account),
-                        "account.key().as_ref() should be CtxAccount({}), got {:?}",
+                        matches!(classified, ClassifiedSeed::CtxRooted { .. }),
+                        "account.key().as_ref() should be CtxRooted({}), got {:?}",
                         account,
                         classified
                     );
@@ -558,9 +547,9 @@ mod tests {
             }
         }
 
-        /// Account key on instruction arg field should be DataField.
+        /// Account key on instruction arg field should be DataRooted.
         #[test]
-        fn instruction_arg_key_is_data_field(
+        fn instruction_arg_key_is_data_rooted(
             param in arb_lowercase_ident(),
             field in arb_lowercase_ident()
         ) {
@@ -571,11 +560,11 @@ mod tests {
                 let args = InstructionArgSet::from_names(vec![param.clone()]);
                 let result = classify_seed_expr(&expr, &args);
 
-                if let Ok(ClassifiedSeed::DataField { field_name, .. }) = result {
+                if let Ok(ClassifiedSeed::DataRooted { root, .. }) = result {
                     prop_assert_eq!(
-                        field_name.to_string(),
-                        field,
-                        "Field name should be extracted from key() call on instruction arg"
+                        root.to_string(),
+                        param,
+                        "Root should be the param name for key() call on instruction arg"
                     );
                 }
             }
@@ -627,7 +616,7 @@ mod tests {
     // ========================================================================
 
     proptest! {
-        /// When a name is in instruction_args, it should always be DataField, not CtxAccount.
+        /// When a name is in instruction_args, it should always be DataRooted, not CtxRooted.
         /// This tests the precedence rule.
         #[test]
         fn instruction_arg_takes_precedence(name in arb_lowercase_ident()) {
@@ -635,23 +624,23 @@ mod tests {
             prop_assume!(!is_constant_identifier(&name));
 
             if let Ok(expr) = parse_str::<syn::Expr>(&name) {
-                // With empty args -> CtxAccount
+                // With empty args -> CtxRooted
                 let empty_args = InstructionArgSet::empty();
                 let without_arg = classify_seed_expr(&expr, &empty_args);
 
-                // With name in args -> DataField
+                // With name in args -> DataRooted
                 let with_args = InstructionArgSet::from_names(vec![name.clone()]);
                 let with_arg = classify_seed_expr(&expr, &with_args);
 
                 if let (Ok(without), Ok(with)) = (without_arg, with_arg) {
                     prop_assert!(
-                        matches!(without, ClassifiedSeed::CtxAccount(_)),
-                        "Without args, '{}' should be CtxAccount",
+                        matches!(without, ClassifiedSeed::CtxRooted { .. }),
+                        "Without args, '{}' should be CtxRooted",
                         name
                     );
                     prop_assert!(
-                        matches!(with, ClassifiedSeed::DataField { .. }),
-                        "With args, '{}' should be DataField",
+                        matches!(with, ClassifiedSeed::DataRooted { .. }),
+                        "With args, '{}' should be DataRooted",
                         name
                     );
                 }
@@ -664,11 +653,11 @@ mod tests {
     // ========================================================================
 
     proptest! {
-        /// `self.field` expressions should be classified as CtxAccount.
+        /// `self.field` expressions should be classified as CtxRooted.
         /// The `self` keyword refers to the struct, and field access on it
         /// should be treated as a context account reference.
         #[test]
-        fn self_field_is_ctx_account(field in arb_lowercase_ident()) {
+        fn self_field_is_ctx_rooted(field in arb_lowercase_ident()) {
             prop_assume!(!field.is_empty());
 
             let expr_str = format!("self.{}", field);
@@ -682,16 +671,16 @@ mod tests {
                     field
                 );
                 prop_assert!(
-                    matches!(result.unwrap(), ClassifiedSeed::CtxAccount(_)),
-                    "self.{} should be classified as CtxAccount",
+                    matches!(result.unwrap(), ClassifiedSeed::CtxRooted { .. }),
+                    "self.{} should be classified as CtxRooted",
                     field
                 );
             }
         }
 
-        /// `self.field.as_ref()` should be classified as CtxAccount.
+        /// `self.field.as_ref()` should be classified as CtxRooted.
         #[test]
-        fn self_field_as_ref_is_ctx_account(field in arb_lowercase_ident()) {
+        fn self_field_as_ref_is_ctx_rooted(field in arb_lowercase_ident()) {
             prop_assume!(!field.is_empty());
 
             let expr_str = format!("self.{}.as_ref()", field);
@@ -705,16 +694,16 @@ mod tests {
                     field
                 );
                 prop_assert!(
-                    matches!(result.unwrap(), ClassifiedSeed::CtxAccount(_)),
-                    "self.{}.as_ref() should be classified as CtxAccount",
+                    matches!(result.unwrap(), ClassifiedSeed::CtxRooted { .. }),
+                    "self.{}.as_ref() should be classified as CtxRooted",
                     field
                 );
             }
         }
 
-        /// `self.field.key()` should be classified as CtxAccount.
+        /// `self.field.key()` should be classified as CtxRooted.
         #[test]
-        fn self_field_key_is_ctx_account(field in arb_lowercase_ident()) {
+        fn self_field_key_is_ctx_rooted(field in arb_lowercase_ident()) {
             prop_assume!(!field.is_empty());
 
             let expr_str = format!("self.{}.key()", field);
@@ -728,8 +717,8 @@ mod tests {
                     field
                 );
                 prop_assert!(
-                    matches!(result.unwrap(), ClassifiedSeed::CtxAccount(_)),
-                    "self.{}.key() should be classified as CtxAccount",
+                    matches!(result.unwrap(), ClassifiedSeed::CtxRooted { .. }),
+                    "self.{}.key() should be classified as CtxRooted",
                     field
                 );
             }
@@ -751,7 +740,7 @@ mod tests {
                     constant
                 );
                 prop_assert!(
-                    matches!(result.unwrap(), ClassifiedSeed::Constant(_)),
+                    matches!(result.unwrap(), ClassifiedSeed::Constant { .. }),
                     "Self::{} should be classified as Constant",
                     constant
                 );
@@ -774,7 +763,7 @@ mod tests {
                     constant
                 );
                 prop_assert!(
-                    matches!(result.unwrap(), ClassifiedSeed::Constant(_)),
+                    matches!(result.unwrap(), ClassifiedSeed::Constant { .. }),
                     "crate::{} should be classified as Constant",
                     constant
                 );
@@ -800,7 +789,7 @@ mod tests {
                     module, constant
                 );
                 prop_assert!(
-                    matches!(result.unwrap(), ClassifiedSeed::Constant(_)),
+                    matches!(result.unwrap(), ClassifiedSeed::Constant { .. }),
                     "crate::{}::{} should be classified as Constant",
                     module, constant
                 );
@@ -823,7 +812,7 @@ mod tests {
                     constant
                 );
                 prop_assert!(
-                    matches!(result.unwrap(), ClassifiedSeed::Constant(_)),
+                    matches!(result.unwrap(), ClassifiedSeed::Constant { .. }),
                     "super::{} should be classified as Constant",
                     constant
                 );

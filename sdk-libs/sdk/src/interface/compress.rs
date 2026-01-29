@@ -12,8 +12,8 @@ use light_compressed_account::{
     compressed_account::PackedMerkleContext,
     instruction_data::with_account_info::{CompressedAccountInfo, InAccountInfo, OutAccountInfo},
 };
-use light_compressible::rent::AccountRentState;
-use light_hasher::{Hasher, Sha256};
+use light_compressible::{rent::AccountRentState, DECOMPRESSED_PDA_DISCRIMINATOR};
+use light_hasher::{sha256::Sha256BE, Hasher, Sha256};
 use light_sdk_types::{
     instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress, CpiSigner,
 };
@@ -33,8 +33,6 @@ use crate::{
     light_account_checks::account_iterator::AccountIterator,
     LightDiscriminator,
 };
-
-const DEFAULT_DATA_HASH: [u8; 32] = [0u8; 32];
 
 /// Parameters for compress_and_close instruction.
 /// Matches SDK's SaveAccountsData field order for compatibility.
@@ -313,10 +311,13 @@ where
     let mut output_data_hash = Sha256::hash(&data_bytes).map_err(|_| ProgramError::Custom(5))?;
     output_data_hash[0] = 0; // Zero first byte per protocol convention
 
-    // Build input account info (empty compressed account from init)
+    // Build input account info (placeholder compressed account from init)
+    // The init created a placeholder with DECOMPRESSED_PDA_DISCRIMINATOR and PDA pubkey as data
     let tree_info = compressed_account_meta.tree_info;
+    let input_data_hash =
+        Sha256BE::hash(&account_info.key.to_bytes()).map_err(|_| ProgramError::Custom(6))?;
     let input_account_info = InAccountInfo {
-        data_hash: DEFAULT_DATA_HASH,
+        data_hash: input_data_hash,
         lamports: 0,
         merkle_context: PackedMerkleContext {
             merkle_tree_pubkey_index: tree_info.merkle_tree_pubkey_index,
@@ -325,7 +326,7 @@ where
             prove_by_index: tree_info.prove_by_index,
         },
         root_index: compressed_account_meta.get_root_index().unwrap_or_default(),
-        discriminator: [0u8; 8],
+        discriminator: DECOMPRESSED_PDA_DISCRIMINATOR,
     };
 
     // Build output account info

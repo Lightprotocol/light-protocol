@@ -4,7 +4,7 @@
 
 use syn::{parse_quote, DeriveInput};
 
-use crate::light_pdas::account::light_compressible::derive_light_account;
+use crate::light_pdas::account::derive::derive_light_account;
 
 #[test]
 fn test_light_compressible_basic() {

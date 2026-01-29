@@ -1,10 +1,10 @@
 //! Unit tests for crate context parsing utilities.
 //!
-//! Extracted from `light_pdas/program/crate_context.rs`.
+//! Tests for `light_pdas/parsing/crate_context.rs`.
 
 use syn::ItemStruct;
 
-use crate::light_pdas::program::crate_context::has_derive_attribute;
+use crate::light_pdas::parsing::crate_context::has_derive_attribute;
 
 #[test]
 fn test_has_derive_attribute() {
