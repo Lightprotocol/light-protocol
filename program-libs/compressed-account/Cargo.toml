@@ -2,6 +2,7 @@
 name = "light-compressed-account"
 version = "0.9.0"
 description = "Compressed account struct and common utility functions used in Light Protocol."
+readme = "README.md"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
 edition = "2021"

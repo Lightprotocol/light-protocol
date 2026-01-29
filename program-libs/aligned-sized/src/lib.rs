@@ -6,7 +6,7 @@
 //! Future plans:
 //!
 //! * Ensuring that the struct is aligned, adding padding fields when
-//!   neccessary.
+//!   necessary.
 //!
 //! # Motivation
 //!

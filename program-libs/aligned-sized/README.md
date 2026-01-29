@@ -1,2 +1,27 @@
-# aligned-sized
-A macro which ensures the alignment and calculates the size of a struct
+<!-- cargo-rdme start -->
+
+**aligned-sized** is a library providing the `aligned_sized` macro, which:
+
+* Calculates a size of the given struct and provides a `LEN` constant with
+  that value.
+
+Future plans:
+
+* Ensuring that the struct is aligned, adding padding fields when
+  necessary.
+
+# Motivation
+
+Calculating the size of a struct is often a necessity when developing
+project in Rust, in particular:
+
+* [Solana](https://solana.com/) programs, also when using
+  [Anchor](https://www.anchor-lang.com/) framework.
+* [eBPF](https://ebpf.io/) programs written in [Aya](https://aya-rs.dev/).
+
+This library provides a macro which automatically calculates the size,
+also taking in account factors which make a straightforward use of
+`core::mem::size_of::<T>` for the whole struct impossible (discriminants,
+vectors etc.).
+
+<!-- cargo-rdme end -->
