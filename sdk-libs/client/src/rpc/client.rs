@@ -533,6 +533,8 @@ fn convert_account_interface(
                     RpcError::CustomError(format!("Failed to deserialize token data: {}", e))
                 })?;
 
+            let wallet_owner = token_data.owner;
+
             let compressed_account = CompressedAccount {
                 address: None,
                 data: Some(CompressedAccountData {
@@ -562,7 +564,7 @@ fn convert_account_interface(
             Ok(AccountInterface::cold_token(
                 indexer_ai.key,
                 compressed_token,
-                indexer_ai.account.owner,
+                wallet_owner,
             ))
         }
         Some(IndexerColdContext::Mint {
@@ -1341,9 +1343,25 @@ impl Rpc for LightClient {
             .await
             .map_err(|e| RpcError::CustomError(format!("Indexer error: {e}")))?;
 
-        let value = resp.value.items.into_iter().next().map(|token_acc| {
+        let items = resp.value.items;
+        if items.len() > 1 {
+            return Err(RpcError::CustomError(format!(
+                "Ambiguous lookup: found {} compressed token accounts for owner {} and mint {}. \
+                 Use get_compressed_token_accounts_by_owner for multiple accounts.",
+                items.len(),
+                owner,
+                mint
+            )));
+        }
+
+        let value = items.into_iter().next().map(|token_acc| {
+            let key = token_acc
+                .account
+                .address
+                .map(Pubkey::new_from_array)
+                .unwrap_or(*owner);
             TokenAccountInterface::cold(
-                *owner,
+                key,
                 token_acc,
                 *owner,
                 light_sdk::constants::LIGHT_TOKEN_PROGRAM_ID.into(),

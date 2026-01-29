@@ -429,7 +429,10 @@ impl ValidityProofWithContext {
                     .get(&value.merkle_trees[i])
                     .ok_or(IndexerError::MissingResult {
                         context: "conversion".into(),
-                        message: "expected value was None".into(),
+                        message: format!(
+                            "tree not found in QUEUE_TREE_MAPPING: {}",
+                            &value.merkle_trees[i]
+                        ),
                     })?;
 
                 Ok(AccountProofInputs {
