@@ -418,17 +418,6 @@ pub fn prepare_token_account_for_decompression<'info, const SEED_COUNT: usize, P
 where
     P: PackedLightAccountVariantTrait<SEED_COUNT>,
 {
-    // Return early for idempotency - check if account already has token data
-    // State byte at offset 108: 0=Uninitialized, 1=Initialized, 2=Frozen
-    const STATE_OFFSET: usize = 108;
-    if !token_account_info.data_is_empty()
-        && token_account_info.data_len() > STATE_OFFSET
-        && token_account_info.try_borrow_data()?[STATE_OFFSET] != 0
-    {
-        solana_msg::msg!("Token account is already decompressed");
-        return Ok(());
-    }
-
     let packed_accounts = ctx.cpi_accounts.packed_accounts();
     let mut token_data = packed.into_in_token_data(tree_info, output_queue_index)?;
 
@@ -458,6 +447,13 @@ where
 
     let fee_payer = ctx.cpi_accounts.fee_payer();
 
+    // Helper to check if token account is already initialized
+    // State byte at offset 108: 0=Uninitialized, 1=Initialized, 2=Frozen
+    const STATE_OFFSET: usize = 108;
+    let is_already_initialized = !token_account_info.data_is_empty()
+        && token_account_info.data_len() > STATE_OFFSET
+        && token_account_info.try_borrow_data()?[STATE_OFFSET] != 0;
+
     if let Some((ata_bump, wallet_owner_index)) = ata_info {
         // ATA path: use invoke() without signer seeds
         // Resolve wallet owner pubkey from packed index
@@ -467,6 +463,7 @@ where
             .key;
 
         // Idempotency check: only create ATA if it doesn't exist
+        // For ATAs, we still continue with decompression even if account exists
         if token_account_info.data_is_empty() {
             let instruction = build_create_ata_instruction(
                 wallet_owner_pubkey,
@@ -489,7 +486,13 @@ where
 
         // Don't extend token_seeds for ATAs (invoke, not invoke_signed)
     } else {
-        // Regular token account path: use invoke_signed with PDA seeds
+        // Regular token vault path: use invoke_signed with PDA seeds
+        // For regular vaults, if already initialized, skip BOTH creation AND decompression (full idempotency)
+        if is_already_initialized {
+            solana_msg::msg!("Token vault is already decompressed, skipping");
+            return Ok(());
+        }
+
         let bump = &[packed.bump()];
         let seeds = packed
             .seed_refs_with_bump(packed_accounts, bump)

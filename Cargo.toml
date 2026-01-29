@@ -274,8 +274,6 @@ governor = "0.8.0"
 rand = "0.8.5"
 
 [patch.crates-io]
-# Use local light-anchor-spl with idl-build inherent methods fix
-light-anchor-spl = { path = "/Users/ananas/dev/anchor/spl" }
 # Profiling logs and state is handled here
 solana-program-runtime = { git = "https://github.com/Lightprotocol/agave", rev = "3a9e4e0a4411df4d9961aaa7c9f190d3fa15bc21" }
 # Profiling syscalls are defined here

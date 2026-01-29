@@ -195,3 +195,112 @@ async fn test_d10_single_ata() {
     // Verify ATA exists on-chain
     shared::assert_onchain_exists(&mut ctx.rpc, &d10_single_ata, "d10_single_ata").await;
 }
+
+/// Tests idempotent ATA creation.
+/// Creating the same ATA twice should succeed (idempotent).
+#[tokio::test]
+async fn test_d10_single_ata_idempotent_creation() {
+    let mut ctx = D10TestContext::new().await;
+
+    // Setup mint
+    let (mint, _compression_addr, _atas, _mint_seed) = ctx.setup_mint().await;
+
+    // The ATA owner will be the payer
+    let ata_owner = ctx.payer.pubkey();
+
+    // Derive the ATA address
+    let (d10_single_ata, ata_bump) = light_token::instruction::derive_token_ata(&ata_owner, &mint);
+
+    // Get proof for first creation
+    let proof_result = get_create_accounts_proof(&ctx.rpc, &ctx.program_id, vec![])
+        .await
+        .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D10SingleAta {
+        fee_payer: ctx.payer.pubkey(),
+        d10_ata_mint: mint,
+        d10_ata_owner: ata_owner,
+        d10_single_ata,
+        light_token_compressible_config: LIGHT_TOKEN_CONFIG,
+        light_token_rent_sponsor: RENT_SPONSOR,
+        light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D10SingleAta {
+        params: D10SingleAtaParams {
+            create_accounts_proof: proof_result.create_accounts_proof.clone(),
+            ata_bump,
+        },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts.clone(),
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    // First creation should succeed
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("First D10SingleAta creation should succeed");
+
+    // Verify ATA exists on-chain
+    shared::assert_onchain_exists(&mut ctx.rpc, &d10_single_ata, "d10_single_ata").await;
+
+    // Get balance after first creation
+    let ata_account_1 = ctx.rpc.get_account(d10_single_ata).await.unwrap().unwrap();
+    let balance_after_first = ata_account_1.lamports;
+
+    // Get fresh proof for second creation
+    let proof_result_2 = get_create_accounts_proof(&ctx.rpc, &ctx.program_id, vec![])
+        .await
+        .unwrap();
+
+    let accounts_2 = csdk_anchor_full_derived_test::accounts::D10SingleAta {
+        fee_payer: ctx.payer.pubkey(),
+        d10_ata_mint: mint,
+        d10_ata_owner: ata_owner,
+        d10_single_ata,
+        light_token_compressible_config: LIGHT_TOKEN_CONFIG,
+        light_token_rent_sponsor: RENT_SPONSOR,
+        light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data_2 = csdk_anchor_full_derived_test::instruction::D10SingleAta {
+        params: D10SingleAtaParams {
+            create_accounts_proof: proof_result_2.create_accounts_proof,
+            ata_bump,
+        },
+    };
+
+    let instruction_2 = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts_2.to_account_metas(None),
+            proof_result_2.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data_2.data(),
+    };
+
+    // Second creation should also succeed (idempotent)
+    ctx.rpc
+        .create_and_send_transaction(&[instruction_2], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("Second D10SingleAta creation should succeed (idempotent)");
+
+    // Verify ATA still exists with same balance
+    let ata_account_2 = ctx.rpc.get_account(d10_single_ata).await.unwrap().unwrap();
+    assert_eq!(
+        ata_account_2.lamports, balance_after_first,
+        "ATA balance should be unchanged after idempotent second creation"
+    );
+}

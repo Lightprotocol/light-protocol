@@ -1474,7 +1474,67 @@ async fn test_d5_light_token() {
     // Verify token vault exists
     shared::assert_onchain_exists(&mut ctx.rpc, &vault, "vault").await;
 
-    // TODO: Test token vault decompression using token variant seeds
+    // PHASE 2: Warp time to trigger forester auto-compression
+    ctx.rpc
+        .warp_slot_forward(SLOTS_PER_EPOCH * 30)
+        .await
+        .unwrap();
+
+    // Verify vault is compressed (closed on-chain)
+    shared::assert_onchain_closed(&mut ctx.rpc, &vault, "vault").await;
+
+    // PHASE 3: Get compressed token account and build decompression
+    use borsh::BorshDeserialize;
+    use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D5TokenVaultSeeds;
+    use light_client::interface::ColdContext;
+    use light_sdk::interface::token::TokenDataWithSeeds;
+
+    let vault_interface = ctx
+        .rpc
+        .get_token_account_interface(&vault)
+        .await
+        .expect("get_token_account_interface should succeed");
+    assert!(
+        vault_interface.is_cold(),
+        "Vault should be cold after compression"
+    );
+
+    // Parse token data from compressed account
+    let token_data =
+        light_token_interface::state::Token::deserialize(&mut &vault_interface.account.data[..])
+            .expect("Failed to parse Token");
+
+    // Build variant with TokenDataWithSeeds
+    let vault_variant = LightAccountVariant::D5TokenVault(TokenDataWithSeeds {
+        seeds: D5TokenVaultSeeds { mint },
+        token_data,
+    });
+
+    // Convert TokenAccountInterface to AccountInterface with ColdContext::Account
+    let vault_compressed = vault_interface
+        .compressed()
+        .expect("cold vault must have compressed data");
+    let vault_interface_for_pda = light_client::interface::AccountInterface {
+        key: vault_interface.key,
+        account: vault_interface.account.clone(),
+        cold: Some(ColdContext::Account(vault_compressed.account.clone())),
+    };
+    let vault_spec = PdaSpec::new(vault_interface_for_pda, vault_variant, ctx.program_id);
+
+    // Create AccountSpec and decompress
+    let specs: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Pda(vault_spec)];
+    let decompress_instructions =
+        create_load_instructions(&specs, ctx.payer.pubkey(), ctx.config_pda, &ctx.rpc)
+            .await
+            .expect("create_load_instructions should succeed");
+
+    ctx.rpc
+        .create_and_send_transaction(&decompress_instructions, &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("Decompression should succeed");
+
+    // PHASE 4: Verify vault is back on-chain
+    shared::assert_onchain_exists(&mut ctx.rpc, &vault, "vault").await;
 }
 
 /// Tests D5AllMarkers: #[light_account(init)] + #[light_account(token)] combined
