@@ -68,7 +68,9 @@ impl LightAccountsBuilder {
             has_pdas: self.has_pdas(),
             has_mints: self.has_mints(),
             has_tokens: self.has_token_accounts(),
+            has_tokens_with_init: self.has_token_accounts_with_init(),
             has_atas: self.has_atas(),
+            has_atas_with_init: self.has_atas_with_init(),
             has_fee_payer: self.parsed.infra_fields.fee_payer.is_some(),
             has_compression_config: self.parsed.infra_fields.compression_config.is_some(),
             has_pda_rent_sponsor: self.parsed.infra_fields.pda_rent_sponsor.is_some(),
@@ -108,14 +110,26 @@ impl LightAccountsBuilder {
         !self.parsed.mint_fields.is_empty()
     }
 
-    /// Query: any #[light_account(init, token, ...)] fields?
+    /// Query: any #[light_account(..., token, ...)] fields (init or mark-only)?
     pub fn has_token_accounts(&self) -> bool {
         !self.parsed.token_fields.is_empty()
     }
 
-    /// Query: any #[light_account(init, associated_token, ...)] fields?
+    /// Query: any #[light_account(init, token, ...)] fields specifically?
+    /// Used for validation - only init mode requires token infrastructure.
+    pub fn has_token_accounts_with_init(&self) -> bool {
+        self.parsed.token_fields.iter().any(|f| f.has_init)
+    }
+
+    /// Query: any #[light_account(..., associated_token, ...)] fields (init or mark-only)?
     pub fn has_atas(&self) -> bool {
         !self.parsed.ata_fields.is_empty()
+    }
+
+    /// Query: any #[light_account(init, associated_token, ...)] fields specifically?
+    /// Used for validation - only init mode requires token infrastructure.
+    pub fn has_atas_with_init(&self) -> bool {
+        self.parsed.ata_fields.iter().any(|f| f.has_init)
     }
 
     /// Query: #[instruction(...)] present?

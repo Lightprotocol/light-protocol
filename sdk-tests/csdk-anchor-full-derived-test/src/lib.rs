@@ -96,12 +96,13 @@ pub mod csdk_anchor_full_derived_test {
         amm_test::{Deposit, InitializeParams, InitializePool, Swap, TradeDirection, Withdraw},
         d5_markers::{
             D5AllMarkers, D5AllMarkersParams, D5LightToken, D5LightTokenParams, D5RentfreeBare,
-            D5RentfreeBareParams,
+            D5RentfreeBareParams, D5_ALL_VAULT_SEED, D5_VAULT_SEED,
         },
         d6_account_types::{D6Account, D6AccountParams, D6Boxed, D6BoxedParams},
         d7_infra_names::{
             D7AllNames, D7AllNamesParams, D7Creator, D7CreatorParams, D7LightTokenConfig,
-            D7LightTokenConfigParams, D7Payer, D7PayerParams,
+            D7LightTokenConfigParams, D7Payer, D7PayerParams, D7_ALL_VAULT_SEED,
+            D7_LIGHT_TOKEN_VAULT_SEED,
         },
         d8_builder_paths::{
             D8All, D8AllParams, D8MultiRentfree, D8MultiRentfreeParams, D8PdaOnly, D8PdaOnlyParams,
@@ -277,9 +278,11 @@ pub mod csdk_anchor_full_derived_test {
         instruction_accounts::{
             CreateMintWithMetadata, CreateMintWithMetadataParams, CreatePdasAndMintAuto,
             CreateThreeMints, CreateThreeMintsParams, CreateTwoMints, CreateTwoMintsParams,
+            VAULT_SEED,
         },
         instructions::d10_token_accounts::{
-            D10SingleAta, D10SingleAtaParams, D10SingleVault, D10SingleVaultParams,
+            D10SingleAta, D10SingleAtaMarkonly, D10SingleAtaMarkonlyParams, D10SingleAtaParams,
+            D10SingleVault, D10SingleVaultParams,
         },
         instructions::d11_zero_copy::{
             // mixed_zc_borsh
@@ -311,7 +314,9 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, CreatePdasAndMintAuto<'info>>,
         params: FullAutoWithMintParams,
     ) -> Result<()> {
-        use light_token::instruction::{CreateTokenAtaCpi, MintToCpi as CTokenMintToCpi};
+        use light_token::instruction::{
+            CreateTokenAccountCpi, CreateTokenAtaCpi, MintToCpi as CTokenMintToCpi,
+        };
 
         let user_record = &mut ctx.accounts.user_record;
         user_record.owner = params.owner;
@@ -327,7 +332,24 @@ pub mod csdk_anchor_full_derived_test {
         game_session.end_time = None;
         game_session.score = 0;
 
-        // vault is auto-created by macro via #[light_account(init, token::...)]
+        // vault is mark-only - create manually via CreateTokenAccountCpi
+        CreateTokenAccountCpi {
+            payer: ctx.accounts.fee_payer.to_account_info(),
+            account: ctx.accounts.vault.to_account_info(),
+            mint: ctx.accounts.mint.to_account_info(),
+            owner: ctx.accounts.vault_authority.key(),
+        }
+        .rent_free(
+            ctx.accounts.light_token_config.to_account_info(),
+            ctx.accounts.light_token_rent_sponsor.to_account_info(),
+            ctx.accounts.system_program.to_account_info(),
+            &crate::ID,
+        )
+        .invoke_signed(&[
+            VAULT_SEED,
+            ctx.accounts.mint.to_account_info().key.as_ref(),
+            &[ctx.bumps.vault],
+        ])?;
 
         CreateTokenAtaCpi {
             payer: ctx.accounts.fee_payer.to_account_info(),
@@ -338,10 +360,8 @@ pub mod csdk_anchor_full_derived_test {
         }
         .idempotent()
         .rent_free(
-            ctx.accounts
-                .light_token_compressible_config
-                .to_account_info(),
-            ctx.accounts.rent_sponsor.to_account_info(),
+            ctx.accounts.light_token_config.to_account_info(),
+            ctx.accounts.light_token_rent_sponsor.to_account_info(),
             ctx.accounts.system_program.to_account_info(),
         )
         .invoke()?;
@@ -590,12 +610,31 @@ pub mod csdk_anchor_full_derived_test {
     }
 
     /// D7: "light_token_config" naming variant for token accounts
-    #[allow(unused_variables)]
     pub fn d7_light_token_config<'info>(
         ctx: Context<'_, '_, '_, 'info, D7LightTokenConfig<'info>>,
         params: D7LightTokenConfigParams,
     ) -> Result<()> {
-        // Token vault is auto-created by macro via #[light_account(init, token::...)]
+        use light_token::instruction::CreateTokenAccountCpi;
+
+        // Token vault is mark-only - create manually via CreateTokenAccountCpi
+        CreateTokenAccountCpi {
+            payer: ctx.accounts.fee_payer.to_account_info(),
+            account: ctx.accounts.d7_light_token_vault.to_account_info(),
+            mint: ctx.accounts.mint.to_account_info(),
+            owner: ctx.accounts.d7_light_token_authority.key(),
+        }
+        .rent_free(
+            ctx.accounts.light_token_config.to_account_info(),
+            ctx.accounts.light_token_rent_sponsor.to_account_info(),
+            ctx.accounts.system_program.to_account_info(),
+            &crate::ID,
+        )
+        .invoke_signed(&[
+            D7_LIGHT_TOKEN_VAULT_SEED,
+            ctx.accounts.mint.to_account_info().key.as_ref(),
+            &[params.vault_bump],
+        ])?;
+
         Ok(())
     }
 
@@ -604,9 +643,30 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D7AllNames<'info>>,
         params: D7AllNamesParams,
     ) -> Result<()> {
+        use light_token::instruction::CreateTokenAccountCpi;
+
         // Set up the PDA record
         ctx.accounts.d7_all_record.owner = params.owner;
-        // Token vault is auto-created by macro via #[light_account(init, token::...)]
+
+        // Token vault is mark-only - create manually via CreateTokenAccountCpi
+        CreateTokenAccountCpi {
+            payer: ctx.accounts.payer.to_account_info(),
+            account: ctx.accounts.d7_all_vault.to_account_info(),
+            mint: ctx.accounts.mint.to_account_info(),
+            owner: ctx.accounts.d7_all_authority.key(),
+        }
+        .rent_free(
+            ctx.accounts.light_token_config.to_account_info(),
+            ctx.accounts.light_token_rent_sponsor.to_account_info(),
+            ctx.accounts.system_program.to_account_info(),
+            &crate::ID,
+        )
+        .invoke_signed(&[
+            D7_ALL_VAULT_SEED,
+            ctx.accounts.mint.to_account_info().key.as_ref(),
+            &[ctx.bumps.d7_all_vault],
+        ])?;
+
         Ok(())
     }
 
@@ -1272,12 +1332,31 @@ pub mod csdk_anchor_full_derived_test {
     // =========================================================================
 
     /// D5: #[light_account(token)] attribute test
-    #[allow(unused_variables)]
     pub fn d5_light_token<'info>(
         ctx: Context<'_, '_, '_, 'info, D5LightToken<'info>>,
         params: D5LightTokenParams,
     ) -> Result<()> {
-        // Token vault is auto-created by macro via #[light_account(init, token::...)]
+        use light_token::instruction::CreateTokenAccountCpi;
+
+        // Token vault is mark-only - create manually via CreateTokenAccountCpi
+        CreateTokenAccountCpi {
+            payer: ctx.accounts.fee_payer.to_account_info(),
+            account: ctx.accounts.d5_token_vault.to_account_info(),
+            mint: ctx.accounts.mint.to_account_info(),
+            owner: ctx.accounts.vault_authority.key(),
+        }
+        .rent_free(
+            ctx.accounts.light_token_config.to_account_info(),
+            ctx.accounts.light_token_rent_sponsor.to_account_info(),
+            ctx.accounts.system_program.to_account_info(),
+            &crate::ID,
+        )
+        .invoke_signed(&[
+            D5_VAULT_SEED,
+            ctx.accounts.mint.to_account_info().key.as_ref(),
+            &[params.vault_bump],
+        ])?;
+
         Ok(())
     }
 
@@ -1286,9 +1365,30 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D5AllMarkers<'info>>,
         params: D5AllMarkersParams,
     ) -> Result<()> {
+        use light_token::instruction::CreateTokenAccountCpi;
+
         // Set up the PDA record
         ctx.accounts.d5_all_record.owner = params.owner;
-        // Token vault is auto-created by macro via #[light_account(init, token::...)]
+
+        // Token vault is mark-only - create manually via CreateTokenAccountCpi
+        CreateTokenAccountCpi {
+            payer: ctx.accounts.fee_payer.to_account_info(),
+            account: ctx.accounts.d5_all_vault.to_account_info(),
+            mint: ctx.accounts.mint.to_account_info(),
+            owner: ctx.accounts.d5_all_authority.key(),
+        }
+        .rent_free(
+            ctx.accounts.light_token_config.to_account_info(),
+            ctx.accounts.light_token_rent_sponsor.to_account_info(),
+            ctx.accounts.system_program.to_account_info(),
+            &crate::ID,
+        )
+        .invoke_signed(&[
+            D5_ALL_VAULT_SEED,
+            ctx.accounts.mint.to_account_info().key.as_ref(),
+            &[ctx.bumps.d5_all_vault],
+        ])?;
+
         Ok(())
     }
 
@@ -1323,6 +1423,34 @@ pub mod csdk_anchor_full_derived_test {
         // ATA creation is handled by the LightFinalize trait implementation
         // generated by the #[light_account(init, associated_token, ...)] macro.
         // This handler can be empty - the macro handles everything.
+        Ok(())
+    }
+
+    /// D10: Mark-only ATA with #[light_account(associated_token::...)] (NO init keyword).
+    /// Tests that the macro generates seed structs for decompression support while
+    /// skipping the CPI call. User manually calls CreateTokenAtaCpi in handler.
+    pub fn d10_single_ata_markonly<'info>(
+        ctx: Context<'_, '_, '_, 'info, D10SingleAtaMarkonly<'info>>,
+        params: D10SingleAtaMarkonlyParams,
+    ) -> Result<()> {
+        use light_token::instruction::CreateTokenAtaCpi;
+
+        // Mark-only: LightPreInit/LightFinalize are no-ops, we create the ATA manually
+        CreateTokenAtaCpi {
+            payer: ctx.accounts.fee_payer.to_account_info(),
+            owner: ctx.accounts.d10_markonly_ata_owner.to_account_info(),
+            mint: ctx.accounts.d10_markonly_ata_mint.to_account_info(),
+            ata: ctx.accounts.d10_markonly_ata.to_account_info(),
+            bump: params.ata_bump,
+        }
+        .idempotent()
+        .rent_free(
+            ctx.accounts.light_token_config.to_account_info(),
+            ctx.accounts.light_token_rent_sponsor.to_account_info(),
+            ctx.accounts.system_program.to_account_info(),
+        )
+        .invoke()?;
+
         Ok(())
     }
 

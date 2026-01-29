@@ -1,112 +1,88 @@
-# Token Account Attribute Documentation
+# Token Accounts
 
-## Overview
+PDA-owned token accounts (vaults) using `token::` namespace parameters.
 
-PDA-owned token accounts (vaults) using `#[light_account([init,] token::...)]`. This attribute enables the creation and management of token accounts that are owned by PDAs, commonly used for vault patterns in Solana programs.
-
-There are two modes of operation:
-- **Init mode**: Creates a new token account
-- **Mark-only mode**: Marks an existing account for seed extraction (used by `#[light_program]` for decompress/compress instructions)
-
-## Two Modes
+## Syntax
 
 ### Init Mode
 
-```rust
-#[light_account(init, token, token::authority = [...], token::mint = ..., token::owner = ...)]
-```
+Creates token account via `CreateTokenAccountCpi`.
 
-- Creates the token account
-- Requires: `authority`, `mint`, `owner`
-- Optional: `bump`
+```rust
+#[light_account(init,
+    token::seeds = [VAULT_SEED, self.mint.key()],
+    token::mint = mint,
+    token::owner = vault_authority,
+    token::owner_seeds = [VAULT_AUTH_SEED],
+    token::bump = params.vault_bump  // optional
+)]
+```
 
 ### Mark-Only Mode
 
-```rust
-#[light_account(token::authority = [...])]
-```
+Marks field for seed extraction. No account creation.
 
-- Marks existing account for seed derivation (used by `#[light_program]` for decompress/compress instructions)
-- Returns `None` from parsing (skipped by LightAccounts derive)
-- Requires: `authority` ONLY
-- `mint` and `owner` are NOT allowed in mark-only mode
+```rust
+#[light_account(
+    token::seeds = [VAULT_SEED, self.mint.key()],
+    token::owner_seeds = [VAULT_AUTH_SEED]
+)]
+```
 
 ## Parameters
 
-| Parameter | Required | Mode | Description |
-|-----------|----------|------|-------------|
-| `token::authority` | Yes | Both | PDA seeds for the token account authority (array expression like `[SEED, self.key.key()]`) |
-| `token::mint` | Yes | init only | Reference to the mint field |
-| `token::owner` | Yes | init only | Reference to the owner/authority PDA field |
-| `token::bump` | No | Both | Explicit bump. If omitted, auto-derived via `find_program_address` |
+| Parameter | Init | Mark-Only | Description |
+|-----------|------|-----------|-------------|
+| `token::seeds` | Required | Required | Token account PDA seeds (no bump) |
+| `token::owner_seeds` | Required | Required | Owner PDA seeds for decompression |
+| `token::mint` | Required | Forbidden | Mint field reference |
+| `token::owner` | Required | Forbidden | Owner/authority field reference |
+| `token::bump` | Optional | Optional | Explicit bump, auto-derived if omitted |
 
-## Shorthand Syntax
+## Validation
 
-`mint`, `owner`, and `bump` support shorthand (key alone means `key = key`):
+**Init mode:**
+- All of seeds, owner_seeds, mint, owner required
+- Empty seeds forbidden
 
-```rust
-// Shorthand
-#[light_account(init, token, token::authority = [...], token::mint, token::owner, token::bump)]
+**Mark-only mode:**
+- Only seeds and owner_seeds permitted
+- mint and owner forbidden
 
-// Equivalent to
-#[light_account(init, token, token::authority = [...], token::mint = mint, token::owner = owner, token::bump = bump)]
-```
+## Infrastructure (init mode)
 
-## Validation Rules
+| Field | Names |
+|-------|-------|
+| Fee payer | `fee_payer`, `payer`, `creator` |
+| Config | `light_token_config` |
+| Rent sponsor | `light_token_rent_sponsor` |
+| CPI authority | `light_token_cpi_authority` |
+| Token program | `light_token_program` |
+| System program | `system_program` |
 
-1. `token::authority` is always required
-2. For init mode: `token::mint` and `token::owner` are required
-3. For mark-only mode: `token::mint` and `token::owner` are NOT allowed
-4. Empty authority seeds `[]` not allowed for init mode
-5. Bump auto-derived if not provided
-
-## Infrastructure Requirements
-
-For init mode, the following infrastructure accounts are required in your accounts struct:
-
-| Field Type | Accepted Names |
-|------------|----------------|
-| Fee Payer | `fee_payer`, `payer`, `creator` |
-| Light Token Config | `light_token_compressible_config` |
-| Light Token Rent Sponsor | `light_token_rent_sponsor`, `rent_sponsor` |
-| Light Token Program | `light_token_program` |
-| Light Token CPI Authority | `light_token_cpi_authority` |
-| System Program | `system_program` |
-
-## Examples
-
-### Init Mode Vault
+## Example
 
 ```rust
-pub const VAULT_SEED: &[u8] = b"vault";
-pub const VAULT_AUTH_SEED: &[u8] = b"vault_auth";
-
 #[derive(Accounts, LightAccounts)]
 #[instruction(params: CreateVaultParams)]
 pub struct CreateVault<'info> {
     #[account(mut)]
     pub fee_payer: Signer<'info>,
-
-    /// CHECK: Token mint
     pub mint: AccountInfo<'info>,
-
     #[account(seeds = [VAULT_AUTH_SEED], bump)]
     pub vault_authority: UncheckedAccount<'info>,
 
-    #[account(
-        mut,
-        seeds = [VAULT_SEED, mint.key().as_ref()],
-        bump,
-    )]
-    #[light_account(init, token,
-        token::authority = [VAULT_SEED, self.mint.key()],
+    #[account(mut, seeds = [VAULT_SEED, mint.key().as_ref()], bump)]
+    #[light_account(init,
+        token::seeds = [VAULT_SEED, self.mint.key()],
         token::mint = mint,
         token::owner = vault_authority,
+        token::owner_seeds = [VAULT_AUTH_SEED],
         token::bump = params.vault_bump
     )]
     pub vault: UncheckedAccount<'info>,
 
-    pub light_token_compressible_config: AccountInfo<'info>,
+    pub light_token_config: AccountInfo<'info>,
     #[account(mut)]
     pub light_token_rent_sponsor: AccountInfo<'info>,
     pub light_token_cpi_authority: AccountInfo<'info>,
@@ -115,28 +91,13 @@ pub struct CreateVault<'info> {
 }
 ```
 
-### Mark-Only Mode
+## Source
 
-Used when you need to reference an existing vault for seed extraction without initialization:
+- `sdk-libs/macros/src/light_pdas/accounts/token.rs` - CPI generation
+- `sdk-libs/macros/src/light_pdas/accounts/light_account.rs` - Parsing (lines 109-123, 882-1021)
+- `sdk-libs/macros/src/light_pdas/light_account_keywords.rs` - TOKEN_NAMESPACE_KEYS
 
-```rust
-#[account(
-    mut,
-    seeds = [VAULT_SEED, mint.key().as_ref()],
-    bump,
-)]
-#[light_account(token::authority = [VAULT_AUTH_SEED])]
-pub vault: UncheckedAccount<'info>,
-```
+## Related
 
-## Source References
-
-- `sdk-libs/macros/src/light_pdas/accounts/token.rs` - Token account parsing and code generation
-- `sdk-libs/macros/src/light_pdas/light_account_keywords.rs` - TOKEN_NAMESPACE_KEYS definitions
-
-## Related Documentation
-
-- [architecture.md](./architecture.md) - Overall LightAccounts architecture
-- [pda.md](./pda.md) - Compressed PDAs
-- [mint.md](./mint.md) - Compressed mints
-- [associated_token.md](./associated_token.md) - Associated token accounts
+- [architecture.md](./architecture.md)
+- [associated_token.md](./associated_token.md)

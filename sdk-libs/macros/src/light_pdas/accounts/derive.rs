@@ -122,10 +122,10 @@ mod tests {
                 #[account(mut)]
                 pub fee_payer: Signer<'info>,
 
-                #[light_account(init, token::seeds = [b"vault"], token::mint = my_mint, token::owner = fee_payer)]
+                #[light_account(init, token::seeds = [b"vault"], token::mint = my_mint, token::owner = fee_payer, token::owner_seeds = [b"auth"])]
                 pub vault: Account<'info, CToken>,
 
-                pub light_token_compressible_config: Account<'info, CompressibleConfig>,
+                pub light_token_config: Account<'info, CompressibleConfig>,
                 pub light_token_rent_sponsor: Account<'info, RentSponsor>,
                 pub light_token_cpi_authority: AccountInfo<'info>,
             }
@@ -169,7 +169,7 @@ mod tests {
 
                 pub wallet: AccountInfo<'info>,
                 pub my_mint: AccountInfo<'info>,
-                pub light_token_compressible_config: Account<'info, CompressibleConfig>,
+                pub light_token_config: Account<'info, CompressibleConfig>,
                 pub light_token_rent_sponsor: Account<'info, RentSponsor>,
             }
         };
@@ -191,27 +191,37 @@ mod tests {
     }
 
     #[test]
-    fn test_token_without_init_fails() {
-        // Token without init should fail - init is required for all light_account fields.
+    fn test_token_mark_only_succeeds_with_pda() {
+        // Token without init is mark-only mode - generates TokenAccountField with has_init = false.
+        // User must write manual CreateTokenAccountCpi calls in instruction handlers.
+        // Mark-only requires seeds and owner_seeds but NOT mint or owner.
+        // Note: LightAccounts derive requires at least one field with init, so we include a PDA.
         let input: DeriveInput = parse_quote! {
             #[instruction(params: UseVaultParams)]
             pub struct UseVault<'info> {
                 #[account(mut)]
                 pub fee_payer: Signer<'info>,
 
-                // Missing init keyword
-                #[light_account(token::seeds = [b"vault"])]
+                // PDA with init - generates code
+                #[account(init, payer = fee_payer, space = 8 + 100, seeds = [b"record"], bump)]
+                #[light_account(init)]
+                pub record: Account<'info, MyRecord>,
+
+                // Mark-only mode: no init keyword, requires only seeds and owner_seeds
+                #[light_account(token::seeds = [b"vault"], token::owner_seeds = [b"auth"])]
                 pub vault: Account<'info, CToken>,
+
+                // Infrastructure for PDA
+                pub compression_config: Account<'info, CompressionConfig>,
+                pub pda_rent_sponsor: Account<'info, RentSponsor>,
             }
         };
 
         let result = derive_light_accounts(&input);
-        assert!(result.is_err(), "Token without init should error");
-        let err = result.unwrap_err().to_string();
         assert!(
-            err.contains("init"),
-            "Error should mention missing init, got: {}",
-            err
+            result.is_ok(),
+            "Token mark-only with PDA should succeed, got error: {:?}",
+            result.err()
         );
     }
 
@@ -224,7 +234,7 @@ mod tests {
                 #[account(mut)]
                 pub fee_payer: Signer<'info>,
 
-                #[light_account(init, token::seeds = [b"vault"], token::mint = my_mint, token::owner = fee_payer)]
+                #[light_account(init, token::seeds = [b"vault"], token::mint = my_mint, token::owner = fee_payer, token::owner_seeds = [b"auth"])]
                 pub vault: Account<'info, CToken>,
 
                 #[light_account(init, associated_token::authority = wallet, associated_token::mint = my_mint)]
@@ -232,7 +242,7 @@ mod tests {
 
                 pub wallet: AccountInfo<'info>,
                 pub my_mint: AccountInfo<'info>,
-                pub light_token_compressible_config: Account<'info, CompressibleConfig>,
+                pub light_token_config: Account<'info, CompressibleConfig>,
                 pub light_token_rent_sponsor: Account<'info, RentSponsor>,
                 pub light_token_cpi_authority: AccountInfo<'info>,
             }

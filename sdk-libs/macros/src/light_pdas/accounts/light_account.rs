@@ -202,7 +202,7 @@ impl Parse for NamespacedKeyValue {
 
 /// Parsed arguments from #[light_account(init, [mint,] ...)].
 struct LightAccountArgs {
-    /// True if `init` keyword is present (required for all light_account fields).
+    /// True if `init` keyword is present (required for PDA/Mint, optional for Token/ATA).
     has_init: bool,
     /// True if `zero_copy` keyword is present (for AccountLoader fields using Pod serialization).
     has_zero_copy: bool,
@@ -269,26 +269,99 @@ impl Parse for LightAccountArgs {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let mut seen = SeenKeywords::default();
 
-        // First token must be `init`
+        // First token - either `init` or a namespace like `token::`
         let first: Ident = input.parse()?;
 
-        // Reject namespaced-first syntax without init (e.g., `token::seeds = [...]`)
-        // All light_account fields require init
+        // Handle mark-only mode: namespace-first syntax without init (e.g., `token::seeds = [...]`)
+        // This is allowed for token and associated_token fields - they skip code generation
         if input.peek(Token![::]) {
+            let account_type = infer_type_from_namespace(&first)?;
+
+            // Only token and associated_token support mark-only mode
+            if account_type != LightAccountType::Token
+                && account_type != LightAccountType::AssociatedToken
+            {
+                return Err(Error::new_spanned(
+                    &first,
+                    format!(
+                        "#[light_account({}::...)] requires `init` keyword. \
+                         Use: #[light_account(init, {}::...)]",
+                        first, first
+                    ),
+                ));
+            }
+
+            // Parse the first key-value manually since we already consumed the namespace
+            input.parse::<Token![::]>()?;
+            let key: Ident = input.parse()?;
             let namespace_str = first.to_string();
-            return Err(Error::new_spanned(
-                &first,
-                format!(
-                    "#[light_account({namespace_str}::...)] requires `init` keyword. \
-                     Use: #[light_account(init, {namespace_str}::...)]"
-                ),
-            ));
+            let key_str = key.to_string();
+
+            // Validate key is valid for this namespace
+            if let Err(err_msg) = validate_namespaced_key(&namespace_str, &key_str) {
+                return Err(Error::new_spanned(&key, err_msg));
+            }
+
+            // Parse value (handle shorthand and array syntax)
+            let value: Expr = if input.peek(Token![=]) {
+                input.parse::<Token![=]>()?;
+
+                // Handle bracketed content for authority and seeds arrays
+                if (key_str == "authority" || key_str == "seeds") && input.peek(syn::token::Bracket)
+                {
+                    let content;
+                    syn::bracketed!(content in input);
+                    let mut elements = Vec::new();
+                    while !content.is_empty() {
+                        let elem: Expr = content.parse()?;
+                        elements.push(elem);
+                        if content.peek(Token![,]) {
+                            content.parse::<Token![,]>()?;
+                        }
+                    }
+                    syn::parse_quote!([#(#elements),*])
+                } else {
+                    input.parse()?
+                }
+            } else {
+                // Shorthand: key alone means key = key
+                if is_shorthand_key(&namespace_str, &key_str) {
+                    syn::parse_quote!(#key)
+                } else {
+                    return Err(Error::new_spanned(
+                        &key,
+                        format!(
+                            "`{}::{}` requires a value (e.g., `{}::{} = ...`)",
+                            namespace_str, key_str, namespace_str, key_str
+                        ),
+                    ));
+                }
+            };
+
+            let first_kv = NamespacedKeyValue {
+                namespace: first,
+                key,
+                value,
+            };
+            let first_key = first_kv.key.to_string();
+            let mut key_values = vec![first_kv];
+
+            // Parse remaining key-values
+            let remaining = parse_namespaced_key_values(input, account_type, &[&first_key])?;
+            key_values.extend(remaining);
+
+            return Ok(Self {
+                has_init: false,
+                has_zero_copy: false,
+                account_type,
+                key_values,
+            });
         }
 
         if first != "init" {
             return Err(Error::new_spanned(
                 &first,
-                "First argument to #[light_account] must be `init`",
+                "First argument to #[light_account] must be `init` or a namespaced key like `token::seeds`",
             ));
         }
 
@@ -510,22 +583,11 @@ pub(crate) fn parse_light_account_attr(
         if attr.path().is_ident("light_account") {
             let args: LightAccountArgs = attr.parse_args()?;
 
-            // Require init for all light_account fields
-            // Token and associated_token without init are not supported
-            if !args.has_init {
-                let type_name = match args.account_type {
-                    LightAccountType::Token => "token",
-                    LightAccountType::AssociatedToken => "associated_token",
-                    _ => "light_account",
-                };
-                return Err(Error::new_spanned(
-                    attr,
-                    format!(
-                        "#[light_account({type_name}::...)] requires `init` keyword. \
-                         Use: #[light_account(init, {type_name}::...)]"
-                    ),
-                ));
-            }
+            // Mark-only mode: token/ata without init
+            // - Still generates TokenAccountField/AtaField with has_init = false
+            // - Seeds structs and variant enums are generated for decompression
+            // - LightPreInit skips the CPI call (user handles it manually)
+            // Note: Validation for mark-only mode is handled in build_token_account_field
 
             // For PDA and Mint, init is required
             if !args.has_init
@@ -864,8 +926,12 @@ fn build_token_account_field(
         }
     }
 
-    // seeds, mint, and owner are required for init mode
+    // Track if owner_seeds was provided (for mark-only validation)
+    let has_owner_seeds = key_values.iter().any(|kv| kv.key == "owner_seeds");
+
+    // Validation depends on init vs mark-only mode
     if has_init {
+        // Init mode: requires seeds, mint, and owner
         if seeds.is_none() {
             return Err(Error::new_spanned(
                 attr,
@@ -883,6 +949,46 @@ fn build_token_account_field(
             return Err(Error::new_spanned(
                 attr,
                 "#[light_account(init, token::...)] requires `token::owner` parameter",
+            ));
+        }
+        // owner_seeds is required for init mode too (needed for decompression)
+        if !has_owner_seeds {
+            return Err(Error::new_spanned(
+                attr,
+                "#[light_account(init, token::...)] requires `token::owner_seeds = [...]` parameter \
+                 for decompression support. The token owner must be a PDA with constant seeds.",
+            ));
+        }
+    } else {
+        // Mark-only mode: requires seeds and owner_seeds, forbids mint and owner
+        if seeds.is_none() {
+            return Err(Error::new_spanned(
+                attr,
+                "#[light_account(token::...)] requires `token::seeds = [...]` parameter \
+                 for seed struct generation.",
+            ));
+        }
+        if !has_owner_seeds {
+            return Err(Error::new_spanned(
+                attr,
+                "#[light_account(token::...)] requires `token::owner_seeds = [...]` parameter \
+                 for decompression support. The token owner must be a PDA with constant seeds.",
+            ));
+        }
+        if mint.is_some() {
+            return Err(Error::new_spanned(
+                attr,
+                "`token::mint` is not allowed in mark-only mode (#[light_account(token::...)] without init). \
+                 Only `token::seeds` and `token::owner_seeds` are permitted. \
+                 Remove `token::mint` or add `init` keyword.",
+            ));
+        }
+        if owner.is_some() {
+            return Err(Error::new_spanned(
+                attr,
+                "`token::owner` is not allowed in mark-only mode (#[light_account(token::...)] without init). \
+                 Only `token::seeds` and `token::owner_seeds` are permitted. \
+                 Remove `token::owner` or add `init` keyword.",
             ));
         }
     }
@@ -1210,8 +1316,76 @@ mod tests {
     // ========================================================================
 
     #[test]
-    fn test_parse_token_without_init_fails() {
-        // Token without init should fail - init is required
+    fn test_parse_token_mark_only_creates_field_with_has_init_false() {
+        // Token without init is mark-only mode - returns TokenAccountField with has_init = false
+        // Mark-only requires seeds and owner_seeds, forbids mint and owner
+        let field: syn::Field = parse_quote! {
+            #[light_account(token::seeds = [b"vault"], token::owner_seeds = [b"auth"])]
+            pub vault: Account<'info, CToken>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident, &None);
+        assert!(result.is_ok(), "Mark-only mode should parse successfully");
+        let result = result.unwrap();
+        assert!(
+            result.is_some(),
+            "Mark-only mode should return Some(TokenAccountField)"
+        );
+
+        match result.unwrap() {
+            LightAccountField::TokenAccount(token) => {
+                assert_eq!(token.field_ident.to_string(), "vault");
+                assert!(!token.has_init, "Mark-only should have has_init = false");
+                assert!(!token.seeds.is_empty(), "Should have seeds");
+                assert!(token.mint.is_none(), "Mark-only should not have mint");
+                assert!(token.owner.is_none(), "Mark-only should not have owner");
+            }
+            _ => panic!("Expected TokenAccount field"),
+        }
+    }
+
+    #[test]
+    fn test_parse_token_mark_only_forbids_mint() {
+        // Mark-only mode should error if mint is provided
+        let field: syn::Field = parse_quote! {
+            #[light_account(token::seeds = [b"vault"], token::owner_seeds = [b"auth"], token::mint = some_mint)]
+            pub vault: Account<'info, CToken>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident, &None);
+        assert!(result.is_err(), "Mark-only with mint should fail");
+        let err = result.err().unwrap().to_string();
+        assert!(
+            err.contains("not allowed in mark-only mode"),
+            "Expected error about mint not allowed, got: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn test_parse_token_mark_only_forbids_owner() {
+        // Mark-only mode should error if owner is provided
+        let field: syn::Field = parse_quote! {
+            #[light_account(token::seeds = [b"vault"], token::owner_seeds = [b"auth"], token::owner = some_owner)]
+            pub vault: Account<'info, CToken>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident, &None);
+        assert!(result.is_err(), "Mark-only with owner should fail");
+        let err = result.err().unwrap().to_string();
+        assert!(
+            err.contains("not allowed in mark-only mode"),
+            "Expected error about owner not allowed, got: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn test_parse_token_mark_only_requires_owner_seeds() {
+        // Mark-only mode should error if owner_seeds is missing
         let field: syn::Field = parse_quote! {
             #[light_account(token::seeds = [b"vault"])]
             pub vault: Account<'info, CToken>
@@ -1219,11 +1393,11 @@ mod tests {
         let ident = field.ident.clone().unwrap();
 
         let result = parse_light_account_attr(&field, &ident, &None);
-        assert!(result.is_err());
+        assert!(result.is_err(), "Mark-only without owner_seeds should fail");
         let err = result.err().unwrap().to_string();
         assert!(
-            err.contains("init"),
-            "Expected error about missing init, got: {}",
+            err.contains("owner_seeds"),
+            "Expected error about missing owner_seeds, got: {}",
             err
         );
     }
@@ -1231,13 +1405,17 @@ mod tests {
     #[test]
     fn test_parse_token_init_creates_field() {
         let field: syn::Field = parse_quote! {
-            #[light_account(init, token::seeds = [b"vault"], token::mint = token_mint, token::owner = vault_authority)]
+            #[light_account(init, token::seeds = [b"vault"], token::mint = token_mint, token::owner = vault_authority, token::owner_seeds = [b"auth"])]
             pub vault: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();
 
         let result = parse_light_account_attr(&field, &ident, &None);
-        assert!(result.is_ok());
+        assert!(
+            result.is_ok(),
+            "Token init should parse successfully: {:?}",
+            result.err()
+        );
         let result = result.unwrap();
         assert!(result.is_some());
 
@@ -1254,9 +1432,31 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_token_init_requires_owner_seeds() {
+        // Init mode should also require owner_seeds for decompression support
+        let field: syn::Field = parse_quote! {
+            #[light_account(init, token::seeds = [b"vault"], token::mint = token_mint, token::owner = vault_authority)]
+            pub vault: Account<'info, CToken>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident, &None);
+        assert!(
+            result.is_err(),
+            "Token init without owner_seeds should fail"
+        );
+        let err = result.err().unwrap().to_string();
+        assert!(
+            err.contains("owner_seeds"),
+            "Expected error about missing owner_seeds, got: {}",
+            err
+        );
+    }
+
+    #[test]
     fn test_parse_token_init_missing_seeds_fails() {
         let field: syn::Field = parse_quote! {
-            #[light_account(init, token::mint = mint, token::owner = owner)]
+            #[light_account(init, token::mint = mint, token::owner = owner, token::owner_seeds = [b"auth"])]
             pub vault: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();
@@ -1271,7 +1471,7 @@ mod tests {
     fn test_parse_token_init_missing_mint_fails() {
         // Token init requires mint parameter
         let field: syn::Field = parse_quote! {
-            #[light_account(init, token::seeds = [b"vault"], token::owner = vault_authority)]
+            #[light_account(init, token::seeds = [b"vault"], token::owner = vault_authority, token::owner_seeds = [b"auth"])]
             pub vault: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();
@@ -1290,7 +1490,7 @@ mod tests {
     fn test_parse_token_init_missing_owner_fails() {
         // Token init requires owner parameter
         let field: syn::Field = parse_quote! {
-            #[light_account(init, token::seeds = [b"vault"], token::mint = token_mint)]
+            #[light_account(init, token::seeds = [b"vault"], token::mint = token_mint, token::owner_seeds = [b"auth"])]
             pub vault: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();
@@ -1310,8 +1510,8 @@ mod tests {
     // ========================================================================
 
     #[test]
-    fn test_parse_associated_token_without_init_fails() {
-        // Associated token without init should fail - init is required
+    fn test_parse_associated_token_mark_only_creates_field_with_has_init_false() {
+        // Associated token without init is mark-only mode - returns AtaField with has_init = false
         let field: syn::Field = parse_quote! {
             #[light_account(associated_token::authority = owner, associated_token::mint = mint)]
             pub user_ata: Account<'info, CToken>
@@ -1319,13 +1519,20 @@ mod tests {
         let ident = field.ident.clone().unwrap();
 
         let result = parse_light_account_attr(&field, &ident, &None);
-        assert!(result.is_err());
-        let err = result.err().unwrap().to_string();
+        assert!(result.is_ok(), "Mark-only mode should parse successfully");
+        let result = result.unwrap();
         assert!(
-            err.contains("init"),
-            "Expected error about missing init, got: {}",
-            err
+            result.is_some(),
+            "Mark-only mode should return Some(AtaField)"
         );
+
+        match result.unwrap() {
+            LightAccountField::AssociatedToken(ata) => {
+                assert_eq!(ata.field_ident.to_string(), "user_ata");
+                assert!(!ata.has_init, "Mark-only should have has_init = false");
+            }
+            _ => panic!("Expected AssociatedToken field"),
+        }
     }
 
     #[test]
@@ -1381,7 +1588,7 @@ mod tests {
     #[test]
     fn test_parse_token_unknown_argument_fails() {
         let field: syn::Field = parse_quote! {
-            #[light_account(init, token::seeds = [b"vault"], token::mint = mint, token::owner = owner, token::unknown = foo)]
+            #[light_account(init, token::seeds = [b"vault"], token::mint = mint, token::owner = owner, token::owner_seeds = [b"auth"], token::unknown = foo)]
             pub vault: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();
@@ -1434,7 +1641,7 @@ mod tests {
     fn test_parse_token_duplicate_key_fails() {
         // Duplicate keys should be rejected
         let field: syn::Field = parse_quote! {
-            #[light_account(init, token::seeds = [b"vault1"], token::seeds = [b"vault2"], token::mint = mint, token::owner = owner)]
+            #[light_account(init, token::seeds = [b"vault1"], token::seeds = [b"vault2"], token::mint = mint, token::owner = owner, token::owner_seeds = [b"auth"])]
             pub vault: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();
@@ -1472,7 +1679,7 @@ mod tests {
     fn test_parse_token_init_empty_seeds_fails() {
         // Empty seeds with init should be rejected
         let field: syn::Field = parse_quote! {
-            #[light_account(init, token::seeds = [], token::mint = token_mint, token::owner = vault_authority)]
+            #[light_account(init, token::seeds = [], token::mint = token_mint, token::owner = vault_authority, token::owner_seeds = [b"auth"])]
             pub vault: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();
@@ -1488,20 +1695,20 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_token_without_init_fails_even_with_seeds() {
-        // Token without init should fail - init is required
+    fn test_parse_token_mark_only_missing_seeds_fails() {
+        // Mark-only mode requires seeds
         let field: syn::Field = parse_quote! {
-            #[light_account(token::seeds = [b"vault"])]
+            #[light_account(token::owner_seeds = [b"auth"])]
             pub vault: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();
 
         let result = parse_light_account_attr(&field, &ident, &None);
-        assert!(result.is_err());
+        assert!(result.is_err(), "Mark-only without seeds should fail");
         let err = result.err().unwrap().to_string();
         assert!(
-            err.contains("init"),
-            "Expected error about missing init, got: {}",
+            err.contains("seeds"),
+            "Expected error about missing seeds, got: {}",
             err
         );
     }
@@ -1642,6 +1849,7 @@ mod tests {
                 token::seeds = [b"vault", self.offer.key()],
                 token::mint = token_mint,
                 token::owner = vault_authority,
+                token::owner_seeds = [b"auth"],
                 token::bump = params.vault_bump
             )]
             pub vault: Account<'info, CToken>
@@ -1674,7 +1882,8 @@ mod tests {
             #[light_account(init,
                 token::seeds = [b"vault", self.offer.key()],
                 token::mint = token_mint,
-                token::owner = vault_authority
+                token::owner = vault_authority,
+                token::owner_seeds = [b"auth"]
             )]
             pub vault: Account<'info, CToken>
         };
@@ -1828,6 +2037,7 @@ mod tests {
                 token::seeds = [b"vault"],
                 token::mint = token_mint,
                 token::owner = vault_authority,
+                token::owner_seeds = [b"auth"],
                 token::bump
             )]
             pub vault: Account<'info, CToken>
@@ -1861,7 +2071,7 @@ mod tests {
     fn test_parse_wrong_namespace_fails() {
         // Using mint:: namespace with token account type should fail
         let field: syn::Field = parse_quote! {
-            #[light_account(init, token::seeds = [b"vault"], token::mint = mint, token::owner = owner, mint::decimals = 9)]
+            #[light_account(init, token::seeds = [b"vault"], token::mint = mint, token::owner = owner, token::owner_seeds = [b"auth"], mint::decimals = 9)]
             pub vault: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();
@@ -1944,7 +2154,7 @@ mod tests {
     fn test_parse_mixed_associated_token_and_token_prefix_fails() {
         // Mixing associated_token:: with token type should fail
         let field: syn::Field = parse_quote! {
-            #[light_account(init, token::seeds = [b"vault"], token::mint = mint, token::owner = owner, associated_token::mint = mint)]
+            #[light_account(init, token::seeds = [b"vault"], token::mint = mint, token::owner = owner, token::owner_seeds = [b"auth"], associated_token::mint = mint)]
             pub vault: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();
@@ -2022,7 +2232,7 @@ mod tests {
     fn test_parse_duplicate_token_type_fails() {
         // Duplicate token keyword should fail
         let field: syn::Field = parse_quote! {
-            #[light_account(init, token, token, token::seeds = [b"vault"], token::mint = mint, token::owner = owner)]
+            #[light_account(init, token, token, token::seeds = [b"vault"], token::mint = mint, token::owner = owner, token::owner_seeds = [b"auth"])]
             pub vault: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();

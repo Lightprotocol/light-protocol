@@ -27,7 +27,7 @@ use light_program_test::{
 };
 use light_token::instruction::{
     find_mint_address, get_associated_token_address_and_bump, LIGHT_TOKEN_CONFIG,
-    LIGHT_TOKEN_CPI_AUTHORITY, LIGHT_TOKEN_PROGRAM_ID, RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR,
+    LIGHT_TOKEN_CPI_AUTHORITY, LIGHT_TOKEN_PROGRAM_ID, LIGHT_TOKEN_RENT_SPONSOR,
 };
 use light_token_interface::state::Token;
 use solana_instruction::Instruction;
@@ -299,8 +299,8 @@ async fn test_amm_full_lifecycle() {
         rent: solana_sdk::sysvar::rent::ID,
         compression_config: ctx.config_pda,
         pda_rent_sponsor: csdk_anchor_full_derived_test::program_rent_sponsor(),
-        light_token_compressible_config: LIGHT_TOKEN_CONFIG,
-        rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
+        light_token_config: LIGHT_TOKEN_CONFIG,
+        light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID,
         light_token_cpi_authority: LIGHT_TOKEN_CPI_AUTHORITY,
     };

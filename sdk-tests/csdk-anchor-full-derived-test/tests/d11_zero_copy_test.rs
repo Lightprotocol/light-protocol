@@ -53,7 +53,7 @@ use light_program_test::{
 };
 use light_sdk::interface::{CompressionState, IntoVariant};
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
-use light_token::instruction::{LIGHT_TOKEN_CONFIG, RENT_SPONSOR};
+use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -169,8 +169,8 @@ async fn test_d11_zc_with_vault() {
         d11_mint: mint,
         d11_vault_authority: vault_authority,
         d11_zc_vault: vault_pda,
-        light_token_compressible_config: LIGHT_TOKEN_CONFIG,
-        light_token_rent_sponsor: RENT_SPONSOR,
+        light_token_config: LIGHT_TOKEN_CONFIG,
+        light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         system_program: solana_sdk::system_program::ID,
@@ -314,8 +314,8 @@ async fn test_d11_zc_with_ata() {
         d11_ata_mint: mint,
         d11_ata_owner: ata_owner,
         d11_user_ata: ata_pda,
-        light_token_compressible_config: LIGHT_TOKEN_CONFIG,
-        light_token_rent_sponsor: RENT_SPONSOR,
+        light_token_config: LIGHT_TOKEN_CONFIG,
+        light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         system_program: solana_sdk::system_program::ID,
     };
@@ -1084,8 +1084,8 @@ async fn test_d11_zc_with_mint_to() {
         mint_authority: ctx.payer.pubkey(),
         d11_vault_authority: vault_authority,
         d11_mint_vault: vault_pda,
-        light_token_compressible_config: LIGHT_TOKEN_CONFIG,
-        light_token_rent_sponsor: RENT_SPONSOR,
+        light_token_config: LIGHT_TOKEN_CONFIG,
+        light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         system_program: solana_sdk::system_program::ID,

@@ -17,7 +17,7 @@
 //! 4. **PDA rent sponsor** - When PDAs exist, `pda_rent_sponsor` field is required
 //!
 //! 5. **Light token config** - When mints, tokens, or ATAs exist,
-//!    `light_token_compressible_config` field is required
+//!    `light_token_config` field is required
 //!
 //! 6. **Light token rent sponsor** - When mints, tokens, or ATAs exist,
 //!    `light_token_rent_sponsor` field is required
@@ -47,8 +47,14 @@ pub(super) struct ValidationContext<'a> {
     pub struct_name: &'a syn::Ident,
     pub has_pdas: bool,
     pub has_mints: bool,
+    /// Any token accounts (init or mark-only)
     pub has_tokens: bool,
+    /// Token accounts with init (requires infrastructure)
+    pub has_tokens_with_init: bool,
+    /// Any ATAs (init or mark-only)
     pub has_atas: bool,
+    /// ATAs with init (requires infrastructure)
+    pub has_atas_with_init: bool,
     pub has_fee_payer: bool,
     pub has_compression_config: bool,
     pub has_pda_rent_sponsor: bool,
@@ -139,8 +145,9 @@ fn validate_infra_fields(ctx: &ValidationContext) -> Result<(), syn::Error> {
         }
     }
 
-    // Mints, token accounts, and ATAs require light_token infrastructure
-    let needs_token_infra = ctx.has_mints || ctx.has_tokens || ctx.has_atas;
+    // Mints, token accounts (with init), and ATAs (with init) require light_token infrastructure.
+    // Mark-only token/ATA fields don't require infrastructure since they don't call CPIs.
+    let needs_token_infra = ctx.has_mints || ctx.has_tokens_with_init || ctx.has_atas_with_init;
     if needs_token_infra {
         if !ctx.has_light_token_config {
             missing.push(InfraFieldType::LightTokenConfig);
@@ -148,8 +155,8 @@ fn validate_infra_fields(ctx: &ValidationContext) -> Result<(), syn::Error> {
         if !ctx.has_light_token_rent_sponsor {
             missing.push(InfraFieldType::LightTokenRentSponsor);
         }
-        // CPI authority is required for mints and token accounts (PDA-based signing)
-        if (ctx.has_mints || ctx.has_tokens) && !ctx.has_light_token_cpi_authority {
+        // CPI authority is required for mints and token accounts with init (PDA-based signing)
+        if (ctx.has_mints || ctx.has_tokens_with_init) && !ctx.has_light_token_cpi_authority {
             missing.push(InfraFieldType::LightTokenCpiAuthority);
         }
     }

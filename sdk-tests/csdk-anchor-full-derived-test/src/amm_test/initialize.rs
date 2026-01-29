@@ -2,7 +2,7 @@
 //!
 //! Tests:
 //! - 2x #[light_account(init)] (pool_state, observation_state)
-//! - 2x #[light_account(init, token::...)] (token_0_vault, token_1_vault) - auto-created by macro
+//! - 2x #[light_account(token::...)] mark-only mode (token_0_vault, token_1_vault) - manual CreateTokenAccountCpi
 //! - 1x #[light_account(init, mint::...)] (lp_mint)
 //! - CreateTokenAtaCpi.rent_free()
 //! - MintToCpi
@@ -12,7 +12,8 @@ use light_anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 use light_compressible::CreateAccountsProof;
 use light_sdk_macros::LightAccounts;
 use light_token::instruction::{
-    CreateTokenAtaCpi, MintToCpi, LIGHT_TOKEN_CONFIG, RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR,
+    CreateTokenAccountCpi, CreateTokenAtaCpi, MintToCpi, LIGHT_TOKEN_CONFIG,
+    LIGHT_TOKEN_RENT_SPONSOR,
 };
 
 use super::states::*;
@@ -112,7 +113,8 @@ pub struct InitializePool<'info> {
         ],
         bump,
     )]
-    #[light_account(init, token::seeds = [POOL_VAULT_SEED.as_bytes(), self.pool_state.key(), self.token_0_mint.key()], token::mint = token_0_mint, token::owner = authority, token::owner_seeds = [AUTH_SEED.as_bytes()])]
+    // Mark-only: seeds and owner_seeds only (no mint/owner)
+    #[light_account(token::seeds = [POOL_VAULT_SEED.as_bytes(), self.pool_state.key(), self.token_0_mint.key()], token::owner_seeds = [AUTH_SEED.as_bytes()])]
     pub token_0_vault: UncheckedAccount<'info>,
 
     #[account(
@@ -124,7 +126,8 @@ pub struct InitializePool<'info> {
         ],
         bump,
     )]
-    #[light_account(init, token::seeds = [POOL_VAULT_SEED.as_bytes(), self.pool_state.key(), self.token_1_mint.key()], token::mint = token_1_mint, token::owner = authority, token::owner_seeds = [AUTH_SEED.as_bytes()])]
+    // Mark-only: seeds and owner_seeds only (no mint/owner)
+    #[light_account(token::seeds = [POOL_VAULT_SEED.as_bytes(), self.pool_state.key(), self.token_1_mint.key()], token::owner_seeds = [AUTH_SEED.as_bytes()])]
     pub token_1_vault: UncheckedAccount<'info>,
 
     #[account(
@@ -152,10 +155,10 @@ pub struct InitializePool<'info> {
     pub pda_rent_sponsor: AccountInfo<'info>,
 
     #[account(address = LIGHT_TOKEN_CONFIG)]
-    pub light_token_compressible_config: AccountInfo<'info>,
+    pub light_token_config: AccountInfo<'info>,
 
     #[account(mut, address = LIGHT_TOKEN_RENT_SPONSOR)]
-    pub rent_sponsor: AccountInfo<'info>,
+    pub light_token_rent_sponsor: AccountInfo<'info>,
 
     pub light_token_program: AccountInfo<'info>,
 
@@ -164,11 +167,51 @@ pub struct InitializePool<'info> {
 }
 
 /// Initialize instruction handler.
-/// Token vaults (token_0_vault, token_1_vault) are auto-created by the macro via light_pre_init.
+/// Token vaults (token_0_vault, token_1_vault) are manually created via CreateTokenAccountCpi.
 pub fn process_initialize_pool<'info>(
     ctx: Context<'_, '_, '_, 'info, InitializePool<'info>>,
     params: InitializeParams,
 ) -> Result<()> {
+    // Create token_0_vault using CreateTokenAccountCpi (mark-only field)
+    CreateTokenAccountCpi {
+        payer: ctx.accounts.creator.to_account_info(),
+        account: ctx.accounts.token_0_vault.to_account_info(),
+        mint: ctx.accounts.token_0_mint.to_account_info(),
+        owner: ctx.accounts.authority.key(),
+    }
+    .rent_free(
+        ctx.accounts.light_token_config.to_account_info(),
+        ctx.accounts.light_token_rent_sponsor.to_account_info(),
+        ctx.accounts.system_program.to_account_info(),
+        &crate::ID,
+    )
+    .invoke_signed(&[
+        POOL_VAULT_SEED.as_bytes(),
+        ctx.accounts.pool_state.to_account_info().key.as_ref(),
+        ctx.accounts.token_0_mint.to_account_info().key.as_ref(),
+        &[ctx.bumps.token_0_vault],
+    ])?;
+
+    // Create token_1_vault using CreateTokenAccountCpi (mark-only field)
+    CreateTokenAccountCpi {
+        payer: ctx.accounts.creator.to_account_info(),
+        account: ctx.accounts.token_1_vault.to_account_info(),
+        mint: ctx.accounts.token_1_mint.to_account_info(),
+        owner: ctx.accounts.authority.key(),
+    }
+    .rent_free(
+        ctx.accounts.light_token_config.to_account_info(),
+        ctx.accounts.light_token_rent_sponsor.to_account_info(),
+        ctx.accounts.system_program.to_account_info(),
+        &crate::ID,
+    )
+    .invoke_signed(&[
+        POOL_VAULT_SEED.as_bytes(),
+        ctx.accounts.pool_state.to_account_info().key.as_ref(),
+        ctx.accounts.token_1_mint.to_account_info().key.as_ref(),
+        &[ctx.bumps.token_1_vault],
+    ])?;
+
     // Create creator LP token ATA using CreateTokenAtaCpi.rent_free()
     CreateTokenAtaCpi {
         payer: ctx.accounts.creator.to_account_info(),
@@ -179,10 +222,8 @@ pub fn process_initialize_pool<'info>(
     }
     .idempotent()
     .rent_free(
-        ctx.accounts
-            .light_token_compressible_config
-            .to_account_info(),
-        ctx.accounts.rent_sponsor.to_account_info(),
+        ctx.accounts.light_token_config.to_account_info(),
+        ctx.accounts.light_token_rent_sponsor.to_account_info(),
         ctx.accounts.system_program.to_account_info(),
     )
     .invoke()?;

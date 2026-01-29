@@ -28,7 +28,7 @@ async fn test_create_pdas_and_mint_auto() {
         FullAutoWithMintParams, GameSession,
     };
     use light_token::instruction::{
-        get_associated_token_address_and_bump, LIGHT_TOKEN_CONFIG, RENT_SPONSOR,
+        get_associated_token_address_and_bump, LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR,
     };
     use light_token_interface::state::Token;
 
@@ -160,8 +160,8 @@ async fn test_create_pdas_and_mint_auto() {
         user_ata: user_ata_pda,
         compression_config: config_pda,
         pda_rent_sponsor: rent_sponsor,
-        light_token_compressible_config: LIGHT_TOKEN_CONFIG,
-        rent_sponsor: RENT_SPONSOR,
+        light_token_config: LIGHT_TOKEN_CONFIG,
+        light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         system_program: solana_sdk::system_program::ID,
@@ -534,37 +534,24 @@ async fn test_create_two_mints() {
         CreateTwoMintsParams, MINT_SIGNER_A_SEED, MINT_SIGNER_B_SEED,
     };
     use light_token::instruction::{
-        find_mint_address as find_cmint_address, LIGHT_TOKEN_CONFIG, RENT_SPONSOR,
+        find_mint_address as find_cmint_address, LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR,
     };
 
-    let program_id = csdk_anchor_full_derived_test::ID;
-    let config = ProgramTestConfig::new_v2(
-        true,
-        Some(vec![("csdk_anchor_full_derived_test", program_id)]),
-    )
-    .with_decoders(vec![
-        Box::new(csdk_anchor_full_derived_test::CsdkTestInstructionDecoder),
-        Box::new(csdk_anchor_full_derived_test::CsdkAnchorFullDerivedTestInstructionDecoder),
-    ])
-    .with_light_protocol_events();
+    let ctx = shared::SharedTestContext::new_with_config(|config| {
+        config.with_decoders(vec![
+            Box::new(csdk_anchor_full_derived_test::CsdkTestInstructionDecoder),
+            Box::new(csdk_anchor_full_derived_test::CsdkAnchorFullDerivedTestInstructionDecoder),
+        ])
+    })
+    .await;
 
-    let mut rpc = LightProgramTest::new(config).await.unwrap();
-    let payer = rpc.get_payer().insecure_clone();
-
-    let program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
-
-    let (init_config_ix, config_pda) = InitializeRentFreeConfig::new(
-        &program_id,
-        &payer.pubkey(),
-        &program_data_pda,
-        RENT_SPONSOR,
-        payer.pubkey(),
-    )
-    .build();
-
-    rpc.create_and_send_transaction(&[init_config_ix], &payer.pubkey(), &[&payer])
-        .await
-        .expect("Initialize config should succeed");
+    let shared::SharedTestContext {
+        mut rpc,
+        payer,
+        config_pda,
+        rent_sponsor: _,
+        program_id,
+    } = ctx;
 
     let authority = Keypair::new();
 
@@ -612,8 +599,8 @@ async fn test_create_two_mints() {
         cmint_a: cmint_a_pda,
         cmint_b: cmint_b_pda,
         compression_config: config_pda,
-        light_token_compressible_config: LIGHT_TOKEN_CONFIG,
-        rent_sponsor: RENT_SPONSOR,
+        light_token_config: LIGHT_TOKEN_CONFIG,
+        light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         system_program: solana_sdk::system_program::ID,
@@ -734,33 +721,16 @@ async fn test_create_multi_mints() {
         CreateThreeMintsParams, MINT_SIGNER_A_SEED, MINT_SIGNER_B_SEED, MINT_SIGNER_C_SEED,
     };
     use light_token::instruction::{
-        find_mint_address as find_cmint_address, LIGHT_TOKEN_CONFIG, RENT_SPONSOR,
+        find_mint_address as find_cmint_address, LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR,
     };
 
-    let program_id = csdk_anchor_full_derived_test::ID;
-    let mut config = ProgramTestConfig::new_v2(
-        true,
-        Some(vec![("csdk_anchor_full_derived_test", program_id)]),
-    );
-    config = config.with_light_protocol_events();
-
-    let mut rpc = LightProgramTest::new(config).await.unwrap();
-    let payer = rpc.get_payer().insecure_clone();
-
-    let program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
-
-    let (init_config_ix, config_pda) = InitializeRentFreeConfig::new(
-        &program_id,
-        &payer.pubkey(),
-        &program_data_pda,
-        RENT_SPONSOR,
-        payer.pubkey(),
-    )
-    .build();
-
-    rpc.create_and_send_transaction(&[init_config_ix], &payer.pubkey(), &[&payer])
-        .await
-        .expect("Initialize config should succeed");
+    let shared::SharedTestContext {
+        mut rpc,
+        payer,
+        config_pda,
+        rent_sponsor: _,
+        program_id,
+    } = shared::SharedTestContext::new().await;
 
     let authority = Keypair::new();
 
@@ -806,8 +776,8 @@ async fn test_create_multi_mints() {
         cmint_b: cmint_b_pda,
         cmint_c: cmint_c_pda,
         compression_config: config_pda,
-        light_token_compressible_config: LIGHT_TOKEN_CONFIG,
-        rent_sponsor: RENT_SPONSOR,
+        light_token_config: LIGHT_TOKEN_CONFIG,
+        light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         system_program: solana_sdk::system_program::ID,
@@ -889,37 +859,14 @@ async fn test_create_multi_mints() {
 /// Helper function to set up test context for D9 instruction data tests.
 /// Returns (rpc, payer, program_id, config_pda, rent_sponsor).
 async fn setup_d9_test_context() -> (LightProgramTest, Keypair, Pubkey, Pubkey, Pubkey) {
-    use light_token::instruction::RENT_SPONSOR;
-
-    let program_id = csdk_anchor_full_derived_test::ID;
-    let mut config = ProgramTestConfig::new_v2(
-        true,
-        Some(vec![("csdk_anchor_full_derived_test", program_id)]),
-    );
-    config = config.with_light_protocol_events();
-
-    let mut rpc = LightProgramTest::new(config).await.unwrap();
-    let payer = rpc.get_payer().insecure_clone();
-
-    let program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
-
-    // Derive rent sponsor PDA for this program
-    let (rent_sponsor, _) = derive_rent_sponsor_pda(&program_id);
-
-    let (init_config_ix, config_pda) = InitializeRentFreeConfig::new(
-        &program_id,
-        &payer.pubkey(),
-        &program_data_pda,
-        RENT_SPONSOR,
-        payer.pubkey(),
+    let ctx = shared::SharedTestContext::new().await;
+    (
+        ctx.rpc,
+        ctx.payer,
+        ctx.program_id,
+        ctx.config_pda,
+        ctx.rent_sponsor,
     )
-    .build();
-
-    rpc.create_and_send_transaction(&[init_config_ix], &payer.pubkey(), &[&payer])
-        .await
-        .expect("Initialize config should succeed");
-
-    (rpc, payer, program_id, config_pda, rent_sponsor)
 }
 
 /// Test D9InstrSinglePubkey - seeds = [b"instr_single", params.owner.as_ref()]

@@ -27,9 +27,9 @@ impl InfraFieldType {
         match self {
             InfraFieldType::FeePayer => &["fee_payer", "payer", "creator"],
             InfraFieldType::CompressionConfig => &["compression_config"],
-            InfraFieldType::PdaRentSponsor => &["pda_rent_sponsor", "compression_rent_sponsor"],
-            InfraFieldType::LightTokenConfig => &["light_token_compressible_config"],
-            InfraFieldType::LightTokenRentSponsor => &["light_token_rent_sponsor", "rent_sponsor"],
+            InfraFieldType::PdaRentSponsor => &["pda_rent_sponsor"],
+            InfraFieldType::LightTokenConfig => &["light_token_config"],
+            InfraFieldType::LightTokenRentSponsor => &["light_token_rent_sponsor"],
             InfraFieldType::LightTokenProgram => &["light_token_program"],
             InfraFieldType::LightTokenCpiAuthority => &["light_token_cpi_authority"],
         }
@@ -59,11 +59,9 @@ impl InfraFieldClassifier {
         match name {
             "fee_payer" | "payer" | "creator" => Some(InfraFieldType::FeePayer),
             "compression_config" => Some(InfraFieldType::CompressionConfig),
-            "pda_rent_sponsor" | "compression_rent_sponsor" => Some(InfraFieldType::PdaRentSponsor),
-            "light_token_compressible_config" => Some(InfraFieldType::LightTokenConfig),
-            "light_token_rent_sponsor" | "rent_sponsor" => {
-                Some(InfraFieldType::LightTokenRentSponsor)
-            }
+            "pda_rent_sponsor" => Some(InfraFieldType::PdaRentSponsor),
+            "light_token_config" => Some(InfraFieldType::LightTokenConfig),
+            "light_token_rent_sponsor" => Some(InfraFieldType::LightTokenRentSponsor),
             "light_token_program" => Some(InfraFieldType::LightTokenProgram),
             "light_token_cpi_authority" => Some(InfraFieldType::LightTokenCpiAuthority),
             _ => None,
@@ -223,10 +221,6 @@ mod tests {
     fn test_classify_rent_sponsor() {
         assert_eq!(
             InfraFieldClassifier::classify("pda_rent_sponsor"),
-            Some(InfraFieldType::PdaRentSponsor)
-        );
-        assert_eq!(
-            InfraFieldClassifier::classify("compression_rent_sponsor"),
             Some(InfraFieldType::PdaRentSponsor)
         );
     }

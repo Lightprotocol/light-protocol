@@ -10,7 +10,7 @@ use light_compressible::CreateAccountsProof;
 use light_sdk::derive_light_cpi_signer;
 use light_sdk_macros::{light_program, LightAccounts};
 use light_sdk_types::CpiSigner;
-use light_token::instruction::{LIGHT_TOKEN_CONFIG, RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR};
+use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
 
 declare_id!("TknT111111111111111111111111111111111111111");
 
@@ -56,7 +56,7 @@ pub struct CreateTokenVault<'info> {
     pub vault: UncheckedAccount<'info>,
 
     #[account(address = LIGHT_TOKEN_CONFIG)]
-    pub light_token_compressible_config: AccountInfo<'info>,
+    pub light_token_config: AccountInfo<'info>,
 
     #[account(mut, address = LIGHT_TOKEN_RENT_SPONSOR)]
     pub light_token_rent_sponsor: AccountInfo<'info>,

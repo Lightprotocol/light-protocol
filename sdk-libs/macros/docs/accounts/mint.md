@@ -76,7 +76,7 @@ The macro auto-detects infrastructure fields by naming convention:
 | Field Type | Accepted Names |
 |------------|----------------|
 | Fee Payer | `fee_payer`, `payer`, `creator` |
-| Light Token Config | `light_token_compressible_config` |
+| Light Token Config | `light_token_config` |
 | Light Token Rent Sponsor | `light_token_rent_sponsor`, `rent_sponsor` |
 | Light Token Program | `light_token_program` |
 | Light Token CPI Authority | `light_token_cpi_authority` |
@@ -115,7 +115,7 @@ pub struct CreateMint<'info> {
 
     // Infrastructure accounts
     #[account(address = COMPRESSIBLE_CONFIG)]
-    pub light_token_compressible_config: AccountInfo<'info>,
+    pub light_token_config: AccountInfo<'info>,
 
     #[account(mut, address = RENT_SPONSOR)]
     pub light_token_rent_sponsor: AccountInfo<'info>,

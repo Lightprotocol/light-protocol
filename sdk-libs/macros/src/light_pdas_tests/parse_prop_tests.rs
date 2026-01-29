@@ -44,7 +44,7 @@ mod tests {
             "compression_config",
             "pda_rent_sponsor",
             "compression_rent_sponsor",
-            "light_token_compressible_config",
+            "light_token_config",
             "light_token_rent_sponsor",
             "rent_sponsor",
             "light_token_program",

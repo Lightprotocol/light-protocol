@@ -217,7 +217,8 @@ impl Default for SystemAccounts {
 pub use crate::{
     constants::{
         compression_authority_pda, config_pda, rent_sponsor_pda, LIGHT_TOKEN_CONFIG,
-        LIGHT_TOKEN_CPI_AUTHORITY, LIGHT_TOKEN_PROGRAM_ID, RENT_SPONSOR_V1 as RENT_SPONSOR,
+        LIGHT_TOKEN_CPI_AUTHORITY, LIGHT_TOKEN_PROGRAM_ID,
+        RENT_SPONSOR_V1 as LIGHT_TOKEN_RENT_SPONSOR,
     },
     cpi_authority, id,
     spl_interface::get_spl_interface_pda_and_bump,

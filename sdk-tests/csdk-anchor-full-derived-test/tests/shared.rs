@@ -1,8 +1,77 @@
 #![allow(dead_code)]
 // Shared test utilities for csdk-anchor-full-derived-test
 
-use light_client::{indexer::Indexer, rpc::Rpc};
+use light_client::{indexer::Indexer, interface::InitializeRentFreeConfig, rpc::Rpc};
+use light_program_test::{
+    program_test::{setup_mock_program_data, LightProgramTest},
+    ProgramTestConfig,
+};
+use light_sdk::utils::derive_rent_sponsor_pda;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
+
+/// Shared test context for csdk-anchor-full-derived-test
+pub struct SharedTestContext {
+    pub rpc: LightProgramTest,
+    pub payer: Keypair,
+    pub config_pda: Pubkey,
+    pub rent_sponsor: Pubkey,
+    pub program_id: Pubkey,
+}
+
+impl SharedTestContext {
+    /// Creates a new test context with properly initialized rent sponsor and config.
+    pub async fn new() -> Self {
+        Self::new_with_config(|config| config).await
+    }
+
+    /// Creates a new test context with a config customizer function.
+    pub async fn new_with_config(
+        customize: impl FnOnce(ProgramTestConfig) -> ProgramTestConfig,
+    ) -> Self {
+        let program_id = csdk_anchor_full_derived_test::ID;
+        let config = ProgramTestConfig::new_v2(
+            true,
+            Some(vec![("csdk_anchor_full_derived_test", program_id)]),
+        )
+        .with_light_protocol_events();
+
+        let config = customize(config);
+
+        let mut rpc = LightProgramTest::new(config).await.unwrap();
+        let payer = rpc.get_payer().insecure_clone();
+
+        let program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
+
+        // Derive rent sponsor PDA for this program
+        let (rent_sponsor, _) = derive_rent_sponsor_pda(&program_id);
+
+        // Fund the rent sponsor PDA so it can pay for decompression
+        rpc.airdrop_lamports(&rent_sponsor, 10_000_000_000)
+            .await
+            .expect("Airdrop to rent sponsor should succeed");
+
+        let (init_config_ix, config_pda) = InitializeRentFreeConfig::new(
+            &program_id,
+            &payer.pubkey(),
+            &program_data_pda,
+            rent_sponsor,
+            payer.pubkey(),
+        )
+        .build();
+
+        rpc.create_and_send_transaction(&[init_config_ix], &payer.pubkey(), &[&payer])
+            .await
+            .expect("Initialize config should succeed");
+
+        Self {
+            rpc,
+            payer,
+            config_pda,
+            rent_sponsor,
+            program_id,
+        }
+    }
+}
 
 /// Asserts that an account exists on-chain.
 ///

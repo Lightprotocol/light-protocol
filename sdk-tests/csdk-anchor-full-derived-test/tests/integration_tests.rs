@@ -7,7 +7,7 @@
 
 mod shared;
 
-use anchor_lang::{InstructionData, ToAccountMetas};
+use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
 use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::LightAccountVariant;
 use light_client::interface::{
     create_load_instructions, get_create_accounts_proof, AccountInterfaceExt, AccountSpec,
@@ -20,7 +20,7 @@ use light_program_test::{
 };
 use light_sdk::interface::IntoVariant;
 /// Light Token's rent sponsor - used for Light Token operations
-use light_token::instruction::RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR_CONST;
+use light_token::instruction::LIGHT_TOKEN_RENT_SPONSOR;
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -42,6 +42,8 @@ struct TestContext {
 
 impl TestContext {
     async fn new() -> Self {
+        use light_sdk::utils::derive_rent_sponsor_pda;
+
         let program_id = csdk_anchor_full_derived_test::ID;
         let mut config = ProgramTestConfig::new_v2(
             true,
@@ -54,11 +56,19 @@ impl TestContext {
 
         let program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
+        // Derive rent sponsor PDA for this program
+        let (rent_sponsor, _) = derive_rent_sponsor_pda(&program_id);
+
+        // Fund the rent sponsor PDA so it can pay for decompression
+        rpc.airdrop_lamports(&rent_sponsor, 10_000_000_000)
+            .await
+            .expect("Airdrop to rent sponsor should succeed");
+
         let (init_config_ix, config_pda) = InitializeRentFreeConfig::new(
             &program_id,
             &payer.pubkey(),
             &program_data_pda,
-            LIGHT_TOKEN_RENT_SPONSOR_CONST,
+            rent_sponsor,
             payer.pubkey(),
         )
         .build();
@@ -140,6 +150,111 @@ impl TestContext {
             vec![],              // no recipients initially
         )
         .await
+    }
+
+    /// Decompress a cold PDA. Does NOT warp - caller must warp first.
+    async fn decompress_pda<S>(&mut self, pda: &Pubkey, seeds: S)
+    where
+        S: IntoVariant<LightAccountVariant>,
+    {
+        // Get account interface
+        let account_interface = self
+            .rpc
+            .get_account_interface(pda, &self.program_id)
+            .await
+            .expect("failed to get account interface");
+        assert!(
+            account_interface.is_cold(),
+            "Account should be cold after compression"
+        );
+
+        // Build variant from seeds and account data
+        let variant = seeds
+            .into_variant(&account_interface.account.data[8..])
+            .expect("Seed verification failed");
+
+        // Build PdaSpec
+        let spec = PdaSpec::new(account_interface.clone(), variant, self.program_id);
+
+        // Create AccountSpec slice
+        let specs: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Pda(spec)];
+
+        // Create and execute decompression
+        let decompress_instructions =
+            create_load_instructions(&specs, self.payer.pubkey(), self.config_pda, &self.rpc)
+                .await
+                .expect("create_load_instructions should succeed");
+
+        self.rpc
+            .create_and_send_transaction(
+                &decompress_instructions,
+                &self.payer.pubkey(),
+                &[&self.payer],
+            )
+            .await
+            .expect("Decompression should succeed");
+
+        // Verify account is back on-chain
+        shared::assert_onchain_exists(&mut self.rpc, pda, "pda").await;
+    }
+
+    /// Decompress a cold token vault. Does NOT warp - caller must warp first.
+    async fn decompress_token_vault(
+        &mut self,
+        vault_pda: &Pubkey,
+        build_variant: impl FnOnce(light_token_interface::state::Token) -> LightAccountVariant,
+    ) {
+        use light_client::interface::{AccountInterface, ColdContext};
+
+        // Fetch token account interface
+        let vault_interface = self
+            .rpc
+            .get_token_account_interface(vault_pda)
+            .await
+            .expect("get_token_account_interface should succeed");
+        assert!(vault_interface.is_cold(), "Token vault should be cold");
+
+        // Deserialize token data
+        let token = light_token_interface::state::Token::deserialize(
+            &mut &vault_interface.account.data[..],
+        )
+        .expect("Failed to parse Token");
+
+        // Build variant using provided closure
+        let vault_variant = build_variant(token);
+
+        // Get compressed context
+        let vault_compressed = vault_interface
+            .compressed()
+            .expect("cold vault must have compressed data");
+
+        // Convert to AccountInterface with ColdContext::Account
+        let vault_interface_for_pda = AccountInterface {
+            key: vault_interface.key,
+            account: vault_interface.account.clone(),
+            cold: Some(ColdContext::Account(vault_compressed.account.clone())),
+        };
+
+        // Create PdaSpec and decompress
+        let vault_spec = PdaSpec::new(vault_interface_for_pda, vault_variant, self.program_id);
+        let specs: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Pda(vault_spec)];
+
+        let decompress_instructions =
+            create_load_instructions(&specs, self.payer.pubkey(), self.config_pda, &self.rpc)
+                .await
+                .expect("create_load_instructions should succeed");
+
+        self.rpc
+            .create_and_send_transaction(
+                &decompress_instructions,
+                &self.payer.pubkey(),
+                &[&self.payer],
+            )
+            .await
+            .expect("Token vault decompression should succeed");
+
+        // Verify back on-chain
+        shared::assert_onchain_exists(&mut self.rpc, vault_pda, "token_vault").await;
     }
 }
 
@@ -1410,9 +1525,9 @@ async fn test_d8_pda_only_full_lifecycle() {
 // D5 Markers Token Tests (require mint setup)
 // =============================================================================
 
-/// Tests D5LightToken: #[light_account(token)] attribute
-/// NOTE: This test is skipped because token-only instructions (no #[light_account(init)] PDAs)
-/// still require a CreateAccountsProof but get_create_accounts_proof fails with empty inputs.
+/// Tests D5LightToken: mark-only token account creation via manual CreateTokenAccountCpi
+/// This test verifies that mark-only mode works: the instruction handler creates the
+/// token account manually without macro-generated code.
 #[tokio::test]
 async fn test_d5_light_token() {
     use csdk_anchor_full_derived_test::d5_markers::{
@@ -1431,38 +1546,26 @@ async fn test_d5_light_token() {
     let (vault, vault_bump) =
         Pubkey::find_program_address(&[D5_VAULT_SEED, mint.as_ref()], &ctx.program_id);
 
-    // Get proof (no PDA accounts for token-only instruction)
-    let proof_result = get_create_accounts_proof(&ctx.rpc, &ctx.program_id, vec![])
-        .await
-        .unwrap();
-
-    // Build instruction
+    // Build instruction (no create_accounts_proof needed for mark-only mode)
     let accounts = csdk_anchor_full_derived_test::accounts::D5LightToken {
         fee_payer: ctx.payer.pubkey(),
         mint,
         vault_authority,
         d5_token_vault: vault,
-        light_token_compressible_config: LIGHT_TOKEN_CONFIG,
-        light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR_CONST,
+        light_token_config: LIGHT_TOKEN_CONFIG,
+        light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         system_program: solana_sdk::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D5LightToken {
-        params: D5LightTokenParams {
-            create_accounts_proof: proof_result.create_accounts_proof,
-            vault_bump,
-        },
+        params: D5LightTokenParams { vault_bump },
     };
 
     let instruction = Instruction {
         program_id: ctx.program_id,
-        accounts: [
-            accounts.to_account_metas(None),
-            proof_result.remaining_accounts,
-        ]
-        .concat(),
+        accounts: accounts.to_account_metas(None),
         data: instruction_data.data(),
     };
 
@@ -1471,70 +1574,28 @@ async fn test_d5_light_token() {
         .await
         .expect("D5LightToken instruction should succeed");
 
-    // Verify token vault exists
+    // Verify token vault exists on-chain
     shared::assert_onchain_exists(&mut ctx.rpc, &vault, "vault").await;
 
-    // PHASE 2: Warp time to trigger forester auto-compression
+    // Full lifecycle: compression + decompression
+    use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D5TokenVaultSeeds;
+    use light_sdk::interface::token::TokenDataWithSeeds;
+
+    // Warp time to trigger compression
     ctx.rpc
         .warp_slot_forward(SLOTS_PER_EPOCH * 30)
         .await
         .unwrap();
-
-    // Verify vault is compressed (closed on-chain)
     shared::assert_onchain_closed(&mut ctx.rpc, &vault, "vault").await;
 
-    // PHASE 3: Get compressed token account and build decompression
-    use borsh::BorshDeserialize;
-    use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D5TokenVaultSeeds;
-    use light_client::interface::ColdContext;
-    use light_sdk::interface::token::TokenDataWithSeeds;
-
-    let vault_interface = ctx
-        .rpc
-        .get_token_account_interface(&vault)
-        .await
-        .expect("get_token_account_interface should succeed");
-    assert!(
-        vault_interface.is_cold(),
-        "Vault should be cold after compression"
-    );
-
-    // Parse token data from compressed account
-    let token_data =
-        light_token_interface::state::Token::deserialize(&mut &vault_interface.account.data[..])
-            .expect("Failed to parse Token");
-
-    // Build variant with TokenDataWithSeeds
-    let vault_variant = LightAccountVariant::D5TokenVault(TokenDataWithSeeds {
-        seeds: D5TokenVaultSeeds { mint },
-        token_data,
-    });
-
-    // Convert TokenAccountInterface to AccountInterface with ColdContext::Account
-    let vault_compressed = vault_interface
-        .compressed()
-        .expect("cold vault must have compressed data");
-    let vault_interface_for_pda = light_client::interface::AccountInterface {
-        key: vault_interface.key,
-        account: vault_interface.account.clone(),
-        cold: Some(ColdContext::Account(vault_compressed.account.clone())),
-    };
-    let vault_spec = PdaSpec::new(vault_interface_for_pda, vault_variant, ctx.program_id);
-
-    // Create AccountSpec and decompress
-    let specs: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Pda(vault_spec)];
-    let decompress_instructions =
-        create_load_instructions(&specs, ctx.payer.pubkey(), ctx.config_pda, &ctx.rpc)
-            .await
-            .expect("create_load_instructions should succeed");
-
-    ctx.rpc
-        .create_and_send_transaction(&decompress_instructions, &ctx.payer.pubkey(), &[&ctx.payer])
-        .await
-        .expect("Decompression should succeed");
-
-    // PHASE 4: Verify vault is back on-chain
-    shared::assert_onchain_exists(&mut ctx.rpc, &vault, "vault").await;
+    // Decompress using generated seed struct
+    ctx.decompress_token_vault(&vault, |token| {
+        LightAccountVariant::D5TokenVault(TokenDataWithSeeds {
+            seeds: D5TokenVaultSeeds { mint },
+            token_data: token,
+        })
+    })
+    .await;
 }
 
 /// Tests D5AllMarkers: #[light_account(init)] + #[light_account(token)] combined
@@ -1577,8 +1638,8 @@ async fn test_d5_all_markers() {
         d5_all_authority,
         d5_all_record,
         d5_all_vault,
-        light_token_compressible_config: LIGHT_TOKEN_CONFIG,
-        light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR_CONST,
+        light_token_config: LIGHT_TOKEN_CONFIG,
+        light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         system_program: solana_sdk::system_program::ID,
@@ -1610,28 +1671,48 @@ async fn test_d5_all_markers() {
     shared::assert_onchain_exists(&mut ctx.rpc, &d5_all_record, "d5_all_record").await;
     shared::assert_onchain_exists(&mut ctx.rpc, &d5_all_vault, "d5_all_vault").await;
 
-    // Full lifecycle: compression + decompression (PDA only)
-    use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D5AllRecordSeeds;
-    ctx.assert_lifecycle(&d5_all_record, D5AllRecordSeeds { owner })
+    // Full lifecycle: single warp compresses both PDA and token, then decompress both
+    use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::{
+        D5AllRecordSeeds, D5AllVaultSeeds,
+    };
+    use light_sdk::interface::token::TokenDataWithSeeds;
+
+    // Warp time to trigger compression of BOTH accounts
+    ctx.rpc
+        .warp_slot_forward(SLOTS_PER_EPOCH * 30)
+        .await
+        .unwrap();
+    shared::assert_onchain_closed(&mut ctx.rpc, &d5_all_record, "d5_all_record").await;
+    shared::assert_onchain_closed(&mut ctx.rpc, &d5_all_vault, "d5_all_vault").await;
+
+    // Decompress token vault first
+    ctx.decompress_token_vault(&d5_all_vault, |token| {
+        LightAccountVariant::D5AllVault(TokenDataWithSeeds {
+            seeds: D5AllVaultSeeds { mint },
+            token_data: token,
+        })
+    })
+    .await;
+
+    // Decompress PDA
+    ctx.decompress_pda(&d5_all_record, D5AllRecordSeeds { owner })
         .await;
-    // TODO: Test token vault decompression using token variant seeds
 }
 
 // =============================================================================
 // D7 Infrastructure Names Token Tests (require mint setup)
 // =============================================================================
 
-/// Tests D7LightTokenConfig: light_token_compressible_config/light_token_rent_sponsor naming
+/// Tests D7LightTokenConfig: light_token_config/light_token_rent_sponsor naming
 /// Token-only instruction (no #[light_account(init)] PDAs) - verifies infrastructure field naming.
+/// This is a mark-only mode test - token account created via manual CreateTokenAccountCpi.
 #[tokio::test]
 async fn test_d7_light_token_config() {
     use csdk_anchor_full_derived_test::d7_infra_names::{
         D7LightTokenConfigParams, D7_LIGHT_TOKEN_AUTH_SEED, D7_LIGHT_TOKEN_VAULT_SEED,
     };
     use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
-    use light_token::instruction::{
-        LIGHT_TOKEN_CONFIG, RENT_SPONSOR as LIGHT_TOKEN_LIGHT_TOKEN_RENT_SPONSOR_CONST,
-    };
+    use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
 
     let mut ctx = TestContext::new().await;
 
@@ -1641,40 +1722,29 @@ async fn test_d7_light_token_config() {
     // Derive PDAs
     let (d7_light_token_authority, _) =
         Pubkey::find_program_address(&[D7_LIGHT_TOKEN_AUTH_SEED], &ctx.program_id);
-    let (d7_light_token_vault, _) =
+    let (d7_light_token_vault, vault_bump) =
         Pubkey::find_program_address(&[D7_LIGHT_TOKEN_VAULT_SEED, mint.as_ref()], &ctx.program_id);
 
-    // Get proof (no PDA accounts for token-only instruction)
-    let proof_result = get_create_accounts_proof(&ctx.rpc, &ctx.program_id, vec![])
-        .await
-        .unwrap();
-
-    // Build instruction
+    // Build instruction - no proof needed for mark-only token instruction
     let accounts = csdk_anchor_full_derived_test::accounts::D7LightTokenConfig {
         fee_payer: ctx.payer.pubkey(),
         mint,
         d7_light_token_authority,
         d7_light_token_vault,
-        light_token_compressible_config: LIGHT_TOKEN_CONFIG,
-        light_token_rent_sponsor: LIGHT_TOKEN_LIGHT_TOKEN_RENT_SPONSOR_CONST,
+        light_token_config: LIGHT_TOKEN_CONFIG,
+        light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         system_program: solana_sdk::system_program::ID,
     };
 
     let instruction_data = csdk_anchor_full_derived_test::instruction::D7LightTokenConfig {
-        params: D7LightTokenConfigParams {
-            create_accounts_proof: proof_result.create_accounts_proof,
-        },
+        params: D7LightTokenConfigParams { vault_bump },
     };
 
     let instruction = Instruction {
         program_id: ctx.program_id,
-        accounts: [
-            accounts.to_account_metas(None),
-            proof_result.remaining_accounts,
-        ]
-        .concat(),
+        accounts: accounts.to_account_metas(None),
         data: instruction_data.data(),
     };
 
@@ -1687,7 +1757,26 @@ async fn test_d7_light_token_config() {
     shared::assert_onchain_exists(&mut ctx.rpc, &d7_light_token_vault, "d7_light_token_vault")
         .await;
 
-    // TODO: Test token vault decompression using token variant seeds
+    // Full lifecycle: compression + decompression
+    use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D7LightTokenVaultSeeds;
+    use light_sdk::interface::token::TokenDataWithSeeds;
+
+    // Warp time to trigger compression
+    ctx.rpc
+        .warp_slot_forward(SLOTS_PER_EPOCH * 30)
+        .await
+        .unwrap();
+    shared::assert_onchain_closed(&mut ctx.rpc, &d7_light_token_vault, "d7_light_token_vault")
+        .await;
+
+    // Decompress using generated seed struct
+    ctx.decompress_token_vault(&d7_light_token_vault, |token| {
+        LightAccountVariant::D7LightTokenVault(TokenDataWithSeeds {
+            seeds: D7LightTokenVaultSeeds { mint },
+            token_data: token,
+        })
+    })
+    .await;
 }
 
 /// Tests D7AllNames: payer + light_token_config/rent_sponsor naming combined
@@ -1730,8 +1819,8 @@ async fn test_d7_all_names() {
         d7_all_authority,
         d7_all_record,
         d7_all_vault,
-        light_token_compressible_config: LIGHT_TOKEN_CONFIG,
-        rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR_CONST,
+        light_token_config: LIGHT_TOKEN_CONFIG,
+        light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         system_program: solana_sdk::system_program::ID,
@@ -1763,11 +1852,32 @@ async fn test_d7_all_names() {
     shared::assert_onchain_exists(&mut ctx.rpc, &d7_all_record, "d7_all_record").await;
     shared::assert_onchain_exists(&mut ctx.rpc, &d7_all_vault, "d7_all_vault").await;
 
-    // Full lifecycle: compression + decompression (PDA only)
-    use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D7AllRecordSeeds;
-    ctx.assert_lifecycle(&d7_all_record, D7AllRecordSeeds { owner })
+    // Full lifecycle: single warp compresses both PDA and token, then decompress both
+    use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::{
+        D7AllRecordSeeds, D7AllVaultSeeds,
+    };
+    use light_sdk::interface::token::TokenDataWithSeeds;
+
+    // Warp time to trigger compression of BOTH accounts
+    ctx.rpc
+        .warp_slot_forward(SLOTS_PER_EPOCH * 30)
+        .await
+        .unwrap();
+    shared::assert_onchain_closed(&mut ctx.rpc, &d7_all_record, "d7_all_record").await;
+    shared::assert_onchain_closed(&mut ctx.rpc, &d7_all_vault, "d7_all_vault").await;
+
+    // Decompress token vault first
+    ctx.decompress_token_vault(&d7_all_vault, |token| {
+        LightAccountVariant::D7AllVault(TokenDataWithSeeds {
+            seeds: D7AllVaultSeeds { mint },
+            token_data: token,
+        })
+    })
+    .await;
+
+    // Decompress PDA
+    ctx.decompress_pda(&d7_all_record, D7AllRecordSeeds { owner })
         .await;
-    // TODO: Test token vault decompression using token variant seeds
 }
 
 // =============================================================================

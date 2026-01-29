@@ -86,7 +86,8 @@ pub struct CreatePdasAndMintAuto<'info> {
         seeds = [VAULT_SEED, mint.key().as_ref()],
         bump,
     )]
-    #[light_account(init, token::seeds = [VAULT_SEED, self.mint.key()], token::mint = mint, token::owner = vault_authority, token::owner_seeds = [b"vault_authority"])]
+    // Mark-only: seeds and owner_seeds only (no mint/owner)
+    #[light_account(token::seeds = [VAULT_SEED, self.mint.key()], token::owner_seeds = [b"vault_authority"])]
     pub vault: UncheckedAccount<'info>,
 
     /// CHECK: PDA used as vault owner
@@ -105,11 +106,11 @@ pub struct CreatePdasAndMintAuto<'info> {
     pub pda_rent_sponsor: AccountInfo<'info>,
 
     /// CHECK: CToken config
-    pub light_token_compressible_config: AccountInfo<'info>,
+    pub light_token_config: AccountInfo<'info>,
 
     /// CHECK: CToken rent sponsor
     #[account(mut)]
-    pub rent_sponsor: AccountInfo<'info>,
+    pub light_token_rent_sponsor: AccountInfo<'info>,
 
     /// CHECK: CToken program
     pub light_token_program: AccountInfo<'info>,
@@ -185,11 +186,11 @@ pub struct CreateTwoMints<'info> {
     pub compression_config: AccountInfo<'info>,
 
     /// CHECK: CToken config
-    pub light_token_compressible_config: AccountInfo<'info>,
+    pub light_token_config: AccountInfo<'info>,
 
     /// CHECK: CToken rent sponsor
     #[account(mut)]
-    pub rent_sponsor: AccountInfo<'info>,
+    pub light_token_rent_sponsor: AccountInfo<'info>,
 
     /// CHECK: CToken program
     pub light_token_program: AccountInfo<'info>,
@@ -281,11 +282,11 @@ pub struct CreateThreeMints<'info> {
     pub compression_config: AccountInfo<'info>,
 
     /// CHECK: CToken config
-    pub light_token_compressible_config: AccountInfo<'info>,
+    pub light_token_config: AccountInfo<'info>,
 
     /// CHECK: CToken rent sponsor
     #[account(mut)]
-    pub rent_sponsor: AccountInfo<'info>,
+    pub light_token_rent_sponsor: AccountInfo<'info>,
 
     /// CHECK: CToken program
     pub light_token_program: AccountInfo<'info>,
@@ -349,11 +350,11 @@ pub struct CreateMintWithMetadata<'info> {
     pub compression_config: AccountInfo<'info>,
 
     /// CHECK: CToken config
-    pub light_token_compressible_config: AccountInfo<'info>,
+    pub light_token_config: AccountInfo<'info>,
 
     /// CHECK: CToken rent sponsor
     #[account(mut)]
-    pub rent_sponsor: AccountInfo<'info>,
+    pub light_token_rent_sponsor: AccountInfo<'info>,
 
     /// CHECK: CToken program
     pub light_token_program: AccountInfo<'info>,

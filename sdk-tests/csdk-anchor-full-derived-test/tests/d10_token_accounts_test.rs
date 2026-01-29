@@ -7,15 +7,18 @@ mod shared;
 
 use anchor_lang::{InstructionData, ToAccountMetas};
 use csdk_anchor_full_derived_test::d10_token_accounts::{
-    D10SingleAtaParams, D10SingleVaultParams, D10_SINGLE_VAULT_AUTH_SEED, D10_SINGLE_VAULT_SEED,
+    D10SingleAtaMarkonlyParams, D10SingleAtaParams, D10SingleVaultParams,
+    D10_SINGLE_VAULT_AUTH_SEED, D10_SINGLE_VAULT_SEED,
 };
-use light_client::interface::{get_create_accounts_proof, InitializeRentFreeConfig};
+use light_client::interface::{
+    get_create_accounts_proof, AccountInterfaceExt, InitializeRentFreeConfig,
+};
 use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest},
     ProgramTestConfig, Rpc,
 };
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
-use light_token::instruction::{LIGHT_TOKEN_CONFIG, RENT_SPONSOR};
+use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -105,8 +108,8 @@ async fn test_d10_single_vault() {
         d10_mint: mint,
         d10_vault_authority,
         d10_single_vault,
-        light_token_compressible_config: LIGHT_TOKEN_CONFIG,
-        light_token_rent_sponsor: RENT_SPONSOR,
+        light_token_config: LIGHT_TOKEN_CONFIG,
+        light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         system_program: solana_sdk::system_program::ID,
@@ -164,8 +167,8 @@ async fn test_d10_single_ata() {
         d10_ata_mint: mint,
         d10_ata_owner: ata_owner,
         d10_single_ata,
-        light_token_compressible_config: LIGHT_TOKEN_CONFIG,
-        light_token_rent_sponsor: RENT_SPONSOR,
+        light_token_config: LIGHT_TOKEN_CONFIG,
+        light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         system_program: solana_sdk::system_program::ID,
     };
@@ -222,8 +225,8 @@ async fn test_d10_single_ata_idempotent_creation() {
         d10_ata_mint: mint,
         d10_ata_owner: ata_owner,
         d10_single_ata,
-        light_token_compressible_config: LIGHT_TOKEN_CONFIG,
-        light_token_rent_sponsor: RENT_SPONSOR,
+        light_token_config: LIGHT_TOKEN_CONFIG,
+        light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         system_program: solana_sdk::system_program::ID,
     };
@@ -268,8 +271,8 @@ async fn test_d10_single_ata_idempotent_creation() {
         d10_ata_mint: mint,
         d10_ata_owner: ata_owner,
         d10_single_ata,
-        light_token_compressible_config: LIGHT_TOKEN_CONFIG,
-        light_token_rent_sponsor: RENT_SPONSOR,
+        light_token_config: LIGHT_TOKEN_CONFIG,
+        light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         system_program: solana_sdk::system_program::ID,
     };
@@ -303,4 +306,176 @@ async fn test_d10_single_ata_idempotent_creation() {
         ata_account_2.lamports, balance_after_first,
         "ATA balance should be unchanged after idempotent second creation"
     );
+}
+
+/// Tests D10SingleAtaMarkonly: #[light_account(associated_token::...)] mark-only mode.
+///
+/// This tests the mark-only ATA pattern where:
+/// - The macro generates no-op LightPreInit/LightFinalize implementations
+/// - User manually calls CreateTokenAtaCpi in the instruction handler
+/// - No custom seed structs needed - ATA addresses are derived deterministically from (authority, mint)
+///
+/// For decompression, ATAs use the standard derivation rather than custom seed structs.
+/// The forester can re-create an ATA by calling CreateTokenAtaCpi.idempotent() with
+/// the same authority and mint, which will recreate the account at the deterministic address.
+#[tokio::test]
+async fn test_d10_single_ata_markonly() {
+    let mut ctx = D10TestContext::new().await;
+
+    // Setup mint
+    let (mint, _compression_addr, _atas, _mint_seed) = ctx.setup_mint().await;
+
+    // The ATA owner will be a different keypair (not the payer)
+    let ata_owner = Keypair::new().pubkey();
+
+    // Derive the ATA address using Light Token SDK's derivation
+    let (d10_markonly_ata, ata_bump) =
+        light_token::instruction::derive_token_ata(&ata_owner, &mint);
+
+    // Get proof (no PDA accounts for ATA-only instruction)
+    let proof_result = get_create_accounts_proof(&ctx.rpc, &ctx.program_id, vec![])
+        .await
+        .unwrap();
+
+    // Build instruction
+    let accounts = csdk_anchor_full_derived_test::accounts::D10SingleAtaMarkonly {
+        fee_payer: ctx.payer.pubkey(),
+        d10_markonly_ata_mint: mint,
+        d10_markonly_ata_owner: ata_owner,
+        d10_markonly_ata,
+        light_token_config: LIGHT_TOKEN_CONFIG,
+        light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
+        light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D10SingleAtaMarkonly {
+        params: D10SingleAtaMarkonlyParams { ata_bump },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D10SingleAtaMarkonly instruction should succeed");
+
+    // Verify ATA exists on-chain
+    shared::assert_onchain_exists(&mut ctx.rpc, &d10_markonly_ata, "d10_markonly_ata").await;
+}
+
+/// Tests mark-only ATA compression and decompression lifecycle.
+///
+/// Verifies that:
+/// 1. ATA is created via manual CreateTokenAtaCpi
+/// 2. ATA is auto-compressed by forester after time warp
+/// 3. ATA can be decompressed using create_load_instructions with AccountSpec::Ata
+#[tokio::test]
+async fn test_d10_single_ata_markonly_lifecycle() {
+    use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::LightAccountVariant;
+    use light_client::interface::{create_load_instructions, AccountSpec};
+    use light_compressible::rent::SLOTS_PER_EPOCH;
+    use light_program_test::program_test::TestRpc;
+
+    let mut ctx = D10TestContext::new().await;
+
+    // Setup mint
+    let (mint, _compression_addr, _atas, _mint_seed) = ctx.setup_mint().await;
+
+    // The ATA owner will be a keypair we control (needed for decompression signing)
+    let ata_owner_keypair = Keypair::new();
+    let ata_owner = ata_owner_keypair.pubkey();
+
+    // Derive the ATA address
+    let (d10_markonly_ata, ata_bump) =
+        light_token::instruction::derive_token_ata(&ata_owner, &mint);
+
+    // PHASE 1: Create ATA
+    let proof_result = get_create_accounts_proof(&ctx.rpc, &ctx.program_id, vec![])
+        .await
+        .unwrap();
+
+    let accounts = csdk_anchor_full_derived_test::accounts::D10SingleAtaMarkonly {
+        fee_payer: ctx.payer.pubkey(),
+        d10_markonly_ata_mint: mint,
+        d10_markonly_ata_owner: ata_owner,
+        d10_markonly_ata,
+        light_token_config: LIGHT_TOKEN_CONFIG,
+        light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
+        light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
+        system_program: solana_sdk::system_program::ID,
+    };
+
+    let instruction_data = csdk_anchor_full_derived_test::instruction::D10SingleAtaMarkonly {
+        params: D10SingleAtaMarkonlyParams { ata_bump },
+    };
+
+    let instruction = Instruction {
+        program_id: ctx.program_id,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    ctx.rpc
+        .create_and_send_transaction(&[instruction], &ctx.payer.pubkey(), &[&ctx.payer])
+        .await
+        .expect("D10SingleAtaMarkonly creation should succeed");
+
+    // Verify ATA exists
+    shared::assert_onchain_exists(&mut ctx.rpc, &d10_markonly_ata, "d10_markonly_ata").await;
+
+    // PHASE 2: Warp time to trigger forester auto-compression
+    ctx.rpc
+        .warp_slot_forward(SLOTS_PER_EPOCH * 30)
+        .await
+        .unwrap();
+
+    // Verify ATA is compressed (closed on-chain)
+    shared::assert_onchain_closed(&mut ctx.rpc, &d10_markonly_ata, "d10_markonly_ata").await;
+
+    // PHASE 3: Decompress ATA using create_load_instructions
+    // ATAs use get_ata_interface which fetches the compressed token data
+    let ata_interface = ctx
+        .rpc
+        .get_ata_interface(&ata_owner, &mint)
+        .await
+        .expect("get_ata_interface should succeed");
+    assert!(
+        ata_interface.is_cold(),
+        "ATA should be cold after compression"
+    );
+
+    // Build AccountSpec for ATA decompression
+    let specs: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Ata(ata_interface)];
+
+    // Create decompression instructions
+    let decompress_instructions =
+        create_load_instructions(&specs, ctx.payer.pubkey(), ctx.config_pda, &ctx.rpc)
+            .await
+            .expect("create_load_instructions should succeed");
+
+    // Execute decompression (ATA owner must sign for decompression)
+    ctx.rpc
+        .create_and_send_transaction(
+            &decompress_instructions,
+            &ctx.payer.pubkey(),
+            &[&ctx.payer, &ata_owner_keypair],
+        )
+        .await
+        .expect("ATA decompression should succeed");
+
+    // PHASE 4: Verify ATA is back on-chain
+    shared::assert_onchain_exists(&mut ctx.rpc, &d10_markonly_ata, "d10_markonly_ata").await;
 }

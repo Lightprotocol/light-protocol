@@ -7,7 +7,7 @@ use light_program_test::{
     Indexer, ProgramTestConfig, Rpc,
 };
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
-use light_token::instruction::{LIGHT_TOKEN_CONFIG, RENT_SPONSOR};
+use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -96,7 +96,7 @@ async fn test_create_single_ata() {
         &program_id,
         &payer.pubkey(),
         &program_data_pda,
-        RENT_SPONSOR,
+        LIGHT_TOKEN_RENT_SPONSOR,
         payer.pubkey(),
     )
     .build();
@@ -131,8 +131,8 @@ async fn test_create_single_ata() {
         ata_mint: mint,
         ata_owner,
         ata,
-        light_token_compressible_config: LIGHT_TOKEN_CONFIG,
-        light_token_rent_sponsor: RENT_SPONSOR,
+        light_token_config: LIGHT_TOKEN_CONFIG,
+        light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         system_program: solana_sdk::system_program::ID,
     };

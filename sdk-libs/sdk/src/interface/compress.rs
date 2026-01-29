@@ -133,14 +133,12 @@ pub fn process_compress_pda_accounts_idempotent<'info>(
     })?;
 
     // Validate rent_sponsor matches config
-    if *rent_sponsor.key != light_config.rent_sponsor {
-        solana_msg::msg!(
-            "compress: rent_sponsor mismatch. expected={:?}, got={:?}",
-            light_config.rent_sponsor,
-            rent_sponsor.key
-        );
-        return Err(ProgramError::InvalidAccountData);
-    }
+    let _ = light_config
+        .validate_rent_sponsor(rent_sponsor)
+        .map_err(|e| {
+            solana_msg::msg!("compress: validate_rent_sponsor failed: {:?}", e);
+            e
+        })?;
     // TODO: validate compression_authority matches config
     // if *compression_authority.key != light_config.compression_authority {
     //     return Err(ProgramError::InvalidAccountData);

@@ -232,7 +232,7 @@ Infrastructure fields are auto-detected by naming convention. No attribute requi
 | Fee Payer | `fee_payer`, `payer`, `creator` |
 | Compression Config | `compression_config` |
 | PDA Rent Sponsor | `pda_rent_sponsor`, `compression_rent_sponsor` |
-| Light Token Config | `light_token_compressible_config` |
+| Light Token Config | `light_token_config` |
 | Light Token Rent Sponsor | `light_token_rent_sponsor`, `rent_sponsor` |
 | Light Token Program | `light_token_program` |
 | Light Token CPI Authority | `light_token_cpi_authority` |
@@ -414,7 +414,7 @@ The macro auto-detects infrastructure fields by naming convention. No attribute 
 | Field Type | Accepted Names |
 |------------|----------------|
 | Fee Payer | `fee_payer`, `payer`, `creator` |
-| Light Token Config | `light_token_compressible_config` |
+| Light Token Config | `light_token_config` |
 | Light Token Rent Sponsor | `light_token_rent_sponsor`, `rent_sponsor` |
 | Light Token Program | `light_token_program` |
 | Light Token CPI Authority | `light_token_cpi_authority` |

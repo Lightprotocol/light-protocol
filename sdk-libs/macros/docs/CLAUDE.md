@@ -11,7 +11,7 @@ Documentation for the Light PDA macro system in `light-sdk-macros`. These macros
 | **`CLAUDE.md`** | This file - documentation structure guide |
 | **`../CLAUDE.md`** | Main entry point for sdk-libs/macros |
 | **`accounts/architecture.md`** | `#[derive(LightAccounts)]` architecture and code generation |
-| **`accounts/pda.md`** | `#[light_account(init)]` for compressed PDAs |
+| **`accounts/pda.md`** | Compressed PDAs: usage, lifecycle, validations |
 | **`accounts/mint.md`** | `#[light_account(init, mint::...)]` for compressed mints |
 | **`accounts/token.md`** | `#[light_account([init,] token::...)]` for token accounts |
 | **`accounts/associated_token.md`** | `#[light_account([init,] associated_token::...)]` for ATAs |
@@ -26,7 +26,7 @@ Field-level attributes applied inside `#[derive(LightAccounts)]` Accounts struct
 
 | File | Namespace | Description |
 |------|-----------|-------------|
-| **`accounts/pda.md`** | (none) | Compressed PDAs with `#[light_account(init)]` |
+| **`accounts/pda.md`** | (none) | Compressed PDAs: usage, lifecycle, validations |
 | **`accounts/mint.md`** | `mint::` | Compressed mints with optional TokenMetadata extension |
 | **`accounts/token.md`** | `token::` | PDA-owned token accounts (vaults) |
 | **`accounts/associated_token.md`** | `associated_token::` | User associated token accounts |

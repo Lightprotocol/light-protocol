@@ -37,8 +37,10 @@ pub struct LightConfig {
     pub rent_config: RentConfig,
     /// Config bump seed (0)
     pub config_bump: u8,
-    /// PDA bump seed
+    /// Config PDA bump seed
     pub bump: u8,
+    /// Rent sponsor PDA bump seed
+    pub rent_sponsor_bump: u8,
     /// Address space for compressed accounts (currently 1 address_tree allowed)
     pub address_space: Vec<Pubkey>,
 }
@@ -52,6 +54,7 @@ impl LightConfig {
         + core::mem::size_of::<RentConfig>()
         + 1
         + 1
+        + 1
         + 4
         + (32 * MAX_ADDRESS_TREES_PER_SPACE);
 
@@ -63,6 +66,7 @@ impl LightConfig {
             + 32
             + 32
             + core::mem::size_of::<RentConfig>()
+            + 1
             + 1
             + 1
             + 4
@@ -88,6 +92,22 @@ impl LightConfig {
     /// Seeds: ["rent_sponsor"]
     pub fn derive_rent_sponsor_pda(program_id: &Pubkey) -> (Pubkey, u8) {
         Pubkey::find_program_address(&[RENT_SPONSOR_SEED], program_id)
+    }
+
+    /// Validates rent_sponsor matches config and returns stored bump for signing.
+    pub fn validate_rent_sponsor(
+        &self,
+        rent_sponsor: &AccountInfo,
+    ) -> Result<u8, crate::ProgramError> {
+        if *rent_sponsor.key != self.rent_sponsor {
+            msg!(
+                "rent_sponsor mismatch: expected {:?}, got {:?}",
+                self.rent_sponsor,
+                rent_sponsor.key
+            );
+            return Err(crate::ProgramError::InvalidAccountData);
+        }
+        Ok(self.rent_sponsor_bump)
     }
 
     /// Checks the config account
@@ -235,6 +255,18 @@ pub fn process_initialize_light_config<'info>(
         return Err(LightSdkError::ConstraintViolation.into());
     }
 
+    // Derive rent_sponsor_bump for storage
+    let (derived_rent_sponsor, rent_sponsor_bump) =
+        LightConfig::derive_rent_sponsor_pda(program_id);
+    if *rent_sponsor != derived_rent_sponsor {
+        msg!(
+            "rent_sponsor must be derived PDA: expected {:?}, got {:?}",
+            derived_rent_sponsor,
+            rent_sponsor
+        );
+        return Err(LightSdkError::ConstraintViolation.into());
+    }
+
     let rent = Rent::get().map_err(LightSdkError::from)?;
     let account_size = LightConfig::size_for_address_space(address_space.len());
     let rent_lamports = rent.minimum_balance(account_size);
@@ -273,8 +305,9 @@ pub fn process_initialize_light_config<'info>(
         compression_authority: *compression_authority,
         rent_config,
         config_bump,
-        address_space,
         bump,
+        rent_sponsor_bump,
+        address_space,
     };
 
     let mut data = config_account

@@ -10,7 +10,7 @@ use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
 use light_sdk_macros::LightAccounts;
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
-use light_token::instruction::{LIGHT_TOKEN_CONFIG, RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR};
+use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D10SingleAtaParams {
@@ -39,7 +39,7 @@ pub struct D10SingleAta<'info> {
     pub d10_single_ata: UncheckedAccount<'info>,
 
     #[account(address = LIGHT_TOKEN_CONFIG)]
-    pub light_token_compressible_config: AccountInfo<'info>,
+    pub light_token_config: AccountInfo<'info>,
 
     #[account(mut, address = LIGHT_TOKEN_RENT_SPONSOR)]
     pub light_token_rent_sponsor: AccountInfo<'info>,

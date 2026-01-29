@@ -55,11 +55,11 @@ pub struct CreateMint<'info> {
     pub compression_config: AccountInfo<'info>,
 
     /// CHECK: CToken config
-    pub light_token_compressible_config: AccountInfo<'info>,
+    pub light_token_config: AccountInfo<'info>,
 
     /// CHECK: CToken rent sponsor
     #[account(mut)]
-    pub rent_sponsor: AccountInfo<'info>,
+    pub light_token_rent_sponsor: AccountInfo<'info>,
 
     /// CHECK: CToken program
     pub light_token_program: AccountInfo<'info>,

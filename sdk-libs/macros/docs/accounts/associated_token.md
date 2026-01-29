@@ -1,85 +1,39 @@
-# Associated Token Account Documentation
+# Compressed Associated Token Account Lifecycle
 
-## Overview
-
-User associated token accounts (ATAs) for compressed tokens using `#[light_account([init,] associated_token::...)]`. ATAs are PDAs derived from the owner and mint addresses, providing a deterministic address for token storage.
-
-Two modes are supported:
-- **Init mode**: Creates the ATA using `CreateTokenAtaCpi` with idempotent() builder
-- **Mark-only mode**: Marks existing ATA for derivation (used by `#[light_program]`)
-
-## Two Modes
-
-### Init Mode
+## Usage
 
 ```rust
-#[light_account(init, associated_token, associated_token::authority = ..., associated_token::mint = ...)]
+#[derive(Accounts, LightAccounts)]
 ```
 
-Creates the ATA using `CreateTokenAtaCpi` with idempotent() builder. The idempotent mode ensures the instruction succeeds even if the ATA already exists.
+### Field Attribute
 
-**Requirements:**
-- `authority` - Required
-- `mint` - Required
-- `bump` - Optional (auto-derived if omitted)
-
-### Mark-Only Mode
-
-```rust
-#[light_account(associated_token::authority = ..., associated_token::mint = ...)]
+```
+#[light_account(init, associated_token::authority = ..., associated_token::mint = ...)]    # Creates ATA
+#[light_account(associated_token::authority = ..., associated_token::mint = ...)]          # Mark-only (existing ATA)
 ```
 
-Marks an existing ATA for derivation. Used by `#[light_program]` for runtime PDA derivation. Returns `None` from parsing (skipped by LightAccounts derive).
+### Parameters
 
-**Requirements:**
-- `authority` - Required (needed to derive ATA PDA at runtime)
-- `mint` - Required (needed to derive ATA PDA at runtime)
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `associated_token::authority` | Yes | ATA owner field reference |
+| `associated_token::mint` | Yes | Token mint field reference |
+| `associated_token::bump` | No | Explicit bump, auto-derived if omitted |
 
-Note: Unlike token accounts, mark-only mode also requires `mint` because both authority and mint are needed for ATA derivation.
+Shorthand: `associated_token::authority` alone means `associated_token::authority = authority`.
 
-## Parameters
+### Infrastructure (auto-detected by name)
 
-| Parameter | Required | Mode | Description |
-|-----------|----------|------|-------------|
-| `associated_token::authority` | Yes | Both | Reference to the ATA owner field |
-| `associated_token::mint` | Yes | Both | Reference to the mint field |
-| `associated_token::bump` | No | Both | Explicit bump. If omitted, auto-derived via `derive_token_ata()` |
-
-Note: `authority` is the user-facing parameter name but internally maps to the `owner` field of the ATA.
-
-## Shorthand Syntax
-
-All parameters support shorthand where the key alone means `key = key`:
-
-```rust
-// Shorthand
-#[light_account(init, associated_token, associated_token::authority, associated_token::mint, associated_token::bump)]
-
-// Equivalent to
-#[light_account(init, associated_token, associated_token::authority = authority, associated_token::mint = mint, associated_token::bump = bump)]
+```
+fee_payer                            # Pays tx fee
+light_token_config                   # Token program config
+light_token_rent_sponsor             # Funds rent-free creation
+light_token_program                  # CToken program
+system_program                       # System program
 ```
 
-## Validation Rules
-
-1. `associated_token::authority` and `associated_token::mint` are always required in both modes
-2. Unlike token accounts, mark-only mode also requires mint (needed for ATA derivation)
-3. Bump is auto-derived if not provided using `derive_token_ata()`
-
-## Infrastructure Requirements
-
-The following infrastructure accounts must be present in the accounts struct when using init mode:
-
-| Field Type | Accepted Names |
-|------------|----------------|
-| Fee Payer | `fee_payer`, `payer`, `creator` |
-| Light Token Config | `light_token_compressible_config` |
-| Light Token Rent Sponsor | `light_token_rent_sponsor`, `rent_sponsor` |
-| Light Token Program | `light_token_program` |
-| System Program | `system_program` |
-
-## Examples
-
-### Init Mode ATA
+### Example
 
 ```rust
 #[derive(Accounts, LightAccounts)]
@@ -88,21 +42,18 @@ pub struct CreateAta<'info> {
     #[account(mut)]
     pub fee_payer: Signer<'info>,
 
-    /// CHECK: Token mint
     pub mint: AccountInfo<'info>,
-
-    /// CHECK: Owner of the ATA
     pub owner: AccountInfo<'info>,
 
     #[account(mut)]
-    #[light_account(init, associated_token,
+    #[light_account(init,
         associated_token::authority = owner,
         associated_token::mint = mint,
         associated_token::bump = params.ata_bump
     )]
     pub user_ata: UncheckedAccount<'info>,
 
-    pub light_token_compressible_config: AccountInfo<'info>,
+    pub light_token_config: AccountInfo<'info>,
     #[account(mut)]
     pub light_token_rent_sponsor: AccountInfo<'info>,
     pub light_token_program: AccountInfo<'info>,
@@ -110,64 +61,187 @@ pub struct CreateAta<'info> {
 }
 ```
 
-### Init Mode with Shorthand
+---
+
+## ATA Derivation
+
+ATAs are derived using a fixed seed pattern:
 
 ```rust
-#[derive(Accounts, LightAccounts)]
-#[instruction(bump: u8)]
-pub struct CreateAtaShorthand<'info> {
-    #[account(mut)]
-    pub fee_payer: Signer<'info>,
+Pubkey::find_program_address(
+    &[
+        owner.as_ref(),
+        LIGHT_TOKEN_PROGRAM_ID.as_ref(),
+        mint.as_ref(),
+    ],
+    &LIGHT_TOKEN_PROGRAM_ID,
+)
+```
 
-    /// CHECK: Token mint
-    pub mint: AccountInfo<'info>,
+**Key differences from regular token accounts:**
+- Seeds are fixed (not user-defined)
+- Derived by light-token-program (not calling program)
+- No signer seeds needed for creation
 
-    /// CHECK: Owner of the ATA
-    pub authority: AccountInfo<'info>,
+---
 
-    #[account(mut)]
-    #[light_account(init, associated_token,
-        associated_token::authority,
-        associated_token::mint,
-        associated_token::bump
-    )]
-    pub user_ata: UncheckedAccount<'info>,
+## Runtime
 
-    pub light_token_compressible_config: AccountInfo<'info>,
-    #[account(mut)]
-    pub light_token_rent_sponsor: AccountInfo<'info>,
-    pub light_token_program: AccountInfo<'info>,
-    pub system_program: Program<'info, System>,
+State machine: **No Account -> Decompressed <-> Compressed**
+
+### Lifecycle Comparison
+
+| Aspect | PDA | ATA |
+|--------|-----|-----|
+| State tracking | `CompressionInfo` embedded | `CompressedOnly` extension |
+| Derivation | User-defined seeds | Fixed (owner, program_id, mint) |
+| Creation signer | Program PDA | Light Token Program |
+| Compress/Decompress | Separate CPI | Transfer2 instruction |
+
+---
+
+## 1. Init Phase (Creation)
+
+### Accounts Layout
+
+```
+[0] owner              (readonly)  - Wallet owner for derivation
+[1] mint               (readonly)  - Token mint
+[2] fee_payer          (signer)    - Pays for creation
+[3] ata                (writable)  - ATA to create
+[4] system_program     (readonly)
+[5] compressible_config (readonly) - Light token config
+[6] rent_sponsor       (writable)  - Rent sponsor
+```
+
+### Checks
+
+| Check | Error |
+|-------|-------|
+| ATA derivation matches | `InvalidSeeds` |
+| Idempotent (skip if exists) | - |
+| Config version valid | `InvalidAccountData` |
+| Rent sponsor valid | `InvalidAccountData` |
+
+### State Changes
+
+- **On-chain**: ATA created with `CompressedOnly` extension
+- **Token state**: `Token { owner, mint, amount: 0, state: Initialized, extensions: [CompressedOnly { is_ata: 1 }] }`
+
+---
+
+## 2. Compress Phase
+
+ATAs are compressed via Transfer2 instruction.
+
+### Checks
+
+| Check | Error |
+|-------|-------|
+| ATA owner matches signer | `ConstraintOwner` |
+| Has CompressedOnly extension | `InvalidAccountData` |
+| is_ata flag set | `InvalidAccountData` |
+
+### State Changes
+
+- **On-chain**: ATA closed, lamports returned to rent sponsor
+- **Off-chain**: Compressed token created with `extensions: [CompressedOnly { is_ata: 1 }]`
+
+---
+
+## 3. Decompress Phase
+
+ATAs are decompressed via Transfer2 instruction.
+
+### Checks
+
+| Check | Error |
+|-------|-------|
+| Compressed account proof valid | `ProofVerificationFailed` |
+| CompressedOnly.is_ata == true | Skip (not ATA path) |
+| ATA derivation matches | `InvalidSeeds` |
+
+### State Changes
+
+- **On-chain**: ATA created (if not exists) or balance updated
+- **Off-chain**: Compressed token nullified
+
+### Decompression Behavior
+
+```rust
+// ATA path: invoke() WITHOUT signer seeds
+if token_account_info.data_is_empty() {
+    invoke(&create_ata_instruction, remaining_accounts)?;
+}
+// Wallet owner signs Transfer2 (not the ATA pubkey)
+token_data.owner = wallet_owner_index;
+```
+
+---
+
+## 4. Token Data Structure
+
+```rust
+pub struct Token {
+    pub mint: Pubkey,
+    pub owner: Pubkey,          // Wallet owner
+    pub amount: u64,
+    pub delegate: Option<Pubkey>,
+    pub state: AccountState,    // Initialized/Frozen
+    pub is_native: Option<u64>,
+    pub delegated_amount: u64,
+    pub close_authority: Option<Pubkey>,
+    pub account_type: u8,       // ShaFlat = 3
+    pub extensions: Option<Vec<ExtensionStruct>>,
+}
+
+pub struct CompressedOnlyExtension {
+    pub delegated_amount: u64,
+    pub withheld_transfer_fee: u64,
+    pub is_ata: u8,             // 1 = ATA, 0 = regular
 }
 ```
 
-### Mark-Only Mode
+---
+
+## 5. Verification
+
+### ATA Decompressed
+
+1. ATA exists at derived address
+2. Token state is `Initialized` or `Frozen`
+3. Owner matches wallet owner
+4. Mint matches token mint
+5. Compressed account nullified
+
+### ATA Compressed
+
+1. On-chain ATA closed (data empty)
+2. Compressed token exists (query via RPC)
+3. `CompressedOnly.is_ata == 1`
+4. Owner/mint match original
+
+### Derivation Check
 
 ```rust
-#[derive(Accounts, LightAccounts)]
-pub struct TransferFromAta<'info> {
-    #[account(mut)]
-    pub fee_payer: Signer<'info>,
+use light_token::instruction::derive_associated_token_account;
 
-    /// CHECK: Token mint
-    pub mint: AccountInfo<'info>,
-
-    /// CHECK: Owner of the ATA
-    pub owner: AccountInfo<'info>,
-
-    #[light_account(associated_token::authority = owner, associated_token::mint = mint)]
-    pub existing_ata: Account<'info, CToken>,
-}
+let (expected_ata, _) = derive_associated_token_account(&owner, &mint);
+assert_eq!(ata_pubkey, expected_ata);
 ```
 
-## Source References
+---
 
-- `sdk-libs/macros/src/light_pdas/accounts/token.rs` - ATA handling in `generate_ata_cpi`
-- `sdk-libs/macros/src/light_pdas/light_account_keywords.rs` - `ASSOCIATED_TOKEN_NAMESPACE_KEYS`
+## Source Files
 
-## Related Documentation
+| Component | Location |
+|-----------|----------|
+| ATA creation | `token-sdk/src/instruction/create_ata.rs` |
+| Compress/Decompress | `sdk/src/interface/token.rs` |
+| Derivation | `token-sdk/src/instruction/create_ata.rs:17-26` |
 
-- [architecture.md](./architecture.md) - Overall LightAccounts architecture
+## Related
+
 - [pda.md](./pda.md) - Compressed PDAs
-- [mint.md](./mint.md) - Compressed mints
-- [token.md](./token.md) - Token accounts (PDA-owned vaults)
+- [token.md](./token.md) - Token accounts (vaults)
+- [architecture.md](./architecture.md) - LightAccounts overview

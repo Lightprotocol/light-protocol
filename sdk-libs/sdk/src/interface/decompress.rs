@@ -34,7 +34,6 @@ use crate::{
     instruction::ValidityProof,
     interface::{compression_info::CompressedAccountData, LightConfig},
     light_account_checks::account_iterator::AccountIterator,
-    utils::derive_rent_sponsor_pda,
 };
 
 // ============================================================================
@@ -157,16 +156,8 @@ where
     let light_config = LightConfig::load_checked(config, program_id)
         .map_err(|_| ProgramError::InvalidAccountData)?;
 
-    // Validate rent sponsor matches derived PDA and get bump for signing
-    let (expected_rent_sponsor, rent_sponsor_bump) = derive_rent_sponsor_pda(program_id);
-    if *rent_sponsor.key != expected_rent_sponsor {
-        msg!(
-            "Invalid rent sponsor: expected {:?}, got {:?}",
-            expected_rent_sponsor,
-            rent_sponsor.key
-        );
-        return Err(ProgramError::InvalidAccountData);
-    }
+    // Validate rent sponsor matches config and get stored bump for signing
+    let rent_sponsor_bump = light_config.validate_rent_sponsor(rent_sponsor)?;
 
     let rent = Rent::get()?;
     let current_slot = Clock::get()?.slot;
