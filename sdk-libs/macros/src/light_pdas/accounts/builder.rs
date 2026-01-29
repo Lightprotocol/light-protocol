@@ -9,9 +9,10 @@ use syn::DeriveInput;
 
 use super::{
     mint::{InfraRefs, LightMintsBuilder},
-    parse::{InfraFieldType, ParsedLightAccountsStruct},
-    pda::generate_pda_compress_blocks,
+    parse::ParsedLightAccountsStruct,
+    pda::{generate_pda_compress_blocks, generate_rent_reimbursement_block},
     token::TokenAccountsBuilder,
+    validation::{validate_struct, ValidationContext},
 };
 
 /// Builder for RentFree derive macro code generation.
@@ -60,161 +61,56 @@ impl LightAccountsBuilder {
         }
     }
 
-    /// Validate constraints (e.g., account count < 255).
+    /// Validate constraints using the struct-level validation module.
     pub fn validate(&self) -> Result<(), syn::Error> {
-        let total = self.parsed.rentfree_fields.len()
-            + self.parsed.light_mint_fields.len()
-            + self.parsed.token_account_fields.len()
-            + self.parsed.ata_fields.len();
-        if total > 255 {
-            return Err(syn::Error::new_spanned(
-                &self.parsed.struct_name,
-                format!(
-                    "Too many compression fields ({} PDAs + {} mints + {} tokens + {} ATAs = {} total, maximum 255). \
-                     Light Protocol uses u8 for account indices.",
-                    self.parsed.rentfree_fields.len(),
-                    self.parsed.light_mint_fields.len(),
-                    self.parsed.token_account_fields.len(),
-                    self.parsed.ata_fields.len(),
-                    total
-                ),
-            ));
-        }
-
-        // Validate infrastructure fields are present
-        self.validate_infra_fields()?;
-
-        // Validate CreateAccountsProof is available
-        self.validate_create_accounts_proof()?;
-
-        Ok(())
-    }
-
-    /// Validate that CreateAccountsProof is available when needed.
-    ///
-    /// CreateAccountsProof is required when there are any init fields (PDAs, mints).
-    /// It can be provided either:
-    /// - As a direct argument: `proof: CreateAccountsProof`
-    /// - As a field on the first instruction arg: `params.create_accounts_proof`
-    fn validate_create_accounts_proof(&self) -> Result<(), syn::Error> {
-        let needs_proof = self.has_pdas() || self.has_mints();
-
-        if !needs_proof {
-            return Ok(());
-        }
-
-        // Check if CreateAccountsProof is available
-        let has_direct_proof = self.parsed.direct_proof_arg.is_some();
-        let has_instruction_args = self
-            .parsed
-            .instruction_args
-            .as_ref()
-            .map(|args| !args.is_empty())
-            .unwrap_or(false);
-
-        if !has_direct_proof && !has_instruction_args {
-            return Err(syn::Error::new_spanned(
-                &self.parsed.struct_name,
-                "CreateAccountsProof is required for #[light_account(init)] fields.\n\
-                 \n\
-                 Provide it either:\n\
-                 1. As a direct argument: #[instruction(proof: CreateAccountsProof)]\n\
-                 2. As a field on params: #[instruction(params: MyParams)] where MyParams has a `create_accounts_proof: CreateAccountsProof` field",
-            ));
-        }
-
-        Ok(())
-    }
-
-    /// Validate that required infrastructure fields are present.
-    fn validate_infra_fields(&self) -> Result<(), syn::Error> {
-        let has_pdas = self.has_pdas();
-        let has_mints = self.has_mints();
-        let has_token_accounts = self.has_token_accounts();
-        let has_atas = self.has_atas();
-
-        // Skip validation if no light_account fields
-        if !has_pdas && !has_mints && !has_token_accounts && !has_atas {
-            return Ok(());
-        }
-
-        let mut missing = Vec::new();
-
-        // fee_payer is always required
-        if self.parsed.infra_fields.fee_payer.is_none() {
-            missing.push(InfraFieldType::FeePayer);
-        }
-
-        // PDAs require compression_config
-        if has_pdas && self.parsed.infra_fields.compression_config.is_none() {
-            missing.push(InfraFieldType::CompressionConfig);
-        }
-
-        // Mints, token accounts, and ATAs require light_token infrastructure
-        let needs_token_infra = has_mints || has_token_accounts || has_atas;
-        if needs_token_infra {
-            if self.parsed.infra_fields.light_token_config.is_none() {
-                missing.push(InfraFieldType::LightTokenConfig);
-            }
-            if self.parsed.infra_fields.light_token_rent_sponsor.is_none() {
-                missing.push(InfraFieldType::LightTokenRentSponsor);
-            }
-            // CPI authority is required for mints and token accounts (PDA-based signing)
-            if (has_mints || has_token_accounts)
-                && self.parsed.infra_fields.light_token_cpi_authority.is_none()
-            {
-                missing.push(InfraFieldType::LightTokenCpiAuthority);
-            }
-        }
-
-        if !missing.is_empty() {
-            let mut types = Vec::new();
-            if has_pdas {
-                types.push("PDA");
-            }
-            if has_mints {
-                types.push("mint");
-            }
-            if has_token_accounts {
-                types.push("token account");
-            }
-            if has_atas {
-                types.push("ATA");
-            }
-            let context = types.join(", ");
-
-            let mut msg = format!(
-                "#[derive(LightAccounts)] with {} fields requires the following infrastructure fields:\n",
-                context
-            );
-
-            for field_type in &missing {
-                msg.push_str(&format!(
-                    "\n  - {} (add one of: {})",
-                    field_type.description(),
-                    field_type.accepted_names().join(", ")
-                ));
-            }
-
-            return Err(syn::Error::new_spanned(&self.parsed.struct_name, msg));
-        }
-
-        Ok(())
+        let ctx = ValidationContext {
+            struct_name: &self.parsed.struct_name,
+            has_pdas: self.has_pdas(),
+            has_mints: self.has_mints(),
+            has_tokens: self.has_token_accounts(),
+            has_atas: self.has_atas(),
+            has_fee_payer: self.parsed.infra_fields.fee_payer.is_some(),
+            has_compression_config: self.parsed.infra_fields.compression_config.is_some(),
+            has_pda_rent_sponsor: self.parsed.infra_fields.pda_rent_sponsor.is_some(),
+            has_light_token_config: self.parsed.infra_fields.light_token_config.is_some(),
+            has_light_token_rent_sponsor: self
+                .parsed
+                .infra_fields
+                .light_token_rent_sponsor
+                .is_some(),
+            has_light_token_cpi_authority: self
+                .parsed
+                .infra_fields
+                .light_token_cpi_authority
+                .is_some(),
+            has_instruction_args: self
+                .parsed
+                .instruction_args
+                .as_ref()
+                .map(|args| !args.is_empty())
+                .unwrap_or(false),
+            has_direct_proof_arg: self.parsed.direct_proof_arg.is_some(),
+            total_account_count: self.parsed.pda_fields.len()
+                + self.parsed.mint_fields.len()
+                + self.parsed.token_fields.len()
+                + self.parsed.ata_fields.len(),
+        };
+        validate_struct(&ctx)
     }
 
     /// Query: any #[light_account(init)] PDA fields?
     pub fn has_pdas(&self) -> bool {
-        !self.parsed.rentfree_fields.is_empty()
+        !self.parsed.pda_fields.is_empty()
     }
 
     /// Query: any #[light_account(init, mint, ...)] fields?
     pub fn has_mints(&self) -> bool {
-        !self.parsed.light_mint_fields.is_empty()
+        !self.parsed.mint_fields.is_empty()
     }
 
     /// Query: any #[light_account(init, token, ...)] fields?
     pub fn has_token_accounts(&self) -> bool {
-        !self.parsed.token_account_fields.is_empty()
+        !self.parsed.token_fields.is_empty()
     }
 
     /// Query: any #[light_account(init, associated_token, ...)] fields?
@@ -307,7 +203,7 @@ impl LightAccountsBuilder {
 
         // Generate token/ATA creation code (if any)
         let token_creation = TokenAccountsBuilder::new(
-            &self.parsed.token_account_fields,
+            &self.parsed.token_fields,
             &self.parsed.ata_fields,
             &self.infra,
         )
@@ -366,17 +262,21 @@ impl LightAccountsBuilder {
 
     /// Generate PDAs + mints body WITHOUT the Ok(true) return.
     fn generate_pre_init_pdas_and_mints_body(&self) -> Result<TokenStream, syn::Error> {
-        let (compress_blocks, new_addr_idents) =
-            generate_pda_compress_blocks(&self.parsed.rentfree_fields);
-        let rentfree_count = self.parsed.rentfree_fields.len() as u8;
-        let pda_count = self.parsed.rentfree_fields.len();
+        let compress_blocks = generate_pda_compress_blocks(&self.parsed.pda_fields);
+        let rent_reimbursement =
+            generate_rent_reimbursement_block(&self.parsed.pda_fields, &self.infra);
+        let pda_count = self.parsed.pda_fields.len();
+        let rentfree_count = pda_count as u8;
 
         // Get proof access expression (direct arg or nested in params)
         let proof_access = self.get_proof_access()?;
 
-        let first_pda_output_tree = &self.parsed.rentfree_fields[0].output_tree;
+        let first_pda_output_tree = self.parsed.pda_fields[0]
+            .output_tree
+            .as_ref()
+            .expect("output_tree required for derive macro");
 
-        let mints = &self.parsed.light_mint_fields;
+        let mints = &self.parsed.mint_fields;
         let mint_invocation = LightMintsBuilder::new(mints, &proof_access, &self.infra)
             .with_pda_context(pda_count, quote! { #first_pda_output_tree })
             .generate_invocation();
@@ -395,13 +295,17 @@ impl LightAccountsBuilder {
                 &crate::ID,
             )?;
 
+            let mut all_new_address_params = Vec::with_capacity(#rentfree_count as usize);
             let mut all_compressed_infos = Vec::with_capacity(#rentfree_count as usize);
             #(#compress_blocks)*
+
+            // Reimburse fee payer for rent paid during PDA creation
+            #rent_reimbursement
 
             light_token::compressible::invoke_write_pdas_to_cpi_context(
                 crate::LIGHT_CPI_SIGNER,
                 #proof_access.proof.clone(),
-                &[#(#new_addr_idents),*],
+                &all_new_address_params,
                 &all_compressed_infos,
                 &cpi_accounts,
             )?;
@@ -412,9 +316,10 @@ impl LightAccountsBuilder {
 
     /// Generate PDAs-only body WITHOUT the Ok(true) return.
     fn generate_pre_init_pdas_only_body(&self) -> Result<TokenStream, syn::Error> {
-        let (compress_blocks, new_addr_idents) =
-            generate_pda_compress_blocks(&self.parsed.rentfree_fields);
-        let rentfree_count = self.parsed.rentfree_fields.len() as u8;
+        let compress_blocks = generate_pda_compress_blocks(&self.parsed.pda_fields);
+        let rent_reimbursement =
+            generate_rent_reimbursement_block(&self.parsed.pda_fields, &self.infra);
+        let rentfree_count = self.parsed.pda_fields.len() as u8;
 
         // Get proof access expression (direct arg or nested in params)
         let proof_access = self.get_proof_access()?;
@@ -435,14 +340,18 @@ impl LightAccountsBuilder {
                 &crate::ID,
             )?;
 
+            let mut all_new_address_params = Vec::with_capacity(#rentfree_count as usize);
             let mut all_compressed_infos = Vec::with_capacity(#rentfree_count as usize);
             #(#compress_blocks)*
+
+            // Reimburse fee payer for rent paid during PDA creation
+            #rent_reimbursement
 
             light_sdk::cpi::v2::LightSystemProgramCpi::new_cpi(
                 crate::LIGHT_CPI_SIGNER,
                 #proof_access.proof.clone(),
             )
-                .with_new_addresses(&[#(#new_addr_idents),*])
+                .with_new_addresses(&all_new_address_params)
                 .with_account_infos(&all_compressed_infos)
                 .invoke(cpi_accounts)?;
         })
@@ -453,7 +362,7 @@ impl LightAccountsBuilder {
         // Get proof access expression (direct arg or nested in params)
         let proof_access = self.get_proof_access()?;
 
-        let mints = &self.parsed.light_mint_fields;
+        let mints = &self.parsed.mint_fields;
         let mint_invocation =
             LightMintsBuilder::new(mints, &proof_access, &self.infra).generate_invocation();
 

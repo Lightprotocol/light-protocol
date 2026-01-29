@@ -1,7 +1,8 @@
 use std::borrow::Cow;
 
+use bytemuck::{Pod, Zeroable};
 use light_compressible::rent::RentConfig;
-use light_sdk_types::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;
+use light_sdk_types::instruction::PackedStateTreeInfo;
 use solana_account_info::AccountInfo;
 use solana_clock::Clock;
 use solana_cpi::invoke;
@@ -9,10 +10,14 @@ use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
 use solana_sysvar::Sysvar;
 
-use crate::{instruction::PackedAccounts, AnchorDeserialize, AnchorSerialize, ProgramError};
+// Only available off-chain (client-side) - PackedAccounts contains sorting code
+#[cfg(not(target_os = "solana"))]
+use crate::instruction::PackedAccounts;
+use crate::{AnchorDeserialize, AnchorSerialize, ProgramError};
 
 /// Replace 32-byte Pubkeys with 1-byte indices to save space.
 /// If your type has no Pubkeys, just return self.
+#[cfg(not(target_os = "solana"))]
 pub trait Pack {
     type Packed: AnchorSerialize + Clone + std::fmt::Debug;
 
@@ -158,7 +163,9 @@ pub trait CompressAs {
 /// - `rent_config`: RentConfig @ offset 16 (8 bytes, 2-byte aligned)
 ///
 /// Fields are ordered for optimal alignment to achieve exactly 24 bytes.
-#[derive(Debug, Clone, Copy, Default, PartialEq, AnchorSerialize, AnchorDeserialize)]
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, AnchorSerialize, AnchorDeserialize, Pod, Zeroable,
+)]
 #[repr(C)]
 pub struct CompressionInfo {
     /// Slot when rent was last claimed (epoch boundary accounting).
@@ -173,10 +180,6 @@ pub struct CompressionInfo {
     /// Rent function parameters for determining compressibility/claims.
     pub rent_config: RentConfig,
 }
-
-// Safety: CompressionInfo is #[repr(C)] with all Pod fields and no padding gaps
-unsafe impl bytemuck::Pod for CompressionInfo {}
-unsafe impl bytemuck::Zeroable for CompressionInfo {}
 
 /// Compression state for SDK CompressionInfo.
 ///
@@ -379,8 +382,16 @@ pub const COMPRESSION_INFO_SIZE: usize = core::mem::size_of::<CompressionInfo>()
 /// Compressed account data used when decompressing.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct CompressedAccountData<T> {
-    pub meta: CompressedAccountMetaNoLamportsNoAddress,
+    pub tree_info: PackedStateTreeInfo,
     pub data: T,
+}
+
+impl Unpack for CompressedAccountData<Vec<u8>> {
+    type Unpacked = Vec<u8>;
+
+    fn unpack(&self, _remaining_accounts: &[AccountInfo]) -> Result<Self::Unpacked, ProgramError> {
+        unimplemented!()
+    }
 }
 
 /// Claim completed-epoch rent to the provided rent sponsor and update last_claimed_slot.
@@ -451,129 +462,6 @@ where
     Ok(Some(0))
 }
 
-/// Trait for Pod types with a compression_info field at a fixed byte offset.
-///
-/// Unlike `CompressionInfoField` which works with `Option<CompressionInfo>` (Borsh),
-/// this trait works with non-optional `CompressionInfo` at a known byte offset.
-///
-/// For Pod types, the compression state is indicated by the `state` field:
-/// - `state == CompressionState::Uninitialized` means uninitialized
-/// - `state == CompressionState::Decompressed` means initialized/decompressed
-/// - `state == CompressionState::Compressed` means compressed
-///
-/// # Safety
-/// Implementors must ensure that:
-/// 1. The struct is `#[repr(C)]` for predictable field layout
-/// 2. The `COMPRESSION_INFO_OFFSET` matches the actual byte offset of the field
-/// 3. The struct implements `bytemuck::Pod` and `bytemuck::Zeroable`
-/// 4. The `compression_info` field uses SDK `CompressionInfo` (24 bytes)
-pub trait PodCompressionInfoField: bytemuck::Pod {
-    /// Byte offset of the compression_info field from the start of the struct.
-    /// Use `core::mem::offset_of!(Self, compression_info)` to compute this at compile time.
-    const COMPRESSION_INFO_OFFSET: usize;
-
-    /// Strip CompressionInfo bytes from Pod data.
-    ///
-    /// Returns a Vec containing: `pod_bytes[..offset] ++ pod_bytes[offset+24..]`
-    ///
-    /// This saves 24 bytes per Pod account in instruction data while maintaining
-    /// hash consistency (the stripped bytes are what get hashed for the Merkle tree).
-    ///
-    /// # Arguments
-    /// * `pod` - Reference to the Pod struct
-    ///
-    /// # Returns
-    /// A Vec<u8> with CompressionInfo bytes removed
-    fn pack_stripped(pod: &Self) -> Vec<u8> {
-        let bytes = bytemuck::bytes_of(pod);
-        let offset = Self::COMPRESSION_INFO_OFFSET;
-        let mut result = Vec::with_capacity(bytes.len() - COMPRESSION_INFO_SIZE);
-        result.extend_from_slice(&bytes[..offset]);
-        result.extend_from_slice(&bytes[offset + COMPRESSION_INFO_SIZE..]);
-        result
-    }
-
-    /// Reconstruct Pod from stripped data by inserting canonical compressed CompressionInfo.
-    ///
-    /// The canonical `CompressionInfo::compressed()` bytes are inserted at the offset.
-    /// This ensures hash consistency: compression hashes full bytes with canonical
-    /// compressed CompressionInfo, decompression reconstructs the same bytes for verification.
-    ///
-    /// After verification, `write_decompressed_info_to_slice_pod` patches to Decompressed state.
-    ///
-    /// # Arguments
-    /// * `stripped_bytes` - Byte slice with CompressionInfo bytes removed
-    ///
-    /// # Returns
-    /// * `Ok(Self)` - Reconstructed Pod with canonical compressed CompressionInfo
-    /// * `Err` if stripped_bytes length doesn't match expected size
-    fn unpack_stripped(stripped_bytes: &[u8]) -> Result<Self, ProgramError> {
-        let full_size = core::mem::size_of::<Self>();
-        let offset = Self::COMPRESSION_INFO_OFFSET;
-
-        if stripped_bytes.len() != full_size - COMPRESSION_INFO_SIZE {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        // Insert canonical compressed CompressionInfo bytes for hash consistency
-        let compressed_info = CompressionInfo::compressed();
-        let compressed_info_bytes = bytemuck::bytes_of(&compressed_info);
-
-        let mut full_bytes = vec![0u8; full_size];
-        full_bytes[..offset].copy_from_slice(&stripped_bytes[..offset]);
-        full_bytes[offset..offset + COMPRESSION_INFO_SIZE].copy_from_slice(compressed_info_bytes);
-        full_bytes[offset + COMPRESSION_INFO_SIZE..].copy_from_slice(&stripped_bytes[offset..]);
-
-        Ok(*bytemuck::from_bytes(&full_bytes))
-    }
-
-    /// Size of stripped data for this Pod type.
-    ///
-    /// # Returns
-    /// `size_of::<Self>() - COMPRESSION_INFO_SIZE` (i.e., full size minus 24 bytes)
-    fn stripped_size() -> usize {
-        core::mem::size_of::<Self>() - COMPRESSION_INFO_SIZE
-    }
-
-    /// Write decompressed compression_info directly to a byte slice at the correct offset.
-    ///
-    /// This writes the SDK `CompressionInfo` (24 bytes) with `state = Decompressed`
-    /// and default rent parameters.
-    ///
-    /// # Arguments
-    /// * `data` - Mutable slice of the serialized account data (WITHOUT discriminator prefix)
-    /// * `current_slot` - Current slot for initializing `last_claimed_slot`
-    ///
-    /// # Returns
-    /// * `Ok(())` on success
-    /// * `Err` if data slice is too small
-    fn write_decompressed_info_to_slice_pod(
-        data: &mut [u8],
-        current_slot: u64,
-    ) -> Result<(), ProgramError> {
-        // Use SDK CompressionInfo (24 bytes) - state=Decompressed indicates initialized
-        let info = CompressionInfo {
-            last_claimed_slot: current_slot,
-            lamports_per_write: 0,
-            config_version: 1, // 1 = initialized
-            state: CompressionState::Decompressed,
-            _padding: 0,
-            rent_config: RentConfig::default(),
-        };
-
-        let info_bytes = bytemuck::bytes_of(&info);
-        let offset = Self::COMPRESSION_INFO_OFFSET;
-        let end = offset + core::mem::size_of::<CompressionInfo>();
-
-        if data.len() < end {
-            return Err(ProgramError::AccountDataTooSmall);
-        }
-
-        data[offset..end].copy_from_slice(info_bytes);
-        Ok(())
-    }
-}
-
 /// Transfer lamports from one account to another using System Program CPI.
 /// This is required when transferring from accounts owned by the System Program.
 ///
@@ -605,251 +493,4 @@ fn transfer_lamports_cpi<'a>(
         &transfer_instruction,
         &[from.clone(), to.clone(), system_program.clone()],
     )
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// Test struct to validate PodCompressionInfoField derive macro behavior.
-    /// This struct mimics what a zero-copy account would look like with SDK CompressionInfo.
-    #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-    #[repr(C)]
-    struct TestPodAccount {
-        pub owner: [u8; 32],
-        pub counter: u64,
-        pub compression_info: CompressionInfo, // SDK version (24 bytes)
-    }
-
-    // Manual impl of PodCompressionInfoField since we can't use the derive macro in unit tests
-    impl PodCompressionInfoField for TestPodAccount {
-        const COMPRESSION_INFO_OFFSET: usize = core::mem::offset_of!(TestPodAccount, compression_info);
-    }
-
-    #[test]
-    fn test_compression_info_size() {
-        // Verify CompressionInfo is exactly 24 bytes
-        assert_eq!(
-            core::mem::size_of::<CompressionInfo>(),
-            24,
-            "CompressionInfo should be exactly 24 bytes"
-        );
-    }
-
-    #[test]
-    fn test_compression_state_size() {
-        // Verify CompressionState is exactly 1 byte
-        assert_eq!(
-            core::mem::size_of::<CompressionState>(),
-            1,
-            "CompressionState should be exactly 1 byte"
-        );
-    }
-
-    #[test]
-    fn test_pod_compression_info_offset() {
-        // Verify offset_of! works correctly
-        let expected_offset = 32 + 8; // owner (32) + counter (8)
-        assert_eq!(
-            TestPodAccount::COMPRESSION_INFO_OFFSET,
-            expected_offset,
-            "compression_info offset should be after owner and counter"
-        );
-    }
-
-    #[test]
-    fn test_write_decompressed_info_to_slice_pod() {
-        // Create a buffer large enough for TestPodAccount
-        let account_size = core::mem::size_of::<TestPodAccount>();
-        let mut data = vec![0u8; account_size];
-
-        // Write decompressed info at the correct offset
-        let current_slot = 12345u64;
-        TestPodAccount::write_decompressed_info_to_slice_pod(&mut data, current_slot)
-            .expect("write should succeed");
-
-        // Verify the compression_info was written correctly
-        let offset = TestPodAccount::COMPRESSION_INFO_OFFSET;
-        let info_size = core::mem::size_of::<CompressionInfo>();
-        let info_bytes = &data[offset..offset + info_size];
-        let info: &CompressionInfo = bytemuck::from_bytes(info_bytes);
-
-        // Verify decompressed state using SDK CompressionInfo fields
-        assert_eq!(info.config_version, 1, "config_version should be 1 (initialized)");
-        assert_eq!(info.last_claimed_slot, current_slot, "last_claimed_slot should match current_slot");
-        assert_eq!(info.state, CompressionState::Decompressed, "state should be Decompressed");
-        assert_eq!(info.lamports_per_write, 0, "lamports_per_write should be 0");
-    }
-
-    #[test]
-    fn test_write_decompressed_info_to_slice_pod_too_small() {
-        // Buffer too small to hold the compression_info
-        let mut data = vec![0u8; TestPodAccount::COMPRESSION_INFO_OFFSET - 1];
-
-        let result = TestPodAccount::write_decompressed_info_to_slice_pod(&mut data, 0);
-        assert!(result.is_err(), "write should fail for buffer too small");
-    }
-
-    #[test]
-    fn test_pack_stripped() {
-        // Create a test account with known values
-        let account = TestPodAccount {
-            owner: [1u8; 32],
-            counter: 42,
-            compression_info: CompressionInfo {
-                last_claimed_slot: 100,
-                lamports_per_write: 200,
-                config_version: 1,
-                state: CompressionState::Compressed,
-                _padding: 0,
-                rent_config: RentConfig::default(),
-            },
-        };
-
-        let stripped = TestPodAccount::pack_stripped(&account);
-
-        // Stripped size should be full size minus COMPRESSION_INFO_SIZE (24 bytes)
-        let full_size = core::mem::size_of::<TestPodAccount>();
-        assert_eq!(
-            stripped.len(),
-            full_size - COMPRESSION_INFO_SIZE,
-            "stripped size should be {} bytes (full {} - compression_info {})",
-            full_size - COMPRESSION_INFO_SIZE,
-            full_size,
-            COMPRESSION_INFO_SIZE
-        );
-
-        // Verify owner bytes are preserved at the start
-        assert_eq!(&stripped[..32], &[1u8; 32], "owner should be preserved");
-
-        // Verify counter bytes are preserved after owner
-        let counter_bytes = &stripped[32..40];
-        assert_eq!(
-            u64::from_le_bytes(counter_bytes.try_into().unwrap()),
-            42,
-            "counter should be preserved"
-        );
-
-        // Verify stripped_size() matches
-        assert_eq!(
-            TestPodAccount::stripped_size(),
-            stripped.len(),
-            "stripped_size() should match actual stripped length"
-        );
-    }
-
-    #[test]
-    fn test_unpack_stripped() {
-        // Create a test account
-        let original = TestPodAccount {
-            owner: [2u8; 32],
-            counter: 123,
-            compression_info: CompressionInfo {
-                last_claimed_slot: 500,
-                lamports_per_write: 300,
-                config_version: 2,
-                state: CompressionState::Compressed,
-                _padding: 0,
-                rent_config: RentConfig::default(),
-            },
-        };
-
-        // Strip it
-        let stripped = TestPodAccount::pack_stripped(&original);
-
-        // Unpack it
-        let reconstructed = TestPodAccount::unpack_stripped(&stripped)
-            .expect("unpack_stripped should succeed");
-
-        // Verify non-compression_info fields are preserved
-        assert_eq!(reconstructed.owner, original.owner, "owner should match");
-        assert_eq!(reconstructed.counter, original.counter, "counter should match");
-
-        // Verify compression_info has canonical compressed values (for hash consistency)
-        assert_eq!(
-            reconstructed.compression_info.last_claimed_slot, 0,
-            "compression_info.last_claimed_slot should be 0 (canonical compressed)"
-        );
-        assert_eq!(
-            reconstructed.compression_info.state,
-            CompressionState::Compressed,
-            "compression state should be Compressed (canonical compressed)"
-        );
-    }
-
-    #[test]
-    fn test_unpack_stripped_wrong_size() {
-        // Try to unpack with wrong size
-        let too_short = vec![0u8; TestPodAccount::stripped_size() - 1];
-        let result = TestPodAccount::unpack_stripped(&too_short);
-        assert!(result.is_err(), "unpack should fail for wrong size");
-
-        let too_long = vec![0u8; TestPodAccount::stripped_size() + 1];
-        let result = TestPodAccount::unpack_stripped(&too_long);
-        assert!(result.is_err(), "unpack should fail for wrong size");
-    }
-
-    #[test]
-    fn test_stripped_roundtrip() {
-        // Create account, strip, unpack, verify stripping produces same bytes
-        let original = TestPodAccount {
-            owner: [3u8; 32],
-            counter: 999,
-            compression_info: CompressionInfo {
-                last_claimed_slot: 1000,
-                lamports_per_write: 400,
-                config_version: 3,
-                state: CompressionState::Compressed,
-                _padding: 0,
-                rent_config: RentConfig::default(),
-            },
-        };
-
-        // Strip (removes CompressionInfo bytes)
-        let stripped = TestPodAccount::pack_stripped(&original);
-
-        // Unpack (reconstruct with canonical compressed CompressionInfo)
-        let reconstructed = TestPodAccount::unpack_stripped(&stripped)
-            .expect("unpack should succeed");
-
-        // Verify data fields are intact
-        assert_eq!(reconstructed.owner, original.owner);
-        assert_eq!(reconstructed.counter, original.counter);
-
-        // Now strip the reconstructed version and verify it matches
-        let re_stripped = TestPodAccount::pack_stripped(&reconstructed);
-        assert_eq!(
-            stripped, re_stripped,
-            "re-stripping reconstructed account should produce same bytes"
-        );
-    }
-
-    #[test]
-    fn test_hash_consistency() {
-        // Create account with canonical compressed CompressionInfo (what compression does)
-        let with_canonical = TestPodAccount {
-            owner: [4u8; 32],
-            counter: 42,
-            compression_info: CompressionInfo::compressed(),
-        };
-
-        // Get full bytes (what compression would hash)
-        let compression_bytes = bytemuck::bytes_of(&with_canonical);
-
-        // Strip and transmit (what goes over the wire)
-        let stripped = TestPodAccount::pack_stripped(&with_canonical);
-
-        // Reconstruct (what decompression does)
-        let reconstructed = TestPodAccount::unpack_stripped(&stripped)
-            .expect("unpack should succeed");
-
-        // Get reconstructed full bytes (what decompression would hash)
-        let decompression_bytes = bytemuck::bytes_of(&reconstructed);
-
-        // Bytes must match for Merkle tree hash verification to work
-        assert_eq!(
-            compression_bytes, decompression_bytes,
-            "compression and decompression bytes must be identical for hash consistency"
-        );
-    }
 }

@@ -8,7 +8,7 @@ use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest},
     ProgramTestConfig, Rpc,
 };
-use light_token::instruction::RENT_SPONSOR;
+use light_sdk::utils::derive_rent_sponsor_pda;
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -29,11 +29,14 @@ async fn test_create_single_pda() {
 
     let program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
+    // Derive rent sponsor PDA for this program
+    let (rent_sponsor, _) = derive_rent_sponsor_pda(&program_id);
+
     let (init_config_ix, config_pda) = InitializeRentFreeConfig::new(
         &program_id,
         &payer.pubkey(),
         &program_data_pda,
-        RENT_SPONSOR,
+        rent_sponsor,
         payer.pubkey(),
     )
     .build();
@@ -60,6 +63,7 @@ async fn test_create_single_pda() {
     let accounts = single_pda_test::accounts::CreatePda {
         fee_payer: payer.pubkey(),
         compression_config: config_pda,
+        pda_rent_sponsor: rent_sponsor,
         record: record_pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -101,9 +105,9 @@ async fn test_create_single_pda() {
     // Verify owner field
     assert_eq!(record.owner, owner, "Record owner should match");
 
-    // Verify compression_info is set (indicates compressible registration)
+    // Verify compression_info state is decompressed (indicates compressible registration)
     assert!(
-        record.compression_info.is_some(),
-        "Record should have compression_info set"
+        !record.compression_info.is_compressed(),
+        "Record should be in decompressed state"
     );
 }

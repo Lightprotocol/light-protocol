@@ -12,12 +12,21 @@ name = "light_sdk"
 
 [features]
 default = ["v2"]
-idl-build = ["anchor-lang/idl-build", "anchor", "dep:solana-program"]
+idl-build = [
+    "anchor-lang/idl-build",
+    "light-compressed-account/idl-build",
+    "light-sdk-types/idl-build",
+    "light-compressible/idl-build",
+    "light-token-interface/idl-build",
+    "anchor",
+    "dep:solana-program"
+]
 anchor = [
     "anchor-lang",
     "light-compressed-account/anchor",
     "light-sdk-types/anchor",
     "light-compressible/anchor",
+    "light-token-interface/anchor"
 ]
 v2 = ["light-sdk-types/v2"]
 cpi-context = ["light-sdk-types/cpi-context"]
@@ -65,6 +74,7 @@ light-zero-copy = { workspace = true }
 light-concurrent-merkle-tree = { workspace = true, optional = true }
 light-compressible = { workspace = true }
 light-heap = { workspace = true, optional = true }
+light-token-interface = { workspace = true } # TODO: make optional
 
 [dev-dependencies]
 num-bigint = { workspace = true }

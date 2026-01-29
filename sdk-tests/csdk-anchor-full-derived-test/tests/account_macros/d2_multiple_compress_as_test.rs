@@ -4,7 +4,6 @@
 //! - LightHasherSha -> DataHasher + ToByteArray
 //! - LightDiscriminator -> LIGHT_DISCRIMINATOR constant
 //! - Compressible -> HasCompressionInfo + CompressAs + Size + CompressedInitSpace
-//! - CompressiblePack -> Pack + Unpack + PackedMultipleCompressAsRecord
 
 use csdk_anchor_full_derived_test::{MultipleCompressAsRecord, PackedMultipleCompressAsRecord};
 use light_hasher::{DataHasher, Sha256};
@@ -24,7 +23,7 @@ use crate::generate_trait_tests;
 impl CompressibleTestFactory for MultipleCompressAsRecord {
     fn with_compression_info() -> Self {
         Self {
-            compression_info: Some(CompressionInfo::default()),
+            compression_info: CompressionInfo::default(),
             owner: Pubkey::new_unique(),
             start: 999,
             score: 999,
@@ -35,7 +34,7 @@ impl CompressibleTestFactory for MultipleCompressAsRecord {
 
     fn without_compression_info() -> Self {
         Self {
-            compression_info: None,
+            compression_info: CompressionInfo::compressed(),
             owner: Pubkey::new_unique(),
             start: 999,
             score: 999,
@@ -61,7 +60,7 @@ fn test_compress_as_overrides_all_marked_fields() {
     let counter = 100u64;
 
     let record = MultipleCompressAsRecord {
-        compression_info: Some(CompressionInfo::default()),
+        compression_info: CompressionInfo::default(),
         owner,
         start: 888,  // Original value
         score: 777,  // Original value
@@ -87,7 +86,7 @@ fn test_compress_as_preserves_non_overridden_fields() {
     let counter = 555u64;
 
     let record = MultipleCompressAsRecord {
-        compression_info: Some(CompressionInfo::default()),
+        compression_info: CompressionInfo::default(),
         owner,
         start: 100,
         score: 200,
@@ -107,7 +106,7 @@ fn test_compress_as_with_all_max_values() {
     let owner = Pubkey::new_unique();
 
     let record = MultipleCompressAsRecord {
-        compression_info: Some(CompressionInfo::default()),
+        compression_info: CompressionInfo::default(),
         owner,
         start: u64::MAX,
         score: u64::MAX,
@@ -134,7 +133,7 @@ fn test_hash_differs_for_different_counter() {
     let owner = Pubkey::new_unique();
 
     let record1 = MultipleCompressAsRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         start: 0,
         score: 0,
@@ -143,7 +142,7 @@ fn test_hash_differs_for_different_counter() {
     };
 
     let record2 = MultipleCompressAsRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         start: 0,
         score: 0,
@@ -165,7 +164,7 @@ fn test_hash_differs_for_different_start() {
     let owner = Pubkey::new_unique();
 
     let record1 = MultipleCompressAsRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         start: 1,
         score: 0,
@@ -174,7 +173,7 @@ fn test_hash_differs_for_different_start() {
     };
 
     let record2 = MultipleCompressAsRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         start: 2,
         score: 0,
@@ -196,7 +195,7 @@ fn test_hash_differs_for_different_score() {
     let owner = Pubkey::new_unique();
 
     let record1 = MultipleCompressAsRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         start: 0,
         score: 1,
@@ -205,7 +204,7 @@ fn test_hash_differs_for_different_score() {
     };
 
     let record2 = MultipleCompressAsRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         start: 0,
         score: 2,
@@ -225,7 +224,7 @@ fn test_hash_differs_for_different_score() {
 #[test]
 fn test_hash_differs_for_different_owner() {
     let record1 = MultipleCompressAsRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner: Pubkey::new_unique(),
         start: 100,
         score: 100,
@@ -234,7 +233,7 @@ fn test_hash_differs_for_different_owner() {
     };
 
     let record2 = MultipleCompressAsRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner: Pubkey::new_unique(),
         start: 100,
         score: 100,
@@ -258,7 +257,6 @@ fn test_hash_differs_for_different_owner() {
 #[test]
 fn test_packed_struct_has_u8_owner() {
     let packed = PackedMultipleCompressAsRecord {
-        compression_info: None,
         owner: 0,
         start: 42,
         score: 43,
@@ -277,7 +275,7 @@ fn test_packed_struct_has_u8_owner() {
 fn test_pack_converts_pubkey_to_index() {
     let owner = Pubkey::new_unique();
     let record = MultipleCompressAsRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         start: 50,
         score: 60,
@@ -300,7 +298,7 @@ fn test_pack_reuses_same_pubkey_index() {
     let owner = Pubkey::new_unique();
 
     let record1 = MultipleCompressAsRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         start: 1,
         score: 1,
@@ -309,7 +307,7 @@ fn test_pack_reuses_same_pubkey_index() {
     };
 
     let record2 = MultipleCompressAsRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         start: 2,
         score: 2,
@@ -330,7 +328,7 @@ fn test_pack_reuses_same_pubkey_index() {
 #[test]
 fn test_pack_different_pubkeys_get_different_indices() {
     let record1 = MultipleCompressAsRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner: Pubkey::new_unique(),
         start: 1,
         score: 1,
@@ -339,7 +337,7 @@ fn test_pack_different_pubkeys_get_different_indices() {
     };
 
     let record2 = MultipleCompressAsRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner: Pubkey::new_unique(),
         start: 2,
         score: 2,
@@ -358,46 +356,12 @@ fn test_pack_different_pubkeys_get_different_indices() {
 }
 
 #[test]
-fn test_pack_sets_compression_info_to_none() {
-    let record_with_info = MultipleCompressAsRecord {
-        compression_info: Some(CompressionInfo::default()),
-        owner: Pubkey::new_unique(),
-        start: 100,
-        score: 100,
-        cached: 100,
-        counter: 100,
-    };
-
-    let record_without_info = MultipleCompressAsRecord {
-        compression_info: None,
-        owner: Pubkey::new_unique(),
-        start: 200,
-        score: 200,
-        cached: 200,
-        counter: 200,
-    };
-
-    let mut packed_accounts = PackedAccounts::default();
-    let packed1 = record_with_info.pack(&mut packed_accounts).unwrap();
-    let packed2 = record_without_info.pack(&mut packed_accounts).unwrap();
-
-    assert!(
-        packed1.compression_info.is_none(),
-        "pack should set compression_info to None"
-    );
-    assert!(
-        packed2.compression_info.is_none(),
-        "pack should set compression_info to None"
-    );
-}
-
-#[test]
 fn test_pack_stores_pubkeys_in_packed_accounts() {
     let owner1 = Pubkey::new_unique();
     let owner2 = Pubkey::new_unique();
 
     let record1 = MultipleCompressAsRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner: owner1,
         start: 1,
         score: 1,
@@ -406,7 +370,7 @@ fn test_pack_stores_pubkeys_in_packed_accounts() {
     };
 
     let record2 = MultipleCompressAsRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner: owner2,
         start: 2,
         score: 2,
@@ -439,7 +403,7 @@ fn test_pack_index_assignment_order() {
 
     for owner in &owners {
         let record = MultipleCompressAsRecord {
-            compression_info: None,
+            compression_info: CompressionInfo::compressed(),
             owner: *owner,
             start: 0,
             score: 0,

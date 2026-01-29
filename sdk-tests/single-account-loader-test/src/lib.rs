@@ -39,6 +39,10 @@ pub struct CreateRecord<'info> {
     /// CHECK: Compression config PDA
     pub compression_config: AccountInfo<'info>,
 
+    /// CHECK: PDA rent sponsor for rent reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
+
     /// The zero-copy record account.
     /// Uses AccountLoader which requires `#[light_account(init, zero_copy)]`.
     #[account(
@@ -68,9 +72,9 @@ pub mod single_account_loader_test {
     ) -> Result<()> {
         // Initialize the record data using load_init for zero-copy access
         let mut record = ctx.accounts.record.load_init()?;
-        record.owner = params.owner.to_bytes();
+        record.owner = params.owner;
         record.counter = 0;
-        // compression_info is handled by the macro-generated LightFinalize
+        // compression_info is handled by the macro-generated LightPreInit
         Ok(())
     }
 }

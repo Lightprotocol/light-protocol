@@ -27,7 +27,7 @@ use crate::generate_trait_tests;
 impl CompressibleTestFactory for GameSession {
     fn with_compression_info() -> Self {
         Self {
-            compression_info: Some(CompressionInfo::default()),
+            compression_info: CompressionInfo::default(),
             session_id: 1,
             player: Pubkey::new_unique(),
             game_type: "test game".to_string(),
@@ -39,7 +39,7 @@ impl CompressibleTestFactory for GameSession {
 
     fn without_compression_info() -> Self {
         Self {
-            compression_info: None,
+            compression_info: CompressionInfo::compressed(),
             session_id: 1,
             player: Pubkey::new_unique(),
             game_type: "test game".to_string(),
@@ -65,7 +65,7 @@ fn test_compress_as_overrides_start_time() {
     let player = Pubkey::new_unique();
 
     let record = GameSession {
-        compression_info: Some(CompressionInfo::default()),
+        compression_info: CompressionInfo::default(),
         session_id: 1,
         player,
         game_type: "test game".to_string(),
@@ -86,7 +86,7 @@ fn test_compress_as_overrides_end_time() {
     let player = Pubkey::new_unique();
 
     let record = GameSession {
-        compression_info: Some(CompressionInfo::default()),
+        compression_info: CompressionInfo::default(),
         session_id: 1,
         player,
         game_type: "test game".to_string(),
@@ -107,7 +107,7 @@ fn test_compress_as_overrides_score() {
     let player = Pubkey::new_unique();
 
     let record = GameSession {
-        compression_info: Some(CompressionInfo::default()),
+        compression_info: CompressionInfo::default(),
         session_id: 1,
         player,
         game_type: "test game".to_string(),
@@ -129,7 +129,7 @@ fn test_compress_as_preserves_session_id() {
     let session_id = 999u64;
 
     let record = GameSession {
-        compression_info: Some(CompressionInfo::default()),
+        compression_info: CompressionInfo::default(),
         session_id,
         player,
         game_type: "test game".to_string(),
@@ -150,7 +150,7 @@ fn test_compress_as_preserves_player() {
     let player = Pubkey::new_unique();
 
     let record = GameSession {
-        compression_info: Some(CompressionInfo::default()),
+        compression_info: CompressionInfo::default(),
         session_id: 1,
         player,
         game_type: "test game".to_string(),
@@ -172,7 +172,7 @@ fn test_compress_as_preserves_game_type() {
     let game_type = "custom game".to_string();
 
     let record = GameSession {
-        compression_info: Some(CompressionInfo::default()),
+        compression_info: CompressionInfo::default(),
         session_id: 1,
         player,
         game_type: game_type.clone(),
@@ -197,7 +197,7 @@ fn test_hash_differs_for_different_session_id() {
     let player = Pubkey::new_unique();
 
     let record1 = GameSession {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         session_id: 1,
         player,
         game_type: "test game".to_string(),
@@ -207,7 +207,7 @@ fn test_hash_differs_for_different_session_id() {
     };
 
     let record2 = GameSession {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         session_id: 2,
         player,
         game_type: "test game".to_string(),
@@ -228,7 +228,7 @@ fn test_hash_differs_for_different_session_id() {
 #[test]
 fn test_hash_differs_for_different_player() {
     let record1 = GameSession {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         session_id: 1,
         player: Pubkey::new_unique(),
         game_type: "test game".to_string(),
@@ -238,7 +238,7 @@ fn test_hash_differs_for_different_player() {
     };
 
     let record2 = GameSession {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         session_id: 1,
         player: Pubkey::new_unique(),
         game_type: "test game".to_string(),
@@ -261,7 +261,7 @@ fn test_hash_differs_for_different_game_type() {
     let player = Pubkey::new_unique();
 
     let record1 = GameSession {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         session_id: 1,
         player,
         game_type: "game1".to_string(),
@@ -271,7 +271,7 @@ fn test_hash_differs_for_different_game_type() {
     };
 
     let record2 = GameSession {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         session_id: 1,
         player,
         game_type: "game2".to_string(),
@@ -298,7 +298,6 @@ fn test_packed_struct_has_u8_player() {
     // Verify PackedGameSession has the expected structure
     // The Packed struct uses the same field name but changes type to u8
     let packed = PackedGameSession {
-        compression_info: None,
         session_id: 1,
         player: 0,
         game_type: "test".to_string(),
@@ -315,7 +314,7 @@ fn test_packed_struct_has_u8_player() {
 fn test_pack_converts_pubkey_to_index() {
     let player = Pubkey::new_unique();
     let record = GameSession {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         session_id: 1,
         player,
         game_type: "test game".to_string(),
@@ -347,7 +346,7 @@ fn test_pack_reuses_same_pubkey_index() {
     let player = Pubkey::new_unique();
 
     let record1 = GameSession {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         session_id: 1,
         player,
         game_type: "game1".to_string(),
@@ -357,7 +356,7 @@ fn test_pack_reuses_same_pubkey_index() {
     };
 
     let record2 = GameSession {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         session_id: 2,
         player,
         game_type: "game2".to_string(),
@@ -380,7 +379,7 @@ fn test_pack_reuses_same_pubkey_index() {
 #[test]
 fn test_pack_different_pubkeys_get_different_indices() {
     let record1 = GameSession {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         session_id: 1,
         player: Pubkey::new_unique(),
         game_type: "game1".to_string(),
@@ -390,7 +389,7 @@ fn test_pack_different_pubkeys_get_different_indices() {
     };
 
     let record2 = GameSession {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         session_id: 2,
         player: Pubkey::new_unique(),
         game_type: "game2".to_string(),
@@ -411,49 +410,12 @@ fn test_pack_different_pubkeys_get_different_indices() {
 }
 
 #[test]
-fn test_pack_sets_compression_info_to_none() {
-    let record_with_info = GameSession {
-        compression_info: Some(CompressionInfo::default()),
-        session_id: 1,
-        player: Pubkey::new_unique(),
-        game_type: "test".to_string(),
-        start_time: 100,
-        end_time: Some(200),
-        score: 50,
-    };
-
-    let record_without_info = GameSession {
-        compression_info: None,
-        session_id: 2,
-        player: Pubkey::new_unique(),
-        game_type: "test".to_string(),
-        start_time: 100,
-        end_time: Some(200),
-        score: 50,
-    };
-
-    let mut packed_accounts = PackedAccounts::default();
-    let packed1 = record_with_info.pack(&mut packed_accounts).unwrap();
-    let packed2 = record_without_info.pack(&mut packed_accounts).unwrap();
-
-    // Both packed structs should have compression_info = None
-    assert!(
-        packed1.compression_info.is_none(),
-        "pack should set compression_info to None (even if input has Some)"
-    );
-    assert!(
-        packed2.compression_info.is_none(),
-        "pack should set compression_info to None"
-    );
-}
-
-#[test]
 fn test_pack_stores_pubkeys_in_packed_accounts() {
     let player1 = Pubkey::new_unique();
     let player2 = Pubkey::new_unique();
 
     let record1 = GameSession {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         session_id: 1,
         player: player1,
         game_type: "game1".to_string(),
@@ -463,7 +425,7 @@ fn test_pack_stores_pubkeys_in_packed_accounts() {
     };
 
     let record2 = GameSession {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         session_id: 2,
         player: player2,
         game_type: "game2".to_string(),

@@ -2,25 +2,22 @@
 //!
 //! This module handles the generation of compression blocks for PDA fields
 //! marked with `#[light_account(init)]`. Each PDA field generates code for:
-//! - Account extraction (get account info and key bytes)
-//! - New address params struct creation
-//! - Address derivation from seed and merkle tree
-//! - Compression info preparation and collection
+//! - Account extraction (get account info and key)
+//! - Address derivation and registration via prepare_compressed_account_on_init
+//! - Rent reimbursement from rent sponsor PDA to fee payer
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::Ident;
 
-use super::parse::ParsedPdaField;
+use super::{mint::InfraRefs, parse::ParsedPdaField};
 
 /// Generated identifier names for a PDA field.
 pub(super) struct PdaIdents {
     pub idx: u8,
-    pub new_addr_params: Ident,
-    pub compressed_infos: Ident,
-    pub address: Ident,
     pub account_info: Ident,
     pub account_key: Ident,
+    pub address_tree_pubkey: Ident,
     pub account_data: Ident,
 }
 
@@ -28,11 +25,9 @@ impl PdaIdents {
     pub fn new(idx: usize) -> Self {
         Self {
             idx: idx as u8,
-            new_addr_params: format_ident!("__new_addr_params_{}", idx),
-            compressed_infos: format_ident!("__compressed_infos_{}", idx),
-            address: format_ident!("__address_{}", idx),
             account_info: format_ident!("__account_info_{}", idx),
             account_key: format_ident!("__account_key_{}", idx),
+            address_tree_pubkey: format_ident!("__address_tree_pubkey_{}", idx),
             account_data: format_ident!("__account_data_{}", idx),
         }
     }
@@ -52,176 +47,213 @@ impl<'a> PdaBlockBuilder<'a> {
         }
     }
 
-    /// Returns the identifier used for new address params (for collecting in array).
-    pub fn new_addr_ident(&self) -> TokenStream {
-        let ident = &self.idents.new_addr_params;
-        quote! { #ident }
-    }
-
-    /// Generate account extraction (get account info and key bytes).
+    /// Generate account extraction (get account info and key).
     fn account_extraction(&self) -> TokenStream {
-        let ident = &self.field.ident;
+        let field_name = &self.field.field_name;
         let account_info = &self.idents.account_info;
         let account_key = &self.idents.account_key;
 
         quote! {
-            let #account_info = self.#ident.to_account_info();
-            let #account_key = #account_info.key.to_bytes();
+            let #account_info = self.#field_name.to_account_info();
+            let #account_key = *#account_info.key;
         }
     }
 
-    /// Generate new address params struct.
-    fn new_addr_params(&self) -> TokenStream {
-        let addr_tree_info = &self.field.address_tree_info;
-        let new_addr_params = &self.idents.new_addr_params;
-        let account_key = &self.idents.account_key;
-        let idx = self.idents.idx;
+    /// Generate address tree pubkey extraction.
+    fn address_tree_extraction(&self) -> TokenStream {
+        let addr_tree_info = self
+            .field
+            .address_tree_info
+            .as_ref()
+            .expect("address_tree_info required for derive macro");
+        let address_tree_pubkey = &self.idents.address_tree_pubkey;
 
         quote! {
-            let #new_addr_params = {
+            let #address_tree_pubkey: solana_pubkey::Pubkey = {
+                use light_sdk::light_account_checks::AccountInfoTrait;
                 // Explicit type annotation ensures clear error if wrong type is provided.
-                // Must be PackedAddressTreeInfo (with indices), not AddressTreeInfo (with Pubkeys).
-                // If you have AddressTreeInfo, pack it client-side using pack_address_tree_info().
                 let tree_info: &::light_sdk::sdk_types::PackedAddressTreeInfo = &#addr_tree_info;
-                ::light_sdk::compressed_account::NewAddressParamsAssignedPacked {
-                    seed: #account_key,
-                    address_merkle_tree_account_index: tree_info.address_merkle_tree_pubkey_index,
-                    address_queue_account_index: tree_info.address_queue_pubkey_index,
-                    address_merkle_tree_root_index: tree_info.root_index,
-                    assigned_to_account: true,
-                    assigned_account_index: #idx,
-                }
+                cpi_accounts
+                    .get_tree_account_info(tree_info.address_merkle_tree_pubkey_index as usize)?
+                    .pubkey()
             };
         }
     }
 
-    /// Generate address derivation from seed and merkle tree.
-    fn address_derivation(&self) -> TokenStream {
-        let address = &self.idents.address;
-        let new_addr_params = &self.idents.new_addr_params;
-
-        quote! {
-            let #address = ::light_sdk::compressed_account::derive_address(
-                &#new_addr_params.seed,
-                &cpi_accounts
-                    .get_tree_account_info(#new_addr_params.address_merkle_tree_account_index as usize)?
-                    .key()
-                    .to_bytes(),
-                &crate::ID.to_bytes(),
-            );
-        }
-    }
-
-    /// Generate mutable reference to account data (handles Box<Account>, Account, AccountLoader).
-    fn account_data_extraction(&self) -> TokenStream {
-        let ident = &self.field.ident;
+    /// Generate account data initialization (set CompressionInfo).
+    fn account_data_init(&self) -> TokenStream {
+        let ident = &self.field.field_name;
         let account_data = &self.idents.account_data;
 
         if self.field.is_zero_copy {
             // AccountLoader uses load_init() for newly initialized accounts
-            // Must keep guard alive while accessing data
-            // Convert anchor_lang::error::Error to ProgramError using .into()
             let account_guard = format_ident!("{}_guard", ident);
             quote! {
-                let mut #account_guard = self.#ident.load_init()
-                    .map_err(|_| solana_program_error::ProgramError::InvalidAccountData)?;
-                let #account_data = &mut *#account_guard;
+                {
+                    let current_slot = anchor_lang::solana_program::sysvar::clock::Clock::get()?.slot;
+                    let mut #account_guard = self.#ident.load_init()
+                        .map_err(|_| solana_program_error::ProgramError::InvalidAccountData)?;
+                    let #account_data = &mut *#account_guard;
+                    // For zero-copy Pod accounts, set compression_info directly
+                    #account_data.compression_info =
+                        light_sdk::compressible::CompressionInfo::new_from_config(
+                            &compression_config_data,
+                            current_slot,
+                        );
+                }
             }
         } else if self.field.is_boxed {
             quote! {
-                let #account_data = &mut **self.#ident;
+                {
+                    use light_sdk::interface::LightAccount;
+                    use anchor_lang::AnchorSerialize;
+                    let current_slot = anchor_lang::solana_program::sysvar::clock::Clock::get()?.slot;
+                    // Get account info BEFORE mutable borrow
+                    let account_info = self.#ident.to_account_info();
+                    // Scope the mutable borrow
+                    {
+                        let #account_data = &mut **self.#ident;
+                        // Initialize CompressionInfo using v2 LightAccount trait
+                        #account_data.set_decompressed(&compression_config_data, current_slot);
+                    }
+                    // Now serialize - the mutable borrow above is released
+                    let mut data = account_info
+                        .try_borrow_mut_data()
+                        .map_err(|_| light_sdk::error::LightSdkError::ConstraintViolation)?;
+                    self.#ident.serialize(&mut &mut data[8..])
+                        .map_err(|_| light_sdk::error::LightSdkError::ConstraintViolation)?;
+                }
             }
         } else {
             quote! {
-                let #account_data = &mut *self.#ident;
+                {
+                    use light_sdk::interface::LightAccount;
+                    use anchor_lang::AnchorSerialize;
+                    let current_slot = anchor_lang::solana_program::sysvar::clock::Clock::get()?.slot;
+                    // Get account info BEFORE mutable borrow
+                    let account_info = self.#ident.to_account_info();
+                    // Scope the mutable borrow
+                    {
+                        let #account_data = &mut *self.#ident;
+                        // Initialize CompressionInfo using v2 LightAccount trait
+                        #account_data.set_decompressed(&compression_config_data, current_slot);
+                    }
+                    // Now serialize - the mutable borrow above is released
+                    let mut data = account_info
+                        .try_borrow_mut_data()
+                        .map_err(|_| light_sdk::error::LightSdkError::ConstraintViolation)?;
+                    self.#ident.serialize(&mut &mut data[8..])
+                        .map_err(|_| light_sdk::error::LightSdkError::ConstraintViolation)?;
+                }
             }
         }
     }
 
-    /// Generate compression info preparation and collection.
-    fn compression_info(&self) -> TokenStream {
-        let inner_type = &self.field.inner_type;
-        let output_tree = &self.field.output_tree;
-        let account_info = &self.idents.account_info;
-        let account_data = &self.idents.account_data;
-        let address = &self.idents.address;
-        let new_addr_params = &self.idents.new_addr_params;
-        let compressed_infos = &self.idents.compressed_infos;
-
-        // Use pod variant for zero_copy accounts (AccountLoader with Pod types)
-        let prepare_call = if self.field.is_zero_copy {
-            quote! {
-                light_sdk::interface::prepare_compressed_account_on_init_pod::<#inner_type>(
-                    &#account_info,
-                    #account_data,
-                    &compression_config_data,
-                    #address,
-                    #new_addr_params,
-                    #output_tree,
-                    &cpi_accounts,
-                    &compression_config_data.address_space,
-                    false, // at init, we do not compress_and_close the pda, we just "register" the empty compressed account with the derived address.
-                )?
-            }
-        } else {
-            quote! {
-                light_sdk::interface::prepare_compressed_account_on_init::<#inner_type>(
-                    &#account_info,
-                    #account_data,
-                    &compression_config_data,
-                    #address,
-                    #new_addr_params,
-                    #output_tree,
-                    &cpi_accounts,
-                    &compression_config_data.address_space,
-                    false, // at init, we do not compress_and_close the pda, we just "register" the empty compressed account with the derived address.
-                )?
-            }
-        };
+    /// Generate the call to prepare_compressed_account_on_init.
+    fn prepare_call(&self) -> TokenStream {
+        let addr_tree_info = self
+            .field
+            .address_tree_info
+            .as_ref()
+            .expect("address_tree_info required for derive macro");
+        let output_tree = self
+            .field
+            .output_tree
+            .as_ref()
+            .expect("output_tree required for derive macro");
+        let account_key = &self.idents.account_key;
+        let address_tree_pubkey = &self.idents.address_tree_pubkey;
+        let idx = self.idents.idx;
 
         quote! {
-            let #compressed_infos = #prepare_call;
-            all_compressed_infos.push(#compressed_infos);
+            {
+                // Explicit type annotation for tree_info
+                let tree_info: &::light_sdk::sdk_types::PackedAddressTreeInfo = &#addr_tree_info;
+
+                ::light_sdk::interface::prepare_compressed_account_on_init(
+                    &#account_key,
+                    &#address_tree_pubkey,
+                    tree_info,
+                    #output_tree,
+                    #idx,
+                    &crate::ID,
+                    &mut all_new_address_params,
+                    &mut all_compressed_infos,
+                )?;
+            }
         }
     }
 
     /// Build the complete compression block for this PDA field.
     pub fn build(&self) -> TokenStream {
         let account_extraction = self.account_extraction();
-        let new_addr_params = self.new_addr_params();
-        let address_derivation = self.address_derivation();
-        let account_data_extraction = self.account_data_extraction();
-        let compression_info = self.compression_info();
+        let address_tree_extraction = self.address_tree_extraction();
+        let account_data_init = self.account_data_init();
+        let prepare_call = self.prepare_call();
 
         quote! {
             // Get account info early before any mutable borrows
             #account_extraction
-            #new_addr_params
-            // Derive the compressed address
-            #address_derivation
-            // Get mutable reference to inner account data
-            #account_data_extraction
-            #compression_info
+            // Extract address tree pubkey
+            #address_tree_extraction
+            // Initialize CompressionInfo in account data
+            #account_data_init
+            // Register compressed address
+            #prepare_call
         }
     }
 }
 
 /// Generate compression blocks for PDA fields using PdaBlockBuilder.
 ///
-/// Returns a tuple of:
-/// - Vector of TokenStreams for compression blocks
-/// - Vector of TokenStreams for new address parameter identifiers
-pub(super) fn generate_pda_compress_blocks(
-    fields: &[ParsedPdaField],
-) -> (Vec<TokenStream>, Vec<TokenStream>) {
-    let mut blocks = Vec::with_capacity(fields.len());
-    let mut addr_idents = Vec::with_capacity(fields.len());
+/// Returns a vector of TokenStreams for compression blocks.
+/// The blocks push into `all_new_address_params` and `all_compressed_infos` vectors.
+pub(super) fn generate_pda_compress_blocks(fields: &[ParsedPdaField]) -> Vec<TokenStream> {
+    fields
+        .iter()
+        .enumerate()
+        .map(|(idx, field)| PdaBlockBuilder::new(field, idx).build())
+        .collect()
+}
 
-    for (idx, field) in fields.iter().enumerate() {
-        let builder = PdaBlockBuilder::new(field, idx);
-        addr_idents.push(builder.new_addr_ident());
-        blocks.push(builder.build());
+/// Generate rent reimbursement code that calls the SDK reimburse_rent function.
+///
+/// This generates a single call to `reimburse_rent` with all created PDA account infos,
+/// which transfers the total rent-exemption amount from the rent sponsor PDA to the fee payer.
+pub(super) fn generate_rent_reimbursement_block(
+    fields: &[ParsedPdaField],
+    infra: &InfraRefs,
+) -> TokenStream {
+    if fields.is_empty() {
+        return quote! {};
     }
 
-    (blocks, addr_idents)
+    let fee_payer = &infra.fee_payer;
+    let rent_sponsor = &infra.pda_rent_sponsor;
+
+    // Collect account info expressions for all PDA fields
+    let account_info_exprs: Vec<TokenStream> = fields
+        .iter()
+        .map(|field| {
+            let field_name = &field.field_name;
+            quote! { self.#field_name.to_account_info() }
+        })
+        .collect();
+
+    let count = fields.len();
+
+    quote! {
+        // Reimburse fee_payer for rent paid to Anchor for all PDAs
+        {
+            let __created_accounts: [solana_account_info::AccountInfo<'info>; #count] = [
+                #(#account_info_exprs),*
+            ];
+            ::light_sdk::interface::reimburse_rent(
+                &__created_accounts,
+                &self.#fee_payer.to_account_info(),
+                &self.#rent_sponsor.to_account_info(),
+                &crate::ID,
+            )?;
+        }
+    }
 }

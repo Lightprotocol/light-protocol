@@ -10,7 +10,7 @@ use light_compressible::CreateAccountsProof;
 use light_sdk::derive_light_cpi_signer;
 use light_sdk_macros::{light_program, LightAccounts};
 use light_sdk_types::{CpiSigner, LIGHT_TOKEN_PROGRAM_ID};
-use light_token::instruction::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR};
+use light_token::instruction::{LIGHT_TOKEN_CONFIG, RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR};
 
 declare_id!("AtaT111111111111111111111111111111111111111");
 
@@ -42,7 +42,7 @@ pub struct CreateAta<'info> {
     #[light_account(init, associated_token::authority = ata_owner, associated_token::mint = ata_mint, associated_token::bump = params.ata_bump)]
     pub ata: UncheckedAccount<'info>,
 
-    #[account(address = COMPRESSIBLE_CONFIG_V1)]
+    #[account(address = LIGHT_TOKEN_CONFIG)]
     pub light_token_compressible_config: AccountInfo<'info>,
 
     #[account(mut, address = LIGHT_TOKEN_RENT_SPONSOR)]

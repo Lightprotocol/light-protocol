@@ -6,25 +6,27 @@
 //! ## Syntax
 //!
 //! All attribute parameters (except type markers) require a namespace prefix:
-//! - `token::authority`, `token::mint`, `token::owner`, `token::bump`
+//! - `token::seeds`, `token::mint`, `token::owner`, `token::bump`
 //! - `associated_token::authority`, `associated_token::mint`, `associated_token::bump`
 //! - `mint::signer`, `mint::authority`, `mint::decimals`, `mint::seeds`, etc.
 //!
 //! ## Example
 //!
 //! ```ignore
-//! #[light_account(init, token,
-//!     token::authority = [VAULT_SEED, self.offer.key()],
-//!     token::mint = token_mint_a,
-//!     token::owner = authority,
+//! #[light_account(init,
+//!     token::seeds = [VAULT_SEED, self.mint.key()],
+//!     token::mint = token_mint,
+//!     token::owner = vault_authority,
 //!     token::bump = params.vault_bump
 //! )]
 //! pub vault: UncheckedAccount<'info>,
 //! ```
 
-/// Valid keys for `token::` namespace in `#[light_account(token, ...)]` attributes.
+/// Valid keys for `token::` namespace in `#[light_account(init, token::...)]` attributes.
 /// These map to the TokenAccountField struct.
-pub const TOKEN_NAMESPACE_KEYS: &[&str] = &["authority", "mint", "owner", "bump"];
+/// - `seeds`: Token account PDA seeds (for signing as the token account) - can be dynamic
+/// - `owner_seeds`: Owner PDA seeds (for signing when owner is a PDA) - MUST BE CONSTANTS ONLY
+pub const TOKEN_NAMESPACE_KEYS: &[&str] = &["seeds", "mint", "owner", "bump", "owner_seeds"];
 
 /// Valid keys for `associated_token::` namespace in `#[light_account(associated_token, ...)]`.
 /// Note: `authority` is the user-facing name (maps internally to `owner` in AtaField).
@@ -50,14 +52,16 @@ pub const MINT_NAMESPACE_KEYS: &[&str] = &[
 ];
 
 /// Standalone keywords that don't require a value (flags).
-/// These can appear as bare identifiers without `= value`.
-pub const STANDALONE_KEYWORDS: &[&str] = &["init", "token", "associated_token", "mint", "zero_copy"];
+/// Only `init` can appear as a truly standalone keyword.
+/// `mint` and `zero_copy` are only valid after `init`.
+/// `token` and `associated_token` require namespaced syntax.
+pub const STANDALONE_KEYWORDS: &[&str] = &["init"];
 
 /// Keywords that support shorthand syntax within their namespace.
 /// For example, `token::mint` alone is equivalent to `token::mint = mint`.
 /// Maps namespace -> list of shorthand-eligible keys
 pub const SHORTHAND_KEYS_BY_NAMESPACE: &[(&str, &[&str])] = &[
-    ("token", &["mint", "owner", "bump"]),
+    ("token", &["mint", "owner", "bump"]), // seeds requires array, no shorthand
     ("associated_token", &["authority", "mint", "bump"]),
     // mint namespace does not support shorthand - values are typically expressions
 ];
@@ -173,10 +177,11 @@ mod tests {
 
     #[test]
     fn test_token_namespace_keys() {
-        assert!(TOKEN_NAMESPACE_KEYS.contains(&"authority"));
+        assert!(TOKEN_NAMESPACE_KEYS.contains(&"seeds"));
         assert!(TOKEN_NAMESPACE_KEYS.contains(&"mint"));
         assert!(TOKEN_NAMESPACE_KEYS.contains(&"owner"));
         assert!(TOKEN_NAMESPACE_KEYS.contains(&"bump"));
+        assert!(!TOKEN_NAMESPACE_KEYS.contains(&"authority")); // use seeds for token PDA
         assert!(!TOKEN_NAMESPACE_KEYS.contains(&"unknown"));
     }
 
@@ -208,11 +213,14 @@ mod tests {
 
     #[test]
     fn test_standalone_keywords() {
+        // Only init is a true standalone keyword
         assert!(is_standalone_keyword("init"));
-        assert!(is_standalone_keyword("token"));
-        assert!(is_standalone_keyword("associated_token"));
-        assert!(is_standalone_keyword("mint"));
-        assert!(is_standalone_keyword("zero_copy"));
+        // mint and zero_copy are only valid after init, not standalone
+        assert!(!is_standalone_keyword("mint"));
+        assert!(!is_standalone_keyword("zero_copy"));
+        // token and associated_token require namespaced syntax
+        assert!(!is_standalone_keyword("token"));
+        assert!(!is_standalone_keyword("associated_token"));
         assert!(!is_standalone_keyword("authority"));
     }
 
@@ -222,7 +230,7 @@ mod tests {
         assert!(is_shorthand_key("token", "mint"));
         assert!(is_shorthand_key("token", "owner"));
         assert!(is_shorthand_key("token", "bump"));
-        assert!(!is_shorthand_key("token", "authority")); // authority requires seeds array
+        assert!(!is_shorthand_key("token", "seeds")); // seeds requires array
 
         // associated_token namespace
         assert!(is_shorthand_key("associated_token", "authority"));
@@ -252,7 +260,7 @@ mod tests {
     #[test]
     fn test_validate_namespaced_key() {
         // Valid keys
-        assert!(validate_namespaced_key("token", "authority").is_ok());
+        assert!(validate_namespaced_key("token", "seeds").is_ok());
         assert!(validate_namespaced_key("token", "mint").is_ok());
         assert!(validate_namespaced_key("associated_token", "authority").is_ok());
         assert!(validate_namespaced_key("mint", "signer").is_ok());
@@ -260,6 +268,7 @@ mod tests {
 
         // Invalid keys
         assert!(validate_namespaced_key("token", "invalid").is_err());
+        assert!(validate_namespaced_key("token", "authority").is_err()); // use seeds for token
         assert!(validate_namespaced_key("unknown_namespace", "key").is_err());
     }
 
@@ -268,7 +277,7 @@ mod tests {
         let error = unknown_key_error("token", "invalid");
         assert!(error.contains("invalid"));
         assert!(error.contains("token"));
-        assert!(error.contains("authority"));
+        assert!(error.contains("seeds"));
 
         let error = unknown_key_error("unknown", "key");
         assert!(error.contains("Unknown namespace"));

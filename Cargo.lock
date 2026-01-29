@@ -1620,6 +1620,7 @@ dependencies = [
  "anchor-lang",
  "bincode",
  "borsh 0.10.4",
+ "bytemuck",
  "csdk-anchor-full-derived-test-sdk",
  "light-anchor-spl",
  "light-client",
@@ -4057,6 +4058,7 @@ dependencies = [
  "light-program-profiler",
  "light-sdk-macros",
  "light-sdk-types",
+ "light-token-interface",
  "light-zero-copy",
  "num-bigint 0.4.6",
  "solana-account-info",
@@ -4473,6 +4475,40 @@ name = "lru-slab"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "112b39cec0b298b6c1999fee3e31427f74f676e4cb9879ed1a121b43661a4154"
+
+[[package]]
+name = "manual-test"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "borsh 0.10.4",
+ "bytemuck",
+ "light-client",
+ "light-compressed-account",
+ "light-compressible",
+ "light-hasher",
+ "light-heap",
+ "light-macros",
+ "light-program-test",
+ "light-sdk",
+ "light-sdk-macros",
+ "light-sdk-types",
+ "light-test-utils",
+ "light-token",
+ "light-token-client",
+ "light-token-interface",
+ "light-token-types",
+ "solana-account-info",
+ "solana-instruction",
+ "solana-keypair",
+ "solana-msg 2.2.1",
+ "solana-program",
+ "solana-program-error 2.2.2",
+ "solana-pubkey 2.4.0",
+ "solana-sdk",
+ "solana-signer",
+ "tokio",
+]
 
 [[package]]
 name = "matchers"
@@ -6498,7 +6534,9 @@ dependencies = [
  "light-client",
  "light-compressed-account",
  "light-compressible",
+ "light-hasher",
  "light-heap",
+ "light-macros",
  "light-program-test",
  "light-sdk",
  "light-sdk-macros",

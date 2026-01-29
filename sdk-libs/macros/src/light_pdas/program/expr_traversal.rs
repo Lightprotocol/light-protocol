@@ -57,9 +57,9 @@ fn transform_expr_internal(
                 if state_field_names.contains(&field_str) {
                     return syn::parse_quote! { self.#field_name };
                 }
-                // Field not on state struct - leave unchanged (will cause compile error
-                // unless handled elsewhere). This handles params-only seeds.
-                return expr.clone();
+                // Field not on state struct - use seed_params (params-only field).
+                // seed_params.field is Option<T> where T: Copy, so .unwrap() copies the value.
+                return syn::parse_quote! { seed_params.#field_name.unwrap() };
             }
 
             // Check for ctx.field -> ctx_seeds.field

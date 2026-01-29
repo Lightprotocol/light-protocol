@@ -8,7 +8,7 @@ use std::borrow::Cow;
 use light_hasher::{DataHasher, Sha256};
 use light_sdk::{
     account::Size,
-    compressible::{CompressAs, CompressedInitSpace, CompressionInfo, HasCompressionInfo},
+    compressible::{CompressAs, CompressedInitSpace, CompressionState, HasCompressionInfo},
     LightDiscriminator,
 };
 
@@ -20,10 +20,10 @@ use light_sdk::{
 ///
 /// Implement this trait for each account struct to enable generic testing.
 pub trait CompressibleTestFactory: Sized {
-    /// Create an instance with `compression_info = Some(CompressionInfo::default())`
+    /// Create an instance with `compression_info = CompressionInfo::default()`
     fn with_compression_info() -> Self;
 
-    /// Create an instance with `compression_info = None`
+    /// Create an instance with `compression_info = CompressionInfo::compressed()`
     fn without_compression_info() -> Self;
 }
 
@@ -74,14 +74,14 @@ pub fn assert_discriminator_slice_matches_array<T: LightDiscriminator>() {
 // HasCompressionInfo Tests (6 tests)
 // =============================================================================
 
-/// Verifies compression_info() returns a valid reference when Some.
+/// Verifies compression_info() returns a valid reference.
 pub fn assert_compression_info_returns_reference<
     T: HasCompressionInfo + CompressibleTestFactory,
 >() {
     let record = T::with_compression_info();
     let info = record
         .compression_info()
-        .expect("compression_info should be Some");
+        .expect("compression_info should return Ok");
     // Just verify we can access it - the default values
     assert_eq!(info.config_version, 0);
     assert_eq!(info.lamports_per_write, 0);
@@ -96,7 +96,7 @@ pub fn assert_compression_info_mut_allows_modification<
     {
         let info = record
             .compression_info_mut()
-            .expect("compression_info should be Some");
+            .expect("compression_info should return Ok");
         info.config_version = 99;
         info.lamports_per_write = 1000;
     }
@@ -104,92 +104,93 @@ pub fn assert_compression_info_mut_allows_modification<
     assert_eq!(
         record
             .compression_info()
-            .expect("compression_info should be Some")
+            .expect("compression_info should return Ok")
             .config_version,
         99
     );
     assert_eq!(
         record
             .compression_info()
-            .expect("compression_info should be Some")
+            .expect("compression_info should return Ok")
             .lamports_per_write,
         1000
     );
 }
 
-/// Verifies compression_info_mut_opt() returns a mutable reference to the Option.
-pub fn assert_compression_info_mut_opt_works<T: HasCompressionInfo + CompressibleTestFactory>() {
-    let mut record = T::with_compression_info();
-
-    // Should be able to access and modify the Option itself
-    let opt = record.compression_info_mut_opt();
-    assert!(opt.is_some());
-
-    // Set to None via the mutable reference
-    *opt = None;
-
-    // Verify it changed
-    let opt2 = record.compression_info_mut_opt();
-    assert!(opt2.is_none());
-
-    // Set back to Some
-    *opt2 = Some(CompressionInfo::default());
-    assert!(record.compression_info_mut_opt().is_some());
-}
-
-/// Verifies set_compression_info_none() sets the field to None.
+/// Verifies set_compression_info_none() sets the field to CompressionInfo::compressed().
 pub fn assert_set_compression_info_none_works<T: HasCompressionInfo + CompressibleTestFactory>() {
     let mut record = T::with_compression_info();
 
-    // Verify it starts as Some
-    assert!(record.compression_info_mut_opt().is_some());
+    // Verify it starts with default compression_info
+    let initial = record
+        .compression_info()
+        .expect("compression_info should return Ok");
+    assert_eq!(
+        initial.state,
+        light_sdk::compressible::CompressionState::default()
+    );
 
     record
         .set_compression_info_none()
         .expect("set_compression_info_none should succeed");
 
-    // Verify it's now None
-    assert!(record.compression_info_mut_opt().is_none());
+    // Verify it's now compressed
+    let final_info = record
+        .compression_info()
+        .expect("compression_info should return Ok");
+    assert_eq!(final_info.state, CompressionState::Compressed);
 }
 
-/// Verifies compression_info() returns Err when compression_info is None.
-pub fn assert_compression_info_returns_err_when_none<
+/// Verifies compression_info() returns Ok with Compressed state when set to none.
+pub fn assert_compression_info_returns_ok_when_none<
     T: HasCompressionInfo + CompressibleTestFactory,
 >() {
     let record = T::without_compression_info();
-    // This should return Err since compression_info is None
-    assert!(record.compression_info().is_err());
+    // compression_info() should return Ok
+    let info = record
+        .compression_info()
+        .expect("compression_info should return Ok");
+    // Verify it's in Compressed state
+    assert_eq!(info.state, CompressionState::Compressed);
 }
 
-/// Verifies compression_info_mut() returns Err when compression_info is None.
-pub fn assert_compression_info_mut_returns_err_when_none<
+/// Verifies compression_info_mut() returns Ok with Compressed state when set to none.
+pub fn assert_compression_info_mut_returns_ok_when_none<
     T: HasCompressionInfo + CompressibleTestFactory,
 >() {
     let mut record = T::without_compression_info();
-    // This should return Err since compression_info is None
-    assert!(record.compression_info_mut().is_err());
+    // compression_info_mut() should return Ok
+    let info = record
+        .compression_info_mut()
+        .expect("compression_info_mut should return Ok");
+    // Verify it's in Compressed state
+    assert_eq!(info.state, CompressionState::Compressed);
 }
 
 // =============================================================================
 // CompressAs Tests (2 tests)
 // =============================================================================
 
-/// Verifies compress_as() sets compression_info to None.
-pub fn assert_compress_as_sets_compression_info_to_none<
+/// Verifies compress_as() sets compression_info to Compressed state.
+pub fn assert_compress_as_sets_compression_info_to_compressed<
     T: CompressAs<Output = T> + HasCompressionInfo + CompressibleTestFactory + Clone,
 >() {
     let record = T::with_compression_info();
     let compressed = record.compress_as();
 
-    // Get the inner value - compress_as should return Owned when it modifies
-    let mut inner = compressed.into_owned();
-    assert!(
-        inner.compression_info_mut_opt().is_none(),
-        "compress_as should set compression_info to None"
+    // Get the inner value
+    let inner = compressed.into_owned();
+    let info = inner
+        .compression_info()
+        .expect("compression_info should return Ok");
+    assert_eq!(
+        info.state,
+        CompressionState::Compressed,
+        "compress_as should set compression_info to Compressed state"
     );
 }
 
-/// Verifies compress_as() returns Cow::Owned when compression_info is Some.
+/// Verifies compress_as() returns Cow::Owned (cloned with compression_info set to Compressed).
 pub fn assert_compress_as_returns_owned_cow<
     T: CompressAs<Output = T> + HasCompressionInfo + CompressibleTestFactory + Clone,
 >() {
@@ -198,7 +199,7 @@ pub fn assert_compress_as_returns_owned_cow<
 
     assert!(
         matches!(compressed, Cow::Owned(_)),
-        "compress_as should return Cow::Owned when compression_info is Some"
+        "compress_as should return Cow::Owned (cloned with compression_info set to Compressed)"
     );
 }
 
@@ -338,23 +339,18 @@ macro_rules! generate_trait_tests {
             }
 
             #[test]
-            fn test_compression_info_mut_opt_works() {
-                assert_compression_info_mut_opt_works::<$type>();
-            }
-
-            #[test]
             fn test_set_compression_info_none_works() {
                 assert_set_compression_info_none_works::<$type>();
             }
 
             #[test]
-            fn test_compression_info_returns_err_when_none() {
-                assert_compression_info_returns_err_when_none::<$type>();
+            fn test_compression_info_returns_ok_when_none() {
+                assert_compression_info_returns_ok_when_none::<$type>();
             }
 
             #[test]
-            fn test_compression_info_mut_returns_err_when_none() {
-                assert_compression_info_mut_returns_err_when_none::<$type>();
+            fn test_compression_info_mut_returns_ok_when_none() {
+                assert_compression_info_mut_returns_ok_when_none::<$type>();
             }
         }
 
@@ -364,8 +360,8 @@ macro_rules! generate_trait_tests {
             use super::*;
 
             #[test]
-            fn test_compress_as_sets_compression_info_to_none() {
-                assert_compress_as_sets_compression_info_to_none::<$type>();
+            fn test_compress_as_sets_compression_info_to_compressed() {
+                assert_compress_as_sets_compression_info_to_compressed::<$type>();
             }
 
             #[test]

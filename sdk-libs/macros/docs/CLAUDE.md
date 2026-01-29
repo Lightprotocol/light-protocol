@@ -2,7 +2,7 @@
 
 ## Overview
 
-Documentation for the rentfree macro system in `light-sdk-macros`. These macros enable rent-free compressed accounts on Solana with minimal boilerplate.
+Documentation for the Light PDA macro system in `light-sdk-macros`. These macros enable rent-free compressed accounts on Solana with minimal boilerplate.
 
 ## Structure
 
@@ -10,46 +10,50 @@ Documentation for the rentfree macro system in `light-sdk-macros`. These macros 
 |------|-------------|
 | **`CLAUDE.md`** | This file - documentation structure guide |
 | **`../CLAUDE.md`** | Main entry point for sdk-libs/macros |
-| **`rentfree.md`** | `#[derive(LightAccounts)]` macro and trait derives |
+| **`accounts/architecture.md`** | `#[derive(LightAccounts)]` architecture and code generation |
+| **`accounts/pda.md`** | `#[light_account(init)]` for compressed PDAs |
+| **`accounts/mint.md`** | `#[light_account(init, mint::...)]` for compressed mints |
+| **`accounts/token.md`** | `#[light_account([init,] token::...)]` for token accounts |
+| **`accounts/associated_token.md`** | `#[light_account([init,] associated_token::...)]` for ATAs |
 | **`light_program/`** | `#[light_program]` attribute macro |
 | **`light_program/architecture.md`** | Architecture overview, usage, generated items |
 | **`light_program/codegen.md`** | Technical implementation details (code generation) |
-| **`accounts/`** | Field-level attributes for Accounts structs |
-| **`account/`** | Trait derive macros for account data structs |
+| **`account/architecture.md`** | `#[derive(LightAccount)]` for data structs |
 
 ### Accounts Field Attributes
 
-Field-level attributes applied inside `#[derive(LightAccounts)]` Accounts structs:
+Field-level attributes applied inside `#[derive(LightAccounts)]` Accounts structs. Each account type has dedicated documentation:
 
-| File | Attribute | Description |
+| File | Namespace | Description |
 |------|-----------|-------------|
-| **`accounts/light_mint.md`** | `#[light_account(init, mint,...)]` | Creates compressed mint with automatic decompression |
+| **`accounts/pda.md`** | (none) | Compressed PDAs with `#[light_account(init)]` |
+| **`accounts/mint.md`** | `mint::` | Compressed mints with optional TokenMetadata extension |
+| **`accounts/token.md`** | `token::` | PDA-owned token accounts (vaults) |
+| **`accounts/associated_token.md`** | `associated_token::` | User associated token accounts |
 
-See also: `#[light_account(init)]` attribute documented in `rentfree.md`
+See `accounts/architecture.md` for shared infrastructure requirements, validation rules, and direct proof argument support.
 
-### Account Trait Documentation
+### Account Data Struct Derives
 
-| File | Macro | Description |
-|------|-------|-------------|
-| **`account/has_compression_info.md`** | `#[derive(HasCompressionInfo)]` | Accessor methods for compression_info field |
-| **`account/compress_as.md`** | `#[derive(CompressAs)]` | Creates compressed representation for hashing |
-| **`account/compressible.md`** | `#[derive(Compressible)]` | Combined: HasCompressionInfo + CompressAs + Size |
-| **`account/compressible_pack.md`** | `#[derive(CompressiblePack)]` | Pack/Unpack with Pubkey-to-index compression |
-| **`account/light_compressible.md`** | `#[derive(LightCompressible)]` | All traits for rent-free accounts |
+| Macro | Description | Documentation |
+|-------|-------------|---------------|
+| `#[derive(LightAccount)]` | Unified trait: pack/unpack, compression_info accessors, space check | `account/architecture.md` |
+| `#[derive(LightDiscriminator)]` | Unique 8-byte discriminator | - |
+| `#[derive(LightHasherSha)]` | SHA256 hashing via DataHasher + ToByteArray | - |
 
 ## Navigation Tips
 
 ### Starting Points
 
-- **Data struct traits**: Start with `account/light_compressible.md` for the all-in-one derive macro for compressible data structs
-- **Building account structs**: Use `rentfree.md` for the accounts-level derive macro that marks fields for compression
+- **Data structs**: Use `LightAccount` + `LightDiscriminator` + `LightHasherSha` derives with non-Option `CompressionInfo`
+- **Accounts structs**: Use `accounts/architecture.md` for the accounts-level derive macro that marks fields for compression
 - **Program-level integration**: Use `light_program/architecture.md` for program-level auto-discovery and instruction generation
 - **Implementation details**: Use `light_program/codegen.md` for technical code generation details
 
 ### Macro Hierarchy
 
 ```
-#[light_program]          <- Program-level (light_program/)
+#[light_program]                      <- Program-level (light_program/)
     |
     +-- Discovers #[derive(LightAccounts)] structs
     |
@@ -59,25 +63,38 @@ See also: `#[light_account(init)]` attribute documented in `rentfree.md`
         - Compress/Decompress instructions
         - Config instructions
 
-#[derive(LightAccounts)]          <- Account-level (rentfree.md)
+#[derive(LightAccounts)]              <- Accounts-level (accounts/architecture.md)
     |
     +-- Generates LightPreInit + LightFinalize impls
     |
-    +-- Uses trait derives (account/):
-        - HasCompressionInfo      <- account/has_compression_info.md
-        - CompressAs              <- account/compress_as.md
-        - Compressible            <- account/compressible.md
-        - CompressiblePack        <- account/compressible_pack.md
-        - LightCompressible       <- account/light_compressible.md (combines all)
+    +-- Uses trait derives on data structs:
+        - LightAccount                <- account/architecture.md
+        - LightDiscriminator          <- discriminator.rs
+        - LightHasherSha              <- hasher/
 ```
 
 ## Related Source Code
 
 ```
-sdk-libs/macros/src/rentfree/
-├── account/         # Trait derive macros for account data structs
-├── accounts/        # #[derive(LightAccounts)] implementation
-├── program/         # #[light_program] implementation
-├── shared_utils.rs  # Common utilities
-└── mod.rs           # Module exports
+sdk-libs/macros/src/light_pdas/
+├── account/             # Trait derive macros for account DATA structs
+│   ├── light_compressible.rs  # LightAccount derive
+│   ├── seed_extraction.rs     # Anchor seed extraction
+│   └── utils.rs               # Shared utilities
+├── accounts/            # #[derive(LightAccounts)] for ACCOUNTS structs
+│   ├── derive.rs        # Main derive orchestration
+│   ├── light_account.rs # #[light_account(...)] parsing
+│   ├── builder.rs       # Code generation builder
+│   ├── parse.rs         # Attribute parsing
+│   ├── pda.rs           # PDA code generation
+│   ├── mint.rs          # Mint code generation
+│   └── token.rs         # Token/ATA code generation
+├── program/             # #[light_program] implementation
+│   ├── instructions.rs  # Instruction handler generation
+│   ├── compress.rs      # Compress instruction codegen
+│   ├── decompress.rs    # Decompress instruction codegen
+│   └── variant_enum.rs  # LightAccountVariant enum generation
+├── seeds/               # Seed extraction and classification
+├── shared_utils.rs      # Common utilities
+└── mod.rs               # Module exports
 ```

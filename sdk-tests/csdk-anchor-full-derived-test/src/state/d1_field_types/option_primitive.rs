@@ -12,7 +12,7 @@ use light_sdk_macros::LightAccount;
 #[derive(Default, Debug, InitSpace, LightAccount)]
 #[account]
 pub struct OptionPrimitiveRecord {
-    pub compression_info: Option<CompressionInfo>,
+    pub compression_info: CompressionInfo,
     pub counter: u64,
     pub end_time: Option<u64>,
     pub enabled: Option<bool>,

@@ -332,6 +332,7 @@ async fn test_compressible_pda_bootstrap() {
     let accounts = csdk_anchor_full_derived_test::accounts::D8PdaOnly {
         fee_payer: authority.pubkey(),
         compression_config: config_pda,
+        pda_rent_sponsor: csdk_anchor_full_derived_test::program_rent_sponsor(),
         d8_pda_only_record: record_pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -520,6 +521,7 @@ async fn test_compressible_pda_compression() {
     let accounts = csdk_anchor_full_derived_test::accounts::D8PdaOnly {
         fee_payer: authority.pubkey(),
         compression_config: config_pda,
+        pda_rent_sponsor: csdk_anchor_full_derived_test::program_rent_sponsor(),
         d8_pda_only_record: record_pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -642,7 +644,7 @@ async fn test_compressible_pda_compression() {
         let deserialized = SinglePubkeyRecord::try_from_slice(compressed_data)
             .expect("Failed to deserialize SinglePubkeyRecord from compressed account");
 
-        let compression_info = deserialized.compression_info.clone();
+        let compression_info = deserialized.compression_info;
 
         let expected_record = SinglePubkeyRecord {
             compression_info,
@@ -781,6 +783,7 @@ async fn test_compressible_pda_subscription() {
     let accounts = csdk_anchor_full_derived_test::accounts::D8PdaOnly {
         fee_payer: authority.pubkey(),
         compression_config: config_pda,
+        pda_rent_sponsor: csdk_anchor_full_derived_test::program_rent_sponsor(),
         d8_pda_only_record: record_pda_1,
         system_program: solana_sdk::system_program::ID,
     };
@@ -843,6 +846,7 @@ async fn test_compressible_pda_subscription() {
     let accounts_2 = csdk_anchor_full_derived_test::accounts::D8PdaOnly {
         fee_payer: authority.pubkey(),
         compression_config: config_pda,
+        pda_rent_sponsor: csdk_anchor_full_derived_test::program_rent_sponsor(),
         d8_pda_only_record: record_pda_2,
         system_program: solana_sdk::system_program::ID,
     };

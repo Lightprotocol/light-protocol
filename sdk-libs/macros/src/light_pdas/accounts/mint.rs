@@ -86,6 +86,7 @@ fn resolve_field_name(field: &Option<syn::Ident>, default: &str) -> TokenStream 
 pub(super) struct InfraRefs {
     pub fee_payer: TokenStream,
     pub compression_config: TokenStream,
+    pub pda_rent_sponsor: TokenStream,
     pub light_token_config: TokenStream,
     pub light_token_rent_sponsor: TokenStream,
     pub light_token_cpi_authority: TokenStream,
@@ -97,6 +98,7 @@ impl InfraRefs {
         Self {
             fee_payer: resolve_field_name(&infra.fee_payer, "fee_payer"),
             compression_config: resolve_field_name(&infra.compression_config, "compression_config"),
+            pda_rent_sponsor: resolve_field_name(&infra.pda_rent_sponsor, "pda_rent_sponsor"),
             light_token_config: resolve_field_name(
                 &infra.light_token_config,
                 "light_token_compressible_config",

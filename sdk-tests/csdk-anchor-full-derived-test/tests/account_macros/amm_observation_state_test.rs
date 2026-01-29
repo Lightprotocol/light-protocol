@@ -27,7 +27,7 @@ use crate::generate_trait_tests;
 impl CompressibleTestFactory for ObservationState {
     fn with_compression_info() -> Self {
         Self {
-            compression_info: Some(CompressionInfo::default()),
+            compression_info: CompressionInfo::default(),
             initialized: false,
             observation_index: 0,
             pool_id: Pubkey::new_unique(),
@@ -49,7 +49,7 @@ impl CompressibleTestFactory for ObservationState {
 
     fn without_compression_info() -> Self {
         Self {
-            compression_info: None,
+            compression_info: CompressionInfo::compressed(),
             initialized: false,
             observation_index: 0,
             pool_id: Pubkey::new_unique(),
@@ -85,7 +85,7 @@ fn test_compress_as_preserves_pool_id() {
     let pool_id = Pubkey::new_unique();
 
     let observation_state = ObservationState {
-        compression_info: Some(CompressionInfo::default()),
+        compression_info: CompressionInfo::default(),
         initialized: true,
         observation_index: 5,
         pool_id,
@@ -115,7 +115,7 @@ fn test_compress_as_preserves_pool_id() {
 #[test]
 fn test_compress_as_preserves_observation_data() {
     let observation_state = ObservationState {
-        compression_info: Some(CompressionInfo::default()),
+        compression_info: CompressionInfo::default(),
         initialized: true,
         observation_index: 1,
         pool_id: Pubkey::new_unique(),
@@ -226,7 +226,6 @@ fn test_hash_differs_for_different_observation_data() {
 fn test_packed_struct_has_u8_pool_id_index() {
     // ObservationState has 1 Pubkey field (pool_id), so PackedObservationState should have 1 u8 field
     let packed = PackedObservationState {
-        compression_info: None,
         initialized: false,
         observation_index: 0,
         pool_id: 0,
@@ -253,7 +252,7 @@ fn test_pack_converts_pool_id_to_index() {
     let pool_id = Pubkey::new_unique();
 
     let observation_state = ObservationState {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         initialized: true,
         observation_index: 0,
         pool_id,
@@ -288,7 +287,7 @@ fn test_pack_with_pre_existing_pubkeys() {
     let pool_id = Pubkey::new_unique();
 
     let observation_state = ObservationState {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         initialized: false,
         observation_index: 0,
         pool_id,
@@ -322,7 +321,7 @@ fn test_pack_preserves_all_fields() {
     let pool_id = Pubkey::new_unique();
 
     let observation_state = ObservationState {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         initialized: true,
         observation_index: 42,
         pool_id,
@@ -356,43 +355,12 @@ fn test_pack_preserves_all_fields() {
 }
 
 #[test]
-fn test_pack_sets_compression_info_to_none() {
-    let observation_with_info = ObservationState {
-        compression_info: Some(CompressionInfo::default()),
-        initialized: false,
-        observation_index: 0,
-        pool_id: Pubkey::new_unique(),
-        observations: [
-            Observation {
-                block_timestamp: 0,
-                cumulative_token_0_price_x32: 0,
-                cumulative_token_1_price_x32: 0,
-            },
-            Observation {
-                block_timestamp: 0,
-                cumulative_token_0_price_x32: 0,
-                cumulative_token_1_price_x32: 0,
-            },
-        ],
-        padding: [0u64; 4],
-    };
-
-    let mut packed_accounts = PackedAccounts::default();
-    let packed = observation_with_info.pack(&mut packed_accounts).unwrap();
-
-    assert!(
-        packed.compression_info.is_none(),
-        "pack should set compression_info to None"
-    );
-}
-
-#[test]
 fn test_pack_different_pool_ids_get_different_indices() {
     let pool_id1 = Pubkey::new_unique();
     let pool_id2 = Pubkey::new_unique();
 
     let observation1 = ObservationState {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         initialized: false,
         observation_index: 0,
         pool_id: pool_id1,
@@ -412,7 +380,7 @@ fn test_pack_different_pool_ids_get_different_indices() {
     };
 
     let observation2 = ObservationState {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         initialized: false,
         observation_index: 0,
         pool_id: pool_id2,
@@ -447,7 +415,7 @@ fn test_pack_reuses_same_pool_id_index() {
     let pool_id = Pubkey::new_unique();
 
     let observation1 = ObservationState {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         initialized: false,
         observation_index: 0,
         pool_id,
@@ -467,7 +435,7 @@ fn test_pack_reuses_same_pool_id_index() {
     };
 
     let observation2 = ObservationState {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         initialized: true,
         observation_index: 1,
         pool_id,
@@ -502,7 +470,7 @@ fn test_pack_stores_pool_id_in_packed_accounts() {
     let pool_id = Pubkey::new_unique();
 
     let observation_state = ObservationState {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         initialized: false,
         observation_index: 0,
         pool_id,

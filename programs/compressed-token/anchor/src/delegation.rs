@@ -339,7 +339,7 @@ pub mod sdk {
             inputs: serialized_ix_data,
         };
 
-        let accounts = crate::accounts::GenericInstruction {
+        let accounts = crate::__client_accounts_generic_instruction::GenericInstruction {
             fee_payer: inputs.fee_payer,
             authority: inputs.authority,
             cpi_authority_pda,
@@ -413,7 +413,7 @@ pub mod sdk {
             inputs: serialized_ix_data,
         };
 
-        let accounts = crate::accounts::GenericInstruction {
+        let accounts = crate::__client_accounts_generic_instruction::GenericInstruction {
             fee_payer: inputs.fee_payer,
             authority: inputs.authority,
             cpi_authority_pda,

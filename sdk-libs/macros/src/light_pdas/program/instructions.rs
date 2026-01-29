@@ -16,7 +16,7 @@ use super::{
         convert_classified_to_seed_elements, convert_classified_to_seed_elements_vec,
         extract_context_and_params, macro_error, wrap_function_with_light,
     },
-    variant_enum::{LightVariantBuilder, PdaCtxSeedInfo, TokenVariantBuilder},
+    variant_enum::{LightVariantBuilder, PdaCtxSeedInfo},
 };
 use crate::{
     light_pdas::shared_utils::{ident_to_type, qualify_type_with_crate},
@@ -36,7 +36,7 @@ fn codegen(
     pda_seeds: Option<Vec<TokenSeedSpec>>,
     token_seeds: Option<Vec<TokenSeedSpec>>,
     instruction_data: Vec<InstructionDataSpec>,
-    crate_ctx: &super::crate_context::CrateContext,
+    crate_ctx: &crate::light_pdas::parsing::CrateContext,
     has_mint_fields: bool,
     has_ata_fields: bool,
 ) -> Result<TokenStream> {
@@ -52,22 +52,17 @@ fn codegen(
         use anchor_lang::prelude::*;
     };
     content.1.insert(0, anchor_import);
-    let ctoken_enum = if let Some(ref token_seed_specs) = token_seeds {
-        if !token_seed_specs.is_empty() {
-            TokenVariantBuilder::new(token_seed_specs).build()?
-        } else {
-            crate::light_pdas::account::utils::generate_empty_ctoken_enum()
-        }
-    } else {
-        crate::light_pdas::account::utils::generate_empty_ctoken_enum()
-    };
 
+    // TODO: Unify seed extraction - currently #[light_program] extracts seeds from Anchor's
+    // #[account(seeds = [...])] automatically, while #[derive(LightAccounts)] requires
+    // explicit token::seeds = [...] in #[light_account]. Consider removing the duplicate
+    // seed specification requirement and always using Anchor seeds.
     if let Some(ref token_seed_specs) = token_seeds {
         for spec in token_seed_specs {
-            if spec.authority.is_none() {
+            if spec.seeds.is_empty() {
                 return Err(macro_error!(
                     &spec.variant,
-                    "Token account '{}' must specify authority = <seed_expr> for compression signing.",
+                    "Token account '{}' must have seeds in #[account(seeds = [...])] for PDA signing.",
                     spec.variant
                 ));
             }
@@ -94,7 +89,14 @@ fn codegen(
                         .unwrap_or_default();
 
                     // Extract params-only seed fields (data.* fields that don't exist on state)
-                    let params_only_seed_fields = crate::light_pdas::account::seed_extraction::get_params_only_seed_fields_from_spec(spec, &state_field_names);
+                    let params_only_seed_fields =
+                        crate::light_pdas::seeds::get_params_only_seed_fields_from_spec(
+                            spec,
+                            &state_field_names,
+                        );
+
+                    // Calculate seed_count = number of seeds + 1 (for bump)
+                    let seed_count = spec.seeds.len() + 1;
 
                     PdaCtxSeedInfo::with_state_fields(
                         spec.variant.clone(),
@@ -102,12 +104,15 @@ fn codegen(
                         ctx_fields,
                         state_field_names,
                         params_only_seed_fields,
-                        spec.is_zero_copy,
+                        seed_count,
                     )
                 })
                 .collect()
         })
         .unwrap_or_default();
+
+    // Determine if we have token seeds early (needed for variant builder)
+    let has_token_seeds_early = token_seeds.as_ref().map(|t| !t.is_empty()).unwrap_or(false);
 
     // Generate variant enum and traits only if there are PDA seeds
     // For mint-only programs (no PDA state accounts), generate minimal placeholder code
@@ -119,8 +124,6 @@ fn codegen(
             pub enum LightAccountVariant {
                 /// Placeholder variant for mint-only programs
                 Empty,
-                PackedCTokenData(light_token::compat::PackedCTokenData<PackedTokenAccountVariant>),
-                CTokenData(light_token::compat::CTokenData<TokenAccountVariant>),
             }
 
             impl Default for LightAccountVariant {
@@ -133,8 +136,6 @@ fn codegen(
                 fn hash<H: ::light_sdk::hasher::Hasher>(&self) -> std::result::Result<[u8; 32], ::light_sdk::hasher::HasherError> {
                     match self {
                         Self::Empty => Err(::light_sdk::hasher::HasherError::EmptyInput),
-                        Self::PackedCTokenData(_) => Err(::light_sdk::hasher::HasherError::EmptyInput),
-                        Self::CTokenData(_) => Err(::light_sdk::hasher::HasherError::EmptyInput),
                     }
                 }
             }
@@ -168,6 +169,8 @@ fn codegen(
                 }
             }
 
+            // Pack trait is only available off-chain (client-side)
+            #[cfg(not(target_os = "solana"))]
             impl light_sdk::Pack for LightAccountVariant {
                 type Packed = Self;
                 fn pack(&self, _remaining_accounts: &mut light_sdk::instruction::PackedAccounts) -> std::result::Result<Self::Packed, solana_program_error::ProgramError> {
@@ -198,36 +201,22 @@ fn codegen(
                 }
             }
 
-            impl light_sdk::interface::DecompressibleAccount for LightAccountVariant {
-                fn is_token(&self) -> bool {
-                    match self {
-                        Self::Empty => false,
-                        Self::PackedCTokenData(_) => true,
-                        Self::CTokenData(_) => true,
-                    }
-                }
-
-                fn prepare<'a, 'info>(
-                    self,
-                    _ctx: &light_sdk::interface::DecompressCtx<'a, 'info>,
-                    _solana_account: &solana_account_info::AccountInfo<'info>,
-                    _meta: &light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
-                    _index: usize,
-                ) -> std::result::Result<
-                    std::option::Option<light_sdk::compressed_account::CompressedAccountInfo>,
-                    solana_program_error::ProgramError
-                > {
-                    match self {
-                        Self::Empty => Err(solana_program_error::ProgramError::InvalidAccountData),
-                        Self::PackedCTokenData(_) | Self::CTokenData(_) => {
-                            Err(light_sdk::error::LightSdkError::TokenPrepareCalled.into())
-                        }
-                    }
-                }
-            }
+            // Note: No DecompressibleAccount impl for mint-only programs
+            // since they don't have PDAs to decompress.
         }
     } else {
-        LightVariantBuilder::new(&pda_ctx_seeds).build()?
+        // Include token variants as first-class members if the program has token fields
+        let builder = LightVariantBuilder::new(&pda_ctx_seeds);
+        let builder = if let Some(ref token_seed_specs) = token_seeds {
+            if !token_seed_specs.is_empty() {
+                builder.with_token_seeds(token_seed_specs)
+            } else {
+                builder
+            }
+        } else {
+            builder
+        };
+        builder.build()?
     };
 
     // Collect all unique params-only seed fields across all variants for SeedParams struct
@@ -280,9 +269,29 @@ fn codegen(
         }
     };
 
-    let instruction_data_types: std::collections::HashMap<String, &syn::Type> = instruction_data
+    let _instruction_data_types: std::collections::HashMap<String, &syn::Type> = instruction_data
         .iter()
         .map(|spec| (spec.field_name.to_string(), &spec.field_type))
+        .collect();
+
+    // Generate pub use re-exports for per-field variant types from LightAccounts.
+    // These types are generated at crate root by #[derive(LightAccounts)] and need
+    // to be re-exported from the program module so tests/clients can access them.
+    let variant_reexports: Vec<TokenStream> = pda_ctx_seeds
+        .iter()
+        .flat_map(|info| {
+            let variant_name = &info.variant_name;
+            let seeds_name = format_ident!("{}Seeds", variant_name);
+            let packed_seeds_name = format_ident!("Packed{}Seeds", variant_name);
+            let variant_struct_name = format_ident!("{}Variant", variant_name);
+            let packed_variant_name = format_ident!("Packed{}Variant", variant_name);
+            vec![
+                quote! { pub use super::#seeds_name; },
+                quote! { pub use super::#packed_seeds_name; },
+                quote! { pub use super::#variant_struct_name; },
+                quote! { pub use super::#packed_variant_name; },
+            ]
+        })
         .collect();
 
     let seeds_structs_and_constructors: Vec<TokenStream> = if let Some(ref pda_seed_specs) =
@@ -296,80 +305,42 @@ fn codegen(
                 let variant_name = &ctx_info.variant_name;
                 // Use inner_type for deserialization - qualify with crate:: for accessibility
                 let inner_type = qualify_type_with_crate(&ctx_info.inner_type);
+                // Use the existing Seeds struct generated by #[derive(LightAccounts)]
                 let seeds_struct_name = format_ident!("{}Seeds", variant_name);
                 let constructor_name = format_ident!("{}", to_snake_case(&variant_name.to_string()));
-                let ctx_fields = &ctx_info.ctx_seed_fields;
-                let params_only_fields = &ctx_info.params_only_seed_fields;
-                let ctx_field_decls: Vec<_> = ctx_fields.iter().map(|field| {
-                    quote! { pub #field: solana_pubkey::Pubkey }
-                }).collect();
+                let _ctx_fields = &ctx_info.ctx_seed_fields;
+                let _params_only_fields = &ctx_info.params_only_seed_fields;
                 let data_fields = extract_data_seed_fields(&spec.seeds);
-                let data_field_decls: Vec<_> = data_fields.iter().filter_map(|field| {
-                    let field_str = field.to_string();
-                    instruction_data_types.get(&field_str).map(|ty| {
-                        quote! { pub #field: #ty }
-                    })
-                }).collect();
                 // Only generate verifications for data fields that exist on the state struct
-                // For zero_copy accounts, convert Pubkey to bytes for comparison
-                let is_zero_copy = ctx_info.is_zero_copy;
                 let data_verifications: Vec<_> = data_fields.iter().filter_map(|field| {
                     let field_str = field.to_string();
                     // Skip fields that don't exist on the state struct (e.g., params-only seeds)
                     if !ctx_info.state_field_names.contains(&field_str) {
                         return None;
                     }
-                    if is_zero_copy {
-                        // For zero_copy accounts, Pod types use [u8; 32] instead of Pubkey,
-                        // so convert the seed's Pubkey to bytes for comparison
-                        Some(quote! {
-                            if data.#field != seeds.#field.to_bytes() {
-                                return std::result::Result::Err(LightInstructionError::SeedMismatch.into());
-                            }
-                        })
-                    } else {
-                        Some(quote! {
-                            if data.#field != seeds.#field {
-                                return std::result::Result::Err(LightInstructionError::SeedMismatch.into());
-                            }
-                        })
-                    }
+                    Some(quote! {
+                        if data.#field != seeds.#field {
+                            return std::result::Result::Err(LightInstructionError::SeedMismatch.into());
+                        }
+                    })
                 }).collect();
 
-                // Extract params-only field names from ctx_info for variant construction
-                let params_only_field_names: Vec<_> = params_only_fields.iter().map(|(f, _, _)| f).collect();
+                // Both zero_copy and Borsh accounts use AnchorDeserialize on the full
+                // compressed data (which includes CompressionInfo::compressed()).
+                let (deserialize_code, variant_data) = (
+                    quote! {
+                        use anchor_lang::AnchorDeserialize;
+                        let data: #inner_type = AnchorDeserialize::deserialize(&mut &account_data[..])
+                            .map_err(|_| anchor_lang::error::Error::from(anchor_lang::error::ErrorCode::AccountDidNotDeserialize))?;
+                    },
+                    quote! { data },
+                );
 
-                // Generate different code for zero_copy vs Borsh accounts
-                let (deserialize_code, variant_data) = if is_zero_copy {
-                    // For zero_copy accounts, account_data contains stripped bytes (CompressionInfo removed).
-                    // Use unpack_stripped to reconstruct full Pod for seed verification.
-                    // Store stripped bytes in variant - packing will keep them stripped.
-                    (
-                        quote! {
-                            // Reconstruct full Pod from stripped bytes (zeros at CompressionInfo offset)
-                            let data: #inner_type = <#inner_type as light_sdk::interface::PodCompressionInfoField>::unpack_stripped(account_data)
-                                .map_err(|_| anchor_lang::error::Error::from(anchor_lang::error::ErrorCode::AccountDidNotDeserialize))?;
-                        },
-                        quote! { account_data.to_vec() }
-                    )
-                } else {
-                    // For Borsh accounts, deserialize and use the data directly
-                    (
-                        quote! {
-                            use anchor_lang::AnchorDeserialize;
-                            let data = #inner_type::deserialize(&mut &account_data[..])?;
-                        },
-                        quote! { data }
-                    )
-                };
+                let variant_struct_name = format_ident!("{}Variant", variant_name);
 
-                quote! {
-                    #[derive(Clone, Debug)]
-                    pub struct #seeds_struct_name {
-                        #(#ctx_field_decls,)*
-                        #(#data_field_decls,)*
-                    }
+                let generated = quote! {
                     impl LightAccountVariant {
+                        /// Construct a #variant_name variant from account data and seeds.
                         pub fn #constructor_name(
                             account_data: &[u8],
                             seeds: #seeds_struct_name,
@@ -378,13 +349,12 @@ fn codegen(
 
                             #(#data_verifications)*
 
-                            // Use variant_name for the enum variant
-                            // Include ctx fields and params-only fields from seeds
-                            std::result::Result::Ok(Self::#variant_name {
+                            // Create the variant struct using the seeds directly
+                            let variant = #variant_struct_name {
+                                seeds,
                                 data: #variant_data,
-                                #(#ctx_fields: seeds.#ctx_fields,)*
-                                #(#params_only_field_names: seeds.#params_only_field_names,)*
-                            })
+                            };
+                            std::result::Result::Ok(Self::#variant_name(variant))
                         }
                     }
                     impl light_sdk::interface::IntoVariant<LightAccountVariant> for #seeds_struct_name {
@@ -392,7 +362,8 @@ fn codegen(
                             LightAccountVariant::#constructor_name(data, self)
                         }
                     }
-                }
+                };
+                generated
             })
             .collect()
     } else {
@@ -424,46 +395,118 @@ fn codegen(
     let size_validation_checks = compress_builder.generate_size_validation()?;
     let error_codes = compress_builder.generate_error_codes()?;
 
-    let token_variant_name = format_ident!("TokenAccountVariant");
-
     // Create DecompressBuilder to generate all decompress-related code
-    let decompress_builder =
-        DecompressBuilder::new(pda_ctx_seeds.clone(), token_variant_name, pda_seeds.clone());
+    let decompress_builder = DecompressBuilder::new(pda_ctx_seeds.clone(), pda_seeds.clone());
     // Note: DecompressBuilder validation is optional for now since pda_seeds may be empty for TokenOnly
 
     let decompress_accounts = decompress_builder.generate_accounts_struct()?;
     let pda_seed_provider_impls = decompress_builder.generate_seed_provider_impls()?;
 
-    let trait_impls: syn::ItemMod = syn::parse_quote! {
-        mod __trait_impls {
-            use super::*;
+    // Generate trait impls and decompress processor/instruction based on program type.
+    // v2 interface: no DecompressContext trait needed - uses DecompressVariant on PackedLightAccountVariant.
+    let (trait_impls, decompress_processor_fn, decompress_instruction) =
+        if !pda_ctx_seeds.is_empty() && has_token_seeds_early {
+            // Mixed program: PDAs + Tokens - generate full impl with token checking.
+            // Token variants are now first-class members of PackedLightAccountVariant,
+            // so we match against the individual token variant names.
+            let token_variant_names: Vec<_> = token_seeds
+                .as_ref()
+                .map(|specs| specs.iter().map(|s| &s.variant).collect())
+                .unwrap_or_default();
 
-            impl light_sdk::interface::HasTokenVariant for LightAccountData {
-                fn is_packed_token(&self) -> bool {
-                    use light_sdk::interface::DecompressibleAccount;
-                    self.data.is_token()
+            let token_match_arms: Vec<_> = token_variant_names
+                .iter()
+                .map(|name| quote! { PackedLightAccountVariant::#name(_) => true, })
+                .collect();
+
+            let trait_impls: syn::ItemMod = syn::parse_quote! {
+                mod __trait_impls {
+                    use super::*;
+
+                    impl light_sdk::interface::HasTokenVariant for LightAccountData {
+                        fn is_packed_token(&self) -> bool {
+                            match &self.data {
+                                #(#token_match_arms)*
+                                _ => false,
+                            }
+                        }
+                    }
                 }
-            }
-        }
-    };
+            };
+            let decompress_processor_fn = decompress_builder.generate_processor()?;
+            let decompress_instruction = decompress_builder.generate_entrypoint()?;
+            (
+                Some(trait_impls),
+                Some(decompress_processor_fn),
+                Some(decompress_instruction),
+            )
+        } else if !pda_ctx_seeds.is_empty() {
+            // PDA-only program: simplified impl without token checking
+            let trait_impls: syn::ItemMod = syn::parse_quote! {
+                mod __trait_impls {
+                    use super::*;
 
-    let decompress_context_impl = decompress_builder.generate_context_impl()?;
-    let decompress_processor_fn = decompress_builder.generate_processor()?;
-    let decompress_instruction = decompress_builder.generate_entrypoint()?;
+                    impl light_sdk::interface::HasTokenVariant for LightAccountData {
+                        fn is_packed_token(&self) -> bool {
+                            // PDA-only programs have no token variants
+                            false
+                        }
+                    }
+                }
+            };
+            let decompress_processor_fn = decompress_builder.generate_processor()?;
+            let decompress_instruction = decompress_builder.generate_entrypoint()?;
+            (
+                Some(trait_impls),
+                Some(decompress_processor_fn),
+                Some(decompress_instruction),
+            )
+        } else {
+            // Mint-only programs: placeholder impl
+            let trait_impls: syn::ItemMod = syn::parse_quote! {
+                mod __trait_impls {
+                    use super::*;
+
+                    impl light_sdk::interface::HasTokenVariant for LightAccountData {
+                        fn is_packed_token(&self) -> bool {
+                            match &self.data {
+                                LightAccountVariant::Empty => false,
+                                _ => true,
+                            }
+                        }
+                    }
+                }
+            };
+            (Some(trait_impls), None, None)
+        };
 
     let compress_accounts = compress_builder.generate_accounts_struct()?;
-    let compress_context_impl = compress_builder.generate_context_impl()?;
+    let compress_dispatch_fn = compress_builder.generate_dispatch_fn()?;
     let compress_processor_fn = compress_builder.generate_processor()?;
     let compress_instruction = compress_builder.generate_entrypoint()?;
 
-    let module_tokens = quote! {
-        mod __processor_functions {
-            use super::*;
-            #decompress_processor_fn
-            #compress_processor_fn
-        }
-    };
-    let processor_module: syn::ItemMod = syn::parse2(module_tokens)?;
+    // Generate processor module - includes dispatch fn + processor fns.
+    // The compress dispatch function must be inside the module so it can
+    // access `use super::*` imports.
+    let processor_module: syn::ItemMod =
+        if let Some(decompress_processor_fn) = decompress_processor_fn {
+            syn::parse_quote! {
+                mod __processor_functions {
+                    use super::*;
+                    #compress_dispatch_fn
+                    #decompress_processor_fn
+                    #compress_processor_fn
+                }
+            }
+        } else {
+            syn::parse_quote! {
+                mod __processor_functions {
+                    use super::*;
+                    #compress_dispatch_fn
+                    #compress_processor_fn
+                }
+            }
+        };
 
     let init_config_accounts: syn::ItemStruct = syn::parse_quote! {
         #[derive(Accounts)]
@@ -566,16 +609,30 @@ fn codegen(
         }
     }
 
+    // Add pub use re-exports for per-field variant types from LightAccounts.
+    // These make {Field}Seeds, {Field}Variant, etc. accessible from the program module.
+    for reexport in variant_reexports {
+        let reexport_item: syn::Item = syn::parse2(reexport)?;
+        content.1.push(reexport_item);
+    }
+
     content.1.push(Item::Verbatim(size_validation_checks));
     content.1.push(Item::Verbatim(enum_and_traits));
-    content.1.push(Item::Verbatim(ctoken_enum));
     content.1.push(Item::Struct(decompress_accounts));
-    content.1.push(Item::Mod(trait_impls));
-    content.1.push(Item::Mod(decompress_context_impl));
+    content.1.push(Item::Verbatim(
+        decompress_builder.generate_accounts_trait_impls()?,
+    ));
+    if let Some(trait_impls) = trait_impls {
+        content.1.push(Item::Mod(trait_impls));
+    }
     content.1.push(Item::Mod(processor_module));
-    content.1.push(Item::Fn(decompress_instruction));
+    if let Some(decompress_instruction) = decompress_instruction {
+        content.1.push(Item::Fn(decompress_instruction));
+    }
     content.1.push(Item::Struct(compress_accounts));
-    content.1.push(Item::Mod(compress_context_impl));
+    content.1.push(Item::Verbatim(
+        compress_builder.generate_accounts_trait_impls()?,
+    ));
     content.1.push(Item::Fn(compress_instruction));
     content.1.push(Item::Struct(init_config_accounts));
     content.1.push(Item::Struct(update_config_accounts));
@@ -590,13 +647,15 @@ fn codegen(
         }
     }
 
-    // Add ctoken seed provider impl
+    // Add ctoken seed provider impls (one per token variant)
     if let Some(ref seeds) = token_seeds {
         if !seeds.is_empty() {
             let impl_code =
                 super::seed_codegen::generate_ctoken_seed_provider_implementation(seeds)?;
-            let ctoken_impl: syn::ItemImpl = syn::parse2(impl_code)?;
-            content.1.push(Item::Impl(ctoken_impl));
+            let impl_file: syn::File = syn::parse2(impl_code)?;
+            for item in impl_file.items {
+                content.1.push(item);
+            }
         }
     }
 
@@ -642,10 +701,11 @@ fn codegen(
 /// ```
 #[inline(never)]
 pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<TokenStream> {
-    use super::crate_context::CrateContext;
-    use crate::light_pdas::account::seed_extraction::{
-        extract_from_accounts_struct, get_data_fields, parse_instruction_arg_names,
-        ExtractedSeedSpec, ExtractedTokenSpec,
+    use crate::light_pdas::{
+        parsing::{parse_instruction_arg_names, CrateContext},
+        seeds::{
+            extract_from_accounts_struct, get_data_fields, ExtractedSeedSpec, ExtractedTokenSpec,
+        },
     };
 
     if module.content.is_none() {
@@ -662,11 +722,13 @@ pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<Tok
     let mut has_any_mint_fields = false;
     let mut has_any_ata_fields = false;
 
-    for item_struct in crate_ctx.structs_with_derive("Accounts") {
+    for (module_path, item_struct) in crate_ctx.structs_with_derive_and_path("Accounts") {
         // Parse #[instruction(...)] attribute to get instruction arg names
         let instruction_args = parse_instruction_arg_names(&item_struct.attrs)?;
 
-        if let Some(info) = extract_from_accounts_struct(item_struct, &instruction_args)? {
+        if let Some(info) =
+            extract_from_accounts_struct(item_struct, &instruction_args, module_path)?
+        {
             if !info.pda_fields.is_empty()
                 || !info.token_fields.is_empty()
                 || info.has_light_mint_fields
@@ -721,19 +783,19 @@ pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<Tok
                             let fn_name = fn_item.sig.ident.to_string();
                             let params_str = param_names.join(", ");
                             return Err(macro_error!(
-                                fn_item,
-                                format!(
-                                    "Function '{}' has multiple instruction arguments ({}) which is not supported by #[light_program].\n\
-                                     Please consolidate these into a single params struct.\n\
-                                     Example: Instead of `fn {}(ctx: Context<T>, {})`,\n\
-                                     use: `fn {}(ctx: Context<T>, params: MyParams)` where MyParams contains all fields.",
-                                    fn_name,
-                                    params_str,
-                                    fn_name,
-                                    params_str,
-                                    fn_name
-                                )
-                            ));
+                                    fn_item,
+                                    format!(
+                                        "Function '{}' has multiple instruction arguments ({}) which is not supported by #[light_program].\n\
+                                         Please consolidate these into a single params struct.\n\
+                                         Example: Instead of `fn {}(ctx: Context<T>, {})`,\n\
+                                         use: `fn {}(ctx: Context<T>, params: MyParams)` where MyParams contains all fields.",
+                                        fn_name,
+                                        params_str,
+                                        fn_name,
+                                        params_str,
+                                        fn_name
+                                    )
+                                ));
                         }
                         // Non-rentfree structs with multiple params are fine - just skip wrapping
                     }
@@ -746,33 +808,51 @@ pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<Tok
     }
 
     // Convert extracted specs to the format expected by codegen
-    // Deduplicate based on variant_name (field name) - field names must be globally unique
+    // Check for duplicate field names - each compressible field must have a unique name
     let mut found_pda_seeds: Vec<TokenSeedSpec> = Vec::new();
     let mut found_data_fields: Vec<InstructionDataSpec> = Vec::new();
     let mut compressible_accounts: Vec<CompressibleAccountInfo> = Vec::new();
-    let mut seen_variants: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut seen_variants: std::collections::HashMap<String, &ExtractedSeedSpec> =
+        std::collections::HashMap::new();
 
     for pda in &pda_specs {
-        // Deduplicate based on variant_name (derived from field name)
-        // If same field name is used in multiple instruction structs, only add once
+        // Check for duplicate field names - each compressible field must be unique across the program
         let variant_str = pda.variant_name.to_string();
-        if !seen_variants.insert(variant_str) {
-            continue; // Skip duplicate field names
+        if let Some(existing) = seen_variants.get(&variant_str) {
+            return Err(syn::Error::new(
+                pda.variant_name.span(),
+                format!(
+                    "Duplicate compressible field name '{}' found in multiple instruction structs.\n\
+                     Each compressible field must have a unique name across the program.\n\
+                     \n\
+                     First: struct '{}'\n\
+                     Second: struct '{}'\n\
+                     \n\
+                     Rename one of the fields to be unique.",
+                    variant_str,
+                    existing.struct_name,
+                    pda.struct_name,
+                ),
+            ));
         }
+        seen_variants.insert(variant_str, pda);
 
         compressible_accounts.push(CompressibleAccountInfo {
             account_type: pda.inner_type.clone(),
             is_zero_copy: pda.is_zero_copy,
         });
 
-        let seed_elements = convert_classified_to_seed_elements(&pda.seeds);
+        let seed_elements =
+            convert_classified_to_seed_elements(&pda.seeds, &pda.module_path, &crate_ctx);
 
         // Extract data field types from seeds
         for (field_name, conversion) in get_data_fields(&pda.seeds) {
             let field_type: syn::Type = if conversion.is_some() {
                 syn::parse_quote!(u64)
             } else {
-                syn::parse_quote!(solana_pubkey::Pubkey)
+                // Use Pubkey (from anchor_lang::prelude) instead of solana_pubkey::Pubkey
+                // because Anchor's IDL build feature requires IdlBuild trait implementations
+                syn::parse_quote!(Pubkey)
             };
 
             if !found_data_fields.iter().any(|f| f.field_name == field_name) {
@@ -789,7 +869,7 @@ pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<Tok
             _eq: syn::parse_quote!(=),
             is_token: Some(false),
             seeds: seed_elements,
-            authority: None,
+            owner_seeds: None,
             // Store inner_type for type references (deserialization, trait bounds)
             inner_type: Some(pda.inner_type.clone()),
             is_zero_copy: pda.is_zero_copy,
@@ -799,18 +879,18 @@ pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<Tok
     // Convert token specs
     let mut found_token_seeds: Vec<TokenSeedSpec> = Vec::new();
     for token in &token_specs {
-        let seed_elements = convert_classified_to_seed_elements(&token.seeds);
-        let authority_elements = token
-            .authority_seeds
-            .as_ref()
-            .map(|seeds| convert_classified_to_seed_elements_vec(seeds));
+        let seed_elements =
+            convert_classified_to_seed_elements(&token.seeds, &token.module_path, &crate_ctx);
+        let owner_seeds_elements = token.owner_seeds.as_ref().map(|seeds| {
+            convert_classified_to_seed_elements_vec(seeds, &token.module_path, &crate_ctx)
+        });
 
         found_token_seeds.push(TokenSeedSpec {
             variant: token.variant_name.clone(),
             _eq: syn::parse_quote!(=),
             is_token: Some(true),
             seeds: seed_elements,
-            authority: authority_elements,
+            owner_seeds: owner_seeds_elements,
             inner_type: None,    // Token specs don't have inner type
             is_zero_copy: false, // Token specs don't use zero-copy
         });

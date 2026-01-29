@@ -8,103 +8,21 @@ use syn::Result;
 
 use super::{
     instructions::{InstructionDataSpec, TokenSeedSpec},
-    seed_utils::{generate_seed_derivation_body, seed_element_to_ref_expr, SeedConversionConfig},
-    variant_enum::extract_ctx_fields_from_token_spec,
+    seed_utils::generate_seed_derivation_body,
     visitors::{classify_seed, generate_client_seed_code},
 };
 
-/// Phase 8: Generate TokenSeedProvider impl that uses self.field instead of ctx.accounts.field
+/// Generate seed-related helper functions for token variants.
+///
+/// Currently generates client seed functions only. The legacy TokenSeedProvider
+/// trait impls have been removed; seed derivation is now handled directly
+/// via `LightAccountVariantTrait` impls generated in `variant_enum.rs`.
 pub fn generate_ctoken_seed_provider_implementation(
-    token_seeds: &[TokenSeedSpec],
+    _token_seeds: &[TokenSeedSpec],
 ) -> Result<TokenStream> {
-    let mut get_seeds_match_arms = Vec::new();
-    let mut get_authority_seeds_match_arms = Vec::new();
-
-    let config = SeedConversionConfig::for_ctoken_provider();
-
-    for spec in token_seeds {
-        let variant_name = &spec.variant;
-        let ctx_fields = extract_ctx_fields_from_token_spec(spec);
-
-        // Build match pattern with destructuring if there are ctx fields
-        let pattern = if ctx_fields.is_empty() {
-            quote! { TokenAccountVariant::#variant_name }
-        } else {
-            let field_names: Vec<_> = ctx_fields.iter().collect();
-            quote! { TokenAccountVariant::#variant_name { #(#field_names,)* } }
-        };
-
-        // Build seed refs for get_seeds - use self.field directly for ctx.* seeds
-        let token_seed_refs: Vec<TokenStream> = spec
-            .seeds
-            .iter()
-            .map(|s| seed_element_to_ref_expr(s, &config))
-            .collect();
-
-        let get_seeds_arm = quote! {
-            #pattern => {
-                let seeds: &[&[u8]] = &[#(#token_seed_refs),*];
-                let (token_account_pda, bump) = solana_pubkey::Pubkey::find_program_address(seeds, program_id);
-                let mut seeds_vec = Vec::with_capacity(seeds.len() + 1);
-                seeds_vec.extend(seeds.iter().map(|s| s.to_vec()));
-                seeds_vec.push(vec![bump]);
-                Ok((seeds_vec, token_account_pda))
-            }
-        };
-        get_seeds_match_arms.push(get_seeds_arm);
-
-        // Build authority seeds
-        if let Some(authority_seeds) = &spec.authority {
-            let auth_seed_refs: Vec<TokenStream> = authority_seeds
-                .iter()
-                .map(|s| seed_element_to_ref_expr(s, &config))
-                .collect();
-
-            let authority_arm = quote! {
-                #pattern => {
-                    let seeds: &[&[u8]] = &[#(#auth_seed_refs),*];
-                    let (authority_pda, bump) = solana_pubkey::Pubkey::find_program_address(seeds, program_id);
-                    let mut seeds_vec = Vec::with_capacity(seeds.len() + 1);
-                    seeds_vec.extend(seeds.iter().map(|s| s.to_vec()));
-                    seeds_vec.push(vec![bump]);
-                    Ok((seeds_vec, authority_pda))
-                }
-            };
-            get_authority_seeds_match_arms.push(authority_arm);
-        } else {
-            let authority_arm = quote! {
-                #pattern => {
-                    Err(solana_program_error::ProgramError::Custom(
-                        LightInstructionError::MissingSeedAccount.into()
-                    ))
-                }
-            };
-            get_authority_seeds_match_arms.push(authority_arm);
-        }
-    }
-
-    // Phase 8: New trait signature - no ctx/accounts parameter needed
-    Ok(quote! {
-        impl light_sdk::interface::TokenSeedProvider for TokenAccountVariant {
-            fn get_seeds(
-                &self,
-                program_id: &solana_pubkey::Pubkey,
-            ) -> std::result::Result<(Vec<Vec<u8>>, solana_pubkey::Pubkey), solana_program_error::ProgramError> {
-                match self {
-                    #(#get_seeds_match_arms)*
-                }
-            }
-
-            fn get_authority_seeds(
-                &self,
-                program_id: &solana_pubkey::Pubkey,
-            ) -> std::result::Result<(Vec<Vec<u8>>, solana_pubkey::Pubkey), solana_program_error::ProgramError> {
-                match self {
-                    #(#get_authority_seeds_match_arms)*
-                }
-            }
-        }
-    })
+    // TokenSeedProvider is legacy - seed derivation is now handled by
+    // LightAccountVariantTrait impls generated in variant_enum.rs
+    Ok(quote! {})
 }
 
 #[inline(never)]
@@ -152,52 +70,52 @@ pub fn generate_client_seed_functions(
             };
             functions.push(function);
 
-            if let Some(authority_seeds) = &spec.authority {
-                let authority_function_name = format_ident!(
-                    "get_{}_authority_seeds",
+            if let Some(owner_seeds_list) = &spec.owner_seeds {
+                let owner_seeds_function_name = format_ident!(
+                    "get_{}_owner_seeds",
                     variant_name.to_string().to_lowercase()
                 );
 
-                let mut authority_spec = TokenSeedSpec {
+                let mut owner_seeds_spec = TokenSeedSpec {
                     variant: spec.variant.clone(),
                     _eq: spec._eq,
                     is_token: spec.is_token,
                     seeds: syn::punctuated::Punctuated::new(),
-                    authority: None,
+                    owner_seeds: None,
                     inner_type: spec.inner_type.clone(),
                     is_zero_copy: spec.is_zero_copy,
                 };
 
-                for auth_seed in authority_seeds {
-                    authority_spec.seeds.push(auth_seed.clone());
+                for owner_seed in owner_seeds_list {
+                    owner_seeds_spec.seeds.push(owner_seed.clone());
                 }
 
-                let (auth_parameters, auth_seed_expressions) =
-                    analyze_seed_spec_for_client(&authority_spec, instruction_data)?;
+                let (owner_parameters, owner_seed_expressions) =
+                    analyze_seed_spec_for_client(&owner_seeds_spec, instruction_data)?;
 
-                let (fn_params, fn_body) = if auth_parameters.is_empty() {
+                let (fn_params, fn_body) = if owner_parameters.is_empty() {
                     (
                         quote! { _program_id: &solana_pubkey::Pubkey },
                         generate_seed_derivation_body(
-                            &auth_seed_expressions,
+                            &owner_seed_expressions,
                             quote! { _program_id },
                         ),
                     )
                 } else {
                     (
-                        quote! { #(#auth_parameters),* },
+                        quote! { #(#owner_parameters),* },
                         generate_seed_derivation_body(
-                            &auth_seed_expressions,
+                            &owner_seed_expressions,
                             quote! { &crate::ID },
                         ),
                     )
                 };
-                let authority_function = quote! {
-                    pub fn #authority_function_name(#fn_params) -> (Vec<Vec<u8>>, solana_pubkey::Pubkey) {
+                let owner_seeds_function = quote! {
+                    pub fn #owner_seeds_function_name(#fn_params) -> (Vec<Vec<u8>>, solana_pubkey::Pubkey) {
                         #fn_body
                     }
                 };
-                functions.push(authority_function);
+                functions.push(owner_seeds_function);
             }
         }
     }

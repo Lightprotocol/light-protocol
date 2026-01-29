@@ -6,7 +6,7 @@
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::{Ident, Result};
+use syn::Result;
 
 use super::{
     expr_traversal::transform_expr_for_ctx_seeds,
@@ -28,8 +28,6 @@ use crate::light_pdas::shared_utils::{is_constant_identifier, qualify_type_with_
 pub(super) struct DecompressBuilder {
     /// PDA context seed information for each variant.
     pda_ctx_seeds: Vec<PdaCtxSeedInfo>,
-    /// Token variant identifier (e.g., TokenAccountVariant).
-    token_variant_ident: Ident,
     /// PDA seed specifications.
     pda_seeds: Option<Vec<TokenSeedSpec>>,
 }
@@ -39,16 +37,10 @@ impl DecompressBuilder {
     ///
     /// # Arguments
     /// * `pda_ctx_seeds` - PDA context seed information for each variant
-    /// * `token_variant_ident` - Token variant identifier
     /// * `pda_seeds` - PDA seed specifications
-    pub fn new(
-        pda_ctx_seeds: Vec<PdaCtxSeedInfo>,
-        token_variant_ident: Ident,
-        pda_seeds: Option<Vec<TokenSeedSpec>>,
-    ) -> Self {
+    pub fn new(pda_ctx_seeds: Vec<PdaCtxSeedInfo>, pda_seeds: Option<Vec<TokenSeedSpec>>) -> Self {
         Self {
             pda_ctx_seeds,
-            token_variant_ident,
             pda_seeds,
         }
     }
@@ -57,103 +49,166 @@ impl DecompressBuilder {
     // Code Generation Methods
     // -------------------------------------------------------------------------
 
-    /// Generate the decompress context implementation module.
-    pub fn generate_context_impl(&self) -> Result<syn::ItemMod> {
-        let lifetime: syn::Lifetime = syn::parse_quote!('info);
-
-        let trait_impl =
-            crate::light_pdas::account::decompress_context::generate_decompress_context_trait_impl(
-                self.token_variant_ident.clone(),
-                lifetime,
-            )?;
-
-        Ok(syn::parse_quote! {
-            mod __decompress_context_impl {
-                use super::*;
-
-                #trait_impl
-            }
-        })
-    }
-
-    /// Generate the processor function for decompress accounts.
+    /// Generate the processor function for decompress accounts (v2 interface).
     pub fn generate_processor(&self) -> Result<syn::ItemFn> {
         Ok(syn::parse_quote! {
             #[inline(never)]
             pub fn process_decompress_accounts_idempotent<'info>(
-                accounts: &DecompressAccountsIdempotent<'info>,
                 remaining_accounts: &[solana_account_info::AccountInfo<'info>],
-                proof: light_sdk::instruction::ValidityProof,
-                compressed_accounts: Vec<LightAccountData>,
-                system_accounts_offset: u8,
+                instruction_data: &[u8],
             ) -> Result<()> {
-                use solana_program::sysvar::Sysvar;
-                let rent = solana_program::sysvar::rent::Rent::get()?;
-                let current_slot = solana_program::sysvar::clock::Clock::get()?.slot;
-                light_sdk::interface::process_decompress_accounts_idempotent(
-                    accounts,
+                light_sdk::interface::process_decompress_pda_accounts_idempotent::<PackedLightAccountVariant>(
                     remaining_accounts,
-                    compressed_accounts,
-                    proof,
-                    system_accounts_offset,
+                    instruction_data,
                     LIGHT_CPI_SIGNER,
                     &crate::ID,
-                    &rent,
-                    current_slot,
                 )
                 .map_err(|e: solana_program_error::ProgramError| -> anchor_lang::error::Error { e.into() })
             }
         })
     }
 
-    /// Generate the decompress instruction entrypoint function.
+    /// Generate the decompress instruction entrypoint function (v2 interface).
+    ///
+    /// Accepts `instruction_data: Vec<u8>` as a single parameter.
+    /// The SDK client wraps the serialized data in a Vec<u8> (4-byte length prefix),
+    /// and Anchor deserializes Vec<u8> correctly with this format.
     pub fn generate_entrypoint(&self) -> Result<syn::ItemFn> {
         Ok(syn::parse_quote! {
             #[inline(never)]
             pub fn decompress_accounts_idempotent<'info>(
                 ctx: Context<'_, '_, '_, 'info, DecompressAccountsIdempotent<'info>>,
-                proof: light_sdk::instruction::ValidityProof,
-                compressed_accounts: Vec<LightAccountData>,
-                system_accounts_offset: u8,
+                instruction_data: Vec<u8>,
             ) -> Result<()> {
                 __processor_functions::process_decompress_accounts_idempotent(
-                    &ctx.accounts,
-                    &ctx.remaining_accounts,
-                    proof,
-                    compressed_accounts,
-                    system_accounts_offset,
+                    ctx.remaining_accounts,
+                    &instruction_data,
                 )
             }
         })
     }
 
-    /// Generate the decompress accounts struct.
+    /// Generate the decompress accounts struct and manual Anchor trait impls.
     ///
-    /// The accounts struct is the same for all variants since it provides
-    /// shared infrastructure for decompression operations. The variant behavior
-    /// is determined by the context implementation, not the accounts struct.
+    /// Uses PhantomData for the `<'info>` lifetime so Anchor's CPI codegen
+    /// can reference `DecompressAccountsIdempotent<'info>`.
+    /// All accounts are passed via remaining_accounts.
     pub fn generate_accounts_struct(&self) -> Result<syn::ItemStruct> {
         Ok(syn::parse_quote! {
-            #[derive(Accounts)]
-            pub struct DecompressAccountsIdempotent<'info> {
-                #[account(mut)]
-                pub fee_payer: Signer<'info>,
-                /// CHECK: Checked by SDK
-                pub config: AccountInfo<'info>,
-                /// CHECK: anyone can pay
-                #[account(mut)]
-                pub rent_sponsor: UncheckedAccount<'info>,
-                /// CHECK: optional - only needed if decompressing tokens
-                #[account(mut)]
-                pub ctoken_rent_sponsor: Option<AccountInfo<'info>>,
-                /// CHECK:
-                #[account(address = solana_pubkey::pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m"))]
-                pub light_token_program: Option<UncheckedAccount<'info>>,
-                /// CHECK:
-                #[account(address = solana_pubkey::pubkey!("GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy"))]
-                pub light_token_cpi_authority: Option<UncheckedAccount<'info>>,
-                /// CHECK: Checked by SDK
-                pub ctoken_config: Option<UncheckedAccount<'info>>,
+            pub struct DecompressAccountsIdempotent<'info>(
+                std::marker::PhantomData<&'info ()>,
+            );
+        })
+    }
+
+    /// Generate manual Anchor trait implementations for the empty accounts struct.
+    pub fn generate_accounts_trait_impls(&self) -> Result<TokenStream> {
+        Ok(quote! {
+            impl<'info> anchor_lang::Accounts<'info, DecompressAccountsIdempotentBumps>
+                for DecompressAccountsIdempotent<'info>
+            {
+                fn try_accounts(
+                    _program_id: &anchor_lang::solana_program::pubkey::Pubkey,
+                    _accounts: &mut &'info [anchor_lang::solana_program::account_info::AccountInfo<'info>],
+                    _ix_data: &[u8],
+                    _bumps: &mut DecompressAccountsIdempotentBumps,
+                    _reallocs: &mut std::collections::BTreeSet<anchor_lang::solana_program::pubkey::Pubkey>,
+                ) -> anchor_lang::Result<Self> {
+                    Ok(DecompressAccountsIdempotent(std::marker::PhantomData))
+                }
+            }
+
+            #[derive(Debug, Default)]
+            pub struct DecompressAccountsIdempotentBumps {}
+
+            impl<'info> anchor_lang::Bumps for DecompressAccountsIdempotent<'info> {
+                type Bumps = DecompressAccountsIdempotentBumps;
+            }
+
+            impl<'info> anchor_lang::ToAccountInfos<'info> for DecompressAccountsIdempotent<'info> {
+                fn to_account_infos(
+                    &self,
+                ) -> Vec<anchor_lang::solana_program::account_info::AccountInfo<'info>> {
+                    Vec::new()
+                }
+            }
+
+            impl<'info> anchor_lang::ToAccountMetas for DecompressAccountsIdempotent<'info> {
+                fn to_account_metas(
+                    &self,
+                    _is_signer: Option<bool>,
+                ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
+                    Vec::new()
+                }
+            }
+
+            impl<'info> anchor_lang::AccountsExit<'info> for DecompressAccountsIdempotent<'info> {
+                fn exit(
+                    &self,
+                    _program_id: &anchor_lang::solana_program::pubkey::Pubkey,
+                ) -> anchor_lang::Result<()> {
+                    Ok(())
+                }
+            }
+
+            impl<'info> DecompressAccountsIdempotent<'info> {
+                pub fn __anchor_private_gen_idl_accounts(
+                    _accounts: &mut std::collections::BTreeMap<
+                        String,
+                        anchor_lang::idl::types::IdlAccount,
+                    >,
+                    _types: &mut std::collections::BTreeMap<
+                        String,
+                        anchor_lang::idl::types::IdlTypeDef,
+                    >,
+                ) -> Vec<anchor_lang::idl::types::IdlInstructionAccountItem> {
+                    Vec::new()
+                }
+            }
+
+            pub(crate) mod __client_accounts_decompress_accounts_idempotent {
+                use super::*;
+                pub struct DecompressAccountsIdempotent<'info>(
+                    std::marker::PhantomData<&'info ()>,
+                );
+                impl<'info> borsh::ser::BorshSerialize for DecompressAccountsIdempotent<'info> {
+                    fn serialize<W: borsh::maybestd::io::Write>(
+                        &self,
+                        _writer: &mut W,
+                    ) -> ::core::result::Result<(), borsh::maybestd::io::Error> {
+                        Ok(())
+                    }
+                }
+                impl<'info> anchor_lang::ToAccountMetas for DecompressAccountsIdempotent<'info> {
+                    fn to_account_metas(
+                        &self,
+                        _is_signer: Option<bool>,
+                    ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
+                        Vec::new()
+                    }
+                }
+            }
+
+            pub(crate) mod __cpi_client_accounts_decompress_accounts_idempotent {
+                use super::*;
+                pub struct DecompressAccountsIdempotent<'info>(
+                    std::marker::PhantomData<&'info ()>,
+                );
+                impl<'info> anchor_lang::ToAccountMetas for DecompressAccountsIdempotent<'info> {
+                    fn to_account_metas(
+                        &self,
+                        _is_signer: Option<bool>,
+                    ) -> Vec<anchor_lang::solana_program::instruction::AccountMeta> {
+                        Vec::new()
+                    }
+                }
+                impl<'info> anchor_lang::ToAccountInfos<'info> for DecompressAccountsIdempotent<'info> {
+                    fn to_account_infos(
+                        &self,
+                    ) -> Vec<anchor_lang::solana_program::account_info::AccountInfo<'info>> {
+                        Vec::new()
+                    }
+                }
             }
         })
     }
@@ -332,11 +387,14 @@ fn generate_pda_seed_derivation_for_trait_with_ctx_seeds(
                             continue;
                         }
                     } else if let Some(last_seg) = path_expr.path.segments.last() {
-                        // Multi-segment path like crate::AUTH_SEED
+                        // Multi-segment path like crate::AUTH_SEED or <Type as Trait>::CONSTANT
                         if is_constant_identifier(&last_seg.ident.to_string()) {
-                            let path = &path_expr.path;
-                            seed_refs
-                                .push(quote! { { let __seed: &[u8] = #path.as_ref(); __seed } });
+                            // Use the full ExprPath (not just path) to preserve qself
+                            // for type-qualified paths like <SeedHolder as HasSeed>::TRAIT_SEED
+                            let full_expr = &**expr;
+                            seed_refs.push(
+                                quote! { { let __seed: &[u8] = #full_expr.as_ref(); __seed } },
+                            );
                             continue;
                         }
                     }
@@ -386,10 +444,20 @@ fn generate_pda_seed_derivation_for_trait_with_ctx_seeds(
                     syn::Ident::new(&format!("seed_{}", i), proc_macro2::Span::call_site());
                 let mapped_expr =
                     transform_expr_for_ctx_seeds(expr, &ctx_field_names, state_field_names);
+
+                // Strip trailing .as_ref() / .as_bytes() to avoid binding a temporary
+                // reference (E0515/E0716). Instead, bind the owned value and call
+                // .as_ref() when constructing the seeds array.
+                //
+                // Before: let seed_0 = crate::id().as_ref();  // ERROR: temporary dropped
+                // After:  let seed_0 = crate::id();  seed_0.as_ref()  // OK: owned value lives long enough
+                let (stripped_expr, trailing_method) = strip_trailing_ref_method(&mapped_expr);
+                let ref_method = trailing_method.unwrap_or_else(|| format_ident!("as_ref"));
+
                 bindings.push(quote! {
-                    let #binding_name = #mapped_expr;
+                    let #binding_name = #stripped_expr;
                 });
-                seed_refs.push(quote! { (#binding_name).as_ref() });
+                seed_refs.push(quote! { (#binding_name).#ref_method() });
             }
         }
     }
@@ -442,4 +510,24 @@ fn get_params_only_field_name(
         }
         _ => None,
     }
+}
+
+/// Strip trailing `.as_ref()` or `.as_bytes()` method call from an expression.
+///
+/// Returns `(stripped_expr, Some(method_name))` if a trailing method was stripped,
+/// or `(original_expr, None)` if no stripping was needed.
+///
+/// This avoids the E0515/E0716 error where binding a temporary reference:
+///   `let seed = crate::id().as_ref();`  // ERROR: temporary value dropped
+/// is replaced with:
+///   `let seed = crate::id();`           // OK: owned value
+///   `seed.as_ref()`                     // borrow from owned
+fn strip_trailing_ref_method(expr: &syn::Expr) -> (syn::Expr, Option<syn::Ident>) {
+    if let syn::Expr::MethodCall(mc) = expr {
+        let method_name = mc.method.to_string();
+        if (method_name == "as_ref" || method_name == "as_bytes") && mc.args.is_empty() {
+            return ((*mc.receiver).clone(), Some(mc.method.clone()));
+        }
+    }
+    (expr.clone(), None)
 }

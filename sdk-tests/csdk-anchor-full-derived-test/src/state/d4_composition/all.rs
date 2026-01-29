@@ -12,7 +12,7 @@ use light_sdk_macros::LightAccount;
 #[compress_as(cached_time = 0, end_time = None)]
 #[account]
 pub struct AllCompositionRecord {
-    pub compression_info: Option<CompressionInfo>,
+    pub compression_info: CompressionInfo,
     pub owner: Pubkey,
     pub delegate: Pubkey,
     pub authority: Pubkey,

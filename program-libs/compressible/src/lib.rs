@@ -31,4 +31,6 @@ pub struct CreateAccountsProof {
     /// State merkle tree index (needed for mint creation decompress validation).
     /// This is optional to maintain backwards compatibility.
     pub state_tree_index: Option<u8>,
+    /// Offset in remaining_accounts where Light system accounts start.
+    pub system_accounts_offset: u8,
 }

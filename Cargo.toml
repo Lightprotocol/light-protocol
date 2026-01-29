@@ -66,6 +66,7 @@ members = [
     "sdk-tests/single-account-loader-test",
     "sdk-tests/single-ata-test",
     "sdk-tests/single-token-test",
+    "sdk-tests/manual-test",
     "forester-utils",
     "forester",
     "sparse-merkle-tree",
@@ -143,7 +144,7 @@ litesvm = "0.7"
 # Anchor
 anchor-lang = { version = "0.31.1" }
 anchor-spl = { version = "0.31.1" }
-light-anchor-spl = { version = "0.31.1", features = ["idl-build", "memo"] }
+light-anchor-spl = { version = "0.31.1", features = ["memo", "idl-build"] }
 
 # Anchor compatibility
 borsh = { version = "0.10.4", default-features = false }
@@ -197,7 +198,7 @@ light-macros = { path = "program-libs/macros", version = "2.2.0" }
 light-merkle-tree-reference = { path = "program-tests/merkle-tree", version = "4.0.0" }
 light-heap = { path = "program-libs/heap", version = "2.0.0" }
 light-prover-client = { path = "prover/client", version = "6.0.0" }
-light-sdk = { path = "sdk-libs/sdk", version = "0.19.0" }
+light-sdk = { path = "sdk-libs/sdk", version = "0.19.0", features = ["idl-build"] }
 light-sdk-pinocchio = { path = "sdk-libs/sdk-pinocchio", version = "0.19.0" }
 light-sdk-macros = { path = "sdk-libs/macros", version = "0.19.0" }
 light-sdk-types = { path = "sdk-libs/sdk-types", version = "0.19.0", default-features = false }

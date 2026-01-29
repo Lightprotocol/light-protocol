@@ -228,6 +228,13 @@ impl<'a, T: AccountInfoTrait + Clone> CpiAccounts<'a, T> {
         &self.accounts[PROGRAM_ACCOUNTS_LEN..]
     }
 
+    /// Returns the slice of packed/tree accounts (accounts after system accounts).
+    /// Use this to resolve packed u8 indices to account references.
+    pub fn packed_accounts(&self) -> &'a [T] {
+        let system_offset = self.system_accounts_end_offset();
+        &self.accounts[system_offset..]
+    }
+
     pub fn tree_pubkeys(&self) -> Result<Vec<T::Pubkey>> {
         Ok(self
             .tree_accounts()?

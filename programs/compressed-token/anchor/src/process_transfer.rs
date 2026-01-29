@@ -839,7 +839,7 @@ pub mod transfer_sdk {
             Some(Token::id())
         };
 
-        let accounts = crate::accounts::TransferInstruction {
+        let accounts = crate::__client_accounts_transfer_instruction::TransferInstruction {
             fee_payer: *fee_payer,
             authority,
             cpi_authority_pda,

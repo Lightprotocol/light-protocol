@@ -279,7 +279,7 @@ pub mod sdk {
         } else {
             spl_token::ID
         };
-        let accounts = crate::accounts::BurnInstruction {
+        let accounts = crate::__client_accounts_burn_instruction::BurnInstruction {
             fee_payer: inputs.fee_payer,
             authority: inputs.authority,
             cpi_authority_pda,
