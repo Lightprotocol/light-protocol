@@ -4268,7 +4268,7 @@ dependencies = [
 
 [[package]]
 name = "light-token-client"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "borsh 0.10.4",
  "light-client",
