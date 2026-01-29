@@ -33,14 +33,18 @@ use light_compressed_token::{
     process_transfer::transfer_sdk::to_account_metas,
 };
 use light_test_utils::{
-    pack::pack_new_address_params_assigned, spl::create_mint_helper_with_keypair,
+    actions::legacy::{
+        create_compressible_token_account,
+        instructions::mint_action::{
+            create_mint_action_instruction, MintActionParams, MintActionType,
+        },
+        CreateCompressibleTokenAccountInputs,
+    },
+    pack::pack_new_address_params_assigned,
+    spl::create_mint_helper_with_keypair,
 };
 use light_token::instruction::{
     derive_mint_compressed_address, find_mint_address, CreateMint, CreateMintParams,
-};
-use light_token_client::{
-    actions::{create_compressible_token_account, CreateCompressibleTokenAccountInputs},
-    instructions::mint_action::{create_mint_action_instruction, MintActionParams, MintActionType},
 };
 use light_token_interface::state::TokenDataVersion;
 use serial_test::serial;
@@ -180,7 +184,7 @@ async fn test_indexer_interface_scenarios() {
     println!("Derived v2 address: {:?}", derived_address);
 
     // Get validity proof for the new address
-    wait_for_indexer(&mut rpc).await.unwrap();
+    wait_for_indexer(&rpc).await.unwrap();
     let proof_result = rpc
         .indexer()
         .unwrap()
@@ -397,7 +401,7 @@ async fn test_indexer_interface_scenarios() {
 
     // Wait for indexer to process the CreateMint
     sleep(Duration::from_secs(3)).await;
-    wait_for_indexer(&mut rpc).await.unwrap();
+    wait_for_indexer(&rpc).await.unwrap();
 
     // Now compress and close the mint to make it fully compressed
     println!("Compressing mint via CompressAndCloseMint...");
@@ -492,7 +496,7 @@ async fn test_indexer_interface_scenarios() {
 
     // Wait for indexer to sync
     sleep(Duration::from_secs(3)).await;
-    wait_for_indexer(&mut rpc).await.unwrap();
+    wait_for_indexer(&rpc).await.unwrap();
 
     // ============ Test 1: getMintInterface with decompressed mint (on-chain CMint) ============
     println!("Test 1: getMintInterface with decompressed mint (on-chain CMint)...");

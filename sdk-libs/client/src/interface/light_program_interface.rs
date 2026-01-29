@@ -64,7 +64,7 @@ impl AccountToFetch {
 /// Two variants based on data structure, not account type:
 /// - `Account` - PDA
 /// - `Token` - Token account
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ColdContext {
     /// PDA
     Account(CompressedAccount),

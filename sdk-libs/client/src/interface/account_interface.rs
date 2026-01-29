@@ -43,7 +43,7 @@ pub enum AccountInterfaceError {
 /// Uses standard `solana_account::Account` for raw data.
 /// For hot accounts: actual on-chain bytes.
 /// For cold accounts: synthetic bytes from cold data.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct AccountInterface {
     /// The account's public key.
     pub key: Pubkey,
@@ -218,7 +218,7 @@ impl AccountInterface {
 ///
 /// For ATAs: `parsed.owner` is the wallet owner (set from fetch params).
 /// For program-owned: `parsed.owner` is the PDA.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct TokenAccountInterface {
     /// The token account's public key.
     pub key: Pubkey,
@@ -388,5 +388,15 @@ impl TokenAccountInterface {
     /// Check if this token account is an ATA (derivation matches).
     pub fn is_ata(&self) -> bool {
         self.ata_bump().is_some()
+    }
+}
+
+impl From<TokenAccountInterface> for AccountInterface {
+    fn from(tai: TokenAccountInterface) -> Self {
+        Self {
+            key: tai.key,
+            account: tai.account,
+            cold: tai.cold,
+        }
     }
 }
