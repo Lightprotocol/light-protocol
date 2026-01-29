@@ -23,7 +23,6 @@ use light_client::interface::{
     create_load_instructions, get_create_accounts_proof, AccountInterfaceExt, AccountSpec,
     CreateAccountsProofInput, InitializeRentFreeConfig, PdaSpec,
 };
-
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest, TestRpc},

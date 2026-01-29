@@ -51,9 +51,10 @@ src/
 │   ├── shared_utils.rs        # Common utilities (MetaExpr, type helpers)
 │   ├── light_account_keywords.rs  # Keyword parsing for #[light_account(...)]
 │   ├── account/               # Trait derive macros for account DATA structs
-│   │   ├── light_compressible.rs  # LightAccount derive
-│   │   ├── seed_extraction.rs # Anchor seed extraction from #[account(...)]
-│   │   └── utils.rs           # Shared utilities
+│   │   ├── derive.rs          # LightAccount derive
+│   │   ├── traits.rs          # Trait implementations
+│   │   ├── utils.rs           # Shared utilities
+│   │   └── validation.rs      # Account validation
 │   ├── accounts/              # #[derive(LightAccounts)] for ACCOUNTS structs
 │   │   ├── derive.rs          # Main derive orchestration
 │   │   ├── light_account.rs   # #[light_account(...)] attribute parsing
@@ -62,19 +63,30 @@ src/
 │   │   ├── pda.rs             # PDA block code generation
 │   │   ├── mint.rs            # Mint action CPI generation
 │   │   ├── token.rs           # Token account handling
+│   │   ├── validation.rs      # Accounts validation
 │   │   └── variant.rs         # Variant enum generation
+│   ├── parsing/               # Unified parsing infrastructure
+│   │   ├── accounts_struct.rs # ParsedAccountsStruct for unified parsing
+│   │   ├── crate_context.rs   # Crate-wide module parsing for struct discovery
+│   │   ├── infra.rs           # Infrastructure field classification
+│   │   └── instruction_arg.rs # Instruction argument parsing from #[instruction(...)]
 │   ├── program/               # #[light_program] attribute macro
 │   │   ├── instructions.rs    # Instruction handler generation
 │   │   ├── compress.rs        # Compress instruction codegen
 │   │   ├── decompress.rs      # Decompress instruction codegen
 │   │   ├── variant_enum.rs    # LightAccountVariant enum generation
-│   │   ├── parsing.rs         # Module parsing
-│   │   ├── visitors.rs        # AST visitors
-│   │   └── seed_codegen.rs    # Seed struct code generation
+│   │   ├── parsing.rs         # Seed conversion and function wrapping
+│   │   ├── visitors.rs        # AST visitors for field extraction
+│   │   ├── seed_codegen.rs    # Seed struct code generation
+│   │   ├── seed_utils.rs      # Seed utility functions
+│   │   └── expr_traversal.rs  # Expression traversal utilities
 │   └── seeds/                 # Seed extraction and classification
-│       ├── extract.rs         # Anchor seed extraction
-│       ├── classify.rs        # Seed type classification
-│       └── types.rs           # Seed type definitions
+│       ├── anchor_extraction.rs # Extract seeds from #[account(seeds=[...])]
+│       ├── classification.rs  # Seed type classification logic
+│       ├── data_fields.rs     # Data field extraction from seeds
+│       ├── extract.rs         # Main extraction from Accounts structs
+│       ├── instruction_args.rs # InstructionArgSet type definition
+│       └── types.rs           # ClassifiedSeed, SeedSpec type definitions
 ├── hasher/                    # LightHasher/LightHasherSha derive macros
 ├── discriminator.rs           # LightDiscriminator derive macro
 ├── rent_sponsor.rs            # Rent sponsor PDA derivation macros
