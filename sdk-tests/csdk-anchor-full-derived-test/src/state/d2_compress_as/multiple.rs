@@ -8,7 +8,7 @@ use light_sdk_macros::LightAccount;
 
 /// A struct with multiple compress_as overrides.
 /// start, score, and cached all have compression overrides.
-#[derive(Default, Debug, InitSpace, LightAccount)]
+#[derive(Default, Debug, PartialEq, InitSpace, LightAccount)]
 #[compress_as(start = 0, score = 0, cached = 0)]
 #[account]
 pub struct MultipleCompressAsRecord {

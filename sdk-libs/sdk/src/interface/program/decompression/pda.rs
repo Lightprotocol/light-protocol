@@ -4,7 +4,8 @@ use light_compressed_account::{
     compressed_account::PackedMerkleContext,
     instruction_data::with_account_info::{CompressedAccountInfo, InAccountInfo, OutAccountInfo},
 };
-use light_hasher::{Hasher, Sha256};
+use light_compressible::DECOMPRESSED_PDA_DISCRIMINATOR;
+use light_hasher::{sha256::Sha256BE, Hasher, Sha256};
 use light_sdk_types::{constants::RENT_SPONSOR_SEED, instruction::PackedStateTreeInfo};
 use solana_account_info::AccountInfo;
 use solana_program_error::ProgramError;
@@ -155,13 +156,18 @@ where
         discriminator: <Data<SEED_COUNT, P> as LightDiscriminator>::LIGHT_DISCRIMINATOR,
     };
 
-    // Output is empty (nullifying the compressed account)
+    // Output is a DECOMPRESSED_PDA placeholder (same as init creates).
+    // This allows CompressAccountsIdempotent to re-compress the account
+    // in a future cycle by finding and nullifying this placeholder.
+    let pda_pubkey_bytes = pda_account.key.to_bytes();
+    let output_data_hash =
+        Sha256BE::hash(&pda_pubkey_bytes).map_err(|_| ProgramError::Custom(101))?;
     let output = OutAccountInfo {
         lamports: 0,
         output_merkle_tree_index: output_queue_index,
-        discriminator: [0u8; 8],
-        data: Vec::new(),
-        data_hash: [0u8; 32],
+        discriminator: DECOMPRESSED_PDA_DISCRIMINATOR,
+        data: pda_pubkey_bytes.to_vec(),
+        data_hash: output_data_hash,
     };
 
     // 11. Push to ctx's internal vec

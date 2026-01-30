@@ -139,6 +139,37 @@ async fn test_d10_single_vault() {
 
     // Verify token vault exists on-chain
     shared::assert_onchain_exists(&mut ctx.rpc, &d10_single_vault, "d10_single_vault").await;
+
+    // Full-struct Token assertion for vault after creation
+    {
+        use light_token_interface::state::token::{
+            AccountState, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT,
+        };
+        let vault_account = ctx
+            .rpc
+            .get_account(d10_single_vault)
+            .await
+            .unwrap()
+            .unwrap();
+        let vault_data: Token =
+            borsh::BorshDeserialize::deserialize(&mut &vault_account.data[..]).unwrap();
+        let expected_vault = Token {
+            mint: mint.into(),
+            owner: d10_vault_authority.into(),
+            amount: 0,
+            delegate: None,
+            state: AccountState::Initialized,
+            is_native: None,
+            delegated_amount: 0,
+            close_authority: None,
+            account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
+            extensions: vault_data.extensions.clone(),
+        };
+        assert_eq!(
+            vault_data, expected_vault,
+            "d10_single_vault should match after creation"
+        );
+    }
 }
 
 /// Tests D10SingleAta: #[light_account(init, associated_token, ...)] automatic code generation.
@@ -197,6 +228,32 @@ async fn test_d10_single_ata() {
 
     // Verify ATA exists on-chain
     shared::assert_onchain_exists(&mut ctx.rpc, &d10_single_ata, "d10_single_ata").await;
+
+    // Full-struct Token assertion for ATA after creation
+    {
+        use light_token_interface::state::token::{
+            AccountState, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT,
+        };
+        let ata_account = ctx.rpc.get_account(d10_single_ata).await.unwrap().unwrap();
+        let ata_data: Token =
+            borsh::BorshDeserialize::deserialize(&mut &ata_account.data[..]).unwrap();
+        let expected_ata = Token {
+            mint: mint.into(),
+            owner: ata_owner.into(),
+            amount: 0,
+            delegate: None,
+            state: AccountState::Initialized,
+            is_native: None,
+            delegated_amount: 0,
+            close_authority: None,
+            account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
+            extensions: ata_data.extensions.clone(),
+        };
+        assert_eq!(
+            ata_data, expected_ata,
+            "d10_single_ata should match after creation"
+        );
+    }
 }
 
 /// Tests idempotent ATA creation.
@@ -436,6 +493,37 @@ async fn test_d10_single_ata_markonly_lifecycle() {
     // Verify ATA exists
     shared::assert_onchain_exists(&mut ctx.rpc, &d10_markonly_ata, "d10_markonly_ata").await;
 
+    // Full-struct Token assertion for ATA after creation
+    {
+        use light_token_interface::state::token::{
+            AccountState, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT,
+        };
+        let ata_account = ctx
+            .rpc
+            .get_account(d10_markonly_ata)
+            .await
+            .unwrap()
+            .unwrap();
+        let ata_data: Token =
+            borsh::BorshDeserialize::deserialize(&mut &ata_account.data[..]).unwrap();
+        let expected_ata = Token {
+            mint: mint.into(),
+            owner: ata_owner.into(),
+            amount: 0,
+            delegate: None,
+            state: AccountState::Initialized,
+            is_native: None,
+            delegated_amount: 0,
+            close_authority: None,
+            account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
+            extensions: ata_data.extensions.clone(),
+        };
+        assert_eq!(
+            ata_data, expected_ata,
+            "d10_markonly_ata should match after creation"
+        );
+    }
+
     // PHASE 2: Warp time to trigger forester auto-compression
     ctx.rpc
         .warp_slot_forward(SLOTS_PER_EPOCH * 30)
@@ -478,4 +566,35 @@ async fn test_d10_single_ata_markonly_lifecycle() {
 
     // PHASE 4: Verify ATA is back on-chain
     shared::assert_onchain_exists(&mut ctx.rpc, &d10_markonly_ata, "d10_markonly_ata").await;
+
+    // Full-struct Token assertion for ATA after decompression
+    {
+        use light_token_interface::state::token::{
+            AccountState, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT,
+        };
+        let ata_account = ctx
+            .rpc
+            .get_account(d10_markonly_ata)
+            .await
+            .unwrap()
+            .unwrap();
+        let ata_data: Token =
+            borsh::BorshDeserialize::deserialize(&mut &ata_account.data[..]).unwrap();
+        let expected_ata = Token {
+            mint: mint.into(),
+            owner: ata_owner.into(),
+            amount: 0,
+            delegate: None,
+            state: AccountState::Initialized,
+            is_native: None,
+            delegated_amount: 0,
+            close_authority: None,
+            account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
+            extensions: ata_data.extensions.clone(),
+        };
+        assert_eq!(
+            ata_data, expected_ata,
+            "d10_markonly_ata should match after decompression"
+        );
+    }
 }

@@ -51,7 +51,7 @@ use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest, TestRpc},
     ProgramTestConfig, Rpc,
 };
-use light_sdk::interface::{CompressionState, IntoVariant};
+use light_sdk::interface::IntoVariant;
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
 use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
 use solana_instruction::Instruction;
@@ -207,8 +207,35 @@ async fn test_d11_zc_with_vault() {
     let record_account = ctx.rpc.get_account(zc_pda).await.unwrap().unwrap();
     let data = &record_account.data[8..]; // Skip discriminator
     let record: &ZcBasicRecord = bytemuck::from_bytes(data);
-    assert_eq!(record.owner, owner, "Record owner should match");
-    assert_eq!(record.counter, 0, "Record counter should be 0");
+    let expected = ZcBasicRecord {
+        compression_info: shared::expected_compression_info(&record.compression_info),
+        owner,
+        counter: 0,
+    };
+    assert_eq!(*record, expected, "ZcBasicRecord should match after init");
+
+    // Full-struct Token assertion for vault after init
+    {
+        use light_token_interface::state::token::{
+            AccountState, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT,
+        };
+        let vault_account = ctx.rpc.get_account(vault_pda).await.unwrap().unwrap();
+        let vault_data: Token =
+            borsh::BorshDeserialize::deserialize(&mut &vault_account.data[..]).unwrap();
+        let expected_vault = Token {
+            mint: mint.into(),
+            owner: vault_authority.into(),
+            amount: 0,
+            delegate: None,
+            state: AccountState::Initialized,
+            is_native: None,
+            delegated_amount: 0,
+            close_authority: None,
+            account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
+            extensions: vault_data.extensions.clone(),
+        };
+        assert_eq!(vault_data, expected_vault, "vault should match after init");
+    }
 
     // PHASE 2: Warp time to trigger forester auto-compression
     ctx.warp_to_compress().await;
@@ -267,14 +294,14 @@ async fn test_d11_zc_with_vault() {
 
     let data = &record_account.data[8..];
     let record: &ZcBasicRecord = bytemuck::from_bytes(data);
+    let expected = ZcBasicRecord {
+        compression_info: shared::expected_compression_info(&record.compression_info),
+        owner,
+        counter: 0,
+    };
     assert_eq!(
-        record.owner, owner,
-        "Record owner should match after decompression"
-    );
-    assert_eq!(
-        record.compression_info.state,
-        CompressionState::Decompressed,
-        "state should be Decompressed after decompression"
+        *record, expected,
+        "ZcBasicRecord should match after decompression"
     );
 }
 
@@ -351,7 +378,35 @@ async fn test_d11_zc_with_ata() {
     let record_account = ctx.rpc.get_account(zc_pda).await.unwrap().unwrap();
     let data = &record_account.data[8..];
     let record: &ZcBasicRecord = bytemuck::from_bytes(data);
-    assert_eq!(record.owner, owner, "Record owner should match");
+    let expected = ZcBasicRecord {
+        compression_info: shared::expected_compression_info(&record.compression_info),
+        owner,
+        counter: 0,
+    };
+    assert_eq!(*record, expected, "ZcBasicRecord should match after init");
+
+    // Full-struct Token assertion for ATA after init
+    {
+        use light_token_interface::state::token::{
+            AccountState, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT,
+        };
+        let ata_account = ctx.rpc.get_account(ata_pda).await.unwrap().unwrap();
+        let ata_data: Token =
+            borsh::BorshDeserialize::deserialize(&mut &ata_account.data[..]).unwrap();
+        let expected_ata = Token {
+            mint: mint.into(),
+            owner: ata_owner.into(),
+            amount: 0,
+            delegate: None,
+            state: AccountState::Initialized,
+            is_native: None,
+            delegated_amount: 0,
+            close_authority: None,
+            account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
+            extensions: ata_data.extensions.clone(),
+        };
+        assert_eq!(ata_data, expected_ata, "ATA should match after init");
+    }
 
     // PHASE 2: Warp time to trigger forester auto-compression
     ctx.warp_to_compress().await;
@@ -402,10 +457,14 @@ async fn test_d11_zc_with_ata() {
     let record_account = ctx.rpc.get_account(zc_pda).await.unwrap().unwrap();
     let data = &record_account.data[8..];
     let record: &ZcBasicRecord = bytemuck::from_bytes(data);
+    let expected = ZcBasicRecord {
+        compression_info: shared::expected_compression_info(&record.compression_info),
+        owner,
+        counter: 0,
+    };
     assert_eq!(
-        record.compression_info.state,
-        CompressionState::Decompressed,
-        "state should be Decompressed"
+        *record, expected,
+        "ZcBasicRecord should match after decompression"
     );
 }
 
@@ -476,14 +535,28 @@ async fn test_d11_multiple_zc() {
     let record_1_account = ctx.rpc.get_account(zc_pda_1).await.unwrap().unwrap();
     let data_1 = &record_1_account.data[8..];
     let record_1: &ZcBasicRecord = bytemuck::from_bytes(data_1);
-    assert_eq!(record_1.owner, owner, "Record 1 owner should match");
-    assert_eq!(record_1.counter, 1, "Record 1 counter should be 1");
+    let expected_1 = ZcBasicRecord {
+        compression_info: shared::expected_compression_info(&record_1.compression_info),
+        owner,
+        counter: 1,
+    };
+    assert_eq!(
+        *record_1, expected_1,
+        "ZcBasicRecord 1 should match after init"
+    );
 
     let record_2_account = ctx.rpc.get_account(zc_pda_2).await.unwrap().unwrap();
     let data_2 = &record_2_account.data[8..];
     let record_2: &ZcBasicRecord = bytemuck::from_bytes(data_2);
-    assert_eq!(record_2.owner, owner, "Record 2 owner should match");
-    assert_eq!(record_2.counter, 2, "Record 2 counter should be 2");
+    let expected_2 = ZcBasicRecord {
+        compression_info: shared::expected_compression_info(&record_2.compression_info),
+        owner,
+        counter: 2,
+    };
+    assert_eq!(
+        *record_2, expected_2,
+        "ZcBasicRecord 2 should match after init"
+    );
 
     // PHASE 2: Warp time to trigger forester auto-compression
     ctx.warp_to_compress().await;
@@ -575,21 +648,27 @@ async fn test_d11_multiple_zc() {
     let record_1_account = ctx.rpc.get_account(zc_pda_1).await.unwrap().unwrap();
     let data_1 = &record_1_account.data[8..];
     let record_1: &ZcBasicRecord = bytemuck::from_bytes(data_1);
-    assert_eq!(record_1.counter, 1, "Record 1 counter should still be 1");
+    let expected_1 = ZcBasicRecord {
+        compression_info: shared::expected_compression_info(&record_1.compression_info),
+        owner,
+        counter: 1,
+    };
     assert_eq!(
-        record_1.compression_info.state,
-        CompressionState::Decompressed,
-        "Record 1 state should be Decompressed"
+        *record_1, expected_1,
+        "ZcBasicRecord 1 should match after decompression"
     );
 
     let record_2_account = ctx.rpc.get_account(zc_pda_2).await.unwrap().unwrap();
     let data_2 = &record_2_account.data[8..];
     let record_2: &ZcBasicRecord = bytemuck::from_bytes(data_2);
-    assert_eq!(record_2.counter, 2, "Record 2 counter should still be 2");
+    let expected_2 = ZcBasicRecord {
+        compression_info: shared::expected_compression_info(&record_2.compression_info),
+        owner,
+        counter: 2,
+    };
     assert_eq!(
-        record_2.compression_info.state,
-        CompressionState::Decompressed,
-        "Record 2 state should be Decompressed"
+        *record_2, expected_2,
+        "ZcBasicRecord 2 should match after decompression"
     );
 }
 
@@ -660,17 +739,28 @@ async fn test_d11_mixed_zc_borsh() {
     let zc_account = ctx.rpc.get_account(zc_pda).await.unwrap().unwrap();
     let zc_data = &zc_account.data[8..];
     let zc_record: &ZcBasicRecord = bytemuck::from_bytes(zc_data);
-    assert_eq!(zc_record.owner, owner, "ZC record owner should match");
-    assert_eq!(zc_record.counter, 100, "ZC record counter should be 100");
+    let expected_zc = ZcBasicRecord {
+        compression_info: shared::expected_compression_info(&zc_record.compression_info),
+        owner,
+        counter: 100,
+    };
+    assert_eq!(
+        *zc_record, expected_zc,
+        "ZcBasicRecord should match after init"
+    );
 
     // Verify Borsh record data
     let borsh_account = ctx.rpc.get_account(borsh_pda).await.unwrap().unwrap();
     let borsh_record: csdk_anchor_full_derived_test::SinglePubkeyRecord =
         anchor_lang::AccountDeserialize::try_deserialize(&mut &borsh_account.data[..]).unwrap();
-    assert_eq!(borsh_record.owner, owner, "Borsh record owner should match");
+    let expected_borsh = csdk_anchor_full_derived_test::SinglePubkeyRecord {
+        compression_info: shared::expected_compression_info(&borsh_record.compression_info),
+        owner,
+        counter: 200,
+    };
     assert_eq!(
-        borsh_record.counter, 200,
-        "Borsh record counter should be 200"
+        borsh_record, expected_borsh,
+        "SinglePubkeyRecord should match after init"
     );
 
     // PHASE 2: Warp time to trigger forester auto-compression
@@ -761,12 +851,31 @@ async fn test_d11_mixed_zc_borsh() {
     let zc_account = ctx.rpc.get_account(zc_pda).await.unwrap().unwrap();
     let zc_data = &zc_account.data[8..];
     let zc_record: &ZcBasicRecord = bytemuck::from_bytes(zc_data);
-    assert_eq!(zc_record.counter, 100, "ZC counter should still be 100");
+    let expected_zc = ZcBasicRecord {
+        compression_info: shared::expected_compression_info(&zc_record.compression_info),
+        owner,
+        counter: 100,
+    };
     assert_eq!(
-        zc_record.compression_info.state,
-        CompressionState::Decompressed,
-        "ZC state should be Decompressed"
+        *zc_record, expected_zc,
+        "ZcBasicRecord should match after decompression"
     );
+
+    // SinglePubkeyRecord assertion after decompression
+    {
+        let borsh_account = ctx.rpc.get_account(borsh_pda).await.unwrap().unwrap();
+        let borsh_record: csdk_anchor_full_derived_test::SinglePubkeyRecord =
+            anchor_lang::AccountDeserialize::try_deserialize(&mut &borsh_account.data[..]).unwrap();
+        let expected_borsh = csdk_anchor_full_derived_test::SinglePubkeyRecord {
+            compression_info: shared::expected_compression_info(&borsh_record.compression_info),
+            owner,
+            counter: 200,
+        };
+        assert_eq!(
+            borsh_record, expected_borsh,
+            "SinglePubkeyRecord should match after decompression"
+        );
+    }
 }
 
 /// Test 5: D11ZcWithCtxSeeds - Zero-copy with ctx.accounts.* seeds
@@ -837,13 +946,16 @@ async fn test_d11_zc_with_ctx_seeds() {
     let record_account = ctx.rpc.get_account(zc_pda).await.unwrap().unwrap();
     let data = &record_account.data[8..];
     let record: &ZcWithSeedsRecord = bytemuck::from_bytes(data);
-    assert_eq!(record.owner, owner, "Record owner should match");
+    let expected = ZcWithSeedsRecord {
+        compression_info: shared::expected_compression_info(&record.compression_info),
+        owner,
+        authority: authority.pubkey(),
+        value: 42,
+    };
     assert_eq!(
-        record.authority,
-        authority.pubkey(),
-        "Record authority should match"
+        *record, expected,
+        "ZcWithSeedsRecord should match after init"
     );
-    assert_eq!(record.value, 42, "Record value should be 42");
 
     // PHASE 2: Warp time to trigger forester auto-compression
     ctx.warp_to_compress().await;
@@ -898,11 +1010,15 @@ async fn test_d11_zc_with_ctx_seeds() {
     let record_account = ctx.rpc.get_account(zc_pda).await.unwrap().unwrap();
     let data = &record_account.data[8..];
     let record: &ZcWithSeedsRecord = bytemuck::from_bytes(data);
-    assert_eq!(record.value, 42, "Record value should still be 42");
+    let expected = ZcWithSeedsRecord {
+        compression_info: shared::expected_compression_info(&record.compression_info),
+        owner,
+        authority: authority.pubkey(),
+        value: 42,
+    };
     assert_eq!(
-        record.compression_info.state,
-        CompressionState::Decompressed,
-        "state should be Decompressed"
+        *record, expected,
+        "ZcWithSeedsRecord should match after decompression"
     );
 }
 
@@ -974,10 +1090,14 @@ async fn test_d11_zc_with_params_seeds() {
     let record_account = ctx.rpc.get_account(zc_pda).await.unwrap().unwrap();
     let data = &record_account.data[8..];
     let record: &ZcWithParamsRecord = bytemuck::from_bytes(data);
-    assert_eq!(record.owner, owner, "Record owner should match");
+    let expected = ZcWithParamsRecord {
+        compression_info: shared::expected_compression_info(&record.compression_info),
+        owner,
+        data: category_id,
+    };
     assert_eq!(
-        record.data, category_id,
-        "Record data should match category_id"
+        *record, expected,
+        "ZcWithParamsRecord should match after init"
     );
 
     // PHASE 2: Warp time to trigger forester auto-compression
@@ -1033,14 +1153,14 @@ async fn test_d11_zc_with_params_seeds() {
     let record_account = ctx.rpc.get_account(zc_pda).await.unwrap().unwrap();
     let data = &record_account.data[8..];
     let record: &ZcWithParamsRecord = bytemuck::from_bytes(data);
+    let expected = ZcWithParamsRecord {
+        compression_info: shared::expected_compression_info(&record.compression_info),
+        owner,
+        data: category_id,
+    };
     assert_eq!(
-        record.data, category_id,
-        "Record data should still match category_id"
-    );
-    assert_eq!(
-        record.compression_info.state,
-        CompressionState::Decompressed,
-        "state should be Decompressed"
+        *record, expected,
+        "ZcWithParamsRecord should match after decompression"
     );
 }
 
@@ -1123,11 +1243,35 @@ async fn test_d11_zc_with_mint_to() {
     let record_account = ctx.rpc.get_account(zc_pda).await.unwrap().unwrap();
     let data = &record_account.data[8..];
     let record: &ZcBasicRecord = bytemuck::from_bytes(data);
-    assert_eq!(record.owner, owner, "Record owner should match");
-    assert_eq!(
-        record.counter, mint_amount,
-        "Record counter should match mint_amount"
-    );
+    let expected = ZcBasicRecord {
+        compression_info: shared::expected_compression_info(&record.compression_info),
+        owner,
+        counter: mint_amount,
+    };
+    assert_eq!(*record, expected, "ZcBasicRecord should match after init");
+
+    // Full-struct Token assertion for vault after init
+    {
+        use light_token_interface::state::token::{
+            AccountState, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT,
+        };
+        let vault_account = ctx.rpc.get_account(vault_pda).await.unwrap().unwrap();
+        let vault_data: Token =
+            borsh::BorshDeserialize::deserialize(&mut &vault_account.data[..]).unwrap();
+        let expected_vault = Token {
+            mint: mint.into(),
+            owner: vault_authority.into(),
+            amount: mint_amount,
+            delegate: None,
+            state: AccountState::Initialized,
+            is_native: None,
+            delegated_amount: 0,
+            close_authority: None,
+            account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
+            extensions: vault_data.extensions.clone(),
+        };
+        assert_eq!(vault_data, expected_vault, "vault should match after init");
+    }
 
     // PHASE 2: Warp time to trigger forester auto-compression
     ctx.warp_to_compress().await;
@@ -1180,13 +1324,13 @@ async fn test_d11_zc_with_mint_to() {
     let record_account = ctx.rpc.get_account(zc_pda).await.unwrap().unwrap();
     let data = &record_account.data[8..];
     let record: &ZcBasicRecord = bytemuck::from_bytes(data);
+    let expected = ZcBasicRecord {
+        compression_info: shared::expected_compression_info(&record.compression_info),
+        owner,
+        counter: mint_amount,
+    };
     assert_eq!(
-        record.counter, mint_amount,
-        "Record counter should still match mint_amount"
-    );
-    assert_eq!(
-        record.compression_info.state,
-        CompressionState::Decompressed,
-        "state should be Decompressed after decompression"
+        *record, expected,
+        "ZcBasicRecord should match after decompression"
     );
 }

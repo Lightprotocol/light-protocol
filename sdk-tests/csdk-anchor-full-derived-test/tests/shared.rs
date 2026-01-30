@@ -32,8 +32,7 @@ impl SharedTestContext {
         let config = ProgramTestConfig::new_v2(
             true,
             Some(vec![("csdk_anchor_full_derived_test", program_id)]),
-        )
-        .with_light_protocol_events();
+        );
 
         let config = customize(config);
 
@@ -354,4 +353,19 @@ pub async fn setup_create_mint(
     }
 
     (mint, compression_address, ata_pubkeys, mint_seed)
+}
+
+/// Build expected CompressionInfo, extracting only runtime fields from actual.
+/// Validates all config-derived fields against expected defaults.
+pub fn expected_compression_info(
+    actual: &light_sdk::compressible::CompressionInfo,
+) -> light_sdk::compressible::CompressionInfo {
+    light_sdk::compressible::CompressionInfo {
+        last_claimed_slot: actual.last_claimed_slot,
+        lamports_per_write: 5000,
+        config_version: 1,
+        state: actual.state,
+        _padding: 0,
+        rent_config: light_compressible::rent::RentConfig::default(),
+    }
 }

@@ -16,7 +16,7 @@ pub mod d4_composition;
 
 // Original state types used by the main program
 
-#[derive(Default, Debug, InitSpace, LightAccount)]
+#[derive(Default, Debug, PartialEq, InitSpace, LightAccount)]
 #[account]
 pub struct UserRecord {
     pub compression_info: CompressionInfo,

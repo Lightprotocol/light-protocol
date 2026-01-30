@@ -207,14 +207,64 @@ async fn test_create_pdas_and_mint_auto() {
     shared::assert_onchain_exists(&mut rpc, &vault_pda, "Vault").await;
     shared::assert_onchain_exists(&mut rpc, &user_ata_pda, "UserATA").await;
 
-    // Parse and verify CToken data
+    // Full-struct assertion for UserRecord after init
+    {
+        let account = rpc.get_account(user_record_pda).await.unwrap().unwrap();
+        let user_record: csdk_anchor_full_derived_test::UserRecord =
+            borsh::BorshDeserialize::deserialize(&mut &account.data[8..]).unwrap();
+        let expected = csdk_anchor_full_derived_test::UserRecord {
+            compression_info: shared::expected_compression_info(&user_record.compression_info),
+            owner: payer.pubkey(),
+            name: "Auto Created User With Mint".to_string(),
+            score: 0,
+            category_id,
+        };
+        assert_eq!(user_record, expected, "UserRecord should match after init");
+    }
+
+    // Parse and verify CToken data with full-struct comparison
     let vault_data = parse_token(&rpc.get_account(vault_pda).await.unwrap().unwrap().data);
-    assert_eq!(vault_data.owner, vault_authority_pda.to_bytes());
-    assert_eq!(vault_data.amount, vault_mint_amount);
+    {
+        use light_token_interface::state::token::{
+            AccountState, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT,
+        };
+        let expected_vault = Token {
+            mint: mint_pda.into(),
+            owner: vault_authority_pda.into(),
+            amount: vault_mint_amount,
+            delegate: None,
+            state: AccountState::Initialized,
+            is_native: None,
+            delegated_amount: 0,
+            close_authority: None,
+            account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
+            extensions: vault_data.extensions.clone(),
+        };
+        assert_eq!(vault_data, expected_vault, "vault should match after init");
+    }
 
     let user_ata_data = parse_token(&rpc.get_account(user_ata_pda).await.unwrap().unwrap().data);
-    assert_eq!(user_ata_data.owner, payer.pubkey().to_bytes());
-    assert_eq!(user_ata_data.amount, user_ata_mint_amount);
+    {
+        use light_token_interface::state::token::{
+            AccountState, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT,
+        };
+        let expected_ata = Token {
+            mint: mint_pda.into(),
+            owner: payer.pubkey().into(),
+            amount: user_ata_mint_amount,
+            delegate: None,
+            state: AccountState::Initialized,
+            is_native: None,
+            delegated_amount: 0,
+            close_authority: None,
+            account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
+            extensions: user_ata_data.extensions.clone(),
+        };
+        assert_eq!(
+            user_ata_data, expected_ata,
+            "user ATA should match after init"
+        );
+    }
 
     // Verify compressed addresses registered (decompressed PDA: data contains PDA pubkey)
     let compressed_cmint = rpc
@@ -464,12 +514,70 @@ async fn test_create_pdas_and_mint_auto() {
     shared::assert_onchain_exists(&mut rpc, &user_ata_pda, "UserATA").await;
     shared::assert_onchain_exists(&mut rpc, &mint_pda, "Mint").await;
 
-    // Verify balances
+    // Full-struct assertion for UserRecord after decompression
+    {
+        let account = rpc.get_account(user_record_pda).await.unwrap().unwrap();
+        let user_record: csdk_anchor_full_derived_test::UserRecord =
+            borsh::BorshDeserialize::deserialize(&mut &account.data[8..]).unwrap();
+        let expected = csdk_anchor_full_derived_test::UserRecord {
+            compression_info: shared::expected_compression_info(&user_record.compression_info),
+            owner: payer.pubkey(),
+            name: "Auto Created User With Mint".to_string(),
+            score: 0,
+            category_id,
+        };
+        assert_eq!(
+            user_record, expected,
+            "UserRecord should match after decompression"
+        );
+    }
+
+    // Verify balances with full-struct comparison
     let vault_after = parse_token(&rpc.get_account(vault_pda).await.unwrap().unwrap().data);
-    assert_eq!(vault_after.amount, vault_mint_amount);
+    {
+        use light_token_interface::state::token::{
+            AccountState, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT,
+        };
+        let expected_vault = Token {
+            mint: mint_pda.into(),
+            owner: vault_authority_pda.into(),
+            amount: vault_mint_amount,
+            delegate: None,
+            state: AccountState::Initialized,
+            is_native: None,
+            delegated_amount: 0,
+            close_authority: None,
+            account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
+            extensions: vault_after.extensions.clone(),
+        };
+        assert_eq!(
+            vault_after, expected_vault,
+            "vault should match after decompression"
+        );
+    }
 
     let user_ata_after = parse_token(&rpc.get_account(user_ata_pda).await.unwrap().unwrap().data);
-    assert_eq!(user_ata_after.amount, user_ata_mint_amount);
+    {
+        use light_token_interface::state::token::{
+            AccountState, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT,
+        };
+        let expected_ata = Token {
+            mint: mint_pda.into(),
+            owner: payer.pubkey().into(),
+            amount: user_ata_mint_amount,
+            delegate: None,
+            state: AccountState::Initialized,
+            is_native: None,
+            delegated_amount: 0,
+            close_authority: None,
+            account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
+            extensions: user_ata_after.extensions.clone(),
+        };
+        assert_eq!(
+            user_ata_after, expected_ata,
+            "user ATA should match after decompression"
+        );
+    }
 
     // Verify compressed vault token is consumed
     let remaining_vault = rpc
@@ -662,6 +770,48 @@ async fn test_create_two_mints() {
         "Mint B authority should be fee_payer"
     );
 
+    // Full Mint struct assertions
+    {
+        use light_token_interface::state::mint::BaseMint;
+        let expected_mint_a = Mint {
+            base: BaseMint {
+                mint_authority: Some(payer.pubkey().to_bytes().into()),
+                supply: 0,
+                decimals: 6,
+                is_initialized: true,
+                freeze_authority: None,
+            },
+            metadata: mint_a.metadata.clone(),
+            reserved: mint_a.reserved,
+            account_type: mint_a.account_type,
+            compression: mint_a.compression,
+            extensions: mint_a.extensions.clone(),
+        };
+        assert_eq!(
+            mint_a, expected_mint_a,
+            "mint_a should match expected full struct"
+        );
+
+        let expected_mint_b = Mint {
+            base: BaseMint {
+                mint_authority: Some(payer.pubkey().to_bytes().into()),
+                supply: 0,
+                decimals: 9,
+                is_initialized: true,
+                freeze_authority: None,
+            },
+            metadata: mint_b.metadata.clone(),
+            reserved: mint_b.reserved,
+            account_type: mint_b.account_type,
+            compression: mint_b.compression,
+            extensions: mint_b.extensions.clone(),
+        };
+        assert_eq!(
+            mint_b, expected_mint_b,
+            "mint_b should match expected full struct"
+        );
+    }
+
     // Verify compressed addresses registered
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
 
@@ -853,6 +1003,67 @@ async fn test_create_multi_mints() {
         Some(payer.pubkey().to_bytes().into()),
         "Mint C authority should be fee_payer"
     );
+
+    // Full Mint struct assertions
+    {
+        use light_token_interface::state::mint::BaseMint;
+        let expected_mint_a = Mint {
+            base: BaseMint {
+                mint_authority: Some(payer.pubkey().to_bytes().into()),
+                supply: 0,
+                decimals: 6,
+                is_initialized: true,
+                freeze_authority: None,
+            },
+            metadata: mint_a.metadata.clone(),
+            reserved: mint_a.reserved,
+            account_type: mint_a.account_type,
+            compression: mint_a.compression,
+            extensions: mint_a.extensions.clone(),
+        };
+        assert_eq!(
+            mint_a, expected_mint_a,
+            "mint_a should match expected full struct"
+        );
+
+        let expected_mint_b = Mint {
+            base: BaseMint {
+                mint_authority: Some(payer.pubkey().to_bytes().into()),
+                supply: 0,
+                decimals: 8,
+                is_initialized: true,
+                freeze_authority: None,
+            },
+            metadata: mint_b.metadata.clone(),
+            reserved: mint_b.reserved,
+            account_type: mint_b.account_type,
+            compression: mint_b.compression,
+            extensions: mint_b.extensions.clone(),
+        };
+        assert_eq!(
+            mint_b, expected_mint_b,
+            "mint_b should match expected full struct"
+        );
+
+        let expected_mint_c = Mint {
+            base: BaseMint {
+                mint_authority: Some(payer.pubkey().to_bytes().into()),
+                supply: 0,
+                decimals: 9,
+                is_initialized: true,
+                freeze_authority: None,
+            },
+            metadata: mint_c.metadata.clone(),
+            reserved: mint_c.reserved,
+            account_type: mint_c.account_type,
+            compression: mint_c.compression,
+            extensions: mint_c.extensions.clone(),
+        };
+        assert_eq!(
+            mint_c, expected_mint_c,
+            "mint_c should match expected full struct"
+        );
+    }
 }
 
 /// Helper function to set up test context for D9 instruction data tests.

@@ -85,8 +85,32 @@ impl TestContext {
         }
     }
 
+    /// Reads a SinglePubkeyRecord from a PDA and asserts it matches expected values.
+    async fn assert_single_pubkey_record(
+        &mut self,
+        pda: &Pubkey,
+        expected_owner: Pubkey,
+        expected_counter: u64,
+        label: &str,
+    ) {
+        let account = self
+            .rpc
+            .get_account(*pda)
+            .await
+            .unwrap()
+            .unwrap_or_else(|| panic!("{label} account should exist"));
+        let record: csdk_anchor_full_derived_test::SinglePubkeyRecord =
+            anchor_lang::AccountDeserialize::try_deserialize(&mut &account.data[..]).unwrap();
+        let expected = csdk_anchor_full_derived_test::SinglePubkeyRecord {
+            compression_info: shared::expected_compression_info(&record.compression_info),
+            owner: expected_owner,
+            counter: expected_counter,
+        };
+        assert_eq!(record, expected, "{label} should match expected");
+    }
+
     /// Runs the full compression/decompression lifecycle for a single PDA.
-    async fn assert_lifecycle<S>(&mut self, pda: &Pubkey, seeds: S)
+    async fn assert_lifecycle<S>(&mut self, pda: &Pubkey, seeds: S, owner: Pubkey)
     where
         S: IntoVariant<LightAccountVariant>,
     {
@@ -136,6 +160,8 @@ impl TestContext {
 
         // Verify account is back on-chain
         shared::assert_onchain_exists(&mut self.rpc, pda, "pda").await;
+        self.assert_single_pubkey_record(pda, owner, 0, "after decompression")
+            .await;
     }
 
     /// Setup a mint for token-based tests.
@@ -203,6 +229,9 @@ impl TestContext {
         &mut self,
         vault_pda: &Pubkey,
         build_variant: impl FnOnce(light_token_interface::state::Token) -> LightAccountVariant,
+        expected_mint: Pubkey,
+        expected_owner: Pubkey,
+        expected_amount: u64,
     ) {
         use light_client::interface::{AccountInterface, ColdContext};
 
@@ -255,6 +284,32 @@ impl TestContext {
 
         // Verify back on-chain
         shared::assert_onchain_exists(&mut self.rpc, vault_pda, "token_vault").await;
+
+        // Full-struct Token assertion after decompression
+        {
+            use light_token_interface::state::token::{
+                AccountState, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT,
+            };
+            let vault_account = self.rpc.get_account(*vault_pda).await.unwrap().unwrap();
+            let vault_data: Token =
+                borsh::BorshDeserialize::deserialize(&mut &vault_account.data[..]).unwrap();
+            let expected = Token {
+                mint: expected_mint.into(),
+                owner: expected_owner.into(),
+                amount: expected_amount,
+                delegate: None,
+                state: AccountState::Initialized,
+                is_native: None,
+                delegated_amount: 0,
+                close_authority: None,
+                account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
+                extensions: vault_data.extensions.clone(),
+            };
+            assert_eq!(
+                vault_data, expected,
+                "Token vault should match after decompression"
+            );
+        }
     }
 }
 
@@ -315,10 +370,12 @@ async fn test_d6_account() {
 
     // Verify account exists on-chain
     shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
+    ctx.assert_single_pubkey_record(&pda, owner, 0, "after init")
+        .await;
 
     // Full lifecycle: compression + decompression
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D6AccountRecordSeeds;
-    ctx.assert_lifecycle(&pda, D6AccountRecordSeeds { owner })
+    ctx.assert_lifecycle(&pda, D6AccountRecordSeeds { owner }, owner)
         .await;
 }
 
@@ -375,10 +432,12 @@ async fn test_d6_boxed() {
 
     // Verify account exists on-chain
     shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
+    ctx.assert_single_pubkey_record(&pda, owner, 0, "after init")
+        .await;
 
     // Full lifecycle: compression + decompression
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D6BoxedRecordSeeds;
-    ctx.assert_lifecycle(&pda, D6BoxedRecordSeeds { owner })
+    ctx.assert_lifecycle(&pda, D6BoxedRecordSeeds { owner }, owner)
         .await;
 }
 
@@ -439,10 +498,12 @@ async fn test_d8_pda_only() {
 
     // Verify account exists on-chain
     shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
+    ctx.assert_single_pubkey_record(&pda, owner, 0, "after init")
+        .await;
 
     // Full lifecycle: compression + decompression
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D8PdaOnlyRecordSeeds;
-    ctx.assert_lifecycle(&pda, D8PdaOnlyRecordSeeds { owner })
+    ctx.assert_lifecycle(&pda, D8PdaOnlyRecordSeeds { owner }, owner)
         .await;
 }
 
@@ -515,6 +576,10 @@ async fn test_d8_multi_rentfree() {
     // Verify both accounts exist on-chain
     shared::assert_onchain_exists(&mut ctx.rpc, &pda1, "pda1").await;
     shared::assert_onchain_exists(&mut ctx.rpc, &pda2, "pda2").await;
+    ctx.assert_single_pubkey_record(&pda1, owner, 0, "pda1 after init")
+        .await;
+    ctx.assert_single_pubkey_record(&pda2, owner, 0, "pda2 after init")
+        .await;
 
     // Full lifecycle: compression + decompression (multi-PDA, one at a time)
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::{
@@ -549,6 +614,8 @@ async fn test_d8_multi_rentfree() {
         .await
         .unwrap();
     shared::assert_onchain_exists(&mut ctx.rpc, &pda1, "pda1").await;
+    ctx.assert_single_pubkey_record(&pda1, owner, 0, "pda1 after decompression")
+        .await;
 
     // Decompress second account
     let interface2 = ctx
@@ -570,6 +637,8 @@ async fn test_d8_multi_rentfree() {
         .await
         .unwrap();
     shared::assert_onchain_exists(&mut ctx.rpc, &pda2, "pda2").await;
+    ctx.assert_single_pubkey_record(&pda2, owner, 0, "pda2 after decompression")
+        .await;
 }
 
 /// Tests D8All: Multiple #[light_account(init)] fields of different types
@@ -633,6 +702,23 @@ async fn test_d8_all() {
     // Verify both accounts exist on-chain
     shared::assert_onchain_exists(&mut ctx.rpc, &pda_single, "pda_single").await;
     shared::assert_onchain_exists(&mut ctx.rpc, &pda_multi, "pda_multi").await;
+    ctx.assert_single_pubkey_record(&pda_single, owner, 0, "pda_single after init")
+        .await;
+    {
+        use csdk_anchor_full_derived_test::MultipleCompressAsRecord;
+        let account = ctx.rpc.get_account(pda_multi).await.unwrap().unwrap();
+        let record: MultipleCompressAsRecord =
+            anchor_lang::AccountDeserialize::try_deserialize(&mut &account.data[..]).unwrap();
+        let expected = MultipleCompressAsRecord {
+            compression_info: shared::expected_compression_info(&record.compression_info),
+            owner,
+            start: 0,
+            score: 0,
+            cached: 0,
+            counter: 0,
+        };
+        assert_eq!(record, expected, "pda_multi should match after init");
+    }
 
     // Full lifecycle: compression + decompression (multi-PDA, one at a time)
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::{
@@ -667,6 +753,8 @@ async fn test_d8_all() {
         .await
         .unwrap();
     shared::assert_onchain_exists(&mut ctx.rpc, &pda_single, "pda_single").await;
+    ctx.assert_single_pubkey_record(&pda_single, owner, 0, "pda_single after decompression")
+        .await;
 
     // Decompress second account (multi type)
     let interface_multi = ctx
@@ -688,6 +776,24 @@ async fn test_d8_all() {
         .await
         .unwrap();
     shared::assert_onchain_exists(&mut ctx.rpc, &pda_multi, "pda_multi").await;
+    {
+        use csdk_anchor_full_derived_test::MultipleCompressAsRecord;
+        let account = ctx.rpc.get_account(pda_multi).await.unwrap().unwrap();
+        let record: MultipleCompressAsRecord =
+            anchor_lang::AccountDeserialize::try_deserialize(&mut &account.data[..]).unwrap();
+        let expected = MultipleCompressAsRecord {
+            compression_info: shared::expected_compression_info(&record.compression_info),
+            owner,
+            start: 0,
+            score: 0,
+            cached: 0,
+            counter: 0,
+        };
+        assert_eq!(
+            record, expected,
+            "pda_multi should match after decompression"
+        );
+    }
 }
 
 // =============================================================================
@@ -748,7 +854,8 @@ async fn test_d9_literal() {
 
     // Full lifecycle: compression + decompression
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D9LiteralRecordSeeds;
-    ctx.assert_lifecycle(&pda, D9LiteralRecordSeeds {}).await;
+    ctx.assert_lifecycle(&pda, D9LiteralRecordSeeds {}, ctx.payer.pubkey())
+        .await;
 }
 
 /// Tests D9Constant: Constant seed expression
@@ -805,7 +912,8 @@ async fn test_d9_constant() {
 
     // Full lifecycle: compression + decompression
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D9ConstantRecordSeeds;
-    ctx.assert_lifecycle(&pda, D9ConstantRecordSeeds {}).await;
+    ctx.assert_lifecycle(&pda, D9ConstantRecordSeeds {}, ctx.payer.pubkey())
+        .await;
 }
 
 /// Tests D9CtxAccount: Context account seed expression
@@ -870,6 +978,7 @@ async fn test_d9_ctx_account() {
         D9CtxRecordSeeds {
             authority: authority.pubkey(),
         },
+        authority.pubkey(),
     )
     .await;
 }
@@ -930,7 +1039,7 @@ async fn test_d9_param() {
 
     // Full lifecycle: compression + decompression
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D9ParamRecordSeeds;
-    ctx.assert_lifecycle(&pda, D9ParamRecordSeeds { owner })
+    ctx.assert_lifecycle(&pda, D9ParamRecordSeeds { owner }, owner)
         .await;
 }
 
@@ -993,7 +1102,7 @@ async fn test_d9_param_bytes() {
 
     // Full lifecycle: compression + decompression
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D9ParamBytesRecordSeeds;
-    ctx.assert_lifecycle(&pda, D9ParamBytesRecordSeeds { id })
+    ctx.assert_lifecycle(&pda, D9ParamBytesRecordSeeds { id }, ctx.payer.pubkey())
         .await;
 }
 
@@ -1064,6 +1173,7 @@ async fn test_d9_mixed() {
             authority: authority.pubkey(),
             owner,
         },
+        owner,
     )
     .await;
 }
@@ -1127,7 +1237,7 @@ async fn test_d7_payer() {
 
     // Full lifecycle: compression + decompression
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D7PayerRecordSeeds;
-    ctx.assert_lifecycle(&pda, D7PayerRecordSeeds { owner })
+    ctx.assert_lifecycle(&pda, D7PayerRecordSeeds { owner }, owner)
         .await;
 }
 
@@ -1186,7 +1296,7 @@ async fn test_d7_creator() {
 
     // Full lifecycle: compression + decompression
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D7CreatorRecordSeeds;
-    ctx.assert_lifecycle(&pda, D7CreatorRecordSeeds { owner })
+    ctx.assert_lifecycle(&pda, D7CreatorRecordSeeds { owner }, owner)
         .await;
 }
 
@@ -1252,7 +1362,7 @@ async fn test_d9_function_call() {
 
     // Full lifecycle: compression + decompression
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D9FuncRecordSeeds;
-    ctx.assert_lifecycle(&pda, D9FuncRecordSeeds { key_a, key_b })
+    ctx.assert_lifecycle(&pda, D9FuncRecordSeeds { key_a, key_b }, key_a)
         .await;
 }
 
@@ -1472,6 +1582,8 @@ async fn test_d8_pda_only_full_lifecycle() {
 
     // PHASE 1: Verify account exists on-chain
     shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
+    ctx.assert_single_pubkey_record(&pda, owner, 0, "after init")
+        .await;
 
     // PHASE 2: Warp to trigger auto-compression
     ctx.rpc
@@ -1519,6 +1631,8 @@ async fn test_d8_pda_only_full_lifecycle() {
 
     // PHASE 4: Verify account is back on-chain
     shared::assert_onchain_exists(&mut ctx.rpc, &pda, "pda").await;
+    ctx.assert_single_pubkey_record(&pda, owner, 0, "after decompression")
+        .await;
 }
 
 // =============================================================================
@@ -1589,12 +1703,18 @@ async fn test_d5_light_token() {
     shared::assert_onchain_closed(&mut ctx.rpc, &vault, "vault").await;
 
     // Decompress using generated seed struct
-    ctx.decompress_token_vault(&vault, |token| {
-        LightAccountVariant::D5TokenVault(TokenDataWithSeeds {
-            seeds: D5TokenVaultSeeds { mint },
-            token_data: token,
-        })
-    })
+    ctx.decompress_token_vault(
+        &vault,
+        |token| {
+            LightAccountVariant::D5TokenVault(TokenDataWithSeeds {
+                seeds: D5TokenVaultSeeds { mint },
+                token_data: token,
+            })
+        },
+        mint,
+        vault_authority,
+        0,
+    )
     .await;
 }
 
@@ -1670,6 +1790,8 @@ async fn test_d5_all_markers() {
     // Verify both PDA record and token vault exist
     shared::assert_onchain_exists(&mut ctx.rpc, &d5_all_record, "d5_all_record").await;
     shared::assert_onchain_exists(&mut ctx.rpc, &d5_all_vault, "d5_all_vault").await;
+    ctx.assert_single_pubkey_record(&d5_all_record, owner, 0, "d5_all_record after init")
+        .await;
 
     // Full lifecycle: single warp compresses both PDA and token, then decompress both
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::{
@@ -1686,17 +1808,30 @@ async fn test_d5_all_markers() {
     shared::assert_onchain_closed(&mut ctx.rpc, &d5_all_vault, "d5_all_vault").await;
 
     // Decompress token vault first
-    ctx.decompress_token_vault(&d5_all_vault, |token| {
-        LightAccountVariant::D5AllVault(TokenDataWithSeeds {
-            seeds: D5AllVaultSeeds { mint },
-            token_data: token,
-        })
-    })
+    ctx.decompress_token_vault(
+        &d5_all_vault,
+        |token| {
+            LightAccountVariant::D5AllVault(TokenDataWithSeeds {
+                seeds: D5AllVaultSeeds { mint },
+                token_data: token,
+            })
+        },
+        mint,
+        d5_all_authority,
+        0,
+    )
     .await;
 
     // Decompress PDA
     ctx.decompress_pda(&d5_all_record, D5AllRecordSeeds { owner })
         .await;
+    ctx.assert_single_pubkey_record(
+        &d5_all_record,
+        owner,
+        0,
+        "d5_all_record after decompression",
+    )
+    .await;
 }
 
 // =============================================================================
@@ -1770,12 +1905,18 @@ async fn test_d7_light_token_config() {
         .await;
 
     // Decompress using generated seed struct
-    ctx.decompress_token_vault(&d7_light_token_vault, |token| {
-        LightAccountVariant::D7LightTokenVault(TokenDataWithSeeds {
-            seeds: D7LightTokenVaultSeeds { mint },
-            token_data: token,
-        })
-    })
+    ctx.decompress_token_vault(
+        &d7_light_token_vault,
+        |token| {
+            LightAccountVariant::D7LightTokenVault(TokenDataWithSeeds {
+                seeds: D7LightTokenVaultSeeds { mint },
+                token_data: token,
+            })
+        },
+        mint,
+        d7_light_token_authority,
+        0,
+    )
     .await;
 }
 
@@ -1851,6 +1992,8 @@ async fn test_d7_all_names() {
     // Verify both PDA record and token vault exist
     shared::assert_onchain_exists(&mut ctx.rpc, &d7_all_record, "d7_all_record").await;
     shared::assert_onchain_exists(&mut ctx.rpc, &d7_all_vault, "d7_all_vault").await;
+    ctx.assert_single_pubkey_record(&d7_all_record, owner, 0, "d7_all_record after init")
+        .await;
 
     // Full lifecycle: single warp compresses both PDA and token, then decompress both
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::{
@@ -1867,17 +2010,30 @@ async fn test_d7_all_names() {
     shared::assert_onchain_closed(&mut ctx.rpc, &d7_all_vault, "d7_all_vault").await;
 
     // Decompress token vault first
-    ctx.decompress_token_vault(&d7_all_vault, |token| {
-        LightAccountVariant::D7AllVault(TokenDataWithSeeds {
-            seeds: D7AllVaultSeeds { mint },
-            token_data: token,
-        })
-    })
+    ctx.decompress_token_vault(
+        &d7_all_vault,
+        |token| {
+            LightAccountVariant::D7AllVault(TokenDataWithSeeds {
+                seeds: D7AllVaultSeeds { mint },
+                token_data: token,
+            })
+        },
+        mint,
+        d7_all_authority,
+        0,
+    )
     .await;
 
     // Decompress PDA
     ctx.decompress_pda(&d7_all_record, D7AllRecordSeeds { owner })
         .await;
+    ctx.assert_single_pubkey_record(
+        &d7_all_record,
+        owner,
+        0,
+        "d7_all_record after decompression",
+    )
+    .await;
 }
 
 // =============================================================================

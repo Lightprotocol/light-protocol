@@ -10,7 +10,7 @@ pub const OBSERVATION_SEED: &str = "observation";
 pub const POOL_LP_MINT_SIGNER_SEED: &[u8] = b"pool_lp_mint";
 pub const AUTH_SEED: &str = "vault_and_lp_mint_auth_seed";
 
-#[derive(Default, Debug, InitSpace, LightAccount)]
+#[derive(Default, Debug, PartialEq, InitSpace, LightAccount)]
 #[account]
 #[repr(C)]
 pub struct PoolState {
@@ -42,14 +42,14 @@ pub struct PoolState {
 
 pub const OBSERVATION_NUM: usize = 2;
 
-#[derive(Default, Clone, Copy, AnchorSerialize, AnchorDeserialize, InitSpace, Debug)]
+#[derive(Default, Clone, Copy, PartialEq, AnchorSerialize, AnchorDeserialize, InitSpace, Debug)]
 pub struct Observation {
     pub block_timestamp: u64,
     pub cumulative_token_0_price_x32: u128,
     pub cumulative_token_1_price_x32: u128,
 }
 
-#[derive(Default, Debug, InitSpace, LightAccount)]
+#[derive(Default, Debug, PartialEq, InitSpace, LightAccount)]
 #[account]
 pub struct ObservationState {
     pub compression_info: CompressionInfo,

@@ -19,3 +19,11 @@ pub struct ZcWithParamsRecord {
     /// A data value.
     pub data: u64,
 }
+
+impl PartialEq for ZcWithParamsRecord {
+    fn eq(&self, other: &Self) -> bool {
+        self.compression_info == other.compression_info
+            && self.owner == other.owner
+            && self.data == other.data
+    }
+}

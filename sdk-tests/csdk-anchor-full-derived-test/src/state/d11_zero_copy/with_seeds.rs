@@ -21,3 +21,12 @@ pub struct ZcWithSeedsRecord {
     /// A value field.
     pub value: u64,
 }
+
+impl PartialEq for ZcWithSeedsRecord {
+    fn eq(&self, other: &Self) -> bool {
+        self.compression_info == other.compression_info
+            && self.owner == other.owner
+            && self.authority == other.authority
+            && self.value == other.value
+    }
+}

@@ -19,3 +19,11 @@ pub struct ZcBasicRecord {
     /// A simple counter value.
     pub counter: u64,
 }
+
+impl PartialEq for ZcBasicRecord {
+    fn eq(&self, other: &Self) -> bool {
+        self.compression_info == other.compression_info
+            && self.owner == other.owner
+            && self.counter == other.counter
+    }
+}

@@ -349,6 +349,121 @@ async fn test_amm_full_lifecycle() {
         "Creator should have received LP tokens"
     );
 
+    // Full-struct assertion for PoolState after init
+    {
+        use csdk_anchor_full_derived_test::amm_test::{
+            Observation, ObservationState, PoolState, OBSERVATION_NUM,
+        };
+        let pool_account = ctx.rpc.get_account(pdas.pool_state).await.unwrap().unwrap();
+        let pool_state: PoolState =
+            anchor_lang::AccountDeserialize::try_deserialize(&mut &pool_account.data[..]).unwrap();
+        let expected_pool = PoolState {
+            compression_info: shared::expected_compression_info(&pool_state.compression_info),
+            amm_config: ctx.amm_config.pubkey(),
+            pool_creator: ctx.creator.pubkey(),
+            token_0_vault: pdas.token_0_vault,
+            token_1_vault: pdas.token_1_vault,
+            lp_mint: pdas.lp_mint,
+            token_0_mint: ctx.token_0_mint,
+            token_1_mint: ctx.token_1_mint,
+            token_0_program: LIGHT_TOKEN_PROGRAM_ID,
+            token_1_program: LIGHT_TOKEN_PROGRAM_ID,
+            observation_key: pdas.observation_state,
+            auth_bump: pdas.authority_bump,
+            status: 1,
+            lp_mint_decimals: 9,
+            mint_0_decimals: 9,
+            mint_1_decimals: 9,
+            lp_supply: initial_lp_balance,
+            protocol_fees_token_0: 0,
+            protocol_fees_token_1: 0,
+            fund_fees_token_0: 0,
+            fund_fees_token_1: 0,
+            open_time: 0,
+            recent_epoch: 0,
+            padding: [0; 1],
+        };
+        assert_eq!(
+            pool_state, expected_pool,
+            "PoolState should match after init"
+        );
+
+        // ObservationState assertion
+        let obs_account = ctx
+            .rpc
+            .get_account(pdas.observation_state)
+            .await
+            .unwrap()
+            .unwrap();
+        let obs_state: ObservationState =
+            anchor_lang::AccountDeserialize::try_deserialize(&mut &obs_account.data[..]).unwrap();
+        let expected_obs = ObservationState {
+            compression_info: shared::expected_compression_info(&obs_state.compression_info),
+            initialized: false,
+            observation_index: 0,
+            pool_id: Pubkey::default(),
+            observations: [Observation::default(); OBSERVATION_NUM],
+            padding: [0; 4],
+        };
+        assert_eq!(
+            obs_state, expected_obs,
+            "ObservationState should match after init"
+        );
+    }
+
+    // Full-struct Token assertions after init
+    {
+        let token_0_vault_data = parse_token(
+            &ctx.rpc
+                .get_account(pdas.token_0_vault)
+                .await
+                .unwrap()
+                .unwrap()
+                .data,
+        );
+        let expected_token_0 = Token {
+            mint: ctx.token_0_mint.into(),
+            owner: pdas.authority.into(),
+            amount: 0,
+            delegate: None,
+            state: AccountState::Initialized,
+            is_native: None,
+            delegated_amount: 0,
+            close_authority: None,
+            account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
+            extensions: token_0_vault_data.extensions.clone(),
+        };
+        assert_eq!(
+            token_0_vault_data, expected_token_0,
+            "token_0_vault should match after init"
+        );
+
+        let token_1_vault_data = parse_token(
+            &ctx.rpc
+                .get_account(pdas.token_1_vault)
+                .await
+                .unwrap()
+                .unwrap()
+                .data,
+        );
+        let expected_token_1 = Token {
+            mint: ctx.token_1_mint.into(),
+            owner: pdas.authority.into(),
+            amount: 0,
+            delegate: None,
+            state: AccountState::Initialized,
+            is_native: None,
+            delegated_amount: 0,
+            close_authority: None,
+            account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
+            extensions: token_1_vault_data.extensions.clone(),
+        };
+        assert_eq!(
+            token_1_vault_data, expected_token_1,
+            "token_1_vault should match after init"
+        );
+    }
+
     // Deposit
     let deposit_amount = 500u64;
 
@@ -569,6 +684,67 @@ async fn test_amm_full_lifecycle() {
     shared::assert_onchain_exists(&mut ctx.rpc, &pdas.token_0_vault, "token_0_vault").await;
     shared::assert_onchain_exists(&mut ctx.rpc, &pdas.token_1_vault, "token_1_vault").await;
     shared::assert_onchain_exists(&mut ctx.rpc, &pdas.creator_lp_token, "creator_lp_token").await;
+
+    // Full-struct assertion for PoolState after decompression
+    {
+        use csdk_anchor_full_derived_test::amm_test::{
+            Observation, ObservationState, PoolState, OBSERVATION_NUM,
+        };
+        let pool_account = ctx.rpc.get_account(pdas.pool_state).await.unwrap().unwrap();
+        let pool_state: PoolState =
+            anchor_lang::AccountDeserialize::try_deserialize(&mut &pool_account.data[..]).unwrap();
+        let expected_pool = PoolState {
+            compression_info: shared::expected_compression_info(&pool_state.compression_info),
+            amm_config: ctx.amm_config.pubkey(),
+            pool_creator: ctx.creator.pubkey(),
+            token_0_vault: pdas.token_0_vault,
+            token_1_vault: pdas.token_1_vault,
+            lp_mint: pdas.lp_mint,
+            token_0_mint: ctx.token_0_mint,
+            token_1_mint: ctx.token_1_mint,
+            token_0_program: LIGHT_TOKEN_PROGRAM_ID,
+            token_1_program: LIGHT_TOKEN_PROGRAM_ID,
+            observation_key: pdas.observation_state,
+            auth_bump: pdas.authority_bump,
+            status: 1,
+            lp_mint_decimals: 9,
+            mint_0_decimals: 9,
+            mint_1_decimals: 9,
+            lp_supply: initial_lp_balance,
+            protocol_fees_token_0: 0,
+            protocol_fees_token_1: 0,
+            fund_fees_token_0: 0,
+            fund_fees_token_1: 0,
+            open_time: 0,
+            recent_epoch: 0,
+            padding: [0; 1],
+        };
+        assert_eq!(
+            pool_state, expected_pool,
+            "PoolState should match after decompression"
+        );
+
+        let obs_account = ctx
+            .rpc
+            .get_account(pdas.observation_state)
+            .await
+            .unwrap()
+            .unwrap();
+        let obs_state: ObservationState =
+            anchor_lang::AccountDeserialize::try_deserialize(&mut &obs_account.data[..]).unwrap();
+        let expected_obs = ObservationState {
+            compression_info: shared::expected_compression_info(&obs_state.compression_info),
+            initialized: false,
+            observation_index: 0,
+            pool_id: Pubkey::default(),
+            observations: [Observation::default(); OBSERVATION_NUM],
+            padding: [0; 4],
+        };
+        assert_eq!(
+            obs_state, expected_obs,
+            "ObservationState should match after decompression"
+        );
+    }
 
     // Verify LP token balance
     let lp_token_after_decompression = parse_token(
