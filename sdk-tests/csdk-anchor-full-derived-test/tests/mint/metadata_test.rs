@@ -69,7 +69,7 @@ async fn test_create_mint_with_metadata() {
     let proof_result = get_create_accounts_proof(
         &rpc,
         &program_id,
-        vec![CreateAccountsProofInput::mint(mint_signer_pda)],
+        vec![CreateAccountsProofInput::mint(cmint_pda)],
     )
     .await
     .unwrap();

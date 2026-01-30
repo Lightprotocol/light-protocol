@@ -12,10 +12,17 @@ csdk-anchor-full-derived-test = { path = "../csdk-anchor-full-derived-test", fea
 light-client = { workspace = true, features = ["v2", "anchor"] }
 light-sdk = { workspace = true, features = ["anchor", "v2"] }
 light-token = { workspace = true, features = ["anchor"] }
+light-token-interface = { workspace = true, features = ["anchor"] }
 light-compressed-token-sdk = { workspace = true, features = ["anchor"] }
 
 anchor-lang = { workspace = true }
 solana-pubkey = { workspace = true }
+solana-account = { workspace = true }
 
 # Fast hashing for account maps
 ahash = "0.8"
+
+# Jupiter integration
+jupiter-amm-interface = "0.6"
+anyhow = "1.0"
+rust_decimal = "1.32"

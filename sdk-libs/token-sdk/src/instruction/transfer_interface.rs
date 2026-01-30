@@ -323,6 +323,30 @@ impl<'info> TransferInterfaceCpi<'info> {
         Ok(self)
     }
 
+    /// Attach optional SPL interface accounts for SPL<->Light transfers.
+    ///
+    /// Always pass mint and token_program (caller always has these).
+    /// Pass pda/bump as Option - only needed when one side is SPL.
+    /// - If pda/bump are `None`: Light-to-Light transfer (no-op).
+    /// - If pda/bump are `Some`: attaches SPL interface for SPL<->Light transfers.
+    pub fn spl_interface(
+        mut self,
+        mint: AccountInfo<'info>,
+        spl_token_program: AccountInfo<'info>,
+        spl_interface_pda: Option<AccountInfo<'info>>,
+        spl_interface_pda_bump: Option<u8>,
+    ) -> Self {
+        if let (Some(pda), Some(bump)) = (spl_interface_pda, spl_interface_pda_bump) {
+            self.spl_interface = Some(SplInterfaceCpi {
+                mint,
+                spl_token_program,
+                spl_interface_pda: pda,
+                spl_interface_pda_bump: bump,
+            });
+        }
+        self
+    }
+
     /// Build instruction from CPI context
     pub fn instruction(&self) -> Result<Instruction, ProgramError> {
         TransferInterface::from(self).instruction()
