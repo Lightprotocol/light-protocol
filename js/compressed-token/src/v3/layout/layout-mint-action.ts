@@ -344,7 +344,8 @@ export interface MintActionCompressedInstructionData {
 export function encodeMintActionInstructionData(
     data: MintActionCompressedInstructionData,
 ): Buffer {
-    const useV1 = isDevnetCompat();
+    // const useV1 = isDevnetCompat();
+    const useV1 = false;
 
     // Convert bigint fields to BN for Borsh encoding
     // TODO: Remove V1 layouts after devnet program update
