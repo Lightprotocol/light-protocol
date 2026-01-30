@@ -22,7 +22,7 @@ import {
     publicKey,
     rustEnum,
 } from '@coral-xyz/borsh';
-import { bn, isDevnetCompat } from '@lightprotocol/stateless.js';
+import { bn } from '@lightprotocol/stateless.js';
 
 export const MINT_ACTION_DISCRIMINATOR = Buffer.from([103]);
 
@@ -167,47 +167,6 @@ export const MintActionCompressedInstructionDataLayout = struct([
     option(MintInstructionDataLayout, 'mint'),
 ]);
 
-// TODO: Remove V1 layouts after devnet program update
-const ActionLayoutV1 = rustEnum([
-    MintToCompressedActionLayout.replicate('mintToCompressed'),
-    UpdateAuthorityLayout.replicate('updateMintAuthority'),
-    UpdateAuthorityLayout.replicate('updateFreezeAuthority'),
-    MintToCTokenActionLayout.replicate('mintToCToken'),
-    UpdateMetadataFieldActionLayout.replicate('updateMetadataField'),
-    UpdateMetadataAuthorityActionLayout.replicate('updateMetadataAuthority'),
-    RemoveMetadataKeyActionLayout.replicate('removeMetadataKey'),
-]);
-// TODO: Remove V1 layouts after devnet program update
-const CompressedMintMetadataLayoutV1 = struct([
-    u8('version'),
-    bool('splMintInitialized'),
-    publicKey('mint'),
-]);
-// TODO: Remove V1 layouts after devnet program update
-const MintInstructionDataLayoutV1 = struct([
-    u64('supply'),
-    u8('decimals'),
-    CompressedMintMetadataLayoutV1.replicate('metadata'),
-    option(publicKey(), 'mintAuthority'),
-    option(publicKey(), 'freezeAuthority'),
-    option(vec(ExtensionInstructionDataLayout), 'extensions'),
-]);
-// TODO: Remove V1 layouts after devnet program update
-const MintActionCompressedInstructionDataLayoutV1 = struct([
-    u32('leafIndex'),
-    bool('proveByIndex'),
-    u16('rootIndex'),
-    array(u8(), 32, 'compressedAddress'),
-    u8('tokenPoolBump'),
-    u8('tokenPoolIndex'),
-    u16('maxTopUp'),
-    option(CreateMintLayout, 'createMint'),
-    vec(ActionLayoutV1, 'actions'),
-    option(CompressedProofLayout, 'proof'),
-    option(CpiContextLayout, 'cpiContext'),
-    MintInstructionDataLayoutV1.replicate('mint'), // V1: not optional
-]);
-
 export interface ValidityProof {
     a: number[];
     b: number[];
@@ -344,11 +303,7 @@ export interface MintActionCompressedInstructionData {
 export function encodeMintActionInstructionData(
     data: MintActionCompressedInstructionData,
 ): Buffer {
-    // const useV1 = isDevnetCompat();
-    const useV1 = false;
-
     // Convert bigint fields to BN for Borsh encoding
-    // TODO: Remove V1 layouts after devnet program update
     const convertedActions = data.actions.map(action => {
         if ('mintToCompressed' in action && action.mintToCompressed) {
             return {
@@ -369,59 +324,25 @@ export function encodeMintActionInstructionData(
                 },
             };
         }
-        // V1 doesn't support new action types
-        if (
-            useV1 &&
-            ('decompressMint' in action || 'compressAndCloseCMint' in action)
-        ) {
-            throw new Error(
-                'decompressMint/compressAndCloseCMint not supported on devnet',
-            );
-        }
         return action;
     });
 
     const buffer = Buffer.alloc(10000);
-    let len: number;
 
-    // TODO: Remove V1 branch after devnet program update
-    if (useV1) {
-        if (!data.mint) {
-            throw new Error('V1 format requires mint data (cannot be null)');
-        }
-        const encodableDataV1 = {
-            ...data,
-            actions: convertedActions,
-            mint: {
-                ...data.mint,
-                supply: bn(data.mint.supply.toString()),
-                metadata: {
-                    version: data.mint.metadata.version,
-                    splMintInitialized: data.mint.metadata.cmintDecompressed,
-                    mint: data.mint.metadata.mint,
-                },
-            },
-        };
-        len = MintActionCompressedInstructionDataLayoutV1.encode(
-            encodableDataV1,
-            buffer,
-        );
-    } else {
-        const encodableData = {
-            ...data,
-            actions: convertedActions,
-            mint: data.mint
-                ? {
-                      ...data.mint,
-                      supply: bn(data.mint.supply.toString()),
-                  }
-                : null,
-        };
-        len = MintActionCompressedInstructionDataLayout.encode(
-            encodableData,
-            buffer,
-        );
-    }
+    const encodableData = {
+        ...data,
+        actions: convertedActions,
+        mint: data.mint
+            ? {
+                  ...data.mint,
+                  supply: bn(data.mint.supply.toString()),
+              }
+            : null,
+    };
+    const len = MintActionCompressedInstructionDataLayout.encode(
+        encodableData,
+        buffer,
+    );
 
     return Buffer.concat([MINT_ACTION_DISCRIMINATOR, buffer.subarray(0, len)]);
 }
