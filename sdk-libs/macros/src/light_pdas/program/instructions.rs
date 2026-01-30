@@ -286,10 +286,10 @@ fn codegen(
             let variant_struct_name = format_ident!("{}Variant", variant_name);
             let packed_variant_name = format_ident!("Packed{}Variant", variant_name);
             vec![
-                quote! { pub use super::#seeds_name; },
-                quote! { pub use super::#packed_seeds_name; },
-                quote! { pub use super::#variant_struct_name; },
-                quote! { pub use super::#packed_variant_name; },
+                quote! { pub(crate) use super::#seeds_name; },
+                quote! { pub(crate) use super::#packed_seeds_name; },
+                quote! { pub(crate) use super::#variant_struct_name; },
+                quote! { pub(crate) use super::#packed_variant_name; },
             ]
         })
         .collect();
