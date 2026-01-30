@@ -62,7 +62,7 @@ light-sdk-macros = { workspace = true, optional = true }
 [dev-dependencies]
 light-account-checks = { workspace = true, features = ["test-only", "pinocchio", "std"] }
 anchor-lang = { workspace = true }
-light-compressed-token = { workspace = true }
+light-compressed-token = { workspace = true, features = ["idl-build"] }
 pinocchio = { workspace = true }
 
 
