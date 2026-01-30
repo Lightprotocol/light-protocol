@@ -62,6 +62,7 @@ impl<'info> anchor_lang::AccountsExit<'info> for DecompressIdempotent<'info> {
     }
 }
 
+#[cfg(feature = "idl-build")]
 impl<'info> DecompressIdempotent<'info> {
     pub fn __anchor_private_gen_idl_accounts(
         _accounts: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlAccount>,

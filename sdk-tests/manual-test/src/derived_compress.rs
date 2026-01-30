@@ -67,6 +67,7 @@ impl<'info> anchor_lang::AccountsExit<'info> for CompressAndClose<'info> {
     }
 }
 
+#[cfg(feature = "idl-build")]
 impl<'info> CompressAndClose<'info> {
     pub fn __anchor_private_gen_idl_accounts(
         _accounts: &mut std::collections::BTreeMap<String, anchor_lang::idl::types::IdlAccount>,
