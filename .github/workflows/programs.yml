@@ -24,6 +24,8 @@ on:
       - ready_for_review
 
 name: programs
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
