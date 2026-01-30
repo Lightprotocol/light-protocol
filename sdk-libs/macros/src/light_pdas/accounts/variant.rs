@@ -16,8 +16,8 @@ use quote::{format_ident, quote};
 use syn::{Ident, Type};
 
 use crate::light_pdas::{
-    seeds::{ClassifiedSeed, FnArgKind, SeedSpec},
-    shared_utils::{make_packed_type, to_pascal_case},
+    seeds::{ClassifiedSeed, FnArgKind},
+    shared_utils::make_packed_type,
 };
 
 /// Information about a single seed for code generation.
@@ -36,7 +36,7 @@ pub(super) struct SeedFieldInfo {
 }
 
 /// Builder for generating variant code for a single PDA field.
-pub(super) struct VariantBuilder {
+pub(crate) struct VariantBuilder {
     /// The field name from the Accounts struct (e.g., `user_record`)
     /// Kept for future use (e.g., error messages, debugging)
     #[allow(dead_code)]
@@ -54,21 +54,22 @@ pub(super) struct VariantBuilder {
     /// Whether this is a zero-copy account (AccountLoader)
     #[allow(dead_code)]
     is_zero_copy: bool,
+    /// The module path where the Accounts struct is defined (e.g., "crate::instructions::create")
+    /// Used to qualify bare constant names in seed expressions.
+    module_path: Option<String>,
 }
 
 impl VariantBuilder {
-    /// Create a new VariantBuilder from a SeedSpec.
-    pub fn from_seed_spec(spec: &SeedSpec) -> Self {
-        let field_name = spec.field_name.clone();
-        let variant_name = to_pascal_case_ident(&field_name);
-        let inner_type = spec.inner_type.clone();
+    /// Create from ExtractedSeedSpec (used by #[light_program]).
+    pub fn from_extracted_spec(spec: &crate::light_pdas::seeds::ExtractedSeedSpec) -> Self {
+        let field_name = to_snake_case_ident(&spec.variant_name);
+        let variant_name = spec.variant_name.clone();
+        // Qualify inner_type with crate:: if not already qualified
+        let inner_type = crate::light_pdas::shared_utils::qualify_type_with_crate(&spec.inner_type);
         let seeds = spec.seeds.clone();
         let is_zero_copy = spec.is_zero_copy;
 
-        // Extract seed field information
         let seed_fields = extract_seed_fields(&seeds);
-
-        // SEED_COUNT = number of seeds + 1 (for bump)
         let seed_count = seeds.len() + 1;
 
         Self {
@@ -79,6 +80,7 @@ impl VariantBuilder {
             seed_fields,
             seed_count,
             is_zero_copy,
+            module_path: Some(spec.module_path.clone()),
         }
     }
 
@@ -376,7 +378,7 @@ impl VariantBuilder {
                 ClassifiedSeed::Literal(_)
                 | ClassifiedSeed::Constant { .. }
                 | ClassifiedSeed::Passthrough(_) => {
-                    let expr = seed_to_expr(seed);
+                    let expr = seed_to_expr(seed, self.module_path.as_deref());
                     quote! { (#expr).to_vec() }
                 }
                 ClassifiedSeed::CtxRooted { account, .. } => {
@@ -413,7 +415,7 @@ impl VariantBuilder {
             .iter()
             .map(|seed| match seed {
                 ClassifiedSeed::Literal(_) | ClassifiedSeed::Constant { .. } => {
-                    let expr = seed_to_expr(seed);
+                    let expr = seed_to_expr(seed, self.module_path.as_deref());
                     quote! { #expr }
                 }
                 ClassifiedSeed::Passthrough(pass_expr) => {
@@ -432,7 +434,7 @@ impl VariantBuilder {
                             }
                         }
                     } else {
-                        let expr = seed_to_expr(seed);
+                        let expr = seed_to_expr(seed, self.module_path.as_deref());
                         quote! { #expr }
                     }
                 }
@@ -541,7 +543,7 @@ impl VariantBuilder {
             .iter()
             .map(|seed| match seed {
                 ClassifiedSeed::Literal(_) | ClassifiedSeed::Constant { .. } => {
-                    let expr = seed_to_expr(seed);
+                    let expr = seed_to_expr(seed, self.module_path.as_deref());
                     quote! { #expr }
                 }
                 ClassifiedSeed::Passthrough(pass_expr) => {
@@ -556,7 +558,7 @@ impl VariantBuilder {
                             }
                         }
                     } else {
-                        let expr = seed_to_expr(seed);
+                        let expr = seed_to_expr(seed, self.module_path.as_deref());
                         quote! { #expr }
                     }
                 }
@@ -670,20 +672,122 @@ fn extract_seed_fields(seeds: &[ClassifiedSeed]) -> Vec<SeedFieldInfo> {
 }
 
 /// Convert a ClassifiedSeed to a token expression for inline code generation.
-fn seed_to_expr(seed: &ClassifiedSeed) -> TokenStream {
+/// Constants are qualified with `crate::` to ensure they're accessible.
+fn seed_to_expr(seed: &ClassifiedSeed, _module_path: Option<&str>) -> TokenStream {
     match seed {
         ClassifiedSeed::Literal(bytes) => {
             let byte_values: Vec<_> = bytes.iter().map(|b| quote!(#b)).collect();
             quote! { &[#(#byte_values),*] }
         }
-        ClassifiedSeed::Constant { expr, .. } => {
-            quote! { #expr }
+        ClassifiedSeed::Constant { path, expr } => {
+            // Qualify constant path with crate:: if not already qualified
+            let qualified_path = qualify_path_with_crate(path);
+            // Reconstruct the expression with the qualified path
+            reconstruct_expr_with_qualified_path(expr, path, &qualified_path)
         }
         ClassifiedSeed::Passthrough(expr) => {
             quote! { #expr }
         }
         _ => unreachable!("seed_to_expr called with non-inline seed"),
     }
+}
+
+/// Reserved constant names that conflict with Solana runtime.
+/// `A` is used by the BumpAllocator in Solana programs.
+const RESERVED_CONSTANT_NAMES: &[&str] = &["A"];
+
+/// Qualify a path with `crate::` if it's not already qualified.
+/// Panics if the path uses a reserved name like `A` (BumpAllocator).
+fn qualify_path_with_crate(path: &syn::Path) -> syn::Path {
+    // Check if already qualified (crate::, super::, self::, or external crate)
+    if let Some(first_segment) = path.segments.first() {
+        let first_ident = first_segment.ident.to_string();
+        if first_ident == "crate" || first_ident == "super" || first_ident == "self" {
+            return path.clone();
+        }
+        // Check for external crate paths (contains ::)
+        if path.segments.len() > 1 {
+            // Likely already qualified with module path
+            return path.clone();
+        }
+        // Check for reserved names that conflict with Solana runtime
+        if RESERVED_CONSTANT_NAMES.contains(&first_ident.as_str()) {
+            panic!(
+                "Seed constant '{}' is reserved (conflicts with Solana BumpAllocator). \
+                 Please rename your constant.",
+                first_ident
+            );
+        }
+    }
+    // Prepend crate:: to the path
+    let mut qualified = syn::Path {
+        leading_colon: None,
+        segments: syn::punctuated::Punctuated::new(),
+    };
+    qualified.segments.push(syn::PathSegment {
+        ident: format_ident!("crate"),
+        arguments: syn::PathArguments::None,
+    });
+    for segment in &path.segments {
+        qualified.segments.push(segment.clone());
+    }
+    qualified
+}
+
+/// Reconstruct an expression replacing the original path with a qualified one.
+fn reconstruct_expr_with_qualified_path(
+    expr: &syn::Expr,
+    original_path: &syn::Path,
+    qualified_path: &syn::Path,
+) -> TokenStream {
+    // If the expression is just a path, return the qualified path
+    if let syn::Expr::Path(expr_path) = expr {
+        if paths_equal(&expr_path.path, original_path) {
+            return quote! { #qualified_path };
+        }
+    }
+
+    // For method calls like CONSTANT.as_bytes(), replace the receiver
+    if let syn::Expr::MethodCall(method_call) = expr {
+        if let syn::Expr::Path(receiver_path) = method_call.receiver.as_ref() {
+            if paths_equal(&receiver_path.path, original_path) {
+                let method = &method_call.method;
+                let args = &method_call.args;
+                return quote! { #qualified_path.#method(#args) };
+            }
+        }
+        // Handle chained method calls like CONSTANT.as_bytes().as_ref()
+        let rewritten_receiver = reconstruct_expr_with_qualified_path(
+            &method_call.receiver,
+            original_path,
+            qualified_path,
+        );
+        let method = &method_call.method;
+        let args = &method_call.args;
+        return quote! { #rewritten_receiver.#method(#args) };
+    }
+
+    // For reference expressions like &CONSTANT
+    if let syn::Expr::Reference(ref_expr) = expr {
+        let rewritten_inner =
+            reconstruct_expr_with_qualified_path(&ref_expr.expr, original_path, qualified_path);
+        let mutability = &ref_expr.mutability;
+        return quote! { &#mutability #rewritten_inner };
+    }
+
+    // Fallback: return original expression
+    quote! { #expr }
+}
+
+/// Check if two paths are equal.
+fn paths_equal(a: &syn::Path, b: &syn::Path) -> bool {
+    if a.segments.len() != b.segments.len() {
+        return false;
+    }
+    a.segments
+        .iter()
+        .zip(b.segments.iter())
+        .all(|(seg_a, seg_b)| seg_a.ident == seg_b.ident)
 }
 
 /// Check if a DataRooted expression uses to_le_bytes (indicates numeric type).
@@ -747,88 +851,9 @@ fn rewrite_fn_call_for_self(
     }
 }
 
-/// Convert a snake_case identifier to PascalCase.
-fn to_pascal_case_ident(ident: &Ident) -> Ident {
-    let pascal = to_pascal_case(&ident.to_string());
-    format_ident!("{}", pascal)
-}
-
-/// Generate variant code for all PDA fields.
-pub(super) fn generate_variants(seed_specs: &[SeedSpec]) -> TokenStream {
-    let variants: Vec<_> = seed_specs
-        .iter()
-        .map(|spec| VariantBuilder::from_seed_spec(spec).build())
-        .collect();
-
-    quote! {
-        #(#variants)*
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use syn::parse_quote;
-
-    use super::*;
-    use crate::light_pdas::seeds::ClassifiedSeed;
-
-    #[test]
-    fn test_to_pascal_case_ident() {
-        let ident: Ident = parse_quote!(user_record);
-        let pascal = to_pascal_case_ident(&ident);
-        assert_eq!(pascal.to_string(), "UserRecord");
-
-        let ident2: Ident = parse_quote!(record);
-        let pascal2 = to_pascal_case_ident(&ident2);
-        assert_eq!(pascal2.to_string(), "Record");
-    }
-
-    #[test]
-    fn test_variant_builder_simple() {
-        let inner_type: Type = parse_quote!(UserRecord);
-        let seeds = vec![
-            ClassifiedSeed::Literal(b"user".to_vec()),
-            ClassifiedSeed::CtxRooted {
-                account: Ident::new("authority", proc_macro2::Span::call_site()),
-            },
-        ];
-
-        let spec = SeedSpec::new(parse_quote!(user_record), inner_type, seeds, false);
-        let builder = VariantBuilder::from_seed_spec(&spec);
-
-        assert_eq!(builder.variant_name.to_string(), "UserRecord");
-        assert_eq!(builder.seed_count, 3); // 2 seeds + 1 bump
-        assert_eq!(builder.seed_fields.len(), 1); // only account seed
-
-        let code = builder.build();
-        let code_str = code.to_string();
-
-        assert!(
-            code_str.contains("UserRecordSeeds"),
-            "Missing UserRecordSeeds: {}",
-            code_str
-        );
-        assert!(
-            code_str.contains("PackedUserRecordSeeds"),
-            "Missing PackedUserRecordSeeds: {}",
-            code_str
-        );
-        assert!(
-            code_str.contains("UserRecordVariant"),
-            "Missing UserRecordVariant: {}",
-            code_str
-        );
-        assert!(
-            code_str.contains("PackedUserRecordVariant"),
-            "Missing PackedUserRecordVariant: {}",
-            code_str
-        );
-        // Check for LightAccountVariantTrait impl - the spacing varies based on quote! output
-        assert!(
-            code_str.contains("LightAccountVariantTrait <")
-                || code_str.contains("LightAccountVariantTrait<"),
-            "Missing LightAccountVariantTrait impl: {}",
-            code_str
-        );
-    }
+/// Convert a PascalCase identifier to snake_case.
+fn to_snake_case_ident(ident: &Ident) -> Ident {
+    use crate::utils::to_snake_case;
+    let snake = to_snake_case(&ident.to_string());
+    format_ident!("{}", snake)
 }

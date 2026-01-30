@@ -39,6 +39,7 @@ fn codegen(
     crate_ctx: &crate::light_pdas::parsing::CrateContext,
     has_mint_fields: bool,
     has_ata_fields: bool,
+    pda_variant_code: TokenStream,
 ) -> Result<TokenStream> {
     let content = match module.content.as_mut() {
         Some(content) => content,
@@ -272,26 +273,6 @@ fn codegen(
     let _instruction_data_types: std::collections::HashMap<String, &syn::Type> = instruction_data
         .iter()
         .map(|spec| (spec.field_name.to_string(), &spec.field_type))
-        .collect();
-
-    // Generate pub use re-exports for per-field variant types from LightAccounts.
-    // These types are generated at crate root by #[derive(LightAccounts)] and need
-    // to be re-exported from the program module so tests/clients can access them.
-    let variant_reexports: Vec<TokenStream> = pda_ctx_seeds
-        .iter()
-        .flat_map(|info| {
-            let variant_name = &info.variant_name;
-            let seeds_name = format_ident!("{}Seeds", variant_name);
-            let packed_seeds_name = format_ident!("Packed{}Seeds", variant_name);
-            let variant_struct_name = format_ident!("{}Variant", variant_name);
-            let packed_variant_name = format_ident!("Packed{}Variant", variant_name);
-            vec![
-                quote! { pub use super::#seeds_name; },
-                quote! { pub use super::#packed_seeds_name; },
-                quote! { pub use super::#variant_struct_name; },
-                quote! { pub use super::#packed_variant_name; },
-            ]
-        })
         .collect();
 
     let seeds_structs_and_constructors: Vec<TokenStream> = if let Some(ref pda_seed_specs) =
@@ -606,11 +587,14 @@ fn codegen(
         }
     }
 
-    // Add pub use re-exports for per-field variant types from LightAccounts.
-    // These make {Field}Seeds, {Field}Variant, etc. accessible from the program module.
-    for reexport in variant_reexports {
-        let reexport_item: syn::Item = syn::parse2(reexport)?;
-        content.1.push(reexport_item);
+    // Insert PDA variant structs directly into the module.
+    // The variant code uses fully qualified paths (crate::CONSTANT) for all
+    // constant references, so no additional imports are needed.
+    if !pda_variant_code.is_empty() {
+        let wrapped: syn::File = syn::parse2(pda_variant_code)?;
+        for item in wrapped.items {
+            content.1.push(item);
+        }
     }
 
     content.1.push(Item::Verbatim(size_validation_checks));
@@ -804,6 +788,14 @@ pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<Tok
         }
     }
 
+    // Generate PDA variant structs using existing VariantBuilder
+    let pda_variant_code: TokenStream = pda_specs
+        .iter()
+        .map(|spec| {
+            crate::light_pdas::accounts::variant::VariantBuilder::from_extracted_spec(spec).build()
+        })
+        .collect();
+
     // Convert extracted specs to the format expected by codegen
     // Check for duplicate field names - each compressible field must have a unique name
     let mut found_pda_seeds: Vec<TokenSeedSpec> = Vec::new();
@@ -915,5 +907,6 @@ pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<Tok
         &crate_ctx,
         has_any_mint_fields,
         has_any_ata_fields,
+        pda_variant_code,
     )
 }

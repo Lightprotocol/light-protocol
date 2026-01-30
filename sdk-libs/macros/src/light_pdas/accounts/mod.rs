@@ -22,7 +22,7 @@ pub(crate) mod parse;
 mod pda;
 mod token;
 mod validation;
-mod variant;
+pub(crate) mod variant;
 
 use proc_macro2::TokenStream;
 use syn::DeriveInput;

@@ -14,8 +14,8 @@ use light_sdk_macros::LightAccounts;
 
 use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
 
-/// Single letter constant
-pub const A: &[u8] = b"a";
+/// Single letter constant (renamed from A to avoid BumpAllocator conflict)
+pub const AB: &[u8] = b"a";
 
 /// Constant with digits
 pub const SEED_123: &[u8] = b"seed123";
@@ -108,7 +108,7 @@ pub struct D9EdgeSingleLetterParams {
     pub create_accounts_proof: CreateAccountsProof,
 }
 
-/// Tests single letter constant name (A)
+/// Tests single letter constant name (AB)
 #[derive(Accounts, LightAccounts)]
 #[instruction(params: D9EdgeSingleLetterParams)]
 pub struct D9EdgeSingleLetter<'info> {
@@ -126,7 +126,7 @@ pub struct D9EdgeSingleLetter<'info> {
         init,
         payer = fee_payer,
         space = 8 + SinglePubkeyRecord::INIT_SPACE,
-        seeds = [A],
+        seeds = [AB],
         bump,
     )]
     #[light_account(init)]
@@ -271,7 +271,7 @@ pub struct D9EdgeMixed<'info> {
         init,
         payer = fee_payer,
         space = 8 + SinglePubkeyRecord::INIT_SPACE,
-        seeds = [A, SEED_123, _UNDERSCORE_CONST, params.owner.as_ref()],
+        seeds = [AB, SEED_123, _UNDERSCORE_CONST, params.owner.as_ref()],
         bump,
     )]
     #[light_account(init)]

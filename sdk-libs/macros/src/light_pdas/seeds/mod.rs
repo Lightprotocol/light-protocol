@@ -1,9 +1,8 @@
 //! Unified seed classification and extraction for Light Protocol macros.
 //!
 //! This module provides:
-//! - **Types**: `ClassifiedSeed`, `ClassifiedFnArg`, `FnArgKind`, `SeedSpec`
+//! - **Types**: `ClassifiedSeed`, `ClassifiedFnArg`, `FnArgKind`
 //! - **Classification**: `classify_seed_expr()` for classifying individual seeds
-//! - **Extraction**: `extract_seed_specs()` for parsing Accounts structs
 //! - **Anchor**: `extract_anchor_seeds()` for extracting seeds from #[account(...)] attributes
 //! - **Data Fields**: `get_data_fields()`, `extract_data_field_info()` for data field extraction
 //! - **InstructionArgSet**: Canonical type for instruction argument name tracking
@@ -13,17 +12,6 @@
 //! The `parsing/` module provides unified struct parsing and re-exports `InstructionArgSet`
 //! from this module. The classification types (`ClassifiedSeed`, etc.) remain here as the
 //! canonical location for seed classification logic.
-//!
-//! # Example
-//!
-//! ```ignore
-//! use crate::light_pdas::seeds::{extract_seed_specs, SeedSpec, ClassifiedSeed};
-//!
-//! let specs = extract_seed_specs(&item_struct)?;
-//! for spec in &specs {
-//!     println!("Field: {}, Seeds: {}", spec.field_name, spec.seed_count());
-//! }
-//! ```
 
 pub(crate) mod anchor_extraction;
 pub(crate) mod classification;
@@ -38,10 +26,10 @@ pub use data_fields::{
     get_params_only_seed_fields_from_spec,
 };
 // Re-export from extract
-pub use extract::{extract_account_inner_type, extract_from_accounts_struct, extract_seed_specs};
+pub use extract::{extract_account_inner_type, extract_from_accounts_struct};
 // Re-export from instruction_args
 pub use instruction_args::InstructionArgSet;
 // Re-export from types - public API
 pub use types::{
-    ClassifiedFnArg, ClassifiedSeed, ExtractedSeedSpec, ExtractedTokenSpec, FnArgKind, SeedSpec,
+    ClassifiedFnArg, ClassifiedSeed, ExtractedSeedSpec, ExtractedTokenSpec, FnArgKind,
 };

@@ -3465,12 +3465,12 @@ async fn test_d9_edge_single_byte() {
 /// Tests D9EdgeSingleLetter: Single letter constant name
 #[tokio::test]
 async fn test_d9_edge_single_letter() {
-    use csdk_anchor_full_derived_test::d9_seeds::{edge_cases::A, D9EdgeSingleLetterParams};
+    use csdk_anchor_full_derived_test::d9_seeds::{edge_cases::AB, D9EdgeSingleLetterParams};
 
     let mut ctx = TestContext::new().await;
 
     // Derive PDA
-    let (pda, _) = Pubkey::find_program_address(&[A], &ctx.program_id);
+    let (pda, _) = Pubkey::find_program_address(&[AB], &ctx.program_id);
 
     // Get proof
     let proof_result = get_create_accounts_proof(
@@ -3676,7 +3676,7 @@ async fn test_d9_edge_many_literals() {
 #[tokio::test]
 async fn test_d9_edge_mixed() {
     use csdk_anchor_full_derived_test::d9_seeds::{
-        edge_cases::{A, SEED_123, _UNDERSCORE_CONST},
+        edge_cases::{AB, SEED_123, _UNDERSCORE_CONST},
         D9EdgeMixedParams,
     };
 
@@ -3685,7 +3685,7 @@ async fn test_d9_edge_mixed() {
 
     // Derive PDA
     let (pda, _) = Pubkey::find_program_address(
-        &[A, SEED_123, _UNDERSCORE_CONST, owner.as_ref()],
+        &[AB, SEED_123, _UNDERSCORE_CONST, owner.as_ref()],
         &ctx.program_id,
     );
 

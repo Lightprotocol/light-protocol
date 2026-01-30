@@ -9,9 +9,7 @@ use super::{
     anchor_extraction::extract_anchor_seeds,
     classification::classify_seed_expr,
     instruction_args::InstructionArgSet,
-    types::{
-        ClassifiedSeed, ExtractedAccountsInfo, ExtractedSeedSpec, ExtractedTokenSpec, SeedSpec,
-    },
+    types::{ClassifiedSeed, ExtractedAccountsInfo, ExtractedSeedSpec, ExtractedTokenSpec},
 };
 use crate::{
     light_pdas::{
@@ -95,59 +93,6 @@ pub fn extract_account_inner_type(ty: &Type) -> Result<(bool, Type), AccountType
         }
         _ => Err(AccountTypeError::WrongType { got: type_name(ty) }),
     }
-}
-
-// =============================================================================
-// LIGHT ACCOUNT TYPE DETECTION
-// =============================================================================
-
-/// Check if a field has `#[light_account(init)]` attribute (PDA type).
-///
-/// Returns `(is_pda, is_zero_copy)`.
-pub fn check_light_account_init(attrs: &[syn::Attribute]) -> (bool, bool) {
-    for attr in attrs {
-        if attr.path().is_ident("light_account") {
-            let tokens = match &attr.meta {
-                syn::Meta::List(list) => list.tokens.clone(),
-                _ => continue,
-            };
-
-            let token_vec: Vec<_> = tokens.into_iter().collect();
-
-            // Check for namespace prefixes (mint::, token::, associated_token::)
-            let has_namespace_prefix = |namespace: &str| {
-                token_vec.windows(2).any(|window| {
-                    matches!(
-                        (&window[0], &window[1]),
-                        (
-                            proc_macro2::TokenTree::Ident(ident),
-                            proc_macro2::TokenTree::Punct(punct)
-                        ) if ident == namespace && punct.as_char() == ':'
-                    )
-                })
-            };
-
-            let has_mint = has_namespace_prefix("mint");
-            let has_token = has_namespace_prefix("token");
-            let has_ata = has_namespace_prefix("associated_token");
-
-            // Check for init keyword
-            let has_init = token_vec
-                .iter()
-                .any(|t| matches!(t, proc_macro2::TokenTree::Ident(ident) if ident == "init"));
-
-            // Check for zero_copy keyword
-            let has_zero_copy = token_vec
-                .iter()
-                .any(|t| matches!(t, proc_macro2::TokenTree::Ident(ident) if ident == "zero_copy"));
-
-            // Only return true for plain init (no namespace prefix)
-            if has_init && !has_mint && !has_token && !has_ata {
-                return (true, has_zero_copy);
-            }
-        }
-    }
-    (false, false)
 }
 
 /// Check #[light_account(...)] attributes for PDA, mint, token, or ATA type.
@@ -474,45 +419,6 @@ fn validate_owner_seeds_are_constants(seeds: &[ClassifiedSeed]) -> syn::Result<(
 // MAIN EXTRACTION FUNCTIONS
 // =============================================================================
 
-/// Extract all PDA seed specs from an Accounts struct.
-///
-/// Returns a vector of `SeedSpec` for each field with `#[light_account(init)]`.
-pub fn extract_seed_specs(item: &ItemStruct) -> syn::Result<Vec<SeedSpec>> {
-    let fields = match &item.fields {
-        syn::Fields::Named(named) => &named.named,
-        _ => return Ok(Vec::new()),
-    };
-
-    // Parse instruction args from struct attributes
-    let instruction_args = crate::light_pdas::parsing::parse_instruction_arg_names(&item.attrs)?;
-
-    let mut specs = Vec::new();
-
-    for field in fields {
-        let field_ident = match &field.ident {
-            Some(id) => id.clone(),
-            None => continue,
-        };
-
-        // Check for #[light_account(init)]
-        let (is_pda, is_zero_copy) = check_light_account_init(&field.attrs);
-        if !is_pda {
-            continue;
-        }
-
-        // Extract inner type
-        let (_, inner_type) =
-            extract_account_inner_type(&field.ty).map_err(|e| e.into_syn_error(&field.ty))?;
-
-        // Extract seeds using the anchor extraction
-        let seeds = extract_anchor_seeds(&field.attrs, &instruction_args)?;
-
-        specs.push(SeedSpec::new(field_ident, inner_type, seeds, is_zero_copy));
-    }
-
-    Ok(specs)
-}
-
 /// Extract light account field info from an Accounts struct.
 ///
 /// This is the main extraction function used by `#[light_program]` that returns
@@ -697,32 +603,6 @@ mod tests {
     }
 
     #[test]
-    fn test_check_light_account_init() {
-        let attrs: Vec<syn::Attribute> = vec![parse_quote!(#[light_account(init)])];
-        let (is_pda, is_zero_copy) = check_light_account_init(&attrs);
-        assert!(is_pda);
-        assert!(!is_zero_copy);
-    }
-
-    #[test]
-    fn test_check_light_account_init_zero_copy() {
-        let attrs: Vec<syn::Attribute> = vec![parse_quote!(#[light_account(init, zero_copy)])];
-        let (is_pda, is_zero_copy) = check_light_account_init(&attrs);
-        assert!(is_pda);
-        assert!(is_zero_copy);
-    }
-
-    #[test]
-    fn test_check_light_account_init_mint_namespace() {
-        // mint:: namespace should NOT be detected as PDA
-        let attrs: Vec<syn::Attribute> = vec![parse_quote!(
-            #[light_account(init, mint::authority = authority)]
-        )];
-        let (is_pda, _) = check_light_account_init(&attrs);
-        assert!(!is_pda);
-    }
-
-    #[test]
     fn test_check_light_account_type_mint_namespace() {
         // Test that mint:: namespace is detected correctly
         let attrs: Vec<syn::Attribute> = vec![parse_quote!(
@@ -750,24 +630,6 @@ mod tests {
         assert!(!has_mint, "Should NOT be detected as mint");
         assert!(!has_ata, "Should NOT be detected as ATA");
         assert!(!has_zero_copy, "Should NOT be detected as zero_copy");
-    }
-
-    #[test]
-    fn test_extract_seed_specs() {
-        let item: syn::ItemStruct = parse_quote!(
-            #[derive(Accounts)]
-            pub struct Test<'info> {
-                #[account(init, seeds = [b"pda"], bump)]
-                #[light_account(init)]
-                pub account: Account<'info, MyType>,
-            }
-        );
-
-        let specs = extract_seed_specs(&item).expect("should extract");
-        assert_eq!(specs.len(), 1);
-        assert_eq!(specs[0].field_name.to_string(), "account");
-        assert_eq!(specs[0].seeds.len(), 1);
-        assert!(matches!(specs[0].seeds[0], ClassifiedSeed::Literal(_)));
     }
 
     #[test]
@@ -805,60 +667,5 @@ mod tests {
         assert_eq!(info.pda_fields[0].seeds.len(), 2);
         assert!(!info.has_light_mint_fields);
         assert!(!info.has_light_ata_fields);
-    }
-
-    #[test]
-    fn test_full_extraction_create_example() {
-        // Full pipeline test with the example from issue
-        let item: syn::ItemStruct = parse_quote!(
-            #[derive(Accounts, LightAccounts)]
-            #[instruction(params: CreateParams)]
-            pub struct Create<'info> {
-                #[account(mut)]
-                pub fee_payer: Signer<'info>,
-
-                #[account(
-                    init,
-                    payer = fee_payer,
-                    space = 100,
-                    seeds = [b"user", SEED_PREFIX, authority.key().as_ref(), params.owner.as_ref()],
-                    bump
-                )]
-                #[light_account(init)]
-                pub user_record: Account<'info, UserRecord>,
-            }
-        );
-
-        // Step 1: Parse instruction args from struct attributes
-        let instruction_args = crate::light_pdas::parsing::parse_instruction_arg_names(&item.attrs)
-            .expect("should parse instruction args");
-        assert!(instruction_args.contains("params"));
-
-        // Step 2: Use full extraction
-        let specs = extract_seed_specs(&item).expect("should extract seed specs");
-        assert_eq!(specs.len(), 1, "Should have one PDA field");
-
-        let spec = &specs[0];
-        assert_eq!(spec.field_name.to_string(), "user_record");
-        assert!(!spec.is_zero_copy);
-        assert_eq!(spec.seeds.len(), 4, "Should have 4 seeds");
-
-        // Verify seed classification
-        assert!(
-            matches!(spec.seeds[0], ClassifiedSeed::Literal(_)),
-            "Seed 0: Literal b\"user\""
-        );
-        assert!(
-            matches!(spec.seeds[1], ClassifiedSeed::Constant { .. }),
-            "Seed 1: Constant SEED_PREFIX"
-        );
-        assert!(
-            matches!(spec.seeds[2], ClassifiedSeed::CtxRooted { .. }),
-            "Seed 2: CtxRooted authority"
-        );
-        assert!(
-            matches!(spec.seeds[3], ClassifiedSeed::DataRooted { .. }),
-            "Seed 3: DataRooted params.owner"
-        );
     }
 }
