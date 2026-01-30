@@ -137,6 +137,12 @@ mod anchor_traits {
         /// Returns extension instruction data if the token account has extensions.
         /// Only meaningful for token account variants; PDA variants return `None`.
         fn into_in_tlv(&self) -> Result<Option<Vec<ExtensionInstructionData>>>;
+
+        /// Derive the owner pubkey from constant owner_seeds and program ID.
+        /// Only meaningful for token account variants; PDA variants return default.
+        fn derive_owner(&self) -> Pubkey {
+            Pubkey::default()
+        }
     }
 
     /// Trait for unpacked token seed structs.
@@ -169,6 +175,9 @@ mod anchor_traits {
             accounts: &'a [AccountInfo],
             bump_storage: &'a [u8; 1],
         ) -> std::result::Result<[&'a [u8]; N], ProgramError>;
+
+        /// Derive the owner pubkey from constant owner_seeds and program ID.
+        fn derive_owner(&self) -> Pubkey;
     }
 }
 

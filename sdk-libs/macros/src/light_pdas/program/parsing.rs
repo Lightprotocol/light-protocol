@@ -324,7 +324,7 @@ pub fn convert_classified_to_seed_elements(
                     SeedElement::Expression(Box::new(expr))
                 }
             }
-            ClassifiedSeed::Constant { path, .. } => {
+            ClassifiedSeed::Constant { path, expr } => {
                 // Single-segment bare constant names (e.g., POOL_SEED, A) need to be
                 // fully qualified because the generated code lives in the program module,
                 // not where the Accounts struct is defined.
@@ -340,8 +340,11 @@ pub fn convert_classified_to_seed_elements(
                 // - Already qualified: crate::state::CONSTANT
                 // - External crate paths: light_sdk_types::constants::X
                 // - Self-qualified: self::CONSTANT
+                //
+                // Important: We must preserve any trailing method calls (e.g., .as_bytes())
+                // from the original expression.
                 let is_single_segment = path.segments.len() == 1;
-                let expr: Expr = if is_single_segment {
+                let qualified_expr: Expr = if is_single_segment {
                     let const_name = path.segments[0].ident.to_string();
                     let resolved = crate_ctx
                         .find_const_module_path(&const_name)
@@ -349,11 +352,13 @@ pub fn convert_classified_to_seed_elements(
                         .unwrap_or("crate");
                     let mod_path: syn::Path =
                         syn::parse_str(resolved).unwrap_or_else(|_| syn::parse_quote!(crate));
-                    syn::parse_quote!(#mod_path::#path)
+                    // Qualify the constant in the expression, preserving method calls
+                    qualify_constant_in_expr(expr, &mod_path, path)
                 } else {
-                    syn::parse_quote!(#path)
+                    // Multi-segment paths: use expr as-is
+                    (**expr).clone()
                 };
-                SeedElement::Expression(Box::new(expr))
+                SeedElement::Expression(Box::new(qualified_expr))
             }
             ClassifiedSeed::CtxRooted { account, .. } => {
                 // Generate simplified ctx.account expression
@@ -398,6 +403,37 @@ pub fn convert_classified_to_seed_elements(
         result.push(elem);
     }
     result
+}
+
+/// Qualify a constant in an expression, preserving any trailing method calls.
+///
+/// For example, `AUTH_SEED.as_bytes()` with `mod_path = crate` becomes `crate::AUTH_SEED.as_bytes()`.
+fn qualify_constant_in_expr(expr: &Expr, mod_path: &syn::Path, const_path: &syn::Path) -> Expr {
+    match expr {
+        Expr::MethodCall(method_call) => {
+            // Recursively qualify the receiver, then rebuild the method call
+            let qualified_receiver =
+                qualify_constant_in_expr(&method_call.receiver, mod_path, const_path);
+            Expr::MethodCall(syn::ExprMethodCall {
+                attrs: method_call.attrs.clone(),
+                receiver: Box::new(qualified_receiver),
+                dot_token: method_call.dot_token,
+                method: method_call.method.clone(),
+                turbofish: method_call.turbofish.clone(),
+                paren_token: method_call.paren_token,
+                args: method_call.args.clone(),
+            })
+        }
+        Expr::Path(_) => {
+            // This is the constant itself - qualify it
+            syn::parse_quote!(#mod_path::#const_path)
+        }
+        _ => {
+            // For other expression types, just use the qualified constant
+            // (shouldn't normally happen for constant seeds)
+            syn::parse_quote!(#mod_path::#const_path)
+        }
+    }
 }
 
 /// Rewrite a FunctionCall expression's arguments for the program scope.

@@ -306,6 +306,35 @@ impl<'a> LightVariantBuilder<'a> {
                     .map(seed_to_packed_ref)
                     .collect();
 
+                // --- Owner derivation from owner_seeds (constants only) ---
+                let owner_derivation = if let Some(owner_seeds) = &spec.owner_seeds {
+                    let owner_seed_refs: Vec<_> = owner_seeds
+                        .iter()
+                        .map(|seed| {
+                            match seed {
+                                SeedElement::Literal(lit) => {
+                                    let value = lit.value();
+                                    quote! { #value.as_bytes() }
+                                }
+                                SeedElement::Expression(expr) => {
+                                    // For constants like AUTH_SEED.as_bytes()
+                                    quote! { { let __seed: &[u8] = (#expr).as_ref(); __seed } }
+                                }
+                            }
+                        })
+                        .collect();
+                    quote! {
+                        let (__owner, _) = solana_pubkey::Pubkey::find_program_address(
+                            &[#(#owner_seed_refs),*],
+                            &crate::ID,
+                        );
+                        __owner
+                    }
+                } else {
+                    // No owner_seeds - return default (shouldn't happen for token accounts)
+                    quote! { solana_pubkey::Pubkey::default() }
+                };
+
                 quote! {
                     impl light_sdk::interface::UnpackedTokenSeeds<#seed_count>
                         for #seeds_name
@@ -337,6 +366,10 @@ impl<'a> LightVariantBuilder<'a> {
                             bump_storage: &'a [u8; 1],
                         ) -> std::result::Result<[&'a [u8]; #seed_count], solana_program_error::ProgramError> {
                             Ok([#(#packed_seed_ref_items,)* bump_storage])
+                        }
+
+                        fn derive_owner(&self) -> solana_pubkey::Pubkey {
+                            #owner_derivation
                         }
                     }
                 }

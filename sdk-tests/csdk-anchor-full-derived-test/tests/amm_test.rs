@@ -29,7 +29,7 @@ use light_token::instruction::{
     find_mint_address, get_associated_token_address_and_bump, LIGHT_TOKEN_CONFIG,
     LIGHT_TOKEN_CPI_AUTHORITY, LIGHT_TOKEN_PROGRAM_ID, LIGHT_TOKEN_RENT_SPONSOR,
 };
-use light_token_interface::state::Token;
+use light_token_interface::state::token::{AccountState, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT};
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -582,6 +582,74 @@ async fn test_amm_full_lifecycle() {
     assert_eq!(
         lp_token_after_decompression.amount, expected_balance_after_withdraw,
         "LP token balance should be preserved after decompression"
+    );
+
+    // Verify token account owners after decompression using full struct comparison
+    let token_0_vault_data = parse_token(
+        &ctx.rpc
+            .get_account(pdas.token_0_vault)
+            .await
+            .unwrap()
+            .unwrap()
+            .data,
+    );
+    let expected_token_0_vault = Token {
+        mint: ctx.token_0_mint.into(),
+        owner: pdas.authority.into(),
+        amount: 0,
+        delegate: None,
+        state: AccountState::Initialized,
+        is_native: None,
+        delegated_amount: 0,
+        close_authority: None,
+        account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
+        extensions: token_0_vault_data.extensions.clone(),
+    };
+    assert_eq!(
+        token_0_vault_data, expected_token_0_vault,
+        "token_0_vault should match expected after decompression"
+    );
+
+    let token_1_vault_data = parse_token(
+        &ctx.rpc
+            .get_account(pdas.token_1_vault)
+            .await
+            .unwrap()
+            .unwrap()
+            .data,
+    );
+    let expected_token_1_vault = Token {
+        mint: ctx.token_1_mint.into(),
+        owner: pdas.authority.into(),
+        amount: 0,
+        delegate: None,
+        state: AccountState::Initialized,
+        is_native: None,
+        delegated_amount: 0,
+        close_authority: None,
+        account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
+        extensions: token_1_vault_data.extensions.clone(),
+    };
+    assert_eq!(
+        token_1_vault_data, expected_token_1_vault,
+        "token_1_vault should match expected after decompression"
+    );
+
+    let expected_creator_lp_token = Token {
+        mint: pdas.lp_mint.into(),
+        owner: ctx.creator.pubkey().into(),
+        amount: expected_balance_after_withdraw,
+        delegate: None,
+        state: AccountState::Initialized,
+        is_native: None,
+        delegated_amount: 0,
+        close_authority: None,
+        account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
+        extensions: lp_token_after_decompression.extensions.clone(),
+    };
+    assert_eq!(
+        lp_token_after_decompression, expected_creator_lp_token,
+        "creator_lp_token should match expected after decompression"
     );
 
     // Verify compressed token accounts

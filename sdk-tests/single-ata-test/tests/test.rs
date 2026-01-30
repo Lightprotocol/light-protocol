@@ -169,17 +169,27 @@ async fn test_create_single_ata() {
         .unwrap()
         .expect("ATA should exist on-chain");
 
-    // Parse and verify token data
-    use light_token_interface::state::Token;
+    // Parse and verify token data using full struct comparison
+    use light_token_interface::state::token::{AccountState, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT};
     let token: Token = borsh::BorshDeserialize::deserialize(&mut &ata_account.data[..])
         .expect("Failed to deserialize Token");
 
-    // Verify owner
-    assert_eq!(token.owner, ata_owner.to_bytes(), "ATA owner should match");
+    // Build expected token for full comparison
+    let expected_token = Token {
+        mint: mint.to_bytes().into(),
+        owner: ata_owner.to_bytes().into(),
+        amount: 0,
+        delegate: None,
+        state: AccountState::Initialized,
+        is_native: None,
+        delegated_amount: 0,
+        close_authority: None,
+        account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
+        extensions: token.extensions.clone(), // Use actual extensions
+    };
 
-    // Verify mint
-    assert_eq!(token.mint, mint.to_bytes(), "ATA mint should match");
-
-    // Verify initial amount is 0
-    assert_eq!(token.amount, 0, "ATA amount should be 0 initially");
+    assert_eq!(
+        token, expected_token,
+        "ATA should match expected after creation"
+    );
 }

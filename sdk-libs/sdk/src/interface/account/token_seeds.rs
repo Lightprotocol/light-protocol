@@ -253,4 +253,8 @@ where
             .as_ref()
             .map(|ext| vec![ExtensionInstructionData::CompressedOnly(*ext)]))
     }
+
+    fn derive_owner(&self) -> Pubkey {
+        self.seeds.derive_owner()
+    }
 }

@@ -24,7 +24,7 @@ where
         .cpi_accounts
         .packed_accounts()
         .map_err(|_| ProgramError::NotEnoughAccountKeys)?;
-    let mut token_data = packed.into_in_token_data(tree_info, output_queue_index)?;
+    let token_data = packed.into_in_token_data(tree_info, output_queue_index)?;
 
     // Get TLV extension early to detect ATA
     let in_tlv: Option<Vec<ExtensionInstructionData>> = packed.into_in_tlv()?;
@@ -85,10 +85,6 @@ where
             anchor_lang::solana_program::program::invoke(&instruction, ctx.remaining_accounts)?;
         }
 
-        // For ATAs, the wallet owner must sign the Transfer2 instruction (not the ATA pubkey).
-        // Override token_data.owner to point to the wallet owner index.
-        token_data.owner = wallet_owner_index;
-
         // Don't extend token_seeds for ATAs (invoke, not invoke_signed)
     } else {
         // Regular token vault path: use invoke_signed with PDA seeds
@@ -103,18 +99,15 @@ where
             .seed_refs_with_bump(packed_accounts, bump)
             .map_err(|_| ProgramError::InvalidSeeds)?;
 
-        // Resolve owner pubkey from packed index
-        let owner_pubkey = packed_accounts
-            .get(token_data.owner as usize)
-            .ok_or(ProgramError::InvalidAccountData)?
-            .key;
+        // Derive owner pubkey from constant owner_seeds
+        let owner = packed.derive_owner();
 
         let signer_seeds: Vec<&[u8]> = seeds.iter().copied().collect();
 
         let instruction = build_create_token_account_instruction(
             token_account_info.key,
             mint_pubkey,
-            owner_pubkey,
+            &owner,
             fee_payer.key,
             ctx.ctoken_compressible_config.key,
             ctx.ctoken_rent_sponsor.key,
