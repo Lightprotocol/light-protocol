@@ -10,7 +10,9 @@ import {
     createAccount,
     createAccountWithLamports,
     deriveAddress,
+    deriveAddressLegacy,
     deriveAddressSeed,
+    deriveAddressSeedLegacy,
     featureFlags,
     getDefaultAddressTreeInfo,
     selectStateTreeInfo,
@@ -147,12 +149,14 @@ describe('rpc-interop', () => {
         'getValidityProof [noforester] (new-addresses) should match',
         async () => {
             const newAddressSeeds = [new Uint8Array(randomBytes(32))];
-            const newAddressSeed = deriveAddressSeed(
+            const newAddressSeed = deriveAddressSeedLegacy(
                 newAddressSeeds,
                 LightSystemProgram.programId,
             );
 
-            const newAddress = bn(deriveAddress(newAddressSeed).toBuffer());
+            const newAddress = bn(
+                deriveAddressLegacy(newAddressSeed).toBuffer(),
+            );
 
             /// consistent proof metadata for same address
             const validityProof = await rpc.getValidityProof([], [newAddress]);
@@ -230,11 +234,13 @@ describe('rpc-interop', () => {
             assert.isTrue(hash.eq(hashTest));
 
             const newAddressSeeds = [new Uint8Array(randomBytes(32))];
-            const newAddressSeed = deriveAddressSeed(
+            const newAddressSeed = deriveAddressSeedLegacy(
                 newAddressSeeds,
                 LightSystemProgram.programId,
             );
-            const newAddress = bn(deriveAddress(newAddressSeed).toBytes());
+            const newAddress = bn(
+                deriveAddressLegacy(newAddressSeed).toBytes(),
+            );
 
             const validityProof = await rpc.getValidityProof(
                 [hash],
@@ -343,14 +349,22 @@ describe('rpc-interop', () => {
 
     /// This assumes support for getMultipleNewAddressProofs in Photon.
     it('getMultipleNewAddressProofs [noforester] should match', async () => {
-        const newAddress = bn(
-            deriveAddress(
-                deriveAddressSeed(
-                    [new Uint8Array(randomBytes(32))],
-                    LightSystemProgram.programId,
-                ),
-            ).toBytes(),
-        );
+        const addressTreeInfo = getDefaultAddressTreeInfo();
+        const seed = new Uint8Array(randomBytes(32));
+        const newAddress = featureFlags.isV2()
+            ? bn(
+                  deriveAddress(
+                      deriveAddressSeed([seed]),
+                      addressTreeInfo.tree,
+                      LightSystemProgram.programId,
+                  ).toBytes(),
+              )
+            : bn(
+                  deriveAddress(
+                      deriveAddressSeed([seed], LightSystemProgram.programId),
+                      addressTreeInfo.tree,
+                  ).toBytes(),
+              );
         const newAddressProof = (
             await rpc.getMultipleNewAddressProofs([newAddress])
         )[0];
@@ -494,6 +508,9 @@ describe('rpc-interop', () => {
     );
 
     it('getCompressedAccountsByOwner should match', async () => {
+        // Wait for Photon indexer to catch up with all prior transactions
+        await sleep(3000);
+
         const senderAccounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
@@ -702,9 +719,12 @@ describe('rpc-interop', () => {
         '[test-rpc missing] getCompressionSignaturesForAddress should work',
         async () => {
             const seeds = [new Uint8Array(randomBytes(32))];
-            const seed = deriveAddressSeed(seeds, LightSystemProgram.programId);
+            const seed = deriveAddressSeedLegacy(
+                seeds,
+                LightSystemProgram.programId,
+            );
             const addressTreeInfo = getDefaultAddressTreeInfo();
-            const address = deriveAddress(seed, addressTreeInfo.tree);
+            const address = deriveAddressLegacy(seed, addressTreeInfo.tree);
 
             await createAccount(
                 rpc,
@@ -747,10 +767,13 @@ describe('rpc-interop', () => {
         '[test-rpc missing] getCompressedAccount with address param should work ',
         async () => {
             const seeds = [new Uint8Array(randomBytes(32))];
-            const seed = deriveAddressSeed(seeds, LightSystemProgram.programId);
+            const seed = deriveAddressSeedLegacy(
+                seeds,
+                LightSystemProgram.programId,
+            );
 
             const addressTreeInfo = getDefaultAddressTreeInfo();
-            const address = deriveAddress(seed, addressTreeInfo.tree);
+            const address = deriveAddressLegacy(seed, addressTreeInfo.tree);
 
             await createAccount(
                 rpc,

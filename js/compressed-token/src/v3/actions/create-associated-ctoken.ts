@@ -8,6 +8,7 @@ import {
     Rpc,
     buildAndSignTx,
     sendAndConfirmTx,
+    assertBetaEnabled,
 } from '@lightprotocol/stateless.js';
 import {
     createAssociatedCTokenAccountInstruction,
@@ -39,6 +40,8 @@ export async function createAssociatedCTokenAccount(
     rentPayerPda?: PublicKey,
     confirmOptions?: ConfirmOptions,
 ): Promise<PublicKey> {
+    assertBetaEnabled();
+
     const ix = createAssociatedCTokenAccountInstruction(
         payer.publicKey,
         owner,
@@ -84,6 +87,8 @@ export async function createAssociatedCTokenAccountIdempotent(
     rentPayerPda?: PublicKey,
     confirmOptions?: ConfirmOptions,
 ): Promise<PublicKey> {
+    assertBetaEnabled();
+
     const ix = createAssociatedCTokenAccountIdempotentInstruction(
         payer.publicKey,
         owner,

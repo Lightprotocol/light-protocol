@@ -9,10 +9,11 @@ export enum VERSION {
 }
 
 /**
-/**
  * @internal
  * Feature flags. Only use if you know what you are doing.
  */
+let _betaEnabled = true; // Default to enabled for beta releases
+
 export const featureFlags = {
     version: ((): VERSION => {
         // Check if we're in a build environment (replaced by rollup)
@@ -32,7 +33,68 @@ export const featureFlags = {
     })(),
     isV2: () =>
         featureFlags.version.replace(/['"]/g, '').toUpperCase() === 'V2',
+    /**
+     * Beta flag for interface methods (not yet deployed on mainnet).
+     * Checks programmatic override first, then env var LIGHT_PROTOCOL_BETA.
+     */
+    isBeta: (): boolean => {
+        if (_betaEnabled) {
+            return true;
+        }
+        if (
+            typeof process !== 'undefined' &&
+            process.env?.LIGHT_PROTOCOL_BETA
+        ) {
+            const val = process.env.LIGHT_PROTOCOL_BETA.toLowerCase();
+            return val === 'true' || val === '1';
+        }
+        return false;
+    },
+    /**
+     * Enable beta features programmatically.
+     * Call this once at app initialization to unlock interface methods.
+     *
+     * @example
+     * ```typescript
+     * import { featureFlags } from '@lightprotocol/stateless.js';
+     * featureFlags.enableBeta();
+     * ```
+     */
+    enableBeta: (): void => {
+        _betaEnabled = true;
+    },
+    /**
+     * Disable beta features programmatically.
+     */
+    disableBeta: (): void => {
+        _betaEnabled = false;
+    },
 };
+
+/**
+ * Error message for beta-gated interface methods.
+ */
+export const BETA_REQUIRED_ERROR =
+    'Interface methods require beta feature flag. ' +
+    'These features are not yet deployed on mainnet (only localnet/devnet). ' +
+    'Set LIGHT_PROTOCOL_BETA=true to enable.';
+
+/**
+ * Assert that beta features are enabled.
+ * Throws if V2 is not enabled OR if beta is not enabled.
+ *
+ * Use this at the entry point of all interface methods.
+ */
+export function assertBetaEnabled(): void {
+    if (!featureFlags.isV2()) {
+        throw new Error(
+            'Interface methods require V2. Set LIGHT_PROTOCOL_VERSION=V2.',
+        );
+    }
+    if (!featureFlags.isBeta()) {
+        throw new Error(BETA_REQUIRED_ERROR);
+    }
+}
 
 /**
  * Returns the correct endpoint name for the current API version. E.g.

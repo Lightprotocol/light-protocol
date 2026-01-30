@@ -13,8 +13,8 @@ import { downloadBinIfNotExists } from "../psp-utils";
 import {
   confirmRpcReadiness,
   confirmServerStability,
-  executeCommand,
   killProcess,
+  spawnBinary,
   waitForServers,
 } from "./process";
 import { killProver, startProver } from "./processProverServer";
@@ -456,10 +456,11 @@ export async function startTestValidator({
     solanaArgs.push(...validatorArgs.split(" "));
   }
   console.log("Starting test validator...");
-  await executeCommand({
-    command,
-    args: [...solanaArgs],
-  });
+  // Use spawnBinary instead of executeCommand to properly detach the process.
+  // This ensures the validator survives when the CLI exits (executeCommand uses
+  // piped stdio which causes SIGPIPE when parent exits).
+  // Pass process.env directly to maintain same env behavior as before.
+  spawnBinary(command, solanaArgs, process.env);
 }
 
 export async function killTestValidator() {

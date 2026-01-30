@@ -16,7 +16,10 @@ import {
 import BN from 'bn.js';
 
 import { CompressedTokenProgram } from '../program';
-import { selectMinCompressedTokenAccountsForTransfer } from '../utils';
+import {
+    selectMinCompressedTokenAccountsForTransfer,
+    selectAccountsByPreferredTreeType,
+} from '../utils';
 import {
     selectSplInterfaceInfosForDecompression,
     SplInterfaceInfo,
@@ -56,8 +59,14 @@ export async function decompressDelegated(
             mint,
         });
 
-    const [inputAccounts] = selectMinCompressedTokenAccountsForTransfer(
+    // Select accounts from preferred tree type (V2 in V2 mode) with fallback
+    const { accounts: accountsToUse } = selectAccountsByPreferredTreeType(
         compressedTokenAccounts.items,
+        amount,
+    );
+
+    const [inputAccounts] = selectMinCompressedTokenAccountsForTransfer(
+        accountsToUse,
         amount,
     );
 

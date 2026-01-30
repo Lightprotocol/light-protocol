@@ -13,10 +13,8 @@ import { Rpc } from '../rpc';
 import {
     NewAddressParams,
     buildAndSignTx,
-    deriveAddress,
-    deriveAddressSeed,
-    deriveAddressSeedV2,
-    deriveAddressV2,
+    deriveAddressLegacy,
+    deriveAddressSeedLegacy,
     selectStateTreeInfo,
     sendAndConfirmTx,
 } from '../utils';
@@ -62,8 +60,8 @@ export async function createAccount(
         );
     }
 
-    const seed = deriveAddressSeed(seeds, programId);
-    const address = deriveAddress(seed, tree);
+    const seed = deriveAddressSeedLegacy(seeds, programId);
+    const address = deriveAddressLegacy(seed, tree);
 
     if (!outputStateTreeInfo) {
         const stateTreeInfo = await rpc.getStateTreeInfos();
@@ -159,8 +157,8 @@ export async function createAccountWithLamports(
         );
     }
 
-    const seed = deriveAddressSeed(seeds, programId);
-    const address = deriveAddress(seed, tree);
+    const seed = deriveAddressSeedLegacy(seeds, programId);
+    const address = deriveAddressLegacy(seed, tree);
 
     const proof = await rpc.getValidityProof(
         inputAccounts.map(account => account.hash),

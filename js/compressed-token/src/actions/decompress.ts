@@ -14,7 +14,10 @@ import {
 } from '@lightprotocol/stateless.js';
 import BN from 'bn.js';
 import { CompressedTokenProgram } from '../program';
-import { selectMinCompressedTokenAccountsForTransfer } from '../utils';
+import {
+    selectMinCompressedTokenAccountsForTransfer,
+    selectAccountsByPreferredTreeType,
+} from '../utils';
 import {
     selectSplInterfaceInfosForDecompression,
     SplInterfaceInfo,
@@ -50,13 +53,17 @@ export async function decompress(
 
     const compressedTokenAccounts = await rpc.getCompressedTokenAccountsByOwner(
         owner.publicKey,
-        {
-            mint,
-        },
+        { mint },
+    );
+
+    // Select accounts from preferred tree type (V2 in V2 mode) with fallback
+    const { accounts: accountsToUse } = selectAccountsByPreferredTreeType(
+        compressedTokenAccounts.items,
+        amount,
     );
 
     const [inputAccounts] = selectMinCompressedTokenAccountsForTransfer(
-        compressedTokenAccounts.items,
+        accountsToUse,
         amount,
     );
 

@@ -11,7 +11,9 @@ import {
     sendAndConfirmTx,
     dedupeSigner,
     ParsedTokenAccount,
+    assertBetaEnabled,
 } from '@lightprotocol/stateless.js';
+import { assertV2Only } from '../assert-v2-only';
 import {
     createAssociatedTokenAccountIdempotentInstruction,
     getAssociatedTokenAddress,
@@ -51,6 +53,8 @@ export async function decompressInterface(
     splInterfaceInfo?: SplInterfaceInfo,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature | null> {
+    assertBetaEnabled();
+
     // Determine if this is SPL or c-token destination
     const isSplDestination = splInterfaceInfo !== undefined;
 
@@ -64,6 +68,9 @@ export async function decompressInterface(
     if (compressedAccounts.length === 0) {
         return null; // Nothing to decompress
     }
+
+    // v3 interface only supports V2 trees
+    assertV2Only(compressedAccounts);
 
     // Calculate total and determine amount
     const totalBalance = compressedAccounts.reduce(
@@ -79,7 +86,7 @@ export async function decompressInterface(
         );
     }
 
-    // Select accounts to use (for now, use all - could optimize later)
+    // Select minimum accounts needed for the amount
     const accountsToUse: ParsedTokenAccount[] = [];
     let accumulatedAmount = BigInt(0);
     for (const acc of compressedAccounts) {

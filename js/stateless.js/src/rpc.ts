@@ -91,6 +91,7 @@ import {
     batchAddressTree,
     CTOKEN_PROGRAM_ID,
     getDefaultAddressSpace,
+    assertBetaEnabled,
 } from './constants';
 import { setDevnetCompat } from './devnet-compat';
 import BN from 'bn.js';
@@ -1985,9 +1986,13 @@ export class Rpc extends Connection implements CompressionApiInterface {
     ): Promise<WithContext<ValidityProofWithContext>> {
         validateNumbersForProof(hashes.length, newAddresses.length);
 
+        // V2 endpoint is backward compatible - it generates correct proofs
+        // for both V1 and V2 trees based on tree height, not endpoint choice.
+        const endpoint = versionedEndpoint('getValidityProof');
+
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
-            versionedEndpoint('getValidityProof'),
+            endpoint,
             {
                 hashes: hashes.map(({ hash }) => encodeBN254toBase58(hash)),
                 newAddressesWithTrees: newAddresses.map(
@@ -1999,8 +2004,10 @@ export class Rpc extends Connection implements CompressionApiInterface {
             },
         );
 
+        const useV2Parsing = featureFlags.isV2();
+
         let res;
-        if (featureFlags.isV2()) {
+        if (useV2Parsing) {
             res = create(
                 unsafeRes,
                 jsonRpcResultAndContext(ValidityProofResultV2),
@@ -2026,7 +2033,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
         const value = res.result.value as any;
 
-        if (featureFlags.isV2()) {
+        if (useV2Parsing) {
             return {
                 value: {
                     compressedProof: value.compressedProof,
@@ -2112,9 +2119,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         isCold: boolean;
         loadContext?: MerkleContext;
     } | null> {
-        if (!featureFlags.isV2()) {
-            throw new Error('getAccountInfoInterface requires feature flag V2');
-        }
+        assertBetaEnabled();
 
         addressSpace = addressSpace ?? getDefaultAddressSpace();
 
@@ -2202,6 +2207,8 @@ export class Rpc extends Connection implements CompressionApiInterface {
         options?: SignaturesForAddressOptions,
         compressedOptions?: PaginatedOptions,
     ): Promise<SignaturesForAddressInterfaceResult> {
+        assertBetaEnabled();
+
         const [solanaResult, compressedResult] = await Promise.allSettled([
             this.getSignaturesForAddress(address, options),
             this.getCompressionSignaturesForAddress(address, compressedOptions),
@@ -2239,6 +2246,8 @@ export class Rpc extends Connection implements CompressionApiInterface {
         options?: SignaturesForAddressOptions,
         compressedOptions?: PaginatedOptions,
     ): Promise<SignaturesForAddressInterfaceResult> {
+        assertBetaEnabled();
+
         const [solanaResult, compressedResult] = await Promise.allSettled([
             this.getSignaturesForAddress(owner, options),
             this.getCompressionSignaturesForOwner(owner, compressedOptions),
@@ -2279,6 +2288,8 @@ export class Rpc extends Connection implements CompressionApiInterface {
         mint: PublicKey,
         commitment?: Commitment,
     ): Promise<UnifiedTokenBalance> {
+        assertBetaEnabled();
+
         const [onChainResult, compressedResult] = await Promise.allSettled([
             this.getTokenAccountBalance(address, commitment),
             this.getCompressedTokenBalancesByOwner(owner, { mint }),
@@ -2328,6 +2339,8 @@ export class Rpc extends Connection implements CompressionApiInterface {
         address: PublicKey,
         commitment?: Commitment,
     ): Promise<UnifiedBalance> {
+        assertBetaEnabled();
+
         const [onChainResult, compressedResult] = await Promise.allSettled([
             this.getBalance(address, commitment),
             this.getCompressedBalanceByOwner(address),

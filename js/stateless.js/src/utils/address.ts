@@ -4,11 +4,15 @@ import {
     hashvToBn254FieldSizeBe,
     hashvToBn254FieldSizeBeU8Array,
 } from './conversion';
-import { defaultTestStateTreeAccounts } from '../constants';
+import { defaultTestStateTreeAccounts, featureFlags } from '../constants';
 import { getIndexOrAdd } from '../programs/system/pack';
 import { keccak_256 } from '@noble/hashes/sha3';
 
-export function deriveAddressSeed(
+/**
+ * @deprecated Use deriveAddressSeed (no programId param) for V2.
+ * V1 seed derivation includes programId in hash.
+ */
+export function deriveAddressSeedLegacy(
     seeds: Uint8Array[],
     programId: PublicKey,
 ): Uint8Array {
@@ -17,16 +21,11 @@ export function deriveAddressSeed(
     return hash;
 }
 
-/*
- * Derive an address for a compressed account from a seed and an address Merkle
- * tree public key.
- *
- * @param seed                     Seed to derive the address from
- * @param addressMerkleTreePubkey  Merkle tree public key. Defaults to
- *                                 defaultTestStateTreeAccounts().addressTree
- * @returns                        Derived address
+/**
+ * @deprecated Use deriveAddress with programId param for V2.
+ * V1 address derivation doesn't include programId.
  */
-export function deriveAddress(
+export function deriveAddressLegacy(
     seed: Uint8Array,
     addressMerkleTreePubkey: PublicKey = defaultTestStateTreeAccounts()
         .addressTree,
@@ -45,21 +44,57 @@ export function deriveAddress(
     return new PublicKey(buf);
 }
 
+/**
+ * Explicit V2 address seed derivation - always uses V2 behavior regardless of feature flag.
+ * Use this when you explicitly want V2 derivation (e.g., in tests).
+ */
 export function deriveAddressSeedV2(seeds: Uint8Array[]): Uint8Array {
     const combinedSeeds: Uint8Array[] = seeds.map(seed =>
         Uint8Array.from(seed),
     );
-    const hash = hashvToBn254FieldSizeBeU8Array(combinedSeeds);
-    return hash;
+    return hashvToBn254FieldSizeBeU8Array(combinedSeeds);
 }
 
 /**
- * Derives an address from a seed using the v2 method (matching Rust's derive_address_from_seed)
+ * Derive an address seed from multiple seed components.
  *
- * @param addressSeed              The address seed (32 bytes)
- * @param addressMerkleTreePubkey  Merkle tree public key
- * @param programId                Program ID
- * @returns                        Derived address
+ * V2 mode: Does NOT include programId in seed hash. Do not pass programId.
+ * V1 mode: Includes programId in seed hash. Must pass programId.
+ *
+ * @param seeds     Array of seed bytes to combine
+ * @param programId (V1 only) Program ID - required in V1 mode, must be omitted in V2 mode
+ * @returns 32-byte address seed
+ */
+export function deriveAddressSeed(
+    seeds: Uint8Array[],
+    programId?: PublicKey,
+): Uint8Array {
+    const isV2 = featureFlags.isV2();
+
+    if (programId !== undefined) {
+        if (isV2) {
+            throw new Error(
+                'deriveAddressSeed: programId must not be passed in V2 mode. ' +
+                    'For V2, omit programId here and pass it to deriveAddress instead. ' +
+                    'If you need V1 behavior, set LIGHT_PROTOCOL_VERSION=V1.',
+            );
+        }
+        return deriveAddressSeedLegacy(seeds, programId);
+    }
+
+    if (!isV2) {
+        throw new Error(
+            'deriveAddressSeed: programId is required in V1 mode. ' +
+                'Pass programId as the second argument. ' +
+                'If you need V2 behavior, set LIGHT_PROTOCOL_VERSION=V2.',
+        );
+    }
+    return deriveAddressSeedV2(seeds);
+}
+
+/**
+ * Explicit V2 address derivation - always uses V2 behavior regardless of feature flag.
+ * Use this when you explicitly want V2 derivation (e.g., in tests).
  */
 export function deriveAddressV2(
     addressSeed: Uint8Array,
@@ -71,7 +106,6 @@ export function deriveAddressV2(
     }
     const merkleTreeBytes = addressMerkleTreePubkey.toBytes();
     const programIdBytes = programId.toBytes();
-    // Match Rust implementation: hash [seed, merkle_tree_pubkey, program_id]
     const combined = [
         Uint8Array.from(addressSeed),
         Uint8Array.from(merkleTreeBytes),
@@ -79,6 +113,45 @@ export function deriveAddressV2(
     ];
     const hash = hashvToBn254FieldSizeBeU8Array(combined);
     return new PublicKey(hash);
+}
+
+/**
+ * Derive an address for a compressed account.
+ *
+ * V2 mode: Requires programId, includes it in final hash.
+ * V1 mode: Must not pass programId, uses legacy derivation.
+ *
+ * @param addressSeed              The address seed (32 bytes) from deriveAddressSeed
+ * @param addressMerkleTreePubkey  Address tree public key
+ * @param programId                (V2 only) Program ID - required in V2 mode, must be omitted in V1 mode
+ * @returns                        Derived address
+ */
+export function deriveAddress(
+    addressSeed: Uint8Array,
+    addressMerkleTreePubkey: PublicKey,
+    programId?: PublicKey,
+): PublicKey {
+    const isV2 = featureFlags.isV2();
+
+    if (programId === undefined) {
+        if (isV2) {
+            throw new Error(
+                'deriveAddress: programId is required in V2 mode. ' +
+                    'Pass programId as the third argument. ' +
+                    'If you need V1 behavior, set LIGHT_PROTOCOL_VERSION=V1.',
+            );
+        }
+        return deriveAddressLegacy(addressSeed, addressMerkleTreePubkey);
+    }
+
+    if (!isV2) {
+        throw new Error(
+            'deriveAddress: programId must not be passed in V1 mode. ' +
+                'Omit programId from deriveAddress. ' +
+                'If you need V2 behavior, set LIGHT_PROTOCOL_VERSION=V2.',
+        );
+    }
+    return deriveAddressV2(addressSeed, addressMerkleTreePubkey, programId);
 }
 
 export interface NewAddressParams {
@@ -173,13 +246,13 @@ if (import.meta.vitest) {
         '7yucc7fL3JGbyMwg4neUaenNSdySS39hbAk89Ao3t1Hz',
     );
 
-    describe('derive address seed', () => {
-        it('should derive a valid address seed', () => {
+    describe('derive address seed (legacy/V1)', () => {
+        it('should derive a valid address seed with programId', () => {
             const seeds: Uint8Array[] = [
                 new TextEncoder().encode('foo'),
                 new TextEncoder().encode('bar'),
             ];
-            expect(deriveAddressSeed(seeds, programId)).toStrictEqual(
+            expect(deriveAddressSeedLegacy(seeds, programId)).toStrictEqual(
                 new Uint8Array([
                     0, 246, 150, 3, 192, 95, 53, 123, 56, 139, 206, 179, 253,
                     133, 115, 103, 120, 155, 251, 72, 250, 47, 117, 217, 118,
@@ -188,12 +261,12 @@ if (import.meta.vitest) {
             );
         });
 
-        it('should derive a valid address seed', () => {
+        it('should derive a valid address seed with programId', () => {
             const seeds: Uint8Array[] = [
                 new TextEncoder().encode('ayy'),
                 new TextEncoder().encode('lmao'),
             ];
-            expect(deriveAddressSeed(seeds, programId)).toStrictEqual(
+            expect(deriveAddressSeedLegacy(seeds, programId)).toStrictEqual(
                 new Uint8Array([
                     0, 202, 44, 25, 221, 74, 144, 92, 69, 168, 38, 19, 206, 208,
                     29, 162, 53, 27, 120, 214, 152, 116, 15, 107, 212, 168, 33,
@@ -203,17 +276,17 @@ if (import.meta.vitest) {
         });
     });
 
-    describe('deriveAddress function', () => {
+    describe('deriveAddress function (legacy/V1)', () => {
         it('should derive a valid address from a seed and a merkle tree public key', async () => {
             const seeds: Uint8Array[] = [
                 new TextEncoder().encode('foo'),
                 new TextEncoder().encode('bar'),
             ];
-            const seed = deriveAddressSeed(seeds, programId);
+            const seed = deriveAddressSeedLegacy(seeds, programId);
             const merkleTreePubkey = new PublicKey(
                 '11111111111111111111111111111111',
             );
-            const derivedAddress = deriveAddress(seed, merkleTreePubkey);
+            const derivedAddress = deriveAddressLegacy(seed, merkleTreePubkey);
             expect(derivedAddress).toBeInstanceOf(PublicKey);
             expect(derivedAddress).toStrictEqual(
                 new PublicKey('139uhyyBtEh4e1CBDJ68ooK5nCeWoncZf9HPyAfRrukA'),
@@ -225,11 +298,11 @@ if (import.meta.vitest) {
                 new TextEncoder().encode('ayy'),
                 new TextEncoder().encode('lmao'),
             ];
-            const seed = deriveAddressSeed(seeds, programId);
+            const seed = deriveAddressSeedLegacy(seeds, programId);
             const merkleTreePubkey = new PublicKey(
                 '11111111111111111111111111111111',
             );
-            const derivedAddress = deriveAddress(seed, merkleTreePubkey);
+            const derivedAddress = deriveAddressLegacy(seed, merkleTreePubkey);
             expect(derivedAddress).toBeInstanceOf(PublicKey);
             expect(derivedAddress).toStrictEqual(
                 new PublicKey('12bhHm6PQjbNmEn3Yu1Gq9k7XwVn2rZpzYokmLwbFazN'),

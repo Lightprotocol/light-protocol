@@ -3,6 +3,7 @@
 #    ./scripts/bump-versions-and-publish-npm.sh minor
 #    ./scripts/bump-versions-and-publish-npm.sh patch @lightprotocol/stateless.js @lightprotocol/compressed-token
 #    ./scripts/bump-versions-and-publish-npm.sh alpha @lightprotocol/stateless.js 
+#    ./scripts/bump-versions-and-publish-npm.sh beta @lightprotocol/stateless.js @lightprotocol/compressed-token
 
 cd "$(git rev-parse --show-toplevel)"
 
@@ -41,6 +42,11 @@ publish_package() {
             echo "Error occurred while publishing ${package_name}."
             return 1
         fi
+    elif [ "$version_type" == "beta" ]; then
+        if ! (cd "${package_dir}" && pnpm version prerelease --preid beta && pnpm publish --tag beta --access public --no-git-checks --verbose); then
+            echo "Error occurred while publishing ${package_name}."
+            return 1
+        fi
     else
         if ! (cd "${package_dir}" && pnpm version "${version_type}" && pnpm publish --access public --no-git-checks --verbose); then
             echo "Error occurred while publishing ${package_name}."
@@ -59,6 +65,11 @@ if [ "$#" -eq 0 ]; then
     echo "Bumping ${version_type} version for all packages..."
     if [ "$version_type" == "alpha" ]; then
         if ! pnpm -r exec -- pnpm version prerelease --preid alpha || ! pnpm -r exec -- pnpm publish --tag alpha --access private --verbose; then
+            echo "Error occurred during bulk version bump and publish."
+            error_occurred=1
+        fi
+    elif [ "$version_type" == "beta" ]; then
+        if ! pnpm -r exec -- pnpm version prerelease --preid beta || ! pnpm -r exec -- pnpm publish --tag beta --access public --verbose; then
             echo "Error occurred during bulk version bump and publish."
             error_occurred=1
         fi

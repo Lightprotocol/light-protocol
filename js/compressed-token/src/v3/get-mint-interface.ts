@@ -7,6 +7,7 @@ import {
     CTOKEN_PROGRAM_ID,
     getDefaultAddressTreeInfo,
     MerkleContext,
+    assertBetaEnabled,
 } from '@lightprotocol/stateless.js';
 import {
     Mint,
@@ -53,6 +54,8 @@ export async function getMintInterface(
     commitment?: Commitment,
     programId?: PublicKey,
 ): Promise<MintInterface> {
+    assertBetaEnabled();
+
     // try all three programs in parallel
     if (!programId) {
         const [tokenResult, token2022Result, compressedResult] =
