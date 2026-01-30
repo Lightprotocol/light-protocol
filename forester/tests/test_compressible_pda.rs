@@ -48,8 +48,10 @@ const CSDK_TEST_PROGRAM_ID: &str = "FAMipfVEhN4hjCLpKCvjDXXfzLsoVTqQccXzePz1L1ah
 // This needs to match the discriminator from csdk_anchor_full_derived_test::state::d1_field_types::single_pubkey::SinglePubkeyRecord
 const SINGLE_PUBKEY_RECORD_DISCRIMINATOR: [u8; 8] = csdk_anchor_full_derived_test::state::d1_field_types::single_pubkey::SinglePubkeyRecord::LIGHT_DISCRIMINATOR;
 
-// Rent sponsor pubkey used in tests
-const RENT_SPONSOR: Pubkey = solana_sdk::pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
+/// Get the program's derived rent sponsor PDA
+fn program_rent_sponsor() -> Pubkey {
+    csdk_anchor_full_derived_test::light_rent_sponsor()
+}
 
 /// Context returned from forester registration
 struct ForesterContext {
@@ -97,8 +99,8 @@ async fn register_forester<R: Rpc>(
         .config;
 
     // Use airdrop for forester
-    println!("Funding forester {} with 10 SOL", forester_pubkey);
-    rpc.airdrop_lamports(&forester_pubkey, 10_000_000_000)
+    println!("Funding forester {} with 2 SOL", forester_pubkey);
+    rpc.airdrop_lamports(&forester_pubkey, 2_000_000_000)
         .await?;
     sleep(Duration::from_millis(500)).await;
 
@@ -280,17 +282,13 @@ async fn test_compressible_pda_bootstrap() {
     let authority = Keypair::try_from(PAYER_KEYPAIR.as_ref()).expect("Invalid PAYER_KEYPAIR");
 
     // Fund the authority account
-    rpc.airdrop_lamports(&authority.pubkey(), 10_000_000_000)
+    rpc.airdrop_lamports(&authority.pubkey(), 2_000_000_000)
         .await
         .expect("Failed to airdrop to authority");
 
-    // Fund rent sponsor
-    rpc.airdrop_lamports(&RENT_SPONSOR, 10_000_000_000)
-        .await
-        .expect("Failed to fund rent sponsor");
-
-    // Initialize compression config
-    let (init_config_ix, config_pda) = InitializeRentFreeConfig::new(
+    // Initialize compression config (includes rent sponsor funding)
+    let rent_sponsor = program_rent_sponsor();
+    let (init_config_ixs, config_pda) = InitializeRentFreeConfig::new(
         &program_id,
         &authority.pubkey(),
         &Pubkey::find_program_address(
@@ -298,12 +296,13 @@ async fn test_compressible_pda_bootstrap() {
             &solana_sdk::pubkey!("BPFLoaderUpgradeab1e11111111111111111111111"),
         )
         .0,
-        RENT_SPONSOR,
+        rent_sponsor,
         authority.pubkey(),
+        500_000_000, // 0.5 SOL for rent sponsor
     )
     .build();
 
-    rpc.create_and_send_transaction(&[init_config_ix], &authority.pubkey(), &[&authority])
+    rpc.create_and_send_transaction(&init_config_ixs, &authority.pubkey(), &[&authority])
         .await
         .expect("Initialize config should succeed");
 
@@ -470,17 +469,13 @@ async fn test_compressible_pda_compression() {
     let authority = Keypair::try_from(PAYER_KEYPAIR.as_ref()).expect("Invalid PAYER_KEYPAIR");
 
     // Fund the authority account
-    rpc.airdrop_lamports(&authority.pubkey(), 10_000_000_000)
+    rpc.airdrop_lamports(&authority.pubkey(), 2_000_000_000)
         .await
         .expect("Failed to airdrop to authority");
 
-    // Fund rent sponsor
-    rpc.airdrop_lamports(&RENT_SPONSOR, 10_000_000_000)
-        .await
-        .expect("Failed to fund rent sponsor");
-
-    // Initialize compression config
-    let (init_config_ix, config_pda) = InitializeRentFreeConfig::new(
+    // Initialize compression config (includes rent sponsor funding)
+    let rent_sponsor = program_rent_sponsor();
+    let (init_config_ixs, config_pda) = InitializeRentFreeConfig::new(
         &program_id,
         &authority.pubkey(),
         &Pubkey::find_program_address(
@@ -488,12 +483,13 @@ async fn test_compressible_pda_compression() {
             &solana_sdk::pubkey!("BPFLoaderUpgradeab1e11111111111111111111111"),
         )
         .0,
-        RENT_SPONSOR,
+        rent_sponsor,
         authority.pubkey(),
+        500_000_000, // 0.5 SOL for rent sponsor
     )
     .build();
 
-    rpc.create_and_send_transaction(&[init_config_ix], &authority.pubkey(), &[&authority])
+    rpc.create_and_send_transaction(&init_config_ixs, &authority.pubkey(), &[&authority])
         .await
         .expect("Initialize config should succeed");
 
@@ -703,20 +699,18 @@ async fn test_compressible_pda_subscription() {
     let authority = Keypair::try_from(&PAYER_KEYPAIR[..]).unwrap();
 
     // Fund accounts
-    rpc.airdrop_lamports(&authority.pubkey(), 10_000_000_000)
+    rpc.airdrop_lamports(&authority.pubkey(), 2_000_000_000)
         .await
         .expect("Failed to airdrop to authority");
-    rpc.airdrop_lamports(&RENT_SPONSOR, 10_000_000_000)
-        .await
-        .expect("Failed to fund rent sponsor");
 
     // Wait for indexer
     wait_for_indexer(&rpc)
         .await
         .expect("Failed to wait for indexer");
 
-    // Initialize compression config
-    let (init_config_ix, config_pda) = InitializeRentFreeConfig::new(
+    // Initialize compression config (includes rent sponsor funding)
+    let rent_sponsor = program_rent_sponsor();
+    let (init_config_ixs, config_pda) = InitializeRentFreeConfig::new(
         &program_id,
         &authority.pubkey(),
         &Pubkey::find_program_address(
@@ -724,12 +718,13 @@ async fn test_compressible_pda_subscription() {
             &solana_sdk::pubkey!("BPFLoaderUpgradeab1e11111111111111111111111"),
         )
         .0,
-        RENT_SPONSOR,
+        rent_sponsor,
         authority.pubkey(),
+        500_000_000, // 0.5 SOL for rent sponsor
     )
     .build();
 
-    rpc.create_and_send_transaction(&[init_config_ix], &authority.pubkey(), &[&authority])
+    rpc.create_and_send_transaction(&init_config_ixs, &authority.pubkey(), &[&authority])
         .await
         .expect("Initialize config should succeed");
 

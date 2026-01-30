@@ -81,6 +81,7 @@ pub fn generate_decompress_context_trait_impl(
                     #seed_params_update
                     light_sdk::interface::handle_packed_pda_variant::<#inner_type, #packed_inner_type, _, _>(
                         &*self.rent_sponsor,
+                        rent_sponsor_seeds,
                         cpi_accounts,
                         address_space,
                         &solana_accounts[i],
@@ -157,6 +158,7 @@ pub fn generate_decompress_context_trait_impl(
                 compressed_accounts: Vec<Self::CompressedData>,
                 solana_accounts: &[solana_account_info::AccountInfo<#lifetime>],
                 seed_params: std::option::Option<&Self::SeedParams>,
+                rent_sponsor_seeds: &[&[u8]],
             ) -> std::result::Result<(
                 Vec<::light_sdk::compressed_account::CompressedAccountInfo>,
                 Vec<(Self::PackedTokenData, Self::CompressedMeta)>,

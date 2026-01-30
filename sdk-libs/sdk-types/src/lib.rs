@@ -31,10 +31,10 @@ use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSeria
 pub use constants::*;
 pub use light_compressed_account::CpiSigner;
 
+/// Pre-computed rent sponsor PDA (version 1, hardcoded).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
 pub struct RentSponsor {
     pub program_id: [u8; 32],
     pub rent_sponsor: [u8; 32],
     pub bump: u8,
-    pub version: u16,
 }

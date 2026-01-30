@@ -73,11 +73,8 @@ fn transform_expr_internal(
         }
         Expr::MethodCall(method_call) => {
             let mut new_call = method_call.clone();
-            new_call.receiver = Box::new(transform_expr_internal(
-                &method_call.receiver,
-                ctx_field_names,
-                state_field_names,
-            ));
+            *new_call.receiver =
+                transform_expr_internal(&method_call.receiver, ctx_field_names, state_field_names);
             new_call.args = method_call
                 .args
                 .iter()
@@ -96,11 +93,8 @@ fn transform_expr_internal(
         }
         Expr::Reference(ref_expr) => {
             let mut new_ref = ref_expr.clone();
-            new_ref.expr = Box::new(transform_expr_internal(
-                &ref_expr.expr,
-                ctx_field_names,
-                state_field_names,
-            ));
+            *new_ref.expr =
+                transform_expr_internal(&ref_expr.expr, ctx_field_names, state_field_names);
             Expr::Reference(new_ref)
         }
         _ => expr.clone(),

@@ -36,6 +36,8 @@ pub struct LightConfig {
     pub config_bump: u8,
     /// PDA bump seed
     pub bump: u8,
+    /// Rent sponsor PDA bump seed (for signing during decompression)
+    pub rent_sponsor_bump: u8,
     /// Address space for compressed accounts (currently 1 address_tree allowed)
     pub address_space: Vec<Pubkey>,
 }
@@ -49,6 +51,7 @@ impl LightConfig {
         + core::mem::size_of::<RentConfig>()
         + 1
         + 1
+        + 1  // rent_sponsor_bump
         + 4
         + (32 * MAX_ADDRESS_TREES_PER_SPACE);
 
@@ -62,6 +65,7 @@ impl LightConfig {
             + core::mem::size_of::<RentConfig>()
             + 1
             + 1
+            + 1  // rent_sponsor_bump
             + 4
             + (32 * num_address_trees)
     }
@@ -79,6 +83,19 @@ impl LightConfig {
     /// Derives the default config PDA address (config_bump = 0)
     pub fn derive_default_pda(program_id: &Pubkey) -> (Pubkey, u8) {
         Self::derive_pda(program_id, 0)
+    }
+
+    /// Returns the rent sponsor signer seeds for invoke_signed.
+    /// The returned Vec contains the seed bytes that can be used with invoke_signed.
+    /// Returns the rent sponsor signer seeds for invoke_signed.
+    /// Version is hardcoded to 1.
+    pub fn rent_sponsor_signer_seeds(&self) -> ([u8; 12], [u8; 2], [u8; 1]) {
+        let mut seed_buf = [0u8; 12];
+        seed_buf.copy_from_slice(crate::constants::RENT_SPONSOR_SEED);
+        const VERSION: u16 = 1;
+        let version_bytes = VERSION.to_le_bytes();
+        let bump_bytes = [self.rent_sponsor_bump];
+        (seed_buf, version_bytes, bump_bytes)
     }
 
     /// Checks the config account
@@ -180,6 +197,7 @@ pub fn process_initialize_light_config<'info>(
     config_account: &AccountInfo<'info>,
     update_authority: &AccountInfo<'info>,
     rent_sponsor: &Pubkey,
+    rent_sponsor_bump: u8,
     compression_authority: &Pubkey,
     rent_config: RentConfig,
     write_top_up: u32,
@@ -264,8 +282,9 @@ pub fn process_initialize_light_config<'info>(
         compression_authority: *compression_authority,
         rent_config,
         config_bump,
-        address_space,
         bump,
+        rent_sponsor_bump,
+        address_space,
     };
 
     let mut data = config_account
@@ -465,6 +484,7 @@ pub fn process_initialize_light_config_checked<'info>(
     update_authority: &AccountInfo<'info>,
     program_data_account: &AccountInfo<'info>,
     rent_sponsor: &Pubkey,
+    rent_sponsor_bump: u8,
     compression_authority: &Pubkey,
     rent_config: RentConfig,
     write_top_up: u32,
@@ -490,6 +510,7 @@ pub fn process_initialize_light_config_checked<'info>(
         config_account,
         update_authority,
         rent_sponsor,
+        rent_sponsor_bump,
         compression_authority,
         rent_config,
         write_top_up,
