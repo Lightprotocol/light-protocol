@@ -299,8 +299,7 @@ async fn test_create_pdas_and_mint_auto() {
     use anchor_lang::AnchorDeserialize;
     use csdk_anchor_full_derived_test::{
         csdk_anchor_full_derived_test::{
-            GameSessionSeeds, GameSessionVariant, LightAccountVariant, UserRecordSeeds,
-            UserRecordVariant, VaultSeeds,
+            GameSessionSeeds, LightAccountVariant, UserRecordSeeds, VaultSeeds,
         },
         GameSession as GameSessionState, UserRecord,
     };
@@ -332,7 +331,7 @@ async fn test_create_pdas_and_mint_auto() {
     // Build PdaSpec for UserRecord
     let user_data = UserRecord::deserialize(&mut &user_interface.account.data[8..])
         .expect("Failed to parse UserRecord");
-    let user_variant = LightAccountVariant::UserRecord(UserRecordVariant {
+    let user_variant = LightAccountVariant::UserRecord {
         seeds: UserRecordSeeds {
             authority: authority.pubkey(),
             mint_authority: mint_authority.pubkey(),
@@ -340,20 +339,20 @@ async fn test_create_pdas_and_mint_auto() {
             category_id,
         },
         data: user_data,
-    });
+    };
     let user_spec = PdaSpec::new(user_interface.clone(), user_variant, program_id);
 
     // Build PdaSpec for GameSession
     let game_data = GameSessionState::deserialize(&mut &game_interface.account.data[8..])
         .expect("Failed to parse GameSession");
-    let game_variant = LightAccountVariant::GameSession(GameSessionVariant {
+    let game_variant = LightAccountVariant::GameSession {
         seeds: GameSessionSeeds {
             fee_payer: payer.pubkey(),
             authority: authority.pubkey(),
             session_id,
         },
         data: game_data,
-    });
+    };
     let game_spec = PdaSpec::new(game_interface.clone(), game_variant, program_id);
 
     // Build PdaSpec for Vault (CToken)

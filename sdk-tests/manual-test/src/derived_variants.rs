@@ -8,11 +8,17 @@ use light_sdk_types::instruction::PackedStateTreeInfo;
 use solana_program_error::ProgramError;
 
 use crate::{
-    account_loader::{derived_accounts::PackedZeroCopyRecordVariant, ZeroCopyRecordVariant},
-    all::derived_accounts::{
-        AllBorshVariant, AllZeroCopyVariant, PackedAllBorshVariant, PackedAllZeroCopyVariant,
+    account_loader::derived_accounts::{
+        PackedZeroCopyRecordSeeds, PackedZeroCopyRecordVariant, ZeroCopyRecordSeeds,
     },
-    pda::derived_accounts::{MinimalRecordVariant, PackedMinimalRecordVariant},
+    all::derived_accounts::{
+        AllBorshSeeds, AllZeroCopySeeds, PackedAllBorshSeeds, PackedAllBorshVariant,
+        PackedAllZeroCopySeeds, PackedAllZeroCopyVariant,
+    },
+    pda::derived_accounts::{
+        MinimalRecordSeeds, PackedMinimalRecordSeeds, PackedMinimalRecordVariant,
+    },
+    MinimalRecord, PackedMinimalRecord, PackedZeroCopyRecord, ZeroCopyRecord,
 };
 
 // ============================================================================
@@ -23,20 +29,44 @@ use crate::{
 /// Each variant contains the full seeds + data.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub enum LightAccountVariant {
-    MinimalRecord(MinimalRecordVariant),
-    ZeroCopyRecord(ZeroCopyRecordVariant),
-    AllBorsh(AllBorshVariant),
-    AllZeroCopy(AllZeroCopyVariant),
+    MinimalRecord {
+        seeds: MinimalRecordSeeds,
+        data: MinimalRecord,
+    },
+    ZeroCopyRecord {
+        seeds: ZeroCopyRecordSeeds,
+        data: ZeroCopyRecord,
+    },
+    AllBorsh {
+        seeds: AllBorshSeeds,
+        data: MinimalRecord,
+    },
+    AllZeroCopy {
+        seeds: AllZeroCopySeeds,
+        data: ZeroCopyRecord,
+    },
 }
 
 /// Packed variant enum for efficient serialization.
 /// Does NOT wrap CompressedAccountData - that wrapper is added by the client library.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub enum PackedLightAccountVariant {
-    MinimalRecord(PackedMinimalRecordVariant),
-    ZeroCopyRecord(PackedZeroCopyRecordVariant),
-    AllBorsh(PackedAllBorshVariant),
-    AllZeroCopy(PackedAllZeroCopyVariant),
+    MinimalRecord {
+        seeds: PackedMinimalRecordSeeds,
+        data: PackedMinimalRecord,
+    },
+    ZeroCopyRecord {
+        seeds: PackedZeroCopyRecordSeeds,
+        data: PackedZeroCopyRecord,
+    },
+    AllBorsh {
+        seeds: PackedAllBorshSeeds,
+        data: PackedMinimalRecord,
+    },
+    AllZeroCopy {
+        seeds: PackedAllZeroCopySeeds,
+        data: PackedZeroCopyRecord,
+    },
 }
 
 // ============================================================================
@@ -54,36 +84,52 @@ impl<'info> DecompressVariant<'info> for PackedLightAccountVariant {
     ) -> std::result::Result<(), ProgramError> {
         let output_queue_index = ctx.output_queue_index;
         match self {
-            PackedLightAccountVariant::MinimalRecord(packed_data) => {
+            PackedLightAccountVariant::MinimalRecord { seeds, data } => {
+                let packed_data = PackedMinimalRecordVariant {
+                    seeds: seeds.clone(),
+                    data: data.clone(),
+                };
                 prepare_account_for_decompression::<4, PackedMinimalRecordVariant>(
-                    packed_data,
+                    &packed_data,
                     tree_info,
                     output_queue_index,
                     pda_account,
                     ctx,
                 )
             }
-            PackedLightAccountVariant::ZeroCopyRecord(packed_data) => {
+            PackedLightAccountVariant::ZeroCopyRecord { seeds, data } => {
+                let packed_data = PackedZeroCopyRecordVariant {
+                    seeds: seeds.clone(),
+                    data: data.clone(),
+                };
                 prepare_account_for_decompression::<4, PackedZeroCopyRecordVariant>(
-                    packed_data,
+                    &packed_data,
                     tree_info,
                     output_queue_index,
                     pda_account,
                     ctx,
                 )
             }
-            PackedLightAccountVariant::AllBorsh(packed_data) => {
+            PackedLightAccountVariant::AllBorsh { seeds, data } => {
+                let packed_data = PackedAllBorshVariant {
+                    seeds: seeds.clone(),
+                    data: data.clone(),
+                };
                 prepare_account_for_decompression::<3, PackedAllBorshVariant>(
-                    packed_data,
+                    &packed_data,
                     tree_info,
                     output_queue_index,
                     pda_account,
                     ctx,
                 )
             }
-            PackedLightAccountVariant::AllZeroCopy(packed_data) => {
+            PackedLightAccountVariant::AllZeroCopy { seeds, data } => {
+                let packed_data = PackedAllZeroCopyVariant {
+                    seeds: seeds.clone(),
+                    data: data.clone(),
+                };
                 prepare_account_for_decompression::<3, PackedAllZeroCopyVariant>(
-                    packed_data,
+                    &packed_data,
                     tree_info,
                     output_queue_index,
                     pda_account,

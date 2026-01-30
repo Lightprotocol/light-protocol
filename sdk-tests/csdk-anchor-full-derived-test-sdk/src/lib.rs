@@ -9,8 +9,8 @@ use anchor_lang::AnchorDeserialize;
 use csdk_anchor_full_derived_test::{
     amm_test::{ObservationState, PoolState, AUTH_SEED, POOL_LP_MINT_SIGNER_SEED},
     csdk_anchor_full_derived_test::{
-        LightAccountVariant, ObservationStateSeeds, ObservationStateVariant, PoolStateSeeds,
-        PoolStateVariant, Token0VaultSeeds, Token1VaultSeeds,
+        LightAccountVariant, ObservationStateSeeds, PoolStateSeeds, Token0VaultSeeds,
+        Token1VaultSeeds,
     },
 };
 use light_client::interface::{
@@ -151,14 +151,14 @@ impl AmmSdk {
         );
         self.lp_mint_signer = Some(lp_mint_signer);
 
-        let variant = LightAccountVariant::PoolState(PoolStateVariant {
+        let variant = LightAccountVariant::PoolState {
             seeds: PoolStateSeeds {
                 amm_config: self.amm_config.unwrap(),
                 token_0_mint: self.token_0_mint.unwrap(),
                 token_1_mint: self.token_1_mint.unwrap(),
             },
             data: pool,
-        });
+        };
 
         let spec = PdaSpec::new(account.clone(), variant, PROGRAM_ID);
         self.program_owned_specs.insert(account.key, spec);
@@ -174,10 +174,10 @@ impl AmmSdk {
         let observation = ObservationState::deserialize(&mut &account.data()[8..])
             .map_err(|e| AmmSdkError::ParseError(e.to_string()))?;
 
-        let variant = LightAccountVariant::ObservationState(ObservationStateVariant {
+        let variant = LightAccountVariant::ObservationState {
             seeds: ObservationStateSeeds { pool_state },
             data: observation,
-        });
+        };
 
         let spec = PdaSpec::new(account.clone(), variant, PROGRAM_ID);
         self.program_owned_specs.insert(account.key, spec);

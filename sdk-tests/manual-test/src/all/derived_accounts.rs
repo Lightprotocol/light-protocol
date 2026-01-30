@@ -311,14 +311,15 @@ impl light_sdk::compressible::Pack for AllBorshVariant {
             .data
             .pack(accounts)
             .map_err(|_| ProgramError::InvalidAccountData)?;
-        let packed = PackedAllBorshVariant {
-            seeds: PackedAllBorshSeeds {
-                owner_idx: accounts.insert_or_get(self.seeds.owner),
-                bump,
+        Ok(
+            crate::derived_variants::PackedLightAccountVariant::AllBorsh {
+                seeds: PackedAllBorshSeeds {
+                    owner_idx: accounts.insert_or_get(self.seeds.owner),
+                    bump,
+                },
+                data: packed_data,
             },
-            data: packed_data,
-        };
-        Ok(crate::derived_variants::PackedLightAccountVariant::AllBorsh(packed))
+        )
     }
 }
 
@@ -371,13 +372,14 @@ impl light_sdk::compressible::Pack for AllZeroCopyVariant {
             .data
             .pack(accounts)
             .map_err(|_| ProgramError::InvalidAccountData)?;
-        let packed = PackedAllZeroCopyVariant {
-            seeds: PackedAllZeroCopySeeds {
-                owner_idx: accounts.insert_or_get(self.seeds.owner),
-                bump,
+        Ok(
+            crate::derived_variants::PackedLightAccountVariant::AllZeroCopy {
+                seeds: PackedAllZeroCopySeeds {
+                    owner_idx: accounts.insert_or_get(self.seeds.owner),
+                    bump,
+                },
+                data: packed_data,
             },
-            data: packed_data,
-        };
-        Ok(crate::derived_variants::PackedLightAccountVariant::AllZeroCopy(packed))
+        )
     }
 }

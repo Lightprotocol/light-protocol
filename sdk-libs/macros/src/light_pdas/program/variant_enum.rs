@@ -15,6 +15,7 @@ use quote::{format_ident, quote};
 use syn::{Ident, Result, Type};
 
 use super::parsing::{SeedElement, TokenSeedSpec};
+use crate::light_pdas::shared_utils::qualify_type_with_crate;
 
 // =============================================================================
 // LIGHT VARIANT BUILDER
@@ -390,8 +391,9 @@ impl<'a> LightVariantBuilder<'a> {
             .iter()
             .map(|info| {
                 let variant_name = &info.variant_name;
-                let variant_type = format_ident!("{}Variant", variant_name);
-                quote! { #variant_name(#variant_type) }
+                let seeds_type = format_ident!("{}Seeds", variant_name);
+                let inner_type = qualify_type_with_crate(&info.inner_type);
+                quote! { #variant_name { seeds: #seeds_type, data: #inner_type } }
             })
             .collect();
 
@@ -419,15 +421,23 @@ impl<'a> LightVariantBuilder<'a> {
 
     /// Generate the packed `PackedLightAccountVariant` enum.
     fn generate_packed_enum(&self) -> TokenStream {
-        let pda_variants: Vec<_> = self
-            .pda_ctx_seeds
-            .iter()
-            .map(|info| {
-                let variant_name = &info.variant_name;
-                let packed_variant_type = format_ident!("Packed{}Variant", variant_name);
-                quote! { #variant_name(#packed_variant_type) }
-            })
-            .collect();
+        let pda_variants: Vec<_> =
+            self.pda_ctx_seeds
+                .iter()
+                .map(|info| {
+                    let variant_name = &info.variant_name;
+                    let packed_seeds_type = format_ident!("Packed{}Seeds", variant_name);
+                    let inner_type = &info.inner_type;
+                    let packed_data_type =
+                        crate::light_pdas::shared_utils::make_packed_type(inner_type)
+                            .unwrap_or_else(|| {
+                                let type_str = quote!(#inner_type).to_string().replace(' ', "");
+                                let packed_name = format_ident!("Packed{}", type_str);
+                                syn::parse_quote!(#packed_name)
+                            });
+                    quote! { #variant_name { seeds: #packed_seeds_type, data: #packed_data_type } }
+                })
+                .collect();
 
         let token_variants: Vec<_> = self
             .token_seeds
@@ -466,9 +476,10 @@ impl<'a> LightVariantBuilder<'a> {
                 let seed_count = info.seed_count;
 
                 quote! {
-                    Self::#variant_name(packed_data) => {
+                    Self::#variant_name { seeds, data } => {
+                        let packed_data = #packed_variant_type { seeds: seeds.clone(), data: data.clone() };
                         light_sdk::interface::prepare_account_for_decompression::<#seed_count, #packed_variant_type>(
-                            packed_data,
+                            &packed_data,
                             tree_info,
                             output_queue_index,
                             pda_account,
@@ -533,11 +544,13 @@ impl<'a> LightVariantBuilder<'a> {
             .iter()
             .map(|info| {
                 let variant_name = &info.variant_name;
+                let variant_struct_name = format_ident!("{}Variant", variant_name);
 
                 quote! {
-                    Self::#variant_name(variant) => {
-                        let packed = light_sdk::Pack::pack(variant, accounts)?;
-                        Ok(PackedLightAccountVariant::#variant_name(packed))
+                    Self::#variant_name { seeds, data } => {
+                        let variant = #variant_struct_name { seeds: seeds.clone(), data: data.clone() };
+                        let packed = light_sdk::Pack::pack(&variant, accounts)?;
+                        Ok(PackedLightAccountVariant::#variant_name { seeds: packed.seeds, data: packed.data })
                     }
                 }
             })

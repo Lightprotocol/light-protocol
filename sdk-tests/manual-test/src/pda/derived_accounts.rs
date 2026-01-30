@@ -353,14 +353,15 @@ impl light_sdk::compressible::Pack for MinimalRecordVariant {
             .data
             .pack(accounts)
             .map_err(|_| ProgramError::InvalidAccountData)?;
-        let packed = PackedMinimalRecordVariant {
-            seeds: PackedMinimalRecordSeeds {
-                owner_idx: accounts.insert_or_get(self.seeds.owner),
-                nonce_bytes: self.seeds.nonce.to_le_bytes(),
-                bump,
+        Ok(
+            crate::derived_variants::PackedLightAccountVariant::MinimalRecord {
+                seeds: PackedMinimalRecordSeeds {
+                    owner_idx: accounts.insert_or_get(self.seeds.owner),
+                    nonce_bytes: self.seeds.nonce.to_le_bytes(),
+                    bump,
+                },
+                data: packed_data,
             },
-            data: packed_data,
-        };
-        Ok(crate::derived_variants::PackedLightAccountVariant::MinimalRecord(packed))
+        )
     }
 }

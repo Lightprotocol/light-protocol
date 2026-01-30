@@ -286,10 +286,10 @@ fn codegen(
             let variant_struct_name = format_ident!("{}Variant", variant_name);
             let packed_variant_name = format_ident!("Packed{}Variant", variant_name);
             vec![
-                quote! { pub(crate) use super::#seeds_name; },
-                quote! { pub(crate) use super::#packed_seeds_name; },
-                quote! { pub(crate) use super::#variant_struct_name; },
-                quote! { pub(crate) use super::#packed_variant_name; },
+                quote! { pub use super::#seeds_name; },
+                quote! { pub use super::#packed_seeds_name; },
+                quote! { pub use super::#variant_struct_name; },
+                quote! { pub use super::#packed_variant_name; },
             ]
         })
         .collect();
@@ -336,8 +336,6 @@ fn codegen(
                     quote! { data },
                 );
 
-                let variant_struct_name = format_ident!("{}Variant", variant_name);
-
                 let generated = quote! {
                     impl LightAccountVariant {
                         /// Construct a #variant_name variant from account data and seeds.
@@ -349,12 +347,11 @@ fn codegen(
 
                             #(#data_verifications)*
 
-                            // Create the variant struct using the seeds directly
-                            let variant = #variant_struct_name {
+                            // Create the variant using struct syntax
+                            std::result::Result::Ok(Self::#variant_name {
                                 seeds,
                                 data: #variant_data,
-                            };
-                            std::result::Result::Ok(Self::#variant_name(variant))
+                            })
                         }
                     }
                     impl light_sdk::interface::IntoVariant<LightAccountVariant> for #seeds_struct_name {

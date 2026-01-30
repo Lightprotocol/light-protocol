@@ -358,14 +358,15 @@ impl light_sdk::compressible::Pack for ZeroCopyRecordVariant {
             .data
             .pack(accounts)
             .map_err(|_| ProgramError::InvalidAccountData)?;
-        let packed = PackedZeroCopyRecordVariant {
-            seeds: PackedZeroCopyRecordSeeds {
-                owner_idx: accounts.insert_or_get(self.seeds.owner),
-                name: self.seeds.name.clone(),
-                bump,
+        Ok(
+            crate::derived_variants::PackedLightAccountVariant::ZeroCopyRecord {
+                seeds: PackedZeroCopyRecordSeeds {
+                    owner_idx: accounts.insert_or_get(self.seeds.owner),
+                    name: self.seeds.name.clone(),
+                    bump,
+                },
+                data: packed_data,
             },
-            data: packed_data,
-        };
-        Ok(crate::derived_variants::PackedLightAccountVariant::ZeroCopyRecord(packed))
+        )
     }
 }
