@@ -283,7 +283,7 @@ export function createRpc(
 
     // Auto-detect devnet for instruction encoding compatibility
     // TODO: Remove after devnet program update
-    setDevnetCompat(endpoint.toLowerCase().includes('devnet'));
+    // setDevnetCompat(endpoint.toLowerCase().includes('devnet'));
 
     return new Rpc(endpoint, compressionApiEndpoint, proverEndpoint, config);
 }
