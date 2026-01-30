@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use borsh::BorshDeserialize;
+use light_account_checks::discriminator::DISCRIMINATOR_LEN;
 use light_client::rpc::{Rpc, RpcError};
 use light_compressible::{
     compression_info::CompressionInfo,
@@ -276,7 +277,7 @@ pub async fn auto_compress_program_pdas(
     let Some(cfg_acc) = cfg_acc_opt else {
         return Ok(());
     };
-    let cfg = LightConfig::try_from_slice(&cfg_acc.data)
+    let cfg = LightConfig::try_from_slice(&cfg_acc.data[DISCRIMINATOR_LEN..])
         .map_err(|e| RpcError::CustomError(format!("config deserialize: {e:?}")))?;
     let rent_sponsor = cfg.rent_sponsor;
     // compression_authority is the payer by default for auto-compress

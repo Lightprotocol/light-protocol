@@ -1,5 +1,9 @@
 //! LightConfig state struct and methods.
 
+use light_account_checks::{
+    checks::check_discriminator,
+    discriminator::{Discriminator, DISCRIMINATOR_LEN},
+};
 use light_compressible::rent::RentConfig;
 use solana_account_info::AccountInfo;
 use solana_msg::msg;
@@ -33,8 +37,16 @@ pub struct LightConfig {
     pub address_space: Vec<Pubkey>,
 }
 
+/// Implement the Light Discriminator trait for LightConfig
+impl Discriminator for LightConfig {
+    const LIGHT_DISCRIMINATOR: [u8; 8] = *b"LightCfg";
+    const LIGHT_DISCRIMINATOR_SLICE: &'static [u8] = &Self::LIGHT_DISCRIMINATOR;
+}
+
 impl LightConfig {
-    pub const LEN: usize = 1
+    /// Total account size including discriminator
+    pub const LEN: usize = DISCRIMINATOR_LEN
+        + 1
         + 4
         + 32
         + 32
@@ -47,9 +59,11 @@ impl LightConfig {
         + (32 * MAX_ADDRESS_TREES_PER_SPACE);
 
     /// Calculate the exact size needed for a LightConfig with the given
-    /// number of address spaces
+    /// number of address spaces (includes discriminator)
     pub fn size_for_address_space(num_address_trees: usize) -> usize {
-        1 + 4
+        DISCRIMINATOR_LEN
+            + 1
+            + 4
             + 32
             + 32
             + 32
@@ -125,12 +139,13 @@ impl LightConfig {
         Ok(())
     }
 
-    /// Loads and validates config from account, checking owner and PDA derivation
+    /// Loads and validates config from account, checking owner, discriminator, and PDA derivation
     #[inline(never)]
     pub fn load_checked(
         account: &AccountInfo,
         program_id: &Pubkey,
     ) -> Result<Self, crate::ProgramError> {
+        // CHECK: Owner
         if account.owner != program_id {
             msg!(
                 "LightConfig::load_checked failed: Config account owner mismatch. Expected: {:?}. Found: {:?}.",
@@ -139,8 +154,17 @@ impl LightConfig {
             );
             return Err(LightSdkError::ConstraintViolation.into());
         }
+
         let data = account.try_borrow_data()?;
-        let config = Self::try_from_slice(&data).map_err(|err| {
+
+        // CHECK: Discriminator using light-account-checks
+        check_discriminator::<Self>(&data).map_err(|e| {
+            msg!("LightConfig::load_checked failed: {:?}", e);
+            LightSdkError::ConstraintViolation
+        })?;
+
+        // Deserialize from offset after discriminator
+        let config = Self::try_from_slice(&data[DISCRIMINATOR_LEN..]).map_err(|err| {
             msg!(
                 "LightConfig::load_checked failed: Failed to deserialize config data: {:?}",
                 err

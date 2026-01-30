@@ -6,6 +6,7 @@ use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest},
     Indexer, ProgramTestConfig, Rpc,
 };
+use light_sdk::utils::derive_rent_sponsor_pda;
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
 use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
 use solana_instruction::Instruction;
@@ -92,11 +93,14 @@ async fn test_create_single_token_vault() {
 
     let program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
+    // Derive rent sponsor PDA for this program (not the light token program)
+    let (rent_sponsor, _) = derive_rent_sponsor_pda(&program_id);
+
     let (init_config_ix, _config_pda) = InitializeRentFreeConfig::new(
         &program_id,
         &payer.pubkey(),
         &program_data_pda,
-        LIGHT_TOKEN_RENT_SPONSOR,
+        rent_sponsor,
         payer.pubkey(),
     )
     .build();

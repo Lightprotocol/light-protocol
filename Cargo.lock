@@ -3944,6 +3944,7 @@ dependencies = [
  "bs58",
  "bytemuck",
  "chrono",
+ "light-account-checks",
  "light-batched-merkle-tree",
  "light-client",
  "light-compressed-account",

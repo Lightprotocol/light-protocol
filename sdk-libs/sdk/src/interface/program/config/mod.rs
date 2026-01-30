@@ -22,6 +22,8 @@ pub use create::{
     check_program_upgrade_authority, process_initialize_light_config,
     process_initialize_light_config_checked,
 };
+// Re-export Discriminator trait so users can access LightConfig::LIGHT_DISCRIMINATOR
+pub use light_account_checks::discriminator::Discriminator;
 pub use light_sdk_types::constants::RENT_SPONSOR_SEED;
 pub use state::LightConfig;
 pub use update::process_update_light_config;

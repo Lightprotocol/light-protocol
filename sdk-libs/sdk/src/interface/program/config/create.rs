@@ -1,5 +1,6 @@
 //! Config initialization instructions.
 
+use light_account_checks::discriminator::{Discriminator, DISCRIMINATOR_LEN};
 use light_compressible::rent::RentConfig;
 use solana_account_info::AccountInfo;
 use solana_cpi::invoke_signed;
@@ -151,8 +152,13 @@ pub fn process_initialize_light_config<'info>(
     let mut data = config_account
         .try_borrow_mut_data()
         .map_err(LightSdkError::from)?;
+
+    // Write discriminator first (using trait constant)
+    data[..DISCRIMINATOR_LEN].copy_from_slice(&LightConfig::LIGHT_DISCRIMINATOR);
+
+    // Serialize config data after discriminator
     config
-        .serialize(&mut &mut data[..])
+        .serialize(&mut &mut data[DISCRIMINATOR_LEN..])
         .map_err(|_| LightSdkError::Borsh)?;
 
     Ok(())

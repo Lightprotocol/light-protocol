@@ -1,5 +1,6 @@
 //! Config update instruction.
 
+use light_account_checks::discriminator::DISCRIMINATOR_LEN;
 use light_compressible::rent::RentConfig;
 use solana_account_info::AccountInfo;
 use solana_msg::msg;
@@ -88,10 +89,13 @@ pub fn process_update_light_config<'info>(
         msg!("Failed to borrow mut data for config_account: {:?}", e);
         LightSdkError::from(e)
     })?;
-    config.serialize(&mut &mut data[..]).map_err(|e| {
-        msg!("Failed to serialize updated config: {:?}", e);
-        LightSdkError::Borsh
-    })?;
+    // Serialize after discriminator (discriminator is preserved from init)
+    config
+        .serialize(&mut &mut data[DISCRIMINATOR_LEN..])
+        .map_err(|e| {
+            msg!("Failed to serialize updated config: {:?}", e);
+            LightSdkError::Borsh
+        })?;
 
     Ok(())
 }
