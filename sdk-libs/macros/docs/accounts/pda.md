@@ -50,7 +50,7 @@ Macro looks for `create_accounts_proof` field in params:
 - `address_tree_info` - Merkle tree for address registration
 - `output_state_tree_index` - Which state tree to write to
 
-### Example
+### Example (Standard Account)
 
 ```rust
 #[derive(AnchorSerialize, AnchorDeserialize)]
@@ -64,25 +64,65 @@ pub struct CreateParams {
 pub struct Create<'info> {
     #[account(mut)]
     pub fee_payer: Signer<'info>,
-    pub compression_config: AccountInfo<'info>,
-    #[account(mut)]
-    pub pda_rent_sponsor: AccountInfo<'info>,
 
-    #[account(init, payer = fee_payer, space = 8 + T::INIT_SPACE, seeds = [...], bump)]
+    pub compression_config: Account<'info, CompressionConfig>,
+    #[account(mut)]
+    pub pda_rent_sponsor: Account<'info, RentSponsor>,
+
+    // Standard PDA with Borsh serialization
+    #[account(init, payer = fee_payer, space = 8 + UserRecord::INIT_SPACE, seeds = [b"user", params.owner.as_ref()], bump)]
     #[light_account(init)]
-    pub record: Account<'info, T>,
+    pub record: Account<'info, UserRecord>,
 
     pub system_program: Program<'info, System>,
 }
 ```
 
+### Example (Zero-Copy Account)
+
+```rust
+#[derive(AnchorSerialize, AnchorDeserialize)]
+pub struct CreateZcParams {
+    pub create_accounts_proof: CreateAccountsProof,
+    pub owner: Pubkey,
+}
+
+#[derive(Accounts, LightAccounts)]
+#[instruction(params: CreateZcParams)]
+pub struct CreateZc<'info> {
+    #[account(mut)]
+    pub fee_payer: Signer<'info>,
+
+    pub compression_config: Account<'info, CompressionConfig>,
+    #[account(mut)]
+    pub pda_rent_sponsor: Account<'info, RentSponsor>,
+
+    // Zero-copy PDA with Pod serialization - requires zero_copy keyword
+    #[account(init, payer = fee_payer, space = 8 + core::mem::size_of::<ZcRecord>(), seeds = [b"zc_record", params.owner.as_ref()], bump)]
+    #[light_account(init, zero_copy)]
+    pub zc_record: AccountLoader<'info, ZcRecord>,
+
+    pub system_program: Program<'info, System>,
+}
+```
+
+**Zero-copy requirements:**
+- Use `AccountLoader<'info, T>` instead of `Account<'info, T>`
+- Add `zero_copy` keyword to `#[light_account]`
+- Data type must implement `bytemuck::Pod` and `bytemuck::Zeroable`
+- For decompression: type must also implement `borsh::BorshSerialize` and `borsh::BorshDeserialize`
+
 ### LightPreInit (per PDA field)
 
-1. Extract account info + key
-2. Resolve address tree from CPI accounts
-3. Init CompressionInfo from config
-4. Call `prepare_compressed_account_on_init` (hash, register address)
-5. Reimburse rent from sponsor to fee_payer
+Generated code for each PDA field:
+
+1. **Account extraction**: Get account info and pubkey
+2. **Address tree extraction**: Get address tree pubkey from CPI context via tree info
+3. **Account data initialization**: Set `CompressionInfo` using config data and current slot
+   - For zero-copy (`AccountLoader`): Use `load_init()` and set `compression_info` directly
+   - For Borsh (`Account` or `Box<Account>`): Use `set_decompressed()` trait method and serialize
+4. **Prepare call**: Register compressed address via `prepare_compressed_account_on_init()`
+5. **Rent reimbursement**: Reimburse fee_payer for rent paid to Anchor (single batch call for all PDAs)
 
 ---
 

@@ -6,38 +6,45 @@ PDA-owned token accounts (vaults) using `token::` namespace parameters.
 
 ### Init Mode
 
-Creates token account via `CreateTokenAccountCpi`.
+Creates token account via `CreateTokenAccountCpi` in `LightPreInit`.
 
 ```rust
 #[light_account(init,
-    token::seeds = [VAULT_SEED, self.mint.key()],
-    token::mint = mint,
-    token::owner = vault_authority,
-    token::owner_seeds = [VAULT_AUTH_SEED],
-    token::bump = params.vault_bump  // optional
+    token::seeds = [VAULT_SEED, self.mint.key()],      // Token account PDA seeds (WITHOUT bump)
+    token::owner_seeds = [VAULT_AUTH_SEED],            // Owner PDA seeds (WITHOUT bump)
+    token::mint = mint,                                // Mint field reference
+    token::owner = vault_authority,                    // Owner field reference
+    token::bump = params.vault_bump                    // Optional: explicit bump
 )]
+pub vault: Account<'info, CToken>,
 ```
 
 ### Mark-Only Mode
 
-Marks field for seed extraction. No account creation.
+Marks field for seed extraction. No account creation. Used by `#[light_program]` for compress/decompress instruction generation.
 
 ```rust
 #[light_account(
-    token::seeds = [VAULT_SEED, self.mint.key()],
-    token::owner_seeds = [VAULT_AUTH_SEED]
+    token::seeds = [VAULT_SEED, self.mint.key()],      // Token account PDA seeds (WITHOUT bump)
+    token::owner_seeds = [VAULT_AUTH_SEED]             // Owner PDA seeds (WITHOUT bump)
 )]
+pub vault: Account<'info, CToken>,
 ```
 
 ## Parameters
 
 | Parameter | Init | Mark-Only | Description |
 |-----------|------|-----------|-------------|
-| `token::seeds` | Required | Required | Token account PDA seeds (no bump) |
-| `token::owner_seeds` | Required | Required | Owner PDA seeds for decompression |
+| `token::seeds` | Required | Required | Token account PDA seeds (WITHOUT bump - bump is added automatically) |
+| `token::owner_seeds` | Required | Required | Owner PDA seeds for decompression (WITHOUT bump) |
 | `token::mint` | Required | Forbidden | Mint field reference |
 | `token::owner` | Required | Forbidden | Owner/authority field reference |
-| `token::bump` | Optional | Optional | Explicit bump, auto-derived if omitted |
+| `token::bump` | Optional | Optional | Explicit bump for token::seeds (auto-derived using `find_program_address` if omitted) |
+
+**Seed handling:**
+- User provides base seeds WITHOUT bump in `token::seeds` array
+- Macro auto-derives bump using `Pubkey::find_program_address()` if `token::bump` not provided
+- Bump is always appended as the final seed when calling `invoke_signed()`
 
 ## Validation
 
@@ -63,39 +70,90 @@ Marks field for seed extraction. No account creation.
 ## Example
 
 ```rust
+const VAULT_SEED: &[u8] = b"vault";
+const VAULT_AUTH_SEED: &[u8] = b"vault_authority";
+
 #[derive(Accounts, LightAccounts)]
 #[instruction(params: CreateVaultParams)]
 pub struct CreateVault<'info> {
     #[account(mut)]
     pub fee_payer: Signer<'info>,
     pub mint: AccountInfo<'info>,
+
     #[account(seeds = [VAULT_AUTH_SEED], bump)]
     pub vault_authority: UncheckedAccount<'info>,
 
-    #[account(mut, seeds = [VAULT_SEED, mint.key().as_ref()], bump)]
+    // Token account with init - creates via CreateTokenAccountCpi in pre_init
     #[light_account(init,
-        token::seeds = [VAULT_SEED, self.mint.key()],
-        token::mint = mint,
-        token::owner = vault_authority,
-        token::owner_seeds = [VAULT_AUTH_SEED],
-        token::bump = params.vault_bump
+        token::seeds = [VAULT_SEED, self.mint.key()],      // Token account PDA seeds (no bump)
+        token::owner_seeds = [VAULT_AUTH_SEED],            // Owner PDA seeds (no bump)
+        token::mint = mint,                                // Mint field reference
+        token::owner = vault_authority,                    // Owner field reference
+        token::bump = params.vault_bump                    // Optional bump
     )]
-    pub vault: UncheckedAccount<'info>,
+    pub vault: Account<'info, CToken>,
 
-    pub light_token_config: AccountInfo<'info>,
+    // Infrastructure for token account creation
+    pub light_token_config: Account<'info, CompressibleConfig>,
     #[account(mut)]
-    pub light_token_rent_sponsor: AccountInfo<'info>,
+    pub light_token_rent_sponsor: Account<'info, RentSponsor>,
     pub light_token_cpi_authority: AccountInfo<'info>,
-    pub light_token_program: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
 }
 ```
 
+### Generated Code
+
+The macro generates `CreateTokenAccountCpi` call in `LightPreInit::light_pre_init()`:
+
+```rust
+impl<'info> LightPreInit<'info, CreateVaultParams> for CreateVault<'info> {
+    fn light_pre_init(&mut self, _remaining: &[AccountInfo<'info>], params: &CreateVaultParams)
+        -> Result<bool, LightSdkError>
+    {
+        // Bind seeds to local variables (extends temporary lifetimes)
+        let __seed_0 = VAULT_SEED;
+        let __seed_0_ref: &[u8] = __seed_0.as_ref();
+        let __seed_1 = self.mint.key();
+        let __seed_1_ref: &[u8] = __seed_1.as_ref();
+
+        // Get bump - either provided or auto-derived
+        let __bump: u8 = params.vault_bump;  // or auto-derive if not provided
+        let __bump_slice: [u8; 1] = [__bump];
+        let __token_account_seeds: &[&[u8]] = &[__seed_0_ref, __seed_1_ref, &__bump_slice[..]];
+
+        CreateTokenAccountCpi {
+            payer: self.fee_payer.to_account_info(),
+            account: self.vault.to_account_info(),
+            mint: self.mint.to_account_info(),
+            owner: *self.vault_authority.to_account_info().key,
+        }
+        .rent_free(
+            self.light_token_config.to_account_info(),
+            self.light_token_rent_sponsor.to_account_info(),
+            __system_program.clone(),
+            &crate::ID,
+        )
+        .invoke_signed(__token_account_seeds)?;
+
+        Ok(true)
+    }
+}
+```
+
+## Requirements
+
+Programs using token account creation must:
+- Define `crate::ID` constant (standard with Anchor's `declare_id!`)
+- Include `system_program` field in the accounts struct
+- The generated code uses `system_program` for token account creation via CPI
+
 ## Source
 
 - `sdk-libs/macros/src/light_pdas/accounts/token.rs` - CPI generation
-- `sdk-libs/macros/src/light_pdas/accounts/light_account.rs` - Parsing (lines 109-123, 882-1021)
+- `sdk-libs/macros/src/light_pdas/accounts/light_account.rs` - Parsing
 - `sdk-libs/macros/src/light_pdas/light_account_keywords.rs` - TOKEN_NAMESPACE_KEYS
+- `sdk-libs/macros/src/light_pdas/accounts/builder.rs` - Pre-init code generation
 
 ## Related
 

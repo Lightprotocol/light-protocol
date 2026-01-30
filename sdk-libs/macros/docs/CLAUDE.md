@@ -46,9 +46,31 @@ See `accounts/architecture.md` for shared infrastructure requirements, validatio
 ### Starting Points
 
 - **Data structs**: Use `LightAccount` + `LightDiscriminator` + `LightHasherSha` derives with non-Option `CompressionInfo`
+  - See `account/architecture.md` for details
+  - `compression_info` field must be first or last field in struct
+  - `INIT_SPACE` must be <= 800 bytes (enforced at compile time)
 - **Accounts structs**: Use `accounts/architecture.md` for the accounts-level derive macro that marks fields for compression
+  - Add `#[derive(LightAccounts)]` to Anchor `#[derive(Accounts)]` structs
+  - Mark PDA fields with `#[light_account(init)]`
+  - Mark mint fields with `#[light_account(init, mint::...)]`
+  - Mark token fields with `#[light_account(token::...)]`
 - **Program-level integration**: Use `light_program/architecture.md` for program-level auto-discovery and instruction generation
+  - Add `#[light_program]` attribute above `#[program]`
+  - Automatically discovers all `#[derive(LightAccounts)]` structs in the crate
+  - Generates `LightAccountVariant` enum, seeds structs, compress/decompress instructions
 - **Implementation details**: Use `light_program/codegen.md` for technical code generation details
+
+### Finding Source Files
+
+When debugging macro-generated code:
+1. Use `cargo expand` to see the generated code (see root CLAUDE.md for details)
+2. Search in `src/light_pdas/` for the relevant module:
+   - `account/` - Data struct derives (LightAccount, etc.)
+   - `accounts/` - Accounts struct derives (LightAccounts)
+   - `program/` - Program-level macro (#[light_program])
+   - `parsing/` - Shared parsing infrastructure
+   - `seeds/` - Seed extraction and classification
+3. Use `ast-grep` to understand code dependencies (see root CLAUDE.md)
 
 ### Macro Hierarchy
 
@@ -78,23 +100,44 @@ See `accounts/architecture.md` for shared infrastructure requirements, validatio
 ```
 sdk-libs/macros/src/light_pdas/
 ├── account/             # Trait derive macros for account DATA structs
-│   ├── light_compressible.rs  # LightAccount derive
-│   ├── seed_extraction.rs     # Anchor seed extraction
-│   └── utils.rs               # Shared utilities
+│   ├── derive.rs        # LightAccount derive
+│   ├── traits.rs        # Trait implementations (HasCompressionInfo, CompressAs, Compressible)
+│   ├── utils.rs         # Shared utilities
+│   └── validation.rs    # Account validation
 ├── accounts/            # #[derive(LightAccounts)] for ACCOUNTS structs
 │   ├── derive.rs        # Main derive orchestration
 │   ├── light_account.rs # #[light_account(...)] parsing
 │   ├── builder.rs       # Code generation builder
-│   ├── parse.rs         # Attribute parsing
-│   ├── pda.rs           # PDA code generation
-│   ├── mint.rs          # Mint code generation
-│   └── token.rs         # Token/ATA code generation
+│   ├── parse.rs         # Attribute parsing with darling
+│   ├── pda.rs           # PDA block code generation
+│   ├── mint.rs          # Mint action CPI generation
+│   ├── token.rs         # Token account handling
+│   ├── validation.rs    # Accounts validation
+│   └── variant.rs       # Variant enum generation
 ├── program/             # #[light_program] implementation
-│   ├── instructions.rs  # Instruction handler generation
+│   ├── mod.rs           # light_program_impl entry point
+│   ├── instructions.rs  # Instruction handler wrapping
 │   ├── compress.rs      # Compress instruction codegen
 │   ├── decompress.rs    # Decompress instruction codegen
-│   └── variant_enum.rs  # LightAccountVariant enum generation
+│   ├── variant_enum.rs  # LightAccountVariant enum generation
+│   ├── parsing.rs       # Seed conversion and function wrapping
+│   ├── visitors.rs      # AST visitors for field extraction
+│   ├── seed_codegen.rs  # Seed struct code generation
+│   ├── seed_utils.rs    # Seed utility functions
+│   └── expr_traversal.rs # Expression traversal utilities
+├── parsing/             # Unified parsing infrastructure
+│   ├── accounts_struct.rs # ParsedAccountsStruct for unified parsing
+│   ├── crate_context.rs   # Crate-wide module parsing for struct discovery
+│   ├── infra.rs           # Infrastructure field classification
+│   └── instruction_arg.rs # Instruction argument parsing from #[instruction(...)]
 ├── seeds/               # Seed extraction and classification
-├── shared_utils.rs      # Common utilities
+│   ├── extract.rs       # Main extraction from Accounts structs
+│   ├── anchor_extraction.rs # Extract seeds from #[account(seeds=[...])]
+│   ├── classification.rs # Seed type classification logic
+│   ├── data_fields.rs   # Data field extraction from seeds
+│   ├── instruction_args.rs # InstructionArgSet type definition
+│   └── types.rs         # ClassifiedSeed, ExtractedSeedSpec type definitions
+├── light_account_keywords.rs # Keyword parsing for #[light_account(...)]
+├── shared_utils.rs      # Common utilities (MetaExpr, type helpers)
 └── mod.rs               # Module exports
 ```

@@ -17,20 +17,25 @@
 | Parameter | Description |
 |-----------|-------------|
 | `mint::signer` | AccountInfo that seeds the mint PDA |
-| `mint::authority` | Mint authority (signer or PDA) |
-| `mint::decimals` | Token decimals |
-| `mint::seeds` | PDA signer seeds (without bump) |
+| `mint::authority` | Mint authority (signer or PDA) field reference |
+| `mint::decimals` | Token decimals (expression) |
+| `mint::seeds` | PDA signer seeds for mint_signer (WITHOUT bump - bump is added automatically) |
 
 ### Optional Parameters
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `mint::bump` | Auto-derived | Bump for mint_signer PDA |
-| `mint::freeze_authority` | None | Freeze authority field |
-| `mint::authority_seeds` | None | PDA seeds if authority is a PDA |
-| `mint::authority_bump` | Auto-derived | Bump for authority_seeds |
+| `mint::bump` | Auto-derived | Explicit bump for mint_seeds (auto-derived using `find_program_address` if omitted) |
+| `mint::freeze_authority` | None | Freeze authority field reference |
+| `mint::authority_seeds` | None | PDA seeds if authority is a PDA (WITHOUT bump) |
+| `mint::authority_bump` | Auto-derived | Explicit bump for authority_seeds (auto-derived if omitted) |
 | `mint::rent_payment` | `16u8` | Decompression rent epochs (~24h) |
 | `mint::write_top_up` | `766u32` | Write top-up lamports |
+
+**Seed handling:**
+- User provides base seeds WITHOUT bump in both `mint::seeds` and `mint::authority_seeds`
+- Macro auto-derives bumps using `Pubkey::find_program_address()` if not explicitly provided
+- Bumps are always appended as the final seed in signer seeds arrays
 
 ### TokenMetadata Extension (all-or-nothing)
 
@@ -56,12 +61,61 @@ system_program                       # System program
 ### Example
 
 ```rust
+const MINT_SIGNER_SEED: &[u8] = b"mint_signer";
+
+#[derive(AnchorSerialize, AnchorDeserialize)]
+pub struct CreateMintParams {
+    pub create_accounts_proof: CreateAccountsProof,
+    pub decimals: u8,
+}
+
 #[derive(Accounts, LightAccounts)]
 #[instruction(params: CreateMintParams)]
 pub struct CreateMint<'info> {
     #[account(mut)]
     pub fee_payer: Signer<'info>,
+
     pub authority: Signer<'info>,
+
+    #[account(seeds = [MINT_SIGNER_SEED], bump)]
+    pub mint_signer: AccountInfo<'info>,
+
+    // Mint creation - uses CreateMintsCpi in pre_init
+    #[light_account(init,
+        mint::signer = mint_signer,                     // Seeds the mint PDA
+        mint::authority = authority,                    // Mint authority
+        mint::decimals = params.decimals,               // Decimals from params
+        mint::seeds = &[MINT_SIGNER_SEED]              // Seeds WITHOUT bump
+    )]
+    pub cmint: Account<'info, Mint>,
+
+    // Infrastructure for mint creation
+    pub light_token_config: Account<'info, CompressibleConfig>,
+    #[account(mut)]
+    pub light_token_rent_sponsor: Account<'info, RentSponsor>,
+    pub light_token_cpi_authority: AccountInfo<'info>,
+}
+```
+
+### Example with TokenMetadata Extension
+
+```rust
+#[derive(AnchorSerialize, AnchorDeserialize)]
+pub struct CreateTokenParams {
+    pub create_accounts_proof: CreateAccountsProof,
+    pub decimals: u8,
+    pub name: Vec<u8>,
+    pub symbol: Vec<u8>,
+    pub uri: Vec<u8>,
+}
+
+#[derive(Accounts, LightAccounts)]
+#[instruction(params: CreateTokenParams)]
+pub struct CreateToken<'info> {
+    #[account(mut)]
+    pub fee_payer: Signer<'info>,
+    pub authority: Signer<'info>,
+    pub update_authority: AccountInfo<'info>,
 
     #[account(seeds = [b"mint"], bump)]
     pub mint_signer: AccountInfo<'info>,
@@ -69,17 +123,19 @@ pub struct CreateMint<'info> {
     #[light_account(init,
         mint::signer = mint_signer,
         mint::authority = authority,
-        mint::decimals = 6,
-        mint::seeds = &[b"mint"]
+        mint::decimals = params.decimals,
+        mint::seeds = &[b"mint"],
+        mint::name = params.name.clone(),
+        mint::symbol = params.symbol.clone(),
+        mint::uri = params.uri.clone(),
+        mint::update_authority = update_authority
     )]
-    pub mint: UncheckedAccount<'info>,
+    pub token_mint: Account<'info, Mint>,
 
-    pub light_token_config: AccountInfo<'info>,
+    pub light_token_config: Account<'info, CompressibleConfig>,
     #[account(mut)]
-    pub light_token_rent_sponsor: AccountInfo<'info>,
+    pub light_token_rent_sponsor: Account<'info, RentSponsor>,
     pub light_token_cpi_authority: AccountInfo<'info>,
-    pub light_token_program: AccountInfo<'info>,
-    pub system_program: Program<'info, System>,
 }
 ```
 

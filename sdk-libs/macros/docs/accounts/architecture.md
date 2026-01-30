@@ -26,33 +26,44 @@ The `#[derive(LightAccounts)]` macro and associated trait derives enable rent-fr
 
 ```
 sdk-libs/macros/src/light_pdas/
-|-- mod.rs                    # Module exports
-|-- shared_utils.rs           # Common utilities (constant detection, identifier extraction)
-|-- light_account_keywords.rs # Keyword validation for #[light_account] parsing
+|-- mod.rs                     # Module exports
+|-- shared_utils.rs            # Common utilities (MetaExpr, type helpers, constant detection)
+|-- light_account_keywords.rs  # Keyword validation for #[light_account] parsing
 |
-|-- accounts/                 # #[derive(LightAccounts)] for Accounts structs
-|   |-- mod.rs                # Module entry point
-|   |-- derive.rs             # Orchestration layer
-|   |-- builder.rs            # Code generation builder
-|   |-- parse.rs              # Struct-level parsing and field classification
-|   |-- validation.rs         # Struct-level validation rules
-|   |-- light_account.rs      # Unified #[light_account] attribute parsing
-|   |-- pda.rs                # PDA block code generation
-|   |-- mint.rs               # Mint action CPI generation
-|   |-- token.rs              # Token account and ATA CPI generation
-|   +-- variant.rs            # Variant enum generation for light_program
+|-- accounts/                  # #[derive(LightAccounts)] for Accounts structs
+|   |-- mod.rs                 # Module entry point
+|   |-- derive.rs              # Orchestration layer
+|   |-- builder.rs             # Code generation builder
+|   |-- parse.rs               # Delegates to unified parsing module (type aliases)
+|   |-- validation.rs          # Struct-level validation rules
+|   |-- light_account.rs       # Unified #[light_account] attribute parsing
+|   |-- pda.rs                 # PDA block code generation
+|   |-- mint.rs                # Mint action CPI generation
+|   |-- token.rs               # Token account and ATA CPI generation
+|   +-- variant.rs             # Variant enum generation for light_program
 |
-|-- account/                  # Trait derive macros for data structs
-|   |-- mod.rs                # Module entry point
-|   |-- derive.rs             # LightAccount derive implementation
-|   |-- validation.rs         # Shared validation utilities
-|   +-- utils.rs              # Shared utilities (field extraction, type checks)
+|-- account/                   # Trait derive macros for data structs
+|   |-- mod.rs                 # Module entry point
+|   |-- derive.rs              # LightAccount derive implementation
+|   |-- traits.rs              # Trait implementations (HasCompressionInfo, CompressAs, Compressible)
+|   |-- validation.rs          # Shared validation utilities
+|   +-- utils.rs               # Shared utilities (field extraction, type checks)
 |
-+-- seeds/                    # Simplified seed extraction (3-category system)
-    |-- mod.rs                # Module entry point
-    |-- types.rs              # ClassifiedSeed, SeedSource enums
-    |-- extract.rs            # Seed extraction from Anchor attributes
-    +-- classify.rs           # Seed classification logic
+|-- parsing/                   # Unified parsing infrastructure
+|   |-- mod.rs                 # Module exports
+|   |-- accounts_struct.rs     # ParsedAccountsStruct for unified parsing
+|   |-- crate_context.rs       # Crate-wide module parsing for struct discovery
+|   |-- infra.rs               # Infrastructure field classification by naming convention
+|   +-- instruction_arg.rs     # Instruction argument parsing from #[instruction(...)]
+|
++-- seeds/                     # Seed extraction and classification
+    |-- mod.rs                 # Module entry point
+    |-- types.rs               # ClassifiedSeed, ExtractedSeedSpec type definitions
+    |-- extract.rs             # Main extraction from Accounts structs
+    |-- anchor_extraction.rs   # Extract seeds from #[account(seeds=[...])]
+    |-- classification.rs      # Seed type classification (6 categories)
+    |-- data_fields.rs         # Data field extraction from seeds
+    +-- instruction_args.rs    # InstructionArgSet type definition
 ```
 
 ---
@@ -117,21 +128,23 @@ The `#[light_account]` attribute uses Anchor-style namespace prefixes to specify
 #### Token Account Parameters (`token::`)
 
 ```rust
-#[light_account(init, token,
-    token::authority = [VAULT_SEED, self.offer.key()],  // PDA owner seeds (required)
-    token::mint = token_mint_a,                          // Mint account field (required for init)
-    token::owner = authority,                            // Owner field (required for init)
-    token::bump = params.vault_bump                      // Optional: explicit bump
+#[light_account(init,
+    token::seeds = [VAULT_SEED, self.offer.key()],      // Token account PDA seeds (required, WITHOUT bump)
+    token::owner_seeds = [VAULT_AUTH_SEED],             // Owner PDA seeds for decompression (required, WITHOUT bump)
+    token::mint = token_mint_a,                         // Mint account field (required for init)
+    token::owner = authority,                           // Owner field (required for init)
+    token::bump = params.vault_bump                     // Optional: explicit bump for token::seeds
 )]
-pub vault: UncheckedAccount<'info>,
+pub vault: Account<'info, CToken>,
 ```
 
 | Parameter | Description | Required |
 |-----------|-------------|----------|
-| `token::authority` | PDA seeds for the token account owner (array expression) | Yes |
+| `token::seeds` | Token account PDA seeds (WITHOUT bump) | Yes |
+| `token::owner_seeds` | Owner PDA seeds for decompression (WITHOUT bump) | Yes |
 | `token::mint` | Field reference for the token mint | Yes (init only) |
-| `token::owner` | Field reference for the PDA owner | Yes (init only) |
-| `token::bump` | Explicit bump seed (auto-derived if omitted) | No |
+| `token::owner` | Field reference for the token owner/authority | Yes (init only) |
+| `token::bump` | Explicit bump seed for token::seeds (auto-derived if omitted) | No |
 
 #### Mint Parameters (`mint::`)
 
@@ -198,8 +211,8 @@ pub user_ata: UncheckedAccount<'info>,
 For token accounts and ATAs that are NOT being initialized (just marked for light_program discovery), omit `init`:
 
 ```rust
-// Mark-only token - requires authority for seed derivation
-#[light_account(token::authority = [VAULT_SEED, self.offer.key()])]
+// Mark-only token - requires seeds and owner_seeds for seed derivation
+#[light_account(token::seeds = [VAULT_SEED, self.offer.key()], token::owner_seeds = [b"auth"])]
 pub existing_vault: Account<'info, CToken>,
 
 // Mark-only ATA - requires authority and mint for ATA derivation
@@ -210,7 +223,7 @@ pub existing_ata: Account<'info, CToken>,
 Mark-only mode:
 - Returns `None` from parsing (skipped by LightAccounts derive)
 - Processed by `#[light_program]` for decompress/compress instruction generation
-- Token: requires `token::authority`, forbids `token::mint` and `token::owner`
+- Token: requires `token::seeds` and `token::owner_seeds`, forbids `token::mint` and `token::owner`
 - ATA: requires both `associated_token::authority` and `associated_token::mint`
 
 #### `#[instruction(...)]` - Specify Instruction Parameters (Required)
@@ -239,39 +252,88 @@ Infrastructure fields are auto-detected by naming convention. No attribute requi
 
 **Source**: `sdk-libs/macros/src/light_pdas/accounts/parse.rs`
 
-### 2.6 Code Generation Flow
+### 2.6 Execution Flow and Account Creation Timing
+
+**Design principle**: ALL account creation happens in `LightPreInit` (before instruction handler execution) so that accounts are available for use during the instruction body.
+
+#### When Accounts Are Created
+
+| Account Type | Creation Phase | Builder/CPI Used |
+|--------------|----------------|------------------|
+| **PDAs** | `pre_init` | `LightSystemProgramCpi` or batched with mints |
+| **Mints** | `pre_init` | `CreateMintsCpi` (batched, with optional PDA context) |
+| **Token Accounts** | `pre_init` | `CreateTokenAccountCpi` with `rent_free()` |
+| **ATAs** | `pre_init` | `CreateTokenAtaCpi` with `idempotent().rent_free()` |
+
+#### Execution Timeline
 
 ```
-1. Parse
+1. Anchor deserializes accounts struct
+2. light_pre_init() executes:
+   a. Create token accounts (if any)
+   b. Create ATAs (if any)
+   c. Batch PDAs + Mints:
+      - Write PDAs to CPI context
+      - Create mints with decompress + offset
+   OR PDAs only:
+      - Register compressed addresses
+   OR Mints only:
+      - Create mints with decompress
+3. Instruction handler executes (your code)
+   - All accounts are now available
+   - Can transfer tokens, mint, etc.
+4. light_finalize() executes (currently no-op)
+5. Anchor serializes account changes
+```
+
+### 2.7 Code Generation Flow
+
+```
+1. Parse (parse.rs, light_account.rs)
    |-- parse_light_accounts_struct() extracts:
    |   - Struct name and generics
-   |   - #[light_account(init)] fields -> PdaField (with zero_copy flag)
-   |   - #[light_account(init, mint, ...)] fields -> LightMintField
-   |   - #[light_account(init, token, ...)] fields -> TokenAccountField
-   |   - #[light_account(init, associated_token, ...)] fields -> AtaField
-   |   - #[instruction] args
-   |   - Infrastructure fields by naming convention
+   |   - #[light_account(init)] fields -> ParsedPdaField (with zero_copy flag)
+   |   - #[light_account(init, mint::...)] fields -> LightMintField
+   |   - #[light_account(init, token::...)] fields -> TokenAccountField
+   |   - #[light_account(init, associated_token::...)] fields -> AtaField
+   |   - #[instruction] args -> InstructionArg
+   |   - Infrastructure fields by naming convention -> InfraFields
    |
-2. Validate
+2. Validate (validation.rs)
    |-- Total fields <= 255 (u8 index limit)
-   |-- #[instruction] required when #[light_account] present
+   |-- #[instruction] required when #[light_account(init)] present
    |-- AccountLoader requires zero_copy keyword
    |-- Non-AccountLoader forbids zero_copy keyword
+   |-- Token/ATA fields require appropriate infrastructure fields
    |
-3. Generate pre_init Body
-   |-- Token accounts + ATAs: generate in pre_init (before instruction logic)
-   |-- PDAs + Mints: generate compression CPI code
-   |   - Zero-copy PDAs use different serialization path
-   |   - Borsh PDAs use standard compression
+3. Generate pre_init Body (builder.rs)
+   |-- generate_pre_init_all() handles all combinations:
+   |   - Token accounts: CreateTokenAccountCpi with PDA signing
+   |   - ATAs: CreateTokenAtaCpi with idempotent mode
+   |   - PDAs + Mints: Batched CPI with context offset
+   |   - PDAs only: LightSystemProgramCpi
+   |   - Mints only: CreateMintsCpi
+   |   |
+   |   PDA generation (pda.rs):
+   |   - Zero-copy: load_init() + direct field access
+   |   - Borsh: set_decompressed() + serialize
+   |   |
+   |   Mint generation (mint.rs):
+   |   - Build SingleMintParams array
+   |   - Invoke CreateMintsCpi with batching
+   |   |
+   |   Token/ATA generation (token.rs):
+   |   - Build CPI structs with seed derivation
+   |   - Call rent_free() builder methods
    |
-4. Wrap in Trait Impls
+4. Wrap in Trait Impls (builder.rs)
    |-- LightPreInit<'info, ParamsType>
-   +-- LightFinalize<'info, ParamsType>
+   +-- LightFinalize<'info, ParamsType> (no-op)
 ```
 
 **Source**: `sdk-libs/macros/src/light_pdas/accounts/derive.rs`
 
-### 2.7 Generated Code Example
+### 2.8 Generated Code Example
 
 **Input**:
 
@@ -282,7 +344,9 @@ pub struct CreateAccounts<'info> {
     #[account(mut)]
     pub fee_payer: Signer<'info>,
 
-    pub compression_config: Account<'info, CompressibleConfig>,
+    pub compression_config: Account<'info, CompressionConfig>,
+    #[account(mut)]
+    pub pda_rent_sponsor: Account<'info, RentSponsor>,
 
     #[account(
         init,
@@ -300,7 +364,7 @@ pub struct CreateAccounts<'info> {
 
 ```rust
 #[automatically_derived]
-impl<'info> light_sdk::compressible::LightPreInit<'info, CreateParams> for CreateAccounts<'info> {
+impl<'info> light_sdk::interface::LightPreInit<'info, CreateParams> for CreateAccounts<'info> {
     fn light_pre_init(
         &mut self,
         _remaining: &[solana_account_info::AccountInfo<'info>],
@@ -316,22 +380,72 @@ impl<'info> light_sdk::compressible::LightPreInit<'info, CreateParams> for Creat
         );
 
         // Load compression config
-        let compression_config_data = light_sdk::compressible::CompressibleConfig::load_checked(
+        let compression_config_data = light_sdk::interface::LightConfig::load_checked(
             &self.compression_config,
             &crate::ID
         )?;
 
-        // Collect compressed infos
+        // Prepare vectors for compression
+        let mut all_new_address_params = Vec::with_capacity(1);
         let mut all_compressed_infos = Vec::with_capacity(1);
 
         // PDA 0: user_record
+        // Get account info early before any mutable borrows
         let __account_info_0 = self.user_record.to_account_info();
-        let __account_key_0 = __account_info_0.key.to_bytes();
-        let __new_addr_params_0 = { /* NewAddressParamsAssignedPacked */ };
-        let __address_0 = light_compressed_account::address::derive_address(/* ... */);
-        let __account_data_0 = &mut *self.user_record;
-        let __compressed_infos_0 = light_sdk::compressible::prepare_compressed_account_on_init::<UserRecord>(/* ... */)?;
-        all_compressed_infos.push(__compressed_infos_0);
+        let __account_key_0 = *__account_info_0.key;
+
+        // Extract address tree pubkey
+        let __address_tree_pubkey_0: solana_pubkey::Pubkey = {
+            use light_sdk::light_account_checks::AccountInfoTrait;
+            let tree_info: &::light_sdk::sdk_types::PackedAddressTreeInfo = &params.create_accounts_proof.address_tree_info;
+            cpi_accounts
+                .get_tree_account_info(tree_info.address_merkle_tree_pubkey_index as usize)?
+                .pubkey()
+        };
+
+        // Initialize CompressionInfo in account data
+        {
+            use light_sdk::interface::LightAccount;
+            use anchor_lang::AnchorSerialize;
+            let current_slot = anchor_lang::solana_program::sysvar::clock::Clock::get()?.slot;
+            let account_info = self.user_record.to_account_info();
+            {
+                let __account_data_0 = &mut *self.user_record;
+                __account_data_0.set_decompressed(&compression_config_data, current_slot);
+            }
+            let mut data = account_info.try_borrow_mut_data()
+                .map_err(|_| light_sdk::error::LightSdkError::ConstraintViolation)?;
+            self.user_record.serialize(&mut &mut data[8..])
+                .map_err(|_| light_sdk::error::LightSdkError::ConstraintViolation)?;
+        }
+
+        // Register compressed address
+        {
+            let tree_info: &::light_sdk::sdk_types::PackedAddressTreeInfo = &params.create_accounts_proof.address_tree_info;
+            ::light_sdk::interface::prepare_compressed_account_on_init(
+                &__account_key_0,
+                &__address_tree_pubkey_0,
+                tree_info,
+                params.create_accounts_proof.output_state_tree_index,
+                0u8,
+                &crate::ID,
+                &mut all_new_address_params,
+                &mut all_compressed_infos,
+            )?;
+        }
+
+        // Reimburse fee_payer for rent paid to Anchor
+        {
+            let __created_accounts: [solana_account_info::AccountInfo<'info>; 1] = [
+                self.user_record.to_account_info()
+            ];
+            ::light_sdk::interface::reimburse_rent(
+                &__created_accounts,
+                &self.fee_payer.to_account_info(),
+                &self.pda_rent_sponsor.to_account_info(),
+                &crate::ID,
+            )?;
+        }
 
         // Execute Light System Program CPI
         use light_sdk::cpi::{InvokeLightSystemProgram, LightCpiInstruction};
@@ -339,7 +453,7 @@ impl<'info> light_sdk::compressible::LightPreInit<'info, CreateParams> for Creat
             crate::LIGHT_CPI_SIGNER,
             params.create_accounts_proof.proof.clone()
         )
-            .with_new_addresses(&[__new_addr_params_0])
+            .with_new_addresses(&all_new_address_params)
             .with_account_infos(&all_compressed_infos)
             .invoke(cpi_accounts)?;
 
@@ -348,7 +462,7 @@ impl<'info> light_sdk::compressible::LightPreInit<'info, CreateParams> for Creat
 }
 
 #[automatically_derived]
-impl<'info> light_sdk::compressible::LightFinalize<'info, CreateParams> for CreateAccounts<'info> {
+impl<'info> light_sdk::interface::LightFinalize<'info, CreateParams> for CreateAccounts<'info> {
     fn light_finalize(
         &mut self,
         _remaining: &[solana_account_info::AccountInfo<'info>],
@@ -432,7 +546,7 @@ The macro validates at compile time:
 - No additional namespace parameters allowed (tree info auto-fetched)
 
 ### Token Fields
-- `token::authority` is always required
+- `token::seeds` and `token::owner_seeds` are always required
 - For init mode: `token::mint` and `token::owner` are required
 - For mark-only mode: `token::mint` and `token::owner` are NOT allowed
 
@@ -508,27 +622,35 @@ pub struct Create<'info> {
 ```
 sdk-libs/macros/src/light_pdas/
 |
-|-- mod.rs                  Module exports
-|-- shared_utils.rs         Common utilities (MetaExpr, type helpers)
+|-- mod.rs                     Module exports
+|-- shared_utils.rs            Common utilities (MetaExpr, type helpers)
 |-- light_account_keywords.rs  Keyword validation for #[light_account]
 |
-|-- accounts/               #[derive(LightAccounts)] for ACCOUNTS structs
-|   |-- mod.rs              Entry point, exports derive_light_accounts()
-|   |-- derive.rs           Orchestration: parse -> validate -> generate
-|   |-- builder.rs          LightAccountsBuilder for code generation
-|   |-- parse.rs            Struct-level parsing and field classification
-|   |-- validation.rs       Struct-level validation rules
-|   |-- light_account.rs    #[light_account] attribute parsing
-|   |-- pda.rs              PDA compression block generation
-|   |-- mint.rs             Mint action CPI generation
-|   |-- token.rs            Token account and ATA CPI generation
-|   +-- variant.rs          Variant enum generation for light_program
+|-- accounts/                  #[derive(LightAccounts)] for ACCOUNTS structs
+|   |-- mod.rs                 Entry point, exports derive_light_accounts()
+|   |-- derive.rs              Orchestration: parse -> validate -> generate
+|   |-- builder.rs             LightAccountsBuilder for code generation
+|   |-- parse.rs               Delegates to unified parsing (type aliases for backwards compat)
+|   |-- validation.rs          Struct-level validation rules
+|   |-- light_account.rs       #[light_account] attribute parsing
+|   |-- pda.rs                 PDA compression block generation
+|   |-- mint.rs                Mint action CPI generation (CreateMintsCpi batching)
+|   |-- token.rs               Token account and ATA CPI generation
+|   +-- variant.rs             Variant enum generation for light_program
 |
-+-- account/                #[derive(LightAccount)] for DATA structs
-    |-- mod.rs              Entry point for trait derives
-    |-- derive.rs           LightAccount derive implementation
-    |-- validation.rs       Shared validation utilities
-    +-- utils.rs            Shared utilities
+|-- account/                   #[derive(LightAccount)] for DATA structs
+|   |-- mod.rs                 Entry point for trait derives
+|   |-- derive.rs              LightAccount derive implementation
+|   |-- traits.rs              Trait implementations (HasCompressionInfo, CompressAs, Compressible)
+|   |-- validation.rs          Shared validation utilities
+|   +-- utils.rs               Shared utilities
+|
++-- parsing/                   Unified parsing infrastructure
+    |-- mod.rs                 Module exports
+    |-- accounts_struct.rs     ParsedAccountsStruct (unified parsing entry point)
+    |-- crate_context.rs       Crate-wide module parsing for struct discovery
+    |-- infra.rs               Infrastructure field classification
+    +-- instruction_arg.rs     Instruction argument parsing
 ```
 
 ---

@@ -541,10 +541,9 @@ pub fn extract_from_accounts_struct(
 mod tests {
     use syn::parse_quote;
 
-    use super::super::instruction_args::InstructionArgSet;
     use super::{
-        check_light_account_type, extract_account_inner_type, extract_from_accounts_struct,
-        AccountTypeError,
+        super::instruction_args::InstructionArgSet, check_light_account_type,
+        extract_account_inner_type, extract_from_accounts_struct, AccountTypeError,
     };
 
     #[test]

@@ -19,9 +19,12 @@
 |-----------|----------|-------------|
 | `associated_token::authority` | Yes | ATA owner field reference |
 | `associated_token::mint` | Yes | Token mint field reference |
-| `associated_token::bump` | No | Explicit bump, auto-derived if omitted |
+| `associated_token::bump` | No | Explicit bump (auto-derived using `derive_token_ata` if omitted) |
 
-Shorthand: `associated_token::authority` alone means `associated_token::authority = authority`.
+**Bump handling:**
+- ATA address is derived using fixed seeds: `[owner, LIGHT_TOKEN_PROGRAM_ID, mint]`
+- If `bump` not provided, macro generates: `let (_, bump) = derive_token_ata(&owner, &mint);`
+- Bump is used in the `CreateTokenAtaCpi` builder
 
 ### Infrastructure (auto-detected by name)
 
@@ -33,9 +36,14 @@ light_token_program                  # CToken program
 system_program                       # System program
 ```
 
-### Example
+### Example (Init Mode)
 
 ```rust
+#[derive(AnchorSerialize, AnchorDeserialize)]
+pub struct CreateAtaParams {
+    pub ata_bump: u8,  // Optional - can auto-derive
+}
+
 #[derive(Accounts, LightAccounts)]
 #[instruction(params: CreateAtaParams)]
 pub struct CreateAta<'info> {
@@ -45,19 +53,41 @@ pub struct CreateAta<'info> {
     pub mint: AccountInfo<'info>,
     pub owner: AccountInfo<'info>,
 
-    #[account(mut)]
+    // ATA creation via CreateTokenAtaCpi in pre_init
     #[light_account(init,
-        associated_token::authority = owner,
-        associated_token::mint = mint,
-        associated_token::bump = params.ata_bump
+        associated_token::authority = owner,            // ATA owner
+        associated_token::mint = mint,                  // Token mint
+        associated_token::bump = params.ata_bump        // Optional: auto-derived if omitted
     )]
-    pub user_ata: UncheckedAccount<'info>,
+    pub user_ata: Account<'info, CToken>,
 
-    pub light_token_config: AccountInfo<'info>,
+    // Infrastructure for ATA creation
+    pub light_token_config: Account<'info, CompressibleConfig>,
     #[account(mut)]
-    pub light_token_rent_sponsor: AccountInfo<'info>,
-    pub light_token_program: AccountInfo<'info>,
+    pub light_token_rent_sponsor: Account<'info, RentSponsor>,
     pub system_program: Program<'info, System>,
+}
+```
+
+### Example (Mark-Only Mode)
+
+For existing ATAs that you want to compress/decompress but not create:
+
+```rust
+#[derive(Accounts)]
+pub struct UseAta<'info> {
+    #[account(mut)]
+    pub fee_payer: Signer<'info>,
+
+    pub mint: AccountInfo<'info>,
+    pub owner: AccountInfo<'info>,
+
+    // Mark-only - no creation, just seed marking for light_program
+    #[light_account(
+        associated_token::authority = owner,
+        associated_token::mint = mint
+    )]
+    pub user_ata: Account<'info, CToken>,
 }
 ```
 
@@ -232,11 +262,20 @@ assert_eq!(ata_pubkey, expected_ata);
 
 ---
 
+## Requirements
+
+Programs using ATA creation must:
+- Define `crate::ID` constant (standard with Anchor's `declare_id!`)
+- Include `system_program` field in the accounts struct
+- The generated code uses `system_program` for ATA creation via CPI
+
 ## Source Files
 
 | Component | Location |
 |-----------|----------|
-| ATA creation | `token-sdk/src/instruction/create_ata.rs` |
+| Macro CPI generation | `sdk-libs/macros/src/light_pdas/accounts/token.rs` |
+| Macro parsing | `sdk-libs/macros/src/light_pdas/accounts/light_account.rs` |
+| Runtime ATA creation | `token-sdk/src/instruction/create_ata.rs` |
 | Compress/Decompress | `sdk/src/interface/token.rs` |
 | Derivation | `token-sdk/src/instruction/create_ata.rs:17-26` |
 
