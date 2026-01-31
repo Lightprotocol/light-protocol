@@ -1,4 +1,4 @@
-use light_token::instruction::{CloseAccount, LIGHT_TOKEN_PROGRAM_ID, RENT_SPONSOR};
+use light_token::instruction::{CloseAccount, LIGHT_TOKEN_PROGRAM_ID, LIGHT_TOKEN_RENT_SPONSOR};
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
 
@@ -22,7 +22,7 @@ fn test_close_account_instruction() {
             AccountMeta::new(account, false), // account: writable, not signer
             AccountMeta::new(destination, false), // destination: writable, not signer
             AccountMeta::new(owner, true),    // owner: writable, signer
-            AccountMeta::new(RENT_SPONSOR, false), // rent_sponsor: writable, not signer
+            AccountMeta::new(LIGHT_TOKEN_RENT_SPONSOR, false), // rent_sponsor: writable, not signer
         ],
         data: vec![9u8], // CloseAccount discriminator
     };
