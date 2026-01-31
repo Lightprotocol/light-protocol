@@ -9,7 +9,7 @@
 use csdk_anchor_full_derived_test::{PackedPlaceholderRecord, PlaceholderRecord};
 use light_hasher::{DataHasher, Sha256};
 use light_sdk::{
-    compressible::{CompressAs, CompressionInfo, Pack},
+    compressible::{CompressAs, CompressionInfo, CompressionState, Pack},
     instruction::PackedAccounts,
 };
 use solana_pubkey::Pubkey;
@@ -24,7 +24,7 @@ use crate::generate_trait_tests;
 impl CompressibleTestFactory for PlaceholderRecord {
     fn with_compression_info() -> Self {
         Self {
-            compression_info: Some(CompressionInfo::default()),
+            compression_info: CompressionInfo::default(),
             owner: Pubkey::new_unique(),
             name: "test placeholder".to_string(),
             placeholder_id: 1,
@@ -34,7 +34,7 @@ impl CompressibleTestFactory for PlaceholderRecord {
 
     fn without_compression_info() -> Self {
         Self {
-            compression_info: None,
+            compression_info: CompressionInfo::compressed(),
             owner: Pubkey::new_unique(),
             name: "test placeholder".to_string(),
             placeholder_id: 1,
@@ -61,7 +61,7 @@ fn test_compress_as_preserves_other_fields() {
     let counter = 999u32;
 
     let record = PlaceholderRecord {
-        compression_info: Some(CompressionInfo::default()),
+        compression_info: CompressionInfo::default(),
         owner,
         name: name.clone(),
         placeholder_id,
@@ -83,7 +83,7 @@ fn test_compress_as_when_compression_info_already_none() {
     let counter = 123u32;
 
     let record = PlaceholderRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         name: name.clone(),
         placeholder_id,
@@ -93,7 +93,7 @@ fn test_compress_as_when_compression_info_already_none() {
     let compressed = record.compress_as();
 
     // Should still work and preserve fields
-    assert!(compressed.compression_info.is_none());
+    assert!(compressed.compression_info.state == CompressionState::Compressed);
     assert_eq!(compressed.owner, owner);
     assert_eq!(compressed.name, name);
     assert_eq!(compressed.placeholder_id, placeholder_id);
@@ -107,7 +107,7 @@ fn test_compress_as_when_compression_info_already_none() {
 #[test]
 fn test_hash_differs_for_different_owner() {
     let record1 = PlaceholderRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner: Pubkey::new_unique(),
         name: "test placeholder".to_string(),
         placeholder_id: 1,
@@ -115,7 +115,7 @@ fn test_hash_differs_for_different_owner() {
     };
 
     let record2 = PlaceholderRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner: Pubkey::new_unique(),
         name: "test placeholder".to_string(),
         placeholder_id: 1,
@@ -136,7 +136,7 @@ fn test_hash_differs_for_different_name() {
     let owner = Pubkey::new_unique();
 
     let record1 = PlaceholderRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         name: "placeholder1".to_string(),
         placeholder_id: 1,
@@ -144,7 +144,7 @@ fn test_hash_differs_for_different_name() {
     };
 
     let record2 = PlaceholderRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         name: "placeholder2".to_string(),
         placeholder_id: 1,
@@ -162,7 +162,7 @@ fn test_hash_differs_for_different_placeholder_id() {
     let owner = Pubkey::new_unique();
 
     let record1 = PlaceholderRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         name: "test placeholder".to_string(),
         placeholder_id: 1,
@@ -170,7 +170,7 @@ fn test_hash_differs_for_different_placeholder_id() {
     };
 
     let record2 = PlaceholderRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         name: "test placeholder".to_string(),
         placeholder_id: 2,
@@ -191,7 +191,7 @@ fn test_hash_differs_for_different_counter() {
     let owner = Pubkey::new_unique();
 
     let record1 = PlaceholderRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         name: "test placeholder".to_string(),
         placeholder_id: 1,
@@ -199,7 +199,7 @@ fn test_hash_differs_for_different_counter() {
     };
 
     let record2 = PlaceholderRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         name: "test placeholder".to_string(),
         placeholder_id: 1,
@@ -224,7 +224,6 @@ fn test_packed_struct_has_u8_owner() {
     // Verify PackedPlaceholderRecord has the expected structure
     // The Packed struct uses the same field name but changes type to u8
     let packed = PackedPlaceholderRecord {
-        compression_info: None,
         owner: 0,
         name: "test".to_string(),
         placeholder_id: 1,
@@ -240,7 +239,7 @@ fn test_packed_struct_has_u8_owner() {
 fn test_pack_converts_pubkey_to_index() {
     let owner = Pubkey::new_unique();
     let record = PlaceholderRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         name: "test placeholder".to_string(),
         placeholder_id: 1,
@@ -272,7 +271,7 @@ fn test_pack_reuses_same_pubkey_index() {
     let owner = Pubkey::new_unique();
 
     let record1 = PlaceholderRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         name: "placeholder1".to_string(),
         placeholder_id: 1,
@@ -280,7 +279,7 @@ fn test_pack_reuses_same_pubkey_index() {
     };
 
     let record2 = PlaceholderRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner,
         name: "placeholder2".to_string(),
         placeholder_id: 2,
@@ -301,7 +300,7 @@ fn test_pack_reuses_same_pubkey_index() {
 #[test]
 fn test_pack_different_pubkeys_get_different_indices() {
     let record1 = PlaceholderRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner: Pubkey::new_unique(),
         name: "placeholder1".to_string(),
         placeholder_id: 1,
@@ -309,7 +308,7 @@ fn test_pack_different_pubkeys_get_different_indices() {
     };
 
     let record2 = PlaceholderRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner: Pubkey::new_unique(),
         name: "placeholder2".to_string(),
         placeholder_id: 2,
@@ -328,45 +327,12 @@ fn test_pack_different_pubkeys_get_different_indices() {
 }
 
 #[test]
-fn test_pack_sets_compression_info_to_none() {
-    let record_with_info = PlaceholderRecord {
-        compression_info: Some(CompressionInfo::default()),
-        owner: Pubkey::new_unique(),
-        name: "test".to_string(),
-        placeholder_id: 1,
-        counter: 100,
-    };
-
-    let record_without_info = PlaceholderRecord {
-        compression_info: None,
-        owner: Pubkey::new_unique(),
-        name: "test".to_string(),
-        placeholder_id: 2,
-        counter: 200,
-    };
-
-    let mut packed_accounts = PackedAccounts::default();
-    let packed1 = record_with_info.pack(&mut packed_accounts).unwrap();
-    let packed2 = record_without_info.pack(&mut packed_accounts).unwrap();
-
-    // Both packed structs should have compression_info = None
-    assert!(
-        packed1.compression_info.is_none(),
-        "pack should set compression_info to None (even if input has Some)"
-    );
-    assert!(
-        packed2.compression_info.is_none(),
-        "pack should set compression_info to None"
-    );
-}
-
-#[test]
 fn test_pack_stores_pubkeys_in_packed_accounts() {
     let owner1 = Pubkey::new_unique();
     let owner2 = Pubkey::new_unique();
 
     let record1 = PlaceholderRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner: owner1,
         name: "placeholder1".to_string(),
         placeholder_id: 1,
@@ -374,7 +340,7 @@ fn test_pack_stores_pubkeys_in_packed_accounts() {
     };
 
     let record2 = PlaceholderRecord {
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
         owner: owner2,
         name: "placeholder2".to_string(),
         placeholder_id: 2,

@@ -8,6 +8,7 @@ license = "MIT"
 
 [features]
 anchor = ["light-compressed-account/anchor", "dep:anchor-lang", "light-compressible/anchor"]
+idl-build = ["anchor-lang/idl-build", "anchor", "light-compressed-account/idl-build", "light-compressible/idl-build"]
 solana = ["dep:solana-program-error", "dep:solana-sysvar", "solana-msg"]
 default = []
 test-only = []

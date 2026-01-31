@@ -9,14 +9,14 @@ use light_compressed_token_sdk::compressed_token::{
 use light_sdk::instruction::{PackedAccounts, PackedStateTreeInfo};
 use light_token_interface::{
     instructions::extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
-    state::{ExtensionStruct, TokenDataVersion},
+    state::{AccountState, ExtensionStruct, TokenData, TokenDataVersion},
 };
 use solana_instruction::Instruction;
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
 use crate::{
-    compat::{AccountState, TokenData},
+    // compat::{AccountState, TokenData},
     instruction::derive_associated_token_account,
 };
 
@@ -35,7 +35,7 @@ use crate::{
 /// # let token_data = TokenData::default();
 /// # let discriminator = [0, 0, 0, 0, 0, 0, 0, 4]; // ShaFlat
 /// let instruction = Decompress {
-///     token_data,
+///     token_data: token_data.into(),
 ///     discriminator,
 ///     merkle_tree,
 ///     queue,
@@ -105,7 +105,10 @@ impl Decompress {
         // For ATA decompress, derive the bump from wallet owner + mint
         // The signer is the wallet owner for ATAs
         let ata_bump = if is_ata {
-            let (_, bump) = derive_associated_token_account(&self.signer, &self.token_data.mint);
+            let (_, bump) = derive_associated_token_account(
+                &self.signer,
+                &Pubkey::from(self.token_data.mint.to_bytes()),
+            );
             bump
         } else {
             0
@@ -115,7 +118,7 @@ impl Decompress {
         let owner_index = packed_accounts.insert_or_get_config(self.signer, true, false);
 
         // Convert TLV extensions from state format to instruction format
-        let is_frozen = self.token_data.state == AccountState::Frozen;
+        let is_frozen = self.token_data.state == AccountState::Frozen as u8;
         let tlv: Option<Vec<ExtensionInstructionData>> =
             self.token_data.tlv.as_ref().map(|extensions| {
                 extensions
@@ -141,9 +144,9 @@ impl Decompress {
 
         // Clone tlv for passing to Transfer2Inputs.in_tlv
         let in_tlv = tlv.clone().map(|t| vec![t]);
-
+        let amount: u64 = self.token_data.amount;
         let indices = pack_for_decompress_full_with_ata(
-            &self.token_data,
+            &self.token_data.into(),
             &tree_info,
             self.destination,
             &mut packed_accounts,
@@ -155,7 +158,7 @@ impl Decompress {
         let mut token_account = CTokenAccount2::new(vec![indices.source])
             .map_err(|_| ProgramError::InvalidAccountData)?;
         token_account
-            .decompress(self.token_data.amount, indices.destination_index)
+            .decompress(amount, indices.destination_index)
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
         // Build instruction inputs

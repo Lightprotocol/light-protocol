@@ -8,8 +8,9 @@ mod tests {
     use rand::{rngs::StdRng, Rng, SeedableRng};
     use syn::parse_str;
 
-    use crate::light_pdas::account::seed_extraction::{
-        classify_seed_expr, extract_anchor_seeds, InstructionArgSet,
+    use crate::light_pdas::seeds::{
+        anchor_extraction::extract_anchor_seeds, classification::classify_seed_expr,
+        InstructionArgSet,
     };
 
     /// Generate a random seed expression string

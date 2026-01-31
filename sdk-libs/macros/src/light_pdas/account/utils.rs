@@ -29,12 +29,23 @@ pub(crate) fn extract_fields_from_derive_input(
     match &input.data {
         Data::Struct(data) => match &data.fields {
             Fields::Named(fields) => Ok(&fields.named),
-            _ => Err(syn::Error::new_spanned(
+            Fields::Unnamed(_) => Err(syn::Error::new_spanned(
                 input,
-                "Only structs with named fields are supported",
+                "Only structs with named fields are supported. Tuple structs cannot be light accounts.",
+            )),
+            Fields::Unit => Err(syn::Error::new_spanned(
+                input,
+                "Only structs with named fields are supported. Unit structs cannot be light accounts.",
             )),
         },
-        _ => Err(syn::Error::new_spanned(input, "Only structs are supported")),
+        Data::Enum(_) => Err(syn::Error::new_spanned(
+            input,
+            "Only structs are supported. Enums cannot be light accounts.",
+        )),
+        Data::Union(_) => Err(syn::Error::new_spanned(
+            input,
+            "Only structs are supported. Unions cannot be light accounts.",
+        )),
     }
 }
 
@@ -101,60 +112,5 @@ pub(crate) fn is_pubkey_type(ty: &Type) -> bool {
         }
     } else {
         false
-    }
-}
-
-/// Generates placeholder TokenAccountVariant and PackedTokenAccountVariant enums.
-///
-/// This is used when no token accounts are specified in compressible instructions.
-/// We use a placeholder variant since Rust doesn't support empty enums with #[repr(u8)].
-pub(crate) fn generate_empty_ctoken_enum() -> proc_macro2::TokenStream {
-    quote::quote! {
-        #[derive(anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize, Debug, Clone, Copy)]
-        #[repr(u8)]
-        pub enum TokenAccountVariant {
-            /// Placeholder variant for programs without token accounts
-            Empty = 0,
-        }
-
-        #[derive(anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize, Debug, Clone, Copy)]
-        #[repr(u8)]
-        pub enum PackedTokenAccountVariant {
-            /// Placeholder variant for programs without token accounts
-            Empty = 0,
-        }
-
-        impl light_token::pack::Pack for TokenAccountVariant {
-            type Packed = PackedTokenAccountVariant;
-            fn pack(&self, _remaining_accounts: &mut light_sdk::instruction::PackedAccounts) -> std::result::Result<Self::Packed, solana_program_error::ProgramError> {
-                Ok(PackedTokenAccountVariant::Empty)
-            }
-        }
-
-        impl light_token::pack::Unpack for PackedTokenAccountVariant {
-            type Unpacked = TokenAccountVariant;
-            fn unpack(&self, _remaining_accounts: &[solana_account_info::AccountInfo]) -> std::result::Result<Self::Unpacked, solana_program_error::ProgramError> {
-                Ok(TokenAccountVariant::Empty)
-            }
-        }
-
-        impl light_sdk::interface::TokenSeedProvider for TokenAccountVariant {
-            fn get_seeds(&self, _program_id: &Pubkey) -> std::result::Result<(Vec<Vec<u8>>, Pubkey), solana_program_error::ProgramError> {
-                Err(solana_program_error::ProgramError::InvalidAccountData)
-            }
-
-            fn get_authority_seeds(&self, _program_id: &Pubkey) -> std::result::Result<(Vec<Vec<u8>>, Pubkey), solana_program_error::ProgramError> {
-                Err(solana_program_error::ProgramError::InvalidAccountData)
-            }
-        }
-
-        impl light_sdk::interface::IntoCTokenVariant<LightAccountVariant, light_token::compat::TokenData> for TokenAccountVariant {
-            fn into_ctoken_variant(self, _token_data: light_token::compat::TokenData) -> LightAccountVariant {
-                // This function should never be called for programs without token accounts.
-                // The Empty variant only exists in mint-only programs (no PDAs).
-                // For programs with PDAs but no tokens, this impl exists only to satisfy trait bounds.
-                unreachable!("into_ctoken_variant called on program without token accounts")
-            }
-        }
     }
 }

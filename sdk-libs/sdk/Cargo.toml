@@ -12,12 +12,21 @@ name = "light_sdk"
 
 [features]
 default = ["v2"]
-idl-build = ["anchor-lang/idl-build", "anchor", "dep:solana-program"]
+idl-build = [
+    "anchor-lang/idl-build",
+    "light-compressed-account/idl-build",
+    "light-sdk-types/idl-build",
+    "light-compressible/idl-build",
+    "light-token-interface/idl-build",
+    "anchor",
+    "dep:solana-program"
+]
 anchor = [
     "anchor-lang",
     "light-compressed-account/anchor",
     "light-sdk-types/anchor",
     "light-compressible/anchor",
+    "light-token-interface/anchor"
 ]
 v2 = ["light-sdk-types/v2"]
 cpi-context = ["light-sdk-types/cpi-context"]
@@ -28,6 +37,10 @@ sha256 = ["light-hasher/sha256", "light-compressed-account/sha256"]
 merkle-tree = ["light-concurrent-merkle-tree/solana"]
 anchor-discriminator = ["light-sdk-macros/anchor-discriminator"]
 custom-heap = ["light-heap"]
+profile-program = [
+]
+profile-heap = [
+]
 
 [dependencies]
 solana-pubkey = { workspace = true, features = ["borsh", "sha2", "curve25519"] }
@@ -46,9 +59,11 @@ solana-program = { workspace = true, optional = true }
 num-bigint = { workspace = true }
 
 borsh = { workspace = true }
+bytemuck = { workspace = true }
 thiserror = { workspace = true }
 bincode = "1"
 
+light-program-profiler = { workspace = true }
 light-sdk-macros = { workspace = true }
 light-sdk-types = { workspace = true, features = ["std"] }
 light-macros = { workspace = true }
@@ -59,6 +74,7 @@ light-zero-copy = { workspace = true }
 light-concurrent-merkle-tree = { workspace = true, optional = true }
 light-compressible = { workspace = true }
 light-heap = { workspace = true, optional = true }
+light-token-interface = { workspace = true } # TODO: make optional
 
 [dev-dependencies]
 num-bigint = { workspace = true }

@@ -37,6 +37,26 @@ pub enum LightTokenError {
     InvalidAccountData,
     #[error("Serialization error")]
     SerializationError,
+    #[error("Missing CPI context account")]
+    MissingCpiContext,
+    #[error("Missing CPI authority account")]
+    MissingCpiAuthority,
+    #[error("Missing output queue account")]
+    MissingOutputQueue,
+    #[error("Missing state merkle tree account")]
+    MissingStateMerkleTree,
+    #[error("Missing address merkle tree account")]
+    MissingAddressMerkleTree,
+    #[error("Missing light system program")]
+    MissingLightSystemProgram,
+    #[error("Missing registered program PDA")]
+    MissingRegisteredProgramPda,
+    #[error("Missing account compression authority")]
+    MissingAccountCompressionAuthority,
+    #[error("Missing account compression program")]
+    MissingAccountCompressionProgram,
+    #[error("Missing system program")]
+    MissingSystemProgram,
 }
 
 impl From<LightTokenError> for ProgramError {
@@ -59,6 +79,16 @@ impl From<LightTokenError> for u32 {
             LightTokenError::SplTokenProgramMismatch => 17508,
             LightTokenError::InvalidAccountData => 17509,
             LightTokenError::SerializationError => 17510,
+            LightTokenError::MissingCpiContext => 17511,
+            LightTokenError::MissingCpiAuthority => 17512,
+            LightTokenError::MissingOutputQueue => 17513,
+            LightTokenError::MissingStateMerkleTree => 17514,
+            LightTokenError::MissingAddressMerkleTree => 17515,
+            LightTokenError::MissingLightSystemProgram => 17516,
+            LightTokenError::MissingRegisteredProgramPda => 17517,
+            LightTokenError::MissingAccountCompressionAuthority => 17518,
+            LightTokenError::MissingAccountCompressionProgram => 17519,
+            LightTokenError::MissingSystemProgram => 17520,
         }
     }
 }

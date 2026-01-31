@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc c6fc913324000dc535fc2b9d5bff794e67918eed7d2565fb976613f3a48c575a # shrinks to field_type = FeePayer

@@ -35,7 +35,7 @@ use solana_sdk::{
 
 /// Lightweight pre-transaction account state capture.
 /// Maps pubkey -> (lamports, data_len) for accounts in a transaction.
-pub type AccountStates = HashMap<Pubkey, (u64, usize)>;
+pub type AccountStates = HashMap<Pubkey, (u64, usize, Pubkey)>;
 
 /// Capture account states from LiteSVM context.
 /// Call this before and after sending the transaction.
@@ -43,9 +43,12 @@ pub fn capture_account_states(context: &LiteSVM, transaction: &Transaction) -> A
     let mut states = HashMap::new();
     for pubkey in &transaction.message.account_keys {
         if let Some(account) = context.get_account(pubkey) {
-            states.insert(*pubkey, (account.lamports, account.data.len()));
+            states.insert(
+                *pubkey,
+                (account.lamports, account.data.len(), account.owner),
+            );
         } else {
-            states.insert(*pubkey, (0, 0));
+            states.insert(*pubkey, (0, 0, Pubkey::default()));
         }
     }
     states
@@ -263,8 +266,14 @@ pub fn from_transaction_result(
     let account_states = if let (Some(pre), Some(post)) = (pre_states, post_states) {
         let mut states = HashMap::new();
         for pubkey in &transaction.message.account_keys {
-            let (lamports_before, data_len_before) = pre.get(pubkey).copied().unwrap_or((0, 0));
-            let (lamports_after, data_len_after) = post.get(pubkey).copied().unwrap_or((0, 0));
+            let (lamports_before, data_len_before, _) =
+                pre.get(pubkey)
+                    .copied()
+                    .unwrap_or((0, 0, Pubkey::default()));
+            let (lamports_after, data_len_after, owner) =
+                post.get(pubkey)
+                    .copied()
+                    .unwrap_or((0, 0, Pubkey::default()));
 
             states.insert(
                 solana_pubkey::Pubkey::new_from_array(pubkey.to_bytes()),
@@ -273,6 +282,7 @@ pub fn from_transaction_result(
                     lamports_after,
                     data_len_before,
                     data_len_after,
+                    owner: solana_pubkey::Pubkey::new_from_array(owner.to_bytes()),
                 },
             );
         }

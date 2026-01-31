@@ -210,7 +210,7 @@ struct AccountRow {
     name: String,
 }
 
-/// Row for outer instruction account table display (7 columns - includes account state)
+/// Row for outer instruction account table display (8 columns - includes account state)
 #[derive(Tabled)]
 struct OuterAccountRow {
     #[tabled(rename = "#")]
@@ -221,6 +221,8 @@ struct OuterAccountRow {
     access: String,
     #[tabled(rename = "Name")]
     name: String,
+    #[tabled(rename = "Owner")]
+    owner: String,
     #[tabled(rename = "Data Len")]
     data_len: String,
     #[tabled(rename = "Lamports")]
@@ -547,7 +549,7 @@ impl TransactionFormatter {
     /// Write single instruction with proper indentation and hierarchy
     ///
     /// For outer instructions (depth=0), if account_states is provided, displays
-    /// a 7-column table with Data Len, Lamports, and Change columns.
+    /// an 8-column table with Owner, Data Len, Lamports, and Change columns.
     /// For inner instructions, displays a 4-column table.
     fn write_instruction(
         &self,
@@ -668,7 +670,7 @@ impl TransactionFormatter {
                 self.colors.reset
             )?;
 
-            // For outer instructions (depth=0) with account states, use 7-column table
+            // For outer instructions (depth=0) with account states, use 8-column table
             // For inner instructions, use 4-column table
             if let (0, Some(states)) = (depth, account_states) {
                 let mut outer_rows: Vec<OuterAccountRow> = Vec::new();
@@ -694,7 +696,7 @@ impl TransactionFormatter {
                         .unwrap_or_else(|| self.get_account_name(&account.pubkey));
 
                     // Get account state if available
-                    let (data_len, lamports, lamports_change) = if let Some(state) =
+                    let (data_len, lamports, lamports_change, owner_str) = if let Some(state) =
                         states.get(&account.pubkey)
                     {
                         let change = (state.lamports_after as i128 - state.lamports_before as i128)
@@ -707,13 +709,25 @@ impl TransactionFormatter {
                         } else {
                             "0".to_string()
                         };
+                        let owner_pubkey_str = state.owner.to_string();
+                        let owner_short = if owner_pubkey_str.len() >= 5 {
+                            owner_pubkey_str[..5].to_string()
+                        } else {
+                            owner_pubkey_str
+                        };
                         (
                             format_with_thousands_separator(state.data_len_before as u64),
                             format_with_thousands_separator(state.lamports_before),
                             change_str,
+                            owner_short,
                         )
                     } else {
-                        ("-".to_string(), "-".to_string(), "-".to_string())
+                        (
+                            "-".to_string(),
+                            "-".to_string(),
+                            "-".to_string(),
+                            "-".to_string(),
+                        )
                     };
 
                     outer_rows.push(OuterAccountRow {
@@ -721,6 +735,7 @@ impl TransactionFormatter {
                         pubkey: account.pubkey.to_string(),
                         access: access.text().to_string(),
                         name: account_name,
+                        owner: owner_str,
                         data_len,
                         lamports,
                         lamports_change,

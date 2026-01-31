@@ -14,5 +14,5 @@ pub struct InfoLastRecord {
     pub owner: Pubkey,
     pub counter: u64,
     pub flag: bool,
-    pub compression_info: Option<CompressionInfo>,
+    pub compression_info: CompressionInfo,
 }

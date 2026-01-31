@@ -9,7 +9,7 @@
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
 use light_sdk_macros::LightAccounts;
-use light_token::instruction::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR};
+use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
 
 /// Seed for the vault authority PDA
 pub const D10_SINGLE_VAULT_AUTH_SEED: &[u8] = b"d10_single_vault_auth";
@@ -41,17 +41,17 @@ pub struct D10SingleVault<'info> {
     pub d10_vault_authority: UncheckedAccount<'info>,
 
     /// Token vault account - macro should generate creation code.
-    /// The `authority` seeds must match the account's PDA seeds (including bump) for invoke_signed.
+    /// The `seeds` must match the account's PDA seeds for invoke_signed.
     #[account(
         mut,
         seeds = [D10_SINGLE_VAULT_SEED, d10_mint.key().as_ref()],
         bump,
     )]
-    #[light_account(init, token::authority = [D10_SINGLE_VAULT_SEED, self.d10_mint.key()], token::mint = d10_mint, token::owner = d10_vault_authority, token::bump = params.vault_bump)]
+    #[light_account(init, token::seeds = [D10_SINGLE_VAULT_SEED, self.d10_mint.key()], token::mint = d10_mint, token::owner = d10_vault_authority, token::bump = params.vault_bump, token::owner_seeds = [D10_SINGLE_VAULT_AUTH_SEED])]
     pub d10_single_vault: UncheckedAccount<'info>,
 
-    #[account(address = COMPRESSIBLE_CONFIG_V1)]
-    pub light_token_compressible_config: AccountInfo<'info>,
+    #[account(address = LIGHT_TOKEN_CONFIG)]
+    pub light_token_config: AccountInfo<'info>,
 
     #[account(mut, address = LIGHT_TOKEN_RENT_SPONSOR)]
     pub light_token_rent_sponsor: AccountInfo<'info>,

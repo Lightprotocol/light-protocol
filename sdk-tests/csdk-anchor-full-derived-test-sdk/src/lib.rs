@@ -9,7 +9,8 @@ use anchor_lang::AnchorDeserialize;
 use csdk_anchor_full_derived_test::{
     amm_test::{ObservationState, PoolState, AUTH_SEED, POOL_LP_MINT_SIGNER_SEED},
     csdk_anchor_full_derived_test::{
-        LightAccountVariant, ObservationStateSeeds, PoolStateSeeds, TokenAccountVariant,
+        LightAccountVariant, ObservationStateSeeds, PoolStateSeeds, Token0VaultSeeds,
+        Token1VaultSeeds,
     },
 };
 use light_client::interface::{
@@ -151,10 +152,12 @@ impl AmmSdk {
         self.lp_mint_signer = Some(lp_mint_signer);
 
         let variant = LightAccountVariant::PoolState {
+            seeds: PoolStateSeeds {
+                amm_config: self.amm_config.unwrap(),
+                token_0_mint: self.token_0_mint.unwrap(),
+                token_1_mint: self.token_1_mint.unwrap(),
+            },
             data: pool,
-            amm_config: self.amm_config.unwrap(),
-            token_0_mint: self.token_0_mint.unwrap(),
-            token_1_mint: self.token_1_mint.unwrap(),
         };
 
         let spec = PdaSpec::new(account.clone(), variant, PROGRAM_ID);
@@ -172,8 +175,8 @@ impl AmmSdk {
             .map_err(|e| AmmSdkError::ParseError(e.to_string()))?;
 
         let variant = LightAccountVariant::ObservationState {
+            seeds: ObservationStateSeeds { pool_state },
             data: observation,
-            pool_state,
         };
 
         let spec = PdaSpec::new(account.clone(), variant, PROGRAM_ID);
@@ -187,36 +190,36 @@ impl AmmSdk {
         account: &AccountInterface,
         is_vault_0: bool,
     ) -> Result<(), AmmSdkError> {
-        use light_token::compat::TokenData;
+        use light_sdk::interface::token::{Token, TokenDataWithSeeds};
 
         let pool_state = self
             .pool_state_pubkey
             .ok_or(AmmSdkError::PoolStateNotParsed)?;
 
-        let token_data = TokenData::deserialize(&mut &account.data()[..])
+        let token: Token = Token::deserialize(&mut &account.data()[..])
             .map_err(|e| AmmSdkError::ParseError(e.to_string()))?;
 
         let variant = if is_vault_0 {
             let token_0_mint = self
                 .token_0_mint
                 .ok_or(AmmSdkError::MissingField("token_0_mint"))?;
-            LightAccountVariant::CTokenData(light_token::compat::CTokenData {
-                variant: TokenAccountVariant::Token0Vault {
+            LightAccountVariant::Token0Vault(TokenDataWithSeeds {
+                seeds: Token0VaultSeeds {
                     pool_state,
                     token_0_mint,
                 },
-                token_data,
+                token_data: token,
             })
         } else {
             let token_1_mint = self
                 .token_1_mint
                 .ok_or(AmmSdkError::MissingField("token_1_mint"))?;
-            LightAccountVariant::CTokenData(light_token::compat::CTokenData {
-                variant: TokenAccountVariant::Token1Vault {
+            LightAccountVariant::Token1Vault(TokenDataWithSeeds {
+                seeds: Token1VaultSeeds {
                     pool_state,
                     token_1_mint,
                 },
-                token_data,
+                token_data: token,
             })
         };
 
@@ -419,8 +422,8 @@ impl AmmSdk {
         })
     }
 
-    pub fn token_0_vault_variant(&self) -> Result<TokenAccountVariant, AmmSdkError> {
-        Ok(TokenAccountVariant::Token0Vault {
+    pub fn token_0_vault_seeds(&self) -> Result<Token0VaultSeeds, AmmSdkError> {
+        Ok(Token0VaultSeeds {
             pool_state: self
                 .pool_state_pubkey
                 .ok_or(AmmSdkError::PoolStateNotParsed)?,
@@ -430,8 +433,8 @@ impl AmmSdk {
         })
     }
 
-    pub fn token_1_vault_variant(&self) -> Result<TokenAccountVariant, AmmSdkError> {
-        Ok(TokenAccountVariant::Token1Vault {
+    pub fn token_1_vault_seeds(&self) -> Result<Token1VaultSeeds, AmmSdkError> {
+        Ok(Token1VaultSeeds {
             pool_state: self
                 .pool_state_pubkey
                 .ok_or(AmmSdkError::PoolStateNotParsed)?,

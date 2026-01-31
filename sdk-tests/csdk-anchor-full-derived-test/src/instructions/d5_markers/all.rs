@@ -6,7 +6,7 @@
 use anchor_lang::prelude::*;
 use light_compressible::CreateAccountsProof;
 use light_sdk_macros::LightAccounts;
-use light_token::instruction::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR as LIGHT_TOKEN_RENT_SPONSOR};
+use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
 
 use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
 
@@ -34,6 +34,10 @@ pub struct D5AllMarkers<'info> {
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
 
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
+
     #[account(
         seeds = [D5_ALL_AUTH_SEED],
         bump,
@@ -55,11 +59,12 @@ pub struct D5AllMarkers<'info> {
         seeds = [D5_ALL_VAULT_SEED, mint.key().as_ref()],
         bump,
     )]
-    #[light_account(token::authority = [D5_ALL_AUTH_SEED])]
+    // Mark-only: seeds and owner_seeds only (no mint/owner)
+    #[light_account(token::seeds = [D5_ALL_VAULT_SEED, self.mint.key()], token::owner_seeds = [D5_ALL_AUTH_SEED])]
     pub d5_all_vault: UncheckedAccount<'info>,
 
-    #[account(address = COMPRESSIBLE_CONFIG_V1)]
-    pub light_token_compressible_config: AccountInfo<'info>,
+    #[account(address = LIGHT_TOKEN_CONFIG)]
+    pub light_token_config: AccountInfo<'info>,
 
     #[account(mut, address = LIGHT_TOKEN_RENT_SPONSOR)]
     pub light_token_rent_sponsor: AccountInfo<'info>,

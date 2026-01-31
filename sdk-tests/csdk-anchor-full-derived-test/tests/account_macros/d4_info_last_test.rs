@@ -4,7 +4,6 @@
 //! - LightHasherSha -> DataHasher + ToByteArray
 //! - LightDiscriminator -> LIGHT_DISCRIMINATOR constant
 //! - Compressible -> HasCompressionInfo + CompressAs + Size + CompressedInitSpace
-//! - CompressiblePack -> Pack + Unpack + PackedInfoLastRecord
 //!
 //! InfoLastRecord has 1 Pubkey field (owner) and demonstrates that
 //! compression_info can be placed in non-first position (ordering test).
@@ -12,7 +11,7 @@
 use csdk_anchor_full_derived_test::{InfoLastRecord, PackedInfoLastRecord};
 use light_hasher::{DataHasher, Sha256};
 use light_sdk::{
-    compressible::{CompressAs, CompressionInfo, Pack},
+    compressible::{CompressAs, CompressionInfo, CompressionState, Pack},
     instruction::PackedAccounts,
 };
 use solana_pubkey::Pubkey;
@@ -30,7 +29,7 @@ impl CompressibleTestFactory for InfoLastRecord {
             owner: Pubkey::new_unique(),
             counter: 0,
             flag: false,
-            compression_info: Some(CompressionInfo::default()),
+            compression_info: CompressionInfo::default(),
         }
     }
 
@@ -39,7 +38,7 @@ impl CompressibleTestFactory for InfoLastRecord {
             owner: Pubkey::new_unique(),
             counter: 0,
             flag: false,
-            compression_info: None,
+            compression_info: CompressionInfo::compressed(),
         }
     }
 }
@@ -64,7 +63,7 @@ fn test_compress_as_preserves_other_fields() {
         owner,
         counter,
         flag,
-        compression_info: Some(CompressionInfo::default()),
+        compression_info: CompressionInfo::default(),
     };
 
     let compressed = record.compress_as();
@@ -81,7 +80,7 @@ fn test_compress_as_preserves_all_field_types() {
         owner,
         counter: 42,
         flag: true,
-        compression_info: Some(CompressionInfo::default()),
+        compression_info: CompressionInfo::default(),
     };
 
     let compressed = record.compress_as();
@@ -90,7 +89,7 @@ fn test_compress_as_preserves_all_field_types() {
     assert_eq!(compressed.owner, owner);
     assert_eq!(compressed.counter, 42);
     assert!(compressed.flag);
-    assert!(compressed.compression_info.is_none());
+    assert!(compressed.compression_info.state == CompressionState::Compressed);
 }
 
 // =============================================================================
@@ -105,14 +104,14 @@ fn test_hash_differs_for_different_counter() {
         owner,
         counter: 1,
         flag: false,
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
     };
 
     let record2 = InfoLastRecord {
         owner,
         counter: 2,
         flag: false,
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
     };
 
     let hash1 = record1.hash::<Sha256>().expect("hash should succeed");
@@ -130,14 +129,14 @@ fn test_hash_differs_for_different_owner() {
         owner: Pubkey::new_unique(),
         counter: 100,
         flag: false,
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
     };
 
     let record2 = InfoLastRecord {
         owner: Pubkey::new_unique(),
         counter: 100,
         flag: false,
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
     };
 
     let hash1 = record1.hash::<Sha256>().expect("hash should succeed");
@@ -157,14 +156,14 @@ fn test_hash_differs_for_different_flag() {
         owner,
         counter: 50,
         flag: true,
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
     };
 
     let record2 = InfoLastRecord {
         owner,
         counter: 50,
         flag: false,
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
     };
 
     let hash1 = record1.hash::<Sha256>().expect("hash should succeed");
@@ -185,7 +184,6 @@ fn test_packed_struct_has_u8_owner() {
         owner: 0,
         counter: 42,
         flag: true,
-        compression_info: None,
     };
 
     assert_eq!(packed.owner, 0u8);
@@ -200,7 +198,7 @@ fn test_pack_converts_pubkey_to_index() {
         owner,
         counter: 100,
         flag: false,
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
     };
 
     let mut packed_accounts = PackedAccounts::default();
@@ -230,14 +228,14 @@ fn test_pack_reuses_same_pubkey_index() {
         owner,
         counter: 1,
         flag: true,
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
     };
 
     let record2 = InfoLastRecord {
         owner,
         counter: 2,
         flag: false,
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
     };
 
     let mut packed_accounts = PackedAccounts::default();
@@ -261,7 +259,7 @@ fn test_pack_preserves_counter_and_flag() {
         owner,
         counter,
         flag,
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
     };
 
     let mut packed_accounts = PackedAccounts::default();
@@ -273,39 +271,19 @@ fn test_pack_preserves_counter_and_flag() {
 }
 
 #[test]
-fn test_pack_sets_compression_info_to_none() {
-    let owner = Pubkey::new_unique();
-
-    let record_with_info = InfoLastRecord {
-        owner,
-        counter: 100,
-        flag: true,
-        compression_info: Some(CompressionInfo::default()),
-    };
-
-    let mut packed_accounts = PackedAccounts::default();
-    let packed = record_with_info.pack(&mut packed_accounts).unwrap();
-
-    assert!(
-        packed.compression_info.is_none(),
-        "pack should set compression_info to None (even if input has Some)"
-    );
-}
-
-#[test]
 fn test_pack_different_pubkeys_get_different_indices() {
     let record1 = InfoLastRecord {
         owner: Pubkey::new_unique(),
         counter: 1,
         flag: true,
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
     };
 
     let record2 = InfoLastRecord {
         owner: Pubkey::new_unique(),
         counter: 2,
         flag: false,
-        compression_info: None,
+        compression_info: CompressionInfo::compressed(),
     };
 
     let mut packed_accounts = PackedAccounts::default();

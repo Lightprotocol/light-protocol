@@ -1,43 +1,48 @@
-# Light Protocol RentFree Features
+# Light Protocol Macro Features
 
-This document covers the 17 features available in Light Protocol's rentfree macro system for creating compressed (rent-free) accounts and tokens.
+This document covers the macro features available in Light Protocol's macro system for creating compressed (rent-free) accounts and tokens.
 
 ## Overview
 
-Light Protocol's rentfree macros enable developers to create compressed accounts that store data off-chain in Merkle trees while maintaining full Solana composability. These macros work alongside or as replacements for Anchor's account macros.
+Light Protocol's macros enable developers to create compressed accounts that store data off-chain in Merkle trees while maintaining full Solana composability. These macros work alongside Anchor's account macros.
 
 ```rust
 use light_sdk::compressible::CompressionInfo;
-use light_sdk_macros::{RentFree, Compressible, HasCompressionInfo};
+use light_sdk_macros::{LightAccount, LightDiscriminator, LightHasherSha};
 
-#[derive(RentFree, Compressible, HasCompressionInfo)]
-#[light_account(init)]
+#[derive(Default, Debug, InitSpace, LightAccount, LightDiscriminator, LightHasherSha)]
+#[account]
 pub struct MyAccount {
+    pub compression_info: CompressionInfo,  // Non-Option, first or last field
     pub data: u64,
-    #[compression_info]
-    pub compression_info: CompressionInfo,
 }
 ```
 
 ---
 
-## Account-Level Macros
+## Accounts Struct Macros
 
 ### 1. `#[derive(LightAccounts)]`
 
-**Purpose**: Generates the core traits needed for a compressible account.
+**Purpose**: Generates `LightPreInit` and `LightFinalize` trait implementations for Anchor Accounts structs.
 
 **Generates**:
-- Serialization/deserialization implementations
-- Account discriminator handling
-- Pack/unpack logic for Solana accounts
+- `light_pre_init()` - Runs after `try_accounts()`, before instruction handler
+- `light_finalize()` - Runs after instruction handler completes
+- Registration logic for compressed account addresses
+- CPI calls for compressed mints and token accounts
 
 **Example**:
 ```rust
-#[derive(LightAccounts)]
-pub struct UserProfile {
-    pub name: [u8; 32],
-    pub score: u64,
+#[derive(Accounts, LightAccounts)]
+#[instruction(params: CreateParams)]
+pub struct Create<'info> {
+    #[account(mut)]
+    pub fee_payer: Signer<'info>,
+
+    #[account(init, payer = fee_payer, space = 8 + UserRecord::INIT_SPACE, seeds = [b"user", params.owner.as_ref()], bump)]
+    #[light_account(init)]
+    pub user_record: Account<'info, UserRecord>,
 }
 ```
 
@@ -45,35 +50,30 @@ pub struct UserProfile {
 
 ### 2. `#[light_account(init)]`
 
-**Purpose**: Attribute for account structs that marks fields and configures compression behavior.
+**Purpose**: Field attribute that marks an account for compression as a PDA.
 
-**Supported field attributes**:
-- `#[compression_info]` - Marks the CompressionInfo field
-- `#[compress_as(...)]` - Specifies how to hash a field
+**Behavior**:
+- Registers the compressed account address in `light_pre_init()`
+- Finalizes compression in `light_finalize()`
+- Works with Anchor's `#[account(init, seeds = [...], bump)]`
 
 **Example**:
 ```rust
-#[derive(LightAccounts)]
+#[account(init, payer = fee_payer, space = 8 + MyData::INIT_SPACE, seeds = [b"my_data", authority.key().as_ref()], bump)]
 #[light_account(init)]
-pub struct GameState {
-    #[compress_as(pubkey)]
-    pub player: Pubkey,
-    pub level: u8,
-    #[compression_info]
-    pub compression_info: CompressionInfo,
-}
+pub my_account: Account<'info, MyData>,
 ```
 
 ---
 
-### 3. `#[light_account(token)]`
+### 3. `#[light_account(token::...)]`
 
-**Purpose**: Marks an account as a token account that can be compressed/decompressed.
+**Purpose**: Field attribute for PDA-owned token accounts (vaults).
 
 **Behavior**:
-- Generates token-specific pack/unpack implementations
-- Integrates with compressed token program
-- Handles token account state serialization
+- Generates token account handling in `light_pre_init()` and `light_finalize()`
+- Supports custom authority seeds
+- Works with rent-free token accounts
 
 **Example**:
 ```rust
@@ -84,38 +84,34 @@ pub struct CreateVault<'info> {
         seeds = [b"vault", mint.key().as_ref()],
         bump
     )]
-    #[light_account(token, authority = [b"vault_authority"])]
+    #[light_account(token::authority = [b"vault_authority"])]
     pub vault: UncheckedAccount<'info>,
 }
 ```
 
 ---
 
-### 4. `#[light_account(init)]`
+### 4. `#[light_account(init, mint::...)]`
 
-**Purpose**: Creates a compressed mint alongside an on-chain mint PDA.
+**Purpose**: Field attribute that creates a compressed mint.
 
 **Behavior**:
 - Generates mint initialization in `light_pre_init()`
 - Creates compressed mint via CPI to compressed token program
-- Links on-chain mint to compressed representation
+- Links on-chain mint PDA to compressed representation
 
-**Key insight**: Unlike Anchor's `mint::*` which runs during `try_accounts()`, `#[light_account(init)]` runs in `light_pre_init()` AFTER account deserialization.
+**Key insight**: Unlike Anchor's `mint::*` which runs during `try_accounts()`, `#[light_account(init, mint::...)]` runs in `light_pre_init()` AFTER account deserialization.
 
 **Example**:
 ```rust
-#[derive(Accounts)]
+#[derive(Accounts, LightAccounts)]
 pub struct CreateMint<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
 
     /// CHECK: Initialized in light_pre_init
     #[account(mut)]
-    #[light_account(init, mint,
-        decimals = 6,
-        authority = payer,
-        freeze_authority = payer
-    )]
+    #[light_account(init, mint::decimals = 6, mint::authority = payer)]
     pub mint: UncheckedAccount<'info>,
 
     pub compressed_token_program: Program<'info, CompressedToken>,
@@ -127,7 +123,7 @@ pub struct CreateMint<'info> {
 
 ---
 
-### 5. `#[rentfree_program]`
+### 5. `#[light_program]`
 
 **Purpose**: Program-level attribute that generates compression lifecycle hooks.
 
@@ -139,7 +135,7 @@ pub struct CreateMint<'info> {
 
 **Example**:
 ```rust
-#[rentfree_program]
+#[light_program]
 #[program]
 pub mod my_program {
     use super::*;
@@ -198,216 +194,245 @@ try_accounts() -> light_pre_init() -> handler() -> light_finalize()
 
 ## Data Struct Derive Macros
 
-### 8. `#[derive(Compressible)]`
+### 8. `#[derive(LightAccount)]`
 
-**Purpose**: Implements the `Compressible` trait for hashing account data into Merkle leaves.
+**Purpose**: Unified trait implementation for compressible account data structs.
 
 **Generates**:
-- `to_compressed_data()` method
-- Field-by-field hashing logic
-- Poseidon hash tree construction
+- `LightAccount` trait implementation with pack/unpack, compression_info accessors
+- `PackedT` struct (Pubkeys -> u8 indices, compression_info excluded to save 24 bytes)
+- `impl LightAccount for T` with space check (INIT_SPACE <= 800 bytes)
+
+**Example**:
+```rust
+#[derive(Default, Debug, InitSpace, LightAccount, LightDiscriminator, LightHasherSha)]
+#[account]
+pub struct UserRecord {
+    pub compression_info: CompressionInfo,  // Non-Option, first or last field
+    pub owner: Pubkey,
+    #[max_len(32)]
+    pub name: String,
+    pub score: u64,
+}
+```
+
+**Requirements**:
+- `compression_info` field must be non-Option `CompressionInfo` type
+- `compression_info` must be first or last field in the struct
+- Combine with `LightDiscriminator` and `LightHasherSha` derives
+
+---
+
+### 9. `#[derive(LightDiscriminator)]`
+
+**Purpose**: Generates unique 8-byte discriminator for account type identification.
+
+**Behavior**:
+- Creates `DISCRIMINATOR` constant
+- Used for account type verification
+
+**Example**:
+```rust
+#[derive(LightDiscriminator)]
+pub struct UserRecord {
+    pub owner: Pubkey,
+    pub score: u64,
+}
+```
+
+---
+
+### 10. `#[derive(LightHasherSha)]`
+
+**Purpose**: SHA256 variant of hashing for Light accounts.
+
+**Generates**:
+- `DataHasher` trait implementation using SHA256
+- `ToByteArray` trait implementation
+- `hash()` method for Merkle leaf creation
+
+**Example**:
+```rust
+#[derive(LightHasherSha)]
+pub struct GameState {
+    pub player: Pubkey,  // No #[hash] needed - SHA256 serializes full struct
+    pub level: u32,
+}
+```
+
+---
+
+### 11. `#[derive(Compressible)]`
+
+**Purpose**: Implements all required traits for compressible accounts.
+
+**Generates**:
+- `HasCompressionInfo` trait implementation
+- `Size` trait implementation
+- `CompressAs` trait implementation (if `#[compress_as(...)]` attribute present)
 
 **Example**:
 ```rust
 #[derive(Compressible)]
-pub struct ProfileData {
-    pub name: [u8; 32],
-    pub level: u8,
-}
-```
-
----
-
-### 9. `#[derive(CompressiblePack)]`
-
-**Purpose**: Combines `Compressible` with serialization for storage.
-
-**Generates**:
-- `Compressible` implementation
-- Borsh serialization
-- Pack/unpack for Solana account data
-
-**Example**:
-```rust
-#[derive(CompressiblePack)]
+#[compress_as(start_time = 0, end_time = None, score = 0)]
 pub struct GameSession {
-    pub player: Pubkey,
-    pub score: u64,
-    pub completed: bool,
+    pub compression_info: Option<CompressionInfo>,
+    pub session_id: u64,        // KEPT
+    pub player: Pubkey,         // KEPT
+    pub start_time: u64,        // RESET to 0
+    pub end_time: Option<u64>,  // RESET to None
+    pub score: u64,             // RESET to 0
 }
 ```
 
 ---
 
-### 10. `#[derive(LightCompressible)]`
+### 12. `#[derive(HasCompressionInfo)]`
 
-**Purpose**: Full compression support including address derivation.
-
-**Generates**:
-- All `Compressible` functionality
-- Address derivation helpers
-- Merkle tree integration
-
-**Example**:
-```rust
-#[derive(LightCompressible)]
-pub struct CompressedUserData {
-    pub owner: Pubkey,
-    pub data: [u8; 64],
-}
-```
-
----
-
-### 11. `#[derive(HasCompressionInfo)]`
-
-**Purpose**: Implements accessors for the `CompressionInfo` field.
+**Purpose**: Implements accessors for the `compression_info` field.
 
 **Generates**:
 - `compression_info()` getter
 - `compression_info_mut()` mutable getter
-- Field detection from `#[compression_info]` attribute
+
+**Requirements**:
+- Struct must have exactly one field named `compression_info` of type `Option<CompressionInfo>`
 
 **Example**:
 ```rust
 #[derive(HasCompressionInfo)]
 pub struct MyAccount {
+    #[skip]
+    pub compression_info: Option<CompressionInfo>,
     pub data: u64,
-    #[compression_info]
-    pub compression_info: CompressionInfo,
 }
 ```
 
 ---
 
-### 12. `#[derive(CompressAs)]`
+## Program-Level Features
 
-**Purpose**: Derives hashing behavior based on `#[compress_as(...)]` field attributes.
+### 13. `#[light_program]`
 
-**Supported compress_as types**:
-- `pubkey` - Hash as 32-byte pubkey
-- `u64` / `u128` - Hash as integer
-- `bytes` - Hash as raw bytes
-- `array` - Hash array elements
+**Purpose**: Program-level attribute that auto-discovers Light accounts and wraps instruction handlers.
+
+**Generates**:
+- `LightAccountVariant` enum for all discovered light accounts
+- Seeds structs for PDA derivation
+- `compress` instruction for compressing on-chain accounts
+- `decompress` instruction for decompressing accounts
+- Config instructions for managing compression trees
+- Automatic instruction handler wrapping with `light_pre_init`/`light_finalize`
 
 **Example**:
 ```rust
-#[derive(CompressAs)]
-pub struct MixedData {
-    #[compress_as(pubkey)]
-    pub owner: Pubkey,
-    #[compress_as(u64)]
-    pub amount: u64,
-    #[compress_as(bytes)]
-    pub metadata: [u8; 32],
-}
-```
+#[light_program]
+#[program]
+pub mod my_program {
+    pub mod instruction_accounts;  // Macro reads this file!
+    pub mod state;
 
----
+    use instruction_accounts::*;
+    use state::*;
 
-## Infrastructure Detection
-
-### 13. Automatic Program Detection
-
-**Purpose**: Macros automatically detect required Light Protocol programs.
-
-**Detected programs**:
-- `light_system_program` - Core compression logic
-- `account_compression_program` - Merkle tree management
-- `compressed_token_program` - Token compression (if using tokens)
-- `registered_program_pda` - Program registration
-
-**Behavior**: If these accounts are present in the Accounts struct, the macros wire them into CPIs automatically.
-
----
-
-### 14. Account Validation Generation
-
-**Purpose**: Generates validation checks similar to Anchor constraints.
-
-**Generated validations**:
-- Ownership checks for compressed accounts
-- Address derivation verification
-- Compression state validation
-
-**Example generated code**:
-```rust
-// Pseudo-code for generated validation
-if account.compression_info.is_compressed {
-    verify_merkle_proof(&account, &proof)?;
-}
-```
-
----
-
-### 15. CPI Context Generation
-
-**Purpose**: Automatically builds CPI contexts for Light Protocol operations.
-
-**Generated for**:
-- `compress_account` CPI
-- `decompress_account` CPI
-- `create_compressed_mint` CPI
-- `transfer_compressed` CPI
-
-**Example**:
-```rust
-// Generated CPI builder
-fn build_compress_cpi<'info>(
-    accounts: &MyAccounts<'info>,
-    data: CompressedAccountData,
-) -> CpiContext<'_, '_, '_, 'info, CompressAccount<'info>> {
-    // Auto-generated from account struct
-}
-```
-
----
-
-### 16. Seed Parameter Structs
-
-**Purpose**: Generates structs for PDA seed management.
-
-**Behavior**:
-- Extracts seed fields from account definitions
-- Creates typed seed parameter structs
-- Integrates with address derivation
-
-**Example**:
-```rust
-// Generated from:
-// #[account(seeds = [b"profile", user.key().as_ref()])]
-
-pub struct ProfileSeeds {
-    pub user: Pubkey,
-}
-
-impl ProfileSeeds {
-    pub fn to_seeds(&self) -> [&[u8]; 2] {
-        [b"profile", self.user.as_ref()]
+    pub fn create_user(ctx: Context<CreateUser>, params: Params) -> Result<()> {
+        // Your business logic
+        // Compression handled automatically
     }
 }
 ```
 
+**Behavior**:
+1. Scans the crate's `src/` directory for `#[derive(LightAccounts)]` structs
+2. Extracts seeds from `#[account(seeds = [...])]` on `#[light_account(init)]` fields
+3. Auto-wraps instruction handlers that use those Accounts structs
+4. Generates all necessary types, enums, and instruction handlers
+
 ---
 
-### 17. Variant Enum Generation
+### 14. Infrastructure Field Detection
 
-**Purpose**: Creates enum variants for instruction dispatch with compression support.
+**Purpose**: Automatically detects required Light Protocol program accounts by naming convention.
 
-**Behavior**:
-- Generates instruction enum with compression variants
-- Handles both compressed and on-chain paths
-- Integrates with Anchor's instruction dispatch
+**Detected fields**:
+- `fee_payer` or `payer` - Fee payer account
+- `compression_config` - Compression configuration
+- `light_system_program` - Core compression logic
+- `account_compression_program` - Merkle tree management
+- `compressed_token_program` - Token compression
+- `registered_program_pda` - Program registration
+- `system_program` - Solana system program
+
+**Behavior**: If these fields are present in the Accounts struct, the macros wire them into CPIs automatically.
+
+---
+
+### 15. Seed Classification
+
+**Purpose**: Classifies seed expressions from `#[account(seeds = [...])]` into categories.
+
+**Seed types**:
+- `Literal` - `b"literal"` or `"string"` (hardcoded bytes)
+- `Constant` - `CONSTANT` or `path::CONSTANT` (uppercase identifier)
+- `CtxRooted` - `authority.key().as_ref()` (from Accounts struct field)
+- `DataRooted` - `params.owner.as_ref()` (from instruction parameter)
+- `FunctionCall` - `max_key(&params.key_a, &params.key_b).as_ref()` (dynamic function)
+- `Passthrough` - Everything else (complex expressions)
+
+**Usage**: Used by `#[light_program]` to generate seeds structs and compress/decompress instructions.
+
+---
+
+### 16. Variant Enum Generation
+
+**Purpose**: Creates `LightAccountVariant` enum for all discovered light accounts.
+
+**Generated by**: `#[light_program]` macro
 
 **Example**:
 ```rust
 // Generated enum
-pub enum MyProgramInstruction {
-    CreateProfile,
-    CreateProfileCompressed,  // Compressed variant
-    UpdateProfile,
-    CompressProfile,          // Compression instruction
-    DecompressProfile,        // Decompression instruction
+pub enum LightAccountVariant {
+    UserRecord(crate::state::UserRecord),
+    GameSession(crate::state::GameSession),
+    // ... one variant per light account type
+}
+
+impl LightAccountVariant {
+    pub fn discriminator(&self) -> [u8; 8] { /* ... */ }
+    pub fn hash(&self) -> [u8; 32] { /* ... */ }
+    pub fn pack(&self, accounts: &[Pubkey]) -> Vec<u8> { /* ... */ }
+    // ...
+}
+```
+
+---
+
+### 17. Compress/Decompress Instructions
+
+**Purpose**: Auto-generated instructions for compressing/decompressing accounts.
+
+**Generated by**: `#[light_program]` macro
+
+**Compress instruction**:
+```rust
+pub fn compress(
+    ctx: Context<CompressAccounts>,
+    variant: LightAccountVariant,
+    seeds: SeedsEnum,
+) -> Result<()> {
+    // Generated compression logic
+}
+```
+
+**Decompress instruction**:
+```rust
+pub fn decompress(
+    ctx: Context<DecompressAccounts>,
+    variant: LightAccountVariant,
+    seeds: SeedsEnum,
+) -> Result<()> {
+    // Generated decompression logic
 }
 ```
 
@@ -420,13 +445,16 @@ pub enum MyProgramInstruction {
 try_accounts() {
     1. Extract AccountInfo
     2. Create via system CPI (init)
-    3. Init token/mint CPI
+    3. Init token/mint CPI (mint::*, token::*)
     4. Deserialize
 }
 // instruction handler
+exit() {
+    5. Close accounts (if close = ...)
+}
 ```
 
-### Light RentFree Flow
+### Light Protocol Flow
 ```
 try_accounts() {
     1. Extract AccountInfo
@@ -435,11 +463,15 @@ try_accounts() {
 }
 light_pre_init() {
     4. Register compressed address
-    5. Create compressed mint CPI (if #[light_account(init)])
+    5. Create compressed mint CPI (if #[light_account(init, mint::...)])
 }
 // instruction handler
 light_finalize() {
     6. Complete compression
+    7. Update Merkle trees
+}
+exit() {
+    8. Close accounts (if close = ...)
 }
 ```
 
@@ -452,23 +484,23 @@ use anchor_lang::prelude::*;
 use light_sdk::compressible::CompressionInfo;
 use light_sdk_macros::*;
 
-#[derive(RentFree, Compressible, HasCompressionInfo)]
-#[light_account(init)]
+// Data struct with compression support
+#[derive(Default, Debug, InitSpace, LightAccount, LightDiscriminator, LightHasherSha)]
+#[account]
 pub struct UserProfile {
-    #[compress_as(pubkey)]
+    pub compression_info: CompressionInfo,  // Non-Option, first or last field
     pub owner: Pubkey,
-    pub username: [u8; 32],
+    #[max_len(32)]
+    pub username: String,
     pub level: u8,
-    #[compression_info]
-    pub compression_info: CompressionInfo,
 }
 
-#[rentfree_program]
+#[light_program]
 #[program]
 pub mod my_program {
     use super::*;
 
-    pub fn create_profile(ctx: Context<CreateProfile>, username: [u8; 32]) -> Result<()> {
+    pub fn create_profile(ctx: Context<CreateProfile>, username: String) -> Result<()> {
         let profile = &mut ctx.accounts.profile;
         profile.owner = ctx.accounts.user.key();
         profile.username = username;
@@ -477,7 +509,8 @@ pub mod my_program {
     }
 }
 
-#[derive(Accounts)]
+// Accounts struct with Light support
+#[derive(Accounts, LightAccounts)]
 pub struct CreateProfile<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
@@ -485,10 +518,11 @@ pub struct CreateProfile<'info> {
     #[account(
         init,
         payer = user,
-        space = 8 + UserProfile::SIZE,
+        space = 8 + UserProfile::INIT_SPACE,
         seeds = [b"profile", user.key().as_ref()],
         bump
     )]
+    #[light_account(init)]
     pub profile: Account<'info, UserProfile>,
 
     pub system_program: Program<'info, System>,

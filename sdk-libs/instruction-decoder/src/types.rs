@@ -19,6 +19,7 @@ pub struct AccountStateSnapshot {
     pub lamports_after: u64,
     pub data_len_before: usize,
     pub data_len_after: usize,
+    pub owner: Pubkey,
 }
 
 /// Enhanced transaction log containing all formatting information

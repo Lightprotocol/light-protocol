@@ -12,6 +12,7 @@ devenv = ["v2", "light-client/devenv", "light-prover-client/devenv", "dep:accoun
 
 [dependencies]
 light-sdk = { workspace = true, features = ["anchor"] }
+light-account-checks = { workspace = true }
 light-indexed-merkle-tree = { workspace = true, features = ["solana"] }
 light-indexed-array = { workspace = true }
 light-merkle-tree-reference = { workspace = true }

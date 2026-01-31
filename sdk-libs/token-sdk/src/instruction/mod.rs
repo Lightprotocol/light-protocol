@@ -101,6 +101,8 @@ mod create;
 mod create_ata;
 mod create_mint;
 mod create_mints;
+// Decompress instruction builder is client-side only (uses PackedAccounts)
+#[cfg(not(target_os = "solana"))]
 mod decompress;
 mod decompress_mint;
 mod freeze;
@@ -127,6 +129,7 @@ pub use create_ata::{
 };
 pub use create_mint::*;
 pub use create_mints::*;
+#[cfg(not(target_os = "solana"))]
 pub use decompress::Decompress;
 pub use decompress_mint::*;
 pub use freeze::*;
@@ -213,8 +216,9 @@ impl Default for SystemAccounts {
 // Re-export constants for backwards compatibility
 pub use crate::{
     constants::{
-        compression_authority_pda, config_pda, rent_sponsor_pda, COMPRESSIBLE_CONFIG_V1,
-        LIGHT_TOKEN_CPI_AUTHORITY, LIGHT_TOKEN_PROGRAM_ID, RENT_SPONSOR_V1 as RENT_SPONSOR,
+        compression_authority_pda, config_pda, rent_sponsor_pda, LIGHT_TOKEN_CONFIG,
+        LIGHT_TOKEN_CPI_AUTHORITY, LIGHT_TOKEN_PROGRAM_ID,
+        RENT_SPONSOR_V1 as LIGHT_TOKEN_RENT_SPONSOR,
     },
     cpi_authority, id,
     spl_interface::get_spl_interface_pda_and_bump,

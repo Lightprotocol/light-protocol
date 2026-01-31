@@ -1,3 +1,5 @@
+mod shared;
+
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_client::interface::{
     get_create_accounts_proof, AccountInterfaceExt, CreateAccountsProofInput,
@@ -8,6 +10,7 @@ use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest, TestRpc},
     Indexer, ProgramTestConfig, Rpc,
 };
+use light_sdk::utils::derive_rent_sponsor_pda;
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
 use light_token::instruction::find_mint_address as find_cmint_address;
 use solana_instruction::Instruction;
@@ -25,44 +28,13 @@ async fn test_create_pdas_and_mint_auto() {
         FullAutoWithMintParams, GameSession,
     };
     use light_token::instruction::{
-        get_associated_token_address_and_bump, COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR,
+        get_associated_token_address_and_bump, LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR,
     };
     use light_token_interface::state::Token;
 
-    // Helpers
-    async fn assert_onchain_exists(rpc: &mut LightProgramTest, pda: &Pubkey) {
-        assert!(rpc.get_account(*pda).await.unwrap().is_some());
-    }
-    async fn assert_onchain_closed(rpc: &mut LightProgramTest, pda: &Pubkey) {
-        let acc = rpc.get_account(*pda).await.unwrap();
-        assert!(acc.is_none() || acc.unwrap().lamports == 0);
-    }
+    // Helper
     fn parse_token(data: &[u8]) -> Token {
         borsh::BorshDeserialize::deserialize(&mut &data[..]).unwrap()
-    }
-    async fn assert_compressed_exists_with_data(rpc: &mut LightProgramTest, addr: [u8; 32]) {
-        let acc = rpc
-            .get_compressed_account(addr, None)
-            .await
-            .unwrap()
-            .value
-            .unwrap();
-        assert_eq!(acc.address.unwrap(), addr);
-        assert!(!acc.data.as_ref().unwrap().data.is_empty());
-    }
-    async fn assert_compressed_token_exists(
-        rpc: &mut LightProgramTest,
-        owner: &Pubkey,
-        expected_amount: u64,
-    ) {
-        let accs = rpc
-            .get_compressed_token_accounts_by_owner(owner, None, None)
-            .await
-            .unwrap()
-            .value
-            .items;
-        assert!(!accs.is_empty());
-        assert_eq!(accs[0].token.amount, expected_amount);
     }
 
     let program_id = csdk_anchor_full_derived_test::ID;
@@ -81,11 +53,19 @@ async fn test_create_pdas_and_mint_auto() {
 
     let program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
+    // Derive rent sponsor PDA for this program
+    let (rent_sponsor, _) = derive_rent_sponsor_pda(&program_id);
+
+    // Fund the rent sponsor PDA so it can pay for decompression
+    rpc.airdrop_lamports(&rent_sponsor, 10_000_000_000)
+        .await
+        .expect("Airdrop to rent sponsor should succeed");
+
     let (init_config_ix, config_pda) = InitializeRentFreeConfig::new(
         &program_id,
         &payer.pubkey(),
         &program_data_pda,
-        RENT_SPONSOR,
+        rent_sponsor,
         payer.pubkey(),
     )
     .build();
@@ -179,8 +159,9 @@ async fn test_create_pdas_and_mint_auto() {
         vault_authority: vault_authority_pda,
         user_ata: user_ata_pda,
         compression_config: config_pda,
-        light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
-        rent_sponsor: RENT_SPONSOR,
+        pda_rent_sponsor: rent_sponsor,
+        light_token_config: LIGHT_TOKEN_CONFIG,
+        light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         system_program: solana_sdk::system_program::ID,
@@ -220,20 +201,70 @@ async fn test_create_pdas_and_mint_auto() {
     .unwrap();
 
     // PHASE 1: After init - all accounts on-chain and parseable
-    assert_onchain_exists(&mut rpc, &user_record_pda).await;
-    assert_onchain_exists(&mut rpc, &game_session_pda).await;
-    assert_onchain_exists(&mut rpc, &mint_pda).await;
-    assert_onchain_exists(&mut rpc, &vault_pda).await;
-    assert_onchain_exists(&mut rpc, &user_ata_pda).await;
+    shared::assert_onchain_exists(&mut rpc, &user_record_pda, "UserRecord").await;
+    shared::assert_onchain_exists(&mut rpc, &game_session_pda, "GameSession").await;
+    shared::assert_onchain_exists(&mut rpc, &mint_pda, "Mint").await;
+    shared::assert_onchain_exists(&mut rpc, &vault_pda, "Vault").await;
+    shared::assert_onchain_exists(&mut rpc, &user_ata_pda, "UserATA").await;
 
-    // Parse and verify CToken data
+    // Full-struct assertion for UserRecord after init
+    {
+        let account = rpc.get_account(user_record_pda).await.unwrap().unwrap();
+        let user_record: csdk_anchor_full_derived_test::UserRecord =
+            borsh::BorshDeserialize::deserialize(&mut &account.data[8..]).unwrap();
+        let expected = csdk_anchor_full_derived_test::UserRecord {
+            compression_info: shared::expected_compression_info(&user_record.compression_info),
+            owner: payer.pubkey(),
+            name: "Auto Created User With Mint".to_string(),
+            score: 0,
+            category_id,
+        };
+        assert_eq!(user_record, expected, "UserRecord should match after init");
+    }
+
+    // Parse and verify CToken data with full-struct comparison
     let vault_data = parse_token(&rpc.get_account(vault_pda).await.unwrap().unwrap().data);
-    assert_eq!(vault_data.owner, vault_authority_pda.to_bytes());
-    assert_eq!(vault_data.amount, vault_mint_amount);
+    {
+        use light_token_interface::state::token::{
+            AccountState, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT,
+        };
+        let expected_vault = Token {
+            mint: mint_pda.into(),
+            owner: vault_authority_pda.into(),
+            amount: vault_mint_amount,
+            delegate: None,
+            state: AccountState::Initialized,
+            is_native: None,
+            delegated_amount: 0,
+            close_authority: None,
+            account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
+            extensions: vault_data.extensions.clone(),
+        };
+        assert_eq!(vault_data, expected_vault, "vault should match after init");
+    }
 
     let user_ata_data = parse_token(&rpc.get_account(user_ata_pda).await.unwrap().unwrap().data);
-    assert_eq!(user_ata_data.owner, payer.pubkey().to_bytes());
-    assert_eq!(user_ata_data.amount, user_ata_mint_amount);
+    {
+        use light_token_interface::state::token::{
+            AccountState, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT,
+        };
+        let expected_ata = Token {
+            mint: mint_pda.into(),
+            owner: payer.pubkey().into(),
+            amount: user_ata_mint_amount,
+            delegate: None,
+            state: AccountState::Initialized,
+            is_native: None,
+            delegated_amount: 0,
+            close_authority: None,
+            account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
+            extensions: user_ata_data.extensions.clone(),
+        };
+        assert_eq!(
+            user_ata_data, expected_ata,
+            "user ATA should match after init"
+        );
+    }
 
     // Verify compressed addresses registered (decompressed PDA: data contains PDA pubkey)
     let compressed_cmint = rpc
@@ -291,31 +322,41 @@ async fn test_create_pdas_and_mint_auto() {
     rpc.warp_slot_forward(SLOTS_PER_EPOCH * 30).await.unwrap();
 
     // After warp: all on-chain accounts should be closed
-    assert_onchain_closed(&mut rpc, &user_record_pda).await;
-    assert_onchain_closed(&mut rpc, &game_session_pda).await;
-    assert_onchain_closed(&mut rpc, &mint_pda).await;
-    assert_onchain_closed(&mut rpc, &vault_pda).await;
-    assert_onchain_closed(&mut rpc, &user_ata_pda).await;
+    shared::assert_onchain_closed(&mut rpc, &user_record_pda, "UserRecord").await;
+    shared::assert_onchain_closed(&mut rpc, &game_session_pda, "GameSession").await;
+    shared::assert_onchain_closed(&mut rpc, &mint_pda, "Mint").await;
+    shared::assert_onchain_closed(&mut rpc, &vault_pda, "Vault").await;
+    shared::assert_onchain_closed(&mut rpc, &user_ata_pda, "UserATA").await;
 
     // Compressed accounts should exist with non-empty data
-    assert_compressed_exists_with_data(&mut rpc, user_compressed_address).await;
-    assert_compressed_exists_with_data(&mut rpc, game_compressed_address).await;
-    assert_compressed_exists_with_data(&mut rpc, mint_compressed_address).await;
+    shared::assert_compressed_exists_with_data(&mut rpc, user_compressed_address, "UserRecord")
+        .await;
+    shared::assert_compressed_exists_with_data(&mut rpc, game_compressed_address, "GameSession")
+        .await;
+    shared::assert_compressed_exists_with_data(&mut rpc, mint_compressed_address, "Mint").await;
 
     // Compressed token accounts should exist with correct balances
-    assert_compressed_token_exists(&mut rpc, &vault_pda, vault_mint_amount).await;
-    assert_compressed_token_exists(&mut rpc, &user_ata_pda, user_ata_mint_amount).await;
+    shared::assert_compressed_token_exists(&mut rpc, &vault_pda, vault_mint_amount, "Vault").await;
+    shared::assert_compressed_token_exists(
+        &mut rpc,
+        &user_ata_pda,
+        user_ata_mint_amount,
+        "UserATA",
+    )
+    .await;
 
     // PHASE 3: Decompress all accounts via create_load_instructions
     use anchor_lang::AnchorDeserialize;
     use csdk_anchor_full_derived_test::{
-        csdk_anchor_full_derived_test::{LightAccountVariant, TokenAccountVariant},
+        csdk_anchor_full_derived_test::{
+            GameSessionSeeds, LightAccountVariant, UserRecordSeeds, VaultSeeds,
+        },
         GameSession as GameSessionState, UserRecord,
     };
     use light_client::interface::{
         create_load_instructions, AccountInterface, AccountSpec, ColdContext, PdaSpec,
     };
-    use light_token::compat::{CTokenData, TokenData};
+    use light_sdk::interface::token::TokenDataWithSeeds;
 
     // Fetch unified interfaces (hot/cold transparent)
     let user_interface = rpc
@@ -341,9 +382,13 @@ async fn test_create_pdas_and_mint_auto() {
     let user_data = UserRecord::deserialize(&mut &user_interface.account.data[8..])
         .expect("Failed to parse UserRecord");
     let user_variant = LightAccountVariant::UserRecord {
+        seeds: UserRecordSeeds {
+            authority: authority.pubkey(),
+            mint_authority: mint_authority.pubkey(),
+            owner,
+            category_id,
+        },
         data: user_data,
-        authority: authority.pubkey(),
-        mint_authority: mint_authority.pubkey(),
     };
     let user_spec = PdaSpec::new(user_interface.clone(), user_variant, program_id);
 
@@ -351,19 +396,23 @@ async fn test_create_pdas_and_mint_auto() {
     let game_data = GameSessionState::deserialize(&mut &game_interface.account.data[8..])
         .expect("Failed to parse GameSession");
     let game_variant = LightAccountVariant::GameSession {
+        seeds: GameSessionSeeds {
+            fee_payer: payer.pubkey(),
+            authority: authority.pubkey(),
+            session_id,
+        },
         data: game_data,
-        fee_payer: payer.pubkey(),
-        authority: authority.pubkey(),
     };
     let game_spec = PdaSpec::new(game_interface.clone(), game_variant, program_id);
 
     // Build PdaSpec for Vault (CToken)
     // Vault is fetched as token account but decompressed as PDA, so convert cold context
-    let token_data = TokenData::deserialize(&mut &vault_interface.account.data[..])
-        .expect("Failed to parse TokenData");
-    let vault_variant = LightAccountVariant::CTokenData(CTokenData {
-        variant: TokenAccountVariant::Vault { mint: mint_pda },
-        token_data,
+    let token =
+        light_token_interface::state::Token::deserialize(&mut &vault_interface.account.data[..])
+            .expect("Failed to parse Token");
+    let vault_variant = LightAccountVariant::Vault(TokenDataWithSeeds {
+        seeds: VaultSeeds { mint: mint_pda },
+        token_data: token,
     });
     let vault_compressed = vault_interface
         .compressed()
@@ -423,10 +472,9 @@ async fn test_create_pdas_and_mint_auto() {
     ];
 
     // Load all accounts with single call
-    let all_instructions =
-        create_load_instructions(&specs, payer.pubkey(), config_pda, payer.pubkey(), &rpc)
-            .await
-            .expect("create_load_instructions should succeed");
+    let all_instructions = create_load_instructions(&specs, payer.pubkey(), config_pda, &rpc)
+        .await
+        .expect("create_load_instructions should succeed");
 
     println!("all_instructions.len() = {:?}", all_instructions);
 
@@ -437,24 +485,99 @@ async fn test_create_pdas_and_mint_auto() {
         "Should have 6 instructions: 1 PDA, 1 Token, 2 create_ata, 1 decompress_ata, 1 mint"
     );
 
+    // Capture rent sponsor balance before decompression
+    let rent_sponsor_balance_before = rpc
+        .get_account(rent_sponsor)
+        .await
+        .expect("get rent sponsor account")
+        .map(|a| a.lamports)
+        .unwrap_or(0);
+
     // Execute all instructions
     rpc.create_and_send_transaction(&all_instructions, &payer.pubkey(), &[&payer])
         .await
         .expect("Decompression should succeed");
 
-    // Assert all accounts are back on-chain
-    assert_onchain_exists(&mut rpc, &user_record_pda).await;
-    assert_onchain_exists(&mut rpc, &game_session_pda).await;
-    assert_onchain_exists(&mut rpc, &vault_pda).await;
-    assert_onchain_exists(&mut rpc, &user_ata_pda).await;
-    assert_onchain_exists(&mut rpc, &mint_pda).await;
+    // Assert rent sponsor paid for the decompressed PDA accounts
+    shared::assert_rent_sponsor_paid_for_accounts(
+        &mut rpc,
+        &rent_sponsor,
+        rent_sponsor_balance_before,
+        &[user_record_pda, game_session_pda],
+    )
+    .await;
 
-    // Verify balances
+    // Assert all accounts are back on-chain
+    shared::assert_onchain_exists(&mut rpc, &user_record_pda, "UserRecord").await;
+    shared::assert_onchain_exists(&mut rpc, &game_session_pda, "GameSession").await;
+    shared::assert_onchain_exists(&mut rpc, &vault_pda, "Vault").await;
+    shared::assert_onchain_exists(&mut rpc, &user_ata_pda, "UserATA").await;
+    shared::assert_onchain_exists(&mut rpc, &mint_pda, "Mint").await;
+
+    // Full-struct assertion for UserRecord after decompression
+    {
+        let account = rpc.get_account(user_record_pda).await.unwrap().unwrap();
+        let user_record: csdk_anchor_full_derived_test::UserRecord =
+            borsh::BorshDeserialize::deserialize(&mut &account.data[8..]).unwrap();
+        let expected = csdk_anchor_full_derived_test::UserRecord {
+            compression_info: shared::expected_compression_info(&user_record.compression_info),
+            owner: payer.pubkey(),
+            name: "Auto Created User With Mint".to_string(),
+            score: 0,
+            category_id,
+        };
+        assert_eq!(
+            user_record, expected,
+            "UserRecord should match after decompression"
+        );
+    }
+
+    // Verify balances with full-struct comparison
     let vault_after = parse_token(&rpc.get_account(vault_pda).await.unwrap().unwrap().data);
-    assert_eq!(vault_after.amount, vault_mint_amount);
+    {
+        use light_token_interface::state::token::{
+            AccountState, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT,
+        };
+        let expected_vault = Token {
+            mint: mint_pda.into(),
+            owner: vault_authority_pda.into(),
+            amount: vault_mint_amount,
+            delegate: None,
+            state: AccountState::Initialized,
+            is_native: None,
+            delegated_amount: 0,
+            close_authority: None,
+            account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
+            extensions: vault_after.extensions.clone(),
+        };
+        assert_eq!(
+            vault_after, expected_vault,
+            "vault should match after decompression"
+        );
+    }
 
     let user_ata_after = parse_token(&rpc.get_account(user_ata_pda).await.unwrap().unwrap().data);
-    assert_eq!(user_ata_after.amount, user_ata_mint_amount);
+    {
+        use light_token_interface::state::token::{
+            AccountState, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT,
+        };
+        let expected_ata = Token {
+            mint: mint_pda.into(),
+            owner: payer.pubkey().into(),
+            amount: user_ata_mint_amount,
+            delegate: None,
+            state: AccountState::Initialized,
+            is_native: None,
+            delegated_amount: 0,
+            close_authority: None,
+            account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
+            extensions: user_ata_after.extensions.clone(),
+        };
+        assert_eq!(
+            user_ata_after, expected_ata,
+            "user ATA should match after decompression"
+        );
+    }
 
     // Verify compressed vault token is consumed
     let remaining_vault = rpc
@@ -489,7 +612,7 @@ async fn test_create_pdas_and_mint_auto() {
     );
 
     // Extract runtime-specific value (compression_info set during transaction)
-    let compression_info = game_session.compression_info.clone();
+    let compression_info = game_session.compression_info;
 
     // Build expected struct with compress_as overrides applied:
     // #[compress_as(start_time = 0, end_time = None, score = 0)]
@@ -518,37 +641,24 @@ async fn test_create_two_mints() {
         CreateTwoMintsParams, MINT_SIGNER_A_SEED, MINT_SIGNER_B_SEED,
     };
     use light_token::instruction::{
-        find_mint_address as find_cmint_address, COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR,
+        find_mint_address as find_cmint_address, LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR,
     };
 
-    let program_id = csdk_anchor_full_derived_test::ID;
-    let config = ProgramTestConfig::new_v2(
-        true,
-        Some(vec![("csdk_anchor_full_derived_test", program_id)]),
-    )
-    .with_decoders(vec![
-        Box::new(csdk_anchor_full_derived_test::CsdkTestInstructionDecoder),
-        Box::new(csdk_anchor_full_derived_test::CsdkAnchorFullDerivedTestInstructionDecoder),
-    ])
-    .with_light_protocol_events();
+    let ctx = shared::SharedTestContext::new_with_config(|config| {
+        config.with_decoders(vec![
+            Box::new(csdk_anchor_full_derived_test::CsdkTestInstructionDecoder),
+            Box::new(csdk_anchor_full_derived_test::CsdkAnchorFullDerivedTestInstructionDecoder),
+        ])
+    })
+    .await;
 
-    let mut rpc = LightProgramTest::new(config).await.unwrap();
-    let payer = rpc.get_payer().insecure_clone();
-
-    let program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
-
-    let (init_config_ix, config_pda) = InitializeRentFreeConfig::new(
-        &program_id,
-        &payer.pubkey(),
-        &program_data_pda,
-        RENT_SPONSOR,
-        payer.pubkey(),
-    )
-    .build();
-
-    rpc.create_and_send_transaction(&[init_config_ix], &payer.pubkey(), &[&payer])
-        .await
-        .expect("Initialize config should succeed");
+    let shared::SharedTestContext {
+        mut rpc,
+        payer,
+        config_pda,
+        rent_sponsor: _,
+        program_id,
+    } = ctx;
 
     let authority = Keypair::new();
 
@@ -596,8 +706,8 @@ async fn test_create_two_mints() {
         cmint_a: cmint_a_pda,
         cmint_b: cmint_b_pda,
         compression_config: config_pda,
-        light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
-        rent_sponsor: RENT_SPONSOR,
+        light_token_config: LIGHT_TOKEN_CONFIG,
+        light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         system_program: solana_sdk::system_program::ID,
@@ -660,6 +770,48 @@ async fn test_create_two_mints() {
         "Mint B authority should be fee_payer"
     );
 
+    // Full Mint struct assertions
+    {
+        use light_token_interface::state::mint::BaseMint;
+        let expected_mint_a = Mint {
+            base: BaseMint {
+                mint_authority: Some(payer.pubkey().to_bytes().into()),
+                supply: 0,
+                decimals: 6,
+                is_initialized: true,
+                freeze_authority: None,
+            },
+            metadata: mint_a.metadata.clone(),
+            reserved: mint_a.reserved,
+            account_type: mint_a.account_type,
+            compression: mint_a.compression,
+            extensions: mint_a.extensions.clone(),
+        };
+        assert_eq!(
+            mint_a, expected_mint_a,
+            "mint_a should match expected full struct"
+        );
+
+        let expected_mint_b = Mint {
+            base: BaseMint {
+                mint_authority: Some(payer.pubkey().to_bytes().into()),
+                supply: 0,
+                decimals: 9,
+                is_initialized: true,
+                freeze_authority: None,
+            },
+            metadata: mint_b.metadata.clone(),
+            reserved: mint_b.reserved,
+            account_type: mint_b.account_type,
+            compression: mint_b.compression,
+            extensions: mint_b.extensions.clone(),
+        };
+        assert_eq!(
+            mint_b, expected_mint_b,
+            "mint_b should match expected full struct"
+        );
+    }
+
     // Verify compressed addresses registered
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
 
@@ -718,33 +870,16 @@ async fn test_create_multi_mints() {
         CreateThreeMintsParams, MINT_SIGNER_A_SEED, MINT_SIGNER_B_SEED, MINT_SIGNER_C_SEED,
     };
     use light_token::instruction::{
-        find_mint_address as find_cmint_address, COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR,
+        find_mint_address as find_cmint_address, LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR,
     };
 
-    let program_id = csdk_anchor_full_derived_test::ID;
-    let mut config = ProgramTestConfig::new_v2(
-        true,
-        Some(vec![("csdk_anchor_full_derived_test", program_id)]),
-    );
-    config = config.with_light_protocol_events();
-
-    let mut rpc = LightProgramTest::new(config).await.unwrap();
-    let payer = rpc.get_payer().insecure_clone();
-
-    let program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
-
-    let (init_config_ix, config_pda) = InitializeRentFreeConfig::new(
-        &program_id,
-        &payer.pubkey(),
-        &program_data_pda,
-        RENT_SPONSOR,
-        payer.pubkey(),
-    )
-    .build();
-
-    rpc.create_and_send_transaction(&[init_config_ix], &payer.pubkey(), &[&payer])
-        .await
-        .expect("Initialize config should succeed");
+    let shared::SharedTestContext {
+        mut rpc,
+        payer,
+        config_pda,
+        rent_sponsor: _,
+        program_id,
+    } = shared::SharedTestContext::new().await;
 
     let authority = Keypair::new();
 
@@ -790,8 +925,8 @@ async fn test_create_multi_mints() {
         cmint_b: cmint_b_pda,
         cmint_c: cmint_c_pda,
         compression_config: config_pda,
-        light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
-        rent_sponsor: RENT_SPONSOR,
+        light_token_config: LIGHT_TOKEN_CONFIG,
+        light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         system_program: solana_sdk::system_program::ID,
@@ -868,39 +1003,80 @@ async fn test_create_multi_mints() {
         Some(payer.pubkey().to_bytes().into()),
         "Mint C authority should be fee_payer"
     );
+
+    // Full Mint struct assertions
+    {
+        use light_token_interface::state::mint::BaseMint;
+        let expected_mint_a = Mint {
+            base: BaseMint {
+                mint_authority: Some(payer.pubkey().to_bytes().into()),
+                supply: 0,
+                decimals: 6,
+                is_initialized: true,
+                freeze_authority: None,
+            },
+            metadata: mint_a.metadata.clone(),
+            reserved: mint_a.reserved,
+            account_type: mint_a.account_type,
+            compression: mint_a.compression,
+            extensions: mint_a.extensions.clone(),
+        };
+        assert_eq!(
+            mint_a, expected_mint_a,
+            "mint_a should match expected full struct"
+        );
+
+        let expected_mint_b = Mint {
+            base: BaseMint {
+                mint_authority: Some(payer.pubkey().to_bytes().into()),
+                supply: 0,
+                decimals: 8,
+                is_initialized: true,
+                freeze_authority: None,
+            },
+            metadata: mint_b.metadata.clone(),
+            reserved: mint_b.reserved,
+            account_type: mint_b.account_type,
+            compression: mint_b.compression,
+            extensions: mint_b.extensions.clone(),
+        };
+        assert_eq!(
+            mint_b, expected_mint_b,
+            "mint_b should match expected full struct"
+        );
+
+        let expected_mint_c = Mint {
+            base: BaseMint {
+                mint_authority: Some(payer.pubkey().to_bytes().into()),
+                supply: 0,
+                decimals: 9,
+                is_initialized: true,
+                freeze_authority: None,
+            },
+            metadata: mint_c.metadata.clone(),
+            reserved: mint_c.reserved,
+            account_type: mint_c.account_type,
+            compression: mint_c.compression,
+            extensions: mint_c.extensions.clone(),
+        };
+        assert_eq!(
+            mint_c, expected_mint_c,
+            "mint_c should match expected full struct"
+        );
+    }
 }
 
 /// Helper function to set up test context for D9 instruction data tests.
-/// Returns (rpc, payer, program_id, config_pda).
-async fn setup_d9_test_context() -> (LightProgramTest, Keypair, Pubkey, Pubkey) {
-    use light_token::instruction::RENT_SPONSOR;
-
-    let program_id = csdk_anchor_full_derived_test::ID;
-    let mut config = ProgramTestConfig::new_v2(
-        true,
-        Some(vec![("csdk_anchor_full_derived_test", program_id)]),
-    );
-    config = config.with_light_protocol_events();
-
-    let mut rpc = LightProgramTest::new(config).await.unwrap();
-    let payer = rpc.get_payer().insecure_clone();
-
-    let program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
-
-    let (init_config_ix, config_pda) = InitializeRentFreeConfig::new(
-        &program_id,
-        &payer.pubkey(),
-        &program_data_pda,
-        RENT_SPONSOR,
-        payer.pubkey(),
+/// Returns (rpc, payer, program_id, config_pda, rent_sponsor).
+async fn setup_d9_test_context() -> (LightProgramTest, Keypair, Pubkey, Pubkey, Pubkey) {
+    let ctx = shared::SharedTestContext::new().await;
+    (
+        ctx.rpc,
+        ctx.payer,
+        ctx.program_id,
+        ctx.config_pda,
+        ctx.rent_sponsor,
     )
-    .build();
-
-    rpc.create_and_send_transaction(&[init_config_ix], &payer.pubkey(), &[&payer])
-        .await
-        .expect("Initialize config should succeed");
-
-    (rpc, payer, program_id, config_pda)
 }
 
 /// Test D9InstrSinglePubkey - seeds = [b"instr_single", params.owner.as_ref()]
@@ -908,7 +1084,7 @@ async fn setup_d9_test_context() -> (LightProgramTest, Keypair, Pubkey, Pubkey) 
 async fn test_d9_instr_single_pubkey() {
     use csdk_anchor_full_derived_test::D9SinglePubkeyParams;
 
-    let (mut rpc, payer, program_id, config_pda) = setup_d9_test_context().await;
+    let (mut rpc, payer, program_id, config_pda, rent_sponsor) = setup_d9_test_context().await;
 
     let owner = Keypair::new().pubkey();
     let (record_pda, _) =
@@ -925,7 +1101,8 @@ async fn test_d9_instr_single_pubkey() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9InstrSinglePubkey {
         fee_payer: payer.pubkey(),
         compression_config: config_pda,
-        record: record_pda,
+        pda_rent_sponsor: rent_sponsor,
+        d9_instr_single_pubkey_record: record_pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -961,7 +1138,7 @@ async fn test_d9_instr_single_pubkey() {
 async fn test_d9_instr_u64() {
     use csdk_anchor_full_derived_test::D9U64Params;
 
-    let (mut rpc, payer, program_id, config_pda) = setup_d9_test_context().await;
+    let (mut rpc, payer, program_id, config_pda, rent_sponsor) = setup_d9_test_context().await;
 
     let amount = 12345u64;
     let (record_pda, _) =
@@ -978,7 +1155,8 @@ async fn test_d9_instr_u64() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9InstrU64 {
         fee_payer: payer.pubkey(),
         compression_config: config_pda,
-        record: record_pda,
+        pda_rent_sponsor: rent_sponsor,
+        d9_instr_u64_record: record_pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -1014,7 +1192,7 @@ async fn test_d9_instr_u64() {
 async fn test_d9_instr_multi_field() {
     use csdk_anchor_full_derived_test::D9MultiFieldParams;
 
-    let (mut rpc, payer, program_id, config_pda) = setup_d9_test_context().await;
+    let (mut rpc, payer, program_id, config_pda, rent_sponsor) = setup_d9_test_context().await;
 
     let owner = Keypair::new().pubkey();
     let amount = 99999u64;
@@ -1034,7 +1212,8 @@ async fn test_d9_instr_multi_field() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9InstrMultiField {
         fee_payer: payer.pubkey(),
         compression_config: config_pda,
-        record: record_pda,
+        pda_rent_sponsor: rent_sponsor,
+        d9_instr_multi_field_record: record_pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -1071,7 +1250,7 @@ async fn test_d9_instr_multi_field() {
 async fn test_d9_instr_mixed_ctx() {
     use csdk_anchor_full_derived_test::D9MixedCtxParams;
 
-    let (mut rpc, payer, program_id, config_pda) = setup_d9_test_context().await;
+    let (mut rpc, payer, program_id, config_pda, rent_sponsor) = setup_d9_test_context().await;
     let authority = Keypair::new();
 
     let data_key = Keypair::new().pubkey();
@@ -1096,7 +1275,8 @@ async fn test_d9_instr_mixed_ctx() {
         fee_payer: payer.pubkey(),
         authority: authority.pubkey(),
         compression_config: config_pda,
-        record: record_pda,
+        pda_rent_sponsor: rent_sponsor,
+        d9_instr_mixed_ctx_record: record_pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -1132,7 +1312,7 @@ async fn test_d9_instr_mixed_ctx() {
 async fn test_d9_instr_triple() {
     use csdk_anchor_full_derived_test::D9TripleParams;
 
-    let (mut rpc, payer, program_id, config_pda) = setup_d9_test_context().await;
+    let (mut rpc, payer, program_id, config_pda, rent_sponsor) = setup_d9_test_context().await;
 
     let key_a = Keypair::new().pubkey();
     let value_b = 777u64;
@@ -1157,7 +1337,8 @@ async fn test_d9_instr_triple() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9InstrTriple {
         fee_payer: payer.pubkey(),
         compression_config: config_pda,
-        record: record_pda,
+        pda_rent_sponsor: rent_sponsor,
+        d9_instr_triple_record: record_pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -1195,7 +1376,7 @@ async fn test_d9_instr_triple() {
 async fn test_d9_instr_big_endian() {
     use csdk_anchor_full_derived_test::D9BigEndianParams;
 
-    let (mut rpc, payer, program_id, config_pda) = setup_d9_test_context().await;
+    let (mut rpc, payer, program_id, config_pda, rent_sponsor) = setup_d9_test_context().await;
 
     let value = 0xDEADBEEFu64;
     let (record_pda, _) =
@@ -1212,7 +1393,8 @@ async fn test_d9_instr_big_endian() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9InstrBigEndian {
         fee_payer: payer.pubkey(),
         compression_config: config_pda,
-        record: record_pda,
+        pda_rent_sponsor: rent_sponsor,
+        d9_instr_big_endian_record: record_pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -1248,7 +1430,7 @@ async fn test_d9_instr_big_endian() {
 async fn test_d9_instr_multi_u64() {
     use csdk_anchor_full_derived_test::D9MultiU64Params;
 
-    let (mut rpc, payer, program_id, config_pda) = setup_d9_test_context().await;
+    let (mut rpc, payer, program_id, config_pda, rent_sponsor) = setup_d9_test_context().await;
 
     let id = 100u64;
     let counter = 200u64;
@@ -1272,7 +1454,8 @@ async fn test_d9_instr_multi_u64() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9InstrMultiU64 {
         fee_payer: payer.pubkey(),
         compression_config: config_pda,
-        record: record_pda,
+        pda_rent_sponsor: rent_sponsor,
+        d9_instr_multi_u64_record: record_pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -1309,7 +1492,7 @@ async fn test_d9_instr_multi_u64() {
 async fn test_d9_instr_chained_as_ref() {
     use csdk_anchor_full_derived_test::D9ChainedAsRefParams;
 
-    let (mut rpc, payer, program_id, config_pda) = setup_d9_test_context().await;
+    let (mut rpc, payer, program_id, config_pda, rent_sponsor) = setup_d9_test_context().await;
 
     let key = Keypair::new().pubkey();
     let (record_pda, _) =
@@ -1326,7 +1509,8 @@ async fn test_d9_instr_chained_as_ref() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9InstrChainedAsRef {
         fee_payer: payer.pubkey(),
         compression_config: config_pda,
-        record: record_pda,
+        pda_rent_sponsor: rent_sponsor,
+        d9_instr_chained_as_ref_record: record_pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -1364,7 +1548,7 @@ async fn test_d9_instr_const_mixed() {
         instructions::d9_seeds::instruction_data::D9_INSTR_SEED, D9ConstMixedParams,
     };
 
-    let (mut rpc, payer, program_id, config_pda) = setup_d9_test_context().await;
+    let (mut rpc, payer, program_id, config_pda, rent_sponsor) = setup_d9_test_context().await;
 
     let owner = Keypair::new().pubkey();
     let (record_pda, _) =
@@ -1381,7 +1565,8 @@ async fn test_d9_instr_const_mixed() {
     let accounts = csdk_anchor_full_derived_test::accounts::D9InstrConstMixed {
         fee_payer: payer.pubkey(),
         compression_config: config_pda,
-        record: record_pda,
+        pda_rent_sponsor: rent_sponsor,
+        d9_instr_const_mixed_record: record_pda,
         system_program: solana_sdk::system_program::ID,
     };
 
@@ -1417,7 +1602,7 @@ async fn test_d9_instr_const_mixed() {
 async fn test_d9_instr_complex_mixed() {
     use csdk_anchor_full_derived_test::D9ComplexMixedParams;
 
-    let (mut rpc, payer, program_id, config_pda) = setup_d9_test_context().await;
+    let (mut rpc, payer, program_id, config_pda, rent_sponsor) = setup_d9_test_context().await;
     let authority = Keypair::new();
 
     let data_owner = Keypair::new().pubkey();
@@ -1444,7 +1629,8 @@ async fn test_d9_instr_complex_mixed() {
         fee_payer: payer.pubkey(),
         authority: authority.pubkey(),
         compression_config: config_pda,
-        record: record_pda,
+        pda_rent_sponsor: rent_sponsor,
+        d9_instr_complex_mixed_record: record_pda,
         system_program: solana_sdk::system_program::ID,
     };
 

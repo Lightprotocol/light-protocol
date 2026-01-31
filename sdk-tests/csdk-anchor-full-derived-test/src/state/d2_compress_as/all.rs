@@ -14,7 +14,7 @@ use light_sdk_macros::LightAccount;
 #[compress_as(time = 0, end = None, score = 0, cached = 0)]
 #[account]
 pub struct AllCompressAsRecord {
-    pub compression_info: Option<CompressionInfo>,
+    pub compression_info: CompressionInfo,
     pub owner: Pubkey,
     // Override with 0
     pub time: u64,

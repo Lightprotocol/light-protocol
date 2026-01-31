@@ -32,6 +32,7 @@ profile-heap = [
 ]
 cpi-context = []
 cpi-without-program-ids = []
+idl-build = ["anchor-compressed-token/idl-build", "anchor-lang/idl-build"]
 
 [dependencies]
 light-program-profiler = { workspace = true }
@@ -48,7 +49,7 @@ spl-token-2022 = { workspace = true, features = ["no-entrypoint"] }
 spl-pod = { workspace = true }
 light-zero-copy = { workspace = true, features = ["mut", "std", "derive"] }
 zerocopy = { workspace = true }
-anchor-compressed-token = { path = "../anchor", features = ["cpi"] }
+anchor-compressed-token = { path = "../anchor", features = ["cpi", "custom-heap"], default-features = false }
 light-account-checks = { workspace = true, features = ["solana", "pinocchio", "msg"] }
 borsh = { workspace = true }
 light-compressible = { workspace = true, features = ["pinocchio"] }

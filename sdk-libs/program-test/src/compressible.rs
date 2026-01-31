@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use borsh::BorshDeserialize;
+use light_account_checks::discriminator::DISCRIMINATOR_LEN;
 use light_client::rpc::{Rpc, RpcError};
 use light_compressible::{
     compression_info::CompressionInfo,
@@ -276,7 +277,7 @@ pub async fn auto_compress_program_pdas(
     let Some(cfg_acc) = cfg_acc_opt else {
         return Ok(());
     };
-    let cfg = LightConfig::try_from_slice(&cfg_acc.data)
+    let cfg = LightConfig::try_from_slice(&cfg_acc.data[DISCRIMINATOR_LEN..])
         .map_err(|e| RpcError::CustomError(format!("config deserialize: {e:?}")))?;
     let rent_sponsor = cfg.rent_sponsor;
     // compression_authority is the payer by default for auto-compress
@@ -293,12 +294,12 @@ pub async fn auto_compress_program_pdas(
     // 1. fee_payer (signer, writable)
     // 2. config (read-only)
     // 3. rent_sponsor (writable)
-    // 4. compression_authority (writable - per generated struct)
+    // 4. compression_authority (read-only)
     let program_metas = vec![
         AccountMeta::new(payer.pubkey(), true),
         AccountMeta::new_readonly(config_pda, false),
         AccountMeta::new(rent_sponsor, false),
-        AccountMeta::new(compression_authority, false),
+        AccountMeta::new_readonly(compression_authority, false),
     ];
 
     const BATCH_SIZE: usize = 5;
@@ -330,6 +331,8 @@ async fn try_compress_chunk(
 ) {
     use light_client::{indexer::Indexer, interface::instructions};
     use light_compressed_account::address::derive_address;
+    use light_compressible::DECOMPRESSED_PDA_DISCRIMINATOR;
+    use light_hasher::{sha256::Sha256BE, Hasher};
     use solana_sdk::signature::Signer;
 
     // Attempt compression per-account idempotently.
@@ -348,6 +351,31 @@ async fn try_compress_chunk(
         let Some(cacc) = resp.value else {
             continue;
         };
+
+        // Check if this is a proper DECOMPRESSED_PDA_DISCRIMINATOR placeholder.
+        // After a decompress cycle, the compressed account may be a zero-data
+        // output (discriminator=[0;8], data_hash=[0;32]) which does not match
+        // what CompressAccountsIdempotent expects.
+        let expected_data_hash = Sha256BE::hash(&pda.to_bytes()).unwrap_or_default();
+        let expected_discriminator = DECOMPRESSED_PDA_DISCRIMINATOR;
+        let is_valid_placeholder = cacc.data.as_ref().is_some_and(|d| {
+            d.discriminator == expected_discriminator && d.data_hash == expected_data_hash
+        });
+
+        if !is_valid_placeholder {
+            println!(
+                "try_compress_chunk: PDA {} has compressed account that is NOT a valid \
+                 DECOMPRESSED_PDA placeholder (leaf_index={}, hash={:?}, \
+                 discriminator={:?}, data_hash={:?}). Skipping - \
+                 on-chain CompressAccountsIdempotent expects the init placeholder.",
+                pda,
+                cacc.leaf_index,
+                cacc.hash,
+                cacc.data.as_ref().map(|d| d.discriminator),
+                cacc.data.as_ref().map(|d| &d.data_hash),
+            );
+            continue;
+        }
 
         // Fetch proof for this single account hash
         let Ok(proof_with_context) = rpc

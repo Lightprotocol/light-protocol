@@ -1,15 +1,15 @@
 //! Integration tests for mint with metadata support in #[light_account(init)] macro.
 
+#[path = "../shared.rs"]
+mod shared;
+
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_client::interface::{
     decompress_mint::decompress_mint, get_create_accounts_proof, AccountInterfaceExt,
-    CreateAccountsProofInput, InitializeRentFreeConfig,
+    CreateAccountsProofInput,
 };
 use light_compressible::{rent::SLOTS_PER_EPOCH, DECOMPRESSED_PDA_DISCRIMINATOR};
-use light_program_test::{
-    program_test::{setup_mock_program_data, LightProgramTest, TestRpc},
-    Indexer, ProgramTestConfig, Rpc,
-};
+use light_program_test::{program_test::TestRpc, Indexer, Rpc};
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
@@ -26,33 +26,16 @@ async fn test_create_mint_with_metadata() {
         CreateMintWithMetadataParams, METADATA_MINT_SIGNER_SEED,
     };
     use light_token::instruction::{
-        find_mint_address as find_cmint_address, COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR,
+        find_mint_address as find_cmint_address, LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR,
     };
 
-    let program_id = csdk_anchor_full_derived_test::ID;
-    let mut config = ProgramTestConfig::new_v2(
-        true,
-        Some(vec![("csdk_anchor_full_derived_test", program_id)]),
-    );
-    config = config.with_light_protocol_events();
-
-    let mut rpc = LightProgramTest::new(config).await.unwrap();
-    let payer = rpc.get_payer().insecure_clone();
-
-    let program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
-
-    let (init_config_ix, config_pda) = InitializeRentFreeConfig::new(
-        &program_id,
-        &payer.pubkey(),
-        &program_data_pda,
-        RENT_SPONSOR,
-        payer.pubkey(),
-    )
-    .build();
-
-    rpc.create_and_send_transaction(&[init_config_ix], &payer.pubkey(), &[&payer])
-        .await
-        .expect("Initialize config should succeed");
+    let shared::SharedTestContext {
+        mut rpc,
+        payer,
+        config_pda,
+        rent_sponsor: _,
+        program_id,
+    } = shared::SharedTestContext::new().await;
 
     let authority = Keypair::new();
 
@@ -95,8 +78,8 @@ async fn test_create_mint_with_metadata() {
         mint_signer: mint_signer_pda,
         cmint: cmint_pda,
         compression_config: config_pda,
-        light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
-        rent_sponsor: RENT_SPONSOR,
+        light_token_config: LIGHT_TOKEN_CONFIG,
+        light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         system_program: solana_sdk::system_program::ID,
@@ -139,21 +122,32 @@ async fn test_create_mint_with_metadata() {
     let mint: Mint = borsh::BorshDeserialize::deserialize(&mut &cmint_account.data[..])
         .expect("Failed to deserialize Mint");
 
-    // Verify decimals match what was specified in #[light_account(init)]
-    assert_eq!(mint.base.decimals, 9, "Mint should have 9 decimals");
+    // Full Mint struct assertion after init
+    {
+        use light_token_interface::state::mint::BaseMint;
+        let expected_mint = Mint {
+            base: BaseMint {
+                mint_authority: Some(payer.pubkey().to_bytes().into()),
+                supply: 0,
+                decimals: 9,
+                is_initialized: true,
+                freeze_authority: None,
+            },
+            metadata: mint.metadata.clone(),
+            reserved: mint.reserved,
+            account_type: mint.account_type,
+            compression: mint.compression,
+            extensions: mint.extensions.clone(),
+        };
+        assert_eq!(mint, expected_mint, "Mint should match expected after init");
+    }
 
-    // Verify mint authority
-    assert_eq!(
-        mint.base.mint_authority,
-        Some(payer.pubkey().to_bytes().into()),
-        "Mint authority should be fee_payer"
-    );
-
-    // Verify token metadata extension
+    // Verify token metadata extension details
     use light_token_interface::state::extensions::ExtensionStruct;
-    let extensions = mint.extensions.expect("Mint should have extensions");
-
-    // Find TokenMetadata extension
+    let extensions = mint
+        .extensions
+        .as_ref()
+        .expect("Mint should have extensions");
     let token_metadata = extensions
         .iter()
         .find_map(|ext| {
@@ -165,12 +159,10 @@ async fn test_create_mint_with_metadata() {
         })
         .expect("Mint should have TokenMetadata extension");
 
-    // Verify metadata values
     assert_eq!(token_metadata.name, name, "Token name should match");
     assert_eq!(token_metadata.symbol, symbol, "Token symbol should match");
     assert_eq!(token_metadata.uri, uri, "Token URI should match");
 
-    // Verify update authority (stored as Pubkey, not Option<Pubkey>)
     let expected_update_authority: light_compressed_account::Pubkey =
         authority.pubkey().to_bytes().into();
     assert_eq!(
@@ -178,7 +170,6 @@ async fn test_create_mint_with_metadata() {
         "Update authority should be authority signer"
     );
 
-    // Verify additional metadata (stored as Vec, not Option<Vec>)
     let additional = &token_metadata.additional_metadata;
     assert_eq!(
         additional.len(),
@@ -222,33 +213,14 @@ async fn test_create_mint_with_metadata() {
         "Decompressed PDA data should contain the PDA pubkey"
     );
 
-    // Helper functions for lifecycle assertions
-    async fn assert_onchain_exists(rpc: &mut LightProgramTest, pda: &Pubkey) {
-        assert!(rpc.get_account(*pda).await.unwrap().is_some());
-    }
-    async fn assert_onchain_closed(rpc: &mut LightProgramTest, pda: &Pubkey) {
-        let acc = rpc.get_account(*pda).await.unwrap();
-        assert!(acc.is_none() || acc.unwrap().lamports == 0);
-    }
-    async fn assert_compressed_exists_with_data(rpc: &mut LightProgramTest, addr: [u8; 32]) {
-        let acc = rpc
-            .get_compressed_account(addr, None)
-            .await
-            .unwrap()
-            .value
-            .unwrap();
-        assert_eq!(acc.address.unwrap(), addr);
-        assert!(!acc.data.as_ref().unwrap().data.is_empty());
-    }
-
     // PHASE 2: Warp to trigger auto-compression by forester
     rpc.warp_slot_forward(SLOTS_PER_EPOCH * 30).await.unwrap();
 
     // After warp: mint should be closed on-chain
-    assert_onchain_closed(&mut rpc, &cmint_pda).await;
+    shared::assert_onchain_closed(&mut rpc, &cmint_pda, "cmint").await;
 
     // Compressed mint should exist with non-empty data (now compressed)
-    assert_compressed_exists_with_data(&mut rpc, mint_compressed_address).await;
+    shared::assert_compressed_exists_with_data(&mut rpc, mint_compressed_address, "cmint").await;
 
     // PHASE 3: Decompress mint and verify metadata is preserved
 
@@ -278,7 +250,7 @@ async fn test_create_mint_with_metadata() {
         .expect("Mint decompression should succeed");
 
     // Verify mint is back on-chain
-    assert_onchain_exists(&mut rpc, &cmint_pda).await;
+    shared::assert_onchain_exists(&mut rpc, &cmint_pda, "cmint").await;
 
     // Re-parse and verify mint data with metadata preserved
     let cmint_account_after = rpc
@@ -290,22 +262,33 @@ async fn test_create_mint_with_metadata() {
     let mint_after: Mint = borsh::BorshDeserialize::deserialize(&mut &cmint_account_after.data[..])
         .expect("Failed to deserialize Mint after decompression");
 
-    // Verify decimals preserved
-    assert_eq!(
-        mint_after.base.decimals, 9,
-        "Mint should still have 9 decimals after decompression"
-    );
+    // Full Mint struct assertion after decompression
+    {
+        use light_token_interface::state::mint::BaseMint;
+        let expected_mint_after = Mint {
+            base: BaseMint {
+                mint_authority: Some(payer.pubkey().to_bytes().into()),
+                supply: 0,
+                decimals: 9,
+                is_initialized: true,
+                freeze_authority: None,
+            },
+            metadata: mint_after.metadata.clone(),
+            reserved: mint_after.reserved,
+            account_type: mint_after.account_type,
+            compression: mint_after.compression,
+            extensions: mint_after.extensions.clone(),
+        };
+        assert_eq!(
+            mint_after, expected_mint_after,
+            "Mint should match expected after decompression"
+        );
+    }
 
-    // Verify mint authority preserved
-    assert_eq!(
-        mint_after.base.mint_authority,
-        Some(payer.pubkey().to_bytes().into()),
-        "Mint authority should be preserved after decompression"
-    );
-
-    // Verify token metadata extension preserved
+    // Verify token metadata extension preserved after decompression
     let extensions_after = mint_after
         .extensions
+        .as_ref()
         .expect("Mint should still have extensions after decompression");
 
     let token_metadata_after = extensions_after
@@ -319,30 +302,28 @@ async fn test_create_mint_with_metadata() {
         })
         .expect("Mint should still have TokenMetadata extension after decompression");
 
-    // Verify all metadata values preserved through compress/decompress cycle
     assert_eq!(
         token_metadata_after.name, name,
-        "Token name should be preserved after decompression"
+        "Token name should be preserved"
     );
     assert_eq!(
         token_metadata_after.symbol, symbol,
-        "Token symbol should be preserved after decompression"
+        "Token symbol should be preserved"
     );
     assert_eq!(
         token_metadata_after.uri, uri,
-        "Token URI should be preserved after decompression"
+        "Token URI should be preserved"
     );
     assert_eq!(
         token_metadata_after.update_authority, expected_update_authority,
-        "Update authority should be preserved after decompression"
+        "Update authority should be preserved"
     );
 
-    // Verify additional metadata preserved
     let additional_after = &token_metadata_after.additional_metadata;
     assert_eq!(
         additional_after.len(),
         2,
-        "Should still have 2 additional metadata entries after decompression"
+        "Should still have 2 additional metadata entries"
     );
     assert_eq!(additional_after[0].key, b"author".to_vec());
     assert_eq!(additional_after[0].value, b"Light Protocol".to_vec());

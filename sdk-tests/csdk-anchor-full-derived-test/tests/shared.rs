@@ -1,7 +1,225 @@
+#![allow(dead_code)]
 // Shared test utilities for csdk-anchor-full-derived-test
 
-use light_client::{indexer::Indexer, rpc::Rpc};
+use light_client::{indexer::Indexer, interface::InitializeRentFreeConfig, rpc::Rpc};
+use light_program_test::{
+    program_test::{setup_mock_program_data, LightProgramTest},
+    ProgramTestConfig,
+};
+use light_sdk::utils::derive_rent_sponsor_pda;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
+
+/// Shared test context for csdk-anchor-full-derived-test
+pub struct SharedTestContext {
+    pub rpc: LightProgramTest,
+    pub payer: Keypair,
+    pub config_pda: Pubkey,
+    pub rent_sponsor: Pubkey,
+    pub program_id: Pubkey,
+}
+
+impl SharedTestContext {
+    /// Creates a new test context with properly initialized rent sponsor and config.
+    pub async fn new() -> Self {
+        Self::new_with_config(|config| config).await
+    }
+
+    /// Creates a new test context with a config customizer function.
+    pub async fn new_with_config(
+        customize: impl FnOnce(ProgramTestConfig) -> ProgramTestConfig,
+    ) -> Self {
+        let program_id = csdk_anchor_full_derived_test::ID;
+        let config = ProgramTestConfig::new_v2(
+            true,
+            Some(vec![("csdk_anchor_full_derived_test", program_id)]),
+        );
+
+        let config = customize(config);
+
+        let mut rpc = LightProgramTest::new(config).await.unwrap();
+        let payer = rpc.get_payer().insecure_clone();
+
+        let program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
+
+        // Derive rent sponsor PDA for this program
+        let (rent_sponsor, _) = derive_rent_sponsor_pda(&program_id);
+
+        // Fund the rent sponsor PDA so it can pay for decompression
+        rpc.airdrop_lamports(&rent_sponsor, 10_000_000_000)
+            .await
+            .expect("Airdrop to rent sponsor should succeed");
+
+        let (init_config_ix, config_pda) = InitializeRentFreeConfig::new(
+            &program_id,
+            &payer.pubkey(),
+            &program_data_pda,
+            rent_sponsor,
+            payer.pubkey(),
+        )
+        .build();
+
+        rpc.create_and_send_transaction(&[init_config_ix], &payer.pubkey(), &[&payer])
+            .await
+            .expect("Initialize config should succeed");
+
+        Self {
+            rpc,
+            payer,
+            config_pda,
+            rent_sponsor,
+            program_id,
+        }
+    }
+}
+
+/// Asserts that an account exists on-chain.
+///
+/// # Arguments
+/// * `rpc` - RPC client
+/// * `pda` - Account pubkey to check
+/// * `name` - Human-readable name for error messages
+pub async fn assert_onchain_exists(rpc: &mut (impl Rpc + Indexer), pda: &Pubkey, name: &str) {
+    assert!(
+        rpc.get_account(*pda).await.unwrap().is_some(),
+        "{} account ({}) should exist on-chain",
+        name,
+        pda
+    );
+}
+
+/// Asserts that an account is closed (does not exist or has 0 lamports).
+///
+/// # Arguments
+/// * `rpc` - RPC client
+/// * `pda` - Account pubkey to check
+/// * `name` - Human-readable name for error messages
+pub async fn assert_onchain_closed(rpc: &mut (impl Rpc + Indexer), pda: &Pubkey, name: &str) {
+    let acc = rpc.get_account(*pda).await.unwrap();
+    assert!(
+        acc.is_none() || acc.unwrap().lamports == 0,
+        "{} account ({}) should be closed",
+        name,
+        pda
+    );
+}
+
+/// Asserts that a compressed account exists with non-empty data.
+///
+/// # Arguments
+/// * `rpc` - RPC client
+/// * `addr` - Compressed account address
+/// * `name` - Human-readable name for error messages
+pub async fn assert_compressed_exists_with_data(
+    rpc: &mut (impl Rpc + Indexer),
+    addr: [u8; 32],
+    name: &str,
+) {
+    let acc = rpc
+        .get_compressed_account(addr, None)
+        .await
+        .unwrap()
+        .value
+        .unwrap();
+    assert_eq!(
+        acc.address.unwrap(),
+        addr,
+        "{} compressed address mismatch",
+        name
+    );
+    assert!(
+        !acc.data.as_ref().unwrap().data.is_empty(),
+        "{} compressed account should have non-empty data",
+        name
+    );
+}
+
+/// Asserts that a compressed token account exists with expected amount.
+///
+/// # Arguments
+/// * `rpc` - RPC client
+/// * `owner` - Token account owner
+/// * `expected_amount` - Expected token amount
+/// * `name` - Human-readable name for error messages
+pub async fn assert_compressed_token_exists(
+    rpc: &mut (impl Rpc + Indexer),
+    owner: &Pubkey,
+    expected_amount: u64,
+    name: &str,
+) {
+    let accs = rpc
+        .get_compressed_token_accounts_by_owner(owner, None, None)
+        .await
+        .unwrap()
+        .value
+        .items;
+    assert!(
+        !accs.is_empty(),
+        "{} compressed token account should exist for owner {}",
+        name,
+        owner
+    );
+    assert_eq!(
+        accs[0].token.amount, expected_amount,
+        "{} token amount mismatch",
+        name
+    );
+}
+
+/// Asserts that the rent sponsor paid for the created accounts.
+///
+/// Call this after decompression to verify rent sponsor funded the accounts.
+///
+/// # Arguments
+/// * `rpc` - RPC client
+/// * `rent_sponsor` - Rent sponsor PDA pubkey
+/// * `rent_sponsor_balance_before` - Balance captured BEFORE the transaction
+/// * `created_accounts` - Pubkeys of accounts funded by rent sponsor
+pub async fn assert_rent_sponsor_paid_for_accounts(
+    rpc: &mut (impl Rpc + Indexer),
+    rent_sponsor: &Pubkey,
+    rent_sponsor_balance_before: u64,
+    created_accounts: &[Pubkey],
+) {
+    // Get rent sponsor balance after
+    let rent_sponsor_balance_after = rpc
+        .get_account(*rent_sponsor)
+        .await
+        .expect("get rent sponsor account")
+        .map(|a| a.lamports)
+        .unwrap_or(0);
+
+    // Calculate total lamports in created accounts
+    let mut total_account_lamports = 0u64;
+    for account in created_accounts {
+        let account_lamports = rpc
+            .get_account(*account)
+            .await
+            .expect("get created account")
+            .map(|a| a.lamports)
+            .unwrap_or(0);
+        total_account_lamports += account_lamports;
+    }
+
+    // Assert rent sponsor paid
+    let rent_sponsor_paid = rent_sponsor_balance_before.saturating_sub(rent_sponsor_balance_after);
+
+    assert!(
+        rent_sponsor_paid >= total_account_lamports,
+        "Rent sponsor should have paid at least {} lamports for accounts, but only paid {}. \
+         Before: {}, After: {}",
+        total_account_lamports,
+        rent_sponsor_paid,
+        rent_sponsor_balance_before,
+        rent_sponsor_balance_after
+    );
+
+    println!(
+        "Rent sponsor paid {} lamports for {} accounts (total account balance: {})",
+        rent_sponsor_paid,
+        created_accounts.len(),
+        total_account_lamports
+    );
+}
 
 /// Setup helper: Creates a compressed mint directly using the ctoken SDK (not via wrapper program)
 /// Optionally creates ATAs and mints tokens for each recipient.
@@ -135,4 +353,19 @@ pub async fn setup_create_mint(
     }
 
     (mint, compression_address, ata_pubkeys, mint_seed)
+}
+
+/// Build expected CompressionInfo, extracting only runtime fields from actual.
+/// Validates all config-derived fields against expected defaults.
+pub fn expected_compression_info(
+    actual: &light_sdk::compressible::CompressionInfo,
+) -> light_sdk::compressible::CompressionInfo {
+    light_sdk::compressible::CompressionInfo {
+        last_claimed_slot: actual.last_claimed_slot,
+        lamports_per_write: 5000,
+        config_version: 1,
+        state: actual.state,
+        _padding: 0,
+        rent_config: light_compressible::rent::RentConfig::default(),
+    }
 }

@@ -63,8 +63,10 @@ members = [
     "sdk-tests/csdk-anchor-full-derived-test-sdk",
     "sdk-tests/single-mint-test",
     "sdk-tests/single-pda-test",
+    "sdk-tests/single-account-loader-test",
     "sdk-tests/single-ata-test",
     "sdk-tests/single-token-test",
+    "sdk-tests/manual-test",
     "forester-utils",
     "forester",
     "sparse-merkle-tree",
@@ -142,7 +144,7 @@ litesvm = "0.7"
 # Anchor
 anchor-lang = { version = "0.31.1" }
 anchor-spl = { version = "0.31.1" }
-light-anchor-spl = { version = "0.31.1", features = ["idl-build", "memo"] }
+light-anchor-spl = { version = "0.31.1", features = ["memo"] }
 
 # Anchor compatibility
 borsh = { version = "0.10.4", default-features = false }

@@ -9,9 +9,12 @@
 //! - Multiple vaults in same instruction
 //! - Token accounts with PDAs
 //! - Token accounts with mints
+//! - Mark-only ATA (no init keyword) - manual CreateTokenAtaCpi
 
 pub mod single_ata;
+pub mod single_ata_markonly;
 pub mod single_vault;
 
 pub use single_ata::*;
+pub use single_ata_markonly::*;
 pub use single_vault::*;

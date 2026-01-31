@@ -16,13 +16,13 @@ use crate::{
     Result,
 };
 
-/// Layout: [8-byte discriminator][Option<CompressionInfo>][rest of data]
+/// Layout: [8-byte discriminator][CompressionInfo][rest of data]
 fn extract_compression_info(data: &[u8]) -> Option<CompressionInfo> {
     const DISCRIMINATOR_SIZE: usize = 8;
     if data.len() <= DISCRIMINATOR_SIZE {
         return None;
     }
-    Option::<CompressionInfo>::deserialize(&mut &data[DISCRIMINATOR_SIZE..]).ok()?
+    CompressionInfo::deserialize(&mut &data[DISCRIMINATOR_SIZE..]).ok()
 }
 
 fn calculate_compressible_slot(

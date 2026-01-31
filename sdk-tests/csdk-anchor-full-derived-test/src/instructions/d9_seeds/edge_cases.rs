@@ -14,8 +14,8 @@ use light_sdk_macros::LightAccounts;
 
 use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
 
-/// Single letter constant
-pub const A: &[u8] = b"a";
+/// Single letter constant (renamed from A to avoid BumpAllocator conflict)
+pub const AB: &[u8] = b"a";
 
 /// Constant with digits
 pub const SEED_123: &[u8] = b"seed123";
@@ -46,6 +46,10 @@ pub struct D9EdgeEmpty<'info> {
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
 
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
+
     #[account(
         init,
         payer = fee_payer,
@@ -54,7 +58,7 @@ pub struct D9EdgeEmpty<'info> {
         bump,
     )]
     #[light_account(init)]
-    pub record: Account<'info, SinglePubkeyRecord>,
+    pub d9_edge_empty_record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
 }
@@ -78,6 +82,10 @@ pub struct D9EdgeSingleByte<'info> {
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
 
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
+
     #[account(
         init,
         payer = fee_payer,
@@ -86,7 +94,7 @@ pub struct D9EdgeSingleByte<'info> {
         bump,
     )]
     #[light_account(init)]
-    pub record: Account<'info, SinglePubkeyRecord>,
+    pub d9_edge_single_byte_record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
 }
@@ -100,7 +108,7 @@ pub struct D9EdgeSingleLetterParams {
     pub create_accounts_proof: CreateAccountsProof,
 }
 
-/// Tests single letter constant name (A)
+/// Tests single letter constant name (AB)
 #[derive(Accounts, LightAccounts)]
 #[instruction(params: D9EdgeSingleLetterParams)]
 pub struct D9EdgeSingleLetter<'info> {
@@ -110,15 +118,19 @@ pub struct D9EdgeSingleLetter<'info> {
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
 
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
+
     #[account(
         init,
         payer = fee_payer,
         space = 8 + SinglePubkeyRecord::INIT_SPACE,
-        seeds = [A],
+        seeds = [AB],
         bump,
     )]
     #[light_account(init)]
-    pub record: Account<'info, SinglePubkeyRecord>,
+    pub d9_edge_single_letter_record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
 }
@@ -142,6 +154,10 @@ pub struct D9EdgeDigits<'info> {
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
 
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
+
     #[account(
         init,
         payer = fee_payer,
@@ -150,7 +166,7 @@ pub struct D9EdgeDigits<'info> {
         bump,
     )]
     #[light_account(init)]
-    pub record: Account<'info, SinglePubkeyRecord>,
+    pub d9_edge_digits_record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
 }
@@ -174,6 +190,10 @@ pub struct D9EdgeUnderscore<'info> {
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
 
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
+
     #[account(
         init,
         payer = fee_payer,
@@ -182,7 +202,7 @@ pub struct D9EdgeUnderscore<'info> {
         bump,
     )]
     #[light_account(init)]
-    pub record: Account<'info, SinglePubkeyRecord>,
+    pub d9_edge_underscore_record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
 }
@@ -206,6 +226,10 @@ pub struct D9EdgeManyLiterals<'info> {
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
 
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
+
     #[account(
         init,
         payer = fee_payer,
@@ -214,7 +238,7 @@ pub struct D9EdgeManyLiterals<'info> {
         bump,
     )]
     #[light_account(init)]
-    pub record: Account<'info, SinglePubkeyRecord>,
+    pub d9_edge_many_literals_record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
 }
@@ -239,15 +263,19 @@ pub struct D9EdgeMixed<'info> {
     /// CHECK: Compression config
     pub compression_config: AccountInfo<'info>,
 
+    /// CHECK: PDA rent sponsor for reimbursement
+    #[account(mut)]
+    pub pda_rent_sponsor: AccountInfo<'info>,
+
     #[account(
         init,
         payer = fee_payer,
         space = 8 + SinglePubkeyRecord::INIT_SPACE,
-        seeds = [A, SEED_123, _UNDERSCORE_CONST, params.owner.as_ref()],
+        seeds = [AB, SEED_123, _UNDERSCORE_CONST, params.owner.as_ref()],
         bump,
     )]
     #[light_account(init)]
-    pub record: Account<'info, SinglePubkeyRecord>,
+    pub d9_edge_mixed_record: Account<'info, SinglePubkeyRecord>,
 
     pub system_program: Program<'info, System>,
 }

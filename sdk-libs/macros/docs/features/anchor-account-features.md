@@ -1,6 +1,8 @@
 # Anchor Account Macro Features
 
-This document covers the 14 account constraint features available in the Anchor `#[account]` macro attribute.
+This document covers the 14 account constraint features available in the Anchor `#[account(...)]` macro attribute.
+
+**Note**: This is reference documentation for Anchor's standard features. For Light Protocol-specific features, see `light-features.md`.
 
 ## Overview
 

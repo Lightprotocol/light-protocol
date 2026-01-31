@@ -6,6 +6,7 @@ use std::sync::{
 use borsh::BorshDeserialize;
 use forester_utils::rpc_pool::SolanaRpcPool;
 use futures::StreamExt;
+use light_account_checks::discriminator::DISCRIMINATOR_LEN;
 use light_client::{
     indexer::Indexer,
     interface::instructions::{
@@ -91,8 +92,8 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
                 anyhow::anyhow!("Config account not found for program {}", program_id)
             })?;
 
-        // LightConfig is stored with raw Borsh serialization (no Anchor discriminator)
-        let config = LightConfig::try_from_slice(&config_account.data)
+        // LightConfig has 8-byte discriminator prefix, skip it for deserialization
+        let config = LightConfig::try_from_slice(&config_account.data[DISCRIMINATOR_LEN..])
             .map_err(|e| anyhow::anyhow!("Failed to deserialize config: {:?}", e))?;
 
         // Validate config at startup to fail fast on misconfigurations

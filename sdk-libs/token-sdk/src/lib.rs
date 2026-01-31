@@ -76,15 +76,10 @@ pub mod compressible;
 pub mod constants;
 pub mod error;
 pub mod instruction;
-pub mod pack;
+// pub mod pack;
 pub mod spl_interface;
 pub mod utils;
 
-// Conditional anchor re-exports
-#[cfg(feature = "anchor")]
-use anchor_lang::{AnchorDeserialize, AnchorSerialize};
-#[cfg(not(feature = "anchor"))]
-use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 // Re-export key constants and functions from constants module
 pub use constants::{
     config_pda, cpi_authority, id, LIGHT_TOKEN_CPI_AUTHORITY, LIGHT_TOKEN_PROGRAM_ID,
@@ -92,9 +87,8 @@ pub use constants::{
 pub use light_compressed_account::instruction_data::compressed_proof::{
     CompressedProof, ValidityProof,
 };
+pub use light_compressed_token_sdk::compat;
 pub use light_token_interface::{
     instructions::extensions::{ExtensionInstructionData, TokenMetadataInstructionData},
     state::AdditionalMetadata,
 };
-// Re-export pack::compat as the main compat module (has full type definitions including CTokenData, PackedCTokenData)
-pub use pack::compat;

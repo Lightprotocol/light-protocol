@@ -6,8 +6,9 @@ use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest},
     Indexer, ProgramTestConfig, Rpc,
 };
+use light_sdk::utils::derive_rent_sponsor_pda;
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
-use light_token::instruction::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR};
+use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -92,11 +93,14 @@ async fn test_create_single_token_vault() {
 
     let program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
+    // Derive rent sponsor PDA for this program (not the light token program)
+    let (rent_sponsor, _) = derive_rent_sponsor_pda(&program_id);
+
     let (init_config_ix, _config_pda) = InitializeRentFreeConfig::new(
         &program_id,
         &payer.pubkey(),
         &program_data_pda,
-        RENT_SPONSOR,
+        rent_sponsor,
         payer.pubkey(),
     )
     .build();
@@ -131,8 +135,8 @@ async fn test_create_single_token_vault() {
         mint,
         vault_authority,
         vault,
-        light_token_compressible_config: COMPRESSIBLE_CONFIG_V1,
-        light_token_rent_sponsor: RENT_SPONSOR,
+        light_token_config: LIGHT_TOKEN_CONFIG,
+        light_token_rent_sponsor: LIGHT_TOKEN_RENT_SPONSOR,
         light_token_cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
         light_token_program: LIGHT_TOKEN_PROGRAM_ID.into(),
         system_program: solana_sdk::system_program::ID,
@@ -166,21 +170,27 @@ async fn test_create_single_token_vault() {
         .unwrap()
         .expect("Token vault should exist on-chain");
 
-    // Parse and verify token data
-    use light_token_interface::state::Token;
+    // Parse and verify token data using full struct comparison
+    use light_token_interface::state::token::{AccountState, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT};
     let token: Token = borsh::BorshDeserialize::deserialize(&mut &vault_account.data[..])
         .expect("Failed to deserialize Token");
 
-    // Verify owner (should be vault_authority PDA)
+    // Build expected token for full comparison
+    let expected_token = Token {
+        mint: mint.to_bytes().into(),
+        owner: vault_authority.to_bytes().into(),
+        amount: 0,
+        delegate: None,
+        state: AccountState::Initialized,
+        is_native: None,
+        delegated_amount: 0,
+        close_authority: None,
+        account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
+        extensions: token.extensions.clone(), // Use actual extensions
+    };
+
     assert_eq!(
-        token.owner,
-        vault_authority.to_bytes(),
-        "Token vault owner should be vault_authority"
+        token, expected_token,
+        "Token vault should match expected after creation"
     );
-
-    // Verify mint
-    assert_eq!(token.mint, mint.to_bytes(), "Token vault mint should match");
-
-    // Verify initial amount is 0
-    assert_eq!(token.amount, 0, "Token vault amount should be 0 initially");
 }

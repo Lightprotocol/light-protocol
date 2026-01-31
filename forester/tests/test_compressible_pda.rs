@@ -48,8 +48,9 @@ const CSDK_TEST_PROGRAM_ID: &str = "FAMipfVEhN4hjCLpKCvjDXXfzLsoVTqQccXzePz1L1ah
 // This needs to match the discriminator from csdk_anchor_full_derived_test::state::d1_field_types::single_pubkey::SinglePubkeyRecord
 const SINGLE_PUBKEY_RECORD_DISCRIMINATOR: [u8; 8] = csdk_anchor_full_derived_test::state::d1_field_types::single_pubkey::SinglePubkeyRecord::LIGHT_DISCRIMINATOR;
 
-// Rent sponsor pubkey used in tests
-const RENT_SPONSOR: Pubkey = solana_sdk::pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
+// Rent sponsor pubkey used in tests - must match the program's rent sponsor PDA
+const RENT_SPONSOR: Pubkey =
+    Pubkey::new_from_array(csdk_anchor_full_derived_test::PROGRAM_RENT_SPONSOR_DATA.0);
 
 /// Context returned from forester registration
 struct ForesterContext {
@@ -332,6 +333,7 @@ async fn test_compressible_pda_bootstrap() {
     let accounts = csdk_anchor_full_derived_test::accounts::D8PdaOnly {
         fee_payer: authority.pubkey(),
         compression_config: config_pda,
+        pda_rent_sponsor: csdk_anchor_full_derived_test::program_rent_sponsor(),
         d8_pda_only_record: record_pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -520,6 +522,7 @@ async fn test_compressible_pda_compression() {
     let accounts = csdk_anchor_full_derived_test::accounts::D8PdaOnly {
         fee_payer: authority.pubkey(),
         compression_config: config_pda,
+        pda_rent_sponsor: csdk_anchor_full_derived_test::program_rent_sponsor(),
         d8_pda_only_record: record_pda,
         system_program: solana_sdk::system_program::ID,
     };
@@ -642,7 +645,7 @@ async fn test_compressible_pda_compression() {
         let deserialized = SinglePubkeyRecord::try_from_slice(compressed_data)
             .expect("Failed to deserialize SinglePubkeyRecord from compressed account");
 
-        let compression_info = deserialized.compression_info.clone();
+        let compression_info = deserialized.compression_info;
 
         let expected_record = SinglePubkeyRecord {
             compression_info,
@@ -781,6 +784,7 @@ async fn test_compressible_pda_subscription() {
     let accounts = csdk_anchor_full_derived_test::accounts::D8PdaOnly {
         fee_payer: authority.pubkey(),
         compression_config: config_pda,
+        pda_rent_sponsor: csdk_anchor_full_derived_test::program_rent_sponsor(),
         d8_pda_only_record: record_pda_1,
         system_program: solana_sdk::system_program::ID,
     };
@@ -843,6 +847,7 @@ async fn test_compressible_pda_subscription() {
     let accounts_2 = csdk_anchor_full_derived_test::accounts::D8PdaOnly {
         fee_payer: authority.pubkey(),
         compression_config: config_pda,
+        pda_rent_sponsor: csdk_anchor_full_derived_test::program_rent_sponsor(),
         d8_pda_only_record: record_pda_2,
         system_program: solana_sdk::system_program::ID,
     };

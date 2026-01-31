@@ -1,10 +1,15 @@
-use light_compressed_account::{
-    compressed_account::PackedMerkleContext, instruction_data::compressed_proof::ValidityProof,
-};
+#[cfg(not(target_os = "solana"))]
+use light_compressed_account::compressed_account::PackedMerkleContext;
+use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
 use light_program_profiler::profile;
+#[cfg(not(target_os = "solana"))]
+use light_sdk::error::LightSdkError;
+use light_sdk::{instruction::PackedStateTreeInfo, Unpack};
+// Pack and PackedAccounts only available off-chain (client-side)
+#[cfg(not(target_os = "solana"))]
 use light_sdk::{
-    error::LightSdkError,
-    instruction::{AccountMetasVec, PackedAccounts, PackedStateTreeInfo, SystemAccountMetaConfig},
+    instruction::{AccountMetasVec, PackedAccounts, SystemAccountMetaConfig},
+    Pack,
 };
 use light_token_interface::instructions::{
     extensions::ExtensionInstructionData,
@@ -32,12 +37,122 @@ use crate::{
 pub struct DecompressFullIndices {
     pub source: MultiInputTokenDataWithContext, // Complete compressed account data with merkle context
     pub destination_index: u8,                  // Destination ctoken Solana account (must exist)
-    /// TLV extensions for this compressed account (e.g., CompressedOnly extension).
-    /// Used to transfer extension state during decompress.
-    pub tlv: Option<Vec<ExtensionInstructionData>>,
     /// Whether this is an ATA decompression. For ATAs, the source.owner is the ATA address
     /// (not the wallet), so it should NOT be marked as a signer - the wallet signs the tx instead.
     pub is_ata: bool,
+    /// TLV extensions for this compressed account (e.g., CompressedOnly extension).
+    /// Used to transfer extension state during decompress.
+    pub tlv: Option<Vec<ExtensionInstructionData>>,
+}
+
+/// Unpacked input data for token decompression.
+/// Implements `light_sdk::Pack` to produce `DecompressFullIndices`,
+/// converting Pubkeys (owner, mint, delegate, destination) to u8 indices.
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
+pub struct DecompressFullInput {
+    pub token: TokenData,
+    pub tree_info: PackedStateTreeInfo,
+    pub destination: Pubkey,
+    pub tlv: Option<Vec<ExtensionInstructionData>>,
+    pub version: u8,
+    pub is_ata: bool,
+}
+
+#[cfg(not(target_os = "solana"))]
+impl Pack for DecompressFullInput {
+    type Packed = DecompressFullIndices;
+
+    fn pack(
+        &self,
+        remaining_accounts: &mut PackedAccounts,
+    ) -> Result<Self::Packed, solana_program_error::ProgramError> {
+        let owner_is_signer = !self.is_ata;
+
+        let source = MultiInputTokenDataWithContext {
+            owner: remaining_accounts.insert_or_get_config(
+                self.token.owner,
+                owner_is_signer,
+                false,
+            ),
+            amount: self.token.amount,
+            has_delegate: self.token.delegate.is_some(),
+            delegate: self
+                .token
+                .delegate
+                .map(|d| remaining_accounts.insert_or_get(d))
+                .unwrap_or(0),
+            mint: remaining_accounts.insert_or_get(self.token.mint),
+            version: self.version,
+            merkle_context: PackedMerkleContext {
+                merkle_tree_pubkey_index: self.tree_info.merkle_tree_pubkey_index,
+                queue_pubkey_index: self.tree_info.queue_pubkey_index,
+                prove_by_index: self.tree_info.prove_by_index,
+                leaf_index: self.tree_info.leaf_index,
+            },
+            root_index: self.tree_info.root_index,
+        };
+
+        Ok(DecompressFullIndices {
+            source,
+            destination_index: remaining_accounts.insert_or_get(self.destination),
+            tlv: self.tlv.clone(),
+            is_ata: self.is_ata,
+        })
+    }
+}
+
+impl Unpack for DecompressFullIndices {
+    type Unpacked = DecompressFullInput;
+
+    fn unpack(
+        &self,
+        remaining_accounts: &[AccountInfo],
+    ) -> Result<Self::Unpacked, solana_program_error::ProgramError> {
+        let owner = *remaining_accounts
+            .get(self.source.owner as usize)
+            .ok_or(solana_program_error::ProgramError::InvalidAccountData)?
+            .key;
+        let mint = *remaining_accounts
+            .get(self.source.mint as usize)
+            .ok_or(solana_program_error::ProgramError::InvalidAccountData)?
+            .key;
+        let delegate = if self.source.has_delegate {
+            Some(
+                *remaining_accounts
+                    .get(self.source.delegate as usize)
+                    .ok_or(solana_program_error::ProgramError::InvalidAccountData)?
+                    .key,
+            )
+        } else {
+            None
+        };
+        let destination = *remaining_accounts
+            .get(self.destination_index as usize)
+            .ok_or(solana_program_error::ProgramError::InvalidAccountData)?
+            .key;
+
+        Ok(DecompressFullInput {
+            token: TokenData {
+                owner,
+                mint,
+                amount: self.source.amount,
+                delegate,
+                state: crate::compat::AccountState::Initialized,
+                tlv: None,
+            },
+            tree_info: PackedStateTreeInfo {
+                root_index: self.source.root_index,
+                prove_by_index: self.source.merkle_context.prove_by_index,
+                merkle_tree_pubkey_index: self.source.merkle_context.merkle_tree_pubkey_index,
+                queue_pubkey_index: self.source.merkle_context.queue_pubkey_index,
+                leaf_index: self.source.merkle_context.leaf_index,
+            },
+            destination,
+            tlv: self.tlv.clone(),
+            version: self.source.version,
+            is_ata: self.is_ata,
+        })
+    }
 }
 
 /// Decompress full balance from compressed token accounts with pre-computed indices
@@ -151,19 +266,11 @@ pub fn decompress_full_token_accounts_with_indices<'info>(
     create_transfer2_instruction(inputs)
 }
 
-/// Helper function to pack compressed token accounts into DecompressFullIndices
-/// Used in tests to build indices for multiple compressed accounts to decompress
+/// Helper function to pack compressed token accounts into DecompressFullIndices.
+/// Delegates to `DecompressFullInput::pack()`.
 ///
-/// # Arguments
-/// * `token_data` - Slice of TokenData from compressed accounts
-/// * `tree_infos` - Packed tree info for each compressed account
-/// * `destination_indices` - Destination account indices for each decompression
-/// * `packed_accounts` - PackedAccounts that will be used to insert/get indices
-/// * `tlv` - Optional TLV extensions for the compressed account
-/// * `version` - TokenDataVersion (1=V1, 2=V2, 3=ShaFlat) for hash computation
-///
-/// # Returns
-/// Vec of DecompressFullIndices ready to use with decompress_full_token_accounts_with_indices
+/// For non-ATA decompress: owner is marked as a signer.
+#[cfg(not(target_os = "solana"))]
 #[profile]
 pub fn pack_for_decompress_full(
     token: &TokenData,
@@ -173,34 +280,20 @@ pub fn pack_for_decompress_full(
     tlv: Option<Vec<ExtensionInstructionData>>,
     version: u8,
 ) -> DecompressFullIndices {
-    let source = MultiInputTokenDataWithContext {
-        owner: packed_accounts.insert_or_get_config(token.owner, true, false),
-        amount: token.amount,
-        has_delegate: token.delegate.is_some(),
-        delegate: token
-            .delegate
-            .map(|d| packed_accounts.insert_or_get(d))
-            .unwrap_or(0),
-        mint: packed_accounts.insert_or_get(token.mint),
-        version,
-        merkle_context: PackedMerkleContext {
-            merkle_tree_pubkey_index: tree_info.merkle_tree_pubkey_index,
-            queue_pubkey_index: tree_info.queue_pubkey_index,
-            prove_by_index: tree_info.prove_by_index,
-            leaf_index: tree_info.leaf_index,
-        },
-        root_index: tree_info.root_index,
-    };
-
-    DecompressFullIndices {
-        source,
-        destination_index: packed_accounts.insert_or_get(destination),
+    let input = DecompressFullInput {
+        token: token.clone(),
+        tree_info: *tree_info,
+        destination,
         tlv,
-        is_ata: false, // Non-ATA: owner is a signer
-    }
+        version,
+        is_ata: false,
+    };
+    // insert_or_get never fails, so pack is infallible for this type
+    input.pack(packed_accounts).expect("infallible")
 }
 
 /// Pack accounts for decompress with ATA support.
+/// Delegates to `DecompressFullInput::pack()`.
 ///
 /// For ATA decompress (is_ata=true):
 /// - Owner (ATA pubkey) is added without signer flag (ATA can't sign)
@@ -208,6 +301,7 @@ pub fn pack_for_decompress_full(
 ///
 /// For non-ATA decompress:
 /// - Owner is added as signer (normal case)
+#[cfg(not(target_os = "solana"))]
 #[profile]
 pub fn pack_for_decompress_full_with_ata(
     token: &TokenData,
@@ -218,35 +312,15 @@ pub fn pack_for_decompress_full_with_ata(
     version: u8,
     is_ata: bool,
 ) -> DecompressFullIndices {
-    // For ATA: owner (ATA pubkey) is not a signer - wallet owner signs instead
-    // For non-ATA: owner is a signer
-    let owner_is_signer = !is_ata;
-
-    let source = MultiInputTokenDataWithContext {
-        owner: packed_accounts.insert_or_get_config(token.owner, owner_is_signer, false),
-        amount: token.amount,
-        has_delegate: token.delegate.is_some(),
-        delegate: token
-            .delegate
-            .map(|d| packed_accounts.insert_or_get(d))
-            .unwrap_or(0),
-        mint: packed_accounts.insert_or_get(token.mint),
-        version,
-        merkle_context: PackedMerkleContext {
-            merkle_tree_pubkey_index: tree_info.merkle_tree_pubkey_index,
-            queue_pubkey_index: tree_info.queue_pubkey_index,
-            prove_by_index: tree_info.prove_by_index,
-            leaf_index: tree_info.leaf_index,
-        },
-        root_index: tree_info.root_index,
-    };
-
-    DecompressFullIndices {
-        source,
-        destination_index: packed_accounts.insert_or_get(destination),
+    let input = DecompressFullInput {
+        token: token.clone(),
+        tree_info: *tree_info,
+        destination,
         tlv,
+        version,
         is_ata,
-    }
+    };
+    input.pack(packed_accounts).expect("infallible")
 }
 
 pub struct DecompressFullAccounts {
@@ -275,6 +349,7 @@ impl DecompressFullAccounts {
     }
 }
 
+#[cfg(not(target_os = "solana"))]
 impl AccountMetasVec for DecompressFullAccounts {
     /// Adds:
     /// 1. system accounts if not set

@@ -9,16 +9,17 @@ use light_token::ValidityProof;
 use light_token_interface::instructions::mint_action::MintWithContext;
 
 // Test modules
+pub mod d11_zero_copy;
 pub mod d1_field_types;
 pub mod d2_compress_as;
 pub mod d4_composition;
 
 // Original state types used by the main program
 
-#[derive(Default, Debug, InitSpace, LightAccount)]
+#[derive(Default, Debug, PartialEq, InitSpace, LightAccount)]
 #[account]
 pub struct UserRecord {
-    pub compression_info: Option<CompressionInfo>,
+    pub compression_info: CompressionInfo,
     pub owner: Pubkey,
     #[max_len(32)]
     pub name: String,
@@ -30,7 +31,7 @@ pub struct UserRecord {
 #[compress_as(start_time = 0, end_time = None, score = 0)]
 #[account]
 pub struct GameSession {
-    pub compression_info: Option<CompressionInfo>,
+    pub compression_info: CompressionInfo,
     pub session_id: u64,
     pub player: Pubkey,
     #[max_len(32)]
@@ -43,7 +44,7 @@ pub struct GameSession {
 #[derive(Default, Debug, InitSpace, LightAccount)]
 #[account]
 pub struct PlaceholderRecord {
-    pub compression_info: Option<CompressionInfo>,
+    pub compression_info: CompressionInfo,
     pub owner: Pubkey,
     #[max_len(32)]
     pub name: String,
