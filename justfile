@@ -36,7 +36,7 @@ lint: lint-rust js::lint
 
 lint-rust:
     cargo +nightly fmt --all -- --check
-    cargo clippy --workspace --all-features -- -D warnings
+    cargo clippy --workspace --all-features --all-targets -- -D warnings
 
 format:
     cargo +nightly fmt --all
