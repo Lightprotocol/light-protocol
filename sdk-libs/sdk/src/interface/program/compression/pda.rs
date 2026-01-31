@@ -84,7 +84,9 @@ where
         .is_compressible(&rent_cfg, rent_exemption_lamports)
         .is_none()
     {
-        return Err(ProgramError::Custom(1)); // Not compressible
+        solana_msg::msg!("pda not yet compressible, skipping batch");
+        ctx.has_non_compressible = true;
+        return Ok(());
     }
 
     // Mark as compressed using LightAccount trait

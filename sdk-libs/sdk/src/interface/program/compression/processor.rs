@@ -42,6 +42,9 @@ pub struct CompressCtx<'a, 'info> {
     pub compressed_account_infos: Vec<CompressedAccountInfo>,
     /// Track which PDA indices to close
     pub pda_indices_to_close: Vec<usize>,
+    /// Set to true if any account is not yet compressible.
+    /// When set, the entire batch is skipped (no CPI, no closes).
+    pub has_non_compressible: bool,
 }
 
 /// Callback type for discriminator-based dispatch.
@@ -107,6 +110,7 @@ pub fn process_compress_pda_accounts_idempotent<'info>(
         light_config: &light_config,
         compressed_account_infos: Vec::with_capacity(params.compressed_accounts.len()),
         pda_indices_to_close: Vec::with_capacity(params.compressed_accounts.len()),
+        has_non_compressible: false,
     };
 
     // PDA accounts at end of remaining_accounts
@@ -125,6 +129,12 @@ pub fn process_compress_pda_accounts_idempotent<'info>(
 
         // Delegate to dispatch callback (macro-generated match)
         dispatch_fn(pda_account, account_data, i, &mut compress_ctx)?;
+    }
+
+    // If any account is not yet compressible, skip the entire batch.
+    // The proof covers all accounts so we cannot partially compress.
+    if compress_ctx.has_non_compressible {
+        return Ok(());
     }
 
     // CPI to Light System Program
