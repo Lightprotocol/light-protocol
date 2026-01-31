@@ -1,5 +1,5 @@
 extern crate proc_macro;
-use discriminator::discriminator;
+use discriminator::{anchor_discriminator, light_discriminator};
 use hasher::{derive_light_hasher, derive_light_hasher_sha};
 use proc_macro::TokenStream;
 use syn::{parse_macro_input, DeriveInput, ItemStruct};
@@ -15,10 +15,50 @@ mod utils;
 #[cfg(test)]
 mod light_pdas_tests;
 
+/// Derives a discriminator using SHA256("{struct_name}")[0..8].
+///
+/// This is the Light Protocol native discriminator format.
+/// Use this for new Light Protocol accounts that don't need Anchor compatibility.
+///
+/// ## Example
+///
+/// ```ignore
+/// use light_sdk::LightDiscriminator;
+///
+/// #[derive(LightDiscriminator)]
+/// pub struct MyAccount {
+///     pub owner: Pubkey,
+///     pub counter: u64,
+/// }
+/// // MyAccount::LIGHT_DISCRIMINATOR = SHA256("MyAccount")[0..8]
+/// ```
 #[proc_macro_derive(LightDiscriminator)]
-pub fn light_discriminator(input: TokenStream) -> TokenStream {
+pub fn light_discriminator_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
-    into_token_stream(discriminator(input))
+    into_token_stream(light_discriminator(input))
+}
+
+/// Derives a discriminator using SHA256("account:{struct_name}")[0..8].
+///
+/// This is the Anchor-compatible discriminator format.
+/// Use this when you need compatibility with Anchor's account discriminator format.
+///
+/// ## Example
+///
+/// ```ignore
+/// use light_sdk::AnchorDiscriminator;
+///
+/// #[derive(AnchorDiscriminator)]
+/// pub struct MyAccount {
+///     pub owner: Pubkey,
+///     pub counter: u64,
+/// }
+/// // MyAccount::LIGHT_DISCRIMINATOR = SHA256("account:MyAccount")[0..8]
+/// ```
+#[proc_macro_derive(AnchorDiscriminator)]
+pub fn anchor_discriminator_derive(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as ItemStruct);
+    into_token_stream(anchor_discriminator(input))
 }
 
 /// Makes the annotated struct hashable by implementing the following traits:

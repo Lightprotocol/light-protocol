@@ -17,7 +17,7 @@ use super::{
     validation::validate_compression_info_field,
 };
 use crate::{
-    discriminator::discriminator,
+    discriminator,
     hasher::derive_light_hasher_sha,
     light_pdas::account::utils::{extract_fields_from_derive_input, is_copy_type, is_pubkey_type},
 };
@@ -84,7 +84,7 @@ pub fn derive_light_account(input: DeriveInput) -> Result<TokenStream> {
     let hasher_impl = derive_light_hasher_sha(item_struct.clone())?;
 
     // Generate LightDiscriminator implementation
-    let discriminator_impl = discriminator(item_struct)?;
+    let discriminator_impl = discriminator::anchor_discriminator(item_struct)?;
 
     // Generate unified LightAccount implementation (includes PackedXxx struct)
     let light_account_impl = generate_light_account_impl(&input)?;

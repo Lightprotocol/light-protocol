@@ -35,7 +35,6 @@ poseidon = ["light-hasher/poseidon", "light-compressed-account/poseidon"]
 keccak = ["light-hasher/keccak", "light-compressed-account/keccak"]
 sha256 = ["light-hasher/sha256", "light-compressed-account/sha256"]
 merkle-tree = ["light-concurrent-merkle-tree/solana"]
-anchor-discriminator = ["light-sdk-macros/anchor-discriminator"]
 custom-heap = ["light-heap"]
 profile-program = [
 ]
@@ -78,8 +77,8 @@ light-token-interface = { workspace = true } # TODO: make optional
 
 [dev-dependencies]
 num-bigint = { workspace = true }
-light-compressed-account = { workspace = true, features = ["new-unique"] }
-light-hasher = { workspace = true, features = ["keccak"] }
+light-compressed-account = { workspace = true, features = ["new-unique", "sha256", "poseidon"] }
+light-hasher = { workspace = true, features = ["keccak", "sha256", "poseidon"] }
 anchor-lang = { workspace = true }
 
 [lints.rust.unexpected_cfgs]

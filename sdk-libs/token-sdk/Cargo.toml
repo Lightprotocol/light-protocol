@@ -7,9 +7,8 @@ license = "Apache-2.0"
 repository = "https://github.com/Lightprotocol/light-protocol"
 
 [features]
-default = ["anchor-discriminator"]
+default = []
 v1 = ["light-compressed-token-sdk/v1"]
-anchor-discriminator = ["light-sdk/anchor-discriminator", "light-compressed-token-sdk/anchor-discriminator"]
 anchor = ["anchor-lang", "light-token-types/anchor", "light-token-interface/anchor", "light-compressed-token-sdk/anchor", "dep:light-sdk-macros"]
 # idl-build feature enables IDL generation for client-side tooling and SDK generation
 idl-build = ["anchor", "anchor-lang/idl-build", "light-sdk/idl-build", "light-compressed-token-sdk/idl-build"]
