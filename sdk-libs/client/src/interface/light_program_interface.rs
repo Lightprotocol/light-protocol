@@ -146,6 +146,7 @@ impl<V> PdaSpec<V> {
         match &self.interface.cold {
             Some(ColdContext::Account(c)) => Some(c),
             Some(ColdContext::Token(c)) => Some(&c.account),
+            Some(ColdContext::Mint(c)) => Some(c),
             None => None,
         }
     }
