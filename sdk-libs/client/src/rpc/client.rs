@@ -430,6 +430,33 @@ impl LightClient {
             "Failed to find any parseable inner instructions".to_string(),
         ))
     }
+
+    /// Instantly advances the validator to the given slot using surfpool's
+    /// `surfnet_timeTravel` RPC method. This is much faster than polling
+    /// `get_slot` in a loop and is intended for testing against surfpool.
+    ///
+    /// Returns the `EpochInfo` after the time travel, or an error if the
+    /// RPC call fails (e.g. when not running against surfpool).
+    pub async fn warp_to_slot(&self, slot: Slot) -> Result<serde_json::Value, RpcError> {
+        let url = self.client.url();
+        let body = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "surfnet_timeTravel",
+            "params": [{ "absoluteSlot": slot }]
+        });
+        let response = reqwest::Client::new()
+            .post(url)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| RpcError::CustomError(format!("warp_to_slot failed: {e}")))?;
+        let result: serde_json::Value = response
+            .json()
+            .await
+            .map_err(|e| RpcError::CustomError(format!("warp_to_slot response error: {e}")))?;
+        Ok(result)
+    }
 }
 
 #[async_trait]

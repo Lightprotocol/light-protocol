@@ -539,6 +539,7 @@ async fn generate_photon_test_data_multiple_events() {
             )],
             upgradeable_programs: vec![],
             limit_ledger_size: None,
+            use_surfpool: true,
         })
         .await;
 

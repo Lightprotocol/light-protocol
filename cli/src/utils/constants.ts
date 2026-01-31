@@ -16,8 +16,12 @@ export const DEFAULT_CONFIG = {
 export const CARGO_GENERATE_TAG = "v0.18.4";
 
 export const SOLANA_VALIDATOR_PROCESS_NAME = "solana-test-validator";
+export const SURFPOOL_PROCESS_NAME = "surfpool";
 export const LIGHT_PROVER_PROCESS_NAME = "light-prover";
 export const INDEXER_PROCESS_NAME = "photon";
+
+export const SURFPOOL_VERSION = "1.0.1";
+export const SURFPOOL_RELEASE_TAG = "v1.0.1-light";
 
 export const PHOTON_VERSION = "0.51.2";
 

@@ -13,6 +13,8 @@ pub struct LightValidatorConfig {
     /// Use this when the program needs a valid upgrade authority (e.g., for compression config)
     pub upgradeable_programs: Vec<(String, String, String)>,
     pub limit_ledger_size: Option<u64>,
+    /// Use surfpool instead of solana-test-validator
+    pub use_surfpool: bool,
 }
 
 impl Default for LightValidatorConfig {
@@ -24,6 +26,7 @@ impl Default for LightValidatorConfig {
             sbf_programs: vec![],
             upgradeable_programs: vec![],
             limit_ledger_size: None,
+            use_surfpool: true,
         }
     }
 }
@@ -58,20 +61,37 @@ pub async fn spawn_validator(config: LightValidatorConfig) {
             path.push_str(" --skip-prover");
         }
 
+        if config.use_surfpool {
+            path.push_str(" --use-surfpool");
+        }
+
         println!("Starting validator with command: {}", path);
 
-        let child = Command::new("sh")
-            .arg("-c")
-            .arg(path)
-            .stdin(Stdio::null()) // Detach from stdin
-            .stdout(Stdio::null()) // Detach from stdout
-            .stderr(Stdio::null()) // Detach from stderr
-            .spawn()
-            .expect("Failed to start server process");
-
-        // Explicitly `drop` the process to ensure we don't wait on it
-        std::mem::drop(child);
-
-        tokio::time::sleep(tokio::time::Duration::from_secs(config.wait_time)).await;
+        if config.use_surfpool {
+            // The CLI starts surfpool, prover, and photon, then exits once all
+            // services are ready. Wait for it to finish so we know everything
+            // is up before the test proceeds.
+            let mut child = Command::new("sh")
+                .arg("-c")
+                .arg(path)
+                .stdin(Stdio::null())
+                .stdout(Stdio::inherit())
+                .stderr(Stdio::inherit())
+                .spawn()
+                .expect("Failed to start server process");
+            let status = child.wait().expect("Failed to wait for CLI process");
+            assert!(status.success(), "CLI exited with error: {}", status);
+        } else {
+            let child = Command::new("sh")
+                .arg("-c")
+                .arg(path)
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn()
+                .expect("Failed to start server process");
+            std::mem::drop(child);
+            tokio::time::sleep(tokio::time::Duration::from_secs(config.wait_time)).await;
+        }
     }
 }
