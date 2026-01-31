@@ -370,10 +370,7 @@ pub async fn wait_for_slot(rpc: &mut LightClient, target_slot: u64) {
             return;
         }
         Err(e) => {
-            println!(
-                "warp_to_slot unavailable ({}), falling back to polling",
-                e
-            );
+            println!("warp_to_slot unavailable ({}), falling back to polling", e);
         }
     }
     while rpc.get_slot().await.unwrap() < target_slot {
