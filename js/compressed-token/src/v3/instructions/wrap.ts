@@ -1,4 +1,8 @@
-import { PublicKey, TransactionInstruction } from '@solana/web3.js';
+import {
+    PublicKey,
+    TransactionInstruction,
+    SystemProgram,
+} from '@solana/web3.js';
 import { CTOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
 import { CompressedTokenProgram } from '../../program';
 import { SplInterfaceInfo } from '../../utils/get-token-pool-infos';
@@ -104,6 +108,12 @@ export function createWrapInstruction(
         },
         {
             pubkey: CTOKEN_PROGRAM_ID,
+            isSigner: false,
+            isWritable: false,
+        },
+        // System program needed for top-up CPIs when destination has compressible extension
+        {
+            pubkey: SystemProgram.programId,
             isSigner: false,
             isWritable: false,
         },
