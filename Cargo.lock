@@ -3575,6 +3575,8 @@ dependencies = [
  "num-bigint 0.4.6",
  "photon-api",
  "rand 0.8.5",
+ "reqwest 0.12.26",
+ "serde_json",
  "smallvec",
  "solana-account",
  "solana-account-decoder-client-types",

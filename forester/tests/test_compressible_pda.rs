@@ -58,8 +58,8 @@ struct ForesterContext {
 }
 
 /// Register a forester for epoch 0 and wait for registration phase to complete
-async fn register_forester<R: Rpc>(
-    rpc: &mut R,
+async fn register_forester(
+    rpc: &mut LightClient,
 ) -> Result<ForesterContext, Box<dyn std::error::Error>> {
     let forester_keypair = Keypair::new();
     let forester_pubkey = forester_keypair.pubkey();
@@ -169,8 +169,10 @@ async fn register_forester<R: Rpc>(
             )
         };
 
-    while rpc.get_slot().await? < register_phase_start {
-        sleep(Duration::from_millis(400)).await;
+    if rpc.get_slot().await? < register_phase_start {
+        rpc.warp_to_slot(register_phase_start)
+            .await
+            .expect("warp_to_slot to registration phase");
     }
 
     // Register for the target epoch
@@ -191,8 +193,10 @@ async fn register_forester<R: Rpc>(
 
     println!("Registered for epoch {}", target_epoch);
 
-    while rpc.get_slot().await? < active_phase_start {
-        sleep(Duration::from_millis(400)).await;
+    if rpc.get_slot().await? < active_phase_start {
+        rpc.warp_to_slot(active_phase_start)
+            .await
+            .expect("warp_to_slot to active phase");
     }
 
     println!("Active phase reached for epoch {}", target_epoch);

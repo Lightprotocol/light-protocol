@@ -439,12 +439,18 @@ export async function getSolanaArgs({
 
 export async function getSurfpoolArgs({
   additionalPrograms,
+  upgradeablePrograms,
   skipSystemAccounts,
   rpcPort,
   gossipHost,
   downloadBinaries = true,
 }: {
   additionalPrograms?: { address: string; path: string }[];
+  upgradeablePrograms?: {
+    address: string;
+    path: string;
+    upgradeAuthority: string;
+  }[];
   skipSystemAccounts?: boolean;
   rpcPort?: number;
   gossipHost?: string;
@@ -476,6 +482,18 @@ export async function getSurfpoolArgs({
   if (additionalPrograms) {
     for (const program of additionalPrograms) {
       args.push("--bpf-program", program.address, program.path);
+    }
+  }
+
+  // Load upgradeable programs with full BPF upgradeable loader account layout
+  if (upgradeablePrograms) {
+    for (const program of upgradeablePrograms) {
+      args.push(
+        "--upgradeable-program",
+        program.address,
+        program.path,
+        program.upgradeAuthority,
+      );
     }
   }
 
@@ -555,6 +573,7 @@ export async function startTestValidator({
     const command = await ensureSurfpoolBinary();
     const surfpoolArgs = await getSurfpoolArgs({
       additionalPrograms,
+      upgradeablePrograms,
       skipSystemAccounts,
       rpcPort,
       gossipHost,

@@ -362,6 +362,20 @@ pub async fn get_next_active_phase_with_time<R: Rpc>(
 
 #[allow(dead_code)]
 pub async fn wait_for_slot(rpc: &mut LightClient, target_slot: u64) {
+    // Try surfpool's instant time-travel first; fall back to polling if not
+    // running against surfpool.
+    match rpc.warp_to_slot(target_slot).await {
+        Ok(_) => {
+            println!("warped to slot {}", target_slot);
+            return;
+        }
+        Err(e) => {
+            println!(
+                "warp_to_slot unavailable ({}), falling back to polling",
+                e
+            );
+        }
+    }
     while rpc.get_slot().await.unwrap() < target_slot {
         println!(
             "waiting for active phase slot: {}, current slot: {}",

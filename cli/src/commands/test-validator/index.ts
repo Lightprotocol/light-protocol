@@ -143,8 +143,9 @@ class SetupCommand extends Command {
     }),
     "use-surfpool": Flags.boolean({
       description:
-        "Use surfpool instead of solana-test-validator. Requires surfpool binary in PATH.",
-      default: false,
+        "Use surfpool instead of solana-test-validator (default). Pass --no-use-surfpool to use solana-test-validator.",
+      default: true,
+      allowNo: true,
     }),
   };
 
