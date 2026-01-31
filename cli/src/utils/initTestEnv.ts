@@ -461,7 +461,7 @@ export async function getSurfpoolArgs({
 }): Promise<Array<string>> {
   const dirPath = programsDirPath();
 
-  const args = ["start", "--offline", "--no-tui", "--no-deploy"];
+  const args = ["start", "--offline", "--no-tui", "--no-deploy", "--no-studio"];
   args.push("--port", String(rpcPort));
   args.push("--host", String(gossipHost));
 
