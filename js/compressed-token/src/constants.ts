@@ -1,4 +1,15 @@
 import { Buffer } from 'buffer';
+import { PublicKey } from '@solana/web3.js';
+
+/** Default compressible config PDA (V1) */
+export const LIGHT_TOKEN_CONFIG = new PublicKey(
+    'ACXg8a7VaqecBWrSbdu73W4Pg9gsqXJ3EXAqkHyhvVXg',
+);
+
+/** Default rent sponsor PDA (V1) */
+export const LIGHT_TOKEN_RENT_SPONSOR = new PublicKey(
+    'r18WwUxfG8kQ69bQPAB2jV6zGNKy3GosFGctjQoV4ti',
+);
 
 /**
  * Token data version enum - mirrors Rust TokenDataVersion
@@ -46,3 +57,66 @@ export const ADD_TOKEN_POOL_DISCRIMINATOR = Buffer.from([
 ]);
 
 export const DECOMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR = Buffer.from([107]);
+
+/**
+ * Rent configuration constants for compressible ctoken accounts.
+ * These match the Rust SDK defaults in program-libs/compressible/src/rent/config.rs
+ */
+
+/** Base rent per epoch (lamports) */
+export const BASE_RENT_PER_EPOCH = 128;
+
+/** Rent per byte per epoch (lamports) */
+export const RENT_PER_BYTE_PER_EPOCH = 1;
+
+/** Slots per rent epoch (1.5 hours) */
+export const SLOTS_PER_RENT_EPOCH = 13500;
+
+/** Compression cost (lamports) - paid at account creation */
+export const COMPRESSION_COST = 10000;
+
+/** Compression incentive (lamports) - paid at account creation */
+export const COMPRESSION_INCENTIVE = 1000;
+
+/** Total compression cost (COMPRESSION_COST + COMPRESSION_INCENTIVE) */
+export const TOTAL_COMPRESSION_COST = COMPRESSION_COST + COMPRESSION_INCENTIVE;
+
+/**
+ * Compressible ctoken account size in bytes.
+ * = 165 (base SPL token) + 1 (account_type) + 1 (Option) + 4 (Vec len) + 1 (ext disc) + 4 (ext header) + 96 (CompressionInfo) = 272
+ * Source: program-libs/token-interface/src/state/token/top_up.rs MIN_SIZE_WITH_COMPRESSIBLE
+ */
+export const COMPRESSIBLE_CTOKEN_ACCOUNT_SIZE = 272;
+
+/**
+ * Calculate rent per epoch for a given account size.
+ * Formula: base_rent + (bytes * lamports_per_byte_per_epoch)
+ */
+export function rentPerEpoch(bytes: number): number {
+    return BASE_RENT_PER_EPOCH + bytes * RENT_PER_BYTE_PER_EPOCH;
+}
+
+/**
+ * Default rent per epoch for a compressible ctoken account (272 bytes).
+ * = 128 + 272 = 400 lamports
+ */
+export const COMPRESSIBLE_CTOKEN_RENT_PER_EPOCH = rentPerEpoch(
+    COMPRESSIBLE_CTOKEN_ACCOUNT_SIZE,
+);
+
+/** Default prepaid epochs (24 hours = 16 epochs * 1.5h) */
+export const DEFAULT_PREPAY_EPOCHS = 16;
+
+/** Default write top-up (lamports) - ~2 epochs rent */
+export const DEFAULT_WRITE_TOP_UP = 766;
+
+/**
+ * Calculate fee payer cost at ATA creation.
+ * = compression_cost (11K) + (prepay_epochs * rent_per_epoch)
+ */
+export function calculateFeePayerCostAtCreation(
+    prepayEpochs: number = DEFAULT_PREPAY_EPOCHS,
+    accountBytes: number = COMPRESSIBLE_CTOKEN_ACCOUNT_SIZE,
+): number {
+    return TOTAL_COMPRESSION_COST + prepayEpochs * rentPerEpoch(accountBytes);
+}

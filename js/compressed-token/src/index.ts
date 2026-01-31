@@ -71,6 +71,8 @@ export {
     CompressibleConfig,
     CTokenConfig,
     CreateAssociatedCTokenAccountParams,
+    // Constants for rent sponsor
+    DEFAULT_COMPRESSIBLE_CONFIG,
     // Actions
     createMintInterface,
     createAtaInterface,

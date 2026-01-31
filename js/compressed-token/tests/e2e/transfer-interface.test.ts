@@ -28,6 +28,11 @@ import {
     createTransferInterfaceInstruction,
     createCTokenTransferInstruction,
 } from '../../src/v3/instructions/transfer-interface';
+import {
+    LIGHT_TOKEN_RENT_SPONSOR,
+    TOTAL_COMPRESSION_COST,
+    DEFAULT_PREPAY_EPOCHS,
+} from '../../src/constants';
 
 featureFlags.version = VERSION.V2;
 
@@ -76,7 +81,8 @@ describe('transfer-interface', () => {
             );
 
             expect(ix.programId.equals(CTOKEN_PROGRAM_ID)).toBe(true);
-            expect(ix.keys.length).toBe(3);
+            // 5 accounts: source, destination, owner, system_program, fee_payer
+            expect(ix.keys.length).toBe(5);
             expect(ix.keys[0].pubkey.equals(source)).toBe(true);
             expect(ix.keys[1].pubkey.equals(destination)).toBe(true);
             expect(ix.keys[2].pubkey.equals(owner)).toBe(true);
@@ -95,10 +101,14 @@ describe('transfer-interface', () => {
                 amount,
             );
 
-            expect(ix.keys.length).toBe(3);
+            // 5 accounts: source, destination, owner, system_program, fee_payer
+            expect(ix.keys.length).toBe(5);
             expect(ix.keys[2].pubkey.equals(owner)).toBe(true);
             expect(ix.keys[2].isSigner).toBe(true);
             expect(ix.keys[2].isWritable).toBe(true); // owner pays for top-ups
+            // fee_payer defaults to owner
+            expect(ix.keys[4].pubkey.equals(owner)).toBe(true);
+            expect(ix.keys[4].isWritable).toBe(true);
         });
     });
 
@@ -505,6 +515,83 @@ describe('transfer-interface', () => {
             expect(recipientBalanceAfter).toBe(
                 recipientBalanceBefore + BigInt(500),
             );
+        });
+
+        it('should verify ATA is funded for 24h at creation', async () => {
+            const sender = await newAccountWithLamports(rpc, 1e9);
+            const recipient = Keypair.generate();
+
+            // Mint and load sender
+            await mintTo(
+                rpc,
+                payer,
+                mint,
+                sender.publicKey,
+                mintAuthority,
+                bn(5000),
+                stateTreeInfo,
+                selectTokenPoolInfo(tokenPoolInfos),
+            );
+            const senderAta = getAssociatedTokenAddressInterface(
+                mint,
+                sender.publicKey,
+            );
+            await loadAta(rpc, senderAta, sender, mint);
+
+            // Get rent sponsor and payer balances before creating recipient ATA
+            const rentSponsorBalanceBefore = await rpc.getBalance(
+                LIGHT_TOKEN_RENT_SPONSOR,
+            );
+            const payerBalanceBefore = await rpc.getBalance(payer.publicKey);
+
+            // Create recipient ATA (through getOrCreate)
+            const recipientAta = await getOrCreateAtaInterface(
+                rpc,
+                payer,
+                mint,
+                recipient.publicKey,
+            );
+
+            // Get balances after ATA creation
+            const rentSponsorBalanceAfter = await rpc.getBalance(
+                LIGHT_TOKEN_RENT_SPONSOR,
+            );
+            const payerBalanceAfter = await rpc.getBalance(payer.publicKey);
+            const recipientAtaBalance = await rpc.getBalance(
+                recipientAta.parsed.address,
+            );
+
+            // 1) Rent sponsor pays rent exemption (~890,880 lamports)
+            const rentSponsorDiff =
+                rentSponsorBalanceBefore - rentSponsorBalanceAfter;
+            expect(rentSponsorDiff).toBeGreaterThan(800_000);
+
+            // 2) Fee payer pays compression_cost (11K) + 16 epochs rent + tx fees
+            const payerDiff = payerBalanceBefore - payerBalanceAfter;
+
+            // 3) Verify ATA has correct balance (rent_exemption + working capital)
+            const accountInfo = await rpc.getAccountInfo(
+                recipientAta.parsed.address,
+            );
+            const accountDataLength = accountInfo!.data.length;
+            const rentExemption =
+                await rpc.getMinimumBalanceForRentExemption(accountDataLength);
+
+            // Calculate expected prepaid rent using ACTUAL account size
+            const actualRentPerEpoch = 128 + accountDataLength; // base_rent + bytes * 1
+            const expectedPrepaidRent =
+                DEFAULT_PREPAY_EPOCHS * actualRentPerEpoch;
+            const expectedFeePayerCost =
+                TOTAL_COMPRESSION_COST + expectedPrepaidRent;
+
+            expect(payerDiff).toBeGreaterThanOrEqual(expectedFeePayerCost);
+            expect(payerDiff).toBeLessThan(expectedFeePayerCost + 20_000); // Allow for tx fees
+
+            const expectedAtaBalance =
+                rentExemption + TOTAL_COMPRESSION_COST + expectedPrepaidRent;
+
+            // ATA balance should EXACTLY match (no tolerance needed when using actual size)
+            expect(recipientAtaBalance).toBe(expectedAtaBalance);
         });
     });
 });
