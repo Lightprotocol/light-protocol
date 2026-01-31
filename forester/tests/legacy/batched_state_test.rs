@@ -48,6 +48,7 @@ async fn test_state_batched() {
         sbf_programs: vec![],
         upgradeable_programs: vec![],
         limit_ledger_size: None,
+        use_surfpool: true,
     }))
     .await;
 

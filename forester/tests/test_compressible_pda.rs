@@ -266,6 +266,7 @@ async fn test_compressible_pda_bootstrap() {
             payer_pubkey_string(),
         )],
         limit_ledger_size: None,
+        use_surfpool: true,
     })
     .await;
 
@@ -456,6 +457,7 @@ async fn test_compressible_pda_compression() {
             payer_pubkey_string(),
         )],
         limit_ledger_size: None,
+        use_surfpool: true,
     })
     .await;
 
@@ -690,6 +692,7 @@ async fn test_compressible_pda_subscription() {
             payer_pubkey_string(),
         )],
         limit_ledger_size: None,
+        use_surfpool: true,
     })
     .await;
 

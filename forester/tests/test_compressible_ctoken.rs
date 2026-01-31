@@ -194,6 +194,7 @@ async fn test_compressible_ctoken_compression() {
         sbf_programs: vec![],
         upgradeable_programs: vec![],
         limit_ledger_size: None,
+        use_surfpool: true,
     })
     .await;
     let mut rpc = LightClient::new(LightClientConfig::local())
@@ -365,6 +366,7 @@ async fn test_compressible_ctoken_bootstrap() {
         sbf_programs: vec![],
         upgradeable_programs: vec![],
         limit_ledger_size: None,
+        use_surfpool: true,
     })
     .await;
 

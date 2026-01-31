@@ -7,8 +7,10 @@ import {
   LIGHT_REGISTRY_TAG,
   LIGHT_SYSTEM_PROGRAM_TAG,
   SPL_NOOP_PROGRAM_TAG,
+  SURFPOOL_RELEASE_TAG,
 } from "./constants";
 import path from "path";
+import os from "os";
 import { downloadBinIfNotExists } from "../psp-utils";
 import {
   confirmRpcReadiness,
@@ -141,6 +143,7 @@ export async function initTestEnv({
   cloneNetwork,
   verbose,
   skipReset,
+  useSurfpool,
 }: {
   additionalPrograms?: { address: string; path: string }[];
   upgradeablePrograms?: {
@@ -163,24 +166,48 @@ export async function initTestEnv({
   cloneNetwork?: "devnet" | "mainnet";
   verbose?: boolean;
   skipReset?: boolean;
+  useSurfpool?: boolean;
 }) {
-  // We cannot await this promise directly because it will hang the process
-  startTestValidator({
-    additionalPrograms,
-    upgradeablePrograms,
-    skipSystemAccounts,
-    limitLedgerSize,
-    rpcPort,
-    gossipHost,
-    validatorArgs,
-    geyserConfig,
-    cloneNetwork,
-    verbose,
-    skipReset,
-  });
-  await waitForServers([{ port: rpcPort, path: "/health" }]);
-  await confirmServerStability(`http://127.0.0.1:${rpcPort}/health`);
-  await confirmRpcReadiness(`http://127.0.0.1:${rpcPort}`);
+  if (useSurfpool) {
+    // For surfpool we can await startTestValidator because spawnBinary returns
+    // immediately (surfpool starts in ~30ms). For solana-test-validator we must
+    // NOT await because the validator is a long-running process.
+    await startTestValidator({
+      additionalPrograms,
+      upgradeablePrograms,
+      skipSystemAccounts,
+      limitLedgerSize,
+      rpcPort,
+      gossipHost,
+      validatorArgs,
+      geyserConfig,
+      cloneNetwork,
+      verbose,
+      skipReset,
+      useSurfpool,
+    });
+    // Surfpool only supports JSON-RPC POST, not GET /health.
+    await confirmRpcReadiness(`http://127.0.0.1:${rpcPort}`);
+  } else {
+    // We cannot await this promise directly because it will hang the process
+    startTestValidator({
+      additionalPrograms,
+      upgradeablePrograms,
+      skipSystemAccounts,
+      limitLedgerSize,
+      rpcPort,
+      gossipHost,
+      validatorArgs,
+      geyserConfig,
+      cloneNetwork,
+      verbose,
+      skipReset,
+      useSurfpool,
+    });
+    await waitForServers([{ port: rpcPort, path: "/health" }]);
+    await confirmServerStability(`http://127.0.0.1:${rpcPort}/health`);
+    await confirmRpcReadiness(`http://127.0.0.1:${rpcPort}`);
+  }
 
   if (prover) {
     const config = getConfig();
@@ -201,12 +228,22 @@ export async function initTestEnv({
     const proverUrlForIndexer = prover
       ? `http://127.0.0.1:${proverPort}`
       : undefined;
+
+    // Surfpool's first available block may not be slot 0.
+    // Query the RPC so Photon starts from the correct slot.
+    let startSlot: number | undefined;
+    if (useSurfpool) {
+      const conn = new Connection(`http://127.0.0.1:${rpcPort}`);
+      startSlot = await conn.getFirstAvailableBlock();
+    }
+
     await startIndexer(
       `http://127.0.0.1:${rpcPort}`,
       indexerPort,
       checkPhotonVersion,
       photonDatabaseUrl,
       proverUrlForIndexer,
+      startSlot,
     );
   }
 }
@@ -400,6 +437,89 @@ export async function getSolanaArgs({
   return solanaArgs;
 }
 
+export async function getSurfpoolArgs({
+  additionalPrograms,
+  skipSystemAccounts,
+  rpcPort,
+  gossipHost,
+  downloadBinaries = true,
+}: {
+  additionalPrograms?: { address: string; path: string }[];
+  skipSystemAccounts?: boolean;
+  rpcPort?: number;
+  gossipHost?: string;
+  downloadBinaries?: boolean;
+}): Promise<Array<string>> {
+  const dirPath = programsDirPath();
+
+  const args = ["start", "--offline", "--no-tui", "--no-deploy"];
+  args.push("--port", String(rpcPort));
+  args.push("--host", String(gossipHost));
+
+  // Load system programs
+  for (const program of SYSTEM_PROGRAMS) {
+    const localFilePath = programFilePath(program.name!);
+    if (program.name === "spl_noop.so" || downloadBinaries) {
+      await downloadBinIfNotExists({
+        localFilePath,
+        dirPath,
+        owner: "Lightprotocol",
+        repoName: "light-protocol",
+        remoteFileName: program.name!,
+        tag: program.tag,
+      });
+    }
+    args.push("--bpf-program", program.id, localFilePath);
+  }
+
+  // Load additional programs
+  if (additionalPrograms) {
+    for (const program of additionalPrograms) {
+      args.push("--bpf-program", program.address, program.path);
+    }
+  }
+
+  // Load system accounts
+  if (!skipSystemAccounts) {
+    const accountsRelPath = "../../accounts";
+    const accountsPath = path.resolve(__dirname, accountsRelPath);
+    args.push("--account-dir", accountsPath);
+  }
+
+  return args;
+}
+
+function getSurfpoolAssetName(): string {
+  const platform = process.platform; // "darwin" | "linux"
+  const arch = process.arch; // "arm64" | "x64"
+  return `surfpool-${platform}-${arch}.tar.gz`;
+}
+
+function getSurfpoolBinDir(): string {
+  return path.join(os.homedir(), ".config", "light", "bin");
+}
+
+function getSurfpoolBinaryPath(): string {
+  return path.join(getSurfpoolBinDir(), "surfpool");
+}
+
+async function ensureSurfpoolBinary(): Promise<string> {
+  const binPath = getSurfpoolBinaryPath();
+  const dirPath = getSurfpoolBinDir();
+  const assetName = getSurfpoolAssetName();
+
+  await downloadBinIfNotExists({
+    localFilePath: binPath,
+    dirPath,
+    owner: "Lightprotocol",
+    repoName: "surfpool",
+    remoteFileName: assetName,
+    tag: SURFPOOL_RELEASE_TAG,
+  });
+
+  return binPath;
+}
+
 export async function startTestValidator({
   additionalPrograms,
   upgradeablePrograms,
@@ -412,6 +532,7 @@ export async function startTestValidator({
   cloneNetwork,
   verbose,
   skipReset,
+  useSurfpool,
 }: {
   additionalPrograms?: { address: string; path: string }[];
   upgradeablePrograms?: {
@@ -428,41 +549,60 @@ export async function startTestValidator({
   cloneNetwork?: "devnet" | "mainnet";
   verbose?: boolean;
   skipReset?: boolean;
+  useSurfpool?: boolean;
 }) {
-  const command = "solana-test-validator";
-  const solanaArgs = await getSolanaArgs({
-    additionalPrograms,
-    upgradeablePrograms,
-    skipSystemAccounts,
-    limitLedgerSize,
-    rpcPort,
-    gossipHost,
-    cloneNetwork,
-    verbose,
-    skipReset,
-  });
+  if (useSurfpool) {
+    const command = await ensureSurfpoolBinary();
+    const surfpoolArgs = await getSurfpoolArgs({
+      additionalPrograms,
+      skipSystemAccounts,
+      rpcPort,
+      gossipHost,
+    });
 
-  await killTestValidator();
+    await killTestValidator();
+    await killProcess("surfpool");
+    await new Promise((r) => setTimeout(r, 1000));
 
-  await new Promise((r) => setTimeout(r, 1000));
+    console.log("Starting surfpool...");
+    spawnBinary(command, surfpoolArgs, process.env);
+  } else {
+    const command = "solana-test-validator";
+    const solanaArgs = await getSolanaArgs({
+      additionalPrograms,
+      upgradeablePrograms,
+      skipSystemAccounts,
+      limitLedgerSize,
+      rpcPort,
+      gossipHost,
+      cloneNetwork,
+      verbose,
+      skipReset,
+    });
 
-  // Add geyser config if provided
-  if (geyserConfig) {
-    solanaArgs.push("--geyser-plugin-config", geyserConfig);
+    await killTestValidator();
+
+    await new Promise((r) => setTimeout(r, 1000));
+
+    // Add geyser config if provided
+    if (geyserConfig) {
+      solanaArgs.push("--geyser-plugin-config", geyserConfig);
+    }
+
+    // Add custom validator args last
+    if (validatorArgs) {
+      solanaArgs.push(...validatorArgs.split(" "));
+    }
+    console.log("Starting test validator...");
+    // Use spawnBinary instead of executeCommand to properly detach the process.
+    // This ensures the validator survives when the CLI exits (executeCommand uses
+    // piped stdio which causes SIGPIPE when parent exits).
+    // Pass process.env directly to maintain same env behavior as before.
+    spawnBinary(command, solanaArgs, process.env);
   }
-
-  // Add custom validator args last
-  if (validatorArgs) {
-    solanaArgs.push(...validatorArgs.split(" "));
-  }
-  console.log("Starting test validator...");
-  // Use spawnBinary instead of executeCommand to properly detach the process.
-  // This ensures the validator survives when the CLI exits (executeCommand uses
-  // piped stdio which causes SIGPIPE when parent exits).
-  // Pass process.env directly to maintain same env behavior as before.
-  spawnBinary(command, solanaArgs, process.env);
 }
 
 export async function killTestValidator() {
   await killProcess("solana-test-validator");
+  await killProcess("surfpool");
 }

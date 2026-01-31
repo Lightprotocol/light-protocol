@@ -52,7 +52,8 @@ export async function killProcess(processName: string) {
   const processList = await find("name", processName);
 
   const targetProcesses = processList.filter(
-    (proc) => proc.name.includes(processName) || proc.cmd.includes(processName),
+    (proc) =>
+      proc.pid !== process.pid && proc.name.includes(processName),
   );
 
   for (const proc of targetProcesses) {
