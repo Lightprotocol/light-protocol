@@ -1,0 +1,99 @@
+[package]
+name = "light-sdk-interface"
+version = "0.19.0"
+description = "Framework-agnostic interface for Light Protocol compressible accounts."
+repository = "https://github.com/Lightprotocol/light-protocol"
+license = "Apache-2.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[features]
+default = ["solana", "std"]
+solana = [
+    "light-account-checks/solana",
+    "light-compressible/solana",
+    "dep:solana-account-info",
+    "dep:solana-pubkey",
+    "dep:solana-cpi",
+    "dep:solana-instruction",
+    "dep:solana-system-interface",
+    "dep:solana-program-error",
+    "dep:solana-clock",
+    "dep:solana-sysvar",
+    "dep:solana-loader-v3-interface",
+    "dep:solana-msg",
+    "dep:bincode",
+]
+pinocchio = [
+    "light-account-checks/pinocchio",
+    "light-compressible/pinocchio",
+    "dep:pinocchio",
+    "dep:pinocchio-system",
+]
+std = [
+    "alloc",
+    "light-compressed-account/std",
+    "light-sdk-types/std",
+]
+alloc = ["light-compressed-account/alloc"]
+anchor = [
+    "anchor-lang",
+    "light-compressed-account/anchor",
+    "light-sdk-types/anchor",
+    "light-compressible/anchor",
+    "light-token-interface/anchor",
+]
+poseidon = ["light-hasher/poseidon", "light-compressed-account/poseidon"]
+keccak = ["light-hasher/keccak", "light-compressed-account/keccak"]
+sha256 = ["light-hasher/sha256", "light-compressed-account/sha256"]
+idl-build = [
+    "anchor",
+    "anchor-lang/idl-build",
+    "light-compressed-account/idl-build",
+    "light-sdk-types/idl-build",
+    "light-compressible/idl-build",
+    "light-token-interface/idl-build",
+]
+
+[dependencies]
+# Light Protocol internal
+light-account-checks = { workspace = true }
+light-sdk-types = { workspace = true, default-features = false, features = ["v2", "cpi-context"] }
+light-compressed-account = { workspace = true, default-features = false }
+light-compressible = { workspace = true, default-features = false }
+light-hasher = { workspace = true, default-features = false }
+light-token-interface = { workspace = true, default-features = false }
+
+# Solana-specific (behind solana feature)
+solana-account-info = { workspace = true, optional = true }
+solana-pubkey = { workspace = true, optional = true }
+solana-cpi = { workspace = true, optional = true }
+solana-instruction = { workspace = true, optional = true }
+solana-system-interface = { workspace = true, optional = true }
+solana-program-error = { workspace = true, optional = true }
+solana-clock = { workspace = true, optional = true }
+solana-sysvar = { workspace = true, optional = true, features = ["bincode"] }
+solana-loader-v3-interface = { workspace = true, optional = true }
+solana-msg = { workspace = true, optional = true }
+bincode = { version = "1", optional = true }
+
+# Pinocchio-specific (behind pinocchio feature)
+pinocchio = { workspace = true, optional = true }
+pinocchio-system = { workspace = true, optional = true }
+
+# Anchor (optional)
+anchor-lang = { workspace = true, optional = true }
+
+# Third-party
+borsh = { workspace = true }
+bytemuck = { workspace = true }
+thiserror = { workspace = true }
+
+[lints.rust.unexpected_cfgs]
+level = "allow"
+check-cfg = [
+    'cfg(target_os, values("solana"))',
+    'cfg(feature, values("frozen-abi", "no-entrypoint"))',
+]

@@ -7,7 +7,8 @@
 //! - 8: MissingRequiredSignature
 //! - 11: NotEnoughAccountKeys
 //! - 14: InvalidSeeds
-//! - 16001: LightSdkError::ConstraintViolation
+//! - 17001: LightPdaError::ConstraintViolation
+//! - 17004: LightPdaError::InvalidRentSponsor
 
 mod shared;
 
@@ -208,8 +209,8 @@ async fn test_pda_wrong_rent_sponsor() {
         .create_and_send_transaction(&decompress_instructions, &ctx.payer.pubkey(), &[&ctx.payer])
         .await;
 
-    // Should fail with InvalidRentSponsor (16050)
-    assert_rpc_error(result, 0, 16050).unwrap();
+    // Should fail with InvalidRentSponsor (17004)
+    assert_rpc_error(result, 0, 17004).unwrap();
 }
 
 /// Test: Double decompression should be a noop (idempotent).
@@ -295,7 +296,7 @@ async fn test_pda_double_decompress_is_noop() {
     );
 }
 
-/// Test: Wrong config PDA should fail with ConstraintViolation (16001).
+/// Test: Wrong config PDA should fail with InvalidAccountData (3).
 /// Validates config check in config.rs:144-153.
 #[tokio::test]
 async fn test_pda_wrong_config() {
@@ -438,7 +439,7 @@ async fn test_token_accounts_offset_invalid() {
 // =============================================================================
 
 /// Test: Removing required accounts should fail.
-/// Error code 16031 is LightSdkError::CpiAccountsMissing.
+/// Error code 11 is NotEnoughAccountKeys.
 #[tokio::test]
 async fn test_missing_system_accounts() {
     let mut ctx = FailingTestContext::new().await;

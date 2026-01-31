@@ -34,6 +34,8 @@ pub enum AccountError {
     NotEnoughAccountKeys,
     #[error("Invalid Account.")]
     InvalidAccount,
+    #[error("Failed to access sysvar.")]
+    FailedSysvarAccess,
     #[error("Pinocchio program error with code: {0}")]
     PinocchioProgramError(u32),
 }
@@ -57,6 +59,7 @@ impl From<AccountError> for u32 {
             AccountError::AccountNotZeroed => 20013,
             AccountError::NotEnoughAccountKeys => 20014,
             AccountError::InvalidAccount => 20015,
+            AccountError::FailedSysvarAccess => 20016,
             AccountError::PinocchioProgramError(code) => code,
         }
     }

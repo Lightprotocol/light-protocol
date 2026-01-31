@@ -85,4 +85,11 @@ impl AccountInfoTrait for solana_account_info::AccountInfo<'_> {
             .map(|rent| rent.minimum_balance(size))
             .map_err(|_| AccountError::FailedBorrowRentSysvar)
     }
+
+    fn get_current_slot() -> Result<u64, AccountError> {
+        use solana_sysvar::Sysvar;
+        solana_sysvar::clock::Clock::get()
+            .map(|c| c.slot)
+            .map_err(|_| AccountError::FailedSysvarAccess)
+    }
 }

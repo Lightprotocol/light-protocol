@@ -10,6 +10,7 @@ use light_sdk::{
         account_meta::CompressedAccountMetaNoLamportsNoAddress, PackedAccounts,
         SystemAccountMetaConfig, ValidityProof,
     },
+    PackedAccountsExt,
 };
 use light_token::constants::{
     LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_CPI_AUTHORITY, LIGHT_TOKEN_PROGRAM_ID,

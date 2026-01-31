@@ -1,46 +1,19 @@
-use light_compressed_account::instruction_data::{
-    compressed_proof::ValidityProof, with_account_info::InstructionDataInvokeCpiWithAccountInfo,
+use light_compressed_account::instruction_data::with_account_info::InstructionDataInvokeCpiWithAccountInfo;
+use light_compressed_account::instruction_data::with_readonly::{
+    InAccount, InstructionDataInvokeCpiWithReadOnly,
 };
-use light_sdk_types::CpiSigner;
 
-#[cfg(feature = "cpi-context")]
-use super::lowlevel::CompressedCpiContext;
-use super::lowlevel::{to_account_metas, InAccount, InstructionDataInvokeCpiWithReadOnly};
 #[cfg(feature = "poseidon")]
 use crate::{account::poseidon::LightAccount as LightAccountPoseidon, DataHasher};
 use crate::{
     account::LightAccount,
-    cpi::{account::CpiAccountsTrait, instruction::LightCpiInstruction, v2::CpiAccounts},
+    cpi::instruction::WithLightAccount,
     error::LightSdkError,
     instruction::account_info::CompressedAccountInfoTrait,
-    AccountInfo, AccountMeta, AnchorDeserialize, AnchorSerialize, LightDiscriminator, ProgramError,
+    AnchorDeserialize, AnchorSerialize, LightDiscriminator, ProgramError,
 };
 
-impl<'info> CpiAccountsTrait<'info> for CpiAccounts<'_, 'info> {
-    fn to_account_infos(&self) -> Vec<AccountInfo<'info>> {
-        self.to_account_infos()
-    }
-
-    fn to_account_metas(&self) -> Result<Vec<AccountMeta>, ProgramError> {
-        to_account_metas(self).map_err(ProgramError::from)
-    }
-
-    fn get_mode(&self) -> Option<u8> {
-        Some(1) // v2 mode
-    }
-}
-
-impl LightCpiInstruction for InstructionDataInvokeCpiWithReadOnly {
-    fn new_cpi(cpi_signer: CpiSigner, proof: ValidityProof) -> Self {
-        Self {
-            bump: cpi_signer.bump,
-            invoking_program_id: cpi_signer.program_id.into(),
-            proof: proof.into(),
-            mode: 1,
-            ..Default::default()
-        }
-    }
-
+impl WithLightAccount for InstructionDataInvokeCpiWithReadOnly {
     fn with_light_account<A>(mut self, account: LightAccount<A>) -> Result<Self, ProgramError>
     where
         A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + Default,
@@ -152,57 +125,9 @@ impl LightCpiInstruction for InstructionDataInvokeCpiWithReadOnly {
 
         Ok(self)
     }
-
-    #[cfg(feature = "cpi-context")]
-    fn write_to_cpi_context_first(self) -> Self {
-        self.write_to_cpi_context_first()
-    }
-
-    #[cfg(feature = "cpi-context")]
-    fn write_to_cpi_context_set(self) -> Self {
-        self.write_to_cpi_context_set()
-    }
-
-    #[cfg(feature = "cpi-context")]
-    fn execute_with_cpi_context(self) -> Self {
-        self.execute_with_cpi_context()
-    }
-
-    fn get_mode(&self) -> u8 {
-        self.mode
-    }
-
-    #[cfg(feature = "cpi-context")]
-    fn get_with_cpi_context(&self) -> bool {
-        self.with_cpi_context
-    }
-
-    #[cfg(feature = "cpi-context")]
-    fn get_cpi_context(&self) -> &CompressedCpiContext {
-        &self.cpi_context
-    }
-
-    fn get_bump(&self) -> u8 {
-        self.bump
-    }
-
-    #[cfg(feature = "cpi-context")]
-    fn has_read_only_accounts(&self) -> bool {
-        !self.read_only_accounts.is_empty()
-    }
 }
 
-impl LightCpiInstruction for InstructionDataInvokeCpiWithAccountInfo {
-    fn new_cpi(cpi_signer: CpiSigner, proof: ValidityProof) -> Self {
-        Self {
-            bump: cpi_signer.bump,
-            invoking_program_id: cpi_signer.program_id.into(),
-            proof: proof.into(),
-            mode: 1,
-            ..Default::default()
-        }
-    }
-
+impl WithLightAccount for InstructionDataInvokeCpiWithAccountInfo {
     fn with_light_account<A>(mut self, account: LightAccount<A>) -> Result<Self, ProgramError>
     where
         A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + Default,
@@ -239,43 +164,5 @@ impl LightCpiInstruction for InstructionDataInvokeCpiWithAccountInfo {
         let account_info = account.to_account_info()?;
         self.account_infos.push(account_info);
         Ok(self)
-    }
-
-    #[cfg(feature = "cpi-context")]
-    fn write_to_cpi_context_first(self) -> Self {
-        self.write_to_cpi_context_first()
-    }
-
-    #[cfg(feature = "cpi-context")]
-    fn write_to_cpi_context_set(self) -> Self {
-        self.write_to_cpi_context_set()
-    }
-
-    #[cfg(feature = "cpi-context")]
-    fn execute_with_cpi_context(self) -> Self {
-        self.execute_with_cpi_context()
-    }
-
-    fn get_mode(&self) -> u8 {
-        self.mode
-    }
-
-    #[cfg(feature = "cpi-context")]
-    fn get_with_cpi_context(&self) -> bool {
-        self.with_cpi_context
-    }
-
-    #[cfg(feature = "cpi-context")]
-    fn get_cpi_context(&self) -> &CompressedCpiContext {
-        &self.cpi_context
-    }
-
-    fn get_bump(&self) -> u8 {
-        self.bump
-    }
-
-    #[cfg(feature = "cpi-context")]
-    fn has_read_only_accounts(&self) -> bool {
-        !self.read_only_accounts.is_empty()
     }
 }

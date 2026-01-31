@@ -2,15 +2,15 @@
 use light_compressed_account::compressed_account::PackedMerkleContext;
 use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
 use light_program_profiler::profile;
-#[cfg(not(target_os = "solana"))]
-use light_sdk::error::LightSdkError;
 use light_sdk::{instruction::PackedStateTreeInfo, Unpack};
 // Pack and PackedAccounts only available off-chain (client-side)
 #[cfg(not(target_os = "solana"))]
 use light_sdk::{
     instruction::{AccountMetasVec, PackedAccounts, SystemAccountMetaConfig},
-    Pack,
+    Pack, PackedAccountsExt,
 };
+#[cfg(not(target_os = "solana"))]
+use solana_program_error::ProgramError as PackedAccountsError;
 use light_token_interface::instructions::{
     extensions::ExtensionInstructionData,
     transfer2::{CompressedCpiContext, MultiInputTokenDataWithContext},
@@ -354,7 +354,10 @@ impl AccountMetasVec for DecompressFullAccounts {
     /// Adds:
     /// 1. system accounts if not set
     /// 2. compressed token program and ctoken cpi authority pda to pre accounts
-    fn get_account_metas_vec(&self, accounts: &mut PackedAccounts) -> Result<(), LightSdkError> {
+    fn get_account_metas_vec(
+        &self,
+        accounts: &mut PackedAccounts,
+    ) -> Result<(), PackedAccountsError> {
         if !accounts.system_accounts_set() {
             #[cfg(feature = "cpi-context")]
             let config = {
@@ -370,7 +373,9 @@ impl AccountMetasVec for DecompressFullAccounts {
                 config
             };
 
-            accounts.add_system_accounts_v2(config)?;
+            accounts
+                .add_system_accounts_v2(config)
+                .map_err(PackedAccountsError::from)?;
         }
         // Add both accounts in one operation for better performance
         accounts.pre_accounts.extend_from_slice(&[

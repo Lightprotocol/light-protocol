@@ -149,7 +149,7 @@ impl LightAccountsBuilder {
                     &mut self,
                     _remaining: &[solana_account_info::AccountInfo<'info>],
                     _params: &(),
-                ) -> std::result::Result<bool, light_sdk::error::LightSdkError> {
+                ) -> std::result::Result<bool, light_sdk::interface::error::LightPdaError> {
                     Ok(false)
                 }
             }
@@ -161,7 +161,7 @@ impl LightAccountsBuilder {
                     _remaining: &[solana_account_info::AccountInfo<'info>],
                     _params: &(),
                     _has_pre_init: bool,
-                ) -> std::result::Result<(), light_sdk::error::LightSdkError> {
+                ) -> std::result::Result<(), light_sdk::interface::error::LightPdaError> {
                     Ok(())
                 }
             }
@@ -410,7 +410,7 @@ impl LightAccountsBuilder {
                     &mut self,
                     _remaining: &[solana_account_info::AccountInfo<'info>],
                     #params_ident: &#params_type,
-                ) -> std::result::Result<bool, light_sdk::error::LightSdkError> {
+                ) -> std::result::Result<bool, light_sdk::interface::error::LightPdaError> {
                     use anchor_lang::ToAccountInfo;
                     #body
                 }
@@ -436,7 +436,7 @@ impl LightAccountsBuilder {
                     _remaining: &[solana_account_info::AccountInfo<'info>],
                     #params_ident: &#params_type,
                     _has_pre_init: bool,
-                ) -> std::result::Result<(), light_sdk::error::LightSdkError> {
+                ) -> std::result::Result<(), light_sdk::interface::error::LightPdaError> {
                     use anchor_lang::ToAccountInfo;
                     #body
                 }

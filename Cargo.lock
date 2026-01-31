@@ -4059,6 +4059,7 @@ dependencies = [
  "light-heap",
  "light-macros",
  "light-program-profiler",
+ "light-sdk-interface",
  "light-sdk-macros",
  "light-sdk-types",
  "light-token-interface",
@@ -4071,6 +4072,35 @@ dependencies = [
  "solana-loader-v3-interface",
  "solana-msg 2.2.1",
  "solana-program",
+ "solana-program-error 2.2.2",
+ "solana-pubkey 2.4.0",
+ "solana-system-interface 1.0.0",
+ "solana-sysvar",
+ "thiserror 2.0.17",
+]
+
+[[package]]
+name = "light-sdk-interface"
+version = "0.19.0"
+dependencies = [
+ "anchor-lang",
+ "bincode",
+ "borsh 0.10.4",
+ "bytemuck",
+ "light-account-checks",
+ "light-compressed-account",
+ "light-compressible",
+ "light-hasher",
+ "light-sdk-types",
+ "light-token-interface",
+ "pinocchio",
+ "pinocchio-system",
+ "solana-account-info",
+ "solana-clock",
+ "solana-cpi",
+ "solana-instruction",
+ "solana-loader-v3-interface",
+ "solana-msg 2.2.1",
  "solana-program-error 2.2.2",
  "solana-pubkey 2.4.0",
  "solana-system-interface 1.0.0",

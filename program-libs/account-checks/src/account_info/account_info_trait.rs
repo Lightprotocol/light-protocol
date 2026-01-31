@@ -45,6 +45,10 @@ pub trait AccountInfoTrait {
     /// Get minimum rent balance for a given size
     fn get_min_rent_balance(size: usize) -> Result<u64, AccountError>;
 
+    /// Get the current clock slot from sysvar.
+    /// Only meaningful on-chain; implementations may error off-chain.
+    fn get_current_slot() -> Result<u64, AccountError>;
+
     fn data_is_empty(&self) -> bool {
         self.data_len() == 0
     }

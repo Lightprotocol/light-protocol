@@ -3,18 +3,18 @@
 //! This module provides types and utilities for building Solana instructions that work with
 //! compressed accounts. The main workflow involves:
 //! ```text
-//!  ├─ 𝐂𝐥𝐢𝐞𝐧𝐭
-//!  │  ├─ Get ValidityProof from RPC.
-//!  │  ├─ pack accounts with PackedAccounts into PackedAddressTreeInfo and PackedStateTreeInfo.
-//!  │  ├─ pack CompressedAccountMeta.
-//!  │  ├─ Build Instruction from packed accounts and CompressedAccountMetas.
-//!  │  └─ Send transaction
-//!  │
-//!  └─ 𝐂𝐮𝐬𝐭𝐨𝐦 𝐏𝐫𝐨𝐠𝐫𝐚𝐦
-//!     ├─ use PackedAddressTreeInfo to create a new address.
-//!     ├─ use CompressedAccountMeta to instantiate a LightAccount struct.
-//!     │
-//!     └─ 𝐋𝐢𝐠𝐡𝐭 𝐒𝐲𝐬𝐭𝐞𝐦 𝐏𝐫𝐨𝐠𝐫𝐚𝐦 𝐂𝐏𝐈
+//!  |- Client
+//!  |  |- Get ValidityProof from RPC.
+//!  |  |- pack accounts with PackedAccounts into PackedAddressTreeInfo and PackedStateTreeInfo.
+//!  |  |- pack CompressedAccountMeta.
+//!  |  |- Build Instruction from packed accounts and CompressedAccountMetas.
+//!  |  |_ Send transaction
+//!  |
+//!  |_ Custom Program
+//!     |- use PackedAddressTreeInfo to create a new address.
+//!     |- use CompressedAccountMeta to instantiate a LightAccount struct.
+//!     |
+//!     |_ Light System Program CPI
 //! ```
 //! ## Main Types
 //!
@@ -40,44 +40,24 @@
 
 // TODO: link to examples
 
-// Only available off-chain (client-side) - contains sorting code that exceeds BPF stack limits
-#[cfg(not(target_os = "solana"))]
-mod pack_accounts;
-mod system_accounts;
-mod tree_info;
+// Re-export PackedAccounts and base instruction types from interface
+pub use light_sdk_interface::instruction::*;
 
-// Stub type for on-chain compilation - allows trait signatures to compile
-// The actual pack methods are never called on-chain
-#[cfg(target_os = "solana")]
-mod pack_accounts_stub {
-    use solana_pubkey::Pubkey;
-
-    /// Stub type for on-chain compilation. The actual implementation with sorting
-    /// is only available off-chain. This allows trait signatures that reference
-    /// PackedAccounts to compile on Solana.
-    pub struct PackedAccounts {
-        _phantom: core::marker::PhantomData<()>,
-    }
-
-    impl PackedAccounts {
-        pub fn insert_or_get(&mut self, _pubkey: Pubkey) -> u8 {
-            panic!("PackedAccounts::insert_or_get is not available on-chain")
-        }
-
-        pub fn insert_or_get_read_only(&mut self, _pubkey: Pubkey) -> u8 {
-            panic!("PackedAccounts::insert_or_get_read_only is not available on-chain")
-        }
-    }
-}
-
-/// Zero-knowledge proof to prove the validity of existing compressed accounts and new addresses.
+// SDK-specific: ValidityProof and CompressedProof
 pub use light_compressed_account::instruction_data::compressed_proof::{
     CompressedProof, ValidityProof,
 };
-pub use light_sdk_types::instruction::*;
-#[cfg(not(target_os = "solana"))]
-pub use pack_accounts::*;
-#[cfg(target_os = "solana")]
-pub use pack_accounts_stub::PackedAccounts;
+
+// SDK-specific: system account helpers (depend on find_cpi_signer_macro!)
+mod system_accounts;
 pub use system_accounts::*;
+
+// SDK-specific: tree info packing/unpacking
+mod tree_info;
 pub use tree_info::*;
+
+// SDK-specific: PackedAccountsExt extension trait
+#[cfg(not(target_os = "solana"))]
+mod packed_accounts_ext;
+#[cfg(not(target_os = "solana"))]
+pub use packed_accounts_ext::*;

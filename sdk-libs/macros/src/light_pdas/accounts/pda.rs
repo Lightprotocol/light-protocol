@@ -119,9 +119,9 @@ impl<'a> PdaBlockBuilder<'a> {
                     // Now serialize - the mutable borrow above is released
                     let mut data = account_info
                         .try_borrow_mut_data()
-                        .map_err(|_| light_sdk::error::LightSdkError::ConstraintViolation)?;
+                        .map_err(|_| light_sdk::interface::error::LightPdaError::ConstraintViolation)?;
                     self.#ident.serialize(&mut &mut data[8..])
-                        .map_err(|_| light_sdk::error::LightSdkError::ConstraintViolation)?;
+                        .map_err(|_| light_sdk::interface::error::LightPdaError::ConstraintViolation)?;
                 }
             }
         } else {
@@ -141,9 +141,9 @@ impl<'a> PdaBlockBuilder<'a> {
                     // Now serialize - the mutable borrow above is released
                     let mut data = account_info
                         .try_borrow_mut_data()
-                        .map_err(|_| light_sdk::error::LightSdkError::ConstraintViolation)?;
+                        .map_err(|_| light_sdk::interface::error::LightPdaError::ConstraintViolation)?;
                     self.#ident.serialize(&mut &mut data[8..])
-                        .map_err(|_| light_sdk::error::LightSdkError::ConstraintViolation)?;
+                        .map_err(|_| light_sdk::interface::error::LightPdaError::ConstraintViolation)?;
                 }
             }
         }

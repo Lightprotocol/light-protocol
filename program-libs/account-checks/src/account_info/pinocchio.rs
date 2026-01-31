@@ -120,4 +120,25 @@ impl AccountInfoTrait for pinocchio::account_info::AccountInfo {
             Err(AccountError::FailedBorrowRentSysvar)
         }
     }
+
+    fn get_current_slot() -> Result<u64, AccountError> {
+        #[cfg(target_os = "solana")]
+        {
+            use pinocchio::sysvars::Sysvar;
+            pinocchio::sysvars::clock::Clock::get()
+                .map(|c| c.slot)
+                .map_err(|_| AccountError::FailedSysvarAccess)
+        }
+        #[cfg(all(not(target_os = "solana"), feature = "solana"))]
+        {
+            use solana_sysvar::Sysvar;
+            solana_sysvar::clock::Clock::get()
+                .map(|c| c.slot)
+                .map_err(|_| AccountError::FailedSysvarAccess)
+        }
+        #[cfg(all(not(target_os = "solana"), not(feature = "solana")))]
+        {
+            Err(AccountError::FailedSysvarAccess)
+        }
+    }
 }

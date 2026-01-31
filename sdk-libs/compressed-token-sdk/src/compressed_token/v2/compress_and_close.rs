@@ -2,9 +2,11 @@ use light_program_profiler::profile;
 // PackedAccounts and AccountMetasVec are only available off-chain (client-side)
 #[cfg(not(target_os = "solana"))]
 use light_sdk::{
-    error::LightSdkError,
     instruction::{AccountMetasVec, PackedAccounts, SystemAccountMetaConfig},
+    PackedAccountsExt,
 };
+#[cfg(not(target_os = "solana"))]
+use solana_program_error::ProgramError as PackedAccountsError;
 use light_token_interface::instructions::transfer2::CompressedCpiContext;
 #[cfg(not(target_os = "solana"))]
 use light_token_interface::state::Token;
@@ -402,7 +404,10 @@ impl AccountMetasVec for CompressAndCloseAccounts {
     /// Adds:
     /// 1. system accounts if not set
     /// 2. compressed token program and ctoken cpi authority pda to pre accounts
-    fn get_account_metas_vec(&self, accounts: &mut PackedAccounts) -> Result<(), LightSdkError> {
+    fn get_account_metas_vec(
+        &self,
+        accounts: &mut PackedAccounts,
+    ) -> Result<(), PackedAccountsError> {
         if !accounts.system_accounts_set() {
             let mut config = SystemAccountMetaConfig::default();
             config.self_program = self.self_program;
@@ -414,10 +419,10 @@ impl AccountMetasVec for CompressAndCloseAccounts {
             {
                 if self.cpi_context.is_some() {
                     msg!("Error: cpi_context is set but 'cpi-context' feature is not enabled");
-                    return Err(LightSdkError::ExpectedCpiContext);
+                    return Err(PackedAccountsError::InvalidArgument);
                 }
             }
-            accounts.add_system_accounts_v2(config)?;
+            accounts.add_system_accounts_v2(config).map_err(PackedAccountsError::from)?;
         }
         // Add both accounts in one operation for better performance
         accounts.pre_accounts.extend_from_slice(&[

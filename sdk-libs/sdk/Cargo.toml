@@ -18,6 +18,7 @@ idl-build = [
     "light-sdk-types/idl-build",
     "light-compressible/idl-build",
     "light-token-interface/idl-build",
+    "light-sdk-interface/idl-build",
     "anchor",
     "dep:solana-program"
 ]
@@ -26,14 +27,15 @@ anchor = [
     "light-compressed-account/anchor",
     "light-sdk-types/anchor",
     "light-compressible/anchor",
-    "light-token-interface/anchor"
+    "light-token-interface/anchor",
+    "light-sdk-interface/anchor"
 ]
 v2 = ["light-sdk-types/v2"]
 cpi-context = ["light-sdk-types/cpi-context"]
 devnet = []
-poseidon = ["light-hasher/poseidon", "light-compressed-account/poseidon"]
-keccak = ["light-hasher/keccak", "light-compressed-account/keccak"]
-sha256 = ["light-hasher/sha256", "light-compressed-account/sha256"]
+poseidon = ["light-hasher/poseidon", "light-compressed-account/poseidon", "light-sdk-interface/poseidon"]
+keccak = ["light-hasher/keccak", "light-compressed-account/keccak", "light-sdk-interface/keccak"]
+sha256 = ["light-hasher/sha256", "light-compressed-account/sha256", "light-sdk-interface/sha256"]
 merkle-tree = ["light-concurrent-merkle-tree/solana"]
 anchor-discriminator = ["light-sdk-macros/anchor-discriminator"]
 custom-heap = ["light-heap"]
@@ -75,6 +77,7 @@ light-concurrent-merkle-tree = { workspace = true, optional = true }
 light-compressible = { workspace = true }
 light-heap = { workspace = true, optional = true }
 light-token-interface = { workspace = true } # TODO: make optional
+light-sdk-interface = { workspace = true, features = ["solana", "std"] }
 
 [dev-dependencies]
 num-bigint = { workspace = true }
