@@ -8,7 +8,9 @@ import {
   LIGHT_SYSTEM_PROGRAM_TAG,
   SPL_NOOP_PROGRAM_TAG,
   SURFPOOL_RELEASE_TAG,
+  SURFPOOL_VERSION,
 } from "./constants";
+import fs from "fs";
 import path from "path";
 import os from "os";
 import { downloadBinIfNotExists } from "../psp-utils";
@@ -22,6 +24,7 @@ import {
 import { killProver, startProver } from "./processProverServer";
 import { killIndexer, startIndexer } from "./processPhotonIndexer";
 import { Connection, PublicKey } from "@solana/web3.js";
+import { execSync } from "child_process";
 
 type Program = { id: string; name?: string; tag?: string; path?: string };
 export const SYSTEM_PROGRAMS: Program[] = [
@@ -521,10 +524,38 @@ function getSurfpoolBinaryPath(): string {
   return path.join(getSurfpoolBinDir(), "surfpool");
 }
 
-async function ensureSurfpoolBinary(): Promise<string> {
+function getInstalledSurfpoolVersion(): string | null {
+  const binaryPath = getSurfpoolBinaryPath();
+
+  if (!fs.existsSync(binaryPath)) {
+    return null;
+  }
+
+  try {
+    const output = execSync(`"${binaryPath}" --version`, {
+      encoding: "utf-8",
+      timeout: 5000,
+    }).trim();
+    const match = output.match(/(\d+\.\d+\.\d+)/);
+    return match ? match[1] : null;
+  } catch {
+    return null;
+  }
+}
+
+async function downloadSurfpoolBinary(): Promise<void> {
   const binPath = getSurfpoolBinaryPath();
   const dirPath = getSurfpoolBinDir();
   const assetName = getSurfpoolAssetName();
+
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+
+  // Remove existing binary so downloadBinIfNotExists actually downloads
+  if (fs.existsSync(binPath)) {
+    fs.unlinkSync(binPath);
+  }
 
   await downloadBinIfNotExists({
     localFilePath: binPath,
@@ -534,7 +565,27 @@ async function ensureSurfpoolBinary(): Promise<string> {
     remoteFileName: assetName,
     tag: SURFPOOL_RELEASE_TAG,
   });
+}
 
+async function ensureSurfpoolBinary(): Promise<string> {
+  const binPath = getSurfpoolBinaryPath();
+  const installedVersion = getInstalledSurfpoolVersion();
+
+  if (installedVersion === SURFPOOL_VERSION) {
+    return binPath;
+  }
+
+  if (installedVersion) {
+    console.log(
+      `Surfpool version mismatch. Expected: ${SURFPOOL_VERSION}, Found: ${installedVersion}. Downloading correct version...`,
+    );
+  } else if (fs.existsSync(binPath)) {
+    console.log(
+      "Surfpool binary found but version could not be determined. Downloading latest version...",
+    );
+  }
+
+  await downloadSurfpoolBinary();
   return binPath;
 }
 
