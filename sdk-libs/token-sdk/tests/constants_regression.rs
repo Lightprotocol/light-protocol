@@ -6,7 +6,7 @@
 use std::str::FromStr;
 
 use light_token::constants::{
-    config_pda, id, rent_sponsor_pda, COMPRESSIBLE_CONFIG_V1, LIGHT_TOKEN_CPI_AUTHORITY,
+    config_pda, id, rent_sponsor_pda, LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_CPI_AUTHORITY,
     LIGHT_TOKEN_PROGRAM_ID, RENT_SPONSOR_V1, SPL_TOKEN_2022_PROGRAM_ID, SPL_TOKEN_PROGRAM_ID,
 };
 use solana_pubkey::Pubkey;
@@ -24,8 +24,8 @@ fn test_light_token_cpi_authority_hardcoded() {
 fn test_compressible_config_v1_hardcoded() {
     let expected = Pubkey::from_str("ACXg8a7VaqecBWrSbdu73W4Pg9gsqXJ3EXAqkHyhvVXg").unwrap();
     assert_eq!(
-        COMPRESSIBLE_CONFIG_V1, expected,
-        "COMPRESSIBLE_CONFIG_V1 must match expected value"
+        LIGHT_TOKEN_CONFIG, expected,
+        "LIGHT_TOKEN_CONFIG must match expected value"
     );
 }
 
@@ -51,8 +51,8 @@ fn test_light_token_program_id_hardcoded() {
 fn test_config_pda_returns_expected_value() {
     assert_eq!(
         config_pda(),
-        COMPRESSIBLE_CONFIG_V1,
-        "config_pda() must return COMPRESSIBLE_CONFIG_V1"
+        LIGHT_TOKEN_CONFIG,
+        "config_pda() must return LIGHT_TOKEN_CONFIG"
     );
 }
 
