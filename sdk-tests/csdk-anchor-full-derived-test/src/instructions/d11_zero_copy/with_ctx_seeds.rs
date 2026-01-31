@@ -4,7 +4,7 @@
 //! Verifies that context account seeds work correctly with zero-copy accounts.
 
 use anchor_lang::prelude::*;
-use light_compressible::CreateAccountsProof;
+use light_account::CreateAccountsProof;
 use light_sdk_macros::LightAccounts;
 
 use crate::state::d11_zero_copy::ZcWithSeedsRecord;

@@ -1,8 +1,9 @@
 //! Config instructions using SDK functions.
 
 use anchor_lang::prelude::*;
+use light_account::process_initialize_light_config;
 use light_compressible::rent::RentConfig;
-use light_sdk::interface::config::{process_initialize_light_config, process_update_light_config};
+use solana_program_error::ProgramError;
 
 /// Params order matches SDK's InitializeCompressionConfigAnchorData.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
@@ -41,27 +42,17 @@ pub fn process_initialize_config<'info>(
     process_initialize_light_config(
         &ctx.accounts.config,
         &ctx.accounts.authority,
-        &params.rent_sponsor,
-        &params.compression_authority,
+        &params.rent_sponsor.to_bytes(),
+        &params.compression_authority.to_bytes(),
         params.rent_config,
         params.write_top_up,
-        params.address_space,
+        params.address_space.iter().map(|p| p.to_bytes()).collect(),
         0, // config_bump
         &ctx.accounts.fee_payer,
         &ctx.accounts.system_program,
-        &crate::ID,
+        &crate::ID.to_bytes(),
     )
-    .map_err(Into::into)
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
-pub struct UpdateConfigParams {
-    pub new_update_authority: Option<Pubkey>,
-    pub new_rent_sponsor: Option<Pubkey>,
-    pub new_compression_authority: Option<Pubkey>,
-    pub new_rent_config: Option<RentConfig>,
-    pub new_write_top_up: Option<u32>,
-    pub new_address_space: Option<Vec<Pubkey>>,
+    .map_err(|e| anchor_lang::error::Error::from(ProgramError::Custom(u32::from(e))))
 }
 
 #[derive(Accounts)]
@@ -76,18 +67,12 @@ pub struct UpdateConfig<'info> {
 
 pub fn process_update_config<'info>(
     ctx: Context<'_, '_, '_, 'info, UpdateConfig<'info>>,
-    params: UpdateConfigParams,
+    instruction_data: Vec<u8>,
 ) -> Result<()> {
-    process_update_light_config(
-        &ctx.accounts.config,
-        &ctx.accounts.authority,
-        params.new_update_authority.as_ref(),
-        params.new_rent_sponsor.as_ref(),
-        params.new_compression_authority.as_ref(),
-        params.new_rent_config,
-        params.new_write_top_up,
-        params.new_address_space,
-        &crate::ID,
-    )
-    .map_err(Into::into)
+    let remaining = [
+        ctx.accounts.config.to_account_info(),
+        ctx.accounts.authority.to_account_info(),
+    ];
+    light_account::process_update_light_config(&remaining, &instruction_data, &crate::ID.to_bytes())
+        .map_err(|e| anchor_lang::error::Error::from(ProgramError::Custom(u32::from(e))))
 }

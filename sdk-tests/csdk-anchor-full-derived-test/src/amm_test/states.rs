@@ -1,7 +1,7 @@
 //! AMM state structs adapted from cp-swap-reference.
 
 use anchor_lang::prelude::*;
-use light_sdk::{compressible::CompressionInfo, LightDiscriminator};
+use light_account::{CompressionInfo, LightDiscriminator};
 use light_sdk_macros::LightAccount;
 
 pub const POOL_SEED: &str = "pool";

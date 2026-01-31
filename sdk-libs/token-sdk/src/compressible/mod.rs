@@ -1,9 +1,7 @@
 //! Compressible token utilities for runtime compression and decompression.
 
-mod compress_runtime;
 mod mint_runtime;
 
-pub use compress_runtime::*;
 pub use mint_runtime::*;
 use solana_account_info::AccountInfo;
 

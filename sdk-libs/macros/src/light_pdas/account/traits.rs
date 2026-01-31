@@ -69,13 +69,13 @@ fn generate_has_compression_info_impl(
     compression_info_first: bool,
 ) -> TokenStream {
     quote! {
-        impl light_sdk::interface::CompressionInfoField for #struct_name {
+        impl light_account::CompressionInfoField for #struct_name {
             const COMPRESSION_INFO_FIRST: bool = #compression_info_first;
 
-            fn compression_info_field(&self) -> &Option<light_sdk::interface::CompressionInfo> {
+            fn compression_info_field(&self) -> &Option<light_account::CompressionInfo> {
                 &self.compression_info
             }
-            fn compression_info_field_mut(&mut self) -> &mut Option<light_sdk::interface::CompressionInfo> {
+            fn compression_info_field_mut(&mut self) -> &mut Option<light_account::CompressionInfo> {
                 &mut self.compression_info
             }
         }
@@ -135,7 +135,7 @@ fn generate_compress_as_impl(
     field_assignments: &[TokenStream],
 ) -> TokenStream {
     quote! {
-        impl light_sdk::interface::CompressAs for #struct_name {
+        impl light_account::CompressAs for #struct_name {
             type Output = Self;
 
             fn compress_as(&self) -> std::borrow::Cow<'_, Self::Output> {
@@ -152,14 +152,14 @@ fn generate_compress_as_impl(
 /// Uses max(INIT_SPACE, serialized_len) to ensure enough space while handling edge cases.
 fn generate_size_impl(struct_name: &Ident) -> TokenStream {
     quote! {
-        impl light_sdk::account::Size for #struct_name {
+        impl light_account::Size for #struct_name {
             #[inline]
-            fn size(&self) -> std::result::Result<usize, solana_program_error::ProgramError> {
+            fn size(&self) -> std::result::Result<usize, light_account::LightSdkTypesError> {
                 // Use Anchor's compile-time INIT_SPACE as the baseline.
                 // Fall back to serialized length if it's somehow larger (edge case safety).
                 let init_space = <Self as anchor_lang::Space>::INIT_SPACE;
                 let serialized_len = self.try_to_vec()
-                    .map_err(|_| solana_program_error::ProgramError::BorshIoError("serialization failed".to_string()))?
+                    .map_err(|_| light_account::LightSdkTypesError::BorshIoError("serialization failed".to_string()))?
                     .len();
                 Ok(core::cmp::max(init_space, serialized_len))
             }
@@ -170,7 +170,7 @@ fn generate_size_impl(struct_name: &Ident) -> TokenStream {
 /// Generates the CompressedInitSpace trait implementation
 fn generate_compressed_init_space_impl(struct_name: &Ident) -> TokenStream {
     quote! {
-        impl light_sdk::interface::CompressedInitSpace for #struct_name {
+        impl light_account::CompressedInitSpace for #struct_name {
             const COMPRESSED_INIT_SPACE: usize = Self::LIGHT_DISCRIMINATOR.len() + Self::INIT_SPACE;
         }
     }

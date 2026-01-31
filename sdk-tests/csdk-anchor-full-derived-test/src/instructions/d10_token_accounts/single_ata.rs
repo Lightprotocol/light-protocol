@@ -7,10 +7,10 @@
 //! Here the macro should generate CreateTokenAtaCpi call automatically.
 
 use anchor_lang::prelude::*;
-use light_compressible::CreateAccountsProof;
+use light_account::{
+    CreateAccountsProof, LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_PROGRAM_ID, LIGHT_TOKEN_RENT_SPONSOR,
+};
 use light_sdk_macros::LightAccounts;
-use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
-use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D10SingleAtaParams {
@@ -45,7 +45,7 @@ pub struct D10SingleAta<'info> {
     pub light_token_rent_sponsor: AccountInfo<'info>,
 
     /// CHECK: Light Token Program for CPI
-    #[account(address = LIGHT_TOKEN_PROGRAM_ID.into())]
+    #[account(address = LIGHT_TOKEN_PROGRAM_ID)]
     pub light_token_program: AccountInfo<'info>,
 
     pub system_program: Program<'info, System>,

@@ -10,11 +10,9 @@
 //! This tests full Pack/Unpack behavior with compress_as attribute overrides.
 
 use csdk_anchor_full_derived_test::{AllCompositionRecord, PackedAllCompositionRecord};
+use light_account::{CompressAs, CompressionInfo, Pack};
 use light_hasher::{DataHasher, Sha256};
-use light_sdk::{
-    compressible::{CompressAs, CompressionInfo, Pack},
-    instruction::PackedAccounts,
-};
+use light_sdk::instruction::PackedAccounts;
 use solana_pubkey::Pubkey;
 
 use super::shared::CompressibleTestFactory;

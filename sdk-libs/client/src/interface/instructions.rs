@@ -4,12 +4,12 @@
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
-use light_sdk::{
-    compressible::{compression_info::CompressedAccountData, config::LightConfig, Pack},
-    instruction::{
-        account_meta::CompressedAccountMetaNoLamportsNoAddress, PackedAccounts,
-        SystemAccountMetaConfig, ValidityProof,
-    },
+use light_account::{
+    CompressedAccountData, InitializeLightConfigParams, Pack, UpdateLightConfigParams,
+};
+use light_sdk::instruction::{
+    account_meta::CompressedAccountMetaNoLamportsNoAddress, PackedAccounts,
+    SystemAccountMetaConfig, ValidityProof,
 };
 use light_token::constants::{
     LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_CPI_AUTHORITY, LIGHT_TOKEN_PROGRAM_ID,
@@ -27,20 +27,6 @@ fn get_output_queue(tree_info: &TreeInfo) -> Pubkey {
         .as_ref()
         .map(|next| next.queue)
         .unwrap_or(tree_info.queue)
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize)]
-pub struct InitializeConfigData {
-    pub rent_sponsor: Pubkey,
-    pub address_space: Vec<Pubkey>,
-    pub config_bump: u8,
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize)]
-pub struct UpdateConfigData {
-    pub new_rent_sponsor: Option<Pubkey>,
-    pub new_address_space: Option<Vec<Pubkey>>,
-    pub new_update_authority: Option<Pubkey>,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
@@ -114,7 +100,14 @@ pub fn initialize_config(
     config_bump: Option<u8>,
 ) -> Instruction {
     let config_bump = config_bump.unwrap_or(0);
-    let (config_pda, _) = LightConfig::derive_pda(program_id, config_bump);
+    let config_bump_u16 = config_bump as u16;
+    let (config_pda, _) = Pubkey::find_program_address(
+        &[
+            light_account::LIGHT_CONFIG_SEED,
+            &config_bump_u16.to_le_bytes(),
+        ],
+        program_id,
+    );
 
     let bpf_loader = solana_pubkey::pubkey!("BPFLoaderUpgradeab1e11111111111111111111111");
     let (program_data_pda, _) = Pubkey::find_program_address(&[program_id.as_ref()], &bpf_loader);
@@ -128,13 +121,17 @@ pub fn initialize_config(
         AccountMeta::new_readonly(system_program, false),
     ];
 
-    let ix_data = InitializeConfigData {
-        rent_sponsor,
-        address_space,
+    let params = InitializeLightConfigParams {
+        rent_sponsor: rent_sponsor.to_bytes(),
+        compression_authority: authority.to_bytes(),
+        rent_config: Default::default(),
+        write_top_up: 0,
+        address_space: address_space.iter().map(|p| p.to_bytes()).collect(),
         config_bump,
     };
-
-    let serialized = ix_data.try_to_vec().expect("serialize");
+    // Serialize params, then wrap as Vec<u8> for Anchor's borsh deserialization
+    let params_bytes: Vec<u8> = params.try_to_vec().expect("serialize params");
+    let serialized = params_bytes.try_to_vec().expect("serialize vec");
     let mut data = Vec::with_capacity(discriminator.len() + serialized.len());
     data.extend_from_slice(discriminator);
     data.extend_from_slice(&serialized);
@@ -154,20 +151,27 @@ pub fn update_config(
     new_address_space: Option<Vec<Pubkey>>,
     new_update_authority: Option<Pubkey>,
 ) -> Instruction {
-    let (config_pda, _) = LightConfig::derive_pda(program_id, 0);
+    let (config_pda, _) = Pubkey::find_program_address(
+        &[light_account::LIGHT_CONFIG_SEED, &0u16.to_le_bytes()],
+        program_id,
+    );
 
     let accounts = vec![
         AccountMeta::new(config_pda, false),
         AccountMeta::new_readonly(*authority, true),
     ];
 
-    let ix_data = UpdateConfigData {
-        new_rent_sponsor,
-        new_address_space,
-        new_update_authority,
+    let params = UpdateLightConfigParams {
+        new_update_authority: new_update_authority.map(|p| p.to_bytes()),
+        new_rent_sponsor: new_rent_sponsor.map(|p| p.to_bytes()),
+        new_compression_authority: None,
+        new_rent_config: None,
+        new_write_top_up: None,
+        new_address_space: new_address_space.map(|v| v.iter().map(|p| p.to_bytes()).collect()),
     };
-
-    let serialized = ix_data.try_to_vec().expect("serialize");
+    // Serialize params, then wrap as Vec<u8> for Anchor's borsh deserialization
+    let params_bytes: Vec<u8> = params.try_to_vec().expect("serialize params");
+    let serialized = params_bytes.try_to_vec().expect("serialize vec");
     let mut data = Vec::with_capacity(discriminator.len() + serialized.len());
     data.extend_from_slice(discriminator);
     data.extend_from_slice(&serialized);
@@ -190,7 +194,7 @@ pub fn create_decompress_accounts_idempotent_instruction<T>(
     proof: ValidityProofWithContext,
 ) -> Result<Instruction, Box<dyn std::error::Error>>
 where
-    T: Pack + Clone + std::fmt::Debug,
+    T: Pack<solana_instruction::AccountMeta> + Clone + std::fmt::Debug,
 {
     if cold_accounts.is_empty() {
         return Err("cold_accounts cannot be empty".into());

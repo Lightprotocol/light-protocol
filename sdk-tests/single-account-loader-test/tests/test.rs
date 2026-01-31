@@ -1,6 +1,7 @@
 //! Integration test for single AccountLoader (zero-copy) macro validation.
 
 use anchor_lang::{InstructionData, ToAccountMetas};
+use light_account::{derive_rent_sponsor_pda, IntoVariant};
 use light_client::interface::{
     create_load_instructions, get_create_accounts_proof, AccountInterfaceExt, AccountSpec,
     CreateAccountsProofInput, InitializeRentFreeConfig, PdaSpec,
@@ -10,7 +11,6 @@ use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest, TestRpc},
     Indexer, ProgramTestConfig, Rpc,
 };
-use light_sdk::{interface::IntoVariant, utils::derive_rent_sponsor_pda};
 use single_account_loader_test::{
     single_account_loader_test::{LightAccountVariant, RecordSeeds},
     CreateRecordParams, ZeroCopyRecord, RECORD_SEED,
@@ -113,7 +113,7 @@ async fn test_create_zero_copy_record() {
     assert_eq!(record.counter, 0, "Record counter should be 0");
 
     // Verify compression_info is set (state == Decompressed indicates initialized)
-    use light_sdk::interface::CompressionState;
+    use light_account::CompressionState;
     assert_eq!(
         record.compression_info.state,
         CompressionState::Decompressed,
@@ -281,7 +281,7 @@ async fn test_zero_copy_record_full_lifecycle() {
     assert_eq!(record.owner, owner, "Record owner should match");
     assert_eq!(record.counter, 0, "Record counter should still be 0");
     // state should be Decompressed after decompression
-    use light_sdk::interface::CompressionState;
+    use light_account::CompressionState;
     assert_eq!(
         record.compression_info.state,
         CompressionState::Decompressed,

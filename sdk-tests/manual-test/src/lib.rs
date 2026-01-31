@@ -9,11 +9,7 @@
 #![allow(deprecated)]
 
 use anchor_lang::prelude::*;
-use light_sdk::{
-    derive_light_cpi_signer,
-    interface::{LightFinalize, LightPreInit},
-};
-use light_sdk_types::CpiSigner;
+use light_account::{derive_light_cpi_signer, CpiSigner, LightFinalize, LightPreInit};
 use solana_program_error::ProgramError;
 
 pub mod account_loader;
@@ -41,7 +37,7 @@ pub use derived_compress::*;
 pub use derived_decompress::*;
 pub use derived_light_config::*;
 pub use derived_variants::{LightAccountVariant, PackedLightAccountVariant};
-pub use light_sdk::interface::{
+pub use light_account::{
     AccountType, CompressAndCloseParams, DecompressIdempotentParams, DecompressVariant,
     LightAccount,
 };
@@ -74,7 +70,7 @@ pub mod manual_test {
         let has_pre_init = ctx
             .accounts
             .light_pre_init(ctx.remaining_accounts, &params)
-            .map_err(|e| anchor_lang::error::Error::from(ProgramError::from(e)))?;
+            .map_err(|e| anchor_lang::error::Error::from(ProgramError::Custom(u32::from(e))))?;
 
         // 2. Business logic: set account data
         ctx.accounts.record.owner = params.owner;
@@ -82,7 +78,7 @@ pub mod manual_test {
         // 3. Finalize: no-op for PDA-only flow
         ctx.accounts
             .light_finalize(ctx.remaining_accounts, &params, has_pre_init)
-            .map_err(|e| anchor_lang::error::Error::from(ProgramError::from(e)))?;
+            .map_err(|e| anchor_lang::error::Error::from(ProgramError::Custom(u32::from(e))))?;
 
         Ok(())
     }
@@ -100,9 +96,9 @@ pub mod manual_test {
     /// Named to match SDK's expected discriminator.
     pub fn update_compression_config<'info>(
         ctx: Context<'_, '_, '_, 'info, UpdateConfig<'info>>,
-        params: UpdateConfigParams,
+        instruction_data: Vec<u8>,
     ) -> Result<()> {
-        derived_light_config::process_update_config(ctx, params)
+        derived_light_config::process_update_config(ctx, instruction_data)
     }
 
     /// Compress and close PDA accounts, returning rent to the sponsor.
@@ -140,7 +136,7 @@ pub mod manual_test {
         let has_pre_init = ctx
             .accounts
             .light_pre_init(ctx.remaining_accounts, &params)
-            .map_err(|e| anchor_lang::error::Error::from(ProgramError::from(e)))?;
+            .map_err(|e| anchor_lang::error::Error::from(ProgramError::Custom(u32::from(e))))?;
 
         // 2. Business logic: set account data using load_init() pattern
         {
@@ -152,7 +148,7 @@ pub mod manual_test {
         // 3. Finalize: no-op for PDA-only flow
         ctx.accounts
             .light_finalize(ctx.remaining_accounts, &params, has_pre_init)
-            .map_err(|e| anchor_lang::error::Error::from(ProgramError::from(e)))?;
+            .map_err(|e| anchor_lang::error::Error::from(ProgramError::Custom(u32::from(e))))?;
 
         Ok(())
     }
@@ -168,14 +164,14 @@ pub mod manual_test {
         let has_pre_init = ctx
             .accounts
             .light_pre_init(ctx.remaining_accounts, &params)
-            .map_err(|e| anchor_lang::error::Error::from(ProgramError::from(e)))?;
+            .map_err(|e| anchor_lang::error::Error::from(ProgramError::Custom(u32::from(e))))?;
 
         // 2. No business logic for mint-only creation
 
         // 3. Finalize: no-op for mint-only flow
         ctx.accounts
             .light_finalize(ctx.remaining_accounts, &params, has_pre_init)
-            .map_err(|e| anchor_lang::error::Error::from(ProgramError::from(e)))?;
+            .map_err(|e| anchor_lang::error::Error::from(ProgramError::Custom(u32::from(e))))?;
 
         Ok(())
     }
@@ -191,14 +187,14 @@ pub mod manual_test {
         let has_pre_init = ctx
             .accounts
             .light_pre_init(ctx.remaining_accounts, &params)
-            .map_err(|e| anchor_lang::error::Error::from(ProgramError::from(e)))?;
+            .map_err(|e| anchor_lang::error::Error::from(ProgramError::Custom(u32::from(e))))?;
 
         // 2. No business logic for token vault-only creation
 
         // 3. Finalize: no-op for token vault-only flow
         ctx.accounts
             .light_finalize(ctx.remaining_accounts, &params, has_pre_init)
-            .map_err(|e| anchor_lang::error::Error::from(ProgramError::from(e)))?;
+            .map_err(|e| anchor_lang::error::Error::from(ProgramError::Custom(u32::from(e))))?;
 
         Ok(())
     }
@@ -214,14 +210,14 @@ pub mod manual_test {
         let has_pre_init = ctx
             .accounts
             .light_pre_init(ctx.remaining_accounts, &params)
-            .map_err(|e| anchor_lang::error::Error::from(ProgramError::from(e)))?;
+            .map_err(|e| anchor_lang::error::Error::from(ProgramError::Custom(u32::from(e))))?;
 
         // 2. No business logic for ATA-only creation
 
         // 3. Finalize: no-op for ATA-only flow
         ctx.accounts
             .light_finalize(ctx.remaining_accounts, &params, has_pre_init)
-            .map_err(|e| anchor_lang::error::Error::from(ProgramError::from(e)))?;
+            .map_err(|e| anchor_lang::error::Error::from(ProgramError::Custom(u32::from(e))))?;
 
         Ok(())
     }
@@ -243,7 +239,7 @@ pub mod manual_test {
         let has_pre_init = ctx
             .accounts
             .light_pre_init(ctx.remaining_accounts, &params)
-            .map_err(|e| anchor_lang::error::Error::from(ProgramError::from(e)))?;
+            .map_err(|e| anchor_lang::error::Error::from(ProgramError::Custom(u32::from(e))))?;
 
         // 2. Business logic: set PDA data
         ctx.accounts.borsh_record.owner = params.owner;
@@ -256,7 +252,7 @@ pub mod manual_test {
         // 3. Finalize: no-op for this flow
         ctx.accounts
             .light_finalize(ctx.remaining_accounts, &params, has_pre_init)
-            .map_err(|e| anchor_lang::error::Error::from(ProgramError::from(e)))?;
+            .map_err(|e| anchor_lang::error::Error::from(ProgramError::Custom(u32::from(e))))?;
 
         Ok(())
     }

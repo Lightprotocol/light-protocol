@@ -1,7 +1,7 @@
 //! Standard Anchor accounts struct for create_derived_mints instruction.
 
 use anchor_lang::prelude::*;
-use light_compressible::CreateAccountsProof;
+use light_account::CreateAccountsProof;
 use solana_account_info::AccountInfo;
 
 /// Seed constants

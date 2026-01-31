@@ -1,6 +1,7 @@
 //! Integration test for single PDA macro validation.
 
 use anchor_lang::{InstructionData, ToAccountMetas};
+use light_account::derive_rent_sponsor_pda;
 use light_client::interface::{
     get_create_accounts_proof, CreateAccountsProofInput, InitializeRentFreeConfig,
 };
@@ -8,7 +9,6 @@ use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest},
     ProgramTestConfig, Rpc,
 };
-use light_sdk::utils::derive_rent_sponsor_pda;
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;

@@ -1,16 +1,17 @@
+use light_account::Unpack;
+// Pack and PackedAccounts only available off-chain (client-side)
+#[cfg(not(target_os = "solana"))]
+use light_account::{Pack, PackedAccounts};
 #[cfg(not(target_os = "solana"))]
 use light_compressed_account::compressed_account::PackedMerkleContext;
 use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
 use light_program_profiler::profile;
+use light_sdk::instruction::PackedStateTreeInfo;
 #[cfg(not(target_os = "solana"))]
-use light_sdk::error::LightSdkError;
-use light_sdk::{instruction::PackedStateTreeInfo, Unpack};
-// Pack and PackedAccounts only available off-chain (client-side)
-#[cfg(not(target_os = "solana"))]
-use light_sdk::{
-    instruction::{AccountMetasVec, PackedAccounts, SystemAccountMetaConfig},
-    Pack,
+use light_sdk::instruction::{
+    get_light_system_account_metas_v2, AccountMetasVec, SystemAccountMetaConfig,
 };
+use light_sdk_types::error::LightSdkTypesError;
 use light_token_interface::instructions::{
     extensions::ExtensionInstructionData,
     transfer2::{CompressedCpiContext, MultiInputTokenDataWithContext},
@@ -59,13 +60,13 @@ pub struct DecompressFullInput {
 }
 
 #[cfg(not(target_os = "solana"))]
-impl Pack for DecompressFullInput {
+impl Pack<AccountMeta> for DecompressFullInput {
     type Packed = DecompressFullIndices;
 
     fn pack(
         &self,
         remaining_accounts: &mut PackedAccounts,
-    ) -> Result<Self::Packed, solana_program_error::ProgramError> {
+    ) -> Result<Self::Packed, LightSdkTypesError> {
         let owner_is_signer = !self.is_ata;
 
         let source = MultiInputTokenDataWithContext {
@@ -101,26 +102,26 @@ impl Pack for DecompressFullInput {
     }
 }
 
-impl Unpack for DecompressFullIndices {
+impl<'a> Unpack<AccountInfo<'a>> for DecompressFullIndices {
     type Unpacked = DecompressFullInput;
 
     fn unpack(
         &self,
-        remaining_accounts: &[AccountInfo],
-    ) -> Result<Self::Unpacked, solana_program_error::ProgramError> {
+        remaining_accounts: &[AccountInfo<'a>],
+    ) -> Result<Self::Unpacked, LightSdkTypesError> {
         let owner = *remaining_accounts
             .get(self.source.owner as usize)
-            .ok_or(solana_program_error::ProgramError::InvalidAccountData)?
+            .ok_or(LightSdkTypesError::InvalidInstructionData)?
             .key;
         let mint = *remaining_accounts
             .get(self.source.mint as usize)
-            .ok_or(solana_program_error::ProgramError::InvalidAccountData)?
+            .ok_or(LightSdkTypesError::InvalidInstructionData)?
             .key;
         let delegate = if self.source.has_delegate {
             Some(
                 *remaining_accounts
                     .get(self.source.delegate as usize)
-                    .ok_or(solana_program_error::ProgramError::InvalidAccountData)?
+                    .ok_or(LightSdkTypesError::InvalidInstructionData)?
                     .key,
             )
         } else {
@@ -128,7 +129,7 @@ impl Unpack for DecompressFullIndices {
         };
         let destination = *remaining_accounts
             .get(self.destination_index as usize)
-            .ok_or(solana_program_error::ProgramError::InvalidAccountData)?
+            .ok_or(LightSdkTypesError::InvalidInstructionData)?
             .key;
 
         Ok(DecompressFullInput {
@@ -350,11 +351,14 @@ impl DecompressFullAccounts {
 }
 
 #[cfg(not(target_os = "solana"))]
-impl AccountMetasVec for DecompressFullAccounts {
+impl AccountMetasVec<AccountMeta> for DecompressFullAccounts {
     /// Adds:
     /// 1. system accounts if not set
     /// 2. compressed token program and ctoken cpi authority pda to pre accounts
-    fn get_account_metas_vec(&self, accounts: &mut PackedAccounts) -> Result<(), LightSdkError> {
+    fn get_account_metas_vec(
+        &self,
+        accounts: &mut PackedAccounts,
+    ) -> Result<(), LightSdkTypesError> {
         if !accounts.system_accounts_set() {
             #[cfg(feature = "cpi-context")]
             let config = {
@@ -370,7 +374,7 @@ impl AccountMetasVec for DecompressFullAccounts {
                 config
             };
 
-            accounts.add_system_accounts_v2(config)?;
+            accounts.add_system_accounts_raw(get_light_system_account_metas_v2(config));
         }
         // Add both accounts in one operation for better performance
         accounts.pre_accounts.extend_from_slice(&[

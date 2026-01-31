@@ -4,9 +4,8 @@
 //! Verifies that zero-copy PDAs work alongside associated token account creation macros.
 
 use anchor_lang::prelude::*;
-use light_compressible::CreateAccountsProof;
+use light_account::{CreateAccountsProof, LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
 use light_sdk_macros::LightAccounts;
-use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
 
 use crate::state::d11_zero_copy::ZcBasicRecord;
 

@@ -3,7 +3,7 @@
 //! Exercises a large struct with all field type variants from D1.
 
 use anchor_lang::prelude::*;
-use light_sdk::{compressible::CompressionInfo, LightDiscriminator};
+use light_account::{CompressionInfo, LightDiscriminator};
 use light_sdk_macros::LightAccount;
 
 /// Comprehensive large struct with all field types.

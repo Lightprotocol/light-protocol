@@ -396,6 +396,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "anchor-semi-manual-test"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "borsh 0.10.4",
+ "bytemuck",
+ "light-account",
+ "light-anchor-spl",
+ "light-batched-merkle-tree",
+ "light-client",
+ "light-compressed-account",
+ "light-compressible",
+ "light-hasher",
+ "light-macros",
+ "light-program-test",
+ "light-sdk-macros",
+ "light-sdk-types",
+ "light-test-utils",
+ "light-token",
+ "light-token-interface",
+ "light-token-types",
+ "rand 0.8.5",
+ "solana-account",
+ "solana-account-info",
+ "solana-instruction",
+ "solana-keypair",
+ "solana-msg 2.2.1",
+ "solana-program",
+ "solana-program-error 2.2.2",
+ "solana-pubkey 2.4.0",
+ "solana-sdk",
+ "solana-signer",
+ "tokio",
+]
+
+[[package]]
 name = "anchor-spl"
 version = "0.31.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1622,6 +1658,7 @@ dependencies = [
  "borsh 0.10.4",
  "bytemuck",
  "csdk-anchor-full-derived-test-sdk",
+ "light-account",
  "light-anchor-spl",
  "light-batched-merkle-tree",
  "light-client",
@@ -1666,6 +1703,7 @@ dependencies = [
  "ahash",
  "anchor-lang",
  "csdk-anchor-full-derived-test",
+ "light-account",
  "light-client",
  "light-compressed-token-sdk",
  "light-sdk",
@@ -2331,6 +2369,7 @@ dependencies = [
  "hex",
  "itertools 0.14.0",
  "lazy_static",
+ "light-account",
  "light-account-checks",
  "light-batched-merkle-tree",
  "light-client",
@@ -3461,18 +3500,56 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-account"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "light-account-checks",
+ "light-compressed-account",
+ "light-compressible",
+ "light-hasher",
+ "light-macros",
+ "light-sdk-macros",
+ "light-sdk-types",
+ "light-token-interface",
+ "solana-account-info",
+ "solana-instruction",
+ "solana-pubkey 2.4.0",
+]
+
+[[package]]
 name = "light-account-checks"
 version = "0.7.0"
 dependencies = [
  "borsh 0.10.4",
  "pinocchio",
+ "pinocchio-system",
  "rand 0.8.5",
  "solana-account-info",
+ "solana-cpi",
+ "solana-instruction",
  "solana-msg 2.2.1",
  "solana-program-error 2.2.2",
  "solana-pubkey 2.4.0",
+ "solana-system-interface 1.0.0",
  "solana-sysvar",
  "thiserror 2.0.17",
+]
+
+[[package]]
+name = "light-account-pinocchio"
+version = "0.1.0"
+dependencies = [
+ "light-account-checks",
+ "light-compressed-account",
+ "light-hasher",
+ "light-macros",
+ "light-sdk-macros",
+ "light-sdk-types",
+ "light-token-interface",
+ "pinocchio",
+ "solana-instruction",
+ "solana-pubkey 2.4.0",
 ]
 
 [[package]]
@@ -3562,6 +3639,7 @@ dependencies = [
  "bs58",
  "futures",
  "lazy_static",
+ "light-account",
  "light-compressed-account",
  "light-compressed-token-sdk",
  "light-compressible",
@@ -3572,6 +3650,7 @@ dependencies = [
  "light-merkle-tree-metadata",
  "light-prover-client",
  "light-sdk",
+ "light-sdk-types",
  "light-token",
  "light-token-interface",
  "litesvm",
@@ -3677,6 +3756,7 @@ dependencies = [
  "anchor-lang",
  "arrayvec",
  "borsh 0.10.4",
+ "light-account",
  "light-account-checks",
  "light-compressed-account",
  "light-program-profiler",
@@ -3948,6 +4028,7 @@ dependencies = [
  "bs58",
  "bytemuck",
  "chrono",
+ "light-account",
  "light-account-checks",
  "light-batched-merkle-tree",
  "light-client",
@@ -4055,7 +4136,6 @@ dependencies = [
  "bytemuck",
  "light-account-checks",
  "light-compressed-account",
- "light-compressible",
  "light-concurrent-merkle-tree",
  "light-hasher",
  "light-heap",
@@ -4123,11 +4203,15 @@ version = "0.19.0"
 dependencies = [
  "anchor-lang",
  "borsh 0.10.4",
+ "bytemuck",
  "light-account-checks",
  "light-compressed-account",
+ "light-compressible",
  "light-hasher",
  "light-macros",
+ "light-token-interface",
  "solana-msg 2.2.1",
+ "solana-program-error 2.2.2",
  "solana-pubkey 2.4.0",
  "thiserror 2.0.17",
 ]
@@ -4250,6 +4334,7 @@ dependencies = [
  "anchor-lang",
  "arrayvec",
  "borsh 0.10.4",
+ "light-account",
  "light-account-checks",
  "light-batched-merkle-tree",
  "light-compressed-account",
@@ -4488,16 +4573,14 @@ dependencies = [
  "anchor-lang",
  "borsh 0.10.4",
  "bytemuck",
+ "light-account",
  "light-client",
  "light-compressed-account",
  "light-compressible",
  "light-hasher",
- "light-heap",
  "light-macros",
  "light-program-test",
- "light-sdk",
  "light-sdk-macros",
- "light-sdk-types",
  "light-test-utils",
  "light-token",
  "light-token-client",
@@ -4508,6 +4591,38 @@ dependencies = [
  "solana-keypair",
  "solana-msg 2.2.1",
  "solana-program",
+ "solana-program-error 2.2.2",
+ "solana-pubkey 2.4.0",
+ "solana-sdk",
+ "solana-signer",
+ "tokio",
+]
+
+[[package]]
+name = "manual-test-pinocchio"
+version = "0.1.0"
+dependencies = [
+ "borsh 0.10.4",
+ "bytemuck",
+ "light-account-pinocchio",
+ "light-client",
+ "light-compressed-account",
+ "light-compressible",
+ "light-hasher",
+ "light-macros",
+ "light-program-test",
+ "light-sdk-macros",
+ "light-test-utils",
+ "light-token",
+ "light-token-client",
+ "light-token-interface",
+ "light-token-types",
+ "pinocchio",
+ "pinocchio-pubkey",
+ "pinocchio-system",
+ "solana-instruction",
+ "solana-keypair",
+ "solana-msg 2.2.1",
  "solana-program-error 2.2.2",
  "solana-pubkey 2.4.0",
  "solana-sdk",
@@ -5075,6 +5190,42 @@ name = "pinocchio"
 version = "0.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b971851087bc3699b001954ad02389d50c41405ece3548cbcafc88b3e20017a"
+
+[[package]]
+name = "pinocchio-light-program-test"
+version = "0.1.0"
+dependencies = [
+ "borsh 0.10.4",
+ "bytemuck",
+ "light-account",
+ "light-account-pinocchio",
+ "light-batched-merkle-tree",
+ "light-client",
+ "light-compressed-account",
+ "light-compressible",
+ "light-hasher",
+ "light-macros",
+ "light-program-test",
+ "light-sdk-macros",
+ "light-sdk-types",
+ "light-test-utils",
+ "light-token",
+ "light-token-client",
+ "light-token-interface",
+ "light-token-types",
+ "pinocchio",
+ "pinocchio-pubkey",
+ "pinocchio-system",
+ "solana-account",
+ "solana-instruction",
+ "solana-keypair",
+ "solana-msg 2.2.1",
+ "solana-program-error 2.2.2",
+ "solana-pubkey 2.4.0",
+ "solana-sdk",
+ "solana-signer",
+ "tokio",
+]
 
 [[package]]
 name = "pinocchio-log"
@@ -6536,6 +6687,7 @@ dependencies = [
  "anchor-lang",
  "borsh 0.10.4",
  "bytemuck",
+ "light-account",
  "light-client",
  "light-compressed-account",
  "light-compressible",
@@ -6545,7 +6697,6 @@ dependencies = [
  "light-program-test",
  "light-sdk",
  "light-sdk-macros",
- "light-sdk-types",
  "light-test-utils",
  "light-token",
  "solana-account-info",
@@ -6566,9 +6717,9 @@ version = "0.1.0"
 dependencies = [
  "anchor-lang",
  "borsh 0.10.4",
+ "light-account",
  "light-client",
  "light-compressed-account",
- "light-compressible",
  "light-hasher",
  "light-heap",
  "light-macros",
@@ -6579,7 +6730,6 @@ dependencies = [
  "light-test-utils",
  "light-token",
  "light-token-interface",
- "light-token-types",
  "solana-account-info",
  "solana-instruction",
  "solana-keypair",
@@ -6598,10 +6748,10 @@ version = "0.1.0"
 dependencies = [
  "anchor-lang",
  "borsh 0.10.4",
+ "light-account",
  "light-anchor-spl",
  "light-client",
  "light-compressed-account",
- "light-compressible",
  "light-hasher",
  "light-heap",
  "light-macros",
@@ -6631,19 +6781,17 @@ version = "0.1.0"
 dependencies = [
  "anchor-lang",
  "borsh 0.10.4",
+ "light-account",
  "light-client",
  "light-compressed-account",
- "light-compressible",
  "light-hasher",
  "light-heap",
  "light-macros",
  "light-program-test",
  "light-sdk",
  "light-sdk-macros",
- "light-sdk-types",
  "light-test-utils",
  "light-token",
- "light-token-types",
  "solana-account-info",
  "solana-instruction",
  "solana-keypair",
@@ -6662,9 +6810,9 @@ version = "0.1.0"
 dependencies = [
  "anchor-lang",
  "borsh 0.10.4",
+ "light-account",
  "light-client",
  "light-compressed-account",
- "light-compressible",
  "light-hasher",
  "light-heap",
  "light-macros",

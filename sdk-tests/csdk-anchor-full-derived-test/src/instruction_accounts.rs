@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use light_compressible::CreateAccountsProof;
+use light_account::CreateAccountsProof;
 use light_sdk_macros::LightAccounts;
 
 use crate::state::*;
@@ -310,7 +310,7 @@ pub struct CreateMintWithMetadataParams {
     pub name: Vec<u8>,
     pub symbol: Vec<u8>,
     pub uri: Vec<u8>,
-    pub additional_metadata: Option<Vec<light_token::AdditionalMetadata>>,
+    pub additional_metadata: Option<Vec<light_account::AdditionalMetadata>>,
 }
 
 /// Test instruction with #[light_account(init)] with metadata fields.

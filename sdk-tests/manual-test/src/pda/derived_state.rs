@@ -1,11 +1,11 @@
 use anchor_lang::prelude::*;
-use light_sdk::{
-    compressible::CompressionInfo,
-    instruction::PackedAccounts,
-    interface::{AccountType, LightAccount, LightConfig},
-    light_account_checks::{packed_accounts::ProgramPackedAccounts, AccountInfoTrait},
+use light_account::{
+    light_account_checks::{
+        packed_accounts::ProgramPackedAccounts, AccountInfoTrait, AccountMetaTrait,
+    },
+    AccountType, CompressionInfo, HasCompressionInfo, LightAccount, LightConfig,
+    LightSdkTypesError,
 };
-use solana_program_error::ProgramError;
 
 use super::state::MinimalRecord;
 
@@ -31,7 +31,7 @@ impl LightAccount for MinimalRecord {
     type Packed = PackedMinimalRecord;
 
     // CompressionInfo (24) + Pubkey (32) = 56 bytes
-    const INIT_SPACE: usize = CompressionInfo::INIT_SPACE + 32;
+    const INIT_SPACE: usize = core::mem::size_of::<CompressionInfo>() + 32;
 
     fn compression_info(&self) -> &CompressionInfo {
         &self.compression_info
@@ -45,29 +45,51 @@ impl LightAccount for MinimalRecord {
         self.compression_info = CompressionInfo::new_from_config(config, current_slot);
     }
 
-    fn pack(
+    #[cfg(not(target_os = "solana"))]
+    fn pack<AM: AccountMetaTrait>(
         &self,
-        accounts: &mut PackedAccounts,
-    ) -> std::result::Result<Self::Packed, ProgramError> {
+        accounts: &mut light_account::interface::instruction::PackedAccounts<AM>,
+    ) -> std::result::Result<Self::Packed, LightSdkTypesError> {
         // compression_info excluded from packed struct
         Ok(PackedMinimalRecord {
-            owner: accounts.insert_or_get(self.owner),
+            owner: accounts.insert_or_get(AM::pubkey_from_bytes(self.owner.to_bytes())),
         })
     }
 
     fn unpack<A: AccountInfoTrait>(
         packed: &Self::Packed,
         accounts: &ProgramPackedAccounts<A>,
-    ) -> std::result::Result<Self, ProgramError> {
+    ) -> std::result::Result<Self, LightSdkTypesError> {
         // Use get_u8 with a descriptive name for better error messages
         let owner_account = accounts
             .get_u8(packed.owner, "MinimalRecord: owner")
-            .map_err(|_| ProgramError::InvalidAccountData)?;
+            .map_err(|_| LightSdkTypesError::InvalidInstructionData)?;
 
         // Set compression_info to compressed() for hash verification at decompress
         Ok(MinimalRecord {
             compression_info: CompressionInfo::compressed(),
             owner: Pubkey::from(owner_account.key()),
         })
+    }
+}
+
+impl HasCompressionInfo for MinimalRecord {
+    fn compression_info(&self) -> std::result::Result<&CompressionInfo, LightSdkTypesError> {
+        Ok(&self.compression_info)
+    }
+
+    fn compression_info_mut(
+        &mut self,
+    ) -> std::result::Result<&mut CompressionInfo, LightSdkTypesError> {
+        Ok(&mut self.compression_info)
+    }
+
+    fn compression_info_mut_opt(&mut self) -> &mut Option<CompressionInfo> {
+        panic!("compression_info_mut_opt not supported for LightAccount types (use compression_info_mut instead)")
+    }
+
+    fn set_compression_info_none(&mut self) -> std::result::Result<(), LightSdkTypesError> {
+        self.compression_info = CompressionInfo::compressed();
+        Ok(())
     }
 }

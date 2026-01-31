@@ -1,0 +1,35 @@
+[package]
+name = "light-account-pinocchio"
+version = "0.1.0"
+description = "Light Protocol account types with pinocchio AccountInfo specializations"
+repository = "https://github.com/Lightprotocol/light-protocol"
+license = "Apache-2.0"
+edition = "2021"
+
+[features]
+default = ["alloc"]
+std = ["alloc", "light-sdk-types/std", "light-compressed-account/std", "light-account-checks/solana", "dep:solana-instruction", "dep:solana-pubkey"]
+alloc = ["light-sdk-types/alloc", "light-compressed-account/alloc"]
+token = ["light-sdk-types/token", "dep:light-token-interface"]
+poseidon = ["light-sdk-types/poseidon", "light-hasher/poseidon"]
+sha256 = ["light-sdk-types/sha256", "light-hasher/sha256"]
+anchor-discriminator = ["light-sdk-macros/anchor-discriminator"]
+
+[dependencies]
+light-sdk-types = { workspace = true, default-features = false, features = ["alloc", "v2", "cpi-context"] }
+light-sdk-macros = { workspace = true }
+light-macros = { workspace = true }
+light-account-checks = { workspace = true, default-features = false, features = ["pinocchio"] }
+light-hasher = { workspace = true, default-features = false }
+light-compressed-account = { workspace = true, default-features = false }
+light-token-interface = { workspace = true, optional = true }
+pinocchio = { workspace = true }
+solana-instruction = { workspace = true, optional = true }
+solana-pubkey = { workspace = true, optional = true }
+
+[lints.rust.unexpected_cfgs]
+level = "allow"
+check-cfg = [
+    'cfg(target_os, values("solana"))',
+    'cfg(feature, values("frozen-abi", "no-entrypoint"))',
+]

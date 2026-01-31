@@ -1,0 +1,42 @@
+//! Zero-copy account state for AccountLoader demonstration.
+
+use borsh::{BorshDeserialize, BorshSerialize};
+use light_account_pinocchio::{CompressionInfo, LightDiscriminator, LightHasherSha};
+
+/// Zero-copy account for demonstrating AccountLoader integration.
+///
+/// Requirements:
+/// - `#[repr(C)]` for predictable field layout
+/// - `Pod + Zeroable` (bytemuck) for on-chain zero-copy access
+/// - `BorshSerialize + BorshDeserialize` for hashing (same as Borsh accounts)
+/// - `LightDiscriminator` for dispatch
+/// - compression_info field for rent tracking
+/// - All fields must be Pod-compatible (no Pubkey, use [u8; 32])
+#[derive(
+    Default,
+    Debug,
+    Copy,
+    Clone,
+    BorshSerialize,
+    BorshDeserialize,
+    LightDiscriminator,
+    LightHasherSha,
+    bytemuck::Pod,
+    bytemuck::Zeroable,
+)]
+#[repr(C)]
+pub struct ZeroCopyRecord {
+    /// Compression info for rent tracking (must be first for consistent packing).
+    /// SDK CompressionInfo is 24 bytes, Pod-compatible.
+    pub compression_info: CompressionInfo,
+    /// Owner of the record (use byte array instead of Pubkey for Pod compatibility).
+    pub owner: [u8; 32],
+    /// A value field for demonstration.
+    pub value: u64,
+}
+
+impl ZeroCopyRecord {
+    /// Space required for this account (excluding discriminator).
+    /// compression_info (24) + owner (32) + value (8) = 64 bytes
+    pub const INIT_SPACE: usize = core::mem::size_of::<Self>();
+}

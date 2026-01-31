@@ -6,11 +6,9 @@
 //! - Compressible -> HasCompressionInfo + CompressAs + Size + CompressedInitSpace
 
 use csdk_anchor_full_derived_test::{PackedSinglePubkeyRecord, SinglePubkeyRecord};
+use light_account::{CompressAs, CompressionInfo, Pack};
 use light_hasher::{DataHasher, Sha256};
-use light_sdk::{
-    compressible::{CompressAs, CompressionInfo, Pack},
-    instruction::PackedAccounts,
-};
+use light_sdk::instruction::PackedAccounts;
 use solana_pubkey::Pubkey;
 
 use super::shared::CompressibleTestFactory;
@@ -80,7 +78,7 @@ fn test_compress_as_when_compression_info_already_none() {
     // Should still work and preserve fields
     assert_eq!(
         compressed.compression_info.state,
-        light_sdk::compressible::CompressionState::Compressed
+        light_account::CompressionState::Compressed
     );
     assert_eq!(compressed.owner, owner);
     assert_eq!(compressed.counter, counter);
@@ -260,11 +258,13 @@ fn test_pack_stores_pubkeys_in_packed_accounts() {
     let stored_pubkeys = packed_accounts.packed_pubkeys();
     assert_eq!(stored_pubkeys.len(), 2, "should have 2 pubkeys stored");
     assert_eq!(
-        stored_pubkeys[packed1.owner as usize], owner1,
+        stored_pubkeys[packed1.owner as usize],
+        owner1.to_bytes(),
         "first pubkey should match"
     );
     assert_eq!(
-        stored_pubkeys[packed2.owner as usize], owner2,
+        stored_pubkeys[packed2.owner as usize],
+        owner2.to_bytes(),
         "second pubkey should match"
     );
 }

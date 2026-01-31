@@ -10,11 +10,9 @@
 //! Option<Pubkey> fields remain as Option<Pubkey> in the packed struct.
 
 use csdk_anchor_full_derived_test::OptionPubkeyRecord;
+use light_account::{CompressAs, CompressionInfo, Pack};
 use light_hasher::{DataHasher, Sha256};
-use light_sdk::{
-    compressible::{CompressAs, CompressionInfo, Pack},
-    instruction::PackedAccounts,
-};
+use light_sdk::instruction::PackedAccounts;
 use solana_pubkey::Pubkey;
 
 use super::shared::CompressibleTestFactory;
@@ -268,7 +266,7 @@ fn test_pack_converts_pubkey_to_index() {
 
     let stored_pubkeys = packed_accounts.packed_pubkeys();
     assert_eq!(stored_pubkeys.len(), 1);
-    assert_eq!(stored_pubkeys[0], owner);
+    assert_eq!(stored_pubkeys[0], owner.to_bytes());
 }
 
 #[test]
@@ -298,7 +296,7 @@ fn test_pack_preserves_option_pubkey_as_option_pubkey() {
     // Only the direct Pubkey field (owner) is stored in packed_accounts
     let stored_pubkeys = packed_accounts.packed_pubkeys();
     assert_eq!(stored_pubkeys.len(), 1);
-    assert_eq!(stored_pubkeys[0], owner);
+    assert_eq!(stored_pubkeys[0], owner.to_bytes());
 }
 
 #[test]
@@ -331,7 +329,7 @@ fn test_pack_option_pubkey_none_stays_none() {
     // Only the direct Pubkey field (owner) is stored in packed_accounts
     let stored_pubkeys = packed_accounts.packed_pubkeys();
     assert_eq!(stored_pubkeys.len(), 1);
-    assert_eq!(stored_pubkeys[0], owner);
+    assert_eq!(stored_pubkeys[0], owner.to_bytes());
 }
 
 #[test]
@@ -361,7 +359,7 @@ fn test_pack_all_option_pubkeys_some() {
     // Only the direct Pubkey field (owner) is stored in packed_accounts
     let stored_pubkeys = packed_accounts.packed_pubkeys();
     assert_eq!(stored_pubkeys.len(), 1);
-    assert_eq!(stored_pubkeys[0], owner);
+    assert_eq!(stored_pubkeys[0], owner.to_bytes());
 }
 
 #[test]
@@ -386,7 +384,7 @@ fn test_pack_all_option_pubkeys_none() {
 
     let stored_pubkeys = packed_accounts.packed_pubkeys();
     assert_eq!(stored_pubkeys.len(), 1);
-    assert_eq!(stored_pubkeys[0], owner);
+    assert_eq!(stored_pubkeys[0], owner.to_bytes());
 }
 
 #[test]

@@ -1,12 +1,11 @@
 //! Derived code - what the macro would generate for token accounts.
 
 use anchor_lang::prelude::*;
-use light_sdk::{
-    error::LightSdkError,
-    interface::{LightFinalize, LightPreInit},
-    Pack, Unpack,
+#[cfg(not(target_os = "solana"))]
+use light_account::Pack;
+use light_account::{
+    CreateTokenAccountCpi, LightFinalize, LightPreInit, LightSdkTypesError, Unpack,
 };
-use light_token::instruction::CreateTokenAccountCpi;
 use solana_account_info::AccountInfo;
 
 use super::accounts::{CreateTokenVaultAccounts, CreateTokenVaultParams, TOKEN_VAULT_SEED};
@@ -15,33 +14,42 @@ use super::accounts::{CreateTokenVaultAccounts, CreateTokenVaultParams, TOKEN_VA
 // LightPreInit Implementation - Creates token account at START of instruction
 // ============================================================================
 
-impl<'info> LightPreInit<'info, CreateTokenVaultParams> for CreateTokenVaultAccounts<'info> {
+impl<'info> LightPreInit<AccountInfo<'info>, CreateTokenVaultParams>
+    for CreateTokenVaultAccounts<'info>
+{
     fn light_pre_init(
         &mut self,
         _remaining_accounts: &[AccountInfo<'info>],
         params: &CreateTokenVaultParams,
-    ) -> std::result::Result<bool, LightSdkError> {
-        // Build PDA seeds: [TOKEN_VAULT_SEED, mint.key(), &[bump]]
-        let mint_key = self.mint.key();
-        let vault_seeds: &[&[u8]] = &[TOKEN_VAULT_SEED, mint_key.as_ref(), &[params.vault_bump]];
+    ) -> std::result::Result<bool, LightSdkTypesError> {
+        let inner = || -> std::result::Result<bool, LightSdkTypesError> {
+            // Build PDA seeds: [TOKEN_VAULT_SEED, mint.key(), &[bump]]
+            let mint_key = self.mint.key();
+            let vault_seeds: &[&[u8]] =
+                &[TOKEN_VAULT_SEED, mint_key.as_ref(), &[params.vault_bump]];
 
-        // Create token account via CPI with rent-free mode
-        CreateTokenAccountCpi {
-            payer: self.payer.to_account_info(),
-            account: self.token_vault.to_account_info(),
-            mint: self.mint.clone(),
-            owner: *self.vault_owner.key,
-        }
-        .rent_free(
-            self.compressible_config.clone(),
-            self.rent_sponsor.clone(),
-            self.system_program.to_account_info(),
-            &crate::ID,
-        )
-        .invoke_signed(vault_seeds)?;
+            // Create token account via CPI with rent-free mode
+            let payer_info = self.payer.to_account_info();
+            let token_vault_info = self.token_vault.to_account_info();
+            let system_program_info = self.system_program.to_account_info();
+            CreateTokenAccountCpi {
+                payer: &payer_info,
+                account: &token_vault_info,
+                mint: &self.mint,
+                owner: self.vault_owner.key.to_bytes(),
+            }
+            .rent_free(
+                &self.compressible_config,
+                &self.rent_sponsor,
+                &system_program_info,
+                &crate::ID.to_bytes(),
+            )
+            .invoke_signed(vault_seeds)?;
 
-        // Token accounts don't use CPI context, return false
-        Ok(false)
+            // Token accounts don't use CPI context, return false
+            Ok(false)
+        };
+        inner()
     }
 }
 
@@ -49,13 +57,15 @@ impl<'info> LightPreInit<'info, CreateTokenVaultParams> for CreateTokenVaultAcco
 // LightFinalize Implementation - No-op for token account only flow
 // ============================================================================
 
-impl<'info> LightFinalize<'info, CreateTokenVaultParams> for CreateTokenVaultAccounts<'info> {
+impl<'info> LightFinalize<AccountInfo<'info>, CreateTokenVaultParams>
+    for CreateTokenVaultAccounts<'info>
+{
     fn light_finalize(
         &mut self,
         _remaining_accounts: &[AccountInfo<'info>],
         _params: &CreateTokenVaultParams,
         _has_pre_init: bool,
-    ) -> std::result::Result<(), LightSdkError> {
+    ) -> std::result::Result<(), LightSdkTypesError> {
         Ok(())
     }
 }
@@ -70,12 +80,13 @@ pub struct TokenVaultSeeds {
     pub mint: Pubkey,
 }
 
-impl Pack for TokenVaultSeeds {
+#[cfg(not(target_os = "solana"))]
+impl Pack<solana_program::instruction::AccountMeta> for TokenVaultSeeds {
     type Packed = PackedTokenVaultSeeds;
     fn pack(
         &self,
-        remaining_accounts: &mut light_sdk::instruction::PackedAccounts,
-    ) -> std::result::Result<Self::Packed, ProgramError> {
+        remaining_accounts: &mut light_account::PackedAccounts,
+    ) -> std::result::Result<Self::Packed, LightSdkTypesError> {
         Ok(PackedTokenVaultSeeds {
             mint_idx: remaining_accounts.insert_or_get(self.mint),
             bump: 0,
@@ -90,16 +101,16 @@ pub struct PackedTokenVaultSeeds {
     pub bump: u8,
 }
 
-impl Unpack for PackedTokenVaultSeeds {
+impl<'a> Unpack<AccountInfo<'a>> for PackedTokenVaultSeeds {
     type Unpacked = TokenVaultSeeds;
 
     fn unpack(
         &self,
-        remaining_accounts: &[AccountInfo],
-    ) -> std::result::Result<Self::Unpacked, ProgramError> {
+        remaining_accounts: &[AccountInfo<'a>],
+    ) -> std::result::Result<Self::Unpacked, LightSdkTypesError> {
         let mint = *remaining_accounts
             .get(self.mint_idx as usize)
-            .ok_or(ProgramError::InvalidAccountData)?
+            .ok_or(LightSdkTypesError::NotEnoughAccountKeys)?
             .key;
         Ok(TokenVaultSeeds { mint })
     }

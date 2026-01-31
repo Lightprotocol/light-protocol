@@ -6,9 +6,8 @@
 #![allow(deprecated)]
 
 use anchor_lang::prelude::*;
-use light_sdk::derive_light_cpi_signer;
+use light_account::{derive_light_cpi_signer, CpiSigner};
 use light_sdk_macros::light_program;
-use light_sdk_types::CpiSigner;
 
 pub mod instruction_accounts;
 pub mod state;

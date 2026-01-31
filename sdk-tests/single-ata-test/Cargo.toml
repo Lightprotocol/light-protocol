@@ -13,23 +13,19 @@ no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
-custom-heap = ["light-heap", "light-sdk/custom-heap"]
+custom-heap = ["light-heap"]
 default = []
-idl-build = ["anchor-lang/idl-build", "light-sdk/idl-build"]
+idl-build = ["anchor-lang/idl-build"]
 test-sbf = []
 
 [dependencies]
 light-heap = { workspace = true, optional = true }
-light-sdk = { workspace = true, features = ["anchor", "v2", "cpi-context"] }
-light-sdk-types = { workspace = true, features = ["v2", "cpi-context"] }
+light-account = { workspace = true, features = ["token", "anchor", "sha256", "anchor-discriminator"] }
 light-macros = { workspace = true, features = ["solana"] }
-light-sdk-macros = { workspace = true }
+light-sdk-macros = { workspace = true, features = ["anchor-discriminator"] }
 borsh = { workspace = true }
 light-compressed-account = { workspace = true, features = ["solana"] }
 anchor-lang = { workspace = true }
-light-token = { workspace = true, features = ["anchor"] }
-light-token-types = { workspace = true, features = ["anchor"] }
-light-compressible = { workspace = true, features = ["anchor"] }
 light-hasher = { workspace = true, features = ["solana"] }
 solana-program = { workspace = true }
 solana-pubkey = { workspace = true }
@@ -42,6 +38,9 @@ light-program-test = { workspace = true, features = ["devenv"] }
 light-client = { workspace = true, features = ["v2", "anchor"] }
 light-test-utils = { workspace = true }
 light-token-interface = { workspace = true }
+light-sdk = { workspace = true }
+light-sdk-types = { workspace = true, features = ["token"] }
+light-token = { workspace = true, features = ["anchor"] }
 tokio = { workspace = true }
 solana-sdk = { workspace = true }
 solana-instruction = { workspace = true }

@@ -1,7 +1,7 @@
 //! Accounts module for create_all instruction.
 
 use anchor_lang::prelude::*;
-use light_compressible::CreateAccountsProof;
+use light_account::CreateAccountsProof;
 use solana_account_info::AccountInfo;
 
 use crate::{account_loader::ZeroCopyRecord, pda::MinimalRecord};

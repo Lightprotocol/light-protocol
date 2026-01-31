@@ -205,7 +205,7 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
             let freeze_authority = mint
                 .freeze_authority
                 .as_ref()
-                .map(|f| quote! { Some(*self.#f.to_account_info().key) })
+                .map(|f| quote! { Some(self.#f.to_account_info().key.to_bytes()) })
                 .unwrap_or_else(|| quote! { None });
             let mint_seeds = &mint.mint_seeds;
             let authority_seeds = &mint.authority_seeds;
@@ -231,7 +231,7 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
                     // Auto-derive bump from mint_seeds
                     quote! {
                         let #mint_signer_bump_ident: u8 = {
-                            let (_, bump) = solana_pubkey::Pubkey::find_program_address(#mint_seeds_ident, &crate::ID);
+                            let (_, bump) = solana_pubkey::Pubkey::find_program_address(#mint_seeds_ident, &solana_pubkey::Pubkey::from(crate::LIGHT_CPI_SIGNER.program_id));
                             bump
                         };
                     }
@@ -248,7 +248,7 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
                             quote! {
                                 let #authority_bump_ident: u8 = {
                                     let base_seeds: &[&[u8]] = #seeds;
-                                    let (_, bump) = solana_pubkey::Pubkey::find_program_address(base_seeds, &crate::ID);
+                                    let (_, bump) = solana_pubkey::Pubkey::find_program_address(base_seeds, &solana_pubkey::Pubkey::from(crate::LIGHT_CPI_SIGNER.program_id));
                                     bump
                                 };
                             }
@@ -285,8 +285,8 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
                     .unwrap_or_else(|| quote! { None });
 
                 quote! {
-                    let #token_metadata_ident: Option<light_token::TokenMetadataInstructionData> = Some(
-                        light_token::TokenMetadataInstructionData {
+                    let #token_metadata_ident: Option<light_account::TokenMetadataInstructionData> = Some(
+                        light_account::TokenMetadataInstructionData {
                             update_authority: #update_authority_expr,
                             name: #name_expr,
                             symbol: #symbol_expr,
@@ -297,14 +297,14 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
                 }
             } else {
                 quote! {
-                    let #token_metadata_ident: Option<light_token::TokenMetadataInstructionData> = None;
+                    let #token_metadata_ident: Option<light_account::TokenMetadataInstructionData> = None;
                 }
             };
 
             quote! {
                 // Mint #idx: derive PDA and build params
-                let #signer_key_ident = *self.#mint_signer.to_account_info().key;
-                let (#pda_ident, #bump_ident) = light_token::instruction::find_mint_address(&#signer_key_ident);
+                let #signer_key_ident: [u8; 32] = self.#mint_signer.to_account_info().key.to_bytes();
+                let (#pda_ident, #bump_ident) = light_account::find_mint_address(&#signer_key_ident);
 
                 // Bind base mint_seeds (WITHOUT bump) and derive/get bump
                 let #mint_seeds_ident: &[&[u8]] = #mint_seeds;
@@ -319,11 +319,11 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
 
                 let __tree_info = &#address_tree_info;
 
-                let #idx_ident = light_token::instruction::SingleMintParams {
+                let #idx_ident = light_account::SingleMintParams {
                     decimals: #decimals,
                     address_merkle_tree_root_index: __tree_info.root_index,
-                    mint_authority: *self.#authority.to_account_info().key,
-                    compression_address: #pda_ident.to_bytes(),
+                    mint_authority: self.#authority.to_account_info().key.to_bytes(),
+                    compression_address: #pda_ident,
                     mint: #pda_ident,
                     bump: #bump_ident,
                     freeze_authority: #freeze_authority,
@@ -381,19 +381,32 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
         })
         .collect();
 
+    // Generate base_leaf_index reading for N>1 mints
+    let base_leaf_index_setup = if mint_count > 1 {
+        quote! {
+            let __base_leaf_index = light_account::get_output_queue_next_index(
+                cpi_accounts.get_tree_account_info(__output_queue_index as usize)?
+            )?;
+        }
+    } else {
+        quote! {
+            let __base_leaf_index: u32 = 0;
+        }
+    };
+
     quote! {
         {
             #output_tree_setup
 
             // Extract proof from instruction params
-            let __proof: light_token::CompressedProof = #proof_access.proof.0.clone()
+            let __proof: light_account::CompressedProof = #proof_access.proof.0.clone()
                 .expect("proof is required for mint creation");
 
             // Build SingleMintParams for each mint
             #(#mint_params_builds)*
 
             // Array of mint params
-            let __mint_params: [light_token::instruction::SingleMintParams<'_>; #mint_count] = [
+            let __mint_params: [light_account::SingleMintParams<'_>; #mint_count] = [
                 #(#param_idents),*
             ];
 
@@ -414,14 +427,17 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
                 .ok_or(anchor_lang::prelude::ProgramError::InvalidArgument)?;
             let __address_tree_index: u8 = __tree_info.address_merkle_tree_pubkey_index;
 
+            // Read base_leaf_index from output queue (needed for N>1 mints)
+            #base_leaf_index_setup
+
             // Check authority signers for mints without authority_seeds
             #(#authority_signer_checks)*
 
             // Build params and invoke CreateMintsCpi via helper
-            light_token::compressible::invoke_create_mints(
+            light_account::invoke_create_mints(
                 &__mint_seed_accounts,
                 &__mint_accounts,
-                light_token::instruction::CreateMintsParams {
+                light_account::CreateMintsParams {
                     mints: &__mint_params,
                     proof: __proof,
                     rent_payment: #rent_payment,
@@ -430,12 +446,13 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
                     output_queue_index: __output_queue_index,
                     address_tree_index: __address_tree_index,
                     state_tree_index: __state_tree_index,
+                    base_leaf_index: __base_leaf_index,
                 },
-                light_token::compressible::CreateMintsInfraAccounts {
-                    fee_payer: self.#fee_payer.to_account_info(),
-                    compressible_config: self.#light_token_config.to_account_info(),
-                    rent_sponsor: self.#light_token_rent_sponsor.to_account_info(),
-                    cpi_authority: self.#light_token_cpi_authority.to_account_info(),
+                light_account::CreateMintsInfraAccounts {
+                    fee_payer: &self.#fee_payer.to_account_info(),
+                    compressible_config: &self.#light_token_config.to_account_info(),
+                    rent_sponsor: &self.#light_token_rent_sponsor.to_account_info(),
+                    cpi_authority: &self.#light_token_cpi_authority.to_account_info(),
                 },
                 &cpi_accounts,
             )?;

@@ -1,7 +1,7 @@
 //! Accounts module for zero-copy account instruction.
 
 use anchor_lang::prelude::*;
-use light_compressible::CreateAccountsProof;
+use light_account::CreateAccountsProof;
 
 use super::state::ZeroCopyRecord;
 

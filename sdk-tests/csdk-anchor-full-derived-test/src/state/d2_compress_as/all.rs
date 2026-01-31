@@ -6,7 +6,7 @@
 //! - Fields without override (use self.field)
 
 use anchor_lang::prelude::*;
-use light_sdk::{compressible::CompressionInfo, LightDiscriminator};
+use light_account::{CompressionInfo, LightDiscriminator};
 use light_sdk_macros::LightAccount;
 
 /// Comprehensive struct with all compress_as variations.

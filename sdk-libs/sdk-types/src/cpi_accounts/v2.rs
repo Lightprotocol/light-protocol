@@ -208,6 +208,7 @@ impl<'a, T: AccountInfoTrait + Clone> CpiAccounts<'a, T> {
     }
 
     /// Create a vector of account info references
+    #[cfg(any(feature = "std", feature = "alloc"))]
     pub fn to_account_infos(&self) -> Vec<T> {
         let mut account_infos = Vec::with_capacity(1 + self.accounts.len());
         account_infos.push(self.fee_payer().clone());
@@ -240,6 +241,7 @@ impl<'a, T: AccountInfoTrait + Clone> CpiAccounts<'a, T> {
         Ok(&self.accounts[system_offset..])
     }
 
+    #[cfg(any(feature = "std", feature = "alloc"))]
     pub fn tree_pubkeys(&self) -> Result<Vec<T::Pubkey>> {
         Ok(self
             .tree_accounts()?

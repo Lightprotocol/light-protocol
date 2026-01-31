@@ -11,8 +11,10 @@ default = ["std", "v2"]
 std = ["alloc", "light-compressed-account/std", "solana-msg"]
 alloc = ["light-compressed-account/alloc"]
 keccak = ["light-hasher/keccak"]
-anchor = ["anchor-lang", "light-compressed-account/anchor"]
-idl-build = ["anchor-lang/idl-build", "anchor"]
+sha256 = ["light-hasher/sha256", "light-compressed-account/sha256"]
+token = ["dep:light-token-interface"]
+anchor = ["anchor-lang", "light-compressed-account/anchor", "light-compressible/anchor", "solana-program-error"]
+idl-build = ["anchor-lang/idl-build", "light-compressible/idl-build", "anchor"]
 v2 = []
 cpi-context = []
 poseidon = ["light-hasher/poseidon", "light-compressed-account/poseidon"]
@@ -23,12 +25,23 @@ anchor-lang = { workspace = true, optional = true }
 light-account-checks = { workspace = true }
 light-hasher = { workspace = true }
 light-compressed-account = { workspace = true }
+light-compressible = { workspace = true }
 light-macros = { workspace = true }
+light-token-interface = { workspace = true, optional = true }
 solana-msg = { workspace = true, optional = true }
+solana-program-error = { workspace = true, optional = true }
 
 # External dependencies
 borsh = { workspace = true }
+bytemuck = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
 solana-pubkey = { workspace = true }
+
+[lints.rust.unexpected_cfgs]
+level = "allow"
+check-cfg = [
+    'cfg(target_os, values("solana"))',
+    'cfg(feature, values("frozen-abi", "no-entrypoint"))',
+]

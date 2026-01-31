@@ -84,6 +84,26 @@ pub enum LightSdkError {
     ProgramError(ProgramError),
     #[error(transparent)]
     AccountError(#[from] AccountError),
+    #[error("Missing compression info")]
+    MissingCompressionInfo,
+    #[error("Invalid rent sponsor")]
+    InvalidRentSponsor,
+    #[error("Borsh IO error: {0}")]
+    BorshIo(String),
+    #[error("Read-only accounts not supported in CPI context")]
+    ReadOnlyAccountsNotSupportedInCpiContext,
+    #[error("Account data too small")]
+    AccountDataTooSmall,
+    #[error("Invalid instruction data")]
+    InvalidInstructionData,
+    #[error("Invalid seeds")]
+    InvalidSeeds,
+    #[error("CPI failed")]
+    CpiFailed,
+    #[error("Not enough account keys")]
+    NotEnoughAccountKeys,
+    #[error("Missing required signature")]
+    MissingRequiredSignature,
 }
 
 impl From<ProgramError> for LightSdkError {
@@ -131,6 +151,24 @@ impl From<LightSdkTypesError> for LightSdkError {
             LightSdkTypesError::InvalidSolPoolPdaAccount => LightSdkError::InvalidSolPoolPdaAccount,
             LightSdkTypesError::AccountError(e) => LightSdkError::AccountError(e),
             LightSdkTypesError::InvalidCpiAccountsOffset => LightSdkError::InvalidCpiAccountsOffset,
+            LightSdkTypesError::ConstraintViolation => LightSdkError::ConstraintViolation,
+            LightSdkTypesError::Borsh => LightSdkError::Borsh,
+            LightSdkTypesError::MissingCompressionInfo => LightSdkError::MissingCompressionInfo,
+            LightSdkTypesError::InvalidRentSponsor => LightSdkError::InvalidRentSponsor,
+            LightSdkTypesError::BorshIo(s) => LightSdkError::BorshIo(s),
+            LightSdkTypesError::ReadOnlyAccountsNotSupportedInCpiContext => {
+                LightSdkError::ReadOnlyAccountsNotSupportedInCpiContext
+            }
+            LightSdkTypesError::CompressedAccountError(e) => LightSdkError::CompressedAccount(e),
+            LightSdkTypesError::AccountDataTooSmall => LightSdkError::AccountDataTooSmall,
+            LightSdkTypesError::InvalidInstructionData => LightSdkError::InvalidInstructionData,
+            LightSdkTypesError::InvalidSeeds => LightSdkError::InvalidSeeds,
+            LightSdkTypesError::CpiFailed => LightSdkError::CpiFailed,
+            LightSdkTypesError::NotEnoughAccountKeys => LightSdkError::NotEnoughAccountKeys,
+            LightSdkTypesError::MissingRequiredSignature => LightSdkError::MissingRequiredSignature,
+            LightSdkTypesError::ProgramError(code) => {
+                LightSdkError::ProgramError(ProgramError::Custom(code))
+            }
         }
     }
 }
@@ -176,6 +214,16 @@ impl From<LightSdkError> for u32 {
             LightSdkError::CompressedAccount(_) => 16036,
             LightSdkError::ProgramError(e) => u64::from(e) as u32,
             LightSdkError::AccountError(e) => e.into(),
+            LightSdkError::MissingCompressionInfo => 16037,
+            LightSdkError::InvalidRentSponsor => 16038,
+            LightSdkError::BorshIo(_) => 16039,
+            LightSdkError::ReadOnlyAccountsNotSupportedInCpiContext => 16040,
+            LightSdkError::AccountDataTooSmall => 16041,
+            LightSdkError::InvalidInstructionData => 16042,
+            LightSdkError::InvalidSeeds => 16043,
+            LightSdkError::CpiFailed => 16044,
+            LightSdkError::NotEnoughAccountKeys => 16045,
+            LightSdkError::MissingRequiredSignature => 16046,
         }
     }
 }

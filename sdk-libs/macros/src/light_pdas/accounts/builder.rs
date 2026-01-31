@@ -144,24 +144,24 @@ impl LightAccountsBuilder {
 
         Ok(quote! {
             #[automatically_derived]
-            impl #impl_generics light_sdk::interface::LightPreInit<'info, ()> for #struct_name #ty_generics #where_clause {
+            impl #impl_generics light_account::LightPreInit<light_account::AccountInfo<'info>, ()> for #struct_name #ty_generics #where_clause {
                 fn light_pre_init(
                     &mut self,
                     _remaining: &[solana_account_info::AccountInfo<'info>],
                     _params: &(),
-                ) -> std::result::Result<bool, light_sdk::error::LightSdkError> {
+                ) -> std::result::Result<bool, light_account::LightSdkTypesError> {
                     Ok(false)
                 }
             }
 
             #[automatically_derived]
-            impl #impl_generics light_sdk::interface::LightFinalize<'info, ()> for #struct_name #ty_generics #where_clause {
+            impl #impl_generics light_account::LightFinalize<light_account::AccountInfo<'info>, ()> for #struct_name #ty_generics #where_clause {
                 fn light_finalize(
                     &mut self,
                     _remaining: &[solana_account_info::AccountInfo<'info>],
                     _params: &(),
                     _has_pre_init: bool,
-                ) -> std::result::Result<(), light_sdk::error::LightSdkError> {
+                ) -> std::result::Result<(), light_account::LightSdkTypesError> {
                     Ok(())
                 }
             }
@@ -299,14 +299,14 @@ impl LightAccountsBuilder {
         let compression_config = &self.infra.compression_config;
 
         Ok(quote! {
-            let cpi_accounts = light_sdk::cpi::v2::CpiAccounts::new_with_config(
+            let cpi_accounts = light_account::CpiAccounts::new_with_config(
                 &self.#fee_payer,
                 _remaining,
-                light_sdk::cpi::CpiAccountsConfig::new_with_cpi_context(crate::LIGHT_CPI_SIGNER),
+                light_account::CpiAccountsConfig::new_with_cpi_context(crate::LIGHT_CPI_SIGNER),
             );
-            let compression_config_data = light_sdk::interface::LightConfig::load_checked(
+            let compression_config_data = light_account::LightConfig::load_checked(
                 &self.#compression_config,
-                &crate::ID,
+                &crate::LIGHT_CPI_SIGNER.program_id,
             )?;
 
             let mut all_new_address_params = Vec::with_capacity(#rentfree_count as usize);
@@ -316,7 +316,7 @@ impl LightAccountsBuilder {
             // Reimburse fee payer for rent paid during PDA creation
             #rent_reimbursement
 
-            light_token::compressible::invoke_write_pdas_to_cpi_context(
+            light_account::invoke_write_pdas_to_cpi_context(
                 crate::LIGHT_CPI_SIGNER,
                 #proof_access.proof.clone(),
                 &all_new_address_params,
@@ -342,16 +342,16 @@ impl LightAccountsBuilder {
         let compression_config = &self.infra.compression_config;
 
         Ok(quote! {
-            use light_sdk::cpi::{LightCpiInstruction, InvokeLightSystemProgram};
+            use light_account::InvokeLightSystemProgram;
 
-            let cpi_accounts = light_sdk::cpi::v2::CpiAccounts::new(
+            let cpi_accounts = light_account::CpiAccounts::new(
                 &self.#fee_payer,
                 _remaining,
                 crate::LIGHT_CPI_SIGNER,
             );
-            let compression_config_data = light_sdk::interface::LightConfig::load_checked(
+            let compression_config_data = light_account::LightConfig::load_checked(
                 &self.#compression_config,
-                &crate::ID,
+                &crate::LIGHT_CPI_SIGNER.program_id,
             )?;
 
             let mut all_new_address_params = Vec::with_capacity(#rentfree_count as usize);
@@ -361,13 +361,22 @@ impl LightAccountsBuilder {
             // Reimburse fee payer for rent paid during PDA creation
             #rent_reimbursement
 
-            light_sdk::cpi::v2::LightSystemProgramCpi::new_cpi(
-                crate::LIGHT_CPI_SIGNER,
-                #proof_access.proof.clone(),
-            )
-                .with_new_addresses(&all_new_address_params)
-                .with_account_infos(&all_compressed_infos)
-                .invoke(cpi_accounts)?;
+            let instruction_data = light_compressed_account::instruction_data::with_account_info::InstructionDataInvokeCpiWithAccountInfo {
+                mode: 1,
+                bump: crate::LIGHT_CPI_SIGNER.bump,
+                invoking_program_id: crate::LIGHT_CPI_SIGNER.program_id.into(),
+                compress_or_decompress_lamports: 0,
+                is_compress: false,
+                with_cpi_context: false,
+                with_transaction_hash: false,
+                cpi_context: light_compressed_account::instruction_data::cpi_context::CompressedCpiContext::default(),
+                proof: #proof_access.proof.clone().0,
+                new_address_params: all_new_address_params,
+                account_infos: all_compressed_infos,
+                read_only_addresses: vec![],
+                read_only_accounts: vec![],
+            };
+            instruction_data.invoke(cpi_accounts)?;
         })
     }
 
@@ -383,10 +392,10 @@ impl LightAccountsBuilder {
         let fee_payer = &self.infra.fee_payer;
 
         Ok(quote! {
-            let cpi_accounts = light_sdk::cpi::v2::CpiAccounts::new_with_config(
+            let cpi_accounts = light_account::CpiAccounts::new_with_config(
                 &self.#fee_payer,
                 _remaining,
-                light_sdk::cpi::CpiAccountsConfig::new_with_cpi_context(crate::LIGHT_CPI_SIGNER),
+                light_account::CpiAccountsConfig::new_with_cpi_context(crate::LIGHT_CPI_SIGNER),
             );
 
             #mint_invocation
@@ -405,12 +414,12 @@ impl LightAccountsBuilder {
 
         Ok(quote! {
             #[automatically_derived]
-            impl #impl_generics light_sdk::interface::LightPreInit<'info, #params_type> for #struct_name #ty_generics #where_clause {
+            impl #impl_generics light_account::LightPreInit<light_account::AccountInfo<'info>, #params_type> for #struct_name #ty_generics #where_clause {
                 fn light_pre_init(
                     &mut self,
                     _remaining: &[solana_account_info::AccountInfo<'info>],
                     #params_ident: &#params_type,
-                ) -> std::result::Result<bool, light_sdk::error::LightSdkError> {
+                ) -> std::result::Result<bool, light_account::LightSdkTypesError> {
                     use anchor_lang::ToAccountInfo;
                     #body
                 }
@@ -430,13 +439,13 @@ impl LightAccountsBuilder {
 
         Ok(quote! {
             #[automatically_derived]
-            impl #impl_generics light_sdk::interface::LightFinalize<'info, #params_type> for #struct_name #ty_generics #where_clause {
+            impl #impl_generics light_account::LightFinalize<light_account::AccountInfo<'info>, #params_type> for #struct_name #ty_generics #where_clause {
                 fn light_finalize(
                     &mut self,
                     _remaining: &[solana_account_info::AccountInfo<'info>],
                     #params_ident: &#params_type,
                     _has_pre_init: bool,
-                ) -> std::result::Result<(), light_sdk::error::LightSdkError> {
+                ) -> std::result::Result<(), light_account::LightSdkTypesError> {
                     use anchor_lang::ToAccountInfo;
                     #body
                 }

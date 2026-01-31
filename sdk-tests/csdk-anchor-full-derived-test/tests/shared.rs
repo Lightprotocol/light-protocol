@@ -1,12 +1,12 @@
 #![allow(dead_code)]
 // Shared test utilities for csdk-anchor-full-derived-test
 
+use light_account::derive_rent_sponsor_pda;
 use light_client::{indexer::Indexer, interface::InitializeRentFreeConfig, rpc::Rpc};
 use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest},
     ProgramTestConfig,
 };
-use light_sdk::utils::derive_rent_sponsor_pda;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 
 /// Shared test context for csdk-anchor-full-derived-test
@@ -358,9 +358,9 @@ pub async fn setup_create_mint(
 /// Build expected CompressionInfo, extracting only runtime fields from actual.
 /// Validates all config-derived fields against expected defaults.
 pub fn expected_compression_info(
-    actual: &light_sdk::compressible::CompressionInfo,
-) -> light_sdk::compressible::CompressionInfo {
-    light_sdk::compressible::CompressionInfo {
+    actual: &light_account::CompressionInfo,
+) -> light_account::CompressionInfo {
+    light_account::CompressionInfo {
         last_claimed_slot: actual.last_claimed_slot,
         lamports_per_write: 5000,
         config_version: 1,

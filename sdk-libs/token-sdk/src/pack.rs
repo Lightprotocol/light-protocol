@@ -1,6 +1,7 @@
 //! Pack implementation for TokenData types for c-tokens.
 use light_compressed_account::compressed_account::CompressedAccountWithMerkleContext;
-use light_sdk::{instruction::PackedAccounts, light_hasher::HasherError};
+use light_account::PackedAccounts;
+use light_sdk::light_hasher::HasherError;
 pub use light_token_interface::state::TokenData;
 use light_token_interface::state::TokenDataVersion;
 use solana_account_info::AccountInfo;

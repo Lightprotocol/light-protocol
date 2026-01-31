@@ -21,12 +21,12 @@ pub use decompress_mint::{
     DecompressMintError, MintInterface, MintState, DEFAULT_RENT_PAYMENT, DEFAULT_WRITE_TOP_UP,
 };
 pub use initialize_config::InitializeRentFreeConfig;
-pub use light_compressible::CreateAccountsProof;
+pub use light_account::LightConfig;
 pub use light_program_interface::{
     all_hot, any_cold, discriminator, matches_discriminator, AccountSpec, AccountToFetch,
     ColdContext, LightProgramInterface, PdaSpec,
 };
-pub use light_sdk::interface::config::LightConfig;
+pub use light_sdk_types::interface::CreateAccountsProof;
 pub use light_token::compat::TokenData;
 pub use load_accounts::{create_load_instructions, LoadAccountsError};
 pub use pack::{pack_proof, PackError, PackedProofResult};

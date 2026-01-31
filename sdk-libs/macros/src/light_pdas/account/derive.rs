@@ -55,7 +55,7 @@ fn is_zero_copy(attrs: &[syn::Attribute]) -> bool {
 ///
 /// ```ignore
 /// use light_sdk_macros::{LightAccount, LightDiscriminator, LightHasherSha};
-/// use light_sdk::compressible::CompressionInfo;
+/// use light_account::CompressionInfo;
 /// use solana_pubkey::Pubkey;
 ///
 /// #[derive(Default, Debug, InitSpace, LightAccount, LightDiscriminator, LightHasherSha)]
@@ -237,7 +237,7 @@ fn generate_light_account_impl(input: &DeriveInput) -> Result<TokenStream> {
                     );
                 };
             },
-            quote! { light_sdk::interface::AccountType::PdaZeroCopy },
+            quote! { light_account::AccountType::PdaZeroCopy },
             quote! { core::mem::size_of::<Self>() },
         )
     } else {
@@ -250,7 +250,7 @@ fn generate_light_account_impl(input: &DeriveInput) -> Result<TokenStream> {
                     );
                 };
             },
-            quote! { light_sdk::interface::AccountType::Pda },
+            quote! { light_account::AccountType::Pda },
             quote! { <Self as anchor_lang::Space>::INIT_SPACE },
         )
     };
@@ -261,41 +261,42 @@ fn generate_light_account_impl(input: &DeriveInput) -> Result<TokenStream> {
 
         #size_assertion
 
-        impl light_sdk::interface::LightAccount for #struct_name {
-            const ACCOUNT_TYPE: light_sdk::interface::AccountType = #account_type_token;
+        impl light_account::LightAccount for #struct_name {
+            const ACCOUNT_TYPE: light_account::AccountType = #account_type_token;
 
             type Packed = #packed_struct_name;
 
             const INIT_SPACE: usize = #init_space_token;
 
             #[inline]
-            fn compression_info(&self) -> &light_sdk::compressible::CompressionInfo {
+            fn compression_info(&self) -> &light_account::CompressionInfo {
                 &self.compression_info
             }
 
             #[inline]
-            fn compression_info_mut(&mut self) -> &mut light_sdk::compressible::CompressionInfo {
+            fn compression_info_mut(&mut self) -> &mut light_account::CompressionInfo {
                 &mut self.compression_info
             }
 
-            fn set_decompressed(&mut self, config: &light_sdk::interface::LightConfig, current_slot: u64) {
-                self.compression_info = light_sdk::compressible::CompressionInfo::new_from_config(config, current_slot);
+            fn set_decompressed(&mut self, config: &light_account::LightConfig, current_slot: u64) {
+                self.compression_info = light_account::CompressionInfo::new_from_config(config, current_slot);
                 #compress_as_assignments
             }
 
+            #[cfg(not(target_os = "solana"))]
             #[inline(never)]
-            fn pack(
+            fn pack<AM: light_account::AccountMetaTrait>(
                 &self,
-                accounts: &mut light_sdk::instruction::PackedAccounts,
-            ) -> std::result::Result<Self::Packed, solana_program_error::ProgramError> {
+                accounts: &mut light_account::interface::instruction::PackedAccounts<AM>,
+            ) -> std::result::Result<Self::Packed, light_account::LightSdkTypesError> {
                 #pack_body
             }
 
             #[inline(never)]
-            fn unpack<A: light_sdk::light_account_checks::AccountInfoTrait>(
+            fn unpack<A: light_account::AccountInfoTrait>(
                 packed: &Self::Packed,
-                accounts: &light_sdk::light_account_checks::packed_accounts::ProgramPackedAccounts<A>,
-            ) -> std::result::Result<Self, solana_program_error::ProgramError> {
+                accounts: &light_account::packed_accounts::ProgramPackedAccounts<A>,
+            ) -> std::result::Result<Self, light_account::LightSdkTypesError> {
                 #unpack_body
             }
         }
@@ -303,67 +304,67 @@ fn generate_light_account_impl(input: &DeriveInput) -> Result<TokenStream> {
         // V1 compatibility: Pack trait (delegates to LightAccount::pack)
         // Pack trait is only available off-chain (client-side)
         #[cfg(not(target_os = "solana"))]
-        impl light_sdk::interface::Pack for #struct_name {
+        impl<AM: light_account::AccountMetaTrait> light_account::Pack<AM> for #struct_name {
             type Packed = #packed_struct_name;
 
             fn pack(
                 &self,
-                remaining_accounts: &mut light_sdk::instruction::PackedAccounts,
-            ) -> std::result::Result<Self::Packed, solana_program_error::ProgramError> {
-                <Self as light_sdk::interface::LightAccount>::pack(self, remaining_accounts)
+                remaining_accounts: &mut light_account::interface::instruction::PackedAccounts<AM>,
+            ) -> std::result::Result<Self::Packed, light_account::LightSdkTypesError> {
+                <Self as light_account::LightAccount>::pack(self, remaining_accounts)
             }
         }
 
         // V1 compatibility: Unpack trait for packed struct
-        impl light_sdk::interface::Unpack for #packed_struct_name {
+        impl<AI: light_account::AccountInfoTrait> light_account::Unpack<AI> for #packed_struct_name {
             type Unpacked = #struct_name;
 
             fn unpack(
                 &self,
-                remaining_accounts: &[solana_account_info::AccountInfo],
-            ) -> std::result::Result<Self::Unpacked, solana_program_error::ProgramError> {
+                remaining_accounts: &[AI],
+            ) -> std::result::Result<Self::Unpacked, light_account::LightSdkTypesError> {
                 // Create a ProgramPackedAccounts wrapper from remaining_accounts
-                let accounts = light_sdk::light_account_checks::packed_accounts::ProgramPackedAccounts {
+                let accounts = light_account::packed_accounts::ProgramPackedAccounts {
                     accounts: remaining_accounts
                 };
-                <#struct_name as light_sdk::interface::LightAccount>::unpack(self, &accounts)
+                <#struct_name as light_account::LightAccount>::unpack(self, &accounts)
             }
         }
 
         // V1 compatibility: HasCompressionInfo trait (wraps non-Option compression_info)
-        impl light_sdk::interface::HasCompressionInfo for #struct_name {
-            fn compression_info(&self) -> std::result::Result<&light_sdk::interface::CompressionInfo, solana_program_error::ProgramError> {
+        impl light_account::HasCompressionInfo for #struct_name {
+            fn compression_info(&self) -> std::result::Result<&light_account::CompressionInfo, light_account::LightSdkTypesError> {
                 Ok(&self.compression_info)
             }
 
-            fn compression_info_mut(&mut self) -> std::result::Result<&mut light_sdk::interface::CompressionInfo, solana_program_error::ProgramError> {
+            fn compression_info_mut(&mut self) -> std::result::Result<&mut light_account::CompressionInfo, light_account::LightSdkTypesError> {
                 Ok(&mut self.compression_info)
             }
 
-            fn compression_info_mut_opt(&mut self) -> &mut Option<light_sdk::interface::CompressionInfo> {
+            fn compression_info_mut_opt(&mut self) -> &mut Option<light_account::CompressionInfo> {
                 // V2 types use non-Option CompressionInfo, so this can't return a reference
                 // This method is only used by V1 code paths that expect Option<CompressionInfo>
                 panic!("compression_info_mut_opt not supported for LightAccount types (use compression_info_mut instead)")
             }
 
-            fn set_compression_info_none(&mut self) -> std::result::Result<(), solana_program_error::ProgramError> {
+            fn set_compression_info_none(&mut self) -> std::result::Result<(), light_account::LightSdkTypesError> {
                 // V2 types use non-Option CompressionInfo
                 // Setting to "compressed" state is the equivalent of "None" for V1
-                self.compression_info = light_sdk::compressible::CompressionInfo::compressed();
+                self.compression_info = light_account::CompressionInfo::compressed();
                 Ok(())
             }
         }
 
         // V1 compatibility: Size trait
-        impl light_sdk::account::Size for #struct_name {
+        impl light_account::Size for #struct_name {
             #[inline]
-            fn size(&self) -> std::result::Result<usize, solana_program_error::ProgramError> {
-                Ok(<Self as light_sdk::interface::LightAccount>::INIT_SPACE)
+            fn size(&self) -> std::result::Result<usize, light_account::LightSdkTypesError> {
+                Ok(<Self as light_account::LightAccount>::INIT_SPACE)
             }
         }
 
         // V1 compatibility: CompressAs trait
-        impl light_sdk::interface::CompressAs for #struct_name {
+        impl light_account::CompressAs for #struct_name {
             type Output = Self;
 
             fn compress_as(&self) -> std::borrow::Cow<'_, Self::Output> {
@@ -372,8 +373,8 @@ fn generate_light_account_impl(input: &DeriveInput) -> Result<TokenStream> {
         }
 
         // V1 compatibility: CompressedInitSpace trait
-        impl light_sdk::interface::CompressedInitSpace for #struct_name {
-            const COMPRESSED_INIT_SPACE: usize = <Self as light_sdk::interface::LightAccount>::INIT_SPACE;
+        impl light_account::CompressedInitSpace for #struct_name {
+            const COMPRESSED_INIT_SPACE: usize = <Self as light_account::LightAccount>::INIT_SPACE;
         }
     };
 
@@ -468,7 +469,7 @@ fn generate_pack_body(
             let field_type = &field.ty;
 
             Some(if is_pubkey_type(field_type) {
-                quote! { #field_name: accounts.insert_or_get_read_only(self.#field_name) }
+                quote! { #field_name: accounts.insert_or_get_read_only(AM::pubkey_from_bytes(self.#field_name.to_bytes())) }
             } else if is_copy_type(field_type) {
                 quote! { #field_name: self.#field_name }
             } else {
@@ -508,7 +509,7 @@ fn generate_unpack_body(
             // compression_info gets canonical value
             if field_name == "compression_info" {
                 return Some(quote! {
-                    #field_name: light_sdk::compressible::CompressionInfo::compressed()
+                    #field_name: light_account::CompressionInfo::compressed()
                 });
             }
 
@@ -518,7 +519,7 @@ fn generate_unpack_body(
                     #field_name: {
                         let account = accounts
                             .get_u8(packed.#field_name, #error_msg)
-                            .map_err(|_| solana_program_error::ProgramError::InvalidAccountData)?;
+                            .map_err(|_| light_account::LightSdkTypesError::InvalidInstructionData)?;
                         solana_pubkey::Pubkey::from(account.key())
                     }
                 }
@@ -593,7 +594,7 @@ fn generate_compress_as_impl_body(
         // No overrides - clone and set compression_info to Compressed
         return quote! {
             let mut result = self.clone();
-            result.compression_info = light_sdk::compressible::CompressionInfo::compressed();
+            result.compression_info = light_account::CompressionInfo::compressed();
             std::borrow::Cow::Owned(result)
         };
     };
@@ -628,14 +629,14 @@ fn generate_compress_as_impl_body(
         // No field overrides - clone and set compression_info to Compressed
         quote! {
             let mut result = self.clone();
-            result.compression_info = light_sdk::compressible::CompressionInfo::compressed();
+            result.compression_info = light_account::CompressionInfo::compressed();
             std::borrow::Cow::Owned(result)
         }
     } else {
         // Clone, set compression_info to Compressed, and apply overrides
         quote! {
             let mut result = self.clone();
-            result.compression_info = light_sdk::compressible::CompressionInfo::compressed();
+            result.compression_info = light_account::CompressionInfo::compressed();
             #(#assignments)*
             std::borrow::Cow::Owned(result)
         }
@@ -683,7 +684,7 @@ mod tests {
 
         // Should contain unified LightAccount implementation
         assert!(
-            output.contains("impl light_sdk :: interface :: LightAccount for UserRecord"),
+            output.contains("impl light_account :: LightAccount for UserRecord"),
             "Should implement LightAccount trait"
         );
 

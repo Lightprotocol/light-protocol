@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use borsh::BorshDeserialize;
+use light_account::LightConfig;
 use light_account_checks::discriminator::DISCRIMINATOR_LEN;
 use light_client::rpc::{Rpc, RpcError};
 use light_compressible::{
@@ -8,7 +9,6 @@ use light_compressible::{
     config::CompressibleConfig as CtokenCompressibleConfig,
     rent::{RentConfig, SLOTS_PER_EPOCH},
 };
-use light_sdk::interface::LightConfig;
 use light_token_interface::{
     state::{Mint, Token, ACCOUNT_TYPE_MINT, ACCOUNT_TYPE_TOKEN_ACCOUNT},
     LIGHT_TOKEN_PROGRAM_ID,
@@ -271,7 +271,10 @@ pub async fn auto_compress_program_pdas(
 
     let payer = rpc.get_payer().insecure_clone();
 
-    let config_pda = LightConfig::derive_pda(&program_id, 0).0;
+    let (config_pda, _) = Pubkey::find_program_address(
+        &[light_account::LIGHT_CONFIG_SEED, &0u16.to_le_bytes()],
+        &program_id,
+    );
 
     let cfg_acc_opt = rpc.get_account(config_pda).await?;
     let Some(cfg_acc) = cfg_acc_opt else {
@@ -279,10 +282,10 @@ pub async fn auto_compress_program_pdas(
     };
     let cfg = LightConfig::try_from_slice(&cfg_acc.data[DISCRIMINATOR_LEN..])
         .map_err(|e| RpcError::CustomError(format!("config deserialize: {e:?}")))?;
-    let rent_sponsor = cfg.rent_sponsor;
+    let rent_sponsor = Pubkey::from(cfg.rent_sponsor);
     // compression_authority is the payer by default for auto-compress
     let compression_authority = payer.pubkey();
-    let address_tree = cfg.address_space[0];
+    let address_tree = Pubkey::from(cfg.address_space[0]);
 
     let program_accounts = rpc.context.get_program_accounts(&program_id);
 

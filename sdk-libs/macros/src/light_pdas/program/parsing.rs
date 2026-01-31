@@ -682,11 +682,9 @@ pub fn wrap_function_with_light(
             #(#fn_attrs)*
             #fn_vis #fn_sig {
                 // Phase 1: Pre-init (creates mints via CPI context write, registers compressed addresses)
-                use light_sdk::interface::{LightPreInit, LightFinalize};
+                use light_account::{LightPreInit, LightFinalize};
                 let _ = #ctx_name.accounts.light_pre_init(#ctx_name.remaining_accounts, &#params_ident)
-                    .map_err(|e: light_sdk::error::LightSdkError| -> solana_program_error::ProgramError {
-                        e.into()
-                    })?;
+                    .map_err(|e| anchor_lang::error::Error::from(solana_program_error::ProgramError::from(e)))?;
 
                 // Execute delegation - this handles its own logic including any finalize
                 #fn_block
@@ -698,11 +696,9 @@ pub fn wrap_function_with_light(
             #(#fn_attrs)*
             #fn_vis #fn_sig {
                 // Phase 1: Pre-init (creates mints via CPI context write, registers compressed addresses)
-                use light_sdk::interface::{LightPreInit, LightFinalize};
+                use light_account::{LightPreInit, LightFinalize};
                 let __has_pre_init = #ctx_name.accounts.light_pre_init(#ctx_name.remaining_accounts, &#params_ident)
-                    .map_err(|e: light_sdk::error::LightSdkError| -> solana_program_error::ProgramError {
-                        e.into()
-                    })?;
+                    .map_err(|e| anchor_lang::error::Error::from(solana_program_error::ProgramError::from(e)))?;
 
                 // Execute the original handler body and capture result
                 let __user_result: anchor_lang::Result<()> = #fn_block;
@@ -711,9 +707,7 @@ pub fn wrap_function_with_light(
 
                 // Phase 2: Finalize (creates token accounts/ATAs via CPI)
                 #ctx_name.accounts.light_finalize(#ctx_name.remaining_accounts, &#params_ident, __has_pre_init)
-                    .map_err(|e: light_sdk::error::LightSdkError| -> solana_program_error::ProgramError {
-                        e.into()
-                    })?;
+                    .map_err(|e| anchor_lang::error::Error::from(solana_program_error::ProgramError::from(e)))?;
 
                 Ok(())
             }

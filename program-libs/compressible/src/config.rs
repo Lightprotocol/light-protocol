@@ -4,7 +4,7 @@ use solana_pubkey::{pubkey, Pubkey};
 
 use crate::{error::CompressibleError, rent::RentConfig, AnchorDeserialize, AnchorSerialize};
 
-pub const COMPRESSIBLE_CONFIG_SEED: &[u8] = b"compressible_config";
+pub const LIGHT_CONFIG_SEED: &[u8] = b"compressible_config";
 
 #[derive(Debug, PartialEq)]
 #[repr(u8)]
@@ -238,10 +238,7 @@ impl CompressibleConfig {
 
     /// Derives the config PDA address with config bump
     pub fn derive_pda(program_id: &Pubkey, config_bump: u16) -> (Pubkey, u8) {
-        Pubkey::find_program_address(
-            &[COMPRESSIBLE_CONFIG_SEED, &config_bump.to_le_bytes()],
-            program_id,
-        )
+        Pubkey::find_program_address(&[LIGHT_CONFIG_SEED, &config_bump.to_le_bytes()], program_id)
     }
 
     /// Derives the default config PDA address (config_bump = 1)
