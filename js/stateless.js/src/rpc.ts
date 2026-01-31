@@ -93,7 +93,6 @@ import {
     getDefaultAddressSpace,
     assertBetaEnabled,
 } from './constants';
-import { setDevnetCompat } from './devnet-compat';
 import BN from 'bn.js';
 import { toCamelCase, toHex } from './utils/conversion';
 import { ConfirmedSignatureInfo } from '@solana/web3.js';
@@ -280,10 +279,6 @@ export function createRpc(
     else {
         throw new Error('Invalid endpoint or connection type');
     }
-
-    // Auto-detect devnet for instruction encoding compatibility
-    // TODO: Remove after devnet program update
-    setDevnetCompat(endpoint.toLowerCase().includes('devnet'));
 
     return new Rpc(endpoint, compressionApiEndpoint, proverEndpoint, config);
 }

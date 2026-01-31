@@ -23,6 +23,13 @@ import {
 } from '../../src/v3/actions/create-ata-interface';
 import { getAssociatedTokenAddressInterface } from '../../src/v3/get-associated-token-address-interface';
 import { findMintAddress } from '../../src/v3/derivation';
+import {
+    LIGHT_TOKEN_RENT_SPONSOR,
+    TOTAL_COMPRESSION_COST,
+    COMPRESSIBLE_CTOKEN_RENT_PER_EPOCH,
+    DEFAULT_PREPAY_EPOCHS,
+    calculateFeePayerCostAtCreation,
+} from '../../src/constants';
 
 featureFlags.version = VERSION.V2;
 
@@ -103,6 +110,135 @@ describe('createAtaInterface', () => {
                 CTOKEN_PROGRAM_ID,
             );
             expect(address.toBase58()).toBe(expectedAddress.toBase58());
+        });
+
+        it('should use rent sponsor by default (rent sponsor pays rent exemption)', async () => {
+            const mintSigner = Keypair.generate();
+            const mintAuthority = Keypair.generate();
+            const owner = Keypair.generate();
+            const [mintPda] = findMintAddress(mintSigner.publicKey);
+
+            await createMintInterface(
+                rpc,
+                payer,
+                mintAuthority,
+                null,
+                9,
+                mintSigner,
+            );
+
+            // Get rent sponsor balance before ATA creation
+            const rentSponsorBalanceBefore = await rpc.getBalance(
+                LIGHT_TOKEN_RENT_SPONSOR,
+            );
+
+            // Get payer balance before
+            const payerBalanceBefore = await rpc.getBalance(payer.publicKey);
+
+            const address = await createAtaInterface(
+                rpc,
+                payer,
+                mintPda,
+                owner.publicKey,
+            );
+
+            // Get balances after
+            const rentSponsorBalanceAfter = await rpc.getBalance(
+                LIGHT_TOKEN_RENT_SPONSOR,
+            );
+            const payerBalanceAfter = await rpc.getBalance(payer.publicKey);
+
+            // Verify ATA was created
+            const accountInfo = await rpc.getAccountInfo(address);
+            expect(accountInfo).not.toBe(null);
+
+            // Rent sponsor should have paid the rent exemption (~890,880 lamports)
+            const rentSponsorDiff =
+                rentSponsorBalanceBefore - rentSponsorBalanceAfter;
+            expect(rentSponsorDiff).toBeGreaterThan(800_000); // ~890,880 for rent exemption
+
+            // Fee payer pays: compression_cost (11K) + 16 epochs rent (~6,400) + tx fees
+            // Expected: ~17,400 lamports + tx fees
+            const payerDiff = payerBalanceBefore - payerBalanceAfter;
+            const expectedFeePayerCost = calculateFeePayerCostAtCreation();
+            // Fee payer should pay compression_cost + prepaid rent + tx fees
+            expect(payerDiff).toBeGreaterThanOrEqual(expectedFeePayerCost);
+            expect(payerDiff).toBeLessThan(expectedFeePayerCost + 20_000); // Allow for tx fees
+        });
+
+        it('should correctly fund ATA for 24h with write top-up enforced', async () => {
+            const mintSigner = Keypair.generate();
+            const mintAuthority = Keypair.generate();
+            const owner = Keypair.generate();
+            const [mintPda] = findMintAddress(mintSigner.publicKey);
+
+            await createMintInterface(
+                rpc,
+                payer,
+                mintAuthority,
+                null,
+                9,
+                mintSigner,
+            );
+
+            // Get balances before
+            const rentSponsorBalanceBefore = await rpc.getBalance(
+                LIGHT_TOKEN_RENT_SPONSOR,
+            );
+            const payerBalanceBefore = await rpc.getBalance(payer.publicKey);
+
+            const address = await createAtaInterface(
+                rpc,
+                payer,
+                mintPda,
+                owner.publicKey,
+            );
+
+            // Get balances after
+            const rentSponsorBalanceAfter = await rpc.getBalance(
+                LIGHT_TOKEN_RENT_SPONSOR,
+            );
+            const payerBalanceAfter = await rpc.getBalance(payer.publicKey);
+            const ataBalance = await rpc.getBalance(address);
+
+            // 1) Rent exemption sponsored by tokenRentSponsor
+            const rentSponsorDiff =
+                rentSponsorBalanceBefore - rentSponsorBalanceAfter;
+            expect(rentSponsorDiff).toBeGreaterThan(800_000); // ~890,880 for rent exemption
+
+            // 2) ATA funded for 24h by fee payer
+            // Account balance should be: rent_exemption + compression_cost (11K) + 16 epochs rent (~6,400)
+            // The fee payer pays the compression_cost + prepaid rent portion
+            const payerDiff = payerBalanceBefore - payerBalanceAfter;
+            const expectedPrepaidRent =
+                DEFAULT_PREPAY_EPOCHS * COMPRESSIBLE_CTOKEN_RENT_PER_EPOCH; // 16 * 400 = 6,400
+            const expectedFeePayerCost =
+                TOTAL_COMPRESSION_COST + expectedPrepaidRent; // 11,000 + 6,400 = 17,400
+
+            // Payer should pay compression_cost + prepaid rent + tx fees
+            expect(payerDiff).toBeGreaterThanOrEqual(expectedFeePayerCost);
+            // Allow for tx fees (up to ~20K)
+            expect(payerDiff).toBeLessThan(expectedFeePayerCost + 20_000);
+
+            // 3) Verify ATA account balance includes rent exemption + working capital
+            // The ATA should have rent_exemption + compression_cost (11K) + prepaid rent
+            const accountInfo = await rpc.getAccountInfo(address);
+            expect(accountInfo).not.toBe(null);
+            const accountDataLength = accountInfo!.data.length;
+            const rentExemption =
+                await rpc.getMinimumBalanceForRentExemption(accountDataLength);
+
+            // Calculate expected prepaid rent using ACTUAL account size
+            const actualRentPerEpoch = 128 + accountDataLength; // base_rent + bytes * 1
+            const actualExpectedPrepaidRent =
+                DEFAULT_PREPAY_EPOCHS * actualRentPerEpoch;
+            const actualExpectedAtaBalance =
+                rentExemption +
+                TOTAL_COMPRESSION_COST +
+                actualExpectedPrepaidRent;
+
+            // ATA balance should EXACTLY match (no tolerance needed when using actual size)
+            expect(ataBalance).toBe(actualExpectedAtaBalance);
         });
 
         it('should fail creating CToken ATA twice (non-idempotent)', async () => {
