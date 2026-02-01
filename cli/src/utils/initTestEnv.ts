@@ -24,6 +24,11 @@ import {
 } from "./process";
 import { killProver, startProver } from "./processProverServer";
 import { killIndexer, startIndexer } from "./processPhotonIndexer";
+import {
+  killForester,
+  startForester,
+  getPayerForForester,
+} from "./processForester";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { execSync } from "child_process";
 
@@ -101,8 +106,10 @@ async function getProgramOwnedAccounts(
 export async function stopTestEnv(options: {
   indexer: boolean;
   prover: boolean;
+  forester?: boolean;
 }) {
   const processesToKill = [
+    { name: "forester", condition: options.forester ?? false, killFunction: killForester },
     { name: "photon", condition: options.indexer, killFunction: killIndexer },
     { name: "prover", condition: options.prover, killFunction: killProver },
     {
@@ -135,9 +142,11 @@ export async function initTestEnv({
   skipSystemAccounts,
   indexer = true,
   prover = true,
+  forester = false,
   rpcPort = 8899,
   indexerPort = 8784,
   proverPort = 3001,
+  foresterPort = 8080,
   gossipHost = "127.0.0.1",
   checkPhotonVersion = true,
   photonDatabaseUrl,
@@ -148,6 +157,7 @@ export async function initTestEnv({
   verbose,
   skipReset,
   useSurfpool,
+  compressiblePdaPrograms,
 }: {
   additionalPrograms?: { address: string; path: string }[];
   upgradeablePrograms?: {
@@ -158,9 +168,11 @@ export async function initTestEnv({
   skipSystemAccounts?: boolean;
   indexer: boolean;
   prover: boolean;
+  forester?: boolean;
   rpcPort?: number;
   indexerPort?: number;
   proverPort?: number;
+  foresterPort?: number;
   gossipHost?: string;
   checkPhotonVersion?: boolean;
   photonDatabaseUrl?: string;
@@ -171,6 +183,7 @@ export async function initTestEnv({
   verbose?: boolean;
   skipReset?: boolean;
   useSurfpool?: boolean;
+  compressiblePdaPrograms?: string[];
 }) {
   if (useSurfpool) {
     // For surfpool we can await startTestValidator because spawnBinary returns
@@ -249,6 +262,48 @@ export async function initTestEnv({
       proverUrlForIndexer,
       startSlot,
     );
+  }
+
+  if (forester) {
+    if (!indexer || !prover) {
+      throw new Error("Forester requires both indexer and prover to be running");
+    }
+    try {
+      const payer = getPayerForForester();
+      await startForester({
+        rpcUrl: `http://127.0.0.1:${rpcPort}`,
+        wsRpcUrl: `ws://127.0.0.1:${rpcPort + 1}`,
+        indexerUrl: `http://127.0.0.1:${indexerPort}`,
+        proverUrl: `http://127.0.0.1:${proverPort}`,
+        payer,
+        foresterPort,
+        compressiblePdaPrograms,
+      });
+    } catch (error) {
+      console.error("Failed to start forester:", error);
+      throw error;
+    }
+  }
+
+  if (forester) {
+    if (!indexer || !prover) {
+      throw new Error("Forester requires both indexer and prover to be running");
+    }
+    try {
+      const payer = getPayerForForester();
+      await startForester({
+        rpcUrl: `http://127.0.0.1:${rpcPort}`,
+        wsRpcUrl: `ws://127.0.0.1:${rpcPort + 1}`,
+        indexerUrl: `http://127.0.0.1:${indexerPort}`,
+        proverUrl: `http://127.0.0.1:${proverPort}`,
+        payer,
+        foresterPort,
+        compressiblePdaPrograms,
+      });
+    } catch (error) {
+      console.error("Failed to start forester:", error);
+      throw error;
+    }
   }
 }
 

@@ -36,6 +36,8 @@ pub struct LightValidatorConfig {
     pub limit_ledger_size: Option<u64>,
     /// Use surfpool instead of solana-test-validator
     pub use_surfpool: bool,
+    /// Additional arguments to pass to the validator (e.g., "--account <ADDRESS> <FILEPATH>")
+    pub validator_args: Vec<String>,
 }
 
 impl Default for LightValidatorConfig {
@@ -48,6 +50,7 @@ impl Default for LightValidatorConfig {
             upgradeable_programs: vec![],
             limit_ledger_size: None,
             use_surfpool: true,
+            validator_args: vec![],
         }
     }
 }
@@ -86,6 +89,10 @@ pub async fn spawn_validator(config: LightValidatorConfig) {
 
         if config.use_surfpool {
             path.push_str(" --use-surfpool");
+        }
+
+        for arg in config.validator_args.iter() {
+            path.push_str(&format!(" {}", arg));
         }
 
         println!("Starting validator with command: {}", path);

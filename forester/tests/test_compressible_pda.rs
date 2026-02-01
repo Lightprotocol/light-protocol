@@ -272,6 +272,7 @@ async fn test_compressible_pda_bootstrap() {
         )],
         limit_ledger_size: None,
         use_surfpool: true,
+        validator_args: vec![],
     })
     .await;
 
@@ -464,6 +465,7 @@ async fn test_compressible_pda_compression() {
         )],
         limit_ledger_size: None,
         use_surfpool: true,
+        validator_args: vec![],
     })
     .await;
 
@@ -700,6 +702,7 @@ async fn test_compressible_pda_subscription() {
         )],
         limit_ledger_size: None,
         use_surfpool: true,
+        validator_args: vec![],
     })
     .await;
 

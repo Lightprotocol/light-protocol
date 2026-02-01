@@ -43,6 +43,22 @@ class SetupCommand extends Command {
         "Runs a test validator without starting a new prover service.",
       default: false,
     }),
+    forester: Flags.boolean({
+      description:
+        "Start the forester service for auto-compression of compressible accounts.",
+      default: false,
+    }),
+    "forester-port": Flags.integer({
+      description: "Port for the forester API server.",
+      required: false,
+      default: 8080,
+    }),
+    "compressible-pda-program": Flags.string({
+      description:
+        "Compressible PDA programs to track. Format: 'program_id:discriminator_base58'. Can be specified multiple times.",
+      required: false,
+      multiple: true,
+    }),
     "skip-system-accounts": Flags.boolean({
       description:
         "Runs a test validator without initialized light system accounts.",
@@ -216,6 +232,7 @@ class SetupCommand extends Command {
       await stopTestEnv({
         indexer: !flags["skip-indexer"],
         prover: !flags["skip-prover"],
+        forester: flags.forester,
       });
       this.log("\nTest validator stopped successfully \x1b[32m✔\x1b[0m");
     } else {
@@ -268,6 +285,9 @@ class SetupCommand extends Command {
         indexerPort: flags["indexer-port"],
         proverPort: flags["prover-port"],
         prover: !flags["skip-prover"],
+        forester: flags.forester,
+        foresterPort: flags["forester-port"],
+        compressiblePdaPrograms: flags["compressible-pda-program"],
         skipSystemAccounts: flags["skip-system-accounts"],
         geyserConfig: flags["geyser-config"],
         validatorArgs: flags["validator-args"],

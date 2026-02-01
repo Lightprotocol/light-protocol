@@ -142,6 +142,7 @@ async fn test_compressible_mint_bootstrap() {
         upgradeable_programs: vec![],
         limit_ledger_size: None,
         use_surfpool: true,
+        validator_args: vec![],
     })
     .await;
 
@@ -280,6 +281,7 @@ async fn test_compressible_mint_compression() {
         upgradeable_programs: vec![],
         limit_ledger_size: None,
         use_surfpool: true,
+        validator_args: vec![],
     })
     .await;
 
@@ -490,6 +492,7 @@ async fn test_compressible_mint_subscription() {
         upgradeable_programs: vec![],
         limit_ledger_size: None,
         use_surfpool: true,
+        validator_args: vec![],
     })
     .await;
 

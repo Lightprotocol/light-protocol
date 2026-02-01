@@ -107,6 +107,7 @@ async fn test_indexer_interface_scenarios() {
         )],
         upgradeable_programs: vec![],
         limit_ledger_size: None,
+        validator_args: vec![],
     })
     .await;
 
