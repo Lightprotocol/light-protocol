@@ -4,11 +4,8 @@
 //! including compression info, decompression, and closing.
 
 pub mod compression_info;
+pub mod light_account;
 pub mod pack;
 pub mod pda_seeds;
-
-#[cfg(feature = "anchor")]
-pub mod light_account;
-
-#[cfg(feature = "anchor")]
+#[cfg(feature = "token")]
 pub mod token_seeds;

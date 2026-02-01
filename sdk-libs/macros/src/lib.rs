@@ -210,6 +210,42 @@ pub fn light_program(args: TokenStream, input: TokenStream) -> TokenStream {
     into_token_stream(light_pdas::program::light_program_impl(args.into(), module))
 }
 
+/// Derive macro for manually specifying compressed account variants on an enum.
+///
+/// Generates equivalent code to `#[light_program]` auto-discovery, but allows
+/// specifying account types and seeds explicitly. Useful for external programs
+/// where you don't own the module.
+///
+/// ## Example
+///
+/// ```ignore
+/// #[derive(LightProgram)]
+/// pub enum ProgramAccounts {
+///     #[light_account(pda::seeds = [b"record", ctx.owner])]
+///     Record(MinimalRecord),
+///
+///     #[light_account(pda::seeds = [RECORD_SEED, ctx.owner], pda::zero_copy)]
+///     ZeroCopyRecord(ZeroCopyRecord),
+///
+///     #[light_account(token::seeds = [VAULT_SEED, ctx.mint], token::owner_seeds = [AUTH_SEED])]
+///     Vault,
+///
+///     #[light_account(associated_token)]
+///     Ata,
+/// }
+/// ```
+///
+/// Seed expressions use explicit prefixes:
+/// - `ctx.field` - context account reference
+/// - `data.field` - instruction data parameter
+/// - `b"literal"` or `"literal"` - byte/string literal
+/// - `CONSTANT` or `path::CONSTANT` - constant in SCREAMING_SNAKE_CASE
+#[proc_macro_derive(LightProgram, attributes(light_account))]
+pub fn light_program_derive(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    into_token_stream(light_pdas::program::derive_light_program_impl(input))
+}
+
 #[proc_macro_attribute]
 pub fn account(_: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);

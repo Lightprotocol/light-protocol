@@ -2,18 +2,24 @@ use light_compressed_account::instruction_data::with_account_info::InstructionDa
 use light_compressed_account::instruction_data::with_readonly::{
     InAccount, InstructionDataInvokeCpiWithReadOnly,
 };
+use light_compressed_account::instruction_data::{
+    compressed_proof::ValidityProof,
+    cpi_context::CompressedCpiContext,
+};
 
 #[cfg(feature = "poseidon")]
 use crate::{account::poseidon::LightAccount as LightAccountPoseidon, DataHasher};
 use crate::{
     account::LightAccount,
-    cpi::instruction::WithLightAccount,
+    cpi::{delegate_light_cpi, LightCpiInstruction},
     error::LightSdkError,
     instruction::account_info::CompressedAccountInfoTrait,
     AnchorDeserialize, AnchorSerialize, LightDiscriminator, ProgramError,
 };
 
-impl WithLightAccount for InstructionDataInvokeCpiWithReadOnly {
+impl LightCpiInstruction for InstructionDataInvokeCpiWithReadOnly {
+    delegate_light_cpi!(InstructionDataInvokeCpiWithReadOnly);
+
     fn with_light_account<A>(mut self, account: LightAccount<A>) -> Result<Self, ProgramError>
     where
         A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + Default,
@@ -127,7 +133,9 @@ impl WithLightAccount for InstructionDataInvokeCpiWithReadOnly {
     }
 }
 
-impl WithLightAccount for InstructionDataInvokeCpiWithAccountInfo {
+impl LightCpiInstruction for InstructionDataInvokeCpiWithAccountInfo {
+    delegate_light_cpi!(InstructionDataInvokeCpiWithAccountInfo);
+
     fn with_light_account<A>(mut self, account: LightAccount<A>) -> Result<Self, ProgramError>
     where
         A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + Default,

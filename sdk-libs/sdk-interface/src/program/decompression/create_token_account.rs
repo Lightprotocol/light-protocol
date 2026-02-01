@@ -1,61 +1,50 @@
 //! ATA and token account creation helpers for decompression.
+//!
+//! Returns `(instruction_data, account_metas)` tuples for use with `AI::invoke_cpi()`.
 
-use light_token_interface::instructions::{
-    create_token_account::CreateTokenAccountInstructionData,
-    extensions::{CompressToPubkey, CompressibleExtensionInstructionData},
+use light_account_checks::CpiMeta;
+use light_token_interface::{
+    instructions::{
+        create_associated_token_account::CreateAssociatedTokenAccountInstructionData,
+        create_token_account::CreateTokenAccountInstructionData,
+        extensions::{CompressToPubkey, CompressibleExtensionInstructionData},
+    },
+    LIGHT_TOKEN_PROGRAM_ID,
 };
-use solana_instruction::{AccountMeta, Instruction};
-use solana_program_error::ProgramError;
-use solana_pubkey::Pubkey;
 
-use crate::AnchorSerialize;
+use crate::{error::LightPdaError, AnchorSerialize};
 
-/// Build a CreateAssociatedTokenAccountIdempotent instruction for ATA decompression.
+/// Build instruction data and account metas for creating a compressible ATA.
 ///
-/// Creates a compressible ATA with compression_only mode (required for ATA decompression).
+/// Returns `(data, account_metas, program_id)` for use with `AI::invoke_cpi()`.
 ///
 /// # Account order (per on-chain handler):
-/// 0. owner (non-mut, non-signer) - The wallet owner
-/// 1. mint (non-mut, non-signer) - The token mint
-/// 2. fee_payer (signer, writable) - Pays for account creation
-/// 3. associated_token_account (writable, NOT signer) - The ATA to create
-/// 4. system_program (readonly) - System program
-/// 5. compressible_config (readonly) - Compressible config PDA
-/// 6. rent_payer (writable) - Rent sponsor account
-///
-/// # Arguments
-/// * `wallet_owner` - The wallet owner (ATA derivation seed)
-/// * `mint` - The token mint
-/// * `fee_payer` - Pays for account creation
-/// * `ata` - The ATA pubkey (derived from wallet_owner, program_id, mint)
-/// * `bump` - The ATA derivation bump
-/// * `compressible_config` - Compressible config PDA
-/// * `rent_sponsor` - Rent sponsor account
-/// * `write_top_up` - Lamports per write for top-up
+/// 0. owner (non-mut, non-signer)
+/// 1. mint (non-mut, non-signer)
+/// 2. fee_payer (signer, writable)
+/// 3. associated_token_account (writable, NOT signer)
+/// 4. system_program (readonly)
+/// 5. compressible_config (readonly)
+/// 6. rent_payer (writable)
 #[allow(clippy::too_many_arguments)]
 pub fn build_create_ata_instruction(
-    wallet_owner: &Pubkey,
-    mint: &Pubkey,
-    fee_payer: &Pubkey,
-    ata: &Pubkey,
+    wallet_owner: &[u8; 32],
+    mint: &[u8; 32],
+    fee_payer: &[u8; 32],
+    ata: &[u8; 32],
     bump: u8,
-    compressible_config: &Pubkey,
-    rent_sponsor: &Pubkey,
+    compressible_config: &[u8; 32],
+    rent_sponsor: &[u8; 32],
     write_top_up: u32,
-) -> Result<Instruction, ProgramError> {
-    use light_token_interface::instructions::{
-        create_associated_token_account::CreateAssociatedTokenAccountInstructionData,
-        extensions::CompressibleExtensionInstructionData,
-    };
-
+) -> Result<(Vec<u8>, Vec<CpiMeta>), LightPdaError> {
     let instruction_data = CreateAssociatedTokenAccountInstructionData {
         bump,
         compressible_config: Some(CompressibleExtensionInstructionData {
             token_account_version: 3, // ShaFlat version (required)
-            rent_payment: 16,         // 24h, TODO: make configurable
+            rent_payment: 16,         // 24h
             compression_only: 1,      // Required for ATA
             write_top_up,
-            compress_to_account_pubkey: None, // Required to be None for ATA
+            compress_to_account_pubkey: None,
         }),
     };
 
@@ -63,57 +52,76 @@ pub fn build_create_ata_instruction(
     data.push(102u8); // CreateAssociatedTokenAccountIdempotent discriminator
     instruction_data
         .serialize(&mut data)
-        .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
+        .map_err(|_| LightPdaError::Borsh)?;
 
     let accounts = vec![
-        AccountMeta::new_readonly(*wallet_owner, false),
-        AccountMeta::new_readonly(*mint, false),
-        AccountMeta::new(*fee_payer, true),
-        AccountMeta::new(*ata, false), // NOT a signer - ATA is derived
-        AccountMeta::new_readonly(Pubkey::default(), false), // system_program
-        AccountMeta::new_readonly(*compressible_config, false),
-        AccountMeta::new(*rent_sponsor, false),
+        CpiMeta {
+            pubkey: *wallet_owner,
+            is_signer: false,
+            is_writable: false,
+        },
+        CpiMeta {
+            pubkey: *mint,
+            is_signer: false,
+            is_writable: false,
+        },
+        CpiMeta {
+            pubkey: *fee_payer,
+            is_signer: true,
+            is_writable: true,
+        },
+        CpiMeta {
+            pubkey: *ata,
+            is_signer: false,
+            is_writable: true,
+        }, // NOT a signer - ATA is derived
+        CpiMeta {
+            pubkey: [0u8; 32],
+            is_signer: false,
+            is_writable: false,
+        }, // system_program
+        CpiMeta {
+            pubkey: *compressible_config,
+            is_signer: false,
+            is_writable: false,
+        },
+        CpiMeta {
+            pubkey: *rent_sponsor,
+            is_signer: false,
+            is_writable: true,
+        },
     ];
 
-    Ok(Instruction {
-        program_id: light_token_interface::LIGHT_TOKEN_PROGRAM_ID.into(),
-        accounts,
-        data,
-    })
+    Ok((data, accounts))
 }
 
-/// Build a CreateTokenAccount instruction for decompression.
+/// Build instruction data and account metas for creating a compressible token account.
 ///
-/// Creates a compressible token account with ShaFlat version (required by light token program).
+/// Returns `(data, account_metas)` for use with `AI::invoke_cpi()`.
 ///
 /// # Account order:
-/// 0. token_account (signer, writable) - The token account PDA to create
-/// 1. mint (readonly) - The token mint
-/// 2. fee_payer (signer, writable) - Pays for account creation
-/// 3. compressible_config (readonly) - Compressible config PDA
-/// 4. system_program (readonly) - System program
-/// 5. rent_sponsor (writable) - Rent sponsor account
-///
-/// # Arguments
-/// * `signer_seeds` - Seeds including bump for the token account PDA
-/// * `program_id` - Program ID that owns the token account PDA
+/// 0. token_account (signer, writable)
+/// 1. mint (readonly)
+/// 2. fee_payer (signer, writable)
+/// 3. compressible_config (readonly)
+/// 4. system_program (readonly)
+/// 5. rent_sponsor (writable)
 #[allow(clippy::too_many_arguments)]
 pub fn build_create_token_account_instruction(
-    token_account: &Pubkey,
-    mint: &Pubkey,
-    owner: &Pubkey,
-    fee_payer: &Pubkey,
-    compressible_config: &Pubkey,
-    rent_sponsor: &Pubkey,
+    token_account: &[u8; 32],
+    mint: &[u8; 32],
+    owner: &[u8; 32],
+    fee_payer: &[u8; 32],
+    compressible_config: &[u8; 32],
+    rent_sponsor: &[u8; 32],
     write_top_up: u32,
     signer_seeds: &[&[u8]],
-    program_id: &Pubkey,
-) -> Result<Instruction, ProgramError> {
-    // Build CompressToPubkey from signer_seeds (last seed is bump)
+    program_id: &[u8; 32],
+) -> Result<(Vec<u8>, Vec<CpiMeta>), LightPdaError> {
     let bump = signer_seeds
         .last()
         .and_then(|s| s.first().copied())
-        .ok_or(ProgramError::InvalidSeeds)?;
+        .ok_or(LightPdaError::InvalidSeeds)?;
     let seeds_without_bump: Vec<Vec<u8>> = signer_seeds
         .iter()
         .take(signer_seeds.len().saturating_sub(1))
@@ -122,16 +130,16 @@ pub fn build_create_token_account_instruction(
 
     let compress_to_account_pubkey = CompressToPubkey {
         bump,
-        program_id: program_id.to_bytes(),
+        program_id: *program_id,
         seeds: seeds_without_bump,
     };
 
     let instruction_data = CreateTokenAccountInstructionData {
-        owner: light_compressed_account::Pubkey::from(owner.to_bytes()),
+        owner: light_compressed_account::Pubkey::from(*owner),
         compressible_config: Some(CompressibleExtensionInstructionData {
             token_account_version: 3, // ShaFlat version (required)
-            rent_payment: 16,         // 24h, TODO: make configurable
-            compression_only: 0,      // Regular tokens can be transferred, not compression-only
+            rent_payment: 16,         // 24h
+            compression_only: 0,      // Regular tokens can be transferred
             write_top_up,
             compress_to_account_pubkey: Some(compress_to_account_pubkey),
         }),
@@ -141,20 +149,43 @@ pub fn build_create_token_account_instruction(
     data.push(18u8); // InitializeAccount3 opcode
     instruction_data
         .serialize(&mut data)
-        .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
+        .map_err(|_| LightPdaError::Borsh)?;
 
     let accounts = vec![
-        AccountMeta::new(*token_account, true),
-        AccountMeta::new_readonly(*mint, false),
-        AccountMeta::new(*fee_payer, true),
-        AccountMeta::new_readonly(*compressible_config, false),
-        AccountMeta::new_readonly(Pubkey::default(), false), // system_program
-        AccountMeta::new(*rent_sponsor, false),
+        CpiMeta {
+            pubkey: *token_account,
+            is_signer: true,
+            is_writable: true,
+        },
+        CpiMeta {
+            pubkey: *mint,
+            is_signer: false,
+            is_writable: false,
+        },
+        CpiMeta {
+            pubkey: *fee_payer,
+            is_signer: true,
+            is_writable: true,
+        },
+        CpiMeta {
+            pubkey: *compressible_config,
+            is_signer: false,
+            is_writable: false,
+        },
+        CpiMeta {
+            pubkey: [0u8; 32],
+            is_signer: false,
+            is_writable: false,
+        }, // system_program
+        CpiMeta {
+            pubkey: *rent_sponsor,
+            is_signer: false,
+            is_writable: true,
+        },
     ];
 
-    Ok(Instruction {
-        program_id: light_token_interface::LIGHT_TOKEN_PROGRAM_ID.into(),
-        accounts,
-        data,
-    })
+    Ok((data, accounts))
 }
+
+/// The Light Token Program ID for CPI calls.
+pub const TOKEN_PROGRAM_ID: [u8; 32] = LIGHT_TOKEN_PROGRAM_ID;

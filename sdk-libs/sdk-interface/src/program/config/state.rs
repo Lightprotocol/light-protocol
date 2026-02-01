@@ -3,14 +3,11 @@
 use light_account_checks::{
     checks::check_discriminator,
     discriminator::{Discriminator, DISCRIMINATOR_LEN},
+    AccountInfoTrait,
 };
 use light_compressible::rent::RentConfig;
-use solana_account_info::AccountInfo;
-use solana_msg::msg;
-use solana_program_error::ProgramError;
-use solana_pubkey::Pubkey;
 
-use super::{COMPRESSIBLE_CONFIG_SEED, MAX_ADDRESS_TREES_PER_SPACE, RENT_SPONSOR_SEED};
+use super::{COMPRESSIBLE_CONFIG_SEED, MAX_ADDRESS_TREES_PER_SPACE};
 use crate::{error::LightPdaError, AnchorDeserialize, AnchorSerialize};
 
 /// Global configuration for compressible accounts
@@ -21,11 +18,11 @@ pub struct LightConfig {
     /// Lamports to top up on each write (heuristic)
     pub write_top_up: u32,
     /// Authority that can update the config
-    pub update_authority: Pubkey,
+    pub update_authority: [u8; 32],
     /// Account that receives rent from compressed PDAs
-    pub rent_sponsor: Pubkey,
+    pub rent_sponsor: [u8; 32],
     /// Authority that can compress/close PDAs (distinct from rent_sponsor)
-    pub compression_authority: Pubkey,
+    pub compression_authority: [u8; 32],
     /// Rent function parameters for compressibility and distribution
     pub rent_config: RentConfig,
     /// Config bump seed (0)
@@ -35,7 +32,7 @@ pub struct LightConfig {
     /// Rent sponsor PDA bump seed
     pub rent_sponsor_bump: u8,
     /// Address space for compressed accounts (currently 1 address_tree allowed)
-    pub address_space: Vec<Pubkey>,
+    pub address_space: Vec<[u8; 32]>,
 }
 
 /// Implement the Light Discriminator trait for LightConfig
@@ -76,113 +73,86 @@ impl LightConfig {
             + (32 * num_address_trees)
     }
 
-    /// Derives the config PDA address with config bump
-    pub fn derive_pda(program_id: &Pubkey, config_bump: u8) -> (Pubkey, u8) {
-        // Convert u8 to u16 to match program-libs derivation (uses u16 with to_le_bytes)
+    /// Derives the config PDA address (returns raw bytes).
+    /// Generic over AccountInfoTrait for framework-agnostic PDA derivation.
+    pub fn derive_pda_bytes<AI: AccountInfoTrait>(
+        program_id: &[u8; 32],
+        config_bump: u8,
+    ) -> ([u8; 32], u8) {
         let config_bump_u16 = config_bump as u16;
-        Pubkey::find_program_address(
+        AI::find_program_address(
             &[COMPRESSIBLE_CONFIG_SEED, &config_bump_u16.to_le_bytes()],
             program_id,
         )
     }
 
-    /// Derives the default config PDA address (config_bump = 0)
-    pub fn derive_default_pda(program_id: &Pubkey) -> (Pubkey, u8) {
-        Self::derive_pda(program_id, 0)
-    }
-
-    /// Derives the rent sponsor PDA address for a program.
-    /// Seeds: ["rent_sponsor"]
-    pub fn derive_rent_sponsor_pda(program_id: &Pubkey) -> (Pubkey, u8) {
-        Pubkey::find_program_address(&[RENT_SPONSOR_SEED], program_id)
+    /// Derives the rent sponsor PDA address (returns raw bytes).
+    pub fn derive_rent_sponsor_pda_bytes<AI: AccountInfoTrait>(
+        program_id: &[u8; 32],
+    ) -> ([u8; 32], u8) {
+        AI::find_program_address(&[super::RENT_SPONSOR_SEED], program_id)
     }
 
     /// Validates rent_sponsor matches config and returns stored bump for signing.
-    pub fn validate_rent_sponsor(
+    pub fn validate_rent_sponsor_account<AI: AccountInfoTrait>(
         &self,
-        rent_sponsor: &AccountInfo,
-    ) -> Result<u8, ProgramError> {
-        if *rent_sponsor.key != self.rent_sponsor {
-            msg!(
-                "rent_sponsor mismatch: expected {:?}, got {:?}",
-                self.rent_sponsor,
-                rent_sponsor.key
-            );
-            return Err(LightPdaError::InvalidRentSponsor.into());
+        rent_sponsor: &AI,
+    ) -> Result<u8, LightPdaError> {
+        if rent_sponsor.key() != self.rent_sponsor {
+            return Err(LightPdaError::InvalidRentSponsor);
         }
         Ok(self.rent_sponsor_bump)
     }
 
     /// Checks the config account
-    pub fn validate(&self) -> Result<(), ProgramError> {
+    pub fn validate(&self) -> Result<(), LightPdaError> {
         if self.version != 1 {
-            msg!(
-                "LightConfig validation failed: Unsupported config version: {}",
-                self.version
-            );
-            return Err(LightPdaError::ConstraintViolation.into());
+            return Err(LightPdaError::ConstraintViolation);
         }
         if self.address_space.len() != 1 {
-            msg!(
-                "LightConfig validation failed: Address space must contain exactly 1 pubkey, found: {}",
-                self.address_space.len()
-            );
-            return Err(LightPdaError::ConstraintViolation.into());
+            return Err(LightPdaError::ConstraintViolation);
         }
         // For now, only allow config_bump = 0 to keep it simple
         if self.config_bump != 0 {
-            msg!(
-                "LightConfig validation failed: Config bump must be 0 for now, found: {}",
-                self.config_bump
-            );
-            return Err(LightPdaError::ConstraintViolation.into());
+            return Err(LightPdaError::ConstraintViolation);
         }
         Ok(())
     }
 
-    /// Loads and validates config from account, checking owner, discriminator, and PDA derivation
+    /// Loads and validates config from account, checking owner, discriminator, and PDA derivation.
+    /// Generic over AccountInfoTrait - works with both solana and pinocchio.
     #[inline(never)]
-    pub fn load_checked(
-        account: &AccountInfo,
-        program_id: &Pubkey,
-    ) -> Result<Self, ProgramError> {
+    pub fn load_checked<AI: AccountInfoTrait>(
+        account: &AI,
+        program_id: &[u8; 32],
+    ) -> Result<Self, LightPdaError> {
         // CHECK: Owner
-        if account.owner != program_id {
-            msg!(
-                "LightConfig::load_checked failed: Config account owner mismatch. Expected: {:?}. Found: {:?}.",
-                program_id,
-                account.owner
-            );
-            return Err(LightPdaError::ConstraintViolation.into());
+        if !account.is_owned_by(program_id) {
+            return Err(LightPdaError::ConstraintViolation);
         }
 
-        let data = account.try_borrow_data()?;
+        let data = account
+            .try_borrow_data()
+            .map_err(|_| LightPdaError::ConstraintViolation)?;
 
         // CHECK: Discriminator using light-account-checks
-        check_discriminator::<Self>(&data).map_err(|e| {
-            msg!("LightConfig::load_checked failed: {:?}", e);
-            LightPdaError::ConstraintViolation
-        })?;
+        check_discriminator::<Self>(&data).map_err(|_| LightPdaError::ConstraintViolation)?;
 
         // Deserialize from offset after discriminator
-        let config = Self::try_from_slice(&data[DISCRIMINATOR_LEN..]).map_err(|err| {
-            msg!(
-                "LightConfig::load_checked failed: Failed to deserialize config data: {:?}",
-                err
-            );
-            LightPdaError::Borsh
-        })?;
+        let config =
+            Self::try_from_slice(&data[DISCRIMINATOR_LEN..]).map_err(|_| LightPdaError::Borsh)?;
         config.validate()?;
 
         // CHECK: PDA derivation
-        let (expected_pda, _) = Self::derive_pda(program_id, config.config_bump);
-        if expected_pda != *account.key {
-            msg!(
-                "LightConfig::load_checked failed: Config account key mismatch. Expected PDA: {:?}. Found: {:?}.",
-                expected_pda,
-                account.key
-            );
-            return Err(LightPdaError::ConstraintViolation.into());
+        let (expected_pda, _) = AI::find_program_address(
+            &[
+                COMPRESSIBLE_CONFIG_SEED,
+                &(config.config_bump as u16).to_le_bytes(),
+            ],
+            program_id,
+        );
+        if expected_pda != account.key() {
+            return Err(LightPdaError::ConstraintViolation);
         }
 
         Ok(config)

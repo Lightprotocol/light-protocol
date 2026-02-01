@@ -9,7 +9,7 @@
 //! This two-phase design allows mints to be created BEFORE the instruction body runs,
 //! so they can be used during the instruction (e.g., for vault creation, minting tokens).
 
-use solana_account_info::AccountInfo;
+use light_account_checks::AccountInfoTrait;
 
 /// Trait for pre-initialization operations (mint creation).
 ///
@@ -21,13 +21,13 @@ use solana_account_info::AccountInfo;
 /// mints and PDAs.
 ///
 /// # Type Parameters
-/// * `'info` - The account info lifetime
+/// * `AI` - AccountInfoTrait implementation (solana or pinocchio)
 /// * `P` - The instruction params type (from `#[instruction(params: P)]`)
-pub trait LightPreInit<'info, P> {
+pub trait LightPreInit<AI: AccountInfoTrait, P> {
     /// Execute pre-initialization operations (mint creation).
     fn light_pre_init(
         &mut self,
-        remaining_accounts: &[AccountInfo<'info>],
+        remaining_accounts: &[AI],
         params: &P,
     ) -> Result<bool, crate::error::LightPdaError>;
 }
@@ -35,13 +35,13 @@ pub trait LightPreInit<'info, P> {
 /// Trait for finalizing compression operations on accounts.
 ///
 /// # Type Parameters
-/// * `'info` - The account info lifetime
+/// * `AI` - AccountInfoTrait implementation (solana or pinocchio)
 /// * `P` - The instruction params type (from `#[instruction(params: P)]`)
-pub trait LightFinalize<'info, P> {
+pub trait LightFinalize<AI: AccountInfoTrait, P> {
     /// Execute compression finalization.
     fn light_finalize(
         &mut self,
-        remaining_accounts: &[AccountInfo<'info>],
+        remaining_accounts: &[AI],
         params: &P,
         has_pre_init: bool,
     ) -> Result<(), crate::error::LightPdaError>;

@@ -2,26 +2,17 @@ extern crate alloc;
 use alloc::borrow::Cow;
 
 use bytemuck::{Pod, Zeroable};
+use light_account_checks::AccountInfoTrait;
 use light_compressible::rent::RentConfig;
 use light_sdk_types::instruction::PackedStateTreeInfo;
-use solana_account_info::AccountInfo;
-use solana_program_error::ProgramError;
 
-use super::pack::Unpack;
-use crate::{AnchorDeserialize, AnchorSerialize};
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
-#[repr(u8)]
-pub enum AccountState {
-    Initialized,
-    Frozen,
-}
+use crate::{error::LightPdaError, AnchorDeserialize, AnchorSerialize};
 
 pub trait HasCompressionInfo {
-    fn compression_info(&self) -> Result<&CompressionInfo, ProgramError>;
-    fn compression_info_mut(&mut self) -> Result<&mut CompressionInfo, ProgramError>;
+    fn compression_info(&self) -> Result<&CompressionInfo, LightPdaError>;
+    fn compression_info_mut(&mut self) -> Result<&mut CompressionInfo, LightPdaError>;
     fn compression_info_mut_opt(&mut self) -> &mut Option<CompressionInfo>;
-    fn set_compression_info_none(&mut self) -> Result<(), ProgramError>;
+    fn set_compression_info_none(&mut self) -> Result<(), LightPdaError>;
 }
 
 /// Simple field accessor trait for types with a `compression_info: Option<CompressionInfo>` field.
@@ -49,7 +40,7 @@ pub trait CompressionInfoField {
     fn write_decompressed_info_to_slice(
         data: &mut [u8],
         current_slot: u64,
-    ) -> Result<(), ProgramError> {
+    ) -> Result<(), LightPdaError> {
         use crate::AnchorSerialize;
 
         let info = CompressionInfo {
@@ -71,7 +62,7 @@ pub trait CompressionInfoField {
         };
 
         if data.len() < offset + option_size {
-            return Err(ProgramError::AccountDataTooSmall);
+            return Err(LightPdaError::AccountDataTooSmall);
         }
 
         let target = &mut data[offset..offset + option_size];
@@ -79,30 +70,30 @@ pub trait CompressionInfoField {
         target[0] = 1;
         // Write CompressionInfo
         info.serialize(&mut &mut target[1..])
-            .map_err(|_| ProgramError::BorshIoError("compression_info serialize failed".into()))?;
+            .map_err(|e| LightPdaError::BorshIo(e.to_string()))?;
 
         Ok(())
     }
 }
 
 impl<T: CompressionInfoField> HasCompressionInfo for T {
-    fn compression_info(&self) -> Result<&CompressionInfo, ProgramError> {
+    fn compression_info(&self) -> Result<&CompressionInfo, LightPdaError> {
         self.compression_info_field()
             .as_ref()
-            .ok_or(crate::error::LightPdaError::MissingCompressionInfo.into())
+            .ok_or(LightPdaError::MissingCompressionInfo)
     }
 
-    fn compression_info_mut(&mut self) -> Result<&mut CompressionInfo, ProgramError> {
+    fn compression_info_mut(&mut self) -> Result<&mut CompressionInfo, LightPdaError> {
         self.compression_info_field_mut()
             .as_mut()
-            .ok_or(crate::error::LightPdaError::MissingCompressionInfo.into())
+            .ok_or(LightPdaError::MissingCompressionInfo)
     }
 
     fn compression_info_mut_opt(&mut self) -> &mut Option<CompressionInfo> {
         self.compression_info_field_mut()
     }
 
-    fn set_compression_info_none(&mut self) -> Result<(), ProgramError> {
+    fn set_compression_info_none(&mut self) -> Result<(), LightPdaError> {
         *self.compression_info_field_mut() = None;
         Ok(())
     }
@@ -291,27 +282,21 @@ impl CompressionInfo {
 
     /// Top up rent on write if needed and transfer lamports from payer to account.
     /// This is the standard pattern for all write operations on compressible PDAs.
+    /// Generic over AccountInfoTrait to work with both solana and pinocchio.
     ///
     /// # Arguments
     /// * `account_info` - The PDA account to top up
     /// * `payer_info` - The payer account (will be debited)
-    /// * `system_program_info` - The System Program account for CPI
-    ///
-    /// # Returns
-    /// * `Ok(())` if top-up succeeded or was not needed
-    /// * `Err(ProgramError)` if transfer failed
-    pub fn top_up_rent<'a>(
+    pub fn top_up_rent<AI: AccountInfoTrait>(
         &self,
-        account_info: &AccountInfo<'a>,
-        payer_info: &AccountInfo<'a>,
-        system_program_info: &AccountInfo<'a>,
-    ) -> Result<(), ProgramError> {
-        use solana_sysvar::{rent::Rent, Sysvar};
-
+        account_info: &AI,
+        payer_info: &AI,
+    ) -> Result<(), LightPdaError> {
         let bytes = account_info.data_len() as u64;
         let current_lamports = account_info.lamports();
-        let current_slot = solana_sysvar::clock::Clock::get()?.slot;
-        let rent_exemption_lamports = Rent::get()?.minimum_balance(bytes as usize);
+        let current_slot = AI::get_current_slot().map_err(LightPdaError::AccountCheck)?;
+        let rent_exemption_lamports =
+            AI::get_min_rent_balance(bytes as usize).map_err(LightPdaError::AccountCheck)?;
 
         let top_up = self.calculate_top_up_lamports(
             bytes,
@@ -321,8 +306,10 @@ impl CompressionInfo {
         );
 
         if top_up > 0 {
-            // Use System Program CPI to transfer lamports
-            transfer_lamports_cpi(payer_info, account_info, system_program_info, top_up)?;
+            // Use System Program CPI to transfer lamports (payer is a signer, pass empty seeds)
+            payer_info
+                .transfer_lamports_cpi(account_info, top_up, &[])
+                .map_err(LightPdaError::AccountCheck)?;
         }
 
         Ok(())
@@ -336,11 +323,6 @@ pub trait Space {
 impl Space for CompressionInfo {
     // 8 (u64 last_claimed_slot) + 4 (u32 lamports_per_write) + 2 (u16 config_version) + 1 (CompressionState) + 1 padding + 8 (RentConfig) = 24 bytes
     const INIT_SPACE: usize = core::mem::size_of::<CompressionInfo>();
-}
-
-#[cfg(feature = "anchor")]
-impl anchor_lang::Space for CompressionInfo {
-    const INIT_SPACE: usize = <Self as Space>::INIT_SPACE;
 }
 
 /// Space required for Option<CompressionInfo> when Some (1 byte discriminator + INIT_SPACE).
@@ -358,33 +340,25 @@ pub struct CompressedAccountData<T> {
     pub data: T,
 }
 
-impl Unpack for CompressedAccountData<Vec<u8>> {
-    type Unpacked = Vec<u8>;
-
-    fn unpack(&self, _remaining_accounts: &[AccountInfo]) -> Result<Self::Unpacked, ProgramError> {
-        unimplemented!()
-    }
-}
-
 /// Claim completed-epoch rent to the provided rent sponsor and update last_claimed_slot.
 /// Returns Some(claimed) if any lamports were claimed; None if account is compressible or nothing to claim.
-pub fn claim_completed_epoch_rent<'info, A>(
-    account_info: &AccountInfo<'info>,
+/// Generic over AccountInfoTrait to work with both solana and pinocchio.
+pub fn claim_completed_epoch_rent<AI, A>(
+    account_info: &AI,
     account_data: &mut A,
-    rent_sponsor: &AccountInfo<'info>,
-) -> Result<Option<u64>, ProgramError>
+    rent_sponsor: &AI,
+) -> Result<Option<u64>, LightPdaError>
 where
+    AI: AccountInfoTrait,
     A: HasCompressionInfo,
 {
     use light_compressible::rent::{AccountRentState, SLOTS_PER_EPOCH};
-    use solana_sysvar::{rent::Rent, Sysvar};
 
-    let current_slot = solana_sysvar::clock::Clock::get()?.slot;
+    let current_slot = AI::get_current_slot().map_err(LightPdaError::AccountCheck)?;
     let bytes = account_info.data_len() as u64;
     let current_lamports = account_info.lamports();
-    let rent_exemption_lamports = Rent::get()
-        .map_err(|_| ProgramError::Custom(0))?
-        .minimum_balance(bytes as usize);
+    let rent_exemption_lamports =
+        AI::get_min_rent_balance(bytes as usize).map_err(LightPdaError::AccountCheck)?;
 
     let ci = account_data.compression_info_mut()?;
     let state = AccountRentState {
@@ -413,54 +387,13 @@ where
                     .saturating_add(completed_epochs * SLOTS_PER_EPOCH),
             );
 
-            // Transfer lamports to rent sponsor
-            {
-                let mut src = account_info
-                    .try_borrow_mut_lamports()
-                    .map_err(|_| ProgramError::Custom(0))?;
-                let mut dst = rent_sponsor
-                    .try_borrow_mut_lamports()
-                    .map_err(|_| ProgramError::Custom(0))?;
-                let new_src = src
-                    .checked_sub(amount)
-                    .ok_or(ProgramError::InsufficientFunds)?;
-                let new_dst = dst.checked_add(amount).ok_or(ProgramError::Custom(0))?;
-                **src = new_src;
-                **dst = new_dst;
-            }
+            // Transfer lamports to rent sponsor (direct lamport manipulation, no CPI needed
+            // since the program owns the account)
+            account_info
+                .transfer_lamports(rent_sponsor, amount)
+                .map_err(LightPdaError::AccountCheck)?;
             return Ok(Some(amount));
         }
     }
     Ok(Some(0))
-}
-
-/// Transfer lamports from one account to another using System Program CPI.
-/// This is required when transferring from accounts owned by the System Program.
-fn transfer_lamports_cpi<'a>(
-    from: &AccountInfo<'a>,
-    to: &AccountInfo<'a>,
-    system_program: &AccountInfo<'a>,
-    lamports: u64,
-) -> Result<(), ProgramError> {
-    use solana_cpi::invoke;
-    use solana_instruction::{AccountMeta, Instruction};
-    use solana_pubkey::Pubkey;
-
-    // System Program Transfer instruction discriminator: 2 (u32 little-endian)
-    let mut instruction_data = vec![2, 0, 0, 0];
-    instruction_data.extend_from_slice(&lamports.to_le_bytes());
-
-    let transfer_instruction = Instruction {
-        program_id: Pubkey::default(), // System Program ID
-        accounts: vec![
-            AccountMeta::new(*from.key, true),
-            AccountMeta::new(*to.key, false),
-        ],
-        data: instruction_data,
-    };
-
-    invoke(
-        &transfer_instruction,
-        &[from.clone(), to.clone(), system_program.clone()],
-    )
 }

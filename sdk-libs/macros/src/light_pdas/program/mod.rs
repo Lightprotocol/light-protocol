@@ -5,8 +5,9 @@
 //! - Auto-wraps instruction handlers with light_pre_init/light_finalize logic
 //! - Generates all necessary types, enums, and instruction handlers
 
-mod compress;
+pub(crate) mod compress;
 mod decompress;
+pub mod derive_light_program;
 pub mod expr_traversal;
 pub mod instructions;
 pub mod seed_codegen;
@@ -17,4 +18,5 @@ pub mod variant_enum;
 pub(crate) mod parsing;
 pub(crate) mod visitors;
 
+pub use derive_light_program::derive_light_program_impl;
 pub use instructions::light_program_impl;

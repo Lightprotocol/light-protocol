@@ -209,9 +209,11 @@ use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSeria
 #[cfg(not(target_os = "solana"))]
 pub use light_sdk_interface::Pack;
 pub use light_sdk_interface::{
-    process_initialize_light_config, process_initialize_light_config_checked,
-    process_update_light_config, CompressAs, CompressedInitSpace, CompressionInfo,
-    HasCompressionInfo, LightConfig, Space, Unpack, COMPRESSIBLE_CONFIG_SEED,
+    process_initialize_light_config_checked,
+    InitializeLightConfigParams,
+    process_update_light_config, UpdateLightConfigParams, CompressAs, CompressedInitSpace,
+    CompressionInfo,
+    HasCompressionInfo, LightConfig, Space, COMPRESSIBLE_CONFIG_SEED,
     MAX_ADDRESS_TREES_PER_SPACE,
 };
 pub use light_account_checks::{self, discriminator::Discriminator as LightDiscriminator};
@@ -230,8 +232,8 @@ use solana_instruction::AccountMeta;
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-// Re-export SDK extension traits
-pub use crate::cpi::WithLightAccount;
+// Re-export SDK traits
+pub use crate::cpi::LightCpiInstruction;
 #[cfg(not(target_os = "solana"))]
 pub use crate::instruction::PackedAccountsExt;
 

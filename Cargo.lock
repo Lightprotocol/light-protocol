@@ -3466,11 +3466,15 @@ version = "0.7.0"
 dependencies = [
  "borsh 0.10.4",
  "pinocchio",
+ "pinocchio-system",
  "rand 0.8.5",
  "solana-account-info",
+ "solana-cpi",
+ "solana-instruction",
  "solana-msg 2.2.1",
  "solana-program-error 2.2.2",
  "solana-pubkey 2.4.0",
+ "solana-system-interface 1.0.0",
  "solana-sysvar",
  "thiserror 2.0.17",
 ]
@@ -4083,8 +4087,6 @@ dependencies = [
 name = "light-sdk-interface"
 version = "0.19.0"
 dependencies = [
- "anchor-lang",
- "bincode",
  "borsh 0.10.4",
  "bytemuck",
  "light-account-checks",
@@ -4093,18 +4095,6 @@ dependencies = [
  "light-hasher",
  "light-sdk-types",
  "light-token-interface",
- "pinocchio",
- "pinocchio-system",
- "solana-account-info",
- "solana-clock",
- "solana-cpi",
- "solana-instruction",
- "solana-loader-v3-interface",
- "solana-msg 2.2.1",
- "solana-program-error 2.2.2",
- "solana-pubkey 2.4.0",
- "solana-system-interface 1.0.0",
- "solana-sysvar",
  "thiserror 2.0.17",
 ]
 
@@ -6635,6 +6625,41 @@ dependencies = [
  "light-macros",
  "light-program-test",
  "light-sdk",
+ "light-sdk-macros",
+ "light-sdk-types",
+ "light-test-utils",
+ "light-token",
+ "light-token-interface",
+ "light-token-types",
+ "solana-account-info",
+ "solana-instruction",
+ "solana-keypair",
+ "solana-msg 2.2.1",
+ "solana-program",
+ "solana-program-error 2.2.2",
+ "solana-pubkey 2.4.0",
+ "solana-sdk",
+ "solana-signer",
+ "tokio",
+]
+
+[[package]]
+name = "single-pda-derive-test"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "borsh 0.10.4",
+ "bytemuck",
+ "light-anchor-spl",
+ "light-client",
+ "light-compressed-account",
+ "light-compressible",
+ "light-hasher",
+ "light-heap",
+ "light-macros",
+ "light-program-test",
+ "light-sdk",
+ "light-sdk-interface",
  "light-sdk-macros",
  "light-sdk-types",
  "light-test-utils",

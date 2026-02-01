@@ -2,7 +2,8 @@
 
 use anchor_lang::prelude::*;
 use light_compressible::rent::RentConfig;
-use light_sdk::interface::config::{process_initialize_light_config, process_update_light_config};
+use light_sdk::interface::config::process_initialize_light_config;
+use light_sdk::interface::config::process_update_light_config;
 
 /// Params order matches SDK's InitializeCompressionConfigAnchorData.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
@@ -54,16 +55,6 @@ pub fn process_initialize_config<'info>(
     .map_err(Into::into)
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
-pub struct UpdateConfigParams {
-    pub new_update_authority: Option<Pubkey>,
-    pub new_rent_sponsor: Option<Pubkey>,
-    pub new_compression_authority: Option<Pubkey>,
-    pub new_rent_config: Option<RentConfig>,
-    pub new_write_top_up: Option<u32>,
-    pub new_address_space: Option<Vec<Pubkey>>,
-}
-
 #[derive(Accounts)]
 pub struct UpdateConfig<'info> {
     #[account(mut)]
@@ -76,18 +67,11 @@ pub struct UpdateConfig<'info> {
 
 pub fn process_update_config<'info>(
     ctx: Context<'_, '_, '_, 'info, UpdateConfig<'info>>,
-    params: UpdateConfigParams,
+    instruction_data: Vec<u8>,
 ) -> Result<()> {
-    process_update_light_config(
-        &ctx.accounts.config,
-        &ctx.accounts.authority,
-        params.new_update_authority.as_ref(),
-        params.new_rent_sponsor.as_ref(),
-        params.new_compression_authority.as_ref(),
-        params.new_rent_config,
-        params.new_write_top_up,
-        params.new_address_space,
-        &crate::ID,
-    )
-    .map_err(Into::into)
+    let remaining = [
+        ctx.accounts.config.to_account_info(),
+        ctx.accounts.authority.to_account_info(),
+    ];
+    process_update_light_config(&remaining, &instruction_data, &crate::ID).map_err(Into::into)
 }

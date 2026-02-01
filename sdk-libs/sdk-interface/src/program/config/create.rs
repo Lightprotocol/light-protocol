@@ -1,149 +1,108 @@
-//! Config initialization instructions.
+//! Config initialization instructions (generic over AccountInfoTrait).
 
 use light_account_checks::{
     checks::check_signer,
     discriminator::{Discriminator, DISCRIMINATOR_LEN},
+    AccountInfoTrait,
 };
 use light_compressible::rent::RentConfig;
-use solana_account_info::AccountInfo;
-use solana_cpi::invoke_signed;
-use solana_loader_v3_interface::state::UpgradeableLoaderState;
-use solana_msg::msg;
-use solana_program_error::ProgramError;
-use solana_pubkey::Pubkey;
-use solana_system_interface::instruction as system_instruction;
-use solana_sysvar::{rent::Rent, Sysvar};
 
 use super::{state::LightConfig, validate_address_space_no_duplicates, COMPRESSIBLE_CONFIG_SEED};
 use crate::{error::LightPdaError, AnchorSerialize};
 
-const BPF_LOADER_UPGRADEABLE_ID: Pubkey =
-    Pubkey::from_str_const("BPFLoaderUpgradeab1e11111111111111111111111");
+/// BPFLoaderUpgradeab1e11111111111111111111111 as raw bytes.
+const BPF_LOADER_UPGRADEABLE_ID: [u8; 32] = [
+    2, 168, 246, 145, 78, 136, 161, 110, 57, 90, 225, 40, 148, 143, 144, 16, 207, 227, 47, 228,
+    248, 212, 16, 185, 221, 165, 30, 160, 42, 103, 43, 122,
+];
 
-/// Creates a new compressible config PDA
-///
-/// # Security - Solana Best Practice
-/// This function follows the standard Solana pattern where only the program's
-/// upgrade authority can create the initial config. This prevents unauthorized
-/// parties from hijacking the config system.
-///
-/// # Arguments
-/// * `config_account` - The config PDA account to initialize
-/// * `update_authority` - Authority that can update the config after creation
-/// * `rent_sponsor` - Account that receives rent from compressed PDAs
-/// * `compression_authority` - Authority that can compress/close PDAs
-/// * `rent_config` - Rent function parameters
-/// * `write_top_up` - Lamports to top up on each write
-/// * `address_space` - Address space for compressed accounts (currently 1 address_tree allowed)
-/// * `config_bump` - Config bump seed (must be 0 for now)
-/// * `payer` - Account paying for the PDA creation
-/// * `system_program` - System program
-/// * `program_id` - The program that owns the config
+/// UpgradeableLoaderState::ProgramData layout (manual parsing, no bincode dep):
+/// - bytes 0..4:  variant tag (u32 LE, must be 3 for ProgramData)
+/// - bytes 4..12: slot (u64 LE)
+/// - byte  12:    Option discriminant (0=None, 1=Some)
+/// - bytes 13..45: authority pubkey (32 bytes, only valid when discriminant=1)
+const PROGRAM_DATA_VARIANT_TAG: u32 = 3;
+const PROGRAM_DATA_MIN_LEN: usize = 45;
+
+/// Creates a new compressible config PDA.
 ///
 /// # Required Validation (must be done by caller)
-/// The caller MUST validate that the signer is the program's upgrade authority
-/// by checking against the program data account. This cannot be done in the SDK
-/// due to dependency constraints.
-///
-/// # Returns
-/// * `Ok(())` if config was created successfully
-/// * `Err(ProgramError)` if there was an error
+/// The caller MUST validate that the signer is the program's upgrade authority.
+/// Use `process_initialize_light_config_checked` for the version that does this.
 #[allow(clippy::too_many_arguments)]
-pub fn process_initialize_light_config<'info>(
-    config_account: &AccountInfo<'info>,
-    update_authority: &AccountInfo<'info>,
-    rent_sponsor: &Pubkey,
-    compression_authority: &Pubkey,
+pub fn process_initialize_light_config<AI: AccountInfoTrait + Clone>(
+    config_account: &AI,
+    update_authority: &AI,
+    rent_sponsor: &[u8; 32],
+    compression_authority: &[u8; 32],
     rent_config: RentConfig,
     write_top_up: u32,
-    address_space: Vec<Pubkey>,
+    address_space: Vec<[u8; 32]>,
     config_bump: u8,
-    payer: &AccountInfo<'info>,
-    system_program: &AccountInfo<'info>,
-    program_id: &Pubkey,
-) -> Result<(), ProgramError> {
-    // CHECK: only 1 address_space
+    payer: &AI,
+    system_program: &AI,
+    program_id: &[u8; 32],
+) -> Result<(), LightPdaError> {
+    // CHECK: config_bump must be 0
     if config_bump != 0 {
-        msg!("Config bump must be 0 for now, found: {}", config_bump);
-        return Err(LightPdaError::ConstraintViolation.into());
+        return Err(LightPdaError::ConstraintViolation);
     }
 
     // CHECK: not already initialized
-    if config_account.data_len() > 0 {
-        msg!("Config account already initialized");
-        return Err(LightPdaError::ConstraintViolation.into());
+    if !config_account.data_is_empty() {
+        return Err(LightPdaError::ConstraintViolation);
     }
 
-    // CHECK: only 1 address_space
+    // CHECK: exactly 1 address space
     if address_space.len() != 1 {
-        msg!(
-            "Address space must contain exactly 1 pubkey, found: {}",
-            address_space.len()
-        );
-        return Err(LightPdaError::ConstraintViolation.into());
+        return Err(LightPdaError::ConstraintViolation);
     }
 
     // CHECK: unique pubkeys in address_space
     validate_address_space_no_duplicates(&address_space)?;
 
     // CHECK: signer
-    check_signer(update_authority).inspect_err(|_| {
-        msg!("Update authority must be signer for initial config creation");
-    })?;
+    check_signer(update_authority).map_err(LightPdaError::AccountCheck)?;
 
-    // CHECK: pda derivation
-    let (derived_pda, bump) = LightConfig::derive_pda(program_id, config_bump);
-    if derived_pda != *config_account.key {
-        msg!("Invalid config PDA");
-        return Err(LightPdaError::ConstraintViolation.into());
+    // CHECK: PDA derivation
+    let (derived_pda, bump) = LightConfig::derive_pda_bytes::<AI>(program_id, config_bump);
+    if derived_pda != config_account.key() {
+        return Err(LightPdaError::ConstraintViolation);
     }
 
     // Derive rent_sponsor_bump for storage
     let (derived_rent_sponsor, rent_sponsor_bump) =
-        LightConfig::derive_rent_sponsor_pda(program_id);
+        LightConfig::derive_rent_sponsor_pda_bytes::<AI>(program_id);
     if *rent_sponsor != derived_rent_sponsor {
-        msg!(
-            "rent_sponsor must be derived PDA: expected {:?}, got {:?}",
-            derived_rent_sponsor,
-            rent_sponsor
-        );
-        return Err(LightPdaError::InvalidRentSponsor.into());
+        return Err(LightPdaError::InvalidRentSponsor);
     }
 
-    let rent = Rent::get().map_err(LightPdaError::from)?;
     let account_size = LightConfig::size_for_address_space(address_space.len());
-    let rent_lamports = rent.minimum_balance(account_size);
+    let rent_lamports =
+        AI::get_min_rent_balance(account_size).map_err(LightPdaError::AccountCheck)?;
 
-    // Use u16 to_le_bytes to match derive_pda (2 bytes instead of 1)
+    // Create PDA using AccountInfoTrait
     let config_bump_bytes = (config_bump as u16).to_le_bytes();
-    let seeds = &[
+    let seeds: &[&[u8]] = &[
         COMPRESSIBLE_CONFIG_SEED,
         config_bump_bytes.as_ref(),
         &[bump],
     ];
-    let create_account_ix = system_instruction::create_account(
-        payer.key,
-        config_account.key,
+
+    config_account.create_pda_account(
         rent_lamports,
         account_size as u64,
         program_id,
-    );
-
-    invoke_signed(
-        &create_account_ix,
-        &[
-            payer.clone(),
-            config_account.clone(),
-            system_program.clone(),
-        ],
-        &[seeds],
-    )
-    .map_err(LightPdaError::from)?;
+        seeds,
+        payer,
+        &[],
+        system_program,
+    )?;
 
     let config = LightConfig {
         version: 1,
         write_top_up,
-        update_authority: *update_authority.key,
+        update_authority: update_authority.key(),
         rent_sponsor: *rent_sponsor,
         compression_authority: *compression_authority,
         rent_config,
@@ -155,9 +114,9 @@ pub fn process_initialize_light_config<'info>(
 
     let mut data = config_account
         .try_borrow_mut_data()
-        .map_err(LightPdaError::from)?;
+        .map_err(LightPdaError::AccountCheck)?;
 
-    // Write discriminator first (using trait constant)
+    // Write discriminator first
     data[..DISCRIMINATOR_LEN].copy_from_slice(&LightConfig::LIGHT_DISCRIMINATOR);
 
     // Serialize config data after discriminator
@@ -168,127 +127,86 @@ pub fn process_initialize_light_config<'info>(
     Ok(())
 }
 
-/// Checks that the signer is the program's upgrade authority
+/// Checks that the signer is the program's upgrade authority.
 ///
-/// # Arguments
-/// * `program_id` - The program to check
-/// * `program_data_account` - The program's data account (ProgramData)
-/// * `authority` - The authority to verify
-///
-/// # Returns
-/// * `Ok(())` if authority is valid
-/// * `Err(LightPdaError)` if authority is invalid or verification fails
-pub fn check_program_upgrade_authority(
-    program_id: &Pubkey,
-    program_data_account: &AccountInfo,
-    authority: &AccountInfo,
-) -> Result<(), ProgramError> {
+/// Manually parses the UpgradeableLoaderState::ProgramData layout (45 bytes)
+/// to avoid a bincode dependency.
+pub fn check_program_upgrade_authority<AI: AccountInfoTrait>(
+    program_id: &[u8; 32],
+    program_data_account: &AI,
+    authority: &AI,
+) -> Result<(), LightPdaError> {
     // CHECK: program data PDA
     let (expected_program_data, _) =
-        Pubkey::find_program_address(&[program_id.as_ref()], &BPF_LOADER_UPGRADEABLE_ID);
-    if program_data_account.key != &expected_program_data {
-        msg!("Invalid program data account");
-        return Err(LightPdaError::ConstraintViolation.into());
+        AI::find_program_address(&[program_id], &BPF_LOADER_UPGRADEABLE_ID);
+    if program_data_account.key() != expected_program_data {
+        return Err(LightPdaError::ConstraintViolation);
     }
 
-    let data = program_data_account.try_borrow_data()?;
-    let program_state: UpgradeableLoaderState = bincode::deserialize(&data).map_err(|_| {
-        msg!("Failed to deserialize program data account");
-        LightPdaError::ConstraintViolation
-    })?;
+    let data = program_data_account
+        .try_borrow_data()
+        .map_err(LightPdaError::AccountCheck)?;
 
-    // Extract upgrade authority
-    let upgrade_authority = match program_state {
-        UpgradeableLoaderState::ProgramData {
-            slot: _,
-            upgrade_authority_address,
-        } => {
-            match upgrade_authority_address {
-                Some(auth) => {
-                    // Check for invalid zero authority when authority exists
-                    if auth == Pubkey::default() {
-                        msg!("Invalid state: authority is zero pubkey");
-                        return Err(LightPdaError::ConstraintViolation.into());
-                    }
-                    auth
-                }
-                None => {
-                    msg!("Program has no upgrade authority");
-                    return Err(LightPdaError::ConstraintViolation.into());
-                }
+    if data.len() < PROGRAM_DATA_MIN_LEN {
+        return Err(LightPdaError::AccountDataTooSmall);
+    }
+
+    // Parse variant tag (4 bytes, u32 LE)
+    let variant_tag = u32::from_le_bytes(data[0..4].try_into().unwrap());
+    if variant_tag != PROGRAM_DATA_VARIANT_TAG {
+        return Err(LightPdaError::ConstraintViolation);
+    }
+
+    // Parse Option<Pubkey> at offset 12
+    let option_discriminant = data[12];
+    let upgrade_authority: [u8; 32] = match option_discriminant {
+        0 => {
+            // None - program has no upgrade authority
+            return Err(LightPdaError::ConstraintViolation);
+        }
+        1 => {
+            let mut auth = [0u8; 32];
+            auth.copy_from_slice(&data[13..45]);
+            // Check for invalid zero authority
+            if auth == [0u8; 32] {
+                return Err(LightPdaError::ConstraintViolation);
             }
+            auth
         }
         _ => {
-            msg!("Account is not ProgramData, found: {:?}", program_state);
-            return Err(LightPdaError::ConstraintViolation.into());
+            return Err(LightPdaError::ConstraintViolation);
         }
     };
 
-    // CHECK: upgrade authority is signer
-    check_signer(authority).inspect_err(|_| {
-        msg!("Authority must be signer");
-    })?;
+    // CHECK: authority is signer
+    check_signer(authority).map_err(LightPdaError::AccountCheck)?;
 
-    // CHECK: upgrade authority is program's upgrade authority
-    if *authority.key != upgrade_authority {
-        msg!(
-            "Signer is not the program's upgrade authority. Signer: {:?}, Expected Authority: {:?}",
-            authority.key,
-            upgrade_authority
-        );
-        return Err(LightPdaError::ConstraintViolation.into());
+    // CHECK: authority matches upgrade authority
+    if authority.key() != upgrade_authority {
+        return Err(LightPdaError::ConstraintViolation);
     }
 
     Ok(())
 }
 
-/// Creates a new compressible config PDA.
-///
-/// # Arguments
-/// * `config_account` - The config PDA account to initialize
-/// * `update_authority` - Must be the program's upgrade authority
-/// * `program_data_account` - The program's data account for validation
-/// * `rent_sponsor` - Account that receives rent from compressed PDAs
-/// * `compression_authority` - Authority that can compress/close PDAs
-/// * `rent_config` - Rent function parameters
-/// * `write_top_up` - Lamports to top up on each write
-/// * `address_space` - Address spaces for compressed accounts (exactly 1
-///   allowed)
-/// * `config_bump` - Config bump seed (must be 0 for now)
-/// * `payer` - Account paying for the PDA creation
-/// * `system_program` - System program
-/// * `program_id` - The program that owns the config
-///
-/// # Returns
-/// * `Ok(())` if config was created successfully
-/// * `Err(ProgramError)` if there was an error or authority validation fails
+/// Creates a new compressible config PDA with upgrade authority check.
 #[allow(clippy::too_many_arguments)]
-pub fn process_initialize_light_config_checked<'info>(
-    config_account: &AccountInfo<'info>,
-    update_authority: &AccountInfo<'info>,
-    program_data_account: &AccountInfo<'info>,
-    rent_sponsor: &Pubkey,
-    compression_authority: &Pubkey,
+pub fn process_initialize_light_config_checked<AI: AccountInfoTrait + Clone>(
+    config_account: &AI,
+    update_authority: &AI,
+    program_data_account: &AI,
+    rent_sponsor: &[u8; 32],
+    compression_authority: &[u8; 32],
     rent_config: RentConfig,
     write_top_up: u32,
-    address_space: Vec<Pubkey>,
+    address_space: Vec<[u8; 32]>,
     config_bump: u8,
-    payer: &AccountInfo<'info>,
-    system_program: &AccountInfo<'info>,
-    program_id: &Pubkey,
-) -> Result<(), ProgramError> {
-    msg!(
-        "create_compression_config_checked program_data_account: {:?}",
-        program_data_account.key
-    );
-    msg!(
-        "create_compression_config_checked program_id: {:?}",
-        program_id
-    );
-    // Verify the signer is the program's upgrade authority
-    check_program_upgrade_authority(program_id, program_data_account, update_authority)?;
+    payer: &AI,
+    system_program: &AI,
+    program_id: &[u8; 32],
+) -> Result<(), LightPdaError> {
+    check_program_upgrade_authority::<AI>(program_id, program_data_account, update_authority)?;
 
-    // Create the config with validated authority
     process_initialize_light_config(
         config_account,
         update_authority,
@@ -302,4 +220,46 @@ pub fn process_initialize_light_config_checked<'info>(
         system_program,
         program_id,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_upgradeable_loader_state_parsing() {
+        // Build a synthetic ProgramData account matching the manual layout
+        let mut data = vec![0u8; 45];
+
+        // Variant tag = 3 (ProgramData)
+        data[0..4].copy_from_slice(&3u32.to_le_bytes());
+
+        // Slot = 42
+        data[4..12].copy_from_slice(&42u64.to_le_bytes());
+
+        // Option discriminant = 1 (Some)
+        data[12] = 1;
+
+        // Authority pubkey = [1..=32]
+        let authority: [u8; 32] = core::array::from_fn(|i| (i + 1) as u8);
+        data[13..45].copy_from_slice(&authority);
+
+        // Parse variant tag
+        let tag = u32::from_le_bytes(data[0..4].try_into().unwrap());
+        assert_eq!(tag, PROGRAM_DATA_VARIANT_TAG);
+
+        // Parse slot
+        let slot = u64::from_le_bytes(data[4..12].try_into().unwrap());
+        assert_eq!(slot, 42);
+
+        // Parse authority
+        assert_eq!(data[12], 1);
+        let mut parsed_auth = [0u8; 32];
+        parsed_auth.copy_from_slice(&data[13..45]);
+        assert_eq!(parsed_auth, authority);
+
+        // Test None case
+        data[12] = 0;
+        assert_eq!(data[12], 0);
+    }
 }

@@ -25,6 +25,14 @@ pub struct CrateContext {
 }
 
 impl CrateContext {
+    /// Create an empty CrateContext (for testing or when no struct discovery is needed).
+    #[allow(dead_code)]
+    pub fn empty() -> Self {
+        CrateContext {
+            modules: BTreeMap::new(),
+        }
+    }
+
     /// Parse all modules starting from the crate root (lib.rs or main.rs).
     ///
     /// Uses `CARGO_MANIFEST_DIR` environment variable to locate the crate root.

@@ -1,32 +1,35 @@
 //! Token account decompression.
 
+use light_account_checks::AccountInfoTrait;
 use light_sdk_types::instruction::PackedStateTreeInfo;
-use light_token_interface::instructions::extensions::ExtensionInstructionData;
-use solana_account_info::AccountInfo;
-use solana_program_error::ProgramError;
+use light_token_interface::{instructions::extensions::ExtensionInstructionData, LIGHT_TOKEN_PROGRAM_ID};
 
 use super::create_token_account::{
     build_create_ata_instruction, build_create_token_account_instruction,
 };
-use crate::program::{
-    decompression::processor::DecompressCtx,
-    variant::PackedLightAccountVariantTrait,
+use crate::{
+    error::LightPdaError,
+    program::{
+        decompression::processor::DecompressCtx,
+        variant::PackedLightAccountVariantTrait,
+    },
 };
 
-pub fn prepare_token_account_for_decompression<'info, const SEED_COUNT: usize, P>(
+pub fn prepare_token_account_for_decompression<const SEED_COUNT: usize, P, AI>(
     packed: &P,
     tree_info: &PackedStateTreeInfo,
     output_queue_index: u8,
-    token_account_info: &AccountInfo<'info>,
-    ctx: &mut DecompressCtx<'_, 'info>,
-) -> std::result::Result<(), ProgramError>
+    token_account_info: &AI,
+    ctx: &mut DecompressCtx<'_, AI>,
+) -> Result<(), LightPdaError>
 where
+    AI: AccountInfoTrait + Clone,
     P: PackedLightAccountVariantTrait<SEED_COUNT>,
 {
     let packed_accounts = ctx
         .cpi_accounts
         .packed_accounts()
-        .map_err(|_| ProgramError::NotEnoughAccountKeys)?;
+        .map_err(LightPdaError::from)?;
     let token_data = packed.into_in_token_data(tree_info, output_queue_index)?;
 
     // Get TLV extension early to detect ATA
@@ -48,83 +51,103 @@ where
     });
 
     // Resolve mint pubkey from packed index
-    let mint_pubkey = packed_accounts
+    let mint_key = packed_accounts
         .get(token_data.mint as usize)
-        .ok_or(ProgramError::InvalidAccountData)?
-        .key;
+        .ok_or(LightPdaError::InvalidInstructionData)?
+        .key();
 
-    let fee_payer = ctx.cpi_accounts.fee_payer();
+    let fee_payer_key = ctx.cpi_accounts.fee_payer().key();
 
-    // Helper to check if token account is already initialized
+    // Idempotency: check if token account is already initialized
     // State byte at offset 108: 0=Uninitialized, 1=Initialized, 2=Frozen
     const STATE_OFFSET: usize = 108;
-    let is_already_initialized = !token_account_info.data_is_empty()
-        && token_account_info.data_len() > STATE_OFFSET
-        && token_account_info.try_borrow_data()?[STATE_OFFSET] != 0;
+    let is_already_initialized = token_account_info.data_len() > STATE_OFFSET && {
+        let data = token_account_info
+            .try_borrow_data()
+            .map_err(|_| LightPdaError::ConstraintViolation)?;
+        data[STATE_OFFSET] != 0
+    };
+
+    // Get token-specific references from context
+    let ctoken_compressible_config_key = ctx
+        .ctoken_compressible_config
+        .as_ref()
+        .ok_or(LightPdaError::NotEnoughAccountKeys)?
+        .key();
+    let ctoken_rent_sponsor_key = ctx
+        .ctoken_rent_sponsor
+        .as_ref()
+        .ok_or(LightPdaError::NotEnoughAccountKeys)?
+        .key();
 
     if let Some((ata_bump, wallet_owner_index)) = ata_info {
         // ATA path: use invoke() without signer seeds
-        // Resolve wallet owner pubkey from packed index
-        let wallet_owner_pubkey = packed_accounts
+        let wallet_owner_key = packed_accounts
             .get(wallet_owner_index as usize)
-            .ok_or(ProgramError::InvalidAccountData)?
-            .key;
+            .ok_or(LightPdaError::InvalidInstructionData)?
+            .key();
 
-        // Idempotency check: only create ATA if it doesn't exist
-        // For ATAs, we still continue with decompression even if account exists
-        if token_account_info.data_is_empty() {
-            let instruction = build_create_ata_instruction(
-                wallet_owner_pubkey,
-                mint_pubkey,
-                fee_payer.key,
-                token_account_info.key,
+        // Idempotency: only create ATA if it doesn't exist
+        if token_account_info.data_len() == 0 {
+            let (data, account_metas) = build_create_ata_instruction(
+                &wallet_owner_key,
+                &mint_key,
+                &fee_payer_key,
+                &token_account_info.key(),
                 ata_bump,
-                ctx.ctoken_compressible_config.key,
-                ctx.ctoken_rent_sponsor.key,
+                &ctoken_compressible_config_key,
+                &ctoken_rent_sponsor_key,
                 ctx.light_config.write_top_up,
             )?;
 
-            // Invoke WITHOUT signer seeds - ATA is derived from light token program, not our program
-            anchor_lang::solana_program::program::invoke(&instruction, ctx.remaining_accounts)?;
+            // Invoke WITHOUT signer seeds - ATA is derived from light token program
+            AI::invoke_cpi(
+                &LIGHT_TOKEN_PROGRAM_ID,
+                &data,
+                &account_metas,
+                ctx.remaining_accounts,
+                &[],
+            )
+            .map_err(|_| LightPdaError::CpiFailed)?;
         }
-
         // Don't extend token_seeds for ATAs (invoke, not invoke_signed)
     } else {
         // Regular token vault path: use invoke_signed with PDA seeds
-        // For regular vaults, if already initialized, skip BOTH creation AND decompression (full idempotency)
         if is_already_initialized {
-            solana_msg::msg!("Token vault is already decompressed, skipping");
             return Ok(());
         }
 
         let bump = &[packed.bump()];
         let seeds = packed
             .seed_refs_with_bump(packed_accounts, bump)
-            .map_err(|_| ProgramError::InvalidSeeds)?;
+            .map_err(|_| LightPdaError::InvalidSeeds)?;
 
         // Derive owner pubkey from constant owner_seeds
         let owner = packed.derive_owner();
 
         let signer_seeds: Vec<&[u8]> = seeds.iter().copied().collect();
 
-        let instruction = build_create_token_account_instruction(
-            token_account_info.key,
-            mint_pubkey,
+        let (data, account_metas) = build_create_token_account_instruction(
+            &token_account_info.key(),
+            &mint_key,
             &owner,
-            fee_payer.key,
-            ctx.ctoken_compressible_config.key,
-            ctx.ctoken_rent_sponsor.key,
+            &fee_payer_key,
+            &ctoken_compressible_config_key,
+            &ctoken_rent_sponsor_key,
             ctx.light_config.write_top_up,
             &signer_seeds,
             ctx.program_id,
         )?;
 
         // Invoke with PDA seeds
-        anchor_lang::solana_program::program::invoke_signed(
-            &instruction,
+        AI::invoke_cpi(
+            &LIGHT_TOKEN_PROGRAM_ID,
+            &data,
+            &account_metas,
             ctx.remaining_accounts,
             &[signer_seeds.as_slice()],
-        )?;
+        )
+        .map_err(|_| LightPdaError::CpiFailed)?;
 
         // Push seeds for the Transfer2 CPI (needed for invoke_signed)
         ctx.token_seeds.extend(seeds.iter().map(|s| s.to_vec()));

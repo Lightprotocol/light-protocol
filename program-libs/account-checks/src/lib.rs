@@ -16,10 +16,13 @@
 pub mod account_info;
 pub mod account_iterator;
 pub mod checks;
+pub mod close_account;
 pub mod discriminator;
 pub mod error;
 pub mod packed_accounts;
 
-pub use account_info::account_info_trait::AccountInfoTrait;
+pub use account_info::account_info_trait::{AccountInfoTrait, CpiMeta};
+pub use account_info::account_meta_trait::AccountMetaTrait;
 pub use account_iterator::AccountIterator;
+pub use close_account::close_account;
 pub use error::AccountError;

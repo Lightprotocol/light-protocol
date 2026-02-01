@@ -1,24 +1,26 @@
 //! Compression instruction processor.
 
+use light_account_checks::AccountInfoTrait;
 use light_compressed_account::instruction_data::{
     compressed_proof::ValidityProof,
-    with_account_info::CompressedAccountInfo,
+    with_account_info::{CompressedAccountInfo, InstructionDataInvokeCpiWithAccountInfo},
 };
 use light_sdk_types::{
-    instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress, CpiSigner,
+    cpi_accounts::v2::CpiAccounts, instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
+    CpiSigner,
 };
-use solana_account_info::AccountInfo;
-use solana_program_error::ProgramError;
-use solana_pubkey::Pubkey;
 
 use crate::{
-    cpi::{
-        v2::{CpiAccounts, LightSystemProgramCpi},
-        InvokeLightSystemProgram, LightCpiInstruction,
-    },
-    program::config::LightConfig,
+    cpi::InvokeLightSystemProgram,
+    error::LightPdaError,
+    program::{compression::close::close, config::LightConfig},
     AnchorDeserialize, AnchorSerialize,
 };
+
+/// Account indices within remaining_accounts for compress instructions.
+const FEE_PAYER_INDEX: usize = 0;
+const CONFIG_INDEX: usize = 1;
+const RENT_SPONSOR_INDEX: usize = 2;
 
 /// Parameters for compress_and_close instruction.
 /// Matches SDK's SaveAccountsData field order for compatibility.
@@ -33,12 +35,11 @@ pub struct CompressAndCloseParams {
 }
 
 /// Context struct holding all data needed for compression.
-/// Contains internal vec for collecting CompressedAccountInfo results.
-pub struct CompressCtx<'a, 'info> {
-    pub program_id: &'a Pubkey,
-    pub cpi_accounts: &'a CpiAccounts<'a, 'info>,
-    pub remaining_accounts: &'a [AccountInfo<'info>],
-    pub rent_sponsor: &'a AccountInfo<'info>,
+/// Generic over AccountInfoTrait to work with both solana and pinocchio.
+pub struct CompressCtx<'a, AI: AccountInfoTrait> {
+    pub program_id: &'a [u8; 32],
+    pub remaining_accounts: &'a [AI],
+    pub rent_sponsor: &'a AI,
     pub light_config: &'a LightConfig,
     /// Internal vec - dispatch functions push results here
     pub compressed_account_infos: Vec<CompressedAccountInfo>,
@@ -51,110 +52,103 @@ pub struct CompressCtx<'a, 'info> {
 
 /// Callback type for discriminator-based dispatch.
 /// MACRO-GENERATED: Just a match statement routing to prepare_account_for_compression.
-/// Takes &mut CompressCtx and pushes CompressedAccountInfo into ctx.compressed_account_infos.
-///
-/// The dispatch function is responsible for:
-/// 1. Reading the discriminator from the account data
-/// 2. Deserializing the account based on discriminator
-/// 3. Calling prepare_account_for_compression with the deserialized data
-pub type CompressDispatchFn<'info> = fn(
-    account_info: &AccountInfo<'info>,
+pub type CompressDispatchFn<AI> = fn(
+    account_info: &AI,
     compressed_account_meta: &CompressedAccountMetaNoLamportsNoAddress,
     index: usize,
-    ctx: &mut CompressCtx<'_, 'info>,
-) -> std::result::Result<(), ProgramError>;
+    ctx: &mut CompressCtx<'_, AI>,
+) -> Result<(), LightPdaError>;
 
-/// Remaining accounts layout:
-/// [0]: fee_payer (Signer, mut)
-/// [1]: config (LightConfig PDA)
-/// [2]: rent_sponsor (mut)
-/// [3]: compression_authority (Signer)
-/// [system_accounts_offset..]: Light system accounts for CPI
-/// [remaining_accounts.len() - num_pda_accounts..]: PDA accounts to compress
+/// Process compress-and-close for PDA accounts (idempotent).
 ///
-/// Runtime processor - handles all the plumbing, delegates dispatch to callback.
+/// Iterates over PDA accounts, dispatches each for compression via `dispatch_fn`,
+/// then invokes the Light system program CPI to commit compressed state,
+/// and closes the PDA accounts (transferring lamports to rent_sponsor).
 ///
-/// **Takes raw instruction data** and deserializes internally - minimizes macro code.
-/// **Uses only remaining_accounts** - no Context struct needed.
-pub fn process_compress_pda_accounts_idempotent<'info>(
-    remaining_accounts: &[AccountInfo<'info>],
+/// Idempotent: if any account is not yet compressible (rent function check fails),
+/// the entire batch is silently skipped.
+#[inline(never)]
+pub fn process_compress_pda_accounts_idempotent<AI: AccountInfoTrait + Clone>(
+    remaining_accounts: &[AI],
     instruction_data: &[u8],
-    dispatch_fn: CompressDispatchFn<'info>,
+    dispatch_fn: CompressDispatchFn<AI>,
     cpi_signer: CpiSigner,
-    program_id: &Pubkey,
-) -> std::result::Result<(), ProgramError> {
-    // Deserialize params internally
-    let params = CompressAndCloseParams::try_from_slice(instruction_data).map_err(|e| {
-        solana_msg::msg!("compress: params deser failed: {:?}", e);
-        ProgramError::InvalidInstructionData
-    })?;
+    program_id: &[u8; 32],
+) -> Result<(), LightPdaError> {
+    // 1. Deserialize params
+    let params = CompressAndCloseParams::try_from_slice(instruction_data)
+        .map_err(|_| LightPdaError::Borsh)?;
 
-    // Extract and validate accounts using shared validation
-    let validated_ctx =
-        crate::program::validation::validate_compress_accounts(remaining_accounts, program_id)?;
-    let fee_payer = &validated_ctx.fee_payer;
-    let rent_sponsor = &validated_ctx.rent_sponsor;
-    let light_config = validated_ctx.light_config;
+    let system_accounts_offset = params.system_accounts_offset as usize;
+    let num_pdas = params.compressed_accounts.len();
 
-    let (_, system_accounts) = crate::program::validation::split_at_system_accounts_offset(
-        remaining_accounts,
-        params.system_accounts_offset,
-    )?;
-
-    let cpi_accounts = CpiAccounts::new(fee_payer, system_accounts, cpi_signer);
-
-    // Build context struct with all needed data (includes internal vec)
-    let mut compress_ctx = CompressCtx {
-        program_id,
-        cpi_accounts: &cpi_accounts,
-        remaining_accounts,
-        rent_sponsor,
-        light_config: &light_config,
-        compressed_account_infos: Vec::with_capacity(params.compressed_accounts.len()),
-        pda_indices_to_close: Vec::with_capacity(params.compressed_accounts.len()),
-        has_non_compressible: false,
-    };
-
-    // PDA accounts at end of remaining_accounts
-    let pda_accounts = crate::program::validation::extract_tail_accounts(
-        remaining_accounts,
-        params.compressed_accounts.len(),
-    )?;
-
-    for (i, account_data) in params.compressed_accounts.iter().enumerate() {
-        let pda_account = &pda_accounts[i];
-
-        // Skip empty accounts or accounts not owned by this program
-        if crate::program::validation::should_skip_compression(pda_account, program_id) {
-            continue;
-        }
-
-        // Delegate to dispatch callback (macro-generated match)
-        dispatch_fn(pda_account, account_data, i, &mut compress_ctx)?;
+    if num_pdas == 0 {
+        return Err(LightPdaError::InvalidInstructionData);
     }
 
-    // If any account is not yet compressible, skip the entire batch.
-    // The proof covers all accounts so we cannot partially compress.
-    if compress_ctx.has_non_compressible {
+    // 2. Load and validate config
+    let config = LightConfig::load_checked(&remaining_accounts[CONFIG_INDEX], program_id)?;
+
+    // 3. Validate rent_sponsor
+    let rent_sponsor = &remaining_accounts[RENT_SPONSOR_INDEX];
+    config.validate_rent_sponsor_account::<AI>(rent_sponsor)?;
+
+    // 4. PDA accounts are at the tail of remaining_accounts
+    let pda_start = remaining_accounts
+        .len()
+        .checked_sub(num_pdas)
+        .ok_or(LightPdaError::NotEnoughAccountKeys)?;
+
+    // 5. Run dispatch for each PDA
+    let (compressed_account_infos, pda_indices_to_close, has_non_compressible) = {
+        let mut ctx = CompressCtx {
+            program_id,
+            remaining_accounts,
+            rent_sponsor,
+            light_config: &config,
+            compressed_account_infos: Vec::with_capacity(num_pdas),
+            pda_indices_to_close: Vec::with_capacity(num_pdas),
+            has_non_compressible: false,
+        };
+
+        for (i, meta) in params.compressed_accounts.iter().enumerate() {
+            let pda_index = pda_start + i;
+            dispatch_fn(&remaining_accounts[pda_index], meta, pda_index, &mut ctx)?;
+        }
+
+        (
+            ctx.compressed_account_infos,
+            ctx.pda_indices_to_close,
+            ctx.has_non_compressible,
+        )
+    };
+
+    // 6. Idempotent: if any account is not yet compressible, skip entire batch
+    if has_non_compressible {
         return Ok(());
     }
 
-    // CPI to Light System Program
-    if !compress_ctx.compressed_account_infos.is_empty() {
-        LightSystemProgramCpi::new_cpi(cpi_signer, params.proof)
-            .with_account_infos(&compress_ctx.compressed_account_infos)
-            .invoke(cpi_accounts.clone())
-            .map_err(|e| {
-                solana_msg::msg!("compress: CPI failed: {:?}", e);
-                ProgramError::Custom(200)
-            })?;
+    // 7. Build CPI instruction data
+    let mut cpi_ix_data = InstructionDataInvokeCpiWithAccountInfo::new(
+        program_id.into(),
+        cpi_signer.bump,
+        params.proof.into(),
+    );
+    cpi_ix_data.account_infos = compressed_account_infos;
 
-        // Close the PDA accounts
-        for idx in compress_ctx.pda_indices_to_close {
-            let mut info = pda_accounts[idx].clone();
-            crate::program::compression::close::close(&mut info, rent_sponsor)
-                .map_err(ProgramError::from)?;
-        }
+    // 8. Build CpiAccounts from system accounts slice (excluding PDA accounts at tail)
+    let cpi_accounts = CpiAccounts::new(
+        &remaining_accounts[FEE_PAYER_INDEX],
+        &remaining_accounts[system_accounts_offset..pda_start],
+        cpi_signer,
+    );
+
+    // 9. Invoke Light system program CPI
+    cpi_ix_data.invoke::<AI>(cpi_accounts)?;
+
+    // 10. Close PDA accounts, transferring lamports to rent_sponsor
+    for pda_index in &pda_indices_to_close {
+        close(&remaining_accounts[*pda_index], rent_sponsor)?;
     }
 
     Ok(())

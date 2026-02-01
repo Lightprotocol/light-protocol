@@ -311,6 +311,64 @@ impl CompressBuilder {
         })
     }
 
+    /// Generate compress dispatch as an associated function on the enum.
+    ///
+    /// When `#[derive(LightProgram)]` is used, the dispatch function is generated
+    /// as `impl EnumName { pub fn compress_dispatch(...) }` so it can be referenced
+    /// as `EnumName::compress_dispatch` and passed to SDK functions.
+    pub fn generate_enum_dispatch_method(&self, enum_name: &syn::Ident) -> Result<TokenStream> {
+        let compress_arms: Vec<_> = self.accounts.iter().map(|info| {
+            let name = qualify_type_with_crate(&info.account_type);
+
+            if info.is_zero_copy {
+                quote! {
+                    d if d == #name::LIGHT_DISCRIMINATOR => {
+                        let pod_bytes = &data[8..8 + core::mem::size_of::<#name>()];
+                        let mut account_data: #name = *bytemuck::from_bytes(pod_bytes);
+                        drop(data);
+                        light_sdk::interface::prepare_account_for_compression(
+                            account_info, &mut account_data, meta, index, ctx,
+                        )
+                    }
+                }
+            } else {
+                quote! {
+                    d if d == #name::LIGHT_DISCRIMINATOR => {
+                        let mut reader = &data[8..];
+                        let mut account_data = #name::deserialize(&mut reader)
+                            .map_err(|_| solana_program_error::ProgramError::InvalidAccountData)?;
+                        drop(data);
+                        light_sdk::interface::prepare_account_for_compression(
+                            account_info, &mut account_data, meta, index, ctx,
+                        )
+                    }
+                }
+            }
+        }).collect();
+
+        Ok(quote! {
+            impl #enum_name {
+                pub fn compress_dispatch<'info>(
+                    account_info: &anchor_lang::prelude::AccountInfo<'info>,
+                    meta: &light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
+                    index: usize,
+                    ctx: &mut light_sdk::interface::CompressCtx<'_, 'info>,
+                ) -> std::result::Result<(), solana_program_error::ProgramError> {
+                    use light_sdk::LightDiscriminator;
+                    use borsh::BorshDeserialize;
+                    let data = account_info.try_borrow_data()?;
+                    let discriminator: [u8; 8] = data[..8]
+                        .try_into()
+                        .map_err(|_| solana_program_error::ProgramError::InvalidAccountData)?;
+                    match discriminator {
+                        #(#compress_arms)*
+                        _ => Ok(()),
+                    }
+                }
+            }
+        })
+    }
+
     /// Generate compile-time size validation for compressed accounts.
     pub fn generate_size_validation(&self) -> Result<TokenStream> {
         let size_checks: Vec<_> = self.accounts.iter().map(|info| {

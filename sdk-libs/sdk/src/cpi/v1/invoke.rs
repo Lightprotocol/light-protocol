@@ -1,10 +1,14 @@
 use light_compressed_account::compressed_account::PackedCompressedAccountWithMerkleContext;
+use light_compressed_account::instruction_data::{
+    compressed_proof::ValidityProof,
+    cpi_context::CompressedCpiContext,
+};
 
 #[cfg(feature = "poseidon")]
 use crate::{account::poseidon::LightAccount as LightAccountPoseidon, DataHasher};
 use crate::{
     account::LightAccount,
-    cpi::instruction::WithLightAccount,
+    cpi::{delegate_light_cpi, LightCpiInstruction},
     error::LightSdkError,
     instruction::account_info::CompressedAccountInfoTrait,
     AnchorDeserialize, AnchorSerialize, LightDiscriminator, ProgramError,
@@ -13,7 +17,9 @@ use crate::{
 // Re-export LightSystemProgramCpi from interface
 pub use light_sdk_interface::cpi::v1::LightSystemProgramCpi;
 
-impl WithLightAccount for LightSystemProgramCpi {
+impl LightCpiInstruction for LightSystemProgramCpi {
+    delegate_light_cpi!(LightSystemProgramCpi);
+
     fn with_light_account<A>(mut self, account: LightAccount<A>) -> Result<Self, ProgramError>
     where
         A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + Default,

@@ -13,6 +13,6 @@
 // Re-export everything from interface's v1 module
 pub use light_sdk_interface::cpi::v1::*;
 
-// SDK extension: WithLightAccount impl for LightSystemProgramCpi
+// LightCpiInstruction impl for LightSystemProgramCpi
 mod invoke;
 pub use invoke::LightSystemProgramCpi;

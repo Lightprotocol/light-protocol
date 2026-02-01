@@ -1,14 +1,13 @@
 //! LightAccount trait definition for compressible account data structs.
 
-use anchor_lang::prelude::*;
+use light_account_checks::{
+    packed_accounts::ProgramPackedAccounts, AccountInfoTrait, AccountMetaTrait,
+};
 use light_hasher::DataHasher;
-use solana_program_error::ProgramError;
 
 use crate::{
-    account::compression_info::CompressionInfo,
-    instruction::PackedAccounts,
-    program::config::LightConfig,
-    light_account_checks::{packed_accounts::ProgramPackedAccounts, AccountInfoTrait},
+    account::compression_info::CompressionInfo, error::LightPdaError,
+    program::config::LightConfig, AnchorDeserialize, AnchorSerialize,
 };
 
 pub enum AccountType {
@@ -48,15 +47,18 @@ pub trait LightAccount:
     /// Set compression info to decompressed state (used at decompression)
     fn set_decompressed(&mut self, config: &LightConfig, current_slot: u64);
 
-    /// Convert to packed form (Pubkeys -> indices)
-    fn pack(
+    /// Convert to packed form (Pubkeys -> indices).
+    /// Generic over AccountMetaTrait for runtime-agnostic packing.
+    #[cfg(not(target_os = "solana"))]
+    fn pack<AM: AccountMetaTrait>(
         &self,
-        accounts: &mut PackedAccounts,
-    ) -> std::result::Result<Self::Packed, ProgramError>;
+        accounts: &mut crate::instruction::PackedAccounts<AM>,
+    ) -> Result<Self::Packed, LightPdaError>;
 
-    /// Convert from packed form (indices -> Pubkeys)
-    fn unpack<A: AccountInfoTrait>(
+    /// Convert from packed form (indices -> Pubkeys).
+    /// Generic over AccountInfoTrait for runtime-agnostic unpacking.
+    fn unpack<AI: AccountInfoTrait>(
         packed: &Self::Packed,
-        accounts: &ProgramPackedAccounts<A>,
-    ) -> std::result::Result<Self, ProgramError>;
+        accounts: &ProgramPackedAccounts<AI>,
+    ) -> Result<Self, LightPdaError>;
 }

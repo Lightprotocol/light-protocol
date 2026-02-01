@@ -5,8 +5,6 @@
 
 pub mod compression;
 pub mod config;
+pub mod decompression;
 pub mod validation;
 pub mod variant;
-
-#[cfg(feature = "anchor")]
-pub mod decompression;

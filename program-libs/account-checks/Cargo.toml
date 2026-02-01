@@ -15,11 +15,14 @@ solana = [
     "solana-sysvar",
     "solana-account-info",
     "solana-pubkey",
+    "solana-cpi",
+    "solana-system-interface",
+    "solana-instruction",
     "msg",
     "std"
 ]
 msg = ["dep:solana-msg"]
-pinocchio = ["dep:pinocchio"]
+pinocchio = ["dep:pinocchio", "dep:pinocchio-system"]
 test-only = ["dep:rand", "std"]
 
 [dependencies]
@@ -31,7 +34,11 @@ solana-pubkey = { workspace = true, optional = true, features = [
     "sha2",
 ] }
 solana-msg = { workspace = true, optional = true }
+solana-cpi = { workspace = true, optional = true }
+solana-instruction = { workspace = true, optional = true }
+solana-system-interface = { workspace = true, optional = true, features = ["bincode"] }
 pinocchio = { workspace = true, optional = true }
+pinocchio-system = { workspace = true, optional = true }
 thiserror = { workspace = true }
 rand = { workspace = true, optional = true }
 

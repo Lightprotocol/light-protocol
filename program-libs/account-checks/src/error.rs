@@ -38,6 +38,8 @@ pub enum AccountError {
     FailedSysvarAccess,
     #[error("Pinocchio program error with code: {0}")]
     PinocchioProgramError(u32),
+    #[error("Arithmetic overflow.")]
+    ArithmeticOverflow,
 }
 
 impl From<AccountError> for u32 {
@@ -61,6 +63,7 @@ impl From<AccountError> for u32 {
             AccountError::InvalidAccount => 20015,
             AccountError::FailedSysvarAccess => 20016,
             AccountError::PinocchioProgramError(code) => code,
+            AccountError::ArithmeticOverflow => 20017,
         }
     }
 }

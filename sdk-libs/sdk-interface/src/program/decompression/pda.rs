@@ -1,22 +1,24 @@
-use anchor_lang::prelude::*;
+//! Generic prepare_account_for_decompression.
+
+use light_account_checks::AccountInfoTrait;
 use light_compressed_account::{
     address::derive_address,
     compressed_account::PackedMerkleContext,
     instruction_data::with_account_info::{CompressedAccountInfo, InAccountInfo, OutAccountInfo},
 };
 use light_compressible::DECOMPRESSED_PDA_DISCRIMINATOR;
-use light_hasher::{sha256::Sha256BE, Hasher, Sha256};
+use light_hasher::{sha256::Sha256BE, Hasher};
 use light_sdk_types::{constants::RENT_SPONSOR_SEED, instruction::PackedStateTreeInfo};
-use solana_account_info::AccountInfo;
-use solana_program_error::ProgramError;
-use solana_pubkey::Pubkey;
 
 use crate::{
-    accounts::create_pda::create_pda_account,
-    program::decompression::processor::DecompressCtx,
     account::light_account::LightAccount,
-    program::variant::{LightAccountVariantTrait, PackedLightAccountVariantTrait},
-    LightDiscriminator,
+    error::LightPdaError,
+    light_account_checks::discriminator::Discriminator as LightDiscriminator,
+    program::{
+        decompression::processor::DecompressCtx,
+        variant::{LightAccountVariantTrait, PackedLightAccountVariantTrait},
+    },
+    AnchorSerialize,
 };
 
 /// Generic prepare_account_for_decompression.
@@ -37,27 +39,33 @@ use crate::{
 /// # Type Parameters
 /// * `SEED_COUNT` - Number of seeds including bump
 /// * `P` - Packed variant type implementing PackedLightAccountVariantTrait
-pub fn prepare_account_for_decompression<'info, const SEED_COUNT: usize, P>(
+/// * `AI` - Account info type (solana or pinocchio)
+#[inline(never)]
+pub fn prepare_account_for_decompression<const SEED_COUNT: usize, P, AI>(
     packed: &P,
     tree_info: &PackedStateTreeInfo,
     output_queue_index: u8,
-    pda_account: &AccountInfo<'info>,
-    ctx: &mut DecompressCtx<'_, 'info>,
-) -> std::result::Result<(), ProgramError>
+    pda_account: &AI,
+    ctx: &mut DecompressCtx<'_, AI>,
+) -> Result<(), LightPdaError>
 where
+    AI: AccountInfoTrait + Clone,
     P: PackedLightAccountVariantTrait<SEED_COUNT>,
-    <P::Unpacked as LightAccountVariantTrait<SEED_COUNT>>::Data:
-        LightAccount + LightDiscriminator + Clone + AnchorSerialize + AnchorDeserialize,
+    <P::Unpacked as LightAccountVariantTrait<SEED_COUNT>>::Data: LightAccount,
 {
+    // Type alias for the account data type
+    type Data<const N: usize, P> =
+        <<P as PackedLightAccountVariantTrait<N>>::Unpacked as LightAccountVariantTrait<N>>::Data;
+
     // 1. Unpack to get seeds (must happen first for PDA validation)
     let packed_accounts = ctx
         .cpi_accounts
         .packed_accounts()
-        .map_err(|_| ProgramError::NotEnoughAccountKeys)?;
+        .map_err(LightPdaError::from)?;
 
     let unpacked = packed
         .unpack(packed_accounts)
-        .map_err(|_| ProgramError::InvalidAccountData)?;
+        .map_err(|_| LightPdaError::InvalidInstructionData)?;
     let account_data = unpacked.data().clone();
 
     // 2. Get seeds from unpacked variant using seed_vec() (owned data, no lifetime issues)
@@ -69,16 +77,13 @@ where
 
     // 3. SECURITY: Validate PDA derivation FIRST (defense-in-depth)
     // This MUST run before idempotency check to prevent accepting wrong PDAs
-    let expected_pda = Pubkey::create_program_address(&seed_slices, ctx.program_id)
-        .map_err(|_| ProgramError::InvalidSeeds)?;
+    let expected_pda =
+        AI::create_program_address(&seed_slices, ctx.program_id).map_err(|_| {
+            LightPdaError::InvalidSeeds
+        })?;
 
-    if pda_account.key != &expected_pda {
-        solana_msg::msg!(
-            "PDA key mismatch: expected {:?}, got {:?}",
-            expected_pda,
-            pda_account.key
-        );
-        return Err(ProgramError::InvalidSeeds);
+    if pda_account.key() != expected_pda {
+        return Err(LightPdaError::InvalidSeeds);
     }
 
     // 4. Idempotency check - if PDA already has data (non-zero discriminator), skip
@@ -90,40 +95,42 @@ where
     // 5. Hash with canonical CompressionInfo::compressed() for input verification
     let data_bytes = account_data
         .try_to_vec()
-        .map_err(|_| ProgramError::InvalidAccountData)?;
+        .map_err(|_| LightPdaError::Borsh)?;
     let data_len = data_bytes.len();
-    let mut input_data_hash = Sha256::hash(&data_bytes).map_err(|_| ProgramError::Custom(100))?;
+    let mut input_data_hash = Sha256BE::hash(&data_bytes)?;
     input_data_hash[0] = 0; // Zero first byte per protocol convention
 
     // 6. Calculate space and create PDA
-    type Data<const N: usize, P> =
-        <<P as PackedLightAccountVariantTrait<N>>::Unpacked as LightAccountVariantTrait<N>>::Data;
     let discriminator_len = 8;
-    let space = discriminator_len + data_len.max(<Data<SEED_COUNT, P> as LightAccount>::INIT_SPACE);
-    let rent_minimum = ctx.rent.minimum_balance(space);
+    let space =
+        discriminator_len + data_len.max(<Data<SEED_COUNT, P> as LightAccount>::INIT_SPACE);
+    let rent_minimum = AI::get_min_rent_balance(space)?;
 
     let system_program = ctx
         .cpi_accounts
         .system_program()
-        .map_err(|_| ProgramError::InvalidAccountData)?;
+        .map_err(LightPdaError::from)?;
 
     // Construct rent sponsor seeds for PDA signing
     let rent_sponsor_bump_bytes = [ctx.rent_sponsor_bump];
     let rent_sponsor_seeds: &[&[u8]] = &[RENT_SPONSOR_SEED, &rent_sponsor_bump_bytes];
 
-    create_pda_account(
-        ctx.rent_sponsor,
-        rent_sponsor_seeds,
-        pda_account,
-        rent_minimum,
-        space as u64,
-        ctx.program_id,
-        &seed_slices,
-        system_program,
-    )?;
+    pda_account
+        .create_pda_account(
+            rent_minimum,
+            space as u64,
+            ctx.program_id,
+            &seed_slices,
+            ctx.rent_sponsor,
+            rent_sponsor_seeds,
+            system_program,
+        )
+        .map_err(|_| LightPdaError::CpiFailed)?;
 
     // 7. Write discriminator + data to PDA
-    let mut pda_data = pda_account.try_borrow_mut_data()?;
+    let mut pda_data = pda_account
+        .try_borrow_mut_data()
+        .map_err(|_| LightPdaError::ConstraintViolation)?;
     pda_data[..8]
         .copy_from_slice(&<Data<SEED_COUNT, P> as LightDiscriminator>::LIGHT_DISCRIMINATOR);
 
@@ -133,13 +140,14 @@ where
     let writer = &mut &mut pda_data[8..];
     decompressed
         .serialize(writer)
-        .map_err(|_| ProgramError::InvalidAccountData)?;
+        .map_err(|_| LightPdaError::Borsh)?;
 
-    // 9. Derive compressed address from PDA key (saves instruction data size)
+    // 9. Derive compressed address from PDA key
+    let pda_key = pda_account.key();
     let address = derive_address(
-        &pda_account.key.to_bytes(),
-        &ctx.light_config.address_space[0].to_bytes(),
-        &ctx.program_id.to_bytes(),
+        &pda_key,
+        &ctx.light_config.address_space[0],
+        ctx.program_id,
     );
 
     // 10. Build CompressedAccountInfo for CPI
@@ -159,9 +167,8 @@ where
     // Output is a DECOMPRESSED_PDA placeholder (same as init creates).
     // This allows CompressAccountsIdempotent to re-compress the account
     // in a future cycle by finding and nullifying this placeholder.
-    let pda_pubkey_bytes = pda_account.key.to_bytes();
-    let output_data_hash =
-        Sha256BE::hash(&pda_pubkey_bytes).map_err(|_| ProgramError::Custom(101))?;
+    let pda_pubkey_bytes = pda_account.key();
+    let output_data_hash = Sha256BE::hash(&pda_pubkey_bytes)?;
     let output = OutAccountInfo {
         lamports: 0,
         output_merkle_tree_index: output_queue_index,

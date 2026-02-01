@@ -13,5 +13,5 @@
 // Re-export everything from interface's v2 module
 pub use light_sdk_interface::cpi::v2::*;
 
-// SDK extension: WithLightAccount impls for v2 instruction types
+// LightCpiInstruction impls for v2 instruction types
 mod invoke;

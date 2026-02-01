@@ -1,85 +1,150 @@
+//! Generic CPI accounts trait and implementations.
+
+use light_account_checks::{AccountInfoTrait, CpiMeta};
+use light_sdk_types::cpi_accounts::v2::{CompressionCpiAccountIndex, CpiAccounts, PROGRAM_ACCOUNTS_LEN};
 use light_sdk_types::cpi_context_write::CpiContextWriteAccounts;
 
-use crate::cpi::v2::get_account_metas_from_config_cpi_context;
-use crate::cpi::v1::{
-    lowlevel::{get_account_metas_from_config, CpiInstructionConfig},
-    CpiAccounts,
-};
-use solana_account_info::AccountInfo;
-use solana_instruction::AccountMeta;
-use solana_program_error::ProgramError;
+use crate::error::LightPdaError;
 
-/// Trait for types that can provide account information for CPI calls
-pub trait CpiAccountsTrait<'info> {
-    /// Convert to a vector of AccountInfo references
-    fn to_account_infos(&self) -> Vec<AccountInfo<'info>>;
-
-    /// Generate account metas
-    fn to_account_metas(&self) -> Result<Vec<AccountMeta>, ProgramError>;
-
-    /// Get the mode for the instruction (0 for v1, 1 for v2, None if unknown)
+/// Trait for types that can provide account infos and metas for Light system program CPI.
+///
+/// Generic over `AI: AccountInfoTrait` to work with both solana and pinocchio backends.
+pub trait CpiAccountsTrait<AI: AccountInfoTrait + Clone> {
+    fn to_account_infos(&self) -> Vec<AI>;
+    fn to_account_metas(&self) -> Result<Vec<CpiMeta>, LightPdaError>;
     fn get_mode(&self) -> Option<u8>;
 }
 
-// Implementation for CpiAccounts
-impl<'info> CpiAccountsTrait<'info> for CpiAccounts<'_, 'info> {
-    fn to_account_infos(&self) -> Vec<AccountInfo<'info>> {
-        self.to_account_infos()
+/// Build `CpiMeta` vec from `CpiAccounts` (v2 mode=1).
+impl<'a, AI: AccountInfoTrait + Clone> CpiAccountsTrait<AI> for CpiAccounts<'a, AI> {
+    fn to_account_infos(&self) -> Vec<AI> {
+        CpiAccounts::to_account_infos(self)
     }
 
-    fn to_account_metas(&self) -> Result<Vec<AccountMeta>, ProgramError> {
-        let config = CpiInstructionConfig::try_from(self).map_err(ProgramError::from)?;
-        Ok(get_account_metas_from_config(config))
+    fn to_account_metas(&self) -> Result<Vec<CpiMeta>, LightPdaError> {
+        to_cpi_metas(self)
     }
 
     fn get_mode(&self) -> Option<u8> {
-        Some(0) // v1 mode
+        Some(1) // v2 mode
     }
 }
 
-// Implementation for &[AccountInfo]
-impl<'info> CpiAccountsTrait<'info> for &[AccountInfo<'info>] {
-    fn to_account_infos(&self) -> Vec<AccountInfo<'info>> {
-        self.to_vec()
+/// Build `CpiMeta` vec from `CpiContextWriteAccounts` (3-account CPI context write).
+impl<'a, AI: AccountInfoTrait + Clone> CpiAccountsTrait<AI> for CpiContextWriteAccounts<'a, AI> {
+    fn to_account_infos(&self) -> Vec<AI> {
+        self.to_account_infos().to_vec()
     }
 
-    fn to_account_metas(&self) -> Result<Vec<AccountMeta>, ProgramError> {
-        // For raw account info slices, create simple account metas
-        // preserving the original signer and writable flags
-        Ok(self
-            .iter()
-            .map(|account| AccountMeta {
-                pubkey: *account.key,
-                is_signer: account.is_signer,
-                is_writable: account.is_writable,
-            })
-            .collect())
+    fn to_account_metas(&self) -> Result<Vec<CpiMeta>, LightPdaError> {
+        let infos = self.to_account_info_refs();
+        Ok(vec![
+            CpiMeta {
+                pubkey: infos[0].key(),
+                is_signer: true,
+                is_writable: true,
+            },
+            CpiMeta {
+                pubkey: infos[1].key(),
+                is_signer: true,
+                is_writable: false,
+            },
+            CpiMeta {
+                pubkey: infos[2].key(),
+                is_signer: false,
+                is_writable: true,
+            },
+        ])
     }
 
     fn get_mode(&self) -> Option<u8> {
-        None // Unknown mode for raw slices
+        Some(1) // v2 mode
     }
 }
 
-// Implementation for CpiContextWriteAccounts
-impl<'a, 'info> CpiAccountsTrait<'info> for CpiContextWriteAccounts<'a, AccountInfo<'info>> {
-    fn to_account_infos(&self) -> Vec<AccountInfo<'info>> {
-        vec![
-            self.fee_payer.clone(),
-            self.authority.clone(),
-            self.cpi_context.clone(),
-        ]
+/// Convert `CpiAccounts` to a vec of `CpiMeta`, preserving the account layout
+/// expected by the Light system program.
+fn to_cpi_metas<AI: AccountInfoTrait + Clone>(
+    cpi_accounts: &CpiAccounts<'_, AI>,
+) -> Result<Vec<CpiMeta>, LightPdaError> {
+    let mut metas =
+        Vec::with_capacity(1 + cpi_accounts.account_infos().len() - PROGRAM_ACCOUNTS_LEN);
+
+    metas.push(CpiMeta {
+        pubkey: cpi_accounts.fee_payer().key(),
+        is_signer: true,
+        is_writable: true,
+    });
+    metas.push(CpiMeta {
+        pubkey: cpi_accounts.authority()?.key(),
+        is_signer: true,
+        is_writable: false,
+    });
+    metas.push(CpiMeta {
+        pubkey: cpi_accounts.registered_program_pda()?.key(),
+        is_signer: false,
+        is_writable: false,
+    });
+    metas.push(CpiMeta {
+        pubkey: cpi_accounts.account_compression_authority()?.key(),
+        is_signer: false,
+        is_writable: false,
+    });
+    metas.push(CpiMeta {
+        pubkey: cpi_accounts.account_compression_program()?.key(),
+        is_signer: false,
+        is_writable: false,
+    });
+    metas.push(CpiMeta {
+        pubkey: cpi_accounts.system_program()?.key(),
+        is_signer: false,
+        is_writable: false,
+    });
+
+    let accounts = cpi_accounts.account_infos();
+    let mut index = CompressionCpiAccountIndex::SolPoolPda as usize;
+
+    if cpi_accounts.config().sol_pool_pda {
+        let account = cpi_accounts.get_account_info(index)?;
+        metas.push(CpiMeta {
+            pubkey: account.key(),
+            is_signer: false,
+            is_writable: true,
+        });
+        index += 1;
     }
 
-    fn to_account_metas(&self) -> Result<Vec<AccountMeta>, ProgramError> {
-        // Use the helper function to generate the account metas
-        let metas = get_account_metas_from_config_cpi_context(self.clone());
-        Ok(metas.to_vec())
+    if cpi_accounts.config().sol_compression_recipient {
+        let account = cpi_accounts.get_account_info(index)?;
+        metas.push(CpiMeta {
+            pubkey: account.key(),
+            is_signer: false,
+            is_writable: true,
+        });
+        index += 1;
     }
 
-    fn get_mode(&self) -> Option<u8> {
-        // CPI context write accounts always use v2 mode (1)
-        // This type requires both the `v2` and `cpi-context` features
-        Some(1)
+    if cpi_accounts.config().cpi_context {
+        let account = cpi_accounts.get_account_info(index)?;
+        metas.push(CpiMeta {
+            pubkey: account.key(),
+            is_signer: false,
+            is_writable: true,
+        });
+        index += 1;
     }
+    assert_eq!(cpi_accounts.system_accounts_end_offset(), index);
+
+    let tree_accounts =
+        accounts
+            .get(index..)
+            .ok_or(LightPdaError::CpiAccountsIndexOutOfBounds(index))?;
+    tree_accounts.iter().for_each(|acc| {
+        metas.push(CpiMeta {
+            pubkey: acc.key(),
+            is_signer: acc.is_signer(),
+            is_writable: acc.is_writable(),
+        });
+    });
+    Ok(metas)
 }

@@ -8,60 +8,66 @@
 
 use std::collections::HashMap;
 
-use solana_instruction::AccountMeta;
-use solana_program_error::ProgramError;
-use solana_pubkey::Pubkey;
+use light_account_checks::AccountMetaTrait;
+
+use crate::error::LightPdaError;
 
 /// Builder to collect accounts for compressed account instructions.
+///
+/// Generic over `AM: AccountMetaTrait` to work with both solana and pinocchio account metas.
 ///
 /// Manages three categories of accounts:
 /// - **Pre-accounts**: Signers and other custom accounts that come before system accounts.
 /// - **System accounts**: Light system program accounts (authority, trees, queues).
 /// - **Packed accounts**: Dynamically tracked deduplicated accounts.
-#[derive(Default, Debug)]
-pub struct PackedAccounts {
+#[derive(Debug)]
+pub struct PackedAccounts<AM: AccountMetaTrait> {
     /// Accounts that must come before system accounts (e.g., signers, fee payer).
-    pub pre_accounts: Vec<AccountMeta>,
+    pub pre_accounts: Vec<AM>,
     /// Light system program accounts (authority, programs, trees, queues).
-    system_accounts: Vec<AccountMeta>,
+    system_accounts: Vec<AM>,
     /// Next available index for packed accounts.
     next_index: u8,
-    /// Map of pubkey to (index, AccountMeta) for deduplication and index tracking.
-    map: HashMap<Pubkey, (u8, AccountMeta)>,
+    /// Map of pubkey bytes to (index, AccountMeta) for deduplication and index tracking.
+    map: HashMap<[u8; 32], (u8, AM)>,
     /// Field to sanity check
     system_accounts_set: bool,
 }
 
-impl PackedAccounts {
+impl<AM: AccountMetaTrait> Default for PackedAccounts<AM> {
+    fn default() -> Self {
+        Self {
+            pre_accounts: Vec::new(),
+            system_accounts: Vec::new(),
+            next_index: 0,
+            map: HashMap::new(),
+            system_accounts_set: false,
+        }
+    }
+}
+
+impl<AM: AccountMetaTrait> PackedAccounts<AM> {
     pub fn system_accounts_set(&self) -> bool {
         self.system_accounts_set
     }
 
-    pub fn add_pre_accounts_signer(&mut self, pubkey: Pubkey) {
-        self.pre_accounts.push(AccountMeta {
-            pubkey,
-            is_signer: true,
-            is_writable: false,
-        });
+    pub fn add_pre_accounts_signer(&mut self, pubkey: [u8; 32]) {
+        self.pre_accounts.push(AM::new(pubkey, true, false));
     }
 
-    pub fn add_pre_accounts_signer_mut(&mut self, pubkey: Pubkey) {
-        self.pre_accounts.push(AccountMeta {
-            pubkey,
-            is_signer: true,
-            is_writable: true,
-        });
+    pub fn add_pre_accounts_signer_mut(&mut self, pubkey: [u8; 32]) {
+        self.pre_accounts.push(AM::new(pubkey, true, true));
     }
 
-    pub fn add_pre_accounts_meta(&mut self, account_meta: AccountMeta) {
+    pub fn add_pre_accounts_meta(&mut self, account_meta: AM) {
         self.pre_accounts.push(account_meta);
     }
 
-    pub fn add_pre_accounts_metas(&mut self, account_metas: &[AccountMeta]) {
+    pub fn add_pre_accounts_metas(&mut self, account_metas: &[AM]) {
         self.pre_accounts.extend_from_slice(account_metas);
     }
 
-    pub fn add_system_accounts_raw(&mut self, system_accounts: Vec<AccountMeta>) {
+    pub fn add_system_accounts_raw(&mut self, system_accounts: Vec<AM>) {
         self.system_accounts.extend(system_accounts);
         self.system_accounts_set = true;
     }
@@ -73,58 +79,48 @@ impl PackedAccounts {
     ///
     /// If the provided `pubkey` already exists in the collection, its already
     /// existing index is returned.
-    pub fn insert_or_get(&mut self, pubkey: Pubkey) -> u8 {
+    pub fn insert_or_get(&mut self, pubkey: [u8; 32]) -> u8 {
         self.insert_or_get_config(pubkey, false, true)
     }
 
-    pub fn insert_or_get_read_only(&mut self, pubkey: Pubkey) -> u8 {
+    pub fn insert_or_get_read_only(&mut self, pubkey: [u8; 32]) -> u8 {
         self.insert_or_get_config(pubkey, false, false)
     }
 
     pub fn insert_or_get_config(
         &mut self,
-        pubkey: Pubkey,
+        pubkey: [u8; 32],
         is_signer: bool,
         is_writable: bool,
     ) -> u8 {
         match self.map.get_mut(&pubkey) {
             Some((index, entry)) => {
-                if !entry.is_writable {
-                    entry.is_writable = is_writable;
+                if !entry.is_writable() {
+                    entry.set_is_writable(is_writable);
                 }
-                if !entry.is_signer {
-                    entry.is_signer = is_signer;
+                if !entry.is_signer() {
+                    entry.set_is_signer(is_signer);
                 }
                 *index
             }
             None => {
                 let index = self.next_index;
                 self.next_index += 1;
-                self.map.insert(
-                    pubkey,
-                    (
-                        index,
-                        AccountMeta {
-                            pubkey,
-                            is_signer,
-                            is_writable,
-                        },
-                    ),
-                );
+                self.map
+                    .insert(pubkey, (index, AM::new(pubkey, is_signer, is_writable)));
                 index
             }
         }
     }
 
-    fn hash_set_accounts_to_metas(&self) -> Vec<AccountMeta> {
+    fn hash_set_accounts_to_metas(&self) -> Vec<AM> {
         let mut packed_accounts = self.map.iter().collect::<Vec<_>>();
         // hash maps are not sorted so we need to sort manually and collect into a vector again
         packed_accounts.sort_by(|a, b| a.1 .0.cmp(&b.1 .0));
-        let packed_accounts = packed_accounts
+        packed_accounts
             .iter()
             .map(|(_, (_, k))| k.clone())
-            .collect::<Vec<AccountMeta>>();
-        packed_accounts
+            .collect::<Vec<AM>>()
     }
 
     fn get_offsets(&self) -> (usize, usize) {
@@ -134,9 +130,8 @@ impl PackedAccounts {
         (system_accounts_start_offset, packed_accounts_start_offset)
     }
 
-    /// Converts the collection of accounts to a vector of
-    /// [`AccountMeta`](solana_instruction::AccountMeta), which can be used
-    /// as remaining accounts in instructions or CPI calls.
+    /// Converts the collection of accounts to a vector of account metas,
+    /// which can be used as remaining accounts in instructions or CPI calls.
     ///
     /// # Returns
     ///
@@ -144,7 +139,7 @@ impl PackedAccounts {
     /// - `account_metas`: All accounts concatenated in order: `[pre_accounts][system_accounts][packed_accounts]`
     /// - `system_accounts_offset`: Index where system accounts start (= pre_accounts.len())
     /// - `packed_accounts_offset`: Index where packed accounts start (= pre_accounts.len() + system_accounts.len())
-    pub fn to_account_metas(&self) -> (Vec<AccountMeta>, usize, usize) {
+    pub fn to_account_metas(&self) -> (Vec<AM>, usize, usize) {
         let packed_accounts = self.hash_set_accounts_to_metas();
         let (system_accounts_start_offset, packed_accounts_start_offset) = self.get_offsets();
         (
@@ -159,21 +154,21 @@ impl PackedAccounts {
         )
     }
 
-    pub fn packed_pubkeys(&self) -> Vec<Pubkey> {
+    pub fn packed_pubkeys(&self) -> Vec<[u8; 32]> {
         self.hash_set_accounts_to_metas()
             .iter()
-            .map(|meta| meta.pubkey)
+            .map(|meta| meta.pubkey_bytes())
             .collect()
     }
 
-    pub fn add_custom_system_accounts<T: AccountMetasVec>(
+    pub fn add_custom_system_accounts<T: AccountMetasVec<AM>>(
         &mut self,
         accounts: T,
-    ) -> Result<(), ProgramError> {
+    ) -> Result<(), LightPdaError> {
         accounts.get_account_metas_vec(self)
     }
 }
 
-pub trait AccountMetasVec {
-    fn get_account_metas_vec(&self, accounts: &mut PackedAccounts) -> Result<(), ProgramError>;
+pub trait AccountMetasVec<AM: AccountMetaTrait> {
+    fn get_account_metas_vec(&self, accounts: &mut PackedAccounts<AM>) -> Result<(), LightPdaError>;
 }

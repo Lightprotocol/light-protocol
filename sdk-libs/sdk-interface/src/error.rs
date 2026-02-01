@@ -18,9 +18,6 @@ pub enum LightPdaError {
     MissingCompressionInfo,
     #[error("Rent sponsor account does not match the expected PDA from config")]
     InvalidRentSponsor,
-    #[cfg(feature = "solana")]
-    #[error("Program error: {0}")]
-    ProgramError(#[from] solana_program_error::ProgramError),
     #[error("Borsh IO error: {0}")]
     BorshIo(String),
     #[error("CPI accounts index out of bounds: {0}")]
@@ -29,16 +26,21 @@ pub enum LightPdaError {
     ReadOnlyAccountsNotSupportedInCpiContext,
     #[error("Compressed account error: {0}")]
     CompressedAccountError(#[from] CompressedAccountError),
+    #[error("Account data too small")]
+    AccountDataTooSmall,
+    #[error("Invalid instruction data")]
+    InvalidInstructionData,
+    #[error("Invalid seeds")]
+    InvalidSeeds,
+    #[error("CPI invocation failed")]
+    CpiFailed,
+    #[error("Not enough account keys")]
+    NotEnoughAccountKeys,
+    #[error("Missing required signature")]
+    MissingRequiredSignature,
 }
 
 pub type Result<T> = core::result::Result<T, LightPdaError>;
-
-#[cfg(feature = "solana")]
-impl From<LightPdaError> for solana_program_error::ProgramError {
-    fn from(e: LightPdaError) -> Self {
-        solana_program_error::ProgramError::Custom(u32::from(e))
-    }
-}
 
 impl From<LightSdkTypesError> for LightPdaError {
     fn from(e: LightSdkTypesError) -> Self {
@@ -62,26 +64,16 @@ impl From<LightPdaError> for u32 {
             LightPdaError::Hasher(e) => e.into(),
             LightPdaError::MissingCompressionInfo => 17003,
             LightPdaError::InvalidRentSponsor => 17004,
-            #[cfg(feature = "solana")]
-            LightPdaError::ProgramError(e) => u64::from(e) as u32,
             LightPdaError::BorshIo(_) => 17005,
             LightPdaError::CpiAccountsIndexOutOfBounds(_) => 17006,
             LightPdaError::ReadOnlyAccountsNotSupportedInCpiContext => 17007,
             LightPdaError::CompressedAccountError(e) => e.into(),
+            LightPdaError::AccountDataTooSmall => 17008,
+            LightPdaError::InvalidInstructionData => 17009,
+            LightPdaError::InvalidSeeds => 17010,
+            LightPdaError::CpiFailed => 17011,
+            LightPdaError::NotEnoughAccountKeys => 17012,
+            LightPdaError::MissingRequiredSignature => 17013,
         }
-    }
-}
-
-#[cfg(feature = "solana")]
-impl From<core::cell::BorrowError> for LightPdaError {
-    fn from(_e: core::cell::BorrowError) -> Self {
-        LightPdaError::AccountCheck(AccountError::BorrowAccountDataFailed)
-    }
-}
-
-#[cfg(feature = "solana")]
-impl From<core::cell::BorrowMutError> for LightPdaError {
-    fn from(_e: core::cell::BorrowMutError) -> Self {
-        LightPdaError::AccountCheck(AccountError::BorrowAccountDataFailed)
     }
 }

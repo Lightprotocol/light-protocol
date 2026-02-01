@@ -4,19 +4,21 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{Item, ItemMod, Result};
 
-// Re-export types from parsing for external use
+// Re-export types from parsing, compress, and variant_enum for external use
+pub use super::compress::CompressibleAccountInfo;
 pub use super::parsing::{
     extract_ctx_seed_fields, extract_data_seed_fields, InstructionDataSpec, InstructionVariant,
     SeedElement, TokenSeedSpec,
 };
+pub use super::variant_enum::PdaCtxSeedInfo;
 use super::{
-    compress::{CompressBuilder, CompressibleAccountInfo},
+    compress::CompressBuilder,
     decompress::DecompressBuilder,
     parsing::{
         convert_classified_to_seed_elements, convert_classified_to_seed_elements_vec,
         extract_context_and_params, macro_error, wrap_function_with_light,
     },
-    variant_enum::{LightVariantBuilder, PdaCtxSeedInfo},
+    variant_enum::LightVariantBuilder,
 };
 use crate::{
     light_pdas::shared_utils::{ident_to_type, qualify_type_with_crate},
@@ -27,11 +29,13 @@ use crate::{
 // MAIN CODEGEN
 // =============================================================================
 
-/// Orchestrates all code generation for the rentfree module.
+/// Shared code generation used by both `#[light_program]` and `#[derive(LightProgram)]`.
+///
+/// Returns a `Vec<TokenStream>` of all generated items (enums, structs, trait impls,
+/// instruction handlers, etc.) that can be injected into a module or returned directly.
 #[inline(never)]
 #[allow(clippy::too_many_arguments)]
-fn codegen(
-    module: &mut ItemMod,
+pub(crate) fn generate_light_program_items(
     compressible_accounts: Vec<CompressibleAccountInfo>,
     pda_seeds: Option<Vec<TokenSeedSpec>>,
     token_seeds: Option<Vec<TokenSeedSpec>>,
@@ -40,20 +44,8 @@ fn codegen(
     has_mint_fields: bool,
     has_ata_fields: bool,
     pda_variant_code: TokenStream,
-) -> Result<TokenStream> {
-    let content = match module.content.as_mut() {
-        Some(content) => content,
-        None => return Err(macro_error!(module, "Module must have a body")),
-    };
-
-    // Insert anchor_lang::prelude::* import at the beginning of the module
-    // This ensures Accounts, Signer, AccountInfo, Result, error_code etc. are in scope
-    // for the generated code (structs, enums, functions).
-    let anchor_import: syn::Item = syn::parse_quote! {
-        use anchor_lang::prelude::*;
-    };
-    content.1.insert(0, anchor_import);
-
+    enum_name: Option<&syn::Ident>,
+) -> Result<Vec<TokenStream>> {
     // TODO: Unify seed extraction - currently #[light_program] extracts seeds from Anchor's
     // #[account(seeds = [...])] automatically, while #[derive(LightAccounts)] requires
     // explicit token::seeds = [...] in #[light_account]. Consider removing the duplicate
@@ -358,8 +350,8 @@ fn codegen(
         (false, false, true, _) => InstructionVariant::MintOnly,
         (false, false, false, true) => InstructionVariant::AtaOnly,
         (false, false, false, false) => {
-            return Err(macro_error!(
-                module,
+            return Err(syn::Error::new(
+                proc_macro2::Span::call_site(),
                 "No #[light_account(init)], #[light_account(init, mint::...)], #[light_account(init, associated_token::...)], or #[light_account(token::...)] fields found.\n\
                  At least one light account field must be provided."
             ))
@@ -513,27 +505,20 @@ fn codegen(
 
     let init_config_instruction: syn::ItemFn = syn::parse_quote! {
         #[inline(never)]
-        #[allow(clippy::too_many_arguments)]
         pub fn initialize_compression_config<'info>(
             ctx: Context<'_, '_, '_, 'info, InitializeCompressionConfig<'info>>,
-            write_top_up: u32,
-            rent_sponsor: Pubkey,
-            compression_authority: Pubkey,
-            rent_config: ::light_sdk::interface::rent::RentConfig,
-            address_space: Vec<Pubkey>,
+            instruction_data: Vec<u8>,
         ) -> Result<()> {
+            let remaining = [
+                ctx.accounts.payer.to_account_info(),
+                ctx.accounts.config.to_account_info(),
+                ctx.accounts.program_data.to_account_info(),
+                ctx.accounts.authority.to_account_info(),
+                ctx.accounts.system_program.to_account_info(),
+            ];
             light_sdk::interface::process_initialize_light_config_checked(
-                &ctx.accounts.config.to_account_info(),
-                &ctx.accounts.authority.to_account_info(),
-                &ctx.accounts.program_data.to_account_info(),
-                &rent_sponsor,
-                &compression_authority,
-                rent_config,
-                write_top_up,
-                address_space,
-                0,
-                &ctx.accounts.payer.to_account_info(),
-                &ctx.accounts.system_program.to_account_info(),
+                &remaining,
+                &instruction_data,
                 &crate::ID,
             )?;
             Ok(())
@@ -542,25 +527,17 @@ fn codegen(
 
     let update_config_instruction: syn::ItemFn = syn::parse_quote! {
         #[inline(never)]
-        #[allow(clippy::too_many_arguments)]
         pub fn update_compression_config<'info>(
             ctx: Context<'_, '_, '_, 'info, UpdateCompressionConfig<'info>>,
-            new_rent_sponsor: Option<Pubkey>,
-            new_compression_authority: Option<Pubkey>,
-            new_rent_config: Option<::light_sdk::interface::rent::RentConfig>,
-            new_write_top_up: Option<u32>,
-            new_address_space: Option<Vec<Pubkey>>,
-            new_update_authority: Option<Pubkey>,
+            instruction_data: Vec<u8>,
         ) -> Result<()> {
+            let remaining = [
+                ctx.accounts.config.to_account_info(),
+                ctx.accounts.update_authority.to_account_info(),
+            ];
             light_sdk::interface::process_update_light_config(
-                ctx.accounts.config.as_ref(),
-                ctx.accounts.update_authority.as_ref(),
-                new_update_authority.as_ref(),
-                new_rent_sponsor.as_ref(),
-                new_compression_authority.as_ref(),
-                new_rent_config,
-                new_write_top_up,
-                new_address_space,
+                &remaining,
+                &instruction_data,
                 &crate::ID,
             )?;
             Ok(())
@@ -573,81 +550,124 @@ fn codegen(
         &instruction_data,
     )?;
 
-    // Insert SeedParams struct and impl
-    let seed_params_file: syn::File = syn::parse2(seed_params_struct)?;
-    for item in seed_params_file.items {
-        content.1.push(item);
-    }
+    // Collect all generated items into a Vec<TokenStream>
+    let mut items: Vec<TokenStream> = Vec::new();
 
-    // Insert XxxSeeds structs and LightAccountVariant constructors
+    // SeedParams struct and impl
+    items.push(seed_params_struct);
+
+    // XxxSeeds structs and LightAccountVariant constructors
     for seeds_tokens in seeds_structs_and_constructors.into_iter() {
-        let wrapped: syn::File = syn::parse2(seeds_tokens)?;
-        for item in wrapped.items {
-            content.1.push(item);
-        }
+        items.push(seeds_tokens);
     }
 
-    // Insert PDA variant structs directly into the module.
-    // The variant code uses fully qualified paths (crate::CONSTANT) for all
-    // constant references, so no additional imports are needed.
+    // PDA variant structs (variant code uses fully qualified paths)
     if !pda_variant_code.is_empty() {
-        let wrapped: syn::File = syn::parse2(pda_variant_code)?;
-        for item in wrapped.items {
-            content.1.push(item);
-        }
+        items.push(pda_variant_code);
     }
 
-    content.1.push(Item::Verbatim(size_validation_checks));
-    content.1.push(Item::Verbatim(enum_and_traits));
-    content.1.push(Item::Struct(decompress_accounts));
-    content.1.push(Item::Verbatim(
-        decompress_builder.generate_accounts_trait_impls()?,
-    ));
+    items.push(size_validation_checks);
+    items.push(enum_and_traits);
+    items.push(quote! { #decompress_accounts });
+    items.push(decompress_builder.generate_accounts_trait_impls()?);
     if let Some(trait_impls) = trait_impls {
-        content.1.push(Item::Mod(trait_impls));
+        items.push(quote! { #trait_impls });
     }
-    content.1.push(Item::Mod(processor_module));
+    items.push(quote! { #processor_module });
     if let Some(decompress_instruction) = decompress_instruction {
-        content.1.push(Item::Fn(decompress_instruction));
+        items.push(quote! { #decompress_instruction });
     }
-    content.1.push(Item::Struct(compress_accounts));
-    content.1.push(Item::Verbatim(
-        compress_builder.generate_accounts_trait_impls()?,
-    ));
-    content.1.push(Item::Fn(compress_instruction));
-    content.1.push(Item::Struct(init_config_accounts));
-    content.1.push(Item::Struct(update_config_accounts));
-    content.1.push(Item::Fn(init_config_instruction));
-    content.1.push(Item::Fn(update_config_instruction));
+    items.push(quote! { #compress_accounts });
+    items.push(compress_builder.generate_accounts_trait_impls()?);
+    items.push(quote! { #compress_instruction });
+    items.push(quote! { #init_config_accounts });
+    items.push(quote! { #update_config_accounts });
+    items.push(quote! { #init_config_instruction });
+    items.push(quote! { #update_config_instruction });
 
-    // Add pda seed provider impls
+    // PDA seed provider impls
     for pda_impl in pda_seed_provider_impls.into_iter() {
-        let wrapped: syn::File = syn::parse2(pda_impl)?;
-        for item in wrapped.items {
-            content.1.push(item);
-        }
+        items.push(pda_impl);
     }
 
-    // Add ctoken seed provider impls (one per token variant)
+    // CToken seed provider impls (one per token variant)
     if let Some(ref seeds) = token_seeds {
         if !seeds.is_empty() {
             let impl_code =
                 super::seed_codegen::generate_ctoken_seed_provider_implementation(seeds)?;
-            let impl_file: syn::File = syn::parse2(impl_code)?;
-            for item in impl_file.items {
-                content.1.push(item);
-            }
+            items.push(impl_code);
         }
     }
 
-    // Add error codes
-    let error_item: syn::ItemEnum = syn::parse2(error_codes)?;
-    content.1.push(Item::Enum(error_item));
+    // Error codes
+    items.push(error_codes);
 
-    // Add client functions (module + pub use statement)
-    let client_file: syn::File = syn::parse2(client_functions)?;
-    for item in client_file.items {
-        content.1.push(item);
+    // Client functions (module + pub use statement)
+    items.push(client_functions);
+
+    // Generate enum dispatch methods for #[derive(LightProgram)]
+    if let Some(enum_name) = enum_name {
+        // Compress dispatch: impl EnumName { pub fn compress_dispatch(...) }
+        if compress_builder.has_pdas() {
+            items.push(compress_builder.generate_enum_dispatch_method(enum_name)?);
+        }
+
+        // Decompress dispatch: impl EnumName { pub fn decompress_dispatch(...) }
+        if !pda_ctx_seeds.is_empty() {
+            items.push(decompress_builder.generate_enum_decompress_dispatch(enum_name)?);
+        }
+    }
+
+    Ok(items)
+}
+
+/// Thin wrapper around `generate_light_program_items` that injects items into a module.
+///
+/// Used by `#[light_program]` attribute macro.
+#[inline(never)]
+#[allow(clippy::too_many_arguments)]
+fn codegen(
+    module: &mut ItemMod,
+    compressible_accounts: Vec<CompressibleAccountInfo>,
+    pda_seeds: Option<Vec<TokenSeedSpec>>,
+    token_seeds: Option<Vec<TokenSeedSpec>>,
+    instruction_data: Vec<InstructionDataSpec>,
+    crate_ctx: &crate::light_pdas::parsing::CrateContext,
+    has_mint_fields: bool,
+    has_ata_fields: bool,
+    pda_variant_code: TokenStream,
+) -> Result<TokenStream> {
+    let content = match module.content.as_mut() {
+        Some(content) => content,
+        None => return Err(macro_error!(module, "Module must have a body")),
+    };
+
+    // Insert anchor_lang::prelude::* import at the beginning of the module
+    let anchor_import: syn::Item = syn::parse_quote! {
+        use anchor_lang::prelude::*;
+    };
+    content.1.insert(0, anchor_import);
+
+    // Generate all items using the shared function
+    // #[light_program] attribute macro doesn't have an enum name - pass None
+    let generated_items = generate_light_program_items(
+        compressible_accounts,
+        pda_seeds,
+        token_seeds,
+        instruction_data,
+        crate_ctx,
+        has_mint_fields,
+        has_ata_fields,
+        pda_variant_code,
+        None,
+    )?;
+
+    // Inject all generated items into the module
+    for item_tokens in generated_items {
+        let file: syn::File = syn::parse2(item_tokens)?;
+        for item in file.items {
+            content.1.push(item);
+        }
     }
 
     Ok(quote! { #module })

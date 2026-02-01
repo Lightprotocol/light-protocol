@@ -1,7 +1,6 @@
-// --- cpi-context-gated traits (from decompress_runtime.rs) ---
+//! PDA seed derivation traits.
 
-use solana_program_error::ProgramError;
-use solana_pubkey::Pubkey;
+use crate::error::LightPdaError;
 
 /// Trait for account variants that can be checked for token or PDA type.
 pub trait HasTokenVariant {
@@ -13,8 +12,8 @@ pub trait HasTokenVariant {
 pub trait PdaSeedDerivation<A, S> {
     fn derive_pda_seeds_with_accounts(
         &self,
-        program_id: &Pubkey,
+        program_id: &[u8; 32],
         accounts: &A,
         seed_params: &S,
-    ) -> Result<(Vec<Vec<u8>>, Pubkey), ProgramError>;
+    ) -> Result<(Vec<Vec<u8>>, [u8; 32]), LightPdaError>;
 }

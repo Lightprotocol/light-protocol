@@ -30,19 +30,7 @@ fn get_output_queue(tree_info: &TreeInfo) -> Pubkey {
         .unwrap_or(tree_info.queue)
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize)]
-pub struct InitializeConfigData {
-    pub rent_sponsor: Pubkey,
-    pub address_space: Vec<Pubkey>,
-    pub config_bump: u8,
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize)]
-pub struct UpdateConfigData {
-    pub new_rent_sponsor: Option<Pubkey>,
-    pub new_address_space: Option<Vec<Pubkey>>,
-    pub new_update_authority: Option<Pubkey>,
-}
+use light_sdk::{InitializeLightConfigParams, UpdateLightConfigParams};
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct LoadAccountsData<T> {
@@ -129,13 +117,17 @@ pub fn initialize_config(
         AccountMeta::new_readonly(system_program, false),
     ];
 
-    let ix_data = InitializeConfigData {
+    let params = InitializeLightConfigParams {
         rent_sponsor,
+        compression_authority: *authority,
+        rent_config: Default::default(),
+        write_top_up: 0,
         address_space,
         config_bump,
     };
-
-    let serialized = ix_data.try_to_vec().expect("serialize");
+    // Serialize params, then wrap as Vec<u8> for Anchor's borsh deserialization
+    let params_bytes: Vec<u8> = params.try_to_vec().expect("serialize params");
+    let serialized = params_bytes.try_to_vec().expect("serialize vec");
     let mut data = Vec::with_capacity(discriminator.len() + serialized.len());
     data.extend_from_slice(discriminator);
     data.extend_from_slice(&serialized);
@@ -162,13 +154,17 @@ pub fn update_config(
         AccountMeta::new_readonly(*authority, true),
     ];
 
-    let ix_data = UpdateConfigData {
-        new_rent_sponsor,
-        new_address_space,
+    let params = UpdateLightConfigParams {
         new_update_authority,
+        new_rent_sponsor,
+        new_compression_authority: None,
+        new_rent_config: None,
+        new_write_top_up: None,
+        new_address_space,
     };
-
-    let serialized = ix_data.try_to_vec().expect("serialize");
+    // Serialize params, then wrap as Vec<u8> for Anchor's borsh deserialization
+    let params_bytes: Vec<u8> = params.try_to_vec().expect("serialize params");
+    let serialized = params_bytes.try_to_vec().expect("serialize vec");
     let mut data = Vec::with_capacity(discriminator.len() + serialized.len());
     data.extend_from_slice(discriminator);
     data.extend_from_slice(&serialized);

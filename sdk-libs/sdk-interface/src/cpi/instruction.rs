@@ -1,12 +1,13 @@
 use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
 
-/// Trait for Light CPI instruction types.
+/// Base trait for Light CPI instruction types.
 ///
 /// This is the framework-agnostic version that provides CPI builder methods
-/// without referencing light-sdk-specific types like `LightAccount`.
-/// The `with_light_account` and `with_light_account_poseidon` methods are
-/// provided by light-sdk, which depends on this crate.
-pub trait LightCpiInstruction: Sized {
+/// without referencing SDK-specific types like `LightAccount`.
+///
+/// Each SDK (`light-sdk`, `light-sdk-pinocchio`) defines its own
+/// `LightCpiInstruction` trait that includes `with_light_account`.
+pub trait LightCpi: Sized {
     /// Creates a new CPI instruction builder with a validity proof.
     ///
     /// # Arguments

@@ -1,3 +1,8 @@
+//! Token seed types for packed/unpacked token account variants.
+//!
+//! Provides `TokenDataWithSeeds<S>`, `PackedTokenData`, and `TokenDataWithPackedSeeds<S>`
+//! along with Pack/Unpack impls and blanket impls for variant traits.
+
 use light_compressed_account::compressed_account::PackedMerkleContext;
 use light_sdk_types::instruction::PackedStateTreeInfo;
 pub use light_token_interface::{
@@ -10,20 +15,21 @@ pub use light_token_interface::{
         AccountState, Token, TokenDataVersion,
     },
 };
-use solana_account_info::AccountInfo;
-use solana_program_error::ProgramError;
-use solana_pubkey::Pubkey;
+
+use light_account_checks::AccountInfoTrait;
 
 use super::pack::Unpack;
-// Pack trait and PackedAccounts only available off-chain (client-side packing)
+#[cfg(not(target_os = "solana"))]
+use light_account_checks::AccountMetaTrait;
 #[cfg(not(target_os = "solana"))]
 use crate::{account::pack::Pack, instruction::PackedAccounts};
 use crate::{
+    account::light_account::AccountType,
+    error::LightPdaError,
     program::variant::{
         LightAccountVariantTrait, PackedLightAccountVariantTrait, PackedTokenSeeds,
         UnpackedTokenSeeds,
     },
-    account::light_account::AccountType,
     AnchorDeserialize, AnchorSerialize,
 };
 
@@ -32,12 +38,13 @@ pub struct TokenDataWithSeeds<S> {
     pub seeds: S,
     pub token_data: Token,
 }
+
 #[repr(C)]
 #[derive(Debug, Copy, Clone, Default, PartialEq, AnchorSerialize, AnchorDeserialize)]
 pub struct PackedTokenData {
     pub owner: u8,
     pub amount: u64,
-    pub has_delegate: bool, // Optional delegate is set
+    pub has_delegate: bool,
     pub delegate: u8,
     pub mint: u8,
     pub version: u8,
@@ -45,26 +52,91 @@ pub struct PackedTokenData {
 
 #[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct TokenDataWithPackedSeeds<
-    S: Unpack + AnchorSerialize + AnchorDeserialize + Clone + std::fmt::Debug,
+    S: AnchorSerialize + AnchorDeserialize + Clone + core::fmt::Debug,
 > {
     pub seeds: S,
     pub token_data: PackedTokenData,
     pub extension: Option<CompressedOnlyExtensionInstructionData>,
 }
 
+// =============================================================================
+// Helper: unpack token data from packed indices
+// =============================================================================
+
+fn unpack_token_data_from_packed<AI: AccountInfoTrait>(
+    packed: &PackedTokenData,
+    extension: &Option<CompressedOnlyExtensionInstructionData>,
+    accounts: &[AI],
+) -> Result<Token, LightPdaError> {
+    let owner_key = accounts
+        .get(packed.owner as usize)
+        .ok_or(LightPdaError::InvalidInstructionData)?
+        .key();
+    let mint_key = accounts
+        .get(packed.mint as usize)
+        .ok_or(LightPdaError::InvalidInstructionData)?
+        .key();
+    let delegate = if packed.has_delegate {
+        let delegate_key = accounts
+            .get(packed.delegate as usize)
+            .ok_or(LightPdaError::InvalidInstructionData)?
+            .key();
+        Some(light_compressed_account::Pubkey::from(delegate_key))
+    } else {
+        None
+    };
+
+    let extensions = extension.map(|ext| {
+        vec![ExtensionStruct::CompressedOnly(CompressedOnlyExtension {
+            delegated_amount: ext.delegated_amount,
+            withheld_transfer_fee: ext.withheld_transfer_fee,
+            is_ata: ext.is_ata as u8,
+        })]
+    });
+
+    let state = extension.map_or(AccountState::Initialized, |ext| {
+        if ext.is_frozen {
+            AccountState::Frozen
+        } else {
+            AccountState::Initialized
+        }
+    });
+
+    let delegated_amount = extension.map_or(0, |ext| ext.delegated_amount);
+
+    Ok(Token {
+        mint: light_compressed_account::Pubkey::from(mint_key),
+        owner: light_compressed_account::Pubkey::from(owner_key),
+        amount: packed.amount,
+        delegate,
+        state,
+        is_native: None,
+        delegated_amount,
+        close_authority: None,
+        account_type: TokenDataVersion::ShaFlat as u8,
+        extensions,
+    })
+}
+
+// =============================================================================
+// Pack impl (client-side only)
+// =============================================================================
+
 #[cfg(not(target_os = "solana"))]
-impl<S> Pack for TokenDataWithSeeds<S>
+impl<S, AM: AccountMetaTrait> Pack<AM> for TokenDataWithSeeds<S>
 where
-    S: Pack,
-    S::Packed: Unpack + AnchorDeserialize + AnchorSerialize + Clone + std::fmt::Debug,
+    S: Pack<AM>,
+    S::Packed: AnchorDeserialize + AnchorSerialize + Clone + core::fmt::Debug,
 {
     type Packed = TokenDataWithPackedSeeds<S::Packed>;
 
-    fn pack(&self, remaining_accounts: &mut PackedAccounts) -> Result<Self::Packed, ProgramError> {
+    fn pack(
+        &self,
+        remaining_accounts: &mut PackedAccounts<AM>,
+    ) -> Result<Self::Packed, LightPdaError> {
         let seeds = self.seeds.pack(remaining_accounts)?;
 
-        let owner_index = remaining_accounts
-            .insert_or_get(Pubkey::new_from_array(self.token_data.owner.to_bytes()));
+        let owner_index = remaining_accounts.insert_or_get(self.token_data.owner.to_bytes());
 
         let token_data = PackedTokenData {
             owner: owner_index,
@@ -73,14 +145,12 @@ where
             delegate: self
                 .token_data
                 .delegate
-                .map(|d| remaining_accounts.insert_or_get(Pubkey::new_from_array(d.to_bytes())))
+                .map(|d| remaining_accounts.insert_or_get(d.to_bytes()))
                 .unwrap_or(0),
-            mint: remaining_accounts
-                .insert_or_get(Pubkey::new_from_array(self.token_data.mint.to_bytes())),
+            mint: remaining_accounts.insert_or_get(self.token_data.mint.to_bytes()),
             version: TokenDataVersion::ShaFlat as u8,
         };
 
-        // Extract CompressedOnly extension from Token state if present.
         let extension = self.token_data.extensions.as_ref().and_then(|exts| {
             exts.iter().find_map(|ext| {
                 if let ExtensionStruct::CompressedOnly(co) = ext {
@@ -107,67 +177,20 @@ where
     }
 }
 
-impl<S> Unpack for TokenDataWithPackedSeeds<S>
+// =============================================================================
+// Unpack impl
+// =============================================================================
+
+impl<S, AI: AccountInfoTrait> Unpack<AI> for TokenDataWithPackedSeeds<S>
 where
-    S: Unpack + AnchorSerialize + AnchorDeserialize + Clone + std::fmt::Debug,
+    S: Unpack<AI> + AnchorSerialize + AnchorDeserialize + Clone + core::fmt::Debug,
 {
-    type Unpacked = TokenDataWithSeeds<S::Unpacked>;
+    type Unpacked = TokenDataWithSeeds<<S as Unpack<AI>>::Unpacked>;
 
-    fn unpack(&self, remaining_accounts: &[AccountInfo]) -> Result<Self::Unpacked, ProgramError> {
+    fn unpack(&self, remaining_accounts: &[AI]) -> Result<Self::Unpacked, LightPdaError> {
         let seeds = self.seeds.unpack(remaining_accounts)?;
-
-        let owner_key = remaining_accounts
-            .get(self.token_data.owner as usize)
-            .ok_or(ProgramError::InvalidAccountData)?
-            .key;
-        let mint_key = remaining_accounts
-            .get(self.token_data.mint as usize)
-            .ok_or(ProgramError::InvalidAccountData)?
-            .key;
-        let delegate = if self.token_data.has_delegate {
-            let delegate_key = remaining_accounts
-                .get(self.token_data.delegate as usize)
-                .ok_or(ProgramError::InvalidAccountData)?
-                .key;
-            Some(light_compressed_account::Pubkey::from(
-                delegate_key.to_bytes(),
-            ))
-        } else {
-            None
-        };
-
-        // Reconstruct extensions from instruction extension data.
-        let extensions = self.extension.map(|ext| {
-            vec![ExtensionStruct::CompressedOnly(CompressedOnlyExtension {
-                delegated_amount: ext.delegated_amount,
-                withheld_transfer_fee: ext.withheld_transfer_fee,
-                is_ata: ext.is_ata as u8,
-            })]
-        });
-
-        let state = self.extension.map_or(AccountState::Initialized, |ext| {
-            if ext.is_frozen {
-                AccountState::Frozen
-            } else {
-                AccountState::Initialized
-            }
-        });
-
-        let delegated_amount = self.extension.map_or(0, |ext| ext.delegated_amount);
-
-        let token_data = Token {
-            mint: light_compressed_account::Pubkey::from(mint_key.to_bytes()),
-            owner: light_compressed_account::Pubkey::from(owner_key.to_bytes()),
-            amount: self.token_data.amount,
-            delegate,
-            state,
-            is_native: None,
-            delegated_amount,
-            close_authority: None,
-            account_type: TokenDataVersion::ShaFlat as u8,
-            extensions,
-        };
-
+        let token_data =
+            unpack_token_data_from_packed(&self.token_data, &self.extension, remaining_accounts)?;
         Ok(TokenDataWithSeeds { seeds, token_data })
     }
 }
@@ -181,9 +204,9 @@ where
 impl<const N: usize, S> LightAccountVariantTrait<N> for TokenDataWithSeeds<S>
 where
     S: UnpackedTokenSeeds<N>,
-    S::Packed: PackedTokenSeeds<N> + Unpack<Unpacked = S>,
+    S::Packed: PackedTokenSeeds<N, Unpacked = S>,
 {
-    const PROGRAM_ID: Pubkey = S::PROGRAM_ID;
+    const PROGRAM_ID: [u8; 32] = S::PROGRAM_ID;
     type Seeds = S;
     type Data = Token;
     type Packed = TokenDataWithPackedSeeds<S::Packed>;
@@ -203,7 +226,7 @@ where
 
 impl<const N: usize, S> PackedLightAccountVariantTrait<N> for TokenDataWithPackedSeeds<S>
 where
-    S: PackedTokenSeeds<N>,
+    S: PackedTokenSeeds<N> + AnchorSerialize + AnchorDeserialize + Clone + core::fmt::Debug,
     S::Unpacked: UnpackedTokenSeeds<N, Packed = S>,
 {
     type Unpacked = TokenDataWithSeeds<S::Unpacked>;
@@ -214,15 +237,21 @@ where
         self.seeds.bump()
     }
 
-    fn unpack(&self, accounts: &[AccountInfo]) -> anchor_lang::Result<Self::Unpacked> {
-        <Self as Unpack>::unpack(self, accounts).map_err(anchor_lang::error::Error::from)
+    fn unpack<AI: AccountInfoTrait>(
+        &self,
+        accounts: &[AI],
+    ) -> Result<Self::Unpacked, LightPdaError> {
+        let seeds = self.seeds.unpack_seeds::<AI>(accounts)?;
+        let token_data =
+            unpack_token_data_from_packed(&self.token_data, &self.extension, accounts)?;
+        Ok(TokenDataWithSeeds { seeds, token_data })
     }
 
-    fn seed_refs_with_bump<'a>(
+    fn seed_refs_with_bump<'a, AI: AccountInfoTrait>(
         &'a self,
-        accounts: &'a [AccountInfo],
+        accounts: &'a [AI],
         bump_storage: &'a [u8; 1],
-    ) -> std::result::Result<[&'a [u8]; N], ProgramError> {
+    ) -> Result<[&'a [u8]; N], LightPdaError> {
         self.seeds.seed_refs_with_bump(accounts, bump_storage)
     }
 
@@ -230,7 +259,7 @@ where
         &self,
         tree_info: &PackedStateTreeInfo,
         output_queue_index: u8,
-    ) -> anchor_lang::Result<MultiInputTokenDataWithContext> {
+    ) -> Result<MultiInputTokenDataWithContext, LightPdaError> {
         Ok(MultiInputTokenDataWithContext {
             amount: self.token_data.amount,
             mint: self.token_data.mint,
@@ -248,14 +277,14 @@ where
         })
     }
 
-    fn into_in_tlv(&self) -> anchor_lang::Result<Option<Vec<ExtensionInstructionData>>> {
+    fn into_in_tlv(&self) -> Result<Option<Vec<ExtensionInstructionData>>, LightPdaError> {
         Ok(self
             .extension
             .as_ref()
             .map(|ext| vec![ExtensionInstructionData::CompressedOnly(*ext)]))
     }
 
-    fn derive_owner(&self) -> Pubkey {
+    fn derive_owner(&self) -> [u8; 32] {
         self.seeds.derive_owner()
     }
 }

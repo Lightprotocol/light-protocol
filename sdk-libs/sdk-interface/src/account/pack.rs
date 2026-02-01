@@ -1,24 +1,26 @@
 //! Pack and Unpack traits for converting between full Pubkeys and u8 indices.
 
-use solana_account_info::AccountInfo;
-use solana_program_error::ProgramError;
+use light_account_checks::AccountInfoTrait;
+
+use crate::error::LightPdaError;
 
 #[cfg(not(target_os = "solana"))]
-use crate::instruction::PackedAccounts;
-#[cfg(not(target_os = "solana"))]
-use crate::AnchorSerialize;
+use light_account_checks::AccountMetaTrait;
 
 /// Replace 32-byte Pubkeys with 1-byte indices to save space.
 /// If your type has no Pubkeys, just return self.
 #[cfg(not(target_os = "solana"))]
-pub trait Pack {
-    type Packed: AnchorSerialize + Clone + std::fmt::Debug;
+pub trait Pack<AM: AccountMetaTrait> {
+    type Packed: crate::AnchorSerialize + Clone + core::fmt::Debug;
 
-    fn pack(&self, remaining_accounts: &mut PackedAccounts) -> Result<Self::Packed, ProgramError>;
+    fn pack(
+        &self,
+        remaining_accounts: &mut crate::instruction::PackedAccounts<AM>,
+    ) -> Result<Self::Packed, LightPdaError>;
 }
 
-pub trait Unpack {
+pub trait Unpack<AI: AccountInfoTrait> {
     type Unpacked;
 
-    fn unpack(&self, remaining_accounts: &[AccountInfo]) -> Result<Self::Unpacked, ProgramError>;
+    fn unpack(&self, remaining_accounts: &[AI]) -> Result<Self::Unpacked, LightPdaError>;
 }

@@ -328,6 +328,37 @@ impl DecompressBuilder {
 
         Ok(results)
     }
+
+    /// Generate decompress dispatch as an associated function on the enum.
+    ///
+    /// When `#[derive(LightProgram)]` is used, the dispatch function is generated
+    /// as `impl EnumName { pub fn decompress_dispatch(...) }` so it can be referenced
+    /// as `EnumName::decompress_dispatch`.
+    ///
+    /// This wraps the type-parameter-based SDK call, binding `PackedLightAccountVariant`
+    /// as the concrete type.
+    pub fn generate_enum_decompress_dispatch(
+        &self,
+        enum_name: &syn::Ident,
+    ) -> Result<TokenStream> {
+        Ok(quote! {
+            impl #enum_name {
+                pub fn decompress_dispatch<'info>(
+                    remaining_accounts: &[solana_account_info::AccountInfo<'info>],
+                    instruction_data: &[u8],
+                    cpi_signer: light_sdk_types::CpiSigner,
+                    program_id: &solana_pubkey::Pubkey,
+                ) -> std::result::Result<(), solana_program_error::ProgramError> {
+                    light_sdk::interface::process_decompress_pda_accounts_idempotent::<PackedLightAccountVariant>(
+                        remaining_accounts,
+                        instruction_data,
+                        cpi_signer,
+                        program_id,
+                    )
+                }
+            }
+        })
+    }
 }
 
 // =============================================================================

@@ -100,9 +100,9 @@ pub mod manual_test {
     /// Named to match SDK's expected discriminator.
     pub fn update_compression_config<'info>(
         ctx: Context<'_, '_, '_, 'info, UpdateConfig<'info>>,
-        params: UpdateConfigParams,
+        instruction_data: Vec<u8>,
     ) -> Result<()> {
-        derived_light_config::process_update_config(ctx, params)
+        derived_light_config::process_update_config(ctx, instruction_data)
     }
 
     /// Compress and close PDA accounts, returning rent to the sponsor.
