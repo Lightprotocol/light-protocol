@@ -60,15 +60,8 @@ export async function killProcess(processName: string) {
     try {
       process.kill(proc.pid, "SIGKILL");
     } catch (error) {
-      console.error(`Failed to kill process ${proc.pid}: ${error}`);
+      // Process may have already exited between find and kill.
     }
-  }
-
-  const remainingProcesses = await find("name", processName);
-  if (remainingProcesses.length > 0) {
-    console.warn(
-      `Warning: ${remainingProcesses.length} processes still running after kill attempt`,
-    );
   }
 }
 

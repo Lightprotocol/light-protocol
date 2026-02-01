@@ -18,6 +18,7 @@ import {
   confirmRpcReadiness,
   confirmServerStability,
   killProcess,
+  killProcessByPort,
   spawnBinary,
   waitForServers,
 } from "./process";
@@ -630,8 +631,7 @@ export async function startTestValidator({
       gossipHost,
     });
 
-    await killTestValidator();
-    await killProcess("surfpool");
+    await killTestValidator(rpcPort);
     await new Promise((r) => setTimeout(r, 1000));
 
     console.log("Starting surfpool...");
@@ -650,7 +650,7 @@ export async function startTestValidator({
       skipReset,
     });
 
-    await killTestValidator();
+    await killTestValidator(rpcPort);
 
     await new Promise((r) => setTimeout(r, 1000));
 
@@ -672,7 +672,16 @@ export async function startTestValidator({
   }
 }
 
-export async function killTestValidator() {
+export async function killTestValidator(rpcPort: number = 8899) {
   await killProcess("solana-test-validator");
   await killProcess("surfpool");
+
+  // Fallback: kill anything still listening on the RPC port.
+  // find-process name matching can miss processes depending on platform
+  // and how the binary path appears in the process table.
+  try {
+    await killProcessByPort(rpcPort);
+  } catch {
+    // No process listening on the port, nothing to do.
+  }
 }
