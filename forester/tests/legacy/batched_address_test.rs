@@ -43,6 +43,7 @@ async fn test_address_batched() {
         )],
         upgradeable_programs: vec![],
         limit_ledger_size: None,
+        validator_args: vec![],
     }))
     .await;
     let tree_params = InitAddressTreeAccountsInstructionData::test_default();

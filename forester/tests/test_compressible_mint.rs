@@ -141,6 +141,7 @@ async fn test_compressible_mint_bootstrap() {
         sbf_programs: vec![],
         upgradeable_programs: vec![],
         limit_ledger_size: None,
+        validator_args: vec![],
     })
     .await;
 
@@ -278,6 +279,7 @@ async fn test_compressible_mint_compression() {
         sbf_programs: vec![],
         upgradeable_programs: vec![],
         limit_ledger_size: None,
+        validator_args: vec![],
     })
     .await;
 
@@ -487,6 +489,7 @@ async fn test_compressible_mint_subscription() {
         sbf_programs: vec![],
         upgradeable_programs: vec![],
         limit_ledger_size: None,
+        validator_args: vec![],
     })
     .await;
 

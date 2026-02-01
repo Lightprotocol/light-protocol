@@ -20,8 +20,8 @@ use csdk_anchor_full_derived_test::{
     },
 };
 use light_client::interface::{
-    create_load_instructions, get_create_accounts_proof, AccountInterfaceExt, AccountSpec,
-    CreateAccountsProofInput, InitializeRentFreeConfig, PdaSpec,
+    create_load_instructions, get_create_accounts_proof, AccountSpec, CreateAccountsProofInput,
+    InitializeRentFreeConfig, PdaSpec,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{
@@ -176,9 +176,11 @@ async fn test_pda_wrong_rent_sponsor() {
     // Get account interface
     let account_interface = ctx
         .rpc
-        .get_account_interface(&zc_pda, &ctx.program_id)
+        .get_account_interface(&zc_pda, None)
         .await
-        .expect("failed to get account interface");
+        .expect("failed to get account interface")
+        .value
+        .expect("account interface should exist");
 
     // Build valid variant
     let variant: LightAccountVariant =
@@ -222,9 +224,11 @@ async fn test_pda_double_decompress_is_noop() {
     // Get account interface
     let account_interface = ctx
         .rpc
-        .get_account_interface(&zc_pda, &ctx.program_id)
+        .get_account_interface(&zc_pda, None)
         .await
-        .expect("failed to get account interface");
+        .expect("failed to get account interface")
+        .value
+        .expect("account interface should exist");
 
     let variant: LightAccountVariant =
         csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::ZcVaultRecordSeeds { owner }
@@ -259,9 +263,11 @@ async fn test_pda_double_decompress_is_noop() {
     // Since the account is now hot, create_load_instructions will return empty
     let account_interface_2 = ctx
         .rpc
-        .get_account_interface(&zc_pda, &ctx.program_id)
+        .get_account_interface(&zc_pda, None)
         .await
-        .expect("failed to get account interface");
+        .expect("failed to get account interface")
+        .value
+        .expect("account interface should exist");
 
     // Account should be hot now
     assert!(
@@ -305,9 +311,11 @@ async fn test_pda_wrong_config() {
     // Get account interface
     let account_interface = ctx
         .rpc
-        .get_account_interface(&zc_pda, &ctx.program_id)
+        .get_account_interface(&zc_pda, None)
         .await
-        .expect("failed to get account interface");
+        .expect("failed to get account interface")
+        .value
+        .expect("account interface should exist");
 
     let variant: LightAccountVariant =
         csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::ZcVaultRecordSeeds { owner }
@@ -353,9 +361,11 @@ async fn test_system_accounts_offset_out_of_bounds() {
 
     let account_interface = ctx
         .rpc
-        .get_account_interface(&zc_pda, &ctx.program_id)
+        .get_account_interface(&zc_pda, None)
         .await
-        .expect("failed to get account interface");
+        .expect("failed to get account interface")
+        .value
+        .expect("account interface should exist");
 
     let variant: LightAccountVariant =
         csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::ZcVaultRecordSeeds { owner }
@@ -397,9 +407,11 @@ async fn test_token_accounts_offset_invalid() {
 
     let account_interface = ctx
         .rpc
-        .get_account_interface(&zc_pda, &ctx.program_id)
+        .get_account_interface(&zc_pda, None)
         .await
-        .expect("failed to get account interface");
+        .expect("failed to get account interface")
+        .value
+        .expect("account interface should exist");
 
     let variant: LightAccountVariant =
         csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::ZcVaultRecordSeeds { owner }
@@ -446,9 +458,11 @@ async fn test_missing_system_accounts() {
 
     let account_interface = ctx
         .rpc
-        .get_account_interface(&zc_pda, &ctx.program_id)
+        .get_account_interface(&zc_pda, None)
         .await
-        .expect("failed to get account interface");
+        .expect("failed to get account interface")
+        .value
+        .expect("account interface should exist");
 
     let variant: LightAccountVariant =
         csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::ZcVaultRecordSeeds { owner }
@@ -489,9 +503,11 @@ async fn test_pda_account_mismatch() {
 
     let account_interface = ctx
         .rpc
-        .get_account_interface(&zc_pda, &ctx.program_id)
+        .get_account_interface(&zc_pda, None)
         .await
-        .expect("failed to get account interface");
+        .expect("failed to get account interface")
+        .value
+        .expect("account interface should exist");
 
     let variant: LightAccountVariant =
         csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::ZcVaultRecordSeeds { owner }
@@ -532,9 +548,11 @@ async fn test_fee_payer_not_signer() {
 
     let account_interface = ctx
         .rpc
-        .get_account_interface(&zc_pda, &ctx.program_id)
+        .get_account_interface(&zc_pda, None)
         .await
-        .expect("failed to get account interface");
+        .expect("failed to get account interface")
+        .value
+        .expect("account interface should exist");
 
     let variant: LightAccountVariant =
         csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::ZcVaultRecordSeeds { owner }

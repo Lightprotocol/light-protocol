@@ -19,8 +19,8 @@ use light_batched_merkle_tree::{
     initialize_state_tree::InitStateTreeAccountsInstructionData,
 };
 use light_client::interface::{
-    create_load_instructions, get_create_accounts_proof, AccountInterfaceExt,
-    CreateAccountsProofInput, InitializeRentFreeConfig, LightProgramInterface,
+    create_load_instructions, get_create_accounts_proof, CreateAccountsProofInput,
+    InitializeRentFreeConfig, LightProgramInterface,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{
@@ -489,9 +489,11 @@ async fn refresh_cache(rpc: &mut LightProgramTest, pdas: &AmmPdas) -> CachedStat
 async fn decompress_all(ctx: &mut AmmTestContext, pdas: &AmmPdas) {
     let pool_interface = ctx
         .rpc
-        .get_account_interface(&pdas.pool_state, &ctx.program_id)
+        .get_account_interface(&pdas.pool_state, None)
         .await
-        .expect("failed to get pool_state");
+        .expect("failed to get pool_state")
+        .value
+        .expect("pool_state should exist");
     assert!(pool_interface.is_cold(), "pool_state should be cold");
 
     let mut sdk = AmmSdk::from_keyed_accounts(&[pool_interface])
@@ -501,9 +503,9 @@ async fn decompress_all(ctx: &mut AmmTestContext, pdas: &AmmPdas) {
 
     let keyed_accounts = ctx
         .rpc
-        .get_multiple_account_interfaces(&accounts_to_fetch)
+        .fetch_accounts(&accounts_to_fetch, None)
         .await
-        .expect("get_multiple_account_interfaces should succeed");
+        .expect("fetch_accounts should succeed");
 
     sdk.update(&keyed_accounts)
         .expect("sdk.update should succeed");
@@ -512,31 +514,39 @@ async fn decompress_all(ctx: &mut AmmTestContext, pdas: &AmmPdas) {
 
     let creator_lp_interface = ctx
         .rpc
-        .get_ata_interface(&ctx.creator.pubkey(), &pdas.lp_mint)
+        .get_ata_interface(&ctx.creator.pubkey(), &pdas.lp_mint, None)
         .await
-        .expect("failed to get creator_lp_token");
+        .expect("failed to get creator_lp_token")
+        .value
+        .expect("creator_lp_token should exist");
 
     // Creator's token_0 and token_1 ATAs also get compressed during epoch warp
     let creator_token_0_interface = ctx
         .rpc
-        .get_ata_interface(&ctx.creator.pubkey(), &ctx.token_0_mint)
+        .get_ata_interface(&ctx.creator.pubkey(), &ctx.token_0_mint, None)
         .await
-        .expect("failed to get creator_token_0");
+        .expect("failed to get creator_token_0")
+        .value
+        .expect("creator_token_0 should exist");
 
     let creator_token_1_interface = ctx
         .rpc
-        .get_ata_interface(&ctx.creator.pubkey(), &ctx.token_1_mint)
+        .get_ata_interface(&ctx.creator.pubkey(), &ctx.token_1_mint, None)
         .await
-        .expect("failed to get creator_token_1");
+        .expect("failed to get creator_token_1")
+        .value
+        .expect("creator_token_1 should exist");
 
     // Underlying mints also get compressed -- convert MintInterface to AccountInterface
     use light_client::interface::{AccountInterface, AccountSpec, MintState};
 
     let mint_0_iface = ctx
         .rpc
-        .get_mint_interface(&ctx.token_0_mint)
+        .get_mint_interface(&ctx.token_0_mint, None)
         .await
-        .expect("failed to get token_0_mint");
+        .expect("failed to get token_0_mint")
+        .value
+        .expect("token_0_mint should exist");
     let mint_0_account_iface = match mint_0_iface.state {
         MintState::Hot { account } => AccountInterface {
             key: mint_0_iface.mint,
@@ -556,9 +566,11 @@ async fn decompress_all(ctx: &mut AmmTestContext, pdas: &AmmPdas) {
 
     let mint_1_iface = ctx
         .rpc
-        .get_mint_interface(&ctx.token_1_mint)
+        .get_mint_interface(&ctx.token_1_mint, None)
         .await
-        .expect("failed to get token_1_mint");
+        .expect("failed to get token_1_mint")
+        .value
+        .expect("token_1_mint should exist");
     let mint_1_account_iface = match mint_1_iface.state {
         MintState::Hot { account } => AccountInterface {
             key: mint_1_iface.mint,

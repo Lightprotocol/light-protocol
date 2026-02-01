@@ -34,6 +34,8 @@ pub struct LightValidatorConfig {
     /// Use this when the program needs a valid upgrade authority (e.g., for compression config).
     pub upgradeable_programs: Vec<UpgradeableProgramConfig>,
     pub limit_ledger_size: Option<u64>,
+    /// Additional arguments to pass to the validator (e.g., "--account <ADDRESS> <FILEPATH>")
+    pub validator_args: Vec<String>,
 }
 
 impl Default for LightValidatorConfig {
@@ -45,6 +47,7 @@ impl Default for LightValidatorConfig {
             sbf_programs: vec![],
             upgradeable_programs: vec![],
             limit_ledger_size: None,
+            validator_args: vec![],
         }
     }
 }
@@ -79,6 +82,10 @@ pub async fn spawn_validator(config: LightValidatorConfig) {
 
         if !config.enable_prover {
             path.push_str(" --skip-prover");
+        }
+
+        for arg in config.validator_args.iter() {
+            path.push_str(&format!(" {}", arg));
         }
 
         println!("Starting validator with command: {}", path);

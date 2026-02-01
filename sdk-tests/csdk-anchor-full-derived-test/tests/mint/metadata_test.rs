@@ -5,8 +5,7 @@ mod shared;
 
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_client::interface::{
-    decompress_mint::decompress_mint, get_create_accounts_proof, AccountInterfaceExt,
-    CreateAccountsProofInput,
+    decompress_mint::decompress_mint, get_create_accounts_proof, CreateAccountsProofInput,
 };
 use light_compressible::{rent::SLOTS_PER_EPOCH, DECOMPRESSED_PDA_DISCRIMINATOR};
 use light_program_test::{program_test::TestRpc, Indexer, Rpc};
@@ -227,9 +226,11 @@ async fn test_create_mint_with_metadata() {
     // Fetch mint interface (unified hot/cold handling)
     // Note: pass the mint PDA (cmint_pda), not the mint signer seed
     let mint_interface = rpc
-        .get_mint_interface(&cmint_pda)
+        .get_mint_interface(&cmint_pda, None)
         .await
-        .expect("get_mint_interface should succeed");
+        .expect("get_mint_interface should succeed")
+        .value
+        .expect("mint interface should exist");
     assert!(mint_interface.is_cold(), "Mint should be cold after warp");
 
     // Create decompression instruction using decompress_mint helper

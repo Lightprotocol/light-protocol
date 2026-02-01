@@ -188,9 +188,11 @@ impl TestContext {
         // Get account interface
         let account_interface = self
             .rpc
-            .get_account_interface(pda, &self.program_id)
+            .get_account_interface(pda, None)
             .await
-            .expect("failed to get account interface");
+            .expect("failed to get account interface")
+            .value
+            .expect("account interface should exist");
         assert!(
             account_interface.is_cold(),
             "Account should be cold after compression"
@@ -240,9 +242,11 @@ impl TestContext {
         // Fetch token account interface
         let vault_interface = self
             .rpc
-            .get_token_account_interface(vault_pda)
+            .get_token_account_interface(vault_pda, None)
             .await
-            .expect("get_token_account_interface should succeed");
+            .expect("get_token_account_interface should succeed")
+            .value
+            .expect("token account interface should exist");
         assert!(vault_interface.is_cold(), "Token vault should be cold");
 
         // Deserialize token data

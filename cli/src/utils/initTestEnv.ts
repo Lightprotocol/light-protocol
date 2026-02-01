@@ -19,6 +19,11 @@ import {
 } from "./process";
 import { killProver, startProver } from "./processProverServer";
 import { killIndexer, startIndexer } from "./processPhotonIndexer";
+import {
+  killForester,
+  startForester,
+  getPayerForForester,
+} from "./processForester";
 import { Connection, PublicKey } from "@solana/web3.js";
 
 type Program = { id: string; name?: string; tag?: string; path?: string };
@@ -95,8 +100,10 @@ async function getProgramOwnedAccounts(
 export async function stopTestEnv(options: {
   indexer: boolean;
   prover: boolean;
+  forester?: boolean;
 }) {
   const processesToKill = [
+    { name: "forester", condition: options.forester ?? false, killFunction: killForester },
     { name: "photon", condition: options.indexer, killFunction: killIndexer },
     { name: "prover", condition: options.prover, killFunction: killProver },
     {
@@ -129,9 +136,11 @@ export async function initTestEnv({
   skipSystemAccounts,
   indexer = true,
   prover = true,
+  forester = false,
   rpcPort = 8899,
   indexerPort = 8784,
   proverPort = 3001,
+  foresterPort = 8080,
   gossipHost = "127.0.0.1",
   checkPhotonVersion = true,
   photonDatabaseUrl,
@@ -141,6 +150,7 @@ export async function initTestEnv({
   cloneNetwork,
   verbose,
   skipReset,
+  compressiblePdaPrograms,
 }: {
   additionalPrograms?: { address: string; path: string }[];
   upgradeablePrograms?: {
@@ -151,9 +161,11 @@ export async function initTestEnv({
   skipSystemAccounts?: boolean;
   indexer: boolean;
   prover: boolean;
+  forester?: boolean;
   rpcPort?: number;
   indexerPort?: number;
   proverPort?: number;
+  foresterPort?: number;
   gossipHost?: string;
   checkPhotonVersion?: boolean;
   photonDatabaseUrl?: string;
@@ -163,6 +175,7 @@ export async function initTestEnv({
   cloneNetwork?: "devnet" | "mainnet";
   verbose?: boolean;
   skipReset?: boolean;
+  compressiblePdaPrograms?: string[];
 }) {
   // We cannot await this promise directly because it will hang the process
   startTestValidator({
@@ -208,6 +221,27 @@ export async function initTestEnv({
       photonDatabaseUrl,
       proverUrlForIndexer,
     );
+  }
+
+  if (forester) {
+    if (!indexer || !prover) {
+      throw new Error("Forester requires both indexer and prover to be running");
+    }
+    try {
+      const payer = getPayerForForester();
+      await startForester({
+        rpcUrl: `http://127.0.0.1:${rpcPort}`,
+        wsRpcUrl: `ws://127.0.0.1:${rpcPort + 1}`,
+        indexerUrl: `http://127.0.0.1:${indexerPort}`,
+        proverUrl: `http://127.0.0.1:${proverPort}`,
+        payer,
+        foresterPort,
+        compressiblePdaPrograms,
+      });
+    } catch (error) {
+      console.error("Failed to start forester:", error);
+      throw error;
+    }
   }
 }
 

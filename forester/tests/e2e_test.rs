@@ -276,6 +276,7 @@ async fn e2e_test() {
             )],
             upgradeable_programs: vec![],
             limit_ledger_size: None,
+            validator_args: vec![],
         }))
         .await;
         spawn_prover().await;
