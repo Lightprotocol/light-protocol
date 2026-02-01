@@ -49,6 +49,7 @@ export async function getParsedEvents(
             'confirmed',
         )
     ).map(s => s.signature);
+    console.log(`[getParsedEvents] found ${signatures.length} signatures for accountCompressionProgram ${accountCompressionProgram.toBase58()}`);
     const txs: (ParsedTransactionWithMeta | null)[] = [];
 
     // `getParsedTransactions` uses a JSON-RPC batch request under the hood.
@@ -68,6 +69,11 @@ export async function getParsedEvents(
 
     for (const txParsed of txs) {
         if (!txParsed || !txParsed.transaction || !txParsed.meta) continue;
+
+        console.log(`[getParsedEvents] tx ${txParsed.transaction.signatures[0]}:`, JSON.stringify({
+            err: txParsed.meta.err,
+            innerInstructions: txParsed.meta.innerInstructions,
+        }, null, 2));
 
         if (
             !txParsed.meta.innerInstructions ||

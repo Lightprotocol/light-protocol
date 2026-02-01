@@ -62,13 +62,23 @@ export async function transfer(
         amount,
     );
 
-    const proof = await rpc.getValidityProofV0(
-        inputAccounts.map(account => ({
-            hash: account.compressedAccount.hash,
-            tree: account.compressedAccount.treeInfo.tree,
-            queue: account.compressedAccount.treeInfo.queue,
-        })),
-    );
+    const proofInputs = inputAccounts.map(account => ({
+        hash: account.compressedAccount.hash,
+        tree: account.compressedAccount.treeInfo.tree,
+        queue: account.compressedAccount.treeInfo.queue,
+    }));
+    console.log('[transfer] getValidityProofV0 inputs:', JSON.stringify(proofInputs, null, 2));
+
+    const proof = await rpc.getValidityProofV0(proofInputs);
+
+    console.log('[transfer] getValidityProofV0 result:', JSON.stringify({
+        rootIndices: proof.rootIndices,
+        roots: proof.roots,
+        leafIndices: proof.leafIndices,
+        leaves: proof.leaves,
+        treeInfos: proof.treeInfos,
+        proveByIndices: proof.proveByIndices,
+    }, null, 2));
 
     // V1→V2 migration handled inside CompressedTokenProgram.transfer
     const ix = await CompressedTokenProgram.transfer({

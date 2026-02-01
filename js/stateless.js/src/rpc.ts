@@ -2033,6 +2033,8 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
         const value = res.result.value as any;
 
+        console.log('[getValidityProofAndRpcContext] raw photon response value:', JSON.stringify(value, null, 2));
+
         if (useV2Parsing) {
             return {
                 value: {
