@@ -1,4 +1,4 @@
-use light_sdk_interface::instruction::PackedAccounts;
+use super::PackedAccounts;
 
 use super::system_accounts::{get_light_system_account_metas, SystemAccountMetaConfig};
 

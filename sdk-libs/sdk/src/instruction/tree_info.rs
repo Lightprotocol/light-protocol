@@ -69,8 +69,8 @@ pub fn pack_address_tree_info(
     root_index: u16,
 ) -> PackedAddressTreeInfo {
     let AddressTreeInfo { tree, queue } = address_tree_info;
-    let address_merkle_tree_pubkey_index = remaining_accounts.insert_or_get(*tree);
-    let address_queue_pubkey_index = remaining_accounts.insert_or_get(*queue);
+    let address_merkle_tree_pubkey_index = remaining_accounts.insert_or_get(tree.to_bytes());
+    let address_queue_pubkey_index = remaining_accounts.insert_or_get(queue.to_bytes());
 
     PackedAddressTreeInfo {
         address_merkle_tree_pubkey_index,

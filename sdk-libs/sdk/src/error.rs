@@ -142,7 +142,6 @@ impl From<LightSdkError> for light_sdk_interface::error::LightPdaError {
             LightSdkError::Hasher(e) => InterfaceError::Hasher(e),
             LightSdkError::MissingCompressionInfo => InterfaceError::MissingCompressionInfo,
             LightSdkError::InvalidRentSponsor => InterfaceError::InvalidRentSponsor,
-            LightSdkError::ProgramError(e) => InterfaceError::ProgramError(e),
             LightSdkError::CpiAccountsIndexOutOfBounds(i) => {
                 InterfaceError::CpiAccountsIndexOutOfBounds(i)
             }
@@ -170,7 +169,6 @@ impl From<light_sdk_interface::error::LightPdaError> for LightSdkError {
             InterfaceError::Hasher(e) => LightSdkError::Hasher(e),
             InterfaceError::MissingCompressionInfo => LightSdkError::MissingCompressionInfo,
             InterfaceError::InvalidRentSponsor => LightSdkError::InvalidRentSponsor,
-            InterfaceError::ProgramError(e) => LightSdkError::ProgramError(e),
             InterfaceError::BorshIo(_) => LightSdkError::Borsh,
             InterfaceError::CpiAccountsIndexOutOfBounds(i) => {
                 LightSdkError::CpiAccountsIndexOutOfBounds(i)
@@ -181,6 +179,7 @@ impl From<light_sdk_interface::error::LightPdaError> for LightSdkError {
             InterfaceError::CompressedAccountError(e) => {
                 LightSdkError::CompressedAccountError(e)
             }
+            _ => LightSdkError::ConstraintViolation,
         }
     }
 }

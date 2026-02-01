@@ -40,8 +40,12 @@
 
 // TODO: link to examples
 
-// Re-export PackedAccounts and base instruction types from interface
+// Re-export base instruction types from interface
 pub use light_sdk_interface::instruction::*;
+
+// Concrete PackedAccounts type alias for solana AccountMeta
+pub type PackedAccounts =
+    light_sdk_interface::instruction::PackedAccounts<solana_instruction::AccountMeta>;
 
 // SDK-specific: ValidityProof and CompressedProof
 pub use light_compressed_account::instruction_data::compressed_proof::{

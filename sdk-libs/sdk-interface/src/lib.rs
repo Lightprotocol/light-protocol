@@ -2,7 +2,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
-
+// TODO: delete backup
 pub mod error;
 
 pub mod account;
@@ -52,6 +52,8 @@ pub use cpi::{
 };
 
 // --- program/ ---
+#[cfg(feature = "token")]
+pub use account::token_seeds::{PackedTokenData, TokenDataWithPackedSeeds, TokenDataWithSeeds};
 pub use program::compression::close::close;
 pub use program::compression::pda::prepare_account_for_compression;
 pub use program::compression::processor::{
@@ -60,28 +62,24 @@ pub use program::compression::processor::{
 };
 pub use program::config::{
     process_initialize_light_config_checked, process_update_light_config,
-    InitializeLightConfigParams, LightConfig, UpdateLightConfigParams,
-    COMPRESSIBLE_CONFIG_SEED, MAX_ADDRESS_TREES_PER_SPACE,
+    InitializeLightConfigParams, LightConfig, UpdateLightConfigParams, COMPRESSIBLE_CONFIG_SEED,
+    MAX_ADDRESS_TREES_PER_SPACE,
 };
+pub use program::decompression::pda::prepare_account_for_decompression;
+#[cfg(feature = "token")]
+pub use program::decompression::processor::process_decompress_accounts_idempotent;
+pub use program::decompression::processor::{
+    process_decompress_pda_accounts_idempotent, DecompressCtx, DecompressIdempotentParams,
+    DecompressVariant,
+};
+#[cfg(feature = "token")]
+pub use program::decompression::token::prepare_token_account_for_decompression;
 pub use program::validation::{
     extract_tail_accounts, is_pda_initialized, should_skip_compression,
     split_at_system_accounts_offset, validate_compress_accounts, validate_decompress_accounts,
     ValidatedPdaContext,
 };
-pub use program::decompression::pda::prepare_account_for_decompression;
-pub use program::decompression::processor::{
-    process_decompress_pda_accounts_idempotent, DecompressCtx, DecompressIdempotentParams,
-    DecompressVariant,
-};
 pub use program::variant::IntoVariant;
 pub use program::variant::{LightAccountVariantTrait, PackedLightAccountVariantTrait};
 #[cfg(feature = "token")]
 pub use program::variant::{PackedTokenSeeds, UnpackedTokenSeeds};
-#[cfg(feature = "token")]
-pub use program::decompression::processor::process_decompress_accounts_idempotent;
-#[cfg(feature = "token")]
-pub use program::decompression::token::prepare_token_account_for_decompression;
-#[cfg(feature = "token")]
-pub use account::token_seeds::{
-    PackedTokenData, TokenDataWithPackedSeeds, TokenDataWithSeeds,
-};
