@@ -2,7 +2,7 @@ use photon_api::models::{FilterSelector, Memcmp};
 use solana_account_decoder_client_types::UiDataSliceConfig;
 use solana_pubkey::Pubkey;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct GetCompressedTokenAccountsByOwnerOrDelegateOptions {
     pub mint: Option<Pubkey>,
     pub cursor: Option<String>,
@@ -109,6 +109,56 @@ impl QueueElementsV2Options {
 
     pub fn with_address_queue_batch_size(mut self, batch_size: Option<u16>) -> Self {
         self.address_queue_zkp_batch_size = batch_size;
+        self
+    }
+}
+
+/// Authority type for querying compressed mints.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MintAuthorityType {
+    MintAuthority,
+    FreezeAuthority,
+    Either,
+}
+
+/// Options for fetching compressed mints by authority.
+#[derive(Debug, Clone)]
+pub struct GetCompressedMintsByAuthorityOptions {
+    /// Cursor for pagination
+    pub cursor: Option<String>,
+    /// Maximum number of results to return
+    pub limit: Option<u16>,
+    /// Authority type filter. Defaults to `MintAuthorityType::Either` (both mint and freeze authorities).
+    pub authority_type: MintAuthorityType,
+}
+
+impl Default for GetCompressedMintsByAuthorityOptions {
+    fn default() -> Self {
+        Self {
+            cursor: None,
+            limit: None,
+            authority_type: MintAuthorityType::Either,
+        }
+    }
+}
+
+impl GetCompressedMintsByAuthorityOptions {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn with_cursor(mut self, cursor: String) -> Self {
+        self.cursor = Some(cursor);
+        self
+    }
+
+    pub fn with_limit(mut self, limit: u16) -> Self {
+        self.limit = Some(limit);
+        self
+    }
+
+    pub fn with_authority_type(mut self, authority_type: MintAuthorityType) -> Self {
+        self.authority_type = authority_type;
         self
     }
 }

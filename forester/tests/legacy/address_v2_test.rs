@@ -62,6 +62,7 @@ async fn test_create_v2_address() {
         )],
         upgradeable_programs: vec![],
         limit_ledger_size: Some(500000),
+        validator_args: vec![],
     }))
     .await;
 

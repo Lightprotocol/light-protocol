@@ -11,8 +11,13 @@ use light_indexed_merkle_tree::array::IndexedElement;
 use light_sdk::instruction::{
     PackedAccounts, PackedAddressTreeInfo, PackedStateTreeInfo, ValidityProof,
 };
-use light_token::compat::{AccountState, TokenData};
-use light_token_interface::state::ExtensionStruct;
+use light_token::{
+    compat::{AccountState, TokenData},
+    instruction::find_mint_address,
+};
+use light_token_interface::state::{
+    BaseMint, CompressionInfo, ExtensionStruct, Mint as LightMint, MintMetadata, ACCOUNT_TYPE_MINT,
+};
 use num_bigint::BigUint;
 use solana_pubkey::Pubkey;
 use tracing::warn;
@@ -408,17 +413,17 @@ impl ValidityProofWithContext {
                 .compressed_proof
                 .a
                 .try_into()
-                .map_err(|_| IndexerError::InvalidResponseData)?,
+                .map_err(|_| IndexerError::decode_error("proof.a", "invalid length"))?,
             b: value
                 .compressed_proof
                 .b
                 .try_into()
-                .map_err(|_| IndexerError::InvalidResponseData)?,
+                .map_err(|_| IndexerError::decode_error("proof.b", "invalid length"))?,
             c: value
                 .compressed_proof
                 .c
                 .try_into()
-                .map_err(|_| IndexerError::InvalidResponseData)?,
+                .map_err(|_| IndexerError::decode_error("proof.c", "invalid length"))?,
         }));
 
         // Convert account data from V1 flat arrays to V2 structured format
@@ -428,7 +433,13 @@ impl ValidityProofWithContext {
                     Pubkey::new_from_array(decode_base58_to_fixed_array(&value.merkle_trees[i])?);
                 let tree_info = super::tree_info::QUEUE_TREE_MAPPING
                     .get(&value.merkle_trees[i])
-                    .ok_or(IndexerError::InvalidResponseData)?;
+                    .ok_or(IndexerError::MissingResult {
+                        context: "conversion".into(),
+                        message: format!(
+                            "tree not found in QUEUE_TREE_MAPPING: {}",
+                            &value.merkle_trees[i]
+                        ),
+                    })?;
 
                 Ok(AccountProofInputs {
                     hash: decode_base58_to_fixed_array(&value.leaves[i])?,
@@ -455,7 +466,10 @@ impl ValidityProofWithContext {
                     )?);
                     let tree_info = super::tree_info::QUEUE_TREE_MAPPING
                         .get(&value.merkle_trees[i])
-                        .ok_or(IndexerError::InvalidResponseData)?;
+                        .ok_or(IndexerError::MissingResult {
+                            context: "conversion".into(),
+                            message: "expected value was None".into(),
+                        })?;
 
                     Ok(AddressProofInputs {
                         address: decode_base58_to_fixed_array(&value.leaves[i])?, // Address is in leaves
@@ -490,15 +504,15 @@ impl ValidityProofWithContext {
                 a: proof
                     .a
                     .try_into()
-                    .map_err(|_| IndexerError::InvalidResponseData)?,
+                    .map_err(|_| IndexerError::decode_error("proof.a", "invalid length"))?,
                 b: proof
                     .b
                     .try_into()
-                    .map_err(|_| IndexerError::InvalidResponseData)?,
+                    .map_err(|_| IndexerError::decode_error("proof.b", "invalid length"))?,
                 c: proof
                     .c
                     .try_into()
-                    .map_err(|_| IndexerError::InvalidResponseData)?,
+                    .map_err(|_| IndexerError::decode_error("proof.c", "invalid length"))?,
             }))
         } else {
             ValidityProof::new(None)
@@ -659,7 +673,7 @@ impl TryFrom<CompressedAccountWithMerkleContext> for CompressedAccount {
     fn try_from(account: CompressedAccountWithMerkleContext) -> Result<Self, Self::Error> {
         let hash = account
             .hash()
-            .map_err(|_| IndexerError::InvalidResponseData)?;
+            .map_err(|e| IndexerError::decode_error("data", e))?;
         // Breaks light-program-test
         let tree_info = QUEUE_TREE_MAPPING.get(
             &Pubkey::new_from_array(account.merkle_context.merkle_tree_pubkey.to_bytes())
@@ -721,7 +735,7 @@ impl TryFrom<&photon_api::models::AccountV2> for CompressedAccount {
             Ok::<Option<CompressedAccountData>, IndexerError>(Some(CompressedAccountData {
                 discriminator: data.discriminator.to_le_bytes(),
                 data: base64::decode_config(&data.data, base64::STANDARD_NO_PAD)
-                    .map_err(|_| IndexerError::InvalidResponseData)?,
+                    .map_err(|e| IndexerError::decode_error("data", e))?,
                 data_hash: decode_base58_to_fixed_array(&data.data_hash)?,
             }))
         } else {
@@ -776,7 +790,7 @@ impl TryFrom<&photon_api::models::Account> for CompressedAccount {
             Ok::<Option<CompressedAccountData>, IndexerError>(Some(CompressedAccountData {
                 discriminator: data.discriminator.to_le_bytes(),
                 data: base64::decode_config(&data.data, base64::STANDARD_NO_PAD)
-                    .map_err(|_| IndexerError::InvalidResponseData)?,
+                    .map_err(|e| IndexerError::decode_error("data", e))?,
                 data_hash: decode_base58_to_fixed_array(&data.data_hash)?,
             }))
         } else {
@@ -794,9 +808,13 @@ impl TryFrom<&photon_api::models::Account> for CompressedAccount {
         let lamports = account.lamports;
         let leaf_index = account.leaf_index;
 
-        let tree_info = QUEUE_TREE_MAPPING
-            .get(&account.tree)
-            .ok_or(IndexerError::InvalidResponseData)?;
+        let tree_info =
+            QUEUE_TREE_MAPPING
+                .get(&account.tree)
+                .ok_or(IndexerError::MissingResult {
+                    context: "conversion".into(),
+                    message: "expected value was None".into(),
+                })?;
 
         let tree_info = TreeInfo {
             cpi_context: tree_info.cpi_context,
@@ -886,9 +904,9 @@ impl TryFrom<&photon_api::models::TokenAccount> for CompressedTokenAccount {
                 .as_ref()
                 .map(|tlv| {
                     let bytes = base64::decode_config(tlv, base64::STANDARD_NO_PAD)
-                        .map_err(|_| IndexerError::InvalidResponseData)?;
+                        .map_err(|e| IndexerError::decode_error("tlv", e))?;
                     Vec::<ExtensionStruct>::deserialize(&mut bytes.as_slice())
-                        .map_err(|_| IndexerError::InvalidResponseData)
+                        .map_err(|e| IndexerError::decode_error("extensions", e))
                 })
                 .transpose()?,
         };
@@ -927,9 +945,9 @@ impl TryFrom<&photon_api::models::TokenAccountV2> for CompressedTokenAccount {
                 .as_ref()
                 .map(|tlv| {
                     let bytes = base64::decode_config(tlv, base64::STANDARD_NO_PAD)
-                        .map_err(|_| IndexerError::InvalidResponseData)?;
+                        .map_err(|e| IndexerError::decode_error("tlv", e))?;
                     Vec::<ExtensionStruct>::deserialize(&mut bytes.as_slice())
-                        .map_err(|_| IndexerError::InvalidResponseData)
+                        .map_err(|e| IndexerError::decode_error("extensions", e))
                 })
                 .transpose()?,
         };
@@ -1035,5 +1053,387 @@ impl TryFrom<&photon_api::models::OwnerBalance> for OwnerBalance {
             balance: owner_balance.balance,
             owner: Pubkey::new_from_array(decode_base58_to_fixed_array(&owner_balance.owner)?),
         })
+    }
+}
+
+/// Mint-specific data for compressed mints
+#[derive(Clone, Default, Debug, PartialEq)]
+pub struct MintData {
+    /// The PDA (decompressed account address) for this mint
+    pub mint_pda: Pubkey,
+    /// The signer/seed used for PDA derivation
+    pub mint_signer: [u8; 32],
+    /// Authority that can mint new tokens
+    pub mint_authority: Option<Pubkey>,
+    /// Authority that can freeze accounts
+    pub freeze_authority: Option<Pubkey>,
+    /// Total supply of tokens
+    pub supply: u64,
+    /// Number of decimals
+    pub decimals: u8,
+    /// Version of the mint
+    pub version: u8,
+    /// Whether the mint has been decompressed
+    pub mint_decompressed: bool,
+    /// Serialized extensions (decoded bytes; base64 decoded in `TryFrom`)
+    pub extensions: Option<Vec<u8>>,
+}
+
+impl TryFrom<&photon_api::models::MintData> for MintData {
+    type Error = IndexerError;
+
+    fn try_from(mint_data: &photon_api::models::MintData) -> Result<Self, Self::Error> {
+        Ok(MintData {
+            mint_pda: Pubkey::new_from_array(decode_base58_to_fixed_array(&mint_data.mint_pda)?),
+            mint_signer: decode_base58_to_fixed_array(&mint_data.mint_signer)?,
+            mint_authority: mint_data
+                .mint_authority
+                .as_ref()
+                .map(|a| decode_base58_to_fixed_array(a).map(Pubkey::new_from_array))
+                .transpose()?,
+            freeze_authority: mint_data
+                .freeze_authority
+                .as_ref()
+                .map(|a| decode_base58_to_fixed_array(a).map(Pubkey::new_from_array))
+                .transpose()?,
+            supply: mint_data.supply,
+            decimals: mint_data.decimals,
+            version: mint_data.version,
+            mint_decompressed: mint_data.mint_decompressed,
+            extensions: mint_data
+                .extensions
+                .as_ref()
+                .map(|ext| {
+                    base64::decode_config(ext, base64::STANDARD_NO_PAD)
+                        .map_err(|e| IndexerError::decode_error("extensions", e))
+                })
+                .transpose()?,
+        })
+    }
+}
+
+impl MintData {
+    /// Convert to `light_token_interface::state::Mint`.
+    ///
+    /// This reconstructs the full Mint struct from the indexed data.
+    /// Note: `CompressionInfo` is defaulted since it's not stored by the indexer.
+    pub fn to_light_mint(&self) -> Result<LightMint, IndexerError> {
+        // Derive bump from mint_signer
+        let mint_signer_pubkey = Pubkey::new_from_array(self.mint_signer);
+        let (derived_pda, bump) = find_mint_address(&mint_signer_pubkey);
+
+        // Verify derived PDA matches stored mint_pda (fail fast on mismatch)
+        if derived_pda != self.mint_pda {
+            return Err(IndexerError::DataDecodeError {
+                field: "mint_pda".to_string(),
+                message: format!(
+                    "Derived mint PDA {} (bump={}) does not match stored mint_pda {}",
+                    derived_pda, bump, self.mint_pda
+                ),
+            });
+        }
+
+        // Parse extensions if present
+        let extensions = self
+            .extensions
+            .as_ref()
+            .map(|ext_bytes| {
+                Vec::<ExtensionStruct>::deserialize(&mut ext_bytes.as_slice())
+                    .map_err(|e| IndexerError::decode_error("extensions", e))
+            })
+            .transpose()?;
+
+        Ok(LightMint {
+            base: BaseMint {
+                mint_authority: self
+                    .mint_authority
+                    .map(|p| light_compressed_account::Pubkey::new_from_array(p.to_bytes())),
+                supply: self.supply,
+                decimals: self.decimals,
+                is_initialized: true, // Always true for indexed mints
+                freeze_authority: self
+                    .freeze_authority
+                    .map(|p| light_compressed_account::Pubkey::new_from_array(p.to_bytes())),
+            },
+            metadata: MintMetadata {
+                version: self.version,
+                mint_decompressed: self.mint_decompressed,
+                mint: light_compressed_account::Pubkey::new_from_array(self.mint_pda.to_bytes()),
+                mint_signer: self.mint_signer,
+                bump,
+            },
+            reserved: [0u8; 16],
+            account_type: ACCOUNT_TYPE_MINT,
+            compression: CompressionInfo::default(), // Not stored by indexer
+            extensions,
+        })
+    }
+}
+
+/// A compressed mint with its account data
+#[derive(Clone, Default, Debug, PartialEq)]
+pub struct CompressedMint {
+    /// Mint-specific data (mint_pda, authorities, supply, decimals, etc.)
+    pub mint: MintData,
+    /// General account information (address, hash, lamports, merkle context, etc.)
+    pub account: CompressedAccount,
+}
+
+impl TryFrom<&photon_api::models::CompressedMint> for CompressedMint {
+    type Error = IndexerError;
+
+    fn try_from(compressed_mint: &photon_api::models::CompressedMint) -> Result<Self, Self::Error> {
+        let account = CompressedAccount::try_from(compressed_mint.account.as_ref())?;
+        let mint = MintData::try_from(compressed_mint.mint_data.as_ref())?;
+
+        Ok(CompressedMint { mint, account })
+    }
+}
+
+// ============ Interface Types ============
+// These types are used by the Interface endpoints that race hot (on-chain) and cold (compressed) lookups
+
+/// Standard Solana account fields
+#[derive(Clone, Debug, PartialEq)]
+pub struct SolanaAccountData {
+    pub lamports: u64,
+    pub data: Vec<u8>,
+    pub owner: Pubkey,
+    pub executable: bool,
+    pub rent_epoch: u64,
+    pub space: u64,
+}
+
+/// Merkle tree info for compressed accounts
+#[derive(Clone, Debug, PartialEq)]
+pub struct InterfaceTreeInfo {
+    pub tree: Pubkey,
+    pub seq: Option<u64>,
+}
+
+/// Structured compressed account data (discriminator separated)
+#[derive(Clone, Debug, PartialEq)]
+pub struct ColdData {
+    pub discriminator: [u8; 8],
+    pub data: Vec<u8>,
+}
+
+/// Compressed account context — present when account is in compressed state
+#[derive(Clone, Debug, PartialEq)]
+pub enum ColdContext {
+    Account {
+        hash: [u8; 32],
+        leaf_index: u64,
+        tree_info: InterfaceTreeInfo,
+        data: ColdData,
+    },
+    Token {
+        hash: [u8; 32],
+        leaf_index: u64,
+        tree_info: InterfaceTreeInfo,
+        data: ColdData,
+    },
+    Mint {
+        hash: [u8; 32],
+        leaf_index: u64,
+        tree_info: InterfaceTreeInfo,
+        data: ColdData,
+    },
+}
+
+/// Decode tree info from photon_api format
+fn decode_tree_info(
+    tree_info: &photon_api::models::InterfaceTreeInfo,
+) -> Result<InterfaceTreeInfo, IndexerError> {
+    Ok(InterfaceTreeInfo {
+        tree: Pubkey::new_from_array(decode_base58_to_fixed_array(&tree_info.tree)?),
+        seq: tree_info.seq,
+    })
+}
+
+/// Decode cold data from photon_api format
+fn decode_cold_data(data: &photon_api::models::ColdData) -> Result<ColdData, IndexerError> {
+    Ok(ColdData {
+        discriminator: data.discriminator,
+        data: base64::decode_config(&data.data, base64::STANDARD_NO_PAD)
+            .map_err(|e| IndexerError::decode_error("data", e))?,
+    })
+}
+
+/// Helper to convert photon_api ColdContext to client ColdContext
+fn convert_cold_context(
+    cold: &photon_api::models::ColdContext,
+) -> Result<ColdContext, IndexerError> {
+    match cold {
+        photon_api::models::ColdContext::Account {
+            hash,
+            leaf_index,
+            tree_info,
+            data,
+        } => Ok(ColdContext::Account {
+            hash: decode_base58_to_fixed_array(hash)?,
+            leaf_index: *leaf_index,
+            tree_info: decode_tree_info(tree_info)?,
+            data: decode_cold_data(data)?,
+        }),
+        photon_api::models::ColdContext::Token {
+            hash,
+            leaf_index,
+            tree_info,
+            data,
+        } => Ok(ColdContext::Token {
+            hash: decode_base58_to_fixed_array(hash)?,
+            leaf_index: *leaf_index,
+            tree_info: decode_tree_info(tree_info)?,
+            data: decode_cold_data(data)?,
+        }),
+        photon_api::models::ColdContext::Mint {
+            hash,
+            leaf_index,
+            tree_info,
+            data,
+        } => Ok(ColdContext::Mint {
+            hash: decode_base58_to_fixed_array(hash)?,
+            leaf_index: *leaf_index,
+            tree_info: decode_tree_info(tree_info)?,
+            data: decode_cold_data(data)?,
+        }),
+    }
+}
+
+/// Unified account interface — works for both on-chain and compressed accounts
+#[derive(Clone, Debug, PartialEq)]
+pub struct AccountInterface {
+    /// The on-chain Solana pubkey
+    pub key: Pubkey,
+    /// Standard Solana account fields
+    pub account: SolanaAccountData,
+    /// Compressed context — None if on-chain, Some if compressed
+    pub cold: Option<ColdContext>,
+}
+
+impl AccountInterface {
+    /// Returns true if this account is on-chain (hot)
+    pub fn is_hot(&self) -> bool {
+        self.cold.is_none()
+    }
+
+    /// Returns true if this account is compressed (cold)
+    pub fn is_cold(&self) -> bool {
+        self.cold.is_some()
+    }
+}
+
+/// Helper to convert photon_api AccountInterface to client AccountInterface
+fn convert_account_interface(
+    ai: &photon_api::models::AccountInterface,
+) -> Result<AccountInterface, IndexerError> {
+    let cold = ai.cold.as_ref().map(convert_cold_context).transpose()?;
+
+    let data = base64::decode_config(&ai.account.data, base64::STANDARD_NO_PAD)
+        .map_err(|e| IndexerError::decode_error("account.data", e))?;
+
+    Ok(AccountInterface {
+        key: Pubkey::new_from_array(decode_base58_to_fixed_array(&ai.key)?),
+        account: SolanaAccountData {
+            lamports: ai.account.lamports,
+            data,
+            owner: Pubkey::new_from_array(decode_base58_to_fixed_array(&ai.account.owner)?),
+            executable: ai.account.executable,
+            rent_epoch: ai.account.rent_epoch,
+            space: ai.account.space,
+        },
+        cold,
+    })
+}
+
+impl TryFrom<&photon_api::models::AccountInterface> for AccountInterface {
+    type Error = IndexerError;
+
+    fn try_from(ai: &photon_api::models::AccountInterface) -> Result<Self, Self::Error> {
+        convert_account_interface(ai)
+    }
+}
+
+impl TryFrom<&photon_api::models::InterfaceResult> for AccountInterface {
+    type Error = IndexerError;
+
+    fn try_from(ir: &photon_api::models::InterfaceResult) -> Result<Self, Self::Error> {
+        match ir {
+            photon_api::models::InterfaceResult::Account(ai) => AccountInterface::try_from(ai),
+            photon_api::models::InterfaceResult::Token(tai) => {
+                AccountInterface::try_from(&tai.account)
+            }
+            photon_api::models::InterfaceResult::Mint(mi) => {
+                AccountInterface::try_from(&mi.account)
+            }
+        }
+    }
+}
+
+/// Token account interface with parsed token data
+#[derive(Clone, Debug, PartialEq)]
+pub struct TokenAccountInterface {
+    /// Base account interface data
+    pub account: AccountInterface,
+    /// Parsed token data (same as CompressedTokenAccount.token)
+    pub token: TokenData,
+}
+
+impl TryFrom<&photon_api::models::TokenAccountInterface> for TokenAccountInterface {
+    type Error = IndexerError;
+
+    fn try_from(tai: &photon_api::models::TokenAccountInterface) -> Result<Self, Self::Error> {
+        let account = convert_account_interface(&tai.account)?;
+
+        // Parse token data - same pattern as CompressedTokenAccount
+        let token = TokenData {
+            mint: Pubkey::new_from_array(decode_base58_to_fixed_array(&tai.token_data.mint)?),
+            owner: Pubkey::new_from_array(decode_base58_to_fixed_array(&tai.token_data.owner)?),
+            amount: tai.token_data.amount,
+            delegate: tai
+                .token_data
+                .delegate
+                .as_ref()
+                .map(|d| decode_base58_to_fixed_array(d).map(Pubkey::new_from_array))
+                .transpose()?,
+            state: match tai.token_data.state {
+                photon_api::models::AccountState::Initialized => AccountState::Initialized,
+                photon_api::models::AccountState::Frozen => AccountState::Frozen,
+            },
+            tlv: tai
+                .token_data
+                .tlv
+                .as_ref()
+                .map(|tlv| {
+                    let bytes = base64::decode_config(tlv, base64::STANDARD_NO_PAD)
+                        .map_err(|e| IndexerError::decode_error("tlv", e))?;
+                    Vec::<ExtensionStruct>::deserialize(&mut bytes.as_slice())
+                        .map_err(|e| IndexerError::decode_error("extensions", e))
+                })
+                .transpose()?,
+        };
+
+        Ok(TokenAccountInterface { account, token })
+    }
+}
+
+/// Mint account interface with parsed mint data
+#[derive(Clone, Debug, PartialEq)]
+pub struct MintInterface {
+    /// Base account interface data
+    pub account: AccountInterface,
+    /// Parsed mint data
+    pub mint_data: MintData,
+}
+
+impl TryFrom<&photon_api::models::MintInterface> for MintInterface {
+    type Error = IndexerError;
+
+    fn try_from(mi: &photon_api::models::MintInterface) -> Result<Self, Self::Error> {
+        let account = convert_account_interface(&mi.account)?;
+        let mint_data = MintData::try_from(&mi.mint_data)?;
+
+        Ok(MintInterface { account, mint_data })
     }
 }

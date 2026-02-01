@@ -19,12 +19,13 @@ fn calculate_compressible_slot(mint: &Mint, lamports: u64, account_size: usize) 
     let rent_exemption = get_rent_exemption_lamports(account_size as u64)
         .map_err(|e| anyhow::anyhow!("Failed to get rent exemption: {:?}", e))?;
     let compression_info = &mint.compression;
+    let config = &compression_info.rent_config;
 
     let last_funded_epoch = get_last_funded_epoch(
         account_size as u64,
         lamports,
         compression_info.last_claimed_slot,
-        &compression_info.rent_config,
+        config,
         rent_exemption,
     );
 
