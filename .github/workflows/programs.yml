@@ -81,7 +81,7 @@ jobs:
 
       - name: Build CLI
         run: |
-          just cli build
+          just cli::build
 
       - name: ${{ matrix.program }}
         run: |

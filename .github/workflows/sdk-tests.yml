@@ -54,7 +54,7 @@ jobs:
           - program: token test
             test-targets: '["test-token", "test-token-client"]'
           - program: sdk-libs
-            test_cmd: just sdk-libs test
+            test_cmd: just sdk-libs::test
     steps:
       - name: Checkout sources
         uses: actions/checkout@v6
@@ -67,7 +67,7 @@ jobs:
 
       - name: Build CLI
         run: |
-          just cli build
+          just cli::build
 
       - name: Install bun
         if: matrix.program == 'sdk-libs'
