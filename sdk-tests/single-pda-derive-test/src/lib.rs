@@ -56,7 +56,7 @@ pub mod single_pda_derive_test {
         ctx: Context<'_, '_, '_, 'info, EmptyAccounts<'info>>,
         instruction_data: Vec<u8>,
     ) -> Result<()> {
-        light_sdk_interface::program::compression::processor::process_compress_pda_accounts_idempotent(
+        light_sdk::interface::program::compression::processor::process_compress_pda_accounts_idempotent(
             ctx.remaining_accounts,
             &instruction_data,
             ProgramAccounts::compress_dispatch,
@@ -82,7 +82,7 @@ pub mod single_pda_derive_test {
         ctx: Context<'_, '_, '_, 'info, EmptyAccounts<'info>>,
         instruction_data: Vec<u8>,
     ) -> Result<()> {
-        light_sdk_interface::program::config::process_initialize_light_config_checked(
+        light_sdk::interface::program::config::process_initialize_light_config_checked(
             ctx.remaining_accounts,
             &instruction_data,
             &crate::ID,
@@ -94,7 +94,7 @@ pub mod single_pda_derive_test {
         ctx: Context<'_, '_, '_, 'info, EmptyAccounts<'info>>,
         instruction_data: Vec<u8>,
     ) -> Result<()> {
-        light_sdk_interface::program::config::process_update_light_config(
+        light_sdk::interface::program::config::process_update_light_config(
             ctx.remaining_accounts,
             &instruction_data,
             &crate::ID,

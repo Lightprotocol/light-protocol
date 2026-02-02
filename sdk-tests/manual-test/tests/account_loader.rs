@@ -12,7 +12,7 @@ use light_client::interface::{
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{program_test::TestRpc, Indexer, Rpc};
-use light_sdk::interface::IntoVariant;
+use light_account::IntoVariant;
 use manual_test::{
     CreateZeroCopyParams, ZeroCopyRecord, ZeroCopyRecordSeeds, ZeroCopyRecordVariant,
 };
@@ -185,7 +185,7 @@ async fn test_zero_copy_create_compress_decompress() {
     );
 
     // state should be Decompressed after decompression
-    use light_sdk::compressible::CompressionState;
+    use light_account::CompressionState;
     assert_eq!(
         record.compression_info.state,
         CompressionState::Decompressed,

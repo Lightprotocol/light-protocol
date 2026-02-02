@@ -2,8 +2,8 @@
 use light_compressed_account::compressed_account::PackedMerkleContext;
 use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
 use light_program_profiler::profile;
+use light_sdk_types::error::LightSdkTypesError;
 use light_sdk::{instruction::PackedStateTreeInfo, Unpack};
-use light_sdk::interface::error::LightPdaError;
 // Pack and PackedAccounts only available off-chain (client-side)
 #[cfg(not(target_os = "solana"))]
 use light_sdk::{
@@ -64,7 +64,7 @@ impl Pack<AccountMeta> for DecompressFullInput {
     fn pack(
         &self,
         remaining_accounts: &mut PackedAccounts,
-    ) -> Result<Self::Packed, LightPdaError> {
+    ) -> Result<Self::Packed, LightSdkTypesError> {
         let owner_is_signer = !self.is_ata;
 
         let source = MultiInputTokenDataWithContext {
@@ -106,20 +106,20 @@ impl<'a> Unpack<AccountInfo<'a>> for DecompressFullIndices {
     fn unpack(
         &self,
         remaining_accounts: &[AccountInfo<'a>],
-    ) -> Result<Self::Unpacked, LightPdaError> {
+    ) -> Result<Self::Unpacked, LightSdkTypesError> {
         let owner = *remaining_accounts
             .get(self.source.owner as usize)
-            .ok_or(LightPdaError::InvalidInstructionData)?
+            .ok_or(LightSdkTypesError::InvalidInstructionData)?
             .key;
         let mint = *remaining_accounts
             .get(self.source.mint as usize)
-            .ok_or(LightPdaError::InvalidInstructionData)?
+            .ok_or(LightSdkTypesError::InvalidInstructionData)?
             .key;
         let delegate = if self.source.has_delegate {
             Some(
                 *remaining_accounts
                     .get(self.source.delegate as usize)
-                    .ok_or(LightPdaError::InvalidInstructionData)?
+                    .ok_or(LightSdkTypesError::InvalidInstructionData)?
                     .key,
             )
         } else {
@@ -127,7 +127,7 @@ impl<'a> Unpack<AccountInfo<'a>> for DecompressFullIndices {
         };
         let destination = *remaining_accounts
             .get(self.destination_index as usize)
-            .ok_or(LightPdaError::InvalidInstructionData)?
+            .ok_or(LightSdkTypesError::InvalidInstructionData)?
             .key;
 
         Ok(DecompressFullInput {
@@ -356,7 +356,7 @@ impl AccountMetasVec<AccountMeta> for DecompressFullAccounts {
     fn get_account_metas_vec(
         &self,
         accounts: &mut PackedAccounts,
-    ) -> Result<(), LightPdaError> {
+    ) -> Result<(), LightSdkTypesError> {
         if !accounts.system_accounts_set() {
             #[cfg(feature = "cpi-context")]
             let config = {
@@ -374,7 +374,7 @@ impl AccountMetasVec<AccountMeta> for DecompressFullAccounts {
 
             accounts
                 .add_system_accounts_v2(config)
-                .map_err(LightPdaError::from)?;
+                .map_err(LightSdkTypesError::from)?;
         }
         // Add both accounts in one operation for better performance
         accounts.pre_accounts.extend_from_slice(&[

@@ -10,12 +10,10 @@ use anchor_lang::prelude::*;
 use light_compressed_account::instruction_data::{
     cpi_context::CompressedCpiContext, with_account_info::InstructionDataInvokeCpiWithAccountInfo,
 };
-use light_sdk::{
-    cpi::{v2::CpiAccounts, CpiAccountsConfig, InvokeLightSystemProgram},
-    error::LightSdkError,
-    instruction::PackedAddressTreeInfoExt,
-    interface::{prepare_compressed_account_on_init, LightAccount, LightFinalize, LightPreInit},
-    sdk_types::CpiContextWriteAccounts,
+use light_account::{
+    prepare_compressed_account_on_init, CpiAccounts, CpiAccountsConfig,
+    CpiContextWriteAccounts, InvokeLightSystemProgram, LightAccount, LightFinalize,
+    LightPreInit, LightSdkTypesError, PackedAddressTreeInfoExt,
 };
 use light_token::{
     compressible::{invoke_create_mints, CreateMintsInfraAccounts},
@@ -26,7 +24,6 @@ use light_token::{
     },
 };
 use solana_account_info::AccountInfo;
-use solana_program_error::ProgramError;
 
 use super::accounts::{
     CreateAllAccounts, CreateAllParams, ALL_MINT_SIGNER_SEED, ALL_TOKEN_VAULT_SEED,
@@ -41,9 +38,9 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateAllParams> for CreateAllAccou
         &mut self,
         remaining_accounts: &[AccountInfo<'info>],
         params: &CreateAllParams,
-    ) -> std::result::Result<bool, light_sdk::interface::error::LightPdaError> {
-        let mut inner = || -> std::result::Result<bool, LightSdkError> {
-            use light_sdk::interface::LightConfig;
+    ) -> std::result::Result<bool, LightSdkTypesError> {
+        let mut inner = || -> std::result::Result<bool, LightSdkTypesError> {
+            use light_account::LightConfig;
             use solana_program::{clock::Clock, sysvar::Sysvar};
 
             // Constants for this instruction
@@ -57,7 +54,7 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateAllParams> for CreateAllAccou
             let system_accounts_offset =
                 params.create_accounts_proof.system_accounts_offset as usize;
             if remaining_accounts.len() < system_accounts_offset {
-                return Err(LightSdkError::FewerAccountsThanSystemAccounts);
+                return Err(LightSdkTypesError::FewerAccountsThanSystemAccounts);
             }
             let config = CpiAccountsConfig::new_with_cpi_context(crate::LIGHT_CPI_SIGNER);
             let cpi_accounts = CpiAccounts::new_with_config(
@@ -72,16 +69,17 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateAllParams> for CreateAllAccou
             let address_tree_info = &params.create_accounts_proof.address_tree_info;
             let address_tree_pubkey = address_tree_info
                 .get_tree_pubkey(&cpi_accounts)
-                .map_err(|_| LightSdkError::from(ProgramError::InvalidAccountData))?;
+                .map_err(|_| LightSdkTypesError::InvalidInstructionData)?;
             let output_tree_index = params.create_accounts_proof.output_state_tree_index;
 
             // ====================================================================
             // 3. Load config, get current slot
             // ====================================================================
-            let light_config = LightConfig::load_checked(&self.compression_config, &crate::ID.to_bytes())
-                .map_err(|_| LightSdkError::from(ProgramError::InvalidAccountData))?;
+            let light_config =
+                LightConfig::load_checked(&self.compression_config, &crate::ID.to_bytes())
+                    .map_err(|_| LightSdkTypesError::InvalidInstructionData)?;
             let current_slot = Clock::get()
-                .map_err(|_| LightSdkError::from(ProgramError::InvalidAccountData))?
+                .map_err(|_| LightSdkTypesError::InvalidInstructionData)?
                 .slot;
 
             // ====================================================================
@@ -124,7 +122,7 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateAllParams> for CreateAllAccou
                     let mut record = self
                         .zero_copy_record
                         .load_init()
-                        .map_err(|_| LightSdkError::from(ProgramError::AccountBorrowFailed))?;
+                        .map_err(|_| LightSdkTypesError::Borsh)?;
                     record.set_decompressed(&light_config, current_slot);
                 }
 
@@ -148,13 +146,12 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateAllParams> for CreateAllAccou
                 // Write to CPI context first (combined execution happens with mints)
                 let cpi_context_accounts = CpiContextWriteAccounts {
                     fee_payer: cpi_accounts.fee_payer(),
-                    authority: cpi_accounts.authority().map_err(LightSdkError::from)?,
-                    cpi_context: cpi_accounts.cpi_context().map_err(LightSdkError::from)?,
+                    authority: cpi_accounts.authority()?,
+                    cpi_context: cpi_accounts.cpi_context()?,
                     cpi_signer: crate::LIGHT_CPI_SIGNER,
                 };
                 instruction_data
-                    .invoke_write_to_cpi_context_first(cpi_context_accounts)
-                    .map_err(LightSdkError::from)?;
+                    .invoke_write_to_cpi_context_first(cpi_context_accounts)?;
             }
 
             // ====================================================================
@@ -165,10 +162,9 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateAllParams> for CreateAllAccou
                 let mint_signer_key = self.mint_signer.key();
 
                 // Derive mint PDA
-                let (mint_pda, mint_bump) =
-                    find_mint_address(&solana_pubkey::Pubkey::new_from_array(
-                        mint_signer_key.to_bytes(),
-                    ));
+                let (mint_pda, mint_bump) = find_mint_address(
+                    &solana_pubkey::Pubkey::new_from_array(mint_signer_key.to_bytes()),
+                );
 
                 // Derive compression address
                 let compression_address = derive_mint_compressed_address(
@@ -204,13 +200,13 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateAllParams> for CreateAllAccou
                 let state_tree_index = params
                     .create_accounts_proof
                     .state_tree_index
-                    .ok_or(LightSdkError::from(ProgramError::InvalidArgument))?;
+                    .ok_or(LightSdkTypesError::InvalidInstructionData)?;
 
                 let proof = params
                     .create_accounts_proof
                     .proof
                     .0
-                    .ok_or(LightSdkError::from(ProgramError::InvalidArgument))?;
+                    .ok_or(LightSdkTypesError::InvalidInstructionData)?;
 
                 // Build SDK params with cpi_context_offset
                 let sdk_params = SdkCreateMintsParams::new(&sdk_mints, proof)
@@ -238,7 +234,8 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateAllParams> for CreateAllAccou
                     sdk_params,
                     infra,
                     &cpi_accounts,
-                )?;
+                )
+                .map_err(|_| LightSdkTypesError::CpiFailed)?;
             }
 
             // ====================================================================
@@ -264,7 +261,8 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateAllParams> for CreateAllAccou
                     self.system_program.to_account_info(),
                     &crate::ID,
                 )
-                .invoke_signed(vault_seeds)?;
+                .invoke_signed(vault_seeds)
+                .map_err(|_| LightSdkTypesError::CpiFailed)?;
             }
 
             // ====================================================================
@@ -288,12 +286,13 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateAllParams> for CreateAllAccou
                     self.rent_sponsor.clone(),
                     self.system_program.to_account_info(),
                 )
-                .invoke()?;
+                .invoke()
+                .map_err(|_| LightSdkTypesError::CpiFailed)?;
             }
 
             Ok(WITH_CPI_CONTEXT)
         };
-        inner().map_err(Into::into)
+        inner()
     }
 }
 
@@ -307,7 +306,7 @@ impl<'info> LightFinalize<AccountInfo<'info>, CreateAllParams> for CreateAllAcco
         _remaining_accounts: &[AccountInfo<'info>],
         _params: &CreateAllParams,
         _has_pre_init: bool,
-    ) -> std::result::Result<(), light_sdk::interface::error::LightPdaError> {
+    ) -> std::result::Result<(), LightSdkTypesError> {
         // All accounts were created in light_pre_init
         Ok(())
     }

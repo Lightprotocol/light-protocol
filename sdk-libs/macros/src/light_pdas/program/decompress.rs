@@ -57,7 +57,7 @@ impl DecompressBuilder {
                 remaining_accounts: &[solana_account_info::AccountInfo<'info>],
                 instruction_data: &[u8],
             ) -> Result<()> {
-                light_sdk::interface::process_decompress_pda_accounts_idempotent::<PackedLightAccountVariant>(
+                light_account::process_decompress_pda_accounts_idempotent::<PackedLightAccountVariant>(
                     remaining_accounts,
                     instruction_data,
                     LIGHT_CPI_SIGNER,
@@ -296,7 +296,7 @@ impl DecompressBuilder {
                 quote! {
                     #ctx_seeds_struct
 
-                    impl light_sdk::interface::PdaSeedDerivation<#ctx_seeds_struct_name, SeedParams> for #inner_type {
+                    impl light_account::PdaSeedDerivation<#ctx_seeds_struct_name, SeedParams> for #inner_type {
                         fn derive_pda_seeds_with_accounts(
                             &self,
                             program_id: &solana_pubkey::Pubkey,
@@ -311,7 +311,7 @@ impl DecompressBuilder {
                 quote! {
                     #ctx_seeds_struct
 
-                    impl light_sdk::interface::PdaSeedDerivation<#ctx_seeds_struct_name, SeedParams> for #inner_type {
+                    impl light_account::PdaSeedDerivation<#ctx_seeds_struct_name, SeedParams> for #inner_type {
                         fn derive_pda_seeds_with_accounts(
                             &self,
                             program_id: &solana_pubkey::Pubkey,
@@ -349,7 +349,7 @@ impl DecompressBuilder {
                     cpi_signer: light_sdk_types::CpiSigner,
                     program_id: &solana_pubkey::Pubkey,
                 ) -> std::result::Result<(), solana_program_error::ProgramError> {
-                    light_sdk::interface::process_decompress_pda_accounts_idempotent::<PackedLightAccountVariant>(
+                    light_account::process_decompress_pda_accounts_idempotent::<PackedLightAccountVariant>(
                         remaining_accounts,
                         instruction_data,
                         cpi_signer,

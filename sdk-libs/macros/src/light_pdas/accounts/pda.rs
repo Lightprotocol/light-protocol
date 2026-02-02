@@ -105,7 +105,7 @@ impl<'a> PdaBlockBuilder<'a> {
         } else if self.field.is_boxed {
             quote! {
                 {
-                    use light_sdk::interface::LightAccount;
+                    use light_account::LightAccount;
                     use anchor_lang::AnchorSerialize;
                     let current_slot = anchor_lang::solana_program::sysvar::clock::Clock::get()?.slot;
                     // Get account info BEFORE mutable borrow
@@ -119,15 +119,15 @@ impl<'a> PdaBlockBuilder<'a> {
                     // Now serialize - the mutable borrow above is released
                     let mut data = account_info
                         .try_borrow_mut_data()
-                        .map_err(|_| light_sdk::interface::error::LightPdaError::ConstraintViolation)?;
+                        .map_err(|_| light_sdk_types::error::LightSdkTypesError::ConstraintViolation)?;
                     self.#ident.serialize(&mut &mut data[8..])
-                        .map_err(|_| light_sdk::interface::error::LightPdaError::ConstraintViolation)?;
+                        .map_err(|_| light_sdk_types::error::LightSdkTypesError::ConstraintViolation)?;
                 }
             }
         } else {
             quote! {
                 {
-                    use light_sdk::interface::LightAccount;
+                    use light_account::LightAccount;
                     use anchor_lang::AnchorSerialize;
                     let current_slot = anchor_lang::solana_program::sysvar::clock::Clock::get()?.slot;
                     // Get account info BEFORE mutable borrow
@@ -141,9 +141,9 @@ impl<'a> PdaBlockBuilder<'a> {
                     // Now serialize - the mutable borrow above is released
                     let mut data = account_info
                         .try_borrow_mut_data()
-                        .map_err(|_| light_sdk::interface::error::LightPdaError::ConstraintViolation)?;
+                        .map_err(|_| light_sdk_types::error::LightSdkTypesError::ConstraintViolation)?;
                     self.#ident.serialize(&mut &mut data[8..])
-                        .map_err(|_| light_sdk::interface::error::LightPdaError::ConstraintViolation)?;
+                        .map_err(|_| light_sdk_types::error::LightSdkTypesError::ConstraintViolation)?;
                 }
             }
         }
@@ -170,7 +170,7 @@ impl<'a> PdaBlockBuilder<'a> {
                 // Explicit type annotation for tree_info
                 let tree_info: &::light_sdk::sdk_types::PackedAddressTreeInfo = &#addr_tree_info;
 
-                ::light_sdk::interface::prepare_compressed_account_on_init(
+                ::light_account::prepare_compressed_account_on_init(
                     &#account_key,
                     &#address_tree_pubkey,
                     tree_info,
@@ -248,7 +248,7 @@ pub(super) fn generate_rent_reimbursement_block(
             let __created_accounts: [solana_account_info::AccountInfo<'info>; #count] = [
                 #(#account_info_exprs),*
             ];
-            ::light_sdk::interface::reimburse_rent(
+            ::light_account::reimburse_rent(
                 &__created_accounts,
                 &self.#fee_payer.to_account_info(),
                 &self.#rent_sponsor.to_account_info(),

@@ -1,7 +1,7 @@
 //! Accounts module for single-pda-test.
 
 use anchor_lang::prelude::*;
-use light_compressible::CreateAccountsProof;
+use light_account::CreateAccountsProof;
 
 use crate::pda::MinimalRecord;
 

@@ -144,24 +144,24 @@ impl LightAccountsBuilder {
 
         Ok(quote! {
             #[automatically_derived]
-            impl #impl_generics light_sdk::interface::LightPreInit<'info, ()> for #struct_name #ty_generics #where_clause {
+            impl #impl_generics light_account::LightPreInit<light_account::AccountInfo<'info>, ()> for #struct_name #ty_generics #where_clause {
                 fn light_pre_init(
                     &mut self,
                     _remaining: &[solana_account_info::AccountInfo<'info>],
                     _params: &(),
-                ) -> std::result::Result<bool, light_sdk::interface::error::LightPdaError> {
+                ) -> std::result::Result<bool, light_sdk_types::error::LightSdkTypesError> {
                     Ok(false)
                 }
             }
 
             #[automatically_derived]
-            impl #impl_generics light_sdk::interface::LightFinalize<'info, ()> for #struct_name #ty_generics #where_clause {
+            impl #impl_generics light_account::LightFinalize<light_account::AccountInfo<'info>, ()> for #struct_name #ty_generics #where_clause {
                 fn light_finalize(
                     &mut self,
                     _remaining: &[solana_account_info::AccountInfo<'info>],
                     _params: &(),
                     _has_pre_init: bool,
-                ) -> std::result::Result<(), light_sdk::interface::error::LightPdaError> {
+                ) -> std::result::Result<(), light_sdk_types::error::LightSdkTypesError> {
                     Ok(())
                 }
             }
@@ -304,7 +304,7 @@ impl LightAccountsBuilder {
                 _remaining,
                 light_sdk::cpi::CpiAccountsConfig::new_with_cpi_context(crate::LIGHT_CPI_SIGNER),
             );
-            let compression_config_data = light_sdk::interface::LightConfig::load_checked(
+            let compression_config_data = light_account::LightConfig::load_checked(
                 &self.#compression_config,
                 &crate::ID,
             )?;
@@ -349,7 +349,7 @@ impl LightAccountsBuilder {
                 _remaining,
                 crate::LIGHT_CPI_SIGNER,
             );
-            let compression_config_data = light_sdk::interface::LightConfig::load_checked(
+            let compression_config_data = light_account::LightConfig::load_checked(
                 &self.#compression_config,
                 &crate::ID,
             )?;
@@ -405,12 +405,12 @@ impl LightAccountsBuilder {
 
         Ok(quote! {
             #[automatically_derived]
-            impl #impl_generics light_sdk::interface::LightPreInit<'info, #params_type> for #struct_name #ty_generics #where_clause {
+            impl #impl_generics light_account::LightPreInit<light_account::AccountInfo<'info>, #params_type> for #struct_name #ty_generics #where_clause {
                 fn light_pre_init(
                     &mut self,
                     _remaining: &[solana_account_info::AccountInfo<'info>],
                     #params_ident: &#params_type,
-                ) -> std::result::Result<bool, light_sdk::interface::error::LightPdaError> {
+                ) -> std::result::Result<bool, light_sdk_types::error::LightSdkTypesError> {
                     use anchor_lang::ToAccountInfo;
                     #body
                 }
@@ -430,13 +430,13 @@ impl LightAccountsBuilder {
 
         Ok(quote! {
             #[automatically_derived]
-            impl #impl_generics light_sdk::interface::LightFinalize<'info, #params_type> for #struct_name #ty_generics #where_clause {
+            impl #impl_generics light_account::LightFinalize<light_account::AccountInfo<'info>, #params_type> for #struct_name #ty_generics #where_clause {
                 fn light_finalize(
                     &mut self,
                     _remaining: &[solana_account_info::AccountInfo<'info>],
                     #params_ident: &#params_type,
                     _has_pre_init: bool,
-                ) -> std::result::Result<(), light_sdk::interface::error::LightPdaError> {
+                ) -> std::result::Result<(), light_sdk_types::error::LightSdkTypesError> {
                     use anchor_lang::ToAccountInfo;
                     #body
                 }

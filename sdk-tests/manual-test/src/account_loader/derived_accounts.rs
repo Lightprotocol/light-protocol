@@ -7,16 +7,12 @@ use anchor_lang::prelude::*;
 use light_compressed_account::instruction_data::{
     cpi_context::CompressedCpiContext, with_account_info::InstructionDataInvokeCpiWithAccountInfo,
 };
-use light_sdk::{
-    cpi::{v2::CpiAccounts, CpiAccountsConfig, InvokeLightSystemProgram},
-    error::LightSdkError,
-    instruction::PackedAddressTreeInfoExt,
-    interface::{
-        prepare_compressed_account_on_init, LightAccount, LightAccountVariantTrait, LightFinalize,
-        LightPreInit, PackedLightAccountVariantTrait,
-    },
+use light_account::{
     light_account_checks::{self, packed_accounts::ProgramPackedAccounts},
-    sdk_types::CpiContextWriteAccounts,
+    prepare_compressed_account_on_init, CpiAccounts, CpiAccountsConfig,
+    CpiContextWriteAccounts, InvokeLightSystemProgram, LightAccount, LightAccountVariantTrait,
+    LightFinalize, LightPreInit, LightSdkTypesError, PackedAddressTreeInfoExt,
+    PackedLightAccountVariantTrait,
 };
 
 use super::{
@@ -46,17 +42,16 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateZeroCopyParams> for CreateZer
         &mut self,
         remaining_accounts: &[AccountInfo<'info>],
         params: &CreateZeroCopyParams,
-    ) -> std::result::Result<bool, light_sdk::interface::error::LightPdaError> {
-        let inner = || -> std::result::Result<bool, LightSdkError> {
-            use light_sdk::interface::{LightAccount, LightConfig};
+    ) -> std::result::Result<bool, LightSdkTypesError> {
+        let inner = || -> std::result::Result<bool, LightSdkTypesError> {
+            use light_account::{LightAccount, LightConfig};
             use solana_program::{clock::Clock, sysvar::Sysvar};
-            use solana_program_error::ProgramError;
 
             // 1. Build CPI accounts (slice remaining_accounts at system_accounts_offset)
             let system_accounts_offset =
                 params.create_accounts_proof.system_accounts_offset as usize;
             if remaining_accounts.len() < system_accounts_offset {
-                return Err(LightSdkError::FewerAccountsThanSystemAccounts);
+                return Err(LightSdkTypesError::FewerAccountsThanSystemAccounts);
             }
             let config = CpiAccountsConfig::new(crate::LIGHT_CPI_SIGNER);
             let cpi_accounts = CpiAccounts::new_with_config(
@@ -69,7 +64,7 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateZeroCopyParams> for CreateZer
             let address_tree_info = &params.create_accounts_proof.address_tree_info;
             let address_tree_pubkey = address_tree_info
                 .get_tree_pubkey(&cpi_accounts)
-                .map_err(|_| LightSdkError::from(ProgramError::InvalidAccountData))?;
+                .map_err(|_| LightSdkTypesError::InvalidInstructionData)?;
             let output_tree_index = params.create_accounts_proof.output_state_tree_index;
             let current_account_index: u8 = 0;
             // Is true if the instruction creates 1 or more light mints in addition to 1 or more light pda accounts.
@@ -87,9 +82,9 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateZeroCopyParams> for CreateZer
             // 3. Load config and get current slot
             let light_config =
                 LightConfig::load_checked(&self.compression_config, &crate::ID.to_bytes())
-                    .map_err(|_| LightSdkError::from(ProgramError::InvalidAccountData))?;
+                    .map_err(|_| LightSdkTypesError::InvalidInstructionData)?;
             let current_slot = Clock::get()
-                .map_err(|_| LightSdkError::from(ProgramError::InvalidAccountData))?
+                .map_err(|_| LightSdkTypesError::InvalidInstructionData)?
                 .slot;
 
             // 4. Prepare compressed account using helper function
@@ -112,7 +107,7 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateZeroCopyParams> for CreateZer
                 let mut record = self
                     .record
                     .load_init()
-                    .map_err(|_| LightSdkError::from(ProgramError::AccountBorrowFailed))?;
+                    .map_err(|_| LightSdkTypesError::Borsh)?;
                 record.set_decompressed(&light_config, current_slot);
             }
 
@@ -134,25 +129,22 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateZeroCopyParams> for CreateZer
             };
             if !WITH_CPI_CONTEXT {
                 // 7. Invoke Light System Program CPI
-                instruction_data
-                    .invoke(cpi_accounts)
-                    .map_err(LightSdkError::from)?;
+                instruction_data.invoke(cpi_accounts)?;
             } else {
                 // For flows that combine light mints with light PDAs, write to CPI context first.
                 let cpi_context_accounts = CpiContextWriteAccounts {
                     fee_payer: cpi_accounts.fee_payer(),
-                    authority: cpi_accounts.authority().map_err(LightSdkError::from)?,
-                    cpi_context: cpi_accounts.cpi_context().map_err(LightSdkError::from)?,
+                    authority: cpi_accounts.authority()?,
+                    cpi_context: cpi_accounts.cpi_context()?,
                     cpi_signer: crate::LIGHT_CPI_SIGNER,
                 };
                 instruction_data
-                    .invoke_write_to_cpi_context_first(cpi_context_accounts)
-                    .map_err(LightSdkError::from)?;
+                    .invoke_write_to_cpi_context_first(cpi_context_accounts)?;
             }
 
             Ok(false) // No mints, so no CPI context write
         };
-        inner().map_err(Into::into)
+        inner()
     }
 }
 
@@ -166,7 +158,7 @@ impl<'info> LightFinalize<AccountInfo<'info>, CreateZeroCopyParams> for CreateZe
         _remaining_accounts: &[AccountInfo<'info>],
         _params: &CreateZeroCopyParams,
         _has_pre_init: bool,
-    ) -> std::result::Result<(), light_sdk::interface::error::LightPdaError> {
+    ) -> std::result::Result<(), LightSdkTypesError> {
         // No-op for PDA-only flow - compression CPI already executed in light_pre_init
         Ok(())
     }
@@ -256,7 +248,7 @@ impl LightAccountVariantTrait<4> for ZeroCopyRecordVariant {
 impl PackedLightAccountVariantTrait<4> for PackedZeroCopyRecordVariant {
     type Unpacked = ZeroCopyRecordVariant;
 
-    const ACCOUNT_TYPE: light_sdk::interface::AccountType =
+    const ACCOUNT_TYPE: light_account::AccountType =
         <ZeroCopyRecord as LightAccount>::ACCOUNT_TYPE;
 
     fn bump(&self) -> u8 {
@@ -266,15 +258,15 @@ impl PackedLightAccountVariantTrait<4> for PackedZeroCopyRecordVariant {
     fn unpack<AI: light_account_checks::AccountInfoTrait>(
         &self,
         accounts: &[AI],
-    ) -> std::result::Result<Self::Unpacked, light_sdk::interface::error::LightPdaError> {
+    ) -> std::result::Result<Self::Unpacked, LightSdkTypesError> {
         let owner = accounts
             .get(self.seeds.owner_idx as usize)
-            .ok_or(light_sdk::interface::error::LightPdaError::NotEnoughAccountKeys)?;
+            .ok_or(LightSdkTypesError::NotEnoughAccountKeys)?;
 
         // Build ProgramPackedAccounts for LightAccount::unpack
         let packed_accounts = ProgramPackedAccounts { accounts };
         let data = ZeroCopyRecord::unpack(&self.data, &packed_accounts)
-            .map_err(|_| light_sdk::interface::error::LightPdaError::InvalidInstructionData)?;
+            .map_err(|_| LightSdkTypesError::InvalidInstructionData)?;
 
         Ok(ZeroCopyRecordVariant {
             seeds: ZeroCopyRecordSeeds {
@@ -289,26 +281,26 @@ impl PackedLightAccountVariantTrait<4> for PackedZeroCopyRecordVariant {
         &'a self,
         _accounts: &'a [AI],
         _bump_storage: &'a [u8; 1],
-    ) -> std::result::Result<[&'a [u8]; 4], light_sdk::interface::error::LightPdaError> {
-        Err(light_sdk::interface::error::LightPdaError::InvalidSeeds)
+    ) -> std::result::Result<[&'a [u8]; 4], LightSdkTypesError> {
+        Err(LightSdkTypesError::InvalidSeeds)
     }
 
     fn into_in_token_data(
         &self,
-        _tree_info: &light_sdk::instruction::PackedStateTreeInfo,
+        _tree_info: &light_account::PackedStateTreeInfo,
         _output_queue_index: u8,
     ) -> std::result::Result<
         light_token_interface::instructions::transfer2::MultiInputTokenDataWithContext,
-        light_sdk::interface::error::LightPdaError,
+        LightSdkTypesError,
     > {
-        Err(light_sdk::interface::error::LightPdaError::InvalidInstructionData)
+        Err(LightSdkTypesError::InvalidInstructionData)
     }
 
     fn into_in_tlv(
         &self,
     ) -> std::result::Result<
         Option<Vec<light_token_interface::instructions::extensions::ExtensionInstructionData>>,
-        light_sdk::interface::error::LightPdaError,
+        LightSdkTypesError,
     > {
         Ok(None)
     }
@@ -321,20 +313,20 @@ impl PackedLightAccountVariantTrait<4> for PackedZeroCopyRecordVariant {
 /// Implement IntoVariant to allow building variant from seeds + compressed data.
 /// This enables the high-level `create_load_instructions` API.
 #[cfg(not(target_os = "solana"))]
-impl light_sdk::interface::IntoVariant<ZeroCopyRecordVariant> for ZeroCopyRecordSeeds {
+impl light_account::IntoVariant<ZeroCopyRecordVariant> for ZeroCopyRecordSeeds {
     fn into_variant(
         self,
         data: &[u8],
-    ) -> std::result::Result<ZeroCopyRecordVariant, light_sdk::interface::error::LightPdaError>
+    ) -> std::result::Result<ZeroCopyRecordVariant, LightSdkTypesError>
     {
         // For ZeroCopy (Pod) accounts, data is the full Pod bytes including compression_info.
         // We deserialize using AnchorDeserialize (which ZeroCopyRecord implements).
         let record: ZeroCopyRecord = AnchorDeserialize::deserialize(&mut &data[..])
-            .map_err(|_| light_sdk::interface::error::LightPdaError::Borsh)?;
+            .map_err(|_| LightSdkTypesError::Borsh)?;
 
         // Verify the owner in data matches the seed
         if Pubkey::new_from_array(record.owner) != self.owner {
-            return Err(light_sdk::interface::error::LightPdaError::InvalidSeeds);
+            return Err(LightSdkTypesError::InvalidSeeds);
         }
 
         Ok(ZeroCopyRecordVariant {
@@ -351,21 +343,21 @@ impl light_sdk::interface::IntoVariant<ZeroCopyRecordVariant> for ZeroCopyRecord
 /// Implement Pack trait to allow ZeroCopyRecordVariant to be used with `create_load_instructions`.
 /// Transforms the variant into PackedLightAccountVariant for efficient serialization.
 #[cfg(not(target_os = "solana"))]
-impl light_sdk::interface::Pack<solana_program::instruction::AccountMeta>
+impl light_account::Pack<solana_program::instruction::AccountMeta>
     for ZeroCopyRecordVariant
 {
     type Packed = crate::derived_variants::PackedLightAccountVariant;
 
     fn pack(
         &self,
-        accounts: &mut light_sdk::instruction::PackedAccounts,
-    ) -> std::result::Result<Self::Packed, light_sdk::interface::error::LightPdaError> {
-        use light_sdk::interface::LightAccountVariantTrait;
+        accounts: &mut light_account::PackedAccounts,
+    ) -> std::result::Result<Self::Packed, LightSdkTypesError> {
+        use light_account::LightAccountVariantTrait;
         let (_, bump) = self.derive_pda::<solana_account_info::AccountInfo>();
         let packed_data = self
             .data
             .pack(accounts)
-            .map_err(|_| light_sdk::interface::error::LightPdaError::InvalidInstructionData)?;
+            .map_err(|_| LightSdkTypesError::InvalidInstructionData)?;
         Ok(
             crate::derived_variants::PackedLightAccountVariant::ZeroCopyRecord {
                 seeds: PackedZeroCopyRecordSeeds {

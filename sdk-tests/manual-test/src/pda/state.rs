@@ -1,7 +1,7 @@
 //! State module for single-pda-test.
 
 use anchor_lang::prelude::*;
-use light_sdk::{compressible::CompressionInfo, LightDiscriminator, LightHasherSha};
+use light_account::{CompressionInfo, LightDiscriminator, LightHasherSha};
 
 // ============================================================================
 // MinimalRecord with derive macros

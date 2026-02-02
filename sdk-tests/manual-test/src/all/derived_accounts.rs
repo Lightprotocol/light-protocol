@@ -2,9 +2,9 @@
 //! Uses different seeds than pda/account_loader modules but reuses the data types.
 
 use anchor_lang::prelude::*;
-use light_sdk::{
-    interface::{LightAccount, LightAccountVariantTrait, PackedLightAccountVariantTrait},
+use light_account::{
     light_account_checks::{self, packed_accounts::ProgramPackedAccounts},
+    LightAccount, LightAccountVariantTrait, PackedLightAccountVariantTrait,
 };
 
 use super::accounts::{ALL_BORSH_SEED, ALL_ZERO_COPY_SEED};
@@ -87,7 +87,7 @@ impl LightAccountVariantTrait<3> for AllBorshVariant {
 impl PackedLightAccountVariantTrait<3> for PackedAllBorshVariant {
     type Unpacked = AllBorshVariant;
 
-    const ACCOUNT_TYPE: light_sdk::interface::AccountType =
+    const ACCOUNT_TYPE: light_account::AccountType =
         <MinimalRecord as LightAccount>::ACCOUNT_TYPE;
 
     fn bump(&self) -> u8 {
@@ -97,15 +97,15 @@ impl PackedLightAccountVariantTrait<3> for PackedAllBorshVariant {
     fn unpack<AI: light_account_checks::AccountInfoTrait>(
         &self,
         accounts: &[AI],
-    ) -> std::result::Result<Self::Unpacked, light_sdk::interface::error::LightPdaError> {
+    ) -> std::result::Result<Self::Unpacked, light_account::LightSdkTypesError> {
         let owner = accounts
             .get(self.seeds.owner_idx as usize)
-            .ok_or(light_sdk::interface::error::LightPdaError::NotEnoughAccountKeys)?;
+            .ok_or(light_account::LightSdkTypesError::NotEnoughAccountKeys)?;
 
         // Build ProgramPackedAccounts for LightAccount::unpack
         let packed_accounts = ProgramPackedAccounts { accounts };
         let data = MinimalRecord::unpack(&self.data, &packed_accounts)
-            .map_err(|_| light_sdk::interface::error::LightPdaError::InvalidInstructionData)?;
+            .map_err(|_| light_account::LightSdkTypesError::InvalidInstructionData)?;
 
         Ok(AllBorshVariant {
             seeds: AllBorshSeeds {
@@ -119,21 +119,27 @@ impl PackedLightAccountVariantTrait<3> for PackedAllBorshVariant {
         &'a self,
         _accounts: &'a [AI],
         _bump_storage: &'a [u8; 1],
-    ) -> std::result::Result<[&'a [u8]; 3], light_sdk::interface::error::LightPdaError> {
-        Err(light_sdk::interface::error::LightPdaError::InvalidSeeds)
+    ) -> std::result::Result<[&'a [u8]; 3], light_account::LightSdkTypesError> {
+        Err(light_account::LightSdkTypesError::InvalidSeeds)
     }
 
     fn into_in_token_data(
         &self,
-        _tree_info: &light_sdk::instruction::PackedStateTreeInfo,
+        _tree_info: &light_account::PackedStateTreeInfo,
         _output_queue_index: u8,
-    ) -> std::result::Result<light_token_interface::instructions::transfer2::MultiInputTokenDataWithContext, light_sdk::interface::error::LightPdaError> {
-        Err(light_sdk::interface::error::LightPdaError::InvalidInstructionData)
+    ) -> std::result::Result<
+        light_token_interface::instructions::transfer2::MultiInputTokenDataWithContext,
+        light_account::LightSdkTypesError,
+    > {
+        Err(light_account::LightSdkTypesError::InvalidInstructionData)
     }
 
     fn into_in_tlv(
         &self,
-    ) -> std::result::Result<Option<Vec<light_token_interface::instructions::extensions::ExtensionInstructionData>>, light_sdk::interface::error::LightPdaError> {
+    ) -> std::result::Result<
+        Option<Vec<light_token_interface::instructions::extensions::ExtensionInstructionData>>,
+        light_account::LightSdkTypesError,
+    > {
         Ok(None)
     }
 }
@@ -212,7 +218,7 @@ impl LightAccountVariantTrait<3> for AllZeroCopyVariant {
 impl PackedLightAccountVariantTrait<3> for PackedAllZeroCopyVariant {
     type Unpacked = AllZeroCopyVariant;
 
-    const ACCOUNT_TYPE: light_sdk::interface::AccountType =
+    const ACCOUNT_TYPE: light_account::AccountType =
         <ZeroCopyRecord as LightAccount>::ACCOUNT_TYPE;
 
     fn bump(&self) -> u8 {
@@ -222,15 +228,15 @@ impl PackedLightAccountVariantTrait<3> for PackedAllZeroCopyVariant {
     fn unpack<AI: light_account_checks::AccountInfoTrait>(
         &self,
         accounts: &[AI],
-    ) -> std::result::Result<Self::Unpacked, light_sdk::interface::error::LightPdaError> {
+    ) -> std::result::Result<Self::Unpacked, light_account::LightSdkTypesError> {
         let owner = accounts
             .get(self.seeds.owner_idx as usize)
-            .ok_or(light_sdk::interface::error::LightPdaError::NotEnoughAccountKeys)?;
+            .ok_or(light_account::LightSdkTypesError::NotEnoughAccountKeys)?;
 
         // Build ProgramPackedAccounts for LightAccount::unpack
         let packed_accounts = ProgramPackedAccounts { accounts };
         let data = ZeroCopyRecord::unpack(&self.data, &packed_accounts)
-            .map_err(|_| light_sdk::interface::error::LightPdaError::InvalidInstructionData)?;
+            .map_err(|_| light_account::LightSdkTypesError::InvalidInstructionData)?;
 
         Ok(AllZeroCopyVariant {
             seeds: AllZeroCopySeeds {
@@ -244,21 +250,27 @@ impl PackedLightAccountVariantTrait<3> for PackedAllZeroCopyVariant {
         &'a self,
         _accounts: &'a [AI],
         _bump_storage: &'a [u8; 1],
-    ) -> std::result::Result<[&'a [u8]; 3], light_sdk::interface::error::LightPdaError> {
-        Err(light_sdk::interface::error::LightPdaError::InvalidSeeds)
+    ) -> std::result::Result<[&'a [u8]; 3], light_account::LightSdkTypesError> {
+        Err(light_account::LightSdkTypesError::InvalidSeeds)
     }
 
     fn into_in_token_data(
         &self,
-        _tree_info: &light_sdk::instruction::PackedStateTreeInfo,
+        _tree_info: &light_account::PackedStateTreeInfo,
         _output_queue_index: u8,
-    ) -> std::result::Result<light_token_interface::instructions::transfer2::MultiInputTokenDataWithContext, light_sdk::interface::error::LightPdaError> {
-        Err(light_sdk::interface::error::LightPdaError::InvalidInstructionData)
+    ) -> std::result::Result<
+        light_token_interface::instructions::transfer2::MultiInputTokenDataWithContext,
+        light_account::LightSdkTypesError,
+    > {
+        Err(light_account::LightSdkTypesError::InvalidInstructionData)
     }
 
     fn into_in_tlv(
         &self,
-    ) -> std::result::Result<Option<Vec<light_token_interface::instructions::extensions::ExtensionInstructionData>>, light_sdk::interface::error::LightPdaError> {
+    ) -> std::result::Result<
+        Option<Vec<light_token_interface::instructions::extensions::ExtensionInstructionData>>,
+        light_account::LightSdkTypesError,
+    > {
         Ok(None)
     }
 }
@@ -270,18 +282,18 @@ impl PackedLightAccountVariantTrait<3> for PackedAllZeroCopyVariant {
 /// Implement IntoVariant to allow building variant from seeds + compressed data.
 /// This enables the high-level `create_load_instructions` API.
 #[cfg(not(target_os = "solana"))]
-impl light_sdk::interface::IntoVariant<AllBorshVariant> for AllBorshSeeds {
+impl light_account::IntoVariant<AllBorshVariant> for AllBorshSeeds {
     fn into_variant(
         self,
         data: &[u8],
-    ) -> std::result::Result<AllBorshVariant, light_sdk::interface::error::LightPdaError> {
+    ) -> std::result::Result<AllBorshVariant, light_account::LightSdkTypesError> {
         // Deserialize the compressed data (which includes compression_info)
         let record: MinimalRecord = AnchorDeserialize::deserialize(&mut &data[..])
-            .map_err(|_| light_sdk::interface::error::LightPdaError::Borsh)?;
+            .map_err(|_| light_account::LightSdkTypesError::Borsh)?;
 
         // Verify the owner in data matches the seed
         if record.owner != self.owner {
-            return Err(light_sdk::interface::error::LightPdaError::InvalidSeeds);
+            return Err(light_account::LightSdkTypesError::InvalidSeeds);
         }
 
         Ok(AllBorshVariant {
@@ -298,19 +310,19 @@ impl light_sdk::interface::IntoVariant<AllBorshVariant> for AllBorshSeeds {
 /// Implement Pack trait to allow AllBorshVariant to be used with `create_load_instructions`.
 /// Transforms the variant into PackedLightAccountVariant for efficient serialization.
 #[cfg(not(target_os = "solana"))]
-impl light_sdk::interface::Pack<solana_program::instruction::AccountMeta> for AllBorshVariant {
+impl light_account::Pack<solana_program::instruction::AccountMeta> for AllBorshVariant {
     type Packed = crate::derived_variants::PackedLightAccountVariant;
 
     fn pack(
         &self,
-        accounts: &mut light_sdk::instruction::PackedAccounts,
-    ) -> std::result::Result<Self::Packed, light_sdk::interface::error::LightPdaError> {
-        use light_sdk::interface::LightAccountVariantTrait;
+        accounts: &mut light_account::PackedAccounts,
+    ) -> std::result::Result<Self::Packed, light_account::LightSdkTypesError> {
+        use light_account::LightAccountVariantTrait;
         let (_, bump) = self.derive_pda::<solana_account_info::AccountInfo>();
         let packed_data = self
             .data
             .pack(accounts)
-            .map_err(|_| light_sdk::interface::error::LightPdaError::InvalidInstructionData)?;
+            .map_err(|_| light_account::LightSdkTypesError::InvalidInstructionData)?;
         Ok(
             crate::derived_variants::PackedLightAccountVariant::AllBorsh {
                 seeds: PackedAllBorshSeeds {
@@ -330,19 +342,19 @@ impl light_sdk::interface::Pack<solana_program::instruction::AccountMeta> for Al
 /// Implement IntoVariant to allow building variant from seeds + compressed data.
 /// This enables the high-level `create_load_instructions` API.
 #[cfg(not(target_os = "solana"))]
-impl light_sdk::interface::IntoVariant<AllZeroCopyVariant> for AllZeroCopySeeds {
+impl light_account::IntoVariant<AllZeroCopyVariant> for AllZeroCopySeeds {
     fn into_variant(
         self,
         data: &[u8],
-    ) -> std::result::Result<AllZeroCopyVariant, light_sdk::interface::error::LightPdaError> {
+    ) -> std::result::Result<AllZeroCopyVariant, light_account::LightSdkTypesError> {
         // For ZeroCopy (Pod) accounts, data is the full Pod bytes including compression_info.
         // We deserialize using AnchorDeserialize (which ZeroCopyRecord implements).
         let record: ZeroCopyRecord = AnchorDeserialize::deserialize(&mut &data[..])
-            .map_err(|_| light_sdk::interface::error::LightPdaError::Borsh)?;
+            .map_err(|_| light_account::LightSdkTypesError::Borsh)?;
 
         // Verify the owner in data matches the seed
         if Pubkey::new_from_array(record.owner) != self.owner {
-            return Err(light_sdk::interface::error::LightPdaError::InvalidSeeds);
+            return Err(light_account::LightSdkTypesError::InvalidSeeds);
         }
 
         Ok(AllZeroCopyVariant {
@@ -359,19 +371,19 @@ impl light_sdk::interface::IntoVariant<AllZeroCopyVariant> for AllZeroCopySeeds 
 /// Implement Pack trait to allow AllZeroCopyVariant to be used with `create_load_instructions`.
 /// Transforms the variant into PackedLightAccountVariant for efficient serialization.
 #[cfg(not(target_os = "solana"))]
-impl light_sdk::interface::Pack<solana_program::instruction::AccountMeta> for AllZeroCopyVariant {
+impl light_account::Pack<solana_program::instruction::AccountMeta> for AllZeroCopyVariant {
     type Packed = crate::derived_variants::PackedLightAccountVariant;
 
     fn pack(
         &self,
-        accounts: &mut light_sdk::instruction::PackedAccounts,
-    ) -> std::result::Result<Self::Packed, light_sdk::interface::error::LightPdaError> {
-        use light_sdk::interface::LightAccountVariantTrait;
+        accounts: &mut light_account::PackedAccounts,
+    ) -> std::result::Result<Self::Packed, light_account::LightSdkTypesError> {
+        use light_account::LightAccountVariantTrait;
         let (_, bump) = self.derive_pda::<solana_account_info::AccountInfo>();
         let packed_data = self
             .data
             .pack(accounts)
-            .map_err(|_| light_sdk::interface::error::LightPdaError::InvalidInstructionData)?;
+            .map_err(|_| light_account::LightSdkTypesError::InvalidInstructionData)?;
         Ok(
             crate::derived_variants::PackedLightAccountVariant::AllZeroCopy {
                 seeds: PackedAllZeroCopySeeds {

@@ -138,16 +138,16 @@ pub(crate) fn generate_light_program_items(
                 const LIGHT_DISCRIMINATOR_SLICE: &'static [u8] = &Self::LIGHT_DISCRIMINATOR;
             }
 
-            impl light_sdk::interface::HasCompressionInfo for LightAccountVariant {
-                fn compression_info(&self) -> std::result::Result<&light_sdk::interface::CompressionInfo, solana_program_error::ProgramError> {
+            impl light_account::HasCompressionInfo for LightAccountVariant {
+                fn compression_info(&self) -> std::result::Result<&light_account::CompressionInfo, solana_program_error::ProgramError> {
                     Err(solana_program_error::ProgramError::InvalidAccountData)
                 }
 
-                fn compression_info_mut(&mut self) -> std::result::Result<&mut light_sdk::interface::CompressionInfo, solana_program_error::ProgramError> {
+                fn compression_info_mut(&mut self) -> std::result::Result<&mut light_account::CompressionInfo, solana_program_error::ProgramError> {
                     Err(solana_program_error::ProgramError::InvalidAccountData)
                 }
 
-                fn compression_info_mut_opt(&mut self) -> &mut Option<light_sdk::interface::CompressionInfo> {
+                fn compression_info_mut_opt(&mut self) -> &mut Option<light_account::CompressionInfo> {
                     panic!("compression_info_mut_opt not supported for mint-only programs")
                 }
 
@@ -327,7 +327,7 @@ pub(crate) fn generate_light_program_items(
                             })
                         }
                     }
-                    impl light_sdk::interface::IntoVariant<LightAccountVariant> for #seeds_struct_name {
+                    impl light_account::IntoVariant<LightAccountVariant> for #seeds_struct_name {
                         fn into_variant(self, data: &[u8]) -> std::result::Result<LightAccountVariant, anchor_lang::error::Error> {
                             LightAccountVariant::#constructor_name(data, self)
                         }
@@ -393,7 +393,7 @@ pub(crate) fn generate_light_program_items(
                 mod __trait_impls {
                     use super::*;
 
-                    impl light_sdk::interface::HasTokenVariant for LightAccountData {
+                    impl light_account::HasTokenVariant for LightAccountData {
                         fn is_packed_token(&self) -> bool {
                             match &self.data {
                                 #(#token_match_arms)*
@@ -416,7 +416,7 @@ pub(crate) fn generate_light_program_items(
                 mod __trait_impls {
                     use super::*;
 
-                    impl light_sdk::interface::HasTokenVariant for LightAccountData {
+                    impl light_account::HasTokenVariant for LightAccountData {
                         fn is_packed_token(&self) -> bool {
                             // PDA-only programs have no token variants
                             false
@@ -437,7 +437,7 @@ pub(crate) fn generate_light_program_items(
                 mod __trait_impls {
                     use super::*;
 
-                    impl light_sdk::interface::HasTokenVariant for LightAccountData {
+                    impl light_account::HasTokenVariant for LightAccountData {
                         fn is_packed_token(&self) -> bool {
                             match &self.data {
                                 LightAccountVariant::Empty => false,
@@ -516,7 +516,7 @@ pub(crate) fn generate_light_program_items(
                 ctx.accounts.authority.to_account_info(),
                 ctx.accounts.system_program.to_account_info(),
             ];
-            light_sdk::interface::process_initialize_light_config_checked(
+            light_account::process_initialize_light_config_checked(
                 &remaining,
                 &instruction_data,
                 &crate::ID,
@@ -535,7 +535,7 @@ pub(crate) fn generate_light_program_items(
                 ctx.accounts.config.to_account_info(),
                 ctx.accounts.update_authority.to_account_info(),
             ];
-            light_sdk::interface::process_update_light_config(
+            light_account::process_update_light_config(
                 &remaining,
                 &instruction_data,
                 &crate::ID,

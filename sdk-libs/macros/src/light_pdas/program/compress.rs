@@ -101,7 +101,7 @@ impl CompressBuilder {
                         let pod_bytes = &data[8..8 + core::mem::size_of::<#name>()];
                         let mut account_data: #name = *bytemuck::from_bytes(pod_bytes);
                         drop(data);
-                        light_sdk::interface::prepare_account_for_compression(
+                        light_account::prepare_account_for_compression(
                             account_info, &mut account_data, meta, index, ctx,
                         )
                     }
@@ -116,7 +116,7 @@ impl CompressBuilder {
                         let mut account_data = #name::deserialize(&mut reader)
                             .map_err(|_| solana_program_error::ProgramError::InvalidAccountData)?;
                         drop(data);
-                        light_sdk::interface::prepare_account_for_compression(
+                        light_account::prepare_account_for_compression(
                             account_info, &mut account_data, meta, index, ctx,
                         )
                     }
@@ -129,7 +129,7 @@ impl CompressBuilder {
                 account_info: &anchor_lang::prelude::AccountInfo<'info>,
                 meta: &light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
                 index: usize,
-                ctx: &mut light_sdk::interface::CompressCtx<'_, 'info>,
+                ctx: &mut light_account::CompressCtx<'_, 'info>,
             ) -> std::result::Result<(), solana_program_error::ProgramError> {
                 use light_sdk::LightDiscriminator;
                 use borsh::BorshDeserialize;
@@ -153,7 +153,7 @@ impl CompressBuilder {
                 remaining_accounts: &[solana_account_info::AccountInfo<'info>],
                 instruction_data: &[u8],
             ) -> Result<()> {
-                light_sdk::interface::process_compress_pda_accounts_idempotent(
+                light_account::process_compress_pda_accounts_idempotent(
                     remaining_accounts,
                     instruction_data,
                     __compress_dispatch,
@@ -326,7 +326,7 @@ impl CompressBuilder {
                         let pod_bytes = &data[8..8 + core::mem::size_of::<#name>()];
                         let mut account_data: #name = *bytemuck::from_bytes(pod_bytes);
                         drop(data);
-                        light_sdk::interface::prepare_account_for_compression(
+                        light_account::prepare_account_for_compression(
                             account_info, &mut account_data, meta, index, ctx,
                         )
                     }
@@ -338,7 +338,7 @@ impl CompressBuilder {
                         let mut account_data = #name::deserialize(&mut reader)
                             .map_err(|_| solana_program_error::ProgramError::InvalidAccountData)?;
                         drop(data);
-                        light_sdk::interface::prepare_account_for_compression(
+                        light_account::prepare_account_for_compression(
                             account_info, &mut account_data, meta, index, ctx,
                         )
                     }
@@ -352,7 +352,7 @@ impl CompressBuilder {
                     account_info: &anchor_lang::prelude::AccountInfo<'info>,
                     meta: &light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
                     index: usize,
-                    ctx: &mut light_sdk::interface::CompressCtx<'_, 'info>,
+                    ctx: &mut light_account::CompressCtx<'_, 'info>,
                 ) -> std::result::Result<(), solana_program_error::ProgramError> {
                     use light_sdk::LightDiscriminator;
                     use borsh::BorshDeserialize;
@@ -390,7 +390,7 @@ impl CompressBuilder {
                 // For Borsh types, use CompressedInitSpace trait
                 quote! {
                     const _: () = {
-                        const COMPRESSED_SIZE: usize = 8 + <#qualified_type as light_sdk::interface::compression_info::CompressedInitSpace>::COMPRESSED_INIT_SPACE;
+                        const COMPRESSED_SIZE: usize = 8 + <#qualified_type as light_account::compression_info::CompressedInitSpace>::COMPRESSED_INIT_SPACE;
                         if COMPRESSED_SIZE > 800 {
                             panic!(concat!(
                                 "Compressed account '", stringify!(#qualified_type), "' exceeds 800-byte compressible account size limit. If you need support for larger accounts, send a message to team@lightprotocol.com"

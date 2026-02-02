@@ -4,8 +4,8 @@
 //! Verifies that mixed serialization types work together in the same instruction.
 
 use anchor_lang::prelude::*;
-use light_compressible::CreateAccountsProof;
 use light_sdk_macros::LightAccounts;
+use light_sdk_types::interface::CreateAccountsProof;
 
 use crate::state::{
     d11_zero_copy::ZcBasicRecord, d1_field_types::single_pubkey::SinglePubkeyRecord,

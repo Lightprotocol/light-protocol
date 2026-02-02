@@ -129,61 +129,33 @@ impl From<LightSdkError> for ProgramError {
     }
 }
 
-/// Convert from SDK's LightSdkError to interface's LightPdaError.
-/// This allows SDK error types to be used where interface error types are expected
+/// Convert from SDK's LightSdkError to LightSdkTypesError.
+/// This allows SDK error types to be used where types error types are expected
 /// (e.g., in trait impls for LightPreInit, LightFinalize, AccountMetasVec).
-impl From<LightSdkError> for light_sdk_interface::error::LightPdaError {
+impl From<LightSdkError> for LightSdkTypesError {
     fn from(e: LightSdkError) -> Self {
-        use light_sdk_interface::error::LightPdaError as InterfaceError;
         match e {
-            LightSdkError::ConstraintViolation => InterfaceError::ConstraintViolation,
-            LightSdkError::Borsh => InterfaceError::Borsh,
-            LightSdkError::AccountError(e) => InterfaceError::AccountCheck(e),
-            LightSdkError::Hasher(e) => InterfaceError::Hasher(e),
-            LightSdkError::MissingCompressionInfo => InterfaceError::MissingCompressionInfo,
-            LightSdkError::InvalidRentSponsor => InterfaceError::InvalidRentSponsor,
+            LightSdkError::ConstraintViolation => LightSdkTypesError::ConstraintViolation,
+            LightSdkError::Borsh => LightSdkTypesError::Borsh,
+            LightSdkError::AccountError(e) => LightSdkTypesError::AccountCheck(e),
+            LightSdkError::Hasher(e) => LightSdkTypesError::Hasher(e),
+            LightSdkError::MissingCompressionInfo => LightSdkTypesError::MissingCompressionInfo,
+            LightSdkError::InvalidRentSponsor => LightSdkTypesError::InvalidRentSponsor,
             LightSdkError::CpiAccountsIndexOutOfBounds(i) => {
-                InterfaceError::CpiAccountsIndexOutOfBounds(i)
+                LightSdkTypesError::CpiAccountsIndexOutOfBounds(i)
             }
             LightSdkError::ReadOnlyAccountsNotSupportedInCpiContext => {
-                InterfaceError::ReadOnlyAccountsNotSupportedInCpiContext
+                LightSdkTypesError::ReadOnlyAccountsNotSupportedInCpiContext
             }
             LightSdkError::CompressedAccountError(e) => {
-                InterfaceError::CompressedAccountError(e)
+                LightSdkTypesError::CompressedAccountError(e)
             }
-            // SDK-specific variants that don't have exact interface equivalents
-            // are converted to ConstraintViolation as a fallback
-            _ => InterfaceError::ConstraintViolation,
+            _ => LightSdkTypesError::ConstraintViolation,
         }
     }
 }
 
-/// Convert from interface's LightPdaError to SDK's LightSdkError.
-impl From<light_sdk_interface::error::LightPdaError> for LightSdkError {
-    fn from(e: light_sdk_interface::error::LightPdaError) -> Self {
-        use light_sdk_interface::error::LightPdaError as InterfaceError;
-        match e {
-            InterfaceError::ConstraintViolation => LightSdkError::ConstraintViolation,
-            InterfaceError::Borsh => LightSdkError::Borsh,
-            InterfaceError::AccountCheck(e) => LightSdkError::AccountError(e),
-            InterfaceError::Hasher(e) => LightSdkError::Hasher(e),
-            InterfaceError::MissingCompressionInfo => LightSdkError::MissingCompressionInfo,
-            InterfaceError::InvalidRentSponsor => LightSdkError::InvalidRentSponsor,
-            InterfaceError::BorshIo(_) => LightSdkError::Borsh,
-            InterfaceError::CpiAccountsIndexOutOfBounds(i) => {
-                LightSdkError::CpiAccountsIndexOutOfBounds(i)
-            }
-            InterfaceError::ReadOnlyAccountsNotSupportedInCpiContext => {
-                LightSdkError::ReadOnlyAccountsNotSupportedInCpiContext
-            }
-            InterfaceError::CompressedAccountError(e) => {
-                LightSdkError::CompressedAccountError(e)
-            }
-            _ => LightSdkError::ConstraintViolation,
-        }
-    }
-}
-
+/// Convert from LightSdkTypesError to SDK's LightSdkError.
 impl From<LightSdkTypesError> for LightSdkError {
     fn from(e: LightSdkTypesError) -> Self {
         match e {
@@ -206,11 +178,34 @@ impl From<LightSdkTypesError> for LightSdkError {
             LightSdkTypesError::CpiAccountsIndexOutOfBounds(index) => {
                 LightSdkError::CpiAccountsIndexOutOfBounds(index)
             }
-            LightSdkTypesError::InvalidSolPoolPdaAccount => LightSdkError::InvalidSolPoolPdaAccount,
-            LightSdkTypesError::InvalidCpiContextAccount => LightSdkError::InvalidCpiContextAccount,
-            LightSdkTypesError::InvalidCpiAccountsOffset => LightSdkError::InvalidCpiAccountsOffset,
-            LightSdkTypesError::AccountError(e) => LightSdkError::AccountError(e),
+            LightSdkTypesError::InvalidSolPoolPdaAccount => {
+                LightSdkError::InvalidSolPoolPdaAccount
+            }
+            LightSdkTypesError::InvalidCpiContextAccount => {
+                LightSdkError::InvalidCpiContextAccount
+            }
+            LightSdkTypesError::InvalidCpiAccountsOffset => {
+                LightSdkError::InvalidCpiAccountsOffset
+            }
+            LightSdkTypesError::AccountCheck(e) => LightSdkError::AccountError(e),
             LightSdkTypesError::Hasher(e) => LightSdkError::Hasher(e),
+            LightSdkTypesError::ConstraintViolation => LightSdkError::ConstraintViolation,
+            LightSdkTypesError::Borsh => LightSdkError::Borsh,
+            LightSdkTypesError::MissingCompressionInfo => LightSdkError::MissingCompressionInfo,
+            LightSdkTypesError::InvalidRentSponsor => LightSdkError::InvalidRentSponsor,
+            LightSdkTypesError::BorshIo(_) => LightSdkError::Borsh,
+            LightSdkTypesError::ReadOnlyAccountsNotSupportedInCpiContext => {
+                LightSdkError::ReadOnlyAccountsNotSupportedInCpiContext
+            }
+            LightSdkTypesError::CompressedAccountError(e) => {
+                LightSdkError::CompressedAccountError(e)
+            }
+            LightSdkTypesError::AccountDataTooSmall
+            | LightSdkTypesError::InvalidInstructionData
+            | LightSdkTypesError::InvalidSeeds
+            | LightSdkTypesError::CpiFailed
+            | LightSdkTypesError::NotEnoughAccountKeys
+            | LightSdkTypesError::MissingRequiredSignature => LightSdkError::ConstraintViolation,
         }
     }
 }

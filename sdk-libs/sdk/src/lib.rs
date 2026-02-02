@@ -165,9 +165,9 @@ pub mod utils;
 
 pub use proof::borsh_compat;
 /// Backward-compat alias for the interface module
-pub use light_sdk_interface as compressible;
-/// Re-export the interface crate
-pub use light_sdk_interface as interface;
+pub use light_sdk_types::interface as compressible;
+/// Re-export the interface module
+pub use light_sdk_types::interface;
 #[cfg(feature = "merkle-tree")]
 pub mod merkle_tree;
 
@@ -204,12 +204,12 @@ pub mod sdk_types {
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
-// Re-export interface types from light-sdk-interface
+// Re-export interface types from light-sdk-types::interface
 // Pack trait is only available off-chain (client-side) - uses PackedAccounts
 #[cfg(not(target_os = "solana"))]
-pub use light_sdk_interface::Pack;
-pub use light_sdk_interface::Unpack;
-pub use light_sdk_interface::{
+pub use light_sdk_types::interface::Pack;
+pub use light_sdk_types::interface::Unpack;
+pub use light_sdk_types::interface::{
     process_initialize_light_config_checked,
     InitializeLightConfigParams,
     process_update_light_config, UpdateLightConfigParams, CompressAs, CompressedAccountData,

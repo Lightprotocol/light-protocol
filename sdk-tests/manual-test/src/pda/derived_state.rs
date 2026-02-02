@@ -1,10 +1,11 @@
 use anchor_lang::prelude::*;
-use light_sdk::{
-    compressible::CompressionInfo,
-    interface::{AccountType, HasCompressionInfo, LightAccount, LightConfig},
-    light_account_checks::{packed_accounts::ProgramPackedAccounts, AccountInfoTrait, AccountMetaTrait},
+use light_account::{
+    light_account_checks::{
+        packed_accounts::ProgramPackedAccounts, AccountInfoTrait, AccountMetaTrait,
+    },
+    AccountType, CompressionInfo, HasCompressionInfo, LightAccount, LightConfig,
+    LightSdkTypesError,
 };
-use light_sdk::interface::error::LightPdaError;
 
 use super::state::MinimalRecord;
 
@@ -47,8 +48,8 @@ impl LightAccount for MinimalRecord {
     #[cfg(not(target_os = "solana"))]
     fn pack<AM: AccountMetaTrait>(
         &self,
-        accounts: &mut light_sdk::interface::instruction::PackedAccounts<AM>,
-    ) -> std::result::Result<Self::Packed, LightPdaError> {
+        accounts: &mut light_account::interface::instruction::PackedAccounts<AM>,
+    ) -> std::result::Result<Self::Packed, LightSdkTypesError> {
         // compression_info excluded from packed struct
         Ok(PackedMinimalRecord {
             owner: accounts.insert_or_get(AM::pubkey_from_bytes(self.owner.to_bytes())),
@@ -58,11 +59,11 @@ impl LightAccount for MinimalRecord {
     fn unpack<A: AccountInfoTrait>(
         packed: &Self::Packed,
         accounts: &ProgramPackedAccounts<A>,
-    ) -> std::result::Result<Self, LightPdaError> {
+    ) -> std::result::Result<Self, LightSdkTypesError> {
         // Use get_u8 with a descriptive name for better error messages
         let owner_account = accounts
             .get_u8(packed.owner, "MinimalRecord: owner")
-            .map_err(|_| LightPdaError::InvalidInstructionData)?;
+            .map_err(|_| LightSdkTypesError::InvalidInstructionData)?;
 
         // Set compression_info to compressed() for hash verification at decompress
         Ok(MinimalRecord {
@@ -73,11 +74,13 @@ impl LightAccount for MinimalRecord {
 }
 
 impl HasCompressionInfo for MinimalRecord {
-    fn compression_info(&self) -> std::result::Result<&CompressionInfo, LightPdaError> {
+    fn compression_info(&self) -> std::result::Result<&CompressionInfo, LightSdkTypesError> {
         Ok(&self.compression_info)
     }
 
-    fn compression_info_mut(&mut self) -> std::result::Result<&mut CompressionInfo, LightPdaError> {
+    fn compression_info_mut(
+        &mut self,
+    ) -> std::result::Result<&mut CompressionInfo, LightSdkTypesError> {
         Ok(&mut self.compression_info)
     }
 
@@ -85,7 +88,7 @@ impl HasCompressionInfo for MinimalRecord {
         panic!("compression_info_mut_opt not supported for LightAccount types (use compression_info_mut instead)")
     }
 
-    fn set_compression_info_none(&mut self) -> std::result::Result<(), LightPdaError> {
+    fn set_compression_info_none(&mut self) -> std::result::Result<(), LightSdkTypesError> {
         self.compression_info = CompressionInfo::compressed();
         Ok(())
     }

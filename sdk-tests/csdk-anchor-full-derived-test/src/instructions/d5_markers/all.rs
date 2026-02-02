@@ -4,8 +4,8 @@
 //! Note: #[light_account(init)] is tested separately in amm_test/initialize.rs.
 
 use anchor_lang::prelude::*;
-use light_compressible::CreateAccountsProof;
 use light_sdk_macros::LightAccounts;
+use light_sdk_types::interface::CreateAccountsProof;
 use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
 
 use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;

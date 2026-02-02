@@ -2,7 +2,7 @@
 
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_sdk::{compressible::CompressionInfo, LightDiscriminator, LightHasherSha};
+use light_account::{CompressionInfo, LightDiscriminator, LightHasherSha};
 
 /// Zero-copy account for demonstrating AccountLoader integration.
 ///

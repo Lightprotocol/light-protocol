@@ -394,7 +394,7 @@ pub fn derive_light_rent_sponsor(input: TokenStream) -> TokenStream {
 /// - Accounts marked with `#[light_account(init, mint, ...)]` (compressed mints)
 /// - Accounts marked with `#[light_account(token, ...)]` (rent-free token accounts)
 ///
-/// The trait is defined in `light_sdk::interface::LightFinalize`.
+/// The trait is defined in `light_account::LightFinalize`.
 ///
 /// ## Usage - PDAs
 ///

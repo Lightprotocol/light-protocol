@@ -240,7 +240,7 @@ impl VariantBuilder {
         // NOTE: pack() is NOT generated here - it's in the Pack trait impl (off-chain only)
 
         quote! {
-            impl light_sdk::interface::LightAccountVariantTrait<#seed_count> for #variant_name {
+            impl light_account::LightAccountVariantTrait<#seed_count> for #variant_name {
                 const PROGRAM_ID: Pubkey = crate::ID;
 
                 type Seeds = #seeds_struct_name;
@@ -282,17 +282,17 @@ impl VariantBuilder {
         let unpack_data = quote! {
             {
                 let packed_accounts = light_sdk::light_account_checks::packed_accounts::ProgramPackedAccounts { accounts };
-                <#inner_type as light_sdk::interface::LightAccount>::unpack(&self.data, &packed_accounts)
+                <#inner_type as light_account::LightAccount>::unpack(&self.data, &packed_accounts)
                     .map_err(|_| anchor_lang::error::ErrorCode::InvalidProgramId)?
             }
         };
 
         quote! {
-            impl light_sdk::interface::PackedLightAccountVariantTrait<#seed_count> for #packed_variant_name {
+            impl light_account::PackedLightAccountVariantTrait<#seed_count> for #packed_variant_name {
                 type Unpacked = #variant_name;
 
-                const ACCOUNT_TYPE: light_sdk::interface::AccountType =
-                    <#inner_type as light_sdk::interface::LightAccount>::ACCOUNT_TYPE;
+                const ACCOUNT_TYPE: light_account::AccountType =
+                    <#inner_type as light_account::LightAccount>::ACCOUNT_TYPE;
 
                 fn bump(&self) -> u8 {
                     self.seeds.bump
@@ -317,11 +317,11 @@ impl VariantBuilder {
                     Ok([#(#packed_seed_refs_items,)* bump_storage])
                 }
 
-                fn into_in_token_data(&self, _tree_info: &light_sdk::instruction::PackedStateTreeInfo, _output_queue_index: u8) -> anchor_lang::Result<light_sdk::interface::token::MultiInputTokenDataWithContext> {
+                fn into_in_token_data(&self, _tree_info: &light_sdk::instruction::PackedStateTreeInfo, _output_queue_index: u8) -> anchor_lang::Result<light_account::token::MultiInputTokenDataWithContext> {
                     Err(solana_program_error::ProgramError::InvalidAccountData.into())
                 }
 
-                fn into_in_tlv(&self) -> anchor_lang::Result<Option<Vec<light_sdk::interface::token::ExtensionInstructionData>>> {
+                fn into_in_tlv(&self) -> anchor_lang::Result<Option<Vec<light_account::token::ExtensionInstructionData>>> {
                     Ok(None)
                 }
             }
@@ -342,7 +342,7 @@ impl VariantBuilder {
 
         // Use LightAccount::pack for all accounts (including zero-copy)
         let pack_data = quote! {
-            <#inner_type as light_sdk::interface::LightAccount>::pack(&self.data, accounts)
+            <#inner_type as light_account::LightAccount>::pack(&self.data, accounts)
                 .map_err(|_| solana_program_error::ProgramError::InvalidAccountData)?
         };
 
@@ -356,7 +356,7 @@ impl VariantBuilder {
                     &self,
                     accounts: &mut light_sdk::instruction::PackedAccounts,
                 ) -> std::result::Result<Self::Packed, solana_program_error::ProgramError> {
-                    use light_sdk::interface::LightAccountVariantTrait;
+                    use light_account::LightAccountVariantTrait;
                     let (_, bump) = self.derive_pda();
                     Ok(#packed_variant_name {
                         seeds: #packed_seeds_struct_name {

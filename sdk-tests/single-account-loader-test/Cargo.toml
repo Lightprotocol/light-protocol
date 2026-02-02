@@ -20,6 +20,7 @@ test-sbf = []
 
 [dependencies]
 light-heap = { workspace = true, optional = true }
+light-account = { workspace = true }
 light-sdk = { workspace = true, features = ["anchor", "v2", "anchor-discriminator", "cpi-context"] }
 light-sdk-types = { workspace = true, features = ["v2", "cpi-context"] }
 light-sdk-macros = { workspace = true }

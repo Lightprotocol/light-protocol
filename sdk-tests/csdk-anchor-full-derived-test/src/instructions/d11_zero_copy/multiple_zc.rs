@@ -4,8 +4,8 @@
 //! Verifies that the macro handles multiple AccountLoader fields correctly.
 
 use anchor_lang::prelude::*;
-use light_compressible::CreateAccountsProof;
 use light_sdk_macros::LightAccounts;
+use light_sdk_types::interface::CreateAccountsProof;
 
 use crate::state::d11_zero_copy::ZcBasicRecord;
 

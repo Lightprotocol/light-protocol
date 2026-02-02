@@ -6,7 +6,7 @@
 use std::marker::PhantomData;
 
 use anchor_lang::prelude::*;
-use light_sdk::interface::process_decompress_pda_accounts_idempotent;
+use light_account::process_decompress_pda_accounts_idempotent;
 
 use crate::derived_variants::PackedLightAccountVariant;
 

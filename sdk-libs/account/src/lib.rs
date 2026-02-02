@@ -1,0 +1,176 @@
+//! Light Protocol account types specialized for Solana's AccountInfo.
+
+pub use solana_account_info::AccountInfo;
+
+// ===== TYPE ALIASES (structs generic over AI, specialized with AccountInfo) =====
+
+pub type CpiAccounts<'c, 'info> =
+    light_sdk_types::cpi_accounts::v2::CpiAccounts<'c, AccountInfo<'info>>;
+
+pub type CpiAccountsV1<'c, 'info> =
+    light_sdk_types::cpi_accounts::v1::CpiAccounts<'c, AccountInfo<'info>>;
+
+pub type CompressCtx<'a, 'info> =
+    light_sdk_types::interface::program::compression::processor::CompressCtx<
+        'a,
+        AccountInfo<'info>,
+    >;
+
+pub type CompressDispatchFn<'info> =
+    light_sdk_types::interface::program::compression::processor::CompressDispatchFn<
+        AccountInfo<'info>,
+    >;
+
+pub type DecompressCtx<'a, 'info> =
+    light_sdk_types::interface::program::decompression::processor::DecompressCtx<
+        'a,
+        AccountInfo<'info>,
+    >;
+
+pub type ValidatedPdaContext<'info> =
+    light_sdk_types::interface::program::validation::ValidatedPdaContext<AccountInfo<'info>>;
+
+#[cfg(not(target_os = "solana"))]
+pub type PackedAccounts =
+    light_sdk_types::interface::instruction::PackedAccounts<solana_instruction::AccountMeta>;
+
+// ===== RE-EXPORTED TRAITS (generic over AI, used with explicit AccountInfo in impls) =====
+
+pub use light_sdk_types::interface::accounts::finalize::{LightFinalize, LightPreInit};
+pub use light_sdk_types::interface::cpi::{
+    account::CpiAccountsTrait, invoke::InvokeLightSystemProgram, LightCpi,
+};
+pub use light_sdk_types::interface::program::decompression::processor::DecompressVariant;
+
+// ===== RE-EXPORTED CONCRETE TRAITS (no AI parameter) =====
+
+pub use light_sdk_types::interface::account::compression_info::{
+    claim_completed_epoch_rent, CompressAs, CompressedAccountData, CompressedInitSpace,
+    CompressionInfo, CompressionInfoField, CompressionState, HasCompressionInfo, Space,
+    COMPRESSION_INFO_SIZE, OPTION_COMPRESSION_INFO_SPACE,
+};
+pub use light_sdk_types::interface::account::light_account::{AccountType, LightAccount};
+#[cfg(not(target_os = "solana"))]
+pub use light_sdk_types::interface::account::pack::Pack;
+pub use light_sdk_types::interface::account::pack::Unpack;
+pub use light_sdk_types::interface::account::pda_seeds::{HasTokenVariant, PdaSeedDerivation};
+pub use light_sdk_types::interface::accounts::init_compressed_account::{
+    prepare_compressed_account_on_init, reimburse_rent,
+};
+pub use light_sdk_types::interface::create_accounts_proof::CreateAccountsProof;
+pub use light_sdk_types::interface::program::variant::{
+    IntoVariant, LightAccountVariantTrait, PackedLightAccountVariantTrait,
+};
+pub use light_sdk_types::interface::rent;
+
+// ===== RE-EXPORTED GENERIC FUNCTIONS (AI inferred from call-site args) =====
+
+pub use light_sdk_types::interface::cpi::invoke::invoke_light_system_program;
+pub use light_sdk_types::interface::program::compression::close::close;
+pub use light_sdk_types::interface::program::compression::pda::prepare_account_for_compression;
+pub use light_sdk_types::interface::program::compression::processor::{
+    process_compress_pda_accounts_idempotent, CompressAndCloseParams,
+};
+pub use light_sdk_types::interface::program::config::{
+    process_initialize_light_config_checked, process_update_light_config,
+    InitializeLightConfigParams, LightConfig, UpdateLightConfigParams, COMPRESSIBLE_CONFIG_SEED,
+    MAX_ADDRESS_TREES_PER_SPACE,
+};
+pub use light_sdk_types::interface::program::decompression::pda::prepare_account_for_decompression;
+pub use light_sdk_types::interface::program::decompression::processor::{
+    process_decompress_pda_accounts_idempotent, DecompressIdempotentParams,
+};
+pub use light_sdk_types::interface::program::validation::{
+    extract_tail_accounts, is_pda_initialized, should_skip_compression,
+    split_at_system_accounts_offset, validate_compress_accounts, validate_decompress_accounts,
+};
+
+// ===== TOKEN-GATED RE-EXPORTS =====
+
+#[cfg(feature = "token")]
+pub use light_sdk_types::interface::account::token_seeds::{
+    PackedTokenData, TokenDataWithPackedSeeds, TokenDataWithSeeds,
+};
+#[cfg(feature = "token")]
+pub use light_sdk_types::interface::program::decompression::processor::process_decompress_accounts_idempotent;
+#[cfg(feature = "token")]
+pub use light_sdk_types::interface::program::decompression::token::prepare_token_account_for_decompression;
+#[cfg(feature = "token")]
+pub use light_sdk_types::interface::program::variant::{PackedTokenSeeds, UnpackedTokenSeeds};
+
+/// Token sub-module for paths like `light_account::token::TokenDataWithSeeds`.
+#[cfg(feature = "token")]
+pub mod token {
+    pub use light_sdk_types::interface::account::token_seeds::{
+        ExtensionInstructionData, MultiInputTokenDataWithContext, PackedTokenData,
+        TokenDataWithPackedSeeds, TokenDataWithSeeds,
+    };
+    pub use light_sdk_types::interface::program::decompression::token::prepare_token_account_for_decompression;
+}
+
+/// Compression info sub-module for paths like `light_account::compression_info::CompressedInitSpace`.
+pub mod compression_info {
+    pub use light_sdk_types::interface::account::compression_info::*;
+}
+
+// ===== CPI / SDK-TYPES RE-EXPORTS =====
+
+pub use light_sdk_types::cpi_accounts::CpiAccountsConfig;
+pub use light_sdk_types::cpi_context_write::CpiContextWriteAccounts;
+pub use light_sdk_types::interface::program::config::create::process_initialize_light_config;
+
+/// Sub-module for generic `PackedAccounts<AM>` (not specialized to AccountMeta).
+#[cfg(not(target_os = "solana"))]
+pub mod interface {
+    pub mod instruction {
+        pub use light_sdk_types::interface::instruction::PackedAccounts;
+    }
+}
+
+/// Sub-module for account_meta types (e.g. `CompressedAccountMetaNoLamportsNoAddress`).
+pub mod account_meta {
+    pub use light_sdk_types::instruction::account_meta::*;
+}
+
+// ===== ACCOUNT-CHECKS RE-EXPORTS (used by macro-generated code) =====
+
+/// Re-export `light_account_checks` so consumers can use `light_account::light_account_checks::*`.
+pub extern crate light_account_checks;
+pub use light_account_checks::packed_accounts;
+pub use light_account_checks::{AccountInfoTrait, AccountMetaTrait};
+
+// ===== CONVENIENCE RE-EXPORTS =====
+
+pub use light_account_checks::discriminator::Discriminator as LightDiscriminator;
+pub use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
+pub use light_macros::{derive_light_cpi_signer, derive_light_cpi_signer_pda};
+pub use light_sdk_macros::{
+    // Attribute macros
+    account,
+    // Proc macros
+    derive_light_rent_sponsor,
+    derive_light_rent_sponsor_pda,
+    light_program,
+    // Derive macros
+    CompressAs,
+    Compressible,
+    HasCompressionInfo,
+    LightAccount,
+    LightAccounts,
+    LightDiscriminator,
+    LightHasher,
+    LightHasherSha,
+    LightProgram,
+};
+pub use light_sdk_types::error::LightSdkTypesError;
+pub use light_sdk_types::instruction::*;
+pub use light_sdk_types::{constants, CpiSigner};
+
+// ===== UTILITY FUNCTIONS =====
+
+/// Derives the rent sponsor PDA for a given program.
+///
+/// Seeds: `["rent_sponsor"]`
+pub fn derive_rent_sponsor_pda(program_id: &solana_pubkey::Pubkey) -> (solana_pubkey::Pubkey, u8) {
+    solana_pubkey::Pubkey::find_program_address(&[constants::RENT_SPONSOR_SEED], program_id)
+}

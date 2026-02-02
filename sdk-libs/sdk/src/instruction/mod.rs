@@ -45,12 +45,12 @@ pub use light_sdk_types::instruction::*;
 
 // Re-export pack_accounts utilities from interface (off-chain only)
 #[cfg(not(target_os = "solana"))]
-pub use light_sdk_interface::instruction::*;
+pub use light_sdk_types::interface::instruction::*;
 
 // Concrete PackedAccounts type alias for solana AccountMeta (off-chain only)
 #[cfg(not(target_os = "solana"))]
 pub type PackedAccounts =
-    light_sdk_interface::instruction::PackedAccounts<solana_instruction::AccountMeta>;
+    light_sdk_types::interface::instruction::PackedAccounts<solana_instruction::AccountMeta>;
 
 // SDK-specific: ValidityProof and CompressedProof
 pub use light_compressed_account::instruction_data::compressed_proof::{

@@ -4,8 +4,8 @@
 //! Verifies that seed fields not present on the struct work correctly.
 
 use anchor_lang::prelude::*;
-use light_compressible::CreateAccountsProof;
 use light_sdk_macros::LightAccounts;
+use light_sdk_types::interface::CreateAccountsProof;
 
 use crate::state::d11_zero_copy::ZcWithParamsRecord;
 

@@ -243,7 +243,7 @@ impl<'a> LightVariantBuilder<'a> {
     // =========================================================================
 
     /// Generate `UnpackedTokenSeeds<N>` and `PackedTokenSeeds<N>` impls
-    /// on the local seed structs. The blanket impls in `light_sdk::interface::token`
+    /// on the local seed structs. The blanket impls in `light_account::token`
     /// then provide `LightAccountVariantTrait` / `PackedLightAccountVariantTrait`.
     fn generate_token_variant_trait_impls(&self) -> TokenStream {
         let impls: Vec<_> = self
@@ -337,7 +337,7 @@ impl<'a> LightVariantBuilder<'a> {
                 };
 
                 quote! {
-                    impl light_sdk::interface::UnpackedTokenSeeds<#seed_count>
+                    impl light_account::UnpackedTokenSeeds<#seed_count>
                         for #seeds_name
                     {
                         type Packed = #packed_seeds_name;
@@ -353,7 +353,7 @@ impl<'a> LightVariantBuilder<'a> {
                         }
                     }
 
-                    impl light_sdk::interface::PackedTokenSeeds<#seed_count>
+                    impl light_account::PackedTokenSeeds<#seed_count>
                         for #packed_seeds_name
                     {
                         fn bump(&self) -> u8 {
@@ -404,7 +404,7 @@ impl<'a> LightVariantBuilder<'a> {
                 let variant_name = &spec.variant;
                 let seeds_name = format_ident!("{}Seeds", variant_name);
                 quote! {
-                    #variant_name(light_sdk::interface::token::TokenDataWithSeeds<#seeds_name>)
+                    #variant_name(light_account::token::TokenDataWithSeeds<#seeds_name>)
                 }
             })
             .collect();
@@ -446,7 +446,7 @@ impl<'a> LightVariantBuilder<'a> {
                 let variant_name = &spec.variant;
                 let packed_seeds_name = format_ident!("Packed{}Seeds", variant_name);
                 quote! {
-                    #variant_name(light_sdk::interface::token::TokenDataWithPackedSeeds<#packed_seeds_name>)
+                    #variant_name(light_account::token::TokenDataWithPackedSeeds<#packed_seeds_name>)
                 }
             })
             .collect();
@@ -478,7 +478,7 @@ impl<'a> LightVariantBuilder<'a> {
                 quote! {
                     Self::#variant_name { seeds, data } => {
                         let packed_data = #packed_variant_type { seeds: seeds.clone(), data: data.clone() };
-                        light_sdk::interface::prepare_account_for_decompression::<#seed_count, #packed_variant_type>(
+                        light_account::prepare_account_for_decompression::<#seed_count, #packed_variant_type>(
                             &packed_data,
                             tree_info,
                             output_queue_index,
@@ -500,9 +500,9 @@ impl<'a> LightVariantBuilder<'a> {
 
                 quote! {
                     Self::#variant_name(packed_data) => {
-                        light_sdk::interface::token::prepare_token_account_for_decompression::<
+                        light_account::token::prepare_token_account_for_decompression::<
                             #seed_count,
-                            light_sdk::interface::token::TokenDataWithPackedSeeds<#packed_seeds_name>,
+                            light_account::token::TokenDataWithPackedSeeds<#packed_seeds_name>,
                         >(
                             packed_data,
                             tree_info,
@@ -516,12 +516,12 @@ impl<'a> LightVariantBuilder<'a> {
             .collect();
 
         quote! {
-            impl<'info> light_sdk::interface::DecompressVariant<'info> for PackedLightAccountVariant {
+            impl<'info> light_account::DecompressVariant<light_account::AccountInfo<'info>> for PackedLightAccountVariant {
                 fn decompress(
                     &self,
                     tree_info: &light_sdk::instruction::PackedStateTreeInfo,
                     pda_account: &anchor_lang::prelude::AccountInfo<'info>,
-                    ctx: &mut light_sdk::interface::DecompressCtx<'_, 'info>,
+                    ctx: &mut light_account::DecompressCtx<'_, 'info>,
                 ) -> std::result::Result<(), solana_program_error::ProgramError> {
                     let output_queue_index = ctx.output_queue_index;
                     match self {

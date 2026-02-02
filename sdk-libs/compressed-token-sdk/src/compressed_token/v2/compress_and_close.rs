@@ -1,7 +1,7 @@
 use light_program_profiler::profile;
 // PackedAccounts and AccountMetasVec are only available off-chain (client-side)
 #[cfg(not(target_os = "solana"))]
-use light_sdk::interface::error::LightPdaError;
+use light_sdk_types::error::LightSdkTypesError;
 #[cfg(not(target_os = "solana"))]
 use light_sdk::{
     instruction::{AccountMetasVec, PackedAccounts, SystemAccountMetaConfig},
@@ -49,10 +49,8 @@ pub fn pack_for_compress_and_close(
 ) -> Result<CompressAndCloseIndices, TokenSdkError> {
     let (ctoken_account, _) = Token::zero_copy_at(ctoken_account_data)?;
     let source_index = packed_accounts.insert_or_get(ctoken_account_pubkey);
-    let mint_index =
-        packed_accounts.insert_or_get(Pubkey::from(ctoken_account.mint.to_bytes()));
-    let owner_index =
-        packed_accounts.insert_or_get(Pubkey::from(ctoken_account.owner.to_bytes()));
+    let mint_index = packed_accounts.insert_or_get(Pubkey::from(ctoken_account.mint.to_bytes()));
+    let owner_index = packed_accounts.insert_or_get(Pubkey::from(ctoken_account.owner.to_bytes()));
 
     // Get compression info from Compressible extension
     let compressible_ext = ctoken_account
@@ -406,7 +404,10 @@ impl AccountMetasVec<AccountMeta> for CompressAndCloseAccounts {
     /// Adds:
     /// 1. system accounts if not set
     /// 2. compressed token program and ctoken cpi authority pda to pre accounts
-    fn get_account_metas_vec(&self, accounts: &mut PackedAccounts) -> Result<(), LightPdaError> {
+    fn get_account_metas_vec(
+        &self,
+        accounts: &mut PackedAccounts,
+    ) -> Result<(), LightSdkTypesError> {
         if !accounts.system_accounts_set() {
             let mut config = SystemAccountMetaConfig::default();
             config.self_program = self.self_program;
@@ -418,12 +419,12 @@ impl AccountMetasVec<AccountMeta> for CompressAndCloseAccounts {
             {
                 if self.cpi_context.is_some() {
                     msg!("Error: cpi_context is set but 'cpi-context' feature is not enabled");
-                    return Err(LightPdaError::InvalidInstructionData);
+                    return Err(LightSdkTypesError::InvalidInstructionData);
                 }
             }
             accounts
                 .add_system_accounts_v2(config)
-                .map_err(LightPdaError::from)?;
+                .map_err(LightSdkTypesError::from)?;
         }
         // Add both accounts in one operation for better performance
         accounts.pre_accounts.extend_from_slice(&[

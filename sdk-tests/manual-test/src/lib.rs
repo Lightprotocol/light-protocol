@@ -9,11 +9,7 @@
 #![allow(deprecated)]
 
 use anchor_lang::prelude::*;
-use light_sdk::{
-    derive_light_cpi_signer,
-    interface::{LightFinalize, LightPreInit},
-};
-use light_sdk_types::CpiSigner;
+use light_account::{derive_light_cpi_signer, CpiSigner, LightFinalize, LightPreInit};
 use solana_program_error::ProgramError;
 
 pub mod account_loader;
@@ -41,7 +37,7 @@ pub use derived_compress::*;
 pub use derived_decompress::*;
 pub use derived_light_config::*;
 pub use derived_variants::{LightAccountVariant, PackedLightAccountVariant};
-pub use light_sdk::interface::{
+pub use light_account::{
     AccountType, CompressAndCloseParams, DecompressIdempotentParams, DecompressVariant,
     LightAccount,
 };

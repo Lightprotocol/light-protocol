@@ -29,8 +29,8 @@ members = [
     "sdk-libs/event",
     "sdk-libs/token-client",
     "sdk-libs/macros",
+    "sdk-libs/account",
     "sdk-libs/sdk",
-    "sdk-libs/sdk-interface",
     "sdk-libs/sdk-pinocchio",
     "sdk-libs/sdk-types",
     "sdk-libs/photon-api",
@@ -200,8 +200,8 @@ light-macros = { path = "program-libs/macros", version = "2.2.0" }
 light-merkle-tree-reference = { path = "program-tests/merkle-tree", version = "4.0.0" }
 light-heap = { path = "program-libs/heap", version = "2.0.0" }
 light-prover-client = { path = "prover/client", version = "6.0.0" }
+light-account = { path = "sdk-libs/account", version = "0.1.0", default-features = false }
 light-sdk = { path = "sdk-libs/sdk", version = "0.19.0" }
-light-sdk-interface = { path = "sdk-libs/sdk-interface", version = "0.19.0", default-features = false }
 light-sdk-pinocchio = { path = "sdk-libs/sdk-pinocchio", version = "0.19.0" }
 light-sdk-macros = { path = "sdk-libs/macros", version = "0.19.0" }
 light-sdk-types = { path = "sdk-libs/sdk-types", version = "0.19.0", default-features = false }

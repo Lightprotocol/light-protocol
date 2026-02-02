@@ -682,9 +682,9 @@ pub fn wrap_function_with_light(
             #(#fn_attrs)*
             #fn_vis #fn_sig {
                 // Phase 1: Pre-init (creates mints via CPI context write, registers compressed addresses)
-                use light_sdk::interface::{LightPreInit, LightFinalize};
+                use light_account::{LightPreInit, LightFinalize};
                 let _ = #ctx_name.accounts.light_pre_init(#ctx_name.remaining_accounts, &#params_ident)
-                    .map_err(|e: light_sdk::interface::error::LightPdaError| -> solana_program_error::ProgramError {
+                    .map_err(|e: light_sdk_types::error::LightSdkTypesError| -> solana_program_error::ProgramError {
                         e.into()
                     })?;
 
@@ -698,9 +698,9 @@ pub fn wrap_function_with_light(
             #(#fn_attrs)*
             #fn_vis #fn_sig {
                 // Phase 1: Pre-init (creates mints via CPI context write, registers compressed addresses)
-                use light_sdk::interface::{LightPreInit, LightFinalize};
+                use light_account::{LightPreInit, LightFinalize};
                 let __has_pre_init = #ctx_name.accounts.light_pre_init(#ctx_name.remaining_accounts, &#params_ident)
-                    .map_err(|e: light_sdk::interface::error::LightPdaError| -> solana_program_error::ProgramError {
+                    .map_err(|e: light_sdk_types::error::LightSdkTypesError| -> solana_program_error::ProgramError {
                         e.into()
                     })?;
 
@@ -711,7 +711,7 @@ pub fn wrap_function_with_light(
 
                 // Phase 2: Finalize (creates token accounts/ATAs via CPI)
                 #ctx_name.accounts.light_finalize(#ctx_name.remaining_accounts, &#params_ident, __has_pre_init)
-                    .map_err(|e: light_sdk::interface::error::LightPdaError| -> solana_program_error::ProgramError {
+                    .map_err(|e: light_sdk_types::error::LightSdkTypesError| -> solana_program_error::ProgramError {
                         e.into()
                     })?;
 

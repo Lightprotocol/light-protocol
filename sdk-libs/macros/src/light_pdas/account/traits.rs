@@ -69,13 +69,13 @@ fn generate_has_compression_info_impl(
     compression_info_first: bool,
 ) -> TokenStream {
     quote! {
-        impl light_sdk::interface::CompressionInfoField for #struct_name {
+        impl light_account::CompressionInfoField for #struct_name {
             const COMPRESSION_INFO_FIRST: bool = #compression_info_first;
 
-            fn compression_info_field(&self) -> &Option<light_sdk::interface::CompressionInfo> {
+            fn compression_info_field(&self) -> &Option<light_account::CompressionInfo> {
                 &self.compression_info
             }
-            fn compression_info_field_mut(&mut self) -> &mut Option<light_sdk::interface::CompressionInfo> {
+            fn compression_info_field_mut(&mut self) -> &mut Option<light_account::CompressionInfo> {
                 &mut self.compression_info
             }
         }
@@ -135,7 +135,7 @@ fn generate_compress_as_impl(
     field_assignments: &[TokenStream],
 ) -> TokenStream {
     quote! {
-        impl light_sdk::interface::CompressAs for #struct_name {
+        impl light_account::CompressAs for #struct_name {
             type Output = Self;
 
             fn compress_as(&self) -> std::borrow::Cow<'_, Self::Output> {
@@ -170,7 +170,7 @@ fn generate_size_impl(struct_name: &Ident) -> TokenStream {
 /// Generates the CompressedInitSpace trait implementation
 fn generate_compressed_init_space_impl(struct_name: &Ident) -> TokenStream {
     quote! {
-        impl light_sdk::interface::CompressedInitSpace for #struct_name {
+        impl light_account::CompressedInitSpace for #struct_name {
             const COMPRESSED_INIT_SPACE: usize = Self::LIGHT_DISCRIMINATOR.len() + Self::INIT_SPACE;
         }
     }

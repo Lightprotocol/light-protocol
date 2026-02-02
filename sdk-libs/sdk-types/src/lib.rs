@@ -18,17 +18,21 @@ extern crate alloc;
 pub mod address;
 pub mod constants;
 pub mod cpi_accounts;
-#[cfg(feature = "cpi-context")]
 pub mod cpi_context_write;
 pub mod error;
 pub mod instruction;
 
+#[cfg(feature = "std")]
+pub mod interface;
+
 // Re-exports
 #[cfg(feature = "anchor")]
-use anchor_lang::{AnchorDeserialize, AnchorSerialize};
+pub use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
-use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
+pub use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 pub use constants::*;
+pub use light_account_checks;
+pub use light_account_checks::discriminator::Discriminator as LightDiscriminator;
 pub use light_compressed_account::CpiSigner;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]

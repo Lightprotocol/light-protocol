@@ -36,7 +36,7 @@
 //! ```
 
 // Re-export everything from interface's CPI module (LightCpi, InvokeLightSystemProgram, etc.)
-pub use light_sdk_interface::cpi::*;
+pub use light_sdk_types::interface::cpi::*;
 
 use light_compressed_account::instruction_data::{
     compressed_proof::ValidityProof,
@@ -112,31 +112,31 @@ macro_rules! delegate_light_cpi {
             cpi_signer: crate::cpi::CpiSigner,
             proof: ValidityProof,
         ) -> Self {
-            <$ty as light_sdk_interface::cpi::LightCpi>::new_cpi(cpi_signer, proof)
+            <$ty as light_sdk_types::interface::cpi::LightCpi>::new_cpi(cpi_signer, proof)
         }
         fn get_mode(&self) -> u8 {
-            <$ty as light_sdk_interface::cpi::LightCpi>::get_mode(self)
+            <$ty as light_sdk_types::interface::cpi::LightCpi>::get_mode(self)
         }
         fn get_bump(&self) -> u8 {
-            <$ty as light_sdk_interface::cpi::LightCpi>::get_bump(self)
+            <$ty as light_sdk_types::interface::cpi::LightCpi>::get_bump(self)
         }
         fn write_to_cpi_context_first(self) -> Self {
-            <$ty as light_sdk_interface::cpi::LightCpi>::write_to_cpi_context_first(self)
+            <$ty as light_sdk_types::interface::cpi::LightCpi>::write_to_cpi_context_first(self)
         }
         fn write_to_cpi_context_set(self) -> Self {
-            <$ty as light_sdk_interface::cpi::LightCpi>::write_to_cpi_context_set(self)
+            <$ty as light_sdk_types::interface::cpi::LightCpi>::write_to_cpi_context_set(self)
         }
         fn execute_with_cpi_context(self) -> Self {
-            <$ty as light_sdk_interface::cpi::LightCpi>::execute_with_cpi_context(self)
+            <$ty as light_sdk_types::interface::cpi::LightCpi>::execute_with_cpi_context(self)
         }
         fn get_with_cpi_context(&self) -> bool {
-            <$ty as light_sdk_interface::cpi::LightCpi>::get_with_cpi_context(self)
+            <$ty as light_sdk_types::interface::cpi::LightCpi>::get_with_cpi_context(self)
         }
         fn get_cpi_context(&self) -> &CompressedCpiContext {
-            <$ty as light_sdk_interface::cpi::LightCpi>::get_cpi_context(self)
+            <$ty as light_sdk_types::interface::cpi::LightCpi>::get_cpi_context(self)
         }
         fn has_read_only_accounts(&self) -> bool {
-            <$ty as light_sdk_interface::cpi::LightCpi>::has_read_only_accounts(self)
+            <$ty as light_sdk_types::interface::cpi::LightCpi>::has_read_only_accounts(self)
         }
     };
 }

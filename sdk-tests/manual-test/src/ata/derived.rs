@@ -1,10 +1,7 @@
 //! Derived code - what the macro would generate for associated token accounts.
 
 use anchor_lang::prelude::*;
-use light_sdk::{
-    error::LightSdkError,
-    interface::{LightFinalize, LightPreInit},
-};
+use light_account::{LightFinalize, LightPreInit, LightSdkTypesError};
 use light_token::instruction::CreateTokenAtaCpi;
 use solana_account_info::AccountInfo;
 
@@ -19,8 +16,8 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateAtaParams> for CreateAtaAccou
         &mut self,
         _remaining_accounts: &[AccountInfo<'info>],
         _params: &CreateAtaParams,
-    ) -> std::result::Result<bool, light_sdk::interface::error::LightPdaError> {
-        let inner = || -> std::result::Result<bool, LightSdkError> {
+    ) -> std::result::Result<bool, LightSdkTypesError> {
+        let inner = || -> std::result::Result<bool, LightSdkTypesError> {
             // Derive the ATA bump on-chain
             let (_, bump) = light_token::instruction::derive_associated_token_account(
                 self.ata_owner.key,
@@ -43,12 +40,12 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateAtaParams> for CreateAtaAccou
                 self.rent_sponsor.clone(),
                 self.system_program.to_account_info(),
             )
-            .invoke()?;
+            .invoke().map_err(|_| LightSdkTypesError::CpiFailed)?;
 
             // ATAs don't use CPI context, return false
             Ok(false)
         };
-        inner().map_err(Into::into)
+        inner()
     }
 }
 
@@ -62,7 +59,7 @@ impl<'info> LightFinalize<AccountInfo<'info>, CreateAtaParams> for CreateAtaAcco
         _remaining_accounts: &[AccountInfo<'info>],
         _params: &CreateAtaParams,
         _has_pre_init: bool,
-    ) -> std::result::Result<(), light_sdk::interface::error::LightPdaError> {
+    ) -> std::result::Result<(), LightSdkTypesError> {
         Ok(())
     }
 }

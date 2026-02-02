@@ -31,9 +31,9 @@ anchor = [
 v2 = ["light-sdk-types/v2"]
 cpi-context = ["light-sdk-types/cpi-context"]
 devnet = []
-poseidon = ["light-hasher/poseidon", "light-compressed-account/poseidon", "light-sdk-interface/poseidon"]
-keccak = ["light-hasher/keccak", "light-compressed-account/keccak", "light-sdk-interface/keccak"]
-sha256 = ["light-hasher/sha256", "light-compressed-account/sha256", "light-sdk-interface/sha256"]
+poseidon = ["light-hasher/poseidon", "light-compressed-account/poseidon", "light-sdk-types/poseidon"]
+keccak = ["light-hasher/keccak", "light-compressed-account/keccak", "light-sdk-types/keccak"]
+sha256 = ["light-hasher/sha256", "light-compressed-account/sha256", "light-sdk-types/sha256"]
 merkle-tree = ["light-concurrent-merkle-tree/solana"]
 anchor-discriminator = ["light-sdk-macros/anchor-discriminator"]
 custom-heap = ["light-heap"]
@@ -65,7 +65,7 @@ bincode = "1"
 
 light-program-profiler = { workspace = true }
 light-sdk-macros = { workspace = true }
-light-sdk-types = { workspace = true, features = ["std"] }
+light-sdk-types = { workspace = true, features = ["std", "token"] }
 light-macros = { workspace = true }
 light-compressed-account = { workspace = true, features = ["std"] }
 light-hasher = { workspace = true, features = ["std"] }
@@ -75,7 +75,6 @@ light-concurrent-merkle-tree = { workspace = true, optional = true }
 light-compressible = { workspace = true }
 light-heap = { workspace = true, optional = true }
 light-token-interface = { workspace = true } # TODO: make optional
-light-sdk-interface = { workspace = true, features = ["std", "token"] }
 
 [dev-dependencies]
 num-bigint = { workspace = true }

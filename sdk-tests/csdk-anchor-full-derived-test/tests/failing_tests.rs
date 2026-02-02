@@ -7,8 +7,8 @@
 //! - 8: MissingRequiredSignature
 //! - 11: NotEnoughAccountKeys
 //! - 14: InvalidSeeds
-//! - 17001: LightPdaError::ConstraintViolation
-//! - 17004: LightPdaError::InvalidRentSponsor
+//! - 17001: LightSdkTypesError::ConstraintViolation
+//! - 17004: LightSdkTypesError::InvalidRentSponsor
 
 mod shared;
 

@@ -2,11 +2,9 @@
 //! Contains LightPreInit/LightFinalize trait implementations.
 
 use anchor_lang::prelude::*;
-use light_sdk::{
-    cpi::{v2::CpiAccounts, CpiAccountsConfig},
-    error::LightSdkError,
-    instruction::PackedAddressTreeInfoExt,
-    interface::{LightFinalize, LightPreInit},
+use light_account::{
+    CpiAccounts, CpiAccountsConfig, LightFinalize, LightPreInit, LightSdkTypesError,
+    PackedAddressTreeInfoExt,
 };
 use light_token::{
     compressible::{invoke_create_mints, CreateMintsInfraAccounts},
@@ -25,14 +23,15 @@ use super::accounts::{
 // LightPreInit Implementation - Creates mints at START of instruction
 // ============================================================================
 
-impl<'info> LightPreInit<AccountInfo<'info>, CreateDerivedMintsParams> for CreateDerivedMintsAccounts<'info> {
+impl<'info> LightPreInit<AccountInfo<'info>, CreateDerivedMintsParams>
+    for CreateDerivedMintsAccounts<'info>
+{
     fn light_pre_init(
         &mut self,
         remaining_accounts: &[AccountInfo<'info>],
         params: &CreateDerivedMintsParams,
-    ) -> std::result::Result<bool, light_sdk::interface::error::LightPdaError> {
-        let inner = || -> std::result::Result<bool, LightSdkError> {
-            use solana_program_error::ProgramError;
+    ) -> std::result::Result<bool, LightSdkTypesError> {
+        let inner = || -> std::result::Result<bool, LightSdkTypesError> {
 
             // ====================================================================
             // STATIC BOILERPLATE (same across all LightPreInit implementations)
@@ -42,7 +41,7 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateDerivedMintsParams> for Creat
             let system_accounts_offset =
                 params.create_accounts_proof.system_accounts_offset as usize;
             if remaining_accounts.len() < system_accounts_offset {
-                return Err(LightSdkError::FewerAccountsThanSystemAccounts);
+                return Err(LightSdkTypesError::FewerAccountsThanSystemAccounts);
             }
             let config = CpiAccountsConfig::new_with_cpi_context(crate::LIGHT_CPI_SIGNER);
             let cpi_accounts = CpiAccounts::new_with_config(
@@ -55,7 +54,7 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateDerivedMintsParams> for Creat
             let address_tree_info = &params.create_accounts_proof.address_tree_info;
             let address_tree_pubkey = address_tree_info
                 .get_tree_pubkey(&cpi_accounts)
-                .map_err(|_| LightSdkError::from(ProgramError::InvalidAccountData))?;
+                .map_err(|_| LightSdkTypesError::InvalidInstructionData)?;
 
             // Constants for this instruction (mirrors macro-generated code)
             const NUM_LIGHT_MINTS: usize = 2;
@@ -108,9 +107,7 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateDerivedMintsParams> for Creat
                     SingleMintParams {
                         decimals: 6, // mint::decimals = 6
                         address_merkle_tree_root_index: address_tree_info.root_index,
-                        mint_authority: solana_pubkey::Pubkey::new_from_array(
-                            authority.to_bytes(),
-                        ),
+                        mint_authority: solana_pubkey::Pubkey::new_from_array(authority.to_bytes()),
                         compression_address: compression_address_0,
                         mint: mint_0_pda,
                         bump: mint_0_bump,
@@ -125,9 +122,7 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateDerivedMintsParams> for Creat
                     SingleMintParams {
                         decimals: 9, // mint::decimals = 9
                         address_merkle_tree_root_index: address_tree_info.root_index,
-                        mint_authority: solana_pubkey::Pubkey::new_from_array(
-                            authority.to_bytes(),
-                        ),
+                        mint_authority: solana_pubkey::Pubkey::new_from_array(authority.to_bytes()),
                         compression_address: compression_address_1,
                         mint: mint_1_pda,
                         bump: mint_1_bump,
@@ -149,13 +144,13 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateDerivedMintsParams> for Creat
                 let state_tree_index = params
                     .create_accounts_proof
                     .state_tree_index
-                    .ok_or(LightSdkError::from(ProgramError::InvalidArgument))?;
+                    .ok_or(LightSdkTypesError::InvalidInstructionData)?;
 
                 let proof = params
                     .create_accounts_proof
                     .proof
                     .0
-                    .ok_or(LightSdkError::from(ProgramError::InvalidArgument))?;
+                    .ok_or(LightSdkTypesError::InvalidInstructionData)?;
 
                 let sdk_params = SdkCreateMintsParams::new(&sdk_mints, proof)
                     .with_output_queue_index(params.create_accounts_proof.output_state_tree_index)
@@ -176,8 +171,7 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateDerivedMintsParams> for Creat
                     self.mint_signer_0.to_account_info(),
                     self.mint_signer_1.to_account_info(),
                 ];
-                let mint_accounts =
-                    [self.mint_0.to_account_info(), self.mint_1.to_account_info()];
+                let mint_accounts = [self.mint_0.to_account_info(), self.mint_1.to_account_info()];
 
                 invoke_create_mints(
                     &mint_seed_accounts,
@@ -185,11 +179,12 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateDerivedMintsParams> for Creat
                     sdk_params,
                     infra,
                     &cpi_accounts,
-                )?;
+                )
+                .map_err(|_| LightSdkTypesError::CpiFailed)?;
             }
             Ok(WITH_CPI_CONTEXT) // false = mint-only, no CPI context write
         };
-        inner().map_err(Into::into)
+        inner()
     }
 }
 
@@ -197,13 +192,15 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateDerivedMintsParams> for Creat
 // LightFinalize Implementation - No-op for mint-only flow
 // ============================================================================
 
-impl<'info> LightFinalize<AccountInfo<'info>, CreateDerivedMintsParams> for CreateDerivedMintsAccounts<'info> {
+impl<'info> LightFinalize<AccountInfo<'info>, CreateDerivedMintsParams>
+    for CreateDerivedMintsAccounts<'info>
+{
     fn light_finalize(
         &mut self,
         _remaining_accounts: &[AccountInfo<'info>],
         _params: &CreateDerivedMintsParams,
         _has_pre_init: bool,
-    ) -> std::result::Result<(), light_sdk::interface::error::LightPdaError> {
+    ) -> std::result::Result<(), LightSdkTypesError> {
         // No-op for mint-only flow - create_mints already executed in light_pre_init
         Ok(())
     }

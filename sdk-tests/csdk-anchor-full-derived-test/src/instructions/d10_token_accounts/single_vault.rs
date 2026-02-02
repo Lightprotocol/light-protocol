@@ -7,8 +7,8 @@
 //! Here the macro should generate the CreateTokenAccountCpi call automatically.
 
 use anchor_lang::prelude::*;
-use light_compressible::CreateAccountsProof;
 use light_sdk_macros::LightAccounts;
+use light_sdk_types::interface::CreateAccountsProof;
 use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
 
 /// Seed for the vault authority PDA

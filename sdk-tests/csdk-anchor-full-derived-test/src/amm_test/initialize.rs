@@ -9,8 +9,8 @@
 
 use anchor_lang::prelude::*;
 use light_anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
-use light_compressible::CreateAccountsProof;
 use light_sdk_macros::LightAccounts;
+use light_sdk_types::interface::CreateAccountsProof;
 use light_token::instruction::{
     CreateTokenAccountCpi, CreateTokenAtaCpi, MintToCpi, LIGHT_TOKEN_CONFIG,
     LIGHT_TOKEN_RENT_SPONSOR,

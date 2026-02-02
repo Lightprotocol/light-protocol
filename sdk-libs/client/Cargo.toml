@@ -52,6 +52,7 @@ light-compressed-token-sdk = { workspace = true }
 light-token-interface = { workspace = true }
 light-event = { workspace = true }
 light-compressible = { workspace = true }
+light-sdk-types = { workspace = true }
 
 photon-api = { workspace = true }
 light-prover-client = { workspace = true }
