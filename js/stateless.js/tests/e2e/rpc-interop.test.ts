@@ -18,18 +18,44 @@ import {
     selectStateTreeInfo,
     sleep,
 } from '../../src';
+import { getTestRpc, TestRpc } from '../../src/test-helpers/test-rpc';
 import { transfer } from '../../src/actions/transfer';
+import { WasmFactory } from '@lightprotocol/hasher.rs';
 import { randomBytes } from 'tweetnacl';
+
+const log = async (
+    rpc: Rpc | TestRpc,
+    payer: Signer,
+    prefix: string = 'rpc',
+) => {
+    const accounts = await rpc.getCompressedAccountsByOwner(payer.publicKey);
+    console.log(`${prefix} - indexed: `, accounts.items.length);
+};
+
+// debug helper.
+const logIndexed = async (
+    rpc: Rpc,
+    testRpc: TestRpc,
+    payer: Signer,
+    prefix: string = '',
+) => {
+    await log(testRpc, payer, `${prefix} test-rpc `);
+    await log(rpc, payer, `${prefix} rpc`);
+};
 
 describe('rpc-interop', () => {
     LightSystemProgram.deriveCompressedSolPda();
     let payer: Signer;
     let bob: Signer;
     let rpc: Rpc;
+    let testRpc: TestRpc;
     let executedTxs = 0;
     let stateTreeInfo: TreeInfo;
     beforeAll(async () => {
+        const lightWasm = await WasmFactory.getInstance();
         rpc = createRpc();
+
+        testRpc = await getTestRpc(lightWasm);
 
         /// These are constant test accounts in between test runs
         payer = await newAccountWithLamports(rpc, 10e9, 256);
@@ -70,7 +96,7 @@ describe('rpc-interop', () => {
         const senderAccounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
-        const senderAccountsTest = await rpc.getCompressedAccountsByOwner(
+        const senderAccountsTest = await testRpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
 
@@ -81,7 +107,7 @@ describe('rpc-interop', () => {
         assert.isTrue(hash.eq(hashTest));
 
         const validityProof = await rpc.getValidityProof([hash]);
-        const validityProofTest = await rpc.getValidityProof([hashTest]);
+        const validityProofTest = await testRpc.getValidityProof([hashTest]);
 
         validityProof.leafIndices.forEach((leafIndex, index) => {
             assert.equal(leafIndex, validityProofTest.leafIndices[index]);
@@ -114,7 +140,7 @@ describe('rpc-interop', () => {
         executedTxs++;
 
         /// Executes a transfer using a 'validityProof' directly from a prover.
-        await transfer(rpc, payer, 1e5, payer, bob.publicKey);
+        await transfer(testRpc, payer, 1e5, payer, bob.publicKey);
         executedTxs++;
     });
 
@@ -134,7 +160,7 @@ describe('rpc-interop', () => {
 
             /// consistent proof metadata for same address
             const validityProof = await rpc.getValidityProof([], [newAddress]);
-            const validityProofTest = await rpc.getValidityProof(
+            const validityProofTest = await testRpc.getValidityProof(
                 [],
                 [newAddress],
             );
@@ -179,7 +205,7 @@ describe('rpc-interop', () => {
             /// Creates a compressed account with address using a (non-inclusion)
             /// 'validityProof' directly from a prover.
             await createAccount(
-                rpc,
+                testRpc,
                 payer,
                 newAddressSeeds,
                 LightSystemProgram.programId,
@@ -194,9 +220,8 @@ describe('rpc-interop', () => {
     it.skipIf(featureFlags.isV2())(
         'getValidityProof [noforester] (combined) should match',
         async () => {
-            const senderAccountsTest = await rpc.getCompressedAccountsByOwner(
-                payer.publicKey,
-            );
+            const senderAccountsTest =
+                await testRpc.getCompressedAccountsByOwner(payer.publicKey);
             // wait for photon to be in sync
             await sleep(3000);
             const senderAccounts = await rpc.getCompressedAccountsByOwner(
@@ -221,7 +246,7 @@ describe('rpc-interop', () => {
                 [hash],
                 [newAddress],
             );
-            const validityProofTest = await rpc.getValidityProof(
+            const validityProofTest = await testRpc.getValidityProof(
                 [hashTest],
                 [newAddress],
             );
@@ -231,7 +256,7 @@ describe('rpc-interop', () => {
                 await rpc.getMultipleCompressedAccountProofs([hash])
             )[0];
             const compressedAccountProofTest = (
-                await rpc.getMultipleCompressedAccountProofs([hashTest])
+                await testRpc.getMultipleCompressedAccountProofs([hashTest])
             )[0];
 
             compressedAccountProof.merkleProof.forEach((proof, index) => {
@@ -245,7 +270,7 @@ describe('rpc-interop', () => {
                 await rpc.getMultipleNewAddressProofs([newAddress])
             )[0];
             const newAddressProofTest = (
-                await rpc.getMultipleNewAddressProofs([newAddress])
+                await testRpc.getMultipleNewAddressProofs([newAddress])
             )[0];
 
             assert.isTrue(
@@ -344,7 +369,7 @@ describe('rpc-interop', () => {
             await rpc.getMultipleNewAddressProofs([newAddress])
         )[0];
         const newAddressProofTest = (
-            await rpc.getMultipleNewAddressProofs([newAddress])
+            await testRpc.getMultipleNewAddressProofs([newAddress])
         )[0];
 
         assert.isTrue(
@@ -419,9 +444,10 @@ describe('rpc-interop', () => {
                 );
 
                 /// get reference proofs for sender
-                const testProofs = await rpc.getMultipleCompressedAccountProofs(
-                    prePayerAccounts.items.map(account => bn(account.hash)),
-                );
+                const testProofs =
+                    await testRpc.getMultipleCompressedAccountProofs(
+                        prePayerAccounts.items.map(account => bn(account.hash)),
+                    );
 
                 /// get photon proofs for sender
                 const proofs = await rpc.getMultipleCompressedAccountProofs(
@@ -489,7 +515,7 @@ describe('rpc-interop', () => {
             payer.publicKey,
         );
 
-        const senderAccountsTest = await rpc.getCompressedAccountsByOwner(
+        const senderAccountsTest = await testRpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
 
@@ -533,7 +559,7 @@ describe('rpc-interop', () => {
         const receiverAccounts = await rpc.getCompressedAccountsByOwner(
             bob.publicKey,
         );
-        const receiverAccountsTest = await rpc.getCompressedAccountsByOwner(
+        const receiverAccountsTest = await testRpc.getCompressedAccountsByOwner(
             bob.publicKey,
         );
 
@@ -569,7 +595,7 @@ describe('rpc-interop', () => {
             undefined,
             bn(senderAccounts.items[0].hash),
         );
-        const compressedAccountTest = await rpc.getCompressedAccount(
+        const compressedAccountTest = await testRpc.getCompressedAccount(
             undefined,
             bn(senderAccounts.items[0].hash),
         );
@@ -595,9 +621,10 @@ describe('rpc-interop', () => {
         const compressedAccounts = await rpc.getMultipleCompressedAccounts(
             senderAccounts.items.map(account => bn(account.hash)),
         );
-        const compressedAccountsTest = await rpc.getMultipleCompressedAccounts(
-            senderAccounts.items.map(account => bn(account.hash)),
-        );
+        const compressedAccountsTest =
+            await testRpc.getMultipleCompressedAccounts(
+                senderAccounts.items.map(account => bn(account.hash)),
+            );
 
         assert.equal(compressedAccounts.length, compressedAccountsTest.length);
 
@@ -712,9 +739,8 @@ describe('rpc-interop', () => {
                 payer.publicKey,
             );
 
-            const allAccountsTestRpc = await rpc.getCompressedAccountsByOwner(
-                payer.publicKey,
-            );
+            const allAccountsTestRpc =
+                await testRpc.getCompressedAccountsByOwner(payer.publicKey);
             const allAccountsRpc = await rpc.getCompressedAccountsByOwner(
                 payer.publicKey,
             );
@@ -779,7 +805,10 @@ describe('rpc-interop', () => {
             );
 
             await expect(
-                rpc.getCompressedAccount(bn(latestAccount.address!), undefined),
+                testRpc.getCompressedAccount(
+                    bn(latestAccount.address!),
+                    undefined,
+                ),
             ).rejects.toThrow();
 
             assert.isTrue(
