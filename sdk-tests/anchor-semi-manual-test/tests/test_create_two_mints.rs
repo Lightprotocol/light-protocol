@@ -1,6 +1,7 @@
 mod shared;
 
 use anchor_lang::{InstructionData, ToAccountMetas};
+use anchor_semi_manual_test::{CreateTwoMintsParams, MINT_SIGNER_SEED_A, MINT_SIGNER_SEED_B};
 use light_client::interface::{
     create_load_instructions, get_create_accounts_proof, AccountInterface, AccountInterfaceExt,
     AccountSpec, ColdContext, CreateAccountsProofInput,
@@ -9,7 +10,6 @@ use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{program_test::TestRpc, Rpc};
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
 use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
-use pinocchio_derive_test::{CreateTwoMintsParams, MINT_SIGNER_SEED_A, MINT_SIGNER_SEED_B};
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -47,7 +47,7 @@ async fn test_create_two_mints_derive() {
     .await
     .unwrap();
 
-    let accounts = pinocchio_derive_test::accounts::CreateTwoMints {
+    let accounts = anchor_semi_manual_test::accounts::CreateTwoMints {
         fee_payer: payer.pubkey(),
         authority: authority.pubkey(),
         mint_signer_a,
@@ -62,7 +62,7 @@ async fn test_create_two_mints_derive() {
         system_program: solana_sdk::system_program::ID,
     };
 
-    let instruction_data = pinocchio_derive_test::instruction::CreateTwoMints {
+    let instruction_data = anchor_semi_manual_test::instruction::CreateTwoMints {
         params: CreateTwoMintsParams {
             create_accounts_proof: proof_result.create_accounts_proof,
             mint_signer_bump_a,
@@ -121,7 +121,7 @@ async fn test_create_two_mints_derive() {
     shared::assert_onchain_closed(&mut rpc, &mint_b_pda, "MintB").await;
 
     // PHASE 3: Decompress both mints via create_load_instructions
-    use pinocchio_derive_test::LightAccountVariant;
+    use anchor_semi_manual_test::LightAccountVariant;
 
     let build_mint_account_interface = |mint_interface: light_client::interface::MintInterface| {
         let (compressed, _mint_data) = mint_interface

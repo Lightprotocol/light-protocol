@@ -1,12 +1,12 @@
 [package]
-name = "pinocchio-derive-test"
+name = "anchor-semi-manual-test"
 version = "0.1.0"
 description = "Test for #[derive(LightProgram)] macro validation with all variant kinds"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "pinocchio_derive_test"
+name = "anchor_semi_manual_test"
 
 [features]
 no-entrypoint = []

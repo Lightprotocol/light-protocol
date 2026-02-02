@@ -1,13 +1,13 @@
 mod shared;
 
 use anchor_lang::{InstructionData, ToAccountMetas};
+use anchor_semi_manual_test::{CreateZeroCopyRecordParams, RECORD_SEED};
 use light_client::interface::{
     create_load_instructions, get_create_accounts_proof, AccountInterfaceExt, AccountSpec,
     CreateAccountsProofInput, PdaSpec,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{program_test::TestRpc, Rpc};
-use pinocchio_derive_test::{CreateZeroCopyRecordParams, RECORD_SEED};
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -32,7 +32,7 @@ async fn test_create_zero_copy_record_derive() {
     .await
     .unwrap();
 
-    let accounts = pinocchio_derive_test::accounts::CreateZeroCopyRecord {
+    let accounts = anchor_semi_manual_test::accounts::CreateZeroCopyRecord {
         fee_payer: payer.pubkey(),
         compression_config: env.config_pda,
         pda_rent_sponsor: env.rent_sponsor,
@@ -40,7 +40,7 @@ async fn test_create_zero_copy_record_derive() {
         system_program: solana_sdk::system_program::ID,
     };
 
-    let instruction_data = pinocchio_derive_test::instruction::CreateZeroCopyRecord {
+    let instruction_data = anchor_semi_manual_test::instruction::CreateZeroCopyRecord {
         params: CreateZeroCopyRecordParams {
             create_accounts_proof: proof_result.create_accounts_proof,
             owner,
@@ -68,7 +68,7 @@ async fn test_create_zero_copy_record_derive() {
         .unwrap()
         .expect("Record PDA should exist on-chain");
 
-    use pinocchio_derive_test::ZeroCopyRecord;
+    use anchor_semi_manual_test::ZeroCopyRecord;
     let discriminator_len = 8;
     let data = &record_account.data[discriminator_len..];
     let record: &ZeroCopyRecord = bytemuck::from_bytes(data);
@@ -82,7 +82,7 @@ async fn test_create_zero_copy_record_derive() {
 
     // PHASE 3: Decompress via create_load_instructions
     use anchor_lang::AnchorDeserialize;
-    use pinocchio_derive_test::{LightAccountVariant, ZeroCopyRecordSeeds};
+    use anchor_semi_manual_test::{LightAccountVariant, ZeroCopyRecordSeeds};
 
     let account_interface = rpc
         .get_account_interface(&record_pda, &program_id)

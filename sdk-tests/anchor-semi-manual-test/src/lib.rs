@@ -45,7 +45,7 @@ pub enum ProgramAccounts {
 }
 
 #[program]
-pub mod pinocchio_derive_test {
+pub mod anchor_semi_manual_test {
     use light_account::{light_err, LightFinalize, LightPreInit};
 
     use super::*;

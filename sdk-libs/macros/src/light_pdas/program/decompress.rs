@@ -376,6 +376,28 @@ impl DecompressBuilder {
     /// This wraps the type-parameter-based SDK call, binding `PackedLightAccountVariant`
     /// as the concrete type.
     pub fn generate_enum_decompress_dispatch(&self, enum_name: &syn::Ident) -> Result<TokenStream> {
+        let processor_call = if self.has_tokens {
+            quote! {
+                light_account::process_decompress_accounts_idempotent::<_, PackedLightAccountVariant>(
+                    remaining_accounts,
+                    instruction_data,
+                    cpi_signer,
+                    program_id,
+                    current_slot,
+                )
+            }
+        } else {
+            quote! {
+                light_account::process_decompress_pda_accounts_idempotent::<_, PackedLightAccountVariant>(
+                    remaining_accounts,
+                    instruction_data,
+                    cpi_signer,
+                    program_id,
+                    current_slot,
+                )
+            }
+        };
+
         Ok(quote! {
             impl #enum_name {
                 pub fn decompress_dispatch<'info>(
@@ -385,13 +407,7 @@ impl DecompressBuilder {
                     program_id: &[u8; 32],
                     current_slot: u64,
                 ) -> std::result::Result<(), light_account::LightSdkTypesError> {
-                    light_account::process_decompress_pda_accounts_idempotent::<_, PackedLightAccountVariant>(
-                        remaining_accounts,
-                        instruction_data,
-                        cpi_signer,
-                        program_id,
-                        current_slot,
-                    )
+                    #processor_call
                 }
             }
         })

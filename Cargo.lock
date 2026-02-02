@@ -396,6 +396,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "anchor-semi-manual-test"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "borsh 0.10.4",
+ "bytemuck",
+ "light-account",
+ "light-anchor-spl",
+ "light-batched-merkle-tree",
+ "light-client",
+ "light-compressed-account",
+ "light-compressible",
+ "light-hasher",
+ "light-macros",
+ "light-program-test",
+ "light-sdk-macros",
+ "light-sdk-types",
+ "light-test-utils",
+ "light-token",
+ "light-token-interface",
+ "light-token-types",
+ "rand 0.8.5",
+ "solana-account",
+ "solana-account-info",
+ "solana-instruction",
+ "solana-keypair",
+ "solana-msg 2.2.1",
+ "solana-program",
+ "solana-program-error 2.2.2",
+ "solana-pubkey 2.4.0",
+ "solana-sdk",
+ "solana-signer",
+ "tokio",
+]
+
+[[package]]
 name = "anchor-spl"
 version = "0.31.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5152,42 +5188,6 @@ name = "pinocchio"
 version = "0.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b971851087bc3699b001954ad02389d50c41405ece3548cbcafc88b3e20017a"
-
-[[package]]
-name = "pinocchio-derive-test"
-version = "0.1.0"
-dependencies = [
- "anchor-lang",
- "borsh 0.10.4",
- "bytemuck",
- "light-account",
- "light-anchor-spl",
- "light-batched-merkle-tree",
- "light-client",
- "light-compressed-account",
- "light-compressible",
- "light-hasher",
- "light-macros",
- "light-program-test",
- "light-sdk-macros",
- "light-sdk-types",
- "light-test-utils",
- "light-token",
- "light-token-interface",
- "light-token-types",
- "rand 0.8.5",
- "solana-account",
- "solana-account-info",
- "solana-instruction",
- "solana-keypair",
- "solana-msg 2.2.1",
- "solana-program",
- "solana-program-error 2.2.2",
- "solana-pubkey 2.4.0",
- "solana-sdk",
- "solana-signer",
- "tokio",
-]
 
 [[package]]
 name = "pinocchio-log"

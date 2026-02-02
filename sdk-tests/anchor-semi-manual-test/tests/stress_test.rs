@@ -8,6 +8,11 @@
 mod shared;
 
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
+use anchor_semi_manual_test::{
+    CreateAllParams, LightAccountVariant, MinimalRecord, MinimalRecordSeeds, VaultSeeds,
+    ZeroCopyRecord, ZeroCopyRecordSeeds, MINT_SIGNER_SEED_A, MINT_SIGNER_SEED_B, RECORD_SEED,
+    VAULT_AUTH_SEED, VAULT_SEED,
+};
 use light_batched_merkle_tree::{
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
     initialize_state_tree::InitStateTreeAccountsInstructionData,
@@ -22,11 +27,6 @@ use light_program_test::{
     ProgramTestConfig, Rpc,
 };
 use light_token_interface::state::{token::Token, Mint};
-use pinocchio_derive_test::{
-    CreateAllParams, LightAccountVariant, MinimalRecord, MinimalRecordSeeds, ZeroCopyRecord,
-    ZeroCopyRecordSeeds, MINT_SIGNER_SEED_A, MINT_SIGNER_SEED_B, RECORD_SEED, VAULT_AUTH_SEED,
-    VAULT_SEED,
-};
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -48,13 +48,12 @@ struct TestPdas {
 }
 
 /// Cached state for accounts that go through the compress/decompress cycle.
-/// Note: vault stays compressed permanently (standalone token PDA decompression
-/// is not supported), so it is excluded from the cycle.
 #[derive(Clone)]
 struct CachedState {
     record: MinimalRecord,
     zc_record: ZeroCopyRecord,
     ata_token: Token,
+    vault_token: Token,
     owner: Pubkey,
 }
 
@@ -72,9 +71,9 @@ fn parse_token(data: &[u8]) -> Token {
 
 /// Setup environment with larger queues for stress test
 async fn setup() -> (StressTestContext, TestPdas) {
-    let program_id = pinocchio_derive_test::ID;
+    let program_id = anchor_semi_manual_test::ID;
     let mut config =
-        ProgramTestConfig::new_v2(true, Some(vec![("pinocchio_derive_test", program_id)]))
+        ProgramTestConfig::new_v2(true, Some(vec![("anchor_semi_manual_test", program_id)]))
             .with_light_protocol_events();
     config.v2_state_tree_config = Some(InitStateTreeAccountsInstructionData::e2e_test_default());
     config.v2_address_tree_config =
@@ -142,7 +141,7 @@ async fn setup() -> (StressTestContext, TestPdas) {
     .await
     .unwrap();
 
-    let accounts = pinocchio_derive_test::accounts::CreateAll {
+    let accounts = anchor_semi_manual_test::accounts::CreateAll {
         fee_payer: payer.pubkey(),
         compression_config: config_pda,
         pda_rent_sponsor: rent_sponsor,
@@ -166,7 +165,7 @@ async fn setup() -> (StressTestContext, TestPdas) {
         system_program: solana_sdk::system_program::ID,
     };
 
-    let instruction_data = pinocchio_derive_test::instruction::CreateAll {
+    let instruction_data = anchor_semi_manual_test::instruction::CreateAll {
         params: CreateAllParams {
             create_accounts_proof: proof_result.create_accounts_proof,
             owner,
@@ -224,16 +223,18 @@ async fn refresh_cache(rpc: &mut LightProgramTest, pdas: &TestPdas, owner: Pubke
     let zc_record: ZeroCopyRecord = *bytemuck::from_bytes(&zc_account.data[8..]);
 
     let ata_token = parse_token(&rpc.get_account(pdas.ata).await.unwrap().unwrap().data);
+    let vault_token = parse_token(&rpc.get_account(pdas.vault).await.unwrap().unwrap().data);
 
     CachedState {
         record,
         zc_record,
         ata_token,
+        vault_token,
         owner,
     }
 }
 
-/// Decompress all accounts except vault (vault stays compressed permanently)
+/// Decompress all accounts
 async fn decompress_all(ctx: &mut StressTestContext, pdas: &TestPdas, cached: &CachedState) {
     // PDA: MinimalRecord
     let record_interface = ctx
@@ -278,6 +279,33 @@ async fn decompress_all(ctx: &mut StressTestContext, pdas: &TestPdas, cached: &C
         .await
         .expect("failed to get ATA interface");
     assert!(ata_interface.is_cold(), "ATA should be cold");
+
+    // Token PDA: Vault
+    let vault_iface = ctx
+        .rpc
+        .get_token_account_interface(&pdas.vault)
+        .await
+        .expect("failed to get vault interface");
+    assert!(vault_iface.is_cold(), "Vault should be cold");
+
+    let vault_token_data: Token =
+        borsh::BorshDeserialize::deserialize(&mut &vault_iface.account.data[..])
+            .expect("Failed to parse vault Token");
+    let vault_variant = LightAccountVariant::Vault(light_account::token::TokenDataWithSeeds {
+        seeds: VaultSeeds {
+            mint: pdas.vault_mint,
+        },
+        token_data: vault_token_data,
+    });
+    let vault_compressed = vault_iface
+        .compressed()
+        .expect("cold vault must have compressed data");
+    let vault_interface = AccountInterface {
+        key: vault_iface.key,
+        account: vault_iface.account.clone(),
+        cold: Some(ColdContext::Account(vault_compressed.account.clone())),
+    };
+    let vault_spec = PdaSpec::new(vault_interface, vault_variant, ctx.program_id);
 
     // Mint A
     let mint_a_iface = ctx
@@ -327,6 +355,7 @@ async fn decompress_all(ctx: &mut StressTestContext, pdas: &TestPdas, cached: &C
         AccountSpec::Pda(record_spec),
         AccountSpec::Pda(zc_spec),
         AccountSpec::Ata(ata_interface),
+        AccountSpec::Pda(vault_spec),
         AccountSpec::Mint(mint_a_ai),
         AccountSpec::Mint(mint_b_ai),
     ];
@@ -341,17 +370,17 @@ async fn decompress_all(ctx: &mut StressTestContext, pdas: &TestPdas, cached: &C
         .await
         .expect("Decompression should succeed");
 
-    // Verify decompressed accounts exist on-chain (vault stays compressed)
+    // Verify all decompressed accounts exist on-chain
     for (pda, name) in [
         (&pdas.record, "MinimalRecord"),
         (&pdas.zc_record, "ZeroCopyRecord"),
         (&pdas.ata, "ATA"),
+        (&pdas.vault, "Vault"),
         (&pdas.mint_a, "MintA"),
         (&pdas.mint_b, "MintB"),
     ] {
         shared::assert_onchain_exists(&mut ctx.rpc, pda, name).await;
     }
-    shared::assert_onchain_closed(&mut ctx.rpc, &pdas.vault, "Vault").await;
 }
 
 /// Compress all accounts by warping forward epochs
@@ -414,6 +443,17 @@ async fn assert_all_state(
     assert_eq!(
         actual_ata, expected_ata,
         "ATA mismatch at iteration {iteration}"
+    );
+
+    // Vault
+    let actual_vault = parse_token(&rpc.get_account(pdas.vault).await.unwrap().unwrap().data);
+    let expected_vault = Token {
+        extensions: actual_vault.extensions.clone(),
+        ..cached.vault_token.clone()
+    };
+    assert_eq!(
+        actual_vault, expected_vault,
+        "Vault mismatch at iteration {iteration}"
     );
 
     // Mints

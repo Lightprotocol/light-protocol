@@ -1,6 +1,10 @@
 mod shared;
 
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
+use anchor_semi_manual_test::{
+    CreateAllParams, MinimalRecord, VaultSeeds, ZeroCopyRecord, MINT_SIGNER_SEED_A,
+    MINT_SIGNER_SEED_B, RECORD_SEED, VAULT_AUTH_SEED, VAULT_SEED,
+};
 use light_client::interface::{
     create_load_instructions, get_create_accounts_proof, AccountInterface, AccountInterfaceExt,
     AccountSpec, ColdContext, CreateAccountsProofInput, PdaSpec,
@@ -10,10 +14,6 @@ use light_program_test::{program_test::TestRpc, Rpc};
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
 use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
 use light_token_interface::state::token::{AccountState, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT};
-use pinocchio_derive_test::{
-    CreateAllParams, MinimalRecord, ZeroCopyRecord, MINT_SIGNER_SEED_A, MINT_SIGNER_SEED_B,
-    RECORD_SEED, VAULT_AUTH_SEED, VAULT_SEED,
-};
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -78,7 +78,7 @@ async fn test_create_all_derive() {
     .await
     .unwrap();
 
-    let accounts = pinocchio_derive_test::accounts::CreateAll {
+    let accounts = anchor_semi_manual_test::accounts::CreateAll {
         fee_payer: payer.pubkey(),
         compression_config: env.config_pda,
         pda_rent_sponsor: env.rent_sponsor,
@@ -102,7 +102,7 @@ async fn test_create_all_derive() {
         system_program: solana_sdk::system_program::ID,
     };
 
-    let instruction_data = pinocchio_derive_test::instruction::CreateAll {
+    let instruction_data = anchor_semi_manual_test::instruction::CreateAll {
         params: CreateAllParams {
             create_accounts_proof: proof_result.create_accounts_proof,
             owner,
@@ -215,9 +215,8 @@ async fn test_create_all_derive() {
     shared::assert_onchain_closed(&mut rpc, &mint_a_pda, "MintA").await;
     shared::assert_onchain_closed(&mut rpc, &mint_b_pda, "MintB").await;
 
-    // PHASE 3: Decompress all accounts except vault via create_load_instructions.
-    // Note: standalone token PDA decompression is not supported; vaults stay compressed.
-    use pinocchio_derive_test::{LightAccountVariant, MinimalRecordSeeds, ZeroCopyRecordSeeds};
+    // PHASE 3: Decompress all accounts via create_load_instructions.
+    use anchor_semi_manual_test::{LightAccountVariant, MinimalRecordSeeds, ZeroCopyRecordSeeds};
 
     // PDA: MinimalRecord
     let record_interface = rpc
@@ -298,10 +297,35 @@ async fn test_create_all_derive() {
         cold: Some(ColdContext::Account(compressed_b.clone())),
     };
 
+    // Token PDA: Vault
+    let vault_iface = rpc
+        .get_token_account_interface(&vault)
+        .await
+        .expect("failed to get vault interface");
+    assert!(vault_iface.is_cold(), "Vault should be cold");
+
+    let vault_token_data: Token =
+        borsh::BorshDeserialize::deserialize(&mut &vault_iface.account.data[..])
+            .expect("Failed to parse vault Token");
+    let vault_variant = LightAccountVariant::Vault(light_account::token::TokenDataWithSeeds {
+        seeds: VaultSeeds { mint: vault_mint },
+        token_data: vault_token_data,
+    });
+    let vault_compressed = vault_iface
+        .compressed()
+        .expect("cold vault must have compressed data");
+    let vault_interface = AccountInterface {
+        key: vault_iface.key,
+        account: vault_iface.account.clone(),
+        cold: Some(ColdContext::Account(vault_compressed.account.clone())),
+    };
+    let vault_spec = PdaSpec::new(vault_interface, vault_variant, program_id);
+
     let specs: Vec<AccountSpec<LightAccountVariant>> = vec![
         AccountSpec::Pda(record_spec),
         AccountSpec::Pda(zc_spec),
         AccountSpec::Ata(ata_interface),
+        AccountSpec::Pda(vault_spec),
         AccountSpec::Mint(mint_a_ai),
         AccountSpec::Mint(mint_b_ai),
     ];
@@ -314,11 +338,11 @@ async fn test_create_all_derive() {
         .await
         .expect("Decompression should succeed");
 
-    // PHASE 4: Assert state preserved after decompression (vault stays compressed)
+    // PHASE 4: Assert state preserved after decompression
     shared::assert_onchain_exists(&mut rpc, &record_pda, "MinimalRecord").await;
     shared::assert_onchain_exists(&mut rpc, &zc_record_pda, "ZeroCopyRecord").await;
     shared::assert_onchain_exists(&mut rpc, &ata, "ATA").await;
-    shared::assert_onchain_closed(&mut rpc, &vault, "Vault").await;
+    shared::assert_onchain_exists(&mut rpc, &vault, "Vault").await;
     shared::assert_onchain_exists(&mut rpc, &mint_a_pda, "MintA").await;
     shared::assert_onchain_exists(&mut rpc, &mint_b_pda, "MintB").await;
 
@@ -365,6 +389,26 @@ async fn test_create_all_derive() {
     assert_eq!(
         actual_ata, expected_ata,
         "ATA should match after decompression"
+    );
+
+    // Vault
+    let actual_vault: Token =
+        shared::parse_token(&rpc.get_account(vault).await.unwrap().unwrap().data);
+    let expected_vault = Token {
+        mint: LPubkey::from(vault_mint.to_bytes()),
+        owner: LPubkey::from(vault_authority.to_bytes()),
+        amount: 0,
+        delegate: None,
+        state: AccountState::Initialized,
+        is_native: None,
+        delegated_amount: 0,
+        close_authority: None,
+        account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
+        extensions: actual_vault.extensions.clone(),
+    };
+    assert_eq!(
+        actual_vault, expected_vault,
+        "Vault should match after decompression"
     );
 
     // Mints

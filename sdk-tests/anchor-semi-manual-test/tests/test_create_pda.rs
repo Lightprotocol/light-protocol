@@ -1,13 +1,13 @@
 mod shared;
 
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
+use anchor_semi_manual_test::CreatePdaParams;
 use light_client::interface::{
     create_load_instructions, get_create_accounts_proof, AccountInterfaceExt, AccountSpec,
     CreateAccountsProofInput, PdaSpec,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{program_test::TestRpc, Rpc};
-use pinocchio_derive_test::CreatePdaParams;
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -33,7 +33,7 @@ async fn test_create_single_pda_derive() {
     .await
     .unwrap();
 
-    let accounts = pinocchio_derive_test::accounts::CreatePda {
+    let accounts = anchor_semi_manual_test::accounts::CreatePda {
         fee_payer: payer.pubkey(),
         compression_config: env.config_pda,
         pda_rent_sponsor: env.rent_sponsor,
@@ -41,7 +41,7 @@ async fn test_create_single_pda_derive() {
         system_program: solana_sdk::system_program::ID,
     };
 
-    let instruction_data = pinocchio_derive_test::instruction::CreatePda {
+    let instruction_data = anchor_semi_manual_test::instruction::CreatePda {
         params: CreatePdaParams {
             create_accounts_proof: proof_result.create_accounts_proof,
             owner,
@@ -69,7 +69,7 @@ async fn test_create_single_pda_derive() {
         .unwrap()
         .expect("Record PDA should exist on-chain");
 
-    use pinocchio_derive_test::MinimalRecord;
+    use anchor_semi_manual_test::MinimalRecord;
     let record: MinimalRecord =
         borsh::BorshDeserialize::deserialize(&mut &record_account.data[8..])
             .expect("Failed to deserialize MinimalRecord");
@@ -88,7 +88,7 @@ async fn test_create_single_pda_derive() {
     shared::assert_onchain_closed(&mut rpc, &record_pda, "MinimalRecord").await;
 
     // PHASE 3: Decompress via create_load_instructions
-    use pinocchio_derive_test::{LightAccountVariant, MinimalRecordSeeds};
+    use anchor_semi_manual_test::{LightAccountVariant, MinimalRecordSeeds};
 
     let account_interface = rpc
         .get_account_interface(&record_pda, &program_id)

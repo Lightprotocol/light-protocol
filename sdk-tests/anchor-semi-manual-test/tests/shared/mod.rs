@@ -21,9 +21,9 @@ pub struct TestEnv {
 
 /// Sets up a test environment with program, config, and rent sponsor initialized.
 pub async fn setup_test_env() -> TestEnv {
-    let program_id = pinocchio_derive_test::ID;
+    let program_id = anchor_semi_manual_test::ID;
     let mut config =
-        ProgramTestConfig::new_v2(true, Some(vec![("pinocchio_derive_test", program_id)]));
+        ProgramTestConfig::new_v2(true, Some(vec![("anchor_semi_manual_test", program_id)]));
     config = config.with_light_protocol_events();
 
     let mut rpc = LightProgramTest::new(config).await.unwrap();

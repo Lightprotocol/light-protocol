@@ -65,7 +65,7 @@ members = [
     "sdk-tests/csdk-anchor-full-derived-test-sdk",
     "sdk-tests/single-mint-test",
     "sdk-tests/single-pda-test",
-    "sdk-tests/pinocchio-derive-test",
+    "sdk-tests/anchor-semi-manual-test",
     "sdk-tests/single-account-loader-test",
     "sdk-tests/single-ata-test",
     "sdk-tests/single-token-test",

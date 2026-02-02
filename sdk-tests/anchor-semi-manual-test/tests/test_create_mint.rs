@@ -1,6 +1,7 @@
 mod shared;
 
 use anchor_lang::{InstructionData, ToAccountMetas};
+use anchor_semi_manual_test::{CreateMintParams, MINT_SIGNER_SEED_A};
 use light_client::interface::{
     create_load_instructions, get_create_accounts_proof, AccountInterface, AccountInterfaceExt,
     AccountSpec, ColdContext, CreateAccountsProofInput,
@@ -9,7 +10,6 @@ use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{program_test::TestRpc, Rpc};
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
 use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
-use pinocchio_derive_test::{CreateMintParams, MINT_SIGNER_SEED_A};
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -39,7 +39,7 @@ async fn test_create_mint_derive() {
     .await
     .unwrap();
 
-    let accounts = pinocchio_derive_test::accounts::CreateMint {
+    let accounts = anchor_semi_manual_test::accounts::CreateMint {
         fee_payer: payer.pubkey(),
         authority: authority.pubkey(),
         mint_signer: mint_signer_pda,
@@ -52,7 +52,7 @@ async fn test_create_mint_derive() {
         system_program: solana_sdk::system_program::ID,
     };
 
-    let instruction_data = pinocchio_derive_test::instruction::CreateMint {
+    let instruction_data = anchor_semi_manual_test::instruction::CreateMint {
         params: CreateMintParams {
             create_accounts_proof: proof_result.create_accounts_proof,
             mint_signer_bump,
@@ -96,7 +96,7 @@ async fn test_create_mint_derive() {
     shared::assert_onchain_closed(&mut rpc, &mint_pda, "Mint").await;
 
     // PHASE 3: Decompress via create_load_instructions
-    use pinocchio_derive_test::LightAccountVariant;
+    use anchor_semi_manual_test::LightAccountVariant;
 
     let mint_interface = rpc
         .get_mint_interface(&mint_pda)
