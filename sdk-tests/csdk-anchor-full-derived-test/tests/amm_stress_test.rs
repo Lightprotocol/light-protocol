@@ -553,7 +553,6 @@ async fn decompress_all(ctx: &mut AmmTestContext, pdas: &AmmPdas) {
         .expect("failed to get token_1_mint")
         .value
         .expect("token_1_mint should exist");
-    // Use the From impl which correctly creates ColdContext::Mint
     let mint_1_account_iface = AccountInterface::from(mint_1_iface);
 
     let mut all_specs = specs;
