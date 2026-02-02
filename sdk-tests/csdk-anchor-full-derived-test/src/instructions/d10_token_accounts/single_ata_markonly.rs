@@ -7,8 +7,7 @@
 
 use anchor_lang::prelude::*;
 use light_sdk_macros::LightAccounts;
-use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
-use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
+use light_account::{LIGHT_TOKEN_PROGRAM_ID, LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D10SingleAtaMarkonlyParams {

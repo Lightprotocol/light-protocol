@@ -74,16 +74,16 @@ pub fn prepare_compressed_account_on_init(
 /// Reimburse the fee_payer for rent paid during PDA creation.
 ///
 /// During Anchor `init`, the fee_payer pays rent for PDA accounts.
-/// This function transfers the total rent amount from the program-owned
-/// rent_sponsor PDA back to the fee_payer.
+/// This function transfers the total rent amount from the rent_sponsor
+/// PDA back to the fee_payer via system program CPI.
 ///
-/// Uses direct lamport manipulation (no CPI) since rent_sponsor is owned
-/// by the calling program.
+/// The rent_sponsor is a system-owned PDA, so CPI with invoke_signed
+/// is required (direct lamport manipulation would fail).
 pub fn reimburse_rent<AI: AccountInfoTrait>(
     created_accounts: &[AI],
     fee_payer: &AI,
     rent_sponsor: &AI,
-    _program_id: &[u8; 32],
+    rent_sponsor_signer_seeds: &[&[u8]],
 ) -> Result<(), LightSdkTypesError> {
     let mut total_rent: u64 = 0;
     for account in created_accounts {
@@ -94,7 +94,7 @@ pub fn reimburse_rent<AI: AccountInfoTrait>(
 
     if total_rent > 0 {
         rent_sponsor
-            .transfer_lamports(fee_payer, total_rent)
+            .transfer_lamports_cpi(fee_payer, total_rent, rent_sponsor_signer_seeds)
             .map_err(LightSdkTypesError::AccountError)?;
     }
 

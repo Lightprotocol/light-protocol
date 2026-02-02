@@ -63,6 +63,10 @@ impl AccountInfoTrait for pinocchio::account_info::AccountInfo {
         *self.key()
     }
 
+    fn key_ref(&self) -> &[u8] {
+        self.key()
+    }
+
     fn pubkey(&self) -> Self::Pubkey {
         *self.key()
     }
@@ -250,9 +254,12 @@ impl AccountInfoTrait for pinocchio::account_info::AccountInfo {
         let pda_seeds_vec: Vec<Seed> = pda_seeds.iter().map(|s| Seed::from(*s)).collect();
         let pda_signer = Signer::from(&pda_seeds_vec[..]);
 
+        // Only build payer signer when rent_payer is itself a PDA.
+        // Passing empty seeds to invoke_signed causes create_program_address(&[], program_id)
+        // which can fail if the result happens to land on the ed25519 curve.
         let payer_seeds_vec: Vec<Seed> =
             rent_payer_seeds.iter().map(|s| Seed::from(*s)).collect();
-        let payer_signer = Signer::from(&payer_seeds_vec[..]);
+        let has_payer_seeds = !rent_payer_seeds.is_empty();
 
         // Cold path: account already has lamports (e.g., attacker donation).
         // CreateAccount would fail, so use Assign + Allocate + Transfer.
@@ -273,28 +280,47 @@ impl AccountInfoTrait for pinocchio::account_info::AccountInfo {
 
             let current_lamports = self.lamports();
             if lamports > current_lamports {
-                pinocchio_system::instructions::Transfer {
-                    from: rent_payer,
-                    to: self,
-                    lamports: lamports - current_lamports,
+                if has_payer_seeds {
+                    let payer_signer = Signer::from(&payer_seeds_vec[..]);
+                    pinocchio_system::instructions::Transfer {
+                        from: rent_payer,
+                        to: self,
+                        lamports: lamports - current_lamports,
+                    }
+                    .invoke_signed(&[payer_signer])
+                    .map_err(AccountError::from)?;
+                } else {
+                    pinocchio_system::instructions::Transfer {
+                        from: rent_payer,
+                        to: self,
+                        lamports: lamports - current_lamports,
+                    }
+                    .invoke_signed(&[])
+                    .map_err(AccountError::from)?;
                 }
-                .invoke_signed(&[payer_signer])
-                .map_err(AccountError::from)?;
             }
 
             return Ok(());
         }
 
         // Normal path: CreateAccount
-        pinocchio_system::instructions::CreateAccount {
+        let create_account = pinocchio_system::instructions::CreateAccount {
             from: rent_payer,
             to: self,
             lamports,
             space,
             owner,
+        };
+        if has_payer_seeds {
+            let payer_signer = Signer::from(&payer_seeds_vec[..]);
+            create_account
+                .invoke_signed(&[payer_signer, pda_signer])
+                .map_err(AccountError::from)
+        } else {
+            create_account
+                .invoke_signed(&[pda_signer])
+                .map_err(AccountError::from)
         }
-        .invoke_signed(&[payer_signer, pda_signer])
-        .map_err(AccountError::from)
     }
 
     fn transfer_lamports_cpi(
@@ -350,7 +376,6 @@ impl AccountInfoTrait for pinocchio::account_info::AccountInfo {
             data: instruction_data,
         };
 
-        // Build account info refs
         let info_refs: Vec<&pinocchio::account_info::AccountInfo> =
             account_infos.iter().collect();
 

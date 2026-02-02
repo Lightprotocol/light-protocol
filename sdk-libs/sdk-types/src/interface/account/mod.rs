@@ -7,5 +7,6 @@ pub mod compression_info;
 pub mod light_account;
 pub mod pack;
 pub mod pda_seeds;
+pub mod size;
 #[cfg(feature = "token")]
 pub mod token_seeds;

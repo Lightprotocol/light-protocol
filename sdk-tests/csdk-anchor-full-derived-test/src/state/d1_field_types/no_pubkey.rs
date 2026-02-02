@@ -4,7 +4,7 @@
 //! resulting in Pack/Unpack being a type alias (identity).
 
 use anchor_lang::prelude::*;
-use light_sdk::{compressible::CompressionInfo, LightDiscriminator};
+use light_account::{CompressionInfo, LightDiscriminator};
 use light_sdk_macros::LightAccount;
 
 /// A struct with only primitive fields - no Pubkey.

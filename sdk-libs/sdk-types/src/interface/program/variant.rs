@@ -97,16 +97,18 @@ pub trait PackedLightAccountVariantTrait<const SEED_COUNT: usize>:
     ) -> Result<[&'a [u8]; SEED_COUNT], LightSdkTypesError>;
 
     /// Extract token data for compressed token CPI.
-    /// Only meaningful for token account variants; PDA variants should return an error.
+    /// Only meaningful for token account variants; PDA variants return an error.
     #[cfg(feature = "token")]
     fn into_in_token_data(
         &self,
-        tree_info: &crate::instruction::PackedStateTreeInfo,
-        output_queue_index: u8,
+        _tree_info: &crate::instruction::PackedStateTreeInfo,
+        _output_queue_index: u8,
     ) -> Result<
         light_token_interface::instructions::transfer2::MultiInputTokenDataWithContext,
         LightSdkTypesError,
-    >;
+    > {
+        Err(LightSdkTypesError::InvalidInstructionData)
+    }
 
     /// Extract TLV extension data for compressed token CPI.
     /// Only meaningful for token account variants; PDA variants return `None`.
@@ -116,7 +118,9 @@ pub trait PackedLightAccountVariantTrait<const SEED_COUNT: usize>:
     ) -> Result<
         Option<Vec<light_token_interface::instructions::extensions::ExtensionInstructionData>>,
         LightSdkTypesError,
-    >;
+    > {
+        Ok(None)
+    }
 
     /// Derive the owner pubkey from constant owner_seeds and program ID.
     /// Only meaningful for token account variants; PDA variants return default.

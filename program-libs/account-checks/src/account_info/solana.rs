@@ -18,6 +18,10 @@ impl AccountInfoTrait for solana_account_info::AccountInfo<'_> {
         self.key.to_bytes()
     }
 
+    fn key_ref(&self) -> &[u8] {
+        self.key.as_ref()
+    }
+
     fn pubkey(&self) -> Self::Pubkey {
         *self.key
     }
@@ -168,11 +172,22 @@ impl AccountInfoTrait for solana_account_info::AccountInfo<'_> {
             space,
             &owner_pubkey,
         );
-        invoke_signed(
-            &create_ix,
-            &[rent_payer.clone(), self.clone()],
-            &[rent_payer_seeds, pda_seeds],
-        )
+        // Only include rent_payer_seeds when the payer is itself a PDA.
+        // Passing empty seeds to invoke_signed causes create_program_address(&[], program_id)
+        // which can fail if the result happens to land on the ed25519 curve.
+        if rent_payer_seeds.is_empty() {
+            invoke_signed(
+                &create_ix,
+                &[rent_payer.clone(), self.clone()],
+                &[pda_seeds],
+            )
+        } else {
+            invoke_signed(
+                &create_ix,
+                &[rent_payer.clone(), self.clone()],
+                &[rent_payer_seeds, pda_seeds],
+            )
+        }
         .map_err(|_| AccountError::InvalidAccount)
     }
 
@@ -294,15 +309,28 @@ fn create_pda_with_lamports_solana<'a>(
             account.key,
             lamports - current_lamports,
         );
-        invoke_signed(
-            &transfer_ix,
-            &[
-                rent_payer.clone(),
-                account.clone(),
-                system_program.clone(),
-            ],
-            &[rent_payer_seeds],
-        )
+        // Only include rent_payer_seeds when the payer is itself a PDA.
+        if rent_payer_seeds.is_empty() {
+            invoke_signed(
+                &transfer_ix,
+                &[
+                    rent_payer.clone(),
+                    account.clone(),
+                    system_program.clone(),
+                ],
+                &[],
+            )
+        } else {
+            invoke_signed(
+                &transfer_ix,
+                &[
+                    rent_payer.clone(),
+                    account.clone(),
+                    system_program.clone(),
+                ],
+                &[rent_payer_seeds],
+            )
+        }
         .map_err(|_| AccountError::InvalidAccount)?;
     }
 

@@ -329,6 +329,11 @@ impl Space for CompressionInfo {
     const INIT_SPACE: usize = core::mem::size_of::<CompressionInfo>();
 }
 
+#[cfg(feature = "anchor")]
+impl anchor_lang::Space for CompressionInfo {
+    const INIT_SPACE: usize = core::mem::size_of::<Self>();
+}
+
 /// Space required for Option<CompressionInfo> when Some (1 byte discriminator + INIT_SPACE).
 /// Use this constant in account space calculations.
 pub const OPTION_COMPRESSION_INFO_SPACE: usize = 1 + CompressionInfo::INIT_SPACE;

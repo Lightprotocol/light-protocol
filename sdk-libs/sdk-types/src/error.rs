@@ -72,6 +72,36 @@ pub enum LightSdkTypesError {
     MissingRequiredSignature,
 }
 
+#[cfg(feature = "anchor")]
+impl From<LightSdkTypesError> for anchor_lang::error::Error {
+    fn from(e: LightSdkTypesError) -> Self {
+        anchor_lang::error::Error::from(solana_program_error::ProgramError::Custom(u32::from(e)))
+    }
+}
+
+#[cfg(feature = "anchor")]
+impl From<LightSdkTypesError> for solana_program_error::ProgramError {
+    fn from(e: LightSdkTypesError) -> Self {
+        solana_program_error::ProgramError::Custom(u32::from(e))
+    }
+}
+
+#[cfg(feature = "anchor")]
+impl From<solana_program_error::ProgramError> for LightSdkTypesError {
+    fn from(e: solana_program_error::ProgramError) -> Self {
+        match e {
+            solana_program_error::ProgramError::InvalidAccountData => {
+                LightSdkTypesError::InvalidInstructionData
+            }
+            solana_program_error::ProgramError::BorshIoError(_) => LightSdkTypesError::Borsh,
+            solana_program_error::ProgramError::AccountBorrowFailed => {
+                LightSdkTypesError::ConstraintViolation
+            }
+            _ => LightSdkTypesError::ConstraintViolation,
+        }
+    }
+}
+
 impl From<LightSdkTypesError> for u32 {
     fn from(e: LightSdkTypesError) -> Self {
         match e {

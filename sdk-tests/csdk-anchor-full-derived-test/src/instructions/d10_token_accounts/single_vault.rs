@@ -8,8 +8,7 @@
 
 use anchor_lang::prelude::*;
 use light_sdk_macros::LightAccounts;
-use light_sdk_types::interface::CreateAccountsProof;
-use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
+use light_account::{CreateAccountsProof, LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
 
 /// Seed for the vault authority PDA
 pub const D10_SINGLE_VAULT_AUTH_SEED: &[u8] = b"d10_single_vault_auth";

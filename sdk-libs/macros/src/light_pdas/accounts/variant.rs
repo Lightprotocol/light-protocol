@@ -241,7 +241,7 @@ impl VariantBuilder {
 
         quote! {
             impl light_account::LightAccountVariantTrait<#seed_count> for #variant_name {
-                const PROGRAM_ID: Pubkey = crate::ID;
+                const PROGRAM_ID: [u8; 32] = crate::ID.to_bytes();
 
                 type Seeds = #seeds_struct_name;
                 type Data = #inner_type;
@@ -281,9 +281,9 @@ impl VariantBuilder {
         // Build ProgramPackedAccounts from the accounts slice
         let unpack_data = quote! {
             {
-                let packed_accounts = light_sdk::light_account_checks::packed_accounts::ProgramPackedAccounts { accounts };
+                let packed_accounts = light_account::packed_accounts::ProgramPackedAccounts { accounts };
                 <#inner_type as light_account::LightAccount>::unpack(&self.data, &packed_accounts)
-                    .map_err(|_| anchor_lang::error::ErrorCode::InvalidProgramId)?
+                    .map_err(|_| light_account::LightSdkTypesError::InvalidInstructionData)?
             }
         };
 
@@ -298,7 +298,7 @@ impl VariantBuilder {
                     self.seeds.bump
                 }
 
-                fn unpack(&self, accounts: &[anchor_lang::prelude::AccountInfo]) -> anchor_lang::Result<Self::Unpacked> {
+                fn unpack<AI: light_account::AccountInfoTrait>(&self, accounts: &[AI]) -> std::result::Result<Self::Unpacked, light_account::LightSdkTypesError> {
                     #(#unpack_seed_stmts)*
 
                     Ok(#variant_name {
@@ -309,21 +309,16 @@ impl VariantBuilder {
                     })
                 }
 
-                fn seed_refs_with_bump<'a>(
+                fn seed_refs_with_bump<'a, AI: light_account::AccountInfoTrait>(
                     &'a self,
-                    accounts: &'a [anchor_lang::prelude::AccountInfo],
+                    accounts: &'a [AI],
                     bump_storage: &'a [u8; 1],
-                ) -> std::result::Result<[&'a [u8]; #seed_count], solana_program_error::ProgramError> {
+                ) -> std::result::Result<[&'a [u8]; #seed_count], light_account::LightSdkTypesError> {
                     Ok([#(#packed_seed_refs_items,)* bump_storage])
                 }
 
-                fn into_in_token_data(&self, _tree_info: &light_sdk::instruction::PackedStateTreeInfo, _output_queue_index: u8) -> anchor_lang::Result<light_account::token::MultiInputTokenDataWithContext> {
-                    Err(solana_program_error::ProgramError::InvalidAccountData.into())
-                }
-
-                fn into_in_tlv(&self) -> anchor_lang::Result<Option<Vec<light_account::token::ExtensionInstructionData>>> {
-                    Ok(None)
-                }
+                // into_in_token_data and into_in_tlv use default impls from trait
+                // (return Err/None for PDA variants)
             }
         }
     }
@@ -343,21 +338,21 @@ impl VariantBuilder {
         // Use LightAccount::pack for all accounts (including zero-copy)
         let pack_data = quote! {
             <#inner_type as light_account::LightAccount>::pack(&self.data, accounts)
-                .map_err(|_| solana_program_error::ProgramError::InvalidAccountData)?
+                .map_err(|_| light_account::LightSdkTypesError::InvalidInstructionData)?
         };
 
         quote! {
             // Pack trait is only available off-chain (client-side packing)
             #[cfg(not(target_os = "solana"))]
-            impl light_sdk::Pack for #variant_name {
+            impl<AM: light_account::AccountMetaTrait> light_account::Pack<AM> for #variant_name {
                 type Packed = #packed_variant_name;
 
                 fn pack(
                     &self,
-                    accounts: &mut light_sdk::instruction::PackedAccounts,
-                ) -> std::result::Result<Self::Packed, solana_program_error::ProgramError> {
+                    accounts: &mut light_account::interface::instruction::PackedAccounts<AM>,
+                ) -> std::result::Result<Self::Packed, light_account::LightSdkTypesError> {
                     use light_account::LightAccountVariantTrait;
-                    let (_, bump) = self.derive_pda();
+                    let (_, bump) = self.derive_pda::<light_account::AccountInfo<'static>>();
                     Ok(#packed_variant_name {
                         seeds: #packed_seeds_struct_name {
                             #(#pack_seed_fields,)*
@@ -482,7 +477,7 @@ impl VariantBuilder {
                 let field = &sf.field_name;
                 if sf.is_account_seed {
                     let idx_field = format_ident!("{}_idx", field);
-                    quote! { #idx_field: accounts.insert_or_get(self.seeds.#field) }
+                    quote! { #idx_field: accounts.insert_or_get(AM::pubkey_from_bytes(self.seeds.#field.to_bytes())) }
                 } else if sf.has_le_bytes {
                     quote! { #field: self.seeds.#field.to_le_bytes() }
                 } else {
@@ -494,7 +489,7 @@ impl VariantBuilder {
 
     /// Generate unpack statements to resolve indices to Pubkeys.
     ///
-    /// Used in `unpack()` which returns `anchor_lang::Result`.
+    /// Used in `unpack()` which returns `Result<..., LightSdkTypesError>`.
     fn generate_unpack_seed_statements(&self, _for_program_error: bool) -> Vec<TokenStream> {
         self.seed_fields
             .iter()
@@ -503,10 +498,12 @@ impl VariantBuilder {
                 let field = &sf.field_name;
                 let idx_field = format_ident!("{}_idx", field);
                 quote! {
-                    let #field = *accounts
-                        .get(self.seeds.#idx_field as usize)
-                        .ok_or(anchor_lang::error::ErrorCode::AccountNotEnoughKeys)?
-                        .key;
+                    let #field = solana_pubkey::Pubkey::new_from_array(
+                        accounts
+                            .get(self.seeds.#idx_field as usize)
+                            .ok_or(light_account::LightSdkTypesError::NotEnoughAccountKeys)?
+                            .key()
+                    );
                 }
             })
             .collect()
@@ -568,9 +565,8 @@ impl VariantBuilder {
                     quote! {
                         accounts
                             .get(self.seeds.#idx_field as usize)
-                            .ok_or(solana_program_error::ProgramError::InvalidAccountData)?
-                            .key
-                            .as_ref()
+                            .ok_or(light_account::LightSdkTypesError::InvalidInstructionData)?
+                            .key_ref()
                     }
                 }
                 ClassifiedSeed::DataRooted { root, expr, .. } => {

@@ -356,7 +356,7 @@ async fn test_create_pdas_and_mint_auto() {
     use light_client::interface::{
         create_load_instructions, AccountInterface, AccountSpec, ColdContext, PdaSpec,
     };
-    use light_sdk::interface::token::TokenDataWithSeeds;
+    use light_account::TokenDataWithSeeds;
 
     // Fetch unified interfaces (hot/cold transparent)
     let user_interface = rpc

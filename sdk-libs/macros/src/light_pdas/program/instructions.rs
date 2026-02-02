@@ -125,55 +125,55 @@ pub(crate) fn generate_light_program_items(
                 }
             }
 
-            impl ::light_sdk::hasher::DataHasher for LightAccountVariant {
-                fn hash<H: ::light_sdk::hasher::Hasher>(&self) -> std::result::Result<[u8; 32], ::light_sdk::hasher::HasherError> {
+            impl light_account::hasher::DataHasher for LightAccountVariant {
+                fn hash<H: light_account::hasher::Hasher>(&self) -> std::result::Result<[u8; 32], light_account::hasher::HasherError> {
                     match self {
-                        Self::Empty => Err(::light_sdk::hasher::HasherError::EmptyInput),
+                        Self::Empty => Err(light_account::hasher::HasherError::EmptyInput),
                     }
                 }
             }
 
-            impl light_sdk::LightDiscriminator for LightAccountVariant {
+            impl light_account::LightDiscriminator for LightAccountVariant {
                 const LIGHT_DISCRIMINATOR: [u8; 8] = [0; 8];
                 const LIGHT_DISCRIMINATOR_SLICE: &'static [u8] = &Self::LIGHT_DISCRIMINATOR;
             }
 
             impl light_account::HasCompressionInfo for LightAccountVariant {
-                fn compression_info(&self) -> std::result::Result<&light_account::CompressionInfo, solana_program_error::ProgramError> {
-                    Err(solana_program_error::ProgramError::InvalidAccountData)
+                fn compression_info(&self) -> std::result::Result<&light_account::CompressionInfo, light_account::LightSdkTypesError> {
+                    Err(light_account::LightSdkTypesError::InvalidInstructionData)
                 }
 
-                fn compression_info_mut(&mut self) -> std::result::Result<&mut light_account::CompressionInfo, solana_program_error::ProgramError> {
-                    Err(solana_program_error::ProgramError::InvalidAccountData)
+                fn compression_info_mut(&mut self) -> std::result::Result<&mut light_account::CompressionInfo, light_account::LightSdkTypesError> {
+                    Err(light_account::LightSdkTypesError::InvalidInstructionData)
                 }
 
                 fn compression_info_mut_opt(&mut self) -> &mut Option<light_account::CompressionInfo> {
                     panic!("compression_info_mut_opt not supported for mint-only programs")
                 }
 
-                fn set_compression_info_none(&mut self) -> std::result::Result<(), solana_program_error::ProgramError> {
-                    Err(solana_program_error::ProgramError::InvalidAccountData)
+                fn set_compression_info_none(&mut self) -> std::result::Result<(), light_account::LightSdkTypesError> {
+                    Err(light_account::LightSdkTypesError::InvalidInstructionData)
                 }
             }
 
-            impl light_sdk::account::Size for LightAccountVariant {
-                fn size(&self) -> std::result::Result<usize, solana_program_error::ProgramError> {
-                    Err(solana_program_error::ProgramError::InvalidAccountData)
+            impl light_account::Size for LightAccountVariant {
+                fn size(&self) -> std::result::Result<usize, light_account::LightSdkTypesError> {
+                    Err(light_account::LightSdkTypesError::InvalidInstructionData)
                 }
             }
 
             // Pack trait is only available off-chain (client-side)
             #[cfg(not(target_os = "solana"))]
-            impl light_sdk::Pack for LightAccountVariant {
+            impl<AM: light_account::AccountMetaTrait> light_account::Pack<AM> for LightAccountVariant {
                 type Packed = Self;
-                fn pack(&self, _remaining_accounts: &mut light_sdk::instruction::PackedAccounts) -> std::result::Result<Self::Packed, solana_program_error::ProgramError> {
+                fn pack(&self, _remaining_accounts: &mut light_account::interface::instruction::PackedAccounts<AM>) -> std::result::Result<Self::Packed, light_account::LightSdkTypesError> {
                     Ok(Self::Empty)
                 }
             }
 
-            impl light_sdk::Unpack for LightAccountVariant {
+            impl<AI: light_account::AccountInfoTrait> light_account::Unpack<AI> for LightAccountVariant {
                 type Unpacked = Self;
-                fn unpack(&self, _remaining_accounts: &[solana_account_info::AccountInfo]) -> std::result::Result<Self::Unpacked, solana_program_error::ProgramError> {
+                fn unpack(&self, _remaining_accounts: &[AI]) -> std::result::Result<Self::Unpacked, light_account::LightSdkTypesError> {
                     Ok(Self::Empty)
                 }
             }
@@ -181,14 +181,14 @@ pub(crate) fn generate_light_program_items(
             /// Wrapper for compressed account data (mint-only placeholder).
             #[derive(Clone, Debug, anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize)]
             pub struct LightAccountData {
-                pub meta: light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
+                pub meta: light_account::account_meta::CompressedAccountMetaNoLamportsNoAddress,
                 pub data: LightAccountVariant,
             }
 
             impl Default for LightAccountData {
                 fn default() -> Self {
                     Self {
-                        meta: light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress::default(),
+                        meta: light_account::account_meta::CompressedAccountMetaNoLamportsNoAddress::default(),
                         data: LightAccountVariant::default(),
                     }
                 }
@@ -328,8 +328,9 @@ pub(crate) fn generate_light_program_items(
                         }
                     }
                     impl light_account::IntoVariant<LightAccountVariant> for #seeds_struct_name {
-                        fn into_variant(self, data: &[u8]) -> std::result::Result<LightAccountVariant, anchor_lang::error::Error> {
+                        fn into_variant(self, data: &[u8]) -> std::result::Result<LightAccountVariant, light_account::LightSdkTypesError> {
                             LightAccountVariant::#constructor_name(data, self)
+                                .map_err(|_| light_account::LightSdkTypesError::InvalidInstructionData)
                         }
                     }
                 };
@@ -366,7 +367,7 @@ pub(crate) fn generate_light_program_items(
     let error_codes = compress_builder.generate_error_codes()?;
 
     // Create DecompressBuilder to generate all decompress-related code
-    let decompress_builder = DecompressBuilder::new(pda_ctx_seeds.clone(), pda_seeds.clone());
+    let decompress_builder = DecompressBuilder::new(pda_ctx_seeds.clone(), pda_seeds.clone(), has_token_seeds_early);
     // Note: DecompressBuilder validation is optional for now since pda_seeds may be empty for TokenOnly
 
     let decompress_accounts = decompress_builder.generate_accounts_struct()?;
@@ -503,24 +504,38 @@ pub(crate) fn generate_light_program_items(
         }
     };
 
+    let init_config_params_struct: syn::ItemStruct = syn::parse_quote! {
+        /// Configuration parameters for initializing compression config.
+        /// Field order matches SDK client's `InitializeCompressionConfigAnchorData`.
+        #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+        pub struct InitConfigParams {
+            pub write_top_up: u32,
+            pub rent_sponsor: Pubkey,
+            pub compression_authority: Pubkey,
+            pub rent_config: light_account::RentConfig,
+            pub address_space: Vec<Pubkey>,
+        }
+    };
+
     let init_config_instruction: syn::ItemFn = syn::parse_quote! {
         #[inline(never)]
         pub fn initialize_compression_config<'info>(
             ctx: Context<'_, '_, '_, 'info, InitializeCompressionConfig<'info>>,
-            instruction_data: Vec<u8>,
+            params: InitConfigParams,
         ) -> Result<()> {
-            let remaining = [
-                ctx.accounts.payer.to_account_info(),
-                ctx.accounts.config.to_account_info(),
-                ctx.accounts.program_data.to_account_info(),
-                ctx.accounts.authority.to_account_info(),
-                ctx.accounts.system_program.to_account_info(),
-            ];
-            light_account::process_initialize_light_config_checked(
-                &remaining,
-                &instruction_data,
-                &crate::ID,
-            )?;
+            light_account::process_initialize_light_config(
+                &ctx.accounts.config,
+                &ctx.accounts.authority,
+                &params.rent_sponsor.to_bytes(),
+                &params.compression_authority.to_bytes(),
+                params.rent_config,
+                params.write_top_up,
+                params.address_space.iter().map(|p| p.to_bytes()).collect(),
+                0, // config_bump
+                &ctx.accounts.payer,
+                &ctx.accounts.system_program,
+                &crate::ID.to_bytes(),
+            ).map_err(|e| anchor_lang::error::Error::from(solana_program_error::ProgramError::from(e)))?;
             Ok(())
         }
     };
@@ -538,8 +553,8 @@ pub(crate) fn generate_light_program_items(
             light_account::process_update_light_config(
                 &remaining,
                 &instruction_data,
-                &crate::ID,
-            )?;
+                &crate::ID.to_bytes(),
+            ).map_err(|e| anchor_lang::error::Error::from(solana_program_error::ProgramError::from(e)))?;
             Ok(())
         }
     };
@@ -582,6 +597,7 @@ pub(crate) fn generate_light_program_items(
     items.push(quote! { #compress_instruction });
     items.push(quote! { #init_config_accounts });
     items.push(quote! { #update_config_accounts });
+    items.push(quote! { #init_config_params_struct });
     items.push(quote! { #init_config_instruction });
     items.push(quote! { #update_config_instruction });
 

@@ -13,16 +13,17 @@ no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
-custom-heap = ["light-heap", "light-sdk/custom-heap"]
+custom-heap = ["light-heap"]
 default = []
-idl-build = ["anchor-lang/idl-build", "light-sdk/idl-build", "light-anchor-spl/idl-build"]
+idl-build = ["anchor-lang/idl-build", "light-anchor-spl/idl-build"]
 test-sbf = []
 
 [dependencies]
 light-heap = { workspace = true, optional = true }
-light-account = { workspace = true }
-light-sdk = { workspace = true, features = ["anchor", "v2", "anchor-discriminator", "cpi-context"] }
-light-sdk-types = { workspace = true, features = ["v2", "cpi-context"] }
+light-account = { workspace = true, features = ["token", "anchor", "sha256"] }
+light-token = { workspace = true, features = ["anchor"] }
+light-token-interface = { workspace = true }
+light-token-types = { workspace = true }
 light-hasher = { workspace = true, features = ["solana"] }
 bytemuck = { workspace = true, features = ["derive"] }
 solana-program = { workspace = true }
@@ -34,16 +35,11 @@ light-macros = { workspace = true, features = ["solana"] }
 light-instruction-decoder = { workspace = true }
 light-instruction-decoder-derive = { workspace = true }
 solana-instruction = { workspace = true }
-light-sdk-macros = { workspace = true }
+light-sdk-macros = { workspace = true, features = ["anchor-discriminator"] }
 borsh = { workspace = true }
 light-compressed-account = { workspace = true, features = ["solana"] }
 anchor-lang = { workspace = true }
 light-anchor-spl = { workspace = true, features = ["metadata"] }
-light-token-interface = { workspace = true, features = ["anchor"] }
-light-token = { workspace = true, features = ["anchor"] }
-light-compressed-token-sdk = { workspace = true, features = ["anchor"] }
-light-token-types = { workspace = true, features = ["anchor"] }
-light-compressible = { workspace = true, features = ["anchor"] }
 
 [dev-dependencies]
 csdk-anchor-full-derived-test-sdk = { path = "../csdk-anchor-full-derived-test-sdk" }
@@ -51,6 +47,9 @@ light-token-client = { workspace = true }
 light-program-test = { workspace = true, features = ["devenv"] }
 light-client = { workspace = true, features = ["v2", "anchor"] }
 light-test-utils = { workspace = true }
+light-compressible = { workspace = true }
+light-compressed-token-sdk = { workspace = true }
+light-sdk-types = { workspace = true }
 tokio = { workspace = true }
 solana-sdk = { workspace = true }
 solana-logger = { workspace = true }
@@ -64,6 +63,7 @@ bincode = "1.3"
 sha2 = { workspace = true }
 rand = { workspace = true }
 light-batched-merkle-tree = { workspace = true }
+light-sdk = { workspace = true }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

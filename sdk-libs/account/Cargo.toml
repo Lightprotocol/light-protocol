@@ -22,6 +22,7 @@ light-macros = { workspace = true }
 light-account-checks = { workspace = true, features = ["solana"] }
 light-hasher = { workspace = true, default-features = false }
 light-compressed-account = { workspace = true }
+light-compressible = { workspace = true }
 light-token-interface = { workspace = true, optional = true }
 solana-account-info = { workspace = true }
 solana-instruction = { workspace = true }

@@ -117,25 +117,24 @@ pub(super) fn generate_token_account_cpi(
         quote! { &[#(#seed_refs,)* &__bump_slice[..]] }
     };
 
-    // Get mint and owner from field or derive from context
-    // mint is used as AccountInfo for CPI
-    let mint_account_info = field
+    // Get mint binding from field or default
+    let mint_binding = field
         .mint
         .as_ref()
-        .map(|m| quote! { self.#m.to_account_info() })
-        .unwrap_or_else(|| quote! { self.mint.to_account_info() });
+        .map(|m| quote! { let __mint_info = self.#m.to_account_info(); })
+        .unwrap_or_else(|| quote! { let __mint_info = self.mint.to_account_info(); });
 
-    // owner is a Pubkey - the owner of the token account
+    // owner is [u8; 32] - the owner of the token account
     let owner_expr = field
         .owner
         .as_ref()
-        .map(|o| quote! { *self.#o.to_account_info().key })
-        .unwrap_or_else(|| quote! { *self.fee_payer.to_account_info().key });
+        .map(|o| quote! { self.#o.to_account_info().key.to_bytes() })
+        .unwrap_or_else(|| quote! { self.fee_payer.to_account_info().key.to_bytes() });
 
     Some(quote! {
         // Create token account: #field_ident
         {
-            use light_token::instruction::CreateTokenAccountCpi;
+            use light_account::CreateTokenAccountCpi;
 
             // Bind seeds to local variables to extend temporary lifetimes
             #(#seed_bindings)*
@@ -145,17 +144,24 @@ pub(super) fn generate_token_account_cpi(
             let __bump_slice: [u8; 1] = [__bump];
             let __token_account_seeds: &[&[u8]] = #seeds_array_expr;
 
+            // Bind account infos to local variables so we can pass references
+            let __payer_info = self.#fee_payer.to_account_info();
+            let __account_info = self.#field_ident.to_account_info();
+            #mint_binding
+            let __config_info = self.#light_token_config.to_account_info();
+            let __sponsor_info = self.#light_token_rent_sponsor.to_account_info();
+
             CreateTokenAccountCpi {
-                payer: self.#fee_payer.to_account_info(),
-                account: self.#field_ident.to_account_info(),
-                mint: #mint_account_info,
+                payer: &__payer_info,
+                account: &__account_info,
+                mint: &__mint_info,
                 owner: #owner_expr,
             }
             .rent_free(
-                self.#light_token_config.to_account_info(),
-                self.#light_token_rent_sponsor.to_account_info(),
-                __system_program.clone(),
-                &crate::ID,
+                &__config_info,
+                &__sponsor_info,
+                &__system_program,
+                &crate::ID.to_bytes(),
             )
             .invoke_signed(__token_account_seeds)?;
         }
@@ -187,9 +193,9 @@ pub(super) fn generate_ata_cpi(field: &AtaField, infra: &InfraRefs) -> Option<To
         .unwrap_or_else(|| {
             quote! {
                 {
-                    let (_, bump) = light_token::instruction::derive_token_ata(
-                        self.#owner.to_account_info().key,
-                        self.#mint.to_account_info().key,
+                    let (_, bump) = light_account::derive_associated_token_account::<solana_account_info::AccountInfo>(
+                        &self.#owner.to_account_info().key.to_bytes(),
+                        &self.#mint.to_account_info().key.to_bytes(),
                     );
                     bump
                 }
@@ -199,20 +205,28 @@ pub(super) fn generate_ata_cpi(field: &AtaField, infra: &InfraRefs) -> Option<To
     Some(quote! {
         // Create ATA: #field_ident
         {
-            use light_token::instruction::CreateTokenAtaCpi;
+            use light_account::CreateTokenAtaCpi;
+
+            // Bind account infos to local variables so we can pass references
+            let __payer_info = self.#fee_payer.to_account_info();
+            let __owner_info = self.#owner.to_account_info();
+            let __mint_info = self.#mint.to_account_info();
+            let __ata_info = self.#field_ident.to_account_info();
+            let __config_info = self.#light_token_config.to_account_info();
+            let __sponsor_info = self.#light_token_rent_sponsor.to_account_info();
 
             CreateTokenAtaCpi {
-                payer: self.#fee_payer.to_account_info(),
-                owner: self.#owner.to_account_info(),
-                mint: self.#mint.to_account_info(),
-                ata: self.#field_ident.to_account_info(),
+                payer: &__payer_info,
+                owner: &__owner_info,
+                mint: &__mint_info,
+                ata: &__ata_info,
                 bump: #bump_expr,
             }
             .idempotent()
             .rent_free(
-                self.#light_token_config.to_account_info(),
-                self.#light_token_rent_sponsor.to_account_info(),
-                __system_program.clone(),
+                &__config_info,
+                &__sponsor_info,
+                &__system_program,
             )
             .invoke()?;
         }

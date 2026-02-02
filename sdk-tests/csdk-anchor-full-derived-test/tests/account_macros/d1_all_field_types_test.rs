@@ -471,9 +471,9 @@ fn test_pack_converts_all_pubkey_types() {
     // Only direct Pubkey fields are stored in packed_accounts (not Option<Pubkey>)
     let stored_pubkeys = packed_accounts.packed_pubkeys();
     assert_eq!(stored_pubkeys.len(), 3);
-    assert_eq!(stored_pubkeys[0], owner);
-    assert_eq!(stored_pubkeys[1], delegate);
-    assert_eq!(stored_pubkeys[2], authority);
+    assert_eq!(stored_pubkeys[0], owner.to_bytes());
+    assert_eq!(stored_pubkeys[1], delegate.to_bytes());
+    assert_eq!(stored_pubkeys[2], authority.to_bytes());
 }
 
 #[test]

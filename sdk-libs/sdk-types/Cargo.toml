@@ -13,7 +13,7 @@ alloc = ["light-compressed-account/alloc"]
 keccak = ["light-hasher/keccak"]
 sha256 = ["light-hasher/sha256", "light-compressed-account/sha256"]
 token = ["dep:light-token-interface"]
-anchor = ["anchor-lang", "light-compressed-account/anchor"]
+anchor = ["anchor-lang", "light-compressed-account/anchor", "solana-program-error"]
 idl-build = ["anchor-lang/idl-build", "anchor"]
 v2 = []
 cpi-context = []
@@ -29,6 +29,7 @@ light-compressible = { workspace = true }
 light-macros = { workspace = true }
 light-token-interface = { workspace = true, optional = true }
 solana-msg = { workspace = true, optional = true }
+solana-program-error = { workspace = true, optional = true }
 
 # External dependencies
 borsh = { workspace = true }

@@ -273,9 +273,9 @@ fn test_pack_converts_all_pubkeys_to_indices() {
 
     let stored_pubkeys = packed_accounts.packed_pubkeys();
     assert_eq!(stored_pubkeys.len(), 3);
-    assert_eq!(stored_pubkeys[0], owner);
-    assert_eq!(stored_pubkeys[1], delegate);
-    assert_eq!(stored_pubkeys[2], authority);
+    assert_eq!(stored_pubkeys[0], owner.to_bytes());
+    assert_eq!(stored_pubkeys[1], delegate.to_bytes());
+    assert_eq!(stored_pubkeys[2], authority.to_bytes());
 }
 
 #[test]
@@ -385,27 +385,27 @@ fn test_pack_stores_all_pubkeys_in_packed_accounts() {
     let stored_pubkeys = packed_accounts.packed_pubkeys();
     assert_eq!(stored_pubkeys.len(), 6, "should have 6 pubkeys stored");
     assert_eq!(
-        stored_pubkeys[packed1.owner as usize], owner1,
+        stored_pubkeys[packed1.owner as usize], owner1.to_bytes(),
         "first record owner should match"
     );
     assert_eq!(
-        stored_pubkeys[packed1.delegate as usize], delegate1,
+        stored_pubkeys[packed1.delegate as usize], delegate1.to_bytes(),
         "first record delegate should match"
     );
     assert_eq!(
-        stored_pubkeys[packed1.authority as usize], authority1,
+        stored_pubkeys[packed1.authority as usize], authority1.to_bytes(),
         "first record authority should match"
     );
     assert_eq!(
-        stored_pubkeys[packed2.owner as usize], owner2,
+        stored_pubkeys[packed2.owner as usize], owner2.to_bytes(),
         "second record owner should match"
     );
     assert_eq!(
-        stored_pubkeys[packed2.delegate as usize], delegate2,
+        stored_pubkeys[packed2.delegate as usize], delegate2.to_bytes(),
         "second record delegate should match"
     );
     assert_eq!(
-        stored_pubkeys[packed2.authority as usize], authority2,
+        stored_pubkeys[packed2.authority as usize], authority2.to_bytes(),
         "second record authority should match"
     );
 }

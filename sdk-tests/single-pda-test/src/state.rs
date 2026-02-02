@@ -1,7 +1,7 @@
 //! State module for single-pda-test.
 
 use anchor_lang::prelude::*;
-use light_sdk::{compressible::CompressionInfo, LightDiscriminator};
+use light_account::{CompressionInfo, LightDiscriminator};
 use light_sdk_macros::LightAccount;
 
 /// Minimal record struct for testing PDA creation.

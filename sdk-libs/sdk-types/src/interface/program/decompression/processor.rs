@@ -332,14 +332,19 @@ where
         cpi_config,
     );
 
-    // Token (ctoken) accounts layout:
+    // Token (ctoken) accounts layout (only required when token accounts are present):
     // [3] ctoken_rent_sponsor, [6] ctoken_compressible_config
-    let ctoken_rent_sponsor = remaining_accounts
-        .get(3)
-        .ok_or(LightSdkTypesError::NotEnoughAccountKeys)?;
-    let ctoken_compressible_config = remaining_accounts
-        .get(6)
-        .ok_or(LightSdkTypesError::NotEnoughAccountKeys)?;
+    let (ctoken_rent_sponsor, ctoken_compressible_config) = if has_token_accounts {
+        let rent_sponsor = remaining_accounts
+            .get(3)
+            .ok_or(LightSdkTypesError::NotEnoughAccountKeys)?;
+        let config = remaining_accounts
+            .get(6)
+            .ok_or(LightSdkTypesError::NotEnoughAccountKeys)?;
+        (Some(rent_sponsor), Some(config))
+    } else {
+        (None, None)
+    };
 
     // 6. Build context and dispatch (scoped to release borrows before CPI)
     let (compressed_account_infos, in_token_data, in_tlv, token_seeds) = {
@@ -353,8 +358,8 @@ where
             current_slot,
             output_queue_index: params.output_queue_index,
             compressed_account_infos: Vec::new(),
-            ctoken_rent_sponsor: Some(ctoken_rent_sponsor),
-            ctoken_compressible_config: Some(ctoken_compressible_config),
+            ctoken_rent_sponsor,
+            ctoken_compressible_config,
             in_token_data: Vec::new(),
             in_tlv: None,
             token_seeds: Vec::new(),

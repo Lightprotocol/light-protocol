@@ -268,7 +268,7 @@ fn test_pack_converts_pubkey_to_index() {
 
     let stored_pubkeys = packed_accounts.packed_pubkeys();
     assert_eq!(stored_pubkeys.len(), 1);
-    assert_eq!(stored_pubkeys[0], owner);
+    assert_eq!(stored_pubkeys[0], owner.to_bytes());
 }
 
 #[test]
@@ -298,7 +298,7 @@ fn test_pack_preserves_option_pubkey_as_option_pubkey() {
     // Only the direct Pubkey field (owner) is stored in packed_accounts
     let stored_pubkeys = packed_accounts.packed_pubkeys();
     assert_eq!(stored_pubkeys.len(), 1);
-    assert_eq!(stored_pubkeys[0], owner);
+    assert_eq!(stored_pubkeys[0], owner.to_bytes());
 }
 
 #[test]
@@ -331,7 +331,7 @@ fn test_pack_option_pubkey_none_stays_none() {
     // Only the direct Pubkey field (owner) is stored in packed_accounts
     let stored_pubkeys = packed_accounts.packed_pubkeys();
     assert_eq!(stored_pubkeys.len(), 1);
-    assert_eq!(stored_pubkeys[0], owner);
+    assert_eq!(stored_pubkeys[0], owner.to_bytes());
 }
 
 #[test]
@@ -361,7 +361,7 @@ fn test_pack_all_option_pubkeys_some() {
     // Only the direct Pubkey field (owner) is stored in packed_accounts
     let stored_pubkeys = packed_accounts.packed_pubkeys();
     assert_eq!(stored_pubkeys.len(), 1);
-    assert_eq!(stored_pubkeys[0], owner);
+    assert_eq!(stored_pubkeys[0], owner.to_bytes());
 }
 
 #[test]
@@ -386,7 +386,7 @@ fn test_pack_all_option_pubkeys_none() {
 
     let stored_pubkeys = packed_accounts.packed_pubkeys();
     assert_eq!(stored_pubkeys.len(), 1);
-    assert_eq!(stored_pubkeys[0], owner);
+    assert_eq!(stored_pubkeys[0], owner.to_bytes());
 }
 
 #[test]

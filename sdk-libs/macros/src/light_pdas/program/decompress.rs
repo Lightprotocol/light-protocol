@@ -30,6 +30,10 @@ pub(super) struct DecompressBuilder {
     pda_ctx_seeds: Vec<PdaCtxSeedInfo>,
     /// PDA seed specifications.
     pda_seeds: Option<Vec<TokenSeedSpec>>,
+    /// Whether the program has token accounts (tokens/ATAs/mints).
+    /// When true, the generated processor calls the full decompress function
+    /// that handles both PDA and token accounts.
+    has_tokens: bool,
 }
 
 impl DecompressBuilder {
@@ -38,10 +42,16 @@ impl DecompressBuilder {
     /// # Arguments
     /// * `pda_ctx_seeds` - PDA context seed information for each variant
     /// * `pda_seeds` - PDA seed specifications
-    pub fn new(pda_ctx_seeds: Vec<PdaCtxSeedInfo>, pda_seeds: Option<Vec<TokenSeedSpec>>) -> Self {
+    /// * `has_tokens` - Whether the program has token accounts
+    pub fn new(
+        pda_ctx_seeds: Vec<PdaCtxSeedInfo>,
+        pda_seeds: Option<Vec<TokenSeedSpec>>,
+        has_tokens: bool,
+    ) -> Self {
         Self {
             pda_ctx_seeds,
             pda_seeds,
+            has_tokens,
         }
     }
 
@@ -50,22 +60,50 @@ impl DecompressBuilder {
     // -------------------------------------------------------------------------
 
     /// Generate the processor function for decompress accounts (v2 interface).
+    ///
+    /// For programs with token accounts, calls the full processor that handles
+    /// both PDA and token decompression. For PDA-only programs, calls the
+    /// simpler PDA-only processor.
     pub fn generate_processor(&self) -> Result<syn::ItemFn> {
-        Ok(syn::parse_quote! {
-            #[inline(never)]
-            pub fn process_decompress_accounts_idempotent<'info>(
-                remaining_accounts: &[solana_account_info::AccountInfo<'info>],
-                instruction_data: &[u8],
-            ) -> Result<()> {
-                light_account::process_decompress_pda_accounts_idempotent::<PackedLightAccountVariant>(
-                    remaining_accounts,
-                    instruction_data,
-                    LIGHT_CPI_SIGNER,
-                    &crate::ID,
-                )
-                .map_err(|e: solana_program_error::ProgramError| -> anchor_lang::error::Error { e.into() })
-            }
-        })
+        if self.has_tokens {
+            Ok(syn::parse_quote! {
+                #[inline(never)]
+                pub fn process_decompress_accounts_idempotent<'info>(
+                    remaining_accounts: &[solana_account_info::AccountInfo<'info>],
+                    instruction_data: &[u8],
+                ) -> Result<()> {
+                    use solana_program::{clock::Clock, sysvar::Sysvar};
+                    let current_slot = Clock::get()?.slot;
+                    light_account::process_decompress_accounts_idempotent::<_, PackedLightAccountVariant>(
+                        remaining_accounts,
+                        instruction_data,
+                        LIGHT_CPI_SIGNER,
+                        &crate::ID.to_bytes(),
+                        current_slot,
+                    )
+                    .map_err(|e| anchor_lang::error::Error::from(solana_program_error::ProgramError::from(e)))
+                }
+            })
+        } else {
+            Ok(syn::parse_quote! {
+                #[inline(never)]
+                pub fn process_decompress_accounts_idempotent<'info>(
+                    remaining_accounts: &[solana_account_info::AccountInfo<'info>],
+                    instruction_data: &[u8],
+                ) -> Result<()> {
+                    use solana_program::{clock::Clock, sysvar::Sysvar};
+                    let current_slot = Clock::get()?.slot;
+                    light_account::process_decompress_pda_accounts_idempotent::<_, PackedLightAccountVariant>(
+                        remaining_accounts,
+                        instruction_data,
+                        LIGHT_CPI_SIGNER,
+                        &crate::ID.to_bytes(),
+                        current_slot,
+                    )
+                    .map_err(|e| anchor_lang::error::Error::from(solana_program_error::ProgramError::from(e)))
+                }
+            })
+        }
     }
 
     /// Generate the decompress instruction entrypoint function (v2 interface).
@@ -299,10 +337,10 @@ impl DecompressBuilder {
                     impl light_account::PdaSeedDerivation<#ctx_seeds_struct_name, SeedParams> for #inner_type {
                         fn derive_pda_seeds_with_accounts(
                             &self,
-                            program_id: &solana_pubkey::Pubkey,
+                            program_id: &[u8; 32],
                             ctx_seeds: &#ctx_seeds_struct_name,
                             seed_params: &SeedParams,
-                        ) -> std::result::Result<(Vec<Vec<u8>>, solana_pubkey::Pubkey), solana_program_error::ProgramError> {
+                        ) -> std::result::Result<(Vec<Vec<u8>>, [u8; 32]), light_account::LightSdkTypesError> {
                             #seed_derivation
                         }
                     }
@@ -314,10 +352,10 @@ impl DecompressBuilder {
                     impl light_account::PdaSeedDerivation<#ctx_seeds_struct_name, SeedParams> for #inner_type {
                         fn derive_pda_seeds_with_accounts(
                             &self,
-                            program_id: &solana_pubkey::Pubkey,
+                            program_id: &[u8; 32],
                             ctx_seeds: &#ctx_seeds_struct_name,
                             _seed_params: &SeedParams,
-                        ) -> std::result::Result<(Vec<Vec<u8>>, solana_pubkey::Pubkey), solana_program_error::ProgramError> {
+                        ) -> std::result::Result<(Vec<Vec<u8>>, [u8; 32]), light_account::LightSdkTypesError> {
                             #seed_derivation
                         }
                     }
@@ -346,9 +384,9 @@ impl DecompressBuilder {
                 pub fn decompress_dispatch<'info>(
                     remaining_accounts: &[solana_account_info::AccountInfo<'info>],
                     instruction_data: &[u8],
-                    cpi_signer: light_sdk_types::CpiSigner,
+                    cpi_signer: light_account::CpiSigner,
                     program_id: &solana_pubkey::Pubkey,
-                ) -> std::result::Result<(), solana_program_error::ProgramError> {
+                ) -> std::result::Result<(), light_account::LightSdkTypesError> {
                     light_account::process_decompress_pda_accounts_idempotent::<PackedLightAccountVariant>(
                         remaining_accounts,
                         instruction_data,
@@ -456,7 +494,7 @@ fn generate_pda_seed_derivation_for_trait_with_ctx_seeds(
                             );
                             bindings.push(quote! {
                                 let #binding_name = seed_params.#field_ident
-                                    .ok_or(solana_program_error::ProgramError::InvalidAccountData)?;
+                                    .ok_or(light_account::LightSdkTypesError::InvalidInstructionData)?;
                                 let #bytes_binding_name = #binding_name.to_le_bytes();
                             });
                             seed_refs.push(quote! { #bytes_binding_name.as_ref() });
@@ -464,7 +502,7 @@ fn generate_pda_seed_derivation_for_trait_with_ctx_seeds(
                             // Pubkey field
                             bindings.push(quote! {
                                 let #binding_name = seed_params.#field_ident
-                                    .ok_or(solana_program_error::ProgramError::InvalidAccountData)?;
+                                    .ok_or(light_account::LightSdkTypesError::InvalidInstructionData)?;
                             });
                             seed_refs.push(quote! { #binding_name.as_ref() });
                         }
@@ -499,7 +537,8 @@ fn generate_pda_seed_derivation_for_trait_with_ctx_seeds(
     Ok(quote! {
         #(#bindings)*
         let seeds: &[&[u8]] = &[#(#seed_refs,)*];
-        let (pda, bump) = solana_pubkey::Pubkey::find_program_address(seeds, program_id);
+        let program_id_pubkey = solana_pubkey::Pubkey::from(*program_id);
+        let (pda, bump) = solana_pubkey::Pubkey::find_program_address(seeds, &program_id_pubkey);
         let mut seeds_vec = Vec::with_capacity(seeds.len() + 1);
         #(
             seeds_vec.push(seeds[#indices].to_vec());
@@ -510,7 +549,7 @@ fn generate_pda_seed_derivation_for_trait_with_ctx_seeds(
             bump_vec.push(bump);
             seeds_vec.push(bump_vec);
         }
-        Ok((seeds_vec, pda))
+        Ok((seeds_vec, pda.to_bytes()))
     })
 }
 

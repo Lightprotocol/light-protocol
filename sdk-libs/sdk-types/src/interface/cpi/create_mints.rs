@@ -207,10 +207,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
             .data()
             .map_err(|_| LightSdkTypesError::Borsh)?;
 
-        // Account metas for create_mint + decompress (single mint path)
-        // Order matches MintActionMetaConfig::to_account_metas with compressible_mint + input_queue
-        let metas = self.build_mint_action_metas(0, true, true, false);
-        let account_infos = self.collect_mint_action_infos(0);
+        let (metas, account_infos) = self.build_mint_action(0, true, true, false);
 
         self.invoke_mint_action_raw(&ix_data, &account_infos, &metas, 0)
     }
@@ -364,9 +361,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
             .data()
             .map_err(|_| LightSdkTypesError::Borsh)?;
 
-        // Execute uses full account set with cpi_context + input_queue
-        let metas = self.build_mint_action_metas(last_idx, true, true, true);
-        let account_infos = self.collect_mint_action_infos(last_idx);
+        let (metas, account_infos) = self.build_mint_action(last_idx, true, true, true);
 
         self.invoke_mint_action_raw(&ix_data, &account_infos, &metas, last_idx)
     }
@@ -400,9 +395,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
             .data()
             .map_err(|_| LightSdkTypesError::Borsh)?;
 
-        // Decompress uses state_merkle_tree as tree_pubkey, no cpi_context, with input_queue
-        let metas = self.build_decompress_metas(index);
-        let account_infos = self.collect_decompress_infos(index);
+        let (metas, account_infos) = self.build_decompress_action(index);
 
         self.invoke_mint_action_raw(&ix_data, &account_infos, &metas, index)
     }
@@ -440,7 +433,10 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
         .map_err(|_| LightSdkTypesError::CpiFailed)
     }
 
-    /// Build account metas for a full mint action instruction.
+    /// Build matched account metas and infos for a full mint action CPI.
+    ///
+    /// Returns `(metas, infos)` in identical order so pinocchio's 1:1
+    /// positional CPI requirement is satisfied without runtime reordering.
     ///
     /// Order matches `MintActionMetaConfig::to_account_metas`:
     /// light_system_program, [mint_signer], authority, [compressible_config],
@@ -448,14 +444,15 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
     /// account_compression_authority, account_compression_program, system_program,
     /// [cpi_context], output_queue, tree_pubkey, [input_queue]
     #[inline(never)]
-    fn build_mint_action_metas(
+    fn build_mint_action(
         &self,
         mint_index: usize,
         has_input_queue: bool,
         has_compressible: bool,
         has_cpi_context: bool,
-    ) -> Vec<CpiMeta> {
-        let mut metas = Vec::with_capacity(16);
+    ) -> (Vec<CpiMeta>, Vec<AI>) {
+        let mut metas = Vec::with_capacity(17);
+        let mut infos = Vec::with_capacity(17);
 
         // light_system_program
         metas.push(CpiMeta {
@@ -463,6 +460,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
             is_signer: false,
             is_writable: false,
         });
+        infos.push(self.light_system_program.clone());
 
         // mint_signer (always present for create_mint, must sign)
         metas.push(CpiMeta {
@@ -470,6 +468,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
             is_signer: true,
             is_writable: false,
         });
+        infos.push(self.mint_seed_accounts[mint_index].clone());
 
         // authority (payer is authority)
         metas.push(CpiMeta {
@@ -477,6 +476,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
             is_signer: true,
             is_writable: false,
         });
+        infos.push(self.payer.clone());
 
         if has_compressible {
             // compressible_config
@@ -485,6 +485,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
                 is_signer: false,
                 is_writable: false,
             });
+            infos.push(self.compressible_config.clone());
 
             // mint PDA (writable)
             metas.push(CpiMeta {
@@ -492,6 +493,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
                 is_signer: false,
                 is_writable: true,
             });
+            infos.push(self.mints[mint_index].clone());
 
             // rent_sponsor (writable)
             metas.push(CpiMeta {
@@ -499,6 +501,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
                 is_signer: false,
                 is_writable: true,
             });
+            infos.push(self.rent_sponsor.clone());
         }
 
         // fee_payer (signer, writable)
@@ -507,6 +510,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
             is_signer: true,
             is_writable: true,
         });
+        infos.push(self.payer.clone());
 
         // cpi_authority_pda
         metas.push(CpiMeta {
@@ -514,6 +518,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
             is_signer: false,
             is_writable: false,
         });
+        infos.push(self.cpi_authority_pda.clone());
 
         // registered_program_pda
         metas.push(CpiMeta {
@@ -521,6 +526,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
             is_signer: false,
             is_writable: false,
         });
+        infos.push(self.registered_program_pda.clone());
 
         // account_compression_authority
         metas.push(CpiMeta {
@@ -528,6 +534,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
             is_signer: false,
             is_writable: false,
         });
+        infos.push(self.account_compression_authority.clone());
 
         // account_compression_program
         metas.push(CpiMeta {
@@ -535,6 +542,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
             is_signer: false,
             is_writable: false,
         });
+        infos.push(self.account_compression_program.clone());
 
         // system_program
         metas.push(CpiMeta {
@@ -542,6 +550,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
             is_signer: false,
             is_writable: false,
         });
+        infos.push(self.system_program.clone());
 
         // cpi_context (optional)
         if has_cpi_context {
@@ -550,6 +559,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
                 is_signer: false,
                 is_writable: true,
             });
+            infos.push(self.cpi_context_account.clone());
         }
 
         // output_queue (writable)
@@ -558,6 +568,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
             is_signer: false,
             is_writable: true,
         });
+        infos.push(self.output_queue.clone());
 
         // tree_pubkey (address_tree for create_mint)
         metas.push(CpiMeta {
@@ -565,6 +576,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
             is_signer: false,
             is_writable: true,
         });
+        infos.push(self.address_tree.clone());
 
         // input_queue (optional, same as output_queue for create_mint)
         if has_input_queue {
@@ -573,22 +585,19 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
                 is_signer: false,
                 is_writable: true,
             });
+            infos.push(self.output_queue.clone());
         }
 
-        metas
+        (metas, infos)
     }
 
-    /// Build account metas for a decompress instruction.
+    /// Build matched account metas and infos for a decompress CPI.
     ///
     /// For prove_by_index, tree_pubkey must be state_merkle_tree for discriminator validation.
     #[inline(never)]
-    fn build_decompress_metas(&self, mint_index: usize) -> Vec<CpiMeta> {
-        // Decompress uses MintActionMetaConfig::new() (existing mint path) with compressible_mint
-        // Order: light_system_program, authority, compressible_config, mint, rent_sponsor,
-        //        fee_payer, cpi_authority_pda, registered_program_pda,
-        //        account_compression_authority, account_compression_program, system_program,
-        //        output_queue, tree_pubkey(=state_merkle_tree), input_queue(=output_queue)
+    fn build_decompress_action(&self, mint_index: usize) -> (Vec<CpiMeta>, Vec<AI>) {
         let mut metas = Vec::with_capacity(14);
+        let mut infos = Vec::with_capacity(14);
 
         // light_system_program
         metas.push(CpiMeta {
@@ -596,10 +605,9 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
             is_signer: false,
             is_writable: false,
         });
+        infos.push(self.light_system_program.clone());
 
-        // NOTE: No mint_signer for decompress (mint_signer_must_sign = false in MintActionMetaConfig::new)
-        // But we still have it as non-signing in the original code? Let me check...
-        // Actually, MintActionMetaConfig::new() sets mint_signer to None. So no mint_signer meta.
+        // No mint_signer for decompress
 
         // authority (payer is authority, signer)
         metas.push(CpiMeta {
@@ -607,6 +615,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
             is_signer: true,
             is_writable: false,
         });
+        infos.push(self.payer.clone());
 
         // compressible_config
         metas.push(CpiMeta {
@@ -614,6 +623,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
             is_signer: false,
             is_writable: false,
         });
+        infos.push(self.compressible_config.clone());
 
         // mint PDA (writable)
         metas.push(CpiMeta {
@@ -621,6 +631,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
             is_signer: false,
             is_writable: true,
         });
+        infos.push(self.mints[mint_index].clone());
 
         // rent_sponsor (writable)
         metas.push(CpiMeta {
@@ -628,6 +639,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
             is_signer: false,
             is_writable: true,
         });
+        infos.push(self.rent_sponsor.clone());
 
         // fee_payer (signer, writable)
         metas.push(CpiMeta {
@@ -635,6 +647,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
             is_signer: true,
             is_writable: true,
         });
+        infos.push(self.payer.clone());
 
         // cpi_authority_pda
         metas.push(CpiMeta {
@@ -642,6 +655,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
             is_signer: false,
             is_writable: false,
         });
+        infos.push(self.cpi_authority_pda.clone());
 
         // registered_program_pda
         metas.push(CpiMeta {
@@ -649,6 +663,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
             is_signer: false,
             is_writable: false,
         });
+        infos.push(self.registered_program_pda.clone());
 
         // account_compression_authority
         metas.push(CpiMeta {
@@ -656,6 +671,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
             is_signer: false,
             is_writable: false,
         });
+        infos.push(self.account_compression_authority.clone());
 
         // account_compression_program
         metas.push(CpiMeta {
@@ -663,6 +679,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
             is_signer: false,
             is_writable: false,
         });
+        infos.push(self.account_compression_program.clone());
 
         // system_program
         metas.push(CpiMeta {
@@ -670,6 +687,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
             is_signer: false,
             is_writable: false,
         });
+        infos.push(self.system_program.clone());
 
         // No cpi_context for decompress
 
@@ -679,6 +697,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
             is_signer: false,
             is_writable: true,
         });
+        infos.push(self.output_queue.clone());
 
         // tree_pubkey = state_merkle_tree for prove_by_index discriminator check
         metas.push(CpiMeta {
@@ -686,6 +705,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
             is_signer: false,
             is_writable: true,
         });
+        infos.push(self.state_merkle_tree.clone());
 
         // input_queue = output_queue
         metas.push(CpiMeta {
@@ -693,51 +713,9 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
             is_signer: false,
             is_writable: true,
         });
-
-        metas
-    }
-
-    /// Collect all account infos needed for a full mint action CPI.
-    #[inline(never)]
-    fn collect_mint_action_infos(&self, _mint_index: usize) -> Vec<AI> {
-        let mut infos = vec![self.payer.clone()];
-
-        // System accounts
-        infos.push(self.light_system_program.clone());
-
-        // All mint seeds
-        for mint_seed in self.mint_seed_accounts {
-            infos.push(mint_seed.clone());
-        }
-
-        // More system accounts
-        infos.push(self.cpi_authority_pda.clone());
-        infos.push(self.registered_program_pda.clone());
-        infos.push(self.account_compression_authority.clone());
-        infos.push(self.account_compression_program.clone());
-        infos.push(self.system_program.clone());
-
-        // CPI context, queues, trees
-        infos.push(self.cpi_context_account.clone());
         infos.push(self.output_queue.clone());
-        infos.push(self.state_merkle_tree.clone());
-        infos.push(self.address_tree.clone());
-        infos.push(self.compressible_config.clone());
-        infos.push(self.rent_sponsor.clone());
 
-        // All mint PDAs
-        for mint in self.mints {
-            infos.push(mint.clone());
-        }
-
-        infos
-    }
-
-    /// Collect account infos for a decompress CPI.
-    #[inline(never)]
-    fn collect_decompress_infos(&self, _mint_index: usize) -> Vec<AI> {
-        // Same set as mint_action_infos - runtime resolves from metas
-        self.collect_mint_action_infos(_mint_index)
+        (metas, infos)
     }
 }
 

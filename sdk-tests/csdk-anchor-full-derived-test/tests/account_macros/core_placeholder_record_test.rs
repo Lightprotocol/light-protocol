@@ -355,11 +355,11 @@ fn test_pack_stores_pubkeys_in_packed_accounts() {
     let stored_pubkeys = packed_accounts.packed_pubkeys();
     assert_eq!(stored_pubkeys.len(), 2, "should have 2 pubkeys stored");
     assert_eq!(
-        stored_pubkeys[packed1.owner as usize], owner1,
+        stored_pubkeys[packed1.owner as usize], owner1.to_bytes(),
         "first pubkey should match"
     );
     assert_eq!(
-        stored_pubkeys[packed2.owner as usize], owner2,
+        stored_pubkeys[packed2.owner as usize], owner2.to_bytes(),
         "second pubkey should match"
     );
 }

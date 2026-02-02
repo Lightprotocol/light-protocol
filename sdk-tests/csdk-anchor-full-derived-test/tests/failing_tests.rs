@@ -1,14 +1,14 @@
 //! Security validation tests for decompression.
 //!
 //! Tests verify that invalid decompression attempts are correctly rejected.
-//! Error codes reference:
-//! - 2: InvalidInstructionData
-//! - 3: InvalidAccountData
-//! - 8: MissingRequiredSignature
-//! - 11: NotEnoughAccountKeys
-//! - 14: InvalidSeeds
-//! - 17001: LightSdkTypesError::ConstraintViolation
-//! - 17004: LightSdkTypesError::InvalidRentSponsor
+//! Error codes reference (LightSdkTypesError custom program error codes):
+//! - 14017: FewerAccountsThanSystemAccounts
+//! - 14035: ConstraintViolation
+//! - 14038: InvalidRentSponsor
+//! - 14043: InvalidInstructionData
+//! - 14044: InvalidSeeds
+//! - 14046: NotEnoughAccountKeys
+//! - 14047: MissingRequiredSignature
 
 mod shared;
 
@@ -167,7 +167,7 @@ impl FailingTestContext {
 // PDA DECOMPRESSION TESTS
 // =============================================================================
 
-/// Test: Wrong rent sponsor should fail with InvalidAccountData (3).
+/// Test: Wrong rent sponsor should fail with InvalidRentSponsor (14038).
 /// Validates rent sponsor PDA derivation check in decompress.rs:160-169.
 #[tokio::test]
 async fn test_pda_wrong_rent_sponsor() {
@@ -209,8 +209,8 @@ async fn test_pda_wrong_rent_sponsor() {
         .create_and_send_transaction(&decompress_instructions, &ctx.payer.pubkey(), &[&ctx.payer])
         .await;
 
-    // Should fail with InvalidRentSponsor (17004)
-    assert_rpc_error(result, 0, 17004).unwrap();
+    // Should fail with InvalidRentSponsor (14038)
+    assert_rpc_error(result, 0, 14038).unwrap();
 }
 
 /// Test: Double decompression should be a noop (idempotent).
@@ -296,7 +296,7 @@ async fn test_pda_double_decompress_is_noop() {
     );
 }
 
-/// Test: Wrong config PDA should fail with InvalidAccountData (3).
+/// Test: Wrong config PDA should fail with ConstraintViolation (14035).
 /// Validates config check in config.rs:144-153.
 #[tokio::test]
 async fn test_pda_wrong_config() {
@@ -337,15 +337,15 @@ async fn test_pda_wrong_config() {
         .await;
 
     // Should fail - the config validation will reject the wrong address
-    // This could be InvalidAccountData (3) since it fails to deserialize
-    assert_rpc_error(result, 0, 3).unwrap();
+    // ConstraintViolation (14035) since deserialization/validation of the config account fails
+    assert_rpc_error(result, 0, 14035).unwrap();
 }
 
 // =============================================================================
 // COMMON PARAMETER TESTS
 // =============================================================================
 
-/// Test: system_accounts_offset out of bounds should fail with InvalidInstructionData (2).
+/// Test: system_accounts_offset out of bounds should fail with InvalidInstructionData (14043).
 /// Validates bounds check in decompress.rs:175-177.
 #[tokio::test]
 async fn test_system_accounts_offset_out_of_bounds() {
@@ -385,11 +385,11 @@ async fn test_system_accounts_offset_out_of_bounds() {
         .create_and_send_transaction(&decompress_instructions, &ctx.payer.pubkey(), &[&ctx.payer])
         .await;
 
-    // Should fail with InvalidInstructionData (2)
-    assert_rpc_error(result, 0, 2).unwrap();
+    // Should fail with InvalidInstructionData (14043)
+    assert_rpc_error(result, 0, 14043).unwrap();
 }
 
-/// Test: token_accounts_offset invalid should fail with NotEnoughAccountKeys (11).
+/// Test: token_accounts_offset invalid should fail with InvalidInstructionData (14043).
 /// Validates bounds check in decompress.rs:178-181.
 #[tokio::test]
 async fn test_token_accounts_offset_invalid() {
@@ -430,8 +430,8 @@ async fn test_token_accounts_offset_invalid() {
         .create_and_send_transaction(&decompress_instructions, &ctx.payer.pubkey(), &[&ctx.payer])
         .await;
 
-    // Should fail with NotEnoughAccountKeys (11)
-    assert_rpc_error(result, 0, 11).unwrap();
+    // Should fail with InvalidInstructionData (14043) - token_accounts_offset exceeds accounts count
+    assert_rpc_error(result, 0, 14043).unwrap();
 }
 
 // =============================================================================
@@ -439,7 +439,7 @@ async fn test_token_accounts_offset_invalid() {
 // =============================================================================
 
 /// Test: Removing required accounts should fail.
-/// Error code 11 is NotEnoughAccountKeys.
+/// Error code 14017 is FewerAccountsThanSystemAccounts.
 #[tokio::test]
 async fn test_missing_system_accounts() {
     let mut ctx = FailingTestContext::new().await;
@@ -477,12 +477,12 @@ async fn test_missing_system_accounts() {
         .create_and_send_transaction(&decompress_instructions, &ctx.payer.pubkey(), &[&ctx.payer])
         .await;
 
-    // Should fail with NotEnoughAccountKeys (11) - gracefully handled missing accounts
-    assert_rpc_error(result, 0, 11).unwrap();
+    // Should fail with FewerAccountsThanSystemAccounts (14017) - not enough remaining accounts
+    assert_rpc_error(result, 0, 14017).unwrap();
 }
 
 /// Test: Wrong PDA account (mismatch between seeds and account) should fail.
-/// When we try to create a PDA at a non-PDA address, we get PrivilegeEscalation (19).
+/// When seeds don't match the account, we get InvalidSeeds (14044).
 #[tokio::test]
 async fn test_pda_account_mismatch() {
     let mut ctx = FailingTestContext::new().await;
@@ -520,9 +520,9 @@ async fn test_pda_account_mismatch() {
         .create_and_send_transaction(&decompress_instructions, &ctx.payer.pubkey(), &[&ctx.payer])
         .await;
 
-    // Should fail with InvalidSeeds (14) - PDA derivation validation catches
+    // Should fail with InvalidSeeds (14044) - PDA derivation validation catches
     // the mismatch before attempting CPI
-    assert_rpc_error(result, 0, 14).unwrap();
+    assert_rpc_error(result, 0, 14044).unwrap();
 }
 
 /// Test: Fee payer not a signer should fail with MissingRequiredSignature (8).

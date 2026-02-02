@@ -28,6 +28,9 @@ pub trait AccountInfoTrait {
 
     /// Return raw byte array for maximum compatibility
     fn key(&self) -> [u8; 32];
+    /// Return a reference to the key bytes with the lifetime of the account.
+    /// Used when building seed ref arrays that borrow from the accounts slice.
+    fn key_ref(&self) -> &[u8];
     /// Return the pubkey in the native format
     fn pubkey(&self) -> Self::Pubkey;
     fn is_writable(&self) -> bool;

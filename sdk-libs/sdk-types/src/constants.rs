@@ -33,3 +33,11 @@ pub const CPI_CONTEXT_ACCOUNT_2_DISCRIMINATOR: [u8; 8] = [34, 184, 183, 14, 100,
 pub const SOL_POOL_PDA: [u8; 32] = pubkey_array!("CHK57ywWSDncAoRu1F8QgwYJeXuAJyyBYT4LixLXvMZ1");
 
 pub const ADDRESS_TREE_V2: [u8; 32] = pubkey_array!("amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx");
+
+/// Default compressible config PDA for the Light Token Program (V1).
+pub const LIGHT_TOKEN_CONFIG: [u8; 32] =
+    pubkey_array!("ACXg8a7VaqecBWrSbdu73W4Pg9gsqXJ3EXAqkHyhvVXg");
+
+/// Default rent sponsor PDA for the Light Token Program (V1).
+pub const LIGHT_TOKEN_RENT_SPONSOR: [u8; 32] =
+    pubkey_array!("r18WwUxfG8kQ69bQPAB2jV6zGNKy3GosFGctjQoV4ti");

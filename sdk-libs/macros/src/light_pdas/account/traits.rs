@@ -152,14 +152,14 @@ fn generate_compress_as_impl(
 /// Uses max(INIT_SPACE, serialized_len) to ensure enough space while handling edge cases.
 fn generate_size_impl(struct_name: &Ident) -> TokenStream {
     quote! {
-        impl light_sdk::account::Size for #struct_name {
+        impl light_account::Size for #struct_name {
             #[inline]
-            fn size(&self) -> std::result::Result<usize, solana_program_error::ProgramError> {
+            fn size(&self) -> std::result::Result<usize, light_account::LightSdkTypesError> {
                 // Use Anchor's compile-time INIT_SPACE as the baseline.
                 // Fall back to serialized length if it's somehow larger (edge case safety).
                 let init_space = <Self as anchor_lang::Space>::INIT_SPACE;
                 let serialized_len = self.try_to_vec()
-                    .map_err(|_| solana_program_error::ProgramError::BorshIoError("serialization failed".to_string()))?
+                    .map_err(|_| light_account::LightSdkTypesError::BorshIoError("serialization failed".to_string()))?
                     .len();
                 Ok(core::cmp::max(init_space, serialized_len))
             }

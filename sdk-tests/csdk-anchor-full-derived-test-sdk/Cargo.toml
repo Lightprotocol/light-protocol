@@ -9,6 +9,7 @@ edition = "2021"
 csdk-anchor-full-derived-test = { path = "../csdk-anchor-full-derived-test", features = ["no-entrypoint"] }
 
 # SDK trait and types
+light-account = { workspace = true, features = ["token", "anchor"] }
 light-client = { workspace = true, features = ["v2", "anchor"] }
 light-sdk = { workspace = true, features = ["anchor", "v2"] }
 light-token = { workspace = true, features = ["anchor"] }

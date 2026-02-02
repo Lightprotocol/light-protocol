@@ -7,7 +7,7 @@
 
 use anchor_lang::prelude::*;
 use light_sdk_macros::LightAccounts;
-use light_sdk_types::interface::CreateAccountsProof;
+use light_account::CreateAccountsProof;
 
 use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
 
@@ -21,7 +21,7 @@ pub struct D9ExternalSdkTypesParams {
     pub owner: Pubkey,
 }
 
-/// Tests external crate path: light_sdk_types::constants::CPI_AUTHORITY_PDA_SEED
+/// Tests external crate path: light_account::constants::CPI_AUTHORITY_PDA_SEED
 #[derive(Accounts, LightAccounts)]
 #[instruction(params: D9ExternalSdkTypesParams)]
 pub struct D9ExternalSdkTypes<'info> {
@@ -39,7 +39,7 @@ pub struct D9ExternalSdkTypes<'info> {
         init,
         payer = fee_payer,
         space = 8 + SinglePubkeyRecord::INIT_SPACE,
-        seeds = [b"d9_ext_sdk", light_sdk_types::constants::CPI_AUTHORITY_PDA_SEED, params.owner.as_ref()],
+        seeds = [b"d9_ext_sdk", light_account::constants::CPI_AUTHORITY_PDA_SEED, params.owner.as_ref()],
         bump,
     )]
     #[light_account(init)]
@@ -114,7 +114,7 @@ pub struct D9ExternalMixed<'info> {
         payer = fee_payer,
         space = 8 + SinglePubkeyRecord::INIT_SPACE,
         seeds = [
-            light_sdk_types::constants::CPI_AUTHORITY_PDA_SEED,
+            light_account::constants::CPI_AUTHORITY_PDA_SEED,
             light_token_types::constants::POOL_SEED,
             params.owner.as_ref()
         ],
@@ -157,7 +157,7 @@ pub struct D9ExternalWithLocal<'info> {
         init,
         payer = fee_payer,
         space = 8 + SinglePubkeyRecord::INIT_SPACE,
-        seeds = [D9_EXTERNAL_LOCAL, light_sdk_types::constants::RENT_SPONSOR_SEED, params.owner.as_ref()],
+        seeds = [D9_EXTERNAL_LOCAL, light_account::constants::RENT_SPONSOR_SEED, params.owner.as_ref()],
         bump,
     )]
     #[light_account(init)]
@@ -208,7 +208,7 @@ pub struct D9ExternalBump<'info> {
 // ============================================================================
 
 /// Re-export from external crate for path testing
-pub use light_sdk_types::constants::CPI_AUTHORITY_PDA_SEED as REEXPORTED_SEED;
+pub use light_account::CPI_AUTHORITY_PDA_SEED as REEXPORTED_SEED;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D9ExternalReexportParams {

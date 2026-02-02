@@ -8,7 +8,7 @@ edition = "2021"
 
 [features]
 default = ["alloc"]
-std = ["alloc", "light-sdk-types/std", "light-compressed-account/std"]
+std = ["alloc", "light-sdk-types/std", "light-compressed-account/std", "light-account-checks/solana", "dep:solana-instruction", "dep:solana-pubkey"]
 alloc = ["light-sdk-types/alloc", "light-compressed-account/alloc"]
 token = ["light-sdk-types/token", "dep:light-token-interface"]
 poseidon = ["light-sdk-types/poseidon", "light-hasher/poseidon"]
@@ -23,6 +23,8 @@ light-hasher = { workspace = true, default-features = false }
 light-compressed-account = { workspace = true, default-features = false }
 light-token-interface = { workspace = true, optional = true }
 pinocchio = { workspace = true }
+solana-instruction = { workspace = true, optional = true }
+solana-pubkey = { workspace = true, optional = true }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

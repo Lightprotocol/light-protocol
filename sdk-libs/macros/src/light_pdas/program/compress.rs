@@ -114,7 +114,7 @@ impl CompressBuilder {
                     d if d == #name::LIGHT_DISCRIMINATOR => {
                         let mut reader = &data[8..];
                         let mut account_data = #name::deserialize(&mut reader)
-                            .map_err(|_| solana_program_error::ProgramError::InvalidAccountData)?;
+                            .map_err(|_| light_account::LightSdkTypesError::InvalidInstructionData)?;
                         drop(data);
                         light_account::prepare_account_for_compression(
                             account_info, &mut account_data, meta, index, ctx,
@@ -127,16 +127,16 @@ impl CompressBuilder {
         Ok(syn::parse_quote! {
             fn __compress_dispatch<'info>(
                 account_info: &anchor_lang::prelude::AccountInfo<'info>,
-                meta: &light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
+                meta: &light_account::account_meta::CompressedAccountMetaNoLamportsNoAddress,
                 index: usize,
                 ctx: &mut light_account::CompressCtx<'_, 'info>,
-            ) -> std::result::Result<(), solana_program_error::ProgramError> {
-                use light_sdk::LightDiscriminator;
+            ) -> std::result::Result<(), light_account::LightSdkTypesError> {
+                use light_account::LightDiscriminator;
                 use borsh::BorshDeserialize;
                 let data = account_info.try_borrow_data()?;
                 let discriminator: [u8; 8] = data[..8]
                     .try_into()
-                    .map_err(|_| solana_program_error::ProgramError::InvalidAccountData)?;
+                    .map_err(|_| light_account::LightSdkTypesError::InvalidInstructionData)?;
                 match discriminator {
                     #(#compress_arms)*
                     _ => Ok(()),
@@ -158,9 +158,9 @@ impl CompressBuilder {
                     instruction_data,
                     __compress_dispatch,
                     LIGHT_CPI_SIGNER,
-                    &crate::ID,
+                    &crate::ID.to_bytes(),
                 )
-                .map_err(|e: solana_program_error::ProgramError| -> anchor_lang::error::Error { e.into() })
+                .map_err(|e| anchor_lang::error::Error::from(solana_program_error::ProgramError::from(e)))
             }
         })
     }
@@ -336,7 +336,7 @@ impl CompressBuilder {
                     d if d == #name::LIGHT_DISCRIMINATOR => {
                         let mut reader = &data[8..];
                         let mut account_data = #name::deserialize(&mut reader)
-                            .map_err(|_| solana_program_error::ProgramError::InvalidAccountData)?;
+                            .map_err(|_| light_account::LightSdkTypesError::InvalidInstructionData)?;
                         drop(data);
                         light_account::prepare_account_for_compression(
                             account_info, &mut account_data, meta, index, ctx,
@@ -350,16 +350,16 @@ impl CompressBuilder {
             impl #enum_name {
                 pub fn compress_dispatch<'info>(
                     account_info: &anchor_lang::prelude::AccountInfo<'info>,
-                    meta: &light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
+                    meta: &light_account::account_meta::CompressedAccountMetaNoLamportsNoAddress,
                     index: usize,
                     ctx: &mut light_account::CompressCtx<'_, 'info>,
-                ) -> std::result::Result<(), solana_program_error::ProgramError> {
-                    use light_sdk::LightDiscriminator;
+                ) -> std::result::Result<(), light_account::LightSdkTypesError> {
+                    use light_account::LightDiscriminator;
                     use borsh::BorshDeserialize;
                     let data = account_info.try_borrow_data()?;
                     let discriminator: [u8; 8] = data[..8]
                         .try_into()
-                        .map_err(|_| solana_program_error::ProgramError::InvalidAccountData)?;
+                        .map_err(|_| light_account::LightSdkTypesError::InvalidInstructionData)?;
                     match discriminator {
                         #(#compress_arms)*
                         _ => Ok(()),

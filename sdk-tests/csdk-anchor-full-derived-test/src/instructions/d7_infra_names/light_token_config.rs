@@ -6,7 +6,7 @@
 
 use anchor_lang::prelude::*;
 use light_sdk_macros::LightAccounts;
-use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
+use light_account::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
 
 pub const D7_LIGHT_TOKEN_AUTH_SEED: &[u8] = b"d7_light_token_auth";
 pub const D7_LIGHT_TOKEN_VAULT_SEED: &[u8] = b"d7_light_token_vault";

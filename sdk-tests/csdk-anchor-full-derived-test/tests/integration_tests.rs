@@ -1693,7 +1693,7 @@ async fn test_d5_light_token() {
 
     // Full lifecycle: compression + decompression
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D5TokenVaultSeeds;
-    use light_sdk::interface::token::TokenDataWithSeeds;
+    use light_account::TokenDataWithSeeds;
 
     // Warp time to trigger compression
     ctx.rpc
@@ -1797,7 +1797,7 @@ async fn test_d5_all_markers() {
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::{
         D5AllRecordSeeds, D5AllVaultSeeds,
     };
-    use light_sdk::interface::token::TokenDataWithSeeds;
+    use light_account::TokenDataWithSeeds;
 
     // Warp time to trigger compression of BOTH accounts
     ctx.rpc
@@ -1894,7 +1894,7 @@ async fn test_d7_light_token_config() {
 
     // Full lifecycle: compression + decompression
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::D7LightTokenVaultSeeds;
-    use light_sdk::interface::token::TokenDataWithSeeds;
+    use light_account::TokenDataWithSeeds;
 
     // Warp time to trigger compression
     ctx.rpc
@@ -1999,7 +1999,7 @@ async fn test_d7_all_names() {
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::{
         D7AllRecordSeeds, D7AllVaultSeeds,
     };
-    use light_sdk::interface::token::TokenDataWithSeeds;
+    use light_account::TokenDataWithSeeds;
 
     // Warp time to trigger compression of BOTH accounts
     ctx.rpc

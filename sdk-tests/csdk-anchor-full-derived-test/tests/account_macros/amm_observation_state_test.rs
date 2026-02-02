@@ -279,7 +279,7 @@ fn test_pack_converts_pool_id_to_index() {
 
     let stored_pubkeys = packed_accounts.packed_pubkeys();
     assert_eq!(stored_pubkeys.len(), 1);
-    assert_eq!(stored_pubkeys[0], pool_id);
+    assert_eq!(stored_pubkeys[0], pool_id.to_bytes());
 }
 
 #[test]
@@ -495,7 +495,7 @@ fn test_pack_stores_pool_id_in_packed_accounts() {
     let stored_pubkeys = packed_accounts.packed_pubkeys();
     assert_eq!(stored_pubkeys.len(), 1, "should have 1 pubkey stored");
     assert_eq!(
-        stored_pubkeys[packed.pool_id as usize], pool_id,
+        stored_pubkeys[packed.pool_id as usize], pool_id.to_bytes(),
         "stored pubkey should match"
     );
 }

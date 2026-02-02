@@ -4,7 +4,7 @@
 //! All fields use self.field directly for compression.
 
 use anchor_lang::prelude::*;
-use light_sdk::{compressible::CompressionInfo, LightDiscriminator};
+use light_account::{CompressionInfo, LightDiscriminator};
 use light_sdk_macros::LightAccount;
 
 /// A struct without any compress_as attribute.

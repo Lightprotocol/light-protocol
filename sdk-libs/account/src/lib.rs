@@ -123,6 +123,12 @@ pub use light_token_interface::instructions::extensions::TokenMetadataInstructio
 pub use light_token_interface::instructions::extensions::ExtensionInstructionData as TokenExtensionInstructionData;
 #[cfg(feature = "token")]
 pub use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
+#[cfg(feature = "token")]
+pub use light_token_interface::state::AdditionalMetadata;
+
+/// Re-export Token state struct for client-side use.
+#[cfg(feature = "token")]
+pub use light_token_interface::state::Token;
 
 /// Token sub-module for paths like `light_account::token::TokenDataWithSeeds`.
 #[cfg(feature = "token")]
@@ -188,9 +194,30 @@ pub use light_sdk_macros::{
     LightHasherSha,
     LightProgram,
 };
+pub use light_compressible::rent::RentConfig;
 pub use light_sdk_types::error::LightSdkTypesError;
 pub use light_sdk_types::instruction::*;
+pub use light_sdk_types::interface::account::size::Size;
+pub use light_sdk_types::constants::{CPI_AUTHORITY_PDA_SEED, RENT_SPONSOR_SEED};
 pub use light_sdk_types::{constants, CpiSigner};
+
+/// Hasher re-exports for macro-generated code paths like `light_account::hasher::DataHasher`.
+pub mod hasher {
+    pub use light_hasher::errors::HasherError;
+    pub use light_hasher::{DataHasher, Hasher};
+}
+
+/// Re-export LIGHT_TOKEN_PROGRAM_ID as Pubkey for Anchor's `#[account(address = ...)]`.
+pub const LIGHT_TOKEN_PROGRAM_ID: solana_pubkey::Pubkey =
+    solana_pubkey::Pubkey::new_from_array(constants::LIGHT_TOKEN_PROGRAM_ID);
+
+/// Default compressible config PDA for the Light Token Program.
+pub const LIGHT_TOKEN_CONFIG: solana_pubkey::Pubkey =
+    solana_pubkey::Pubkey::new_from_array(constants::LIGHT_TOKEN_CONFIG);
+
+/// Default rent sponsor PDA for the Light Token Program.
+pub const LIGHT_TOKEN_RENT_SPONSOR: solana_pubkey::Pubkey =
+    solana_pubkey::Pubkey::new_from_array(constants::LIGHT_TOKEN_RENT_SPONSOR);
 
 // ===== UTILITY FUNCTIONS =====
 

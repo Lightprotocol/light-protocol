@@ -127,5 +127,7 @@ pub fn process_decompress_idempotent<'info>(
         &crate::ID.to_bytes(),
         current_slot,
     )
-    .map_err(|e| anchor_lang::error::Error::from(solana_program_error::ProgramError::Custom(u32::from(e))))
+    .map_err(|e| {
+        anchor_lang::error::Error::from(solana_program_error::ProgramError::Custom(u32::from(e)))
+    })
 }
