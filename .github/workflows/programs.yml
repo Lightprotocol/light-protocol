@@ -89,7 +89,7 @@ jobs:
           for target in "${test_targets[@]}"
           do
             echo "Running: just program-tests::$target"
-            
+
             # Retry logic for flaky batched-tree test
             if [[ "$target" == "test-compressed-token-batched-tree" ]]; then
               echo "Running flaky test with retry logic (max 3 attempts)..."
