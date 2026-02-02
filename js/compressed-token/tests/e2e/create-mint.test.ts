@@ -6,9 +6,8 @@ import { createMint } from '../../src/actions';
 import {
     Rpc,
     newAccountWithLamports,
-    getTestRpc,
+    createRpc,
 } from '@lightprotocol/stateless.js';
-import { WasmFactory } from '@lightprotocol/hasher.rs';
 
 /**
  * Asserts that createMint() creates a new spl mint account + the respective
@@ -52,8 +51,7 @@ describe('createMint (SPL)', () => {
     let mintAuthority: Keypair;
 
     beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
+        rpc = createRpc();
         payer = await newAccountWithLamports(rpc, 1e9);
     });
 

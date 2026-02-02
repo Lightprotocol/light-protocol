@@ -4,13 +4,12 @@ import {
     Rpc,
     bn,
     newAccountWithLamports,
-    getTestRpc,
+    createRpc,
     selectStateTreeInfo,
     TreeInfo,
     VERSION,
     featureFlags,
 } from '@lightprotocol/stateless.js';
-import { WasmFactory } from '@lightprotocol/hasher.rs';
 import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { createMint, mintTo } from '../../src/actions';
 import {
@@ -36,8 +35,7 @@ describe('decompressInterface', () => {
     let tokenPoolInfos: TokenPoolInfo[];
 
     beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
+        rpc = createRpc();
         payer = await newAccountWithLamports(rpc, 10e9);
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();

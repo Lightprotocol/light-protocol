@@ -7,11 +7,10 @@ import {
     bn,
     defaultTestStateTreeAccounts,
     newAccountWithLamports,
-    getTestRpc,
+    createRpc,
     selectStateTreeInfo,
     TreeInfo,
 } from '@lightprotocol/stateless.js';
-import { WasmFactory } from '@lightprotocol/hasher.rs';
 import { createMint, mintTo, decompress } from '../../src/actions';
 import { createAssociatedTokenAccount } from '@solana/spl-token';
 import {
@@ -77,8 +76,7 @@ describe('decompress', () => {
     let tokenPoolInfos: TokenPoolInfo[];
 
     beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
+        rpc = createRpc();
         payer = await newAccountWithLamports(rpc, 1e9);
         bob = await newAccountWithLamports(rpc, 1e9);
         charlie = await newAccountWithLamports(rpc, 1e9);
@@ -119,8 +117,7 @@ describe('decompress', () => {
 
     const LOOP = 10;
     it(`should decompress from bob -> charlieAta ${LOOP} times`, async () => {
-        const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
+        rpc = createRpc();
         for (let i = 0; i < LOOP; i++) {
             const recipientAtaBalanceBefore =
                 await rpc.getTokenAccountBalance(charlieAta);

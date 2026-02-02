@@ -371,29 +371,56 @@ export class TestRpc extends Connection implements CompressionApiInterface {
 
                         // Debug: read on-chain tree state
                         try {
-                            const treeAccountInfo = await this.getAccountInfo(tree);
+                            const treeAccountInfo =
+                                await this.getAccountInfo(tree);
                             if (treeAccountInfo) {
                                 const data = treeAccountInfo.data;
                                 // CMT starts at offset 224 (8 disc + 216 MerkleTreeMetadata)
                                 // All fields are usize (u64 on 64-bit):
                                 const cmtOff = 224;
-                                const height = Number(data.readBigUInt64LE(cmtOff));
-                                const canopyDepth = Number(data.readBigUInt64LE(cmtOff + 8));
-                                const nextIndex = Number(data.readBigUInt64LE(cmtOff + 16));
-                                const seqNum = Number(data.readBigUInt64LE(cmtOff + 24));
+                                const height = Number(
+                                    data.readBigUInt64LE(cmtOff),
+                                );
+                                const canopyDepth = Number(
+                                    data.readBigUInt64LE(cmtOff + 8),
+                                );
+                                const nextIndex = Number(
+                                    data.readBigUInt64LE(cmtOff + 16),
+                                );
+                                const seqNum = Number(
+                                    data.readBigUInt64LE(cmtOff + 24),
+                                );
                                 // Vec metadata at offset 288
                                 const vm = 288;
                                 const fsCap = Number(data.readBigUInt64LE(vm));
-                                const fsLen = Number(data.readBigUInt64LE(vm + 8));
-                                const clCap = Number(data.readBigUInt64LE(vm + 16));
-                                const clLen = Number(data.readBigUInt64LE(vm + 24));
-                                const rootsCap = Number(data.readBigUInt64LE(vm + 48));
-                                const rootsLen = Number(data.readBigUInt64LE(vm + 56));
-                                const rootsFirst = Number(data.readBigUInt64LE(vm + 64));
-                                const rootsLast = Number(data.readBigUInt64LE(vm + 72));
+                                const fsLen = Number(
+                                    data.readBigUInt64LE(vm + 8),
+                                );
+                                const clCap = Number(
+                                    data.readBigUInt64LE(vm + 16),
+                                );
+                                const clLen = Number(
+                                    data.readBigUInt64LE(vm + 24),
+                                );
+                                const rootsCap = Number(
+                                    data.readBigUInt64LE(vm + 48),
+                                );
+                                const rootsLen = Number(
+                                    data.readBigUInt64LE(vm + 56),
+                                );
+                                const rootsFirst = Number(
+                                    data.readBigUInt64LE(vm + 64),
+                                );
+                                const rootsLast = Number(
+                                    data.readBigUInt64LE(vm + 72),
+                                );
 
-                                console.log(`[TestRpc] ON-CHAIN: height=${height}, canopyDepth=${canopyDepth}, nextIndex=${nextIndex}, seqNum=${seqNum}`);
-                                console.log(`[TestRpc] ON-CHAIN roots: cap=${rootsCap}, len=${rootsLen}, first=${rootsFirst}, last=${rootsLast}`);
+                                console.log(
+                                    `[TestRpc] ON-CHAIN: height=${height}, canopyDepth=${canopyDepth}, nextIndex=${nextIndex}, seqNum=${seqNum}`,
+                                );
+                                console.log(
+                                    `[TestRpc] ON-CHAIN roots: cap=${rootsCap}, len=${rootsLen}, first=${rootsFirst}, last=${rootsLast}`,
+                                );
 
                                 // Compute roots data offset and read the actual root at rootIndex
                                 // Data sections: filled_subtrees(26*32=832) + changelog(1400*872) + roots data
@@ -401,19 +428,34 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                                 const fsDataSize = fsCap * 32;
                                 const clEntrySize = 32 + height * 32 + 8; // root + path + index
                                 const clDataSize = clCap * clEntrySize;
-                                const rootsDataOffset = dataStart + fsDataSize + clDataSize;
+                                const rootsDataOffset =
+                                    dataStart + fsDataSize + clDataSize;
                                 const targetRootIdx = leaves.length;
-                                const rootBytes = data.slice(rootsDataOffset + targetRootIdx * 32, rootsDataOffset + (targetRootIdx + 1) * 32);
-                                const rootHex = Buffer.from(rootBytes).toString('hex');
-                                console.log(`[TestRpc] ON-CHAIN root[${targetRootIdx}] = ${rootHex}`);
-                                console.log(`[TestRpc] TestRpc root = ${root.toString('hex').slice(0, 64)}`);
-                                console.log(`[TestRpc] MISMATCH: TestRpc leaves=${leaves.length}, rootIndex=${leaves.length}, on-chain nextIndex=${nextIndex}, seqNum=${seqNum}`);
+                                const rootBytes = data.slice(
+                                    rootsDataOffset + targetRootIdx * 32,
+                                    rootsDataOffset + (targetRootIdx + 1) * 32,
+                                );
+                                const rootHex =
+                                    Buffer.from(rootBytes).toString('hex');
+                                console.log(
+                                    `[TestRpc] ON-CHAIN root[${targetRootIdx}] = ${rootHex}`,
+                                );
+                                console.log(
+                                    `[TestRpc] TestRpc root = ${root.toString('hex').slice(0, 64)}`,
+                                );
+                                console.log(
+                                    `[TestRpc] MISMATCH: TestRpc leaves=${leaves.length}, rootIndex=${leaves.length}, on-chain nextIndex=${nextIndex}, seqNum=${seqNum}`,
+                                );
                             }
                         } catch (e) {
-                            console.log(`[TestRpc] Failed to read on-chain tree state: ${e}`);
+                            console.log(
+                                `[TestRpc] Failed to read on-chain tree state: ${e}`,
+                            );
                         }
 
-                        console.log(`[TestRpc] V1 proof: tree=${treeKey}, leafIndex=${leafIndex}, leaves.length=${leaves.length}, rootIndex=${leaves.length}, root=${root.toString('hex').slice(0, 16)}...`);
+                        console.log(
+                            `[TestRpc] V1 proof: tree=${treeKey}, leafIndex=${leafIndex}, leaves.length=${leaves.length}, rootIndex=${leaves.length}, root=${root.toString('hex').slice(0, 16)}...`,
+                        );
 
                         const merkleProof: MerkleContextWithMerkleProof = {
                             hash: bn(hashes[i].toArray('be', 32)),

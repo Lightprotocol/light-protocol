@@ -14,12 +14,11 @@ import {
     dedupeSigner,
     newAccountWithLamports,
     sendAndConfirmTx,
-    getTestRpc,
+    createRpc,
     defaultTestStateTreeAccounts,
     TreeInfo,
     selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
-import { WasmFactory } from '@lightprotocol/hasher.rs';
 import BN from 'bn.js';
 import {
     getTokenPoolInfos,
@@ -75,8 +74,7 @@ describe('approveAndMintTo', () => {
     let stateTreeInfo: TreeInfo;
 
     beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
+        rpc = createRpc();
         payer = await newAccountWithLamports(rpc);
         bob = Keypair.generate().publicKey;
         mintAuthority = Keypair.generate();

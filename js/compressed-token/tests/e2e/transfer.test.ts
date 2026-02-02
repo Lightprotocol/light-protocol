@@ -11,15 +11,13 @@ import {
     Rpc,
     bn,
     newAccountWithLamports,
-    getTestRpc,
-    TestRpc,
+    createRpc,
     dedupeSigner,
     buildAndSignTx,
     sendAndConfirmTx,
     TreeInfo,
     selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
-import { WasmFactory } from '@lightprotocol/hasher.rs';
 import { createMint, mintTo, transfer } from '../../src/actions';
 import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import { CompressedTokenProgram } from '../../src/program';
@@ -90,7 +88,7 @@ async function assertTransfer(
 const TEST_TOKEN_DECIMALS = 2;
 
 describe('transfer', () => {
-    let rpc: TestRpc | Rpc;
+    let rpc: Rpc;
     let payer: Signer;
     let bob: Signer;
     let charlie: Signer;
@@ -100,9 +98,7 @@ describe('transfer', () => {
     let stateTreeInfo: TreeInfo;
 
     beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
-        // rpc = createRpc();
+        rpc = createRpc();
         payer = await newAccountWithLamports(rpc, 1e9);
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
@@ -297,7 +293,7 @@ describe('e2e transfer with multiple accounts', () => {
     let stateTreeInfo: TreeInfo;
 
     beforeAll(async () => {
-        rpc = await getTestRpc(await WasmFactory.getInstance());
+        rpc = createRpc();
         payer = await newAccountWithLamports(rpc, 1e9);
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();

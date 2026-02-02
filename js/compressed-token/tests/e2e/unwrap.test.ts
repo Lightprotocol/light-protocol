@@ -4,13 +4,12 @@ import {
     Rpc,
     bn,
     newAccountWithLamports,
-    getTestRpc,
+    createRpc,
     selectStateTreeInfo,
     TreeInfo,
     VERSION,
     featureFlags,
 } from '@lightprotocol/stateless.js';
-import { WasmFactory } from '@lightprotocol/hasher.rs';
 import { createMint, mintTo } from '../../src/actions';
 import {
     getAssociatedTokenAddressSync,
@@ -51,8 +50,7 @@ describe('createUnwrapInstruction', () => {
     let tokenPoolInfos: TokenPoolInfo[];
 
     beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
+        rpc = createRpc();
         payer = await newAccountWithLamports(rpc, 10e9);
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
@@ -147,8 +145,7 @@ describe('unwrap action', () => {
     let tokenPoolInfos: TokenPoolInfo[];
 
     beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
+        rpc = createRpc();
         payer = await newAccountWithLamports(rpc, 10e9);
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
@@ -471,8 +468,7 @@ describe('unwrap Token-2022', () => {
     let stateTreeInfo: TreeInfo;
 
     beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
+        rpc = createRpc();
         payer = await newAccountWithLamports(rpc, 10e9);
         stateTreeInfo = selectStateTreeInfo(await rpc.getStateTreeInfos());
     }, 60_000);

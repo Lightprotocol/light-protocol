@@ -4,14 +4,13 @@ import {
     Rpc,
     bn,
     newAccountWithLamports,
-    getTestRpc,
+    createRpc,
     selectStateTreeInfo,
     TreeInfo,
     CTOKEN_PROGRAM_ID,
     VERSION,
     featureFlags,
 } from '@lightprotocol/stateless.js';
-import { WasmFactory } from '@lightprotocol/hasher.rs';
 import { createMint, mintTo, decompress } from '../../src/actions';
 import {
     createAssociatedTokenAccount,
@@ -56,8 +55,7 @@ describe('createWrapInstruction', () => {
     let tokenPoolInfos: TokenPoolInfo[];
 
     beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
+        rpc = createRpc();
         payer = await newAccountWithLamports(rpc, 10e9);
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
@@ -188,8 +186,7 @@ describe('wrap action', () => {
     let tokenPoolInfos: TokenPoolInfo[];
 
     beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
+        rpc = createRpc();
         payer = await newAccountWithLamports(rpc, 10e9);
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
@@ -486,8 +483,7 @@ describe('wrap with non-ATA accounts', () => {
     let tokenPoolInfos: TokenPoolInfo[];
 
     beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
+        rpc = createRpc();
         payer = await newAccountWithLamports(rpc, 10e9);
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
@@ -577,8 +573,7 @@ describe('wrap Token-2022 to CToken', () => {
     let stateTreeInfo: TreeInfo;
 
     beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
+        rpc = createRpc();
         payer = await newAccountWithLamports(rpc, 10e9);
         stateTreeInfo = selectStateTreeInfo(await rpc.getStateTreeInfos());
     }, 60_000);

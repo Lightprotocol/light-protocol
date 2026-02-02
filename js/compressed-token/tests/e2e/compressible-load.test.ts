@@ -4,7 +4,7 @@ import {
     Rpc,
     bn,
     newAccountWithLamports,
-    getTestRpc,
+    createRpc,
     selectStateTreeInfo,
     TreeInfo,
     MerkleContext,
@@ -12,7 +12,6 @@ import {
     featureFlags,
     CTOKEN_PROGRAM_ID,
 } from '@lightprotocol/stateless.js';
-import { WasmFactory } from '@lightprotocol/hasher.rs';
 import { createMint, mintTo } from '../../src/actions';
 import {
     getTokenPoolInfos,
@@ -43,8 +42,7 @@ describe('compressible-load', () => {
     let tokenPoolInfos: TokenPoolInfo[];
 
     beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
+        rpc = createRpc();
         payer = await newAccountWithLamports(rpc, 10e9);
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();

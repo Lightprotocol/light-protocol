@@ -5,12 +5,11 @@ import {
     Rpc,
     bn,
     newAccountWithLamports,
-    getTestRpc,
+    createRpc,
     TreeInfo,
     selectStateTreeInfo,
     ParsedTokenAccount,
 } from '@lightprotocol/stateless.js';
-import { WasmFactory } from '@lightprotocol/hasher.rs';
 import {
     createMint,
     mintTo,
@@ -107,8 +106,7 @@ describe('decompressDelegated', () => {
     let tokenPoolInfos: TokenPoolInfo[];
 
     beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
+        rpc = createRpc();
         payer = await newAccountWithLamports(rpc, 1e9);
         bob = await newAccountWithLamports(rpc, 1e9);
         charlie = await newAccountWithLamports(rpc, 1e9);
