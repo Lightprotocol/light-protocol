@@ -88,14 +88,14 @@ jobs:
           IFS=',' read -r -a test_targets <<< "${{ join(fromJSON(matrix['test-targets']), ', ') }}"
           for target in "${test_targets[@]}"
           do
-            echo "Running: just program-tests $target"
+            echo "Running: just program-tests::$target"
             
             # Retry logic for flaky batched-tree test
             if [[ "$target" == "test-compressed-token-batched-tree" ]]; then
               echo "Running flaky test with retry logic (max 3 attempts)..."
               attempt=1
               max_attempts=3
-              until just program-tests "$target"; do
+              until just program-tests::"$target"; do
                 attempt=$((attempt + 1))
                 if [ $attempt -gt $max_attempts ]; then
                   echo "Test failed after $max_attempts attempts"
@@ -106,11 +106,11 @@ jobs:
               done
               echo "Test passed on attempt $attempt"
             else
-              just program-tests "$target"
+              just program-tests::"$target"
               # Run additional e2e-all test after e2e test
               if [ "$target" == "test-e2e" ]; then
-                echo "Running: just program-tests test-e2e-all"
-                just program-tests test-e2e-all
+                echo "Running: just program-tests::test-e2e-all"
+                just program-tests::test-e2e-all
               fi
             fi
           done

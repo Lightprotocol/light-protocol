@@ -101,8 +101,8 @@ jobs:
           IFS=',' read -r -a test_targets <<< "${{ join(fromJSON(matrix.test-targets), ', ') }}"
           for target in "${test_targets[@]}"
           do
-            echo "Running: just sdk-tests $target"
-            just sdk-tests "$target"
+            echo "Running: just sdk-tests::$target"
+            just sdk-tests::"$target"
           done
 
       - name: Run tests for ${{ matrix.program }}

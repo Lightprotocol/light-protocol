@@ -95,7 +95,7 @@ jobs:
 
       - name: Run ${{ matrix.test-suite.name }}
         run: |
-          just prover ${{ matrix.test-suite.target }}
+          just prover::${{ matrix.test-suite.target }}
 
   test-with-redis:
     needs: build
@@ -146,7 +146,7 @@ jobs:
         env:
           TEST_REDIS_URL: redis://localhost:6379/15
         run: |
-          just prover ${{ matrix.test-suite.target }}
+          just prover::${{ matrix.test-suite.target }}
 
   integration-test-lightweight:
     needs: build
@@ -178,7 +178,7 @@ jobs:
 
       - name: Lightweight integration tests
         run: |
-          just prover test-lightweight
+          just prover::test-lightweight
 
   integration-test-lightweight-lazy:
     needs: build
@@ -210,7 +210,7 @@ jobs:
 
       - name: Lightweight lazy loading integration tests
         run: |
-          just prover test-lightweight-lazy
+          just prover::test-lightweight-lazy
 
   integration-test-full:
     needs: build
@@ -241,7 +241,7 @@ jobs:
 
       - name: Full integration tests
         run: |
-          just prover test-full
+          just prover::test-full
 
   lean-verification:
     needs: build
@@ -267,7 +267,7 @@ jobs:
 
       - name: Install Elan
         run: |
-          just prover lean-install
+          just prover::lean-install
 
       - name: Get Lake version for cache key
         id: lake-version
@@ -284,4 +284,4 @@ jobs:
 
       - name: Extract circuit and build Lean
         run: |
-          just prover verify
+          just prover::verify
