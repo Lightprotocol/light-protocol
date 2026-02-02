@@ -54,6 +54,7 @@ export async function killProcess(processName: string) {
   const targetProcesses = processList.filter(
     (proc) =>
       proc.pid !== process.pid &&
+      proc.pid !== process.ppid &&
       (proc.name.includes(processName) || proc.cmd.includes(processName)),
   );
 
@@ -216,6 +217,14 @@ export function spawnBinary(
         RUST_LOG: process.env.RUST_LOG || "debug",
       },
     });
+
+    // Close parent's copy of the file descriptors so the child owns them
+    // exclusively and node's event loop isn't held open.
+    fs.closeSync(out);
+    fs.closeSync(err);
+
+    // Allow node to exit without waiting for the detached child.
+    spawnedProcess.unref();
 
     spawnedProcess.on("close", async (code) => {
       console.log(`${binaryName} process exited with code ${code}`);
