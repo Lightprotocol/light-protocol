@@ -118,11 +118,14 @@ pub fn process_decompress_idempotent<'info>(
     remaining_accounts: &[AccountInfo<'info>],
     instruction_data: &[u8],
 ) -> Result<()> {
-    process_decompress_pda_accounts_idempotent::<PackedLightAccountVariant>(
+    use solana_program::{clock::Clock, sysvar::Sysvar};
+    let current_slot = Clock::get()?.slot;
+    process_decompress_pda_accounts_idempotent::<_, PackedLightAccountVariant>(
         remaining_accounts,
         instruction_data,
         crate::LIGHT_CPI_SIGNER,
-        &crate::ID,
+        &crate::ID.to_bytes(),
+        current_slot,
     )
-    .map_err(Into::into)
+    .map_err(|e| anchor_lang::error::Error::from(solana_program_error::ProgramError::Custom(u32::from(e))))
 }

@@ -283,11 +283,12 @@ fn generate_light_account_impl(input: &DeriveInput) -> Result<TokenStream> {
                 #compress_as_assignments
             }
 
+            #[cfg(not(target_os = "solana"))]
             #[inline(never)]
-            fn pack(
+            fn pack<AM: light_sdk::light_account_checks::AccountMetaTrait>(
                 &self,
-                accounts: &mut light_sdk::instruction::PackedAccounts,
-            ) -> std::result::Result<Self::Packed, solana_program_error::ProgramError> {
+                accounts: &mut light_sdk::interface::instruction::PackedAccounts<AM>,
+            ) -> std::result::Result<Self::Packed, light_sdk::interface::error::LightPdaError> {
                 #pack_body
             }
 
@@ -295,7 +296,7 @@ fn generate_light_account_impl(input: &DeriveInput) -> Result<TokenStream> {
             fn unpack<A: light_sdk::light_account_checks::AccountInfoTrait>(
                 packed: &Self::Packed,
                 accounts: &light_sdk::light_account_checks::packed_accounts::ProgramPackedAccounts<A>,
-            ) -> std::result::Result<Self, solana_program_error::ProgramError> {
+            ) -> std::result::Result<Self, light_sdk::interface::error::LightPdaError> {
                 #unpack_body
             }
         }
@@ -303,25 +304,25 @@ fn generate_light_account_impl(input: &DeriveInput) -> Result<TokenStream> {
         // V1 compatibility: Pack trait (delegates to LightAccount::pack)
         // Pack trait is only available off-chain (client-side)
         #[cfg(not(target_os = "solana"))]
-        impl light_sdk::interface::Pack for #struct_name {
+        impl<AM: light_sdk::light_account_checks::AccountMetaTrait> light_sdk::interface::Pack<AM> for #struct_name {
             type Packed = #packed_struct_name;
 
             fn pack(
                 &self,
-                remaining_accounts: &mut light_sdk::instruction::PackedAccounts,
-            ) -> std::result::Result<Self::Packed, solana_program_error::ProgramError> {
+                remaining_accounts: &mut light_sdk::interface::instruction::PackedAccounts<AM>,
+            ) -> std::result::Result<Self::Packed, light_sdk::interface::error::LightPdaError> {
                 <Self as light_sdk::interface::LightAccount>::pack(self, remaining_accounts)
             }
         }
 
         // V1 compatibility: Unpack trait for packed struct
-        impl light_sdk::interface::Unpack for #packed_struct_name {
+        impl<AI: light_sdk::light_account_checks::AccountInfoTrait> light_sdk::interface::Unpack<AI> for #packed_struct_name {
             type Unpacked = #struct_name;
 
             fn unpack(
                 &self,
-                remaining_accounts: &[solana_account_info::AccountInfo],
-            ) -> std::result::Result<Self::Unpacked, solana_program_error::ProgramError> {
+                remaining_accounts: &[AI],
+            ) -> std::result::Result<Self::Unpacked, light_sdk::interface::error::LightPdaError> {
                 // Create a ProgramPackedAccounts wrapper from remaining_accounts
                 let accounts = light_sdk::light_account_checks::packed_accounts::ProgramPackedAccounts {
                     accounts: remaining_accounts
@@ -332,11 +333,11 @@ fn generate_light_account_impl(input: &DeriveInput) -> Result<TokenStream> {
 
         // V1 compatibility: HasCompressionInfo trait (wraps non-Option compression_info)
         impl light_sdk::interface::HasCompressionInfo for #struct_name {
-            fn compression_info(&self) -> std::result::Result<&light_sdk::interface::CompressionInfo, solana_program_error::ProgramError> {
+            fn compression_info(&self) -> std::result::Result<&light_sdk::interface::CompressionInfo, light_sdk::interface::error::LightPdaError> {
                 Ok(&self.compression_info)
             }
 
-            fn compression_info_mut(&mut self) -> std::result::Result<&mut light_sdk::interface::CompressionInfo, solana_program_error::ProgramError> {
+            fn compression_info_mut(&mut self) -> std::result::Result<&mut light_sdk::interface::CompressionInfo, light_sdk::interface::error::LightPdaError> {
                 Ok(&mut self.compression_info)
             }
 
@@ -346,7 +347,7 @@ fn generate_light_account_impl(input: &DeriveInput) -> Result<TokenStream> {
                 panic!("compression_info_mut_opt not supported for LightAccount types (use compression_info_mut instead)")
             }
 
-            fn set_compression_info_none(&mut self) -> std::result::Result<(), solana_program_error::ProgramError> {
+            fn set_compression_info_none(&mut self) -> std::result::Result<(), light_sdk::interface::error::LightPdaError> {
                 // V2 types use non-Option CompressionInfo
                 // Setting to "compressed" state is the equivalent of "None" for V1
                 self.compression_info = light_sdk::compressible::CompressionInfo::compressed();
@@ -468,7 +469,7 @@ fn generate_pack_body(
             let field_type = &field.ty;
 
             Some(if is_pubkey_type(field_type) {
-                quote! { #field_name: accounts.insert_or_get_read_only(self.#field_name) }
+                quote! { #field_name: accounts.insert_or_get_read_only(self.#field_name.to_bytes()) }
             } else if is_copy_type(field_type) {
                 quote! { #field_name: self.#field_name }
             } else {
@@ -518,7 +519,7 @@ fn generate_unpack_body(
                     #field_name: {
                         let account = accounts
                             .get_u8(packed.#field_name, #error_msg)
-                            .map_err(|_| solana_program_error::ProgramError::InvalidAccountData)?;
+                            .map_err(|_| light_sdk::interface::error::LightPdaError::InvalidInstructionData)?;
                         solana_pubkey::Pubkey::from(account.key())
                     }
                 }

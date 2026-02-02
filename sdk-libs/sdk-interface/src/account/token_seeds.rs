@@ -136,7 +136,8 @@ where
     ) -> Result<Self::Packed, LightPdaError> {
         let seeds = self.seeds.pack(remaining_accounts)?;
 
-        let owner_index = remaining_accounts.insert_or_get(self.token_data.owner.to_bytes());
+        let owner_index = remaining_accounts
+            .insert_or_get(AM::pubkey_from_bytes(self.token_data.owner.to_bytes()));
 
         let token_data = PackedTokenData {
             owner: owner_index,
@@ -145,9 +146,12 @@ where
             delegate: self
                 .token_data
                 .delegate
-                .map(|d| remaining_accounts.insert_or_get(d.to_bytes()))
+                .map(|d| {
+                    remaining_accounts.insert_or_get(AM::pubkey_from_bytes(d.to_bytes()))
+                })
                 .unwrap_or(0),
-            mint: remaining_accounts.insert_or_get(self.token_data.mint.to_bytes()),
+            mint: remaining_accounts
+                .insert_or_get(AM::pubkey_from_bytes(self.token_data.mint.to_bytes())),
             version: TokenDataVersion::ShaFlat as u8,
         };
 

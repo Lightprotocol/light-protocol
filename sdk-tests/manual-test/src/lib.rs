@@ -74,7 +74,7 @@ pub mod manual_test {
         let has_pre_init = ctx
             .accounts
             .light_pre_init(ctx.remaining_accounts, &params)
-            .map_err(|e| anchor_lang::error::Error::from(ProgramError::from(e)))?;
+            .map_err(|e| anchor_lang::error::Error::from(ProgramError::Custom(u32::from(e))))?;
 
         // 2. Business logic: set account data
         ctx.accounts.record.owner = params.owner;
@@ -82,7 +82,7 @@ pub mod manual_test {
         // 3. Finalize: no-op for PDA-only flow
         ctx.accounts
             .light_finalize(ctx.remaining_accounts, &params, has_pre_init)
-            .map_err(|e| anchor_lang::error::Error::from(ProgramError::from(e)))?;
+            .map_err(|e| anchor_lang::error::Error::from(ProgramError::Custom(u32::from(e))))?;
 
         Ok(())
     }
@@ -140,7 +140,7 @@ pub mod manual_test {
         let has_pre_init = ctx
             .accounts
             .light_pre_init(ctx.remaining_accounts, &params)
-            .map_err(|e| anchor_lang::error::Error::from(ProgramError::from(e)))?;
+            .map_err(|e| anchor_lang::error::Error::from(ProgramError::Custom(u32::from(e))))?;
 
         // 2. Business logic: set account data using load_init() pattern
         {
@@ -152,7 +152,7 @@ pub mod manual_test {
         // 3. Finalize: no-op for PDA-only flow
         ctx.accounts
             .light_finalize(ctx.remaining_accounts, &params, has_pre_init)
-            .map_err(|e| anchor_lang::error::Error::from(ProgramError::from(e)))?;
+            .map_err(|e| anchor_lang::error::Error::from(ProgramError::Custom(u32::from(e))))?;
 
         Ok(())
     }
@@ -168,14 +168,14 @@ pub mod manual_test {
         let has_pre_init = ctx
             .accounts
             .light_pre_init(ctx.remaining_accounts, &params)
-            .map_err(|e| anchor_lang::error::Error::from(ProgramError::from(e)))?;
+            .map_err(|e| anchor_lang::error::Error::from(ProgramError::Custom(u32::from(e))))?;
 
         // 2. No business logic for mint-only creation
 
         // 3. Finalize: no-op for mint-only flow
         ctx.accounts
             .light_finalize(ctx.remaining_accounts, &params, has_pre_init)
-            .map_err(|e| anchor_lang::error::Error::from(ProgramError::from(e)))?;
+            .map_err(|e| anchor_lang::error::Error::from(ProgramError::Custom(u32::from(e))))?;
 
         Ok(())
     }
@@ -191,14 +191,14 @@ pub mod manual_test {
         let has_pre_init = ctx
             .accounts
             .light_pre_init(ctx.remaining_accounts, &params)
-            .map_err(|e| anchor_lang::error::Error::from(ProgramError::from(e)))?;
+            .map_err(|e| anchor_lang::error::Error::from(ProgramError::Custom(u32::from(e))))?;
 
         // 2. No business logic for token vault-only creation
 
         // 3. Finalize: no-op for token vault-only flow
         ctx.accounts
             .light_finalize(ctx.remaining_accounts, &params, has_pre_init)
-            .map_err(|e| anchor_lang::error::Error::from(ProgramError::from(e)))?;
+            .map_err(|e| anchor_lang::error::Error::from(ProgramError::Custom(u32::from(e))))?;
 
         Ok(())
     }
@@ -214,14 +214,14 @@ pub mod manual_test {
         let has_pre_init = ctx
             .accounts
             .light_pre_init(ctx.remaining_accounts, &params)
-            .map_err(|e| anchor_lang::error::Error::from(ProgramError::from(e)))?;
+            .map_err(|e| anchor_lang::error::Error::from(ProgramError::Custom(u32::from(e))))?;
 
         // 2. No business logic for ATA-only creation
 
         // 3. Finalize: no-op for ATA-only flow
         ctx.accounts
             .light_finalize(ctx.remaining_accounts, &params, has_pre_init)
-            .map_err(|e| anchor_lang::error::Error::from(ProgramError::from(e)))?;
+            .map_err(|e| anchor_lang::error::Error::from(ProgramError::Custom(u32::from(e))))?;
 
         Ok(())
     }
@@ -243,7 +243,7 @@ pub mod manual_test {
         let has_pre_init = ctx
             .accounts
             .light_pre_init(ctx.remaining_accounts, &params)
-            .map_err(|e| anchor_lang::error::Error::from(ProgramError::from(e)))?;
+            .map_err(|e| anchor_lang::error::Error::from(ProgramError::Custom(u32::from(e))))?;
 
         // 2. Business logic: set PDA data
         ctx.accounts.borsh_record.owner = params.owner;
@@ -256,7 +256,7 @@ pub mod manual_test {
         // 3. Finalize: no-op for this flow
         ctx.accounts
             .light_finalize(ctx.remaining_accounts, &params, has_pre_init)
-            .map_err(|e| anchor_lang::error::Error::from(ProgramError::from(e)))?;
+            .map_err(|e| anchor_lang::error::Error::from(ProgramError::Custom(u32::from(e))))?;
 
         Ok(())
     }

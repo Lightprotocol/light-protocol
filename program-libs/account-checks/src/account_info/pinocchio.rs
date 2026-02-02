@@ -14,12 +14,22 @@ pub struct OwnedAccountMeta {
 }
 
 impl AccountMetaTrait for OwnedAccountMeta {
+    type Pubkey = [u8; 32];
+
     fn new(pubkey: [u8; 32], is_signer: bool, is_writable: bool) -> Self {
         Self {
             pubkey,
             is_signer,
             is_writable,
         }
+    }
+
+    fn pubkey_to_bytes(pubkey: [u8; 32]) -> [u8; 32] {
+        pubkey
+    }
+
+    fn pubkey_from_bytes(bytes: [u8; 32]) -> [u8; 32] {
+        bytes
     }
 
     fn pubkey_bytes(&self) -> [u8; 32] {

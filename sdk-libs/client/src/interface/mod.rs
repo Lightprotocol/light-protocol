@@ -26,7 +26,7 @@ pub use light_program_interface::{
     all_hot, any_cold, discriminator, matches_discriminator, AccountSpec, AccountToFetch,
     ColdContext, LightProgramInterface, PdaSpec,
 };
-pub use light_sdk::interface::config::LightConfig;
+pub use light_sdk::LightConfig;
 pub use light_token::compat::TokenData;
 pub use load_accounts::{create_load_instructions, LoadAccountsError};
 pub use pack::{pack_proof, PackError, PackedProofResult};

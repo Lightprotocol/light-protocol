@@ -32,6 +32,7 @@ light-compressible = { workspace = true, features = ["anchor"] }
 light-hasher = { workspace = true, features = ["solana"] }
 light-token = { workspace = true, features = ["anchor"] }
 light-token-types = { workspace = true, features = ["anchor"] }
+light-token-interface = { workspace = true }
 solana-program = { workspace = true }
 solana-pubkey = { workspace = true }
 solana-msg = { workspace = true }
@@ -44,7 +45,6 @@ light-client = { workspace = true, features = ["v2", "anchor"] }
 light-test-utils = { workspace = true }
 light-token = { workspace = true }
 light-token-client = { workspace = true }
-light-token-interface = { workspace = true }
 tokio = { workspace = true }
 solana-sdk = { workspace = true }
 solana-instruction = { workspace = true }

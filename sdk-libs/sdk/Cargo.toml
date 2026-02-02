@@ -75,7 +75,7 @@ light-concurrent-merkle-tree = { workspace = true, optional = true }
 light-compressible = { workspace = true }
 light-heap = { workspace = true, optional = true }
 light-token-interface = { workspace = true } # TODO: make optional
-light-sdk-interface = { workspace = true, features = ["std"] }
+light-sdk-interface = { workspace = true, features = ["std", "token"] }
 
 [dev-dependencies]
 num-bigint = { workspace = true }

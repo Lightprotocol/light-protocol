@@ -81,7 +81,7 @@ pub async fn create_load_instructions<V, I>(
     indexer: &I,
 ) -> Result<Vec<Instruction>, LoadAccountsError>
 where
-    V: Pack + Clone + std::fmt::Debug,
+    V: Pack<solana_instruction::AccountMeta> + Clone + std::fmt::Debug,
     I: Indexer,
 {
     if !super::light_program_interface::any_cold(specs) {
@@ -239,7 +239,7 @@ fn build_pda_load<V>(
     compression_config: Pubkey,
 ) -> Result<Instruction, LoadAccountsError>
 where
-    V: Pack + Clone + std::fmt::Debug,
+    V: Pack<solana_instruction::AccountMeta> + Clone + std::fmt::Debug,
 {
     let has_tokens = specs.iter().any(|s| {
         s.compressed()

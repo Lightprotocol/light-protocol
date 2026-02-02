@@ -233,7 +233,7 @@ pub fn all_hot<V>(specs: &[AccountSpec<V>]) -> bool {
 /// Trait for programs to give clients a unified API to load cold program accounts.
 pub trait LightProgramInterface: Sized {
     /// The program's interface account variant enum.
-    type Variant: Pack + Clone + Debug;
+    type Variant: Pack<solana_instruction::AccountMeta> + Clone + Debug;
 
     /// Program-specific instruction enum.
     type Instruction;

@@ -2,8 +2,8 @@
 
 use anchor_lang::prelude::*;
 use light_compressible::rent::RentConfig;
-use light_sdk::interface::config::process_initialize_light_config;
-use light_sdk::interface::config::process_update_light_config;
+use light_sdk::interface::program::config::create::process_initialize_light_config;
+use solana_program_error::ProgramError;
 
 /// Params order matches SDK's InitializeCompressionConfigAnchorData.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
@@ -42,17 +42,17 @@ pub fn process_initialize_config<'info>(
     process_initialize_light_config(
         &ctx.accounts.config,
         &ctx.accounts.authority,
-        &params.rent_sponsor,
-        &params.compression_authority,
+        &params.rent_sponsor.to_bytes(),
+        &params.compression_authority.to_bytes(),
         params.rent_config,
         params.write_top_up,
-        params.address_space,
+        params.address_space.iter().map(|p| p.to_bytes()).collect(),
         0, // config_bump
         &ctx.accounts.fee_payer,
         &ctx.accounts.system_program,
-        &crate::ID,
+        &crate::ID.to_bytes(),
     )
-    .map_err(Into::into)
+    .map_err(|e| anchor_lang::error::Error::from(ProgramError::Custom(u32::from(e))))
 }
 
 #[derive(Accounts)]
@@ -73,5 +73,6 @@ pub fn process_update_config<'info>(
         ctx.accounts.config.to_account_info(),
         ctx.accounts.authority.to_account_info(),
     ];
-    process_update_light_config(&remaining, &instruction_data, &crate::ID).map_err(Into::into)
+    light_sdk::interface::process_update_light_config(&remaining, &instruction_data, &crate::ID.to_bytes())
+        .map_err(|e| anchor_lang::error::Error::from(ProgramError::Custom(u32::from(e))))
 }

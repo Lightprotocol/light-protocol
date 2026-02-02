@@ -40,10 +40,15 @@
 
 // TODO: link to examples
 
-// Re-export base instruction types from interface
+// Re-export instruction types from sdk-types (available on all targets)
+pub use light_sdk_types::instruction::*;
+
+// Re-export pack_accounts utilities from interface (off-chain only)
+#[cfg(not(target_os = "solana"))]
 pub use light_sdk_interface::instruction::*;
 
-// Concrete PackedAccounts type alias for solana AccountMeta
+// Concrete PackedAccounts type alias for solana AccountMeta (off-chain only)
+#[cfg(not(target_os = "solana"))]
 pub type PackedAccounts =
     light_sdk_interface::instruction::PackedAccounts<solana_instruction::AccountMeta>;
 

@@ -8,12 +8,13 @@ use std::marker::PhantomData;
 use anchor_lang::prelude::*;
 use light_sdk::{
     interface::{
-        prepare_account_for_compression, process_compress_pda_accounts_idempotent, CompressCtx,
+        error::LightPdaError, prepare_account_for_compression,
+        process_compress_pda_accounts_idempotent, CompressCtx,
     },
     LightDiscriminator,
 };
 use light_sdk_types::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;
-use solana_program_error::ProgramError;
+use solana_account_info::AccountInfo;
 
 use crate::{account_loader::ZeroCopyRecord, pda::MinimalRecord};
 
@@ -128,20 +129,20 @@ fn compress_dispatch<'info>(
     account_info: &AccountInfo<'info>,
     meta: &CompressedAccountMetaNoLamportsNoAddress,
     index: usize,
-    ctx: &mut CompressCtx<'_, 'info>,
-) -> std::result::Result<(), ProgramError> {
-    let data = account_info.try_borrow_data()?;
+    ctx: &mut CompressCtx<'_, AccountInfo<'info>>,
+) -> std::result::Result<(), LightPdaError> {
+    let data = account_info.try_borrow_data().map_err(|_| LightPdaError::Borsh)?;
 
     // Read discriminator from first 8 bytes
     let discriminator: [u8; 8] = data[..8]
         .try_into()
-        .map_err(|_| ProgramError::InvalidAccountData)?;
+        .map_err(|_| LightPdaError::InvalidInstructionData)?;
 
     match discriminator {
         d if d == MinimalRecord::LIGHT_DISCRIMINATOR => {
             // Borsh path: deserialize using try_from_slice
             let mut account_data = MinimalRecord::try_from_slice(&data[8..])
-                .map_err(|_| ProgramError::InvalidAccountData)?;
+                .map_err(|_| LightPdaError::Borsh)?;
             drop(data);
 
             // Call prepare with deserialized data
@@ -173,7 +174,7 @@ pub fn process_compress_and_close<'info>(
         instruction_data,
         compress_dispatch,
         crate::LIGHT_CPI_SIGNER,
-        &crate::ID,
+        &crate::ID.to_bytes(),
     )
-    .map_err(Into::into)
+    .map_err(|e| anchor_lang::error::Error::from(solana_program_error::ProgramError::Custom(u32::from(e))))
 }

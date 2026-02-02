@@ -1,6 +1,7 @@
 pub use light_compressed_account::compressed_account::{MerkleContext, PackedMerkleContext};
 use light_sdk_types::instruction::PackedAddressTreeInfo;
 
+#[cfg(not(target_os = "solana"))]
 use super::PackedAccounts;
 use crate::{AccountInfo, AnchorDeserialize, AnchorSerialize, Pubkey};
 
@@ -10,6 +11,7 @@ pub struct AddressTreeInfo {
     pub queue: Pubkey,
 }
 
+#[cfg(not(target_os = "solana"))]
 #[deprecated(since = "0.13.0", note = "please use PackedStateTreeInfo")]
 pub fn pack_merkle_contexts<'a, I>(
     merkle_contexts: I,
@@ -22,6 +24,7 @@ where
     merkle_contexts.map(|x| pack_merkle_context(x, remaining_accounts))
 }
 
+#[cfg(not(target_os = "solana"))]
 #[deprecated(since = "0.13.0", note = "please use PackedStateTreeInfo")]
 pub fn pack_merkle_context(
     merkle_context: &MerkleContext,
@@ -48,6 +51,7 @@ pub fn pack_merkle_context(
 
 /// Returns an iterator of [`PackedAddressTreeInfo`] and fills up
 /// `remaining_accounts` based on the given `merkle_contexts`.
+#[cfg(not(target_os = "solana"))]
 pub fn pack_address_tree_infos<'a>(
     address_tree_infos: &'a [AddressTreeInfo],
     root_index: &'a [u16],
@@ -63,14 +67,15 @@ pub fn pack_address_tree_infos<'a>(
 /// based on the given `merkle_context`.
 /// Packs Merkle tree account first.
 /// Packs queue account second.
+#[cfg(not(target_os = "solana"))]
 pub fn pack_address_tree_info(
     address_tree_info: &AddressTreeInfo,
     remaining_accounts: &mut PackedAccounts,
     root_index: u16,
 ) -> PackedAddressTreeInfo {
     let AddressTreeInfo { tree, queue } = address_tree_info;
-    let address_merkle_tree_pubkey_index = remaining_accounts.insert_or_get(tree.to_bytes());
-    let address_queue_pubkey_index = remaining_accounts.insert_or_get(queue.to_bytes());
+    let address_merkle_tree_pubkey_index = remaining_accounts.insert_or_get(*tree);
+    let address_queue_pubkey_index = remaining_accounts.insert_or_get(*queue);
 
     PackedAddressTreeInfo {
         address_merkle_tree_pubkey_index,

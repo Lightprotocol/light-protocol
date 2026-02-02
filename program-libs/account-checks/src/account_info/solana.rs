@@ -219,12 +219,22 @@ impl AccountInfoTrait for solana_account_info::AccountInfo<'_> {
 }
 
 impl AccountMetaTrait for solana_instruction::AccountMeta {
-    fn new(pubkey: [u8; 32], is_signer: bool, is_writable: bool) -> Self {
+    type Pubkey = solana_pubkey::Pubkey;
+
+    fn new(pubkey: solana_pubkey::Pubkey, is_signer: bool, is_writable: bool) -> Self {
         Self {
-            pubkey: solana_pubkey::Pubkey::from(pubkey),
+            pubkey,
             is_signer,
             is_writable,
         }
+    }
+
+    fn pubkey_to_bytes(pubkey: solana_pubkey::Pubkey) -> [u8; 32] {
+        pubkey.to_bytes()
+    }
+
+    fn pubkey_from_bytes(bytes: [u8; 32]) -> solana_pubkey::Pubkey {
+        solana_pubkey::Pubkey::from(bytes)
     }
 
     fn pubkey_bytes(&self) -> [u8; 32] {

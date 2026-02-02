@@ -6,11 +6,10 @@
 use anchor_lang::prelude::*;
 use light_sdk::{
     compressible::CompressionInfo,
-    instruction::PackedAccounts,
-    interface::{AccountType, LightAccount, LightConfig},
-    light_account_checks::{packed_accounts::ProgramPackedAccounts, AccountInfoTrait},
+    interface::{AccountType, HasCompressionInfo, LightAccount, LightConfig},
+    light_account_checks::{packed_accounts::ProgramPackedAccounts, AccountInfoTrait, AccountMetaTrait},
 };
-use solana_program_error::ProgramError;
+use light_sdk::interface::error::LightPdaError;
 
 use super::state::ZeroCopyRecord;
 
@@ -52,13 +51,14 @@ impl LightAccount for ZeroCopyRecord {
         self.compression_info = CompressionInfo::new_from_config(config, current_slot);
     }
 
-    fn pack(
+    #[cfg(not(target_os = "solana"))]
+    fn pack<AM: AccountMetaTrait>(
         &self,
-        accounts: &mut PackedAccounts,
-    ) -> std::result::Result<Self::Packed, ProgramError> {
+        accounts: &mut light_sdk::interface::instruction::PackedAccounts<AM>,
+    ) -> std::result::Result<Self::Packed, LightPdaError> {
         // compression_info excluded from packed struct (same as Borsh accounts)
         Ok(PackedZeroCopyRecord {
-            owner: accounts.insert_or_get(Pubkey::new_from_array(self.owner)),
+            owner: accounts.insert_or_get(AM::pubkey_from_bytes(self.owner)),
             value: self.value,
         })
     }
@@ -66,11 +66,11 @@ impl LightAccount for ZeroCopyRecord {
     fn unpack<A: AccountInfoTrait>(
         packed: &Self::Packed,
         accounts: &ProgramPackedAccounts<A>,
-    ) -> std::result::Result<Self, ProgramError> {
+    ) -> std::result::Result<Self, LightPdaError> {
         // Use get_u8 with a descriptive name for better error messages
         let owner_account = accounts
             .get_u8(packed.owner, "ZeroCopyRecord: owner")
-            .map_err(|_| ProgramError::InvalidAccountData)?;
+            .map_err(|_| LightPdaError::InvalidInstructionData)?;
 
         // Set compression_info to compressed() for hash verification at decompress
         // (Same pattern as Borsh accounts - canonical compressed state for hashing)
@@ -80,5 +80,24 @@ impl LightAccount for ZeroCopyRecord {
             owner: owner_account.key(),
             value: packed.value,
         })
+    }
+}
+
+impl HasCompressionInfo for ZeroCopyRecord {
+    fn compression_info(&self) -> std::result::Result<&CompressionInfo, LightPdaError> {
+        Ok(&self.compression_info)
+    }
+
+    fn compression_info_mut(&mut self) -> std::result::Result<&mut CompressionInfo, LightPdaError> {
+        Ok(&mut self.compression_info)
+    }
+
+    fn compression_info_mut_opt(&mut self) -> &mut Option<CompressionInfo> {
+        panic!("compression_info_mut_opt not supported for LightAccount types (use compression_info_mut instead)")
+    }
+
+    fn set_compression_info_none(&mut self) -> std::result::Result<(), LightPdaError> {
+        self.compression_info = CompressionInfo::compressed();
+        Ok(())
     }
 }

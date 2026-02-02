@@ -51,11 +51,11 @@ impl<AM: AccountMetaTrait> PackedAccounts<AM> {
         self.system_accounts_set
     }
 
-    pub fn add_pre_accounts_signer(&mut self, pubkey: [u8; 32]) {
+    pub fn add_pre_accounts_signer(&mut self, pubkey: AM::Pubkey) {
         self.pre_accounts.push(AM::new(pubkey, true, false));
     }
 
-    pub fn add_pre_accounts_signer_mut(&mut self, pubkey: [u8; 32]) {
+    pub fn add_pre_accounts_signer_mut(&mut self, pubkey: AM::Pubkey) {
         self.pre_accounts.push(AM::new(pubkey, true, true));
     }
 
@@ -79,21 +79,22 @@ impl<AM: AccountMetaTrait> PackedAccounts<AM> {
     ///
     /// If the provided `pubkey` already exists in the collection, its already
     /// existing index is returned.
-    pub fn insert_or_get(&mut self, pubkey: [u8; 32]) -> u8 {
+    pub fn insert_or_get(&mut self, pubkey: AM::Pubkey) -> u8 {
         self.insert_or_get_config(pubkey, false, true)
     }
 
-    pub fn insert_or_get_read_only(&mut self, pubkey: [u8; 32]) -> u8 {
+    pub fn insert_or_get_read_only(&mut self, pubkey: AM::Pubkey) -> u8 {
         self.insert_or_get_config(pubkey, false, false)
     }
 
     pub fn insert_or_get_config(
         &mut self,
-        pubkey: [u8; 32],
+        pubkey: AM::Pubkey,
         is_signer: bool,
         is_writable: bool,
     ) -> u8 {
-        match self.map.get_mut(&pubkey) {
+        let bytes = AM::pubkey_to_bytes(pubkey);
+        match self.map.get_mut(&bytes) {
             Some((index, entry)) => {
                 if !entry.is_writable() {
                     entry.set_is_writable(is_writable);
@@ -107,7 +108,7 @@ impl<AM: AccountMetaTrait> PackedAccounts<AM> {
                 let index = self.next_index;
                 self.next_index += 1;
                 self.map
-                    .insert(pubkey, (index, AM::new(pubkey, is_signer, is_writable)));
+                    .insert(bytes, (index, AM::new(pubkey, is_signer, is_writable)));
                 index
             }
         }

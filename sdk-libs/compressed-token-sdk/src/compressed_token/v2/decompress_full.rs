@@ -3,14 +3,13 @@ use light_compressed_account::compressed_account::PackedMerkleContext;
 use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
 use light_program_profiler::profile;
 use light_sdk::{instruction::PackedStateTreeInfo, Unpack};
+use light_sdk::interface::error::LightPdaError;
 // Pack and PackedAccounts only available off-chain (client-side)
 #[cfg(not(target_os = "solana"))]
 use light_sdk::{
     instruction::{AccountMetasVec, PackedAccounts, SystemAccountMetaConfig},
     Pack, PackedAccountsExt,
 };
-#[cfg(not(target_os = "solana"))]
-use solana_program_error::ProgramError as PackedAccountsError;
 use light_token_interface::instructions::{
     extensions::ExtensionInstructionData,
     transfer2::{CompressedCpiContext, MultiInputTokenDataWithContext},
@@ -59,13 +58,13 @@ pub struct DecompressFullInput {
 }
 
 #[cfg(not(target_os = "solana"))]
-impl Pack for DecompressFullInput {
+impl Pack<AccountMeta> for DecompressFullInput {
     type Packed = DecompressFullIndices;
 
     fn pack(
         &self,
         remaining_accounts: &mut PackedAccounts,
-    ) -> Result<Self::Packed, solana_program_error::ProgramError> {
+    ) -> Result<Self::Packed, LightPdaError> {
         let owner_is_signer = !self.is_ata;
 
         let source = MultiInputTokenDataWithContext {
@@ -101,26 +100,26 @@ impl Pack for DecompressFullInput {
     }
 }
 
-impl Unpack for DecompressFullIndices {
+impl<'a> Unpack<AccountInfo<'a>> for DecompressFullIndices {
     type Unpacked = DecompressFullInput;
 
     fn unpack(
         &self,
-        remaining_accounts: &[AccountInfo],
-    ) -> Result<Self::Unpacked, solana_program_error::ProgramError> {
+        remaining_accounts: &[AccountInfo<'a>],
+    ) -> Result<Self::Unpacked, LightPdaError> {
         let owner = *remaining_accounts
             .get(self.source.owner as usize)
-            .ok_or(solana_program_error::ProgramError::InvalidAccountData)?
+            .ok_or(LightPdaError::InvalidInstructionData)?
             .key;
         let mint = *remaining_accounts
             .get(self.source.mint as usize)
-            .ok_or(solana_program_error::ProgramError::InvalidAccountData)?
+            .ok_or(LightPdaError::InvalidInstructionData)?
             .key;
         let delegate = if self.source.has_delegate {
             Some(
                 *remaining_accounts
                     .get(self.source.delegate as usize)
-                    .ok_or(solana_program_error::ProgramError::InvalidAccountData)?
+                    .ok_or(LightPdaError::InvalidInstructionData)?
                     .key,
             )
         } else {
@@ -128,7 +127,7 @@ impl Unpack for DecompressFullIndices {
         };
         let destination = *remaining_accounts
             .get(self.destination_index as usize)
-            .ok_or(solana_program_error::ProgramError::InvalidAccountData)?
+            .ok_or(LightPdaError::InvalidInstructionData)?
             .key;
 
         Ok(DecompressFullInput {
@@ -350,14 +349,14 @@ impl DecompressFullAccounts {
 }
 
 #[cfg(not(target_os = "solana"))]
-impl AccountMetasVec for DecompressFullAccounts {
+impl AccountMetasVec<AccountMeta> for DecompressFullAccounts {
     /// Adds:
     /// 1. system accounts if not set
     /// 2. compressed token program and ctoken cpi authority pda to pre accounts
     fn get_account_metas_vec(
         &self,
         accounts: &mut PackedAccounts,
-    ) -> Result<(), PackedAccountsError> {
+    ) -> Result<(), LightPdaError> {
         if !accounts.system_accounts_set() {
             #[cfg(feature = "cpi-context")]
             let config = {
@@ -375,7 +374,7 @@ impl AccountMetasVec for DecompressFullAccounts {
 
             accounts
                 .add_system_accounts_v2(config)
-                .map_err(PackedAccountsError::from)?;
+                .map_err(LightPdaError::from)?;
         }
         // Add both accounts in one operation for better performance
         accounts.pre_accounts.extend_from_slice(&[

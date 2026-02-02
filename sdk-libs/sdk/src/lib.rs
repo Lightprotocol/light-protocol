@@ -208,11 +208,12 @@ use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSeria
 // Pack trait is only available off-chain (client-side) - uses PackedAccounts
 #[cfg(not(target_os = "solana"))]
 pub use light_sdk_interface::Pack;
+pub use light_sdk_interface::Unpack;
 pub use light_sdk_interface::{
     process_initialize_light_config_checked,
     InitializeLightConfigParams,
-    process_update_light_config, UpdateLightConfigParams, CompressAs, CompressedInitSpace,
-    CompressionInfo,
+    process_update_light_config, UpdateLightConfigParams, CompressAs, CompressedAccountData,
+    CompressedInitSpace, CompressionInfo,
     HasCompressionInfo, LightConfig, Space, COMPRESSIBLE_CONFIG_SEED,
     MAX_ADDRESS_TREES_PER_SPACE,
 };
