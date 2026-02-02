@@ -1199,9 +1199,11 @@ pub struct SolanaAccountData {
 }
 
 /// Merkle tree info for compressed accounts
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct InterfaceTreeInfo {
     pub tree: Pubkey,
+    pub queue: Pubkey,
+    pub tree_type: TreeType,
     pub seq: Option<u64>,
 }
 
@@ -1239,8 +1241,16 @@ pub enum ColdContext {
 fn decode_tree_info(
     tree_info: &photon_api::models::InterfaceTreeInfo,
 ) -> Result<InterfaceTreeInfo, IndexerError> {
+    let tree = Pubkey::new_from_array(decode_base58_to_fixed_array(&tree_info.tree)?);
+    let queue = Pubkey::new_from_array(decode_base58_to_fixed_array(&tree_info.queue)?);
+    let tree_type = match tree_info.tree_type {
+        photon_api::models::TreeType::StateV1 => TreeType::StateV1,
+        photon_api::models::TreeType::StateV2 => TreeType::StateV2,
+    };
     Ok(InterfaceTreeInfo {
-        tree: Pubkey::new_from_array(decode_base58_to_fixed_array(&tree_info.tree)?),
+        tree,
+        queue,
+        tree_type,
         seq: tree_info.seq,
     })
 }

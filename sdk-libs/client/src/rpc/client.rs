@@ -505,10 +505,10 @@ fn convert_account_interface(
                 slot_created: 0,
                 tree_info: TreeInfo {
                     tree: tree_info.tree,
-                    queue: tree_info.tree, // TODO: proper queue mapping (requires indexer changes)
+                    queue: tree_info.queue,
                     cpi_context: None,
                     next_tree_info: None,
-                    tree_type: TreeType::StateV1, // TODO: proper tree_type mapping (requires indexer changes)
+                    tree_type: tree_info.tree_type,
                 },
             };
             Ok(AccountInterface::cold(
@@ -551,10 +551,10 @@ fn convert_account_interface(
                 slot_created: 0,
                 tree_info: TreeInfo {
                     tree: tree_info.tree,
-                    queue: tree_info.tree, // TODO: proper queue mapping (requires indexer changes)
+                    queue: tree_info.queue,
                     cpi_context: None,
                     next_tree_info: None,
-                    tree_type: TreeType::StateV1, // TODO: proper tree_type mapping (requires indexer changes)
+                    tree_type: tree_info.tree_type,
                 },
             };
             let compressed_token = CompressedTokenAccount {
@@ -589,10 +589,10 @@ fn convert_account_interface(
                 slot_created: 0,
                 tree_info: TreeInfo {
                     tree: tree_info.tree,
-                    queue: tree_info.tree, // TODO: proper queue mapping (requires indexer changes)
+                    queue: tree_info.queue,
                     cpi_context: None,
                     next_tree_info: None,
-                    tree_type: TreeType::StateV1, // TODO: proper tree_type mapping (requires indexer changes)
+                    tree_type: tree_info.tree_type,
                 },
             };
             Ok(AccountInterface::cold(
@@ -646,10 +646,10 @@ fn convert_token_account_interface(
                 slot_created: 0,
                 tree_info: TreeInfo {
                     tree: tree_info.tree,
-                    queue: tree_info.tree,
+                    queue: tree_info.queue,
                     cpi_context: None,
                     next_tree_info: None,
-                    tree_type: TreeType::StateV1,
+                    tree_type: tree_info.tree_type,
                 },
             };
             // Extract token owner before moving token into CompressedTokenAccount
@@ -732,10 +732,10 @@ fn convert_mint_interface(indexer_mi: IndexerMintInterface) -> Result<MintInterf
                 slot_created: 0,
                 tree_info: TreeInfo {
                     tree: tree_info.tree,
-                    queue: tree_info.tree,
+                    queue: tree_info.queue,
                     cpi_context: None,
                     next_tree_info: None,
-                    tree_type: TreeType::StateV1,
+                    tree_type: tree_info.tree_type,
                 },
             };
 

@@ -372,7 +372,7 @@ pub use self::solana_account_data::SolanaAccountData;
 pub mod cold_data;
 pub use self::cold_data::ColdData;
 pub mod tree_info;
-pub use self::tree_info::TreeInfo as InterfaceTreeInfo;
+pub use self::tree_info::{TreeInfo as InterfaceTreeInfo, TreeType};
 pub mod cold_context;
 pub use self::cold_context::ColdContext;
 pub mod account_interface;

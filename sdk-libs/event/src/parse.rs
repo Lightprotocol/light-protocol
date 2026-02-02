@@ -17,12 +17,18 @@ use light_compressed_account::{
     nullifier::create_nullifier,
     Pubkey,
 };
+use light_token_interface::{
+    instructions::{
+        extensions::ExtensionInstructionData, transfer2::CompressedTokenInstructionDataTransfer2,
+    },
+    LIGHT_TOKEN_PROGRAM_ID, TRANSFER2,
+};
 use light_zero_copy::traits::ZeroCopyAt;
 
 use super::{
     error::ParseIndexerEventError,
     event::{
-        BatchNullifyContext, BatchPublicTransactionEvent, MerkleTreeSequenceNumber,
+        AtaOwnerInfo, BatchNullifyContext, BatchPublicTransactionEvent, MerkleTreeSequenceNumber,
         MerkleTreeSequenceNumberV1, NewAddress, PublicTransactionEvent,
     },
 };
@@ -45,6 +51,8 @@ pub(crate) struct Indices {
     pub insert_into_queues: usize,
     pub found_solana_system_program_instruction: bool,
     pub found_system: bool,
+    /// Index of the token program instruction (if present)
+    pub token: Option<usize>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -52,6 +60,7 @@ pub(crate) enum ProgramId {
     LightSystem,
     AccountCompression,
     SolanaSystem,
+    LightToken,
     Unknown,
 }
 
@@ -60,6 +69,17 @@ struct AssociatedInstructions<'a> {
     pub executing_system_instruction: ExecutingSystemInstruction<'a>,
     pub cpi_context_outputs: Vec<OutputCompressedAccountWithPackedContext>,
     pub insert_into_queues_instruction: InsertIntoQueuesInstructionData<'a>,
+    pub accounts: &'a [Pubkey],
+    /// Token instruction data and accounts for ATA owner extraction
+    pub token_instruction: Option<TokenInstructionData<'a>>,
+}
+
+/// Parsed token instruction data for extracting ATA owner info
+#[derive(Debug, Clone, PartialEq)]
+struct TokenInstructionData<'a> {
+    /// Raw instruction data
+    pub data: &'a [u8],
+    /// Accounts for this instruction
     pub accounts: &'a [Pubkey],
 }
 
@@ -158,12 +178,20 @@ fn deserialize_associated_instructions<'a>(
     }?;
     let exec_instruction =
         deserialize_instruction(&instructions[indices.system], &accounts[indices.system])?;
+
+    // Get token instruction data if present
+    let token_instruction = indices.token.map(|token_idx| TokenInstructionData {
+        data: &instructions[token_idx],
+        accounts: &accounts[token_idx],
+    });
+
     Ok(AssociatedInstructions {
         executing_system_instruction: exec_instruction,
         cpi_context_outputs,
         insert_into_queues_instruction: insert_queues_instruction,
         // Remove signer and register program accounts.
         accounts: &accounts[indices.insert_into_queues][2..],
+        token_instruction,
     })
 }
 
@@ -218,6 +246,12 @@ fn find_cpi_pattern(start_index: usize, program_ids: &[ProgramId]) -> (Option<In
             index_account.found_system = true;
         } else if index_account.found_system && matches!(program_id, ProgramId::LightSystem) {
             index_account.cpi.push(index);
+        } else if index_account.found_system && matches!(program_id, ProgramId::LightToken) {
+            // Token program instruction that called the system program
+            // Only track the first one (closest to system instruction)
+            if index_account.token.is_none() {
+                index_account.token = Some(index);
+            }
         } else if matches!(program_id, ProgramId::AccountCompression) && index_account.found_system
         {
             // Possibly found next light transaction.
@@ -265,6 +299,13 @@ fn wrap_program_ids(
                 && accounts[1] == REGISTERED_PROGRAM_PDA
             {
                 vec.push(ProgramId::AccountCompression);
+            } else {
+                vec.push(ProgramId::Unknown);
+            }
+        } else if program_id == &Pubkey::from(LIGHT_TOKEN_PROGRAM_ID) {
+            // Token program Transfer2 instruction
+            if !instruction.is_empty() && instruction[0] == TRANSFER2 {
+                vec.push(ProgramId::LightToken);
             } else {
                 vec.push(ProgramId::Unknown);
             }
@@ -458,6 +499,50 @@ fn deserialize_instruction<'a>(
     }
 }
 
+/// Extract ATA owner info from token instruction's out_tlv.
+/// Returns a Vec of (output_index, wallet_owner) for ATAs.
+fn extract_ata_owners(token_instruction: &TokenInstructionData) -> Vec<AtaOwnerInfo> {
+    let mut ata_owners = Vec::new();
+
+    // Token instruction format: [discriminator (1 byte)] [serialized data]
+    if token_instruction.data.is_empty() || token_instruction.data[0] != TRANSFER2 {
+        return ata_owners;
+    }
+
+    // Skip discriminator byte and deserialize using borsh
+    let data = &token_instruction.data[1..];
+    let Ok(transfer_data) = CompressedTokenInstructionDataTransfer2::deserialize(&mut &data[..])
+    else {
+        return ata_owners;
+    };
+
+    // Check if there's out_tlv data
+    let Some(out_tlv) = transfer_data.out_tlv.as_ref() else {
+        return ata_owners;
+    };
+
+    // Iterate over output TLV entries (one per output token account)
+    for (output_index, tlv_extensions) in out_tlv.iter().enumerate() {
+        // Look for CompressedOnly extension with is_ata=true
+        for ext in tlv_extensions.iter() {
+            if let ExtensionInstructionData::CompressedOnly(compressed_only) = ext {
+                if compressed_only.is_ata {
+                    // Get wallet owner from packed_accounts using owner_index
+                    let owner_idx = compressed_only.owner_index as usize;
+                    if owner_idx < token_instruction.accounts.len() {
+                        ata_owners.push(AtaOwnerInfo {
+                            output_index: output_index as u8,
+                            wallet_owner: token_instruction.accounts[owner_idx],
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    ata_owners
+}
+
 fn create_batched_transaction_event(
     associated_instructions: &AssociatedInstructions,
 ) -> Result<BatchPublicTransactionEvent, ParseIndexerEventError> {
@@ -521,6 +606,11 @@ fn create_batched_transaction_event(
                 .accounts
                 .to_vec(),
             message: None,
+            ata_owners: associated_instructions
+                .token_instruction
+                .as_ref()
+                .map(extract_ata_owners)
+                .unwrap_or_default(),
         },
         tx_hash: associated_instructions
             .insert_into_queues_instruction
@@ -728,6 +818,7 @@ mod test {
                 insert_into_queues: start_index,
                 found_solana_system_program_instruction: true,
                 found_system: true,
+                token: None,
             };
             assert!(
                 vec.contains(&expected),
@@ -762,6 +853,7 @@ mod test {
                 insert_into_queues: start_index,
                 found_solana_system_program_instruction: true,
                 found_system: true,
+                token: None,
             };
             assert!(
                 vec.iter().any(|x| x.system == expected.system
@@ -830,6 +922,7 @@ mod test {
                     insert_into_queues: 7,
                     found_solana_system_program_instruction: true,
                     found_system: true,
+                    token: None,
                 }
             );
             assert_eq!(
@@ -840,6 +933,7 @@ mod test {
                     insert_into_queues: 3,
                     found_solana_system_program_instruction: true,
                     found_system: true,
+                    token: None,
                 }
             );
             // Modify only second event is valid
@@ -856,6 +950,7 @@ mod test {
                         insert_into_queues: 7,
                         found_solana_system_program_instruction: true,
                         found_system: true,
+                        token: None,
                     }
                 );
             }
@@ -873,6 +968,7 @@ mod test {
                         insert_into_queues: 3,
                         found_solana_system_program_instruction: true,
                         found_system: true,
+                        token: None,
                     }
                 );
             }
@@ -899,6 +995,7 @@ mod test {
                     insert_into_queues: 3,
                     found_solana_system_program_instruction: true,
                     found_system: true,
+                    token: None,
                 })
             );
         }
@@ -922,6 +1019,7 @@ mod test {
                     insert_into_queues: start_index,
                     found_solana_system_program_instruction: true,
                     found_system: true,
+                    token: None,
                 })
             );
         }
@@ -962,6 +1060,7 @@ mod test {
                     insert_into_queues: start_index,
                     found_solana_system_program_instruction: true,
                     found_system: true,
+                    token: None,
                 })
             );
             // Failing
@@ -995,6 +1094,7 @@ mod test {
                     insert_into_queues: start_index,
                     found_solana_system_program_instruction: true,
                     found_system: true,
+                    token: None,
                 })
             );
             // Failing

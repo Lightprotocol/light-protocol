@@ -10,6 +10,7 @@ edition = "2021"
 borsh = { workspace = true }
 light-compressed-account = { workspace = true, features = ["std"] }
 light-hasher = { workspace = true, features = ["poseidon"] }
+light-token-interface = { workspace = true }
 light-zero-copy = { workspace = true }
 thiserror = { workspace = true }
 
