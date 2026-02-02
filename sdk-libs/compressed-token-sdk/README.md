@@ -22,7 +22,6 @@ Compressed token: Compressed account storing token data. Rent-free, for storage 
 
 - `v1` - Enable v1 compressed token support
 - `anchor` - Enable Anchor framework integration
-- `anchor-discriminator` - Use Anchor-style discriminators (default)
 
 For full examples, see the [Compressed Token Examples](https://github.com/Lightprotocol/examples-zk-compression).
 
