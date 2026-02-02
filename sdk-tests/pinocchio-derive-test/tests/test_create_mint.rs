@@ -6,8 +6,7 @@ use light_client::interface::{
     AccountSpec, ColdContext, CreateAccountsProofInput,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
-use light_program_test::program_test::TestRpc;
-use light_program_test::Rpc;
+use light_program_test::{program_test::TestRpc, Rpc};
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
 use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
 use pinocchio_derive_test::{CreateMintParams, MINT_SIGNER_SEED_A};
@@ -138,10 +137,7 @@ async fn test_create_mint_derive() {
         &mut &rpc.get_account(mint_pda).await.unwrap().unwrap().data[..],
     )
     .unwrap();
-    assert_eq!(
-        actual.base.decimals, 9,
-        "Mint decimals should be preserved"
-    );
+    assert_eq!(actual.base.decimals, 9, "Mint decimals should be preserved");
     assert_eq!(
         actual.base.mint_authority,
         Some(payer.pubkey().to_bytes().into()),

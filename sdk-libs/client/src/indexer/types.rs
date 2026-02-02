@@ -1,4 +1,5 @@
 use borsh::BorshDeserialize;
+use light_account::PackedAccounts;
 use light_compressed_account::{
     compressed_account::{
         CompressedAccount as ProgramCompressedAccount, CompressedAccountData,
@@ -8,9 +9,7 @@ use light_compressed_account::{
     TreeType,
 };
 use light_indexed_merkle_tree::array::IndexedElement;
-use light_sdk::instruction::{
-    PackedAccounts, PackedAddressTreeInfo, PackedStateTreeInfo, ValidityProof,
-};
+use light_sdk::instruction::{PackedAddressTreeInfo, PackedStateTreeInfo, ValidityProof};
 use light_token::compat::{AccountState, TokenData};
 use light_token_interface::state::ExtensionStruct;
 use num_bigint::BigUint;

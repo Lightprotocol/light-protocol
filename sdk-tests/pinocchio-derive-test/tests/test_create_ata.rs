@@ -5,8 +5,7 @@ use light_client::interface::{
     create_load_instructions, get_create_accounts_proof, AccountInterfaceExt, AccountSpec,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
-use light_program_test::program_test::TestRpc;
-use light_program_test::Rpc;
+use light_program_test::{program_test::TestRpc, Rpc};
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
 use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
 use pinocchio_derive_test::CreateAtaParams;
@@ -116,9 +115,7 @@ async fn test_create_ata_derive() {
     // PHASE 4: Assert state preserved after decompression
     shared::assert_onchain_exists(&mut rpc, &ata, "ATA").await;
 
-    let actual: Token = shared::parse_token(
-        &rpc.get_account(ata).await.unwrap().unwrap().data,
-    );
+    let actual: Token = shared::parse_token(&rpc.get_account(ata).await.unwrap().unwrap().data);
     let expected = Token {
         mint: mint.to_bytes().into(),
         owner: ata_owner.to_bytes().into(),

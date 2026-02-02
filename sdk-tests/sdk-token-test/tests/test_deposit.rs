@@ -10,10 +10,7 @@ use light_compressed_token_sdk::{
 use light_program_test::{AddressWithTree, Indexer, LightProgramTest, ProgramTestConfig, Rpc};
 use light_sdk::{
     address::v1::derive_address,
-    instruction::{
-        account_meta::CompressedAccountMeta, PackedAccounts, PackedAccountsExt,
-        SystemAccountMetaConfig,
-    },
+    instruction::{account_meta::CompressedAccountMeta, PackedAccounts, SystemAccountMetaConfig},
 };
 use light_test_utils::{
     spl::{create_mint_helper, create_token_account, mint_spl_tokens},

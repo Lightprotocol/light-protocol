@@ -6,8 +6,7 @@ use light_client::interface::{
     CreateAccountsProofInput, PdaSpec,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
-use light_program_test::program_test::TestRpc;
-use light_program_test::Rpc;
+use light_program_test::{program_test::TestRpc, Rpc};
 use pinocchio_derive_test::{CreateZeroCopyRecordParams, RECORD_SEED};
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;

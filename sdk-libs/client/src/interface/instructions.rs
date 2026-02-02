@@ -5,15 +5,11 @@ use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 use light_account::{
-    CompressedAccountData, InitializeLightConfigParams, Pack, PackedAccounts,
-    UpdateLightConfigParams,
+    CompressedAccountData, InitializeLightConfigParams, Pack, UpdateLightConfigParams,
 };
-use light_sdk::{
-    instruction::{
-        account_meta::CompressedAccountMetaNoLamportsNoAddress, SystemAccountMetaConfig,
-        ValidityProof,
-    },
-    PackedAccountsExt,
+use light_sdk::instruction::{
+    account_meta::CompressedAccountMetaNoLamportsNoAddress, PackedAccounts,
+    SystemAccountMetaConfig, ValidityProof,
 };
 use light_token::constants::{
     LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_CPI_AUTHORITY, LIGHT_TOKEN_PROGRAM_ID,

@@ -8,8 +8,7 @@ use light_program_test::{
 use light_sdk::{
     address::v1::derive_address,
     instruction::{
-        account_meta::CompressedAccountMetaBurn, PackedAccounts, PackedAccountsExt,
-        SystemAccountMetaConfig,
+        account_meta::CompressedAccountMetaBurn, PackedAccounts, SystemAccountMetaConfig,
     },
 };
 use light_test_utils::{Rpc, RpcError};

@@ -6,8 +6,7 @@ use light_client::interface::{
     CreateAccountsProofInput, PdaSpec,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
-use light_program_test::program_test::TestRpc;
-use light_program_test::Rpc;
+use light_program_test::{program_test::TestRpc, Rpc};
 use pinocchio_derive_test::CreatePdaParams;
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
@@ -79,7 +78,10 @@ async fn test_create_single_pda_derive() {
         compression_info: shared::expected_compression_info(&record.compression_info),
         owner,
     };
-    assert_eq!(record, expected, "MinimalRecord should match after creation");
+    assert_eq!(
+        record, expected,
+        "MinimalRecord should match after creation"
+    );
 
     // PHASE 2: Warp to trigger auto-compression
     rpc.warp_slot_forward(SLOTS_PER_EPOCH * 30).await.unwrap();

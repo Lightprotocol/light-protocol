@@ -2,7 +2,7 @@
 
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_program_test::{program_test::LightProgramTest, Indexer, ProgramTestConfig, Rpc};
-use light_sdk::instruction::{PackedAccounts, PackedAccountsExt, SystemAccountMetaConfig};
+use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
 use serial_test::serial;
 use solana_sdk::{
     instruction::Instruction,

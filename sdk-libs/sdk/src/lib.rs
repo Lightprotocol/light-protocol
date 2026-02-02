@@ -218,8 +218,6 @@ use solana_pubkey::Pubkey;
 
 // Re-export SDK traits
 pub use crate::cpi::LightCpiInstruction;
-#[cfg(not(target_os = "solana"))]
-pub use crate::instruction::PackedAccountsExt;
 
 pub trait PubkeyTrait {
     fn to_solana_pubkey(&self) -> Pubkey;

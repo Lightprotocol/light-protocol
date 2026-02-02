@@ -1,10 +1,11 @@
-use light_program_profiler::profile;
 #[cfg(not(target_os = "solana"))]
-use light_sdk::{
-    instruction::{AccountMetasVec, PackedAccounts, SystemAccountMetaConfig},
-    PackedAccountsExt,
-};
+use light_account::PackedAccounts;
+use light_program_profiler::profile;
 // PackedAccounts and AccountMetasVec are only available off-chain (client-side)
+#[cfg(not(target_os = "solana"))]
+use light_sdk::instruction::{
+    get_light_system_account_metas_v2, AccountMetasVec, SystemAccountMetaConfig,
+};
 #[cfg(not(target_os = "solana"))]
 use light_sdk_types::error::LightSdkTypesError;
 use light_token_interface::instructions::transfer2::CompressedCpiContext;
@@ -422,9 +423,7 @@ impl AccountMetasVec<AccountMeta> for CompressAndCloseAccounts {
                     return Err(LightSdkTypesError::InvalidInstructionData);
                 }
             }
-            accounts
-                .add_system_accounts_v2(config)
-                .map_err(LightSdkTypesError::from)?;
+            accounts.add_system_accounts_raw(get_light_system_account_metas_v2(config));
         }
         // Add both accounts in one operation for better performance
         accounts.pre_accounts.extend_from_slice(&[

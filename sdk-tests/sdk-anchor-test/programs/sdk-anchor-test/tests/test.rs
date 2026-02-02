@@ -9,10 +9,7 @@ use light_program_test::{
 };
 use light_sdk::{
     address::v1::derive_address,
-    instruction::{
-        account_meta::CompressedAccountMeta, PackedAccounts, PackedAccountsExt,
-        SystemAccountMetaConfig,
-    },
+    instruction::{account_meta::CompressedAccountMeta, PackedAccounts, SystemAccountMetaConfig},
 };
 use light_test_utils::{Rpc, RpcError};
 use sdk_anchor_test::{MyCompressedAccount, NestedData};

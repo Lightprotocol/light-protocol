@@ -6,8 +6,7 @@ use light_client::interface::{
     AccountSpec, ColdContext, CreateAccountsProofInput, PdaSpec,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
-use light_program_test::program_test::TestRpc;
-use light_program_test::Rpc;
+use light_program_test::{program_test::TestRpc, Rpc};
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
 use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
 use light_token_interface::state::token::{AccountState, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT};
@@ -218,9 +217,7 @@ async fn test_create_all_derive() {
 
     // PHASE 3: Decompress all accounts except vault via create_load_instructions.
     // Note: standalone token PDA decompression is not supported; vaults stay compressed.
-    use pinocchio_derive_test::{
-        LightAccountVariant, MinimalRecordSeeds, ZeroCopyRecordSeeds,
-    };
+    use pinocchio_derive_test::{LightAccountVariant, MinimalRecordSeeds, ZeroCopyRecordSeeds};
 
     // PDA: MinimalRecord
     let record_interface = rpc
@@ -352,8 +349,7 @@ async fn test_create_all_derive() {
     );
 
     // ATA
-    let actual_ata: Token =
-        shared::parse_token(&rpc.get_account(ata).await.unwrap().unwrap().data);
+    let actual_ata: Token = shared::parse_token(&rpc.get_account(ata).await.unwrap().unwrap().data);
     let expected_ata = Token {
         mint: LPubkey::from(ata_mint.to_bytes()),
         owner: LPubkey::from(ata_owner.to_bytes()),

@@ -8,9 +8,8 @@ use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
 use light_program_profiler::profile;
 use light_sdk::instruction::PackedStateTreeInfo;
 #[cfg(not(target_os = "solana"))]
-use light_sdk::{
-    instruction::{AccountMetasVec, SystemAccountMetaConfig},
-    PackedAccountsExt,
+use light_sdk::instruction::{
+    get_light_system_account_metas_v2, AccountMetasVec, SystemAccountMetaConfig,
 };
 use light_sdk_types::error::LightSdkTypesError;
 use light_token_interface::instructions::{
@@ -375,9 +374,7 @@ impl AccountMetasVec<AccountMeta> for DecompressFullAccounts {
                 config
             };
 
-            accounts
-                .add_system_accounts_v2(config)
-                .map_err(LightSdkTypesError::from)?;
+            accounts.add_system_accounts_raw(get_light_system_account_metas_v2(config));
         }
         // Add both accounts in one operation for better performance
         accounts.pre_accounts.extend_from_slice(&[

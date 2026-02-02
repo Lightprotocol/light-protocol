@@ -9,7 +9,7 @@ use light_compressed_token_sdk::{
 use light_program_test::{AddressWithTree, Indexer, LightProgramTest, ProgramTestConfig, Rpc};
 use light_sdk::{
     address::v1::derive_address,
-    instruction::{PackedAccounts, PackedAccountsExt, PackedStateTreeInfo, SystemAccountMetaConfig},
+    instruction::{PackedAccounts, PackedStateTreeInfo, SystemAccountMetaConfig},
 };
 use light_test_utils::RpcError;
 use light_token::instruction::CreateAssociatedTokenAccount;

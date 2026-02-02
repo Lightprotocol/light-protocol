@@ -23,10 +23,10 @@ use light_program_test::{
 };
 use light_token_interface::state::{token::Token, Mint};
 use pinocchio_derive_test::{
-    CreateAllParams, MinimalRecord, ZeroCopyRecord, MINT_SIGNER_SEED_A, MINT_SIGNER_SEED_B,
-    RECORD_SEED, VAULT_AUTH_SEED, VAULT_SEED,
+    CreateAllParams, LightAccountVariant, MinimalRecord, MinimalRecordSeeds, ZeroCopyRecord,
+    ZeroCopyRecordSeeds, MINT_SIGNER_SEED_A, MINT_SIGNER_SEED_B, RECORD_SEED, VAULT_AUTH_SEED,
+    VAULT_SEED,
 };
-use pinocchio_derive_test::{LightAccountVariant, MinimalRecordSeeds, ZeroCopyRecordSeeds};
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -215,11 +215,7 @@ async fn setup() -> (StressTestContext, TestPdas) {
 }
 
 /// Re-read all on-chain accounts into the cache
-async fn refresh_cache(
-    rpc: &mut LightProgramTest,
-    pdas: &TestPdas,
-    owner: Pubkey,
-) -> CachedState {
+async fn refresh_cache(rpc: &mut LightProgramTest, pdas: &TestPdas, owner: Pubkey) -> CachedState {
     let record_account = rpc.get_account(pdas.record).await.unwrap().unwrap();
     let record: MinimalRecord =
         borsh::BorshDeserialize::deserialize(&mut &record_account.data[8..]).unwrap();

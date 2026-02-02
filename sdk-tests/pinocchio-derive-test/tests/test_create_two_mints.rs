@@ -6,8 +6,7 @@ use light_client::interface::{
     AccountSpec, ColdContext, CreateAccountsProofInput,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
-use light_program_test::program_test::TestRpc;
-use light_program_test::Rpc;
+use light_program_test::{program_test::TestRpc, Rpc};
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
 use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
 use pinocchio_derive_test::{CreateTwoMintsParams, MINT_SIGNER_SEED_A, MINT_SIGNER_SEED_B};
@@ -155,10 +154,8 @@ async fn test_create_two_mints_derive() {
     assert!(mint_b_interface.is_cold(), "Mint B should be cold");
     let mint_b_ai = build_mint_account_interface(mint_b_interface);
 
-    let specs: Vec<AccountSpec<LightAccountVariant>> = vec![
-        AccountSpec::Mint(mint_a_ai),
-        AccountSpec::Mint(mint_b_ai),
-    ];
+    let specs: Vec<AccountSpec<LightAccountVariant>> =
+        vec![AccountSpec::Mint(mint_a_ai), AccountSpec::Mint(mint_b_ai)];
 
     let ixs = create_load_instructions(&specs, payer.pubkey(), env.config_pda, &rpc)
         .await

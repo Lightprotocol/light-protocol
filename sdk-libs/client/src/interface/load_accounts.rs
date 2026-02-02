@@ -1,6 +1,6 @@
 //! Load cold accounts API.
 
-use light_account::{derive_rent_sponsor_pda, Pack, PackedAccounts};
+use light_account::{derive_rent_sponsor_pda, Pack};
 use light_compressed_account::{
     compressed_account::PackedMerkleContext, instruction_data::compressed_proof::ValidityProof,
 };
@@ -10,6 +10,7 @@ use light_compressed_token_sdk::compressed_token::{
     },
     CTokenAccount2,
 };
+use light_sdk::instruction::PackedAccounts;
 use light_token::{
     compat::AccountState,
     instruction::{

@@ -5,9 +5,8 @@
 
 use std::borrow::Cow;
 
-use light_account::Size;
+use light_account::{CompressAs, CompressedInitSpace, CompressionState, HasCompressionInfo, Size};
 use light_hasher::{DataHasher, Sha256};
-use light_account::{CompressAs, CompressedInitSpace, CompressionState, HasCompressionInfo};
 use light_sdk::LightDiscriminator;
 
 // =============================================================================

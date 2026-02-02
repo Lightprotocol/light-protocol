@@ -10,8 +10,8 @@
 //! Therefore, no Pack/Unpack tests are needed.
 
 use csdk_anchor_full_derived_test::ArrayRecord;
-use light_hasher::{DataHasher, Sha256};
 use light_account::{CompressAs, CompressionInfo, CompressionState};
+use light_hasher::{DataHasher, Sha256};
 
 use super::shared::CompressibleTestFactory;
 use crate::generate_trait_tests;

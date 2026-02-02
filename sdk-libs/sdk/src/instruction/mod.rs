@@ -41,20 +41,14 @@
 // TODO: link to examples
 
 // Re-export instruction types from sdk-types (available on all targets)
-pub use light_sdk_types::instruction::*;
-// Re-export pack_accounts utilities from interface (off-chain only)
-#[cfg(not(target_os = "solana"))]
-pub use light_sdk_types::interface::instruction::*;
-
-// Concrete PackedAccounts type alias for solana AccountMeta (off-chain only)
-#[cfg(not(target_os = "solana"))]
-pub type PackedAccounts =
-    light_sdk_types::interface::instruction::PackedAccounts<solana_instruction::AccountMeta>;
-
 // SDK-specific: ValidityProof and CompressedProof
 pub use light_compressed_account::instruction_data::compressed_proof::{
     CompressedProof, ValidityProof,
 };
+pub use light_sdk_types::instruction::*;
+// Re-export pack_accounts utilities from interface (off-chain only)
+#[cfg(not(target_os = "solana"))]
+pub use light_sdk_types::interface::instruction::*;
 
 // SDK-specific: system account helpers (depend on find_cpi_signer_macro!)
 mod system_accounts;
@@ -64,8 +58,8 @@ pub use system_accounts::*;
 mod tree_info;
 pub use tree_info::*;
 
-// SDK-specific: PackedAccountsExt extension trait
+// Newtype wrapper around generic PackedAccounts<AccountMeta> with inherent system account methods
 #[cfg(not(target_os = "solana"))]
-mod packed_accounts_ext;
+mod packed_accounts;
 #[cfg(not(target_os = "solana"))]
-pub use packed_accounts_ext::*;
+pub use packed_accounts::PackedAccounts;
