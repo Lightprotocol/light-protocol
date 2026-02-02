@@ -163,6 +163,13 @@ class SetupCommand extends Command {
       default: true,
       allowNo: true,
     }),
+    "account-dir": Flags.string({
+      description:
+        "Additional directory containing account JSON files to preload. Can be specified multiple times.",
+      required: false,
+      multiple: true,
+      summary: "Usage: --account-dir <path/to/accounts/>",
+    }),
   };
 
   validatePrograms(
@@ -299,6 +306,7 @@ class SetupCommand extends Command {
         verbose: flags.verbose,
         skipReset: flags["skip-reset"],
         useSurfpool: flags["use-surfpool"],
+        additionalAccountDirs: flags["account-dir"],
       });
       this.log("\nSetup tasks completed successfully \x1b[32m✔\x1b[0m");
     }

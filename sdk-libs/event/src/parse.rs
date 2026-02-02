@@ -4,8 +4,8 @@ use light_compressed_account::{
         CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
     },
     constants::{
-        ACCOUNT_COMPRESSION_PROGRAM_ID, CREATE_CPI_CONTEXT_ACCOUNT, LIGHT_SYSTEM_PROGRAM_ID,
-        REGISTERED_PROGRAM_PDA,
+        ACCOUNT_COMPRESSION_PROGRAM_ID, CREATE_CPI_CONTEXT_ACCOUNT, LIGHT_REGISTRY_PROGRAM_ID,
+        LIGHT_SYSTEM_PROGRAM_ID, REGISTERED_PROGRAM_PDA,
     },
     discriminators::*,
     instruction_data::{
@@ -51,8 +51,10 @@ pub(crate) struct Indices {
     pub insert_into_queues: usize,
     pub found_solana_system_program_instruction: bool,
     pub found_system: bool,
-    /// Index of the token program instruction (if present)
+    /// Index of the token program instruction (if present, only when called from registry)
     pub token: Option<usize>,
+    /// Whether registry program was found in the CPI chain (required for token instruction tracking)
+    pub found_registry: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -61,6 +63,7 @@ pub(crate) enum ProgramId {
     AccountCompression,
     SolanaSystem,
     LightToken,
+    Registry,
     Unknown,
 }
 
@@ -231,6 +234,9 @@ fn find_cpi_pattern(start_index: usize, program_ids: &[ProgramId]) -> (Option<In
         insert_into_queues: start_index,
         ..Default::default()
     };
+    // Track tentative token index - will only be confirmed if registry is found
+    let mut tentative_token: Option<usize> = None;
+
     for (index, program_id) in (0..start_index)
         .rev()
         .zip(program_ids[..start_index].iter().rev())
@@ -247,10 +253,20 @@ fn find_cpi_pattern(start_index: usize, program_ids: &[ProgramId]) -> (Option<In
         } else if index_account.found_system && matches!(program_id, ProgramId::LightSystem) {
             index_account.cpi.push(index);
         } else if index_account.found_system && matches!(program_id, ProgramId::LightToken) {
-            // Token program instruction that called the system program
-            // Only track the first one (closest to system instruction)
+            // Token program Transfer2 instruction in the CPI chain.
+            // Track tentatively - will only be confirmed if registry is found later.
+            // Only track the first one (closest to system instruction).
+            if tentative_token.is_none() {
+                tentative_token = Some(index);
+            }
+        } else if index_account.found_system && matches!(program_id, ProgramId::Registry) {
+            // Registry program instruction - confirms token tracking for ATA owner extraction.
+            // Since we search backwards, registry is found after token in the search order,
+            // but registry is the outer caller in the actual CPI chain.
+            index_account.found_registry = true;
+            // Confirm the tentative token index now that we found registry
             if index_account.token.is_none() {
-                index_account.token = Some(index);
+                index_account.token = tentative_token;
             }
         } else if matches!(program_id, ProgramId::AccountCompression) && index_account.found_system
         {
@@ -309,6 +325,8 @@ fn wrap_program_ids(
             } else {
                 vec.push(ProgramId::Unknown);
             }
+        } else if program_id == &LIGHT_REGISTRY_PROGRAM_ID {
+            vec.push(ProgramId::Registry);
         } else {
             vec.push(ProgramId::Unknown);
         }
@@ -527,8 +545,12 @@ fn extract_ata_owners(token_instruction: &TokenInstructionData) -> Vec<AtaOwnerI
         for ext in tlv_extensions.iter() {
             if let ExtensionInstructionData::CompressedOnly(compressed_only) = ext {
                 if compressed_only.is_ata {
-                    // Get wallet owner from packed_accounts using owner_index
-                    let owner_idx = compressed_only.owner_index as usize;
+                    // Get wallet owner from packed_accounts using owner_index.
+                    // owner_index is an index into packed_accounts, which starts at position 7
+                    // in the Transfer2 accounts array (after the 7 system accounts).
+                    const TRANSFER2_PACKED_ACCOUNTS_OFFSET: usize = 7;
+                    let owner_idx =
+                        compressed_only.owner_index as usize + TRANSFER2_PACKED_ACCOUNTS_OFFSET;
                     if owner_idx < token_instruction.accounts.len() {
                         ata_owners.push(AtaOwnerInfo {
                             output_index: output_index as u8,
@@ -819,6 +841,7 @@ mod test {
                 found_solana_system_program_instruction: true,
                 found_system: true,
                 token: None,
+                found_registry: false,
             };
             assert!(
                 vec.contains(&expected),
@@ -854,6 +877,7 @@ mod test {
                 found_solana_system_program_instruction: true,
                 found_system: true,
                 token: None,
+                found_registry: false,
             };
             assert!(
                 vec.iter().any(|x| x.system == expected.system
@@ -923,6 +947,7 @@ mod test {
                     found_solana_system_program_instruction: true,
                     found_system: true,
                     token: None,
+                    found_registry: false,
                 }
             );
             assert_eq!(
@@ -934,6 +959,7 @@ mod test {
                     found_solana_system_program_instruction: true,
                     found_system: true,
                     token: None,
+                    found_registry: false,
                 }
             );
             // Modify only second event is valid
@@ -951,6 +977,7 @@ mod test {
                         found_solana_system_program_instruction: true,
                         found_system: true,
                         token: None,
+                        found_registry: false,
                     }
                 );
             }
@@ -969,6 +996,7 @@ mod test {
                         found_solana_system_program_instruction: true,
                         found_system: true,
                         token: None,
+                        found_registry: false,
                     }
                 );
             }
@@ -996,6 +1024,7 @@ mod test {
                     found_solana_system_program_instruction: true,
                     found_system: true,
                     token: None,
+                    found_registry: false,
                 })
             );
         }
@@ -1020,6 +1049,7 @@ mod test {
                     found_solana_system_program_instruction: true,
                     found_system: true,
                     token: None,
+                    found_registry: false,
                 })
             );
         }
@@ -1061,6 +1091,7 @@ mod test {
                     found_solana_system_program_instruction: true,
                     found_system: true,
                     token: None,
+                    found_registry: false,
                 })
             );
             // Failing
@@ -1095,6 +1126,7 @@ mod test {
                     found_solana_system_program_instruction: true,
                     found_system: true,
                     token: None,
+                    found_registry: false,
                 })
             );
             // Failing
@@ -1106,5 +1138,355 @@ mod test {
                 assert_eq!(res, None);
             }
         }
+    }
+
+    // ==========================================================================
+    // Tests for extract_ata_owners
+    // ==========================================================================
+
+    use borsh::BorshSerialize;
+    use light_token_interface::instructions::{
+        extensions::CompressedOnlyExtensionInstructionData,
+        transfer2::{CompressedTokenInstructionDataTransfer2, MultiTokenTransferOutputData},
+    };
+
+    /// Helper to create valid Transfer2 instruction data with ATA extensions
+    fn create_transfer2_with_ata(owner_index: u8, is_ata: bool) -> Vec<u8> {
+        let transfer_data = CompressedTokenInstructionDataTransfer2 {
+            with_transaction_hash: false,
+            with_lamports_change_account_merkle_tree_index: false,
+            lamports_change_account_merkle_tree_index: 0,
+            lamports_change_account_owner_index: 0,
+            output_queue: 0,
+            max_top_up: 0,
+            cpi_context: None,
+            compressions: None,
+            proof: None,
+            in_token_data: vec![],
+            out_token_data: vec![MultiTokenTransferOutputData {
+                owner: owner_index,
+                amount: 1000,
+                has_delegate: false,
+                delegate: 0,
+                mint: 0,
+                version: 3,
+            }],
+            in_lamports: None,
+            out_lamports: None,
+            in_tlv: None,
+            out_tlv: Some(vec![vec![ExtensionInstructionData::CompressedOnly(
+                CompressedOnlyExtensionInstructionData {
+                    delegated_amount: 0,
+                    withheld_transfer_fee: 0,
+                    is_frozen: false,
+                    compression_index: 0,
+                    is_ata,
+                    bump: 255,
+                    owner_index,
+                },
+            )]]),
+        };
+        let mut data = vec![TRANSFER2]; // discriminator
+        data.extend(transfer_data.try_to_vec().unwrap());
+        data
+    }
+
+    #[test]
+    fn test_extract_ata_owners_empty_data() {
+        let token_instruction = TokenInstructionData {
+            data: &[],
+            accounts: &[],
+        };
+        let result = extract_ata_owners(&token_instruction);
+        assert!(result.is_empty(), "Empty data should return empty vec");
+    }
+
+    #[test]
+    fn test_extract_ata_owners_wrong_discriminator() {
+        let token_instruction = TokenInstructionData {
+            data: &[0xFF, 0x00, 0x00], // Wrong discriminator
+            accounts: &[],
+        };
+        let result = extract_ata_owners(&token_instruction);
+        assert!(
+            result.is_empty(),
+            "Wrong discriminator should return empty vec"
+        );
+    }
+
+    #[test]
+    fn test_extract_ata_owners_only_discriminator() {
+        let token_instruction = TokenInstructionData {
+            data: &[TRANSFER2], // Only discriminator, no data
+            accounts: &[],
+        };
+        let result = extract_ata_owners(&token_instruction);
+        assert!(
+            result.is_empty(),
+            "Only discriminator should return empty vec (deserialization fails)"
+        );
+    }
+
+    #[test]
+    fn test_extract_ata_owners_malformed_data() {
+        // Random garbage after discriminator
+        let token_instruction = TokenInstructionData {
+            data: &[TRANSFER2, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF],
+            accounts: &[],
+        };
+        let result = extract_ata_owners(&token_instruction);
+        assert!(
+            result.is_empty(),
+            "Malformed data should return empty vec (deserialization fails)"
+        );
+    }
+
+    #[test]
+    fn test_extract_ata_owners_valid_non_ata() {
+        let data = create_transfer2_with_ata(0, false); // is_ata = false
+        let accounts = vec![Pubkey::default(); 10];
+        let token_instruction = TokenInstructionData {
+            data: &data,
+            accounts: &accounts,
+        };
+        let result = extract_ata_owners(&token_instruction);
+        assert!(
+            result.is_empty(),
+            "Non-ATA accounts should not produce ATA owner info"
+        );
+    }
+
+    #[test]
+    fn test_extract_ata_owners_valid_ata() {
+        let owner_index = 2u8; // Index into packed_accounts
+        let data = create_transfer2_with_ata(owner_index, true);
+
+        // Create accounts array: 7 system accounts + packed_accounts
+        // owner_index=2 means packed_accounts[2] = accounts[7+2] = accounts[9]
+        let mut accounts = vec![Pubkey::default(); 10];
+        let expected_owner = Pubkey::new_from_array([42u8; 32]);
+        accounts[7 + owner_index as usize] = expected_owner;
+
+        let token_instruction = TokenInstructionData {
+            data: &data,
+            accounts: &accounts,
+        };
+        let result = extract_ata_owners(&token_instruction);
+        assert_eq!(result.len(), 1, "Should extract one ATA owner");
+        assert_eq!(result[0].output_index, 0);
+        assert_eq!(result[0].wallet_owner, expected_owner);
+    }
+
+    #[test]
+    fn test_extract_ata_owners_owner_index_out_of_bounds() {
+        let owner_index = 100u8; // Way beyond accounts array
+        let data = create_transfer2_with_ata(owner_index, true);
+
+        // Only 10 accounts, but owner_index + 7 = 107
+        let accounts = vec![Pubkey::default(); 10];
+
+        let token_instruction = TokenInstructionData {
+            data: &data,
+            accounts: &accounts,
+        };
+        let result = extract_ata_owners(&token_instruction);
+        assert!(
+            result.is_empty(),
+            "Out of bounds owner_index should be safely skipped"
+        );
+    }
+
+    #[test]
+    fn test_extract_ata_owners_boundary_owner_index() {
+        // Test with owner_index at the boundary
+        let owner_index = 2u8;
+        let data = create_transfer2_with_ata(owner_index, true);
+
+        // Create exactly enough accounts: 7 system + 3 packed (indices 0, 1, 2)
+        // owner_index=2 needs accounts[9], so we need 10 accounts total
+        let mut accounts = vec![Pubkey::default(); 10];
+        let expected_owner = Pubkey::new_from_array([99u8; 32]);
+        accounts[9] = expected_owner;
+
+        let token_instruction = TokenInstructionData {
+            data: &data,
+            accounts: &accounts,
+        };
+        let result = extract_ata_owners(&token_instruction);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].wallet_owner, expected_owner);
+
+        // Now with one less account - should be skipped
+        let accounts_short = vec![Pubkey::default(); 9];
+        let token_instruction_short = TokenInstructionData {
+            data: &data,
+            accounts: &accounts_short,
+        };
+        let result_short = extract_ata_owners(&token_instruction_short);
+        assert!(
+            result_short.is_empty(),
+            "Boundary case with insufficient accounts should be skipped"
+        );
+    }
+
+    #[test]
+    fn test_extract_ata_owners_max_owner_index() {
+        // Test with u8::MAX owner_index
+        let owner_index = u8::MAX;
+        let data = create_transfer2_with_ata(owner_index, true);
+
+        // 255 + 7 = 262, need 263 accounts
+        let accounts = vec![Pubkey::default(); 10]; // Way too few
+
+        let token_instruction = TokenInstructionData {
+            data: &data,
+            accounts: &accounts,
+        };
+        let result = extract_ata_owners(&token_instruction);
+        assert!(
+            result.is_empty(),
+            "u8::MAX owner_index with small accounts array should be safely skipped"
+        );
+    }
+
+    // ==========================================================================
+    // Tests for wrap_program_ids with LightToken and Registry
+    // ==========================================================================
+
+    #[test]
+    fn test_wrap_program_ids_light_token_transfer2() {
+        let program_ids = vec![Pubkey::from(LIGHT_TOKEN_PROGRAM_ID)];
+        let mut instruction_data = vec![0u8; 12]; // Minimum size
+        instruction_data[0] = TRANSFER2;
+        let instructions = vec![instruction_data];
+        let accounts = vec![vec![]];
+
+        let result = wrap_program_ids(&program_ids, &instructions, &accounts);
+        assert_eq!(result, vec![ProgramId::LightToken]);
+    }
+
+    #[test]
+    fn test_wrap_program_ids_light_token_non_transfer2() {
+        let program_ids = vec![Pubkey::from(LIGHT_TOKEN_PROGRAM_ID)];
+        let mut instruction_data = vec![0u8; 12];
+        instruction_data[0] = 0xFF; // Not TRANSFER2
+        let instructions = vec![instruction_data];
+        let accounts = vec![vec![]];
+
+        let result = wrap_program_ids(&program_ids, &instructions, &accounts);
+        assert_eq!(result, vec![ProgramId::Unknown]);
+    }
+
+    #[test]
+    fn test_wrap_program_ids_registry() {
+        let program_ids = vec![Pubkey::from(LIGHT_REGISTRY_PROGRAM_ID)];
+        let instruction_data = vec![0u8; 12];
+        let instructions = vec![instruction_data];
+        let accounts = vec![vec![]];
+
+        let result = wrap_program_ids(&program_ids, &instructions, &accounts);
+        assert_eq!(result, vec![ProgramId::Registry]);
+    }
+
+    #[test]
+    fn test_wrap_program_ids_instruction_too_small() {
+        let program_ids = vec![Pubkey::from(LIGHT_TOKEN_PROGRAM_ID)];
+        let instruction_data = vec![TRANSFER2; 5]; // Less than 12 bytes
+        let instructions = vec![instruction_data];
+        let accounts = vec![vec![]];
+
+        let result = wrap_program_ids(&program_ids, &instructions, &accounts);
+        assert_eq!(
+            result,
+            vec![ProgramId::Unknown],
+            "Instructions smaller than 12 bytes should be Unknown"
+        );
+    }
+
+    // ==========================================================================
+    // Tests for find_cpi_pattern with Registry and Token tracking
+    // ==========================================================================
+
+    #[test]
+    fn test_find_cpi_pattern_with_registry_and_token() {
+        // Pattern: Registry -> Token -> LightSystem -> SolanaSystem -> AccountCompression
+        let program_ids = vec![
+            ProgramId::Registry,
+            ProgramId::LightToken,
+            ProgramId::LightSystem,
+            ProgramId::SolanaSystem,
+            ProgramId::AccountCompression,
+        ];
+        let (res, _) = find_cpi_pattern(4, &program_ids);
+        assert!(res.is_some());
+        let indices = res.unwrap();
+        assert!(indices.found_registry, "Should find registry");
+        assert_eq!(
+            indices.token,
+            Some(1),
+            "Should track token when registry is present"
+        );
+        assert_eq!(indices.system, 2);
+    }
+
+    #[test]
+    fn test_find_cpi_pattern_token_without_registry() {
+        // Pattern: Token -> LightSystem -> SolanaSystem -> AccountCompression
+        // No registry means token should NOT be tracked
+        let program_ids = vec![
+            ProgramId::LightToken,
+            ProgramId::LightSystem,
+            ProgramId::SolanaSystem,
+            ProgramId::AccountCompression,
+        ];
+        let (res, _) = find_cpi_pattern(3, &program_ids);
+        assert!(res.is_some());
+        let indices = res.unwrap();
+        assert!(!indices.found_registry, "Should not find registry");
+        assert_eq!(
+            indices.token, None,
+            "Should NOT track token without registry"
+        );
+    }
+
+    #[test]
+    fn test_find_cpi_pattern_registry_without_token() {
+        // Registry can call LightSystem directly without Token
+        // Pattern: Registry -> LightSystem -> SolanaSystem -> AccountCompression
+        let program_ids = vec![
+            ProgramId::Registry,
+            ProgramId::LightSystem,
+            ProgramId::SolanaSystem,
+            ProgramId::AccountCompression,
+        ];
+        let (res, _) = find_cpi_pattern(3, &program_ids);
+        assert!(res.is_some());
+        let indices = res.unwrap();
+        assert!(indices.found_registry, "Should find registry");
+        assert_eq!(indices.token, None, "No token instruction in this pattern");
+    }
+
+    #[test]
+    fn test_find_cpi_pattern_multiple_tokens_only_first_tracked() {
+        // Only the first (closest to system) token should be tracked
+        // Pattern: Registry -> Token1 -> Token2 -> LightSystem -> SolanaSystem -> AccountCompression
+        let program_ids = vec![
+            ProgramId::Registry,
+            ProgramId::LightToken, // Token1 - outer
+            ProgramId::LightToken, // Token2 - inner, should be tracked
+            ProgramId::LightSystem,
+            ProgramId::SolanaSystem,
+            ProgramId::AccountCompression,
+        ];
+        let (res, _) = find_cpi_pattern(5, &program_ids);
+        assert!(res.is_some());
+        let indices = res.unwrap();
+        assert!(indices.found_registry);
+        // The inner token (index 2) should be tracked as it's first when searching backwards
+        assert_eq!(
+            indices.token,
+            Some(2),
+            "Should track the token closest to system instruction"
+        );
     }
 }
