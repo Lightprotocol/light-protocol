@@ -13,7 +13,7 @@ pub mod update;
 
 // --- Constants ---
 
-pub const COMPRESSIBLE_CONFIG_SEED: &[u8] = b"compressible_config";
+pub const LIGHT_CONFIG_SEED: &[u8] = b"compressible_config";
 pub const MAX_ADDRESS_TREES_PER_SPACE: usize = 1;
 
 // --- Re-exports ---

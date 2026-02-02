@@ -310,7 +310,7 @@ pub fn compressible_derive(input: TokenStream) -> TokenStream {
 ///
 /// ```ignore
 /// use light_sdk_macros::{LightAccount, LightDiscriminator, LightHasherSha};
-/// use light_sdk::compressible::CompressionInfo;
+/// use light_account::CompressionInfo;
 /// use solana_pubkey::Pubkey;
 ///
 /// #[derive(Default, Debug, InitSpace, LightAccount, LightDiscriminator, LightHasherSha)]

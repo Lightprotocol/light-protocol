@@ -1,10 +1,10 @@
+use light_account::PackedAccounts;
 use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
 use light_compressed_token_sdk::compressed_token::CompressAndCloseAccounts as CTokenCompressAndCloseAccounts;
 use light_compressible::config::CompressibleConfig;
-use light_sdk::instruction::PackedAccounts;
 use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signature},

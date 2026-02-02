@@ -20,6 +20,7 @@ use csdk_anchor_full_derived_test::{
         D11_ZC_VAULT_SEED,
     },
 };
+use light_account::IntoVariant;
 use light_client::interface::{
     create_load_instructions, get_create_accounts_proof, AccountInterfaceExt, AccountSpec,
     CreateAccountsProofInput, InitializeRentFreeConfig, PdaSpec,
@@ -30,7 +31,6 @@ use light_program_test::{
     utils::assert::assert_rpc_error,
     ProgramTestConfig, Rpc,
 };
-use light_sdk::interface::IntoVariant;
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
 use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
 use solana_instruction::{AccountMeta, Instruction};

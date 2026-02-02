@@ -8,7 +8,7 @@ use light_compressed_token_sdk::compressed_token::create_compressed_mint::{
     derive_mint_compressed_address, find_mint_address,
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc, RpcError};
-use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
+use light_sdk::instruction::{PackedAccounts, PackedAccountsExt, SystemAccountMetaConfig};
 use light_token::instruction::{
     derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount,
 };

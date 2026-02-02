@@ -5,7 +5,7 @@ use clap::Parser;
 use dirs::home_dir;
 use light_client::rpc::{LightClient, LightClientConfig, Rpc};
 use light_compressible::{
-    config::COMPRESSIBLE_CONFIG_SEED,
+    config::LIGHT_CONFIG_SEED,
     registry_instructions::CreateCompressibleConfig as CreateCompressibleConfigParams,
     rent::RentConfig,
 };
@@ -52,7 +52,7 @@ fn get_config_counter_pda() -> (Pubkey, u8) {
 
 fn get_compressible_config_pda(version: u16) -> (Pubkey, u8) {
     Pubkey::find_program_address(
-        &[COMPRESSIBLE_CONFIG_SEED, &version.to_le_bytes()],
+        &[LIGHT_CONFIG_SEED, &version.to_le_bytes()],
         &REGISTRY_PROGRAM_ID,
     )
 }

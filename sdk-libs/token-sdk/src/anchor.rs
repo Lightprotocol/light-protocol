@@ -3,6 +3,13 @@
 //! Provides a single import point for Anchor programs using Light Protocol.
 
 // Re-export Light SDK core types
+pub use light_account::{
+    CompressAs as CompressAsTrait, CompressedInitSpace, CompressionInfo,
+    HasCompressionInfo as HasCompressionInfoTrait, LightConfig, LightFinalize, LightPreInit, Space,
+    Unpack,
+};
+#[cfg(not(target_os = "solana"))]
+pub use light_account::{Pack, PackedAccounts};
 pub use light_sdk::{
     account::LightAccount as LightAccountType,
     address,
@@ -10,16 +17,8 @@ pub use light_sdk::{
     derive_light_cpi_signer, derive_light_cpi_signer_pda,
     error::LightSdkError,
     instruction::ValidityProof,
-    interface::{
-        CompressAs as CompressAsTrait, CompressedInitSpace, CompressionInfo,
-        HasCompressionInfo as HasCompressionInfoTrait, LightConfig, LightFinalize, LightPreInit,
-        Space, Unpack,
-    },
     CpiSigner, LightDiscriminator as LightDiscriminatorTrait,
 };
-// Pack and PackedAccounts only available off-chain (client-side)
-#[cfg(not(target_os = "solana"))]
-pub use light_sdk::{instruction::PackedAccounts, interface::Pack};
 // Re-export Light SDK macros
 pub use light_sdk_macros::{
     // Proc macros

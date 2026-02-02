@@ -4,13 +4,16 @@
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
+use light_account::{
+    CompressedAccountData, InitializeLightConfigParams, Pack, PackedAccounts,
+    UpdateLightConfigParams,
+};
 use light_sdk::{
     instruction::{
-        account_meta::CompressedAccountMetaNoLamportsNoAddress, PackedAccounts,
-        SystemAccountMetaConfig, ValidityProof,
+        account_meta::CompressedAccountMetaNoLamportsNoAddress, SystemAccountMetaConfig,
+        ValidityProof,
     },
-    CompressedAccountData, InitializeLightConfigParams, Pack, PackedAccountsExt,
-    UpdateLightConfigParams,
+    PackedAccountsExt,
 };
 use light_token::constants::{
     LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_CPI_AUTHORITY, LIGHT_TOKEN_PROGRAM_ID,
@@ -104,7 +107,7 @@ pub fn initialize_config(
     let config_bump_u16 = config_bump as u16;
     let (config_pda, _) = Pubkey::find_program_address(
         &[
-            light_sdk::COMPRESSIBLE_CONFIG_SEED,
+            light_account::LIGHT_CONFIG_SEED,
             &config_bump_u16.to_le_bytes(),
         ],
         program_id,
@@ -153,7 +156,7 @@ pub fn update_config(
     new_update_authority: Option<Pubkey>,
 ) -> Instruction {
     let (config_pda, _) = Pubkey::find_program_address(
-        &[light_sdk::COMPRESSIBLE_CONFIG_SEED, &0u16.to_le_bytes()],
+        &[light_account::LIGHT_CONFIG_SEED, &0u16.to_le_bytes()],
         program_id,
     );
 

@@ -22,12 +22,12 @@ use light_compressed_account::instruction_data::{
     compressed_proof::CompressedProof, data::NewAddressParamsPacked,
 };
 use light_sdk::{
+    constants::LIGHT_SYSTEM_PROGRAM_ID,
     cpi::{
         invoke::invoke_light_system_program,
         v1::lowlevel::{get_account_metas_from_config, CpiInstructionConfig},
-        CpiAccountsTrait,
+        v2::lowlevel::to_account_metas,
     },
-    light_account_checks::CpiMeta,
 };
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, PartialEq)]
 pub struct CpiAccountsConfigLocal {
@@ -97,38 +97,38 @@ pub mod system_cpi_test {
     ) -> Result<()> {
         let fee_payer = ctx.accounts.signer.to_account_info();
 
-        let (account_infos, cpi_metas) = if v2_ix {
+        let (account_infos, account_metas) = if v2_ix {
             let cpi_accounts =
                 CpiAccounts::new_with_config(&fee_payer, ctx.remaining_accounts, config.into());
             let account_infos = cpi_accounts.to_account_infos();
 
-            let cpi_metas = if !write_cpi_context {
-                CpiAccountsTrait::to_account_metas(&cpi_accounts)
-                    .map_err(|_| ErrorCode::AccountNotEnoughKeys)?
+            let account_metas = if !write_cpi_context {
+                to_account_metas(&cpi_accounts).map_err(|_| ErrorCode::AccountNotEnoughKeys)?
             } else {
                 require!(
                     ctx.remaining_accounts.len() >= 3,
                     ErrorCode::AccountNotEnoughKeys
                 );
-                vec![
-                    CpiMeta {
-                        pubkey: cpi_accounts.fee_payer().key.to_bytes(),
-                        is_signer: true,
-                        is_writable: true,
-                    },
-                    CpiMeta {
-                        pubkey: ctx.remaining_accounts[1].key.to_bytes(),
-                        is_signer: true,
-                        is_writable: false,
-                    },
-                    CpiMeta {
-                        pubkey: ctx.remaining_accounts[2].key.to_bytes(),
-                        is_signer: false,
-                        is_writable: true,
-                    },
-                ]
+                let mut account_metas = vec![];
+                account_metas.push(AccountMeta {
+                    pubkey: *cpi_accounts.fee_payer().key,
+                    is_signer: true,
+                    is_writable: true,
+                });
+                account_metas.push(AccountMeta {
+                    pubkey: *ctx.remaining_accounts[1].key,
+                    is_signer: true,
+                    is_writable: false,
+                });
+                let account = &ctx.remaining_accounts[2];
+                account_metas.push(AccountMeta {
+                    pubkey: *account.key,
+                    is_signer: false,
+                    is_writable: true,
+                });
+                account_metas
             };
-            (account_infos, cpi_metas)
+            (account_infos, account_metas)
         } else {
             use light_sdk::cpi::v1::CpiAccounts;
             let cpi_accounts =
@@ -139,19 +139,15 @@ pub mod system_cpi_test {
             let config = CpiInstructionConfig::try_from(&cpi_accounts)
                 .map_err(|_| ErrorCode::AccountNotEnoughKeys)?;
             let account_metas = get_account_metas_from_config(config);
-            let cpi_metas: Vec<CpiMeta> = account_metas
-                .into_iter()
-                .map(|m| CpiMeta {
-                    pubkey: m.pubkey.to_bytes(),
-                    is_signer: m.is_signer,
-                    is_writable: m.is_writable,
-                })
-                .collect();
-            (account_infos, cpi_metas)
+            (account_infos, account_metas)
+        };
+        let instruction = Instruction {
+            program_id: LIGHT_SYSTEM_PROGRAM_ID.into(),
+            accounts: account_metas,
+            data: inputs,
         };
         let cpi_config = CpiAccountsConfig::new(crate::LIGHT_CPI_SIGNER);
-        invoke_light_system_program(&account_infos, &cpi_metas, &inputs, cpi_config.bump())
-            .map_err(|_| anchor_lang::error::ErrorCode::AccountNotEnoughKeys)?;
+        invoke_light_system_program(&account_infos, instruction, cpi_config.bump())?;
         Ok(())
     }
 

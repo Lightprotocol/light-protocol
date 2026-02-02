@@ -96,7 +96,7 @@ pub mod pinocchio_derive_test {
             params.rent_config,
             params.write_top_up,
             params.address_space.iter().map(|p| p.to_bytes()).collect(),
-            0, // config_bump
+            0,                          // config_bump
             &ctx.remaining_accounts[0], // payer
             &ctx.remaining_accounts[4], // system_program
             &LIGHT_CPI_SIGNER.program_id,

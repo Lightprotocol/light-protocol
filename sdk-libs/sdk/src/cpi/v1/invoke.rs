@@ -1,18 +1,15 @@
 use light_compressed_account::instruction_data::{
     compressed_proof::ValidityProof, invoke_cpi::InstructionDataInvokeCpi,
 };
-use light_sdk_types::constants::{CPI_AUTHORITY_PDA_SEED, LIGHT_SYSTEM_PROGRAM_ID};
 
-use super::{
-    lowlevel::{get_account_metas_from_config, CpiInstructionConfig},
-    CpiAccounts,
-};
 #[cfg(feature = "poseidon")]
 use crate::{account::poseidon::LightAccount as LightAccountPoseidon, DataHasher};
 use crate::{
-    account::LightAccount, cpi::CpiSigner, error::LightSdkError,
-    instruction::account_info::CompressedAccountInfoTrait, AnchorDeserialize, AnchorSerialize,
-    LightDiscriminator, ProgramError,
+    account::LightAccount,
+    cpi::{instruction::LightCpiInstruction, invoke::LightInstructionData, CpiSigner},
+    error::LightSdkError,
+    instruction::account_info::CompressedAccountInfoTrait,
+    AnchorDeserialize, AnchorSerialize, LightDiscriminator, ProgramError,
 };
 
 /// Light system program CPI instruction data builder.
@@ -24,7 +21,7 @@ use crate::{
 ///
 /// ## Common Methods
 ///
-/// - [`with_light_account()`](Self::with_light_account) - Add a compressed account
+/// - [`with_light_account()`](Self::with_light_account) - Add a compressed account (handles output hashing, and type conversion to instruction data)
 /// - [`with_new_addresses()`](Self::with_new_addresses) - Create new compressed account addresses
 /// - [`compress_lamports()`](Self::compress_lamports) - Compress SOL into compressed accounts
 /// - [`decompress_lamports()`](Self::decompress_lamports) - Decompress SOL from compressed accounts
@@ -42,7 +39,7 @@ use crate::{
 ///
 /// ## Create a compressed account with an address
 /// ```rust,no_run
-/// # use light_sdk::cpi::{v1::LightSystemProgramCpi, CpiSigner};
+/// # use light_sdk::cpi::{v1::LightSystemProgramCpi, InvokeLightSystemProgram, LightCpiInstruction, CpiSigner};
 /// # use light_sdk::instruction::ValidityProof;
 /// # use light_compressed_account::instruction_data::data::NewAddressParamsPacked;
 /// # use light_sdk::{LightAccount, LightDiscriminator};
@@ -90,7 +87,7 @@ use crate::{
 /// ```
 /// ## Update a compressed account
 /// ```rust,no_run
-/// # use light_sdk::cpi::{v1::LightSystemProgramCpi, CpiSigner};
+/// # use light_sdk::cpi::{v1::LightSystemProgramCpi, InvokeLightSystemProgram, LightCpiInstruction, CpiSigner};
 /// # use light_sdk::instruction::ValidityProof;
 /// # use light_sdk::{LightAccount, LightDiscriminator};
 /// # use light_sdk::instruction::account_meta::CompressedAccountMeta;
@@ -143,93 +140,6 @@ pub struct LightSystemProgramCpi {
 }
 
 impl LightSystemProgramCpi {
-    pub fn new_cpi(cpi_signer: CpiSigner, proof: ValidityProof) -> Self {
-        Self {
-            cpi_signer,
-            instruction_data: InstructionDataInvokeCpi::new(proof.into()),
-        }
-    }
-
-    #[must_use = "with_light_account returns a new value"]
-    pub fn with_light_account<A>(mut self, account: LightAccount<A>) -> Result<Self, ProgramError>
-    where
-        A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + Default,
-    {
-        use light_compressed_account::compressed_account::PackedCompressedAccountWithMerkleContext;
-
-        let account_info = account.to_account_info()?;
-
-        if let Some(input_account) = account_info
-            .input_compressed_account(self.cpi_signer.program_id.into())
-            .map_err(LightSdkError::from)
-            .map_err(ProgramError::from)?
-        {
-            let packed_input = PackedCompressedAccountWithMerkleContext {
-                compressed_account: input_account.compressed_account,
-                merkle_context: input_account.merkle_context,
-                root_index: input_account.root_index,
-                read_only: false,
-            };
-            self.instruction_data
-                .input_compressed_accounts_with_merkle_context
-                .push(packed_input);
-        }
-
-        if let Some(output_account) = account_info
-            .output_compressed_account(self.cpi_signer.program_id.into())
-            .map_err(LightSdkError::from)
-            .map_err(ProgramError::from)?
-        {
-            self.instruction_data
-                .output_compressed_accounts
-                .push(output_account);
-        }
-
-        Ok(self)
-    }
-
-    #[cfg(feature = "poseidon")]
-    #[must_use = "with_light_account_poseidon returns a new value"]
-    pub fn with_light_account_poseidon<A>(
-        mut self,
-        account: LightAccountPoseidon<A>,
-    ) -> Result<Self, ProgramError>
-    where
-        A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHasher + Default,
-    {
-        use light_compressed_account::compressed_account::PackedCompressedAccountWithMerkleContext;
-
-        let account_info = account.to_account_info()?;
-
-        if let Some(input_account) = account_info
-            .input_compressed_account(self.cpi_signer.program_id.into())
-            .map_err(LightSdkError::from)
-            .map_err(ProgramError::from)?
-        {
-            let packed_input = PackedCompressedAccountWithMerkleContext {
-                compressed_account: input_account.compressed_account,
-                merkle_context: input_account.merkle_context,
-                root_index: input_account.root_index,
-                read_only: false,
-            };
-            self.instruction_data
-                .input_compressed_accounts_with_merkle_context
-                .push(packed_input);
-        }
-
-        if let Some(output_account) = account_info
-            .output_compressed_account(self.cpi_signer.program_id.into())
-            .map_err(LightSdkError::from)
-            .map_err(ProgramError::from)?
-        {
-            self.instruction_data
-                .output_compressed_accounts
-                .push(output_account);
-        }
-
-        Ok(self)
-    }
-
     #[must_use = "with_new_addresses returns a new value"]
     pub fn with_new_addresses(
         mut self,
@@ -298,28 +208,153 @@ impl LightSystemProgramCpi {
         self.instruction_data = self.instruction_data.with_cpi_context(cpi_context);
         self
     }
+}
 
-    /// Invoke the Light system program via CPI.
-    pub fn invoke(self, cpi_accounts: CpiAccounts<'_, '_>) -> Result<(), ProgramError> {
-        use light_compressed_account::instruction_data::traits::LightInstructionData;
+impl LightCpiInstruction for LightSystemProgramCpi {
+    fn new_cpi(cpi_signer: CpiSigner, proof: ValidityProof) -> Self {
+        Self {
+            cpi_signer,
+            instruction_data: InstructionDataInvokeCpi::new(proof.into()),
+        }
+    }
 
-        let data = self
-            .instruction_data
-            .data()
+    fn with_light_account<A>(mut self, account: LightAccount<A>) -> Result<Self, ProgramError>
+    where
+        A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + Default,
+    {
+        use light_compressed_account::compressed_account::PackedCompressedAccountWithMerkleContext;
+
+        // Convert LightAccount to account info
+        let account_info = account.to_account_info()?;
+
+        // Handle input accounts - convert to PackedCompressedAccountWithMerkleContext
+        if let Some(input_account) = account_info
+            .input_compressed_account(self.cpi_signer.program_id.into())
             .map_err(LightSdkError::from)
-            .map_err(ProgramError::from)?;
+            .map_err(ProgramError::from)?
+        {
+            let packed_input = PackedCompressedAccountWithMerkleContext {
+                compressed_account: input_account.compressed_account,
+                merkle_context: input_account.merkle_context,
+                root_index: input_account.root_index,
+                read_only: false, // Default to false for v1
+            };
+            self.instruction_data
+                .input_compressed_accounts_with_merkle_context
+                .push(packed_input);
+        }
 
-        let account_infos = cpi_accounts.to_account_infos();
-        let config = CpiInstructionConfig::try_from(&cpi_accounts).map_err(ProgramError::from)?;
-        let account_metas = get_account_metas_from_config(config);
+        // Handle output accounts
+        if let Some(output_account) = account_info
+            .output_compressed_account(self.cpi_signer.program_id.into())
+            .map_err(LightSdkError::from)
+            .map_err(ProgramError::from)?
+        {
+            self.instruction_data
+                .output_compressed_accounts
+                .push(output_account);
+        }
 
-        let instruction = solana_instruction::Instruction {
-            program_id: LIGHT_SYSTEM_PROGRAM_ID.into(),
-            accounts: account_metas,
-            data,
+        Ok(self)
+    }
+
+    #[cfg(feature = "poseidon")]
+    fn with_light_account_poseidon<A>(
+        mut self,
+        account: LightAccountPoseidon<A>,
+    ) -> Result<Self, ProgramError>
+    where
+        A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHasher + Default,
+    {
+        use light_compressed_account::compressed_account::PackedCompressedAccountWithMerkleContext;
+
+        // Convert LightAccount to account info
+        let account_info = account.to_account_info()?;
+
+        // Handle input accounts - convert to PackedCompressedAccountWithMerkleContext
+        if let Some(input_account) = account_info
+            .input_compressed_account(self.cpi_signer.program_id.into())
+            .map_err(LightSdkError::from)
+            .map_err(ProgramError::from)?
+        {
+            let packed_input = PackedCompressedAccountWithMerkleContext {
+                compressed_account: input_account.compressed_account,
+                merkle_context: input_account.merkle_context,
+                root_index: input_account.root_index,
+                read_only: false, // Default to false for v1
+            };
+            self.instruction_data
+                .input_compressed_accounts_with_merkle_context
+                .push(packed_input);
+        }
+
+        // Handle output accounts
+        if let Some(output_account) = account_info
+            .output_compressed_account(self.cpi_signer.program_id.into())
+            .map_err(LightSdkError::from)
+            .map_err(ProgramError::from)?
+        {
+            self.instruction_data
+                .output_compressed_accounts
+                .push(output_account);
+        }
+
+        Ok(self)
+    }
+
+    fn get_mode(&self) -> u8 {
+        0 // V1 uses regular mode by default
+    }
+
+    fn get_bump(&self) -> u8 {
+        self.cpi_signer.bump
+    }
+
+    #[cfg(feature = "cpi-context")]
+    fn write_to_cpi_context_first(mut self) -> Self {
+        self.instruction_data = self.instruction_data.write_to_cpi_context_first();
+        self
+    }
+
+    #[cfg(feature = "cpi-context")]
+    fn write_to_cpi_context_set(mut self) -> Self {
+        self.instruction_data = self.instruction_data.write_to_cpi_context_set();
+        self
+    }
+
+    #[cfg(feature = "cpi-context")]
+    fn execute_with_cpi_context(self) -> Self {
+        // V1 doesn't have a direct execute context, just return self
+        // The execute happens through the invoke call
+        self
+    }
+
+    #[cfg(feature = "cpi-context")]
+    fn get_with_cpi_context(&self) -> bool {
+        self.instruction_data.cpi_context.is_some()
+    }
+
+    #[cfg(feature = "cpi-context")]
+    fn get_cpi_context(
+        &self,
+    ) -> &light_compressed_account::instruction_data::cpi_context::CompressedCpiContext {
+        use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
+        // Use a static default with all fields set to false/0
+        static DEFAULT: CompressedCpiContext = CompressedCpiContext {
+            set_context: false,
+            first_set_context: false,
+            cpi_context_account_index: 0,
         };
-        let signer_seeds = [CPI_AUTHORITY_PDA_SEED, &[self.cpi_signer.bump]];
-        solana_cpi::invoke_signed(&instruction, &account_infos, &[signer_seeds.as_slice()])
+        self.instruction_data
+            .cpi_context
+            .as_ref()
+            .unwrap_or(&DEFAULT)
+    }
+
+    #[cfg(feature = "cpi-context")]
+    fn has_read_only_accounts(&self) -> bool {
+        // V1 doesn't support read-only accounts
+        false
     }
 }
 
@@ -327,5 +362,17 @@ impl LightSystemProgramCpi {
 impl AnchorSerialize for LightSystemProgramCpi {
     fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
         self.instruction_data.serialize(writer)
+    }
+}
+
+impl light_compressed_account::InstructionDiscriminator for LightSystemProgramCpi {
+    fn discriminator(&self) -> &'static [u8] {
+        self.instruction_data.discriminator()
+    }
+}
+
+impl LightInstructionData for LightSystemProgramCpi {
+    fn data(&self) -> Result<Vec<u8>, light_compressed_account::CompressedAccountError> {
+        self.instruction_data.data()
     }
 }

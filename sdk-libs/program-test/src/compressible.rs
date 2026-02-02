@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use borsh::BorshDeserialize;
+use light_account::LightConfig;
 use light_account_checks::discriminator::DISCRIMINATOR_LEN;
 use light_client::rpc::{Rpc, RpcError};
 use light_compressible::{
@@ -8,7 +9,6 @@ use light_compressible::{
     config::CompressibleConfig as CtokenCompressibleConfig,
     rent::{RentConfig, SLOTS_PER_EPOCH},
 };
-use light_sdk::interface::LightConfig;
 use light_token_interface::{
     state::{Mint, Token, ACCOUNT_TYPE_MINT, ACCOUNT_TYPE_TOKEN_ACCOUNT},
     LIGHT_TOKEN_PROGRAM_ID,
@@ -272,7 +272,7 @@ pub async fn auto_compress_program_pdas(
     let payer = rpc.get_payer().insecure_clone();
 
     let (config_pda, _) = Pubkey::find_program_address(
-        &[light_sdk::COMPRESSIBLE_CONFIG_SEED, &0u16.to_le_bytes()],
+        &[light_account::LIGHT_CONFIG_SEED, &0u16.to_le_bytes()],
         &program_id,
     );
 

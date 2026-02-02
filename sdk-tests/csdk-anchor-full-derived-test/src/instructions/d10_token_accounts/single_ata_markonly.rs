@@ -43,7 +43,7 @@ pub struct D10SingleAtaMarkonly<'info> {
     pub light_token_rent_sponsor: AccountInfo<'info>,
 
     /// CHECK: Light Token Program for CPI
-    #[account(address = LIGHT_TOKEN_PROGRAM_ID.into())]
+    #[account(address = LIGHT_TOKEN_PROGRAM_ID)]
     pub light_token_program: AccountInfo<'info>,
 
     pub system_program: Program<'info, System>,

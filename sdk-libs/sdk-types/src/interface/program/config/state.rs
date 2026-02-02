@@ -9,7 +9,7 @@ use light_account_checks::{
 };
 use light_compressible::rent::RentConfig;
 
-use super::{COMPRESSIBLE_CONFIG_SEED, MAX_ADDRESS_TREES_PER_SPACE};
+use super::{LIGHT_CONFIG_SEED, MAX_ADDRESS_TREES_PER_SPACE};
 use crate::{error::LightSdkTypesError, AnchorDeserialize, AnchorSerialize};
 
 /// Global configuration for compressible accounts
@@ -83,7 +83,7 @@ impl LightConfig {
     ) -> ([u8; 32], u8) {
         let config_bump_u16 = config_bump as u16;
         AI::find_program_address(
-            &[COMPRESSIBLE_CONFIG_SEED, &config_bump_u16.to_le_bytes()],
+            &[LIGHT_CONFIG_SEED, &config_bump_u16.to_le_bytes()],
             program_id,
         )
     }
@@ -148,7 +148,7 @@ impl LightConfig {
         // CHECK: PDA derivation
         let (expected_pda, _) = AI::find_program_address(
             &[
-                COMPRESSIBLE_CONFIG_SEED,
+                LIGHT_CONFIG_SEED,
                 &(config.config_bump as u16).to_le_bytes(),
             ],
             program_id,

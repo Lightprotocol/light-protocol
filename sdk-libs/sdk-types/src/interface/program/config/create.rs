@@ -9,7 +9,7 @@ use light_account_checks::{
 };
 use light_compressible::rent::RentConfig;
 
-use super::{state::LightConfig, validate_address_space_no_duplicates, COMPRESSIBLE_CONFIG_SEED};
+use super::{state::LightConfig, validate_address_space_no_duplicates, LIGHT_CONFIG_SEED};
 use crate::{error::LightSdkTypesError, AnchorSerialize};
 
 /// BPFLoaderUpgradeab1e11111111111111111111111 as raw bytes.
@@ -85,11 +85,7 @@ pub fn process_initialize_light_config<AI: AccountInfoTrait + Clone>(
 
     // Create PDA using AccountInfoTrait
     let config_bump_bytes = (config_bump as u16).to_le_bytes();
-    let seeds: &[&[u8]] = &[
-        COMPRESSIBLE_CONFIG_SEED,
-        config_bump_bytes.as_ref(),
-        &[bump],
-    ];
+    let seeds: &[&[u8]] = &[LIGHT_CONFIG_SEED, config_bump_bytes.as_ref(), &[bump]];
 
     config_account.create_pda_account(
         rent_lamports,

@@ -8,7 +8,7 @@
 
 use std::fmt::Debug;
 
-use light_sdk::interface::Pack;
+use light_account::Pack;
 use light_token::instruction::derive_token_ata;
 use solana_pubkey::Pubkey;
 

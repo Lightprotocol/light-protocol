@@ -163,10 +163,6 @@ pub mod proof;
 pub mod transfer;
 pub mod utils;
 
-/// Backward-compat alias for the interface module
-pub use light_sdk_types::interface as compressible;
-/// Re-export the interface module
-pub use light_sdk_types::interface;
 pub use proof::borsh_compat;
 #[cfg(feature = "merkle-tree")]
 pub mod merkle_tree;
@@ -205,16 +201,6 @@ use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 pub use light_account_checks::{self, discriminator::Discriminator as LightDiscriminator};
-// Re-export interface types from light-sdk-types::interface
-// Pack trait is only available off-chain (client-side) - uses PackedAccounts
-#[cfg(not(target_os = "solana"))]
-pub use light_sdk_types::interface::Pack;
-pub use light_sdk_types::interface::{
-    process_initialize_light_config_checked, process_update_light_config, CompressAs,
-    CompressedAccountData, CompressedInitSpace, CompressionInfo, HasCompressionInfo,
-    InitializeLightConfigParams, LightConfig, Space, Unpack, UpdateLightConfigParams,
-    COMPRESSIBLE_CONFIG_SEED, MAX_ADDRESS_TREES_PER_SPACE,
-};
 // Re-export as extern crate so downstream crates can use `::light_hasher::` paths
 pub extern crate light_hasher;
 #[cfg(feature = "poseidon")]

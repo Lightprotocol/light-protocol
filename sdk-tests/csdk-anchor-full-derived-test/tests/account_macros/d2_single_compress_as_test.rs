@@ -8,10 +8,8 @@
 
 use csdk_anchor_full_derived_test::{PackedSingleCompressAsRecord, SingleCompressAsRecord};
 use light_hasher::{DataHasher, Sha256};
-use light_sdk::{
-    compressible::{CompressAs, CompressionInfo, Pack},
-    instruction::PackedAccounts,
-};
+use light_account::{CompressAs, CompressionInfo, Pack};
+use light_sdk::instruction::PackedAccounts;
 use solana_pubkey::Pubkey;
 
 use super::shared::CompressibleTestFactory;

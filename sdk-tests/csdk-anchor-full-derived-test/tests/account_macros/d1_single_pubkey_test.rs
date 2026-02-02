@@ -7,10 +7,8 @@
 
 use csdk_anchor_full_derived_test::{PackedSinglePubkeyRecord, SinglePubkeyRecord};
 use light_hasher::{DataHasher, Sha256};
-use light_sdk::{
-    compressible::{CompressAs, CompressionInfo, Pack},
-    instruction::PackedAccounts,
-};
+use light_account::{CompressAs, CompressionInfo, Pack};
+use light_sdk::instruction::PackedAccounts;
 use solana_pubkey::Pubkey;
 
 use super::shared::CompressibleTestFactory;
@@ -80,7 +78,7 @@ fn test_compress_as_when_compression_info_already_none() {
     // Should still work and preserve fields
     assert_eq!(
         compressed.compression_info.state,
-        light_sdk::compressible::CompressionState::Compressed
+        light_account::CompressionState::Compressed
     );
     assert_eq!(compressed.owner, owner);
     assert_eq!(compressed.counter, counter);

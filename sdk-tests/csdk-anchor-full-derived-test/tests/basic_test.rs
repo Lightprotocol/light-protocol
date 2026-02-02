@@ -1,6 +1,7 @@
 mod shared;
 
 use anchor_lang::{InstructionData, ToAccountMetas};
+use light_account::derive_rent_sponsor_pda;
 use light_client::interface::{
     get_create_accounts_proof, AccountInterfaceExt, CreateAccountsProofInput,
     InitializeRentFreeConfig,
@@ -10,7 +11,6 @@ use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest, TestRpc},
     Indexer, ProgramTestConfig, Rpc,
 };
-use light_sdk::utils::derive_rent_sponsor_pda;
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
 use light_token::instruction::find_mint_address as find_cmint_address;
 use solana_instruction::Instruction;

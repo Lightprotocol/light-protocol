@@ -45,6 +45,7 @@ light-merkle-tree-metadata = { workspace = true, features = ["solana"] }
 light-concurrent-merkle-tree = { workspace = true }
 light-indexed-merkle-tree = { workspace = true }
 light-sdk = { workspace = true, features = ["v2", "cpi-context"] }
+light-account = { workspace = true }
 light-hasher = { workspace = true, features = ["poseidon"] }
 light-compressed-account = { workspace = true, features = ["solana", "poseidon"] }
 light-token = { workspace = true, features = ["cpi-context"] }

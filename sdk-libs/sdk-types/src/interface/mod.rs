@@ -63,8 +63,8 @@ pub use program::{
     },
     config::{
         process_initialize_light_config_checked, process_update_light_config,
-        InitializeLightConfigParams, LightConfig, UpdateLightConfigParams,
-        COMPRESSIBLE_CONFIG_SEED, MAX_ADDRESS_TREES_PER_SPACE,
+        InitializeLightConfigParams, LightConfig, UpdateLightConfigParams, LIGHT_CONFIG_SEED,
+        MAX_ADDRESS_TREES_PER_SPACE,
     },
     decompression::{
         pda::prepare_account_for_decompression,

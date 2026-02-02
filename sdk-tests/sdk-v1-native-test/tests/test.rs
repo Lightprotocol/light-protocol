@@ -6,7 +6,8 @@ use light_program_test::{
     program_test::LightProgramTest, AddressWithTree, Indexer, ProgramTestConfig, Rpc, RpcError,
 };
 use light_sdk::instruction::{
-    account_meta::CompressedAccountMeta, PackedAccounts, SystemAccountMetaConfig,
+    account_meta::CompressedAccountMeta, PackedAccounts, PackedAccountsExt,
+    SystemAccountMetaConfig,
 };
 use sdk_native_test::{
     create_pda::CreatePdaInstructionData,

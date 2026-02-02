@@ -550,18 +550,18 @@ fn test_variant_seed_values_distinguish_instances() {
     use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::{
         Token0VaultSeeds, Token1VaultSeeds,
     };
-    use light_sdk::interface::token::TokenDataWithSeeds;
+    use light_account::token::TokenDataWithSeeds;
 
     let pool_state = Pubkey::new_unique();
     let token_0_mint = Pubkey::new_unique();
     let token_1_mint = Pubkey::new_unique();
 
-    let default_token = light_sdk::interface::token::Token {
+    let default_token = light_account::token::Token {
         mint: Default::default(),
         owner: Default::default(),
         amount: 0,
         delegate: None,
-        state: light_sdk::interface::token::AccountState::Initialized,
+        state: light_account::token::AccountState::Initialized,
         is_native: None,
         delegated_amount: 0,
         close_authority: None,

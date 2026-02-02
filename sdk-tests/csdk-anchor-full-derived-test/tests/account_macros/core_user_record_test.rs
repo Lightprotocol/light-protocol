@@ -7,10 +7,8 @@
 
 use csdk_anchor_full_derived_test::{PackedUserRecord, UserRecord};
 use light_hasher::{DataHasher, Sha256};
-use light_sdk::{
-    compressible::{CompressAs, CompressionInfo, CompressionState, Pack},
-    instruction::PackedAccounts,
-};
+use light_account::{CompressAs, CompressionInfo, CompressionState, Pack};
+use light_sdk::instruction::PackedAccounts;
 use solana_pubkey::Pubkey;
 
 use super::shared::CompressibleTestFactory;

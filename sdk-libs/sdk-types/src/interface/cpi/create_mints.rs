@@ -379,7 +379,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
             build_mint_instruction_data(mint_params, &self.mint_seed_accounts[index].key());
 
         let instruction_data = MintActionCompressedInstructionData {
-            leaf_index: base_leaf_index + index as u32,
+            leaf_index: base_leaf_index + self.params.cpi_context_offset as u32 + index as u32,
             prove_by_index: true,
             root_index: 0,
             max_top_up: 0,

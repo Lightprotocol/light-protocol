@@ -5,7 +5,7 @@ use light_compressed_account::compressed_account::CompressedAccountWithMerkleCon
 use light_program_test::{
     program_test::LightProgramTest, AddressWithTree, Indexer, ProgramTestConfig, Rpc, RpcError,
 };
-use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
+use light_sdk::instruction::{PackedAccounts, PackedAccountsExt, SystemAccountMetaConfig};
 use light_sdk_pinocchio::instruction::{account_meta::CompressedAccountMeta, PackedStateTreeInfo};
 use sdk_pinocchio_v1_test::{
     create_pda::CreatePdaInstructionData,

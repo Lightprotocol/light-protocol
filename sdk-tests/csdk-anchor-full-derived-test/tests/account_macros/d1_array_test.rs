@@ -11,10 +11,7 @@
 
 use csdk_anchor_full_derived_test::ArrayRecord;
 use light_hasher::{DataHasher, Sha256};
-use light_sdk::{
-    compressible::CompressionState,
-    interface::{CompressAs, CompressionInfo},
-};
+use light_account::{CompressAs, CompressionInfo, CompressionState};
 
 use super::shared::CompressibleTestFactory;
 use crate::generate_trait_tests;

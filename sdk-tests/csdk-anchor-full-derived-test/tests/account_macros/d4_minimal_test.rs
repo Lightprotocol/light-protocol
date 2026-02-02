@@ -8,8 +8,8 @@
 //! MinimalRecord has NO Pubkey fields, so Pack/Unpack traits are NOT generated.
 
 use csdk_anchor_full_derived_test::MinimalRecord;
+use light_account::{CompressAs, CompressionInfo};
 use light_hasher::{DataHasher, Sha256};
-use light_sdk::interface::{CompressAs, CompressionInfo};
 
 use super::shared::CompressibleTestFactory;
 use crate::generate_trait_tests;

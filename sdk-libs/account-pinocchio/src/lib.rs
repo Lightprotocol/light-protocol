@@ -92,7 +92,7 @@ pub use light_sdk_types::interface::{
         config::{
             create::process_initialize_light_config, process_initialize_light_config_checked,
             process_update_light_config, InitializeLightConfigParams, LightConfig,
-            UpdateLightConfigParams, COMPRESSIBLE_CONFIG_SEED, MAX_ADDRESS_TREES_PER_SPACE,
+            UpdateLightConfigParams, LIGHT_CONFIG_SEED, MAX_ADDRESS_TREES_PER_SPACE,
         },
         decompression::{
             pda::prepare_account_for_decompression,

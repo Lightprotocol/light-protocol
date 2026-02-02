@@ -90,7 +90,7 @@ impl InitializeRentFreeConfig {
         let config_bump_u16 = self.config_bump as u16;
         let (config_pda, _) = Pubkey::find_program_address(
             &[
-                light_sdk::COMPRESSIBLE_CONFIG_SEED,
+                light_account::LIGHT_CONFIG_SEED,
                 &config_bump_u16.to_le_bytes(),
             ],
             &self.program_id,

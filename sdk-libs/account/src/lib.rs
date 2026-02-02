@@ -97,8 +97,8 @@ pub use light_sdk_types::interface::{
         },
         config::{
             process_initialize_light_config_checked, process_update_light_config,
-            InitializeLightConfigParams, LightConfig, UpdateLightConfigParams,
-            COMPRESSIBLE_CONFIG_SEED, MAX_ADDRESS_TREES_PER_SPACE,
+            InitializeLightConfigParams, LightConfig, UpdateLightConfigParams, LIGHT_CONFIG_SEED,
+            MAX_ADDRESS_TREES_PER_SPACE,
         },
         decompression::{
             pda::prepare_account_for_decompression,
@@ -125,7 +125,7 @@ pub use light_token_interface::instructions::extensions::TokenMetadataInstructio
 pub use light_token_interface::state::AdditionalMetadata;
 /// Re-export Token state struct for client-side use.
 #[cfg(feature = "token")]
-pub use light_token_interface::state::Token;
+pub use light_token_interface::state::{AccountState, Token};
 
 /// Token sub-module for paths like `light_account::token::TokenDataWithSeeds`.
 #[cfg(feature = "token")]
@@ -137,6 +137,7 @@ pub mod token {
         },
         program::decompression::token::prepare_token_account_for_decompression,
     };
+    pub use light_token_interface::state::{AccountState, Token};
 }
 
 /// Compression info sub-module for paths like `light_account::compression_info::CompressedInitSpace`.
