@@ -3,15 +3,11 @@
 
 use anchor_lang::prelude::*;
 use light_account::{
+    invoke_create_mints, get_output_queue_next_index, CreateMintsInfraAccounts,
+    CreateMintsParams as SdkCreateMintsParams, SingleMintParams,
+    derive_mint_compressed_address, find_mint_address,
     CpiAccounts, CpiAccountsConfig, LightFinalize, LightPreInit, LightSdkTypesError,
-    PackedAddressTreeInfoExt,
-};
-use light_token::{
-    compressible::{invoke_create_mints, CreateMintsInfraAccounts},
-    instruction::{
-        derive_mint_compressed_address, find_mint_address,
-        CreateMintsParams as SdkCreateMintsParams, SingleMintParams,
-    },
+    PackedAddressTreeInfoExt, DEFAULT_RENT_PAYMENT, DEFAULT_WRITE_TOP_UP,
 };
 use solana_account_info::AccountInfo;
 
@@ -73,21 +69,19 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateDerivedMintsParams>
                 let mint_signer_1 = self.mint_signer_1.key();
 
                 // Derive mint PDAs (light-token derives mint PDA from mint_signer)
-                let (mint_0_pda, mint_0_bump) = find_mint_address(
-                    &solana_pubkey::Pubkey::new_from_array(mint_signer_0.to_bytes()),
-                );
-                let (mint_1_pda, mint_1_bump) = find_mint_address(
-                    &solana_pubkey::Pubkey::new_from_array(mint_signer_1.to_bytes()),
-                );
+                let (mint_0_pda, mint_0_bump) =
+                    find_mint_address(&mint_signer_0.to_bytes());
+                let (mint_1_pda, mint_1_bump) =
+                    find_mint_address(&mint_signer_1.to_bytes());
 
                 // Derive compression addresses (from mint_signer + address_tree)
                 let compression_address_0 = derive_mint_compressed_address(
-                    &solana_pubkey::Pubkey::new_from_array(mint_signer_0.to_bytes()),
-                    &solana_pubkey::Pubkey::new_from_array(address_tree_pubkey.to_bytes()),
+                    &mint_signer_0.to_bytes(),
+                    &address_tree_pubkey.to_bytes(),
                 );
                 let compression_address_1 = derive_mint_compressed_address(
-                    &solana_pubkey::Pubkey::new_from_array(mint_signer_1.to_bytes()),
-                    &solana_pubkey::Pubkey::new_from_array(address_tree_pubkey.to_bytes()),
+                    &mint_signer_1.to_bytes(),
+                    &address_tree_pubkey.to_bytes(),
                 );
 
                 // Build mint signer seeds for CPI (mint::seeds + bump)
@@ -107,14 +101,12 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateDerivedMintsParams>
                     SingleMintParams {
                         decimals: 6, // mint::decimals = 6
                         address_merkle_tree_root_index: address_tree_info.root_index,
-                        mint_authority: solana_pubkey::Pubkey::new_from_array(authority.to_bytes()),
+                        mint_authority: authority.to_bytes(),
                         compression_address: compression_address_0,
                         mint: mint_0_pda,
                         bump: mint_0_bump,
                         freeze_authority: None,
-                        mint_seed_pubkey: solana_pubkey::Pubkey::new_from_array(
-                            mint_signer_0.to_bytes(),
-                        ),
+                        mint_seed_pubkey: mint_signer_0.to_bytes(),
                         authority_seeds: None,
                         mint_signer_seeds: Some(mint_signer_0_seeds),
                         token_metadata: None,
@@ -122,14 +114,12 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateDerivedMintsParams>
                     SingleMintParams {
                         decimals: 9, // mint::decimals = 9
                         address_merkle_tree_root_index: address_tree_info.root_index,
-                        mint_authority: solana_pubkey::Pubkey::new_from_array(authority.to_bytes()),
+                        mint_authority: authority.to_bytes(),
                         compression_address: compression_address_1,
                         mint: mint_1_pda,
                         bump: mint_1_bump,
                         freeze_authority: None,
-                        mint_seed_pubkey: solana_pubkey::Pubkey::new_from_array(
-                            mint_signer_1.to_bytes(),
-                        ),
+                        mint_seed_pubkey: mint_signer_1.to_bytes(),
                         authority_seeds: None,
                         mint_signer_seeds: Some(mint_signer_1_seeds),
                         token_metadata: None,
@@ -152,18 +142,31 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateDerivedMintsParams>
                     .0
                     .ok_or(LightSdkTypesError::InvalidInstructionData)?;
 
-                let sdk_params = SdkCreateMintsParams::new(&sdk_mints, proof)
-                    .with_output_queue_index(params.create_accounts_proof.output_state_tree_index)
-                    .with_address_tree_index(address_tree_info.address_merkle_tree_pubkey_index)
-                    .with_state_tree_index(state_tree_index)
-                    .with_cpi_context_offset(NUM_LIGHT_PDAS as u8); // Offset by PDA count
+                // Read base_leaf_index from output queue (required for N > 1)
+                let output_queue_index = params.create_accounts_proof.output_state_tree_index;
+                let output_queue = cpi_accounts
+                    .get_tree_account_info(output_queue_index as usize)?;
+                let base_leaf_index = get_output_queue_next_index(output_queue)?;
+
+                let sdk_params = SdkCreateMintsParams {
+                    mints: &sdk_mints,
+                    proof,
+                    rent_payment: DEFAULT_RENT_PAYMENT,
+                    write_top_up: DEFAULT_WRITE_TOP_UP,
+                    cpi_context_offset: NUM_LIGHT_PDAS as u8,
+                    output_queue_index,
+                    address_tree_index: address_tree_info.address_merkle_tree_pubkey_index,
+                    state_tree_index,
+                    base_leaf_index,
+                };
 
                 // Build infra accounts from Accounts struct
+                let payer_info = self.payer.to_account_info();
                 let infra = CreateMintsInfraAccounts {
-                    fee_payer: self.payer.to_account_info(),
-                    compressible_config: self.compressible_config.clone(),
-                    rent_sponsor: self.rent_sponsor.clone(),
-                    cpi_authority: self.cpi_authority.clone(),
+                    fee_payer: &payer_info,
+                    compressible_config: &self.compressible_config,
+                    rent_sponsor: &self.rent_sponsor,
+                    cpi_authority: &self.cpi_authority,
                 };
 
                 // Build mint account arrays

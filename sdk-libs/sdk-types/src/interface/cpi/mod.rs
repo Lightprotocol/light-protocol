@@ -4,6 +4,10 @@
 //! All CPI calls go through `AI::invoke_cpi()` for framework independence.
 
 pub mod account;
+#[cfg(feature = "token")]
+pub mod create_mints;
+#[cfg(feature = "token")]
+pub mod create_token_accounts;
 pub mod impls;
 mod instruction;
 pub mod invoke;

@@ -14,14 +14,10 @@ use light_account::{
     prepare_compressed_account_on_init, CpiAccounts, CpiAccountsConfig,
     CpiContextWriteAccounts, InvokeLightSystemProgram, LightAccount, LightFinalize,
     LightPreInit, LightSdkTypesError, PackedAddressTreeInfoExt,
-};
-use light_token::{
-    compressible::{invoke_create_mints, CreateMintsInfraAccounts},
-    instruction::{
-        derive_mint_compressed_address, find_mint_address,
-        CreateMintsParams as SdkCreateMintsParams, CreateTokenAccountCpi, CreateTokenAtaCpi,
-        SingleMintParams,
-    },
+    invoke_create_mints, CreateMintsInfraAccounts, CreateMintsParams as SdkCreateMintsParams,
+    SingleMintParams, derive_mint_compressed_address, find_mint_address,
+    DEFAULT_RENT_PAYMENT, DEFAULT_WRITE_TOP_UP,
+    CreateTokenAccountCpi, CreateTokenAtaCpi, derive_associated_token_account,
 };
 use solana_account_info::AccountInfo;
 
@@ -162,14 +158,12 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateAllParams> for CreateAllAccou
                 let mint_signer_key = self.mint_signer.key();
 
                 // Derive mint PDA
-                let (mint_pda, mint_bump) = find_mint_address(
-                    &solana_pubkey::Pubkey::new_from_array(mint_signer_key.to_bytes()),
-                );
+                let (mint_pda, mint_bump) = find_mint_address(&mint_signer_key.to_bytes());
 
                 // Derive compression address
                 let compression_address = derive_mint_compressed_address(
-                    &solana_pubkey::Pubkey::new_from_array(mint_signer_key.to_bytes()),
-                    &solana_pubkey::Pubkey::new_from_array(address_tree_pubkey.to_bytes()),
+                    &mint_signer_key.to_bytes(),
+                    &address_tree_pubkey.to_bytes(),
                 );
 
                 // Build mint signer seeds
@@ -183,14 +177,12 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateAllParams> for CreateAllAccou
                 let sdk_mints: [SingleMintParams<'_>; NUM_LIGHT_MINTS] = [SingleMintParams {
                     decimals: 6, // mint::decimals = 6
                     address_merkle_tree_root_index: address_tree_info.root_index,
-                    mint_authority: solana_pubkey::Pubkey::new_from_array(authority.to_bytes()),
+                    mint_authority: authority.to_bytes(),
                     compression_address,
                     mint: mint_pda,
                     bump: mint_bump,
                     freeze_authority: None,
-                    mint_seed_pubkey: solana_pubkey::Pubkey::new_from_array(
-                        mint_signer_key.to_bytes(),
-                    ),
+                    mint_seed_pubkey: mint_signer_key.to_bytes(),
                     authority_seeds: None,
                     mint_signer_seeds: Some(mint_signer_seeds),
                     token_metadata: None,
@@ -209,18 +201,25 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateAllParams> for CreateAllAccou
                     .ok_or(LightSdkTypesError::InvalidInstructionData)?;
 
                 // Build SDK params with cpi_context_offset
-                let sdk_params = SdkCreateMintsParams::new(&sdk_mints, proof)
-                    .with_output_queue_index(params.create_accounts_proof.output_state_tree_index)
-                    .with_address_tree_index(address_tree_info.address_merkle_tree_pubkey_index)
-                    .with_state_tree_index(state_tree_index)
-                    .with_cpi_context_offset(NUM_LIGHT_PDAS as u8); // Offset by PDA count
+                let sdk_params = SdkCreateMintsParams {
+                    mints: &sdk_mints,
+                    proof,
+                    rent_payment: DEFAULT_RENT_PAYMENT,
+                    write_top_up: DEFAULT_WRITE_TOP_UP,
+                    cpi_context_offset: NUM_LIGHT_PDAS as u8,
+                    output_queue_index: params.create_accounts_proof.output_state_tree_index,
+                    address_tree_index: address_tree_info.address_merkle_tree_pubkey_index,
+                    state_tree_index,
+                    base_leaf_index: 0, // N=1, not used
+                };
 
                 // Build infra accounts
+                let payer_info = self.payer.to_account_info();
                 let infra = CreateMintsInfraAccounts {
-                    fee_payer: self.payer.to_account_info(),
-                    compressible_config: self.compressible_config.clone(),
-                    rent_sponsor: self.rent_sponsor.clone(),
-                    cpi_authority: self.cpi_authority.clone(),
+                    fee_payer: &payer_info,
+                    compressible_config: &self.compressible_config,
+                    rent_sponsor: &self.rent_sponsor,
+                    cpi_authority: &self.cpi_authority,
                 };
 
                 // Build mint account arrays
@@ -249,45 +248,51 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateAllParams> for CreateAllAccou
                     &[params.token_vault_bump],
                 ];
 
+                let payer_info = self.payer.to_account_info();
+                let token_vault_info = self.token_vault.to_account_info();
+                let mint_info = self.mint.to_account_info();
+                let system_program_info = self.system_program.to_account_info();
                 CreateTokenAccountCpi {
-                    payer: self.payer.to_account_info(),
-                    account: self.token_vault.to_account_info(),
-                    mint: self.mint.to_account_info(),
-                    owner: *self.vault_owner.key,
+                    payer: &payer_info,
+                    account: &token_vault_info,
+                    mint: &mint_info,
+                    owner: self.vault_owner.key.to_bytes(),
                 }
                 .rent_free(
-                    self.compressible_config.clone(),
-                    self.rent_sponsor.clone(),
-                    self.system_program.to_account_info(),
-                    &crate::ID,
+                    &self.compressible_config,
+                    &self.rent_sponsor,
+                    &system_program_info,
+                    &crate::ID.to_bytes(),
                 )
-                .invoke_signed(vault_seeds)
-                .map_err(|_| LightSdkTypesError::CpiFailed)?;
+                .invoke_signed(vault_seeds)?;
             }
 
             // ====================================================================
             // 7. Create ATA via CreateTokenAtaCpi
             // ====================================================================
             {
-                let (_, ata_bump) = light_token::instruction::derive_associated_token_account(
+                let (_, ata_bump) = derive_associated_token_account(
                     self.ata_owner.key,
                     self.mint.key,
                 );
 
+                let payer_info = self.payer.to_account_info();
+                let mint_info = self.mint.to_account_info();
+                let user_ata_info = self.user_ata.to_account_info();
+                let system_program_info = self.system_program.to_account_info();
                 CreateTokenAtaCpi {
-                    payer: self.payer.to_account_info(),
-                    owner: self.ata_owner.clone(),
-                    mint: self.mint.to_account_info(),
-                    ata: self.user_ata.to_account_info(),
+                    payer: &payer_info,
+                    owner: &self.ata_owner,
+                    mint: &mint_info,
+                    ata: &user_ata_info,
                     bump: ata_bump,
                 }
                 .rent_free(
-                    self.compressible_config.clone(),
-                    self.rent_sponsor.clone(),
-                    self.system_program.to_account_info(),
+                    &self.compressible_config,
+                    &self.rent_sponsor,
+                    &system_program_info,
                 )
-                .invoke()
-                .map_err(|_| LightSdkTypesError::CpiFailed)?;
+                .invoke()?;
             }
 
             Ok(WITH_CPI_CONTEXT)

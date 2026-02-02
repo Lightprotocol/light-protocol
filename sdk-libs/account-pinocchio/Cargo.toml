@@ -10,7 +10,7 @@ edition = "2021"
 default = ["alloc"]
 std = ["alloc", "light-sdk-types/std", "light-compressed-account/std"]
 alloc = ["light-sdk-types/alloc", "light-compressed-account/alloc"]
-token = ["light-sdk-types/token"]
+token = ["light-sdk-types/token", "dep:light-token-interface"]
 poseidon = ["light-sdk-types/poseidon", "light-hasher/poseidon"]
 sha256 = ["light-sdk-types/sha256", "light-hasher/sha256"]
 
@@ -21,6 +21,7 @@ light-macros = { workspace = true }
 light-account-checks = { workspace = true, default-features = false, features = ["pinocchio"] }
 light-hasher = { workspace = true, default-features = false }
 light-compressed-account = { workspace = true, default-features = false }
+light-token-interface = { workspace = true, optional = true }
 pinocchio = { workspace = true }
 
 [lints.rust.unexpected_cfgs]

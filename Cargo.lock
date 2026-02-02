@@ -3471,6 +3471,7 @@ dependencies = [
  "light-macros",
  "light-sdk-macros",
  "light-sdk-types",
+ "light-token-interface",
  "solana-account-info",
  "solana-instruction",
  "solana-pubkey 2.4.0",
@@ -3505,6 +3506,7 @@ dependencies = [
  "light-macros",
  "light-sdk-macros",
  "light-sdk-types",
+ "light-token-interface",
  "pinocchio",
 ]
 

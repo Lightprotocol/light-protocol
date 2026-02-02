@@ -18,16 +18,15 @@ idl-build = ["anchor-lang/idl-build"]
 test-sbf = []
 
 [dependencies]
-light-account = { workspace = true }
+light-account = { workspace = true, features = ["token"] }
 light-macros = { workspace = true, features = ["solana"] }
-light-sdk-macros = { workspace = true }
+light-sdk-macros = { workspace = true, features = ["anchor-discriminator"] }
 borsh = { workspace = true }
 bytemuck = { workspace = true }
 light-compressed-account = { workspace = true, features = ["solana"] }
 anchor-lang = { workspace = true }
 light-compressible = { workspace = true, features = ["anchor"] }
 light-hasher = { workspace = true, features = ["solana"] }
-light-token = { workspace = true, features = ["anchor"] }
 light-token-types = { workspace = true, features = ["anchor"] }
 light-token-interface = { workspace = true }
 solana-program = { workspace = true }
@@ -40,7 +39,7 @@ solana-account-info = { workspace = true }
 light-program-test = { workspace = true, features = ["devenv"] }
 light-client = { workspace = true, features = ["v2", "anchor"] }
 light-test-utils = { workspace = true }
-light-token = { workspace = true }
+light-token = { workspace = true, features = ["anchor"] }
 light-token-client = { workspace = true }
 tokio = { workspace = true }
 solana-sdk = { workspace = true }

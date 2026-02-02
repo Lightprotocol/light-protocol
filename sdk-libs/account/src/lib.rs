@@ -99,6 +99,31 @@ pub use light_sdk_types::interface::program::decompression::token::prepare_token
 #[cfg(feature = "token")]
 pub use light_sdk_types::interface::program::variant::{PackedTokenSeeds, UnpackedTokenSeeds};
 
+// Mint creation CPI types and functions
+#[cfg(feature = "token")]
+pub use light_sdk_types::interface::cpi::create_mints::{
+    CreateMintsCpi, CreateMintsInfraAccounts, CreateMintsParams, SingleMintParams,
+    get_output_queue_next_index, invoke_create_mints,
+    DEFAULT_RENT_PAYMENT, DEFAULT_WRITE_TOP_UP,
+    derive_mint_compressed_address as derive_mint_compressed_address_generic,
+};
+
+// Token account/ATA creation CPI types and functions
+#[cfg(feature = "token")]
+pub use light_sdk_types::interface::cpi::create_token_accounts::{
+    CreateTokenAccountCpi, CreateTokenAccountRentFreeCpi,
+    CreateTokenAtaCpi, CreateTokenAtaCpiIdempotent, CreateTokenAtaRentFreeCpi,
+    derive_associated_token_account as derive_associated_token_account_generic,
+};
+
+// Token-interface re-exports for macro-generated code
+#[cfg(feature = "token")]
+pub use light_token_interface::instructions::extensions::TokenMetadataInstructionData;
+#[cfg(feature = "token")]
+pub use light_token_interface::instructions::extensions::ExtensionInstructionData as TokenExtensionInstructionData;
+#[cfg(feature = "token")]
+pub use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
+
 /// Token sub-module for paths like `light_account::token::TokenDataWithSeeds`.
 #[cfg(feature = "token")]
 pub mod token {
@@ -174,4 +199,36 @@ pub use light_sdk_types::{constants, CpiSigner};
 /// Seeds: `["rent_sponsor"]`
 pub fn derive_rent_sponsor_pda(program_id: &solana_pubkey::Pubkey) -> (solana_pubkey::Pubkey, u8) {
     solana_pubkey::Pubkey::find_program_address(&[constants::RENT_SPONSOR_SEED], program_id)
+}
+
+/// Find the mint PDA address for a given mint seed.
+///
+/// Returns `([u8; 32], u8)` -- the PDA address and bump.
+#[cfg(feature = "token")]
+pub fn find_mint_address(mint_seed: &[u8; 32]) -> ([u8; 32], u8) {
+    light_sdk_types::interface::cpi::create_mints::find_mint_address::<AccountInfo<'static>>(
+        mint_seed,
+    )
+}
+
+/// Derive the compressed mint address from a mint seed and address tree pubkey.
+#[cfg(feature = "token")]
+pub fn derive_mint_compressed_address(
+    mint_seed: &[u8; 32],
+    address_tree_pubkey: &[u8; 32],
+) -> [u8; 32] {
+    derive_mint_compressed_address_generic::<AccountInfo<'static>>(mint_seed, address_tree_pubkey)
+}
+
+/// Derive the associated token account address for a given owner and mint.
+///
+/// Returns `(Pubkey, u8)` -- the ATA address and bump seed.
+#[cfg(feature = "token")]
+pub fn derive_associated_token_account(
+    owner: &solana_pubkey::Pubkey,
+    mint: &solana_pubkey::Pubkey,
+) -> (solana_pubkey::Pubkey, u8) {
+    let (bytes, bump) =
+        derive_associated_token_account_generic::<AccountInfo<'static>>(&owner.to_bytes(), &mint.to_bytes());
+    (solana_pubkey::Pubkey::from(bytes), bump)
 }
