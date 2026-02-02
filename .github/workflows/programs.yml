@@ -54,25 +54,21 @@ jobs:
       matrix:
         include:
           - program: account-compression-and-registry
-            sub-tests: '["cargo-test-sbf -p account-compression-test", "cargo-test-sbf -p registry-test"]'
+            test-targets: '["test-account-compression", "test-registry"]'
           - program: light-system-program-address
-            sub-tests: '["cargo-test-sbf -p system-test -- test_with_address", "cargo-test-sbf -p e2e-test", "cargo-test-sbf -p compressed-token-test --test light_token"]'
+            test-targets: '["test-system-address", "test-e2e", "test-compressed-token-light-token"]'
           - program: light-system-program-compression
-            sub-tests: '["cargo-test-sbf -p system-test -- test_with_compression", "cargo-test-sbf -p system-test --test test_re_init_cpi_account"]'
+            test-targets: '["test-system-compression", "test-system-re-init"]'
           - program: compressed-token-and-e2e
-            sub-tests: '["cargo test -p light-compressed-token", "cargo-test-sbf -p compressed-token-test --test v1", "cargo-test-sbf -p compressed-token-test --test mint"]'
+            test-targets: '["test-compressed-token-unit", "test-compressed-token-v1", "test-compressed-token-mint"]'
           - program: compressed-token-batched-tree
-            sub-tests: '["cargo-test-sbf -p compressed-token-test -- test_transfer_with_photon_and_batched_tree"]'
+            test-targets: '["test-compressed-token-batched-tree"]'
           - program: system-cpi-test
-            sub-tests:
-              '["cargo-test-sbf -p system-cpi-test", "cargo test -p light-system-program-pinocchio",
-              "cargo-test-sbf -p system-cpi-v2-test -- --skip functional_ --skip event::parse", "cargo-test-sbf -p system-cpi-v2-test -- event::parse",
-              "cargo-test-sbf -p compressed-token-test --test transfer2"
-              ]'
+            test-targets: '["test-system-cpi", "test-system-program-pinocchio", "test-system-cpi-v2", "test-system-cpi-v2-event-parse", "test-compressed-token-transfer2"]'
           - program: system-cpi-test-v2-functional-read-only
-            sub-tests: '["cargo-test-sbf -p system-cpi-v2-test -- functional_read_only"]'
+            test-targets: '["test-system-cpi-v2-functional-read-only"]'
           - program: system-cpi-test-v2-functional-account-infos
-            sub-tests: '["cargo-test-sbf -p system-cpi-v2-test -- functional_account_infos"]'
+            test-targets: '["test-system-cpi-v2-functional-account-infos"]'
     steps:
       - name: Checkout sources
         uses: actions/checkout@v6
@@ -85,22 +81,21 @@ jobs:
 
       - name: Build CLI
         run: |
-          just cli build
+          just cli::build
 
       - name: ${{ matrix.program }}
         run: |
-
-          IFS=',' read -r -a sub_tests <<< "${{ join(fromJSON(matrix['sub-tests']), ', ') }}"
-          for subtest in "${sub_tests[@]}"
+          IFS=',' read -r -a test_targets <<< "${{ join(fromJSON(matrix['test-targets']), ', ') }}"
+          for target in "${test_targets[@]}"
           do
-            echo "$subtest"
+            echo "Running: just program-tests::$target"
 
             # Retry logic for flaky batched-tree test
-            if [[ "$subtest" == *"test_transfer_with_photon_and_batched_tree"* ]]; then
+            if [[ "$target" == "test-compressed-token-batched-tree" ]]; then
               echo "Running flaky test with retry logic (max 3 attempts)..."
               attempt=1
               max_attempts=3
-              until RUSTFLAGS="-D warnings" eval "$subtest"; do
+              until just program-tests::"$target"; do
                 attempt=$((attempt + 1))
                 if [ $attempt -gt $max_attempts ]; then
                   echo "Test failed after $max_attempts attempts"
@@ -111,10 +106,11 @@ jobs:
               done
               echo "Test passed on attempt $attempt"
             else
-              RUSTFLAGS="-D warnings" eval "$subtest"
-              if [ "$subtest" == "cargo-test-sbf -p e2e-test" ]; then
-                just programs build-compressed-token-small
-                RUSTFLAGS="-D warnings" eval "$subtest -- --test test_10_all"
+              just program-tests::"$target"
+              # Run additional e2e-all test after e2e test
+              if [ "$target" == "test-e2e" ]; then
+                echo "Running: just program-tests::test-e2e-all"
+                just program-tests::test-e2e-all
               fi
             fi
           done

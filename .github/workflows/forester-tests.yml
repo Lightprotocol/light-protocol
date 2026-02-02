@@ -77,10 +77,10 @@ jobs:
           du -sh /home/runner/work/* | sort -hr | head -n 10
 
       - name: Build CLI
-        run: just cli build
+        run: just cli::build
 
       - name: Test
-        run: just forester test
+        run: just forester::test
 
   compressible-tests:
     name: Forester compressible tests
@@ -112,13 +112,13 @@ jobs:
           cache-key: "rust"
 
       - name: Build CLI
-        run: just cli build
+        run: just cli::build
 
       - name: Test compressible PDA
-        run: just forester test-compressible-pda
+        run: just forester::test-compressible-pda
 
       - name: Test compressible Mint
-        run: just forester test-compressible-mint
+        run: just forester::test-compressible-mint
 
       - name: Test compressible ctoken
-        run: just forester test-compressible-ctoken
+        run: just forester::test-compressible-ctoken

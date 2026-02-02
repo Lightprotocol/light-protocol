@@ -60,7 +60,10 @@ test: test-no-redis test-with-redis test-integration
 extract-circuit: build-binary
     ./light-prover extract-circuit --output formal-verification/FormalVerification/Circuit.lean --address-tree-height 40 --compressed-accounts 8 --state-tree-height 32
 
+lean-install:
+    curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y -v --default-toolchain leanprover/lean4:v4.2.0
+
 lean-build:
-    cd formal-verification && lake exe cache get && lake build
+    cd formal-verification && ~/.elan/bin/lake exe cache get && ~/.elan/bin/lake build
 
 verify: extract-circuit lean-build
