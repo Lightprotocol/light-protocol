@@ -1,5 +1,7 @@
 //! LightConfig management for compressible accounts.
 
+use alloc::vec::Vec;
+
 use light_account_checks::AccountInfoTrait;
 use light_compressible::rent::RentConfig;
 
@@ -123,8 +125,8 @@ pub fn process_update_light_config<AI: AccountInfoTrait + Clone>(
 pub(super) fn validate_address_space_no_duplicates(
     address_space: &[[u8; 32]],
 ) -> Result<(), LightSdkTypesError> {
-    use std::collections::HashSet;
-    let mut seen = HashSet::new();
+    use alloc::collections::BTreeSet;
+    let mut seen = BTreeSet::new();
     for pubkey in address_space {
         if !seen.insert(pubkey) {
             return Err(LightSdkTypesError::ConstraintViolation);

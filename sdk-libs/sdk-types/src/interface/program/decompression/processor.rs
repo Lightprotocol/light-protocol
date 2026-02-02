@@ -1,5 +1,9 @@
 //! Decompression instruction processor.
 
+#[cfg(feature = "token")]
+use alloc::vec;
+use alloc::vec::Vec;
+
 use crate::{cpi_accounts::v2::CpiAccounts, instruction::PackedStateTreeInfo, CpiSigner};
 use light_account_checks::AccountInfoTrait;
 use light_compressed_account::instruction_data::{

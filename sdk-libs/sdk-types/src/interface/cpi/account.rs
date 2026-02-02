@@ -1,5 +1,8 @@
 //! Generic CPI accounts trait and implementations.
 
+use alloc::vec;
+use alloc::vec::Vec;
+
 use crate::cpi_accounts::v2::{CompressionCpiAccountIndex, CpiAccounts, PROGRAM_ACCOUNTS_LEN};
 use crate::cpi_context_write::CpiContextWriteAccounts;
 use light_account_checks::{AccountInfoTrait, CpiMeta};

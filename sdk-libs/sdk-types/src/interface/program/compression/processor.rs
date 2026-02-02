@@ -1,5 +1,7 @@
 //! Compression instruction processor.
 
+use alloc::vec::Vec;
+
 use crate::{
     cpi_accounts::v2::CpiAccounts,
     instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress, CpiSigner,

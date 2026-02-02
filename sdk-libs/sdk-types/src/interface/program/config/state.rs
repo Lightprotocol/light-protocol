@@ -1,5 +1,7 @@
 //! LightConfig state struct and methods.
 
+use alloc::vec::Vec;
+
 use light_account_checks::{
     checks::check_discriminator,
     discriminator::{Discriminator, DISCRIMINATOR_LEN},

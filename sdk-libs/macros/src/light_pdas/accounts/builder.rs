@@ -316,7 +316,7 @@ impl LightAccountsBuilder {
             // Reimburse fee payer for rent paid during PDA creation
             #rent_reimbursement
 
-            light_token::compressible::invoke_write_pdas_to_cpi_context(
+            light_account::invoke_write_pdas_to_cpi_context(
                 crate::LIGHT_CPI_SIGNER,
                 #proof_access.proof.clone(),
                 &all_new_address_params,

@@ -1,38 +1,36 @@
-//! Light Protocol account types specialized for Solana's AccountInfo.
+//! Light Protocol account types specialized for pinocchio's AccountInfo.
 
-pub use solana_account_info::AccountInfo;
+pub use pinocchio::account_info::AccountInfo;
 
-// ===== TYPE ALIASES (structs generic over AI, specialized with AccountInfo) =====
+// ===== TYPE ALIASES (structs generic over AI, specialized with pinocchio AccountInfo) =====
+// Note: pinocchio's AccountInfo has no lifetime parameter, so aliases have fewer lifetimes.
 
-pub type CpiAccounts<'c, 'info> =
-    light_sdk_types::cpi_accounts::v2::CpiAccounts<'c, AccountInfo<'info>>;
+pub type CpiAccounts<'c> =
+    light_sdk_types::cpi_accounts::v2::CpiAccounts<'c, AccountInfo>;
 
-pub type CpiAccountsV1<'c, 'info> =
-    light_sdk_types::cpi_accounts::v1::CpiAccounts<'c, AccountInfo<'info>>;
+pub type CpiAccountsV1<'c> =
+    light_sdk_types::cpi_accounts::v1::CpiAccounts<'c, AccountInfo>;
 
-pub type CompressCtx<'a, 'info> =
-    light_sdk_types::interface::program::compression::processor::CompressCtx<
-        'a,
-        AccountInfo<'info>,
-    >;
+pub type CompressCtx<'a> =
+    light_sdk_types::interface::program::compression::processor::CompressCtx<'a, AccountInfo>;
 
-pub type CompressDispatchFn<'info> =
-    light_sdk_types::interface::program::compression::processor::CompressDispatchFn<
-        AccountInfo<'info>,
-    >;
+pub type CompressDispatchFn =
+    light_sdk_types::interface::program::compression::processor::CompressDispatchFn<AccountInfo>;
 
-pub type DecompressCtx<'a, 'info> =
-    light_sdk_types::interface::program::decompression::processor::DecompressCtx<
-        'a,
-        AccountInfo<'info>,
-    >;
+pub type DecompressCtx<'a> =
+    light_sdk_types::interface::program::decompression::processor::DecompressCtx<'a, AccountInfo>;
 
-pub type ValidatedPdaContext<'info> =
-    light_sdk_types::interface::program::validation::ValidatedPdaContext<AccountInfo<'info>>;
+pub type ValidatedPdaContext =
+    light_sdk_types::interface::program::validation::ValidatedPdaContext<AccountInfo>;
 
-#[cfg(not(target_os = "solana"))]
+pub type CpiContextWriteAccounts<'a> =
+    light_sdk_types::cpi_context_write::CpiContextWriteAccounts<'a, AccountInfo>;
+
+#[cfg(all(not(target_os = "solana"), feature = "std"))]
 pub type PackedAccounts =
-    light_sdk_types::interface::instruction::PackedAccounts<solana_instruction::AccountMeta>;
+    light_sdk_types::interface::instruction::PackedAccounts<
+        light_account_checks::account_info::pinocchio::OwnedAccountMeta,
+    >;
 
 // ===== RE-EXPORTED TRAITS (generic over AI, used with explicit AccountInfo in impls) =====
 
@@ -50,7 +48,7 @@ pub use light_sdk_types::interface::account::compression_info::{
     COMPRESSION_INFO_SIZE, OPTION_COMPRESSION_INFO_SPACE,
 };
 pub use light_sdk_types::interface::account::light_account::{AccountType, LightAccount};
-#[cfg(not(target_os = "solana"))]
+#[cfg(all(not(target_os = "solana"), feature = "std"))]
 pub use light_sdk_types::interface::account::pack::Pack;
 pub use light_sdk_types::interface::account::pack::Unpack;
 pub use light_sdk_types::interface::account::pda_seeds::{HasTokenVariant, PdaSeedDerivation};
@@ -77,6 +75,7 @@ pub use light_sdk_types::interface::program::config::{
     InitializeLightConfigParams, LightConfig, UpdateLightConfigParams, COMPRESSIBLE_CONFIG_SEED,
     MAX_ADDRESS_TREES_PER_SPACE,
 };
+pub use light_sdk_types::interface::program::config::create::process_initialize_light_config;
 pub use light_sdk_types::interface::program::decompression::pda::prepare_account_for_decompression;
 pub use light_sdk_types::interface::program::decompression::processor::{
     process_decompress_pda_accounts_idempotent, DecompressIdempotentParams,
@@ -99,7 +98,6 @@ pub use light_sdk_types::interface::program::decompression::token::prepare_token
 #[cfg(feature = "token")]
 pub use light_sdk_types::interface::program::variant::{PackedTokenSeeds, UnpackedTokenSeeds};
 
-/// Token sub-module for paths like `light_account::token::TokenDataWithSeeds`.
 #[cfg(feature = "token")]
 pub mod token {
     pub use light_sdk_types::interface::account::token_seeds::{
@@ -109,7 +107,6 @@ pub mod token {
     pub use light_sdk_types::interface::program::decompression::token::prepare_token_account_for_decompression;
 }
 
-/// Compression info sub-module for paths like `light_account::compression_info::CompressedInitSpace`.
 pub mod compression_info {
     pub use light_sdk_types::interface::account::compression_info::*;
 }
@@ -117,28 +114,24 @@ pub mod compression_info {
 // ===== CPI / SDK-TYPES RE-EXPORTS =====
 
 pub use light_sdk_types::cpi_accounts::CpiAccountsConfig;
-pub use light_sdk_types::cpi_context_write::CpiContextWriteAccounts;
-pub use light_sdk_types::interface::program::config::create::process_initialize_light_config;
 
-/// Sub-module for generic `PackedAccounts<AM>` (not specialized to AccountMeta).
-#[cfg(not(target_os = "solana"))]
+#[cfg(all(not(target_os = "solana"), feature = "std"))]
 pub mod interface {
     pub mod instruction {
         pub use light_sdk_types::interface::instruction::PackedAccounts;
     }
 }
 
-/// Sub-module for account_meta types (e.g. `CompressedAccountMetaNoLamportsNoAddress`).
 pub mod account_meta {
     pub use light_sdk_types::instruction::account_meta::*;
 }
 
 // ===== ACCOUNT-CHECKS RE-EXPORTS (used by macro-generated code) =====
 
-/// Re-export `light_account_checks` so consumers can use `light_account::light_account_checks::*`.
 pub extern crate light_account_checks;
 pub use light_account_checks::packed_accounts;
 pub use light_account_checks::{AccountInfoTrait, AccountMetaTrait};
+pub use light_account_checks::account_info::pinocchio::OwnedAccountMeta;
 
 // ===== CONVENIENCE RE-EXPORTS =====
 
@@ -146,21 +139,8 @@ pub use light_account_checks::discriminator::Discriminator as LightDiscriminator
 pub use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
 pub use light_macros::{derive_light_cpi_signer, derive_light_cpi_signer_pda};
 pub use light_sdk_macros::{
-    // Attribute macros
-    account,
-    // Proc macros
-    derive_light_rent_sponsor,
-    derive_light_rent_sponsor_pda,
-    light_program,
-    // Derive macros
-    CompressAs,
-    Compressible,
-    HasCompressionInfo,
-    LightAccount,
-    LightAccounts,
-    LightDiscriminator,
-    LightHasher,
-    LightHasherSha,
+    CompressAs, Compressible, HasCompressionInfo,
+    LightAccount, LightDiscriminator, LightHasher, LightHasherSha,
     LightProgram,
 };
 pub use light_sdk_types::error::LightSdkTypesError;
@@ -172,6 +152,10 @@ pub use light_sdk_types::{constants, CpiSigner};
 /// Derives the rent sponsor PDA for a given program.
 ///
 /// Seeds: `["rent_sponsor"]`
-pub fn derive_rent_sponsor_pda(program_id: &solana_pubkey::Pubkey) -> (solana_pubkey::Pubkey, u8) {
-    solana_pubkey::Pubkey::find_program_address(&[constants::RENT_SPONSOR_SEED], program_id)
+/// Returns `([u8; 32], u8)` since pinocchio uses raw byte array pubkeys.
+pub fn derive_rent_sponsor_pda(program_id: &[u8; 32]) -> ([u8; 32], u8) {
+    <AccountInfo as AccountInfoTrait>::find_program_address(
+        &[constants::RENT_SPONSOR_SEED],
+        program_id,
+    )
 }

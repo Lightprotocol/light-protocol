@@ -1,5 +1,8 @@
 //! Token account decompression.
 
+use alloc::vec;
+use alloc::vec::Vec;
+
 use crate::instruction::PackedStateTreeInfo;
 use light_account_checks::AccountInfoTrait;
 use light_token_interface::{

@@ -60,11 +60,11 @@ where
         output_state_tree_index: compressed_account_meta.output_state_tree_index,
     };
 
-    let current_slot = AI::get_current_slot().map_err(LightSdkTypesError::AccountCheck)?;
+    let current_slot = AI::get_current_slot().map_err(LightSdkTypesError::AccountError)?;
     let bytes = account_info.data_len() as u64;
     let current_lamports = account_info.lamports();
     let rent_exemption_lamports =
-        AI::get_min_rent_balance(bytes as usize).map_err(LightSdkTypesError::AccountCheck)?;
+        AI::get_min_rent_balance(bytes as usize).map_err(LightSdkTypesError::AccountError)?;
 
     let ci = account_data.compression_info()?;
     let last_claimed_slot = ci.last_claimed_slot();
@@ -93,7 +93,7 @@ where
     {
         let mut data = account_info
             .try_borrow_mut_data()
-            .map_err(LightSdkTypesError::AccountCheck)?;
+            .map_err(LightSdkTypesError::AccountError)?;
         // Write discriminator first
         data[..8].copy_from_slice(&A::LIGHT_DISCRIMINATOR);
         // Write serialized account data after discriminator

@@ -1,5 +1,7 @@
 //! Generic Light system program invocation.
 
+use alloc::vec;
+
 use crate::constants::{CPI_AUTHORITY_PDA_SEED, LIGHT_SYSTEM_PROGRAM_ID};
 use light_account_checks::{AccountInfoTrait, CpiMeta};
 pub use light_compressed_account::LightInstructionData;
@@ -165,4 +167,30 @@ pub fn invoke_light_system_program<AI: AccountInfoTrait + Clone>(
         &[signer_seeds],
     )
     .map_err(|_| LightSdkTypesError::CpiFailed)
+}
+
+/// Write compressed PDA data to CPI context for chaining with subsequent operations.
+///
+/// Use this when PDAs need to be written to CPI context first, which will be
+/// consumed by subsequent operations (e.g., mint CPIs).
+///
+/// Generic over `AccountInfoTrait` to work with both solana and pinocchio backends.
+#[cfg(feature = "cpi-context")]
+pub fn invoke_write_pdas_to_cpi_context<AI: AccountInfoTrait + Clone>(
+    cpi_signer: crate::CpiSigner,
+    proof: light_compressed_account::instruction_data::compressed_proof::ValidityProof,
+    new_addresses: &[light_compressed_account::instruction_data::data::NewAddressParamsAssignedPacked],
+    compressed_infos: &[light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo],
+    cpi_accounts: &crate::cpi_accounts::v2::CpiAccounts<'_, AI>,
+) -> Result<(), LightSdkTypesError> {
+    use light_compressed_account::instruction_data::with_account_info::InstructionDataInvokeCpiWithAccountInfo;
+
+    let cpi_context_accounts =
+        crate::cpi_context_write::CpiContextWriteAccounts::try_from(cpi_accounts)?;
+
+    let instruction_data = InstructionDataInvokeCpiWithAccountInfo::new_cpi(cpi_signer, proof)
+        .with_new_addresses(new_addresses)
+        .with_account_infos(compressed_infos);
+
+    instruction_data.invoke_write_to_cpi_context_first(cpi_context_accounts)
 }

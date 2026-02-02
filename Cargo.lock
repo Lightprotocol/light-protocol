@@ -3496,6 +3496,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-account-pinocchio"
+version = "0.1.0"
+dependencies = [
+ "light-account-checks",
+ "light-compressed-account",
+ "light-hasher",
+ "light-macros",
+ "light-sdk-macros",
+ "light-sdk-types",
+ "pinocchio",
+]
+
+[[package]]
 name = "light-anchor-spl"
 version = "0.31.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

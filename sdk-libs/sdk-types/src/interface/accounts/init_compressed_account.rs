@@ -1,5 +1,7 @@
 //! Helper functions for preparing compressed accounts on init.
 
+use alloc::vec::Vec;
+
 use crate::instruction::PackedAddressTreeInfo;
 use light_account_checks::AccountInfoTrait;
 use light_compressed_account::{
@@ -93,7 +95,7 @@ pub fn reimburse_rent<AI: AccountInfoTrait>(
     if total_rent > 0 {
         rent_sponsor
             .transfer_lamports(fee_payer, total_rent)
-            .map_err(LightSdkTypesError::AccountCheck)?;
+            .map_err(LightSdkTypesError::AccountError)?;
     }
 
     Ok(())

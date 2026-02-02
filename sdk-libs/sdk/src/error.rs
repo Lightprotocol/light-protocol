@@ -137,7 +137,7 @@ impl From<LightSdkError> for LightSdkTypesError {
         match e {
             LightSdkError::ConstraintViolation => LightSdkTypesError::ConstraintViolation,
             LightSdkError::Borsh => LightSdkTypesError::Borsh,
-            LightSdkError::AccountError(e) => LightSdkTypesError::AccountCheck(e),
+            LightSdkError::AccountError(e) => LightSdkTypesError::AccountError(e),
             LightSdkError::Hasher(e) => LightSdkTypesError::Hasher(e),
             LightSdkError::MissingCompressionInfo => LightSdkTypesError::MissingCompressionInfo,
             LightSdkError::InvalidRentSponsor => LightSdkTypesError::InvalidRentSponsor,
@@ -187,7 +187,7 @@ impl From<LightSdkTypesError> for LightSdkError {
             LightSdkTypesError::InvalidCpiAccountsOffset => {
                 LightSdkError::InvalidCpiAccountsOffset
             }
-            LightSdkTypesError::AccountCheck(e) => LightSdkError::AccountError(e),
+            LightSdkTypesError::AccountError(e) => LightSdkError::AccountError(e),
             LightSdkTypesError::Hasher(e) => LightSdkError::Hasher(e),
             LightSdkTypesError::ConstraintViolation => LightSdkError::ConstraintViolation,
             LightSdkTypesError::Borsh => LightSdkError::Borsh,

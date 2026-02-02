@@ -39,7 +39,7 @@ pub enum LightSdkTypesError {
     #[error("CpigAccounts accounts slice starts with an invalid account. It should start with LightSystemProgram SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7.")]
     InvalidCpiAccountsOffset,
     #[error(transparent)]
-    AccountCheck(#[from] AccountError),
+    AccountError(#[from] AccountError),
     #[error(transparent)]
     Hasher(#[from] HasherError),
     // --- Variants merged from LightSdkTypesError (sdk-interface) ---
@@ -89,22 +89,22 @@ impl From<LightSdkTypesError> for u32 {
             LightSdkTypesError::InvalidCpiContextAccount => 14032,
             LightSdkTypesError::InvalidSolPoolPdaAccount => 14033,
             LightSdkTypesError::InvalidCpiAccountsOffset => 14034,
-            LightSdkTypesError::AccountCheck(e) => e.into(),
+            LightSdkTypesError::AccountError(e) => e.into(),
             LightSdkTypesError::Hasher(e) => e.into(),
-            LightSdkTypesError::ConstraintViolation => 17001,
-            LightSdkTypesError::Borsh => 17002,
-            LightSdkTypesError::MissingCompressionInfo => 17003,
-            LightSdkTypesError::InvalidRentSponsor => 17004,
+            LightSdkTypesError::ConstraintViolation => 14035,
+            LightSdkTypesError::Borsh => 14036,
+            LightSdkTypesError::MissingCompressionInfo => 14037,
+            LightSdkTypesError::InvalidRentSponsor => 14038,
             #[cfg(feature = "alloc")]
-            LightSdkTypesError::BorshIo(_) => 17005,
-            LightSdkTypesError::ReadOnlyAccountsNotSupportedInCpiContext => 17006,
-            LightSdkTypesError::CompressedAccountError(_) => 17007,
-            LightSdkTypesError::AccountDataTooSmall => 17008,
-            LightSdkTypesError::InvalidInstructionData => 17009,
-            LightSdkTypesError::InvalidSeeds => 17010,
-            LightSdkTypesError::CpiFailed => 17011,
-            LightSdkTypesError::NotEnoughAccountKeys => 17012,
-            LightSdkTypesError::MissingRequiredSignature => 17013,
+            LightSdkTypesError::BorshIo(_) => 14039,
+            LightSdkTypesError::ReadOnlyAccountsNotSupportedInCpiContext => 14040,
+            LightSdkTypesError::CompressedAccountError(_) => 14041,
+            LightSdkTypesError::AccountDataTooSmall => 14042,
+            LightSdkTypesError::InvalidInstructionData => 14043,
+            LightSdkTypesError::InvalidSeeds => 14044,
+            LightSdkTypesError::CpiFailed => 14045,
+            LightSdkTypesError::NotEnoughAccountKeys => 14046,
+            LightSdkTypesError::MissingRequiredSignature => 14047,
         }
     }
 }

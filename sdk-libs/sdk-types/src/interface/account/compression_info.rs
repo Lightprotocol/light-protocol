@@ -1,5 +1,6 @@
 extern crate alloc;
 use alloc::borrow::Cow;
+use alloc::string::ToString;
 
 use crate::instruction::PackedStateTreeInfo;
 use bytemuck::{Pod, Zeroable};
@@ -297,9 +298,9 @@ impl CompressionInfo {
     ) -> Result<(), LightSdkTypesError> {
         let bytes = account_info.data_len() as u64;
         let current_lamports = account_info.lamports();
-        let current_slot = AI::get_current_slot().map_err(LightSdkTypesError::AccountCheck)?;
+        let current_slot = AI::get_current_slot().map_err(LightSdkTypesError::AccountError)?;
         let rent_exemption_lamports =
-            AI::get_min_rent_balance(bytes as usize).map_err(LightSdkTypesError::AccountCheck)?;
+            AI::get_min_rent_balance(bytes as usize).map_err(LightSdkTypesError::AccountError)?;
 
         let top_up = self.calculate_top_up_lamports(
             bytes,
@@ -312,7 +313,7 @@ impl CompressionInfo {
             // Use System Program CPI to transfer lamports (payer is a signer, pass empty seeds)
             payer_info
                 .transfer_lamports_cpi(account_info, top_up, &[])
-                .map_err(LightSdkTypesError::AccountCheck)?;
+                .map_err(LightSdkTypesError::AccountError)?;
         }
 
         Ok(())
@@ -357,11 +358,11 @@ where
 {
     use light_compressible::rent::{AccountRentState, SLOTS_PER_EPOCH};
 
-    let current_slot = AI::get_current_slot().map_err(LightSdkTypesError::AccountCheck)?;
+    let current_slot = AI::get_current_slot().map_err(LightSdkTypesError::AccountError)?;
     let bytes = account_info.data_len() as u64;
     let current_lamports = account_info.lamports();
     let rent_exemption_lamports =
-        AI::get_min_rent_balance(bytes as usize).map_err(LightSdkTypesError::AccountCheck)?;
+        AI::get_min_rent_balance(bytes as usize).map_err(LightSdkTypesError::AccountError)?;
 
     let ci = account_data.compression_info_mut()?;
     let state = AccountRentState {
@@ -394,7 +395,7 @@ where
             // since the program owns the account)
             account_info
                 .transfer_lamports(rent_sponsor, amount)
-                .map_err(LightSdkTypesError::AccountCheck)?;
+                .map_err(LightSdkTypesError::AccountError)?;
             return Ok(Some(amount));
         }
     }

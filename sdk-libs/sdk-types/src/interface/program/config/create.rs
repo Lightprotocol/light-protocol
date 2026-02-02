@@ -1,5 +1,7 @@
 //! Config initialization instructions (generic over AccountInfoTrait).
 
+use alloc::vec::Vec;
+
 use light_account_checks::{
     checks::check_signer,
     discriminator::{Discriminator, DISCRIMINATOR_LEN},
@@ -62,7 +64,7 @@ pub fn process_initialize_light_config<AI: AccountInfoTrait + Clone>(
     validate_address_space_no_duplicates(&address_space)?;
 
     // CHECK: signer
-    check_signer(update_authority).map_err(LightSdkTypesError::AccountCheck)?;
+    check_signer(update_authority).map_err(LightSdkTypesError::AccountError)?;
 
     // CHECK: PDA derivation
     let (derived_pda, bump) = LightConfig::derive_pda_bytes::<AI>(program_id, config_bump);
@@ -79,7 +81,7 @@ pub fn process_initialize_light_config<AI: AccountInfoTrait + Clone>(
 
     let account_size = LightConfig::size_for_address_space(address_space.len());
     let rent_lamports =
-        AI::get_min_rent_balance(account_size).map_err(LightSdkTypesError::AccountCheck)?;
+        AI::get_min_rent_balance(account_size).map_err(LightSdkTypesError::AccountError)?;
 
     // Create PDA using AccountInfoTrait
     let config_bump_bytes = (config_bump as u16).to_le_bytes();
@@ -114,7 +116,7 @@ pub fn process_initialize_light_config<AI: AccountInfoTrait + Clone>(
 
     let mut data = config_account
         .try_borrow_mut_data()
-        .map_err(LightSdkTypesError::AccountCheck)?;
+        .map_err(LightSdkTypesError::AccountError)?;
 
     // Write discriminator first
     data[..DISCRIMINATOR_LEN].copy_from_slice(&LightConfig::LIGHT_DISCRIMINATOR);
@@ -145,7 +147,7 @@ pub fn check_program_upgrade_authority<AI: AccountInfoTrait>(
 
     let data = program_data_account
         .try_borrow_data()
-        .map_err(LightSdkTypesError::AccountCheck)?;
+        .map_err(LightSdkTypesError::AccountError)?;
 
     if data.len() < PROGRAM_DATA_MIN_LEN {
         return Err(LightSdkTypesError::AccountDataTooSmall);
@@ -179,7 +181,7 @@ pub fn check_program_upgrade_authority<AI: AccountInfoTrait>(
     };
 
     // CHECK: authority is signer
-    check_signer(authority).map_err(LightSdkTypesError::AccountCheck)?;
+    check_signer(authority).map_err(LightSdkTypesError::AccountError)?;
 
     // CHECK: authority matches upgrade authority
     if authority.key() != upgrade_authority {

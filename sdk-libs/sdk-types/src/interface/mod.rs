@@ -8,8 +8,8 @@ pub mod program;
 // LightCpi trait + CPI builder (no runtime dep)
 pub mod cpi;
 
-// Client-side instruction building (not available on Solana BPF)
-#[cfg(not(target_os = "solana"))]
+// Client-side instruction building (not available on Solana BPF, requires std for HashMap)
+#[cfg(all(not(target_os = "solana"), feature = "std"))]
 pub mod instruction;
 
 // --- Re-exports from light-compressible ---
@@ -29,7 +29,7 @@ pub use account::compression_info::{
     COMPRESSION_INFO_SIZE, OPTION_COMPRESSION_INFO_SPACE,
 };
 pub use account::light_account::{AccountType, LightAccount};
-#[cfg(not(target_os = "solana"))]
+#[cfg(all(not(target_os = "solana"), feature = "std"))]
 pub use account::pack::Pack;
 pub use account::pack::Unpack;
 pub use account::pda_seeds::{HasTokenVariant, PdaSeedDerivation};

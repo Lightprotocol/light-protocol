@@ -1,5 +1,7 @@
 //! PDA seed derivation traits.
 
+use alloc::vec::Vec;
+
 use crate::error::LightSdkTypesError;
 
 /// Trait for account variants that can be checked for token or PDA type.

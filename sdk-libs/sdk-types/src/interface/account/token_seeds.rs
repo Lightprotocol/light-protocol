@@ -3,6 +3,9 @@
 //! Provides `TokenDataWithSeeds<S>`, `PackedTokenData`, and `TokenDataWithPackedSeeds<S>`
 //! along with Pack/Unpack impls and blanket impls for variant traits.
 
+use alloc::vec;
+use alloc::vec::Vec;
+
 use crate::instruction::PackedStateTreeInfo;
 use light_compressed_account::compressed_account::PackedMerkleContext;
 pub use light_token_interface::{
@@ -26,10 +29,10 @@ use crate::interface::{
         UnpackedTokenSeeds,
     },
 };
-#[cfg(not(target_os = "solana"))]
+#[cfg(all(not(target_os = "solana"), feature = "std"))]
 use crate::interface::{account::pack::Pack, instruction::PackedAccounts};
 use crate::{error::LightSdkTypesError, AnchorDeserialize, AnchorSerialize};
-#[cfg(not(target_os = "solana"))]
+#[cfg(all(not(target_os = "solana"), feature = "std"))]
 use light_account_checks::AccountMetaTrait;
 
 #[derive(Clone, Debug, AnchorSerialize, AnchorDeserialize)]
@@ -121,7 +124,7 @@ fn unpack_token_data_from_packed<AI: AccountInfoTrait>(
 // Pack impl (client-side only)
 // =============================================================================
 
-#[cfg(not(target_os = "solana"))]
+#[cfg(all(not(target_os = "solana"), feature = "std"))]
 impl<S, AM: AccountMetaTrait> Pack<AM> for TokenDataWithSeeds<S>
 where
     S: Pack<AM>,

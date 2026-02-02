@@ -4,12 +4,12 @@ use light_account_checks::AccountInfoTrait;
 
 use crate::error::LightSdkTypesError;
 
-#[cfg(not(target_os = "solana"))]
+#[cfg(all(not(target_os = "solana"), feature = "std"))]
 use light_account_checks::AccountMetaTrait;
 
 /// Replace 32-byte Pubkeys with 1-byte indices to save space.
 /// If your type has no Pubkeys, just return self.
-#[cfg(not(target_os = "solana"))]
+#[cfg(all(not(target_os = "solana"), feature = "std"))]
 pub trait Pack<AM: AccountMetaTrait> {
     type Packed: crate::AnchorSerialize + Clone + core::fmt::Debug;
 

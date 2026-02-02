@@ -1,8 +1,8 @@
 //! LightAccount trait definition for compressible account data structs.
 
-use light_account_checks::{
-    packed_accounts::ProgramPackedAccounts, AccountInfoTrait, AccountMetaTrait,
-};
+use light_account_checks::{packed_accounts::ProgramPackedAccounts, AccountInfoTrait};
+#[cfg(all(not(target_os = "solana"), feature = "std"))]
+use light_account_checks::AccountMetaTrait;
 use light_hasher::DataHasher;
 
 use crate::interface::{account::compression_info::CompressionInfo, program::config::LightConfig};
@@ -47,7 +47,7 @@ pub trait LightAccount:
 
     /// Convert to packed form (Pubkeys -> indices).
     /// Generic over AccountMetaTrait for runtime-agnostic packing.
-    #[cfg(not(target_os = "solana"))]
+    #[cfg(all(not(target_os = "solana"), feature = "std"))]
     fn pack<AM: AccountMetaTrait>(
         &self,
         accounts: &mut crate::interface::instruction::PackedAccounts<AM>,

@@ -2,6 +2,9 @@
 //!
 //! Returns `(instruction_data, account_metas)` tuples for use with `AI::invoke_cpi()`.
 
+use alloc::vec;
+use alloc::vec::Vec;
+
 use light_account_checks::CpiMeta;
 use light_token_interface::{
     instructions::{

@@ -10,6 +10,8 @@ use light_compressed_account::{
 use light_compressible::DECOMPRESSED_PDA_DISCRIMINATOR;
 use light_hasher::{sha256::Sha256BE, Hasher};
 
+use alloc::vec::Vec;
+
 use crate::interface::{
     account::light_account::LightAccount,
     program::{

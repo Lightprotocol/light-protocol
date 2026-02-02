@@ -12,7 +12,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-#[cfg(all(not(feature = "std"), feature = "alloc"))]
+#[cfg(feature = "alloc")]
 extern crate alloc;
 
 pub mod address;
@@ -22,7 +22,7 @@ pub mod cpi_context_write;
 pub mod error;
 pub mod instruction;
 
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 pub mod interface;
 
 // Re-exports

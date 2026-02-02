@@ -56,19 +56,19 @@ where
 
     let fee_payer = account_iter
         .next_signer_mut("fee_payer")
-        .map_err(LightSdkTypesError::AccountCheck)?;
+        .map_err(LightSdkTypesError::AccountError)?;
     let config = account_iter
         .next_non_mut("config")
-        .map_err(LightSdkTypesError::AccountCheck)?;
+        .map_err(LightSdkTypesError::AccountError)?;
     let rent_sponsor = account_iter
         .next_mut("rent_sponsor")
-        .map_err(LightSdkTypesError::AccountCheck)?;
+        .map_err(LightSdkTypesError::AccountError)?;
 
     let compression_authority = if EXTRACT_COMPRESSION_AUTHORITY {
         Some(
             account_iter
                 .next_account("compression_authority")
-                .map_err(LightSdkTypesError::AccountCheck)?
+                .map_err(LightSdkTypesError::AccountError)?
                 .clone(),
         )
     } else {

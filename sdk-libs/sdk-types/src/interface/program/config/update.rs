@@ -1,5 +1,7 @@
 //! Config update instruction (generic over AccountInfoTrait).
 
+use alloc::vec::Vec;
+
 use light_account_checks::{
     checks::check_signer, discriminator::DISCRIMINATOR_LEN, AccountInfoTrait,
 };
@@ -28,7 +30,7 @@ pub fn process_update_light_config<AI: AccountInfoTrait>(
     let mut config = LightConfig::load_checked(config_account, owner_program_id)?;
 
     // CHECK: signer
-    check_signer(authority).map_err(LightSdkTypesError::AccountCheck)?;
+    check_signer(authority).map_err(LightSdkTypesError::AccountError)?;
 
     // CHECK: authority
     if authority.key() != config.update_authority {
@@ -64,7 +66,7 @@ pub fn process_update_light_config<AI: AccountInfoTrait>(
 
     let mut data = config_account
         .try_borrow_mut_data()
-        .map_err(LightSdkTypesError::AccountCheck)?;
+        .map_err(LightSdkTypesError::AccountError)?;
     // Serialize after discriminator (discriminator is preserved from init)
     config
         .serialize(&mut &mut data[DISCRIMINATOR_LEN..])

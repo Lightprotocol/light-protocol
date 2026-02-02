@@ -5,5 +5,5 @@ use crate::error::{LightSdkTypesError, Result};
 /// Close a native Solana account by transferring lamports and clearing data.
 pub fn close<AI: AccountInfoTrait>(info: &AI, sol_destination: &AI) -> Result<()> {
     light_account_checks::close_account(info, sol_destination)
-        .map_err(LightSdkTypesError::AccountCheck)
+        .map_err(LightSdkTypesError::AccountError)
 }
