@@ -1,13 +1,19 @@
 mod shared;
 
-use anchor_lang::{InstructionData, ToAccountMetas};
-use light_client::interface::{get_create_accounts_proof, CreateAccountsProofInput};
+use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
+use light_client::interface::{
+    create_load_instructions, get_create_accounts_proof, AccountInterface, AccountInterfaceExt,
+    AccountSpec, ColdContext, CreateAccountsProofInput, PdaSpec,
+};
+use light_compressible::rent::SLOTS_PER_EPOCH;
+use light_program_test::program_test::TestRpc;
 use light_program_test::Rpc;
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
 use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
+use light_token_interface::state::token::{AccountState, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT};
 use pinocchio_derive_test::{
-    CreateAllParams, MINT_SIGNER_SEED_A, MINT_SIGNER_SEED_B, RECORD_SEED, VAULT_AUTH_SEED,
-    VAULT_SEED,
+    CreateAllParams, MinimalRecord, ZeroCopyRecord, MINT_SIGNER_SEED_A, MINT_SIGNER_SEED_B,
+    RECORD_SEED, VAULT_AUTH_SEED, VAULT_SEED,
 };
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
@@ -122,39 +128,35 @@ async fn test_create_all_derive() {
         .await
         .expect("CreateAll should succeed");
 
-    // Verify PDA
+    // PHASE 1: Verify all accounts on-chain after creation
+    use light_compressed_account::pubkey::Pubkey as LPubkey;
+
     let record_account = rpc
         .get_account(record_pda)
         .await
         .unwrap()
         .expect("Record PDA should exist");
-    use pinocchio_derive_test::MinimalRecord;
     let record: MinimalRecord =
         borsh::BorshDeserialize::deserialize(&mut &record_account.data[8..])
             .expect("Failed to deserialize MinimalRecord");
     assert_eq!(record.owner, owner, "Record owner should match");
 
-    // Verify zero-copy
     let zc_account = rpc
         .get_account(zc_record_pda)
         .await
         .unwrap()
         .expect("Zero-copy record should exist");
-    use pinocchio_derive_test::ZeroCopyRecord;
     let zc_record: &ZeroCopyRecord = bytemuck::from_bytes(&zc_account.data[8..]);
     assert_eq!(zc_record.owner, owner, "ZC record owner should match");
     assert_eq!(zc_record.counter, 0, "ZC record counter should be 0");
 
-    // Verify ATA
     let ata_account = rpc
         .get_account(ata)
         .await
         .unwrap()
         .expect("ATA should exist");
-    use light_token_interface::state::token::{AccountState, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT};
     let ata_token: Token = borsh::BorshDeserialize::deserialize(&mut &ata_account.data[..])
         .expect("Failed to deserialize ATA Token");
-    use light_compressed_account::pubkey::Pubkey as LPubkey;
     assert_eq!(
         ata_token.mint,
         LPubkey::from(ata_mint.to_bytes()),
@@ -166,7 +168,6 @@ async fn test_create_all_derive() {
         "ATA owner should match"
     );
 
-    // Verify vault
     let vault_account = rpc
         .get_account(vault)
         .await
@@ -185,18 +186,17 @@ async fn test_create_all_derive() {
         "Vault owner should match"
     );
 
-    // Verify mint A
+    use light_token_interface::state::Mint;
+
     let mint_a_account = rpc
         .get_account(mint_a_pda)
         .await
         .unwrap()
         .expect("Mint A should exist");
-    use light_token_interface::state::Mint;
     let mint_a: Mint = borsh::BorshDeserialize::deserialize(&mut &mint_a_account.data[..])
         .expect("Failed to deserialize Mint A");
     assert_eq!(mint_a.base.decimals, 9, "Mint A should have 9 decimals");
 
-    // Verify mint B
     let mint_b_account = rpc
         .get_account(mint_b_pda)
         .await
@@ -205,4 +205,198 @@ async fn test_create_all_derive() {
     let mint_b: Mint = borsh::BorshDeserialize::deserialize(&mut &mint_b_account.data[..])
         .expect("Failed to deserialize Mint B");
     assert_eq!(mint_b.base.decimals, 6, "Mint B should have 6 decimals");
+
+    // PHASE 2: Warp to trigger auto-compression
+    rpc.warp_slot_forward(SLOTS_PER_EPOCH * 30).await.unwrap();
+
+    shared::assert_onchain_closed(&mut rpc, &record_pda, "MinimalRecord").await;
+    shared::assert_onchain_closed(&mut rpc, &zc_record_pda, "ZeroCopyRecord").await;
+    shared::assert_onchain_closed(&mut rpc, &ata, "ATA").await;
+    shared::assert_onchain_closed(&mut rpc, &vault, "Vault").await;
+    shared::assert_onchain_closed(&mut rpc, &mint_a_pda, "MintA").await;
+    shared::assert_onchain_closed(&mut rpc, &mint_b_pda, "MintB").await;
+
+    // PHASE 3: Decompress all accounts except vault via create_load_instructions.
+    // Note: standalone token PDA decompression is not supported; vaults stay compressed.
+    use pinocchio_derive_test::{
+        LightAccountVariant, MinimalRecordSeeds, ZeroCopyRecordSeeds,
+    };
+
+    // PDA: MinimalRecord
+    let record_interface = rpc
+        .get_account_interface(&record_pda, &program_id)
+        .await
+        .expect("failed to get MinimalRecord interface");
+    assert!(record_interface.is_cold(), "MinimalRecord should be cold");
+
+    let record_data = MinimalRecord::deserialize(&mut &record_interface.account.data[8..])
+        .expect("Failed to parse MinimalRecord");
+    let record_variant = LightAccountVariant::MinimalRecord {
+        seeds: MinimalRecordSeeds { owner },
+        data: record_data,
+    };
+    let record_spec = PdaSpec::new(record_interface, record_variant, program_id);
+
+    // PDA: ZeroCopyRecord
+    let zc_interface = rpc
+        .get_account_interface(&zc_record_pda, &program_id)
+        .await
+        .expect("failed to get ZeroCopyRecord interface");
+    assert!(zc_interface.is_cold(), "ZeroCopyRecord should be cold");
+
+    let zc_data = ZeroCopyRecord::deserialize(&mut &zc_interface.account.data[8..])
+        .expect("Failed to parse ZeroCopyRecord");
+    let zc_variant = LightAccountVariant::ZeroCopyRecord {
+        seeds: ZeroCopyRecordSeeds { owner },
+        data: zc_data,
+    };
+    let zc_spec = PdaSpec::new(zc_interface, zc_variant, program_id);
+
+    // ATA
+    let ata_interface = rpc
+        .get_ata_interface(&ata_owner, &ata_mint)
+        .await
+        .expect("failed to get ATA interface");
+    assert!(ata_interface.is_cold(), "ATA should be cold");
+
+    // Mint A
+    let mint_a_iface = rpc
+        .get_mint_interface(&mint_a_pda)
+        .await
+        .expect("failed to get mint A interface");
+    assert!(mint_a_iface.is_cold(), "Mint A should be cold");
+    let (compressed_a, _) = mint_a_iface
+        .compressed()
+        .expect("cold mint A must have compressed data");
+    let mint_a_ai = AccountInterface {
+        key: mint_a_pda,
+        account: solana_account::Account {
+            lamports: 0,
+            data: vec![],
+            owner: light_token::instruction::LIGHT_TOKEN_PROGRAM_ID,
+            executable: false,
+            rent_epoch: 0,
+        },
+        cold: Some(ColdContext::Account(compressed_a.clone())),
+    };
+
+    // Mint B
+    let mint_b_iface = rpc
+        .get_mint_interface(&mint_b_pda)
+        .await
+        .expect("failed to get mint B interface");
+    assert!(mint_b_iface.is_cold(), "Mint B should be cold");
+    let (compressed_b, _) = mint_b_iface
+        .compressed()
+        .expect("cold mint B must have compressed data");
+    let mint_b_ai = AccountInterface {
+        key: mint_b_pda,
+        account: solana_account::Account {
+            lamports: 0,
+            data: vec![],
+            owner: light_token::instruction::LIGHT_TOKEN_PROGRAM_ID,
+            executable: false,
+            rent_epoch: 0,
+        },
+        cold: Some(ColdContext::Account(compressed_b.clone())),
+    };
+
+    let specs: Vec<AccountSpec<LightAccountVariant>> = vec![
+        AccountSpec::Pda(record_spec),
+        AccountSpec::Pda(zc_spec),
+        AccountSpec::Ata(ata_interface),
+        AccountSpec::Mint(mint_a_ai),
+        AccountSpec::Mint(mint_b_ai),
+    ];
+
+    let ixs = create_load_instructions(&specs, payer.pubkey(), env.config_pda, &rpc)
+        .await
+        .expect("create_load_instructions should succeed");
+
+    rpc.create_and_send_transaction(&ixs, &payer.pubkey(), &[&payer])
+        .await
+        .expect("Decompression should succeed");
+
+    // PHASE 4: Assert state preserved after decompression (vault stays compressed)
+    shared::assert_onchain_exists(&mut rpc, &record_pda, "MinimalRecord").await;
+    shared::assert_onchain_exists(&mut rpc, &zc_record_pda, "ZeroCopyRecord").await;
+    shared::assert_onchain_exists(&mut rpc, &ata, "ATA").await;
+    shared::assert_onchain_closed(&mut rpc, &vault, "Vault").await;
+    shared::assert_onchain_exists(&mut rpc, &mint_a_pda, "MintA").await;
+    shared::assert_onchain_exists(&mut rpc, &mint_b_pda, "MintB").await;
+
+    // MinimalRecord
+    let account = rpc.get_account(record_pda).await.unwrap().unwrap();
+    let actual_record: MinimalRecord =
+        borsh::BorshDeserialize::deserialize(&mut &account.data[8..]).unwrap();
+    let expected_record = MinimalRecord {
+        compression_info: shared::expected_compression_info(&actual_record.compression_info),
+        owner,
+    };
+    assert_eq!(
+        actual_record, expected_record,
+        "MinimalRecord should match after decompression"
+    );
+
+    // ZeroCopyRecord
+    let account = rpc.get_account(zc_record_pda).await.unwrap().unwrap();
+    let actual_zc: &ZeroCopyRecord = bytemuck::from_bytes(&account.data[8..]);
+    let expected_zc = ZeroCopyRecord {
+        compression_info: shared::expected_compression_info(&actual_zc.compression_info),
+        owner,
+        counter: 0,
+    };
+    assert_eq!(
+        *actual_zc, expected_zc,
+        "ZeroCopyRecord should match after decompression"
+    );
+
+    // ATA
+    let actual_ata: Token =
+        shared::parse_token(&rpc.get_account(ata).await.unwrap().unwrap().data);
+    let expected_ata = Token {
+        mint: LPubkey::from(ata_mint.to_bytes()),
+        owner: LPubkey::from(ata_owner.to_bytes()),
+        amount: 0,
+        delegate: None,
+        state: AccountState::Initialized,
+        is_native: None,
+        delegated_amount: 0,
+        close_authority: None,
+        account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
+        extensions: actual_ata.extensions.clone(),
+    };
+    assert_eq!(
+        actual_ata, expected_ata,
+        "ATA should match after decompression"
+    );
+
+    // Mints
+    let actual_ma: Mint = borsh::BorshDeserialize::deserialize(
+        &mut &rpc.get_account(mint_a_pda).await.unwrap().unwrap().data[..],
+    )
+    .unwrap();
+    assert_eq!(
+        actual_ma.base.decimals, 9,
+        "Mint A decimals should be preserved"
+    );
+    assert_eq!(
+        actual_ma.base.mint_authority,
+        Some(payer.pubkey().to_bytes().into()),
+        "Mint A authority should be preserved"
+    );
+
+    let actual_mb: Mint = borsh::BorshDeserialize::deserialize(
+        &mut &rpc.get_account(mint_b_pda).await.unwrap().unwrap().data[..],
+    )
+    .unwrap();
+    assert_eq!(
+        actual_mb.base.decimals, 6,
+        "Mint B decimals should be preserved"
+    );
+    assert_eq!(
+        actual_mb.base.mint_authority,
+        Some(payer.pubkey().to_bytes().into()),
+        "Mint B authority should be preserved"
+    );
 }

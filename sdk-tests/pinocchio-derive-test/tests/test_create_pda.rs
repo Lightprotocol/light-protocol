@@ -1,7 +1,12 @@
 mod shared;
 
-use anchor_lang::{InstructionData, ToAccountMetas};
-use light_client::interface::{get_create_accounts_proof, CreateAccountsProofInput};
+use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
+use light_client::interface::{
+    create_load_instructions, get_create_accounts_proof, AccountInterfaceExt, AccountSpec,
+    CreateAccountsProofInput, PdaSpec,
+};
+use light_compressible::rent::SLOTS_PER_EPOCH;
+use light_program_test::program_test::TestRpc;
 use light_program_test::Rpc;
 use pinocchio_derive_test::CreatePdaParams;
 use solana_instruction::Instruction;
@@ -58,6 +63,7 @@ async fn test_create_single_pda_derive() {
         .await
         .expect("CreatePda should succeed");
 
+    // PHASE 1: Verify on-chain after creation
     let record_account = rpc
         .get_account(record_pda)
         .await
@@ -69,9 +75,55 @@ async fn test_create_single_pda_derive() {
         borsh::BorshDeserialize::deserialize(&mut &record_account.data[8..])
             .expect("Failed to deserialize MinimalRecord");
 
-    assert_eq!(record.owner, owner, "Record owner should match");
-    assert!(
-        !record.compression_info.is_compressed(),
-        "Record should be in decompressed state"
+    let expected = MinimalRecord {
+        compression_info: shared::expected_compression_info(&record.compression_info),
+        owner,
+    };
+    assert_eq!(record, expected, "MinimalRecord should match after creation");
+
+    // PHASE 2: Warp to trigger auto-compression
+    rpc.warp_slot_forward(SLOTS_PER_EPOCH * 30).await.unwrap();
+    shared::assert_onchain_closed(&mut rpc, &record_pda, "MinimalRecord").await;
+
+    // PHASE 3: Decompress via create_load_instructions
+    use pinocchio_derive_test::{LightAccountVariant, MinimalRecordSeeds};
+
+    let account_interface = rpc
+        .get_account_interface(&record_pda, &program_id)
+        .await
+        .expect("failed to get MinimalRecord interface");
+    assert!(account_interface.is_cold(), "MinimalRecord should be cold");
+
+    let data = MinimalRecord::deserialize(&mut &account_interface.account.data[8..])
+        .expect("Failed to parse MinimalRecord from interface");
+    let variant = LightAccountVariant::MinimalRecord {
+        seeds: MinimalRecordSeeds { owner },
+        data,
+    };
+
+    let spec = PdaSpec::new(account_interface, variant, program_id);
+    let specs: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Pda(spec)];
+
+    let ixs = create_load_instructions(&specs, payer.pubkey(), env.config_pda, &rpc)
+        .await
+        .expect("create_load_instructions should succeed");
+
+    rpc.create_and_send_transaction(&ixs, &payer.pubkey(), &[&payer])
+        .await
+        .expect("Decompression should succeed");
+
+    // PHASE 4: Assert state preserved after decompression
+    shared::assert_onchain_exists(&mut rpc, &record_pda, "MinimalRecord").await;
+
+    let account = rpc.get_account(record_pda).await.unwrap().unwrap();
+    let actual: MinimalRecord =
+        borsh::BorshDeserialize::deserialize(&mut &account.data[8..]).unwrap();
+    let expected = MinimalRecord {
+        compression_info: shared::expected_compression_info(&actual.compression_info),
+        owner,
+    };
+    assert_eq!(
+        actual, expected,
+        "MinimalRecord should match after decompression"
     );
 }

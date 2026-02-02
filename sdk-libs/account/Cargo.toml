@@ -14,6 +14,7 @@ token = ["light-sdk-types/token", "dep:light-token-interface"]
 poseidon = ["light-sdk-types/poseidon", "light-hasher/poseidon"]
 sha256 = ["light-sdk-types/sha256", "light-hasher/sha256"]
 anchor = ["light-sdk-types/anchor", "dep:anchor-lang"]
+anchor-discriminator = ["light-sdk-macros/anchor-discriminator"]
 
 [dependencies]
 light-sdk-types = { workspace = true, features = ["std", "v2", "cpi-context"] }

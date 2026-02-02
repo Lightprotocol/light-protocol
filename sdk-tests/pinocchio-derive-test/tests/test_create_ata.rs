@@ -1,7 +1,11 @@
 mod shared;
 
 use anchor_lang::{InstructionData, ToAccountMetas};
-use light_client::interface::get_create_accounts_proof;
+use light_client::interface::{
+    create_load_instructions, get_create_accounts_proof, AccountInterfaceExt, AccountSpec,
+};
+use light_compressible::rent::SLOTS_PER_EPOCH;
+use light_program_test::program_test::TestRpc;
 use light_program_test::Rpc;
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
 use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
@@ -57,6 +61,7 @@ async fn test_create_ata_derive() {
         .await
         .expect("CreateAta should succeed");
 
+    // PHASE 1: Verify on-chain after creation
     let ata_account = rpc
         .get_account(ata)
         .await
@@ -84,4 +89,47 @@ async fn test_create_ata_derive() {
         token, expected_token,
         "ATA should match expected after creation"
     );
+
+    // PHASE 2: Warp to trigger auto-compression
+    rpc.warp_slot_forward(SLOTS_PER_EPOCH * 30).await.unwrap();
+    shared::assert_onchain_closed(&mut rpc, &ata, "ATA").await;
+
+    // PHASE 3: Decompress via create_load_instructions
+    use pinocchio_derive_test::LightAccountVariant;
+
+    let ata_interface = rpc
+        .get_ata_interface(&ata_owner, &mint)
+        .await
+        .expect("failed to get ATA interface");
+    assert!(ata_interface.is_cold(), "ATA should be cold");
+
+    let specs: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Ata(ata_interface)];
+
+    let ixs = create_load_instructions(&specs, payer.pubkey(), env.config_pda, &rpc)
+        .await
+        .expect("create_load_instructions should succeed");
+
+    rpc.create_and_send_transaction(&ixs, &payer.pubkey(), &[&payer])
+        .await
+        .expect("Decompression should succeed");
+
+    // PHASE 4: Assert state preserved after decompression
+    shared::assert_onchain_exists(&mut rpc, &ata, "ATA").await;
+
+    let actual: Token = shared::parse_token(
+        &rpc.get_account(ata).await.unwrap().unwrap().data,
+    );
+    let expected = Token {
+        mint: mint.to_bytes().into(),
+        owner: ata_owner.to_bytes().into(),
+        amount: 0,
+        delegate: None,
+        state: AccountState::Initialized,
+        is_native: None,
+        delegated_amount: 0,
+        close_authority: None,
+        account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
+        extensions: actual.extensions.clone(),
+    };
+    assert_eq!(actual, expected, "ATA should match after decompression");
 }

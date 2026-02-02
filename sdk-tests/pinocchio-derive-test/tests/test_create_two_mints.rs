@@ -1,7 +1,12 @@
 mod shared;
 
 use anchor_lang::{InstructionData, ToAccountMetas};
-use light_client::interface::{get_create_accounts_proof, CreateAccountsProofInput};
+use light_client::interface::{
+    create_load_instructions, get_create_accounts_proof, AccountInterface, AccountInterfaceExt,
+    AccountSpec, ColdContext, CreateAccountsProofInput,
+};
+use light_compressible::rent::SLOTS_PER_EPOCH;
+use light_program_test::program_test::TestRpc;
 use light_program_test::Rpc;
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
 use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
@@ -80,17 +85,16 @@ async fn test_create_two_mints_derive() {
         .await
         .expect("CreateTwoMints should succeed");
 
-    // Verify mint A
+    // PHASE 1: Verify on-chain after creation
+    use light_token_interface::state::Mint;
+
     let mint_a_account = rpc
         .get_account(mint_a_pda)
         .await
         .unwrap()
         .expect("Mint A should exist on-chain");
-
-    use light_token_interface::state::Mint;
     let mint_a: Mint = borsh::BorshDeserialize::deserialize(&mut &mint_a_account.data[..])
         .expect("Failed to deserialize Mint A");
-
     assert_eq!(mint_a.base.decimals, 9, "Mint A should have 9 decimals");
     assert_eq!(
         mint_a.base.mint_authority,
@@ -98,20 +102,101 @@ async fn test_create_two_mints_derive() {
         "Mint A authority should be fee_payer"
     );
 
-    // Verify mint B
     let mint_b_account = rpc
         .get_account(mint_b_pda)
         .await
         .unwrap()
         .expect("Mint B should exist on-chain");
-
     let mint_b: Mint = borsh::BorshDeserialize::deserialize(&mut &mint_b_account.data[..])
         .expect("Failed to deserialize Mint B");
-
     assert_eq!(mint_b.base.decimals, 6, "Mint B should have 6 decimals");
     assert_eq!(
         mint_b.base.mint_authority,
         Some(payer.pubkey().to_bytes().into()),
         "Mint B authority should be fee_payer"
+    );
+
+    // PHASE 2: Warp to trigger auto-compression
+    rpc.warp_slot_forward(SLOTS_PER_EPOCH * 30).await.unwrap();
+    shared::assert_onchain_closed(&mut rpc, &mint_a_pda, "MintA").await;
+    shared::assert_onchain_closed(&mut rpc, &mint_b_pda, "MintB").await;
+
+    // PHASE 3: Decompress both mints via create_load_instructions
+    use pinocchio_derive_test::LightAccountVariant;
+
+    let build_mint_account_interface = |mint_interface: light_client::interface::MintInterface| {
+        let (compressed, _mint_data) = mint_interface
+            .compressed()
+            .expect("cold mint must have compressed data");
+        AccountInterface {
+            key: mint_interface.mint,
+            account: solana_account::Account {
+                lamports: 0,
+                data: vec![],
+                owner: light_token::instruction::LIGHT_TOKEN_PROGRAM_ID,
+                executable: false,
+                rent_epoch: 0,
+            },
+            cold: Some(ColdContext::Account(compressed.clone())),
+        }
+    };
+
+    let mint_a_interface = rpc
+        .get_mint_interface(&mint_a_pda)
+        .await
+        .expect("failed to get mint A interface");
+    assert!(mint_a_interface.is_cold(), "Mint A should be cold");
+    let mint_a_ai = build_mint_account_interface(mint_a_interface);
+
+    let mint_b_interface = rpc
+        .get_mint_interface(&mint_b_pda)
+        .await
+        .expect("failed to get mint B interface");
+    assert!(mint_b_interface.is_cold(), "Mint B should be cold");
+    let mint_b_ai = build_mint_account_interface(mint_b_interface);
+
+    let specs: Vec<AccountSpec<LightAccountVariant>> = vec![
+        AccountSpec::Mint(mint_a_ai),
+        AccountSpec::Mint(mint_b_ai),
+    ];
+
+    let ixs = create_load_instructions(&specs, payer.pubkey(), env.config_pda, &rpc)
+        .await
+        .expect("create_load_instructions should succeed");
+
+    rpc.create_and_send_transaction(&ixs, &payer.pubkey(), &[&payer])
+        .await
+        .expect("Decompression should succeed");
+
+    // PHASE 4: Assert state preserved after decompression
+    shared::assert_onchain_exists(&mut rpc, &mint_a_pda, "MintA").await;
+    shared::assert_onchain_exists(&mut rpc, &mint_b_pda, "MintB").await;
+
+    let actual_a: Mint = borsh::BorshDeserialize::deserialize(
+        &mut &rpc.get_account(mint_a_pda).await.unwrap().unwrap().data[..],
+    )
+    .unwrap();
+    assert_eq!(
+        actual_a.base.decimals, 9,
+        "Mint A decimals should be preserved"
+    );
+    assert_eq!(
+        actual_a.base.mint_authority,
+        Some(payer.pubkey().to_bytes().into()),
+        "Mint A authority should be preserved"
+    );
+
+    let actual_b: Mint = borsh::BorshDeserialize::deserialize(
+        &mut &rpc.get_account(mint_b_pda).await.unwrap().unwrap().data[..],
+    )
+    .unwrap();
+    assert_eq!(
+        actual_b.base.decimals, 6,
+        "Mint B decimals should be preserved"
+    );
+    assert_eq!(
+        actual_b.base.mint_authority,
+        Some(payer.pubkey().to_bytes().into()),
+        "Mint B authority should be preserved"
     );
 }

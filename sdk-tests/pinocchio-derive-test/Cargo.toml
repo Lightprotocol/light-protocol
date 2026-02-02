@@ -19,10 +19,10 @@ idl-build = ["anchor-lang/idl-build", "light-anchor-spl/idl-build"]
 test-sbf = []
 
 [dependencies]
-light-account = { workspace = true, features = ["token", "anchor"] }
+light-account = { workspace = true, features = ["token", "anchor", "anchor-discriminator"] }
 light-sdk-types = { workspace = true, features = ["anchor", "v2", "cpi-context"] }
 light-macros = { workspace = true, features = ["solana"] }
-light-sdk-macros = { workspace = true }
+light-sdk-macros = { workspace = true, features = ["anchor-discriminator"] }
 bytemuck = { workspace = true, features = ["derive"] }
 borsh = { workspace = true }
 light-compressed-account = { workspace = true, features = ["solana"] }
@@ -49,6 +49,9 @@ solana-instruction = { workspace = true }
 solana-pubkey = { workspace = true }
 solana-keypair = { workspace = true }
 solana-signer = { workspace = true }
+light-batched-merkle-tree = { workspace = true }
+rand = { workspace = true }
+solana-account = { workspace = true }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

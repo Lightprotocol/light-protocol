@@ -1,7 +1,12 @@
 mod shared;
 
 use anchor_lang::{InstructionData, ToAccountMetas};
-use light_client::interface::{get_create_accounts_proof, CreateAccountsProofInput};
+use light_client::interface::{
+    create_load_instructions, get_create_accounts_proof, AccountInterface, AccountInterfaceExt,
+    AccountSpec, ColdContext, CreateAccountsProofInput,
+};
+use light_compressible::rent::SLOTS_PER_EPOCH;
+use light_program_test::program_test::TestRpc;
 use light_program_test::Rpc;
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
 use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
@@ -69,6 +74,7 @@ async fn test_create_mint_derive() {
         .await
         .expect("CreateMint should succeed");
 
+    // PHASE 1: Verify on-chain after creation
     let mint_account = rpc
         .get_account(mint_pda)
         .await
@@ -84,5 +90,61 @@ async fn test_create_mint_derive() {
         mint.base.mint_authority,
         Some(payer.pubkey().to_bytes().into()),
         "Mint authority should be fee_payer"
+    );
+
+    // PHASE 2: Warp to trigger auto-compression
+    rpc.warp_slot_forward(SLOTS_PER_EPOCH * 30).await.unwrap();
+    shared::assert_onchain_closed(&mut rpc, &mint_pda, "Mint").await;
+
+    // PHASE 3: Decompress via create_load_instructions
+    use pinocchio_derive_test::LightAccountVariant;
+
+    let mint_interface = rpc
+        .get_mint_interface(&mint_pda)
+        .await
+        .expect("failed to get mint interface");
+    assert!(mint_interface.is_cold(), "Mint should be cold");
+
+    let (compressed, _mint_data) = mint_interface
+        .compressed()
+        .expect("cold mint must have compressed data");
+    let mint_account_interface = AccountInterface {
+        key: mint_pda,
+        account: solana_account::Account {
+            lamports: 0,
+            data: vec![],
+            owner: light_token::instruction::LIGHT_TOKEN_PROGRAM_ID,
+            executable: false,
+            rent_epoch: 0,
+        },
+        cold: Some(ColdContext::Account(compressed.clone())),
+    };
+
+    let specs: Vec<AccountSpec<LightAccountVariant>> =
+        vec![AccountSpec::Mint(mint_account_interface)];
+
+    let ixs = create_load_instructions(&specs, payer.pubkey(), env.config_pda, &rpc)
+        .await
+        .expect("create_load_instructions should succeed");
+
+    rpc.create_and_send_transaction(&ixs, &payer.pubkey(), &[&payer])
+        .await
+        .expect("Decompression should succeed");
+
+    // PHASE 4: Assert state preserved after decompression
+    shared::assert_onchain_exists(&mut rpc, &mint_pda, "Mint").await;
+
+    let actual: Mint = borsh::BorshDeserialize::deserialize(
+        &mut &rpc.get_account(mint_pda).await.unwrap().unwrap().data[..],
+    )
+    .unwrap();
+    assert_eq!(
+        actual.base.decimals, 9,
+        "Mint decimals should be preserved"
+    );
+    assert_eq!(
+        actual.base.mint_authority,
+        Some(payer.pubkey().to_bytes().into()),
+        "Mint authority should be preserved"
     );
 }

@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use light_account::derive_rent_sponsor_pda;
 use light_client::interface::InitializeRentFreeConfig;
 use light_program_test::{
@@ -115,4 +117,102 @@ pub async fn setup_create_mint(
         .unwrap();
 
     (mint, mint_seed)
+}
+
+pub async fn assert_onchain_exists(rpc: &mut LightProgramTest, pda: &Pubkey, name: &str) {
+    assert!(
+        rpc.get_account(*pda).await.unwrap().is_some(),
+        "{} account ({}) should exist on-chain",
+        name,
+        pda
+    );
+}
+
+pub async fn assert_onchain_closed(rpc: &mut LightProgramTest, pda: &Pubkey, name: &str) {
+    let acc = rpc.get_account(*pda).await.unwrap();
+    assert!(
+        acc.is_none() || acc.unwrap().lamports == 0,
+        "{} account ({}) should be closed",
+        name,
+        pda
+    );
+}
+
+pub async fn assert_compressed_token_exists(
+    rpc: &mut LightProgramTest,
+    owner: &Pubkey,
+    expected_amount: u64,
+    name: &str,
+) {
+    let accs = rpc
+        .get_compressed_token_accounts_by_owner(owner, None, None)
+        .await
+        .unwrap()
+        .value
+        .items;
+    assert!(
+        !accs.is_empty(),
+        "{} compressed token account should exist for owner {}",
+        name,
+        owner
+    );
+    assert_eq!(
+        accs[0].token.amount, expected_amount,
+        "{} token amount mismatch",
+        name
+    );
+}
+
+pub async fn assert_rent_sponsor_paid_for_accounts(
+    rpc: &mut LightProgramTest,
+    rent_sponsor: &Pubkey,
+    rent_sponsor_balance_before: u64,
+    created_accounts: &[Pubkey],
+) {
+    let rent_sponsor_balance_after = rpc
+        .get_account(*rent_sponsor)
+        .await
+        .expect("get rent sponsor account")
+        .map(|a| a.lamports)
+        .unwrap_or(0);
+
+    let mut total_account_lamports = 0u64;
+    for account in created_accounts {
+        let account_lamports = rpc
+            .get_account(*account)
+            .await
+            .expect("get created account")
+            .map(|a| a.lamports)
+            .unwrap_or(0);
+        total_account_lamports += account_lamports;
+    }
+
+    let rent_sponsor_paid = rent_sponsor_balance_before.saturating_sub(rent_sponsor_balance_after);
+
+    assert!(
+        rent_sponsor_paid >= total_account_lamports,
+        "Rent sponsor should have paid at least {} lamports for accounts, but only paid {}. \
+         Before: {}, After: {}",
+        total_account_lamports,
+        rent_sponsor_paid,
+        rent_sponsor_balance_before,
+        rent_sponsor_balance_after
+    );
+}
+
+pub fn expected_compression_info(
+    actual: &light_account::CompressionInfo,
+) -> light_account::CompressionInfo {
+    light_account::CompressionInfo {
+        last_claimed_slot: actual.last_claimed_slot,
+        lamports_per_write: 5000,
+        config_version: 1,
+        state: actual.state,
+        _padding: 0,
+        rent_config: light_compressible::rent::RentConfig::default(),
+    }
+}
+
+pub fn parse_token(data: &[u8]) -> light_token_interface::state::token::Token {
+    borsh::BorshDeserialize::deserialize(&mut &data[..]).unwrap()
 }
