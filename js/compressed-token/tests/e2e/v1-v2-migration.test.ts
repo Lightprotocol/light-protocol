@@ -31,7 +31,7 @@ import {
     Rpc,
     bn,
     newAccountWithLamports,
-    createRpc,
+    getTestRpc,
     selectStateTreeInfo,
     TreeInfo,
     TreeType,
@@ -39,6 +39,7 @@ import {
     VERSION,
     ParsedTokenAccount,
 } from '@lightprotocol/stateless.js';
+import { WasmFactory } from '@lightprotocol/hasher.rs';
 import {
     createMint,
     mintTo,
@@ -136,7 +137,8 @@ describe('v1-v2-migration', () => {
     let tokenPoolInfos: TokenPoolInfo[];
 
     beforeAll(async () => {
-        rpc = createRpc();
+        const lightWasm = await WasmFactory.getInstance();
+        rpc = await getTestRpc(lightWasm);
         payer = await newAccountWithLamports(rpc, 10e9);
         mintAuthority = Keypair.generate();
 
