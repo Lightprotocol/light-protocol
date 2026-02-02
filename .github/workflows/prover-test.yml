@@ -93,6 +93,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
+      - name: Install just
+        uses: extractions/setup-just@v2
+
       - name: Run ${{ matrix.test-suite.name }}
         run: |
           just prover::${{ matrix.test-suite.target }}
@@ -142,6 +145,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
+      - name: Install just
+        uses: extractions/setup-just@v2
+
       - name: Run ${{ matrix.test-suite.name }}
         env:
           TEST_REDIS_URL: redis://localhost:6379/15
@@ -176,6 +182,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
+      - name: Install just
+        uses: extractions/setup-just@v2
+
       - name: Lightweight integration tests
         run: |
           just prover::test-lightweight
@@ -208,6 +217,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
+      - name: Install just
+        uses: extractions/setup-just@v2
+
       - name: Lightweight lazy loading integration tests
         run: |
           just prover::test-lightweight-lazy
@@ -239,6 +251,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
+      - name: Install just
+        uses: extractions/setup-just@v2
+
       - name: Full integration tests
         run: |
           just prover::test-full
@@ -264,6 +279,9 @@ jobs:
 
       - name: Make binary executable
         run: chmod +x prover/server/light-prover
+
+      - name: Install just
+        uses: extractions/setup-just@v2
 
       - name: Install Elan
         run: |
