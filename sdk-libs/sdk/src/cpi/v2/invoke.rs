@@ -1,10 +1,8 @@
-use light_compressed_account::instruction_data::with_account_info::InstructionDataInvokeCpiWithAccountInfo;
-use light_compressed_account::instruction_data::with_readonly::{
-    InAccount, InstructionDataInvokeCpiWithReadOnly,
-};
 use light_compressed_account::instruction_data::{
     compressed_proof::ValidityProof,
     cpi_context::CompressedCpiContext,
+    with_account_info::InstructionDataInvokeCpiWithAccountInfo,
+    with_readonly::{InAccount, InstructionDataInvokeCpiWithReadOnly},
 };
 
 #[cfg(feature = "poseidon")]

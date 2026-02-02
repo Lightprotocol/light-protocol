@@ -166,6 +166,9 @@ impl From<LightSdkTypesError> for LightSdkError {
             LightSdkTypesError::CpiFailed => LightSdkError::CpiFailed,
             LightSdkTypesError::NotEnoughAccountKeys => LightSdkError::NotEnoughAccountKeys,
             LightSdkTypesError::MissingRequiredSignature => LightSdkError::MissingRequiredSignature,
+            LightSdkTypesError::ProgramError(code) => {
+                LightSdkError::ProgramError(ProgramError::Custom(code))
+            }
         }
     }
 }

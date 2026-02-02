@@ -3,19 +3,16 @@ use light_compressed_account::instruction_data::{
 };
 use light_sdk_types::constants::{CPI_AUTHORITY_PDA_SEED, LIGHT_SYSTEM_PROGRAM_ID};
 
-#[cfg(feature = "poseidon")]
-use crate::{account::poseidon::LightAccount as LightAccountPoseidon, DataHasher};
-use crate::{
-    account::LightAccount,
-    cpi::CpiSigner,
-    error::LightSdkError,
-    instruction::account_info::CompressedAccountInfoTrait,
-    AnchorDeserialize, AnchorSerialize, LightDiscriminator, ProgramError,
-};
-
 use super::{
     lowlevel::{get_account_metas_from_config, CpiInstructionConfig},
     CpiAccounts,
+};
+#[cfg(feature = "poseidon")]
+use crate::{account::poseidon::LightAccount as LightAccountPoseidon, DataHasher};
+use crate::{
+    account::LightAccount, cpi::CpiSigner, error::LightSdkError,
+    instruction::account_info::CompressedAccountInfoTrait, AnchorDeserialize, AnchorSerialize,
+    LightDiscriminator, ProgramError,
 };
 
 /// Light system program CPI instruction data builder.
@@ -313,8 +310,7 @@ impl LightSystemProgramCpi {
             .map_err(ProgramError::from)?;
 
         let account_infos = cpi_accounts.to_account_infos();
-        let config =
-            CpiInstructionConfig::try_from(&cpi_accounts).map_err(ProgramError::from)?;
+        let config = CpiInstructionConfig::try_from(&cpi_accounts).map_err(ProgramError::from)?;
         let account_metas = get_account_metas_from_config(config);
 
         let instruction = solana_instruction::Instruction {

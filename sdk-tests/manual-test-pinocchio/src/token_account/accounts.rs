@@ -48,8 +48,7 @@ impl<'a> CreateTokenVaultAccounts<'a> {
         {
             let mint_key = mint.key();
             let seeds: &[&[u8]] = &[TOKEN_VAULT_SEED, mint_key];
-            let (expected_pda, _bump) =
-                pinocchio::pubkey::find_program_address(seeds, &crate::ID);
+            let (expected_pda, _bump) = pinocchio::pubkey::find_program_address(seeds, &crate::ID);
             if token_vault.key() != &expected_pda {
                 return Err(ProgramError::InvalidSeeds);
             }

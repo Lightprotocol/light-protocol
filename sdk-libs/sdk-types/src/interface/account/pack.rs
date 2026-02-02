@@ -1,11 +1,10 @@
 //! Pack and Unpack traits for converting between full Pubkeys and u8 indices.
 
 use light_account_checks::AccountInfoTrait;
-
-use crate::error::LightSdkTypesError;
-
 #[cfg(all(not(target_os = "solana"), feature = "std"))]
 use light_account_checks::AccountMetaTrait;
+
+use crate::error::LightSdkTypesError;
 
 /// Replace 32-byte Pubkeys with 1-byte indices to save space.
 /// If your type has no Pubkeys, just return self.

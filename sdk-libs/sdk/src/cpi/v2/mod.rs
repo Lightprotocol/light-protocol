@@ -8,8 +8,7 @@
 
 // CpiAccounts from sdk-types (v2)
 pub use light_sdk_types::cpi_accounts::v2::CpiAccounts as GenericCpiAccounts;
-pub type CpiAccounts<'c, 'info> =
-    GenericCpiAccounts<'c, solana_account_info::AccountInfo<'info>>;
+pub type CpiAccounts<'c, 'info> = GenericCpiAccounts<'c, solana_account_info::AccountInfo<'info>>;
 
 // Instruction types from light-compressed-account
 pub use light_compressed_account::instruction_data::{

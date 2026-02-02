@@ -2,11 +2,10 @@
 //! Contains LightPreInit/LightFinalize trait implementations.
 
 use light_account_pinocchio::{
-    invoke_create_mints, get_output_queue_next_index, CreateMintsInfraAccounts,
-    CreateMintsParams as SdkCreateMintsParams, SingleMintParams,
-    derive_mint_compressed_address, find_mint_address,
-    CpiAccounts, CpiAccountsConfig, LightFinalize, LightPreInit, LightSdkTypesError,
-    PackedAddressTreeInfoExt, DEFAULT_RENT_PAYMENT, DEFAULT_WRITE_TOP_UP,
+    derive_mint_compressed_address, find_mint_address, get_output_queue_next_index,
+    invoke_create_mints, CpiAccounts, CpiAccountsConfig, CreateMintsInfraAccounts,
+    CreateMintsParams as SdkCreateMintsParams, LightFinalize, LightPreInit, LightSdkTypesError,
+    PackedAddressTreeInfoExt, SingleMintParams, DEFAULT_RENT_PAYMENT, DEFAULT_WRITE_TOP_UP,
 };
 use pinocchio::account_info::AccountInfo;
 
@@ -25,7 +24,6 @@ impl LightPreInit<AccountInfo, CreateDerivedMintsParams> for CreateDerivedMintsA
         params: &CreateDerivedMintsParams,
     ) -> std::result::Result<bool, LightSdkTypesError> {
         let inner = || -> std::result::Result<bool, LightSdkTypesError> {
-
             // ====================================================================
             // STATIC BOILERPLATE (same across all LightPreInit implementations)
             // ====================================================================
@@ -73,14 +71,10 @@ impl LightPreInit<AccountInfo, CreateDerivedMintsParams> for CreateDerivedMintsA
 
                 // Derive compression addresses (from mint_signer + address_tree)
                 // address_tree_pubkey is already [u8; 32] from get_tree_pubkey
-                let compression_address_0 = derive_mint_compressed_address(
-                    &mint_signer_0,
-                    &address_tree_pubkey,
-                );
-                let compression_address_1 = derive_mint_compressed_address(
-                    &mint_signer_1,
-                    &address_tree_pubkey,
-                );
+                let compression_address_0 =
+                    derive_mint_compressed_address(&mint_signer_0, &address_tree_pubkey);
+                let compression_address_1 =
+                    derive_mint_compressed_address(&mint_signer_1, &address_tree_pubkey);
 
                 // Build mint signer seeds for CPI (mint::seeds + bump)
                 let mint_signer_0_seeds: &[&[u8]] = &[
@@ -142,8 +136,8 @@ impl LightPreInit<AccountInfo, CreateDerivedMintsParams> for CreateDerivedMintsA
 
                 // Read base_leaf_index from output queue (required for N > 1)
                 let output_queue_index = params.create_accounts_proof.output_state_tree_index;
-                let output_queue = cpi_accounts
-                    .get_tree_account_info(output_queue_index as usize)?;
+                let output_queue =
+                    cpi_accounts.get_tree_account_info(output_queue_index as usize)?;
                 let base_leaf_index = get_output_queue_next_index(output_queue)?;
 
                 let sdk_params = SdkCreateMintsParams {

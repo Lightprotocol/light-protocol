@@ -13,7 +13,7 @@ alloc = ["light-sdk-types/alloc", "light-compressed-account/alloc"]
 token = ["light-sdk-types/token", "dep:light-token-interface"]
 poseidon = ["light-sdk-types/poseidon", "light-hasher/poseidon"]
 sha256 = ["light-sdk-types/sha256", "light-hasher/sha256"]
-anchor = ["light-sdk-types/anchor"]
+anchor = ["light-sdk-types/anchor", "dep:anchor-lang"]
 
 [dependencies]
 light-sdk-types = { workspace = true, features = ["std", "v2", "cpi-context"] }
@@ -24,6 +24,7 @@ light-hasher = { workspace = true, default-features = false }
 light-compressed-account = { workspace = true }
 light-compressible = { workspace = true }
 light-token-interface = { workspace = true, optional = true }
+anchor-lang = { workspace = true, optional = true }
 solana-account-info = { workspace = true }
 solana-instruction = { workspace = true }
 solana-pubkey = { workspace = true }

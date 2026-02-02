@@ -2,21 +2,19 @@
 
 use alloc::vec::Vec;
 
-use crate::{
-    cpi_accounts::v2::CpiAccounts,
-    instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress, CpiSigner,
-};
 use light_account_checks::AccountInfoTrait;
 use light_compressed_account::instruction_data::{
     compressed_proof::ValidityProof,
     with_account_info::{CompressedAccountInfo, InstructionDataInvokeCpiWithAccountInfo},
 };
 
-use crate::interface::{
-    cpi::InvokeLightSystemProgram,
-    program::{compression::close::close, config::LightConfig},
+use crate::{
+    cpi_accounts::v2::CpiAccounts,
+    error::LightSdkTypesError,
+    instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
+    interface::{cpi::InvokeLightSystemProgram, program::config::LightConfig},
+    AnchorDeserialize, AnchorSerialize, CpiSigner,
 };
-use crate::{error::LightSdkTypesError, AnchorDeserialize, AnchorSerialize};
 
 /// Account indices within remaining_accounts for compress instructions.
 const FEE_PAYER_INDEX: usize = 0;
@@ -149,7 +147,8 @@ pub fn process_compress_pda_accounts_idempotent<AI: AccountInfoTrait + Clone>(
 
     // 10. Close PDA accounts, transferring lamports to rent_sponsor
     for pda_index in &pda_indices_to_close {
-        close(&remaining_accounts[*pda_index], rent_sponsor)?;
+        light_account_checks::close_account(&remaining_accounts[*pda_index], rent_sponsor)
+            .map_err(LightSdkTypesError::AccountError)?;
     }
 
     Ok(())

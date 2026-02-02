@@ -7,9 +7,8 @@ use std::marker::PhantomData;
 
 use anchor_lang::prelude::*;
 use light_account::{
-    account_meta::CompressedAccountMetaNoLamportsNoAddress,
-    prepare_account_for_compression, process_compress_pda_accounts_idempotent, CompressCtx,
-    LightDiscriminator, LightSdkTypesError,
+    account_meta::CompressedAccountMetaNoLamportsNoAddress, prepare_account_for_compression,
+    process_compress_pda_accounts_idempotent, CompressCtx, LightDiscriminator, LightSdkTypesError,
 };
 use solana_account_info::AccountInfo;
 

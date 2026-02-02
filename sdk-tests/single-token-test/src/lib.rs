@@ -7,7 +7,7 @@
 
 use anchor_lang::prelude::*;
 use light_account::{
-    derive_light_cpi_signer, CreateAccountsProof, CpiSigner, LIGHT_TOKEN_CONFIG,
+    derive_light_cpi_signer, CpiSigner, CreateAccountsProof, LIGHT_TOKEN_CONFIG,
     LIGHT_TOKEN_RENT_SPONSOR,
 };
 use light_sdk_macros::{light_program, LightAccounts};

@@ -1,8 +1,8 @@
 //! Config instructions using SDK functions.
 
 use anchor_lang::prelude::*;
-use light_compressible::rent::RentConfig;
 use light_account::process_initialize_light_config;
+use light_compressible::rent::RentConfig;
 use solana_program_error::ProgramError;
 
 /// Params order matches SDK's InitializeCompressionConfigAnchorData.

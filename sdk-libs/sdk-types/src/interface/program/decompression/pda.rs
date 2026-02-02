@@ -1,6 +1,7 @@
 //! Generic prepare_account_for_decompression.
 
-use crate::{constants::RENT_SPONSOR_SEED, instruction::PackedStateTreeInfo};
+use alloc::vec::Vec;
+
 use light_account_checks::AccountInfoTrait;
 use light_compressed_account::{
     address::derive_address,
@@ -10,18 +11,19 @@ use light_compressed_account::{
 use light_compressible::DECOMPRESSED_PDA_DISCRIMINATOR;
 use light_hasher::{sha256::Sha256BE, Hasher};
 
-use alloc::vec::Vec;
-
-use crate::interface::{
-    account::light_account::LightAccount,
-    program::{
-        decompression::processor::DecompressCtx,
-        variant::{LightAccountVariantTrait, PackedLightAccountVariantTrait},
-    },
-};
 use crate::{
+    constants::RENT_SPONSOR_SEED,
     error::LightSdkTypesError,
-    light_account_checks::discriminator::Discriminator as LightDiscriminator, AnchorSerialize,
+    instruction::PackedStateTreeInfo,
+    interface::{
+        account::light_account::LightAccount,
+        program::{
+            decompression::processor::DecompressCtx,
+            variant::{LightAccountVariantTrait, PackedLightAccountVariantTrait},
+        },
+    },
+    light_account_checks::discriminator::Discriminator as LightDiscriminator,
+    AnchorSerialize,
 };
 
 /// Generic prepare_account_for_decompression.
@@ -61,10 +63,7 @@ where
         <<P as PackedLightAccountVariantTrait<N>>::Unpacked as LightAccountVariantTrait<N>>::Data;
 
     // 1. Unpack to get seeds (must happen first for PDA validation)
-    let packed_accounts = ctx
-        .cpi_accounts
-        .packed_accounts()
-        .map_err(LightSdkTypesError::from)?;
+    let packed_accounts = ctx.cpi_accounts.packed_accounts()?;
 
     let unpacked = packed
         .unpack(packed_accounts)
@@ -106,10 +105,7 @@ where
     let space = discriminator_len + data_len.max(<Data<SEED_COUNT, P> as LightAccount>::INIT_SPACE);
     let rent_minimum = AI::get_min_rent_balance(space)?;
 
-    let system_program = ctx
-        .cpi_accounts
-        .system_program()
-        .map_err(LightSdkTypesError::from)?;
+    let system_program = ctx.cpi_accounts.system_program()?;
 
     // Construct rent sponsor seeds for PDA signing
     let rent_sponsor_bump_bytes = [ctx.rent_sponsor_bump];

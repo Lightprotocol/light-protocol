@@ -6,7 +6,7 @@
 #![allow(deprecated)]
 
 use anchor_lang::prelude::*;
-use light_account::{derive_light_cpi_signer, CreateAccountsProof, CpiSigner};
+use light_account::{derive_light_cpi_signer, CpiSigner, CreateAccountsProof};
 use light_sdk_macros::{light_program, LightAccounts};
 
 declare_id!("Mint111111111111111111111111111111111111111");

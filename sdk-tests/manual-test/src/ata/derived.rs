@@ -2,8 +2,8 @@
 
 use anchor_lang::prelude::*;
 use light_account::{
-    CreateTokenAtaCpi, LightFinalize, LightPreInit, LightSdkTypesError,
-    derive_associated_token_account,
+    derive_associated_token_account, CreateTokenAtaCpi, LightFinalize, LightPreInit,
+    LightSdkTypesError,
 };
 use solana_account_info::AccountInfo;
 
@@ -21,10 +21,7 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateAtaParams> for CreateAtaAccou
     ) -> std::result::Result<bool, LightSdkTypesError> {
         let inner = || -> std::result::Result<bool, LightSdkTypesError> {
             // Derive the ATA bump on-chain
-            let (_, bump) = derive_associated_token_account(
-                self.ata_owner.key,
-                self.mint.key,
-            );
+            let (_, bump) = derive_associated_token_account(self.ata_owner.key, self.mint.key);
 
             // Create ATA via CPI with idempotent + rent-free mode
             // NOTE: Unlike token vaults, ATAs use .invoke() not .invoke_signed()

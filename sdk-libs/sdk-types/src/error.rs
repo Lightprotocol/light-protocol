@@ -1,10 +1,10 @@
+#[cfg(all(not(feature = "std"), feature = "alloc"))]
+use alloc::string::String;
+
 use light_account_checks::error::AccountError;
 use light_compressed_account::CompressedAccountError;
 use light_hasher::HasherError;
 use thiserror::Error;
-
-#[cfg(all(not(feature = "std"), feature = "alloc"))]
-use alloc::string::String;
 
 pub type Result<T> = core::result::Result<T, LightSdkTypesError>;
 
@@ -36,7 +36,7 @@ pub enum LightSdkTypesError {
     InvalidCpiContextAccount,
     #[error("Invalid sol pool pda account")]
     InvalidSolPoolPdaAccount,
-    #[error("CpigAccounts accounts slice starts with an invalid account. It should start with LightSystemProgram SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7.")]
+    #[error("CpiAccounts accounts slice starts with an invalid account. It should start with LightSystemProgram SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7.")]
     InvalidCpiAccountsOffset,
     #[error(transparent)]
     AccountError(#[from] AccountError),
@@ -70,6 +70,8 @@ pub enum LightSdkTypesError {
     NotEnoughAccountKeys,
     #[error("Missing required signature")]
     MissingRequiredSignature,
+    #[error("Program error: {0}")]
+    ProgramError(u32),
 }
 
 #[cfg(feature = "anchor")]
@@ -97,7 +99,7 @@ impl From<solana_program_error::ProgramError> for LightSdkTypesError {
             solana_program_error::ProgramError::AccountBorrowFailed => {
                 LightSdkTypesError::ConstraintViolation
             }
-            _ => LightSdkTypesError::ConstraintViolation,
+            other => LightSdkTypesError::ProgramError(u64::from(other) as u32),
         }
     }
 }
@@ -135,6 +137,7 @@ impl From<LightSdkTypesError> for u32 {
             LightSdkTypesError::CpiFailed => 14045,
             LightSdkTypesError::NotEnoughAccountKeys => 14046,
             LightSdkTypesError::MissingRequiredSignature => 14047,
+            LightSdkTypesError::ProgramError(code) => code,
         }
     }
 }

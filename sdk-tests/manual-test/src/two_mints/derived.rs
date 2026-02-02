@@ -3,11 +3,10 @@
 
 use anchor_lang::prelude::*;
 use light_account::{
-    invoke_create_mints, get_output_queue_next_index, CreateMintsInfraAccounts,
-    CreateMintsParams as SdkCreateMintsParams, SingleMintParams,
-    derive_mint_compressed_address, find_mint_address,
-    CpiAccounts, CpiAccountsConfig, LightFinalize, LightPreInit, LightSdkTypesError,
-    PackedAddressTreeInfoExt, DEFAULT_RENT_PAYMENT, DEFAULT_WRITE_TOP_UP,
+    derive_mint_compressed_address, find_mint_address, get_output_queue_next_index,
+    invoke_create_mints, CpiAccounts, CpiAccountsConfig, CreateMintsInfraAccounts,
+    CreateMintsParams as SdkCreateMintsParams, LightFinalize, LightPreInit, LightSdkTypesError,
+    PackedAddressTreeInfoExt, SingleMintParams, DEFAULT_RENT_PAYMENT, DEFAULT_WRITE_TOP_UP,
 };
 use solana_account_info::AccountInfo;
 
@@ -28,7 +27,6 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateDerivedMintsParams>
         params: &CreateDerivedMintsParams,
     ) -> std::result::Result<bool, LightSdkTypesError> {
         let inner = || -> std::result::Result<bool, LightSdkTypesError> {
-
             // ====================================================================
             // STATIC BOILERPLATE (same across all LightPreInit implementations)
             // ====================================================================
@@ -69,10 +67,8 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateDerivedMintsParams>
                 let mint_signer_1 = self.mint_signer_1.key();
 
                 // Derive mint PDAs (light-token derives mint PDA from mint_signer)
-                let (mint_0_pda, mint_0_bump) =
-                    find_mint_address(&mint_signer_0.to_bytes());
-                let (mint_1_pda, mint_1_bump) =
-                    find_mint_address(&mint_signer_1.to_bytes());
+                let (mint_0_pda, mint_0_bump) = find_mint_address(&mint_signer_0.to_bytes());
+                let (mint_1_pda, mint_1_bump) = find_mint_address(&mint_signer_1.to_bytes());
 
                 // Derive compression addresses (from mint_signer + address_tree)
                 let compression_address_0 = derive_mint_compressed_address(
@@ -144,8 +140,8 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateDerivedMintsParams>
 
                 // Read base_leaf_index from output queue (required for N > 1)
                 let output_queue_index = params.create_accounts_proof.output_state_tree_index;
-                let output_queue = cpi_accounts
-                    .get_tree_account_info(output_queue_index as usize)?;
+                let output_queue =
+                    cpi_accounts.get_tree_account_info(output_queue_index as usize)?;
                 let base_leaf_index = get_output_queue_next_index(output_queue)?;
 
                 let sdk_params = SdkCreateMintsParams {

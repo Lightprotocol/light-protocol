@@ -272,10 +272,7 @@ pub async fn auto_compress_program_pdas(
     let payer = rpc.get_payer().insecure_clone();
 
     let (config_pda, _) = Pubkey::find_program_address(
-        &[
-            light_sdk::COMPRESSIBLE_CONFIG_SEED,
-            &0u16.to_le_bytes(),
-        ],
+        &[light_sdk::COMPRESSIBLE_CONFIG_SEED, &0u16.to_le_bytes()],
         &program_id,
     );
 

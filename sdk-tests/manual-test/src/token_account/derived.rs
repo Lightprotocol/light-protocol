@@ -3,7 +3,9 @@
 use anchor_lang::prelude::*;
 #[cfg(not(target_os = "solana"))]
 use light_account::Pack;
-use light_account::{CreateTokenAccountCpi, LightFinalize, LightPreInit, LightSdkTypesError, Unpack};
+use light_account::{
+    CreateTokenAccountCpi, LightFinalize, LightPreInit, LightSdkTypesError, Unpack,
+};
 use solana_account_info::AccountInfo;
 
 use super::accounts::{CreateTokenVaultAccounts, CreateTokenVaultParams, TOKEN_VAULT_SEED};

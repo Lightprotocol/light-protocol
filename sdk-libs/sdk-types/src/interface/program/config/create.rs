@@ -231,7 +231,7 @@ mod tests {
     #[test]
     fn test_upgradeable_loader_state_parsing() {
         // Build a synthetic ProgramData account matching the manual layout
-        let mut data = vec![0u8; 45];
+        let mut data = [0u8; 45];
 
         // Variant tag = 3 (ProgramData)
         data[0..4].copy_from_slice(&3u32.to_le_bytes());

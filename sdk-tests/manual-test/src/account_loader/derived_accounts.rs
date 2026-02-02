@@ -4,15 +4,14 @@
 //! adapted for the AccountLoader (zero-copy) access pattern.
 
 use anchor_lang::prelude::*;
-use light_compressed_account::instruction_data::{
-    cpi_context::CompressedCpiContext, with_account_info::InstructionDataInvokeCpiWithAccountInfo,
-};
 use light_account::{
     light_account_checks::{self, packed_accounts::ProgramPackedAccounts},
-    prepare_compressed_account_on_init, CpiAccounts, CpiAccountsConfig,
-    CpiContextWriteAccounts, InvokeLightSystemProgram, LightAccount, LightAccountVariantTrait,
-    LightFinalize, LightPreInit, LightSdkTypesError, PackedAddressTreeInfoExt,
-    PackedLightAccountVariantTrait,
+    prepare_compressed_account_on_init, CpiAccounts, CpiAccountsConfig, CpiContextWriteAccounts,
+    InvokeLightSystemProgram, LightAccount, LightAccountVariantTrait, LightFinalize, LightPreInit,
+    LightSdkTypesError, PackedAddressTreeInfoExt, PackedLightAccountVariantTrait,
+};
+use light_compressed_account::instruction_data::{
+    cpi_context::CompressedCpiContext, with_account_info::InstructionDataInvokeCpiWithAccountInfo,
 };
 
 use super::{
@@ -138,8 +137,7 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateZeroCopyParams> for CreateZer
                     cpi_context: cpi_accounts.cpi_context()?,
                     cpi_signer: crate::LIGHT_CPI_SIGNER,
                 };
-                instruction_data
-                    .invoke_write_to_cpi_context_first(cpi_context_accounts)?;
+                instruction_data.invoke_write_to_cpi_context_first(cpi_context_accounts)?;
             }
 
             Ok(false) // No mints, so no CPI context write
@@ -248,8 +246,7 @@ impl LightAccountVariantTrait<4> for ZeroCopyRecordVariant {
 impl PackedLightAccountVariantTrait<4> for PackedZeroCopyRecordVariant {
     type Unpacked = ZeroCopyRecordVariant;
 
-    const ACCOUNT_TYPE: light_account::AccountType =
-        <ZeroCopyRecord as LightAccount>::ACCOUNT_TYPE;
+    const ACCOUNT_TYPE: light_account::AccountType = <ZeroCopyRecord as LightAccount>::ACCOUNT_TYPE;
 
     fn bump(&self) -> u8 {
         self.seeds.bump
@@ -317,8 +314,7 @@ impl light_account::IntoVariant<ZeroCopyRecordVariant> for ZeroCopyRecordSeeds {
     fn into_variant(
         self,
         data: &[u8],
-    ) -> std::result::Result<ZeroCopyRecordVariant, LightSdkTypesError>
-    {
+    ) -> std::result::Result<ZeroCopyRecordVariant, LightSdkTypesError> {
         // For ZeroCopy (Pod) accounts, data is the full Pod bytes including compression_info.
         // We deserialize using AnchorDeserialize (which ZeroCopyRecord implements).
         let record: ZeroCopyRecord = AnchorDeserialize::deserialize(&mut &data[..])
@@ -343,9 +339,7 @@ impl light_account::IntoVariant<ZeroCopyRecordVariant> for ZeroCopyRecordSeeds {
 /// Implement Pack trait to allow ZeroCopyRecordVariant to be used with `create_load_instructions`.
 /// Transforms the variant into PackedLightAccountVariant for efficient serialization.
 #[cfg(not(target_os = "solana"))]
-impl light_account::Pack<solana_program::instruction::AccountMeta>
-    for ZeroCopyRecordVariant
-{
+impl light_account::Pack<solana_program::instruction::AccountMeta> for ZeroCopyRecordVariant {
     type Packed = crate::derived_variants::PackedLightAccountVariant;
 
     fn pack(

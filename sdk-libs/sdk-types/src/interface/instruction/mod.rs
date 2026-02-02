@@ -4,7 +4,7 @@
 
 mod pack_accounts;
 
+pub use pack_accounts::*;
+
 /// Re-exports from light-sdk-types instruction types.
 pub use crate::instruction::*;
-pub use pack_accounts::*;
-// TODO: move all of this to light-sdk-types

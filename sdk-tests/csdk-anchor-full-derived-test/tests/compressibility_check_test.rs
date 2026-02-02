@@ -294,7 +294,9 @@ async fn test_batch_abort_non_compressible() {
         .value;
 
     // Build program account metas (fee_payer, config, rent_sponsor, compression_authority)
-    let (config_bytes, _) = light_account::LightConfig::derive_pda_bytes::<light_account::AccountInfo<'_>>(&program_id.to_bytes(), 0);
+    let (config_bytes, _) = light_account::LightConfig::derive_pda_bytes::<
+        light_account::AccountInfo<'_>,
+    >(&program_id.to_bytes(), 0);
     let light_config_pda = Pubkey::from(config_bytes);
     let program_metas = vec![
         AccountMeta::new(payer.pubkey(), true),

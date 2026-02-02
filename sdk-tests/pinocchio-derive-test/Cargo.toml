@@ -1,12 +1,12 @@
 [package]
-name = "single-pda-derive-test"
+name = "pinocchio-derive-test"
 version = "0.1.0"
 description = "Test for #[derive(LightProgram)] macro validation with all variant kinds"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "single_pda_derive_test"
+name = "pinocchio_derive_test"
 
 [features]
 no-entrypoint = []
@@ -19,9 +19,8 @@ idl-build = ["anchor-lang/idl-build", "light-anchor-spl/idl-build"]
 test-sbf = []
 
 [dependencies]
-light-account = { workspace = true }
-# light-sdk = { workspace = true, features = ["anchor", "v2", "anchor-discriminator", "cpi-context"] }
-light-sdk-types = { workspace = true, features = ["v2", "cpi-context"] }
+light-account = { workspace = true, features = ["token", "anchor"] }
+light-sdk-types = { workspace = true, features = ["anchor", "v2", "cpi-context"] }
 light-macros = { workspace = true, features = ["solana"] }
 light-sdk-macros = { workspace = true }
 bytemuck = { workspace = true, features = ["derive"] }
@@ -31,7 +30,6 @@ anchor-lang = { workspace = true }
 light-anchor-spl = { workspace = true, features = ["metadata"] }
 light-compressible = { workspace = true, features = ["anchor"] }
 light-hasher = { workspace = true, features = ["solana"] }
-light-token = { workspace = true, features = ["anchor"] }
 light-token-types = { workspace = true, features = ["anchor"] }
 solana-program = { workspace = true }
 solana-pubkey = { workspace = true }

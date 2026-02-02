@@ -1,12 +1,12 @@
 //! Derived code - what the macro would generate for token accounts.
 
 use borsh::{BorshDeserialize, BorshSerialize};
+#[cfg(not(target_os = "solana"))]
+use light_account_pinocchio::Pack;
 use light_account_pinocchio::{
     light_account_checks::{self},
     CreateTokenAccountCpi, LightFinalize, LightPreInit, LightSdkTypesError, Unpack,
 };
-#[cfg(not(target_os = "solana"))]
-use light_account_pinocchio::Pack;
 use pinocchio::account_info::AccountInfo;
 
 use super::accounts::{CreateTokenVaultAccounts, CreateTokenVaultParams, TOKEN_VAULT_SEED};

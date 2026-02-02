@@ -522,7 +522,8 @@ fn test_pack_stores_all_pubkeys_in_packed_accounts() {
     // Verify each pubkey is stored at its index
     for (i, expected_pubkey) in pubkeys.iter().enumerate() {
         assert_eq!(
-            stored_pubkeys[i], expected_pubkey.to_bytes(),
+            stored_pubkeys[i],
+            expected_pubkey.to_bytes(),
             "pubkey at index {} should match",
             i
         );

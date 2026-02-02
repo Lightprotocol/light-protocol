@@ -4,8 +4,7 @@
 //! `AccountInfoTrait` so they work with both `solana_account_info::AccountInfo`
 //! and `pinocchio::account_info::AccountInfo`.
 
-use alloc::vec;
-use alloc::vec::Vec;
+use alloc::{vec, vec::Vec};
 
 use borsh::BorshSerialize;
 use light_account_checks::{AccountInfoTrait, CpiMeta};
@@ -122,14 +121,8 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateTokenAccountRentFreeCpi<'a, AI> {
     /// Invoke CPI for non-program-owned accounts.
     pub fn invoke(self) -> Result<(), LightSdkTypesError> {
         let (data, metas, account_infos) = self.build_instruction_inner(None)?;
-        AI::invoke_cpi(
-            &LIGHT_TOKEN_PROGRAM_ID,
-            &data,
-            &metas,
-            &account_infos,
-            &[],
-        )
-        .map_err(|_| LightSdkTypesError::CpiFailed)
+        AI::invoke_cpi(&LIGHT_TOKEN_PROGRAM_ID, &data, &metas, &account_infos, &[])
+            .map_err(|_| LightSdkTypesError::CpiFailed)
     }
 
     /// Invoke CPI with PDA signing for program-owned accounts.
@@ -163,6 +156,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateTokenAccountRentFreeCpi<'a, AI> {
     }
 
     /// Build instruction data, account metas, and account infos.
+    #[allow(clippy::type_complexity)]
     fn build_instruction_inner(
         &self,
         compress_to: Option<CompressToPubkey>,
@@ -341,14 +335,8 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateTokenAtaRentFreeCpi<'a, AI> {
     /// Invoke CPI.
     pub fn invoke(self) -> Result<(), LightSdkTypesError> {
         let (data, metas, account_infos) = self.build_instruction_inner()?;
-        AI::invoke_cpi(
-            &LIGHT_TOKEN_PROGRAM_ID,
-            &data,
-            &metas,
-            &account_infos,
-            &[],
-        )
-        .map_err(|_| LightSdkTypesError::CpiFailed)
+        AI::invoke_cpi(&LIGHT_TOKEN_PROGRAM_ID, &data, &metas, &account_infos, &[])
+            .map_err(|_| LightSdkTypesError::CpiFailed)
     }
 
     /// Invoke CPI with signer seeds (when caller needs to sign for another account).
@@ -365,6 +353,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateTokenAtaRentFreeCpi<'a, AI> {
     }
 
     /// Build instruction data, account metas, and account infos.
+    #[allow(clippy::type_complexity)]
     fn build_instruction_inner(
         &self,
     ) -> Result<(Vec<u8>, Vec<CpiMeta>, Vec<AI>), LightSdkTypesError> {

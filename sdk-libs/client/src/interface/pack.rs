@@ -1,8 +1,10 @@
 //! Helper for packing validity proofs into remaining accounts.
 
-use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
-use light_sdk::PackedAccountsExt;
 pub use light_sdk::instruction::{PackedAddressTreeInfo, PackedStateTreeInfo};
+use light_sdk::{
+    instruction::{PackedAccounts, SystemAccountMetaConfig},
+    PackedAccountsExt,
+};
 use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;
 use thiserror::Error;

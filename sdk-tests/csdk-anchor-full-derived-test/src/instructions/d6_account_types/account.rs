@@ -3,8 +3,8 @@
 //! Tests that #[light_account(init)] works with Account<'info, T> directly (not boxed).
 
 use anchor_lang::prelude::*;
-use light_sdk_macros::LightAccounts;
 use light_account::CreateAccountsProof;
+use light_sdk_macros::LightAccounts;
 
 use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
 

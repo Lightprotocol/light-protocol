@@ -31,8 +31,7 @@ pub use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 pub use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 pub use constants::*;
-pub use light_account_checks;
-pub use light_account_checks::discriminator::Discriminator as LightDiscriminator;
+pub use light_account_checks::{self, discriminator::Discriminator as LightDiscriminator};
 pub use light_compressed_account::CpiSigner;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]

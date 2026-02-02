@@ -6,10 +6,9 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_account_pinocchio::{
     light_account_checks::{self, packed_accounts::ProgramPackedAccounts},
-    prepare_compressed_account_on_init, CpiAccounts, CpiAccountsConfig,
-    CpiContextWriteAccounts, InvokeLightSystemProgram, LightAccount, LightAccountVariantTrait,
-    LightFinalize, LightPreInit, LightSdkTypesError, PackedAddressTreeInfoExt,
-    PackedLightAccountVariantTrait,
+    prepare_compressed_account_on_init, CpiAccounts, CpiAccountsConfig, CpiContextWriteAccounts,
+    InvokeLightSystemProgram, LightAccount, LightAccountVariantTrait, LightFinalize, LightPreInit,
+    LightSdkTypesError, PackedAddressTreeInfoExt, PackedLightAccountVariantTrait,
 };
 use light_compressed_account::instruction_data::{
     cpi_context::CompressedCpiContext, with_account_info::InstructionDataInvokeCpiWithAccountInfo,
@@ -81,9 +80,8 @@ impl LightPreInit<AccountInfo, CreateZeroCopyParams> for CreateZeroCopy<'_> {
             let mut account_infos = Vec::with_capacity(NUM_LIGHT_PDAS);
 
             // 3. Load config and get current slot
-            let light_config =
-                LightConfig::load_checked(self.compression_config, &crate::ID)
-                    .map_err(|_| LightSdkTypesError::InvalidInstructionData)?;
+            let light_config = LightConfig::load_checked(self.compression_config, &crate::ID)
+                .map_err(|_| LightSdkTypesError::InvalidInstructionData)?;
             let current_slot = Clock::get()
                 .map_err(|_| LightSdkTypesError::InvalidInstructionData)?
                 .slot;
@@ -109,8 +107,7 @@ impl LightPreInit<AccountInfo, CreateZeroCopyParams> for CreateZeroCopy<'_> {
                     .record
                     .try_borrow_mut_data()
                     .map_err(|_| LightSdkTypesError::Borsh)?;
-                let record_bytes =
-                    &mut account_data[8..8 + core::mem::size_of::<ZeroCopyRecord>()];
+                let record_bytes = &mut account_data[8..8 + core::mem::size_of::<ZeroCopyRecord>()];
                 let record: &mut ZeroCopyRecord = bytemuck::from_bytes_mut(record_bytes);
                 record.set_decompressed(&light_config, current_slot);
             }
@@ -142,8 +139,7 @@ impl LightPreInit<AccountInfo, CreateZeroCopyParams> for CreateZeroCopy<'_> {
                     cpi_context: cpi_accounts.cpi_context()?,
                     cpi_signer: crate::LIGHT_CPI_SIGNER,
                 };
-                instruction_data
-                    .invoke_write_to_cpi_context_first(cpi_context_accounts)?;
+                instruction_data.invoke_write_to_cpi_context_first(cpi_context_accounts)?;
             }
 
             Ok(false) // No mints, so no CPI context write
@@ -321,12 +317,11 @@ impl light_account_pinocchio::IntoVariant<ZeroCopyRecordVariant> for ZeroCopyRec
     fn into_variant(
         self,
         data: &[u8],
-    ) -> std::result::Result<ZeroCopyRecordVariant, LightSdkTypesError>
-    {
+    ) -> std::result::Result<ZeroCopyRecordVariant, LightSdkTypesError> {
         // For ZeroCopy (Pod) accounts, data is the full Pod bytes including compression_info.
         // We deserialize using BorshDeserialize (which ZeroCopyRecord implements).
-        let record: ZeroCopyRecord = BorshDeserialize::deserialize(&mut &data[..])
-            .map_err(|_| LightSdkTypesError::Borsh)?;
+        let record: ZeroCopyRecord =
+            BorshDeserialize::deserialize(&mut &data[..]).map_err(|_| LightSdkTypesError::Borsh)?;
 
         // Verify the owner in data matches the seed
         if record.owner != self.owner {
@@ -347,9 +342,7 @@ impl light_account_pinocchio::IntoVariant<ZeroCopyRecordVariant> for ZeroCopyRec
 /// Implement Pack trait to allow ZeroCopyRecordVariant to be used with `create_load_instructions`.
 /// Transforms the variant into PackedLightAccountVariant for efficient serialization.
 #[cfg(not(target_os = "solana"))]
-impl light_account_pinocchio::Pack<solana_instruction::AccountMeta>
-    for ZeroCopyRecordVariant
-{
+impl light_account_pinocchio::Pack<solana_instruction::AccountMeta> for ZeroCopyRecordVariant {
     type Packed = crate::derived_variants::PackedLightAccountVariant;
 
     fn pack(
@@ -365,7 +358,8 @@ impl light_account_pinocchio::Pack<solana_instruction::AccountMeta>
         Ok(
             crate::derived_variants::PackedLightAccountVariant::ZeroCopyRecord {
                 seeds: PackedZeroCopyRecordSeeds {
-                    owner_idx: accounts.insert_or_get(solana_pubkey::Pubkey::from(self.seeds.owner)),
+                    owner_idx: accounts
+                        .insert_or_get(solana_pubkey::Pubkey::from(self.seeds.owner)),
                     name: self.seeds.name.clone(),
                     bump,
                 },

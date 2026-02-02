@@ -5,8 +5,8 @@
 //! CreateTokenAccountCpi in the instruction handler.
 
 use anchor_lang::prelude::*;
-use light_sdk_macros::LightAccounts;
 use light_account::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
+use light_sdk_macros::LightAccounts;
 
 pub const D5_VAULT_AUTH_SEED: &[u8] = b"d5_vault_auth";
 pub const D5_VAULT_SEED: &[u8] = b"d5_vault";

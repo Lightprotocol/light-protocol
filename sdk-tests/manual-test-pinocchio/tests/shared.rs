@@ -16,10 +16,8 @@ use solana_signer::Signer;
 /// Returns (rpc, payer, config_pda).
 pub async fn setup_test_env() -> (LightProgramTest, Keypair, Pubkey) {
     let program_id = Pubkey::new_from_array(manual_test_pinocchio::ID);
-    let mut config = ProgramTestConfig::new_v2(
-        true,
-        Some(vec![("manual_test_pinocchio", program_id)]),
-    );
+    let mut config =
+        ProgramTestConfig::new_v2(true, Some(vec![("manual_test_pinocchio", program_id)]));
     config = config.with_light_protocol_events();
 
     let mut rpc = LightProgramTest::new(config).await.unwrap();

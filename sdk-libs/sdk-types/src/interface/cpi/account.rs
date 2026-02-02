@@ -1,13 +1,14 @@
 //! Generic CPI accounts trait and implementations.
 
-use alloc::vec;
-use alloc::vec::Vec;
+use alloc::{vec, vec::Vec};
 
-use crate::cpi_accounts::v2::{CompressionCpiAccountIndex, CpiAccounts, PROGRAM_ACCOUNTS_LEN};
-use crate::cpi_context_write::CpiContextWriteAccounts;
 use light_account_checks::{AccountInfoTrait, CpiMeta};
 
-use crate::error::LightSdkTypesError;
+use crate::{
+    cpi_accounts::v2::{CompressionCpiAccountIndex, CpiAccounts, PROGRAM_ACCOUNTS_LEN},
+    cpi_context_write::CpiContextWriteAccounts,
+    error::LightSdkTypesError,
+};
 
 /// Trait for types that can provide account infos and metas for Light system program CPI.
 ///

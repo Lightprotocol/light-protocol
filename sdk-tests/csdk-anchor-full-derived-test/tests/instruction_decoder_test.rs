@@ -186,8 +186,7 @@ fn test_enhanced_decoder_params_decoding() {
         instruction_accounts::CreateTwoMintsParams, CsdkTestInstructionDecoder,
     };
     use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
-    use light_sdk_types::instruction::PackedAddressTreeInfo;
-    use light_sdk_types::interface::CreateAccountsProof;
+    use light_sdk_types::{instruction::PackedAddressTreeInfo, interface::CreateAccountsProof};
 
     let decoder = CsdkTestInstructionDecoder;
 
@@ -395,8 +394,7 @@ fn test_attribute_macro_decoder_with_instruction_data() {
     };
     use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
     use light_program_test::logging::InstructionDecoder;
-    use light_sdk_types::instruction::PackedAddressTreeInfo;
-    use light_sdk_types::interface::CreateAccountsProof;
+    use light_sdk_types::{instruction::PackedAddressTreeInfo, interface::CreateAccountsProof};
 
     let decoder = CsdkAnchorFullDerivedTestInstructionDecoder;
 

@@ -22,10 +22,10 @@ use light_compressed_account::instruction_data::{
     compressed_proof::CompressedProof, data::NewAddressParamsPacked,
 };
 use light_sdk::{
-    constants::LIGHT_SYSTEM_PROGRAM_ID,
     cpi::{
-        invoke::invoke_light_system_program, CpiAccountsTrait,
+        invoke::invoke_light_system_program,
         v1::lowlevel::{get_account_metas_from_config, CpiInstructionConfig},
+        CpiAccountsTrait,
     },
     light_account_checks::CpiMeta,
 };

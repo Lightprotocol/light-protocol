@@ -21,8 +21,10 @@ pub mod discriminator;
 pub mod error;
 pub mod packed_accounts;
 
-pub use account_info::account_info_trait::{AccountInfoTrait, CpiMeta};
-pub use account_info::account_meta_trait::AccountMetaTrait;
+pub use account_info::{
+    account_info_trait::{AccountInfoTrait, CpiMeta},
+    account_meta_trait::AccountMetaTrait,
+};
 pub use account_iterator::AccountIterator;
 pub use close_account::close_account;
 pub use error::AccountError;

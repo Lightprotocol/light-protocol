@@ -1,7 +1,8 @@
-use crate::{AnchorDeserialize, AnchorSerialize};
 use light_compressed_account::instruction_data::{
     compressed_proof::ValidityProof, data::PackedAddressTreeInfo,
 };
+
+use crate::{AnchorDeserialize, AnchorSerialize};
 
 /// Proof data for instruction params when creating new compressed accounts.
 /// Used in the INIT flow - pass directly to instruction data.

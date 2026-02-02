@@ -87,8 +87,7 @@ impl LightAccountVariantTrait<3> for AllBorshVariant {
 impl PackedLightAccountVariantTrait<3> for PackedAllBorshVariant {
     type Unpacked = AllBorshVariant;
 
-    const ACCOUNT_TYPE: light_account::AccountType =
-        <MinimalRecord as LightAccount>::ACCOUNT_TYPE;
+    const ACCOUNT_TYPE: light_account::AccountType = <MinimalRecord as LightAccount>::ACCOUNT_TYPE;
 
     fn bump(&self) -> u8 {
         self.seeds.bump
@@ -218,8 +217,7 @@ impl LightAccountVariantTrait<3> for AllZeroCopyVariant {
 impl PackedLightAccountVariantTrait<3> for PackedAllZeroCopyVariant {
     type Unpacked = AllZeroCopyVariant;
 
-    const ACCOUNT_TYPE: light_account::AccountType =
-        <ZeroCopyRecord as LightAccount>::ACCOUNT_TYPE;
+    const ACCOUNT_TYPE: light_account::AccountType = <ZeroCopyRecord as LightAccount>::ACCOUNT_TYPE;
 
     fn bump(&self) -> u8 {
         self.seeds.bump

@@ -51,8 +51,8 @@ impl<'a> CreatePda<'a> {
             return Err(ProgramError::InvalidSeeds);
         }
 
-        let rent = pinocchio::sysvars::rent::Rent::get()
-            .map_err(|_| ProgramError::UnsupportedSysvar)?;
+        let rent =
+            pinocchio::sysvars::rent::Rent::get().map_err(|_| ProgramError::UnsupportedSysvar)?;
         let lamports = rent.minimum_balance(space);
 
         let bump_bytes = [bump];

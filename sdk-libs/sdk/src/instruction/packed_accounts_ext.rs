@@ -1,6 +1,7 @@
-use super::PackedAccounts;
-
-use super::system_accounts::{get_light_system_account_metas, SystemAccountMetaConfig};
+use super::{
+    system_accounts::{get_light_system_account_metas, SystemAccountMetaConfig},
+    PackedAccounts,
+};
 
 /// Extension trait adding Light system account helpers to [`PackedAccounts`].
 ///
@@ -20,10 +21,7 @@ pub trait PackedAccountsExt {
     ///
     /// This adds all the accounts required by the Light system program for v1 operations,
     /// including the CPI authority, registered programs, account compression program, and Noop program.
-    fn add_system_accounts(
-        &mut self,
-        config: SystemAccountMetaConfig,
-    ) -> crate::error::Result<()>;
+    fn add_system_accounts(&mut self, config: SystemAccountMetaConfig) -> crate::error::Result<()>;
 
     /// Adds v2 Light system program accounts to the account list.
     ///
@@ -45,10 +43,7 @@ impl PackedAccountsExt for PackedAccounts {
         Ok(accounts)
     }
 
-    fn add_system_accounts(
-        &mut self,
-        config: SystemAccountMetaConfig,
-    ) -> crate::error::Result<()> {
+    fn add_system_accounts(&mut self, config: SystemAccountMetaConfig) -> crate::error::Result<()> {
         self.add_system_accounts_raw(get_light_system_account_metas(config));
         Ok(())
     }
@@ -58,9 +53,9 @@ impl PackedAccountsExt for PackedAccounts {
         &mut self,
         config: SystemAccountMetaConfig,
     ) -> crate::error::Result<()> {
-        self.add_system_accounts_raw(
-            super::system_accounts::get_light_system_account_metas_v2(config),
-        );
+        self.add_system_accounts_raw(super::system_accounts::get_light_system_account_metas_v2(
+            config,
+        ));
         Ok(())
     }
 }

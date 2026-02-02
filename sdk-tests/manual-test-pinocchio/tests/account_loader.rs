@@ -16,9 +16,9 @@ use manual_test_pinocchio::{
     account_loader::accounts::CreateZeroCopyParams, ZeroCopyRecord, ZeroCopyRecordSeeds,
     ZeroCopyRecordVariant,
 };
-use solana_sdk::instruction::{AccountMeta, Instruction};
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
+use solana_sdk::instruction::{AccountMeta, Instruction};
 use solana_signer::Signer;
 
 /// Test the full lifecycle for zero-copy accounts: create -> compress -> decompress.

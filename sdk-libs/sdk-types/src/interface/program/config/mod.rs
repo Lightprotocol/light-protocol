@@ -18,9 +18,10 @@ pub const MAX_ADDRESS_TREES_PER_SPACE: usize = 1;
 
 // --- Re-exports ---
 // Re-export Discriminator trait so users can access LightConfig::LIGHT_DISCRIMINATOR
-pub use crate::constants::RENT_SPONSOR_SEED;
 pub use light_account_checks::discriminator::Discriminator;
 pub use state::LightConfig;
+
+pub use crate::constants::RENT_SPONSOR_SEED;
 
 // =============================================================================
 // Instruction params (serialized by client, deserialized by program)

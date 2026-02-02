@@ -14,9 +14,9 @@ use light_program_test::{program_test::TestRpc, Indexer, Rpc};
 use manual_test_pinocchio::{
     pda::accounts::CreatePdaParams, MinimalRecord, MinimalRecordSeeds, MinimalRecordVariant,
 };
-use solana_sdk::instruction::{AccountMeta, Instruction};
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
+use solana_sdk::instruction::{AccountMeta, Instruction};
 use solana_signer::Signer;
 
 /// Test the full lifecycle: create -> compress -> decompress.
@@ -153,11 +153,7 @@ async fn test_create_compress_decompress() {
         borsh::BorshDeserialize::deserialize(&mut &record_account.data[8..])
             .expect("Failed to deserialize MinimalRecord");
 
-    assert_eq!(
-        record.owner,
-        owner.to_bytes(),
-        "Record owner should match"
-    );
+    assert_eq!(record.owner, owner.to_bytes(), "Record owner should match");
 
     // state should be Decompressed after decompression
     assert_eq!(

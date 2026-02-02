@@ -1,9 +1,7 @@
 //! Token account decompression.
 
-use alloc::vec;
-use alloc::vec::Vec;
+use alloc::{vec, vec::Vec};
 
-use crate::instruction::PackedStateTreeInfo;
 use light_account_checks::AccountInfoTrait;
 use light_token_interface::{
     instructions::extensions::ExtensionInstructionData, LIGHT_TOKEN_PROGRAM_ID,
@@ -12,9 +10,12 @@ use light_token_interface::{
 use super::create_token_account::{
     build_create_ata_instruction, build_create_token_account_instruction,
 };
-use crate::error::LightSdkTypesError;
-use crate::interface::program::{
-    decompression::processor::DecompressCtx, variant::PackedLightAccountVariantTrait,
+use crate::{
+    error::LightSdkTypesError,
+    instruction::PackedStateTreeInfo,
+    interface::program::{
+        decompression::processor::DecompressCtx, variant::PackedLightAccountVariantTrait,
+    },
 };
 
 pub fn prepare_token_account_for_decompression<const SEED_COUNT: usize, P, AI>(
@@ -28,10 +29,7 @@ where
     AI: AccountInfoTrait + Clone,
     P: PackedLightAccountVariantTrait<SEED_COUNT>,
 {
-    let packed_accounts = ctx
-        .cpi_accounts
-        .packed_accounts()
-        .map_err(LightSdkTypesError::from)?;
+    let packed_accounts = ctx.cpi_accounts.packed_accounts()?;
     let token_data = packed.into_in_token_data(tree_info, output_queue_index)?;
 
     // Get TLV extension early to detect ATA

@@ -608,8 +608,11 @@ fn build_intermediate_types(
                 });
 
                 // Build ClassifiedSeeds for VariantBuilder
-                let classified_seeds: Vec<ClassifiedSeed> =
-                    variant.seeds.iter().map(manual_seed_to_classified).collect();
+                let classified_seeds: Vec<ClassifiedSeed> = variant
+                    .seeds
+                    .iter()
+                    .map(manual_seed_to_classified)
+                    .collect();
 
                 // Build ExtractedSeedSpec for VariantBuilder
                 let extracted_spec = ExtractedSeedSpec {
@@ -627,8 +630,7 @@ fn build_intermediate_types(
 
                 // Build TokenSeedSpec for PDA seeds
                 let seed_elements = manual_seeds_to_punctuated(&variant.seeds);
-                let dummy_eq: syn::Token![=] =
-                    syn::parse_quote!(=);
+                let dummy_eq: syn::Token![=] = syn::parse_quote!(=);
                 pda_seed_specs.push(TokenSeedSpec {
                     variant: variant.ident.clone(),
                     _eq: dummy_eq,
@@ -661,8 +663,7 @@ fn build_intermediate_types(
                     .as_ref()
                     .map(|os| manual_seeds_to_seed_elements_vec(os));
 
-                let dummy_eq: syn::Token![=] =
-                    syn::parse_quote!(=);
+                let dummy_eq: syn::Token![=] = syn::parse_quote!(=);
                 token_seed_specs.push(TokenSeedSpec {
                     variant: variant.ident.clone(),
                     _eq: dummy_eq,
@@ -768,8 +769,9 @@ pub fn derive_light_program_impl(input: DeriveInput) -> Result<TokenStream> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use quote::format_ident;
+
+    use super::*;
 
     fn parse_derive_input(input: &str) -> DeriveInput {
         syn::parse_str(input).expect("Failed to parse derive input")
@@ -909,11 +911,7 @@ mod tests {
         let result = parse_enum_variants(&input);
         assert!(result.is_err());
         let err_msg = result.unwrap_err().to_string();
-        assert!(
-            err_msg.contains("pda::seeds"),
-            "Error: {}",
-            err_msg
-        );
+        assert!(err_msg.contains("pda::seeds"), "Error: {}", err_msg);
     }
 
     #[test]
@@ -1018,6 +1016,7 @@ mod tests {
     // BUILDER TESTS: verify build_intermediate_types for each configuration
     // =========================================================================
 
+    #[allow(clippy::type_complexity)]
     fn parse_and_build(
         input_str: &str,
     ) -> (
@@ -1301,11 +1300,7 @@ mod tests {
         let result = parse_enum_variants(&input);
         assert!(result.is_err());
         let err_msg = result.unwrap_err().to_string();
-        assert!(
-            err_msg.contains("token::seeds"),
-            "Error: {}",
-            err_msg
-        );
+        assert!(err_msg.contains("token::seeds"), "Error: {}", err_msg);
     }
 
     /// Token variant without owner_seeds should fail
@@ -1324,11 +1319,7 @@ mod tests {
         let result = parse_enum_variants(&input);
         assert!(result.is_err());
         let err_msg = result.unwrap_err().to_string();
-        assert!(
-            err_msg.contains("token::owner_seeds"),
-            "Error: {}",
-            err_msg
-        );
+        assert!(err_msg.contains("token::owner_seeds"), "Error: {}", err_msg);
     }
 
     /// PDA variant with unit type (no tuple field) should fail
@@ -1364,11 +1355,7 @@ mod tests {
         let result = parse_enum_variants(&input);
         assert!(result.is_err());
         let err_msg = result.unwrap_err().to_string();
-        assert!(
-            err_msg.contains("unit variant"),
-            "Error: {}",
-            err_msg
-        );
+        assert!(err_msg.contains("unit variant"), "Error: {}", err_msg);
     }
 
     /// ATA variant with fields should fail
@@ -1427,11 +1414,7 @@ mod tests {
         let result = parse_enum_variants(&input);
         assert!(result.is_err());
         let err_msg = result.unwrap_err().to_string();
-        assert!(
-            err_msg.contains("Unknown keyword"),
-            "Error: {}",
-            err_msg
-        );
+        assert!(err_msg.contains("Unknown keyword"), "Error: {}", err_msg);
     }
 
     /// Derive on struct (not enum) should fail
@@ -1490,11 +1473,7 @@ mod tests {
         let result = parse_enum_variants(&input);
         assert!(result.is_err());
         let err_msg = result.unwrap_err().to_string();
-        assert!(
-            err_msg.contains("Mixed namespaces"),
-            "Error: {}",
-            err_msg
-        );
+        assert!(err_msg.contains("Mixed namespaces"), "Error: {}", err_msg);
     }
 
     /// Unknown namespace should fail
@@ -1559,11 +1538,7 @@ mod tests {
         let result = parse_enum_variants(&input);
         assert!(result.is_err());
         let err_msg = result.unwrap_err().to_string();
-        assert!(
-            err_msg.contains("Duplicate"),
-            "Error: {}",
-            err_msg
-        );
+        assert!(err_msg.contains("Duplicate"), "Error: {}", err_msg);
     }
 
     /// Bare seeds keyword (without namespace) should fail
@@ -1606,7 +1581,8 @@ mod tests {
         assert!(result.is_err());
         let err_msg = result.unwrap_err().to_string();
         assert!(
-            err_msg.contains("pda") && (err_msg.contains("Unknown keyword") || err_msg.contains("namespaced")),
+            err_msg.contains("pda")
+                && (err_msg.contains("Unknown keyword") || err_msg.contains("namespaced")),
             "Error: {}",
             err_msg
         );
@@ -1671,7 +1647,10 @@ mod tests {
         );
 
         assert_eq!(instr_data.len(), 2, "should extract 2 data fields");
-        let names: Vec<String> = instr_data.iter().map(|s| s.field_name.to_string()).collect();
+        let names: Vec<String> = instr_data
+            .iter()
+            .map(|s| s.field_name.to_string())
+            .collect();
         assert!(names.contains(&"some_key".to_string()));
         assert!(names.contains(&"another_key".to_string()));
     }

@@ -42,7 +42,6 @@
 
 // Re-export instruction types from sdk-types (available on all targets)
 pub use light_sdk_types::instruction::*;
-
 // Re-export pack_accounts utilities from interface (off-chain only)
 #[cfg(not(target_os = "solana"))]
 pub use light_sdk_types::interface::instruction::*;

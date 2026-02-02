@@ -4,8 +4,7 @@ use light_account_checks::{
     account_iterator::AccountIterator, checks::check_data_is_zeroed, AccountInfoTrait,
 };
 
-use crate::error::LightSdkTypesError;
-use crate::interface::program::config::LightConfig;
+use crate::{error::LightSdkTypesError, interface::program::config::LightConfig};
 
 /// Validated PDA context after account extraction and config validation.
 pub struct ValidatedPdaContext<AI: AccountInfoTrait> {

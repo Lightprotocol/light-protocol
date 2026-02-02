@@ -1,5 +1,4 @@
-use super::account_info_trait::AccountInfoTrait;
-use super::account_meta_trait::AccountMetaTrait;
+use super::{account_info_trait::AccountInfoTrait, account_meta_trait::AccountMetaTrait};
 use crate::error::AccountError;
 
 /// Owned account meta for pinocchio.
@@ -209,13 +208,11 @@ impl AccountInfoTrait for pinocchio::account_info::AccountInfo {
     }
 
     fn realloc(&self, new_len: usize, _zero_init: bool) -> Result<(), AccountError> {
-        self.resize(new_len).map_err(|e| AccountError::from(e))
+        self.resize(new_len).map_err(AccountError::from)
     }
 
     fn sub_lamports(&self, amount: u64) -> Result<(), AccountError> {
-        let mut lamports = self
-            .try_borrow_mut_lamports()
-            .map_err(AccountError::from)?;
+        let mut lamports = self.try_borrow_mut_lamports().map_err(AccountError::from)?;
         *lamports = lamports
             .checked_sub(amount)
             .ok_or(AccountError::ArithmeticOverflow)?;
@@ -223,9 +220,7 @@ impl AccountInfoTrait for pinocchio::account_info::AccountInfo {
     }
 
     fn add_lamports(&self, amount: u64) -> Result<(), AccountError> {
-        let mut lamports = self
-            .try_borrow_mut_lamports()
-            .map_err(AccountError::from)?;
+        let mut lamports = self.try_borrow_mut_lamports().map_err(AccountError::from)?;
         *lamports = lamports
             .checked_add(amount)
             .ok_or(AccountError::ArithmeticOverflow)?;
@@ -249,6 +244,7 @@ impl AccountInfoTrait for pinocchio::account_info::AccountInfo {
     ) -> Result<(), AccountError> {
         extern crate alloc;
         use alloc::vec::Vec;
+
         use pinocchio::instruction::{Seed, Signer};
 
         let pda_seeds_vec: Vec<Seed> = pda_seeds.iter().map(|s| Seed::from(*s)).collect();
@@ -257,8 +253,7 @@ impl AccountInfoTrait for pinocchio::account_info::AccountInfo {
         // Only build payer signer when rent_payer is itself a PDA.
         // Passing empty seeds to invoke_signed causes create_program_address(&[], program_id)
         // which can fail if the result happens to land on the ed25519 curve.
-        let payer_seeds_vec: Vec<Seed> =
-            rent_payer_seeds.iter().map(|s| Seed::from(*s)).collect();
+        let payer_seeds_vec: Vec<Seed> = rent_payer_seeds.iter().map(|s| Seed::from(*s)).collect();
         let has_payer_seeds = !rent_payer_seeds.is_empty();
 
         // Cold path: account already has lamports (e.g., attacker donation).
@@ -268,7 +263,7 @@ impl AccountInfoTrait for pinocchio::account_info::AccountInfo {
                 account: self,
                 owner,
             }
-            .invoke_signed(&[pda_signer.clone()])
+            .invoke_signed(core::slice::from_ref(&pda_signer))
             .map_err(AccountError::from)?;
 
             pinocchio_system::instructions::Allocate {
@@ -331,6 +326,7 @@ impl AccountInfoTrait for pinocchio::account_info::AccountInfo {
     ) -> Result<(), AccountError> {
         extern crate alloc;
         use alloc::vec::Vec;
+
         use pinocchio::instruction::{Seed, Signer};
 
         let seeds_vec: Vec<Seed> = signer_seeds.iter().map(|s| Seed::from(*s)).collect();
@@ -354,6 +350,7 @@ impl AccountInfoTrait for pinocchio::account_info::AccountInfo {
     ) -> Result<(), AccountError> {
         extern crate alloc;
         use alloc::vec::Vec;
+
         use pinocchio::instruction::{AccountMeta, Seed, Signer};
 
         // Build owned pubkeys so AccountMeta can borrow them
@@ -376,8 +373,7 @@ impl AccountInfoTrait for pinocchio::account_info::AccountInfo {
             data: instruction_data,
         };
 
-        let info_refs: Vec<&pinocchio::account_info::AccountInfo> =
-            account_infos.iter().collect();
+        let info_refs: Vec<&pinocchio::account_info::AccountInfo> = account_infos.iter().collect();
 
         // Build signers from seeds
         let signer_seed_vecs: Vec<Vec<Seed>> = signer_seeds
@@ -389,11 +385,7 @@ impl AccountInfoTrait for pinocchio::account_info::AccountInfo {
             .map(|seeds| Signer::from(&seeds[..]))
             .collect();
 
-        pinocchio::cpi::invoke_signed_with_bounds::<64>(
-            &instruction,
-            &info_refs,
-            &signers,
-        )
-        .map_err(AccountError::from)
+        pinocchio::cpi::invoke_signed_with_bounds::<64>(&instruction, &info_refs, &signers)
+            .map_err(AccountError::from)
     }
 }

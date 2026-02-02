@@ -2,12 +2,14 @@
 
 use alloc::vec;
 
-use crate::constants::{CPI_AUTHORITY_PDA_SEED, LIGHT_SYSTEM_PROGRAM_ID};
 use light_account_checks::{AccountInfoTrait, CpiMeta};
 pub use light_compressed_account::LightInstructionData;
 
-use crate::error::LightSdkTypesError;
-use crate::interface::cpi::{account::CpiAccountsTrait, instruction::LightCpi};
+use crate::{
+    constants::{CPI_AUTHORITY_PDA_SEED, LIGHT_SYSTEM_PROGRAM_ID},
+    error::LightSdkTypesError,
+    interface::cpi::{account::CpiAccountsTrait, instruction::LightCpi},
+};
 
 /// Trait for invoking the Light system program via CPI.
 ///

@@ -7,13 +7,12 @@
 //! - 1 ATA via `CreateTokenAtaCpi`
 
 use light_account_pinocchio::{
-    prepare_compressed_account_on_init, CpiAccounts, CpiAccountsConfig,
-    CpiContextWriteAccounts, InvokeLightSystemProgram, LightAccount, LightFinalize,
-    LightPreInit, LightSdkTypesError, PackedAddressTreeInfoExt,
-    invoke_create_mints, CreateMintsInfraAccounts, CreateMintsParams as SdkCreateMintsParams,
-    SingleMintParams, derive_mint_compressed_address, find_mint_address,
+    derive_associated_token_account, derive_mint_compressed_address, find_mint_address,
+    invoke_create_mints, prepare_compressed_account_on_init, CpiAccounts, CpiAccountsConfig,
+    CpiContextWriteAccounts, CreateMintsInfraAccounts, CreateMintsParams as SdkCreateMintsParams,
+    CreateTokenAccountCpi, CreateTokenAtaCpi, InvokeLightSystemProgram, LightAccount,
+    LightFinalize, LightPreInit, LightSdkTypesError, PackedAddressTreeInfoExt, SingleMintParams,
     DEFAULT_RENT_PAYMENT, DEFAULT_WRITE_TOP_UP,
-    CreateTokenAccountCpi, CreateTokenAtaCpi, derive_associated_token_account,
 };
 use light_compressed_account::instruction_data::{
     cpi_context::CompressedCpiContext, with_account_info::InstructionDataInvokeCpiWithAccountInfo,
@@ -70,9 +69,8 @@ impl LightPreInit<AccountInfo, CreateAllParams> for CreateAllAccounts<'_> {
             // ====================================================================
             // 3. Load config, get current slot
             // ====================================================================
-            let light_config =
-                LightConfig::load_checked(self.compression_config, &crate::ID)
-                    .map_err(|_| LightSdkTypesError::InvalidInstructionData)?;
+            let light_config = LightConfig::load_checked(self.compression_config, &crate::ID)
+                .map_err(|_| LightSdkTypesError::InvalidInstructionData)?;
             let current_slot = Clock::get()
                 .map_err(|_| LightSdkTypesError::InvalidInstructionData)?
                 .slot;
@@ -104,7 +102,8 @@ impl LightPreInit<AccountInfo, CreateAllParams> for CreateAllAccounts<'_> {
                         .borsh_record
                         .try_borrow_mut_data()
                         .map_err(|_| LightSdkTypesError::Borsh)?;
-                    let record = crate::pda::MinimalRecord::mut_from_account_data(&mut account_data);
+                    let record =
+                        crate::pda::MinimalRecord::mut_from_account_data(&mut account_data);
                     record.set_decompressed(&light_config, current_slot);
                 }
 
@@ -156,8 +155,7 @@ impl LightPreInit<AccountInfo, CreateAllParams> for CreateAllAccounts<'_> {
                     cpi_context: cpi_accounts.cpi_context()?,
                     cpi_signer: crate::LIGHT_CPI_SIGNER,
                 };
-                instruction_data
-                    .invoke_write_to_cpi_context_first(cpi_context_accounts)?;
+                instruction_data.invoke_write_to_cpi_context_first(cpi_context_accounts)?;
             }
 
             // ====================================================================
@@ -171,10 +169,8 @@ impl LightPreInit<AccountInfo, CreateAllParams> for CreateAllAccounts<'_> {
                 let (mint_pda, mint_bump) = find_mint_address(&mint_signer_key);
 
                 // Derive compression address
-                let compression_address = derive_mint_compressed_address(
-                    &mint_signer_key,
-                    &address_tree_pubkey,
-                );
+                let compression_address =
+                    derive_mint_compressed_address(&mint_signer_key, &address_tree_pubkey);
 
                 // Build mint signer seeds
                 let mint_signer_seeds: &[&[u8]] = &[
@@ -270,10 +266,8 @@ impl LightPreInit<AccountInfo, CreateAllParams> for CreateAllAccounts<'_> {
             // 7. Create ATA via CreateTokenAtaCpi
             // ====================================================================
             {
-                let (_, ata_bump) = derive_associated_token_account(
-                    self.ata_owner.key(),
-                    self.mint.key(),
-                );
+                let (_, ata_bump) =
+                    derive_associated_token_account(self.ata_owner.key(), self.mint.key());
 
                 CreateTokenAtaCpi {
                     payer: self.payer,

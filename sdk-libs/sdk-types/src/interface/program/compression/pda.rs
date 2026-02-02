@@ -3,7 +3,6 @@
 //! These functions are generic over account types and can be reused by the macro.
 //! The compress flow uses a dispatch callback pattern (same as decompress).
 
-use crate::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;
 use light_account_checks::AccountInfoTrait;
 use light_compressed_account::{
     address::derive_address,
@@ -13,12 +12,16 @@ use light_compressed_account::{
 use light_compressible::{rent::AccountRentState, DECOMPRESSED_PDA_DISCRIMINATOR};
 use light_hasher::{sha256::Sha256BE, Hasher, Sha256};
 
-use crate::instruction::account_meta::{CompressedAccountMeta, CompressedAccountMetaTrait};
-
-use crate::interface::{
-    account::compression_info::HasCompressionInfo, program::compression::processor::CompressCtx,
+use crate::{
+    error::LightSdkTypesError,
+    instruction::account_meta::{
+        CompressedAccountMeta, CompressedAccountMetaNoLamportsNoAddress, CompressedAccountMetaTrait,
+    },
+    interface::{
+        account::compression_info::HasCompressionInfo, program::compression::processor::CompressCtx,
+    },
+    LightDiscriminator,
 };
-use crate::{error::LightSdkTypesError, LightDiscriminator};
 
 /// Generic prepare_account_for_compression.
 ///

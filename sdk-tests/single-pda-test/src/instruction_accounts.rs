@@ -1,8 +1,8 @@
 //! Accounts module for single-pda-test.
 
 use anchor_lang::prelude::*;
-use light_sdk_macros::LightAccounts;
 use light_account::CreateAccountsProof;
+use light_sdk_macros::LightAccounts;
 
 use crate::state::MinimalRecord;
 

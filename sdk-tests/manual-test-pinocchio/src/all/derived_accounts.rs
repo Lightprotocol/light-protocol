@@ -68,10 +68,7 @@ impl LightAccountVariantTrait<3> for AllBorshVariant {
     /// Get seed values as owned byte vectors for PDA derivation.
     /// Generated from: seeds = [b"all_borsh", params.owner.as_ref()]
     fn seed_vec(&self) -> Vec<Vec<u8>> {
-        vec![
-            ALL_BORSH_SEED.to_vec(),
-            self.seeds.owner.to_vec(),
-        ]
+        vec![ALL_BORSH_SEED.to_vec(), self.seeds.owner.to_vec()]
     }
 
     /// Get seed references with bump for CPI signing.
@@ -109,9 +106,7 @@ impl PackedLightAccountVariantTrait<3> for PackedAllBorshVariant {
             .map_err(|_| LightSdkTypesError::InvalidInstructionData)?;
 
         Ok(AllBorshVariant {
-            seeds: AllBorshSeeds {
-                owner: owner.key(),
-            },
+            seeds: AllBorshSeeds { owner: owner.key() },
             data,
         })
     }
@@ -199,10 +194,7 @@ impl LightAccountVariantTrait<3> for AllZeroCopyVariant {
     /// Get seed values as owned byte vectors for PDA derivation.
     /// Generated from: seeds = [b"all_zero_copy", params.owner.as_ref()]
     fn seed_vec(&self) -> Vec<Vec<u8>> {
-        vec![
-            ALL_ZERO_COPY_SEED.to_vec(),
-            self.seeds.owner.to_vec(),
-        ]
+        vec![ALL_ZERO_COPY_SEED.to_vec(), self.seeds.owner.to_vec()]
     }
 
     /// Get seed references with bump for CPI signing.
@@ -240,9 +232,7 @@ impl PackedLightAccountVariantTrait<3> for PackedAllZeroCopyVariant {
             .map_err(|_| LightSdkTypesError::InvalidInstructionData)?;
 
         Ok(AllZeroCopyVariant {
-            seeds: AllZeroCopySeeds {
-                owner: owner.key(),
-            },
+            seeds: AllZeroCopySeeds { owner: owner.key() },
             data,
         })
     }
@@ -284,13 +274,10 @@ impl PackedLightAccountVariantTrait<3> for PackedAllZeroCopyVariant {
 /// This enables the high-level `create_load_instructions` API.
 #[cfg(not(target_os = "solana"))]
 impl light_account_pinocchio::IntoVariant<AllBorshVariant> for AllBorshSeeds {
-    fn into_variant(
-        self,
-        data: &[u8],
-    ) -> std::result::Result<AllBorshVariant, LightSdkTypesError> {
+    fn into_variant(self, data: &[u8]) -> std::result::Result<AllBorshVariant, LightSdkTypesError> {
         // Deserialize the compressed data (which includes compression_info)
-        let record: MinimalRecord = BorshDeserialize::deserialize(&mut &data[..])
-            .map_err(|_| LightSdkTypesError::Borsh)?;
+        let record: MinimalRecord =
+            BorshDeserialize::deserialize(&mut &data[..]).map_err(|_| LightSdkTypesError::Borsh)?;
 
         // Verify the owner in data matches the seed
         if record.owner != self.owner {
@@ -327,7 +314,8 @@ impl light_account_pinocchio::Pack<solana_instruction::AccountMeta> for AllBorsh
         Ok(
             crate::derived_variants::PackedLightAccountVariant::AllBorsh {
                 seeds: PackedAllBorshSeeds {
-                    owner_idx: accounts.insert_or_get(solana_pubkey::Pubkey::from(self.seeds.owner)),
+                    owner_idx: accounts
+                        .insert_or_get(solana_pubkey::Pubkey::from(self.seeds.owner)),
                     bump,
                 },
                 data: packed_data,
@@ -350,8 +338,8 @@ impl light_account_pinocchio::IntoVariant<AllZeroCopyVariant> for AllZeroCopySee
     ) -> std::result::Result<AllZeroCopyVariant, LightSdkTypesError> {
         // For ZeroCopy (Pod) accounts, data is the full Pod bytes including compression_info.
         // We deserialize using BorshDeserialize (which ZeroCopyRecord implements).
-        let record: ZeroCopyRecord = BorshDeserialize::deserialize(&mut &data[..])
-            .map_err(|_| LightSdkTypesError::Borsh)?;
+        let record: ZeroCopyRecord =
+            BorshDeserialize::deserialize(&mut &data[..]).map_err(|_| LightSdkTypesError::Borsh)?;
 
         // Verify the owner in data matches the seed
         if record.owner != self.owner {
@@ -388,7 +376,8 @@ impl light_account_pinocchio::Pack<solana_instruction::AccountMeta> for AllZeroC
         Ok(
             crate::derived_variants::PackedLightAccountVariant::AllZeroCopy {
                 seeds: PackedAllZeroCopySeeds {
-                    owner_idx: accounts.insert_or_get(solana_pubkey::Pubkey::from(self.seeds.owner)),
+                    owner_idx: accounts
+                        .insert_or_get(solana_pubkey::Pubkey::from(self.seeds.owner)),
                     bump,
                 },
                 data: packed_data,

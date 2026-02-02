@@ -1,13 +1,13 @@
 extern crate alloc;
-use alloc::borrow::Cow;
-use alloc::string::ToString;
+use alloc::{borrow::Cow, string::ToString};
 
-use crate::instruction::PackedStateTreeInfo;
 use bytemuck::{Pod, Zeroable};
 use light_account_checks::AccountInfoTrait;
 use light_compressible::rent::RentConfig;
 
-use crate::{error::LightSdkTypesError, AnchorDeserialize, AnchorSerialize};
+use crate::{
+    error::LightSdkTypesError, instruction::PackedStateTreeInfo, AnchorDeserialize, AnchorSerialize,
+};
 
 pub trait HasCompressionInfo {
     fn compression_info(&self) -> Result<&CompressionInfo, LightSdkTypesError>;

@@ -2,10 +2,9 @@
 #![allow(clippy::useless_asref)] // Testing macro handling of .as_ref() patterns
 
 use anchor_lang::prelude::*;
+use light_account::{derive_light_cpi_signer, derive_light_rent_sponsor_pda, CpiSigner};
 use light_instruction_decoder_derive::instruction_decoder;
-use light_account::{derive_light_cpi_signer, derive_light_rent_sponsor_pda};
 use light_sdk_macros::light_program;
-use light_account::CpiSigner;
 
 pub mod amm_test;
 pub mod d5_markers;
@@ -374,11 +373,7 @@ pub mod csdk_anchor_full_derived_test {
                 bump: params.user_ata_bump,
             }
             .idempotent()
-            .rent_free(
-                &config_info,
-                &sponsor_info,
-                &system_info,
-            )
+            .rent_free(&config_info, &sponsor_info, &system_info)
             .invoke()?;
         }
 

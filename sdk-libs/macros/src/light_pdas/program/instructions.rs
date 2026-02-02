@@ -6,11 +6,6 @@ use syn::{Item, ItemMod, Result};
 
 // Re-export types from parsing, compress, and variant_enum for external use
 pub use super::compress::CompressibleAccountInfo;
-pub use super::parsing::{
-    extract_ctx_seed_fields, extract_data_seed_fields, InstructionDataSpec, InstructionVariant,
-    SeedElement, TokenSeedSpec,
-};
-pub use super::variant_enum::PdaCtxSeedInfo;
 use super::{
     compress::CompressBuilder,
     decompress::DecompressBuilder,
@@ -19,6 +14,13 @@ use super::{
         extract_context_and_params, macro_error, wrap_function_with_light,
     },
     variant_enum::LightVariantBuilder,
+};
+pub use super::{
+    parsing::{
+        extract_ctx_seed_fields, extract_data_seed_fields, InstructionDataSpec, InstructionVariant,
+        SeedElement, TokenSeedSpec,
+    },
+    variant_enum::PdaCtxSeedInfo,
 };
 use crate::{
     light_pdas::shared_utils::{ident_to_type, qualify_type_with_crate},
@@ -367,7 +369,11 @@ pub(crate) fn generate_light_program_items(
     let error_codes = compress_builder.generate_error_codes()?;
 
     // Create DecompressBuilder to generate all decompress-related code
-    let decompress_builder = DecompressBuilder::new(pda_ctx_seeds.clone(), pda_seeds.clone(), has_token_seeds_early);
+    let decompress_builder = DecompressBuilder::new(
+        pda_ctx_seeds.clone(),
+        pda_seeds.clone(),
+        has_token_seeds_early,
+    );
     // Note: DecompressBuilder validation is optional for now since pda_seeds may be empty for TokenOnly
 
     let decompress_accounts = decompress_builder.generate_accounts_struct()?;

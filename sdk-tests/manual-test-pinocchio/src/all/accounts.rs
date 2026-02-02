@@ -97,8 +97,7 @@ impl<'a> CreateAllAccounts<'a> {
         {
             let space = 8 + MinimalRecord::INIT_SPACE;
             let seeds: &[&[u8]] = &[ALL_BORSH_SEED, &params.owner];
-            let (expected_pda, bump) =
-                pinocchio::pubkey::find_program_address(seeds, &crate::ID);
+            let (expected_pda, bump) = pinocchio::pubkey::find_program_address(seeds, &crate::ID);
             if borsh_record.key() != &expected_pda {
                 return Err(ProgramError::InvalidSeeds);
             }
@@ -135,8 +134,7 @@ impl<'a> CreateAllAccounts<'a> {
         {
             let space = 8 + ZeroCopyRecord::INIT_SPACE;
             let seeds: &[&[u8]] = &[ALL_ZERO_COPY_SEED, &params.owner];
-            let (expected_pda, bump) =
-                pinocchio::pubkey::find_program_address(seeds, &crate::ID);
+            let (expected_pda, bump) = pinocchio::pubkey::find_program_address(seeds, &crate::ID);
             if zero_copy_record.key() != &expected_pda {
                 return Err(ProgramError::InvalidSeeds);
             }

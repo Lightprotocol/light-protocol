@@ -9,8 +9,7 @@
 //! - N=1 (no CPI context offset): Single CPI (create + decompress)
 //! - N>1 or offset>0: 2N-1 CPIs (N-1 writes + 1 execute with decompress + N-1 decompress)
 
-use alloc::vec;
-use alloc::vec::Vec;
+use alloc::{vec, vec::Vec};
 
 use light_account_checks::{AccountInfoTrait, CpiMeta};
 use light_compressed_account::instruction_data::{

@@ -8,7 +8,7 @@
 use std::marker::PhantomData;
 
 use anchor_lang::prelude::*;
-use light_sdk::derive_light_cpi_signer;
+use light_account::derive_light_cpi_signer;
 use light_sdk_macros::LightProgram;
 use light_sdk_types::CpiSigner;
 
@@ -45,7 +45,9 @@ pub enum ProgramAccounts {
 }
 
 #[program]
-pub mod single_pda_derive_test {
+pub mod pinocchio_derive_test {
+    use light_account::{light_err, LightFinalize, LightPreInit};
+
     use super::*;
 
     // =========================================================================
@@ -56,36 +58,48 @@ pub mod single_pda_derive_test {
         ctx: Context<'_, '_, '_, 'info, EmptyAccounts<'info>>,
         instruction_data: Vec<u8>,
     ) -> Result<()> {
-        light_sdk::interface::program::compression::processor::process_compress_pda_accounts_idempotent(
+        light_account::process_compress_pda_accounts_idempotent(
             ctx.remaining_accounts,
             &instruction_data,
             ProgramAccounts::compress_dispatch,
             LIGHT_CPI_SIGNER,
             &LIGHT_CPI_SIGNER.program_id,
-        ).map_err(|e| ProgramError::Custom(u64::from(e) as u32))
+        )
+        .map_err(Into::into)
     }
 
     pub fn decompress_accounts_idempotent<'info>(
         ctx: Context<'_, '_, '_, 'info, EmptyAccounts<'info>>,
         instruction_data: Vec<u8>,
     ) -> Result<()> {
+        use solana_program::{clock::Clock, sysvar::Sysvar};
+        let current_slot = Clock::get()?.slot;
         ProgramAccounts::decompress_dispatch(
             ctx.remaining_accounts,
             &instruction_data,
             LIGHT_CPI_SIGNER,
-            &crate::ID,
+            &LIGHT_CPI_SIGNER.program_id,
+            current_slot,
         )
         .map_err(Into::into)
     }
 
     pub fn initialize_compression_config<'info>(
         ctx: Context<'_, '_, '_, 'info, EmptyAccounts<'info>>,
-        instruction_data: Vec<u8>,
+        params: InitConfigParams,
     ) -> Result<()> {
-        light_sdk::interface::program::config::process_initialize_light_config_checked(
-            ctx.remaining_accounts,
-            &instruction_data,
-            &crate::ID,
+        light_account::process_initialize_light_config(
+            &ctx.remaining_accounts[1], // config
+            &ctx.remaining_accounts[3], // authority
+            &params.rent_sponsor.to_bytes(),
+            &params.compression_authority.to_bytes(),
+            params.rent_config,
+            params.write_top_up,
+            params.address_space.iter().map(|p| p.to_bytes()).collect(),
+            0, // config_bump
+            &ctx.remaining_accounts[0], // payer
+            &ctx.remaining_accounts[4], // system_program
+            &LIGHT_CPI_SIGNER.program_id,
         )
         .map_err(Into::into)
     }
@@ -94,12 +108,124 @@ pub mod single_pda_derive_test {
         ctx: Context<'_, '_, '_, 'info, EmptyAccounts<'info>>,
         instruction_data: Vec<u8>,
     ) -> Result<()> {
-        light_sdk::interface::program::config::process_update_light_config(
+        light_account::process_update_light_config(
             ctx.remaining_accounts,
             &instruction_data,
-            &crate::ID,
+            &LIGHT_CPI_SIGNER.program_id,
         )
         .map_err(Into::into)
+    }
+
+    // =========================================================================
+    // Instruction handlers (manually written for #[derive(LightProgram)])
+    // =========================================================================
+
+    pub fn create_pda<'info>(
+        ctx: Context<'_, '_, '_, 'info, CreatePda<'info>>,
+        params: CreatePdaParams,
+    ) -> Result<()> {
+        let has_pre_init = ctx
+            .accounts
+            .light_pre_init(ctx.remaining_accounts, &params)
+            .map_err(light_err)?;
+        ctx.accounts.record.owner = params.owner;
+        ctx.accounts
+            .light_finalize(ctx.remaining_accounts, &params, has_pre_init)
+            .map_err(light_err)?;
+        Ok(())
+    }
+
+    pub fn create_ata<'info>(
+        ctx: Context<'_, '_, '_, 'info, CreateAta<'info>>,
+        params: CreateAtaParams,
+    ) -> Result<()> {
+        let has_pre_init = ctx
+            .accounts
+            .light_pre_init(ctx.remaining_accounts, &params)
+            .map_err(light_err)?;
+        ctx.accounts
+            .light_finalize(ctx.remaining_accounts, &params, has_pre_init)
+            .map_err(light_err)?;
+        Ok(())
+    }
+
+    pub fn create_token_vault<'info>(
+        ctx: Context<'_, '_, '_, 'info, CreateTokenVault<'info>>,
+        params: CreateTokenVaultParams,
+    ) -> Result<()> {
+        let has_pre_init = ctx
+            .accounts
+            .light_pre_init(ctx.remaining_accounts, &params)
+            .map_err(light_err)?;
+        ctx.accounts
+            .light_finalize(ctx.remaining_accounts, &params, has_pre_init)
+            .map_err(light_err)?;
+        Ok(())
+    }
+
+    pub fn create_zero_copy_record<'info>(
+        ctx: Context<'_, '_, '_, 'info, CreateZeroCopyRecord<'info>>,
+        params: CreateZeroCopyRecordParams,
+    ) -> Result<()> {
+        let has_pre_init = ctx
+            .accounts
+            .light_pre_init(ctx.remaining_accounts, &params)
+            .map_err(light_err)?;
+        {
+            let mut record = ctx.accounts.record.load_init()?;
+            record.owner = params.owner;
+        }
+        ctx.accounts
+            .light_finalize(ctx.remaining_accounts, &params, has_pre_init)
+            .map_err(light_err)?;
+        Ok(())
+    }
+
+    pub fn create_mint<'info>(
+        ctx: Context<'_, '_, '_, 'info, CreateMint<'info>>,
+        params: CreateMintParams,
+    ) -> Result<()> {
+        let has_pre_init = ctx
+            .accounts
+            .light_pre_init(ctx.remaining_accounts, &params)
+            .map_err(light_err)?;
+        ctx.accounts
+            .light_finalize(ctx.remaining_accounts, &params, has_pre_init)
+            .map_err(light_err)?;
+        Ok(())
+    }
+
+    pub fn create_two_mints<'info>(
+        ctx: Context<'_, '_, '_, 'info, CreateTwoMints<'info>>,
+        params: CreateTwoMintsParams,
+    ) -> Result<()> {
+        let has_pre_init = ctx
+            .accounts
+            .light_pre_init(ctx.remaining_accounts, &params)
+            .map_err(light_err)?;
+        ctx.accounts
+            .light_finalize(ctx.remaining_accounts, &params, has_pre_init)
+            .map_err(light_err)?;
+        Ok(())
+    }
+
+    pub fn create_all<'info>(
+        ctx: Context<'_, '_, '_, 'info, CreateAll<'info>>,
+        params: CreateAllParams,
+    ) -> Result<()> {
+        let has_pre_init = ctx
+            .accounts
+            .light_pre_init(ctx.remaining_accounts, &params)
+            .map_err(light_err)?;
+        ctx.accounts.record.owner = params.owner;
+        {
+            let mut record = ctx.accounts.zero_copy_record.load_init()?;
+            record.owner = params.owner;
+        }
+        ctx.accounts
+            .light_finalize(ctx.remaining_accounts, &params, has_pre_init)
+            .map_err(light_err)?;
+        Ok(())
     }
 }
 

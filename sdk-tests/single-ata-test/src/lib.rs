@@ -7,7 +7,7 @@
 
 use anchor_lang::prelude::*;
 use light_account::{
-    derive_light_cpi_signer, CreateAccountsProof, CpiSigner, LIGHT_TOKEN_CONFIG,
+    derive_light_cpi_signer, CpiSigner, CreateAccountsProof, LIGHT_TOKEN_CONFIG,
     LIGHT_TOKEN_PROGRAM_ID, LIGHT_TOKEN_RENT_SPONSOR,
 };
 use light_sdk_macros::{light_program, LightAccounts};
@@ -49,7 +49,7 @@ pub struct CreateAta<'info> {
     pub light_token_rent_sponsor: AccountInfo<'info>,
 
     /// CHECK: Light Token Program for CPI
-    #[account(address = LIGHT_TOKEN_PROGRAM_ID.into())]
+    #[account(address = LIGHT_TOKEN_PROGRAM_ID)]
     pub light_token_program: AccountInfo<'info>,
 
     pub system_program: Program<'info, System>,

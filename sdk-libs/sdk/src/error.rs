@@ -75,7 +75,7 @@ pub enum LightSdkError {
     InvalidCpiContextAccount,
     #[error("Invalid SolPool PDA account")]
     InvalidSolPoolPdaAccount,
-    #[error("CpigAccounts accounts slice starts with an invalid account. It should start with LightSystemProgram SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7.")]
+    #[error("CpiAccounts accounts slice starts with an invalid account. It should start with LightSystemProgram SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7.")]
     InvalidCpiAccountsOffset,
     #[error("Expected LightAccount to have no data for closure.")]
     ExpectedNoData,
@@ -150,6 +150,7 @@ impl From<LightSdkError> for LightSdkTypesError {
             LightSdkError::CompressedAccountError(e) => {
                 LightSdkTypesError::CompressedAccountError(e)
             }
+            LightSdkError::ProgramError(e) => LightSdkTypesError::ProgramError(u64::from(e) as u32),
             _ => LightSdkTypesError::ConstraintViolation,
         }
     }
@@ -178,15 +179,9 @@ impl From<LightSdkTypesError> for LightSdkError {
             LightSdkTypesError::CpiAccountsIndexOutOfBounds(index) => {
                 LightSdkError::CpiAccountsIndexOutOfBounds(index)
             }
-            LightSdkTypesError::InvalidSolPoolPdaAccount => {
-                LightSdkError::InvalidSolPoolPdaAccount
-            }
-            LightSdkTypesError::InvalidCpiContextAccount => {
-                LightSdkError::InvalidCpiContextAccount
-            }
-            LightSdkTypesError::InvalidCpiAccountsOffset => {
-                LightSdkError::InvalidCpiAccountsOffset
-            }
+            LightSdkTypesError::InvalidSolPoolPdaAccount => LightSdkError::InvalidSolPoolPdaAccount,
+            LightSdkTypesError::InvalidCpiContextAccount => LightSdkError::InvalidCpiContextAccount,
+            LightSdkTypesError::InvalidCpiAccountsOffset => LightSdkError::InvalidCpiAccountsOffset,
             LightSdkTypesError::AccountError(e) => LightSdkError::AccountError(e),
             LightSdkTypesError::Hasher(e) => LightSdkError::Hasher(e),
             LightSdkTypesError::ConstraintViolation => LightSdkError::ConstraintViolation,
@@ -206,6 +201,9 @@ impl From<LightSdkTypesError> for LightSdkError {
             | LightSdkTypesError::CpiFailed
             | LightSdkTypesError::NotEnoughAccountKeys
             | LightSdkTypesError::MissingRequiredSignature => LightSdkError::ConstraintViolation,
+            LightSdkTypesError::ProgramError(code) => {
+                LightSdkError::ProgramError(ProgramError::Custom(code))
+            }
         }
     }
 }

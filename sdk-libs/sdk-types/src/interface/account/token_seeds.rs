@@ -3,10 +3,11 @@
 //! Provides `TokenDataWithSeeds<S>`, `PackedTokenData`, and `TokenDataWithPackedSeeds<S>`
 //! along with Pack/Unpack impls and blanket impls for variant traits.
 
-use alloc::vec;
-use alloc::vec::Vec;
+use alloc::{vec, vec::Vec};
 
-use crate::instruction::PackedStateTreeInfo;
+use light_account_checks::AccountInfoTrait;
+#[cfg(all(not(target_os = "solana"), feature = "std"))]
+use light_account_checks::AccountMetaTrait;
 use light_compressed_account::compressed_account::PackedMerkleContext;
 pub use light_token_interface::{
     instructions::{
@@ -19,21 +20,21 @@ pub use light_token_interface::{
     },
 };
 
-use light_account_checks::AccountInfoTrait;
-
 use super::pack::Unpack;
-use crate::interface::{
-    account::light_account::AccountType,
-    program::variant::{
-        LightAccountVariantTrait, PackedLightAccountVariantTrait, PackedTokenSeeds,
-        UnpackedTokenSeeds,
-    },
-};
 #[cfg(all(not(target_os = "solana"), feature = "std"))]
 use crate::interface::{account::pack::Pack, instruction::PackedAccounts};
-use crate::{error::LightSdkTypesError, AnchorDeserialize, AnchorSerialize};
-#[cfg(all(not(target_os = "solana"), feature = "std"))]
-use light_account_checks::AccountMetaTrait;
+use crate::{
+    error::LightSdkTypesError,
+    instruction::PackedStateTreeInfo,
+    interface::{
+        account::light_account::AccountType,
+        program::variant::{
+            LightAccountVariantTrait, PackedLightAccountVariantTrait, PackedTokenSeeds,
+            UnpackedTokenSeeds,
+        },
+    },
+    AnchorDeserialize, AnchorSerialize,
+};
 
 #[derive(Clone, Debug, AnchorSerialize, AnchorDeserialize)]
 pub struct TokenDataWithSeeds<S> {

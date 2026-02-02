@@ -1,8 +1,8 @@
 //! Derived code - what the macro would generate for associated token accounts.
 
 use light_account_pinocchio::{
-    CreateTokenAtaCpi, LightFinalize, LightPreInit, LightSdkTypesError,
-    derive_associated_token_account,
+    derive_associated_token_account, CreateTokenAtaCpi, LightFinalize, LightPreInit,
+    LightSdkTypesError,
 };
 use pinocchio::account_info::AccountInfo;
 
@@ -20,10 +20,7 @@ impl LightPreInit<AccountInfo, CreateAtaParams> for CreateAtaAccounts<'_> {
     ) -> std::result::Result<bool, LightSdkTypesError> {
         let inner = || -> std::result::Result<bool, LightSdkTypesError> {
             // Derive the ATA bump on-chain
-            let (_, bump) = derive_associated_token_account(
-                self.ata_owner.key(),
-                self.mint.key(),
-            );
+            let (_, bump) = derive_associated_token_account(self.ata_owner.key(), self.mint.key());
 
             // Create ATA via CPI with idempotent + rent-free mode
             // NOTE: Unlike token vaults, ATAs use .invoke() not .invoke_signed()

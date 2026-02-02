@@ -36,19 +36,16 @@
 //! ```
 
 // Re-export everything from interface's CPI module (LightCpi, InvokeLightSystemProgram, etc.)
-pub use light_sdk_types::interface::cpi::*;
-
 use light_compressed_account::instruction_data::{
-    compressed_proof::ValidityProof,
-    cpi_context::CompressedCpiContext,
+    compressed_proof::ValidityProof, cpi_context::CompressedCpiContext,
 };
-
-use crate::{
-    account::LightAccount, AnchorDeserialize, AnchorSerialize, LightDiscriminator, ProgramError,
-};
+pub use light_sdk_types::interface::cpi::*;
 
 #[cfg(feature = "poseidon")]
 use crate::DataHasher;
+use crate::{
+    account::LightAccount, AnchorDeserialize, AnchorSerialize, LightDiscriminator, ProgramError,
+};
 
 /// Trait for Light CPI instruction types including `with_light_account`.
 ///
@@ -108,10 +105,7 @@ pub trait LightCpiInstruction: Sized {
 /// Macro to delegate base LightCpi methods to the interface trait impl.
 macro_rules! delegate_light_cpi {
     ($ty:ty) => {
-        fn new_cpi(
-            cpi_signer: crate::cpi::CpiSigner,
-            proof: ValidityProof,
-        ) -> Self {
+        fn new_cpi(cpi_signer: crate::cpi::CpiSigner, proof: ValidityProof) -> Self {
             <$ty as light_sdk_types::interface::cpi::LightCpi>::new_cpi(cpi_signer, proof)
         }
         fn get_mode(&self) -> u8 {

@@ -9,7 +9,6 @@ use light_account_pinocchio::{derive_light_cpi_signer, CpiSigner, LightFinalize,
 use light_macros::pubkey_array;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
-
 pub mod account_loader;
 pub mod all;
 pub mod ata;
@@ -151,7 +150,10 @@ fn process_create_pda(accounts: &[AccountInfo], data: &[u8]) -> Result<(), Progr
 
     // Business logic: set account data
     {
-        let mut account_data = ctx.record.try_borrow_mut_data().map_err(|_| ProgramError::AccountBorrowFailed)?;
+        let mut account_data = ctx
+            .record
+            .try_borrow_mut_data()
+            .map_err(|_| ProgramError::AccountBorrowFailed)?;
         let record = pda::state::MinimalRecord::mut_from_account_data(&mut account_data);
         record.owner = params.owner;
     }
@@ -179,8 +181,12 @@ fn process_create_zero_copy(accounts: &[AccountInfo], data: &[u8]) -> Result<(),
 
     // Business logic: set zero-copy account data
     {
-        let mut account_data = ctx.record.try_borrow_mut_data().map_err(|_| ProgramError::AccountBorrowFailed)?;
-        let record_bytes = &mut account_data[8..8 + core::mem::size_of::<account_loader::ZeroCopyRecord>()];
+        let mut account_data = ctx
+            .record
+            .try_borrow_mut_data()
+            .map_err(|_| ProgramError::AccountBorrowFailed)?;
+        let record_bytes =
+            &mut account_data[8..8 + core::mem::size_of::<account_loader::ZeroCopyRecord>()];
         let record: &mut account_loader::ZeroCopyRecord = bytemuck::from_bytes_mut(record_bytes);
         record.owner = params.owner;
         record.value = params.value;
@@ -272,12 +278,18 @@ fn process_create_all(accounts: &[AccountInfo], data: &[u8]) -> Result<(), Progr
 
     // Business logic: set PDA data
     {
-        let mut borsh_data = ctx.borsh_record.try_borrow_mut_data().map_err(|_| ProgramError::AccountBorrowFailed)?;
+        let mut borsh_data = ctx
+            .borsh_record
+            .try_borrow_mut_data()
+            .map_err(|_| ProgramError::AccountBorrowFailed)?;
         let borsh_record = pda::state::MinimalRecord::mut_from_account_data(&mut borsh_data);
         borsh_record.owner = params.owner;
     }
     {
-        let mut zc_data = ctx.zero_copy_record.try_borrow_mut_data().map_err(|_| ProgramError::AccountBorrowFailed)?;
+        let mut zc_data = ctx
+            .zero_copy_record
+            .try_borrow_mut_data()
+            .map_err(|_| ProgramError::AccountBorrowFailed)?;
         let record_bytes =
             &mut zc_data[8..8 + core::mem::size_of::<account_loader::ZeroCopyRecord>()];
         let record: &mut account_loader::ZeroCopyRecord = bytemuck::from_bytes_mut(record_bytes);

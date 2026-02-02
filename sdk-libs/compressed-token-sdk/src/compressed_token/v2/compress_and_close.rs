@@ -1,12 +1,12 @@
 use light_program_profiler::profile;
-// PackedAccounts and AccountMetasVec are only available off-chain (client-side)
-#[cfg(not(target_os = "solana"))]
-use light_sdk_types::error::LightSdkTypesError;
 #[cfg(not(target_os = "solana"))]
 use light_sdk::{
     instruction::{AccountMetasVec, PackedAccounts, SystemAccountMetaConfig},
     PackedAccountsExt,
 };
+// PackedAccounts and AccountMetasVec are only available off-chain (client-side)
+#[cfg(not(target_os = "solana"))]
+use light_sdk_types::error::LightSdkTypesError;
 use light_token_interface::instructions::transfer2::CompressedCpiContext;
 #[cfg(not(target_os = "solana"))]
 use light_token_interface::state::Token;

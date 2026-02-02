@@ -1,12 +1,15 @@
 //! LightAccount trait definition for compressible account data structs.
 
-use light_account_checks::{packed_accounts::ProgramPackedAccounts, AccountInfoTrait};
 #[cfg(all(not(target_os = "solana"), feature = "std"))]
 use light_account_checks::AccountMetaTrait;
+use light_account_checks::{packed_accounts::ProgramPackedAccounts, AccountInfoTrait};
 use light_hasher::DataHasher;
 
-use crate::interface::{account::compression_info::CompressionInfo, program::config::LightConfig};
-use crate::{error::LightSdkTypesError, AnchorDeserialize, AnchorSerialize};
+use crate::{
+    error::LightSdkTypesError,
+    interface::{account::compression_info::CompressionInfo, program::config::LightConfig},
+    AnchorDeserialize, AnchorSerialize,
+};
 
 pub enum AccountType {
     Pda,

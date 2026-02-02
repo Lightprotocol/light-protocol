@@ -21,8 +21,7 @@ pub fn process_initialize_config(
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> Result<(), ProgramError> {
-    let params = InitConfigParams::try_from_slice(data)
-        .map_err(|_| ProgramError::BorshIoError)?;
+    let params = InitConfigParams::try_from_slice(data).map_err(|_| ProgramError::BorshIoError)?;
 
     if accounts.len() < 5 {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -50,10 +49,7 @@ pub fn process_initialize_config(
     .map_err(|e| ProgramError::Custom(u32::from(e)))
 }
 
-pub fn process_update_config(
-    accounts: &[AccountInfo],
-    data: &[u8],
-) -> Result<(), ProgramError> {
+pub fn process_update_config(accounts: &[AccountInfo], data: &[u8]) -> Result<(), ProgramError> {
     if accounts.len() < 2 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
@@ -61,7 +57,7 @@ pub fn process_update_config(
     let authority = &accounts[0];
     let config = &accounts[1];
 
-    let remaining = [config.clone(), authority.clone()];
+    let remaining = [*config, *authority];
     process_update_light_config(&remaining, data, &crate::ID)
         .map_err(|e| ProgramError::Custom(u32::from(e)))
 }

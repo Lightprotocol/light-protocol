@@ -1,10 +1,9 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_account_pinocchio::{
     light_account_checks::{self, packed_accounts::ProgramPackedAccounts},
-    prepare_compressed_account_on_init, CpiAccounts, CpiAccountsConfig,
-    CpiContextWriteAccounts, InvokeLightSystemProgram, LightAccount, LightAccountVariantTrait,
-    LightFinalize, LightPreInit, LightSdkTypesError, PackedAddressTreeInfoExt,
-    PackedLightAccountVariantTrait,
+    prepare_compressed_account_on_init, CpiAccounts, CpiAccountsConfig, CpiContextWriteAccounts,
+    InvokeLightSystemProgram, LightAccount, LightAccountVariantTrait, LightFinalize, LightPreInit,
+    LightSdkTypesError, PackedAddressTreeInfoExt, PackedLightAccountVariantTrait,
 };
 use light_compressed_account::instruction_data::{
     cpi_context::CompressedCpiContext, with_account_info::InstructionDataInvokeCpiWithAccountInfo,
@@ -69,9 +68,8 @@ impl LightPreInit<AccountInfo, CreatePdaParams> for CreatePda<'_> {
             const NUM_LIGHT_PDAS: usize = 1;
 
             // 6. Set compression_info from config
-            let light_config =
-                LightConfig::load_checked(self.compression_config, &crate::ID)
-                    .map_err(|_| LightSdkTypesError::InvalidInstructionData)?;
+            let light_config = LightConfig::load_checked(self.compression_config, &crate::ID)
+                .map_err(|_| LightSdkTypesError::InvalidInstructionData)?;
             let current_slot = Clock::get()
                 .map_err(|_| LightSdkTypesError::InvalidInstructionData)?
                 .slot;
@@ -134,8 +132,7 @@ impl LightPreInit<AccountInfo, CreatePdaParams> for CreatePda<'_> {
                 };
                 if !WITH_CPI_CONTEXT {
                     // 5. Invoke Light System Program CPI
-                    instruction_data
-                        .invoke(cpi_accounts)?;
+                    instruction_data.invoke(cpi_accounts)?;
                 } else {
                     // For flows that combine light mints with light PDAs, write to CPI context first.
                     // The authority and cpi_context accounts must be provided in remaining_accounts.
@@ -145,8 +142,7 @@ impl LightPreInit<AccountInfo, CreatePdaParams> for CreatePda<'_> {
                         cpi_context: cpi_accounts.cpi_context()?,
                         cpi_signer: crate::LIGHT_CPI_SIGNER,
                     };
-                    instruction_data
-                        .invoke_write_to_cpi_context_first(cpi_context_accounts)?;
+                    instruction_data.invoke_write_to_cpi_context_first(cpi_context_accounts)?;
                 }
             }
             // =====================================================================
@@ -329,8 +325,8 @@ impl light_account_pinocchio::IntoVariant<MinimalRecordVariant> for MinimalRecor
         data: &[u8],
     ) -> std::result::Result<MinimalRecordVariant, LightSdkTypesError> {
         // Deserialize the compressed data (which includes compression_info)
-        let record: MinimalRecord = BorshDeserialize::deserialize(&mut &data[..])
-            .map_err(|_| LightSdkTypesError::Borsh)?;
+        let record: MinimalRecord =
+            BorshDeserialize::deserialize(&mut &data[..]).map_err(|_| LightSdkTypesError::Borsh)?;
 
         // Verify the owner in data matches the seed
         if record.owner != self.owner {
@@ -367,7 +363,8 @@ impl light_account_pinocchio::Pack<solana_instruction::AccountMeta> for MinimalR
         Ok(
             crate::derived_variants::PackedLightAccountVariant::MinimalRecord {
                 seeds: PackedMinimalRecordSeeds {
-                    owner_idx: accounts.insert_or_get(solana_pubkey::Pubkey::from(self.seeds.owner)),
+                    owner_idx: accounts
+                        .insert_or_get(solana_pubkey::Pubkey::from(self.seeds.owner)),
                     nonce_bytes: self.seeds.nonce.to_le_bytes(),
                     bump,
                 },

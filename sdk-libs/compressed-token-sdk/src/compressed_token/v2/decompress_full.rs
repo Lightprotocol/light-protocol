@@ -2,7 +2,6 @@
 use light_compressed_account::compressed_account::PackedMerkleContext;
 use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
 use light_program_profiler::profile;
-use light_sdk_types::error::LightSdkTypesError;
 use light_sdk::{instruction::PackedStateTreeInfo, Unpack};
 // Pack and PackedAccounts only available off-chain (client-side)
 #[cfg(not(target_os = "solana"))]
@@ -10,6 +9,7 @@ use light_sdk::{
     instruction::{AccountMetasVec, PackedAccounts, SystemAccountMetaConfig},
     Pack, PackedAccountsExt,
 };
+use light_sdk_types::error::LightSdkTypesError;
 use light_token_interface::instructions::{
     extensions::ExtensionInstructionData,
     transfer2::{CompressedCpiContext, MultiInputTokenDataWithContext},

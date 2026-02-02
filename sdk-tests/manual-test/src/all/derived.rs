@@ -7,17 +7,16 @@
 //! - 1 ATA via `CreateTokenAtaCpi`
 
 use anchor_lang::prelude::*;
+use light_account::{
+    derive_associated_token_account, derive_mint_compressed_address, find_mint_address,
+    invoke_create_mints, prepare_compressed_account_on_init, CpiAccounts, CpiAccountsConfig,
+    CpiContextWriteAccounts, CreateMintsInfraAccounts, CreateMintsParams as SdkCreateMintsParams,
+    CreateTokenAccountCpi, CreateTokenAtaCpi, InvokeLightSystemProgram, LightAccount,
+    LightFinalize, LightPreInit, LightSdkTypesError, PackedAddressTreeInfoExt, SingleMintParams,
+    DEFAULT_RENT_PAYMENT, DEFAULT_WRITE_TOP_UP,
+};
 use light_compressed_account::instruction_data::{
     cpi_context::CompressedCpiContext, with_account_info::InstructionDataInvokeCpiWithAccountInfo,
-};
-use light_account::{
-    prepare_compressed_account_on_init, CpiAccounts, CpiAccountsConfig,
-    CpiContextWriteAccounts, InvokeLightSystemProgram, LightAccount, LightFinalize,
-    LightPreInit, LightSdkTypesError, PackedAddressTreeInfoExt,
-    invoke_create_mints, CreateMintsInfraAccounts, CreateMintsParams as SdkCreateMintsParams,
-    SingleMintParams, derive_mint_compressed_address, find_mint_address,
-    DEFAULT_RENT_PAYMENT, DEFAULT_WRITE_TOP_UP,
-    CreateTokenAccountCpi, CreateTokenAtaCpi, derive_associated_token_account,
 };
 use solana_account_info::AccountInfo;
 
@@ -146,8 +145,7 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateAllParams> for CreateAllAccou
                     cpi_context: cpi_accounts.cpi_context()?,
                     cpi_signer: crate::LIGHT_CPI_SIGNER,
                 };
-                instruction_data
-                    .invoke_write_to_cpi_context_first(cpi_context_accounts)?;
+                instruction_data.invoke_write_to_cpi_context_first(cpi_context_accounts)?;
             }
 
             // ====================================================================
@@ -271,10 +269,8 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateAllParams> for CreateAllAccou
             // 7. Create ATA via CreateTokenAtaCpi
             // ====================================================================
             {
-                let (_, ata_bump) = derive_associated_token_account(
-                    self.ata_owner.key,
-                    self.mint.key,
-                );
+                let (_, ata_bump) =
+                    derive_associated_token_account(self.ata_owner.key, self.mint.key);
 
                 let payer_info = self.payer.to_account_info();
                 let mint_info = self.mint.to_account_info();

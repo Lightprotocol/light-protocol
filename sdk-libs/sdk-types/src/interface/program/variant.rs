@@ -9,8 +9,10 @@ use alloc::vec::Vec;
 
 use light_account_checks::AccountInfoTrait;
 
-use crate::interface::account::light_account::AccountType;
-use crate::{error::LightSdkTypesError, AnchorDeserialize, AnchorSerialize};
+use crate::{
+    error::LightSdkTypesError, interface::account::light_account::AccountType, AnchorDeserialize,
+    AnchorSerialize,
+};
 
 // --- Base trait (always available) ---
 
@@ -135,6 +137,7 @@ pub trait PackedLightAccountVariantTrait<const SEED_COUNT: usize>:
 #[cfg(feature = "token")]
 mod token_traits {
     use alloc::vec::Vec;
+
     use light_account_checks::AccountInfoTrait;
 
     use crate::{error::LightSdkTypesError, AnchorDeserialize, AnchorSerialize};

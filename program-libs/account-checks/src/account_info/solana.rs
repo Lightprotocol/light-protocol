@@ -1,5 +1,4 @@
-use super::account_info_trait::AccountInfoTrait;
-use super::account_meta_trait::AccountMetaTrait;
+use super::{account_info_trait::AccountInfoTrait, account_meta_trait::AccountMetaTrait};
 use crate::error::AccountError;
 
 /// Implement trait for solana AccountInfo
@@ -294,40 +293,29 @@ fn create_pda_with_lamports_solana<'a>(
 
     // Assign owner
     let assign_ix = system_instruction::assign(account.key, owner);
-    invoke_signed(&assign_ix, &[account.clone()], &[pda_seeds])
+    invoke_signed(&assign_ix, std::slice::from_ref(account), &[pda_seeds])
         .map_err(|_| AccountError::InvalidAccount)?;
 
     // Allocate space
     let allocate_ix = system_instruction::allocate(account.key, space);
-    invoke_signed(&allocate_ix, &[account.clone()], &[pda_seeds])
+    invoke_signed(&allocate_ix, std::slice::from_ref(account), &[pda_seeds])
         .map_err(|_| AccountError::InvalidAccount)?;
 
     // Transfer remaining lamports for rent-exemption if needed
     if lamports > current_lamports {
-        let transfer_ix = system_instruction::transfer(
-            rent_payer.key,
-            account.key,
-            lamports - current_lamports,
-        );
+        let transfer_ix =
+            system_instruction::transfer(rent_payer.key, account.key, lamports - current_lamports);
         // Only include rent_payer_seeds when the payer is itself a PDA.
         if rent_payer_seeds.is_empty() {
             invoke_signed(
                 &transfer_ix,
-                &[
-                    rent_payer.clone(),
-                    account.clone(),
-                    system_program.clone(),
-                ],
+                &[rent_payer.clone(), account.clone(), system_program.clone()],
                 &[],
             )
         } else {
             invoke_signed(
                 &transfer_ix,
-                &[
-                    rent_payer.clone(),
-                    account.clone(),
-                    system_program.clone(),
-                ],
+                &[rent_payer.clone(), account.clone(), system_program.clone()],
                 &[rent_payer_seeds],
             )
         }

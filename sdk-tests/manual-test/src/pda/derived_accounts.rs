@@ -1,13 +1,12 @@
 use anchor_lang::prelude::*;
-use light_compressed_account::instruction_data::{
-    cpi_context::CompressedCpiContext, with_account_info::InstructionDataInvokeCpiWithAccountInfo,
-};
 use light_account::{
     light_account_checks::{self, packed_accounts::ProgramPackedAccounts},
-    prepare_compressed_account_on_init, CpiAccounts, CpiAccountsConfig,
-    CpiContextWriteAccounts, InvokeLightSystemProgram, LightAccount, LightAccountVariantTrait,
-    LightFinalize, LightPreInit, LightSdkTypesError, PackedAddressTreeInfoExt,
-    PackedLightAccountVariantTrait,
+    prepare_compressed_account_on_init, CpiAccounts, CpiAccountsConfig, CpiContextWriteAccounts,
+    InvokeLightSystemProgram, LightAccount, LightAccountVariantTrait, LightFinalize, LightPreInit,
+    LightSdkTypesError, PackedAddressTreeInfoExt, PackedLightAccountVariantTrait,
+};
+use light_compressed_account::instruction_data::{
+    cpi_context::CompressedCpiContext, with_account_info::InstructionDataInvokeCpiWithAccountInfo,
 };
 
 use super::{
@@ -125,8 +124,7 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreatePdaParams> for CreatePda<'inf
                 };
                 if !WITH_CPI_CONTEXT {
                     // 5. Invoke Light System Program CPI
-                    instruction_data
-                        .invoke(cpi_accounts)?;
+                    instruction_data.invoke(cpi_accounts)?;
                 } else {
                     // For flows that combine light mints with light PDAs, write to CPI context first.
                     // The authority and cpi_context accounts must be provided in remaining_accounts.
@@ -136,8 +134,7 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreatePdaParams> for CreatePda<'inf
                         cpi_context: cpi_accounts.cpi_context()?,
                         cpi_signer: crate::LIGHT_CPI_SIGNER,
                     };
-                    instruction_data
-                        .invoke_write_to_cpi_context_first(cpi_context_accounts)?;
+                    instruction_data.invoke_write_to_cpi_context_first(cpi_context_accounts)?;
                 }
             }
             // =====================================================================
@@ -245,8 +242,7 @@ impl LightAccountVariantTrait<4> for MinimalRecordVariant {
 impl PackedLightAccountVariantTrait<4> for PackedMinimalRecordVariant {
     type Unpacked = MinimalRecordVariant;
 
-    const ACCOUNT_TYPE: light_account::AccountType =
-        <MinimalRecord as LightAccount>::ACCOUNT_TYPE;
+    const ACCOUNT_TYPE: light_account::AccountType = <MinimalRecord as LightAccount>::ACCOUNT_TYPE;
 
     fn bump(&self) -> u8 {
         self.seeds.bump

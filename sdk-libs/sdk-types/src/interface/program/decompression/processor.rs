@@ -4,18 +4,25 @@
 use alloc::vec;
 use alloc::vec::Vec;
 
-use crate::{cpi_accounts::v2::CpiAccounts, instruction::PackedStateTreeInfo, CpiSigner};
 use light_account_checks::AccountInfoTrait;
+#[cfg(feature = "token")]
+use light_account_checks::CpiMeta;
+#[cfg(feature = "token")]
+use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
 use light_compressed_account::instruction_data::{
     compressed_proof::ValidityProof,
     with_account_info::{CompressedAccountInfo, InstructionDataInvokeCpiWithAccountInfo},
 };
-
-use crate::interface::{
-    account::compression_info::CompressedAccountData, cpi::InvokeLightSystemProgram,
-    program::config::LightConfig,
+#[cfg(feature = "token")]
+use light_token_interface::{
+    instructions::{
+        extensions::ExtensionInstructionData,
+        transfer2::{
+            CompressedTokenInstructionDataTransfer2, Compression, MultiInputTokenDataWithContext,
+        },
+    },
+    CPI_AUTHORITY, LIGHT_TOKEN_PROGRAM_ID, TRANSFER2,
 };
-use crate::{error::LightSdkTypesError, AnchorDeserialize, AnchorSerialize};
 
 #[cfg(feature = "token")]
 use crate::{
@@ -26,19 +33,15 @@ use crate::{
     cpi_accounts::CpiAccountsConfig,
     cpi_context_write::CpiContextWriteAccounts,
 };
-#[cfg(feature = "token")]
-use light_account_checks::CpiMeta;
-#[cfg(feature = "token")]
-use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
-#[cfg(feature = "token")]
-use light_token_interface::{
-    instructions::{
-        extensions::ExtensionInstructionData,
-        transfer2::{
-            CompressedTokenInstructionDataTransfer2, Compression, MultiInputTokenDataWithContext,
-        },
+use crate::{
+    cpi_accounts::v2::CpiAccounts,
+    error::LightSdkTypesError,
+    instruction::PackedStateTreeInfo,
+    interface::{
+        account::compression_info::CompressedAccountData, cpi::InvokeLightSystemProgram,
+        program::config::LightConfig,
     },
-    CPI_AUTHORITY, LIGHT_TOKEN_PROGRAM_ID, TRANSFER2,
+    AnchorDeserialize, AnchorSerialize, CpiSigner,
 };
 
 /// Account indices within remaining_accounts for decompress instructions.
@@ -138,11 +141,11 @@ pub struct DecompressCtx<'a, AI: AccountInfoTrait + Clone> {
 /// Idempotent: if a PDA is already initialized, it is silently skipped.
 ///
 /// # Account layout in remaining_accounts:
-/// - [0]: fee_payer (Signer, mut)
-/// - [1]: config (LightConfig PDA)
-/// - [2]: rent_sponsor (mut)
-/// - [system_accounts_offset..hot_accounts_start]: Light system + tree accounts
-/// - [hot_accounts_start..]: PDA accounts to decompress into
+/// - `[0]`: fee_payer (Signer, mut)
+/// - `[1]`: config (LightConfig PDA)
+/// - `[2]`: rent_sponsor (mut)
+/// - `[system_accounts_offset..hot_accounts_start]`: Light system + tree accounts
+/// - `[hot_accounts_start..]`: PDA accounts to decompress into
 #[inline(never)]
 pub fn process_decompress_pda_accounts_idempotent<AI, V>(
     remaining_accounts: &[AI],
@@ -262,15 +265,15 @@ where
 /// - Token accounts are decompressed via Transfer2 CPI to the light token program
 ///
 /// # Account layout in remaining_accounts:
-/// - [0]: fee_payer (Signer, mut)
-/// - [1]: config (LightConfig PDA)
-/// - [2]: rent_sponsor (mut)
-/// - [3]: ctoken_rent_sponsor (mut)
-/// - [4]: light_token_program
-/// - [5]: cpi_authority
-/// - [6]: ctoken_compressible_config
-/// - [system_accounts_offset..hot_accounts_start]: Light system + tree accounts
-/// - [hot_accounts_start..]: Hot accounts (PDAs then tokens)
+/// - `[0]`: fee_payer (Signer, mut)
+/// - `[1]`: config (LightConfig PDA)
+/// - `[2]`: rent_sponsor (mut)
+/// - `[3]`: ctoken_rent_sponsor (mut)
+/// - `[4]`: light_token_program
+/// - `[5]`: cpi_authority
+/// - `[6]`: ctoken_compressible_config
+/// - `[system_accounts_offset..hot_accounts_start]`: Light system + tree accounts
+/// - `[hot_accounts_start..]`: Hot accounts (PDAs then tokens)
 #[cfg(feature = "token")]
 #[inline(never)]
 pub fn process_decompress_accounts_idempotent<AI, V>(
@@ -407,10 +410,8 @@ where
             cpi_ix_data.invoke::<AI>(cpi_accounts.clone())?;
         } else {
             // PDAs + tokens: write PDA data to CPI context first, tokens will execute
-            let authority = cpi_accounts.authority().map_err(LightSdkTypesError::from)?;
-            let cpi_context_account = cpi_accounts
-                .cpi_context()
-                .map_err(LightSdkTypesError::from)?;
+            let authority = cpi_accounts.authority()?;
+            let cpi_context_account = cpi_accounts.cpi_context()?;
             let system_cpi_accounts = CpiContextWriteAccounts {
                 fee_payer: &remaining_accounts[FEE_PAYER_INDEX],
                 authority,
@@ -521,9 +522,7 @@ where
         ];
 
         if cpi_context {
-            let cpi_ctx = cpi_accounts
-                .cpi_context()
-                .map_err(LightSdkTypesError::from)?;
+            let cpi_ctx = cpi_accounts.cpi_context()?;
             account_metas.push(CpiMeta {
                 pubkey: cpi_ctx.key(),
                 is_signer: false,

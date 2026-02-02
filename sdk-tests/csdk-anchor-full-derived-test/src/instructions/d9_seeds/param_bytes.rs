@@ -3,8 +3,8 @@
 //! Tests ClassifiedSeed::DataField with params.id.to_le_bytes() conversion.
 
 use anchor_lang::prelude::*;
-use light_sdk_macros::LightAccounts;
 use light_account::CreateAccountsProof;
+use light_sdk_macros::LightAccounts;
 
 use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
 

@@ -2,12 +2,13 @@
 
 use anchor_lang::prelude::*;
 use light_sdk_macros::LightAccounts;
-use light_sdk_types::interface::CreateAccountsProof;
-use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
-use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
+use light_account::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
+use light_sdk_types::{interface::CreateAccountsProof, LIGHT_TOKEN_PROGRAM_ID};
 
-use crate::state::{MinimalRecord, ZeroCopyRecord};
-use crate::{MINT_SIGNER_SEED_A, MINT_SIGNER_SEED_B, RECORD_SEED, VAULT_AUTH_SEED, VAULT_SEED};
+use crate::{
+    state::{MinimalRecord, ZeroCopyRecord},
+    MINT_SIGNER_SEED_A, MINT_SIGNER_SEED_B, RECORD_SEED, VAULT_AUTH_SEED, VAULT_SEED,
+};
 
 // =============================================================================
 // 1. CreatePda
