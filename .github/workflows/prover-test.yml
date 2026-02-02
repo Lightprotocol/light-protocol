@@ -69,11 +69,11 @@ jobs:
       matrix:
         test-suite:
           - name: "Unit tests"
-            command: "go test ./prover/... -timeout 60m"
+            target: "test-unit"
           - name: "Worker selection tests"
-            command: "go test -v -run TestWorkerSelection -timeout 5m"
+            target: "test-worker-selection"
           - name: "Batch operations queue routing tests"
-            command: "go test -v -run TestBatchOperations -timeout 5m"
+            target: "test-batch-operations"
     steps:
       - name: Checkout sources
         uses: actions/checkout@v6
@@ -95,8 +95,7 @@ jobs:
 
       - name: Run ${{ matrix.test-suite.name }}
         run: |
-          cd prover/server
-          ${{ matrix.test-suite.command }}
+          just prover ${{ matrix.test-suite.target }}
 
   test-with-redis:
     needs: build
@@ -107,13 +106,13 @@ jobs:
       matrix:
         test-suite:
           - name: "Redis Queue tests"
-            command: "go test -v -run TestRedis -timeout 10m"
+            target: "test-redis"
           - name: "Queue cleanup tests"
-            command: "go test -v -run TestCleanup -timeout 5m"
+            target: "test-cleanup"
           - name: "Queue processing flow tests"
-            command: "go test -v -run TestJobProcessingFlow -timeout 5m"
+            target: "test-job-processing-flow"
           - name: "Failed job status tests"
-            command: "go test -v -run TestFailedJobStatus -timeout 5m"
+            target: "test-failed-job-status"
     services:
       redis:
         image: redis:7-alpine
@@ -147,8 +146,7 @@ jobs:
         env:
           TEST_REDIS_URL: redis://localhost:6379/15
         run: |
-          cd prover/server
-          ${{ matrix.test-suite.command }}
+          just prover ${{ matrix.test-suite.target }}
 
   integration-test-lightweight:
     needs: build
@@ -180,8 +178,7 @@ jobs:
 
       - name: Lightweight integration tests
         run: |
-          cd prover/server
-          go test -run TestLightweight -timeout 15m
+          just prover test-lightweight
 
   integration-test-lightweight-lazy:
     needs: build
@@ -213,8 +210,7 @@ jobs:
 
       - name: Lightweight lazy loading integration tests
         run: |
-          cd prover/server
-          go test -run TestLightweightLazy -timeout 15m
+          just prover test-lightweight-lazy
 
   integration-test-full:
     needs: build
@@ -245,8 +241,7 @@ jobs:
 
       - name: Full integration tests
         run: |
-          cd prover/server
-          go test -run TestFull -timeout 120m
+          just prover test-full
 
   lean-verification:
     needs: build
@@ -272,7 +267,7 @@ jobs:
 
       - name: Install Elan
         run: |
-          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y -v --default-toolchain leanprover/lean4:v4.2.0
+          just prover lean-install
 
       - name: Get Lake version for cache key
         id: lake-version
@@ -287,13 +282,6 @@ jobs:
           restore-keys: |
             lean-${{ steps.lake-version.outputs.version }}-
 
-      - name: Extract circuit to Lean
+      - name: Extract circuit and build Lean
         run: |
-          cd prover/server
-          ./light-prover extract-circuit --output formal-verification/FormalVerification/Circuit.lean --address-tree-height 40 --compressed-accounts 8 --state-tree-height 32
-
-      - name: Build Lean project
-        run: |
-          cd prover/server/formal-verification
-          ~/.elan/bin/lake exe cache get
-          ~/.elan/bin/lake build
+          just prover verify

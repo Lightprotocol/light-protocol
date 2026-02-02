@@ -48,11 +48,11 @@ jobs:
       matrix:
         include:
           - program: native
-            sub-tests: '["cargo-test-sbf -p sdk-native-test", "cargo-test-sbf -p sdk-v1-native-test", "cargo-test-sbf -p sdk-light-token-test", "cargo-test-sbf -p client-test"]'
+            test-targets: '["test-native", "test-v1-native", "test-light-token", "test-client"]'
           - program: anchor & pinocchio
-            sub-tests: '["cargo-test-sbf -p sdk-anchor-test", "cargo-test-sbf -p sdk-compressible-test", "cargo-test-sbf -p csdk-anchor-derived-test", "cargo-test-sbf -p csdk-anchor-full-derived-test", "cargo-test-sbf -p sdk-pinocchio-v1-test", "cargo-test-sbf -p sdk-pinocchio-v2-test", "cargo-test-sbf -p pinocchio-nostd-test", "cargo-test-sbf -p single-mint-test", "cargo-test-sbf -p single-pda-test", "cargo-test-sbf -p single-ata-test", "cargo-test-sbf -p single-token-test"]'
+            test-targets: '["test-anchor", "test-compressible", "test-csdk-anchor-derived", "test-csdk-anchor-full-derived", "test-pinocchio-v1", "test-pinocchio-v2", "test-pinocchio-nostd", "test-single-mint", "test-single-pda", "test-single-ata", "test-single-token"]'
           - program: token test
-            sub-tests: '["cargo-test-sbf -p sdk-token-test", "cargo-test-sbf -p token-client-test"]'
+            test-targets: '["test-token", "test-token-client"]'
           - program: sdk-libs
             test_cmd: just sdk-libs test
     steps:
@@ -95,15 +95,14 @@ jobs:
         run: |
           PATH="$(yarn global bin):$PATH" cargo test -p light-program-test --lib -- test_find_light_bin --nocapture
 
-      - name: Run sub-tests for ${{ matrix.program }}
-        if: matrix.sub-tests != null
+      - name: Run test-targets for ${{ matrix.program }}
+        if: matrix.test-targets != null
         run: |
-
-          IFS=',' read -r -a sub_tests <<< "${{ join(fromJSON(matrix.sub-tests), ', ') }}"
-          for subtest in "${sub_tests[@]}"
+          IFS=',' read -r -a test_targets <<< "${{ join(fromJSON(matrix.test-targets), ', ') }}"
+          for target in "${test_targets[@]}"
           do
-            echo "$subtest"
-            eval "RUSTFLAGS=\"-D warnings\" $subtest"
+            echo "Running: just sdk-tests $target"
+            just sdk-tests "$target"
           done
 
       - name: Run tests for ${{ matrix.program }}

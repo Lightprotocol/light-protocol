@@ -18,6 +18,9 @@ test-compressed-token:
 test-compressed-token-unit-v2:
     cd compressed-token && pnpm test:unit:all:v2
 
+test-compressed-token-e2e-ctoken-v2:
+    cd compressed-token && LIGHT_PROTOCOL_VERSION=V2 pnpm test:e2e:ctoken:all
+
 lint:
     cd stateless.js && pnpm lint
     cd compressed-token && pnpm lint

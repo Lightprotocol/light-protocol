@@ -100,8 +100,7 @@ jobs:
           echo "Running compressed-token ctoken tests with retry logic (max 2 attempts)..."
           attempt=1
           max_attempts=2
-          cd js/compressed-token
-          until LIGHT_PROTOCOL_VERSION=V2 pnpm test:e2e:ctoken:all; do
+          until just js test-compressed-token-e2e-ctoken-v2; do
             attempt=$((attempt + 1))
             if [ $attempt -gt $max_attempts ]; then
               echo "Tests failed after $max_attempts attempts"

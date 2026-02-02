@@ -10,3 +10,56 @@ test:
     RUSTFLAGS="-D warnings" cargo test-sbf -p sdk-native-test
     RUSTFLAGS="-D warnings" cargo test-sbf -p sdk-anchor-test
     RUSTFLAGS="-D warnings" cargo test-sbf -p sdk-token-test
+
+# === Granular test targets for CI ===
+
+test-native:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p sdk-native-test
+
+test-v1-native:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p sdk-v1-native-test
+
+test-light-token:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p sdk-light-token-test
+
+test-client:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p client-test
+
+test-anchor:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p sdk-anchor-test
+
+test-compressible:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p sdk-compressible-test
+
+test-csdk-anchor-derived:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p csdk-anchor-derived-test
+
+test-csdk-anchor-full-derived:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p csdk-anchor-full-derived-test
+
+test-pinocchio-v1:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p sdk-pinocchio-v1-test
+
+test-pinocchio-v2:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p sdk-pinocchio-v2-test
+
+test-pinocchio-nostd:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p pinocchio-nostd-test
+
+test-single-mint:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p single-mint-test
+
+test-single-pda:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p single-pda-test
+
+test-single-ata:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p single-ata-test
+
+test-single-token:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p single-token-test
+
+test-token:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p sdk-token-test
+
+test-token-client:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p token-client-test

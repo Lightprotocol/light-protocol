@@ -40,4 +40,4 @@ jobs:
           rustup component add --toolchain nightly rustfmt
           rustup component add --toolchain nightly clippy
           rustup component add --toolchain 1.86-x86_64-unknown-linux-gnu clippy
-          ./scripts/lint.sh
+          just lint

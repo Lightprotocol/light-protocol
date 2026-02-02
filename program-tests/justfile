@@ -13,3 +13,66 @@ test: build
     RUSTFLAGS="-D warnings" cargo test-sbf -p system-cpi-test
     RUSTFLAGS="-D warnings" cargo test-sbf -p compressed-token-test
     RUSTFLAGS="-D warnings" cargo test-sbf -p e2e-test
+
+# === Granular test targets for CI ===
+
+test-account-compression:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p account-compression-test
+
+test-registry:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p registry-test
+
+test-system-address:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p system-test -- test_with_address
+
+test-system-compression:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p system-test -- test_with_compression
+
+test-system-re-init:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p system-test --test test_re_init_cpi_account
+
+test-e2e:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p e2e-test
+
+test-e2e-all: build-compressed-token-small
+    RUSTFLAGS="-D warnings" cargo test-sbf -p e2e-test -- --test test_10_all
+
+test-compressed-token-unit:
+    RUSTFLAGS="-D warnings" cargo test -p light-compressed-token
+
+test-compressed-token-v1:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p compressed-token-test --test v1
+
+test-compressed-token-mint:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p compressed-token-test --test mint
+
+test-compressed-token-light-token:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p compressed-token-test --test light_token
+
+test-compressed-token-batched-tree:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p compressed-token-test -- test_transfer_with_photon_and_batched_tree
+
+test-compressed-token-transfer2:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p compressed-token-test --test transfer2
+
+test-system-cpi:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p system-cpi-test
+
+test-system-program-pinocchio:
+    RUSTFLAGS="-D warnings" cargo test -p light-system-program-pinocchio
+
+test-system-cpi-v2:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p system-cpi-v2-test -- --skip functional_ --skip event::parse
+
+test-system-cpi-v2-event-parse:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p system-cpi-v2-test -- event::parse
+
+test-system-cpi-v2-functional-read-only:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p system-cpi-v2-test -- functional_read_only
+
+test-system-cpi-v2-functional-account-infos:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p system-cpi-v2-test -- functional_account_infos
+
+# Helper to build compressed token with special features
+build-compressed-token-small:
+    cd ../programs/compressed-token/program && cargo build-sbf --features cpi-without-program-ids
