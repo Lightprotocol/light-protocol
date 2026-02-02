@@ -19,8 +19,8 @@ use light_batched_merkle_tree::{
     initialize_state_tree::InitStateTreeAccountsInstructionData,
 };
 use light_client::interface::{
-    create_load_instructions, get_create_accounts_proof, CreateAccountsProofInput,
-    InitializeRentFreeConfig, LightProgramInterface,
+    create_load_instructions, get_create_accounts_proof, AccountInterface, AccountSpec,
+    CreateAccountsProofInput, InitializeRentFreeConfig, LightProgramInterface,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{
@@ -537,9 +537,6 @@ async fn decompress_all(ctx: &mut AmmTestContext, pdas: &AmmPdas) {
         .value
         .expect("creator_token_1 should exist");
 
-    // Underlying mints also get compressed -- convert MintInterface to AccountInterface
-    use light_client::interface::{AccountInterface, AccountSpec, MintState};
-
     let mint_0_iface = ctx
         .rpc
         .get_mint_interface(&ctx.token_0_mint, None)
@@ -547,22 +544,7 @@ async fn decompress_all(ctx: &mut AmmTestContext, pdas: &AmmPdas) {
         .expect("failed to get token_0_mint")
         .value
         .expect("token_0_mint should exist");
-    let mint_0_account_iface = match mint_0_iface.state {
-        MintState::Hot { account } => AccountInterface {
-            key: mint_0_iface.mint,
-            account,
-            cold: None,
-        },
-        MintState::Cold { compressed, .. } => {
-            let owner = compressed.owner;
-            AccountInterface::cold(mint_0_iface.mint, compressed, owner)
-        }
-        MintState::None => AccountInterface {
-            key: mint_0_iface.mint,
-            account: Default::default(),
-            cold: None,
-        },
-    };
+    let mint_0_account_iface = AccountInterface::from(mint_0_iface);
 
     let mint_1_iface = ctx
         .rpc
@@ -571,22 +553,8 @@ async fn decompress_all(ctx: &mut AmmTestContext, pdas: &AmmPdas) {
         .expect("failed to get token_1_mint")
         .value
         .expect("token_1_mint should exist");
-    let mint_1_account_iface = match mint_1_iface.state {
-        MintState::Hot { account } => AccountInterface {
-            key: mint_1_iface.mint,
-            account,
-            cold: None,
-        },
-        MintState::Cold { compressed, .. } => {
-            let owner = compressed.owner;
-            AccountInterface::cold(mint_1_iface.mint, compressed, owner)
-        }
-        MintState::None => AccountInterface {
-            key: mint_1_iface.mint,
-            account: Default::default(),
-            cold: None,
-        },
-    };
+    // Use the From impl which correctly creates ColdContext::Mint
+    let mint_1_account_iface = AccountInterface::from(mint_1_iface);
 
     let mut all_specs = specs;
     all_specs.push(AccountSpec::Ata(creator_lp_interface));

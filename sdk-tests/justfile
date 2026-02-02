@@ -1,5 +1,9 @@
 # Light Protocol - SDK Tests
 
+# Use absolute path for SBF_OUT_DIR so tests can find program binaries
+root_dir := `git rev-parse --show-toplevel`
+export SBF_OUT_DIR := root_dir / "target/deploy"
+
 default:
     @just --list
 
@@ -10,4 +14,30 @@ test:
     RUSTFLAGS="-D warnings" cargo test-sbf -p sdk-native-test
     RUSTFLAGS="-D warnings" cargo test-sbf -p sdk-anchor-test
     RUSTFLAGS="-D warnings" cargo test-sbf -p sdk-token-test
+    RUSTFLAGS="-D warnings" cargo test-sbf -p csdk-anchor-full-derived-test
+
+# === csdk-anchor-full-derived-test specific tests ===
+
+# Build csdk-anchor-full-derived-test program
+build-csdk-full:
+    cargo build-sbf --manifest-path csdk-anchor-full-derived-test/Cargo.toml
+
+# Run AMM stress test (100 iterations of compress/decompress cycles)
+test-amm-stress: build-csdk-full
+    RUSTFLAGS="-D warnings" cargo test -p csdk-anchor-full-derived-test --test amm_stress_test -- --nocapture
+
+# Run AMM basic test
+test-amm: build-csdk-full
+    RUSTFLAGS="-D warnings" cargo test -p csdk-anchor-full-derived-test --test amm_test -- --nocapture
+
+# Run basic integration tests
+test-basic: build-csdk-full
+    RUSTFLAGS="-D warnings" cargo test -p csdk-anchor-full-derived-test --test basic_test -- --nocapture
+
+# Run integration tests
+test-integration: build-csdk-full
+    RUSTFLAGS="-D warnings" cargo test -p csdk-anchor-full-derived-test --test integration_tests -- --nocapture
+
+# Run all csdk-anchor-full-derived tests
+test-csdk-full:
     RUSTFLAGS="-D warnings" cargo test-sbf -p csdk-anchor-full-derived-test
