@@ -21,10 +21,9 @@ import {
     dedupeSigner,
     newAccountWithLamports,
     sendAndConfirmTx,
-    getTestRpc,
+    createRpc,
     selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
-import { WasmFactory } from '@lightprotocol/hasher.rs';
 import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import {
     getTokenPoolInfos,
@@ -81,8 +80,7 @@ describe('multi-pool', () => {
     let charlieAta: PublicKey;
 
     beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
+        rpc = createRpc();
         payer = await newAccountWithLamports(rpc);
         mintAuthority = Keypair.generate();
         mintKeypair = Keypair.generate();

@@ -4,14 +4,13 @@ import {
     Rpc,
     bn,
     newAccountWithLamports,
-    getTestRpc,
+    createRpc,
     selectStateTreeInfo,
     TreeInfo,
     VERSION,
     featureFlags,
     CTOKEN_PROGRAM_ID,
 } from '@lightprotocol/stateless.js';
-import { WasmFactory } from '@lightprotocol/hasher.rs';
 import {
     createMint as createSplMint,
     getOrCreateAssociatedTokenAccount,
@@ -60,8 +59,7 @@ describe('get-account-interface', () => {
     let t22MintAuthority: Keypair;
 
     beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
+        rpc = createRpc();
         payer = await newAccountWithLamports(rpc, 10e9);
         mintAuthority = Keypair.generate();
         stateTreeInfo = selectStateTreeInfo(await rpc.getStateTreeInfos());

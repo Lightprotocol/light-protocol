@@ -15,9 +15,8 @@ import {
     dedupeSigner,
     newAccountWithLamports,
     sendAndConfirmTx,
-    getTestRpc,
+    createRpc,
 } from '@lightprotocol/stateless.js';
-import { WasmFactory } from '@lightprotocol/hasher.rs';
 import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import { getTokenPoolInfos } from '../../src/utils';
 
@@ -104,8 +103,7 @@ describe('createTokenPool', () => {
     let mintAuthority: Keypair;
 
     beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
+        rpc = createRpc();
         payer = await newAccountWithLamports(rpc);
         mintAuthority = Keypair.generate();
         mintKeypair = Keypair.generate();

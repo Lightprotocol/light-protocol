@@ -1,11 +1,9 @@
 import { describe, it, assert, beforeAll } from 'vitest';
 import { Signer } from '@solana/web3.js';
 import { newAccountWithLamports } from '../../src/test-helpers/test-utils';
-import { Rpc } from '../../src/rpc';
+import { Rpc, createRpc } from '../../src/rpc';
 import { bn, compress } from '../../src';
 import { transfer } from '../../src/actions/transfer';
-import { getTestRpc } from '../../src/test-helpers/test-rpc';
-import { WasmFactory } from '@lightprotocol/hasher.rs';
 
 describe('transfer', () => {
     let rpc: Rpc;
@@ -13,8 +11,7 @@ describe('transfer', () => {
     let bob: Signer;
 
     beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
+        rpc = createRpc();
         payer = await newAccountWithLamports(rpc, 2e9, 256);
         bob = await newAccountWithLamports(rpc, 2e9, 256);
 

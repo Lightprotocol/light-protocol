@@ -4,7 +4,6 @@ import {
     Rpc,
     newAccountWithLamports,
     createRpc,
-    getTestRpc,
     VERSION,
     featureFlags,
     CTOKEN_PROGRAM_ID,
@@ -15,7 +14,6 @@ import {
     TOKEN_PROGRAM_ID,
     TOKEN_2022_PROGRAM_ID,
 } from '@solana/spl-token';
-import { WasmFactory } from '@lightprotocol/hasher.rs';
 import { createMintInterface } from '../../src/v3/actions/create-mint-interface';
 import { mintToInterface } from '../../src/v3/actions/mint-to-interface';
 import { createMint } from '../../src/actions/create-mint';
@@ -34,8 +32,7 @@ describe('mintToInterface - SPL Mints', () => {
     let mintAuthority: Keypair;
 
     beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
+        rpc = createRpc();
         payer = await newAccountWithLamports(rpc, 10e9);
         mintAuthority = Keypair.generate();
 
@@ -341,8 +338,7 @@ describe('mintToInterface - Token-2022 Mints', () => {
     let mintAuthority: Keypair;
 
     beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
+        rpc = createRpc();
         payer = await newAccountWithLamports(rpc, 10e9);
         mintAuthority = Keypair.generate();
 

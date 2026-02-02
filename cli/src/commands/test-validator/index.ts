@@ -141,6 +141,12 @@ class SetupCommand extends Command {
       description: "Skip resetting the ledger.",
       default: false,
     }),
+    "use-surfpool": Flags.boolean({
+      description:
+        "Use surfpool instead of solana-test-validator (default). Pass --no-use-surfpool to use solana-test-validator.",
+      default: true,
+      allowNo: true,
+    }),
   };
 
   validatePrograms(
@@ -272,6 +278,7 @@ class SetupCommand extends Command {
             : undefined,
         verbose: flags.verbose,
         skipReset: flags["skip-reset"],
+        useSurfpool: flags["use-surfpool"],
       });
       this.log("\nSetup tasks completed successfully \x1b[32m✔\x1b[0m");
     }

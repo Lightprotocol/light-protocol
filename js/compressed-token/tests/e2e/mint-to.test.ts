@@ -19,13 +19,12 @@ import {
     sendAndConfirmTx,
     buildAndSignTx,
     dedupeSigner,
-    getTestRpc,
+    createRpc,
     TreeInfo,
     selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
 
 import { CompressedTokenProgram } from '../../src/program';
-import { WasmFactory } from '@lightprotocol/hasher.rs';
 import {
     getTokenPoolInfos,
     selectTokenPoolInfo,
@@ -71,8 +70,7 @@ describe('mintTo', () => {
     let tokenPoolInfo: TokenPoolInfo;
 
     beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
+        rpc = createRpc();
         payer = await newAccountWithLamports(rpc);
         bob = getTestKeypair();
         mintAuthority = payer as Keypair;

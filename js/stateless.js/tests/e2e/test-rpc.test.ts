@@ -9,13 +9,14 @@ import {
 import { newAccountWithLamports } from '../../src/test-helpers/test-utils';
 import { compress, decompress, transfer } from '../../src/actions';
 import { bn, CompressedAccountWithMerkleContext } from '../../src/state';
-import { getTestRpc, TestRpc } from '../../src/test-helpers/test-rpc';
+import { Rpc } from '../../src/rpc';
+import { getTestRpc } from '../../src/test-helpers/test-rpc/test-rpc';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 
 /// TODO: add test case for payer != address
 describe('test-rpc', () => {
     const { merkleTree } = defaultTestStateTreeAccounts();
-    let rpc: TestRpc;
+    let rpc: Rpc;
     let payer: Signer;
 
     let preCompressBalance: number;

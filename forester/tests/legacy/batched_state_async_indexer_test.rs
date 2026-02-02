@@ -83,6 +83,7 @@ async fn test_state_indexer_async_batched() {
         sbf_programs: vec![],
         upgradeable_programs: vec![],
         limit_ledger_size: None,
+        use_surfpool: true,
     }))
     .await;
     spawn_prover().await;
@@ -298,6 +299,18 @@ async fn setup_forester_pipeline(
 }
 
 async fn wait_for_slot(rpc: &mut LightClient, target_slot: u64) {
+    match rpc.warp_to_slot(target_slot).await {
+        Ok(_) => {
+            println!("warped to slot {}", target_slot);
+            return;
+        }
+        Err(e) => {
+            println!(
+                "warp_to_slot unavailable ({}), falling back to polling",
+                e
+            );
+        }
+    }
     while rpc.get_slot().await.unwrap() < target_slot {
         println!(
             "waiting for active phase slot: {}, current slot: {}",

@@ -9,7 +9,7 @@ import {
     featureFlags,
 } from '../../src/constants';
 import { newAccountWithLamports } from '../../src/test-helpers/test-utils';
-import { Rpc } from '../../src/rpc';
+import { Rpc, createRpc } from '../../src/rpc';
 import {
     LightSystemProgram,
     TreeInfo,
@@ -20,8 +20,6 @@ import {
     decompress,
     selectStateTreeInfo,
 } from '../../src';
-import { TestRpc, getTestRpc } from '../../src/test-helpers/test-rpc';
-import { WasmFactory } from '@lightprotocol/hasher.rs';
 
 /// TODO: make available to developers via utils
 function txFees(
@@ -83,8 +81,7 @@ describe('compress', () => {
     let stateTreeInfo: TreeInfo;
 
     beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
+        rpc = createRpc();
         payer = await newAccountWithLamports(rpc, 1e9, 256);
         stateTreeInfo = selectStateTreeInfo(await rpc.getStateTreeInfos());
     });
@@ -98,7 +95,7 @@ describe('compress', () => {
             );
 
             await createAccount(
-                rpc as TestRpc,
+                rpc,
                 payer,
                 [
                     new Uint8Array([
@@ -114,7 +111,7 @@ describe('compress', () => {
 
             await expect(
                 createAccountWithLamports(
-                    rpc as TestRpc,
+                    rpc,
                     payer,
                     [
                         new Uint8Array([
@@ -132,7 +129,7 @@ describe('compress', () => {
 
             // 0 lamports => 0 input accounts selected, so outputStateTreeInfo is required
             await createAccountWithLamports(
-                rpc as TestRpc,
+                rpc,
                 payer,
                 [
                     new Uint8Array([
@@ -148,7 +145,7 @@ describe('compress', () => {
             );
 
             await createAccount(
-                rpc as TestRpc,
+                rpc,
                 payer,
                 [
                     new Uint8Array([
@@ -163,7 +160,7 @@ describe('compress', () => {
             );
 
             await createAccount(
-                rpc as TestRpc,
+                rpc,
                 payer,
                 [
                     new Uint8Array([
@@ -178,7 +175,7 @@ describe('compress', () => {
             );
             await expect(
                 createAccount(
-                    rpc as TestRpc,
+                    rpc,
                     payer,
                     [
                         new Uint8Array([
@@ -245,7 +242,7 @@ describe('compress', () => {
             );
 
             await createAccountWithLamports(
-                rpc as TestRpc,
+                rpc,
                 payer,
                 [
                     new Uint8Array([

@@ -5,7 +5,7 @@ import {
     bn,
     defaultTestStateTreeAccounts,
     newAccountWithLamports,
-    getTestRpc,
+    createRpc,
     TreeInfo,
     selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
@@ -20,7 +20,6 @@ import {
     mintToChecked,
     TOKEN_2022_PROGRAM_ID,
 } from '@solana/spl-token';
-import { WasmFactory } from '@lightprotocol/hasher.rs';
 import {
     getTokenPoolInfos,
     selectTokenPoolInfo,
@@ -40,8 +39,7 @@ describe('compressSplTokenAccount', () => {
     let tokenPoolInfo: TokenPoolInfo;
 
     beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
+        rpc = createRpc();
         payer = await newAccountWithLamports(rpc, 1e9);
 
         mintAuthority = Keypair.generate();

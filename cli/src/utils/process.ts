@@ -52,22 +52,18 @@ export async function killProcess(processName: string) {
   const processList = await find("name", processName);
 
   const targetProcesses = processList.filter(
-    (proc) => proc.name.includes(processName) || proc.cmd.includes(processName),
+    (proc) =>
+      proc.pid !== process.pid &&
+      proc.pid !== process.ppid &&
+      (proc.name.includes(processName) || proc.cmd.includes(processName)),
   );
 
   for (const proc of targetProcesses) {
     try {
       process.kill(proc.pid, "SIGKILL");
     } catch (error) {
-      console.error(`Failed to kill process ${proc.pid}: ${error}`);
+      // Process may have already exited between find and kill.
     }
-  }
-
-  const remainingProcesses = await find("name", processName);
-  if (remainingProcesses.length > 0) {
-    console.warn(
-      `Warning: ${remainingProcesses.length} processes still running after kill attempt`,
-    );
   }
 }
 
@@ -222,11 +218,29 @@ export function spawnBinary(
       },
     });
 
+    // Close parent's copy of the file descriptors so the child owns them
+    // exclusively and node's event loop isn't held open.
+    fs.closeSync(out);
+    fs.closeSync(err);
+
+    // Allow node to exit without waiting for the detached child.
+    spawnedProcess.unref();
+
     spawnedProcess.on("close", async (code) => {
       console.log(`${binaryName} process exited with code ${code}`);
-      if (code !== 0 && binaryName.includes("prover")) {
-        console.error(`Prover process failed with exit code ${code}`);
-        await logProverFileContents();
+      if (code !== 0) {
+        console.error(`${binaryName} process failed with exit code ${code}`);
+        try {
+          const contents = fs.readFileSync(logPath, "utf8");
+          console.error(`--- ${binaryName}.log ---`);
+          console.error(contents);
+          console.error(`--- End of ${binaryName}.log ---`);
+        } catch {
+          // log file may not exist yet
+        }
+        if (binaryName.includes("prover")) {
+          await logProverFileContents();
+        }
       }
     });
 
