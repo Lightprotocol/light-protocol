@@ -127,6 +127,7 @@ runs:
         echo "CARGO_FEATURES=v2_ix" >> $GITHUB_ENV
         echo "REDIS_URL=redis://localhost:6379" >> $GITHUB_ENV
         echo "SBF_OUT_DIR=target/deploy" >> $GITHUB_ENV
+        echo "SBF_OUT_PATH=target/deploy" >> $GITHUB_ENV
 
     - name: Get pnpm store directory
       id: pnpm-store
