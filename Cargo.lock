@@ -6258,6 +6258,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "sdk-light-token-pinocchio-test"
+version = "0.1.0"
+dependencies = [
+ "anchor-spl",
+ "borsh 0.10.4",
+ "light-client",
+ "light-compressed-account",
+ "light-compressible",
+ "light-macros",
+ "light-program-test",
+ "light-sdk",
+ "light-test-utils",
+ "light-token",
+ "light-token-client",
+ "light-token-interface",
+ "light-token-pinocchio",
+ "light-token-types",
+ "pinocchio",
+ "solana-sdk",
+ "spl-pod",
+ "spl-token-2022 7.0.0",
+ "tokio",
+]
+
+[[package]]
 name = "sdk-light-token-test"
 version = "0.1.0"
 dependencies = [

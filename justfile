@@ -2,7 +2,6 @@
 set dotenv-load
 
 export SBF_OUT_DIR := "target/deploy"
-export SBF_OUT_PATH := "target/deploy"
 export REDIS_URL := env_var_or_default("REDIS_URL", "redis://localhost:6379")
 export CARGO_FEATURES := env_var_or_default("CARGO_FEATURES", "v2_ix")
 

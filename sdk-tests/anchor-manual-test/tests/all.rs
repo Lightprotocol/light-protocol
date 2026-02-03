@@ -10,6 +10,10 @@
 mod shared;
 
 use anchor_lang::{InstructionData, ToAccountMetas};
+use anchor_manual_test::{
+    CreateAllParams, MinimalRecord, ZeroCopyRecord, ALL_BORSH_SEED, ALL_MINT_SIGNER_SEED,
+    ALL_TOKEN_VAULT_SEED, ALL_ZERO_COPY_SEED,
+};
 use borsh::BorshDeserialize;
 use light_client::interface::{get_create_accounts_proof, CreateAccountsProofInput};
 use light_program_test::Rpc;
@@ -19,10 +23,6 @@ use light_token::instruction::{
 };
 use light_token_interface::state::{
     AccountState, BaseMint, Mint, MintMetadata, Token, ACCOUNT_TYPE_MINT,
-};
-use anchor_manual_test::{
-    CreateAllParams, MinimalRecord, ZeroCopyRecord, ALL_BORSH_SEED, ALL_MINT_SIGNER_SEED,
-    ALL_TOKEN_VAULT_SEED, ALL_ZERO_COPY_SEED,
 };
 use solana_sdk::{
     instruction::Instruction,

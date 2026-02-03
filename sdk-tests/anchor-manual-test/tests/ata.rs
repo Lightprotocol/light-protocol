@@ -3,13 +3,13 @@
 mod shared;
 
 use anchor_lang::{InstructionData, ToAccountMetas};
+use anchor_manual_test::CreateAtaParams;
 use borsh::BorshDeserialize;
 use light_program_test::Rpc;
 use light_token::instruction::{
     config_pda, derive_associated_token_account, rent_sponsor_pda, LIGHT_TOKEN_PROGRAM_ID,
 };
 use light_token_interface::state::{AccountState, Token};
-use anchor_manual_test::CreateAtaParams;
 use solana_sdk::{
     instruction::Instruction,
     signature::{Keypair, Signer},

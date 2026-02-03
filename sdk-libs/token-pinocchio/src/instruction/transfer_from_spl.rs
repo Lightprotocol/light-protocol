@@ -3,17 +3,20 @@
 use alloc::{vec, vec::Vec};
 
 use borsh::BorshSerialize;
-use light_account_checks::{AccountInfoTrait, CpiMeta};
 use light_token_interface::{
-    instructions::transfer2::{
-        Compression, CompressedTokenInstructionDataTransfer2, MultiTokenTransferOutputData,
-    },
+    instructions::transfer2::{CompressedTokenInstructionDataTransfer2, Compression},
     LIGHT_TOKEN_PROGRAM_ID,
 };
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
+use pinocchio::{
+    account_info::AccountInfo,
+    cpi::{slice_invoke, slice_invoke_signed},
+    instruction::{AccountMeta, Instruction, Signer},
+    program_error::ProgramError,
+    pubkey::Pubkey,
+};
 
 /// Discriminator for Transfer2 instruction
-const TRANSFER2_DISCRIMINATOR: u8 = 4;
+const TRANSFER2_DISCRIMINATOR: u8 = 101;
 
 /// Transfer from SPL token account to CToken account via CPI.
 ///
@@ -54,27 +57,30 @@ pub struct TransferFromSplCpi<'info> {
 
 impl<'info> TransferFromSplCpi<'info> {
     pub fn invoke(self) -> Result<(), ProgramError> {
-        let (ix_data, metas, account_infos) = self.build_instruction_inner()?;
-        AccountInfo::invoke_cpi(&LIGHT_TOKEN_PROGRAM_ID, &ix_data, &metas, &account_infos, &[])
-            .map_err(|_| ProgramError::Custom(0))
+        self.invoke_signed(&[])
     }
 
-    pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
-        let (ix_data, metas, account_infos) = self.build_instruction_inner()?;
-        AccountInfo::invoke_cpi(
-            &LIGHT_TOKEN_PROGRAM_ID,
-            &ix_data,
-            &metas,
-            &account_infos,
-            signer_seeds,
-        )
-        .map_err(|_| ProgramError::Custom(0))
+    pub fn invoke_signed(self, signers: &[Signer]) -> Result<(), ProgramError> {
+        let (ix_data, account_metas, account_infos) = self.build_instruction_inner()?;
+
+        let program_id = Pubkey::from(LIGHT_TOKEN_PROGRAM_ID);
+        let instruction = Instruction {
+            program_id: &program_id,
+            accounts: &account_metas,
+            data: &ix_data,
+        };
+
+        if signers.is_empty() {
+            slice_invoke(&instruction, &account_infos)
+        } else {
+            slice_invoke_signed(&instruction, &account_infos, signers)
+        }
     }
 
     #[allow(clippy::type_complexity)]
     fn build_instruction_inner(
         &self,
-    ) -> Result<(Vec<u8>, Vec<CpiMeta>, Vec<AccountInfo>), ProgramError> {
+    ) -> Result<(Vec<u8>, Vec<AccountMeta<'_>>, Vec<&AccountInfo>), ProgramError> {
         // Build compressions:
         // 1. Wrap SPL tokens to compressed pool
         // 2. Unwrap from pool to destination ctoken account
@@ -96,6 +102,9 @@ impl<'info> TransferFromSplCpi<'info> {
         );
 
         // Build instruction data
+        // Note: out_token_data must be empty for compressions-only (Path A) operations.
+        // The program determines the path based on: no_compressed_accounts = in_token_data.is_empty() && out_token_data.is_empty()
+        // If out_token_data is non-empty, the program expects Path B accounts (with light_system_program, registered_program_pda, etc.)
         let instruction_data = CompressedTokenInstructionDataTransfer2 {
             with_transaction_hash: false,
             with_lamports_change_account_merkle_tree_index: false,
@@ -107,10 +116,7 @@ impl<'info> TransferFromSplCpi<'info> {
             compressions: Some(vec![wrap_from_spl, unwrap_to_destination]),
             proof: None,
             in_token_data: vec![],
-            out_token_data: vec![
-                MultiTokenTransferOutputData::default(),
-                MultiTokenTransferOutputData::default(),
-            ],
+            out_token_data: vec![],
             in_lamports: None,
             out_lamports: None,
             in_tlv: None,
@@ -133,66 +139,30 @@ impl<'info> TransferFromSplCpi<'info> {
         //   - [4] SPL interface PDA (writable)
         //   - [5] SPL Token program (readonly)
         //   - [6] System program (readonly)
-        let metas = vec![
-            CpiMeta {
-                pubkey: *self.compressed_token_program_authority.key(),
-                is_signer: false,
-                is_writable: false,
-            },
-            CpiMeta {
-                pubkey: *self.payer.key(),
-                is_signer: true,
-                is_writable: true,
-            },
-            CpiMeta {
-                pubkey: *self.mint.key(),
-                is_signer: false,
-                is_writable: false,
-            },
-            CpiMeta {
-                pubkey: *self.destination.key(),
-                is_signer: false,
-                is_writable: true,
-            },
-            CpiMeta {
-                pubkey: *self.authority.key(),
-                is_signer: true,
-                is_writable: false,
-            },
-            CpiMeta {
-                pubkey: *self.source_spl_token_account.key(),
-                is_signer: false,
-                is_writable: true,
-            },
-            CpiMeta {
-                pubkey: *self.spl_interface_pda.key(),
-                is_signer: false,
-                is_writable: true,
-            },
-            CpiMeta {
-                pubkey: *self.spl_token_program.key(),
-                is_signer: false,
-                is_writable: false,
-            },
-            CpiMeta {
-                pubkey: *self.system_program.key(),
-                is_signer: false,
-                is_writable: false,
-            },
+        let account_metas = vec![
+            AccountMeta::readonly(self.compressed_token_program_authority.key()),
+            AccountMeta::writable_signer(self.payer.key()),
+            AccountMeta::readonly(self.mint.key()),
+            AccountMeta::writable(self.destination.key()),
+            AccountMeta::readonly_signer(self.authority.key()),
+            AccountMeta::writable(self.source_spl_token_account.key()),
+            AccountMeta::writable(self.spl_interface_pda.key()),
+            AccountMeta::readonly(self.spl_token_program.key()),
+            AccountMeta::readonly(self.system_program.key()),
         ];
 
         let account_infos = vec![
-            *self.compressed_token_program_authority,
-            *self.payer,
-            *self.mint,
-            *self.destination,
-            *self.authority,
-            *self.source_spl_token_account,
-            *self.spl_interface_pda,
-            *self.spl_token_program,
-            *self.system_program,
+            self.compressed_token_program_authority,
+            self.payer,
+            self.mint,
+            self.destination,
+            self.authority,
+            self.source_spl_token_account,
+            self.spl_interface_pda,
+            self.spl_token_program,
+            self.system_program,
         ];
 
-        Ok((ix_data, metas, account_infos))
+        Ok((ix_data, account_metas, account_infos))
     }
 }

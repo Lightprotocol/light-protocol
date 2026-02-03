@@ -1,0 +1,55 @@
+[package]
+name = "sdk-light-token-pinocchio-test"
+version = "0.1.0"
+description = "Pinocchio-based Solana program demonstrating compressed token operations"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "sdk_light_token_pinocchio_test"
+doctest = false
+
+[features]
+no-entrypoint = []
+test-sbf = []
+test-helpers = ["dep:light-program-test", "dep:solana-sdk"]
+default = []
+
+[dependencies]
+# Light Protocol SDK dependencies (workspace-based)
+light-token-pinocchio = { workspace = true }
+light-macros = { workspace = true }
+
+# Solana dependencies
+pinocchio = { workspace = true }
+
+# Serialization
+borsh = "0.10.4"
+
+# Optional test dependencies
+light-program-test = { workspace = true, optional = true }
+solana-sdk = { version = "2.2", optional = true }
+
+[dev-dependencies]
+light-program-test = { workspace = true, features = ["devenv"] }
+light-client = { workspace = true }
+light-compressible = { workspace = true }
+light-compressed-account = { workspace = true }
+light-token = { workspace = true }
+light-token-client = { workspace = true }
+light-token-interface = { workspace = true }
+light-token-types = { workspace = true }
+light-sdk = { workspace = true, features = ["v2"] }
+light-test-utils = { workspace = true, features = ["devenv"] }
+tokio = { version = "1.36.0", features = ["full"] }
+solana-sdk = "2.2"
+spl-token-2022 = { workspace = true }
+spl-pod = { workspace = true }
+anchor-spl = "0.31.1"
+
+[lints.rust.unexpected_cfgs]
+level = "allow"
+check-cfg = [
+    'cfg(target_os, values("solana"))',
+    'cfg(feature, values("frozen-abi", "no-entrypoint"))',
+]

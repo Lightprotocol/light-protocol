@@ -2,7 +2,6 @@
 
 use alloc::{vec, vec::Vec};
 
-use light_account_checks::{AccountInfoTrait, CpiMeta};
 use light_compressed_account::instruction_data::{
     compressed_proof::ValidityProof, traits::LightInstructionData,
 };
@@ -12,7 +11,13 @@ use light_token_interface::{
     },
     LIGHT_TOKEN_PROGRAM_ID,
 };
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
+use pinocchio::{
+    account_info::AccountInfo,
+    cpi::{slice_invoke, slice_invoke_signed},
+    instruction::{AccountMeta, Instruction, Signer},
+    program_error::ProgramError,
+    pubkey::Pubkey,
+};
 
 use crate::instruction::SystemAccountInfos;
 
@@ -71,33 +76,30 @@ pub struct DecompressMintCpi<'info> {
 
 impl<'info> DecompressMintCpi<'info> {
     pub fn invoke(self) -> Result<(), ProgramError> {
-        let (ix_data, metas, account_infos) = self.build_instruction_inner()?;
-        AccountInfo::invoke_cpi(
-            &LIGHT_TOKEN_PROGRAM_ID,
-            &ix_data,
-            &metas,
-            &account_infos,
-            &[],
-        )
-        .map_err(|_| ProgramError::Custom(0))
+        self.invoke_signed(&[])
     }
 
-    pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
-        let (ix_data, metas, account_infos) = self.build_instruction_inner()?;
-        AccountInfo::invoke_cpi(
-            &LIGHT_TOKEN_PROGRAM_ID,
-            &ix_data,
-            &metas,
-            &account_infos,
-            signer_seeds,
-        )
-        .map_err(|_| ProgramError::Custom(0))
+    pub fn invoke_signed(self, signers: &[Signer]) -> Result<(), ProgramError> {
+        let (ix_data, account_metas, account_infos) = self.build_instruction_inner()?;
+
+        let program_id = Pubkey::from(LIGHT_TOKEN_PROGRAM_ID);
+        let instruction = Instruction {
+            program_id: &program_id,
+            accounts: &account_metas,
+            data: &ix_data,
+        };
+
+        if signers.is_empty() {
+            slice_invoke(&instruction, &account_infos)
+        } else {
+            slice_invoke_signed(&instruction, &account_infos, signers)
+        }
     }
 
     #[allow(clippy::type_complexity)]
     fn build_instruction_inner(
         &self,
-    ) -> Result<(Vec<u8>, Vec<CpiMeta>, Vec<AccountInfo>), ProgramError> {
+    ) -> Result<(Vec<u8>, Vec<AccountMeta<'_>>, Vec<&AccountInfo>), ProgramError> {
         // Build DecompressMintAction
         let action = DecompressMintAction {
             rent_payment: self.rent_payment,
@@ -132,97 +134,41 @@ impl<'info> DecompressMintCpi<'info> {
         // 13. tree_pubkey (state_tree, writable)
         // 14. input_queue (writable)
 
-        let metas = vec![
-            CpiMeta {
-                pubkey: *self.system_accounts.light_system_program.key(),
-                is_signer: false,
-                is_writable: false,
-            },
-            CpiMeta {
-                pubkey: *self.authority.key(),
-                is_signer: true,
-                is_writable: false,
-            },
-            CpiMeta {
-                pubkey: *self.compressible_config.key(),
-                is_signer: false,
-                is_writable: false,
-            },
-            CpiMeta {
-                pubkey: *self.mint.key(),
-                is_signer: false,
-                is_writable: true,
-            },
-            CpiMeta {
-                pubkey: *self.rent_sponsor.key(),
-                is_signer: false,
-                is_writable: true,
-            },
-            CpiMeta {
-                pubkey: *self.payer.key(),
-                is_signer: true,
-                is_writable: true,
-            },
-            CpiMeta {
-                pubkey: *self.system_accounts.cpi_authority_pda.key(),
-                is_signer: false,
-                is_writable: false,
-            },
-            CpiMeta {
-                pubkey: *self.system_accounts.registered_program_pda.key(),
-                is_signer: false,
-                is_writable: false,
-            },
-            CpiMeta {
-                pubkey: *self.system_accounts.account_compression_authority.key(),
-                is_signer: false,
-                is_writable: false,
-            },
-            CpiMeta {
-                pubkey: *self.system_accounts.account_compression_program.key(),
-                is_signer: false,
-                is_writable: false,
-            },
-            CpiMeta {
-                pubkey: *self.system_accounts.system_program.key(),
-                is_signer: false,
-                is_writable: false,
-            },
-            CpiMeta {
-                pubkey: *self.output_queue.key(),
-                is_signer: false,
-                is_writable: true,
-            },
-            CpiMeta {
-                pubkey: *self.state_tree.key(),
-                is_signer: false,
-                is_writable: true,
-            },
-            CpiMeta {
-                pubkey: *self.input_queue.key(),
-                is_signer: false,
-                is_writable: true,
-            },
+        let account_metas = vec![
+            AccountMeta::readonly(self.system_accounts.light_system_program.key()),
+            AccountMeta::readonly_signer(self.authority.key()),
+            AccountMeta::readonly(self.compressible_config.key()),
+            AccountMeta::writable(self.mint.key()),
+            AccountMeta::writable(self.rent_sponsor.key()),
+            AccountMeta::writable_signer(self.payer.key()),
+            AccountMeta::readonly(self.system_accounts.cpi_authority_pda.key()),
+            AccountMeta::readonly(self.system_accounts.registered_program_pda.key()),
+            AccountMeta::readonly(self.system_accounts.account_compression_authority.key()),
+            AccountMeta::readonly(self.system_accounts.account_compression_program.key()),
+            AccountMeta::readonly(self.system_accounts.system_program.key()),
+            AccountMeta::writable(self.output_queue.key()),
+            AccountMeta::writable(self.state_tree.key()),
+            AccountMeta::writable(self.input_queue.key()),
         ];
 
         let account_infos = vec![
-            *self.system_accounts.light_system_program,
-            *self.authority,
-            *self.compressible_config,
-            *self.mint,
-            *self.rent_sponsor,
-            *self.payer,
-            *self.system_accounts.cpi_authority_pda,
-            *self.system_accounts.registered_program_pda,
-            *self.system_accounts.account_compression_authority,
-            *self.system_accounts.account_compression_program,
-            *self.system_accounts.system_program,
-            *self.output_queue,
-            *self.state_tree,
-            *self.input_queue,
+            self.system_accounts.light_system_program,
+            self.authority,
+            self.compressible_config,
+            self.mint,
+            self.rent_sponsor,
+            self.payer,
+            self.system_accounts.cpi_authority_pda,
+            self.system_accounts.registered_program_pda,
+            self.system_accounts.account_compression_authority,
+            self.system_accounts.account_compression_program,
+            self.system_accounts.system_program,
+            self.output_queue,
+            self.state_tree,
+            self.input_queue,
         ];
 
-        Ok((ix_data, metas, account_infos))
+        Ok((ix_data, account_metas, account_infos))
     }
 }
 

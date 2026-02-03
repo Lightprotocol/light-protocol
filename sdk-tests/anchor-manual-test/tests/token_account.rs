@@ -3,11 +3,11 @@
 mod shared;
 
 use anchor_lang::{InstructionData, ToAccountMetas};
+use anchor_manual_test::{CreateTokenVaultParams, TOKEN_VAULT_SEED};
 use borsh::BorshDeserialize;
 use light_program_test::Rpc;
 use light_token::instruction::{config_pda, rent_sponsor_pda, LIGHT_TOKEN_PROGRAM_ID};
 use light_token_interface::state::{AccountState, Token};
-use anchor_manual_test::{CreateTokenVaultParams, TOKEN_VAULT_SEED};
 use solana_sdk::{
     instruction::Instruction,
     pubkey::Pubkey,

@@ -3,6 +3,7 @@
 mod shared;
 
 use anchor_lang::{InstructionData, ToAccountMetas};
+use anchor_manual_test::{CreateDerivedMintsParams, MINT_SIGNER_0_SEED, MINT_SIGNER_1_SEED};
 use borsh::BorshDeserialize;
 use light_client::interface::{get_create_accounts_proof, CreateAccountsProofInput};
 use light_program_test::Rpc;
@@ -10,7 +11,6 @@ use light_token::instruction::{
     config_pda, find_mint_address, rent_sponsor_pda, LIGHT_TOKEN_PROGRAM_ID,
 };
 use light_token_interface::state::{BaseMint, Mint, MintMetadata, ACCOUNT_TYPE_MINT};
-use anchor_manual_test::{CreateDerivedMintsParams, MINT_SIGNER_0_SEED, MINT_SIGNER_1_SEED};
 use solana_sdk::{
     instruction::Instruction,
     pubkey::Pubkey,

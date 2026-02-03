@@ -5,9 +5,7 @@
 
 #![allow(deprecated)]
 
-use light_account_pinocchio::{
-    derive_light_cpi_signer, CpiSigner, LightFinalize, LightPreInit, LightProgramPinocchio,
-};
+use light_account_pinocchio::{derive_light_cpi_signer, CpiSigner, LightProgramPinocchio};
 use light_macros::pubkey_array;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
@@ -145,11 +143,7 @@ fn process_create_pda(accounts: &[AccountInfo], data: &[u8]) -> Result<(), Progr
 
     let remaining_start = CreatePda::FIXED_LEN;
     let (fixed_accounts, remaining_accounts) = accounts.split_at(remaining_start);
-    let mut ctx = CreatePda::parse(fixed_accounts, &params)?;
-
-    let has_pre_init = ctx
-        .light_pre_init(remaining_accounts, &params)
-        .map_err(|e| ProgramError::Custom(u32::from(e)))?;
+    let ctx = CreatePda::parse(fixed_accounts, &params)?;
 
     // Business logic: set account data
     {
@@ -164,7 +158,7 @@ fn process_create_pda(accounts: &[AccountInfo], data: &[u8]) -> Result<(), Progr
         account_data[8..8 + serialized.len()].copy_from_slice(&serialized);
     }
 
-    ctx.light_finalize(remaining_accounts, &params, has_pre_init)
+    pda::processor::process(&ctx, &params, remaining_accounts)
         .map_err(|e| ProgramError::Custom(u32::from(e)))?;
 
     Ok(())
@@ -179,13 +173,9 @@ fn process_create_ata(accounts: &[AccountInfo], data: &[u8]) -> Result<(), Progr
 
     let remaining_start = CreateAtaAccounts::FIXED_LEN;
     let (fixed_accounts, remaining_accounts) = accounts.split_at(remaining_start);
-    let mut ctx = CreateAtaAccounts::parse(fixed_accounts)?;
+    let ctx = CreateAtaAccounts::parse(fixed_accounts)?;
 
-    let has_pre_init = ctx
-        .light_pre_init(remaining_accounts, &params)
-        .map_err(|e| ProgramError::Custom(u32::from(e)))?;
-
-    ctx.light_finalize(remaining_accounts, &params, has_pre_init)
+    ata::processor::process(&ctx, &params, remaining_accounts)
         .map_err(|e| ProgramError::Custom(u32::from(e)))?;
 
     Ok(())
@@ -200,13 +190,9 @@ fn process_create_token_vault(accounts: &[AccountInfo], data: &[u8]) -> Result<(
 
     let remaining_start = CreateTokenVaultAccounts::FIXED_LEN;
     let (fixed_accounts, remaining_accounts) = accounts.split_at(remaining_start);
-    let mut ctx = CreateTokenVaultAccounts::parse(fixed_accounts)?;
+    let ctx = CreateTokenVaultAccounts::parse(fixed_accounts)?;
 
-    let has_pre_init = ctx
-        .light_pre_init(remaining_accounts, &params)
-        .map_err(|e| ProgramError::Custom(u32::from(e)))?;
-
-    ctx.light_finalize(remaining_accounts, &params, has_pre_init)
+    token_account::processor::process(&ctx, &params, remaining_accounts)
         .map_err(|e| ProgramError::Custom(u32::from(e)))?;
 
     Ok(())
@@ -224,11 +210,7 @@ fn process_create_zero_copy_record(
 
     let remaining_start = CreateZeroCopyRecord::FIXED_LEN;
     let (fixed_accounts, remaining_accounts) = accounts.split_at(remaining_start);
-    let mut ctx = CreateZeroCopyRecord::parse(fixed_accounts, &params)?;
-
-    let has_pre_init = ctx
-        .light_pre_init(remaining_accounts, &params)
-        .map_err(|e| ProgramError::Custom(u32::from(e)))?;
+    let ctx = CreateZeroCopyRecord::parse(fixed_accounts, &params)?;
 
     // Business logic: set zero-copy account data
     {
@@ -241,7 +223,7 @@ fn process_create_zero_copy_record(
         record.owner = params.owner;
     }
 
-    ctx.light_finalize(remaining_accounts, &params, has_pre_init)
+    account_loader::processor::process(&ctx, &params, remaining_accounts)
         .map_err(|e| ProgramError::Custom(u32::from(e)))?;
 
     Ok(())
@@ -256,13 +238,9 @@ fn process_create_mint(accounts: &[AccountInfo], data: &[u8]) -> Result<(), Prog
 
     let remaining_start = CreateMintAccounts::FIXED_LEN;
     let (fixed_accounts, remaining_accounts) = accounts.split_at(remaining_start);
-    let mut ctx = CreateMintAccounts::parse(fixed_accounts, &params)?;
+    let ctx = CreateMintAccounts::parse(fixed_accounts, &params)?;
 
-    let has_pre_init = ctx
-        .light_pre_init(remaining_accounts, &params)
-        .map_err(|e| ProgramError::Custom(u32::from(e)))?;
-
-    ctx.light_finalize(remaining_accounts, &params, has_pre_init)
+    mint::processor::process(&ctx, &params, remaining_accounts)
         .map_err(|e| ProgramError::Custom(u32::from(e)))?;
 
     Ok(())
@@ -277,13 +255,9 @@ fn process_create_two_mints(accounts: &[AccountInfo], data: &[u8]) -> Result<(),
 
     let remaining_start = CreateTwoMintsAccounts::FIXED_LEN;
     let (fixed_accounts, remaining_accounts) = accounts.split_at(remaining_start);
-    let mut ctx = CreateTwoMintsAccounts::parse(fixed_accounts, &params)?;
+    let ctx = CreateTwoMintsAccounts::parse(fixed_accounts, &params)?;
 
-    let has_pre_init = ctx
-        .light_pre_init(remaining_accounts, &params)
-        .map_err(|e| ProgramError::Custom(u32::from(e)))?;
-
-    ctx.light_finalize(remaining_accounts, &params, has_pre_init)
+    two_mints::processor::process(&ctx, &params, remaining_accounts)
         .map_err(|e| ProgramError::Custom(u32::from(e)))?;
 
     Ok(())
@@ -298,11 +272,7 @@ fn process_create_all(accounts: &[AccountInfo], data: &[u8]) -> Result<(), Progr
 
     let remaining_start = CreateAllAccounts::FIXED_LEN;
     let (fixed_accounts, remaining_accounts) = accounts.split_at(remaining_start);
-    let mut ctx = CreateAllAccounts::parse(fixed_accounts, &params)?;
-
-    let has_pre_init = ctx
-        .light_pre_init(remaining_accounts, &params)
-        .map_err(|e| ProgramError::Custom(u32::from(e)))?;
+    let ctx = CreateAllAccounts::parse(fixed_accounts, &params)?;
 
     // Business logic: set PDA data
     {
@@ -326,7 +296,7 @@ fn process_create_all(accounts: &[AccountInfo], data: &[u8]) -> Result<(), Progr
         record.owner = params.owner;
     }
 
-    ctx.light_finalize(remaining_accounts, &params, has_pre_init)
+    all::processor::process(&ctx, &params, remaining_accounts)
         .map_err(|e| ProgramError::Custom(u32::from(e)))?;
 
     Ok(())

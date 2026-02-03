@@ -1,11 +1,19 @@
 //! Unified transfer interface that auto-routes based on account types.
 
 use light_token_interface::LIGHT_TOKEN_PROGRAM_ID;
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
+use pinocchio::{
+    account_info::AccountInfo,
+    cpi::{invoke, slice_invoke_signed},
+    instruction::{AccountMeta, Instruction, Signer},
+    program_error::ProgramError,
+};
 
 use super::{
     transfer::TransferCpi, transfer_from_spl::TransferFromSplCpi, transfer_to_spl::TransferToSplCpi,
 };
+
+/// SPL Token transfer_checked instruction discriminator
+const SPL_TRANSFER_CHECKED_DISCRIMINATOR: u8 = 12;
 
 /// Check if an account is owned by the Light Token program.
 fn is_light_token_owner(owner: &[u8; 32]) -> bool {
@@ -76,8 +84,6 @@ pub struct TransferInterfaceCpi<'info> {
     pub spl_interface: Option<SplInterfaceCpi<'info>>,
     /// System program - required for compressible account lamport top-ups
     pub system_program: &'info AccountInfo,
-    /// Maximum lamports for rent and top-up combined (for light->light transfers)
-    pub max_top_up: Option<u16>,
 }
 
 impl<'info> TransferInterfaceCpi<'info> {
@@ -103,19 +109,12 @@ impl<'info> TransferInterfaceCpi<'info> {
             compressed_token_program_authority,
             spl_interface: None,
             system_program,
-            max_top_up: None,
         }
     }
 
     /// Add SPL interface accounts (required for SPL<->light transfers).
     pub fn with_spl_interface(mut self, spl_interface: SplInterfaceCpi<'info>) -> Self {
         self.spl_interface = Some(spl_interface);
-        self
-    }
-
-    /// Set max top-up lamports (for light->light transfers).
-    pub fn with_max_top_up(mut self, max_top_up: u16) -> Self {
-        self.max_top_up = Some(max_top_up);
         self
     }
 
@@ -127,23 +126,18 @@ impl<'info> TransferInterfaceCpi<'info> {
         );
 
         match transfer_type {
-            TransferType::LightToLight => {
-                TransferCpi {
-                    source: self.source_account,
-                    destination: self.destination_account,
-                    amount: self.amount,
-                    authority: self.authority,
-                    system_program: self.system_program,
-                    max_top_up: self.max_top_up,
-                    fee_payer: None,
-                }
-                .invoke()
+            TransferType::LightToLight => TransferCpi {
+                source: self.source_account,
+                destination: self.destination_account,
+                amount: self.amount,
+                authority: self.authority,
+                system_program: self.system_program,
+                fee_payer: None,
             }
+            .invoke(),
 
             TransferType::LightToSpl => {
-                let spl = self
-                    .spl_interface
-                    .ok_or(ProgramError::InvalidAccountData)?;
+                let spl = self.spl_interface.ok_or(ProgramError::InvalidAccountData)?;
                 TransferToSplCpi {
                     source: self.source_account,
                     destination_spl_token_account: self.destination_account,
@@ -161,9 +155,7 @@ impl<'info> TransferInterfaceCpi<'info> {
             }
 
             TransferType::SplToLight => {
-                let spl = self
-                    .spl_interface
-                    .ok_or(ProgramError::InvalidAccountData)?;
+                let spl = self.spl_interface.ok_or(ProgramError::InvalidAccountData)?;
                 TransferFromSplCpi {
                     amount: self.amount,
                     spl_interface_pda_bump: spl.spl_interface_pda_bump,
@@ -182,40 +174,66 @@ impl<'info> TransferInterfaceCpi<'info> {
             }
 
             TransferType::SplToSpl => {
-                // For SPL-to-SPL, delegate to the SPL token program directly
-                // Caller should use SPL token program directly, not Light Token interface
-                Err(ProgramError::Custom(
-                    crate::error::LightTokenError::UseRegularSplTransfer as u32,
-                ))
+                // For SPL-to-SPL, invoke SPL token program directly via transfer_checked
+                let spl = self.spl_interface.ok_or(ProgramError::InvalidAccountData)?;
+
+                // Build SPL transfer_checked instruction data: [12, amount(8), decimals(1)]
+                let mut ix_data = [0u8; 10];
+                ix_data[0] = SPL_TRANSFER_CHECKED_DISCRIMINATOR;
+                ix_data[1..9].copy_from_slice(&self.amount.to_le_bytes());
+                ix_data[9] = self.decimals;
+
+                // Account order for SPL transfer_checked:
+                // [0] source (writable)
+                // [1] mint (readonly)
+                // [2] destination (writable)
+                // [3] authority (signer)
+                let account_metas = [
+                    AccountMeta::writable(self.source_account.key()),
+                    AccountMeta::readonly(spl.mint.key()),
+                    AccountMeta::writable(self.destination_account.key()),
+                    AccountMeta::readonly_signer(self.authority.key()),
+                ];
+
+                // SPL token program ID from source account owner (Pubkey = [u8; 32])
+                let instruction = Instruction {
+                    program_id: self.source_account.owner(),
+                    accounts: &account_metas,
+                    data: &ix_data,
+                };
+
+                let account_infos = [
+                    self.source_account,
+                    spl.mint,
+                    self.destination_account,
+                    self.authority,
+                ];
+
+                invoke(&instruction, &account_infos)
             }
         }
     }
 
     /// Invoke with signer seeds.
-    pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
+    pub fn invoke_signed(self, signers: &[Signer]) -> Result<(), ProgramError> {
         let transfer_type = determine_transfer_type(
             self.source_account.owner(),
             self.destination_account.owner(),
         );
 
         match transfer_type {
-            TransferType::LightToLight => {
-                TransferCpi {
-                    source: self.source_account,
-                    destination: self.destination_account,
-                    amount: self.amount,
-                    authority: self.authority,
-                    system_program: self.system_program,
-                    max_top_up: self.max_top_up,
-                    fee_payer: None,
-                }
-                .invoke_signed(signer_seeds)
+            TransferType::LightToLight => TransferCpi {
+                source: self.source_account,
+                destination: self.destination_account,
+                amount: self.amount,
+                authority: self.authority,
+                system_program: self.system_program,
+                fee_payer: None,
             }
+            .invoke_signed(signers),
 
             TransferType::LightToSpl => {
-                let spl = self
-                    .spl_interface
-                    .ok_or(ProgramError::InvalidAccountData)?;
+                let spl = self.spl_interface.ok_or(ProgramError::InvalidAccountData)?;
                 TransferToSplCpi {
                     source: self.source_account,
                     destination_spl_token_account: self.destination_account,
@@ -229,13 +247,11 @@ impl<'info> TransferInterfaceCpi<'info> {
                     spl_token_program: spl.spl_token_program,
                     compressed_token_program_authority: self.compressed_token_program_authority,
                 }
-                .invoke_signed(signer_seeds)
+                .invoke_signed(signers)
             }
 
             TransferType::SplToLight => {
-                let spl = self
-                    .spl_interface
-                    .ok_or(ProgramError::InvalidAccountData)?;
+                let spl = self.spl_interface.ok_or(ProgramError::InvalidAccountData)?;
                 TransferFromSplCpi {
                     amount: self.amount,
                     spl_interface_pda_bump: spl.spl_interface_pda_bump,
@@ -250,15 +266,46 @@ impl<'info> TransferInterfaceCpi<'info> {
                     compressed_token_program_authority: self.compressed_token_program_authority,
                     system_program: self.system_program,
                 }
-                .invoke_signed(signer_seeds)
+                .invoke_signed(signers)
             }
 
             TransferType::SplToSpl => {
-                // For SPL-to-SPL, delegate to the SPL token program directly
-                // Caller should use SPL token program directly, not Light Token interface
-                Err(ProgramError::Custom(
-                    crate::error::LightTokenError::UseRegularSplTransfer as u32,
-                ))
+                // For SPL-to-SPL, invoke SPL token program directly via transfer_checked
+                let spl = self.spl_interface.ok_or(ProgramError::InvalidAccountData)?;
+
+                // Build SPL transfer_checked instruction data: [12, amount(8), decimals(1)]
+                let mut ix_data = [0u8; 10];
+                ix_data[0] = SPL_TRANSFER_CHECKED_DISCRIMINATOR;
+                ix_data[1..9].copy_from_slice(&self.amount.to_le_bytes());
+                ix_data[9] = self.decimals;
+
+                // Account order for SPL transfer_checked:
+                // [0] source (writable)
+                // [1] mint (readonly)
+                // [2] destination (writable)
+                // [3] authority (signer)
+                let account_metas = [
+                    AccountMeta::writable(self.source_account.key()),
+                    AccountMeta::readonly(spl.mint.key()),
+                    AccountMeta::writable(self.destination_account.key()),
+                    AccountMeta::readonly_signer(self.authority.key()),
+                ];
+
+                // SPL token program ID from source account owner (Pubkey = [u8; 32])
+                let instruction = Instruction {
+                    program_id: self.source_account.owner(),
+                    accounts: &account_metas,
+                    data: &ix_data,
+                };
+
+                let account_infos = [
+                    self.source_account,
+                    spl.mint,
+                    self.destination_account,
+                    self.authority,
+                ];
+
+                slice_invoke_signed(&instruction, &account_infos, signers)
             }
         }
     }

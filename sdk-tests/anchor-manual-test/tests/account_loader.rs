@@ -6,6 +6,9 @@
 mod shared;
 
 use anchor_lang::{Discriminator, InstructionData, ToAccountMetas};
+use anchor_manual_test::{
+    CreateZeroCopyParams, ZeroCopyRecord, ZeroCopyRecordSeeds, ZeroCopyRecordVariant,
+};
 use light_account::IntoVariant;
 use light_client::interface::{
     create_load_instructions, get_create_accounts_proof, AccountInterfaceExt, AccountSpec,
@@ -13,9 +16,6 @@ use light_client::interface::{
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{program_test::TestRpc, Indexer, Rpc};
-use anchor_manual_test::{
-    CreateZeroCopyParams, ZeroCopyRecord, ZeroCopyRecordSeeds, ZeroCopyRecordVariant,
-};
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;

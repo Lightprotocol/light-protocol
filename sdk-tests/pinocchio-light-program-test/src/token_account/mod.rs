@@ -1,4 +1,4 @@
 pub mod accounts;
-mod derived;
+pub mod processor;
 
 pub use accounts::*;

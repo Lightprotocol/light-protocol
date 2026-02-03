@@ -17,7 +17,8 @@
 //!
 //! ## Mint Operations
 //!
-//! - [`CreateMintsCpi`] - Create compressed mints
+//! - [`CreateMintCpi`] - Create single compressed mint via CPI
+//! - [`CreateMintsCpi`] - Batch create compressed mints via CPI
 //! - [`DecompressMintCpi`] - Decompress compressed mint to Solana Mint account
 //! - [`MintToCpi`] - Mint tokens to Light Token accounts
 //!
@@ -38,6 +39,7 @@ mod compressible;
 mod create;
 mod create_ata;
 mod create_mint;
+mod create_mints;
 mod decompress_mint;
 mod freeze;
 mod mint_to;
@@ -61,17 +63,27 @@ pub use create_ata::{
     CreateTokenAtaRentFreeCpi,
 };
 pub use create_mint::*;
+pub use create_mints::{
+    derive_mint_compressed_address as derive_mint_compressed_address_batch,
+    find_mint_address as find_mint_address_batch, get_output_queue_next_index, CreateMintsCpi,
+    CreateMintsInfraAccounts, CreateMintsParams, SingleMintParams, DEFAULT_RENT_PAYMENT,
+    DEFAULT_WRITE_TOP_UP,
+};
 pub use decompress_mint::{
     create_decompress_mint_cpi_context_execute, create_decompress_mint_cpi_context_first,
     create_decompress_mint_cpi_context_set, DecompressMintCpi,
 };
 pub use freeze::*;
 pub use light_token_interface::{
-    instructions::extensions::{CompressToPubkey, ExtensionInstructionData, TokenMetadataInstructionData},
+    instructions::{
+        extensions::{CompressToPubkey, ExtensionInstructionData, TokenMetadataInstructionData},
+        mint_action::MintWithContext,
+    },
     state::{AdditionalMetadata, Token, TokenDataVersion},
 };
 pub use mint_to::*;
 pub use mint_to_checked::*;
+use pinocchio::account_info::AccountInfo;
 pub use revoke::*;
 pub use thaw::*;
 pub use transfer::*;
@@ -79,8 +91,6 @@ pub use transfer_checked::*;
 pub use transfer_from_spl::TransferFromSplCpi;
 pub use transfer_interface::{SplInterfaceCpi, TransferInterfaceCpi};
 pub use transfer_to_spl::TransferToSplCpi;
-
-use pinocchio::account_info::AccountInfo;
 
 /// System accounts required for CPI operations to Light Protocol.
 ///
