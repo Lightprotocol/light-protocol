@@ -2,11 +2,12 @@
 //! Uses different seeds than pda/account_loader modules but reuses the data types.
 
 use borsh::{BorshDeserialize, BorshSerialize};
+#[cfg(not(target_os = "solana"))]
+use light_account_pinocchio::AccountInfo;
 use light_account_pinocchio::{
     light_account_checks::{self, packed_accounts::ProgramPackedAccounts},
     LightAccount, LightAccountVariantTrait, LightSdkTypesError, PackedLightAccountVariantTrait,
 };
-use pinocchio::account_info::AccountInfo;
 
 use super::accounts::{ALL_BORSH_SEED, ALL_ZERO_COPY_SEED};
 use crate::{

@@ -310,6 +310,7 @@ pub(crate) mod __client_accounts_empty_accounts {
 
 pub(crate) mod __cpi_client_accounts_empty_accounts {
     use super::*;
+    #[allow(dead_code)]
     pub struct EmptyAccounts<'info>(PhantomData<&'info ()>);
     impl<'info> anchor_lang::ToAccountMetas for EmptyAccounts<'info> {
         fn to_account_metas(

@@ -1,8 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_account_pinocchio::{
-    light_account_checks::{
-        packed_accounts::ProgramPackedAccounts, AccountInfoTrait, AccountMetaTrait,
-    },
+    light_account_checks::{packed_accounts::ProgramPackedAccounts, AccountInfoTrait},
     AccountType, CompressionInfo, HasCompressionInfo, LightAccount, LightConfig,
     LightSdkTypesError,
 };
@@ -46,7 +44,7 @@ impl LightAccount for MinimalRecord {
     }
 
     #[cfg(not(target_os = "solana"))]
-    fn pack<AM: AccountMetaTrait>(
+    fn pack<AM: light_account_pinocchio::AccountMetaTrait>(
         &self,
         accounts: &mut light_account_pinocchio::interface::instruction::PackedAccounts<AM>,
     ) -> std::result::Result<Self::Packed, LightSdkTypesError> {

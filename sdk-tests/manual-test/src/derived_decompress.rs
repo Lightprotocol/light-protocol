@@ -95,6 +95,7 @@ pub(crate) mod __client_accounts_decompress_idempotent {
 
 pub(crate) mod __cpi_client_accounts_decompress_idempotent {
     use super::*;
+    #[allow(dead_code)]
     pub struct DecompressIdempotent<'info>(PhantomData<&'info ()>);
     impl<'info> anchor_lang::ToAccountMetas for DecompressIdempotent<'info> {
         fn to_account_metas(

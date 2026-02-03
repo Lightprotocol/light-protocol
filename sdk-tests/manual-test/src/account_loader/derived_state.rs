@@ -5,9 +5,7 @@
 
 use anchor_lang::prelude::*;
 use light_account::{
-    light_account_checks::{
-        packed_accounts::ProgramPackedAccounts, AccountInfoTrait, AccountMetaTrait,
-    },
+    light_account_checks::{packed_accounts::ProgramPackedAccounts, AccountInfoTrait},
     AccountType, CompressionInfo, HasCompressionInfo, LightAccount, LightConfig,
     LightSdkTypesError,
 };
@@ -53,7 +51,7 @@ impl LightAccount for ZeroCopyRecord {
     }
 
     #[cfg(not(target_os = "solana"))]
-    fn pack<AM: AccountMetaTrait>(
+    fn pack<AM: light_account::AccountMetaTrait>(
         &self,
         accounts: &mut light_account::interface::instruction::PackedAccounts<AM>,
     ) -> std::result::Result<Self::Packed, LightSdkTypesError> {

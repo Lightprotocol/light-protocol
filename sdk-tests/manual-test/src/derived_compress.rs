@@ -97,6 +97,7 @@ pub(crate) mod __client_accounts_compress_and_close {
 
 pub(crate) mod __cpi_client_accounts_compress_and_close {
     use super::*;
+    #[allow(dead_code)]
     pub struct CompressAndClose<'info>(PhantomData<&'info ()>);
     impl<'info> anchor_lang::ToAccountMetas for CompressAndClose<'info> {
         fn to_account_metas(
