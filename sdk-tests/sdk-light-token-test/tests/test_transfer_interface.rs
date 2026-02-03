@@ -13,7 +13,7 @@ use light_token::{
     spl_interface::find_spl_interface_pda_with_index,
 };
 use light_token_types::CPI_AUTHORITY_PDA;
-use native_ctoken_examples::{TransferInterfaceData, ID, TRANSFER_INTERFACE_AUTHORITY_SEED};
+use sdk_light_token_test::{TransferInterfaceData, ID, TRANSFER_INTERFACE_AUTHORITY_SEED};
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
@@ -30,7 +30,7 @@ use solana_sdk::{
 async fn test_transfer_interface_spl_to_ctoken_invoke() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
         false,
-        Some(vec![("native_ctoken_examples", ID)]),
+        Some(vec![("sdk_light_token_test", ID)]),
     ))
     .await
     .unwrap();
@@ -139,7 +139,7 @@ async fn test_transfer_interface_spl_to_ctoken_invoke() {
 async fn test_transfer_interface_ctoken_to_spl_invoke() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
         false,
-        Some(vec![("native_ctoken_examples", ID)]),
+        Some(vec![("sdk_light_token_test", ID)]),
     ))
     .await
     .unwrap();
@@ -277,7 +277,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke() {
 async fn test_transfer_interface_ctoken_to_ctoken_invoke() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
         false,
-        Some(vec![("native_ctoken_examples", ID)]),
+        Some(vec![("sdk_light_token_test", ID)]),
     ))
     .await
     .unwrap();
@@ -425,7 +425,7 @@ async fn test_transfer_interface_spl_to_ctoken_invoke_signed() {
 
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
         false,
-        Some(vec![("native_ctoken_examples", ID)]),
+        Some(vec![("sdk_light_token_test", ID)]),
     ))
     .await
     .unwrap();
@@ -536,7 +536,7 @@ async fn test_transfer_interface_spl_to_ctoken_invoke_signed() {
 async fn test_transfer_interface_ctoken_to_spl_invoke_signed() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
         false,
-        Some(vec![("native_ctoken_examples", ID)]),
+        Some(vec![("sdk_light_token_test", ID)]),
     ))
     .await
     .unwrap();
@@ -697,7 +697,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke_signed() {
 async fn test_transfer_interface_ctoken_to_ctoken_invoke_signed() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
         false,
-        Some(vec![("native_ctoken_examples", ID)]),
+        Some(vec![("sdk_light_token_test", ID)]),
     ))
     .await
     .unwrap();
@@ -853,7 +853,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke_signed() {
 async fn test_transfer_interface_spl_to_spl_invoke() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
         false,
-        Some(vec![("native_ctoken_examples", ID)]),
+        Some(vec![("sdk_light_token_test", ID)]),
     ))
     .await
     .unwrap();
@@ -967,7 +967,7 @@ async fn test_transfer_interface_spl_to_spl_invoke_signed() {
 
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
         false,
-        Some(vec![("native_ctoken_examples", ID)]),
+        Some(vec![("sdk_light_token_test", ID)]),
     ))
     .await
     .unwrap();
@@ -1084,7 +1084,7 @@ async fn test_transfer_interface_t22_to_t22_invoke() {
 
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
         false,
-        Some(vec![("native_ctoken_examples", ID)]),
+        Some(vec![("sdk_light_token_test", ID)]),
     ))
     .await
     .unwrap();
@@ -1199,7 +1199,7 @@ async fn test_transfer_interface_t22_to_t22_invoke_signed() {
 
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
         false,
-        Some(vec![("native_ctoken_examples", ID)]),
+        Some(vec![("sdk_light_token_test", ID)]),
     ))
     .await
     .unwrap();

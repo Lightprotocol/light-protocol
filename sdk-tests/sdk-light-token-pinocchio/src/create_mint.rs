@@ -1,9 +1,8 @@
 use alloc::vec::Vec;
 
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_token_pinocchio::{
-    instruction::{CreateMintCpi, CreateMintParams, ExtensionInstructionData, SystemAccountInfos},
-    CompressedProof,
+use light_token_pinocchio::instruction::{
+    CompressedProof, CreateMintCpi, CreateMintParams, ExtensionInstructionData, SystemAccountInfos,
 };
 use pinocchio::{
     account_info::AccountInfo,

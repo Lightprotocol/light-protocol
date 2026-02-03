@@ -74,6 +74,9 @@ pub use decompress_mint::{
     create_decompress_mint_cpi_context_set, DecompressMintCpi,
 };
 pub use freeze::*;
+pub use light_compressed_account::instruction_data::compressed_proof::{
+    CompressedProof, ValidityProof,
+};
 pub use light_token_interface::{
     instructions::{
         extensions::{CompressToPubkey, ExtensionInstructionData, TokenMetadataInstructionData},
@@ -91,7 +94,6 @@ pub use transfer_checked::*;
 pub use transfer_from_spl::TransferFromSplCpi;
 pub use transfer_interface::{SplInterfaceCpi, TransferInterfaceCpi};
 pub use transfer_to_spl::TransferToSplCpi;
-
 /// System accounts required for CPI operations to Light Protocol.
 ///
 /// Pass these accounts when invoking compressed token operations from your program.

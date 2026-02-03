@@ -22,6 +22,9 @@
 //! | Close Account | [`CloseAccountCpi`](instruction::CloseAccountCpi) |
 //! | Create Token Account | [`CreateTokenAccountCpi`](instruction::CreateTokenAccountCpi) |
 //! | Create Token ATA | [`CreateTokenAtaCpi`](instruction::CreateTokenAtaCpi) |
+//! | Create Mint | [`CreateMintCpi`](instruction::CreateMintCpi) |
+//! | Create Mints (Batch) | [`CreateMintsCpi`](instruction::CreateMintsCpi) |
+//! | Decompress Mint | [`DecompressMintCpi`](instruction::DecompressMintCpi) |
 //!
 //! ## Example: Transfer via CPI
 //!
@@ -47,9 +50,3 @@ extern crate alloc;
 pub mod constants;
 pub mod error;
 pub mod instruction;
-
-// Re-export key constants
-pub use constants::{LIGHT_TOKEN_CPI_AUTHORITY, LIGHT_TOKEN_PROGRAM_ID};
-pub use light_compressed_account::instruction_data::compressed_proof::{
-    CompressedProof, ValidityProof,
-};

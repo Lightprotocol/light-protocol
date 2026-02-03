@@ -15,7 +15,7 @@ use light_token_interface::{
     },
     state::AdditionalMetadata,
 };
-use native_ctoken_examples::{CreateCmintData, ID, MINT_SIGNER_SEED};
+use sdk_light_token_test::{CreateCmintData, ID, MINT_SIGNER_SEED};
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
@@ -28,7 +28,7 @@ use solana_sdk::{
 async fn test_create_compressed_mint() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
         false,
-        Some(vec![("native_ctoken_examples", ID)]),
+        Some(vec![("sdk_light_token_test", ID)]),
     ))
     .await
     .unwrap();
@@ -154,7 +154,7 @@ async fn test_create_compressed_mint() {
 async fn test_create_compressed_mint_invoke_signed() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
         false,
-        Some(vec![("native_ctoken_examples", ID)]),
+        Some(vec![("sdk_light_token_test", ID)]),
     ))
     .await
     .unwrap();

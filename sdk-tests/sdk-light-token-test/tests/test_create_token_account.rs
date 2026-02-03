@@ -6,7 +6,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use light_client::rpc::Rpc;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_token::instruction::LIGHT_TOKEN_PROGRAM_ID;
-use native_ctoken_examples::{CreateTokenAccountData, ID};
+use sdk_light_token_test::{CreateTokenAccountData, ID};
 use shared::setup_create_mint;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
@@ -20,7 +20,7 @@ use solana_sdk::{
 async fn test_create_token_account_invoke() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
         false,
-        Some(vec![("native_ctoken_examples", ID)]),
+        Some(vec![("sdk_light_token_test", ID)]),
     ))
     .await
     .unwrap();
@@ -93,7 +93,7 @@ async fn test_create_token_account_invoke() {
 async fn test_create_token_account_invoke_signed() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
         false,
-        Some(vec![("native_ctoken_examples", ID)]),
+        Some(vec![("sdk_light_token_test", ID)]),
     ))
     .await
     .unwrap();

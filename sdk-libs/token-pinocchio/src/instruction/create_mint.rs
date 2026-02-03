@@ -15,7 +15,7 @@ use light_token_interface::{
         mint_action::{CpiContext, DecompressMintAction, MintActionCompressedInstructionData},
     },
     state::MintMetadata,
-    COMPRESSED_MINT_SEED, LIGHT_TOKEN_PROGRAM_ID,
+    COMPRESSED_MINT_SEED,
 };
 use pinocchio::{
     account_info::AccountInfo,
@@ -25,7 +25,7 @@ use pinocchio::{
     pubkey::Pubkey,
 };
 
-use crate::instruction::SystemAccountInfos;
+use crate::{constants::LIGHT_TOKEN_PROGRAM_ID, instruction::SystemAccountInfos};
 
 /// Parameters for creating a mint.
 ///

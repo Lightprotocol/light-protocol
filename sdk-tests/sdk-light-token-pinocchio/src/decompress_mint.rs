@@ -1,7 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_token_pinocchio::{
-    instruction::{DecompressMintCpi, MintWithContext, SystemAccountInfos},
-    ValidityProof,
+use light_token_pinocchio::instruction::{
+    DecompressMintCpi, MintWithContext, SystemAccountInfos, ValidityProof,
 };
 use pinocchio::{
     account_info::AccountInfo,

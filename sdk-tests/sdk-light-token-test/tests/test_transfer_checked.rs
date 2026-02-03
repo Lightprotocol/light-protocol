@@ -14,7 +14,7 @@ use light_token::{
     spl_interface::{find_spl_interface_pda_with_index, CreateSplInterfacePda},
 };
 use light_token_interface::state::Token;
-use native_ctoken_examples::{InstructionType, TransferCheckedData, ID};
+use sdk_light_token_test::{InstructionType, TransferCheckedData, ID};
 use shared::*;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
@@ -26,7 +26,7 @@ use solana_sdk::{
 /// Test transfer_checked with SPL Token mint
 #[tokio::test]
 async fn test_ctoken_transfer_checked_spl_mint() {
-    let config = ProgramTestConfig::new_v2(true, Some(vec![("native_ctoken_examples", ID)]));
+    let config = ProgramTestConfig::new_v2(true, Some(vec![("sdk_light_token_test", ID)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
 
@@ -175,7 +175,7 @@ async fn test_ctoken_transfer_checked_spl_mint() {
 /// Test transfer_checked with Token-2022 mint
 #[tokio::test]
 async fn test_ctoken_transfer_checked_t22_mint() {
-    let config = ProgramTestConfig::new_v2(true, Some(vec![("native_ctoken_examples", ID)]));
+    let config = ProgramTestConfig::new_v2(true, Some(vec![("sdk_light_token_test", ID)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
 
@@ -281,7 +281,7 @@ async fn test_ctoken_transfer_checked_t22_mint() {
 /// Test transfer_checked with decompressed Mint
 #[tokio::test]
 async fn test_ctoken_transfer_checked_mint() {
-    let config = ProgramTestConfig::new_v2(true, Some(vec![("native_ctoken_examples", ID)]));
+    let config = ProgramTestConfig::new_v2(true, Some(vec![("sdk_light_token_test", ID)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
 
