@@ -5,9 +5,10 @@
 
 #![allow(deprecated)]
 
-use light_account_pinocchio::{derive_light_cpi_signer, CpiSigner, LightFinalize, LightPreInit};
+use light_account_pinocchio::{
+    derive_light_cpi_signer, CpiSigner, LightFinalize, LightPreInit, LightProgramPinocchio,
+};
 use light_macros::pubkey_array;
-use light_sdk_macros::LightProgramPinocchio;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 pub mod account_loader;

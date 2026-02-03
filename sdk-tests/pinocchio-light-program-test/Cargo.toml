@@ -16,7 +16,6 @@ test-sbf = []
 [dependencies]
 light-account-pinocchio = { workspace = true, features = ["token", "std"] }
 light-macros = { workspace = true, features = ["solana"] }
-light-sdk-macros = { workspace = true, features = ["anchor-discriminator"] }
 light-sdk-types = { workspace = true, features = ["v2", "cpi-context"] }
 borsh = { workspace = true }
 bytemuck = { workspace = true, features = ["derive"] }

@@ -4,8 +4,7 @@
 //! which generates Option<u8> in the packed struct.
 
 use anchor_lang::prelude::*;
-use light_account::{CompressionInfo, LightDiscriminator};
-use light_sdk_macros::LightAccount;
+use light_account::{CompressionInfo, LightAccount, LightDiscriminator};
 
 /// A struct with Option<Pubkey> fields.
 /// PackedOptionPubkeyRecord will have: delegate_index: Option<u8>

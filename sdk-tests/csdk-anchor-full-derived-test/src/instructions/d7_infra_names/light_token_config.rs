@@ -5,8 +5,7 @@
 //! but the token account is created manually via CreateTokenAccountCpi.
 
 use anchor_lang::prelude::*;
-use light_account::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
-use light_sdk_macros::LightAccounts;
+use light_account::{LightAccounts, LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
 
 pub const D7_LIGHT_TOKEN_AUTH_SEED: &[u8] = b"d7_light_token_auth";
 pub const D7_LIGHT_TOKEN_VAULT_SEED: &[u8] = b"d7_light_token_vault";

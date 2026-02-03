@@ -3,8 +3,7 @@
 //! Exercises the code path for array field handling.
 
 use anchor_lang::prelude::*;
-use light_account::{CompressionInfo, LightDiscriminator};
-use light_sdk_macros::LightAccount;
+use light_account::{CompressionInfo, LightAccount, LightDiscriminator};
 
 /// A struct with array fields.
 /// Tests [u8; 32] (byte array) and fixed-size arrays.

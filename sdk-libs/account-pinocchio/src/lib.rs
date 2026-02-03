@@ -158,7 +158,7 @@ pub use light_compressed_account::instruction_data::compressed_proof::ValidityPr
 pub use light_macros::{derive_light_cpi_signer, derive_light_cpi_signer_pda};
 pub use light_sdk_macros::{
     CompressAs, Compressible, HasCompressionInfo, LightAccount, LightDiscriminator, LightHasher,
-    LightHasherSha, LightProgram,
+    LightHasherSha, LightProgramPinocchio,
 };
 pub use light_sdk_types::{constants, error::LightSdkTypesError, instruction::*, CpiSigner};
 

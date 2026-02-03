@@ -1,8 +1,7 @@
 //! State module for single-pda-derive-test.
 
 use anchor_lang::prelude::*;
-use light_account::{CompressionInfo, LightDiscriminator};
-use light_sdk_macros::LightAccount;
+use light_account::{CompressionInfo, LightAccount, LightDiscriminator};
 
 /// Minimal record struct for testing PDA creation.
 /// Contains only compression_info and one field.

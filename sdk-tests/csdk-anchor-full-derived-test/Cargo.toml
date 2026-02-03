@@ -13,14 +13,12 @@ no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
-custom-heap = ["light-heap"]
 default = []
 idl-build = ["anchor-lang/idl-build", "light-anchor-spl/idl-build"]
 test-sbf = []
 
 [dependencies]
-light-heap = { workspace = true, optional = true }
-light-account = { workspace = true, features = ["token", "anchor", "sha256", "anchor-discriminator"] }
+light-account = { workspace = true, features = ["token", "anchor", "sha256"] }
 light-token = { workspace = true, features = ["anchor"] }
 light-token-interface = { workspace = true }
 light-token-types = { workspace = true }
@@ -35,7 +33,6 @@ light-macros = { workspace = true, features = ["solana"] }
 light-instruction-decoder = { workspace = true }
 light-instruction-decoder-derive = { workspace = true }
 solana-instruction = { workspace = true }
-light-sdk-macros = { workspace = true, features = ["anchor-discriminator"] }
 borsh = { workspace = true }
 light-compressed-account = { workspace = true, features = ["solana"] }
 anchor-lang = { workspace = true }

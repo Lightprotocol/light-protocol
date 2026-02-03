@@ -3,8 +3,7 @@
 //! Tests `#[light_account(init, zero_copy)]` with params-only seeds (not on struct).
 
 use anchor_lang::prelude::*;
-use light_account::{CompressionInfo, LightDiscriminator};
-use light_sdk_macros::LightAccount;
+use light_account::{CompressionInfo, LightAccount, LightDiscriminator};
 
 /// Zero-copy record for testing params-only seeds (category_id in seeds but not on struct).
 /// The PDA seeds may include params.category_id which is not stored on this struct.

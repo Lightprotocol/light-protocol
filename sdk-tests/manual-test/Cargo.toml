@@ -18,10 +18,8 @@ idl-build = ["anchor-lang/idl-build"]
 test-sbf = []
 
 [dependencies]
-light-heap = { workspace = true, optional = true }
-light-account = { workspace = true, features = ["token", "sha256", "anchor-discriminator"] }
+light-account = { workspace = true, features = ["token", "sha256"] }
 light-macros = { workspace = true, features = ["solana"] }
-light-sdk-macros = { workspace = true, features = ["anchor-discriminator"] }
 borsh = { workspace = true }
 bytemuck = { workspace = true }
 light-compressed-account = { workspace = true, features = ["solana"] }

@@ -4,8 +4,7 @@
 //! generating a PackedX struct with a single u8 index field.
 
 use anchor_lang::prelude::*;
-use light_account::{CompressionInfo, LightDiscriminator};
-use light_sdk_macros::LightAccount;
+use light_account::{CompressionInfo, LightAccount, LightDiscriminator};
 
 /// A struct with exactly one Pubkey field.
 /// PackedSinglePubkeyRecord will have: owner_index: u8

@@ -3,8 +3,7 @@
 //! Defines a Pod (zero-copy) account struct for testing AccountLoader with Light Protocol.
 
 use anchor_lang::prelude::*;
-use light_account::{CompressionInfo, LightDiscriminator};
-use light_sdk_macros::LightAccount;
+use light_account::{CompressionInfo, LightAccount, LightDiscriminator};
 
 /// A zero-copy account using Pod serialization.
 /// This account is used with AccountLoader and requires `#[light_account(init, zero_copy)]`.

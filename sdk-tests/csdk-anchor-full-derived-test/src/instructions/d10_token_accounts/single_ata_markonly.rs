@@ -6,8 +6,9 @@
 //! User manually calls CreateTokenAtaCpi in the instruction handler.
 
 use anchor_lang::prelude::*;
-use light_account::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_PROGRAM_ID, LIGHT_TOKEN_RENT_SPONSOR};
-use light_sdk_macros::LightAccounts;
+use light_account::{
+    LightAccounts, LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_PROGRAM_ID, LIGHT_TOKEN_RENT_SPONSOR,
+};
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct D10SingleAtaMarkonlyParams {

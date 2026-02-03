@@ -9,11 +9,10 @@
 
 use anchor_lang::prelude::*;
 use light_account::{
-    CreateAccountsProof, CreateTokenAccountCpi, CreateTokenAtaCpi, LIGHT_TOKEN_CONFIG,
-    LIGHT_TOKEN_RENT_SPONSOR,
+    CreateAccountsProof, CreateTokenAccountCpi, CreateTokenAtaCpi, LightAccounts,
+    LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR,
 };
 use light_anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
-use light_sdk_macros::LightAccounts;
 use light_token::instruction::MintToCpi;
 
 use super::states::*;

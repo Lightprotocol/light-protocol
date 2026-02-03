@@ -3,8 +3,7 @@
 //! Tests `#[light_account(init, zero_copy)]` with a simple Pod account.
 
 use anchor_lang::prelude::*;
-use light_account::{CompressionInfo, LightDiscriminator};
-use light_sdk_macros::LightAccount;
+use light_account::{CompressionInfo, LightAccount, LightDiscriminator};
 
 /// Basic zero-copy record for simple tests (no Pubkey seeds on the struct itself).
 /// Used with AccountLoader<'info, ZcBasicRecord>.

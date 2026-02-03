@@ -2,9 +2,10 @@
 #![allow(clippy::useless_asref)] // Testing macro handling of .as_ref() patterns
 
 use anchor_lang::prelude::*;
-use light_account::{derive_light_cpi_signer, derive_light_rent_sponsor_pda, CpiSigner};
+use light_account::{
+    derive_light_cpi_signer, derive_light_rent_sponsor_pda, light_program, CpiSigner,
+};
 use light_instruction_decoder_derive::instruction_decoder;
-use light_sdk_macros::light_program;
 
 pub mod amm_test;
 pub mod d5_markers;
