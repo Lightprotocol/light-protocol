@@ -6,7 +6,7 @@ edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "native_ctoken_examples"
+name = "sdk_light_token_test"
 doctest = false
 
 [features]

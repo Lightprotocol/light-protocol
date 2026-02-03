@@ -2,6 +2,7 @@
 
 mod shared;
 
+use anchor_lang::{InstructionData, ToAccountMetas};
 use borsh::BorshDeserialize;
 use light_client::interface::{get_create_accounts_proof, CreateAccountsProofInput};
 use light_program_test::Rpc;
@@ -9,11 +10,9 @@ use light_token::instruction::{
     config_pda, find_mint_address, rent_sponsor_pda, LIGHT_TOKEN_PROGRAM_ID,
 };
 use light_token_interface::state::{BaseMint, Mint, MintMetadata, ACCOUNT_TYPE_MINT};
-use manual_test_pinocchio::two_mints::accounts::{
-    CreateDerivedMintsParams, MINT_SIGNER_0_SEED, MINT_SIGNER_1_SEED,
-};
+use anchor_manual_test::{CreateDerivedMintsParams, MINT_SIGNER_0_SEED, MINT_SIGNER_1_SEED};
 use solana_sdk::{
-    instruction::{AccountMeta, Instruction},
+    instruction::Instruction,
     pubkey::Pubkey,
     signature::{Keypair, Signer},
 };
@@ -23,27 +22,26 @@ use solana_sdk::{
 async fn test_create_derived_mints() {
     let (mut rpc, payer, _) = shared::setup_test_env().await;
 
-    let program_id = Pubkey::new_from_array(manual_test_pinocchio::ID);
     let authority = Keypair::new();
 
     // Derive mint signer PDAs from authority (like macro would)
     let (mint_signer_0, mint_signer_0_bump) = Pubkey::find_program_address(
         &[MINT_SIGNER_0_SEED, authority.pubkey().as_ref()],
-        &program_id,
+        &anchor_manual_test::ID,
     );
     let (mint_signer_1, mint_signer_1_bump) = Pubkey::find_program_address(
         &[MINT_SIGNER_1_SEED, authority.pubkey().as_ref()],
-        &program_id,
+        &anchor_manual_test::ID,
     );
 
     // Derive mint PDAs from mint signers (light-token derives these)
     let (mint_0, mint_0_bump) = find_mint_address(&mint_signer_0);
     let (mint_1, mint_1_bump) = find_mint_address(&mint_signer_1);
 
-    // Get proof for the mints
+    // Get proof for the mints using the helper
     let proof_result = get_create_accounts_proof(
         &rpc,
-        &program_id,
+        &anchor_manual_test::ID,
         vec![
             CreateAccountsProofInput::mint(mint_signer_0),
             CreateAccountsProofInput::mint(mint_signer_1),
@@ -59,31 +57,29 @@ async fn test_create_derived_mints() {
         mint_signer_1_bump,
     };
 
-    let accounts = vec![
-        AccountMeta::new(payer.pubkey(), true),
-        AccountMeta::new_readonly(authority.pubkey(), true),
-        AccountMeta::new_readonly(mint_signer_0, false),
-        AccountMeta::new_readonly(mint_signer_1, false),
-        AccountMeta::new(mint_0, false),
-        AccountMeta::new(mint_1, false),
-        AccountMeta::new_readonly(config_pda(), false),
-        AccountMeta::new(rent_sponsor_pda(), false),
-        AccountMeta::new_readonly(LIGHT_TOKEN_PROGRAM_ID, false),
-        AccountMeta::new_readonly(
-            Pubkey::new_from_array(light_token_types::CPI_AUTHORITY_PDA),
-            false,
-        ),
-        AccountMeta::new_readonly(solana_sdk::system_program::ID, false),
-    ];
+    // Build accounts using Anchor's generated struct
+    let accounts = anchor_manual_test::accounts::CreateDerivedMintsAccounts {
+        payer: payer.pubkey(),
+        authority: authority.pubkey(),
+        mint_signer_0,
+        mint_signer_1,
+        mint_0,
+        mint_1,
+        compressible_config: config_pda(),
+        rent_sponsor: rent_sponsor_pda(),
+        light_token_program: LIGHT_TOKEN_PROGRAM_ID,
+        cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
+        system_program: solana_sdk::system_program::ID,
+    };
 
     let ix = Instruction {
-        program_id,
-        accounts: [accounts, proof_result.remaining_accounts].concat(),
-        data: [
-            manual_test_pinocchio::discriminators::CREATE_DERIVED_MINTS.as_slice(),
-            &borsh::to_vec(&params).unwrap(),
+        program_id: anchor_manual_test::ID,
+        accounts: [
+            accounts.to_account_metas(None),
+            proof_result.remaining_accounts,
         ]
         .concat(),
+        data: anchor_manual_test::instruction::CreateDerivedMints { params }.data(),
     };
 
     // Sign with payer and authority

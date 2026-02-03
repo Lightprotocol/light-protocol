@@ -1,7 +1,6 @@
-//! Shared test helpers for manual-test integration tests.
+//! Shared test helpers for manual-test-pinocchio integration tests.
 
-use anchor_lang::InstructionData;
-use light_account::derive_rent_sponsor_pda;
+use light_account_pinocchio::derive_rent_sponsor_pda;
 use light_client::interface::{
     get_create_accounts_proof, CreateAccountsProofInput, InitializeRentFreeConfig,
 };
@@ -16,8 +15,9 @@ use solana_signer::Signer;
 /// Setup test environment with Light Protocol and compression config.
 /// Returns (rpc, payer, config_pda).
 pub async fn setup_test_env() -> (LightProgramTest, Keypair, Pubkey) {
-    let program_id = manual_test::ID;
-    let mut config = ProgramTestConfig::new_v2(true, Some(vec![("manual_test", program_id)]));
+    let program_id = Pubkey::new_from_array(pinocchio_manual_test::ID);
+    let mut config =
+        ProgramTestConfig::new_v2(true, Some(vec![("pinocchio_manual_test", program_id)]));
     config = config.with_light_protocol_events();
 
     let mut rpc = LightProgramTest::new(config).await.unwrap();
@@ -25,8 +25,9 @@ pub async fn setup_test_env() -> (LightProgramTest, Keypair, Pubkey) {
 
     let program_data_pda = setup_mock_program_data(&mut rpc, &payer, &program_id);
 
-    // Derive rent sponsor PDA for this program
-    let (rent_sponsor, _) = derive_rent_sponsor_pda(&program_id);
+    // Derive rent sponsor PDA for this program (pinocchio version takes &[u8; 32])
+    let (rent_sponsor_bytes, _) = derive_rent_sponsor_pda(&program_id.to_bytes());
+    let rent_sponsor = Pubkey::new_from_array(rent_sponsor_bytes);
 
     let (init_config_ix, config_pda) = InitializeRentFreeConfig::new(
         &program_id,
@@ -47,19 +48,22 @@ pub async fn setup_test_env() -> (LightProgramTest, Keypair, Pubkey) {
 /// Create a test mint using the two_mints instruction and return the mint pubkey.
 #[allow(dead_code)]
 pub async fn create_test_mint(rpc: &mut LightProgramTest, payer: &Keypair) -> Pubkey {
-    use anchor_lang::ToAccountMetas;
-    use manual_test::{CreateDerivedMintsParams, MINT_SIGNER_0_SEED, MINT_SIGNER_1_SEED};
+    use pinocchio_manual_test::two_mints::accounts::{
+        CreateDerivedMintsParams, MINT_SIGNER_0_SEED, MINT_SIGNER_1_SEED,
+    };
+    use solana_sdk::instruction::{AccountMeta, Instruction};
 
+    let program_id = Pubkey::new_from_array(pinocchio_manual_test::ID);
     let authority = Keypair::new();
 
     // Derive mint signer PDAs
     let (mint_signer_0, mint_signer_0_bump) = Pubkey::find_program_address(
         &[MINT_SIGNER_0_SEED, authority.pubkey().as_ref()],
-        &manual_test::ID,
+        &program_id,
     );
     let (mint_signer_1, mint_signer_1_bump) = Pubkey::find_program_address(
         &[MINT_SIGNER_1_SEED, authority.pubkey().as_ref()],
-        &manual_test::ID,
+        &program_id,
     );
 
     // Derive mint PDAs
@@ -69,7 +73,7 @@ pub async fn create_test_mint(rpc: &mut LightProgramTest, payer: &Keypair) -> Pu
     // Get proof for the mints
     let proof_result = get_create_accounts_proof(
         rpc,
-        &manual_test::ID,
+        &program_id,
         vec![
             CreateAccountsProofInput::mint(mint_signer_0),
             CreateAccountsProofInput::mint(mint_signer_1),
@@ -84,28 +88,31 @@ pub async fn create_test_mint(rpc: &mut LightProgramTest, payer: &Keypair) -> Pu
         mint_signer_1_bump,
     };
 
-    let accounts = manual_test::accounts::CreateDerivedMintsAccounts {
-        payer: payer.pubkey(),
-        authority: authority.pubkey(),
-        mint_signer_0,
-        mint_signer_1,
-        mint_0,
-        mint_1,
-        compressible_config: light_token::instruction::config_pda(),
-        rent_sponsor: light_token::instruction::rent_sponsor_pda(),
-        light_token_program: light_token::instruction::LIGHT_TOKEN_PROGRAM_ID,
-        cpi_authority: light_token_types::CPI_AUTHORITY_PDA.into(),
-        system_program: solana_sdk::system_program::ID,
-    };
+    let accounts = vec![
+        AccountMeta::new(payer.pubkey(), true),
+        AccountMeta::new_readonly(authority.pubkey(), true),
+        AccountMeta::new_readonly(mint_signer_0, false),
+        AccountMeta::new_readonly(mint_signer_1, false),
+        AccountMeta::new(mint_0, false),
+        AccountMeta::new(mint_1, false),
+        AccountMeta::new_readonly(light_token::instruction::config_pda(), false),
+        AccountMeta::new(light_token::instruction::rent_sponsor_pda(), false),
+        AccountMeta::new_readonly(light_token::instruction::LIGHT_TOKEN_PROGRAM_ID, false),
+        AccountMeta::new_readonly(
+            Pubkey::new_from_array(light_token_types::CPI_AUTHORITY_PDA),
+            false,
+        ),
+        AccountMeta::new_readonly(solana_sdk::system_program::ID, false),
+    ];
 
-    let ix = solana_sdk::instruction::Instruction {
-        program_id: manual_test::ID,
-        accounts: [
-            accounts.to_account_metas(None),
-            proof_result.remaining_accounts,
+    let ix = Instruction {
+        program_id,
+        accounts: [accounts, proof_result.remaining_accounts].concat(),
+        data: [
+            pinocchio_manual_test::discriminators::CREATE_DERIVED_MINTS.as_slice(),
+            &borsh::to_vec(&params).unwrap(),
         ]
         .concat(),
-        data: manual_test::instruction::CreateDerivedMints { params }.data(),
     };
 
     rpc.create_and_send_transaction(&[ix], &payer.pubkey(), &[payer, &authority])

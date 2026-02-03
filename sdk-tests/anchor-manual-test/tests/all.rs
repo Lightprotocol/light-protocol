@@ -20,7 +20,7 @@ use light_token::instruction::{
 use light_token_interface::state::{
     AccountState, BaseMint, Mint, MintMetadata, Token, ACCOUNT_TYPE_MINT,
 };
-use manual_test::{
+use anchor_manual_test::{
     CreateAllParams, MinimalRecord, ZeroCopyRecord, ALL_BORSH_SEED, ALL_MINT_SIGNER_SEED,
     ALL_TOKEN_VAULT_SEED, ALL_ZERO_COPY_SEED,
 };
@@ -35,7 +35,7 @@ use solana_sdk::{
 async fn test_create_all() {
     let (mut rpc, payer, config_pda_addr) = shared::setup_test_env().await;
 
-    let program_id = manual_test::ID;
+    let program_id = anchor_manual_test::ID;
     let authority = Keypair::new();
     let owner = Keypair::new().pubkey();
     let value: u64 = 42;
@@ -86,7 +86,7 @@ async fn test_create_all() {
         value,
     };
 
-    let accounts = manual_test::accounts::CreateAllAccounts {
+    let accounts = anchor_manual_test::accounts::CreateAllAccounts {
         payer: payer.pubkey(),
         authority: authority.pubkey(),
         compression_config: config_pda_addr,
@@ -112,7 +112,7 @@ async fn test_create_all() {
             proof_result.remaining_accounts,
         ]
         .concat(),
-        data: manual_test::instruction::CreateAll { params }.data(),
+        data: anchor_manual_test::instruction::CreateAll { params }.data(),
     };
 
     rpc.create_and_send_transaction(&[ix], &payer.pubkey(), &[&payer, &authority])

@@ -5,26 +5,26 @@
 
 mod shared;
 
-use anchor_lang::{Discriminator, InstructionData, ToAccountMetas};
-use light_account::IntoVariant;
+use light_account_pinocchio::{CompressionState, IntoVariant, LightDiscriminator};
 use light_client::interface::{
     create_load_instructions, get_create_accounts_proof, AccountInterfaceExt, AccountSpec,
     CreateAccountsProofInput, PdaSpec,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{program_test::TestRpc, Indexer, Rpc};
-use manual_test::{
-    CreateZeroCopyParams, ZeroCopyRecord, ZeroCopyRecordSeeds, ZeroCopyRecordVariant,
+use pinocchio_manual_test::{
+    account_loader::accounts::CreateZeroCopyParams, ZeroCopyRecord, ZeroCopyRecordSeeds,
+    ZeroCopyRecordVariant,
 };
-use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
+use solana_sdk::instruction::{AccountMeta, Instruction};
 use solana_signer::Signer;
 
 /// Test the full lifecycle for zero-copy accounts: create -> compress -> decompress.
 #[tokio::test]
 async fn test_zero_copy_create_compress_decompress() {
-    let program_id = manual_test::ID;
+    let program_id = Pubkey::new_from_array(pinocchio_manual_test::ID);
     let (mut rpc, payer, config_pda) = shared::setup_test_env().await;
 
     let owner = Keypair::new().pubkey();
@@ -46,33 +46,31 @@ async fn test_zero_copy_create_compress_decompress() {
     .await
     .unwrap();
 
-    let accounts = manual_test::accounts::CreateZeroCopy {
-        fee_payer: payer.pubkey(),
-        compression_config: config_pda,
-        record: record_pda,
-        system_program: solana_sdk::system_program::ID,
+    let params = CreateZeroCopyParams {
+        create_accounts_proof: proof_result.create_accounts_proof,
+        owner: owner.to_bytes(),
+        value,
+        name: name.clone(),
     };
 
-    let instruction_data = manual_test::instruction::CreateZeroCopy {
-        params: CreateZeroCopyParams {
-            create_accounts_proof: proof_result.create_accounts_proof,
-            owner,
-            value,
-            name: name.clone(),
-        },
-    };
+    let accounts = vec![
+        AccountMeta::new(payer.pubkey(), true),
+        AccountMeta::new_readonly(config_pda, false),
+        AccountMeta::new(record_pda, false),
+        AccountMeta::new_readonly(solana_sdk::system_program::ID, false),
+    ];
 
-    let instruction = Instruction {
+    let ix = Instruction {
         program_id,
-        accounts: [
-            accounts.to_account_metas(None),
-            proof_result.remaining_accounts,
+        accounts: [accounts, proof_result.remaining_accounts].concat(),
+        data: [
+            pinocchio_manual_test::discriminators::CREATE_ZERO_COPY.as_slice(),
+            &borsh::to_vec(&params).unwrap(),
         ]
         .concat(),
-        data: instruction_data.data(),
     };
 
-    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+    rpc.create_and_send_transaction(&[ix], &payer.pubkey(), &[&payer])
         .await
         .expect("CreateZeroCopy should succeed");
 
@@ -128,7 +126,7 @@ async fn test_zero_copy_create_compress_decompress() {
 
     // Build variant using IntoVariant - verify seeds match the compressed data
     let variant = ZeroCopyRecordSeeds {
-        owner,
+        owner: owner.to_bytes(),
         name: name.clone(),
     }
     .into_variant(&account_interface.account.data[8..])
@@ -166,8 +164,8 @@ async fn test_zero_copy_create_compress_decompress() {
     let discriminator = &record_account.data[..8];
     assert_eq!(
         discriminator,
-        ZeroCopyRecord::DISCRIMINATOR,
-        "Discriminator should match ZeroCopyRecord::DISCRIMINATOR after decompression"
+        ZeroCopyRecord::LIGHT_DISCRIMINATOR,
+        "Discriminator should match ZeroCopyRecord::LIGHT_DISCRIMINATOR after decompression"
     );
 
     // Verify data is correct (zero-copy uses bytemuck)
@@ -185,7 +183,6 @@ async fn test_zero_copy_create_compress_decompress() {
     );
 
     // state should be Decompressed after decompression
-    use light_account::CompressionState;
     assert_eq!(
         record.compression_info.state,
         CompressionState::Decompressed,

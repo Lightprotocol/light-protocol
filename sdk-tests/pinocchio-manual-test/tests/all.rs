@@ -19,7 +19,7 @@ use light_token::instruction::{
 use light_token_interface::state::{
     AccountState, BaseMint, Mint, MintMetadata, Token, ACCOUNT_TYPE_MINT,
 };
-use manual_test_pinocchio::{
+use pinocchio_manual_test::{
     all::accounts::{
         CreateAllParams, ALL_BORSH_SEED, ALL_MINT_SIGNER_SEED, ALL_TOKEN_VAULT_SEED,
         ALL_ZERO_COPY_SEED,
@@ -37,7 +37,7 @@ use solana_sdk::{
 async fn test_create_all() {
     let (mut rpc, payer, config_pda_addr) = shared::setup_test_env().await;
 
-    let program_id = Pubkey::new_from_array(manual_test_pinocchio::ID);
+    let program_id = Pubkey::new_from_array(pinocchio_manual_test::ID);
     let authority = Keypair::new();
     let owner = Keypair::new().pubkey();
     let value: u64 = 42;
@@ -114,7 +114,7 @@ async fn test_create_all() {
         program_id,
         accounts: [accounts, proof_result.remaining_accounts].concat(),
         data: [
-            manual_test_pinocchio::discriminators::CREATE_ALL.as_slice(),
+            pinocchio_manual_test::discriminators::CREATE_ALL.as_slice(),
             &borsh::to_vec(&params).unwrap(),
         ]
         .concat(),

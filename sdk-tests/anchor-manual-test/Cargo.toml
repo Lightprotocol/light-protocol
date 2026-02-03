@@ -1,35 +1,38 @@
 [package]
-name = "manual-test-pinocchio"
+name = "anchor-manual-test"
 version = "0.1.0"
-description = "Manual LightAccount implementation test with pinocchio (no Anchor)"
+description = "Manual LightAccount implementation test without macros"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "manual_test_pinocchio"
+name = "anchor_manual_test"
 
 [features]
 no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
 default = []
+idl-build = ["anchor-lang/idl-build"]
 test-sbf = []
 
 [dependencies]
-light-account-pinocchio = { workspace = true, features = ["token", "std"] }
+light-account = { workspace = true, features = ["token", "sha256"] }
 light-macros = { workspace = true, features = ["solana"] }
 borsh = { workspace = true }
 bytemuck = { workspace = true }
 light-compressed-account = { workspace = true, features = ["solana"] }
-light-compressible = { workspace = true, features = ["pinocchio"] }
+anchor-lang = { workspace = true }
+light-compressible = { workspace = true, features = ["anchor"] }
 light-hasher = { workspace = true, features = ["solana"] }
-light-token-types = { workspace = true }
+light-token-types = { workspace = true, features = ["anchor"] }
 light-token-interface = { workspace = true }
-pinocchio = { workspace = true }
-pinocchio-pubkey = { workspace = true }
-pinocchio-system = { workspace = true }
+solana-program = { workspace = true }
 solana-pubkey = { workspace = true }
-solana-instruction = { workspace = true }
 solana-msg = { workspace = true }
 solana-program-error = { workspace = true }
+solana-account-info = { workspace = true }
 
 [dev-dependencies]
 light-program-test = { workspace = true, features = ["devenv"] }
@@ -39,6 +42,8 @@ light-token = { workspace = true, features = ["anchor"] }
 light-token-client = { workspace = true }
 tokio = { workspace = true }
 solana-sdk = { workspace = true }
+solana-instruction = { workspace = true }
+solana-pubkey = { workspace = true }
 solana-keypair = { workspace = true }
 solana-signer = { workspace = true }
 

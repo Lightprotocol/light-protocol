@@ -2,13 +2,14 @@
 
 mod shared;
 
+use anchor_lang::{InstructionData, ToAccountMetas};
 use borsh::BorshDeserialize;
 use light_program_test::Rpc;
 use light_token::instruction::{config_pda, rent_sponsor_pda, LIGHT_TOKEN_PROGRAM_ID};
 use light_token_interface::state::{AccountState, Token};
-use manual_test_pinocchio::{CreateTokenVaultParams, TOKEN_VAULT_SEED};
+use anchor_manual_test::{CreateTokenVaultParams, TOKEN_VAULT_SEED};
 use solana_sdk::{
-    instruction::{AccountMeta, Instruction},
+    instruction::Instruction,
     pubkey::Pubkey,
     signature::{Keypair, Signer},
 };
@@ -24,33 +25,27 @@ async fn test_create_token_vault() {
     // Vault owner - can be any pubkey (e.g., a PDA authority)
     let vault_owner = Keypair::new();
 
-    let program_id = Pubkey::new_from_array(manual_test_pinocchio::ID);
-
     // Derive token vault PDA
     let (token_vault, vault_bump) =
-        Pubkey::find_program_address(&[TOKEN_VAULT_SEED, mint.as_ref()], &program_id);
+        Pubkey::find_program_address(&[TOKEN_VAULT_SEED, mint.as_ref()], &anchor_manual_test::ID);
 
     let params = CreateTokenVaultParams { vault_bump };
 
-    let accounts = vec![
-        AccountMeta::new(payer.pubkey(), true),
-        AccountMeta::new_readonly(mint, false),
-        AccountMeta::new_readonly(vault_owner.pubkey(), false),
-        AccountMeta::new(token_vault, false),
-        AccountMeta::new_readonly(config_pda(), false),
-        AccountMeta::new(rent_sponsor_pda(), false),
-        AccountMeta::new_readonly(LIGHT_TOKEN_PROGRAM_ID, false),
-        AccountMeta::new_readonly(solana_sdk::system_program::ID, false),
-    ];
+    let accounts = anchor_manual_test::accounts::CreateTokenVaultAccounts {
+        payer: payer.pubkey(),
+        mint,
+        vault_owner: vault_owner.pubkey(),
+        token_vault,
+        compressible_config: config_pda(),
+        rent_sponsor: rent_sponsor_pda(),
+        light_token_program: LIGHT_TOKEN_PROGRAM_ID,
+        system_program: solana_sdk::system_program::ID,
+    };
 
     let ix = Instruction {
-        program_id,
-        accounts,
-        data: [
-            manual_test_pinocchio::discriminators::CREATE_TOKEN_VAULT.as_slice(),
-            &borsh::to_vec(&params).unwrap(),
-        ]
-        .concat(),
+        program_id: anchor_manual_test::ID,
+        accounts: accounts.to_account_metas(None),
+        data: anchor_manual_test::instruction::CreateTokenVault { params }.data(),
     };
 
     rpc.create_and_send_transaction(&[ix], &payer.pubkey(), &[&payer])

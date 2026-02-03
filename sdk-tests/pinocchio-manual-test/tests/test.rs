@@ -11,7 +11,7 @@ use light_client::interface::{
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{program_test::TestRpc, Indexer, Rpc};
-use manual_test_pinocchio::{
+use pinocchio_manual_test::{
     pda::accounts::CreatePdaParams, MinimalRecord, MinimalRecordSeeds, MinimalRecordVariant,
 };
 use solana_keypair::Keypair;
@@ -22,7 +22,7 @@ use solana_signer::Signer;
 /// Test the full lifecycle: create -> compress -> decompress.
 #[tokio::test]
 async fn test_create_compress_decompress() {
-    let program_id = Pubkey::new_from_array(manual_test_pinocchio::ID);
+    let program_id = Pubkey::new_from_array(pinocchio_manual_test::ID);
     let (mut rpc, payer, config_pda) = shared::setup_test_env().await;
 
     let owner = Keypair::new().pubkey();
@@ -60,7 +60,7 @@ async fn test_create_compress_decompress() {
         program_id,
         accounts: [accounts, proof_result.remaining_accounts].concat(),
         data: [
-            manual_test_pinocchio::discriminators::CREATE_PDA.as_slice(),
+            pinocchio_manual_test::discriminators::CREATE_PDA.as_slice(),
             &borsh::to_vec(&params).unwrap(),
         ]
         .concat(),

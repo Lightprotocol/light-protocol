@@ -2,16 +2,16 @@
 
 mod shared;
 
+use anchor_lang::{InstructionData, ToAccountMetas};
 use borsh::BorshDeserialize;
 use light_program_test::Rpc;
 use light_token::instruction::{
     config_pda, derive_associated_token_account, rent_sponsor_pda, LIGHT_TOKEN_PROGRAM_ID,
 };
 use light_token_interface::state::{AccountState, Token};
-use manual_test_pinocchio::CreateAtaParams;
+use anchor_manual_test::CreateAtaParams;
 use solana_sdk::{
-    instruction::{AccountMeta, Instruction},
-    pubkey::Pubkey,
+    instruction::Instruction,
     signature::{Keypair, Signer},
 };
 
@@ -31,29 +31,21 @@ async fn test_create_ata() {
 
     let params = CreateAtaParams::default();
 
-    let program_id = Pubkey::new_from_array(manual_test_pinocchio::ID);
-
-    let accounts = vec![
-        AccountMeta::new(payer.pubkey(), true),
-        AccountMeta::new_readonly(mint, false),
-        AccountMeta::new_readonly(ata_owner.pubkey(), false),
-        AccountMeta::new(user_ata, false),
-        AccountMeta::new_readonly(config_pda(), false),
-        AccountMeta::new(rent_sponsor_pda(), false),
-        AccountMeta::new_readonly(LIGHT_TOKEN_PROGRAM_ID, false),
-        AccountMeta::new_readonly(solana_sdk::system_program::ID, false),
-    ];
-
-    let data = [
-        manual_test_pinocchio::discriminators::CREATE_ATA.as_slice(),
-        &borsh::to_vec(&params).unwrap(),
-    ]
-    .concat();
+    let accounts = anchor_manual_test::accounts::CreateAtaAccounts {
+        payer: payer.pubkey(),
+        mint,
+        ata_owner: ata_owner.pubkey(),
+        user_ata,
+        compressible_config: config_pda(),
+        rent_sponsor: rent_sponsor_pda(),
+        light_token_program: LIGHT_TOKEN_PROGRAM_ID,
+        system_program: solana_sdk::system_program::ID,
+    };
 
     let ix = Instruction {
-        program_id,
-        accounts,
-        data,
+        program_id: anchor_manual_test::ID,
+        accounts: accounts.to_account_metas(None),
+        data: anchor_manual_test::instruction::CreateAta { params }.data(),
     };
 
     rpc.create_and_send_transaction(&[ix], &payer.pubkey(), &[&payer])
@@ -87,29 +79,24 @@ async fn test_create_ata_idempotent() {
 
     let params = CreateAtaParams::default();
 
-    let program_id = Pubkey::new_from_array(manual_test_pinocchio::ID);
-
-    let accounts = vec![
-        AccountMeta::new(payer.pubkey(), true),
-        AccountMeta::new_readonly(mint, false),
-        AccountMeta::new_readonly(ata_owner.pubkey(), false),
-        AccountMeta::new(user_ata, false),
-        AccountMeta::new_readonly(config_pda(), false),
-        AccountMeta::new(rent_sponsor_pda(), false),
-        AccountMeta::new_readonly(LIGHT_TOKEN_PROGRAM_ID, false),
-        AccountMeta::new_readonly(solana_sdk::system_program::ID, false),
-    ];
-
-    let data = [
-        manual_test_pinocchio::discriminators::CREATE_ATA.as_slice(),
-        &borsh::to_vec(&params).unwrap(),
-    ]
-    .concat();
+    let accounts = anchor_manual_test::accounts::CreateAtaAccounts {
+        payer: payer.pubkey(),
+        mint,
+        ata_owner: ata_owner.pubkey(),
+        user_ata,
+        compressible_config: config_pda(),
+        rent_sponsor: rent_sponsor_pda(),
+        light_token_program: LIGHT_TOKEN_PROGRAM_ID,
+        system_program: solana_sdk::system_program::ID,
+    };
 
     let ix = Instruction {
-        program_id,
-        accounts: accounts.clone(),
-        data: data.clone(),
+        program_id: anchor_manual_test::ID,
+        accounts: accounts.to_account_metas(None),
+        data: anchor_manual_test::instruction::CreateAta {
+            params: params.clone(),
+        }
+        .data(),
     };
 
     // First creation
@@ -118,13 +105,7 @@ async fn test_create_ata_idempotent() {
         .expect("First CreateAta should succeed");
 
     // Second creation (idempotent) - should NOT fail
-    let ix2 = Instruction {
-        program_id,
-        accounts,
-        data,
-    };
-
-    rpc.create_and_send_transaction(&[ix2], &payer.pubkey(), &[&payer])
+    rpc.create_and_send_transaction(&[ix], &payer.pubkey(), &[&payer])
         .await
         .expect("Second CreateAta should succeed (idempotent)");
 }

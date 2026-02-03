@@ -25,6 +25,7 @@ members = [
     "anchor-programs/system",
     "sdk-libs/client",
     "sdk-libs/token-sdk",
+    "sdk-libs/token-pinocchio",
     "sdk-libs/compressed-token-sdk",
     "sdk-libs/event",
     "sdk-libs/token-client",
@@ -69,8 +70,8 @@ members = [
     "sdk-tests/single-account-loader-test",
     "sdk-tests/single-ata-test",
     "sdk-tests/single-token-test",
-    "sdk-tests/manual-test",
-    "sdk-tests/manual-test-pinocchio",
+    "sdk-tests/anchor-manual-test",
+    "sdk-tests/pinocchio-manual-test",
     "sdk-tests/pinocchio-light-program-test",
     "forester-utils",
     "forester",
@@ -227,6 +228,7 @@ light-compressed-token = { path = "programs/compressed-token/program", version =
 ] }
 light-token-types = { path = "sdk-libs/token-types", version = "0.4.0" }
 light-token = { path = "sdk-libs/token-sdk", version = "0.4.0" }
+light-token-pinocchio = { path = "sdk-libs/token-pinocchio", version = "0.4.0" }
 light-compressed-token-sdk = { path = "sdk-libs/compressed-token-sdk", version = "0.1.0" }
 light-token-client = { path = "sdk-libs/token-client", version = "0.1.1" }
 light-system-program-anchor = { path = "anchor-programs/system", version = "2.0.0", features = [
