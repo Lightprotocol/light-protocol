@@ -186,7 +186,6 @@ pub use light_sdk_macros::{
     light_program,
     // Derive macros
     CompressAs,
-    Compressible,
     HasCompressionInfo,
     LightAccount,
     LightAccounts,

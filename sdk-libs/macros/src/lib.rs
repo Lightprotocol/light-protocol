@@ -309,52 +309,6 @@ pub fn account(_: TokenStream, input: TokenStream) -> TokenStream {
     into_token_stream(account::account(input))
 }
 
-/// Automatically implements all required traits for compressible accounts.
-///
-/// This derive macro generates HasCompressionInfo, Size, and CompressAs trait implementations.
-/// It supports optional compress_as attribute for custom compression behavior.
-///
-/// ## Example - Basic Usage
-///
-/// ```ignore
-/// use light_sdk_macros::Compressible;
-/// use light_compressible::CompressionInfo;
-/// use solana_pubkey::Pubkey;
-///
-/// #[derive(Compressible)]
-/// pub struct UserRecord {
-///     pub compression_info: Option<CompressionInfo>,
-///     pub owner: Pubkey,
-///     pub name: String,
-///     pub score: u64,
-/// }
-/// ```
-///
-/// ## Example - Custom Compression
-///
-/// ```ignore
-/// use light_sdk_macros::Compressible;
-/// use light_compressible::CompressionInfo;
-/// use solana_pubkey::Pubkey;
-///
-/// #[derive(Compressible)]
-/// #[compress_as(start_time = 0, end_time = None, score = 0)]
-/// pub struct GameSession {
-///     pub compression_info: Option<CompressionInfo>,
-///     pub session_id: u64,        // KEPT
-///     pub player: Pubkey,         // KEPT
-///     pub game_type: String,      // KEPT
-///     pub start_time: u64,        // RESET to 0
-///     pub end_time: Option<u64>,  // RESET to None
-///     pub score: u64,             // RESET to 0
-/// }
-/// ```
-#[proc_macro_derive(Compressible, attributes(compress_as, light_seeds))]
-pub fn compressible_derive(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as DeriveInput);
-    into_token_stream(light_pdas::account::traits::derive_compressible(input))
-}
-
 /// Generates a unified `LightAccount` trait implementation for light account structs.
 ///
 /// This macro generates:
