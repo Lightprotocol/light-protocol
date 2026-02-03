@@ -59,14 +59,16 @@ fn compress_dispatch(
     }
 }
 
-/// MACRO-GENERATED: Process handler - just forwards to SDK function with dispatch.
+/// MACRO-GENERATED: Process handler - deserializes params and forwards to SDK function.
 pub fn process_compress_and_close(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
+    let params = light_account_pinocchio::CompressAndCloseParams::try_from_slice(instruction_data)
+        .map_err(|_| ProgramError::InvalidInstructionData)?;
     process_compress_pda_accounts_idempotent(
         accounts,
-        instruction_data,
+        &params,
         compress_dispatch,
         crate::LIGHT_CPI_SIGNER,
         &crate::ID,

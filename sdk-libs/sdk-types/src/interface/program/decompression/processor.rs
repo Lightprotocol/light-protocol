@@ -149,7 +149,7 @@ pub struct DecompressCtx<'a, AI: AccountInfoTrait + Clone> {
 #[inline(never)]
 pub fn process_decompress_pda_accounts_idempotent<AI, V>(
     remaining_accounts: &[AI],
-    instruction_data: &[u8],
+    params: &DecompressIdempotentParams<V>,
     cpi_signer: CpiSigner,
     program_id: &[u8; 32],
     current_slot: u64,
@@ -158,10 +158,6 @@ where
     AI: AccountInfoTrait + Clone,
     V: DecompressVariant<AI>,
 {
-    // 1. Deserialize params
-    let params = DecompressIdempotentParams::<V>::try_from_slice(instruction_data)
-        .map_err(|_| LightSdkTypesError::Borsh)?;
-
     let system_accounts_offset = params.system_accounts_offset as usize;
     if system_accounts_offset > remaining_accounts.len() {
         return Err(LightSdkTypesError::InvalidInstructionData);
@@ -278,7 +274,7 @@ where
 #[inline(never)]
 pub fn process_decompress_accounts_idempotent<AI, V>(
     remaining_accounts: &[AI],
-    instruction_data: &[u8],
+    params: &DecompressIdempotentParams<V>,
     cpi_signer: CpiSigner,
     program_id: &[u8; 32],
     current_slot: u64,
@@ -287,10 +283,6 @@ where
     AI: AccountInfoTrait + Clone,
     V: DecompressVariant<AI>,
 {
-    // 1. Deserialize params
-    let params = DecompressIdempotentParams::<V>::try_from_slice(instruction_data)
-        .map_err(|_| LightSdkTypesError::Borsh)?;
-
     let system_accounts_offset = params.system_accounts_offset as usize;
     if system_accounts_offset > remaining_accounts.len() {
         return Err(LightSdkTypesError::InvalidInstructionData);

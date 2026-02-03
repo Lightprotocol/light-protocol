@@ -151,11 +151,11 @@ impl CompressBuilder {
             #[inline(never)]
             pub fn process_compress_accounts_idempotent<'info>(
                 remaining_accounts: &[solana_account_info::AccountInfo<'info>],
-                instruction_data: &[u8],
+                params: &light_account::CompressAndCloseParams,
             ) -> Result<()> {
                 light_account::process_compress_pda_accounts_idempotent(
                     remaining_accounts,
-                    instruction_data,
+                    params,
                     __compress_dispatch,
                     LIGHT_CPI_SIGNER,
                     &crate::LIGHT_CPI_SIGNER.program_id,
@@ -167,19 +167,18 @@ impl CompressBuilder {
 
     /// Generate the compress instruction entrypoint function (v2 interface).
     ///
-    /// Accepts `instruction_data: Vec<u8>` as a single parameter.
-    /// The SDK client wraps the serialized data in a Vec<u8> (4-byte length prefix),
-    /// and Anchor deserializes Vec<u8> correctly with this format.
+    /// Accepts typed `CompressAndCloseParams` directly.
+    /// Anchor deserializes the params from instruction data.
     pub fn generate_entrypoint(&self) -> Result<syn::ItemFn> {
         Ok(syn::parse_quote! {
             #[inline(never)]
             pub fn compress_accounts_idempotent<'info>(
                 ctx: Context<'_, '_, '_, 'info, CompressAccountsIdempotent<'info>>,
-                instruction_data: Vec<u8>,
+                params: light_account::CompressAndCloseParams,
             ) -> Result<()> {
                 __processor_functions::process_compress_accounts_idempotent(
                     ctx.remaining_accounts,
-                    &instruction_data,
+                    &params,
                 )
             }
         })
@@ -436,6 +435,8 @@ impl CompressBuilder {
     }
 
     /// Generate `process_compress` as an enum associated function (pinocchio version).
+    ///
+    /// The function deserializes params from instruction_data before calling the processor.
     pub fn generate_enum_process_compress_pinocchio(
         &self,
         enum_name: &syn::Ident,
@@ -446,9 +447,12 @@ impl CompressBuilder {
                     accounts: &[pinocchio::account_info::AccountInfo],
                     instruction_data: &[u8],
                 ) -> std::result::Result<(), pinocchio::program_error::ProgramError> {
+                    use borsh::BorshDeserialize;
+                    let params = light_account_pinocchio::CompressAndCloseParams::try_from_slice(instruction_data)
+                        .map_err(|_| pinocchio::program_error::ProgramError::InvalidInstructionData)?;
                     light_account_pinocchio::process_compress_pda_accounts_idempotent(
                         accounts,
-                        instruction_data,
+                        &params,
                         Self::compress_dispatch,
                         crate::LIGHT_CPI_SIGNER,
                         &crate::LIGHT_CPI_SIGNER.program_id,

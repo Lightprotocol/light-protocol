@@ -163,14 +163,14 @@ fn compress_dispatch<'info>(
     }
 }
 
-/// MACRO-GENERATED: Process handler - just forwards to SDK function with dispatch.
+/// MACRO-GENERATED: Process handler - accepts typed params and forwards to SDK function.
 pub fn process_compress_and_close<'info>(
     remaining_accounts: &[AccountInfo<'info>],
-    instruction_data: &[u8],
+    params: &light_account::CompressAndCloseParams,
 ) -> Result<()> {
     process_compress_pda_accounts_idempotent(
         remaining_accounts,
-        instruction_data,
+        params,
         compress_dispatch,
         crate::LIGHT_CPI_SIGNER,
         &crate::ID.to_bytes(),

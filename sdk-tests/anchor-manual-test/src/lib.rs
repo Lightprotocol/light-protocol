@@ -105,24 +105,24 @@ pub mod manual_test {
     /// Named to match SDK/forester expected discriminator.
     ///
     /// NOTE: Empty Accounts struct - everything in remaining_accounts.
-    /// Deserialization happens inside process_compress_pda_accounts_idempotent.
+    /// Anchor deserializes typed params directly.
     pub fn compress_accounts_idempotent<'info>(
         ctx: Context<'_, '_, '_, 'info, CompressAndClose<'info>>,
-        instruction_data: Vec<u8>,
+        params: CompressAndCloseParams,
     ) -> Result<()> {
-        derived_compress::process_compress_and_close(ctx.remaining_accounts, &instruction_data)
+        derived_compress::process_compress_and_close(ctx.remaining_accounts, &params)
     }
 
     /// Decompress compressed accounts back into PDAs idempotently.
     /// Named to match SDK expected discriminator.
     ///
     /// NOTE: PhantomData struct - all accounts in remaining_accounts.
-    /// Deserialization happens inside process_decompress_pda_accounts_idempotent.
+    /// Anchor deserializes typed params directly.
     pub fn decompress_accounts_idempotent<'info>(
         ctx: Context<'_, '_, '_, 'info, DecompressIdempotent<'info>>,
-        instruction_data: Vec<u8>,
+        params: DecompressIdempotentParams<PackedLightAccountVariant>,
     ) -> Result<()> {
-        derived_decompress::process_decompress_idempotent(ctx.remaining_accounts, &instruction_data)
+        derived_decompress::process_decompress_idempotent(ctx.remaining_accounts, &params)
     }
 
     /// Create a single zero-copy compressible PDA using AccountLoader.

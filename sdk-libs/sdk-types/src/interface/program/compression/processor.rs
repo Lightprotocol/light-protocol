@@ -69,15 +69,11 @@ pub type CompressDispatchFn<AI> = fn(
 #[inline(never)]
 pub fn process_compress_pda_accounts_idempotent<AI: AccountInfoTrait + Clone>(
     remaining_accounts: &[AI],
-    instruction_data: &[u8],
+    params: &CompressAndCloseParams,
     dispatch_fn: CompressDispatchFn<AI>,
     cpi_signer: CpiSigner,
     program_id: &[u8; 32],
 ) -> Result<(), LightSdkTypesError> {
-    // 1. Deserialize params
-    let params = CompressAndCloseParams::try_from_slice(instruction_data)
-        .map_err(|_| LightSdkTypesError::Borsh)?;
-
     let system_accounts_offset = params.system_accounts_offset as usize;
     let num_pdas = params.compressed_accounts.len();
 

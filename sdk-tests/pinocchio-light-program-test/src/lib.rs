@@ -73,23 +73,6 @@ pub mod discriminators {
 // Entrypoint
 // ============================================================================
 
-/// Strip the 4-byte Vec<u8> borsh length prefix from instruction data.
-///
-/// The SDK client wraps serialized instruction data in Vec<u8> format
-/// (4-byte little-endian length prefix + payload) for Anchor compatibility.
-/// Pinocchio programs must strip it manually.
-#[inline]
-fn strip_vec_wrapper(data: &[u8]) -> Result<&[u8], ProgramError> {
-    if data.len() < 4 {
-        return Err(ProgramError::InvalidInstructionData);
-    }
-    let len = u32::from_le_bytes(data[..4].try_into().unwrap()) as usize;
-    if data.len() < 4 + len {
-        return Err(ProgramError::InvalidInstructionData);
-    }
-    Ok(&data[4..4 + len])
-}
-
 pinocchio::entrypoint!(process_instruction);
 
 pub fn process_instruction(
@@ -119,12 +102,10 @@ pub fn process_instruction(
             ProgramAccounts::process_update_config(accounts, data)
         }
         discriminators::COMPRESS_ACCOUNTS_IDEMPOTENT => {
-            let inner = strip_vec_wrapper(data)?;
-            ProgramAccounts::process_compress(accounts, inner)
+            ProgramAccounts::process_compress(accounts, data)
         }
         discriminators::DECOMPRESS_ACCOUNTS_IDEMPOTENT => {
-            let inner = strip_vec_wrapper(data)?;
-            ProgramAccounts::process_decompress(accounts, inner)
+            ProgramAccounts::process_decompress(accounts, data)
         }
         _ => Err(ProgramError::InvalidInstructionData),
     }

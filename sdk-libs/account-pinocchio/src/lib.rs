@@ -7,8 +7,6 @@ pub use pinocchio::account_info::AccountInfo;
 
 pub type CpiAccounts<'c> = light_sdk_types::cpi_accounts::v2::CpiAccounts<'c, AccountInfo>;
 
-pub type CpiAccountsV1<'c> = light_sdk_types::cpi_accounts::v1::CpiAccounts<'c, AccountInfo>;
-
 pub type CompressCtx<'a> =
     light_sdk_types::interface::program::compression::processor::CompressCtx<'a, AccountInfo>;
 

@@ -371,12 +371,12 @@ async fn test_system_accounts_offset_out_of_bounds() {
             .await
             .expect("create_load_instructions should succeed");
 
-    // The instruction data format is: [discriminator(8)] [length(4)] [system_accounts_offset(1)] ...
+    // The instruction data format is: [discriminator(8)] [system_accounts_offset(1)] ...
     // Modify system_accounts_offset to be out of bounds
     if let Some(ix) = decompress_instructions.first_mut() {
-        // Byte 12 is system_accounts_offset (after 8-byte discriminator + 4-byte length)
-        if ix.data.len() > 12 {
-            ix.data[12] = 255; // Set to max u8, guaranteed out of bounds
+        // Byte 8 is system_accounts_offset (directly after 8-byte discriminator)
+        if ix.data.len() > 8 {
+            ix.data[8] = 255; // Set to max u8, guaranteed out of bounds
         }
     }
 
@@ -416,12 +416,12 @@ async fn test_token_accounts_offset_invalid() {
             .expect("create_load_instructions should succeed");
 
     // The instruction data format is:
-    // [discriminator(8)] [length(4)] [system_accounts_offset(1)] [token_accounts_offset(1)] ...
+    // [discriminator(8)] [system_accounts_offset(1)] [token_accounts_offset(1)] ...
     // Modify token_accounts_offset to be larger than accounts.len()
     if let Some(ix) = decompress_instructions.first_mut() {
-        // Byte 13 is token_accounts_offset
-        if ix.data.len() > 13 {
-            ix.data[13] = 200; // Set to value larger than accounts
+        // Byte 9 is token_accounts_offset (after 8-byte discriminator + 1-byte system_accounts_offset)
+        if ix.data.len() > 9 {
+            ix.data[9] = 200; // Set to value larger than accounts
         }
     }
 

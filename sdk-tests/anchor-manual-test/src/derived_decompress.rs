@@ -114,16 +114,16 @@ pub(crate) mod __cpi_client_accounts_decompress_idempotent {
     }
 }
 
-/// MACRO-GENERATED: Process handler - forwards to SDK function with program's variant type.
+/// MACRO-GENERATED: Process handler - accepts typed params and forwards to SDK function.
 pub fn process_decompress_idempotent<'info>(
     remaining_accounts: &[AccountInfo<'info>],
-    instruction_data: &[u8],
+    params: &light_account::DecompressIdempotentParams<PackedLightAccountVariant>,
 ) -> Result<()> {
     use solana_program::{clock::Clock, sysvar::Sysvar};
     let current_slot = Clock::get()?.slot;
     process_decompress_pda_accounts_idempotent::<_, PackedLightAccountVariant>(
         remaining_accounts,
-        instruction_data,
+        params,
         crate::LIGHT_CPI_SIGNER,
         &crate::ID.to_bytes(),
         current_slot,

@@ -129,9 +129,7 @@ pub fn initialize_config(
         address_space: address_space.iter().map(|p| p.to_bytes()).collect(),
         config_bump,
     };
-    // Serialize params, then wrap as Vec<u8> for Anchor's borsh deserialization
-    let params_bytes: Vec<u8> = params.try_to_vec().expect("serialize params");
-    let serialized = params_bytes.try_to_vec().expect("serialize vec");
+    let serialized = params.try_to_vec().expect("serialize params");
     let mut data = Vec::with_capacity(discriminator.len() + serialized.len());
     data.extend_from_slice(discriminator);
     data.extend_from_slice(&serialized);
@@ -169,9 +167,7 @@ pub fn update_config(
         new_write_top_up: None,
         new_address_space: new_address_space.map(|v| v.iter().map(|p| p.to_bytes()).collect()),
     };
-    // Serialize params, then wrap as Vec<u8> for Anchor's borsh deserialization
-    let params_bytes: Vec<u8> = params.try_to_vec().expect("serialize params");
-    let serialized = params_bytes.try_to_vec().expect("serialize vec");
+    let serialized = params.try_to_vec().expect("serialize params");
     let mut data = Vec::with_capacity(discriminator.len() + serialized.len());
     data.extend_from_slice(discriminator);
     data.extend_from_slice(&serialized);
@@ -284,10 +280,8 @@ where
     };
 
     let serialized = ix_data.try_to_vec()?;
-    // Wrap in Vec<u8> format (4-byte length prefix) for Anchor compatibility
-    let mut data = Vec::with_capacity(discriminator.len() + 4 + serialized.len());
+    let mut data = Vec::with_capacity(discriminator.len() + serialized.len());
     data.extend_from_slice(discriminator);
-    data.extend_from_slice(&(serialized.len() as u32).to_le_bytes());
     data.extend_from_slice(&serialized);
 
     Ok(Instruction {
@@ -347,10 +341,8 @@ pub fn build_compress_accounts_idempotent(
     };
 
     let serialized = ix_data.try_to_vec()?;
-    // Wrap in Vec<u8> format (4-byte length prefix) for Anchor compatibility
-    let mut data = Vec::with_capacity(discriminator.len() + 4 + serialized.len());
+    let mut data = Vec::with_capacity(discriminator.len() + serialized.len());
     data.extend_from_slice(discriminator);
-    data.extend_from_slice(&(serialized.len() as u32).to_le_bytes());
     data.extend_from_slice(&serialized);
 
     Ok(Instruction {

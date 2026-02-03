@@ -12,17 +12,20 @@ use pinocchio::{
 
 use crate::derived_variants::PackedLightAccountVariant;
 
-/// MACRO-GENERATED: Process handler - forwards to SDK function with program's variant type.
+/// MACRO-GENERATED: Process handler - deserializes params and forwards to SDK function.
 pub fn process_decompress_idempotent(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
+    use borsh::BorshDeserialize;
+    let params = light_account_pinocchio::DecompressIdempotentParams::<PackedLightAccountVariant>::try_from_slice(instruction_data)
+        .map_err(|_| ProgramError::InvalidInstructionData)?;
     let current_slot = Clock::get()
         .map_err(|_| ProgramError::UnsupportedSysvar)?
         .slot;
     process_decompress_pda_accounts_idempotent::<_, PackedLightAccountVariant>(
         accounts,
-        instruction_data,
+        &params,
         crate::LIGHT_CPI_SIGNER,
         &crate::ID,
         current_slot,

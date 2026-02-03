@@ -54,11 +54,11 @@ pub mod anchor_semi_manual_test {
 
     pub fn compress_accounts_idempotent<'info>(
         ctx: Context<'_, '_, '_, 'info, EmptyAccounts<'info>>,
-        instruction_data: Vec<u8>,
+        params: light_account::CompressAndCloseParams,
     ) -> Result<()> {
         light_account::process_compress_pda_accounts_idempotent(
             ctx.remaining_accounts,
-            &instruction_data,
+            &params,
             ProgramAccounts::compress_dispatch,
             LIGHT_CPI_SIGNER,
             &LIGHT_CPI_SIGNER.program_id,
@@ -68,13 +68,13 @@ pub mod anchor_semi_manual_test {
 
     pub fn decompress_accounts_idempotent<'info>(
         ctx: Context<'_, '_, '_, 'info, EmptyAccounts<'info>>,
-        instruction_data: Vec<u8>,
+        params: light_account::DecompressIdempotentParams<PackedLightAccountVariant>,
     ) -> Result<()> {
         use solana_program::{clock::Clock, sysvar::Sysvar};
         let current_slot = Clock::get()?.slot;
         ProgramAccounts::decompress_dispatch(
             ctx.remaining_accounts,
-            &instruction_data,
+            &params,
             LIGHT_CPI_SIGNER,
             &LIGHT_CPI_SIGNER.program_id,
             current_slot,

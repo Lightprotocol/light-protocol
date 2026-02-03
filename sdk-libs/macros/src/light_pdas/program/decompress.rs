@@ -70,13 +70,13 @@ impl DecompressBuilder {
                 #[inline(never)]
                 pub fn process_decompress_accounts_idempotent<'info>(
                     remaining_accounts: &[solana_account_info::AccountInfo<'info>],
-                    instruction_data: &[u8],
+                    params: &light_account::DecompressIdempotentParams<PackedLightAccountVariant>,
                 ) -> Result<()> {
                     use solana_program::{clock::Clock, sysvar::Sysvar};
                     let current_slot = Clock::get()?.slot;
                     light_account::process_decompress_accounts_idempotent::<_, PackedLightAccountVariant>(
                         remaining_accounts,
-                        instruction_data,
+                        params,
                         LIGHT_CPI_SIGNER,
                         &crate::LIGHT_CPI_SIGNER.program_id,
                         current_slot,
@@ -89,13 +89,13 @@ impl DecompressBuilder {
                 #[inline(never)]
                 pub fn process_decompress_accounts_idempotent<'info>(
                     remaining_accounts: &[solana_account_info::AccountInfo<'info>],
-                    instruction_data: &[u8],
+                    params: &light_account::DecompressIdempotentParams<PackedLightAccountVariant>,
                 ) -> Result<()> {
                     use solana_program::{clock::Clock, sysvar::Sysvar};
                     let current_slot = Clock::get()?.slot;
                     light_account::process_decompress_pda_accounts_idempotent::<_, PackedLightAccountVariant>(
                         remaining_accounts,
-                        instruction_data,
+                        params,
                         LIGHT_CPI_SIGNER,
                         &crate::LIGHT_CPI_SIGNER.program_id,
                         current_slot,
@@ -108,19 +108,18 @@ impl DecompressBuilder {
 
     /// Generate the decompress instruction entrypoint function (v2 interface).
     ///
-    /// Accepts `instruction_data: Vec<u8>` as a single parameter.
-    /// The SDK client wraps the serialized data in a Vec<u8> (4-byte length prefix),
-    /// and Anchor deserializes Vec<u8> correctly with this format.
+    /// Accepts typed `DecompressIdempotentParams` directly.
+    /// Anchor deserializes the params from instruction data.
     pub fn generate_entrypoint(&self) -> Result<syn::ItemFn> {
         Ok(syn::parse_quote! {
             #[inline(never)]
             pub fn decompress_accounts_idempotent<'info>(
                 ctx: Context<'_, '_, '_, 'info, DecompressAccountsIdempotent<'info>>,
-                instruction_data: Vec<u8>,
+                params: light_account::DecompressIdempotentParams<PackedLightAccountVariant>,
             ) -> Result<()> {
                 __processor_functions::process_decompress_accounts_idempotent(
                     ctx.remaining_accounts,
-                    &instruction_data,
+                    &params,
                 )
             }
         })
@@ -378,6 +377,8 @@ impl DecompressBuilder {
     // -------------------------------------------------------------------------
 
     /// Generate `process_decompress` as an enum associated function (pinocchio version).
+    ///
+    /// The function deserializes params from instruction_data before calling the processor.
     pub fn generate_enum_process_decompress_pinocchio(
         &self,
         enum_name: &syn::Ident,
@@ -386,7 +387,7 @@ impl DecompressBuilder {
             quote! {
                 light_account_pinocchio::process_decompress_accounts_idempotent::<_, PackedLightAccountVariant>(
                     accounts,
-                    instruction_data,
+                    &params,
                     crate::LIGHT_CPI_SIGNER,
                     &crate::LIGHT_CPI_SIGNER.program_id,
                     current_slot,
@@ -396,7 +397,7 @@ impl DecompressBuilder {
             quote! {
                 light_account_pinocchio::process_decompress_pda_accounts_idempotent::<_, PackedLightAccountVariant>(
                     accounts,
-                    instruction_data,
+                    &params,
                     crate::LIGHT_CPI_SIGNER,
                     &crate::LIGHT_CPI_SIGNER.program_id,
                     current_slot,
@@ -410,7 +411,10 @@ impl DecompressBuilder {
                     accounts: &[pinocchio::account_info::AccountInfo],
                     instruction_data: &[u8],
                 ) -> std::result::Result<(), pinocchio::program_error::ProgramError> {
+                    use borsh::BorshDeserialize;
                     use pinocchio::sysvars::Sysvar;
+                    let params = light_account_pinocchio::DecompressIdempotentParams::<PackedLightAccountVariant>::try_from_slice(instruction_data)
+                        .map_err(|_| pinocchio::program_error::ProgramError::InvalidInstructionData)?;
                     let current_slot = pinocchio::sysvars::clock::Clock::get()
                         .map_err(|_| pinocchio::program_error::ProgramError::UnsupportedSysvar)?
                         .slot;
@@ -434,7 +438,7 @@ impl DecompressBuilder {
             quote! {
                 light_account::process_decompress_accounts_idempotent::<_, PackedLightAccountVariant>(
                     remaining_accounts,
-                    instruction_data,
+                    params,
                     cpi_signer,
                     program_id,
                     current_slot,
@@ -444,7 +448,7 @@ impl DecompressBuilder {
             quote! {
                 light_account::process_decompress_pda_accounts_idempotent::<_, PackedLightAccountVariant>(
                     remaining_accounts,
-                    instruction_data,
+                    params,
                     cpi_signer,
                     program_id,
                     current_slot,
@@ -456,7 +460,7 @@ impl DecompressBuilder {
             impl #enum_name {
                 pub fn decompress_dispatch<'info>(
                     remaining_accounts: &[solana_account_info::AccountInfo<'info>],
-                    instruction_data: &[u8],
+                    params: &light_account::DecompressIdempotentParams<PackedLightAccountVariant>,
                     cpi_signer: light_account::CpiSigner,
                     program_id: &[u8; 32],
                     current_slot: u64,
