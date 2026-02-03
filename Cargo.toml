@@ -71,6 +71,7 @@ members = [
     "sdk-tests/single-token-test",
     "sdk-tests/manual-test",
     "sdk-tests/manual-test-pinocchio",
+    "sdk-tests/pinocchio-light-program-test",
     "forester-utils",
     "forester",
     "sparse-merkle-tree",

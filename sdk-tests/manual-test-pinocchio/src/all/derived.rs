@@ -233,7 +233,7 @@ impl LightPreInit<AccountInfo, CreateAllParams> for CreateAllAccounts<'_> {
                     infra,
                     &cpi_accounts,
                 )
-                .map_err(|_| LightSdkTypesError::CpiFailed)?;
+                .map_err(|e| LightSdkTypesError::ProgramError(e.into()))?;
             }
 
             // ====================================================================

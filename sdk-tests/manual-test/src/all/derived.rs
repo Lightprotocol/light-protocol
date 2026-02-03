@@ -232,7 +232,7 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateAllParams> for CreateAllAccou
                     infra,
                     &cpi_accounts,
                 )
-                .map_err(|_| LightSdkTypesError::CpiFailed)?;
+                .map_err(|e| LightSdkTypesError::ProgramError(e.into()))?;
             }
 
             // ====================================================================

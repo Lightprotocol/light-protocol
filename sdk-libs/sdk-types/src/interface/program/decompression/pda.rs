@@ -121,7 +121,7 @@ where
             rent_sponsor_seeds,
             system_program,
         )
-        .map_err(|_| LightSdkTypesError::CpiFailed)?;
+        .map_err(|e| LightSdkTypesError::ProgramError(e.into()))?;
 
     // 7. Write discriminator + data to PDA
     let mut pda_data = pda_account

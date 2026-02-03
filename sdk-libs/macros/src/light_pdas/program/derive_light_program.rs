@@ -763,6 +763,94 @@ pub fn derive_light_program_impl(input: DeriveInput) -> Result<TokenStream> {
     Ok(output)
 }
 
+/// Main entry point for `#[derive(LightProgramPinocchio)]`.
+///
+/// Same logic as `derive_light_program_impl()` but generates pinocchio-compatible code:
+/// - `BorshSerialize/BorshDeserialize` instead of `AnchorSerialize/AnchorDeserialize`
+/// - `light_account_pinocchio::` instead of `light_account::`
+/// - No `use anchor_lang::prelude::*;` import
+/// - Config/compress/decompress as enum associated functions
+pub fn derive_light_program_pinocchio_impl(input: DeriveInput) -> Result<TokenStream> {
+    // 1. Parse the enum variants (reused)
+    let variants = parse_enum_variants(&input)?;
+
+    if variants.is_empty() {
+        return Err(syn::Error::new_spanned(
+            &input,
+            "#[derive(LightProgramPinocchio)] enum must have at least one variant",
+        ));
+    }
+
+    // 2. Parse crate context for struct field lookup
+    let crate_ctx = CrateContext::parse_from_manifest()?;
+
+    // 3. Build intermediate types (reused)
+    let (
+        compressible_accounts,
+        pda_seeds,
+        token_seeds,
+        instruction_data,
+        has_mint_fields,
+        has_ata_fields,
+        _pda_variant_code, // We'll regenerate with pinocchio derives
+    ) = build_intermediate_types(&variants, &crate_ctx)?;
+
+    // 3b. Re-generate PDA variant code with pinocchio derives
+    let pda_variant_code_pinocchio: TokenStream = variants
+        .iter()
+        .filter(|v| matches!(v.kind, ManualVariantKind::Pda))
+        .map(|variant| {
+            let spec = manual_variant_to_extracted_spec(variant, &crate_ctx);
+            VariantBuilder::from_extracted_spec(&spec).build_for_pinocchio()
+        })
+        .collect();
+
+    // 4. Generate all items using the pinocchio orchestration function
+    let enum_name = &input.ident;
+    let items = super::instructions::generate_light_program_pinocchio_items(
+        compressible_accounts,
+        pda_seeds,
+        token_seeds,
+        instruction_data,
+        &crate_ctx,
+        has_mint_fields,
+        has_ata_fields,
+        pda_variant_code_pinocchio,
+        Some(enum_name),
+    )?;
+
+    // 5. Combine into single TokenStream (NO anchor import)
+    let mut output = TokenStream::new();
+    for item in items {
+        output.extend(item);
+    }
+
+    Ok(output)
+}
+
+/// Convert a ParsedManualVariant to ExtractedSeedSpec for VariantBuilder.
+fn manual_variant_to_extracted_spec(
+    variant: &ParsedManualVariant,
+    _crate_ctx: &CrateContext,
+) -> ExtractedSeedSpec {
+    let seeds: Vec<ClassifiedSeed> = variant
+        .seeds
+        .iter()
+        .map(|s| manual_seed_to_classified(s))
+        .collect();
+
+    ExtractedSeedSpec {
+        struct_name: variant.ident.to_string(),
+        variant_name: variant.ident.clone(),
+        inner_type: variant.inner_type.clone().unwrap_or_else(|| {
+            syn::parse_quote!(())
+        }),
+        seeds,
+        is_zero_copy: variant.is_zero_copy,
+        module_path: String::new(),
+    }
+}
+
 // =============================================================================
 // TESTS
 // =============================================================================

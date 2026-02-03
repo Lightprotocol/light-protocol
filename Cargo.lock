@@ -5190,6 +5190,42 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b971851087bc3699b001954ad02389d50c41405ece3548cbcafc88b3e20017a"
 
 [[package]]
+name = "pinocchio-light-program-test"
+version = "0.1.0"
+dependencies = [
+ "borsh 0.10.4",
+ "bytemuck",
+ "light-account",
+ "light-account-pinocchio",
+ "light-batched-merkle-tree",
+ "light-client",
+ "light-compressed-account",
+ "light-compressible",
+ "light-hasher",
+ "light-macros",
+ "light-program-test",
+ "light-sdk-macros",
+ "light-sdk-types",
+ "light-test-utils",
+ "light-token",
+ "light-token-client",
+ "light-token-interface",
+ "light-token-types",
+ "pinocchio",
+ "pinocchio-pubkey",
+ "pinocchio-system",
+ "solana-account",
+ "solana-instruction",
+ "solana-keypair",
+ "solana-msg 2.2.1",
+ "solana-program-error 2.2.2",
+ "solana-pubkey 2.4.0",
+ "solana-sdk",
+ "solana-signer",
+ "tokio",
+]
+
+[[package]]
 name = "pinocchio-log"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -35,9 +35,8 @@
 //!     .invoke(light_cpi_accounts)?;
 //! ```
 
-// Local Solana-specific modules
-pub mod account;
-pub mod instruction;
+mod account;
+mod instruction;
 pub mod invoke;
 
 // Re-export local traits at crate::cpi:: level

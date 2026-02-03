@@ -78,7 +78,7 @@ impl DecompressBuilder {
                         remaining_accounts,
                         instruction_data,
                         LIGHT_CPI_SIGNER,
-                        &crate::ID.to_bytes(),
+                        &crate::LIGHT_CPI_SIGNER.program_id,
                         current_slot,
                     )
                     .map_err(|e| anchor_lang::error::Error::from(solana_program_error::ProgramError::from(e)))
@@ -97,7 +97,7 @@ impl DecompressBuilder {
                         remaining_accounts,
                         instruction_data,
                         LIGHT_CPI_SIGNER,
-                        &crate::ID.to_bytes(),
+                        &crate::LIGHT_CPI_SIGNER.program_id,
                         current_slot,
                     )
                     .map_err(|e| anchor_lang::error::Error::from(solana_program_error::ProgramError::from(e)))
@@ -254,7 +254,7 @@ impl DecompressBuilder {
 
     /// Generate PDA seed provider implementations.
     /// Returns empty Vec for mint-only or token-only programs that have no PDA seeds.
-    pub fn generate_seed_provider_impls(&self) -> Result<Vec<TokenStream>> {
+    pub fn generate_seed_provider_impls(&self, is_pinocchio: bool) -> Result<Vec<TokenStream>> {
         // For mint-only or token-only programs, there are no PDA seeds - return empty Vec
         let pda_seed_specs = match self.pda_seeds.as_ref() {
             Some(specs) if !specs.is_empty() => specs,
@@ -327,20 +327,26 @@ impl DecompressBuilder {
                 ctx_fields,
                 &ctx_info.state_field_names,
                 params_only_fields,
+                is_pinocchio,
             )?;
 
             let has_params_only = !params_only_fields.is_empty();
+            let account_crate = if is_pinocchio {
+                quote! { light_account_pinocchio }
+            } else {
+                quote! { light_account }
+            };
             let seed_params_impl = if has_params_only {
                 quote! {
                     #ctx_seeds_struct
 
-                    impl light_account::PdaSeedDerivation<#ctx_seeds_struct_name, SeedParams> for #inner_type {
+                    impl #account_crate::PdaSeedDerivation<#ctx_seeds_struct_name, SeedParams> for #inner_type {
                         fn derive_pda_seeds_with_accounts(
                             &self,
                             program_id: &[u8; 32],
                             ctx_seeds: &#ctx_seeds_struct_name,
                             seed_params: &SeedParams,
-                        ) -> std::result::Result<(Vec<Vec<u8>>, [u8; 32]), light_account::LightSdkTypesError> {
+                        ) -> std::result::Result<(Vec<Vec<u8>>, [u8; 32]), #account_crate::LightSdkTypesError> {
                             #seed_derivation
                         }
                     }
@@ -349,13 +355,13 @@ impl DecompressBuilder {
                 quote! {
                     #ctx_seeds_struct
 
-                    impl light_account::PdaSeedDerivation<#ctx_seeds_struct_name, SeedParams> for #inner_type {
+                    impl #account_crate::PdaSeedDerivation<#ctx_seeds_struct_name, SeedParams> for #inner_type {
                         fn derive_pda_seeds_with_accounts(
                             &self,
                             program_id: &[u8; 32],
                             ctx_seeds: &#ctx_seeds_struct_name,
                             _seed_params: &SeedParams,
-                        ) -> std::result::Result<(Vec<Vec<u8>>, [u8; 32]), light_account::LightSdkTypesError> {
+                        ) -> std::result::Result<(Vec<Vec<u8>>, [u8; 32]), #account_crate::LightSdkTypesError> {
                             #seed_derivation
                         }
                     }
@@ -365,6 +371,96 @@ impl DecompressBuilder {
         }
 
         Ok(results)
+    }
+
+    // -------------------------------------------------------------------------
+    // Pinocchio Code Generation Methods
+    // -------------------------------------------------------------------------
+
+    /// Generate decompress dispatch as an associated function on the enum (pinocchio version).
+    pub fn generate_enum_decompress_dispatch_pinocchio(
+        &self,
+        enum_name: &syn::Ident,
+    ) -> Result<TokenStream> {
+        let processor_call = if self.has_tokens {
+            quote! {
+                light_account_pinocchio::process_decompress_accounts_idempotent::<_, PackedLightAccountVariant>(
+                    remaining_accounts,
+                    instruction_data,
+                    cpi_signer,
+                    program_id,
+                    current_slot,
+                )
+            }
+        } else {
+            quote! {
+                light_account_pinocchio::process_decompress_pda_accounts_idempotent::<_, PackedLightAccountVariant>(
+                    remaining_accounts,
+                    instruction_data,
+                    cpi_signer,
+                    program_id,
+                    current_slot,
+                )
+            }
+        };
+
+        Ok(quote! {
+            impl #enum_name {
+                pub fn decompress_dispatch(
+                    remaining_accounts: &[pinocchio::account_info::AccountInfo],
+                    instruction_data: &[u8],
+                    cpi_signer: light_account_pinocchio::CpiSigner,
+                    program_id: &[u8; 32],
+                    current_slot: u64,
+                ) -> std::result::Result<(), light_account_pinocchio::LightSdkTypesError> {
+                    #processor_call
+                }
+            }
+        })
+    }
+
+    /// Generate `process_decompress` as an enum associated function (pinocchio version).
+    pub fn generate_enum_process_decompress_pinocchio(
+        &self,
+        enum_name: &syn::Ident,
+    ) -> Result<TokenStream> {
+        let processor_call = if self.has_tokens {
+            quote! {
+                light_account_pinocchio::process_decompress_accounts_idempotent::<_, PackedLightAccountVariant>(
+                    accounts,
+                    instruction_data,
+                    crate::LIGHT_CPI_SIGNER,
+                    &crate::LIGHT_CPI_SIGNER.program_id,
+                    current_slot,
+                )
+            }
+        } else {
+            quote! {
+                light_account_pinocchio::process_decompress_pda_accounts_idempotent::<_, PackedLightAccountVariant>(
+                    accounts,
+                    instruction_data,
+                    crate::LIGHT_CPI_SIGNER,
+                    &crate::LIGHT_CPI_SIGNER.program_id,
+                    current_slot,
+                )
+            }
+        };
+
+        Ok(quote! {
+            impl #enum_name {
+                pub fn process_decompress(
+                    accounts: &[pinocchio::account_info::AccountInfo],
+                    instruction_data: &[u8],
+                ) -> std::result::Result<(), pinocchio::program_error::ProgramError> {
+                    use pinocchio::sysvars::Sysvar;
+                    let current_slot = pinocchio::sysvars::clock::Clock::get()
+                        .map_err(|_| pinocchio::program_error::ProgramError::UnsupportedSysvar)?
+                        .slot;
+                    #processor_call
+                        .map_err(|e| pinocchio::program_error::ProgramError::Custom(u32::from(e)))
+                }
+            }
+        })
     }
 
     /// Generate decompress dispatch as an associated function on the enum.
@@ -428,7 +524,13 @@ fn generate_pda_seed_derivation_for_trait_with_ctx_seeds(
     ctx_seed_fields: &[syn::Ident],
     state_field_names: &std::collections::HashSet<String>,
     params_only_fields: &[(syn::Ident, syn::Type, bool)],
+    is_pinocchio: bool,
 ) -> Result<TokenStream> {
+    let account_crate = if is_pinocchio {
+        quote! { light_account_pinocchio }
+    } else {
+        quote! { light_account }
+    };
     // Build a lookup for params-only field names
     let params_only_names: std::collections::HashSet<String> = params_only_fields
         .iter()
@@ -509,7 +611,7 @@ fn generate_pda_seed_derivation_for_trait_with_ctx_seeds(
                             );
                             bindings.push(quote! {
                                 let #binding_name = seed_params.#field_ident
-                                    .ok_or(light_account::LightSdkTypesError::InvalidInstructionData)?;
+                                    .ok_or(#account_crate::LightSdkTypesError::InvalidInstructionData)?;
                                 let #bytes_binding_name = #binding_name.to_le_bytes();
                             });
                             seed_refs.push(quote! { #bytes_binding_name.as_ref() });
@@ -517,7 +619,7 @@ fn generate_pda_seed_derivation_for_trait_with_ctx_seeds(
                             // Pubkey field
                             bindings.push(quote! {
                                 let #binding_name = seed_params.#field_ident
-                                    .ok_or(light_account::LightSdkTypesError::InvalidInstructionData)?;
+                                    .ok_or(#account_crate::LightSdkTypesError::InvalidInstructionData)?;
                             });
                             seed_refs.push(quote! { #binding_name.as_ref() });
                         }

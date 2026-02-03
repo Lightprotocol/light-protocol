@@ -306,7 +306,7 @@ impl LightAccountsBuilder {
             );
             let compression_config_data = light_account::LightConfig::load_checked(
                 &self.#compression_config,
-                &crate::ID.to_bytes(),
+                &crate::LIGHT_CPI_SIGNER.program_id,
             )?;
 
             let mut all_new_address_params = Vec::with_capacity(#rentfree_count as usize);
@@ -351,7 +351,7 @@ impl LightAccountsBuilder {
             );
             let compression_config_data = light_account::LightConfig::load_checked(
                 &self.#compression_config,
-                &crate::ID.to_bytes(),
+                &crate::LIGHT_CPI_SIGNER.program_id,
             )?;
 
             let mut all_new_address_params = Vec::with_capacity(#rentfree_count as usize);

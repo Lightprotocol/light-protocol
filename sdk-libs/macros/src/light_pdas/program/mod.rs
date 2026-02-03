@@ -18,5 +18,5 @@ pub mod variant_enum;
 pub(crate) mod parsing;
 pub(crate) mod visitors;
 
-pub use derive_light_program::derive_light_program_impl;
+pub use derive_light_program::{derive_light_program_impl, derive_light_program_pinocchio_impl};
 pub use instructions::light_program_impl;

@@ -561,7 +561,7 @@ where
                 remaining_accounts,
                 &[],
             )
-            .map_err(|_| LightSdkTypesError::CpiFailed)?;
+            .map_err(|e| LightSdkTypesError::ProgramError(e.into()))?;
         } else {
             // At least one regular token account - use invoke_signed with PDA seeds
             let signer_seed_refs: Vec<&[u8]> = token_seeds.iter().map(|s| s.as_slice()).collect();
@@ -572,7 +572,7 @@ where
                 remaining_accounts,
                 &[signer_seed_refs.as_slice()],
             )
-            .map_err(|_| LightSdkTypesError::CpiFailed)?;
+            .map_err(|e| LightSdkTypesError::ProgramError(e.into()))?;
         }
     }
 

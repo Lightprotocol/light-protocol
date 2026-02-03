@@ -179,7 +179,7 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateDerivedMintsParams>
                     infra,
                     &cpi_accounts,
                 )
-                .map_err(|_| LightSdkTypesError::CpiFailed)?;
+                .map_err(|e| LightSdkTypesError::ProgramError(e.into()))?;
             }
             Ok(WITH_CPI_CONTEXT) // false = mint-only, no CPI context write
         };

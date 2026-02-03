@@ -178,7 +178,7 @@ impl<'a> PdaBlockBuilder<'a> {
                     tree_info,
                     #output_tree,
                     #idx,
-                    &crate::ID.to_bytes(),
+                    &crate::LIGHT_CPI_SIGNER.program_id,
                     &mut all_new_address_params,
                     &mut all_compressed_infos,
                 )?;

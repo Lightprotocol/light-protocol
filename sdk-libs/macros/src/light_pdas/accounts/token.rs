@@ -95,7 +95,7 @@ pub(super) fn generate_token_account_cpi(
             if token_seeds.is_empty() {
                 quote! {
                     let __bump: u8 = {
-                        let (_, bump) = solana_pubkey::Pubkey::find_program_address(&[], &crate::ID);
+                        let (_, bump) = solana_pubkey::Pubkey::find_program_address(&[], &solana_pubkey::Pubkey::from(crate::LIGHT_CPI_SIGNER.program_id));
                         bump
                     };
                 }
@@ -103,7 +103,7 @@ pub(super) fn generate_token_account_cpi(
                 quote! {
                     let __bump: u8 = {
                         let seeds: &[&[u8]] = &[#(#seed_refs),*];
-                        let (_, bump) = solana_pubkey::Pubkey::find_program_address(seeds, &crate::ID);
+                        let (_, bump) = solana_pubkey::Pubkey::find_program_address(seeds, &solana_pubkey::Pubkey::from(crate::LIGHT_CPI_SIGNER.program_id));
                         bump
                     };
                 }
@@ -161,7 +161,7 @@ pub(super) fn generate_token_account_cpi(
                 &__config_info,
                 &__sponsor_info,
                 &__system_program,
-                &crate::ID.to_bytes(),
+                &crate::LIGHT_CPI_SIGNER.program_id,
             )
             .invoke_signed(__token_account_seeds)?;
         }

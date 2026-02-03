@@ -373,7 +373,19 @@ impl AccountInfoTrait for pinocchio::account_info::AccountInfo {
             data: instruction_data,
         };
 
-        let info_refs: Vec<&pinocchio::account_info::AccountInfo> = account_infos.iter().collect();
+        // Build info_refs by looking up each account_meta's pubkey in account_infos.
+        // This matches how solana-program's invoke works (lookup by pubkey, not position).
+        // Pinocchio's invoke_signed_with_bounds zips account_infos with account_metas
+        // and requires pubkeys to match at each position, so we must reorder.
+        let mut info_refs: Vec<&pinocchio::account_info::AccountInfo> =
+            Vec::with_capacity(account_metas.len());
+        for meta in account_metas {
+            let account_info = account_infos
+                .iter()
+                .find(|info| info.key() == &meta.pubkey)
+                .ok_or(AccountError::NotEnoughAccountKeys)?;
+            info_refs.push(account_info);
+        }
 
         // Build signers from seeds
         let signer_seed_vecs: Vec<Vec<Seed>> = signer_seeds

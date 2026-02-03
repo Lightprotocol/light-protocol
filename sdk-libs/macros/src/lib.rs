@@ -246,6 +246,21 @@ pub fn light_program_derive(input: TokenStream) -> TokenStream {
     into_token_stream(light_pdas::program::derive_light_program_impl(input))
 }
 
+/// Pinocchio variant of `#[derive(LightProgram)]`.
+///
+/// Generates pinocchio-compatible code instead of Anchor:
+/// - `BorshSerialize/BorshDeserialize` instead of `AnchorSerialize/AnchorDeserialize`
+/// - `light_account_pinocchio::` paths instead of `light_account::`
+/// - Config/compress/decompress as enum associated functions
+/// - `[u8; 32]` instead of `Pubkey` in generated params
+///
+/// See `#[derive(LightProgram)]` for usage syntax (identical attribute syntax).
+#[proc_macro_derive(LightProgramPinocchio, attributes(light_account))]
+pub fn light_program_pinocchio_derive(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    into_token_stream(light_pdas::program::derive_light_program_pinocchio_impl(input))
+}
+
 #[proc_macro_attribute]
 pub fn account(_: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);

@@ -108,7 +108,7 @@ where
                 ctx.remaining_accounts,
                 &[],
             )
-            .map_err(|_| LightSdkTypesError::CpiFailed)?;
+            .map_err(|e| LightSdkTypesError::ProgramError(e.into()))?;
         }
         // Don't extend token_seeds for ATAs (invoke, not invoke_signed)
     } else {
@@ -147,7 +147,7 @@ where
             ctx.remaining_accounts,
             &[signer_seeds.as_slice()],
         )
-        .map_err(|_| LightSdkTypesError::CpiFailed)?;
+        .map_err(|e| LightSdkTypesError::ProgramError(e.into()))?;
 
         // Push seeds for the Transfer2 CPI (needed for invoke_signed)
         ctx.token_seeds.extend(seeds.iter().map(|s| s.to_vec()));

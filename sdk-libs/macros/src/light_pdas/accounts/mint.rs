@@ -231,7 +231,7 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
                     // Auto-derive bump from mint_seeds
                     quote! {
                         let #mint_signer_bump_ident: u8 = {
-                            let (_, bump) = solana_pubkey::Pubkey::find_program_address(#mint_seeds_ident, &crate::ID);
+                            let (_, bump) = solana_pubkey::Pubkey::find_program_address(#mint_seeds_ident, &solana_pubkey::Pubkey::from(crate::LIGHT_CPI_SIGNER.program_id));
                             bump
                         };
                     }
@@ -248,7 +248,7 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
                             quote! {
                                 let #authority_bump_ident: u8 = {
                                     let base_seeds: &[&[u8]] = #seeds;
-                                    let (_, bump) = solana_pubkey::Pubkey::find_program_address(base_seeds, &crate::ID);
+                                    let (_, bump) = solana_pubkey::Pubkey::find_program_address(base_seeds, &solana_pubkey::Pubkey::from(crate::LIGHT_CPI_SIGNER.program_id));
                                     bump
                                 };
                             }

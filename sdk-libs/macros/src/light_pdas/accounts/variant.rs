@@ -105,6 +105,397 @@ impl VariantBuilder {
         }
     }
 
+    /// Generate all variant code for this PDA field (pinocchio version).
+    ///
+    /// Same as `build()` but uses:
+    /// - `BorshSerialize/BorshDeserialize` instead of `AnchorSerialize/AnchorDeserialize`
+    /// - `light_account_pinocchio::` instead of `light_account::`
+    /// - `[u8; 32]` instead of `Pubkey` for seed fields
+    /// - `pinocchio::account_info::AccountInfo` for AccountInfo references
+    pub fn build_for_pinocchio(&self) -> TokenStream {
+        let seeds_struct = self.generate_seeds_struct_pinocchio();
+        let packed_seeds_struct = self.generate_packed_seeds_struct_pinocchio();
+        let variant_struct = self.generate_variant_struct_pinocchio();
+        let packed_variant_struct = self.generate_packed_variant_struct_pinocchio();
+        let light_account_variant_impl = self.generate_light_account_variant_impl_pinocchio();
+        let packed_light_account_variant_impl =
+            self.generate_packed_light_account_variant_impl_pinocchio();
+        let pack_impl = self.generate_pack_impl_pinocchio();
+
+        quote! {
+            #seeds_struct
+            #packed_seeds_struct
+            #variant_struct
+            #packed_variant_struct
+            #light_account_variant_impl
+            #packed_light_account_variant_impl
+            #pack_impl
+        }
+    }
+
+    // =========================================================================
+    // PINOCCHIO GENERATION METHODS
+    // =========================================================================
+
+    fn generate_seeds_struct_pinocchio(&self) -> TokenStream {
+        let struct_name = format_ident!("{}Seeds", self.variant_name);
+        let fields: Vec<_> = self
+            .seed_fields
+            .iter()
+            .map(|sf| {
+                let name = &sf.field_name;
+                let ty = if sf.is_account_seed {
+                    quote! { [u8; 32] }
+                } else if sf.has_le_bytes {
+                    quote! { u64 }
+                } else {
+                    quote! { [u8; 32] }
+                };
+                quote! { pub #name: #ty }
+            })
+            .collect();
+
+        if fields.is_empty() {
+            quote! {
+                #[derive(borsh::BorshSerialize, borsh::BorshDeserialize, Clone, Debug)]
+                pub struct #struct_name;
+            }
+        } else {
+            quote! {
+                #[derive(borsh::BorshSerialize, borsh::BorshDeserialize, Clone, Debug)]
+                pub struct #struct_name {
+                    #(#fields,)*
+                }
+            }
+        }
+    }
+
+    fn generate_packed_seeds_struct_pinocchio(&self) -> TokenStream {
+        let struct_name = format_ident!("Packed{}Seeds", self.variant_name);
+        let fields: Vec<_> = self
+            .seed_fields
+            .iter()
+            .map(|sf| {
+                let name = if sf.is_account_seed {
+                    format_ident!("{}_idx", sf.field_name)
+                } else {
+                    sf.field_name.clone()
+                };
+                let ty = &sf.packed_field_type;
+                quote! { pub #name: #ty }
+            })
+            .collect();
+
+        quote! {
+            #[derive(borsh::BorshSerialize, borsh::BorshDeserialize, Clone, Debug)]
+            pub struct #struct_name {
+                #(#fields,)*
+                pub bump: u8,
+            }
+        }
+    }
+
+    fn generate_variant_struct_pinocchio(&self) -> TokenStream {
+        let struct_name = format_ident!("{}Variant", self.variant_name);
+        let seeds_struct_name = format_ident!("{}Seeds", self.variant_name);
+        let inner_type = &self.inner_type;
+
+        quote! {
+            #[derive(borsh::BorshSerialize, borsh::BorshDeserialize, Clone, Debug)]
+            pub struct #struct_name {
+                pub seeds: #seeds_struct_name,
+                pub data: #inner_type,
+            }
+        }
+    }
+
+    fn generate_packed_variant_struct_pinocchio(&self) -> TokenStream {
+        let struct_name = format_ident!("Packed{}Variant", self.variant_name);
+        let packed_seeds_struct_name = format_ident!("Packed{}Seeds", self.variant_name);
+        let inner_type = &self.inner_type;
+        let data_type = if let Some(packed_type) = make_packed_type(inner_type) {
+            quote! { #packed_type }
+        } else {
+            let type_str = quote!(#inner_type).to_string().replace(' ', "");
+            let packed_name = format_ident!("Packed{}", type_str);
+            quote! { #packed_name }
+        };
+
+        quote! {
+            #[derive(borsh::BorshSerialize, borsh::BorshDeserialize, Clone, Debug)]
+            pub struct #struct_name {
+                pub seeds: #packed_seeds_struct_name,
+                pub data: #data_type,
+            }
+        }
+    }
+
+    fn generate_light_account_variant_impl_pinocchio(&self) -> TokenStream {
+        let variant_name = format_ident!("{}Variant", self.variant_name);
+        let seeds_struct_name = format_ident!("{}Seeds", self.variant_name);
+        let packed_variant_name = format_ident!("Packed{}Variant", self.variant_name);
+        let inner_type = &self.inner_type;
+        let seed_count = self.seed_count;
+
+        let seed_vec_items = self.generate_seed_vec_items_pinocchio();
+        let seed_refs_items = self.generate_seed_refs_items();
+
+        quote! {
+            impl light_account_pinocchio::LightAccountVariantTrait<#seed_count> for #variant_name {
+                const PROGRAM_ID: [u8; 32] = crate::LIGHT_CPI_SIGNER.program_id;
+
+                type Seeds = #seeds_struct_name;
+                type Data = #inner_type;
+                type Packed = #packed_variant_name;
+
+                fn data(&self) -> &Self::Data {
+                    &self.data
+                }
+
+                fn seed_vec(&self) -> Vec<Vec<u8>> {
+                    vec![#(#seed_vec_items),*]
+                }
+
+                fn seed_refs_with_bump<'a>(&'a self, bump_storage: &'a [u8; 1]) -> [&'a [u8]; #seed_count] {
+                    [#(#seed_refs_items,)* bump_storage]
+                }
+            }
+        }
+    }
+
+    fn generate_packed_light_account_variant_impl_pinocchio(&self) -> TokenStream {
+        let variant_name = format_ident!("{}Variant", self.variant_name);
+        let seeds_struct_name = format_ident!("{}Seeds", self.variant_name);
+        let packed_variant_name = format_ident!("Packed{}Variant", self.variant_name);
+        let inner_type = &self.inner_type;
+        let seed_count = self.seed_count;
+
+        let unpack_seed_stmts = self.generate_unpack_seed_statements_pinocchio();
+        let unpack_seed_fields = self.generate_unpack_seed_fields_pinocchio();
+        let packed_seed_refs_items = self.generate_packed_seed_refs_items_pinocchio();
+
+        let unpack_data = quote! {
+            {
+                let packed_accounts = light_account_pinocchio::light_account_checks::packed_accounts::ProgramPackedAccounts { accounts };
+                <#inner_type as light_account_pinocchio::LightAccount>::unpack(&self.data, &packed_accounts)
+                    .map_err(|_| light_account_pinocchio::LightSdkTypesError::InvalidInstructionData)?
+            }
+        };
+
+        quote! {
+            impl light_account_pinocchio::PackedLightAccountVariantTrait<#seed_count> for #packed_variant_name {
+                type Unpacked = #variant_name;
+
+                const ACCOUNT_TYPE: light_account_pinocchio::AccountType =
+                    <#inner_type as light_account_pinocchio::LightAccount>::ACCOUNT_TYPE;
+
+                fn bump(&self) -> u8 {
+                    self.seeds.bump
+                }
+
+                fn unpack<AI: light_account_pinocchio::light_account_checks::AccountInfoTrait>(&self, accounts: &[AI]) -> std::result::Result<Self::Unpacked, light_account_pinocchio::LightSdkTypesError> {
+                    #(#unpack_seed_stmts)*
+
+                    Ok(#variant_name {
+                        seeds: #seeds_struct_name {
+                            #(#unpack_seed_fields,)*
+                        },
+                        data: #unpack_data,
+                    })
+                }
+
+                fn seed_refs_with_bump<'a, AI: light_account_pinocchio::light_account_checks::AccountInfoTrait>(
+                    &'a self,
+                    accounts: &'a [AI],
+                    bump_storage: &'a [u8; 1],
+                ) -> std::result::Result<[&'a [u8]; #seed_count], light_account_pinocchio::LightSdkTypesError> {
+                    Ok([#(#packed_seed_refs_items,)* bump_storage])
+                }
+            }
+        }
+    }
+
+    fn generate_pack_impl_pinocchio(&self) -> TokenStream {
+        let variant_name = format_ident!("{}Variant", self.variant_name);
+        let packed_variant_name = format_ident!("Packed{}Variant", self.variant_name);
+        let packed_seeds_struct_name = format_ident!("Packed{}Seeds", self.variant_name);
+        let inner_type = &self.inner_type;
+
+        let pack_seed_fields = self.generate_pack_seed_fields_pinocchio();
+
+        let pack_data = quote! {
+            <#inner_type as light_account_pinocchio::LightAccount>::pack(&self.data, accounts)
+                .map_err(|_| light_account_pinocchio::LightSdkTypesError::InvalidInstructionData)?
+        };
+
+        quote! {
+            #[cfg(not(target_os = "solana"))]
+            impl light_account_pinocchio::Pack<solana_instruction::AccountMeta> for #variant_name {
+                type Packed = #packed_variant_name;
+
+                fn pack(
+                    &self,
+                    accounts: &mut light_account_pinocchio::PackedAccounts,
+                ) -> std::result::Result<Self::Packed, light_account_pinocchio::LightSdkTypesError> {
+                    use light_account_pinocchio::LightAccountVariantTrait;
+                    let (_, bump) = self.derive_pda::<pinocchio::account_info::AccountInfo>();
+                    Ok(#packed_variant_name {
+                        seeds: #packed_seeds_struct_name {
+                            #(#pack_seed_fields,)*
+                            bump,
+                        },
+                        data: #pack_data,
+                    })
+                }
+            }
+        }
+    }
+
+    /// Generate seed_vec items for pinocchio (uses `.to_vec()` on `[u8; 32]` instead of `.to_bytes().to_vec()`).
+    fn generate_seed_vec_items_pinocchio(&self) -> Vec<TokenStream> {
+        self.seeds
+            .iter()
+            .map(|seed| match seed {
+                ClassifiedSeed::Literal(_)
+                | ClassifiedSeed::Constant { .. }
+                | ClassifiedSeed::Passthrough(_) => {
+                    let expr = seed_to_expr(seed, self.module_path.as_deref());
+                    quote! { (#expr).to_vec() }
+                }
+                ClassifiedSeed::CtxRooted { account, .. } => {
+                    quote! { self.seeds.#account.to_vec() }
+                }
+                ClassifiedSeed::DataRooted { root, expr, .. } => {
+                    let field = extract_data_field_name(root, expr);
+                    if is_le_bytes_expr(expr) {
+                        quote! { self.seeds.#field.to_le_bytes().to_vec() }
+                    } else {
+                        quote! { self.seeds.#field.to_vec() }
+                    }
+                }
+                ClassifiedSeed::FunctionCall {
+                    func_expr,
+                    args,
+                    has_as_ref,
+                } => {
+                    let rewritten = rewrite_fn_call_for_self(func_expr, args);
+                    if *has_as_ref {
+                        quote! { #rewritten.as_ref().to_vec() }
+                    } else {
+                        quote! { (#rewritten).to_vec() }
+                    }
+                }
+            })
+            .collect()
+    }
+
+    fn generate_unpack_seed_statements_pinocchio(&self) -> Vec<TokenStream> {
+        self.seed_fields
+            .iter()
+            .filter(|sf| sf.is_account_seed)
+            .map(|sf| {
+                let field = &sf.field_name;
+                let idx_field = format_ident!("{}_idx", field);
+                quote! {
+                    let #field: [u8; 32] =
+                        accounts
+                            .get(self.seeds.#idx_field as usize)
+                            .ok_or(light_account_pinocchio::LightSdkTypesError::NotEnoughAccountKeys)?
+                            .key();
+                }
+            })
+            .collect()
+    }
+
+    fn generate_unpack_seed_fields_pinocchio(&self) -> Vec<TokenStream> {
+        self.seed_fields
+            .iter()
+            .map(|sf| {
+                let field = &sf.field_name;
+                if sf.is_account_seed {
+                    quote! { #field }
+                } else if sf.has_le_bytes {
+                    quote! { #field: u64::from_le_bytes(self.seeds.#field) }
+                } else {
+                    quote! { #field: self.seeds.#field }
+                }
+            })
+            .collect()
+    }
+
+    fn generate_packed_seed_refs_items_pinocchio(&self) -> Vec<TokenStream> {
+        self.seeds
+            .iter()
+            .map(|seed| match seed {
+                ClassifiedSeed::Literal(_) | ClassifiedSeed::Constant { .. } => {
+                    let expr = seed_to_expr(seed, self.module_path.as_deref());
+                    quote! { #expr }
+                }
+                ClassifiedSeed::Passthrough(pass_expr) => {
+                    if expr_contains_call(pass_expr) {
+                        quote! {
+                            {
+                                panic!("seed_refs_with_bump not supported for function call seeds on packed variant.");
+                                #[allow(unreachable_code)]
+                                { bump_storage as &[u8] }
+                            }
+                        }
+                    } else {
+                        let expr = seed_to_expr(seed, self.module_path.as_deref());
+                        quote! { #expr }
+                    }
+                }
+                ClassifiedSeed::CtxRooted { account, .. } => {
+                    let idx_field = format_ident!("{}_idx", account);
+                    quote! {
+                        accounts
+                            .get(self.seeds.#idx_field as usize)
+                            .ok_or(light_account_pinocchio::LightSdkTypesError::InvalidInstructionData)?
+                            .key_ref()
+                    }
+                }
+                ClassifiedSeed::DataRooted { root, expr, .. } => {
+                    let field = extract_data_field_name(root, expr);
+                    if is_le_bytes_expr(expr) {
+                        quote! { &self.seeds.#field }
+                    } else {
+                        quote! { self.seeds.#field.as_ref() }
+                    }
+                }
+                ClassifiedSeed::FunctionCall { .. } => {
+                    quote! {
+                        {
+                            panic!("seed_refs_with_bump not supported for function call seeds on packed variant.");
+                            #[allow(unreachable_code)]
+                            { bump_storage as &[u8] }
+                        }
+                    }
+                }
+            })
+            .collect()
+    }
+
+    fn generate_pack_seed_fields_pinocchio(&self) -> Vec<TokenStream> {
+        self.seed_fields
+            .iter()
+            .map(|sf| {
+                let field = &sf.field_name;
+                if sf.is_account_seed {
+                    let idx_field = format_ident!("{}_idx", field);
+                    quote! { #idx_field: accounts.insert_or_get(solana_pubkey::Pubkey::from(self.seeds.#field)) }
+                } else if sf.has_le_bytes {
+                    quote! { #field: self.seeds.#field.to_le_bytes() }
+                } else {
+                    quote! { #field: self.seeds.#field }
+                }
+            })
+            .collect()
+    }
+
+    // =========================================================================
+    // ORIGINAL (ANCHOR) GENERATION METHODS
+    // =========================================================================
+
     /// Generate the `{Field}Seeds` struct.
     fn generate_seeds_struct(&self) -> TokenStream {
         let struct_name = format_ident!("{}Seeds", self.variant_name);
@@ -241,7 +632,7 @@ impl VariantBuilder {
 
         quote! {
             impl light_account::LightAccountVariantTrait<#seed_count> for #variant_name {
-                const PROGRAM_ID: [u8; 32] = crate::ID.to_bytes();
+                const PROGRAM_ID: [u8; 32] = crate::LIGHT_CPI_SIGNER.program_id;
 
                 type Seeds = #seeds_struct_name;
                 type Data = #inner_type;
