@@ -2,8 +2,7 @@ use std::ops::{Deref, DerefMut};
 
 use super::system_accounts::{get_light_system_account_metas, SystemAccountMetaConfig};
 
-type Inner =
-    light_sdk_types::interface::instruction::PackedAccounts<solana_instruction::AccountMeta>;
+type Inner = light_sdk_types::pack_accounts::PackedAccounts<solana_instruction::AccountMeta>;
 
 /// Packs accounts and creates indices for instruction building (client-side).
 ///

@@ -836,15 +836,16 @@ fn manual_variant_to_extracted_spec(
     let seeds: Vec<ClassifiedSeed> = variant
         .seeds
         .iter()
-        .map(|s| manual_seed_to_classified(s))
+        .map(manual_seed_to_classified)
         .collect();
 
     ExtractedSeedSpec {
         struct_name: variant.ident.to_string(),
         variant_name: variant.ident.clone(),
-        inner_type: variant.inner_type.clone().unwrap_or_else(|| {
-            syn::parse_quote!(())
-        }),
+        inner_type: variant
+            .inner_type
+            .clone()
+            .unwrap_or_else(|| syn::parse_quote!(())),
         seeds,
         is_zero_copy: variant.is_zero_copy,
         module_path: String::new(),

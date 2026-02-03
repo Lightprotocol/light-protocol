@@ -46,9 +46,9 @@ pub use light_compressed_account::instruction_data::compressed_proof::{
     CompressedProof, ValidityProof,
 };
 pub use light_sdk_types::instruction::*;
-// Re-export pack_accounts utilities from interface (off-chain only)
+// Re-export pack_accounts utilities (off-chain only, requires std for HashMap)
 #[cfg(not(target_os = "solana"))]
-pub use light_sdk_types::interface::instruction::*;
+pub use light_sdk_types::pack_accounts::*;
 
 // SDK-specific: system account helpers (depend on find_cpi_signer_macro!)
 mod system_accounts;

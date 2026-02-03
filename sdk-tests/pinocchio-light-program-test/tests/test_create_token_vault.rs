@@ -10,9 +10,8 @@ use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
 use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
 use light_token_interface::state::token::{AccountState, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT};
 use pinocchio_light_program_test::{
-    discriminators,
-    token_account::accounts::CreateTokenVaultParams,
-    LightAccountVariant, VaultSeeds, VAULT_AUTH_SEED, VAULT_SEED,
+    discriminators, token_account::accounts::CreateTokenVaultParams, LightAccountVariant,
+    VaultSeeds, VAULT_AUTH_SEED, VAULT_SEED,
 };
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
@@ -101,14 +100,13 @@ async fn test_create_token_vault_derive() {
     let token_data: Token =
         borsh::BorshDeserialize::deserialize(&mut &vault_iface.account.data[..])
             .expect("Failed to parse vault Token");
-    let vault_variant = LightAccountVariant::Vault(
-        light_account_pinocchio::token::TokenDataWithSeeds {
+    let vault_variant =
+        LightAccountVariant::Vault(light_account_pinocchio::token::TokenDataWithSeeds {
             seeds: VaultSeeds {
                 mint: mint.to_bytes(),
             },
             token_data,
-        },
-    );
+        });
     let vault_compressed = vault_iface
         .compressed()
         .expect("cold vault must have compressed data");
@@ -138,9 +136,8 @@ async fn test_create_token_vault_derive() {
         .unwrap()
         .expect("Vault should exist on-chain after decompression");
 
-    let actual_token: Token =
-        borsh::BorshDeserialize::deserialize(&mut &vault_account.data[..])
-            .expect("Failed to deserialize Token after decompression");
+    let actual_token: Token = borsh::BorshDeserialize::deserialize(&mut &vault_account.data[..])
+        .expect("Failed to deserialize Token after decompression");
 
     use light_compressed_account::pubkey::Pubkey as LPubkey;
 

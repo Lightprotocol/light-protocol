@@ -68,12 +68,10 @@ impl LightPreInit<AccountInfo, CreatePdaParams> for CreatePda<'_> {
                     .record
                     .try_borrow_mut_data()
                     .map_err(|_| LightSdkTypesError::Borsh)?;
-                let mut record =
-                    crate::state::MinimalRecord::try_from_slice(&account_data[8..])
-                        .map_err(|_| LightSdkTypesError::Borsh)?;
-                record.set_decompressed(&light_config, current_slot);
-                let serialized = borsh::to_vec(&record)
+                let mut record = crate::state::MinimalRecord::try_from_slice(&account_data[8..])
                     .map_err(|_| LightSdkTypesError::Borsh)?;
+                record.set_decompressed(&light_config, current_slot);
+                let serialized = borsh::to_vec(&record).map_err(|_| LightSdkTypesError::Borsh)?;
                 account_data[8..8 + serialized.len()].copy_from_slice(&serialized);
             }
 

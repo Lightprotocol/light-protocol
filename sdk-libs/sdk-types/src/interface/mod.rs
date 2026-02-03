@@ -8,10 +8,6 @@ pub mod program;
 // LightCpi trait + CPI builder (no runtime dep)
 pub mod cpi;
 
-// Client-side instruction building (not available on Solana BPF, requires std for HashMap)
-#[cfg(all(not(target_os = "solana"), feature = "std"))]
-pub mod instruction;
-
 // --- Re-exports from light-compressible ---
 // =============================================================================
 // FLAT RE-EXPORTS

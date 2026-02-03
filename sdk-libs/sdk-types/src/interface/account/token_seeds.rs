@@ -22,7 +22,9 @@ pub use light_token_interface::{
 
 use super::pack::Unpack;
 #[cfg(all(not(target_os = "solana"), feature = "std"))]
-use crate::interface::{account::pack::Pack, instruction::PackedAccounts};
+use crate::interface::account::pack::Pack;
+#[cfg(all(not(target_os = "solana"), feature = "std"))]
+use crate::pack_accounts::PackedAccounts;
 use crate::{
     error::LightSdkTypesError,
     instruction::PackedStateTreeInfo,

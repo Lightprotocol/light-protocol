@@ -8,9 +8,7 @@ use light_program_test::{program_test::TestRpc, Rpc};
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
 use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
 use pinocchio_light_program_test::{
-    discriminators,
-    ata::accounts::CreateAtaParams,
-    LightAccountVariant,
+    ata::accounts::CreateAtaParams, discriminators, LightAccountVariant,
 };
 use solana_instruction::{AccountMeta, Instruction};
 use solana_signer::Signer;

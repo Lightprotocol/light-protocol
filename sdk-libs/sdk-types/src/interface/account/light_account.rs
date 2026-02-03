@@ -53,7 +53,7 @@ pub trait LightAccount:
     #[cfg(all(not(target_os = "solana"), feature = "std"))]
     fn pack<AM: AccountMetaTrait>(
         &self,
-        accounts: &mut crate::interface::instruction::PackedAccounts<AM>,
+        accounts: &mut crate::pack_accounts::PackedAccounts<AM>,
     ) -> Result<Self::Packed, LightSdkTypesError>;
 
     /// Convert from packed form (indices -> Pubkeys).

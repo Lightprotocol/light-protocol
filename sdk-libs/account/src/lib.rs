@@ -32,7 +32,7 @@ pub type ValidatedPdaContext<'info> =
 
 #[cfg(not(target_os = "solana"))]
 pub type PackedAccounts =
-    light_sdk_types::interface::instruction::PackedAccounts<solana_instruction::AccountMeta>;
+    light_sdk_types::pack_accounts::PackedAccounts<solana_instruction::AccountMeta>;
 
 // ===== RE-EXPORTED TRAITS (generic over AI, used with explicit AccountInfo in impls) =====
 
@@ -156,7 +156,7 @@ pub use light_sdk_types::{
 #[cfg(not(target_os = "solana"))]
 pub mod interface {
     pub mod instruction {
-        pub use light_sdk_types::interface::instruction::PackedAccounts;
+        pub use light_sdk_types::pack_accounts::PackedAccounts;
     }
 }
 

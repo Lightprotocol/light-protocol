@@ -14,7 +14,7 @@ pub trait Pack<AM: AccountMetaTrait> {
 
     fn pack(
         &self,
-        remaining_accounts: &mut crate::interface::instruction::PackedAccounts<AM>,
+        remaining_accounts: &mut crate::pack_accounts::PackedAccounts<AM>,
     ) -> Result<Self::Packed, LightSdkTypesError>;
 }
 

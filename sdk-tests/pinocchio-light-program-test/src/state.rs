@@ -9,7 +9,13 @@ use light_account_pinocchio::{CompressionInfo, LightDiscriminator, LightHasherSh
 /// Minimal record struct for testing PDA creation.
 /// Contains compression_info and one field.
 #[derive(
-    Default, Debug, Clone, PartialEq, BorshSerialize, BorshDeserialize, LightDiscriminator,
+    Default,
+    Debug,
+    Clone,
+    PartialEq,
+    BorshSerialize,
+    BorshDeserialize,
+    LightDiscriminator,
     LightHasherSha,
 )]
 #[repr(C)]

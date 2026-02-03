@@ -1350,9 +1350,7 @@ pub(crate) fn generate_light_program_pinocchio_items(
 
         // Decompress dispatch + process_decompress
         if !pda_ctx_seeds.is_empty() {
-            items.push(
-                decompress_builder.generate_enum_process_decompress_pinocchio(enum_name)?,
-            );
+            items.push(decompress_builder.generate_enum_process_decompress_pinocchio(enum_name)?);
         }
 
         // Config functions as enum methods

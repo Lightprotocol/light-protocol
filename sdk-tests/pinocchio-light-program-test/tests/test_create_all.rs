@@ -11,10 +11,9 @@ use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
 use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
 use light_token_interface::state::token::{AccountState, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT};
 use pinocchio_light_program_test::{
-    all::accounts::CreateAllParams,
-    discriminators, LightAccountVariant, MinimalRecord, MinimalRecordSeeds, VaultSeeds,
-    ZeroCopyRecord, ZeroCopyRecordSeeds, MINT_SIGNER_SEED_A, RECORD_SEED, VAULT_AUTH_SEED,
-    VAULT_SEED,
+    all::accounts::CreateAllParams, discriminators, LightAccountVariant, MinimalRecord,
+    MinimalRecordSeeds, VaultSeeds, ZeroCopyRecord, ZeroCopyRecordSeeds, MINT_SIGNER_SEED_A,
+    RECORD_SEED, VAULT_AUTH_SEED, VAULT_SEED,
 };
 use solana_instruction::{AccountMeta, Instruction};
 use solana_keypair::Keypair;

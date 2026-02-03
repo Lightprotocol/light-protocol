@@ -21,8 +21,10 @@ pub mod cpi_accounts;
 pub mod cpi_context_write;
 pub mod error;
 pub mod instruction;
+#[cfg(feature = "std")]
+pub mod pack_accounts;
 
-#[cfg(feature = "alloc")]
+#[cfg(all(feature = "alloc", feature = "v2"))]
 pub mod interface;
 
 // Re-exports

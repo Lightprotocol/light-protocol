@@ -9,9 +9,8 @@ use light_program_test::{program_test::TestRpc, Rpc};
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
 use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
 use pinocchio_light_program_test::{
-    discriminators,
-    two_mints::accounts::CreateTwoMintsParams,
-    LightAccountVariant, MINT_SIGNER_SEED_A, MINT_SIGNER_SEED_B,
+    discriminators, two_mints::accounts::CreateTwoMintsParams, LightAccountVariant,
+    MINT_SIGNER_SEED_A, MINT_SIGNER_SEED_B,
 };
 use solana_instruction::{AccountMeta, Instruction};
 use solana_keypair::Keypair;

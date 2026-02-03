@@ -42,7 +42,10 @@ pub fn generate_client_seed_functions(
             let (parameters, seed_expressions) =
                 analyze_seed_spec_for_client(spec, instruction_data)?;
 
-            let fn_body = generate_seed_derivation_body(&seed_expressions, quote! { &solana_pubkey::Pubkey::from(crate::LIGHT_CPI_SIGNER.program_id) });
+            let fn_body = generate_seed_derivation_body(
+                &seed_expressions,
+                quote! { &solana_pubkey::Pubkey::from(crate::LIGHT_CPI_SIGNER.program_id) },
+            );
             let function = quote! {
                 pub fn #function_name(#(#parameters),*) -> (Vec<Vec<u8>>, solana_pubkey::Pubkey) {
                     #fn_body
@@ -62,7 +65,10 @@ pub fn generate_client_seed_functions(
             let (parameters, seed_expressions) =
                 analyze_seed_spec_for_client(spec, instruction_data)?;
 
-            let fn_body = generate_seed_derivation_body(&seed_expressions, quote! { &solana_pubkey::Pubkey::from(crate::LIGHT_CPI_SIGNER.program_id) });
+            let fn_body = generate_seed_derivation_body(
+                &seed_expressions,
+                quote! { &solana_pubkey::Pubkey::from(crate::LIGHT_CPI_SIGNER.program_id) },
+            );
             let function = quote! {
                 pub fn #function_name(#(#parameters),*) -> (Vec<Vec<u8>>, solana_pubkey::Pubkey) {
                     #fn_body

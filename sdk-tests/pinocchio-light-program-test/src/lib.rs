@@ -235,8 +235,7 @@ fn process_create_zero_copy_record(
             .record
             .try_borrow_mut_data()
             .map_err(|_| ProgramError::AccountBorrowFailed)?;
-        let record_bytes =
-            &mut account_data[8..8 + core::mem::size_of::<state::ZeroCopyRecord>()];
+        let record_bytes = &mut account_data[8..8 + core::mem::size_of::<state::ZeroCopyRecord>()];
         let record: &mut state::ZeroCopyRecord = bytemuck::from_bytes_mut(record_bytes);
         record.owner = params.owner;
     }
@@ -313,8 +312,7 @@ fn process_create_all(accounts: &[AccountInfo], data: &[u8]) -> Result<(), Progr
         let mut borsh_record = state::MinimalRecord::try_from_slice(&borsh_data[8..])
             .map_err(|_| ProgramError::BorshIoError)?;
         borsh_record.owner = params.owner;
-        let serialized =
-            borsh::to_vec(&borsh_record).map_err(|_| ProgramError::BorshIoError)?;
+        let serialized = borsh::to_vec(&borsh_record).map_err(|_| ProgramError::BorshIoError)?;
         borsh_data[8..8 + serialized.len()].copy_from_slice(&serialized);
     }
     {
@@ -322,8 +320,7 @@ fn process_create_all(accounts: &[AccountInfo], data: &[u8]) -> Result<(), Progr
             .zero_copy_record
             .try_borrow_mut_data()
             .map_err(|_| ProgramError::AccountBorrowFailed)?;
-        let record_bytes =
-            &mut zc_data[8..8 + core::mem::size_of::<state::ZeroCopyRecord>()];
+        let record_bytes = &mut zc_data[8..8 + core::mem::size_of::<state::ZeroCopyRecord>()];
         let record: &mut state::ZeroCopyRecord = bytemuck::from_bytes_mut(record_bytes);
         record.owner = params.owner;
     }

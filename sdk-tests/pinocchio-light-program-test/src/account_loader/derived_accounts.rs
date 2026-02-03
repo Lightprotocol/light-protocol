@@ -68,8 +68,7 @@ impl LightPreInit<AccountInfo, CreateZeroCopyRecordParams> for CreateZeroCopyRec
                     .record
                     .try_borrow_mut_data()
                     .map_err(|_| LightSdkTypesError::Borsh)?;
-                let record_bytes =
-                    &mut account_data[8..8 + core::mem::size_of::<ZeroCopyRecord>()];
+                let record_bytes = &mut account_data[8..8 + core::mem::size_of::<ZeroCopyRecord>()];
                 let record: &mut ZeroCopyRecord = bytemuck::from_bytes_mut(record_bytes);
                 record.set_decompressed(&light_config, current_slot);
             }

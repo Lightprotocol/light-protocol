@@ -377,48 +377,6 @@ impl DecompressBuilder {
     // Pinocchio Code Generation Methods
     // -------------------------------------------------------------------------
 
-    /// Generate decompress dispatch as an associated function on the enum (pinocchio version).
-    pub fn generate_enum_decompress_dispatch_pinocchio(
-        &self,
-        enum_name: &syn::Ident,
-    ) -> Result<TokenStream> {
-        let processor_call = if self.has_tokens {
-            quote! {
-                light_account_pinocchio::process_decompress_accounts_idempotent::<_, PackedLightAccountVariant>(
-                    remaining_accounts,
-                    instruction_data,
-                    cpi_signer,
-                    program_id,
-                    current_slot,
-                )
-            }
-        } else {
-            quote! {
-                light_account_pinocchio::process_decompress_pda_accounts_idempotent::<_, PackedLightAccountVariant>(
-                    remaining_accounts,
-                    instruction_data,
-                    cpi_signer,
-                    program_id,
-                    current_slot,
-                )
-            }
-        };
-
-        Ok(quote! {
-            impl #enum_name {
-                pub fn decompress_dispatch(
-                    remaining_accounts: &[pinocchio::account_info::AccountInfo],
-                    instruction_data: &[u8],
-                    cpi_signer: light_account_pinocchio::CpiSigner,
-                    program_id: &[u8; 32],
-                    current_slot: u64,
-                ) -> std::result::Result<(), light_account_pinocchio::LightSdkTypesError> {
-                    #processor_call
-                }
-            }
-        })
-    }
-
     /// Generate `process_decompress` as an enum associated function (pinocchio version).
     pub fn generate_enum_process_decompress_pinocchio(
         &self,

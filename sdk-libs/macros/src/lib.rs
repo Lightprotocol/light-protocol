@@ -258,7 +258,9 @@ pub fn light_program_derive(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(LightProgramPinocchio, attributes(light_account))]
 pub fn light_program_pinocchio_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    into_token_stream(light_pdas::program::derive_light_program_pinocchio_impl(input))
+    into_token_stream(light_pdas::program::derive_light_program_pinocchio_impl(
+        input,
+    ))
 }
 
 #[proc_macro_attribute]

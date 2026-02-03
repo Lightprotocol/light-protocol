@@ -7,9 +7,8 @@ use light_client::interface::{
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{program_test::TestRpc, Rpc};
 use pinocchio_light_program_test::{
-    discriminators,
-    pda::accounts::CreatePdaParams,
-    LightAccountVariant, MinimalRecord, MinimalRecordSeeds,
+    discriminators, pda::accounts::CreatePdaParams, LightAccountVariant, MinimalRecord,
+    MinimalRecordSeeds,
 };
 use solana_instruction::{AccountMeta, Instruction};
 use solana_keypair::Keypair;
