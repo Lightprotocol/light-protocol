@@ -17,9 +17,8 @@
 //!
 //! ## Mint Operations
 //!
-//! - [`CreateMintCpi`] - Create single compressed mint via CPI
-//! - [`CreateMintsCpi`] - Batch create compressed mints via CPI
-//! - [`DecompressMintCpi`] - Decompress compressed mint to Solana Mint account
+//! - [`CreateMintCpi`] - Create single Light Mint via CPI
+//! - [`CreateMintsCpi`] - Batch create Light Mints via CPI
 //! - [`MintToCpi`] - Mint tokens to Light Token accounts
 //!
 //! ## Other Operations
@@ -35,12 +34,10 @@ mod approve;
 mod burn;
 mod burn_checked;
 mod close;
-mod compressible;
 mod create;
 mod create_ata;
 mod create_mint;
 mod create_mints;
-mod decompress_mint;
 mod freeze;
 mod mint_to;
 mod mint_to_checked;
@@ -56,7 +53,6 @@ pub use approve::*;
 pub use burn::*;
 pub use burn_checked::*;
 pub use close::*;
-pub use compressible::{CompressibleParams, CompressibleParamsCpi};
 pub use create::*;
 pub use create_ata::{
     derive_associated_token_account, CreateTokenAtaCpi, CreateTokenAtaCpiIdempotent,
@@ -69,10 +65,6 @@ pub use create_mints::{
     CreateMintsInfraAccounts, CreateMintsParams, SingleMintParams, DEFAULT_RENT_PAYMENT,
     DEFAULT_WRITE_TOP_UP,
 };
-pub use decompress_mint::{
-    create_decompress_mint_cpi_context_execute, create_decompress_mint_cpi_context_first,
-    create_decompress_mint_cpi_context_set, DecompressMintCpi,
-};
 pub use freeze::*;
 pub use light_compressed_account::instruction_data::compressed_proof::{
     CompressedProof, ValidityProof,
@@ -82,7 +74,7 @@ pub use light_token_interface::{
         extensions::{CompressToPubkey, ExtensionInstructionData, TokenMetadataInstructionData},
         mint_action::MintWithContext,
     },
-    state::{AdditionalMetadata, Token, TokenDataVersion},
+    state::{AdditionalMetadata, Token},
 };
 pub use mint_to::*;
 pub use mint_to_checked::*;
@@ -96,7 +88,7 @@ pub use transfer_interface::{SplInterfaceCpi, TransferInterfaceCpi};
 pub use transfer_to_spl::TransferToSplCpi;
 /// System accounts required for CPI operations to Light Protocol.
 ///
-/// Pass these accounts when invoking compressed token operations from your program.
+/// Pass these accounts when invoking Light Token operations from your program.
 ///
 /// # Fields
 ///

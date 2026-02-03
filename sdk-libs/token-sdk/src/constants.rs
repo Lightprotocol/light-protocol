@@ -8,16 +8,16 @@ pub use light_compressed_token_sdk::constants::*;
 use light_compressible::config::CompressibleConfig;
 use solana_pubkey::{pubkey, Pubkey};
 
-/// CPI Authority PDA for the Compressed Token Program
+/// CPI Authority PDA for the Light Token Program
 pub const LIGHT_TOKEN_CPI_AUTHORITY: Pubkey =
     pubkey!("GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy");
 
-/// Returns the program ID for the Compressed Token Program
+/// Returns the program ID for the Light Token Program
 pub fn id() -> Pubkey {
     LIGHT_TOKEN_PROGRAM_ID
 }
 
-/// Return the cpi authority pda of the Compressed Token Program.
+/// Return the CPI authority PDA of the Light Token Program.
 pub fn cpi_authority() -> Pubkey {
     LIGHT_TOKEN_CPI_AUTHORITY
 }

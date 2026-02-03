@@ -2,7 +2,7 @@
 
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_account::{CompressionInfo, LightDiscriminator, LightHasherSha};
+use light_account::{CompressionInfo, Discriminator, LightDiscriminator, LightHasherSha};
 
 /// Zero-copy account for demonstrating AccountLoader integration.
 ///
@@ -10,7 +10,7 @@ use light_account::{CompressionInfo, LightDiscriminator, LightHasherSha};
 /// - `#[repr(C)]` for predictable field layout
 /// - `Pod + Zeroable` (bytemuck) for on-chain zero-copy access
 /// - `AnchorSerialize + AnchorDeserialize` for hashing (same as Borsh accounts)
-/// - `LightDiscriminator` for dispatch
+/// - `Discriminator` for dispatch (matches Anchor's `#[account(zero_copy)]`)
 /// - compression_info field for rent tracking
 /// - All fields must be Pod-compatible (no Pubkey, use [u8; 32])
 #[derive(
@@ -18,8 +18,8 @@ use light_account::{CompressionInfo, LightDiscriminator, LightHasherSha};
     Debug,
     BorshSerialize,
     BorshDeserialize, // For hashing (same as Borsh accounts)
-    LightDiscriminator,
-    LightHasherSha, // For Light Protocol
+    Discriminator,    // Must use Anchor discriminator since #[account(zero_copy)] is used
+    LightHasherSha,   // For Light Protocol
 )]
 #[account(zero_copy)]
 #[repr(C)]

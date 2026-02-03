@@ -1,7 +1,7 @@
 //! State module for single-pda-test.
 
 use anchor_lang::prelude::*;
-use light_account::{CompressionInfo, LightDiscriminator, LightHasherSha};
+use light_account::{CompressionInfo, Discriminator, LightDiscriminator, LightHasherSha};
 
 // ============================================================================
 // MinimalRecord with derive macros
@@ -10,7 +10,7 @@ use light_account::{CompressionInfo, LightDiscriminator, LightHasherSha};
 /// Minimal record struct for testing PDA creation.
 /// Contains only compression_info and one field.
 ///
-#[derive(Default, Debug, LightDiscriminator, LightHasherSha)] // LightAccount
+#[derive(Default, Debug, Discriminator, LightHasherSha)] // LightAccount
 #[account]
 pub struct MinimalRecord {
     pub compression_info: CompressionInfo,

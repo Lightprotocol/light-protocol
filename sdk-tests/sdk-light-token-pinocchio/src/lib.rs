@@ -10,7 +10,6 @@ mod create_ata;
 mod create_mint;
 mod create_token_account;
 mod ctoken_mint_to;
-mod decompress_mint;
 mod freeze;
 mod revoke;
 mod thaw;
@@ -33,7 +32,6 @@ pub use create_token_account::{
     CreateTokenAccountData,
 };
 pub use ctoken_mint_to::{process_mint_to_invoke, process_mint_to_invoke_signed, MintToData};
-pub use decompress_mint::{process_decompress_mint_invoke_signed, DecompressCmintData};
 pub use freeze::{process_freeze_invoke, process_freeze_invoke_signed};
 use light_macros::pubkey_array;
 use pinocchio::{
@@ -132,8 +130,6 @@ pub enum InstructionType {
     CTokenMintToInvoke = 31,
     /// Mint to Light Token from decompressed Mint with PDA authority (invoke_signed)
     CTokenMintToInvokeSigned = 32,
-    /// Decompress Mint with PDA authority (invoke_signed)
-    DecompressCmintInvokeSigned = 33,
     /// Transfer cTokens with checked decimals (invoke)
     CTokenTransferCheckedInvoke = 34,
     /// Transfer cTokens with checked decimals from PDA-owned account (invoke_signed)
@@ -176,7 +172,6 @@ impl TryFrom<u8> for InstructionType {
             30 => Ok(InstructionType::BurnInvokeSigned),
             31 => Ok(InstructionType::CTokenMintToInvoke),
             32 => Ok(InstructionType::CTokenMintToInvokeSigned),
-            33 => Ok(InstructionType::DecompressCmintInvokeSigned),
             34 => Ok(InstructionType::CTokenTransferCheckedInvoke),
             35 => Ok(InstructionType::CTokenTransferCheckedInvokeSigned),
             _ => Err(ProgramError::InvalidInstructionData),
@@ -315,11 +310,6 @@ pub fn process_instruction(
             let data = MintToData::try_from_slice(&instruction_data[1..])
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
             process_mint_to_invoke_signed(accounts, data.amount)
-        }
-        InstructionType::DecompressCmintInvokeSigned => {
-            let data = DecompressCmintData::try_from_slice(&instruction_data[1..])
-                .map_err(|_| ProgramError::InvalidInstructionData)?;
-            process_decompress_mint_invoke_signed(accounts, data)
         }
         InstructionType::CTokenTransferCheckedInvoke => {
             let data = TransferCheckedData::try_from_slice(&instruction_data[1..])

@@ -21,7 +21,7 @@ use crate::{
 };
 /// Parameters for creating a mint.
 ///
-/// Creates both a compressed mint AND a decompressed Mint Solana account
+/// Creates both a Light Mint AND a decompressed Mint Solana account
 /// in a single instruction.
 #[derive(Debug, Clone)]
 pub struct CreateMintParams {
@@ -42,7 +42,7 @@ pub struct CreateMintParams {
     pub write_top_up: u32,
 }
 
-/// Create a mint instruction that creates both a compressed mint AND a Mint Solana account.
+/// Create a mint instruction that creates both a Light Mint AND a Mint Solana account.
 ///
 /// # Example
 /// ```rust,no_run
@@ -366,7 +366,7 @@ impl<'info> TryFrom<&CreateMintCpi<'info>> for CreateMint {
 // Helper Functions
 // ============================================================================
 
-/// Derives the compressed mint address from the mint seed and address tree
+/// Derives the Light Mint address from the mint seed and address tree
 pub fn derive_mint_compressed_address(
     mint_seed: &Pubkey,
     address_tree_pubkey: &Pubkey,
@@ -378,7 +378,7 @@ pub fn derive_mint_compressed_address(
     )
 }
 
-/// Derives the compressed mint address from an SPL mint address
+/// Derives the Light Mint address from an SPL mint address
 pub fn derive_mint_from_spl_mint(mint: &Pubkey, address_tree_pubkey: &Pubkey) -> [u8; 32] {
     light_compressed_account::address::derive_address(
         &mint.to_bytes(),
@@ -387,7 +387,7 @@ pub fn derive_mint_from_spl_mint(mint: &Pubkey, address_tree_pubkey: &Pubkey) ->
     )
 }
 
-/// Finds the compressed mint address from a mint seed.
+/// Finds the Light Mint address from a mint seed.
 pub fn find_mint_address(mint_seed: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(
         &[COMPRESSED_MINT_SEED, mint_seed.as_ref()],

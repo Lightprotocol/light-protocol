@@ -82,7 +82,7 @@ impl<'info> TransferFromSplCpi<'info> {
         &self,
     ) -> Result<(Vec<u8>, Vec<AccountMeta<'_>>, Vec<&AccountInfo>), ProgramError> {
         // Build compressions:
-        // 1. Wrap SPL tokens to compressed pool
+        // 1. Wrap SPL tokens to Light Token pool
         // 2. Unwrap from pool to destination ctoken account
         let wrap_from_spl = Compression::compress_spl(
             self.amount,

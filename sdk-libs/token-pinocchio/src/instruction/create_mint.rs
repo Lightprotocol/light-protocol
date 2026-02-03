@@ -1,7 +1,7 @@
-//! Create compressed mint CPI builder for pinocchio.
+//! Create Light Mint CPI builder for pinocchio.
 //!
 //! Provides `CreateMintParams`, `CreateMintCpi`, and helper functions
-//! for creating compressed mints via CPI from pinocchio-based programs.
+//! for creating Light Mints via CPI from pinocchio-based programs.
 
 use alloc::{vec, vec::Vec};
 
@@ -9,6 +9,7 @@ use light_account_checks::AccountInfoTrait;
 use light_compressed_account::instruction_data::{
     compressed_proof::CompressedProof, traits::LightInstructionData,
 };
+use light_sdk_types::ADDRESS_TREE_V2;
 use light_token_interface::{
     instructions::{
         extensions::ExtensionInstructionData,
@@ -29,7 +30,7 @@ use crate::{constants::LIGHT_TOKEN_PROGRAM_ID, instruction::SystemAccountInfos};
 
 /// Parameters for creating a mint.
 ///
-/// Creates both a compressed mint AND a decompressed Mint Solana account
+/// Creates both a Light Mint AND a decompressed Mint Solana account
 /// in a single instruction.
 #[derive(Debug, Clone)]
 pub struct CreateMintParams {
@@ -70,7 +71,7 @@ impl Default for CreateMintParams {
 
 /// Create a mint via CPI.
 ///
-/// Creates both a compressed mint AND a decompressed Mint Solana account
+/// Creates both a Light Mint AND a decompressed Mint Solana account
 /// in a single instruction.
 ///
 /// # Example
@@ -294,7 +295,7 @@ impl<'info> CreateMintCpi<'info> {
 // Helper Functions
 // ============================================================================
 
-/// Derives the compressed mint address from the mint seed and address tree.
+/// Derives the Light Mint address from the mint seed and address tree.
 pub fn derive_mint_compressed_address(
     mint_seed: &[u8; 32],
     address_tree_pubkey: &[u8; 32],
@@ -307,11 +308,11 @@ pub fn derive_mint_compressed_address(
     )
 }
 
-/// Derives the compressed mint address from an SPL mint address.
-pub fn derive_mint_from_spl_mint(mint: &[u8; 32], address_tree_pubkey: &[u8; 32]) -> [u8; 32] {
+/// Derives the compressed address from a Light mint address.
+pub fn derive_compressed_address(mint: &[u8; 32]) -> [u8; 32] {
     light_compressed_account::address::derive_address(
         mint,
-        address_tree_pubkey,
+        &ADDRESS_TREE_V2,
         &LIGHT_TOKEN_PROGRAM_ID,
     )
 }

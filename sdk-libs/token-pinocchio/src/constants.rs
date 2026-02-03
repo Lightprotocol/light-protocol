@@ -9,17 +9,17 @@ pub use light_sdk_types::constants::{
     REGISTERED_PROGRAM_PDA,
 };
 
-/// CPI Authority PDA for the Compressed Token Program (as bytes)
+/// CPI Authority PDA for the Light Token Program (as bytes)
 pub const LIGHT_TOKEN_CPI_AUTHORITY: [u8; 32] =
     light_macros::pubkey_array!("GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy");
 
-/// Returns the program ID for the Compressed Token Program as bytes
+/// Returns the program ID for the Light Token Program as bytes
 #[inline]
 pub const fn id() -> [u8; 32] {
     LIGHT_TOKEN_PROGRAM_ID
 }
 
-/// Return the CPI authority PDA of the Compressed Token Program as bytes.
+/// Return the CPI authority PDA of the Light Token Program as bytes.
 #[inline]
 pub const fn cpi_authority() -> [u8; 32] {
     LIGHT_TOKEN_CPI_AUTHORITY

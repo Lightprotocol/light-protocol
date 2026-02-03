@@ -1,4 +1,4 @@
-//! Batch create compressed mints CPI for pinocchio.
+//! Batch create Light Mints CPI for pinocchio.
 //!
 //! Provides type aliases with pinocchio's `AccountInfo` already set,
 //! wrapping the generic types from `light_sdk_types`.
@@ -72,7 +72,7 @@ pub use light_sdk_types::interface::cpi::create_mints::{
 };
 use pinocchio::account_info::AccountInfo;
 
-/// CPI struct for creating multiple compressed mints (pinocchio).
+/// CPI struct for creating multiple Light Mints (pinocchio).
 ///
 /// Type alias with pinocchio's `AccountInfo` already set.
 pub type CreateMintsCpi<'a> =
@@ -91,7 +91,7 @@ pub fn find_mint_address(mint_seed: &[u8; 32]) -> ([u8; 32], u8) {
     light_sdk_types::interface::cpi::create_mints::find_mint_address::<AccountInfo>(mint_seed)
 }
 
-/// Derive the compressed mint address from a mint seed and address tree pubkey (pinocchio).
+/// Derive the Light Mint address from a mint seed and address tree pubkey (pinocchio).
 ///
 /// This computes `derive_address(find_mint_address(mint_seed).0, address_tree, LIGHT_TOKEN_PROGRAM_ID)`.
 pub fn derive_mint_compressed_address(

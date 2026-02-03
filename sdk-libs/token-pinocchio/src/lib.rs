@@ -2,8 +2,6 @@
 //!
 //! Pinocchio-based SDK for Light Token operations via CPI.
 //!
-//! This crate provides the same API as `light-token` but uses Pinocchio types
-//! instead of Solana SDK types, enabling more efficient on-chain programs.
 //!
 //! ## CPI Operations
 //!

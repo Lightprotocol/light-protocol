@@ -263,7 +263,7 @@ impl<'info> TransferInterfaceCpi<'info> {
     /// * `destination_account` - Destination token account (can be light or SPL)
     /// * `authority` - Authority for the transfer (must be signer)
     /// * `payer` - Payer for the transaction
-    /// * `compressed_token_program_authority` - Compressed token program authority
+    /// * `compressed_token_program_authority` - Light Token program authority
     /// * `system_program` - System program (required for compressible account lamport top-ups)
     #[allow(clippy::too_many_arguments)]
     pub fn new(

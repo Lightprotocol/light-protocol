@@ -185,6 +185,7 @@ pub use light_sdk_macros::{
     derive_light_rent_sponsor_pda,
     light_program,
     // Derive macros
+    AnchorDiscriminator as Discriminator,
     CompressAs,
     HasCompressionInfo,
     LightAccount,

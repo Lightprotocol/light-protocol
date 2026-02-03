@@ -1,6 +1,6 @@
-//! Create multiple compressed mints and decompress all to Solana Mint accounts.
+//! Create multiple Light Mints and decompress all to Solana Mint accounts.
 //!
-//! This module provides functionality for batch creating compressed mints with
+//! This module provides functionality for batch creating Light Mints with
 //! optimal CPI batching. When creating multiple mints, it uses the CPI context
 //! pattern to minimize transaction overhead.
 //!
@@ -60,9 +60,9 @@ pub struct SingleMintParams<'a> {
     pub token_metadata: Option<&'a TokenMetadataInstructionData>,
 }
 
-/// Parameters for creating one or more compressed mints with decompression.
+/// Parameters for creating one or more Light Mints with decompression.
 ///
-/// Creates N compressed mints and decompresses all to Solana Mint accounts.
+/// Creates N Light Mints and decompresses all to Solana Mint accounts.
 /// Uses CPI context pattern when N > 1 for efficiency.
 #[derive(Debug, Clone)]
 pub struct CreateMintsParams<'a> {
