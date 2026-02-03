@@ -36,6 +36,7 @@ import {
 } from '../../utils/get-token-pool-infos';
 import { createWrapInstruction } from '../instructions/wrap';
 import { createDecompressInterfaceInstruction } from '../instructions/create-decompress-interface-instruction';
+import { loadAta } from './load-ata';
 
 /**
  * Options for interface operations (load, transfer)
@@ -322,31 +323,54 @@ export async function transferInterface(
 
     // Decompress compressed tokens if they exist
     // Note: v3 interface only supports V2 trees
+    // For >8 compressed accounts, use loadAta to handle multi-tx batching
+    const MAX_INPUT_ACCOUNTS = 8;
+
     if (compressedBalance > BigInt(0) && compressedAccounts.length > 0) {
         assertV2Only(compressedAccounts);
 
-        const proof = await rpc.getValidityProofV0(
-            compressedAccounts.map(acc => ({
-                hash: acc.compressedAccount.hash,
-                tree: acc.compressedAccount.treeInfo.tree,
-                queue: acc.compressedAccount.treeInfo.queue,
-            })),
-        );
-
-        hasValidityProof = proof.compressedProof !== null;
         compressedToLoad = compressedAccounts;
 
-        instructions.push(
-            createDecompressInterfaceInstruction(
-                payer.publicKey,
-                compressedAccounts,
+        if (compressedAccounts.length > MAX_INPUT_ACCOUNTS) {
+            // >8 accounts: use loadAta which handles multi-tx internally
+            // This sends separate transactions for each batch of 8 accounts
+            await loadAta(
+                rpc,
                 ctokenAtaAddress,
-                compressedBalance,
-                proof,
-                undefined,
-                decimals,
-            ),
-        );
+                owner,
+                mint,
+                payer,
+                confirmOptions,
+            );
+            // After loadAta, all compressed accounts are now in the hot ATA
+            // Don't add decompress instructions - they've already been executed
+            compressedToLoad = []; // Clear to skip CU calculation for decompression
+        } else {
+            // <=8 accounts: include decompress instruction in this transaction
+            const proof = await rpc.getValidityProofV0(
+                compressedAccounts.map(acc => ({
+                    hash: acc.compressedAccount.hash,
+                    tree: acc.compressedAccount.treeInfo.tree,
+                    queue: acc.compressedAccount.treeInfo.queue,
+                })),
+            );
+
+            if (proof.compressedProof !== null) {
+                hasValidityProof = true;
+            }
+
+            instructions.push(
+                createDecompressInterfaceInstruction(
+                    payer.publicKey,
+                    compressedAccounts,
+                    ctokenAtaAddress,
+                    compressedBalance,
+                    proof,
+                    undefined,
+                    decimals,
+                ),
+            );
+        }
     }
 
     // Transfer (destination must already exist - like SPL Token)
