@@ -24,10 +24,9 @@ use light_client::{
     fee::FeeConfig,
     indexer::{
         AccountProofInputs, Address, AddressMerkleTreeAccounts, AddressProofInputs,
-        AddressWithTree, CompressedAccount, CompressedMint, CompressedTokenAccount, Context,
-        GetCompressedAccountsByOwnerConfig, GetCompressedMintsByAuthorityOptions,
-        GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer, IndexerError,
-        IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof, MintAuthorityType,
+        AddressWithTree, CompressedAccount, CompressedTokenAccount, Context,
+        GetCompressedAccountsByOwnerConfig, GetCompressedTokenAccountsByOwnerOrDelegateOptions,
+        Indexer, IndexerError, IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof,
         NewAddressProofWithContext, OwnerBalance, PaginatedOptions, QueueElementsResult,
         QueueElementsV2Options, Response, RetryConfig, RootIndex, SignatureWithMetadata,
         StateMerkleTreeAccounts, TokenBalance, ValidityProofWithContext,
@@ -1001,32 +1000,6 @@ impl Indexer for TestIndexer {
 
     async fn get_indexer_health(&self, _config: Option<RetryConfig>) -> Result<bool, IndexerError> {
         Ok(true) // Test indexer is always healthy
-    }
-
-    async fn get_compressed_mint(
-        &self,
-        _address: Address,
-        _config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Option<CompressedMint>>, IndexerError> {
-        todo!("get_compressed_mint not implemented")
-    }
-
-    async fn get_compressed_mint_by_pda(
-        &self,
-        _mint_pda: &Pubkey,
-        _config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Option<CompressedMint>>, IndexerError> {
-        todo!("get_compressed_mint_by_pda not implemented")
-    }
-
-    async fn get_compressed_mints_by_authority(
-        &self,
-        _authority: &Pubkey,
-        _authority_type: MintAuthorityType,
-        _options: Option<GetCompressedMintsByAuthorityOptions>,
-        _config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<CompressedMint>>, IndexerError> {
-        todo!("get_compressed_mints_by_authority not implemented")
     }
 }
 

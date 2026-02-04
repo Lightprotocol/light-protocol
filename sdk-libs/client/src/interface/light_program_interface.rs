@@ -22,12 +22,9 @@ pub enum AccountToFetch {
     Pda { address: Pubkey, program_id: Pubkey },
     /// Token account (program-owned) - uses `get_token_account_interface(address)`
     Token { address: Pubkey },
-    /// Token account by owner and mint - uses `get_compressed_token_accounts_by_owner` with mint filter
-    /// This is for program-owned token accounts (like vaults) where the address can't be looked up directly
-    TokenByOwnerMint { owner: Pubkey, mint: Pubkey },
     /// ATA - uses `get_ata_interface(wallet_owner, mint)`
     Ata { wallet_owner: Pubkey, mint: Pubkey },
-    /// Light mint - uses `get_mint_interface(address)`
+    /// Light mint - uses `get_account_interface(address)` (clients parse mint data)
     Mint { address: Pubkey },
 }
 
@@ -43,13 +40,6 @@ impl AccountToFetch {
         Self::Token { address }
     }
 
-    /// Create a token fetch request by owner and mint.
-    /// Use this for program-owned token accounts (like vaults) where the on-chain PDA
-    /// address isn't preserved in the compressed representation.
-    pub fn token_by_owner_mint(owner: Pubkey, mint: Pubkey) -> Self {
-        Self::TokenByOwnerMint { owner, mint }
-    }
-
     pub fn ata(wallet_owner: Pubkey, mint: Pubkey) -> Self {
         Self::Ata { wallet_owner, mint }
     }
@@ -59,13 +49,11 @@ impl AccountToFetch {
     }
 
     /// Returns the primary pubkey for this fetch request.
-    /// For `TokenByOwnerMint`, returns the owner since there's no single address.
     #[must_use]
     pub fn pubkey(&self) -> Pubkey {
         match self {
             Self::Pda { address, .. } => *address,
             Self::Token { address } => *address,
-            Self::TokenByOwnerMint { owner, .. } => *owner,
             Self::Ata { wallet_owner, mint } => derive_token_ata(wallet_owner, mint).0,
             Self::Mint { address } => *address,
         }

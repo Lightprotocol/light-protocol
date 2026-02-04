@@ -33,10 +33,10 @@ use super::LightClientConfig;
 use crate::{
     indexer::{
         photon_indexer::PhotonIndexer, AccountInterface as IndexerAccountInterface, Indexer,
-        IndexerRpcConfig, MintInterface as IndexerMintInterface, Response,
-        TokenAccountInterface as IndexerTokenAccountInterface, TreeInfo,
+        IndexerRpcConfig, Response, TokenAccountInterface as IndexerTokenAccountInterface,
+        TreeInfo,
     },
-    interface::{AccountInterface, MintInterface, MintState, TokenAccountInterface},
+    interface::{AccountInterface, TokenAccountInterface},
     rpc::{
         errors::RpcError,
         get_light_state_tree_infos::{
@@ -567,40 +567,6 @@ fn convert_account_interface(
                 wallet_owner,
             ))
         }
-        Some(IndexerColdContext::Mint {
-            hash,
-            leaf_index,
-            tree_info,
-            data,
-        }) => {
-            let compressed = CompressedAccount {
-                address: None,
-                data: Some(CompressedAccountData {
-                    discriminator: data.discriminator,
-                    data: data.data,
-                    data_hash: [0u8; 32],
-                }),
-                hash,
-                lamports: indexer_ai.account.lamports,
-                leaf_index: leaf_index as u32,
-                owner: indexer_ai.account.owner,
-                prove_by_index: false,
-                seq: tree_info.seq,
-                slot_created: 0,
-                tree_info: TreeInfo {
-                    tree: tree_info.tree,
-                    queue: tree_info.queue,
-                    cpi_context: None,
-                    next_tree_info: None,
-                    tree_type: tree_info.tree_type,
-                },
-            };
-            Ok(AccountInterface::cold(
-                indexer_ai.key,
-                compressed,
-                indexer_ai.account.owner,
-            ))
-        }
     }
 }
 
@@ -667,90 +633,6 @@ fn convert_token_account_interface(
         }
         _ => Err(RpcError::CustomError(
             "unexpected cold context type for token account".into(),
-        )),
-    }
-}
-
-fn convert_mint_interface(indexer_mi: IndexerMintInterface) -> Result<MintInterface, RpcError> {
-    use light_compressed_account::{
-        address::derive_address, compressed_account::CompressedAccountData,
-    };
-    use light_token_interface::{state::Mint, MINT_ADDRESS_TREE};
-
-    use crate::indexer::{ColdContext as IndexerColdContext, CompressedAccount};
-
-    let address_tree = Pubkey::new_from_array(MINT_ADDRESS_TREE);
-    let compressed_address = derive_address(
-        &indexer_mi.account.key.to_bytes(),
-        &address_tree.to_bytes(),
-        &light_token_interface::LIGHT_TOKEN_PROGRAM_ID,
-    );
-
-    let account = Account {
-        lamports: indexer_mi.account.account.lamports,
-        data: indexer_mi.account.account.data.clone(),
-        owner: indexer_mi.account.account.owner,
-        executable: indexer_mi.account.account.executable,
-        rent_epoch: indexer_mi.account.account.rent_epoch,
-    };
-
-    match indexer_mi.account.cold {
-        None => Ok(MintInterface {
-            mint: indexer_mi.account.key,
-            address_tree,
-            compressed_address,
-            state: MintState::Hot { account },
-        }),
-        Some(IndexerColdContext::Mint {
-            hash,
-            leaf_index,
-            tree_info,
-            data,
-        })
-        | Some(IndexerColdContext::Account {
-            hash,
-            leaf_index,
-            tree_info,
-            data,
-        }) => {
-            let mint_data = Mint::try_from_slice(&data.data)
-                .map_err(|e| RpcError::CustomError(format!("mint parse error: {}", e)))?;
-
-            let compressed = CompressedAccount {
-                address: None,
-                data: Some(CompressedAccountData {
-                    discriminator: data.discriminator,
-                    data: data.data,
-                    data_hash: [0u8; 32],
-                }),
-                hash,
-                lamports: indexer_mi.account.account.lamports,
-                leaf_index: leaf_index as u32,
-                owner: indexer_mi.account.account.owner,
-                prove_by_index: false,
-                seq: tree_info.seq,
-                slot_created: 0,
-                tree_info: TreeInfo {
-                    tree: tree_info.tree,
-                    queue: tree_info.queue,
-                    cpi_context: None,
-                    next_tree_info: None,
-                    tree_type: tree_info.tree_type,
-                },
-            };
-
-            Ok(MintInterface {
-                mint: indexer_mi.account.key,
-                address_tree,
-                compressed_address,
-                state: MintState::Cold {
-                    compressed,
-                    mint_data,
-                },
-            })
-        }
-        _ => Err(RpcError::CustomError(
-            "unexpected cold context type for mint".into(),
         )),
     }
 }
@@ -1288,85 +1170,6 @@ impl Rpc for LightClient {
             Some(tai) => Some(convert_token_account_interface(tai)?),
             None => None,
         };
-
-        Ok(Response {
-            context: resp.context,
-            value,
-        })
-    }
-
-    async fn get_mint_interface(
-        &self,
-        address: &Pubkey,
-        config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Option<MintInterface>>, RpcError> {
-        let indexer = self
-            .indexer
-            .as_ref()
-            .ok_or(RpcError::IndexerNotInitialized)?;
-        let resp = indexer
-            .get_mint_interface(address, config)
-            .await
-            .map_err(|e| RpcError::CustomError(format!("Indexer error: {e}")))?;
-
-        let value = match resp.value {
-            Some(mi) => Some(convert_mint_interface(mi)?),
-            None => None,
-        };
-
-        Ok(Response {
-            context: resp.context,
-            value,
-        })
-    }
-
-    async fn get_token_account_by_owner_mint(
-        &self,
-        owner: &Pubkey,
-        mint: &Pubkey,
-        config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Option<TokenAccountInterface>>, RpcError> {
-        use crate::indexer::GetCompressedTokenAccountsByOwnerOrDelegateOptions;
-
-        let indexer = self
-            .indexer
-            .as_ref()
-            .ok_or(RpcError::IndexerNotInitialized)?;
-
-        let options = Some(GetCompressedTokenAccountsByOwnerOrDelegateOptions {
-            mint: Some(*mint),
-            ..Default::default()
-        });
-
-        let resp = indexer
-            .get_compressed_token_accounts_by_owner(owner, options, config)
-            .await
-            .map_err(|e| RpcError::CustomError(format!("Indexer error: {e}")))?;
-
-        let items = resp.value.items;
-        if items.len() > 1 {
-            return Err(RpcError::CustomError(format!(
-                "Ambiguous lookup: found {} compressed token accounts for owner {} and mint {}. \
-                 Use get_compressed_token_accounts_by_owner for multiple accounts.",
-                items.len(),
-                owner,
-                mint
-            )));
-        }
-
-        let value = items.into_iter().next().map(|token_acc| {
-            let key = token_acc
-                .account
-                .address
-                .map(Pubkey::new_from_array)
-                .unwrap_or(*owner);
-            TokenAccountInterface::cold(
-                key,
-                token_acc,
-                *owner,
-                light_sdk::constants::LIGHT_TOKEN_PROGRAM_ID.into(),
-            )
-        });
 
         Ok(Response {
             context: resp.context,

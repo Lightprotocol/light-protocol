@@ -495,12 +495,11 @@ fn test_get_accounts_to_update_categories() {
     let sdk = AmmSdk::new();
     let typed = sdk.get_accounts_to_update(&AmmInstruction::Deposit);
 
-    // All should be one of Pda, Token, TokenByOwnerMint, Ata, or Mint
+    // All should be one of Pda, Token, Ata, or Mint
     for acc in &typed {
         match acc {
             AccountToFetch::Pda { .. } => {}
             AccountToFetch::Token { .. } => {}
-            AccountToFetch::TokenByOwnerMint { .. } => {}
             AccountToFetch::Ata { .. } => {}
             AccountToFetch::Mint { .. } => {}
         }

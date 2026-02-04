@@ -1050,140 +1050,6 @@ impl TryFrom<&photon_api::models::OwnerBalance> for OwnerBalance {
     }
 }
 
-/// Mint-specific data for compressed mints
-#[derive(Clone, Default, Debug, PartialEq)]
-pub struct MintData {
-    /// The PDA (decompressed account address) for this mint
-    pub mint_pda: Pubkey,
-    /// The signer/seed used for PDA derivation
-    pub mint_signer: [u8; 32],
-    /// Authority that can mint new tokens
-    pub mint_authority: Option<Pubkey>,
-    /// Authority that can freeze accounts
-    pub freeze_authority: Option<Pubkey>,
-    /// Total supply of tokens
-    pub supply: u64,
-    /// Number of decimals
-    pub decimals: u8,
-    /// Version of the mint
-    pub version: u8,
-    /// Whether the mint has been decompressed
-    pub mint_decompressed: bool,
-    /// Serialized extensions (decoded bytes; base64 decoded in `TryFrom`)
-    pub extensions: Option<Vec<u8>>,
-}
-
-impl TryFrom<&photon_api::models::MintData> for MintData {
-    type Error = IndexerError;
-
-    fn try_from(mint_data: &photon_api::models::MintData) -> Result<Self, Self::Error> {
-        Ok(MintData {
-            mint_pda: Pubkey::new_from_array(decode_base58_to_fixed_array(&mint_data.mint_pda)?),
-            mint_signer: decode_base58_to_fixed_array(&mint_data.mint_signer)?,
-            mint_authority: mint_data
-                .mint_authority
-                .as_ref()
-                .map(|a| decode_base58_to_fixed_array(a).map(Pubkey::new_from_array))
-                .transpose()?,
-            freeze_authority: mint_data
-                .freeze_authority
-                .as_ref()
-                .map(|a| decode_base58_to_fixed_array(a).map(Pubkey::new_from_array))
-                .transpose()?,
-            supply: mint_data.supply,
-            decimals: mint_data.decimals,
-            version: mint_data.version,
-            mint_decompressed: mint_data.mint_decompressed,
-            extensions: mint_data
-                .extensions
-                .as_ref()
-                .map(|ext| {
-                    base64::decode_config(ext, base64::STANDARD_NO_PAD)
-                        .map_err(|e| IndexerError::decode_error("extensions", e))
-                })
-                .transpose()?,
-        })
-    }
-}
-
-impl MintData {
-    /// Convert to `light_token_interface::state::Mint`.
-    ///
-    /// This reconstructs the full Mint struct from the indexed data.
-    /// Note: `CompressionInfo` is defaulted since it's not stored by the indexer.
-    pub fn to_light_mint(&self) -> Result<LightMint, IndexerError> {
-        // Derive bump from mint_signer
-        let mint_signer_pubkey = Pubkey::new_from_array(self.mint_signer);
-        let (derived_pda, bump) = find_mint_address(&mint_signer_pubkey);
-
-        // Verify derived PDA matches stored mint_pda (fail fast on mismatch)
-        if derived_pda != self.mint_pda {
-            return Err(IndexerError::DataDecodeError {
-                field: "mint_pda".to_string(),
-                message: format!(
-                    "Derived mint PDA {} (bump={}) does not match stored mint_pda {}",
-                    derived_pda, bump, self.mint_pda
-                ),
-            });
-        }
-
-        // Parse extensions if present
-        let extensions = self
-            .extensions
-            .as_ref()
-            .map(|ext_bytes| {
-                Vec::<ExtensionStruct>::deserialize(&mut ext_bytes.as_slice())
-                    .map_err(|e| IndexerError::decode_error("extensions", e))
-            })
-            .transpose()?;
-
-        Ok(LightMint {
-            base: BaseMint {
-                mint_authority: self
-                    .mint_authority
-                    .map(|p| light_compressed_account::Pubkey::new_from_array(p.to_bytes())),
-                supply: self.supply,
-                decimals: self.decimals,
-                is_initialized: true, // Always true for indexed mints
-                freeze_authority: self
-                    .freeze_authority
-                    .map(|p| light_compressed_account::Pubkey::new_from_array(p.to_bytes())),
-            },
-            metadata: MintMetadata {
-                version: self.version,
-                mint_decompressed: self.mint_decompressed,
-                mint: light_compressed_account::Pubkey::new_from_array(self.mint_pda.to_bytes()),
-                mint_signer: self.mint_signer,
-                bump,
-            },
-            reserved: [0u8; 16],
-            account_type: ACCOUNT_TYPE_MINT,
-            compression: CompressionInfo::default(), // Not stored by indexer
-            extensions,
-        })
-    }
-}
-
-/// A compressed mint with its account data
-#[derive(Clone, Default, Debug, PartialEq)]
-pub struct CompressedMint {
-    /// Mint-specific data (mint_pda, authorities, supply, decimals, etc.)
-    pub mint: MintData,
-    /// General account information (address, hash, lamports, merkle context, etc.)
-    pub account: CompressedAccount,
-}
-
-impl TryFrom<&photon_api::models::CompressedMint> for CompressedMint {
-    type Error = IndexerError;
-
-    fn try_from(compressed_mint: &photon_api::models::CompressedMint) -> Result<Self, Self::Error> {
-        let account = CompressedAccount::try_from(compressed_mint.account.as_ref())?;
-        let mint = MintData::try_from(compressed_mint.mint_data.as_ref())?;
-
-        Ok(CompressedMint { mint, account })
-    }
-}
-
 // ============ Interface Types ============
 // These types are used by the Interface endpoints that race hot (on-chain) and cold (compressed) lookups
 
@@ -1224,12 +1090,6 @@ pub enum ColdContext {
         data: ColdData,
     },
     Token {
-        hash: [u8; 32],
-        leaf_index: u64,
-        tree_info: InterfaceTreeInfo,
-        data: ColdData,
-    },
-    Mint {
         hash: [u8; 32],
         leaf_index: u64,
         tree_info: InterfaceTreeInfo,
@@ -1286,17 +1146,6 @@ fn convert_cold_context(
             tree_info,
             data,
         } => Ok(ColdContext::Token {
-            hash: decode_base58_to_fixed_array(hash)?,
-            leaf_index: *leaf_index,
-            tree_info: decode_tree_info(tree_info)?,
-            data: decode_cold_data(data)?,
-        }),
-        photon_api::models::ColdContext::Mint {
-            hash,
-            leaf_index,
-            tree_info,
-            data,
-        } => Ok(ColdContext::Mint {
             hash: decode_base58_to_fixed_array(hash)?,
             leaf_index: *leaf_index,
             tree_info: decode_tree_info(tree_info)?,
@@ -1368,9 +1217,6 @@ impl TryFrom<&photon_api::models::InterfaceResult> for AccountInterface {
             photon_api::models::InterfaceResult::Token(tai) => {
                 AccountInterface::try_from(&tai.account)
             }
-            photon_api::models::InterfaceResult::Mint(mi) => {
-                AccountInterface::try_from(&mi.account)
-            }
         }
     }
 }
@@ -1419,25 +1265,5 @@ impl TryFrom<&photon_api::models::TokenAccountInterface> for TokenAccountInterfa
         };
 
         Ok(TokenAccountInterface { account, token })
-    }
-}
-
-/// Mint account interface with parsed mint data
-#[derive(Clone, Debug, PartialEq)]
-pub struct MintInterface {
-    /// Base account interface data
-    pub account: AccountInterface,
-    /// Parsed mint data
-    pub mint_data: MintData,
-}
-
-impl TryFrom<&photon_api::models::MintInterface> for MintInterface {
-    type Error = IndexerError;
-
-    fn try_from(mi: &photon_api::models::MintInterface) -> Result<Self, Self::Error> {
-        let account = convert_account_interface(&mi.account)?;
-        let mint_data = MintData::try_from(&mi.mint_data)?;
-
-        Ok(MintInterface { account, mint_data })
     }
 }

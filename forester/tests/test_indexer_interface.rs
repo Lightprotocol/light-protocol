@@ -8,9 +8,7 @@
 /// 1. SPL Mint (on-chain) - standard mint for token operations
 /// 2. Compressed token accounts (via mint_to) - for getTokenAccountInterface
 /// 3. Registered v2 address in batched address tree - for address tree verification
-/// 4. Decompressed mint (via CreateMint with rent_payment=0) - for getMintInterface (on-chain CMint)
-/// 5. Fully compressed mint (CreateMint + CompressAndCloseMint) - for getMintInterface (compressed DB)
-/// 6. Compressible token accounts - on-chain accounts that can be compressed
+/// 4. Compressible token accounts - on-chain accounts that can be compressed
 use std::{collections::HashMap, time::Duration};
 
 use anchor_lang::Discriminator;
@@ -18,7 +16,7 @@ use borsh::BorshSerialize;
 use create_address_test_program::create_invoke_cpi_instruction;
 use forester_utils::utils::wait_for_indexer;
 use light_client::{
-    indexer::{photon_indexer::PhotonIndexer, AddressWithTree, ColdContext, Indexer},
+    indexer::{photon_indexer::PhotonIndexer, AddressWithTree, Indexer},
     local_test_validator::{spawn_validator, LightValidatorConfig},
     rpc::{LightClient, LightClientConfig, Rpc},
 };
@@ -500,87 +498,8 @@ async fn test_indexer_interface_scenarios() {
     sleep(Duration::from_secs(3)).await;
     wait_for_indexer(&rpc).await.unwrap();
 
-    // ============ Test 1: getMintInterface with decompressed mint (on-chain CMint) ============
-    println!("Test 1: getMintInterface with decompressed mint (on-chain CMint)...");
-    let decompressed_mint_interface = photon_indexer
-        .get_mint_interface(&decompressed_mint_pda, None)
-        .await
-        .expect("getMintInterface should not error for decompressed mint")
-        .value
-        .expect("Decompressed mint should be found");
-
-    assert!(
-        decompressed_mint_interface.account.is_hot(),
-        "Decompressed mint should be hot (on-chain)"
-    );
-    assert!(
-        decompressed_mint_interface.account.cold.is_none(),
-        "On-chain mint should not have cold context"
-    );
-    assert_eq!(
-        decompressed_mint_interface.account.key, decompressed_mint_pda,
-        "Key should match the queried address"
-    );
-    assert!(
-        decompressed_mint_interface.account.account.lamports > 0,
-        "On-chain mint should have lamports > 0"
-    );
-    assert_eq!(
-        decompressed_mint_interface.mint_data.decimals, 6,
-        "Decompressed mint decimals should be 6"
-    );
-    assert_eq!(
-        decompressed_mint_interface.mint_data.mint_pda, decompressed_mint_pda,
-        "Mint PDA should match the queried address"
-    );
-    println!("  PASSED: Decompressed mint resolved from on-chain with correct data");
-
-    // ============ Test 2: getMintInterface with fully compressed mint (compressed DB) ============
-    println!("\nTest 2: getMintInterface with fully compressed mint (compressed DB)...");
-    let compressed_mint_interface = photon_indexer
-        .get_mint_interface(&compressed_mint_pda, None)
-        .await
-        .expect("getMintInterface should not error for compressed mint")
-        .value
-        .expect("Compressed mint should be found");
-
-    assert!(
-        compressed_mint_interface.account.is_cold(),
-        "Fully compressed mint should be cold (from compressed DB)"
-    );
-    assert!(
-        compressed_mint_interface.account.cold.is_some(),
-        "Compressed mint should have cold context"
-    );
-    // Verify cold context is the Mint variant
-    assert!(
-        matches!(
-            compressed_mint_interface.account.cold,
-            Some(ColdContext::Mint { .. })
-        ),
-        "Cold context should be the Mint variant"
-    );
-    assert_eq!(
-        compressed_mint_interface.account.key, compressed_mint_pda,
-        "Key should match the queried address"
-    );
-    assert_eq!(
-        compressed_mint_interface.mint_data.decimals, 9,
-        "Compressed mint decimals should be 9"
-    );
-    assert_eq!(
-        compressed_mint_interface.mint_data.freeze_authority,
-        Some(payer.pubkey()),
-        "Compressed mint freeze authority should match"
-    );
-    assert_eq!(
-        compressed_mint_interface.mint_data.mint_pda, compressed_mint_pda,
-        "Mint PDA should match the queried address"
-    );
-    println!("  PASSED: Compressed mint resolved from DB with correct data");
-
-    // ============ Test 3: getAccountInterface with compressible token account (on-chain) ============
-    println!("\nTest 3: getAccountInterface with compressible token account (on-chain)...");
+    // ============ Test 1: getAccountInterface with compressible token account (on-chain) ============
+    println!("Test 1: getAccountInterface with compressible token account (on-chain)...");
     let compressible_account_interface = photon_indexer
         .get_account_interface(&compressible_token_account, None)
         .await
@@ -606,8 +525,8 @@ async fn test_indexer_interface_scenarios() {
     );
     println!("  PASSED: Compressible account resolved from on-chain");
 
-    // ============ Test 4: getTokenAccountInterface with compressible token account (on-chain) ============
-    println!("\nTest 4: getTokenAccountInterface with compressible token account (on-chain)...");
+    // ============ Test 2: getTokenAccountInterface with compressible token account (on-chain) ============
+    println!("\nTest 2: getTokenAccountInterface with compressible token account (on-chain)...");
     let compressible_token_interface = photon_indexer
         .get_token_account_interface(&compressible_token_account, None)
         .await
@@ -638,8 +557,8 @@ async fn test_indexer_interface_scenarios() {
     );
     println!("  PASSED: Token account interface resolved with correct token data");
 
-    // ============ Test 5: getMultipleAccountInterfaces batch lookup ============
-    println!("\nTest 5: getMultipleAccountInterfaces batch lookup...");
+    // ============ Test 3: getMultipleAccountInterfaces batch lookup ============
+    println!("\nTest 3: getMultipleAccountInterfaces batch lookup...");
     let batch_addresses = vec![&decompressed_mint_pda, &compressible_token_account];
 
     let batch_response = photon_indexer
@@ -685,51 +604,12 @@ async fn test_indexer_interface_scenarios() {
     );
     println!("  PASSED: Batch lookup returned correct results");
 
-    // ============ Test 6: Consistency between getMintInterface and getAccountInterface ============
-    println!("\nTest 6: Consistency between getMintInterface and getAccountInterface...");
-    let mint_via_mint = photon_indexer
-        .get_mint_interface(&decompressed_mint_pda, None)
-        .await
-        .expect("getMintInterface should succeed")
-        .value
-        .expect("Mint should be found via getMintInterface");
-
-    let mint_via_account = photon_indexer
-        .get_account_interface(&decompressed_mint_pda, None)
-        .await
-        .expect("getAccountInterface should succeed")
-        .value
-        .expect("Mint should be found via getAccountInterface");
-
-    assert_eq!(
-        mint_via_mint.account.key, mint_via_account.key,
-        "Keys should match between interfaces"
-    );
-    assert_eq!(
-        mint_via_mint.account.account.lamports, mint_via_account.account.lamports,
-        "Lamports should match between interfaces"
-    );
-    assert_eq!(
-        mint_via_mint.account.cold.is_none(),
-        mint_via_account.cold.is_none(),
-        "Hot/cold status should match between interfaces"
-    );
-    assert_eq!(
-        mint_via_mint.account.account.data, mint_via_account.account.data,
-        "Data should match between interfaces"
-    );
-    assert_eq!(
-        mint_via_mint.account.account.owner, mint_via_account.account.owner,
-        "Owner should match between interfaces"
-    );
-    println!("  PASSED: Consistency verified between getMintInterface and getAccountInterface");
-
-    // ============ Test 7: Verify fully compressed mint via getAccountInterface returns None ============
+    // ============ Test 4: Verify fully compressed mint via getAccountInterface returns None ============
     // Fully compressed mints (after CompressAndCloseMint) have full mint data in the compressed DB.
     // Their address column contains the compression_address, not the mint_pda.
     // Since they don't have the [255; 8] discriminator, onchain_pubkey is not set.
-    // Therefore getAccountInterface by mint_pda should return None (use getMintInterface instead).
-    println!("\nTest 7: getAccountInterface with fully compressed mint PDA...");
+    // Therefore getAccountInterface by mint_pda should return None.
+    println!("\nTest 4: getAccountInterface with fully compressed mint PDA...");
     let compressed_via_account = photon_indexer
         .get_account_interface(&compressed_mint_pda, None)
         .await
@@ -737,15 +617,15 @@ async fn test_indexer_interface_scenarios() {
 
     assert!(
         compressed_via_account.value.is_none(),
-        "Fully compressed mint should NOT be found via getAccountInterface (use getMintInterface)"
+        "Fully compressed mint should NOT be found via getAccountInterface"
     );
     println!("  PASSED: Fully compressed mint correctly returns None via getAccountInterface");
 
-    // ============ Test 8: Verify decompressed mint found via getAccountInterface (generic linking) ============
+    // ============ Test 5: Verify decompressed mint found via getAccountInterface (generic linking) ============
     // Decompressed mints have discriminator [255; 8] + 32-byte mint_pda in data.
     // The generic linking feature extracts this as onchain_pubkey during ingestion.
     // Therefore getAccountInterface(mint_pda) should find it via onchain_pubkey column.
-    println!("\nTest 8: getAccountInterface with decompressed mint PDA (generic linking)...");
+    println!("\nTest 5: getAccountInterface with decompressed mint PDA (generic linking)...");
     let decompressed_via_account = photon_indexer
         .get_account_interface(&decompressed_mint_pda, None)
         .await

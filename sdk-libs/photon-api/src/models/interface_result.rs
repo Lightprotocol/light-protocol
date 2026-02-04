@@ -19,9 +19,6 @@ pub enum InterfaceResult {
     /// Token account result with parsed token data
     #[serde(rename = "token")]
     Token(models::TokenAccountInterface),
-    /// Mint account result with parsed mint data
-    #[serde(rename = "mint")]
-    Mint(models::MintInterface),
 }
 
 impl Default for InterfaceResult {

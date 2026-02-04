@@ -1489,4 +1489,570 @@ mod test {
             "Should track the token closest to system instruction"
         );
     }
+
+    // ==========================================================================
+    // Additional ATA and Program ID filtering edge case tests
+    // ==========================================================================
+
+    #[test]
+    fn test_find_cpi_pattern_token_after_account_compression_not_tracked() {
+        // Token appearing after AccountCompression should not be part of this pattern
+        // Pattern: Registry -> LightSystem -> SolanaSystem -> AccountCompression -> Token
+        let program_ids = vec![
+            ProgramId::Registry,
+            ProgramId::LightSystem,
+            ProgramId::SolanaSystem,
+            ProgramId::AccountCompression,
+            ProgramId::LightToken, // After AccountCompression - not part of this pattern
+        ];
+        let (res, _) = find_cpi_pattern(3, &program_ids);
+        assert!(res.is_some());
+        let indices = res.unwrap();
+        assert!(indices.found_registry);
+        assert_eq!(
+            indices.token, None,
+            "Token after AccountCompression should not be tracked in this pattern"
+        );
+    }
+
+    #[test]
+    fn test_find_cpi_pattern_registry_after_account_compression_not_found() {
+        // Registry appearing after AccountCompression should not validate token tracking
+        // Pattern: Token -> LightSystem -> SolanaSystem -> AccountCompression -> Registry
+        let program_ids = vec![
+            ProgramId::LightToken,
+            ProgramId::LightSystem,
+            ProgramId::SolanaSystem,
+            ProgramId::AccountCompression,
+            ProgramId::Registry, // After AccountCompression - not part of this pattern
+        ];
+        let (res, _) = find_cpi_pattern(3, &program_ids);
+        assert!(res.is_some());
+        let indices = res.unwrap();
+        assert!(
+            !indices.found_registry,
+            "Registry after AccountCompression should not be found"
+        );
+        assert_eq!(
+            indices.token, None,
+            "Token should not be tracked without registry before AccountCompression"
+        );
+    }
+
+    #[test]
+    fn test_find_cpi_pattern_token_between_unknown_programs() {
+        // Token surrounded by Unknown programs, with Registry present
+        // Pattern: Registry -> Unknown -> Token -> Unknown -> LightSystem -> SolanaSystem -> AccountCompression
+        let program_ids = vec![
+            ProgramId::Registry,
+            ProgramId::Unknown,
+            ProgramId::LightToken,
+            ProgramId::Unknown,
+            ProgramId::LightSystem,
+            ProgramId::SolanaSystem,
+            ProgramId::AccountCompression,
+        ];
+        let (res, _) = find_cpi_pattern(6, &program_ids);
+        assert!(res.is_some());
+        let indices = res.unwrap();
+        assert!(indices.found_registry);
+        assert_eq!(
+            indices.token,
+            Some(2),
+            "Token should be tracked even with Unknown programs around it"
+        );
+    }
+
+    #[test]
+    fn test_find_cpi_pattern_empty_program_ids() {
+        let program_ids: Vec<ProgramId> = vec![];
+        let patterns = find_cpi_patterns(&program_ids);
+        assert!(
+            patterns.is_empty(),
+            "Empty program IDs should return no patterns"
+        );
+    }
+
+    #[test]
+    fn test_find_cpi_pattern_single_account_compression() {
+        let program_ids = vec![ProgramId::AccountCompression];
+        let (res, _) = find_cpi_pattern(0, &program_ids);
+        assert!(
+            res.is_none(),
+            "Single AccountCompression without system should not match"
+        );
+    }
+
+    #[test]
+    fn test_find_cpi_pattern_registry_token_no_system() {
+        // Registry and Token without LightSystem - invalid pattern
+        let program_ids = vec![
+            ProgramId::Registry,
+            ProgramId::LightToken,
+            ProgramId::SolanaSystem,
+            ProgramId::AccountCompression,
+        ];
+        let (res, _) = find_cpi_pattern(3, &program_ids);
+        assert!(
+            res.is_none(),
+            "Pattern without LightSystem should not match"
+        );
+    }
+
+    #[test]
+    fn test_find_cpi_pattern_token_at_position_zero_not_tracked() {
+        // Token at position 0 (outermost in CPI chain) - this is NOT a valid real-world pattern.
+        // In the actual protocol, Registry is always the outermost caller (Registry -> Token -> LightSystem).
+        // Pattern: Token -> Registry -> LightSystem -> SolanaSystem -> AccountCompression
+        //
+        // When searching backwards, we encounter Registry (index 1) BEFORE Token (index 0).
+        // At the point we find Registry, tentative_token is still None, so we don't confirm a token.
+        // Then we find Token at index 0, but Registry has already been processed.
+        //
+        // This behavior is CORRECT because Token being outermost is invalid - Registry must be outer.
+        let program_ids = vec![
+            ProgramId::LightToken, // Position 0 - invalid as outermost
+            ProgramId::Registry,   // Position 1
+            ProgramId::LightSystem,
+            ProgramId::SolanaSystem,
+            ProgramId::AccountCompression,
+        ];
+        let (res, _) = find_cpi_pattern(4, &program_ids);
+        assert!(res.is_some());
+        let indices = res.unwrap();
+        assert!(indices.found_registry);
+        // Token at position 0 is NOT tracked because it appears AFTER Registry in backwards search.
+        // This is correct behavior - Token must be between Registry and LightSystem.
+        assert_eq!(
+            indices.token, None,
+            "Token at position 0 (before Registry in array) should NOT be tracked - invalid CPI order"
+        );
+    }
+
+    #[test]
+    fn test_find_cpi_pattern_multiple_registries() {
+        // Multiple Registry programs - behavior verification
+        // Pattern: Registry -> Registry -> Token -> LightSystem -> SolanaSystem -> AccountCompression
+        let program_ids = vec![
+            ProgramId::Registry, // First Registry
+            ProgramId::Registry, // Second Registry
+            ProgramId::LightToken,
+            ProgramId::LightSystem,
+            ProgramId::SolanaSystem,
+            ProgramId::AccountCompression,
+        ];
+        let (res, _) = find_cpi_pattern(5, &program_ids);
+        assert!(res.is_some());
+        let indices = res.unwrap();
+        assert!(indices.found_registry, "Should find at least one registry");
+        assert_eq!(
+            indices.token,
+            Some(2),
+            "Token should be tracked with registry present"
+        );
+    }
+
+    #[test]
+    fn test_find_cpi_pattern_token_before_system_instruction() {
+        // Token appearing before finding system instruction in backwards search
+        // Pattern: LightSystem -> SolanaSystem -> Token -> AccountCompression
+        // When searching backwards from AccountCompression, we find Token before system
+        let program_ids = vec![
+            ProgramId::LightSystem,
+            ProgramId::SolanaSystem,
+            ProgramId::LightToken, // Between SolanaSystem and AccountCompression
+            ProgramId::AccountCompression,
+        ];
+        let (res, _) = find_cpi_pattern(3, &program_ids);
+        // This should fail because we need SolanaSystem right before AccountCompression
+        assert!(
+            res.is_none(),
+            "Token breaking the SolanaSystem -> AccountCompression chain should fail"
+        );
+    }
+
+    #[test]
+    fn test_find_cpi_pattern_registry_between_system_and_solana_system() {
+        // Registry between LightSystem and SolanaSystem
+        // Pattern: Registry -> LightSystem -> Registry -> SolanaSystem -> AccountCompression
+        let program_ids = vec![
+            ProgramId::Registry,
+            ProgramId::LightSystem,
+            ProgramId::Registry, // Between LightSystem and SolanaSystem
+            ProgramId::SolanaSystem,
+            ProgramId::AccountCompression,
+        ];
+        let (res, _) = find_cpi_pattern(4, &program_ids);
+        // Registry between should break the pattern
+        assert!(
+            res.is_none(),
+            "Registry between LightSystem and SolanaSystem should break pattern"
+        );
+    }
+
+    // ==========================================================================
+    // Additional extract_ata_owners edge case tests
+    // ==========================================================================
+
+    /// Helper to create Transfer2 instruction data with multiple outputs
+    fn create_transfer2_with_multiple_outputs(
+        outputs: Vec<(u8, bool)>, // (owner_index, is_ata)
+    ) -> Vec<u8> {
+        let out_token_data: Vec<MultiTokenTransferOutputData> = outputs
+            .iter()
+            .map(|(owner_index, _)| MultiTokenTransferOutputData {
+                owner: *owner_index,
+                amount: 1000,
+                has_delegate: false,
+                delegate: 0,
+                mint: 0,
+                version: 3,
+            })
+            .collect();
+
+        let out_tlv: Vec<Vec<ExtensionInstructionData>> = outputs
+            .iter()
+            .map(|(owner_index, is_ata)| {
+                vec![ExtensionInstructionData::CompressedOnly(
+                    CompressedOnlyExtensionInstructionData {
+                        delegated_amount: 0,
+                        withheld_transfer_fee: 0,
+                        is_frozen: false,
+                        compression_index: 0,
+                        is_ata: *is_ata,
+                        bump: 255,
+                        owner_index: *owner_index,
+                    },
+                )]
+            })
+            .collect();
+
+        let transfer_data = CompressedTokenInstructionDataTransfer2 {
+            with_transaction_hash: false,
+            with_lamports_change_account_merkle_tree_index: false,
+            lamports_change_account_merkle_tree_index: 0,
+            lamports_change_account_owner_index: 0,
+            output_queue: 0,
+            max_top_up: 0,
+            cpi_context: None,
+            compressions: None,
+            proof: None,
+            in_token_data: vec![],
+            out_token_data,
+            in_lamports: None,
+            out_lamports: None,
+            in_tlv: None,
+            out_tlv: Some(out_tlv),
+        };
+        let mut data = vec![TRANSFER2];
+        data.extend(transfer_data.try_to_vec().unwrap());
+        data
+    }
+
+    #[test]
+    fn test_extract_ata_owners_multiple_outputs_all_ata() {
+        // Multiple outputs, all are ATAs
+        let data = create_transfer2_with_multiple_outputs(vec![
+            (0, true), // output 0: ATA with owner at packed_accounts[0]
+            (1, true), // output 1: ATA with owner at packed_accounts[1]
+            (2, true), // output 2: ATA with owner at packed_accounts[2]
+        ]);
+
+        let mut accounts = vec![Pubkey::default(); 12]; // 7 system + 5 packed
+        let owner0 = Pubkey::new_from_array([10u8; 32]);
+        let owner1 = Pubkey::new_from_array([11u8; 32]);
+        let owner2 = Pubkey::new_from_array([12u8; 32]);
+        accounts[7] = owner0;
+        accounts[8] = owner1;
+        accounts[9] = owner2;
+
+        let token_instruction = TokenInstructionData {
+            data: &data,
+            accounts: &accounts,
+        };
+        let result = extract_ata_owners(&token_instruction);
+
+        assert_eq!(result.len(), 3, "Should extract 3 ATA owners");
+        assert_eq!(result[0].output_index, 0);
+        assert_eq!(result[0].wallet_owner, owner0);
+        assert_eq!(result[1].output_index, 1);
+        assert_eq!(result[1].wallet_owner, owner1);
+        assert_eq!(result[2].output_index, 2);
+        assert_eq!(result[2].wallet_owner, owner2);
+    }
+
+    #[test]
+    fn test_extract_ata_owners_multiple_outputs_mixed() {
+        // Mixed: some ATA, some not
+        let data = create_transfer2_with_multiple_outputs(vec![
+            (0, false), // output 0: NOT an ATA
+            (1, true),  // output 1: ATA
+            (2, false), // output 2: NOT an ATA
+            (3, true),  // output 3: ATA
+        ]);
+
+        let mut accounts = vec![Pubkey::default(); 12];
+        let owner1 = Pubkey::new_from_array([21u8; 32]);
+        let owner3 = Pubkey::new_from_array([23u8; 32]);
+        accounts[8] = owner1; // packed_accounts[1]
+        accounts[10] = owner3; // packed_accounts[3]
+
+        let token_instruction = TokenInstructionData {
+            data: &data,
+            accounts: &accounts,
+        };
+        let result = extract_ata_owners(&token_instruction);
+
+        assert_eq!(result.len(), 2, "Should only extract ATA outputs");
+        assert_eq!(result[0].output_index, 1);
+        assert_eq!(result[0].wallet_owner, owner1);
+        assert_eq!(result[1].output_index, 3);
+        assert_eq!(result[1].wallet_owner, owner3);
+    }
+
+    #[test]
+    fn test_extract_ata_owners_multiple_outputs_none_ata() {
+        // All outputs are non-ATA
+        let data = create_transfer2_with_multiple_outputs(vec![(0, false), (1, false), (2, false)]);
+
+        let accounts = vec![Pubkey::default(); 12];
+        let token_instruction = TokenInstructionData {
+            data: &data,
+            accounts: &accounts,
+        };
+        let result = extract_ata_owners(&token_instruction);
+
+        assert!(
+            result.is_empty(),
+            "Should not extract any owners when no ATAs"
+        );
+    }
+
+    #[test]
+    fn test_extract_ata_owners_same_owner_multiple_atas() {
+        // Multiple ATAs pointing to the same owner (same owner_index)
+        let data = create_transfer2_with_multiple_outputs(vec![
+            (0, true), // output 0: ATA with owner at packed_accounts[0]
+            (0, true), // output 1: ATA with SAME owner
+            (0, true), // output 2: ATA with SAME owner
+        ]);
+
+        let mut accounts = vec![Pubkey::default(); 10];
+        let shared_owner = Pubkey::new_from_array([77u8; 32]);
+        accounts[7] = shared_owner;
+
+        let token_instruction = TokenInstructionData {
+            data: &data,
+            accounts: &accounts,
+        };
+        let result = extract_ata_owners(&token_instruction);
+
+        assert_eq!(result.len(), 3, "Should extract all 3 ATA entries");
+        assert!(
+            result.iter().all(|r| r.wallet_owner == shared_owner),
+            "All should have the same owner"
+        );
+        assert_eq!(result[0].output_index, 0);
+        assert_eq!(result[1].output_index, 1);
+        assert_eq!(result[2].output_index, 2);
+    }
+
+    #[test]
+    fn test_extract_ata_owners_partial_out_of_bounds() {
+        // Some outputs have valid owner_index, some are out of bounds
+        let data = create_transfer2_with_multiple_outputs(vec![
+            (0, true),   // output 0: Valid owner_index
+            (100, true), // output 1: Out of bounds
+            (1, true),   // output 2: Valid owner_index
+        ]);
+
+        let mut accounts = vec![Pubkey::default(); 10];
+        let owner0 = Pubkey::new_from_array([30u8; 32]);
+        let owner1 = Pubkey::new_from_array([31u8; 32]);
+        accounts[7] = owner0;
+        accounts[8] = owner1;
+
+        let token_instruction = TokenInstructionData {
+            data: &data,
+            accounts: &accounts,
+        };
+        let result = extract_ata_owners(&token_instruction);
+
+        assert_eq!(result.len(), 2, "Should only extract valid owner indices");
+        assert_eq!(result[0].output_index, 0);
+        assert_eq!(result[0].wallet_owner, owner0);
+        assert_eq!(result[1].output_index, 2);
+        assert_eq!(result[1].wallet_owner, owner1);
+    }
+
+    #[test]
+    fn test_extract_ata_owners_zero_packed_accounts() {
+        // Edge case: exactly 7 accounts (no packed_accounts at all)
+        let data = create_transfer2_with_ata(0, true); // Wants packed_accounts[0] which doesn't exist
+
+        let accounts = vec![Pubkey::default(); 7]; // Only system accounts
+
+        let token_instruction = TokenInstructionData {
+            data: &data,
+            accounts: &accounts,
+        };
+        let result = extract_ata_owners(&token_instruction);
+
+        assert!(
+            result.is_empty(),
+            "Should not extract ATA when no packed_accounts exist"
+        );
+    }
+
+    #[test]
+    fn test_extract_ata_owners_exactly_one_packed_account() {
+        // Edge case: exactly 8 accounts (only one packed_account at index 0)
+        let data = create_transfer2_with_ata(0, true);
+
+        let mut accounts = vec![Pubkey::default(); 8];
+        let owner = Pubkey::new_from_array([55u8; 32]);
+        accounts[7] = owner;
+
+        let token_instruction = TokenInstructionData {
+            data: &data,
+            accounts: &accounts,
+        };
+        let result = extract_ata_owners(&token_instruction);
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].wallet_owner, owner);
+    }
+
+    // ==========================================================================
+    // Tests for wrap_program_ids edge cases
+    // ==========================================================================
+
+    #[test]
+    fn test_wrap_program_ids_empty_instruction_data() {
+        let program_ids = vec![Pubkey::from(LIGHT_TOKEN_PROGRAM_ID)];
+        let instructions = vec![vec![]]; // Empty instruction data
+        let accounts = vec![vec![]];
+
+        let result = wrap_program_ids(&program_ids, &instructions, &accounts);
+        assert_eq!(
+            result,
+            vec![ProgramId::Unknown],
+            "Empty instruction should be Unknown"
+        );
+    }
+
+    #[test]
+    fn test_wrap_program_ids_exactly_12_bytes() {
+        // Boundary: exactly 12 bytes is valid
+        let program_ids = vec![Pubkey::from(LIGHT_TOKEN_PROGRAM_ID)];
+        let mut instruction_data = vec![0u8; 12];
+        instruction_data[0] = TRANSFER2;
+        let instructions = vec![instruction_data];
+        let accounts = vec![vec![]];
+
+        let result = wrap_program_ids(&program_ids, &instructions, &accounts);
+        assert_eq!(result, vec![ProgramId::LightToken]);
+    }
+
+    #[test]
+    fn test_wrap_program_ids_11_bytes() {
+        // Boundary: 11 bytes is too small
+        let program_ids = vec![Pubkey::from(LIGHT_TOKEN_PROGRAM_ID)];
+        let mut instruction_data = vec![0u8; 11];
+        instruction_data[0] = TRANSFER2;
+        let instructions = vec![instruction_data];
+        let accounts = vec![vec![]];
+
+        let result = wrap_program_ids(&program_ids, &instructions, &accounts);
+        assert_eq!(result, vec![ProgramId::Unknown], "11 bytes is too small");
+    }
+
+    #[test]
+    fn test_wrap_program_ids_mixed_valid_invalid() {
+        // Mix of valid and invalid instructions
+        let program_ids = vec![
+            Pubkey::from(LIGHT_TOKEN_PROGRAM_ID),
+            Pubkey::from(LIGHT_REGISTRY_PROGRAM_ID),
+            Pubkey::from(LIGHT_TOKEN_PROGRAM_ID),
+            Pubkey::from(LIGHT_TOKEN_PROGRAM_ID),
+        ];
+
+        let mut valid_transfer = vec![0u8; 12];
+        valid_transfer[0] = TRANSFER2;
+
+        let instructions = vec![
+            valid_transfer.clone(), // Valid Token + TRANSFER2
+            vec![0u8; 12],          // Valid Registry (any 12+ bytes)
+            vec![0xFF; 12],         // Token but not TRANSFER2
+            vec![TRANSFER2; 5],     // Token + TRANSFER2 but too short
+        ];
+        let accounts = vec![vec![], vec![], vec![], vec![]];
+
+        let result = wrap_program_ids(&program_ids, &instructions, &accounts);
+        assert_eq!(
+            result,
+            vec![
+                ProgramId::LightToken,
+                ProgramId::Registry,
+                ProgramId::Unknown,
+                ProgramId::Unknown,
+            ]
+        );
+    }
+
+    #[test]
+    fn test_wrap_program_ids_account_compression_missing_registered_pda() {
+        // AccountCompression with wrong registered PDA
+        let program_ids = vec![Pubkey::from(ACCOUNT_COMPRESSION_PROGRAM_ID)];
+        let mut instruction_data = vec![0u8; 12];
+        instruction_data[0..8].copy_from_slice(&DISCRIMINATOR_INSERT_INTO_QUEUES);
+        let instructions = vec![instruction_data];
+        // accounts[1] should be REGISTERED_PROGRAM_PDA but we use a different pubkey
+        let accounts = vec![vec![
+            Pubkey::default(),
+            Pubkey::new_from_array([99u8; 32]), // Wrong PDA
+            Pubkey::default(),
+        ]];
+
+        let result = wrap_program_ids(&program_ids, &instructions, &accounts);
+        assert_eq!(
+            result,
+            vec![ProgramId::Unknown],
+            "AccountCompression with wrong registered PDA should be Unknown"
+        );
+    }
+
+    #[test]
+    fn test_wrap_program_ids_account_compression_valid() {
+        // AccountCompression with correct setup
+        let program_ids = vec![Pubkey::from(ACCOUNT_COMPRESSION_PROGRAM_ID)];
+        let mut instruction_data = vec![0u8; 12];
+        instruction_data[0..8].copy_from_slice(&DISCRIMINATOR_INSERT_INTO_QUEUES);
+        let instructions = vec![instruction_data];
+        let accounts = vec![vec![
+            Pubkey::default(),
+            Pubkey::from(REGISTERED_PROGRAM_PDA), // Correct PDA
+            Pubkey::default(),
+        ]];
+
+        let result = wrap_program_ids(&program_ids, &instructions, &accounts);
+        assert_eq!(result, vec![ProgramId::AccountCompression]);
+    }
+
+    #[test]
+    fn test_wrap_program_ids_account_compression_insufficient_accounts() {
+        // AccountCompression with too few accounts
+        let program_ids = vec![Pubkey::from(ACCOUNT_COMPRESSION_PROGRAM_ID)];
+        let mut instruction_data = vec![0u8; 12];
+        instruction_data[0..8].copy_from_slice(&DISCRIMINATOR_INSERT_INTO_QUEUES);
+        let instructions = vec![instruction_data];
+        let accounts = vec![vec![Pubkey::default()]]; // Only 1 account, need 3
+
+        let result = wrap_program_ids(&program_ids, &instructions, &accounts);
+        assert_eq!(
+            result,
+            vec![ProgramId::Unknown],
+            "AccountCompression with insufficient accounts should be Unknown"
+        );
+    }
 }

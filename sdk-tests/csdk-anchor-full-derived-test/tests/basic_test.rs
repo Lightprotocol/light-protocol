@@ -446,17 +446,17 @@ async fn test_create_pdas_and_mint_auto() {
     // Use TokenAccountInterface directly for ATA
     // (no separate AtaSpec needed - TokenAccountInterface has all the data)
 
-    // Fetch mint interface
-    let mint_interface = rpc
-        .get_mint_interface(&mint_pda, None)
+    // Fetch mint as account interface (clients parse mint data themselves)
+    let mint_account_interface = rpc
+        .get_account_interface(&mint_pda, None)
         .await
-        .expect("get_mint_interface should succeed")
+        .expect("get_account_interface should succeed")
         .value
         .expect("Mint should exist");
-    assert!(mint_interface.is_cold(), "Mint should be cold after warp");
-
-    // Convert MintInterface to AccountInterface for use in AccountSpec
-    let mint_account_interface: AccountInterface = mint_interface.into();
+    assert!(
+        mint_account_interface.is_cold(),
+        "Mint should be cold after warp"
+    );
 
     // Build AccountSpec slice for all accounts
     let specs: Vec<AccountSpec<LightAccountVariant>> = vec![

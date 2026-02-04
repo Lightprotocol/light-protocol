@@ -342,30 +342,6 @@ pub mod node;
 pub use self::node::Node;
 pub mod queue_request;
 pub use self::queue_request::QueueRequest;
-pub mod mint_data;
-pub use self::mint_data::MintData;
-pub mod compressed_mint;
-pub use self::compressed_mint::CompressedMint;
-pub mod compressed_mint_list;
-pub use self::compressed_mint_list::CompressedMintList;
-pub mod _get_compressed_mint_post_request_params;
-pub use self::_get_compressed_mint_post_request_params::GetCompressedMintPostRequestParams;
-pub mod _get_compressed_mint_post_request;
-pub use self::_get_compressed_mint_post_request::GetCompressedMintPostRequest;
-pub mod _get_compressed_mint_post_200_response_result;
-pub use self::_get_compressed_mint_post_200_response_result::GetCompressedMintPost200ResponseResult;
-pub mod _get_compressed_mint_post_200_response;
-pub use self::_get_compressed_mint_post_200_response::GetCompressedMintPost200Response;
-pub mod _get_compressed_mints_by_authority_post_request_params;
-pub use self::_get_compressed_mints_by_authority_post_request_params::{
-    AuthorityType, GetCompressedMintsByAuthorityPostRequestParams,
-};
-pub mod _get_compressed_mints_by_authority_post_request;
-pub use self::_get_compressed_mints_by_authority_post_request::GetCompressedMintsByAuthorityPostRequest;
-pub mod _get_compressed_mints_by_authority_post_200_response_result;
-pub use self::_get_compressed_mints_by_authority_post_200_response_result::GetCompressedMintsByAuthorityPost200ResponseResult;
-pub mod _get_compressed_mints_by_authority_post_200_response;
-pub use self::_get_compressed_mints_by_authority_post_200_response::GetCompressedMintsByAuthorityPost200Response;
 // Interface types
 pub mod solana_account_data;
 pub use self::solana_account_data::SolanaAccountData;
@@ -379,8 +355,6 @@ pub mod account_interface;
 pub use self::account_interface::AccountInterface;
 pub mod token_account_interface;
 pub use self::token_account_interface::TokenAccountInterface;
-pub mod mint_interface;
-pub use self::mint_interface::MintInterface;
 pub mod interface_result;
 pub use self::interface_result::InterfaceResult;
 // getAccountInterface
@@ -410,15 +384,6 @@ pub mod _get_ata_interface_post_200_response_result;
 pub use self::_get_ata_interface_post_200_response_result::GetAtaInterfacePost200ResponseResult;
 pub mod _get_ata_interface_post_200_response;
 pub use self::_get_ata_interface_post_200_response::GetAtaInterfacePost200Response;
-// getMintInterface
-pub mod _get_mint_interface_post_request_params;
-pub use self::_get_mint_interface_post_request_params::GetMintInterfacePostRequestParams;
-pub mod _get_mint_interface_post_request;
-pub use self::_get_mint_interface_post_request::GetMintInterfacePostRequest;
-pub mod _get_mint_interface_post_200_response_result;
-pub use self::_get_mint_interface_post_200_response_result::GetMintInterfacePost200ResponseResult;
-pub mod _get_mint_interface_post_200_response;
-pub use self::_get_mint_interface_post_200_response::GetMintInterfacePost200Response;
 // getMultipleAccountInterfaces
 pub mod _get_multiple_account_interfaces_post_request_params;
 pub use self::_get_multiple_account_interfaces_post_request_params::GetMultipleAccountInterfacesPostRequestParams;

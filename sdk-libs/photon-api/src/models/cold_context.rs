@@ -33,14 +33,4 @@ pub enum ColdContext {
         tree_info: models::InterfaceTreeInfo,
         data: models::ColdData,
     },
-    /// Compressed mint account
-    #[serde(rename = "mint")]
-    Mint {
-        hash: String,
-        #[serde(rename = "leafIndex")]
-        leaf_index: u64,
-        #[serde(rename = "treeInfo")]
-        tree_info: models::InterfaceTreeInfo,
-        data: models::ColdData,
-    },
 }

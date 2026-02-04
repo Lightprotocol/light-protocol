@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use borsh::BorshDeserialize;
 use light_client::{
     indexer::{CompressedAccount, CompressedTokenAccount, Context, Indexer, Response, TreeInfo},
-    interface::{AccountInterface, MintInterface, MintState, TokenAccountInterface},
+    interface::{AccountInterface, TokenAccountInterface},
     rpc::{LightClientConfig, Rpc, RpcError},
 };
 use light_compressed_account::TreeType;
@@ -606,134 +606,6 @@ impl Rpc for LightProgramTest {
             }
         }
 
-        Ok(Response {
-            context: Context { slot },
-            value: None,
-        })
-    }
-
-    async fn get_token_account_by_owner_mint(
-        &self,
-        owner: &Pubkey,
-        mint: &Pubkey,
-        _config: Option<light_client::indexer::IndexerRpcConfig>,
-    ) -> Result<Response<Option<TokenAccountInterface>>, RpcError> {
-        use light_client::indexer::GetCompressedTokenAccountsByOwnerOrDelegateOptions;
-        use light_sdk::constants::LIGHT_TOKEN_PROGRAM_ID;
-
-        let light_token_program_id: Pubkey = LIGHT_TOKEN_PROGRAM_ID.into();
-        let slot = self.context.get_sysvar::<Clock>().slot;
-
-        // Search in compressed token accounts by owner with mint filter
-        if let Some(indexer) = self.indexer.as_ref() {
-            let options = Some(GetCompressedTokenAccountsByOwnerOrDelegateOptions {
-                mint: Some(*mint),
-                ..Default::default()
-            });
-            let result = indexer
-                .get_compressed_token_accounts_by_owner(owner, options, None)
-                .await
-                .map_err(|e| RpcError::CustomError(format!("indexer error: {}", e)))?;
-
-            let items = result.value.items;
-            if items.len() > 1 {
-                return Err(RpcError::CustomError(format!(
-                    "Ambiguous lookup: found {} compressed token accounts for owner {} and mint {}. \
-                     Use get_compressed_token_accounts_by_owner for multiple accounts.",
-                    items.len(),
-                    owner,
-                    mint
-                )));
-            }
-
-            if let Some(token_acc) = items.into_iter().next() {
-                let key = token_acc
-                    .account
-                    .address
-                    .map(Pubkey::new_from_array)
-                    .unwrap_or(*owner);
-                return Ok(Response {
-                    context: Context { slot },
-                    value: Some(TokenAccountInterface::cold(
-                        key,
-                        token_acc,
-                        *owner,
-                        light_token_program_id,
-                    )),
-                });
-            }
-        }
-
-        Ok(Response {
-            context: Context { slot },
-            value: None,
-        })
-    }
-
-    async fn get_mint_interface(
-        &self,
-        address: &Pubkey,
-        _config: Option<light_client::indexer::IndexerRpcConfig>,
-    ) -> Result<Response<Option<MintInterface>>, RpcError> {
-        use borsh::BorshDeserialize as _;
-        use light_compressed_account::address::derive_address;
-        use light_token_interface::{state::Mint, MINT_ADDRESS_TREE};
-
-        let slot = self.context.get_sysvar::<Clock>().slot;
-        let address_tree = Pubkey::new_from_array(MINT_ADDRESS_TREE);
-        let light_token_program_id: Pubkey =
-            Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
-        let compressed_address = derive_address(
-            &address.to_bytes(),
-            &address_tree.to_bytes(),
-            &light_token_interface::LIGHT_TOKEN_PROGRAM_ID,
-        );
-
-        if let Some(account) = self.context.get_account(address) {
-            if account.lamports > 0 && account.owner == light_token_program_id {
-                return Ok(Response {
-                    context: Context { slot },
-                    value: Some(MintInterface {
-                        mint: *address,
-                        address_tree,
-                        compressed_address,
-                        state: MintState::Hot { account },
-                    }),
-                });
-            }
-        }
-
-        // Cold: check indexer by compressed address
-        if let Some(indexer) = self.indexer.as_ref() {
-            let result = indexer
-                .get_compressed_account(compressed_address, None)
-                .await
-                .map_err(|e| RpcError::CustomError(format!("indexer error: {}", e)))?;
-
-            if let Some(compressed) = result.value {
-                if let Some(data) = compressed.data.as_ref() {
-                    if !data.data.is_empty() {
-                        let mint_data = Mint::try_from_slice(&data.data).map_err(|e| {
-                            RpcError::CustomError(format!("mint parse error: {}", e))
-                        })?;
-                        return Ok(Response {
-                            context: Context { slot },
-                            value: Some(MintInterface {
-                                mint: *address,
-                                address_tree,
-                                compressed_address,
-                                state: MintState::Cold {
-                                    compressed,
-                                    mint_data,
-                                },
-                            }),
-                        });
-                    }
-                }
-            }
-        }
-
-        // Not found
         Ok(Response {
             context: Context { slot },
             value: None,

@@ -19,7 +19,7 @@ use solana_transaction_status_client_types::TransactionStatus;
 use super::client::RpcUrl;
 use crate::{
     indexer::{Indexer, IndexerRpcConfig, Response, TreeInfo},
-    interface::{AccountInterface, AccountToFetch, MintInterface, TokenAccountInterface},
+    interface::{AccountInterface, AccountToFetch, TokenAccountInterface},
     rpc::errors::RpcError,
 };
 
@@ -264,21 +264,6 @@ pub trait Rpc: Send + Sync + Debug + 'static {
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<Option<TokenAccountInterface>>, RpcError>;
 
-    /// Get mint data from either on-chain or compressed sources.
-    async fn get_mint_interface(
-        &self,
-        address: &Pubkey,
-        config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Option<MintInterface>>, RpcError>;
-
-    /// Get a token account interface by owner and mint.
-    async fn get_token_account_by_owner_mint(
-        &self,
-        owner: &Pubkey,
-        mint: &Pubkey,
-        config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Option<TokenAccountInterface>>, RpcError>;
-
     /// Get multiple account interfaces in a batch.
     async fn get_multiple_account_interfaces(
         &self,
@@ -292,7 +277,7 @@ pub trait Rpc: Send + Sync + Debug + 'static {
     /// - `Pda` -> `get_account_interface`
     /// - `Token` -> `get_token_account_interface`
     /// - `Ata` -> `get_ata_interface`
-    /// - `Mint` -> `get_mint_interface`
+    /// - `Mint` -> `get_account_interface` (clients parse mint data themselves)
     async fn fetch_accounts(
         &self,
         accounts: &[AccountToFetch],
@@ -318,19 +303,6 @@ pub trait Rpc: Send + Sync + Debug + 'static {
                         })?;
                     tai.into()
                 }
-                AccountToFetch::TokenByOwnerMint { owner, mint } => {
-                    let tai = self
-                        .get_token_account_by_owner_mint(owner, mint, config.clone())
-                        .await?
-                        .value
-                        .ok_or_else(|| {
-                            RpcError::CustomError(format!(
-                                "Token account not found for owner {} mint {}",
-                                owner, mint
-                            ))
-                        })?;
-                    tai.into()
-                }
                 AccountToFetch::Ata { wallet_owner, mint } => {
                     let tai = self
                         .get_ata_interface(wallet_owner, mint, config.clone())
@@ -345,14 +317,14 @@ pub trait Rpc: Send + Sync + Debug + 'static {
                     tai.into()
                 }
                 AccountToFetch::Mint { address } => {
-                    let mi = self
-                        .get_mint_interface(address, config.clone())
+                    let ai = self
+                        .get_account_interface(address, config.clone())
                         .await?
                         .value
                         .ok_or_else(|| {
                             RpcError::CustomError(format!("Mint not found: {}", address))
                         })?;
-                    mi.into()
+                    ai
                 }
             };
             results.push(interface);
