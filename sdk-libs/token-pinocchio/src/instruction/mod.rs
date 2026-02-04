@@ -61,9 +61,9 @@ pub use create_ata::{
 pub use create_mint::*;
 pub use create_mints::{
     derive_mint_compressed_address as derive_mint_compressed_address_batch,
-    find_mint_address as find_mint_address_batch, get_output_queue_next_index, CreateMintsCpi,
-    CreateMintsInfraAccounts, CreateMintsParams, SingleMintParams, DEFAULT_RENT_PAYMENT,
-    DEFAULT_WRITE_TOP_UP,
+    find_mint_address as find_mint_address_batch, get_output_queue_next_index, CreateMints,
+    CreateMintsCpi, CreateMintsParams, CreateMintsStaticAccounts, SingleMintParams,
+    DEFAULT_RENT_PAYMENT, DEFAULT_WRITE_TOP_UP,
 };
 pub use freeze::*;
 pub use light_compressed_account::instruction_data::compressed_proof::{

@@ -34,8 +34,6 @@ pub(crate) struct LightMintField {
     pub decimals: Expr,
     /// Address tree info expression (auto-fetched from CreateAccountsProof)
     pub address_tree_info: Expr,
-    /// Output state tree index expression (auto-fetched from CreateAccountsProof)
-    pub output_tree: Expr,
     /// Optional freeze authority
     pub freeze_authority: Option<Ident>,
     /// Signer seeds for the mint_signer PDA (required, WITHOUT bump - bump is auto-derived or provided via mint_bump)
@@ -46,10 +44,6 @@ pub(crate) struct LightMintField {
     pub authority_seeds: Option<Expr>,
     /// Optional bump for authority_seeds. If None, auto-derived using find_program_address.
     pub authority_bump: Option<Expr>,
-    /// Rent payment epochs for decompression (default: 2)
-    pub rent_payment: Option<Expr>,
-    /// Write top-up lamports for decompression (default: 0)
-    pub write_top_up: Option<Expr>,
     // Metadata extension fields
     /// Token name for TokenMetadata extension
     pub name: Option<Expr>,
@@ -66,11 +60,6 @@ pub(crate) struct LightMintField {
 // ============================================================================
 // Code Generation
 // ============================================================================
-
-/// Quote an optional expression, using default if None.
-fn quote_option_or(opt: &Option<Expr>, default: TokenStream) -> TokenStream {
-    opt.as_ref().map(|e| quote! { #e }).unwrap_or(default)
-}
 
 /// Resolve optional field name to TokenStream, using default if None.
 fn resolve_field_name(field: &Option<syn::Ident>, default: &str) -> TokenStream {
@@ -211,8 +200,6 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
             let authority_seeds = &mint.authority_seeds;
 
             let idx_ident = format_ident!("__mint_param_{}", idx);
-            let pda_ident = format_ident!("__mint_pda_{}", idx);
-            let bump_ident = format_ident!("__mint_bump_{}", idx);
             let signer_key_ident = format_ident!("__mint_signer_key_{}", idx);
             let mint_seeds_ident = format_ident!("__mint_seeds_{}", idx);
             let mint_seeds_with_bump_ident = format_ident!("__mint_seeds_with_bump_{}", idx);
@@ -302,9 +289,8 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
             };
 
             quote! {
-                // Mint #idx: derive PDA and build params
+                // Mint #idx: build params (mint and compression_address derived internally)
                 let #signer_key_ident: [u8; 32] = self.#mint_signer.to_account_info().key.to_bytes();
-                let (#pda_ident, #bump_ident) = light_account::find_mint_address(&#signer_key_ident);
 
                 // Bind base mint_seeds (WITHOUT bump) and derive/get bump
                 let #mint_seeds_ident: &[&[u8]] = #mint_seeds;
@@ -321,11 +307,8 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
 
                 let #idx_ident = light_account::SingleMintParams {
                     decimals: #decimals,
-                    address_merkle_tree_root_index: __tree_info.root_index,
                     mint_authority: self.#authority.to_account_info().key.to_bytes(),
-                    compression_address: #pda_ident,
-                    mint: #pda_ident,
-                    bump: #bump_ident,
+                    mint_bump: None, // derived internally from mint_seed_pubkey
                     freeze_authority: #freeze_authority,
                     mint_seed_pubkey: #signer_key_ident,
                     authority_seeds: #authority_seeds_with_bump_ident.as_deref(),
@@ -362,11 +345,6 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
         })
         .collect();
 
-    // Get shared params from first mint (all mints share same params for now)
-    let rent_payment = quote_option_or(&mints[0].rent_payment, quote! { 16u8 });
-    let write_top_up = quote_option_or(&mints[0].write_top_up, quote! { 766u32 });
-    let output_tree = &mints[0].output_tree;
-
     // Authority signer check for mints without authority_seeds
     let authority_signer_checks: Vec<TokenStream> = mints
         .iter()
@@ -381,26 +359,9 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
         })
         .collect();
 
-    // Generate base_leaf_index reading for N>1 mints
-    let base_leaf_index_setup = if mint_count > 1 {
-        quote! {
-            let __base_leaf_index = light_account::get_output_queue_next_index(
-                cpi_accounts.get_tree_account_info(__output_queue_index as usize)?
-            )?;
-        }
-    } else {
-        quote! {
-            let __base_leaf_index: u32 = 0;
-        }
-    };
-
     quote! {
         {
             #output_tree_setup
-
-            // Extract proof from instruction params
-            let __proof: light_account::CompressedProof = #proof_access.proof.0.clone()
-                .expect("proof is required for mint creation");
 
             // Build SingleMintParams for each mint
             #(#mint_params_builds)*
@@ -420,42 +381,24 @@ fn generate_mints_invocation(builder: &LightMintsBuilder) -> TokenStream {
                 #(#mint_account_exprs),*
             ];
 
-            // Get tree indices from proof
-            let __tree_info = &#proof_access.address_tree_info;
-            let __output_queue_index: u8 = #output_tree;
-            let __state_tree_index: u8 = #proof_access.state_tree_index
-                .ok_or(anchor_lang::prelude::ProgramError::InvalidArgument)?;
-            let __address_tree_index: u8 = __tree_info.address_merkle_tree_pubkey_index;
-
-            // Read base_leaf_index from output queue (needed for N>1 mints)
-            #base_leaf_index_setup
-
             // Check authority signers for mints without authority_seeds
             #(#authority_signer_checks)*
 
-            // Build params and invoke CreateMintsCpi via helper
-            light_account::invoke_create_mints(
-                &__mint_seed_accounts,
-                &__mint_accounts,
-                light_account::CreateMintsParams {
-                    mints: &__mint_params,
-                    proof: __proof,
-                    rent_payment: #rent_payment,
-                    write_top_up: #write_top_up,
-                    cpi_context_offset: #cpi_context_offset,
-                    output_queue_index: __output_queue_index,
-                    address_tree_index: __address_tree_index,
-                    state_tree_index: __state_tree_index,
-                    base_leaf_index: __base_leaf_index,
-                },
-                light_account::CreateMintsInfraAccounts {
+            // Build CreateMints struct and invoke
+            light_account::CreateMints {
+                mints: &__mint_params,
+                proof_data: &#proof_access,
+                mint_seed_accounts: &__mint_seed_accounts,
+                mint_accounts: &__mint_accounts,
+                static_accounts: light_account::CreateMintsStaticAccounts {
                     fee_payer: &self.#fee_payer.to_account_info(),
                     compressible_config: &self.#light_token_config.to_account_info(),
                     rent_sponsor: &self.#light_token_rent_sponsor.to_account_info(),
                     cpi_authority: &self.#light_token_cpi_authority.to_account_info(),
                 },
-                &cpi_accounts,
-            )?;
+                cpi_context_offset: #cpi_context_offset,
+            }
+            .invoke(&cpi_accounts)?;
         }
     }
 }

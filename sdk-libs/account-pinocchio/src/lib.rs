@@ -48,8 +48,8 @@ pub use light_sdk_types::interface::account::token_seeds::{
 #[cfg(feature = "token")]
 pub use light_sdk_types::interface::cpi::create_mints::{
     derive_mint_compressed_address as derive_mint_compressed_address_generic,
-    get_output_queue_next_index, invoke_create_mints, CreateMintsCpi, CreateMintsInfraAccounts,
-    CreateMintsParams, SingleMintParams, DEFAULT_RENT_PAYMENT, DEFAULT_WRITE_TOP_UP,
+    get_output_queue_next_index, CreateMints, CreateMintsCpi, CreateMintsParams,
+    CreateMintsStaticAccounts, SingleMintParams, DEFAULT_RENT_PAYMENT, DEFAULT_WRITE_TOP_UP,
 };
 // Token account/ATA creation CPI types and functions
 #[cfg(feature = "token")]
@@ -71,6 +71,7 @@ pub use light_sdk_types::interface::{
         light_account::{AccountType, LightAccount},
         pack::Unpack,
         pda_seeds::{HasTokenVariant, PdaSeedDerivation},
+        size::Size,
     },
     accounts::{
         finalize::{LightFinalize, LightPreInit},
@@ -156,7 +157,7 @@ pub use light_compressed_account::instruction_data::compressed_proof::ValidityPr
 pub use light_macros::{derive_light_cpi_signer, derive_light_cpi_signer_pda};
 pub use light_sdk_macros::{
     AnchorDiscriminator as Discriminator, CompressAs, HasCompressionInfo, LightAccount,
-    LightDiscriminator, LightHasher, LightHasherSha, LightProgramPinocchio,
+    LightDiscriminator, LightHasher, LightHasherSha, LightPinocchioAccount, LightProgramPinocchio,
 };
 pub use light_sdk_types::{constants, error::LightSdkTypesError, instruction::*, CpiSigner};
 

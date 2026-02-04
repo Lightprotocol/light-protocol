@@ -363,6 +363,46 @@ pub fn light_account_derive(input: TokenStream) -> TokenStream {
     into_token_stream(light_pdas::account::derive::derive_light_account(input))
 }
 
+/// Pinocchio variant of `LightAccount` derive macro.
+///
+/// Same as `#[derive(LightAccount)]` but generates pinocchio-compatible code:
+/// - Uses `BorshSerialize/BorshDeserialize` instead of Anchor serialization
+/// - Uses `light_account_pinocchio::` paths for on-chain code
+/// - Uses `core::mem::size_of::<Self>()` for INIT_SPACE (always zero-copy style)
+///
+/// ## Example
+///
+/// ```ignore
+/// use light_sdk_macros::{LightPinocchioAccount, LightDiscriminator, LightHasherSha};
+/// use light_account_pinocchio::CompressionInfo;
+///
+/// #[derive(
+///     Default, Debug, Clone, PartialEq,
+///     BorshSerialize, BorshDeserialize,
+///     LightDiscriminator, LightHasherSha,
+///     LightPinocchioAccount,
+/// )]
+/// #[repr(C)]
+/// pub struct MinimalRecord {
+///     pub compression_info: CompressionInfo,
+///     pub owner: [u8; 32],
+/// }
+/// ```
+///
+/// ## Requirements
+///
+/// - The `compression_info` field must be non-Option `CompressionInfo` type
+/// - The `compression_info` field must be first or last field in the struct
+/// - Struct should be `#[repr(C)]` for predictable memory layout
+/// - Use `[u8; 32]` instead of `Pubkey` for address fields
+#[proc_macro_derive(LightPinocchioAccount, attributes(compress_as, skip))]
+pub fn light_pinocchio_account_derive(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    into_token_stream(light_pdas::account::derive::derive_light_pinocchio_account(
+        input,
+    ))
+}
+
 /// Derives a Rent Sponsor PDA for a program at compile time.
 ///
 /// Seeds: ["rent_sponsor"]

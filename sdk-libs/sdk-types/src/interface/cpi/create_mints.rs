@@ -41,16 +41,15 @@ pub const DEFAULT_WRITE_TOP_UP: u32 = 766;
 /// Parameters for a single mint within a batch creation.
 ///
 /// All pubkeys are `[u8; 32]` for framework independence.
+/// `mint` and `compression_address` are derived internally from `mint_seed_pubkey`.
 #[derive(Debug, Clone)]
 pub struct SingleMintParams<'a> {
     pub decimals: u8,
-    pub address_merkle_tree_root_index: u16,
     pub mint_authority: [u8; 32],
-    pub compression_address: [u8; 32],
-    pub mint: [u8; 32],
-    pub bump: u8,
+    /// Optional mint bump. If `None`, derived from `find_mint_address(mint_seed_pubkey)`.
+    pub mint_bump: Option<u8>,
     pub freeze_authority: Option<[u8; 32]>,
-    /// Mint seed pubkey (signer) for this mint.
+    /// Mint seed pubkey (signer) for this mint. Used to derive `mint` PDA and `compression_address`.
     pub mint_seed_pubkey: [u8; 32],
     /// Optional authority seeds for PDA signing.
     pub authority_seeds: Option<&'a [&'a [u8]]>,
@@ -70,6 +69,8 @@ pub struct CreateMintsParams<'a> {
     pub mints: &'a [SingleMintParams<'a>],
     /// Single proof covering all new addresses.
     pub proof: CompressedProof,
+    /// Root index for the address merkle tree (shared by all mints in batch).
+    pub address_merkle_tree_root_index: u16,
     /// Rent payment in epochs for the Mint account (must be 0 or >= 2).
     /// Default: 16 (~24 hours).
     pub rent_payment: u8,
@@ -97,10 +98,57 @@ pub struct CreateMintsParams<'a> {
     pub base_leaf_index: u32,
 }
 
+#[cfg(feature = "cpi-context")]
+impl<'a> CreateMintsParams<'a> {
+    /// Create params from proof data and CPI accounts.
+    ///
+    /// Extracts tree indices and computes base_leaf_index automatically (only for N > 1 mints).
+    /// Uses default values for rent_payment, write_top_up, and cpi_context_offset.
+    pub fn from_proof<AI: light_account_checks::AccountInfoTrait + Clone>(
+        mints: &'a [SingleMintParams<'a>],
+        proof_data: &crate::interface::CreateAccountsProof,
+        cpi_accounts: &crate::cpi_accounts::v2::CpiAccounts<'_, AI>,
+    ) -> Result<Self, LightSdkTypesError> {
+        let proof = proof_data
+            .proof
+            .0
+            .ok_or(LightSdkTypesError::InvalidInstructionData)?;
+
+        let state_tree_index = proof_data
+            .state_tree_index
+            .ok_or(LightSdkTypesError::InvalidInstructionData)?;
+
+        let output_queue_index = proof_data.output_state_tree_index;
+
+        // Only read base_leaf_index when there are multiple mints (needed for decompress indexing)
+        let base_leaf_index = if mints.len() > 1 {
+            let output_queue = cpi_accounts.get_tree_account_info(output_queue_index as usize)?;
+            get_output_queue_next_index(output_queue)?
+        } else {
+            0
+        };
+
+        Ok(Self {
+            mints,
+            proof,
+            address_merkle_tree_root_index: proof_data.address_tree_info.root_index,
+            rent_payment: DEFAULT_RENT_PAYMENT,
+            write_top_up: DEFAULT_WRITE_TOP_UP,
+            cpi_context_offset: 0,
+            output_queue_index,
+            address_tree_index: proof_data
+                .address_tree_info
+                .address_merkle_tree_pubkey_index,
+            state_tree_index,
+            base_leaf_index,
+        })
+    }
+}
+
 /// Infrastructure accounts needed for mint creation CPI.
 ///
 /// These accounts are passed from the user's Accounts struct.
-pub struct CreateMintsInfraAccounts<'a, AI: AccountInfoTrait + Clone> {
+pub struct CreateMintsStaticAccounts<'a, AI: AccountInfoTrait + Clone> {
     /// Fee payer for the transaction.
     pub fee_payer: &'a AI,
     /// CompressibleConfig account for the light-token program.
@@ -187,8 +235,10 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
     #[inline(never)]
     fn invoke_single_mint(self) -> Result<(), LightSdkTypesError> {
         let mint_params = &self.params.mints[0];
+        let (mint, bump) = get_mint_and_bump::<AI>(mint_params);
 
-        let mint_data = build_mint_instruction_data(mint_params, &self.mint_seed_accounts[0].key());
+        let mint_data =
+            build_mint_instruction_data(mint_params, &self.mint_seed_accounts[0].key(), mint, bump);
 
         let decompress_action = DecompressMintAction {
             rent_payment: self.params.rent_payment,
@@ -196,7 +246,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
         };
 
         let instruction_data = MintActionCompressedInstructionData::new_mint(
-            mint_params.address_merkle_tree_root_index,
+            self.params.address_merkle_tree_root_index,
             self.params.proof,
             mint_data,
         )
@@ -243,6 +293,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
     fn invoke_cpi_write(&self, index: usize) -> Result<(), LightSdkTypesError> {
         let mint_params = &self.params.mints[index];
         let offset = self.params.cpi_context_offset;
+        let (mint, bump) = get_mint_and_bump::<AI>(mint_params);
 
         let cpi_context = CpiContext {
             set_context: index > 0 || offset > 0,
@@ -256,11 +307,15 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
             address_tree_pubkey: self.address_tree.key(),
         };
 
-        let mint_data =
-            build_mint_instruction_data(mint_params, &self.mint_seed_accounts[index].key());
+        let mint_data = build_mint_instruction_data(
+            mint_params,
+            &self.mint_seed_accounts[index].key(),
+            mint,
+            bump,
+        );
 
         let instruction_data = MintActionCompressedInstructionData::new_mint_write_to_cpi_context(
-            mint_params.address_merkle_tree_root_index,
+            self.params.address_merkle_tree_root_index,
             mint_data,
             cpi_context,
         );
@@ -330,14 +385,19 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
     ) -> Result<(), LightSdkTypesError> {
         let mint_params = &self.params.mints[last_idx];
         let offset = self.params.cpi_context_offset;
+        let (mint, bump) = get_mint_and_bump::<AI>(mint_params);
 
-        let mint_data =
-            build_mint_instruction_data(mint_params, &self.mint_seed_accounts[last_idx].key());
+        let mint_data = build_mint_instruction_data(
+            mint_params,
+            &self.mint_seed_accounts[last_idx].key(),
+            mint,
+            bump,
+        );
 
         let instruction_data = MintActionCompressedInstructionData {
             leaf_index: 0,
             prove_by_index: false,
-            root_index: mint_params.address_merkle_tree_root_index,
+            root_index: self.params.address_merkle_tree_root_index,
             max_top_up: 0,
             create_mint: Some(CreateMint::default()),
             actions: vec![Action::DecompressMint(*decompress_action)],
@@ -374,9 +434,14 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
         decompress_action: &DecompressMintAction,
     ) -> Result<(), LightSdkTypesError> {
         let mint_params = &self.params.mints[index];
+        let (mint, bump) = get_mint_and_bump::<AI>(mint_params);
 
-        let mint_data =
-            build_mint_instruction_data(mint_params, &self.mint_seed_accounts[index].key());
+        let mint_data = build_mint_instruction_data(
+            mint_params,
+            &self.mint_seed_accounts[index].key(),
+            mint,
+            bump,
+        );
 
         let instruction_data = MintActionCompressedInstructionData {
             leaf_index: base_leaf_index + self.params.cpi_context_offset as u32 + index as u32,
@@ -722,11 +787,23 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
 // Helpers
 // ============================================================================
 
+/// Get mint PDA and bump, deriving mint always and bump if None.
+#[inline(never)]
+fn get_mint_and_bump<AI: AccountInfoTrait>(params: &SingleMintParams) -> ([u8; 32], u8) {
+    let (mint, derived_bump) = find_mint_address::<AI>(&params.mint_seed_pubkey);
+    let bump = params.mint_bump.unwrap_or(derived_bump);
+    (mint, bump)
+}
+
 /// Build `MintInstructionData` for a single mint.
+///
+/// `mint` and `bump` are derived externally from `mint_seed_pubkey` using `get_mint_and_bump`.
 #[inline(never)]
 fn build_mint_instruction_data(
     mint_params: &SingleMintParams<'_>,
     mint_signer: &[u8; 32],
+    mint: [u8; 32],
+    bump: u8,
 ) -> MintInstructionData {
     let extensions = mint_params
         .token_metadata
@@ -738,10 +815,10 @@ fn build_mint_instruction_data(
         decimals: mint_params.decimals,
         metadata: MintMetadata {
             version: 3,
-            mint: mint_params.mint.into(),
+            mint: mint.into(),
             mint_decompressed: false,
             mint_signer: *mint_signer,
-            bump: mint_params.bump,
+            bump,
         },
         mint_authority: Some(mint_params.mint_authority.into()),
         freeze_authority: mint_params.freeze_authority.map(|a| a.into()),
@@ -796,13 +873,78 @@ pub fn get_output_queue_next_index<AI: AccountInfoTrait>(
     Ok(next_index as u32)
 }
 
-/// Convenience function that extracts accounts from CpiAccounts and invokes CreateMintsCpi.
+// ============================================================================
+// High-level CreateMints API
+// ============================================================================
+
+/// High-level struct for creating compressed mints.
+///
+/// Consolidates proof parsing, tree account resolution, and CPI invocation into
+/// a single `.invoke()` call. This is the recommended API for creating mints.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// CreateMints {
+///     mints: &sdk_mints,
+///     proof_data: &params.create_accounts_proof,
+///     mint_seed_accounts,
+///     mint_accounts,
+///     static_accounts: CreateMintsStaticAccounts { ... },
+///     cpi_context_offset: 0,
+/// }
+/// .invoke(&cpi_accounts)?;
+/// ```
 #[cfg(feature = "cpi-context")]
-pub fn invoke_create_mints<'a, AI: AccountInfoTrait + Clone>(
+pub struct CreateMints<'a, AI: AccountInfoTrait + Clone> {
+    /// Per-mint parameters.
+    pub mints: &'a [SingleMintParams<'a>],
+    /// Proof data containing tree indices, proof, etc.
+    pub proof_data: &'a crate::interface::CreateAccountsProof,
+    /// Mint seed accounts (signers) - one per mint.
+    pub mint_seed_accounts: &'a [AI],
+    /// Mint PDA accounts (writable) - one per mint.
+    pub mint_accounts: &'a [AI],
+    /// Infrastructure accounts (payer, config, rent_sponsor, cpi_authority).
+    pub static_accounts: CreateMintsStaticAccounts<'a, AI>,
+    /// Offset for assigned_account_index when sharing CPI context with other accounts.
+    /// When creating mints alongside PDAs, this should be the number of PDAs already
+    /// written to the CPI context. Default: 0.
+    pub cpi_context_offset: u8,
+}
+
+#[cfg(feature = "cpi-context")]
+impl<'a, AI: AccountInfoTrait + Clone> CreateMints<'a, AI> {
+    /// Execute mint creation by:
+    /// 1. Building CreateMintsParams from proof_data
+    /// 2. Resolving tree accounts from cpi_accounts
+    /// 3. Invoking CreateMintsCpi
+    pub fn invoke(
+        self,
+        cpi_accounts: &crate::cpi_accounts::v2::CpiAccounts<'_, AI>,
+    ) -> Result<(), LightSdkTypesError> {
+        let mut params = CreateMintsParams::from_proof(self.mints, self.proof_data, cpi_accounts)?;
+        params.cpi_context_offset = self.cpi_context_offset;
+
+        invoke_create_mints(
+            self.mint_seed_accounts,
+            self.mint_accounts,
+            params,
+            self.static_accounts,
+            cpi_accounts,
+        )
+    }
+}
+
+/// Convenience function that extracts accounts from CpiAccounts and invokes CreateMintsCpi.
+///
+/// For new code, prefer using [`CreateMints`] with `.invoke()` instead.
+#[cfg(feature = "cpi-context")]
+fn invoke_create_mints<'a, AI: AccountInfoTrait + Clone>(
     mint_seed_accounts: &'a [AI],
     mint_accounts: &'a [AI],
     params: CreateMintsParams<'a>,
-    infra: CreateMintsInfraAccounts<'a, AI>,
+    infra: CreateMintsStaticAccounts<'a, AI>,
     cpi_accounts: &crate::cpi_accounts::v2::CpiAccounts<'_, AI>,
 ) -> Result<(), LightSdkTypesError> {
     let output_queue = cpi_accounts

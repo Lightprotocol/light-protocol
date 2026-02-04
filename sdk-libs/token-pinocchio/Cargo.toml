@@ -15,7 +15,7 @@ pinocchio = { workspace = true }
 pinocchio-pubkey = { workspace = true }
 
 # Light Protocol dependencies
-light-sdk-types = { workspace = true, default-features = false, features = ["token", "v2", "alloc"] }
+light-sdk-types = { workspace = true, default-features = false, features = ["token", "v2", "alloc", "cpi-context"] }
 light-token-interface = { workspace = true }
 light-account-checks = { workspace = true, default-features = false, features = ["pinocchio"] }
 light-compressed-account = { workspace = true }

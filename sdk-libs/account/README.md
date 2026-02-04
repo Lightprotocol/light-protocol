@@ -10,9 +10,9 @@ Rent-free Light Accounts and Light Token Accounts for Anchor programs.
 1. Create a Solana PDA normally (Anchor `init`)
 2. Add `#[light_account(init)]` - becomes a Light Account
 3. Use it as normal Solana account
-3. When rent runs out, account compresses (cold state)
-4. State preserved on-chain, client loads when needed (hot state)
-5. When account is hot, use it as normal Solana account
+4. When rent runs out, account compresses (cold state)
+5. State preserved on-chain, client loads when needed (hot state)
+6. When account is hot, use it as normal Solana account
 
 **Light Token Accounts (associated token accounts, Vaults)**
 - Use `#[light_account(init, associated_token, ...)]` for associated token accounts

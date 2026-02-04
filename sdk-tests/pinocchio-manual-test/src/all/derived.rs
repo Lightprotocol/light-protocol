@@ -2,17 +2,15 @@
 //!
 //! This implements LightPreInit/LightFinalize for creating all account types:
 //! - 2 PDAs (Borsh + ZeroCopy) via `invoke_write_to_cpi_context_first()`
-//! - 1 Mint via `invoke_create_mints()` with cpi_context_offset
+//! - 1 Mint via `CreateMints` with cpi_context_offset
 //! - 1 Token Vault via `CreateTokenAccountCpi`
 //! - 1 ATA via `CreateTokenAtaCpi`
 
 use light_account_pinocchio::{
-    derive_associated_token_account, derive_mint_compressed_address, find_mint_address,
-    invoke_create_mints, prepare_compressed_account_on_init, CpiAccounts, CpiAccountsConfig,
-    CpiContextWriteAccounts, CreateMintsInfraAccounts, CreateMintsParams as SdkCreateMintsParams,
+    derive_associated_token_account, prepare_compressed_account_on_init, CpiAccounts,
+    CpiAccountsConfig, CpiContextWriteAccounts, CreateMints, CreateMintsStaticAccounts,
     CreateTokenAccountCpi, CreateTokenAtaCpi, InvokeLightSystemProgram, LightAccount,
     LightFinalize, LightPreInit, LightSdkTypesError, PackedAddressTreeInfoExt, SingleMintParams,
-    DEFAULT_RENT_PAYMENT, DEFAULT_WRITE_TOP_UP,
 };
 use light_compressed_account::instruction_data::{
     cpi_context::CompressedCpiContext, with_account_info::InstructionDataInvokeCpiWithAccountInfo,
@@ -159,34 +157,22 @@ impl LightPreInit<AccountInfo, CreateAllParams> for CreateAllAccounts<'_> {
             }
 
             // ====================================================================
-            // 5. Create Mint via invoke_create_mints() with offset
+            // 5. Create Mint via CreateMints with cpi_context_offset
             // ====================================================================
             {
                 let authority_key = *self.authority.key();
                 let mint_signer_key = *self.mint_signer.key();
 
-                // Derive mint PDA
-                let (mint_pda, mint_bump) = find_mint_address(&mint_signer_key);
-
-                // Derive compression address
-                let compression_address =
-                    derive_mint_compressed_address(&mint_signer_key, &address_tree_pubkey);
-
-                // Build mint signer seeds
                 let mint_signer_seeds: &[&[u8]] = &[
                     ALL_MINT_SIGNER_SEED,
                     authority_key.as_ref(),
                     &[params.mint_signer_bump],
                 ];
 
-                // Build SingleMintParams
                 let sdk_mints: [SingleMintParams<'_>; NUM_LIGHT_MINTS] = [SingleMintParams {
-                    decimals: 6, // mint::decimals = 6
-                    address_merkle_tree_root_index: address_tree_info.root_index,
+                    decimals: 6,
                     mint_authority: authority_key,
-                    compression_address,
-                    mint: mint_pda,
-                    bump: mint_bump,
+                    mint_bump: None,
                     freeze_authority: None,
                     mint_seed_pubkey: mint_signer_key,
                     authority_seeds: None,
@@ -194,46 +180,20 @@ impl LightPreInit<AccountInfo, CreateAllParams> for CreateAllAccounts<'_> {
                     token_metadata: None,
                 }];
 
-                let state_tree_index = params
-                    .create_accounts_proof
-                    .state_tree_index
-                    .ok_or(LightSdkTypesError::InvalidInstructionData)?;
-
-                let proof = params
-                    .create_accounts_proof
-                    .proof
-                    .0
-                    .ok_or(LightSdkTypesError::InvalidInstructionData)?;
-
-                // Build SDK params with cpi_context_offset
-                let sdk_params = SdkCreateMintsParams {
+                CreateMints {
                     mints: &sdk_mints,
-                    proof,
-                    rent_payment: DEFAULT_RENT_PAYMENT,
-                    write_top_up: DEFAULT_WRITE_TOP_UP,
+                    proof_data: &params.create_accounts_proof,
+                    mint_seed_accounts: self.mint_signers_slice,
+                    mint_accounts: self.mints_slice,
+                    static_accounts: CreateMintsStaticAccounts {
+                        fee_payer: self.payer,
+                        compressible_config: self.compressible_config,
+                        rent_sponsor: self.rent_sponsor,
+                        cpi_authority: self.cpi_authority,
+                    },
                     cpi_context_offset: NUM_LIGHT_PDAS as u8,
-                    output_queue_index: params.create_accounts_proof.output_state_tree_index,
-                    address_tree_index: address_tree_info.address_merkle_tree_pubkey_index,
-                    state_tree_index,
-                    base_leaf_index: 0, // N=1, not used
-                };
-
-                // Build infra accounts
-                let infra = CreateMintsInfraAccounts {
-                    fee_payer: self.payer,
-                    compressible_config: self.compressible_config,
-                    rent_sponsor: self.rent_sponsor,
-                    cpi_authority: self.cpi_authority,
-                };
-
-                invoke_create_mints(
-                    self.mint_signers_slice,
-                    self.mints_slice,
-                    sdk_params,
-                    infra,
-                    &cpi_accounts,
-                )
-                .map_err(|e| LightSdkTypesError::ProgramError(e.into()))?;
+                }
+                .invoke(&cpi_accounts)?;
             }
 
             // ====================================================================

@@ -5,21 +5,21 @@
 
 #![allow(deprecated)]
 
-use light_account_pinocchio::{derive_light_cpi_signer, CpiSigner, LightProgramPinocchio};
+use light_account_pinocchio::{
+    derive_light_cpi_signer, CpiSigner, LightAccount, LightProgramPinocchio,
+};
 use light_macros::pubkey_array;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 pub mod account_loader;
 pub mod all;
 pub mod ata;
-pub mod derived_state;
 pub mod mint;
 pub mod pda;
 pub mod state;
 pub mod token_account;
 pub mod two_mints;
 
-pub use derived_state::*;
 pub use state::*;
 
 pub const ID: Pubkey = pubkey_array!("DrvPda11111111111111111111111111111111111111");
@@ -62,11 +62,6 @@ pub mod discriminators {
     pub const CREATE_MINT: [u8; 8] = [69, 44, 215, 132, 253, 214, 41, 45];
     pub const CREATE_TWO_MINTS: [u8; 8] = [222, 41, 188, 84, 174, 115, 236, 105];
     pub const CREATE_ALL: [u8; 8] = [149, 49, 144, 45, 208, 155, 177, 43];
-    // SDK-standard discriminators (must match light-client)
-    pub const INITIALIZE_COMPRESSION_CONFIG: [u8; 8] = [133, 228, 12, 169, 56, 76, 222, 61];
-    pub const UPDATE_COMPRESSION_CONFIG: [u8; 8] = [135, 215, 243, 81, 163, 146, 33, 70];
-    pub const COMPRESS_ACCOUNTS_IDEMPOTENT: [u8; 8] = [70, 236, 171, 120, 164, 93, 113, 181];
-    pub const DECOMPRESS_ACCOUNTS_IDEMPOTENT: [u8; 8] = [114, 67, 61, 123, 234, 31, 1, 112];
 }
 
 // ============================================================================
@@ -95,16 +90,16 @@ pub fn process_instruction(
         discriminators::CREATE_MINT => process_create_mint(accounts, data),
         discriminators::CREATE_TWO_MINTS => process_create_two_mints(accounts, data),
         discriminators::CREATE_ALL => process_create_all(accounts, data),
-        discriminators::INITIALIZE_COMPRESSION_CONFIG => {
+        ProgramAccounts::INITIALIZE_COMPRESSION_CONFIG => {
             ProgramAccounts::process_initialize_config(accounts, data)
         }
-        discriminators::UPDATE_COMPRESSION_CONFIG => {
+        ProgramAccounts::UPDATE_COMPRESSION_CONFIG => {
             ProgramAccounts::process_update_config(accounts, data)
         }
-        discriminators::COMPRESS_ACCOUNTS_IDEMPOTENT => {
+        ProgramAccounts::COMPRESS_ACCOUNTS_IDEMPOTENT => {
             ProgramAccounts::process_compress(accounts, data)
         }
-        discriminators::DECOMPRESS_ACCOUNTS_IDEMPOTENT => {
+        ProgramAccounts::DECOMPRESS_ACCOUNTS_IDEMPOTENT => {
             ProgramAccounts::process_decompress(accounts, data)
         }
         _ => Err(ProgramError::InvalidInstructionData),

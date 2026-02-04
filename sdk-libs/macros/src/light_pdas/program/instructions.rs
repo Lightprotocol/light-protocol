@@ -1356,6 +1356,12 @@ pub(crate) fn generate_light_program_pinocchio_items(
         // Config functions as enum methods
         items.push(quote! {
             impl #enum_name {
+                // SDK-standard discriminators (must match light-client)
+                pub const INITIALIZE_COMPRESSION_CONFIG: [u8; 8] = [133, 228, 12, 169, 56, 76, 222, 61];
+                pub const UPDATE_COMPRESSION_CONFIG: [u8; 8] = [135, 215, 243, 81, 163, 146, 33, 70];
+                pub const COMPRESS_ACCOUNTS_IDEMPOTENT: [u8; 8] = [70, 236, 171, 120, 164, 93, 113, 181];
+                pub const DECOMPRESS_ACCOUNTS_IDEMPOTENT: [u8; 8] = [114, 67, 61, 123, 234, 31, 1, 112];
+
                 pub fn process_initialize_config(
                     accounts: &[pinocchio::account_info::AccountInfo],
                     data: &[u8],

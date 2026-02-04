@@ -4,28 +4,24 @@
 //! instead of Anchor's #[account] macro.
 
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_account_pinocchio::{CompressionInfo, LightDiscriminator, LightHasherSha};
+use light_account_pinocchio::{CompressionInfo, LightDiscriminator, LightPinocchioAccount};
+use pinocchio::pubkey::Pubkey;
 
 /// Minimal record struct for testing PDA creation.
 /// Contains compression_info and one field.
+///
+/// LightPinocchioAccount generates:
+/// - LightHasherSha (DataHasher + ToByteArray)
+/// - LightDiscriminator
+/// - LightAccount trait impl with pack/unpack
+/// - PackedMinimalRecord struct
 #[derive(
-    Default,
-    Debug,
-    Clone,
-    PartialEq,
-    BorshSerialize,
-    BorshDeserialize,
-    LightDiscriminator,
-    LightHasherSha,
+    Default, Debug, Clone, PartialEq, BorshSerialize, BorshDeserialize, LightPinocchioAccount,
 )]
 #[repr(C)]
 pub struct MinimalRecord {
     pub compression_info: CompressionInfo,
-    pub owner: [u8; 32],
-}
-
-impl MinimalRecord {
-    pub const INIT_SPACE: usize = core::mem::size_of::<CompressionInfo>() + 32;
+    pub owner: Pubkey,
 }
 
 /// A zero-copy account using Pod serialization.
@@ -38,18 +34,13 @@ impl MinimalRecord {
     PartialEq,
     BorshSerialize,
     BorshDeserialize,
-    LightDiscriminator,
-    LightHasherSha,
+    LightPinocchioAccount,
     bytemuck::Pod,
     bytemuck::Zeroable,
 )]
 #[repr(C)]
 pub struct ZeroCopyRecord {
     pub compression_info: CompressionInfo,
-    pub owner: [u8; 32],
+    pub owner: Pubkey,
     pub counter: u64,
-}
-
-impl ZeroCopyRecord {
-    pub const INIT_SPACE: usize = core::mem::size_of::<Self>();
 }

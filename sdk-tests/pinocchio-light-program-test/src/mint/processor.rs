@@ -1,8 +1,6 @@
 use light_account_pinocchio::{
-    derive_mint_compressed_address, find_mint_address, get_output_queue_next_index,
-    invoke_create_mints, CpiAccounts, CpiAccountsConfig, CreateMintsInfraAccounts,
-    CreateMintsParams as SdkCreateMintsParams, LightSdkTypesError, PackedAddressTreeInfoExt,
-    SingleMintParams, DEFAULT_RENT_PAYMENT, DEFAULT_WRITE_TOP_UP,
+    CpiAccounts, CpiAccountsConfig, CreateMints, CreateMintsStaticAccounts, LightSdkTypesError,
+    SingleMintParams,
 };
 use pinocchio::account_info::AccountInfo;
 
@@ -24,17 +22,8 @@ pub fn process(
         config,
     );
 
-    let address_tree_info = &params.create_accounts_proof.address_tree_info;
-    let address_tree_pubkey = address_tree_info
-        .get_tree_pubkey(&cpi_accounts)
-        .map_err(|_| LightSdkTypesError::InvalidInstructionData)?;
-
     let authority = *ctx.authority.key();
     let mint_signer_key = *ctx.mint_signer.key();
-
-    let (mint_pda, mint_bump) = find_mint_address(&mint_signer_key);
-    let compression_address =
-        derive_mint_compressed_address(&mint_signer_key, &address_tree_pubkey);
 
     let mint_signer_seeds: &[&[u8]] = &[
         crate::MINT_SIGNER_SEED_A,
@@ -44,11 +33,8 @@ pub fn process(
 
     let sdk_mints: [SingleMintParams<'_>; 1] = [SingleMintParams {
         decimals: 9,
-        address_merkle_tree_root_index: address_tree_info.root_index,
         mint_authority: authority,
-        compression_address,
-        mint: mint_pda,
-        bump: mint_bump,
+        mint_bump: None,
         freeze_authority: None,
         mint_seed_pubkey: mint_signer_key,
         authority_seeds: None,
@@ -56,45 +42,21 @@ pub fn process(
         token_metadata: None,
     }];
 
-    let state_tree_index = params
-        .create_accounts_proof
-        .state_tree_index
-        .ok_or(LightSdkTypesError::InvalidInstructionData)?;
-
-    let proof = params
-        .create_accounts_proof
-        .proof
-        .0
-        .ok_or(LightSdkTypesError::InvalidInstructionData)?;
-
-    let output_queue_index = params.create_accounts_proof.output_state_tree_index;
-    let output_queue = cpi_accounts.get_tree_account_info(output_queue_index as usize)?;
-    let base_leaf_index = get_output_queue_next_index(output_queue)?;
-
-    let sdk_params = SdkCreateMintsParams {
-        mints: &sdk_mints,
-        proof,
-        rent_payment: DEFAULT_RENT_PAYMENT,
-        write_top_up: DEFAULT_WRITE_TOP_UP,
-        cpi_context_offset: 0,
-        output_queue_index,
-        address_tree_index: address_tree_info.address_merkle_tree_pubkey_index,
-        state_tree_index,
-        base_leaf_index,
-    };
-
     let mint_signers = core::slice::from_ref(ctx.mint_signer);
     let mints = core::slice::from_ref(ctx.mint);
 
-    let infra = CreateMintsInfraAccounts {
-        fee_payer: ctx.payer,
-        compressible_config: ctx.compressible_config,
-        rent_sponsor: ctx.rent_sponsor,
-        cpi_authority: ctx.cpi_authority,
-    };
-
-    invoke_create_mints(mint_signers, mints, sdk_params, infra, &cpi_accounts)
-        .map_err(|e| LightSdkTypesError::ProgramError(e.into()))?;
-
-    Ok(())
+    CreateMints {
+        mints: &sdk_mints,
+        proof_data: &params.create_accounts_proof,
+        mint_seed_accounts: mint_signers,
+        mint_accounts: mints,
+        static_accounts: CreateMintsStaticAccounts {
+            fee_payer: ctx.payer,
+            compressible_config: ctx.compressible_config,
+            rent_sponsor: ctx.rent_sponsor,
+            cpi_authority: ctx.cpi_authority,
+        },
+        cpi_context_offset: 0,
+    }
+    .invoke(&cpi_accounts)
 }

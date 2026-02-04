@@ -734,8 +734,6 @@ fn build_pda_field(
 /// - `mint::freeze_authority` -> `freeze_authority`
 /// - `mint::authority_seeds` -> `authority_seeds`
 /// - `mint::authority_bump` -> `authority_bump`
-/// - `mint::rent_payment` -> `rent_payment`
-/// - `mint::write_top_up` -> `write_top_up`
 /// - `mint::name` -> `name`
 /// - `mint::symbol` -> `symbol`
 /// - `mint::uri` -> `uri`
@@ -758,8 +756,6 @@ fn build_mint_field(
     let mut authority_seeds: Option<Expr> = None;
     let mut mint_bump: Option<Expr> = None;
     let mut authority_bump: Option<Expr> = None;
-    let mut rent_payment: Option<Expr> = None;
-    let mut write_top_up: Option<Expr> = None;
 
     // Metadata fields
     let mut name: Option<Expr> = None;
@@ -783,8 +779,6 @@ fn build_mint_field(
             }
             "authority_seeds" => authority_seeds = Some(kv.value.clone()),
             "authority_bump" => authority_bump = Some(kv.value.clone()),
-            "rent_payment" => rent_payment = Some(kv.value.clone()),
-            "write_top_up" => write_top_up = Some(kv.value.clone()),
 
             // Metadata fields
             "name" => name = Some(kv.value.clone()),
@@ -845,16 +839,10 @@ fn build_mint_field(
     )?;
 
     // Always fetch from CreateAccountsProof - depends on whether proof is direct arg or nested
-    let (address_tree_info, output_tree) = if let Some(proof_ident) = direct_proof_arg {
-        (
-            syn::parse_quote!(#proof_ident.address_tree_info),
-            syn::parse_quote!(#proof_ident.output_state_tree_index),
-        )
+    let address_tree_info = if let Some(proof_ident) = direct_proof_arg {
+        syn::parse_quote!(#proof_ident.address_tree_info)
     } else {
-        (
-            syn::parse_quote!(params.create_accounts_proof.address_tree_info),
-            syn::parse_quote!(params.create_accounts_proof.output_state_tree_index),
-        )
+        syn::parse_quote!(params.create_accounts_proof.address_tree_info)
     };
 
     Ok(LightMintField {
@@ -863,14 +851,11 @@ fn build_mint_field(
         authority,
         decimals,
         address_tree_info,
-        output_tree,
         freeze_authority,
         mint_seeds,
         mint_bump,
         authority_seeds,
         authority_bump,
-        rent_payment,
-        write_top_up,
         name,
         symbol,
         uri,
@@ -1816,21 +1801,6 @@ mod tests {
                     addr_tree_str.contains("address_tree_info"),
                     "address_tree_info should access .address_tree_info field, got: {}",
                     addr_tree_str
-                );
-
-                // Verify default output_tree uses the direct proof identifier
-                // Should be: create_proof.output_state_tree_index
-                let output_tree = &mint.output_tree;
-                let output_tree_str = quote::quote!(#output_tree).to_string();
-                assert!(
-                    output_tree_str.contains("create_proof"),
-                    "output_tree should reference 'create_proof', got: {}",
-                    output_tree_str
-                );
-                assert!(
-                    output_tree_str.contains("output_state_tree_index"),
-                    "output_tree should access .output_state_tree_index field, got: {}",
-                    output_tree_str
                 );
             }
             _ => panic!("Expected Mint field"),

@@ -19,13 +19,12 @@
 //! // Get base leaf index before any CPIs
 //! let base_leaf_index = get_output_queue_next_index(&output_queue)?;
 //!
+//! // mint and compression_address are derived internally from mint_seed_pubkey
 //! let mint_params = [SingleMintParams {
 //!     decimals: 9,
 //!     address_merkle_tree_root_index: root_index,
 //!     mint_authority: authority_key,
-//!     compression_address,
-//!     mint: mint_pda,
-//!     bump: mint_bump,
+//!     mint_bump: None, // derived from mint_seed_pubkey if None
 //!     freeze_authority: None,
 //!     mint_seed_pubkey: mint_seed_key,
 //!     authority_seeds: None,
@@ -72,6 +71,26 @@ pub use light_sdk_types::interface::cpi::create_mints::{
 };
 use pinocchio::account_info::AccountInfo;
 
+/// High-level struct for creating compressed mints (pinocchio).
+///
+/// Type alias with pinocchio's `AccountInfo` already set.
+/// Consolidates proof parsing, tree account resolution, and CPI invocation.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// CreateMints {
+///     mints: &sdk_mints,
+///     proof_data: &params.create_accounts_proof,
+///     mint_seed_accounts,
+///     mint_accounts,
+///     infra,
+/// }
+/// .invoke(&cpi_accounts)?;
+/// ```
+pub type CreateMints<'a> =
+    light_sdk_types::interface::cpi::create_mints::CreateMints<'a, AccountInfo>;
+
 /// CPI struct for creating multiple Light Mints (pinocchio).
 ///
 /// Type alias with pinocchio's `AccountInfo` already set.
@@ -81,8 +100,8 @@ pub type CreateMintsCpi<'a> =
 /// Infrastructure accounts for mint creation CPI (pinocchio).
 ///
 /// Type alias with pinocchio's `AccountInfo` already set.
-pub type CreateMintsInfraAccounts<'a> =
-    light_sdk_types::interface::cpi::create_mints::CreateMintsInfraAccounts<'a, AccountInfo>;
+pub type CreateMintsStaticAccounts<'a> =
+    light_sdk_types::interface::cpi::create_mints::CreateMintsStaticAccounts<'a, AccountInfo>;
 
 /// Find the mint PDA address for a given mint seed (pinocchio).
 ///

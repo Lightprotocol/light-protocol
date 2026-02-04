@@ -67,24 +67,19 @@ async fn test_create_mints(n: usize) {
 
     let mints: Vec<MintParams> = mint_signers
         .iter()
-        .zip(compression_addresses.iter())
-        .zip(mint_pdas.iter())
         .enumerate()
-        .map(
-            |(i, ((signer, compression_address), (mint_pda, bump)))| MintParams {
-                decimals: (6 + i) as u8,
-                address_merkle_tree_root_index: proof_result.addresses[i].root_index,
-                mint_authority: payer.pubkey(),
-                compression_address: *compression_address,
-                mint: *mint_pda,
-                bump: *bump,
-                freeze_authority: None,
-                mint_seed_pubkey: signer.pubkey(),
-            },
-        )
+        .map(|(i, signer)| MintParams {
+            decimals: (6 + i) as u8,
+            mint_authority: payer.pubkey(),
+            mint_bump: None, // derived internally
+            freeze_authority: None,
+            mint_seed_pubkey: signer.pubkey(),
+        })
         .collect();
 
-    let params = CreateMintsParams::new(mints, proof_result.proof.0.unwrap());
+    // Root index is shared across all mints in the batch
+    let root_index = proof_result.addresses[0].root_index;
+    let params = CreateMintsParams::new(mints, proof_result.proof.0.unwrap(), root_index);
 
     let system_accounts = SystemAccounts::default();
     let cpi_context_pubkey = state_tree_info

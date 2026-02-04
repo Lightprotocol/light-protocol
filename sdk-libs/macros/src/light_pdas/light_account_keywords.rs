@@ -48,8 +48,6 @@ pub const MINT_NAMESPACE_KEYS: &[&str] = &[
     "freeze_authority",
     "authority_seeds",
     "authority_bump",
-    "rent_payment",
-    "write_top_up",
     "name",
     "symbol",
     "uri",

@@ -1,5 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_account_pinocchio::CreateAccountsProof;
+use light_account_pinocchio::{CreateAccountsProof, LightAccount};
 use pinocchio::{
     account_info::AccountInfo,
     instruction::{Seed, Signer},
