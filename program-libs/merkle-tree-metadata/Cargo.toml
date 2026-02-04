@@ -1,6 +1,6 @@
 [package]
 name = "light-merkle-tree-metadata"
-version = "0.9.0"
+version = "0.10.0"
 description = "Merkle tree metadata for light-concurrent-merkle-tree, light-indexed-merkle-tree, light-batched-merkle-tree."
 readme = "README.md"
 repository = "https://github.com/Lightprotocol/light-protocol"
