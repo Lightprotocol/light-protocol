@@ -15,22 +15,12 @@ test-sbf = []
 
 [dependencies]
 light-account-pinocchio = { workspace = true, features = ["token", "std"] }
-light-macros = { workspace = true, features = ["solana"] }
-light-sdk-types = { workspace = true, features = ["v2", "cpi-context"] }
 borsh = { workspace = true }
 bytemuck = { workspace = true, features = ["derive"] }
-light-compressed-account = { workspace = true, features = ["solana"] }
-light-compressible = { workspace = true, features = ["pinocchio"] }
-light-hasher = { workspace = true, features = ["solana"] }
-light-token-types = { workspace = true }
-light-token-interface = { workspace = true }
 pinocchio = { workspace = true }
 pinocchio-pubkey = { workspace = true }
 pinocchio-system = { workspace = true }
-solana-pubkey = { workspace = true }
-solana-instruction = { workspace = true }
-solana-msg = { workspace = true }
-solana-program-error = { workspace = true }
+light-hasher = { workspace = true }
 
 [dev-dependencies]
 light-program-test = { workspace = true, features = ["devenv"] }
@@ -45,6 +35,14 @@ solana-sdk = { workspace = true }
 solana-account = { workspace = true }
 solana-keypair = { workspace = true }
 solana-signer = { workspace = true }
+light-sdk-types = { workspace = true }
+light-token-types = { workspace = true }
+light-token-interface = { workspace = true }
+solana-instruction = { workspace = true }
+solana-pubkey = { workspace = true }
+light-compressed-account = { workspace = true }
+light-compressible = { workspace = true }
+
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

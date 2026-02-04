@@ -330,7 +330,7 @@ impl VariantBuilder {
 
         quote! {
             #[cfg(not(target_os = "solana"))]
-            impl light_account_pinocchio::Pack<solana_instruction::AccountMeta> for #variant_name {
+            impl light_account_pinocchio::Pack<light_account_pinocchio::solana_instruction::AccountMeta> for #variant_name {
                 type Packed = #packed_variant_name;
 
                 fn pack(
@@ -482,7 +482,7 @@ impl VariantBuilder {
                 let field = &sf.field_name;
                 if sf.is_account_seed {
                     let idx_field = format_ident!("{}_idx", field);
-                    quote! { #idx_field: accounts.insert_or_get(solana_pubkey::Pubkey::from(self.seeds.#field)) }
+                    quote! { #idx_field: accounts.insert_or_get(light_account_pinocchio::solana_pubkey::Pubkey::from(self.seeds.#field)) }
                 } else if sf.has_le_bytes {
                     quote! { #field: self.seeds.#field.to_le_bytes() }
                 } else {

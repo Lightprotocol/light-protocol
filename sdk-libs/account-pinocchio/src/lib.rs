@@ -258,8 +258,16 @@ pub use light_account_checks::{
     account_info::pinocchio::OwnedAccountMeta, discriminator::Discriminator as LightDiscriminator,
     packed_accounts, AccountInfoTrait, AccountMetaTrait,
 };
-pub use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
-pub use light_macros::{derive_light_cpi_signer, derive_light_cpi_signer_pda};
+pub use light_compressed_account::instruction_data::{
+    compressed_proof::ValidityProof, cpi_context::CompressedCpiContext,
+    with_account_info::InstructionDataInvokeCpiWithAccountInfo,
+};
+pub use light_macros::{derive_light_cpi_signer, derive_light_cpi_signer_pda, pubkey_array};
+// Re-export for macro-generated client code (off-chain only)
+#[cfg(feature = "std")]
+pub extern crate solana_instruction;
+#[cfg(feature = "std")]
+pub extern crate solana_pubkey;
 pub use light_sdk_macros::{
     AnchorDiscriminator as Discriminator, CompressAs, HasCompressionInfo, LightAccount,
     LightDiscriminator, LightHasher, LightHasherSha, LightPinocchioAccount, LightProgramPinocchio,

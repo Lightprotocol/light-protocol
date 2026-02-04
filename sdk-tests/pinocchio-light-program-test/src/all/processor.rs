@@ -1,11 +1,9 @@
 use light_account_pinocchio::{
-    derive_associated_token_account, prepare_compressed_account_on_init, CpiAccounts,
-    CpiAccountsConfig, CpiContextWriteAccounts, CreateMints, CreateMintsStaticAccounts,
-    CreateTokenAccountCpi, CreateTokenAtaCpi, InvokeLightSystemProgram, LightAccount, LightConfig,
+    derive_associated_token_account, prepare_compressed_account_on_init, CompressedCpiContext,
+    CpiAccounts, CpiAccountsConfig, CpiContextWriteAccounts, CreateMints,
+    CreateMintsStaticAccounts, CreateTokenAccountCpi, CreateTokenAtaCpi,
+    InstructionDataInvokeCpiWithAccountInfo, InvokeLightSystemProgram, LightAccount, LightConfig,
     LightSdkTypesError, PackedAddressTreeInfoExt, SingleMintParams,
-};
-use light_compressed_account::instruction_data::{
-    cpi_context::CompressedCpiContext, with_account_info::InstructionDataInvokeCpiWithAccountInfo,
 };
 use pinocchio::{
     account_info::AccountInfo,

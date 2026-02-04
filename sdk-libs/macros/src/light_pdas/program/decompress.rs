@@ -302,7 +302,11 @@ impl DecompressBuilder {
             let ctx_fields_decl: Vec<_> = ctx_fields
                 .iter()
                 .map(|field| {
-                    quote! { pub #field: solana_pubkey::Pubkey }
+                    if is_pinocchio {
+                        quote! { pub #field: [u8; 32] }
+                    } else {
+                        quote! { pub #field: solana_pubkey::Pubkey }
+                    }
                 })
                 .collect();
 
@@ -613,11 +617,27 @@ fn generate_pda_seed_derivation_for_trait_with_ctx_seeds(
 
     let indices: Vec<usize> = (0..seed_refs.len()).collect();
 
+    let pda_derivation = if is_pinocchio {
+        quote! {
+            let (pda, bump) = pinocchio::pubkey::find_program_address(seeds, program_id);
+        }
+    } else {
+        quote! {
+            let program_id_pubkey = solana_pubkey::Pubkey::from(*program_id);
+            let (pda, bump) = solana_pubkey::Pubkey::find_program_address(seeds, &program_id_pubkey);
+        }
+    };
+
+    let pda_to_bytes = if is_pinocchio {
+        quote! { pda }
+    } else {
+        quote! { pda.to_bytes() }
+    };
+
     Ok(quote! {
         #(#bindings)*
         let seeds: &[&[u8]] = &[#(#seed_refs,)*];
-        let program_id_pubkey = solana_pubkey::Pubkey::from(*program_id);
-        let (pda, bump) = solana_pubkey::Pubkey::find_program_address(seeds, &program_id_pubkey);
+        #pda_derivation
         let mut seeds_vec = Vec::with_capacity(seeds.len() + 1);
         #(
             seeds_vec.push(seeds[#indices].to_vec());
@@ -628,7 +648,7 @@ fn generate_pda_seed_derivation_for_trait_with_ctx_seeds(
             bump_vec.push(bump);
             seeds_vec.push(bump_vec);
         }
-        Ok((seeds_vec, pda.to_bytes()))
+        Ok((seeds_vec, #pda_to_bytes))
     })
 }
 
