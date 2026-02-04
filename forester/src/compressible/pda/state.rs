@@ -1,7 +1,9 @@
 use borsh::BorshDeserialize;
 use dashmap::DashMap;
 use light_account::CompressionInfo;
-use light_compressible::rent::{get_last_funded_epoch, get_rent_exemption_lamports, SLOTS_PER_EPOCH};
+use light_compressible::rent::{
+    get_last_funded_epoch, get_rent_exemption_lamports, SLOTS_PER_EPOCH,
+};
 use solana_sdk::pubkey::Pubkey;
 use tracing::{debug, warn};
 
