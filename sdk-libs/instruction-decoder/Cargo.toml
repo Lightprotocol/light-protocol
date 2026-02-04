@@ -1,6 +1,6 @@
 [package]
 name = "light-instruction-decoder"
-version = "0.2.0"
+version = "0.20.0"
 description = "Instruction decoder library for litsvm tests."
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"

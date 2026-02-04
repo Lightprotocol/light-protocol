@@ -1,6 +1,6 @@
 [package]
 name = "light-batched-merkle-tree"
-version = "0.9.0"
+version = "0.10.0"
 description = "Batch Merkle tree implementation."
 readme = "README.md"
 repository = "https://github.com/Lightprotocol/light-protocol"

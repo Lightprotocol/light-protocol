@@ -1,6 +1,6 @@
 [package]
 name = "light-account-pinocchio"
-version = "0.1.0"
+version = "0.20.0"
 description = "Light Protocol account types with pinocchio AccountInfo specializations"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
@@ -22,6 +22,7 @@ light-account-checks = { workspace = true, default-features = false, features = 
 light-hasher = { workspace = true, default-features = false }
 light-compressed-account = { workspace = true, default-features = false }
 light-token-interface = { workspace = true, optional = true }
+light-compressible = { workspace = true }
 pinocchio = { workspace = true }
 solana-instruction = { workspace = true, optional = true }
 solana-pubkey = { workspace = true, optional = true }
