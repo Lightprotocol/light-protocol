@@ -569,6 +569,7 @@ pub(crate) fn generate_light_program_items(
         &pda_seeds,
         &token_seeds,
         &instruction_data,
+        false, // Anchor (not pinocchio)
     )?;
 
     // Collect all generated items into a Vec<TokenStream>
@@ -1286,16 +1287,17 @@ pub(crate) fn generate_light_program_pinocchio_items(
             pub write_top_up: u32,
             pub rent_sponsor: [u8; 32],
             pub compression_authority: [u8; 32],
-            pub rent_config: light_compressible::rent::RentConfig,
+            pub rent_config: light_account_pinocchio::rent::RentConfig,
             pub address_space: Vec<[u8; 32]>,
         }
     };
 
-    // Client functions (module + pub use - framework-agnostic)
+    // Client functions (module + pub use - pinocchio uses light_account_pinocchio re-exports)
     let client_functions = super::seed_codegen::generate_client_seed_functions(
         &pda_seeds,
         &token_seeds,
         &instruction_data,
+        true, // Pinocchio
     )?;
 
     // Collect all generated items

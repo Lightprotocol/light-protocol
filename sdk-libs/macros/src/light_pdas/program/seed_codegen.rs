@@ -30,8 +30,16 @@ pub fn generate_client_seed_functions(
     pda_seeds: &Option<Vec<TokenSeedSpec>>,
     token_seeds: &Option<Vec<TokenSeedSpec>>,
     instruction_data: &[InstructionDataSpec],
+    is_pinocchio: bool,
 ) -> Result<TokenStream> {
     let mut functions = Vec::new();
+
+    // Choose the correct pubkey path based on framework
+    let pubkey_path = if is_pinocchio {
+        quote! { light_account_pinocchio::solana_pubkey::Pubkey }
+    } else {
+        quote! { solana_pubkey::Pubkey }
+    };
 
     if let Some(pda_seed_specs) = pda_seeds {
         for spec in pda_seed_specs {
@@ -40,14 +48,15 @@ pub fn generate_client_seed_functions(
             let function_name = format_ident!("get_{}_seeds", snake_case);
 
             let (parameters, seed_expressions) =
-                analyze_seed_spec_for_client(spec, instruction_data)?;
+                analyze_seed_spec_for_client(spec, instruction_data, is_pinocchio)?;
 
             let fn_body = generate_seed_derivation_body(
                 &seed_expressions,
-                quote! { &solana_pubkey::Pubkey::from(crate::LIGHT_CPI_SIGNER.program_id) },
+                quote! { &#pubkey_path::from(crate::LIGHT_CPI_SIGNER.program_id) },
+                is_pinocchio,
             );
             let function = quote! {
-                pub fn #function_name(#(#parameters),*) -> (Vec<Vec<u8>>, solana_pubkey::Pubkey) {
+                pub fn #function_name(#(#parameters),*) -> (Vec<Vec<u8>>, #pubkey_path) {
                     #fn_body
                 }
             };
@@ -63,14 +72,15 @@ pub fn generate_client_seed_functions(
                 format_ident!("get_{}_seeds", variant_name.to_string().to_lowercase());
 
             let (parameters, seed_expressions) =
-                analyze_seed_spec_for_client(spec, instruction_data)?;
+                analyze_seed_spec_for_client(spec, instruction_data, is_pinocchio)?;
 
             let fn_body = generate_seed_derivation_body(
                 &seed_expressions,
-                quote! { &solana_pubkey::Pubkey::from(crate::LIGHT_CPI_SIGNER.program_id) },
+                quote! { &#pubkey_path::from(crate::LIGHT_CPI_SIGNER.program_id) },
+                is_pinocchio,
             );
             let function = quote! {
-                pub fn #function_name(#(#parameters),*) -> (Vec<Vec<u8>>, solana_pubkey::Pubkey) {
+                pub fn #function_name(#(#parameters),*) -> (Vec<Vec<u8>>, #pubkey_path) {
                     #fn_body
                 }
             };
@@ -97,14 +107,15 @@ pub fn generate_client_seed_functions(
                 }
 
                 let (owner_parameters, owner_seed_expressions) =
-                    analyze_seed_spec_for_client(&owner_seeds_spec, instruction_data)?;
+                    analyze_seed_spec_for_client(&owner_seeds_spec, instruction_data, is_pinocchio)?;
 
                 let (fn_params, fn_body) = if owner_parameters.is_empty() {
                     (
-                        quote! { _program_id: &solana_pubkey::Pubkey },
+                        quote! { _program_id: &#pubkey_path },
                         generate_seed_derivation_body(
                             &owner_seed_expressions,
                             quote! { _program_id },
+                            is_pinocchio,
                         ),
                     )
                 } else {
@@ -112,12 +123,13 @@ pub fn generate_client_seed_functions(
                         quote! { #(#owner_parameters),* },
                         generate_seed_derivation_body(
                             &owner_seed_expressions,
-                            quote! { &solana_pubkey::Pubkey::from(crate::LIGHT_CPI_SIGNER.program_id) },
+                            quote! { &#pubkey_path::from(crate::LIGHT_CPI_SIGNER.program_id) },
+                            is_pinocchio,
                         ),
                     )
                 };
                 let owner_seeds_function = quote! {
-                    pub fn #owner_seeds_function_name(#fn_params) -> (Vec<Vec<u8>>, solana_pubkey::Pubkey) {
+                    pub fn #owner_seeds_function_name(#fn_params) -> (Vec<Vec<u8>>, #pubkey_path) {
                         #fn_body
                     }
                 };
@@ -127,11 +139,13 @@ pub fn generate_client_seed_functions(
     }
 
     Ok(quote! {
+        #[cfg(not(target_os = "solana"))]
         mod __client_seed_functions {
             use super::*;
             #(#functions)*
         }
 
+        #[cfg(not(target_os = "solana"))]
         pub use __client_seed_functions::*;
     })
 }
@@ -144,6 +158,7 @@ pub fn generate_client_seed_functions(
 fn analyze_seed_spec_for_client(
     spec: &TokenSeedSpec,
     instruction_data: &[InstructionDataSpec],
+    is_pinocchio: bool,
 ) -> Result<(Vec<TokenStream>, Vec<TokenStream>)> {
     let mut parameters = Vec::new();
     let mut expressions = Vec::new();
@@ -160,6 +175,7 @@ fn analyze_seed_spec_for_client(
             &mut seen_params,
             &mut parameters,
             &mut expressions,
+            is_pinocchio,
         )?;
     }
 

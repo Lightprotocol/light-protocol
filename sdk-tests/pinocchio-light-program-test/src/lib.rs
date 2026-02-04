@@ -6,9 +6,8 @@
 #![allow(deprecated)]
 
 use light_account_pinocchio::{
-    derive_light_cpi_signer, CpiSigner, LightAccount, LightProgramPinocchio,
+    derive_light_cpi_signer, pubkey_array, CpiSigner, LightAccount, LightProgramPinocchio,
 };
-use light_macros::pubkey_array;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 pub mod account_loader;

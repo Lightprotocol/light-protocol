@@ -660,7 +660,7 @@ impl<'a> LightVariantBuilder<'a> {
                     .iter()
                     .map(|f| {
                         let idx = format_ident!("{}_idx", f);
-                        quote! { #idx: remaining_accounts.insert_or_get(solana_pubkey::Pubkey::from(self.#f)) }
+                        quote! { #idx: remaining_accounts.insert_or_get(light_account_pinocchio::solana_pubkey::Pubkey::from(self.#f)) }
                     })
                     .collect();
 
@@ -710,7 +710,7 @@ impl<'a> LightVariantBuilder<'a> {
                     }
 
                     #[cfg(not(target_os = "solana"))]
-                    impl light_account_pinocchio::Pack<solana_instruction::AccountMeta> for #seeds_name {
+                    impl light_account_pinocchio::Pack<light_account_pinocchio::solana_instruction::AccountMeta> for #seeds_name {
                         type Packed = #packed_seeds_name;
 
                         fn pack(
@@ -718,9 +718,9 @@ impl<'a> LightVariantBuilder<'a> {
                             remaining_accounts: &mut light_account_pinocchio::PackedAccounts,
                         ) -> std::result::Result<Self::Packed, light_account_pinocchio::LightSdkTypesError> {
                             let __seeds: &[&[u8]] = &[#(#bump_seed_refs),*];
-                            let (_, __bump) = solana_pubkey::Pubkey::find_program_address(
+                            let (_, __bump) = light_account_pinocchio::solana_pubkey::Pubkey::find_program_address(
                                 __seeds,
-                                &solana_pubkey::Pubkey::from(crate::LIGHT_CPI_SIGNER.program_id),
+                                &light_account_pinocchio::solana_pubkey::Pubkey::from(crate::LIGHT_CPI_SIGNER.program_id),
                             );
                             Ok(#packed_seeds_name {
                                 #(#pack_stmts,)*
@@ -824,9 +824,9 @@ impl<'a> LightVariantBuilder<'a> {
                         })
                         .collect();
                     quote! {
-                        let (__owner, _) = solana_pubkey::Pubkey::find_program_address(
+                        let (__owner, _) = light_account_pinocchio::solana_pubkey::Pubkey::find_program_address(
                             &[#(#owner_seed_refs),*],
-                            &solana_pubkey::Pubkey::from(crate::LIGHT_CPI_SIGNER.program_id),
+                            &light_account_pinocchio::solana_pubkey::Pubkey::from(crate::LIGHT_CPI_SIGNER.program_id),
                         );
                         __owner.to_bytes()
                     }
@@ -1076,7 +1076,7 @@ impl<'a> LightVariantBuilder<'a> {
 
         quote! {
             #[cfg(not(target_os = "solana"))]
-            impl light_account_pinocchio::Pack<solana_instruction::AccountMeta> for LightAccountVariant {
+            impl light_account_pinocchio::Pack<light_account_pinocchio::solana_instruction::AccountMeta> for LightAccountVariant {
                 type Packed = PackedLightAccountVariant;
 
                 fn pack(

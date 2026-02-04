@@ -385,10 +385,18 @@ fn map_call_arg(
     instruction_data: &[InstructionDataSpec],
     seen_params: &mut HashSet<String>,
     parameters: &mut Vec<TokenStream>,
+    is_pinocchio: bool,
 ) -> syn::Result<TokenStream> {
+    // Choose the correct pubkey path based on framework
+    let pubkey_param = if is_pinocchio {
+        quote! { light_account_pinocchio::solana_pubkey::Pubkey }
+    } else {
+        quote! { solana_pubkey::Pubkey }
+    };
+
     match arg {
         syn::Expr::Reference(ref_expr) => {
-            let inner = map_call_arg(&ref_expr.expr, instruction_data, seen_params, parameters)?;
+            let inner = map_call_arg(&ref_expr.expr, instruction_data, seen_params, parameters, is_pinocchio)?;
             Ok(quote! { &#inner })
         }
         syn::Expr::Field(field_expr) => {
@@ -396,7 +404,7 @@ fn map_call_arg(
                 // Check for ctx.accounts.field
                 if FieldExtractor::is_ctx_accounts(&field_expr.base) {
                     if seen_params.insert(field_name.to_string()) {
-                        parameters.push(quote! { #field_name: &solana_pubkey::Pubkey });
+                        parameters.push(quote! { #field_name: &#pubkey_param });
                     }
                     return Ok(quote! { #field_name });
                 }
@@ -422,12 +430,12 @@ fn map_call_arg(
                             // data.field not in instruction_data (e.g., from FunctionCall args)
                             // Default to Pubkey parameter
                             if seen_params.insert(field_name.to_string()) {
-                                parameters.push(quote! { #field_name: &solana_pubkey::Pubkey });
+                                parameters.push(quote! { #field_name: &#pubkey_param });
                             }
                             return Ok(quote! { #field_name });
                         } else if segment.ident == "ctx" {
                             if seen_params.insert(field_name.to_string()) {
-                                parameters.push(quote! { #field_name: &solana_pubkey::Pubkey });
+                                parameters.push(quote! { #field_name: &#pubkey_param });
                             }
                             return Ok(quote! { #field_name });
                         }
@@ -442,12 +450,13 @@ fn map_call_arg(
                 instruction_data,
                 seen_params,
                 parameters,
+                is_pinocchio,
             )?;
             let method = &method_call.method;
             let args: Vec<TokenStream> = method_call
                 .args
                 .iter()
-                .map(|a| map_call_arg(a, instruction_data, seen_params, parameters))
+                .map(|a| map_call_arg(a, instruction_data, seen_params, parameters, is_pinocchio))
                 .collect::<syn::Result<_>>()?;
             Ok(quote! { (#receiver).#method(#(#args),*) })
         }
@@ -456,7 +465,7 @@ fn map_call_arg(
             let args: Vec<TokenStream> = nested_call
                 .args
                 .iter()
-                .map(|a| map_call_arg(a, instruction_data, seen_params, parameters))
+                .map(|a| map_call_arg(a, instruction_data, seen_params, parameters, is_pinocchio))
                 .collect::<syn::Result<_>>()?;
             Ok(quote! { (#func)(#(#args),*) })
         }
@@ -469,7 +478,7 @@ fn map_call_arg(
                     && !is_constant_identifier(&name)
                     && seen_params.insert(name)
                 {
-                    parameters.push(quote! { #ident: &solana_pubkey::Pubkey });
+                    parameters.push(quote! { #ident: &#pubkey_param });
                 }
             }
             Ok(quote! { #path_expr })
@@ -489,7 +498,15 @@ pub fn generate_client_seed_code(
     seen_params: &mut HashSet<String>,
     parameters: &mut Vec<TokenStream>,
     expressions: &mut Vec<TokenStream>,
+    is_pinocchio: bool,
 ) -> syn::Result<()> {
+    // Choose the correct pubkey path based on framework
+    let pubkey_param = if is_pinocchio {
+        quote! { light_account_pinocchio::solana_pubkey::Pubkey }
+    } else {
+        quote! { solana_pubkey::Pubkey }
+    };
+
     match info {
         ClientSeedInfo::Literal(s) => {
             expressions.push(quote! { #s.as_bytes() });
@@ -513,7 +530,7 @@ pub fn generate_client_seed_code(
 
         ClientSeedInfo::CtxField { field, method } => {
             if seen_params.insert(field.to_string()) {
-                parameters.push(quote! { #field: &solana_pubkey::Pubkey });
+                parameters.push(quote! { #field: &#pubkey_param });
             }
             let expr = match method {
                 Some(m) => quote! { #field.#m().as_ref() },
@@ -552,7 +569,7 @@ pub fn generate_client_seed_code(
 
         ClientSeedInfo::Identifier(ident) => {
             if seen_params.insert(ident.to_string()) {
-                parameters.push(quote! { #ident: &solana_pubkey::Pubkey });
+                parameters.push(quote! { #ident: &#pubkey_param });
             }
             expressions.push(quote! { #ident.as_ref() });
         }
@@ -560,7 +577,7 @@ pub fn generate_client_seed_code(
         ClientSeedInfo::FunctionCall(call_expr) => {
             let mut mapped_args: Vec<TokenStream> = Vec::new();
             for arg in &call_expr.args {
-                let mapped = map_call_arg(arg, instruction_data, seen_params, parameters)?;
+                let mapped = map_call_arg(arg, instruction_data, seen_params, parameters, is_pinocchio)?;
                 mapped_args.push(mapped);
             }
             let func = &call_expr.func;

@@ -25,15 +25,24 @@ use syn::Ident;
 pub fn generate_seed_derivation_body(
     seed_expressions: &[TokenStream],
     program_id_expr: TokenStream,
+    is_pinocchio: bool,
 ) -> TokenStream {
     let seed_count = seed_expressions.len();
+
+    // Choose the correct pubkey path based on framework
+    let pubkey_path = if is_pinocchio {
+        quote! { light_account_pinocchio::solana_pubkey::Pubkey }
+    } else {
+        quote! { solana_pubkey::Pubkey }
+    };
+
     quote! {
         let mut seed_values = Vec::with_capacity(#seed_count + 1);
         #(
             seed_values.push((#seed_expressions).to_vec());
         )*
         let seed_slices: Vec<&[u8]> = seed_values.iter().map(|v| v.as_slice()).collect();
-        let (pda, bump) = solana_pubkey::Pubkey::find_program_address(&seed_slices, #program_id_expr);
+        let (pda, bump) = #pubkey_path::find_program_address(&seed_slices, #program_id_expr);
         seed_values.push(vec![bump]);
         (seed_values, pda)
     }
