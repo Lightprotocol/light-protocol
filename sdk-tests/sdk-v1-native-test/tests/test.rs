@@ -8,7 +8,7 @@ use light_program_test::{
 use light_sdk::instruction::{
     account_meta::CompressedAccountMeta, PackedAccounts, SystemAccountMetaConfig,
 };
-use sdk_native_test::{
+use sdk_v1_native_test::{
     create_pda::CreatePdaInstructionData,
     update_pda::{UpdateMyCompressedAccount, UpdatePdaInstructionData},
     ARRAY_LEN,
@@ -21,7 +21,10 @@ use solana_sdk::{
 
 #[tokio::test]
 async fn test_sdk_native_test() {
-    let config = ProgramTestConfig::new(true, Some(vec![("sdk_native_test", sdk_native_test::ID)]));
+    let config = ProgramTestConfig::new(
+        true,
+        Some(vec![("sdk_v1_native_test", sdk_v1_native_test::ID)]),
+    );
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
 
@@ -32,7 +35,7 @@ async fn test_sdk_native_test() {
     let (address, _) = light_sdk::address::v1::derive_address(
         &[b"compressed".as_slice(), account_data.as_slice()],
         &address_tree,
-        &sdk_native_test::ID,
+        &sdk_v1_native_test::ID,
     );
 
     let v1_output_tree = rpc.test_accounts.v1_state_trees[0].merkle_tree;
@@ -71,7 +74,7 @@ pub async fn create_pda(
     address_tree_pubkey: Pubkey,
     address: [u8; 32],
 ) -> Result<(), RpcError> {
-    let system_account_meta_config = SystemAccountMetaConfig::new(sdk_native_test::ID);
+    let system_account_meta_config = SystemAccountMetaConfig::new(sdk_v1_native_test::ID);
     let mut accounts = PackedAccounts::default();
     accounts.add_pre_accounts_signer(payer.pubkey());
     accounts
@@ -105,7 +108,7 @@ pub async fn create_pda(
     let inputs = instruction_data.try_to_vec().unwrap();
 
     let instruction = Instruction {
-        program_id: sdk_native_test::ID,
+        program_id: sdk_v1_native_test::ID,
         accounts,
         data: [&[0u8][..], &inputs[..]].concat(),
     };
@@ -121,7 +124,7 @@ pub async fn update_pda(
     new_account_data: [u8; ARRAY_LEN],
     compressed_account: CompressedAccountWithMerkleContext,
 ) -> Result<(), RpcError> {
-    let system_account_meta_config = SystemAccountMetaConfig::new(sdk_native_test::ID);
+    let system_account_meta_config = SystemAccountMetaConfig::new(sdk_v1_native_test::ID);
     let mut accounts = PackedAccounts::default();
     accounts.add_pre_accounts_signer(payer.pubkey());
     accounts
@@ -163,7 +166,7 @@ pub async fn update_pda(
     let inputs = instruction_data.try_to_vec().unwrap();
 
     let instruction = Instruction {
-        program_id: sdk_native_test::ID,
+        program_id: sdk_v1_native_test::ID,
         accounts,
         data: [&[1u8][..], &inputs[..]].concat(),
     };

@@ -1,12 +1,15 @@
 pub use light_compressed_account::LightInstructionData;
 use light_sdk_types::constants::{CPI_AUTHORITY_PDA_SEED, LIGHT_SYSTEM_PROGRAM_ID};
-
+use solana_account_info::AccountInfo;
+use solana_cpi::invoke_signed;
 #[cfg(feature = "cpi-context")]
-use crate::AccountMeta;
+use solana_instruction::AccountMeta;
+use solana_instruction::Instruction;
+use solana_program_error::ProgramError;
+
 use crate::{
     cpi::{account::CpiAccountsTrait, instruction::LightCpiInstruction},
     error::LightSdkError,
-    invoke_signed, AccountInfo, Instruction, ProgramError,
 };
 
 pub trait InvokeLightSystemProgram {

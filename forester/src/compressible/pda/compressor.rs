@@ -6,6 +6,7 @@ use std::sync::{
 use borsh::BorshDeserialize;
 use forester_utils::rpc_pool::SolanaRpcPool;
 use futures::StreamExt;
+use light_account::LightConfig;
 use light_account_checks::discriminator::DISCRIMINATOR_LEN;
 use light_client::{
     indexer::Indexer,
@@ -15,7 +16,6 @@ use light_client::{
     rpc::Rpc,
 };
 use light_compressed_account::address::derive_address;
-use light_sdk::interface::config::LightConfig;
 use solana_sdk::{
     instruction::AccountMeta,
     pubkey::Pubkey,
@@ -80,7 +80,10 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
         let program_id = &program_config.program_id;
 
         // Get the compressible config PDA for this program (config_bump = 0)
-        let (config_pda, _) = LightConfig::derive_pda(program_id, 0);
+        let (config_pda, _) = Pubkey::find_program_address(
+            &[light_account::LIGHT_CONFIG_SEED, &0u16.to_le_bytes()],
+            program_id,
+        );
 
         // Fetch the config to get rent_sponsor and address_space
         let rpc = self.rpc_pool.get_connection().await?;
@@ -105,12 +108,13 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
             )
         })?;
 
-        let rent_sponsor = config.rent_sponsor;
-        let compression_authority = config.compression_authority;
-        let address_tree = *config
+        let rent_sponsor: Pubkey = config.rent_sponsor.into();
+        let compression_authority: Pubkey = config.compression_authority.into();
+        let address_tree: Pubkey = (*config
             .address_space
             .first()
-            .ok_or_else(|| anyhow::anyhow!("Config has no address space"))?;
+            .ok_or_else(|| anyhow::anyhow!("Config has no address space"))?)
+        .into();
 
         // CompressAccountsIdempotent expects 4 accounts:
         // 1. fee_payer (signer, writable)

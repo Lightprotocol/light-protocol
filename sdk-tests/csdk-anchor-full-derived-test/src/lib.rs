@@ -2,10 +2,10 @@
 #![allow(clippy::useless_asref)] // Testing macro handling of .as_ref() patterns
 
 use anchor_lang::prelude::*;
+use light_account::{
+    derive_light_cpi_signer, derive_light_rent_sponsor_pda, light_program, CpiSigner,
+};
 use light_instruction_decoder_derive::instruction_decoder;
-use light_sdk::{derive_light_cpi_signer, derive_light_rent_sponsor_pda};
-use light_sdk_macros::light_program;
-use light_sdk_types::CpiSigner;
 
 pub mod amm_test;
 pub mod d5_markers;
@@ -314,9 +314,8 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, CreatePdasAndMintAuto<'info>>,
         params: FullAutoWithMintParams,
     ) -> Result<()> {
-        use light_token::instruction::{
-            CreateTokenAccountCpi, CreateTokenAtaCpi, MintToCpi as CTokenMintToCpi,
-        };
+        use light_account::{CreateTokenAccountCpi, CreateTokenAtaCpi};
+        use light_token::instruction::MintToCpi as CTokenMintToCpi;
 
         let user_record = &mut ctx.accounts.user_record;
         user_record.owner = params.owner;
@@ -333,38 +332,51 @@ pub mod csdk_anchor_full_derived_test {
         game_session.score = 0;
 
         // vault is mark-only - create manually via CreateTokenAccountCpi
-        CreateTokenAccountCpi {
-            payer: ctx.accounts.fee_payer.to_account_info(),
-            account: ctx.accounts.vault.to_account_info(),
-            mint: ctx.accounts.mint.to_account_info(),
-            owner: ctx.accounts.vault_authority.key(),
+        {
+            let payer_info = ctx.accounts.fee_payer.to_account_info();
+            let account_info = ctx.accounts.vault.to_account_info();
+            let mint_info = ctx.accounts.mint.to_account_info();
+            let config_info = ctx.accounts.light_token_config.to_account_info();
+            let sponsor_info = ctx.accounts.light_token_rent_sponsor.to_account_info();
+            let system_info = ctx.accounts.system_program.to_account_info();
+            CreateTokenAccountCpi {
+                payer: &payer_info,
+                account: &account_info,
+                mint: &mint_info,
+                owner: ctx.accounts.vault_authority.key().to_bytes(),
+            }
+            .rent_free(
+                &config_info,
+                &sponsor_info,
+                &system_info,
+                &crate::ID.to_bytes(),
+            )
+            .invoke_signed(&[
+                VAULT_SEED,
+                ctx.accounts.mint.to_account_info().key.as_ref(),
+                &[ctx.bumps.vault],
+            ])?;
         }
-        .rent_free(
-            ctx.accounts.light_token_config.to_account_info(),
-            ctx.accounts.light_token_rent_sponsor.to_account_info(),
-            ctx.accounts.system_program.to_account_info(),
-            &crate::ID,
-        )
-        .invoke_signed(&[
-            VAULT_SEED,
-            ctx.accounts.mint.to_account_info().key.as_ref(),
-            &[ctx.bumps.vault],
-        ])?;
 
-        CreateTokenAtaCpi {
-            payer: ctx.accounts.fee_payer.to_account_info(),
-            owner: ctx.accounts.fee_payer.to_account_info(),
-            mint: ctx.accounts.mint.to_account_info(),
-            ata: ctx.accounts.user_ata.to_account_info(),
-            bump: params.user_ata_bump,
+        {
+            let payer_info = ctx.accounts.fee_payer.to_account_info();
+            let owner_info = ctx.accounts.fee_payer.to_account_info();
+            let mint_info = ctx.accounts.mint.to_account_info();
+            let ata_info = ctx.accounts.user_ata.to_account_info();
+            let config_info = ctx.accounts.light_token_config.to_account_info();
+            let sponsor_info = ctx.accounts.light_token_rent_sponsor.to_account_info();
+            let system_info = ctx.accounts.system_program.to_account_info();
+            CreateTokenAtaCpi {
+                payer: &payer_info,
+                owner: &owner_info,
+                mint: &mint_info,
+                ata: &ata_info,
+                bump: params.user_ata_bump,
+            }
+            .idempotent()
+            .rent_free(&config_info, &sponsor_info, &system_info)
+            .invoke()?;
         }
-        .idempotent()
-        .rent_free(
-            ctx.accounts.light_token_config.to_account_info(),
-            ctx.accounts.light_token_rent_sponsor.to_account_info(),
-            ctx.accounts.system_program.to_account_info(),
-        )
-        .invoke()?;
 
         if params.vault_mint_amount > 0 {
             CTokenMintToCpi {
@@ -614,21 +626,22 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D7LightTokenConfig<'info>>,
         params: D7LightTokenConfigParams,
     ) -> Result<()> {
-        use light_token::instruction::CreateTokenAccountCpi;
+        use light_account::CreateTokenAccountCpi;
 
         // Token vault is mark-only - create manually via CreateTokenAccountCpi
+        let __payer = ctx.accounts.fee_payer.to_account_info();
+        let __account = ctx.accounts.d7_light_token_vault.to_account_info();
+        let __mint = ctx.accounts.mint.to_account_info();
+        let __config = ctx.accounts.light_token_config.to_account_info();
+        let __sponsor = ctx.accounts.light_token_rent_sponsor.to_account_info();
+        let __sys = ctx.accounts.system_program.to_account_info();
         CreateTokenAccountCpi {
-            payer: ctx.accounts.fee_payer.to_account_info(),
-            account: ctx.accounts.d7_light_token_vault.to_account_info(),
-            mint: ctx.accounts.mint.to_account_info(),
-            owner: ctx.accounts.d7_light_token_authority.key(),
+            payer: &__payer,
+            account: &__account,
+            mint: &__mint,
+            owner: ctx.accounts.d7_light_token_authority.key().to_bytes(),
         }
-        .rent_free(
-            ctx.accounts.light_token_config.to_account_info(),
-            ctx.accounts.light_token_rent_sponsor.to_account_info(),
-            ctx.accounts.system_program.to_account_info(),
-            &crate::ID,
-        )
+        .rent_free(&__config, &__sponsor, &__sys, &crate::ID.to_bytes())
         .invoke_signed(&[
             D7_LIGHT_TOKEN_VAULT_SEED,
             ctx.accounts.mint.to_account_info().key.as_ref(),
@@ -643,24 +656,25 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D7AllNames<'info>>,
         params: D7AllNamesParams,
     ) -> Result<()> {
-        use light_token::instruction::CreateTokenAccountCpi;
+        use light_account::CreateTokenAccountCpi;
 
         // Set up the PDA record
         ctx.accounts.d7_all_record.owner = params.owner;
 
         // Token vault is mark-only - create manually via CreateTokenAccountCpi
+        let __payer = ctx.accounts.payer.to_account_info();
+        let __account = ctx.accounts.d7_all_vault.to_account_info();
+        let __mint = ctx.accounts.mint.to_account_info();
+        let __config = ctx.accounts.light_token_config.to_account_info();
+        let __sponsor = ctx.accounts.light_token_rent_sponsor.to_account_info();
+        let __sys = ctx.accounts.system_program.to_account_info();
         CreateTokenAccountCpi {
-            payer: ctx.accounts.payer.to_account_info(),
-            account: ctx.accounts.d7_all_vault.to_account_info(),
-            mint: ctx.accounts.mint.to_account_info(),
-            owner: ctx.accounts.d7_all_authority.key(),
+            payer: &__payer,
+            account: &__account,
+            mint: &__mint,
+            owner: ctx.accounts.d7_all_authority.key().to_bytes(),
         }
-        .rent_free(
-            ctx.accounts.light_token_config.to_account_info(),
-            ctx.accounts.light_token_rent_sponsor.to_account_info(),
-            ctx.accounts.system_program.to_account_info(),
-            &crate::ID,
-        )
+        .rent_free(&__config, &__sponsor, &__sys, &crate::ID.to_bytes())
         .invoke_signed(&[
             D7_ALL_VAULT_SEED,
             ctx.accounts.mint.to_account_info().key.as_ref(),
@@ -1336,21 +1350,22 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D5LightToken<'info>>,
         params: D5LightTokenParams,
     ) -> Result<()> {
-        use light_token::instruction::CreateTokenAccountCpi;
+        use light_account::CreateTokenAccountCpi;
 
         // Token vault is mark-only - create manually via CreateTokenAccountCpi
+        let __payer = ctx.accounts.fee_payer.to_account_info();
+        let __account = ctx.accounts.d5_token_vault.to_account_info();
+        let __mint = ctx.accounts.mint.to_account_info();
+        let __config = ctx.accounts.light_token_config.to_account_info();
+        let __sponsor = ctx.accounts.light_token_rent_sponsor.to_account_info();
+        let __sys = ctx.accounts.system_program.to_account_info();
         CreateTokenAccountCpi {
-            payer: ctx.accounts.fee_payer.to_account_info(),
-            account: ctx.accounts.d5_token_vault.to_account_info(),
-            mint: ctx.accounts.mint.to_account_info(),
-            owner: ctx.accounts.vault_authority.key(),
+            payer: &__payer,
+            account: &__account,
+            mint: &__mint,
+            owner: ctx.accounts.vault_authority.key().to_bytes(),
         }
-        .rent_free(
-            ctx.accounts.light_token_config.to_account_info(),
-            ctx.accounts.light_token_rent_sponsor.to_account_info(),
-            ctx.accounts.system_program.to_account_info(),
-            &crate::ID,
-        )
+        .rent_free(&__config, &__sponsor, &__sys, &crate::ID.to_bytes())
         .invoke_signed(&[
             D5_VAULT_SEED,
             ctx.accounts.mint.to_account_info().key.as_ref(),
@@ -1365,24 +1380,25 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D5AllMarkers<'info>>,
         params: D5AllMarkersParams,
     ) -> Result<()> {
-        use light_token::instruction::CreateTokenAccountCpi;
+        use light_account::CreateTokenAccountCpi;
 
         // Set up the PDA record
         ctx.accounts.d5_all_record.owner = params.owner;
 
         // Token vault is mark-only - create manually via CreateTokenAccountCpi
+        let __payer = ctx.accounts.fee_payer.to_account_info();
+        let __account = ctx.accounts.d5_all_vault.to_account_info();
+        let __mint = ctx.accounts.mint.to_account_info();
+        let __config = ctx.accounts.light_token_config.to_account_info();
+        let __sponsor = ctx.accounts.light_token_rent_sponsor.to_account_info();
+        let __sys = ctx.accounts.system_program.to_account_info();
         CreateTokenAccountCpi {
-            payer: ctx.accounts.fee_payer.to_account_info(),
-            account: ctx.accounts.d5_all_vault.to_account_info(),
-            mint: ctx.accounts.mint.to_account_info(),
-            owner: ctx.accounts.d5_all_authority.key(),
+            payer: &__payer,
+            account: &__account,
+            mint: &__mint,
+            owner: ctx.accounts.d5_all_authority.key().to_bytes(),
         }
-        .rent_free(
-            ctx.accounts.light_token_config.to_account_info(),
-            ctx.accounts.light_token_rent_sponsor.to_account_info(),
-            ctx.accounts.system_program.to_account_info(),
-            &crate::ID,
-        )
+        .rent_free(&__config, &__sponsor, &__sys, &crate::ID.to_bytes())
         .invoke_signed(&[
             D5_ALL_VAULT_SEED,
             ctx.accounts.mint.to_account_info().key.as_ref(),
@@ -1433,22 +1449,25 @@ pub mod csdk_anchor_full_derived_test {
         ctx: Context<'_, '_, '_, 'info, D10SingleAtaMarkonly<'info>>,
         params: D10SingleAtaMarkonlyParams,
     ) -> Result<()> {
-        use light_token::instruction::CreateTokenAtaCpi;
+        use light_account::CreateTokenAtaCpi;
 
         // Mark-only: LightPreInit/LightFinalize are no-ops, we create the ATA manually
+        let __payer = ctx.accounts.fee_payer.to_account_info();
+        let __owner = ctx.accounts.d10_markonly_ata_owner.to_account_info();
+        let __mint = ctx.accounts.d10_markonly_ata_mint.to_account_info();
+        let __ata = ctx.accounts.d10_markonly_ata.to_account_info();
+        let __config = ctx.accounts.light_token_config.to_account_info();
+        let __sponsor = ctx.accounts.light_token_rent_sponsor.to_account_info();
+        let __sys = ctx.accounts.system_program.to_account_info();
         CreateTokenAtaCpi {
-            payer: ctx.accounts.fee_payer.to_account_info(),
-            owner: ctx.accounts.d10_markonly_ata_owner.to_account_info(),
-            mint: ctx.accounts.d10_markonly_ata_mint.to_account_info(),
-            ata: ctx.accounts.d10_markonly_ata.to_account_info(),
+            payer: &__payer,
+            owner: &__owner,
+            mint: &__mint,
+            ata: &__ata,
             bump: params.ata_bump,
         }
         .idempotent()
-        .rent_free(
-            ctx.accounts.light_token_config.to_account_info(),
-            ctx.accounts.light_token_rent_sponsor.to_account_info(),
-            ctx.accounts.system_program.to_account_info(),
-        )
+        .rent_free(&__config, &__sponsor, &__sys)
         .invoke()?;
 
         Ok(())

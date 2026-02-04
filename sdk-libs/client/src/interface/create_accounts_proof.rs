@@ -92,7 +92,7 @@ impl CreateAccountsProofInput {
     }
 }
 
-pub use light_compressible::CreateAccountsProof;
+pub use light_sdk_types::interface::CreateAccountsProof;
 
 /// Result of `get_create_accounts_proof`.
 pub struct CreateAccountsProofResult {

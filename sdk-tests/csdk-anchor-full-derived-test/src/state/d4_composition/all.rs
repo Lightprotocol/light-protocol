@@ -3,8 +3,7 @@
 //! Exercises a large struct with all field type variants from D1.
 
 use anchor_lang::prelude::*;
-use light_sdk::{compressible::CompressionInfo, LightDiscriminator};
-use light_sdk_macros::LightAccount;
+use light_account::{CompressionInfo, LightAccount, LightDiscriminator};
 
 /// Comprehensive large struct with all field types.
 /// 15+ fields to trigger SHA256 mode with all D1 variations.

@@ -3,8 +3,7 @@
 //! Exercises the code path where Option fields are compressed as None.
 
 use anchor_lang::prelude::*;
-use light_sdk::{compressible::CompressionInfo, LightDiscriminator};
-use light_sdk_macros::LightAccount;
+use light_account::{CompressionInfo, LightAccount, LightDiscriminator};
 
 /// A struct with compress_as None for Option fields.
 /// end_time is compressed as None instead of self.end_time.

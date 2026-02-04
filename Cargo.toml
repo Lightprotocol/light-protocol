@@ -25,10 +25,13 @@ members = [
     "anchor-programs/system",
     "sdk-libs/client",
     "sdk-libs/token-sdk",
+    "sdk-libs/token-pinocchio",
     "sdk-libs/compressed-token-sdk",
     "sdk-libs/event",
     "sdk-libs/token-client",
     "sdk-libs/macros",
+    "sdk-libs/account",
+    "sdk-libs/account-pinocchio",
     "sdk-libs/sdk",
     "sdk-libs/sdk-pinocchio",
     "sdk-libs/sdk-types",
@@ -58,15 +61,19 @@ members = [
     "sdk-tests/sdk-v1-native-test",
     "sdk-tests/sdk-token-test",
     "sdk-tests/sdk-light-token-test",
+    "sdk-tests/sdk-light-token-pinocchio",
     "sdk-tests/token-client-test",
     "sdk-tests/csdk-anchor-full-derived-test",
     "sdk-tests/csdk-anchor-full-derived-test-sdk",
     "sdk-tests/single-mint-test",
     "sdk-tests/single-pda-test",
+    "sdk-tests/anchor-semi-manual-test",
     "sdk-tests/single-account-loader-test",
     "sdk-tests/single-ata-test",
     "sdk-tests/single-token-test",
-    "sdk-tests/manual-test",
+    "sdk-tests/anchor-manual-test",
+    "sdk-tests/pinocchio-manual-test",
+    "sdk-tests/pinocchio-light-program-test",
     "forester-utils",
     "forester",
     "sparse-merkle-tree",
@@ -198,6 +205,8 @@ light-macros = { path = "program-libs/macros", version = "2.2.0" }
 light-merkle-tree-reference = { path = "program-tests/merkle-tree", version = "4.0.0" }
 light-heap = { path = "program-libs/heap", version = "2.0.0" }
 light-prover-client = { path = "prover/client", version = "6.0.0" }
+light-account = { path = "sdk-libs/account", version = "0.1.0", default-features = false }
+light-account-pinocchio = { path = "sdk-libs/account-pinocchio", version = "0.1.0", default-features = false }
 light-sdk = { path = "sdk-libs/sdk", version = "0.19.0" }
 light-sdk-pinocchio = { path = "sdk-libs/sdk-pinocchio", version = "0.19.0" }
 light-sdk-macros = { path = "sdk-libs/macros", version = "0.19.0" }
@@ -220,6 +229,7 @@ light-compressed-token = { path = "programs/compressed-token/program", version =
 ] }
 light-token-types = { path = "sdk-libs/token-types", version = "0.4.0" }
 light-token = { path = "sdk-libs/token-sdk", version = "0.4.0" }
+light-token-pinocchio = { path = "sdk-libs/token-pinocchio", version = "0.4.0" }
 light-compressed-token-sdk = { path = "sdk-libs/compressed-token-sdk", version = "0.1.0" }
 light-token-client = { path = "sdk-libs/token-client", version = "0.1.1" }
 light-system-program-anchor = { path = "anchor-programs/system", version = "2.0.0", features = [

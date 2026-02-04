@@ -49,10 +49,18 @@ NO_DEFAULT_CRATES=(
     "aligned-sized"
     "light-sdk-types"
     "light-sdk-pinocchio"
+    "light-token-pinocchio"
     "light-sdk-macros"
     "light-token"
     "light-token-types"
     "light-sdk"
+    "light-account"
+    "light-account-pinocchio"
+    "light-client"
+    "light-compressed-token-sdk"
+    "light-instruction-decoder"
+    "light-program-test"
+    "light-token-client"
     "csdk-anchor-full-derived-test"
 )
 

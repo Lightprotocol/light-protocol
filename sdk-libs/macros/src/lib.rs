@@ -250,56 +250,63 @@ pub fn light_program(args: TokenStream, input: TokenStream) -> TokenStream {
     into_token_stream(light_pdas::program::light_program_impl(args.into(), module))
 }
 
+/// Derive macro for manually specifying compressed account variants on an enum.
+///
+/// Generates equivalent code to `#[light_program]` auto-discovery, but allows
+/// specifying account types and seeds explicitly. Useful for external programs
+/// where you don't own the module.
+///
+/// ## Example
+///
+/// ```ignore
+/// #[derive(LightProgram)]
+/// pub enum ProgramAccounts {
+///     #[light_account(pda::seeds = [b"record", ctx.owner])]
+///     Record(MinimalRecord),
+///
+///     #[light_account(pda::seeds = [RECORD_SEED, ctx.owner], pda::zero_copy)]
+///     ZeroCopyRecord(ZeroCopyRecord),
+///
+///     #[light_account(token::seeds = [VAULT_SEED, ctx.mint], token::owner_seeds = [AUTH_SEED])]
+///     Vault,
+///
+///     #[light_account(associated_token)]
+///     Ata,
+/// }
+/// ```
+///
+/// Seed expressions use explicit prefixes:
+/// - `ctx.field` - context account reference
+/// - `data.field` - instruction data parameter
+/// - `b"literal"` or `"literal"` - byte/string literal
+/// - `CONSTANT` or `path::CONSTANT` - constant in SCREAMING_SNAKE_CASE
+#[proc_macro_derive(LightProgram, attributes(light_account))]
+pub fn light_program_derive(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    into_token_stream(light_pdas::program::derive_light_program_impl(input))
+}
+
+/// Pinocchio variant of `#[derive(LightProgram)]`.
+///
+/// Generates pinocchio-compatible code instead of Anchor:
+/// - `BorshSerialize/BorshDeserialize` instead of `AnchorSerialize/AnchorDeserialize`
+/// - `light_account_pinocchio::` paths instead of `light_account::`
+/// - Config/compress/decompress as enum associated functions
+/// - `[u8; 32]` instead of `Pubkey` in generated params
+///
+/// See `#[derive(LightProgram)]` for usage syntax (identical attribute syntax).
+#[proc_macro_derive(LightProgramPinocchio, attributes(light_account))]
+pub fn light_program_pinocchio_derive(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    into_token_stream(light_pdas::program::derive_light_program_pinocchio_impl(
+        input,
+    ))
+}
+
 #[proc_macro_attribute]
 pub fn account(_: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
     into_token_stream(account::account(input))
-}
-
-/// Automatically implements all required traits for compressible accounts.
-///
-/// This derive macro generates HasCompressionInfo, Size, and CompressAs trait implementations.
-/// It supports optional compress_as attribute for custom compression behavior.
-///
-/// ## Example - Basic Usage
-///
-/// ```ignore
-/// use light_sdk_macros::Compressible;
-/// use light_compressible::CompressionInfo;
-/// use solana_pubkey::Pubkey;
-///
-/// #[derive(Compressible)]
-/// pub struct UserRecord {
-///     pub compression_info: Option<CompressionInfo>,
-///     pub owner: Pubkey,
-///     pub name: String,
-///     pub score: u64,
-/// }
-/// ```
-///
-/// ## Example - Custom Compression
-///
-/// ```ignore
-/// use light_sdk_macros::Compressible;
-/// use light_compressible::CompressionInfo;
-/// use solana_pubkey::Pubkey;
-///
-/// #[derive(Compressible)]
-/// #[compress_as(start_time = 0, end_time = None, score = 0)]
-/// pub struct GameSession {
-///     pub compression_info: Option<CompressionInfo>,
-///     pub session_id: u64,        // KEPT
-///     pub player: Pubkey,         // KEPT
-///     pub game_type: String,      // KEPT
-///     pub start_time: u64,        // RESET to 0
-///     pub end_time: Option<u64>,  // RESET to None
-///     pub score: u64,             // RESET to 0
-/// }
-/// ```
-#[proc_macro_derive(Compressible, attributes(compress_as, light_seeds))]
-pub fn compressible_derive(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as DeriveInput);
-    into_token_stream(light_pdas::account::traits::derive_compressible(input))
 }
 
 /// Generates a unified `LightAccount` trait implementation for light account structs.
@@ -314,7 +321,7 @@ pub fn compressible_derive(input: TokenStream) -> TokenStream {
 ///
 /// ```ignore
 /// use light_sdk_macros::{LightAccount, LightDiscriminator, LightHasherSha};
-/// use light_sdk::compressible::CompressionInfo;
+/// use light_account::CompressionInfo;
 /// use solana_pubkey::Pubkey;
 ///
 /// #[derive(Default, Debug, InitSpace, LightAccount, LightDiscriminator, LightHasherSha)]
@@ -354,6 +361,46 @@ pub fn compressible_derive(input: TokenStream) -> TokenStream {
 pub fn light_account_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     into_token_stream(light_pdas::account::derive::derive_light_account(input))
+}
+
+/// Pinocchio variant of `LightAccount` derive macro.
+///
+/// Same as `#[derive(LightAccount)]` but generates pinocchio-compatible code:
+/// - Uses `BorshSerialize/BorshDeserialize` instead of Anchor serialization
+/// - Uses `light_account_pinocchio::` paths for on-chain code
+/// - Uses `core::mem::size_of::<Self>()` for INIT_SPACE (always zero-copy style)
+///
+/// ## Example
+///
+/// ```ignore
+/// use light_sdk_macros::{LightPinocchioAccount, LightDiscriminator, LightHasherSha};
+/// use light_account_pinocchio::CompressionInfo;
+///
+/// #[derive(
+///     Default, Debug, Clone, PartialEq,
+///     BorshSerialize, BorshDeserialize,
+///     LightDiscriminator, LightHasherSha,
+///     LightPinocchioAccount,
+/// )]
+/// #[repr(C)]
+/// pub struct MinimalRecord {
+///     pub compression_info: CompressionInfo,
+///     pub owner: [u8; 32],
+/// }
+/// ```
+///
+/// ## Requirements
+///
+/// - The `compression_info` field must be non-Option `CompressionInfo` type
+/// - The `compression_info` field must be first or last field in the struct
+/// - Struct should be `#[repr(C)]` for predictable memory layout
+/// - Use `[u8; 32]` instead of `Pubkey` for address fields
+#[proc_macro_derive(LightPinocchioAccount, attributes(compress_as, skip))]
+pub fn light_pinocchio_account_derive(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    into_token_stream(light_pdas::account::derive::derive_light_pinocchio_account(
+        input,
+    ))
 }
 
 /// Derives a Rent Sponsor PDA for a program at compile time.
@@ -398,7 +445,7 @@ pub fn derive_light_rent_sponsor(input: TokenStream) -> TokenStream {
 /// - Accounts marked with `#[light_account(init, mint, ...)]` (compressed mints)
 /// - Accounts marked with `#[light_account(token, ...)]` (rent-free token accounts)
 ///
-/// The trait is defined in `light_sdk::interface::LightFinalize`.
+/// The trait is defined in `light_account::LightFinalize`.
 ///
 /// ## Usage - PDAs
 ///

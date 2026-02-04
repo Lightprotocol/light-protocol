@@ -3,8 +3,7 @@
 //! Tests `#[light_account(init, zero_copy)]` with context account seeds.
 
 use anchor_lang::prelude::*;
-use light_sdk::{interface::CompressionInfo, LightDiscriminator};
-use light_sdk_macros::LightAccount;
+use light_account::{CompressionInfo, LightAccount, LightDiscriminator};
 
 /// Zero-copy record with authority field for testing ctx.accounts.* seed packing.
 /// The authority field will be used in PDA seeds derived from ctx.accounts.authority.

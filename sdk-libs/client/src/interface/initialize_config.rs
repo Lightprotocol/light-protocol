@@ -4,7 +4,6 @@
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
-use light_sdk::interface::config::LightConfig;
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
 
@@ -88,7 +87,14 @@ impl InitializeRentFreeConfig {
 
     pub fn build(self) -> (Instruction, Pubkey) {
         let authority = self.authority.unwrap_or(self.fee_payer);
-        let (config_pda, _) = LightConfig::derive_pda(&self.program_id, self.config_bump);
+        let config_bump_u16 = self.config_bump as u16;
+        let (config_pda, _) = Pubkey::find_program_address(
+            &[
+                light_account::LIGHT_CONFIG_SEED,
+                &config_bump_u16.to_le_bytes(),
+            ],
+            &self.program_id,
+        );
 
         let accounts = vec![
             AccountMeta::new(self.fee_payer, true), // payer

@@ -22,6 +22,12 @@
 //! pub vault: UncheckedAccount<'info>,
 //! ```
 
+/// Valid keys for `pda::` namespace in `#[light_account(pda::...)]` attributes.
+/// Used by `#[derive(LightProgram)]` enum variants.
+/// - `seeds`: PDA seeds for account derivation
+/// - `zero_copy`: Flag indicating zero-copy deserialization
+pub const PDA_NAMESPACE_KEYS: &[&str] = &["seeds", "zero_copy"];
+
 /// Valid keys for `token::` namespace in `#[light_account(init, token::...)]` attributes.
 /// These map to the TokenAccountField struct.
 /// - `seeds`: Token account PDA seeds (for signing as the token account) - can be dynamic
@@ -42,8 +48,6 @@ pub const MINT_NAMESPACE_KEYS: &[&str] = &[
     "freeze_authority",
     "authority_seeds",
     "authority_bump",
-    "rent_payment",
-    "write_top_up",
     "name",
     "symbol",
     "uri",
@@ -93,6 +97,7 @@ pub fn is_shorthand_key(namespace: &str, key: &str) -> bool {
 /// A slice of valid key strings for the namespace.
 pub fn valid_keys_for_namespace(namespace: &str) -> &'static [&'static str] {
     match namespace {
+        "pda" => PDA_NAMESPACE_KEYS,
         "token" => TOKEN_NAMESPACE_KEYS,
         "associated_token" => ASSOCIATED_TOKEN_NAMESPACE_KEYS,
         "mint" => MINT_NAMESPACE_KEYS,
@@ -113,7 +118,7 @@ pub fn validate_namespaced_key(namespace: &str, key: &str) -> Result<(), String>
 
     if valid_keys.is_empty() {
         return Err(format!(
-            "Unknown namespace `{}`. Expected: token, associated_token, or mint",
+            "Unknown namespace `{}`. Expected: pda, token, associated_token, or mint",
             namespace
         ));
     }
@@ -142,7 +147,7 @@ pub fn unknown_key_error(namespace: &str, key: &str) -> String {
     let valid = valid_keys_for_namespace(namespace);
     if valid.is_empty() {
         format!(
-            "Unknown namespace `{}`. Expected: token, associated_token, or mint",
+            "Unknown namespace `{}`. Expected: pda, token, associated_token, or mint",
             namespace
         )
     } else {
@@ -174,6 +179,13 @@ pub fn missing_namespace_error(key: &str, account_type: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_pda_namespace_keys() {
+        assert!(PDA_NAMESPACE_KEYS.contains(&"seeds"));
+        assert!(PDA_NAMESPACE_KEYS.contains(&"zero_copy"));
+        assert!(!PDA_NAMESPACE_KEYS.contains(&"unknown"));
+    }
 
     #[test]
     fn test_token_namespace_keys() {
@@ -244,6 +256,9 @@ mod tests {
 
     #[test]
     fn test_valid_keys_for_namespace() {
+        let pda_kw = valid_keys_for_namespace("pda");
+        assert_eq!(pda_kw, PDA_NAMESPACE_KEYS);
+
         let token_kw = valid_keys_for_namespace("token");
         assert_eq!(token_kw, TOKEN_NAMESPACE_KEYS);
 

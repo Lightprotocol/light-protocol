@@ -13,7 +13,7 @@ use light_token::{
     spl_interface::find_spl_interface_pda_with_index,
 };
 use light_token_types::CPI_AUTHORITY_PDA;
-use native_ctoken_examples::{
+use sdk_light_token_test::{
     TransferFromSplData, TransferTokenToSplData, ID, TRANSFER_AUTHORITY_SEED,
 };
 use solana_sdk::{
@@ -28,7 +28,7 @@ use solana_sdk::{
 async fn test_spl_to_ctoken_invoke() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
         false,
-        Some(vec![("native_ctoken_examples", ID)]),
+        Some(vec![("sdk_light_token_test", ID)]),
     ))
     .await
     .unwrap();
@@ -166,7 +166,7 @@ async fn test_spl_to_ctoken_invoke() {
 async fn test_ctoken_to_spl_invoke() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
         false,
-        Some(vec![("native_ctoken_examples", ID)]),
+        Some(vec![("sdk_light_token_test", ID)]),
     ))
     .await
     .unwrap();
@@ -333,7 +333,7 @@ async fn test_spl_to_ctoken_invoke_signed() {
 
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
         false,
-        Some(vec![("native_ctoken_examples", ID)]),
+        Some(vec![("sdk_light_token_test", ID)]),
     ))
     .await
     .unwrap();
@@ -452,7 +452,7 @@ async fn test_spl_to_ctoken_invoke_signed() {
 async fn test_ctoken_to_spl_invoke_signed() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
         false,
-        Some(vec![("native_ctoken_examples", ID)]),
+        Some(vec![("sdk_light_token_test", ID)]),
     ))
     .await
     .unwrap();

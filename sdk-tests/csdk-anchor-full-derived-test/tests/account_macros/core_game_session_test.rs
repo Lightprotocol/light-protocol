@@ -10,11 +10,9 @@
 //! which overrides field values during compression.
 
 use csdk_anchor_full_derived_test::{GameSession, PackedGameSession};
+use light_account::{CompressAs, CompressionInfo, Pack};
 use light_hasher::{DataHasher, Sha256};
-use light_sdk::{
-    compressible::{CompressAs, CompressionInfo, Pack},
-    instruction::PackedAccounts,
-};
+use light_sdk::instruction::PackedAccounts;
 use solana_pubkey::Pubkey;
 
 use super::shared::CompressibleTestFactory;
@@ -442,11 +440,13 @@ fn test_pack_stores_pubkeys_in_packed_accounts() {
     let stored_pubkeys = packed_accounts.packed_pubkeys();
     assert_eq!(stored_pubkeys.len(), 2, "should have 2 pubkeys stored");
     assert_eq!(
-        stored_pubkeys[packed1.player as usize], player1,
+        stored_pubkeys[packed1.player as usize],
+        player1.to_bytes(),
         "first pubkey should match"
     );
     assert_eq!(
-        stored_pubkeys[packed2.player as usize], player2,
+        stored_pubkeys[packed2.player as usize],
+        player2.to_bytes(),
         "second pubkey should match"
     );
 }

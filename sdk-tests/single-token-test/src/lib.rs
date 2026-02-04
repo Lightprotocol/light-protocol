@@ -6,11 +6,10 @@
 #![allow(deprecated)]
 
 use anchor_lang::prelude::*;
-use light_compressible::CreateAccountsProof;
-use light_sdk::derive_light_cpi_signer;
-use light_sdk_macros::{light_program, LightAccounts};
-use light_sdk_types::CpiSigner;
-use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
+use light_account::{
+    derive_light_cpi_signer, light_program, CpiSigner, CreateAccountsProof, LightAccounts,
+    LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR,
+};
 
 declare_id!("TknT111111111111111111111111111111111111111");
 

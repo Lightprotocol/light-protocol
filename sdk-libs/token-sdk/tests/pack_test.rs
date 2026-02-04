@@ -1,6 +1,6 @@
 #![cfg(feature = "compressible")]
 
-use light_sdk::instruction::PackedAccounts;
+use light_account::PackedAccounts;
 use light_token::{
     compat::{PackedCompressibleTokenDataWithVariant, TokenData, TokenDataWithVariant},
     pack::Pack,

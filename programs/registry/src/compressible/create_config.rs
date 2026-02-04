@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use light_compressible::config::{CompressibleConfig, COMPRESSIBLE_CONFIG_SEED};
+use light_compressible::config::{CompressibleConfig, LIGHT_CONFIG_SEED};
 
 /// Context for creating a compressible config
 #[derive(Accounts)]
@@ -20,7 +20,7 @@ pub struct CreateCompressibleConfig<'info> {
 
     #[account(
         init,
-        seeds = [COMPRESSIBLE_CONFIG_SEED, &config_counter.counter.to_le_bytes()],
+        seeds = [LIGHT_CONFIG_SEED, &config_counter.counter.to_le_bytes()],
         bump,
         space = 8 + std::mem::size_of::<CompressibleConfig>(),
         payer = fee_payer,

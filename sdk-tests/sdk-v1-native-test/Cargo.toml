@@ -9,7 +9,7 @@ publish = false
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "sdk_native_test"
+name = "sdk_v1_native_test"
 
 [features]
 no-entrypoint = []

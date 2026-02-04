@@ -3,10 +3,10 @@
 use darling::FromMeta;
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{punctuated::Punctuated, DeriveInput, Expr, Field, Ident, ItemStruct, Result, Token};
+use syn::{punctuated::Punctuated, Expr, Field, Ident, ItemStruct, Result, Token};
 
 use super::{
-    utils::{extract_fields_from_derive_input, extract_fields_from_item_struct, is_copy_type},
+    utils::{extract_fields_from_item_struct, is_copy_type},
     validation::validate_compression_info_field,
 };
 
@@ -69,13 +69,13 @@ fn generate_has_compression_info_impl(
     compression_info_first: bool,
 ) -> TokenStream {
     quote! {
-        impl light_sdk::interface::CompressionInfoField for #struct_name {
+        impl light_account::CompressionInfoField for #struct_name {
             const COMPRESSION_INFO_FIRST: bool = #compression_info_first;
 
-            fn compression_info_field(&self) -> &Option<light_sdk::interface::CompressionInfo> {
+            fn compression_info_field(&self) -> &Option<light_account::CompressionInfo> {
                 &self.compression_info
             }
-            fn compression_info_field_mut(&mut self) -> &mut Option<light_sdk::interface::CompressionInfo> {
+            fn compression_info_field_mut(&mut self) -> &mut Option<light_account::CompressionInfo> {
                 &mut self.compression_info
             }
         }
@@ -135,7 +135,7 @@ fn generate_compress_as_impl(
     field_assignments: &[TokenStream],
 ) -> TokenStream {
     quote! {
-        impl light_sdk::interface::CompressAs for #struct_name {
+        impl light_account::CompressAs for #struct_name {
             type Output = Self;
 
             fn compress_as(&self) -> std::borrow::Cow<'_, Self::Output> {
@@ -144,34 +144,6 @@ fn generate_compress_as_impl(
                     #(#field_assignments)*
                 })
             }
-        }
-    }
-}
-
-/// Generates the Size trait implementation.
-/// Uses max(INIT_SPACE, serialized_len) to ensure enough space while handling edge cases.
-fn generate_size_impl(struct_name: &Ident) -> TokenStream {
-    quote! {
-        impl light_sdk::account::Size for #struct_name {
-            #[inline]
-            fn size(&self) -> std::result::Result<usize, solana_program_error::ProgramError> {
-                // Use Anchor's compile-time INIT_SPACE as the baseline.
-                // Fall back to serialized length if it's somehow larger (edge case safety).
-                let init_space = <Self as anchor_lang::Space>::INIT_SPACE;
-                let serialized_len = self.try_to_vec()
-                    .map_err(|_| solana_program_error::ProgramError::BorshIoError("serialization failed".to_string()))?
-                    .len();
-                Ok(core::cmp::max(init_space, serialized_len))
-            }
-        }
-    }
-}
-
-/// Generates the CompressedInitSpace trait implementation
-fn generate_compressed_init_space_impl(struct_name: &Ident) -> TokenStream {
-    quote! {
-        impl light_sdk::interface::CompressedInitSpace for #struct_name {
-            const COMPRESSED_INIT_SPACE: usize = Self::LIGHT_DISCRIMINATOR.len() + Self::INIT_SPACE;
         }
     }
 }
@@ -206,45 +178,4 @@ pub fn derive_has_compression_info(input: syn::ItemStruct) -> Result<TokenStream
         struct_name,
         compression_info_first,
     ))
-}
-
-pub fn derive_compressible(input: DeriveInput) -> Result<TokenStream> {
-    let struct_name = &input.ident;
-    let fields = extract_fields_from_derive_input(&input)?;
-
-    // Extract compress_as attribute using darling
-    let compress_as_attr = input
-        .attrs
-        .iter()
-        .find(|attr| attr.path().is_ident("compress_as"));
-
-    let compress_as_fields = if let Some(attr) = compress_as_attr {
-        let parsed = CompressAsFields::from_meta(&attr.meta)
-            .map_err(|e| syn::Error::new_spanned(attr, e.to_string()))?;
-        Some(parsed)
-    } else {
-        None
-    };
-
-    // Validate compression_info field exists and get its position
-    let compression_info_first = validate_compression_info_field(fields, struct_name)?;
-
-    // Generate all trait implementations using helper functions
-    let has_compression_info_impl =
-        generate_has_compression_info_impl(struct_name, compression_info_first);
-
-    let field_assignments = generate_compress_as_field_assignments(fields, &compress_as_fields);
-    let compress_as_impl = generate_compress_as_impl(struct_name, &field_assignments);
-
-    let size_impl = generate_size_impl(struct_name);
-
-    let compressed_init_space_impl = generate_compressed_init_space_impl(struct_name);
-
-    // Combine all implementations
-    Ok(quote! {
-        #has_compression_info_impl
-        #compress_as_impl
-        #size_impl
-        #compressed_init_space_impl
-    })
 }

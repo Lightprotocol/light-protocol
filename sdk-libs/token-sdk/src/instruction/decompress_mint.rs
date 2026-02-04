@@ -16,7 +16,7 @@ use crate::{
     instruction::SystemAccountInfos,
 };
 
-/// Decompress a compressed mint to a Mint Solana account.
+/// Decompress a Light Mint to a Mint Solana account.
 ///
 /// Creates an on-chain Mint PDA that becomes the source of truth.
 /// The Mint is always compressible.
@@ -41,15 +41,15 @@ pub struct DecompressMint {
     pub payer: Pubkey,
     /// Mint authority (must sign)
     pub authority: Pubkey,
-    /// State tree for the compressed mint
+    /// State tree for the Light Mint
     pub state_tree: Pubkey,
-    /// Input queue for reading compressed mint
+    /// Input queue for reading Light Mint
     pub input_queue: Pubkey,
-    /// Output queue for updated compressed mint
+    /// Output queue for updated Light Mint
     pub output_queue: Pubkey,
-    /// Compressed mint with context (from indexer)
+    /// Light Mint with context (from indexer)
     pub compressed_mint_with_context: MintWithContext,
-    /// Validity proof for the compressed mint
+    /// Validity proof for the Light Mint
     pub proof: ValidityProof,
     /// Rent payment in epochs (must be >= 2)
     pub rent_payment: u8,
@@ -59,7 +59,7 @@ pub struct DecompressMint {
 
 impl DecompressMint {
     pub fn instruction(self) -> Result<Instruction, ProgramError> {
-        // Get Mint PDA from compressed mint metadata
+        // Get Mint PDA from Light Mint metadata
         let mint_data = self
             .compressed_mint_with_context
             .mint
@@ -108,7 +108,7 @@ impl DecompressMint {
 // CPI Struct: DecompressMintCpi
 // ============================================================================
 
-/// Decompress a compressed mint to a Mint Solana account via CPI.
+/// Decompress a Light Mint to a Mint Solana account via CPI.
 ///
 /// Creates an on-chain Mint PDA that becomes the source of truth.
 /// The Mint is always compressible.
@@ -143,17 +143,17 @@ pub struct DecompressMintCpi<'info> {
     pub compressible_config: AccountInfo<'info>,
     /// Rent sponsor PDA account
     pub rent_sponsor: AccountInfo<'info>,
-    /// State tree for the compressed mint
+    /// State tree for the Light Mint
     pub state_tree: AccountInfo<'info>,
-    /// Input queue for reading compressed mint
+    /// Input queue for reading Light Mint
     pub input_queue: AccountInfo<'info>,
-    /// Output queue for updated compressed mint
+    /// Output queue for updated Light Mint
     pub output_queue: AccountInfo<'info>,
     /// System accounts for Light Protocol
     pub system_accounts: SystemAccountInfos<'info>,
-    /// Compressed mint with context (from indexer)
+    /// Light Mint with context (from indexer)
     pub compressed_mint_with_context: MintWithContext,
-    /// Validity proof for the compressed mint
+    /// Validity proof for the Light Mint
     pub proof: ValidityProof,
     /// Rent payment in epochs (must be >= 2)
     pub rent_payment: u8,
@@ -233,7 +233,7 @@ impl<'info> TryFrom<&DecompressMintCpi<'info>> for DecompressMint {
     }
 }
 
-/// Decompress a compressed mint with CPI context support.
+/// Decompress a Light Mint with CPI context support.
 ///
 /// For use in multi-operation ixns where mints are decompressed
 /// along with PDAs and token accounts using a single proof.
@@ -245,15 +245,15 @@ pub struct DecompressCMintWithCpiContext {
     pub payer: Pubkey,
     /// Mint authority (must sign)
     pub authority: Pubkey,
-    /// State tree for the compressed mint
+    /// State tree for the Light Mint
     pub state_tree: Pubkey,
-    /// Input queue for reading compressed mint
+    /// Input queue for reading Light Mint
     pub input_queue: Pubkey,
-    /// Output queue for updated compressed mint
+    /// Output queue for updated Light Mint
     pub output_queue: Pubkey,
-    /// Compressed mint with context (from indexer)
+    /// Light Mint with context (from indexer)
     pub compressed_mint_with_context: MintWithContext,
-    /// Validity proof for the compressed mint
+    /// Validity proof for the Light Mint
     pub proof: ValidityProof,
     /// Rent payment in epochs (must be >= 2)
     pub rent_payment: u8,
@@ -329,11 +329,11 @@ pub struct DecompressCMintCpiWithContext<'info> {
     pub compressible_config: AccountInfo<'info>,
     /// Rent sponsor PDA account
     pub rent_sponsor: AccountInfo<'info>,
-    /// State tree for the compressed mint
+    /// State tree for the Light Mint
     pub state_tree: AccountInfo<'info>,
-    /// Input queue for reading compressed mint
+    /// Input queue for reading Light Mint
     pub input_queue: AccountInfo<'info>,
-    /// Output queue for updated compressed mint
+    /// Output queue for updated Light Mint
     pub output_queue: AccountInfo<'info>,
     /// CPI context account
     pub cpi_context_account: AccountInfo<'info>,
@@ -342,9 +342,9 @@ pub struct DecompressCMintCpiWithContext<'info> {
     /// Light token program's CPI authority (GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy)
     /// This is separate from system_accounts.cpi_authority_pda which is the calling program's authority
     pub light_token_cpi_authority: AccountInfo<'info>,
-    /// Compressed mint with context (from indexer)
+    /// Light Mint with context (from indexer)
     pub compressed_mint_with_context: MintWithContext,
-    /// Validity proof for the compressed mint
+    /// Validity proof for the Light Mint
     pub proof: ValidityProof,
     /// Rent payment in epochs (must be >= 2)
     pub rent_payment: u8,

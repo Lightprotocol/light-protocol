@@ -1,12 +1,12 @@
 //! Integration test for single token vault macro validation.
 
 use anchor_lang::{InstructionData, ToAccountMetas};
+use light_account::derive_rent_sponsor_pda;
 use light_client::interface::{get_create_accounts_proof, InitializeRentFreeConfig};
 use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest},
     Indexer, ProgramTestConfig, Rpc,
 };
-use light_sdk::utils::derive_rent_sponsor_pda;
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
 use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
 use solana_instruction::Instruction;

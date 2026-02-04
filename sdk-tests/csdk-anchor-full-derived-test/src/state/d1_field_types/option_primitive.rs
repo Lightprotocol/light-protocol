@@ -4,8 +4,7 @@
 //! These remain unchanged in the packed struct (not converted to u8 index).
 
 use anchor_lang::prelude::*;
-use light_sdk::{compressible::CompressionInfo, LightDiscriminator};
-use light_sdk_macros::LightAccount;
+use light_account::{CompressionInfo, LightAccount, LightDiscriminator};
 
 /// A struct with Option<primitive> fields.
 /// These stay as Option<T> in the packed struct (not Option<u8>).

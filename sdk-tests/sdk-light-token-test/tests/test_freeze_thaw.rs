@@ -7,7 +7,7 @@ use light_client::rpc::Rpc;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_token::LIGHT_TOKEN_PROGRAM_ID;
 use light_token_interface::state::{AccountState, Token};
-use native_ctoken_examples::{InstructionType, FREEZE_AUTHORITY_SEED, ID};
+use sdk_light_token_test::{InstructionType, FREEZE_AUTHORITY_SEED, ID};
 use shared::*;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
@@ -19,7 +19,7 @@ use solana_sdk::{
 /// Test freezing a Light Token account using FreezeCTokenCpi::invoke()
 #[tokio::test]
 async fn test_freeze_invoke() {
-    let config = ProgramTestConfig::new_v2(true, Some(vec![("native_ctoken_examples", ID)]));
+    let config = ProgramTestConfig::new_v2(true, Some(vec![("sdk_light_token_test", ID)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
 
@@ -85,7 +85,7 @@ async fn test_freeze_invoke() {
 /// Test freezing a Light Token account with PDA freeze authority using FreezeCTokenCpi::invoke_signed()
 #[tokio::test]
 async fn test_freeze_invoke_signed() {
-    let config = ProgramTestConfig::new_v2(true, Some(vec![("native_ctoken_examples", ID)]));
+    let config = ProgramTestConfig::new_v2(true, Some(vec![("sdk_light_token_test", ID)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
 
@@ -139,7 +139,7 @@ async fn test_freeze_invoke_signed() {
 /// Test thawing a frozen Light Token account using ThawCTokenCpi::invoke()
 #[tokio::test]
 async fn test_thaw_invoke() {
-    let config = ProgramTestConfig::new_v2(true, Some(vec![("native_ctoken_examples", ID)]));
+    let config = ProgramTestConfig::new_v2(true, Some(vec![("sdk_light_token_test", ID)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
 
@@ -224,7 +224,7 @@ async fn test_thaw_invoke() {
 /// Test thawing a frozen Light Token account with PDA freeze authority using ThawCTokenCpi::invoke_signed()
 #[tokio::test]
 async fn test_thaw_invoke_signed() {
-    let config = ProgramTestConfig::new_v2(true, Some(vec![("native_ctoken_examples", ID)]));
+    let config = ProgramTestConfig::new_v2(true, Some(vec![("sdk_light_token_test", ID)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
 

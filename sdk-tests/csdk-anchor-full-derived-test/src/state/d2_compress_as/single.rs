@@ -3,8 +3,7 @@
 //! Exercises the code path where one field has a compress_as override.
 
 use anchor_lang::prelude::*;
-use light_sdk::{compressible::CompressionInfo, LightDiscriminator};
-use light_sdk_macros::LightAccount;
+use light_account::{CompressionInfo, LightAccount, LightDiscriminator};
 
 /// A struct with single compress_as override.
 /// cached field is compressed as 0 instead of self.cached.

@@ -6,14 +6,13 @@ use light_token::{
 
 /// Parameters for a single mint within a batch creation.
 /// Does not include proof since proof is shared across all mints.
+/// `mint` and `compression_address` are derived internally from `mint_seed_pubkey`.
 #[derive(Clone, AnchorSerialize, AnchorDeserialize, Debug)]
 pub struct MintParams {
     pub decimals: u8,
-    pub address_merkle_tree_root_index: u16,
     pub mint_authority: Pubkey,
-    pub compression_address: [u8; 32],
-    pub mint: Pubkey,
-    pub bump: u8,
+    /// Optional mint bump. If `None`, derived from `find_mint_address(mint_seed_pubkey)`.
+    pub mint_bump: Option<u8>,
     pub freeze_authority: Option<Pubkey>,
     pub mint_seed_pubkey: Pubkey,
 }
@@ -32,11 +31,17 @@ pub struct CreateMintsParams {
     pub mints: Vec<MintParams>,
     /// Single proof covering all new addresses
     pub proof: CompressedProof,
+    /// Address merkle tree root index (shared across all mints in batch)
+    pub address_merkle_tree_root_index: u16,
 }
 
 impl CreateMintsParams {
-    pub fn new(mints: Vec<MintParams>, proof: CompressedProof) -> Self {
-        Self { mints, proof }
+    pub fn new(mints: Vec<MintParams>, proof: CompressedProof, root_index: u16) -> Self {
+        Self {
+            mints,
+            proof,
+            address_merkle_tree_root_index: root_index,
+        }
     }
 }
 
@@ -51,11 +56,8 @@ pub fn process_create_mints<'a, 'info>(
         .iter()
         .map(|m| SingleMintParams {
             decimals: m.decimals,
-            address_merkle_tree_root_index: m.address_merkle_tree_root_index,
             mint_authority: solana_pubkey::Pubkey::new_from_array(m.mint_authority.to_bytes()),
-            compression_address: m.compression_address,
-            mint: solana_pubkey::Pubkey::new_from_array(m.mint.to_bytes()),
-            bump: m.bump,
+            mint_bump: m.mint_bump,
             freeze_authority: m
                 .freeze_authority
                 .map(|a| solana_pubkey::Pubkey::new_from_array(a.to_bytes())),
@@ -66,7 +68,11 @@ pub fn process_create_mints<'a, 'info>(
         })
         .collect();
 
-    let sdk_params = SdkCreateMintsParams::new(&sdk_mints, params.proof);
+    let sdk_params = SdkCreateMintsParams::new(
+        &sdk_mints,
+        params.proof,
+        params.address_merkle_tree_root_index,
+    );
 
     let payer = ctx.accounts.signer.to_account_info();
     create_mints(&payer, ctx.remaining_accounts, sdk_params)

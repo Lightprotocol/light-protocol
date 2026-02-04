@@ -5,12 +5,9 @@
 
 use std::borrow::Cow;
 
+use light_account::{CompressAs, CompressedInitSpace, CompressionState, HasCompressionInfo, Size};
 use light_hasher::{DataHasher, Sha256};
-use light_sdk::{
-    account::Size,
-    compressible::{CompressAs, CompressedInitSpace, CompressionState, HasCompressionInfo},
-    LightDiscriminator,
-};
+use light_sdk::LightDiscriminator;
 
 // =============================================================================
 // Test Factory Trait
@@ -125,10 +122,7 @@ pub fn assert_set_compression_info_none_works<T: HasCompressionInfo + Compressib
     let initial = record
         .compression_info()
         .expect("compression_info should return Ok");
-    assert_eq!(
-        initial.state,
-        light_sdk::compressible::CompressionState::default()
-    );
+    assert_eq!(initial.state, light_account::CompressionState::default());
 
     record
         .set_compression_info_none()

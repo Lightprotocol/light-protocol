@@ -75,7 +75,7 @@ pub enum LightSdkError {
     InvalidCpiContextAccount,
     #[error("Invalid SolPool PDA account")]
     InvalidSolPoolPdaAccount,
-    #[error("CpigAccounts accounts slice starts with an invalid account. It should start with LightSystemProgram SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7.")]
+    #[error("CpiAccounts accounts slice starts with an invalid account. It should start with LightSystemProgram SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7.")]
     InvalidCpiAccountsOffset,
     #[error("Expected LightAccount to have no data for closure.")]
     ExpectedNoData,
@@ -129,6 +129,34 @@ impl From<LightSdkError> for ProgramError {
     }
 }
 
+/// Convert from SDK's LightSdkError to LightSdkTypesError.
+/// This allows SDK error types to be used where types error types are expected
+/// (e.g., in trait impls for LightPreInit, LightFinalize, AccountMetasVec).
+impl From<LightSdkError> for LightSdkTypesError {
+    fn from(e: LightSdkError) -> Self {
+        match e {
+            LightSdkError::ConstraintViolation => LightSdkTypesError::ConstraintViolation,
+            LightSdkError::Borsh => LightSdkTypesError::Borsh,
+            LightSdkError::AccountError(e) => LightSdkTypesError::AccountError(e),
+            LightSdkError::Hasher(e) => LightSdkTypesError::Hasher(e),
+            LightSdkError::MissingCompressionInfo => LightSdkTypesError::MissingCompressionInfo,
+            LightSdkError::InvalidRentSponsor => LightSdkTypesError::InvalidRentSponsor,
+            LightSdkError::CpiAccountsIndexOutOfBounds(i) => {
+                LightSdkTypesError::CpiAccountsIndexOutOfBounds(i)
+            }
+            LightSdkError::ReadOnlyAccountsNotSupportedInCpiContext => {
+                LightSdkTypesError::ReadOnlyAccountsNotSupportedInCpiContext
+            }
+            LightSdkError::CompressedAccountError(e) => {
+                LightSdkTypesError::CompressedAccountError(e)
+            }
+            LightSdkError::ProgramError(e) => LightSdkTypesError::ProgramError(u64::from(e) as u32),
+            _ => LightSdkTypesError::ConstraintViolation,
+        }
+    }
+}
+
+/// Convert from LightSdkTypesError to SDK's LightSdkError.
 impl From<LightSdkTypesError> for LightSdkError {
     fn from(e: LightSdkTypesError) -> Self {
         match e {
@@ -156,6 +184,26 @@ impl From<LightSdkTypesError> for LightSdkError {
             LightSdkTypesError::InvalidCpiAccountsOffset => LightSdkError::InvalidCpiAccountsOffset,
             LightSdkTypesError::AccountError(e) => LightSdkError::AccountError(e),
             LightSdkTypesError::Hasher(e) => LightSdkError::Hasher(e),
+            LightSdkTypesError::ConstraintViolation => LightSdkError::ConstraintViolation,
+            LightSdkTypesError::Borsh => LightSdkError::Borsh,
+            LightSdkTypesError::MissingCompressionInfo => LightSdkError::MissingCompressionInfo,
+            LightSdkTypesError::InvalidRentSponsor => LightSdkError::InvalidRentSponsor,
+            LightSdkTypesError::BorshIo(_) => LightSdkError::Borsh,
+            LightSdkTypesError::ReadOnlyAccountsNotSupportedInCpiContext => {
+                LightSdkError::ReadOnlyAccountsNotSupportedInCpiContext
+            }
+            LightSdkTypesError::CompressedAccountError(e) => {
+                LightSdkError::CompressedAccountError(e)
+            }
+            LightSdkTypesError::AccountDataTooSmall
+            | LightSdkTypesError::InvalidInstructionData
+            | LightSdkTypesError::InvalidSeeds
+            | LightSdkTypesError::CpiFailed
+            | LightSdkTypesError::NotEnoughAccountKeys
+            | LightSdkTypesError::MissingRequiredSignature => LightSdkError::ConstraintViolation,
+            LightSdkTypesError::ProgramError(code) => {
+                LightSdkError::ProgramError(ProgramError::Custom(code))
+            }
         }
     }
 }

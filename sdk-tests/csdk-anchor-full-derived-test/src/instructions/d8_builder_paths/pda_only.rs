@@ -4,8 +4,7 @@
 //! are marked with #[light_account(init)], without any token accounts.
 
 use anchor_lang::prelude::*;
-use light_compressible::CreateAccountsProof;
-use light_sdk_macros::LightAccounts;
+use light_account::{CreateAccountsProof, LightAccounts};
 
 use crate::state::d1_field_types::single_pubkey::SinglePubkeyRecord;
 

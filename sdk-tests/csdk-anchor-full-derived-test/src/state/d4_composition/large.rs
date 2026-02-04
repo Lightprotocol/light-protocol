@@ -3,8 +3,7 @@
 //! Exercises the hash mode selection for large structs (SHA256 path).
 
 use anchor_lang::prelude::*;
-use light_sdk::{compressible::CompressionInfo, LightDiscriminator};
-use light_sdk_macros::LightAccount;
+use light_account::{CompressionInfo, LightAccount, LightDiscriminator};
 
 /// Large struct with 12+ fields for SHA256 hash mode.
 #[derive(Default, Debug, InitSpace, LightAccount)]

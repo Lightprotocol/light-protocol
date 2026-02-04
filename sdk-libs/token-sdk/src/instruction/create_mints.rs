@@ -1,6 +1,6 @@
-//! Create multiple compressed mints and decompress all to Solana Mint accounts.
+//! Create multiple Light Mints and decompress all to Solana Mint accounts.
 //!
-//! This module provides functionality for batch creating compressed mints with
+//! This module provides functionality for batch creating Light Mints with
 //! optimal CPI batching. When creating multiple mints, it uses the CPI context
 //! pattern to minimize transaction overhead.
 //!
@@ -41,16 +41,15 @@ pub const DEFAULT_WRITE_TOP_UP: u32 = 766;
 /// Parameters for a single mint within a batch creation.
 ///
 /// Does not include proof since proof is shared across all mints in the batch.
+/// `mint` and `compression_address` are derived internally from `mint_seed_pubkey`.
 #[derive(Debug, Clone)]
 pub struct SingleMintParams<'a> {
     pub decimals: u8,
-    pub address_merkle_tree_root_index: u16,
     pub mint_authority: Pubkey,
-    pub compression_address: [u8; 32],
-    pub mint: Pubkey,
-    pub bump: u8,
+    /// Optional mint bump. If `None`, derived from `find_mint_address(mint_seed_pubkey)`.
+    pub mint_bump: Option<u8>,
     pub freeze_authority: Option<Pubkey>,
-    /// Mint seed pubkey (signer) for this mint
+    /// Mint seed pubkey (signer) for this mint. Used to derive `mint` PDA and `compression_address`.
     pub mint_seed_pubkey: Pubkey,
     /// Optional authority seeds for PDA signing
     pub authority_seeds: Option<&'a [&'a [u8]]>,
@@ -60,9 +59,9 @@ pub struct SingleMintParams<'a> {
     pub token_metadata: Option<&'a TokenMetadataInstructionData>,
 }
 
-/// Parameters for creating one or more compressed mints with decompression.
+/// Parameters for creating one or more Light Mints with decompression.
 ///
-/// Creates N compressed mints and decompresses all to Solana Mint accounts.
+/// Creates N Light Mints and decompresses all to Solana Mint accounts.
 /// Uses CPI context pattern when N > 1 for efficiency.
 #[derive(Debug, Clone)]
 pub struct CreateMintsParams<'a> {
@@ -70,6 +69,8 @@ pub struct CreateMintsParams<'a> {
     pub mints: &'a [SingleMintParams<'a>],
     /// Single proof covering all new addresses
     pub proof: light_compressed_account::instruction_data::compressed_proof::CompressedProof,
+    /// Root index for the address merkle tree (shared by all mints in batch).
+    pub address_merkle_tree_root_index: u16,
     /// Rent payment in epochs for the Mint account (must be 0 or >= 2).
     /// Default: 16 (~24 hours)
     pub rent_payment: u8,
@@ -98,10 +99,12 @@ impl<'a> CreateMintsParams<'a> {
     pub fn new(
         mints: &'a [SingleMintParams<'a>],
         proof: light_compressed_account::instruction_data::compressed_proof::CompressedProof,
+        address_merkle_tree_root_index: u16,
     ) -> Self {
         Self {
             mints,
             proof,
+            address_merkle_tree_root_index,
             rent_payment: DEFAULT_RENT_PAYMENT,
             write_top_up: DEFAULT_WRITE_TOP_UP,
             cpi_context_offset: 0,
@@ -239,8 +242,10 @@ impl<'a, 'info> CreateMintsCpi<'a, 'info> {
     #[inline(never)]
     fn invoke_single_mint(self) -> Result<(), ProgramError> {
         let mint_params = &self.params.mints[0];
+        let (mint, bump) = get_mint_and_bump(mint_params);
 
-        let mint_data = build_mint_instruction_data(mint_params, self.mint_seed_accounts[0].key);
+        let mint_data =
+            build_mint_instruction_data(mint_params, self.mint_seed_accounts[0].key, mint, bump);
 
         let decompress_action = DecompressMintAction {
             rent_payment: self.params.rent_payment,
@@ -248,7 +253,7 @@ impl<'a, 'info> CreateMintsCpi<'a, 'info> {
         };
 
         let instruction_data = MintActionCompressedInstructionData::new_mint(
-            mint_params.address_merkle_tree_root_index,
+            self.params.address_merkle_tree_root_index,
             self.params.proof,
             mint_data,
         )
@@ -306,6 +311,7 @@ impl<'a, 'info> CreateMintsCpi<'a, 'info> {
     fn invoke_cpi_write(&self, index: usize) -> Result<(), ProgramError> {
         let mint_params = &self.params.mints[index];
         let offset = self.params.cpi_context_offset;
+        let (mint, bump) = get_mint_and_bump(mint_params);
 
         // When sharing CPI context with PDAs:
         // - first_set_context: only true for index 0 AND offset 0 (first write to context)
@@ -323,11 +329,15 @@ impl<'a, 'info> CreateMintsCpi<'a, 'info> {
             address_tree_pubkey: self.address_tree.key.to_bytes(),
         };
 
-        let mint_data =
-            build_mint_instruction_data(mint_params, self.mint_seed_accounts[index].key);
+        let mint_data = build_mint_instruction_data(
+            mint_params,
+            self.mint_seed_accounts[index].key,
+            mint,
+            bump,
+        );
 
         let instruction_data = MintActionCompressedInstructionData::new_mint_write_to_cpi_context(
-            mint_params.address_merkle_tree_root_index,
+            self.params.address_merkle_tree_root_index,
             mint_data,
             cpi_context,
         );
@@ -389,15 +399,20 @@ impl<'a, 'info> CreateMintsCpi<'a, 'info> {
     ) -> Result<(), ProgramError> {
         let mint_params = &self.params.mints[last_idx];
         let offset = self.params.cpi_context_offset;
+        let (mint, bump) = get_mint_and_bump(mint_params);
 
-        let mint_data =
-            build_mint_instruction_data(mint_params, self.mint_seed_accounts[last_idx].key);
+        let mint_data = build_mint_instruction_data(
+            mint_params,
+            self.mint_seed_accounts[last_idx].key,
+            mint,
+            bump,
+        );
 
         // Create struct directly to reduce stack usage (avoid builder pattern intermediates)
         let instruction_data = MintActionCompressedInstructionData {
             leaf_index: 0,
             prove_by_index: false,
-            root_index: mint_params.address_merkle_tree_root_index,
+            root_index: self.params.address_merkle_tree_root_index,
             max_top_up: 0,
             create_mint: Some(CreateMint::default()),
             actions: vec![Action::DecompressMint(*decompress_action)],
@@ -444,9 +459,14 @@ impl<'a, 'info> CreateMintsCpi<'a, 'info> {
         decompress_action: &DecompressMintAction,
     ) -> Result<(), ProgramError> {
         let mint_params = &self.params.mints[index];
+        let (mint, bump) = get_mint_and_bump(mint_params);
 
-        let mint_data =
-            build_mint_instruction_data(mint_params, self.mint_seed_accounts[index].key);
+        let mint_data = build_mint_instruction_data(
+            mint_params,
+            self.mint_seed_accounts[index].key,
+            mint,
+            bump,
+        );
 
         let instruction_data = MintActionCompressedInstructionData {
             leaf_index: base_leaf_index + index as u32,
@@ -544,11 +564,23 @@ impl<'a, 'info> CreateMintsCpi<'a, 'info> {
     }
 }
 
+/// Get mint PDA and bump, deriving mint always and bump if None.
+#[inline(never)]
+fn get_mint_and_bump(params: &SingleMintParams) -> (Pubkey, u8) {
+    let (mint, derived_bump) = super::find_mint_address(&params.mint_seed_pubkey);
+    let bump = params.mint_bump.unwrap_or(derived_bump);
+    (mint, bump)
+}
+
 /// Build MintInstructionData for a single mint.
+///
+/// `mint` and `bump` are derived externally from `mint_seed_pubkey` using `get_mint_and_bump`.
 #[inline(never)]
 fn build_mint_instruction_data(
     mint_params: &SingleMintParams<'_>,
     mint_signer: &Pubkey,
+    mint: Pubkey,
+    bump: u8,
 ) -> MintInstructionData {
     // Convert token_metadata to extensions if present
     let extensions = mint_params
@@ -561,10 +593,10 @@ fn build_mint_instruction_data(
         decimals: mint_params.decimals,
         metadata: MintMetadata {
             version: 3,
-            mint: mint_params.mint.to_bytes().into(),
+            mint: mint.to_bytes().into(),
             mint_decompressed: false,
             mint_signer: mint_signer.to_bytes(),
-            bump: mint_params.bump,
+            bump,
         },
         mint_authority: Some(mint_params.mint_authority.to_bytes().into()),
         freeze_authority: mint_params.freeze_authority.map(|a| a.to_bytes().into()),

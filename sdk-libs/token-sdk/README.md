@@ -2,7 +2,7 @@
 
 # Light Token SDK
 
-The base library to use Light Token Accounts, Light Mints, and compressed token accounts.
+The base library to use Light Token Accounts, and Light Mints.
 
 ## Light Token Accounts
 - are on Solana devnet.
@@ -15,23 +15,16 @@ The base library to use Light Token Accounts, Light Mints, and compressed token 
     - rent is 388 lamports per rent epoch (1.5 hours).
     - once the account's lamports balance is insufficient, it is auto-compressed to a compressed token account.
     - the accounts state is cryptographically preserved on the Solana ledger.
-    - compressed tokens can be decompressed to a Light Token account.
+    - compressed tokens can be loaded to a Light Token account.
     - configurable lamports per write (eg transfer) keep the Light Token account perpetually funded when used. So you don't have to worry about funding rent.
     - users load a compressed account into a light account in-flight when using the account again.
 
 ## Light Mints
 - are on Solana devnet.
 - are Compressed accounts.
-- cost 15,000 lamports to create.
 - support `TokenMetadata`.
 - have the same rent-config as light token accounts
 
-## Compressed Token Accounts
-- are on Solana mainnet.
-- are compressed accounts.
-- can hold Light Mint and SPL Mint tokens.
-- cost 5,000 lamports to create.
-- are well suited for airdrops and reward distribution.
 
 For full program examples, see the [Light Token Examples](https://github.com/Lightprotocol/examples-light-token).
 

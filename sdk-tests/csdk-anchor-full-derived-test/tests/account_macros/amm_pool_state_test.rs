@@ -10,11 +10,9 @@
 //! comprehensive Pack/Unpack behavior with multiple pubkey indices.
 
 use csdk_anchor_full_derived_test::{PackedPoolState, PoolState};
+use light_account::{CompressAs, CompressionInfo, Pack};
 use light_hasher::{DataHasher, Sha256};
-use light_sdk::{
-    compressible::{CompressAs, CompressionInfo, Pack},
-    instruction::PackedAccounts,
-};
+use light_sdk::instruction::PackedAccounts;
 use solana_pubkey::Pubkey;
 
 use super::shared::CompressibleTestFactory;
@@ -311,7 +309,7 @@ fn test_pack_converts_all_10_pubkeys_to_indices() {
     let stored_pubkeys = packed_accounts.packed_pubkeys();
     assert_eq!(stored_pubkeys.len(), 10);
     for (i, pubkey) in pubkeys.iter().enumerate() {
-        assert_eq!(stored_pubkeys[i], *pubkey);
+        assert_eq!(stored_pubkeys[i], pubkey.to_bytes());
     }
 }
 
@@ -522,7 +520,8 @@ fn test_pack_stores_all_pubkeys_in_packed_accounts() {
     // Verify each pubkey is stored at its index
     for (i, expected_pubkey) in pubkeys.iter().enumerate() {
         assert_eq!(
-            stored_pubkeys[i], *expected_pubkey,
+            stored_pubkeys[i],
+            expected_pubkey.to_bytes(),
             "pubkey at index {} should match",
             i
         );

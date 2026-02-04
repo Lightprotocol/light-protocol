@@ -39,15 +39,13 @@ mod account;
 mod instruction;
 pub mod invoke;
 
+// Re-export local traits at crate::cpi:: level
+pub use account::CpiAccountsTrait;
+pub use instruction::LightCpiInstruction;
+pub use invoke::{invoke_light_system_program, InvokeLightSystemProgram, LightInstructionData};
+// Re-export non-conflicting items from sdk-types
+pub use light_sdk_types::{cpi_accounts::CpiAccountsConfig, CpiSigner};
+
 pub mod v1;
 #[cfg(feature = "v2")]
 pub mod v2;
-
-pub use account::*;
-pub use instruction::*;
-pub use invoke::InvokeLightSystemProgram;
-pub use light_compressed_account::instruction_data::traits::LightInstructionData;
-/// Derives cpi signer and bump to invoke the light system program at compile time.
-pub use light_macros::derive_light_cpi_signer;
-/// Contains program id, derived cpi signer, and bump,
-pub use light_sdk_types::{cpi_accounts::CpiAccountsConfig, CpiSigner};

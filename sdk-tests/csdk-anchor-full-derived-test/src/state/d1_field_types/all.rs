@@ -8,8 +8,7 @@
 //! - Option<primitives> (-> unchanged)
 
 use anchor_lang::prelude::*;
-use light_sdk::{compressible::CompressionInfo, LightDiscriminator};
-use light_sdk_macros::LightAccount;
+use light_account::{CompressionInfo, LightAccount, LightDiscriminator};
 
 /// Comprehensive struct with all field type variations.
 #[derive(Default, Debug, InitSpace, LightAccount)]

@@ -14,11 +14,9 @@
 //! - Regular primitives (counter, flag) -> direct copy
 
 use csdk_anchor_full_derived_test::{AllFieldTypesRecord, PackedAllFieldTypesRecord};
+use light_account::{CompressAs, CompressionInfo, CompressionState, Pack};
 use light_hasher::{DataHasher, Sha256};
-use light_sdk::{
-    compressible::{CompressAs, CompressionInfo, CompressionState, Pack},
-    instruction::PackedAccounts,
-};
+use light_sdk::instruction::PackedAccounts;
 use solana_pubkey::Pubkey;
 
 use super::shared::CompressibleTestFactory;
@@ -471,9 +469,9 @@ fn test_pack_converts_all_pubkey_types() {
     // Only direct Pubkey fields are stored in packed_accounts (not Option<Pubkey>)
     let stored_pubkeys = packed_accounts.packed_pubkeys();
     assert_eq!(stored_pubkeys.len(), 3);
-    assert_eq!(stored_pubkeys[0], owner);
-    assert_eq!(stored_pubkeys[1], delegate);
-    assert_eq!(stored_pubkeys[2], authority);
+    assert_eq!(stored_pubkeys[0], owner.to_bytes());
+    assert_eq!(stored_pubkeys[1], delegate.to_bytes());
+    assert_eq!(stored_pubkeys[2], authority.to_bytes());
 }
 
 #[test]

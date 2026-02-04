@@ -4,9 +4,9 @@
 //! Verifies that zero-copy PDAs work alongside token vault creation and MintTo CPI.
 
 use anchor_lang::prelude::*;
-use light_compressible::CreateAccountsProof;
-use light_sdk_macros::LightAccounts;
-use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
+use light_account::{
+    CreateAccountsProof, LightAccounts, LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR,
+};
 
 use crate::state::d11_zero_copy::ZcBasicRecord;
 

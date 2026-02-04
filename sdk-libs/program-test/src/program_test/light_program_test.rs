@@ -166,7 +166,7 @@ impl LightProgramTest {
                             context.auto_mine_cold_state_programs.push(pid);
                         }
                         // Airdrop to program's rent sponsor PDA for decompression
-                        let (rent_sponsor, _) = light_sdk::utils::derive_rent_sponsor_pda(&pid);
+                        let (rent_sponsor, _) = light_account::derive_rent_sponsor_pda(&pid);
                         context
                             .context
                             .airdrop(&rent_sponsor, 100_000_000_000)

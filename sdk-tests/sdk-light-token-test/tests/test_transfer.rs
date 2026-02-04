@@ -6,7 +6,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use light_client::rpc::Rpc;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_token::instruction::LIGHT_TOKEN_PROGRAM_ID;
-use native_ctoken_examples::{InstructionType, TransferData, ID, TOKEN_ACCOUNT_SEED};
+use sdk_light_token_test::{InstructionType, TransferData, ID, TOKEN_ACCOUNT_SEED};
 use shared::*;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
@@ -17,7 +17,7 @@ use solana_sdk::{
 /// Test CTokenTransfer using invoke()
 #[tokio::test]
 async fn test_ctoken_transfer_invoke() {
-    let config = ProgramTestConfig::new_v2(true, Some(vec![("native_ctoken_examples", ID)]));
+    let config = ProgramTestConfig::new_v2(true, Some(vec![("sdk_light_token_test", ID)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
 
@@ -74,7 +74,7 @@ async fn test_ctoken_transfer_invoke() {
 /// Test CTokenTransfer using invoke_signed() with PDA authority
 #[tokio::test]
 async fn test_ctoken_transfer_invoke_signed() {
-    let config = ProgramTestConfig::new_v2(true, Some(vec![("native_ctoken_examples", ID)]));
+    let config = ProgramTestConfig::new_v2(true, Some(vec![("sdk_light_token_test", ID)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
 

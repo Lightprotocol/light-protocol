@@ -8,13 +8,12 @@
 //! - MintToCpi
 
 use anchor_lang::prelude::*;
-use light_anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
-use light_compressible::CreateAccountsProof;
-use light_sdk_macros::LightAccounts;
-use light_token::instruction::{
-    CreateTokenAccountCpi, CreateTokenAtaCpi, MintToCpi, LIGHT_TOKEN_CONFIG,
-    LIGHT_TOKEN_RENT_SPONSOR,
+use light_account::{
+    CreateAccountsProof, CreateTokenAccountCpi, CreateTokenAtaCpi, LightAccounts,
+    LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR,
 };
+use light_anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
+use light_token::instruction::MintToCpi;
 
 use super::states::*;
 
@@ -173,60 +172,81 @@ pub fn process_initialize_pool<'info>(
     params: InitializeParams,
 ) -> Result<()> {
     // Create token_0_vault using CreateTokenAccountCpi (mark-only field)
-    CreateTokenAccountCpi {
-        payer: ctx.accounts.creator.to_account_info(),
-        account: ctx.accounts.token_0_vault.to_account_info(),
-        mint: ctx.accounts.token_0_mint.to_account_info(),
-        owner: ctx.accounts.authority.key(),
+    {
+        let payer_info = ctx.accounts.creator.to_account_info();
+        let account_info = ctx.accounts.token_0_vault.to_account_info();
+        let mint_info = ctx.accounts.token_0_mint.to_account_info();
+        let config_info = ctx.accounts.light_token_config.to_account_info();
+        let sponsor_info = ctx.accounts.light_token_rent_sponsor.to_account_info();
+        let system_info = ctx.accounts.system_program.to_account_info();
+        CreateTokenAccountCpi {
+            payer: &payer_info,
+            account: &account_info,
+            mint: &mint_info,
+            owner: ctx.accounts.authority.key().to_bytes(),
+        }
+        .rent_free(
+            &config_info,
+            &sponsor_info,
+            &system_info,
+            &crate::ID.to_bytes(),
+        )
+        .invoke_signed(&[
+            POOL_VAULT_SEED.as_bytes(),
+            ctx.accounts.pool_state.to_account_info().key.as_ref(),
+            ctx.accounts.token_0_mint.to_account_info().key.as_ref(),
+            &[ctx.bumps.token_0_vault],
+        ])?;
     }
-    .rent_free(
-        ctx.accounts.light_token_config.to_account_info(),
-        ctx.accounts.light_token_rent_sponsor.to_account_info(),
-        ctx.accounts.system_program.to_account_info(),
-        &crate::ID,
-    )
-    .invoke_signed(&[
-        POOL_VAULT_SEED.as_bytes(),
-        ctx.accounts.pool_state.to_account_info().key.as_ref(),
-        ctx.accounts.token_0_mint.to_account_info().key.as_ref(),
-        &[ctx.bumps.token_0_vault],
-    ])?;
 
     // Create token_1_vault using CreateTokenAccountCpi (mark-only field)
-    CreateTokenAccountCpi {
-        payer: ctx.accounts.creator.to_account_info(),
-        account: ctx.accounts.token_1_vault.to_account_info(),
-        mint: ctx.accounts.token_1_mint.to_account_info(),
-        owner: ctx.accounts.authority.key(),
+    {
+        let payer_info = ctx.accounts.creator.to_account_info();
+        let account_info = ctx.accounts.token_1_vault.to_account_info();
+        let mint_info = ctx.accounts.token_1_mint.to_account_info();
+        let config_info = ctx.accounts.light_token_config.to_account_info();
+        let sponsor_info = ctx.accounts.light_token_rent_sponsor.to_account_info();
+        let system_info = ctx.accounts.system_program.to_account_info();
+        CreateTokenAccountCpi {
+            payer: &payer_info,
+            account: &account_info,
+            mint: &mint_info,
+            owner: ctx.accounts.authority.key().to_bytes(),
+        }
+        .rent_free(
+            &config_info,
+            &sponsor_info,
+            &system_info,
+            &crate::ID.to_bytes(),
+        )
+        .invoke_signed(&[
+            POOL_VAULT_SEED.as_bytes(),
+            ctx.accounts.pool_state.to_account_info().key.as_ref(),
+            ctx.accounts.token_1_mint.to_account_info().key.as_ref(),
+            &[ctx.bumps.token_1_vault],
+        ])?;
     }
-    .rent_free(
-        ctx.accounts.light_token_config.to_account_info(),
-        ctx.accounts.light_token_rent_sponsor.to_account_info(),
-        ctx.accounts.system_program.to_account_info(),
-        &crate::ID,
-    )
-    .invoke_signed(&[
-        POOL_VAULT_SEED.as_bytes(),
-        ctx.accounts.pool_state.to_account_info().key.as_ref(),
-        ctx.accounts.token_1_mint.to_account_info().key.as_ref(),
-        &[ctx.bumps.token_1_vault],
-    ])?;
 
     // Create creator LP token ATA using CreateTokenAtaCpi.rent_free()
-    CreateTokenAtaCpi {
-        payer: ctx.accounts.creator.to_account_info(),
-        owner: ctx.accounts.creator.to_account_info(),
-        mint: ctx.accounts.lp_mint.to_account_info(),
-        ata: ctx.accounts.creator_lp_token.to_account_info(),
-        bump: params.creator_lp_token_bump,
+    {
+        let payer_info = ctx.accounts.creator.to_account_info();
+        let owner_info = ctx.accounts.creator.to_account_info();
+        let mint_info = ctx.accounts.lp_mint.to_account_info();
+        let ata_info = ctx.accounts.creator_lp_token.to_account_info();
+        let config_info = ctx.accounts.light_token_config.to_account_info();
+        let sponsor_info = ctx.accounts.light_token_rent_sponsor.to_account_info();
+        let system_info = ctx.accounts.system_program.to_account_info();
+        CreateTokenAtaCpi {
+            payer: &payer_info,
+            owner: &owner_info,
+            mint: &mint_info,
+            ata: &ata_info,
+            bump: params.creator_lp_token_bump,
+        }
+        .idempotent()
+        .rent_free(&config_info, &sponsor_info, &system_info)
+        .invoke()?;
     }
-    .idempotent()
-    .rent_free(
-        ctx.accounts.light_token_config.to_account_info(),
-        ctx.accounts.light_token_rent_sponsor.to_account_info(),
-        ctx.accounts.system_program.to_account_info(),
-    )
-    .invoke()?;
 
     // Mint LP tokens using MintToCpi
     let lp_amount = 1000u64; // Placeholder amount

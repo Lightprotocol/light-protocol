@@ -10,11 +10,9 @@
 //! testing Pack/Unpack behavior with array fields and nested data structures.
 
 use csdk_anchor_full_derived_test::{Observation, ObservationState, PackedObservationState};
+use light_account::{CompressAs, CompressionInfo, Pack};
 use light_hasher::{DataHasher, Sha256};
-use light_sdk::{
-    compressible::{CompressAs, CompressionInfo, Pack},
-    instruction::PackedAccounts,
-};
+use light_sdk::instruction::PackedAccounts;
 use solana_pubkey::Pubkey;
 
 use super::shared::CompressibleTestFactory;
@@ -279,7 +277,7 @@ fn test_pack_converts_pool_id_to_index() {
 
     let stored_pubkeys = packed_accounts.packed_pubkeys();
     assert_eq!(stored_pubkeys.len(), 1);
-    assert_eq!(stored_pubkeys[0], pool_id);
+    assert_eq!(stored_pubkeys[0], pool_id.to_bytes());
 }
 
 #[test]
@@ -495,7 +493,8 @@ fn test_pack_stores_pool_id_in_packed_accounts() {
     let stored_pubkeys = packed_accounts.packed_pubkeys();
     assert_eq!(stored_pubkeys.len(), 1, "should have 1 pubkey stored");
     assert_eq!(
-        stored_pubkeys[packed.pool_id as usize], pool_id,
+        stored_pubkeys[packed.pool_id as usize],
+        pool_id.to_bytes(),
         "stored pubkey should match"
     );
 }

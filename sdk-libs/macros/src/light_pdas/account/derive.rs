@@ -12,6 +12,33 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{punctuated::Punctuated, DeriveInput, Field, Fields, Ident, ItemStruct, Result, Token};
 
+/// Target framework for generated code.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Framework {
+    Anchor,
+    Pinocchio,
+}
+
+impl Framework {
+    /// Crate path prefix for on-chain code (LightAccount trait, AccountType, etc.)
+    fn on_chain_crate(&self) -> TokenStream {
+        match self {
+            Framework::Anchor => quote! { light_account },
+            Framework::Pinocchio => quote! { light_account_pinocchio },
+        }
+    }
+
+    /// Serialization derives for packed struct.
+    fn serde_derives(&self) -> TokenStream {
+        match self {
+            Framework::Anchor => {
+                quote! { anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize }
+            }
+            Framework::Pinocchio => quote! { borsh::BorshSerialize, borsh::BorshDeserialize },
+        }
+    }
+}
+
 use super::{
     traits::{parse_compress_as_overrides, CompressAsFields},
     validation::validate_compression_info_field,
@@ -37,7 +64,7 @@ fn is_zero_copy(attrs: &[syn::Attribute]) -> bool {
     })
 }
 
-/// Derives all required traits for a compressible account.
+/// Derives all required traits for a compressible account (Anchor variant).
 ///
 /// This generates:
 /// - `LightHasherSha` - SHA256-based DataHasher and ToByteArray implementations
@@ -55,7 +82,7 @@ fn is_zero_copy(attrs: &[syn::Attribute]) -> bool {
 ///
 /// ```ignore
 /// use light_sdk_macros::{LightAccount, LightDiscriminator, LightHasherSha};
-/// use light_sdk::compressible::CompressionInfo;
+/// use light_account::CompressionInfo;
 /// use solana_pubkey::Pubkey;
 ///
 /// #[derive(Default, Debug, InitSpace, LightAccount, LightDiscriminator, LightHasherSha)]
@@ -77,6 +104,21 @@ fn is_zero_copy(attrs: &[syn::Attribute]) -> bool {
 /// - Use `#[compress_as(field = value)]` to override field values during compression
 /// - Use `#[skip]` to exclude fields from compression entirely
 pub fn derive_light_account(input: DeriveInput) -> Result<TokenStream> {
+    derive_light_account_internal(input, Framework::Anchor)
+}
+
+/// Derives all required traits for a compressible account (Pinocchio variant).
+///
+/// Same as `derive_light_account` but generates pinocchio-compatible code:
+/// - Uses `BorshSerialize/BorshDeserialize` instead of Anchor serialization
+/// - Uses `light_account_pinocchio::` paths for on-chain code
+/// - Uses `core::mem::size_of::<Self>()` for INIT_SPACE
+pub fn derive_light_pinocchio_account(input: DeriveInput) -> Result<TokenStream> {
+    derive_light_account_internal(input, Framework::Pinocchio)
+}
+
+/// Internal implementation of LightAccount derive, parameterized by framework.
+fn derive_light_account_internal(input: DeriveInput, framework: Framework) -> Result<TokenStream> {
     // Convert DeriveInput to ItemStruct for macros that need it
     let item_struct = derive_input_to_item_struct(&input)?;
 
@@ -87,13 +129,14 @@ pub fn derive_light_account(input: DeriveInput) -> Result<TokenStream> {
     let discriminator_impl = discriminator::anchor_discriminator(item_struct)?;
 
     // Generate unified LightAccount implementation (includes PackedXxx struct)
-    let light_account_impl = generate_light_account_impl(&input)?;
+    let light_account_impl = generate_light_account_impl(&input, framework)?;
 
-    // For zero-copy (Pod) types, generate AnchorSerialize/AnchorDeserialize impls
+    // For zero-copy (Pod) types with Anchor, generate AnchorSerialize/AnchorDeserialize impls
     // using fully-qualified anchor_lang:: paths. This is necessary because the workspace
     // borsh dependency resolves to a different crate instance than anchor_lang's borsh
     // (due to proc-macro boundary causing crate duplication).
-    let anchor_serde_impls = if is_zero_copy(&input.attrs) {
+    // For Pinocchio, we don't generate these - the struct should already derive BorshSerialize/BorshDeserialize.
+    let anchor_serde_impls = if framework == Framework::Anchor && is_zero_copy(&input.attrs) {
         generate_anchor_serde_for_zero_copy(&input)?
     } else {
         quote! {}
@@ -187,7 +230,7 @@ fn generate_anchor_serde_for_zero_copy(input: &DeriveInput) -> Result<TokenStrea
 }
 
 /// Generates the unified LightAccount trait implementation.
-fn generate_light_account_impl(input: &DeriveInput) -> Result<TokenStream> {
+fn generate_light_account_impl(input: &DeriveInput, framework: Framework) -> Result<TokenStream> {
     let struct_name = &input.ident;
     let packed_struct_name = format_ident!("Packed{}", struct_name);
     let fields = extract_fields_from_derive_input(input)?;
@@ -212,158 +255,189 @@ fn generate_light_account_impl(input: &DeriveInput) -> Result<TokenStream> {
         .any(|f| is_pubkey_type(&f.ty));
 
     // Generate the packed struct (excludes compression_info)
-    let packed_struct = generate_packed_struct(&packed_struct_name, fields, has_pubkey_fields)?;
+    let packed_struct =
+        generate_packed_struct(&packed_struct_name, fields, has_pubkey_fields, framework)?;
 
-    // Generate pack method body
-    let pack_body = generate_pack_body(&packed_struct_name, fields, has_pubkey_fields)?;
+    // Generate pack method body (off-chain)
+    let pack_body = generate_pack_body(&packed_struct_name, fields, has_pubkey_fields, framework)?;
 
-    // Generate unpack method body
-    let unpack_body = generate_unpack_body(struct_name, fields, has_pubkey_fields)?;
+    // Generate unpack method body (on-chain, uses framework-specific paths)
+    let unpack_body = generate_unpack_body(struct_name, fields, has_pubkey_fields, framework)?;
 
     // Generate compress_as body for set_decompressed
-    let compress_as_assignments = generate_compress_as_assignments(fields, &compress_as_fields);
+    let compress_as_assignments =
+        generate_compress_as_assignments(fields, &compress_as_fields, framework);
 
     // Generate compress_as impl body for CompressAs trait
-    let compress_as_impl_body = generate_compress_as_impl_body(fields, &compress_as_fields);
+    let compress_as_impl_body =
+        generate_compress_as_impl_body(fields, &compress_as_fields, framework);
 
-    // Generate the 800-byte size assertion and account type based on zero-copy mode
-    let (size_assertion, account_type_token, init_space_token) = if is_zero_copy {
-        (
-            quote! {
-                const _: () = {
-                    assert!(
-                        core::mem::size_of::<#struct_name>() <= 800,
-                        "Compressed account size exceeds 800 byte limit"
-                    );
-                };
-            },
-            quote! { light_sdk::interface::AccountType::PdaZeroCopy },
-            quote! { core::mem::size_of::<Self>() },
-        )
-    } else {
-        (
-            quote! {
-                const _: () = {
-                    assert!(
-                        <#struct_name as anchor_lang::Space>::INIT_SPACE <= 800,
-                        "Compressed account size exceeds 800 byte limit"
-                    );
-                };
-            },
-            quote! { light_sdk::interface::AccountType::Pda },
-            quote! { <Self as anchor_lang::Space>::INIT_SPACE },
-        )
+    // Get the on-chain crate path (light_account or light_account_pinocchio)
+    let on_chain_crate = framework.on_chain_crate();
+
+    // Generate the 800-byte size assertion and account type based on framework and zero-copy mode
+    let (size_assertion, account_type_token, init_space_token) = match framework {
+        Framework::Pinocchio => {
+            // Pinocchio always uses core::mem::size_of and PdaZeroCopy
+            (
+                quote! {
+                    const _: () = {
+                        assert!(
+                            core::mem::size_of::<#struct_name>() <= 800,
+                            "Compressed account size exceeds 800 byte limit"
+                        );
+                    };
+                },
+                quote! { #on_chain_crate::AccountType::PdaZeroCopy },
+                quote! { core::mem::size_of::<Self>() },
+            )
+        }
+        Framework::Anchor => {
+            if is_zero_copy {
+                (
+                    quote! {
+                        const _: () = {
+                            assert!(
+                                core::mem::size_of::<#struct_name>() <= 800,
+                                "Compressed account size exceeds 800 byte limit"
+                            );
+                        };
+                    },
+                    quote! { #on_chain_crate::AccountType::PdaZeroCopy },
+                    quote! { core::mem::size_of::<Self>() },
+                )
+            } else {
+                (
+                    quote! {
+                        const _: () = {
+                            assert!(
+                                <#struct_name as anchor_lang::Space>::INIT_SPACE <= 800,
+                                "Compressed account size exceeds 800 byte limit"
+                            );
+                        };
+                    },
+                    quote! { #on_chain_crate::AccountType::Pda },
+                    quote! { <Self as anchor_lang::Space>::INIT_SPACE },
+                )
+            }
+        }
     };
 
     // Generate the LightAccount impl
+    // Note: pack is off-chain only, uses light_account:: paths
+    // unpack is on-chain, uses framework-specific paths
     let light_account_impl = quote! {
         #packed_struct
 
         #size_assertion
 
-        impl light_sdk::interface::LightAccount for #struct_name {
-            const ACCOUNT_TYPE: light_sdk::interface::AccountType = #account_type_token;
+        impl #on_chain_crate::LightAccount for #struct_name {
+            const ACCOUNT_TYPE: #on_chain_crate::AccountType = #account_type_token;
 
             type Packed = #packed_struct_name;
 
             const INIT_SPACE: usize = #init_space_token;
 
             #[inline]
-            fn compression_info(&self) -> &light_sdk::compressible::CompressionInfo {
+            fn compression_info(&self) -> &#on_chain_crate::CompressionInfo {
                 &self.compression_info
             }
 
             #[inline]
-            fn compression_info_mut(&mut self) -> &mut light_sdk::compressible::CompressionInfo {
+            fn compression_info_mut(&mut self) -> &mut #on_chain_crate::CompressionInfo {
                 &mut self.compression_info
             }
 
-            fn set_decompressed(&mut self, config: &light_sdk::interface::LightConfig, current_slot: u64) {
-                self.compression_info = light_sdk::compressible::CompressionInfo::new_from_config(config, current_slot);
+            fn set_decompressed(&mut self, config: &#on_chain_crate::LightConfig, current_slot: u64) {
+                self.compression_info = #on_chain_crate::CompressionInfo::new_from_config(config, current_slot);
                 #compress_as_assignments
             }
 
+            // pack is off-chain only (client-side)
+            #[cfg(not(target_os = "solana"))]
             #[inline(never)]
-            fn pack(
+            fn pack<AM: #on_chain_crate::AccountMetaTrait>(
                 &self,
-                accounts: &mut light_sdk::instruction::PackedAccounts,
-            ) -> std::result::Result<Self::Packed, solana_program_error::ProgramError> {
+                accounts: &mut #on_chain_crate::interface::instruction::PackedAccounts<AM>,
+            ) -> std::result::Result<Self::Packed, #on_chain_crate::LightSdkTypesError> {
                 #pack_body
             }
 
+            // unpack is on-chain - uses framework-specific paths
             #[inline(never)]
-            fn unpack<A: light_sdk::light_account_checks::AccountInfoTrait>(
+            fn unpack<A: #on_chain_crate::AccountInfoTrait>(
                 packed: &Self::Packed,
-                accounts: &light_sdk::light_account_checks::packed_accounts::ProgramPackedAccounts<A>,
-            ) -> std::result::Result<Self, solana_program_error::ProgramError> {
+                accounts: &#on_chain_crate::packed_accounts::ProgramPackedAccounts<A>,
+            ) -> std::result::Result<Self, #on_chain_crate::LightSdkTypesError> {
                 #unpack_body
             }
         }
 
         // V1 compatibility: Pack trait (delegates to LightAccount::pack)
-        // Pack trait is only available off-chain (client-side)
+        // Pack trait is off-chain only (client-side)
         #[cfg(not(target_os = "solana"))]
-        impl light_sdk::interface::Pack for #struct_name {
+        impl<AM: #on_chain_crate::AccountMetaTrait> #on_chain_crate::Pack<AM> for #struct_name {
             type Packed = #packed_struct_name;
 
             fn pack(
                 &self,
-                remaining_accounts: &mut light_sdk::instruction::PackedAccounts,
-            ) -> std::result::Result<Self::Packed, solana_program_error::ProgramError> {
-                <Self as light_sdk::interface::LightAccount>::pack(self, remaining_accounts)
+                remaining_accounts: &mut #on_chain_crate::interface::instruction::PackedAccounts<AM>,
+            ) -> std::result::Result<Self::Packed, #on_chain_crate::LightSdkTypesError> {
+                <Self as #on_chain_crate::LightAccount>::pack(self, remaining_accounts)
             }
         }
 
         // V1 compatibility: Unpack trait for packed struct
-        impl light_sdk::interface::Unpack for #packed_struct_name {
+        // Uses framework-specific paths for on-chain code
+        impl<AI: #on_chain_crate::AccountInfoTrait> #on_chain_crate::Unpack<AI> for #packed_struct_name {
             type Unpacked = #struct_name;
 
             fn unpack(
                 &self,
-                remaining_accounts: &[solana_account_info::AccountInfo],
-            ) -> std::result::Result<Self::Unpacked, solana_program_error::ProgramError> {
+                remaining_accounts: &[AI],
+            ) -> std::result::Result<Self::Unpacked, #on_chain_crate::LightSdkTypesError> {
                 // Create a ProgramPackedAccounts wrapper from remaining_accounts
-                let accounts = light_sdk::light_account_checks::packed_accounts::ProgramPackedAccounts {
+                let accounts = #on_chain_crate::packed_accounts::ProgramPackedAccounts {
                     accounts: remaining_accounts
                 };
-                <#struct_name as light_sdk::interface::LightAccount>::unpack(self, &accounts)
+                <#struct_name as #on_chain_crate::LightAccount>::unpack(self, &accounts)
             }
         }
 
         // V1 compatibility: HasCompressionInfo trait (wraps non-Option compression_info)
-        impl light_sdk::interface::HasCompressionInfo for #struct_name {
-            fn compression_info(&self) -> std::result::Result<&light_sdk::interface::CompressionInfo, solana_program_error::ProgramError> {
+        impl #on_chain_crate::HasCompressionInfo for #struct_name {
+            fn compression_info(&self) -> std::result::Result<&#on_chain_crate::CompressionInfo, #on_chain_crate::LightSdkTypesError> {
                 Ok(&self.compression_info)
             }
 
-            fn compression_info_mut(&mut self) -> std::result::Result<&mut light_sdk::interface::CompressionInfo, solana_program_error::ProgramError> {
+            fn compression_info_mut(&mut self) -> std::result::Result<&mut #on_chain_crate::CompressionInfo, #on_chain_crate::LightSdkTypesError> {
                 Ok(&mut self.compression_info)
             }
 
-            fn compression_info_mut_opt(&mut self) -> &mut Option<light_sdk::interface::CompressionInfo> {
+            fn compression_info_mut_opt(&mut self) -> &mut Option<#on_chain_crate::CompressionInfo> {
                 // V2 types use non-Option CompressionInfo, so this can't return a reference
                 // This method is only used by V1 code paths that expect Option<CompressionInfo>
                 panic!("compression_info_mut_opt not supported for LightAccount types (use compression_info_mut instead)")
             }
 
-            fn set_compression_info_none(&mut self) -> std::result::Result<(), solana_program_error::ProgramError> {
+            fn set_compression_info_none(&mut self) -> std::result::Result<(), #on_chain_crate::LightSdkTypesError> {
                 // V2 types use non-Option CompressionInfo
                 // Setting to "compressed" state is the equivalent of "None" for V1
-                self.compression_info = light_sdk::compressible::CompressionInfo::compressed();
+                self.compression_info = #on_chain_crate::CompressionInfo::compressed();
                 Ok(())
             }
         }
 
         // V1 compatibility: Size trait
-        impl light_sdk::account::Size for #struct_name {
+        impl #on_chain_crate::Size for #struct_name {
             #[inline]
-            fn size(&self) -> std::result::Result<usize, solana_program_error::ProgramError> {
-                Ok(<Self as light_sdk::interface::LightAccount>::INIT_SPACE)
+            fn size(&self) -> std::result::Result<usize, #on_chain_crate::LightSdkTypesError> {
+                Ok(<Self as #on_chain_crate::LightAccount>::INIT_SPACE)
             }
         }
 
         // V1 compatibility: CompressAs trait
-        impl light_sdk::interface::CompressAs for #struct_name {
+        impl #on_chain_crate::CompressAs for #struct_name {
             type Output = Self;
 
             fn compress_as(&self) -> std::borrow::Cow<'_, Self::Output> {
@@ -372,8 +446,8 @@ fn generate_light_account_impl(input: &DeriveInput) -> Result<TokenStream> {
         }
 
         // V1 compatibility: CompressedInitSpace trait
-        impl light_sdk::interface::CompressedInitSpace for #struct_name {
-            const COMPRESSED_INIT_SPACE: usize = <Self as light_sdk::interface::LightAccount>::INIT_SPACE;
+        impl #on_chain_crate::CompressedInitSpace for #struct_name {
+            const COMPRESSED_INIT_SPACE: usize = <Self as #on_chain_crate::LightAccount>::INIT_SPACE;
         }
     };
 
@@ -386,7 +460,10 @@ fn generate_packed_struct(
     packed_struct_name: &Ident,
     fields: &Punctuated<Field, Token![,]>,
     has_pubkey_fields: bool,
+    framework: Framework,
 ) -> Result<TokenStream> {
+    let serde_derives = framework.serde_derives();
+
     if !has_pubkey_fields {
         // No Pubkey fields - Packed is just a type alias (but still excludes compression_info)
         // We need a minimal struct that just holds non-pubkey fields
@@ -402,7 +479,7 @@ fn generate_packed_struct(
         if non_compression_fields.is_empty() {
             // Only compression_info field - create empty struct
             return Ok(quote! {
-                #[derive(Debug, Clone, anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize)]
+                #[derive(Debug, Clone, #serde_derives)]
                 pub struct #packed_struct_name;
             });
         }
@@ -415,7 +492,7 @@ fn generate_packed_struct(
         });
 
         return Ok(quote! {
-            #[derive(Debug, Clone, anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize)]
+            #[derive(Debug, Clone, #serde_derives)]
             pub struct #packed_struct_name {
                 #(#packed_fields,)*
             }
@@ -442,7 +519,7 @@ fn generate_packed_struct(
     });
 
     Ok(quote! {
-        #[derive(Debug, Clone, anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize)]
+        #[derive(Debug, Clone, #serde_derives)]
         pub struct #packed_struct_name {
             #(#packed_fields,)*
         }
@@ -454,6 +531,7 @@ fn generate_pack_body(
     packed_struct_name: &Ident,
     fields: &Punctuated<Field, Token![,]>,
     has_pubkey_fields: bool,
+    framework: Framework,
 ) -> Result<TokenStream> {
     let pack_assignments: Vec<_> = fields
         .iter()
@@ -468,7 +546,15 @@ fn generate_pack_body(
             let field_type = &field.ty;
 
             Some(if is_pubkey_type(field_type) {
-                quote! { #field_name: accounts.insert_or_get_read_only(self.#field_name) }
+                // Anchor Pubkey has .to_bytes(), pinocchio Pubkey is [u8; 32]
+                match framework {
+                    Framework::Anchor => {
+                        quote! { #field_name: accounts.insert_or_get_read_only(AM::pubkey_from_bytes(self.#field_name.to_bytes())) }
+                    }
+                    Framework::Pinocchio => {
+                        quote! { #field_name: accounts.insert_or_get_read_only(AM::pubkey_from_bytes(self.#field_name)) }
+                    }
+                }
             } else if is_copy_type(field_type) {
                 quote! { #field_name: self.#field_name }
             } else {
@@ -492,12 +578,15 @@ fn generate_pack_body(
 }
 
 /// Generates the unpack method body.
+/// Uses framework-specific paths for on-chain code.
 fn generate_unpack_body(
     struct_name: &Ident,
     fields: &Punctuated<Field, Token![,]>,
     has_pubkey_fields: bool,
+    framework: Framework,
 ) -> Result<TokenStream> {
     let struct_name_str = struct_name.to_string();
+    let on_chain_crate = framework.on_chain_crate();
 
     let unpack_assignments: Vec<_> = fields
         .iter()
@@ -508,18 +597,24 @@ fn generate_unpack_body(
             // compression_info gets canonical value
             if field_name == "compression_info" {
                 return Some(quote! {
-                    #field_name: light_sdk::compressible::CompressionInfo::compressed()
+                    #field_name: #on_chain_crate::CompressionInfo::compressed()
                 });
             }
 
             Some(if is_pubkey_type(field_type) {
                 let error_msg = format!("{}: {}", struct_name_str, field_name);
+                // For Anchor: convert [u8; 32] to solana_pubkey::Pubkey
+                // For Pinocchio: Pubkey is [u8; 32], so use key() directly
+                let key_conversion = match framework {
+                    Framework::Anchor => quote! { solana_pubkey::Pubkey::from(account.key()) },
+                    Framework::Pinocchio => quote! { account.key() },
+                };
                 quote! {
                     #field_name: {
                         let account = accounts
                             .get_u8(packed.#field_name, #error_msg)
-                            .map_err(|_| solana_program_error::ProgramError::InvalidAccountData)?;
-                        solana_pubkey::Pubkey::from(account.key())
+                            .map_err(|_| #on_chain_crate::LightSdkTypesError::InvalidInstructionData)?;
+                        #key_conversion
                     }
                 }
             } else if !has_pubkey_fields {
@@ -549,6 +644,7 @@ fn generate_unpack_body(
 fn generate_compress_as_assignments(
     fields: &Punctuated<Field, Token![,]>,
     compress_as_fields: &Option<CompressAsFields>,
+    _framework: Framework,
 ) -> TokenStream {
     let Some(overrides) = compress_as_fields else {
         return quote! {};
@@ -588,12 +684,15 @@ fn generate_compress_as_assignments(
 fn generate_compress_as_impl_body(
     fields: &Punctuated<Field, Token![,]>,
     compress_as_fields: &Option<CompressAsFields>,
+    framework: Framework,
 ) -> TokenStream {
+    let on_chain_crate = framework.on_chain_crate();
+
     let Some(overrides) = compress_as_fields else {
         // No overrides - clone and set compression_info to Compressed
         return quote! {
             let mut result = self.clone();
-            result.compression_info = light_sdk::compressible::CompressionInfo::compressed();
+            result.compression_info = #on_chain_crate::CompressionInfo::compressed();
             std::borrow::Cow::Owned(result)
         };
     };
@@ -628,14 +727,14 @@ fn generate_compress_as_impl_body(
         // No field overrides - clone and set compression_info to Compressed
         quote! {
             let mut result = self.clone();
-            result.compression_info = light_sdk::compressible::CompressionInfo::compressed();
+            result.compression_info = #on_chain_crate::CompressionInfo::compressed();
             std::borrow::Cow::Owned(result)
         }
     } else {
         // Clone, set compression_info to Compressed, and apply overrides
         quote! {
             let mut result = self.clone();
-            result.compression_info = light_sdk::compressible::CompressionInfo::compressed();
+            result.compression_info = #on_chain_crate::CompressionInfo::compressed();
             #(#assignments)*
             std::borrow::Cow::Owned(result)
         }
@@ -683,7 +782,7 @@ mod tests {
 
         // Should contain unified LightAccount implementation
         assert!(
-            output.contains("impl light_sdk :: interface :: LightAccount for UserRecord"),
+            output.contains("impl light_account :: LightAccount for UserRecord"),
             "Should implement LightAccount trait"
         );
 

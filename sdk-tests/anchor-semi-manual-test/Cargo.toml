@@ -1,0 +1,59 @@
+[package]
+name = "anchor-semi-manual-test"
+version = "0.1.0"
+description = "Test for #[derive(LightProgram)] macro validation with all variant kinds"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "anchor_semi_manual_test"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+idl-build = ["anchor-lang/idl-build", "light-anchor-spl/idl-build"]
+test-sbf = []
+
+[dependencies]
+light-account = { workspace = true, features = ["token", "anchor"] }
+light-sdk-types = { workspace = true, features = ["anchor", "v2", "cpi-context"] }
+light-macros = { workspace = true, features = ["solana"] }
+bytemuck = { workspace = true, features = ["derive"] }
+borsh = { workspace = true }
+light-compressed-account = { workspace = true, features = ["solana"] }
+anchor-lang = { workspace = true }
+light-anchor-spl = { workspace = true, features = ["metadata"] }
+light-compressible = { workspace = true, features = ["anchor"] }
+light-hasher = { workspace = true, features = ["solana"] }
+light-token-types = { workspace = true, features = ["anchor"] }
+solana-program = { workspace = true }
+solana-pubkey = { workspace = true }
+solana-msg = { workspace = true }
+solana-program-error = { workspace = true }
+solana-account-info = { workspace = true }
+
+[dev-dependencies]
+light-program-test = { workspace = true, features = ["devenv"] }
+light-client = { workspace = true, features = ["v2", "anchor"] }
+light-test-utils = { workspace = true }
+light-token = { workspace = true }
+light-token-interface = { workspace = true }
+tokio = { workspace = true }
+solana-sdk = { workspace = true }
+solana-instruction = { workspace = true }
+solana-pubkey = { workspace = true }
+solana-keypair = { workspace = true }
+solana-signer = { workspace = true }
+light-batched-merkle-tree = { workspace = true }
+rand = { workspace = true }
+solana-account = { workspace = true }
+
+[lints.rust.unexpected_cfgs]
+level = "allow"
+check-cfg = [
+    'cfg(target_os, values("solana"))',
+    'cfg(feature, values("frozen-abi", "no-entrypoint"))',
+]

@@ -26,6 +26,7 @@ forester-utils = { workspace = true }
 light-client = { workspace = true, features = ["v2"] }
 light-merkle-tree-metadata = { workspace = true }
 light-sdk = { workspace = true, features = ["anchor"] }
+light-account = { workspace = true }
 light-program-test = { workspace = true }
 light-compressible = { workspace = true, default-features = false, features = ["solana"] }
 light-token-interface = { workspace = true }

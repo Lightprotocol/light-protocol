@@ -7,7 +7,7 @@ use light_client::rpc::Rpc;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_token::LIGHT_TOKEN_PROGRAM_ID;
 use light_token_interface::state::Token;
-use native_ctoken_examples::{ApproveData, InstructionType, ID, TOKEN_ACCOUNT_SEED};
+use sdk_light_token_test::{ApproveData, InstructionType, ID, TOKEN_ACCOUNT_SEED};
 use shared::*;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
@@ -19,7 +19,7 @@ use solana_sdk::{
 /// Test approving a delegate using ApproveCTokenCpi::invoke()
 #[tokio::test]
 async fn test_approve_invoke() {
-    let config = ProgramTestConfig::new_v2(true, Some(vec![("native_ctoken_examples", ID)]));
+    let config = ProgramTestConfig::new_v2(true, Some(vec![("sdk_light_token_test", ID)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
 
@@ -80,7 +80,7 @@ async fn test_approve_invoke() {
 /// Test approving a delegate for a PDA-owned account using ApproveCTokenCpi::invoke_signed()
 #[tokio::test]
 async fn test_approve_invoke_signed() {
-    let config = ProgramTestConfig::new_v2(true, Some(vec![("native_ctoken_examples", ID)]));
+    let config = ProgramTestConfig::new_v2(true, Some(vec![("sdk_light_token_test", ID)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
 
@@ -138,7 +138,7 @@ async fn test_approve_invoke_signed() {
 /// Test revoking delegation using RevokeCTokenCpi::invoke()
 #[tokio::test]
 async fn test_revoke_invoke() {
-    let config = ProgramTestConfig::new_v2(true, Some(vec![("native_ctoken_examples", ID)]));
+    let config = ProgramTestConfig::new_v2(true, Some(vec![("sdk_light_token_test", ID)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
 
@@ -226,7 +226,7 @@ async fn test_revoke_invoke() {
 /// Test revoking delegation for a PDA-owned account using RevokeCTokenCpi::invoke_signed()
 #[tokio::test]
 async fn test_revoke_invoke_signed() {
-    let config = ProgramTestConfig::new_v2(true, Some(vec![("native_ctoken_examples", ID)]));
+    let config = ProgramTestConfig::new_v2(true, Some(vec![("sdk_light_token_test", ID)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
 

@@ -55,7 +55,7 @@ impl<'a> PdaBlockBuilder<'a> {
 
         quote! {
             let #account_info = self.#field_name.to_account_info();
-            let #account_key = *#account_info.key;
+            let #account_key = #account_info.key.to_bytes();
         }
     }
 
@@ -69,13 +69,12 @@ impl<'a> PdaBlockBuilder<'a> {
         let address_tree_pubkey = &self.idents.address_tree_pubkey;
 
         quote! {
-            let #address_tree_pubkey: solana_pubkey::Pubkey = {
-                use light_sdk::light_account_checks::AccountInfoTrait;
+            let #address_tree_pubkey: [u8; 32] = {
                 // Explicit type annotation ensures clear error if wrong type is provided.
-                let tree_info: &::light_sdk::sdk_types::PackedAddressTreeInfo = &#addr_tree_info;
-                cpi_accounts
-                    .get_tree_account_info(tree_info.address_merkle_tree_pubkey_index as usize)?
-                    .pubkey()
+                let tree_info: &light_account::PackedAddressTreeInfo = &#addr_tree_info;
+                let __tree_account = cpi_accounts
+                    .get_tree_account_info(tree_info.address_merkle_tree_pubkey_index as usize)?;
+                light_account::AccountInfoTrait::key(__tree_account)
             };
         }
     }
@@ -90,13 +89,14 @@ impl<'a> PdaBlockBuilder<'a> {
             let account_guard = format_ident!("{}_guard", ident);
             quote! {
                 {
-                    let current_slot = anchor_lang::solana_program::sysvar::clock::Clock::get()?.slot;
+                    let current_slot = anchor_lang::solana_program::sysvar::clock::Clock::get()
+                        .map_err(|_| light_account::LightSdkTypesError::ConstraintViolation)?.slot;
                     let mut #account_guard = self.#ident.load_init()
-                        .map_err(|_| solana_program_error::ProgramError::InvalidAccountData)?;
+                        .map_err(|_| light_account::LightSdkTypesError::InvalidInstructionData)?;
                     let #account_data = &mut *#account_guard;
                     // For zero-copy Pod accounts, set compression_info directly
                     #account_data.compression_info =
-                        light_sdk::compressible::CompressionInfo::new_from_config(
+                        light_account::CompressionInfo::new_from_config(
                             &compression_config_data,
                             current_slot,
                         );
@@ -105,9 +105,10 @@ impl<'a> PdaBlockBuilder<'a> {
         } else if self.field.is_boxed {
             quote! {
                 {
-                    use light_sdk::interface::LightAccount;
+                    use light_account::LightAccount;
                     use anchor_lang::AnchorSerialize;
-                    let current_slot = anchor_lang::solana_program::sysvar::clock::Clock::get()?.slot;
+                    let current_slot = anchor_lang::solana_program::sysvar::clock::Clock::get()
+                        .map_err(|_| light_account::LightSdkTypesError::ConstraintViolation)?.slot;
                     // Get account info BEFORE mutable borrow
                     let account_info = self.#ident.to_account_info();
                     // Scope the mutable borrow
@@ -119,17 +120,18 @@ impl<'a> PdaBlockBuilder<'a> {
                     // Now serialize - the mutable borrow above is released
                     let mut data = account_info
                         .try_borrow_mut_data()
-                        .map_err(|_| light_sdk::error::LightSdkError::ConstraintViolation)?;
+                        .map_err(|_| light_account::LightSdkTypesError::ConstraintViolation)?;
                     self.#ident.serialize(&mut &mut data[8..])
-                        .map_err(|_| light_sdk::error::LightSdkError::ConstraintViolation)?;
+                        .map_err(|_| light_account::LightSdkTypesError::ConstraintViolation)?;
                 }
             }
         } else {
             quote! {
                 {
-                    use light_sdk::interface::LightAccount;
+                    use light_account::LightAccount;
                     use anchor_lang::AnchorSerialize;
-                    let current_slot = anchor_lang::solana_program::sysvar::clock::Clock::get()?.slot;
+                    let current_slot = anchor_lang::solana_program::sysvar::clock::Clock::get()
+                        .map_err(|_| light_account::LightSdkTypesError::ConstraintViolation)?.slot;
                     // Get account info BEFORE mutable borrow
                     let account_info = self.#ident.to_account_info();
                     // Scope the mutable borrow
@@ -141,9 +143,9 @@ impl<'a> PdaBlockBuilder<'a> {
                     // Now serialize - the mutable borrow above is released
                     let mut data = account_info
                         .try_borrow_mut_data()
-                        .map_err(|_| light_sdk::error::LightSdkError::ConstraintViolation)?;
+                        .map_err(|_| light_account::LightSdkTypesError::ConstraintViolation)?;
                     self.#ident.serialize(&mut &mut data[8..])
-                        .map_err(|_| light_sdk::error::LightSdkError::ConstraintViolation)?;
+                        .map_err(|_| light_account::LightSdkTypesError::ConstraintViolation)?;
                 }
             }
         }
@@ -168,15 +170,15 @@ impl<'a> PdaBlockBuilder<'a> {
         quote! {
             {
                 // Explicit type annotation for tree_info
-                let tree_info: &::light_sdk::sdk_types::PackedAddressTreeInfo = &#addr_tree_info;
+                let tree_info: &light_account::PackedAddressTreeInfo = &#addr_tree_info;
 
-                ::light_sdk::interface::prepare_compressed_account_on_init(
+                ::light_account::prepare_compressed_account_on_init(
                     &#account_key,
                     &#address_tree_pubkey,
                     tree_info,
                     #output_tree,
                     #idx,
-                    &crate::ID,
+                    &crate::LIGHT_CPI_SIGNER.program_id,
                     &mut all_new_address_params,
                     &mut all_compressed_infos,
                 )?;
@@ -248,11 +250,16 @@ pub(super) fn generate_rent_reimbursement_block(
             let __created_accounts: [solana_account_info::AccountInfo<'info>; #count] = [
                 #(#account_info_exprs),*
             ];
-            ::light_sdk::interface::reimburse_rent(
+            let __rent_sponsor_bump_byte = [compression_config_data.rent_sponsor_bump];
+            let __rent_sponsor_seeds: &[&[u8]] = &[
+                light_account::RENT_SPONSOR_SEED,
+                &__rent_sponsor_bump_byte,
+            ];
+            ::light_account::reimburse_rent(
                 &__created_accounts,
                 &self.#fee_payer.to_account_info(),
                 &self.#rent_sponsor.to_account_info(),
-                &crate::ID,
+                __rent_sponsor_seeds,
             )?;
         }
     }

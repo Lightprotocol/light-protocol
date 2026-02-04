@@ -14,7 +14,6 @@ cold account into hot state in-flight when using the account again.
 |------|-------------|
 | [`CompressionInfo`](compression_info::CompressionInfo) | Rent state, authorities, and compression config per account |
 | [`CompressibleConfig`](config::CompressibleConfig) | Program-level config: rent sponsor, authorities, address space |
-| [`CreateAccountsProof`] | Validity proof and tree info for account init |
 | [`RentConfig`](rent::RentConfig) | Rent function parameters for compression eligibility |
 | [`compression_info`] | `is_compressible`, `claim`, and top-up logic |
 | [`registry_instructions`] | Instructions for the compression registry |

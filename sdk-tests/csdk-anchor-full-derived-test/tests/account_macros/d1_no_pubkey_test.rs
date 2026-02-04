@@ -10,11 +10,8 @@
 //! struct is packed as-is without transformation.
 
 use csdk_anchor_full_derived_test::NoPubkeyRecord;
+use light_account::{CompressAs, CompressionInfo, CompressionState};
 use light_hasher::{DataHasher, Sha256};
-use light_sdk::{
-    compressible::CompressionState,
-    interface::{CompressAs, CompressionInfo},
-};
 
 use super::shared::CompressibleTestFactory;
 use crate::generate_trait_tests;

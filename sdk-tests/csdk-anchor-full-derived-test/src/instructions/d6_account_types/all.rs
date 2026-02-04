@@ -3,8 +3,7 @@
 //! Tests that both account type variants work in the same struct.
 
 use anchor_lang::prelude::*;
-use light_compressible::CreateAccountsProof;
-use light_sdk_macros::LightAccounts;
+use light_account::{CreateAccountsProof, LightAccounts};
 
 use crate::state::{
     d1_field_types::single_pubkey::SinglePubkeyRecord,

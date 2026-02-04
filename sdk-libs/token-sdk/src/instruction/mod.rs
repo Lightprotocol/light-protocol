@@ -156,7 +156,7 @@ pub use transfer_to_spl::{TransferToSpl, TransferToSplCpi};
 
 /// System accounts required for CPI operations to Light Protocol.
 ///
-/// Pass these accounts when invoking compressed token operations from your program.
+/// Pass these accounts when invoking Light Token operations from your program.
 ///
 /// # Fields
 ///

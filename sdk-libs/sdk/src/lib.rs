@@ -164,9 +164,6 @@ pub mod transfer;
 pub mod utils;
 
 pub use proof::borsh_compat;
-pub mod interface;
-/// Backward-compat alias
-pub use interface as compressible;
 #[cfg(feature = "merkle-tree")]
 pub mod merkle_tree;
 
@@ -203,15 +200,6 @@ pub mod sdk_types {
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
-// Pack trait is only available off-chain (client-side) - uses PackedAccounts
-#[cfg(not(target_os = "solana"))]
-pub use interface::Pack;
-pub use interface::{
-    process_initialize_light_config, process_initialize_light_config_checked,
-    process_update_light_config, CompressAs, CompressedInitSpace, CompressionInfo,
-    HasCompressionInfo, LightConfig, Space, Unpack, COMPRESSIBLE_CONFIG_SEED,
-    MAX_ADDRESS_TREES_PER_SPACE,
-};
 pub use light_account_checks::{self, discriminator::Discriminator as LightDiscriminator};
 // Re-export as extern crate so downstream crates can use `::light_hasher::` paths
 pub extern crate light_hasher;
@@ -224,10 +212,12 @@ pub use light_sdk_macros::{
 };
 pub use light_sdk_types::{constants, instruction::PackedAddressTreeInfoExt, CpiSigner};
 use solana_account_info::AccountInfo;
-use solana_cpi::invoke_signed;
-use solana_instruction::{AccountMeta, Instruction};
+use solana_instruction::AccountMeta;
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
+
+// Re-export SDK traits
+pub use crate::cpi::LightCpiInstruction;
 
 pub trait PubkeyTrait {
     fn to_solana_pubkey(&self) -> Pubkey;
