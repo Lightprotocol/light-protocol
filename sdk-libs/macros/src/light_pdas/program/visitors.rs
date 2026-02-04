@@ -396,7 +396,13 @@ fn map_call_arg(
 
     match arg {
         syn::Expr::Reference(ref_expr) => {
-            let inner = map_call_arg(&ref_expr.expr, instruction_data, seen_params, parameters, is_pinocchio)?;
+            let inner = map_call_arg(
+                &ref_expr.expr,
+                instruction_data,
+                seen_params,
+                parameters,
+                is_pinocchio,
+            )?;
             Ok(quote! { &#inner })
         }
         syn::Expr::Field(field_expr) => {
@@ -577,7 +583,8 @@ pub fn generate_client_seed_code(
         ClientSeedInfo::FunctionCall(call_expr) => {
             let mut mapped_args: Vec<TokenStream> = Vec::new();
             for arg in &call_expr.args {
-                let mapped = map_call_arg(arg, instruction_data, seen_params, parameters, is_pinocchio)?;
+                let mapped =
+                    map_call_arg(arg, instruction_data, seen_params, parameters, is_pinocchio)?;
                 mapped_args.push(mapped);
             }
             let func = &call_expr.func;

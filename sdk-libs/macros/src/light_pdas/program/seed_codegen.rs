@@ -106,8 +106,11 @@ pub fn generate_client_seed_functions(
                     owner_seeds_spec.seeds.push(owner_seed.clone());
                 }
 
-                let (owner_parameters, owner_seed_expressions) =
-                    analyze_seed_spec_for_client(&owner_seeds_spec, instruction_data, is_pinocchio)?;
+                let (owner_parameters, owner_seed_expressions) = analyze_seed_spec_for_client(
+                    &owner_seeds_spec,
+                    instruction_data,
+                    is_pinocchio,
+                )?;
 
                 let (fn_params, fn_body) = if owner_parameters.is_empty() {
                     (
