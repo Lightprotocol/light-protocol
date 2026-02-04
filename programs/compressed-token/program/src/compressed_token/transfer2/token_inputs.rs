@@ -57,6 +57,12 @@ pub fn set_input_compressed_accounts<'a>(
                     if idx >= MAX_COMPRESSIONS {
                         return Err(TokenError::CompressionIndexOutOfBounds.into());
                     }
+                    // Check compression_index is within actual compressions length
+                    let compressions_len =
+                        inputs.compressions.as_ref().map(|c| c.len()).unwrap_or(0);
+                    if idx >= compressions_len {
+                        return Err(TokenError::CompressionIndexOutOfBounds.into());
+                    }
                     // Check uniqueness - error if compression_index already used
                     if compression_to_input[idx].is_some() {
                         return Err(TokenError::DuplicateCompressionIndex.into());
