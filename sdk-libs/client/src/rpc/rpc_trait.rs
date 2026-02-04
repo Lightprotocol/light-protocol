@@ -19,7 +19,7 @@ use solana_transaction_status_client_types::TransactionStatus;
 use super::client::RpcUrl;
 use crate::{
     indexer::{Indexer, IndexerRpcConfig, Response, TreeInfo},
-    interface::{AccountInterface, AccountToFetch, TokenAccountInterface},
+    interface::{AccountInterface, AccountToFetch, MintInterface, TokenAccountInterface},
     rpc::errors::RpcError,
 };
 
@@ -271,13 +271,25 @@ pub trait Rpc: Send + Sync + Debug + 'static {
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<Vec<Option<AccountInterface>>>, RpcError>;
 
+    /// Get mint interface from either on-chain or compressed sources.
+    ///
+    /// This method:
+    /// 1. First checks if the mint exists on-chain (hot)
+    /// 2. Falls back to compressed account lookup (cold) using derived address
+    /// 3. Parses mint data locally from the account data
+    async fn get_mint_interface(
+        &self,
+        address: &Pubkey,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Option<MintInterface>>, RpcError>;
+
     /// Fetch multiple accounts using `AccountToFetch` descriptors.
     ///
     /// Routes each account to the correct method based on its variant:
     /// - `Pda` -> `get_account_interface`
     /// - `Token` -> `get_token_account_interface`
     /// - `Ata` -> `get_ata_interface`
-    /// - `Mint` -> `get_account_interface` (clients parse mint data themselves)
+    /// - `Mint` -> `get_mint_interface`
     async fn fetch_accounts(
         &self,
         accounts: &[AccountToFetch],
@@ -317,14 +329,14 @@ pub trait Rpc: Send + Sync + Debug + 'static {
                     tai.into()
                 }
                 AccountToFetch::Mint { address } => {
-                    let ai = self
-                        .get_account_interface(address, config.clone())
+                    let mi = self
+                        .get_mint_interface(address, config.clone())
                         .await?
                         .value
                         .ok_or_else(|| {
                             RpcError::CustomError(format!("Mint not found: {}", address))
                         })?;
-                    ai
+                    mi.into()
                 }
             };
             results.push(interface);

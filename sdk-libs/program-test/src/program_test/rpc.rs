@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use borsh::BorshDeserialize;
 use light_client::{
     indexer::{CompressedAccount, CompressedTokenAccount, Context, Indexer, Response, TreeInfo},
-    interface::{AccountInterface, TokenAccountInterface},
+    interface::{AccountInterface, MintInterface, MintState, TokenAccountInterface},
     rpc::{LightClientConfig, Rpc, RpcError},
 };
 use light_compressed_account::TreeType;
@@ -675,6 +675,83 @@ impl Rpc for LightProgramTest {
         Ok(Response {
             context: Context { slot },
             value: results,
+        })
+    }
+
+    async fn get_mint_interface(
+        &self,
+        address: &Pubkey,
+        config: Option<light_client::indexer::IndexerRpcConfig>,
+    ) -> Result<Response<Option<MintInterface>>, RpcError> {
+        use borsh::BorshDeserialize;
+        use light_token::instruction::derive_mint_compressed_address;
+        use light_token_interface::{state::Mint, MINT_ADDRESS_TREE};
+
+        let slot = self.context.get_sysvar::<Clock>().slot;
+        let address_tree = Pubkey::new_from_array(MINT_ADDRESS_TREE);
+        let compressed_address = derive_mint_compressed_address(address, &address_tree);
+
+        // 1. Try hot (on-chain) first
+        if let Some(account) = self.context.get_account(address) {
+            if account.lamports > 0 {
+                return Ok(Response {
+                    context: Context { slot },
+                    value: Some(MintInterface {
+                        mint: *address,
+                        address_tree,
+                        compressed_address,
+                        state: MintState::Hot { account },
+                    }),
+                });
+            }
+        }
+
+        // 2. Fall back to cold (compressed) via indexer
+        let indexer = self
+            .indexer
+            .as_ref()
+            .ok_or_else(|| RpcError::CustomError("Indexer not initialized".to_string()))?;
+
+        let resp = indexer
+            .get_compressed_account(compressed_address, config)
+            .await
+            .map_err(|e| RpcError::CustomError(format!("Indexer error: {e}")))?;
+
+        let value = match resp.value {
+            Some(compressed) => {
+                // Parse mint data from compressed account
+                let mint_data = compressed
+                    .data
+                    .as_ref()
+                    .and_then(|d| {
+                        if d.data.is_empty() {
+                            None
+                        } else {
+                            Mint::try_from_slice(&d.data).ok()
+                        }
+                    })
+                    .ok_or_else(|| {
+                        RpcError::CustomError(
+                            "Missing or invalid mint data in compressed account".into(),
+                        )
+                    })?;
+
+                Some(MintInterface {
+                    mint: *address,
+                    address_tree,
+                    compressed_address,
+                    state: MintState::Cold {
+                        compressed,
+                        mint_data,
+                    },
+                })
+            }
+            None => None,
+        };
+
+        Ok(Response {
+            context: Context { slot },
+            value,
         })
     }
 }

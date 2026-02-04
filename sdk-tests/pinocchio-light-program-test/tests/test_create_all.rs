@@ -2,8 +2,8 @@ mod shared;
 
 use light_account_pinocchio::token::TokenDataWithSeeds;
 use light_client::interface::{
-    create_load_instructions, get_create_accounts_proof, AccountInterface, AccountInterfaceExt,
-    AccountSpec, ColdContext, CreateAccountsProofInput, PdaSpec,
+    create_load_instructions, get_create_accounts_proof, AccountInterface, AccountSpec,
+    ColdContext, CreateAccountsProofInput, PdaSpec,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{program_test::TestRpc, Rpc};
@@ -206,9 +206,11 @@ async fn test_create_all_derive() {
 
     // PDA: MinimalRecord
     let record_interface = rpc
-        .get_account_interface(&record_pda, &program_id)
+        .get_account_interface(&record_pda, None)
         .await
-        .expect("failed to get MinimalRecord interface");
+        .expect("failed to get MinimalRecord interface")
+        .value
+        .expect("MinimalRecord interface should exist");
     assert!(record_interface.is_cold(), "MinimalRecord should be cold");
 
     let record_data: MinimalRecord =
@@ -224,9 +226,11 @@ async fn test_create_all_derive() {
 
     // PDA: ZeroCopyRecord
     let zc_interface = rpc
-        .get_account_interface(&zc_record_pda, &program_id)
+        .get_account_interface(&zc_record_pda, None)
         .await
-        .expect("failed to get ZeroCopyRecord interface");
+        .expect("failed to get ZeroCopyRecord interface")
+        .value
+        .expect("ZeroCopyRecord interface should exist");
     assert!(zc_interface.is_cold(), "ZeroCopyRecord should be cold");
 
     let zc_data: ZeroCopyRecord =
@@ -242,16 +246,20 @@ async fn test_create_all_derive() {
 
     // ATA
     let ata_interface = rpc
-        .get_ata_interface(&ata_owner, &mint_pda)
+        .get_ata_interface(&ata_owner, &mint_pda, None)
         .await
-        .expect("failed to get ATA interface");
+        .expect("failed to get ATA interface")
+        .value
+        .expect("ATA interface should exist");
     assert!(ata_interface.is_cold(), "ATA should be cold");
 
     // Token PDA: Vault
     let vault_iface = rpc
-        .get_token_account_interface(&vault)
+        .get_token_account_interface(&vault, None)
         .await
-        .expect("failed to get vault interface");
+        .expect("failed to get vault interface")
+        .value
+        .expect("vault interface should exist");
     assert!(vault_iface.is_cold(), "Vault should be cold");
 
     let vault_token_data: Token =
@@ -275,9 +283,11 @@ async fn test_create_all_derive() {
 
     // Mint
     let mint_iface = rpc
-        .get_mint_interface(&mint_pda)
+        .get_mint_interface(&mint_pda, None)
         .await
-        .expect("failed to get mint interface");
+        .expect("failed to get mint interface")
+        .value
+        .expect("mint interface should exist");
     assert!(mint_iface.is_cold(), "Mint should be cold");
     let (compressed_mint, _) = mint_iface
         .compressed()

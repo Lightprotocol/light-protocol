@@ -1071,6 +1071,8 @@ pub struct InterfaceTreeInfo {
     pub queue: Pubkey,
     pub tree_type: TreeType,
     pub seq: Option<u64>,
+    /// Slot when the account was created/compressed
+    pub slot_created: u64,
 }
 
 /// Structured compressed account data (discriminator separated)
@@ -1112,6 +1114,7 @@ fn decode_tree_info(
         queue,
         tree_type,
         seq: tree_info.seq,
+        slot_created: tree_info.slot_created,
     })
 }
 

@@ -2,6 +2,7 @@ use std::{fmt::Debug, time::Duration};
 
 use async_trait::async_trait;
 use bs58;
+use light_sdk_types::constants::STATE_MERKLE_TREE_CANOPY_DEPTH;
 use photon_api::{
     apis::configuration::{ApiKey, Configuration},
     models::GetCompressedAccountsByOwnerPostRequestParams,
@@ -1174,7 +1175,7 @@ impl Indexer for PhotonIndexer {
                 .iter()
                 .map(|x| {
                     let mut proof_vec = x.proof.clone();
-                    proof_vec.truncate(proof_vec.len() - 10); // Remove canopy
+                    proof_vec.truncate(proof_vec.len() - STATE_MERKLE_TREE_CANOPY_DEPTH);
 
                     let proof = proof_vec
                         .iter()

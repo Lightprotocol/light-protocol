@@ -3,8 +3,8 @@ mod shared;
 use anchor_lang::{InstructionData, ToAccountMetas};
 use anchor_semi_manual_test::{CreateTwoMintsParams, MINT_SIGNER_SEED_A, MINT_SIGNER_SEED_B};
 use light_client::interface::{
-    create_load_instructions, get_create_accounts_proof, AccountInterface, AccountInterfaceExt,
-    AccountSpec, ColdContext, CreateAccountsProofInput,
+    create_load_instructions, get_create_accounts_proof, AccountInterface, AccountSpec,
+    ColdContext, CreateAccountsProofInput,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{program_test::TestRpc, Rpc};
@@ -141,16 +141,20 @@ async fn test_create_two_mints_derive() {
     };
 
     let mint_a_interface = rpc
-        .get_mint_interface(&mint_a_pda)
+        .get_mint_interface(&mint_a_pda, None)
         .await
-        .expect("failed to get mint A interface");
+        .expect("failed to get mint A interface")
+        .value
+        .expect("mint A interface should exist");
     assert!(mint_a_interface.is_cold(), "Mint A should be cold");
     let mint_a_ai = build_mint_account_interface(mint_a_interface);
 
     let mint_b_interface = rpc
-        .get_mint_interface(&mint_b_pda)
+        .get_mint_interface(&mint_b_pda, None)
         .await
-        .expect("failed to get mint B interface");
+        .expect("failed to get mint B interface")
+        .value
+        .expect("mint B interface should exist");
     assert!(mint_b_interface.is_cold(), "Mint B should be cold");
     let mint_b_ai = build_mint_account_interface(mint_b_interface);
 

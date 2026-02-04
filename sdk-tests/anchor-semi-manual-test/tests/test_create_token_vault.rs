@@ -5,8 +5,8 @@ use anchor_semi_manual_test::{
     CreateTokenVaultParams, LightAccountVariant, VaultSeeds, VAULT_AUTH_SEED, VAULT_SEED,
 };
 use light_client::interface::{
-    create_load_instructions, get_create_accounts_proof, AccountInterface, AccountInterfaceExt,
-    AccountSpec, ColdContext, PdaSpec,
+    create_load_instructions, get_create_accounts_proof, AccountInterface, AccountSpec,
+    ColdContext, PdaSpec,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{program_test::TestRpc, Rpc};
@@ -103,9 +103,11 @@ async fn test_create_token_vault_derive() {
 
     // PHASE 3: Decompress vault
     let vault_iface = rpc
-        .get_token_account_interface(&vault)
+        .get_token_account_interface(&vault, None)
         .await
-        .expect("failed to get vault interface");
+        .expect("failed to get vault interface")
+        .value
+        .expect("vault interface should exist");
     assert!(vault_iface.is_cold(), "Vault should be cold");
 
     let token_data: Token =

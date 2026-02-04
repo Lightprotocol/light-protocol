@@ -36,7 +36,7 @@ use crate::{
         IndexerRpcConfig, Response, TokenAccountInterface as IndexerTokenAccountInterface,
         TreeInfo,
     },
-    interface::{AccountInterface, TokenAccountInterface},
+    interface::{AccountInterface, MintInterface, MintState, TokenAccountInterface},
     rpc::{
         errors::RpcError,
         get_light_state_tree_infos::{
@@ -502,7 +502,7 @@ fn convert_account_interface(
                 owner: indexer_ai.account.owner,
                 prove_by_index: false,
                 seq: tree_info.seq,
-                slot_created: 0,
+                slot_created: tree_info.slot_created,
                 tree_info: TreeInfo {
                     tree: tree_info.tree,
                     queue: tree_info.queue,
@@ -548,7 +548,7 @@ fn convert_account_interface(
                 owner: indexer_ai.account.owner,
                 prove_by_index: false,
                 seq: tree_info.seq,
-                slot_created: 0,
+                slot_created: tree_info.slot_created,
                 tree_info: TreeInfo {
                     tree: tree_info.tree,
                     queue: tree_info.queue,
@@ -609,7 +609,7 @@ fn convert_token_account_interface(
                 owner: indexer_tai.account.account.owner,
                 prove_by_index: false,
                 seq: tree_info.seq,
-                slot_created: 0,
+                slot_created: tree_info.slot_created,
                 tree_info: TreeInfo {
                     tree: tree_info.tree,
                     queue: tree_info.queue,
@@ -1200,6 +1200,91 @@ impl Rpc for LightClient {
         Ok(Response {
             context: resp.context,
             value: value?,
+        })
+    }
+
+    async fn get_mint_interface(
+        &self,
+        address: &Pubkey,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Option<MintInterface>>, RpcError> {
+        use light_token::instruction::derive_mint_compressed_address;
+        use light_token_interface::{state::Mint, MINT_ADDRESS_TREE};
+
+        let address_tree = Pubkey::new_from_array(MINT_ADDRESS_TREE);
+        let compressed_address = derive_mint_compressed_address(address, &address_tree);
+
+        let indexer = self
+            .indexer
+            .as_ref()
+            .ok_or(RpcError::IndexerNotInitialized)?;
+
+        // Use get_account_interface to check hot/cold (Photon handles derived address fallback)
+        let resp = indexer
+            .get_account_interface(address, config.clone())
+            .await
+            .map_err(|e| RpcError::CustomError(format!("Indexer error: {e}")))?;
+
+        let value = match resp.value {
+            Some(ai) => {
+                let state = if ai.is_cold() {
+                    // Cold: fetch full CompressedAccount to get data_hash
+                    let compressed_resp = indexer
+                        .get_compressed_account(compressed_address, config)
+                        .await
+                        .map_err(|e| RpcError::CustomError(format!("Indexer error: {e}")))?;
+
+                    let compressed = compressed_resp.value.ok_or_else(|| {
+                        RpcError::CustomError("Cold mint not found by compressed address".into())
+                    })?;
+
+                    // Parse mint data from compressed account
+                    let mint_data = compressed
+                        .data
+                        .as_ref()
+                        .and_then(|d| {
+                            if d.data.is_empty() {
+                                None
+                            } else {
+                                Mint::try_from_slice(&d.data).ok()
+                            }
+                        })
+                        .ok_or_else(|| {
+                            RpcError::CustomError(
+                                "Missing or invalid mint data in compressed account".into(),
+                            )
+                        })?;
+
+                    MintState::Cold {
+                        compressed,
+                        mint_data,
+                    }
+                } else {
+                    // Hot: convert SolanaAccountData to Account
+                    MintState::Hot {
+                        account: Account {
+                            lamports: ai.account.lamports,
+                            data: ai.account.data,
+                            owner: ai.account.owner,
+                            executable: ai.account.executable,
+                            rent_epoch: ai.account.rent_epoch,
+                        },
+                    }
+                };
+
+                Some(MintInterface {
+                    mint: *address,
+                    address_tree,
+                    compressed_address,
+                    state,
+                })
+            }
+            None => None,
+        };
+
+        Ok(Response {
+            context: resp.context,
+            value,
         })
     }
 }

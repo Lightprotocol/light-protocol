@@ -44,15 +44,19 @@ pub struct TreeInfo {
     pub tree_type: TreeType,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub seq: Option<u64>,
+    /// Slot when the account was created/compressed
+    #[serde(rename = "slotCreated")]
+    pub slot_created: u64,
 }
 
 impl TreeInfo {
-    pub fn new(tree: String, queue: String, tree_type: TreeType) -> Self {
+    pub fn new(tree: String, queue: String, tree_type: TreeType, slot_created: u64) -> Self {
         Self {
             tree,
             queue,
             tree_type,
             seq: None,
+            slot_created,
         }
     }
 }
