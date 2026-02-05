@@ -43,13 +43,16 @@ pub fn allocate_cpi_bytes(
                 // Build TLV config for byte length calculation
                 let tlv_config: Vec<ExtensionStructConfig> = tlv
                     .iter()
-                    .filter_map(|ext| match ext {
+                    .map(|ext| match ext {
                         ZExtensionInstructionData::CompressedOnly(_) => {
-                            Some(ExtensionStructConfig::CompressedOnly(()))
+                            Ok(ExtensionStructConfig::CompressedOnly(()))
                         }
-                        _ => None,
+                        _ => Err(ProgramError::Custom(
+                            anchor_compressed_token::ErrorCode::InvalidExtensionInstructionData
+                                as u32,
+                        )),
                     })
-                    .collect();
+                    .collect::<Result<Vec<_>, ProgramError>>()?;
 
                 let token_config = TokenDataConfig {
                     delegate: (has_delegate, ()),
