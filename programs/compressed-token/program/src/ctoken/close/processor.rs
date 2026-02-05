@@ -4,6 +4,7 @@ use light_account_checks::{checks::check_signer, AccountInfoTrait};
 use light_compressible::rent::AccountRentState;
 use light_program_profiler::profile;
 use light_token_interface::state::{AccountState, Token, ZTokenMut};
+use light_zero_copy::traits::ZeroCopyAtMut;
 #[cfg(target_os = "solana")]
 use pinocchio::sysvars::Sysvar;
 use pinocchio::{account_info::AccountInfo, pubkey::pubkey_eq};
@@ -21,12 +22,52 @@ pub fn process_close_token_account(
     // Validate and get accounts
     let accounts = CloseTokenAccountAccounts::validate_and_parse(account_infos)?;
     {
-        // Try to parse as CToken using zero-copy deserialization
-        let ctoken = Token::from_account_info_mut_checked(accounts.token_account)?;
+        // Parse token account without state validation (allows frozen accounts to be closed)
+        let ctoken = from_account_info_mut_for_close(accounts.token_account)?;
         validate_token_account_close(&accounts, &ctoken)?;
     }
     close_token_account(&accounts)?;
     Ok(())
+}
+
+/// Parse token account for close operation.
+/// Unlike `from_account_info_mut_checked`, this allows frozen accounts (matching SPL Token behavior).
+#[inline(always)]
+fn from_account_info_mut_for_close(
+    account_info: &AccountInfo,
+) -> Result<ZTokenMut<'_>, ProgramError> {
+    // Check program ownership
+    if !account_info.is_owned_by(&light_token_interface::LIGHT_TOKEN_PROGRAM_ID) {
+        return Err(ProgramError::IllegalOwner);
+    }
+
+    let mut data = account_info
+        .try_borrow_mut_data()
+        .map_err(|_| ProgramError::AccountBorrowFailed)?;
+
+    // Extend lifetime - safe because account data lives for transaction duration
+    let data_slice: &mut [u8] =
+        unsafe { core::slice::from_raw_parts_mut(data.as_mut_ptr(), data.len()) };
+
+    let (token, remaining) =
+        Token::zero_copy_at_mut(data_slice).map_err(|_| ProgramError::InvalidAccountData)?;
+
+    // Check no trailing bytes
+    if !remaining.is_empty() {
+        return Err(ProgramError::InvalidAccountData);
+    }
+
+    // Reject uninitialized (state == 0), allow Initialized (1) and Frozen (2)
+    if token.state == 0 {
+        return Err(light_token_interface::error::TokenError::InvalidAccountState.into());
+    }
+
+    // Check account type
+    if !token.is_token_account() {
+        return Err(ProgramError::InvalidAccountData);
+    }
+
+    Ok(token)
 }
 
 /// Validates that a ctoken solana account is ready to be closed.
@@ -64,13 +105,11 @@ fn validate_token_account_close(
     }
     // For regular close (!COMPRESS_AND_CLOSE): fall through to owner check
 
-    // Check account state - reject frozen and uninitialized (only for regular close)
+    // Check account state - reject uninitialized
     let account_state =
         AccountState::try_from(ctoken.state).map_err(|_| ProgramError::UninitializedAccount)?;
-    match account_state {
-        AccountState::Initialized => {} // OK to proceed
-        AccountState::Frozen => return Err(ErrorCode::AccountFrozen.into()),
-        AccountState::Uninitialized => return Err(ProgramError::UninitializedAccount),
+    if account_state == AccountState::Uninitialized {
+        return Err(ProgramError::UninitializedAccount);
     }
 
     // For regular close: check close_authority first, then fall back to owner
@@ -114,7 +153,7 @@ pub fn distribute_lamports(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(
     })?;
     // Check for compressible extension and handle lamport distribution
 
-    let ctoken = Token::from_account_info_checked(accounts.token_account)?;
+    let ctoken = from_account_info_mut_for_close(accounts.token_account)?;
 
     // Check for Compressible extension
     let compressible = ctoken.get_compressible_extension();

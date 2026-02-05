@@ -73,6 +73,41 @@ async fn test_close_compressible_token_account() {
         )
         .await;
     }
+
+    // Test 5: Close frozen account (matches SPL Token behavior)
+    // Frozen accounts CAN be closed as long as they have zero balance.
+    {
+        let mut context = setup_account_test_with_created_account(Some((2, false)))
+            .await
+            .unwrap();
+
+        // Get account, set state to Frozen, set account back
+        let token_account_pubkey = context.token_account_keypair.pubkey();
+        let mut account = context
+            .rpc
+            .get_account(token_account_pubkey)
+            .await
+            .unwrap()
+            .unwrap();
+
+        use light_token_interface::state::token::Token;
+        use light_zero_copy::traits::ZeroCopyAtMut;
+        use spl_token_2022::state::AccountState;
+        let (mut ctoken, _) = Token::zero_copy_at_mut(&mut account.data).unwrap();
+        ctoken.state = AccountState::Frozen as u8;
+        drop(ctoken);
+
+        context.rpc.set_account(token_account_pubkey, account);
+
+        let destination = Keypair::new().pubkey();
+        context
+            .rpc
+            .airdrop_lamports(&destination, 1_000_000)
+            .await
+            .unwrap();
+
+        close_and_assert_token_account(&mut context, destination, "frozen_account").await;
+    }
 }
 
 #[tokio::test]
@@ -265,59 +300,6 @@ async fn test_close_token_account_fails() {
             rent_sponsor,
             "uninitialized_account",
             18036, // TokenError::InvalidAccountState
-        )
-        .await;
-    }
-
-    // Test 11: Frozen account → Error 18036 (TokenError::InvalidAccountState)
-    {
-        // Create a fresh account for this test
-        context.token_account_keypair = Keypair::new();
-        let compressible_data = CompressibleData {
-            compression_authority: context.compression_authority,
-            rent_sponsor,
-            num_prepaid_epochs: 2,
-            lamports_per_write: Some(100),
-            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
-            compress_to_pubkey: false,
-            payer: context.payer.pubkey(),
-        };
-        create_and_assert_token_account(&mut context, compressible_data, "frozen_test").await;
-
-        // Get account, set state to Frozen (2), set account back
-        let token_account_pubkey = context.token_account_keypair.pubkey();
-        let mut account = context
-            .rpc
-            .get_account(token_account_pubkey)
-            .await
-            .unwrap()
-            .unwrap();
-
-        // Deserialize, modify state to Frozen, serialize back
-        use light_token_interface::state::token::Token;
-        use light_zero_copy::traits::ZeroCopyAtMut;
-        use spl_token_2022::state::AccountState;
-        let (mut ctoken, _) = Token::zero_copy_at_mut(&mut account.data).unwrap();
-        ctoken.state = AccountState::Frozen as u8;
-        drop(ctoken);
-
-        // Set the modified account back
-        context.rpc.set_account(token_account_pubkey, account);
-
-        let destination = Keypair::new().pubkey();
-        context
-            .rpc
-            .airdrop_lamports(&destination, 1_000_000)
-            .await
-            .unwrap();
-
-        close_and_assert_token_account_fails(
-            &mut context,
-            destination,
-            &owner_keypair,
-            rent_sponsor,
-            "frozen_account",
-            18036, // TokenError::InvalidAccountState (frozen accounts rejected by zero_copy_at_mut_checked)
         )
         .await;
     }
