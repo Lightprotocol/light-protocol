@@ -135,8 +135,10 @@ impl AnchorDeserialize for Token {
                     Option::<Vec<ExtensionStruct>>::deserialize_reader(buf).unwrap_or_default();
                 (account_type, extensions)
             } else {
-                // Account type byte present but not Token - store it but no extensions
-                (account_type, None)
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "Account type does not match Token account",
+                ));
             }
         } else {
             // No account_type byte - base SPL token account without extensions
