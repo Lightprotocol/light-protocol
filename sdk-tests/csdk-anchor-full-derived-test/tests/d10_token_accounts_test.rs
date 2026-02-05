@@ -10,9 +10,7 @@ use csdk_anchor_full_derived_test::d10_token_accounts::{
     D10SingleAtaMarkonlyParams, D10SingleAtaParams, D10SingleVaultParams,
     D10_SINGLE_VAULT_AUTH_SEED, D10_SINGLE_VAULT_SEED,
 };
-use light_client::interface::{
-    get_create_accounts_proof, AccountInterfaceExt, InitializeRentFreeConfig,
-};
+use light_client::interface::{get_create_accounts_proof, InitializeRentFreeConfig};
 use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest},
     ProgramTestConfig, Rpc,
@@ -534,12 +532,14 @@ async fn test_d10_single_ata_markonly_lifecycle() {
     shared::assert_onchain_closed(&mut ctx.rpc, &d10_markonly_ata, "d10_markonly_ata").await;
 
     // PHASE 3: Decompress ATA using create_load_instructions
-    // ATAs use get_ata_interface which fetches the compressed token data
+    // ATAs use get_associated_token_account_interface which fetches the compressed token data
     let ata_interface = ctx
         .rpc
-        .get_ata_interface(&ata_owner, &mint)
+        .get_associated_token_account_interface(&ata_owner, &mint, None)
         .await
-        .expect("get_ata_interface should succeed");
+        .expect("get_associated_token_account_interface should succeed")
+        .value
+        .expect("ata interface should exist");
     assert!(
         ata_interface.is_cold(),
         "ATA should be cold after compression"

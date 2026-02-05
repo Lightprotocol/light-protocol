@@ -229,6 +229,9 @@ impl AmmSdk {
             let compressed_account = match &account.cold {
                 Some(ColdContext::Token(ct)) => ct.account.clone(),
                 Some(ColdContext::Account(ca)) => ca.clone(),
+                Some(ColdContext::Mint(_)) => {
+                    return Err(AmmSdkError::MissingField("unexpected Mint cold context"))
+                }
                 None => return Err(AmmSdkError::MissingField("cold_context")),
             };
             AccountInterface {
@@ -290,20 +293,23 @@ impl AmmSdk {
     }
 
     fn account_requirements(&self, ix: &AmmInstruction) -> Vec<AccountRequirement> {
+        let vault_0_req = AccountRequirement::new(self.token_0_vault, AccountKind::Token);
+        let vault_1_req = AccountRequirement::new(self.token_1_vault, AccountKind::Token);
+
         match ix {
             AmmInstruction::Swap => {
                 vec![
                     AccountRequirement::new(self.pool_state_pubkey, AccountKind::Pda),
-                    AccountRequirement::new(self.token_0_vault, AccountKind::Token),
-                    AccountRequirement::new(self.token_1_vault, AccountKind::Token),
+                    vault_0_req,
+                    vault_1_req,
                     AccountRequirement::new(self.observation_key, AccountKind::Pda),
                 ]
             }
             AmmInstruction::Deposit | AmmInstruction::Withdraw => {
                 vec![
                     AccountRequirement::new(self.pool_state_pubkey, AccountKind::Pda),
-                    AccountRequirement::new(self.token_0_vault, AccountKind::Token),
-                    AccountRequirement::new(self.token_1_vault, AccountKind::Token),
+                    vault_0_req,
+                    vault_1_req,
                     AccountRequirement::new(self.observation_key, AccountKind::Pda),
                     AccountRequirement::new(self.lp_mint, AccountKind::Mint),
                 ]
@@ -339,12 +345,12 @@ impl LightProgramInterface for AmmSdk {
     fn get_accounts_to_update(&self, ix: &Self::Instruction) -> Vec<AccountToFetch> {
         self.account_requirements(ix)
             .into_iter()
-            .filter_map(|req| {
-                req.pubkey.map(|pubkey| match req.kind {
-                    AccountKind::Pda => AccountToFetch::pda(pubkey, PROGRAM_ID),
-                    AccountKind::Token => AccountToFetch::token(pubkey),
-                    AccountKind::Mint => AccountToFetch::mint(pubkey),
-                })
+            .filter_map(|req| match req.kind {
+                AccountKind::Pda => req
+                    .pubkey
+                    .map(|pubkey| AccountToFetch::pda(pubkey, PROGRAM_ID)),
+                AccountKind::Token => req.pubkey.map(AccountToFetch::token),
+                AccountKind::Mint => req.pubkey.map(AccountToFetch::mint),
             })
             .collect()
     }

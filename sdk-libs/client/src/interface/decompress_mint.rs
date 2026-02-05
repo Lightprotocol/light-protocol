@@ -1,8 +1,10 @@
 //! Mint interface types for hot/cold handling.
 
 use borsh::BorshDeserialize;
-use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
-use light_token::instruction::{derive_mint_compressed_address, DecompressMint};
+use light_compressed_account::{
+    address::derive_address, instruction_data::compressed_proof::ValidityProof,
+};
+use light_token::instruction::DecompressMint;
 use light_token_interface::{
     instructions::mint_action::{MintInstructionData, MintWithContext},
     state::Mint,
@@ -13,6 +15,7 @@ use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 use thiserror::Error;
 
+use super::{AccountInterface, ColdContext};
 use crate::indexer::{CompressedAccount, Indexer, ValidityProofWithContext};
 
 /// Error type for mint load operations.
@@ -38,7 +41,7 @@ pub enum DecompressMintError {
 }
 
 /// Mint state: hot (on-chain), cold (compressed), or none.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Default)]
 #[allow(clippy::large_enum_variant)]
 pub enum MintState {
     /// On-chain.
@@ -49,11 +52,12 @@ pub enum MintState {
         mint_data: Mint,
     },
     /// Doesn't exist.
+    #[default]
     None,
 }
 
 /// Mint interface for hot/cold handling.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct MintInterface {
     pub mint: Pubkey,
     pub address_tree: Pubkey,
@@ -93,6 +97,51 @@ impl MintInterface {
                 mint_data,
             } => Some((compressed, mint_data)),
             _ => None,
+        }
+    }
+}
+
+impl From<MintInterface> for AccountInterface {
+    fn from(mi: MintInterface) -> Self {
+        match mi.state {
+            MintState::Hot { account } => Self {
+                key: mi.mint,
+                account,
+                cold: None,
+            },
+            MintState::Cold {
+                compressed,
+                mint_data: _,
+            } => {
+                let data = compressed
+                    .data
+                    .as_ref()
+                    .map(|d| {
+                        let mut buf = d.discriminator.to_vec();
+                        buf.extend_from_slice(&d.data);
+                        buf
+                    })
+                    .unwrap_or_default();
+
+                Self {
+                    key: mi.mint,
+                    account: Account {
+                        lamports: compressed.lamports,
+                        data,
+                        owner: Pubkey::new_from_array(
+                            light_token_interface::LIGHT_TOKEN_PROGRAM_ID,
+                        ),
+                        executable: false,
+                        rent_epoch: 0,
+                    },
+                    cold: Some(ColdContext::Mint(compressed)),
+                }
+            }
+            MintState::None => Self {
+                key: mi.mint,
+                account: Account::default(),
+                cold: None,
+            },
         }
     }
 }
@@ -238,8 +287,11 @@ pub async fn decompress_mint_idempotent<I: Indexer>(
     let address_tree = request
         .address_tree
         .unwrap_or(Pubkey::new_from_array(MINT_ADDRESS_TREE));
-    let compressed_address =
-        derive_mint_compressed_address(&request.mint_seed_pubkey, &address_tree);
+    let compressed_address = derive_address(
+        &request.mint_seed_pubkey.to_bytes(),
+        &address_tree.to_bytes(),
+        &light_token_interface::LIGHT_TOKEN_PROGRAM_ID,
+    );
 
     // 2. Fetch cold mint from indexer
     let compressed_account = indexer

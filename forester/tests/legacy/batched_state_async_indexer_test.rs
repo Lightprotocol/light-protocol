@@ -84,6 +84,7 @@ async fn test_state_indexer_async_batched() {
         upgradeable_programs: vec![],
         limit_ledger_size: None,
         use_surfpool: true,
+        validator_args: vec![],
     }))
     .await;
     spawn_prover().await;

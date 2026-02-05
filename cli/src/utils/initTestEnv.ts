@@ -24,6 +24,11 @@ import {
 } from "./process";
 import { killProver, startProver } from "./processProverServer";
 import { killIndexer, startIndexer } from "./processPhotonIndexer";
+import {
+  killForester,
+  startForester,
+  getPayerForForester,
+} from "./processForester";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { execSync } from "child_process";
 
@@ -101,8 +106,10 @@ async function getProgramOwnedAccounts(
 export async function stopTestEnv(options: {
   indexer: boolean;
   prover: boolean;
+  forester?: boolean;
 }) {
   const processesToKill = [
+    { name: "forester", condition: options.forester ?? false, killFunction: killForester },
     { name: "photon", condition: options.indexer, killFunction: killIndexer },
     { name: "prover", condition: options.prover, killFunction: killProver },
     {
@@ -135,9 +142,11 @@ export async function initTestEnv({
   skipSystemAccounts,
   indexer = true,
   prover = true,
+  forester = false,
   rpcPort = 8899,
   indexerPort = 8784,
   proverPort = 3001,
+  foresterPort = 8080,
   gossipHost = "127.0.0.1",
   checkPhotonVersion = true,
   photonDatabaseUrl,
@@ -148,6 +157,8 @@ export async function initTestEnv({
   verbose,
   skipReset,
   useSurfpool,
+  compressiblePdaPrograms,
+  additionalAccountDirs,
 }: {
   additionalPrograms?: { address: string; path: string }[];
   upgradeablePrograms?: {
@@ -158,9 +169,11 @@ export async function initTestEnv({
   skipSystemAccounts?: boolean;
   indexer: boolean;
   prover: boolean;
+  forester?: boolean;
   rpcPort?: number;
   indexerPort?: number;
   proverPort?: number;
+  foresterPort?: number;
   gossipHost?: string;
   checkPhotonVersion?: boolean;
   photonDatabaseUrl?: string;
@@ -171,6 +184,8 @@ export async function initTestEnv({
   verbose?: boolean;
   skipReset?: boolean;
   useSurfpool?: boolean;
+  compressiblePdaPrograms?: string[];
+  additionalAccountDirs?: string[];
 }) {
   if (useSurfpool) {
     // For surfpool we can await startTestValidator because spawnBinary returns
@@ -189,6 +204,7 @@ export async function initTestEnv({
       verbose,
       skipReset,
       useSurfpool,
+      additionalAccountDirs,
     });
     // Surfpool only supports JSON-RPC POST, not GET /health.
     await confirmRpcReadiness(`http://127.0.0.1:${rpcPort}`);
@@ -207,6 +223,7 @@ export async function initTestEnv({
       verbose,
       skipReset,
       useSurfpool,
+      additionalAccountDirs,
     });
     await waitForServers([{ port: rpcPort, path: "/health" }]);
     await confirmServerStability(`http://127.0.0.1:${rpcPort}/health`);
@@ -249,6 +266,48 @@ export async function initTestEnv({
       proverUrlForIndexer,
       startSlot,
     );
+  }
+
+  if (forester) {
+    if (!indexer || !prover) {
+      throw new Error("Forester requires both indexer and prover to be running");
+    }
+    try {
+      const payer = getPayerForForester();
+      await startForester({
+        rpcUrl: `http://127.0.0.1:${rpcPort}`,
+        wsRpcUrl: `ws://127.0.0.1:${rpcPort + 1}`,
+        indexerUrl: `http://127.0.0.1:${indexerPort}`,
+        proverUrl: `http://127.0.0.1:${proverPort}`,
+        payer,
+        foresterPort,
+        compressiblePdaPrograms,
+      });
+    } catch (error) {
+      console.error("Failed to start forester:", error);
+      throw error;
+    }
+  }
+
+  if (forester) {
+    if (!indexer || !prover) {
+      throw new Error("Forester requires both indexer and prover to be running");
+    }
+    try {
+      const payer = getPayerForForester();
+      await startForester({
+        rpcUrl: `http://127.0.0.1:${rpcPort}`,
+        wsRpcUrl: `ws://127.0.0.1:${rpcPort + 1}`,
+        indexerUrl: `http://127.0.0.1:${indexerPort}`,
+        proverUrl: `http://127.0.0.1:${proverPort}`,
+        payer,
+        foresterPort,
+        compressiblePdaPrograms,
+      });
+    } catch (error) {
+      console.error("Failed to start forester:", error);
+      throw error;
+    }
   }
 }
 
@@ -448,6 +507,7 @@ export async function getSurfpoolArgs({
   rpcPort,
   gossipHost,
   downloadBinaries = true,
+  additionalAccountDirs,
 }: {
   additionalPrograms?: { address: string; path: string }[];
   upgradeablePrograms?: {
@@ -459,6 +519,7 @@ export async function getSurfpoolArgs({
   rpcPort?: number;
   gossipHost?: string;
   downloadBinaries?: boolean;
+  additionalAccountDirs?: string[];
 }): Promise<Array<string>> {
   const dirPath = programsDirPath();
 
@@ -506,6 +567,13 @@ export async function getSurfpoolArgs({
     const accountsRelPath = "../../accounts";
     const accountsPath = path.resolve(__dirname, accountsRelPath);
     args.push("--account-dir", accountsPath);
+  }
+
+  // Load additional account directories
+  if (additionalAccountDirs) {
+    for (const accountDir of additionalAccountDirs) {
+      args.push("--account-dir", path.resolve(accountDir));
+    }
   }
 
   return args;
@@ -603,6 +671,7 @@ export async function startTestValidator({
   verbose,
   skipReset,
   useSurfpool,
+  additionalAccountDirs,
 }: {
   additionalPrograms?: { address: string; path: string }[];
   upgradeablePrograms?: {
@@ -620,6 +689,7 @@ export async function startTestValidator({
   verbose?: boolean;
   skipReset?: boolean;
   useSurfpool?: boolean;
+  additionalAccountDirs?: string[];
 }) {
   if (useSurfpool) {
     const command = await ensureSurfpoolBinary();
@@ -629,6 +699,7 @@ export async function startTestValidator({
       skipSystemAccounts,
       rpcPort,
       gossipHost,
+      additionalAccountDirs,
     });
 
     await killTestValidator(rpcPort);

@@ -22,9 +22,9 @@ pub enum AccountToFetch {
     Pda { address: Pubkey, program_id: Pubkey },
     /// Token account (program-owned) - uses `get_token_account_interface(address)`
     Token { address: Pubkey },
-    /// ATA - uses `get_ata_interface(wallet_owner, mint)`
+    /// ATA - uses `get_associated_token_account_interface(wallet_owner, mint)`
     Ata { wallet_owner: Pubkey, mint: Pubkey },
-    /// Light mint - uses `get_mint_interface(address)`
+    /// Light mint - uses `get_account_interface(address)` (clients parse mint data)
     Mint { address: Pubkey },
 }
 
@@ -48,6 +48,7 @@ impl AccountToFetch {
         Self::Mint { address }
     }
 
+    /// Returns the primary pubkey for this fetch request.
     #[must_use]
     pub fn pubkey(&self) -> Pubkey {
         match self {
@@ -61,15 +62,18 @@ impl AccountToFetch {
 
 /// Context for cold accounts.
 ///
-/// Two variants based on data structure, not account type:
-/// - `Account` - PDA
+/// Three variants based on data structure:
+/// - `Account` - Generic PDA
 /// - `Token` - Token account
-#[derive(Clone, Debug)]
+/// - `Mint` - Compressed mint
+#[derive(Clone, Debug, PartialEq)]
 pub enum ColdContext {
-    /// PDA
+    /// Generic PDA
     Account(CompressedAccount),
     /// Token account
     Token(CompressedTokenAccount),
+    /// Compressed mint
+    Mint(CompressedAccount),
 }
 
 /// Specification for a program-owned PDA with typed variant.
@@ -130,6 +134,7 @@ impl<V> PdaSpec<V> {
         match &self.interface.cold {
             Some(ColdContext::Account(c)) => Some(c),
             Some(ColdContext::Token(c)) => Some(&c.account),
+            Some(ColdContext::Mint(c)) => Some(c),
             None => None,
         }
     }

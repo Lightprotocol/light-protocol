@@ -3858,6 +3858,7 @@ dependencies = [
  "borsh 0.10.4",
  "light-compressed-account",
  "light-hasher",
+ "light-token-interface",
  "light-zero-copy",
  "rand 0.8.5",
  "thiserror 2.0.17",

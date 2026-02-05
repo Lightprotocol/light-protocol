@@ -20,8 +20,9 @@ describe('Version System', () => {
     });
 
     it('should respect LIGHT_PROTOCOL_VERSION environment variable', () => {
+        // Default is V2 when no env var is set (see constants.ts line 31)
         const expectedVersion =
-            process.env.LIGHT_PROTOCOL_VERSION || VERSION.V1;
+            process.env.LIGHT_PROTOCOL_VERSION || VERSION.V2;
         expect(featureFlags.version).toBe(expectedVersion);
     });
 

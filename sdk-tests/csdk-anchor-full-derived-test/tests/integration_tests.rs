@@ -11,8 +11,8 @@ use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
 use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::LightAccountVariant;
 use light_account::IntoVariant;
 use light_client::interface::{
-    create_load_instructions, get_create_accounts_proof, AccountInterfaceExt, AccountSpec,
-    CreateAccountsProofInput, InitializeRentFreeConfig, PdaSpec,
+    create_load_instructions, get_create_accounts_proof, AccountSpec, CreateAccountsProofInput,
+    InitializeRentFreeConfig, PdaSpec,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{
@@ -124,9 +124,11 @@ impl TestContext {
         // Get account interface
         let account_interface = self
             .rpc
-            .get_account_interface(pda, &self.program_id)
+            .get_account_interface(pda, None)
             .await
-            .expect("failed to get account interface");
+            .expect("failed to get account interface")
+            .value
+            .expect("account should exist");
         assert!(
             account_interface.is_cold(),
             "Account should be cold after compression"
@@ -186,9 +188,11 @@ impl TestContext {
         // Get account interface
         let account_interface = self
             .rpc
-            .get_account_interface(pda, &self.program_id)
+            .get_account_interface(pda, None)
             .await
-            .expect("failed to get account interface");
+            .expect("failed to get account interface")
+            .value
+            .expect("account interface should exist");
         assert!(
             account_interface.is_cold(),
             "Account should be cold after compression"
@@ -238,9 +242,11 @@ impl TestContext {
         // Fetch token account interface
         let vault_interface = self
             .rpc
-            .get_token_account_interface(vault_pda)
+            .get_token_account_interface(vault_pda, None)
             .await
-            .expect("get_token_account_interface should succeed");
+            .expect("get_token_account_interface should succeed")
+            .value
+            .expect("token account interface should exist");
         assert!(vault_interface.is_cold(), "Token vault should be cold");
 
         // Deserialize token data
@@ -597,8 +603,10 @@ async fn test_d8_multi_rentfree() {
     // Decompress first account
     let interface1 = ctx
         .rpc
-        .get_account_interface(&pda1, &ctx.program_id)
+        .get_account_interface(&pda1, None)
         .await
+        .unwrap()
+        .value
         .unwrap();
     let variant1 = D8MultiRecord1Seeds { owner, id1 }
         .into_variant(&interface1.account.data[8..])
@@ -620,8 +628,10 @@ async fn test_d8_multi_rentfree() {
     // Decompress second account
     let interface2 = ctx
         .rpc
-        .get_account_interface(&pda2, &ctx.program_id)
+        .get_account_interface(&pda2, None)
         .await
+        .unwrap()
+        .value
         .unwrap();
     let variant2 = D8MultiRecord2Seeds { owner, id2 }
         .into_variant(&interface2.account.data[8..])
@@ -736,8 +746,10 @@ async fn test_d8_all() {
     // Decompress first account (single type)
     let interface_single = ctx
         .rpc
-        .get_account_interface(&pda_single, &ctx.program_id)
+        .get_account_interface(&pda_single, None)
         .await
+        .unwrap()
+        .value
         .unwrap();
     let variant_single = D8AllSingleSeeds { owner }
         .into_variant(&interface_single.account.data[8..])
@@ -759,8 +771,10 @@ async fn test_d8_all() {
     // Decompress second account (multi type)
     let interface_multi = ctx
         .rpc
-        .get_account_interface(&pda_multi, &ctx.program_id)
+        .get_account_interface(&pda_multi, None)
         .await
+        .unwrap()
+        .value
         .unwrap();
     let variant_multi = D8AllMultiSeeds { owner }
         .into_variant(&interface_multi.account.data[8..])
@@ -1485,8 +1499,10 @@ async fn test_d9_all() {
     ) {
         let interface = ctx
             .rpc
-            .get_account_interface(pda, &ctx.program_id)
+            .get_account_interface(pda, None)
             .await
+            .unwrap()
+            .value
             .unwrap();
         let variant = seeds.into_variant(&interface.account.data[8..]).unwrap();
         let spec = PdaSpec::new(interface.clone(), variant, ctx.program_id);
@@ -1608,9 +1624,11 @@ async fn test_d8_pda_only_full_lifecycle() {
     // PHASE 3: Decompress account
     let account_interface = ctx
         .rpc
-        .get_account_interface(&pda, &ctx.program_id)
+        .get_account_interface(&pda, None)
         .await
-        .expect("failed to get account interface");
+        .expect("failed to get account interface")
+        .value
+        .expect("account should exist");
     assert!(account_interface.is_cold(), "Account should be cold");
 
     let variant = D8PdaOnlyRecordSeeds { owner }

@@ -35,3 +35,8 @@ test-compressible-mint: build-compressible-test-deps
 test-compressible-ctoken: build-compressible-test-deps
     RUST_LOG=forester=debug,light_client=debug \
     cargo test --package forester --test test_compressible_ctoken -- --nocapture
+
+# Test for indexer interface scenarios (creates test data for photon)
+test-indexer-interface: build-test-deps
+    RUST_LOG=forester=debug,light_client=debug \
+    cargo test --package forester --test test_indexer_interface -- --nocapture

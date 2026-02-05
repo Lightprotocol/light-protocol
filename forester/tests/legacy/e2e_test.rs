@@ -41,6 +41,7 @@ async fn test_epoch_monitor_with_2_foresters() {
         upgradeable_programs: vec![],
         limit_ledger_size: None,
         use_surfpool: true,
+        validator_args: vec![],
     }))
     .await;
     let forester_keypair1 = Keypair::new();
@@ -389,6 +390,7 @@ async fn test_epoch_double_registration() {
         upgradeable_programs: vec![],
         limit_ledger_size: None,
         use_surfpool: true,
+        validator_args: vec![],
     }))
     .await;
 

@@ -6,7 +6,7 @@ use forester::compressible::{
     traits::CompressibleTracker,
     AccountSubscriber, SubscriptionConfig,
 };
-use forester_utils::{rpc_pool::SolanaRpcPoolBuilder, utils::wait_for_indexer};
+use forester_utils::rpc_pool::SolanaRpcPoolBuilder;
 use light_client::{
     indexer::{AddressWithTree, Indexer},
     local_test_validator::{spawn_validator, LightValidatorConfig},
@@ -23,13 +23,48 @@ use tokio::{
     time::sleep,
 };
 
-/// Helper to create a compressed mint with decompression
+/// Build an expected Mint for assertion comparison.
+///
+/// Takes known values from test setup plus runtime values extracted from the on-chain account.
+fn build_expected_mint(
+    mint_authority: &Pubkey,
+    decimals: u8,
+    mint_pda: &Pubkey,
+    mint_signer: &[u8; 32],
+    bump: u8,
+    version: u8,
+    compression: light_compressible::compression_info::CompressionInfo,
+) -> Mint {
+    Mint {
+        base: BaseMint {
+            mint_authority: Some((*mint_authority).into()),
+            supply: 0,
+            decimals,
+            is_initialized: true,
+            freeze_authority: None,
+        },
+        metadata: MintMetadata {
+            version,
+            mint_decompressed: true,
+            mint: (*mint_pda).into(),
+            mint_signer: *mint_signer,
+            bump,
+        },
+        reserved: [0u8; 16],
+        account_type: ACCOUNT_TYPE_MINT,
+        compression,
+        extensions: None,
+    }
+}
+
+/// Helper to create a compressed mint with decompression.
+/// Returns (mint_pda, compression_address, mint_seed, bump).
 async fn create_decompressed_mint(
     rpc: &mut (impl Rpc + Indexer),
     payer: &Keypair,
     mint_authority: Pubkey,
     decimals: u8,
-) -> (Pubkey, [u8; 32], Keypair) {
+) -> (Pubkey, [u8; 32], Keypair, u8) {
     let mint_seed = Keypair::new();
     let address_tree = rpc.get_address_tree_v2();
     let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
@@ -84,7 +119,7 @@ async fn create_decompressed_mint(
         .await
         .expect("CreateMint should succeed");
 
-    (mint_pda, compression_address, mint_seed)
+    (mint_pda, compression_address, mint_seed, bump)
 }
 
 /// Test that Mint bootstrap discovers decompressed mints
@@ -107,6 +142,7 @@ async fn test_compressible_mint_bootstrap() {
         upgradeable_programs: vec![],
         limit_ledger_size: None,
         use_surfpool: true,
+        validator_args: vec![],
     })
     .await;
 
@@ -124,19 +160,20 @@ async fn test_compressible_mint_bootstrap() {
         .await
         .expect("Failed to airdrop lamports");
 
-    // Wait for indexer to be ready before making validity proof requests
-    wait_for_indexer(&rpc)
+    // Advance slot so the indexer is ready for validity proof requests
+    let current_slot = rpc.get_slot().await.unwrap();
+    rpc.warp_to_slot(current_slot + 1)
         .await
-        .expect("Failed to wait for indexer");
+        .expect("warp_to_slot");
 
     // Create a decompressed mint
-    let (mint_pda, compression_address, mint_seed) =
+    let (mint_pda, compression_address, mint_seed, bump) =
         create_decompressed_mint(&mut rpc, &payer, payer.pubkey(), 9).await;
 
     println!("Created decompressed mint at: {}", mint_pda);
     println!("Compression address: {:?}", compression_address);
 
-    // Verify mint exists on-chain
+    // Verify mint exists on-chain and matches expected structure
     let mint_account = rpc.get_account(mint_pda).await.unwrap();
     assert!(mint_account.is_some(), "Mint should exist after creation");
 
@@ -144,41 +181,24 @@ async fn test_compressible_mint_bootstrap() {
     let mint_data = mint_account.unwrap();
     let mint = Mint::deserialize(&mut &mint_data.data[..]).expect("Failed to deserialize Mint");
 
-    // Extract runtime-specific values from deserialized mint
-    let compression = mint.compression;
-    let metadata_version = mint.metadata.version;
+    // Build expected mint using known values plus runtime compression info
+    let expected_mint = build_expected_mint(
+        &payer.pubkey(),
+        9,
+        &mint_pda,
+        &mint_seed.pubkey().to_bytes(),
+        bump,
+        mint.metadata.version,
+        mint.compression,
+    );
 
-    // Derive the bump from mint_seed
-    let (_, bump) = find_mint_address(&mint_seed.pubkey());
+    assert_eq!(mint, expected_mint, "Mint should match expected structure");
 
-    // Build expected Mint
-    let expected_mint = Mint {
-        base: BaseMint {
-            mint_authority: Some(payer.pubkey().to_bytes().into()),
-            supply: 0,
-            decimals: 9,
-            is_initialized: true,
-            freeze_authority: None,
-        },
-        metadata: MintMetadata {
-            version: metadata_version,
-            mint_decompressed: true,
-            mint: mint_pda.to_bytes().into(),
-            mint_signer: mint_seed.pubkey().to_bytes(),
-            bump,
-        },
-        reserved: [0u8; 16],
-        account_type: ACCOUNT_TYPE_MINT,
-        compression,
-        extensions: None,
-    };
-
-    assert_eq!(mint, expected_mint, "Mint should match expected state");
-
-    // Wait for indexer
-    wait_for_indexer(&rpc)
+    // Advance slot so the indexer processes the mint creation
+    let current_slot = rpc.get_slot().await.unwrap();
+    rpc.warp_to_slot(current_slot + 1)
         .await
-        .expect("Failed to wait for indexer");
+        .expect("warp_to_slot");
 
     // Create tracker and run bootstrap
     let tracker = Arc::new(MintAccountTracker::new());
@@ -263,6 +283,7 @@ async fn test_compressible_mint_compression() {
         upgradeable_programs: vec![],
         limit_ledger_size: None,
         use_surfpool: true,
+        validator_args: vec![],
     })
     .await;
 
@@ -280,13 +301,14 @@ async fn test_compressible_mint_compression() {
         .await
         .expect("Failed to airdrop lamports");
 
-    // Wait for indexer to be ready before making validity proof requests
-    wait_for_indexer(&rpc)
+    // Advance slot so the indexer is ready for validity proof requests
+    let current_slot = rpc.get_slot().await.unwrap();
+    rpc.warp_to_slot(current_slot + 1)
         .await
-        .expect("Failed to wait for indexer");
+        .expect("warp_to_slot");
 
     // Create a decompressed mint
-    let (mint_pda, compression_address, mint_seed) =
+    let (mint_pda, compression_address, mint_seed, bump) =
         create_decompressed_mint(&mut rpc, &payer, payer.pubkey(), 9).await;
 
     println!("Created decompressed mint at: {}", mint_pda);
@@ -302,9 +324,6 @@ async fn test_compressible_mint_compression() {
     // Extract runtime-specific values from deserialized mint
     let compression = mint.compression;
     let metadata_version = mint.metadata.version;
-
-    // Derive the bump from mint_seed
-    let (_, bump) = find_mint_address(&mint_seed.pubkey());
 
     // Build expected Mint
     let expected_mint = Mint {
@@ -330,10 +349,11 @@ async fn test_compressible_mint_compression() {
 
     assert_eq!(mint, expected_mint, "Mint should match expected state");
 
-    // Wait for indexer after mint creation
-    wait_for_indexer(&rpc)
+    // Advance slot so the indexer processes the mint creation
+    let current_slot = rpc.get_slot().await.unwrap();
+    rpc.warp_to_slot(current_slot + 1)
         .await
-        .expect("Failed to wait for indexer");
+        .expect("warp_to_slot");
 
     // Create tracker and add the mint manually
     let tracker = Arc::new(MintAccountTracker::new());
@@ -366,55 +386,61 @@ async fn test_compressible_mint_compression() {
     let ready_accounts = tracker.get_ready_to_compress(current_slot);
     println!("Ready to compress: {} mints", ready_accounts.len());
 
-    if !ready_accounts.is_empty() {
-        // Create compressor and compress
-        let compressor =
-            MintCompressor::new(rpc_pool.clone(), tracker.clone(), payer.insecure_clone());
+    assert!(
+        !ready_accounts.is_empty(),
+        "Mint should be ready to compress with rent_payment=0"
+    );
 
-        println!("Compressing Mint...");
-        let compress_result = compressor.compress_batch(&ready_accounts).await;
+    // Create compressor and compress
+    let compressor = MintCompressor::new(rpc_pool.clone(), tracker.clone(), payer.insecure_clone());
 
-        let signature = compress_result.expect("Compression should succeed");
-        println!("Compression transaction sent: {}", signature);
+    println!("Compressing Mint...");
+    let compress_result = compressor.compress_batch(&ready_accounts).await;
 
-        // Wait for account to be closed
-        let start = tokio::time::Instant::now();
-        let timeout = Duration::from_secs(30);
-        let mut account_closed = false;
+    let signature = compress_result.expect("Compression should succeed");
+    println!("Compression transaction sent: {}", signature);
 
-        while start.elapsed() < timeout {
-            let mint_after = rpc
-                .get_account(mint_pda)
-                .await
-                .expect("Failed to query mint account");
-            if mint_after.is_none() {
-                account_closed = true;
-                println!("Mint account closed successfully!");
-                break;
-            }
-            sleep(Duration::from_millis(500)).await;
-        }
+    // Wait for account to be closed
+    let start = tokio::time::Instant::now();
+    let timeout = Duration::from_secs(30);
+    let mut account_closed = false;
 
-        assert!(
-            account_closed,
-            "Mint account should be closed after compression"
-        );
-
-        // Verify compressed mint still exists in the merkle tree
-        let compressed_after = rpc
-            .get_compressed_account(compression_address, None)
+    while start.elapsed() < timeout {
+        let mint_after = rpc
+            .get_account(mint_pda)
             .await
-            .unwrap()
-            .value;
-        assert!(
-            compressed_after.is_some(),
-            "Compressed mint should still exist after compression"
-        );
-
-        println!("Mint compression test completed successfully!");
-    } else {
-        panic!("Mint should be ready to compress with rent_payment=0");
+            .expect("Failed to query mint account");
+        if mint_after.is_none() || mint_after.as_ref().map(|a| a.lamports) == Some(0) {
+            account_closed = true;
+            println!("Mint account closed successfully!");
+            break;
+        }
+        sleep(Duration::from_millis(500)).await;
     }
+
+    assert!(
+        account_closed,
+        "Mint account should be closed after compression"
+    );
+
+    // Advance slot so the indexer processes the compression transaction
+    let current_slot = rpc.get_slot().await.unwrap();
+    rpc.warp_to_slot(current_slot + 1)
+        .await
+        .expect("warp_to_slot");
+
+    // Verify compressed mint still exists in the merkle tree
+    let compressed_after = rpc
+        .get_compressed_account(compression_address, None)
+        .await
+        .unwrap()
+        .value;
+    assert!(
+        compressed_after.is_some(),
+        "Compressed mint should still exist after compression"
+    );
+
+    println!("Mint compression test completed successfully!");
 }
 
 /// Test AccountSubscriber for Mint accounts
@@ -439,6 +465,7 @@ async fn test_compressible_mint_subscription() {
         upgradeable_programs: vec![],
         limit_ledger_size: None,
         use_surfpool: true,
+        validator_args: vec![],
     })
     .await;
 
@@ -456,10 +483,11 @@ async fn test_compressible_mint_subscription() {
         .await
         .expect("Failed to airdrop lamports");
 
-    // Wait for indexer to be ready
-    wait_for_indexer(&rpc)
+    // Advance slot so the indexer is ready
+    let current_slot = rpc.get_slot().await.unwrap();
+    rpc.warp_to_slot(current_slot + 1)
         .await
-        .expect("Failed to wait for indexer");
+        .expect("warp_to_slot");
 
     // Setup tracker and subscribers
     let tracker = Arc::new(MintAccountTracker::new());
@@ -484,7 +512,7 @@ async fn test_compressible_mint_subscription() {
     sleep(Duration::from_secs(2)).await;
 
     // Create first decompressed mint (immediately compressible with rent_payment=0)
-    let (mint_pda_1, compression_address_1, _mint_seed_1) =
+    let (mint_pda_1, compression_address_1, _mint_seed_1, _bump_1) =
         create_decompressed_mint(&mut rpc, &payer, payer.pubkey(), 9).await;
     println!("Created first decompressed mint at: {}", mint_pda_1);
 
@@ -511,7 +539,7 @@ async fn test_compressible_mint_subscription() {
     println!("Tracker detected first mint via subscription");
 
     // Create second decompressed mint
-    let (mint_pda_2, _compression_address_2, _mint_seed_2) =
+    let (mint_pda_2, _compression_address_2, _mint_seed_2, _bump_2) =
         create_decompressed_mint(&mut rpc, &payer, payer.pubkey(), 6).await;
     println!("Created second decompressed mint at: {}", mint_pda_2);
 
@@ -624,6 +652,12 @@ async fn test_compressible_mint_subscription() {
         compressed_after.is_some(),
         "Compressed mint should still exist after compression"
     );
+
+    // Advance slot so the indexer processes the compression transaction
+    let current_slot = rpc.get_slot().await.unwrap();
+    rpc.warp_to_slot(current_slot + 1)
+        .await
+        .expect("warp_to_slot");
 
     // Shutdown subscribers
     shutdown_tx

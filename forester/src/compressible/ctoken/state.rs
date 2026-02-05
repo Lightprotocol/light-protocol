@@ -76,6 +76,7 @@ impl CTokenAccountTracker {
 
     /// Update tracker with an already-deserialized Token.
     /// Use this to avoid double deserialization when the Token is already available.
+    /// Skips mint accounts (only tracks actual token accounts).
     pub fn update_from_token(
         &self,
         pubkey: Pubkey,
@@ -83,6 +84,12 @@ impl CTokenAccountTracker {
         lamports: u64,
         account_size: usize,
     ) -> Result<()> {
+        // Skip mint accounts - only track actual token accounts
+        if !ctoken.is_token_account() {
+            debug!("Skipping non-token account {}", pubkey);
+            return Ok(());
+        }
+
         let compressible_slot = match calculate_compressible_slot(&ctoken, lamports, account_size) {
             Ok(slot) => slot,
             Err(e) => {

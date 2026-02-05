@@ -310,14 +310,17 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
                 "Batched compress_accounts_idempotent tx confirmed: {}",
                 signature
             );
+            Ok(signature)
         } else {
             tracing::warn!(
                 "compress_accounts_idempotent tx not confirmed: {} - accounts kept in tracker for retry",
                 signature
             );
+            Err(anyhow::anyhow!(
+                "Batch transaction not confirmed: {}",
+                signature
+            ))
         }
-
-        Ok(signature)
     }
 
     /// Compress a single PDA account using cached config

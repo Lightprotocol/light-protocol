@@ -19,7 +19,7 @@ use light_batched_merkle_tree::{
     initialize_state_tree::InitStateTreeAccountsInstructionData,
 };
 use light_client::interface::{
-    create_load_instructions, get_create_accounts_proof, AccountInterfaceExt,
+    create_load_instructions, get_create_accounts_proof, AccountInterface, AccountSpec,
     CreateAccountsProofInput, InitializeRentFreeConfig, LightProgramInterface,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
@@ -489,9 +489,11 @@ async fn refresh_cache(rpc: &mut LightProgramTest, pdas: &AmmPdas) -> CachedStat
 async fn decompress_all(ctx: &mut AmmTestContext, pdas: &AmmPdas) {
     let pool_interface = ctx
         .rpc
-        .get_account_interface(&pdas.pool_state, &ctx.program_id)
+        .get_account_interface(&pdas.pool_state, None)
         .await
-        .expect("failed to get pool_state");
+        .expect("failed to get pool_state")
+        .value
+        .expect("pool_state should exist");
     assert!(pool_interface.is_cold(), "pool_state should be cold");
 
     let mut sdk = AmmSdk::from_keyed_accounts(&[pool_interface])
@@ -501,9 +503,9 @@ async fn decompress_all(ctx: &mut AmmTestContext, pdas: &AmmPdas) {
 
     let keyed_accounts = ctx
         .rpc
-        .get_multiple_account_interfaces(&accounts_to_fetch)
+        .fetch_accounts(&accounts_to_fetch, None)
         .await
-        .expect("get_multiple_account_interfaces should succeed");
+        .expect("fetch_accounts should succeed");
 
     sdk.update(&keyed_accounts)
         .expect("sdk.update should succeed");
@@ -512,69 +514,46 @@ async fn decompress_all(ctx: &mut AmmTestContext, pdas: &AmmPdas) {
 
     let creator_lp_interface = ctx
         .rpc
-        .get_ata_interface(&ctx.creator.pubkey(), &pdas.lp_mint)
+        .get_associated_token_account_interface(&ctx.creator.pubkey(), &pdas.lp_mint, None)
         .await
-        .expect("failed to get creator_lp_token");
+        .expect("failed to get creator_lp_token")
+        .value
+        .expect("creator_lp_token should exist");
 
     // Creator's token_0 and token_1 ATAs also get compressed during epoch warp
     let creator_token_0_interface = ctx
         .rpc
-        .get_ata_interface(&ctx.creator.pubkey(), &ctx.token_0_mint)
+        .get_associated_token_account_interface(&ctx.creator.pubkey(), &ctx.token_0_mint, None)
         .await
-        .expect("failed to get creator_token_0");
+        .expect("failed to get creator_token_0")
+        .value
+        .expect("creator_token_0 should exist");
 
     let creator_token_1_interface = ctx
         .rpc
-        .get_ata_interface(&ctx.creator.pubkey(), &ctx.token_1_mint)
+        .get_associated_token_account_interface(&ctx.creator.pubkey(), &ctx.token_1_mint, None)
         .await
-        .expect("failed to get creator_token_1");
+        .expect("failed to get creator_token_1")
+        .value
+        .expect("creator_token_1 should exist");
 
-    // Underlying mints also get compressed -- convert MintInterface to AccountInterface
-    use light_client::interface::{AccountInterface, AccountSpec, MintState};
+    let mint_0_account_iface = AccountInterface::from(
+        ctx.rpc
+            .get_mint_interface(&ctx.token_0_mint, None)
+            .await
+            .expect("failed to get token_0_mint")
+            .value
+            .expect("token_0_mint should exist"),
+    );
 
-    let mint_0_iface = ctx
-        .rpc
-        .get_mint_interface(&ctx.token_0_mint)
-        .await
-        .expect("failed to get token_0_mint");
-    let mint_0_account_iface = match mint_0_iface.state {
-        MintState::Hot { account } => AccountInterface {
-            key: mint_0_iface.mint,
-            account,
-            cold: None,
-        },
-        MintState::Cold { compressed, .. } => {
-            let owner = compressed.owner;
-            AccountInterface::cold(mint_0_iface.mint, compressed, owner)
-        }
-        MintState::None => AccountInterface {
-            key: mint_0_iface.mint,
-            account: Default::default(),
-            cold: None,
-        },
-    };
-
-    let mint_1_iface = ctx
-        .rpc
-        .get_mint_interface(&ctx.token_1_mint)
-        .await
-        .expect("failed to get token_1_mint");
-    let mint_1_account_iface = match mint_1_iface.state {
-        MintState::Hot { account } => AccountInterface {
-            key: mint_1_iface.mint,
-            account,
-            cold: None,
-        },
-        MintState::Cold { compressed, .. } => {
-            let owner = compressed.owner;
-            AccountInterface::cold(mint_1_iface.mint, compressed, owner)
-        }
-        MintState::None => AccountInterface {
-            key: mint_1_iface.mint,
-            account: Default::default(),
-            cold: None,
-        },
-    };
+    let mint_1_account_iface = AccountInterface::from(
+        ctx.rpc
+            .get_mint_interface(&ctx.token_1_mint, None)
+            .await
+            .expect("failed to get token_1_mint")
+            .value
+            .expect("token_1_mint should exist"),
+    );
 
     let mut all_specs = specs;
     all_specs.push(AccountSpec::Ata(creator_lp_interface));

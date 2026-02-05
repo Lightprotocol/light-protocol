@@ -1,8 +1,6 @@
 mod shared;
 
-use light_client::interface::{
-    create_load_instructions, get_create_accounts_proof, AccountInterfaceExt, AccountSpec,
-};
+use light_client::interface::{create_load_instructions, get_create_accounts_proof, AccountSpec};
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{program_test::TestRpc, Rpc};
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
@@ -87,9 +85,11 @@ async fn test_create_ata_derive() {
 
     // PHASE 3: Decompress via create_load_instructions
     let ata_interface = rpc
-        .get_ata_interface(&ata_owner, &mint)
+        .get_associated_token_account_interface(&ata_owner, &mint, None)
         .await
-        .expect("failed to get ATA interface");
+        .expect("failed to get ATA interface")
+        .value
+        .expect("ATA interface should exist");
     assert!(ata_interface.is_cold(), "ATA should be cold");
 
     let specs: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Ata(ata_interface)];

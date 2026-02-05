@@ -342,3 +342,54 @@ pub mod node;
 pub use self::node::Node;
 pub mod queue_request;
 pub use self::queue_request::QueueRequest;
+// Interface types
+pub mod solana_account_data;
+pub use self::solana_account_data::SolanaAccountData;
+pub mod cold_data;
+pub use self::cold_data::ColdData;
+pub mod tree_info;
+pub use self::tree_info::{TreeInfo as InterfaceTreeInfo, TreeType};
+pub mod cold_context;
+pub use self::cold_context::ColdContext;
+pub mod account_interface;
+pub use self::account_interface::AccountInterface;
+pub mod token_account_interface;
+pub use self::token_account_interface::TokenAccountInterface;
+pub mod interface_result;
+pub use self::interface_result::InterfaceResult;
+// getAccountInterface
+pub mod _get_account_interface_post_request_params;
+pub use self::_get_account_interface_post_request_params::GetAccountInterfacePostRequestParams;
+pub mod _get_account_interface_post_request;
+pub use self::_get_account_interface_post_request::GetAccountInterfacePostRequest;
+pub mod _get_account_interface_post_200_response_result;
+pub use self::_get_account_interface_post_200_response_result::GetAccountInterfacePost200ResponseResult;
+pub mod _get_account_interface_post_200_response;
+pub use self::_get_account_interface_post_200_response::GetAccountInterfacePost200Response;
+// getTokenAccountInterface
+pub mod _get_token_account_interface_post_request_params;
+pub use self::_get_token_account_interface_post_request_params::GetTokenAccountInterfacePostRequestParams;
+pub mod _get_token_account_interface_post_request;
+pub use self::_get_token_account_interface_post_request::GetTokenAccountInterfacePostRequest;
+pub mod _get_token_account_interface_post_200_response_result;
+pub use self::_get_token_account_interface_post_200_response_result::GetTokenAccountInterfacePost200ResponseResult;
+pub mod _get_token_account_interface_post_200_response;
+pub use self::_get_token_account_interface_post_200_response::GetTokenAccountInterfacePost200Response;
+// getAtaInterface
+pub mod _get_ata_interface_post_request_params;
+pub use self::_get_ata_interface_post_request_params::GetAtaInterfacePostRequestParams;
+pub mod _get_ata_interface_post_request;
+pub use self::_get_ata_interface_post_request::GetAtaInterfacePostRequest;
+pub mod _get_ata_interface_post_200_response_result;
+pub use self::_get_ata_interface_post_200_response_result::GetAtaInterfacePost200ResponseResult;
+pub mod _get_ata_interface_post_200_response;
+pub use self::_get_ata_interface_post_200_response::GetAtaInterfacePost200Response;
+// getMultipleAccountInterfaces
+pub mod _get_multiple_account_interfaces_post_request_params;
+pub use self::_get_multiple_account_interfaces_post_request_params::GetMultipleAccountInterfacesPostRequestParams;
+pub mod _get_multiple_account_interfaces_post_request;
+pub use self::_get_multiple_account_interfaces_post_request::GetMultipleAccountInterfacesPostRequest;
+pub mod _get_multiple_account_interfaces_post_200_response_result;
+pub use self::_get_multiple_account_interfaces_post_200_response_result::GetMultipleAccountInterfacesPost200ResponseResult;
+pub mod _get_multiple_account_interfaces_post_200_response;
+pub use self::_get_multiple_account_interfaces_post_200_response::GetMultipleAccountInterfacesPost200Response;

@@ -4,8 +4,8 @@ use light_compressed_account::{
         CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
     },
     constants::{
-        ACCOUNT_COMPRESSION_PROGRAM_ID, CREATE_CPI_CONTEXT_ACCOUNT, LIGHT_SYSTEM_PROGRAM_ID,
-        REGISTERED_PROGRAM_PDA,
+        ACCOUNT_COMPRESSION_PROGRAM_ID, CREATE_CPI_CONTEXT_ACCOUNT, LIGHT_REGISTRY_PROGRAM_ID,
+        LIGHT_SYSTEM_PROGRAM_ID, REGISTERED_PROGRAM_PDA,
     },
     discriminators::*,
     instruction_data::{
@@ -17,13 +17,19 @@ use light_compressed_account::{
     nullifier::create_nullifier,
     Pubkey,
 };
+use light_token_interface::{
+    instructions::{
+        extensions::ExtensionInstructionData, transfer2::CompressedTokenInstructionDataTransfer2,
+    },
+    LIGHT_TOKEN_PROGRAM_ID, TRANSFER2,
+};
 use light_zero_copy::traits::ZeroCopyAt;
 
 use super::{
     error::ParseIndexerEventError,
     event::{
-        BatchNullifyContext, BatchPublicTransactionEvent, MerkleTreeSequenceNumber,
-        MerkleTreeSequenceNumberV1, NewAddress, PublicTransactionEvent,
+        AssociatedTokenAccountOwnerInfo, BatchNullifyContext, BatchPublicTransactionEvent,
+        MerkleTreeSequenceNumber, MerkleTreeSequenceNumberV1, NewAddress, PublicTransactionEvent,
     },
 };
 
@@ -39,19 +45,25 @@ struct ExecutingSystemInstruction<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
-pub(crate) struct Indices {
+pub struct Indices {
     pub system: usize,
     pub cpi: Vec<usize>,
     pub insert_into_queues: usize,
     pub found_solana_system_program_instruction: bool,
     pub found_system: bool,
+    /// Index of the token program instruction (if present, only when called from registry)
+    pub token: Option<usize>,
+    /// Whether registry program was found in the CPI chain (required for token instruction tracking)
+    pub found_registry: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) enum ProgramId {
+pub enum ProgramId {
     LightSystem,
     AccountCompression,
     SolanaSystem,
+    LightToken,
+    Registry,
     Unknown,
 }
 
@@ -60,6 +72,17 @@ struct AssociatedInstructions<'a> {
     pub executing_system_instruction: ExecutingSystemInstruction<'a>,
     pub cpi_context_outputs: Vec<OutputCompressedAccountWithPackedContext>,
     pub insert_into_queues_instruction: InsertIntoQueuesInstructionData<'a>,
+    pub accounts: &'a [Pubkey],
+    /// Token instruction data and accounts for ATA owner extraction
+    pub token_instruction: Option<TokenInstructionData<'a>>,
+}
+
+/// Parsed token instruction data for extracting ATA owner info
+#[derive(Debug, Clone, PartialEq)]
+pub struct TokenInstructionData<'a> {
+    /// Raw instruction data
+    pub data: &'a [u8],
+    /// Accounts for this instruction
     pub accounts: &'a [Pubkey],
 }
 
@@ -158,12 +181,20 @@ fn deserialize_associated_instructions<'a>(
     }?;
     let exec_instruction =
         deserialize_instruction(&instructions[indices.system], &accounts[indices.system])?;
+
+    // Get token instruction data if present
+    let token_instruction = indices.token.map(|token_idx| TokenInstructionData {
+        data: &instructions[token_idx],
+        accounts: &accounts[token_idx],
+    });
+
     Ok(AssociatedInstructions {
         executing_system_instruction: exec_instruction,
         cpi_context_outputs,
         insert_into_queues_instruction: insert_queues_instruction,
         // Remove signer and register program accounts.
         accounts: &accounts[indices.insert_into_queues][2..],
+        token_instruction,
     })
 }
 
@@ -173,7 +204,7 @@ fn deserialize_associated_instructions<'a>(
 /// if next instruct is solana system program isntruction followed by insert into queues is executable instruction
 /// else is cpi instruction
 /// only push into vec if insert into queues instruction is found
-fn find_cpi_patterns(program_ids: &[ProgramId]) -> Vec<Indices> {
+pub fn find_cpi_patterns(program_ids: &[ProgramId]) -> Vec<Indices> {
     let mut vec = Vec::new();
     let mut next_index = usize::MAX;
     for (last_index, program_id) in (0..program_ids.len()).rev().zip(program_ids.iter().rev()) {
@@ -198,11 +229,14 @@ fn find_cpi_patterns(program_ids: &[ProgramId]) -> Vec<Indices> {
 /// We search for the pattern in reverse because there can be multiple system instructions
 /// but only one account compression instruction.
 /// Start index points to ACCOUNT_COMPRESSION_PROGRAM_ID
-fn find_cpi_pattern(start_index: usize, program_ids: &[ProgramId]) -> (Option<Indices>, usize) {
+pub fn find_cpi_pattern(start_index: usize, program_ids: &[ProgramId]) -> (Option<Indices>, usize) {
     let mut index_account = Indices {
         insert_into_queues: start_index,
         ..Default::default()
     };
+    // Track tentative token index - will only be confirmed if registry is found
+    let mut tentative_token: Option<usize> = None;
+
     for (index, program_id) in (0..start_index)
         .rev()
         .zip(program_ids[..start_index].iter().rev())
@@ -218,6 +252,22 @@ fn find_cpi_pattern(start_index: usize, program_ids: &[ProgramId]) -> (Option<In
             index_account.found_system = true;
         } else if index_account.found_system && matches!(program_id, ProgramId::LightSystem) {
             index_account.cpi.push(index);
+        } else if index_account.found_system && matches!(program_id, ProgramId::LightToken) {
+            // Token program Transfer2 instruction in the CPI chain.
+            // Track tentatively - will only be confirmed if registry is found later.
+            // Only track the first one (closest to system instruction).
+            if tentative_token.is_none() {
+                tentative_token = Some(index);
+            }
+        } else if index_account.found_system && matches!(program_id, ProgramId::Registry) {
+            // Registry program instruction - confirms token tracking for ATA owner extraction.
+            // Since we search backwards, registry is found after token in the search order,
+            // but registry is the outer caller in the actual CPI chain.
+            index_account.found_registry = true;
+            // Confirm the tentative token index now that we found registry
+            if index_account.token.is_none() {
+                index_account.token = tentative_token;
+            }
         } else if matches!(program_id, ProgramId::AccountCompression) && index_account.found_system
         {
             // Possibly found next light transaction.
@@ -235,7 +285,7 @@ fn find_cpi_pattern(start_index: usize, program_ids: &[ProgramId]) -> (Option<In
     }
 }
 
-fn wrap_program_ids(
+pub fn wrap_program_ids(
     program_ids: &[Pubkey],
     instructions: &[Vec<u8>],
     accounts: &[Vec<Pubkey>],
@@ -268,6 +318,15 @@ fn wrap_program_ids(
             } else {
                 vec.push(ProgramId::Unknown);
             }
+        } else if program_id == &Pubkey::from(LIGHT_TOKEN_PROGRAM_ID) {
+            // Token program Transfer2 instruction
+            if !instruction.is_empty() && instruction[0] == TRANSFER2 {
+                vec.push(ProgramId::LightToken);
+            } else {
+                vec.push(ProgramId::Unknown);
+            }
+        } else if program_id == &LIGHT_REGISTRY_PROGRAM_ID {
+            vec.push(ProgramId::Registry);
         } else {
             vec.push(ProgramId::Unknown);
         }
@@ -458,6 +517,56 @@ fn deserialize_instruction<'a>(
     }
 }
 
+/// Extract ATA owner info from token instruction's out_tlv.
+/// Returns a Vec of (output_index, wallet_owner) for ATAs.
+pub fn extract_ata_owners(
+    token_instruction: &TokenInstructionData,
+) -> Vec<AssociatedTokenAccountOwnerInfo> {
+    let mut ata_owners = Vec::new();
+
+    // Token instruction format: [discriminator (1 byte)] [serialized data]
+    if token_instruction.data.is_empty() || token_instruction.data[0] != TRANSFER2 {
+        return ata_owners;
+    }
+
+    // Skip discriminator byte and deserialize using borsh
+    let data = &token_instruction.data[1..];
+    let Ok(transfer_data) = CompressedTokenInstructionDataTransfer2::deserialize(&mut &data[..])
+    else {
+        return ata_owners;
+    };
+
+    // Check if there's out_tlv data
+    let Some(out_tlv) = transfer_data.out_tlv.as_ref() else {
+        return ata_owners;
+    };
+
+    // Iterate over output TLV entries (one per output token account)
+    for (output_index, tlv_extensions) in out_tlv.iter().enumerate() {
+        // Look for CompressedOnly extension with is_ata=true
+        for ext in tlv_extensions.iter() {
+            if let ExtensionInstructionData::CompressedOnly(compressed_only) = ext {
+                if compressed_only.is_ata {
+                    // Get wallet owner from packed_accounts using owner_index.
+                    // owner_index is an index into packed_accounts, which starts at position 7
+                    // in the Transfer2 accounts array (after the 7 system accounts).
+                    const TRANSFER2_PACKED_ACCOUNTS_OFFSET: usize = 7;
+                    let owner_idx =
+                        compressed_only.owner_index as usize + TRANSFER2_PACKED_ACCOUNTS_OFFSET;
+                    if owner_idx < token_instruction.accounts.len() {
+                        ata_owners.push(AssociatedTokenAccountOwnerInfo {
+                            output_index: output_index as u8,
+                            wallet_owner: token_instruction.accounts[owner_idx],
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    ata_owners
+}
+
 fn create_batched_transaction_event(
     associated_instructions: &AssociatedInstructions,
 ) -> Result<BatchPublicTransactionEvent, ParseIndexerEventError> {
@@ -521,6 +630,11 @@ fn create_batched_transaction_event(
                 .accounts
                 .to_vec(),
             message: None,
+            ata_owners: associated_instructions
+                .token_instruction
+                .as_ref()
+                .map(extract_ata_owners)
+                .unwrap_or_default(),
         },
         tx_hash: associated_instructions
             .insert_into_queues_instruction
@@ -665,346 +779,4 @@ fn create_address_queue_indices(
             }
         });
     address_queue_indices
-}
-
-#[cfg(test)]
-mod test {
-    use rand::{
-        rngs::{StdRng, ThreadRng},
-        Rng, RngCore, SeedableRng,
-    };
-
-    use super::*;
-    fn get_rnd_program_id<R: Rng>(rng: &mut R, with_system_program: bool) -> ProgramId {
-        let vec = [
-            ProgramId::Unknown,
-            ProgramId::AccountCompression,
-            ProgramId::LightSystem,
-        ];
-        let len = if with_system_program { 3 } else { 2 };
-        let index = rng.gen_range(0..len);
-        vec[index]
-    }
-    fn get_rnd_program_ids<R: Rng>(
-        rng: &mut R,
-        len: usize,
-        with_system_program: bool,
-    ) -> Vec<ProgramId> {
-        (0..len)
-            .map(|_| get_rnd_program_id(rng, with_system_program))
-            .collect()
-    }
-
-    #[test]
-    fn test_rnd_functional() {
-        let mut thread_rng = ThreadRng::default();
-        let seed = thread_rng.next_u64();
-        // Keep this print so that in case the test fails
-        // we can use the seed to reproduce the error.
-        println!("\n\ntest seed {}\n\n", seed);
-        let mut rng = StdRng::seed_from_u64(seed);
-        let num_iters = 100000;
-        for _ in 0..num_iters {
-            let len_pre = rng.gen_range(0..6);
-            let rnd_vec_pre = get_rnd_program_ids(&mut rng, len_pre, false);
-            let len_post = rng.gen_range(0..6);
-            let rnd_vec_post = get_rnd_program_ids(&mut rng, len_post, false);
-            let num_mid = rng.gen_range(1..6);
-
-            let program_ids = [
-                rnd_vec_pre.as_slice(),
-                [ProgramId::LightSystem].as_slice(),
-                vec![ProgramId::SolanaSystem; num_mid].as_slice(),
-                [ProgramId::AccountCompression].as_slice(),
-                rnd_vec_post.as_slice(),
-            ]
-            .concat();
-            let start_index = program_ids.len() - 1 - len_post;
-            let system_index = program_ids.len() - 1 - len_post - num_mid - 1;
-            let vec = find_cpi_patterns(&program_ids);
-            let expected = Indices {
-                system: system_index,
-                cpi: vec![],
-                insert_into_queues: start_index,
-                found_solana_system_program_instruction: true,
-                found_system: true,
-            };
-            assert!(
-                vec.contains(&expected),
-                "program ids {:?} parsed events  {:?} expected {:?} ",
-                program_ids,
-                vec,
-                expected,
-            );
-        }
-
-        for _ in 0..num_iters {
-            let len_pre = rng.gen_range(0..6);
-            let rnd_vec_pre = get_rnd_program_ids(&mut rng, len_pre, true);
-            let len_post = rng.gen_range(0..6);
-            let rnd_vec_post = get_rnd_program_ids(&mut rng, len_post, true);
-            let num_mid = rng.gen_range(1..6);
-
-            let program_ids = [
-                rnd_vec_pre.as_slice(),
-                [ProgramId::LightSystem].as_slice(),
-                vec![ProgramId::SolanaSystem; num_mid].as_slice(),
-                [ProgramId::AccountCompression].as_slice(),
-                rnd_vec_post.as_slice(),
-            ]
-            .concat();
-            let start_index = program_ids.len() - 1 - len_post;
-            let system_index = program_ids.len() - 1 - len_post - num_mid - 1;
-            let vec = find_cpi_patterns(&program_ids);
-            let expected = Indices {
-                system: system_index,
-                cpi: vec![],
-                insert_into_queues: start_index,
-                found_solana_system_program_instruction: true,
-                found_system: true,
-            };
-            assert!(
-                vec.iter().any(|x| x.system == expected.system
-                    && x.insert_into_queues == expected.insert_into_queues),
-                "program ids {:?} parsed events  {:?} expected {:?} ",
-                program_ids,
-                vec,
-                expected,
-            );
-        }
-    }
-
-    #[test]
-    fn test_rnd_failing() {
-        let mut thread_rng = ThreadRng::default();
-        let seed = thread_rng.next_u64();
-        // Keep this print so that in case the test fails
-        // we can use the seed to reproduce the error.
-        println!("\n\ntest seed {}\n\n", seed);
-        let mut rng = StdRng::seed_from_u64(seed);
-        let num_iters = 100000;
-        for _ in 0..num_iters {
-            let len = rng.gen_range(0..20);
-            let mut program_ids = get_rnd_program_ids(&mut rng, len, true);
-            // if any ProgramId::LightSystem is followed by ProgramId::SolanaSystem overwrite ProgramId::SolanaSystem with ProgramId::Unknown
-            for i in 0..program_ids.len().saturating_sub(1) {
-                if matches!(program_ids[i], ProgramId::LightSystem)
-                    && matches!(program_ids[i + 1], ProgramId::SolanaSystem)
-                {
-                    program_ids[i + 1] = ProgramId::Unknown;
-                }
-            }
-
-            let vec = find_cpi_patterns(&program_ids);
-
-            assert!(
-                vec.is_empty(),
-                "program_ids {:?} result {:?}",
-                program_ids,
-                vec
-            );
-        }
-    }
-
-    #[test]
-    fn test_find_two_patterns() {
-        // Std pattern
-        {
-            let program_ids = vec![
-                ProgramId::Unknown,
-                ProgramId::LightSystem,
-                ProgramId::SolanaSystem,
-                ProgramId::AccountCompression,
-                ProgramId::Unknown,
-                ProgramId::LightSystem,
-                ProgramId::SolanaSystem,
-                ProgramId::AccountCompression,
-            ];
-            let vec = find_cpi_patterns(&program_ids);
-            assert_eq!(vec.len(), 2);
-            assert_eq!(
-                vec[0],
-                Indices {
-                    system: 5,
-                    cpi: vec![],
-                    insert_into_queues: 7,
-                    found_solana_system_program_instruction: true,
-                    found_system: true,
-                }
-            );
-            assert_eq!(
-                vec[1],
-                Indices {
-                    system: 1,
-                    cpi: vec![],
-                    insert_into_queues: 3,
-                    found_solana_system_program_instruction: true,
-                    found_system: true,
-                }
-            );
-            // Modify only second event is valid
-            {
-                let mut program_ids = program_ids.clone();
-                program_ids[2] = ProgramId::Unknown;
-                let vec = find_cpi_patterns(&program_ids);
-                assert_eq!(vec.len(), 1);
-                assert_eq!(
-                    vec[0],
-                    Indices {
-                        system: 5,
-                        cpi: vec![],
-                        insert_into_queues: 7,
-                        found_solana_system_program_instruction: true,
-                        found_system: true,
-                    }
-                );
-            }
-            // Modify only first event is valid
-            {
-                let mut program_ids = program_ids;
-                program_ids[6] = ProgramId::Unknown;
-                let vec = find_cpi_patterns(&program_ids);
-                assert_eq!(vec.len(), 1);
-                assert_eq!(
-                    vec[0],
-                    Indices {
-                        system: 1,
-                        cpi: vec![],
-                        insert_into_queues: 3,
-                        found_solana_system_program_instruction: true,
-                        found_system: true,
-                    }
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn test_find_pattern() {
-        // Std pattern
-        {
-            let program_ids = vec![
-                ProgramId::Unknown,
-                ProgramId::LightSystem,
-                ProgramId::SolanaSystem,
-                ProgramId::AccountCompression,
-            ];
-            let (res, last_index) = find_cpi_pattern(3, &program_ids);
-            assert_eq!(last_index, 0);
-            assert_eq!(
-                res,
-                Some(Indices {
-                    system: 1,
-                    cpi: vec![],
-                    insert_into_queues: 3,
-                    found_solana_system_program_instruction: true,
-                    found_system: true,
-                })
-            );
-        }
-        {
-            let program_ids = vec![
-                ProgramId::Unknown,
-                ProgramId::LightSystem,
-                ProgramId::SolanaSystem,
-                ProgramId::SolanaSystem,
-                ProgramId::SolanaSystem,
-                ProgramId::AccountCompression,
-            ];
-            let start_index = program_ids.len() - 1;
-            let (res, last_index) = find_cpi_pattern(start_index, &program_ids);
-            assert_eq!(last_index, 0);
-            assert_eq!(
-                res,
-                Some(Indices {
-                    system: 1,
-                    cpi: vec![],
-                    insert_into_queues: start_index,
-                    found_solana_system_program_instruction: true,
-                    found_system: true,
-                })
-            );
-        }
-        {
-            let program_ids = vec![
-                ProgramId::Unknown,
-                ProgramId::LightSystem,
-                ProgramId::SolanaSystem,
-                ProgramId::Unknown,
-                ProgramId::SolanaSystem,
-                ProgramId::AccountCompression,
-            ];
-            let start_index = program_ids.len() - 1;
-            let (res, last_index) = find_cpi_pattern(start_index, &program_ids);
-            assert_eq!(last_index, 3);
-            assert_eq!(res, None);
-        }
-        // With cpi context
-        {
-            let program_ids = vec![
-                ProgramId::Unknown,
-                ProgramId::LightSystem,
-                ProgramId::Unknown,
-                ProgramId::LightSystem,
-                ProgramId::SolanaSystem,
-                ProgramId::SolanaSystem,
-                ProgramId::SolanaSystem,
-                ProgramId::AccountCompression,
-            ];
-            let start_index = program_ids.len() - 1;
-            let (res, last_index) = find_cpi_pattern(start_index, &program_ids);
-            assert_eq!(last_index, 0);
-            assert_eq!(
-                res,
-                Some(Indices {
-                    system: 3,
-                    cpi: vec![1],
-                    insert_into_queues: start_index,
-                    found_solana_system_program_instruction: true,
-                    found_system: true,
-                })
-            );
-            // Failing
-            {
-                let mut program_ids = program_ids;
-                program_ids[5] = ProgramId::Unknown;
-                let (res, last_index) = find_cpi_pattern(start_index, &program_ids);
-                assert_eq!(last_index, 5);
-                assert_eq!(res, None);
-            }
-        }
-        // With cpi context
-        {
-            let program_ids = vec![
-                ProgramId::Unknown,
-                ProgramId::LightSystem,
-                ProgramId::LightSystem,
-                ProgramId::SolanaSystem,
-                ProgramId::SolanaSystem,
-                ProgramId::SolanaSystem,
-                ProgramId::AccountCompression,
-            ];
-            let start_index = program_ids.len() - 1;
-            let (res, last_index) = find_cpi_pattern(start_index, &program_ids);
-            assert_eq!(last_index, 0);
-            assert_eq!(
-                res,
-                Some(Indices {
-                    system: 2,
-                    cpi: vec![1],
-                    insert_into_queues: start_index,
-                    found_solana_system_program_instruction: true,
-                    found_system: true,
-                })
-            );
-            // Failing
-            {
-                let mut program_ids = program_ids;
-                program_ids[4] = ProgramId::Unknown;
-                let (res, last_index) = find_cpi_pattern(start_index, &program_ids);
-                assert_eq!(last_index, 4);
-                assert_eq!(res, None);
-            }
-        }
-    }
 }

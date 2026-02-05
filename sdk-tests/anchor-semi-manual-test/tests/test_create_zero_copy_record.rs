@@ -3,8 +3,8 @@ mod shared;
 use anchor_lang::{InstructionData, ToAccountMetas};
 use anchor_semi_manual_test::{CreateZeroCopyRecordParams, RECORD_SEED};
 use light_client::interface::{
-    create_load_instructions, get_create_accounts_proof, AccountInterfaceExt, AccountSpec,
-    CreateAccountsProofInput, PdaSpec,
+    create_load_instructions, get_create_accounts_proof, AccountSpec, CreateAccountsProofInput,
+    PdaSpec,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{program_test::TestRpc, Rpc};
@@ -85,9 +85,11 @@ async fn test_create_zero_copy_record_derive() {
     use anchor_semi_manual_test::{LightAccountVariant, ZeroCopyRecordSeeds};
 
     let account_interface = rpc
-        .get_account_interface(&record_pda, &program_id)
+        .get_account_interface(&record_pda, None)
         .await
-        .expect("failed to get ZeroCopyRecord interface");
+        .expect("failed to get ZeroCopyRecord interface")
+        .value
+        .expect("ZeroCopyRecord interface should exist");
     assert!(account_interface.is_cold(), "ZeroCopyRecord should be cold");
 
     let zc_data = ZeroCopyRecord::deserialize(&mut &account_interface.account.data[8..])

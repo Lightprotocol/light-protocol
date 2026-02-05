@@ -90,12 +90,15 @@ async fn register_forester(
     // Calculate epoch info
     let current_slot = rpc.get_slot().await?;
     let current_epoch = protocol_config.get_current_epoch(current_slot);
-    println!("current_epoch {:?}", current_epoch);
     let phases = get_epoch_phases(&protocol_config, current_epoch);
+
+    println!(
+        "Current slot: {}, current_epoch: {}, phases: {:?}",
+        current_slot, current_epoch, phases
+    );
+
     let register_phase_start = phases.registration.start;
     let active_phase_start = phases.active.start;
-    println!("phases {:?}", phases);
-    println!("current_slot {}", current_slot);
 
     // Warp to registration phase
     if rpc.get_slot().await? < register_phase_start {
@@ -104,10 +107,12 @@ async fn register_forester(
             .expect("warp_to_slot to registration phase");
     }
 
-    // Register for epoch 0
-    let epoch = 0u64;
-    let register_epoch_ix =
-        create_register_forester_epoch_pda_instruction(&forester_pubkey, &forester_pubkey, epoch);
+    // Register for the current epoch
+    let register_epoch_ix = create_register_forester_epoch_pda_instruction(
+        &forester_pubkey,
+        &forester_pubkey,
+        current_epoch,
+    );
 
     let (blockhash, _) = rpc.get_latest_blockhash().await?;
     let tx = Transaction::new_signed_with_payer(
@@ -118,12 +123,7 @@ async fn register_forester(
     );
     rpc.process_transaction(tx).await?;
 
-    println!("Registered for epoch {}", epoch);
-
-    println!(
-        "Waiting for active phase (current slot: {}, active phase starts at: {})...",
-        current_slot, active_phase_start
-    );
+    println!("Registered for epoch {}", current_epoch);
 
     // Warp to active phase
     if rpc.get_slot().await? < active_phase_start {
@@ -132,11 +132,11 @@ async fn register_forester(
             .expect("warp_to_slot to active phase");
     }
 
-    println!("Active phase reached");
+    println!("Active phase reached for epoch {}", current_epoch);
 
     // Finalize registration
     let finalize_ix =
-        create_finalize_registration_instruction(&forester_pubkey, &forester_pubkey, epoch);
+        create_finalize_registration_instruction(&forester_pubkey, &forester_pubkey, current_epoch);
 
     let (blockhash, _) = rpc.get_latest_blockhash().await?;
     let tx = Transaction::new_signed_with_payer(
@@ -164,7 +164,7 @@ async fn register_forester(
     use light_registry::protocol_config::state::EpochState;
 
     let epoch_struct = Epoch {
-        epoch,
+        epoch: current_epoch,
         epoch_pda: solana_sdk::pubkey::Pubkey::default(),
         forester_epoch_pda: solana_sdk::pubkey::Pubkey::default(),
         phases,
@@ -199,6 +199,7 @@ async fn test_compressible_ctoken_compression() {
         upgradeable_programs: vec![],
         limit_ledger_size: None,
         use_surfpool: true,
+        validator_args: vec![],
     })
     .await;
     let mut rpc = LightClient::new(LightClientConfig::local())
@@ -371,6 +372,7 @@ async fn test_compressible_ctoken_bootstrap() {
         upgradeable_programs: vec![],
         limit_ledger_size: None,
         use_surfpool: true,
+        validator_args: vec![],
     })
     .await;
 
@@ -385,6 +387,22 @@ async fn test_compressible_ctoken_bootstrap() {
     rpc.airdrop_lamports(&payer.pubkey(), 10_000_000_000)
         .await
         .expect("Failed to airdrop lamports");
+
+    // Count pre-existing compressible token accounts
+    let program_id = Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
+    let pre_existing = rpc
+        .get_program_accounts(&program_id)
+        .await
+        .expect("Failed to get program accounts")
+        .into_iter()
+        .filter(|(_, account)| {
+            <light_token_interface::state::Token as borsh::BorshDeserialize>::try_from_slice(
+                &account.data,
+            )
+            .map(|t| t.is_token_account())
+            .unwrap_or(false)
+        })
+        .count();
 
     // Create mint
     let mint_seed = Keypair::new();
@@ -428,7 +446,7 @@ async fn test_compressible_ctoken_bootstrap() {
     // Run bootstrap test with localhost
     run_bootstrap_test(
         "http://localhost:8899".to_string(),
-        3,
+        pre_existing + 3,
         Some((created_pubkeys, mint)),
     )
     .await;
@@ -473,7 +491,7 @@ async fn run_bootstrap_test(
     });
 
     if expected_count > 0 {
-        // Wait for bootstrap to find expected number of accounts (with timeout)
+        // Wait for bootstrap to find at least expected number of accounts (with timeout)
         let start = tokio::time::Instant::now();
         let timeout = Duration::from_secs(60);
 
@@ -485,12 +503,12 @@ async fn run_bootstrap_test(
             sleep(Duration::from_millis(500)).await;
         }
 
-        // Assert bootstrap picked up all accounts
         assert_eq!(
             tracker.len(),
             expected_count,
-            "Bootstrap should have found all {} accounts",
-            expected_count
+            "Bootstrap should have found exactly {} accounts, found {}",
+            expected_count,
+            tracker.len()
         );
     } else {
         // Mainnet test: wait a bit for bootstrap to run
@@ -504,14 +522,13 @@ async fn run_bootstrap_test(
     if let Some((expected_pubkeys, expected_mint)) = expected_data {
         // Verify specific accounts (localhost test)
 
-        // Verify all created accounts are in tracker
+        // Verify all created accounts are in tracker and have correct data
         for pubkey in &expected_pubkeys {
-            let found = accounts.iter().any(|acc| acc.pubkey == *pubkey);
-            assert!(found, "Bootstrap should have found account {}", pubkey);
-        }
+            let account_state = accounts
+                .iter()
+                .find(|acc| acc.pubkey == *pubkey)
+                .unwrap_or_else(|| panic!("Bootstrap should have found account {}", pubkey));
 
-        // Verify account data is correct
-        for account_state in &accounts {
             println!(
                 "Verifying account {}: mint={:?}, lamports={}",
                 account_state.pubkey, account_state.account.mint, account_state.lamports

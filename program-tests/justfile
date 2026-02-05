@@ -6,10 +6,126 @@ default:
 build:
     cd create-address-test-program && cargo build-sbf
 
-test: build
+# === Full test suite (mirrors CI) ===
+
+test: build test-account-compression test-registry test-system test-system-cpi test-system-cpi-v2 test-compressed-token test-e2e
+
+# === Individual test packages ===
+
+test-account-compression:
     RUSTFLAGS="-D warnings" cargo test-sbf -p account-compression-test
+
+test-registry:
     RUSTFLAGS="-D warnings" cargo test-sbf -p registry-test
-    RUSTFLAGS="-D warnings" cargo test-sbf -p system-test
+
+# System program tests
+test-system: test-system-address test-system-compression test-system-re-init
+
+test-system-address:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p system-test -- test_with_address
+
+test-system-compression:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p system-test -- test_with_compression
+
+test-system-re-init:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p system-test --test test_re_init_cpi_account
+
+# System CPI tests (v1)
+test-system-cpi:
     RUSTFLAGS="-D warnings" cargo test-sbf -p system-cpi-test
-    RUSTFLAGS="-D warnings" cargo test-sbf -p compressed-token-test
+
+# System CPI tests (v2)
+test-system-cpi-v2: test-system-cpi-v2-main test-system-cpi-v2-event-parse test-system-cpi-v2-functional
+
+test-system-cpi-v2-main:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p system-cpi-v2-test -- --skip functional_ --skip event::parse
+
+test-system-cpi-v2-event-parse:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p system-cpi-v2-test -- event::parse
+
+test-system-cpi-v2-functional: test-system-cpi-v2-functional-read-only test-system-cpi-v2-functional-account-infos
+
+test-system-cpi-v2-functional-read-only:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p system-cpi-v2-test -- functional_read_only
+
+test-system-cpi-v2-functional-account-infos:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p system-cpi-v2-test -- functional_account_infos
+
+# Compressed token tests
+test-compressed-token: test-compressed-token-unit test-compressed-token-v1 test-compressed-token-mint test-compressed-token-light-token test-compressed-token-transfer2
+
+test-compressed-token-unit:
+    RUSTFLAGS="-D warnings" cargo test -p light-compressed-token
+
+test-compressed-token-v1:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p compressed-token-test --test v1
+
+test-compressed-token-mint:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p compressed-token-test --test mint
+
+test-compressed-token-light-token:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p compressed-token-test --test light_token
+
+test-compressed-token-transfer2:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p compressed-token-test --test transfer2
+
+# Compressed token batched tree test (flaky, may need retries)
+test-compressed-token-batched-tree:
+    RUSTFLAGS="-D warnings" cargo test-sbf -p compressed-token-test -- test_transfer_with_photon_and_batched_tree
+
+# E2E tests
+test-e2e:
     RUSTFLAGS="-D warnings" cargo test-sbf -p e2e-test
+
+# E2E extended tests (requires building compressed-token-small first)
+test-e2e-extended: build-compressed-token-small
+    RUSTFLAGS="-D warnings" cargo test-sbf -p e2e-test -- --test test_10_all
+
+# Pinocchio unit tests
+test-pinocchio:
+    RUSTFLAGS="-D warnings" cargo test -p light-system-program-pinocchio
+
+# === Build targets ===
+
+build-compressed-token-small:
+    pnpm --filter @lightprotocol/programs run build-compressed-token-small
+
+# === CI-equivalent grouped tests ===
+
+# Matches CI: account-compression-and-registry
+ci-account-compression-and-registry: test-account-compression test-registry
+
+# Matches CI: light-system-program-address
+ci-system-address: test-system-address test-e2e test-e2e-extended test-compressed-token-light-token
+
+# Matches CI: light-system-program-compression
+ci-system-compression: test-system-compression test-system-re-init
+
+# Matches CI: compressed-token-and-e2e
+ci-compressed-token-and-e2e: test-compressed-token-unit test-compressed-token-v1 test-compressed-token-mint
+
+# Matches CI: compressed-token-batched-tree (with retry for flaky test)
+ci-compressed-token-batched-tree:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    attempt=1
+    max_attempts=3
+    until RUSTFLAGS="-D warnings" cargo test-sbf -p compressed-token-test -- test_transfer_with_photon_and_batched_tree; do
+        attempt=$((attempt + 1))
+        if [ $attempt -gt $max_attempts ]; then
+            echo "Test failed after $max_attempts attempts"
+            exit 1
+        fi
+        echo "Attempt $attempt/$max_attempts failed, retrying in 5s..."
+        sleep 5
+    done
+    echo "Test passed on attempt $attempt"
+
+# Matches CI: system-cpi-test
+ci-system-cpi: test-system-cpi test-pinocchio test-system-cpi-v2-main test-system-cpi-v2-event-parse test-compressed-token-transfer2
+
+# Matches CI: system-cpi-test-v2-functional-read-only
+ci-system-cpi-v2-functional-read-only: test-system-cpi-v2-functional-read-only
+
+# Matches CI: system-cpi-test-v2-functional-account-infos
+ci-system-cpi-v2-functional-account-infos: test-system-cpi-v2-functional-account-infos

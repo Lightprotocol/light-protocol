@@ -3,8 +3,8 @@
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_account::{derive_rent_sponsor_pda, IntoVariant};
 use light_client::interface::{
-    create_load_instructions, get_create_accounts_proof, AccountInterfaceExt, AccountSpec,
-    CreateAccountsProofInput, InitializeRentFreeConfig, PdaSpec,
+    create_load_instructions, get_create_accounts_proof, AccountSpec, CreateAccountsProofInput,
+    InitializeRentFreeConfig, PdaSpec,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{
@@ -240,9 +240,11 @@ async fn test_zero_copy_record_full_lifecycle() {
 
     // PHASE 4: Decompress account
     let account_interface = rpc
-        .get_account_interface(&record_pda, &program_id)
+        .get_account_interface(&record_pda, None)
         .await
-        .expect("failed to get account interface");
+        .expect("failed to get account interface")
+        .value
+        .expect("account interface should exist");
     assert!(
         account_interface.is_cold(),
         "Account should be cold (compressed)"

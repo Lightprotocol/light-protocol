@@ -18,8 +18,8 @@ use light_batched_merkle_tree::{
     initialize_state_tree::InitStateTreeAccountsInstructionData,
 };
 use light_client::interface::{
-    create_load_instructions, get_create_accounts_proof, AccountInterface, AccountInterfaceExt,
-    AccountSpec, ColdContext, CreateAccountsProofInput, PdaSpec,
+    create_load_instructions, get_create_accounts_proof, AccountInterface, AccountSpec,
+    ColdContext, CreateAccountsProofInput, PdaSpec,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{
@@ -239,9 +239,11 @@ async fn decompress_all(ctx: &mut StressTestContext, pdas: &TestPdas, cached: &C
     // PDA: MinimalRecord
     let record_interface = ctx
         .rpc
-        .get_account_interface(&pdas.record, &ctx.program_id)
+        .get_account_interface(&pdas.record, None)
         .await
-        .expect("failed to get MinimalRecord interface");
+        .expect("failed to get MinimalRecord interface")
+        .value
+        .expect("MinimalRecord interface should exist");
     assert!(record_interface.is_cold(), "MinimalRecord should be cold");
 
     let record_data = MinimalRecord::deserialize(&mut &record_interface.account.data[8..])
@@ -257,9 +259,11 @@ async fn decompress_all(ctx: &mut StressTestContext, pdas: &TestPdas, cached: &C
     // PDA: ZeroCopyRecord
     let zc_interface = ctx
         .rpc
-        .get_account_interface(&pdas.zc_record, &ctx.program_id)
+        .get_account_interface(&pdas.zc_record, None)
         .await
-        .expect("failed to get ZeroCopyRecord interface");
+        .expect("failed to get ZeroCopyRecord interface")
+        .value
+        .expect("ZeroCopyRecord interface should exist");
     assert!(zc_interface.is_cold(), "ZeroCopyRecord should be cold");
 
     let zc_data = ZeroCopyRecord::deserialize(&mut &zc_interface.account.data[8..])
@@ -275,17 +279,21 @@ async fn decompress_all(ctx: &mut StressTestContext, pdas: &TestPdas, cached: &C
     // ATA
     let ata_interface = ctx
         .rpc
-        .get_ata_interface(&pdas.ata_owner, &pdas.ata_mint)
+        .get_associated_token_account_interface(&pdas.ata_owner, &pdas.ata_mint, None)
         .await
-        .expect("failed to get ATA interface");
+        .expect("failed to get ATA interface")
+        .value
+        .expect("ATA interface should exist");
     assert!(ata_interface.is_cold(), "ATA should be cold");
 
     // Token PDA: Vault
     let vault_iface = ctx
         .rpc
-        .get_token_account_interface(&pdas.vault)
+        .get_token_account_interface(&pdas.vault, None)
         .await
-        .expect("failed to get vault interface");
+        .expect("failed to get vault interface")
+        .value
+        .expect("vault interface should exist");
     assert!(vault_iface.is_cold(), "Vault should be cold");
 
     let vault_token_data: Token =
@@ -310,46 +318,24 @@ async fn decompress_all(ctx: &mut StressTestContext, pdas: &TestPdas, cached: &C
     // Mint A
     let mint_a_iface = ctx
         .rpc
-        .get_mint_interface(&pdas.mint_a)
+        .get_mint_interface(&pdas.mint_a, None)
         .await
-        .expect("failed to get mint A interface");
+        .expect("failed to get mint A interface")
+        .value
+        .expect("mint A interface should exist");
     assert!(mint_a_iface.is_cold(), "Mint A should be cold");
-    let (compressed_a, _) = mint_a_iface
-        .compressed()
-        .expect("cold mint A must have compressed data");
-    let mint_a_ai = AccountInterface {
-        key: pdas.mint_a,
-        account: solana_account::Account {
-            lamports: 0,
-            data: vec![],
-            owner: light_token::instruction::LIGHT_TOKEN_PROGRAM_ID,
-            executable: false,
-            rent_epoch: 0,
-        },
-        cold: Some(ColdContext::Account(compressed_a.clone())),
-    };
+    let mint_a_ai = AccountInterface::from(mint_a_iface);
 
     // Mint B
     let mint_b_iface = ctx
         .rpc
-        .get_mint_interface(&pdas.mint_b)
+        .get_mint_interface(&pdas.mint_b, None)
         .await
-        .expect("failed to get mint B interface");
+        .expect("failed to get mint B interface")
+        .value
+        .expect("mint B interface should exist");
     assert!(mint_b_iface.is_cold(), "Mint B should be cold");
-    let (compressed_b, _) = mint_b_iface
-        .compressed()
-        .expect("cold mint B must have compressed data");
-    let mint_b_ai = AccountInterface {
-        key: pdas.mint_b,
-        account: solana_account::Account {
-            lamports: 0,
-            data: vec![],
-            owner: light_token::instruction::LIGHT_TOKEN_PROGRAM_ID,
-            executable: false,
-            rent_epoch: 0,
-        },
-        cold: Some(ColdContext::Account(compressed_b.clone())),
-    };
+    let mint_b_ai = AccountInterface::from(mint_b_iface);
 
     let specs: Vec<AccountSpec<LightAccountVariant>> = vec![
         AccountSpec::Pda(record_spec),

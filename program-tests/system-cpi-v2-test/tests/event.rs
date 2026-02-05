@@ -101,6 +101,7 @@ async fn parse_batched_event_functional() {
                 is_compress: false,
                 compress_or_decompress_lamports: None,
                 pubkey_array: vec![env.v2_state_trees[0].output_queue.into()],
+                ata_owners: vec![],
             },
             address_sequence_numbers: Vec::new(),
             input_sequence_numbers: Vec::new(),
@@ -227,6 +228,7 @@ async fn parse_batched_event_functional() {
                     })
                     .collect::<Vec<_>>(),
                 output_compressed_accounts: output_accounts.to_vec(),
+                ata_owners: vec![],
                 sequence_numbers: vec![MerkleTreeSequenceNumberV1 {
                     tree_pubkey: env.v2_state_trees[0].merkle_tree.into(),
                     // queue_pubkey: env.v2_state_trees[0].output_queue,
@@ -411,6 +413,7 @@ async fn parse_batched_event_functional() {
                     env.v2_state_trees[0].merkle_tree.into(),
                     env.v2_state_trees[0].output_queue.into(),
                 ],
+                ata_owners: vec![],
             },
             address_sequence_numbers: vec![MerkleTreeSequenceNumber {
                 tree_pubkey: env.v2_address_trees[0].into(),
@@ -496,6 +499,7 @@ async fn parse_multiple_batched_events_functional() {
                 is_compress: false,
                 compress_or_decompress_lamports: None,
                 pubkey_array: vec![env.v2_state_trees[0].output_queue.into()],
+                ata_owners: vec![],
             },
             address_sequence_numbers: Vec::new(),
             input_sequence_numbers: Vec::new(),
@@ -540,6 +544,7 @@ async fn generate_photon_test_data_multiple_events() {
             upgradeable_programs: vec![],
             limit_ledger_size: None,
             use_surfpool: true,
+            validator_args: vec![],
         })
         .await;
 
@@ -589,6 +594,7 @@ async fn generate_photon_test_data_multiple_events() {
                 is_compress: false,
                 compress_or_decompress_lamports: None,
                 pubkey_array: vec![env.v2_state_trees[0].output_queue.into()],
+                ata_owners: vec![],
             },
             address_sequence_numbers: Vec::new(),
             input_sequence_numbers: Vec::new(),

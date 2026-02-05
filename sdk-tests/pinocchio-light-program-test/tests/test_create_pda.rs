@@ -1,8 +1,8 @@
 mod shared;
 
 use light_client::interface::{
-    create_load_instructions, get_create_accounts_proof, AccountInterfaceExt, AccountSpec,
-    CreateAccountsProofInput, PdaSpec,
+    create_load_instructions, get_create_accounts_proof, AccountSpec, CreateAccountsProofInput,
+    PdaSpec,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{program_test::TestRpc, Rpc};
@@ -84,9 +84,11 @@ async fn test_create_single_pda_derive() {
 
     // PHASE 3: Decompress via create_load_instructions
     let account_interface = rpc
-        .get_account_interface(&record_pda, &program_id)
+        .get_account_interface(&record_pda, None)
         .await
-        .expect("failed to get MinimalRecord interface");
+        .expect("failed to get MinimalRecord interface")
+        .value
+        .expect("MinimalRecord interface should exist");
     assert!(account_interface.is_cold(), "MinimalRecord should be cold");
 
     let data: MinimalRecord =

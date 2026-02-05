@@ -6,8 +6,8 @@ use anchor_semi_manual_test::{
     MINT_SIGNER_SEED_B, RECORD_SEED, VAULT_AUTH_SEED, VAULT_SEED,
 };
 use light_client::interface::{
-    create_load_instructions, get_create_accounts_proof, AccountInterface, AccountInterfaceExt,
-    AccountSpec, ColdContext, CreateAccountsProofInput, PdaSpec,
+    create_load_instructions, get_create_accounts_proof, AccountInterface, AccountSpec,
+    ColdContext, CreateAccountsProofInput, PdaSpec,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{program_test::TestRpc, Rpc};
@@ -220,9 +220,11 @@ async fn test_create_all_derive() {
 
     // PDA: MinimalRecord
     let record_interface = rpc
-        .get_account_interface(&record_pda, &program_id)
+        .get_account_interface(&record_pda, None)
         .await
-        .expect("failed to get MinimalRecord interface");
+        .expect("failed to get MinimalRecord interface")
+        .value
+        .expect("MinimalRecord interface should exist");
     assert!(record_interface.is_cold(), "MinimalRecord should be cold");
 
     let record_data = MinimalRecord::deserialize(&mut &record_interface.account.data[8..])
@@ -235,9 +237,11 @@ async fn test_create_all_derive() {
 
     // PDA: ZeroCopyRecord
     let zc_interface = rpc
-        .get_account_interface(&zc_record_pda, &program_id)
+        .get_account_interface(&zc_record_pda, None)
         .await
-        .expect("failed to get ZeroCopyRecord interface");
+        .expect("failed to get ZeroCopyRecord interface")
+        .value
+        .expect("ZeroCopyRecord interface should exist");
     assert!(zc_interface.is_cold(), "ZeroCopyRecord should be cold");
 
     let zc_data = ZeroCopyRecord::deserialize(&mut &zc_interface.account.data[8..])
@@ -250,58 +254,40 @@ async fn test_create_all_derive() {
 
     // ATA
     let ata_interface = rpc
-        .get_ata_interface(&ata_owner, &ata_mint)
+        .get_associated_token_account_interface(&ata_owner, &ata_mint, None)
         .await
-        .expect("failed to get ATA interface");
+        .expect("failed to get ATA interface")
+        .value
+        .expect("ATA interface should exist");
     assert!(ata_interface.is_cold(), "ATA should be cold");
 
     // Mint A
     let mint_a_iface = rpc
-        .get_mint_interface(&mint_a_pda)
+        .get_mint_interface(&mint_a_pda, None)
         .await
-        .expect("failed to get mint A interface");
+        .expect("failed to get mint A interface")
+        .value
+        .expect("mint A interface should exist");
     assert!(mint_a_iface.is_cold(), "Mint A should be cold");
-    let (compressed_a, _) = mint_a_iface
-        .compressed()
-        .expect("cold mint A must have compressed data");
-    let mint_a_ai = AccountInterface {
-        key: mint_a_pda,
-        account: solana_account::Account {
-            lamports: 0,
-            data: vec![],
-            owner: light_token::instruction::LIGHT_TOKEN_PROGRAM_ID,
-            executable: false,
-            rent_epoch: 0,
-        },
-        cold: Some(ColdContext::Account(compressed_a.clone())),
-    };
+    let mint_a_ai = AccountInterface::from(mint_a_iface);
 
     // Mint B
     let mint_b_iface = rpc
-        .get_mint_interface(&mint_b_pda)
+        .get_mint_interface(&mint_b_pda, None)
         .await
-        .expect("failed to get mint B interface");
+        .expect("failed to get mint B interface")
+        .value
+        .expect("mint B interface should exist");
     assert!(mint_b_iface.is_cold(), "Mint B should be cold");
-    let (compressed_b, _) = mint_b_iface
-        .compressed()
-        .expect("cold mint B must have compressed data");
-    let mint_b_ai = AccountInterface {
-        key: mint_b_pda,
-        account: solana_account::Account {
-            lamports: 0,
-            data: vec![],
-            owner: light_token::instruction::LIGHT_TOKEN_PROGRAM_ID,
-            executable: false,
-            rent_epoch: 0,
-        },
-        cold: Some(ColdContext::Account(compressed_b.clone())),
-    };
+    let mint_b_ai = AccountInterface::from(mint_b_iface);
 
     // Token PDA: Vault
     let vault_iface = rpc
-        .get_token_account_interface(&vault)
+        .get_token_account_interface(&vault, None)
         .await
-        .expect("failed to get vault interface");
+        .expect("failed to get vault interface")
+        .value
+        .expect("vault interface should exist");
     assert!(vault_iface.is_cold(), "Vault should be cold");
 
     let vault_token_data: Token =

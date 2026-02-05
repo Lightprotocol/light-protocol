@@ -31,7 +31,12 @@ use tracing::warn;
 
 use super::LightClientConfig;
 use crate::{
-    indexer::{photon_indexer::PhotonIndexer, Indexer, TreeInfo},
+    indexer::{
+        photon_indexer::PhotonIndexer, AccountInterface as IndexerAccountInterface, Indexer,
+        IndexerRpcConfig, Response, TokenAccountInterface as IndexerTokenAccountInterface,
+        TreeInfo,
+    },
+    interface::{AccountInterface, MintInterface, MintState, TokenAccountInterface},
     rpc::{
         errors::RpcError,
         get_light_state_tree_infos::{
@@ -456,6 +461,179 @@ impl LightClient {
             .await
             .map_err(|e| RpcError::CustomError(format!("warp_to_slot response error: {e}")))?;
         Ok(result)
+    }
+}
+
+// Conversion helpers from indexer types to interface types
+
+fn convert_account_interface(
+    indexer_ai: IndexerAccountInterface,
+) -> Result<AccountInterface, RpcError> {
+    use light_compressed_account::compressed_account::CompressedAccountData;
+
+    use crate::indexer::{ColdContext as IndexerColdContext, CompressedAccount};
+
+    let account = Account {
+        lamports: indexer_ai.account.lamports,
+        data: indexer_ai.account.data,
+        owner: indexer_ai.account.owner,
+        executable: indexer_ai.account.executable,
+        rent_epoch: indexer_ai.account.rent_epoch,
+    };
+
+    match indexer_ai.cold {
+        None => Ok(AccountInterface::hot(indexer_ai.key, account)),
+        Some(IndexerColdContext::Account {
+            hash,
+            leaf_index,
+            tree_info,
+            data,
+        }) => {
+            let compressed = CompressedAccount {
+                address: None,
+                data: Some(CompressedAccountData {
+                    discriminator: data.discriminator,
+                    data: data.data,
+                    data_hash: [0u8; 32], // Computed on demand if needed
+                }),
+                hash,
+                lamports: indexer_ai.account.lamports,
+                leaf_index: leaf_index as u32,
+                owner: indexer_ai.account.owner,
+                prove_by_index: false,
+                seq: tree_info.seq,
+                slot_created: tree_info.slot_created,
+                tree_info: TreeInfo {
+                    tree: tree_info.tree,
+                    queue: tree_info.queue,
+                    cpi_context: None,
+                    next_tree_info: None,
+                    tree_type: tree_info.tree_type,
+                },
+            };
+            Ok(AccountInterface::cold(
+                indexer_ai.key,
+                compressed,
+                indexer_ai.account.owner,
+            ))
+        }
+        Some(IndexerColdContext::Token {
+            hash,
+            leaf_index,
+            tree_info,
+            data,
+        }) => {
+            use light_token::compat::TokenData;
+
+            use crate::indexer::CompressedTokenAccount;
+
+            // Parse token data from the cold data - propagate errors instead of using default
+            let token_data: TokenData =
+                borsh::BorshDeserialize::deserialize(&mut data.data.as_slice()).map_err(|e| {
+                    RpcError::CustomError(format!("Failed to deserialize token data: {}", e))
+                })?;
+
+            let wallet_owner = token_data.owner;
+
+            let compressed_account = CompressedAccount {
+                address: None,
+                data: Some(CompressedAccountData {
+                    discriminator: data.discriminator,
+                    data: data.data,
+                    data_hash: [0u8; 32],
+                }),
+                hash,
+                lamports: indexer_ai.account.lamports,
+                leaf_index: leaf_index as u32,
+                owner: indexer_ai.account.owner,
+                prove_by_index: false,
+                seq: tree_info.seq,
+                slot_created: tree_info.slot_created,
+                tree_info: TreeInfo {
+                    tree: tree_info.tree,
+                    queue: tree_info.queue,
+                    cpi_context: None,
+                    next_tree_info: None,
+                    tree_type: tree_info.tree_type,
+                },
+            };
+            let compressed_token = CompressedTokenAccount {
+                token: token_data,
+                account: compressed_account.clone(),
+            };
+            Ok(AccountInterface::cold_token(
+                indexer_ai.key,
+                compressed_token,
+                wallet_owner,
+            ))
+        }
+    }
+}
+
+fn convert_token_account_interface(
+    indexer_tai: IndexerTokenAccountInterface,
+) -> Result<TokenAccountInterface, RpcError> {
+    use light_compressed_account::compressed_account::CompressedAccountData;
+
+    use crate::indexer::{
+        ColdContext as IndexerColdContext, CompressedAccount, CompressedTokenAccount,
+    };
+
+    let account = Account {
+        lamports: indexer_tai.account.account.lamports,
+        data: indexer_tai.account.account.data.clone(),
+        owner: indexer_tai.account.account.owner,
+        executable: indexer_tai.account.account.executable,
+        rent_epoch: indexer_tai.account.account.rent_epoch,
+    };
+
+    match indexer_tai.account.cold {
+        None => TokenAccountInterface::hot(indexer_tai.account.key, account)
+            .map_err(|e| RpcError::CustomError(format!("parse error: {}", e))),
+        Some(IndexerColdContext::Token {
+            hash,
+            leaf_index,
+            tree_info,
+            data,
+        }) => {
+            let compressed_account = CompressedAccount {
+                address: None,
+                data: Some(CompressedAccountData {
+                    discriminator: data.discriminator,
+                    data: data.data,
+                    data_hash: [0u8; 32],
+                }),
+                hash,
+                lamports: indexer_tai.account.account.lamports,
+                leaf_index: leaf_index as u32,
+                owner: indexer_tai.account.account.owner,
+                prove_by_index: false,
+                seq: tree_info.seq,
+                slot_created: tree_info.slot_created,
+                tree_info: TreeInfo {
+                    tree: tree_info.tree,
+                    queue: tree_info.queue,
+                    cpi_context: None,
+                    next_tree_info: None,
+                    tree_type: tree_info.tree_type,
+                },
+            };
+            // Extract token owner before moving token into CompressedTokenAccount
+            let token_owner = indexer_tai.token.owner;
+            let compressed_token = CompressedTokenAccount {
+                token: indexer_tai.token,
+                account: compressed_account,
+            };
+            Ok(TokenAccountInterface::cold(
+                indexer_tai.account.key,
+                compressed_token,
+                token_owner, // owner_override: use token owner, not account key
+                indexer_tai.account.account.owner,
+            ))
+        }
+        _ => Err(RpcError::CustomError(
+            "unexpected cold context type for token account".into(),
+        )),
     }
 }
 
@@ -925,6 +1103,199 @@ impl Rpc for LightClient {
             next_tree_info: None,
             tree_type: TreeType::AddressV2,
         }
+    }
+
+    async fn get_account_interface(
+        &self,
+        address: &Pubkey,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Option<AccountInterface>>, RpcError> {
+        let indexer = self
+            .indexer
+            .as_ref()
+            .ok_or(RpcError::IndexerNotInitialized)?;
+        let resp = indexer
+            .get_account_interface(address, config)
+            .await
+            .map_err(|e| RpcError::CustomError(format!("Indexer error: {e}")))?;
+
+        let value = resp.value.map(convert_account_interface).transpose()?;
+        Ok(Response {
+            context: resp.context,
+            value,
+        })
+    }
+
+    async fn get_token_account_interface(
+        &self,
+        address: &Pubkey,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Option<TokenAccountInterface>>, RpcError> {
+        let indexer = self
+            .indexer
+            .as_ref()
+            .ok_or(RpcError::IndexerNotInitialized)?;
+        let resp = indexer
+            .get_token_account_interface(address, config)
+            .await
+            .map_err(|e| RpcError::CustomError(format!("Indexer error: {e}")))?;
+
+        let value = match resp.value {
+            Some(tai) => Some(convert_token_account_interface(tai)?),
+            None => None,
+        };
+
+        Ok(Response {
+            context: resp.context,
+            value,
+        })
+    }
+
+    async fn get_associated_token_account_interface(
+        &self,
+        owner: &Pubkey,
+        mint: &Pubkey,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Option<TokenAccountInterface>>, RpcError> {
+        let indexer = self
+            .indexer
+            .as_ref()
+            .ok_or(RpcError::IndexerNotInitialized)?;
+        let resp = indexer
+            .get_associated_token_account_interface(owner, mint, config)
+            .await
+            .map_err(|e| RpcError::CustomError(format!("Indexer error: {e}")))?;
+
+        let value = match resp.value {
+            Some(tai) => Some(convert_token_account_interface(tai)?),
+            None => None,
+        };
+
+        Ok(Response {
+            context: resp.context,
+            value,
+        })
+    }
+
+    async fn get_multiple_account_interfaces(
+        &self,
+        addresses: Vec<&Pubkey>,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Vec<Option<AccountInterface>>>, RpcError> {
+        let indexer = self
+            .indexer
+            .as_ref()
+            .ok_or(RpcError::IndexerNotInitialized)?;
+        let resp = indexer
+            .get_multiple_account_interfaces(addresses, config)
+            .await
+            .map_err(|e| RpcError::CustomError(format!("Indexer error: {e}")))?;
+
+        let value: Result<Vec<Option<AccountInterface>>, RpcError> = resp
+            .value
+            .into_iter()
+            .map(|opt| opt.map(convert_account_interface).transpose())
+            .collect();
+
+        Ok(Response {
+            context: resp.context,
+            value: value?,
+        })
+    }
+
+    async fn get_mint_interface(
+        &self,
+        address: &Pubkey,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<Option<MintInterface>>, RpcError> {
+        use light_compressed_account::address::derive_address;
+        use light_token_interface::{state::Mint, MINT_ADDRESS_TREE};
+
+        let address_tree = Pubkey::new_from_array(MINT_ADDRESS_TREE);
+        let compressed_address = derive_address(
+            &address.to_bytes(),
+            &address_tree.to_bytes(),
+            &light_token_interface::LIGHT_TOKEN_PROGRAM_ID,
+        );
+
+        let indexer = self
+            .indexer
+            .as_ref()
+            .ok_or(RpcError::IndexerNotInitialized)?;
+
+        // Use get_account_interface to check hot/cold (Photon handles derived address fallback)
+        let resp = indexer
+            .get_account_interface(address, config.clone())
+            .await
+            .map_err(|e| RpcError::CustomError(format!("Indexer error: {e}")))?;
+
+        let value = match resp.value {
+            Some(ai) => {
+                let state = if ai.is_cold() {
+                    // Cold: fetch full CompressedAccount to get data_hash
+                    let compressed_resp = indexer
+                        .get_compressed_account(compressed_address, config)
+                        .await
+                        .map_err(|e| RpcError::CustomError(format!("Indexer error: {e}")))?;
+
+                    let compressed = compressed_resp.value.ok_or_else(|| {
+                        RpcError::CustomError("Cold mint not found by compressed address".into())
+                    })?;
+
+                    // Parse mint data from compressed account
+                    let mint_data = compressed
+                        .data
+                        .as_ref()
+                        .and_then(|d| {
+                            if d.data.is_empty() {
+                                None
+                            } else {
+                                Mint::try_from_slice(&d.data).ok()
+                            }
+                        })
+                        .ok_or_else(|| {
+                            RpcError::CustomError(
+                                "Missing or invalid mint data in compressed account".into(),
+                            )
+                        })?;
+
+                    MintState::Cold {
+                        compressed,
+                        mint_data,
+                    }
+                } else {
+                    let expected_owner =
+                        Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
+                    if ai.account.owner != expected_owner {
+                        return Err(RpcError::CustomError(format!(
+                            "Invalid mint account owner: expected {}, got {}",
+                            expected_owner, ai.account.owner,
+                        )));
+                    }
+                    Mint::try_from_slice(&ai.account.data).map_err(|e| {
+                        RpcError::CustomError(format!(
+                            "Failed to deserialize hot mint account: {e}"
+                        ))
+                    })?;
+                    MintState::Hot {
+                        account: ai.account,
+                    }
+                };
+
+                Some(MintInterface {
+                    mint: *address,
+                    address_tree,
+                    compressed_address,
+                    state,
+                })
+            }
+            None => None,
+        };
+
+        Ok(Response {
+            context: resp.context,
+            value,
+        })
     }
 }
 

@@ -2,7 +2,7 @@ use photon_api::models::{FilterSelector, Memcmp};
 use solana_account_decoder_client_types::UiDataSliceConfig;
 use solana_pubkey::Pubkey;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct GetCompressedTokenAccountsByOwnerOrDelegateOptions {
     pub mint: Option<Pubkey>,
     pub cursor: Option<String>,

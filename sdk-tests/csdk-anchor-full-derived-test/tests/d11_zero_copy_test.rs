@@ -43,8 +43,8 @@ use csdk_anchor_full_derived_test::d11_zero_copy::{
 };
 use light_account::IntoVariant;
 use light_client::interface::{
-    create_load_instructions, get_create_accounts_proof, AccountInterfaceExt, AccountSpec,
-    CreateAccountsProofInput, InitializeRentFreeConfig, PdaSpec,
+    create_load_instructions, get_create_accounts_proof, AccountSpec, CreateAccountsProofInput,
+    InitializeRentFreeConfig, PdaSpec,
 };
 use light_compressed_account::address::derive_address;
 use light_compressible::rent::SLOTS_PER_EPOCH;
@@ -256,9 +256,11 @@ async fn test_d11_zc_with_vault() {
     // PHASE 4: Decompress account
     let account_interface = ctx
         .rpc
-        .get_account_interface(&zc_pda, &ctx.program_id)
+        .get_account_interface(&zc_pda, None)
         .await
-        .expect("failed to get account interface");
+        .expect("failed to get account interface")
+        .value
+        .expect("account interface should exist");
     assert!(
         account_interface.is_cold(),
         "Account should be cold (compressed)"
@@ -426,9 +428,11 @@ async fn test_d11_zc_with_ata() {
     // PHASE 4: Decompress account
     let account_interface = ctx
         .rpc
-        .get_account_interface(&zc_pda, &ctx.program_id)
+        .get_account_interface(&zc_pda, None)
         .await
-        .expect("failed to get account interface");
+        .expect("failed to get account interface")
+        .value
+        .expect("account interface should exist");
     assert!(
         account_interface.is_cold(),
         "Account should be cold (compressed)"
@@ -584,9 +588,11 @@ async fn test_d11_multiple_zc() {
     // PHASE 4: Decompress first account
     let account_interface_1 = ctx
         .rpc
-        .get_account_interface(&zc_pda_1, &ctx.program_id)
+        .get_account_interface(&zc_pda_1, None)
         .await
-        .expect("failed to get account interface 1");
+        .expect("failed to get account interface 1")
+        .value
+        .expect("account interface 1 should exist");
     assert!(account_interface_1.is_cold(), "Account 1 should be cold");
 
     let variant_1: LightAccountVariant =
@@ -614,9 +620,11 @@ async fn test_d11_multiple_zc() {
     // Decompress second account
     let account_interface_2 = ctx
         .rpc
-        .get_account_interface(&zc_pda_2, &ctx.program_id)
+        .get_account_interface(&zc_pda_2, None)
         .await
-        .expect("failed to get account interface 2");
+        .expect("failed to get account interface 2")
+        .value
+        .expect("account interface 2 should exist");
     assert!(account_interface_2.is_cold(), "Account 2 should be cold");
 
     let variant_2: LightAccountVariant =
@@ -785,9 +793,11 @@ async fn test_d11_mixed_zc_borsh() {
     // PHASE 4: Decompress zero-copy account
     let account_interface_zc = ctx
         .rpc
-        .get_account_interface(&zc_pda, &ctx.program_id)
+        .get_account_interface(&zc_pda, None)
         .await
-        .expect("failed to get zc account interface");
+        .expect("failed to get zc account interface")
+        .value
+        .expect("zc account interface should exist");
 
     let variant_zc: LightAccountVariant =
         csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::ZcMixedRecordSeeds { owner }
@@ -814,9 +824,11 @@ async fn test_d11_mixed_zc_borsh() {
     // Decompress borsh account
     let account_interface_borsh = ctx
         .rpc
-        .get_account_interface(&borsh_pda, &ctx.program_id)
+        .get_account_interface(&borsh_pda, None)
         .await
-        .expect("failed to get borsh account interface");
+        .expect("failed to get borsh account interface")
+        .value
+        .expect("borsh account interface should exist");
 
     let variant_borsh: LightAccountVariant =
         csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::BorshRecordSeeds { owner }
@@ -975,9 +987,11 @@ async fn test_d11_zc_with_ctx_seeds() {
     // PHASE 4: Decompress account
     let account_interface = ctx
         .rpc
-        .get_account_interface(&zc_pda, &ctx.program_id)
+        .get_account_interface(&zc_pda, None)
         .await
-        .expect("failed to get account interface");
+        .expect("failed to get account interface")
+        .value
+        .expect("account interface should exist");
     assert!(
         account_interface.is_cold(),
         "Account should be cold (compressed)"
@@ -1118,9 +1132,11 @@ async fn test_d11_zc_with_params_seeds() {
     // PHASE 4: Decompress account
     let account_interface = ctx
         .rpc
-        .get_account_interface(&zc_pda, &ctx.program_id)
+        .get_account_interface(&zc_pda, None)
         .await
-        .expect("failed to get account interface");
+        .expect("failed to get account interface")
+        .value
+        .expect("account interface should exist");
     assert!(
         account_interface.is_cold(),
         "Account should be cold (compressed)"
@@ -1292,9 +1308,11 @@ async fn test_d11_zc_with_mint_to() {
     // PHASE 4: Decompress account
     let account_interface = ctx
         .rpc
-        .get_account_interface(&zc_pda, &ctx.program_id)
+        .get_account_interface(&zc_pda, None)
         .await
-        .expect("failed to get account interface");
+        .expect("failed to get account interface")
+        .value
+        .expect("account interface should exist");
     assert!(
         account_interface.is_cold(),
         "Account should be cold (compressed)"

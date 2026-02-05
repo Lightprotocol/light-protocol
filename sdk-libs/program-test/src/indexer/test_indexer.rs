@@ -1,4 +1,4 @@
-use std::{fmt::Debug, time::Duration};
+use std::{collections::HashMap, fmt::Debug, time::Duration};
 
 #[cfg(feature = "devenv")]
 use account_compression::{
@@ -13,6 +13,7 @@ pub(crate) const STATE_MERKLE_TREE_ROOTS: u64 = 2400;
 pub(crate) const DEFAULT_BATCH_STATE_TREE_HEIGHT: usize = 32;
 pub(crate) const DEFAULT_BATCH_ADDRESS_TREE_HEIGHT: usize = 40;
 pub(crate) const DEFAULT_BATCH_ROOT_HISTORY_LEN: usize = 200;
+
 use async_trait::async_trait;
 use borsh::BorshDeserialize;
 #[cfg(feature = "devenv")]
@@ -38,6 +39,9 @@ use light_compressed_account::{
     tx_hash::create_tx_hash,
     TreeType,
 };
+/// Discriminator for compressible accounts that store onchain_pubkey in the first 32 bytes of data.
+/// Re-exported from light_compressible for convenience.
+pub use light_compressible::DECOMPRESSED_PDA_DISCRIMINATOR;
 use light_event::event::PublicTransactionEvent;
 use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
 use light_merkle_tree_reference::MerkleTree;
@@ -102,6 +106,8 @@ pub struct TestIndexer {
     pub token_compressed_accounts: Vec<TokenDataWithMerkleContext>,
     pub token_nullified_compressed_accounts: Vec<TokenDataWithMerkleContext>,
     pub events: Vec<PublicTransactionEvent>,
+    /// Index mapping onchain_pubkey to compressed account index.
+    pub onchain_pubkey_index: HashMap<[u8; 32], usize>,
 }
 
 impl Clone for TestIndexer {
@@ -116,6 +122,7 @@ impl Clone for TestIndexer {
             token_compressed_accounts: self.token_compressed_accounts.clone(),
             token_nullified_compressed_accounts: self.token_nullified_compressed_accounts.clone(),
             events: self.events.clone(),
+            onchain_pubkey_index: self.onchain_pubkey_index.clone(),
         }
     }
 }
@@ -992,7 +999,7 @@ impl Indexer for TestIndexer {
     }
 
     async fn get_indexer_health(&self, _config: Option<RetryConfig>) -> Result<bool, IndexerError> {
-        todo!("get_indexer_health not implemented")
+        Ok(true) // Test indexer is always healthy
     }
 }
 
@@ -1345,7 +1352,151 @@ impl TestIndexer {
             token_compressed_accounts: vec![],
             token_nullified_compressed_accounts: vec![],
             group_pda,
+            onchain_pubkey_index: HashMap::new(),
         }
+    }
+
+    /// Extract onchain_pubkey from compressed account data if it has the decompressed discriminator.
+    /// Compressible accounts store the on-chain PDA pubkey in the first 32 bytes of data.
+    fn extract_onchain_pubkey_from_data(
+        data: Option<&light_compressed_account::compressed_account::CompressedAccountData>,
+    ) -> Option<[u8; 32]> {
+        let data = data?;
+        // Check discriminator matches DECOMPRESSED_PDA_DISCRIMINATOR
+        if data.discriminator == DECOMPRESSED_PDA_DISCRIMINATOR && data.data.len() >= 32 {
+            // onchain_pubkey is stored in the first 32 bytes of data (after discriminator)
+            data.data[..32].try_into().ok()
+        } else {
+            None
+        }
+    }
+
+    /// Find a compressed account by its on-chain pubkey.
+    /// This mirrors Photon's lookup by onchain_pubkey column.
+    pub fn find_compressed_account_by_onchain_pubkey(
+        &self,
+        onchain_pubkey: &[u8; 32],
+    ) -> Option<&CompressedAccountWithMerkleContext> {
+        let matches: Vec<_> = self
+            .compressed_accounts
+            .iter()
+            .filter(|acc| {
+                Self::extract_onchain_pubkey_from_data(acc.compressed_account.data.as_ref())
+                    .as_ref()
+                    == Some(onchain_pubkey)
+            })
+            .collect();
+
+        debug_assert!(
+            matches.len() <= 1,
+            "find_compressed_account_by_onchain_pubkey: found {} matches, expected at most 1",
+            matches.len()
+        );
+
+        matches.into_iter().next()
+    }
+
+    /// Find multiple compressed accounts by their on-chain pubkeys.
+    pub fn find_multiple_compressed_accounts_by_onchain_pubkeys(
+        &self,
+        onchain_pubkeys: &[[u8; 32]],
+    ) -> Vec<Option<&CompressedAccountWithMerkleContext>> {
+        onchain_pubkeys
+            .iter()
+            .map(|pubkey| self.find_compressed_account_by_onchain_pubkey(pubkey))
+            .collect()
+    }
+
+    /// Find a token compressed account by its on-chain pubkey.
+    pub fn find_token_account_by_onchain_pubkey(
+        &self,
+        onchain_pubkey: &[u8; 32],
+    ) -> Option<&TokenDataWithMerkleContext> {
+        let matches: Vec<_> = self
+            .token_compressed_accounts
+            .iter()
+            .filter(|acc| {
+                Self::extract_onchain_pubkey_from_data(
+                    acc.compressed_account.compressed_account.data.as_ref(),
+                )
+                .as_ref()
+                    == Some(onchain_pubkey)
+            })
+            .collect();
+
+        debug_assert!(
+            matches.len() <= 1,
+            "find_token_account_by_onchain_pubkey: found {} matches, expected at most 1",
+            matches.len()
+        );
+
+        matches.into_iter().next()
+    }
+
+    /// Find a compressed account by its PDA pubkey
+    pub fn find_compressed_account_by_pda_seed(
+        &self,
+        pda_pubkey: &[u8; 32],
+    ) -> Option<&CompressedAccountWithMerkleContext> {
+        // Try each address tree to find an account whose address matches
+        for address_tree in &self.address_merkle_trees {
+            let tree_pubkey = address_tree.accounts.merkle_tree.to_bytes();
+
+            // For each compressed account with an address, check if it was derived from this seed
+            for acc in &self.compressed_accounts {
+                if let Some(address) = acc.compressed_account.address {
+                    // Try deriving with this tree and the account's owner as program_id
+                    let owner_bytes = acc.compressed_account.owner.to_bytes();
+                    let derived = light_compressed_account::address::derive_address(
+                        pda_pubkey,
+                        &tree_pubkey,
+                        &owner_bytes,
+                    );
+
+                    if derived == address {
+                        return Some(acc);
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    /// Find a token compressed account by its PDA pubkey
+    pub fn find_token_account_by_pda_seed(
+        &self,
+        pda_pubkey: &[u8; 32],
+    ) -> Option<&TokenDataWithMerkleContext> {
+        // Try each address tree to find an account whose address matches
+        for address_tree in &self.address_merkle_trees {
+            let tree_pubkey = address_tree.accounts.merkle_tree.to_bytes();
+
+            // For each token compressed account with an address, check if it was derived from this seed
+            for acc in &self.token_compressed_accounts {
+                if let Some(address) = acc.compressed_account.compressed_account.address {
+                    // Try deriving with this tree and the account's owner as program_id
+                    let owner_bytes = acc.compressed_account.compressed_account.owner.to_bytes();
+                    let derived = light_compressed_account::address::derive_address(
+                        pda_pubkey,
+                        &tree_pubkey,
+                        &owner_bytes,
+                    );
+
+                    if derived == address {
+                        return Some(acc);
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    /// Get the sequence number for a state merkle tree by its pubkey.
+    pub fn get_state_tree_seq(&self, tree_pubkey: &Pubkey) -> Option<u64> {
+        self.state_merkle_trees
+            .iter()
+            .find(|tree| tree.accounts.merkle_tree == *tree_pubkey)
+            .map(|tree| tree.merkle_tree.sequence_number as u64)
     }
 
     pub fn add_address_merkle_tree_bundle(

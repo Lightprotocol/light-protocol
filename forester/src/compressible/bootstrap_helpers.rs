@@ -5,12 +5,18 @@
 //! - Account field extraction from JSON responses
 //! - Standard and V2 API patterns
 
-use std::time::Duration;
+use std::{
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    time::Duration,
+};
 
 use serde_json::json;
 use solana_sdk::pubkey::Pubkey;
-use tokio::time::timeout;
-use tracing::debug;
+use tokio::{sync::oneshot, time::timeout};
+use tracing::{debug, info};
 
 use super::config::{DEFAULT_PAGE_SIZE, DEFAULT_PAGINATION_DELAY_MS};
 use crate::Result;
@@ -343,4 +349,128 @@ where
     }
 
     Ok((page_count, total_fetched, total_inserted))
+}
+
+/// Result of a bootstrap operation
+#[derive(Debug, Clone)]
+pub struct BootstrapResult {
+    /// Number of pages fetched (1 for standard API)
+    pub pages: usize,
+    /// Total number of accounts fetched from RPC
+    pub fetched: usize,
+    /// Number of accounts successfully inserted/processed
+    pub inserted: usize,
+}
+
+/// High-level bootstrap runner that handles common scaffolding.
+///
+/// This helper encapsulates:
+/// - Shutdown flag setup and listener spawning
+/// - HTTP client creation
+/// - Automatic selection between standard and V2 APIs based on localhost detection
+/// - Consistent logging with the provided label
+///
+/// # Arguments
+/// * `rpc_url` - The RPC endpoint URL
+/// * `program_id` - The program ID to fetch accounts from
+/// * `filters` - Optional memcmp/dataSize filters for the query
+/// * `shutdown_rx` - Optional shutdown receiver for graceful cancellation
+/// * `process_fn` - Closure called for each fetched account; returns true if successfully processed
+/// * `label` - Label for log messages (e.g., "Mint", "CToken", "PDA")
+///
+/// # Returns
+/// A `BootstrapResult` containing page count, fetched count, and inserted count.
+pub async fn run_bootstrap<F>(
+    rpc_url: &str,
+    program_id: &Pubkey,
+    filters: Option<Vec<serde_json::Value>>,
+    shutdown_rx: Option<oneshot::Receiver<()>>,
+    process_fn: F,
+    label: &str,
+) -> Result<BootstrapResult>
+where
+    F: FnMut(RawAccountData) -> bool,
+{
+    info!("Starting bootstrap of {} accounts", label);
+
+    // Set up shutdown flag and listener task
+    let shutdown_flag = Arc::new(AtomicBool::new(false));
+
+    // Spawn shutdown listener and keep handle for cleanup
+    let shutdown_listener_handle = shutdown_rx.map(|rx| {
+        let shutdown_flag_clone = shutdown_flag.clone();
+        tokio::spawn(async move {
+            let _ = rx.await;
+            shutdown_flag_clone.store(true, Ordering::SeqCst);
+        })
+    });
+
+    let client = reqwest::Client::new();
+
+    info!(
+        "Bootstrapping {} accounts from program {}",
+        label, program_id
+    );
+
+    let result = if is_localhost(rpc_url) {
+        debug!("Detected localhost, using standard getProgramAccounts");
+        let api_result = bootstrap_standard_api(
+            &client,
+            rpc_url,
+            program_id,
+            filters,
+            Some(&shutdown_flag),
+            process_fn,
+        )
+        .await;
+
+        // Abort shutdown listener before returning (success or error)
+        if let Some(handle) = shutdown_listener_handle {
+            handle.abort();
+        }
+
+        let (fetched, inserted) = api_result?;
+
+        info!(
+            "{} bootstrap complete: {} fetched, {} inserted",
+            label, fetched, inserted
+        );
+
+        BootstrapResult {
+            pages: 1,
+            fetched,
+            inserted,
+        }
+    } else {
+        debug!("Using getProgramAccountsV2 with pagination");
+        let api_result = bootstrap_v2_api(
+            &client,
+            rpc_url,
+            program_id,
+            filters,
+            Some(&shutdown_flag),
+            process_fn,
+        )
+        .await;
+
+        // Abort shutdown listener before returning (success or error)
+        if let Some(handle) = shutdown_listener_handle {
+            handle.abort();
+        }
+
+        let (pages, fetched, inserted) = api_result?;
+
+        info!(
+            "{} bootstrap complete: {} pages, {} fetched, {} inserted",
+            label, pages, fetched, inserted
+        );
+
+        BootstrapResult {
+            pages,
+            fetched,
+            inserted,
+        }
+    };
+
+    Ok(result)
 }

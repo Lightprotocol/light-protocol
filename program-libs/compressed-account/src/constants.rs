@@ -6,6 +6,9 @@ pub const ACCOUNT_COMPRESSION_PROGRAM_ID: [u8; 32] =
 /// ID of the light-system program.
 pub const LIGHT_SYSTEM_PROGRAM_ID: [u8; 32] =
     pubkey_array!("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7");
+/// ID of the light-registry program.
+pub const LIGHT_REGISTRY_PROGRAM_ID: [u8; 32] =
+    pubkey_array!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX");
 #[deprecated(since = "0.9.0", note = "Use LIGHT_SYSTEM_PROGRAM_ID instead")]
 pub const SYSTEM_PROGRAM_ID: [u8; 32] = LIGHT_SYSTEM_PROGRAM_ID;
 pub const REGISTERED_PROGRAM_PDA: [u8; 32] =

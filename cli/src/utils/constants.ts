@@ -19,6 +19,7 @@ export const SOLANA_VALIDATOR_PROCESS_NAME = "solana-test-validator";
 export const SURFPOOL_PROCESS_NAME = "surfpool";
 export const LIGHT_PROVER_PROCESS_NAME = "light-prover";
 export const INDEXER_PROCESS_NAME = "photon";
+export const FORESTER_PROCESS_NAME = "forester";
 
 export const SURFPOOL_VERSION = "1.0.1";
 export const SURFPOOL_RELEASE_TAG = "v1.0.1-light";

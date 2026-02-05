@@ -17,8 +17,8 @@ use csdk_anchor_full_derived_test::amm_test::{
 // SDK for AmmSdk-based approach
 use csdk_anchor_full_derived_test_sdk::{AmmInstruction, AmmSdk};
 use light_client::interface::{
-    create_load_instructions, get_create_accounts_proof, AccountInterfaceExt,
-    CreateAccountsProofInput, InitializeRentFreeConfig, LightProgramInterface,
+    create_load_instructions, get_create_accounts_proof, CreateAccountsProofInput,
+    InitializeRentFreeConfig, LightProgramInterface,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{
@@ -631,9 +631,11 @@ async fn test_amm_full_lifecycle() {
 
     let pool_interface = ctx
         .rpc
-        .get_account_interface(&pdas.pool_state, &ctx.program_id)
+        .get_account_interface(&pdas.pool_state, None)
         .await
-        .expect("failed to get pool_state");
+        .expect("failed to get pool_state")
+        .value
+        .expect("pool_state should exist");
     assert!(pool_interface.is_cold(), "pool_state should be cold");
 
     // Create Program Interface SDK.
@@ -644,9 +646,9 @@ async fn test_amm_full_lifecycle() {
 
     let keyed_accounts = ctx
         .rpc
-        .get_multiple_account_interfaces(&accounts_to_fetch)
+        .fetch_accounts(&accounts_to_fetch, None)
         .await
-        .expect("get_multiple_account_interfaces should succeed");
+        .expect("fetch_accounts should succeed");
 
     sdk.update(&keyed_accounts)
         .expect("sdk.update should succeed");
@@ -655,9 +657,11 @@ async fn test_amm_full_lifecycle() {
 
     let creator_lp_interface = ctx
         .rpc
-        .get_ata_interface(&ctx.creator.pubkey(), &pdas.lp_mint)
+        .get_associated_token_account_interface(&ctx.creator.pubkey(), &pdas.lp_mint, None)
         .await
-        .expect("failed to get creator_lp_token");
+        .expect("failed to get creator_lp_token")
+        .value
+        .expect("creator_lp_token should exist");
 
     // add ata
     use light_client::interface::AccountSpec;
