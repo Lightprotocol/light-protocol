@@ -22,7 +22,7 @@ pub enum AccountToFetch {
     Pda { address: Pubkey, program_id: Pubkey },
     /// Token account (program-owned) - uses `get_token_account_interface(address)`
     Token { address: Pubkey },
-    /// ATA - uses `get_ata_interface(wallet_owner, mint)`
+    /// ATA - uses `get_associated_token_account_interface(wallet_owner, mint)`
     Ata { wallet_owner: Pubkey, mint: Pubkey },
     /// Light mint - uses `get_account_interface(address)` (clients parse mint data)
     Mint { address: Pubkey },

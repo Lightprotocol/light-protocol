@@ -1877,7 +1877,7 @@ impl PhotonIndexer {
 
     /// Get Associated Token Account data from either on-chain or compressed sources.
     /// Derives the Light Protocol ATA address from owner+mint, then races hot/cold lookups.
-    pub async fn get_ata_interface(
+    pub async fn get_associated_token_account_interface(
         &self,
         owner: &Pubkey,
         mint: &Pubkey,
@@ -1897,7 +1897,7 @@ impl PhotonIndexer {
                     .await?;
 
             let api_response = Self::extract_result_with_error_check(
-                "get_ata_interface",
+                "get_associated_token_account_interface",
                 result.error,
                 result.result.map(|r| *r),
             )?;

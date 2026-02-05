@@ -1151,7 +1151,7 @@ impl Rpc for LightClient {
         })
     }
 
-    async fn get_ata_interface(
+    async fn get_associated_token_account_interface(
         &self,
         owner: &Pubkey,
         mint: &Pubkey,
@@ -1162,7 +1162,7 @@ impl Rpc for LightClient {
             .as_ref()
             .ok_or(RpcError::IndexerNotInitialized)?;
         let resp = indexer
-            .get_ata_interface(owner, mint, config)
+            .get_associated_token_account_interface(owner, mint, config)
             .await
             .map_err(|e| RpcError::CustomError(format!("Indexer error: {e}")))?;
 
@@ -1208,11 +1208,15 @@ impl Rpc for LightClient {
         address: &Pubkey,
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<Option<MintInterface>>, RpcError> {
-        use light_token::instruction::derive_mint_compressed_address;
+        use light_compressed_account::address::derive_address;
         use light_token_interface::{state::Mint, MINT_ADDRESS_TREE};
 
         let address_tree = Pubkey::new_from_array(MINT_ADDRESS_TREE);
-        let compressed_address = derive_mint_compressed_address(address, &address_tree);
+        let compressed_address = derive_address(
+            &address.to_bytes(),
+            &address_tree.to_bytes(),
+            &light_token_interface::LIGHT_TOKEN_PROGRAM_ID,
+        );
 
         let indexer = self
             .indexer
@@ -1260,15 +1264,8 @@ impl Rpc for LightClient {
                         mint_data,
                     }
                 } else {
-                    // Hot: convert SolanaAccountData to Account
                     MintState::Hot {
-                        account: Account {
-                            lamports: ai.account.lamports,
-                            data: ai.account.data,
-                            owner: ai.account.owner,
-                            executable: ai.account.executable,
-                            rent_epoch: ai.account.rent_epoch,
-                        },
+                        account: ai.account,
                     }
                 };
 

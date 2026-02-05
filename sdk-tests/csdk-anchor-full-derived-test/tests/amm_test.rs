@@ -657,7 +657,7 @@ async fn test_amm_full_lifecycle() {
 
     let creator_lp_interface = ctx
         .rpc
-        .get_ata_interface(&ctx.creator.pubkey(), &pdas.lp_mint, None)
+        .get_associated_token_account_interface(&ctx.creator.pubkey(), &pdas.lp_mint, None)
         .await
         .expect("failed to get creator_lp_token")
         .value

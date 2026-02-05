@@ -1,8 +1,10 @@
 //! Mint interface types for hot/cold handling.
 
 use borsh::BorshDeserialize;
-use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
-use light_token::instruction::{derive_mint_compressed_address, DecompressMint};
+use light_compressed_account::{
+    address::derive_address, instruction_data::compressed_proof::ValidityProof,
+};
+use light_token::instruction::DecompressMint;
 use light_token_interface::{
     instructions::mint_action::{MintInstructionData, MintWithContext},
     state::Mint,
@@ -285,8 +287,11 @@ pub async fn decompress_mint_idempotent<I: Indexer>(
     let address_tree = request
         .address_tree
         .unwrap_or(Pubkey::new_from_array(MINT_ADDRESS_TREE));
-    let compressed_address =
-        derive_mint_compressed_address(&request.mint_seed_pubkey, &address_tree);
+    let compressed_address = derive_address(
+        &request.mint_seed_pubkey.to_bytes(),
+        &address_tree.to_bytes(),
+        &light_token_interface::LIGHT_TOKEN_PROGRAM_ID,
+    );
 
     // 2. Fetch cold mint from indexer
     let compressed_account = indexer

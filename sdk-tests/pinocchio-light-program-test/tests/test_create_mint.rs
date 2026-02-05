@@ -2,7 +2,7 @@ mod shared;
 
 use light_client::interface::{
     create_load_instructions, get_create_accounts_proof, AccountInterface, AccountSpec,
-    ColdContext, CreateAccountsProofInput,
+    CreateAccountsProofInput,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{program_test::TestRpc, Rpc};
@@ -107,21 +107,7 @@ async fn test_create_mint_derive() {
         .value
         .expect("mint interface should exist");
     assert!(mint_interface.is_cold(), "Mint should be cold");
-
-    let (compressed, _mint_data) = mint_interface
-        .compressed()
-        .expect("cold mint must have compressed data");
-    let mint_account_interface = AccountInterface {
-        key: mint_pda,
-        account: solana_account::Account {
-            lamports: 0,
-            data: vec![],
-            owner: light_token::instruction::LIGHT_TOKEN_PROGRAM_ID,
-            executable: false,
-            rent_epoch: 0,
-        },
-        cold: Some(ColdContext::Account(compressed.clone())),
-    };
+    let mint_account_interface = AccountInterface::from(mint_interface);
 
     let specs: Vec<AccountSpec<LightAccountVariant>> =
         vec![AccountSpec::Mint(mint_account_interface)];

@@ -95,7 +95,7 @@ async fn test_create_ata_derive() {
     use anchor_semi_manual_test::LightAccountVariant;
 
     let ata_interface = rpc
-        .get_ata_interface(&ata_owner, &mint, None)
+        .get_associated_token_account_interface(&ata_owner, &mint, None)
         .await
         .expect("failed to get ATA interface")
         .value

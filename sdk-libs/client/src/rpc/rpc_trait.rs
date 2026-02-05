@@ -257,7 +257,7 @@ pub trait Rpc: Send + Sync + Debug + 'static {
     ) -> Result<Response<Option<TokenAccountInterface>>, RpcError>;
 
     /// Get ATA data from either on-chain or compressed sources.
-    async fn get_ata_interface(
+    async fn get_associated_token_account_interface(
         &self,
         owner: &Pubkey,
         mint: &Pubkey,
@@ -288,7 +288,7 @@ pub trait Rpc: Send + Sync + Debug + 'static {
     /// Routes each account to the correct method based on its variant:
     /// - `Pda` -> `get_account_interface`
     /// - `Token` -> `get_token_account_interface`
-    /// - `Ata` -> `get_ata_interface`
+    /// - `Ata` -> `get_associated_token_account_interface`
     /// - `Mint` -> `get_mint_interface`
     async fn fetch_accounts(
         &self,
@@ -317,7 +317,7 @@ pub trait Rpc: Send + Sync + Debug + 'static {
                 }
                 AccountToFetch::Ata { wallet_owner, mint } => {
                     let tai = self
-                        .get_ata_interface(wallet_owner, mint, config.clone())
+                        .get_associated_token_account_interface(wallet_owner, mint, config.clone())
                         .await?
                         .value
                         .ok_or_else(|| {

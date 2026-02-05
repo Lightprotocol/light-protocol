@@ -267,7 +267,7 @@ async fn decompress_all(ctx: &mut StressTestContext, pdas: &TestPdas, cached: &C
     // ATA
     let ata_interface = ctx
         .rpc
-        .get_ata_interface(&pdas.ata_owner, &pdas.mint, None)
+        .get_associated_token_account_interface(&pdas.ata_owner, &pdas.mint, None)
         .await
         .expect("failed to get ATA interface")
         .value
@@ -312,20 +312,7 @@ async fn decompress_all(ctx: &mut StressTestContext, pdas: &TestPdas, cached: &C
         .value
         .expect("mint interface should exist");
     assert!(mint_iface.is_cold(), "Mint should be cold");
-    let (compressed_mint, _) = mint_iface
-        .compressed()
-        .expect("cold mint must have compressed data");
-    let mint_ai = AccountInterface {
-        key: pdas.mint,
-        account: solana_account::Account {
-            lamports: 0,
-            data: vec![],
-            owner: light_token::instruction::LIGHT_TOKEN_PROGRAM_ID,
-            executable: false,
-            rent_epoch: 0,
-        },
-        cold: Some(ColdContext::Account(compressed_mint.clone())),
-    };
+    let mint_ai = AccountInterface::from(mint_iface);
 
     let specs: Vec<AccountSpec<LightAccountVariant>> = vec![
         AccountSpec::Pda(record_spec),

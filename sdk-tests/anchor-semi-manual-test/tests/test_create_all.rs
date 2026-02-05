@@ -254,7 +254,7 @@ async fn test_create_all_derive() {
 
     // ATA
     let ata_interface = rpc
-        .get_ata_interface(&ata_owner, &ata_mint, None)
+        .get_associated_token_account_interface(&ata_owner, &ata_mint, None)
         .await
         .expect("failed to get ATA interface")
         .value
@@ -269,20 +269,7 @@ async fn test_create_all_derive() {
         .value
         .expect("mint A interface should exist");
     assert!(mint_a_iface.is_cold(), "Mint A should be cold");
-    let (compressed_a, _) = mint_a_iface
-        .compressed()
-        .expect("cold mint A must have compressed data");
-    let mint_a_ai = AccountInterface {
-        key: mint_a_pda,
-        account: solana_account::Account {
-            lamports: 0,
-            data: vec![],
-            owner: light_token::instruction::LIGHT_TOKEN_PROGRAM_ID,
-            executable: false,
-            rent_epoch: 0,
-        },
-        cold: Some(ColdContext::Account(compressed_a.clone())),
-    };
+    let mint_a_ai = AccountInterface::from(mint_a_iface);
 
     // Mint B
     let mint_b_iface = rpc
@@ -292,20 +279,7 @@ async fn test_create_all_derive() {
         .value
         .expect("mint B interface should exist");
     assert!(mint_b_iface.is_cold(), "Mint B should be cold");
-    let (compressed_b, _) = mint_b_iface
-        .compressed()
-        .expect("cold mint B must have compressed data");
-    let mint_b_ai = AccountInterface {
-        key: mint_b_pda,
-        account: solana_account::Account {
-            lamports: 0,
-            data: vec![],
-            owner: light_token::instruction::LIGHT_TOKEN_PROGRAM_ID,
-            executable: false,
-            rent_epoch: 0,
-        },
-        cold: Some(ColdContext::Account(compressed_b.clone())),
-    };
+    let mint_b_ai = AccountInterface::from(mint_b_iface);
 
     // Token PDA: Vault
     let vault_iface = rpc

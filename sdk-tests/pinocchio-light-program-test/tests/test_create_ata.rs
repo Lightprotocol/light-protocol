@@ -85,7 +85,7 @@ async fn test_create_ata_derive() {
 
     // PHASE 3: Decompress via create_load_instructions
     let ata_interface = rpc
-        .get_ata_interface(&ata_owner, &mint, None)
+        .get_associated_token_account_interface(&ata_owner, &mint, None)
         .await
         .expect("failed to get ATA interface")
         .value

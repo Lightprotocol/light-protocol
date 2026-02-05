@@ -535,7 +535,7 @@ impl Rpc for LightProgramTest {
         })
     }
 
-    async fn get_ata_interface(
+    async fn get_associated_token_account_interface(
         &self,
         owner: &Pubkey,
         mint: &Pubkey,
@@ -684,12 +684,16 @@ impl Rpc for LightProgramTest {
         config: Option<light_client::indexer::IndexerRpcConfig>,
     ) -> Result<Response<Option<MintInterface>>, RpcError> {
         use borsh::BorshDeserialize;
-        use light_token::instruction::derive_mint_compressed_address;
+        use light_compressed_account::address::derive_address;
         use light_token_interface::{state::Mint, MINT_ADDRESS_TREE};
 
         let slot = self.context.get_sysvar::<Clock>().slot;
         let address_tree = Pubkey::new_from_array(MINT_ADDRESS_TREE);
-        let compressed_address = derive_mint_compressed_address(address, &address_tree);
+        let compressed_address = derive_address(
+            &address.to_bytes(),
+            &address_tree.to_bytes(),
+            &light_token_interface::LIGHT_TOKEN_PROGRAM_ID,
+        );
 
         // 1. Try hot (on-chain) first
         if let Some(account) = self.context.get_account(address) {

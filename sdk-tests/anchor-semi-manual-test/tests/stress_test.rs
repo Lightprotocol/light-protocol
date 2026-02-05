@@ -279,7 +279,7 @@ async fn decompress_all(ctx: &mut StressTestContext, pdas: &TestPdas, cached: &C
     // ATA
     let ata_interface = ctx
         .rpc
-        .get_ata_interface(&pdas.ata_owner, &pdas.ata_mint, None)
+        .get_associated_token_account_interface(&pdas.ata_owner, &pdas.ata_mint, None)
         .await
         .expect("failed to get ATA interface")
         .value
@@ -324,20 +324,7 @@ async fn decompress_all(ctx: &mut StressTestContext, pdas: &TestPdas, cached: &C
         .value
         .expect("mint A interface should exist");
     assert!(mint_a_iface.is_cold(), "Mint A should be cold");
-    let (compressed_a, _) = mint_a_iface
-        .compressed()
-        .expect("cold mint A must have compressed data");
-    let mint_a_ai = AccountInterface {
-        key: pdas.mint_a,
-        account: solana_account::Account {
-            lamports: 0,
-            data: vec![],
-            owner: light_token::instruction::LIGHT_TOKEN_PROGRAM_ID,
-            executable: false,
-            rent_epoch: 0,
-        },
-        cold: Some(ColdContext::Account(compressed_a.clone())),
-    };
+    let mint_a_ai = AccountInterface::from(mint_a_iface);
 
     // Mint B
     let mint_b_iface = ctx
@@ -348,20 +335,7 @@ async fn decompress_all(ctx: &mut StressTestContext, pdas: &TestPdas, cached: &C
         .value
         .expect("mint B interface should exist");
     assert!(mint_b_iface.is_cold(), "Mint B should be cold");
-    let (compressed_b, _) = mint_b_iface
-        .compressed()
-        .expect("cold mint B must have compressed data");
-    let mint_b_ai = AccountInterface {
-        key: pdas.mint_b,
-        account: solana_account::Account {
-            lamports: 0,
-            data: vec![],
-            owner: light_token::instruction::LIGHT_TOKEN_PROGRAM_ID,
-            executable: false,
-            rent_epoch: 0,
-        },
-        cold: Some(ColdContext::Account(compressed_b.clone())),
-    };
+    let mint_b_ai = AccountInterface::from(mint_b_iface);
 
     let specs: Vec<AccountSpec<LightAccountVariant>> = vec![
         AccountSpec::Pda(record_spec),

@@ -532,12 +532,12 @@ async fn test_d10_single_ata_markonly_lifecycle() {
     shared::assert_onchain_closed(&mut ctx.rpc, &d10_markonly_ata, "d10_markonly_ata").await;
 
     // PHASE 3: Decompress ATA using create_load_instructions
-    // ATAs use get_ata_interface which fetches the compressed token data
+    // ATAs use get_associated_token_account_interface which fetches the compressed token data
     let ata_interface = ctx
         .rpc
-        .get_ata_interface(&ata_owner, &mint, None)
+        .get_associated_token_account_interface(&ata_owner, &mint, None)
         .await
-        .expect("get_ata_interface should succeed")
+        .expect("get_associated_token_account_interface should succeed")
         .value
         .expect("ata interface should exist");
     assert!(

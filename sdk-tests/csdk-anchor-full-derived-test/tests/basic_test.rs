@@ -430,11 +430,11 @@ async fn test_create_pdas_and_mint_auto() {
     };
     let vault_spec = PdaSpec::new(vault_interface_for_pda, vault_variant, program_id);
 
-    // get_ata_interface: fetches ATA with unified handling using standard SPL types
+    // get_associated_token_account_interface: fetches ATA with unified handling using standard SPL types
     let ata_interface = rpc
-        .get_ata_interface(&payer.pubkey(), &mint_pda, None)
+        .get_associated_token_account_interface(&payer.pubkey(), &mint_pda, None)
         .await
-        .expect("get_ata_interface should succeed")
+        .expect("get_associated_token_account_interface should succeed")
         .value
         .expect("ATA should exist");
     assert!(ata_interface.is_cold(), "ATA should be cold after warp");
@@ -446,13 +446,14 @@ async fn test_create_pdas_and_mint_auto() {
     // Use TokenAccountInterface directly for ATA
     // (no separate AtaSpec needed - TokenAccountInterface has all the data)
 
-    // Fetch mint as account interface (clients parse mint data themselves)
-    let mint_account_interface = rpc
-        .get_account_interface(&mint_pda, None)
-        .await
-        .expect("get_account_interface should succeed")
-        .value
-        .expect("Mint should exist");
+    // Fetch mint via get_mint_interface to get ColdContext::Mint
+    let mint_account_interface = light_client::interface::AccountInterface::from(
+        rpc.get_mint_interface(&mint_pda, None)
+            .await
+            .expect("get_mint_interface should succeed")
+            .value
+            .expect("Mint should exist"),
+    );
     assert!(
         mint_account_interface.is_cold(),
         "Mint should be cold after warp"

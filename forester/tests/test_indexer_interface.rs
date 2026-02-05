@@ -5,16 +5,15 @@
 /// to export transactions to the indexer's test snapshot directory.
 ///
 /// Scenarios covered:
-/// 1. SPL Mint (on-chain) - standard mint for token operations
-/// 2. Compressed token accounts (via mint_to) - for getTokenAccountInterface
+/// 1. Light Token Mint - mint for token operations
+/// 2. Token accounts (via light-token-client MintTo) - for getTokenAccountInterface
 /// 3. Registered v2 address in batched address tree - for address tree verification
 /// 4. Compressible token accounts - on-chain accounts that can be compressed
-use std::{collections::HashMap, time::Duration};
+use std::collections::HashMap;
 
 use anchor_lang::Discriminator;
 use borsh::BorshSerialize;
 use create_address_test_program::create_invoke_cpi_instruction;
-use forester_utils::utils::wait_for_indexer;
 use light_client::{
     indexer::{photon_indexer::PhotonIndexer, AddressWithTree, Indexer},
     local_test_validator::{spawn_validator, LightValidatorConfig},
@@ -26,10 +25,7 @@ use light_compressed_account::{
         data::NewAddressParamsAssigned, with_readonly::InstructionDataInvokeCpiWithReadOnly,
     },
 };
-use light_compressed_token::{
-    process_mint::mint_sdk::create_mint_to_instruction,
-    process_transfer::transfer_sdk::to_account_metas,
-};
+use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
 use light_test_utils::{
     actions::legacy::{
         create_compressible_token_account,
@@ -39,54 +35,15 @@ use light_test_utils::{
         CreateCompressibleTokenAccountInputs,
     },
     pack::pack_new_address_params_assigned,
-    spl::create_mint_helper_with_keypair,
 };
 use light_token::instruction::{
-    derive_mint_compressed_address, find_mint_address, CreateMint, CreateMintParams,
+    derive_mint_compressed_address, find_mint_address, CreateMint as CreateMintInstruction,
+    CreateMintParams,
 };
+use light_token_client::{CreateAta, CreateMint, MintTo};
 use light_token_interface::state::TokenDataVersion;
 use serial_test::serial;
-use solana_sdk::{
-    pubkey::Pubkey,
-    signature::{Keypair, Signature},
-    signer::Signer,
-    transaction::Transaction,
-};
-use tokio::time::sleep;
-
-const COMPUTE_BUDGET_LIMIT: u32 = 1_000_000;
-
-/// Helper to mint compressed tokens
-async fn mint_compressed_tokens<R: Rpc>(
-    rpc: &mut R,
-    merkle_tree_pubkey: &Pubkey,
-    payer: &Keypair,
-    mint_pubkey: &Pubkey,
-    recipients: Vec<Pubkey>,
-    amounts: Vec<u64>,
-) -> Signature {
-    let mint_to_ix = create_mint_to_instruction(
-        &payer.pubkey(),
-        &payer.pubkey(),
-        mint_pubkey,
-        merkle_tree_pubkey,
-        amounts,
-        recipients,
-        None,
-        false,
-        0,
-    );
-    let instructions = vec![
-        solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(
-            COMPUTE_BUDGET_LIMIT,
-        ),
-        mint_to_ix,
-    ];
-    rpc.create_and_send_transaction(&instructions, &payer.pubkey(), &[payer])
-        .await
-        .unwrap()
-}
-
+use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
 /// Test that creates scenarios for Photon interface testing
 ///
 /// Run with: cargo test -p forester --test test_indexer_interface -- --nocapture
@@ -98,7 +55,7 @@ async fn test_indexer_interface_scenarios() {
     spawn_validator(LightValidatorConfig {
         enable_indexer: true,
         enable_prover: true,
-        wait_time: 90,
+        wait_time: 0,
         sbf_programs: vec![(
             "FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy".to_string(),
             "../target/deploy/create_address_test_program.so".to_string(),
@@ -122,48 +79,74 @@ async fn test_indexer_interface_scenarios() {
         .await
         .expect("Failed to airdrop to payer");
 
-    // Give extra time for indexer to fully start
-    sleep(Duration::from_secs(5)).await;
-
-    // Wait for indexer to be ready before making any requests
-    wait_for_indexer(&rpc)
-        .await
-        .expect("Failed to wait for indexer");
-
     println!("\n========== PHOTON INTERFACE TEST ==========\n");
     println!("Payer: {}", payer.pubkey());
 
-    // ============ Scenario 1: Create SPL Mint ============
-    println!("\n=== Creating SPL mint ===");
+    // ============ Scenario 1: Create Light Token Mint ============
+    println!("\n=== Creating Light Token mint ===");
 
-    let mint_keypair = Keypair::new();
-    let mint_pubkey = create_mint_helper_with_keypair(&mut rpc, &payer, &mint_keypair).await;
-    println!("SPL Mint: {}", mint_pubkey);
+    let (create_mint_sig, mint_pubkey) = CreateMint {
+        decimals: 9,
+        ..Default::default()
+    }
+    .execute(&mut rpc, &payer, &payer)
+    .await
+    .expect("Failed to create Light Token mint");
+    println!(
+        "Light Token Mint: {} (sig: {})",
+        mint_pubkey, create_mint_sig
+    );
 
-    // ============ Scenario 2: Create compressed token accounts ============
-    println!("\n=== Creating compressed token accounts ===");
+    // ============ Scenario 2: Mint tokens to Bob and Charlie ============
+    println!("\n=== Minting tokens via light-token-client ===");
 
     let bob = Keypair::new();
     let charlie = Keypair::new();
 
-    let state_tree_info = rpc.get_random_state_tree_info().unwrap();
+    // Create ATAs for Bob and Charlie
+    let (_, bob_ata) = CreateAta {
+        mint: mint_pubkey,
+        owner: bob.pubkey(),
+        idempotent: false,
+    }
+    .execute(&mut rpc, &payer)
+    .await
+    .expect("Failed to create Bob's ATA");
 
-    // Mint compressed tokens to Bob and Charlie
-    let mint_sig = mint_compressed_tokens(
-        &mut rpc,
-        &state_tree_info.queue,
-        &payer,
-        &mint_pubkey,
-        vec![bob.pubkey(), charlie.pubkey()],
-        vec![1_000_000_000, 500_000_000],
-    )
-    .await;
-    println!("Minted compressed tokens: {}", mint_sig);
-    println!("Bob pubkey: {}", bob.pubkey());
-    println!("Charlie pubkey: {}", charlie.pubkey());
+    let (_, charlie_ata) = CreateAta {
+        mint: mint_pubkey,
+        owner: charlie.pubkey(),
+        idempotent: false,
+    }
+    .execute(&mut rpc, &payer)
+    .await
+    .expect("Failed to create Charlie's ATA");
 
-    // Wait for indexer
-    sleep(Duration::from_secs(3)).await;
+    // Mint tokens
+    let bob_mint_sig = MintTo {
+        mint: mint_pubkey,
+        destination: bob_ata,
+        amount: 1_000_000_000,
+    }
+    .execute(&mut rpc, &payer, &payer)
+    .await
+    .expect("Failed to mint to Bob");
+
+    let charlie_mint_sig = MintTo {
+        mint: mint_pubkey,
+        destination: charlie_ata,
+        amount: 500_000_000,
+    }
+    .execute(&mut rpc, &payer, &payer)
+    .await
+    .expect("Failed to mint to Charlie");
+
+    println!("Minted to Bob: {} (sig: {})", bob.pubkey(), bob_mint_sig);
+    println!(
+        "Minted to Charlie: {} (sig: {})",
+        charlie.pubkey(),
+        charlie_mint_sig
+    );
 
     // ============ Scenario 3: Register v2 Address (using create_address_test_program) ============
     println!("\n=== Registering v2 address in batched address tree ===");
@@ -184,7 +167,6 @@ async fn test_indexer_interface_scenarios() {
     println!("Derived v2 address: {:?}", derived_address);
 
     // Get validity proof for the new address
-    wait_for_indexer(&rpc).await.unwrap();
     let proof_result = rpc
         .indexer()
         .unwrap()
@@ -214,22 +196,14 @@ async fn test_indexer_interface_scenarios() {
         pack_new_address_params_assigned(&new_address_params, &mut remaining_accounts);
 
     // Build instruction data for create_address_test_program
-    let ix_data = InstructionDataInvokeCpiWithReadOnly {
-        mode: 0,
-        bump: 255,
-        with_cpi_context: false,
-        invoking_program_id: create_address_test_program::ID.into(),
-        proof: proof_result.value.proof.0,
-        new_address_params: packed_new_address_params,
-        is_compress: false,
-        compress_or_decompress_lamports: 0,
-        output_compressed_accounts: Default::default(),
-        input_compressed_accounts: Default::default(),
-        with_transaction_hash: true,
-        read_only_accounts: Vec::new(),
-        read_only_addresses: Vec::new(),
-        cpi_context: Default::default(),
-    };
+    let ix_data = InstructionDataInvokeCpiWithReadOnly::new(
+        create_address_test_program::ID.into(),
+        255,
+        proof_result.value.proof.0,
+    )
+    .mode_v1()
+    .with_with_transaction_hash(true)
+    .with_new_addresses(&packed_new_address_params);
 
     let remaining_accounts_metas = to_account_metas(remaining_accounts);
 
@@ -246,9 +220,7 @@ async fn test_indexer_interface_scenarios() {
     );
 
     let instructions = vec![
-        solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(
-            COMPUTE_BUDGET_LIMIT,
-        ),
+        solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(1_000_000),
         instruction,
     ];
     let address_sig = rpc
@@ -309,7 +281,7 @@ async fn test_indexer_interface_scenarios() {
         write_top_up: 0,
     };
 
-    let create_decompressed_mint_builder = CreateMint::new(
+    let create_decompressed_mint_builder = CreateMintInstruction::new(
         decompressed_mint_params,
         decompressed_mint_seed.pubkey(),
         payer.pubkey(),
@@ -330,9 +302,6 @@ async fn test_indexer_interface_scenarios() {
         "Created decompressed mint (CMint on-chain): {} (sig: {})",
         decompressed_mint_pda, decompressed_mint_sig
     );
-
-    // Wait for indexer to process
-    sleep(Duration::from_secs(3)).await;
 
     // ============ Scenario 5: Fully Compressed Mint (CreateMint + CompressAndCloseMint) ============
     // This creates a compressed mint and then compresses it, so full mint data is in the compressed DB.
@@ -377,7 +346,7 @@ async fn test_indexer_interface_scenarios() {
         write_top_up: 0,
     };
 
-    let create_compressed_mint_builder = CreateMint::new(
+    let create_compressed_mint_builder = CreateMintInstruction::new(
         compressed_mint_params,
         compressed_mint_seed.pubkey(),
         payer.pubkey(),
@@ -398,10 +367,6 @@ async fn test_indexer_interface_scenarios() {
         "Created mint (step 1/2): {} (sig: {})",
         compressed_mint_pda, create_mint_sig
     );
-
-    // Wait for indexer to process the CreateMint
-    sleep(Duration::from_secs(3)).await;
-    wait_for_indexer(&rpc).await.unwrap();
 
     // Now compress and close the mint to make it fully compressed
     println!("Compressing mint via CompressAndCloseMint...");
@@ -432,9 +397,6 @@ async fn test_indexer_interface_scenarios() {
         compressed_mint_pda, compress_mint_sig
     );
 
-    // Wait for indexer to process
-    sleep(Duration::from_secs(3)).await;
-
     // ============ Scenario 6: Compressible Token Account ============
     println!("\n=== Creating compressible token account ===");
 
@@ -447,7 +409,7 @@ async fn test_indexer_interface_scenarios() {
         &mut rpc,
         CreateCompressibleTokenAccountInputs {
             owner: compressible_owner.pubkey(),
-            mint: mint_pubkey,
+            mint: decompressed_mint_pda,
             num_prepaid_epochs: 2,
             payer: &payer,
             token_account_keypair: None,
@@ -465,7 +427,7 @@ async fn test_indexer_interface_scenarios() {
 
     // ============ Summary ============
     println!("\n========== ADDRESSES SUMMARY ==========\n");
-    println!("SPL Mint: {}", mint_pubkey);
+    println!("Light Token Mint: {}", mint_pubkey);
     println!("Registered v2 Address: {}", hex::encode(derived_address));
     println!(
         "Decompressed Mint PDA (on-chain CMint): {}",
@@ -493,10 +455,6 @@ async fn test_indexer_interface_scenarios() {
 
     // Create PhotonIndexer to test the interface endpoints
     let photon_indexer = PhotonIndexer::new("http://localhost:8784".to_string(), None);
-
-    // Wait for indexer to sync
-    sleep(Duration::from_secs(3)).await;
-    wait_for_indexer(&rpc).await.unwrap();
 
     // ============ Test 1: getAccountInterface with compressible token account (on-chain) ============
     println!("Test 1: getAccountInterface with compressible token account (on-chain)...");
@@ -547,8 +505,8 @@ async fn test_indexer_interface_scenarios() {
         "Token account key should match"
     );
     assert_eq!(
-        compressible_token_interface.token.mint, mint_pubkey,
-        "Token mint should match SPL mint"
+        compressible_token_interface.token.mint, decompressed_mint_pda,
+        "Token mint should match decompressed mint"
     );
     assert_eq!(
         compressible_token_interface.token.owner,

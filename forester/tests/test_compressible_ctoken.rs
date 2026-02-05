@@ -97,33 +97,8 @@ async fn register_forester(
         current_slot, current_epoch, phases
     );
 
-    // Determine which epoch to register for:
-    // If we're already past the registration phase start, we might be in active phase
-    // and need to wait for the next epoch's registration
-    let (target_epoch, target_phases) = if current_slot >= phases.active.start {
-        // Already in active phase, register for next epoch
-        let next_epoch = current_epoch + 1;
-        let next_phases = get_epoch_phases(&protocol_config, next_epoch);
-        println!(
-            "Already in active phase, registering for next epoch {}, phases: {:?}",
-            next_epoch, next_phases
-        );
-        (next_epoch, next_phases)
-    } else if current_slot >= phases.registration.start {
-        // In registration phase, register for current epoch
-        println!("In registration phase for epoch {}", current_epoch);
-        (current_epoch, phases)
-    } else {
-        // Before registration phase, wait for it
-        println!(
-            "Waiting for registration phase (starts at slot {})",
-            phases.registration.start
-        );
-        (current_epoch, phases)
-    };
-
-    let register_phase_start = target_phases.registration.start;
-    let active_phase_start = target_phases.active.start;
+    let register_phase_start = phases.registration.start;
+    let active_phase_start = phases.active.start;
 
     // Warp to registration phase
     if rpc.get_slot().await? < register_phase_start {
@@ -132,11 +107,11 @@ async fn register_forester(
             .expect("warp_to_slot to registration phase");
     }
 
-    // Register for the target epoch
+    // Register for the current epoch
     let register_epoch_ix = create_register_forester_epoch_pda_instruction(
         &forester_pubkey,
         &forester_pubkey,
-        target_epoch,
+        current_epoch,
     );
 
     let (blockhash, _) = rpc.get_latest_blockhash().await?;
@@ -148,7 +123,7 @@ async fn register_forester(
     );
     rpc.process_transaction(tx).await?;
 
-    println!("Registered for epoch {}", target_epoch);
+    println!("Registered for epoch {}", current_epoch);
 
     // Warp to active phase
     if rpc.get_slot().await? < active_phase_start {
@@ -157,11 +132,11 @@ async fn register_forester(
             .expect("warp_to_slot to active phase");
     }
 
-    println!("Active phase reached for epoch {}", target_epoch);
+    println!("Active phase reached for epoch {}", current_epoch);
 
     // Finalize registration
     let finalize_ix =
-        create_finalize_registration_instruction(&forester_pubkey, &forester_pubkey, target_epoch);
+        create_finalize_registration_instruction(&forester_pubkey, &forester_pubkey, current_epoch);
 
     let (blockhash, _) = rpc.get_latest_blockhash().await?;
     let tx = Transaction::new_signed_with_payer(
@@ -189,10 +164,10 @@ async fn register_forester(
     use light_registry::protocol_config::state::EpochState;
 
     let epoch_struct = Epoch {
-        epoch: target_epoch,
+        epoch: current_epoch,
         epoch_pda: solana_sdk::pubkey::Pubkey::default(),
         forester_epoch_pda: solana_sdk::pubkey::Pubkey::default(),
-        phases: target_phases,
+        phases,
         state: EpochState::Active,
         merkle_trees: vec![],
     };
@@ -413,6 +388,22 @@ async fn test_compressible_ctoken_bootstrap() {
         .await
         .expect("Failed to airdrop lamports");
 
+    // Count pre-existing compressible token accounts
+    let program_id = Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
+    let pre_existing = rpc
+        .get_program_accounts(&program_id)
+        .await
+        .expect("Failed to get program accounts")
+        .into_iter()
+        .filter(|(_, account)| {
+            <light_token_interface::state::Token as borsh::BorshDeserialize>::try_from_slice(
+                &account.data,
+            )
+            .map(|t| t.is_token_account())
+            .unwrap_or(false)
+        })
+        .count();
+
     // Create mint
     let mint_seed = Keypair::new();
     let address_tree = rpc.get_address_tree_v2().tree;
@@ -455,7 +446,7 @@ async fn test_compressible_ctoken_bootstrap() {
     // Run bootstrap test with localhost
     run_bootstrap_test(
         "http://localhost:8899".to_string(),
-        3,
+        pre_existing + 3,
         Some((created_pubkeys, mint)),
     )
     .await;
@@ -512,11 +503,10 @@ async fn run_bootstrap_test(
             sleep(Duration::from_millis(500)).await;
         }
 
-        // Assert bootstrap picked up at least the expected accounts
-        // (there may be more from previous tests sharing the validator)
-        assert!(
-            tracker.len() >= expected_count,
-            "Bootstrap should have found at least {} accounts, found {}",
+        assert_eq!(
+            tracker.len(),
+            expected_count,
+            "Bootstrap should have found exactly {} accounts, found {}",
             expected_count,
             tracker.len()
         );

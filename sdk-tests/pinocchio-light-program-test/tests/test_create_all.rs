@@ -246,7 +246,7 @@ async fn test_create_all_derive() {
 
     // ATA
     let ata_interface = rpc
-        .get_ata_interface(&ata_owner, &mint_pda, None)
+        .get_associated_token_account_interface(&ata_owner, &mint_pda, None)
         .await
         .expect("failed to get ATA interface")
         .value
@@ -289,20 +289,7 @@ async fn test_create_all_derive() {
         .value
         .expect("mint interface should exist");
     assert!(mint_iface.is_cold(), "Mint should be cold");
-    let (compressed_mint, _) = mint_iface
-        .compressed()
-        .expect("cold mint must have compressed data");
-    let mint_ai = AccountInterface {
-        key: mint_pda,
-        account: solana_account::Account {
-            lamports: 0,
-            data: vec![],
-            owner: light_token::instruction::LIGHT_TOKEN_PROGRAM_ID,
-            executable: false,
-            rent_epoch: 0,
-        },
-        cold: Some(ColdContext::Account(compressed_mint.clone())),
-    };
+    let mint_ai = AccountInterface::from(mint_iface);
 
     let specs: Vec<AccountSpec<LightAccountVariant>> = vec![
         AccountSpec::Pda(record_spec),

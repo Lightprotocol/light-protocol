@@ -6,7 +6,7 @@ use forester::compressible::{
     traits::CompressibleTracker,
     AccountSubscriber, SubscriptionConfig,
 };
-use forester_utils::{rpc_pool::SolanaRpcPoolBuilder, utils::wait_for_indexer};
+use forester_utils::rpc_pool::SolanaRpcPoolBuilder;
 use light_client::{
     indexer::{AddressWithTree, Indexer},
     local_test_validator::{spawn_validator, LightValidatorConfig},
@@ -160,10 +160,11 @@ async fn test_compressible_mint_bootstrap() {
         .await
         .expect("Failed to airdrop lamports");
 
-    // Wait for indexer to be ready before making validity proof requests
-    wait_for_indexer(&rpc)
+    // Advance slot so the indexer is ready for validity proof requests
+    let current_slot = rpc.get_slot().await.unwrap();
+    rpc.warp_to_slot(current_slot + 1)
         .await
-        .expect("Failed to wait for indexer");
+        .expect("warp_to_slot");
 
     // Create a decompressed mint
     let (mint_pda, compression_address, mint_seed, bump) =
@@ -193,10 +194,11 @@ async fn test_compressible_mint_bootstrap() {
 
     assert_eq!(mint, expected_mint, "Mint should match expected structure");
 
-    // Wait for indexer
-    wait_for_indexer(&rpc)
+    // Advance slot so the indexer processes the mint creation
+    let current_slot = rpc.get_slot().await.unwrap();
+    rpc.warp_to_slot(current_slot + 1)
         .await
-        .expect("Failed to wait for indexer");
+        .expect("warp_to_slot");
 
     // Create tracker and run bootstrap
     let tracker = Arc::new(MintAccountTracker::new());
@@ -299,10 +301,11 @@ async fn test_compressible_mint_compression() {
         .await
         .expect("Failed to airdrop lamports");
 
-    // Wait for indexer to be ready before making validity proof requests
-    wait_for_indexer(&rpc)
+    // Advance slot so the indexer is ready for validity proof requests
+    let current_slot = rpc.get_slot().await.unwrap();
+    rpc.warp_to_slot(current_slot + 1)
         .await
-        .expect("Failed to wait for indexer");
+        .expect("warp_to_slot");
 
     // Create a decompressed mint
     let (mint_pda, compression_address, mint_seed, bump) =
@@ -346,10 +349,11 @@ async fn test_compressible_mint_compression() {
 
     assert_eq!(mint, expected_mint, "Mint should match expected state");
 
-    // Wait for indexer after mint creation
-    wait_for_indexer(&rpc)
+    // Advance slot so the indexer processes the mint creation
+    let current_slot = rpc.get_slot().await.unwrap();
+    rpc.warp_to_slot(current_slot + 1)
         .await
-        .expect("Failed to wait for indexer");
+        .expect("warp_to_slot");
 
     // Create tracker and add the mint manually
     let tracker = Arc::new(MintAccountTracker::new());
@@ -419,9 +423,11 @@ async fn test_compressible_mint_compression() {
         "Mint account should be closed after compression"
     );
 
-    wait_for_indexer(&rpc)
+    // Advance slot so the indexer processes the compression transaction
+    let current_slot = rpc.get_slot().await.unwrap();
+    rpc.warp_to_slot(current_slot + 1)
         .await
-        .expect("Failed to wait for indexer");
+        .expect("warp_to_slot");
 
     // Verify compressed mint still exists in the merkle tree
     let compressed_after = rpc
@@ -477,10 +483,11 @@ async fn test_compressible_mint_subscription() {
         .await
         .expect("Failed to airdrop lamports");
 
-    // Wait for indexer to be ready
-    wait_for_indexer(&rpc)
+    // Advance slot so the indexer is ready
+    let current_slot = rpc.get_slot().await.unwrap();
+    rpc.warp_to_slot(current_slot + 1)
         .await
-        .expect("Failed to wait for indexer");
+        .expect("warp_to_slot");
 
     // Setup tracker and subscribers
     let tracker = Arc::new(MintAccountTracker::new());
@@ -646,9 +653,11 @@ async fn test_compressible_mint_subscription() {
         "Compressed mint should still exist after compression"
     );
 
-    wait_for_indexer(&rpc)
+    // Advance slot so the indexer processes the compression transaction
+    let current_slot = rpc.get_slot().await.unwrap();
+    rpc.warp_to_slot(current_slot + 1)
         .await
-        .expect("Failed to wait for indexer");
+        .expect("warp_to_slot");
 
     // Shutdown subscribers
     shutdown_tx
