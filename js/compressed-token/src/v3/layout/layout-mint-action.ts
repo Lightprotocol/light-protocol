@@ -61,7 +61,6 @@ export const RemoveMetadataKeyActionLayout = struct([
 ]);
 
 export const DecompressMintActionLayout = struct([
-    u8('cmintBump'),
     u8('rentPayment'),
     u32('writeTopUp'),
 ]);
@@ -211,7 +210,6 @@ export interface RemoveMetadataKeyAction {
 }
 
 export interface DecompressMintAction {
-    cmintBump: number;
     rentPayment: number;
     writeTopUp: number;
 }

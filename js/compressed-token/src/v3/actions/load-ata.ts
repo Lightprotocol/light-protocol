@@ -716,12 +716,12 @@ export async function createLoadAtaInstructionBatches(
         if (ataType === 'spl') {
             targetAta = splAta;
             splInterfaceInfo = splInterfaceInfos.find(info =>
-                info.tokenProgramId.equals(TOKEN_PROGRAM_ID),
+                info.tokenProgram.equals(TOKEN_PROGRAM_ID),
             );
         } else {
             targetAta = t22Ata;
             splInterfaceInfo = splInterfaceInfos.find(info =>
-                info.tokenProgramId.equals(TOKEN_2022_PROGRAM_ID),
+                info.tokenProgram.equals(TOKEN_2022_PROGRAM_ID),
             );
         }
     }
@@ -734,11 +734,9 @@ export async function createLoadAtaInstructionBatches(
     const ctokenHotSource = sources.find(
         s => s.type === TokenAccountSourceType.CTokenHot,
     );
-    const splSource = sources.find(
-        s => s.type === TokenAccountSourceType.SplHot,
-    );
+    const splSource = sources.find(s => s.type === TokenAccountSourceType.Spl);
     const t22Source = sources.find(
-        s => s.type === TokenAccountSourceType.Token2022Hot,
+        s => s.type === TokenAccountSourceType.Token2022,
     );
 
     for (let i = 0; i < chunks.length; i++) {
