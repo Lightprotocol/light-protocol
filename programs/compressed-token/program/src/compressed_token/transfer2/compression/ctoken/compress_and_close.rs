@@ -84,14 +84,15 @@ pub fn process_compress_and_close(
 /// 2. Amount - compression_amount == output_amount == ctoken.amount
 /// 3. Mint - output mint matches ctoken mint
 /// 4. Version - must be ShaFlat
-/// 5. Extension required - CompressedOnly extension required for compression_only or ATA accounts
-/// 6. Without extension: account must not be frozen, must not have delegate
-/// 7. With extension (via `validate_compressed_only_ext`):
-///    7a. Delegated amount must match
-///    7b. Delegate pubkey must match (if present)
-///    7c. Withheld fee must match
-///    7d. Frozen state must match
-///    7e. is_ata must match
+/// 5. CompressedOnly extension: required when the account has on-chain-only state
+///    (compression_only, ATA, frozen, delegate, or marker extensions).
+///    When not required, the extension must not be provided.
+/// 6. With extension (via `validate_compressed_only_ext`):
+///    6a. Delegated amount must match
+///    6b. Delegate pubkey must match (if present)
+///    6c. Withheld fee must match
+///    6d. Frozen state must match
+///    6e. is_ata must match
 fn validate_compressed_token_account(
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
     compression_amount: u64,
@@ -137,40 +138,51 @@ fn validate_compressed_token_account(
         return Err(ErrorCode::CompressAndCloseInvalidVersion.into());
     }
 
-    // 5. Extension required for compression_only or ATA accounts
+    // 5. CompressedOnly extension: required when the account has state that only
+    //    exists on-chain (compression_only, ATA, frozen, delegate, or marker extensions).
+    //    When not required, the extension must not be provided.
     let compression_only_ext = out_tlv.and_then(|tlv| {
         tlv.iter().find_map(|e| match e {
             ZExtensionInstructionData::CompressedOnly(ext) => Some(ext),
             _ => None,
         })
     });
-    if (compression.compression_only() || compression.is_ata()) && compression_only_ext.is_none() {
-        return Err(ErrorCode::CompressAndCloseMissingCompressedOnlyExtension.into());
+    let needs_compressed_only = compression.compression_only()
+        || compression.is_ata()
+        || ctoken.is_frozen()
+        || ctoken.delegate().is_some()
+        || ctoken.extensions.as_ref().is_some_and(|exts| {
+            exts.iter().any(|e| {
+                matches!(
+                    e,
+                    ZExtensionStructMut::PausableAccount(_)
+                        | ZExtensionStructMut::PermanentDelegateAccount(_)
+                        | ZExtensionStructMut::TransferHookAccount(_)
+                        | ZExtensionStructMut::TransferFeeAccount(_)
+                )
+            })
+        });
+    if needs_compressed_only {
+        let ext = compression_only_ext.ok_or::<ProgramError>(
+            ErrorCode::CompressAndCloseMissingCompressedOnlyExtension.into(),
+        )?;
+        // 6. With extension: validate delegate, withheld_fee, frozen, is_ata
+        validate_compressed_only_ext(
+            packed_accounts,
+            compressed_token_account,
+            ctoken,
+            ext,
+            compression,
+        )
+    } else if compression_only_ext.is_some() {
+        Err(ProgramError::InvalidInstructionData)
+    } else {
+        Ok(())
     }
-
-    // 6. Without extension: must not be frozen, must not have delegate
-    let Some(ext) = compression_only_ext else {
-        if ctoken.is_frozen() {
-            return Err(ErrorCode::CompressAndCloseMissingCompressedOnlyExtension.into());
-        }
-        if ctoken.delegate().is_some() || compressed_token_account.has_delegate() {
-            return Err(ErrorCode::CompressAndCloseDelegateNotAllowed.into());
-        }
-        return Ok(());
-    };
-
-    // 7. With extension: validate delegate, withheld_fee, frozen, is_ata
-    validate_compressed_only_ext(
-        packed_accounts,
-        compressed_token_account,
-        ctoken,
-        ext,
-        compression,
-    )
 }
 
 /// Validate CompressedOnly extension fields match ctoken state.
-/// Called from validation 7 in `validate_compressed_token_account`.
+/// Called from validation 6 in `validate_compressed_token_account`.
 fn validate_compressed_only_ext(
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
     compressed_token_account: &ZMultiTokenTransferOutputData<'_>,
@@ -178,13 +190,13 @@ fn validate_compressed_only_ext(
     ext: &light_token_interface::instructions::extensions::compressed_only::ZCompressedOnlyExtensionInstructionData,
     compression: &light_token_interface::state::ZCompressibleExtensionMut<'_>,
 ) -> Result<(), ProgramError> {
-    // 7a. Delegated amount must match
+    // 6a. Delegated amount must match
     let ext_delegated: u64 = ext.delegated_amount.into();
     if ext_delegated != ctoken.delegated_amount.get() {
         return Err(ErrorCode::CompressAndCloseDelegatedAmountMismatch.into());
     }
 
-    // 7b. Delegate pubkey must match (bidirectional check)
+    // 6b. Delegate pubkey must match (bidirectional check)
     if let Some(delegate) = ctoken.delegate() {
         // CToken has delegate - output must have matching delegate
         if !compressed_token_account.has_delegate() {
@@ -201,7 +213,7 @@ fn validate_compressed_only_ext(
         return Err(ErrorCode::CompressAndCloseInvalidDelegate.into());
     }
 
-    // 7c. Withheld fee must match
+    // 6c. Withheld fee must match
     let ctoken_fee = ctoken
         .extensions
         .as_ref()
@@ -216,12 +228,12 @@ fn validate_compressed_only_ext(
         return Err(ErrorCode::CompressAndCloseWithheldFeeMismatch.into());
     }
 
-    // 7d. Frozen state must match
+    // 6d. Frozen state must match
     if ctoken.is_frozen() != ext.is_frozen() {
         return Err(ErrorCode::CompressAndCloseFrozenMismatch.into());
     }
 
-    // 7e. is_ata must match
+    // 6e. is_ata must match
     if compression.is_ata() != ext.is_ata() {
         return Err(ErrorCode::CompressAndCloseIsAtaMismatch.into());
     }

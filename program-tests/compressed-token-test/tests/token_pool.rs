@@ -378,8 +378,8 @@ async fn failing_tests_add_token_pool() {
             )
             .unwrap();
         }
-        // 4. failing invalid mint - fails with InvalidMint because restricted_seed() is called
-        // in the seeds constraint and tries to parse mint data before PDA derivation check
+        // 4. failing invalid mint - fails with InvalidMint because mint validation
+        // (via get_token_account_space and restricted_seed) happens during constraint evaluation
         {
             let result = add_token_pool(
                 &mut rpc,
