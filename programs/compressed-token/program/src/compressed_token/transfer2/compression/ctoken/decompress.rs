@@ -28,21 +28,15 @@ pub fn validate_and_apply_compressed_only(
         return Ok(());
     };
 
-    // === VALIDATE amount matches for ATA or compress_to_pubkey decompress ===
-    let compress_to_pubkey = ctoken
-        .get_compressible_extension()
-        .map(|ext| ext.info.compress_to_pubkey())
-        .unwrap_or(false);
-    if ext_data.is_ata() || compress_to_pubkey {
-        let input_amount: u64 = inputs.input_token_data.amount.into();
-        if compression_amount != input_amount {
-            msg!(
-                "Decompress: amount mismatch (compression: {}, input: {})",
-                compression_amount,
-                input_amount
-            );
-            return Err(TokenError::DecompressAmountMismatch.into());
-        }
+    // === VALIDATE amount matches ===
+    let input_amount: u64 = inputs.input_token_data.amount.into();
+    if compression_amount != input_amount {
+        msg!(
+            "Decompress: amount mismatch (compression: {}, input: {})",
+            compression_amount,
+            input_amount
+        );
+        return Err(TokenError::DecompressAmountMismatch.into());
     }
 
     // === VALIDATE destination ownership ===
