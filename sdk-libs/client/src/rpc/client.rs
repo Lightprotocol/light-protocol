@@ -1264,6 +1264,19 @@ impl Rpc for LightClient {
                         mint_data,
                     }
                 } else {
+                    let expected_owner =
+                        Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
+                    if ai.account.owner != expected_owner {
+                        return Err(RpcError::CustomError(format!(
+                            "Invalid mint account owner: expected {}, got {}",
+                            expected_owner, ai.account.owner,
+                        )));
+                    }
+                    Mint::try_from_slice(&ai.account.data).map_err(|e| {
+                        RpcError::CustomError(format!(
+                            "Failed to deserialize hot mint account: {e}"
+                        ))
+                    })?;
                     MintState::Hot {
                         account: ai.account,
                     }

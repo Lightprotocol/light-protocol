@@ -34,12 +34,7 @@ impl NextTreeInfo {
     pub fn from_api_model(
         value: &photon_api::models::TreeContextInfo,
     ) -> Result<Self, IndexerError> {
-        Ok(Self {
-            tree_type: TreeType::from(value.tree_type as u64),
-            tree: Pubkey::new_from_array(decode_base58_to_fixed_array(&value.tree)?),
-            queue: Pubkey::new_from_array(decode_base58_to_fixed_array(&value.queue)?),
-            cpi_context: decode_base58_option_to_pubkey(&value.cpi_context)?,
-        })
+        Self::try_from(value)
     }
 }
 

@@ -17,43 +17,39 @@ pub struct CompressedTokenAccount {
     pub account: CompressedAccount,
 }
 
+fn parse_token_data(td: &photon_api::models::TokenData) -> Result<TokenData, IndexerError> {
+    Ok(TokenData {
+        mint: Pubkey::new_from_array(decode_base58_to_fixed_array(&td.mint)?),
+        owner: Pubkey::new_from_array(decode_base58_to_fixed_array(&td.owner)?),
+        amount: td.amount,
+        delegate: td
+            .delegate
+            .as_ref()
+            .map(|d| decode_base58_to_fixed_array(d).map(Pubkey::new_from_array))
+            .transpose()?,
+        state: match td.state {
+            photon_api::models::AccountState::Initialized => AccountState::Initialized,
+            photon_api::models::AccountState::Frozen => AccountState::Frozen,
+        },
+        tlv: td
+            .tlv
+            .as_ref()
+            .map(|tlv| {
+                let bytes = base64::decode_config(tlv, base64::STANDARD_NO_PAD)
+                    .map_err(|e| IndexerError::decode_error("tlv", e))?;
+                Vec::<ExtensionStruct>::deserialize(&mut bytes.as_slice())
+                    .map_err(|e| IndexerError::decode_error("extensions", e))
+            })
+            .transpose()?,
+    })
+}
+
 impl TryFrom<&photon_api::models::TokenAccount> for CompressedTokenAccount {
     type Error = IndexerError;
 
     fn try_from(token_account: &photon_api::models::TokenAccount) -> Result<Self, Self::Error> {
         let account = CompressedAccount::try_from(token_account.account.as_ref())?;
-
-        let token = TokenData {
-            mint: Pubkey::new_from_array(decode_base58_to_fixed_array(
-                &token_account.token_data.mint,
-            )?),
-            owner: Pubkey::new_from_array(decode_base58_to_fixed_array(
-                &token_account.token_data.owner,
-            )?),
-            amount: token_account.token_data.amount,
-            delegate: token_account
-                .token_data
-                .delegate
-                .as_ref()
-                .map(|d| decode_base58_to_fixed_array(d).map(Pubkey::new_from_array))
-                .transpose()?,
-            state: match token_account.token_data.state {
-                photon_api::models::AccountState::Initialized => AccountState::Initialized,
-                photon_api::models::AccountState::Frozen => AccountState::Frozen,
-            },
-            tlv: token_account
-                .token_data
-                .tlv
-                .as_ref()
-                .map(|tlv| {
-                    let bytes = base64::decode_config(tlv, base64::STANDARD_NO_PAD)
-                        .map_err(|e| IndexerError::decode_error("tlv", e))?;
-                    Vec::<ExtensionStruct>::deserialize(&mut bytes.as_slice())
-                        .map_err(|e| IndexerError::decode_error("extensions", e))
-                })
-                .transpose()?,
-        };
-
+        let token = parse_token_data(&token_account.token_data)?;
         Ok(CompressedTokenAccount { token, account })
     }
 }
@@ -63,38 +59,7 @@ impl TryFrom<&photon_api::models::TokenAccountV2> for CompressedTokenAccount {
 
     fn try_from(token_account: &photon_api::models::TokenAccountV2) -> Result<Self, Self::Error> {
         let account = CompressedAccount::try_from(token_account.account.as_ref())?;
-
-        let token = TokenData {
-            mint: Pubkey::new_from_array(decode_base58_to_fixed_array(
-                &token_account.token_data.mint,
-            )?),
-            owner: Pubkey::new_from_array(decode_base58_to_fixed_array(
-                &token_account.token_data.owner,
-            )?),
-            amount: token_account.token_data.amount,
-            delegate: token_account
-                .token_data
-                .delegate
-                .as_ref()
-                .map(|d| decode_base58_to_fixed_array(d).map(Pubkey::new_from_array))
-                .transpose()?,
-            state: match token_account.token_data.state {
-                photon_api::models::AccountState::Initialized => AccountState::Initialized,
-                photon_api::models::AccountState::Frozen => AccountState::Frozen,
-            },
-            tlv: token_account
-                .token_data
-                .tlv
-                .as_ref()
-                .map(|tlv| {
-                    let bytes = base64::decode_config(tlv, base64::STANDARD_NO_PAD)
-                        .map_err(|e| IndexerError::decode_error("tlv", e))?;
-                    Vec::<ExtensionStruct>::deserialize(&mut bytes.as_slice())
-                        .map_err(|e| IndexerError::decode_error("extensions", e))
-                })
-                .transpose()?,
-        };
-
+        let token = parse_token_data(&token_account.token_data)?;
         Ok(CompressedTokenAccount { token, account })
     }
 }

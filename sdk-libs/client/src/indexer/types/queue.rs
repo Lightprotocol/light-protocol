@@ -71,7 +71,16 @@ impl AddressQueueData {
         address_idx: usize,
         tree_height: u8,
     ) -> Result<Vec<[u8; 32]>, IndexerError> {
-        let leaf_index = self.low_element_indices[address_idx];
+        let leaf_index = *self.low_element_indices.get(address_idx).ok_or_else(|| {
+            IndexerError::MissingResult {
+                context: "reconstruct_proof".to_string(),
+                message: format!(
+                    "address_idx {} out of bounds for low_element_indices (len {})",
+                    address_idx,
+                    self.low_element_indices.len(),
+                ),
+            }
+        })?;
         let mut proof = Vec::with_capacity(tree_height as usize);
         let mut pos = leaf_index;
 
@@ -83,17 +92,29 @@ impl AddressQueueData {
             };
             let sibling_idx = Self::encode_node_index(level, sibling_pos);
 
-            if let Some(hash_idx) = self.nodes.iter().position(|&n| n == sibling_idx) {
-                proof.push(self.node_hashes[hash_idx]);
-            } else {
-                return Err(IndexerError::MissingResult {
+            let hash_idx = self
+                .nodes
+                .iter()
+                .position(|&n| n == sibling_idx)
+                .ok_or_else(|| IndexerError::MissingResult {
                     context: "reconstruct_proof".to_string(),
                     message: format!(
                         "Missing proof node at level {} position {} (encoded: {})",
                         level, sibling_pos, sibling_idx
                     ),
-                });
-            }
+                })?;
+            let hash =
+                self.node_hashes
+                    .get(hash_idx)
+                    .ok_or_else(|| IndexerError::MissingResult {
+                        context: "reconstruct_proof".to_string(),
+                        message: format!(
+                            "node_hashes index {} out of bounds (len {})",
+                            hash_idx,
+                            self.node_hashes.len(),
+                        ),
+                    })?;
+            proof.push(*hash);
             pos /= 2;
         }
 

@@ -897,8 +897,8 @@ impl Indexer for PhotonIndexer {
                 .value
                 .items
                 .iter()
-                .map(SignatureWithMetadata::try_from)
-                .collect::<Result<Vec<SignatureWithMetadata>, IndexerError>>()?;
+                .map(SignatureWithMetadata::from)
+                .collect::<Vec<SignatureWithMetadata>>();
 
             Ok(Response {
                 context: Context {
@@ -949,8 +949,8 @@ impl Indexer for PhotonIndexer {
                 .value
                 .items
                 .iter()
-                .map(SignatureWithMetadata::try_from)
-                .collect::<Result<Vec<SignatureWithMetadata>, IndexerError>>()?;
+                .map(SignatureWithMetadata::from)
+                .collect::<Vec<SignatureWithMetadata>>();
 
             let cursor = api_response.value.cursor;
 
@@ -1005,8 +1005,8 @@ impl Indexer for PhotonIndexer {
                 .value
                 .items
                 .iter()
-                .map(SignatureWithMetadata::try_from)
-                .collect::<Result<Vec<SignatureWithMetadata>, IndexerError>>()?;
+                .map(SignatureWithMetadata::from)
+                .collect::<Vec<SignatureWithMetadata>>();
 
             let cursor = api_response.value.cursor;
 
@@ -1062,8 +1062,8 @@ impl Indexer for PhotonIndexer {
                 .value
                 .items
                 .iter()
-                .map(SignatureWithMetadata::try_from)
-                .collect::<Result<Vec<SignatureWithMetadata>, IndexerError>>()?;
+                .map(SignatureWithMetadata::from)
+                .collect::<Vec<SignatureWithMetadata>>();
 
             let cursor = api_response.value.cursor;
 
@@ -1175,6 +1175,13 @@ impl Indexer for PhotonIndexer {
                 .iter()
                 .map(|x| {
                     let mut proof_vec = x.proof.clone();
+                    if proof_vec.len() < STATE_MERKLE_TREE_CANOPY_DEPTH {
+                        return Err(IndexerError::InvalidParameters(format!(
+                            "Merkle proof length ({}) is less than canopy depth ({})",
+                            proof_vec.len(),
+                            STATE_MERKLE_TREE_CANOPY_DEPTH,
+                        )));
+                    }
                     proof_vec.truncate(proof_vec.len() - STATE_MERKLE_TREE_CANOPY_DEPTH);
 
                     let proof = proof_vec
@@ -1332,7 +1339,15 @@ impl Indexer for PhotonIndexer {
                     .map(|x: &String| Hash::from_base58(x))
                     .collect::<Result<Vec<[u8; 32]>, IndexerError>>()?;
 
-                proof_vec.truncate(proof_vec.len() - 10); // Remove canopy
+                const ADDRESS_TREE_CANOPY_DEPTH: usize = 10;
+                if proof_vec.len() < ADDRESS_TREE_CANOPY_DEPTH {
+                    return Err(IndexerError::InvalidParameters(format!(
+                        "Address proof length ({}) is less than canopy depth ({})",
+                        proof_vec.len(),
+                        ADDRESS_TREE_CANOPY_DEPTH,
+                    )));
+                }
+                proof_vec.truncate(proof_vec.len() - ADDRESS_TREE_CANOPY_DEPTH);
                 let mut proof_arr = [[0u8; 32]; 16];
                 proof_arr.copy_from_slice(&proof_vec);
 
