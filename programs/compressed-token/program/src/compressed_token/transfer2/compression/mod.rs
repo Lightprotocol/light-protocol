@@ -79,7 +79,11 @@ pub fn process_token_compression<'a>(
             )?;
 
             // Lookup cached mint extension checks (cache was built with skip logic already applied)
-            let mint_checks = mint_cache.get_by_key(&compression.mint).cloned();
+            // This should never fail since build_mint_extension_cache adds all compression mints.
+            let mint_checks = mint_cache
+                .get_by_key(&compression.mint)
+                .cloned()
+                .ok_or(ErrorCode::MintNotInCache)?;
 
             match source_or_recipient.owner() {
                 ID => {
@@ -96,7 +100,7 @@ pub fn process_token_compression<'a>(
                         compression,
                         source_or_recipient,
                         packed_accounts,
-                        mint_checks,
+                        Some(mint_checks),
                         &mut transfer_map[account_index],
                         &mut lamports_budget,
                         decompress_with_compress_only_inputs,
@@ -128,9 +132,7 @@ pub fn process_token_compression<'a>(
                     }
 
                     // Propagate whether mint is restricted to enable correct derivation of the spl interface pda.
-                    let is_restricted = mint_checks
-                        .map(|checks| checks.has_restricted_extensions)
-                        .unwrap_or(false);
+                    let is_restricted = mint_checks.has_restricted_extensions;
                     spl::process_spl_compressions(
                         compression,
                         &SPL_TOKEN_2022_ID.to_pubkey_bytes(),

@@ -578,6 +578,8 @@ pub enum ErrorCode {
     IdempotentEarlyExit, // 6170
     #[msg("Mint signer mismatch between account and instruction data")]
     MintActionInvalidMintSigner, // 6171
+    #[msg("Mint not found in cache - this indicates an internal error")]
+    MintNotInCache, // 6172
 }
 
 /// Anchor error code offset - error codes start at 6000
