@@ -30,6 +30,10 @@ use tokio::time::{sleep, Instant};
 use tracing::warn;
 
 use super::LightClientConfig;
+#[cfg(not(feature = "v2"))]
+use crate::rpc::get_light_state_tree_infos::{
+    default_state_tree_lookup_tables, get_light_state_tree_infos,
+};
 use crate::{
     indexer::{
         photon_indexer::PhotonIndexer, AccountInterface as IndexerAccountInterface, Indexer,
@@ -38,10 +42,6 @@ use crate::{
     },
     interface::{AccountInterface, MintInterface, MintState, TokenAccountInterface},
     rpc::{errors::RpcError, merkle_tree::MerkleTreeExt, Rpc},
-};
-#[cfg(not(feature = "v2"))]
-use crate::rpc::get_light_state_tree_infos::{
-    default_state_tree_lookup_tables, get_light_state_tree_infos,
 };
 
 /// V2 batched state trees.
