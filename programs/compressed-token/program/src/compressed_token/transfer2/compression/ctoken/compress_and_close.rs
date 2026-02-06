@@ -1,8 +1,12 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use bitvec::prelude::*;
+#[cfg(target_os = "solana")]
+use light_account_checks::AccountInfoTrait;
 use light_account_checks::{checks::check_signer, packed_accounts::ProgramPackedAccounts};
 use light_program_profiler::profile;
+#[cfg(target_os = "solana")]
+use light_token_interface::state::Token;
 use light_token_interface::{
     instructions::{
         extensions::ZExtensionInstructionData,
@@ -261,6 +265,23 @@ pub fn close_for_compress_and_close(
                 compression.source_or_recipient,
                 "CompressAndClose: source_or_recipient",
             )?;
+
+            // Verify balance is still zero before closing.
+            // This catches cases where Decompress added tokens after CompressAndClose zeroed it.
+            {
+                let data = AccountInfoTrait::try_borrow_data(token_account_info)
+                    .map_err(|_| ProgramError::AccountBorrowFailed)?;
+                let amount = Token::amount_from_slice(&data)
+                    .map_err(|_| ProgramError::InvalidAccountData)?;
+                if amount != 0 {
+                    msg!(
+                        "CompressAndClose: account has non-zero balance {} at close time (decompress to closing account?)",
+                        amount
+                    );
+                    return Err(ErrorCode::NonNativeHasBalance.into());
+                }
+            }
+
             let destination = validated_accounts.packed_accounts.get_u8(
                 compression.get_destination_index()?,
                 "CompressAndClose: destination",
