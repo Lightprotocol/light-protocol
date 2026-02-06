@@ -207,6 +207,13 @@ pub fn initialize_ctoken_account(
     // Access the token account data as mutable bytes
     let mut token_account_data = AccountInfoTrait::try_borrow_mut_data(token_account_info)?;
 
+    // Zero all base token bytes before initialization to prevent pre-set values
+    // (e.g., amount field via IDL buffer) from persisting through new_zero_copy,
+    // which only sets mint, owner, and state without zeroing other fields.
+    if token_account_data.len() >= 165 {
+        token_account_data[..165].fill(0);
+    }
+
     // Use new_zero_copy to initialize the token account
     // This sets mint, owner, state, account_type, and extensions
     let (mut ctoken, _) =
