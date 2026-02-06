@@ -23,7 +23,10 @@ pub use super::{
     variant_enum::PdaCtxSeedInfo,
 };
 use crate::{
-    light_pdas::shared_utils::{ident_to_type, qualify_type_with_crate},
+    light_pdas::{
+        backend::{AnchorBackend, CodegenBackend, PinocchioBackend},
+        shared_utils::{ident_to_type, qualify_type_with_crate},
+    },
     utils::to_snake_case,
 };
 
@@ -47,6 +50,38 @@ pub(crate) fn generate_light_program_items(
     has_ata_fields: bool,
     pda_variant_code: TokenStream,
     enum_name: Option<&syn::Ident>,
+) -> Result<Vec<TokenStream>> {
+    generate_light_program_items_with_backend(
+        compressible_accounts,
+        pda_seeds,
+        token_seeds,
+        instruction_data,
+        crate_ctx,
+        has_mint_fields,
+        has_ata_fields,
+        pda_variant_code,
+        enum_name,
+        &AnchorBackend,
+    )
+}
+
+/// Unified code generation with backend abstraction.
+///
+/// This function contains all the shared logic between Anchor and Pinocchio code generation,
+/// using the `CodegenBackend` trait to handle framework-specific differences.
+#[inline(never)]
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn generate_light_program_items_with_backend(
+    compressible_accounts: Vec<CompressibleAccountInfo>,
+    pda_seeds: Option<Vec<TokenSeedSpec>>,
+    token_seeds: Option<Vec<TokenSeedSpec>>,
+    instruction_data: Vec<InstructionDataSpec>,
+    crate_ctx: &crate::light_pdas::parsing::CrateContext,
+    has_mint_fields: bool,
+    has_ata_fields: bool,
+    pda_variant_code: TokenStream,
+    enum_name: Option<&syn::Ident>,
+    backend: &dyn CodegenBackend,
 ) -> Result<Vec<TokenStream>> {
     // TODO: Unify seed extraction - currently #[light_program] extracts seeds from Anchor's
     // #[account(seeds = [...])] automatically, while #[derive(LightAccounts)] requires
@@ -111,11 +146,15 @@ pub(crate) fn generate_light_program_items(
 
     // Generate variant enum and traits only if there are PDA seeds
     // For mint-only programs (no PDA state accounts), generate minimal placeholder code
+    let account_crate = backend.account_crate();
+    let serialize_derive = backend.serialize_derive();
+    let deserialize_derive = backend.deserialize_derive();
+
     let enum_and_traits = if pda_ctx_seeds.is_empty() {
         // Generate minimal code for mint-only programs that matches trait signatures
         quote! {
             /// Placeholder enum for programs that only use Light mints without state accounts.
-            #[derive(Clone, Debug, anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize)]
+            #[derive(Clone, Debug, #serialize_derive, #deserialize_derive)]
             pub enum LightAccountVariant {
                 /// Placeholder variant for mint-only programs
                 Empty,
@@ -127,70 +166,70 @@ pub(crate) fn generate_light_program_items(
                 }
             }
 
-            impl light_account::hasher::DataHasher for LightAccountVariant {
-                fn hash<H: light_account::hasher::Hasher>(&self) -> std::result::Result<[u8; 32], light_account::hasher::HasherError> {
+            impl #account_crate::hasher::DataHasher for LightAccountVariant {
+                fn hash<H: #account_crate::hasher::Hasher>(&self) -> std::result::Result<[u8; 32], #account_crate::hasher::HasherError> {
                     match self {
-                        Self::Empty => Err(light_account::hasher::HasherError::EmptyInput),
+                        Self::Empty => Err(#account_crate::hasher::HasherError::EmptyInput),
                     }
                 }
             }
 
-            impl light_account::LightDiscriminator for LightAccountVariant {
+            impl #account_crate::LightDiscriminator for LightAccountVariant {
                 const LIGHT_DISCRIMINATOR: [u8; 8] = [0; 8];
                 const LIGHT_DISCRIMINATOR_SLICE: &'static [u8] = &Self::LIGHT_DISCRIMINATOR;
             }
 
-            impl light_account::HasCompressionInfo for LightAccountVariant {
-                fn compression_info(&self) -> std::result::Result<&light_account::CompressionInfo, light_account::LightSdkTypesError> {
-                    Err(light_account::LightSdkTypesError::InvalidInstructionData)
+            impl #account_crate::HasCompressionInfo for LightAccountVariant {
+                fn compression_info(&self) -> std::result::Result<&#account_crate::CompressionInfo, #account_crate::LightSdkTypesError> {
+                    Err(#account_crate::LightSdkTypesError::InvalidInstructionData)
                 }
 
-                fn compression_info_mut(&mut self) -> std::result::Result<&mut light_account::CompressionInfo, light_account::LightSdkTypesError> {
-                    Err(light_account::LightSdkTypesError::InvalidInstructionData)
+                fn compression_info_mut(&mut self) -> std::result::Result<&mut #account_crate::CompressionInfo, #account_crate::LightSdkTypesError> {
+                    Err(#account_crate::LightSdkTypesError::InvalidInstructionData)
                 }
 
-                fn compression_info_mut_opt(&mut self) -> &mut Option<light_account::CompressionInfo> {
+                fn compression_info_mut_opt(&mut self) -> &mut Option<#account_crate::CompressionInfo> {
                     panic!("compression_info_mut_opt not supported for mint-only programs")
                 }
 
-                fn set_compression_info_none(&mut self) -> std::result::Result<(), light_account::LightSdkTypesError> {
-                    Err(light_account::LightSdkTypesError::InvalidInstructionData)
+                fn set_compression_info_none(&mut self) -> std::result::Result<(), #account_crate::LightSdkTypesError> {
+                    Err(#account_crate::LightSdkTypesError::InvalidInstructionData)
                 }
             }
 
-            impl light_account::Size for LightAccountVariant {
-                fn size(&self) -> std::result::Result<usize, light_account::LightSdkTypesError> {
-                    Err(light_account::LightSdkTypesError::InvalidInstructionData)
+            impl #account_crate::Size for LightAccountVariant {
+                fn size(&self) -> std::result::Result<usize, #account_crate::LightSdkTypesError> {
+                    Err(#account_crate::LightSdkTypesError::InvalidInstructionData)
                 }
             }
 
             // Pack trait is only available off-chain (client-side)
             #[cfg(not(target_os = "solana"))]
-            impl<AM: light_account::AccountMetaTrait> light_account::Pack<AM> for LightAccountVariant {
+            impl<AM: #account_crate::AccountMetaTrait> #account_crate::Pack<AM> for LightAccountVariant {
                 type Packed = Self;
-                fn pack(&self, _remaining_accounts: &mut light_account::interface::instruction::PackedAccounts<AM>) -> std::result::Result<Self::Packed, light_account::LightSdkTypesError> {
+                fn pack(&self, _remaining_accounts: &mut #account_crate::interface::instruction::PackedAccounts<AM>) -> std::result::Result<Self::Packed, #account_crate::LightSdkTypesError> {
                     Ok(Self::Empty)
                 }
             }
 
-            impl<AI: light_account::AccountInfoTrait> light_account::Unpack<AI> for LightAccountVariant {
+            impl<AI: #account_crate::AccountInfoTrait> #account_crate::Unpack<AI> for LightAccountVariant {
                 type Unpacked = Self;
-                fn unpack(&self, _remaining_accounts: &[AI]) -> std::result::Result<Self::Unpacked, light_account::LightSdkTypesError> {
+                fn unpack(&self, _remaining_accounts: &[AI]) -> std::result::Result<Self::Unpacked, #account_crate::LightSdkTypesError> {
                     Ok(Self::Empty)
                 }
             }
 
             /// Wrapper for compressed account data (mint-only placeholder).
-            #[derive(Clone, Debug, anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize)]
+            #[derive(Clone, Debug, #serialize_derive, #deserialize_derive)]
             pub struct LightAccountData {
-                pub meta: light_account::account_meta::CompressedAccountMetaNoLamportsNoAddress,
+                pub meta: #account_crate::account_meta::CompressedAccountMetaNoLamportsNoAddress,
                 pub data: LightAccountVariant,
             }
 
             impl Default for LightAccountData {
                 fn default() -> Self {
                     Self {
-                        meta: light_account::account_meta::CompressedAccountMetaNoLamportsNoAddress::default(),
+                        meta: #account_crate::account_meta::CompressedAccountMetaNoLamportsNoAddress::default(),
                         data: LightAccountVariant::default(),
                     }
                 }
@@ -211,7 +250,7 @@ pub(crate) fn generate_light_program_items(
         } else {
             builder
         };
-        builder.build()?
+        builder.build_with_backend(backend)?
     };
 
     // Collect all unique params-only seed fields across all variants for SeedParams struct
@@ -229,7 +268,7 @@ pub(crate) fn generate_light_program_items(
 
     let seed_params_struct = if all_params_only_fields.is_empty() {
         quote! {
-            #[derive(anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize, Clone, Debug, Default)]
+            #[derive(#serialize_derive, #deserialize_derive, Clone, Debug, Default)]
             pub struct SeedParams;
         }
     } else {
@@ -250,7 +289,7 @@ pub(crate) fn generate_light_program_items(
             })
             .collect();
         quote! {
-            #[derive(anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize, Clone, Debug)]
+            #[derive(#serialize_derive, #deserialize_derive, Clone, Debug)]
             pub struct SeedParams {
                 #(#seed_param_fields,)*
             }
@@ -264,10 +303,8 @@ pub(crate) fn generate_light_program_items(
         }
     };
 
-    let _instruction_data_types: std::collections::HashMap<String, &syn::Type> = instruction_data
-        .iter()
-        .map(|spec| (spec.field_name.to_string(), &spec.field_type))
-        .collect();
+    let sdk_error_type = backend.sdk_error_type();
+    let program_error_type = backend.program_error_type();
 
     let seeds_structs_and_constructors: Vec<TokenStream> = if let Some(ref pda_seed_specs) =
         pda_seeds
@@ -286,30 +323,69 @@ pub(crate) fn generate_light_program_items(
                 let _ctx_fields = &ctx_info.ctx_seed_fields;
                 let _params_only_fields = &ctx_info.params_only_seed_fields;
                 let data_fields = extract_data_seed_fields(&spec.seeds);
-                // Only generate verifications for data fields that exist on the state struct
-                let data_verifications: Vec<_> = data_fields.iter().filter_map(|field| {
-                    let field_str = field.to_string();
-                    // Skip fields that don't exist on the state struct (e.g., params-only seeds)
-                    if !ctx_info.state_field_names.contains(&field_str) {
-                        return None;
-                    }
-                    Some(quote! {
-                        if data.#field != seeds.#field {
-                            return std::result::Result::Err(LightInstructionError::SeedMismatch.into());
-                        }
-                    })
-                }).collect();
 
-                // Both zero_copy and Borsh accounts use AnchorDeserialize on the full
-                // compressed data (which includes CompressionInfo::compressed()).
-                let (deserialize_code, variant_data) = (
+                // Data verifications and deserialization differ by backend
+                let (data_verifications, deserialize_code, variant_data, return_type) =
+                    if backend.is_pinocchio() {
+                        // Pinocchio: use BorshDeserialize with light_account_pinocchio errors
+                        let verifications: Vec<_> = data_fields.iter().filter_map(|field| {
+                            let field_str = field.to_string();
+                            if !ctx_info.state_field_names.contains(&field_str) {
+                                return None;
+                            }
+                            Some(quote! {
+                                if data.#field != seeds.#field {
+                                    return std::result::Result::Err(
+                                        #sdk_error_type::InvalidInstructionData
+                                    );
+                                }
+                            })
+                        }).collect();
+
+                        let deser = quote! {
+                            use borsh::BorshDeserialize;
+                            let data: #inner_type = BorshDeserialize::deserialize(&mut &account_data[..])
+                                .map_err(|_| #sdk_error_type::Borsh)?;
+                        };
+
+                        (verifications, deser, quote! { data }, quote! { #sdk_error_type })
+                    } else {
+                        // Anchor: use AnchorDeserialize with anchor errors
+                        let verifications: Vec<_> = data_fields.iter().filter_map(|field| {
+                            let field_str = field.to_string();
+                            if !ctx_info.state_field_names.contains(&field_str) {
+                                return None;
+                            }
+                            Some(quote! {
+                                if data.#field != seeds.#field {
+                                    return std::result::Result::Err(LightInstructionError::SeedMismatch.into());
+                                }
+                            })
+                        }).collect();
+
+                        let deser = quote! {
+                            use anchor_lang::AnchorDeserialize;
+                            let data: #inner_type = AnchorDeserialize::deserialize(&mut &account_data[..])
+                                .map_err(|_| anchor_lang::error::Error::from(anchor_lang::error::ErrorCode::AccountDidNotDeserialize))?;
+                        };
+
+                        (verifications, deser, quote! { data }, quote! { #program_error_type })
+                    };
+
+                // For Pinocchio, the constructor already returns LightSdkTypesError (same
+                // as IntoVariant's error type), so pass through directly to preserve
+                // specific error variants (e.g. Borsh). For Anchor, the constructor
+                // returns anchor_lang::error::Error which needs type conversion.
+                let into_variant_body = if backend.is_pinocchio() {
                     quote! {
-                        use anchor_lang::AnchorDeserialize;
-                        let data: #inner_type = AnchorDeserialize::deserialize(&mut &account_data[..])
-                            .map_err(|_| anchor_lang::error::Error::from(anchor_lang::error::ErrorCode::AccountDidNotDeserialize))?;
-                    },
-                    quote! { data },
-                );
+                        LightAccountVariant::#constructor_name(data, self)
+                    }
+                } else {
+                    quote! {
+                        LightAccountVariant::#constructor_name(data, self)
+                            .map_err(|_| #sdk_error_type::InvalidInstructionData)
+                    }
+                };
 
                 let generated = quote! {
                     impl LightAccountVariant {
@@ -317,7 +393,7 @@ pub(crate) fn generate_light_program_items(
                         pub fn #constructor_name(
                             account_data: &[u8],
                             seeds: #seeds_struct_name,
-                        ) -> std::result::Result<Self, anchor_lang::error::Error> {
+                        ) -> std::result::Result<Self, #return_type> {
                             #deserialize_code
 
                             #(#data_verifications)*
@@ -329,10 +405,9 @@ pub(crate) fn generate_light_program_items(
                             })
                         }
                     }
-                    impl light_account::IntoVariant<LightAccountVariant> for #seeds_struct_name {
-                        fn into_variant(self, data: &[u8]) -> std::result::Result<LightAccountVariant, light_account::LightSdkTypesError> {
-                            LightAccountVariant::#constructor_name(data, self)
-                                .map_err(|_| light_account::LightSdkTypesError::InvalidInstructionData)
+                    impl #account_crate::IntoVariant<LightAccountVariant> for #seeds_struct_name {
+                        fn into_variant(self, data: &[u8]) -> std::result::Result<LightAccountVariant, #sdk_error_type> {
+                            #into_variant_body
                         }
                     }
                 };
@@ -365,8 +440,13 @@ pub(crate) fn generate_light_program_items(
     let compress_builder = CompressBuilder::new(compressible_accounts.clone(), instruction_variant);
     compress_builder.validate()?;
 
-    let size_validation_checks = compress_builder.generate_size_validation()?;
-    let error_codes = compress_builder.generate_error_codes()?;
+    let size_validation_checks = compress_builder.generate_size_validation_with_backend(backend)?;
+    // Error codes are only generated for Anchor
+    let error_codes = if !backend.is_pinocchio() {
+        Some(compress_builder.generate_error_codes()?)
+    } else {
+        None
+    };
 
     // Create DecompressBuilder to generate all decompress-related code
     let decompress_builder = DecompressBuilder::new(
@@ -376,192 +456,246 @@ pub(crate) fn generate_light_program_items(
     );
     // Note: DecompressBuilder validation is optional for now since pda_seeds may be empty for TokenOnly
 
-    let decompress_accounts = decompress_builder.generate_accounts_struct()?;
-    let pda_seed_provider_impls = decompress_builder.generate_seed_provider_impls(false)?;
+    // Accounts structs and seed provider impls differ by backend
+    let decompress_accounts = if !backend.is_pinocchio() {
+        Some(decompress_builder.generate_accounts_struct()?)
+    } else {
+        None
+    };
+    let pda_seed_provider_impls =
+        decompress_builder.generate_seed_provider_impls_with_backend(backend)?;
 
     // Generate trait impls and decompress processor/instruction based on program type.
+    // These are only generated for Anchor - Pinocchio programs use enum associated functions instead.
     // v2 interface: no DecompressContext trait needed - uses DecompressVariant on PackedLightAccountVariant.
-    let (trait_impls, decompress_processor_fn, decompress_instruction) =
-        if !pda_ctx_seeds.is_empty() && has_token_seeds_early {
-            // Mixed program: PDAs + Tokens - generate full impl with token checking.
-            // Token variants are now first-class members of PackedLightAccountVariant,
-            // so we match against the individual token variant names.
-            let token_variant_names: Vec<_> = token_seeds
-                .as_ref()
-                .map(|specs| specs.iter().map(|s| &s.variant).collect())
-                .unwrap_or_default();
+    let (trait_impls, decompress_processor_fn, decompress_instruction) = if backend.is_pinocchio() {
+        // Pinocchio: no trait impls, processor module, or instruction handlers
+        (None, None, None)
+    } else if !pda_ctx_seeds.is_empty() && has_token_seeds_early {
+        // Anchor Mixed program: PDAs + Tokens - generate full impl with token checking.
+        // Token variants are now first-class members of PackedLightAccountVariant,
+        // so we match against the individual token variant names.
+        let token_variant_names: Vec<_> = token_seeds
+            .as_ref()
+            .map(|specs| specs.iter().map(|s| &s.variant).collect())
+            .unwrap_or_default();
 
-            let token_match_arms: Vec<_> = token_variant_names
-                .iter()
-                .map(|name| quote! { PackedLightAccountVariant::#name(_) => true, })
-                .collect();
+        let token_match_arms: Vec<_> = token_variant_names
+            .iter()
+            .map(|name| quote! { PackedLightAccountVariant::#name(_) => true, })
+            .collect();
 
-            let trait_impls: syn::ItemMod = syn::parse_quote! {
-                mod __trait_impls {
-                    use super::*;
+        let trait_impls: syn::ItemMod = syn::parse_quote! {
+            mod __trait_impls {
+                use super::*;
 
-                    impl light_account::HasTokenVariant for LightAccountData {
-                        fn is_packed_token(&self) -> bool {
-                            match &self.data {
-                                #(#token_match_arms)*
-                                _ => false,
-                            }
+                impl #account_crate::HasTokenVariant for LightAccountData {
+                    fn is_packed_token(&self) -> bool {
+                        match &self.data {
+                            #(#token_match_arms)*
+                            _ => false,
                         }
                     }
-                }
-            };
-            let decompress_processor_fn = decompress_builder.generate_processor()?;
-            let decompress_instruction = decompress_builder.generate_entrypoint()?;
-            (
-                Some(trait_impls),
-                Some(decompress_processor_fn),
-                Some(decompress_instruction),
-            )
-        } else if !pda_ctx_seeds.is_empty() {
-            // PDA-only program: simplified impl without token checking
-            let trait_impls: syn::ItemMod = syn::parse_quote! {
-                mod __trait_impls {
-                    use super::*;
-
-                    impl light_account::HasTokenVariant for LightAccountData {
-                        fn is_packed_token(&self) -> bool {
-                            // PDA-only programs have no token variants
-                            false
-                        }
-                    }
-                }
-            };
-            let decompress_processor_fn = decompress_builder.generate_processor()?;
-            let decompress_instruction = decompress_builder.generate_entrypoint()?;
-            (
-                Some(trait_impls),
-                Some(decompress_processor_fn),
-                Some(decompress_instruction),
-            )
-        } else {
-            // Mint-only programs: placeholder impl
-            let trait_impls: syn::ItemMod = syn::parse_quote! {
-                mod __trait_impls {
-                    use super::*;
-
-                    impl light_account::HasTokenVariant for LightAccountData {
-                        fn is_packed_token(&self) -> bool {
-                            match &self.data {
-                                LightAccountVariant::Empty => false,
-                                _ => true,
-                            }
-                        }
-                    }
-                }
-            };
-            (Some(trait_impls), None, None)
-        };
-
-    let compress_accounts = compress_builder.generate_accounts_struct()?;
-    let compress_dispatch_fn = compress_builder.generate_dispatch_fn()?;
-    let compress_processor_fn = compress_builder.generate_processor()?;
-    let compress_instruction = compress_builder.generate_entrypoint()?;
-
-    // Generate processor module - includes dispatch fn + processor fns.
-    // The compress dispatch function must be inside the module so it can
-    // access `use super::*` imports.
-    let processor_module: syn::ItemMod =
-        if let Some(decompress_processor_fn) = decompress_processor_fn {
-            syn::parse_quote! {
-                mod __processor_functions {
-                    use super::*;
-                    #compress_dispatch_fn
-                    #decompress_processor_fn
-                    #compress_processor_fn
-                }
-            }
-        } else {
-            syn::parse_quote! {
-                mod __processor_functions {
-                    use super::*;
-                    #compress_dispatch_fn
-                    #compress_processor_fn
                 }
             }
         };
+        let decompress_processor_fn = decompress_builder.generate_processor()?;
+        let decompress_instruction = decompress_builder.generate_entrypoint()?;
+        (
+            Some(trait_impls),
+            Some(decompress_processor_fn),
+            Some(decompress_instruction),
+        )
+    } else if !pda_ctx_seeds.is_empty() {
+        // Anchor PDA-only program: simplified impl without token checking
+        let trait_impls: syn::ItemMod = syn::parse_quote! {
+            mod __trait_impls {
+                use super::*;
 
-    let init_config_accounts: syn::ItemStruct = syn::parse_quote! {
-        #[derive(Accounts)]
-        pub struct InitializeCompressionConfig<'info> {
-            #[account(mut)]
-            pub payer: Signer<'info>,
-            /// CHECK: Checked by SDK
-            #[account(mut)]
-            pub config: AccountInfo<'info>,
-            /// CHECK: Checked by SDK
-            pub program_data: AccountInfo<'info>,
-            pub authority: Signer<'info>,
-            pub system_program: Program<'info, System>,
-        }
+                impl #account_crate::HasTokenVariant for LightAccountData {
+                    fn is_packed_token(&self) -> bool {
+                        // PDA-only programs have no token variants
+                        false
+                    }
+                }
+            }
+        };
+        let decompress_processor_fn = decompress_builder.generate_processor()?;
+        let decompress_instruction = decompress_builder.generate_entrypoint()?;
+        (
+            Some(trait_impls),
+            Some(decompress_processor_fn),
+            Some(decompress_instruction),
+        )
+    } else {
+        // Anchor Mint-only programs: placeholder impl
+        let trait_impls: syn::ItemMod = syn::parse_quote! {
+            mod __trait_impls {
+                use super::*;
+
+                impl #account_crate::HasTokenVariant for LightAccountData {
+                    fn is_packed_token(&self) -> bool {
+                        match &self.data {
+                            LightAccountVariant::Empty => false,
+                            _ => true,
+                        }
+                    }
+                }
+            }
+        };
+        (Some(trait_impls), None, None)
     };
 
-    let update_config_accounts: syn::ItemStruct = syn::parse_quote! {
-        #[derive(Accounts)]
-        pub struct UpdateCompressionConfig<'info> {
-            /// CHECK: Checked by SDK
-            #[account(mut)]
-            pub config: AccountInfo<'info>,
-            pub update_authority: Signer<'info>,
-        }
+    // Anchor-only: accounts structs, processor module, and config instructions
+    #[allow(unused_variables)]
+    let (
+        compress_accounts,
+        compress_dispatch_fn,
+        compress_processor_fn,
+        compress_instruction,
+        processor_module,
+        init_config_accounts,
+        update_config_accounts,
+        init_config_instruction,
+        update_config_instruction,
+    ) = if !backend.is_pinocchio() {
+        let compress_accounts = compress_builder.generate_accounts_struct()?;
+        let compress_dispatch_fn = compress_builder.generate_dispatch_fn()?;
+        let compress_processor_fn = compress_builder.generate_processor()?;
+        let compress_instruction = compress_builder.generate_entrypoint()?;
+
+        // Generate processor module - includes dispatch fn + processor fns.
+        // The compress dispatch function must be inside the module so it can
+        // access `use super::*` imports.
+        let processor_module: syn::ItemMod =
+            if let Some(ref decompress_processor_fn) = decompress_processor_fn {
+                syn::parse_quote! {
+                    mod __processor_functions {
+                        use super::*;
+                        #compress_dispatch_fn
+                        #decompress_processor_fn
+                        #compress_processor_fn
+                    }
+                }
+            } else {
+                syn::parse_quote! {
+                    mod __processor_functions {
+                        use super::*;
+                        #compress_dispatch_fn
+                        #compress_processor_fn
+                    }
+                }
+            };
+
+        let init_config_accounts: syn::ItemStruct = syn::parse_quote! {
+            #[derive(Accounts)]
+            pub struct InitializeCompressionConfig<'info> {
+                #[account(mut)]
+                pub payer: Signer<'info>,
+                /// CHECK: Checked by SDK
+                #[account(mut)]
+                pub config: AccountInfo<'info>,
+                /// CHECK: Checked by SDK
+                pub program_data: AccountInfo<'info>,
+                pub authority: Signer<'info>,
+                pub system_program: Program<'info, System>,
+            }
+        };
+
+        let update_config_accounts: syn::ItemStruct = syn::parse_quote! {
+            #[derive(Accounts)]
+            pub struct UpdateCompressionConfig<'info> {
+                /// CHECK: Checked by SDK
+                #[account(mut)]
+                pub config: AccountInfo<'info>,
+                pub update_authority: Signer<'info>,
+            }
+        };
+
+        let init_config_instruction: syn::ItemFn = syn::parse_quote! {
+            #[inline(never)]
+            pub fn initialize_compression_config<'info>(
+                ctx: Context<'_, '_, '_, 'info, InitializeCompressionConfig<'info>>,
+                params: InitConfigParams,
+            ) -> Result<()> {
+                #account_crate::process_initialize_light_config(
+                    &ctx.accounts.config,
+                    &ctx.accounts.authority,
+                    &params.rent_sponsor.to_bytes(),
+                    &params.compression_authority.to_bytes(),
+                    params.rent_config,
+                    params.write_top_up,
+                    params.address_space.iter().map(|p| p.to_bytes()).collect(),
+                    0, // config_bump
+                    &ctx.accounts.payer,
+                    &ctx.accounts.system_program,
+                    &crate::LIGHT_CPI_SIGNER.program_id,
+                ).map_err(|e| anchor_lang::error::Error::from(solana_program_error::ProgramError::from(e)))?;
+                Ok(())
+            }
+        };
+
+        let update_config_instruction: syn::ItemFn = syn::parse_quote! {
+            #[inline(never)]
+            pub fn update_compression_config<'info>(
+                ctx: Context<'_, '_, '_, 'info, UpdateCompressionConfig<'info>>,
+                instruction_data: Vec<u8>,
+            ) -> Result<()> {
+                let remaining = [
+                    ctx.accounts.config.to_account_info(),
+                    ctx.accounts.update_authority.to_account_info(),
+                ];
+                #account_crate::process_update_light_config(
+                    &remaining,
+                    &instruction_data,
+                    &crate::LIGHT_CPI_SIGNER.program_id,
+                ).map_err(|e| anchor_lang::error::Error::from(solana_program_error::ProgramError::from(e)))?;
+                Ok(())
+            }
+        };
+
+        (
+            Some(compress_accounts),
+            Some(compress_dispatch_fn),
+            Some(compress_processor_fn),
+            Some(compress_instruction),
+            Some(processor_module),
+            Some(init_config_accounts),
+            Some(update_config_accounts),
+            Some(init_config_instruction),
+            Some(update_config_instruction),
+        )
+    } else {
+        // Pinocchio: no accounts structs, processor module, or config instructions
+        (None, None, None, None, None, None, None, None, None)
     };
 
-    let init_config_params_struct: syn::ItemStruct = syn::parse_quote! {
-        /// Configuration parameters for initializing compression config.
-        /// Field order matches SDK client's `InitializeCompressionConfigAnchorData`.
-        #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
-        pub struct InitConfigParams {
-            pub write_top_up: u32,
-            pub rent_sponsor: Pubkey,
-            pub compression_authority: Pubkey,
-            pub rent_config: light_account::RentConfig,
-            pub address_space: Vec<Pubkey>,
+    // InitConfigParams struct - generated for both backends, but with different types
+    let init_config_params_struct = if backend.is_pinocchio() {
+        // Pinocchio: [u8; 32] instead of Pubkey
+        quote! {
+            #[derive(#serialize_derive, #deserialize_derive, Clone)]
+            pub struct InitConfigParams {
+                pub write_top_up: u32,
+                pub rent_sponsor: [u8; 32],
+                pub compression_authority: [u8; 32],
+                pub rent_config: #account_crate::rent::RentConfig,
+                pub address_space: Vec<[u8; 32]>,
+            }
         }
-    };
-
-    let init_config_instruction: syn::ItemFn = syn::parse_quote! {
-        #[inline(never)]
-        pub fn initialize_compression_config<'info>(
-            ctx: Context<'_, '_, '_, 'info, InitializeCompressionConfig<'info>>,
-            params: InitConfigParams,
-        ) -> Result<()> {
-            light_account::process_initialize_light_config(
-                &ctx.accounts.config,
-                &ctx.accounts.authority,
-                &params.rent_sponsor.to_bytes(),
-                &params.compression_authority.to_bytes(),
-                params.rent_config,
-                params.write_top_up,
-                params.address_space.iter().map(|p| p.to_bytes()).collect(),
-                0, // config_bump
-                &ctx.accounts.payer,
-                &ctx.accounts.system_program,
-                &crate::LIGHT_CPI_SIGNER.program_id,
-            ).map_err(|e| anchor_lang::error::Error::from(solana_program_error::ProgramError::from(e)))?;
-            Ok(())
-        }
-    };
-
-    let update_config_instruction: syn::ItemFn = syn::parse_quote! {
-        #[inline(never)]
-        pub fn update_compression_config<'info>(
-            ctx: Context<'_, '_, '_, 'info, UpdateCompressionConfig<'info>>,
-            instruction_data: Vec<u8>,
-        ) -> Result<()> {
-            let remaining = [
-                ctx.accounts.config.to_account_info(),
-                ctx.accounts.update_authority.to_account_info(),
-            ];
-            light_account::process_update_light_config(
-                &remaining,
-                &instruction_data,
-                &crate::LIGHT_CPI_SIGNER.program_id,
-            ).map_err(|e| anchor_lang::error::Error::from(solana_program_error::ProgramError::from(e)))?;
-            Ok(())
+    } else {
+        // Anchor: Pubkey type
+        quote! {
+            /// Configuration parameters for initializing compression config.
+            /// Field order matches SDK client's `InitializeCompressionConfigAnchorData`.
+            #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+            pub struct InitConfigParams {
+                pub write_top_up: u32,
+                pub rent_sponsor: Pubkey,
+                pub compression_authority: Pubkey,
+                pub rent_config: #account_crate::RentConfig,
+                pub address_space: Vec<Pubkey>,
+            }
         }
     };
 
@@ -569,7 +703,7 @@ pub(crate) fn generate_light_program_items(
         &pda_seeds,
         &token_seeds,
         &instruction_data,
-        false, // Anchor (not pinocchio)
+        backend.is_pinocchio(),
     )?;
 
     // Collect all generated items into a Vec<TokenStream>
@@ -590,23 +724,41 @@ pub(crate) fn generate_light_program_items(
 
     items.push(size_validation_checks);
     items.push(enum_and_traits);
-    items.push(quote! { #decompress_accounts });
-    items.push(decompress_builder.generate_accounts_trait_impls()?);
+
+    // Anchor-only: accounts structs, trait impls, processor module
+    if let Some(decompress_accounts) = decompress_accounts {
+        items.push(quote! { #decompress_accounts });
+        items.push(decompress_builder.generate_accounts_trait_impls()?);
+    }
     if let Some(trait_impls) = trait_impls {
         items.push(quote! { #trait_impls });
     }
-    items.push(quote! { #processor_module });
+    if let Some(ref processor_module) = processor_module {
+        items.push(quote! { #processor_module });
+    }
     if let Some(decompress_instruction) = decompress_instruction {
         items.push(quote! { #decompress_instruction });
     }
-    items.push(quote! { #compress_accounts });
-    items.push(compress_builder.generate_accounts_trait_impls()?);
-    items.push(quote! { #compress_instruction });
-    items.push(quote! { #init_config_accounts });
-    items.push(quote! { #update_config_accounts });
-    items.push(quote! { #init_config_params_struct });
-    items.push(quote! { #init_config_instruction });
-    items.push(quote! { #update_config_instruction });
+    if let Some(ref compress_accounts) = compress_accounts {
+        items.push(quote! { #compress_accounts });
+        items.push(compress_builder.generate_accounts_trait_impls()?);
+    }
+    if let Some(ref compress_instruction) = compress_instruction {
+        items.push(quote! { #compress_instruction });
+    }
+    if let Some(ref init_config_accounts) = init_config_accounts {
+        items.push(quote! { #init_config_accounts });
+    }
+    if let Some(ref update_config_accounts) = update_config_accounts {
+        items.push(quote! { #update_config_accounts });
+    }
+    items.push(init_config_params_struct);
+    if let Some(ref init_config_instruction) = init_config_instruction {
+        items.push(quote! { #init_config_instruction });
+    }
+    if let Some(ref update_config_instruction) = update_config_instruction {
+        items.push(quote! { #update_config_instruction });
+    }
 
     // PDA seed provider impls
     for pda_impl in pda_seed_provider_impls.into_iter() {
@@ -622,22 +774,114 @@ pub(crate) fn generate_light_program_items(
         }
     }
 
-    // Error codes
-    items.push(error_codes);
+    // Error codes (Anchor only)
+    if let Some(error_codes) = error_codes {
+        items.push(error_codes);
+    }
 
     // Client functions (module + pub use statement)
     items.push(client_functions);
 
     // Generate enum dispatch methods for #[derive(LightProgram)]
     if let Some(enum_name) = enum_name {
-        // Compress dispatch: impl EnumName { pub fn compress_dispatch(...) }
-        if compress_builder.has_pdas() {
-            items.push(compress_builder.generate_enum_dispatch_method(enum_name)?);
-        }
+        if backend.is_pinocchio() {
+            // Pinocchio: enum associated functions for compress/decompress/config
+            if compress_builder.has_pdas() {
+                items.push(
+                    compress_builder
+                        .generate_enum_dispatch_method_with_backend(enum_name, backend)?,
+                );
+                items.push(
+                    compress_builder
+                        .generate_enum_process_compress_with_backend(enum_name, backend)?,
+                );
+            }
 
-        // Decompress dispatch: impl EnumName { pub fn decompress_dispatch(...) }
-        if !pda_ctx_seeds.is_empty() {
-            items.push(decompress_builder.generate_enum_decompress_dispatch(enum_name)?);
+            if !pda_ctx_seeds.is_empty() {
+                items.push(
+                    decompress_builder
+                        .generate_enum_process_decompress_with_backend(enum_name, backend)?,
+                );
+            }
+
+            // Config functions as enum associated methods (Pinocchio)
+            items.push(quote! {
+                impl #enum_name {
+                    // SDK-standard discriminators (must match light-client)
+                    pub const INITIALIZE_COMPRESSION_CONFIG: [u8; 8] = [133, 228, 12, 169, 56, 76, 222, 61];
+                    pub const UPDATE_COMPRESSION_CONFIG: [u8; 8] = [135, 215, 243, 81, 163, 146, 33, 70];
+                    pub const COMPRESS_ACCOUNTS_IDEMPOTENT: [u8; 8] = [70, 236, 171, 120, 164, 93, 113, 181];
+                    pub const DECOMPRESS_ACCOUNTS_IDEMPOTENT: [u8; 8] = [114, 67, 61, 123, 234, 31, 1, 112];
+
+                    pub fn process_initialize_config(
+                        accounts: &[pinocchio::account_info::AccountInfo],
+                        data: &[u8],
+                    ) -> std::result::Result<(), pinocchio::program_error::ProgramError> {
+                        let params = <InitConfigParams as borsh::BorshDeserialize>::try_from_slice(data)
+                            .map_err(|_| pinocchio::program_error::ProgramError::BorshIoError)?;
+
+                        if accounts.len() < 5 {
+                            return Err(pinocchio::program_error::ProgramError::NotEnoughAccountKeys);
+                        }
+
+                        let fee_payer = &accounts[0];
+                        let config = &accounts[1];
+                        let _program_data = &accounts[2];
+                        let authority = &accounts[3];
+                        let system_program = &accounts[4];
+
+                        #account_crate::process_initialize_light_config(
+                            config,
+                            authority,
+                            &params.rent_sponsor,
+                            &params.compression_authority,
+                            params.rent_config,
+                            params.write_top_up,
+                            params.address_space,
+                            0, // config_bump
+                            fee_payer,
+                            system_program,
+                            &crate::LIGHT_CPI_SIGNER.program_id,
+                        )
+                        .map_err(|e| pinocchio::program_error::ProgramError::Custom(u32::from(e)))
+                    }
+
+                    pub fn process_update_config(
+                        accounts: &[pinocchio::account_info::AccountInfo],
+                        data: &[u8],
+                    ) -> std::result::Result<(), pinocchio::program_error::ProgramError> {
+                        if accounts.len() < 2 {
+                            return Err(pinocchio::program_error::ProgramError::NotEnoughAccountKeys);
+                        }
+
+                        let authority = &accounts[0];
+                        let config = &accounts[1];
+
+                        let remaining = [*config, *authority];
+                        #account_crate::process_update_light_config(
+                            &remaining,
+                            data,
+                            &crate::LIGHT_CPI_SIGNER.program_id,
+                        )
+                        .map_err(|e| pinocchio::program_error::ProgramError::Custom(u32::from(e)))
+                    }
+                }
+            });
+        } else {
+            // Anchor: standard enum dispatch methods
+            if compress_builder.has_pdas() {
+                items.push(
+                    compress_builder
+                        .generate_enum_dispatch_method_with_backend(enum_name, backend)?,
+                );
+            }
+
+            if !pda_ctx_seeds.is_empty() {
+                items.push(
+                    decompress_builder
+                        .generate_enum_decompress_dispatch_with_backend(enum_name, backend)?,
+                );
+            }
         }
     }
 
@@ -958,10 +1202,9 @@ pub fn light_program_impl(_args: TokenStream, mut module: ItemMod) -> Result<Tok
 // PINOCCHIO CODEGEN
 // =============================================================================
 
-/// Pinocchio code generation - parallel to `generate_light_program_items` but with
-/// pinocchio types instead of Anchor types.
+/// Pinocchio code generation - thin wrapper around `generate_light_program_items_with_backend`.
 ///
-/// Differences from Anchor version:
+/// Uses the `PinocchioBackend` to generate code with:
 /// - `BorshSerialize/BorshDeserialize` instead of `AnchorSerialize/AnchorDeserialize`
 /// - `light_account_pinocchio::` instead of `light_account::`
 /// - No Anchor accounts structs, trait impls, processor module, or error_code enum
@@ -980,445 +1223,16 @@ pub(crate) fn generate_light_program_pinocchio_items(
     pda_variant_code: TokenStream,
     enum_name: Option<&syn::Ident>,
 ) -> Result<Vec<TokenStream>> {
-    // Validate token seeds have seeds specified
-    if let Some(ref token_seed_specs) = token_seeds {
-        for spec in token_seed_specs {
-            if spec.seeds.is_empty() {
-                return Err(super::parsing::macro_error!(
-                    &spec.variant,
-                    "Token account '{}' must have seeds in #[account(seeds = [...])] for PDA signing.",
-                    spec.variant
-                ));
-            }
-        }
-    }
-
-    // Build PDA context seed info (same logic as Anchor version)
-    let pda_ctx_seeds: Vec<PdaCtxSeedInfo> = pda_seeds
-        .as_ref()
-        .map(|specs| {
-            specs
-                .iter()
-                .map(|spec| {
-                    let ctx_fields = extract_ctx_seed_fields(&spec.seeds);
-                    let inner_type = spec
-                        .inner_type
-                        .clone()
-                        .unwrap_or_else(|| ident_to_type(&spec.variant));
-
-                    let state_field_names: std::collections::HashSet<String> = crate_ctx
-                        .get_struct_fields(&inner_type)
-                        .map(|fields| fields.into_iter().collect())
-                        .unwrap_or_default();
-
-                    let params_only_seed_fields =
-                        crate::light_pdas::seeds::get_params_only_seed_fields_from_spec(
-                            spec,
-                            &state_field_names,
-                        );
-
-                    let seed_count = spec.seeds.len() + 1;
-
-                    PdaCtxSeedInfo::with_state_fields(
-                        spec.variant.clone(),
-                        inner_type,
-                        ctx_fields,
-                        state_field_names,
-                        params_only_seed_fields,
-                        seed_count,
-                    )
-                })
-                .collect()
-        })
-        .unwrap_or_default();
-
-    let has_token_seeds_early = token_seeds.as_ref().map(|t| !t.is_empty()).unwrap_or(false);
-
-    // Generate variant enum and traits using pinocchio builder
-    let enum_and_traits = if pda_ctx_seeds.is_empty() {
-        // Minimal placeholder for programs without PDA state accounts
-        quote! {
-            #[derive(Clone, Debug, borsh::BorshSerialize, borsh::BorshDeserialize)]
-            pub enum LightAccountVariant {
-                Empty,
-            }
-
-            impl Default for LightAccountVariant {
-                fn default() -> Self {
-                    Self::Empty
-                }
-            }
-
-            impl light_account_pinocchio::hasher::DataHasher for LightAccountVariant {
-                fn hash<H: light_account_pinocchio::hasher::Hasher>(&self) -> std::result::Result<[u8; 32], light_account_pinocchio::hasher::HasherError> {
-                    match self {
-                        Self::Empty => Err(light_account_pinocchio::hasher::HasherError::EmptyInput),
-                    }
-                }
-            }
-
-            impl light_account_pinocchio::LightDiscriminator for LightAccountVariant {
-                const LIGHT_DISCRIMINATOR: [u8; 8] = [0; 8];
-                const LIGHT_DISCRIMINATOR_SLICE: &'static [u8] = &Self::LIGHT_DISCRIMINATOR;
-            }
-
-            impl light_account_pinocchio::HasCompressionInfo for LightAccountVariant {
-                fn compression_info(&self) -> std::result::Result<&light_account_pinocchio::CompressionInfo, light_account_pinocchio::LightSdkTypesError> {
-                    Err(light_account_pinocchio::LightSdkTypesError::InvalidInstructionData)
-                }
-
-                fn compression_info_mut(&mut self) -> std::result::Result<&mut light_account_pinocchio::CompressionInfo, light_account_pinocchio::LightSdkTypesError> {
-                    Err(light_account_pinocchio::LightSdkTypesError::InvalidInstructionData)
-                }
-
-                fn compression_info_mut_opt(&mut self) -> &mut Option<light_account_pinocchio::CompressionInfo> {
-                    panic!("compression_info_mut_opt not supported for mint-only programs")
-                }
-
-                fn set_compression_info_none(&mut self) -> std::result::Result<(), light_account_pinocchio::LightSdkTypesError> {
-                    Err(light_account_pinocchio::LightSdkTypesError::InvalidInstructionData)
-                }
-            }
-
-            impl light_account_pinocchio::Size for LightAccountVariant {
-                fn size(&self) -> std::result::Result<usize, light_account_pinocchio::LightSdkTypesError> {
-                    Err(light_account_pinocchio::LightSdkTypesError::InvalidInstructionData)
-                }
-            }
-
-            #[cfg(not(target_os = "solana"))]
-            impl<AM: light_account_pinocchio::AccountMetaTrait> light_account_pinocchio::Pack<AM> for LightAccountVariant {
-                type Packed = Self;
-                fn pack(&self, _remaining_accounts: &mut light_account_pinocchio::interface::instruction::PackedAccounts<AM>) -> std::result::Result<Self::Packed, light_account_pinocchio::LightSdkTypesError> {
-                    Ok(Self::Empty)
-                }
-            }
-
-            impl<AI: light_account_pinocchio::AccountInfoTrait> light_account_pinocchio::Unpack<AI> for LightAccountVariant {
-                type Unpacked = Self;
-                fn unpack(&self, _remaining_accounts: &[AI]) -> std::result::Result<Self::Unpacked, light_account_pinocchio::LightSdkTypesError> {
-                    Ok(Self::Empty)
-                }
-            }
-
-            #[derive(Clone, Debug, borsh::BorshSerialize, borsh::BorshDeserialize)]
-            pub struct LightAccountData {
-                pub meta: light_account_pinocchio::account_meta::CompressedAccountMetaNoLamportsNoAddress,
-                pub data: LightAccountVariant,
-            }
-
-            impl Default for LightAccountData {
-                fn default() -> Self {
-                    Self {
-                        meta: light_account_pinocchio::account_meta::CompressedAccountMetaNoLamportsNoAddress::default(),
-                        data: LightAccountVariant::default(),
-                    }
-                }
-            }
-        }
-    } else {
-        let builder = LightVariantBuilder::new(&pda_ctx_seeds);
-        let builder = if let Some(ref token_seed_specs) = token_seeds {
-            if !token_seed_specs.is_empty() {
-                builder.with_token_seeds(token_seed_specs)
-            } else {
-                builder
-            }
-        } else {
-            builder
-        };
-        builder.build_pinocchio()?
-    };
-
-    // Collect params-only seed fields for SeedParams struct
-    let mut all_params_only_fields: std::collections::BTreeMap<String, syn::Type> =
-        std::collections::BTreeMap::new();
-    for ctx_info in &pda_ctx_seeds {
-        for (field_name, field_type, _) in &ctx_info.params_only_seed_fields {
-            let field_str = field_name.to_string();
-            all_params_only_fields
-                .entry(field_str)
-                .or_insert_with(|| field_type.clone());
-        }
-    }
-
-    // SeedParams with Borsh derives instead of Anchor derives
-    let seed_params_struct = if all_params_only_fields.is_empty() {
-        quote! {
-            #[derive(borsh::BorshSerialize, borsh::BorshDeserialize, Clone, Debug, Default)]
-            pub struct SeedParams;
-        }
-    } else {
-        let sorted_fields: Vec<_> = all_params_only_fields.iter().collect();
-        let seed_param_fields: Vec<_> = sorted_fields
-            .iter()
-            .map(|(name, ty)| {
-                let field_ident = format_ident!("{}", name);
-                quote! { pub #field_ident: Option<#ty> }
-            })
-            .collect();
-        let seed_param_defaults: Vec<_> = sorted_fields
-            .iter()
-            .map(|(name, _)| {
-                let field_ident = format_ident!("{}", name);
-                quote! { #field_ident: None }
-            })
-            .collect();
-        quote! {
-            #[derive(borsh::BorshSerialize, borsh::BorshDeserialize, Clone, Debug)]
-            pub struct SeedParams {
-                #(#seed_param_fields,)*
-            }
-            impl Default for SeedParams {
-                fn default() -> Self {
-                    Self {
-                        #(#seed_param_defaults,)*
-                    }
-                }
-            }
-        }
-    };
-
-    // Seeds constructors with BorshDeserialize and light_account_pinocchio errors
-    let seeds_structs_and_constructors: Vec<TokenStream> = if let Some(ref pda_seed_specs) =
-        pda_seeds
-    {
-        pda_seed_specs
-            .iter()
-            .zip(pda_ctx_seeds.iter())
-            .map(|(spec, ctx_info)| {
-                let variant_name = &ctx_info.variant_name;
-                let inner_type = qualify_type_with_crate(&ctx_info.inner_type);
-                let seeds_struct_name = format_ident!("{}Seeds", variant_name);
-                let constructor_name =
-                    format_ident!("{}", to_snake_case(&variant_name.to_string()));
-                let data_fields = extract_data_seed_fields(&spec.seeds);
-
-                let data_verifications: Vec<_> = data_fields.iter().filter_map(|field| {
-                    let field_str = field.to_string();
-                    if !ctx_info.state_field_names.contains(&field_str) {
-                        return None;
-                    }
-                    Some(quote! {
-                        if data.#field != seeds.#field {
-                            return std::result::Result::Err(
-                                light_account_pinocchio::LightSdkTypesError::InvalidInstructionData
-                            );
-                        }
-                    })
-                }).collect();
-
-                // Pinocchio: use BorshDeserialize with light_account_pinocchio errors
-                let (deserialize_code, variant_data) = (
-                    quote! {
-                        use borsh::BorshDeserialize;
-                        let data: #inner_type = BorshDeserialize::deserialize(&mut &account_data[..])
-                            .map_err(|_| light_account_pinocchio::LightSdkTypesError::Borsh)?;
-                    },
-                    quote! { data },
-                );
-
-                quote! {
-                    impl LightAccountVariant {
-                        pub fn #constructor_name(
-                            account_data: &[u8],
-                            seeds: #seeds_struct_name,
-                        ) -> std::result::Result<Self, light_account_pinocchio::LightSdkTypesError> {
-                            #deserialize_code
-
-                            #(#data_verifications)*
-
-                            std::result::Result::Ok(Self::#variant_name {
-                                seeds,
-                                data: #variant_data,
-                            })
-                        }
-                    }
-                    impl light_account_pinocchio::IntoVariant<LightAccountVariant> for #seeds_struct_name {
-                        fn into_variant(self, data: &[u8]) -> std::result::Result<LightAccountVariant, light_account_pinocchio::LightSdkTypesError> {
-                            LightAccountVariant::#constructor_name(data, self)
-                        }
-                    }
-                }
-            })
-            .collect()
-    } else {
-        Vec::new()
-    };
-
-    let has_pda_seeds = pda_seeds.as_ref().map(|p| !p.is_empty()).unwrap_or(false);
-    let has_token_seeds = token_seeds.as_ref().map(|t| !t.is_empty()).unwrap_or(false);
-
-    let instruction_variant = match (has_pda_seeds, has_token_seeds, has_mint_fields, has_ata_fields)
-    {
-        (true, true, _, _) => InstructionVariant::Mixed,
-        (true, false, _, _) => InstructionVariant::PdaOnly,
-        (false, true, _, _) => InstructionVariant::TokenOnly,
-        (false, false, true, _) => InstructionVariant::MintOnly,
-        (false, false, false, true) => InstructionVariant::AtaOnly,
-        (false, false, false, false) => {
-            return Err(syn::Error::new(
-                proc_macro2::Span::call_site(),
-                "No #[light_account(init)], #[light_account(init, mint::...)], #[light_account(init, associated_token::...)], or #[light_account(token::...)] fields found.\n\
-                 At least one light account field must be provided.",
-            ))
-        }
-    };
-
-    // Create builders for compress/decompress
-    let compress_builder = CompressBuilder::new(compressible_accounts.clone(), instruction_variant);
-    compress_builder.validate()?;
-
-    let size_validation_checks = compress_builder.generate_size_validation_pinocchio()?;
-
-    let decompress_builder = DecompressBuilder::new(
-        pda_ctx_seeds.clone(),
-        pda_seeds.clone(),
-        has_token_seeds_early,
-    );
-
-    // PDA seed provider impls (framework-agnostic, reused as-is)
-    let pda_seed_provider_impls = decompress_builder.generate_seed_provider_impls(true)?;
-
-    // InitConfigParams with [u8; 32] instead of Pubkey
-    let init_config_params_struct = quote! {
-        #[derive(borsh::BorshSerialize, borsh::BorshDeserialize, Clone)]
-        pub struct InitConfigParams {
-            pub write_top_up: u32,
-            pub rent_sponsor: [u8; 32],
-            pub compression_authority: [u8; 32],
-            pub rent_config: light_account_pinocchio::rent::RentConfig,
-            pub address_space: Vec<[u8; 32]>,
-        }
-    };
-
-    // Client functions (module + pub use - pinocchio uses light_account_pinocchio re-exports)
-    let client_functions = super::seed_codegen::generate_client_seed_functions(
-        &pda_seeds,
-        &token_seeds,
-        &instruction_data,
-        true, // Pinocchio
-    )?;
-
-    // Collect all generated items
-    let mut items: Vec<TokenStream> = Vec::new();
-
-    // SeedParams struct
-    items.push(seed_params_struct);
-
-    // Seeds structs and constructors
-    for seeds_tokens in seeds_structs_and_constructors.into_iter() {
-        items.push(seeds_tokens);
-    }
-
-    // PDA variant structs (already generated with pinocchio derives)
-    if !pda_variant_code.is_empty() {
-        items.push(pda_variant_code);
-    }
-
-    // Size validation
-    items.push(size_validation_checks);
-
-    // Variant enums and traits
-    items.push(enum_and_traits);
-
-    // InitConfigParams
-    items.push(init_config_params_struct);
-
-    // PDA seed provider impls
-    for pda_impl in pda_seed_provider_impls.into_iter() {
-        items.push(pda_impl);
-    }
-
-    // CToken seed provider impls
-    if let Some(ref seeds) = token_seeds {
-        if !seeds.is_empty() {
-            let impl_code =
-                super::seed_codegen::generate_ctoken_seed_provider_implementation(seeds)?;
-            items.push(impl_code);
-        }
-    }
-
-    // Client functions
-    items.push(client_functions);
-
-    // Generate enum associated functions for pinocchio
-    if let Some(enum_name) = enum_name {
-        // Compress dispatch + process_compress
-        if compress_builder.has_pdas() {
-            items.push(compress_builder.generate_enum_dispatch_method_pinocchio(enum_name)?);
-            items.push(compress_builder.generate_enum_process_compress_pinocchio(enum_name)?);
-        }
-
-        // Decompress dispatch + process_decompress
-        if !pda_ctx_seeds.is_empty() {
-            items.push(decompress_builder.generate_enum_process_decompress_pinocchio(enum_name)?);
-        }
-
-        // Config functions as enum methods
-        items.push(quote! {
-            impl #enum_name {
-                // SDK-standard discriminators (must match light-client)
-                pub const INITIALIZE_COMPRESSION_CONFIG: [u8; 8] = [133, 228, 12, 169, 56, 76, 222, 61];
-                pub const UPDATE_COMPRESSION_CONFIG: [u8; 8] = [135, 215, 243, 81, 163, 146, 33, 70];
-                pub const COMPRESS_ACCOUNTS_IDEMPOTENT: [u8; 8] = [70, 236, 171, 120, 164, 93, 113, 181];
-                pub const DECOMPRESS_ACCOUNTS_IDEMPOTENT: [u8; 8] = [114, 67, 61, 123, 234, 31, 1, 112];
-
-                pub fn process_initialize_config(
-                    accounts: &[pinocchio::account_info::AccountInfo],
-                    data: &[u8],
-                ) -> std::result::Result<(), pinocchio::program_error::ProgramError> {
-                    let params = <InitConfigParams as borsh::BorshDeserialize>::try_from_slice(data)
-                        .map_err(|_| pinocchio::program_error::ProgramError::BorshIoError)?;
-
-                    if accounts.len() < 5 {
-                        return Err(pinocchio::program_error::ProgramError::NotEnoughAccountKeys);
-                    }
-
-                    let fee_payer = &accounts[0];
-                    let config = &accounts[1];
-                    let _program_data = &accounts[2];
-                    let authority = &accounts[3];
-                    let system_program = &accounts[4];
-
-                    light_account_pinocchio::process_initialize_light_config(
-                        config,
-                        authority,
-                        &params.rent_sponsor,
-                        &params.compression_authority,
-                        params.rent_config,
-                        params.write_top_up,
-                        params.address_space,
-                        0, // config_bump
-                        fee_payer,
-                        system_program,
-                        &crate::LIGHT_CPI_SIGNER.program_id,
-                    )
-                    .map_err(|e| pinocchio::program_error::ProgramError::Custom(u32::from(e)))
-                }
-
-                pub fn process_update_config(
-                    accounts: &[pinocchio::account_info::AccountInfo],
-                    data: &[u8],
-                ) -> std::result::Result<(), pinocchio::program_error::ProgramError> {
-                    if accounts.len() < 2 {
-                        return Err(pinocchio::program_error::ProgramError::NotEnoughAccountKeys);
-                    }
-
-                    let authority = &accounts[0];
-                    let config = &accounts[1];
-
-                    let remaining = [*config, *authority];
-                    light_account_pinocchio::process_update_light_config(
-                        &remaining,
-                        data,
-                        &crate::LIGHT_CPI_SIGNER.program_id,
-                    )
-                    .map_err(|e| pinocchio::program_error::ProgramError::Custom(u32::from(e)))
-                }
-            }
-        });
-    }
-
-    Ok(items)
+    generate_light_program_items_with_backend(
+        compressible_accounts,
+        pda_seeds,
+        token_seeds,
+        instruction_data,
+        crate_ctx,
+        has_mint_fields,
+        has_ata_fields,
+        pda_variant_code,
+        enum_name,
+        &PinocchioBackend,
+    )
 }
