@@ -146,7 +146,8 @@ pub mod apis {
             types::PostGetCompressedAccountBalanceBody {
                 id: types::PostGetCompressedAccountBalanceBodyId::TestAccount,
                 jsonrpc: types::PostGetCompressedAccountBalanceBodyJsonrpc::_20,
-                method: types::PostGetCompressedAccountBalanceBodyMethod::GetCompressedAccountBalance,
+                method:
+                    types::PostGetCompressedAccountBalanceBodyMethod::GetCompressedAccountBalance,
                 params,
             }
         }
@@ -168,7 +169,8 @@ pub mod apis {
             types::PostGetCompressedBalanceByOwnerBody {
                 id: types::PostGetCompressedBalanceByOwnerBodyId::TestAccount,
                 jsonrpc: types::PostGetCompressedBalanceByOwnerBodyJsonrpc::_20,
-                method: types::PostGetCompressedBalanceByOwnerBodyMethod::GetCompressedBalanceByOwner,
+                method:
+                    types::PostGetCompressedBalanceByOwnerBodyMethod::GetCompressedBalanceByOwner,
                 params,
             }
         }
@@ -362,42 +364,47 @@ pub mod apis {
                     body: $body_type,
                 ) -> Result<$response_type, Error<$response_type>> {
                     let client = configuration.to_client();
-                    let response = client
-                        .$client_method()
-                        .body(body)
-                        .send()
-                        .await
-                        .map_err(|e| match e {
-                            progenitor_client::Error::InvalidRequest(msg) => {
-                                Error::Serde(serde_json::Error::io(std::io::Error::other(msg)))
-                            }
-                            progenitor_client::Error::CommunicationError(e) => Error::Reqwest(e),
-                            progenitor_client::Error::ErrorResponse(rv) => {
-                                Error::ResponseError(ResponseContent {
-                                    status: rv.status(),
-                                    content: format!("{:?}", rv.into_inner()),
-                                    entity: None,
-                                })
-                            }
-                            progenitor_client::Error::InvalidResponsePayload(_, e) => {
-                                Error::Serde(serde_json::Error::io(std::io::Error::other(e.to_string())))
-                            }
-                            progenitor_client::Error::UnexpectedResponse(resp) => {
-                                Error::ResponseError(ResponseContent {
-                                    status: resp.status(),
-                                    content: "Unexpected response".to_string(),
-                                    entity: None,
-                                })
-                            }
-                            progenitor_client::Error::ResponseBodyError(e) => Error::Reqwest(e),
-                            progenitor_client::Error::InvalidUpgrade(e) => Error::Reqwest(e),
-                            progenitor_client::Error::PreHookError(msg) => {
-                                Error::Serde(serde_json::Error::io(std::io::Error::other(msg)))
-                            }
-                            progenitor_client::Error::PostHookError(msg) => {
-                                Error::Serde(serde_json::Error::io(std::io::Error::other(msg)))
-                            }
-                        })?;
+                    let response =
+                        client
+                            .$client_method()
+                            .body(body)
+                            .send()
+                            .await
+                            .map_err(|e| match e {
+                                progenitor_client::Error::InvalidRequest(msg) => {
+                                    Error::Serde(serde_json::Error::io(std::io::Error::other(msg)))
+                                }
+                                progenitor_client::Error::CommunicationError(e) => {
+                                    Error::Reqwest(e)
+                                }
+                                progenitor_client::Error::ErrorResponse(rv) => {
+                                    Error::ResponseError(ResponseContent {
+                                        status: rv.status(),
+                                        content: format!("{:?}", rv.into_inner()),
+                                        entity: None,
+                                    })
+                                }
+                                progenitor_client::Error::InvalidResponsePayload(_, e) => {
+                                    Error::Serde(serde_json::Error::io(std::io::Error::other(
+                                        e.to_string(),
+                                    )))
+                                }
+                                progenitor_client::Error::UnexpectedResponse(resp) => {
+                                    Error::ResponseError(ResponseContent {
+                                        status: resp.status(),
+                                        content: "Unexpected response".to_string(),
+                                        entity: None,
+                                    })
+                                }
+                                progenitor_client::Error::ResponseBodyError(e) => Error::Reqwest(e),
+                                progenitor_client::Error::InvalidUpgrade(e) => Error::Reqwest(e),
+                                progenitor_client::Error::PreHookError(msg) => {
+                                    Error::Serde(serde_json::Error::io(std::io::Error::other(msg)))
+                                }
+                                progenitor_client::Error::PostHookError(msg) => {
+                                    Error::Serde(serde_json::Error::io(std::io::Error::other(msg)))
+                                }
+                            })?;
                     Ok(response.into_inner())
                 }
             };
@@ -577,6 +584,5 @@ pub mod apis {
             types::PostGetQueueElementsBody,
             types::PostGetQueueElementsResponse
         );
-
     }
 }

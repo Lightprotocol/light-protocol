@@ -131,7 +131,10 @@ impl PhotonIndexer {
         result.ok_or_else(|| IndexerError::missing_result(context, "value not present"))
     }
 
-    fn check_api_error<E: std::fmt::Debug>(context: &str, error: Option<E>) -> Result<(), IndexerError> {
+    fn check_api_error<E: std::fmt::Debug>(
+        context: &str,
+        error: Option<E>,
+    ) -> Result<(), IndexerError> {
         if let Some(error) = error {
             return Err(IndexerError::ApiError(format!(
                 "API error in {}: {:?}",
@@ -189,7 +192,10 @@ impl Indexer for PhotonIndexer {
 
             let api_response = result.result.ok_or_else(|| {
                 IndexerError::ApiError(
-                    result.error.map(|e| format!("{:?}", e)).unwrap_or_else(|| "Unknown error".to_string())
+                    result
+                        .error
+                        .map(|e| format!("{:?}", e))
+                        .unwrap_or_else(|| "Unknown error".to_string()),
                 )
             })?;
 
@@ -228,7 +234,8 @@ impl Indexer for PhotonIndexer {
             .await?;
 
             Self::check_api_error("get_compressed_account_by_hash", result.error)?;
-            let api_response = Self::extract_result("get_compressed_account_by_hash", result.result)?;
+            let api_response =
+                Self::extract_result("get_compressed_account_by_hash", result.result)?;
 
             if api_response.context.slot < config.slot {
                 return Err(IndexerError::IndexerNotSyncedToSlot);
@@ -374,7 +381,8 @@ impl Indexer for PhotonIndexer {
                 address: address.map(|x| photon_api::models::SerializablePubkey(x.to_base58())),
                 hash: hash.map(|x| photon_api::models::Hash(x.to_base58())),
             };
-            let request = photon_api::apis::default_api::make_get_compressed_account_balance_body(params);
+            let request =
+                photon_api::apis::default_api::make_get_compressed_account_balance_body(params);
 
             let result = photon_api::apis::default_api::get_compressed_account_balance_post(
                 &self.configuration,
@@ -383,7 +391,8 @@ impl Indexer for PhotonIndexer {
             .await?;
 
             Self::check_api_error("get_compressed_account_balance", result.error)?;
-            let api_response = Self::extract_result("get_compressed_account_balance", result.result)?;
+            let api_response =
+                Self::extract_result("get_compressed_account_balance", result.result)?;
 
             if api_response.context.slot < config.slot {
                 return Err(IndexerError::IndexerNotSyncedToSlot);
@@ -408,7 +417,8 @@ impl Indexer for PhotonIndexer {
             let params = photon_api::models::PostGetCompressedBalanceByOwnerBodyParams {
                 owner: photon_api::models::SerializablePubkey(owner.to_string()),
             };
-            let request = photon_api::apis::default_api::make_get_compressed_balance_by_owner_body(params);
+            let request =
+                photon_api::apis::default_api::make_get_compressed_balance_by_owner_body(params);
 
             let result = photon_api::apis::default_api::get_compressed_balance_by_owner_post(
                 &self.configuration,
@@ -417,7 +427,8 @@ impl Indexer for PhotonIndexer {
             .await?;
 
             Self::check_api_error("get_compressed_balance_by_owner", result.error)?;
-            let api_response = Self::extract_result("get_compressed_balance_by_owner", result.result)?;
+            let api_response =
+                Self::extract_result("get_compressed_balance_by_owner", result.result)?;
 
             if api_response.context.slot < config.slot {
                 return Err(IndexerError::IndexerNotSyncedToSlot);
@@ -442,10 +453,17 @@ impl Indexer for PhotonIndexer {
         self.retry(config.retry_config, || async {
             let params = photon_api::models::PostGetCompressedMintTokenHoldersBodyParams {
                 mint: photon_api::models::SerializablePubkey(mint.to_string()),
-                cursor: options.as_ref().and_then(|o| o.cursor.clone()).map(photon_api::models::Base58String),
-                limit: options.as_ref().and_then(|o| o.limit).map(|l| photon_api::models::Limit(l as u64)),
+                cursor: options
+                    .as_ref()
+                    .and_then(|o| o.cursor.clone())
+                    .map(photon_api::models::Base58String),
+                limit: options
+                    .as_ref()
+                    .and_then(|o| o.limit)
+                    .map(|l| photon_api::models::Limit(l as u64)),
             };
-            let request = photon_api::apis::default_api::make_get_compressed_mint_token_holders_body(params);
+            let request =
+                photon_api::apis::default_api::make_get_compressed_mint_token_holders_body(params);
 
             let result = photon_api::apis::default_api::get_compressed_mint_token_holders_post(
                 &self.configuration,
@@ -454,7 +472,8 @@ impl Indexer for PhotonIndexer {
             .await?;
 
             Self::check_api_error("get_compressed_mint_token_holders", result.error)?;
-            let api_response = Self::extract_result("get_compressed_mint_token_holders", result.result)?;
+            let api_response =
+                Self::extract_result("get_compressed_mint_token_holders", result.result)?;
 
             if api_response.context.slot < config.slot {
                 return Err(IndexerError::IndexerNotSyncedToSlot);
@@ -493,7 +512,10 @@ impl Indexer for PhotonIndexer {
                 address: address.map(|x| photon_api::models::SerializablePubkey(x.to_base58())),
                 hash: hash.map(|x| photon_api::models::Hash(x.to_base58())),
             };
-            let request = photon_api::apis::default_api::make_get_compressed_token_account_balance_body(params);
+            let request =
+                photon_api::apis::default_api::make_get_compressed_token_account_balance_body(
+                    params,
+                );
 
             let result = photon_api::apis::default_api::get_compressed_token_account_balance_post(
                 &self.configuration,
@@ -502,7 +524,8 @@ impl Indexer for PhotonIndexer {
             .await?;
 
             Self::check_api_error("get_compressed_token_account_balance", result.error)?;
-            let api_response = Self::extract_result("get_compressed_token_account_balance", result.result)?;
+            let api_response =
+                Self::extract_result("get_compressed_token_account_balance", result.result)?;
 
             if api_response.context.slot < config.slot {
                 return Err(IndexerError::IndexerNotSyncedToSlot);
@@ -839,7 +862,10 @@ impl Indexer for PhotonIndexer {
             let params = photon_api::models::PostGetCompressionSignaturesForAccountBodyParams {
                 hash: photon_api::models::Hash(hash.to_base58()),
             };
-            let request = photon_api::apis::default_api::make_get_compression_signatures_for_account_body(params);
+            let request =
+                photon_api::apis::default_api::make_get_compression_signatures_for_account_body(
+                    params,
+                );
 
             let result =
                 photon_api::apis::default_api::get_compression_signatures_for_account_post(
@@ -849,7 +875,8 @@ impl Indexer for PhotonIndexer {
                 .await?;
 
             Self::check_api_error("get_compression_signatures_for_account", result.error)?;
-            let api_response = Self::extract_result("get_compression_signatures_for_account", result.result)?;
+            let api_response =
+                Self::extract_result("get_compression_signatures_for_account", result.result)?;
 
             if api_response.context.slot < config.slot {
                 return Err(IndexerError::IndexerNotSyncedToSlot);
@@ -882,9 +909,15 @@ impl Indexer for PhotonIndexer {
             let params = photon_api::models::PostGetCompressionSignaturesForAddressBodyParams {
                 address: photon_api::models::SerializablePubkey(address.to_base58()),
                 cursor: options.as_ref().and_then(|o| o.cursor.clone()),
-                limit: options.as_ref().and_then(|o| o.limit).map(|l| photon_api::models::Limit(l as u64)),
+                limit: options
+                    .as_ref()
+                    .and_then(|o| o.limit)
+                    .map(|l| photon_api::models::Limit(l as u64)),
             };
-            let request = photon_api::apis::default_api::make_get_compression_signatures_for_address_body(params);
+            let request =
+                photon_api::apis::default_api::make_get_compression_signatures_for_address_body(
+                    params,
+                );
 
             let result =
                 photon_api::apis::default_api::get_compression_signatures_for_address_post(
@@ -894,7 +927,8 @@ impl Indexer for PhotonIndexer {
                 .await?;
 
             Self::check_api_error("get_compression_signatures_for_address", result.error)?;
-            let api_response = Self::extract_result("get_compression_signatures_for_address", result.result)?;
+            let api_response =
+                Self::extract_result("get_compression_signatures_for_address", result.result)?;
 
             if api_response.context.slot < config.slot {
                 return Err(IndexerError::IndexerNotSyncedToSlot);
@@ -933,9 +967,15 @@ impl Indexer for PhotonIndexer {
             let params = photon_api::models::PostGetCompressionSignaturesForOwnerBodyParams {
                 owner: photon_api::models::SerializablePubkey(owner.to_string()),
                 cursor: options.as_ref().and_then(|o| o.cursor.clone()),
-                limit: options.as_ref().and_then(|o| o.limit).map(|l| photon_api::models::Limit(l as u64)),
+                limit: options
+                    .as_ref()
+                    .and_then(|o| o.limit)
+                    .map(|l| photon_api::models::Limit(l as u64)),
             };
-            let request = photon_api::apis::default_api::make_get_compression_signatures_for_owner_body(params);
+            let request =
+                photon_api::apis::default_api::make_get_compression_signatures_for_owner_body(
+                    params,
+                );
 
             let result = photon_api::apis::default_api::get_compression_signatures_for_owner_post(
                 &self.configuration,
@@ -944,7 +984,8 @@ impl Indexer for PhotonIndexer {
             .await?;
 
             Self::check_api_error("get_compression_signatures_for_owner", result.error)?;
-            let api_response = Self::extract_result("get_compression_signatures_for_owner", result.result)?;
+            let api_response =
+                Self::extract_result("get_compression_signatures_for_owner", result.result)?;
 
             if api_response.context.slot < config.slot {
                 return Err(IndexerError::IndexerNotSyncedToSlot);
@@ -983,9 +1024,15 @@ impl Indexer for PhotonIndexer {
             let params = photon_api::models::PostGetCompressionSignaturesForTokenOwnerBodyParams {
                 owner: photon_api::models::SerializablePubkey(owner.to_string()),
                 cursor: options.as_ref().and_then(|o| o.cursor.clone()),
-                limit: options.as_ref().and_then(|o| o.limit).map(|l| photon_api::models::Limit(l as u64)),
+                limit: options
+                    .as_ref()
+                    .and_then(|o| o.limit)
+                    .map(|l| photon_api::models::Limit(l as u64)),
             };
-            let request = photon_api::apis::default_api::make_get_compression_signatures_for_token_owner_body(params);
+            let request =
+                photon_api::apis::default_api::make_get_compression_signatures_for_token_owner_body(
+                    params,
+                );
 
             let result =
                 photon_api::apis::default_api::get_compression_signatures_for_token_owner_post(
@@ -995,7 +1042,8 @@ impl Indexer for PhotonIndexer {
                 .await?;
 
             Self::check_api_error("get_compression_signatures_for_token_owner", result.error)?;
-            let api_response = Self::extract_result("get_compression_signatures_for_token_owner", result.result)?;
+            let api_response =
+                Self::extract_result("get_compression_signatures_for_token_owner", result.result)?;
 
             if api_response.context.slot < config.slot {
                 return Err(IndexerError::IndexerNotSyncedToSlot);
@@ -1072,7 +1120,10 @@ impl Indexer for PhotonIndexer {
                 .into_iter()
                 .map(|hash| photon_api::models::Hash(bs58::encode(hash).into_string()))
                 .collect();
-            let request = photon_api::apis::default_api::make_get_multiple_compressed_account_proofs_body(params);
+            let request =
+                photon_api::apis::default_api::make_get_multiple_compressed_account_proofs_body(
+                    params,
+                );
 
             let result =
                 photon_api::apis::default_api::get_multiple_compressed_account_proofs_post(
@@ -1082,7 +1133,8 @@ impl Indexer for PhotonIndexer {
                 .await?;
 
             Self::check_api_error("get_multiple_compressed_account_proofs", result.error)?;
-            let photon_proofs = Self::extract_result("get_multiple_compressed_account_proofs", result.result)?;
+            let photon_proofs =
+                Self::extract_result("get_multiple_compressed_account_proofs", result.result)?;
 
             if photon_proofs.context.slot < config.slot {
                 return Err(IndexerError::IndexerNotSyncedToSlot);
@@ -1143,10 +1195,19 @@ impl Indexer for PhotonIndexer {
             let hashes = hashes.clone();
             let addresses = addresses.clone();
             let params = photon_api::models::PostGetMultipleCompressedAccountsBodyParams {
-                addresses: addresses.map(|x| x.iter().map(|a| photon_api::models::SerializablePubkey(a.to_base58())).collect()),
-                hashes: hashes.map(|x| x.iter().map(|h| photon_api::models::Hash(h.to_base58())).collect()),
+                addresses: addresses.map(|x| {
+                    x.iter()
+                        .map(|a| photon_api::models::SerializablePubkey(a.to_base58()))
+                        .collect()
+                }),
+                hashes: hashes.map(|x| {
+                    x.iter()
+                        .map(|h| photon_api::models::Hash(h.to_base58()))
+                        .collect()
+                }),
             };
-            let request = photon_api::apis::default_api::make_get_multiple_compressed_accounts_body(params);
+            let request =
+                photon_api::apis::default_api::make_get_multiple_compressed_accounts_body(params);
 
             let result = photon_api::apis::default_api::get_multiple_compressed_accounts_post(
                 &self.configuration,
@@ -1155,7 +1216,8 @@ impl Indexer for PhotonIndexer {
             .await?;
 
             Self::check_api_error("get_multiple_compressed_accounts", result.error)?;
-            let api_response = Self::extract_result("get_multiple_compressed_accounts", result.result)?;
+            let api_response =
+                Self::extract_result("get_multiple_compressed_accounts", result.result)?;
 
             if api_response.context.slot < config.slot {
                 return Err(IndexerError::IndexerNotSyncedToSlot);
@@ -1192,7 +1254,9 @@ impl Indexer for PhotonIndexer {
                 .iter()
                 .map(|x| photon_api::models::AddressWithTree {
                     address: photon_api::models::SerializablePubkey(bs58::encode(x).into_string()),
-                    tree: photon_api::models::SerializablePubkey(bs58::encode(&merkle_tree_pubkey).into_string()),
+                    tree: photon_api::models::SerializablePubkey(
+                        bs58::encode(&merkle_tree_pubkey).into_string(),
+                    ),
                 })
                 .collect();
 
@@ -1208,13 +1272,14 @@ impl Indexer for PhotonIndexer {
             .await?;
 
             Self::check_api_error("get_multiple_new_address_proofs", result.error)?;
-            let api_response = match Self::extract_result("get_multiple_new_address_proofs", result.result) {
-                Ok(proofs) => proofs,
-                Err(e) => {
-                    error!("Failed to extract proofs: {:?}", e);
-                    return Err(e);
-                }
-            };
+            let api_response =
+                match Self::extract_result("get_multiple_new_address_proofs", result.result) {
+                    Ok(proofs) => proofs,
+                    Err(e) => {
+                        error!("Failed to extract proofs: {:?}", e);
+                        return Err(e);
+                    }
+                };
 
             if api_response.context.slot < config.slot {
                 return Err(IndexerError::IndexerNotSyncedToSlot);
@@ -1303,7 +1368,10 @@ impl Indexer for PhotonIndexer {
             #[cfg(feature = "v2")]
             {
                 let params = photon_api::models::PostGetValidityProofV2BodyParams {
-                    hashes: hashes.iter().map(|x| photon_api::models::Hash(x.to_base58())).collect(),
+                    hashes: hashes
+                        .iter()
+                        .map(|x| photon_api::models::Hash(x.to_base58()))
+                        .collect(),
                     new_addresses_with_trees: new_addresses_with_trees
                         .iter()
                         .map(|x| photon_api::models::AddressWithTree {
@@ -1312,7 +1380,8 @@ impl Indexer for PhotonIndexer {
                         })
                         .collect(),
                 };
-                let request = photon_api::apis::default_api::make_get_validity_proof_v2_body(params);
+                let request =
+                    photon_api::apis::default_api::make_get_validity_proof_v2_body(params);
 
                 let result = photon_api::apis::default_api::get_validity_proof_v2_post(
                     &self.configuration,
@@ -1339,7 +1408,10 @@ impl Indexer for PhotonIndexer {
             #[cfg(not(feature = "v2"))]
             {
                 let params = photon_api::models::PostGetValidityProofBodyParams {
-                    hashes: hashes.iter().map(|x| photon_api::models::Hash(x.to_base58())).collect(),
+                    hashes: hashes
+                        .iter()
+                        .map(|x| photon_api::models::Hash(x.to_base58()))
+                        .collect(),
                     new_addresses_with_trees: new_addresses_with_trees
                         .iter()
                         .map(|x| photon_api::models::AddressWithTree {
@@ -1446,10 +1518,13 @@ impl Indexer for PhotonIndexer {
     ) -> Result<Response<super::QueueElementsResult>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
-            let tree_hash = photon_api::models::Hash(bs58::encode(&merkle_tree_pubkey).into_string());
+            let tree_hash =
+                photon_api::models::Hash(bs58::encode(&merkle_tree_pubkey).into_string());
 
             // Build queue request objects
-            let output_queue = if options.output_queue_limit.is_some() || options.output_queue_start_index.is_some() {
+            let output_queue = if options.output_queue_limit.is_some()
+                || options.output_queue_start_index.is_some()
+            {
                 Some(photon_api::models::QueueRequest {
                     limit: options.output_queue_limit.unwrap_or(100),
                     start_index: options.output_queue_start_index,
@@ -1459,7 +1534,9 @@ impl Indexer for PhotonIndexer {
                 None
             };
 
-            let input_queue = if options.input_queue_limit.is_some() || options.input_queue_start_index.is_some() {
+            let input_queue = if options.input_queue_limit.is_some()
+                || options.input_queue_start_index.is_some()
+            {
                 Some(photon_api::models::QueueRequest {
                     limit: options.input_queue_limit.unwrap_or(100),
                     start_index: options.input_queue_start_index,
@@ -1469,7 +1546,9 @@ impl Indexer for PhotonIndexer {
                 None
             };
 
-            let address_queue = if options.address_queue_limit.is_some() || options.address_queue_start_index.is_some() {
+            let address_queue = if options.address_queue_limit.is_some()
+                || options.address_queue_start_index.is_some()
+            {
                 Some(photon_api::models::QueueRequest {
                     limit: options.address_queue_limit.unwrap_or(100),
                     start_index: options.address_queue_start_index,
@@ -1505,15 +1584,21 @@ impl Indexer for PhotonIndexer {
                 let output_queue = if let Some(oq) = sq.output_queue {
                     Some(super::OutputQueueData {
                         leaf_indices: oq.leaf_indices.clone(),
-                        account_hashes: oq.account_hashes.iter()
+                        account_hashes: oq
+                            .account_hashes
+                            .iter()
                             .map(|h| super::base58::decode_base58_to_fixed_array(&h.0))
                             .collect::<Result<Vec<_>, _>>()?,
-                        old_leaves: oq.leaves.iter()
+                        old_leaves: oq
+                            .leaves
+                            .iter()
                             .map(|h| super::base58::decode_base58_to_fixed_array(&h.0))
                             .collect::<Result<Vec<_>, _>>()?,
                         first_queue_index: oq.first_queue_index,
                         next_index: oq.next_index,
-                        leaves_hash_chains: oq.leaves_hash_chains.iter()
+                        leaves_hash_chains: oq
+                            .leaves_hash_chains
+                            .iter()
                             .map(|h| super::base58::decode_base58_to_fixed_array(&h.0))
                             .collect::<Result<Vec<_>, _>>()?,
                     })
@@ -1524,20 +1609,30 @@ impl Indexer for PhotonIndexer {
                 let input_queue = if let Some(iq) = sq.input_queue {
                     Some(super::InputQueueData {
                         leaf_indices: iq.leaf_indices.clone(),
-                        account_hashes: iq.account_hashes.iter()
+                        account_hashes: iq
+                            .account_hashes
+                            .iter()
                             .map(|h| super::base58::decode_base58_to_fixed_array(&h.0))
                             .collect::<Result<Vec<_>, _>>()?,
-                        current_leaves: iq.leaves.iter()
+                        current_leaves: iq
+                            .leaves
+                            .iter()
                             .map(|h| super::base58::decode_base58_to_fixed_array(&h.0))
                             .collect::<Result<Vec<_>, _>>()?,
-                        tx_hashes: iq.tx_hashes.iter()
+                        tx_hashes: iq
+                            .tx_hashes
+                            .iter()
                             .map(|h| super::base58::decode_base58_to_fixed_array(&h.0))
                             .collect::<Result<Vec<_>, _>>()?,
-                        nullifiers: iq.nullifiers.iter()
+                        nullifiers: iq
+                            .nullifiers
+                            .iter()
                             .map(|h| super::base58::decode_base58_to_fixed_array(&h.0))
                             .collect::<Result<Vec<_>, _>>()?,
                         first_queue_index: iq.first_queue_index,
-                        leaves_hash_chains: iq.leaves_hash_chains.iter()
+                        leaves_hash_chains: iq
+                            .leaves_hash_chains
+                            .iter()
                             .map(|h| super::base58::decode_base58_to_fixed_array(&h.0))
                             .collect::<Result<Vec<_>, _>>()?,
                     })
@@ -1547,7 +1642,9 @@ impl Indexer for PhotonIndexer {
 
                 Some(super::StateQueueData {
                     nodes: sq.nodes.iter().map(|n| n.index).collect(),
-                    node_hashes: sq.nodes.iter()
+                    node_hashes: sq
+                        .nodes
+                        .iter()
                         .map(|n| super::base58::decode_base58_to_fixed_array(&n.hash.0))
                         .collect::<Result<Vec<_>, _>>()?,
                     initial_root: super::base58::decode_base58_to_fixed_array(&sq.initial_root.0)?,
@@ -1562,26 +1659,38 @@ impl Indexer for PhotonIndexer {
             // Convert API AddressQueueData to local AddressQueueData
             let address_queue = if let Some(aq) = api_response.address_queue {
                 Some(super::AddressQueueData {
-                    addresses: aq.addresses.iter()
+                    addresses: aq
+                        .addresses
+                        .iter()
                         .map(|h| super::base58::decode_base58_to_fixed_array(&h.0))
                         .collect::<Result<Vec<_>, _>>()?,
-                    low_element_values: aq.low_element_values.iter()
+                    low_element_values: aq
+                        .low_element_values
+                        .iter()
                         .map(|h| super::base58::decode_base58_to_fixed_array(&h.0))
                         .collect::<Result<Vec<_>, _>>()?,
-                    low_element_next_values: aq.low_element_next_values.iter()
+                    low_element_next_values: aq
+                        .low_element_next_values
+                        .iter()
                         .map(|h| super::base58::decode_base58_to_fixed_array(&h.0))
                         .collect::<Result<Vec<_>, _>>()?,
                     low_element_indices: aq.low_element_indices.clone(),
                     low_element_next_indices: aq.low_element_next_indices.clone(),
                     nodes: aq.nodes.iter().map(|n| n.index).collect(),
-                    node_hashes: aq.nodes.iter()
+                    node_hashes: aq
+                        .nodes
+                        .iter()
                         .map(|n| super::base58::decode_base58_to_fixed_array(&n.hash.0))
                         .collect::<Result<Vec<_>, _>>()?,
                     initial_root: super::base58::decode_base58_to_fixed_array(&aq.initial_root.0)?,
-                    leaves_hash_chains: aq.leaves_hash_chains.iter()
+                    leaves_hash_chains: aq
+                        .leaves_hash_chains
+                        .iter()
                         .map(|h| super::base58::decode_base58_to_fixed_array(&h.0))
                         .collect::<Result<Vec<_>, _>>()?,
-                    subtrees: aq.subtrees.iter()
+                    subtrees: aq
+                        .subtrees
+                        .iter()
                         .map(|h| super::base58::decode_base58_to_fixed_array(&h.0))
                         .collect::<Result<Vec<_>, _>>()?,
                     start_index: aq.start_index,

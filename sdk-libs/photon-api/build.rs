@@ -7,11 +7,10 @@ fn main() {
     println!("cargo::rerun-if-changed={}", spec_path.display());
 
     // Read and parse the OpenAPI spec
-    let spec_content = fs::read_to_string(&spec_path)
-        .expect("Failed to read OpenAPI spec");
+    let spec_content = fs::read_to_string(&spec_path).expect("Failed to read OpenAPI spec");
 
-    let mut spec: serde_yaml::Value = serde_yaml::from_str(&spec_content)
-        .expect("Failed to parse OpenAPI spec");
+    let mut spec: serde_yaml::Value =
+        serde_yaml::from_str(&spec_content).expect("Failed to parse OpenAPI spec");
 
     // Add operationIds to each path's operation
     if let Some(paths) = spec.get_mut("paths").and_then(|p| p.as_mapping_mut()) {
@@ -45,31 +44,28 @@ fn main() {
     // Write modified spec to OUT_DIR
     let out_dir = env::var("OUT_DIR").expect("OUT_DIR not set");
     let out_path = PathBuf::from(&out_dir).join("api.yaml");
-    let modified_spec = serde_yaml::to_string(&spec)
-        .expect("Failed to serialize modified spec");
-    fs::write(&out_path, &modified_spec)
-        .expect("Failed to write modified spec");
+    let modified_spec = serde_yaml::to_string(&spec).expect("Failed to serialize modified spec");
+    fs::write(&out_path, &modified_spec).expect("Failed to write modified spec");
 
     // Parse the modified spec for progenitor
-    let spec: openapiv3::OpenAPI = serde_yaml::from_str(&modified_spec)
-        .expect("Failed to parse modified spec as OpenAPI");
+    let spec: openapiv3::OpenAPI =
+        serde_yaml::from_str(&modified_spec).expect("Failed to parse modified spec as OpenAPI");
 
     // Generate the client code using progenitor
     let mut settings = progenitor::GenerationSettings::default();
     settings.with_interface(progenitor::InterfaceStyle::Builder);
 
     let mut generator = progenitor::Generator::new(&settings);
-    let tokens = generator.generate_tokens(&spec)
+    let tokens = generator
+        .generate_tokens(&spec)
         .expect("Failed to generate client code");
 
     // Format the generated code
-    let ast: syn::File = syn::parse2(tokens)
-        .expect("Failed to parse generated code");
+    let ast: syn::File = syn::parse2(tokens).expect("Failed to parse generated code");
     let content = prettyplease::unparse(&ast);
 
     let dest_path = PathBuf::from(&out_dir).join("codegen.rs");
-    fs::write(&dest_path, content)
-        .expect("Failed to write generated code");
+    fs::write(&dest_path, content).expect("Failed to write generated code");
 }
 
 fn to_snake_case(s: &str) -> String {
