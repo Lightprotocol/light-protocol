@@ -32,6 +32,15 @@ pub unsafe fn convert_account_infos<'a, const N: usize>(
         );
     };
 
+    // Detect duplicate account keys to prevent multiple mutable references
+    let mut seen_keys = arrayvec::ArrayVec::<&[u8; 32], N>::new();
+    for pinocchio_account in pinocchio_accounts {
+        if seen_keys.iter().any(|k| *k == pinocchio_account.key()) {
+            return Err(ProgramError::InvalidArgument);
+        }
+        seen_keys.push(pinocchio_account.key());
+    }
+
     let mut solana_accounts = arrayvec::ArrayVec::<anchor_lang::prelude::AccountInfo<'a>, N>::new();
     for pinocchio_account in pinocchio_accounts {
         let key: &'a solana_pubkey::Pubkey =
