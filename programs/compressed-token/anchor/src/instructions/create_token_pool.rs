@@ -18,23 +18,22 @@ use crate::{
 /// Returns RESTRICTED_POOL_SEED if mint has restricted extensions, empty vec otherwise.
 /// For mints with restricted extensions (Pausable, PermanentDelegate, TransferFeeConfig, TransferHook, DefaultAccountState),
 /// returns the restricted seed to include in PDA derivation.
-pub fn restricted_seed(mint: &AccountInfo) -> Vec<u8> {
-    let mint_data = mint.try_borrow_data().unwrap();
-    let has_restricted =
-        if let Ok(mint_state) = PodStateWithExtensions::<PodMint>::unpack(&mint_data) {
-            mint_state
-                .get_extension_types()
-                .unwrap_or_default()
-                .iter()
-                .any(is_restricted_extension)
-        } else {
-            false
-        };
+pub fn restricted_seed(mint: &AccountInfo) -> Result<Vec<u8>> {
+    let mint_data = mint
+        .try_borrow_data()
+        .map_err(|_| crate::ErrorCode::InvalidMint)?;
+    let mint_state = PodStateWithExtensions::<PodMint>::unpack(&mint_data)
+        .map_err(|_| crate::ErrorCode::InvalidMint)?;
+    let has_restricted = mint_state
+        .get_extension_types()
+        .map_err(|_| crate::ErrorCode::InvalidMint)?
+        .iter()
+        .any(is_restricted_extension);
 
     if has_restricted {
-        RESTRICTED_POOL_SEED.to_vec()
+        Ok(RESTRICTED_POOL_SEED.to_vec())
     } else {
-        vec![]
+        Ok(vec![])
     }
 }
 
@@ -51,7 +50,7 @@ pub struct CreateTokenPoolInstruction<'info> {
     /// constraint cannot handle Token 2022 mints with variable-length extensions.
     #[account(
         init,
-        seeds = [POOL_SEED, &mint.key().to_bytes(), restricted_seed(&mint).as_slice()],
+        seeds = [POOL_SEED, &mint.key().to_bytes(), restricted_seed(&mint)?.as_slice()],
         bump,
         payer = fee_payer,
         space = get_token_account_space(&mint)?,
@@ -77,7 +76,9 @@ pub fn get_token_account_space(mint: &AccountInfo) -> Result<usize> {
     let mint_data = mint.try_borrow_data()?;
     let mint_state = PodStateWithExtensions::<PodMint>::unpack(&mint_data)
         .map_err(|_| crate::ErrorCode::InvalidMint)?;
-    let mint_extensions = mint_state.get_extension_types().unwrap_or_default();
+    let mint_extensions = mint_state
+        .get_extension_types()
+        .map_err(|_| crate::ErrorCode::InvalidMint)?;
     let account_extensions = ExtensionType::get_required_init_account_extensions(&mint_extensions);
     ExtensionType::try_calculate_account_len::<spl_token_2022::state::Account>(&account_extensions)
         .map_err(|_| crate::ErrorCode::InvalidMint.into())
@@ -129,7 +130,9 @@ pub fn get_token_pool_pda_with_index(mint: &Pubkey, token_pool_index: u8) -> Pub
 pub fn assert_mint_extensions(account_data: &[u8]) -> Result<()> {
     let mint = PodStateWithExtensions::<PodMint>::unpack(account_data)
         .map_err(|_| crate::ErrorCode::InvalidMint)?;
-    let mint_extensions = mint.get_extension_types().unwrap_or_default();
+    let mint_extensions = mint
+        .get_extension_types()
+        .map_err(|_| crate::ErrorCode::InvalidMint)?;
 
     // Check all extensions are in the allowed list
     if !mint_extensions
@@ -179,7 +182,7 @@ pub struct AddTokenPoolInstruction<'info> {
     /// For mints with restricted extensions, the PDA includes "restricted" seed.
     #[account(
         init,
-        seeds = [POOL_SEED, &mint.key().to_bytes(), restricted_seed(&mint).as_slice(), &[token_pool_index]],
+        seeds = [POOL_SEED, &mint.key().to_bytes(), restricted_seed(&mint)?.as_slice(), &[token_pool_index]],
         bump,
         payer = fee_payer,
         space = get_token_account_space(&mint)?,
