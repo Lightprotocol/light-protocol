@@ -3,7 +3,7 @@ use std::{fmt::Debug, time::Duration};
 use async_trait::async_trait;
 use bs58;
 use light_sdk_types::constants::STATE_MERKLE_TREE_CANOPY_DEPTH;
-use photon_api::apis::configuration::{ApiKey, Configuration};
+use photon_api::apis::configuration::Configuration;
 use solana_pubkey::Pubkey;
 use tracing::{error, trace, warn};
 
@@ -108,15 +108,7 @@ impl PhotonIndexer {
 
 impl PhotonIndexer {
     pub fn new(path: String, api_key: Option<String>) -> Self {
-        let configuration = Configuration {
-            base_path: path,
-            api_key: api_key.map(|key| ApiKey {
-                prefix: Some("api-key".to_string()),
-                key,
-            }),
-            ..Default::default()
-        };
-
+        let configuration = Configuration::new_with_api_key(path, api_key);
         PhotonIndexer { configuration }
     }
 

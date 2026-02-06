@@ -21,12 +21,8 @@ pub mod apis {
     #[derive(Debug, Clone)]
     pub struct Configuration {
         pub base_path: String,
-        pub api_key: Option<ApiKey>,
+        pub api_key: Option<String>,
         pub client: reqwest::Client,
-        pub user_agent: Option<String>,
-        pub basic_auth: Option<(String, Option<String>)>,
-        pub oauth_access_token: Option<String>,
-        pub bearer_access_token: Option<String>,
     }
 
     impl Default for Configuration {
@@ -35,46 +31,54 @@ pub mod apis {
                 base_path: "https://devnet.helius-rpc.com".to_string(),
                 api_key: None,
                 client: reqwest::Client::new(),
-                user_agent: Some("progenitor/0.9".to_string()),
-                basic_auth: None,
-                oauth_access_token: None,
-                bearer_access_token: None,
             }
         }
     }
 
     impl Configuration {
-        pub fn new() -> Self {
-            Self::default()
-        }
-
-        pub fn new_with_api(url: String, api_key: Option<String>) -> Self {
+        pub fn new(url: String) -> Self {
+            let (base_path, api_key) = Self::parse_url(&url);
             Self {
-                base_path: url,
-                api_key: api_key.map(|key| ApiKey {
-                    prefix: Some("api-key".to_string()),
-                    key,
-                }),
-                ..Default::default()
+                base_path,
+                api_key,
+                client: reqwest::Client::new(),
             }
         }
 
-        /// Create a progenitor Client from this configuration
-        pub fn to_client(&self) -> Client {
-            Client::new_with_client(&self.base_path, self.client.clone())
+        pub fn new_with_api_key(url: String, api_key: Option<String>) -> Self {
+            Self {
+                base_path: url,
+                api_key,
+                client: reqwest::Client::new(),
+            }
+        }
+
+        fn parse_url(url: &str) -> (String, Option<String>) {
+            if let Some(query_start) = url.find('?') {
+                let base = &url[..query_start];
+                let query = &url[query_start + 1..];
+                for param in query.split('&') {
+                    if let Some(value) = param.strip_prefix("api-key=") {
+                        return (base.to_string(), Some(value.to_string()));
+                    }
+                }
+                (url.to_string(), None)
+            } else {
+                (url.to_string(), None)
+            }
+        }
+
+        fn build_url(&self, endpoint: &str) -> String {
+            let url = format!("{}/{}", self.base_path, endpoint);
+            match &self.api_key {
+                Some(key) => format!("{}?api-key={}", url, key),
+                None => url,
+            }
         }
     }
 
-    #[derive(Debug, Clone)]
-    pub struct ApiKey {
-        pub prefix: Option<String>,
-        pub key: String,
-    }
-
-    pub type BasicAuth = (String, Option<String>);
-
     pub mod configuration {
-        pub use super::{ApiKey, BasicAuth, Configuration};
+        pub use super::Configuration;
     }
 
     /// Error type for API calls
@@ -412,268 +416,453 @@ pub mod apis {
             }
         }
 
-        // Macro to reduce boilerplate for API calls
+        /// Macro to reduce boilerplate for API calls using reqwest directly.
+        /// This bypasses the progenitor Client to allow injecting the api-key query parameter.
         macro_rules! api_call {
-            ($fn_name:ident, $client_method:ident, $body_type:ty, $response_type:ty) => {
+            ($fn_name:ident, $endpoint:expr, $body_type:ty, $response_type:ty) => {
                 pub async fn $fn_name(
                     configuration: &Configuration,
                     body: $body_type,
                 ) -> Result<$response_type, Error<$response_type>> {
-                    let client = configuration.to_client();
-                    let response =
-                        client
-                            .$client_method()
-                            .body(body)
-                            .send()
-                            .await
-                            .map_err(|e| match e {
-                                progenitor_client::Error::InvalidRequest(msg) => {
-                                    Error::Serde(serde_json::Error::io(std::io::Error::other(msg)))
-                                }
-                                progenitor_client::Error::CommunicationError(e) => {
-                                    Error::Reqwest(e)
-                                }
-                                progenitor_client::Error::ErrorResponse(rv) => {
-                                    Error::ResponseError(ResponseContent {
-                                        status: rv.status(),
-                                        content: format!("{:?}", rv.into_inner()),
-                                        entity: None,
-                                    })
-                                }
-                                progenitor_client::Error::InvalidResponsePayload(_, e) => {
-                                    Error::Serde(serde_json::Error::io(std::io::Error::other(
-                                        e.to_string(),
-                                    )))
-                                }
-                                progenitor_client::Error::UnexpectedResponse(resp) => {
-                                    Error::ResponseError(ResponseContent {
-                                        status: resp.status(),
-                                        content: "Unexpected response".to_string(),
-                                        entity: None,
-                                    })
-                                }
-                                progenitor_client::Error::ResponseBodyError(e) => Error::Reqwest(e),
-                                progenitor_client::Error::InvalidUpgrade(e) => Error::Reqwest(e),
-                                progenitor_client::Error::PreHookError(msg) => {
-                                    Error::Serde(serde_json::Error::io(std::io::Error::other(msg)))
-                                }
-                                progenitor_client::Error::PostHookError(msg) => {
-                                    Error::Serde(serde_json::Error::io(std::io::Error::other(msg)))
-                                }
-                            })?;
-                    Ok(response.into_inner())
+                    let url = configuration.build_url($endpoint);
+                    let response = configuration
+                        .client
+                        .post(&url)
+                        .header(reqwest::header::ACCEPT, "application/json")
+                        .json(&body)
+                        .send()
+                        .await?;
+                    match response.status().as_u16() {
+                        200 => {
+                            let result: $response_type = response.json().await?;
+                            Ok(result)
+                        }
+                        status => {
+                            let content = response.text().await.unwrap_or_default();
+                            Err(Error::ResponseError(ResponseContent {
+                                status: reqwest::StatusCode::from_u16(status)
+                                    .unwrap_or(reqwest::StatusCode::INTERNAL_SERVER_ERROR),
+                                content,
+                                entity: None,
+                            }))
+                        }
+                    }
                 }
             };
         }
 
         api_call!(
             get_compressed_account_post,
-            post_get_compressed_account,
+            "getCompressedAccount",
             types::PostGetCompressedAccountBody,
             types::PostGetCompressedAccountResponse
         );
 
         api_call!(
             get_compressed_account_balance_post,
-            post_get_compressed_account_balance,
+            "getCompressedAccountBalance",
             types::PostGetCompressedAccountBalanceBody,
             types::PostGetCompressedAccountBalanceResponse
         );
 
         api_call!(
             get_compressed_accounts_by_owner_post,
-            post_get_compressed_accounts_by_owner,
+            "getCompressedAccountsByOwner",
             types::PostGetCompressedAccountsByOwnerBody,
             types::PostGetCompressedAccountsByOwnerResponse
         );
 
         api_call!(
             get_compressed_accounts_by_owner_v2_post,
-            post_get_compressed_accounts_by_owner_v2,
+            "getCompressedAccountsByOwnerV2",
             types::PostGetCompressedAccountsByOwnerV2Body,
             types::PostGetCompressedAccountsByOwnerV2Response
         );
 
         api_call!(
             get_compressed_balance_by_owner_post,
-            post_get_compressed_balance_by_owner,
+            "getCompressedBalanceByOwner",
             types::PostGetCompressedBalanceByOwnerBody,
             types::PostGetCompressedBalanceByOwnerResponse
         );
 
         api_call!(
             get_compressed_mint_token_holders_post,
-            post_get_compressed_mint_token_holders,
+            "getCompressedMintTokenHolders",
             types::PostGetCompressedMintTokenHoldersBody,
             types::PostGetCompressedMintTokenHoldersResponse
         );
 
         api_call!(
             get_compressed_token_account_balance_post,
-            post_get_compressed_token_account_balance,
+            "getCompressedTokenAccountBalance",
             types::PostGetCompressedTokenAccountBalanceBody,
             types::PostGetCompressedTokenAccountBalanceResponse
         );
 
         api_call!(
             get_compressed_token_accounts_by_delegate_post,
-            post_get_compressed_token_accounts_by_delegate,
+            "getCompressedTokenAccountsByDelegate",
             types::PostGetCompressedTokenAccountsByDelegateBody,
             types::PostGetCompressedTokenAccountsByDelegateResponse
         );
 
         api_call!(
             get_compressed_token_accounts_by_delegate_v2_post,
-            post_get_compressed_token_accounts_by_delegate_v2,
+            "getCompressedTokenAccountsByDelegateV2",
             types::PostGetCompressedTokenAccountsByDelegateV2Body,
             types::PostGetCompressedTokenAccountsByDelegateV2Response
         );
 
         api_call!(
             get_compressed_token_accounts_by_owner_post,
-            post_get_compressed_token_accounts_by_owner,
+            "getCompressedTokenAccountsByOwner",
             types::PostGetCompressedTokenAccountsByOwnerBody,
             types::PostGetCompressedTokenAccountsByOwnerResponse
         );
 
         api_call!(
             get_compressed_token_accounts_by_owner_v2_post,
-            post_get_compressed_token_accounts_by_owner_v2,
+            "getCompressedTokenAccountsByOwnerV2",
             types::PostGetCompressedTokenAccountsByOwnerV2Body,
             types::PostGetCompressedTokenAccountsByOwnerV2Response
         );
 
         api_call!(
             get_compressed_token_balances_by_owner_post,
-            post_get_compressed_token_balances_by_owner,
+            "getCompressedTokenBalancesByOwner",
             types::PostGetCompressedTokenBalancesByOwnerBody,
             types::PostGetCompressedTokenBalancesByOwnerResponse
         );
 
         api_call!(
             get_compressed_token_balances_by_owner_v2_post,
-            post_get_compressed_token_balances_by_owner_v2,
+            "getCompressedTokenBalancesByOwnerV2",
             types::PostGetCompressedTokenBalancesByOwnerV2Body,
             types::PostGetCompressedTokenBalancesByOwnerV2Response
         );
 
         api_call!(
             get_compression_signatures_for_account_post,
-            post_get_compression_signatures_for_account,
+            "getCompressionSignaturesForAccount",
             types::PostGetCompressionSignaturesForAccountBody,
             types::PostGetCompressionSignaturesForAccountResponse
         );
 
         api_call!(
             get_compression_signatures_for_address_post,
-            post_get_compression_signatures_for_address,
+            "getCompressionSignaturesForAddress",
             types::PostGetCompressionSignaturesForAddressBody,
             types::PostGetCompressionSignaturesForAddressResponse
         );
 
         api_call!(
             get_compression_signatures_for_owner_post,
-            post_get_compression_signatures_for_owner,
+            "getCompressionSignaturesForOwner",
             types::PostGetCompressionSignaturesForOwnerBody,
             types::PostGetCompressionSignaturesForOwnerResponse
         );
 
         api_call!(
             get_compression_signatures_for_token_owner_post,
-            post_get_compression_signatures_for_token_owner,
+            "getCompressionSignaturesForTokenOwner",
             types::PostGetCompressionSignaturesForTokenOwnerBody,
             types::PostGetCompressionSignaturesForTokenOwnerResponse
         );
 
         api_call!(
             get_indexer_health_post,
-            post_get_indexer_health,
+            "getIndexerHealth",
             types::PostGetIndexerHealthBody,
             types::PostGetIndexerHealthResponse
         );
 
         api_call!(
             get_indexer_slot_post,
-            post_get_indexer_slot,
+            "getIndexerSlot",
             types::PostGetIndexerSlotBody,
             types::PostGetIndexerSlotResponse
         );
 
         api_call!(
             get_multiple_compressed_account_proofs_post,
-            post_get_multiple_compressed_account_proofs,
+            "getMultipleCompressedAccountProofs",
             types::PostGetMultipleCompressedAccountProofsBody,
             types::PostGetMultipleCompressedAccountProofsResponse
         );
 
         api_call!(
             get_multiple_compressed_accounts_post,
-            post_get_multiple_compressed_accounts,
+            "getMultipleCompressedAccounts",
             types::PostGetMultipleCompressedAccountsBody,
             types::PostGetMultipleCompressedAccountsResponse
         );
 
         api_call!(
             get_multiple_new_address_proofs_v2_post,
-            post_get_multiple_new_address_proofs_v2,
+            "getMultipleNewAddressProofsV2",
             types::PostGetMultipleNewAddressProofsV2Body,
             types::PostGetMultipleNewAddressProofsV2Response
         );
 
         api_call!(
             get_validity_proof_post,
-            post_get_validity_proof,
+            "getValidityProof",
             types::PostGetValidityProofBody,
             types::PostGetValidityProofResponse
         );
 
         api_call!(
             get_validity_proof_v2_post,
-            post_get_validity_proof_v2,
+            "getValidityProofV2",
             types::PostGetValidityProofV2Body,
             types::PostGetValidityProofV2Response
         );
 
         api_call!(
             get_queue_elements_post,
-            post_get_queue_elements,
+            "getQueueElements",
             types::PostGetQueueElementsBody,
             types::PostGetQueueElementsResponse
         );
 
         api_call!(
             get_queue_info_post,
-            post_get_queue_info,
+            "getQueueInfo",
             types::PostGetQueueInfoBody,
             types::PostGetQueueInfoResponse
         );
 
         api_call!(
             get_account_interface_post,
-            post_get_account_interface,
+            "getAccountInterface",
             types::PostGetAccountInterfaceBody,
             types::PostGetAccountInterfaceResponse
         );
 
         api_call!(
             get_token_account_interface_post,
-            post_get_token_account_interface,
+            "getTokenAccountInterface",
             types::PostGetTokenAccountInterfaceBody,
             types::PostGetTokenAccountInterfaceResponse
         );
 
         api_call!(
             get_ata_interface_post,
-            post_get_ata_interface,
+            "getAtaInterface",
             types::PostGetAtaInterfaceBody,
             types::PostGetAtaInterfaceResponse
         );
 
         api_call!(
             get_multiple_account_interfaces_post,
-            post_get_multiple_account_interfaces,
+            "getMultipleAccountInterfaces",
             types::PostGetMultipleAccountInterfacesBody,
             types::PostGetMultipleAccountInterfacesResponse
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::apis::{configuration::Configuration, default_api};
+
+    #[test]
+    fn test_parse_url_with_api_key() {
+        let config = Configuration::new("https://rpc.example.com?api-key=MY_KEY".to_string());
+        assert_eq!(config.base_path, "https://rpc.example.com");
+        assert_eq!(config.api_key, Some("MY_KEY".to_string()));
+    }
+
+    #[test]
+    fn test_parse_url_without_api_key() {
+        let config = Configuration::new("https://rpc.example.com".to_string());
+        assert_eq!(config.base_path, "https://rpc.example.com");
+        assert_eq!(config.api_key, None);
+    }
+
+    #[test]
+    fn test_parse_url_with_other_query_params() {
+        let config =
+            Configuration::new("https://rpc.example.com?other=value&api-key=KEY123".to_string());
+        assert_eq!(config.base_path, "https://rpc.example.com");
+        assert_eq!(config.api_key, Some("KEY123".to_string()));
+    }
+
+    #[test]
+    fn test_new_with_api_key() {
+        let config = Configuration::new_with_api_key(
+            "https://rpc.example.com".to_string(),
+            Some("SECRET".to_string()),
+        );
+        assert_eq!(config.base_path, "https://rpc.example.com");
+        assert_eq!(config.api_key, Some("SECRET".to_string()));
+    }
+
+    #[test]
+    fn test_build_url_with_api_key() {
+        let config = Configuration::new_with_api_key(
+            "https://rpc.example.com".to_string(),
+            Some("KEY".to_string()),
+        );
+        let url = config.build_url("getCompressedAccount");
+        assert_eq!(
+            url,
+            "https://rpc.example.com/getCompressedAccount?api-key=KEY"
+        );
+    }
+
+    #[test]
+    fn test_build_url_without_api_key() {
+        let config = Configuration::new_with_api_key("https://rpc.example.com".to_string(), None);
+        let url = config.build_url("getCompressedAccount");
+        assert_eq!(url, "https://rpc.example.com/getCompressedAccount");
+    }
+
+    #[test]
+    fn test_make_get_compressed_account_body() {
+        let params = super::types::PostGetCompressedAccountBodyParams {
+            address: Some(super::types::SerializablePubkey(
+                "11111111111111111111111111111111".to_string(),
+            )),
+            hash: None,
+        };
+        let body = default_api::make_get_compressed_account_body(params);
+        let json = serde_json::to_value(&body).unwrap();
+        assert_eq!(json["jsonrpc"], "2.0");
+        assert_eq!(json["method"], "getCompressedAccount");
+        assert_eq!(json["id"], "test-account");
+        assert_eq!(
+            json["params"]["address"],
+            "11111111111111111111111111111111"
+        );
+    }
+
+    #[test]
+    fn test_make_get_indexer_health_body() {
+        let body = default_api::make_get_indexer_health_body();
+        let json = serde_json::to_value(&body).unwrap();
+        assert_eq!(json["jsonrpc"], "2.0");
+        assert_eq!(json["method"], "getIndexerHealth");
+    }
+
+    #[test]
+    fn test_make_get_indexer_slot_body() {
+        let body = default_api::make_get_indexer_slot_body();
+        let json = serde_json::to_value(&body).unwrap();
+        assert_eq!(json["jsonrpc"], "2.0");
+        assert_eq!(json["method"], "getIndexerSlot");
+    }
+
+    #[test]
+    fn test_make_get_validity_proof_body() {
+        let params = super::types::PostGetValidityProofBodyParams {
+            hashes: vec![super::types::Hash("abc123".to_string())],
+            new_addresses_with_trees: vec![],
+        };
+        let body = default_api::make_get_validity_proof_body(params);
+        let json = serde_json::to_value(&body).unwrap();
+        assert_eq!(json["jsonrpc"], "2.0");
+        assert_eq!(json["method"], "getValidityProof");
+        assert_eq!(json["params"]["hashes"][0], "abc123");
+    }
+
+    #[tokio::test]
+    async fn test_api_call_sends_correct_request() {
+        use wiremock::{
+            matchers::{body_json_string, header, method, path, query_param},
+            Mock, MockServer, ResponseTemplate,
+        };
+
+        let mock_server = MockServer::start().await;
+
+        // Build expected response JSON
+        let response_json = serde_json::json!({
+            "jsonrpc": "2.0",
+            "result": {
+                "context": { "slot": 100 },
+                "value": "ok"
+            },
+            "id": "test-account"
+        });
+
+        Mock::given(method("POST"))
+            .and(path("/getIndexerHealth"))
+            .and(query_param("api-key", "TEST_KEY"))
+            .and(header("accept", "application/json"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(&response_json))
+            .mount(&mock_server)
+            .await;
+
+        let config =
+            Configuration::new_with_api_key(mock_server.uri(), Some("TEST_KEY".to_string()));
+
+        let body = default_api::make_get_indexer_health_body();
+        let result = default_api::get_indexer_health_post(&config, body).await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_api_call_without_api_key() {
+        use wiremock::{
+            matchers::{header, method, path},
+            Mock, MockServer, ResponseTemplate,
+        };
+
+        let mock_server = MockServer::start().await;
+
+        let response_json = serde_json::json!({
+            "jsonrpc": "2.0",
+            "result": {
+                "context": { "slot": 100 },
+                "value": "ok"
+            },
+            "id": "test-account"
+        });
+
+        Mock::given(method("POST"))
+            .and(path("/getIndexerHealth"))
+            .and(header("accept", "application/json"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(&response_json))
+            .mount(&mock_server)
+            .await;
+
+        let config = Configuration::new_with_api_key(mock_server.uri(), None);
+
+        let body = default_api::make_get_indexer_health_body();
+        let result = default_api::get_indexer_health_post(&config, body).await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_api_call_error_response() {
+        use wiremock::{
+            matchers::{method, path},
+            Mock, MockServer, ResponseTemplate,
+        };
+
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/getIndexerHealth"))
+            .respond_with(ResponseTemplate::new(500).set_body_string("Internal Server Error"))
+            .mount(&mock_server)
+            .await;
+
+        let config = Configuration::new_with_api_key(mock_server.uri(), None);
+
+        let body = default_api::make_get_indexer_health_body();
+        let result = default_api::get_indexer_health_post(&config, body).await;
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            super::apis::Error::ResponseError(content) => {
+                assert_eq!(content.status, reqwest::StatusCode::INTERNAL_SERVER_ERROR);
+                assert_eq!(content.content, "Internal Server Error");
+            }
+            other => panic!("Expected ResponseError, got: {:?}", other),
+        }
     }
 }
