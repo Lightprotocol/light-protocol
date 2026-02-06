@@ -40,6 +40,12 @@ pub unsafe fn convert_account_infos<'a, const N: usize>(
         // For duplicate accounts, share Rc<RefCell<>> from the first occurrence
         // to prevent multiple independent mutable references to the same memory.
         // This mimics Solana runtime behavior where duplicate accounts share state.
+        // For duplicate accounts, share Rc<RefCell<>> from the first occurrence
+        // to prevent multiple independent mutable references to the same memory.
+        // This mimics Solana runtime behavior where duplicate accounts share state.
+        // SAFETY: pinocchio backs duplicate keys with the same memory region, so
+        // wrapping it in a second RefCell would allow aliased &mut — hence we must
+        // share the original RefCell via Rc::clone.
         if let Some(existing) = solana_accounts.iter().find(|a| a.key == key) {
             solana_accounts.push(anchor_lang::prelude::AccountInfo {
                 key,
