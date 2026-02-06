@@ -91,16 +91,13 @@ pub fn process_compression_top_up(
     transfer_amount: &mut u64,
     lamports_budget: &mut u64,
 ) -> Result<(), ProgramError> {
-    if *transfer_amount != 0 {
-        return Ok(());
-    }
-
     if *current_slot == 0 {
         *current_slot = Clock::get()
             .map_err(|_| TokenError::SysvarAccessError)?
             .slot;
     }
 
+    let previous_amount = *transfer_amount;
     *transfer_amount = compression
         .calculate_top_up_lamports(
             account_info.data_len() as u64,
@@ -109,7 +106,10 @@ pub fn process_compression_top_up(
         )
         .map_err(|_| TokenError::InvalidAccountData)?;
 
-    *lamports_budget = lamports_budget.saturating_sub(*transfer_amount);
+    // Only deduct the delta from budget to avoid double-charging when
+    // multiple compressions target the same account.
+    let delta = transfer_amount.saturating_sub(previous_amount);
+    *lamports_budget = lamports_budget.saturating_sub(delta);
 
     Ok(())
 }
