@@ -90,14 +90,21 @@ pub fn create_pda_account(
     .map_err(convert_program_error)
 }
 
-/// Verifies that the provided account matches the expected PDA
+/// Verifies that the provided account matches the expected PDA with canonical bump.
+/// Uses find_program_address to ensure only the canonical bump is accepted,
+/// preventing non-canonical bump attacks.
 pub fn verify_pda<const N: usize>(
     account_key: &[u8; 32],
     seeds: &[&[u8]; N],
     bump: u8,
     program_id: &Pubkey,
 ) -> Result<(), ProgramError> {
-    let expected_pubkey = pinocchio_pubkey::derive_address(seeds, Some(bump), program_id);
+    let (expected_pubkey, canonical_bump) =
+        pinocchio_pubkey::find_program_address(seeds, program_id);
+
+    if bump != canonical_bump {
+        return Err(ProgramError::InvalidSeeds);
+    }
 
     if account_key != &expected_pubkey {
         return Err(ProgramError::InvalidAccountData);
