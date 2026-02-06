@@ -141,7 +141,6 @@ async fn test_orphan_delegate_can_decompress() {
 #[tokio::test]
 #[serial]
 async fn test_decompress_accumulates_delegated_amount() {
-    use super::shared::{set_ctoken_account_state, setup_extensions_test};
     use borsh::BorshDeserialize;
     use light_client::indexer::Indexer;
     use light_compressed_token_sdk::spl_interface::find_spl_interface_pda_with_index;
@@ -161,6 +160,8 @@ async fn test_decompress_accumulates_delegated_amount() {
         state::{Token, TokenDataVersion},
     };
     use solana_sdk::signer::Signer;
+
+    use super::shared::{set_ctoken_account_state, setup_extensions_test};
 
     let mut context = setup_extensions_test(ALL_EXTENSIONS).await.unwrap();
     let has_restricted_extensions = ALL_EXTENSIONS
@@ -379,8 +380,8 @@ async fn test_decompress_accumulates_delegated_amount() {
         .unwrap()
         .expect("Destination account should exist");
 
-    let dest_ctoken = Token::deserialize(&mut &dest_account_data.data[..])
-        .expect("Failed to deserialize Token");
+    let dest_ctoken =
+        Token::deserialize(&mut &dest_account_data.data[..]).expect("Failed to deserialize Token");
 
     assert_eq!(
         dest_ctoken.delegate,
@@ -411,7 +412,6 @@ async fn test_decompress_accumulates_delegated_amount() {
 #[tokio::test]
 #[serial]
 async fn test_decompress_skips_accumulation_when_delegate_mismatch() {
-    use super::shared::{set_ctoken_account_state, setup_extensions_test};
     use borsh::BorshDeserialize;
     use light_client::indexer::Indexer;
     use light_compressed_token_sdk::spl_interface::find_spl_interface_pda_with_index;
@@ -431,6 +431,8 @@ async fn test_decompress_skips_accumulation_when_delegate_mismatch() {
         state::{Token, TokenDataVersion},
     };
     use solana_sdk::signer::Signer;
+
+    use super::shared::{set_ctoken_account_state, setup_extensions_test};
 
     let mut context = setup_extensions_test(ALL_EXTENSIONS).await.unwrap();
     let has_restricted_extensions = ALL_EXTENSIONS
@@ -649,8 +651,8 @@ async fn test_decompress_skips_accumulation_when_delegate_mismatch() {
         .unwrap()
         .expect("Destination account should exist");
 
-    let dest_ctoken = Token::deserialize(&mut &dest_account_data.data[..])
-        .expect("Failed to deserialize Token");
+    let dest_ctoken =
+        Token::deserialize(&mut &dest_account_data.data[..]).expect("Failed to deserialize Token");
 
     // Delegate should remain as the destination's original delegate
     assert_eq!(
