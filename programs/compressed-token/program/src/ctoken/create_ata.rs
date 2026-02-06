@@ -63,9 +63,11 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
     let mint_bytes = mint.key();
     let bump = inputs.bump;
 
+    // Always validate ATA derivation (both idempotent and non-idempotent modes)
+    validate_ata_derivation(associated_token_account, owner_bytes, mint_bytes, bump)?;
+
     // If idempotent mode, check if account already exists
     if IDEMPOTENT {
-        validate_ata_derivation(associated_token_account, owner_bytes, mint_bytes, bump)?;
         if associated_token_account.is_owned_by(&crate::LIGHT_CPI_SIGNER.program_id) {
             return Ok(());
         }
