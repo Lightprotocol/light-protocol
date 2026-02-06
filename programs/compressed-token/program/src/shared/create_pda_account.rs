@@ -100,7 +100,7 @@ pub fn verify_pda<const N: usize>(
     program_id: &Pubkey,
 ) -> Result<(), ProgramError> {
     let (expected_pubkey, canonical_bump) =
-        pinocchio_pubkey::find_program_address(seeds, program_id);
+        pinocchio::pubkey::find_program_address(seeds, program_id);
 
     if bump != canonical_bump {
         return Err(ProgramError::InvalidSeeds);
