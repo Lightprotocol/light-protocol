@@ -577,7 +577,7 @@ async fn setup_rpc_connection(forester: &Keypair) -> LightClient {
     let mut rpc = LightClient::new(if TestMode::from_env() == TestMode::Local {
         LightClientConfig::local()
     } else {
-        LightClientConfig::new(get_rpc_url(), Some(get_indexer_url()), get_photon_api_key())
+        LightClientConfig::new(get_rpc_url(), Some(get_indexer_url()))
     })
     .await
     .unwrap();

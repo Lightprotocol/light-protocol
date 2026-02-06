@@ -29,7 +29,11 @@ pub struct StartArgs {
     #[arg(long, env = "WS_RPC_URL")]
     pub ws_rpc_url: Option<String>,
 
-    #[arg(long, env = "INDEXER_URL")]
+    #[arg(
+        long,
+        env = "INDEXER_URL",
+        help = "Photon indexer URL. API key can be included as query param: https://host?api-key=KEY"
+    )]
     pub indexer_url: Option<String>,
 
     #[arg(long, env = "PROVER_URL")]

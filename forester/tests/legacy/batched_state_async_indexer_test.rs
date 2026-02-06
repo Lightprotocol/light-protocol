@@ -233,7 +233,7 @@ async fn ensure_sufficient_balance(rpc: &mut LightClient, pubkey: &Pubkey, targe
 }
 
 fn create_photon_indexer() -> PhotonIndexer {
-    PhotonIndexer::new(PHOTON_INDEXER_URL.to_string(), None)
+    PhotonIndexer::new(PHOTON_INDEXER_URL.to_string())
 }
 
 async fn get_protocol_config(rpc: &mut LightClient) -> ProtocolConfig {

@@ -897,8 +897,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
     ) -> std::result::Result<ForesterEpochInfo, ForesterError> {
         let rpc = LightClient::new(LightClientConfig {
             url: self.config.external_services.rpc_url.to_string(),
-            photon_url: self.config.external_services.indexer_url.clone(),
-            api_key: self.config.external_services.photon_api_key.clone(),
+            photon_url: self.config.external_services.photon_url(),
             commitment_config: Some(solana_sdk::commitment_config::CommitmentConfig::confirmed()),
             fetch_active_tree: false,
         })
@@ -975,8 +974,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         info!("Registering for epoch: {}", epoch);
         let mut rpc = LightClient::new(LightClientConfig {
             url: self.config.external_services.rpc_url.to_string(),
-            photon_url: self.config.external_services.indexer_url.clone(),
-            api_key: self.config.external_services.photon_api_key.clone(),
+            photon_url: self.config.external_services.photon_url(),
             commitment_config: Some(solana_sdk::commitment_config::CommitmentConfig::processed()),
             fetch_active_tree: false,
         })
@@ -2895,8 +2893,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         info!("Reporting work on-chain");
         let mut rpc = LightClient::new(LightClientConfig {
             url: self.config.external_services.rpc_url.to_string(),
-            photon_url: self.config.external_services.indexer_url.clone(),
-            api_key: self.config.external_services.photon_api_key.clone(),
+            photon_url: self.config.external_services.photon_url(),
             commitment_config: Some(solana_sdk::commitment_config::CommitmentConfig::processed()),
             fetch_active_tree: false,
         })

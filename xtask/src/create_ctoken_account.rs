@@ -42,7 +42,6 @@ pub async fn create_ctoken_account(options: Options) -> anyhow::Result<()> {
         photon_url: None,
         commitment_config: None,
         fetch_active_tree: false,
-        api_key: None,
     })
     .await?;
 

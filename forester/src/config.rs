@@ -53,6 +53,24 @@ pub struct ExternalServicesConfig {
     pub send_tx_rate_limit: Option<u32>,
 }
 
+impl ExternalServicesConfig {
+    /// Returns the photon indexer URL with the API key embedded as a query parameter.
+    pub fn photon_url(&self) -> Option<String> {
+        self.indexer_url
+            .as_ref()
+            .map(|url| match &self.photon_api_key {
+                Some(key) => {
+                    if url.contains('?') {
+                        format!("{}&api-key={}", url, key)
+                    } else {
+                        format!("{}?api-key={}", url, key)
+                    }
+                }
+                None => url.clone(),
+            })
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct QueueConfig {
     pub state_queue_start_index: u16,

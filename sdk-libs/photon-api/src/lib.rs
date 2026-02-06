@@ -45,15 +45,7 @@ pub mod apis {
             }
         }
 
-        pub fn new_with_api_key(url: String, api_key: Option<String>) -> Self {
-            Self {
-                base_path: url,
-                api_key,
-                client: reqwest::Client::new(),
-            }
-        }
-
-        fn parse_url(url: &str) -> (String, Option<String>) {
+        pub(crate) fn parse_url(url: &str) -> (String, Option<String>) {
             if let Some(query_start) = url.find('?') {
                 let base = &url[..query_start];
                 let query = &url[query_start + 1..];
@@ -68,7 +60,7 @@ pub mod apis {
             }
         }
 
-        fn build_url(&self, endpoint: &str) -> String {
+        pub(crate) fn build_url(&self, endpoint: &str) -> String {
             let url = format!("{}/{}", self.base_path, endpoint);
             match &self.api_key {
                 Some(key) => format!("{}?api-key={}", url, key),
@@ -690,21 +682,15 @@ mod tests {
     }
 
     #[test]
-    fn test_new_with_api_key() {
-        let config = Configuration::new_with_api_key(
-            "https://rpc.example.com".to_string(),
-            Some("SECRET".to_string()),
-        );
+    fn test_new_with_api_key_in_url() {
+        let config = Configuration::new("https://rpc.example.com?api-key=SECRET".to_string());
         assert_eq!(config.base_path, "https://rpc.example.com");
         assert_eq!(config.api_key, Some("SECRET".to_string()));
     }
 
     #[test]
     fn test_build_url_with_api_key() {
-        let config = Configuration::new_with_api_key(
-            "https://rpc.example.com".to_string(),
-            Some("KEY".to_string()),
-        );
+        let config = Configuration::new("https://rpc.example.com?api-key=KEY".to_string());
         let url = config.build_url("getCompressedAccount");
         assert_eq!(
             url,
@@ -714,7 +700,7 @@ mod tests {
 
     #[test]
     fn test_build_url_without_api_key() {
-        let config = Configuration::new_with_api_key("https://rpc.example.com".to_string(), None);
+        let config = Configuration::new("https://rpc.example.com".to_string());
         let url = config.build_url("getCompressedAccount");
         assert_eq!(url, "https://rpc.example.com/getCompressedAccount");
     }
@@ -776,13 +762,13 @@ mod tests {
 
         let mock_server = MockServer::start().await;
 
-        // Build expected response JSON
+        // Build expected response JSON matching PostGetIndexerHealthResponse type:
+        // - id: string enum "test-account"
+        // - jsonrpc: string enum "2.0"
+        // - result: string enum "ok"
         let response_json = serde_json::json!({
             "jsonrpc": "2.0",
-            "result": {
-                "context": { "slot": 100 },
-                "value": "ok"
-            },
+            "result": "ok",
             "id": "test-account"
         });
 
@@ -794,8 +780,7 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let config =
-            Configuration::new_with_api_key(mock_server.uri(), Some("TEST_KEY".to_string()));
+        let config = Configuration::new(format!("{}?api-key=TEST_KEY", mock_server.uri()));
 
         let body = default_api::make_get_indexer_health_body();
         let result = default_api::get_indexer_health_post(&config, body).await;
@@ -814,10 +799,7 @@ mod tests {
 
         let response_json = serde_json::json!({
             "jsonrpc": "2.0",
-            "result": {
-                "context": { "slot": 100 },
-                "value": "ok"
-            },
+            "result": "ok",
             "id": "test-account"
         });
 
@@ -828,7 +810,7 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let config = Configuration::new_with_api_key(mock_server.uri(), None);
+        let config = Configuration::new(mock_server.uri());
 
         let body = default_api::make_get_indexer_health_body();
         let result = default_api::get_indexer_health_post(&config, body).await;
@@ -851,7 +833,7 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let config = Configuration::new_with_api_key(mock_server.uri(), None);
+        let config = Configuration::new(mock_server.uri());
 
         let body = default_api::make_get_indexer_health_body();
         let result = default_api::get_indexer_health_post(&config, body).await;

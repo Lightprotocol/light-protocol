@@ -107,8 +107,8 @@ impl PhotonIndexer {
 }
 
 impl PhotonIndexer {
-    pub fn new(path: String, api_key: Option<String>) -> Self {
-        let configuration = Configuration::new_with_api_key(path, api_key);
+    pub fn new(url: String) -> Self {
+        let configuration = Configuration::new(url);
         PhotonIndexer { configuration }
     }
 
