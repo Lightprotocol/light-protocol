@@ -1,3 +1,4 @@
+pub mod borsh_deser;
 pub mod failing;
 pub mod randomized_solana_token;
 pub mod size;
