@@ -28,6 +28,7 @@ pub fn set_input_compressed_accounts<'a>(
 ) -> Result<[Option<u8>; MAX_COMPRESSIONS], ProgramError> {
     // compression_to_input[compression_index] = Some(input_index), None means unset
     let mut compression_to_input: [Option<u8>; MAX_COMPRESSIONS] = [None; MAX_COMPRESSIONS];
+    let compressions_len = inputs.compressions.as_ref().map(|c| c.len()).unwrap_or(0);
 
     for (i, input_data) in inputs.in_token_data.iter().enumerate() {
         let input_lamports = if let Some(lamports) = inputs.in_lamports.as_ref() {
@@ -58,8 +59,6 @@ pub fn set_input_compressed_accounts<'a>(
                         return Err(TokenError::CompressionIndexOutOfBounds.into());
                     }
                     // Check compression_index is within actual compressions length
-                    let compressions_len =
-                        inputs.compressions.as_ref().map(|c| c.len()).unwrap_or(0);
                     if idx >= compressions_len {
                         return Err(TokenError::CompressionIndexOutOfBounds.into());
                     }
