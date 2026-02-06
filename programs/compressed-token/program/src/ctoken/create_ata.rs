@@ -67,10 +67,10 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
     validate_ata_derivation(associated_token_account, owner_bytes, mint_bytes, bump)?;
 
     // If idempotent mode, check if account already exists
-    if IDEMPOTENT {
-        if associated_token_account.is_owned_by(&crate::LIGHT_CPI_SIGNER.program_id) {
-            return Ok(());
-        }
+    if IDEMPOTENT
+        && associated_token_account.is_owned_by(&crate::LIGHT_CPI_SIGNER.program_id)
+    {
+        return Ok(());
     }
 
     // Check account is owned by system program (uninitialized)
