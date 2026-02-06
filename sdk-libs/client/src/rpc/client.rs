@@ -30,6 +30,10 @@ use tokio::time::{sleep, Instant};
 use tracing::warn;
 
 use super::LightClientConfig;
+#[cfg(not(feature = "v2"))]
+use crate::rpc::get_light_state_tree_infos::{
+    default_state_tree_lookup_tables, get_light_state_tree_infos,
+};
 use crate::{
     indexer::{
         photon_indexer::PhotonIndexer, AccountInterface as IndexerAccountInterface, Indexer,
@@ -37,15 +41,50 @@ use crate::{
         TreeInfo,
     },
     interface::{AccountInterface, MintInterface, MintState, TokenAccountInterface},
-    rpc::{
-        errors::RpcError,
-        get_light_state_tree_infos::{
-            default_state_tree_lookup_tables, get_light_state_tree_infos,
-        },
-        merkle_tree::MerkleTreeExt,
-        Rpc,
-    },
+    rpc::{errors::RpcError, merkle_tree::MerkleTreeExt, Rpc},
 };
+
+/// V2 batched state trees.
+#[cfg(feature = "v2")]
+pub(crate) fn default_v2_state_trees() -> [TreeInfo; 5] {
+    [
+        TreeInfo {
+            tree: pubkey!("bmt1LryLZUMmF7ZtqESaw7wifBXLfXHQYoE4GAmrahU"),
+            queue: pubkey!("oq1na8gojfdUhsfCpyjNt6h4JaDWtHf1yQj4koBWfto"),
+            cpi_context: Some(pubkey!("cpi15BoVPKgEPw5o8wc2T816GE7b378nMXnhH3Xbq4y")),
+            next_tree_info: None,
+            tree_type: TreeType::StateV2,
+        },
+        TreeInfo {
+            tree: pubkey!("bmt2UxoBxB9xWev4BkLvkGdapsz6sZGkzViPNph7VFi"),
+            queue: pubkey!("oq2UkeMsJLfXt2QHzim242SUi3nvjJs8Pn7Eac9H9vg"),
+            cpi_context: Some(pubkey!("cpi2yGapXUR3As5SjnHBAVvmApNiLsbeZpF3euWnW6B")),
+            next_tree_info: None,
+            tree_type: TreeType::StateV2,
+        },
+        TreeInfo {
+            tree: pubkey!("bmt3ccLd4bqSVZVeCJnH1F6C8jNygAhaDfxDwePyyGb"),
+            queue: pubkey!("oq3AxjekBWgo64gpauB6QtuZNesuv19xrhaC1ZM1THQ"),
+            cpi_context: Some(pubkey!("cpi3mbwMpSX8FAGMZVP85AwxqCaQMfEk9Em1v8QK9Rf")),
+            next_tree_info: None,
+            tree_type: TreeType::StateV2,
+        },
+        TreeInfo {
+            tree: pubkey!("bmt4d3p1a4YQgk9PeZv5s4DBUmbF5NxqYpk9HGjQsd8"),
+            queue: pubkey!("oq4ypwvVGzCUMoiKKHWh4S1SgZJ9vCvKpcz6RT6A8dq"),
+            cpi_context: Some(pubkey!("cpi4yyPDc4bCgHAnsenunGA8Y77j3XEDyjgfyCKgcoc")),
+            next_tree_info: None,
+            tree_type: TreeType::StateV2,
+        },
+        TreeInfo {
+            tree: pubkey!("bmt5yU97jC88YXTuSukYHa8Z5Bi2ZDUtmzfkDTA2mG2"),
+            queue: pubkey!("oq5oh5ZR3yGomuQgFduNDzjtGvVWfDRGLuDVjv9a96P"),
+            cpi_context: Some(pubkey!("cpi5ZTjdgYpZ1Xr7B1cMLLUE81oTtJbNNAyKary2nV6")),
+            next_tree_info: None,
+            tree_type: TreeType::StateV2,
+        },
+    ]
+}
 
 pub enum RpcUrl {
     Testnet,
@@ -135,7 +174,8 @@ impl LightClient {
         self.indexer = Some(PhotonIndexer::new(path, api_key));
     }
 
-    /// Detects the network type based on the RPC URL
+    /// Detects the network type based on the RPC URL. V1 only.
+    #[cfg(not(feature = "v2"))]
     fn detect_network(&self) -> RpcUrl {
         let url = self.client.url();
 
@@ -963,113 +1003,88 @@ impl Rpc for LightClient {
     }
 
     /// Fetch the latest state tree addresses from the cluster.
+    ///
+    /// When the `v2` feature is enabled, returns the default V2
+    /// batched state trees.
+    /// When `v2` is disabled, uses V1 lookup-table resolution or
+    /// localnet defaults.
     async fn get_latest_active_state_trees(&mut self) -> Result<Vec<TreeInfo>, RpcError> {
-        let network = self.detect_network();
-
-        // Return default test values for localnet
-        if matches!(network, RpcUrl::Localnet) {
-            use light_compressed_account::TreeType;
-            use solana_pubkey::pubkey;
-
-            use crate::indexer::TreeInfo;
-
-            #[cfg(feature = "v2")]
-            let default_trees = vec![
-                TreeInfo {
-                    tree: pubkey!("bmt1LryLZUMmF7ZtqESaw7wifBXLfXHQYoE4GAmrahU"),
-                    queue: pubkey!("oq1na8gojfdUhsfCpyjNt6h4JaDWtHf1yQj4koBWfto"),
-                    cpi_context: Some(pubkey!("cpi15BoVPKgEPw5o8wc2T816GE7b378nMXnhH3Xbq4y")),
-                    next_tree_info: None,
-                    tree_type: TreeType::StateV2,
-                },
-                TreeInfo {
-                    tree: pubkey!("bmt2UxoBxB9xWev4BkLvkGdapsz6sZGkzViPNph7VFi"),
-                    queue: pubkey!("oq2UkeMsJLfXt2QHzim242SUi3nvjJs8Pn7Eac9H9vg"),
-                    cpi_context: Some(pubkey!("cpi2yGapXUR3As5SjnHBAVvmApNiLsbeZpF3euWnW6B")),
-                    next_tree_info: None,
-                    tree_type: TreeType::StateV2,
-                },
-                TreeInfo {
-                    tree: pubkey!("bmt3ccLd4bqSVZVeCJnH1F6C8jNygAhaDfxDwePyyGb"),
-                    queue: pubkey!("oq3AxjekBWgo64gpauB6QtuZNesuv19xrhaC1ZM1THQ"),
-                    cpi_context: Some(pubkey!("cpi3mbwMpSX8FAGMZVP85AwxqCaQMfEk9Em1v8QK9Rf")),
-                    next_tree_info: None,
-                    tree_type: TreeType::StateV2,
-                },
-                TreeInfo {
-                    tree: pubkey!("bmt4d3p1a4YQgk9PeZv5s4DBUmbF5NxqYpk9HGjQsd8"),
-                    queue: pubkey!("oq4ypwvVGzCUMoiKKHWh4S1SgZJ9vCvKpcz6RT6A8dq"),
-                    cpi_context: Some(pubkey!("cpi4yyPDc4bCgHAnsenunGA8Y77j3XEDyjgfyCKgcoc")),
-                    next_tree_info: None,
-                    tree_type: TreeType::StateV2,
-                },
-                TreeInfo {
-                    tree: pubkey!("bmt5yU97jC88YXTuSukYHa8Z5Bi2ZDUtmzfkDTA2mG2"),
-                    queue: pubkey!("oq5oh5ZR3yGomuQgFduNDzjtGvVWfDRGLuDVjv9a96P"),
-                    cpi_context: Some(pubkey!("cpi5ZTjdgYpZ1Xr7B1cMLLUE81oTtJbNNAyKary2nV6")),
-                    next_tree_info: None,
-                    tree_type: TreeType::StateV2,
-                },
-            ];
-
-            #[cfg(not(feature = "v2"))]
-            let default_trees = vec![TreeInfo {
-                tree: pubkey!("smt1NamzXdq4AMqS2fS2F1i5KTYPZRhoHgWx38d8WsT"),
-                queue: pubkey!("nfq1NvQDJ2GEgnS8zt9prAe8rjjpAW1zFkrvZoBR148"),
-                cpi_context: Some(pubkey!("cpi1uHzrEhBG733DoEJNgHCyRS3XmmyVNZx5fonubE4")),
-                next_tree_info: None,
-                tree_type: TreeType::StateV1,
-            }];
-
-            self.state_merkle_trees = default_trees.clone();
-            return Ok(default_trees);
+        // V2: the default batched state trees are the same on every network.
+        #[cfg(feature = "v2")]
+        {
+            let trees = default_v2_state_trees().to_vec();
+            self.state_merkle_trees = trees.clone();
+            return Ok(trees);
         }
 
-        let (mainnet_tables, devnet_tables) = default_state_tree_lookup_tables();
+        // V1 path: network-dependent resolution.
+        #[cfg(not(feature = "v2"))]
+        {
+            let network = self.detect_network();
 
-        let lookup_tables = match network {
-            RpcUrl::Devnet | RpcUrl::Testnet | RpcUrl::ZKTestnet => &devnet_tables,
-            _ => &mainnet_tables, // Default to mainnet for production and custom URLs
-        };
+            if matches!(network, RpcUrl::Localnet) {
+                let default_trees = vec![TreeInfo {
+                    tree: pubkey!("smt1NamzXdq4AMqS2fS2F1i5KTYPZRhoHgWx38d8WsT"),
+                    queue: pubkey!("nfq1NvQDJ2GEgnS8zt9prAe8rjjpAW1zFkrvZoBR148"),
+                    cpi_context: Some(pubkey!("cpi1uHzrEhBG733DoEJNgHCyRS3XmmyVNZx5fonubE4")),
+                    next_tree_info: None,
+                    tree_type: TreeType::StateV1,
+                }];
+                self.state_merkle_trees = default_trees.clone();
+                return Ok(default_trees);
+            }
 
-        let res = get_light_state_tree_infos(
-            self,
-            &lookup_tables[0].state_tree_lookup_table,
-            &lookup_tables[0].nullify_table,
-        )
-        .await?;
-        self.state_merkle_trees = res.clone();
-        Ok(res)
+            let (mainnet_tables, devnet_tables) = default_state_tree_lookup_tables();
+
+            let lookup_tables = match network {
+                RpcUrl::Devnet | RpcUrl::Testnet | RpcUrl::ZKTestnet => &devnet_tables,
+                _ => &mainnet_tables,
+            };
+
+            let res = get_light_state_tree_infos(
+                self,
+                &lookup_tables[0].state_tree_lookup_table,
+                &lookup_tables[0].nullify_table,
+            )
+            .await?;
+            self.state_merkle_trees = res.clone();
+            Ok(res)
+        }
     }
 
-    /// Fetch the latest state tree addresses from the cluster.
+    /// Returns list of state tree infos.
     fn get_state_tree_infos(&self) -> Vec<TreeInfo> {
-        self.state_merkle_trees.to_vec()
+        #[cfg(feature = "v2")]
+        {
+            default_v2_state_trees().to_vec()
+        }
+        #[cfg(not(feature = "v2"))]
+        {
+            self.state_merkle_trees.to_vec()
+        }
     }
 
     /// Gets a random active state tree.
-    /// State trees are cached and have to be fetched or set.
-    /// Returns v1 state trees by default, v2 state trees when v2 feature is enabled.
     fn get_random_state_tree_info(&self) -> Result<TreeInfo, RpcError> {
-        let mut rng = rand::thread_rng();
-
         #[cfg(feature = "v2")]
-        let filtered_trees: Vec<TreeInfo> = self
-            .state_merkle_trees
-            .iter()
-            .filter(|tree| tree.tree_type == TreeType::StateV2)
-            .copied()
-            .collect();
+        {
+            use rand::Rng;
+            let mut rng = rand::thread_rng();
+            let trees = default_v2_state_trees();
+            Ok(trees[rng.gen_range(0..trees.len())])
+        }
 
         #[cfg(not(feature = "v2"))]
-        let filtered_trees: Vec<TreeInfo> = self
-            .state_merkle_trees
-            .iter()
-            .filter(|tree| tree.tree_type == TreeType::StateV1)
-            .copied()
-            .collect();
-
-        select_state_tree_info(&mut rng, &filtered_trees)
+        {
+            let mut rng = rand::thread_rng();
+            let filtered_trees: Vec<TreeInfo> = self
+                .state_merkle_trees
+                .iter()
+                .filter(|tree| tree.tree_type == TreeType::StateV1)
+                .copied()
+                .collect();
+            select_state_tree_info(&mut rng, &filtered_trees)
+        }
     }
 
     /// Gets a random v1 state tree.
