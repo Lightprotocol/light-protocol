@@ -5163,6 +5163,7 @@ dependencies = [
  "openapiv3",
  "prettyplease",
  "progenitor",
+ "progenitor-client",
  "regress",
  "reqwest 0.12.26",
  "serde",

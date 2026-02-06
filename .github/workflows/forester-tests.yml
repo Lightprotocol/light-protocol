@@ -63,6 +63,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          submodules: true
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
@@ -104,6 +106,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          submodules: true
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
