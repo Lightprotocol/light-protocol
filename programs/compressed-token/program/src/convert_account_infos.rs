@@ -32,19 +32,27 @@ pub unsafe fn convert_account_infos<'a, const N: usize>(
         );
     };
 
-    // Detect duplicate account keys to prevent multiple mutable references
-    let mut seen_keys = arrayvec::ArrayVec::<&[u8; 32], N>::new();
-    for pinocchio_account in pinocchio_accounts {
-        if seen_keys.iter().any(|k| *k == pinocchio_account.key()) {
-            return Err(ProgramError::InvalidArgument);
-        }
-        seen_keys.push(pinocchio_account.key());
-    }
-
     let mut solana_accounts = arrayvec::ArrayVec::<anchor_lang::prelude::AccountInfo<'a>, N>::new();
     for pinocchio_account in pinocchio_accounts {
         let key: &'a solana_pubkey::Pubkey =
             &*(pinocchio_account.key() as *const _ as *const solana_pubkey::Pubkey);
+
+        // For duplicate accounts, share Rc<RefCell<>> from the first occurrence
+        // to prevent multiple independent mutable references to the same memory.
+        // This mimics Solana runtime behavior where duplicate accounts share state.
+        if let Some(existing) = solana_accounts.iter().find(|a| a.key == key) {
+            solana_accounts.push(anchor_lang::prelude::AccountInfo {
+                key,
+                lamports: Rc::clone(&existing.lamports),
+                data: Rc::clone(&existing.data),
+                owner: existing.owner,
+                rent_epoch: existing.rent_epoch,
+                is_signer: pinocchio_account.is_signer(),
+                is_writable: pinocchio_account.is_writable(),
+                executable: pinocchio_account.executable(),
+            });
+            continue;
+        }
 
         let owner: &'a solana_pubkey::Pubkey =
             &*(pinocchio_account.owner() as *const _ as *const solana_pubkey::Pubkey);
