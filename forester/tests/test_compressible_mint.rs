@@ -144,7 +144,7 @@ async fn test_compressible_mint_bootstrap() {
         use_surfpool: true,
         validator_args: vec![],
     })
-        .await;
+    .await;
 
     let mut rpc = LightClient::new(LightClientConfig::local())
         .await
@@ -214,7 +214,7 @@ async fn test_compressible_mint_bootstrap() {
             tracker_clone,
             Some(shutdown_rx),
         )
-            .await
+        .await
         {
             tracing::error!("Mint bootstrap failed: {:?}", e);
             panic!("Mint bootstrap failed: {:?}", e);
@@ -285,7 +285,7 @@ async fn test_compressible_mint_compression() {
         use_surfpool: true,
         validator_args: vec![],
     })
-        .await;
+    .await;
 
     let mut rpc = LightClient::new(LightClientConfig::local())
         .await
@@ -467,7 +467,7 @@ async fn test_compressible_mint_subscription() {
         use_surfpool: true,
         validator_args: vec![],
     })
-        .await;
+    .await;
 
     let mut rpc = LightClient::new(LightClientConfig::local())
         .await

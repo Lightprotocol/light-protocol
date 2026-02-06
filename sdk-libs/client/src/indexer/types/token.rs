@@ -21,7 +21,7 @@ fn parse_token_data(td: &photon_api::models::TokenData) -> Result<TokenData, Ind
     Ok(TokenData {
         mint: Pubkey::new_from_array(decode_base58_to_fixed_array(&td.mint)?),
         owner: Pubkey::new_from_array(decode_base58_to_fixed_array(&td.owner)?),
-        amount: td.amount,
+        amount: *td.amount,
         delegate: td
             .delegate
             .as_ref()
@@ -35,7 +35,7 @@ fn parse_token_data(td: &photon_api::models::TokenData) -> Result<TokenData, Ind
             .tlv
             .as_ref()
             .map(|tlv| {
-                let bytes = base64::decode_config(tlv, base64::STANDARD_NO_PAD)
+                let bytes = base64::decode_config(&**tlv, base64::STANDARD_NO_PAD)
                     .map_err(|e| IndexerError::decode_error("tlv", e))?;
                 Vec::<ExtensionStruct>::deserialize(&mut bytes.as_slice())
                     .map_err(|e| IndexerError::decode_error("extensions", e))
@@ -48,7 +48,7 @@ impl TryFrom<&photon_api::models::TokenAccount> for CompressedTokenAccount {
     type Error = IndexerError;
 
     fn try_from(token_account: &photon_api::models::TokenAccount) -> Result<Self, Self::Error> {
-        let account = CompressedAccount::try_from(token_account.account.as_ref())?;
+        let account = CompressedAccount::try_from(&token_account.account)?;
         let token = parse_token_data(&token_account.token_data)?;
         Ok(CompressedTokenAccount { token, account })
     }
@@ -58,7 +58,7 @@ impl TryFrom<&photon_api::models::TokenAccountV2> for CompressedTokenAccount {
     type Error = IndexerError;
 
     fn try_from(token_account: &photon_api::models::TokenAccountV2) -> Result<Self, Self::Error> {
-        let account = CompressedAccount::try_from(token_account.account.as_ref())?;
+        let account = CompressedAccount::try_from(&token_account.account)?;
         let token = parse_token_data(&token_account.token_data)?;
         Ok(CompressedTokenAccount { token, account })
     }
@@ -124,7 +124,7 @@ impl TryFrom<&photon_api::models::TokenBalance> for TokenBalance {
 
     fn try_from(token_balance: &photon_api::models::TokenBalance) -> Result<Self, Self::Error> {
         Ok(TokenBalance {
-            balance: token_balance.balance,
+            balance: *token_balance.balance,
             mint: Pubkey::new_from_array(decode_base58_to_fixed_array(&token_balance.mint)?),
         })
     }
@@ -141,7 +141,7 @@ impl TryFrom<&photon_api::models::OwnerBalance> for OwnerBalance {
 
     fn try_from(owner_balance: &photon_api::models::OwnerBalance) -> Result<Self, Self::Error> {
         Ok(OwnerBalance {
-            balance: owner_balance.balance,
+            balance: *owner_balance.balance,
             owner: Pubkey::new_from_array(decode_base58_to_fixed_array(&owner_balance.owner)?),
         })
     }

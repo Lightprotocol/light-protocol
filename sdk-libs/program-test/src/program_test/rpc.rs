@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use borsh::BorshDeserialize;
 use light_client::{
     indexer::{CompressedAccount, CompressedTokenAccount, Context, Indexer, Response, TreeInfo},
-    interface::{AccountInterface, TokenAccountInterface},
+    interface::{AccountInterface, MintInterface, MintState, TokenAccountInterface},
     rpc::{LightClientConfig, Rpc, RpcError},
 };
 use light_compressed_account::TreeType;

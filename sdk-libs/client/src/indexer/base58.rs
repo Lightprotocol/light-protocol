@@ -59,3 +59,10 @@ pub fn decode_serializable_pubkey_option(
         .map(|ctx| decode_base58_to_fixed_array(&ctx.0).map(Pubkey::new_from_array))
         .transpose()
 }
+
+/// Alias for backward compatibility
+pub fn decode_base58_option_to_pubkey(
+    value: &Option<photon_api::models::SerializablePubkey>,
+) -> Result<Option<Pubkey>, IndexerError> {
+    decode_serializable_pubkey_option(value)
+}

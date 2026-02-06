@@ -1407,17 +1407,6 @@ impl TestIndexer {
             .collect()
     }
 
-    /// Find multiple compressed accounts by their on-chain pubkeys.
-    pub fn find_multiple_compressed_accounts_by_onchain_pubkeys(
-        &self,
-        onchain_pubkeys: &[[u8; 32]],
-    ) -> Vec<Option<&CompressedAccountWithMerkleContext>> {
-        onchain_pubkeys
-            .iter()
-            .map(|pubkey| self.find_compressed_account_by_onchain_pubkey(pubkey))
-            .collect()
-    }
-
     /// Find a token compressed account by its on-chain pubkey.
     pub fn find_token_account_by_onchain_pubkey(
         &self,
@@ -1442,64 +1431,6 @@ impl TestIndexer {
         );
 
         matches.into_iter().next()
-    }
-
-    /// Find a compressed account by its PDA pubkey
-    pub fn find_compressed_account_by_pda_seed(
-        &self,
-        pda_pubkey: &[u8; 32],
-    ) -> Option<&CompressedAccountWithMerkleContext> {
-        // Try each address tree to find an account whose address matches
-        for address_tree in &self.address_merkle_trees {
-            let tree_pubkey = address_tree.accounts.merkle_tree.to_bytes();
-
-            // For each compressed account with an address, check if it was derived from this seed
-            for acc in &self.compressed_accounts {
-                if let Some(address) = acc.compressed_account.address {
-                    // Try deriving with this tree and the account's owner as program_id
-                    let owner_bytes = acc.compressed_account.owner.to_bytes();
-                    let derived = light_compressed_account::address::derive_address(
-                        pda_pubkey,
-                        &tree_pubkey,
-                        &owner_bytes,
-                    );
-
-                    if derived == address {
-                        return Some(acc);
-                    }
-                }
-            }
-        }
-        None
-    }
-
-    /// Find a token compressed account by its PDA pubkey
-    pub fn find_token_account_by_pda_seed(
-        &self,
-        pda_pubkey: &[u8; 32],
-    ) -> Option<&TokenDataWithMerkleContext> {
-        // Try each address tree to find an account whose address matches
-        for address_tree in &self.address_merkle_trees {
-            let tree_pubkey = address_tree.accounts.merkle_tree.to_bytes();
-
-            // For each token compressed account with an address, check if it was derived from this seed
-            for acc in &self.token_compressed_accounts {
-                if let Some(address) = acc.compressed_account.compressed_account.address {
-                    // Try deriving with this tree and the account's owner as program_id
-                    let owner_bytes = acc.compressed_account.compressed_account.owner.to_bytes();
-                    let derived = light_compressed_account::address::derive_address(
-                        pda_pubkey,
-                        &tree_pubkey,
-                        &owner_bytes,
-                    );
-
-                    if derived == address {
-                        return Some(acc);
-                    }
-                }
-            }
-        }
-        None
     }
 
     /// Find a compressed account by its PDA pubkey

@@ -46,7 +46,7 @@ impl Into<FilterSelector> for GetCompressedAccountsFilter {
         FilterSelector {
             memcmp: Some(Memcmp {
                 offset: self.offset as u64,
-                bytes: photon_api::models::Base58String(base64::encode(&self.bytes)), // TODO: double check
+                bytes: photon_api::models::Base58String(bs58::encode(&self.bytes).into_string()),
             }),
         }
     }

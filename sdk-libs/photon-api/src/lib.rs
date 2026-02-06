@@ -356,6 +356,62 @@ pub mod apis {
             }
         }
 
+        pub fn make_get_queue_info_body(
+            params: types::PostGetQueueInfoBodyParams,
+        ) -> types::PostGetQueueInfoBody {
+            types::PostGetQueueInfoBody {
+                id: types::PostGetQueueInfoBodyId::TestAccount,
+                jsonrpc: types::PostGetQueueInfoBodyJsonrpc::_20,
+                method: types::PostGetQueueInfoBodyMethod::GetQueueInfo,
+                params,
+            }
+        }
+
+        pub fn make_get_account_interface_body(
+            params: types::PostGetAccountInterfaceBodyParams,
+        ) -> types::PostGetAccountInterfaceBody {
+            types::PostGetAccountInterfaceBody {
+                id: types::PostGetAccountInterfaceBodyId::TestAccount,
+                jsonrpc: types::PostGetAccountInterfaceBodyJsonrpc::_20,
+                method: types::PostGetAccountInterfaceBodyMethod::GetAccountInterface,
+                params,
+            }
+        }
+
+        pub fn make_get_token_account_interface_body(
+            params: types::PostGetTokenAccountInterfaceBodyParams,
+        ) -> types::PostGetTokenAccountInterfaceBody {
+            types::PostGetTokenAccountInterfaceBody {
+                id: types::PostGetTokenAccountInterfaceBodyId::TestAccount,
+                jsonrpc: types::PostGetTokenAccountInterfaceBodyJsonrpc::_20,
+                method: types::PostGetTokenAccountInterfaceBodyMethod::GetTokenAccountInterface,
+                params,
+            }
+        }
+
+        pub fn make_get_ata_interface_body(
+            params: types::PostGetAtaInterfaceBodyParams,
+        ) -> types::PostGetAtaInterfaceBody {
+            types::PostGetAtaInterfaceBody {
+                id: types::PostGetAtaInterfaceBodyId::TestAccount,
+                jsonrpc: types::PostGetAtaInterfaceBodyJsonrpc::_20,
+                method: types::PostGetAtaInterfaceBodyMethod::GetAtaInterface,
+                params,
+            }
+        }
+
+        pub fn make_get_multiple_account_interfaces_body(
+            params: types::PostGetMultipleAccountInterfacesBodyParams,
+        ) -> types::PostGetMultipleAccountInterfacesBody {
+            types::PostGetMultipleAccountInterfacesBody {
+                id: types::PostGetMultipleAccountInterfacesBodyId::TestAccount,
+                jsonrpc: types::PostGetMultipleAccountInterfacesBodyJsonrpc::_20,
+                method:
+                    types::PostGetMultipleAccountInterfacesBodyMethod::GetMultipleAccountInterfaces,
+                params,
+            }
+        }
+
         // Macro to reduce boilerplate for API calls
         macro_rules! api_call {
             ($fn_name:ident, $client_method:ident, $body_type:ty, $response_type:ty) => {
@@ -583,6 +639,41 @@ pub mod apis {
             post_get_queue_elements,
             types::PostGetQueueElementsBody,
             types::PostGetQueueElementsResponse
+        );
+
+        api_call!(
+            get_queue_info_post,
+            post_get_queue_info,
+            types::PostGetQueueInfoBody,
+            types::PostGetQueueInfoResponse
+        );
+
+        api_call!(
+            get_account_interface_post,
+            post_get_account_interface,
+            types::PostGetAccountInterfaceBody,
+            types::PostGetAccountInterfaceResponse
+        );
+
+        api_call!(
+            get_token_account_interface_post,
+            post_get_token_account_interface,
+            types::PostGetTokenAccountInterfaceBody,
+            types::PostGetTokenAccountInterfaceResponse
+        );
+
+        api_call!(
+            get_ata_interface_post,
+            post_get_ata_interface,
+            types::PostGetAtaInterfaceBody,
+            types::PostGetAtaInterfaceResponse
+        );
+
+        api_call!(
+            get_multiple_account_interfaces_post,
+            post_get_multiple_account_interfaces,
+            types::PostGetMultipleAccountInterfacesBody,
+            types::PostGetMultipleAccountInterfacesResponse
         );
     }
 }

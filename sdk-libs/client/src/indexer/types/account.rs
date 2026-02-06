@@ -93,8 +93,8 @@ impl TryFrom<&photon_api::models::AccountV2> for CompressedAccount {
     fn try_from(account: &photon_api::models::AccountV2) -> Result<Self, Self::Error> {
         let data = if let Some(data) = &account.data {
             Ok::<Option<CompressedAccountData>, IndexerError>(Some(CompressedAccountData {
-                discriminator: data.discriminator.to_le_bytes(),
-                data: base64::decode_config(&data.data, base64::STANDARD_NO_PAD)
+                discriminator: (*data.discriminator).to_le_bytes(),
+                data: base64::decode_config(&*data.data, base64::STANDARD_NO_PAD)
                     .map_err(|e| IndexerError::decode_error("data", e))?,
                 data_hash: decode_base58_to_fixed_array(&data.data_hash)?,
             }))
@@ -125,7 +125,7 @@ impl TryFrom<&photon_api::models::AccountV2> for CompressedAccount {
                 .merkle_context
                 .next_tree_context
                 .as_ref()
-                .map(|ctx| NextTreeInfo::try_from(ctx.as_ref()))
+                .map(NextTreeInfo::try_from)
                 .transpose()?,
         };
 
@@ -134,10 +134,10 @@ impl TryFrom<&photon_api::models::AccountV2> for CompressedAccount {
             address,
             data,
             hash,
-            lamports: account.lamports,
-            leaf_index: account.leaf_index,
-            seq: account.seq,
-            slot_created: account.slot_created,
+            lamports: *account.lamports,
+            leaf_index: *account.leaf_index as u32,
+            seq: account.seq.as_ref().map(|s| **s),
+            slot_created: *account.slot_created,
             tree_info,
             prove_by_index: account.prove_by_index,
         })
@@ -150,8 +150,8 @@ impl TryFrom<&photon_api::models::Account> for CompressedAccount {
     fn try_from(account: &photon_api::models::Account) -> Result<Self, Self::Error> {
         let data = if let Some(data) = &account.data {
             Ok::<Option<CompressedAccountData>, IndexerError>(Some(CompressedAccountData {
-                discriminator: data.discriminator.to_le_bytes(),
-                data: base64::decode_config(&data.data, base64::STANDARD_NO_PAD)
+                discriminator: (*data.discriminator).to_le_bytes(),
+                data: base64::decode_config(&*data.data, base64::STANDARD_NO_PAD)
                     .map_err(|e| IndexerError::decode_error("data", e))?,
                 data_hash: decode_base58_to_fixed_array(&data.data_hash)?,
             }))
@@ -165,14 +165,14 @@ impl TryFrom<&photon_api::models::Account> for CompressedAccount {
             .map(|address| decode_base58_to_fixed_array(address))
             .transpose()?;
         let hash = decode_base58_to_fixed_array(&account.hash)?;
-        let seq = account.seq;
-        let slot_created = account.slot_created;
-        let lamports = account.lamports;
-        let leaf_index = account.leaf_index;
+        let seq = account.seq.as_ref().map(|s| **s);
+        let slot_created = *account.slot_created;
+        let lamports = *account.lamports;
+        let leaf_index = *account.leaf_index as u32;
 
         let tree_info =
             QUEUE_TREE_MAPPING
-                .get(&account.tree)
+                .get(&*account.tree)
                 .ok_or(IndexerError::MissingResult {
                     context: "conversion".into(),
                     message: "expected value was None".into(),

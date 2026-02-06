@@ -96,7 +96,7 @@ impl TreeInfo {
             next_tree_info: value
                 .next_tree_context
                 .as_ref()
-                .map(|tree_info| NextTreeInfo::from_api_model(tree_info.as_ref()))
+                .map(NextTreeInfo::from_api_model)
                 .transpose()?,
         })
     }

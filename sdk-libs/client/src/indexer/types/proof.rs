@@ -8,6 +8,21 @@ use super::{
     tree::TreeInfo,
 };
 
+/// Convert a Vec<i64> (byte array from JSON) to a fixed-size byte array.
+fn vec_i64_to_fixed_array<const N: usize>(v: &[i64]) -> Result<[u8; N], IndexerError> {
+    if v.len() != N {
+        return Err(IndexerError::decode_error(
+            "proof",
+            format!("expected {} bytes, got {}", N, v.len()),
+        ));
+    }
+    let mut arr = [0u8; N];
+    for (i, &val) in v.iter().enumerate() {
+        arr[i] = val as u8;
+    }
+    Ok(arr)
+}
+
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct MerkleProofWithContext {
     pub proof: Vec<[u8; 32]>,
@@ -127,7 +142,7 @@ impl AccountProofInputs {
             if value.root_index.prove_by_index {
                 RootIndex::new_none()
             } else {
-                RootIndex::new_some(value.root_index.root_index)
+                RootIndex::new_some(value.root_index.root_index as u16)
             }
         };
         Ok(Self {
@@ -243,21 +258,9 @@ impl ValidityProofWithContext {
         num_hashes: usize,
     ) -> Result<Self, IndexerError> {
         let proof = ValidityProof::new(Some(CompressedProof {
-            a: value
-                .compressed_proof
-                .a
-                .try_into()
-                .map_err(|_| IndexerError::decode_error("proof.a", "invalid length"))?,
-            b: value
-                .compressed_proof
-                .b
-                .try_into()
-                .map_err(|_| IndexerError::decode_error("proof.b", "invalid length"))?,
-            c: value
-                .compressed_proof
-                .c
-                .try_into()
-                .map_err(|_| IndexerError::decode_error("proof.c", "invalid length"))?,
+            a: vec_i64_to_fixed_array(&value.compressed_proof.a)?,
+            b: vec_i64_to_fixed_array(&value.compressed_proof.b)?,
+            c: vec_i64_to_fixed_array(&value.compressed_proof.c)?,
         }));
 
         // Convert account data from V1 flat arrays to V2 structured format
@@ -335,18 +338,9 @@ impl ValidityProofWithContext {
     ) -> Result<Self, IndexerError> {
         let proof = if let Some(proof) = value.compressed_proof {
             ValidityProof::new(Some(CompressedProof {
-                a: proof
-                    .a
-                    .try_into()
-                    .map_err(|_| IndexerError::decode_error("proof.a", "invalid length"))?,
-                b: proof
-                    .b
-                    .try_into()
-                    .map_err(|_| IndexerError::decode_error("proof.b", "invalid length"))?,
-                c: proof
-                    .c
-                    .try_into()
-                    .map_err(|_| IndexerError::decode_error("proof.c", "invalid length"))?,
+                a: vec_i64_to_fixed_array(&proof.a)?,
+                b: vec_i64_to_fixed_array(&proof.b)?,
+                c: vec_i64_to_fixed_array(&proof.c)?,
             }))
         } else {
             ValidityProof::new(None)
