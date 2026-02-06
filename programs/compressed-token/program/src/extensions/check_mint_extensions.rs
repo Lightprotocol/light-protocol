@@ -37,6 +37,23 @@ pub struct MintExtensionChecks {
     pub has_non_nil_transfer_hook: bool,
 }
 
+impl MintExtensionChecks {
+    /// Enforce extension state restrictions (paused, non-zero fees, non-nil hook).
+    /// Returns an error if any restricted extension state is active.
+    pub fn enforce_extension_state(&self) -> Result<(), ProgramError> {
+        if self.is_paused {
+            return Err(ErrorCode::MintPaused.into());
+        }
+        if self.has_non_zero_transfer_fee {
+            return Err(ErrorCode::NonZeroTransferFeeNotSupported.into());
+        }
+        if self.has_non_nil_transfer_hook {
+            return Err(ErrorCode::TransferHookNotSupported.into());
+        }
+        Ok(())
+    }
+}
+
 /// Parse mint extensions in a single pass with zero-copy deserialization.
 /// This function deserializes the mint once and extracts extension information.
 /// It does NOT throw errors for invalid extension states (paused, non-zero fees, non-nil hook).
@@ -143,15 +160,7 @@ pub fn check_mint_extensions(
     }
 
     // Check for invalid extension states - throw specific errors for each
-    if checks.is_paused {
-        return Err(ErrorCode::MintPaused.into());
-    }
-    if checks.has_non_zero_transfer_fee {
-        return Err(ErrorCode::NonZeroTransferFeeNotSupported.into());
-    }
-    if checks.has_non_nil_transfer_hook {
-        return Err(ErrorCode::TransferHookNotSupported.into());
-    }
+    checks.enforce_extension_state()?;
 
     Ok(checks)
 }

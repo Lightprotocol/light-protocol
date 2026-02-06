@@ -81,6 +81,12 @@ pub fn compress_or_decompress_ctokens(
             Ok(())
         }
         ZCompressionMode::Decompress => {
+            if decompress_inputs.is_none() {
+                if let Some(ref checks) = mint_checks {
+                    checks.enforce_extension_state()?;
+                }
+            }
+
             validate_and_apply_compressed_only(
                 token_account_info,
                 &mut ctoken,
