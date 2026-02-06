@@ -74,7 +74,7 @@ pub mod light_compressed_token {
         }
         // Check that token pool account with previous index already exists.
         // Use the same restricted derivation as the new pool.
-        let is_restricted = !restricted_seed(&ctx.accounts.mint).is_empty();
+        let is_restricted = !restricted_seed(&ctx.accounts.mint)?.is_empty();
         let prev_index = token_pool_index.saturating_sub(1);
         if !is_valid_spl_interface_pda(
             &ctx.accounts.mint.key().to_bytes(),
