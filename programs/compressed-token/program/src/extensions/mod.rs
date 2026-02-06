@@ -163,8 +163,7 @@ fn build_metadata_config(
                     exists = true;
                 }
                 ZAction::RemoveMetadataKey(remove)
-                    if remove.extension_index as usize == extension_index
-                        && remove.key == key =>
+                    if remove.extension_index as usize == extension_index && remove.key == key =>
                 {
                     exists = false;
                 }
