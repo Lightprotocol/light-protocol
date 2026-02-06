@@ -854,8 +854,8 @@ pub(crate) fn generate_light_program_items_with_backend(
                             return Err(pinocchio::program_error::ProgramError::NotEnoughAccountKeys);
                         }
 
-                        let authority = &accounts[0];
-                        let config = &accounts[1];
+                        let config = &accounts[0];
+                        let authority = &accounts[1];
 
                         let remaining = [*config, *authority];
                         #account_crate::process_update_light_config(

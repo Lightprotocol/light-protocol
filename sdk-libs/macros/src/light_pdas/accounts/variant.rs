@@ -159,31 +159,22 @@ impl VariantBuilder {
             })
             .collect();
 
-        if fields.is_empty() {
-            if backend.is_pinocchio() {
-                quote! {
-                    #[derive(#serialize_derive, #deserialize_derive, Clone, Debug)]
-                    pub struct #struct_name;
-                }
-            } else {
-                let doc = format!("Seeds for {} PDA.", self.variant_name);
-                quote! {
-                    #[doc = #doc]
-                    #[derive(#serialize_derive, #deserialize_derive, Clone, Debug)]
-                    pub struct #struct_name;
-                }
-            }
-        } else if backend.is_pinocchio() {
-            quote! {
-                #[derive(#serialize_derive, #deserialize_derive, Clone, Debug)]
-                pub struct #struct_name {
-                    #(#fields,)*
-                }
-            }
+        let doc_attr = if backend.is_pinocchio() {
+            quote! {}
         } else {
             let doc = format!("Seeds for {} PDA.", self.variant_name);
+            quote! { #[doc = #doc] }
+        };
+
+        if fields.is_empty() {
             quote! {
-                #[doc = #doc]
+                #doc_attr
+                #[derive(#serialize_derive, #deserialize_derive, Clone, Debug)]
+                pub struct #struct_name;
+            }
+        } else {
+            quote! {
+                #doc_attr
                 #[derive(#serialize_derive, #deserialize_derive, Clone, Debug)]
                 pub struct #struct_name {
                     #(#fields,)*
@@ -215,26 +206,22 @@ impl VariantBuilder {
             })
             .collect();
 
-        if backend.is_pinocchio() {
-            quote! {
-                #[derive(#serialize_derive, #deserialize_derive, Clone, Debug)]
-                pub struct #struct_name {
-                    #(#fields,)*
-                    pub bump: u8,
-                }
-            }
+        let doc_attr = if backend.is_pinocchio() {
+            quote! {}
         } else {
             let doc = format!(
                 "Packed seeds with u8 indices for {} PDA.",
                 self.variant_name
             );
-            quote! {
-                #[doc = #doc]
-                #[derive(#serialize_derive, #deserialize_derive, Clone, Debug)]
-                pub struct #struct_name {
-                    #(#fields,)*
-                    pub bump: u8,
-                }
+            quote! { #[doc = #doc] }
+        };
+
+        quote! {
+            #doc_attr
+            #[derive(#serialize_derive, #deserialize_derive, Clone, Debug)]
+            pub struct #struct_name {
+                #(#fields,)*
+                pub bump: u8,
             }
         }
     }
@@ -247,26 +234,22 @@ impl VariantBuilder {
         let serialize_derive = backend.serialize_derive();
         let deserialize_derive = backend.deserialize_derive();
 
-        if backend.is_pinocchio() {
-            quote! {
-                #[derive(#serialize_derive, #deserialize_derive, Clone, Debug)]
-                pub struct #struct_name {
-                    pub seeds: #seeds_struct_name,
-                    pub data: #inner_type,
-                }
-            }
+        let doc_attr = if backend.is_pinocchio() {
+            quote! {}
         } else {
             let doc = format!(
                 "Full variant combining seeds + data for {}.",
                 self.variant_name
             );
-            quote! {
-                #[doc = #doc]
-                #[derive(#serialize_derive, #deserialize_derive, Clone, Debug)]
-                pub struct #struct_name {
-                    pub seeds: #seeds_struct_name,
-                    pub data: #inner_type,
-                }
+            quote! { #[doc = #doc] }
+        };
+
+        quote! {
+            #doc_attr
+            #[derive(#serialize_derive, #deserialize_derive, Clone, Debug)]
+            pub struct #struct_name {
+                pub seeds: #seeds_struct_name,
+                pub data: #inner_type,
             }
         }
     }
@@ -290,26 +273,22 @@ impl VariantBuilder {
             quote! { #packed_name }
         };
 
-        if backend.is_pinocchio() {
-            quote! {
-                #[derive(#serialize_derive, #deserialize_derive, Clone, Debug)]
-                pub struct #struct_name {
-                    pub seeds: #packed_seeds_struct_name,
-                    pub data: #data_type,
-                }
-            }
+        let doc_attr = if backend.is_pinocchio() {
+            quote! {}
         } else {
             let doc = format!(
                 "Packed variant for efficient serialization of {}.",
                 self.variant_name
             );
-            quote! {
-                #[doc = #doc]
-                #[derive(#serialize_derive, #deserialize_derive, Clone, Debug)]
-                pub struct #struct_name {
-                    pub seeds: #packed_seeds_struct_name,
-                    pub data: #data_type,
-                }
+            quote! { #[doc = #doc] }
+        };
+
+        quote! {
+            #doc_attr
+            #[derive(#serialize_derive, #deserialize_derive, Clone, Debug)]
+            pub struct #struct_name {
+                pub seeds: #packed_seeds_struct_name,
+                pub data: #data_type,
             }
         }
     }
@@ -367,24 +346,14 @@ impl VariantBuilder {
         let sdk_error = backend.sdk_error_type();
 
         let unpack_seed_stmts = self.generate_unpack_seed_statements_with_backend(backend);
-        let unpack_seed_fields = self.generate_unpack_seed_fields_with_backend(backend);
+        let unpack_seed_fields = self.generate_unpack_seed_fields();
         let packed_seed_refs_items = self.generate_packed_seed_refs_items_with_backend(backend);
 
-        let unpack_data = if backend.is_pinocchio() {
-            quote! {
-                {
-                    let packed_accounts = light_account_pinocchio::light_account_checks::packed_accounts::ProgramPackedAccounts { accounts };
-                    <#inner_type as #account_crate::LightAccount>::unpack(&self.data, &packed_accounts)
-                        .map_err(|_| #sdk_error::InvalidInstructionData)?
-                }
-            }
-        } else {
-            quote! {
-                {
-                    let packed_accounts = #account_crate::packed_accounts::ProgramPackedAccounts { accounts };
-                    <#inner_type as #account_crate::LightAccount>::unpack(&self.data, &packed_accounts)
-                        .map_err(|_| #sdk_error::InvalidInstructionData)?
-                }
+        let unpack_data = quote! {
+            {
+                let packed_accounts = #account_crate::packed_accounts::ProgramPackedAccounts { accounts };
+                <#inner_type as #account_crate::LightAccount>::unpack(&self.data, &packed_accounts)
+                    .map_err(|_| #sdk_error::InvalidInstructionData)?
             }
         };
 
@@ -571,11 +540,8 @@ impl VariantBuilder {
             .collect()
     }
 
-    /// Generate unpack seed field assignments using the specified backend.
-    fn generate_unpack_seed_fields_with_backend(
-        &self,
-        backend: &dyn CodegenBackend,
-    ) -> Vec<TokenStream> {
+    /// Generate unpack seed field assignments.
+    fn generate_unpack_seed_fields(&self) -> Vec<TokenStream> {
         self.seed_fields
             .iter()
             .map(|sf| {
@@ -584,12 +550,8 @@ impl VariantBuilder {
                     // For account seeds, we bind to a local variable in unpack_seed_statements
                     quote! { #field }
                 } else if sf.has_le_bytes {
-                    if backend.is_pinocchio() {
-                        quote! { #field: u64::from_le_bytes(self.seeds.#field) }
-                    } else {
-                        let ty = &sf.field_type;
-                        quote! { #field: #ty::from_le_bytes(self.seeds.#field) }
-                    }
+                    let ty = &sf.field_type;
+                    quote! { #field: #ty::from_le_bytes(self.seeds.#field) }
                 } else {
                     quote! { #field: self.seeds.#field }
                 }

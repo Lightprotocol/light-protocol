@@ -124,7 +124,7 @@ impl<'a> LightVariantBuilder<'a> {
             quote! {
                 /// Wrapper for compressed account data with metadata.
                 /// Contains PACKED variant data that will be decompressed into PDA accounts.
-                #[derive(Clone, Debug, borsh::BorshSerialize, borsh::BorshDeserialize)]
+                #[derive(Clone, Debug, #serialize_derive, #deserialize_derive)]
                 pub struct LightAccountData {
                     pub meta: #account_crate::account_meta::CompressedAccountMetaNoLamportsNoAddress,
                     pub data: PackedLightAccountVariant,
