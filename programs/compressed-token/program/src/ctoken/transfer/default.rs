@@ -1,6 +1,7 @@
 use anchor_lang::solana_program::{msg, program_error::ProgramError};
 use light_program_profiler::profile;
-use pinocchio::account_info::AccountInfo;
+use light_token_interface::state::Token;
+use pinocchio::{account_info::AccountInfo, pubkey::pubkey_eq};
 use pinocchio_token_program::processor::transfer::process_transfer;
 
 use super::shared::{process_transfer_extensions_transfer, TransferAccounts};
@@ -38,10 +39,32 @@ pub fn process_ctoken_transfer(
         return Err(ProgramError::InvalidInstructionData);
     }
 
-    // Hot path: 165-byte accounts have no extensions, skip all extension processing
     // SAFETY: accounts.len() >= 3 validated at function entry
     let source = &accounts[ACCOUNT_SOURCE];
     let destination = &accounts[ACCOUNT_DESTINATION];
+
+    // Self-transfer: validate authority but skip token movement to avoid
+    // double mutable borrow panic in pinocchio process_transfer.
+    if source.key() == destination.key() {
+        let authority = &accounts[ACCOUNT_AUTHORITY];
+        if !authority.is_signer() {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+        let token = Token::from_account_info_checked(source)
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+        let is_owner = pubkey_eq(authority.key(), token.base.owner.array_ref());
+        let is_delegate = token
+            .base
+            .delegate()
+            .map_or(false, |d| pubkey_eq(authority.key(), d.array_ref()));
+        if !is_owner && !is_delegate {
+            msg!("Self-transfer authority must be owner or delegate");
+            return Err(ProgramError::InvalidAccountData);
+        }
+        return Ok(());
+    }
+
+    // Hot path: 165-byte accounts have no extensions, skip all extension processing
     if source.data_len() == 165 && destination.data_len() == 165 {
         // Slice to exactly 3 accounts: [source, destination, authority]
         return process_transfer(&accounts[..3], &instruction_data[..8], false)
