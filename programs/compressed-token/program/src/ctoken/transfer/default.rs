@@ -56,7 +56,7 @@ pub fn process_ctoken_transfer(
         let is_delegate = token
             .base
             .delegate()
-            .map_or(false, |d| pubkey_eq(authority.key(), d.array_ref()));
+            .is_some_and(|d| pubkey_eq(authority.key(), d.array_ref()));
         if !is_owner && !is_delegate {
             msg!("Self-transfer authority must be owner or delegate");
             return Err(ProgramError::InvalidAccountData);
