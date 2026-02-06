@@ -68,10 +68,9 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
         validate_ata_derivation(associated_token_account, owner_bytes, mint_bytes, bump)?;
         if associated_token_account.is_owned_by(&crate::LIGHT_CPI_SIGNER.program_id) {
             // Verify stored mint and owner match the requested values
-            let ctoken =
-                light_token_interface::state::Token::from_account_info_checked(
-                    associated_token_account,
-                )?;
+            let ctoken = light_token_interface::state::Token::from_account_info_checked(
+                associated_token_account,
+            )?;
             if ctoken.mint.to_bytes() != *mint_bytes {
                 msg!("Idempotent ATA: mint mismatch");
                 return Err(anchor_compressed_token::ErrorCode::MintMismatch.into());
