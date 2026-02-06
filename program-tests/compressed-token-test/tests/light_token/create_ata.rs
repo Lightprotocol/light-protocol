@@ -545,16 +545,9 @@ async fn test_create_ata_failing() {
             .create_and_send_transaction(&[ix], &payer_pubkey, &[&context.payer])
             .await;
 
-        // Wrong bump can trigger either ProgramFailedToComplete (21) or PrivilegeEscalation (19)
-        // depending on runtime state - accept either
-        let is_valid_error =
-            light_program_test::utils::assert::assert_rpc_error(result.clone(), 0, 21).is_ok()
-                || light_program_test::utils::assert::assert_rpc_error(result, 0, 19).is_ok();
-
-        assert!(
-            is_valid_error,
-            "Expected either ProgramFailedToComplete (21) or PrivilegeEscalation (19)"
-        );
+        // Wrong bump is now caught by validate_ata_derivation before account creation
+        // Error: 3 (InvalidAccountData - PDA derivation mismatch)
+        light_program_test::utils::assert::assert_rpc_error(result, 0, 3).unwrap();
     }
 
     // Test 6: Invalid config account owner
