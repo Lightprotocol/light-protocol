@@ -15,7 +15,7 @@ uuid = { version = "1.0", features = ["serde", "v4"] }
 http = "1.0"
 bytes = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
-regress = "0.10"
+regress = ">=0.10, <0.10.4"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
