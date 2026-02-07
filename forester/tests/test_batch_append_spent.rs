@@ -68,7 +68,6 @@ async fn test_batch_sequence() {
     let mut rpc = LightClient::new(LightClientConfig {
         url: RpcUrl::Localnet.to_string(),
         photon_url: Some("http://localhost:8784".to_string()),
-        api_key: None,
         commitment_config: Some(commitment_config),
         fetch_active_tree: false,
     })

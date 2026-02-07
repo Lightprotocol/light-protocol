@@ -57,7 +57,6 @@ pub async fn run_queue_info(
     let mut rpc = LightClient::new(LightClientConfig {
         url: config.external_services.rpc_url.to_string(),
         photon_url: config.external_services.indexer_url.clone(),
-        api_key: config.external_services.photon_api_key.clone(),
         commitment_config: None,
         fetch_active_tree: false,
     })
@@ -153,7 +152,6 @@ pub async fn run_pipeline<R: Rpc + Indexer>(
     let mut builder = SolanaRpcPoolBuilder::<R>::default()
         .url(config.external_services.rpc_url.to_string())
         .photon_url(config.external_services.indexer_url.clone())
-        .api_key(config.external_services.photon_api_key.clone())
         .commitment(CommitmentConfig::processed())
         .max_size(config.rpc_pool_config.max_size)
         .connection_timeout_secs(config.rpc_pool_config.connection_timeout_secs)

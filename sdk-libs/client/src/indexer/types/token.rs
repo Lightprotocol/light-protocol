@@ -17,25 +17,25 @@ pub struct CompressedTokenAccount {
     pub account: CompressedAccount,
 }
 
-fn parse_token_data(td: &photon_api::models::TokenData) -> Result<TokenData, IndexerError> {
+fn parse_token_data(td: &photon_api::types::TokenData) -> Result<TokenData, IndexerError> {
     Ok(TokenData {
         mint: Pubkey::new_from_array(decode_base58_to_fixed_array(&td.mint)?),
         owner: Pubkey::new_from_array(decode_base58_to_fixed_array(&td.owner)?),
-        amount: td.amount,
+        amount: *td.amount,
         delegate: td
             .delegate
             .as_ref()
             .map(|d| decode_base58_to_fixed_array(d).map(Pubkey::new_from_array))
             .transpose()?,
         state: match td.state {
-            photon_api::models::AccountState::Initialized => AccountState::Initialized,
-            photon_api::models::AccountState::Frozen => AccountState::Frozen,
+            photon_api::types::AccountState::Initialized => AccountState::Initialized,
+            photon_api::types::AccountState::Frozen => AccountState::Frozen,
         },
         tlv: td
             .tlv
             .as_ref()
             .map(|tlv| {
-                let bytes = base64::decode_config(tlv, base64::STANDARD_NO_PAD)
+                let bytes = base64::decode_config(&**tlv, base64::STANDARD_NO_PAD)
                     .map_err(|e| IndexerError::decode_error("tlv", e))?;
                 Vec::<ExtensionStruct>::deserialize(&mut bytes.as_slice())
                     .map_err(|e| IndexerError::decode_error("extensions", e))
@@ -44,21 +44,21 @@ fn parse_token_data(td: &photon_api::models::TokenData) -> Result<TokenData, Ind
     })
 }
 
-impl TryFrom<&photon_api::models::TokenAccount> for CompressedTokenAccount {
+impl TryFrom<&photon_api::types::TokenAccount> for CompressedTokenAccount {
     type Error = IndexerError;
 
-    fn try_from(token_account: &photon_api::models::TokenAccount) -> Result<Self, Self::Error> {
-        let account = CompressedAccount::try_from(token_account.account.as_ref())?;
+    fn try_from(token_account: &photon_api::types::TokenAccount) -> Result<Self, Self::Error> {
+        let account = CompressedAccount::try_from(&token_account.account)?;
         let token = parse_token_data(&token_account.token_data)?;
         Ok(CompressedTokenAccount { token, account })
     }
 }
 
-impl TryFrom<&photon_api::models::TokenAccountV2> for CompressedTokenAccount {
+impl TryFrom<&photon_api::types::TokenAccountV2> for CompressedTokenAccount {
     type Error = IndexerError;
 
-    fn try_from(token_account: &photon_api::models::TokenAccountV2) -> Result<Self, Self::Error> {
-        let account = CompressedAccount::try_from(token_account.account.as_ref())?;
+    fn try_from(token_account: &photon_api::types::TokenAccountV2) -> Result<Self, Self::Error> {
+        let account = CompressedAccount::try_from(&token_account.account)?;
         let token = parse_token_data(&token_account.token_data)?;
         Ok(CompressedTokenAccount { token, account })
     }
@@ -119,12 +119,12 @@ pub struct TokenBalance {
     pub mint: Pubkey,
 }
 
-impl TryFrom<&photon_api::models::TokenBalance> for TokenBalance {
+impl TryFrom<&photon_api::types::TokenBalance> for TokenBalance {
     type Error = IndexerError;
 
-    fn try_from(token_balance: &photon_api::models::TokenBalance) -> Result<Self, Self::Error> {
+    fn try_from(token_balance: &photon_api::types::TokenBalance) -> Result<Self, Self::Error> {
         Ok(TokenBalance {
-            balance: token_balance.balance,
+            balance: *token_balance.balance,
             mint: Pubkey::new_from_array(decode_base58_to_fixed_array(&token_balance.mint)?),
         })
     }
@@ -136,12 +136,12 @@ pub struct OwnerBalance {
     pub owner: Pubkey,
 }
 
-impl TryFrom<&photon_api::models::OwnerBalance> for OwnerBalance {
+impl TryFrom<&photon_api::types::OwnerBalance> for OwnerBalance {
     type Error = IndexerError;
 
-    fn try_from(owner_balance: &photon_api::models::OwnerBalance) -> Result<Self, Self::Error> {
+    fn try_from(owner_balance: &photon_api::types::OwnerBalance) -> Result<Self, Self::Error> {
         Ok(OwnerBalance {
-            balance: owner_balance.balance,
+            balance: *owner_balance.balance,
             owner: Pubkey::new_from_array(decode_base58_to_fixed_array(&owner_balance.owner)?),
         })
     }

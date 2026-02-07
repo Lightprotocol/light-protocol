@@ -409,7 +409,6 @@ async fn test_epoch_double_registration() {
     let mut rpc = LightClient::new(LightClientConfig {
         url: RpcUrl::Localnet.to_string(),
         photon_url: None,
-        api_key: None,
         commitment_config: Some(CommitmentConfig::confirmed()),
         fetch_active_tree: false,
     })

@@ -454,7 +454,7 @@ async fn test_indexer_interface_scenarios() {
     println!("\n========== TESTING INTERFACE ENDPOINTS ==========\n");
 
     // Create PhotonIndexer to test the interface endpoints
-    let photon_indexer = PhotonIndexer::new("http://localhost:8784".to_string(), None);
+    let photon_indexer = PhotonIndexer::new("http://localhost:8784".to_string());
 
     // ============ Test 1: getAccountInterface with compressible token account (on-chain) ============
     println!("Test 1: getAccountInterface with compressible token account (on-chain)...");

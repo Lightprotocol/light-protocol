@@ -104,7 +104,7 @@ async fn test_state_indexer_batched() {
     config.derivation_pubkey = forester_keypair.pubkey();
     config.payer_keypair = new_forester_keypair.insecure_clone();
 
-    let photon_indexer = PhotonIndexer::new("http://127.0.0.1:8784".to_string(), None);
+    let photon_indexer = PhotonIndexer::new("http://127.0.0.1:8784".to_string());
 
     let mut e2e_env: E2ETestEnv<LightClient, TestIndexer>;
     e2e_env = init_program_test_env(rpc, &env, tree_params.output_queue_batch_size as usize).await;

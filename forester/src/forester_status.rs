@@ -108,7 +108,6 @@ pub async fn get_forester_status_with_options(
     let rpc = LightClient::new(LightClientConfig {
         url: rpc_url.to_string(),
         photon_url: None,
-        api_key: None,
         commitment_config: None,
         fetch_active_tree: false,
     })
@@ -810,7 +809,6 @@ pub async fn fetch_forester_status(args: &StatusArgs) -> crate::Result<()> {
     let mut rpc = LightClient::new(LightClientConfig {
         url: config.external_services.rpc_url.to_string(),
         photon_url: config.external_services.indexer_url.clone(),
-        api_key: config.external_services.photon_api_key.clone(),
         commitment_config: None,
         fetch_active_tree: false,
     })

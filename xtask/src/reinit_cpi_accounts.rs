@@ -58,7 +58,6 @@ pub async fn reinit_cpi_accounts(options: Options) -> anyhow::Result<()> {
         photon_url: None,
         commitment_config: None,
         fetch_active_tree: false,
-        api_key: None,
     })
     .await?;
 

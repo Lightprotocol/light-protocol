@@ -90,16 +90,7 @@ impl IndexerError {
 
 impl<T> From<photon_api::apis::Error<T>> for IndexerError {
     fn from(error: photon_api::apis::Error<T>) -> Self {
-        match error {
-            photon_api::apis::Error::Reqwest(e) => {
-                IndexerError::ApiError(format!("Request error: {}", e))
-            }
-            photon_api::apis::Error::Serde(e) => {
-                IndexerError::ApiError(format!("Serialization error: {}", e))
-            }
-            photon_api::apis::Error::Io(e) => IndexerError::ApiError(format!("IO error: {}", e)),
-            _ => IndexerError::ApiError(format!("Unknown API error {}", error)),
-        }
+        IndexerError::ApiError(error.to_string())
     }
 }
 

@@ -116,7 +116,7 @@ async fn test_address_batched() {
 
     let indexer = TestIndexer::init_from_acounts(&config.payer_keypair, &test_accounts, 0).await;
 
-    let mut photon_indexer = PhotonIndexer::new(PhotonIndexer::default_path(), None);
+    let mut photon_indexer = PhotonIndexer::new(PhotonIndexer::default_path());
 
     let mut env = E2ETestEnv::<LightClient, TestIndexer>::new(
         rpc,

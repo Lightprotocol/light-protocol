@@ -898,7 +898,6 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         let rpc = LightClient::new(LightClientConfig {
             url: self.config.external_services.rpc_url.to_string(),
             photon_url: self.config.external_services.indexer_url.clone(),
-            api_key: self.config.external_services.photon_api_key.clone(),
             commitment_config: Some(solana_sdk::commitment_config::CommitmentConfig::confirmed()),
             fetch_active_tree: false,
         })
@@ -976,7 +975,6 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         let mut rpc = LightClient::new(LightClientConfig {
             url: self.config.external_services.rpc_url.to_string(),
             photon_url: self.config.external_services.indexer_url.clone(),
-            api_key: self.config.external_services.photon_api_key.clone(),
             commitment_config: Some(solana_sdk::commitment_config::CommitmentConfig::processed()),
             fetch_active_tree: false,
         })
@@ -2896,7 +2894,6 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         let mut rpc = LightClient::new(LightClientConfig {
             url: self.config.external_services.rpc_url.to_string(),
             photon_url: self.config.external_services.indexer_url.clone(),
-            api_key: self.config.external_services.photon_api_key.clone(),
             commitment_config: Some(solana_sdk::commitment_config::CommitmentConfig::processed()),
             fetch_active_tree: false,
         })
@@ -3366,7 +3363,6 @@ mod tests {
                 prover_update_url: None,
                 prover_address_append_url: None,
                 prover_api_key: None,
-                photon_api_key: None,
                 photon_grpc_url: None,
                 pushgateway_url: None,
                 pagerduty_routing_key: None,

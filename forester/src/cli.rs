@@ -29,7 +29,11 @@ pub struct StartArgs {
     #[arg(long, env = "WS_RPC_URL")]
     pub ws_rpc_url: Option<String>,
 
-    #[arg(long, env = "INDEXER_URL")]
+    #[arg(
+        long,
+        env = "INDEXER_URL",
+        help = "Photon indexer URL. API key can be included as query param: https://host?api-key=KEY"
+    )]
     pub indexer_url: Option<String>,
 
     #[arg(long, env = "PROVER_URL")]
@@ -78,9 +82,6 @@ pub struct StartArgs {
 
     #[arg(long, env = "DERIVATION_PUBKEY")]
     pub derivation: Option<String>,
-
-    #[arg(long, env = "PHOTON_API_KEY")]
-    pub photon_api_key: Option<String>,
 
     #[arg(long, env = "PHOTON_GRPC_URL")]
     pub photon_grpc_url: Option<String>,
@@ -237,12 +238,12 @@ pub struct StartArgs {
     pub enable_compressible: bool,
 
     #[arg(
-        long = "compressible-pda-program",
-        env = "COMPRESSIBLE_PDA_PROGRAMS",
-        help = "Compressible PDA programs to track. Format: 'program_id:discriminator_base58'. Can be specified multiple times. Example: 'MyProg1111111111111111111111111111111111111:6kRvHBv2N3F'",
+        long = "light-pda-program",
+        env = "LIGHT_PDA_PROGRAMS",
+        help = "Light PDA programs to track. Format: 'program_id:discriminator_base58'. Can be specified multiple times. Example: 'MyProg1111111111111111111111111111111111111:6kRvHBv2N3F'",
         value_delimiter = ','
     )]
-    pub compressible_pda_programs: Vec<String>,
+    pub light_pda_programs: Vec<String>,
 
     #[arg(
         long,

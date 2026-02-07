@@ -153,9 +153,7 @@ impl LightClient {
         let client = RpcClient::new_with_commitment(config.url.to_string(), commitment_config);
         let retry_config = retry_config.unwrap_or_default();
 
-        let indexer = config
-            .photon_url
-            .map(|path| PhotonIndexer::new(path, config.api_key));
+        let indexer = config.photon_url.map(PhotonIndexer::new);
 
         let mut new = Self {
             client,
@@ -170,8 +168,8 @@ impl LightClient {
         Ok(new)
     }
 
-    pub fn add_indexer(&mut self, path: String, api_key: Option<String>) {
-        self.indexer = Some(PhotonIndexer::new(path, api_key));
+    pub fn add_indexer(&mut self, url: String) {
+        self.indexer = Some(PhotonIndexer::new(url));
     }
 
     /// Detects the network type based on the RPC URL. V1 only.

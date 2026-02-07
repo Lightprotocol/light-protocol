@@ -50,9 +50,11 @@
 //!     // Connect to the validator
 //!     let mut rpc = LightClient::new(LightClientConfig::local()).await?;
 //!
-//!     // Or connect to devnet/mainnet:
-//!     // let mut rpc = LightClient::new(LightClientConfig::new("https://devnet.helius-rpc.com/?api-key=YOUR_KEY")).await?;
-//!     // let mut rpc = LightClient::new(LightClientConfig::new("https://mainnet.helius-rpc.com/?api-key=YOUR_KEY")).await?;
+//!     // Or connect to devnet/mainnet (API key embedded in photon URL):
+//!     // let mut rpc = LightClient::new(LightClientConfig::new(
+//!     //     "https://devnet.helius-rpc.com".to_string(),
+//!     //     Some("https://photon.helius.com?api-key=YOUR_KEY".to_string()),
+//!     // )).await?;
 //!
 //!     let owner = Pubkey::new_unique();
 //!

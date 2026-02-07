@@ -44,9 +44,6 @@ async fn test_priority_fee_request() {
             std::env::var("DERIVATION_PUBKEY")
                 .expect("DERIVATION_PUBKEY must be set in environment"),
         ),
-        photon_api_key: Some(
-            std::env::var("PHOTON_API_KEY").expect("PHOTON_API_KEY must be set in environment"),
-        ),
         api_server_public_bind: false,
         photon_grpc_url: None,
         indexer_batch_size: 50,
@@ -86,7 +83,7 @@ async fn test_priority_fee_request() {
         lookup_table_address: None,
         api_server_port: 8080,
         group_authority: None,
-        compressible_pda_programs: vec![],
+        light_pda_programs: vec![],
     };
 
     let config = ForesterConfig::new_for_start(&args).expect("Failed to create config");
