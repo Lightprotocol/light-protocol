@@ -30,6 +30,7 @@ import {
 } from '../actions/load-ata';
 import { createAssociatedTokenAccountInterfaceIdempotentInstruction } from '../instructions/create-ata-interface';
 import { transferInterface as _transferInterface } from '../actions/transfer-interface';
+import { transferCheckedInterface as _transferCheckedInterface } from '../actions/transfer-checked';
 import { _getOrCreateAtaInterface } from '../actions/get-or-create-ata-interface';
 import { getAtaProgramId } from '../ata-utils';
 import { InterfaceOptions } from '..';
@@ -233,6 +234,54 @@ export async function transferInterface(
 }
 
 /**
+ * Transfer tokens using the unified ata interface with decimals validation.
+ *
+ * Like transferInterface but validates the amount against the mint's decimals
+ * on-chain.
+ *
+ * @param rpc             RPC connection
+ * @param payer           Fee payer (signer)
+ * @param source          Source c-token ATA address
+ * @param mint            Mint address
+ * @param destination     Destination c-token ATA address (must exist)
+ * @param owner           Source owner (signer)
+ * @param amount          Amount to transfer
+ * @param decimals        Expected decimals of the mint
+ * @param programId       Token program ID (default: CTOKEN_PROGRAM_ID)
+ * @param confirmOptions  Optional confirm options
+ * @param options         Optional interface options
+ * @returns Transaction signature
+ */
+export async function transferCheckedInterface(
+    rpc: Rpc,
+    payer: Signer,
+    source: PublicKey,
+    mint: PublicKey,
+    destination: PublicKey,
+    owner: Signer,
+    amount: number | bigint | BN,
+    decimals: number,
+    programId: PublicKey = CTOKEN_PROGRAM_ID,
+    confirmOptions?: ConfirmOptions,
+    options?: InterfaceOptions,
+) {
+    return _transferCheckedInterface(
+        rpc,
+        payer,
+        source,
+        mint,
+        destination,
+        owner,
+        amount,
+        decimals,
+        programId,
+        confirmOptions,
+        options,
+        true,
+    );
+}
+
+/**
  * Get or create c-token ATA with unified balance detection and auto-loading.
  *
  * Enforces CTOKEN_PROGRAM_ID. Aggregates balances from:
@@ -340,6 +389,8 @@ export {
     createDecompressInterfaceInstruction,
     createTransferInterfaceInstruction,
     createCTokenTransferInstruction,
+    createTransferCheckedInterfaceInstruction,
+    createCTokenTransferCheckedInstruction,
     // Types
     TokenMetadataInstructionData,
     CompressibleConfig,

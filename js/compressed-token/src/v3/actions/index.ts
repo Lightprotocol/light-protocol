@@ -12,3 +12,4 @@ export * from './decompress-interface';
 export * from './wrap';
 export * from './unwrap';
 export * from './load-ata';
+export * from './transfer-checked';
