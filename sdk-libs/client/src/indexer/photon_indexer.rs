@@ -328,7 +328,7 @@ impl Indexer for PhotonIndexer {
                 };
                 let request = photon_api::types::PostGetCompressedAccountsByOwnerBody {
                     id: photon_api::types::PostGetCompressedAccountsByOwnerBodyId::TestAccount,
-                    jsonrpc: photon_api::types::PostGetCompressedAccountsByOwnerBodyJsonrpc::_20,
+                    jsonrpc: photon_api::types::PostGetCompressedAccountsByOwnerBodyJsonrpc::X20,
                     method: photon_api::types::PostGetCompressedAccountsByOwnerBodyMethod::GetCompressedAccountsByOwner,
                     params,
                 };
@@ -598,7 +598,7 @@ impl Indexer for PhotonIndexer {
                 };
                 let request = photon_api::types::PostGetCompressedTokenAccountsByDelegateBody {
                     id: photon_api::types::PostGetCompressedTokenAccountsByDelegateBodyId::TestAccount,
-                    jsonrpc: photon_api::types::PostGetCompressedTokenAccountsByDelegateBodyJsonrpc::_20,
+                    jsonrpc: photon_api::types::PostGetCompressedTokenAccountsByDelegateBodyJsonrpc::X20,
                     method: photon_api::types::PostGetCompressedTokenAccountsByDelegateBodyMethod::GetCompressedTokenAccountsByDelegate,
                     params,
                 };
@@ -704,7 +704,7 @@ impl Indexer for PhotonIndexer {
                 };
                 let request = photon_api::types::PostGetCompressedTokenAccountsByOwnerBody {
                     id: photon_api::types::PostGetCompressedTokenAccountsByOwnerBodyId::TestAccount,
-                    jsonrpc: photon_api::types::PostGetCompressedTokenAccountsByOwnerBodyJsonrpc::_20,
+                    jsonrpc: photon_api::types::PostGetCompressedTokenAccountsByOwnerBodyJsonrpc::X20,
                     method: photon_api::types::PostGetCompressedTokenAccountsByOwnerBodyMethod::GetCompressedTokenAccountsByOwner,
                     params,
                 };
@@ -810,7 +810,7 @@ impl Indexer for PhotonIndexer {
                 };
                 let request = photon_api::types::PostGetCompressedTokenBalancesByOwnerBody {
                     id: photon_api::types::PostGetCompressedTokenBalancesByOwnerBodyId::TestAccount,
-                    jsonrpc: photon_api::types::PostGetCompressedTokenBalancesByOwnerBodyJsonrpc::_20,
+                    jsonrpc: photon_api::types::PostGetCompressedTokenBalancesByOwnerBodyJsonrpc::X20,
                     method: photon_api::types::PostGetCompressedTokenBalancesByOwnerBodyMethod::GetCompressedTokenBalancesByOwner,
                     params,
                 };
