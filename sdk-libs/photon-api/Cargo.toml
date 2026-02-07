@@ -5,6 +5,17 @@ description = "Solana indexer for general compression"
 license = "Apache-2.0"
 edition = "2021"
 
+[features]
+# Regenerate types from the OpenAPI spec (external/photon).
+# Usage: cargo build -p photon-api --features generate
+generate = [
+    "dep:progenitor",
+    "dep:openapiv3",
+    "dep:serde_yaml",
+    "dep:syn",
+    "dep:prettyplease",
+]
+
 [dependencies]
 progenitor-client = "0.12"
 reqwest = { version = "0.13", default-features = false, features = ["json", "stream", "rustls"] }
@@ -16,10 +27,8 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 wiremock = "0.6"
 
 [build-dependencies]
-progenitor = "0.12"
-openapiv3 = "2.0"
-serde_yaml = "0.9"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-syn = "2.0"
-prettyplease = "0.2"
+progenitor = { version = "0.12", optional = true }
+openapiv3 = { version = "2.0", optional = true }
+serde_yaml = { version = "0.9", optional = true }
+syn = { version = "2.0", optional = true }
+prettyplease = { version = "0.2", optional = true }
