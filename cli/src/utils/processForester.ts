@@ -29,7 +29,7 @@ export interface ForesterConfig {
   proverUrl: string;
   payer: string;
   foresterPort: number;
-  compressiblePdaPrograms?: string[];
+  lightPdaPrograms?: string[];
 }
 
 /**
@@ -64,10 +64,10 @@ export async function startForester(config: ForesterConfig) {
     "--enable-compressible",
   ];
 
-  // Add compressible PDA programs if specified
-  if (config.compressiblePdaPrograms && config.compressiblePdaPrograms.length > 0) {
-    for (const program of config.compressiblePdaPrograms) {
-      args.push("--compressible-pda-program", program);
+  // Add light PDA programs if specified
+  if (config.lightPdaPrograms && config.lightPdaPrograms.length > 0) {
+    for (const program of config.lightPdaPrograms) {
+      args.push("--light-pda-program", program);
     }
   }
 

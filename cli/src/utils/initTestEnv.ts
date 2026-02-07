@@ -157,7 +157,7 @@ export async function initTestEnv({
   verbose,
   skipReset,
   useSurfpool,
-  compressiblePdaPrograms,
+  lightPdaPrograms,
   additionalAccountDirs,
 }: {
   additionalPrograms?: { address: string; path: string }[];
@@ -184,7 +184,7 @@ export async function initTestEnv({
   verbose?: boolean;
   skipReset?: boolean;
   useSurfpool?: boolean;
-  compressiblePdaPrograms?: string[];
+  lightPdaPrograms?: string[];
   additionalAccountDirs?: string[];
 }) {
   if (useSurfpool) {
@@ -281,7 +281,7 @@ export async function initTestEnv({
         proverUrl: `http://127.0.0.1:${proverPort}`,
         payer,
         foresterPort,
-        compressiblePdaPrograms,
+        lightPdaPrograms,
       });
     } catch (error) {
       console.error("Failed to start forester:", error);
@@ -302,7 +302,7 @@ export async function initTestEnv({
         proverUrl: `http://127.0.0.1:${proverPort}`,
         payer,
         foresterPort,
-        compressiblePdaPrograms,
+        lightPdaPrograms,
       });
     } catch (error) {
       console.error("Failed to start forester:", error);

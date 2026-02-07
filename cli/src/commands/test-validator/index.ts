@@ -53,9 +53,9 @@ class SetupCommand extends Command {
       required: false,
       default: 8080,
     }),
-    "compressible-pda-program": Flags.string({
+    "light-pda-program": Flags.string({
       description:
-        "Compressible PDA programs to track. Format: 'program_id:discriminator_base58'. Can be specified multiple times.",
+        "Light PDA programs to track. Format: 'program_id:discriminator_base58'. Can be specified multiple times.",
       required: false,
       multiple: true,
     }),
@@ -294,7 +294,7 @@ class SetupCommand extends Command {
         prover: !flags["skip-prover"],
         forester: flags.forester,
         foresterPort: flags["forester-port"],
-        compressiblePdaPrograms: flags["compressible-pda-program"],
+        lightPdaPrograms: flags["light-pda-program"],
         skipSystemAccounts: flags["skip-system-accounts"],
         geyserConfig: flags["geyser-config"],
         validatorArgs: flags["validator-args"],

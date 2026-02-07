@@ -238,12 +238,12 @@ pub struct StartArgs {
     pub enable_compressible: bool,
 
     #[arg(
-        long = "compressible-pda-program",
-        env = "COMPRESSIBLE_PDA_PROGRAMS",
-        help = "Compressible PDA programs to track. Format: 'program_id:discriminator_base58'. Can be specified multiple times. Example: 'MyProg1111111111111111111111111111111111111:6kRvHBv2N3F'",
+        long = "light-pda-program",
+        env = "LIGHT_PDA_PROGRAMS",
+        help = "Light PDA programs to track. Format: 'program_id:discriminator_base58'. Can be specified multiple times. Example: 'MyProg1111111111111111111111111111111111111:6kRvHBv2N3F'",
         value_delimiter = ','
     )]
-    pub compressible_pda_programs: Vec<String>,
+    pub light_pda_programs: Vec<String>,
 
     #[arg(
         long,

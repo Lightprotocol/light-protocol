@@ -83,7 +83,7 @@ async fn test_priority_fee_request() {
         lookup_table_address: None,
         api_server_port: 8080,
         group_authority: None,
-        compressible_pda_programs: vec![],
+        light_pda_programs: vec![],
     };
 
     let config = ForesterConfig::new_for_start(&args).expect("Failed to create config");
