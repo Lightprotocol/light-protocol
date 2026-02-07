@@ -83,9 +83,6 @@ pub struct StartArgs {
     #[arg(long, env = "DERIVATION_PUBKEY")]
     pub derivation: Option<String>,
 
-    #[arg(long, env = "PHOTON_API_KEY")]
-    pub photon_api_key: Option<String>,
-
     #[arg(long, env = "PHOTON_GRPC_URL")]
     pub photon_grpc_url: Option<String>,
 

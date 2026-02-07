@@ -136,7 +136,7 @@ impl RootIndex {
 
 impl AccountProofInputs {
     pub fn from_api_model(
-        value: &photon_api::models::AccountProofInputs,
+        value: &photon_api::types::AccountProofInputs,
     ) -> Result<Self, IndexerError> {
         let root_index = {
             if value.root_index.prove_by_index {
@@ -165,7 +165,7 @@ pub struct AddressProofInputs {
 
 impl AddressProofInputs {
     pub fn from_api_model(
-        value: &photon_api::models::AddressProofInputs,
+        value: &photon_api::types::AddressProofInputs,
     ) -> Result<Self, IndexerError> {
         Ok(Self {
             address: decode_base58_to_fixed_array(&value.address)?,
@@ -254,7 +254,7 @@ impl ValidityProofWithContext {
     }
 
     pub fn from_api_model(
-        value: photon_api::models::CompressedProofWithContext,
+        value: photon_api::types::CompressedProofWithContext,
         num_hashes: usize,
     ) -> Result<Self, IndexerError> {
         let proof = ValidityProof::new(Some(CompressedProof {
@@ -334,7 +334,7 @@ impl ValidityProofWithContext {
     }
 
     pub fn from_api_model_v2(
-        value: photon_api::models::CompressedProofWithContextV2,
+        value: photon_api::types::CompressedProofWithContextV2,
     ) -> Result<Self, IndexerError> {
         let proof = if let Some(proof) = value.compressed_proof {
             ValidityProof::new(Some(CompressedProof {

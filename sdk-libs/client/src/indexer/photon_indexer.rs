@@ -146,7 +146,7 @@ impl PhotonIndexer {
         &self,
         address: Option<Address>,
         hash: Option<Hash>,
-    ) -> Result<photon_api::models::PostGetCompressedAccountBodyParams, IndexerError> {
+    ) -> Result<photon_api::types::PostGetCompressedAccountBodyParams, IndexerError> {
         match (address, hash) {
             (None, None) => Err(IndexerError::InvalidParameters(
                 "Either address or hash must be provided".to_string(),
@@ -154,9 +154,9 @@ impl PhotonIndexer {
             (Some(_), Some(_)) => Err(IndexerError::InvalidParameters(
                 "Only one of address or hash must be provided".to_string(),
             )),
-            (address, hash) => Ok(photon_api::models::PostGetCompressedAccountBodyParams {
-                address: address.map(|x| photon_api::models::SerializablePubkey(x.to_base58())),
-                hash: hash.map(|x| photon_api::models::Hash(x.to_base58())),
+            (address, hash) => Ok(photon_api::types::PostGetCompressedAccountBodyParams {
+                address: address.map(|x| photon_api::types::SerializablePubkey(x.to_base58())),
+                hash: hash.map(|x| photon_api::types::Hash(x.to_base58())),
             }),
         }
     }
@@ -263,19 +263,19 @@ impl Indexer for PhotonIndexer {
         self.retry(config.retry_config, || async {
             #[cfg(feature = "v2")]
             {
-                let params = photon_api::models::PostGetCompressedAccountsByOwnerV2BodyParams {
-                    cursor: options.as_ref().and_then(|o| o.cursor.clone()).map(photon_api::models::Hash),
+                let params = photon_api::types::PostGetCompressedAccountsByOwnerV2BodyParams {
+                    cursor: options.as_ref().and_then(|o| o.cursor.clone()).map(photon_api::types::Hash),
                     data_slice: options.as_ref().and_then(|o| {
                         o.data_slice.as_ref().map(|ds| {
-                            photon_api::models::DataSlice {
+                            photon_api::types::DataSlice {
                                 length: ds.length as u64,
                                 offset: ds.offset as u64,
                             }
                         })
                     }),
                     filters: options.as_ref().and_then(|o| o.filters_to_photon()).unwrap_or_default(),
-                    limit: options.as_ref().and_then(|o| o.limit).map(|l| photon_api::models::Limit(l as u64)),
-                    owner: photon_api::models::SerializablePubkey(owner.to_string()),
+                    limit: options.as_ref().and_then(|o| o.limit).map(|l| photon_api::types::Limit(l as u64)),
+                    owner: photon_api::types::SerializablePubkey(owner.to_string()),
                 };
                 let request = photon_api::apis::default_api::make_get_compressed_accounts_by_owner_v2_body(params);
                 let result =
@@ -312,24 +312,24 @@ impl Indexer for PhotonIndexer {
             }
             #[cfg(not(feature = "v2"))]
             {
-                let params = photon_api::models::PostGetCompressedAccountsByOwnerBodyParams {
-                    cursor: options.as_ref().and_then(|o| o.cursor.clone()).map(photon_api::models::Hash),
+                let params = photon_api::types::PostGetCompressedAccountsByOwnerBodyParams {
+                    cursor: options.as_ref().and_then(|o| o.cursor.clone()).map(photon_api::types::Hash),
                     data_slice: options.as_ref().and_then(|o| {
                         o.data_slice.as_ref().map(|ds| {
-                            photon_api::models::DataSlice {
+                            photon_api::types::DataSlice {
                                 length: ds.length as u64,
                                 offset: ds.offset as u64,
                             }
                         })
                     }),
                     filters: options.as_ref().and_then(|o| o.filters_to_photon()).unwrap_or_default(),
-                    limit: options.as_ref().and_then(|o| o.limit).map(|l| photon_api::models::Limit(l as u64)),
-                    owner: photon_api::models::SerializablePubkey(owner.to_string()),
+                    limit: options.as_ref().and_then(|o| o.limit).map(|l| photon_api::types::Limit(l as u64)),
+                    owner: photon_api::types::SerializablePubkey(owner.to_string()),
                 };
-                let request = photon_api::models::PostGetCompressedAccountsByOwnerBody {
-                    id: photon_api::models::PostGetCompressedAccountsByOwnerBodyId::TestAccount,
-                    jsonrpc: photon_api::models::PostGetCompressedAccountsByOwnerBodyJsonrpc::_20,
-                    method: photon_api::models::PostGetCompressedAccountsByOwnerBodyMethod::GetCompressedAccountsByOwner,
+                let request = photon_api::types::PostGetCompressedAccountsByOwnerBody {
+                    id: photon_api::types::PostGetCompressedAccountsByOwnerBodyId::TestAccount,
+                    jsonrpc: photon_api::types::PostGetCompressedAccountsByOwnerBodyJsonrpc::_20,
+                    method: photon_api::types::PostGetCompressedAccountsByOwnerBodyMethod::GetCompressedAccountsByOwner,
                     params,
                 };
                 let result = photon_api::apis::default_api::get_compressed_accounts_by_owner_post(
@@ -375,9 +375,9 @@ impl Indexer for PhotonIndexer {
     ) -> Result<Response<u64>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
-            let params = photon_api::models::PostGetCompressedAccountBalanceBodyParams {
-                address: address.map(|x| photon_api::models::SerializablePubkey(x.to_base58())),
-                hash: hash.map(|x| photon_api::models::Hash(x.to_base58())),
+            let params = photon_api::types::PostGetCompressedAccountBalanceBodyParams {
+                address: address.map(|x| photon_api::types::SerializablePubkey(x.to_base58())),
+                hash: hash.map(|x| photon_api::types::Hash(x.to_base58())),
             };
             let request =
                 photon_api::apis::default_api::make_get_compressed_account_balance_body(params);
@@ -412,8 +412,8 @@ impl Indexer for PhotonIndexer {
     ) -> Result<Response<u64>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
-            let params = photon_api::models::PostGetCompressedBalanceByOwnerBodyParams {
-                owner: photon_api::models::SerializablePubkey(owner.to_string()),
+            let params = photon_api::types::PostGetCompressedBalanceByOwnerBodyParams {
+                owner: photon_api::types::SerializablePubkey(owner.to_string()),
             };
             let request =
                 photon_api::apis::default_api::make_get_compressed_balance_by_owner_body(params);
@@ -449,16 +449,16 @@ impl Indexer for PhotonIndexer {
     ) -> Result<Response<ItemsWithCursor<OwnerBalance>>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
-            let params = photon_api::models::PostGetCompressedMintTokenHoldersBodyParams {
-                mint: photon_api::models::SerializablePubkey(mint.to_string()),
+            let params = photon_api::types::PostGetCompressedMintTokenHoldersBodyParams {
+                mint: photon_api::types::SerializablePubkey(mint.to_string()),
                 cursor: options
                     .as_ref()
                     .and_then(|o| o.cursor.clone())
-                    .map(photon_api::models::Base58String),
+                    .map(photon_api::types::Base58String),
                 limit: options
                     .as_ref()
                     .and_then(|o| o.limit)
-                    .map(|l| photon_api::models::Limit(l as u64)),
+                    .map(|l| photon_api::types::Limit(l as u64)),
             };
             let request =
                 photon_api::apis::default_api::make_get_compressed_mint_token_holders_body(params);
@@ -506,9 +506,9 @@ impl Indexer for PhotonIndexer {
     ) -> Result<Response<u64>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
-            let params = photon_api::models::PostGetCompressedTokenAccountBalanceBodyParams {
-                address: address.map(|x| photon_api::models::SerializablePubkey(x.to_base58())),
-                hash: hash.map(|x| photon_api::models::Hash(x.to_base58())),
+            let params = photon_api::types::PostGetCompressedTokenAccountBalanceBodyParams {
+                address: address.map(|x| photon_api::types::SerializablePubkey(x.to_base58())),
+                hash: hash.map(|x| photon_api::types::Hash(x.to_base58())),
             };
             let request =
                 photon_api::apis::default_api::make_get_compressed_token_account_balance_body(
@@ -548,11 +548,11 @@ impl Indexer for PhotonIndexer {
         self.retry(config.retry_config, || async {
             #[cfg(feature = "v2")]
             {
-                let params = photon_api::models::PostGetCompressedTokenAccountsByDelegateV2BodyParams {
-                    cursor: options.as_ref().and_then(|o| o.cursor.clone()).map(photon_api::models::Base58String),
-                    limit: options.as_ref().and_then(|o| o.limit).map(|l| photon_api::models::Limit(l as u64)),
-                    mint: options.as_ref().and_then(|o| o.mint.as_ref()).map(|x| photon_api::models::SerializablePubkey(x.to_string())),
-                    delegate: photon_api::models::SerializablePubkey(delegate.to_string()),
+                let params = photon_api::types::PostGetCompressedTokenAccountsByDelegateV2BodyParams {
+                    cursor: options.as_ref().and_then(|o| o.cursor.clone()).map(photon_api::types::Base58String),
+                    limit: options.as_ref().and_then(|o| o.limit).map(|l| photon_api::types::Limit(l as u64)),
+                    mint: options.as_ref().and_then(|o| o.mint.as_ref()).map(|x| photon_api::types::SerializablePubkey(x.to_string())),
+                    delegate: photon_api::types::SerializablePubkey(delegate.to_string()),
                 };
                 let request = photon_api::apis::default_api::make_get_compressed_token_accounts_by_delegate_v2_body(params);
 
@@ -590,16 +590,16 @@ impl Indexer for PhotonIndexer {
             }
             #[cfg(not(feature = "v2"))]
             {
-                let params = photon_api::models::PostGetCompressedTokenAccountsByDelegateBodyParams {
-                    delegate: photon_api::models::SerializablePubkey(delegate.to_string()),
-                    mint: options.as_ref().and_then(|o| o.mint.as_ref()).map(|x| photon_api::models::SerializablePubkey(x.to_string())),
-                    cursor: options.as_ref().and_then(|o| o.cursor.clone()).map(photon_api::models::Base58String),
-                    limit: options.as_ref().and_then(|o| o.limit).map(|l| photon_api::models::Limit(l as u64)),
+                let params = photon_api::types::PostGetCompressedTokenAccountsByDelegateBodyParams {
+                    delegate: photon_api::types::SerializablePubkey(delegate.to_string()),
+                    mint: options.as_ref().and_then(|o| o.mint.as_ref()).map(|x| photon_api::types::SerializablePubkey(x.to_string())),
+                    cursor: options.as_ref().and_then(|o| o.cursor.clone()).map(photon_api::types::Base58String),
+                    limit: options.as_ref().and_then(|o| o.limit).map(|l| photon_api::types::Limit(l as u64)),
                 };
-                let request = photon_api::models::PostGetCompressedTokenAccountsByDelegateBody {
-                    id: photon_api::models::PostGetCompressedTokenAccountsByDelegateBodyId::TestAccount,
-                    jsonrpc: photon_api::models::PostGetCompressedTokenAccountsByDelegateBodyJsonrpc::_20,
-                    method: photon_api::models::PostGetCompressedTokenAccountsByDelegateBodyMethod::GetCompressedTokenAccountsByDelegate,
+                let request = photon_api::types::PostGetCompressedTokenAccountsByDelegateBody {
+                    id: photon_api::types::PostGetCompressedTokenAccountsByDelegateBodyId::TestAccount,
+                    jsonrpc: photon_api::types::PostGetCompressedTokenAccountsByDelegateBodyJsonrpc::_20,
+                    method: photon_api::types::PostGetCompressedTokenAccountsByDelegateBodyMethod::GetCompressedTokenAccountsByDelegate,
                     params,
                 };
 
@@ -649,14 +649,14 @@ impl Indexer for PhotonIndexer {
         self.retry(config.retry_config, || async {
             #[cfg(feature = "v2")]
             {
-                let params = photon_api::models::PostGetCompressedTokenAccountsByOwnerV2BodyParams {
-                    cursor: options.as_ref().and_then(|o| o.cursor.clone()).map(photon_api::models::Base58String),
-                    limit: options.as_ref().and_then(|o| o.limit).map(|l| photon_api::models::Limit(l as u64)),
+                let params = photon_api::types::PostGetCompressedTokenAccountsByOwnerV2BodyParams {
+                    cursor: options.as_ref().and_then(|o| o.cursor.clone()).map(photon_api::types::Base58String),
+                    limit: options.as_ref().and_then(|o| o.limit).map(|l| photon_api::types::Limit(l as u64)),
                     mint: options
                         .as_ref()
                         .and_then(|o| o.mint.as_ref())
-                        .map(|x| photon_api::models::SerializablePubkey(x.to_string())),
-                    owner: photon_api::models::SerializablePubkey(owner.to_string()),
+                        .map(|x| photon_api::types::SerializablePubkey(x.to_string())),
+                    owner: photon_api::types::SerializablePubkey(owner.to_string()),
                 };
                 let request = photon_api::apis::default_api::make_get_compressed_token_accounts_by_owner_v2_body(params);
                 let result =
@@ -693,19 +693,19 @@ impl Indexer for PhotonIndexer {
             }
             #[cfg(not(feature = "v2"))]
             {
-                let params = photon_api::models::PostGetCompressedTokenAccountsByOwnerBodyParams {
-                    owner: photon_api::models::SerializablePubkey(owner.to_string()),
+                let params = photon_api::types::PostGetCompressedTokenAccountsByOwnerBodyParams {
+                    owner: photon_api::types::SerializablePubkey(owner.to_string()),
                     mint: options
                         .as_ref()
                         .and_then(|o| o.mint.as_ref())
-                        .map(|x| photon_api::models::SerializablePubkey(x.to_string())),
-                    cursor: options.as_ref().and_then(|o| o.cursor.clone()).map(photon_api::models::Base58String),
-                    limit: options.as_ref().and_then(|o| o.limit).map(|l| photon_api::models::Limit(l as u64)),
+                        .map(|x| photon_api::types::SerializablePubkey(x.to_string())),
+                    cursor: options.as_ref().and_then(|o| o.cursor.clone()).map(photon_api::types::Base58String),
+                    limit: options.as_ref().and_then(|o| o.limit).map(|l| photon_api::types::Limit(l as u64)),
                 };
-                let request = photon_api::models::PostGetCompressedTokenAccountsByOwnerBody {
-                    id: photon_api::models::PostGetCompressedTokenAccountsByOwnerBodyId::TestAccount,
-                    jsonrpc: photon_api::models::PostGetCompressedTokenAccountsByOwnerBodyJsonrpc::_20,
-                    method: photon_api::models::PostGetCompressedTokenAccountsByOwnerBodyMethod::GetCompressedTokenAccountsByOwner,
+                let request = photon_api::types::PostGetCompressedTokenAccountsByOwnerBody {
+                    id: photon_api::types::PostGetCompressedTokenAccountsByOwnerBodyId::TestAccount,
+                    jsonrpc: photon_api::types::PostGetCompressedTokenAccountsByOwnerBodyJsonrpc::_20,
+                    method: photon_api::types::PostGetCompressedTokenAccountsByOwnerBodyMethod::GetCompressedTokenAccountsByOwner,
                     params,
                 };
 
@@ -755,14 +755,14 @@ impl Indexer for PhotonIndexer {
         self.retry(config.retry_config, || async {
             #[cfg(feature = "v2")]
             {
-                let params = photon_api::models::PostGetCompressedTokenBalancesByOwnerV2BodyParams {
-                    owner: photon_api::models::SerializablePubkey(owner.to_string()),
+                let params = photon_api::types::PostGetCompressedTokenBalancesByOwnerV2BodyParams {
+                    owner: photon_api::types::SerializablePubkey(owner.to_string()),
                     mint: options
                         .as_ref()
                         .and_then(|o| o.mint.as_ref())
-                        .map(|x| photon_api::models::SerializablePubkey(x.to_string())),
-                    cursor: options.as_ref().and_then(|o| o.cursor.clone()).map(photon_api::models::Base58String),
-                    limit: options.as_ref().and_then(|o| o.limit).map(|l| photon_api::models::Limit(l as u64)),
+                        .map(|x| photon_api::types::SerializablePubkey(x.to_string())),
+                    cursor: options.as_ref().and_then(|o| o.cursor.clone()).map(photon_api::types::Base58String),
+                    limit: options.as_ref().and_then(|o| o.limit).map(|l| photon_api::types::Limit(l as u64)),
                 };
                 let request = photon_api::apis::default_api::make_get_compressed_token_balances_by_owner_v2_body(params);
 
@@ -799,19 +799,19 @@ impl Indexer for PhotonIndexer {
             }
             #[cfg(not(feature = "v2"))]
             {
-                let params = photon_api::models::PostGetCompressedTokenBalancesByOwnerBodyParams {
-                    owner: photon_api::models::SerializablePubkey(owner.to_string()),
+                let params = photon_api::types::PostGetCompressedTokenBalancesByOwnerBodyParams {
+                    owner: photon_api::types::SerializablePubkey(owner.to_string()),
                     mint: options
                         .as_ref()
                         .and_then(|o| o.mint.as_ref())
-                        .map(|x| photon_api::models::SerializablePubkey(x.to_string())),
-                    cursor: options.as_ref().and_then(|o| o.cursor.clone()).map(photon_api::models::Base58String),
-                    limit: options.as_ref().and_then(|o| o.limit).map(|l| photon_api::models::Limit(l as u64)),
+                        .map(|x| photon_api::types::SerializablePubkey(x.to_string())),
+                    cursor: options.as_ref().and_then(|o| o.cursor.clone()).map(photon_api::types::Base58String),
+                    limit: options.as_ref().and_then(|o| o.limit).map(|l| photon_api::types::Limit(l as u64)),
                 };
-                let request = photon_api::models::PostGetCompressedTokenBalancesByOwnerBody {
-                    id: photon_api::models::PostGetCompressedTokenBalancesByOwnerBodyId::TestAccount,
-                    jsonrpc: photon_api::models::PostGetCompressedTokenBalancesByOwnerBodyJsonrpc::_20,
-                    method: photon_api::models::PostGetCompressedTokenBalancesByOwnerBodyMethod::GetCompressedTokenBalancesByOwner,
+                let request = photon_api::types::PostGetCompressedTokenBalancesByOwnerBody {
+                    id: photon_api::types::PostGetCompressedTokenBalancesByOwnerBodyId::TestAccount,
+                    jsonrpc: photon_api::types::PostGetCompressedTokenBalancesByOwnerBodyJsonrpc::_20,
+                    method: photon_api::types::PostGetCompressedTokenBalancesByOwnerBodyMethod::GetCompressedTokenBalancesByOwner,
                     params,
                 };
 
@@ -857,8 +857,8 @@ impl Indexer for PhotonIndexer {
     ) -> Result<Response<Items<SignatureWithMetadata>>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
-            let params = photon_api::models::PostGetCompressionSignaturesForAccountBodyParams {
-                hash: photon_api::models::Hash(hash.to_base58()),
+            let params = photon_api::types::PostGetCompressionSignaturesForAccountBodyParams {
+                hash: photon_api::types::Hash(hash.to_base58()),
             };
             let request =
                 photon_api::apis::default_api::make_get_compression_signatures_for_account_body(
@@ -904,13 +904,13 @@ impl Indexer for PhotonIndexer {
     ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata>>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
-            let params = photon_api::models::PostGetCompressionSignaturesForAddressBodyParams {
-                address: photon_api::models::SerializablePubkey(address.to_base58()),
+            let params = photon_api::types::PostGetCompressionSignaturesForAddressBodyParams {
+                address: photon_api::types::SerializablePubkey(address.to_base58()),
                 cursor: options.as_ref().and_then(|o| o.cursor.clone()),
                 limit: options
                     .as_ref()
                     .and_then(|o| o.limit)
-                    .map(|l| photon_api::models::Limit(l as u64)),
+                    .map(|l| photon_api::types::Limit(l as u64)),
             };
             let request =
                 photon_api::apis::default_api::make_get_compression_signatures_for_address_body(
@@ -962,13 +962,13 @@ impl Indexer for PhotonIndexer {
     ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata>>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
-            let params = photon_api::models::PostGetCompressionSignaturesForOwnerBodyParams {
-                owner: photon_api::models::SerializablePubkey(owner.to_string()),
+            let params = photon_api::types::PostGetCompressionSignaturesForOwnerBodyParams {
+                owner: photon_api::types::SerializablePubkey(owner.to_string()),
                 cursor: options.as_ref().and_then(|o| o.cursor.clone()),
                 limit: options
                     .as_ref()
                     .and_then(|o| o.limit)
-                    .map(|l| photon_api::models::Limit(l as u64)),
+                    .map(|l| photon_api::types::Limit(l as u64)),
             };
             let request =
                 photon_api::apis::default_api::make_get_compression_signatures_for_owner_body(
@@ -1019,13 +1019,13 @@ impl Indexer for PhotonIndexer {
     ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata>>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
-            let params = photon_api::models::PostGetCompressionSignaturesForTokenOwnerBodyParams {
-                owner: photon_api::models::SerializablePubkey(owner.to_string()),
+            let params = photon_api::types::PostGetCompressionSignaturesForTokenOwnerBodyParams {
+                owner: photon_api::types::SerializablePubkey(owner.to_string()),
                 cursor: options.as_ref().and_then(|o| o.cursor.clone()),
                 limit: options
                     .as_ref()
                     .and_then(|o| o.limit)
-                    .map(|l| photon_api::models::Limit(l as u64)),
+                    .map(|l| photon_api::types::Limit(l as u64)),
             };
             let request =
                 photon_api::apis::default_api::make_get_compression_signatures_for_token_owner_body(
@@ -1114,9 +1114,9 @@ impl Indexer for PhotonIndexer {
         self.retry(config.retry_config, || async {
             let hashes_for_async = hashes.clone();
 
-            let params: Vec<photon_api::models::Hash> = hashes_for_async
+            let params: Vec<photon_api::types::Hash> = hashes_for_async
                 .into_iter()
-                .map(|hash| photon_api::models::Hash(bs58::encode(hash).into_string()))
+                .map(|hash| photon_api::types::Hash(bs58::encode(hash).into_string()))
                 .collect();
             let request =
                 photon_api::apis::default_api::make_get_multiple_compressed_account_proofs_body(
@@ -1192,15 +1192,15 @@ impl Indexer for PhotonIndexer {
         self.retry(config.retry_config, || async {
             let hashes = hashes.clone();
             let addresses = addresses.clone();
-            let params = photon_api::models::PostGetMultipleCompressedAccountsBodyParams {
+            let params = photon_api::types::PostGetMultipleCompressedAccountsBodyParams {
                 addresses: addresses.map(|x| {
                     x.iter()
-                        .map(|a| photon_api::models::SerializablePubkey(a.to_base58()))
+                        .map(|a| photon_api::types::SerializablePubkey(a.to_base58()))
                         .collect()
                 }),
                 hashes: hashes.map(|x| {
                     x.iter()
-                        .map(|h| photon_api::models::Hash(h.to_base58()))
+                        .map(|h| photon_api::types::Hash(h.to_base58()))
                         .collect()
                 }),
             };
@@ -1248,11 +1248,11 @@ impl Indexer for PhotonIndexer {
     ) -> Result<Response<Items<NewAddressProofWithContext>>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
-            let params: Vec<photon_api::models::AddressWithTree> = addresses
+            let params: Vec<photon_api::types::AddressWithTree> = addresses
                 .iter()
-                .map(|x| photon_api::models::AddressWithTree {
-                    address: photon_api::models::SerializablePubkey(bs58::encode(x).into_string()),
-                    tree: photon_api::models::SerializablePubkey(
+                .map(|x| photon_api::types::AddressWithTree {
+                    address: photon_api::types::SerializablePubkey(bs58::encode(x).into_string()),
+                    tree: photon_api::types::SerializablePubkey(
                         bs58::encode(&merkle_tree_pubkey).into_string(),
                     ),
                 })
@@ -1363,16 +1363,16 @@ impl Indexer for PhotonIndexer {
         self.retry(config.retry_config, || async {
             #[cfg(feature = "v2")]
             {
-                let params = photon_api::models::PostGetValidityProofV2BodyParams {
+                let params = photon_api::types::PostGetValidityProofV2BodyParams {
                     hashes: hashes
                         .iter()
-                        .map(|x| photon_api::models::Hash(x.to_base58()))
+                        .map(|x| photon_api::types::Hash(x.to_base58()))
                         .collect(),
                     new_addresses_with_trees: new_addresses_with_trees
                         .iter()
-                        .map(|x| photon_api::models::AddressWithTree {
-                            address: photon_api::models::SerializablePubkey(x.address.to_base58()),
-                            tree: photon_api::models::SerializablePubkey(x.tree.to_string()),
+                        .map(|x| photon_api::types::AddressWithTree {
+                            address: photon_api::types::SerializablePubkey(x.address.to_base58()),
+                            tree: photon_api::types::SerializablePubkey(x.tree.to_string()),
                         })
                         .collect(),
                 };
@@ -1403,16 +1403,16 @@ impl Indexer for PhotonIndexer {
             }
             #[cfg(not(feature = "v2"))]
             {
-                let params = photon_api::models::PostGetValidityProofBodyParams {
+                let params = photon_api::types::PostGetValidityProofBodyParams {
                     hashes: hashes
                         .iter()
-                        .map(|x| photon_api::models::Hash(x.to_base58()))
+                        .map(|x| photon_api::types::Hash(x.to_base58()))
                         .collect(),
                     new_addresses_with_trees: new_addresses_with_trees
                         .iter()
-                        .map(|x| photon_api::models::AddressWithTree {
-                            address: photon_api::models::SerializablePubkey(x.address.to_base58()),
-                            tree: photon_api::models::SerializablePubkey(x.tree.to_string()),
+                        .map(|x| photon_api::types::AddressWithTree {
+                            address: photon_api::types::SerializablePubkey(x.address.to_base58()),
+                            tree: photon_api::types::SerializablePubkey(x.tree.to_string()),
                         })
                         .collect(),
                 };
@@ -1452,7 +1452,7 @@ impl Indexer for PhotonIndexer {
     ) -> Result<Response<super::QueueInfoResult>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
-            let params = photon_api::models::PostGetQueueInfoBodyParams { trees: None };
+            let params = photon_api::types::PostGetQueueInfoBodyParams { trees: None };
             let request = photon_api::apis::default_api::make_get_queue_info_body(params);
 
             let result =
@@ -1507,13 +1507,13 @@ impl Indexer for PhotonIndexer {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             let tree_hash =
-                photon_api::models::Hash(bs58::encode(&merkle_tree_pubkey).into_string());
+                photon_api::types::Hash(bs58::encode(&merkle_tree_pubkey).into_string());
 
             // Build queue request objects
             let output_queue = if options.output_queue_limit.is_some()
                 || options.output_queue_start_index.is_some()
             {
-                Some(photon_api::models::QueueRequest {
+                Some(photon_api::types::QueueRequest {
                     limit: options.output_queue_limit.unwrap_or(100),
                     start_index: options.output_queue_start_index,
                     zkp_batch_size: options.output_queue_zkp_batch_size,
@@ -1525,7 +1525,7 @@ impl Indexer for PhotonIndexer {
             let input_queue = if options.input_queue_limit.is_some()
                 || options.input_queue_start_index.is_some()
             {
-                Some(photon_api::models::QueueRequest {
+                Some(photon_api::types::QueueRequest {
                     limit: options.input_queue_limit.unwrap_or(100),
                     start_index: options.input_queue_start_index,
                     zkp_batch_size: options.input_queue_zkp_batch_size,
@@ -1537,7 +1537,7 @@ impl Indexer for PhotonIndexer {
             let address_queue = if options.address_queue_limit.is_some()
                 || options.address_queue_start_index.is_some()
             {
-                Some(photon_api::models::QueueRequest {
+                Some(photon_api::types::QueueRequest {
                     limit: options.address_queue_limit.unwrap_or(100),
                     start_index: options.address_queue_start_index,
                     zkp_batch_size: options.address_queue_zkp_batch_size,
@@ -1546,7 +1546,7 @@ impl Indexer for PhotonIndexer {
                 None
             };
 
-            let params = photon_api::models::PostGetQueueElementsBodyParams {
+            let params = photon_api::types::PostGetQueueElementsBodyParams {
                 tree: tree_hash,
                 output_queue,
                 input_queue,
@@ -1728,8 +1728,8 @@ impl PhotonIndexer {
     ) -> Result<Response<Option<AccountInterface>>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
-            let params = photon_api::models::PostGetAccountInterfaceBodyParams {
-                address: photon_api::models::SerializablePubkey(address.to_string()),
+            let params = photon_api::types::PostGetAccountInterfaceBodyParams {
+                address: photon_api::types::SerializablePubkey(address.to_string()),
             };
             let request = photon_api::apis::default_api::make_get_account_interface_body(params);
 
@@ -1773,8 +1773,8 @@ impl PhotonIndexer {
     ) -> Result<Response<Option<TokenAccountInterface>>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
-            let params = photon_api::models::PostGetTokenAccountInterfaceBodyParams {
-                address: photon_api::models::SerializablePubkey(address.to_string()),
+            let params = photon_api::types::PostGetTokenAccountInterfaceBodyParams {
+                address: photon_api::types::SerializablePubkey(address.to_string()),
             };
             let request =
                 photon_api::apis::default_api::make_get_token_account_interface_body(params);
@@ -1820,9 +1820,9 @@ impl PhotonIndexer {
     ) -> Result<Response<Option<TokenAccountInterface>>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
-            let params = photon_api::models::PostGetAtaInterfaceBodyParams {
-                owner: photon_api::models::SerializablePubkey(owner.to_string()),
-                mint: photon_api::models::SerializablePubkey(mint.to_string()),
+            let params = photon_api::types::PostGetAtaInterfaceBodyParams {
+                owner: photon_api::types::SerializablePubkey(owner.to_string()),
+                mint: photon_api::types::SerializablePubkey(mint.to_string()),
             };
             let request = photon_api::apis::default_api::make_get_ata_interface_body(params);
 
@@ -1864,10 +1864,10 @@ impl PhotonIndexer {
     ) -> Result<Response<Vec<Option<AccountInterface>>>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
-            let params = photon_api::models::PostGetMultipleAccountInterfacesBodyParams {
+            let params = photon_api::types::PostGetMultipleAccountInterfacesBodyParams {
                 addresses: addresses
                     .iter()
-                    .map(|addr| photon_api::models::SerializablePubkey(addr.to_string()))
+                    .map(|addr| photon_api::types::SerializablePubkey(addr.to_string()))
                     .collect(),
             };
             let request =

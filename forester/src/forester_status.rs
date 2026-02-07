@@ -808,7 +808,7 @@ pub async fn fetch_forester_status(args: &StatusArgs) -> crate::Result<()> {
     debug!("RPC URL: {}", config.external_services.rpc_url);
     let mut rpc = LightClient::new(LightClientConfig {
         url: config.external_services.rpc_url.to_string(),
-        photon_url: config.external_services.photon_url(),
+        photon_url: config.external_services.indexer_url.clone(),
         commitment_config: None,
         fetch_active_tree: false,
     })

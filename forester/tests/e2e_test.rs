@@ -118,13 +118,6 @@ fn get_prover_url() -> String {
     }
 }
 
-fn get_photon_api_key() -> Option<String> {
-    match TestMode::from_env() {
-        TestMode::Local => None,
-        TestMode::Devnet => Some(get_env_var("PHOTON_API_KEY")),
-    }
-}
-
 fn get_photon_grpc_url() -> Option<String> {
     match TestMode::from_env() {
         TestMode::Local => Some("http://localhost:50051".to_string()),
@@ -214,7 +207,6 @@ async fn e2e_test() {
             prover_api_key: get_prover_api_key(),
             prover_polling_interval: None,
             prover_max_wait_time: None,
-            photon_api_key: get_photon_api_key(),
             photon_grpc_url: get_photon_grpc_url(),
             pushgateway_url: None,
             pagerduty_routing_key: None,

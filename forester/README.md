@@ -157,8 +157,6 @@ Control which test scenarios to run (all default to `true`):
 - `PHOTON_WSS_RPC_URL` - Photon WebSocket RPC endpoint URL
 - `PHOTON_INDEXER_URL` - Photon indexer endpoint URL
 - `PHOTON_PROVER_URL` - Photon prover endpoint URL
-- `PHOTON_API_KEY` - Photon API key for authentication
-
 #### Required for both modes:
 
 - `FORESTER_KEYPAIR` - Keypair for testing (supports both base58 format and byte array format like `[1,2,3,...]`)
@@ -192,9 +190,8 @@ export TEST_V1_ADDRESS="false"
 export TEST_V2_ADDRESS="true"
 export PHOTON_RPC_URL="https://devnet.helius-rpc.com/?api-key=your-key"
 export PHOTON_WSS_RPC_URL="wss://devnet.helius-rpc.com/?api-key=your-key"
-export PHOTON_INDEXER_URL="https://devnet.helius-rpc.com"
+export PHOTON_INDEXER_URL="https://devnet.helius-rpc.com?api-key=your-key"
 export PHOTON_PROVER_URL="https://devnet.helius-rpc.com"
-export PHOTON_API_KEY="your-api-key"
 export FORESTER_KEYPAIR="your-base58-encoded-keypair"
 ```
 

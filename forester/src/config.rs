@@ -44,31 +44,12 @@ pub struct ExternalServicesConfig {
     pub prover_api_key: Option<String>,
     pub prover_polling_interval: Option<Duration>,
     pub prover_max_wait_time: Option<Duration>,
-    pub photon_api_key: Option<String>,
     pub photon_grpc_url: Option<String>,
     pub pushgateway_url: Option<String>,
     pub pagerduty_routing_key: Option<String>,
     pub rpc_rate_limit: Option<u32>,
     pub photon_rate_limit: Option<u32>,
     pub send_tx_rate_limit: Option<u32>,
-}
-
-impl ExternalServicesConfig {
-    /// Returns the photon indexer URL with the API key embedded as a query parameter.
-    pub fn photon_url(&self) -> Option<String> {
-        self.indexer_url
-            .as_ref()
-            .map(|url| match &self.photon_api_key {
-                Some(key) => {
-                    if url.contains('?') {
-                        format!("{}&api-key={}", url, key)
-                    } else {
-                        format!("{}?api-key={}", url, key)
-                    }
-                }
-                None => url.clone(),
-            })
-    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -286,7 +267,6 @@ impl ForesterConfig {
                 prover_api_key: args.prover_api_key.clone(),
                 prover_polling_interval: args.prover_polling_interval_ms.map(Duration::from_millis),
                 prover_max_wait_time: args.prover_max_wait_time_secs.map(Duration::from_secs),
-                photon_api_key: args.photon_api_key.clone(),
                 photon_grpc_url: args.photon_grpc_url.clone(),
                 pushgateway_url: args.push_gateway_url.clone(),
                 pagerduty_routing_key: args.pagerduty_routing_key.clone(),
@@ -445,7 +425,6 @@ impl ForesterConfig {
                 prover_api_key: None,
                 prover_polling_interval: None,
                 prover_max_wait_time: None,
-                photon_api_key: None,
                 photon_grpc_url: None,
                 pushgateway_url: args.push_gateway_url.clone(),
                 pagerduty_routing_key: args.pagerduty_routing_key.clone(),

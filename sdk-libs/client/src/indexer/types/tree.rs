@@ -32,16 +32,16 @@ impl NextTreeInfo {
         }
     }
     pub fn from_api_model(
-        value: &photon_api::models::TreeContextInfo,
+        value: &photon_api::types::TreeContextInfo,
     ) -> Result<Self, IndexerError> {
         Self::try_from(value)
     }
 }
 
-impl TryFrom<&photon_api::models::TreeContextInfo> for NextTreeInfo {
+impl TryFrom<&photon_api::types::TreeContextInfo> for NextTreeInfo {
     type Error = IndexerError;
 
-    fn try_from(value: &photon_api::models::TreeContextInfo) -> Result<Self, Self::Error> {
+    fn try_from(value: &photon_api::types::TreeContextInfo) -> Result<Self, Self::Error> {
         Ok(Self {
             tree_type: TreeType::from(value.tree_type as u64),
             tree: Pubkey::new_from_array(decode_base58_to_fixed_array(&value.tree)?),
@@ -86,7 +86,7 @@ impl TreeInfo {
     }
 
     pub fn from_api_model(
-        value: &photon_api::models::MerkleContextV2,
+        value: &photon_api::types::MerkleContextV2,
     ) -> Result<Self, IndexerError> {
         Ok(Self {
             tree_type: TreeType::from(value.tree_type as u64),

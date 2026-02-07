@@ -1,28 +1,31 @@
 //! Photon API client generated from OpenAPI spec using progenitor.
 //!
 //! This crate provides a Rust client for the Photon indexer API.
+//! Types are generated at build time by progenitor; HTTP calls use reqwest directly.
 
 #![allow(unused_imports, clippy::all, dead_code)]
 #![allow(mismatched_lifetime_syntaxes)]
 
-// Include the generated code from build.rs
+// Include the generated code from build.rs (provides the `types` module).
 include!(concat!(env!("OUT_DIR"), "/codegen.rs"));
 
-/// Re-export commonly used types at the crate root for backward compatibility
-pub mod models {
-    pub use super::types::*;
-}
-
-/// Backward-compatible APIs module
 pub mod apis {
     use super::*;
 
-    /// Configuration for the Photon API client
-    #[derive(Debug, Clone)]
+    /// Configuration for the Photon API client.
+    #[derive(Clone)]
     pub struct Configuration {
         pub base_path: String,
         pub api_key: Option<String>,
         pub client: reqwest::Client,
+    }
+
+    impl std::fmt::Debug for Configuration {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.debug_struct("Configuration")
+                .field("base_path", &self.base_path)
+                .finish()
+        }
     }
 
     impl Default for Configuration {
@@ -36,12 +39,31 @@ pub mod apis {
     }
 
     impl Configuration {
+        /// Create a new configuration from a URL string.
+        ///
+        /// If the URL contains an `api-key` query parameter, it is extracted
+        /// and appended to every request as `?api-key=KEY`.
+        ///
+        /// ```ignore
+        /// // Without API key
+        /// let config = Configuration::new("https://rpc.example.com".to_string());
+        ///
+        /// // With API key
+        /// let config = Configuration::new("https://rpc.example.com?api-key=YOUR_KEY".to_string());
+        /// ```
         pub fn new(url: String) -> Self {
             let (base_path, api_key) = Self::parse_url(&url);
             Self {
                 base_path,
                 api_key,
                 client: reqwest::Client::new(),
+            }
+        }
+
+        fn build_url(&self, endpoint: &str) -> String {
+            match &self.api_key {
+                Some(key) => format!("{}/{}?api-key={}", self.base_path, endpoint, key),
+                None => format!("{}/{}", self.base_path, endpoint),
             }
         }
 
@@ -59,78 +81,50 @@ pub mod apis {
                 (url.to_string(), None)
             }
         }
-
-        pub(crate) fn build_url(&self, endpoint: &str) -> String {
-            let url = format!("{}/{}", self.base_path, endpoint);
-            match &self.api_key {
-                Some(key) => format!("{}?api-key={}", url, key),
-                None => url,
-            }
-        }
     }
 
     pub mod configuration {
         pub use super::Configuration;
     }
 
-    /// Error type for API calls
+    /// Error type for API calls.
     #[derive(Debug)]
     pub enum Error<T> {
         Reqwest(reqwest::Error),
-        Serde(serde_json::Error),
-        Io(std::io::Error),
-        ResponseError(ResponseContent<T>),
+        ResponseError {
+            status: u16,
+            body: String,
+        },
+        #[doc(hidden)]
+        _Phantom(std::marker::PhantomData<T>),
     }
 
     impl<T> std::fmt::Display for Error<T> {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             match self {
-                Error::Reqwest(e) => write!(f, "Request error: {}", e),
-                Error::Serde(e) => write!(f, "Serialization error: {}", e),
-                Error::Io(e) => write!(f, "IO error: {}", e),
-                Error::ResponseError(e) => write!(f, "Response error: {}", e.status),
+                Error::Reqwest(e) => write!(f, "HTTP error: {}", e),
+                Error::ResponseError { status, body } => {
+                    write!(f, "Error response (status {}): {}", status, body)
+                }
+                Error::_Phantom(_) => unreachable!(),
             }
         }
     }
 
-    impl<T: std::fmt::Debug> std::error::Error for Error<T> {}
-
-    impl<T> From<reqwest::Error> for Error<T> {
-        fn from(e: reqwest::Error) -> Self {
-            Error::Reqwest(e)
-        }
-    }
-
-    impl<T> From<serde_json::Error> for Error<T> {
-        fn from(e: serde_json::Error) -> Self {
-            Error::Serde(e)
-        }
-    }
-
-    impl<T> From<std::io::Error> for Error<T> {
-        fn from(e: std::io::Error) -> Self {
-            Error::Io(e)
-        }
-    }
-
-    #[derive(Debug, Clone)]
-    pub struct ResponseContent<T> {
-        pub status: reqwest::StatusCode,
-        pub content: String,
-        pub entity: Option<T>,
-    }
-
-    /// Default API module providing backward-compatible function-style API calls
+    /// Default API module providing function-style API calls.
     pub mod default_api {
         use super::*;
 
+        // ----------------------------------------------------------------
         // Body construction helper functions
+        // ----------------------------------------------------------------
+
         pub fn make_get_compressed_account_body(
             params: types::PostGetCompressedAccountBodyParams,
         ) -> types::PostGetCompressedAccountBody {
             types::PostGetCompressedAccountBody {
                 id: types::PostGetCompressedAccountBodyId::TestAccount,
-                jsonrpc: types::PostGetCompressedAccountBodyJsonrpc::_20,
+                jsonrpc: types::PostGetCompressedAccountBodyJsonrpc::X20,
                 method: types::PostGetCompressedAccountBodyMethod::GetCompressedAccount,
                 params,
             }
@@ -141,7 +135,7 @@ pub mod apis {
         ) -> types::PostGetCompressedAccountBalanceBody {
             types::PostGetCompressedAccountBalanceBody {
                 id: types::PostGetCompressedAccountBalanceBodyId::TestAccount,
-                jsonrpc: types::PostGetCompressedAccountBalanceBodyJsonrpc::_20,
+                jsonrpc: types::PostGetCompressedAccountBalanceBodyJsonrpc::X20,
                 method:
                     types::PostGetCompressedAccountBalanceBodyMethod::GetCompressedAccountBalance,
                 params,
@@ -153,7 +147,7 @@ pub mod apis {
         ) -> types::PostGetCompressedAccountsByOwnerV2Body {
             types::PostGetCompressedAccountsByOwnerV2Body {
                 id: types::PostGetCompressedAccountsByOwnerV2BodyId::TestAccount,
-                jsonrpc: types::PostGetCompressedAccountsByOwnerV2BodyJsonrpc::_20,
+                jsonrpc: types::PostGetCompressedAccountsByOwnerV2BodyJsonrpc::X20,
                 method: types::PostGetCompressedAccountsByOwnerV2BodyMethod::GetCompressedAccountsByOwnerV2,
                 params,
             }
@@ -164,7 +158,7 @@ pub mod apis {
         ) -> types::PostGetCompressedBalanceByOwnerBody {
             types::PostGetCompressedBalanceByOwnerBody {
                 id: types::PostGetCompressedBalanceByOwnerBodyId::TestAccount,
-                jsonrpc: types::PostGetCompressedBalanceByOwnerBodyJsonrpc::_20,
+                jsonrpc: types::PostGetCompressedBalanceByOwnerBodyJsonrpc::X20,
                 method:
                     types::PostGetCompressedBalanceByOwnerBodyMethod::GetCompressedBalanceByOwner,
                 params,
@@ -176,7 +170,7 @@ pub mod apis {
         ) -> types::PostGetCompressedMintTokenHoldersBody {
             types::PostGetCompressedMintTokenHoldersBody {
                 id: types::PostGetCompressedMintTokenHoldersBodyId::TestAccount,
-                jsonrpc: types::PostGetCompressedMintTokenHoldersBodyJsonrpc::_20,
+                jsonrpc: types::PostGetCompressedMintTokenHoldersBodyJsonrpc::X20,
                 method: types::PostGetCompressedMintTokenHoldersBodyMethod::GetCompressedMintTokenHolders,
                 params,
             }
@@ -187,7 +181,7 @@ pub mod apis {
         ) -> types::PostGetCompressedTokenAccountBalanceBody {
             types::PostGetCompressedTokenAccountBalanceBody {
                 id: types::PostGetCompressedTokenAccountBalanceBodyId::TestAccount,
-                jsonrpc: types::PostGetCompressedTokenAccountBalanceBodyJsonrpc::_20,
+                jsonrpc: types::PostGetCompressedTokenAccountBalanceBodyJsonrpc::X20,
                 method: types::PostGetCompressedTokenAccountBalanceBodyMethod::GetCompressedTokenAccountBalance,
                 params,
             }
@@ -198,7 +192,7 @@ pub mod apis {
         ) -> types::PostGetValidityProofV2Body {
             types::PostGetValidityProofV2Body {
                 id: types::PostGetValidityProofV2BodyId::TestAccount,
-                jsonrpc: types::PostGetValidityProofV2BodyJsonrpc::_20,
+                jsonrpc: types::PostGetValidityProofV2BodyJsonrpc::X20,
                 method: types::PostGetValidityProofV2BodyMethod::GetValidityProofV2,
                 params,
             }
@@ -209,7 +203,7 @@ pub mod apis {
         ) -> types::PostGetMultipleNewAddressProofsV2Body {
             types::PostGetMultipleNewAddressProofsV2Body {
                 id: types::PostGetMultipleNewAddressProofsV2BodyId::TestAccount,
-                jsonrpc: types::PostGetMultipleNewAddressProofsV2BodyJsonrpc::_20,
+                jsonrpc: types::PostGetMultipleNewAddressProofsV2BodyJsonrpc::X20,
                 method: types::PostGetMultipleNewAddressProofsV2BodyMethod::GetMultipleNewAddressProofsV2,
                 params,
             }
@@ -220,7 +214,7 @@ pub mod apis {
         ) -> types::PostGetCompressedTokenAccountsByDelegateV2Body {
             types::PostGetCompressedTokenAccountsByDelegateV2Body {
                 id: types::PostGetCompressedTokenAccountsByDelegateV2BodyId::TestAccount,
-                jsonrpc: types::PostGetCompressedTokenAccountsByDelegateV2BodyJsonrpc::_20,
+                jsonrpc: types::PostGetCompressedTokenAccountsByDelegateV2BodyJsonrpc::X20,
                 method: types::PostGetCompressedTokenAccountsByDelegateV2BodyMethod::GetCompressedTokenAccountsByDelegateV2,
                 params,
             }
@@ -231,7 +225,7 @@ pub mod apis {
         ) -> types::PostGetCompressedTokenAccountsByOwnerV2Body {
             types::PostGetCompressedTokenAccountsByOwnerV2Body {
                 id: types::PostGetCompressedTokenAccountsByOwnerV2BodyId::TestAccount,
-                jsonrpc: types::PostGetCompressedTokenAccountsByOwnerV2BodyJsonrpc::_20,
+                jsonrpc: types::PostGetCompressedTokenAccountsByOwnerV2BodyJsonrpc::X20,
                 method: types::PostGetCompressedTokenAccountsByOwnerV2BodyMethod::GetCompressedTokenAccountsByOwnerV2,
                 params,
             }
@@ -242,7 +236,7 @@ pub mod apis {
         ) -> types::PostGetCompressedTokenBalancesByOwnerV2Body {
             types::PostGetCompressedTokenBalancesByOwnerV2Body {
                 id: types::PostGetCompressedTokenBalancesByOwnerV2BodyId::TestAccount,
-                jsonrpc: types::PostGetCompressedTokenBalancesByOwnerV2BodyJsonrpc::_20,
+                jsonrpc: types::PostGetCompressedTokenBalancesByOwnerV2BodyJsonrpc::X20,
                 method: types::PostGetCompressedTokenBalancesByOwnerV2BodyMethod::GetCompressedTokenBalancesByOwnerV2,
                 params,
             }
@@ -253,7 +247,7 @@ pub mod apis {
         ) -> types::PostGetCompressionSignaturesForAccountBody {
             types::PostGetCompressionSignaturesForAccountBody {
                 id: types::PostGetCompressionSignaturesForAccountBodyId::TestAccount,
-                jsonrpc: types::PostGetCompressionSignaturesForAccountBodyJsonrpc::_20,
+                jsonrpc: types::PostGetCompressionSignaturesForAccountBodyJsonrpc::X20,
                 method: types::PostGetCompressionSignaturesForAccountBodyMethod::GetCompressionSignaturesForAccount,
                 params,
             }
@@ -264,7 +258,7 @@ pub mod apis {
         ) -> types::PostGetCompressionSignaturesForAddressBody {
             types::PostGetCompressionSignaturesForAddressBody {
                 id: types::PostGetCompressionSignaturesForAddressBodyId::TestAccount,
-                jsonrpc: types::PostGetCompressionSignaturesForAddressBodyJsonrpc::_20,
+                jsonrpc: types::PostGetCompressionSignaturesForAddressBodyJsonrpc::X20,
                 method: types::PostGetCompressionSignaturesForAddressBodyMethod::GetCompressionSignaturesForAddress,
                 params,
             }
@@ -275,7 +269,7 @@ pub mod apis {
         ) -> types::PostGetCompressionSignaturesForOwnerBody {
             types::PostGetCompressionSignaturesForOwnerBody {
                 id: types::PostGetCompressionSignaturesForOwnerBodyId::TestAccount,
-                jsonrpc: types::PostGetCompressionSignaturesForOwnerBodyJsonrpc::_20,
+                jsonrpc: types::PostGetCompressionSignaturesForOwnerBodyJsonrpc::X20,
                 method: types::PostGetCompressionSignaturesForOwnerBodyMethod::GetCompressionSignaturesForOwner,
                 params,
             }
@@ -286,7 +280,7 @@ pub mod apis {
         ) -> types::PostGetCompressionSignaturesForTokenOwnerBody {
             types::PostGetCompressionSignaturesForTokenOwnerBody {
                 id: types::PostGetCompressionSignaturesForTokenOwnerBodyId::TestAccount,
-                jsonrpc: types::PostGetCompressionSignaturesForTokenOwnerBodyJsonrpc::_20,
+                jsonrpc: types::PostGetCompressionSignaturesForTokenOwnerBodyJsonrpc::X20,
                 method: types::PostGetCompressionSignaturesForTokenOwnerBodyMethod::GetCompressionSignaturesForTokenOwner,
                 params,
             }
@@ -295,7 +289,7 @@ pub mod apis {
         pub fn make_get_indexer_health_body() -> types::PostGetIndexerHealthBody {
             types::PostGetIndexerHealthBody {
                 id: types::PostGetIndexerHealthBodyId::TestAccount,
-                jsonrpc: types::PostGetIndexerHealthBodyJsonrpc::_20,
+                jsonrpc: types::PostGetIndexerHealthBodyJsonrpc::X20,
                 method: types::PostGetIndexerHealthBodyMethod::GetIndexerHealth,
             }
         }
@@ -303,7 +297,7 @@ pub mod apis {
         pub fn make_get_indexer_slot_body() -> types::PostGetIndexerSlotBody {
             types::PostGetIndexerSlotBody {
                 id: types::PostGetIndexerSlotBodyId::TestAccount,
-                jsonrpc: types::PostGetIndexerSlotBodyJsonrpc::_20,
+                jsonrpc: types::PostGetIndexerSlotBodyJsonrpc::X20,
                 method: types::PostGetIndexerSlotBodyMethod::GetIndexerSlot,
             }
         }
@@ -313,7 +307,7 @@ pub mod apis {
         ) -> types::PostGetMultipleCompressedAccountProofsBody {
             types::PostGetMultipleCompressedAccountProofsBody {
                 id: types::PostGetMultipleCompressedAccountProofsBodyId::TestAccount,
-                jsonrpc: types::PostGetMultipleCompressedAccountProofsBodyJsonrpc::_20,
+                jsonrpc: types::PostGetMultipleCompressedAccountProofsBodyJsonrpc::X20,
                 method: types::PostGetMultipleCompressedAccountProofsBodyMethod::GetMultipleCompressedAccountProofs,
                 params,
             }
@@ -324,7 +318,7 @@ pub mod apis {
         ) -> types::PostGetMultipleCompressedAccountsBody {
             types::PostGetMultipleCompressedAccountsBody {
                 id: types::PostGetMultipleCompressedAccountsBodyId::TestAccount,
-                jsonrpc: types::PostGetMultipleCompressedAccountsBodyJsonrpc::_20,
+                jsonrpc: types::PostGetMultipleCompressedAccountsBodyJsonrpc::X20,
                 method: types::PostGetMultipleCompressedAccountsBodyMethod::GetMultipleCompressedAccounts,
                 params,
             }
@@ -335,7 +329,7 @@ pub mod apis {
         ) -> types::PostGetValidityProofBody {
             types::PostGetValidityProofBody {
                 id: types::PostGetValidityProofBodyId::TestAccount,
-                jsonrpc: types::PostGetValidityProofBodyJsonrpc::_20,
+                jsonrpc: types::PostGetValidityProofBodyJsonrpc::X20,
                 method: types::PostGetValidityProofBodyMethod::GetValidityProof,
                 params,
             }
@@ -346,7 +340,7 @@ pub mod apis {
         ) -> types::PostGetQueueElementsBody {
             types::PostGetQueueElementsBody {
                 id: types::PostGetQueueElementsBodyId::TestAccount,
-                jsonrpc: types::PostGetQueueElementsBodyJsonrpc::_20,
+                jsonrpc: types::PostGetQueueElementsBodyJsonrpc::X20,
                 method: types::PostGetQueueElementsBodyMethod::GetQueueElements,
                 params,
             }
@@ -357,7 +351,7 @@ pub mod apis {
         ) -> types::PostGetQueueInfoBody {
             types::PostGetQueueInfoBody {
                 id: types::PostGetQueueInfoBodyId::TestAccount,
-                jsonrpc: types::PostGetQueueInfoBodyJsonrpc::_20,
+                jsonrpc: types::PostGetQueueInfoBodyJsonrpc::X20,
                 method: types::PostGetQueueInfoBodyMethod::GetQueueInfo,
                 params,
             }
@@ -368,7 +362,7 @@ pub mod apis {
         ) -> types::PostGetAccountInterfaceBody {
             types::PostGetAccountInterfaceBody {
                 id: types::PostGetAccountInterfaceBodyId::TestAccount,
-                jsonrpc: types::PostGetAccountInterfaceBodyJsonrpc::_20,
+                jsonrpc: types::PostGetAccountInterfaceBodyJsonrpc::X20,
                 method: types::PostGetAccountInterfaceBodyMethod::GetAccountInterface,
                 params,
             }
@@ -379,7 +373,7 @@ pub mod apis {
         ) -> types::PostGetTokenAccountInterfaceBody {
             types::PostGetTokenAccountInterfaceBody {
                 id: types::PostGetTokenAccountInterfaceBodyId::TestAccount,
-                jsonrpc: types::PostGetTokenAccountInterfaceBodyJsonrpc::_20,
+                jsonrpc: types::PostGetTokenAccountInterfaceBodyJsonrpc::X20,
                 method: types::PostGetTokenAccountInterfaceBodyMethod::GetTokenAccountInterface,
                 params,
             }
@@ -390,7 +384,7 @@ pub mod apis {
         ) -> types::PostGetAtaInterfaceBody {
             types::PostGetAtaInterfaceBody {
                 id: types::PostGetAtaInterfaceBodyId::TestAccount,
-                jsonrpc: types::PostGetAtaInterfaceBodyJsonrpc::_20,
+                jsonrpc: types::PostGetAtaInterfaceBodyJsonrpc::X20,
                 method: types::PostGetAtaInterfaceBodyMethod::GetAtaInterface,
                 params,
             }
@@ -401,15 +395,17 @@ pub mod apis {
         ) -> types::PostGetMultipleAccountInterfacesBody {
             types::PostGetMultipleAccountInterfacesBody {
                 id: types::PostGetMultipleAccountInterfacesBodyId::TestAccount,
-                jsonrpc: types::PostGetMultipleAccountInterfacesBodyJsonrpc::_20,
+                jsonrpc: types::PostGetMultipleAccountInterfacesBodyJsonrpc::X20,
                 method:
                     types::PostGetMultipleAccountInterfacesBodyMethod::GetMultipleAccountInterfaces,
                 params,
             }
         }
 
-        /// Macro to reduce boilerplate for API calls using reqwest directly.
-        /// This bypasses the progenitor Client to allow injecting the api-key query parameter.
+        // ----------------------------------------------------------------
+        // API call functions — direct reqwest, progenitor types for serde
+        // ----------------------------------------------------------------
+
         macro_rules! api_call {
             ($fn_name:ident, $endpoint:expr, $body_type:ty, $response_type:ty) => {
                 pub async fn $fn_name(
@@ -423,21 +419,18 @@ pub mod apis {
                         .header(reqwest::header::ACCEPT, "application/json")
                         .json(&body)
                         .send()
-                        .await?;
-                    match response.status().as_u16() {
-                        200 => {
-                            let result: $response_type = response.json().await?;
-                            Ok(result)
-                        }
-                        status => {
-                            let content = response.text().await.unwrap_or_default();
-                            Err(Error::ResponseError(ResponseContent {
-                                status: reqwest::StatusCode::from_u16(status)
-                                    .unwrap_or(reqwest::StatusCode::INTERNAL_SERVER_ERROR),
-                                content,
-                                entity: None,
-                            }))
-                        }
+                        .await
+                        .map_err(Error::Reqwest)?;
+
+                    let status = response.status().as_u16();
+                    if status == 200 {
+                        response
+                            .json::<$response_type>()
+                            .await
+                            .map_err(Error::Reqwest)
+                    } else {
+                        let body = response.text().await.unwrap_or_default();
+                        Err(Error::ResponseError { status, body })
                     }
                 }
             };
@@ -449,203 +442,174 @@ pub mod apis {
             types::PostGetCompressedAccountBody,
             types::PostGetCompressedAccountResponse
         );
-
         api_call!(
             get_compressed_account_balance_post,
             "getCompressedAccountBalance",
             types::PostGetCompressedAccountBalanceBody,
             types::PostGetCompressedAccountBalanceResponse
         );
-
         api_call!(
             get_compressed_accounts_by_owner_post,
             "getCompressedAccountsByOwner",
             types::PostGetCompressedAccountsByOwnerBody,
             types::PostGetCompressedAccountsByOwnerResponse
         );
-
         api_call!(
             get_compressed_accounts_by_owner_v2_post,
             "getCompressedAccountsByOwnerV2",
             types::PostGetCompressedAccountsByOwnerV2Body,
             types::PostGetCompressedAccountsByOwnerV2Response
         );
-
         api_call!(
             get_compressed_balance_by_owner_post,
             "getCompressedBalanceByOwner",
             types::PostGetCompressedBalanceByOwnerBody,
             types::PostGetCompressedBalanceByOwnerResponse
         );
-
         api_call!(
             get_compressed_mint_token_holders_post,
             "getCompressedMintTokenHolders",
             types::PostGetCompressedMintTokenHoldersBody,
             types::PostGetCompressedMintTokenHoldersResponse
         );
-
         api_call!(
             get_compressed_token_account_balance_post,
             "getCompressedTokenAccountBalance",
             types::PostGetCompressedTokenAccountBalanceBody,
             types::PostGetCompressedTokenAccountBalanceResponse
         );
-
         api_call!(
             get_compressed_token_accounts_by_delegate_post,
             "getCompressedTokenAccountsByDelegate",
             types::PostGetCompressedTokenAccountsByDelegateBody,
             types::PostGetCompressedTokenAccountsByDelegateResponse
         );
-
         api_call!(
             get_compressed_token_accounts_by_delegate_v2_post,
             "getCompressedTokenAccountsByDelegateV2",
             types::PostGetCompressedTokenAccountsByDelegateV2Body,
             types::PostGetCompressedTokenAccountsByDelegateV2Response
         );
-
         api_call!(
             get_compressed_token_accounts_by_owner_post,
             "getCompressedTokenAccountsByOwner",
             types::PostGetCompressedTokenAccountsByOwnerBody,
             types::PostGetCompressedTokenAccountsByOwnerResponse
         );
-
         api_call!(
             get_compressed_token_accounts_by_owner_v2_post,
             "getCompressedTokenAccountsByOwnerV2",
             types::PostGetCompressedTokenAccountsByOwnerV2Body,
             types::PostGetCompressedTokenAccountsByOwnerV2Response
         );
-
         api_call!(
             get_compressed_token_balances_by_owner_post,
             "getCompressedTokenBalancesByOwner",
             types::PostGetCompressedTokenBalancesByOwnerBody,
             types::PostGetCompressedTokenBalancesByOwnerResponse
         );
-
         api_call!(
             get_compressed_token_balances_by_owner_v2_post,
             "getCompressedTokenBalancesByOwnerV2",
             types::PostGetCompressedTokenBalancesByOwnerV2Body,
             types::PostGetCompressedTokenBalancesByOwnerV2Response
         );
-
         api_call!(
             get_compression_signatures_for_account_post,
             "getCompressionSignaturesForAccount",
             types::PostGetCompressionSignaturesForAccountBody,
             types::PostGetCompressionSignaturesForAccountResponse
         );
-
         api_call!(
             get_compression_signatures_for_address_post,
             "getCompressionSignaturesForAddress",
             types::PostGetCompressionSignaturesForAddressBody,
             types::PostGetCompressionSignaturesForAddressResponse
         );
-
         api_call!(
             get_compression_signatures_for_owner_post,
             "getCompressionSignaturesForOwner",
             types::PostGetCompressionSignaturesForOwnerBody,
             types::PostGetCompressionSignaturesForOwnerResponse
         );
-
         api_call!(
             get_compression_signatures_for_token_owner_post,
             "getCompressionSignaturesForTokenOwner",
             types::PostGetCompressionSignaturesForTokenOwnerBody,
             types::PostGetCompressionSignaturesForTokenOwnerResponse
         );
-
         api_call!(
             get_indexer_health_post,
             "getIndexerHealth",
             types::PostGetIndexerHealthBody,
             types::PostGetIndexerHealthResponse
         );
-
         api_call!(
             get_indexer_slot_post,
             "getIndexerSlot",
             types::PostGetIndexerSlotBody,
             types::PostGetIndexerSlotResponse
         );
-
         api_call!(
             get_multiple_compressed_account_proofs_post,
             "getMultipleCompressedAccountProofs",
             types::PostGetMultipleCompressedAccountProofsBody,
             types::PostGetMultipleCompressedAccountProofsResponse
         );
-
         api_call!(
             get_multiple_compressed_accounts_post,
             "getMultipleCompressedAccounts",
             types::PostGetMultipleCompressedAccountsBody,
             types::PostGetMultipleCompressedAccountsResponse
         );
-
         api_call!(
             get_multiple_new_address_proofs_v2_post,
             "getMultipleNewAddressProofsV2",
             types::PostGetMultipleNewAddressProofsV2Body,
             types::PostGetMultipleNewAddressProofsV2Response
         );
-
         api_call!(
             get_validity_proof_post,
             "getValidityProof",
             types::PostGetValidityProofBody,
             types::PostGetValidityProofResponse
         );
-
         api_call!(
             get_validity_proof_v2_post,
             "getValidityProofV2",
             types::PostGetValidityProofV2Body,
             types::PostGetValidityProofV2Response
         );
-
         api_call!(
             get_queue_elements_post,
             "getQueueElements",
             types::PostGetQueueElementsBody,
             types::PostGetQueueElementsResponse
         );
-
         api_call!(
             get_queue_info_post,
             "getQueueInfo",
             types::PostGetQueueInfoBody,
             types::PostGetQueueInfoResponse
         );
-
         api_call!(
             get_account_interface_post,
             "getAccountInterface",
             types::PostGetAccountInterfaceBody,
             types::PostGetAccountInterfaceResponse
         );
-
         api_call!(
             get_token_account_interface_post,
             "getTokenAccountInterface",
             types::PostGetTokenAccountInterfaceBody,
             types::PostGetTokenAccountInterfaceResponse
         );
-
         api_call!(
             get_ata_interface_post,
             "getAtaInterface",
             types::PostGetAtaInterfaceBody,
             types::PostGetAtaInterfaceResponse
         );
-
         api_call!(
             get_multiple_account_interfaces_post,
             "getMultipleAccountInterfaces",
@@ -661,24 +625,24 @@ mod tests {
 
     #[test]
     fn test_parse_url_with_api_key() {
-        let config = Configuration::new("https://rpc.example.com?api-key=MY_KEY".to_string());
-        assert_eq!(config.base_path, "https://rpc.example.com");
-        assert_eq!(config.api_key, Some("MY_KEY".to_string()));
+        let (base, key) = Configuration::parse_url("https://rpc.example.com?api-key=MY_KEY");
+        assert_eq!(base, "https://rpc.example.com");
+        assert_eq!(key, Some("MY_KEY".to_string()));
     }
 
     #[test]
     fn test_parse_url_without_api_key() {
-        let config = Configuration::new("https://rpc.example.com".to_string());
-        assert_eq!(config.base_path, "https://rpc.example.com");
-        assert_eq!(config.api_key, None);
+        let (base, key) = Configuration::parse_url("https://rpc.example.com");
+        assert_eq!(base, "https://rpc.example.com");
+        assert_eq!(key, None);
     }
 
     #[test]
     fn test_parse_url_with_other_query_params() {
-        let config =
-            Configuration::new("https://rpc.example.com?other=value&api-key=KEY123".to_string());
-        assert_eq!(config.base_path, "https://rpc.example.com");
-        assert_eq!(config.api_key, Some("KEY123".to_string()));
+        let (base, key) =
+            Configuration::parse_url("https://rpc.example.com?other=value&api-key=KEY123");
+        assert_eq!(base, "https://rpc.example.com");
+        assert_eq!(key, Some("KEY123".to_string()));
     }
 
     #[test]
@@ -686,23 +650,6 @@ mod tests {
         let config = Configuration::new("https://rpc.example.com?api-key=SECRET".to_string());
         assert_eq!(config.base_path, "https://rpc.example.com");
         assert_eq!(config.api_key, Some("SECRET".to_string()));
-    }
-
-    #[test]
-    fn test_build_url_with_api_key() {
-        let config = Configuration::new("https://rpc.example.com?api-key=KEY".to_string());
-        let url = config.build_url("getCompressedAccount");
-        assert_eq!(
-            url,
-            "https://rpc.example.com/getCompressedAccount?api-key=KEY"
-        );
-    }
-
-    #[test]
-    fn test_build_url_without_api_key() {
-        let config = Configuration::new("https://rpc.example.com".to_string());
-        let url = config.build_url("getCompressedAccount");
-        assert_eq!(url, "https://rpc.example.com/getCompressedAccount");
     }
 
     #[test]
@@ -756,16 +703,12 @@ mod tests {
     #[tokio::test]
     async fn test_api_call_sends_correct_request() {
         use wiremock::{
-            matchers::{body_json_string, header, method, path, query_param},
+            matchers::{header, method, path, query_param},
             Mock, MockServer, ResponseTemplate,
         };
 
         let mock_server = MockServer::start().await;
 
-        // Build expected response JSON matching PostGetIndexerHealthResponse type:
-        // - id: string enum "test-account"
-        // - jsonrpc: string enum "2.0"
-        // - result: string enum "ok"
         let response_json = serde_json::json!({
             "jsonrpc": "2.0",
             "result": "ok",
@@ -785,7 +728,7 @@ mod tests {
         let body = default_api::make_get_indexer_health_body();
         let result = default_api::get_indexer_health_post(&config, body).await;
 
-        assert!(result.is_ok());
+        result.expect("API call with api-key should succeed");
     }
 
     #[tokio::test]
@@ -815,7 +758,7 @@ mod tests {
         let body = default_api::make_get_indexer_health_body();
         let result = default_api::get_indexer_health_post(&config, body).await;
 
-        assert!(result.is_ok());
+        result.expect("API call without api-key should succeed");
     }
 
     #[tokio::test]
@@ -838,13 +781,12 @@ mod tests {
         let body = default_api::make_get_indexer_health_body();
         let result = default_api::get_indexer_health_post(&config, body).await;
 
-        assert!(result.is_err());
-        match result.unwrap_err() {
-            super::apis::Error::ResponseError(content) => {
-                assert_eq!(content.status, reqwest::StatusCode::INTERNAL_SERVER_ERROR);
-                assert_eq!(content.content, "Internal Server Error");
+        match result {
+            Err(super::apis::Error::ResponseError { status, body }) => {
+                assert_eq!(status, 500);
+                assert_eq!(body, "Internal Server Error");
             }
-            other => panic!("Expected ResponseError, got: {:?}", other),
+            other => panic!("Expected ResponseError, got {:?}", other),
         }
     }
 }

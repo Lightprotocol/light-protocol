@@ -87,10 +87,10 @@ impl From<CompressedAccount> for CompressedAccountWithMerkleContext {
     }
 }
 
-impl TryFrom<&photon_api::models::AccountV2> for CompressedAccount {
+impl TryFrom<&photon_api::types::AccountV2> for CompressedAccount {
     type Error = IndexerError;
 
-    fn try_from(account: &photon_api::models::AccountV2) -> Result<Self, Self::Error> {
+    fn try_from(account: &photon_api::types::AccountV2) -> Result<Self, Self::Error> {
         let data = if let Some(data) = &account.data {
             Ok::<Option<CompressedAccountData>, IndexerError>(Some(CompressedAccountData {
                 discriminator: (*data.discriminator).to_le_bytes(),
@@ -144,10 +144,10 @@ impl TryFrom<&photon_api::models::AccountV2> for CompressedAccount {
     }
 }
 
-impl TryFrom<&photon_api::models::Account> for CompressedAccount {
+impl TryFrom<&photon_api::types::Account> for CompressedAccount {
     type Error = IndexerError;
 
-    fn try_from(account: &photon_api::models::Account) -> Result<Self, Self::Error> {
+    fn try_from(account: &photon_api::types::Account) -> Result<Self, Self::Error> {
         let data = if let Some(data) = &account.data {
             Ok::<Option<CompressedAccountData>, IndexerError>(Some(CompressedAccountData {
                 discriminator: (*data.discriminator).to_le_bytes(),
