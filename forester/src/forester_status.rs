@@ -905,6 +905,24 @@ pub async fn fetch_forester_status(args: &StatusArgs) -> crate::Result<()> {
     Ok(())
 }
 
+/// Prints current forester assignments for all trees in the active epoch.
+///
+/// This function calculates the current light slot index and displays which forester
+/// is assigned to process each tree's queue for the current light slot.
+///
+/// # Arguments
+/// * `slot` - Current Solana slot number
+/// * `current_active_epoch` - The currently active epoch number
+/// * `active_epoch_foresters` - List of foresters registered for the active epoch
+/// * `trees` - List of tree accounts to check assignments for
+/// * `current_epoch_pda_entry` - Optional epoch PDA entry for validation
+/// * `protocol_config` - Protocol configuration containing slot timing parameters
+///
+/// # Behavior
+/// - Calculates current light slot index based on slot timing
+/// - Determines eligible forester for each tree using weighted selection
+/// - Displays forester assignments in a formatted table
+/// - Shows time remaining in current light slot
 fn print_current_forester_assignments(
     slot: Slot,
     current_active_epoch: u64,
@@ -1014,6 +1032,25 @@ fn print_current_forester_assignments(
     }
 }
 
+/// Prints detailed forester schedule for a specific tree across all light slots.
+///
+/// This function performs comprehensive validation of forester assignments for a given tree
+/// by checking all light slots in the current epoch and displaying the assignment schedule.
+///
+/// # Arguments
+/// * `slot` - Current Solana slot number
+/// * `current_active_epoch` - The currently active epoch number
+/// * `active_epoch_foresters` - List of foresters registered for the active epoch
+/// * `tree` - The merkle tree public key to check assignments for
+/// * `queue` - The queue public key associated with the tree
+/// * `current_epoch_pda_entry` - Optional epoch PDA entry for validation
+/// * `protocol_config` - Protocol configuration containing slot timing parameters
+///
+/// # Behavior
+/// - Validates that all light slots in the epoch have forester assignments
+/// - Displays current light slot information and time remaining
+/// - Shows forester assignments for the next 10 light slots
+/// - Reports any missing assignments or calculation errors
 fn print_tree_schedule_by_forester(
     slot: Slot,
     current_active_epoch: u64,
