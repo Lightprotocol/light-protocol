@@ -179,7 +179,7 @@ The set of applications and protocols that benefit from ZK Compression is quite 
 
 **4.2 Light Enables ZK-Applications**
 
-Light Protocol is a shared bridge to merklelized, zk-friendly state. We believe that as more state becomes compressed via ZK Compression, Light Protocol will provide ZK-based applications and protocols with the option to bootstrap and scale on Solana across globally shared compressed state.
+Light Protocol is a shared bridge to merkleized, zk-friendly state. We believe that as more state becomes compressed via ZK Compression, Light Protocol will provide ZK-based applications and protocols with the option to bootstrap and scale on Solana across globally shared compressed state.
 
 We believe the design space for ZK-based applications is now wide open and will continue to expand. Some exciting technologies include:
 
