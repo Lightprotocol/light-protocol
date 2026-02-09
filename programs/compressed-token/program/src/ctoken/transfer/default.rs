@@ -3,7 +3,9 @@ use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
 use pinocchio_token_program::processor::transfer::process_transfer;
 
-use super::shared::{process_transfer_extensions_transfer, validate_self_transfer, TransferAccounts};
+use super::shared::{
+    process_transfer_extensions_transfer, validate_self_transfer, TransferAccounts,
+};
 use crate::shared::convert_pinocchio_token_error;
 
 /// Account indices for CToken transfer instruction
