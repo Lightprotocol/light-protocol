@@ -50,7 +50,13 @@ pub fn validate_and_apply_compressed_only(
     )?;
 
     // === APPLY delegate state ===
-    apply_delegate(ctoken, ext_data, &inputs, packed_accounts)?;
+    apply_delegate(
+        ctoken,
+        ext_data,
+        &inputs,
+        packed_accounts,
+        compression_amount,
+    )?;
 
     // === APPLY withheld fee ===
     apply_withheld_fee(ctoken, ext_data)?;
@@ -106,6 +112,7 @@ fn apply_delegate(
     ext_data: &ZCompressedOnlyExtensionInstructionData,
     inputs: &DecompressCompressOnlyInputs,
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
+    compression_amount: u64,
 ) -> Result<(), ProgramError> {
     // Skip if destination already has delegate
     if ctoken.delegate().is_some() {
@@ -125,11 +132,14 @@ fn apply_delegate(
         ctoken
             .base
             .set_delegate(Some(Pubkey::from(*delegate_acc.key())))?;
-        if delegated_amount > 0 {
+        // Cap delegated_amount by the actual compressed balance to prevent
+        // over-increasing delegation when compressed account had more delegated than balance.
+        let capped = delegated_amount.min(compression_amount);
+        if capped > 0 {
             let current = ctoken.base.delegated_amount.get();
             ctoken.base.delegated_amount.set(
                 current
-                    .checked_add(delegated_amount)
+                    .checked_add(capped)
                     .ok_or(ProgramError::ArithmeticOverflow)?,
             );
         }
