@@ -18,7 +18,7 @@ use csdk_anchor_full_derived_test::amm_test::{
 use csdk_anchor_full_derived_test_sdk::{AmmInstruction, AmmSdk};
 use light_client::interface::{
     create_load_instructions, get_create_accounts_proof, CreateAccountsProofInput,
-    InitializeRentFreeConfig, LightProgramInterface,
+    InitializeRentFreeConfig, LightProgram,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{
@@ -638,22 +638,23 @@ async fn test_amm_full_lifecycle() {
         .expect("pool_state should exist");
     assert!(pool_interface.is_cold(), "pool_state should be cold");
 
-    // Create Program Interface SDK.
-    let mut sdk = AmmSdk::from_keyed_accounts(&[pool_interface])
-        .expect("ProgrammSdk::from_keyed_accounts should succeed");
+    // Create SDK from pool state data.
+    let sdk = AmmSdk::new(pdas.pool_state, pool_interface.data())
+        .expect("AmmSdk::new should succeed");
 
-    let accounts_to_fetch = sdk.get_accounts_to_update(&AmmInstruction::Deposit);
-
-    let keyed_accounts = ctx
+    // Fetch all instruction accounts and filter cold ones.
+    let pubkeys = sdk.instruction_accounts(&AmmInstruction::Deposit);
+    let account_interfaces = ctx
         .rpc
-        .fetch_accounts(&accounts_to_fetch, None)
+        .fetch_accounts(&pubkeys, None)
         .await
         .expect("fetch_accounts should succeed");
+    let cold_accounts: Vec<_> = account_interfaces
+        .into_iter()
+        .filter(|a| a.is_cold())
+        .collect();
 
-    sdk.update(&keyed_accounts)
-        .expect("sdk.update should succeed");
-
-    let specs = sdk.get_specs_for_instruction(&AmmInstruction::Deposit);
+    let mut all_specs = sdk.load_specs(&cold_accounts).expect("load_specs should succeed");
 
     let creator_lp_account = ctx
         .rpc
@@ -667,7 +668,6 @@ async fn test_amm_full_lifecycle() {
     let creator_lp_interface = TokenAccountInterface::try_from(creator_lp_account)
         .expect("should convert to TokenAccountInterface");
 
-    let mut all_specs = specs;
     all_specs.push(AccountSpec::Ata(creator_lp_interface));
 
     let decompress_ixs =

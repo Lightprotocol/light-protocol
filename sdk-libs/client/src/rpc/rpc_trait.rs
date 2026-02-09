@@ -19,7 +19,7 @@ use solana_transaction_status_client_types::TransactionStatus;
 use super::client::RpcUrl;
 use crate::{
     indexer::{Indexer, IndexerRpcConfig, Response, TreeInfo},
-    interface::{AccountInterface, AccountToFetch, MintInterface, TokenAccountInterface},
+    interface::{AccountInterface, MintInterface, TokenAccountInterface},
     rpc::errors::RpcError,
 };
 
@@ -280,23 +280,16 @@ pub trait Rpc: Send + Sync + Debug + 'static {
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<Option<MintInterface>>, RpcError>;
 
-    /// Fetch multiple accounts using `AccountToFetch` descriptors.
-    ///
-    /// Routes each account to the correct method based on its variant:
-    /// - `Pda` -> `get_account_interface`
-    /// - `Token` -> `get_token_account_interface`
-    /// - `Ata` -> `get_associated_token_account_interface`
-    /// - `Mint` -> `get_mint_interface`
+    /// Fetch multiple accounts by pubkey via `get_account_interface`.
     async fn fetch_accounts(
         &self,
-        accounts: &[AccountToFetch],
+        pubkeys: &[Pubkey],
         config: Option<IndexerRpcConfig>,
     ) -> Result<Vec<AccountInterface>, RpcError> {
-        let mut results = Vec::with_capacity(accounts.len());
-        for account in accounts {
-            let pubkey = account.pubkey();
+        let mut results = Vec::with_capacity(pubkeys.len());
+        for pubkey in pubkeys {
             let interface = self
-                .get_account_interface(&pubkey, config.clone())
+                .get_account_interface(pubkey, config.clone())
                 .await?
                 .value
                 .ok_or_else(|| {

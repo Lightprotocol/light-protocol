@@ -20,7 +20,7 @@ use light_batched_merkle_tree::{
 };
 use light_client::interface::{
     create_load_instructions, get_create_accounts_proof, AccountSpec, CreateAccountsProofInput,
-    InitializeRentFreeConfig, LightProgramInterface, TokenAccountInterface,
+    InitializeRentFreeConfig, LightProgram, TokenAccountInterface,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{
@@ -496,21 +496,21 @@ async fn decompress_all(ctx: &mut AmmTestContext, pdas: &AmmPdas) {
         .expect("pool_state should exist");
     assert!(pool_interface.is_cold(), "pool_state should be cold");
 
-    let mut sdk = AmmSdk::from_keyed_accounts(&[pool_interface])
-        .expect("AmmSdk::from_keyed_accounts should succeed");
+    let sdk = AmmSdk::new(pdas.pool_state, pool_interface.data())
+        .expect("AmmSdk::new should succeed");
 
-    let accounts_to_fetch = sdk.get_accounts_to_update(&AmmInstruction::Deposit);
-
-    let keyed_accounts = ctx
+    let pubkeys = sdk.instruction_accounts(&AmmInstruction::Deposit);
+    let account_interfaces = ctx
         .rpc
-        .fetch_accounts(&accounts_to_fetch, None)
+        .fetch_accounts(&pubkeys, None)
         .await
         .expect("fetch_accounts should succeed");
+    let cold_accounts: Vec<_> = account_interfaces
+        .into_iter()
+        .filter(|a| a.is_cold())
+        .collect();
 
-    sdk.update(&keyed_accounts)
-        .expect("sdk.update should succeed");
-
-    let specs = sdk.get_specs_for_instruction(&AmmInstruction::Deposit);
+    let specs = sdk.load_specs(&cold_accounts).expect("load_specs should succeed");
 
     let creator_lp_interface: TokenAccountInterface = ctx
         .rpc

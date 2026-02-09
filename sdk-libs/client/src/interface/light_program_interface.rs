@@ -1,47 +1,18 @@
-//! LightProgramInterface trait and supporting types for client-side SDK patterns.
+//! LightProgram trait and supporting types for client-side cold account handling.
 //!
 //! Core types:
 //! - `ColdContext` - Cold data context (Account or Token)
 //! - `PdaSpec` - Spec for PDA loading with typed variant
 //! - `AccountSpec` - Unified spec enum for load instruction building
-//! - `LightProgramInterface` - Trait for program SDKs
+//! - `LightProgram` - Trait for program SDKs
 
 use std::fmt::Debug;
 
 use light_account::Pack;
-use light_token::instruction::derive_token_ata;
 use solana_pubkey::Pubkey;
 
 use super::{AccountInterface, TokenAccountInterface};
 use crate::indexer::{CompressedAccount, CompressedTokenAccount};
-
-/// Account descriptor for fetching via the unified `getAccountInterface` endpoint.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum AccountToFetch {
-    /// Fetch by address. Works for any account type (PDA, token, mint).
-    Address(Pubkey),
-    /// ATA: derives address from (wallet_owner, mint), then fetches.
-    Ata { wallet_owner: Pubkey, mint: Pubkey },
-}
-
-impl AccountToFetch {
-    pub fn address(pubkey: Pubkey) -> Self {
-        Self::Address(pubkey)
-    }
-
-    pub fn ata(wallet_owner: Pubkey, mint: Pubkey) -> Self {
-        Self::Ata { wallet_owner, mint }
-    }
-
-    /// Returns the primary pubkey for this fetch request.
-    #[must_use]
-    pub fn pubkey(&self) -> Pubkey {
-        match self {
-            Self::Address(pubkey) => *pubkey,
-            Self::Ata { wallet_owner, mint } => derive_token_ata(wallet_owner, mint).0,
-        }
-    }
-}
 
 /// Context for cold accounts.
 ///
@@ -218,65 +189,38 @@ pub fn all_hot<V>(specs: &[AccountSpec<V>]) -> bool {
     specs.iter().all(|s| s.is_hot())
 }
 
-/// Trait for programs to give clients a unified API to load cold program accounts.
-pub trait LightProgramInterface: Sized {
-    /// The program's interface account variant enum.
+/// Trait for program SDKs to produce load specs for cold accounts.
+///
+/// Implementors hold parsed program state (e.g., pool config, vault addresses,
+/// seed values). The trait provides two methods:
+/// - `instruction_accounts`: which pubkeys does this instruction reference?
+/// - `load_specs`: given cold AccountInterfaces, build AccountSpec with variants.
+///
+/// The caller handles construction, caching, and cold detection.
+/// The trait only maps cold accounts to their variants for `create_load_instructions`.
+pub trait LightProgram: Sized {
+    /// The program's account variant enum (macro-generated, carries PDA seeds).
     type Variant: Pack<solana_instruction::AccountMeta> + Clone + Debug;
 
     /// Program-specific instruction enum.
     type Instruction;
 
-    /// Error type for SDK operations.
-    type Error: std::error::Error;
-
     /// The program ID.
+    fn program_id() -> Pubkey;
+
+    /// Which compressible account pubkeys does this instruction reference?
+    /// Used by callers to check which accounts might need loading.
     #[must_use]
-    fn program_id(&self) -> Pubkey;
+    fn instruction_accounts(&self, ix: &Self::Instruction) -> Vec<Pubkey>;
 
-    /// Construct SDK from root account(s).
-    fn from_keyed_accounts(accounts: &[AccountInterface]) -> Result<Self, Self::Error>;
-
-    /// Returns pubkeys of accounts needed for an instruction.
-    #[must_use]
-    fn get_accounts_to_update(&self, ix: &Self::Instruction) -> Vec<AccountToFetch>;
-
-    /// Update internal cache with fetched account data.
-    fn update(&mut self, accounts: &[AccountInterface]) -> Result<(), Self::Error>;
-
-    /// Get all cached specs.
-    #[must_use]
-    fn get_all_specs(&self) -> Vec<AccountSpec<Self::Variant>>;
-
-    /// Get specs filtered for a specific instruction.
-    #[must_use]
-    fn get_specs_for_instruction(&self, ix: &Self::Instruction) -> Vec<AccountSpec<Self::Variant>>;
-
-    /// Get only cold specs from all cached specs.
-    #[must_use]
-    fn get_cold_specs(&self) -> Vec<AccountSpec<Self::Variant>> {
-        self.get_all_specs()
-            .into_iter()
-            .filter(|s| s.is_cold())
-            .collect()
-    }
-
-    /// Get only cold specs for a specific instruction.
-    #[must_use]
-    fn get_cold_specs_for_instruction(
+    /// Build AccountSpec for cold accounts.
+    /// Matches each AccountInterface by pubkey, constructs the variant (seeds)
+    /// from internal parsed state, wraps in PdaSpec/AccountSpec.
+    /// Only called on the cold path.
+    fn load_specs(
         &self,
-        ix: &Self::Instruction,
-    ) -> Vec<AccountSpec<Self::Variant>> {
-        self.get_specs_for_instruction(ix)
-            .into_iter()
-            .filter(|s| s.is_cold())
-            .collect()
-    }
-
-    /// Check if any accounts for this instruction are cold.
-    #[must_use]
-    fn needs_loading(&self, ix: &Self::Instruction) -> bool {
-        any_cold(&self.get_specs_for_instruction(ix))
-    }
+        cold_accounts: &[AccountInterface],
+    ) -> Result<Vec<AccountSpec<Self::Variant>>, Box<dyn std::error::Error>>;
 }
 
 /// Extract 8-byte discriminator from account data.
