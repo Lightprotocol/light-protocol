@@ -51,7 +51,7 @@ pub fn process_ctoken_transfer_checked(
 
     // Self-transfer: validate authority but skip token movement to avoid
     // double mutable borrow panic in pinocchio process_transfer.
-    if source.key() == destination.key() {
+    if pubkey_eq(source.key(), destination.key()) {
         let authority = &accounts[ACCOUNT_AUTHORITY];
         if !authority.is_signer() {
             return Err(ProgramError::MissingRequiredSignature);
