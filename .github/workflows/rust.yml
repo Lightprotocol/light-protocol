@@ -35,6 +35,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          submodules: true
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
@@ -48,11 +50,11 @@ jobs:
 
       - name: Package build artifacts
         run: |
-          DIRS=""
+          DIRS=()
           for d in target/deploy target/idl target/types cli/bin cli/dist js/stateless.js/dist js/compressed-token/dist; do
-            [ -d "$d" ] && DIRS="$DIRS $d"
+            [ -d "$d" ] && DIRS+=("$d")
           done
-          tar -czf build-artifacts.tar.gz $DIRS
+          tar -czf build-artifacts.tar.gz "${DIRS[@]}"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
