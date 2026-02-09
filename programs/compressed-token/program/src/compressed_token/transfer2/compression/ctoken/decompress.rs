@@ -116,10 +116,6 @@ fn apply_delegate(
     };
 
     let Some(delegate_acc) = input_delegate else {
-        if delegated_amount > 0 && ctoken.delegate().is_none() {
-            msg!("Decompress: delegated_amount > 0 but no delegate");
-            return Err(TokenError::DecompressDelegatedAmountWithoutDelegate.into());
-        }
         return Ok(());
     };
 
