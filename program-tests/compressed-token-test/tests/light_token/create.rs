@@ -694,4 +694,29 @@ async fn test_create_compressible_token_account_failing() {
         // Only version 3 (ShaFlat) is supported for compressible accounts
         light_program_test::utils::assert::assert_rpc_error(result, 0, 2).unwrap();
     }
+
+    // Test 13: Rent sponsor self-referencing token account (audit issue #9)
+    // The rent sponsor cannot be the same account as the token account being created.
+    // This would create a self-referencing loop that could corrupt account state.
+    // Error: 3 (InvalidAccountData)
+    {
+        context.token_account_keypair = Keypair::new();
+        let compressible_data = CompressibleData {
+            compression_authority: context.compression_authority,
+            rent_sponsor: context.token_account_keypair.pubkey(), // Self-reference!
+            num_prepaid_epochs: 2,
+            lamports_per_write: Some(100),
+            account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
+            compress_to_pubkey: false,
+            payer: payer_pubkey,
+        };
+
+        create_and_assert_token_account_fails(
+            &mut context,
+            compressible_data,
+            "rent_sponsor_self_reference",
+            3, // InvalidAccountData
+        )
+        .await;
+    }
 }
