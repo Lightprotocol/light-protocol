@@ -32,7 +32,6 @@ pub type MintInterfaceMap = HashMap<Pubkey, AccountInterface, ahash::RandomState
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AccountKind {
     Pda,
-    Token,
     Mint,
 }
 
@@ -293,8 +292,8 @@ impl AmmSdk {
     }
 
     fn account_requirements(&self, ix: &AmmInstruction) -> Vec<AccountRequirement> {
-        let vault_0_req = AccountRequirement::new(self.token_0_vault, AccountKind::Token);
-        let vault_1_req = AccountRequirement::new(self.token_1_vault, AccountKind::Token);
+        let vault_0_req = AccountRequirement::new(self.token_0_vault, AccountKind::Pda);
+        let vault_1_req = AccountRequirement::new(self.token_1_vault, AccountKind::Pda);
 
         match ix {
             AmmInstruction::Swap => {
@@ -345,13 +344,7 @@ impl LightProgramInterface for AmmSdk {
     fn get_accounts_to_update(&self, ix: &Self::Instruction) -> Vec<AccountToFetch> {
         self.account_requirements(ix)
             .into_iter()
-            .filter_map(|req| match req.kind {
-                AccountKind::Pda => req
-                    .pubkey
-                    .map(|pubkey| AccountToFetch::pda(pubkey, PROGRAM_ID)),
-                AccountKind::Token => req.pubkey.map(AccountToFetch::token),
-                AccountKind::Mint => req.pubkey.map(AccountToFetch::mint),
-            })
+            .filter_map(|req| req.pubkey.map(AccountToFetch::address))
             .collect()
     }
 
@@ -379,17 +372,15 @@ impl LightProgramInterface for AmmSdk {
         let mut specs = Vec::new();
 
         for req in &requirements {
-            match req.kind {
-                AccountKind::Pda | AccountKind::Token => {
-                    if let Some(pubkey) = req.pubkey {
+            if let Some(pubkey) = req.pubkey {
+                match req.kind {
+                    AccountKind::Pda => {
                         if let Some(spec) = self.program_owned_specs.get(&pubkey) {
                             specs.push(AccountSpec::Pda(spec.clone()));
                         }
                     }
-                }
-                AccountKind::Mint => {
-                    if let Some(mint_pubkey) = req.pubkey {
-                        if let Some(spec) = self.mint_specs.get(&mint_pubkey) {
+                    AccountKind::Mint => {
+                        if let Some(spec) = self.mint_specs.get(&pubkey) {
                             specs.push(AccountSpec::Mint(spec.clone()));
                         }
                     }

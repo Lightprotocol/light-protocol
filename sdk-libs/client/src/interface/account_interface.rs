@@ -404,3 +404,27 @@ impl From<TokenAccountInterface> for AccountInterface {
         }
     }
 }
+
+impl TryFrom<AccountInterface> for TokenAccountInterface {
+    type Error = AccountInterfaceError;
+
+    /// Convert an `AccountInterface` to `TokenAccountInterface`.
+    ///
+    /// For cold token accounts (ColdContext::Token), reconstructs the parsed PodAccount
+    /// from compressed token data. For hot accounts, parses PodAccount from raw bytes.
+    fn try_from(ai: AccountInterface) -> Result<Self, Self::Error> {
+        match ai.cold {
+            Some(ColdContext::Token(ct)) => {
+                let owner = ct.token.owner;
+                Ok(TokenAccountInterface::cold(
+                    ai.key,
+                    ct,
+                    owner,
+                    ai.account.owner,
+                ))
+            }
+            None => TokenAccountInterface::hot(ai.key, ai.account),
+            _ => Err(AccountInterfaceError::InvalidData),
+        }
+    }
+}

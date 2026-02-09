@@ -19,8 +19,8 @@ use light_batched_merkle_tree::{
     initialize_state_tree::InitStateTreeAccountsInstructionData,
 };
 use light_client::interface::{
-    create_load_instructions, get_create_accounts_proof, AccountInterface, AccountSpec,
-    CreateAccountsProofInput, InitializeRentFreeConfig, LightProgramInterface,
+    create_load_instructions, get_create_accounts_proof, AccountSpec, CreateAccountsProofInput,
+    InitializeRentFreeConfig, LightProgramInterface, TokenAccountInterface,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{
@@ -512,48 +512,52 @@ async fn decompress_all(ctx: &mut AmmTestContext, pdas: &AmmPdas) {
 
     let specs = sdk.get_specs_for_instruction(&AmmInstruction::Deposit);
 
-    let creator_lp_interface = ctx
+    let creator_lp_interface: TokenAccountInterface = ctx
         .rpc
-        .get_associated_token_account_interface(&ctx.creator.pubkey(), &pdas.lp_mint, None)
+        .get_account_interface(&pdas.creator_lp_token, None)
         .await
         .expect("failed to get creator_lp_token")
         .value
-        .expect("creator_lp_token should exist");
+        .expect("creator_lp_token should exist")
+        .try_into()
+        .expect("should convert to TokenAccountInterface");
 
     // Creator's token_0 and token_1 ATAs also get compressed during epoch warp
-    let creator_token_0_interface = ctx
+    let creator_token_0_interface: TokenAccountInterface = ctx
         .rpc
-        .get_associated_token_account_interface(&ctx.creator.pubkey(), &ctx.token_0_mint, None)
+        .get_account_interface(&ctx.creator_token_0, None)
         .await
         .expect("failed to get creator_token_0")
         .value
-        .expect("creator_token_0 should exist");
+        .expect("creator_token_0 should exist")
+        .try_into()
+        .expect("should convert to TokenAccountInterface");
 
-    let creator_token_1_interface = ctx
+    let creator_token_1_interface: TokenAccountInterface = ctx
         .rpc
-        .get_associated_token_account_interface(&ctx.creator.pubkey(), &ctx.token_1_mint, None)
+        .get_account_interface(&ctx.creator_token_1, None)
         .await
         .expect("failed to get creator_token_1")
         .value
-        .expect("creator_token_1 should exist");
+        .expect("creator_token_1 should exist")
+        .try_into()
+        .expect("should convert to TokenAccountInterface");
 
-    let mint_0_account_iface = AccountInterface::from(
-        ctx.rpc
-            .get_mint_interface(&ctx.token_0_mint, None)
-            .await
-            .expect("failed to get token_0_mint")
-            .value
-            .expect("token_0_mint should exist"),
-    );
+    let mint_0_account_iface = ctx
+        .rpc
+        .get_account_interface(&ctx.token_0_mint, None)
+        .await
+        .expect("failed to get token_0_mint")
+        .value
+        .expect("token_0_mint should exist");
 
-    let mint_1_account_iface = AccountInterface::from(
-        ctx.rpc
-            .get_mint_interface(&ctx.token_1_mint, None)
-            .await
-            .expect("failed to get token_1_mint")
-            .value
-            .expect("token_1_mint should exist"),
-    );
+    let mint_1_account_iface = ctx
+        .rpc
+        .get_account_interface(&ctx.token_1_mint, None)
+        .await
+        .expect("failed to get token_1_mint")
+        .value
+        .expect("token_1_mint should exist");
 
     let mut all_specs = specs;
     all_specs.push(AccountSpec::Ata(creator_lp_interface));

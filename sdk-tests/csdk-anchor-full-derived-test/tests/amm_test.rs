@@ -655,16 +655,18 @@ async fn test_amm_full_lifecycle() {
 
     let specs = sdk.get_specs_for_instruction(&AmmInstruction::Deposit);
 
-    let creator_lp_interface = ctx
+    let creator_lp_account = ctx
         .rpc
-        .get_associated_token_account_interface(&ctx.creator.pubkey(), &pdas.lp_mint, None)
+        .get_account_interface(&pdas.creator_lp_token, None)
         .await
         .expect("failed to get creator_lp_token")
         .value
         .expect("creator_lp_token should exist");
 
-    // add ata
-    use light_client::interface::AccountSpec;
+    use light_client::interface::{AccountSpec, TokenAccountInterface};
+    let creator_lp_interface = TokenAccountInterface::try_from(creator_lp_account)
+        .expect("should convert to TokenAccountInterface");
+
     let mut all_specs = specs;
     all_specs.push(AccountSpec::Ata(creator_lp_interface));
 

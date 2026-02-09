@@ -15,47 +15,30 @@ use solana_pubkey::Pubkey;
 use super::{AccountInterface, TokenAccountInterface};
 use crate::indexer::{CompressedAccount, CompressedTokenAccount};
 
-/// Account descriptor for fetching. Routes to the correct indexer endpoint.
+/// Account descriptor for fetching via the unified `getAccountInterface` endpoint.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum AccountToFetch {
-    /// PDA account - uses `get_account_interface(address, program_id)`
-    Pda { address: Pubkey, program_id: Pubkey },
-    /// Token account (program-owned) - uses `get_token_account_interface(address)`
-    Token { address: Pubkey },
-    /// ATA - uses `get_associated_token_account_interface(wallet_owner, mint)`
+    /// Fetch by address. Works for any account type (PDA, token, mint).
+    Address(Pubkey),
+    /// ATA: derives address from (wallet_owner, mint), then fetches.
     Ata { wallet_owner: Pubkey, mint: Pubkey },
-    /// Light mint - uses `get_account_interface(address)` (clients parse mint data)
-    Mint { address: Pubkey },
 }
 
 impl AccountToFetch {
-    pub fn pda(address: Pubkey, program_id: Pubkey) -> Self {
-        Self::Pda {
-            address,
-            program_id,
-        }
-    }
-
-    pub fn token(address: Pubkey) -> Self {
-        Self::Token { address }
+    pub fn address(pubkey: Pubkey) -> Self {
+        Self::Address(pubkey)
     }
 
     pub fn ata(wallet_owner: Pubkey, mint: Pubkey) -> Self {
         Self::Ata { wallet_owner, mint }
     }
 
-    pub fn mint(address: Pubkey) -> Self {
-        Self::Mint { address }
-    }
-
     /// Returns the primary pubkey for this fetch request.
     #[must_use]
     pub fn pubkey(&self) -> Pubkey {
         match self {
-            Self::Pda { address, .. } => *address,
-            Self::Token { address } => *address,
+            Self::Address(pubkey) => *pubkey,
             Self::Ata { wallet_owner, mint } => derive_token_ata(wallet_owner, mint).0,
-            Self::Mint { address } => *address,
         }
     }
 }
