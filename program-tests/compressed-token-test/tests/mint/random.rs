@@ -39,13 +39,17 @@ async fn test_random_mint_action() {
     println!("\n\ntest seed {}\n\n", seed);
     let mut rng = StdRng::seed_from_u64(seed);
 
-    // Generate random custom metadata keys (max 20)
+    // Generate random custom metadata keys (max 20, deduplicated)
     let num_keys = rng.gen_range(1..=20);
     let mut available_keys = Vec::new();
     let mut initial_metadata = Vec::new();
     for i in 0..num_keys {
         let key_len = rng.gen_range(1..=8); // Random key length 1-8 bytes
         let key: Vec<u8> = (0..key_len).map(|_| rng.gen()).collect();
+        // Skip duplicate keys to avoid DuplicateMetadataKey error
+        if available_keys.contains(&key) {
+            continue;
+        }
         let value_len = rng.gen_range(5..=32); // Random value length
         let value = vec![(i + 2) as u8; value_len];
 
