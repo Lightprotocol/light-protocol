@@ -477,7 +477,7 @@ async fn test_create_ata_failing() {
 
     // Test 5: Invalid ATA address (wrong PDA)
     // Passing a wrong ATA address that doesn't match the derived PDA should fail.
-    // With canonical bumps, the program derives the correct address and rejects mismatches.
+    // verify_pda uses find_program_address and returns InvalidAccountData (3) on mismatch.
     {
         use anchor_lang::prelude::borsh::BorshSerialize;
         use light_token_interface::instructions::{
@@ -533,16 +533,8 @@ async fn test_create_ata_failing() {
             .create_and_send_transaction(&[ix], &payer_pubkey, &[&context.payer])
             .await;
 
-        // Wrong ATA address triggers ProgramFailedToComplete (21) or PrivilegeEscalation (19)
-        // because the derived PDA won't match the provided account
-        let is_valid_error =
-            light_program_test::utils::assert::assert_rpc_error(result.clone(), 0, 21).is_ok()
-                || light_program_test::utils::assert::assert_rpc_error(result, 0, 19).is_ok();
-
-        assert!(
-            is_valid_error,
-            "Expected either ProgramFailedToComplete (21) or PrivilegeEscalation (19)"
-        );
+        // Wrong ATA address is caught by verify_pda which returns InvalidAccountData (3)
+        light_program_test::utils::assert::assert_rpc_error(result, 0, 3).unwrap();
     }
 
     // Test 6: Invalid config account owner
@@ -694,11 +686,7 @@ async fn test_create_ata_failing() {
 
     // Test 10: Arbitrary keypair address instead of correct PDA (non-IDEMPOTENT)
     // Tests that providing an arbitrary address (not the correct PDA) fails.
-    // Currently fails with PrivilegeEscalation (19) at CreateAccount CPI because
-    // the program tries to sign for a PDA but the account address doesn't match.
-    // With proper validation (calling validate_ata_derivation in non-IDEMPOTENT mode),
-    // this would fail earlier with InvalidAccountData (17).
-    // Error: 19 (PrivilegeEscalation - CPI tries to sign for wrong address)
+    // verify_pda uses find_program_address and returns InvalidAccountData (3) on mismatch.
     {
         use anchor_lang::prelude::borsh::BorshSerialize;
         use light_token_interface::instructions::create_associated_token_account::CreateAssociatedTokenAccountInstructionData;
@@ -749,10 +737,8 @@ async fn test_create_ata_failing() {
             .create_and_send_transaction(&[ix], &payer_pubkey, &[&context.payer])
             .await;
 
-        // Fails with PrivilegeEscalation (19) - program tries to invoke_signed with
-        // seeds that derive to the correct PDA, but the account passed is a different address.
-        // Solana runtime rejects this as unauthorized signer privilege escalation.
-        light_program_test::utils::assert::assert_rpc_error(result, 0, 19).unwrap();
+        // Wrong ATA address is caught by verify_pda which returns InvalidAccountData (3)
+        light_program_test::utils::assert::assert_rpc_error(result, 0, 3).unwrap();
     }
 
     // Test 11: Non-compressible ATA for mint with restricted extensions
