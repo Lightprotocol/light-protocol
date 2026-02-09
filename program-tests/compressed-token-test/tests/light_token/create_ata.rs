@@ -475,9 +475,9 @@ async fn test_create_ata_failing() {
         light_program_test::utils::assert::assert_rpc_error(result, 0, 2).unwrap();
     }
 
-    // Test 5: Invalid PDA derivation (wrong bump)
-    // ATAs must use the correct bump derived from [owner, program_id, mint]
-    // Error: 21 (ProgramFailedToComplete - provided seeds do not result in valid address)
+    // Test 5: Invalid ATA address (wrong PDA)
+    // Passing a wrong ATA address that doesn't match the derived PDA should fail.
+    // With canonical bumps, the program derives the correct address and rejects mismatches.
     {
         use anchor_lang::prelude::borsh::BorshSerialize;
         use light_token_interface::instructions::{
@@ -488,15 +488,15 @@ async fn test_create_ata_failing() {
 
         // Use different mint for this test
         context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
-        let ata_pubkey = derive_token_ata(&context.owner_keypair.pubkey(), &context.mint_pubkey);
+        // Use a wrong ATA address (random pubkey instead of derived)
+        let wrong_ata_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
 
-        // Owner and mint are now passed as accounts, not in instruction data
         let instruction_data = CreateAssociatedTokenAccountInstructionData {
             compressible_config: Some(CompressibleExtensionInstructionData {
                 token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat
                     as u8,
                 rent_payment: 2,
-                compression_only: 1, // ATAs always compression_only
+                compression_only: 1,
                 write_top_up: 100,
                 compress_to_account_pubkey: None,
             }),
@@ -505,7 +505,6 @@ async fn test_create_ata_failing() {
         let mut data = vec![100]; // CreateAssociatedTokenAccount discriminator
         instruction_data.serialize(&mut data).unwrap();
 
-        // Account order: owner, mint, payer, ata, system_program, config, rent_sponsor
         let ix = Instruction {
             program_id: light_compressed_token::ID,
             accounts: vec![
@@ -515,7 +514,7 @@ async fn test_create_ata_failing() {
                 ),
                 solana_sdk::instruction::AccountMeta::new_readonly(context.mint_pubkey, false),
                 solana_sdk::instruction::AccountMeta::new(payer_pubkey, true),
-                solana_sdk::instruction::AccountMeta::new(ata_pubkey, false),
+                solana_sdk::instruction::AccountMeta::new(wrong_ata_pubkey, false),
                 solana_sdk::instruction::AccountMeta::new_readonly(
                     solana_sdk::pubkey::Pubkey::default(),
                     false,
@@ -534,8 +533,8 @@ async fn test_create_ata_failing() {
             .create_and_send_transaction(&[ix], &payer_pubkey, &[&context.payer])
             .await;
 
-        // Wrong bump can trigger either ProgramFailedToComplete (21) or PrivilegeEscalation (19)
-        // depending on runtime state - accept either
+        // Wrong ATA address triggers ProgramFailedToComplete (21) or PrivilegeEscalation (19)
+        // because the derived PDA won't match the provided account
         let is_valid_error =
             light_program_test::utils::assert::assert_rpc_error(result.clone(), 0, 21).is_ok()
                 || light_program_test::utils::assert::assert_rpc_error(result, 0, 19).is_ok();
