@@ -45,8 +45,9 @@ pub fn calculate_and_execute_compressible_top_ups<'a>(
 
     let mut current_slot = 0;
 
-    // Initialize budget: +1 allows exact match (total == max_top_up)
-    let mut lamports_budget = (max_top_up as u64).saturating_add(1);
+    // Initialize budget: max_top_up is in units of 1,000 lamports (max ~65.5M lamports).
+    // +1 allows exact match (total == max_top_up * 1000).
+    let mut lamports_budget = (max_top_up as u64).saturating_mul(1000).saturating_add(1);
 
     // Calculate CMint top-up using optimized function (owner check inside)
     #[cfg(target_os = "solana")]
