@@ -192,25 +192,11 @@ fn test_mint_bytes_borsh_as_ctoken() {
     let mint = create_test_mint();
     let mint_bytes = mint.try_to_vec().unwrap();
 
-    // Try to deserialize Mint bytes as Token
+    // Mint has account_type = ACCOUNT_TYPE_MINT (1) at byte 165.
+    // Borsh deserialization of Token now rejects non-Token account_type bytes.
     let result = Token::try_from_slice(&mint_bytes);
-    // Borsh deserialization is lenient, but checked deserialization should detect the wrong type
-    match result {
-        Ok(token) => {
-            // Borsh is lenient and may succeed, but is_token_account() check should fail
-            // because Mint has account_type = ACCOUNT_TYPE_MINT (1), not ACCOUNT_TYPE_TOKEN_ACCOUNT (2)
-            assert!(
-                !token.is_token_account(),
-                "Mint bytes deserialized as Token should fail is_token_account() check"
-            );
-            assert_eq!(
-                token.account_type(),
-                ACCOUNT_TYPE_MINT,
-                "Mint bytes should retain ACCOUNT_TYPE_MINT discriminator"
-            );
-        }
-        Err(_) => {
-            // Also acceptable - deserialization failure
-        }
-    }
+    assert!(
+        result.is_err(),
+        "Mint bytes should fail borsh deserialization as Token due to account_type mismatch"
+    );
 }
