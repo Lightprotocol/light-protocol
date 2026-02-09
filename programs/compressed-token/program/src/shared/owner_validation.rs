@@ -108,6 +108,13 @@ pub fn check_ctoken_owner(
         }
     }
 
-    // Authority is neither owner nor permanent delegate
+    // Check if authority is the account-level delegate (approved via CTokenApprove)
+    if let Some(delegate) = compressed_token.delegate() {
+        if pubkey_eq(authority_key, &delegate.to_bytes()) {
+            return Ok(());
+        }
+    }
+
+    // Authority is neither owner, permanent delegate, nor account delegate
     Err(ErrorCode::OwnerMismatch.into())
 }
