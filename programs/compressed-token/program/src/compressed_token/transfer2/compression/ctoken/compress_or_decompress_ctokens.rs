@@ -57,13 +57,27 @@ pub fn compress_or_decompress_ctokens(
         ZCompressionMode::Compress => {
             // Verify authority for compression operations
             let authority_account = authority.ok_or(ErrorCode::InvalidCompressAuthority)?;
-            check_ctoken_owner(&mut ctoken, authority_account, mint_checks.as_ref())?;
+            let is_delegate =
+                check_ctoken_owner(&mut ctoken, authority_account, mint_checks.as_ref())?;
             if !ctoken.is_initialized() {
                 return Err(TokenError::InvalidAccountState.into());
             }
 
+            // Delegate: enforce and decrement delegated_amount
+            if is_delegate {
+                let new_delegated = ctoken
+                    .base
+                    .delegated_amount
+                    .get()
+                    .checked_sub(amount)
+                    .ok_or(ProgramError::InsufficientFunds)?;
+                ctoken.base.delegated_amount.set(new_delegated);
+                if new_delegated == 0 {
+                    ctoken.base.set_delegate(None)?;
+                }
+            }
+
             // Compress: subtract from solana account
-            // Update the balance in the ctoken solana account
             ctoken.base.amount.set(
                 current_balance
                     .checked_sub(amount)

@@ -79,12 +79,13 @@ pub fn verify_owner_or_delegate_signer<'a>(
 
 /// Verify and update token account authority using zero-copy compressed token format.
 /// Allows owner, account delegate, or permanent delegate (from mint) to authorize compression operations.
+/// Returns `is_delegate`: true if the signer is the account-level delegate.
 #[profile]
 pub fn check_ctoken_owner(
     compressed_token: &mut ZTokenMut,
     authority_account: &AccountInfo,
     mint_checks: Option<&MintExtensionChecks>,
-) -> Result<(), ProgramError> {
+) -> Result<bool, ProgramError> {
     // Verify authority is signer
     check_signer(authority_account).map_err(|e| {
         anchor_lang::solana_program::msg!("Authority signer check failed: {:?}", e);
@@ -96,14 +97,14 @@ pub fn check_ctoken_owner(
 
     // Check if authority is the owner
     if pubkey_eq(authority_key, owner_key) {
-        return Ok(()); // Owner can always compress
+        return Ok(false);
     }
 
     // Check if authority is the permanent delegate from the mint
     if let Some(checks) = mint_checks {
         if let Some(permanent_delegate) = &checks.permanent_delegate {
             if pubkey_eq(authority_key, permanent_delegate) {
-                return Ok(()); // Permanent delegate can (de)compress any account of this mint
+                return Ok(false);
             }
         }
     }
@@ -111,7 +112,7 @@ pub fn check_ctoken_owner(
     // Check if authority is the account-level delegate (approved via CTokenApprove)
     if let Some(delegate) = compressed_token.delegate() {
         if pubkey_eq(authority_key, &delegate.to_bytes()) {
-            return Ok(());
+            return Ok(true);
         }
     }
 

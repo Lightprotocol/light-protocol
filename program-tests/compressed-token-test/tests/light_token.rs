@@ -49,3 +49,6 @@ mod burn;
 
 #[path = "light_token/extensions_failing.rs"]
 mod extensions_failing;
+
+#[path = "light_token/delegate_compress.rs"]
+mod delegate_compress;
