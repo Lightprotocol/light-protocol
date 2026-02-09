@@ -280,23 +280,4 @@ pub trait Rpc: Send + Sync + Debug + 'static {
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<Option<MintInterface>>, RpcError>;
 
-    /// Fetch multiple accounts by pubkey via `get_account_interface`.
-    async fn fetch_accounts(
-        &self,
-        pubkeys: &[Pubkey],
-        config: Option<IndexerRpcConfig>,
-    ) -> Result<Vec<AccountInterface>, RpcError> {
-        let mut results = Vec::with_capacity(pubkeys.len());
-        for pubkey in pubkeys {
-            let interface = self
-                .get_account_interface(pubkey, config.clone())
-                .await?
-                .value
-                .ok_or_else(|| {
-                    RpcError::CustomError(format!("Account not found: {}", pubkey))
-                })?;
-            results.push(interface);
-        }
-        Ok(results)
-    }
 }

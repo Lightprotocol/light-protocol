@@ -502,11 +502,13 @@ async fn decompress_all(ctx: &mut AmmTestContext, pdas: &AmmPdas) {
     let pubkeys = sdk.instruction_accounts(&AmmInstruction::Deposit);
     let account_interfaces = ctx
         .rpc
-        .fetch_accounts(&pubkeys, None)
+        .get_multiple_account_interfaces(pubkeys.iter().collect(), None)
         .await
-        .expect("fetch_accounts should succeed");
+        .expect("get_multiple_account_interfaces should succeed");
     let cold_accounts: Vec<_> = account_interfaces
+        .value
         .into_iter()
+        .flatten()
         .filter(|a| a.is_cold())
         .collect();
 
