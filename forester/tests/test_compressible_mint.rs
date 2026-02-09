@@ -12,10 +12,10 @@ use light_client::{
     local_test_validator::{spawn_validator, LightValidatorConfig},
     rpc::{LightClient, LightClientConfig, Rpc},
 };
+use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_token::instruction::{
     derive_mint_compressed_address, find_mint_address, CreateMint, CreateMintParams,
 };
-use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_token_interface::state::{BaseMint, Mint, MintMetadata, ACCOUNT_TYPE_MINT};
 use serial_test::serial;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
