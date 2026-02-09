@@ -12,6 +12,7 @@ use light_client::{
     local_test_validator::{spawn_validator, LightValidatorConfig},
     rpc::{LightClient, LightClientConfig, Rpc},
 };
+use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_token::instruction::{
     derive_mint_compressed_address, find_mint_address, CreateMint, CreateMintParams,
 };
@@ -89,7 +90,7 @@ async fn create_decompressed_mint(
         .unwrap()
         .value;
 
-    // Build params - rent_payment = 0 makes the mint immediately compressible (no auto-decompress period)
+    // Build params - rent_payment = 2 is the minimum required by the program
     let params = CreateMintParams {
         decimals,
         address_merkle_tree_root_index: rpc_result.addresses[0].root_index,
@@ -100,7 +101,7 @@ async fn create_decompressed_mint(
         bump,
         freeze_authority: None,
         extensions: None,
-        rent_payment: 0, // Immediately compressible for testing
+        rent_payment: 2, // Minimum required epochs of rent prepayment
         write_top_up: 0,
     };
 
@@ -267,7 +268,7 @@ async fn test_compressible_mint_bootstrap() {
 
 /// Test that MintCompressor can compress decompressed mints
 ///
-/// This test creates a mint with rent_payment=0 (immediately compressible),
+/// This test creates a mint with rent_payment=2, warps past the rent period,
 /// then verifies the compressor can close the on-chain mint account.
 ///
 /// Run with: cargo test -p forester --test test_compressible_mint -- --nocapture
@@ -381,14 +382,18 @@ async fn test_compressible_mint_compression() {
             .expect("Failed to create RPC pool"),
     );
 
-    // Get ready accounts - with rent_payment=0, the mint is immediately compressible
+    // Warp past the rent prepayment period so the mint becomes compressible
+    let current_slot = rpc.get_slot().await.unwrap();
+    let future_slot = current_slot + 2 * SLOTS_PER_EPOCH;
+    rpc.warp_to_slot(future_slot).await.expect("warp_to_slot");
+
     let current_slot = rpc.get_slot().await.unwrap();
     let ready_accounts = tracker.get_ready_to_compress(current_slot);
     println!("Ready to compress: {} mints", ready_accounts.len());
 
     assert!(
         !ready_accounts.is_empty(),
-        "Mint should be ready to compress with rent_payment=0"
+        "Mint should be ready to compress after rent period expires"
     );
 
     // Create compressor and compress
@@ -447,9 +452,9 @@ async fn test_compressible_mint_compression() {
 ///
 /// This test verifies the full subscription flow:
 /// 1. Start AccountSubscriber with MintAccountTracker
-/// 2. Create two decompressed mints: one with rent, one immediately compressible
+/// 2. Create two decompressed mints with rent_payment=2
 /// 3. Assert subscriber picks up both accounts (tracker.len() == 2)
-/// 4. Run MintCompressor to compress the immediately compressible mint
+/// 4. Warp past rent period, run MintCompressor to compress one mint
 /// 5. Assert account is closed and tracker is updated via direct removal
 ///
 /// Run with: cargo test -p forester --test test_compressible_mint test_compressible_mint_subscription -- --nocapture
@@ -511,7 +516,7 @@ async fn test_compressible_mint_subscription() {
     // Give subscribers time to connect
     sleep(Duration::from_secs(2)).await;
 
-    // Create first decompressed mint (immediately compressible with rent_payment=0)
+    // Create first decompressed mint (rent_payment=2)
     let (mint_pda_1, compression_address_1, _mint_seed_1, _bump_1) =
         create_decompressed_mint(&mut rpc, &payer, payer.pubkey(), 9).await;
     println!("Created first decompressed mint at: {}", mint_pda_1);
@@ -575,6 +580,11 @@ async fn test_compressible_mint_subscription() {
             .expect("Failed to create RPC pool"),
     );
 
+    // Warp past the rent prepayment period so mints become compressible
+    let current_slot = rpc.get_slot().await.unwrap();
+    let future_slot = current_slot + 2 * SLOTS_PER_EPOCH;
+    rpc.warp_to_slot(future_slot).await.expect("warp_to_slot");
+
     // Get ready-to-compress accounts
     let current_slot = rpc.get_slot().await.unwrap();
     let ready_accounts = tracker.get_ready_to_compress(current_slot);
@@ -584,7 +594,7 @@ async fn test_compressible_mint_subscription() {
         current_slot
     );
 
-    // Both mints should be ready (rent_payment=0)
+    // Both mints should be ready after rent period expires
     assert_eq!(
         ready_accounts.len(),
         2,

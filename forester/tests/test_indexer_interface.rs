@@ -233,7 +233,7 @@ async fn test_indexer_interface_scenarios() {
         address_sig
     );
 
-    // ============ Scenario 4: Decompressed Mint (CreateMint with rent_payment=0) ============
+    // ============ Scenario 4: Decompressed Mint (CreateMint with rent_payment=2) ============
     // This creates a compressed mint that is immediately decompressed to an on-chain CMint account.
     // The compressed account only contains the 32-byte mint_pda reference (DECOMPRESSED_PDA_DISCRIMINATOR).
     // Full mint data is on-chain in the CMint account owned by LIGHT_TOKEN_PROGRAM_ID.
@@ -277,7 +277,7 @@ async fn test_indexer_interface_scenarios() {
         bump: decompressed_mint_bump,
         freeze_authority: None,
         extensions: None,
-        rent_payment: 0, // Immediately compressible
+        rent_payment: 2, // Minimum required epochs of rent prepayment
         write_top_up: 0,
     };
 
@@ -342,7 +342,7 @@ async fn test_indexer_interface_scenarios() {
         bump: compressed_mint_bump,
         freeze_authority: Some(payer.pubkey()), // Add freeze authority for variety
         extensions: None,
-        rent_payment: 0, // Immediately compressible
+        rent_payment: 2, // Minimum required epochs of rent prepayment
         write_top_up: 0,
     };
 
