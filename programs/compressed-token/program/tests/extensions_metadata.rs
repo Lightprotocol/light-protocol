@@ -95,10 +95,7 @@ fn random_metadata_actions(rng: &mut StdRng) -> Vec<Action> {
 /// Uses a simple sequential approach: maintain an ordered list of (key, exists, value_len)
 /// entries. Each action mutates the state in place. Original keys appear first (in their
 /// original order), newly added keys are appended. At the end, filter to existing keys.
-fn compute_expected_config(
-    metadata: &TokenMetadata,
-    actions: &[Action],
-) -> TokenMetadataConfig {
+fn compute_expected_config(metadata: &TokenMetadata, actions: &[Action]) -> TokenMetadataConfig {
     let extension_index = 0usize;
 
     // Track name/symbol/uri lengths (last update wins)
@@ -124,17 +121,11 @@ fn compute_expected_config(
                     1 => symbol_len = update.value.len(),
                     2 => uri_len = update.value.len(),
                     3 => {
-                        if let Some(entry) =
-                            state.iter_mut().find(|(k, _, _)| *k == update.key)
-                        {
+                        if let Some(entry) = state.iter_mut().find(|(k, _, _)| *k == update.key) {
                             entry.1 = true;
                             entry.2 = update.value.len();
                         } else {
-                            state.push((
-                                update.key.clone(),
-                                true,
-                                update.value.len(),
-                            ));
+                            state.push((update.key.clone(), true, update.value.len()));
                         }
                     }
                     _ => {}
@@ -228,9 +219,8 @@ fn test_metadata_config_with_actions_randomized() {
 
         // Serialize and zero-copy parse to get ZAction slice
         let serialized = serialize_actions(&actions);
-        let (zc_data, _) =
-            MintActionCompressedInstructionData::zero_copy_at(&serialized)
-                .unwrap_or_else(|e| panic!("iteration {i}, seed {seed}: zero_copy_at failed: {e}"));
+        let (zc_data, _) = MintActionCompressedInstructionData::zero_copy_at(&serialized)
+            .unwrap_or_else(|e| panic!("iteration {i}, seed {seed}: zero_copy_at failed: {e}"));
 
         let (has_extensions, config_vec, _) =
             process_extensions_config_with_actions(Some(&extensions), &zc_data.actions)
@@ -238,8 +228,15 @@ fn test_metadata_config_with_actions_randomized() {
                     panic!("iteration {i}, seed {seed}: process_extensions failed: {e:?}")
                 });
 
-        assert!(has_extensions, "iteration {i}, seed {seed}: expected has_extensions=true");
-        assert_eq!(config_vec.len(), 1, "iteration {i}, seed {seed}: expected 1 config");
+        assert!(
+            has_extensions,
+            "iteration {i}, seed {seed}: expected has_extensions=true"
+        );
+        assert_eq!(
+            config_vec.len(),
+            1,
+            "iteration {i}, seed {seed}: expected 1 config"
+        );
 
         let actual = match &config_vec[0] {
             ExtensionStructConfig::TokenMetadata(cfg) => cfg,
