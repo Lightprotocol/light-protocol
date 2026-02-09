@@ -106,9 +106,12 @@ pub fn build_mint_extension_cache<'a>(
             let mint_index = compression.mint;
             if cache.get_by_key(&mint_index).is_none() {
                 let mint_account = packed_accounts.get_u8(mint_index, "mint cache: compression")?;
-                let checks = if compression.mode.is_compress_and_close() || no_compressed_outputs {
+                let checks = if compression.mode.is_compress_and_close()
+                    || (compression.mode.is_decompress() && no_compressed_outputs)
+                {
                     // Bypass extension state checks (paused, non-zero fees, non-nil transfer hook)
-                    // when CompressAndClose, full Decompress, or CToken→SPL (compress and full decompress)
+                    // when CompressAndClose or full Decompress (no compressed outputs).
+                    // Compress must always enforce restrictions even with CToken-only outputs.
                     parse_mint_extensions(mint_account)?
                 } else {
                     check_mint_extensions(mint_account, deny_restricted_extensions)?
