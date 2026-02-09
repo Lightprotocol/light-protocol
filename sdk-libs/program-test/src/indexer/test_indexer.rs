@@ -108,6 +108,9 @@ pub struct TestIndexer {
     pub events: Vec<PublicTransactionEvent>,
     /// Index mapping onchain_pubkey to compressed account index.
     pub onchain_pubkey_index: HashMap<[u8; 32], usize>,
+    /// Maps ATA pubkey -> wallet owner for compressed ATAs.
+    /// Populated during compression so that cold ATA lookups can resolve the wallet owner.
+    pub ata_owner_map: HashMap<Pubkey, Pubkey>,
 }
 
 impl Clone for TestIndexer {
@@ -123,6 +126,7 @@ impl Clone for TestIndexer {
             token_nullified_compressed_accounts: self.token_nullified_compressed_accounts.clone(),
             events: self.events.clone(),
             onchain_pubkey_index: self.onchain_pubkey_index.clone(),
+            ata_owner_map: self.ata_owner_map.clone(),
         }
     }
 }
@@ -1353,6 +1357,7 @@ impl TestIndexer {
             token_nullified_compressed_accounts: vec![],
             group_pda,
             onchain_pubkey_index: HashMap::new(),
+            ata_owner_map: HashMap::new(),
         }
     }
 

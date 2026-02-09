@@ -527,12 +527,12 @@ async fn test_d10_single_ata_markonly_lifecycle() {
     shared::assert_onchain_closed(&mut ctx.rpc, &d10_markonly_ata, "d10_markonly_ata").await;
 
     // PHASE 3: Decompress ATA using create_load_instructions
-    // ATAs use get_associated_token_account_interface which fetches the compressed token data
+    let ata = light_token::instruction::derive_token_ata(&ata_owner, &mint).0;
     let ata_interface = ctx
         .rpc
-        .get_associated_token_account_interface(&ata_owner, &mint, None)
+        .get_account_interface(&ata, None)
         .await
-        .expect("get_associated_token_account_interface should succeed")
+        .expect("get_account_interface for ATA should succeed")
         .value
         .expect("ata interface should exist");
     assert!(
@@ -541,8 +541,7 @@ async fn test_d10_single_ata_markonly_lifecycle() {
     );
 
     // Build AccountSpec for ATA decompression
-    let specs: Vec<AccountSpec<LightAccountVariant>> =
-        vec![AccountSpec::Ata(Box::new(ata_interface))];
+    let specs: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Ata(ata_interface)];
 
     // Create decompression instructions
     let decompress_instructions =

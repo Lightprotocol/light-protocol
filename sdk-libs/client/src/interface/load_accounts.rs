@@ -27,13 +27,15 @@ use light_token_interface::{
 };
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
+use spl_pod::bytemuck::{pod_from_bytes, pod_get_packed_len};
+use spl_token_2022_interface::pod::PodAccount;
 use thiserror::Error;
 
 use super::{
     decompress_mint::{DEFAULT_RENT_PAYMENT, DEFAULT_WRITE_TOP_UP},
     instructions::{self, DECOMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR},
     light_program_interface::{AccountSpec, PdaSpec},
-    AccountInterface, TokenAccountInterface,
+    AccountInterface,
 };
 use crate::indexer::{
     CompressedAccount, CompressedTokenAccount, Indexer, IndexerError, ValidityProofWithContext,
@@ -100,7 +102,7 @@ where
     let cold_atas: Vec<_> = specs
         .iter()
         .filter_map(|s| match s {
-            AccountSpec::Ata(a) if a.is_cold() => Some(a.as_ref()),
+            AccountSpec::Ata(a) if a.is_cold() => Some(a),
             _ => None,
         })
         .collect();
@@ -166,9 +168,7 @@ fn collect_pda_hashes<V>(specs: &[&PdaSpec<V>]) -> Result<Vec<[u8; 32]>, LoadAcc
         .collect()
 }
 
-fn collect_ata_hashes(
-    ifaces: &[&TokenAccountInterface],
-) -> Result<Vec<[u8; 32]>, LoadAccountsError> {
+fn collect_ata_hashes(ifaces: &[&AccountInterface]) -> Result<Vec<[u8; 32]>, LoadAccountsError> {
     ifaces
         .iter()
         .enumerate()
@@ -289,32 +289,46 @@ struct AtaContext<'a> {
 
 impl<'a> AtaContext<'a> {
     fn from_interface(
-        iface: &'a TokenAccountInterface,
+        iface: &'a AccountInterface,
         index: usize,
     ) -> Result<Self, LoadAccountsError> {
-        let compressed = iface
-            .compressed()
+        let compressed =
+            iface
+                .as_compressed_token()
+                .ok_or(LoadAccountsError::MissingAtaContext {
+                    index,
+                    pubkey: iface.key,
+                })?;
+        let pod_len = pod_get_packed_len::<PodAccount>();
+        let parsed: &PodAccount = iface
+            .account
+            .data
+            .get(..pod_len)
+            .and_then(|d| pod_from_bytes(d).ok())
             .ok_or(LoadAccountsError::MissingAtaContext {
                 index,
                 pubkey: iface.key,
             })?;
-        let bump = iface
-            .ata_bump()
-            .ok_or(LoadAccountsError::MissingAtaContext {
+        let wallet_owner = parsed.owner;
+        let mint = parsed.mint;
+        let (derived_ata, bump) = derive_token_ata(&wallet_owner, &mint);
+        if derived_ata != iface.key {
+            return Err(LoadAccountsError::MissingAtaContext {
                 index,
                 pubkey: iface.key,
-            })?;
+            });
+        }
         Ok(Self {
             compressed,
-            wallet_owner: iface.owner(),
-            mint: iface.mint(),
+            wallet_owner,
+            mint,
             bump,
         })
     }
 }
 
 fn build_ata_load(
-    ifaces: &[&TokenAccountInterface],
+    ifaces: &[&AccountInterface],
     proof: ValidityProofWithContext,
     fee_payer: Pubkey,
 ) -> Result<Vec<Instruction>, LoadAccountsError> {

@@ -1,8 +1,7 @@
 mod shared;
 
 use light_client::interface::{
-    create_load_instructions, get_create_accounts_proof, AccountInterface, AccountSpec,
-    CreateAccountsProofInput,
+    create_load_instructions, get_create_accounts_proof, AccountSpec, CreateAccountsProofInput,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{program_test::TestRpc, Rpc};
@@ -128,23 +127,21 @@ async fn test_create_two_mints_derive() {
     shared::assert_onchain_closed(&mut rpc, &mint_b_pda, "MintB").await;
 
     // PHASE 3: Decompress both mints via create_load_instructions
-    let mint_a_interface = rpc
-        .get_mint_interface(&mint_a_pda, None)
+    let mint_a_ai = rpc
+        .get_account_interface(&mint_a_pda, None)
         .await
         .expect("failed to get mint A interface")
         .value
         .expect("mint A interface should exist");
-    assert!(mint_a_interface.is_cold(), "Mint A should be cold");
-    let mint_a_ai = AccountInterface::from(mint_a_interface);
+    assert!(mint_a_ai.is_cold(), "Mint A should be cold");
 
-    let mint_b_interface = rpc
-        .get_mint_interface(&mint_b_pda, None)
+    let mint_b_ai = rpc
+        .get_account_interface(&mint_b_pda, None)
         .await
         .expect("failed to get mint B interface")
         .value
         .expect("mint B interface should exist");
-    assert!(mint_b_interface.is_cold(), "Mint B should be cold");
-    let mint_b_ai = AccountInterface::from(mint_b_interface);
+    assert!(mint_b_ai.is_cold(), "Mint B should be cold");
 
     let specs: Vec<AccountSpec<LightAccountVariant>> =
         vec![AccountSpec::Mint(mint_a_ai), AccountSpec::Mint(mint_b_ai)];

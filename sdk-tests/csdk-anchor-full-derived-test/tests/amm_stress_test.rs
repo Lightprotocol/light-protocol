@@ -19,8 +19,8 @@ use light_batched_merkle_tree::{
     initialize_state_tree::InitStateTreeAccountsInstructionData,
 };
 use light_client::interface::{
-    create_load_instructions, get_create_accounts_proof, AccountInterface, AccountSpec,
-    CreateAccountsProofInput, InitializeRentFreeConfig, LightProgramInterface,
+    create_load_instructions, get_create_accounts_proof, AccountSpec, CreateAccountsProofInput,
+    InitializeRentFreeConfig, LightProgramInterface,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{
@@ -493,69 +493,67 @@ async fn decompress_all(ctx: &mut AmmTestContext, pdas: &AmmPdas) {
         .expect("pool_state should exist");
     assert!(pool_interface.is_cold(), "pool_state should be cold");
 
-    let mut sdk = AmmSdk::from_keyed_accounts(&[pool_interface])
-        .expect("AmmSdk::from_keyed_accounts should succeed");
+    let sdk =
+        AmmSdk::new(pdas.pool_state, pool_interface.data()).expect("AmmSdk::new should succeed");
 
-    let accounts_to_fetch = sdk.get_accounts_to_update(&AmmInstruction::Deposit);
+    let mut pubkeys: Vec<_> = sdk.instruction_accounts(&AmmInstruction::Deposit);
+    pubkeys.push(pdas.creator_lp_token);
+    pubkeys.push(ctx.creator_token_0);
+    pubkeys.push(ctx.creator_token_1);
+    pubkeys.push(ctx.token_0_mint);
+    pubkeys.push(ctx.token_1_mint);
 
-    let keyed_accounts = ctx
+    let account_interfaces = ctx
         .rpc
-        .fetch_accounts(&accounts_to_fetch, None)
+        .get_multiple_account_interfaces(pubkeys.iter().collect(), None)
         .await
-        .expect("fetch_accounts should succeed");
+        .expect("get_multiple_account_interfaces should succeed");
 
-    sdk.update(&keyed_accounts)
-        .expect("sdk.update should succeed");
-
-    let specs = sdk.get_specs_for_instruction(&AmmInstruction::Deposit);
-
-    let creator_lp_interface = ctx
-        .rpc
-        .get_associated_token_account_interface(&ctx.creator.pubkey(), &pdas.lp_mint, None)
-        .await
-        .expect("failed to get creator_lp_token")
+    let interfaces: Vec<_> = account_interfaces
         .value
-        .expect("creator_lp_token should exist");
+        .into_iter()
+        .zip(pubkeys.iter())
+        .filter_map(|(opt, &pk)| opt.map(|ai| (pk, ai)))
+        .collect();
 
-    // Creator's token_0 and token_1 ATAs also get compressed during epoch warp
-    let creator_token_0_interface = ctx
-        .rpc
-        .get_associated_token_account_interface(&ctx.creator.pubkey(), &ctx.token_0_mint, None)
-        .await
-        .expect("failed to get creator_token_0")
-        .value
-        .expect("creator_token_0 should exist");
+    let cold_accounts: Vec<_> = interfaces
+        .iter()
+        .filter(|(_, a)| a.is_cold())
+        .map(|(_, a)| a.clone())
+        .collect();
 
-    let creator_token_1_interface = ctx
-        .rpc
-        .get_associated_token_account_interface(&ctx.creator.pubkey(), &ctx.token_1_mint, None)
-        .await
-        .expect("failed to get creator_token_1")
-        .value
-        .expect("creator_token_1 should exist");
+    let specs = sdk
+        .load_specs(&cold_accounts)
+        .expect("load_specs should succeed");
 
-    let mint_0_account_iface = AccountInterface::from(
-        ctx.rpc
-            .get_mint_interface(&ctx.token_0_mint, None)
-            .await
-            .expect("failed to get token_0_mint")
-            .value
-            .expect("token_0_mint should exist"),
-    );
+    let find_interface = |pk: Pubkey| {
+        interfaces
+            .iter()
+            .find(|(p, _)| *p == pk)
+            .map(|(_, ai)| ai.clone())
+            .expect("account should exist")
+    };
 
-    let mint_1_account_iface = AccountInterface::from(
-        ctx.rpc
-            .get_mint_interface(&ctx.token_1_mint, None)
-            .await
-            .expect("failed to get token_1_mint")
-            .value
-            .expect("token_1_mint should exist"),
-    );
+    let creator_lp_interface = find_interface(pdas.creator_lp_token);
+    let creator_token_0_interface = find_interface(ctx.creator_token_0);
+    let creator_token_1_interface = find_interface(ctx.creator_token_1);
+
+    let mint_0_account_iface = interfaces
+        .iter()
+        .find(|(p, _)| *p == ctx.token_0_mint)
+        .map(|(_, ai)| ai.clone())
+        .expect("token_0_mint should exist");
+
+    let mint_1_account_iface = interfaces
+        .iter()
+        .find(|(p, _)| *p == ctx.token_1_mint)
+        .map(|(_, ai)| ai.clone())
+        .expect("token_1_mint should exist");
 
     let mut all_specs = specs;
-    all_specs.push(AccountSpec::Ata(Box::new(creator_lp_interface)));
-    all_specs.push(AccountSpec::Ata(Box::new(creator_token_0_interface)));
-    all_specs.push(AccountSpec::Ata(Box::new(creator_token_1_interface)));
+    all_specs.push(AccountSpec::Ata(creator_lp_interface));
+    all_specs.push(AccountSpec::Ata(creator_token_0_interface));
+    all_specs.push(AccountSpec::Ata(creator_token_1_interface));
     all_specs.push(AccountSpec::Mint(mint_0_account_iface));
     all_specs.push(AccountSpec::Mint(mint_1_account_iface));
 

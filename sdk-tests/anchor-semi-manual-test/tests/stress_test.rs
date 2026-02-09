@@ -18,8 +18,8 @@ use light_batched_merkle_tree::{
     initialize_state_tree::InitStateTreeAccountsInstructionData,
 };
 use light_client::interface::{
-    create_load_instructions, get_create_accounts_proof, AccountInterface, AccountSpec,
-    CreateAccountsProofInput, PdaSpec,
+    create_load_instructions, get_create_accounts_proof, AccountSpec, CreateAccountsProofInput,
+    PdaSpec,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{
@@ -276,19 +276,19 @@ async fn decompress_all(ctx: &mut StressTestContext, pdas: &TestPdas, cached: &C
     let zc_spec = PdaSpec::new(zc_interface, zc_variant, ctx.program_id);
 
     // ATA
+    let ata = light_token::instruction::derive_token_ata(&pdas.ata_owner, &pdas.ata_mint).0;
     let ata_interface = ctx
         .rpc
-        .get_associated_token_account_interface(&pdas.ata_owner, &pdas.ata_mint, None)
+        .get_account_interface(&ata, None)
         .await
         .expect("failed to get ATA interface")
         .value
         .expect("ATA interface should exist");
     assert!(ata_interface.is_cold(), "ATA should be cold");
 
-    // Token PDA: Vault
     let vault_iface = ctx
         .rpc
-        .get_token_account_interface(&pdas.vault, None)
+        .get_account_interface(&pdas.vault, None)
         .await
         .expect("failed to get vault interface")
         .value
@@ -304,42 +304,34 @@ async fn decompress_all(ctx: &mut StressTestContext, pdas: &TestPdas, cached: &C
         },
         token_data: vault_token_data,
     });
-    let vault_compressed = vault_iface
-        .compressed()
-        .expect("cold vault must have compressed data");
-    let vault_interface = AccountInterface {
-        key: vault_iface.key,
-        account: vault_iface.account.clone(),
-        cold: Some(vault_compressed.account.clone()),
-    };
-    let vault_spec = PdaSpec::new(vault_interface, vault_variant, ctx.program_id);
+    assert!(
+        vault_iface.as_compressed_token().is_some(),
+        "cold vault must have compressed data"
+    );
+    let vault_spec = PdaSpec::new(vault_iface.clone(), vault_variant, ctx.program_id);
 
-    // Mint A
-    let mint_a_iface = ctx
+    let mint_a_ai = ctx
         .rpc
-        .get_mint_interface(&pdas.mint_a, None)
+        .get_account_interface(&pdas.mint_a, None)
         .await
         .expect("failed to get mint A interface")
         .value
         .expect("mint A interface should exist");
-    assert!(mint_a_iface.is_cold(), "Mint A should be cold");
-    let mint_a_ai = AccountInterface::from(mint_a_iface);
+    assert!(mint_a_ai.is_cold(), "Mint A should be cold");
 
-    // Mint B
-    let mint_b_iface = ctx
+    let mint_b_ai = ctx
         .rpc
-        .get_mint_interface(&pdas.mint_b, None)
+        .get_account_interface(&pdas.mint_b, None)
         .await
         .expect("failed to get mint B interface")
         .value
         .expect("mint B interface should exist");
-    assert!(mint_b_iface.is_cold(), "Mint B should be cold");
-    let mint_b_ai = AccountInterface::from(mint_b_iface);
+    assert!(mint_b_ai.is_cold(), "Mint B should be cold");
 
     let specs: Vec<AccountSpec<LightAccountVariant>> = vec![
         AccountSpec::Pda(record_spec),
         AccountSpec::Pda(zc_spec),
-        AccountSpec::Ata(Box::new(ata_interface)),
+        AccountSpec::Ata(ata_interface),
         AccountSpec::Pda(vault_spec),
         AccountSpec::Mint(mint_a_ai),
         AccountSpec::Mint(mint_b_ai),

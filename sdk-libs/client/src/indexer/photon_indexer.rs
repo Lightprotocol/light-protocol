@@ -9,7 +9,7 @@ use tracing::{error, trace, warn};
 
 use super::types::{
     AccountInterface, CompressedAccount, CompressedTokenAccount, OwnerBalance,
-    SignatureWithMetadata, TokenAccountInterface, TokenBalance,
+    SignatureWithMetadata, TokenBalance,
 };
 use crate::indexer::{
     base58::Base58Conversions,
@@ -1761,46 +1761,6 @@ impl PhotonIndexer {
         .await
     }
 
-    pub async fn get_token_account_interface(
-        &self,
-        address: &Pubkey,
-        config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Option<TokenAccountInterface>>, IndexerError> {
-        let response = self.get_account_interface(address, config).await?;
-        let value = match response.value {
-            Some(ai) => {
-                let token = parse_token_data_from_indexer_account(&ai)?;
-                Some(TokenAccountInterface { account: ai, token })
-            }
-            None => None,
-        };
-        Ok(Response {
-            context: response.context,
-            value,
-        })
-    }
-
-    pub async fn get_associated_token_account_interface(
-        &self,
-        owner: &Pubkey,
-        mint: &Pubkey,
-        config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Option<TokenAccountInterface>>, IndexerError> {
-        let ata_address = light_token::instruction::get_associated_token_address(owner, mint);
-        let response = self.get_account_interface(&ata_address, config).await?;
-        let value = match response.value {
-            Some(ai) => {
-                let token = parse_token_data_from_indexer_account(&ai)?;
-                Some(TokenAccountInterface { account: ai, token })
-            }
-            None => None,
-        };
-        Ok(Response {
-            context: response.context,
-            value,
-        })
-    }
-
     pub async fn get_multiple_account_interfaces(
         &self,
         addresses: Vec<&Pubkey>,
@@ -1851,21 +1811,5 @@ impl PhotonIndexer {
             })
         })
         .await
-    }
-}
-
-/// Parse token data from an indexer AccountInterface.
-/// For compressed (cold) accounts: borsh-deserializes TokenData from the cold data bytes.
-/// For on-chain (hot) accounts: returns default TokenData (downstream conversion re-parses from SPL layout).
-fn parse_token_data_from_indexer_account(
-    ai: &AccountInterface,
-) -> Result<light_token::compat::TokenData, IndexerError> {
-    match &ai.cold {
-        Some(cold) => borsh::BorshDeserialize::deserialize(&mut cold.data.data.as_slice())
-            .map_err(|e| IndexerError::decode_error("token_data", e)),
-        None => {
-            // Hot account — downstream will re-parse from SPL account data directly
-            Ok(light_token::compat::TokenData::default())
-        }
     }
 }

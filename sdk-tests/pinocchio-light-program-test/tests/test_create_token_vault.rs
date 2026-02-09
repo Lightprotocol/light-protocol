@@ -1,7 +1,7 @@
 mod shared;
 
 use light_client::interface::{
-    create_load_instructions, get_create_accounts_proof, AccountInterface, AccountSpec, PdaSpec,
+    create_load_instructions, get_create_accounts_proof, AccountSpec, PdaSpec,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{program_test::TestRpc, Rpc};
@@ -91,7 +91,7 @@ async fn test_create_token_vault_derive() {
 
     // PHASE 3: Decompress vault
     let vault_iface = rpc
-        .get_token_account_interface(&vault, None)
+        .get_account_interface(&vault, None)
         .await
         .expect("failed to get vault interface")
         .value
@@ -108,15 +108,11 @@ async fn test_create_token_vault_derive() {
             },
             token_data,
         });
-    let vault_compressed = vault_iface
-        .compressed()
-        .expect("cold vault must have compressed data");
-    let vault_interface = AccountInterface {
-        key: vault_iface.key,
-        account: vault_iface.account.clone(),
-        cold: Some(vault_compressed.account.clone()),
-    };
-    let vault_spec = PdaSpec::new(vault_interface, vault_variant, program_id);
+    assert!(
+        vault_iface.as_compressed_token().is_some(),
+        "cold vault must have compressed data"
+    );
+    let vault_spec = PdaSpec::new(vault_iface.clone(), vault_variant, program_id);
 
     let specs: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Pda(vault_spec)];
 

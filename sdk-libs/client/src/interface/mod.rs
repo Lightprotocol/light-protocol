@@ -10,19 +10,17 @@ pub mod load_accounts;
 pub mod pack;
 pub mod tx_size;
 
-pub use account_interface::{AccountInterface, AccountInterfaceError, TokenAccountInterface};
+pub use account_interface::{AccountInterface, AccountInterfaceError, ColdContext};
 pub use create_accounts_proof::{
     get_create_accounts_proof, CreateAccountsProofError, CreateAccountsProofInput,
     CreateAccountsProofResult,
 };
-pub use decompress_mint::{
-    DecompressMintError, MintInterface, MintState, DEFAULT_RENT_PAYMENT, DEFAULT_WRITE_TOP_UP,
-};
+pub use decompress_mint::{DecompressMintError, DEFAULT_RENT_PAYMENT, DEFAULT_WRITE_TOP_UP};
 pub use initialize_config::InitializeRentFreeConfig;
 pub use light_account::LightConfig;
 pub use light_program_interface::{
-    all_hot, any_cold, discriminator, matches_discriminator, AccountSpec, AccountToFetch,
-    LightProgramInterface, PdaSpec,
+    all_hot, any_cold, discriminator, matches_discriminator, AccountSpec, LightProgramInterface,
+    PdaSpec,
 };
 pub use light_sdk_types::interface::CreateAccountsProof;
 pub use light_token::compat::TokenData;

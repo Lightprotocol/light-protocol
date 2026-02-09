@@ -635,35 +635,42 @@ async fn test_amm_full_lifecycle() {
         .expect("pool_state should exist");
     assert!(pool_interface.is_cold(), "pool_state should be cold");
 
-    // Create Program Interface SDK.
-    let mut sdk = AmmSdk::from_keyed_accounts(&[pool_interface])
-        .expect("ProgrammSdk::from_keyed_accounts should succeed");
+    // Create SDK from pool state data.
+    let sdk =
+        AmmSdk::new(pdas.pool_state, pool_interface.data()).expect("AmmSdk::new should succeed");
 
-    let accounts_to_fetch = sdk.get_accounts_to_update(&AmmInstruction::Deposit);
-
-    let keyed_accounts = ctx
+    let mut pubkeys: Vec<_> = sdk.instruction_accounts(&AmmInstruction::Deposit);
+    pubkeys.push(pdas.creator_lp_token);
+    let account_interfaces = ctx
         .rpc
-        .fetch_accounts(&accounts_to_fetch, None)
+        .get_multiple_account_interfaces(pubkeys.iter().collect(), None)
         .await
-        .expect("fetch_accounts should succeed");
-
-    sdk.update(&keyed_accounts)
-        .expect("sdk.update should succeed");
-
-    let specs = sdk.get_specs_for_instruction(&AmmInstruction::Deposit);
-
-    let creator_lp_interface = ctx
-        .rpc
-        .get_associated_token_account_interface(&ctx.creator.pubkey(), &pdas.lp_mint, None)
-        .await
-        .expect("failed to get creator_lp_token")
+        .expect("get_multiple_account_interfaces should succeed");
+    let interfaces: Vec<_> = account_interfaces
         .value
+        .into_iter()
+        .zip(pubkeys.iter())
+        .filter_map(|(opt, &pk)| opt.map(|ai| (pk, ai)))
+        .collect();
+
+    let cold_accounts: Vec<_> = interfaces
+        .iter()
+        .filter(|(_, a)| a.is_cold())
+        .map(|(_, a)| a.clone())
+        .collect();
+
+    let mut all_specs = sdk
+        .load_specs(&cold_accounts)
+        .expect("load_specs should succeed");
+
+    let creator_lp_interface = interfaces
+        .iter()
+        .find(|(pk, _)| *pk == pdas.creator_lp_token)
+        .map(|(_, ai)| ai.clone())
         .expect("creator_lp_token should exist");
 
-    // add ata
     use light_client::interface::AccountSpec;
-    let mut all_specs = specs;
-    all_specs.push(AccountSpec::Ata(Box::new(creator_lp_interface)));
+    all_specs.push(AccountSpec::Ata(creator_lp_interface));
 
     let decompress_ixs =
         create_load_instructions(&all_specs, ctx.payer.pubkey(), ctx.config_pda, &ctx.rpc)

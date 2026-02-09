@@ -2,8 +2,8 @@ mod shared;
 
 use light_account_pinocchio::token::TokenDataWithSeeds;
 use light_client::interface::{
-    create_load_instructions, get_create_accounts_proof, AccountInterface, AccountSpec,
-    CreateAccountsProofInput, PdaSpec,
+    create_load_instructions, get_create_accounts_proof, AccountSpec, CreateAccountsProofInput,
+    PdaSpec,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{program_test::TestRpc, Rpc};
@@ -245,17 +245,17 @@ async fn test_create_all_derive() {
     let zc_spec = PdaSpec::new(zc_interface, zc_variant, program_id);
 
     // ATA
+    let ata = light_token::instruction::derive_token_ata(&ata_owner, &mint_pda).0;
     let ata_interface = rpc
-        .get_associated_token_account_interface(&ata_owner, &mint_pda, None)
+        .get_account_interface(&ata, None)
         .await
         .expect("failed to get ATA interface")
         .value
         .expect("ATA interface should exist");
     assert!(ata_interface.is_cold(), "ATA should be cold");
 
-    // Token PDA: Vault
     let vault_iface = rpc
-        .get_token_account_interface(&vault, None)
+        .get_account_interface(&vault, None)
         .await
         .expect("failed to get vault interface")
         .value
@@ -271,30 +271,24 @@ async fn test_create_all_derive() {
         },
         token_data: vault_token_data,
     });
-    let vault_compressed = vault_iface
-        .compressed()
-        .expect("cold vault must have compressed data");
-    let vault_interface = AccountInterface {
-        key: vault_iface.key,
-        account: vault_iface.account.clone(),
-        cold: Some(vault_compressed.account.clone()),
-    };
-    let vault_spec = PdaSpec::new(vault_interface, vault_variant, program_id);
+    assert!(
+        vault_iface.as_compressed_token().is_some(),
+        "cold vault must have compressed data"
+    );
+    let vault_spec = PdaSpec::new(vault_iface.clone(), vault_variant, program_id);
 
-    // Mint
-    let mint_iface = rpc
-        .get_mint_interface(&mint_pda, None)
+    let mint_ai = rpc
+        .get_account_interface(&mint_pda, None)
         .await
         .expect("failed to get mint interface")
         .value
         .expect("mint interface should exist");
-    assert!(mint_iface.is_cold(), "Mint should be cold");
-    let mint_ai = AccountInterface::from(mint_iface);
+    assert!(mint_ai.is_cold(), "Mint should be cold");
 
     let specs: Vec<AccountSpec<LightAccountVariant>> = vec![
         AccountSpec::Pda(record_spec),
         AccountSpec::Pda(zc_spec),
-        AccountSpec::Ata(Box::new(ata_interface)),
+        AccountSpec::Ata(ata_interface),
         AccountSpec::Pda(vault_spec),
         AccountSpec::Mint(mint_ai),
     ];
