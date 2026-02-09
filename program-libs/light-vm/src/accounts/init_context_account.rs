@@ -10,7 +10,7 @@ use light_compressed_account::constants::{
     ACCOUNT_COMPRESSION_PROGRAM_ID, STATE_MERKLE_TREE_ACCOUNT_DISCRIMINATOR,
 };
 use light_program_profiler::profile;
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
+use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 use crate::{
     cpi_context::state::{cpi_context_account_new, CpiContextAccount, CpiContextAccountInitParams},
@@ -68,14 +68,14 @@ pub fn init_cpi_context_account(accounts: &[AccountInfo]) -> Result<()> {
 }
 
 #[profile]
-pub fn reinit_cpi_context_account(accounts: &[AccountInfo]) -> Result<()> {
+pub fn reinit_cpi_context_account(accounts: &[AccountInfo], program_id: &Pubkey) -> Result<()> {
     if accounts.is_empty() {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
     let cpi_context_account = &accounts[0];
 
     // Check owner before realloc
-    check_owner(&crate::ID, cpi_context_account)?;
+    check_owner(program_id, cpi_context_account)?;
 
     // Read associated_merkle_tree BEFORE resizing (in case resize truncates data)
     let associated_merkle_tree = {

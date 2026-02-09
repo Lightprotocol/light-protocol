@@ -426,13 +426,13 @@ fn test_set_cpi_context_first_invocation() {
     let input_bytes = instruction_data.try_to_vec().unwrap();
     let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
     let w_instruction_data = WrappedInstructionData::new(z_inputs).unwrap();
-    let result = set_cpi_context(fee_payer, &cpi_context_account, w_instruction_data);
+    let result = set_cpi_context(fee_payer, &cpi_context_account, w_instruction_data, &ID);
     // assert
     {
         assert!(result.is_ok());
         let input_bytes = instruction_data.try_to_vec().unwrap();
         let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
-        let cpi_context = deserialize_cpi_context_account(&cpi_context_account).unwrap();
+        let cpi_context = deserialize_cpi_context_account(&cpi_context_account, &ID).unwrap();
         assert_eq!(cpi_context.fee_payer.to_bytes(), fee_payer);
         assert!(instruction_data_eq(&cpi_context, &z_inputs));
     }
@@ -448,20 +448,20 @@ fn test_set_cpi_context_subsequent_invocation() {
         let input_bytes = first_instruction_data.try_to_vec().unwrap();
         let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
         let w_instruction_data = WrappedInstructionData::new(z_inputs).unwrap();
-        set_cpi_context(fee_payer, &cpi_context_account, w_instruction_data).unwrap();
+        set_cpi_context(fee_payer, &cpi_context_account, w_instruction_data, &ID).unwrap();
     }
     let inputs_subsequent = create_test_instruction_data(false, true, 2);
     let mut input_bytes = Vec::new();
     inputs_subsequent.serialize(&mut input_bytes).unwrap();
     let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
     let w_instruction_data = WrappedInstructionData::new(z_inputs).unwrap();
-    let result = set_cpi_context(fee_payer, &cpi_context_account, w_instruction_data);
+    let result = set_cpi_context(fee_payer, &cpi_context_account, w_instruction_data, &ID);
     // assert
     {
         assert!(result.is_ok());
         let input_bytes = inputs_subsequent.try_to_vec().unwrap();
         let (_z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
-        let cpi_context = deserialize_cpi_context_account(&cpi_context_account).unwrap();
+        let cpi_context = deserialize_cpi_context_account(&cpi_context_account, &ID).unwrap();
         assert_eq!(cpi_context.fee_payer.to_bytes(), fee_payer);
 
         // Create expected instruction data.
@@ -493,7 +493,7 @@ fn test_set_cpi_context_fee_payer_mismatch() {
         let input_bytes = first_instruction_data.try_to_vec().unwrap();
         let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
         let w_instruction_data = WrappedInstructionData::new(z_inputs).unwrap();
-        set_cpi_context(fee_payer, &cpi_context_account, w_instruction_data).unwrap();
+        set_cpi_context(fee_payer, &cpi_context_account, w_instruction_data, &ID).unwrap();
     }
 
     let different_fee_payer = solana_pubkey::Pubkey::new_unique().to_bytes();
@@ -506,6 +506,7 @@ fn test_set_cpi_context_fee_payer_mismatch() {
         different_fee_payer,
         &cpi_context_account,
         w_instruction_data,
+        &ID,
     );
     assert_eq!(
         result.unwrap_err(),
@@ -522,7 +523,7 @@ fn test_set_cpi_context_without_first_context() {
     inputs_first.serialize(&mut input_bytes).unwrap();
     let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
     let w_instruction_data = WrappedInstructionData::new(z_inputs).unwrap();
-    let result = set_cpi_context(fee_payer, &cpi_context_account, w_instruction_data);
+    let result = set_cpi_context(fee_payer, &cpi_context_account, w_instruction_data, &ID);
     assert_eq!(
         result,
         Err(SystemProgramError::CpiContextFeePayerMismatch.into())
@@ -540,8 +541,8 @@ fn test_process_cpi_context_both_none() {
     let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
     let w_instruction_data = WrappedInstructionData::new(z_inputs).unwrap();
 
-    let result =
-        process_cpi_context(w_instruction_data, cpi_context_account, fee_payer, &[]).unwrap_err();
+    let result = process_cpi_context(w_instruction_data, cpi_context_account, fee_payer, &[], &ID)
+        .unwrap_err();
     assert_eq!(
         result,
         SystemProgramError::CpiContextAccountUndefined.into()
@@ -558,8 +559,8 @@ fn test_process_cpi_context_account_none_context_some() {
     instruction_data.serialize(&mut input_bytes).unwrap();
     let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
     let w_instruction_data = WrappedInstructionData::new(z_inputs).unwrap();
-    let result =
-        process_cpi_context(w_instruction_data, cpi_context_account, fee_payer, &[]).unwrap_err();
+    let result = process_cpi_context(w_instruction_data, cpi_context_account, fee_payer, &[], &ID)
+        .unwrap_err();
     assert_eq!(
         result,
         SystemProgramError::CpiContextAccountUndefined.into()
@@ -585,6 +586,7 @@ fn test_process_cpi_context_account_some_context_none() {
         Some(&cpi_context_account),
         fee_payer,
         &[],
+        &ID,
     )
     .unwrap_err();
     assert_eq!(result, SystemProgramError::CpiContextMissing.into());
@@ -611,6 +613,7 @@ fn test_process_cpi_no_inputs() {
         Some(&cpi_context_account),
         fee_payer,
         &[merkle_tree_account_info],
+        &ID,
     )
     .unwrap_err();
     assert_eq!(result, SystemProgramError::NoInputs.into());
@@ -639,6 +642,7 @@ fn test_process_cpi_context_associated_tree_mismatch() {
         Some(&cpi_context_account),
         fee_payer,
         remaining_accounts,
+        &ID,
     )
     .unwrap_err();
     assert_eq!(
@@ -665,6 +669,7 @@ fn test_process_cpi_context_no_set_context() {
         Some(&cpi_context_account),
         fee_payer,
         remaining_accounts,
+        &ID,
     )
     .unwrap_err();
     assert_eq!(result, SystemProgramError::CpiContextEmpty.into());
@@ -688,6 +693,7 @@ fn test_process_cpi_context_empty_context_error() {
         Some(&cpi_context_account),
         fee_payer,
         remaining_accounts,
+        &ID,
     )
     .unwrap_err();
     assert_eq!(
@@ -714,6 +720,7 @@ fn test_process_cpi_context_fee_payer_mismatch_error() {
         Some(&cpi_context_account),
         fee_payer,
         remaining_accounts,
+        &ID,
     );
     assert!(result.is_ok());
     let invalid_fee_payer = solana_pubkey::Pubkey::new_unique().to_bytes();
@@ -727,6 +734,7 @@ fn test_process_cpi_context_fee_payer_mismatch_error() {
         Some(&cpi_context_account),
         invalid_fee_payer,
         remaining_accounts,
+        &ID,
     )
     .unwrap_err();
     assert_eq!(
@@ -752,12 +760,13 @@ fn test_process_cpi_context_set_context() {
         Some(&cpi_context_account),
         fee_payer,
         remaining_accounts,
+        &ID,
     );
     // assert
     {
         assert!(result.is_ok());
 
-        let cpi_context = deserialize_cpi_context_account(&cpi_context_account).unwrap();
+        let cpi_context = deserialize_cpi_context_account(&cpi_context_account, &ID).unwrap();
 
         // Create expected instruction data.
         clean_input_data(&mut instruction_data);
@@ -789,7 +798,7 @@ fn test_process_cpi_context_scenario() {
         let w_malicious_instruction_data = WrappedInstructionData::new(z_malicious_inputs).unwrap();
         // Use set_cpi_context with Pubkey::default() as fee payer to inject the malicious data
         let mut cpi_context =
-            deserialize_cpi_context_account_cleared(&cpi_context_account).unwrap();
+            deserialize_cpi_context_account_cleared(&cpi_context_account, &ID).unwrap();
         *cpi_context.fee_payer = Pubkey::default().into();
         cpi_context
             .store_data(&w_malicious_instruction_data)
@@ -806,10 +815,11 @@ fn test_process_cpi_context_scenario() {
         Some(&cpi_context_account),
         fee_payer,
         remaining_accounts,
+        &ID,
     );
     {
         assert!(result.is_ok());
-        let cpi_context = deserialize_cpi_context_account(&cpi_context_account).unwrap();
+        let cpi_context = deserialize_cpi_context_account(&cpi_context_account, &ID).unwrap();
         // Create expected instruction data.
         clean_input_data(&mut instruction_data);
         let input_bytes = instruction_data.try_to_vec().unwrap();
@@ -833,6 +843,7 @@ fn test_process_cpi_context_scenario() {
             Some(&cpi_context_account),
             fee_payer,
             remaining_accounts,
+            &ID,
         );
         // assert
         {
@@ -840,7 +851,7 @@ fn test_process_cpi_context_scenario() {
             let input_bytes = inputs_subsequent.try_to_vec().unwrap();
             let (z_inputs_subsequent, _) =
                 ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
-            let cpi_context = deserialize_cpi_context_account(&cpi_context_account).unwrap();
+            let cpi_context = deserialize_cpi_context_account(&cpi_context_account, &ID).unwrap();
             assert_eq!(cpi_context.fee_payer.to_bytes(), fee_payer);
             // The context should not be empty after set_context
             assert!(!cpi_context.is_empty());
@@ -871,6 +882,7 @@ fn test_process_cpi_context_scenario() {
         Some(&cpi_context_account),
         fee_payer,
         remaining_accounts,
+        &ID,
     );
     assert!(result.is_ok());
     let (_, result) = result.unwrap().unwrap();
@@ -888,7 +900,7 @@ fn test_process_cpi_context_scenario() {
 
     // Clear the CPI context account
     let cpi_context_cleared =
-        deserialize_cpi_context_account_cleared(&cpi_context_account).unwrap();
+        deserialize_cpi_context_account_cleared(&cpi_context_account, &ID).unwrap();
 
     // Verify that the vectors are empty (their len should be 0)
     assert_eq!(cpi_context_cleared.new_addresses.len(), 0);
@@ -904,7 +916,7 @@ fn test_process_cpi_context_scenario() {
     // Assert raw bytes are zeroed (except discriminator, associated_merkle_tree, and vector capacities)
     assert_cpi_context_cleared_bytes(&cpi_context_account, merkle_tree_pubkey);
 
-    let cpi_context = deserialize_cpi_context_account(&cpi_context_account).unwrap();
+    let cpi_context = deserialize_cpi_context_account(&cpi_context_account, &ID).unwrap();
 
     assert_eq!(
         cpi_context.associated_merkle_tree.to_bytes(),
@@ -928,7 +940,7 @@ fn test_deserialize_invalid_discriminator() {
     // Set invalid discriminator
     account_info.try_borrow_mut_data().unwrap()[0..8].copy_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8]);
 
-    let result = deserialize_cpi_context_account(&account_info);
+    let result = deserialize_cpi_context_account(&account_info, &ID);
     assert_eq!(
         result.unwrap_err(),
         SystemProgramError::InvalidCpiContextDiscriminator.into()
@@ -948,7 +960,7 @@ fn test_deserialize_invalid_owner() {
         vec![0u8; 20000],
     );
 
-    let result = deserialize_cpi_context_account(&account_info);
+    let result = deserialize_cpi_context_account(&account_info, &ID);
     assert_eq!(
         result.unwrap_err(),
         SystemProgramError::InvalidCpiContextOwner.into()
@@ -1061,7 +1073,7 @@ fn test_cpi_context_zero_copy_randomized() {
     // Now loop 1000 times reusing the same account
     for iteration in 0..1000 {
         // Get the current context (after clearing it will be empty, ready for new data)
-        let mut cpi_context = deserialize_cpi_context_account(&account_info)
+        let mut cpi_context = deserialize_cpi_context_account(&account_info, &ID)
             .unwrap_or_else(|_| panic!("Failed to deserialize at iteration {}", iteration));
 
         // 1. Create randomized input data
@@ -1213,7 +1225,7 @@ fn test_cpi_context_zero_copy_randomized() {
         // through the store_data tests in process_cpi_context.rs
 
         // 3. Deserialize again and assert the data
-        let deserialized = deserialize_cpi_context_account(&account_info)
+        let deserialized = deserialize_cpi_context_account(&account_info, &ID)
             .unwrap_or_else(|_| panic!("Failed to deserialize at iteration {}", iteration));
 
         // Assert all vectors have correct data
@@ -1312,7 +1324,7 @@ fn test_cpi_context_zero_copy_randomized() {
         );
 
         // 4. Zero out (clear the account)
-        let cleared = deserialize_cpi_context_account_cleared(&account_info)
+        let cleared = deserialize_cpi_context_account_cleared(&account_info, &ID)
             .unwrap_or_else(|_| panic!("Failed to deserialize cleared at iteration {}", iteration));
 
         // 5. Assert zeroed out

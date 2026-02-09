@@ -110,23 +110,5 @@ pub fn transfer_lamports(from: &AccountInfo, to: &AccountInfo, lamports: u64) ->
     instruction.invoke_signed(&[signer])
 }
 
-#[cfg(test)]
-mod test {
-    use solana_pubkey::Pubkey;
-
-    use super::*;
-
-    fn check_hardcoded_bump(program_id: Pubkey, seeds: &[&[u8]], bump: u8) -> bool {
-        let (_, found_bump) = Pubkey::find_program_address(seeds, &program_id);
-        found_bump == bump
-    }
-
-    #[test]
-    fn test_check_anchor_option_sol_pool_pda() {
-        assert!(check_hardcoded_bump(
-            crate::ID.into(),
-            &[SOL_POOL_PDA_SEED],
-            SOL_POOL_PDA_BUMP
-        ));
-    }
-}
+// Note: The sol_pool_pda bump test lives in the system program crate
+// since it requires the program ID constant.

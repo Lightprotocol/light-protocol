@@ -1,17 +1,15 @@
 use light_account_checks::checks::check_signer;
+use light_vm::accounts::{
+    account_checks::{
+        anchor_option_mut_account_info, check_account_compression_program,
+        check_anchor_option_sol_pool_pda, check_fee_payer, check_non_mut_account_info,
+        check_system_program,
+    },
+    account_traits::{InvokeAccounts, SignerAccounts},
+};
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
 
-use crate::{
-    accounts::{
-        account_checks::{
-            anchor_option_mut_account_info, check_account_compression_program,
-            check_anchor_option_sol_pool_pda, check_fee_payer, check_non_mut_account_info,
-            check_system_program,
-        },
-        account_traits::{InvokeAccounts, SignerAccounts},
-    },
-    Result,
-};
+use crate::Result;
 
 /// These are the base accounts additionally Merkle tree and queue accounts are required.
 /// These additional accounts are passed as remaining accounts.
@@ -60,9 +58,9 @@ impl<'info> InvokeInstruction<'info> {
 
         let account_compression_program = check_account_compression_program(accounts.next())?;
 
-        let sol_pool_pda = check_anchor_option_sol_pool_pda(accounts.next())?;
+        let sol_pool_pda = check_anchor_option_sol_pool_pda(accounts.next(), &crate::ID)?;
 
-        let decompression_recipient = anchor_option_mut_account_info(accounts.next())?;
+        let decompression_recipient = anchor_option_mut_account_info(accounts.next(), &crate::ID)?;
 
         let system_program = check_system_program(accounts.next())?;
 

@@ -20,7 +20,6 @@ use light_compressed_account::{
     },
     TreeType,
 };
-use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_program_test::{
     accounts::test_accounts::TestAccounts,
     indexer::{TestIndexer, TestIndexerExtensions},
@@ -639,7 +638,7 @@ pub async fn failing_transaction_address<R: Rpc>(
             payer,
             inputs_struct,
             remaining_accounts.clone(),
-            MerkleTreeMetadataError::InvalidQueueType.into(),
+            6066u32, // MissingLegacyMerkleContext (V1 nullifier queue lacks address queue context)
         )
         .await
         .unwrap();

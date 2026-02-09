@@ -18,13 +18,13 @@ use solana_msg::msg;
 use zerocopy::{little_endian::U16, Ref};
 
 use crate::{
+    constants::{CPI_CONTEXT_ACCOUNT_1_DISCRIMINATOR, CPI_CONTEXT_ACCOUNT_2_DISCRIMINATOR},
     context::WrappedInstructionData,
     cpi_context::{
         account::{CpiContextInAccount, CpiContextOutAccount},
         address::CpiContextNewAddressParamsAssignedPacked,
     },
     errors::SystemProgramError,
-    CPI_CONTEXT_ACCOUNT_1_DISCRIMINATOR, CPI_CONTEXT_ACCOUNT_2_DISCRIMINATOR, ID,
 };
 
 #[derive(Debug, PartialEq, Default, BorshDeserialize, Clone)]
@@ -189,9 +189,6 @@ impl<'a> ZCpiContextAccount2<'a> {
                 msg!("readonly_addresses are not supported when writing into cpi context account");
                 return Err(SystemProgramError::Unimplemented)?;
             }
-            // for readonly_address in readonly_addresses {
-            //    self.readonly_addresses.push(*readonly_address)?;
-            //}
         }
 
         // Store read-only accounts if any
@@ -200,9 +197,6 @@ impl<'a> ZCpiContextAccount2<'a> {
                 msg!("read_only_accounts are not supported when writing into cpi context account");
                 return Err(SystemProgramError::Unimplemented)?;
             }
-            // for readonly_account in readonly_accounts {
-            //     self.readonly_accounts.push(*readonly_account)?;
-            // }
         }
         // Store output accounts
         for output in instruction_data.output_accounts() {
@@ -278,22 +272,26 @@ impl Discriminator for ZCpiContextAccount2<'_> {
 #[profile]
 pub fn deserialize_cpi_context_account<'a>(
     account_info: &AccountInfo,
+    program_id: &Pubkey,
 ) -> Result<ZCpiContextAccount2<'a>, ProgramError> {
-    deserialize_cpi_context_account_inner::<false>(account_info)
+    deserialize_cpi_context_account_inner::<false>(account_info, program_id)
 }
 
 #[profile]
 pub fn deserialize_cpi_context_account_cleared<'a>(
     account_info: &AccountInfo,
+    program_id: &Pubkey,
 ) -> Result<ZCpiContextAccount2<'a>, ProgramError> {
-    deserialize_cpi_context_account_inner::<true>(account_info)
+    deserialize_cpi_context_account_inner::<true>(account_info, program_id)
 }
 
 #[profile]
 fn deserialize_cpi_context_account_inner<'a, const CLEARED: bool>(
     account_info: &AccountInfo,
+    program_id: &Pubkey,
 ) -> Result<ZCpiContextAccount2<'a>, ProgramError> {
-    check_owner(&ID, account_info).map_err(|_| SystemProgramError::InvalidCpiContextOwner)?;
+    check_owner(program_id, account_info)
+        .map_err(|_| SystemProgramError::InvalidCpiContextOwner)?;
     let mut account_data = account_info
         .try_borrow_mut_data()
         .map_err(|_| SystemProgramError::BorrowingDataFailed)?;
@@ -407,10 +405,8 @@ pub fn cpi_context_account_new<'a, const RE_INIT: bool>(
     account_info: &AccountInfo,
     params: CpiContextAccountInitParams,
 ) -> Result<ZCpiContextAccount2<'a>, ProgramError> {
-    check_owner(&ID, account_info).map_err(|_| {
-        msg!("Invalid cpi context account owner.");
-        SystemProgramError::InvalidCpiContextOwner
-    })?;
+    // Owner check is performed by the caller (init_cpi_context_account checks
+    // associated_merkle_tree owner, reinit_cpi_context_account checks with program_id).
     let mut account_data = account_info.try_borrow_mut_data().map_err(|_| {
         msg!("Cpi context account data borrow failed.");
         SystemProgramError::BorrowingDataFailed

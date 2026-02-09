@@ -2,9 +2,11 @@ pub mod cpi;
 pub mod create_address_cpi_data;
 pub mod create_inputs_cpi_data;
 pub mod create_outputs_cpi_data;
-pub mod process;
+pub mod processor_trait;
 pub mod read_only_account;
 pub mod read_only_address;
 pub mod sol_compression;
 pub mod sum_check;
 pub mod verify_proof;
+
+pub use processor_trait::Processor;

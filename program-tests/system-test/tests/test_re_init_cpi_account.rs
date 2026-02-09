@@ -129,7 +129,8 @@ async fn test_re_init_cpi_account() {
         );
 
         // Deserialize the account to verify vector capacities
-        let deserialized = deserialize_cpi_context_account(&account_info).unwrap();
+        let program_id = PinocchioPubkey::from(light_system_program::ID.to_bytes());
+        let deserialized = deserialize_cpi_context_account(&account_info, &program_id).unwrap();
         assert_eq!(deserialized.remaining_capacity(), 6500);
         // Verify vector capacities match CpiContextAccountInitParams defaults
         assert_eq!(

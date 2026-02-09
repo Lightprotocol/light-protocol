@@ -48,7 +48,7 @@ pub enum AcpAccount<'info> {
 }
 
 #[profile]
-pub(crate) fn try_from_account_infos<'info>(
+pub fn try_from_account_infos<'info>(
     account_infos: &'info [AccountInfo],
     context: &mut SystemContext<'info>,
 ) -> std::result::Result<Vec<AcpAccount<'info>>, SystemProgramError> {
@@ -62,7 +62,7 @@ pub(crate) fn try_from_account_infos<'info>(
 
 #[inline(always)]
 #[profile]
-pub(crate) fn try_from_account_info<'a, 'info: 'a>(
+pub fn try_from_account_info<'a, 'info: 'a>(
     account_info: &'info AccountInfo,
     context: &mut SystemContext<'info>,
     index: u8,

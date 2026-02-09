@@ -16,8 +16,8 @@ use pinocchio::{
 use solana_msg::msg;
 
 use crate::{
-    cpi_context::state::ZCpiContextAccount2, errors::SystemProgramError,
-    utils::transfer_lamports_invoke, Result, MAX_OUTPUT_ACCOUNTS,
+    constants::MAX_OUTPUT_ACCOUNTS, cpi_context::state::ZCpiContextAccount2,
+    errors::SystemProgramError, utils::transfer_lamports_invoke, Result,
 };
 
 pub struct SystemContext<'info> {

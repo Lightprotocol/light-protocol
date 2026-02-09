@@ -1,21 +1,13 @@
-pub mod account_compression_state;
-pub mod accounts;
 pub mod constants;
-pub mod context;
-pub mod cpi_context;
-pub mod errors;
 pub mod invoke;
 pub mod invoke_cpi;
-pub mod processor;
-pub mod utils;
 
+// Re-export everything from light-vm so downstream consumers
+// can still import from this crate.
 use accounts::{init_context_account::init_cpi_context_account, mode::AccountMode};
 pub use constants::*;
 use invoke::instruction::InvokeInstruction;
-use invoke_cpi::{
-    instruction::InvokeCpiInstruction, instruction_v2::InvokeCpiInstructionV2,
-    processor::process_invoke_cpi,
-};
+use invoke_cpi::{instruction::InvokeCpiInstruction, instruction_v2::InvokeCpiInstructionV2};
 use light_compressed_account::instruction_data::{
     traits::InstructionData,
     with_account_info::InstructionDataInvokeCpiWithAccountInfo,
@@ -23,18 +15,24 @@ use light_compressed_account::instruction_data::{
     zero_copy::{ZInstructionDataInvoke, ZInstructionDataInvokeCpi},
 };
 use light_macros::pubkey_array;
+use light_vm::Processor;
+pub use light_vm::{
+    account_compression_state, accounts, context, cpi_context, errors, processor, utils,
+};
 use light_zero_copy::traits::ZeroCopyAt;
 use pinocchio::{
     account_info::AccountInfo, msg, program_error::ProgramError, pubkey::Pubkey, ProgramResult,
 };
 
-#[cfg(feature = "reinit")]
-use crate::accounts::init_context_account::reinit_cpi_context_account;
-use crate::{
-    invoke::verify_signer::input_compressed_accounts_signer_check, processor::process::process,
-};
+use crate::invoke::verify_signer::input_compressed_accounts_signer_check;
 
 pub const ID: Pubkey = pubkey_array!("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7");
+
+pub struct LightSystemProgram;
+
+impl Processor for LightSystemProgram {
+    const ID: Pubkey = ID;
+}
 
 #[cfg(not(feature = "no-entrypoint"))]
 solana_security_txt::security_txt! {
@@ -85,7 +83,9 @@ pub fn process_instruction(
             invoke_cpi_with_account_info(accounts, instruction_data)
         }
         #[cfg(feature = "reinit")]
-        InstructionDiscriminator::ReInitCpiContextAccount => reinit_cpi_context_account(accounts),
+        InstructionDiscriminator::ReInitCpiContextAccount => {
+            LightSystemProgram::reinit_cpi_context_account(accounts)
+        }
     }?;
     Ok(())
 }
@@ -105,7 +105,7 @@ pub fn invoke<'a, 'b, 'c: 'info, 'info>(
         ctx.authority.key(),
     )?;
     let wrapped_inputs = context::WrappedInstructionData::new(inputs)?;
-    process::<false, InvokeInstruction, ZInstructionDataInvoke>(
+    LightSystemProgram::process::<false, InvokeInstruction, ZInstructionDataInvoke>(
         wrapped_inputs,
         None,
         &ctx,
@@ -126,7 +126,7 @@ pub fn invoke_cpi<'a, 'b, 'c: 'info, 'info>(
 
     let (ctx, remaining_accounts) = InvokeCpiInstruction::from_account_infos(accounts)?;
 
-    process_invoke_cpi::<false, InvokeCpiInstruction, ZInstructionDataInvokeCpi>(
+    LightSystemProgram::process_invoke_cpi::<false, InvokeCpiInstruction, ZInstructionDataInvokeCpi>(
         *ctx.invoking_program.key(),
         ctx,
         inputs,
@@ -168,7 +168,8 @@ pub fn invoke_cpi_with_account_info<'a, 'b, 'c: 'info, 'info>(
     )
 }
 
-fn shared_invoke_cpi<'a, 'info, T: InstructionData<'a>>(
+#[inline(never)]
+fn shared_invoke_cpi<'a, 'info, T: InstructionData<'a> + 'a>(
     accounts: &[AccountInfo],
     invoking_program: Pubkey,
     mode: AccountMode,
@@ -178,7 +179,7 @@ fn shared_invoke_cpi<'a, 'info, T: InstructionData<'a>>(
     match mode {
         AccountMode::Anchor => {
             let (ctx, remaining_accounts) = InvokeCpiInstruction::from_account_infos(accounts)?;
-            process_invoke_cpi::<true, InvokeCpiInstruction, T>(
+            LightSystemProgram::process_invoke_cpi::<true, InvokeCpiInstruction, T>(
                 invoking_program,
                 ctx,
                 inputs,
@@ -190,7 +191,7 @@ fn shared_invoke_cpi<'a, 'info, T: InstructionData<'a>>(
                 accounts,
                 inputs.account_option_config()?,
             )?;
-            process_invoke_cpi::<true, InvokeCpiInstructionV2, T>(
+            LightSystemProgram::process_invoke_cpi::<true, InvokeCpiInstructionV2, T>(
                 invoking_program,
                 ctx,
                 inputs,

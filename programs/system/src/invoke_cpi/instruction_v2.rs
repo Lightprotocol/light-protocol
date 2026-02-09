@@ -1,8 +1,6 @@
 use light_account_checks::AccountIterator;
 use light_compressed_account::instruction_data::traits::AccountOptions;
-use pinocchio::account_info::AccountInfo;
-
-use crate::{
+use light_vm::{
     accounts::{
         account_checks::{
             check_option_cpi_context_account, check_option_decompression_recipient,
@@ -11,8 +9,10 @@ use crate::{
         account_traits::{CpiContextAccountTrait, InvokeAccounts, SignerAccounts},
     },
     errors::SystemProgramError,
-    Result,
 };
+use pinocchio::account_info::AccountInfo;
+
+use crate::Result;
 
 #[derive(PartialEq, Eq)]
 pub struct ExecutionAccounts<'info> {
@@ -57,7 +57,8 @@ impl<'info> InvokeCpiInstructionV2<'info> {
 
             let system_program = accounts.next_non_mut("system_program")?;
 
-            let sol_pool_pda = check_option_sol_pool_pda(&mut accounts, account_options)?;
+            let sol_pool_pda =
+                check_option_sol_pool_pda(&mut accounts, account_options, &crate::ID)?;
 
             let decompression_recipient =
                 check_option_decompression_recipient(&mut accounts, account_options)?;
@@ -74,7 +75,8 @@ impl<'info> InvokeCpiInstructionV2<'info> {
             None
         };
 
-        let cpi_context_account = check_option_cpi_context_account(&mut accounts, account_options)?;
+        let cpi_context_account =
+            check_option_cpi_context_account(&mut accounts, account_options, &crate::ID)?;
         let remaining_accounts = if !account_options.write_to_cpi_context {
             accounts.remaining()?
         } else {

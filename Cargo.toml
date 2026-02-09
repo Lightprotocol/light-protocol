@@ -18,6 +18,7 @@ members = [
     "program-libs/indexed-merkle-tree",
     "program-libs/indexed-array",
     "program-libs/zero-copy-derive",
+    "program-libs/light-vm",
     "programs/account-compression",
     "programs/system",
     "programs/compressed-token/program",
@@ -256,6 +257,7 @@ light-test-utils = { path = "program-tests/utils", version = "1.2.1" }
 light-indexed-array = { path = "program-libs/indexed-array", version = "0.3.0" }
 light-array-map = { path = "program-libs/array-map", version = "0.2.0" }
 light-program-profiler = { version = "0.1.0" }
+light-vm = { path = "program-libs/light-vm", version = "1.0.0", default-features = false }
 create-address-program-test = { path = "program-tests/create-address-test-program", version = "1.0.0" }
 sdk-compressible-test = { path = "sdk-tests/sdk-compressible-test", version = "0.1.0" }
 groth16-solana = { version = "0.2.0" }

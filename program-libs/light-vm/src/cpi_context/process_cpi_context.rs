@@ -50,6 +50,7 @@ pub fn process_cpi_context<'a, 'info, T: InstructionData<'a>>(
     cpi_context_account_info: Option<&'info AccountInfo>,
     fee_payer: Pubkey,
     remaining_accounts: &[AccountInfo],
+    program_id: &Pubkey,
 ) -> Result<Option<(usize, WrappedInstructionData<'a, T>)>> {
     let cpi_context = &instruction_data.cpi_context();
     if cpi_context_account_info.is_some() && cpi_context.is_none() {
@@ -63,10 +64,16 @@ pub fn process_cpi_context<'a, 'info, T: InstructionData<'a>>(
         };
 
         if cpi_context.set_context || cpi_context.first_set_context {
-            set_cpi_context(fee_payer, cpi_context_account_info, instruction_data)?;
+            set_cpi_context(
+                fee_payer,
+                cpi_context_account_info,
+                instruction_data,
+                program_id,
+            )?;
             return Ok(None);
         } else {
-            let cpi_context_account = deserialize_cpi_context_account(cpi_context_account_info)?;
+            let cpi_context_account =
+                deserialize_cpi_context_account(cpi_context_account_info, program_id)?;
             validate_cpi_context_associated_with_merkle_tree(
                 &instruction_data,
                 &cpi_context_account,
@@ -92,6 +99,7 @@ pub fn set_cpi_context<'a, 'info, T: InstructionData<'a>>(
     fee_payer: Pubkey,
     cpi_context_account_info: &'info AccountInfo,
     instruction_data: WrappedInstructionData<'a, T>,
+    program_id: &Pubkey,
 ) -> Result<()> {
     // SAFETY Assumptions:
     // -  previous data in cpi_context_account
@@ -113,11 +121,12 @@ pub fn set_cpi_context<'a, 'info, T: InstructionData<'a>>(
 
     if cpi_context.first_set_context {
         let mut cpi_context_account =
-            deserialize_cpi_context_account_cleared(cpi_context_account_info)?;
+            deserialize_cpi_context_account_cleared(cpi_context_account_info, program_id)?;
         *cpi_context_account.fee_payer = fee_payer.into();
         cpi_context_account.store_data(&instruction_data)?;
     } else {
-        let mut cpi_context_account = deserialize_cpi_context_account(cpi_context_account_info)?;
+        let mut cpi_context_account =
+            deserialize_cpi_context_account(cpi_context_account_info, program_id)?;
 
         if *cpi_context_account.fee_payer == fee_payer && !cpi_context_account.is_empty() {
             cpi_context_account.store_data(&instruction_data)?;

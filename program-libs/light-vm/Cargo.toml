@@ -1,0 +1,64 @@
+[package]
+name = "light-vm"
+version = "1.0.0"
+description = "Light Protocol VM - Reusable system processor for ZK compression"
+repository = "https://github.com/Lightprotocol/light-protocol"
+license = "Apache-2.0"
+edition = "2021"
+
+[features]
+default = ["pinocchio"]
+pinocchio = [
+    "dep:pinocchio",
+    "dep:pinocchio-system",
+    "dep:pinocchio-pubkey",
+    "light-compressed-account/pinocchio",
+    "light-verifier/pinocchio",
+    "light-hasher/pinocchio",
+    "light-macros/pinocchio",
+    "light-merkle-tree-metadata/pinocchio",
+    "light-concurrent-merkle-tree/pinocchio",
+    "light-indexed-merkle-tree/pinocchio",
+    "light-batched-merkle-tree/pinocchio",
+    "light-zero-copy/pinocchio",
+    "light-account-checks/pinocchio",
+]
+reinit = []
+profile-program = ["light-program-profiler/profile-program"]
+profile-heap = ["light-program-profiler/profile-heap", "dep:light-heap"]
+
+[dependencies]
+light-concurrent-merkle-tree = { workspace = true }
+light-indexed-merkle-tree = { workspace = true }
+light-batched-merkle-tree = { workspace = true }
+light-hasher = { workspace = true }
+light-compressed-account = { workspace = true }
+light-verifier = { workspace = true }
+light-zero-copy = { workspace = true }
+light-account-checks = { workspace = true }
+light-merkle-tree-metadata = { workspace = true }
+light-macros = { workspace = true }
+light-program-profiler = { workspace = true }
+aligned-sized = { workspace = true }
+bytemuck = { workspace = true }
+thiserror = { workspace = true }
+borsh = { workspace = true }
+zerocopy = { workspace = true }
+solana-pubkey = { workspace = true, features = ["curve25519", "sha2"] }
+solana-msg = { workspace = true }
+pinocchio = { workspace = true, optional = true }
+pinocchio-system = { version = "0.3.0", optional = true }
+pinocchio-pubkey = { workspace = true, optional = true }
+light-heap = { workspace = true, optional = true }
+
+[dev-dependencies]
+rand = { workspace = true }
+light-compressed-account = { workspace = true, features = ["pinocchio", "new-unique"] }
+light-account-checks = { workspace = true, features = ["pinocchio", "test-only"] }
+
+[lints.rust.unexpected_cfgs]
+level = "allow"
+check-cfg = [
+    'cfg(target_os, values("solana"))',
+    'cfg(feature, values("frozen-abi", "no-entrypoint"))',
+]

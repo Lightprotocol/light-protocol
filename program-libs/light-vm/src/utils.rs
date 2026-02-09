@@ -20,8 +20,8 @@ pub fn get_cpi_authority_pda(program_id: &Pubkey) -> Pubkey {
 }
 
 #[profile]
-pub fn get_sol_pool_pda() -> Pubkey {
-    find_program_address(&[SOL_POOL_PDA_SEED], &crate::ID).0
+pub fn get_sol_pool_pda(program_id: &Pubkey) -> Pubkey {
+    find_program_address(&[SOL_POOL_PDA_SEED], program_id).0
 }
 
 #[profile]

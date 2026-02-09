@@ -54,16 +54,17 @@ pub fn check_account_compression_program(
 }
 
 #[profile]
-pub fn check_anchor_option_sol_pool_pda(
-    account_info: Option<&AccountInfo>,
-) -> Result<Option<&AccountInfo>> {
+pub fn check_anchor_option_sol_pool_pda<'a>(
+    account_info: Option<&'a AccountInfo>,
+    program_id: &Pubkey,
+) -> Result<Option<&'a AccountInfo>> {
     let option_sol_pool_pda = account_info.ok_or(ProgramError::NotEnoughAccountKeys)?;
-    let sol_pool_pda = if *option_sol_pool_pda.key() == crate::ID {
+    let sol_pool_pda = if *option_sol_pool_pda.key() == *program_id {
         None
     } else {
         check_pda_seeds_with_bump(
             &[SOL_POOL_PDA_SEED, &[SOL_POOL_PDA_BUMP]][..],
-            &crate::ID,
+            program_id,
             option_sol_pool_pda,
         )?;
         check_mut(option_sol_pool_pda).map_err(ProgramError::from)?;
@@ -74,11 +75,12 @@ pub fn check_anchor_option_sol_pool_pda(
 
 /// Processes account equivalent to anchor Accounts Option<AccountInfo>.
 #[profile]
-pub fn anchor_option_mut_account_info(
-    account_info: Option<&AccountInfo>,
-) -> Result<Option<&AccountInfo>> {
+pub fn anchor_option_mut_account_info<'a>(
+    account_info: Option<&'a AccountInfo>,
+    program_id: &Pubkey,
+) -> Result<Option<&'a AccountInfo>> {
     let option_decompression_recipient = account_info.ok_or(ProgramError::NotEnoughAccountKeys)?;
-    let decompression_recipient = if *option_decompression_recipient.key() == crate::ID {
+    let decompression_recipient = if *option_decompression_recipient.key() == *program_id {
         None
     } else {
         check_mut(option_decompression_recipient).map_err(ProgramError::from)?;
@@ -95,15 +97,16 @@ pub fn check_system_program(account_info: Option<&AccountInfo>) -> Result<&Accou
 }
 
 #[profile]
-pub fn check_anchor_option_cpi_context_account(
-    account_info: Option<&AccountInfo>,
-) -> Result<Option<&AccountInfo>> {
+pub fn check_anchor_option_cpi_context_account<'a>(
+    account_info: Option<&'a AccountInfo>,
+    program_id: &Pubkey,
+) -> Result<Option<&'a AccountInfo>> {
     let option_cpi_context_account = account_info.ok_or(ProgramError::NotEnoughAccountKeys)?;
-    let cpi_context_account = if *option_cpi_context_account.key() == crate::ID {
+    let cpi_context_account = if *option_cpi_context_account.key() == *program_id {
         None
     } else {
         {
-            check_owner(&crate::ID, option_cpi_context_account)?;
+            check_owner(program_id, option_cpi_context_account)?;
             check_discriminator::<ZCpiContextAccount2>(
                 option_cpi_context_account.try_borrow_data()?.as_ref(),
             )?;
@@ -134,10 +137,11 @@ pub fn check_option_decompression_recipient<'a>(
 pub fn check_option_cpi_context_account<'a>(
     account_infos: &mut AccountIterator<'a, AccountInfo>,
     account_options: AccountOptions,
+    program_id: &Pubkey,
 ) -> Result<Option<&'a AccountInfo>> {
     let account = if account_options.cpi_context_account {
         let account_info = account_infos.next_account("cpi_context")?;
-        check_owner(&crate::ID, account_info).inspect_err(|_| {
+        check_owner(program_id, account_info).inspect_err(|_| {
             let location = Location::caller();
             solana_msg::msg!(
                 "ERROR: check_owner {:?} owner: {:?} for cpi_context failed. {}:{}:{}",
@@ -170,10 +174,11 @@ pub fn check_option_cpi_context_account<'a>(
 pub fn check_option_sol_pool_pda<'a>(
     account_infos: &mut AccountIterator<'a, AccountInfo>,
     account_options: AccountOptions,
+    program_id: &Pubkey,
 ) -> Result<Option<&'a AccountInfo>> {
     let sol_pool_pda = if account_options.sol_pool_pda {
         let option_sol_pool_pda = account_infos.next_account("sol_pool_pda")?;
-        check_pda_seeds(&[SOL_POOL_PDA_SEED], &crate::ID, option_sol_pool_pda)?;
+        check_pda_seeds(&[SOL_POOL_PDA_SEED], program_id, option_sol_pool_pda)?;
         check_mut(option_sol_pool_pda).map_err(ProgramError::from)?;
         Some(option_sol_pool_pda)
     } else {

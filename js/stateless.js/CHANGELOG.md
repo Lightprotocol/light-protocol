@@ -185,6 +185,7 @@ Fixed a bug where we lose precision on token amounts if compressed token account
 ### Added
 
 - Multiple State Tree support. Allows you to pass non-default state tree pubkeys to actions and instructions. Comes out of the box with public state trees.
+
     - `pickRandomStateTreeAndQueue`
     - `getLightStateTreeInfo`
 

@@ -4275,29 +4275,19 @@ dependencies = [
 name = "light-system-program-pinocchio"
 version = "1.2.0"
 dependencies = [
- "aligned-sized",
  "borsh 0.10.4",
- "bytemuck",
  "light-account-checks",
- "light-batched-merkle-tree",
  "light-compressed-account",
- "light-concurrent-merkle-tree",
- "light-hasher",
  "light-heap",
- "light-indexed-merkle-tree",
  "light-macros",
- "light-merkle-tree-metadata",
  "light-program-profiler",
- "light-verifier",
+ "light-vm",
  "light-zero-copy",
  "pinocchio",
- "pinocchio-pubkey",
- "pinocchio-system",
  "rand 0.8.5",
  "solana-msg 2.2.1",
  "solana-pubkey 2.4.0",
  "solana-security-txt",
- "thiserror 2.0.17",
  "zerocopy",
 ]
 
@@ -4488,6 +4478,35 @@ dependencies = [
  "solana-msg 2.2.1",
  "solana-program-error 2.2.2",
  "thiserror 2.0.17",
+]
+
+[[package]]
+name = "light-vm"
+version = "1.0.0"
+dependencies = [
+ "aligned-sized",
+ "borsh 0.10.4",
+ "bytemuck",
+ "light-account-checks",
+ "light-batched-merkle-tree",
+ "light-compressed-account",
+ "light-concurrent-merkle-tree",
+ "light-hasher",
+ "light-heap",
+ "light-indexed-merkle-tree",
+ "light-macros",
+ "light-merkle-tree-metadata",
+ "light-program-profiler",
+ "light-verifier",
+ "light-zero-copy",
+ "pinocchio",
+ "pinocchio-pubkey",
+ "pinocchio-system",
+ "rand 0.8.5",
+ "solana-msg 2.2.1",
+ "solana-pubkey 2.4.0",
+ "thiserror 2.0.17",
+ "zerocopy",
 ]
 
 [[package]]
