@@ -210,9 +210,11 @@ pub fn initialize_ctoken_account(
     // Zero all base token bytes before initialization to prevent pre-set values
     // (e.g., amount field via IDL buffer) from persisting through new_zero_copy,
     // which only sets mint, owner, and state without zeroing other fields.
-    if token_account_data.len() >= 165 {
-        token_account_data[..165].fill(0);
+    if token_account_data.len() < 165 {
+        msg!("Token account data too small: {}", token_account_data.len());
+        return Err(ProgramError::InvalidAccountData);
     }
+    token_account_data[..165].fill(0);
 
     // Use new_zero_copy to initialize the token account
     // This sets mint, owner, state, account_type, and extensions
