@@ -137,7 +137,10 @@ pub fn build_mint_extension_cache<'a>(
                     msg!("Mint has restricted extensions - CompressedOnly output required");
                     return Err(ErrorCode::CompressAndCloseMissingCompressedOnlyExtension.into());
                 }
-            } else if checks.has_restricted_extensions && deny_restricted_extensions && !compression.mode.is_compress_and_close() {
+            } else if checks.has_restricted_extensions
+                && deny_restricted_extensions
+                && !compression.mode.is_compress_and_close()
+            {
                 msg!("Mint has restricted extensions - regular compress not allowed");
                 return Err(ErrorCode::MintHasRestrictedExtensions.into());
             }
