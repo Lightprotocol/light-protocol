@@ -27,7 +27,7 @@ use crate::{
 ///
 /// ## Process Steps
 /// 1. **State Validation**: Ensure mint is not already decompressed
-/// 2. **Rent Payment Validation**: rent_payment must be 0 or >= 2
+/// 2. **Rent Payment Validation**: rent_payment must be >= 2
 /// 3. **Config Validation**: Validate CompressibleConfig account
 /// 4. **Write Top-Up Validation**: write_top_up must not exceed max_top_up
 /// 5. **Add Compressible Extension**: Add CompressionInfo to the compressed mint extensions
@@ -51,10 +51,13 @@ pub fn process_decompress_mint_action(
         return Err(ErrorCode::CMintAlreadyExists.into());
     }
 
-    // 2. rent_payment == 1 is rejected - epoch boundary edge case
-    if action.rent_payment == 1 {
-        msg!("Prefunding for exactly 1 epoch is not allowed. Use 0 or 2+ epochs.");
-        return Err(ErrorCode::OneEpochPrefundingNotAllowed.into());
+    // 2. CMint requires at least 2 epochs of rent prepayment (always compressible)
+    if action.rent_payment < 2 {
+        msg!(
+            "CMint requires at least 2 epochs of rent prepayment. Got {}.",
+            action.rent_payment
+        );
+        return Err(ErrorCode::InvalidRentPayment.into());
     }
 
     let executing = validated_accounts
