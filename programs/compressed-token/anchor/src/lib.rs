@@ -580,6 +580,8 @@ pub enum ErrorCode {
     MintActionInvalidMintSigner, // 6171
     #[msg("Mint not found in cache - this indicates an internal error")]
     MintNotInCache, // 6172
+    #[msg("Permanent delegate burn failed - insufficient balance or invalid state")]
+    PermanentDelegateBurnFailed, // 6173
 }
 
 /// Anchor error code offset - error codes start at 6000

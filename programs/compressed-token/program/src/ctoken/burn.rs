@@ -1,7 +1,18 @@
+use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::{msg, program_error::ProgramError};
+use light_account_checks::AccountInfoTrait;
 use light_program_profiler::profile;
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError as PinocchioProgramError};
+use pinocchio::{
+    account_info::AccountInfo, program_error::ProgramError as PinocchioProgramError,
+    pubkey::pubkey_eq,
+};
 use pinocchio_token_program::processor::{burn::process_burn, burn_checked::process_burn_checked};
+use spl_token_2022::{
+    extension::{
+        permanent_delegate::PermanentDelegate, BaseStateWithExtensions, PodStateWithExtensions,
+    },
+    pod::PodMint,
+};
 
 use crate::shared::{
     compressible_top_up::calculate_and_execute_compressible_top_ups, convert_pinocchio_token_error,
@@ -20,6 +31,12 @@ const PAYER_IDX: usize = 2;
 #[allow(dead_code)]
 const SYSTEM_PROGRAM_IDX: usize = 3;
 const FEE_PAYER_IDX: usize = 4;
+
+const SPL_TOKEN_2022_ID: [u8; 32] = spl_token_2022::ID.to_bytes();
+
+/// SPL Token account layout offsets
+const TOKEN_AMOUNT_OFFSET: usize = 64;
+const MINT_SUPPLY_OFFSET: usize = 36;
 
 /// Process ctoken burn instruction
 ///
@@ -71,6 +88,91 @@ pub fn process_ctoken_burn_checked(
     )
 }
 
+/// Try to burn as permanent delegate by checking if the mint is a T22 mint
+/// with a PermanentDelegate extension matching the authority.
+///
+/// Returns Ok(true) if burn was handled as permanent delegate, Ok(false) if not applicable.
+/// On true, the CToken balance and mint supply have been updated manually.
+#[inline(always)]
+fn try_burn_as_permanent_delegate(
+    ctoken: &AccountInfo,
+    mint: &AccountInfo,
+    authority: &AccountInfo,
+    amount: u64,
+) -> Result<bool, ProgramError> {
+    // Only T22 mints can have permanent delegate
+    if !mint.is_owned_by(&SPL_TOKEN_2022_ID) {
+        return Ok(false);
+    }
+
+    // Authority must be a signer
+    if !authority.is_signer() {
+        return Ok(false);
+    }
+
+    // Parse mint for PermanentDelegate extension
+    let mint_data = AccountInfoTrait::try_borrow_data(mint)?;
+    let mint_state = PodStateWithExtensions::<PodMint>::unpack(&mint_data)?;
+    let permanent_delegate = match mint_state.get_extension::<PermanentDelegate>() {
+        Ok(ext) => {
+            match Option::<solana_pubkey::Pubkey>::from(ext.delegate) {
+                Some(delegate) => delegate,
+                None => return Ok(false), // Extension exists but delegate is nil
+            }
+        }
+        Err(_) => return Ok(false), // No PermanentDelegate extension
+    };
+
+    // Check if authority matches permanent delegate
+    if !pubkey_eq(authority.key(), &permanent_delegate.to_bytes()) {
+        return Ok(false);
+    }
+    drop(mint_data);
+
+    // Authority is the permanent delegate — manually perform the burn.
+    // Subtract amount from CToken balance (SPL Token layout: amount at offset 64)
+    {
+        let mut ctoken_data = ctoken
+            .try_borrow_mut_data()
+            .map_err(|_| ProgramError::AccountBorrowFailed)?;
+        if ctoken_data.len() < TOKEN_AMOUNT_OFFSET + 8 {
+            return Err(ErrorCode::PermanentDelegateBurnFailed.into());
+        }
+        let current_balance = u64::from_le_bytes(
+            ctoken_data[TOKEN_AMOUNT_OFFSET..TOKEN_AMOUNT_OFFSET + 8]
+                .try_into()
+                .map_err(|_| ErrorCode::PermanentDelegateBurnFailed)?,
+        );
+        let new_balance = current_balance
+            .checked_sub(amount)
+            .ok_or(ErrorCode::PermanentDelegateBurnFailed)?;
+        ctoken_data[TOKEN_AMOUNT_OFFSET..TOKEN_AMOUNT_OFFSET + 8]
+            .copy_from_slice(&new_balance.to_le_bytes());
+    }
+
+    // Subtract amount from mint supply (SPL Token layout: supply at offset 36)
+    {
+        let mut mint_data = mint
+            .try_borrow_mut_data()
+            .map_err(|_| ProgramError::AccountBorrowFailed)?;
+        if mint_data.len() < MINT_SUPPLY_OFFSET + 8 {
+            return Err(ErrorCode::PermanentDelegateBurnFailed.into());
+        }
+        let current_supply = u64::from_le_bytes(
+            mint_data[MINT_SUPPLY_OFFSET..MINT_SUPPLY_OFFSET + 8]
+                .try_into()
+                .map_err(|_| ErrorCode::PermanentDelegateBurnFailed)?,
+        );
+        let new_supply = current_supply
+            .checked_sub(amount)
+            .ok_or(ErrorCode::PermanentDelegateBurnFailed)?;
+        mint_data[MINT_SUPPLY_OFFSET..MINT_SUPPLY_OFFSET + 8]
+            .copy_from_slice(&new_supply.to_le_bytes());
+    }
+
+    Ok(true)
+}
+
 /// Shared inner implementation for ctoken mint_to and burn variants.
 ///
 /// # Type Parameters
@@ -113,6 +215,37 @@ pub(crate) fn process_ctoken_supply_change_inner<
         ),
         _ => return Err(ProgramError::InvalidInstructionData),
     };
+
+    // For burn operations, check if authority is the permanent delegate.
+    // Pinocchio's processor doesn't handle T22 permanent delegate, so we
+    // manually perform the burn if the authority matches.
+    // Only applicable for burn (CTOKEN_IDX=0, CMINT_IDX=1).
+    if CTOKEN_IDX == 0 && CMINT_IDX == 1 {
+        let amount = u64::from_le_bytes(
+            instruction_data[..8]
+                .try_into()
+                .map_err(|_| ProgramError::InvalidInstructionData)?,
+        );
+        if try_burn_as_permanent_delegate(
+            &accounts[CTOKEN_IDX],
+            &accounts[CMINT_IDX],
+            &accounts[PAYER_IDX],
+            amount,
+        )? {
+            // Burn handled by permanent delegate path, skip pinocchio processor
+            let cmint = &accounts[CMINT_IDX];
+            let ctoken = &accounts[CTOKEN_IDX];
+            let authority_payer = accounts.get(PAYER_IDX);
+            let fee_payer = accounts.get(FEE_PAYER_IDX);
+            let effective_payer = fee_payer.or(authority_payer);
+            return calculate_and_execute_compressible_top_ups(
+                cmint,
+                ctoken,
+                effective_payer,
+                max_top_up,
+            );
+        }
+    }
 
     processor(accounts, &instruction_data[..BASE_LEN]).map_err(convert_pinocchio_token_error)?;
 
