@@ -1,13 +1,14 @@
 use anchor_lang::solana_program::{msg, program_error::ProgramError};
 use light_program_profiler::profile;
-use light_token_interface::state::Token;
-use pinocchio::{account_info::AccountInfo, pubkey::pubkey_eq};
+use pinocchio::account_info::AccountInfo;
 use pinocchio_token_program::processor::{
     shared::transfer::process_transfer, transfer_checked::process_transfer_checked,
     unpack_amount_and_decimals,
 };
 
-use super::shared::{process_transfer_extensions_transfer_checked, TransferAccounts};
+use super::shared::{
+    process_transfer_extensions_transfer_checked, validate_self_transfer, TransferAccounts,
+};
 use crate::shared::{
     convert_pinocchio_token_error, convert_token_error, owner_validation::check_token_program_owner,
 };
@@ -51,22 +52,7 @@ pub fn process_ctoken_transfer_checked(
 
     // Self-transfer: validate authority but skip token movement to avoid
     // double mutable borrow panic in pinocchio process_transfer.
-    if pubkey_eq(source.key(), destination.key()) {
-        let authority = &accounts[ACCOUNT_AUTHORITY];
-        if !authority.is_signer() {
-            return Err(ProgramError::MissingRequiredSignature);
-        }
-        let token = Token::from_account_info_checked(source)
-            .map_err(|_| ProgramError::InvalidAccountData)?;
-        let is_owner = pubkey_eq(authority.key(), token.base.owner.array_ref());
-        let is_delegate = token
-            .base
-            .delegate()
-            .is_some_and(|d| pubkey_eq(authority.key(), d.array_ref()));
-        if !is_owner && !is_delegate {
-            msg!("Self-transfer authority must be owner or delegate");
-            return Err(ProgramError::InvalidAccountData);
-        }
+    if validate_self_transfer(source, destination, &accounts[ACCOUNT_AUTHORITY])? {
         return Ok(());
     }
 
