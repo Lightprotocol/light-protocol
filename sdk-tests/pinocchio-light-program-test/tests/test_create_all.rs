@@ -52,7 +52,7 @@ async fn test_create_all_derive() {
 
     // ATA (uses the mint we're creating)
     let ata_owner = payer.pubkey();
-    let (ata, _) = light_token::instruction::derive_token_ata(&ata_owner, &mint_pda);
+    let ata = light_token::instruction::derive_token_ata(&ata_owner, &mint_pda);
 
     // Build proof inputs for PDA accounts and the mint
     let proof_result = get_create_accounts_proof(

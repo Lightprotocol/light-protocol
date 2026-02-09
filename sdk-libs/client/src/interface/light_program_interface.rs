@@ -53,7 +53,7 @@ impl AccountToFetch {
         match self {
             Self::Pda { address, .. } => *address,
             Self::Token { address } => *address,
-            Self::Ata { wallet_owner, mint } => derive_token_ata(wallet_owner, mint).0,
+            Self::Ata { wallet_owner, mint } => derive_token_ata(wallet_owner, mint),
             Self::Mint { address } => *address,
         }
     }

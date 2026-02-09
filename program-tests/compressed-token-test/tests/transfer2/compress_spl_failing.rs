@@ -113,7 +113,7 @@ async fn setup_spl_compression_test(
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await?;
 
-    let ctoken_ata = derive_token_ata(&recipient.pubkey(), &mint).0;
+    let ctoken_ata = derive_token_ata(&recipient.pubkey(), &mint);
 
     // Get output queue for compression (for system_accounts_offset calculation only)
     let output_queue = rpc

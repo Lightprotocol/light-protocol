@@ -38,7 +38,7 @@ async fn setup_mint_to_test() -> MintToTestContext {
     let (mint_pda, _) = find_mint_address(&mint_seed.pubkey());
 
     // Step 1: Create Light Token ATA for owner first
-    let (ctoken_ata, _) = derive_token_ata(&owner_keypair.pubkey(), &mint_pda);
+    let ctoken_ata = derive_token_ata(&owner_keypair.pubkey(), &mint_pda);
 
     let create_ata_ix =
         CreateAssociatedTokenAccount::new(payer.pubkey(), owner_keypair.pubkey(), mint_pda)

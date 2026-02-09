@@ -78,7 +78,7 @@ async fn test_spl_to_ctoken_transfer() {
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
-    let associated_token_account = derive_token_ata(&recipient.pubkey(), &mint).0;
+    let associated_token_account = derive_token_ata(&recipient.pubkey(), &mint);
 
     // Get initial SPL token balance
     let spl_account_data = rpc
@@ -243,10 +243,9 @@ async fn test_failing_ctoken_to_spl_with_compress_and_close() {
         .unwrap();
 
     // Create compressible token ATA for recipient (ATAs require compression_only=true)
-    let (associated_token_account, bump) = derive_token_ata(&recipient.pubkey(), &mint);
+    let associated_token_account = derive_token_ata(&recipient.pubkey(), &mint);
     let instruction = CreateAssociatedTokenAccount {
         idempotent: false,
-        bump,
         payer: payer.pubkey(),
         owner: recipient.pubkey(),
         mint,

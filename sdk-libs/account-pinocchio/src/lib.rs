@@ -314,8 +314,8 @@ pub fn derive_mint_compressed_address(
 
 /// Derive the associated token account address for a given owner and mint.
 ///
-/// Returns `([u8; 32], u8)` -- the ATA address and bump seed.
+/// Returns `[u8; 32]` -- the ATA address.
 #[cfg(feature = "token")]
-pub fn derive_associated_token_account(owner: &[u8; 32], mint: &[u8; 32]) -> ([u8; 32], u8) {
+pub fn derive_associated_token_account(owner: &[u8; 32], mint: &[u8; 32]) -> [u8; 32] {
     derive_associated_token_account_generic::<AccountInfo>(owner, mint)
 }

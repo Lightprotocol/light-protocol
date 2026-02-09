@@ -185,23 +185,6 @@ pub(super) fn generate_ata_cpi(field: &AtaField, infra: &InfraRefs) -> Option<To
     let light_token_rent_sponsor = &infra.light_token_rent_sponsor;
     let fee_payer = &infra.fee_payer;
 
-    // Get bump from field or use derived bump
-    let bump_expr = field
-        .bump
-        .as_ref()
-        .map(|b| quote! { #b })
-        .unwrap_or_else(|| {
-            quote! {
-                {
-                    let (_, bump) = light_account::derive_associated_token_account::<solana_account_info::AccountInfo>(
-                        &self.#owner.to_account_info().key.to_bytes(),
-                        &self.#mint.to_account_info().key.to_bytes(),
-                    );
-                    bump
-                }
-            }
-        });
-
     Some(quote! {
         // Create ATA: #field_ident
         {
@@ -220,7 +203,6 @@ pub(super) fn generate_ata_cpi(field: &AtaField, infra: &InfraRefs) -> Option<To
                 owner: &__owner_info,
                 mint: &__mint_info,
                 ata: &__ata_info,
-                bump: #bump_expr,
             }
             .idempotent()
             .rent_free(

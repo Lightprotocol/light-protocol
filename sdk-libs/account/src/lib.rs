@@ -125,7 +125,7 @@
 //! **With `init` (Anchor-created):**
 //! ```rust,ignore
 //! #[account(mut)]
-//! #[light_account(init, associated_token::authority = owner, associated_token::mint = mint, associated_token::bump = params.bump)]
+//! #[light_account(init, associated_token::authority = owner, associated_token::mint = mint)]
 //! pub token_account: UncheckedAccount<'info>,
 //! ```
 //!
@@ -431,15 +431,15 @@ pub fn derive_mint_compressed_address(
 
 /// Derive the associated token account address for a given owner and mint.
 ///
-/// Returns `(Pubkey, u8)` -- the ATA address and bump seed.
+/// Returns the ATA address.
 #[cfg(feature = "token")]
 pub fn derive_associated_token_account(
     owner: &solana_pubkey::Pubkey,
     mint: &solana_pubkey::Pubkey,
-) -> (solana_pubkey::Pubkey, u8) {
-    let (bytes, bump) = derive_associated_token_account_generic::<AccountInfo<'static>>(
+) -> solana_pubkey::Pubkey {
+    let bytes = derive_associated_token_account_generic::<AccountInfo<'static>>(
         &owner.to_bytes(),
         &mint.to_bytes(),
     );
-    (solana_pubkey::Pubkey::from(bytes), bump)
+    solana_pubkey::Pubkey::from(bytes)
 }

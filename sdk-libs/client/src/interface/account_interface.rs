@@ -8,7 +8,7 @@
 //! - `solana_account::Account` for raw account data
 //! - `spl_token_2022_interface::pod::PodAccount` for parsed token data
 
-use light_token::instruction::derive_token_ata;
+use light_token::utils::get_associated_token_address_and_bump;
 use light_token_interface::state::ExtensionStruct;
 use solana_account::Account;
 use solana_pubkey::Pubkey;
@@ -311,7 +311,8 @@ impl TokenAccountInterface {
 
     /// Get ATA bump if this is an ATA. Returns None if not a valid ATA derivation.
     pub fn ata_bump(&self) -> Option<u8> {
-        let (derived_ata, bump) = derive_token_ata(&self.parsed.owner, &self.parsed.mint);
+        let (derived_ata, bump) =
+            get_associated_token_address_and_bump(&self.parsed.owner, &self.parsed.mint);
         (derived_ata == self.key).then_some(bump)
     }
 

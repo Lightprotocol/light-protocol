@@ -53,7 +53,6 @@ pub struct CreatePda<'info> {
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct CreateAtaParams {
     pub create_accounts_proof: CreateAccountsProof,
-    pub ata_bump: u8,
 }
 
 /// Accounts struct for testing single ATA creation.
@@ -71,7 +70,7 @@ pub struct CreateAta<'info> {
 
     /// ATA account - created via LightFinalize CPI.
     #[account(mut)]
-    #[light_account(init, associated_token::authority = ata_owner, associated_token::mint = ata_mint, associated_token::bump = params.ata_bump)]
+    #[light_account(init, associated_token::authority = ata_owner, associated_token::mint = ata_mint)]
     pub ata: UncheckedAccount<'info>,
 
     #[account(address = LIGHT_TOKEN_CONFIG)]
@@ -315,7 +314,6 @@ pub struct CreateTwoMints<'info> {
 pub struct CreateAllParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub owner: Pubkey,
-    pub ata_bump: u8,
     pub vault_bump: u8,
     pub mint_signer_bump_a: u8,
     pub mint_signer_bump_b: u8,
@@ -365,7 +363,7 @@ pub struct CreateAll<'info> {
     pub ata_owner: AccountInfo<'info>,
 
     #[account(mut)]
-    #[light_account(init, associated_token::authority = ata_owner, associated_token::mint = ata_mint, associated_token::bump = params.ata_bump)]
+    #[light_account(init, associated_token::authority = ata_owner, associated_token::mint = ata_mint)]
     pub ata: UncheckedAccount<'info>,
 
     // -- Token vault --

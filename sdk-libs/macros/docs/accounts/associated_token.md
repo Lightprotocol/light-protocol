@@ -19,12 +19,9 @@
 |-----------|----------|-------------|
 | `associated_token::authority` | Yes | ATA owner field reference |
 | `associated_token::mint` | Yes | Token mint field reference |
-| `associated_token::bump` | No | Explicit bump (auto-derived using `derive_token_ata` if omitted) |
 
-**Bump handling:**
-- ATA address is derived using fixed seeds: `[owner, LIGHT_TOKEN_PROGRAM_ID, mint]`
-- If `bump` not provided, macro generates: `let (_, bump) = derive_token_ata(&owner, &mint);`
-- Bump is used in the `CreateTokenAtaCpi` builder
+**Note:** The ATA bump is derived on-chain by the cToken program. It is no longer
+passed in instruction data.
 
 ### Infrastructure (auto-detected by name)
 
@@ -40,9 +37,7 @@ system_program                       # System program
 
 ```rust
 #[derive(AnchorSerialize, AnchorDeserialize)]
-pub struct CreateAtaParams {
-    pub ata_bump: u8,  // Optional - can auto-derive
-}
+pub struct CreateAtaParams {}
 
 #[derive(Accounts, LightAccounts)]
 #[instruction(params: CreateAtaParams)]
@@ -57,7 +52,6 @@ pub struct CreateAta<'info> {
     #[light_account(init,
         associated_token::authority = owner,            // ATA owner
         associated_token::mint = mint,                  // Token mint
-        associated_token::bump = params.ata_bump        // Optional: auto-derived if omitted
     )]
     pub user_ata: Account<'info, CToken>,
 

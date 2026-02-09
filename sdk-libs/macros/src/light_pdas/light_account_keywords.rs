@@ -7,7 +7,7 @@
 //!
 //! All attribute parameters (except type markers) require a namespace prefix:
 //! - `token::seeds`, `token::mint`, `token::owner`, `token::bump`
-//! - `associated_token::authority`, `associated_token::mint`, `associated_token::bump`
+//! - `associated_token::authority`, `associated_token::mint`
 //! - `mint::signer`, `mint::authority`, `mint::decimals`, `mint::seeds`, etc.
 //!
 //! ## Example
@@ -36,7 +36,7 @@ pub const TOKEN_NAMESPACE_KEYS: &[&str] = &["seeds", "mint", "owner", "bump", "o
 
 /// Valid keys for `associated_token::` namespace in `#[light_account(associated_token, ...)]`.
 /// Note: `authority` is the user-facing name (maps internally to `owner` in AtaField).
-pub const ASSOCIATED_TOKEN_NAMESPACE_KEYS: &[&str] = &["authority", "mint", "bump"];
+pub const ASSOCIATED_TOKEN_NAMESPACE_KEYS: &[&str] = &["authority", "mint"];
 
 /// Valid keys for `mint::` namespace in `#[light_account(init, mint, ...)]` attributes.
 pub const MINT_NAMESPACE_KEYS: &[&str] = &[
@@ -66,7 +66,7 @@ pub const STANDALONE_KEYWORDS: &[&str] = &["init"];
 /// Maps namespace -> list of shorthand-eligible keys
 pub const SHORTHAND_KEYS_BY_NAMESPACE: &[(&str, &[&str])] = &[
     ("token", &["mint", "owner", "bump"]), // seeds requires array, no shorthand
-    ("associated_token", &["authority", "mint", "bump"]),
+    ("associated_token", &["authority", "mint"]),
     // mint namespace does not support shorthand - values are typically expressions
 ];
 
@@ -201,7 +201,7 @@ mod tests {
     fn test_associated_token_namespace_keys() {
         assert!(ASSOCIATED_TOKEN_NAMESPACE_KEYS.contains(&"authority"));
         assert!(ASSOCIATED_TOKEN_NAMESPACE_KEYS.contains(&"mint"));
-        assert!(ASSOCIATED_TOKEN_NAMESPACE_KEYS.contains(&"bump"));
+        assert!(!ASSOCIATED_TOKEN_NAMESPACE_KEYS.contains(&"bump")); // bump derived on-chain
         assert!(!ASSOCIATED_TOKEN_NAMESPACE_KEYS.contains(&"owner")); // renamed to authority
         assert!(!ASSOCIATED_TOKEN_NAMESPACE_KEYS.contains(&"unknown"));
     }
@@ -247,7 +247,6 @@ mod tests {
         // associated_token namespace
         assert!(is_shorthand_key("associated_token", "authority"));
         assert!(is_shorthand_key("associated_token", "mint"));
-        assert!(is_shorthand_key("associated_token", "bump"));
 
         // mint namespace - no shorthand
         assert!(!is_shorthand_key("mint", "signer"));

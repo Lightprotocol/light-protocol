@@ -52,8 +52,8 @@ async fn test_transfer_basic() {
     let source_owner = payer.pubkey();
     let dest_owner = Pubkey::new_unique();
 
-    let (source_ata, _) = derive_token_ata(&source_owner, &mint);
-    let (dest_ata, _) = derive_token_ata(&dest_owner, &mint);
+    let source_ata = derive_token_ata(&source_owner, &mint);
+    let dest_ata = derive_token_ata(&dest_owner, &mint);
 
     CreateAta {
         mint,
@@ -137,8 +137,8 @@ async fn test_transfer_full_balance() {
     let source_owner = payer.pubkey();
     let dest_owner = Pubkey::new_unique();
 
-    let (source_ata, _) = derive_token_ata(&source_owner, &mint);
-    let (dest_ata, _) = derive_token_ata(&dest_owner, &mint);
+    let source_ata = derive_token_ata(&source_owner, &mint);
+    let dest_ata = derive_token_ata(&dest_owner, &mint);
 
     CreateAta {
         mint,

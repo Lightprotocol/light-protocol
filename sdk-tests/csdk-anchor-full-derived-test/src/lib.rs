@@ -371,7 +371,6 @@ pub mod csdk_anchor_full_derived_test {
                 owner: &owner_info,
                 mint: &mint_info,
                 ata: &ata_info,
-                bump: params.user_ata_bump,
             }
             .idempotent()
             .rent_free(&config_info, &sponsor_info, &system_info)
@@ -1447,7 +1446,7 @@ pub mod csdk_anchor_full_derived_test {
     /// skipping the CPI call. User manually calls CreateTokenAtaCpi in handler.
     pub fn d10_single_ata_markonly<'info>(
         ctx: Context<'_, '_, '_, 'info, D10SingleAtaMarkonly<'info>>,
-        params: D10SingleAtaMarkonlyParams,
+        _params: D10SingleAtaMarkonlyParams,
     ) -> Result<()> {
         use light_account::CreateTokenAtaCpi;
 
@@ -1464,7 +1463,6 @@ pub mod csdk_anchor_full_derived_test {
             owner: &__owner,
             mint: &__mint,
             ata: &__ata,
-            bump: params.ata_bump,
         }
         .idempotent()
         .rent_free(&__config, &__sponsor, &__sys)

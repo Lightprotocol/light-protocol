@@ -200,7 +200,7 @@ pub async fn create_mint(
     let (mint, mint_bump) = find_mint_address(&mint_seed.pubkey());
 
     // Create compressed token associated token account for the mint authority
-    let (token_account, _) = derive_token_ata(&mint_authority.pubkey(), &mint);
+    let token_account = derive_token_ata(&mint_authority.pubkey(), &mint);
     println!("Created token_account (ATA): {:?}", token_account);
 
     let compressible_params = CompressibleParams {

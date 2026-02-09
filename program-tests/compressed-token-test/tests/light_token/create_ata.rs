@@ -184,7 +184,7 @@ async fn test_create_compressible_ata() {
             .unwrap();
 
         // Verify ATA was created at the expected address
-        let (expected_ata, _) = derive_token_ata(&owner_and_mint, &owner_and_mint);
+        let expected_ata = derive_token_ata(&owner_and_mint, &owner_and_mint);
         let account = context.rpc.get_account(expected_ata).await.unwrap();
         assert!(
             account.is_some(),
@@ -419,8 +419,7 @@ async fn test_create_ata_failing() {
 
         // Use different mint for this test
         context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
-        let (ata_pubkey, bump) =
-            derive_token_ata(&context.owner_keypair.pubkey(), &context.mint_pubkey);
+        let ata_pubkey = derive_token_ata(&context.owner_keypair.pubkey(), &context.mint_pubkey);
 
         // Manually build instruction data with compress_to_account_pubkey (forbidden for ATAs)
         let compress_to_pubkey = CompressToPubkey {
@@ -430,7 +429,6 @@ async fn test_create_ata_failing() {
         };
 
         let instruction_data = CreateAssociatedTokenAccountInstructionData {
-            bump,
             compressible_config: Some(CompressibleExtensionInstructionData {
                 token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat
                     as u8,
@@ -490,19 +488,10 @@ async fn test_create_ata_failing() {
 
         // Use different mint for this test
         context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
-        let (ata_pubkey, correct_bump) =
-            derive_token_ata(&context.owner_keypair.pubkey(), &context.mint_pubkey);
-
-        // Manually build instruction data with WRONG bump
-        let wrong_bump = if correct_bump == 255 {
-            254
-        } else {
-            correct_bump + 1
-        };
+        let ata_pubkey = derive_token_ata(&context.owner_keypair.pubkey(), &context.mint_pubkey);
 
         // Owner and mint are now passed as accounts, not in instruction data
         let instruction_data = CreateAssociatedTokenAccountInstructionData {
-            bump: wrong_bump, // Wrong bump!
             compressible_config: Some(CompressibleExtensionInstructionData {
                 token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat
                     as u8,
@@ -719,18 +708,13 @@ async fn test_create_ata_failing() {
         // Use different mint for this test
         context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
 
-        // Get the correct PDA and bump
-        let (_correct_ata_pubkey, correct_bump) =
-            derive_token_ata(&context.owner_keypair.pubkey(), &context.mint_pubkey);
-
         // Create an arbitrary keypair (NOT the correct PDA)
         let fake_ata_keypair = solana_sdk::signature::Keypair::new();
         let fake_ata_pubkey = fake_ata_keypair.pubkey();
 
-        // Build instruction with correct bump but WRONG address (arbitrary keypair)
+        // Build instruction with WRONG address (arbitrary keypair)
         // No compressible config for non-compressible ATAs
         let instruction_data = CreateAssociatedTokenAccountInstructionData {
-            bump: correct_bump, // Correct bump for the real PDA
             compressible_config: None,
         };
 
@@ -799,11 +783,10 @@ async fn test_create_ata_failing() {
         let owner = solana_sdk::pubkey::Pubkey::new_unique();
 
         // Derive ATA address
-        let (ata_pubkey, bump) = derive_token_ata(&owner, &mint_with_restricted_ext);
+        let ata_pubkey = derive_token_ata(&owner, &mint_with_restricted_ext);
 
         // Build instruction data with compressible_config: None (non-compressible)
         let instruction_data = CreateAssociatedTokenAccountInstructionData {
-            bump,
             compressible_config: None, // Non-compressible!
         };
 
@@ -955,9 +938,9 @@ async fn test_ata_multiple_mints_same_owner() {
     assert_ne!(ata2, ata3, "ATA for mint2 and mint3 should be different");
 
     // Verify each ATA is derived correctly for its mint
-    let (expected_ata1, _) = derive_token_ata(&owner, &mint1);
-    let (expected_ata2, _) = derive_token_ata(&owner, &mint2);
-    let (expected_ata3, _) = derive_token_ata(&owner, &mint3);
+    let expected_ata1 = derive_token_ata(&owner, &mint1);
+    let expected_ata2 = derive_token_ata(&owner, &mint2);
+    let expected_ata3 = derive_token_ata(&owner, &mint3);
 
     assert_eq!(ata1, expected_ata1, "ATA1 should match expected derivation");
     assert_eq!(ata2, expected_ata2, "ATA2 should match expected derivation");
@@ -1010,7 +993,7 @@ async fn test_ata_multiple_owners_same_mint() {
         .await
         .unwrap();
 
-    let (ata1, _) = derive_token_ata(&owner1, &mint);
+    let ata1 = derive_token_ata(&owner1, &mint);
 
     // Assert ATA1 was created correctly
     assert_create_associated_token_account(
@@ -1033,7 +1016,7 @@ async fn test_ata_multiple_owners_same_mint() {
         .await
         .unwrap();
 
-    let (ata2, _) = derive_token_ata(&owner2, &mint);
+    let ata2 = derive_token_ata(&owner2, &mint);
 
     // Assert ATA2 was created correctly
     assert_create_associated_token_account(
@@ -1056,7 +1039,7 @@ async fn test_ata_multiple_owners_same_mint() {
         .await
         .unwrap();
 
-    let (ata3, _) = derive_token_ata(&owner3, &mint);
+    let ata3 = derive_token_ata(&owner3, &mint);
 
     // Assert ATA3 was created correctly
     assert_create_associated_token_account(
@@ -1074,9 +1057,9 @@ async fn test_ata_multiple_owners_same_mint() {
     assert_ne!(ata2, ata3, "ATA for owner2 and owner3 should be different");
 
     // Verify each ATA is derived correctly for its owner
-    let (expected_ata1, _) = derive_token_ata(&owner1, &mint);
-    let (expected_ata2, _) = derive_token_ata(&owner2, &mint);
-    let (expected_ata3, _) = derive_token_ata(&owner3, &mint);
+    let expected_ata1 = derive_token_ata(&owner1, &mint);
+    let expected_ata2 = derive_token_ata(&owner2, &mint);
+    let expected_ata3 = derive_token_ata(&owner3, &mint);
 
     assert_eq!(ata1, expected_ata1, "ATA1 should match expected derivation");
     assert_eq!(ata2, expected_ata2, "ATA2 should match expected derivation");

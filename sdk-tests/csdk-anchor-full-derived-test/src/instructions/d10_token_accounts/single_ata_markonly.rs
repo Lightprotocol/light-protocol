@@ -11,10 +11,7 @@ use light_account::{
 };
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
-pub struct D10SingleAtaMarkonlyParams {
-    /// Bump for the ATA PDA
-    pub ata_bump: u8,
-}
+pub struct D10SingleAtaMarkonlyParams {}
 
 /// Tests #[light_account(associated_token::...)] mark-only mode (NO init keyword).
 /// The macro generates no-op LightPreInit/LightFinalize impls.

@@ -62,7 +62,7 @@ async fn test_create_all() {
 
     // ATA
     let ata_owner = Keypair::new();
-    let (user_ata, _) = derive_associated_token_account(&ata_owner.pubkey(), &mint);
+    let user_ata = derive_associated_token_account(&ata_owner.pubkey(), &mint);
 
     // ========== Get proof for 2 PDAs + 1 Mint ==========
     let proof_result = get_create_accounts_proof(

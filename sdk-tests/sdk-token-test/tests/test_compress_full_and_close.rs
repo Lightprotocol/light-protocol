@@ -176,7 +176,7 @@ async fn test_compress_full_and_close() {
     println!("✅ Minted {} compressed tokens to recipient", mint_amount);
 
     // Step 4: Create compressible associated token account for decompression
-    let (ctoken_ata_pubkey, bump) = derive_token_ata(&recipient, &mint_pda);
+    let ctoken_ata_pubkey = derive_token_ata(&recipient, &mint_pda);
     let compressible_params = CompressibleParams {
         token_account_version: TokenDataVersion::ShaFlat,
         pre_pay_num_epochs: 2,
@@ -186,16 +186,11 @@ async fn test_compress_full_and_close() {
         rent_sponsor: rent_sponsor_pda(),
         compression_only: true,
     };
-    let create_ata_instruction = CreateAssociatedTokenAccount::new_with_bump(
-        payer.pubkey(),
-        recipient,
-        mint_pda,
-        ctoken_ata_pubkey,
-        bump,
-    )
-    .with_compressible(compressible_params)
-    .instruction()
-    .unwrap();
+    let create_ata_instruction =
+        CreateAssociatedTokenAccount::new(payer.pubkey(), recipient, mint_pda)
+            .with_compressible(compressible_params)
+            .instruction()
+            .unwrap();
 
     rpc.create_and_send_transaction(&[create_ata_instruction], &payer.pubkey(), &[&payer])
         .await

@@ -7,7 +7,6 @@ use crate::{ATA_SEED, ID};
 /// Instruction data for create ATA (owner and mint passed as accounts)
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct CreateAtaData {
-    pub bump: u8,
     pub pre_pay_num_epochs: u8,
     pub lamports_per_write: u32,
 }
@@ -24,7 +23,7 @@ pub struct CreateAtaData {
 /// - accounts[6]: rent_sponsor
 pub fn process_create_ata_invoke(
     accounts: &[AccountInfo],
-    data: CreateAtaData,
+    _data: CreateAtaData,
 ) -> Result<(), ProgramError> {
     if accounts.len() < 7 {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -35,7 +34,6 @@ pub fn process_create_ata_invoke(
         owner: &accounts[0],
         mint: &accounts[1],
         ata: &accounts[3],
-        bump: data.bump,
     }
     .rent_free(
         &accounts[5], // compressible_config
@@ -60,7 +58,7 @@ pub fn process_create_ata_invoke(
 /// - accounts[6]: rent_sponsor
 pub fn process_create_ata_invoke_signed(
     accounts: &[AccountInfo],
-    data: CreateAtaData,
+    _data: CreateAtaData,
 ) -> Result<(), ProgramError> {
     if accounts.len() < 7 {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -81,7 +79,6 @@ pub fn process_create_ata_invoke_signed(
         owner: &accounts[0],
         mint: &accounts[1],
         ata: &accounts[3],
-        bump: data.bump,
     }
     .rent_free(
         &accounts[5], // compressible_config

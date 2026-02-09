@@ -143,7 +143,7 @@ async fn test_random_mint_action() {
             .await
             .unwrap();
 
-        let ata = light_token::instruction::derive_token_ata(&recipient.pubkey(), &spl_mint_pda).0;
+        let ata = light_token::instruction::derive_token_ata(&recipient.pubkey(), &spl_mint_pda);
 
         ctoken_atas.push(ata);
     }

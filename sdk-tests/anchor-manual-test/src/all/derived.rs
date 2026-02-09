@@ -8,10 +8,10 @@
 
 use anchor_lang::prelude::*;
 use light_account::{
-    derive_associated_token_account, prepare_compressed_account_on_init, CpiAccounts,
-    CpiAccountsConfig, CpiContextWriteAccounts, CreateMints, CreateMintsStaticAccounts,
-    CreateTokenAccountCpi, CreateTokenAtaCpi, InvokeLightSystemProgram, LightAccount,
-    LightFinalize, LightPreInit, LightSdkTypesError, PackedAddressTreeInfoExt, SingleMintParams,
+    prepare_compressed_account_on_init, CpiAccounts, CpiAccountsConfig, CpiContextWriteAccounts,
+    CreateMints, CreateMintsStaticAccounts, CreateTokenAccountCpi, CreateTokenAtaCpi,
+    InvokeLightSystemProgram, LightAccount, LightFinalize, LightPreInit, LightSdkTypesError,
+    PackedAddressTreeInfoExt, SingleMintParams,
 };
 use light_compressed_account::instruction_data::{
     cpi_context::CompressedCpiContext, with_account_info::InstructionDataInvokeCpiWithAccountInfo,
@@ -224,9 +224,6 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateAllParams> for CreateAllAccou
             // 7. Create ATA via CreateTokenAtaCpi
             // ====================================================================
             {
-                let (_, ata_bump) =
-                    derive_associated_token_account(self.ata_owner.key, self.mint.key);
-
                 let payer_info = self.payer.to_account_info();
                 let mint_info = self.mint.to_account_info();
                 let user_ata_info = self.user_ata.to_account_info();
@@ -236,7 +233,6 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateAllParams> for CreateAllAccou
                     owner: &self.ata_owner,
                     mint: &mint_info,
                     ata: &user_ata_info,
-                    bump: ata_bump,
                 }
                 .rent_free(
                     &self.compressible_config,

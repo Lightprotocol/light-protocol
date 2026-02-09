@@ -195,7 +195,6 @@ pub cmint: UncheckedAccount<'info>,
 #[light_account(init, associated_token,
     associated_token::authority = owner,  // ATA owner field (required)
     associated_token::mint = mint,        // ATA mint field (required)
-    associated_token::bump = params.ata_bump  // Optional: explicit bump
 )]
 pub user_ata: UncheckedAccount<'info>,
 ```
@@ -204,7 +203,6 @@ pub user_ata: UncheckedAccount<'info>,
 |-----------|-------------|----------|
 | `associated_token::authority` | ATA owner field reference | Yes |
 | `associated_token::mint` | ATA mint field reference | Yes |
-| `associated_token::bump` | Explicit bump (auto-derived if omitted) | No |
 
 ### 2.4 Mark-Only Mode
 

@@ -13,10 +13,10 @@ use pinocchio::account_info::AccountInfo;
 
 /// Derive the associated token account address for a given owner and mint.
 ///
-/// Returns `([u8; 32], u8)` -- the ATA address and bump seed.
+/// Returns `[u8; 32]` -- the ATA address.
 ///
 /// Uses pinocchio's `AccountInfo` for PDA derivation.
-pub fn derive_associated_token_account(owner: &[u8; 32], mint: &[u8; 32]) -> ([u8; 32], u8) {
+pub fn derive_associated_token_account(owner: &[u8; 32], mint: &[u8; 32]) -> [u8; 32] {
     AccountInfo::find_program_address(
         &[
             owner.as_ref(),
@@ -25,4 +25,5 @@ pub fn derive_associated_token_account(owner: &[u8; 32], mint: &[u8; 32]) -> ([u
         ],
         &LIGHT_TOKEN_PROGRAM_ID,
     )
+    .0
 }

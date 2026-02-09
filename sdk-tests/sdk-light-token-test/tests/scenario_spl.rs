@@ -131,7 +131,7 @@ async fn test_spl_to_ctoken_scenario() {
         .await
         .unwrap();
 
-    let (ctoken_ata, _bump) = derive_token_ata(&ctoken_recipient.pubkey(), &mint);
+    let ctoken_ata = derive_token_ata(&ctoken_recipient.pubkey(), &mint);
     let create_ata_instruction =
         CreateAssociatedTokenAccount::new(payer.pubkey(), ctoken_recipient.pubkey(), mint)
             .instruction()

@@ -384,7 +384,7 @@ pub async fn create_and_assert_ata(
     let owner_pubkey = context.owner_keypair.pubkey();
 
     // Derive ATA address
-    let (ata_pubkey, bump) = derive_token_ata(&owner_pubkey, &context.mint_pubkey);
+    let ata_pubkey = derive_token_ata(&owner_pubkey, &context.mint_pubkey);
 
     // Build instruction based on whether it's compressible
     let create_ata_ix = if let Some(compressible) = compressible_data.as_ref() {
@@ -411,7 +411,6 @@ pub async fn create_and_assert_ata(
         // Create account with default compressible params (ATAs use default_ata)
         let mut builder = CreateAssociatedTokenAccount {
             idempotent: false,
-            bump,
             payer: payer_pubkey,
             owner: owner_pubkey,
             mint: context.mint_pubkey,

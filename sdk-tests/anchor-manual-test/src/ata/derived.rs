@@ -1,10 +1,7 @@
 //! Derived code - what the macro would generate for associated token accounts.
 
 use anchor_lang::prelude::*;
-use light_account::{
-    derive_associated_token_account, CreateTokenAtaCpi, LightFinalize, LightPreInit,
-    LightSdkTypesError,
-};
+use light_account::{CreateTokenAtaCpi, LightFinalize, LightPreInit, LightSdkTypesError};
 use solana_account_info::AccountInfo;
 
 use super::accounts::{CreateAtaAccounts, CreateAtaParams};
@@ -20,9 +17,6 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateAtaParams> for CreateAtaAccou
         _params: &CreateAtaParams,
     ) -> std::result::Result<bool, LightSdkTypesError> {
         let inner = || -> std::result::Result<bool, LightSdkTypesError> {
-            // Derive the ATA bump on-chain
-            let (_, bump) = derive_associated_token_account(self.ata_owner.key, self.mint.key);
-
             // Create ATA via CPI with idempotent + rent-free mode
             // NOTE: Unlike token vaults, ATAs use .invoke() not .invoke_signed()
             // because ATAs are derived from [owner, token_program, mint], not program PDAs
@@ -34,7 +28,6 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateAtaParams> for CreateAtaAccou
                 owner: &self.ata_owner,
                 mint: &self.mint,
                 ata: &user_ata_info,
-                bump,
             }
             .idempotent() // Safe: won't fail if ATA already exists
             .rent_free(

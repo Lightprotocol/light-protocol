@@ -75,7 +75,7 @@ async fn test_t22_restricted_to_ctoken_scenario() {
         .await
         .unwrap();
 
-    let (ctoken_ata, _bump) = derive_token_ata(&ctoken_recipient.pubkey(), &mint);
+    let ctoken_ata = derive_token_ata(&ctoken_recipient.pubkey(), &mint);
     let compressible_params = CompressibleParams {
         compression_only: true,
         ..Default::default()

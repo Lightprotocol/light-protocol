@@ -43,7 +43,7 @@ async fn test_create_all_derive() {
 
     // ATA
     let ata_owner = payer.pubkey();
-    let (ata, ata_bump) = light_token::instruction::derive_token_ata(&ata_owner, &ata_mint);
+    let ata = light_token::instruction::derive_token_ata(&ata_owner, &ata_mint);
 
     // Token vault
     let (vault_authority, _) = Pubkey::find_program_address(&[VAULT_AUTH_SEED], &program_id);
@@ -106,7 +106,6 @@ async fn test_create_all_derive() {
         params: CreateAllParams {
             create_accounts_proof: proof_result.create_accounts_proof,
             owner,
-            ata_bump,
             vault_bump,
             mint_signer_bump_a,
             mint_signer_bump_b,

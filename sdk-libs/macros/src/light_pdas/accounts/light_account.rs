@@ -26,7 +26,6 @@
 //! #[light_account(init,
 //!     associated_token::authority = owner,
 //!     associated_token::mint = mint,
-//!     associated_token::bump = params.ata_bump
 //! )]
 //! ```
 //!
@@ -133,8 +132,6 @@ pub struct AtaField {
     pub owner: Expr,
     /// Mint for the ATA (from associated_token::mint = ... parameter)
     pub mint: Expr,
-    /// Bump seed (from associated_token::bump = ...)
-    pub bump: Option<Expr>,
 }
 
 // ============================================================================
@@ -1017,18 +1014,22 @@ fn build_ata_field(
 ) -> Result<AtaField, syn::Error> {
     let mut owner: Option<Expr> = None; // from associated_token::authority
     let mut mint: Option<Expr> = None;
-    let mut bump: Option<Expr> = None;
 
     for kv in key_values {
         match kv.key.to_string().as_str() {
             "authority" => owner = Some(kv.value.clone()), // authority -> owner
             "mint" => mint = Some(kv.value.clone()),
-            "bump" => bump = Some(kv.value.clone()),
+            "bump" => {
+                return Err(Error::new_spanned(
+                    &kv.key,
+                    "`associated_token::bump` is no longer supported. The bump is derived on-chain.",
+                ));
+            }
             other => {
                 return Err(Error::new_spanned(
                     &kv.key,
                     format!(
-                        "Unknown key `associated_token::{}`. Allowed: authority, mint, bump",
+                        "Unknown key `associated_token::{}`. Allowed: authority, mint",
                         other
                     ),
                 ));
@@ -1055,7 +1056,6 @@ fn build_ata_field(
         has_init,
         owner,
         mint,
-        bump,
     })
 }
 
@@ -1600,9 +1600,9 @@ mod tests {
 
     #[test]
     fn test_parse_associated_token_shorthand_syntax() {
-        // Test shorthand syntax: mint, authority, bump without = value
+        // Test shorthand syntax: mint, authority without = value (bump is derived on-chain)
         let field: syn::Field = parse_quote! {
-            #[light_account(init, associated_token::authority, associated_token::mint, associated_token::bump)]
+            #[light_account(init, associated_token::authority, associated_token::mint)]
             pub user_ata: Account<'info, CToken>
         };
         let ident = field.ident.clone().unwrap();
@@ -1616,10 +1616,22 @@ mod tests {
             LightAccountField::AssociatedToken(ata) => {
                 assert_eq!(ata.field_ident.to_string(), "user_ata");
                 assert!(ata.has_init);
-                assert!(ata.bump.is_some());
             }
             _ => panic!("Expected AssociatedToken field"),
         }
+    }
+
+    #[test]
+    fn test_parse_associated_token_bump_rejected() {
+        // associated_token::bump should be rejected (bump is derived on-chain)
+        let field: syn::Field = parse_quote! {
+            #[light_account(init, associated_token::authority, associated_token::mint, associated_token::bump)]
+            pub user_ata: Account<'info, CToken>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident, &None);
+        assert!(result.is_err());
     }
 
     #[test]

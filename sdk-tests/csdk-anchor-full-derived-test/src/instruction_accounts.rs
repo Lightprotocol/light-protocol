@@ -11,7 +11,7 @@ pub struct FullAutoWithMintParams {
     pub session_id: u64,
     pub mint_signer_bump: u8,
     pub vault_bump: u8,
-    pub user_ata_bump: u8,
+
     pub vault_mint_amount: u64,
     pub user_ata_mint_amount: u64,
 }

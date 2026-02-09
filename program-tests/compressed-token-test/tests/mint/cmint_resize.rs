@@ -566,7 +566,7 @@ async fn test_cmint_all_operations() {
         },
         // MintToCToken (decompressed recipient)
         MintActionType::MintToCToken {
-            account: derive_token_ata(&recipient.pubkey(), &spl_mint_pda).0,
+            account: derive_token_ata(&recipient.pubkey(), &spl_mint_pda),
             amount: 2000,
         },
         // UpdateMintAuthority
@@ -967,7 +967,7 @@ async fn test_decompress_with_mint_to_ctoken() {
             write_top_up: 0,
         },
         MintActionType::MintToCToken {
-            account: derive_token_ata(&recipient.pubkey(), &spl_mint_pda).0,
+            account: derive_token_ata(&recipient.pubkey(), &spl_mint_pda),
             amount: 5000,
         },
     ];
@@ -1103,7 +1103,7 @@ async fn test_decompress_with_all_operations() {
         },
         // MintToCToken (decompressed recipient)
         MintActionType::MintToCToken {
-            account: derive_token_ata(&recipient.pubkey(), &spl_mint_pda).0,
+            account: derive_token_ata(&recipient.pubkey(), &spl_mint_pda),
             amount: 2000,
         },
         // UpdateMintAuthority

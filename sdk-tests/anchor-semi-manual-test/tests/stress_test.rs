@@ -112,7 +112,7 @@ async fn setup() -> (StressTestContext, TestPdas) {
     let (zc_record_pda, _) =
         Pubkey::find_program_address(&[RECORD_SEED, owner.as_ref()], &program_id);
     let ata_owner = payer.pubkey();
-    let (ata, ata_bump) = light_token::instruction::derive_token_ata(&ata_owner, &ata_mint);
+    let ata = light_token::instruction::derive_token_ata(&ata_owner, &ata_mint);
     let (vault_authority, _) = Pubkey::find_program_address(&[VAULT_AUTH_SEED], &program_id);
     let (vault, vault_bump) =
         Pubkey::find_program_address(&[VAULT_SEED, vault_mint.as_ref()], &program_id);
@@ -169,7 +169,6 @@ async fn setup() -> (StressTestContext, TestPdas) {
         params: CreateAllParams {
             create_accounts_proof: proof_result.create_accounts_proof,
             owner,
-            ata_bump,
             vault_bump,
             mint_signer_bump_a,
             mint_signer_bump_b,

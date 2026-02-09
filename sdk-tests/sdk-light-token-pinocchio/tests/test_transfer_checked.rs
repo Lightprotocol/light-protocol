@@ -99,8 +99,8 @@ async fn test_ctoken_transfer_checked_spl_mint() {
     let source_owner = payer.pubkey();
     let dest_owner = Pubkey::new_unique();
 
-    let (source_ata, _) = derive_token_ata(&source_owner, &mint);
-    let (dest_ata, _) = derive_token_ata(&dest_owner, &mint);
+    let source_ata = derive_token_ata(&source_owner, &mint);
+    let dest_ata = derive_token_ata(&dest_owner, &mint);
 
     let create_source_ata = CreateAssociatedTokenAccount::new(payer.pubkey(), source_owner, mint)
         .instruction()
@@ -200,8 +200,8 @@ async fn test_ctoken_transfer_checked_t22_mint() {
     let source_owner = payer.pubkey();
     let dest_owner = Pubkey::new_unique();
 
-    let (source_ata, _) = derive_token_ata(&source_owner, &mint);
-    let (dest_ata, _) = derive_token_ata(&dest_owner, &mint);
+    let source_ata = derive_token_ata(&source_owner, &mint);
+    let dest_ata = derive_token_ata(&dest_owner, &mint);
 
     use light_token::instruction::CompressibleParams;
     let compressible_params = CompressibleParams {

@@ -61,14 +61,13 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
 
     let owner_bytes = owner.key();
     let mint_bytes = mint.key();
-    let bump = inputs.bump;
+
+    // Derive canonical bump on-chain (validates PDA derivation)
+    let bump = validate_ata_derivation(associated_token_account, owner_bytes, mint_bytes)?;
 
     // If idempotent mode, check if account already exists
-    if IDEMPOTENT {
-        validate_ata_derivation(associated_token_account, owner_bytes, mint_bytes, bump)?;
-        if associated_token_account.is_owned_by(&crate::LIGHT_CPI_SIGNER.program_id) {
-            return Ok(());
-        }
+    if IDEMPOTENT && associated_token_account.is_owned_by(&crate::LIGHT_CPI_SIGNER.program_id) {
+        return Ok(());
     }
 
     // Check account is owned by system program (uninitialized)

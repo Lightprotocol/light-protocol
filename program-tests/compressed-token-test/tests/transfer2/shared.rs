@@ -445,7 +445,7 @@ impl TestContext {
                 .unwrap_or(&false);
 
             // Create Light Token ATA (compressible or regular based on requirements)
-            let (ata, bump) = light_token::instruction::derive_token_ata(&signer.pubkey(), &mint);
+            let ata = light_token::instruction::derive_token_ata(&signer.pubkey(), &mint);
 
             let create_ata_ix = if is_compressible {
                 println!(
@@ -469,7 +469,6 @@ impl TestContext {
                 // Create non-compressible Light Token ATA
                 CreateAssociatedTokenAccount {
                     idempotent: false,
-                    bump,
                     payer: payer.pubkey(),
                     owner: signer.pubkey(),
                     mint,

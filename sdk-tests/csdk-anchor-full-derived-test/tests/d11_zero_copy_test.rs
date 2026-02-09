@@ -323,7 +323,7 @@ async fn test_d11_zc_with_ata() {
     // Derive PDAs
     let (zc_pda, _) =
         Pubkey::find_program_address(&[D11_ZC_ATA_RECORD_SEED, owner.as_ref()], &ctx.program_id);
-    let (ata_pda, ata_bump) = light_token::instruction::derive_token_ata(&ata_owner, &mint);
+    let ata_pda = light_token::instruction::derive_token_ata(&ata_owner, &mint);
 
     // Get proof for PDA
     let proof_result = get_create_accounts_proof(
@@ -353,7 +353,6 @@ async fn test_d11_zc_with_ata() {
         params: D11ZcWithAtaParams {
             create_accounts_proof: proof_result.create_accounts_proof,
             owner,
-            ata_bump,
         },
     };
 

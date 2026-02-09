@@ -14,7 +14,7 @@ use crate::instruction::{compressible::CompressibleParamsCpi, CompressibleParams
 const CREATE_ATA_DISCRIMINATOR: u8 = 100;
 const CREATE_ATA_IDEMPOTENT_DISCRIMINATOR: u8 = 102;
 
-pub fn derive_associated_token_account(owner: &Pubkey, mint: &Pubkey) -> (Pubkey, u8) {
+pub fn derive_associated_token_account(owner: &Pubkey, mint: &Pubkey) -> Pubkey {
     Pubkey::find_program_address(
         &[
             owner.as_ref(),
@@ -23,6 +23,7 @@ pub fn derive_associated_token_account(owner: &Pubkey, mint: &Pubkey) -> (Pubkey
         ],
         &Pubkey::from(light_token_interface::LIGHT_TOKEN_PROGRAM_ID),
     )
+    .0
 }
 
 /// # Create an associated ctoken account instruction:
@@ -43,38 +44,18 @@ pub struct CreateAssociatedTokenAccount {
     pub owner: Pubkey,
     pub mint: Pubkey,
     pub associated_token_account: Pubkey,
-    pub bump: u8,
     pub compressible: CompressibleParams,
     pub idempotent: bool,
 }
 
 impl CreateAssociatedTokenAccount {
     pub fn new(payer: Pubkey, owner: Pubkey, mint: Pubkey) -> Self {
-        let (ata, bump) = derive_associated_token_account(&owner, &mint);
+        let ata = derive_associated_token_account(&owner, &mint);
         Self {
             payer,
             owner,
             mint,
             associated_token_account: ata,
-            bump,
-            compressible: CompressibleParams::default_ata(),
-            idempotent: false,
-        }
-    }
-
-    pub fn new_with_bump(
-        payer: Pubkey,
-        owner: Pubkey,
-        mint: Pubkey,
-        associated_token_account: Pubkey,
-        bump: u8,
-    ) -> Self {
-        Self {
-            payer,
-            owner,
-            mint,
-            associated_token_account,
-            bump,
             compressible: CompressibleParams::default_ata(),
             idempotent: false,
         }
@@ -92,7 +73,6 @@ impl CreateAssociatedTokenAccount {
 
     pub fn instruction(self) -> Result<Instruction, ProgramError> {
         let instruction_data = CreateAssociatedTokenAccountInstructionData {
-            bump: self.bump,
             compressible_config: Some(CompressibleExtensionInstructionData {
                 token_account_version: self.compressible.token_account_version as u8,
                 rent_payment: self.compressible.pre_pay_num_epochs,
@@ -141,7 +121,6 @@ impl CreateAssociatedTokenAccount {
 ///     owner: ctx.accounts.owner.to_account_info(),
 ///     mint: ctx.accounts.mint.to_account_info(),
 ///     ata: ctx.accounts.user_ata.to_account_info(),
-///     bump: params.user_ata_bump,
 /// }
 /// .idempotent()
 /// .rent_free(
@@ -156,7 +135,6 @@ pub struct CreateTokenAtaCpi<'info> {
     pub owner: AccountInfo<'info>,
     pub mint: AccountInfo<'info>,
     pub ata: AccountInfo<'info>,
-    pub bump: u8,
 }
 
 impl<'info> CreateTokenAtaCpi<'info> {
@@ -177,7 +155,6 @@ impl<'info> CreateTokenAtaCpi<'info> {
             owner: self.owner,
             mint: self.mint,
             ata: self.ata,
-            bump: self.bump,
             idempotent: false,
             config,
             sponsor,
@@ -197,7 +174,6 @@ impl<'info> CreateTokenAtaCpi<'info> {
             payer: self.payer,
             associated_token_account: self.ata,
             system_program,
-            bump: self.bump,
             compressible,
             idempotent: false,
         }
@@ -223,7 +199,6 @@ impl<'info> CreateTokenAtaCpiIdempotent<'info> {
             owner: self.base.owner,
             mint: self.base.mint,
             ata: self.base.ata,
-            bump: self.base.bump,
             idempotent: true,
             config,
             sponsor,
@@ -243,7 +218,6 @@ impl<'info> CreateTokenAtaCpiIdempotent<'info> {
             payer: self.base.payer,
             associated_token_account: self.base.ata,
             system_program,
-            bump: self.base.bump,
             compressible,
             idempotent: true,
         }
@@ -257,7 +231,6 @@ pub struct CreateTokenAtaRentFreeCpi<'info> {
     owner: AccountInfo<'info>,
     mint: AccountInfo<'info>,
     ata: AccountInfo<'info>,
-    bump: u8,
     idempotent: bool,
     config: AccountInfo<'info>,
     sponsor: AccountInfo<'info>,
@@ -273,7 +246,6 @@ impl<'info> CreateTokenAtaRentFreeCpi<'info> {
             payer: self.payer,
             associated_token_account: self.ata,
             system_program: self.system_program.clone(),
-            bump: self.bump,
             compressible: CompressibleParamsCpi::new_ata(
                 self.config,
                 self.sponsor,
@@ -292,7 +264,6 @@ impl<'info> CreateTokenAtaRentFreeCpi<'info> {
             payer: self.payer,
             associated_token_account: self.ata,
             system_program: self.system_program.clone(),
-            bump: self.bump,
             compressible: CompressibleParamsCpi::new_ata(
                 self.config,
                 self.sponsor,
@@ -311,7 +282,6 @@ struct InternalCreateAtaCpi<'info> {
     payer: AccountInfo<'info>,
     associated_token_account: AccountInfo<'info>,
     system_program: AccountInfo<'info>,
-    bump: u8,
     compressible: CompressibleParamsCpi<'info>,
     idempotent: bool,
 }
@@ -323,7 +293,6 @@ impl<'info> InternalCreateAtaCpi<'info> {
             owner: *self.owner.key,
             mint: *self.mint.key,
             associated_token_account: *self.associated_token_account.key,
-            bump: self.bump,
             compressible: CompressibleParams {
                 compressible_config: *self.compressible.compressible_config.key,
                 rent_sponsor: *self.compressible.rent_sponsor.key,

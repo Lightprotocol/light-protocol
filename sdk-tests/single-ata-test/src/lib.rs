@@ -19,8 +19,6 @@ pub const LIGHT_CPI_SIGNER: CpiSigner =
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct CreateAtaParams {
     pub create_accounts_proof: CreateAccountsProof,
-    /// Bump for the ATA PDA
-    pub ata_bump: u8,
 }
 
 /// Minimal accounts struct for testing single ATA creation.
@@ -38,7 +36,7 @@ pub struct CreateAta<'info> {
 
     /// ATA account - macro should generate creation code.
     #[account(mut)]
-    #[light_account(init, associated_token::authority = ata_owner, associated_token::mint = ata_mint, associated_token::bump = params.ata_bump)]
+    #[light_account(init, associated_token::authority = ata_owner, associated_token::mint = ata_mint)]
     pub ata: UncheckedAccount<'info>,
 
     #[account(address = LIGHT_TOKEN_CONFIG)]

@@ -7,10 +7,10 @@
 //! - 1 ATA via `CreateTokenAtaCpi`
 
 use light_account_pinocchio::{
-    derive_associated_token_account, prepare_compressed_account_on_init, CpiAccounts,
-    CpiAccountsConfig, CpiContextWriteAccounts, CreateMints, CreateMintsStaticAccounts,
-    CreateTokenAccountCpi, CreateTokenAtaCpi, InvokeLightSystemProgram, LightAccount,
-    LightFinalize, LightPreInit, LightSdkTypesError, PackedAddressTreeInfoExt, SingleMintParams,
+    prepare_compressed_account_on_init, CpiAccounts, CpiAccountsConfig, CpiContextWriteAccounts,
+    CreateMints, CreateMintsStaticAccounts, CreateTokenAccountCpi, CreateTokenAtaCpi,
+    InvokeLightSystemProgram, LightAccount, LightFinalize, LightPreInit, LightSdkTypesError,
+    PackedAddressTreeInfoExt, SingleMintParams,
 };
 use light_compressed_account::instruction_data::{
     cpi_context::CompressedCpiContext, with_account_info::InstructionDataInvokeCpiWithAccountInfo,
@@ -226,15 +226,11 @@ impl LightPreInit<AccountInfo, CreateAllParams> for CreateAllAccounts<'_> {
             // 7. Create ATA via CreateTokenAtaCpi
             // ====================================================================
             {
-                let (_, ata_bump) =
-                    derive_associated_token_account(self.ata_owner.key(), self.mint.key());
-
                 CreateTokenAtaCpi {
                     payer: self.payer,
                     owner: self.ata_owner,
                     mint: self.mint,
                     ata: self.user_ata,
-                    bump: ata_bump,
                 }
                 .rent_free(
                     self.compressible_config,

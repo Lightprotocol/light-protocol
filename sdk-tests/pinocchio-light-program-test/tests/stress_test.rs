@@ -123,7 +123,7 @@ async fn setup() -> (StressTestContext, TestPdas) {
 
     // ATA (uses the mint we're creating)
     let ata_owner = payer.pubkey();
-    let (ata, _) = light_token::instruction::derive_token_ata(&ata_owner, &mint_pda);
+    let ata = light_token::instruction::derive_token_ata(&ata_owner, &mint_pda);
 
     // Create all accounts in one instruction
     let proof_result = get_create_accounts_proof(

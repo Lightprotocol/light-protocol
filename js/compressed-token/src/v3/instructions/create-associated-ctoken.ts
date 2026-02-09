@@ -31,7 +31,6 @@ const CompressibleExtensionInstructionDataLayout = struct([
 ]);
 
 const CreateAssociatedTokenAccountInstructionDataLayout = struct([
-    u8('bump'),
     option(CompressibleExtensionInstructionDataLayout, 'compressibleConfig'),
 ]);
 
@@ -50,7 +49,6 @@ export interface CompressibleConfig {
 }
 
 export interface CreateAssociatedCTokenAccountParams {
-    bump: number;
     compressibleConfig?: CompressibleConfig;
 }
 
@@ -93,14 +91,14 @@ export const DEFAULT_COMPRESSIBLE_CONFIG: CompressibleConfig = {
     compressToAccountPubkey: null, // Required null for ATAs
 };
 
-function getAssociatedCTokenAddressAndBump(
+function getAssociatedCTokenAddress(
     owner: PublicKey,
     mint: PublicKey,
-): [PublicKey, number] {
+): PublicKey {
     return PublicKey.findProgramAddressSync(
         [owner.toBuffer(), CTOKEN_PROGRAM_ID.toBuffer(), mint.toBuffer()],
         CTOKEN_PROGRAM_ID,
-    );
+    )[0];
 }
 
 function encodeCreateAssociatedCTokenAccountData(
@@ -110,7 +108,6 @@ function encodeCreateAssociatedCTokenAccountData(
     const buffer = Buffer.alloc(2000);
     const len = CreateAssociatedTokenAccountInstructionDataLayout.encode(
         {
-            bump: params.bump,
             compressibleConfig: params.compressibleConfig || null,
         },
         buffer,
@@ -152,14 +149,10 @@ export function createAssociatedCTokenAccountInstruction(
     configAccount: PublicKey = LIGHT_TOKEN_CONFIG,
     rentPayerPda: PublicKey = LIGHT_TOKEN_RENT_SPONSOR,
 ): TransactionInstruction {
-    const [associatedTokenAccount, bump] = getAssociatedCTokenAddressAndBump(
-        owner,
-        mint,
-    );
+    const associatedTokenAccount = getAssociatedCTokenAddress(owner, mint);
 
     const data = encodeCreateAssociatedCTokenAccountData(
         {
-            bump,
             compressibleConfig,
         },
         false,
@@ -213,14 +206,10 @@ export function createAssociatedCTokenAccountIdempotentInstruction(
     configAccount: PublicKey = LIGHT_TOKEN_CONFIG,
     rentPayerPda: PublicKey = LIGHT_TOKEN_RENT_SPONSOR,
 ): TransactionInstruction {
-    const [associatedTokenAccount, bump] = getAssociatedCTokenAddressAndBump(
-        owner,
-        mint,
-    );
+    const associatedTokenAccount = getAssociatedCTokenAddress(owner, mint);
 
     const data = encodeCreateAssociatedCTokenAccountData(
         {
-            bump,
             compressibleConfig,
         },
         true,
