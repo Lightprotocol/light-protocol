@@ -109,51 +109,36 @@ fn apply_delegate(
 ) -> Result<(), ProgramError> {
     let delegated_amount: u64 = ext_data.delegated_amount.into();
 
-    // Resolve delegate only when needed
     let input_delegate = if inputs.input_token_data.has_delegate() {
         Some(packed_accounts.get_u8(inputs.input_token_data.delegate, "delegate")?)
     } else {
         None
     };
 
-    // Check if destination already has a delegate
-    if let Some(existing_delegate) = ctoken.delegate() {
-        // If input has a delegate, check if it matches to accumulate amount
-        if let Some(delegate_acc) = input_delegate {
-            // If delegates don't match, skip accumulation
-            if !pubkey_eq(existing_delegate.array_ref(), delegate_acc.key()) {
-                return Ok(());
-            }
-            // Same delegate - accumulate the delegated_amount
-            if delegated_amount > 0 {
-                let current = ctoken.base.delegated_amount.get();
-                ctoken.base.delegated_amount.set(
-                    current
-                        .checked_add(delegated_amount)
-                        .ok_or(ProgramError::ArithmeticOverflow)?,
-                );
-            }
+    let Some(delegate_acc) = input_delegate else {
+        if delegated_amount > 0 && ctoken.delegate().is_none() {
+            msg!("Decompress: delegated_amount > 0 but no delegate");
+            return Err(TokenError::DecompressDelegatedAmountWithoutDelegate.into());
         }
-        // If no input delegate or delegates don't match, nothing to do
         return Ok(());
-    }
+    };
 
-    // No existing delegate - set delegate from input
-    if let Some(delegate_acc) = input_delegate {
+    let delegate_is_set = if let Some(existing_delegate) = ctoken.delegate() {
+        pubkey_eq(existing_delegate.array_ref(), delegate_acc.key())
+    } else {
         ctoken
             .base
             .set_delegate(Some(Pubkey::from(*delegate_acc.key())))?;
-        if delegated_amount > 0 {
-            let current = ctoken.base.delegated_amount.get();
-            ctoken.base.delegated_amount.set(
-                current
-                    .checked_add(delegated_amount)
-                    .ok_or(ProgramError::ArithmeticOverflow)?,
-            );
-        }
-    } else if delegated_amount > 0 {
-        msg!("Decompress: delegated_amount > 0 but no delegate");
-        return Err(TokenError::DecompressDelegatedAmountWithoutDelegate.into());
+        true
+    };
+
+    if delegate_is_set && delegated_amount > 0 {
+        let current = ctoken.base.delegated_amount.get();
+        ctoken.base.delegated_amount.set(
+            current
+                .checked_add(delegated_amount)
+                .ok_or(ProgramError::ArithmeticOverflow)?,
+        );
     }
 
     Ok(())
