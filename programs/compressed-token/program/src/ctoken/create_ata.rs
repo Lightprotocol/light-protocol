@@ -3,7 +3,7 @@ use borsh::BorshDeserialize;
 use light_account_checks::AccountIterator;
 use light_program_profiler::profile;
 use light_token_interface::instructions::create_associated_token_account::CreateAssociatedTokenAccountInstructionData;
-use pinocchio::{account_info::AccountInfo, instruction::Seed};
+use pinocchio::{account_info::AccountInfo, instruction::Seed, pubkey::pubkey_eq};
 use spl_pod::solana_msg::msg;
 
 use crate::{
@@ -71,11 +71,11 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
             let ctoken = light_token_interface::state::Token::from_account_info_checked(
                 associated_token_account,
             )?;
-            if ctoken.mint.to_bytes() != *mint_bytes {
+            if !pubkey_eq(ctoken.mint.array_ref(), mint_bytes) {
                 msg!("Idempotent ATA: mint mismatch");
                 return Err(anchor_compressed_token::ErrorCode::MintMismatch.into());
             }
-            if ctoken.owner.to_bytes() != *owner_bytes {
+            if !pubkey_eq(ctoken.owner.array_ref(), owner_bytes) {
                 msg!("Idempotent ATA: owner mismatch");
                 return Err(anchor_compressed_token::ErrorCode::OwnerMismatch.into());
             }
