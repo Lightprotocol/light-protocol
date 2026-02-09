@@ -708,3 +708,139 @@ async fn test_compression_max_top_up_exceeded() -> Result<(), RpcError> {
 
     Ok(())
 }
+
+/// Test that compressing the same compressible CToken account twice in one
+/// Transfer2 instruction does NOT double-charge the rent top-up budget.
+/// (Audit issue #13 — delta-based deduction means the second compression
+/// to the same account sees delta=0.)
+#[tokio::test]
+async fn test_compression_duplicate_account_no_double_charge_top_up() -> Result<(), RpcError> {
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None)).await?;
+    let payer = rpc.get_payer().insecure_clone();
+
+    // Create owner and airdrop lamports
+    let owner = Keypair::new();
+    rpc.airdrop_lamports(&owner.pubkey(), 1_000_000_000).await?;
+
+    // Create mint authority
+    let mint_authority = Keypair::new();
+    rpc.airdrop_lamports(&mint_authority.pubkey(), 1_000_000_000)
+        .await?;
+
+    // Create compressed mint seed
+    let mint_seed = Keypair::new();
+
+    // Derive mint and ATA addresses
+    let (mint, _) = find_mint_address(&mint_seed.pubkey());
+    let (ctoken_ata, _) = derive_token_ata(&owner.pubkey(), &mint);
+
+    // Create compressible Light Token ATA with pre_pay_num_epochs = 0 (NO prepaid rent)
+    let compressible_params = CompressibleParams {
+        compressible_config: rpc
+            .test_accounts
+            .funding_pool_config
+            .compressible_config_pda,
+        rent_sponsor: rpc.test_accounts.funding_pool_config.rent_sponsor_pda,
+        pre_pay_num_epochs: 0,
+        lamports_per_write: Some(1000),
+        compress_to_account_pubkey: None,
+        token_account_version: TokenDataVersion::ShaFlat,
+        compression_only: true,
+    };
+
+    let create_ata_instruction =
+        CreateAssociatedTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
+            .with_compressible(compressible_params)
+            .instruction()
+            .map_err(|e| RpcError::AssertRpcError(format!("Failed to create ATA: {:?}", e)))?;
+
+    rpc.create_and_send_transaction(&[create_ata_instruction], &payer.pubkey(), &[&payer])
+        .await?;
+
+    // Mint 2000 tokens — enough for two 1000-token compressions
+    let token_amount = 2000u64;
+    let decompressed_recipients = vec![Recipient::new(owner.pubkey(), token_amount)];
+
+    light_test_utils::actions::mint_action_comprehensive(
+        &mut rpc,
+        &mint_seed,
+        &mint_authority,
+        &payer,
+        None,
+        false,
+        vec![],
+        decompressed_recipients,
+        None,
+        None,
+        Some(
+            light_test_utils::actions::legacy::instructions::mint_action::NewMint {
+                decimals: 6,
+                supply: 0,
+                mint_authority: mint_authority.pubkey(),
+                freeze_authority: None,
+                metadata: None,
+                version: 3,
+            },
+        ),
+    )
+    .await?;
+
+    // Get output queue for compression
+    let output_queue = rpc
+        .get_random_state_tree_info()
+        .unwrap()
+        .get_output_pubkey()
+        .unwrap();
+
+    // Warp forward ~37 epochs to create a rent deficit
+    use light_program_test::program_test::TestRpc;
+    rpc.warp_to_slot(500_000)?;
+
+    // Build Transfer2 with TWO compress operations (1000 each) on the same CToken ATA.
+    // Each CTokenAccount2 can only hold one compression, so we need two instances.
+    let mut packed_accounts = PackedAccounts::default();
+    packed_accounts.insert_or_get(output_queue);
+
+    let mint_index = packed_accounts.insert_or_get_read_only(mint);
+    let authority_index = packed_accounts.insert_or_get_config(owner.pubkey(), true, false);
+    let recipient_index = packed_accounts.insert_or_get_read_only(owner.pubkey());
+    let ctoken_ata_index = packed_accounts.insert_or_get_config(ctoken_ata, false, true);
+
+    let mut compression_account_1 = CTokenAccount2::new_empty(recipient_index, mint_index);
+    compression_account_1
+        .compress(1000, ctoken_ata_index, authority_index)
+        .map_err(|e| RpcError::AssertRpcError(format!("Failed to compress: {:?}", e)))?;
+
+    let mut compression_account_2 = CTokenAccount2::new_empty(recipient_index, mint_index);
+    compression_account_2
+        .compress(1000, ctoken_ata_index, authority_index)
+        .map_err(|e| RpcError::AssertRpcError(format!("Failed to compress: {:?}", e)))?;
+
+    let (account_metas, _, _) = packed_accounts.to_account_metas();
+
+    // max_top_up = 50_000: sufficient for ONE top-up (~26,744) but NOT for two (~53,488).
+    // Without the fix, this would fail with MaxTopUpExceeded because the budget
+    // would be double-charged. With the delta-based fix, the second compression
+    // sees delta=0 and does not consume additional budget.
+    let compression_inputs = Transfer2Inputs {
+        token_accounts: vec![compression_account_1, compression_account_2],
+        validity_proof: ValidityProof::default(),
+        transfer_config: Transfer2Config::default()
+            .filter_zero_amount_outputs()
+            .with_max_top_up(50_000),
+        meta_config: Transfer2AccountsMetaConfig::new(payer.pubkey(), account_metas),
+        in_lamports: None,
+        out_lamports: None,
+        output_queue: 0,
+        in_tlv: None,
+    };
+
+    let ix = create_transfer2_instruction(compression_inputs)
+        .map_err(|e| RpcError::AssertRpcError(format!("Failed to create instruction: {:?}", e)))?;
+
+    // Transaction should succeed — the fix ensures only one top-up charge
+    rpc.create_and_send_transaction(&[ix], &payer.pubkey(), &[&payer, &owner])
+        .await?;
+
+    Ok(())
+}
