@@ -2,41 +2,44 @@ on:
   push:
     branches:
       - main
+    paths:
+      - "js/**"
+      - "cli/**"
+      - "programs/**"
+      - "program-libs/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/js-cli-v2.yml"
   pull_request:
     branches:
       - "*"
+    paths:
+      - "js/**"
+      - "cli/**"
+      - "programs/**"
+      - "program-libs/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/js-cli-v2.yml"
     types:
       - opened
       - synchronize
       - reopened
       - ready_for_review
 
-name: js-tests-v2
+name: js-cli-tests-v2
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  stateless-js-v2:
-    name: stateless-js-v2
+  build:
+    name: build
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
-
-    services:
-      redis:
-        image: redis:8.0.1
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+    timeout-minutes: 60
 
     env:
       LIGHT_PROTOCOL_VERSION: V2
-      REDIS_URL: redis://localhost:6379
       CI: true
 
     steps:
@@ -64,6 +67,53 @@ jobs:
       - name: Build CLI
         run: |
           just cli build
+
+      - name: Package build artifacts
+        run: |
+          DIRS=""
+          for d in target/deploy target/idl target/types cli/bin cli/dist js/stateless.js/dist js/compressed-token/dist; do
+            [ -d "$d" ] && DIRS="$DIRS $d"
+          done
+          tar -czf build-artifacts.tar.gz $DIRS
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: js-cli-v2-build-artifacts
+          path: build-artifacts.tar.gz
+          retention-days: 1
+          compression-level: 0
+
+  js-tests:
+    name: js-tests-v2
+    needs: build
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:8.0.1
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      LIGHT_PROTOCOL_VERSION: V2
+      REDIS_URL: redis://localhost:6379
+      CI: true
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v6
+
+      - name: Setup test runner
+        uses: ./.github/actions/setup-test-runner
+        with:
+          build-artifact-name: js-cli-v2-build-artifacts
 
       - name: Run stateless.js tests with V2
         run: |
@@ -118,6 +168,47 @@ jobs:
         run: |
           just sdk-tests build-anchor-test
           cd sdk-tests/sdk-anchor-test && npm run test-ts
+
+      - name: Display prover logs on failure
+        if: failure()
+        run: |
+          echo "=== Displaying prover logs ==="
+          find . -path "*/test-ledger/*prover*.log" -type f -exec echo "=== Contents of {} ===" \; -exec cat {} \; -exec echo "=== End of {} ===" \; || echo "No prover logs found"
+
+  cli-tests:
+    name: cli-tests-v2
+    needs: build
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:8.0.1
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      LIGHT_PROTOCOL_VERSION: V2
+      REDIS_URL: redis://localhost:6379
+      CI: true
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v6
+
+      - name: Setup test runner
+        uses: ./.github/actions/setup-test-runner
+        with:
+          build-artifact-name: js-cli-v2-build-artifacts
+
+      - name: Run CLI tests with V2
+        run: |
+          just cli test
 
       - name: Display prover logs on failure
         if: failure()

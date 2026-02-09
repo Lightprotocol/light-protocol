@@ -60,11 +60,13 @@ const ix = await CompressedTokenProgram.decompress({
 
 - new type: TokenPoolInfo
 - Instruction Changes:
+
     - `compress`, `mintTo`, `approveAndMintTo`, `compressSplTokenAccount` now require valid TokenPoolInfo
     - `decompress` now requires an array of one or more TokenPoolInfos.
     - `decompress`, `transfer` now do not allow state tree overrides.
 
 - Action Changes:
+
     - Removed optional tokenProgramId: PublicKey
     - removed optional merkleTree: PublicKey
     - removed optional outputStateTree: PublicKey

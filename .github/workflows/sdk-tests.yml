@@ -24,8 +24,45 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  system-programs:
-    name: system-programs
+  build:
+    name: build
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v6
+
+      - name: Setup and build
+        uses: ./.github/actions/setup-and-build
+        with:
+          skip-components: "redis,disk-cleanup,go"
+          cache-key: "rust"
+
+      - name: Build CLI
+        run: |
+          just cli build
+
+      - name: Package build artifacts
+        run: |
+          DIRS=""
+          for d in target/deploy target/idl target/types cli/bin cli/dist js/stateless.js/dist js/compressed-token/dist; do
+            [ -d "$d" ] && DIRS="$DIRS $d"
+          done
+          tar -czf build-artifacts.tar.gz $DIRS
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdk-tests-build-artifacts
+          path: build-artifacts.tar.gz
+          retention-days: 1
+          compression-level: 0
+
+  test:
+    name: ${{ matrix.program }}
+    needs: build
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -57,21 +94,17 @@ jobs:
             sub-tests: '["cargo-test-sbf -p sdk-token-test", "cargo-test-sbf -p token-client-test"]'
           - program: sdk-libs
             test_cmd: just sdk-libs test
+
     steps:
       - name: Checkout sources
         uses: actions/checkout@v6
         with:
           submodules: true
 
-      - name: Setup and build
-        uses: ./.github/actions/setup-and-build
+      - name: Setup test runner
+        uses: ./.github/actions/setup-test-runner
         with:
-          skip-components: "redis,disk-cleanup,go"
-          cache-key: "rust"
-
-      - name: Build CLI
-        run: |
-          just cli build
+          build-artifact-name: sdk-tests-build-artifacts
 
       - name: Install bun
         if: matrix.program == 'sdk-libs'
