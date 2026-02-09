@@ -27,7 +27,7 @@ export interface CreateMintToInterfaceInstructionParams {
  * @param authority       Mint authority public key.
  * @param payer           Fee payer public key.
  * @param amount          Amount to mint.
- * @param validityProof   Validity proof (required for compressed mints).
+ * @param validityProof   Validity proof (required for light mints).
  * @param multiSigners    Multi-signature signer public keys.
  */
 export function createMintToInterfaceInstruction(

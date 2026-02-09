@@ -18,14 +18,14 @@ import { getMintInterface } from '../get-mint-interface';
 
 /**
  * Mint tokens to a decompressed/onchain token account.
- * Works with SPL, Token-2022, and compressed token (c-token) mints.
+ * Works with SPL, Token-2022, and compressed token (light-token) mints.
  *
  * This function ONLY mints to decompressed onchain token accounts, never to compressed accounts.
  * The signature matches the standard SPL mintTo for simplicity and consistency.
  *
  * @param rpc - RPC connection to use
  * @param payer - Transaction fee payer
- * @param mint - Mint address (SPL, Token-2022, or compressed mint)
+ * @param mint - Mint address (SPL, Token-2022, or light mint)
  * @param destination - Destination token account address (must be an existing onchain token account)
  * @param authority - Mint authority (can be Signer or PublicKey if multiSigners provided)
  * @param amount - Amount to mint
@@ -56,7 +56,7 @@ export async function mintToInterface(
         programId,
     );
 
-    // Fetch validity proof if this is a compressed mint (has merkleContext)
+    // Fetch validity proof if this is a light mint (has merkleContext)
     let validityProof;
     if (mintInterface.merkleContext) {
         validityProof = await rpc.getValidityProofV2(

@@ -216,7 +216,7 @@ function createUpdateMetadataInstruction(
 }
 
 /**
- * Create instruction for updating a compressed mint's metadata field.
+ * Create instruction for updating a light mint's metadata field.
  *
  * Output queue is automatically derived from mintInterface.merkleContext.treeInfo
  * (preferring nextTreeInfo.queue if available for rollover support).
@@ -224,7 +224,7 @@ function createUpdateMetadataInstruction(
  * @param mintInterface  MintInterface from getMintInterface() - must have merkleContext and tokenMetadata
  * @param authority      Metadata update authority public key (must sign)
  * @param payer          Fee payer public key
- * @param validityProof  Validity proof for the compressed mint
+ * @param validityProof  Validity proof for the light mint
  * @param fieldType      Field to update: 'name', 'symbol', 'uri', or 'custom'
  * @param value          New value for the field
  * @param customKey      Custom key name (required if fieldType is 'custom')
@@ -265,7 +265,7 @@ export function createUpdateMetadataFieldInstruction(
 }
 
 /**
- * Create instruction for updating a compressed mint's metadata authority.
+ * Create instruction for updating a light mint's metadata authority.
  *
  * Output queue is automatically derived from mintInterface.merkleContext.treeInfo
  * (preferring nextTreeInfo.queue if available for rollover support).
@@ -274,7 +274,7 @@ export function createUpdateMetadataFieldInstruction(
  * @param currentAuthority Current metadata update authority public key (must sign)
  * @param newAuthority     New metadata update authority public key
  * @param payer            Fee payer public key
- * @param validityProof    Validity proof for the compressed mint
+ * @param validityProof    Validity proof for the light mint
  * @param extensionIndex   Extension index (default: 0)
  */
 export function createUpdateMetadataAuthorityInstruction(
@@ -301,7 +301,7 @@ export function createUpdateMetadataAuthorityInstruction(
 }
 
 /**
- * Create instruction for removing a metadata key from a compressed mint.
+ * Create instruction for removing a metadata key from a light mint.
  *
  * Output queue is automatically derived from mintInterface.merkleContext.treeInfo
  * (preferring nextTreeInfo.queue if available for rollover support).
@@ -309,7 +309,7 @@ export function createUpdateMetadataAuthorityInstruction(
  * @param mintInterface  MintInterface from getMintInterface() - must have merkleContext and tokenMetadata
  * @param authority      Metadata update authority public key (must sign)
  * @param payer          Fee payer public key
- * @param validityProof  Validity proof for the compressed mint
+ * @param validityProof  Validity proof for the light mint
  * @param key            Metadata key to remove
  * @param idempotent     If true, don't error if key doesn't exist (default: false)
  * @param extensionIndex Extension index (default: 0)

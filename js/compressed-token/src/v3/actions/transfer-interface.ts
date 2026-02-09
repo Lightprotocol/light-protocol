@@ -53,7 +53,7 @@ function calculateComputeUnits(
     hasValidityProof: boolean,
     splWrapCount: number,
 ): number {
-    // Base CU for hot c-token transfer
+    // Base CU for hot light-token transfer
     let cu = 5_000;
 
     // Compressed token decompression
@@ -77,15 +77,15 @@ function calculateComputeUnits(
 }
 
 /**
- * Transfer tokens using the c-token interface.
+ * Transfer tokens using the light-token interface.
  *
  * Matches SPL Token's transferChecked signature order. Destination must exist.
  *
  * @param rpc             RPC connection
  * @param payer           Fee payer (signer)
- * @param source          Source c-token ATA address
+ * @param source          Source light-token ATA address
  * @param mint            Mint address
- * @param destination     Destination c-token ATA address (must exist)
+ * @param destination     Destination light-token ATA address (must exist)
  * @param owner           Source owner (signer)
  * @param amount          Amount to transfer
  * @param programId       Token program ID (default: CTOKEN_PROGRAM_ID)
@@ -114,7 +114,7 @@ export async function transferInterface(
 
     const instructions: TransactionInstruction[] = [];
 
-    // For non-c-token programs, use simple SPL transfer (no load)
+    // For non-light-token programs, use simple SPL transfer (no load)
     if (!programId.equals(CTOKEN_PROGRAM_ID)) {
         const expectedSource = getAssociatedTokenAddressSync(
             mint,
@@ -153,7 +153,7 @@ export async function transferInterface(
         return sendAndConfirmTx(rpc, tx, confirmOptions);
     }
 
-    // c-token transfer
+    // light-token transfer
     const expectedSource = getAssociatedTokenAddressInterface(
         mint,
         owner.publicKey,
@@ -248,7 +248,7 @@ export async function transferInterface(
     let hasValidityProof = false;
     let compressedToLoad: ParsedTokenAccount[] = [];
 
-    // Create sender's c-token ATA if needed (idempotent)
+    // Create sender's light-token ATA if needed (idempotent)
     if (!ctokenAtaInfo) {
         instructions.push(
             createAssociatedTokenAccountInterfaceIdempotentInstruction(

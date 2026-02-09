@@ -131,7 +131,7 @@ export async function _getOrCreateAtaInterface(
         associatedTokenProgramId,
     );
 
-    // For c-token, use getAtaInterface which properly aggregates hot+cold balances
+    // For light-token, use getAtaInterface which properly aggregates hot+cold balances
     // When wrap=true (unified path), also includes SPL/T22 balances
     if (programId.equals(CTOKEN_PROGRAM_ID)) {
         return getOrCreateCTokenAta(
@@ -162,7 +162,7 @@ export async function _getOrCreateAtaInterface(
 }
 
 /**
- * Get or create c-token ATA with proper cold balance handling.
+ * Get or create light-token ATA with proper cold balance handling.
  *
  * Like SPL's getOrCreateAssociatedTokenAccount, this is a write operation:
  * 1. Creates hot ATA if it doesn't exist
@@ -321,7 +321,7 @@ async function getOrCreateCTokenAta(
 }
 
 /**
- * Create c-token ATA idempotently.
+ * Create light-token ATA idempotently.
  * @internal
  */
 async function createCTokenAtaIdempotent(

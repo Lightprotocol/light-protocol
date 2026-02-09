@@ -445,7 +445,7 @@ export function encodeTransfer2InstructionData(
 }
 
 /**
- * Create a compression struct for wrapping SPL tokens to c-token
+ * Create a compression struct for wrapping SPL tokens to light-token
  * (compress from SPL ATA)
  */
 export function createCompressSpl(
@@ -472,11 +472,11 @@ export function createCompressSpl(
 }
 
 /**
- * Create a compression struct for decompressing to c-token ATA
+ * Create a compression struct for decompressing to light-token ATA
  * @param amount - Amount to decompress
  * @param mintIndex - Index of mint in packed accounts
- * @param recipientIndex - Index of recipient c-token account in packed accounts
- * @param tokenProgramIndex - Index of c-token program in packed accounts (for CPI)
+ * @param recipientIndex - Index of recipient light-token account in packed accounts
+ * @param tokenProgramIndex - Index of light-token program in packed accounts (for CPI)
  */
 export function createDecompressCtoken(
     amount: bigint,
@@ -498,13 +498,13 @@ export function createDecompressCtoken(
 }
 
 /**
- * Create a compression struct for compressing c-token (burn from c-token ATA)
- * Used in unwrap flow: c-token ATA -> pool -> SPL ATA
- * @param amount - Amount to compress (burn from c-token)
+ * Create a compression struct for compressing light-token (burn from light-token ATA)
+ * Used in unwrap flow: light-token ATA -> pool -> SPL ATA
+ * @param amount - Amount to compress (burn from light-token)
  * @param mintIndex - Index of mint in packed accounts
- * @param sourceIndex - Index of source c-token account in packed accounts
+ * @param sourceIndex - Index of source light-token account in packed accounts
  * @param authorityIndex - Index of authority/owner in packed accounts (must sign)
- * @param tokenProgramIndex - Index of c-token program in packed accounts (for CPI)
+ * @param tokenProgramIndex - Index of light-token program in packed accounts (for CPI)
  */
 export function createCompressCtoken(
     amount: bigint,

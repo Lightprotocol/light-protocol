@@ -74,7 +74,7 @@ export function checkAtaAddress(
     let splExpected: PublicKey;
     let t22Expected: PublicKey;
 
-    // c-token
+    // light-token
     ctokenExpected = getAssociatedTokenAddressSync(
         mint,
         owner,

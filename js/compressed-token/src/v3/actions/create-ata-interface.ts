@@ -25,7 +25,7 @@ import { getAssociatedTokenAddressInterface } from '../get-associated-token-addr
 export type { CTokenConfig };
 
 /**
- * Create an associated token account for SPL/T22/c-token. Defaults to c-token
+ * Create an associated token account for SPL/T22/light-token. Defaults to light-token
  * program.
  *
  * @param rpc                       RPC connection
@@ -98,8 +98,8 @@ export async function createAtaInterface(
 }
 
 /**
- * Create an associated token account idempotently for SPL/T22/c-token. Defaults
- * to c-token program.
+ * Create an associated token account idempotently for SPL/T22/light-token. Defaults
+ * to light-token program.
  *
  * If the account already exists, the instruction succeeds without error.
  *
@@ -113,7 +113,7 @@ export async function createAtaInterface(
  *                                  CTOKEN_PROGRAM_ID)
  * @param associatedTokenProgramId  ATA program ID (auto-derived if not
  *                                  provided)
- * @param ctokenConfig              Optional c-token-specific configuration
+ * @param ctokenConfig              Optional light-token-specific configuration
  *
  * @returns Address of the associated token account
  */

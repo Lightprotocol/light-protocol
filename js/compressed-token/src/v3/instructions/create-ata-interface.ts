@@ -13,7 +13,7 @@ import {
 } from './create-associated-ctoken';
 
 /**
- * c-token-specific config for createAssociatedTokenAccountInterfaceInstruction
+ * light-token-specific config for createAssociatedTokenAccountInterfaceInstruction
  */
 export interface CTokenConfig {
     compressibleConfig?: CompressibleConfig;
@@ -36,7 +36,7 @@ export interface CreateAssociatedTokenAccountInterfaceInstructionParams {
 
 /**
  * Create instruction for creating an associated token account (SPL, Token-2022,
- * or c-token). Follows SPL Token API signature with optional c-token config at the
+ * or light-token). Follows SPL Token API signature with optional light-token config at the
  * end.
  *
  * @param payer                    Fee payer public key.
@@ -45,7 +45,7 @@ export interface CreateAssociatedTokenAccountInterfaceInstructionParams {
  * @param mint                     Mint address.
  * @param programId                Token program ID (default: TOKEN_PROGRAM_ID).
  * @param associatedTokenProgramId Associated token program ID.
- * @param ctokenConfig             Optional c-token-specific configuration.
+ * @param ctokenConfig             Optional light-token-specific configuration.
  */
 export function createAssociatedTokenAccountInterfaceInstruction(
     payer: PublicKey,
@@ -82,7 +82,7 @@ export function createAssociatedTokenAccountInterfaceInstruction(
 
 /**
  * Create idempotent instruction for creating an associated token account (SPL,
- * Token-2022, or c-token). Follows SPL Token API signature with optional c-token
+ * Token-2022, or light-token). Follows SPL Token API signature with optional light-token
  * config at the end.
  *
  * @param payer                    Fee payer public key.
@@ -91,7 +91,7 @@ export function createAssociatedTokenAccountInterfaceInstruction(
  * @param mint                     Mint address.
  * @param programId                Token program ID (default: TOKEN_PROGRAM_ID).
  * @param associatedTokenProgramId Associated token program ID.
- * @param ctokenConfig             Optional c-token-specific configuration.
+ * @param ctokenConfig             Optional light-token-specific configuration.
  */
 export function createAssociatedTokenAccountInterfaceIdempotentInstruction(
     payer: PublicKey,

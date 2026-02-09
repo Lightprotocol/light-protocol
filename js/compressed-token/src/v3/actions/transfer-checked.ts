@@ -46,7 +46,7 @@ function calculateComputeUnits(
     hasValidityProof: boolean,
     splWrapCount: number,
 ): number {
-    // Base CU for hot c-token transfer
+    // Base CU for hot light-token transfer
     let cu = 5_000;
 
     // Compressed token decompression
@@ -70,16 +70,16 @@ function calculateComputeUnits(
 }
 
 /**
- * Transfer tokens using the c-token interface with decimals validation.
+ * Transfer tokens using the light-token interface with decimals validation.
  *
  * Like transferInterface but validates the amount against the mint's decimals
  * on-chain (discriminator 12 instead of 3).
  *
  * @param rpc             RPC connection
  * @param payer           Fee payer (signer)
- * @param source          Source c-token ATA address
+ * @param source          Source light-token ATA address
  * @param mint            Mint address
- * @param destination     Destination c-token ATA address (must exist)
+ * @param destination     Destination light-token ATA address (must exist)
  * @param owner           Source owner (signer)
  * @param amount          Amount to transfer
  * @param decimals        Expected decimals of the mint
@@ -110,7 +110,7 @@ export async function transferCheckedInterface(
 
     const instructions: TransactionInstruction[] = [];
 
-    // For non-c-token programs, use simple SPL transferChecked (no load)
+    // For non-light-token programs, use simple SPL transferChecked (no load)
     if (!programId.equals(CTOKEN_PROGRAM_ID)) {
         const expectedSource = getAssociatedTokenAddressSync(
             mint,
@@ -151,7 +151,7 @@ export async function transferCheckedInterface(
         return sendAndConfirmTx(rpc, tx, confirmOptions);
     }
 
-    // c-token transfer_checked
+    // light-token transfer_checked
     const expectedSource = getAssociatedTokenAddressInterface(
         mint,
         owner.publicKey,
@@ -246,7 +246,7 @@ export async function transferCheckedInterface(
     let hasValidityProof = false;
     let compressedToLoad: ParsedTokenAccount[] = [];
 
-    // Create sender's c-token ATA if needed (idempotent)
+    // Create sender's light-token ATA if needed (idempotent)
     if (!ctokenAtaInfo) {
         instructions.push(
             createAssociatedTokenAccountInterfaceIdempotentInstruction(

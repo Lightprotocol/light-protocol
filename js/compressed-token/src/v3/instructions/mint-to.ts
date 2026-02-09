@@ -94,8 +94,8 @@ export interface CreateMintToInstructionParams {
  *
  * @param authority           Mint authority public key.
  * @param payer               Fee payer public key.
- * @param validityProof       Validity proof for the compressed mint.
- * @param merkleContext       Merkle context of the compressed mint.
+ * @param validityProof       Validity proof for the light mint.
+ * @param merkleContext       Merkle context of the light mint.
  * @param mintData            Mint instruction data.
  * @param outputStateTreeInfo Output state tree info.
  * @param recipientAccount    Recipient onchain token account address.

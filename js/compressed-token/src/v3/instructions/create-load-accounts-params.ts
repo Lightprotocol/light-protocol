@@ -28,7 +28,7 @@ export interface ParsedAccountInfoInterface<T = unknown> {
 
 /**
  * Input for createLoadAccountsParams.
- * Supports both program PDAs and c-token vaults.
+ * Supports both program PDAs and light-token vaults.
  *
  * The integrating program is responsible for fetching and parsing their accounts.
  * This helper just packs them for the decompressAccountsIdempotent instruction.
@@ -39,7 +39,7 @@ export interface CompressibleAccountInput<T = unknown> {
     /**
      * Account type key for packing:
      * - For PDAs: program-specific type name (e.g., "poolState", "observationState")
-     * - For c-token vaults: "cTokenData"
+     * - For light-token vaults: "cTokenData"
      */
     accountType: string;
     /**

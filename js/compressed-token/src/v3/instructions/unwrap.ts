@@ -11,10 +11,10 @@ import {
 } from '../layout/layout-transfer2';
 
 /**
- * Create an unwrap instruction that moves tokens from a c-token account to an
+ * Create an unwrap instruction that moves tokens from a light-token account to an
  * SPL/T22 account.
  *
- * @param source           Source c-token account
+ * @param source           Source light-token account
  * @param destination      Destination SPL/T22 token account
  * @param owner            Owner of the source account (signer)
  * @param mint             Mint address
@@ -42,7 +42,7 @@ export function createUnwrapInstruction(
     const _SPL_TOKEN_PROGRAM_INDEX = 5;
     const CTOKEN_PROGRAM_INDEX = 6;
 
-    // Unwrap flow: compress from c-token, decompress to SPL
+    // Unwrap flow: compress from light-token, decompress to SPL
     const compressions: Compression[] = [
         createCompressCtoken(
             amount,

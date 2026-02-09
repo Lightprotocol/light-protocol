@@ -55,7 +55,7 @@ export async function decompressInterface(
 ): Promise<TransactionSignature | null> {
     assertBetaEnabled();
 
-    // Determine if this is SPL or c-token destination
+    // Determine if this is SPL or light-token destination
     const isSplDestination = splInterfaceInfo !== undefined;
 
     // Get compressed token accounts
@@ -119,7 +119,7 @@ export async function decompressInterface(
                 splInterfaceInfo.tokenProgram,
             ));
     } else {
-        // c-token destination - use c-token ATA
+        // light-token destination - use light-token ATA
         destinationAtaAddress =
             destinationAta ??
             getAssociatedTokenAddressInterface(mint, ataOwner);
@@ -143,7 +143,7 @@ export async function decompressInterface(
                 ),
             );
         } else {
-            // Create c-token ATA
+            // Create light-token ATA
             instructions.push(
                 createAssociatedTokenAccountInterfaceIdempotentInstruction(
                     payer.publicKey,

@@ -33,12 +33,12 @@ export interface MintInterface {
     mintContext?: MintContext;
     tokenMetadata?: TokenMetadata;
     extensions?: MintExtension[];
-    /** Compression info for c-token mints */
+    /** Compression info for light-token mints */
     compression?: CompressionInfo;
 }
 
 /**
- * Get unified mint info for SPL/T22/c-token mints.
+ * Get unified mint info for SPL/T22/light-token mints.
  *
  * @param rpc           RPC connection
  * @param address       The mint address
@@ -160,11 +160,11 @@ export async function getMintInterface(
 }
 
 /**
- * Unpack mint info from raw account data for SPL/T22/c-token.
+ * Unpack mint info from raw account data for SPL/T22/light-token.
  *
  * @param address       The mint pubkey
  * @param data          The raw account data or AccountInfo
- * @param programId     Token program ID. Default c-token.
+ * @param programId     Token program ID. Default light-token.
  * @returns Object with mint, optional mintContext and tokenMetadata.
  */
 export function unpackMintInterface(
@@ -179,7 +179,7 @@ export function unpackMintInterface(
               ? Buffer.from(data)
               : data.data;
 
-    // If compressed token program, deserialize as compressed mint
+    // If light-token program, deserialize as light mint
     if (programId.equals(CTOKEN_PROGRAM_ID)) {
         const compressedMintData = deserializeMint(buffer);
 
@@ -226,7 +226,7 @@ export function unpackMintInterface(
 }
 
 /**
- * Unpack c-token mint context and metadata from raw account data
+ * Unpack light-token mint context and metadata from raw account data
  *
  * @param data  The raw account data
  * @returns     Object with mintContext, tokenMetadata, and extensions

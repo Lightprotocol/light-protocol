@@ -12,23 +12,23 @@ import {
 } from '@solana/spl-token';
 
 /**
- * c-token transfer_checked instruction discriminator
+ * light-token transfer_checked instruction discriminator
  */
 const CTOKEN_TRANSFER_CHECKED_DISCRIMINATOR = 12;
 
 /**
- * Create a c-token transfer_checked instruction.
+ * Create a light-token transfer_checked instruction.
  *
  * Validates the transfer amount against the mint's decimals on-chain.
  *
- * @param source        Source c-token account
+ * @param source        Source light-token account
  * @param mint          Mint account (read-only, used for decimals validation)
- * @param destination   Destination c-token account
+ * @param destination   Destination light-token account
  * @param owner         Owner of the source account (signer)
  * @param amount        Amount to transfer
  * @param decimals      Expected decimals of the mint
  * @param feePayer      Optional separate fee payer for top-ups
- * @returns Transaction instruction for c-token transfer_checked
+ * @returns Transaction instruction for light-token transfer_checked
  */
 export function createCTokenTransferCheckedInstruction(
     source: PublicKey,
@@ -84,8 +84,8 @@ export function createCTokenTransferCheckedInstruction(
 }
 
 /**
- * Construct a transfer_checked instruction for SPL/T22/c-token. Defaults to
- * c-token program. Validates amount against mint decimals.
+ * Construct a transfer_checked instruction for SPL/T22/light-token. Defaults to
+ * light-token program. Validates amount against mint decimals.
  *
  * @param source        Source token account
  * @param mint          Mint account
@@ -93,7 +93,7 @@ export function createCTokenTransferCheckedInstruction(
  * @param owner         Owner of the source account (signer)
  * @param amount        Amount to transfer
  * @param decimals      Expected decimals of the mint
- * @param multiSigners  Multi-signers (SPL only, not supported for c-token)
+ * @param multiSigners  Multi-signers (SPL only, not supported for light-token)
  * @param programId     Token program ID (default: CTOKEN_PROGRAM_ID)
  * @returns instruction for transfer_checked
  */
