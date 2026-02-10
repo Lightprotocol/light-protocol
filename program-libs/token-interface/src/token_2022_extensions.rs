@@ -6,12 +6,13 @@ use crate::state::ExtensionStructConfig;
 /// Restricted extension types that require compression_only mode.
 /// These extensions have special behaviors (pausable, permanent delegate, fees, hooks,
 /// default frozen state) that are incompatible with standard compressed token transfers.
-pub const RESTRICTED_EXTENSION_TYPES: [ExtensionType; 5] = [
+pub const RESTRICTED_EXTENSION_TYPES: [ExtensionType; 6] = [
     ExtensionType::Pausable,
     ExtensionType::PermanentDelegate,
     ExtensionType::TransferFeeConfig,
     ExtensionType::TransferHook,
     ExtensionType::DefaultAccountState,
+    ExtensionType::MintCloseAuthority,
 ];
 
 /// Allowed mint extension types for Token accounts.
@@ -53,6 +54,7 @@ pub const fn is_restricted_extension(ext: &ExtensionType) -> bool {
             | ExtensionType::TransferFeeConfig
             | ExtensionType::TransferHook
             | ExtensionType::DefaultAccountState
+            | ExtensionType::MintCloseAuthority
     )
 }
 
@@ -71,6 +73,8 @@ pub struct MintExtensionFlags {
     pub has_transfer_fee: bool,
     /// Whether the mint has the TransferHook extension (with nil program_id)
     pub has_transfer_hook: bool,
+    /// Whether the mint has the MintCloseAuthority extension
+    pub has_mint_close_authority: bool,
 }
 
 impl MintExtensionFlags {
@@ -152,5 +156,6 @@ impl MintExtensionFlags {
             || self.has_transfer_fee
             || self.has_transfer_hook
             || self.has_default_account_state
+            || self.has_mint_close_authority
     }
 }

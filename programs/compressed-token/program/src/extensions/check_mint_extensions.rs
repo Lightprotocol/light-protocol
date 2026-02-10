@@ -199,6 +199,7 @@ pub fn has_mint_extensions(mint_account: &AccountInfo) -> Result<MintExtensionFl
     let mut has_transfer_fee = false;
     let mut has_transfer_hook = false;
     let mut has_default_account_state = false;
+    let mut has_mint_close_authority = false;
 
     for ext in &extension_types {
         if !ALLOWED_EXTENSION_TYPES.contains(ext) {
@@ -211,6 +212,7 @@ pub fn has_mint_extensions(mint_account: &AccountInfo) -> Result<MintExtensionFl
             ExtensionType::TransferFeeConfig => has_transfer_fee = true,
             ExtensionType::TransferHook => has_transfer_hook = true,
             ExtensionType::DefaultAccountState => has_default_account_state = true,
+            ExtensionType::MintCloseAuthority => has_mint_close_authority = true,
             _ => {}
         }
     }
@@ -233,5 +235,6 @@ pub fn has_mint_extensions(mint_account: &AccountInfo) -> Result<MintExtensionFl
         default_state_frozen: default_account_state_frozen,
         has_transfer_fee,
         has_transfer_hook,
+        has_mint_close_authority,
     })
 }

@@ -2,7 +2,7 @@
 //!
 //! These tests verify that Light Token accounts cannot be created without compression_only
 //! when the mint has restricted extensions (Pausable, PermanentDelegate, TransferFeeConfig,
-//! TransferHook, DefaultAccountState).
+//! TransferHook, DefaultAccountState, MintCloseAuthority).
 
 use light_program_test::{
     program_test::LightProgramTest, utils::assert::assert_rpc_error, ProgramTestConfig, Rpc,
@@ -98,12 +98,19 @@ async fn test_default_account_state_requires_compression_only() {
 
 #[tokio::test]
 #[serial]
+async fn test_mint_close_authority_requires_compression_only() {
+    test_compression_only_required_for_extensions(&[ExtensionType::MintCloseAuthority]).await;
+}
+
+#[tokio::test]
+#[serial]
 async fn test_multiple_restricted_requires_compression_only() {
     test_compression_only_required_for_extensions(&[
         ExtensionType::Pausable,
         ExtensionType::PermanentDelegate,
         ExtensionType::TransferFeeConfig,
         ExtensionType::TransferHook,
+        ExtensionType::MintCloseAuthority,
     ])
     .await;
 }
