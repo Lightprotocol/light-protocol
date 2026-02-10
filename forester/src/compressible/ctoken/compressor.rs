@@ -20,10 +20,7 @@ use solana_sdk::{
 use tracing::{debug, info};
 
 use super::{state::CTokenAccountTracker, types::CTokenAccountState};
-use crate::{
-    compressible::traits::CompressibleTracker,
-    Result,
-};
+use crate::{compressible::traits::CompressibleTracker, Result};
 
 /// Compression executor for CToken accounts via the registry program's compress_and_close instruction.
 pub struct CTokenCompressor<R: Rpc + Indexer> {

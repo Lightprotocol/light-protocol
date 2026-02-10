@@ -181,16 +181,12 @@ pub fn update_transactions_processed(epoch: u64, count: usize, duration: std::ti
 }
 
 pub fn queue_metric_update(epoch: u64, count: usize, duration: std::time::Duration) {
-    let mut updates = METRIC_UPDATES
-        .lock()
-        .unwrap_or_else(|e| e.into_inner());
+    let mut updates = METRIC_UPDATES.lock().unwrap_or_else(|e| e.into_inner());
     updates.push((epoch, count, duration));
 }
 
 pub fn process_queued_metrics() {
-    let mut updates = METRIC_UPDATES
-        .lock()
-        .unwrap_or_else(|e| e.into_inner());
+    let mut updates = METRIC_UPDATES.lock().unwrap_or_else(|e| e.into_inner());
     for (epoch, count, duration) in updates.drain(..) {
         update_transactions_processed(epoch, count, duration);
     }
@@ -300,10 +296,7 @@ pub async fn query_prometheus_metrics(
             .map_err(|e| anyhow::anyhow!("Prometheus request failed: {}", e))?;
 
         if !resp.status().is_success() {
-            return Err(anyhow::anyhow!(
-                "Prometheus HTTP error: {}",
-                resp.status()
-            ));
+            return Err(anyhow::anyhow!("Prometheus HTTP error: {}", resp.status()));
         }
 
         let body: serde_json::Value = resp
@@ -319,10 +312,7 @@ pub async fn query_prometheus_metrics(
     }
 
     /// Extract label→value pairs from a Prometheus vector result.
-    fn extract_label_values(
-        result: &serde_json::Value,
-        label_key: &str,
-    ) -> Vec<(String, f64)> {
+    fn extract_label_values(result: &serde_json::Value, label_key: &str) -> Vec<(String, f64)> {
         let arr = match result.as_array() {
             Some(a) => a,
             None => return Vec::new(),
@@ -330,10 +320,7 @@ pub async fn query_prometheus_metrics(
         arr.iter()
             .filter_map(|entry| {
                 let label = entry["metric"][label_key].as_str()?.to_string();
-                let val_str = entry["value"]
-                    .as_array()?
-                    .get(1)?
-                    .as_str()?;
+                let val_str = entry["value"].as_array()?.get(1)?.as_str()?;
                 let val: f64 = val_str.parse().ok()?;
                 Some((label, val))
             })
@@ -347,11 +334,7 @@ pub async fn query_prometheus_metrics(
             base,
             "sum(forester_transactions_processed_total) by (epoch)"
         ),
-        query_instant(
-            client,
-            base,
-            "sum(forester_transaction_rate) by (epoch)"
-        ),
+        query_instant(client, base, "sum(forester_transaction_rate) by (epoch)"),
         query_instant(client, base, "max(forester_last_run_timestamp)"),
         query_instant(client, base, "forester_sol_balance"),
         query_instant(client, base, "queue_length"),

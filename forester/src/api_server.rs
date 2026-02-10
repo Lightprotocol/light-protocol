@@ -1,10 +1,4 @@
-use std::{
-    collections::HashMap,
-    net::SocketAddr,
-    sync::Arc,
-    thread::JoinHandle,
-    time::Duration,
-};
+use std::{collections::HashMap, net::SocketAddr, sync::Arc, thread::JoinHandle, time::Duration};
 
 use serde::{Deserialize, Serialize};
 use tokio::sync::{broadcast, oneshot, watch};
@@ -353,11 +347,14 @@ pub fn spawn_api_server(config: ApiServerConfig) -> ApiServerHandle {
                 .expect("Failed to create HTTP client");
 
             // Build trackers from config
-            let trackers = config.compressible_state.as_ref().map(|s| CompressibleTrackers {
-                ctoken: s.ctoken_tracker.clone(),
-                pda: s.pda_tracker.clone(),
-                mint: s.mint_tracker.clone(),
-            });
+            let trackers = config
+                .compressible_state
+                .as_ref()
+                .map(|s| CompressibleTrackers {
+                    ctoken: s.ctoken_tracker.clone(),
+                    pda: s.pda_tracker.clone(),
+                    mint: s.mint_tracker.clone(),
+                });
 
             // Create watch channels with empty initial values
             let (metrics_tx, metrics_rx) = watch::channel(MetricsSnapshot::empty());
@@ -437,21 +434,15 @@ pub fn spawn_api_server(config: ApiServerConfig) -> ApiServerHandle {
 
             // --- Metrics route (reads latest snapshot from watch channel) ---
             let metrics_rx_clone = metrics_rx.clone();
-            let metrics_route =
-                warp::path!("metrics" / "json")
-                    .and(warp::get())
-                    .map(move || {
-                        warp::reply::json(&*metrics_rx_clone.borrow())
-                    });
+            let metrics_route = warp::path!("metrics" / "json")
+                .and(warp::get())
+                .map(move || warp::reply::json(&*metrics_rx_clone.borrow()));
 
             // --- Compressible route (reads latest snapshot from watch channel) ---
             let compressible_rx_clone = compressible_rx.clone();
-            let compressible_route =
-                warp::path("compressible")
-                    .and(warp::get())
-                    .map(move || {
-                        warp::reply::json(&*compressible_rx_clone.borrow())
-                    });
+            let compressible_route = warp::path("compressible")
+                .and(warp::get())
+                .map(move || warp::reply::json(&*compressible_rx_clone.borrow()));
 
             let routes = health_route
                 .or(status_route)

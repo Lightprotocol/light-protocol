@@ -2617,7 +2617,8 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             .collect();
 
         let timeout_slots = slots_until_active.saturating_sub(5);
-        let timeout_duration = (slot_duration() * timeout_slots as u32).min(Duration::from_secs(30));
+        let timeout_duration =
+            (slot_duration() * timeout_slots as u32).min(Duration::from_secs(30));
 
         info!(
             "Starting pre-warming for {} trees ({} skipped by config) with {}ms timeout",

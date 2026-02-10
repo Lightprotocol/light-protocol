@@ -564,8 +564,7 @@ pub async fn count_program_accounts(
 /// bandwidth. Both queries run concurrently. Errors are propagated so callers
 /// can distinguish "0 accounts" from "RPC failure".
 pub async fn count_compressible_accounts(rpc_url: &str) -> Result<(usize, usize)> {
-    let program_id =
-        Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
+    let program_id = Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
 
     let ctoken_filters = vec![json!({"memcmp": {
         "offset": ACCOUNT_TYPE_OFFSET,

@@ -381,10 +381,7 @@ pub async fn get_forester_status_with_options(
     let total_trees = tree_statuses.len();
     let active_trees = tree_statuses.iter().filter(|t| !t.is_rolledover).count();
     let rolled_over_trees = tree_statuses.iter().filter(|t| t.is_rolledover).count();
-    let total_pending_items: u64 = tree_statuses
-        .iter()
-        .filter_map(|t| t.queue_length)
-        .sum();
+    let total_pending_items: u64 = tree_statuses.iter().filter_map(|t| t.queue_length).sum();
 
     let mut aggregate_queue_stats = AggregateQueueStats {
         state_v1_total_pending: 0,
@@ -397,8 +394,7 @@ pub async fn get_forester_status_with_options(
     for t in &tree_statuses {
         match t.tree_type.as_str() {
             "StateV1" => {
-                aggregate_queue_stats.state_v1_total_pending +=
-                    t.queue_length.unwrap_or(0);
+                aggregate_queue_stats.state_v1_total_pending += t.queue_length.unwrap_or(0);
             }
             "StateV2" => {
                 if let Some(ref info) = t.v2_queue_info {
@@ -409,8 +405,7 @@ pub async fn get_forester_status_with_options(
                 }
             }
             "AddressV1" => {
-                aggregate_queue_stats.address_v1_total_pending +=
-                    t.queue_length.unwrap_or(0);
+                aggregate_queue_stats.address_v1_total_pending += t.queue_length.unwrap_or(0);
             }
             "AddressV2" => {
                 if let Some(ref info) = t.v2_queue_info {
@@ -593,11 +588,10 @@ fn parse_tree_status(
     let (fullness_percentage, next_index, capacity, height, threshold, queue_length, v2_queue_info) =
         match tree.tree_type {
             TreeType::StateV1 => {
-                let tree_account =
-                    StateMerkleTreeAccount::deserialize(&mut &merkle_account.data[8..])
-                        .map_err(|e| {
-                            anyhow::anyhow!("Failed to deserialize StateV1 metadata: {}", e)
-                        })?;
+                let tree_account = StateMerkleTreeAccount::deserialize(
+                    &mut &merkle_account.data[8..],
+                )
+                .map_err(|e| anyhow::anyhow!("Failed to deserialize StateV1 metadata: {}", e))?;
 
                 let height = STATE_MERKLE_TREE_HEIGHT;
                 let capacity = 1u64 << height;
