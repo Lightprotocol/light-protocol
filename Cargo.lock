@@ -3723,7 +3723,7 @@ dependencies = [
 
 [[package]]
 name = "light-client"
-version = "0.20.0"
+version = "0.21.0"
 dependencies = [
  "anchor-lang",
  "async-trait",
@@ -3781,7 +3781,7 @@ dependencies = [
 
 [[package]]
 name = "light-compressed-account"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "anchor-lang",
  "ark-bn254 0.5.0",
@@ -3917,7 +3917,7 @@ dependencies = [
 
 [[package]]
 name = "light-event"
-version = "0.20.0"
+version = "0.21.0"
 dependencies = [
  "borsh 0.10.4",
  "light-compressed-account",
@@ -4112,7 +4112,7 @@ dependencies = [
 
 [[package]]
 name = "light-program-test"
-version = "0.20.0"
+version = "0.21.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
@@ -4456,7 +4456,7 @@ dependencies = [
 
 [[package]]
 name = "light-token-client"
-version = "0.20.0"
+version = "0.21.0"
 dependencies = [
  "borsh 0.10.4",
  "light-client",
