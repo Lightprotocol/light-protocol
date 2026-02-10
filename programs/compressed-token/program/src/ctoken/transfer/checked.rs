@@ -6,7 +6,9 @@ use pinocchio_token_program::processor::{
     unpack_amount_and_decimals,
 };
 
-use super::shared::{process_transfer_extensions_transfer_checked, TransferAccounts};
+use super::shared::{
+    process_transfer_extensions_transfer_checked, validate_self_transfer, TransferAccounts,
+};
 use crate::shared::{
     convert_pinocchio_token_error, convert_token_error, owner_validation::check_token_program_owner,
 };
@@ -47,6 +49,12 @@ pub fn process_ctoken_transfer_checked(
     // SAFETY: accounts.len() >= 4 validated at function entry
     let source = &accounts[ACCOUNT_SOURCE];
     let destination = &accounts[ACCOUNT_DESTINATION];
+
+    // Self-transfer: validate authority but skip token movement to avoid
+    // double mutable borrow panic in pinocchio process_transfer.
+    if validate_self_transfer(source, destination, &accounts[ACCOUNT_AUTHORITY])? {
+        return Ok(());
+    }
 
     // Hot path: 165-byte accounts have no extensions, skip all extension processing
     if source.data_len() == 165 && destination.data_len() == 165 {

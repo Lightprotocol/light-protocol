@@ -3,7 +3,9 @@ use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
 use pinocchio_token_program::processor::transfer::process_transfer;
 
-use super::shared::{process_transfer_extensions_transfer, TransferAccounts};
+use super::shared::{
+    process_transfer_extensions_transfer, validate_self_transfer, TransferAccounts,
+};
 use crate::shared::convert_pinocchio_token_error;
 
 /// Account indices for CToken transfer instruction
@@ -38,10 +40,17 @@ pub fn process_ctoken_transfer(
         return Err(ProgramError::InvalidInstructionData);
     }
 
-    // Hot path: 165-byte accounts have no extensions, skip all extension processing
     // SAFETY: accounts.len() >= 3 validated at function entry
     let source = &accounts[ACCOUNT_SOURCE];
     let destination = &accounts[ACCOUNT_DESTINATION];
+
+    // Self-transfer: validate authority but skip token movement to avoid
+    // double mutable borrow panic in pinocchio process_transfer.
+    if validate_self_transfer(source, destination, &accounts[ACCOUNT_AUTHORITY])? {
+        return Ok(());
+    }
+
+    // Hot path: 165-byte accounts have no extensions, skip all extension processing
     if source.data_len() == 165 && destination.data_len() == 165 {
         // Slice to exactly 3 accounts: [source, destination, authority]
         return process_transfer(&accounts[..3], &instruction_data[..8], false)

@@ -1,5 +1,5 @@
 use anchor_compressed_token::ErrorCode;
-use anchor_lang::solana_program::program_error::ProgramError;
+use anchor_lang::solana_program::{msg, program_error::ProgramError};
 use light_program_profiler::profile;
 use light_token_interface::{
     state::{Token, ZExtensionStructMut},
@@ -14,6 +14,45 @@ use crate::{
         transfer_lamports::{multi_transfer_lamports, Transfer},
     },
 };
+
+/// Validates self-transfer: if source == destination, checks authority is signer
+/// and is owner or delegate of the token account.
+/// Returns Ok(true) if self-transfer was validated (caller should return Ok(())),
+/// Returns Ok(false) if not a self-transfer (caller should continue).
+#[inline(always)]
+pub fn validate_self_transfer(
+    source: &AccountInfo,
+    destination: &AccountInfo,
+    authority: &AccountInfo,
+) -> Result<bool, ProgramError> {
+    if !pubkey_eq(source.key(), destination.key()) {
+        return Ok(false);
+    }
+    validate_self_transfer_authority(source, authority)?;
+    Ok(true)
+}
+
+#[cold]
+fn validate_self_transfer_authority(
+    source: &AccountInfo,
+    authority: &AccountInfo,
+) -> Result<(), ProgramError> {
+    if !authority.is_signer() {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+    let token =
+        Token::from_account_info_checked(source).map_err(|_| ProgramError::InvalidAccountData)?;
+    let is_owner = pubkey_eq(authority.key(), token.base.owner.array_ref());
+    let is_delegate = token
+        .base
+        .delegate()
+        .is_some_and(|d| pubkey_eq(authority.key(), d.array_ref()));
+    if !is_owner && !is_delegate {
+        msg!("Self-transfer authority must be owner or delegate");
+        return Err(ProgramError::InvalidAccountData);
+    }
+    Ok(())
+}
 
 /// Extension information detected from a single account deserialization.
 /// Uses `MintExtensionFlags` for T22 extension flags to avoid duplication.
