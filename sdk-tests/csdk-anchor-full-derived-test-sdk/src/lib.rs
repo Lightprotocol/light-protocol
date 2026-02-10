@@ -1,6 +1,6 @@
 //! Client SDK for the AMM test program.
 //!
-//! Implements the `LightProgram` trait to produce load specs for cold accounts.
+//! Implements the `LightProgramInterface` trait to produce load specs for cold accounts.
 
 use anchor_lang::AnchorDeserialize;
 use csdk_anchor_full_derived_test::{
@@ -11,7 +11,7 @@ use csdk_anchor_full_derived_test::{
     },
 };
 use light_client::interface::{
-    AccountInterface, AccountSpec, ColdContext, LightProgram, PdaSpec,
+    AccountInterface, AccountSpec, ColdContext, LightProgramInterface, PdaSpec,
 };
 use solana_pubkey::Pubkey;
 
@@ -121,7 +121,7 @@ impl AmmSdk {
     }
 }
 
-impl LightProgram for AmmSdk {
+impl LightProgramInterface for AmmSdk {
     type Variant = LightAccountVariant;
     type Instruction = AmmInstruction;
 

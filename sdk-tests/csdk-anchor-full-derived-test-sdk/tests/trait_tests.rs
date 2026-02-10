@@ -1,4 +1,4 @@
-//! LightProgram trait unit tests for AmmSdk.
+//! LightProgramInterface trait unit tests for AmmSdk.
 //!
 //! Tests cover:
 //! - instruction_accounts returns correct pubkeys per instruction type
@@ -13,7 +13,7 @@ use csdk_anchor_full_derived_test::csdk_anchor_full_derived_test::{
 };
 use csdk_anchor_full_derived_test_sdk::{AmmInstruction, AmmSdk, AmmSdkError, PROGRAM_ID};
 use light_client::interface::{
-    all_hot, any_cold, Account, AccountInterface, AccountSpec, LightProgram, PdaSpec,
+    all_hot, any_cold, Account, AccountInterface, AccountSpec, LightProgramInterface, PdaSpec,
 };
 use solana_pubkey::Pubkey;
 

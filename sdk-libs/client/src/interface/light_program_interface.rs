@@ -1,10 +1,10 @@
-//! LightProgram trait and supporting types for client-side cold account handling.
+//! LightProgramInterface trait and supporting types for client-side cold account handling.
 //!
 //! Core types:
 //! - `ColdContext` - Cold data context (Account or Token)
 //! - `PdaSpec` - Spec for PDA loading with typed variant
 //! - `AccountSpec` - Unified spec enum for load instruction building
-//! - `LightProgram` - Trait for program SDKs
+//! - `LightProgramInterface` - Trait for program SDKs
 
 use std::fmt::Debug;
 
@@ -198,7 +198,7 @@ pub fn all_hot<V>(specs: &[AccountSpec<V>]) -> bool {
 ///
 /// The caller handles construction, caching, and cold detection.
 /// The trait only maps cold accounts to their variants for `create_load_instructions`.
-pub trait LightProgram: Sized {
+pub trait LightProgramInterface: Sized {
     /// The program's account variant enum (macro-generated, carries PDA seeds).
     type Variant: Pack<solana_instruction::AccountMeta> + Clone + Debug;
 

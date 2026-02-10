@@ -20,7 +20,7 @@ use light_batched_merkle_tree::{
 };
 use light_client::interface::{
     create_load_instructions, get_create_accounts_proof, AccountSpec, CreateAccountsProofInput,
-    InitializeRentFreeConfig, LightProgram, TokenAccountInterface,
+    InitializeRentFreeConfig, LightProgramInterface, TokenAccountInterface,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{

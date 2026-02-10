@@ -18,7 +18,7 @@ use csdk_anchor_full_derived_test::amm_test::{
 use csdk_anchor_full_derived_test_sdk::{AmmInstruction, AmmSdk};
 use light_client::interface::{
     create_load_instructions, get_create_accounts_proof, CreateAccountsProofInput,
-    InitializeRentFreeConfig, LightProgram,
+    InitializeRentFreeConfig, LightProgramInterface,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{
