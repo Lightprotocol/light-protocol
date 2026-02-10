@@ -200,7 +200,7 @@ export function parseCTokenCold(
     };
 }
 /**
- * Retrieve information about a token account of SPL/T22/c-token.
+ * Retrieve information about a token account of SPL/T22/light-token.
  *
  * @param rpc        RPC connection to use
  * @param address    Token account address
@@ -247,7 +247,7 @@ export async function getAtaInterface(
 
     // Invariant: ata MUST match a valid derivation from mint+owner.
     // Hot path: if programId provided, only validate against that program.
-    // For wrap=true, additionally require c-token ATA.
+    // For wrap=true, additionally require light-token ATA.
     const validation = checkAtaAddress(
         ata,
         mint,
@@ -428,7 +428,7 @@ async function _tryFetchCTokenColdByAddress(
 
 /**
  * @internal
- * Retrieve information about a token account SPL/T22/c-token.
+ * Retrieve information about a token account SPL/T22/light-token.
  */
 async function _getAccountInterface(
     rpc: Rpc,
@@ -449,7 +449,7 @@ async function _getAccountInterface(
         throw new Error('One of address or fetchByOwner is required');
     }
 
-    // Unified mode (auto-detect: c-token + optional SPL/T22)
+    // Unified mode (auto-detect: light-token + optional SPL/T22)
     if (!programId) {
         return getUnifiedAccountInterface(
             rpc,
@@ -460,7 +460,7 @@ async function _getAccountInterface(
         );
     }
 
-    // c-token-only mode
+    // light-token-only mode
     if (programId.equals(CTOKEN_PROGRAM_ID)) {
         return getCTokenAccountInterface(
             rpc,
@@ -494,7 +494,7 @@ async function getUnifiedAccountInterface(
     fetchByOwner: { owner: PublicKey; mint: PublicKey } | undefined,
     wrap: boolean,
 ): Promise<AccountInterface> {
-    // Canonical address for unified mode is always the c-token ATA
+    // Canonical address for unified mode is always the light-token ATA
     const cTokenAta =
         address ??
         getAssociatedTokenAddressSync(
@@ -514,7 +514,7 @@ async function getUnifiedAccountInterface(
     const fetchTypes: TokenAccountSource['type'][] = [];
     const fetchAddresses: PublicKey[] = [];
 
-    // c-token hot
+    // light-token hot
     fetchPromises.push(_tryFetchCTokenHot(rpc, cTokenAta, commitment));
     fetchTypes.push(TokenAccountSourceType.CTokenHot);
     fetchAddresses.push(cTokenAta);
@@ -522,7 +522,7 @@ async function getUnifiedAccountInterface(
     // SPL / Token-2022 (only when wrap is enabled)
     if (wrap) {
         // Always derive SPL/T22 addresses from owner+mint, not from the passed
-        // c-token address. SPL and T22 ATAs are different from c-token ATAs.
+        // light-token address. SPL and T22 ATAs are different from light-token ATAs.
         if (!fetchByOwner) {
             throw new Error(
                 'fetchByOwner is required for wrap=true to derive SPL/T22 addresses',
@@ -552,7 +552,7 @@ async function getUnifiedAccountInterface(
         fetchAddresses.push(token2022Ata);
     }
 
-    // Fetch ALL cold c-token accounts (not just one) - important for V1/V2 detection
+    // Fetch ALL cold light-token accounts (not just one) - important for V1/V2 detection
     const coldAccountsPromise = fetchByOwner
         ? rpc.getCompressedTokenAccountsByOwner(fetchByOwner.owner, {
               mint: fetchByOwner.mint,
@@ -582,7 +582,7 @@ async function getUnifiedAccountInterface(
         }
     }
 
-    // Add ALL cold c-token accounts (handles both V1 and V2)
+    // Add ALL cold light-token accounts (handles both V1 and V2)
     for (const item of coldResult.items) {
         const compressedAccount = item.compressedAccount;
         if (
@@ -608,7 +608,7 @@ async function getUnifiedAccountInterface(
         throw new TokenAccountNotFoundError();
     }
 
-    // priority order: c-token hot > c-token cold > SPL/T22
+    // priority order: light-token hot > light-token cold > SPL/T22
     const priority: TokenAccountSource['type'][] = [
         TokenAccountSourceType.CTokenHot,
         TokenAccountSourceType.CTokenCold,
@@ -664,7 +664,7 @@ async function getCTokenAccountInterface(
 
     const sources: TokenAccountSource[] = [];
 
-    // Collect hot (decompressed) c-token account
+    // Collect hot (decompressed) light-token account
     if (onchainAccount && onchainAccount.owner.equals(CTOKEN_PROGRAM_ID)) {
         const parsed = parseCTokenHot(address, onchainAccount);
         sources.push({
@@ -676,7 +676,7 @@ async function getCTokenAccountInterface(
         });
     }
 
-    // Collect cold (compressed) c-token accounts
+    // Collect cold (compressed) light-token accounts
     for (const compressedAccount of compressedAccounts) {
         if (
             compressedAccount &&

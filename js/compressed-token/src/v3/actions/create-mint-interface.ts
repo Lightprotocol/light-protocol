@@ -31,19 +31,19 @@ import { createMint } from '../../actions/create-mint';
 export { TokenMetadataInstructionData };
 
 /**
- * Create and initialize a new mint for SPL/T22/c-token.
+ * Create and initialize a new mint for SPL/T22/light-token.
  *
  * @param rpc                   RPC connection to use
  * @param payer                 Fee payer
- * @param mintAuthority         Account that will control minting (signer for c-token mints)
+ * @param mintAuthority         Account that will control minting (signer for light-token mints)
  * @param freezeAuthority       Account that will control freeze and thaw (optional)
  * @param decimals              Location of the decimal place
  * @param keypair               Mint keypair (defaults to a random keypair)
  * @param confirmOptions        Confirm options
  * @param programId             Token program ID (defaults to CTOKEN_PROGRAM_ID)
- * @param tokenMetadata         Optional token metadata (c-token mints only)
- * @param outputStateTreeInfo   Optional output state tree info (c-token mints only)
- * @param addressTreeInfo       Optional address tree info (c-token mints only)
+ * @param tokenMetadata         Optional token metadata (light-token mints only)
+ * @param outputStateTreeInfo   Optional output state tree info (light-token mints only)
+ * @param addressTreeInfo       Optional address tree info (light-token mints only)
  *
  * @returns Object with mint address and transaction signature
  */

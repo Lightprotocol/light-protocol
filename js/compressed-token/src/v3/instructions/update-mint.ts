@@ -94,13 +94,13 @@ function encodeUpdateMintInstructionData(
 }
 
 /**
- * Create instruction for updating a compressed mint's mint authority.
+ * Create instruction for updating a light mint's mint authority.
  *
  * @param mintInterface          MintInterface from getMintInterface() - must have merkleContext
  * @param currentMintAuthority   Current mint authority public key (must sign)
  * @param newMintAuthority       New mint authority (or null to revoke)
  * @param payer                  Fee payer public key
- * @param validityProof          Validity proof for the compressed mint
+ * @param validityProof          Validity proof for the light mint
  */
 export function createUpdateMintAuthorityInstruction(
     mintInterface: MintInterface,
@@ -187,7 +187,7 @@ export function createUpdateMintAuthorityInstruction(
 }
 
 /**
- * Create instruction for updating a compressed mint's freeze authority.
+ * Create instruction for updating a light mint's freeze authority.
  *
  * Output queue is automatically derived from mintInterface.merkleContext.treeInfo
  * (preferring nextTreeInfo.queue if available for rollover support).
@@ -196,7 +196,7 @@ export function createUpdateMintAuthorityInstruction(
  * @param currentFreezeAuthority   Current freeze authority public key (must sign)
  * @param newFreezeAuthority       New freeze authority (or null to revoke)
  * @param payer                    Fee payer public key
- * @param validityProof            Validity proof for the compressed mint
+ * @param validityProof            Validity proof for the light mint
  */
 export function createUpdateFreezeAuthorityInstruction(
     mintInterface: MintInterface,

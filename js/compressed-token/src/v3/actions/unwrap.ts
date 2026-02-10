@@ -23,12 +23,12 @@ import { getAssociatedTokenAddressInterface } from '../get-associated-token-addr
 import { loadAta as _loadAta } from './load-ata';
 
 /**
- * Unwrap c-tokens to SPL tokens.
+ * Unwrap light-tokens to SPL tokens.
  *
  * @param rpc                RPC connection
  * @param payer              Fee payer
  * @param destination        Destination SPL/T22 token account
- * @param owner              Owner of the c-token (signer)
+ * @param owner              Owner of the light-token (signer)
  * @param mint               Mint address
  * @param amount             Amount to unwrap (defaults to all)
  * @param splInterfaceInfo   SPL interface info
@@ -72,17 +72,17 @@ export async function unwrap(
         );
     }
 
-    // Load all tokens to c-token hot ATA
+    // Load all tokens to light-token hot ATA
     const ctokenAta = getAssociatedTokenAddressInterface(mint, owner.publicKey);
     await _loadAta(rpc, ctokenAta, owner, mint, payer, confirmOptions);
 
-    // Check c-token hot balance
+    // Check light-token hot balance
     const ctokenAccountInfo = await rpc.getAccountInfo(ctokenAta);
     if (!ctokenAccountInfo) {
         throw new Error('No c-token ATA found after loading');
     }
 
-    // Parse c-token account balance
+    // Parse light-token account balance
     const data = ctokenAccountInfo.data;
     const ctokenBalance = data.readBigUInt64LE(64);
 

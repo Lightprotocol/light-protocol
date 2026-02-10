@@ -94,14 +94,14 @@ export interface CreateMintToCompressedInstructionParams {
 }
 
 /**
- * Create instruction for minting tokens from a c-mint to compressed accounts.
- * To mint to onchain token accounts across SPL/T22/c-mints, use
+ * Create instruction for minting tokens from a light mint to compressed accounts.
+ * To mint to onchain token accounts across SPL/T22/light mints, use
  * {@link createMintToInterfaceInstruction} instead.
  *
  * @param authority             Mint authority public key.
  * @param payer                 Fee payer public key.
- * @param validityProof         Validity proof for the compressed mint.
- * @param merkleContext         Merkle context of the compressed mint.
+ * @param validityProof         Validity proof for the light mint.
+ * @param merkleContext         Merkle context of the light mint.
  * @param mintData              Mint instruction data.
  * @param recipients            Array of recipients with amounts.
  * @param outputStateTreeInfo   Optional output state tree info. Uses merkle

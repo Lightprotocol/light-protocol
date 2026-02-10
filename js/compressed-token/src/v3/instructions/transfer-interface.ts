@@ -7,18 +7,18 @@ import {
 } from '@solana/spl-token';
 
 /**
- * c-token transfer instruction discriminator
+ * light-token transfer instruction discriminator
  */
 const CTOKEN_TRANSFER_DISCRIMINATOR = 3;
 
 /**
- * Create a c-token transfer instruction.
+ * Create a light-token transfer instruction.
  *
- * @param source        Source c-token account
- * @param destination   Destination c-token account
+ * @param source        Source light-token account
+ * @param destination   Destination light-token account
  * @param owner         Owner of the source account (signer, also pays for compressible extension top-ups)
  * @param amount        Amount to transfer
- * @returns Transaction instruction for c-token transfer
+ * @returns Transaction instruction for light-token transfer
  */
 export function createCTokenTransferInstruction(
     source: PublicKey,
@@ -47,14 +47,14 @@ export function createCTokenTransferInstruction(
 }
 
 /**
- * Construct a transfer instruction for SPL/T22/c-token. Defaults to c-token
- * program. For cross-program transfers (SPL <> c-token), use `wrap`/`unwrap`.
+ * Construct a transfer instruction for SPL/T22/light-token. Defaults to light-token
+ * program. For cross-program transfers (SPL <> light-token), use `wrap`/`unwrap`.
  *
  * @param source        Source token account
  * @param destination   Destination token account
  * @param owner         Owner of the source account (signer)
  * @param amount        Amount to transfer
- * @returns instruction for c-token transfer
+ * @returns instruction for light-token transfer
  */
 export function createTransferInterfaceInstruction(
     source: PublicKey,

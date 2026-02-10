@@ -7,14 +7,14 @@ import { PublicKey } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 
 /**
- * Returns the compressed mint address as bytes.
+ * Returns the light mint address as bytes.
  */
 export function deriveCMintAddress(
     mintSeed: PublicKey,
     addressTreeInfo: TreeInfo,
 ) {
-    // find_mint_address returns [CMint, bump], we want CMint
-    // In JS, just use the mintSeed directly as the CMint address
+    // find_mint_address returns [light mint, bump], we want light mint
+    // In JS, just use the mintSeed directly as the light mint address
     const address = deriveAddressV2(
         findMintAddress(mintSeed)[0].toBytes(),
         addressTreeInfo.tree,
@@ -29,7 +29,7 @@ export const COMPRESSED_MINT_SEED: Buffer = Buffer.from([
 ]);
 
 /**
- * Finds the SPL mint PDA for a c-token mint.
+ * Finds the SPL mint PDA for a light-token mint.
  * @param mintSeed The mint seed public key.
  * @returns [PDA, bump]
  */
@@ -42,7 +42,7 @@ export function findMintAddress(mintSigner: PublicKey): [PublicKey, number] {
 }
 
 /// Same as "getAssociatedTokenAddress" but returns the bump as well.
-/// Uses c-token program ID.
+/// Uses light-token program ID.
 export function getAssociatedCTokenAddressAndBump(
     owner: PublicKey,
     mint: PublicKey,
@@ -53,7 +53,7 @@ export function getAssociatedCTokenAddressAndBump(
     );
 }
 
-/// Same as "getAssociatedTokenAddress" but with c-token program ID.
+/// Same as "getAssociatedTokenAddress" but with light-token program ID.
 export function getAssociatedCTokenAddress(owner: PublicKey, mint: PublicKey) {
     return PublicKey.findProgramAddressSync(
         [owner.toBuffer(), CTOKEN_PROGRAM_ID.toBuffer(), mint.toBuffer()],

@@ -121,17 +121,17 @@ export {
  *
  * Behavior depends on `wrap` parameter:
  * - wrap=false (standard): Decompress compressed tokens to the target ATA.
- *   ATA can be SPL (via pool), T22 (via pool), or c-token (direct).
- * - wrap=true (unified): Wrap SPL/T22 + decompress all to c-token ATA.
- *   ATA must be a c-token ATA.
+ *   ATA can be SPL (via pool), T22 (via pool), or light-token (direct).
+ * - wrap=true (unified): Wrap SPL/T22 + decompress all to light-token ATA.
+ *   ATA must be a light-token ATA.
  *
  * @param rpc     RPC connection
- * @param ata     Associated token address (SPL, T22, or c-token)
+ * @param ata     Associated token address (SPL, T22, or light-token)
  * @param owner   Owner public key
  * @param mint    Mint public key
  * @param payer   Fee payer (defaults to owner)
  * @param options Optional load options
- * @param wrap    Unified mode: wrap SPL/T22 to c-token (default: false)
+ * @param wrap    Unified mode: wrap SPL/T22 to light-token (default: false)
  * @returns       Array of instructions (empty if nothing to load)
  */
 export async function createLoadAtaInstructions(
@@ -149,7 +149,7 @@ export async function createLoadAtaInstructions(
 
     // Validation happens inside getAtaInterface via checkAtaAddress helper:
     // - Always validates ata matches mint+owner derivation
-    // - For wrap=true, additionally requires c-token ATA
+    // - For wrap=true, additionally requires light-token ATA
     try {
         const ataInterface = await _getAtaInterface(
             rpc,
@@ -185,14 +185,14 @@ export { AtaType } from '../ata-utils';
  *
  * Behavior depends on `wrap` parameter:
  * - wrap=false (standard): Decompress compressed tokens to the target ATA type
- *   (SPL ATA via pool, T22 ATA via pool, or c-token ATA direct)
- * - wrap=true (unified): Wrap SPL/T22 + decompress all to c-token ATA
+ *   (SPL ATA via pool, T22 ATA via pool, or light-token ATA direct)
+ * - wrap=true (unified): Wrap SPL/T22 + decompress all to light-token ATA
  *
  * @param rpc         RPC connection
  * @param payer       Fee payer
  * @param ata         AccountInterface from getAtaInterface (must have _isAta, _owner, _mint)
  * @param options     Optional load options
- * @param wrap        Unified mode: wrap SPL/T22 to c-token (default: false)
+ * @param wrap        Unified mode: wrap SPL/T22 to light-token (default: false)
  * @param targetAta   Target ATA address (used for type detection in standard mode)
  * @returns           Array of instructions (empty if nothing to load)
  */
@@ -247,7 +247,7 @@ export async function createLoadAtaInstructionsFromInterface(
         const validation = checkAtaAddress(targetAta, mint, owner);
         ataType = validation.type;
 
-        // For wrap=true, must be c-token ATA
+        // For wrap=true, must be light-token ATA
         if (wrap && ataType !== 'ctoken') {
             throw new Error(
                 `For wrap=true, targetAta must be c-token ATA. Got ${ataType} ATA.`,
@@ -307,9 +307,9 @@ export async function createLoadAtaInstructionsFromInterface(
     }
 
     if (wrap) {
-        // UNIFIED MODE: Everything goes to c-token ATA
+        // UNIFIED MODE: Everything goes to light-token ATA
 
-        // 1. Create c-token ATA if needed
+        // 1. Create light-token ATA if needed
         if (!ctokenHotSource) {
             instructions.push(
                 createAssociatedTokenAccountInterfaceIdempotentInstruction(
@@ -322,7 +322,7 @@ export async function createLoadAtaInstructionsFromInterface(
             );
         }
 
-        // 2. Wrap SPL tokens to c-token
+        // 2. Wrap SPL tokens to light-token
         if (splBalance > BigInt(0) && splInterfaceInfo) {
             instructions.push(
                 createWrapInstruction(
@@ -338,7 +338,7 @@ export async function createLoadAtaInstructionsFromInterface(
             );
         }
 
-        // 3. Wrap T22 tokens to c-token
+        // 3. Wrap T22 tokens to light-token
         if (t22Balance > BigInt(0) && splInterfaceInfo) {
             instructions.push(
                 createWrapInstruction(
@@ -354,7 +354,7 @@ export async function createLoadAtaInstructionsFromInterface(
             );
         }
 
-        // 4. Decompress compressed tokens to c-token ATA
+        // 4. Decompress compressed tokens to light-token ATA
         // Note: v3 interface only supports V2 trees
         if (coldBalance > BigInt(0) && ctokenColdSource) {
             const compressedAccounts =
@@ -403,7 +403,7 @@ export async function createLoadAtaInstructionsFromInterface(
                 );
 
                 if (ataType === 'ctoken') {
-                    // Decompress to c-token ATA (direct)
+                    // Decompress to light-token ATA (direct)
                     if (!ctokenHotSource) {
                         instructions.push(
                             createAssociatedTokenAccountInterfaceIdempotentInstruction(
@@ -489,19 +489,19 @@ export async function createLoadAtaInstructionsFromInterface(
  *
  * Behavior depends on `wrap` parameter:
  * - wrap=false (standard): Decompress compressed tokens to the target ATA.
- *   ATA can be SPL (via pool), T22 (via pool), or c-token (direct).
- * - wrap=true (unified): Wrap SPL/T22 + decompress all to c-token ATA.
+ *   ATA can be SPL (via pool), T22 (via pool), or light-token (direct).
+ * - wrap=true (unified): Wrap SPL/T22 + decompress all to light-token ATA.
  *
  * Idempotent: returns null if nothing to load.
  *
  * @param rpc               RPC connection
- * @param ata               Associated token address (SPL, T22, or c-token)
+ * @param ata               Associated token address (SPL, T22, or light-token)
  * @param owner             Owner of the tokens (signer)
  * @param mint              Mint public key
  * @param payer             Fee payer (signer, defaults to owner)
  * @param confirmOptions    Optional confirm options
  * @param interfaceOptions  Optional interface options
- * @param wrap              Unified mode: wrap SPL/T22 to c-token (default: false)
+ * @param wrap              Unified mode: wrap SPL/T22 to light-token (default: false)
  * @returns Transaction signature, or null if nothing to load
  */
 export async function loadAta(

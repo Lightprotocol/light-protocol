@@ -1,7 +1,7 @@
 /**
  * Exports for @lightprotocol/compressed-token/unified
  *
- * Import from `/unified` to get a single unified ATA for SPL/T22 and c-token
+ * Import from `/unified` to get a single unified ATA for SPL/T22 and light-token
  * mints.
  */
 import {
@@ -30,6 +30,7 @@ import {
 } from '../actions/load-ata';
 import { createAssociatedTokenAccountInterfaceIdempotentInstruction } from '../instructions/create-ata-interface';
 import { transferInterface as _transferInterface } from '../actions/transfer-interface';
+import { transferCheckedInterface as _transferCheckedInterface } from '../actions/transfer-checked';
 import { _getOrCreateAtaInterface } from '../actions/get-or-create-ata-interface';
 import { getAtaProgramId } from '../ata-utils';
 import { InterfaceOptions } from '..';
@@ -57,14 +58,14 @@ export async function getAtaInterface(
 }
 
 /**
- * Derive the canonical token ATA for SPL/T22/c-token in the unified path.
+ * Derive the canonical token ATA for SPL/T22/light-token in the unified path.
  *
  * Enforces CTOKEN_PROGRAM_ID.
  *
  * @param mint                      Mint public key
  * @param owner                     Owner public key
  * @param allowOwnerOffCurve        Allow owner to be a PDA. Default false.
- * @param programId                 Token program ID. Default c-token.
+ * @param programId                 Token program ID. Default light-token.
  * @param associatedTokenProgramId  Associated token program ID. Default
  *                                  auto-detected.
  * @returns                         Associated token address.
@@ -92,7 +93,7 @@ export function getAssociatedTokenAddressInterface(
 }
 
 /**
- * Create instructions to load ALL token balances into a c-token ATA.
+ * Create instructions to load ALL token balances into a light-token ATA.
  *
  * @param rpc     RPC connection
  * @param ata     Associated token address
@@ -122,14 +123,14 @@ export async function createLoadAtaInstructions(
 }
 
 /**
- * Load all token balances into the c-token ATA.
+ * Load all token balances into the light-token ATA.
  *
- * Wraps SPL/Token-2022 balances and decompresses compressed c-tokens
- * into the on-chain c-token ATA. If no balances exist and the ATA doesn't
+ * Wraps SPL/Token-2022 balances and decompresses compressed light-tokens
+ * into the on-chain light-token ATA. If no balances exist and the ATA doesn't
  * exist, creates an empty ATA (idempotent).
  *
  * @param rpc               RPC connection
- * @param ata               Associated token address (c-token)
+ * @param ata               Associated token address (light-token)
  * @param owner             Owner of the tokens (signer)
  * @param mint              Mint public key
  * @param payer             Fee payer (signer, defaults to owner)
@@ -195,9 +196,9 @@ export async function loadAta(
  *
  * @param rpc             RPC connection
  * @param payer           Fee payer (signer)
- * @param source          Source c-token ATA address
+ * @param source          Source light-token ATA address
  * @param mint            Mint address
- * @param destination     Destination c-token ATA address (must exist)
+ * @param destination     Destination light-token ATA address (must exist)
  * @param owner           Source owner (signer)
  * @param amount          Amount to transfer
  * @param programId       Token program ID (default: CTOKEN_PROGRAM_ID)
@@ -233,18 +234,66 @@ export async function transferInterface(
 }
 
 /**
- * Get or create c-token ATA with unified balance detection and auto-loading.
+ * Transfer tokens using the unified ata interface with decimals validation.
+ *
+ * Like transferInterface but validates the amount against the mint's decimals
+ * on-chain.
+ *
+ * @param rpc             RPC connection
+ * @param payer           Fee payer (signer)
+ * @param source          Source light-token ATA address
+ * @param mint            Mint address
+ * @param destination     Destination light-token ATA address (must exist)
+ * @param owner           Source owner (signer)
+ * @param amount          Amount to transfer
+ * @param decimals        Expected decimals of the mint
+ * @param programId       Token program ID (default: CTOKEN_PROGRAM_ID)
+ * @param confirmOptions  Optional confirm options
+ * @param options         Optional interface options
+ * @returns Transaction signature
+ */
+export async function transferCheckedInterface(
+    rpc: Rpc,
+    payer: Signer,
+    source: PublicKey,
+    mint: PublicKey,
+    destination: PublicKey,
+    owner: Signer,
+    amount: number | bigint | BN,
+    decimals: number,
+    programId: PublicKey = CTOKEN_PROGRAM_ID,
+    confirmOptions?: ConfirmOptions,
+    options?: InterfaceOptions,
+) {
+    return _transferCheckedInterface(
+        rpc,
+        payer,
+        source,
+        mint,
+        destination,
+        owner,
+        amount,
+        decimals,
+        programId,
+        confirmOptions,
+        options,
+        true,
+    );
+}
+
+/**
+ * Get or create light-token ATA with unified balance detection and auto-loading.
  *
  * Enforces CTOKEN_PROGRAM_ID. Aggregates balances from:
- * - c-token hot (on-chain) account
- * - c-token cold (compressed) accounts
+ * - light-token hot (on-chain) account
+ * - light-token cold (compressed) accounts
  * - SPL token accounts (for unified wrapping)
  * - Token-2022 accounts (for unified wrapping)
  *
  * When owner is a Signer:
  * - Creates hot ATA if it doesn't exist
  * - Loads cold (compressed) tokens into hot ATA
- * - Wraps SPL/T22 tokens into c-token ATA
+ * - Wraps SPL/T22 tokens into light-token ATA
  * - Returns account with all tokens ready to use
  *
  * When owner is a PublicKey:
@@ -340,6 +389,8 @@ export {
     createDecompressInterfaceInstruction,
     createTransferInterfaceInstruction,
     createCTokenTransferInstruction,
+    createTransferCheckedInterfaceInstruction,
+    createCTokenTransferCheckedInstruction,
     // Types
     TokenMetadataInstructionData,
     CompressibleConfig,

@@ -20,7 +20,7 @@ import {
 } from '../../utils/get-token-pool-infos';
 
 /**
- * Wrap tokens from an SPL/T22 account to a c-token account.
+ * Wrap tokens from an SPL/T22 account to a light-token account.
  *
  * This is an agnostic action that takes explicit account addresses (spl-token style).
  * Use getAssociatedTokenAddressSync() to derive ATA addresses if needed.
@@ -28,7 +28,7 @@ import {
  * @param rpc             RPC connection
  * @param payer           Fee payer
  * @param source          Source SPL/T22 token account (any token account, not just ATA)
- * @param destination     Destination c-token account
+ * @param destination     Destination light-token account
  * @param owner           Owner/authority of the source account (must sign)
  * @param mint            Mint address
  * @param amount          Amount to wrap
@@ -37,7 +37,7 @@ import {
  *
  * @example
  * const splAta = getAssociatedTokenAddressSync(mint, owner.publicKey, false, TOKEN_PROGRAM_ID);
- * const ctokenAta = getAssociatedTokenAddressInterface(mint, owner.publicKey); // defaults to c-token
+ * const ctokenAta = getAssociatedTokenAddressInterface(mint, owner.publicKey); // defaults to light-token
  *
  * await wrap(
  *   rpc,

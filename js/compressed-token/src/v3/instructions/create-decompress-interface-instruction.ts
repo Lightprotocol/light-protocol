@@ -94,13 +94,13 @@ function buildInputTokenData(
 /**
  * Create decompressInterface instruction using Transfer2.
  *
- * Supports decompressing to both c-token accounts and SPL token accounts:
- * - For c-token destinations: No splInterfaceInfo needed
+ * Supports decompressing to both light-token accounts and SPL token accounts:
+ * - For light-token destinations: No splInterfaceInfo needed
  * - For SPL destinations: Provide splInterfaceInfo (token pool info) and decimals
  *
  * @param payer                        Fee payer public key
  * @param inputCompressedTokenAccounts Input compressed token accounts
- * @param toAddress                    Destination token account address (c-token or SPL ATA)
+ * @param toAddress                    Destination token account address (light-token or SPL ATA)
  * @param amount                       Amount to decompress
  * @param validityProof                Validity proof (contains compressedProof and rootIndices)
  * @param splInterfaceInfo             Optional: SPL interface info for SPL destinations
@@ -124,7 +124,7 @@ export function createDecompressInterfaceInstruction(
     const owner = inputCompressedTokenAccounts[0].parsed.owner;
 
     // Build packed accounts map
-    // Order: trees/queues first, then mint, owner, c-token account, c-token program
+    // Order: trees/queues first, then mint, owner, light-token account, light-token program
     const packedAccountIndices = new Map<string, number>();
     const packedAccounts: PublicKey[] = [];
 
@@ -163,7 +163,7 @@ export function createDecompressInterfaceInstruction(
     packedAccountIndices.set(owner.toBase58(), ownerIndex);
     packedAccounts.push(owner);
 
-    // Add destination token account (c-token or SPL)
+    // Add destination token account (light-token or SPL)
     const destinationIndex = packedAccounts.length;
     packedAccountIndices.set(toAddress.toBase58(), destinationIndex);
     packedAccounts.push(toAddress);
@@ -235,7 +235,7 @@ export function createDecompressInterfaceInstruction(
     }
 
     // Build decompress compression
-    // For c-token: pool values are 0 (unused)
+    // For light-token: pool values are 0 (unused)
     // For SPL: pool values point to SPL interface PDA
     const compressions: Compression[] = [
         {

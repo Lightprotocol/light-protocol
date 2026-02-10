@@ -25,9 +25,9 @@ import {
 import BN from 'bn.js';
 import { getAtaProgramId } from '../ata-utils';
 import {
-    createTransferInterfaceInstruction,
-    createCTokenTransferInstruction,
-} from '../instructions/transfer-interface';
+    createTransferCheckedInterfaceInstruction,
+    createCTokenTransferCheckedInstruction,
+} from '../instructions/transfer-checked';
 import { createAssociatedTokenAccountInterfaceIdempotentInstruction } from '../instructions/create-ata-interface';
 import { getAssociatedTokenAddressInterface } from '../get-associated-token-address-interface';
 import {
@@ -36,14 +36,7 @@ import {
 } from '../../utils/get-token-pool-infos';
 import { createWrapInstruction } from '../instructions/wrap';
 import { createDecompressInterfaceInstruction } from '../instructions/create-decompress-interface-instruction';
-
-/**
- * Options for interface operations (load, transfer)
- */
-export interface InterfaceOptions {
-    /** SPL interface infos (fetched if not provided) */
-    splInterfaceInfos?: SplInterfaceInfo[];
-}
+import { InterfaceOptions } from './transfer-interface';
 
 /**
  * Calculate compute units needed for the operation
@@ -77,9 +70,10 @@ function calculateComputeUnits(
 }
 
 /**
- * Transfer tokens using the light-token interface.
+ * Transfer tokens using the light-token interface with decimals validation.
  *
- * Matches SPL Token's transferChecked signature order. Destination must exist.
+ * Like transferInterface but validates the amount against the mint's decimals
+ * on-chain (discriminator 12 instead of 3).
  *
  * @param rpc             RPC connection
  * @param payer           Fee payer (signer)
@@ -88,13 +82,14 @@ function calculateComputeUnits(
  * @param destination     Destination light-token ATA address (must exist)
  * @param owner           Source owner (signer)
  * @param amount          Amount to transfer
+ * @param decimals        Expected decimals of the mint
  * @param programId       Token program ID (default: CTOKEN_PROGRAM_ID)
  * @param confirmOptions  Optional confirm options
  * @param options         Optional interface options
  * @param wrap            Include SPL/T22 wrapping (default: false)
  * @returns Transaction signature
  */
-export async function transferInterface(
+export async function transferCheckedInterface(
     rpc: Rpc,
     payer: Signer,
     source: PublicKey,
@@ -102,6 +97,7 @@ export async function transferInterface(
     destination: PublicKey,
     owner: Signer,
     amount: number | bigint | BN,
+    decimals: number,
     programId: PublicKey = CTOKEN_PROGRAM_ID,
     confirmOptions?: ConfirmOptions,
     options?: InterfaceOptions,
@@ -114,7 +110,7 @@ export async function transferInterface(
 
     const instructions: TransactionInstruction[] = [];
 
-    // For non-light-token programs, use simple SPL transfer (no load)
+    // For non-light-token programs, use simple SPL transferChecked (no load)
     if (!programId.equals(CTOKEN_PROGRAM_ID)) {
         const expectedSource = getAssociatedTokenAddressSync(
             mint,
@@ -130,11 +126,13 @@ export async function transferInterface(
         }
 
         instructions.push(
-            createTransferInterfaceInstruction(
+            createTransferCheckedInterfaceInstruction(
                 source,
+                mint,
                 destination,
                 owner.publicKey,
                 amountBigInt,
+                decimals,
                 [],
                 programId,
             ),
@@ -153,7 +151,7 @@ export async function transferInterface(
         return sendAndConfirmTx(rpc, tx, confirmOptions);
     }
 
-    // light-token transfer
+    // light-token transfer_checked
     const expectedSource = getAssociatedTokenAddressInterface(
         mint,
         owner.publicKey,
@@ -272,7 +270,7 @@ export async function transferInterface(
     const splInterfaceInfo = splInterfaceInfos.find(info => info.isInitialized);
 
     // Fetch mint decimals if we need to wrap
-    let decimals = 0;
+    let wrapDecimals = 0;
     if (
         splInterfaceInfo &&
         (splBalance > BigInt(0) || t22Balance > BigInt(0))
@@ -283,7 +281,7 @@ export async function transferInterface(
             undefined,
             splInterfaceInfo.tokenProgram,
         );
-        decimals = mintInfo.decimals;
+        wrapDecimals = mintInfo.decimals;
     }
 
     // Wrap SPL tokens if balance exists (only when wrap=true)
@@ -296,7 +294,7 @@ export async function transferInterface(
                 mint,
                 splBalance,
                 splInterfaceInfo,
-                decimals,
+                wrapDecimals,
                 payer.publicKey,
             ),
         );
@@ -313,7 +311,7 @@ export async function transferInterface(
                 mint,
                 t22Balance,
                 splInterfaceInfo,
-                decimals,
+                wrapDecimals,
                 payer.publicKey,
             ),
         );
@@ -344,18 +342,26 @@ export async function transferInterface(
                 compressedBalance,
                 proof,
                 undefined,
-                decimals,
+                wrapDecimals,
             ),
         );
     }
 
-    // Transfer (destination must already exist - like SPL Token)
+    // Determine feePayer: if payer !== owner, pass payer as separate fee payer
+    const feePayer = !payer.publicKey.equals(owner.publicKey)
+        ? payer.publicKey
+        : undefined;
+
+    // Transfer checked (destination must already exist - like SPL Token)
     instructions.push(
-        createCTokenTransferInstruction(
+        createCTokenTransferCheckedInstruction(
             source,
+            mint,
             destination,
             owner.publicKey,
             amountBigInt,
+            decimals,
+            feePayer,
         ),
     );
 

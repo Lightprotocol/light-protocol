@@ -66,6 +66,9 @@ export {
     createDecompressInterfaceInstruction,
     createTransferInterfaceInstruction,
     createCTokenTransferInstruction,
+    createTransferCheckedInterfaceInstruction,
+    createCTokenTransferCheckedInstruction,
+    transferCheckedInterface,
     // Types
     TokenMetadataInstructionData,
     CompressibleConfig,
