@@ -118,10 +118,10 @@ pub fn build_mint_extension_cache<'a>(
 
             // SAFETY: mint_index was just inserted above if not already present
             let checks = cache.get_by_key(&mint_index).unwrap();
-            // CompressAndClose with restricted extensions requires CompressedOnly output.
-            // Compress/Decompress don't need additional validation here:
-            // - Compress: blocked by check_mint_extensions when outputs exist
-            // - Decompress: no check it restores existing state
+            // Restricted extensions handling:
+            // - CompressAndClose: requires CompressedOnly output to preserve extension state
+            // - Compress: blocked - cannot compress tokens with restricted extensions
+            // - Decompress: allowed - restores existing state
             if checks.has_restricted_extensions && compression.mode.is_compress_and_close() {
                 let output_idx = compression.get_compressed_token_account_index()?;
                 let has_compressed_only = inputs
@@ -137,6 +137,12 @@ pub fn build_mint_extension_cache<'a>(
                     msg!("Mint has restricted extensions - CompressedOnly output required");
                     return Err(ErrorCode::CompressAndCloseMissingCompressedOnlyExtension.into());
                 }
+            } else if checks.has_restricted_extensions
+                && deny_restricted_extensions
+                && !compression.mode.is_compress_and_close()
+            {
+                msg!("Mint has restricted extensions - regular compress not allowed");
+                return Err(ErrorCode::MintHasRestrictedExtensions.into());
             }
         }
     }
