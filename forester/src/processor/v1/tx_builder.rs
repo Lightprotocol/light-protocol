@@ -128,7 +128,10 @@ impl<R: Rpc> TransactionBuilder for EpochManagerTransactions<R> {
             Ok((_, instructions)) => instructions,
             Err(e) => {
                 // Check if it's a "Record Not Found" error
-                return if e.to_string().contains("Record Not Found") {
+                let err_str = e.to_string();
+                return if err_str.to_lowercase().contains("record not found")
+                    || err_str.to_lowercase().contains("not found")
+                {
                     warn!("Record not found in indexer, skipping batch: {}", e);
                     // Return empty transactions but don't propagate the error
                     Ok((vec![], last_valid_block_height))
@@ -148,7 +151,7 @@ impl<R: Rpc> TransactionBuilder for EpochManagerTransactions<R> {
                 recent_blockhash: *recent_blockhash,
                 compute_unit_price: Some(priority_fee),
                 compute_unit_limit: config.compute_unit_limit,
-                last_valid_block_hash: last_valid_block_height,
+                last_valid_block_height,
             })
             .await?;
             transactions.push(transaction);

@@ -129,8 +129,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
             Ok(res) => res,
             Err(e) => {
                 error!(tree = %tree_accounts.merkle_tree, "Failed to build transaction batch: {:?}", e);
-                operation_cancel_signal.store(true, Ordering::SeqCst);
-                break;
+                continue;
             }
         };
         trace!(tree = %tree_accounts.merkle_tree, "Built {} transactions in {:?}", transactions_to_send.len(), build_start_time.elapsed());

@@ -1,4 +1,5 @@
 use account_compression::{
+    utils::constants::{ADDRESS_MERKLE_TREE_HEIGHT, STATE_MERKLE_TREE_HEIGHT},
     AddressMerkleTreeAccount, AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig,
     QueueAccount, StateMerkleTreeAccount, StateMerkleTreeConfig,
 };
@@ -68,7 +69,7 @@ pub async fn get_tree_fullness<R: Rpc>(
                 .await
                 .map_err(|e| ForesterError::Other(anyhow::anyhow!("{}", e)))?;
 
-            let height = 26;
+            let height = STATE_MERKLE_TREE_HEIGHT;
             let capacity = 1 << height;
             let threshold = ((1 << height) * account.metadata.rollover_metadata.rollover_threshold
                 / 100) as usize;
@@ -107,7 +108,7 @@ pub async fn get_tree_fullness<R: Rpc>(
                 )
                 .await
                 .map_err(|e| ForesterError::Other(anyhow::anyhow!("{}", e)))?;
-            let height = 26;
+            let height = ADDRESS_MERKLE_TREE_HEIGHT;
             let capacity = 1 << height;
 
             let threshold = ((1 << height)

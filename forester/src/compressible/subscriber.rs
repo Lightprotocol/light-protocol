@@ -162,6 +162,10 @@ impl<H: SubscriptionHandler + 'static> AccountSubscriber<H> {
                         "{} connection lost (attempt {}), reconnecting in {:?}...",
                         self.config.name, attempt, current_delay
                     );
+
+                    // Reset backoff after a successful connection
+                    current_delay = self.reconnect_config.initial_delay;
+                    attempt = 0;
                 }
                 Err(e) => {
                     attempt += 1;

@@ -2,7 +2,10 @@ use std::sync::Once;
 
 use env_logger::Env;
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
-use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer};
+use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+
+static LOG_GUARD: std::sync::OnceLock<tracing_appender::non_blocking::WorkerGuard> =
+    std::sync::OnceLock::new();
 
 static INIT: Once = Once::new();
 
@@ -28,28 +31,21 @@ pub fn setup_telemetry() {
         let env_filter =
             EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
 
-        let stdout_env_filter =
-            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
-
         let stdout_layer = fmt::Layer::new()
             .with_writer(std::io::stdout)
-            .with_ansi(true)
-            .with_filter(stdout_env_filter);
+            .with_ansi(true);
 
         if let Some(file_appender) = file_appender {
-            let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
-            let file_env_filter = EnvFilter::new("info");
-            let file_layer = fmt::Layer::new()
-                .with_writer(non_blocking)
-                .with_filter(file_env_filter);
+            let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
+            let _ = LOG_GUARD.set(guard);
+
+            let file_layer = fmt::Layer::new().with_writer(non_blocking);
 
             tracing_subscriber::registry()
                 .with(stdout_layer)
                 .with(file_layer)
                 .with(env_filter)
                 .init();
-
-            std::mem::forget(_guard);
         } else {
             tracing_subscriber::registry()
                 .with(stdout_layer)

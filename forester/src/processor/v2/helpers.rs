@@ -432,7 +432,8 @@ impl StreamingAddressQueue {
     /// Uses a polling loop to avoid race conditions between the available_elements
     /// and fetch_complete mutexes. Returns the number of available elements.
     pub fn wait_for_batch(&self, batch_end: usize) -> usize {
-        const POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(5);
+        const POLL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(120);
+        let start = std::time::Instant::now();
 
         loop {
             let available = *lock_recover(
@@ -451,7 +452,25 @@ impl StreamingAddressQueue {
                 return available;
             }
 
-            std::thread::sleep(POLL_INTERVAL);
+            if start.elapsed() > POLL_TIMEOUT {
+                tracing::warn!(
+                    "wait_for_batch timed out after {:?} waiting for {} elements (available: {})",
+                    POLL_TIMEOUT,
+                    batch_end,
+                    available
+                );
+                return available;
+            }
+
+            // Use condvar wait with timeout instead of thread::sleep to avoid
+            // blocking the thread and to wake up promptly when data arrives.
+            let guard = lock_recover(
+                &self.available_elements,
+                "streaming_address_queue.available_elements",
+            );
+            let _ = self
+                .data_ready
+                .wait_timeout(guard, std::time::Duration::from_millis(50));
         }
     }
 

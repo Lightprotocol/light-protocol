@@ -18,7 +18,10 @@ use solana_sdk::pubkey::Pubkey;
 use tokio::{sync::oneshot, time::timeout};
 use tracing::{debug, info};
 
-use super::config::{DEFAULT_PAGE_SIZE, DEFAULT_PAGINATION_DELAY_MS};
+use super::config::{
+    ACCOUNT_TYPE_OFFSET, CTOKEN_ACCOUNT_TYPE_FILTER, DEFAULT_PAGE_SIZE,
+    DEFAULT_PAGINATION_DELAY_MS, MINT_ACCOUNT_TYPE_FILTER,
+};
 use crate::Result;
 
 const RPC_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
@@ -473,4 +476,113 @@ where
     };
 
     Ok(result)
+}
+
+/// Count program accounts matching the given filters without downloading
+/// account data.
+///
+/// Uses `dataSlice: { offset: 0, length: 0 }` so the RPC returns only pubkeys
+/// and metadata — cutting bandwidth by ~99% compared to fetching full accounts.
+/// Automatically selects standard vs V2 (paginated) API based on localhost
+/// detection, same as `run_bootstrap`.
+pub async fn count_program_accounts(
+    rpc_url: &str,
+    program_id: &Pubkey,
+    filters: Option<Vec<serde_json::Value>>,
+) -> Result<usize> {
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(30))
+        .build()
+        .map_err(|e| anyhow::anyhow!("Failed to create HTTP client: {}", e))?;
+
+    if is_localhost(rpc_url) {
+        let mut params = json!({
+            "encoding": "base64",
+            "commitment": "confirmed",
+            "dataSlice": { "offset": 0, "length": 0 }
+        });
+        if let Some(ref f) = filters {
+            params["filters"] = json!(f);
+        }
+        let payload = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "getProgramAccounts",
+            "params": [program_id.to_string(), params]
+        });
+        let result = send_rpc_request(&client, rpc_url, &payload).await?;
+        Ok(result.as_array().map(|a| a.len()).unwrap_or(0))
+    } else {
+        let mut total = 0usize;
+        let mut cursor: Option<String> = None;
+        let mut page = 0i32;
+
+        loop {
+            page += 1;
+            let mut params = json!({
+                "encoding": "base64",
+                "commitment": "confirmed",
+                "dataSlice": { "offset": 0, "length": 0 },
+                "limit": PAGE_SIZE
+            });
+            if let Some(ref f) = filters {
+                params["filters"] = json!(f);
+            }
+            if let Some(ref c) = cursor {
+                params["paginationKey"] = json!(c);
+            }
+            let payload = json!({
+                "jsonrpc": "2.0",
+                "id": page,
+                "method": "getProgramAccountsV2",
+                "params": [program_id.to_string(), params]
+            });
+
+            let result = send_rpc_request(&client, rpc_url, &payload).await?;
+            let count = extract_accounts_array(&result)
+                .map(|a| a.len())
+                .unwrap_or(0);
+            if count == 0 {
+                break;
+            }
+            total += count;
+
+            cursor = extract_pagination_cursor(&result);
+            if cursor.is_none() {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(DEFAULT_PAGINATION_DELAY_MS)).await;
+        }
+
+        Ok(total)
+    }
+}
+
+/// Counts compressible CToken and Mint accounts on-chain via RPC.
+///
+/// Uses `count_program_accounts` with `dataSlice` to minimize
+/// bandwidth. Both queries run concurrently. Errors are propagated so callers
+/// can distinguish "0 accounts" from "RPC failure".
+pub async fn count_compressible_accounts(rpc_url: &str) -> Result<(usize, usize)> {
+    let program_id =
+        Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
+
+    let ctoken_filters = vec![json!({"memcmp": {
+        "offset": ACCOUNT_TYPE_OFFSET,
+        "bytes": CTOKEN_ACCOUNT_TYPE_FILTER,
+        "encoding": "base58"
+    }})];
+
+    let mint_filters = vec![json!({"memcmp": {
+        "offset": ACCOUNT_TYPE_OFFSET,
+        "bytes": MINT_ACCOUNT_TYPE_FILTER,
+        "encoding": "base58"
+    }})];
+
+    let (ctoken_result, mint_result) = tokio::join!(
+        count_program_accounts(rpc_url, &program_id, Some(ctoken_filters)),
+        count_program_accounts(rpc_url, &program_id, Some(mint_filters)),
+    );
+
+    Ok((ctoken_result?, mint_result?))
 }

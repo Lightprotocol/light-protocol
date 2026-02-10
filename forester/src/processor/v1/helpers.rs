@@ -299,6 +299,14 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
         Vec::new()
     };
 
+    if address_proofs.len() != address_items.len() {
+        return Err(anyhow::anyhow!(
+            "Address proof count mismatch: requested={}, received={}",
+            address_items.len(),
+            address_proofs.len()
+        ));
+    }
+
     for (item, proof) in address_items.iter().zip(address_proofs.into_iter()) {
         proofs.push(MerkleProofType::AddressProof(proof.clone()));
         let instruction = create_update_address_merkle_tree_instruction(
@@ -328,6 +336,14 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
     }
 
     // Process state proofs and create instructions
+    if state_proofs.len() != state_items.len() {
+        return Err(anyhow::anyhow!(
+            "State proof count mismatch: requested={}, received={}",
+            state_items.len(),
+            state_proofs.len()
+        ));
+    }
+
     for (item, proof) in state_items.iter().zip(state_proofs.into_iter()) {
         proofs.push(MerkleProofType::StateProof(proof.clone()));
 

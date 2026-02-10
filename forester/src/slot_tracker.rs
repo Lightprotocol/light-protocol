@@ -10,8 +10,10 @@ use light_client::rpc::Rpc;
 use tokio::time::{sleep, Duration};
 use tracing::{error, trace};
 
+const SLOT_DURATION_MS: u64 = 400;
+
 pub fn slot_duration() -> Duration {
-    Duration::from_nanos(solana_sdk::genesis_config::GenesisConfig::default().ns_per_slot() as u64)
+    Duration::from_millis(SLOT_DURATION_MS)
 }
 
 fn slot_duration_secs() -> f64 {
