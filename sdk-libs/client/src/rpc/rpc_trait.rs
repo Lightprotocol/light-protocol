@@ -279,5 +279,4 @@ pub trait Rpc: Send + Sync + Debug + 'static {
         address: &Pubkey,
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<Option<MintInterface>>, RpcError>;
-
 }

@@ -55,7 +55,11 @@ fn test_swap_instruction_accounts() {
     let sdk = test_sdk();
     let accounts = sdk.instruction_accounts(&AmmInstruction::Swap);
 
-    assert_eq!(accounts.len(), 4, "Swap: pool_state, vault_0, vault_1, observation");
+    assert_eq!(
+        accounts.len(),
+        4,
+        "Swap: pool_state, vault_0, vault_1, observation"
+    );
     assert!(accounts.contains(&sdk.pool_state_pubkey));
     assert!(accounts.contains(&sdk.token_0_vault));
     assert!(accounts.contains(&sdk.token_1_vault));
@@ -69,7 +73,11 @@ fn test_deposit_instruction_accounts() {
     let sdk = test_sdk();
     let accounts = sdk.instruction_accounts(&AmmInstruction::Deposit);
 
-    assert_eq!(accounts.len(), 5, "Deposit: pool_state, vault_0, vault_1, observation, lp_mint");
+    assert_eq!(
+        accounts.len(),
+        5,
+        "Deposit: pool_state, vault_0, vault_1, observation, lp_mint"
+    );
     assert!(accounts.contains(&sdk.pool_state_pubkey));
     assert!(accounts.contains(&sdk.token_0_vault));
     assert!(accounts.contains(&sdk.token_1_vault));
@@ -82,25 +90,46 @@ fn test_withdraw_equals_deposit() {
     let sdk = test_sdk();
     let deposit = sdk.instruction_accounts(&AmmInstruction::Deposit);
     let withdraw = sdk.instruction_accounts(&AmmInstruction::Withdraw);
-    assert_eq!(deposit, withdraw, "Deposit and Withdraw have identical account sets");
+    assert_eq!(
+        deposit, withdraw,
+        "Deposit and Withdraw have identical account sets"
+    );
 }
 
 #[test]
 fn test_deposit_superset_of_swap() {
     let sdk = test_sdk();
-    let swap: HashSet<Pubkey> = sdk.instruction_accounts(&AmmInstruction::Swap).into_iter().collect();
-    let deposit: HashSet<Pubkey> = sdk.instruction_accounts(&AmmInstruction::Deposit).into_iter().collect();
+    let swap: HashSet<Pubkey> = sdk
+        .instruction_accounts(&AmmInstruction::Swap)
+        .into_iter()
+        .collect();
+    let deposit: HashSet<Pubkey> = sdk
+        .instruction_accounts(&AmmInstruction::Deposit)
+        .into_iter()
+        .collect();
 
-    assert!(swap.is_subset(&deposit), "Swap accounts must be a subset of Deposit accounts");
+    assert!(
+        swap.is_subset(&deposit),
+        "Swap accounts must be a subset of Deposit accounts"
+    );
 }
 
 #[test]
 fn test_no_duplicate_pubkeys_in_instruction_accounts() {
     let sdk = test_sdk();
-    for ix in [AmmInstruction::Swap, AmmInstruction::Deposit, AmmInstruction::Withdraw] {
+    for ix in [
+        AmmInstruction::Swap,
+        AmmInstruction::Deposit,
+        AmmInstruction::Withdraw,
+    ] {
         let accounts = sdk.instruction_accounts(&ix);
         let unique: HashSet<Pubkey> = accounts.iter().copied().collect();
-        assert_eq!(accounts.len(), unique.len(), "No duplicate pubkeys for {:?}", ix);
+        assert_eq!(
+            accounts.len(),
+            unique.len(),
+            "No duplicate pubkeys for {:?}",
+            ix
+        );
     }
 }
 
@@ -128,7 +157,9 @@ fn test_load_specs_unknown_pubkey_skipped() {
             rent_epoch: 0,
         },
     );
-    let specs = sdk.load_specs(&[unknown]).expect("unknown pubkey should be skipped");
+    let specs = sdk
+        .load_specs(&[unknown])
+        .expect("unknown pubkey should be skipped");
     assert!(specs.is_empty());
 }
 
@@ -181,7 +212,10 @@ fn test_all_hot_with_hot_spec() {
 fn test_error_display() {
     let err = AmmSdkError::ParseError("deserialization failed".to_string());
     let msg = format!("{}", err);
-    assert!(msg.contains("deserialization"), "ParseError should include cause");
+    assert!(
+        msg.contains("deserialization"),
+        "ParseError should include cause"
+    );
 }
 
 // =============================================================================
@@ -246,8 +280,14 @@ fn test_swap_returns_both_vaults() {
     let sdk = test_sdk();
     let accounts = sdk.instruction_accounts(&AmmInstruction::Swap);
 
-    assert!(accounts.contains(&sdk.token_0_vault), "Swap must include vault_0");
-    assert!(accounts.contains(&sdk.token_1_vault), "Swap must include vault_1");
+    assert!(
+        accounts.contains(&sdk.token_0_vault),
+        "Swap must include vault_0"
+    );
+    assert!(
+        accounts.contains(&sdk.token_1_vault),
+        "Swap must include vault_1"
+    );
 }
 
 #[test]

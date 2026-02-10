@@ -496,8 +496,8 @@ async fn decompress_all(ctx: &mut AmmTestContext, pdas: &AmmPdas) {
         .expect("pool_state should exist");
     assert!(pool_interface.is_cold(), "pool_state should be cold");
 
-    let sdk = AmmSdk::new(pdas.pool_state, pool_interface.data())
-        .expect("AmmSdk::new should succeed");
+    let sdk =
+        AmmSdk::new(pdas.pool_state, pool_interface.data()).expect("AmmSdk::new should succeed");
 
     let pubkeys = sdk.instruction_accounts(&AmmInstruction::Deposit);
     let account_interfaces = ctx
@@ -512,7 +512,9 @@ async fn decompress_all(ctx: &mut AmmTestContext, pdas: &AmmPdas) {
         .filter(|a| a.is_cold())
         .collect();
 
-    let specs = sdk.load_specs(&cold_accounts).expect("load_specs should succeed");
+    let specs = sdk
+        .load_specs(&cold_accounts)
+        .expect("load_specs should succeed");
 
     let creator_lp_interface: TokenAccountInterface = ctx
         .rpc

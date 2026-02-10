@@ -196,7 +196,9 @@ impl LightProgramInterface for AmmSdk {
                     token_data: token,
                 });
                 let interface = Self::convert_vault_interface(account)?;
-                specs.push(AccountSpec::Pda(PdaSpec::new(interface, variant, PROGRAM_ID)));
+                specs.push(AccountSpec::Pda(PdaSpec::new(
+                    interface, variant, PROGRAM_ID,
+                )));
             } else if account.key == self.token_1_vault {
                 let token: Token = Token::deserialize(&mut &account.data()[..])
                     .map_err(|e| AmmSdkError::ParseError(e.to_string()))?;
@@ -208,7 +210,9 @@ impl LightProgramInterface for AmmSdk {
                     token_data: token,
                 });
                 let interface = Self::convert_vault_interface(account)?;
-                specs.push(AccountSpec::Pda(PdaSpec::new(interface, variant, PROGRAM_ID)));
+                specs.push(AccountSpec::Pda(PdaSpec::new(
+                    interface, variant, PROGRAM_ID,
+                )));
             } else if account.key == self.lp_mint {
                 specs.push(AccountSpec::Mint(account.clone()));
             }
