@@ -200,8 +200,8 @@ light-hash-set = { version = "4.0.0", path = "program-libs/hash-set" }
 light-indexed-merkle-tree = { version = "5.0.0", path = "program-libs/indexed-merkle-tree" }
 light-concurrent-merkle-tree = { version = "5.0.0", path = "program-libs/concurrent-merkle-tree" }
 light-sparse-merkle-tree = { version = "0.3.0", path = "sparse-merkle-tree" }
-light-client = { path = "sdk-libs/client", version = "0.20.0" }
-light-event = { path = "sdk-libs/event", version = "0.20.0" }
+light-client = { path = "sdk-libs/client", version = "0.21.0" }
+light-event = { path = "sdk-libs/event", version = "0.21.0" }
 light-hasher = { path = "program-libs/hasher", version = "5.0.0", default-features = false }
 light-macros = { path = "program-libs/macros", version = "2.2.0" }
 light-merkle-tree-reference = { path = "program-tests/merkle-tree", version = "4.0.0" }
@@ -213,7 +213,7 @@ light-sdk = { path = "sdk-libs/sdk", version = "0.20.0" }
 light-sdk-pinocchio = { path = "sdk-libs/sdk-pinocchio", version = "0.20.0" }
 light-sdk-macros = { path = "sdk-libs/macros", version = "0.20.0" }
 light-sdk-types = { path = "sdk-libs/sdk-types", version = "0.20.0", default-features = false }
-light-compressed-account = { path = "program-libs/compressed-account", version = "0.10.0", default-features = false }
+light-compressed-account = { path = "program-libs/compressed-account", version = "0.10.1", default-features = false }
 light-compressible = { path = "program-libs/compressible", version = "0.5.0", default-features = false }
 light-token-interface = { path = "program-libs/token-interface", version = "0.4.0" }
 light-account-checks = { path = "program-libs/account-checks", version = "0.8.0", default-features = false }
@@ -233,7 +233,7 @@ light-token-types = { path = "sdk-libs/token-types", version = "0.20.0" }
 light-token = { path = "sdk-libs/token-sdk", version = "0.20.0" }
 light-token-pinocchio = { path = "sdk-libs/token-pinocchio", version = "0.20.0" }
 light-compressed-token-sdk = { path = "sdk-libs/compressed-token-sdk", version = "0.20.0" }
-light-token-client = { path = "sdk-libs/token-client", version = "0.20.0" }
+light-token-client = { path = "sdk-libs/token-client", version = "0.21.0" }
 light-system-program-anchor = { path = "anchor-programs/system", version = "2.0.0", features = [
     "cpi",
 ] }
@@ -244,7 +244,7 @@ light-registry = { path = "programs/registry", version = "2.0.0", features = [
 create-address-test-program = { path = "program-tests/create-address-test-program", version = "1.0.0", features = [
     "cpi",
 ] }
-light-program-test = { path = "sdk-libs/program-test", version = "0.20.0" }
+light-program-test = { path = "sdk-libs/program-test", version = "0.21.0" }
 light-instruction-decoder = { path = "sdk-libs/instruction-decoder", version = "0.20.0" }
 light-instruction-decoder-derive = { path = "sdk-libs/instruction-decoder-derive", version = "0.2.0" }
 light-batched-merkle-tree = { path = "program-libs/batched-merkle-tree", version = "0.10.0" }
