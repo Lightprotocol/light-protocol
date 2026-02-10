@@ -69,6 +69,12 @@ pub fn create_compressible_account<'info>(
     account_seeds: Option<&[Seed]>,
     is_ata: bool,
 ) -> Result<CompressibleInitData<'info>, ProgramError> {
+    // Validate rent payer is not the token account itself
+    if rent_payer.key() == target_account.key() {
+        msg!("Rent sponsor cannot be the token account itself");
+        return Err(ProgramError::InvalidAccountData);
+    }
+
     // Validate rent_payment != 1 (epoch boundary edge case)
     if compressible_config.rent_payment == 1 {
         msg!("Prefunding for exactly 1 epoch is not allowed. If the account is created near an epoch boundary, it could become immediately compressible. Use 0 or 2+ epochs.");
