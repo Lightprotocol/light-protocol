@@ -9,7 +9,15 @@
 
 use anchor_lang::{system_program, InstructionData, ToAccountMetas};
 use light_client::indexer::Indexer;
+use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
 use light_compressed_token_sdk::{
+    compressed_token::{
+        transfer2::{
+            create_transfer2_instruction, Transfer2AccountsMetaConfig, Transfer2Config,
+            Transfer2Inputs,
+        },
+        CTokenAccount2,
+    },
     constants::CPI_AUTHORITY_PDA,
     spl_interface::find_spl_interface_pda_with_index as sdk_find_spl_interface_pda,
 };
@@ -23,7 +31,8 @@ use light_test_utils::{
         create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,
     },
     mint_2022::{
-        create_token_22_account, mint_spl_tokens_22, set_mint_transfer_fee, set_mint_transfer_hook,
+        create_token_22_account, mint_spl_tokens_22, pause_mint, set_mint_transfer_fee,
+        set_mint_transfer_hook,
     },
 };
 use light_token::instruction::{
@@ -31,11 +40,19 @@ use light_token::instruction::{
 };
 use light_token_interface::{
     find_spl_interface_pda_with_index,
-    instructions::extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
+    instructions::{
+        extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
+        transfer2::{Compression, MultiTokenTransferOutputData},
+    },
     state::TokenDataVersion,
 };
 use serial_test::serial;
-use solana_sdk::{instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer};
+use solana_sdk::{
+    instruction::{AccountMeta, Instruction},
+    pubkey::Pubkey,
+    signature::Keypair,
+    signer::Signer,
+};
 use spl_token_2022::{
     extension::{
         transfer_fee::instruction::initialize_transfer_fee_config,
@@ -46,6 +63,9 @@ use spl_token_2022::{
 };
 
 use super::shared::{setup_extensions_test, ExtensionsTestContext};
+
+/// Expected error code for MintPaused
+const MINT_PAUSED: u32 = 6127;
 
 /// Expected error code for NonZeroTransferFeeNotSupported
 const NON_ZERO_TRANSFER_FEE_NOT_SUPPORTED: u32 = 6129;
@@ -693,4 +713,209 @@ async fn test_decompress_bypasses_non_nil_hook() {
         .unwrap();
 
     println!("Decompress bypassed non-nil transfer hook check");
+}
+
+// ============================================================================
+// cToken-to-cToken Blocking Tests
+//
+// These tests verify that cToken-to-cToken transfers (Compress from cToken A +
+// Decompress to cToken B with no compressed accounts) are BLOCKED when
+// extension state is invalid (non-zero fees, paused, non-nil hook).
+// ============================================================================
+
+/// Build a cToken-to-cToken transfer instruction.
+///
+/// This constructs a transfer2 instruction with:
+/// - Compress from source cToken (subtract tokens)
+/// - Decompress to destination cToken (add tokens)
+/// - No compressed accounts in either direction (hot path)
+fn create_ctoken_to_ctoken_instruction(
+    payer: Pubkey,
+    source_ctoken: Pubkey,
+    dest_ctoken: Pubkey,
+    authority: Pubkey,
+    mint: Pubkey,
+    amount: u64,
+) -> Instruction {
+    let packed_accounts = vec![
+        // Mint (index 0)
+        AccountMeta::new_readonly(mint, false),
+        // Source ctoken account (index 1) - writable
+        AccountMeta::new(source_ctoken, false),
+        // Authority for compression (index 2) - signer
+        AccountMeta::new_readonly(authority, true),
+        // Destination ctoken account (index 3) - writable
+        AccountMeta::new(dest_ctoken, false),
+        // System program (index 4) - needed for compressible account lamport top-ups
+        AccountMeta::new_readonly(Pubkey::default(), false),
+    ];
+
+    let compress_from_source = CTokenAccount2 {
+        inputs: vec![],
+        output: MultiTokenTransferOutputData::default(),
+        compression: Some(Compression::compress(
+            amount, 0, // mint index
+            1, // source ctoken index
+            2, // authority index
+        )),
+        delegate_is_set: false,
+        method_used: true,
+    };
+
+    let decompress_to_dest = CTokenAccount2 {
+        inputs: vec![],
+        output: MultiTokenTransferOutputData::default(),
+        compression: Some(Compression::decompress(
+            amount, 0, // mint index
+            3, // destination ctoken index
+        )),
+        delegate_is_set: false,
+        method_used: true,
+    };
+
+    let inputs = Transfer2Inputs {
+        validity_proof: ValidityProof::new(None),
+        transfer_config: Transfer2Config::default().filter_zero_amount_outputs(),
+        meta_config: Transfer2AccountsMetaConfig::new_decompressed_accounts_only(
+            payer,
+            packed_accounts,
+        ),
+        in_lamports: None,
+        out_lamports: None,
+        token_accounts: vec![compress_from_source, decompress_to_dest],
+        output_queue: 0,
+        in_tlv: None,
+    };
+
+    create_transfer2_instruction(inputs).unwrap()
+}
+
+/// Helper: Set up source cToken (with tokens) and an empty destination cToken for
+/// cToken-to-cToken transfer tests. Extension state is still valid at this point.
+/// Returns (context, source_ctoken, dest_ctoken, owner).
+async fn setup_ctoken_to_ctoken_test(
+    extensions: &[ExtensionType],
+) -> (ExtensionsTestContext, Pubkey, Pubkey, Keypair) {
+    let mut context = setup_extensions_test(extensions).await.unwrap();
+    let payer = context.payer.insecure_clone();
+    let mint_pubkey = context.mint_pubkey;
+
+    let (source_ctoken, _spl_source, owner, _) = setup_ctoken_for_bypass_test(&mut context).await;
+
+    let dest_keypair = Keypair::new();
+    let dest_ctoken = dest_keypair.pubkey();
+    let create_dest_ix =
+        CreateTokenAccount::new(payer.pubkey(), dest_ctoken, mint_pubkey, owner.pubkey())
+            .with_compressible(CompressibleParams {
+                compressible_config: context
+                    .rpc
+                    .test_accounts
+                    .funding_pool_config
+                    .compressible_config_pda,
+                rent_sponsor: context
+                    .rpc
+                    .test_accounts
+                    .funding_pool_config
+                    .rent_sponsor_pda,
+                pre_pay_num_epochs: 2,
+                lamports_per_write: Some(100),
+                compress_to_account_pubkey: None,
+                token_account_version: TokenDataVersion::ShaFlat,
+                compression_only: true,
+            })
+            .instruction()
+            .unwrap();
+
+    context
+        .rpc
+        .create_and_send_transaction(&[create_dest_ix], &payer.pubkey(), &[&payer, &dest_keypair])
+        .await
+        .unwrap();
+
+    (context, source_ctoken, dest_ctoken, owner)
+}
+
+/// Test that cToken-to-cToken transfer is blocked when the mint has non-zero transfer fees.
+#[tokio::test]
+#[serial]
+async fn test_ctoken_to_ctoken_blocked_by_non_zero_fee() {
+    let (mut context, source_ctoken, dest_ctoken, owner) =
+        setup_ctoken_to_ctoken_test(&[ExtensionType::TransferFeeConfig]).await;
+    let payer = context.payer.insecure_clone();
+    let mint_pubkey = context.mint_pubkey;
+
+    set_mint_transfer_fee(&mut context.rpc, &mint_pubkey, 100, 1000).await;
+
+    let transfer_ix = create_ctoken_to_ctoken_instruction(
+        payer.pubkey(),
+        source_ctoken,
+        dest_ctoken,
+        owner.pubkey(),
+        mint_pubkey,
+        100_000_000,
+    );
+
+    let result = context
+        .rpc
+        .create_and_send_transaction(&[transfer_ix], &payer.pubkey(), &[&payer, &owner])
+        .await;
+
+    assert_rpc_error(result, 0, NON_ZERO_TRANSFER_FEE_NOT_SUPPORTED).unwrap();
+}
+
+/// Test that cToken-to-cToken transfer is blocked when the mint is paused.
+#[tokio::test]
+#[serial]
+async fn test_ctoken_to_ctoken_blocked_by_pause() {
+    let (mut context, source_ctoken, dest_ctoken, owner) =
+        setup_ctoken_to_ctoken_test(&[ExtensionType::Pausable]).await;
+    let payer = context.payer.insecure_clone();
+    let mint_pubkey = context.mint_pubkey;
+
+    pause_mint(&mut context.rpc, &mint_pubkey).await;
+
+    let transfer_ix = create_ctoken_to_ctoken_instruction(
+        payer.pubkey(),
+        source_ctoken,
+        dest_ctoken,
+        owner.pubkey(),
+        mint_pubkey,
+        100_000_000,
+    );
+
+    let result = context
+        .rpc
+        .create_and_send_transaction(&[transfer_ix], &payer.pubkey(), &[&payer, &owner])
+        .await;
+
+    assert_rpc_error(result, 0, MINT_PAUSED).unwrap();
+}
+
+/// Test that cToken-to-cToken transfer is blocked when the mint has a non-nil transfer hook.
+#[tokio::test]
+#[serial]
+async fn test_ctoken_to_ctoken_blocked_by_non_nil_hook() {
+    let (mut context, source_ctoken, dest_ctoken, owner) =
+        setup_ctoken_to_ctoken_test(&[ExtensionType::TransferHook]).await;
+    let payer = context.payer.insecure_clone();
+    let mint_pubkey = context.mint_pubkey;
+
+    let dummy_hook_program = Pubkey::new_unique();
+    set_mint_transfer_hook(&mut context.rpc, &mint_pubkey, dummy_hook_program).await;
+
+    let transfer_ix = create_ctoken_to_ctoken_instruction(
+        payer.pubkey(),
+        source_ctoken,
+        dest_ctoken,
+        owner.pubkey(),
+        mint_pubkey,
+        100_000_000,
+    );
+
+    let result = context
+        .rpc
+        .create_and_send_transaction(&[transfer_ix], &payer.pubkey(), &[&payer, &owner])
+        .await;
+
+    assert_rpc_error(result, 0, TRANSFER_HOOK_NOT_SUPPORTED).unwrap();
 }

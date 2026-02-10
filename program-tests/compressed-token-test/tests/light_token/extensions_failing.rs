@@ -450,10 +450,10 @@ async fn test_spl_to_ctoken_fails_with_non_zero_transfer_fee() {
     .instruction()
     .unwrap();
 
-    context
+    let result = context
         .rpc
         .create_and_send_transaction(&[transfer_ix], &payer.pubkey(), &[&payer])
-        .await
-        .unwrap();
+        .await;
+    assert_rpc_error(result, 0, NON_ZERO_TRANSFER_FEE_NOT_SUPPORTED).unwrap();
     println!("Correctly rejected SPL→Light Token with non-zero transfer fees");
 }
