@@ -292,15 +292,18 @@ ctoken.base.set_initialized();
 
 **Trigger:** Decompressing a compressed token that has CompressedOnly extension.
 
-**State Restoration (`validate_and_apply_compressed_only` function, lines 15-70):**
+**State Restoration (`validate_and_apply_compressed_only` function, lines 15-64):**
 1. Return early if no decompress inputs or no CompressedOnly extension (lines 23-29)
-2. Validate amount matches for ATA or compress_to_pubkey decompress (lines 31-46)
-3. Validate destination ownership via `validate_destination` (lines 48-56)
-4. Restore delegate pubkey and delegated_amount via `apply_delegate` (lines 58-59)
-5. Restore `withheld_transfer_fee` via `apply_withheld_fee` (lines 61-62)
-6. Restore frozen state via `ctoken.base.set_frozen()` (lines 64-67)
+2. Validate amount matches compression amount (lines 31-40)
+3. Validate destination ownership via `validate_destination` (lines 42-50)
+4. Apply delegate state via `apply_delegate` (line 53):
+   - If no existing delegate: set delegate and accumulate delegated_amount
+   - If existing delegate matches input: accumulate delegated_amount
+   - If existing delegate differs: skip (no accumulation, silent ignore)
+5. Restore `withheld_transfer_fee` via `apply_withheld_fee` (line 56)
+6. Restore frozen state via `ctoken.base.set_frozen()` (lines 58-61)
 
-**Validation (`validate_destination`, lines 77-106):**
+**Validation (`validate_destination`, lines 66-100):**
 - For non-ATA: CToken owner must match input owner
 - For ATA: destination address must match input owner (ATA pubkey), and CToken owner must match wallet owner
 
@@ -308,13 +311,13 @@ ctoken.base.set_initialized();
 
 | Field | Preserved (C&C) | Restored (Decompress) | Notes |
 |-------|-----------------|----------------------|-------|
-| delegated_amount | ✅ | ✅ | Stored in extension |
-| withheld_transfer_fee | ✅ | ✅ | Restored to TransferFeeAccount |
-| is_frozen | ✅ | ✅ | Restored via `set_frozen()` |
-| is_ata | ✅ | ✅ | Used to validate ATA derivation on decompress |
-| delegate pubkey | Validated | From input | Passed as instruction account |
-| amount | ❌ (set to 0) | From compression | New amount from compressed token |
-| close_authority | ❌ | ❌ | Not preserved |
+| delegated_amount | Yes | Yes | Accumulated when delegates match |
+| withheld_transfer_fee | Yes | Yes | Restored to TransferFeeAccount |
+| is_frozen | Yes | Yes | Restored via `set_frozen()` |
+| is_ata | Yes | Yes | Used to validate ATA derivation on decompress |
+| delegate pubkey | Validated | Set or matched | Set if no existing; accumulation requires match |
+| amount | No (set to 0) | From compression | New amount from compressed token |
+| close_authority | No | No | Not preserved |
 
 ### Error Codes
 
@@ -490,7 +493,7 @@ MintExtensionChecks {
 
 ## Open Questions
 
-### 1. ~~Should DefaultAccountState be a restricted extension?~~ ✅ IMPLEMENTED
+### 1. ~~Should DefaultAccountState be a restricted extension?~~ IMPLEMENTED
 
 **Status:** Implemented. `DefaultAccountState` is now in `RESTRICTED_EXTENSION_TYPES`.
 
@@ -499,7 +502,7 @@ When a mint has the `DefaultAccountState` extension (regardless of current state
 2. Once compressed, we don't re-check the mint's DefaultAccountState when creating outputs
 3. CToken accounts still respect the current frozen state for proper initialization
 
-### 2. ~~How to enforce restricted extensions in anchor instructions?~~ ✅ IMPLEMENTED
+### 2. ~~How to enforce restricted extensions in anchor instructions?~~ IMPLEMENTED
 
 **Status:** Implemented via different pool PDA derivation for restricted mints.
 
