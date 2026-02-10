@@ -15,7 +15,7 @@ use quote::{format_ident, quote};
 use syn::{Ident, Result, Type};
 
 use super::parsing::{SeedElement, TokenSeedSpec};
-use crate::light_pdas::shared_utils::qualify_type_with_crate;
+use crate::light_pdas::{backend::CodegenBackend, shared_utils::qualify_type_with_crate};
 
 // =============================================================================
 // LIGHT VARIANT BUILDER
@@ -71,20 +71,22 @@ impl<'a> LightVariantBuilder<'a> {
         Ok(())
     }
 
-    /// Generate the complete enum definitions and trait implementations.
-    pub fn build(&self) -> Result<TokenStream> {
+    /// Generate the complete enum definitions and trait implementations using the specified backend.
+    pub fn build_with_backend(&self, backend: &dyn CodegenBackend) -> Result<TokenStream> {
         self.validate()?;
 
         // NOTE: Variant structs (`RecordVariant`, `PackedRecordVariant`, etc.) are generated
         // by `#[derive(LightAccounts)]` in the instruction module. We just wrap them in
         // the program-wide enum here. Do NOT regenerate them to avoid conflicts.
-        let token_seeds_structs = self.generate_token_seeds_structs();
-        let token_variant_trait_impls = self.generate_token_variant_trait_impls();
-        let unpacked_enum = self.generate_unpacked_enum();
-        let packed_enum = self.generate_packed_enum();
-        let light_account_data_struct = self.generate_light_account_data_struct();
-        let decompress_variant_impl = self.generate_decompress_variant_impl();
-        let pack_impl = self.generate_pack_impl();
+        let token_seeds_structs = self.generate_token_seeds_structs_with_backend(backend);
+        let token_variant_trait_impls =
+            self.generate_token_variant_trait_impls_with_backend(backend);
+        let unpacked_enum = self.generate_unpacked_enum_with_backend(backend);
+        let packed_enum = self.generate_packed_enum_with_backend(backend);
+        let light_account_data_struct =
+            self.generate_light_account_data_struct_with_backend(backend);
+        let decompress_variant_impl = self.generate_decompress_variant_impl_with_backend(backend);
+        let pack_impl = self.generate_pack_impl_with_backend(backend);
 
         Ok(quote! {
             #token_seeds_structs
@@ -97,43 +99,36 @@ impl<'a> LightVariantBuilder<'a> {
         })
     }
 
-    /// Generate pinocchio-compatible enum definitions and trait implementations.
-    ///
-    /// Same as `build()` but uses:
-    /// - `BorshSerialize/BorshDeserialize` instead of `AnchorSerialize/AnchorDeserialize`
-    /// - `light_account_pinocchio::` instead of `light_account::`
-    /// - `pinocchio::account_info::AccountInfo` instead of anchor's AccountInfo
-    pub fn build_pinocchio(&self) -> Result<TokenStream> {
-        self.validate()?;
+    // =========================================================================
+    // UNIFIED BACKEND-BASED GENERATION METHODS
+    // =========================================================================
 
-        let token_seeds_structs = self.generate_token_seeds_structs_pinocchio();
-        let token_variant_trait_impls = self.generate_token_variant_trait_impls_pinocchio();
-        let unpacked_enum = self.generate_unpacked_enum_pinocchio();
-        let packed_enum = self.generate_packed_enum_pinocchio();
-        let light_account_data_struct = self.generate_light_account_data_struct_pinocchio();
-        let decompress_variant_impl = self.generate_decompress_variant_impl_pinocchio();
-        let pack_impl = self.generate_pack_impl_pinocchio();
+    /// Generate the `LightAccountData` wrapper struct using the specified backend.
+    fn generate_light_account_data_struct_with_backend(
+        &self,
+        backend: &dyn CodegenBackend,
+    ) -> TokenStream {
+        let account_crate = backend.account_crate();
+        let serialize_derive = backend.serialize_derive();
+        let deserialize_derive = backend.deserialize_derive();
 
-        Ok(quote! {
-            #token_seeds_structs
-            #token_variant_trait_impls
-            #unpacked_enum
-            #packed_enum
-            #light_account_data_struct
-            #decompress_variant_impl
-            #pack_impl
-        })
-    }
-
-    /// Generate the `LightAccountData` wrapper struct.
-    fn generate_light_account_data_struct(&self) -> TokenStream {
-        quote! {
-            /// Wrapper for compressed account data with metadata.
-            /// Contains PACKED variant data that will be decompressed into PDA accounts.
-            #[derive(Clone, Debug, borsh::BorshSerialize, borsh::BorshDeserialize)]
-            pub struct LightAccountData {
-                pub meta: light_account::account_meta::CompressedAccountMetaNoLamportsNoAddress,
-                pub data: PackedLightAccountVariant,
+        if backend.is_pinocchio() {
+            quote! {
+                #[derive(Clone, Debug, #serialize_derive, #deserialize_derive)]
+                pub struct LightAccountData {
+                    pub meta: #account_crate::account_meta::CompressedAccountMetaNoLamportsNoAddress,
+                    pub data: PackedLightAccountVariant,
+                }
+            }
+        } else {
+            quote! {
+                /// Wrapper for compressed account data with metadata.
+                /// Contains PACKED variant data that will be decompressed into PDA accounts.
+                #[derive(Clone, Debug, #serialize_derive, #deserialize_derive)]
+                pub struct LightAccountData {
+                    pub meta: #account_crate::account_meta::CompressedAccountMetaNoLamportsNoAddress,
+                    pub data: PackedLightAccountVariant,
+                }
             }
         }
     }
@@ -143,8 +138,16 @@ impl<'a> LightVariantBuilder<'a> {
     // =========================================================================
 
     /// Generate `{Variant}Seeds`, `Packed{Variant}Seeds`, and their Pack/Unpack impls
-    /// for each token variant. Same pattern as PDA seeds structs in accounts/variant.rs.
-    fn generate_token_seeds_structs(&self) -> TokenStream {
+    /// for each token variant using the specified backend.
+    fn generate_token_seeds_structs_with_backend(
+        &self,
+        backend: &dyn CodegenBackend,
+    ) -> TokenStream {
+        let account_crate = backend.account_crate();
+        let serialize_derive = backend.serialize_derive();
+        let deserialize_derive = backend.deserialize_derive();
+        let sdk_error = backend.sdk_error_type();
+
         let structs: Vec<_> = self
             .token_seeds
             .iter()
@@ -154,10 +157,16 @@ impl<'a> LightVariantBuilder<'a> {
                 let packed_seeds_name = format_ident!("Packed{}Seeds", variant_name);
                 let ctx_fields = extract_ctx_fields_from_token_spec(spec);
 
-                // Unpacked seeds: Pubkey fields
+                // Unpacked seeds: Pubkey or [u8; 32] fields depending on backend
                 let unpacked_fields: Vec<_> = ctx_fields
                     .iter()
-                    .map(|f| quote! { pub #f: Pubkey })
+                    .map(|f| {
+                        if backend.is_pinocchio() {
+                            quote! { pub #f: [u8; 32] }
+                        } else {
+                            quote! { pub #f: Pubkey }
+                        }
+                    })
                     .collect();
 
                 // Packed seeds: u8 index fields + bump
@@ -174,7 +183,11 @@ impl<'a> LightVariantBuilder<'a> {
                     .iter()
                     .map(|f| {
                         let idx = format_ident!("{}_idx", f);
-                        quote! { #idx: remaining_accounts.insert_or_get(AM::pubkey_from_bytes(self.#f.to_bytes())) }
+                        if backend.is_pinocchio() {
+                            quote! { #idx: remaining_accounts.insert_or_get(light_account_pinocchio::solana_pubkey::Pubkey::from(self.#f)) }
+                        } else {
+                            quote! { #idx: remaining_accounts.insert_or_get(AM::pubkey_from_bytes(self.#f.to_bytes())) }
+                        }
                     })
                     .collect();
 
@@ -185,18 +198,28 @@ impl<'a> LightVariantBuilder<'a> {
                     .map(seed_to_unpacked_ref)
                     .collect();
 
-                // Unpack impl: u8 index -> Pubkey
+                // Unpack impl: u8 index -> Pubkey or [u8; 32]
                 let unpack_resolve_stmts: Vec<_> = ctx_fields
                     .iter()
                     .map(|f| {
                         let idx = format_ident!("{}_idx", f);
-                        quote! {
-                            let #f = solana_pubkey::Pubkey::new_from_array(
-                                remaining_accounts
-                                    .get(self.#idx as usize)
-                                    .ok_or(light_account::LightSdkTypesError::InvalidInstructionData)?
-                                    .key()
-                            );
+                        if backend.is_pinocchio() {
+                            quote! {
+                                let #f: [u8; 32] =
+                                    remaining_accounts
+                                        .get(self.#idx as usize)
+                                        .ok_or(#sdk_error::InvalidInstructionData)?
+                                        .key();
+                            }
+                        } else {
+                            quote! {
+                                let #f = solana_pubkey::Pubkey::new_from_array(
+                                    remaining_accounts
+                                        .get(self.#idx as usize)
+                                        .ok_or(#sdk_error::InvalidInstructionData)?
+                                        .key()
+                                );
+                            }
                         }
                     })
                     .collect();
@@ -205,14 +228,95 @@ impl<'a> LightVariantBuilder<'a> {
 
                 let seeds_struct = if unpacked_fields.is_empty() {
                     quote! {
-                        #[derive(anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize, Clone, Debug)]
+                        #[derive(#serialize_derive, #deserialize_derive, Clone, Debug)]
                         pub struct #seeds_name;
                     }
                 } else {
                     quote! {
-                        #[derive(anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize, Clone, Debug)]
+                        #[derive(#serialize_derive, #deserialize_derive, Clone, Debug)]
                         pub struct #seeds_name {
                             #(#unpacked_fields,)*
+                        }
+                    }
+                };
+
+                let pack_impl = if backend.is_pinocchio() {
+                    quote! {
+                        #[cfg(not(target_os = "solana"))]
+                        impl #account_crate::Pack<#account_crate::solana_instruction::AccountMeta> for #seeds_name {
+                            type Packed = #packed_seeds_name;
+
+                            fn pack(
+                                &self,
+                                remaining_accounts: &mut #account_crate::PackedAccounts,
+                            ) -> std::result::Result<Self::Packed, #sdk_error> {
+                                let __seeds: &[&[u8]] = &[#(#bump_seed_refs),*];
+                                let (_, __bump) = #account_crate::solana_pubkey::Pubkey::find_program_address(
+                                    __seeds,
+                                    &#account_crate::solana_pubkey::Pubkey::from(crate::LIGHT_CPI_SIGNER.program_id),
+                                );
+                                Ok(#packed_seeds_name {
+                                    #(#pack_stmts,)*
+                                    bump: __bump,
+                                })
+                            }
+                        }
+                    }
+                } else {
+                    quote! {
+                        // Pack trait is only available off-chain (client-side)
+                        #[cfg(not(target_os = "solana"))]
+                        impl<AM: #account_crate::AccountMetaTrait> #account_crate::Pack<AM> for #seeds_name {
+                            type Packed = #packed_seeds_name;
+
+                            fn pack(
+                                &self,
+                                remaining_accounts: &mut #account_crate::interface::instruction::PackedAccounts<AM>,
+                            ) -> std::result::Result<Self::Packed, #sdk_error> {
+                                let __seeds: &[&[u8]] = &[#(#bump_seed_refs),*];
+                                let (_, __bump) = solana_pubkey::Pubkey::find_program_address(
+                                    __seeds,
+                                    &solana_pubkey::Pubkey::from(crate::LIGHT_CPI_SIGNER.program_id),
+                                );
+                                Ok(#packed_seeds_name {
+                                    #(#pack_stmts,)*
+                                    bump: __bump,
+                                })
+                            }
+                        }
+                    }
+                };
+
+                let unpack_impl = if backend.is_pinocchio() {
+                    quote! {
+                        impl<AI: #account_crate::light_account_checks::AccountInfoTrait> #account_crate::Unpack<AI> for #packed_seeds_name {
+                            type Unpacked = #seeds_name;
+
+                            fn unpack(
+                                &self,
+                                remaining_accounts: &[AI],
+                            ) -> std::result::Result<Self::Unpacked, #sdk_error> {
+                                #(#unpack_resolve_stmts)*
+                                Ok(#seeds_name {
+                                    #(#unpack_field_assigns,)*
+                                })
+                            }
+                        }
+                    }
+                } else {
+                    quote! {
+                        impl<AI: #account_crate::AccountInfoTrait> #account_crate::Unpack<AI> for #packed_seeds_name {
+                            type Unpacked = #seeds_name;
+
+                            fn unpack(
+                                &self,
+                                remaining_accounts: &[AI],
+                            ) -> std::result::Result<Self::Unpacked, #sdk_error> {
+                                #(#unpack_resolve_stmts)*
+                                Ok(#seeds_name {
+                                    #(#unpack_field_assigns,)*
+                                })
+                            }
                         }
                     }
                 };
@@ -220,47 +324,15 @@ impl<'a> LightVariantBuilder<'a> {
                 quote! {
                     #seeds_struct
 
-                    #[derive(anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize, Clone, Debug)]
+                    #[derive(#serialize_derive, #deserialize_derive, Clone, Debug)]
                     pub struct #packed_seeds_name {
                         #(#packed_fields,)*
                         pub bump: u8,
                     }
 
-                    // Pack trait is only available off-chain (client-side)
-                    #[cfg(not(target_os = "solana"))]
-                    impl<AM: light_account::AccountMetaTrait> light_account::Pack<AM> for #seeds_name {
-                        type Packed = #packed_seeds_name;
+                    #pack_impl
 
-                        fn pack(
-                            &self,
-                            remaining_accounts: &mut light_account::interface::instruction::PackedAccounts<AM>,
-                        ) -> std::result::Result<Self::Packed, light_account::LightSdkTypesError> {
-                            let __seeds: &[&[u8]] = &[#(#bump_seed_refs),*];
-                            let (_, __bump) = solana_pubkey::Pubkey::find_program_address(
-                                __seeds,
-                                &solana_pubkey::Pubkey::from(crate::LIGHT_CPI_SIGNER.program_id),
-                            );
-                            Ok(#packed_seeds_name {
-                                #(#pack_stmts,)*
-                                bump: __bump,
-                            })
-                        }
-                    }
-
-                    impl<AI: light_account::AccountInfoTrait> light_account::Unpack<AI> for #packed_seeds_name {
-                        type Unpacked = #seeds_name;
-
-                        fn unpack(
-                            &self,
-                            remaining_accounts: &[AI],
-                        ) -> std::result::Result<Self::Unpacked, light_account::LightSdkTypesError> {
-                            #(#unpack_resolve_stmts)*
-                            Ok(#seeds_name {
-                                #(#unpack_field_assigns,)*
-                            })
-                        }
-                    }
-
+                    #unpack_impl
                 }
             })
             .collect();
@@ -273,9 +345,15 @@ impl<'a> LightVariantBuilder<'a> {
     // =========================================================================
 
     /// Generate `UnpackedTokenSeeds<N>` and `PackedTokenSeeds<N>` impls
-    /// on the local seed structs. The blanket impls in `light_account::token`
-    /// then provide `LightAccountVariantTrait` / `PackedLightAccountVariantTrait`.
-    fn generate_token_variant_trait_impls(&self) -> TokenStream {
+    /// on the local seed structs using the specified backend.
+    fn generate_token_variant_trait_impls_with_backend(
+        &self,
+        backend: &dyn CodegenBackend,
+    ) -> TokenStream {
+        let account_crate = backend.account_crate();
+        let sdk_error = backend.sdk_error_type();
+        let account_info_trait = backend.account_info_trait();
+
         let impls: Vec<_> = self
             .token_seeds
             .iter()
@@ -334,7 +412,7 @@ impl<'a> LightVariantBuilder<'a> {
                 let packed_seed_ref_items: Vec<_> = spec
                     .seeds
                     .iter()
-                    .map(seed_to_packed_ref)
+                    .map(|s| seed_to_packed_ref_with_crate(s, &account_crate))
                     .collect();
 
                 // --- Owner derivation from owner_seeds (constants only) ---
@@ -354,12 +432,23 @@ impl<'a> LightVariantBuilder<'a> {
                             }
                         })
                         .collect();
-                    quote! {
-                        let (__owner, _) = solana_pubkey::Pubkey::find_program_address(
-                            &[#(#owner_seed_refs),*],
-                            &solana_pubkey::Pubkey::from(crate::LIGHT_CPI_SIGNER.program_id),
-                        );
-                        __owner.to_bytes()
+
+                    if backend.is_pinocchio() {
+                        quote! {
+                            let (__owner, _) = #account_crate::solana_pubkey::Pubkey::find_program_address(
+                                &[#(#owner_seed_refs),*],
+                                &#account_crate::solana_pubkey::Pubkey::from(crate::LIGHT_CPI_SIGNER.program_id),
+                            );
+                            __owner.to_bytes()
+                        }
+                    } else {
+                        quote! {
+                            let (__owner, _) = solana_pubkey::Pubkey::find_program_address(
+                                &[#(#owner_seed_refs),*],
+                                &solana_pubkey::Pubkey::from(crate::LIGHT_CPI_SIGNER.program_id),
+                            );
+                            __owner.to_bytes()
+                        }
                     }
                 } else {
                     // No owner_seeds - return default (shouldn't happen for token accounts)
@@ -367,7 +456,7 @@ impl<'a> LightVariantBuilder<'a> {
                 };
 
                 quote! {
-                    impl light_account::UnpackedTokenSeeds<#seed_count>
+                    impl #account_crate::UnpackedTokenSeeds<#seed_count>
                         for #seeds_name
                     {
                         type Packed = #packed_seeds_name;
@@ -383,7 +472,7 @@ impl<'a> LightVariantBuilder<'a> {
                         }
                     }
 
-                    impl light_account::PackedTokenSeeds<#seed_count>
+                    impl #account_crate::PackedTokenSeeds<#seed_count>
                         for #packed_seeds_name
                     {
                         type Unpacked = #seeds_name;
@@ -392,18 +481,18 @@ impl<'a> LightVariantBuilder<'a> {
                             self.bump
                         }
 
-                        fn unpack_seeds<AI: light_account::AccountInfoTrait>(
+                        fn unpack_seeds<AI: #account_info_trait>(
                             &self,
                             accounts: &[AI],
-                        ) -> std::result::Result<Self::Unpacked, light_account::LightSdkTypesError> {
-                            <Self as light_account::Unpack<AI>>::unpack(self, accounts)
+                        ) -> std::result::Result<Self::Unpacked, #sdk_error> {
+                            <Self as #account_crate::Unpack<AI>>::unpack(self, accounts)
                         }
 
-                        fn seed_refs_with_bump<'a, AI: light_account::AccountInfoTrait>(
+                        fn seed_refs_with_bump<'a, AI: #account_info_trait>(
                             &'a self,
                             accounts: &'a [AI],
                             bump_storage: &'a [u8; 1],
-                        ) -> std::result::Result<[&'a [u8]; #seed_count], light_account::LightSdkTypesError> {
+                        ) -> std::result::Result<[&'a [u8]; #seed_count], #sdk_error> {
                             Ok([#(#packed_seed_ref_items,)* bump_storage])
                         }
 
@@ -422,8 +511,12 @@ impl<'a> LightVariantBuilder<'a> {
     // ENUM GENERATION
     // =========================================================================
 
-    /// Generate the unpacked `LightAccountVariant` enum.
-    fn generate_unpacked_enum(&self) -> TokenStream {
+    /// Generate the unpacked `LightAccountVariant` enum using the specified backend.
+    fn generate_unpacked_enum_with_backend(&self, backend: &dyn CodegenBackend) -> TokenStream {
+        let account_crate = backend.account_crate();
+        let serialize_derive = backend.serialize_derive();
+        let deserialize_derive = backend.deserialize_derive();
+
         let pda_variants: Vec<_> = self
             .pda_ctx_seeds
             .iter()
@@ -442,23 +535,37 @@ impl<'a> LightVariantBuilder<'a> {
                 let variant_name = &spec.variant;
                 let seeds_name = format_ident!("{}Seeds", variant_name);
                 quote! {
-                    #variant_name(light_account::token::TokenDataWithSeeds<#seeds_name>)
+                    #variant_name(#account_crate::token::TokenDataWithSeeds<#seeds_name>)
                 }
             })
             .collect();
 
-        quote! {
-            /// Program-wide unpacked variant enum collecting all per-field variants.
-            #[derive(anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize, Clone, Debug)]
-            pub enum LightAccountVariant {
-                #(#pda_variants,)*
-                #(#token_variants,)*
+        if backend.is_pinocchio() {
+            quote! {
+                #[derive(#serialize_derive, #deserialize_derive, Clone, Debug)]
+                pub enum LightAccountVariant {
+                    #(#pda_variants,)*
+                    #(#token_variants,)*
+                }
+            }
+        } else {
+            quote! {
+                /// Program-wide unpacked variant enum collecting all per-field variants.
+                #[derive(#serialize_derive, #deserialize_derive, Clone, Debug)]
+                pub enum LightAccountVariant {
+                    #(#pda_variants,)*
+                    #(#token_variants,)*
+                }
             }
         }
     }
 
-    /// Generate the packed `PackedLightAccountVariant` enum.
-    fn generate_packed_enum(&self) -> TokenStream {
+    /// Generate the packed `PackedLightAccountVariant` enum using the specified backend.
+    fn generate_packed_enum_with_backend(&self, backend: &dyn CodegenBackend) -> TokenStream {
+        let account_crate = backend.account_crate();
+        let serialize_derive = backend.serialize_derive();
+        let deserialize_derive = backend.deserialize_derive();
+
         let pda_variants: Vec<_> =
             self.pda_ctx_seeds
                 .iter()
@@ -484,17 +591,27 @@ impl<'a> LightVariantBuilder<'a> {
                 let variant_name = &spec.variant;
                 let packed_seeds_name = format_ident!("Packed{}Seeds", variant_name);
                 quote! {
-                    #variant_name(light_account::token::TokenDataWithPackedSeeds<#packed_seeds_name>)
+                    #variant_name(#account_crate::token::TokenDataWithPackedSeeds<#packed_seeds_name>)
                 }
             })
             .collect();
 
-        quote! {
-            /// Program-wide packed variant enum for efficient serialization.
-            #[derive(anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize, Clone, Debug)]
-            pub enum PackedLightAccountVariant {
-                #(#pda_variants,)*
-                #(#token_variants,)*
+        if backend.is_pinocchio() {
+            quote! {
+                #[derive(#serialize_derive, #deserialize_derive, Clone, Debug)]
+                pub enum PackedLightAccountVariant {
+                    #(#pda_variants,)*
+                    #(#token_variants,)*
+                }
+            }
+        } else {
+            quote! {
+                /// Program-wide packed variant enum for efficient serialization.
+                #[derive(#serialize_derive, #deserialize_derive, Clone, Debug)]
+                pub enum PackedLightAccountVariant {
+                    #(#pda_variants,)*
+                    #(#token_variants,)*
+                }
             }
         }
     }
@@ -503,8 +620,15 @@ impl<'a> LightVariantBuilder<'a> {
     // DECOMPRESS VARIANT IMPL
     // =========================================================================
 
-    /// Generate `impl DecompressVariant for PackedLightAccountVariant`.
-    fn generate_decompress_variant_impl(&self) -> TokenStream {
+    /// Generate `impl DecompressVariant for PackedLightAccountVariant` using the specified backend.
+    fn generate_decompress_variant_impl_with_backend(
+        &self,
+        backend: &dyn CodegenBackend,
+    ) -> TokenStream {
+        let account_crate = backend.account_crate();
+        let account_info_type = backend.account_info_type();
+        let sdk_error = backend.sdk_error_type();
+
         let pda_arms: Vec<_> = self
             .pda_ctx_seeds
             .iter()
@@ -516,7 +640,7 @@ impl<'a> LightVariantBuilder<'a> {
                 quote! {
                     Self::#variant_name { seeds, data } => {
                         let packed_data = #packed_variant_type { seeds: seeds.clone(), data: data.clone() };
-                        light_account::prepare_account_for_decompression::<#seed_count, #packed_variant_type, light_account::AccountInfo<'info>>(
+                        #account_crate::prepare_account_for_decompression::<#seed_count, #packed_variant_type, #account_info_type>(
                             &packed_data,
                             tree_info,
                             output_queue_index,
@@ -538,10 +662,10 @@ impl<'a> LightVariantBuilder<'a> {
 
                 quote! {
                     Self::#variant_name(packed_data) => {
-                        light_account::token::prepare_token_account_for_decompression::<
+                        #account_crate::token::prepare_token_account_for_decompression::<
                             #seed_count,
-                            light_account::token::TokenDataWithPackedSeeds<#packed_seeds_name>,
-                            light_account::AccountInfo<'info>,
+                            #account_crate::token::TokenDataWithPackedSeeds<#packed_seeds_name>,
+                            #account_info_type,
                         >(
                             packed_data,
                             tree_info,
@@ -554,18 +678,37 @@ impl<'a> LightVariantBuilder<'a> {
             })
             .collect();
 
-        quote! {
-            impl<'info> light_account::DecompressVariant<light_account::AccountInfo<'info>> for PackedLightAccountVariant {
-                fn decompress(
-                    &self,
-                    tree_info: &light_account::PackedStateTreeInfo,
-                    pda_account: &light_account::AccountInfo<'info>,
-                    ctx: &mut light_account::DecompressCtx<'_, 'info>,
-                ) -> std::result::Result<(), light_account::LightSdkTypesError> {
-                    let output_queue_index = ctx.output_queue_index;
-                    match self {
-                        #(#pda_arms)*
-                        #(#token_arms)*
+        if backend.is_pinocchio() {
+            quote! {
+                impl #account_crate::DecompressVariant<#account_info_type> for PackedLightAccountVariant {
+                    fn decompress(
+                        &self,
+                        tree_info: &#account_crate::PackedStateTreeInfo,
+                        pda_account: &#account_info_type,
+                        ctx: &mut #account_crate::DecompressCtx<'_>,
+                    ) -> std::result::Result<(), #sdk_error> {
+                        let output_queue_index = ctx.output_queue_index;
+                        match self {
+                            #(#pda_arms)*
+                            #(#token_arms)*
+                        }
+                    }
+                }
+            }
+        } else {
+            quote! {
+                impl<'info> #account_crate::DecompressVariant<#account_crate::AccountInfo<'info>> for PackedLightAccountVariant {
+                    fn decompress(
+                        &self,
+                        tree_info: &#account_crate::PackedStateTreeInfo,
+                        pda_account: &#account_crate::AccountInfo<'info>,
+                        ctx: &mut #account_crate::DecompressCtx<'_, 'info>,
+                    ) -> std::result::Result<(), #sdk_error> {
+                        let output_queue_index = ctx.output_queue_index;
+                        match self {
+                            #(#pda_arms)*
+                            #(#token_arms)*
+                        }
                     }
                 }
             }
@@ -576,8 +719,13 @@ impl<'a> LightVariantBuilder<'a> {
     // PACK IMPL
     // =========================================================================
 
-    /// Generate `impl light_account::Pack for LightAccountVariant`.
-    fn generate_pack_impl(&self) -> TokenStream {
+    /// Generate `impl Pack for LightAccountVariant` using the specified backend.
+    fn generate_pack_impl_with_backend(&self, backend: &dyn CodegenBackend) -> TokenStream {
+        let account_crate = backend.account_crate();
+        let sdk_error = backend.sdk_error_type();
+        let packed_accounts_type = backend.packed_accounts_type();
+        let account_meta_type = backend.account_meta_type();
+
         let pda_arms: Vec<_> = self
             .pda_ctx_seeds
             .iter()
@@ -588,7 +736,7 @@ impl<'a> LightVariantBuilder<'a> {
                 quote! {
                     Self::#variant_name { seeds, data } => {
                         let variant = #variant_struct_name { seeds: seeds.clone(), data: data.clone() };
-                        let packed = light_account::Pack::pack(&variant, accounts)?;
+                        let packed = #account_crate::Pack::pack(&variant, accounts)?;
                         Ok(PackedLightAccountVariant::#variant_name { seeds: packed.seeds, data: packed.data })
                     }
                 }
@@ -602,500 +750,51 @@ impl<'a> LightVariantBuilder<'a> {
                 let variant_name = &spec.variant;
                 quote! {
                     Self::#variant_name(data) => {
-                        let packed = light_account::Pack::pack(data, accounts)?;
+                        let packed = #account_crate::Pack::pack(data, accounts)?;
                         Ok(PackedLightAccountVariant::#variant_name(packed))
                     }
                 }
             })
             .collect();
 
-        quote! {
-            // Pack trait is only available off-chain (client-side)
-            #[cfg(not(target_os = "solana"))]
-            impl<AM: light_account::AccountMetaTrait> light_account::Pack<AM> for LightAccountVariant {
-                type Packed = PackedLightAccountVariant;
+        if backend.is_pinocchio() {
+            quote! {
+                #[cfg(not(target_os = "solana"))]
+                impl #account_crate::Pack<#account_meta_type> for LightAccountVariant {
+                    type Packed = PackedLightAccountVariant;
 
-                fn pack(
-                    &self,
-                    accounts: &mut light_account::interface::instruction::PackedAccounts<AM>,
-                ) -> std::result::Result<Self::Packed, light_account::LightSdkTypesError> {
-                    match self {
-                        #(#pda_arms)*
-                        #(#token_arms)*
+                    fn pack(
+                        &self,
+                        accounts: &mut #packed_accounts_type,
+                    ) -> std::result::Result<Self::Packed, #sdk_error> {
+                        match self {
+                            #(#pda_arms)*
+                            #(#token_arms)*
+                        }
                     }
                 }
             }
-        }
-    }
+        } else {
+            quote! {
+                // Pack trait is only available off-chain (client-side)
+                #[cfg(not(target_os = "solana"))]
+                impl<AM: #account_meta_type> #account_crate::Pack<AM> for LightAccountVariant {
+                    type Packed = PackedLightAccountVariant;
 
-    // =========================================================================
-    // PINOCCHIO GENERATION METHODS
-    // =========================================================================
-
-    /// Generate token seeds structs (pinocchio version, uses BorshSerialize/BorshDeserialize).
-    fn generate_token_seeds_structs_pinocchio(&self) -> TokenStream {
-        let structs: Vec<_> = self
-            .token_seeds
-            .iter()
-            .map(|spec| {
-                let variant_name = &spec.variant;
-                let seeds_name = format_ident!("{}Seeds", variant_name);
-                let packed_seeds_name = format_ident!("Packed{}Seeds", variant_name);
-                let ctx_fields = extract_ctx_fields_from_token_spec(spec);
-
-                let unpacked_fields: Vec<_> = ctx_fields
-                    .iter()
-                    .map(|f| quote! { pub #f: [u8; 32] })
-                    .collect();
-
-                let packed_fields: Vec<_> = ctx_fields
-                    .iter()
-                    .map(|f| {
-                        let idx = format_ident!("{}_idx", f);
-                        quote! { pub #idx: u8 }
-                    })
-                    .collect();
-
-                let pack_stmts: Vec<_> = ctx_fields
-                    .iter()
-                    .map(|f| {
-                        let idx = format_ident!("{}_idx", f);
-                        quote! { #idx: remaining_accounts.insert_or_get(light_account_pinocchio::solana_pubkey::Pubkey::from(self.#f)) }
-                    })
-                    .collect();
-
-                let bump_seed_refs: Vec<_> = spec
-                    .seeds
-                    .iter()
-                    .map(seed_to_unpacked_ref)
-                    .collect();
-
-                let unpack_resolve_stmts: Vec<_> = ctx_fields
-                    .iter()
-                    .map(|f| {
-                        let idx = format_ident!("{}_idx", f);
-                        quote! {
-                            let #f: [u8; 32] =
-                                remaining_accounts
-                                    .get(self.#idx as usize)
-                                    .ok_or(light_account_pinocchio::LightSdkTypesError::InvalidInstructionData)?
-                                    .key();
+                    fn pack(
+                        &self,
+                        accounts: &mut #packed_accounts_type,
+                    ) -> std::result::Result<Self::Packed, #sdk_error> {
+                        match self {
+                            #(#pda_arms)*
+                            #(#token_arms)*
                         }
-                    })
-                    .collect();
-
-                let unpack_field_assigns: Vec<_> = ctx_fields.iter().map(|f| quote! { #f }).collect();
-
-                let seeds_struct = if unpacked_fields.is_empty() {
-                    quote! {
-                        #[derive(borsh::BorshSerialize, borsh::BorshDeserialize, Clone, Debug)]
-                        pub struct #seeds_name;
-                    }
-                } else {
-                    quote! {
-                        #[derive(borsh::BorshSerialize, borsh::BorshDeserialize, Clone, Debug)]
-                        pub struct #seeds_name {
-                            #(#unpacked_fields,)*
-                        }
-                    }
-                };
-
-                quote! {
-                    #seeds_struct
-
-                    #[derive(borsh::BorshSerialize, borsh::BorshDeserialize, Clone, Debug)]
-                    pub struct #packed_seeds_name {
-                        #(#packed_fields,)*
-                        pub bump: u8,
-                    }
-
-                    #[cfg(not(target_os = "solana"))]
-                    impl light_account_pinocchio::Pack<light_account_pinocchio::solana_instruction::AccountMeta> for #seeds_name {
-                        type Packed = #packed_seeds_name;
-
-                        fn pack(
-                            &self,
-                            remaining_accounts: &mut light_account_pinocchio::PackedAccounts,
-                        ) -> std::result::Result<Self::Packed, light_account_pinocchio::LightSdkTypesError> {
-                            let __seeds: &[&[u8]] = &[#(#bump_seed_refs),*];
-                            let (_, __bump) = light_account_pinocchio::solana_pubkey::Pubkey::find_program_address(
-                                __seeds,
-                                &light_account_pinocchio::solana_pubkey::Pubkey::from(crate::LIGHT_CPI_SIGNER.program_id),
-                            );
-                            Ok(#packed_seeds_name {
-                                #(#pack_stmts,)*
-                                bump: __bump,
-                            })
-                        }
-                    }
-
-                    impl<AI: light_account_pinocchio::light_account_checks::AccountInfoTrait> light_account_pinocchio::Unpack<AI> for #packed_seeds_name {
-                        type Unpacked = #seeds_name;
-
-                        fn unpack(
-                            &self,
-                            remaining_accounts: &[AI],
-                        ) -> std::result::Result<Self::Unpacked, light_account_pinocchio::LightSdkTypesError> {
-                            #(#unpack_resolve_stmts)*
-                            Ok(#seeds_name {
-                                #(#unpack_field_assigns,)*
-                            })
-                        }
-                    }
-                }
-            })
-            .collect();
-
-        quote! { #(#structs)* }
-    }
-
-    /// Generate token variant trait impls (pinocchio version).
-    fn generate_token_variant_trait_impls_pinocchio(&self) -> TokenStream {
-        let impls: Vec<_> = self
-            .token_seeds
-            .iter()
-            .map(|spec| {
-                let seeds_name = format_ident!("{}Seeds", spec.variant);
-                let packed_seeds_name = format_ident!("Packed{}Seeds", spec.variant);
-                let seed_count = spec.seeds.len() + 1;
-
-                let unpacked_seed_ref_items: Vec<_> = spec
-                    .seeds
-                    .iter()
-                    .map(seed_to_unpacked_ref)
-                    .collect();
-
-                let seed_vec_items: Vec<_> = spec
-                    .seeds
-                    .iter()
-                    .map(|seed| {
-                        match seed {
-                            SeedElement::Literal(lit) => {
-                                let value = lit.value();
-                                quote! { #value.as_bytes().to_vec() }
-                            }
-                            SeedElement::Expression(expr) => {
-                                if let Some(field_name) = extract_ctx_field_from_expr(expr) {
-                                    quote! { self.#field_name.as_ref().to_vec() }
-                                } else {
-                                    if let syn::Expr::Lit(lit_expr) = &**expr {
-                                        if let syn::Lit::ByteStr(byte_str) = &lit_expr.lit {
-                                            let bytes = byte_str.value();
-                                            return quote! { vec![#(#bytes),*] };
-                                        }
-                                    }
-                                    if let syn::Expr::Path(path_expr) = &**expr {
-                                        if path_expr.qself.is_none() {
-                                            if let Some(last_seg) = path_expr.path.segments.last() {
-                                                if crate::light_pdas::shared_utils::is_constant_identifier(&last_seg.ident.to_string()) {
-                                                    let path = &path_expr.path;
-                                                    return quote! { { let __seed: &[u8] = #path.as_ref(); __seed.to_vec() } };
-                                                }
-                                            }
-                                        }
-                                    }
-                                    quote! { { let __seed: &[u8] = (#expr).as_ref(); __seed.to_vec() } }
-                                }
-                            }
-                        }
-                    })
-                    .collect();
-
-                let pinocchio_crate = quote! { light_account_pinocchio };
-                let packed_seed_ref_items: Vec<_> = spec
-                    .seeds
-                    .iter()
-                    .map(|s| seed_to_packed_ref_with_crate(s, &pinocchio_crate))
-                    .collect();
-
-                let owner_derivation = if let Some(owner_seeds) = &spec.owner_seeds {
-                    let owner_seed_refs: Vec<_> = owner_seeds
-                        .iter()
-                        .map(|seed| {
-                            match seed {
-                                SeedElement::Literal(lit) => {
-                                    let value = lit.value();
-                                    quote! { #value.as_bytes() }
-                                }
-                                SeedElement::Expression(expr) => {
-                                    quote! { { let __seed: &[u8] = (#expr).as_ref(); __seed } }
-                                }
-                            }
-                        })
-                        .collect();
-                    quote! {
-                        let (__owner, _) = light_account_pinocchio::solana_pubkey::Pubkey::find_program_address(
-                            &[#(#owner_seed_refs),*],
-                            &light_account_pinocchio::solana_pubkey::Pubkey::from(crate::LIGHT_CPI_SIGNER.program_id),
-                        );
-                        __owner.to_bytes()
-                    }
-                } else {
-                    quote! { [0u8; 32] }
-                };
-
-                quote! {
-                    impl light_account_pinocchio::UnpackedTokenSeeds<#seed_count>
-                        for #seeds_name
-                    {
-                        type Packed = #packed_seeds_name;
-
-                        const PROGRAM_ID: [u8; 32] = crate::LIGHT_CPI_SIGNER.program_id;
-
-                        fn seed_vec(&self) -> Vec<Vec<u8>> {
-                            vec![#(#seed_vec_items),*]
-                        }
-
-                        fn seed_refs_with_bump<'a>(&'a self, bump_storage: &'a [u8; 1]) -> [&'a [u8]; #seed_count] {
-                            [#(#unpacked_seed_ref_items,)* bump_storage]
-                        }
-                    }
-
-                    impl light_account_pinocchio::PackedTokenSeeds<#seed_count>
-                        for #packed_seeds_name
-                    {
-                        type Unpacked = #seeds_name;
-
-                        fn bump(&self) -> u8 {
-                            self.bump
-                        }
-
-                        fn unpack_seeds<AI: light_account_pinocchio::light_account_checks::AccountInfoTrait>(
-                            &self,
-                            accounts: &[AI],
-                        ) -> std::result::Result<Self::Unpacked, light_account_pinocchio::LightSdkTypesError> {
-                            <Self as light_account_pinocchio::Unpack<AI>>::unpack(self, accounts)
-                        }
-
-                        fn seed_refs_with_bump<'a, AI: light_account_pinocchio::light_account_checks::AccountInfoTrait>(
-                            &'a self,
-                            accounts: &'a [AI],
-                            bump_storage: &'a [u8; 1],
-                        ) -> std::result::Result<[&'a [u8]; #seed_count], light_account_pinocchio::LightSdkTypesError> {
-                            Ok([#(#packed_seed_ref_items,)* bump_storage])
-                        }
-
-                        fn derive_owner(&self) -> [u8; 32] {
-                            #owner_derivation
-                        }
-                    }
-                }
-            })
-            .collect();
-
-        quote! { #(#impls)* }
-    }
-
-    /// Generate unpacked enum (pinocchio version).
-    fn generate_unpacked_enum_pinocchio(&self) -> TokenStream {
-        let pda_variants: Vec<_> = self
-            .pda_ctx_seeds
-            .iter()
-            .map(|info| {
-                let variant_name = &info.variant_name;
-                let seeds_type = format_ident!("{}Seeds", variant_name);
-                let inner_type = qualify_type_with_crate(&info.inner_type);
-                quote! { #variant_name { seeds: #seeds_type, data: #inner_type } }
-            })
-            .collect();
-
-        let token_variants: Vec<_> = self
-            .token_seeds
-            .iter()
-            .map(|spec| {
-                let variant_name = &spec.variant;
-                let seeds_name = format_ident!("{}Seeds", variant_name);
-                quote! {
-                    #variant_name(light_account_pinocchio::token::TokenDataWithSeeds<#seeds_name>)
-                }
-            })
-            .collect();
-
-        quote! {
-            #[derive(borsh::BorshSerialize, borsh::BorshDeserialize, Clone, Debug)]
-            pub enum LightAccountVariant {
-                #(#pda_variants,)*
-                #(#token_variants,)*
-            }
-        }
-    }
-
-    /// Generate packed enum (pinocchio version).
-    fn generate_packed_enum_pinocchio(&self) -> TokenStream {
-        let pda_variants: Vec<_> =
-            self.pda_ctx_seeds
-                .iter()
-                .map(|info| {
-                    let variant_name = &info.variant_name;
-                    let packed_seeds_type = format_ident!("Packed{}Seeds", variant_name);
-                    let inner_type = &info.inner_type;
-                    let packed_data_type =
-                        crate::light_pdas::shared_utils::make_packed_type(inner_type)
-                            .unwrap_or_else(|| {
-                                let type_str = quote!(#inner_type).to_string().replace(' ', "");
-                                let packed_name = format_ident!("Packed{}", type_str);
-                                syn::parse_quote!(#packed_name)
-                            });
-                    quote! { #variant_name { seeds: #packed_seeds_type, data: #packed_data_type } }
-                })
-                .collect();
-
-        let token_variants: Vec<_> = self
-            .token_seeds
-            .iter()
-            .map(|spec| {
-                let variant_name = &spec.variant;
-                let packed_seeds_name = format_ident!("Packed{}Seeds", variant_name);
-                quote! {
-                    #variant_name(light_account_pinocchio::token::TokenDataWithPackedSeeds<#packed_seeds_name>)
-                }
-            })
-            .collect();
-
-        quote! {
-            #[derive(borsh::BorshSerialize, borsh::BorshDeserialize, Clone, Debug)]
-            pub enum PackedLightAccountVariant {
-                #(#pda_variants,)*
-                #(#token_variants,)*
-            }
-        }
-    }
-
-    /// Generate LightAccountData struct (pinocchio version).
-    fn generate_light_account_data_struct_pinocchio(&self) -> TokenStream {
-        quote! {
-            #[derive(Clone, Debug, borsh::BorshSerialize, borsh::BorshDeserialize)]
-            pub struct LightAccountData {
-                pub meta: light_account_pinocchio::account_meta::CompressedAccountMetaNoLamportsNoAddress,
-                pub data: PackedLightAccountVariant,
-            }
-        }
-    }
-
-    /// Generate DecompressVariant impl (pinocchio version).
-    fn generate_decompress_variant_impl_pinocchio(&self) -> TokenStream {
-        let pda_arms: Vec<_> = self
-            .pda_ctx_seeds
-            .iter()
-            .map(|info| {
-                let variant_name = &info.variant_name;
-                let packed_variant_type = format_ident!("Packed{}Variant", variant_name);
-                let seed_count = info.seed_count;
-
-                quote! {
-                    Self::#variant_name { seeds, data } => {
-                        let packed_data = #packed_variant_type { seeds: seeds.clone(), data: data.clone() };
-                        light_account_pinocchio::prepare_account_for_decompression::<#seed_count, #packed_variant_type, pinocchio::account_info::AccountInfo>(
-                            &packed_data,
-                            tree_info,
-                            output_queue_index,
-                            pda_account,
-                            ctx,
-                        )
-                    }
-                }
-            })
-            .collect();
-
-        let token_arms: Vec<_> = self
-            .token_seeds
-            .iter()
-            .map(|spec| {
-                let variant_name = &spec.variant;
-                let packed_seeds_name = format_ident!("Packed{}Seeds", variant_name);
-                let seed_count = spec.seeds.len() + 1;
-
-                quote! {
-                    Self::#variant_name(packed_data) => {
-                        light_account_pinocchio::token::prepare_token_account_for_decompression::<
-                            #seed_count,
-                            light_account_pinocchio::token::TokenDataWithPackedSeeds<#packed_seeds_name>,
-                            pinocchio::account_info::AccountInfo,
-                        >(
-                            packed_data,
-                            tree_info,
-                            output_queue_index,
-                            pda_account,
-                            ctx,
-                        )
-                    }
-                }
-            })
-            .collect();
-
-        quote! {
-            impl light_account_pinocchio::DecompressVariant<pinocchio::account_info::AccountInfo> for PackedLightAccountVariant {
-                fn decompress(
-                    &self,
-                    tree_info: &light_account_pinocchio::PackedStateTreeInfo,
-                    pda_account: &pinocchio::account_info::AccountInfo,
-                    ctx: &mut light_account_pinocchio::DecompressCtx<'_>,
-                ) -> std::result::Result<(), light_account_pinocchio::LightSdkTypesError> {
-                    let output_queue_index = ctx.output_queue_index;
-                    match self {
-                        #(#pda_arms)*
-                        #(#token_arms)*
-                    }
-                }
-            }
-        }
-    }
-
-    /// Generate Pack impl (pinocchio version).
-    fn generate_pack_impl_pinocchio(&self) -> TokenStream {
-        let pda_arms: Vec<_> = self
-            .pda_ctx_seeds
-            .iter()
-            .map(|info| {
-                let variant_name = &info.variant_name;
-                let variant_struct_name = format_ident!("{}Variant", variant_name);
-
-                quote! {
-                    Self::#variant_name { seeds, data } => {
-                        let variant = #variant_struct_name { seeds: seeds.clone(), data: data.clone() };
-                        let packed = light_account_pinocchio::Pack::pack(&variant, accounts)?;
-                        Ok(PackedLightAccountVariant::#variant_name { seeds: packed.seeds, data: packed.data })
-                    }
-                }
-            })
-            .collect();
-
-        let token_arms: Vec<_> = self
-            .token_seeds
-            .iter()
-            .map(|spec| {
-                let variant_name = &spec.variant;
-                quote! {
-                    Self::#variant_name(data) => {
-                        let packed = light_account_pinocchio::Pack::pack(data, accounts)?;
-                        Ok(PackedLightAccountVariant::#variant_name(packed))
-                    }
-                }
-            })
-            .collect();
-
-        quote! {
-            #[cfg(not(target_os = "solana"))]
-            impl light_account_pinocchio::Pack<light_account_pinocchio::solana_instruction::AccountMeta> for LightAccountVariant {
-                type Packed = PackedLightAccountVariant;
-
-                fn pack(
-                    &self,
-                    accounts: &mut light_account_pinocchio::PackedAccounts,
-                ) -> std::result::Result<Self::Packed, light_account_pinocchio::LightSdkTypesError> {
-                    match self {
-                        #(#pda_arms)*
-                        #(#token_arms)*
                     }
                 }
             }
         }
     }
 }
-
-// =============================================================================
-// PdaCtxSeedInfo
-// =============================================================================
 
 /// Info about ctx.* seeds for a PDA type.
 #[derive(Clone, Debug)]
@@ -1258,10 +957,4 @@ fn seed_to_packed_ref_with_crate(seed: &SeedElement, account_crate: &TokenStream
             quote! { { let __seed: &[u8] = (#expr).as_ref(); __seed } }
         }
     }
-}
-
-/// Anchor-compatible wrapper.
-fn seed_to_packed_ref(seed: &SeedElement) -> TokenStream {
-    let crate_path = quote! { light_account };
-    seed_to_packed_ref_with_crate(seed, &crate_path)
 }

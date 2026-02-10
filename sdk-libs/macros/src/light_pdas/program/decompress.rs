@@ -14,7 +14,10 @@ use super::{
     seed_utils::ctx_fields_to_set,
     variant_enum::PdaCtxSeedInfo,
 };
-use crate::light_pdas::shared_utils::{is_constant_identifier, qualify_type_with_crate};
+use crate::light_pdas::{
+    backend::CodegenBackend,
+    shared_utils::{is_constant_identifier, qualify_type_with_crate},
+};
 
 // =============================================================================
 // DECOMPRESS BUILDER
@@ -251,9 +254,11 @@ impl DecompressBuilder {
         })
     }
 
-    /// Generate PDA seed provider implementations.
-    /// Returns empty Vec for mint-only or token-only programs that have no PDA seeds.
-    pub fn generate_seed_provider_impls(&self, is_pinocchio: bool) -> Result<Vec<TokenStream>> {
+    /// Generate PDA seed provider implementations using the specified backend.
+    pub fn generate_seed_provider_impls_with_backend(
+        &self,
+        backend: &dyn CodegenBackend,
+    ) -> Result<Vec<TokenStream>> {
         // For mint-only or token-only programs, there are no PDA seeds - return empty Vec
         let pda_seed_specs = match self.pda_seeds.as_ref() {
             Some(specs) if !specs.is_empty() => specs,
@@ -282,6 +287,7 @@ impl DecompressBuilder {
         };
 
         let mut results = Vec::with_capacity(self.pda_ctx_seeds.len());
+        let account_crate = backend.account_crate();
 
         for ctx_info in self.pda_ctx_seeds.iter() {
             let variant_str = ctx_info.variant_name.to_string();
@@ -302,7 +308,7 @@ impl DecompressBuilder {
             let ctx_fields_decl: Vec<_> = ctx_fields
                 .iter()
                 .map(|field| {
-                    if is_pinocchio {
+                    if backend.is_pinocchio() {
                         quote! { pub #field: [u8; 32] }
                     } else {
                         quote! { pub #field: solana_pubkey::Pubkey }
@@ -330,15 +336,10 @@ impl DecompressBuilder {
                 ctx_fields,
                 &ctx_info.state_field_names,
                 params_only_fields,
-                is_pinocchio,
+                backend.is_pinocchio(),
             )?;
 
             let has_params_only = !params_only_fields.is_empty();
-            let account_crate = if is_pinocchio {
-                quote! { light_account_pinocchio }
-            } else {
-                quote! { light_account }
-            };
             let seed_params_impl = if has_params_only {
                 quote! {
                     #ctx_seeds_struct
@@ -377,102 +378,94 @@ impl DecompressBuilder {
     }
 
     // -------------------------------------------------------------------------
-    // Pinocchio Code Generation Methods
+    // Backend-Aware Code Generation Methods
     // -------------------------------------------------------------------------
 
-    /// Generate `process_decompress` as an enum associated function (pinocchio version).
-    ///
-    /// The function deserializes params from instruction_data before calling the processor.
-    pub fn generate_enum_process_decompress_pinocchio(
+    /// Generate `process_decompress` as an enum associated function using the specified backend.
+    pub fn generate_enum_process_decompress_with_backend(
         &self,
         enum_name: &syn::Ident,
+        backend: &dyn CodegenBackend,
     ) -> Result<TokenStream> {
-        let processor_call = if self.has_tokens {
-            quote! {
-                light_account_pinocchio::process_decompress_accounts_idempotent::<_, PackedLightAccountVariant>(
-                    accounts,
-                    &params,
-                    crate::LIGHT_CPI_SIGNER,
-                    &crate::LIGHT_CPI_SIGNER.program_id,
-                    current_slot,
-                )
-            }
+        let account_crate = backend.account_crate();
+        let program_error = backend.program_error_type();
+
+        let processor_fn = if self.has_tokens {
+            quote! { process_decompress_accounts_idempotent }
         } else {
-            quote! {
-                light_account_pinocchio::process_decompress_pda_accounts_idempotent::<_, PackedLightAccountVariant>(
-                    accounts,
-                    &params,
-                    crate::LIGHT_CPI_SIGNER,
-                    &crate::LIGHT_CPI_SIGNER.program_id,
-                    current_slot,
-                )
-            }
+            quote! { process_decompress_pda_accounts_idempotent }
         };
 
-        Ok(quote! {
-            impl #enum_name {
-                pub fn process_decompress(
-                    accounts: &[pinocchio::account_info::AccountInfo],
-                    instruction_data: &[u8],
-                ) -> std::result::Result<(), pinocchio::program_error::ProgramError> {
-                    use borsh::BorshDeserialize;
-                    use pinocchio::sysvars::Sysvar;
-                    let params = light_account_pinocchio::DecompressIdempotentParams::<PackedLightAccountVariant>::try_from_slice(instruction_data)
-                        .map_err(|_| pinocchio::program_error::ProgramError::InvalidInstructionData)?;
-                    let current_slot = pinocchio::sysvars::clock::Clock::get()
-                        .map_err(|_| pinocchio::program_error::ProgramError::UnsupportedSysvar)?
-                        .slot;
-                    #processor_call
-                        .map_err(|e| pinocchio::program_error::ProgramError::Custom(u32::from(e)))
+        if backend.is_pinocchio() {
+            Ok(quote! {
+                impl #enum_name {
+                    pub fn process_decompress(
+                        accounts: &[pinocchio::account_info::AccountInfo],
+                        instruction_data: &[u8],
+                    ) -> std::result::Result<(), #program_error> {
+                        use borsh::BorshDeserialize;
+                        use pinocchio::sysvars::Sysvar;
+                        let params = #account_crate::DecompressIdempotentParams::<PackedLightAccountVariant>::try_from_slice(instruction_data)
+                            .map_err(|_| #program_error::InvalidInstructionData)?;
+                        let current_slot = pinocchio::sysvars::clock::Clock::get()
+                            .map_err(|_| #program_error::UnsupportedSysvar)?
+                            .slot;
+                        #account_crate::#processor_fn::<_, PackedLightAccountVariant>(
+                            accounts,
+                            &params,
+                            crate::LIGHT_CPI_SIGNER,
+                            &crate::LIGHT_CPI_SIGNER.program_id,
+                            current_slot,
+                        )
+                        .map_err(|e| #program_error::Custom(u32::from(e)))
+                    }
                 }
-            }
-        })
+            })
+        } else {
+            // Anchor version doesn't generate process_decompress on enum - uses separate processor
+            Ok(quote! {})
+        }
     }
 
-    /// Generate decompress dispatch as an associated function on the enum.
-    ///
-    /// When `#[derive(LightProgram)]` is used, the dispatch function is generated
-    /// as `impl EnumName { pub fn decompress_dispatch(...) }` so it can be referenced
-    /// as `EnumName::decompress_dispatch`.
-    ///
-    /// This wraps the type-parameter-based SDK call, binding `PackedLightAccountVariant`
-    /// as the concrete type.
-    pub fn generate_enum_decompress_dispatch(&self, enum_name: &syn::Ident) -> Result<TokenStream> {
-        let processor_call = if self.has_tokens {
-            quote! {
-                light_account::process_decompress_accounts_idempotent::<_, PackedLightAccountVariant>(
-                    remaining_accounts,
-                    params,
-                    cpi_signer,
-                    program_id,
-                    current_slot,
-                )
-            }
+    /// Generate decompress dispatch as an associated function on the enum using the specified backend.
+    pub fn generate_enum_decompress_dispatch_with_backend(
+        &self,
+        enum_name: &syn::Ident,
+        backend: &dyn CodegenBackend,
+    ) -> Result<TokenStream> {
+        let account_crate = backend.account_crate();
+        let sdk_error = backend.sdk_error_type();
+
+        let processor_fn = if self.has_tokens {
+            quote! { process_decompress_accounts_idempotent }
         } else {
-            quote! {
-                light_account::process_decompress_pda_accounts_idempotent::<_, PackedLightAccountVariant>(
-                    remaining_accounts,
-                    params,
-                    cpi_signer,
-                    program_id,
-                    current_slot,
-                )
-            }
+            quote! { process_decompress_pda_accounts_idempotent }
         };
 
-        Ok(quote! {
-            impl #enum_name {
-                pub fn decompress_dispatch<'info>(
-                    remaining_accounts: &[solana_account_info::AccountInfo<'info>],
-                    params: &light_account::DecompressIdempotentParams<PackedLightAccountVariant>,
-                    cpi_signer: light_account::CpiSigner,
-                    program_id: &[u8; 32],
-                    current_slot: u64,
-                ) -> std::result::Result<(), light_account::LightSdkTypesError> {
-                    #processor_call
+        if backend.is_pinocchio() {
+            // Pinocchio uses generate_enum_process_decompress instead
+            Ok(quote! {})
+        } else {
+            Ok(quote! {
+                impl #enum_name {
+                    pub fn decompress_dispatch<'info>(
+                        remaining_accounts: &[solana_account_info::AccountInfo<'info>],
+                        params: &#account_crate::DecompressIdempotentParams<PackedLightAccountVariant>,
+                        cpi_signer: #account_crate::CpiSigner,
+                        program_id: &[u8; 32],
+                        current_slot: u64,
+                    ) -> std::result::Result<(), #sdk_error> {
+                        #account_crate::#processor_fn::<_, PackedLightAccountVariant>(
+                            remaining_accounts,
+                            params,
+                            cpi_signer,
+                            program_id,
+                            current_slot,
+                        )
+                    }
                 }
-            }
-        })
+            })
+        }
     }
 }
 

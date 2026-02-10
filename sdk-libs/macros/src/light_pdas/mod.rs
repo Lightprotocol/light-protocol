@@ -11,6 +11,7 @@
 
 pub mod account;
 pub mod accounts;
+pub mod backend;
 pub mod light_account_keywords;
 pub mod parsing;
 pub mod program;

@@ -8,7 +8,7 @@ use quote::quote;
 use syn::{Result, Type};
 
 use super::parsing::InstructionVariant;
-use crate::light_pdas::shared_utils::qualify_type_with_crate;
+use crate::light_pdas::{backend::CodegenBackend, shared_utils::qualify_type_with_crate};
 
 // =============================================================================
 // COMPRESS BUILDER
@@ -310,188 +310,157 @@ impl CompressBuilder {
         })
     }
 
-    /// Generate compress dispatch as an associated function on the enum.
-    ///
-    /// When `#[derive(LightProgram)]` is used, the dispatch function is generated
-    /// as `impl EnumName { pub fn compress_dispatch(...) }` so it can be referenced
-    /// as `EnumName::compress_dispatch` and passed to SDK functions.
-    pub fn generate_enum_dispatch_method(&self, enum_name: &syn::Ident) -> Result<TokenStream> {
-        let compress_arms: Vec<_> = self.accounts.iter().map(|info| {
-            let name = qualify_type_with_crate(&info.account_type);
-
-            if info.is_zero_copy {
-                quote! {
-                    d if d == #name::LIGHT_DISCRIMINATOR => {
-                        let pod_bytes = &data[8..8 + core::mem::size_of::<#name>()];
-                        let mut account_data: #name = *bytemuck::from_bytes(pod_bytes);
-                        drop(data);
-                        light_account::prepare_account_for_compression(
-                            account_info, &mut account_data, meta, index, ctx,
-                        )
-                    }
-                }
-            } else {
-                quote! {
-                    d if d == #name::LIGHT_DISCRIMINATOR => {
-                        let mut reader = &data[8..];
-                        let mut account_data = #name::deserialize(&mut reader)
-                            .map_err(|_| light_account::LightSdkTypesError::InvalidInstructionData)?;
-                        drop(data);
-                        light_account::prepare_account_for_compression(
-                            account_info, &mut account_data, meta, index, ctx,
-                        )
-                    }
-                }
-            }
-        }).collect();
-
-        Ok(quote! {
-            impl #enum_name {
-                pub fn compress_dispatch<'info>(
-                    account_info: &anchor_lang::prelude::AccountInfo<'info>,
-                    meta: &light_account::account_meta::CompressedAccountMetaNoLamportsNoAddress,
-                    index: usize,
-                    ctx: &mut light_account::CompressCtx<'_, 'info>,
-                ) -> std::result::Result<(), light_account::LightSdkTypesError> {
-                    use light_account::LightDiscriminator;
-                    use borsh::BorshDeserialize;
-                    let data = account_info.try_borrow_data()?;
-                    let discriminator: [u8; 8] = data[..8]
-                        .try_into()
-                        .map_err(|_| light_account::LightSdkTypesError::InvalidInstructionData)?;
-                    match discriminator {
-                        #(#compress_arms)*
-                        _ => Ok(()),
-                    }
-                }
-            }
-        })
-    }
-
-    // -------------------------------------------------------------------------
-    // Pinocchio Code Generation Methods
-    // -------------------------------------------------------------------------
-
-    /// Generate compress dispatch as an associated function on the enum (pinocchio version).
-    ///
-    /// Same logic as `generate_enum_dispatch_method()` but with pinocchio types:
-    /// - `pinocchio::account_info::AccountInfo` instead of `anchor_lang::prelude::AccountInfo`
-    /// - `light_account_pinocchio::` instead of `light_account::`
-    pub fn generate_enum_dispatch_method_pinocchio(
+    /// Generate compress dispatch as an associated function on the enum using the specified backend.
+    pub fn generate_enum_dispatch_method_with_backend(
         &self,
         enum_name: &syn::Ident,
+        backend: &dyn CodegenBackend,
     ) -> Result<TokenStream> {
-        let compress_arms: Vec<_> = self.accounts.iter().map(|info| {
-            let name = qualify_type_with_crate(&info.account_type);
+        let account_crate = backend.account_crate();
+        let account_info_type = backend.account_info_type();
+        let sdk_error = backend.sdk_error_type();
+        let borrow_error = backend.borrow_error();
 
-            if info.is_zero_copy {
-                quote! {
-                    d if d == #name::LIGHT_DISCRIMINATOR => {
-                        let pod_bytes = &data[8..8 + core::mem::size_of::<#name>()];
-                        let mut account_data: #name = *bytemuck::from_bytes(pod_bytes);
-                        drop(data);
-                        light_account_pinocchio::prepare_account_for_compression(
-                            account_info, &mut account_data, meta, index, ctx,
-                        )
-                    }
-                }
-            } else {
-                quote! {
-                    d if d == #name::LIGHT_DISCRIMINATOR => {
-                        let mut reader = &data[8..];
-                        let mut account_data = #name::deserialize(&mut reader)
-                            .map_err(|_| light_account_pinocchio::LightSdkTypesError::InvalidInstructionData)?;
-                        drop(data);
-                        light_account_pinocchio::prepare_account_for_compression(
-                            account_info, &mut account_data, meta, index, ctx,
-                        )
-                    }
-                }
-            }
-        }).collect();
+        let compress_arms: Vec<_> = self
+            .accounts
+            .iter()
+            .map(|info| {
+                let name = qualify_type_with_crate(&info.account_type);
 
-        Ok(quote! {
-            impl #enum_name {
-                pub fn compress_dispatch(
-                    account_info: &pinocchio::account_info::AccountInfo,
-                    meta: &light_account_pinocchio::account_meta::CompressedAccountMetaNoLamportsNoAddress,
-                    index: usize,
-                    ctx: &mut light_account_pinocchio::CompressCtx<'_>,
-                ) -> std::result::Result<(), light_account_pinocchio::LightSdkTypesError> {
-                    use light_account_pinocchio::LightDiscriminator;
-                    use borsh::BorshDeserialize;
-                    let data = account_info.try_borrow_data()
-                        .map_err(|_| light_account_pinocchio::LightSdkTypesError::Borsh)?;
-                    let discriminator: [u8; 8] = data[..8]
-                        .try_into()
-                        .map_err(|_| light_account_pinocchio::LightSdkTypesError::InvalidInstructionData)?;
-                    match discriminator {
-                        #(#compress_arms)*
-                        _ => Ok(()),
+                if info.is_zero_copy {
+                    quote! {
+                        d if d == #name::LIGHT_DISCRIMINATOR => {
+                            let pod_bytes = &data[8..8 + core::mem::size_of::<#name>()];
+                            let mut account_data: #name = *bytemuck::from_bytes(pod_bytes);
+                            drop(data);
+                            #account_crate::prepare_account_for_compression(
+                                account_info, &mut account_data, meta, index, ctx,
+                            )
+                        }
+                    }
+                } else {
+                    quote! {
+                        d if d == #name::LIGHT_DISCRIMINATOR => {
+                            let mut reader = &data[8..];
+                            let mut account_data = #name::deserialize(&mut reader)
+                                .map_err(|_| #sdk_error::InvalidInstructionData)?;
+                            drop(data);
+                            #account_crate::prepare_account_for_compression(
+                                account_info, &mut account_data, meta, index, ctx,
+                            )
+                        }
                     }
                 }
-            }
-        })
+            })
+            .collect();
+
+        if backend.is_pinocchio() {
+            Ok(quote! {
+                impl #enum_name {
+                    pub fn compress_dispatch(
+                        account_info: &#account_info_type,
+                        meta: &#account_crate::account_meta::CompressedAccountMetaNoLamportsNoAddress,
+                        index: usize,
+                        ctx: &mut #account_crate::CompressCtx<'_>,
+                    ) -> std::result::Result<(), #sdk_error> {
+                        use #account_crate::LightDiscriminator;
+                        use borsh::BorshDeserialize;
+                        let data = account_info.try_borrow_data()#borrow_error;
+                        let discriminator: [u8; 8] = data[..8]
+                            .try_into()
+                            .map_err(|_| #sdk_error::InvalidInstructionData)?;
+                        match discriminator {
+                            #(#compress_arms)*
+                            _ => Ok(()),
+                        }
+                    }
+                }
+            })
+        } else {
+            Ok(quote! {
+                impl #enum_name {
+                    pub fn compress_dispatch<'info>(
+                        account_info: &anchor_lang::prelude::AccountInfo<'info>,
+                        meta: &#account_crate::account_meta::CompressedAccountMetaNoLamportsNoAddress,
+                        index: usize,
+                        ctx: &mut #account_crate::CompressCtx<'_, 'info>,
+                    ) -> std::result::Result<(), #sdk_error> {
+                        use #account_crate::LightDiscriminator;
+                        use borsh::BorshDeserialize;
+                        let data = account_info.try_borrow_data()#borrow_error;
+                        let discriminator: [u8; 8] = data[..8]
+                            .try_into()
+                            .map_err(|_| #sdk_error::InvalidInstructionData)?;
+                        match discriminator {
+                            #(#compress_arms)*
+                            _ => Ok(()),
+                        }
+                    }
+                }
+            })
+        }
     }
 
-    /// Generate `process_compress` as an enum associated function (pinocchio version).
-    ///
-    /// The function deserializes params from instruction_data before calling the processor.
-    pub fn generate_enum_process_compress_pinocchio(
+    /// Generate `process_compress` as an enum associated function using the specified backend.
+    pub fn generate_enum_process_compress_with_backend(
         &self,
         enum_name: &syn::Ident,
+        backend: &dyn CodegenBackend,
     ) -> Result<TokenStream> {
-        Ok(quote! {
-            impl #enum_name {
-                pub fn process_compress(
-                    accounts: &[pinocchio::account_info::AccountInfo],
-                    instruction_data: &[u8],
-                ) -> std::result::Result<(), pinocchio::program_error::ProgramError> {
-                    use borsh::BorshDeserialize;
-                    let params = light_account_pinocchio::CompressAndCloseParams::try_from_slice(instruction_data)
-                        .map_err(|_| pinocchio::program_error::ProgramError::InvalidInstructionData)?;
-                    light_account_pinocchio::process_compress_pda_accounts_idempotent(
-                        accounts,
-                        &params,
-                        Self::compress_dispatch,
-                        crate::LIGHT_CPI_SIGNER,
-                        &crate::LIGHT_CPI_SIGNER.program_id,
-                    )
-                    .map_err(|e| pinocchio::program_error::ProgramError::Custom(u32::from(e)))
+        let account_crate = backend.account_crate();
+        let program_error = backend.program_error_type();
+
+        if backend.is_pinocchio() {
+            Ok(quote! {
+                impl #enum_name {
+                    pub fn process_compress(
+                        accounts: &[pinocchio::account_info::AccountInfo],
+                        instruction_data: &[u8],
+                    ) -> std::result::Result<(), #program_error> {
+                        use borsh::BorshDeserialize;
+                        let params = #account_crate::CompressAndCloseParams::try_from_slice(instruction_data)
+                            .map_err(|_| #program_error::InvalidInstructionData)?;
+                        #account_crate::process_compress_pda_accounts_idempotent(
+                            accounts,
+                            &params,
+                            Self::compress_dispatch,
+                            crate::LIGHT_CPI_SIGNER,
+                            &crate::LIGHT_CPI_SIGNER.program_id,
+                        )
+                        .map_err(|e| #program_error::Custom(u32::from(e)))
+                    }
                 }
-            }
-        })
+            })
+        } else {
+            // Anchor version doesn't have this method on enum - it uses the separate processor
+            Ok(quote! {})
+        }
     }
 
-    /// Generate compile-time size validation for compressed accounts (pinocchio version).
-    /// Uses INIT_SPACE directly instead of CompressedInitSpace trait.
-    pub fn generate_size_validation_pinocchio(&self) -> Result<TokenStream> {
+    /// Generate compile-time size validation for compressed accounts using the specified backend.
+    pub fn generate_size_validation_with_backend(
+        &self,
+        backend: &dyn CodegenBackend,
+    ) -> Result<TokenStream> {
+        let account_crate = backend.account_crate();
+
         let size_checks: Vec<_> = self.accounts.iter().map(|info| {
             let qualified_type = qualify_type_with_crate(&info.account_type);
 
-            // For pinocchio, all types use INIT_SPACE constant (no CompressedInitSpace trait)
-            quote! {
-                const _: () = {
-                    const COMPRESSED_SIZE: usize = 8 + #qualified_type::INIT_SPACE;
-                    assert!(
-                        COMPRESSED_SIZE <= 800,
-                        concat!(
-                            "Compressed account '", stringify!(#qualified_type), "' exceeds 800-byte compressible account size limit"
-                        )
-                    );
-                };
-            }
-        }).collect();
-
-        Ok(quote! { #(#size_checks)* })
-    }
-
-    /// Generate compile-time size validation for compressed accounts.
-    pub fn generate_size_validation(&self) -> Result<TokenStream> {
-        let size_checks: Vec<_> = self.accounts.iter().map(|info| {
-            let qualified_type = qualify_type_with_crate(&info.account_type);
-
-            if info.is_zero_copy {
+            if backend.is_pinocchio() {
+                // For pinocchio, all types use INIT_SPACE constant (no CompressedInitSpace trait)
+                quote! {
+                    const _: () = {
+                        const COMPRESSED_SIZE: usize = 8 + #qualified_type::INIT_SPACE;
+                        assert!(
+                            COMPRESSED_SIZE <= 800,
+                            concat!(
+                                "Compressed account '", stringify!(#qualified_type), "' exceeds 800-byte compressible account size limit"
+                            )
+                        );
+                    };
+                }
+            } else if info.is_zero_copy {
                 // For Pod types, use core::mem::size_of for size calculation
                 quote! {
                     const _: () = {
@@ -507,7 +476,7 @@ impl CompressBuilder {
                 // For Borsh types, use CompressedInitSpace trait
                 quote! {
                     const _: () = {
-                        const COMPRESSED_SIZE: usize = 8 + <#qualified_type as light_account::compression_info::CompressedInitSpace>::COMPRESSED_INIT_SPACE;
+                        const COMPRESSED_SIZE: usize = 8 + <#qualified_type as #account_crate::compression_info::CompressedInitSpace>::COMPRESSED_INIT_SPACE;
                         if COMPRESSED_SIZE > 800 {
                             panic!(concat!(
                                 "Compressed account '", stringify!(#qualified_type), "' exceeds 800-byte compressible account size limit. If you need support for larger accounts, send a message to team@lightprotocol.com"
