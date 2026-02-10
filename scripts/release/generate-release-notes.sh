@@ -57,7 +57,7 @@ FOUND_PRS=false
 
 for commit in $COMMITS; do
   # Get PR number from commit message (format: "title (#123)")
-  PR_NUM=$(git log --format=%s -n 1 "$commit" | grep -oE '\(#[0-9]+\)' | grep -oE '[0-9]+' | head -1)
+  PR_NUM=$(git log --format=%s -n 1 "$commit" | grep -oE '\(#[0-9]+\)' | grep -oE '[0-9]+' | head -1 || true)
 
   if [ -n "$PR_NUM" ]; then
     # Check if we've already seen this PR
