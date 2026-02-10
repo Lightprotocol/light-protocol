@@ -149,24 +149,28 @@ fn build_metadata_config(
     let mut processed_keys = tinyvec::ArrayVec::<[&[u8]; 20]>::new();
 
     let should_add_key = |key: &[u8]| -> bool {
-        // Key exists if it's in original metadata OR added via UpdateMetadataField
-        let exists_in_original = metadata.iter().any(|item| item.key == key);
-        let added_via_update = actions.iter().any(|action| {
-            matches!(action, ZAction::UpdateMetadataField(update)
-                if update.extension_index as usize == extension_index
-                    && update.field_type == 3
-                    && update.key == key)
-        });
-
-        // Key should be included if it exists and is not removed
-        let should_exist = exists_in_original || added_via_update;
-        let is_removed = actions.iter().any(|action| {
-            matches!(action, ZAction::RemoveMetadataKey(remove)
-                if remove.extension_index as usize == extension_index
-                    && remove.key == key)
-        });
-
-        should_exist && !is_removed
+        // Start with whether the key exists in original metadata
+        let mut exists = metadata.iter().any(|item| item.key == key);
+        // Process actions in order to determine final state
+        // (handles add-remove-add sequences correctly)
+        for action in actions {
+            match action {
+                ZAction::UpdateMetadataField(update)
+                    if update.extension_index as usize == extension_index
+                        && update.field_type == 3
+                        && update.key == key =>
+                {
+                    exists = true;
+                }
+                ZAction::RemoveMetadataKey(remove)
+                    if remove.extension_index as usize == extension_index && remove.key == key =>
+                {
+                    exists = false;
+                }
+                _ => {}
+            }
+        }
+        exists
     };
 
     // Process all original metadata keys
