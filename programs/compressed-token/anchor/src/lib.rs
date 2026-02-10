@@ -69,7 +69,7 @@ pub mod light_compressed_token {
         ctx: Context<'_, '_, '_, 'info, AddTokenPoolInstruction<'info>>,
         token_pool_index: u8,
     ) -> Result<()> {
-        if token_pool_index >= NUM_MAX_POOL_ACCOUNTS {
+        if token_pool_index == 0 || token_pool_index >= NUM_MAX_POOL_ACCOUNTS {
             return err!(ErrorCode::InvalidTokenPoolBump);
         }
         // Check that token pool account with previous index already exists.
