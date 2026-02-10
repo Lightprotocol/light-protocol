@@ -29,7 +29,10 @@ import {
     loadAta as _loadAta,
 } from '../actions/load-ata';
 import { createAssociatedTokenAccountInterfaceIdempotentInstruction } from '../instructions/create-ata-interface';
-import { transferInterface as _transferInterface } from '../actions/transfer-interface';
+import {
+    transferInterface as _transferInterface,
+    transferInterfaceChecked as _transferInterfaceChecked,
+} from '../actions/transfer-interface';
 import { _getOrCreateAtaInterface } from '../actions/get-or-create-ata-interface';
 import { getAtaProgramId } from '../ata-utils';
 import { InterfaceOptions } from '..';
@@ -191,7 +194,7 @@ export async function loadAta(
 /**
  * Transfer tokens using the unified ata interface.
  *
- * Matches SPL Token's transferChecked signature order. Destination must exist.
+ * Destination must exist.
  *
  * @param rpc             RPC connection
  * @param payer           Fee payer (signer)
@@ -225,6 +228,54 @@ export async function transferInterface(
         destination,
         owner,
         amount,
+        programId,
+        confirmOptions,
+        options,
+        true,
+    );
+}
+
+/**
+ * Transfer tokens using the unified ata interface with decimals validation.
+ *
+ * Like SPL Token's transferChecked, the on-chain program validates that the
+ * provided `decimals` matches the mint's decimals field. Destination must exist.
+ *
+ * @param rpc             RPC connection
+ * @param payer           Fee payer (signer)
+ * @param source          Source c-token ATA address
+ * @param mint            Mint address
+ * @param destination     Destination c-token ATA address (must exist)
+ * @param owner           Source owner (signer)
+ * @param amount          Amount to transfer
+ * @param decimals        Expected decimals of the mint (validated on-chain)
+ * @param programId       Token program ID (default: CTOKEN_PROGRAM_ID)
+ * @param confirmOptions  Optional confirm options
+ * @param options         Optional interface options
+ * @returns Transaction signature
+ */
+export async function transferInterfaceChecked(
+    rpc: Rpc,
+    payer: Signer,
+    source: PublicKey,
+    mint: PublicKey,
+    destination: PublicKey,
+    owner: Signer,
+    amount: number | bigint | BN,
+    decimals: number,
+    programId: PublicKey = CTOKEN_PROGRAM_ID,
+    confirmOptions?: ConfirmOptions,
+    options?: InterfaceOptions,
+) {
+    return _transferInterfaceChecked(
+        rpc,
+        payer,
+        source,
+        mint,
+        destination,
+        owner,
+        amount,
+        decimals,
         programId,
         confirmOptions,
         options,
@@ -339,7 +390,9 @@ export {
     createUnwrapInstruction,
     createDecompressInterfaceInstruction,
     createTransferInterfaceInstruction,
+    createTransferInterfaceCheckedInstruction,
     createCTokenTransferInstruction,
+    createCTokenTransferCheckedInstruction,
     // Types
     TokenMetadataInstructionData,
     CompressibleConfig,

@@ -26,7 +26,9 @@ import BN from 'bn.js';
 import { getAtaProgramId } from '../ata-utils';
 import {
     createTransferInterfaceInstruction,
+    createTransferInterfaceCheckedInstruction,
     createCTokenTransferInstruction,
+    createCTokenTransferCheckedInstruction,
 } from '../instructions/transfer-interface';
 import { createAssociatedTokenAccountInterfaceIdempotentInstruction } from '../instructions/create-ata-interface';
 import { getAssociatedTokenAddressInterface } from '../get-associated-token-address-interface';
@@ -77,24 +79,13 @@ function calculateComputeUnits(
 }
 
 /**
- * Transfer tokens using the c-token interface.
+ * Core transfer logic shared by transferInterface and transferInterfaceChecked.
  *
- * Matches SPL Token's transferChecked signature order. Destination must exist.
- *
- * @param rpc             RPC connection
- * @param payer           Fee payer (signer)
- * @param source          Source c-token ATA address
- * @param mint            Mint address
- * @param destination     Destination c-token ATA address (must exist)
- * @param owner           Source owner (signer)
- * @param amount          Amount to transfer
- * @param programId       Token program ID (default: CTOKEN_PROGRAM_ID)
- * @param confirmOptions  Optional confirm options
- * @param options         Optional interface options
- * @param wrap            Include SPL/T22 wrapping (default: false)
- * @returns Transaction signature
+ * When `checkedDecimals` is provided, uses transfer_checked instructions
+ * (discriminator 12, includes mint account, validates decimals on-chain).
+ * When undefined, uses basic transfer instructions (discriminator 3).
  */
-export async function transferInterface(
+async function _transferInterfaceCore(
     rpc: Rpc,
     payer: Signer,
     source: PublicKey,
@@ -102,10 +93,11 @@ export async function transferInterface(
     destination: PublicKey,
     owner: Signer,
     amount: number | bigint | BN,
-    programId: PublicKey = CTOKEN_PROGRAM_ID,
-    confirmOptions?: ConfirmOptions,
-    options?: InterfaceOptions,
-    wrap = false,
+    checkedDecimals: number | undefined,
+    programId: PublicKey,
+    confirmOptions: ConfirmOptions | undefined,
+    options: InterfaceOptions | undefined,
+    wrap: boolean,
 ): Promise<TransactionSignature> {
     assertBetaEnabled();
 
@@ -129,16 +121,31 @@ export async function transferInterface(
             );
         }
 
-        instructions.push(
-            createTransferInterfaceInstruction(
-                source,
-                destination,
-                owner.publicKey,
-                amountBigInt,
-                [],
-                programId,
-            ),
-        );
+        if (checkedDecimals !== undefined) {
+            instructions.push(
+                createTransferInterfaceCheckedInstruction(
+                    source,
+                    mint,
+                    destination,
+                    owner.publicKey,
+                    amountBigInt,
+                    checkedDecimals,
+                    [],
+                    programId,
+                ),
+            );
+        } else {
+            instructions.push(
+                createTransferInterfaceInstruction(
+                    source,
+                    destination,
+                    owner.publicKey,
+                    amountBigInt,
+                    [],
+                    programId,
+                ),
+            );
+        }
 
         const { blockhash } = await rpc.getLatestBlockhash();
         const tx = buildAndSignTx(
@@ -350,14 +357,27 @@ export async function transferInterface(
     }
 
     // Transfer (destination must already exist - like SPL Token)
-    instructions.push(
-        createCTokenTransferInstruction(
-            source,
-            destination,
-            owner.publicKey,
-            amountBigInt,
-        ),
-    );
+    if (checkedDecimals !== undefined) {
+        instructions.push(
+            createCTokenTransferCheckedInstruction(
+                source,
+                mint,
+                destination,
+                owner.publicKey,
+                amountBigInt,
+                checkedDecimals,
+            ),
+        );
+    } else {
+        instructions.push(
+            createCTokenTransferInstruction(
+                source,
+                destination,
+                owner.publicKey,
+                amountBigInt,
+            ),
+        );
+    }
 
     // Calculate compute units
     const computeUnits = calculateComputeUnits(
@@ -381,4 +401,104 @@ export async function transferInterface(
     );
 
     return sendAndConfirmTx(rpc, tx, confirmOptions);
+}
+
+/**
+ * Transfer tokens using the c-token interface.
+ *
+ * Destination must exist.
+ *
+ * @param rpc             RPC connection
+ * @param payer           Fee payer (signer)
+ * @param source          Source c-token ATA address
+ * @param mint            Mint address
+ * @param destination     Destination c-token ATA address (must exist)
+ * @param owner           Source owner (signer)
+ * @param amount          Amount to transfer
+ * @param programId       Token program ID (default: CTOKEN_PROGRAM_ID)
+ * @param confirmOptions  Optional confirm options
+ * @param options         Optional interface options
+ * @param wrap            Include SPL/T22 wrapping (default: false)
+ * @returns Transaction signature
+ */
+export async function transferInterface(
+    rpc: Rpc,
+    payer: Signer,
+    source: PublicKey,
+    mint: PublicKey,
+    destination: PublicKey,
+    owner: Signer,
+    amount: number | bigint | BN,
+    programId: PublicKey = CTOKEN_PROGRAM_ID,
+    confirmOptions?: ConfirmOptions,
+    options?: InterfaceOptions,
+    wrap = false,
+): Promise<TransactionSignature> {
+    return _transferInterfaceCore(
+        rpc,
+        payer,
+        source,
+        mint,
+        destination,
+        owner,
+        amount,
+        undefined,
+        programId,
+        confirmOptions,
+        options,
+        wrap,
+    );
+}
+
+/**
+ * Transfer tokens using the c-token interface with decimals validation.
+ *
+ * Like SPL Token's transferChecked, the on-chain program validates that the
+ * provided `decimals` matches the mint's decimals field, preventing
+ * decimal-related transfer errors (e.g. sending 1e9 when you meant 1e6).
+ *
+ * Destination must exist.
+ *
+ * @param rpc             RPC connection
+ * @param payer           Fee payer (signer)
+ * @param source          Source c-token ATA address
+ * @param mint            Mint address
+ * @param destination     Destination c-token ATA address (must exist)
+ * @param owner           Source owner (signer)
+ * @param amount          Amount to transfer
+ * @param decimals        Expected decimals of the mint (validated on-chain)
+ * @param programId       Token program ID (default: CTOKEN_PROGRAM_ID)
+ * @param confirmOptions  Optional confirm options
+ * @param options         Optional interface options
+ * @param wrap            Include SPL/T22 wrapping (default: false)
+ * @returns Transaction signature
+ */
+export async function transferInterfaceChecked(
+    rpc: Rpc,
+    payer: Signer,
+    source: PublicKey,
+    mint: PublicKey,
+    destination: PublicKey,
+    owner: Signer,
+    amount: number | bigint | BN,
+    decimals: number,
+    programId: PublicKey = CTOKEN_PROGRAM_ID,
+    confirmOptions?: ConfirmOptions,
+    options?: InterfaceOptions,
+    wrap = false,
+): Promise<TransactionSignature> {
+    return _transferInterfaceCore(
+        rpc,
+        payer,
+        source,
+        mint,
+        destination,
+        owner,
+        amount,
+        decimals,
+        programId,
+        confirmOptions,
+        options,
+        wrap,
+    );
 }

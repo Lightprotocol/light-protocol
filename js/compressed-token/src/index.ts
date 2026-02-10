@@ -65,7 +65,9 @@ export {
     createWrapInstruction,
     createDecompressInterfaceInstruction,
     createTransferInterfaceInstruction,
+    createTransferInterfaceCheckedInstruction,
     createCTokenTransferInstruction,
+    createCTokenTransferCheckedInstruction,
     // Types
     TokenMetadataInstructionData,
     CompressibleConfig,
@@ -78,6 +80,7 @@ export {
     getAssociatedTokenAddressInterface,
     getOrCreateAtaInterface,
     transferInterface,
+    transferInterfaceChecked,
     decompressInterface,
     wrap,
     mintTo as mintToCToken,

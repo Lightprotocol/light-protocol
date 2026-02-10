@@ -19,14 +19,19 @@ import {
 } from '../../src/utils/get-token-pool-infos';
 import { getAssociatedTokenAddressInterface } from '../../src/v3/get-associated-token-address-interface';
 import { getOrCreateAtaInterface } from '../../src/v3/actions/get-or-create-ata-interface';
-import { transferInterface } from '../../src/v3/actions/transfer-interface';
+import {
+    transferInterface,
+    transferInterfaceChecked,
+} from '../../src/v3/actions/transfer-interface';
 import {
     loadAta,
     createLoadAtaInstructions,
 } from '../../src/v3/actions/load-ata';
 import {
     createTransferInterfaceInstruction,
+    createTransferInterfaceCheckedInstruction,
     createCTokenTransferInstruction,
+    createCTokenTransferCheckedInstruction,
 } from '../../src/v3/instructions/transfer-interface';
 
 featureFlags.version = VERSION.V2;
@@ -505,6 +510,250 @@ describe('transfer-interface', () => {
             expect(recipientBalanceAfter).toBe(
                 recipientBalanceBefore + BigInt(500),
             );
+        });
+    });
+
+    describe('createCTokenTransferCheckedInstruction', () => {
+        it('should create instruction with 4 accounts (source, mint, dest, authority)', () => {
+            const source = Keypair.generate().publicKey;
+            const destination = Keypair.generate().publicKey;
+            const owner = Keypair.generate().publicKey;
+            const amount = BigInt(1000);
+
+            const ix = createCTokenTransferCheckedInstruction(
+                source,
+                mint,
+                destination,
+                owner,
+                amount,
+                TEST_TOKEN_DECIMALS,
+            );
+
+            expect(ix.programId.equals(CTOKEN_PROGRAM_ID)).toBe(true);
+            expect(ix.keys.length).toBe(4);
+            expect(ix.keys[0].pubkey.equals(source)).toBe(true);
+            expect(ix.keys[0].isWritable).toBe(true);
+            expect(ix.keys[1].pubkey.equals(mint)).toBe(true);
+            expect(ix.keys[1].isWritable).toBe(false);
+            expect(ix.keys[2].pubkey.equals(destination)).toBe(true);
+            expect(ix.keys[2].isWritable).toBe(true);
+            expect(ix.keys[3].pubkey.equals(owner)).toBe(true);
+            expect(ix.keys[3].isSigner).toBe(true);
+            expect(ix.keys[3].isWritable).toBe(true);
+        });
+
+        it('should encode discriminator 12, amount, and decimals', () => {
+            const source = Keypair.generate().publicKey;
+            const destination = Keypair.generate().publicKey;
+            const owner = Keypair.generate().publicKey;
+            const amount = BigInt(42000);
+
+            const ix = createCTokenTransferCheckedInstruction(
+                source,
+                mint,
+                destination,
+                owner,
+                amount,
+                TEST_TOKEN_DECIMALS,
+            );
+
+            expect(ix.data.length).toBe(10);
+            expect(ix.data[0]).toBe(12);
+            expect(ix.data.readBigUInt64LE(1)).toBe(BigInt(42000));
+            expect(ix.data[9]).toBe(TEST_TOKEN_DECIMALS);
+        });
+    });
+
+    describe('createTransferInterfaceCheckedInstruction', () => {
+        it('should route to c-token checked instruction by default', () => {
+            const source = Keypair.generate().publicKey;
+            const destination = Keypair.generate().publicKey;
+            const owner = Keypair.generate().publicKey;
+
+            const ix = createTransferInterfaceCheckedInstruction(
+                source,
+                mint,
+                destination,
+                owner,
+                BigInt(500),
+                TEST_TOKEN_DECIMALS,
+            );
+
+            expect(ix.programId.equals(CTOKEN_PROGRAM_ID)).toBe(true);
+            expect(ix.keys.length).toBe(4);
+            expect(ix.data[0]).toBe(12);
+        });
+    });
+
+    describe('transferInterfaceChecked action', () => {
+        it('should transfer with correct decimals from hot balance', async () => {
+            const sender = await newAccountWithLamports(rpc, 1e9);
+            const recipient = Keypair.generate();
+
+            // Mint and load sender
+            await mintTo(
+                rpc,
+                payer,
+                mint,
+                sender.publicKey,
+                mintAuthority,
+                bn(5000),
+                stateTreeInfo,
+                selectTokenPoolInfo(tokenPoolInfos),
+            );
+            const senderAta = getAssociatedTokenAddressInterface(
+                mint,
+                sender.publicKey,
+            );
+            await loadAta(rpc, senderAta, sender, mint);
+
+            // Create recipient ATA
+            const recipientAta = await getOrCreateAtaInterface(
+                rpc,
+                payer,
+                mint,
+                recipient.publicKey,
+            );
+
+            const sourceAta = getAssociatedTokenAddressInterface(
+                mint,
+                sender.publicKey,
+            );
+
+            // transferInterfaceChecked with correct decimals
+            const signature = await transferInterfaceChecked(
+                rpc,
+                payer,
+                sourceAta,
+                mint,
+                recipientAta.parsed.address,
+                sender,
+                BigInt(1000),
+                TEST_TOKEN_DECIMALS,
+            );
+
+            expect(signature).toBeDefined();
+
+            // Verify balances
+            const senderAtaInfo = await rpc.getAccountInfo(sourceAta);
+            const senderBalance = senderAtaInfo!.data.readBigUInt64LE(64);
+            expect(senderBalance).toBe(BigInt(4000));
+
+            const recipientAtaInfo = await rpc.getAccountInfo(
+                recipientAta.parsed.address,
+            );
+            const recipientBalance = recipientAtaInfo!.data.readBigUInt64LE(64);
+            expect(recipientBalance).toBe(BigInt(1000));
+        });
+
+        it('should fail with wrong decimals', async () => {
+            const sender = await newAccountWithLamports(rpc, 1e9);
+            const recipient = Keypair.generate();
+
+            // Mint and load sender
+            await mintTo(
+                rpc,
+                payer,
+                mint,
+                sender.publicKey,
+                mintAuthority,
+                bn(5000),
+                stateTreeInfo,
+                selectTokenPoolInfo(tokenPoolInfos),
+            );
+            const senderAta = getAssociatedTokenAddressInterface(
+                mint,
+                sender.publicKey,
+            );
+            await loadAta(rpc, senderAta, sender, mint);
+
+            // Create recipient ATA
+            const recipientAta = await getOrCreateAtaInterface(
+                rpc,
+                payer,
+                mint,
+                recipient.publicKey,
+            );
+
+            const sourceAta = getAssociatedTokenAddressInterface(
+                mint,
+                sender.publicKey,
+            );
+
+            const wrongDecimals = TEST_TOKEN_DECIMALS + 1;
+
+            // transferInterfaceChecked with wrong decimals should fail
+            await expect(
+                transferInterfaceChecked(
+                    rpc,
+                    payer,
+                    sourceAta,
+                    mint,
+                    recipientAta.parsed.address,
+                    sender,
+                    BigInt(1000),
+                    wrongDecimals,
+                ),
+            ).rejects.toThrow();
+        });
+
+        it('should auto-load from cold with correct decimals', async () => {
+            const sender = await newAccountWithLamports(rpc, 1e9);
+            const recipient = Keypair.generate();
+
+            // Mint compressed tokens (cold) - don't load
+            await mintTo(
+                rpc,
+                payer,
+                mint,
+                sender.publicKey,
+                mintAuthority,
+                bn(3000),
+                stateTreeInfo,
+                selectTokenPoolInfo(tokenPoolInfos),
+            );
+
+            // Create recipient ATA
+            const recipientAta = await getOrCreateAtaInterface(
+                rpc,
+                payer,
+                mint,
+                recipient.publicKey,
+            );
+
+            const sourceAta = getAssociatedTokenAddressInterface(
+                mint,
+                sender.publicKey,
+            );
+
+            // Transfer should auto-load cold balance and use checked transfer
+            const signature = await transferInterfaceChecked(
+                rpc,
+                payer,
+                sourceAta,
+                mint,
+                recipientAta.parsed.address,
+                sender,
+                BigInt(2000),
+                TEST_TOKEN_DECIMALS,
+                CTOKEN_PROGRAM_ID,
+                undefined,
+                { splInterfaceInfos: tokenPoolInfos },
+            );
+
+            expect(signature).toBeDefined();
+
+            // Verify recipient received tokens
+            const recipientAtaInfo = await rpc.getAccountInfo(
+                recipientAta.parsed.address,
+            );
+            const recipientBalance = recipientAtaInfo!.data.readBigUInt64LE(64);
+            expect(recipientBalance).toBe(BigInt(2000));
+
+            // Sender should have change
+            const senderAtaInfo = await rpc.getAccountInfo(sourceAta);
+            const senderBalance = senderAtaInfo!.data.readBigUInt64LE(64);
+            expect(senderBalance).toBe(BigInt(1000));
         });
     });
 });
