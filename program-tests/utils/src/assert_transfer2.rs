@@ -45,6 +45,23 @@ pub async fn assert_transfer2_with_delegate(
 
                 // Decrement balance for compress
                 expected_spl_accounts.get_mut(&pubkey).unwrap().amount -= compress_input.amount;
+
+                // Handle delegate amount decrement when delegate is compressing
+                let expected = expected_spl_accounts.get_mut(&pubkey).unwrap();
+                if expected.delegate
+                    == spl_token_2022::solana_program::program_option::COption::Some(
+                        compress_input.authority,
+                    )
+                {
+                    expected.delegated_amount = expected
+                        .delegated_amount
+                        .checked_sub(compress_input.amount)
+                        .expect("Delegate compress amount exceeds delegated_amount");
+                    if expected.delegated_amount == 0 {
+                        expected.delegate =
+                            spl_token_2022::solana_program::program_option::COption::None;
+                    }
+                }
             }
             Transfer2InstructionType::Decompress(decompress_input) => {
                 let pubkey = decompress_input.solana_token_account;
