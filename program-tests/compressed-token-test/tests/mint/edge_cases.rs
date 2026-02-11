@@ -182,8 +182,7 @@ async fn functional_all_in_one_instruction() {
         },
         // 2. MintToCToken - mint to decompressed account
         MintActionType::MintToCToken {
-            account: light_token::instruction::derive_token_ata(&recipient.pubkey(), &spl_mint_pda)
-                .0,
+            account: light_token::instruction::derive_token_ata(&recipient.pubkey(), &spl_mint_pda),
             amount: 2000u64,
         },
         // 3. UpdateMintAuthority

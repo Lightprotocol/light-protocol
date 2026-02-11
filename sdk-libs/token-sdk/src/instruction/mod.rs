@@ -60,7 +60,6 @@
 //!     owner: ctx.accounts.owner.to_account_info(),
 //!     mint: ctx.accounts.mint.to_account_info(),
 //!     ata: ctx.accounts.user_ata.to_account_info(),
-//!     bump,
 //! }
 //! .idempotent()
 //! .rent_free(

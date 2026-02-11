@@ -89,7 +89,7 @@ async fn setup_decompression_test(
 
     // Derive mint and ATA addresses
     let (mint, _) = find_mint_address(&mint_seed.pubkey());
-    let (ctoken_ata, _) = derive_token_ata(&owner.pubkey(), &mint);
+    let ctoken_ata = derive_token_ata(&owner.pubkey(), &mint);
 
     // Create compressible Light Token ATA for owner (recipient of decompression)
     let compressible_params = CompressibleParams {

@@ -96,7 +96,7 @@ async fn create_compressed_mints_and_tokens(
     mint_compressed_tokens(rpc, payer, &mint3_pda, mint3_pubkey, compress_amount).await;
 
     // Create associated token account for mint1 decompression
-    let (token_account1_pubkey, _bump) =
+    let token_account1_pubkey =
         light_token::instruction::derive_token_ata(&payer.pubkey(), &mint1_pda);
     let create_ata_instruction =
         CreateAssociatedTokenAccount::new(payer.pubkey(), payer.pubkey(), mint1_pda)

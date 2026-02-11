@@ -545,7 +545,7 @@ impl Rpc for LightProgramTest {
         use light_sdk::constants::LIGHT_TOKEN_PROGRAM_ID;
         use light_token::instruction::derive_token_ata;
 
-        let (ata, _bump) = derive_token_ata(owner, mint);
+        let ata = derive_token_ata(owner, mint);
         let light_token_program_id: Pubkey = LIGHT_TOKEN_PROGRAM_ID.into();
         let slot = self.context.get_sysvar::<Clock>().slot;
 

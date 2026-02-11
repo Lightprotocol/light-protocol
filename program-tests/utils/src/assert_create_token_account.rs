@@ -404,7 +404,7 @@ pub async fn assert_create_associated_token_account(
     expected_extensions: Option<Vec<ExtensionStruct>>,
 ) {
     // Derive the associated token account address
-    let (ata_pubkey, _bump) = derive_token_ata(&owner_pubkey, &mint_pubkey);
+    let ata_pubkey = derive_token_ata(&owner_pubkey, &mint_pubkey);
 
     // Verify the account exists at the derived address
     let account = rpc

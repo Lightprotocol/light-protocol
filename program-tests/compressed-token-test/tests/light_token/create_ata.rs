@@ -184,7 +184,7 @@ async fn test_create_compressible_ata() {
             .unwrap();
 
         // Verify ATA was created at the expected address
-        let (expected_ata, _) = derive_token_ata(&owner_and_mint, &owner_and_mint);
+        let expected_ata = derive_token_ata(&owner_and_mint, &owner_and_mint);
         let account = context.rpc.get_account(expected_ata).await.unwrap();
         assert!(
             account.is_some(),
@@ -419,8 +419,7 @@ async fn test_create_ata_failing() {
 
         // Use different mint for this test
         context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
-        let (ata_pubkey, bump) =
-            derive_token_ata(&context.owner_keypair.pubkey(), &context.mint_pubkey);
+        let ata_pubkey = derive_token_ata(&context.owner_keypair.pubkey(), &context.mint_pubkey);
 
         // Manually build instruction data with compress_to_account_pubkey (forbidden for ATAs)
         let compress_to_pubkey = CompressToPubkey {
@@ -430,7 +429,6 @@ async fn test_create_ata_failing() {
         };
 
         let instruction_data = CreateAssociatedTokenAccountInstructionData {
-            bump,
             compressible_config: Some(CompressibleExtensionInstructionData {
                 token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat
                     as u8,
@@ -477,9 +475,9 @@ async fn test_create_ata_failing() {
         light_program_test::utils::assert::assert_rpc_error(result, 0, 2).unwrap();
     }
 
-    // Test 5: Invalid PDA derivation (wrong bump)
-    // ATAs must use the correct bump derived from [owner, program_id, mint]
-    // Error: 21 (ProgramFailedToComplete - provided seeds do not result in valid address)
+    // Test 5: Invalid ATA address (wrong PDA)
+    // Passing a wrong ATA address that doesn't match the derived PDA should fail.
+    // verify_pda uses find_program_address and returns InvalidAccountData (3) on mismatch.
     {
         use anchor_lang::prelude::borsh::BorshSerialize;
         use light_token_interface::instructions::{
@@ -490,24 +488,15 @@ async fn test_create_ata_failing() {
 
         // Use different mint for this test
         context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
-        let (ata_pubkey, correct_bump) =
-            derive_token_ata(&context.owner_keypair.pubkey(), &context.mint_pubkey);
+        // Use a wrong ATA address (random pubkey instead of derived)
+        let wrong_ata_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
 
-        // Manually build instruction data with WRONG bump
-        let wrong_bump = if correct_bump == 255 {
-            254
-        } else {
-            correct_bump + 1
-        };
-
-        // Owner and mint are now passed as accounts, not in instruction data
         let instruction_data = CreateAssociatedTokenAccountInstructionData {
-            bump: wrong_bump, // Wrong bump!
             compressible_config: Some(CompressibleExtensionInstructionData {
                 token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat
                     as u8,
                 rent_payment: 2,
-                compression_only: 1, // ATAs always compression_only
+                compression_only: 1,
                 write_top_up: 100,
                 compress_to_account_pubkey: None,
             }),
@@ -516,7 +505,6 @@ async fn test_create_ata_failing() {
         let mut data = vec![100]; // CreateAssociatedTokenAccount discriminator
         instruction_data.serialize(&mut data).unwrap();
 
-        // Account order: owner, mint, payer, ata, system_program, config, rent_sponsor
         let ix = Instruction {
             program_id: light_compressed_token::ID,
             accounts: vec![
@@ -526,7 +514,7 @@ async fn test_create_ata_failing() {
                 ),
                 solana_sdk::instruction::AccountMeta::new_readonly(context.mint_pubkey, false),
                 solana_sdk::instruction::AccountMeta::new(payer_pubkey, true),
-                solana_sdk::instruction::AccountMeta::new(ata_pubkey, false),
+                solana_sdk::instruction::AccountMeta::new(wrong_ata_pubkey, false),
                 solana_sdk::instruction::AccountMeta::new_readonly(
                     solana_sdk::pubkey::Pubkey::default(),
                     false,
@@ -545,16 +533,8 @@ async fn test_create_ata_failing() {
             .create_and_send_transaction(&[ix], &payer_pubkey, &[&context.payer])
             .await;
 
-        // Wrong bump can trigger either ProgramFailedToComplete (21) or PrivilegeEscalation (19)
-        // depending on runtime state - accept either
-        let is_valid_error =
-            light_program_test::utils::assert::assert_rpc_error(result.clone(), 0, 21).is_ok()
-                || light_program_test::utils::assert::assert_rpc_error(result, 0, 19).is_ok();
-
-        assert!(
-            is_valid_error,
-            "Expected either ProgramFailedToComplete (21) or PrivilegeEscalation (19)"
-        );
+        // Wrong ATA address is caught by verify_pda which returns InvalidAccountData (3)
+        light_program_test::utils::assert::assert_rpc_error(result, 0, 3).unwrap();
     }
 
     // Test 6: Invalid config account owner
@@ -706,11 +686,7 @@ async fn test_create_ata_failing() {
 
     // Test 10: Arbitrary keypair address instead of correct PDA (non-IDEMPOTENT)
     // Tests that providing an arbitrary address (not the correct PDA) fails.
-    // Currently fails with PrivilegeEscalation (19) at CreateAccount CPI because
-    // the program tries to sign for a PDA but the account address doesn't match.
-    // With proper validation (calling validate_ata_derivation in non-IDEMPOTENT mode),
-    // this would fail earlier with InvalidAccountData (17).
-    // Error: 19 (PrivilegeEscalation - CPI tries to sign for wrong address)
+    // verify_pda uses find_program_address and returns InvalidAccountData (3) on mismatch.
     {
         use anchor_lang::prelude::borsh::BorshSerialize;
         use light_token_interface::instructions::create_associated_token_account::CreateAssociatedTokenAccountInstructionData;
@@ -719,18 +695,13 @@ async fn test_create_ata_failing() {
         // Use different mint for this test
         context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
 
-        // Get the correct PDA and bump
-        let (_correct_ata_pubkey, correct_bump) =
-            derive_token_ata(&context.owner_keypair.pubkey(), &context.mint_pubkey);
-
         // Create an arbitrary keypair (NOT the correct PDA)
         let fake_ata_keypair = solana_sdk::signature::Keypair::new();
         let fake_ata_pubkey = fake_ata_keypair.pubkey();
 
-        // Build instruction with correct bump but WRONG address (arbitrary keypair)
+        // Build instruction with WRONG address (arbitrary keypair)
         // No compressible config for non-compressible ATAs
         let instruction_data = CreateAssociatedTokenAccountInstructionData {
-            bump: correct_bump, // Correct bump for the real PDA
             compressible_config: None,
         };
 
@@ -766,10 +737,8 @@ async fn test_create_ata_failing() {
             .create_and_send_transaction(&[ix], &payer_pubkey, &[&context.payer])
             .await;
 
-        // Fails with PrivilegeEscalation (19) - program tries to invoke_signed with
-        // seeds that derive to the correct PDA, but the account passed is a different address.
-        // Solana runtime rejects this as unauthorized signer privilege escalation.
-        light_program_test::utils::assert::assert_rpc_error(result, 0, 19).unwrap();
+        // Wrong ATA address is caught by verify_pda which returns InvalidAccountData (3)
+        light_program_test::utils::assert::assert_rpc_error(result, 0, 3).unwrap();
     }
 
     // Test 11: Non-compressible ATA for mint with restricted extensions
@@ -799,11 +768,10 @@ async fn test_create_ata_failing() {
         let owner = solana_sdk::pubkey::Pubkey::new_unique();
 
         // Derive ATA address
-        let (ata_pubkey, bump) = derive_token_ata(&owner, &mint_with_restricted_ext);
+        let ata_pubkey = derive_token_ata(&owner, &mint_with_restricted_ext);
 
         // Build instruction data with compressible_config: None (non-compressible)
         let instruction_data = CreateAssociatedTokenAccountInstructionData {
-            bump,
             compressible_config: None, // Non-compressible!
         };
 
@@ -955,9 +923,9 @@ async fn test_ata_multiple_mints_same_owner() {
     assert_ne!(ata2, ata3, "ATA for mint2 and mint3 should be different");
 
     // Verify each ATA is derived correctly for its mint
-    let (expected_ata1, _) = derive_token_ata(&owner, &mint1);
-    let (expected_ata2, _) = derive_token_ata(&owner, &mint2);
-    let (expected_ata3, _) = derive_token_ata(&owner, &mint3);
+    let expected_ata1 = derive_token_ata(&owner, &mint1);
+    let expected_ata2 = derive_token_ata(&owner, &mint2);
+    let expected_ata3 = derive_token_ata(&owner, &mint3);
 
     assert_eq!(ata1, expected_ata1, "ATA1 should match expected derivation");
     assert_eq!(ata2, expected_ata2, "ATA2 should match expected derivation");
@@ -1010,7 +978,7 @@ async fn test_ata_multiple_owners_same_mint() {
         .await
         .unwrap();
 
-    let (ata1, _) = derive_token_ata(&owner1, &mint);
+    let ata1 = derive_token_ata(&owner1, &mint);
 
     // Assert ATA1 was created correctly
     assert_create_associated_token_account(
@@ -1033,7 +1001,7 @@ async fn test_ata_multiple_owners_same_mint() {
         .await
         .unwrap();
 
-    let (ata2, _) = derive_token_ata(&owner2, &mint);
+    let ata2 = derive_token_ata(&owner2, &mint);
 
     // Assert ATA2 was created correctly
     assert_create_associated_token_account(
@@ -1056,7 +1024,7 @@ async fn test_ata_multiple_owners_same_mint() {
         .await
         .unwrap();
 
-    let (ata3, _) = derive_token_ata(&owner3, &mint);
+    let ata3 = derive_token_ata(&owner3, &mint);
 
     // Assert ATA3 was created correctly
     assert_create_associated_token_account(
@@ -1074,9 +1042,9 @@ async fn test_ata_multiple_owners_same_mint() {
     assert_ne!(ata2, ata3, "ATA for owner2 and owner3 should be different");
 
     // Verify each ATA is derived correctly for its owner
-    let (expected_ata1, _) = derive_token_ata(&owner1, &mint);
-    let (expected_ata2, _) = derive_token_ata(&owner2, &mint);
-    let (expected_ata3, _) = derive_token_ata(&owner3, &mint);
+    let expected_ata1 = derive_token_ata(&owner1, &mint);
+    let expected_ata2 = derive_token_ata(&owner2, &mint);
+    let expected_ata3 = derive_token_ata(&owner3, &mint);
 
     assert_eq!(ata1, expected_ata1, "ATA1 should match expected derivation");
     assert_eq!(ata2, expected_ata2, "ATA2 should match expected derivation");

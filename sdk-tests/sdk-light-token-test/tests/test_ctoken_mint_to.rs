@@ -196,8 +196,7 @@ async fn test_ctoken_mint_to_invoke_signed() {
 
     // Step 2: Create ATA for payer (CreateMint now auto-decompresses)
     let ata = {
-        let (ata_address, _) =
-            light_token::instruction::derive_token_ata(&payer.pubkey(), &mint_pda);
+        let ata_address = light_token::instruction::derive_token_ata(&payer.pubkey(), &mint_pda);
         let create_ata =
             CreateAssociatedTokenAccount::new(payer.pubkey(), payer.pubkey(), mint_pda);
         let ata_instruction = create_ata.instruction().unwrap();

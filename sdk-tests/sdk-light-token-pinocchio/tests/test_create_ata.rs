@@ -34,11 +34,10 @@ async fn test_create_ata_invoke() {
     // Derive the ATA address
     let owner = payer.pubkey();
     use light_token::instruction::derive_token_ata;
-    let (ata_address, bump) = derive_token_ata(&owner, &mint_pda);
+    let ata_address = derive_token_ata(&owner, &mint_pda);
 
     // Build CreateAtaData (owner and mint are passed as accounts)
     let create_ata_data = CreateAtaData {
-        bump,
         pre_pay_num_epochs: 2,
         lamports_per_write: 1,
     };
@@ -120,11 +119,10 @@ async fn test_create_ata_invoke_signed() {
 
     // Derive the ATA address for the PDA owner
     use light_token::instruction::derive_token_ata;
-    let (ata_address, bump) = derive_token_ata(&pda_owner, &mint_pda);
+    let ata_address = derive_token_ata(&pda_owner, &mint_pda);
 
     // Build CreateAtaData with PDA as owner (owner and mint are passed as accounts)
     let create_ata_data = CreateAtaData {
-        bump,
         pre_pay_num_epochs: 2,
         lamports_per_write: 1,
     };

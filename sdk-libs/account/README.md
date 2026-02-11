@@ -127,7 +127,7 @@ pub vault: UncheckedAccount<'info>,
 **With `init` (Anchor-created):**
 ```rust
 #[account(mut)]
-#[light_account(init, associated_token::authority = owner, associated_token::mint = mint, associated_token::bump = params.bump)]
+#[light_account(init, associated_token::authority = owner, associated_token::mint = mint)]
 pub token_account: UncheckedAccount<'info>,
 ```
 

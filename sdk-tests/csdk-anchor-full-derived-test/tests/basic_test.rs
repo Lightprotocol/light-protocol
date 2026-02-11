@@ -91,7 +91,7 @@ async fn test_create_pdas_and_mint_auto() {
     let (vault_pda, vault_bump) =
         Pubkey::find_program_address(&[VAULT_SEED, mint_pda.as_ref()], &program_id);
     let (vault_authority_pda, _) = Pubkey::find_program_address(&[b"vault_authority"], &program_id);
-    let (user_ata_pda, user_ata_bump) =
+    let (user_ata_pda, _user_ata_bump) =
         get_associated_token_address_and_bump(&payer.pubkey(), &mint_pda);
 
     let (user_record_pda, _) = Pubkey::find_program_address(
@@ -175,7 +175,6 @@ async fn test_create_pdas_and_mint_auto() {
             session_id,
             mint_signer_bump,
             vault_bump,
-            user_ata_bump,
             vault_mint_amount,
             user_ata_mint_amount,
         },

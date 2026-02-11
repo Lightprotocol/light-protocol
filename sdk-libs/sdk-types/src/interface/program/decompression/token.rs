@@ -80,7 +80,7 @@ where
         .ok_or(LightSdkTypesError::NotEnoughAccountKeys)?
         .key();
 
-    if let Some((ata_bump, wallet_owner_index)) = ata_info {
+    if let Some((_ata_bump, wallet_owner_index)) = ata_info {
         // ATA path: use invoke() without signer seeds
         let wallet_owner_key = packed_accounts
             .get(wallet_owner_index as usize)
@@ -94,7 +94,6 @@ where
                 &mint_key,
                 &fee_payer_key,
                 &token_account_info.key(),
-                ata_bump,
                 &ctoken_compressible_config_key,
                 &ctoken_rent_sponsor_key,
                 ctx.light_config.write_top_up,

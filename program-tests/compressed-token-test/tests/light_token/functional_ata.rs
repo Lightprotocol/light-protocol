@@ -116,7 +116,7 @@ async fn test_associated_token_account_operations() {
     .await;
 
     // Test closing compressible ATA
-    let (compressible_ata_pubkey, _) =
+    let compressible_ata_pubkey =
         derive_token_ata(&compressible_owner_pubkey, &context.mint_pubkey);
 
     // Create a separate destination account
@@ -272,7 +272,7 @@ async fn test_create_ata_with_prefunded_lamports() {
     let owner_pubkey = context.owner_keypair.pubkey();
 
     // Derive ATA address
-    let (ata, bump) = derive_token_ata(&owner_pubkey, &context.mint_pubkey);
+    let ata = derive_token_ata(&owner_pubkey, &context.mint_pubkey);
 
     // Pre-fund the ATA address with lamports (simulating attacker donation DoS attempt)
     let prefund_amount = 1_000; // 1000 lamports
@@ -309,7 +309,6 @@ async fn test_create_ata_with_prefunded_lamports() {
 
     let instruction = CreateAssociatedTokenAccount {
         idempotent: false,
-        bump,
         payer: payer_pubkey,
         owner: owner_pubkey,
         mint: context.mint_pubkey,

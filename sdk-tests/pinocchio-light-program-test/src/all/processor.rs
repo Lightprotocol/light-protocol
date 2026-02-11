@@ -1,9 +1,8 @@
 use light_account_pinocchio::{
-    derive_associated_token_account, prepare_compressed_account_on_init, CompressedCpiContext,
-    CpiAccounts, CpiAccountsConfig, CpiContextWriteAccounts, CreateMints,
-    CreateMintsStaticAccounts, CreateTokenAccountCpi, CreateTokenAtaCpi,
-    InstructionDataInvokeCpiWithAccountInfo, InvokeLightSystemProgram, LightAccount, LightConfig,
-    LightSdkTypesError, PackedAddressTreeInfoExt, SingleMintParams,
+    prepare_compressed_account_on_init, CompressedCpiContext, CpiAccounts, CpiAccountsConfig,
+    CpiContextWriteAccounts, CreateMints, CreateMintsStaticAccounts, CreateTokenAccountCpi,
+    CreateTokenAtaCpi, InstructionDataInvokeCpiWithAccountInfo, InvokeLightSystemProgram,
+    LightAccount, LightConfig, LightSdkTypesError, PackedAddressTreeInfoExt, SingleMintParams,
 };
 use pinocchio::{
     account_info::AccountInfo,
@@ -192,14 +191,11 @@ pub fn process(
 
     // 7. Create ATA
     {
-        let (_, ata_bump) = derive_associated_token_account(ctx.ata_owner.key(), ctx.mint.key());
-
         CreateTokenAtaCpi {
             payer: ctx.payer,
             owner: ctx.ata_owner,
             mint: ctx.mint,
             ata: ctx.user_ata,
-            bump: ata_bump,
         }
         .rent_free(
             ctx.compressible_config,

@@ -73,7 +73,7 @@ async fn test_spl_to_ctoken_invoke() {
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
-    let ctoken_account = derive_token_ata(&recipient.pubkey(), &mint).0;
+    let ctoken_account = derive_token_ata(&recipient.pubkey(), &mint);
 
     // Get initial balances
     use spl_token_2022::pod::PodAccount;
@@ -195,7 +195,7 @@ async fn test_ctoken_to_spl_invoke() {
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
-    let ctoken_account = derive_token_ata(&owner.pubkey(), &mint).0;
+    let ctoken_account = derive_token_ata(&owner.pubkey(), &mint);
 
     // Create a temporary SPL account to mint tokens then transfer to ctoken
     let temp_spl_account_keypair = Keypair::new();
@@ -385,7 +385,7 @@ async fn test_spl_to_ctoken_invoke_signed() {
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
-    let ctoken_account = derive_token_ata(&recipient.pubkey(), &mint).0;
+    let ctoken_account = derive_token_ata(&recipient.pubkey(), &mint);
 
     // Get SPL interface PDA
     let (spl_interface_pda, spl_interface_pda_bump) =
@@ -484,10 +484,9 @@ async fn test_ctoken_to_spl_invoke_signed() {
     .unwrap();
 
     // Create ctoken ATA owned by the PDA
-    let (ctoken_account, bump) = derive_token_ata(&authority_pda, &mint);
+    let ctoken_account = derive_token_ata(&authority_pda, &mint);
     let instruction = CreateAssociatedTokenAccount {
         idempotent: false,
-        bump,
         payer: payer.pubkey(),
         owner: authority_pda,
         mint,

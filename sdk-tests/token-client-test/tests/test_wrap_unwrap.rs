@@ -50,7 +50,7 @@ async fn test_wrap_basic() {
 
     // Create Light Token ATA for destination
     let owner = payer.pubkey();
-    let (light_token_ata, _) = derive_token_ata(&owner, &mint);
+    let light_token_ata = derive_token_ata(&owner, &mint);
 
     CreateAta {
         mint,
@@ -123,7 +123,7 @@ async fn test_unwrap_basic() {
 
     // Create Light Token ATA
     let owner = payer.pubkey();
-    let (light_token_ata, _) = derive_token_ata(&owner, &mint);
+    let light_token_ata = derive_token_ata(&owner, &mint);
 
     CreateAta {
         mint,
@@ -213,7 +213,7 @@ async fn test_wrap_unwrap_round_trip() {
 
     // Create Light Token ATA
     let owner = payer.pubkey();
-    let (light_token_ata, _) = derive_token_ata(&owner, &mint);
+    let light_token_ata = derive_token_ata(&owner, &mint);
 
     CreateAta {
         mint,
@@ -297,7 +297,7 @@ async fn test_wrap_large_amount() {
 
     // Create Light Token ATA
     let owner = payer.pubkey();
-    let (light_token_ata, _) = derive_token_ata(&owner, &mint);
+    let light_token_ata = derive_token_ata(&owner, &mint);
 
     CreateAta {
         mint,

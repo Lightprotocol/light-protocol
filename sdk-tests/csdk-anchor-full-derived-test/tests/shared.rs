@@ -316,7 +316,7 @@ pub async fn setup_create_mint(
     let mut ata_pubkeys = Vec::with_capacity(recipients.len());
 
     for (_amount, owner) in &recipients {
-        let (ata_address, _bump) = derive_token_ata(owner, &mint);
+        let ata_address = derive_token_ata(owner, &mint);
         ata_pubkeys.push(ata_address);
 
         let create_ata = CreateAssociatedTokenAccount::new(payer.pubkey(), *owner, mint);

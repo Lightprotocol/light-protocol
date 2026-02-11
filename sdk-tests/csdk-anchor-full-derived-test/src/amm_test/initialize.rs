@@ -24,7 +24,6 @@ pub struct InitializeParams {
     pub open_time: u64,
     pub create_accounts_proof: CreateAccountsProof,
     pub lp_mint_signer_bump: u8,
-    pub creator_lp_token_bump: u8,
     pub authority_bump: u8,
 }
 
@@ -241,7 +240,6 @@ pub fn process_initialize_pool<'info>(
             owner: &owner_info,
             mint: &mint_info,
             ata: &ata_info,
-            bump: params.creator_lp_token_bump,
         }
         .idempotent()
         .rent_free(&config_info, &sponsor_info, &system_info)

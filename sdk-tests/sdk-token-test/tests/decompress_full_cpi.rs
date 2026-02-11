@@ -73,7 +73,7 @@ async fn setup_decompress_full_test(num_inputs: usize) -> (LightProgramTest, Tes
             additional_owner.pubkey()
         };
 
-        let (destination_account, _) = derive_token_ata(&destination_owner, &mint_pubkey);
+        let destination_account = derive_token_ata(&destination_owner, &mint_pubkey);
 
         let compressible_params = CompressibleParams {
             compressible_config: rpc

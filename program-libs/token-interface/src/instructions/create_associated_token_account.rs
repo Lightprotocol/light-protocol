@@ -8,7 +8,6 @@ use crate::{
 #[repr(C)]
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
 pub struct CreateAssociatedTokenAccountInstructionData {
-    pub bump: u8,
     /// Optional compressible configuration for the token account
     pub compressible_config: Option<CompressibleExtensionInstructionData>,
 }

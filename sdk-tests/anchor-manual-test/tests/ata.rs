@@ -27,7 +27,7 @@ async fn test_create_ata() {
     let ata_owner = Keypair::new();
 
     // Derive ATA address using light-token's standard derivation
-    let (user_ata, _) = derive_associated_token_account(&ata_owner.pubkey(), &mint);
+    let user_ata = derive_associated_token_account(&ata_owner.pubkey(), &mint);
 
     let params = CreateAtaParams::default();
 
@@ -75,7 +75,7 @@ async fn test_create_ata_idempotent() {
 
     let mint = shared::create_test_mint(&mut rpc, &payer).await;
     let ata_owner = Keypair::new();
-    let (user_ata, _) = derive_associated_token_account(&ata_owner.pubkey(), &mint);
+    let user_ata = derive_associated_token_account(&ata_owner.pubkey(), &mint);
 
     let params = CreateAtaParams::default();
 

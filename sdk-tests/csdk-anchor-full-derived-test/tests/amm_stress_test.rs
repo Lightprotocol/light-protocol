@@ -62,7 +62,6 @@ struct AmmPdas {
     lp_mint_signer_bump: u8,
     lp_mint: Pubkey,
     creator_lp_token: Pubkey,
-    creator_lp_token_bump: u8,
 }
 
 /// Context for AMM tests
@@ -220,7 +219,7 @@ fn derive_amm_pdas(
 
     let (lp_mint, _) = find_mint_address(&lp_mint_signer);
 
-    let (creator_lp_token, creator_lp_token_bump) =
+    let (creator_lp_token, _creator_lp_token_bump) =
         get_associated_token_address_and_bump(creator, &lp_mint);
 
     AmmPdas {
@@ -238,7 +237,6 @@ fn derive_amm_pdas(
         lp_mint_signer_bump,
         lp_mint,
         creator_lp_token,
-        creator_lp_token_bump,
     }
 }
 
@@ -372,7 +370,6 @@ async fn initialize_pool(ctx: &mut AmmTestContext, pdas: &AmmPdas) {
         open_time: 0u64,
         create_accounts_proof: proof_result.create_accounts_proof,
         lp_mint_signer_bump: pdas.lp_mint_signer_bump,
-        creator_lp_token_bump: pdas.creator_lp_token_bump,
         authority_bump: pdas.authority_bump,
     };
 

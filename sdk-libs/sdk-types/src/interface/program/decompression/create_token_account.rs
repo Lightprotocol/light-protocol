@@ -34,13 +34,11 @@ pub fn build_create_ata_instruction(
     mint: &[u8; 32],
     fee_payer: &[u8; 32],
     ata: &[u8; 32],
-    bump: u8,
     compressible_config: &[u8; 32],
     rent_sponsor: &[u8; 32],
     write_top_up: u32,
 ) -> Result<(Vec<u8>, Vec<CpiMeta>), LightSdkTypesError> {
     let instruction_data = CreateAssociatedTokenAccountInstructionData {
-        bump,
         compressible_config: Some(CompressibleExtensionInstructionData {
             token_account_version: 3, // ShaFlat version (required)
             rent_payment: 16,         // 24h

@@ -18,9 +18,12 @@ use light_test_utils::{
     },
     Rpc, RpcError,
 };
-use light_token::instruction::{
-    derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount, CreateTokenAccount,
-    TransferFromSpl,
+use light_token::{
+    instruction::{
+        derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount, CreateTokenAccount,
+        TransferFromSpl,
+    },
+    utils::get_associated_token_address_and_bump,
 };
 use light_token_interface::{
     instructions::extensions::{CompressedOnlyExtensionInstructionData, ExtensionInstructionData},
@@ -74,7 +77,8 @@ async fn setup_ata_compressed_token(
 
     // Create ATA with compression_only=true
     let owner = Keypair::new();
-    let (ata_pubkey, ata_bump) = derive_token_ata(&owner.pubkey(), &mint_pubkey);
+    let (ata_pubkey, ata_bump) =
+        get_associated_token_address_and_bump(&owner.pubkey(), &mint_pubkey);
 
     let create_ata_ix =
         CreateAssociatedTokenAccount::new(payer.pubkey(), owner.pubkey(), mint_pubkey)
@@ -343,7 +347,7 @@ async fn test_ata_decompress_to_different_ata_fails() {
     let mint2_pubkey = mint2_keypair.pubkey();
 
     // Create ATA for same owner but different mint
-    let (ata2_pubkey, _ata2_bump) = derive_token_ata(&context.owner.pubkey(), &mint2_pubkey);
+    let ata2_pubkey = derive_token_ata(&context.owner.pubkey(), &mint2_pubkey);
 
     let create_ata2_ix = CreateAssociatedTokenAccount::new(
         context.payer.pubkey(),
@@ -1010,7 +1014,8 @@ async fn test_ata_multiple_compress_decompress_cycles() {
 
     // Setup wallet owner and derive ATA
     let wallet = Keypair::new();
-    let (ata_pubkey, ata_bump) = derive_token_ata(&wallet.pubkey(), &mint_pubkey);
+    let (ata_pubkey, ata_bump) =
+        get_associated_token_address_and_bump(&wallet.pubkey(), &mint_pubkey);
 
     let amount1 = 100_000_000u64;
     let amount2 = 200_000_000u64;

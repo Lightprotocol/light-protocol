@@ -39,11 +39,11 @@ const DEFAULT_TOKEN_ACCOUNT_VERSION: u8 = 3;
 
 /// Derive the associated token account address for a given owner and mint.
 ///
-/// Returns `([u8; 32], u8)` -- the ATA address and bump seed.
+/// Returns `[u8; 32]` -- the ATA address.
 pub fn derive_associated_token_account<AI: AccountInfoTrait>(
     owner: &[u8; 32],
     mint: &[u8; 32],
-) -> ([u8; 32], u8) {
+) -> [u8; 32] {
     AI::find_program_address(
         &[
             owner.as_ref(),
@@ -52,6 +52,7 @@ pub fn derive_associated_token_account<AI: AccountInfoTrait>(
         ],
         &LIGHT_TOKEN_PROGRAM_ID,
     )
+    .0
 }
 
 // ============================================================================
@@ -246,7 +247,6 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateTokenAccountRentFreeCpi<'a, AI> {
 ///     owner: &ctx.accounts.owner,
 ///     mint: &ctx.accounts.mint,
 ///     ata: &ctx.accounts.user_ata,
-///     bump: params.user_ata_bump,
 /// }
 /// .idempotent()
 /// .rent_free(
@@ -261,7 +261,6 @@ pub struct CreateTokenAtaCpi<'a, AI: AccountInfoTrait + Clone> {
     pub owner: &'a AI,
     pub mint: &'a AI,
     pub ata: &'a AI,
-    pub bump: u8,
 }
 
 impl<'a, AI: AccountInfoTrait + Clone> CreateTokenAtaCpi<'a, AI> {
@@ -282,7 +281,6 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateTokenAtaCpi<'a, AI> {
             owner: self.owner,
             mint: self.mint,
             ata: self.ata,
-            bump: self.bump,
             idempotent: false,
             config,
             sponsor,
@@ -309,7 +307,6 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateTokenAtaCpiIdempotent<'a, AI> {
             owner: self.base.owner,
             mint: self.base.mint,
             ata: self.base.ata,
-            bump: self.base.bump,
             idempotent: true,
             config,
             sponsor,
@@ -324,7 +321,6 @@ pub struct CreateTokenAtaRentFreeCpi<'a, AI: AccountInfoTrait + Clone> {
     owner: &'a AI,
     mint: &'a AI,
     ata: &'a AI,
-    bump: u8,
     idempotent: bool,
     config: &'a AI,
     sponsor: &'a AI,
@@ -358,7 +354,6 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateTokenAtaRentFreeCpi<'a, AI> {
         &self,
     ) -> Result<(Vec<u8>, Vec<CpiMeta>, Vec<AI>), LightSdkTypesError> {
         let instruction_data = CreateAssociatedTokenAccountInstructionData {
-            bump: self.bump,
             compressible_config: Some(CompressibleExtensionInstructionData {
                 token_account_version: DEFAULT_TOKEN_ACCOUNT_VERSION,
                 rent_payment: DEFAULT_PRE_PAY_NUM_EPOCHS,

@@ -17,8 +17,6 @@ pub const D11_ZC_ATA_RECORD_SEED: &[u8] = b"d11_zc_ata_record";
 pub struct D11ZcWithAtaParams {
     pub create_accounts_proof: CreateAccountsProof,
     pub owner: Pubkey,
-    /// Bump for the ATA (needed for idempotent creation).
-    pub ata_bump: u8,
 }
 
 /// Tests `#[light_account(init, zero_copy)]` combined with ATA creation.
@@ -55,7 +53,7 @@ pub struct D11ZcWithAta<'info> {
 
     /// User ATA - macro should generate idempotent creation code.
     #[account(mut)]
-    #[light_account(init, associated_token::authority = d11_ata_owner, associated_token::mint = d11_ata_mint, associated_token::bump = params.ata_bump)]
+    #[light_account(init, associated_token::authority = d11_ata_owner, associated_token::mint = d11_ata_mint)]
     pub d11_user_ata: UncheckedAccount<'info>,
 
     #[account(address = LIGHT_TOKEN_CONFIG)]

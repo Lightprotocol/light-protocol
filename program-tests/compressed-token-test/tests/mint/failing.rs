@@ -470,7 +470,7 @@ async fn functional_and_failing_tests() {
             .unwrap();
 
         let recipient_ata =
-            light_token::instruction::derive_token_ata(&recipient2.pubkey(), &spl_mint_pda).0;
+            light_token::instruction::derive_token_ata(&recipient2.pubkey(), &spl_mint_pda);
 
         // Try to mint with valid NEW authority (since we updated it)
         let result = light_test_utils::actions::mint_action_comprehensive(
@@ -883,8 +883,7 @@ async fn test_mint_to_ctoken_max_top_up_exceeded() {
         .await
         .unwrap();
 
-    let ctoken_ata =
-        light_token::instruction::derive_token_ata(&recipient.pubkey(), &spl_mint_pda).0;
+    let ctoken_ata = light_token::instruction::derive_token_ata(&recipient.pubkey(), &spl_mint_pda);
 
     // 3. Build MintToCToken instruction with max_top_up = 1 (too low)
     // Get current compressed mint state
