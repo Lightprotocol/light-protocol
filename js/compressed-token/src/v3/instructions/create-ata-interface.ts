@@ -10,7 +10,11 @@ import {
     createAssociatedCTokenAccountInstruction,
     createAssociatedCTokenAccountIdempotentInstruction,
     CompressibleConfig,
+    DEFAULT_COMPRESSIBLE_CONFIG,
 } from './create-associated-ctoken';
+
+// Re-export for convenience
+export { DEFAULT_COMPRESSIBLE_CONFIG };
 
 /**
  * c-token-specific config for createAssociatedTokenAccountInterfaceInstruction
