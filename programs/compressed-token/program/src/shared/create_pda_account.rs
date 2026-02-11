@@ -43,6 +43,12 @@ pub fn create_pda_account(
     // Cold Path: if account already has lamports (e.g., from attacker donation),
     // use Assign + realloc + Transfer instead of CreateAccount which would fail.
     if new_account.lamports() > 0 {
+        // Verify account is owned by system program (uninitialized).
+        // Prevents overwriting an already-initialized account.
+        if !new_account.is_owned_by(&[0u8; 32]) {
+            return Err(ProgramError::AccountAlreadyInitialized);
+        }
+
         let current_lamports = new_account.lamports();
 
         Assign {
