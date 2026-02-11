@@ -113,14 +113,19 @@ pub struct AccountInterface {
 }
 
 impl AccountInterface {
-    /// Returns true if this account is on-chain (hot)
+    /// Returns true if this account is on-chain (hot).
     pub fn is_hot(&self) -> bool {
-        self.cold.is_none()
+        !self.is_cold()
     }
 
-    /// Returns true if this account is compressed (cold)
+    /// Returns true if this account is compressed (cold).
+    ///
+    /// An account is truly cold only when compressed data exists AND the
+    /// on-chain account is closed (lamports == 0). Decompressed accounts
+    /// keep a compressed placeholder (DECOMPRESSED_PDA_DISCRIMINATOR) but
+    /// are still on-chain with lamports > 0 — those are hot.
     pub fn is_cold(&self) -> bool {
-        self.cold.is_some()
+        self.cold.is_some() && self.account.lamports == 0
     }
 }
 
