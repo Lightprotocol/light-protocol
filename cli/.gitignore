@@ -15,3 +15,4 @@ test-ledger
 /bin
 /config.json
 /src/utils/proverVersion.generated.ts
+/src/utils/photonVersion.generated.ts
