@@ -1,4 +1,5 @@
 use light_compressed_account::TreeType;
+use light_compressible::DECOMPRESSED_PDA_DISCRIMINATOR;
 use light_token::compat::TokenData;
 use solana_account::Account;
 use solana_pubkey::Pubkey;
@@ -120,12 +121,14 @@ impl AccountInterface {
 
     /// Returns true if this account is compressed (cold).
     ///
-    /// An account is truly cold only when compressed data exists AND the
-    /// on-chain account is closed (lamports == 0). Decompressed accounts
-    /// keep a compressed placeholder (DECOMPRESSED_PDA_DISCRIMINATOR) but
-    /// are still on-chain with lamports > 0 — those are hot.
+    /// An account is cold when compressed data exists AND the discriminator
+    /// is NOT `DECOMPRESSED_PDA_DISCRIMINATOR`. Decompressed accounts keep a
+    /// compressed placeholder with that discriminator but are on-chain (hot).
     pub fn is_cold(&self) -> bool {
-        self.cold.is_some() && self.account.lamports == 0
+        match &self.cold {
+            Some(cold) => cold.data.discriminator != DECOMPRESSED_PDA_DISCRIMINATOR,
+            None => false,
+        }
     }
 }
 
@@ -133,11 +136,19 @@ impl AccountInterface {
 fn convert_account_interface(
     ai: &photon_api::types::AccountInterface,
 ) -> Result<AccountInterface, IndexerError> {
-    // Take the first compressed account entry if present
+    // Photon can return multiple cold entries for the same pubkey (e.g. a
+    // decompressed placeholder alongside the active compressed account, or
+    // multiple compressed token accounts for the same owner). Skip decompressed
+    // placeholders and take the first truly cold entry.
     let cold = ai
         .cold
         .as_ref()
-        .and_then(|entries| entries.first())
+        .and_then(|entries| {
+            entries.iter().find(|e| match &e.data {
+                Some(d) => (*d.discriminator).to_le_bytes() != DECOMPRESSED_PDA_DISCRIMINATOR,
+                None => true,
+            })
+        })
         .map(convert_account_v2)
         .transpose()?;
 
@@ -172,4 +183,140 @@ pub struct TokenAccountInterface {
     pub account: AccountInterface,
     /// Parsed token data (same as CompressedTokenAccount.token)
     pub token: TokenData,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn default_tree_info() -> InterfaceTreeInfo {
+        InterfaceTreeInfo {
+            tree: Pubkey::default(),
+            queue: Pubkey::default(),
+            tree_type: TreeType::StateV2,
+            seq: Some(1),
+            slot_created: 100,
+        }
+    }
+
+    fn make_cold_context(discriminator: [u8; 8]) -> ColdContext {
+        ColdContext {
+            hash: [1u8; 32],
+            leaf_index: 0,
+            tree_info: default_tree_info(),
+            data: ColdData {
+                discriminator,
+                data: vec![1, 2, 3],
+                data_hash: [2u8; 32],
+            },
+            address: Some([3u8; 32]),
+            prove_by_index: false,
+        }
+    }
+
+    fn make_account(lamports: u64) -> SolanaAccountData {
+        Account {
+            lamports,
+            data: vec![],
+            owner: Pubkey::default(),
+            executable: false,
+            rent_epoch: 0,
+        }
+    }
+
+    #[test]
+    fn test_pure_on_chain_is_hot() {
+        let ai = AccountInterface {
+            key: Pubkey::new_unique(),
+            account: make_account(1_000_000),
+            cold: None,
+        };
+        assert!(ai.is_hot());
+        assert!(!ai.is_cold());
+    }
+
+    #[test]
+    fn test_compressed_is_cold() {
+        let ai = AccountInterface {
+            key: Pubkey::new_unique(),
+            account: make_account(0),
+            cold: Some(make_cold_context([1, 2, 3, 4, 5, 6, 7, 8])),
+        };
+        assert!(ai.is_cold());
+        assert!(!ai.is_hot());
+    }
+
+    #[test]
+    fn test_decompressed_is_hot() {
+        let ai = AccountInterface {
+            key: Pubkey::new_unique(),
+            account: make_account(1_000_000),
+            cold: Some(make_cold_context(DECOMPRESSED_PDA_DISCRIMINATOR)),
+        };
+        assert!(ai.is_hot());
+        assert!(!ai.is_cold());
+    }
+
+    #[test]
+    fn test_compressed_with_lamports_sent_to_closed_account_is_still_cold() {
+        // Someone sent lamports to the closed on-chain account — old check
+        // would wrongly say is_hot() because lamports > 0.
+        let ai = AccountInterface {
+            key: Pubkey::new_unique(),
+            account: make_account(500_000),
+            cold: Some(make_cold_context([10, 20, 30, 40, 50, 60, 70, 80])),
+        };
+        assert!(ai.is_cold());
+        assert!(!ai.is_hot());
+    }
+
+    #[test]
+    fn test_zero_discriminator_is_cold() {
+        // Default/zero discriminator means compressed (no data case).
+        let ai = AccountInterface {
+            key: Pubkey::new_unique(),
+            account: make_account(0),
+            cold: Some(make_cold_context([0u8; 8])),
+        };
+        assert!(ai.is_cold());
+        assert!(!ai.is_hot());
+    }
+
+    #[test]
+    fn test_decompressed_with_zero_lamports_is_hot() {
+        // Discriminator wins over lamports — decompressed placeholder with
+        // zero lamports is still hot.
+        let ai = AccountInterface {
+            key: Pubkey::new_unique(),
+            account: make_account(0),
+            cold: Some(make_cold_context(DECOMPRESSED_PDA_DISCRIMINATOR)),
+        };
+        assert!(ai.is_hot());
+        assert!(!ai.is_cold());
+    }
+
+    #[test]
+    fn test_token_account_interface_delegates_is_cold() {
+        let token = TokenData::default();
+
+        let cold_tai = TokenAccountInterface {
+            account: AccountInterface {
+                key: Pubkey::new_unique(),
+                account: make_account(0),
+                cold: Some(make_cold_context([1, 2, 3, 4, 5, 6, 7, 8])),
+            },
+            token: token.clone(),
+        };
+        assert!(cold_tai.account.is_cold());
+
+        let decompressed_tai = TokenAccountInterface {
+            account: AccountInterface {
+                key: Pubkey::new_unique(),
+                account: make_account(1_000_000),
+                cold: Some(make_cold_context(DECOMPRESSED_PDA_DISCRIMINATOR)),
+            },
+            token,
+        };
+        assert!(decompressed_tai.account.is_hot());
+    }
 }
