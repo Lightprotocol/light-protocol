@@ -21,8 +21,8 @@ pub use decompress_mint::{
 pub use initialize_config::InitializeRentFreeConfig;
 pub use light_account::LightConfig;
 pub use light_program_interface::{
-    all_hot, any_cold, discriminator, matches_discriminator, AccountSpec, AccountToFetch,
-    ColdContext, LightProgramInterface, PdaSpec,
+    all_hot, any_cold, discriminator, matches_discriminator, AccountSpec, ColdContext,
+    LightProgramInterface, PdaSpec,
 };
 pub use light_sdk_types::interface::CreateAccountsProof;
 pub use light_token::compat::TokenData;

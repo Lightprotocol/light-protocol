@@ -19,7 +19,7 @@ use solana_transaction_status_client_types::TransactionStatus;
 use super::client::RpcUrl;
 use crate::{
     indexer::{Indexer, IndexerRpcConfig, Response, TreeInfo},
-    interface::{AccountInterface, AccountToFetch, MintInterface, TokenAccountInterface},
+    interface::{AccountInterface, MintInterface, TokenAccountInterface},
     rpc::errors::RpcError,
 };
 
@@ -279,65 +279,4 @@ pub trait Rpc: Send + Sync + Debug + 'static {
         address: &Pubkey,
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<Option<MintInterface>>, RpcError>;
-
-    /// Fetch multiple accounts using `AccountToFetch` descriptors.
-    ///
-    /// Routes each account to the correct method based on its variant:
-    /// - `Pda` -> `get_account_interface`
-    /// - `Token` -> `get_token_account_interface`
-    /// - `Ata` -> `get_associated_token_account_interface`
-    /// - `Mint` -> `get_mint_interface`
-    async fn fetch_accounts(
-        &self,
-        accounts: &[AccountToFetch],
-        config: Option<IndexerRpcConfig>,
-    ) -> Result<Vec<AccountInterface>, RpcError> {
-        let mut results = Vec::with_capacity(accounts.len());
-        for account in accounts {
-            let interface = match account {
-                AccountToFetch::Pda { address, .. } => self
-                    .get_account_interface(address, config.clone())
-                    .await?
-                    .value
-                    .ok_or_else(|| {
-                        RpcError::CustomError(format!("PDA account not found: {}", address))
-                    })?,
-                AccountToFetch::Token { address } => {
-                    let tai = self
-                        .get_token_account_interface(address, config.clone())
-                        .await?
-                        .value
-                        .ok_or_else(|| {
-                            RpcError::CustomError(format!("Token account not found: {}", address))
-                        })?;
-                    tai.into()
-                }
-                AccountToFetch::Ata { wallet_owner, mint } => {
-                    let tai = self
-                        .get_associated_token_account_interface(wallet_owner, mint, config.clone())
-                        .await?
-                        .value
-                        .ok_or_else(|| {
-                            RpcError::CustomError(format!(
-                                "ATA not found for owner {} mint {}",
-                                wallet_owner, mint
-                            ))
-                        })?;
-                    tai.into()
-                }
-                AccountToFetch::Mint { address } => {
-                    let mi = self
-                        .get_mint_interface(address, config.clone())
-                        .await?
-                        .value
-                        .ok_or_else(|| {
-                            RpcError::CustomError(format!("Mint not found: {}", address))
-                        })?;
-                    mi.into()
-                }
-            };
-            results.push(interface);
-        }
-        Ok(results)
-    }
 }
