@@ -21,7 +21,7 @@ Revokes any previously granted delegation on a decompressed ctoken account (acco
 Path: programs/compressed-token/program/src/ctoken/approve_revoke.rs (lines 49-59 for revoke, lines 86-124 for top-up processing)
 
 - Empty (0 bytes): legacy format, no max_top_up enforcement (max_top_up = 0, no limit)
-- Bytes 0-1 (optional): `max_top_up` (u16, little-endian) - Maximum lamports for top-up (0 = no limit)
+- Bytes 0-1 (optional): `max_top_up` (u16, little-endian) - Maximum lamports for top-up in units of 1,000 lamports (e.g., max_top_up=1 means 1,000 lamports, max_top_up=65535 means ~65.5M lamports). 0 = no limit.
 
 **Accounts:**
 1. source

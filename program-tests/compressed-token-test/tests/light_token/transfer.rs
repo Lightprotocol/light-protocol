@@ -564,7 +564,7 @@ async fn test_ctoken_transfer_max_top_up_exceeded() {
         destination,
         100,
         owner_keypair.pubkey(),
-        1, // max_top_up = 1 lamport (way too low for any rent top-up)
+        1, // max_top_up = 1 (1,000 lamports budget, still too low for rent top-up)
     );
 
     // Execute transfer expecting failure

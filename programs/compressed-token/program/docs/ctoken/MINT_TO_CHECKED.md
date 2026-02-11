@@ -19,7 +19,7 @@ Shared implementation: programs/compressed-token/program/src/ctoken/burn.rs (fun
 Byte layout:
 - Bytes 0-7: `amount` (u64, little-endian) - Number of tokens to mint
 - Byte 8: `decimals` (u8) - Expected token decimals
-- Bytes 9-10: `max_top_up` (u16, little-endian, optional) - Maximum lamports for top-ups combined, 0 = no limit
+- Bytes 9-10: `max_top_up` (u16, little-endian, optional) - Maximum lamports for top-ups in units of 1,000 lamports (e.g., max_top_up=1 means 1,000 lamports, max_top_up=65535 means ~65.5M lamports). 0 = no limit.
 
 Format variants:
 - 9 bytes: amount + decimals (legacy, no max_top_up enforcement)

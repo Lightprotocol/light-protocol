@@ -926,7 +926,7 @@ async fn test_mint_to_ctoken_max_top_up_exceeded() {
                 account_index: 0,
                 amount: 1000u64,
             })
-            .with_max_top_up(1); // max_top_up = 1 lamport (way too low)
+            .with_max_top_up(1); // max_top_up = 1 (1,000 lamports budget, still too low for rent top-up)
 
     // Build account metas
     let config = MintActionMetaConfig::new(

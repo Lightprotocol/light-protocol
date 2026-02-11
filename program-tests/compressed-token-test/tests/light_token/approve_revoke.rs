@@ -161,7 +161,7 @@ async fn test_approve_fails() {
             delegate.pubkey(),
             &owner,
             100,
-            Some(1), // max_top_up too low
+            Some(1), // max_top_up = 1 (1,000 lamports budget, still too low for rent top-up)
             "max_topup_exceeded",
             18043, // TokenError::MaxTopUpExceeded
         )
@@ -327,7 +327,7 @@ async fn test_revoke_fails() {
             &mut context,
             token_account,
             &owner,
-            Some(1), // max_top_up too low
+            Some(1), // max_top_up = 1 (1,000 lamports budget, still too low for rent top-up)
             "max_topup_exceeded",
             18043, // TokenError::MaxTopUpExceeded
         )

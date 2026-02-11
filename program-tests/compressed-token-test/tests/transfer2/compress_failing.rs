@@ -686,7 +686,7 @@ async fn test_compression_max_top_up_exceeded() -> Result<(), RpcError> {
         validity_proof: ValidityProof::default(),
         transfer_config: Transfer2Config::default()
             .filter_zero_amount_outputs()
-            .with_max_top_up(1), // max_top_up = 1 lamport (way too low)
+            .with_max_top_up(1), // max_top_up = 1 (1,000 lamports budget, still too low for rent top-up)
         meta_config: Transfer2AccountsMetaConfig::new(payer.pubkey(), account_metas),
         in_lamports: None,
         out_lamports: None,
