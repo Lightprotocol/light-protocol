@@ -1183,7 +1183,7 @@ impl Rpc for LightClient {
                         ai.account.lamports,
                         ai.account.owner,
                     );
-                    
+
                     if compressed.address.is_none() {
                         compressed.address = Some(compressed_address);
                     }
