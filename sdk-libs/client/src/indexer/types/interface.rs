@@ -1,7 +1,5 @@
-use borsh::BorshDeserialize;
 use light_compressed_account::TreeType;
-use light_token::compat::{AccountState, TokenData};
-use light_token_interface::state::ExtensionStruct;
+use light_token::compat::TokenData;
 use solana_account::Account;
 use solana_pubkey::Pubkey;
 
@@ -26,91 +24,81 @@ pub struct InterfaceTreeInfo {
 pub struct ColdData {
     pub discriminator: [u8; 8],
     pub data: Vec<u8>,
+    pub data_hash: [u8; 32],
 }
 
-/// Compressed account context — present when account is in compressed state
+/// Compressed account context — present when account is in compressed state.
 #[derive(Clone, Debug, PartialEq)]
-pub enum ColdContext {
-    Account {
-        hash: [u8; 32],
-        leaf_index: u64,
-        tree_info: InterfaceTreeInfo,
-        data: ColdData,
-    },
-    Token {
-        hash: [u8; 32],
-        leaf_index: u64,
-        tree_info: InterfaceTreeInfo,
-        data: ColdData,
-    },
+pub struct ColdContext {
+    pub hash: [u8; 32],
+    pub leaf_index: u64,
+    pub tree_info: InterfaceTreeInfo,
+    pub data: ColdData,
+    pub address: Option<[u8; 32]>,
+    pub prove_by_index: bool,
 }
 
-/// Decode tree info from photon_api format
-fn decode_tree_info(
-    tree_info: &photon_api::types::TreeInfo,
+/// Decode tree info from photon_api AccountV2 format
+fn decode_tree_info_v2(
+    merkle_ctx: &photon_api::types::MerkleContextV2,
+    seq: Option<u64>,
+    slot_created: u64,
 ) -> Result<InterfaceTreeInfo, IndexerError> {
-    let tree = Pubkey::new_from_array(decode_base58_to_fixed_array(&tree_info.tree)?);
-    let queue = Pubkey::new_from_array(decode_base58_to_fixed_array(&tree_info.queue)?);
-    let tree_type = match tree_info.tree_type {
-        photon_api::types::TreeType::StateV1 => TreeType::StateV1,
-        photon_api::types::TreeType::StateV2 => TreeType::StateV2,
-    };
+    let tree = Pubkey::new_from_array(decode_base58_to_fixed_array(&merkle_ctx.tree)?);
+    let queue = Pubkey::new_from_array(decode_base58_to_fixed_array(&merkle_ctx.queue)?);
+    let tree_type = TreeType::from(merkle_ctx.tree_type as u64);
     Ok(InterfaceTreeInfo {
         tree,
         queue,
         tree_type,
-        seq: tree_info.seq.as_ref().map(|s| **s),
-        slot_created: *tree_info.slot_created,
+        seq,
+        slot_created,
     })
 }
 
-/// Decode cold data from photon_api format.
-fn decode_cold_data(data: &photon_api::types::ColdData) -> Result<ColdData, IndexerError> {
-    if data.discriminator.len() != 8 {
-        return Err(IndexerError::decode_error(
-            "discriminator",
-            format!("expected 8 bytes, got {}", data.discriminator.len()),
-        ));
-    }
-    let mut discriminator = [0u8; 8];
-    for (i, &val) in data.discriminator.iter().enumerate() {
-        discriminator[i] = val as u8;
-    }
+/// Decode cold data from photon_api AccountData format.
+fn decode_account_data(data: &photon_api::types::AccountData) -> Result<ColdData, IndexerError> {
+    let disc_val = *data.discriminator;
+    let discriminator = disc_val.to_le_bytes();
     Ok(ColdData {
         discriminator,
         data: base64::decode_config(&*data.data, base64::STANDARD_NO_PAD)
             .map_err(|e| IndexerError::decode_error("data", e))?,
+        data_hash: decode_base58_to_fixed_array(&data.data_hash)?,
     })
 }
 
-/// Helper to convert photon_api ColdContext to client ColdContext
-fn convert_cold_context(
-    cold: &photon_api::types::ColdContext,
-) -> Result<ColdContext, IndexerError> {
-    match cold {
-        photon_api::types::ColdContext::Account {
-            hash,
-            leaf_index,
-            tree_info,
-            data,
-        } => Ok(ColdContext::Account {
-            hash: decode_base58_to_fixed_array(hash)?,
-            leaf_index: **leaf_index,
-            tree_info: decode_tree_info(tree_info)?,
-            data: decode_cold_data(data)?,
-        }),
-        photon_api::types::ColdContext::Token {
-            hash,
-            leaf_index,
-            tree_info,
-            data,
-        } => Ok(ColdContext::Token {
-            hash: decode_base58_to_fixed_array(hash)?,
-            leaf_index: **leaf_index,
-            tree_info: decode_tree_info(tree_info)?,
-            data: decode_cold_data(data)?,
-        }),
-    }
+/// Convert a photon_api AccountV2 to a client ColdContext.
+fn convert_account_v2(av2: &photon_api::types::AccountV2) -> Result<ColdContext, IndexerError> {
+    let tree_info = decode_tree_info_v2(
+        &av2.merkle_context,
+        av2.seq.as_ref().map(|s| **s),
+        *av2.slot_created,
+    )?;
+
+    let data = match &av2.data {
+        Some(d) => decode_account_data(d)?,
+        None => ColdData {
+            discriminator: [0u8; 8],
+            data: Vec::new(),
+            data_hash: [0u8; 32],
+        },
+    };
+
+    let address = av2
+        .address
+        .as_ref()
+        .map(|a| decode_base58_to_fixed_array(a))
+        .transpose()?;
+
+    Ok(ColdContext {
+        hash: decode_base58_to_fixed_array(&av2.hash)?,
+        leaf_index: *av2.leaf_index,
+        tree_info,
+        data,
+        address,
+        prove_by_index: av2.prove_by_index,
+    })
 }
 
 /// Unified account interface — works for both on-chain and compressed accounts
@@ -140,7 +128,13 @@ impl AccountInterface {
 fn convert_account_interface(
     ai: &photon_api::types::AccountInterface,
 ) -> Result<AccountInterface, IndexerError> {
-    let cold = ai.cold.as_ref().map(convert_cold_context).transpose()?;
+    // Take the first compressed account entry if present
+    let cold = ai
+        .cold
+        .as_ref()
+        .and_then(|entries| entries.first())
+        .map(convert_account_v2)
+        .transpose()?;
 
     let data = base64::decode_config(&*ai.account.data, base64::STANDARD_NO_PAD)
         .map_err(|e| IndexerError::decode_error("account.data", e))?;
@@ -158,51 +152,11 @@ fn convert_account_interface(
     })
 }
 
-/// Helper to convert flattened interface fields (from TokenAccountInterface or InterfaceResult variants)
-/// into a client AccountInterface
-fn convert_flattened_account_interface(
-    key: &photon_api::types::SerializablePubkey,
-    account: &photon_api::types::SolanaAccountData,
-    cold: &Option<photon_api::types::ColdContext>,
-) -> Result<AccountInterface, IndexerError> {
-    let cold = cold.as_ref().map(convert_cold_context).transpose()?;
-
-    let data = base64::decode_config(&*account.data, base64::STANDARD_NO_PAD)
-        .map_err(|e| IndexerError::decode_error("account.data", e))?;
-
-    Ok(AccountInterface {
-        key: Pubkey::new_from_array(decode_base58_to_fixed_array(key)?),
-        account: Account {
-            lamports: *account.lamports,
-            data,
-            owner: Pubkey::new_from_array(decode_base58_to_fixed_array(&account.owner)?),
-            executable: account.executable,
-            rent_epoch: *account.rent_epoch,
-        },
-        cold,
-    })
-}
-
 impl TryFrom<&photon_api::types::AccountInterface> for AccountInterface {
     type Error = IndexerError;
 
     fn try_from(ai: &photon_api::types::AccountInterface) -> Result<Self, Self::Error> {
         convert_account_interface(ai)
-    }
-}
-
-impl TryFrom<&photon_api::types::InterfaceResult> for AccountInterface {
-    type Error = IndexerError;
-
-    fn try_from(ir: &photon_api::types::InterfaceResult) -> Result<Self, Self::Error> {
-        match ir {
-            photon_api::types::InterfaceResult::Variant0 {
-                key, account, cold, ..
-            } => convert_flattened_account_interface(key, account, cold),
-            photon_api::types::InterfaceResult::Variant1 {
-                key, account, cold, ..
-            } => convert_flattened_account_interface(key, account, cold),
-        }
     }
 }
 
@@ -213,45 +167,4 @@ pub struct TokenAccountInterface {
     pub account: AccountInterface,
     /// Parsed token data (same as CompressedTokenAccount.token)
     pub token: TokenData,
-}
-
-/// Parse token data from photon_api TokenData
-fn parse_interface_token_data(
-    td: &photon_api::types::TokenData,
-) -> Result<TokenData, IndexerError> {
-    Ok(TokenData {
-        mint: Pubkey::new_from_array(decode_base58_to_fixed_array(&td.mint)?),
-        owner: Pubkey::new_from_array(decode_base58_to_fixed_array(&td.owner)?),
-        amount: *td.amount,
-        delegate: td
-            .delegate
-            .as_ref()
-            .map(|d| decode_base58_to_fixed_array(d).map(Pubkey::new_from_array))
-            .transpose()?,
-        state: match td.state {
-            photon_api::types::AccountState::Initialized => AccountState::Initialized,
-            photon_api::types::AccountState::Frozen => AccountState::Frozen,
-        },
-        tlv: td
-            .tlv
-            .as_ref()
-            .map(|tlv| {
-                let bytes = base64::decode_config(&**tlv, base64::STANDARD_NO_PAD)
-                    .map_err(|e| IndexerError::decode_error("tlv", e))?;
-                Vec::<ExtensionStruct>::deserialize(&mut bytes.as_slice())
-                    .map_err(|e| IndexerError::decode_error("extensions", e))
-            })
-            .transpose()?,
-    })
-}
-
-impl TryFrom<&photon_api::types::TokenAccountInterface> for TokenAccountInterface {
-    type Error = IndexerError;
-
-    fn try_from(tai: &photon_api::types::TokenAccountInterface) -> Result<Self, Self::Error> {
-        // TokenAccountInterface has flattened AccountInterface fields + token_data
-        let account = convert_flattened_account_interface(&tai.key, &tai.account, &tai.cold)?;
-        let token = parse_interface_token_data(&tai.token_data)?;
-        Ok(TokenAccountInterface { account, token })
-    }
 }

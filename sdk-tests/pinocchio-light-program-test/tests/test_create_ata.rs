@@ -92,7 +92,8 @@ async fn test_create_ata_derive() {
         .expect("ATA interface should exist");
     assert!(ata_interface.is_cold(), "ATA should be cold");
 
-    let specs: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Ata(ata_interface)];
+    let specs: Vec<AccountSpec<LightAccountVariant>> =
+        vec![AccountSpec::Ata(Box::new(ata_interface))];
 
     let ixs = create_load_instructions(&specs, payer.pubkey(), env.config_pda, &rpc)
         .await

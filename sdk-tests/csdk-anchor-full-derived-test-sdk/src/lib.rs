@@ -14,8 +14,8 @@ use csdk_anchor_full_derived_test::{
     },
 };
 use light_client::interface::{
-    matches_discriminator, AccountInterface, AccountSpec, AccountToFetch, ColdContext,
-    LightProgramInterface, PdaSpec,
+    matches_discriminator, AccountInterface, AccountSpec, AccountToFetch, LightProgramInterface,
+    PdaSpec,
 };
 use light_sdk::LightDiscriminator;
 use solana_pubkey::Pubkey;
@@ -223,21 +223,17 @@ impl AmmSdk {
             })
         };
 
-        // For token vaults, convert ColdContext::Token to ColdContext::Account
-        // because they're decompressed as PDAs, not as token accounts
+        // For token vaults, the cold field already contains the CompressedAccount directly
         let interface = if account.is_cold() {
-            let compressed_account = match &account.cold {
-                Some(ColdContext::Token(ct)) => ct.account.clone(),
-                Some(ColdContext::Account(ca)) => ca.clone(),
-                Some(ColdContext::Mint(_)) => {
-                    return Err(AmmSdkError::MissingField("unexpected Mint cold context"))
-                }
-                None => return Err(AmmSdkError::MissingField("cold_context")),
-            };
+            let compressed_account = account
+                .cold
+                .as_ref()
+                .ok_or(AmmSdkError::MissingField("cold_context"))?
+                .clone();
             AccountInterface {
                 key: account.key,
                 account: account.account.clone(), // Keep original owner (SPL Token)
-                cold: Some(ColdContext::Account(compressed_account)),
+                cold: Some(compressed_account),
             }
         } else {
             account.clone()

@@ -504,13 +504,42 @@ impl LightClient {
 
 // Conversion helpers from indexer types to interface types
 
+use crate::indexer::ColdContext as IndexerColdContext;
+
+fn cold_context_to_compressed_account(
+    cold: &IndexerColdContext,
+    lamports: u64,
+    owner: Pubkey,
+) -> crate::indexer::CompressedAccount {
+    use light_compressed_account::compressed_account::CompressedAccountData;
+
+    crate::indexer::CompressedAccount {
+        address: cold.address,
+        data: Some(CompressedAccountData {
+            discriminator: cold.data.discriminator,
+            data: cold.data.data.clone(),
+            data_hash: cold.data.data_hash,
+        }),
+        hash: cold.hash,
+        lamports,
+        leaf_index: cold.leaf_index as u32,
+        owner,
+        prove_by_index: cold.prove_by_index,
+        seq: cold.tree_info.seq,
+        slot_created: cold.tree_info.slot_created,
+        tree_info: TreeInfo {
+            tree: cold.tree_info.tree,
+            queue: cold.tree_info.queue,
+            cpi_context: None,
+            next_tree_info: None,
+            tree_type: cold.tree_info.tree_type,
+        },
+    }
+}
+
 fn convert_account_interface(
     indexer_ai: IndexerAccountInterface,
 ) -> Result<AccountInterface, RpcError> {
-    use light_compressed_account::compressed_account::CompressedAccountData;
-
-    use crate::indexer::{ColdContext as IndexerColdContext, CompressedAccount};
-
     let account = Account {
         lamports: indexer_ai.account.lamports,
         data: indexer_ai.account.data,
@@ -521,88 +550,16 @@ fn convert_account_interface(
 
     match indexer_ai.cold {
         None => Ok(AccountInterface::hot(indexer_ai.key, account)),
-        Some(IndexerColdContext::Account {
-            hash,
-            leaf_index,
-            tree_info,
-            data,
-        }) => {
-            let compressed = CompressedAccount {
-                address: None,
-                data: Some(CompressedAccountData {
-                    discriminator: data.discriminator,
-                    data: data.data,
-                    data_hash: [0u8; 32], // Computed on demand if needed
-                }),
-                hash,
-                lamports: indexer_ai.account.lamports,
-                leaf_index: leaf_index as u32,
-                owner: indexer_ai.account.owner,
-                prove_by_index: false,
-                seq: tree_info.seq,
-                slot_created: tree_info.slot_created,
-                tree_info: TreeInfo {
-                    tree: tree_info.tree,
-                    queue: tree_info.queue,
-                    cpi_context: None,
-                    next_tree_info: None,
-                    tree_type: tree_info.tree_type,
-                },
-            };
+        Some(cold) => {
+            let compressed = cold_context_to_compressed_account(
+                &cold,
+                indexer_ai.account.lamports,
+                indexer_ai.account.owner,
+            );
             Ok(AccountInterface::cold(
                 indexer_ai.key,
                 compressed,
                 indexer_ai.account.owner,
-            ))
-        }
-        Some(IndexerColdContext::Token {
-            hash,
-            leaf_index,
-            tree_info,
-            data,
-        }) => {
-            use light_token::compat::TokenData;
-
-            use crate::indexer::CompressedTokenAccount;
-
-            // Parse token data from the cold data - propagate errors instead of using default
-            let token_data: TokenData =
-                borsh::BorshDeserialize::deserialize(&mut data.data.as_slice()).map_err(|e| {
-                    RpcError::CustomError(format!("Failed to deserialize token data: {}", e))
-                })?;
-
-            let wallet_owner = token_data.owner;
-
-            let compressed_account = CompressedAccount {
-                address: None,
-                data: Some(CompressedAccountData {
-                    discriminator: data.discriminator,
-                    data: data.data,
-                    data_hash: [0u8; 32],
-                }),
-                hash,
-                lamports: indexer_ai.account.lamports,
-                leaf_index: leaf_index as u32,
-                owner: indexer_ai.account.owner,
-                prove_by_index: false,
-                seq: tree_info.seq,
-                slot_created: tree_info.slot_created,
-                tree_info: TreeInfo {
-                    tree: tree_info.tree,
-                    queue: tree_info.queue,
-                    cpi_context: None,
-                    next_tree_info: None,
-                    tree_type: tree_info.tree_type,
-                },
-            };
-            let compressed_token = CompressedTokenAccount {
-                token: token_data,
-                account: compressed_account.clone(),
-            };
-            Ok(AccountInterface::cold_token(
-                indexer_ai.key,
-                compressed_token,
-                wallet_owner,
             ))
         }
     }
@@ -611,11 +568,7 @@ fn convert_account_interface(
 fn convert_token_account_interface(
     indexer_tai: IndexerTokenAccountInterface,
 ) -> Result<TokenAccountInterface, RpcError> {
-    use light_compressed_account::compressed_account::CompressedAccountData;
-
-    use crate::indexer::{
-        ColdContext as IndexerColdContext, CompressedAccount, CompressedTokenAccount,
-    };
+    use crate::indexer::CompressedTokenAccount;
 
     let account = Account {
         lamports: indexer_tai.account.account.lamports,
@@ -628,34 +581,12 @@ fn convert_token_account_interface(
     match indexer_tai.account.cold {
         None => TokenAccountInterface::hot(indexer_tai.account.key, account)
             .map_err(|e| RpcError::CustomError(format!("parse error: {}", e))),
-        Some(IndexerColdContext::Token {
-            hash,
-            leaf_index,
-            tree_info,
-            data,
-        }) => {
-            let compressed_account = CompressedAccount {
-                address: None,
-                data: Some(CompressedAccountData {
-                    discriminator: data.discriminator,
-                    data: data.data,
-                    data_hash: [0u8; 32],
-                }),
-                hash,
-                lamports: indexer_tai.account.account.lamports,
-                leaf_index: leaf_index as u32,
-                owner: indexer_tai.account.account.owner,
-                prove_by_index: false,
-                seq: tree_info.seq,
-                slot_created: tree_info.slot_created,
-                tree_info: TreeInfo {
-                    tree: tree_info.tree,
-                    queue: tree_info.queue,
-                    cpi_context: None,
-                    next_tree_info: None,
-                    tree_type: tree_info.tree_type,
-                },
-            };
+        Some(cold) => {
+            let compressed_account = cold_context_to_compressed_account(
+                &cold,
+                indexer_tai.account.account.lamports,
+                indexer_tai.account.account.owner,
+            );
             // Extract token owner before moving token into CompressedTokenAccount
             let token_owner = indexer_tai.token.owner;
             let compressed_token = CompressedTokenAccount {
@@ -669,9 +600,6 @@ fn convert_token_account_interface(
                 indexer_tai.account.account.owner,
             ))
         }
-        _ => Err(RpcError::CustomError(
-            "unexpected cold context type for token account".into(),
-        )),
     }
 }
 
@@ -1245,32 +1173,32 @@ impl Rpc for LightClient {
         let value = match resp.value {
             Some(ai) => {
                 let state = if ai.is_cold() {
-                    // Cold: fetch full CompressedAccount to get data_hash
-                    let compressed_resp = indexer
-                        .get_compressed_account(compressed_address, config)
-                        .await
-                        .map_err(|e| RpcError::CustomError(format!("Indexer error: {e}")))?;
-
-                    let compressed = compressed_resp.value.ok_or_else(|| {
-                        RpcError::CustomError("Cold mint not found by compressed address".into())
+                    let cold = ai.cold.as_ref().ok_or_else(|| {
+                        RpcError::CustomError("Cold mint missing cold context".into())
                     })?;
 
-                    // Parse mint data from compressed account
-                    let mint_data = compressed
-                        .data
-                        .as_ref()
-                        .and_then(|d| {
-                            if d.data.is_empty() {
-                                None
-                            } else {
-                                Mint::try_from_slice(&d.data).ok()
-                            }
-                        })
-                        .ok_or_else(|| {
-                            RpcError::CustomError(
-                                "Missing or invalid mint data in compressed account".into(),
-                            )
-                        })?;
+                    // Build CompressedAccount from indexer ColdContext
+                    let mut compressed = cold_context_to_compressed_account(
+                        cold,
+                        ai.account.lamports,
+                        ai.account.owner,
+                    );
+                    
+                    if compressed.address.is_none() {
+                        compressed.address = Some(compressed_address);
+                    }
+
+                    // Parse mint data from cold data bytes
+                    let mint_data = if cold.data.data.is_empty() {
+                        None
+                    } else {
+                        Mint::try_from_slice(&cold.data.data).ok()
+                    }
+                    .ok_or_else(|| {
+                        RpcError::CustomError(
+                            "Missing or invalid mint data in compressed account".into(),
+                        )
+                    })?;
 
                     MintState::Cold {
                         compressed,

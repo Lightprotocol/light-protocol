@@ -15,7 +15,7 @@ use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 use thiserror::Error;
 
-use super::{AccountInterface, ColdContext};
+use super::AccountInterface;
 use crate::indexer::{CompressedAccount, Indexer, ValidityProofWithContext};
 
 /// Error type for mint load operations.
@@ -134,7 +134,7 @@ impl From<MintInterface> for AccountInterface {
                         executable: false,
                         rent_epoch: 0,
                     },
-                    cold: Some(ColdContext::Mint(compressed)),
+                    cold: Some(compressed),
                 }
             }
             MintState::None => Self {

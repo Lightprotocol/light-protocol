@@ -1716,11 +1716,8 @@ impl Indexer for PhotonIndexer {
 }
 
 // ============ Interface Methods ============
-// These methods use the Interface endpoints that race hot (on-chain) and cold (compressed) lookups
-
+// These methods use the Interface endpoints that race hot (on-chain) and cold (compressed) lookups.
 impl PhotonIndexer {
-    /// Get account data from either on-chain or compressed sources.
-    /// Races both lookups and returns the result with the higher slot.
     pub async fn get_account_interface(
         &self,
         address: &Pubkey,
@@ -1764,99 +1761,46 @@ impl PhotonIndexer {
         .await
     }
 
-    /// Get token account data from either on-chain or compressed sources.
-    /// Races both lookups and returns the result with the higher slot.
     pub async fn get_token_account_interface(
         &self,
         address: &Pubkey,
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<Option<TokenAccountInterface>>, IndexerError> {
-        let config = config.unwrap_or_default();
-        self.retry(config.retry_config, || async {
-            let params = photon_api::types::PostGetTokenAccountInterfaceBodyParams {
-                address: photon_api::types::SerializablePubkey(address.to_string()),
-            };
-            let request =
-                photon_api::apis::default_api::make_get_token_account_interface_body(params);
-
-            let result = photon_api::apis::default_api::get_token_account_interface_post(
-                &self.configuration,
-                request,
-            )
-            .await?;
-
-            let api_response = Self::extract_result_with_error_check(
-                "get_token_account_interface",
-                result.error,
-                result.result,
-            )?;
-
-            if api_response.context.slot < config.slot {
-                return Err(IndexerError::IndexerNotSyncedToSlot);
+        let response = self.get_account_interface(address, config).await?;
+        let value = match response.value {
+            Some(ai) => {
+                let token = parse_token_data_from_indexer_account(&ai)?;
+                Some(TokenAccountInterface { account: ai, token })
             }
-
-            let account = match api_response.value {
-                Some(ref tai) => Some(TokenAccountInterface::try_from(tai)?),
-                None => None,
-            };
-
-            Ok(Response {
-                context: Context {
-                    slot: api_response.context.slot,
-                },
-                value: account,
-            })
+            None => None,
+        };
+        Ok(Response {
+            context: response.context,
+            value,
         })
-        .await
     }
 
-    /// Get Associated Token Account data from either on-chain or compressed sources.
-    /// Derives the Light Protocol ATA address from owner+mint, then races hot/cold lookups.
     pub async fn get_associated_token_account_interface(
         &self,
         owner: &Pubkey,
         mint: &Pubkey,
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<Option<TokenAccountInterface>>, IndexerError> {
-        let config = config.unwrap_or_default();
-        self.retry(config.retry_config, || async {
-            let params = photon_api::types::PostGetAtaInterfaceBodyParams {
-                owner: photon_api::types::SerializablePubkey(owner.to_string()),
-                mint: photon_api::types::SerializablePubkey(mint.to_string()),
-            };
-            let request = photon_api::apis::default_api::make_get_ata_interface_body(params);
-
-            let result =
-                photon_api::apis::default_api::get_ata_interface_post(&self.configuration, request)
-                    .await?;
-
-            let api_response = Self::extract_result_with_error_check(
-                "get_associated_token_account_interface",
-                result.error,
-                result.result,
-            )?;
-
-            if api_response.context.slot < config.slot {
-                return Err(IndexerError::IndexerNotSyncedToSlot);
+        let ata_address = light_token::instruction::get_associated_token_address(owner, mint);
+        let response = self.get_account_interface(&ata_address, config).await?;
+        let value = match response.value {
+            Some(ai) => {
+                let token = parse_token_data_from_indexer_account(&ai)?;
+                Some(TokenAccountInterface { account: ai, token })
             }
-
-            let account = match api_response.value {
-                Some(ref tai) => Some(TokenAccountInterface::try_from(tai)?),
-                None => None,
-            };
-
-            Ok(Response {
-                context: Context {
-                    slot: api_response.context.slot,
-                },
-                value: account,
-            })
+            None => None,
+        };
+        Ok(Response {
+            context: response.context,
+            value,
         })
-        .await
     }
 
-    /// Get multiple account interfaces in a batch.
-    /// Returns a vector where each element corresponds to an input address.
     pub async fn get_multiple_account_interfaces(
         &self,
         addresses: Vec<&Pubkey>,
@@ -1907,5 +1851,21 @@ impl PhotonIndexer {
             })
         })
         .await
+    }
+}
+
+/// Parse token data from an indexer AccountInterface.
+/// For compressed (cold) accounts: borsh-deserializes TokenData from the cold data bytes.
+/// For on-chain (hot) accounts: returns default TokenData (downstream conversion re-parses from SPL layout).
+fn parse_token_data_from_indexer_account(
+    ai: &AccountInterface,
+) -> Result<light_token::compat::TokenData, IndexerError> {
+    match &ai.cold {
+        Some(cold) => borsh::BorshDeserialize::deserialize(&mut cold.data.data.as_slice())
+            .map_err(|e| IndexerError::decode_error("token_data", e)),
+        None => {
+            // Hot account — downstream will re-parse from SPL account data directly
+            Ok(light_token::compat::TokenData::default())
+        }
     }
 }

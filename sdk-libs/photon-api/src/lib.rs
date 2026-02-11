@@ -370,28 +370,6 @@ pub mod apis {
             }
         }
 
-        pub fn make_get_token_account_interface_body(
-            params: types::PostGetTokenAccountInterfaceBodyParams,
-        ) -> types::PostGetTokenAccountInterfaceBody {
-            types::PostGetTokenAccountInterfaceBody {
-                id: types::PostGetTokenAccountInterfaceBodyId::TestAccount,
-                jsonrpc: types::PostGetTokenAccountInterfaceBodyJsonrpc::X20,
-                method: types::PostGetTokenAccountInterfaceBodyMethod::GetTokenAccountInterface,
-                params,
-            }
-        }
-
-        pub fn make_get_ata_interface_body(
-            params: types::PostGetAtaInterfaceBodyParams,
-        ) -> types::PostGetAtaInterfaceBody {
-            types::PostGetAtaInterfaceBody {
-                id: types::PostGetAtaInterfaceBodyId::TestAccount,
-                jsonrpc: types::PostGetAtaInterfaceBodyJsonrpc::X20,
-                method: types::PostGetAtaInterfaceBodyMethod::GetAtaInterface,
-                params,
-            }
-        }
-
         pub fn make_get_multiple_account_interfaces_body(
             params: types::PostGetMultipleAccountInterfacesBodyParams,
         ) -> types::PostGetMultipleAccountInterfacesBody {
@@ -599,18 +577,6 @@ pub mod apis {
             "getAccountInterface",
             types::PostGetAccountInterfaceBody,
             types::PostGetAccountInterfaceResponse
-        );
-        api_call!(
-            get_token_account_interface_post,
-            "getTokenAccountInterface",
-            types::PostGetTokenAccountInterfaceBody,
-            types::PostGetTokenAccountInterfaceResponse
-        );
-        api_call!(
-            get_ata_interface_post,
-            "getAtaInterface",
-            types::PostGetAtaInterfaceBody,
-            types::PostGetAtaInterfaceResponse
         );
         api_call!(
             get_multiple_account_interfaces_post,

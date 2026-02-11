@@ -237,7 +237,7 @@ impl TestContext {
         expected_owner: Pubkey,
         expected_amount: u64,
     ) {
-        use light_client::interface::{AccountInterface, ColdContext};
+        use light_client::interface::AccountInterface;
 
         // Fetch token account interface
         let vault_interface = self
@@ -263,11 +263,11 @@ impl TestContext {
             .compressed()
             .expect("cold vault must have compressed data");
 
-        // Convert to AccountInterface with ColdContext::Account
+        // Convert to AccountInterface with compressed account
         let vault_interface_for_pda = AccountInterface {
             key: vault_interface.key,
             account: vault_interface.account.clone(),
-            cold: Some(ColdContext::Account(vault_compressed.account.clone())),
+            cold: Some(vault_compressed.account.clone()),
         };
 
         // Create PdaSpec and decompress
