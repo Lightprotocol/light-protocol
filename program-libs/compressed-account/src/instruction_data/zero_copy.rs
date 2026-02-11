@@ -462,12 +462,11 @@ impl<'a> InstructionData<'a> for ZInstructionDataInvoke<'a> {
         self.compress_or_decompress_lamports.map(|x| (*x).into())
     }
     fn owner(&self) -> Pubkey {
-        // TODO: investigate why this is called if there are no inputs when using mint_to.
         if self
             .input_compressed_accounts_with_merkle_context
             .is_empty()
         {
-            Pubkey::default()
+            panic!("owner() called with no input accounts")
         } else {
             self.input_compressed_accounts_with_merkle_context[0]
                 .compressed_account
@@ -543,7 +542,7 @@ impl ZInstructionDataInvokeCpi<'_> {
             .input_compressed_accounts_with_merkle_context
             .is_empty()
         {
-            Pubkey::default()
+            panic!("owner() called with no input accounts")
         } else {
             self.input_compressed_accounts_with_merkle_context[0]
                 .compressed_account
@@ -588,7 +587,7 @@ impl<'a> InstructionData<'a> for ZInstructionDataInvokeCpi<'a> {
             .input_compressed_accounts_with_merkle_context
             .is_empty()
         {
-            Pubkey::default()
+            panic!("owner() called with no input accounts")
         } else {
             self.input_compressed_accounts_with_merkle_context[0]
                 .compressed_account

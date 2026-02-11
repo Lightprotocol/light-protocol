@@ -49,6 +49,7 @@ pub fn process_cpi_context<'a, 'info, T: InstructionData<'a>>(
     mut instruction_data: WrappedInstructionData<'a, T>,
     cpi_context_account_info: Option<&'info AccountInfo>,
     fee_payer: Pubkey,
+    invoking_program: Pubkey,
     remaining_accounts: &[AccountInfo],
 ) -> Result<Option<(usize, WrappedInstructionData<'a, T>)>> {
     let cpi_context = &instruction_data.cpi_context();
@@ -63,7 +64,12 @@ pub fn process_cpi_context<'a, 'info, T: InstructionData<'a>>(
         };
 
         if cpi_context.set_context || cpi_context.first_set_context {
-            set_cpi_context(fee_payer, cpi_context_account_info, instruction_data)?;
+            set_cpi_context(
+                fee_payer,
+                invoking_program,
+                cpi_context_account_info,
+                instruction_data,
+            )?;
             return Ok(None);
         } else {
             let cpi_context_account = deserialize_cpi_context_account(cpi_context_account_info)?;
@@ -90,6 +96,7 @@ pub fn process_cpi_context<'a, 'info, T: InstructionData<'a>>(
 #[profile]
 pub fn set_cpi_context<'a, 'info, T: InstructionData<'a>>(
     fee_payer: Pubkey,
+    invoking_program: Pubkey,
     cpi_context_account_info: &'info AccountInfo,
     instruction_data: WrappedInstructionData<'a, T>,
 ) -> Result<()> {
@@ -115,12 +122,12 @@ pub fn set_cpi_context<'a, 'info, T: InstructionData<'a>>(
         let mut cpi_context_account =
             deserialize_cpi_context_account_cleared(cpi_context_account_info)?;
         *cpi_context_account.fee_payer = fee_payer.into();
-        cpi_context_account.store_data(&instruction_data)?;
+        cpi_context_account.store_data(&instruction_data, invoking_program)?;
     } else {
         let mut cpi_context_account = deserialize_cpi_context_account(cpi_context_account_info)?;
 
         if *cpi_context_account.fee_payer == fee_payer && !cpi_context_account.is_empty() {
-            cpi_context_account.store_data(&instruction_data)?;
+            cpi_context_account.store_data(&instruction_data, invoking_program)?;
         } else {
             msg!(format!(
                 " {:?} != {:?} or cpi context account empty {}",

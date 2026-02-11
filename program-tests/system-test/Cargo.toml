@@ -48,3 +48,4 @@ light-merkle-tree-metadata = { workspace = true, features = ["anchor"] }
 light-bloom-filter = { workspace = true }
 pinocchio = { workspace = true }
 light-account-checks = { workspace = true, features = ["test-only", "pinocchio"] }
+light-zero-copy = { workspace = true }
