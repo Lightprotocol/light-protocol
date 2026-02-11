@@ -3,14 +3,10 @@
 //! This module provides functions to validate on-chain configuration accounts
 //! at forester startup, allowing fail-fast behavior on misconfigurations.
 
-use std::str::FromStr;
-
 use anchor_lang::AccountDeserialize;
 use light_compressible::config::CompressibleConfig as OnChainCompressibleConfig;
 use solana_client::nonblocking::rpc_client::RpcClient;
-use solana_sdk::pubkey::Pubkey;
 
-use super::config::REGISTRY_PROGRAM_ID;
 use crate::Result;
 
 /// Validates the on-chain CompressibleConfig for CToken/Mint compression.
@@ -28,7 +24,7 @@ use crate::Result;
 /// - The config state is Inactive (paused)
 /// - RPC communication fails
 pub async fn validate_compressible_config(rpc_url: &str) -> Result<()> {
-    let registry_program_id = Pubkey::from_str(REGISTRY_PROGRAM_ID)?;
+    let registry_program_id = light_registry::ID;
 
     // Derive the CompressibleConfig PDA
     let (config_pda, _) = OnChainCompressibleConfig::derive_v1_config_pda(&registry_program_id);

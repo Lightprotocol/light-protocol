@@ -8,7 +8,6 @@ use prometheus::{
     Encoder, GaugeVec, HistogramVec, IntCounterVec, IntGauge, IntGaugeVec, Registry, TextEncoder,
 };
 use reqwest::Client;
-use tokio::sync::Mutex;
 use tracing::{debug, error, log::trace};
 
 use crate::Result;
@@ -106,8 +105,8 @@ lazy_static! {
         error!("Failed to create metric INDEXER_PROOF_COUNT: {:?}", e);
         std::process::exit(1);
     });
-    static ref METRIC_UPDATES: Mutex<Vec<(u64, usize, std::time::Duration)>> =
-        Mutex::new(Vec::new());
+    static ref METRIC_UPDATES: std::sync::Mutex<Vec<(u64, usize, std::time::Duration)>> =
+        std::sync::Mutex::new(Vec::new());
 }
 
 static INIT: Once = Once::new();
@@ -181,13 +180,13 @@ pub fn update_transactions_processed(epoch: u64, count: usize, duration: std::ti
     );
 }
 
-pub async fn queue_metric_update(epoch: u64, count: usize, duration: std::time::Duration) {
-    let mut updates = METRIC_UPDATES.lock().await;
+pub fn queue_metric_update(epoch: u64, count: usize, duration: std::time::Duration) {
+    let mut updates = METRIC_UPDATES.lock().unwrap_or_else(|e| e.into_inner());
     updates.push((epoch, count, duration));
 }
 
-pub async fn process_queued_metrics() {
-    let mut updates = METRIC_UPDATES.lock().await;
+pub fn process_queued_metrics() {
+    let mut updates = METRIC_UPDATES.lock().unwrap_or_else(|e| e.into_inner());
     for (epoch, count, duration) in updates.drain(..) {
         update_transactions_processed(epoch, count, duration);
     }
@@ -243,7 +242,7 @@ pub async fn push_metrics(url: &Option<String>) -> Result<()> {
         }
     };
 
-    process_queued_metrics().await;
+    process_queued_metrics();
 
     update_last_run_timestamp();
 
@@ -265,6 +264,130 @@ pub async fn push_metrics(url: &Option<String>) -> Result<()> {
         );
         Err(anyhow::anyhow!(error_message))
     }
+}
+
+/// Query a Prometheus server for forester metrics and return a MetricsResponse.
+///
+/// Runs PromQL instant queries for the same metrics the in-memory REGISTRY
+/// exposes, so the dashboard can show aggregated data from all foresters
+/// even when running in standalone mode.
+///
+/// Accepts a shared `reqwest::Client` (with timeout pre-configured) to reuse
+/// connection pools across calls.
+pub async fn query_prometheus_metrics(
+    client: &Client,
+    prometheus_url: &str,
+) -> Result<crate::api_server::MetricsResponse> {
+    use std::collections::HashMap;
+
+    let base = prometheus_url.trim_end_matches('/');
+
+    async fn query_instant(
+        client: &Client,
+        base: &str,
+        promql: &str,
+    ) -> anyhow::Result<serde_json::Value> {
+        let url = format!("{}/api/v1/query", base);
+        let resp = client
+            .get(&url)
+            .query(&[("query", promql)])
+            .send()
+            .await
+            .map_err(|e| anyhow::anyhow!("Prometheus request failed: {}", e))?;
+
+        if !resp.status().is_success() {
+            return Err(anyhow::anyhow!("Prometheus HTTP error: {}", resp.status()));
+        }
+
+        let body: serde_json::Value = resp
+            .json()
+            .await
+            .map_err(|e| anyhow::anyhow!("Prometheus JSON parse error: {}", e))?;
+
+        if body.get("status").and_then(|s| s.as_str()) != Some("success") {
+            return Err(anyhow::anyhow!("Prometheus query failed: {:?}", body));
+        }
+
+        Ok(body["data"]["result"].clone())
+    }
+
+    /// Extract label→value pairs from a Prometheus vector result.
+    fn extract_label_values(result: &serde_json::Value, label_key: &str) -> Vec<(String, f64)> {
+        let arr = match result.as_array() {
+            Some(a) => a,
+            None => return Vec::new(),
+        };
+        arr.iter()
+            .filter_map(|entry| {
+                let label = entry["metric"][label_key].as_str()?.to_string();
+                let val_str = entry["value"].as_array()?.get(1)?.as_str()?;
+                let val: f64 = val_str.parse().ok()?;
+                Some((label, val))
+            })
+            .collect()
+    }
+
+    // Run all queries concurrently
+    let (tx_total, tx_rate, last_run, balances, queues) = tokio::join!(
+        query_instant(
+            client,
+            base,
+            "sum(forester_transactions_processed_total) by (epoch)"
+        ),
+        query_instant(client, base, "sum(forester_transaction_rate) by (epoch)"),
+        query_instant(client, base, "max(forester_last_run_timestamp)"),
+        query_instant(client, base, "forester_sol_balance"),
+        query_instant(client, base, "queue_length"),
+    );
+
+    let mut transactions_processed_total: HashMap<String, u64> = HashMap::new();
+    if let Ok(ref v) = tx_total {
+        for (epoch, val) in extract_label_values(v, "epoch") {
+            transactions_processed_total.insert(epoch, val as u64);
+        }
+    }
+
+    let mut transaction_rate: HashMap<String, f64> = HashMap::new();
+    if let Ok(ref v) = tx_rate {
+        for (epoch, val) in extract_label_values(v, "epoch") {
+            transaction_rate.insert(epoch, val);
+        }
+    }
+
+    let last_run_timestamp: i64 = if let Ok(ref v) = last_run {
+        v.as_array()
+            .and_then(|arr| arr.first())
+            .and_then(|entry| entry["value"].as_array())
+            .and_then(|pair| pair.get(1))
+            .and_then(|s| s.as_str())
+            .and_then(|s| s.parse::<f64>().ok())
+            .map(|f| f as i64)
+            .unwrap_or(0)
+    } else {
+        0
+    };
+
+    let mut forester_balances: HashMap<String, f64> = HashMap::new();
+    if let Ok(ref v) = balances {
+        for (pubkey, val) in extract_label_values(v, "pubkey") {
+            forester_balances.insert(pubkey, val);
+        }
+    }
+
+    let mut queue_lengths: HashMap<String, i64> = HashMap::new();
+    if let Ok(ref v) = queues {
+        for (tree_pubkey, val) in extract_label_values(v, "tree_pubkey") {
+            queue_lengths.insert(tree_pubkey, val as i64);
+        }
+    }
+
+    Ok(crate::api_server::MetricsResponse {
+        transactions_processed_total,
+        transaction_rate,
+        last_run_timestamp,
+        forester_balances,
+        queue_lengths,
+    })
 }
 
 pub async fn metrics_handler() -> Result<impl warp::Reply> {

@@ -23,7 +23,7 @@ pub struct CreateSmartTransactionConfig {
     pub compute_unit_price: Option<u64>,
     pub compute_unit_limit: Option<u32>,
     pub instructions: Vec<Instruction>,
-    pub last_valid_block_hash: u64,
+    pub last_valid_block_height: u64,
 }
 
 /// Poll a transaction to check whether it has been confirmed
@@ -139,5 +139,5 @@ pub async fn create_smart_transaction(
     let mut tx = Transaction::new_with_payer(&final_instructions, Some(&payer_pubkey));
     tx.sign(&[&config.payer], config.recent_blockhash);
 
-    Ok((tx, config.last_valid_block_hash))
+    Ok((tx, config.last_valid_block_height))
 }

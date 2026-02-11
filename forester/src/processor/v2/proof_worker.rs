@@ -1,5 +1,7 @@
 use std::{sync::Arc, time::Duration};
 
+const MAX_CONCURRENT_PROOFS: usize = 64;
+
 use async_channel::Receiver;
 use light_batched_merkle_tree::merkle_tree::{
     InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
@@ -173,11 +175,15 @@ async fn run_proof_pipeline(
     job_rx: Receiver<ProofJob>,
     clients: Arc<ProofClients>,
 ) -> crate::Result<()> {
+    let semaphore = Arc::new(tokio::sync::Semaphore::new(MAX_CONCURRENT_PROOFS));
+
     while let Ok(job) = job_rx.recv().await {
         let clients = clients.clone();
+        let permit = semaphore.clone().acquire_owned().await;
         // Spawn immediately so we don't block receiving the next job
-        // while waiting for HTTP submission
+        // while waiting for HTTP submission. Semaphore bounds concurrency.
         tokio::spawn(async move {
+            let _permit = permit;
             submit_and_poll_proof(clients, job).await;
         });
     }

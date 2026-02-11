@@ -29,7 +29,19 @@ pub fn reconcile_roots(
     indexer_root: [u8; 32],
     onchain_root: [u8; 32],
 ) -> RootReconcileDecision {
-    if expected_root == [0u8; 32] || indexer_root == expected_root {
+    if expected_root == [0u8; 32] {
+        // Uninitialized expected root — proceed but adopt the indexer root.
+        // Validate that indexer and on-chain agree when possible.
+        if indexer_root != onchain_root {
+            tracing::warn!(
+                "Proceeding with uninitialized expected root, but indexer root ({:?}) != onchain root ({:?}). Indexer may be stale.",
+                &indexer_root[..4],
+                &onchain_root[..4],
+            );
+        }
+        return RootReconcileDecision::Proceed;
+    }
+    if indexer_root == expected_root {
         return RootReconcileDecision::Proceed;
     }
 

@@ -13,6 +13,8 @@ pub enum Commands {
     Start(StartArgs),
     Status(StatusArgs),
     Health(HealthArgs),
+    /// Run a standalone API server for the dashboard (no forester processing)
+    Dashboard(DashboardArgs),
 }
 
 #[derive(Parser, Clone, Debug)]
@@ -274,6 +276,13 @@ pub struct StartArgs {
         help = "Filter trees by group authority pubkey. Only process trees owned by this authority."
     )]
     pub group_authority: Option<String>,
+
+    #[arg(
+        long,
+        env = "PROMETHEUS_URL",
+        help = "Prometheus server URL for querying metrics (e.g. http://prometheus:9090)"
+    )]
+    pub prometheus_url: Option<String>,
 }
 
 #[derive(Parser, Clone, Debug)]
@@ -343,6 +352,35 @@ pub struct HealthArgs {
 
     #[arg(long, help = "Output format: text or json", default_value = "text")]
     pub output: String,
+}
+
+#[derive(Parser, Clone, Debug)]
+pub struct DashboardArgs {
+    #[arg(long, env = "RPC_URL")]
+    pub rpc_url: String,
+
+    #[arg(
+        long,
+        env = "API_SERVER_PORT",
+        help = "HTTP API server port (default: 8080)",
+        default_value = "8080"
+    )]
+    pub port: u16,
+
+    #[arg(
+        long,
+        env = "API_SERVER_PUBLIC_BIND",
+        help = "Bind API server to 0.0.0.0 instead of 127.0.0.1",
+        default_value = "false"
+    )]
+    pub public_bind: bool,
+
+    #[arg(
+        long,
+        env = "PROMETHEUS_URL",
+        help = "Prometheus server URL for querying metrics (e.g. http://prometheus:9090)"
+    )]
+    pub prometheus_url: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]

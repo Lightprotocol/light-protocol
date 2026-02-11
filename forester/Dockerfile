@@ -14,9 +14,8 @@ RUN cargo build --release --package forester
 
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y ca-certificates libssl3 && rm -rf /var/lib/apt/lists/*
-RUN mkdir -p /app/config /app/static
+RUN mkdir -p /app/config
 COPY --from=builder /app/target/release/forester /usr/local/bin/forester
-COPY --from=builder /app/forester/static /app/static
 WORKDIR /app
 
 ENTRYPOINT ["/usr/local/bin/forester"]

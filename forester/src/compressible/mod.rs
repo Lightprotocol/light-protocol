@@ -7,9 +7,10 @@ pub mod subscriber;
 pub mod traits;
 pub mod validation;
 
+pub use bootstrap_helpers::{count_compressible_accounts, count_program_accounts};
 pub use config::{
     CompressibleConfig, PdaProgramConfig, ACCOUNT_TYPE_OFFSET, CTOKEN_ACCOUNT_TYPE_FILTER,
-    DEFAULT_PAGE_SIZE, DEFAULT_PAGINATION_DELAY_MS, MINT_ACCOUNT_TYPE_FILTER, REGISTRY_PROGRAM_ID,
+    DEFAULT_PAGE_SIZE, DEFAULT_PAGINATION_DELAY_MS, MINT_ACCOUNT_TYPE_FILTER,
 };
 pub use ctoken::{
     bootstrap_ctoken_accounts, CTokenAccountState, CTokenAccountTracker, CTokenCompressor,

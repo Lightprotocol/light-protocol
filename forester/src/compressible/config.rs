@@ -7,9 +7,6 @@ use solana_sdk::pubkey::Pubkey;
 // Shared Constants
 // =============================================================================
 
-/// Registry program ID for compress_and_close operations
-pub const REGISTRY_PROGRAM_ID: &str = "Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX";
-
 /// Offset in CToken/Mint account data where account_type byte is stored.
 /// Used for memcmp filters to identify decompressed accounts.
 pub const ACCOUNT_TYPE_OFFSET: usize = 165;

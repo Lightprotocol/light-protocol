@@ -795,6 +795,12 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             return Ok(());
         }
 
+        // Ensure we reset the processing flag when this scope exits
+        // (whether by normal return, early return, or panic).
+        let _reset_guard = scopeguard::guard((), |_| {
+            processing_flag.store(false, Ordering::SeqCst);
+        });
+
         let phases = get_epoch_phases(&self.protocol_config, epoch);
 
         // Attempt to recover registration info
@@ -873,11 +879,6 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         // TODO: implement
         // self.claim(&registration_info).await?;
 
-        // Ensure we reset the processing flag when we're done
-        let _reset_guard = scopeguard::guard((), |_| {
-            processing_flag.store(false, Ordering::SeqCst);
-        });
-
         info!("Exiting process_epoch");
         Ok(())
     }
@@ -922,7 +923,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 "Registration for epoch {} hasn't started yet (current slot: {}, starts at: {}). Waiting {} slots...",
                 epoch, slot, phases.registration.start, slots_to_wait
             );
-            let wait_duration = Duration::from_millis(slots_to_wait * 400);
+            let wait_duration = slot_duration() * slots_to_wait as u32;
             sleep(wait_duration).await;
         }
 
@@ -2485,7 +2486,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 items_processed,
                 duration
             );
-            queue_metric_update(epoch_num, items_processed, duration).await;
+            queue_metric_update(epoch_num, items_processed, duration);
             self.increment_processed_items_count(epoch_num, items_processed)
                 .await;
         }
@@ -2616,7 +2617,8 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             .collect();
 
         let timeout_slots = slots_until_active.saturating_sub(5);
-        let timeout_duration = Duration::from_millis((timeout_slots * 400).min(30_000));
+        let timeout_duration =
+            (slot_duration() * timeout_slots as u32).min(Duration::from_secs(30));
 
         info!(
             "Starting pre-warming for {} trees ({} skipped by config) with {}ms timeout",

@@ -1,4 +1,4 @@
-use std::{str::FromStr, sync::Arc};
+use std::sync::Arc;
 
 use anchor_lang::{InstructionData, ToAccountMetas};
 use forester_utils::rpc_pool::SolanaRpcPool;
@@ -20,10 +20,7 @@ use solana_sdk::{
 use tracing::{debug, info};
 
 use super::{state::CTokenAccountTracker, types::CTokenAccountState};
-use crate::{
-    compressible::{config::REGISTRY_PROGRAM_ID, traits::CompressibleTracker},
-    Result,
-};
+use crate::{compressible::traits::CompressibleTracker, Result};
 
 /// Compression executor for CToken accounts via the registry program's compress_and_close instruction.
 pub struct CTokenCompressor<R: Rpc + Indexer> {
@@ -60,7 +57,7 @@ impl<R: Rpc + Indexer> CTokenCompressor<R> {
         account_states: &[CTokenAccountState],
         registered_forester_pda: Pubkey,
     ) -> Result<Signature> {
-        let registry_program_id = Pubkey::from_str(REGISTRY_PROGRAM_ID)?;
+        let registry_program_id = light_registry::ID;
         let compressed_token_program_id = Pubkey::new_from_array(LIGHT_TOKEN_PROGRAM_ID);
 
         // Derive compression_authority PDA deterministically (version = 1)
@@ -242,14 +239,13 @@ impl<R: Rpc + Indexer> CTokenCompressor<R> {
                 self.tracker.remove(&account_state.pubkey);
             }
             info!("compress_and_close tx confirmed: {}", signature);
+            Ok(signature)
         } else {
             // Transaction not confirmed - keep accounts in tracker for retry
-            tracing::warn!(
+            Err(anyhow::anyhow!(
                 "compress_and_close tx not confirmed: {} - accounts kept in tracker for retry",
                 signature
-            );
+            ))
         }
-
-        Ok(signature)
     }
 }

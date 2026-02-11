@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use clap::Parser;
 use forester::{
-    api_server::spawn_api_server,
+    api_server::{spawn_api_server, ApiServerConfig},
     cli::{Cli, Commands},
     errors::ForesterError,
     forester_status,
@@ -87,11 +87,13 @@ async fn main() -> Result<(), ForesterError> {
                 .map(RateLimiter::new);
 
             let rpc_url_for_api: String = config.external_services.rpc_url.to_string();
-            let api_server_handle = spawn_api_server(
-                rpc_url_for_api,
-                args.api_server_port,
-                args.api_server_public_bind,
-            );
+            let api_server_handle = spawn_api_server(ApiServerConfig {
+                rpc_url: rpc_url_for_api,
+                port: args.api_server_port,
+                allow_public_bind: args.api_server_public_bind,
+                compressible_state: None,
+                prometheus_url: args.prometheus_url.clone(),
+            });
 
             // Create compressible shutdown channels if compressible is enabled
             let (shutdown_receiver_compressible, shutdown_receiver_bootstrap) =
@@ -141,6 +143,26 @@ async fn main() -> Result<(), ForesterError> {
             if !result && args.exit_on_failure {
                 std::process::exit(1);
             }
+        }
+        Commands::Dashboard(args) => {
+            tracing::info!(
+                "Starting standalone dashboard API server on port {}",
+                args.port
+            );
+            let api_server_handle = spawn_api_server(ApiServerConfig {
+                rpc_url: args.rpc_url.clone(),
+                port: args.port,
+                allow_public_bind: args.public_bind,
+                compressible_state: None,
+                prometheus_url: args.prometheus_url.clone(),
+            });
+
+            // Block until Ctrl+C
+            if let Err(e) = ctrl_c().await {
+                tracing::error!("Failed to listen for Ctrl+C: {}", e);
+            }
+            tracing::info!("Received Ctrl+C, shutting down dashboard API server...");
+            api_server_handle.shutdown();
         }
     }
     Ok(())

@@ -3,6 +3,7 @@ logs
 .idea
 .env
 .env.devnet
+.env.mainnet
 *.json
 !package.json
 spawn.sh

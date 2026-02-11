@@ -84,6 +84,7 @@ async fn test_priority_fee_request() {
         api_server_port: 8080,
         group_authority: None,
         light_pda_programs: vec![],
+        prometheus_url: None,
     };
 
     let config = ForesterConfig::new_for_start(&args).expect("Failed to create config");
