@@ -1172,7 +1172,8 @@ impl Rpc for LightClient {
 
         let value = match resp.value {
             Some(ai) => {
-                let state = if ai.is_cold() {
+                let is_truly_cold = ai.is_cold() && ai.account.lamports == 0;
+                let state = if is_truly_cold {
                     let cold = ai.cold.as_ref().ok_or_else(|| {
                         RpcError::CustomError("Cold mint missing cold context".into())
                     })?;
