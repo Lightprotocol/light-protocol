@@ -1,8 +1,7 @@
 mod shared;
 
 use light_client::interface::{
-    create_load_instructions, get_create_accounts_proof, AccountInterface, AccountSpec,
-    ColdContext, PdaSpec,
+    create_load_instructions, get_create_accounts_proof, AccountInterface, AccountSpec, PdaSpec,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{program_test::TestRpc, Rpc};
@@ -115,7 +114,7 @@ async fn test_create_token_vault_derive() {
     let vault_interface = AccountInterface {
         key: vault_iface.key,
         account: vault_iface.account.clone(),
-        cold: Some(ColdContext::Account(vault_compressed.account.clone())),
+        cold: Some(vault_compressed.account.clone()),
     };
     let vault_spec = PdaSpec::new(vault_interface, vault_variant, program_id);
 

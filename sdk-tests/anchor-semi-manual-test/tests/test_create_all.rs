@@ -7,7 +7,7 @@ use anchor_semi_manual_test::{
 };
 use light_client::interface::{
     create_load_instructions, get_create_accounts_proof, AccountInterface, AccountSpec,
-    ColdContext, CreateAccountsProofInput, PdaSpec,
+    CreateAccountsProofInput, PdaSpec,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{program_test::TestRpc, Rpc};
@@ -303,14 +303,14 @@ async fn test_create_all_derive() {
     let vault_interface = AccountInterface {
         key: vault_iface.key,
         account: vault_iface.account.clone(),
-        cold: Some(ColdContext::Account(vault_compressed.account.clone())),
+        cold: Some(vault_compressed.account.clone()),
     };
     let vault_spec = PdaSpec::new(vault_interface, vault_variant, program_id);
 
     let specs: Vec<AccountSpec<LightAccountVariant>> = vec![
         AccountSpec::Pda(record_spec),
         AccountSpec::Pda(zc_spec),
-        AccountSpec::Ata(ata_interface),
+        AccountSpec::Ata(Box::new(ata_interface)),
         AccountSpec::Pda(vault_spec),
         AccountSpec::Mint(mint_a_ai),
         AccountSpec::Mint(mint_b_ai),

@@ -666,7 +666,7 @@ async fn test_amm_full_lifecycle() {
     // add ata
     use light_client::interface::AccountSpec;
     let mut all_specs = specs;
-    all_specs.push(AccountSpec::Ata(creator_lp_interface));
+    all_specs.push(AccountSpec::Ata(Box::new(creator_lp_interface)));
 
     let decompress_ixs =
         create_load_instructions(&all_specs, ctx.payer.pubkey(), ctx.config_pda, &ctx.rpc)

@@ -1,7 +1,6 @@
 //! LightProgramInterface trait and supporting types for client-side SDK patterns.
 //!
 //! Core types:
-//! - `ColdContext` - Cold data context (Account or Token)
 //! - `PdaSpec` - Spec for PDA loading with typed variant
 //! - `AccountSpec` - Unified spec enum for load instruction building
 //! - `LightProgramInterface` - Trait for program SDKs
@@ -13,7 +12,7 @@ use light_token::instruction::derive_token_ata;
 use solana_pubkey::Pubkey;
 
 use super::{AccountInterface, TokenAccountInterface};
-use crate::indexer::{CompressedAccount, CompressedTokenAccount};
+use crate::indexer::CompressedAccount;
 
 /// Account descriptor for fetching. Routes to the correct indexer endpoint.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -58,22 +57,6 @@ impl AccountToFetch {
             Self::Mint { address } => *address,
         }
     }
-}
-
-/// Context for cold accounts.
-///
-/// Three variants based on data structure:
-/// - `Account` - Generic PDA
-/// - `Token` - Token account
-/// - `Mint` - Compressed mint
-#[derive(Clone, Debug, PartialEq)]
-pub enum ColdContext {
-    /// Generic PDA
-    Account(CompressedAccount),
-    /// Token account
-    Token(CompressedTokenAccount),
-    /// Compressed mint
-    Mint(CompressedAccount),
 }
 
 /// Specification for a program-owned PDA with typed variant.
@@ -128,27 +111,10 @@ impl<V> PdaSpec<V> {
         self.interface.is_hot()
     }
 
-    /// Get the compressed account if cold (handles both Account and Token cold contexts).
+    /// Get the compressed account if cold.
     #[must_use]
     pub fn compressed(&self) -> Option<&CompressedAccount> {
-        match &self.interface.cold {
-            Some(ColdContext::Account(c)) => Some(c),
-            Some(ColdContext::Token(c)) => Some(&c.account),
-            Some(ColdContext::Mint(c)) => Some(c),
-            None => None,
-        }
-    }
-
-    /// Get the compressed token account if this is a cold token PDA.
-    #[must_use]
-    pub fn compressed_token(&self) -> Option<&CompressedTokenAccount> {
-        self.interface.as_compressed_token()
-    }
-
-    /// Whether this spec is for a token PDA (cold context is Token variant).
-    #[must_use]
-    pub fn is_token_pda(&self) -> bool {
-        self.interface.as_compressed_token().is_some()
+        self.interface.cold.as_ref()
     }
 
     /// Get the cold account hash.
@@ -171,7 +137,7 @@ pub enum AccountSpec<V> {
     /// Program-owned PDA with typed variant.
     Pda(PdaSpec<V>),
     /// Associated token account
-    Ata(TokenAccountInterface),
+    Ata(Box<TokenAccountInterface>),
     /// Light token mint
     Mint(AccountInterface),
 }
@@ -211,7 +177,7 @@ impl<V> From<PdaSpec<V>> for AccountSpec<V> {
 
 impl From<TokenAccountInterface> for AccountSpec<()> {
     fn from(interface: TokenAccountInterface) -> Self {
-        Self::Ata(interface)
+        Self::Ata(Box::new(interface))
     }
 }
 

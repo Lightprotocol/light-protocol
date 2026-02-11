@@ -13,13 +13,23 @@ sed_inplace() {
 }
 
 install_photon() {
-    local expected_version="${PHOTON_VERSION}"
-    local expected_commit="${PHOTON_COMMIT}"
+    local photon_path="${REPO_ROOT}/external/photon"
+
+    # Ensure photon submodule is initialized and up to date
+    echo "Updating photon submodule..."
+    cd "${REPO_ROOT}"
+    git submodule update --init --recursive external/photon
+    cd "${SCRIPT_DIR}"
+
+    # Derive version and commit from the actual submodule state (after init)
+    local expected_version
+    expected_version=$(grep '^version' "${photon_path}/Cargo.toml" | head -1 | sed 's/.*"\(.*\)".*/\1/')
+    local expected_commit
+    expected_commit=$(git -C "${photon_path}" rev-parse HEAD)
     local install_marker="photon:${expected_version}:${expected_commit}"
 
-    # Validate required variables
     if [ -z "${expected_version}" ] || [ -z "${expected_commit}" ]; then
-        echo "ERROR: PHOTON_VERSION or PHOTON_COMMIT not set in versions.sh"
+        echo "ERROR: Could not derive version or commit from external/photon submodule."
         exit 1
     fi
 
@@ -45,8 +55,8 @@ install_photon() {
     sed_inplace "/^photon:/d" "$INSTALL_LOG" 2>/dev/null || true
     sed_inplace "/^photon$/d" "$INSTALL_LOG" 2>/dev/null || true
 
-    echo "Installing Photon indexer ${expected_version} (commit ${expected_commit})..."
-    RUSTFLAGS="-A dead-code" cargo install --git https://github.com/helius-labs/photon.git --rev ${expected_commit} --locked --force
+    echo "Installing Photon indexer ${expected_version} (commit ${expected_commit}) from submodule..."
+    RUSTFLAGS="-A dead-code" cargo install --path "${photon_path}" --locked --force
 
     # Verify installation succeeded
     if [ ! -f "${PREFIX}/cargo/bin/photon" ]; then

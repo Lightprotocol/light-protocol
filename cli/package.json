@@ -93,8 +93,9 @@
   "scripts": {
     "postinstall": "[ -d ./bin ] && find ./bin -type f -exec chmod +x {} + || echo 'No bin directory found, skipping chmod'",
     "sync-prover-version": "./scripts/syncProverVersion.sh",
-    "build": "shx rm -rf dist && pnpm sync-prover-version && pnpm tsc -p tsconfig.json && pnpm tsc -p tsconfig.test.json",
-    "build-release": "shx rm -rf dist && pnpm sync-prover-version && pnpm tsc -p tsconfig.json && pnpm tsc -p tsconfig.test.json",
+    "sync-photon-version": "./scripts/syncPhotonVersion.sh",
+    "build": "shx rm -rf dist && pnpm sync-prover-version && pnpm sync-photon-version && pnpm tsc -p tsconfig.json && pnpm tsc -p tsconfig.test.json",
+    "build-release": "shx rm -rf dist && pnpm sync-prover-version && pnpm sync-photon-version && pnpm tsc -p tsconfig.json && pnpm tsc -p tsconfig.test.json",
     "format": "pnpm prettier --write \"src/**/*.{ts,js}\" \"test/**/*.{ts,js}\" -w",
     "format:check": "pnpm prettier \"src/**/*{ts,js}\"  \"test/**/*.{ts,js}\" --check",
     "lint": "eslint .",

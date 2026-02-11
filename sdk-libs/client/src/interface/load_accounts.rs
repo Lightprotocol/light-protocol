@@ -100,7 +100,7 @@ where
     let cold_atas: Vec<_> = specs
         .iter()
         .filter_map(|s| match s {
-            AccountSpec::Ata(a) if a.is_cold() => Some(a),
+            AccountSpec::Ata(a) if a.is_cold() => Some(a.as_ref()),
             _ => None,
         })
         .collect();

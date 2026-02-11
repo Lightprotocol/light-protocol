@@ -546,7 +546,8 @@ async fn test_d10_single_ata_markonly_lifecycle() {
     );
 
     // Build AccountSpec for ATA decompression
-    let specs: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Ata(ata_interface)];
+    let specs: Vec<AccountSpec<LightAccountVariant>> =
+        vec![AccountSpec::Ata(Box::new(ata_interface))];
 
     // Create decompression instructions
     let decompress_instructions =

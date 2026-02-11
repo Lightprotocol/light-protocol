@@ -354,7 +354,7 @@ async fn test_create_pdas_and_mint_auto() {
     };
     use light_account::TokenDataWithSeeds;
     use light_client::interface::{
-        create_load_instructions, AccountInterface, AccountSpec, ColdContext, PdaSpec,
+        create_load_instructions, AccountInterface, AccountSpec, PdaSpec,
     };
 
     // Fetch unified interfaces (hot/cold transparent)
@@ -422,11 +422,11 @@ async fn test_create_pdas_and_mint_auto() {
     let vault_compressed = vault_interface
         .compressed()
         .expect("cold vault must have compressed data");
-    // Convert TokenAccountInterface to AccountInterface with ColdContext::Account
+    // Convert TokenAccountInterface to AccountInterface with compressed account
     let vault_interface_for_pda = AccountInterface {
         key: vault_interface.key,
         account: vault_interface.account.clone(),
-        cold: Some(ColdContext::Account(vault_compressed.account.clone())),
+        cold: Some(vault_compressed.account.clone()),
     };
     let vault_spec = PdaSpec::new(vault_interface_for_pda, vault_variant, program_id);
 
@@ -446,7 +446,7 @@ async fn test_create_pdas_and_mint_auto() {
     // Use TokenAccountInterface directly for ATA
     // (no separate AtaSpec needed - TokenAccountInterface has all the data)
 
-    // Fetch mint via get_mint_interface to get ColdContext::Mint
+    // Fetch mint via get_mint_interface
     let mint_account_interface = light_client::interface::AccountInterface::from(
         rpc.get_mint_interface(&mint_pda, None)
             .await
@@ -464,7 +464,7 @@ async fn test_create_pdas_and_mint_auto() {
         AccountSpec::Pda(user_spec),
         AccountSpec::Pda(game_spec),
         AccountSpec::Pda(vault_spec),
-        AccountSpec::Ata(ata_interface.clone()),
+        AccountSpec::Ata(Box::new(ata_interface.clone())),
         AccountSpec::Mint(mint_account_interface),
     ];
 

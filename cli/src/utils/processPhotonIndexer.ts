@@ -1,12 +1,11 @@
 import which from "which";
 import { killProcess, spawnBinary, waitForServers } from "./process";
+import { INDEXER_PROCESS_NAME } from "./constants";
 import {
-  INDEXER_PROCESS_NAME,
   PHOTON_VERSION,
-  USE_PHOTON_FROM_GIT,
   PHOTON_GIT_REPO,
   PHOTON_GIT_COMMIT,
-} from "./constants";
+} from "./photonVersion.generated";
 import { exec } from "node:child_process";
 import * as util from "node:util";
 import { exit } from "node:process";
@@ -27,13 +26,7 @@ async function isExpectedPhotonVersion(
 }
 
 function getPhotonInstallMessage(): string {
-  if (USE_PHOTON_FROM_GIT && PHOTON_GIT_COMMIT) {
-    return `\nPhoton indexer ${PHOTON_VERSION} (commit ${PHOTON_GIT_COMMIT}) not found. Please install it by running: "cargo install --git ${PHOTON_GIT_REPO} --rev ${PHOTON_GIT_COMMIT} --locked --force"`;
-  } else if (USE_PHOTON_FROM_GIT) {
-    return `\nPhoton indexer ${PHOTON_VERSION} not found. Please install it by running: "cargo install --git ${PHOTON_GIT_REPO} --locked --force"`;
-  } else {
-    return `\nPhoton indexer ${PHOTON_VERSION} not found. Please install it by running: "cargo install photon-indexer --version ${PHOTON_VERSION} --locked --force"`;
-  }
+  return `\nPhoton indexer ${PHOTON_VERSION} (commit ${PHOTON_GIT_COMMIT}) not found. Please install it by running: "cargo install --git ${PHOTON_GIT_REPO} --rev ${PHOTON_GIT_COMMIT} --locked --force"`;
 }
 
 export async function startIndexer(

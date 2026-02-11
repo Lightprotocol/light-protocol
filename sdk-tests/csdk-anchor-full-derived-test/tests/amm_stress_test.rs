@@ -556,9 +556,9 @@ async fn decompress_all(ctx: &mut AmmTestContext, pdas: &AmmPdas) {
     );
 
     let mut all_specs = specs;
-    all_specs.push(AccountSpec::Ata(creator_lp_interface));
-    all_specs.push(AccountSpec::Ata(creator_token_0_interface));
-    all_specs.push(AccountSpec::Ata(creator_token_1_interface));
+    all_specs.push(AccountSpec::Ata(Box::new(creator_lp_interface)));
+    all_specs.push(AccountSpec::Ata(Box::new(creator_token_0_interface)));
+    all_specs.push(AccountSpec::Ata(Box::new(creator_token_1_interface)));
     all_specs.push(AccountSpec::Mint(mint_0_account_iface));
     all_specs.push(AccountSpec::Mint(mint_1_account_iface));
 

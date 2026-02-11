@@ -24,12 +24,8 @@ export const FORESTER_PROCESS_NAME = "forester";
 export const SURFPOOL_VERSION = "1.0.1";
 export const SURFPOOL_RELEASE_TAG = "v1.0.1-light";
 
-export const PHOTON_VERSION = "0.51.2";
-
-// Set these to override Photon requirements with a specific git commit:
-export const USE_PHOTON_FROM_GIT = true; // If true, will show git install command instead of crates.io.
-export const PHOTON_GIT_REPO = "https://github.com/lightprotocol/photon.git";
-export const PHOTON_GIT_COMMIT = "32e9ae60926a0d614ad444b799d15c15c02f2ef7"; // If empty, will use main branch.
+// PHOTON_VERSION, PHOTON_GIT_COMMIT, and PHOTON_GIT_REPO are auto-generated
+// from the external/photon submodule at build time. See photonVersion.generated.ts.
 export const LIGHT_PROTOCOL_PROGRAMS_DIR_ENV = "LIGHT_PROTOCOL_PROGRAMS_DIR";
 export const BASE_PATH = "../../bin/";
 
