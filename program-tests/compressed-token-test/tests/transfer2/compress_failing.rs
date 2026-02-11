@@ -91,7 +91,34 @@ async fn setup_compression_test(token_amount: u64) -> Result<CompressionTestCont
     let (mint, _) = find_mint_address(&mint_seed.pubkey());
     let ctoken_ata = derive_token_ata(&owner.pubkey(), &mint);
 
-    // Create compressible Light Token ATA for owner
+    // First create AND decompress the mint (CToken ATA creation requires mint to exist on-chain)
+    light_test_utils::actions::mint_action_comprehensive(
+        &mut rpc,
+        &mint_seed,
+        &mint_authority,
+        &payer,
+        Some(
+            light_test_utils::actions::legacy::instructions::mint_action::DecompressMintParams::default(),
+        ),                       // decompress mint so it exists on-chain
+        false,                   // compress_and_close_mint
+        vec![],                  // no compressed recipients
+        vec![],                  // no decompressed recipients yet
+        None,                    // no mint authority update
+        None,                    // no freeze authority update
+        Some(
+            light_test_utils::actions::legacy::instructions::mint_action::NewMint {
+                decimals: 6,
+                supply: 0,
+                mint_authority: mint_authority.pubkey(),
+                freeze_authority: None,
+                metadata: None,
+                version: 3, // ShaFlat for compressible accounts
+            },
+        ),
+    )
+    .await?;
+
+    // Create compressible Light Token ATA for owner - now mint exists on-chain
     let compressible_params = CompressibleParams {
         compressible_config: rpc
             .test_accounts
@@ -114,30 +141,19 @@ async fn setup_compression_test(token_amount: u64) -> Result<CompressionTestCont
     rpc.create_and_send_transaction(&[create_ata_instruction], &payer.pubkey(), &[&payer])
         .await?;
 
-    // Use mint_action_comprehensive to create mint AND mint to decompressed Light Token ATA
-    let decompressed_recipients = vec![Recipient::new(owner.pubkey(), token_amount)];
-
+    // Mint tokens to the Light Token ATA
     light_test_utils::actions::mint_action_comprehensive(
         &mut rpc,
         &mint_seed,
         &mint_authority,
         &payer,
-        None,                    // no decompress mint
-        false,                   // compress_and_close_mint
-        vec![],                  // no compressed recipients
-        decompressed_recipients, // mint to decompressed Light Token ATA
-        None,                    // no mint authority update
-        None,                    // no freeze authority update
-        Some(
-            light_test_utils::actions::legacy::instructions::mint_action::NewMint {
-                decimals: 6,
-                supply: 0,
-                mint_authority: mint_authority.pubkey(),
-                freeze_authority: None,
-                metadata: None,
-                version: 3, // ShaFlat for compressible accounts
-            },
-        ),
+        None,                                               // mint already decompressed
+        false,                                              // compress_and_close_mint
+        vec![],                                             // no compressed recipients
+        vec![Recipient::new(owner.pubkey(), token_amount)], // mint to Light Token ATA
+        None,                                               // no mint authority update
+        None,                                               // no freeze authority update
+        None,                                               // mint already exists
     )
     .await?;
 
@@ -602,6 +618,33 @@ async fn test_compression_max_top_up_exceeded() -> Result<(), RpcError> {
     let (mint, _) = find_mint_address(&mint_seed.pubkey());
     let ctoken_ata = derive_token_ata(&owner.pubkey(), &mint);
 
+    // First create AND decompress the mint (CToken ATA creation requires mint to exist on-chain)
+    light_test_utils::actions::mint_action_comprehensive(
+        &mut rpc,
+        &mint_seed,
+        &mint_authority,
+        &payer,
+        Some(
+            light_test_utils::actions::legacy::instructions::mint_action::DecompressMintParams::default(),
+        ),                       // decompress mint so it exists on-chain
+        false,                   // no close mint
+        vec![],                  // no compressed recipients
+        vec![],                  // no decompressed recipients yet
+        None,
+        None,
+        Some(
+            light_test_utils::actions::legacy::instructions::mint_action::NewMint {
+                decimals: 6,
+                supply: 0,
+                mint_authority: mint_authority.pubkey(),
+                freeze_authority: None,
+                metadata: None,
+                version: 3, // ShaFlat for compressible accounts
+            },
+        ),
+    )
+    .await?;
+
     // Create compressible Light Token ATA with pre_pay_num_epochs = 0 (NO prepaid rent)
     // This means any write operation will require immediate rent top-up
     let compressible_params = CompressibleParams {
@@ -626,31 +669,20 @@ async fn test_compression_max_top_up_exceeded() -> Result<(), RpcError> {
     rpc.create_and_send_transaction(&[create_ata_instruction], &payer.pubkey(), &[&payer])
         .await?;
 
-    // Create mint and mint tokens to decompressed Light Token ATA
+    // Mint tokens to the Light Token ATA
     let token_amount = 1000u64;
-    let decompressed_recipients = vec![Recipient::new(owner.pubkey(), token_amount)];
-
     light_test_utils::actions::mint_action_comprehensive(
         &mut rpc,
         &mint_seed,
         &mint_authority,
         &payer,
-        None,                    // no decompress mint
-        false,                   // no close mint
-        vec![],                  // no compressed recipients
-        decompressed_recipients, // mint to decompressed Light Token ATA
+        None,                                               // mint already decompressed
+        false,                                              // no close mint
+        vec![],                                             // no compressed recipients
+        vec![Recipient::new(owner.pubkey(), token_amount)], // mint to Light Token ATA
         None,
         None,
-        Some(
-            light_test_utils::actions::legacy::instructions::mint_action::NewMint {
-                decimals: 6,
-                supply: 0,
-                mint_authority: mint_authority.pubkey(),
-                freeze_authority: None,
-                metadata: None,
-                version: 3, // ShaFlat for compressible accounts
-            },
-        ),
+        None, // mint already exists
     )
     .await?;
 

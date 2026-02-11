@@ -31,7 +31,7 @@ async fn test_create_compressible_ata() {
     // Test 2: Two epoch prefunding
     {
         // Use different mint for second ATA
-        context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
+        context.mint_pubkey = create_additional_mint(&mut context.rpc, &context.payer).await;
 
         let compressible_data = CompressibleData {
             compression_authority: context.compression_authority,
@@ -55,7 +55,7 @@ async fn test_create_compressible_ata() {
     // Test 3: Ten epoch prefunding
     {
         // Use different mint for third ATA
-        context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
+        context.mint_pubkey = create_additional_mint(&mut context.rpc, &context.payer).await;
 
         let compressible_data = CompressibleData {
             compression_authority: context.compression_authority,
@@ -79,7 +79,7 @@ async fn test_create_compressible_ata() {
     // Test 4: Custom fee payer (payer == rent_sponsor, payer pays everything)
     {
         // Use different mint for fourth ATA
-        context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
+        context.mint_pubkey = create_additional_mint(&mut context.rpc, &context.payer).await;
 
         let compressible_data = CompressibleData {
             compression_authority: context.compression_authority,
@@ -103,7 +103,7 @@ async fn test_create_compressible_ata() {
     // Test 5: No lamports_per_write
     {
         // Use different mint for fifth ATA
-        context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
+        context.mint_pubkey = create_additional_mint(&mut context.rpc, &context.payer).await;
 
         let compressible_data = CompressibleData {
             compression_authority: context.compression_authority,
@@ -127,7 +127,7 @@ async fn test_create_compressible_ata() {
     // Test 6: Maximum prepaid epochs (255) - boundary test
     {
         // Use different mint for sixth ATA
-        context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
+        context.mint_pubkey = create_additional_mint(&mut context.rpc, &context.payer).await;
 
         let compressible_data = CompressibleData {
             compression_authority: context.compression_authority,
@@ -152,8 +152,8 @@ async fn test_create_compressible_ata() {
     // This is an unusual but valid configuration where the owner of the ATA
     // is the same pubkey as the mint. Should succeed.
     {
-        // Use a new unique pubkey that will serve as both owner and mint
-        let owner_and_mint = solana_sdk::pubkey::Pubkey::new_unique();
+        // Create a real mint and use its pubkey as both owner and mint
+        let owner_and_mint = create_additional_mint(&mut context.rpc, &context.payer).await;
         context.mint_pubkey = owner_and_mint;
 
         // Temporarily change the owner keypair to use the same pubkey as mint
@@ -328,7 +328,7 @@ async fn test_create_ata_failing() {
     // Error: 18 (IllegalOwner - account is no longer owned by system program)
     {
         // Use a different mint for this test
-        context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
+        context.mint_pubkey = create_additional_mint(&mut context.rpc, &context.payer).await;
 
         let compressible_data = CompressibleData {
             compression_authority: context.compression_authority,
@@ -375,7 +375,7 @@ async fn test_create_ata_failing() {
         let poor_payer_pubkey = poor_payer.pubkey();
 
         // Use different mint and owner for this test
-        context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
+        context.mint_pubkey = create_additional_mint(&mut context.rpc, &context.payer).await;
         let new_owner = solana_sdk::signature::Keypair::new();
 
         let compressible_params = CompressibleParams {
@@ -418,7 +418,7 @@ async fn test_create_ata_failing() {
         use solana_sdk::instruction::Instruction;
 
         // Use different mint for this test
-        context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
+        context.mint_pubkey = create_additional_mint(&mut context.rpc, &context.payer).await;
         let ata_pubkey = derive_token_ata(&context.owner_keypair.pubkey(), &context.mint_pubkey);
 
         // Manually build instruction data with compress_to_account_pubkey (forbidden for ATAs)
@@ -487,7 +487,7 @@ async fn test_create_ata_failing() {
         use solana_sdk::instruction::Instruction;
 
         // Use different mint for this test
-        context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
+        context.mint_pubkey = create_additional_mint(&mut context.rpc, &context.payer).await;
         // Use a wrong ATA address (random pubkey instead of derived)
         let wrong_ata_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
 
@@ -542,7 +542,7 @@ async fn test_create_ata_failing() {
     // Error: 14 (InvalidAccountOwner)
     {
         // Use different mint for this test
-        context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
+        context.mint_pubkey = create_additional_mint(&mut context.rpc, &context.payer).await;
 
         // Use system program pubkey as fake config (wrong owner)
         let fake_config = solana_sdk::system_program::ID;
@@ -581,7 +581,7 @@ async fn test_create_ata_failing() {
     // Error: 18042 (WriteTopUpExceedsMaximum from TokenError)
     {
         // Use different mint for this test
-        context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
+        context.mint_pubkey = create_additional_mint(&mut context.rpc, &context.payer).await;
 
         // Default max_top_up is 6208, so use 6209 to exceed it
         let excessive_lamports_per_write = RentConfig::default().max_top_up as u32 + 1;
@@ -612,7 +612,7 @@ async fn test_create_ata_failing() {
     // Error: 20000 (InvalidDiscriminator from account-checks)
     {
         // Use different mint for this test
-        context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
+        context.mint_pubkey = create_additional_mint(&mut context.rpc, &context.payer).await;
 
         // Use protocol config account - owned by registry but wrong type
         let wrong_account_type = context.rpc.test_accounts.protocol.governance_authority_pda;
@@ -651,7 +651,7 @@ async fn test_create_ata_failing() {
     // making the token account impossible to close (lamport transfers to executable accounts fail).
     // Error: 8 (MissingRequiredSignature)
     {
-        context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
+        context.mint_pubkey = create_additional_mint(&mut context.rpc, &context.payer).await;
 
         // Use system program as custom rent payer (executable, cannot sign)
         let executable_rent_payer = ACCOUNT_COMPRESSION_PROGRAM_ID.into();
@@ -693,7 +693,7 @@ async fn test_create_ata_failing() {
         use solana_sdk::instruction::Instruction;
 
         // Use different mint for this test
-        context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
+        context.mint_pubkey = create_additional_mint(&mut context.rpc, &context.payer).await;
 
         // Create an arbitrary keypair (NOT the correct PDA)
         let fake_ata_keypair = solana_sdk::signature::Keypair::new();
@@ -873,9 +873,9 @@ async fn test_ata_multiple_mints_same_owner() {
     let owner = context.owner_keypair.pubkey();
 
     // Create 3 different ATAs for the same owner with different mints
-    let mint1 = solana_sdk::pubkey::Pubkey::new_unique();
-    let mint2 = solana_sdk::pubkey::Pubkey::new_unique();
-    let mint3 = solana_sdk::pubkey::Pubkey::new_unique();
+    let mint1 = create_additional_mint(&mut context.rpc, &context.payer).await;
+    let mint2 = create_additional_mint(&mut context.rpc, &context.payer).await;
+    let mint3 = create_additional_mint(&mut context.rpc, &context.payer).await;
 
     let compressible_data = CompressibleData {
         compression_authority: context.compression_authority,
@@ -938,7 +938,7 @@ async fn test_ata_multiple_owners_same_mint() {
     let payer_pubkey = context.payer.pubkey();
 
     // Use the same mint for all ATAs
-    let mint = solana_sdk::pubkey::Pubkey::new_unique();
+    let mint = create_additional_mint(&mut context.rpc, &context.payer).await;
     context.mint_pubkey = mint;
 
     // Create 3 different owners
@@ -1082,7 +1082,7 @@ async fn test_create_ata_random() {
         }
 
         // Use different mint for each iteration
-        context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
+        context.mint_pubkey = create_additional_mint(&mut context.rpc, &context.payer).await;
 
         let compressible_data = CompressibleData {
             compression_authority: context.compression_authority, // Config account forces this authority.

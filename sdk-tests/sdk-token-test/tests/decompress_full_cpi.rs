@@ -1,6 +1,6 @@
 //#![cfg(feature = "test-sbf")]
 
-use anchor_lang::{AnchorDeserialize, InstructionData};
+use anchor_lang::InstructionData;
 /// Test input range for multi-input tests
 const TEST_INPUT_RANGE: [usize; 4] = [1, 2, 3, 4];
 
@@ -13,8 +13,7 @@ use light_test_utils::{
     actions::{legacy::instructions::mint_action::NewMint, mint_action_comprehensive},
     airdrop_lamports,
 };
-use light_token_interface::instructions::mint_action::{MintWithContext, Recipient};
-use sdk_token_test::mint_compressed_tokens_cpi_write::MintCompressedTokensCpiWriteParams;
+use light_token_interface::instructions::mint_action::Recipient;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
@@ -27,6 +26,7 @@ use solana_sdk::{
 struct TestContext {
     payer: Keypair,
     owner: Keypair,
+    #[allow(dead_code)]
     mint_seed: Keypair,
     mint_pubkey: Pubkey,
     destination_accounts: Vec<Pubkey>,
@@ -56,10 +56,49 @@ async fn setup_decompress_full_test(num_inputs: usize) -> (LightProgramTest, Tes
         .await
         .unwrap();
 
+    use light_test_utils::actions::legacy::instructions::mint_action::DecompressMintParams;
     use light_token::instruction::{
         derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount,
     };
 
+    let total_compressed_amount = 1000;
+    let compressed_amount_per_account = total_compressed_amount / num_inputs as u64;
+
+    let compressed_recipients: Vec<Recipient> = (0..num_inputs)
+        .map(|_| Recipient::new(owner.pubkey(), compressed_amount_per_account))
+        .collect();
+
+    println!(
+        "Minting {} tokens to {} compressed accounts ({} per account) for owner",
+        total_compressed_amount, num_inputs, compressed_amount_per_account
+    );
+
+    // First create AND decompress the mint (CToken ATA creation requires mint to exist on-chain)
+    // Also mint compressed tokens in the same call
+    mint_action_comprehensive(
+        &mut rpc,
+        &mint_seed,
+        &payer,
+        &payer,
+        Some(DecompressMintParams::default()), // decompress mint so it exists on-chain
+        false,                                 // compress_and_close_mint
+        compressed_recipients,
+        Vec::new(),
+        None,
+        None,
+        Some(NewMint {
+            decimals,
+            mint_authority,
+            supply: 0,
+            freeze_authority: None,
+            metadata: None,
+            version: 3,
+        }),
+    )
+    .await
+    .unwrap();
+
+    // Now create destination ATAs - mint exists on-chain
     let mut destination_accounts = Vec::with_capacity(num_inputs);
 
     for i in 0..num_inputs {
@@ -100,41 +139,6 @@ async fn setup_decompress_full_test(num_inputs: usize) -> (LightProgramTest, Tes
 
         destination_accounts.push(destination_account);
     }
-
-    let total_compressed_amount = 1000;
-    let compressed_amount_per_account = total_compressed_amount / num_inputs as u64;
-
-    let compressed_recipients: Vec<Recipient> = (0..num_inputs)
-        .map(|_| Recipient::new(owner.pubkey(), compressed_amount_per_account))
-        .collect();
-
-    println!(
-        "Minting {} tokens to {} compressed accounts ({} per account) for owner",
-        total_compressed_amount, num_inputs, compressed_amount_per_account
-    );
-
-    mint_action_comprehensive(
-        &mut rpc,
-        &mint_seed,
-        &payer,
-        &payer,
-        None,  // decompress_mint
-        false, // compress_and_close_mint
-        compressed_recipients,
-        Vec::new(),
-        None,
-        None,
-        Some(NewMint {
-            decimals,
-            mint_authority,
-            supply: 0,
-            freeze_authority: None,
-            metadata: None,
-            version: 3,
-        }),
-    )
-    .await
-    .unwrap();
 
     (
         rpc,
@@ -303,8 +307,16 @@ async fn test_decompress_full_cpi() {
     }
 }
 
-/// Test decompress_full with CPI context for optimized multi-program transactions
-/// This test uses CPI context to cache signer checks for potential cross-program operations
+/// Test decompress_full with the CPI context instruction variant
+///
+/// NOTE: After the mint validation change, this test no longer uses CPI context because:
+/// 1. CToken ATAs require an on-chain (decompressed) mint
+/// 2. MintWithContext requires a compressed mint
+/// 3. The program ties CPI context to minting (with_cpi_context = params.is_some())
+///
+/// Since these constraints are mutually exclusive, we can only test the instruction
+/// variant without actually using CPI context. The core DecompressFull functionality
+/// is tested in test_decompress_full_cpi.
 #[tokio::test]
 async fn test_decompress_full_cpi_with_context() {
     for num_inputs in TEST_INPUT_RANGE {
@@ -346,38 +358,6 @@ async fn test_decompress_full_cpi_with_context() {
         }
 
         let mut remaining_accounts = PackedAccounts::default();
-        // let output_tree_info = rpc.get_random_state_tree_info().unwrap();
-
-        let mint_recipients = vec![Recipient::new(ctx.owner.pubkey(), 500)];
-
-        let address_tree_info = rpc.get_address_tree_v2();
-        let compressed_mint_address =
-            light_compressed_token_sdk::compressed_token::create_compressed_mint::derive_mint_compressed_address(
-                &ctx.mint_seed.pubkey(),
-                &address_tree_info.tree,
-            );
-
-        let compressed_mint_account = rpc
-            .get_compressed_account(compressed_mint_address, None)
-            .await
-            .unwrap()
-            .value
-            .ok_or("Compressed mint account not found")
-            .unwrap();
-        println!(
-            "compressed_mint_account
-            .tree_info {:?}",
-            compressed_mint_account.tree_info
-        );
-        let cpi_context_pubkey = compressed_mint_account
-            .tree_info
-            .cpi_context
-            .expect("CPI context required for this test");
-
-        let config = DecompressFullAccounts::new(Some(cpi_context_pubkey));
-        remaining_accounts
-            .add_custom_system_accounts(config)
-            .unwrap();
 
         let compressed_hashes: Vec<_> = initial_compressed_accounts
             .iter()
@@ -389,37 +369,12 @@ async fn test_decompress_full_cpi_with_context() {
             .unwrap()
             .value;
 
-        use light_token_interface::state::Mint;
-        let compressed_mint =
-            Mint::deserialize(&mut compressed_mint_account.data.unwrap().data.as_slice()).unwrap();
-
-        let compressed_mint_with_context = MintWithContext {
-            prove_by_index: true,
-            leaf_index: compressed_mint_account.leaf_index,
-            root_index: 0,
-            address: compressed_mint_address,
-            mint: Some(compressed_mint.try_into().unwrap()),
-        };
+        // Add tree accounts first, then custom system accounts (no CPI context since params is None)
         let packed_tree_info = rpc_result.pack_tree_infos(&mut remaining_accounts);
-        let mint_params = MintCompressedTokensCpiWriteParams {
-            compressed_mint_with_context,
-            recipients: mint_recipients,
-            cpi_context: light_token_interface::instructions::mint_action::CpiContext {
-                set_context: false,
-                first_set_context: true, // First operation sets the context
-                in_tree_index: remaining_accounts
-                    .insert_or_get(compressed_mint_account.tree_info.tree),
-                in_queue_index: remaining_accounts
-                    .insert_or_get(compressed_mint_account.tree_info.queue),
-                out_queue_index: remaining_accounts
-                    .insert_or_get(compressed_mint_account.tree_info.queue),
-                token_out_queue_index: remaining_accounts
-                    .insert_or_get(compressed_mint_account.tree_info.queue),
-                assigned_account_index: 0,
-                ..Default::default()
-            },
-            cpi_context_pubkey,
-        };
+        let config = DecompressFullAccounts::new(None);
+        remaining_accounts
+            .add_custom_system_accounts(config)
+            .unwrap();
 
         let token_data: Vec<_> = initial_compressed_accounts
             .iter()
@@ -461,21 +416,12 @@ async fn test_decompress_full_cpi_with_context() {
 
         let validity_proof = rpc_result.proof;
 
-        let (account_metas, system_accounts_start_offset, _) =
-            remaining_accounts.to_account_metas();
-
-        println!("CPI Context test:");
-        println!("  CPI context account: {:?}", cpi_context_pubkey);
-        println!("  Destination accounts: {:?}", ctx.destination_accounts);
-        println!(
-            "  System accounts start offset: {}",
-            system_accounts_start_offset
-        );
+        let (account_metas, _, _) = remaining_accounts.to_account_metas();
 
         let instruction_data = sdk_token_test::instruction::DecompressFullCpiWithCpiContext {
             indices,
             validity_proof,
-            params: Some(mint_params),
+            params: None,
         };
 
         let instruction = Instruction {
@@ -493,6 +439,7 @@ async fn test_decompress_full_cpi_with_context() {
 
         rpc.process_transaction(transaction).await.unwrap();
 
+        // All compressed accounts should be consumed (decompressed)
         let final_compressed_accounts = rpc
             .get_compressed_token_accounts_by_owner(&ctx.owner.pubkey(), None, None)
             .await
@@ -502,14 +449,9 @@ async fn test_decompress_full_cpi_with_context() {
 
         assert_eq!(
             final_compressed_accounts.len(),
-            1,
-            "Should have 1 compressed account (newly minted 500 tokens)"
+            0,
+            "All compressed accounts should be consumed"
         );
-        assert_eq!(
-            final_compressed_accounts[0].token.amount, 500,
-            "Newly minted compressed tokens"
-        );
-        assert_eq!(final_compressed_accounts[0].token.mint, ctx.mint_pubkey);
 
         for destination_account in &ctx.destination_accounts {
             let dest_account_after = rpc
@@ -528,13 +470,12 @@ async fn test_decompress_full_cpi_with_context() {
         }
 
         println!(
-            "✅ DecompressFull CPI with CPI context test passed with {} inputs!",
+            "DecompressFull CPI (context variant) test passed with {} inputs!",
             num_inputs
         );
         println!(
-            "  - Original {} tokens decompressed to {} destinations ({} each)",
+            "  - {} tokens decompressed to {} destinations ({} each)",
             ctx.total_compressed_amount, num_inputs, ctx.compressed_amount_per_account
         );
-        println!("  - Additional 500 tokens minted to compressed state");
     }
 }

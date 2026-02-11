@@ -39,19 +39,7 @@ async fn setup_burn_test(mint_amount: u64) -> BurnTestContext {
     // Derive Mint PDA
     let (mint_pda, _) = find_mint_address(&mint_seed.pubkey());
 
-    // Step 1: Create Light Token ATA for owner first (needed before minting)
-    let ctoken_ata = derive_token_ata(&owner_keypair.pubkey(), &mint_pda);
-
-    let create_ata_ix =
-        CreateAssociatedTokenAccount::new(payer.pubkey(), owner_keypair.pubkey(), mint_pda)
-            .instruction()
-            .unwrap();
-
-    rpc.create_and_send_transaction(&[create_ata_ix], &payer.pubkey(), &[&payer])
-        .await
-        .unwrap();
-
-    // Step 2: Create compressed mint + Mint + mint tokens in one call
+    // Step 1: Create compressed mint + Mint FIRST (without minting yet)
     light_test_utils::actions::mint_action_comprehensive(
         &mut rpc,
         &mint_seed,
@@ -60,10 +48,7 @@ async fn setup_burn_test(mint_amount: u64) -> BurnTestContext {
         Some(DecompressMintParams::default()), // Creates Mint
         false,                                 // Don't compress and close
         vec![],                                // No compressed recipients
-        vec![Recipient {
-            recipient: owner_keypair.pubkey().into(),
-            amount: mint_amount,
-        }], // Mint to Light Token in same tx
+        vec![],                                // No ctoken recipients yet
         None,                                  // No mint authority update
         None,                                  // No freeze authority update
         Some(
@@ -76,6 +61,38 @@ async fn setup_burn_test(mint_amount: u64) -> BurnTestContext {
                 version: 3,
             },
         ),
+    )
+    .await
+    .unwrap();
+
+    // Step 2: Create Light Token ATA for owner (after mint exists on-chain)
+    let ctoken_ata = derive_token_ata(&owner_keypair.pubkey(), &mint_pda);
+
+    let create_ata_ix =
+        CreateAssociatedTokenAccount::new(payer.pubkey(), owner_keypair.pubkey(), mint_pda)
+            .instruction()
+            .unwrap();
+
+    rpc.create_and_send_transaction(&[create_ata_ix], &payer.pubkey(), &[&payer])
+        .await
+        .unwrap();
+
+    // Step 3: Mint tokens to Light Token
+    light_test_utils::actions::mint_action_comprehensive(
+        &mut rpc,
+        &mint_seed,
+        &mint_authority,
+        &payer,
+        None,   // Mint already decompressed
+        false,  // Don't compress and close
+        vec![], // No compressed recipients
+        vec![Recipient {
+            recipient: owner_keypair.pubkey().into(),
+            amount: mint_amount,
+        }], // Mint to Light Token
+        None,   // No mint authority update
+        None,   // No freeze authority update
+        None,   // No new mint
     )
     .await
     .unwrap();

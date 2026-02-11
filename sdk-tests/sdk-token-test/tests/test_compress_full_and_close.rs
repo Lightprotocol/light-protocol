@@ -175,6 +175,29 @@ async fn test_compress_full_and_close() {
 
     println!("✅ Minted {} compressed tokens to recipient", mint_amount);
 
+    // Step 3: Decompress the mint so it exists on-chain (required for CToken ATA creation)
+    use light_test_utils::actions::{
+        legacy::instructions::mint_action::DecompressMintParams, mint_action_comprehensive,
+    };
+
+    mint_action_comprehensive(
+        &mut rpc,
+        &mint_signer,
+        &mint_authority_keypair,
+        &payer,
+        Some(DecompressMintParams::default()),
+        false,
+        vec![],
+        vec![],
+        None,
+        None,
+        None,
+    )
+    .await
+    .unwrap();
+
+    println!("✅ Decompressed mint: {}", mint_pda);
+
     // Step 4: Create compressible associated token account for decompression
     let ctoken_ata_pubkey = derive_token_ata(&recipient, &mint_pda);
     let compressible_params = CompressibleParams {

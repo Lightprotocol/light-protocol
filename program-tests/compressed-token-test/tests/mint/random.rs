@@ -124,6 +124,23 @@ async fn test_random_mint_action() {
         }),
     );
 
+    // Decompress mint so CToken ATAs can be created
+    light_test_utils::actions::mint_action_comprehensive(
+        &mut rpc,
+        &mint_seed,
+        &authority,
+        &payer,
+        Some(light_test_utils::actions::legacy::instructions::mint_action::DecompressMintParams::default()),
+        false,
+        vec![],
+        vec![],
+        None,
+        None,
+        None,
+    )
+    .await
+    .unwrap();
+
     // Fund authority
     rpc.airdrop_lamports(&authority.pubkey(), 10_000_000_000)
         .await
@@ -336,20 +353,15 @@ async fn test_random_mint_action() {
             }
         }
 
-        // Get pre-state compressed mint
-        let pre_compressed_mint_account = rpc
-            .indexer()
-            .unwrap()
-            .get_compressed_account(compressed_mint_address, None)
+        // Get pre-state from on-chain CMint (since mint was decompressed)
+        let cmint_account_data = rpc
+            .get_account(spl_mint_pda)
             .await
             .unwrap()
-            .value
-            .unwrap();
+            .expect("CMint should exist after decompression");
 
-        let pre_compressed_mint: Mint = BorshDeserialize::deserialize(
-            &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
-        )
-        .unwrap();
+        let pre_compressed_mint: Mint =
+            BorshDeserialize::deserialize(&mut cmint_account_data.data.as_slice()).unwrap();
         println!("actions {:?}", actions);
         // Execute all actions in a single instruction
         let result = light_test_utils::actions::mint_action(

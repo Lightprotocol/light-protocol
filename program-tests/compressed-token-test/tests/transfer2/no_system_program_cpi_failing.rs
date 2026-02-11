@@ -105,7 +105,35 @@ async fn setup_no_system_program_cpi_test(
     let source_ata = derive_token_ata(&owner.pubkey(), &mint);
     let recipient_ata = derive_token_ata(&recipient.pubkey(), &mint);
 
-    // Create Light Token ATA for owner (source)
+    // First create AND decompress the mint (CToken ATA creation requires mint to exist on-chain)
+    light_test_utils::actions::mint_action_comprehensive(
+        &mut rpc,
+        &mint_seed,
+        &mint_authority,
+        &payer,
+        Some(
+            light_test_utils::actions::legacy::instructions::mint_action::DecompressMintParams::default(),
+        ),                       // decompress mint so it exists on-chain
+        false,                   // no close mint
+        vec![],                  // no compressed recipients
+        vec![],                  // no decompressed recipients yet
+        None,
+        None,
+        Some(
+            light_test_utils::actions::legacy::instructions::mint_action::NewMint {
+                decimals: 6,
+                supply: 0,
+                mint_authority: mint_authority.pubkey(),
+                freeze_authority: None,
+                metadata: None,
+                version: 3, // ShaFlat
+            },
+        ),
+    )
+    .await
+    .unwrap();
+
+    // Create Light Token ATA for owner (source) - now mint exists on-chain
     let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
         .instruction()
         .map_err(|e| RpcError::AssertRpcError(format!("Failed to create source ATA: {}", e)))
@@ -123,37 +151,24 @@ async fn setup_no_system_program_cpi_test(
         .await
         .unwrap();
 
-    // Create mint and mint tokens to source Light Token ATA
-    let decompressed_recipients = if source_token_amount > 0 {
-        vec![Recipient::new(owner.pubkey(), source_token_amount)]
-    } else {
-        vec![]
-    };
-
-    light_test_utils::actions::mint_action_comprehensive(
-        &mut rpc,
-        &mint_seed,
-        &mint_authority,
-        &payer,
-        None,                    // no decompress mint
-        false,                   // no close mint
-        vec![],                  // no compressed recipients
-        decompressed_recipients, // mint to source Light Token ATA (empty if token_amount is 0)
-        None,
-        None,
-        Some(
-            light_test_utils::actions::legacy::instructions::mint_action::NewMint {
-                decimals: 6,
-                supply: 0,
-                mint_authority: mint_authority.pubkey(),
-                freeze_authority: None,
-                metadata: None,
-                version: 3, // ShaFlat
-            },
-        ),
-    )
-    .await
-    .unwrap();
+    // Mint tokens to source Light Token ATA if needed
+    if source_token_amount > 0 {
+        light_test_utils::actions::mint_action_comprehensive(
+            &mut rpc,
+            &mint_seed,
+            &mint_authority,
+            &payer,
+            None,   // mint already decompressed
+            false,  // no close mint
+            vec![], // no compressed recipients
+            vec![Recipient::new(owner.pubkey(), source_token_amount)], // mint to source ATA
+            None,
+            None,
+            None, // mint already exists
+        )
+        .await
+        .unwrap();
+    }
 
     // Build compressions and packed accounts for default balanced case (500 compress, 500 decompress)
     let (compressions, packed_accounts) = create_compressions_and_packed_accounts(
@@ -712,7 +727,35 @@ async fn test_too_many_mints() {
         let source_ata = derive_token_ata(&context.owner.pubkey(), &mint);
         let recipient_ata = derive_token_ata(&context.recipient.pubkey(), &mint);
 
-        // Create source ATA
+        // First create AND decompress the mint (CToken ATA creation requires mint to exist on-chain)
+        light_test_utils::actions::mint_action_comprehensive(
+            &mut context.rpc,
+            &mint_seed,
+            &mint_authority,
+            &context.payer,
+            Some(
+                light_test_utils::actions::legacy::instructions::mint_action::DecompressMintParams::default(),
+            ),                       // decompress mint so it exists on-chain
+            false,                   // no close mint
+            vec![],                  // no compressed recipients
+            vec![],                  // no decompressed recipients yet
+            None,
+            None,
+            Some(
+                light_test_utils::actions::legacy::instructions::mint_action::NewMint {
+                    decimals: 6,
+                    supply: 0,
+                    mint_authority: mint_authority.pubkey(),
+                    freeze_authority: None,
+                    metadata: None,
+                    version: 3, // ShaFlat
+                },
+            ),
+        )
+        .await
+        .unwrap();
+
+        // Create source ATA - now mint exists on-chain
         let instruction =
             CreateAssociatedTokenAccount::new(context.payer.pubkey(), context.owner.pubkey(), mint)
                 .instruction()
@@ -737,30 +780,19 @@ async fn test_too_many_mints() {
             .await
             .unwrap();
 
-        // Create mint and mint tokens to source Light Token ATA
-        let decompressed_recipients = vec![Recipient::new(context.owner.pubkey(), 1000)];
-
+        // Mint tokens to source Light Token ATA
         light_test_utils::actions::mint_action_comprehensive(
             &mut context.rpc,
             &mint_seed,
             &mint_authority,
             &context.payer,
-            None,                    // no decompress mint
-            false,                   // no close mint
-            vec![],                  // no compressed recipients
-            decompressed_recipients, // mint to source Light Token ATA
+            None,                                               // mint already decompressed
+            false,                                              // no close mint
+            vec![],                                             // no compressed recipients
+            vec![Recipient::new(context.owner.pubkey(), 1000)], // mint to source ATA
             None,
             None,
-            Some(
-                light_test_utils::actions::legacy::instructions::mint_action::NewMint {
-                    decimals: 6,
-                    supply: 0,
-                    mint_authority: mint_authority.pubkey(),
-                    freeze_authority: None,
-                    metadata: None,
-                    version: 3, // ShaFlat
-                },
-            ),
+            None, // mint already exists
         )
         .await
         .unwrap();

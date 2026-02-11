@@ -37,19 +37,7 @@ async fn setup_mint_to_test() -> MintToTestContext {
     // Derive Mint PDA
     let (mint_pda, _) = find_mint_address(&mint_seed.pubkey());
 
-    // Step 1: Create Light Token ATA for owner first
-    let ctoken_ata = derive_token_ata(&owner_keypair.pubkey(), &mint_pda);
-
-    let create_ata_ix =
-        CreateAssociatedTokenAccount::new(payer.pubkey(), owner_keypair.pubkey(), mint_pda)
-            .instruction()
-            .unwrap();
-
-    rpc.create_and_send_transaction(&[create_ata_ix], &payer.pubkey(), &[&payer])
-        .await
-        .unwrap();
-
-    // Step 2: Create compressed mint + Mint (no recipients - we'll mint via MintTo)
+    // Step 1: Create compressed mint + Mint FIRST (no recipients - we'll mint via MintTo)
     light_test_utils::actions::mint_action_comprehensive(
         &mut rpc,
         &mint_seed,
@@ -74,6 +62,18 @@ async fn setup_mint_to_test() -> MintToTestContext {
     )
     .await
     .unwrap();
+
+    // Step 2: Create Light Token ATA for owner (after mint exists on-chain)
+    let ctoken_ata = derive_token_ata(&owner_keypair.pubkey(), &mint_pda);
+
+    let create_ata_ix =
+        CreateAssociatedTokenAccount::new(payer.pubkey(), owner_keypair.pubkey(), mint_pda)
+            .instruction()
+            .unwrap();
+
+    rpc.create_and_send_transaction(&[create_ata_ix], &payer.pubkey(), &[&payer])
+        .await
+        .unwrap();
 
     MintToTestContext {
         rpc,

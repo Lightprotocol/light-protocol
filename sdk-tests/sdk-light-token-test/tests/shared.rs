@@ -268,7 +268,7 @@ pub async fn setup_create_mint_with_compression_only(
     decimals: u8,
     recipients: Vec<(u64, Pubkey)>,
     compression_only: bool,
-) -> (Pubkey, [u8; 32], Vec<Pubkey>) {
+) -> (Pubkey, [u8; 32], Vec<Pubkey>, Keypair) {
     use light_token::instruction::{
         CompressibleParams, CreateAssociatedTokenAccount, CreateMint, CreateMintParams, MintTo,
     };
@@ -343,7 +343,7 @@ pub async fn setup_create_mint_with_compression_only(
 
     // If no recipients, return early
     if recipients.is_empty() {
-        return (mint, compression_address, vec![]);
+        return (mint, compression_address, vec![], mint_seed);
     }
 
     // Create ATAs for each recipient with custom compression_only setting
@@ -395,7 +395,7 @@ pub async fn setup_create_mint_with_compression_only(
             .unwrap();
     }
 
-    (mint, compression_address, ata_pubkeys)
+    (mint, compression_address, ata_pubkeys, mint_seed)
 }
 
 /// Creates a compressed-only mint (no decompression) using light-token-client.

@@ -10,13 +10,13 @@ use light_test_utils::{
     actions::{
         create_mint,
         legacy::instructions::{
-            mint_action::MintActionType,
+            mint_action::{DecompressMintParams, MintActionType},
             transfer2::{
                 create_generic_transfer2_instruction, ApproveInput, CompressAndCloseInput,
                 CompressInput, DecompressInput, Transfer2InstructionType, TransferInput,
             },
         },
-        mint_to_compressed,
+        mint_action_comprehensive, mint_to_compressed,
     },
     airdrop_lamports,
     assert_transfer2::assert_transfer2,
@@ -429,6 +429,40 @@ impl TestContext {
 
         // Get compressible config from test accounts (already created in program test setup)
         let funding_pool_config = rpc.test_accounts.funding_pool_config;
+
+        // Decompress compressed mints that will be used for CToken ATAs
+        // CToken ATA creation requires the Mint account to exist on-chain
+        let mut decompressed_mints: std::collections::HashSet<usize> =
+            std::collections::HashSet::new();
+        for (_, mint_index) in requirements.signer_ctoken_amounts.keys() {
+            // Only decompress compressed mints (not SPL mints)
+            if !mint_needs_spl[*mint_index] && !decompressed_mints.contains(mint_index) {
+                let mint_seed = &mint_seeds[*mint_index];
+                let mint_authority = &mint_authorities[*mint_index];
+
+                println!(
+                    "Decompressing compressed mint {} for CToken ATA creation",
+                    mint_index
+                );
+
+                mint_action_comprehensive(
+                    &mut rpc,
+                    mint_seed,
+                    mint_authority,
+                    &payer,
+                    Some(DecompressMintParams::default()),
+                    false,  // compress_and_close_mint
+                    vec![], // mint_to_recipients
+                    vec![], // mint_to_decompressed_recipients
+                    None,   // update_mint_authority
+                    None,   // update_freeze_authority
+                    None,   // new_mint
+                )
+                .await?;
+
+                decompressed_mints.insert(*mint_index);
+            }
+        }
 
         // Create Light Token ATAs for compress/decompress operations
         let mut ctoken_atas = HashMap::new();

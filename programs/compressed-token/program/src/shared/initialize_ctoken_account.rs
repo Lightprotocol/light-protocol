@@ -170,17 +170,17 @@ pub fn initialize_ctoken_account(
     // Validate mint account and extract decimals for all token accounts
     let mint_decimals = {
         let mint_data = AccountInfoTrait::try_borrow_data(mint_account)?;
-        if !mint_data.is_empty() {
-            if !is_valid_mint(mint_account.owner(), &mint_data)? {
-                msg!("Invalid mint account: not a valid mint");
-                return Err(ProgramError::InvalidAccountData);
-            }
-            // Mint layout: decimals at byte 44 for all token programs
-            // (mint_authority option: 36, supply: 8) = 44
-            mint_data.get(44).copied()
-        } else {
-            None
+        if mint_data.is_empty() {
+            msg!("Invalid mint account: account data is empty");
+            return Err(ProgramError::InvalidAccountData);
         }
+        if !is_valid_mint(mint_account.owner(), &mint_data)? {
+            msg!("Invalid mint account: not a valid mint");
+            return Err(ProgramError::InvalidAccountData);
+        }
+        // Mint layout: decimals at byte 44 for all token programs
+        // (mint_authority option: 36, supply: 8) = 44
+        mint_data.get(44).copied()
     };
 
     // Build extensions Vec from boolean flags

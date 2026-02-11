@@ -922,7 +922,24 @@ async fn test_decompress_with_mint_to_ctoken() {
     .await
     .unwrap();
 
-    // 2. Create CToken ATA for recipient
+    // 2. Decompress mint FIRST (before creating CToken ATA)
+    mint_action_comprehensive(
+        &mut rpc,
+        &mint_seed,
+        &authority,
+        &payer,
+        Some(light_test_utils::actions::legacy::instructions::mint_action::DecompressMintParams::default()),
+        false,
+        vec![],
+        vec![],
+        None,
+        None,
+        None,
+    )
+    .await
+    .unwrap();
+
+    // 3. Create CToken ATA for recipient (after mint exists on-chain)
     let recipient = Keypair::new();
     let compressible_params = CompressibleParams {
         compressible_config: rpc
@@ -947,30 +964,20 @@ async fn test_decompress_with_mint_to_ctoken() {
         .await
         .unwrap();
 
-    // 3. Get pre-state
-    let compressed_account = rpc
-        .indexer()
-        .unwrap()
-        .get_compressed_account(compressed_mint_address, None)
+    // 4. Get pre-state from on-chain CMint
+    let cmint_account_data = rpc
+        .get_account(spl_mint_pda)
         .await
         .unwrap()
-        .value
-        .unwrap();
+        .expect("CMint should exist");
     let pre_mint: Mint =
-        BorshDeserialize::deserialize(&mut compressed_account.data.unwrap().data.as_slice())
-            .unwrap();
+        BorshDeserialize::deserialize(&mut cmint_account_data.data.as_slice()).unwrap();
 
-    // 4. DecompressMint + MintToCToken
-    let actions = vec![
-        MintActionType::DecompressMint {
-            rent_payment: 2,
-            write_top_up: 0,
-        },
-        MintActionType::MintToCToken {
-            account: derive_token_ata(&recipient.pubkey(), &spl_mint_pda),
-            amount: 5000,
-        },
-    ];
+    // 5. MintToCToken (mint already decompressed)
+    let actions = vec![MintActionType::MintToCToken {
+        account: derive_token_ata(&recipient.pubkey(), &spl_mint_pda),
+        amount: 5000,
+    }];
 
     mint_action(
         &mut rpc,
@@ -989,7 +996,7 @@ async fn test_decompress_with_mint_to_ctoken() {
     .await
     .unwrap();
 
-    // 5. Verify
+    // 6. Verify
     assert_mint_action(&mut rpc, compressed_mint_address, pre_mint, actions).await;
 }
 
@@ -1043,7 +1050,24 @@ async fn test_decompress_with_all_operations() {
     .await
     .unwrap();
 
-    // 2. Create CToken ATA for MintToCToken
+    // 2. Decompress mint FIRST (before creating CToken ATA)
+    mint_action_comprehensive(
+        &mut rpc,
+        &mint_seed,
+        &authority,
+        &payer,
+        Some(light_test_utils::actions::legacy::instructions::mint_action::DecompressMintParams::default()),
+        false,
+        vec![],
+        vec![],
+        None,
+        None,
+        None,
+    )
+    .await
+    .unwrap();
+
+    // 3. Create CToken ATA for MintToCToken (after mint exists on-chain)
     let recipient = Keypair::new();
     let compressible_params = CompressibleParams {
         compressible_config: rpc
@@ -1068,31 +1092,22 @@ async fn test_decompress_with_all_operations() {
         .await
         .unwrap();
 
-    // 3. Get pre-state from compressed account
-    let compressed_account = rpc
-        .indexer()
-        .unwrap()
-        .get_compressed_account(compressed_mint_address, None)
+    // 4. Get pre-state from on-chain CMint
+    let cmint_account_data = rpc
+        .get_account(spl_mint_pda)
         .await
         .unwrap()
-        .value
-        .unwrap();
+        .expect("CMint should exist");
     let pre_mint: Mint =
-        BorshDeserialize::deserialize(&mut compressed_account.data.unwrap().data.as_slice())
-            .unwrap();
+        BorshDeserialize::deserialize(&mut cmint_account_data.data.as_slice()).unwrap();
 
     // New authorities
     let new_mint_authority = Keypair::new();
     let new_freeze_authority = Keypair::new();
     let new_metadata_authority = Keypair::new();
 
-    // 4. DecompressMint + ALL other operations
+    // 5. ALL other operations (mint already decompressed)
     let actions = vec![
-        // DecompressMint
-        MintActionType::DecompressMint {
-            rent_payment: 2,
-            write_top_up: 0,
-        },
         // MintTo (compressed recipients)
         MintActionType::MintTo {
             recipients: vec![MintToRecipient {
@@ -1165,6 +1180,6 @@ async fn test_decompress_with_all_operations() {
     .await
     .unwrap();
 
-    // 5. Verify
+    // 6. Verify
     assert_mint_action(&mut rpc, compressed_mint_address, pre_mint, actions).await;
 }
