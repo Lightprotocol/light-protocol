@@ -51,7 +51,9 @@ pub fn process_actions<'a>(
     let mut transfer_map = [0u64; MAX_PACKED_ACCOUNTS];
     // Initialize budget: +1 allows exact match (total == max_top_up)
     let max_top_up: u16 = parsed_instruction_data.max_top_up.get();
-    let mut lamports_budget = (max_top_up as u64).saturating_add(1);
+    // max_top_up is in units of 1,000 lamports (max ~65.5M lamports).
+    // +1 allows exact match (total == max_top_up * 1000).
+    let mut lamports_budget = (max_top_up as u64).saturating_mul(1000).saturating_add(1);
 
     // Start metadata authority with same value as mint authority
     for action in parsed_instruction_data.actions.iter() {

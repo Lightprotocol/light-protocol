@@ -15,7 +15,7 @@ Format 1 (8 bytes, legacy):
 
 Format 2 (10 bytes):
 - Bytes 0-7: `amount` (u64, little-endian) - Number of tokens to burn
-- Bytes 8-9: `max_top_up` (u16, little-endian) - Maximum lamports for combined CMint + CToken top-ups (0 = no limit)
+- Bytes 8-9: `max_top_up` (u16, little-endian) - Maximum lamports for combined CMint + CToken top-ups in units of 1,000 lamports (e.g., max_top_up=1 means 1,000 lamports, max_top_up=65535 means ~65.5M lamports). 0 = no limit.
 
 **Accounts:**
 1. source CToken

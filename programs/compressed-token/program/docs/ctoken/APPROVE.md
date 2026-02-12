@@ -20,7 +20,7 @@ Delegates a specified amount to a delegate authority on a decompressed ctoken ac
 Path: programs/compressed-token/program/src/ctoken/approve_revoke.rs (lines 14-15, 98-106)
 
 - Bytes 0-7: `amount` (u64, little-endian) - Number of tokens to delegate
-- Bytes 8-9 (optional): `max_top_up` (u16, little-endian) - Maximum lamports for top-up (0 = no limit, default for legacy format)
+- Bytes 8-9 (optional): `max_top_up` (u16, little-endian) - Maximum lamports for top-up in units of 1,000 lamports (e.g., max_top_up=1 means 1,000 lamports, max_top_up=65535 means ~65.5M lamports). 0 = no limit, default for legacy format.
 
 **Accounts:**
 1. source
@@ -113,7 +113,8 @@ let transfer_amount = top_up_lamports_from_account_info_unchecked(account, &mut 
     .unwrap_or(0);
 
 if transfer_amount > 0 {
-    if max_top_up > 0 && transfer_amount > max_top_up as u64 {
+    // max_top_up is in units of 1,000 lamports (max ~65.5M lamports).
+    if max_top_up > 0 && transfer_amount > (max_top_up as u64).saturating_mul(1000) {
         return Err(CTokenError::MaxTopUpExceeded.into());
     }
     let payer = payer.ok_or(CTokenError::MissingPayer)?;
@@ -133,7 +134,8 @@ Extended instruction data format (10 bytes total):
 
 **Enforcement**:
 ```rust
-if max_top_up > 0 && transfer_amount > max_top_up as u64 {
+// max_top_up is in units of 1,000 lamports (max ~65.5M lamports).
+if max_top_up > 0 && transfer_amount > (max_top_up as u64).saturating_mul(1000) {
     return Err(CTokenError::MaxTopUpExceeded.into());
 }
 ```

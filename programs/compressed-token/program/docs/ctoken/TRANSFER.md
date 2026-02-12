@@ -32,7 +32,7 @@ After discriminator byte, the following formats are supported:
 - **8 bytes (legacy):** amount (u64) - No max_top_up enforcement
 - **10 bytes (extended):** amount (u64) + max_top_up (u16)
   - `amount`: u64 - Number of tokens to transfer
-  - `max_top_up`: u16 - Maximum lamports for top-up (0 = no limit)
+  - `max_top_up`: u16 - Maximum lamports for top-up in units of 1,000 lamports (e.g., max_top_up=1 means 1,000 lamports, max_top_up=65535 means ~65.5M lamports). 0 = no limit.
 
 **Accounts:**
 1. source

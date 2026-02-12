@@ -168,8 +168,9 @@ fn transfer_top_up(
 ) -> Result<(), ProgramError> {
     if sender_top_up > 0 || recipient_top_up > 0 {
         // Check budget if max_top_up is set (non-zero)
+        // max_top_up is in units of 1,000 lamports (max ~65.5M lamports).
         let total_top_up = sender_top_up.saturating_add(recipient_top_up);
-        if max_top_up != 0 && total_top_up > max_top_up as u64 {
+        if max_top_up != 0 && total_top_up > (max_top_up as u64).saturating_mul(1000) {
             return Err(TokenError::MaxTopUpExceeded.into());
         }
 

@@ -111,7 +111,8 @@ fn process_compressible_top_up<const BASE_LEN: usize, const PAYER_IDX: usize>(
         };
 
         if transfer_amount > 0 {
-            if max_top_up > 0 && transfer_amount > max_top_up as u64 {
+            // max_top_up is in units of 1,000 lamports (max ~65.5M lamports).
+            if max_top_up > 0 && transfer_amount > (max_top_up as u64).saturating_mul(1000) {
                 return Err(TokenError::MaxTopUpExceeded.into());
             }
             let payer = payer.ok_or(TokenError::MissingPayer)?;
