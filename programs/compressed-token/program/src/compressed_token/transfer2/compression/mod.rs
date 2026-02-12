@@ -132,6 +132,12 @@ pub fn process_token_compression<'a>(
                         return Err(ErrorCode::CompressedOnlyRequiresCTokenDecompress.into());
                     }
 
+                    // Enforce extension state for SPL compress (paused, non-zero fees, non-nil hook).
+                    // Decompress bypasses because it's exiting compressed state.
+                    if compression.mode.is_compress() {
+                        mint_checks.enforce_extension_state()?;
+                    }
+
                     // Propagate whether mint is restricted to enable correct derivation of the spl interface pda.
                     let is_restricted = mint_checks.has_restricted_extensions;
                     spl::process_spl_compressions(

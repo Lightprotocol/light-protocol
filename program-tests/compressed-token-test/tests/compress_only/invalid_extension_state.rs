@@ -919,3 +919,4 @@ async fn test_ctoken_to_ctoken_blocked_by_non_nil_hook() {
 
     assert_rpc_error(result, 0, TRANSFER_HOOK_NOT_SUPPORTED).unwrap();
 }
+
