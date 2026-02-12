@@ -19,7 +19,7 @@ pub fn rollover_batched_address_tree_from_account_info<A: AccountInfoTrait>(
 ) -> Result<u64, BatchedMerkleTreeError> {
     let new_mt_rent = check_account_balance_is_rent_exempt(new_account, old_account.data_len())?;
     #[cfg(target_os = "solana")]
-    if old_account.lamports().checked_sub(new_mt_rent).unwrap() == 0 {
+    if old_account.lamports() < new_mt_rent.saturating_mul(2) {
         return Err(MerkleTreeMetadataError::NotReadyForRollover.into());
     }
     let mut old_merkle_tree = BatchedMerkleTreeAccount::address_from_account_info(old_account)?;
