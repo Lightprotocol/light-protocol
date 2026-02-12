@@ -26,7 +26,7 @@ use light_compressed_account::{
     },
     instruction_data::{
         cpi_context::CompressedCpiContext,
-        data::OutputCompressedAccountWithPackedContext,
+        data::{NewAddressParamsPacked, OutputCompressedAccountWithPackedContext},
         invoke_cpi::InstructionDataInvokeCpi,
         traits::{InputAccount, NewAddress, OutputAccount},
         zero_copy::{
@@ -106,6 +106,7 @@ pub fn new_addresses_eq<'a>(left: &[impl NewAddress<'a>], right: &[impl NewAddre
             && l.address_merkle_tree_account_index() == r.address_merkle_tree_account_index()
             && l.address_merkle_tree_root_index() == r.address_merkle_tree_root_index()
             && l.assigned_compressed_account_index() == r.assigned_compressed_account_index()
+            && l.owner() == r.owner()
     })
 }
 
@@ -442,6 +443,147 @@ fn test_set_cpi_context_first_invocation() {
         assert_eq!(cpi_context.fee_payer.to_bytes(), fee_payer);
         assert!(instruction_data_eq(&cpi_context, &z_inputs));
     }
+}
+
+/// Verify that store_data sets new address owner to invoking_program.
+/// This exercises the owner fix path (store_data caching the correct owner).
+#[test]
+fn test_set_cpi_context_new_address_owner() {
+    let fee_payer = solana_pubkey::Pubkey::new_unique().to_bytes();
+    let invoking_program = solana_pubkey::Pubkey::new_unique().to_bytes();
+    let cpi_context_account = create_test_cpi_context_account(None);
+
+    // Create instruction data with non-empty new_address_params.
+    let mut instruction_data = create_test_instruction_data(true, true, 1);
+    instruction_data.new_address_params = vec![
+        NewAddressParamsPacked {
+            seed: [42u8; 32],
+            address_queue_account_index: 0,
+            address_merkle_tree_account_index: 1,
+            address_merkle_tree_root_index: 5,
+        },
+        NewAddressParamsPacked {
+            seed: [99u8; 32],
+            address_queue_account_index: 2,
+            address_merkle_tree_account_index: 3,
+            address_merkle_tree_root_index: 7,
+        },
+    ];
+
+    let input_bytes = instruction_data.try_to_vec().unwrap();
+    let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
+    let w_instruction_data = WrappedInstructionData::new(z_inputs).unwrap();
+    set_cpi_context(
+        fee_payer,
+        invoking_program,
+        &cpi_context_account,
+        w_instruction_data,
+    )
+    .unwrap();
+
+    let cpi_context = deserialize_cpi_context_account(&cpi_context_account).unwrap();
+    assert_eq!(cpi_context.fee_payer.to_bytes(), fee_payer);
+    assert_eq!(cpi_context.new_addresses.len(), 2);
+
+    // Verify owner is set to invoking_program for each new address.
+    for i in 0..cpi_context.new_addresses.len() {
+        let stored = cpi_context.new_addresses.get(i).unwrap();
+        assert_eq!(
+            stored.owner, invoking_program,
+            "new_addresses[{}] owner should match invoking_program",
+            i
+        );
+    }
+
+    // Verify seed and index fields are preserved.
+    let first = cpi_context.new_addresses.get(0).unwrap();
+    assert_eq!(first.seed, [42u8; 32]);
+    assert_eq!(first.address_queue_account_index, 0);
+    assert_eq!(first.address_merkle_tree_account_index, 1);
+    assert_eq!(first.address_merkle_tree_root_index.get(), 5);
+
+    let second = cpi_context.new_addresses.get(1).unwrap();
+    assert_eq!(second.seed, [99u8; 32]);
+    assert_eq!(second.address_queue_account_index, 2);
+    assert_eq!(second.address_merkle_tree_account_index, 3);
+    assert_eq!(second.address_merkle_tree_root_index.get(), 7);
+
+    // Verify new_addresses_eq works with owner comparison (both sides from CPI context).
+    let stored_addresses: Vec<_> = (0..cpi_context.new_addresses.len())
+        .map(|i| *cpi_context.new_addresses.get(i).unwrap())
+        .collect();
+    assert!(new_addresses_eq(&stored_addresses, &stored_addresses));
+}
+
+/// Verify that subsequent invocations accumulate new addresses with correct owner.
+#[test]
+fn test_set_cpi_context_new_address_owner_subsequent() {
+    let fee_payer = solana_pubkey::Pubkey::new_unique().to_bytes();
+    let invoking_program = solana_pubkey::Pubkey::new_unique().to_bytes();
+    let cpi_context_account = create_test_cpi_context_account(None);
+
+    // First invocation with one new address.
+    let mut first_data = create_test_instruction_data(true, true, 1);
+    first_data.new_address_params = vec![NewAddressParamsPacked {
+        seed: [1u8; 32],
+        address_queue_account_index: 0,
+        address_merkle_tree_account_index: 1,
+        address_merkle_tree_root_index: 10,
+    }];
+
+    let input_bytes = first_data.try_to_vec().unwrap();
+    let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
+    let w_instruction_data = WrappedInstructionData::new(z_inputs).unwrap();
+    set_cpi_context(
+        fee_payer,
+        invoking_program,
+        &cpi_context_account,
+        w_instruction_data,
+    )
+    .unwrap();
+
+    // Second invocation with another new address.
+    let mut second_data = create_test_instruction_data(false, true, 2);
+    second_data.new_address_params = vec![NewAddressParamsPacked {
+        seed: [2u8; 32],
+        address_queue_account_index: 3,
+        address_merkle_tree_account_index: 4,
+        address_merkle_tree_root_index: 20,
+    }];
+
+    let input_bytes = second_data.try_to_vec().unwrap();
+    let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
+    let w_instruction_data = WrappedInstructionData::new(z_inputs).unwrap();
+    set_cpi_context(
+        fee_payer,
+        invoking_program,
+        &cpi_context_account,
+        w_instruction_data,
+    )
+    .unwrap();
+
+    let cpi_context = deserialize_cpi_context_account(&cpi_context_account).unwrap();
+    assert_eq!(cpi_context.new_addresses.len(), 2);
+
+    // Both addresses should have owner == invoking_program.
+    for i in 0..cpi_context.new_addresses.len() {
+        let stored = cpi_context.new_addresses.get(i).unwrap();
+        assert_eq!(
+            stored.owner, invoking_program,
+            "new_addresses[{}] owner should match invoking_program after subsequent invocation",
+            i
+        );
+    }
+
+    // Verify first address fields.
+    let first = cpi_context.new_addresses.get(0).unwrap();
+    assert_eq!(first.seed, [1u8; 32]);
+    assert_eq!(first.address_merkle_tree_root_index.get(), 10);
+
+    // Verify second address fields.
+    let second = cpi_context.new_addresses.get(1).unwrap();
+    assert_eq!(second.seed, [2u8; 32]);
+    assert_eq!(second.address_merkle_tree_root_index.get(), 20);
 }
 
 #[test]
