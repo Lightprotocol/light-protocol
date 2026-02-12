@@ -129,6 +129,45 @@ impl<'a> BloomFilter<'a> {
     }
 }
 
+/// Immutable bloom filter reference for read-only access.
+///
+/// Uses `&'a [u8]` instead of `&'a mut [u8]` for the store,
+/// enabling shared borrows of account data.
+pub struct BloomFilterRef<'a> {
+    pub num_iters: usize,
+    pub capacity: u64,
+    pub store: &'a [u8],
+}
+
+impl<'a> BloomFilterRef<'a> {
+    pub fn new(
+        num_iters: usize,
+        capacity: u64,
+        store: &'a [u8],
+    ) -> Result<Self, BloomFilterError> {
+        if store.len() * 8 != capacity as usize {
+            return Err(BloomFilterError::InvalidStoreCapacity);
+        }
+        Ok(Self {
+            num_iters,
+            capacity,
+            store,
+        })
+    }
+
+    pub fn contains(&self, value: &[u8; 32]) -> bool {
+        use bitvec::prelude::*;
+        let bits = BitSlice::<u8, Msb0>::from_slice(self.store);
+        for i in 0..self.num_iters {
+            let probe_index = BloomFilter::probe_index_keccak(value, i, &self.capacity);
+            if !bits[probe_index] {
+                return false;
+            }
+        }
+        true
+    }
+}
+
 #[cfg(test)]
 mod test {
     use light_hasher::bigint::bigint_to_be_bytes_array;
@@ -279,5 +318,24 @@ mod test {
                 );
             }
         }
+    }
+
+    #[test]
+    fn test_bloom_filter_ref() {
+        let capacity = 128_000u64 * 8;
+        let mut store = vec![0u8; 128_000];
+        let value1 = [1u8; 32];
+        let value2 = [2u8; 32];
+
+        // Insert via mutable BloomFilter
+        {
+            let mut bf = BloomFilter::new(3, capacity, &mut store).unwrap();
+            bf.insert(&value1).unwrap();
+        }
+
+        // Read via immutable BloomFilterRef
+        let bf_ref = BloomFilterRef::new(3, capacity, &store).unwrap();
+        assert!(bf_ref.contains(&value1));
+        assert!(!bf_ref.contains(&value2));
     }
 }

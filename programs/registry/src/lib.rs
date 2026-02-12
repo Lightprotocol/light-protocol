@@ -37,7 +37,7 @@ use errors::RegistryError;
 use light_batched_merkle_tree::{
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
     initialize_state_tree::InitStateTreeAccountsInstructionData,
-    merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
+    merkle_tree_ref::BatchedMerkleTreeRef, queue_ref::BatchedQueueRef,
 };
 use light_compressible::registry_instructions::CreateCompressibleConfig as CreateCompressibleConfigData;
 use protocol_config::state::ProtocolConfig;
@@ -536,7 +536,7 @@ pub mod light_registry {
         data: Vec<u8>,
     ) -> Result<()> {
         let merkle_tree =
-            BatchedMerkleTreeAccount::state_from_account_info(&ctx.accounts.merkle_tree)
+            BatchedMerkleTreeRef::state_from_account_info(&ctx.accounts.merkle_tree)
                 .map_err(ProgramError::from)?;
         check_forester(
             &merkle_tree.metadata,
@@ -556,10 +556,10 @@ pub mod light_registry {
         data: Vec<u8>,
     ) -> Result<()> {
         let queue_account =
-            BatchedQueueAccount::output_from_account_info(&ctx.accounts.output_queue)
+            BatchedQueueRef::output_from_account_info(&ctx.accounts.output_queue)
                 .map_err(ProgramError::from)?;
         let merkle_tree =
-            BatchedMerkleTreeAccount::state_from_account_info(&ctx.accounts.merkle_tree)
+            BatchedMerkleTreeRef::state_from_account_info(&ctx.accounts.merkle_tree)
                 .map_err(ProgramError::from)?;
         // Eligibility is checked for the Merkle tree,
         // so that the same forester is eligible to
@@ -611,7 +611,7 @@ pub mod light_registry {
         data: Vec<u8>,
     ) -> Result<()> {
         let account =
-            BatchedMerkleTreeAccount::address_from_account_info(&ctx.accounts.merkle_tree)
+            BatchedMerkleTreeRef::address_from_account_info(&ctx.accounts.merkle_tree)
                 .map_err(ProgramError::from)?;
         check_forester(
             &account.metadata,
@@ -628,7 +628,7 @@ pub mod light_registry {
         ctx: Context<'_, '_, '_, 'info, RolloverBatchedAddressMerkleTree<'info>>,
         bump: u8,
     ) -> Result<()> {
-        let account = BatchedMerkleTreeAccount::address_from_account_info(
+        let account = BatchedMerkleTreeRef::address_from_account_info(
             &ctx.accounts.old_address_merkle_tree,
         )
         .map_err(ProgramError::from)?;
@@ -647,7 +647,7 @@ pub mod light_registry {
         bump: u8,
     ) -> Result<()> {
         let account =
-            BatchedMerkleTreeAccount::state_from_account_info(&ctx.accounts.old_state_merkle_tree)
+            BatchedMerkleTreeRef::state_from_account_info(&ctx.accounts.old_state_merkle_tree)
                 .map_err(ProgramError::from)?;
         check_forester(
             &account.metadata,

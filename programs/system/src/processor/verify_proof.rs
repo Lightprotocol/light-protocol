@@ -130,12 +130,12 @@ fn read_root<const IS_READ_ONLY: bool, const IS_STATE: bool>(
             (*roots).push(merkle_tree.roots[root_index as usize]);
         }
         AcpAccount::BatchedStateTree(merkle_tree) => {
-            (*roots).push(merkle_tree.root_history[root_index as usize]);
+            (*roots).push(merkle_tree.root_history()[root_index as usize]);
             height = merkle_tree.height as u8;
         }
         AcpAccount::BatchedAddressTree(merkle_tree) => {
             height = merkle_tree.height as u8;
-            (*roots).push(merkle_tree.root_history[root_index as usize]);
+            (*roots).push(merkle_tree.root_history()[root_index as usize]);
         }
         AcpAccount::StateTree((_, merkle_tree)) => {
             if IS_READ_ONLY {

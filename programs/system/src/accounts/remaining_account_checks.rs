@@ -1,6 +1,9 @@
 use light_account_checks::{checks::check_owner, discriminator::Discriminator};
 use light_batched_merkle_tree::{
-    merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
+    merkle_tree::BatchedMerkleTreeAccount,
+    merkle_tree_ref::BatchedMerkleTreeRef,
+    queue::BatchedQueueAccount,
+    queue_ref::BatchedQueueRef,
 };
 use light_compressed_account::{
     constants::{
@@ -32,9 +35,9 @@ pub enum AcpAccount<'info> {
     Authority(&'info AccountInfo),
     RegisteredProgramPda(&'info AccountInfo),
     SystemProgram(&'info AccountInfo),
-    OutputQueue(BatchedQueueAccount<'info>),
-    BatchedStateTree(BatchedMerkleTreeAccount<'info>),
-    BatchedAddressTree(BatchedMerkleTreeAccount<'info>),
+    OutputQueue(BatchedQueueRef<'info>),
+    BatchedStateTree(BatchedMerkleTreeRef<'info>),
+    BatchedAddressTree(BatchedMerkleTreeRef<'info>),
     StateTree((Pubkey, ConcurrentMerkleTreeZeroCopyMut<'info, Poseidon, 26>)),
     AddressTree(
         (
@@ -90,13 +93,13 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
             let tree_type = TreeType::from(u64::from_le_bytes(tree_type));
             match tree_type {
                 TreeType::AddressV2 => {
-                    let tree = BatchedMerkleTreeAccount::address_from_account_info(account_info)?;
+                    let tree = BatchedMerkleTreeRef::address_from_account_info(account_info)?;
                     let program_owner = tree.metadata.access_metadata.program_owner;
                     // for batched trees we set the fee when setting the rollover fee.
                     Ok((AcpAccount::BatchedAddressTree(tree), program_owner))
                 }
                 TreeType::StateV2 => {
-                    let tree = BatchedMerkleTreeAccount::state_from_account_info(account_info)?;
+                    let tree = BatchedMerkleTreeRef::state_from_account_info(account_info)?;
                     let program_owner = tree.metadata.access_metadata.program_owner;
                     Ok((AcpAccount::BatchedStateTree(tree), program_owner))
                 }
@@ -112,7 +115,7 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
             }
         }
         BatchedQueueAccount::LIGHT_DISCRIMINATOR => {
-            let queue = BatchedQueueAccount::output_from_account_info(account_info)?;
+            let queue = BatchedQueueRef::output_from_account_info(account_info)?;
             let program_owner = queue.metadata.access_metadata.program_owner;
             Ok((AcpAccount::OutputQueue(queue), program_owner))
         }
