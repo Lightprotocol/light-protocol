@@ -45,6 +45,7 @@ pub fn process_invoke_cpi<
         instruction_data,
         accounts.get_cpi_context_account(),
         *accounts.get_fee_payer().key(),
+        invoking_program,
         remaining_accounts,
     ) {
         Ok(Some(instruction_data)) => instruction_data,

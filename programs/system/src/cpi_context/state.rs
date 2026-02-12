@@ -130,9 +130,10 @@ impl<'a> ZCpiContextAccount2<'a> {
     >(
         &'a mut self,
         instruction_data: &WrappedInstructionData<'b, T>,
+        invoking_program: Pubkey,
     ) -> Result<(), SystemProgramError> {
-        // Cache owner bytes to avoid repeated calls
-        let owner_bytes = instruction_data.owner().to_bytes();
+        // Use invoking_program as the owner for new addresses
+        let owner_bytes = invoking_program;
 
         // Store new addresses
         for address in instruction_data.new_addresses() {

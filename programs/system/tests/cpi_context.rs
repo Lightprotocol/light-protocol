@@ -26,7 +26,7 @@ use light_compressed_account::{
     },
     instruction_data::{
         cpi_context::CompressedCpiContext,
-        data::OutputCompressedAccountWithPackedContext,
+        data::{NewAddressParamsPacked, OutputCompressedAccountWithPackedContext},
         invoke_cpi::InstructionDataInvokeCpi,
         traits::{InputAccount, NewAddress, OutputAccount},
         zero_copy::{
@@ -106,6 +106,7 @@ pub fn new_addresses_eq<'a>(left: &[impl NewAddress<'a>], right: &[impl NewAddre
             && l.address_merkle_tree_account_index() == r.address_merkle_tree_account_index()
             && l.address_merkle_tree_root_index() == r.address_merkle_tree_root_index()
             && l.assigned_compressed_account_index() == r.assigned_compressed_account_index()
+            && l.owner() == r.owner()
     })
 }
 
@@ -420,13 +421,19 @@ fn get_merkle_tree_account_info() -> AccountInfo {
 #[test]
 fn test_set_cpi_context_first_invocation() {
     let fee_payer = solana_pubkey::Pubkey::new_unique().to_bytes();
+    let invoking_program = solana_pubkey::Pubkey::new_unique().to_bytes();
     let cpi_context_account = create_test_cpi_context_account(None);
 
     let instruction_data = create_test_instruction_data(true, true, 1);
     let input_bytes = instruction_data.try_to_vec().unwrap();
     let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
     let w_instruction_data = WrappedInstructionData::new(z_inputs).unwrap();
-    let result = set_cpi_context(fee_payer, &cpi_context_account, w_instruction_data);
+    let result = set_cpi_context(
+        fee_payer,
+        invoking_program,
+        &cpi_context_account,
+        w_instruction_data,
+    );
     // assert
     {
         assert!(result.is_ok());
@@ -438,9 +445,151 @@ fn test_set_cpi_context_first_invocation() {
     }
 }
 
+/// Verify that store_data sets new address owner to invoking_program.
+/// This exercises the owner fix path (store_data caching the correct owner).
+#[test]
+fn test_set_cpi_context_new_address_owner() {
+    let fee_payer = solana_pubkey::Pubkey::new_unique().to_bytes();
+    let invoking_program = solana_pubkey::Pubkey::new_unique().to_bytes();
+    let cpi_context_account = create_test_cpi_context_account(None);
+
+    // Create instruction data with non-empty new_address_params.
+    let mut instruction_data = create_test_instruction_data(true, true, 1);
+    instruction_data.new_address_params = vec![
+        NewAddressParamsPacked {
+            seed: [42u8; 32],
+            address_queue_account_index: 0,
+            address_merkle_tree_account_index: 1,
+            address_merkle_tree_root_index: 5,
+        },
+        NewAddressParamsPacked {
+            seed: [99u8; 32],
+            address_queue_account_index: 2,
+            address_merkle_tree_account_index: 3,
+            address_merkle_tree_root_index: 7,
+        },
+    ];
+
+    let input_bytes = instruction_data.try_to_vec().unwrap();
+    let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
+    let w_instruction_data = WrappedInstructionData::new(z_inputs).unwrap();
+    set_cpi_context(
+        fee_payer,
+        invoking_program,
+        &cpi_context_account,
+        w_instruction_data,
+    )
+    .unwrap();
+
+    let cpi_context = deserialize_cpi_context_account(&cpi_context_account).unwrap();
+    assert_eq!(cpi_context.fee_payer.to_bytes(), fee_payer);
+    assert_eq!(cpi_context.new_addresses.len(), 2);
+
+    // Verify owner is set to invoking_program for each new address.
+    for i in 0..cpi_context.new_addresses.len() {
+        let stored = cpi_context.new_addresses.get(i).unwrap();
+        assert_eq!(
+            stored.owner, invoking_program,
+            "new_addresses[{}] owner should match invoking_program",
+            i
+        );
+    }
+
+    // Verify seed and index fields are preserved.
+    let first = cpi_context.new_addresses.get(0).unwrap();
+    assert_eq!(first.seed, [42u8; 32]);
+    assert_eq!(first.address_queue_account_index, 0);
+    assert_eq!(first.address_merkle_tree_account_index, 1);
+    assert_eq!(first.address_merkle_tree_root_index.get(), 5);
+
+    let second = cpi_context.new_addresses.get(1).unwrap();
+    assert_eq!(second.seed, [99u8; 32]);
+    assert_eq!(second.address_queue_account_index, 2);
+    assert_eq!(second.address_merkle_tree_account_index, 3);
+    assert_eq!(second.address_merkle_tree_root_index.get(), 7);
+
+    // Verify new_addresses_eq works with owner comparison (both sides from CPI context).
+    let stored_addresses: Vec<_> = (0..cpi_context.new_addresses.len())
+        .map(|i| *cpi_context.new_addresses.get(i).unwrap())
+        .collect();
+    assert!(new_addresses_eq(&stored_addresses, &stored_addresses));
+}
+
+/// Verify that subsequent invocations accumulate new addresses with correct owner.
+#[test]
+fn test_set_cpi_context_new_address_owner_subsequent() {
+    let fee_payer = solana_pubkey::Pubkey::new_unique().to_bytes();
+    let invoking_program = solana_pubkey::Pubkey::new_unique().to_bytes();
+    let cpi_context_account = create_test_cpi_context_account(None);
+
+    // First invocation with one new address.
+    let mut first_data = create_test_instruction_data(true, true, 1);
+    first_data.new_address_params = vec![NewAddressParamsPacked {
+        seed: [1u8; 32],
+        address_queue_account_index: 0,
+        address_merkle_tree_account_index: 1,
+        address_merkle_tree_root_index: 10,
+    }];
+
+    let input_bytes = first_data.try_to_vec().unwrap();
+    let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
+    let w_instruction_data = WrappedInstructionData::new(z_inputs).unwrap();
+    set_cpi_context(
+        fee_payer,
+        invoking_program,
+        &cpi_context_account,
+        w_instruction_data,
+    )
+    .unwrap();
+
+    // Second invocation with another new address.
+    let mut second_data = create_test_instruction_data(false, true, 2);
+    second_data.new_address_params = vec![NewAddressParamsPacked {
+        seed: [2u8; 32],
+        address_queue_account_index: 3,
+        address_merkle_tree_account_index: 4,
+        address_merkle_tree_root_index: 20,
+    }];
+
+    let input_bytes = second_data.try_to_vec().unwrap();
+    let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
+    let w_instruction_data = WrappedInstructionData::new(z_inputs).unwrap();
+    set_cpi_context(
+        fee_payer,
+        invoking_program,
+        &cpi_context_account,
+        w_instruction_data,
+    )
+    .unwrap();
+
+    let cpi_context = deserialize_cpi_context_account(&cpi_context_account).unwrap();
+    assert_eq!(cpi_context.new_addresses.len(), 2);
+
+    // Both addresses should have owner == invoking_program.
+    for i in 0..cpi_context.new_addresses.len() {
+        let stored = cpi_context.new_addresses.get(i).unwrap();
+        assert_eq!(
+            stored.owner, invoking_program,
+            "new_addresses[{}] owner should match invoking_program after subsequent invocation",
+            i
+        );
+    }
+
+    // Verify first address fields.
+    let first = cpi_context.new_addresses.get(0).unwrap();
+    assert_eq!(first.seed, [1u8; 32]);
+    assert_eq!(first.address_merkle_tree_root_index.get(), 10);
+
+    // Verify second address fields.
+    let second = cpi_context.new_addresses.get(1).unwrap();
+    assert_eq!(second.seed, [2u8; 32]);
+    assert_eq!(second.address_merkle_tree_root_index.get(), 20);
+}
+
 #[test]
 fn test_set_cpi_context_subsequent_invocation() {
     let fee_payer = solana_pubkey::Pubkey::new_unique().to_bytes();
+    let invoking_program = solana_pubkey::Pubkey::new_unique().to_bytes();
     let cpi_context_account = create_test_cpi_context_account(None);
     let mut first_instruction_data = create_test_instruction_data(true, true, 1);
     // First invocation
@@ -448,14 +597,25 @@ fn test_set_cpi_context_subsequent_invocation() {
         let input_bytes = first_instruction_data.try_to_vec().unwrap();
         let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
         let w_instruction_data = WrappedInstructionData::new(z_inputs).unwrap();
-        set_cpi_context(fee_payer, &cpi_context_account, w_instruction_data).unwrap();
+        set_cpi_context(
+            fee_payer,
+            invoking_program,
+            &cpi_context_account,
+            w_instruction_data,
+        )
+        .unwrap();
     }
     let inputs_subsequent = create_test_instruction_data(false, true, 2);
     let mut input_bytes = Vec::new();
     inputs_subsequent.serialize(&mut input_bytes).unwrap();
     let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
     let w_instruction_data = WrappedInstructionData::new(z_inputs).unwrap();
-    let result = set_cpi_context(fee_payer, &cpi_context_account, w_instruction_data);
+    let result = set_cpi_context(
+        fee_payer,
+        invoking_program,
+        &cpi_context_account,
+        w_instruction_data,
+    );
     // assert
     {
         assert!(result.is_ok());
@@ -486,6 +646,7 @@ fn test_set_cpi_context_subsequent_invocation() {
 #[test]
 fn test_set_cpi_context_fee_payer_mismatch() {
     let fee_payer = solana_pubkey::Pubkey::new_unique().to_bytes();
+    let invoking_program = solana_pubkey::Pubkey::new_unique().to_bytes();
     let cpi_context_account = create_test_cpi_context_account(None);
     let first_instruction_data = create_test_instruction_data(true, true, 1);
     // First invocation
@@ -493,7 +654,13 @@ fn test_set_cpi_context_fee_payer_mismatch() {
         let input_bytes = first_instruction_data.try_to_vec().unwrap();
         let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
         let w_instruction_data = WrappedInstructionData::new(z_inputs).unwrap();
-        set_cpi_context(fee_payer, &cpi_context_account, w_instruction_data).unwrap();
+        set_cpi_context(
+            fee_payer,
+            invoking_program,
+            &cpi_context_account,
+            w_instruction_data,
+        )
+        .unwrap();
     }
 
     let different_fee_payer = solana_pubkey::Pubkey::new_unique().to_bytes();
@@ -504,6 +671,7 @@ fn test_set_cpi_context_fee_payer_mismatch() {
     let w_instruction_data = WrappedInstructionData::new(z_inputs).unwrap();
     let result = set_cpi_context(
         different_fee_payer,
+        invoking_program,
         &cpi_context_account,
         w_instruction_data,
     );
@@ -516,13 +684,19 @@ fn test_set_cpi_context_fee_payer_mismatch() {
 #[test]
 fn test_set_cpi_context_without_first_context() {
     let fee_payer = solana_pubkey::Pubkey::new_unique().to_bytes();
+    let invoking_program = solana_pubkey::Pubkey::new_unique().to_bytes();
     let cpi_context_account = create_test_cpi_context_account(None);
     let inputs_first = create_test_instruction_data(false, true, 1);
     let mut input_bytes = Vec::new();
     inputs_first.serialize(&mut input_bytes).unwrap();
     let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
     let w_instruction_data = WrappedInstructionData::new(z_inputs).unwrap();
-    let result = set_cpi_context(fee_payer, &cpi_context_account, w_instruction_data);
+    let result = set_cpi_context(
+        fee_payer,
+        invoking_program,
+        &cpi_context_account,
+        w_instruction_data,
+    );
     assert_eq!(
         result,
         Err(SystemProgramError::CpiContextFeePayerMismatch.into())
@@ -533,6 +707,7 @@ fn test_set_cpi_context_without_first_context() {
 #[test]
 fn test_process_cpi_context_both_none() {
     let fee_payer = solana_pubkey::Pubkey::new_unique().to_bytes();
+    let invoking_program = solana_pubkey::Pubkey::new_unique().to_bytes();
     let instruction_data = create_test_instruction_data(false, true, 1);
     let cpi_context_account: Option<&AccountInfo> = None;
     let mut input_bytes = Vec::new();
@@ -540,8 +715,14 @@ fn test_process_cpi_context_both_none() {
     let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
     let w_instruction_data = WrappedInstructionData::new(z_inputs).unwrap();
 
-    let result =
-        process_cpi_context(w_instruction_data, cpi_context_account, fee_payer, &[]).unwrap_err();
+    let result = process_cpi_context(
+        w_instruction_data,
+        cpi_context_account,
+        fee_payer,
+        invoking_program,
+        &[],
+    )
+    .unwrap_err();
     assert_eq!(
         result,
         SystemProgramError::CpiContextAccountUndefined.into()
@@ -552,14 +733,21 @@ fn test_process_cpi_context_both_none() {
 #[test]
 fn test_process_cpi_context_account_none_context_some() {
     let fee_payer = solana_pubkey::Pubkey::new_unique().to_bytes();
+    let invoking_program = solana_pubkey::Pubkey::new_unique().to_bytes();
     let instruction_data = create_test_instruction_data(false, true, 1);
     let cpi_context_account: Option<&AccountInfo> = None;
     let mut input_bytes = Vec::new();
     instruction_data.serialize(&mut input_bytes).unwrap();
     let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
     let w_instruction_data = WrappedInstructionData::new(z_inputs).unwrap();
-    let result =
-        process_cpi_context(w_instruction_data, cpi_context_account, fee_payer, &[]).unwrap_err();
+    let result = process_cpi_context(
+        w_instruction_data,
+        cpi_context_account,
+        fee_payer,
+        invoking_program,
+        &[],
+    )
+    .unwrap_err();
     assert_eq!(
         result,
         SystemProgramError::CpiContextAccountUndefined.into()
@@ -570,6 +758,7 @@ fn test_process_cpi_context_account_none_context_some() {
 #[test]
 fn test_process_cpi_context_account_some_context_none() {
     let fee_payer = solana_pubkey::Pubkey::new_unique().to_bytes();
+    let invoking_program = solana_pubkey::Pubkey::new_unique().to_bytes();
     let instruction_data = InstructionDataInvokeCpi {
         cpi_context: None,
         ..create_test_instruction_data(false, true, 1)
@@ -584,6 +773,7 @@ fn test_process_cpi_context_account_some_context_none() {
         w_instruction_data,
         Some(&cpi_context_account),
         fee_payer,
+        invoking_program,
         &[],
     )
     .unwrap_err();
@@ -594,6 +784,7 @@ fn test_process_cpi_context_account_some_context_none() {
 #[test]
 fn test_process_cpi_no_inputs() {
     let fee_payer = solana_pubkey::Pubkey::new_unique().to_bytes();
+    let invoking_program = solana_pubkey::Pubkey::new_unique().to_bytes();
     let mut instruction_data = create_test_instruction_data(false, false, 1);
     instruction_data.input_compressed_accounts_with_merkle_context = vec![];
     instruction_data.output_compressed_accounts = vec![];
@@ -610,6 +801,7 @@ fn test_process_cpi_no_inputs() {
         w_instruction_data,
         Some(&cpi_context_account),
         fee_payer,
+        invoking_program,
         &[merkle_tree_account_info],
     )
     .unwrap_err();
@@ -620,6 +812,7 @@ fn test_process_cpi_no_inputs() {
 #[test]
 fn test_process_cpi_context_associated_tree_mismatch() {
     let fee_payer = solana_pubkey::Pubkey::new_unique().to_bytes();
+    let invoking_program = solana_pubkey::Pubkey::new_unique().to_bytes();
     let mut instruction_data = create_test_instruction_data(true, true, 1);
     instruction_data
         .cpi_context
@@ -638,6 +831,7 @@ fn test_process_cpi_context_associated_tree_mismatch() {
         w_instruction_data,
         Some(&cpi_context_account),
         fee_payer,
+        invoking_program,
         remaining_accounts,
     )
     .unwrap_err();
@@ -651,6 +845,7 @@ fn test_process_cpi_context_associated_tree_mismatch() {
 #[test]
 fn test_process_cpi_context_no_set_context() {
     let fee_payer = solana_pubkey::Pubkey::new_unique().to_bytes();
+    let invoking_program = solana_pubkey::Pubkey::new_unique().to_bytes();
     let instruction_data = create_test_instruction_data(false, false, 1);
     let merkle_tree_account_info = get_merkle_tree_account_info();
     let cpi_context_account =
@@ -664,6 +859,7 @@ fn test_process_cpi_context_no_set_context() {
         w_instruction_data,
         Some(&cpi_context_account),
         fee_payer,
+        invoking_program,
         remaining_accounts,
     )
     .unwrap_err();
@@ -674,6 +870,7 @@ fn test_process_cpi_context_no_set_context() {
 #[test]
 fn test_process_cpi_context_empty_context_error() {
     let fee_payer = Pubkey::default();
+    let invoking_program = solana_pubkey::Pubkey::new_unique().to_bytes();
     let instruction_data = create_test_instruction_data(false, true, 1);
     let merkle_tree_account_info = get_merkle_tree_account_info();
     let cpi_context_account =
@@ -687,6 +884,7 @@ fn test_process_cpi_context_empty_context_error() {
         w_instruction_data,
         Some(&cpi_context_account),
         fee_payer,
+        invoking_program,
         remaining_accounts,
     )
     .unwrap_err();
@@ -700,6 +898,7 @@ fn test_process_cpi_context_empty_context_error() {
 #[test]
 fn test_process_cpi_context_fee_payer_mismatch_error() {
     let fee_payer = solana_pubkey::Pubkey::new_unique().to_bytes();
+    let invoking_program = solana_pubkey::Pubkey::new_unique().to_bytes();
     let instruction_data = create_test_instruction_data(true, true, 1);
     let merkle_tree_account_info = get_merkle_tree_account_info();
     let cpi_context_account =
@@ -713,6 +912,7 @@ fn test_process_cpi_context_fee_payer_mismatch_error() {
         w_instruction_data,
         Some(&cpi_context_account),
         fee_payer,
+        invoking_program,
         remaining_accounts,
     );
     assert!(result.is_ok());
@@ -726,6 +926,7 @@ fn test_process_cpi_context_fee_payer_mismatch_error() {
         w_instruction_data,
         Some(&cpi_context_account),
         invalid_fee_payer,
+        invoking_program,
         remaining_accounts,
     )
     .unwrap_err();
@@ -738,6 +939,7 @@ fn test_process_cpi_context_fee_payer_mismatch_error() {
 #[test]
 fn test_process_cpi_context_set_context() {
     let fee_payer = solana_pubkey::Pubkey::new_unique().to_bytes();
+    let invoking_program = solana_pubkey::Pubkey::new_unique().to_bytes();
     let mut instruction_data = create_test_instruction_data(true, true, 1);
     let merkle_tree_account_info = get_merkle_tree_account_info();
     let cpi_context_account =
@@ -751,6 +953,7 @@ fn test_process_cpi_context_set_context() {
         w_instruction_data,
         Some(&cpi_context_account),
         fee_payer,
+        invoking_program,
         remaining_accounts,
     );
     // assert
@@ -775,6 +978,7 @@ fn test_process_cpi_context_set_context() {
 #[test]
 fn test_process_cpi_context_scenario() {
     let fee_payer = solana_pubkey::Pubkey::new_unique().to_bytes();
+    let invoking_program = solana_pubkey::Pubkey::new_unique().to_bytes();
     let mut instruction_data = create_test_instruction_data(true, true, 1);
     let malicious_inputs = create_test_instruction_data(true, true, 100);
     let merkle_tree_account_info = get_merkle_tree_account_info();
@@ -792,7 +996,7 @@ fn test_process_cpi_context_scenario() {
             deserialize_cpi_context_account_cleared(&cpi_context_account).unwrap();
         *cpi_context.fee_payer = Pubkey::default().into();
         cpi_context
-            .store_data(&w_malicious_instruction_data)
+            .store_data(&w_malicious_instruction_data, invoking_program)
             .unwrap();
     }
 
@@ -805,6 +1009,7 @@ fn test_process_cpi_context_scenario() {
         w_instruction_data,
         Some(&cpi_context_account),
         fee_payer,
+        invoking_program,
         remaining_accounts,
     );
     {
@@ -832,6 +1037,7 @@ fn test_process_cpi_context_scenario() {
             w_instruction_data,
             Some(&cpi_context_account),
             fee_payer,
+            invoking_program,
             remaining_accounts,
         );
         // assert
@@ -870,6 +1076,7 @@ fn test_process_cpi_context_scenario() {
         w_instruction_data,
         Some(&cpi_context_account),
         fee_payer,
+        invoking_program,
         remaining_accounts,
     );
     assert!(result.is_ok());
