@@ -1653,11 +1653,6 @@ pub async fn burn_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerExten
     is_token_22: bool,
     token_pool_index: u8,
 ) {
-    let input_compressed_accounts: Vec<light_token::compat::TokenDataWithMerkleContext> =
-        input_compressed_accounts
-            .into_iter()
-            .map(Into::into)
-            .collect();
     let (
         input_compressed_account_hashes,
         input_merkle_tree_pubkeys,
@@ -1727,7 +1722,7 @@ pub async fn burn_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerExten
     if output_amount > 0 {
         let expected_token_data = TokenData {
             mint: mint.into(),
-            owner: input_compressed_accounts[0].token_data.owner.into(),
+            owner: input_compressed_accounts[0].token.owner.into(),
             amount: output_amount,
             delegate: delegate.map(|d| d.into()),
             state: CompressedTokenAccountState::Initialized as u8,
@@ -1744,7 +1739,7 @@ pub async fn burn_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerExten
         create_expected_token_output_data(expected_output_accounts, &output_merkle_tree_pubkeys);
     let sum_inputs = input_compressed_accounts
         .iter()
-        .map(|x| x.compressed_account.compressed_account.lamports)
+        .map(|x| x.account.lamports)
         .sum::<u64>();
     let change_lamports = if sum_inputs > 0 {
         Some(vec![Some(sum_inputs)])
@@ -1794,7 +1789,7 @@ pub async fn create_burn_test_instruction<R: Rpc + Indexer, I: Indexer + TestInd
     authority: &Keypair,
     rpc: &mut R,
     test_indexer: &mut I,
-    input_compressed_accounts: &[light_token::compat::TokenDataWithMerkleContext],
+    input_compressed_accounts: &[CompressedTokenAccount],
     change_account_merkle_tree: &Pubkey,
     burn_amount: u64,
     signer_is_delegate: bool,
@@ -1803,6 +1798,13 @@ pub async fn create_burn_test_instruction<R: Rpc + Indexer, I: Indexer + TestInd
     token_pool_index: u8,
     additional_pool_accounts: Option<Vec<Pubkey>>,
 ) -> (Vec<[u8; 32]>, Vec<Pubkey>, Pubkey, u64, Instruction) {
+    let input_with_context: Vec<light_token::compat::TokenDataWithMerkleContext> =
+        input_compressed_accounts
+            .iter()
+            .cloned()
+            .map(Into::into)
+            .collect();
+    let input_compressed_accounts = &input_with_context[..];
     let input_compressed_account_hashes = input_compressed_accounts
         .iter()
         .map(|x| x.compressed_account.hash().unwrap())

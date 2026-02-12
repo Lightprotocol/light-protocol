@@ -1027,15 +1027,14 @@ async fn invoke_test() {
     let compressed_account_with_context =
         rpc.indexer.as_ref().unwrap().compressed_accounts[0].clone();
     let proof_rpc_res = rpc
-        .get_validity_proof(
-            vec![compressed_account_with_context.hash().unwrap()],
-            vec![],
-            None,
-        )
+        .get_validity_proof(vec![compressed_account_with_context.hash], vec![], None)
         .await
         .unwrap();
     let proof = proof_rpc_res.value.proof.0.unwrap();
-    let input_compressed_accounts = vec![compressed_account_with_context.compressed_account];
+    let input_compressed_accounts = vec![
+        CompressedAccountWithMerkleContext::from(compressed_account_with_context.clone())
+            .compressed_account,
+    ];
 
     let instruction = create_invoke_instruction(
         &payer_pubkey,
@@ -1567,16 +1566,14 @@ async fn test_with_compression() {
         .unwrap()
         .clone();
     let proof_rpc_res = rpc
-        .get_validity_proof(
-            vec![compressed_account_with_context.hash().unwrap()],
-            vec![],
-            None,
-        )
+        .get_validity_proof(vec![compressed_account_with_context.hash], vec![], None)
         .await
         .unwrap();
     let proof = proof_rpc_res.value.proof.0.unwrap();
-    let input_compressed_accounts =
-        vec![compressed_account_with_context.clone().compressed_account];
+    let input_compressed_accounts = vec![
+        CompressedAccountWithMerkleContext::from(compressed_account_with_context.clone())
+            .compressed_account,
+    ];
     let recipient_pubkey = Keypair::new().pubkey();
     let output_compressed_accounts = vec![CompressedAccount {
         lamports: 0,
@@ -1989,13 +1986,9 @@ async fn batch_invoke_test() {
             "compressed_account_with_context {:?}",
             compressed_account_with_context
         );
-        println!("hash {:?}", compressed_account_with_context.hash());
+        println!("hash {:?}", compressed_account_with_context.hash);
         let proof_rpc_result = rpc
-            .get_validity_proof(
-                vec![compressed_account_with_context.hash().unwrap()],
-                vec![],
-                None,
-            )
+            .get_validity_proof(vec![compressed_account_with_context.hash], vec![], None)
             .await
             .unwrap();
         // No proof since value is in output queue
@@ -2005,7 +1998,10 @@ async fn batch_invoke_test() {
             .root_index
             .proof_by_index());
 
-        let input_compressed_accounts = vec![compressed_account_with_context.compressed_account];
+        let input_compressed_accounts = vec![
+            CompressedAccountWithMerkleContext::from(compressed_account_with_context.clone())
+                .compressed_account,
+        ];
 
         let instruction = create_invoke_instruction(
             &payer_pubkey,
@@ -2014,7 +2010,7 @@ async fn batch_invoke_test() {
             &output_compressed_accounts,
             &[MerkleContext {
                 merkle_tree_pubkey: merkle_tree_pubkey.into(),
-                leaf_index: compressed_account_with_context.merkle_context.leaf_index,
+                leaf_index: compressed_account_with_context.leaf_index,
                 queue_pubkey: output_queue_pubkey.into(),
                 prove_by_index: true,
                 tree_type: TreeType::StateV2,
@@ -2093,7 +2089,7 @@ async fn batch_invoke_test() {
         let input_compressed_account = rpc
             .get_compressed_accounts_with_merkle_context_by_owner(&payer_pubkey)
             .iter()
-            .filter(|x| x.merkle_context.queue_pubkey.to_bytes() == output_queue_pubkey.to_bytes())
+            .filter(|x| x.tree_info.queue.to_bytes() == output_queue_pubkey.to_bytes())
             .next_back()
             .unwrap()
             .clone();
@@ -2103,14 +2099,17 @@ async fn batch_invoke_test() {
             data: None,
             address: None,
         }];
+        let input_compressed_account_program =
+            CompressedAccountWithMerkleContext::from(input_compressed_account.clone())
+                .compressed_account;
         let instruction = create_invoke_instruction(
             &payer_pubkey,
             &payer_pubkey,
-            &[input_compressed_account.compressed_account],
+            &[input_compressed_account_program],
             &output_compressed_accounts,
             &[MerkleContext {
                 merkle_tree_pubkey: merkle_tree_pubkey.into(),
-                leaf_index: input_compressed_account.merkle_context.leaf_index - 1,
+                leaf_index: input_compressed_account.leaf_index - 1,
                 queue_pubkey: output_queue_pubkey.into(),
                 prove_by_index: true,
                 tree_type: TreeType::StateV2,
@@ -2151,8 +2150,8 @@ async fn batch_invoke_test() {
             .compressed_accounts
             .iter()
             .filter(|x| {
-                x.compressed_account.owner.to_bytes() == payer_pubkey.to_bytes()
-                    && x.merkle_context.queue_pubkey.to_bytes() == output_queue_pubkey.to_bytes()
+                x.owner.to_bytes() == payer_pubkey.to_bytes()
+                    && x.tree_info.queue.to_bytes() == output_queue_pubkey.to_bytes()
             })
             .cloned()
             .collect::<Vec<_>>()
@@ -2167,8 +2166,8 @@ async fn batch_invoke_test() {
             .compressed_accounts
             .iter()
             .filter(|x| {
-                x.compressed_account.owner.to_bytes() == payer_pubkey.to_bytes()
-                    && x.merkle_context.queue_pubkey.to_bytes()
+                x.owner.to_bytes() == payer_pubkey.to_bytes()
+                    && x.tree_info.queue.to_bytes()
                         == env.v1_state_trees[0].nullifier_queue.to_bytes()
             })
             .collect::<Vec<_>>()[0]
@@ -2176,8 +2175,8 @@ async fn batch_invoke_test() {
         let proof_rpc_result = rpc
             .get_validity_proof(
                 vec![
-                    compressed_account_with_context_1.hash().unwrap(),
-                    compressed_account_with_context_2.hash().unwrap(),
+                    compressed_account_with_context_1.hash,
+                    compressed_account_with_context_2.hash,
                 ],
                 vec![],
                 None,
@@ -2187,15 +2186,16 @@ async fn batch_invoke_test() {
 
         let proof = proof_rpc_result.value.proof.0.unwrap();
 
+        let ctx_1 =
+            CompressedAccountWithMerkleContext::from(compressed_account_with_context_1.clone());
+        let ctx_2 =
+            CompressedAccountWithMerkleContext::from(compressed_account_with_context_2.clone());
         let input_compressed_accounts = vec![
-            compressed_account_with_context_1.compressed_account,
-            compressed_account_with_context_2.compressed_account,
+            ctx_1.compressed_account.clone(),
+            ctx_2.compressed_account.clone(),
         ];
 
-        let merkle_context = vec![
-            compressed_account_with_context_1.merkle_context,
-            compressed_account_with_context_2.merkle_context,
-        ];
+        let merkle_context = vec![ctx_1.merkle_context, ctx_2.merkle_context];
         let output_compressed_accounts = vec![
             CompressedAccount {
                 lamports: 0,
@@ -2210,8 +2210,8 @@ async fn batch_invoke_test() {
                 address: None,
             },
         ];
-        let merkle_context_1 = compressed_account_with_context_1.merkle_context;
-        let merkle_context_2 = compressed_account_with_context_2.merkle_context;
+        let merkle_context_1 = ctx_1.merkle_context;
+        let merkle_context_2 = ctx_2.merkle_context;
         let instruction = create_invoke_instruction(
             &payer_pubkey,
             &payer_pubkey,
@@ -2257,8 +2257,8 @@ async fn batch_invoke_test() {
             .compressed_accounts
             .iter()
             .filter(|x| {
-                x.compressed_account.owner.to_bytes() == payer_pubkey.to_bytes()
-                    && x.merkle_context.queue_pubkey.to_bytes() == output_queue_pubkey.to_bytes()
+                x.owner.to_bytes() == payer_pubkey.to_bytes()
+                    && x.tree_info.queue.to_bytes() == output_queue_pubkey.to_bytes()
             })
             .next_back()
             .unwrap()
@@ -2267,7 +2267,7 @@ async fn batch_invoke_test() {
             &mut rpc,
             &payer,
             TestMode::ByZkpThenIndex,
-            compressed_account_with_context_1.clone(),
+            compressed_account_with_context_1.clone().into(),
         )
         .await;
         assert_rpc_error(
@@ -2290,8 +2290,8 @@ async fn batch_invoke_test() {
             .compressed_accounts
             .iter()
             .filter(|x| {
-                x.compressed_account.owner.to_bytes() == payer_pubkey.to_bytes()
-                    && x.merkle_context.queue_pubkey.to_bytes() == output_queue_pubkey.to_bytes()
+                x.owner.to_bytes() == payer_pubkey.to_bytes()
+                    && x.tree_info.queue.to_bytes() == output_queue_pubkey.to_bytes()
             })
             .next_back()
             .unwrap()
@@ -2300,7 +2300,7 @@ async fn batch_invoke_test() {
             &mut rpc,
             &payer,
             TestMode::ByIndexThenZkp,
-            compressed_account_with_context_1.clone(),
+            compressed_account_with_context_1.clone().into(),
         )
         .await;
         assert_rpc_error(
@@ -2323,8 +2323,8 @@ async fn batch_invoke_test() {
             .compressed_accounts
             .iter()
             .filter(|x| {
-                x.compressed_account.owner.to_bytes() == payer_pubkey.to_bytes()
-                    && x.merkle_context.queue_pubkey.to_bytes() == output_queue_pubkey.to_bytes()
+                x.owner.to_bytes() == payer_pubkey.to_bytes()
+                    && x.tree_info.queue.to_bytes() == output_queue_pubkey.to_bytes()
             })
             .next_back()
             .unwrap()
@@ -2333,7 +2333,7 @@ async fn batch_invoke_test() {
             &mut rpc,
             &payer,
             TestMode::ByIndexThenIndex,
-            compressed_account_with_context_1.clone(),
+            compressed_account_with_context_1.clone().into(),
         )
         .await;
         assert_rpc_error(
@@ -2356,8 +2356,8 @@ async fn batch_invoke_test() {
             .compressed_accounts
             .iter()
             .filter(|x| {
-                x.compressed_account.owner.to_bytes() == payer_pubkey.to_bytes()
-                    && x.merkle_context.queue_pubkey.to_bytes() == output_queue_pubkey.to_bytes()
+                x.owner.to_bytes() == payer_pubkey.to_bytes()
+                    && x.tree_info.queue.to_bytes() == output_queue_pubkey.to_bytes()
             })
             .next_back()
             .unwrap()
@@ -2366,7 +2366,7 @@ async fn batch_invoke_test() {
             &mut rpc,
             &payer,
             TestMode::ByZkpThenZkp,
-            compressed_account_with_context_1.clone(),
+            compressed_account_with_context_1.clone().into(),
         )
         .await;
         assert_rpc_error(
@@ -2444,14 +2444,19 @@ async fn batch_invoke_test() {
             .compressed_accounts
             .iter()
             .filter(|x| {
-                x.compressed_account.owner.to_bytes() == payer_pubkey.to_bytes()
-                    && x.merkle_context.queue_pubkey.to_bytes() != output_queue_pubkey.to_bytes()
+                x.owner.to_bytes() == payer_pubkey.to_bytes()
+                    && x.tree_info.queue.to_bytes() != output_queue_pubkey.to_bytes()
             })
             .next_back()
             .unwrap()
             .clone();
 
-        let mut merkle_context = compressed_account_with_context_1.merkle_context;
+        let mut merkle_context = compressed_account_with_context_1
+            .tree_info
+            .to_light_merkle_context(
+                compressed_account_with_context_1.leaf_index,
+                compressed_account_with_context_1.prove_by_index,
+            );
         merkle_context.prove_by_index = true;
         let instruction = create_invoke_instruction(
             &payer_pubkey,

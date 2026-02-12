@@ -60,7 +60,7 @@ use light_test_utils::{
     },
     LightClient, Rpc, RpcError,
 };
-use light_token::compat::{AccountState, TokenDataWithMerkleContext};
+use light_token::compat::AccountState;
 use rand::{seq::SliceRandom, thread_rng, Rng};
 use serial_test::serial;
 #[allow(deprecated)]
@@ -1087,11 +1087,7 @@ async fn test_mint_to_and_burn_from_all_token_pools() {
                 .value
                 .items;
             let input_compressed_account = accounts[0].clone();
-            let change_account_merkle_tree = input_compressed_account
-                .account
-                .merkle_context
-                .merkle_tree_pubkey
-                .into();
+            let change_account_merkle_tree = input_compressed_account.account.tree_info.tree;
             burn_test(
                 &payer,
                 &mut rpc,
@@ -1334,11 +1330,8 @@ async fn test_delegation(
             .unwrap()
             .value
             .items;
-        let delegated_compressed_account_merkle_tree = input_compressed_accounts[0]
-            .account
-            .merkle_context
-            .merkle_tree_pubkey
-            .into();
+        let delegated_compressed_account_merkle_tree =
+            input_compressed_accounts[0].account.tree_info.tree;
         approve_test(
             &sender,
             &mut rpc,
@@ -1475,11 +1468,8 @@ async fn test_delegation_mixed() {
             .unwrap()
             .value
             .items;
-        let delegated_compressed_account_merkle_tree = input_compressed_accounts[0]
-            .account
-            .merkle_context
-            .merkle_tree_pubkey
-            .into();
+        let delegated_compressed_account_merkle_tree =
+            input_compressed_accounts[0].account.tree_info.tree;
         approve_test(
             &sender,
             &mut rpc,
@@ -1517,10 +1507,7 @@ async fn test_delegation_mixed() {
             .items;
         input_compressed_accounts
             .extend_from_slice(&[delegate_input_compressed_accounts[0].clone()]);
-        let delegate_lamports = delegate_input_compressed_accounts[0]
-            .account
-            .account
-            .lamports;
+        let delegate_lamports = delegate_input_compressed_accounts[0].account.lamports;
         let delegate_input_amount = input_compressed_accounts
             .iter()
             .map(|x| x.token.amount)
@@ -1714,11 +1701,8 @@ async fn test_approve_failing() {
         .value
         .items;
     let delegated_amount = 1000u64;
-    let delegated_compressed_account_merkle_tree = input_compressed_accounts[0]
-        .account
-        .merkle_context
-        .merkle_tree_pubkey
-        .into();
+    let delegated_compressed_account_merkle_tree =
+        input_compressed_accounts[0].account.tree_info.tree;
 
     let input_compressed_account_hashes = input_compressed_accounts
         .iter()
@@ -2036,11 +2020,8 @@ async fn test_revoke(num_inputs: usize, mint_amount: u64, delegated_amount: u64)
             .items;
         for input in input_compressed_accounts.iter() {
             let input_compressed_accounts = vec![input.clone()];
-            let delegated_compressed_account_merkle_tree = input_compressed_accounts[0]
-                .account
-                .merkle_context
-                .merkle_tree_pubkey
-                .into();
+            let delegated_compressed_account_merkle_tree =
+                input_compressed_accounts[0].account.tree_info.tree;
             approve_test(
                 &sender,
                 &mut rpc,
@@ -2066,18 +2047,15 @@ async fn test_revoke(num_inputs: usize, mint_amount: u64, delegated_amount: u64)
             .items
             .iter()
             .filter(|x| x.token.delegate.is_some())
-            .map(|x| x.clone().into())
+            .cloned()
             .collect::<Vec<CompressedTokenAccount>>();
         let input_compressed_accounts = input_compressed_accounts
             .iter()
             .filter(|x| x.token.delegate.is_some())
             .cloned()
             .collect::<Vec<CompressedTokenAccount>>();
-        let delegated_compressed_account_merkle_tree = input_compressed_accounts[0]
-            .account
-            .merkle_context
-            .merkle_tree_pubkey
-            .into();
+        let delegated_compressed_account_merkle_tree =
+            input_compressed_accounts[0].account.tree_info.tree;
         revoke_test(
             &sender,
             &mut rpc,
@@ -2160,11 +2138,8 @@ async fn test_revoke_failing() {
             .value
             .items;
         let delegated_amount = 1000u64;
-        let delegated_compressed_account_merkle_tree = input_compressed_accounts[0]
-            .account
-            .merkle_context
-            .merkle_tree_pubkey
-            .into();
+        let delegated_compressed_account_merkle_tree =
+            input_compressed_accounts[0].account.tree_info.tree;
         approve_test(
             &sender,
             &mut rpc,
@@ -2403,11 +2378,7 @@ async fn test_burn() {
                 .value
                 .items;
             let burn_amount = 1000u64;
-            let change_account_merkle_tree = input_compressed_accounts[0]
-                .account
-                .merkle_context
-                .merkle_tree_pubkey
-                .into();
+            let change_account_merkle_tree = input_compressed_accounts[0].account.tree_info.tree;
             burn_test(
                 &sender,
                 &mut rpc,
@@ -2431,11 +2402,8 @@ async fn test_burn() {
                 .value
                 .items;
             let delegated_amount = 1000u64;
-            let delegated_compressed_account_merkle_tree = input_compressed_accounts[0]
-                .account
-                .merkle_context
-                .merkle_tree_pubkey
-                .into();
+            let delegated_compressed_account_merkle_tree =
+                input_compressed_accounts[0].account.tree_info.tree;
             approve_test(
                 &sender,
                 &mut rpc,
@@ -2464,11 +2432,7 @@ async fn test_burn() {
                 .cloned()
                 .collect::<Vec<CompressedTokenAccount>>();
             let burn_amount = 100;
-            let change_account_merkle_tree = input_compressed_accounts[0]
-                .account
-                .merkle_context
-                .merkle_tree_pubkey
-                .into();
+            let change_account_merkle_tree = input_compressed_accounts[0].account.tree_info.tree;
             burn_test(
                 &delegate,
                 &mut rpc,
@@ -2500,11 +2464,7 @@ async fn test_burn() {
                 .iter()
                 .map(|x| x.token.amount)
                 .sum::<u64>();
-            let change_account_merkle_tree = input_compressed_accounts[0]
-                .account
-                .merkle_context
-                .merkle_tree_pubkey
-                .into();
+            let change_account_merkle_tree = input_compressed_accounts[0].account.tree_info.tree;
             burn_test(
                 &delegate,
                 &mut rpc,
@@ -2543,18 +2503,15 @@ async fn test_burn() {
                 .items
                 .iter()
                 .filter(|x| x.token.amount != 0)
-                .map(|x| x.clone().into())
+                .cloned()
                 .collect::<Vec<_>>()[0..4]
                 .to_vec();
             let burn_amount = input_compressed_accounts
                 .iter()
                 .map(|x| x.token.amount)
                 .sum();
-            let invalid_change_account_merkle_tree = input_compressed_accounts[0]
-                .account
-                .merkle_context
-                .queue_pubkey
-                .into();
+            let invalid_change_account_merkle_tree =
+                input_compressed_accounts[0].account.tree_info.queue;
             let mut additional_token_pool_accounts = (0..4)
                 .map(|x| get_token_pool_pda_with_index(&mint, x))
                 .collect::<Vec<_>>();
@@ -2594,7 +2551,7 @@ async fn test_burn() {
                 .items
                 .iter()
                 .filter(|x| x.token.amount != 0)
-                .map(|x| x.clone().into())
+                .cloned()
                 .collect::<Vec<_>>();
             let burn_amount = input_compressed_accounts
                 .iter()
@@ -2675,11 +2632,8 @@ async fn failing_tests_burn() {
                 .value
                 .items;
             let delegated_amount = 1000u64;
-            let delegated_compressed_account_merkle_tree = input_compressed_accounts[0]
-                .account
-                .merkle_context
-                .merkle_tree_pubkey
-                .into();
+            let delegated_compressed_account_merkle_tree =
+                input_compressed_accounts[0].account.tree_info.tree;
             approve_test(
                 &sender,
                 &mut rpc,
@@ -2703,11 +2657,7 @@ async fn failing_tests_burn() {
                 .value
                 .items;
             let burn_amount = 1;
-            let change_account_merkle_tree = input_compressed_accounts[0]
-                .account
-                .merkle_context
-                .merkle_tree_pubkey
-                .into();
+            let change_account_merkle_tree = input_compressed_accounts[0].account.tree_info.tree;
             let (_, _, _, _, instruction) = create_burn_test_instruction(
                 &sender,
                 &mut rpc,
@@ -2737,11 +2687,7 @@ async fn failing_tests_burn() {
                 .value
                 .items;
             let burn_amount = 1;
-            let change_account_merkle_tree = input_compressed_accounts[0]
-                .account
-                .merkle_context
-                .merkle_tree_pubkey
-                .into();
+            let change_account_merkle_tree = input_compressed_accounts[0].account.tree_info.tree;
             let (_, _, _, _, instruction) = create_burn_test_instruction(
                 &delegate,
                 &mut rpc,
@@ -2779,11 +2725,7 @@ async fn failing_tests_burn() {
                 .cloned()
                 .collect::<Vec<CompressedTokenAccount>>();
             let burn_amount = 1;
-            let change_account_merkle_tree = input_compressed_accounts[0]
-                .account
-                .merkle_context
-                .merkle_tree_pubkey
-                .into();
+            let change_account_merkle_tree = input_compressed_accounts[0].account.tree_info.tree;
             let (_, _, _, _, instruction) = create_burn_test_instruction(
                 &sender,
                 &mut rpc,
@@ -2812,11 +2754,7 @@ async fn failing_tests_burn() {
                 .value
                 .items;
             let burn_amount = 1;
-            let change_account_merkle_tree = input_compressed_accounts[0]
-                .account
-                .merkle_context
-                .merkle_tree_pubkey
-                .into();
+            let change_account_merkle_tree = input_compressed_accounts[0].account.tree_info.tree;
             let (_, _, _, _, instruction) = create_burn_test_instruction(
                 &delegate,
                 &mut rpc,
@@ -2849,11 +2787,7 @@ async fn failing_tests_burn() {
                 .value
                 .items;
             let burn_amount = 1;
-            let change_account_merkle_tree = input_compressed_accounts[0]
-                .account
-                .merkle_context
-                .merkle_tree_pubkey
-                .into();
+            let change_account_merkle_tree = input_compressed_accounts[0].account.tree_info.tree;
             let (_, _, _, _, instruction) = create_burn_test_instruction(
                 &sender,
                 &mut rpc,
@@ -2887,11 +2821,8 @@ async fn failing_tests_burn() {
                 .value
                 .items;
             let burn_amount = 1;
-            let invalid_change_account_merkle_tree = input_compressed_accounts[0]
-                .account
-                .merkle_context
-                .queue_pubkey
-                .into();
+            let invalid_change_account_merkle_tree =
+                input_compressed_accounts[0].account.tree_info.queue;
             let (_, _, _, _, instruction) = create_burn_test_instruction(
                 &sender,
                 &mut rpc,
@@ -2925,11 +2856,8 @@ async fn failing_tests_burn() {
                 .value
                 .items;
             let burn_amount = 1;
-            let invalid_change_account_merkle_tree = input_compressed_accounts[0]
-                .account
-                .merkle_context
-                .queue_pubkey
-                .into();
+            let invalid_change_account_merkle_tree =
+                input_compressed_accounts[0].account.tree_info.queue;
             let (_, _, _, _, instruction) = create_burn_test_instruction(
                 &sender,
                 &mut rpc,
@@ -2958,11 +2886,8 @@ async fn failing_tests_burn() {
                 .value
                 .items;
             let burn_amount = 1;
-            let invalid_change_account_merkle_tree = input_compressed_accounts[0]
-                .account
-                .merkle_context
-                .queue_pubkey
-                .into();
+            let invalid_change_account_merkle_tree =
+                input_compressed_accounts[0].account.tree_info.queue;
             let (_, _, _, _, mut instruction) = create_burn_test_instruction(
                 &sender,
                 &mut rpc,
@@ -3037,11 +2962,7 @@ async fn test_freeze_and_thaw(mint_amount: u64, delegated_amount: u64) {
                 .unwrap()
                 .value
                 .items;
-            let output_merkle_tree = input_compressed_accounts[0]
-                .account
-                .merkle_context
-                .merkle_tree_pubkey
-                .into();
+            let output_merkle_tree = input_compressed_accounts[0].account.tree_info.tree;
 
             freeze_test(
                 &payer,
@@ -3066,11 +2987,7 @@ async fn test_freeze_and_thaw(mint_amount: u64, delegated_amount: u64) {
                 .filter(|x| x.token.state == AccountState::Frozen)
                 .cloned()
                 .collect::<Vec<CompressedTokenAccount>>();
-            let output_merkle_tree = input_compressed_accounts[0]
-                .account
-                .merkle_context
-                .merkle_tree_pubkey
-                .into();
+            let output_merkle_tree = input_compressed_accounts[0].account.tree_info.tree;
             thaw_test(
                 &payer,
                 &mut rpc,
@@ -3089,11 +3006,8 @@ async fn test_freeze_and_thaw(mint_amount: u64, delegated_amount: u64) {
                 .unwrap()
                 .value
                 .items;
-            let delegated_compressed_account_merkle_tree = input_compressed_accounts[0]
-                .account
-                .merkle_context
-                .merkle_tree_pubkey
-                .into();
+            let delegated_compressed_account_merkle_tree =
+                input_compressed_accounts[0].account.tree_info.tree;
             approve_test(
                 &sender,
                 &mut rpc,
@@ -3116,11 +3030,7 @@ async fn test_freeze_and_thaw(mint_amount: u64, delegated_amount: u64) {
                 .unwrap()
                 .value
                 .items;
-            let output_merkle_tree = input_compressed_accounts[0]
-                .account
-                .merkle_context
-                .merkle_tree_pubkey
-                .into();
+            let output_merkle_tree = input_compressed_accounts[0].account.tree_info.tree;
 
             freeze_test(
                 &payer,
@@ -3145,11 +3055,7 @@ async fn test_freeze_and_thaw(mint_amount: u64, delegated_amount: u64) {
                 .filter(|x| x.token.state == AccountState::Frozen)
                 .cloned()
                 .collect::<Vec<CompressedTokenAccount>>();
-            let output_merkle_tree = input_compressed_accounts[0]
-                .account
-                .merkle_context
-                .merkle_tree_pubkey
-                .into();
+            let output_merkle_tree = input_compressed_accounts[0].account.tree_info.tree;
 
             thaw_test(
                 &payer,
@@ -3226,13 +3132,8 @@ async fn test_failing_freeze() {
             .unwrap()
             .value
             .items[0]
-            .clone()
-            .into()];
-        let outputs_merkle_tree = input_compressed_accounts[0]
-            .account
-            .merkle_context
-            .merkle_tree_pubkey
-            .into();
+            .clone()];
+        let outputs_merkle_tree = input_compressed_accounts[0].account.tree_info.tree;
 
         let input_compressed_account_hashes = input_compressed_accounts
             .iter()
@@ -3266,8 +3167,12 @@ async fn test_failing_freeze() {
                     .collect(),
                 input_compressed_accounts: input_compressed_accounts
                     .iter()
-                    .map(|x| &x.account.account)
-                    .cloned()
+                    .map(|x| {
+                    light_compressed_account::compressed_account::CompressedAccountWithMerkleContext::from(
+                        x.account.clone(),
+                    )
+                    .compressed_account
+                })
                     .collect::<Vec<_>>(),
                 outputs_merkle_tree,
                 root_indices: proof_rpc_result.value.get_root_indices().clone(),
@@ -3305,8 +3210,12 @@ async fn test_failing_freeze() {
                     .collect(),
                 input_compressed_accounts: input_compressed_accounts
                     .iter()
-                    .map(|x| &x.account.account)
-                    .cloned()
+                    .map(|x| {
+                    light_compressed_account::compressed_account::CompressedAccountWithMerkleContext::from(
+                        x.account.clone(),
+                    )
+                    .compressed_account
+                })
                     .collect::<Vec<_>>(),
                 outputs_merkle_tree: invalid_merkle_tree.pubkey(),
                 root_indices: proof_rpc_result.value.get_root_indices().clone(),
@@ -3353,8 +3262,12 @@ async fn test_failing_freeze() {
                     .collect(),
                 input_compressed_accounts: input_compressed_accounts
                     .iter()
-                    .map(|x| &x.account.account)
-                    .cloned()
+                    .map(|x| {
+                    light_compressed_account::compressed_account::CompressedAccountWithMerkleContext::from(
+                        x.account.clone(),
+                    )
+                    .compressed_account
+                })
                     .collect::<Vec<_>>(),
                 outputs_merkle_tree,
                 root_indices: proof_rpc_result.value.get_root_indices().clone(),
@@ -3396,13 +3309,8 @@ async fn test_failing_freeze() {
                 .filter(|x| x.token.state == AccountState::Frozen)
                 .cloned()
                 .collect::<Vec<_>>();
-            let input_compressed_accounts: Vec<CompressedTokenAccount> =
-                vec![accounts[0].clone().into()];
-            let outputs_merkle_tree = input_compressed_accounts[0]
-                .account
-                .merkle_context
-                .merkle_tree_pubkey
-                .into();
+            let input_compressed_accounts: Vec<CompressedTokenAccount> = vec![accounts[0].clone()];
+            let outputs_merkle_tree = input_compressed_accounts[0].account.tree_info.tree;
 
             let input_compressed_account_hashes = input_compressed_accounts
                 .iter()
@@ -3430,8 +3338,12 @@ async fn test_failing_freeze() {
                     .collect(),
                 input_compressed_accounts: input_compressed_accounts
                     .iter()
-                    .map(|x| &x.account.account)
-                    .cloned()
+                    .map(|x| {
+                    light_compressed_account::compressed_account::CompressedAccountWithMerkleContext::from(
+                        x.account.clone(),
+                    )
+                    .compressed_account
+                })
                     .collect::<Vec<_>>(),
                 outputs_merkle_tree,
                 root_indices: proof_rpc_result.value.get_root_indices().clone(),
@@ -3507,13 +3419,8 @@ async fn test_failing_thaw() {
                 .unwrap()
                 .value
                 .items[0]
-                .clone()
-                .into()];
-            let output_merkle_tree = input_compressed_accounts[0]
-                .account
-                .merkle_context
-                .merkle_tree_pubkey
-                .into();
+                .clone()];
+            let output_merkle_tree = input_compressed_accounts[0].account.tree_info.tree;
 
             freeze_test(
                 &payer,
@@ -3537,10 +3444,7 @@ async fn test_failing_thaw() {
             .filter(|x| x.token.state == AccountState::Frozen)
             .cloned()
             .collect::<Vec<CompressedTokenAccount>>();
-        let outputs_merkle_tree = input_compressed_accounts[0]
-            .account
-            .merkle_context
-            .merkle_tree_pubkey;
+        let outputs_merkle_tree = input_compressed_accounts[0].account.tree_info.tree;
 
         let input_compressed_account_hashes = input_compressed_accounts
             .iter()
@@ -3574,10 +3478,14 @@ async fn test_failing_thaw() {
                     .collect(),
                 input_compressed_accounts: input_compressed_accounts
                     .iter()
-                    .map(|x| &x.account.account)
-                    .cloned()
+                    .map(|x| {
+                    light_compressed_account::compressed_account::CompressedAccountWithMerkleContext::from(
+                        x.account.clone(),
+                    )
+                    .compressed_account
+                })
                     .collect::<Vec<_>>(),
-                outputs_merkle_tree: outputs_merkle_tree.into(),
+                outputs_merkle_tree,
                 root_indices: proof_rpc_result.value.get_root_indices().clone(),
                 proof: proof_rpc_result.value.proof.0.unwrap(),
             };
@@ -3613,8 +3521,12 @@ async fn test_failing_thaw() {
                     .collect(),
                 input_compressed_accounts: input_compressed_accounts
                     .iter()
-                    .map(|x| &x.account.account)
-                    .cloned()
+                    .map(|x| {
+                    light_compressed_account::compressed_account::CompressedAccountWithMerkleContext::from(
+                        x.account.clone(),
+                    )
+                    .compressed_account
+                })
                     .collect::<Vec<_>>(),
                 outputs_merkle_tree: invalid_merkle_tree.pubkey(),
                 root_indices: proof_rpc_result.value.get_root_indices().clone(),
@@ -3661,10 +3573,14 @@ async fn test_failing_thaw() {
                     .collect(),
                 input_compressed_accounts: input_compressed_accounts
                     .iter()
-                    .map(|x| &x.account.account)
-                    .cloned()
+                    .map(|x| {
+                    light_compressed_account::compressed_account::CompressedAccountWithMerkleContext::from(
+                        x.account.clone(),
+                    )
+                    .compressed_account
+                })
                     .collect::<Vec<_>>(),
-                outputs_merkle_tree: outputs_merkle_tree.into(),
+                outputs_merkle_tree,
                 root_indices: proof_rpc_result.value.get_root_indices().clone(),
                 proof: invalid_proof,
             };
@@ -3696,10 +3612,7 @@ async fn test_failing_thaw() {
                 .filter(|x| x.token.state == AccountState::Initialized)
                 .cloned()
                 .collect::<Vec<CompressedTokenAccount>>();
-            let outputs_merkle_tree = input_compressed_accounts[0]
-                .account
-                .merkle_context
-                .merkle_tree_pubkey;
+            let outputs_merkle_tree = input_compressed_accounts[0].account.tree_info.tree;
 
             let input_compressed_account_hashes = input_compressed_accounts
                 .iter()
@@ -3727,10 +3640,14 @@ async fn test_failing_thaw() {
                     .collect(),
                 input_compressed_accounts: input_compressed_accounts
                     .iter()
-                    .map(|x| &x.account.account)
-                    .cloned()
+                    .map(|x| {
+                    light_compressed_account::compressed_account::CompressedAccountWithMerkleContext::from(
+                        x.account.clone(),
+                    )
+                    .compressed_account
+                })
                     .collect::<Vec<_>>(),
-                outputs_merkle_tree: outputs_merkle_tree.into(),
+                outputs_merkle_tree,
                 root_indices: proof_rpc_result.value.get_root_indices().clone(),
                 proof: proof_rpc_result.value.proof.0.unwrap(),
             };
@@ -4352,8 +4269,12 @@ pub async fn failing_compress_decompress<R: Rpc + Indexer>(
             .as_slice(),
         &input_compressed_accounts
             .iter()
-            .map(|x| &x.account.account)
-            .cloned()
+            .map(|x| {
+                    light_compressed_account::compressed_account::CompressedAccountWithMerkleContext::from(
+                        x.account.clone(),
+                    )
+                    .compressed_account
+                })
             .collect::<Vec<_>>(),
         *mint,
         None,
@@ -4596,7 +4517,7 @@ async fn test_invalid_inputs() {
             &recipient_keypair,
             &proof_rpc_result.value.proof.0,
             proof_rpc_result.value.get_root_indices().as_slice(),
-            &input_compressed_accounts,
+            &input_compressed_accounts_program,
             false,
         )
         .await;
@@ -4612,11 +4533,13 @@ async fn test_invalid_inputs() {
             sdk_to_program_token_data(input_compressed_account_token_data_invalid_amount);
         let mut input_compressed_accounts =
             vec![test_indexer.token_compressed_accounts[0].account.clone()];
+        let mut vec = Vec::new();
         crate::TokenData::serialize(
             &input_compressed_account_token_data_invalid_amount,
-            &mut input_compressed_accounts[0].data.as_mut().unwrap().data[..],
+            &mut vec,
         )
         .unwrap();
+        input_compressed_accounts[0].data.as_mut().unwrap().data = vec;
         let change_out_compressed_account_0 = TokenTransferOutputData {
             amount: input_compressed_account_token_data.amount - 1000,
             owner: recipient_keypair.pubkey(),
@@ -4970,8 +4893,12 @@ async fn test_transfer_with_transaction_hash() {
                     .as_slice(),
                 &input_compressed_accounts
                     .iter()
-                    .map(|x| &x.account.account)
-                    .cloned()
+                    .map(|x| {
+                    light_compressed_account::compressed_account::CompressedAccountWithMerkleContext::from(
+                        x.account.clone(),
+                    )
+                    .compressed_account
+                })
                     .collect::<Vec<_>>(),
                 mint,
                 None,
