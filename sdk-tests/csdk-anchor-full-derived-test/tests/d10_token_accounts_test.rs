@@ -10,7 +10,9 @@ use csdk_anchor_full_derived_test::d10_token_accounts::{
     D10SingleAtaMarkonlyParams, D10SingleAtaParams, D10SingleVaultParams,
     D10_SINGLE_VAULT_AUTH_SEED, D10_SINGLE_VAULT_SEED,
 };
-use light_client::interface::{get_create_accounts_proof, InitializeRentFreeConfig};
+use light_client::interface::{
+    get_create_accounts_proof, AccountInterface, InitializeRentFreeConfig,
+};
 use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest},
     ProgramTestConfig, Rpc,
@@ -540,9 +542,21 @@ async fn test_d10_single_ata_markonly_lifecycle() {
         "ATA should be cold after compression"
     );
 
-    // Build AccountSpec for ATA decompression
-    let specs: Vec<AccountSpec<LightAccountVariant>> =
-        vec![AccountSpec::Ata(Box::new(ata_interface))];
+    // Mint may also be compressed after time warp - get its interface
+    let mint_interface = AccountInterface::from(
+        ctx.rpc
+            .get_mint_interface(&mint, None)
+            .await
+            .expect("failed to get mint")
+            .value
+            .expect("mint should exist"),
+    );
+
+    // Build AccountSpec - mint first (required for ATA decompression), then ATA
+    let specs: Vec<AccountSpec<LightAccountVariant>> = vec![
+        AccountSpec::Mint(mint_interface),
+        AccountSpec::Ata(Box::new(ata_interface)),
+    ];
 
     // Create decompression instructions
     let decompress_instructions =

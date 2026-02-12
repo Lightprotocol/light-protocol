@@ -16,7 +16,7 @@ import {
     getAssociatedTokenAddressSync,
     ASSOCIATED_TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
-import { createMintInterface } from '../../src/v3/actions';
+import { createMintInterface, decompressMint } from '../../src/v3/actions';
 import {
     createAtaInterface,
     createAtaInterfaceIdempotent,
@@ -58,6 +58,9 @@ describe('createAtaInterface', () => {
                 mintSigner,
             );
 
+            // Decompress mint so it exists on-chain (required for ATA creation)
+            await decompressMint(rpc, payer, mintPda);
+
             const address = await createAtaInterface(
                 rpc,
                 payer,
@@ -93,6 +96,9 @@ describe('createAtaInterface', () => {
                 mintSigner,
             );
 
+            // Decompress mint so it exists on-chain (required for ATA creation)
+            await decompressMint(rpc, payer, mintPda);
+
             const address = await createAtaInterface(
                 rpc,
                 payer,
@@ -126,6 +132,9 @@ describe('createAtaInterface', () => {
                 9,
                 mintSigner,
             );
+
+            // Decompress mint so it exists on-chain (required for ATA creation)
+            await decompressMint(rpc, payer, mintPda);
 
             // Get rent sponsor balance before ATA creation
             const rentSponsorBalanceBefore = await rpc.getBalance(
@@ -180,6 +189,9 @@ describe('createAtaInterface', () => {
                 9,
                 mintSigner,
             );
+
+            // Decompress mint so it exists on-chain (required for ATA creation)
+            await decompressMint(rpc, payer, mintPda);
 
             // Get balances before
             const rentSponsorBalanceBefore = await rpc.getBalance(
@@ -256,6 +268,9 @@ describe('createAtaInterface', () => {
                 mintSigner,
             );
 
+            // Decompress mint so it exists on-chain (required for ATA creation)
+            await decompressMint(rpc, payer, mintPda);
+
             await createAtaInterface(rpc, payer, mintPda, owner.publicKey);
 
             await expect(
@@ -277,6 +292,9 @@ describe('createAtaInterface', () => {
                 9,
                 mintSigner,
             );
+
+            // Decompress mint so it exists on-chain (required for ATA creation)
+            await decompressMint(rpc, payer, mintPda);
 
             const addr1 = await createAtaInterfaceIdempotent(
                 rpc,
@@ -318,6 +336,9 @@ describe('createAtaInterface', () => {
                 9,
                 mintSigner,
             );
+
+            // Decompress mint so it exists on-chain (required for ATA creation)
+            await decompressMint(rpc, payer, mintPda);
 
             const addr1 = await createAtaInterface(
                 rpc,
@@ -570,6 +591,9 @@ describe('createAtaInterface', () => {
                 mintSigner,
             );
 
+            // Decompress mint so it exists on-chain (required for ATA creation)
+            await decompressMint(rpc, payer, mintPda);
+
             const address = await createAtaInterface(
                 rpc,
                 payer,
@@ -655,6 +679,9 @@ describe('createAtaInterface', () => {
                 9,
                 mintSigner,
             );
+
+            // Decompress CToken mint so it exists on-chain (required for ATA creation)
+            await decompressMint(rpc, payer, ctokenMint);
 
             // Create ATAs for both
             const splAta = await createAtaInterfaceIdempotent(
@@ -753,6 +780,8 @@ describe('createAtaInterface', () => {
                 9,
                 mintSigner,
             );
+            // Decompress CToken mint so it exists on-chain (required for ATA creation)
+            await decompressMint(rpc, payer, ctokenMint);
             const ctokenAta = await createAtaInterfaceIdempotent(
                 rpc,
                 payer,
@@ -782,6 +811,9 @@ describe('createAtaInterface', () => {
                 9,
                 mintSigner,
             );
+
+            // Decompress mint so it exists on-chain (required for ATA creation)
+            await decompressMint(rpc, payer, mintPda);
 
             const promises = Array(3)
                 .fill(null)

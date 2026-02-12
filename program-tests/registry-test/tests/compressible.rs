@@ -107,7 +107,7 @@ async fn test_claim_rent_for_completed_epochs() -> Result<(), RpcError> {
         .unwrap();
     let payer = rpc.get_payer().insecure_clone();
     let _payer_pubkey = payer.pubkey();
-    let mint = Pubkey::new_unique();
+    let mint = create_mint_helper(&mut rpc, &payer).await;
 
     let compressible_owner_keypair = Keypair::new();
     let compressible_owner_pubkey = compressible_owner_keypair.pubkey();
@@ -479,6 +479,9 @@ async fn test_pause_compressible_config_with_valid_authority() -> Result<(), Rpc
         .unwrap();
     let payer = rpc.get_payer().insecure_clone();
 
+    // Create mint before pausing (required for token account creation)
+    let mint = create_mint_helper(&mut rpc, &payer).await;
+
     // Pause the config with valid authority
     pause_compressible_config(&mut rpc, &payer, &payer)
         .await
@@ -499,7 +502,7 @@ async fn test_pause_compressible_config_with_valid_authority() -> Result<(), Rpc
     // Test 1: Cannot create new token accounts with paused config
 
     let compressible_instruction =
-        CreateAssociatedTokenAccount::new(payer.pubkey(), payer.pubkey(), Pubkey::new_unique())
+        CreateAssociatedTokenAccount::new(payer.pubkey(), payer.pubkey(), mint)
             .with_compressible(CompressibleParams::default_ata())
             .instruction()
             .map_err(|e| {
@@ -602,6 +605,9 @@ async fn test_unpause_compressible_config_with_valid_authority() -> Result<(), R
         .unwrap();
     let payer = rpc.get_payer().insecure_clone();
 
+    // Create mint before pausing (required for token account creation)
+    let mint = create_mint_helper(&mut rpc, &payer).await;
+
     // First pause the config
     pause_compressible_config(&mut rpc, &payer, &payer)
         .await
@@ -620,7 +626,7 @@ async fn test_unpause_compressible_config_with_valid_authority() -> Result<(), R
 
     // Verify cannot create account while paused
     let compressible_instruction =
-        CreateAssociatedTokenAccount::new(payer.pubkey(), payer.pubkey(), Pubkey::new_unique())
+        CreateAssociatedTokenAccount::new(payer.pubkey(), payer.pubkey(), mint)
             .with_compressible(CompressibleParams::default_ata())
             .instruction()
             .map_err(|e| {
@@ -667,7 +673,7 @@ async fn test_unpause_compressible_config_with_valid_authority() -> Result<(), R
     };
 
     let compressible_instruction =
-        CreateAssociatedTokenAccount::new(payer.pubkey(), payer.pubkey(), Pubkey::new_unique())
+        CreateAssociatedTokenAccount::new(payer.pubkey(), payer.pubkey(), mint)
             .with_compressible(compressible_params)
             .instruction()
             .map_err(|e| {
@@ -741,7 +747,7 @@ async fn test_deprecate_compressible_config_with_valid_authority() -> Result<(),
 
     // First create a compressible account while config is active
     let token_account_keypair = Keypair::new();
-    let mint = Pubkey::new_unique();
+    let mint = create_mint_helper(&mut rpc, &payer).await;
 
     let compressible_params = CompressibleParams {
         compressible_config: rpc
@@ -1597,7 +1603,7 @@ async fn test_claim_mixed_token_and_mint() -> Result<(), RpcError> {
 
     // Create Light Token account with prepaid rent
     let token_owner = Keypair::new();
-    let mint = Pubkey::new_unique();
+    let mint = create_mint_helper(&mut rpc, &payer).await;
     let token_pubkey = create_compressible_token_account(
         &mut rpc,
         CreateCompressibleTokenAccountInputs {

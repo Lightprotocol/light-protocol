@@ -443,11 +443,16 @@ async fn e2e_test() {
 
     // Create 2nd compressible token account with 0 epochs rent (instantly compressible)
     // This account is picked up by the subscriber
+    // First create a mint on-chain (required for token account creation)
+    let compressible_mint_keypair_subscriber = Keypair::new();
+    let compressible_mint_subscriber =
+        create_mint_helper_with_keypair(&mut rpc, &payer, &compressible_mint_keypair_subscriber)
+            .await;
     let compressible_account_subscriber = create_compressible_token_account(
         &mut rpc,
         CreateCompressibleTokenAccountInputs {
             owner: Keypair::new().pubkey(),
-            mint: Pubkey::new_unique(),
+            mint: compressible_mint_subscriber,
             num_prepaid_epochs: 0,
             payer: &payer,
             token_account_keypair: None,

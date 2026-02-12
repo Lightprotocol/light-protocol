@@ -17,8 +17,8 @@ use csdk_anchor_full_derived_test::amm_test::{
 // SDK for AmmSdk-based approach
 use csdk_anchor_full_derived_test_sdk::{AmmInstruction, AmmSdk};
 use light_client::interface::{
-    create_load_instructions, get_create_accounts_proof, CreateAccountsProofInput,
-    InitializeRentFreeConfig, LightProgramInterface,
+    create_load_instructions, get_create_accounts_proof, AccountInterface, AccountSpec,
+    CreateAccountsProofInput, InitializeRentFreeConfig, LightProgramInterface,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{
@@ -660,9 +660,30 @@ async fn test_amm_full_lifecycle() {
         .value
         .expect("creator_lp_token should exist");
 
-    // add ata
-    use light_client::interface::AccountSpec;
+    // Token vaults reference token_0_mint and token_1_mint which may be compressed
+    // These must be decompressed before the vaults can be decompressed
+    let mint_0_account_iface = AccountInterface::from(
+        ctx.rpc
+            .get_mint_interface(&ctx.token_0_mint, None)
+            .await
+            .expect("failed to get token_0_mint")
+            .value
+            .expect("token_0_mint should exist"),
+    );
+
+    let mint_1_account_iface = AccountInterface::from(
+        ctx.rpc
+            .get_mint_interface(&ctx.token_1_mint, None)
+            .await
+            .expect("failed to get token_1_mint")
+            .value
+            .expect("token_1_mint should exist"),
+    );
+
+    // Add mints first (required for vault decompression), then ATA
     let mut all_specs = specs;
+    all_specs.push(AccountSpec::Mint(mint_0_account_iface));
+    all_specs.push(AccountSpec::Mint(mint_1_account_iface));
     all_specs.push(AccountSpec::Ata(Box::new(creator_lp_interface)));
 
     let decompress_ixs =

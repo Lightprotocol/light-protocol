@@ -270,9 +270,22 @@ impl TestContext {
             cold: Some(vault_compressed.account.clone()),
         };
 
-        // Create PdaSpec and decompress
+        // Get mint interface - must be decompressed before token vault
+        let mint_interface = AccountInterface::from(
+            self.rpc
+                .get_mint_interface(&expected_mint, None)
+                .await
+                .expect("failed to get mint")
+                .value
+                .expect("mint should exist"),
+        );
+
+        // Create PdaSpec and decompress - mint first, then vault
         let vault_spec = PdaSpec::new(vault_interface_for_pda, vault_variant, self.program_id);
-        let specs: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Pda(vault_spec)];
+        let specs: Vec<AccountSpec<LightAccountVariant>> = vec![
+            AccountSpec::Mint(mint_interface),
+            AccountSpec::Pda(vault_spec),
+        ];
 
         let decompress_instructions =
             create_load_instructions(&specs, self.payer.pubkey(), self.config_pda, &self.rpc)

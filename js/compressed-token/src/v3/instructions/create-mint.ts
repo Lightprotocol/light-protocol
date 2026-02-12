@@ -133,7 +133,7 @@ export function encodeCreateMintInstructionData(
             decimals: params.decimals,
             metadata: {
                 version: TokenDataVersion.ShaFlat,
-                cmintDecompressed: true,
+                cmintDecompressed: false,
                 mint: splMintPda,
                 mintSigner: Array.from(params.mintSigner.toBytes()),
                 bump,
