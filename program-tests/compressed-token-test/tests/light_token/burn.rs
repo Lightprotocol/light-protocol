@@ -25,7 +25,9 @@ use light_test_utils::{
     actions::legacy::instructions::mint_action::DecompressMintParams,
     assert_ctoken_burn::assert_ctoken_burn,
 };
-use light_token::instruction::{derive_token_ata, Burn, CreateAssociatedTokenAccount, MintTo};
+use light_token::instruction::{
+    get_associated_token_address, Burn, CreateAssociatedTokenAccount, MintTo,
+};
 
 use super::shared::*;
 
@@ -336,7 +338,7 @@ async fn setup_burn_test() -> BurnTestContext {
     let (mint_pda, _) = find_mint_address(&mint_seed.pubkey());
 
     // Step 1: Create Light Token ATA for owner
-    let ctoken_ata = derive_token_ata(&owner_keypair.pubkey(), &mint_pda);
+    let ctoken_ata = get_associated_token_address(&owner_keypair.pubkey(), &mint_pda);
 
     let create_ata_ix =
         CreateAssociatedTokenAccount::new(payer.pubkey(), owner_keypair.pubkey(), mint_pda)

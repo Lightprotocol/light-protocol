@@ -28,7 +28,7 @@ use light_test_utils::{
     Rpc,
 };
 use light_token::instruction::{
-    derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount,
+    get_associated_token_address, CompressibleParams, CreateAssociatedTokenAccount,
 };
 use light_token_interface::{
     instructions::{
@@ -217,7 +217,7 @@ async fn test_create_compressed_mint() {
 
     // 5. Decompress compressed tokens to ctokens
     // Create non-compressible token associated token account for decompression
-    let ctoken_ata_pubkey = derive_token_ata(&new_recipient, &spl_mint_pda);
+    let ctoken_ata_pubkey = get_associated_token_address(&new_recipient, &spl_mint_pda);
     let create_ata_instruction = CreateAssociatedTokenAccount {
         idempotent: false,
         payer: payer.pubkey(),
@@ -418,11 +418,11 @@ async fn test_create_compressed_mint() {
     let compress_from_spl_recipient = Keypair::new();
 
     // Create SPL token account for compression source
-    let compress_source_ata = derive_token_ata(&new_recipient, &spl_mint_pda);
+    let compress_source_ata = get_associated_token_address(&new_recipient, &spl_mint_pda);
     // This already exists from our previous test
 
     // Create non-compressible SPL token account for decompression destination
-    let decompress_dest_ata = derive_token_ata(&decompress_recipient.pubkey(), &spl_mint_pda);
+    let decompress_dest_ata = get_associated_token_address(&decompress_recipient.pubkey(), &spl_mint_pda);
     let create_decompress_ata_instruction = CreateAssociatedTokenAccount {
         idempotent: false,
         payer: payer.pubkey(),
@@ -686,7 +686,7 @@ async fn test_ctoken_transfer() {
     let (spl_mint_pda, _) = find_mint_address(&mint_seed.pubkey());
 
     // Create compressed token ATA for recipient
-    let recipient_ata = derive_token_ata(&recipient_keypair.pubkey(), &spl_mint_pda);
+    let recipient_ata = get_associated_token_address(&recipient_keypair.pubkey(), &spl_mint_pda);
     let compressible_params = CompressibleParams {
         compressible_config: rpc
             .test_accounts
@@ -759,7 +759,7 @@ async fn test_ctoken_transfer() {
 
     // === CREATE SECOND RECIPIENT FOR TRANSFER TEST ===
     let second_recipient_keypair = Keypair::new();
-    let second_recipient_ata = derive_token_ata(&second_recipient_keypair.pubkey(), &spl_mint_pda);
+    let second_recipient_ata = get_associated_token_address(&second_recipient_keypair.pubkey(), &spl_mint_pda);
 
     rpc.airdrop_lamports(&second_recipient_keypair.pubkey(), 10_000_000_000)
         .await

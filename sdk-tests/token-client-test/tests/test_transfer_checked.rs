@@ -3,7 +3,7 @@
 use borsh::BorshDeserialize;
 use light_client::rpc::Rpc;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
-use light_token::instruction::derive_token_ata;
+use light_token::instruction::get_associated_token_address;
 use light_token_client::actions::{CreateAta, CreateMint, MintTo, TransferChecked};
 use light_token_interface::state::{AccountState, Token};
 use solana_sdk::{pubkey::Pubkey, signer::Signer};
@@ -52,8 +52,8 @@ async fn test_transfer_checked_basic() {
     let source_owner = payer.pubkey();
     let dest_owner = Pubkey::new_unique();
 
-    let source_ata = derive_token_ata(&source_owner, &mint);
-    let dest_ata = derive_token_ata(&dest_owner, &mint);
+    let source_ata = get_associated_token_address(&source_owner, &mint);
+    let dest_ata = get_associated_token_address(&dest_owner, &mint);
 
     CreateAta {
         mint,
@@ -140,8 +140,8 @@ async fn test_transfer_checked_different_decimals() {
     let source_owner = payer.pubkey();
     let dest_owner = Pubkey::new_unique();
 
-    let source_ata = derive_token_ata(&source_owner, &mint);
-    let dest_ata = derive_token_ata(&dest_owner, &mint);
+    let source_ata = get_associated_token_address(&source_owner, &mint);
+    let dest_ata = get_associated_token_address(&dest_owner, &mint);
 
     CreateAta {
         mint,

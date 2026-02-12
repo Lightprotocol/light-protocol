@@ -22,7 +22,7 @@ pub use light_test_utils::{
     Rpc, RpcError,
 };
 pub use light_token::instruction::{
-    derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount,
+    get_associated_token_address, CompressibleParams, CreateAssociatedTokenAccount,
 };
 use light_token::ValidityProof;
 use light_token_interface::instructions::transfer2::{Compression, MultiTokenTransferOutputData};
@@ -78,7 +78,7 @@ async fn test_spl_to_ctoken_transfer() {
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
-    let associated_token_account = derive_token_ata(&recipient.pubkey(), &mint);
+    let associated_token_account = get_associated_token_address(&recipient.pubkey(), &mint);
 
     // Get initial SPL token balance
     let spl_account_data = rpc
@@ -243,7 +243,7 @@ async fn test_failing_ctoken_to_spl_with_compress_and_close() {
         .unwrap();
 
     // Create compressible token ATA for recipient (ATAs require compression_only=true)
-    let associated_token_account = derive_token_ata(&recipient.pubkey(), &mint);
+    let associated_token_account = get_associated_token_address(&recipient.pubkey(), &mint);
     let instruction = CreateAssociatedTokenAccount {
         idempotent: false,
         payer: payer.pubkey(),

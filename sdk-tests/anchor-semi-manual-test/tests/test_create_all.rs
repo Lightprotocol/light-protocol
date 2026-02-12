@@ -43,7 +43,7 @@ async fn test_create_all_derive() {
 
     // ATA
     let ata_owner = payer.pubkey();
-    let ata = light_token::instruction::derive_token_ata(&ata_owner, &ata_mint);
+    let ata = light_token::instruction::get_associated_token_address(&ata_owner, &ata_mint);
 
     // Token vault
     let (vault_authority, _) = Pubkey::find_program_address(&[VAULT_AUTH_SEED], &program_id);
@@ -252,7 +252,7 @@ async fn test_create_all_derive() {
     let zc_spec = PdaSpec::new(zc_interface, zc_variant, program_id);
 
     // ATA
-    let ata = light_token::instruction::derive_token_ata(&ata_owner, &ata_mint).0;
+    let ata = light_token::instruction::get_associated_token_address(&ata_owner, &ata_mint);
     let ata_interface = rpc
         .get_account_interface(&ata, None)
         .await

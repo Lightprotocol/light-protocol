@@ -49,7 +49,7 @@ use light_test_utils::{
     Rpc, RpcError,
 };
 use light_token::{
-    instruction::{derive_token_ata, CreateAssociatedTokenAccount},
+    instruction::{get_associated_token_address, CreateAssociatedTokenAccount},
     ValidityProof,
 };
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
@@ -113,7 +113,7 @@ async fn setup_spl_compression_test(
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await?;
 
-    let ctoken_ata = derive_token_ata(&recipient.pubkey(), &mint);
+    let ctoken_ata = get_associated_token_address(&recipient.pubkey(), &mint);
 
     // Get output queue for compression (for system_accounts_offset calculation only)
     let output_queue = rpc

@@ -123,7 +123,7 @@ async fn setup() -> (StressTestContext, TestPdas) {
 
     // ATA (uses the mint we're creating)
     let ata_owner = payer.pubkey();
-    let ata = light_token::instruction::derive_token_ata(&ata_owner, &mint_pda);
+    let ata = light_token::instruction::get_associated_token_address(&ata_owner, &mint_pda);
 
     // Create all accounts in one instruction
     let proof_result = get_create_accounts_proof(
@@ -265,7 +265,7 @@ async fn decompress_all(ctx: &mut StressTestContext, pdas: &TestPdas, cached: &C
     let zc_spec = PdaSpec::new(zc_interface, zc_variant, ctx.program_id);
 
     // ATA
-    let ata = light_token::instruction::derive_token_ata(&pdas.ata_owner, &pdas.mint).0;
+    let ata = light_token::instruction::get_associated_token_address(&pdas.ata_owner, &pdas.mint);
     let ata_interface = ctx
         .rpc
         .get_account_interface(&ata, None)

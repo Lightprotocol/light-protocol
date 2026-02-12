@@ -20,8 +20,8 @@ use light_test_utils::{
 };
 use light_token::{
     instruction::{
-        derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount, CreateTokenAccount,
-        TransferFromSpl,
+        get_associated_token_address, CompressibleParams, CreateAssociatedTokenAccount,
+        CreateTokenAccount, TransferFromSpl,
     },
     utils::get_associated_token_address_and_bump,
 };
@@ -347,7 +347,7 @@ async fn test_ata_decompress_to_different_ata_fails() {
     let mint2_pubkey = mint2_keypair.pubkey();
 
     // Create ATA for same owner but different mint
-    let ata2_pubkey = derive_token_ata(&context.owner.pubkey(), &mint2_pubkey);
+    let ata2_pubkey = get_associated_token_address(&context.owner.pubkey(), &mint2_pubkey);
 
     let create_ata2_ix = CreateAssociatedTokenAccount::new(
         context.payer.pubkey(),

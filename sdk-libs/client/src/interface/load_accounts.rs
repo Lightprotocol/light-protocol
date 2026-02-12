@@ -14,8 +14,8 @@ use light_sdk::instruction::PackedAccounts;
 use light_token::{
     compat::AccountState,
     instruction::{
-        derive_token_ata, get_associated_token_address_and_bump, CreateAssociatedTokenAccount,
-        DecompressMint, LIGHT_TOKEN_PROGRAM_ID,
+        get_associated_token_address, get_associated_token_address_and_bump,
+        CreateAssociatedTokenAccount, DecompressMint, LIGHT_TOKEN_PROGRAM_ID,
     },
 };
 use light_token_interface::{
@@ -379,7 +379,7 @@ fn build_transfer2(
         )?;
 
         let owner_idx = packed.insert_or_get_config(ctx.wallet_owner, true, false);
-        let ata_idx = packed.insert_or_get(derive_token_ata(&ctx.wallet_owner, &ctx.mint));
+        let ata_idx = packed.insert_or_get(get_associated_token_address(&ctx.wallet_owner, &ctx.mint));
         let mint_idx = packed.insert_or_get(token.mint);
         let delegate_idx = token.delegate.map(|d| packed.insert_or_get(d)).unwrap_or(0);
 

@@ -112,7 +112,7 @@ async fn setup() -> (StressTestContext, TestPdas) {
     let (zc_record_pda, _) =
         Pubkey::find_program_address(&[RECORD_SEED, owner.as_ref()], &program_id);
     let ata_owner = payer.pubkey();
-    let ata = light_token::instruction::derive_token_ata(&ata_owner, &ata_mint);
+    let ata = light_token::instruction::get_associated_token_address(&ata_owner, &ata_mint);
     let (vault_authority, _) = Pubkey::find_program_address(&[VAULT_AUTH_SEED], &program_id);
     let (vault, vault_bump) =
         Pubkey::find_program_address(&[VAULT_SEED, vault_mint.as_ref()], &program_id);
@@ -276,7 +276,7 @@ async fn decompress_all(ctx: &mut StressTestContext, pdas: &TestPdas, cached: &C
     let zc_spec = PdaSpec::new(zc_interface, zc_variant, ctx.program_id);
 
     // ATA
-    let ata = light_token::instruction::derive_token_ata(&pdas.ata_owner, &pdas.ata_mint).0;
+    let ata = light_token::instruction::get_associated_token_address(&pdas.ata_owner, &pdas.ata_mint);
     let ata_interface = ctx
         .rpc
         .get_account_interface(&ata, None)

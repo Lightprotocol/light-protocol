@@ -20,7 +20,7 @@ async fn test_create_ata_derive() {
     let (mint, _mint_seed) = shared::setup_create_mint(&mut rpc, &payer, payer.pubkey(), 9).await;
 
     let ata_owner = payer.pubkey();
-    let ata = light_token::instruction::derive_token_ata(&ata_owner, &mint);
+    let ata = light_token::instruction::get_associated_token_address(&ata_owner, &mint);
 
     let proof_result = get_create_accounts_proof(&rpc, &program_id, vec![])
         .await

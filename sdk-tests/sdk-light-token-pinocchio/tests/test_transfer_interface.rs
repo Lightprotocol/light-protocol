@@ -9,7 +9,7 @@ use light_test_utils::spl::{
     create_mint_helper, create_token_2022_account, mint_spl_tokens, CREATE_MINT_HELPER_DECIMALS,
 };
 use light_token::{
-    instruction::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount},
+    instruction::{get_associated_token_address, CompressibleParams, CreateAssociatedTokenAccount},
     spl_interface::find_spl_interface_pda_with_index,
 };
 use light_token_types::CPI_AUTHORITY_PDA;
@@ -75,7 +75,7 @@ async fn test_transfer_interface_spl_to_ctoken_invoke() {
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
-    let ctoken_account = derive_token_ata(&recipient.pubkey(), &mint);
+    let ctoken_account = get_associated_token_address(&recipient.pubkey(), &mint);
 
     // Get token pool PDA
     let (spl_interface_pda, spl_interface_pda_bump) =
@@ -168,7 +168,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke() {
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
-    let ctoken_account = derive_token_ata(&owner.pubkey(), &mint);
+    let ctoken_account = get_associated_token_address(&owner.pubkey(), &mint);
 
     // Fund Light Token via temporary SPL account
     let temp_spl_keypair = Keypair::new();
@@ -304,7 +304,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke() {
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
-    let sender_ctoken = derive_token_ata(&sender.pubkey(), &mint);
+    let sender_ctoken = get_associated_token_address(&sender.pubkey(), &mint);
 
     // Create recipient Light Token ATA
     let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), recipient.pubkey(), mint)
@@ -313,7 +313,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke() {
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
-    let recipient_ctoken = derive_token_ata(&recipient.pubkey(), &mint);
+    let recipient_ctoken = get_associated_token_address(&recipient.pubkey(), &mint);
 
     // Fund sender Light Token via SPL
     let temp_spl_keypair = Keypair::new();
@@ -478,7 +478,7 @@ async fn test_transfer_interface_spl_to_ctoken_invoke_signed() {
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
-    let ctoken_account = derive_token_ata(&recipient.pubkey(), &mint);
+    let ctoken_account = get_associated_token_address(&recipient.pubkey(), &mint);
 
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint, 0, false);
@@ -569,7 +569,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke_signed() {
     .unwrap();
 
     // Create Light Token ATA owned by PDA
-    let ctoken_account = derive_token_ata(&authority_pda, &mint);
+    let ctoken_account = get_associated_token_address(&authority_pda, &mint);
     let instruction = CreateAssociatedTokenAccount {
         idempotent: false,
         payer: payer.pubkey(),
@@ -713,7 +713,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke_signed() {
     let transfer_amount = 5000u64;
 
     // Create source Light Token ATA owned by PDA
-    let source_ctoken = derive_token_ata(&authority_pda, &mint);
+    let source_ctoken = get_associated_token_address(&authority_pda, &mint);
     let instruction = CreateAssociatedTokenAccount {
         idempotent: false,
         payer: payer.pubkey(),
@@ -739,7 +739,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke_signed() {
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
-    let dest_ctoken = derive_token_ata(&recipient.pubkey(), &mint);
+    let dest_ctoken = get_associated_token_address(&recipient.pubkey(), &mint);
 
     // Fund source Light Token via temporary SPL account
     let temp_spl_keypair = Keypair::new();

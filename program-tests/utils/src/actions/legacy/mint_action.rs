@@ -105,13 +105,13 @@ pub async fn mint_action_comprehensive<R: Rpc + Indexer>(
     }
 
     if !mint_to_decompressed_recipients.is_empty() {
-        use light_token::instruction::derive_token_ata;
+        use light_token::instruction::get_associated_token_address;
 
         let (spl_mint_pda, _) = find_mint_address(&mint_seed.pubkey());
 
         for recipient in mint_to_decompressed_recipients {
             let recipient_pubkey = solana_pubkey::Pubkey::from(recipient.recipient.to_bytes());
-            let ata_address = derive_token_ata(&recipient_pubkey, &spl_mint_pda);
+            let ata_address = get_associated_token_address(&recipient_pubkey, &spl_mint_pda);
 
             actions.push(MintActionType::MintToCToken {
                 account: ata_address,

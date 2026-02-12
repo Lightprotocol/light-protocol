@@ -50,7 +50,7 @@ use light_program_test::{
 use light_sdk::instruction::PackedAccounts;
 use light_test_utils::{airdrop_lamports, RpcError};
 use light_token::{
-    instruction::{derive_token_ata, CreateAssociatedTokenAccount},
+    instruction::{get_associated_token_address, CreateAssociatedTokenAccount},
     ValidityProof,
 };
 use light_token_interface::instructions::{mint_action::Recipient, transfer2::Compression};
@@ -102,8 +102,8 @@ async fn setup_no_system_program_cpi_test(
     // Create compressed mint seed
     let mint_seed = Keypair::new();
     let (mint, _) = find_mint_address(&mint_seed.pubkey());
-    let source_ata = derive_token_ata(&owner.pubkey(), &mint);
-    let recipient_ata = derive_token_ata(&recipient.pubkey(), &mint);
+    let source_ata = get_associated_token_address(&owner.pubkey(), &mint);
+    let recipient_ata = get_associated_token_address(&recipient.pubkey(), &mint);
 
     // Create Light Token ATA for owner (source)
     let instruction = CreateAssociatedTokenAccount::new(payer.pubkey(), owner.pubkey(), mint)
@@ -709,8 +709,8 @@ async fn test_too_many_mints() {
         // Create new mint seed
         let mint_seed = Keypair::new();
         let (mint, _) = find_mint_address(&mint_seed.pubkey());
-        let source_ata = derive_token_ata(&context.owner.pubkey(), &mint);
-        let recipient_ata = derive_token_ata(&context.recipient.pubkey(), &mint);
+        let source_ata = get_associated_token_address(&context.owner.pubkey(), &mint);
+        let recipient_ata = get_associated_token_address(&context.recipient.pubkey(), &mint);
 
         // Create source ATA
         let instruction =

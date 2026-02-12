@@ -11,7 +11,7 @@ async fn create_and_assert_ata2(
     let payer_pubkey = context.payer.pubkey();
     let owner_pubkey = context.owner_keypair.pubkey();
 
-    let ata_pubkey = derive_token_ata(&owner_pubkey, &context.mint_pubkey);
+    let ata_pubkey = get_associated_token_address(&owner_pubkey, &context.mint_pubkey);
 
     let create_ata_ix = if let Some(compressible) = compressible_data.as_ref() {
         let compressible_params = CompressibleParams {

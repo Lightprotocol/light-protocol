@@ -22,7 +22,7 @@ use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestCon
 use light_test_utils::spl::{create_token_account, mint_spl_tokens};
 use light_token::{
     instruction::{
-        derive_token_ata, CreateAssociatedTokenAccount, Decompress, Freeze, Thaw, TransferFromSpl,
+        get_associated_token_address, CreateAssociatedTokenAccount, Decompress, Freeze, Thaw, TransferFromSpl,
     },
     spl_interface::{find_spl_interface_pda_with_index, CreateSplInterfacePda},
 };
@@ -131,7 +131,7 @@ async fn test_spl_to_ctoken_scenario() {
         .await
         .unwrap();
 
-    let ctoken_ata = derive_token_ata(&ctoken_recipient.pubkey(), &mint);
+    let ctoken_ata = get_associated_token_address(&ctoken_recipient.pubkey(), &mint);
     let create_ata_instruction =
         CreateAssociatedTokenAccount::new(payer.pubkey(), ctoken_recipient.pubkey(), mint)
             .instruction()

@@ -445,7 +445,7 @@ impl TestContext {
                 .unwrap_or(&false);
 
             // Create Light Token ATA (compressible or regular based on requirements)
-            let ata = light_token::instruction::derive_token_ata(&signer.pubkey(), &mint);
+            let ata = light_token::instruction::get_associated_token_address(&signer.pubkey(), &mint);
 
             let create_ata_ix = if is_compressible {
                 println!(

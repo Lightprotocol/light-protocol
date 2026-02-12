@@ -10,7 +10,7 @@ use light_compressed_token_sdk::compressed_token::create_compressed_mint::{
 use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc, RpcError};
 use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
 use light_token::instruction::{
-    derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount,
+    get_associated_token_address, CompressibleParams, CreateAssociatedTokenAccount,
 };
 use light_token_interface::{
     instructions::{
@@ -200,7 +200,7 @@ pub async fn create_mint(
     let (mint, mint_bump) = find_mint_address(&mint_seed.pubkey());
 
     // Create compressed token associated token account for the mint authority
-    let token_account = derive_token_ata(&mint_authority.pubkey(), &mint);
+    let token_account = get_associated_token_address(&mint_authority.pubkey(), &mint);
     println!("Created token_account (ATA): {:?}", token_account);
 
     let compressible_params = CompressibleParams {

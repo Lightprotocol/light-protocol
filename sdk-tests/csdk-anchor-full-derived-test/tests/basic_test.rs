@@ -425,7 +425,7 @@ async fn test_create_pdas_and_mint_auto() {
     });
     let vault_spec = PdaSpec::new(vault_interface.clone(), vault_variant, program_id);
 
-    let ata = light_token::instruction::derive_token_ata(&payer.pubkey(), &mint_pda).0;
+    let ata = light_token::instruction::get_associated_token_address(&payer.pubkey(), &mint_pda);
     let ata_interface = rpc
         .get_account_interface(&ata, None)
         .await

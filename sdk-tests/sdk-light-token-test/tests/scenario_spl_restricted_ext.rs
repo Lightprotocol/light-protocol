@@ -20,7 +20,7 @@ use light_test_utils::mint_2022::{
 };
 use light_token::{
     instruction::{
-        derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount, Decompress,
+        get_associated_token_address, CompressibleParams, CreateAssociatedTokenAccount, Decompress,
         TransferFromSpl,
     },
     spl_interface::find_spl_interface_pda_with_index,
@@ -75,7 +75,7 @@ async fn test_t22_restricted_to_ctoken_scenario() {
         .await
         .unwrap();
 
-    let ctoken_ata = derive_token_ata(&ctoken_recipient.pubkey(), &mint);
+    let ctoken_ata = get_associated_token_address(&ctoken_recipient.pubkey(), &mint);
     let compressible_params = CompressibleParams {
         compression_only: true,
         ..Default::default()

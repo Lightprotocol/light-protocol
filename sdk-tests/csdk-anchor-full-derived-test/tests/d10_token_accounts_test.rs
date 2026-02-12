@@ -183,7 +183,7 @@ async fn test_d10_single_ata() {
     let ata_owner = ctx.payer.pubkey();
 
     // Derive the ATA address using Light Token SDK's derivation
-    let d10_single_ata = light_token::instruction::derive_token_ata(&ata_owner, &mint);
+    let d10_single_ata = light_token::instruction::get_associated_token_address(&ata_owner, &mint);
 
     // Get proof (no PDA accounts for ATA-only instruction)
     let proof_result = get_create_accounts_proof(&ctx.rpc, &ctx.program_id, vec![])
@@ -266,7 +266,7 @@ async fn test_d10_single_ata_idempotent_creation() {
     let ata_owner = ctx.payer.pubkey();
 
     // Derive the ATA address
-    let d10_single_ata = light_token::instruction::derive_token_ata(&ata_owner, &mint);
+    let d10_single_ata = light_token::instruction::get_associated_token_address(&ata_owner, &mint);
 
     // Get proof for first creation
     let proof_result = get_create_accounts_proof(&ctx.rpc, &ctx.program_id, vec![])
@@ -381,7 +381,7 @@ async fn test_d10_single_ata_markonly() {
     let ata_owner = Keypair::new().pubkey();
 
     // Derive the ATA address using Light Token SDK's derivation
-    let d10_markonly_ata = light_token::instruction::derive_token_ata(&ata_owner, &mint);
+    let d10_markonly_ata = light_token::instruction::get_associated_token_address(&ata_owner, &mint);
 
     // Get proof (no PDA accounts for ATA-only instruction)
     let proof_result = get_create_accounts_proof(&ctx.rpc, &ctx.program_id, vec![])
@@ -446,7 +446,7 @@ async fn test_d10_single_ata_markonly_lifecycle() {
     let ata_owner = ata_owner_keypair.pubkey();
 
     // Derive the ATA address
-    let d10_markonly_ata = light_token::instruction::derive_token_ata(&ata_owner, &mint);
+    let d10_markonly_ata = light_token::instruction::get_associated_token_address(&ata_owner, &mint);
 
     // PHASE 1: Create ATA
     let proof_result = get_create_accounts_proof(&ctx.rpc, &ctx.program_id, vec![])
@@ -527,7 +527,7 @@ async fn test_d10_single_ata_markonly_lifecycle() {
     shared::assert_onchain_closed(&mut ctx.rpc, &d10_markonly_ata, "d10_markonly_ata").await;
 
     // PHASE 3: Decompress ATA using create_load_instructions
-    let ata = light_token::instruction::derive_token_ata(&ata_owner, &mint).0;
+    let ata = light_token::instruction::get_associated_token_address(&ata_owner, &mint);
     let ata_interface = ctx
         .rpc
         .get_account_interface(&ata, None)
