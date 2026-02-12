@@ -1,10 +1,11 @@
 use anchor_lang::AnchorSerialize;
-use light_client::{indexer::Indexer, rpc::Rpc};
-use light_compressed_account::compressed_account::CompressedAccountWithMerkleContext;
+use light_client::{
+    indexer::{CompressedAccount, Indexer},
+    rpc::Rpc,
+};
 use light_compressed_token::process_transfer::{get_cpi_authority_pda, TokenTransferOutputData};
 use light_event::event::PublicTransactionEvent;
 use light_program_test::indexer::TestIndexerExtensions;
-use light_token::compat::TokenDataWithMerkleContext;
 use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
 
 use crate::assert_compressed_tx::{
@@ -25,7 +26,7 @@ pub async fn assert_transfer<R: Rpc, I: Indexer + TestIndexerExtensions>(
     context: &mut R,
     test_indexer: &mut I,
     out_compressed_accounts: &[TokenTransferOutputData],
-    created_output_compressed_accounts: &[CompressedAccountWithMerkleContext],
+    created_output_compressed_accounts: &[CompressedAccount],
     lamports: Option<Vec<Option<u64>>>,
     input_compressed_account_hashes: &[[u8; 32]],
     output_merkle_tree_snapshots: &[MerkleTreeTestSnapShot],
@@ -69,7 +70,7 @@ pub async fn assert_transfer<R: Rpc, I: Indexer + TestIndexerExtensions>(
             .as_slice(),
         &created_output_compressed_accounts
             .iter()
-            .map(|x| x.merkle_context.leaf_index)
+            .map(|x| x.leaf_index)
             .collect::<Vec<_>>(),
         None,
         false,
@@ -102,59 +103,47 @@ pub fn assert_compressed_token_accounts<R: Rpc, I: Indexer + TestIndexerExtensio
             .get_token_compressed_accounts()
             .iter()
             .position(|x| {
-                x.token_data.owner == out_compressed_account.owner
-                    && x.token_data.amount == out_compressed_account.amount
-                    && x.token_data.delegate == delegates[i]
+                x.token.owner == out_compressed_account.owner
+                    && x.token.amount == out_compressed_account.amount
+                    && x.token.delegate == delegates[i]
             })
             .expect("transfer recipient compressed account not found in mock indexer");
         let transfer_recipient_token_compressed_account =
             test_indexer.get_token_compressed_accounts()[pos].clone();
         assert_eq!(
-            transfer_recipient_token_compressed_account
-                .token_data
-                .amount,
+            transfer_recipient_token_compressed_account.token.amount,
             out_compressed_account.amount
         );
         assert_eq!(
-            transfer_recipient_token_compressed_account.token_data.owner,
+            transfer_recipient_token_compressed_account.token.owner,
             out_compressed_account.owner
         );
         assert_eq!(
-            transfer_recipient_token_compressed_account
-                .token_data
-                .delegate,
+            transfer_recipient_token_compressed_account.token.delegate,
             delegates[i]
         );
-        let transfer_recipient_compressed_account = transfer_recipient_token_compressed_account
-            .compressed_account
-            .clone();
+        let transfer_recipient_compressed_account =
+            transfer_recipient_token_compressed_account.account;
         println!(
             "transfer_recipient_compressed_account {:?}",
             transfer_recipient_compressed_account
         );
         if i < output_lamports.len() {
             assert_eq!(
-                transfer_recipient_compressed_account
-                    .compressed_account
-                    .lamports,
+                transfer_recipient_compressed_account.lamports,
                 output_lamports[i].unwrap_or(0)
             );
         } else if i != output_lamports.len() {
-            // This check accounts for change accounts which are dynamically created onchain.
             panic!("lamports not found in output_lamports");
         }
-        assert!(transfer_recipient_compressed_account
-            .compressed_account
-            .data
-            .is_some());
+        assert!(transfer_recipient_compressed_account.data.is_some());
         let mut data = Vec::new();
         transfer_recipient_token_compressed_account
-            .token_data
+            .token
             .serialize(&mut data)
             .unwrap();
         assert_eq!(
             transfer_recipient_compressed_account
-                .compressed_account
                 .data
                 .as_ref()
                 .unwrap()
@@ -162,10 +151,7 @@ pub fn assert_compressed_token_accounts<R: Rpc, I: Indexer + TestIndexerExtensio
             data
         );
         assert_eq!(
-            transfer_recipient_compressed_account
-                .compressed_account
-                .owner
-                .to_bytes(),
+            transfer_recipient_compressed_account.owner.to_bytes(),
             light_compressed_token::ID.to_bytes()
         );
 
@@ -173,8 +159,7 @@ pub fn assert_compressed_token_accounts<R: Rpc, I: Indexer + TestIndexerExtensio
             .get_token_compressed_accounts()
             .iter()
             .any(|x| {
-                x.compressed_account.merkle_context.leaf_index as usize
-                    == output_merkle_tree_snapshots[i].next_index + index
+                x.account.leaf_index as usize == output_merkle_tree_snapshots[i].next_index + index
             })
         {
             println!(
@@ -196,7 +181,7 @@ pub async fn assert_mint_to<R: Rpc, I: Indexer + TestIndexerExtensions>(
     mint: Pubkey,
     amounts: &[u64],
     snapshots: &[MerkleTreeTestSnapShot],
-    created_token_accounts: &[TokenDataWithMerkleContext],
+    created_token_accounts: &[light_client::indexer::CompressedTokenAccount],
     previous_mint_supply: u64,
     previous_sol_pool_amount: u64,
     token_pool_pda: Pubkey,
@@ -206,10 +191,10 @@ pub async fn assert_mint_to<R: Rpc, I: Indexer + TestIndexerExtensions>(
         let pos = created_token_accounts
             .iter()
             .position(|x| {
-                x.token_data.owner == *recipient
-                    && x.token_data.amount == *amount
-                    && x.token_data.mint == mint
-                    && x.token_data.delegate.is_none()
+                x.token.owner == *recipient
+                    && x.token.amount == *amount
+                    && x.token.mint == mint
+                    && x.token.delegate.is_none()
             })
             .expect("Mint to failed to create expected compressed token account.");
         created_token_accounts.remove(pos);

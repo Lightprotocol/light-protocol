@@ -1,10 +1,8 @@
 #![cfg(feature = "test-sbf")]
 
 use borsh::BorshSerialize;
-use light_compressed_account::{
-    address::derive_address, compressed_account::CompressedAccountWithMerkleContext,
-    hashv_to_bn254_field_size_be,
-};
+use light_client::indexer::CompressedAccount as ClientCompressedAccount;
+use light_compressed_account::{address::derive_address, hashv_to_bn254_field_size_be};
 use light_program_test::{
     program_test::LightProgramTest, AddressWithTree, Indexer, ProgramTestConfig, Rpc, RpcError,
 };
@@ -70,7 +68,7 @@ async fn test_sdk_native_test() {
         .unwrap();
     assert_eq!(compressed_pda.address.unwrap(), address);
 
-    update_pda(&payer, &mut rpc, [2u8; ARRAY_LEN], compressed_pda.into())
+    update_pda(&payer, &mut rpc, [2u8; ARRAY_LEN], compressed_pda)
         .await
         .unwrap();
 }
@@ -131,7 +129,7 @@ pub async fn update_pda(
     payer: &Keypair,
     rpc: &mut LightProgramTest,
     new_account_data: [u8; ARRAY_LEN],
-    compressed_account: CompressedAccountWithMerkleContext,
+    compressed_account: ClientCompressedAccount,
 ) -> Result<(), RpcError> {
     let system_account_meta_config = SystemAccountMetaConfig::new(sdk_v1_native_test::ID);
     let mut accounts = PackedAccounts::default();
@@ -141,7 +139,7 @@ pub async fn update_pda(
         .unwrap();
 
     let rpc_result = rpc
-        .get_validity_proof(vec![compressed_account.hash().unwrap()], vec![], None)
+        .get_validity_proof(vec![compressed_account.hash], vec![], None)
         .await?
         .value;
 
@@ -152,7 +150,7 @@ pub async fn update_pda(
 
     let meta = CompressedAccountMeta {
         tree_info: packed_accounts.packed_tree_infos[0],
-        address: compressed_account.compressed_account.address.unwrap(),
+        address: compressed_account.address.unwrap(),
         output_state_tree_index: packed_accounts.output_tree_index,
     };
 
@@ -160,13 +158,7 @@ pub async fn update_pda(
     let instruction_data = UpdatePdaInstructionData {
         my_compressed_account: UpdateMyCompressedAccount {
             meta,
-            data: compressed_account
-                .compressed_account
-                .data
-                .unwrap()
-                .data
-                .try_into()
-                .unwrap(),
+            data: compressed_account.data.unwrap().data.try_into().unwrap(),
         },
         proof: rpc_result.proof,
         new_data: new_account_data,

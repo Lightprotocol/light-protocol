@@ -78,12 +78,7 @@ async fn test_anchor_sdk_test() {
         rpc.get_compressed_accounts_with_merkle_context_by_owner(&sdk_anchor_test::ID);
     assert_eq!(compressed_accounts.len(), 1);
     let compressed_account = &compressed_accounts[0];
-    let record = &compressed_account
-        .compressed_account
-        .data
-        .as_ref()
-        .unwrap()
-        .data;
+    let record = &compressed_account.data.as_ref().unwrap().data;
     let record = MyCompressedAccount::deserialize(&mut &record[..]).unwrap();
     assert_eq!(record.nested.one, 2);
 

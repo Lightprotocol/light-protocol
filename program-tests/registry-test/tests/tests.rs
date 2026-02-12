@@ -1484,20 +1484,16 @@ async fn test_migrate_state() {
             .unwrap();
         let compressed_account =
             &test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&payer.pubkey())[0];
-        let hash = compressed_account.hash().unwrap();
+        let hash = compressed_account.hash;
         let bundle = &test_indexer
             .get_state_merkle_trees()
             .iter()
             .find(|b| {
-                b.accounts.merkle_tree.to_bytes()
-                    == compressed_account
-                        .merkle_context
-                        .merkle_tree_pubkey
-                        .to_bytes()
+                b.accounts.merkle_tree.to_bytes() == compressed_account.tree_info.tree.to_bytes()
             })
             .unwrap();
         assert_eq!(merkle_tree.root(), bundle.merkle_tree.root());
-        let leaf_index = compressed_account.merkle_context.leaf_index as u64;
+        let leaf_index = compressed_account.leaf_index as u64;
         let merkle_proof = bundle
             .merkle_tree
             .get_proof_of_leaf(leaf_index as usize, false)
@@ -1543,10 +1539,7 @@ async fn test_migrate_state() {
                 .iter_mut()
                 .find(|b| {
                     b.accounts.merkle_tree.to_bytes()
-                        == compressed_account
-                            .merkle_context
-                            .merkle_tree_pubkey
-                            .to_bytes()
+                        == compressed_account.tree_info.tree.to_bytes()
                 })
                 .unwrap();
             bundle
@@ -1577,20 +1570,16 @@ async fn test_migrate_state() {
             .unwrap();
         let compressed_account =
             &test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&payer.pubkey())[1];
-        let hash = compressed_account.hash().unwrap();
+        let hash = compressed_account.hash;
         let bundle = &test_indexer
             .get_state_merkle_trees()
             .iter()
             .find(|b| {
-                b.accounts.merkle_tree.to_bytes()
-                    == compressed_account
-                        .merkle_context
-                        .merkle_tree_pubkey
-                        .to_bytes()
+                b.accounts.merkle_tree.to_bytes() == compressed_account.tree_info.tree.to_bytes()
             })
             .unwrap();
         assert_eq!(merkle_tree.root(), bundle.merkle_tree.root());
-        let leaf_index = compressed_account.merkle_context.leaf_index as u64;
+        let leaf_index = compressed_account.leaf_index as u64;
         let merkle_proof = bundle
             .merkle_tree
             .get_proof_of_leaf(leaf_index as usize, false)

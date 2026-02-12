@@ -28,6 +28,7 @@ light-macros = { workspace = true }
 borsh = { workspace = true }
 
 [dev-dependencies]
+light-client = { workspace = true }
 light-program-test = { workspace = true, features = ["devenv"] }
 tokio = { workspace = true }
 solana-sdk = { workspace = true }

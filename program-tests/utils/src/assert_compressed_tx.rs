@@ -8,13 +8,10 @@ use light_batched_merkle_tree::{
     batch::Batch, merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueMetadata,
 };
 use light_client::{
-    indexer::{Indexer, StateMerkleTreeAccounts},
+    indexer::{CompressedAccount as ClientCompressedAccount, Indexer, StateMerkleTreeAccounts},
     rpc::Rpc,
 };
-use light_compressed_account::{
-    compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext},
-    TreeType,
-};
+use light_compressed_account::{compressed_account::CompressedAccount, TreeType};
 use light_event::event::{MerkleTreeSequenceNumber, PublicTransactionEvent};
 use light_hasher::Poseidon;
 use light_program_test::indexer::TestIndexerExtensions;
@@ -28,7 +25,7 @@ pub struct AssertCompressedTransactionInputs<'a, R: Rpc, I: Indexer + TestIndexe
     pub rpc: &'a mut R,
     pub test_indexer: &'a mut I,
     pub output_compressed_accounts: &'a [CompressedAccount],
-    pub created_output_compressed_accounts: &'a [CompressedAccountWithMerkleContext],
+    pub created_output_compressed_accounts: &'a [ClientCompressedAccount],
     pub input_compressed_account_hashes: &'a [[u8; 32]],
     pub output_merkle_tree_snapshots: &'a [MerkleTreeTestSnapShot],
     pub input_merkle_tree_snapshots: &'a [MerkleTreeTestSnapShot],
@@ -103,7 +100,7 @@ pub async fn assert_compressed_transaction<R: Rpc, I: Indexer + TestIndexerExten
         &input
             .created_output_compressed_accounts
             .iter()
-            .map(|x| x.merkle_context.leaf_index)
+            .map(|x| x.leaf_index)
             .collect::<Vec<_>>(),
         input.compress_or_decompress_lamports,
         input.is_compress,
@@ -226,17 +223,21 @@ pub async fn assert_addresses_exist_in_hash_sets<R: Rpc>(
 pub fn assert_created_compressed_accounts(
     output_compressed_accounts: &[CompressedAccount],
     output_merkle_tree_pubkeys: &[Pubkey],
-    created_out_compressed_accounts: &[CompressedAccountWithMerkleContext],
+    created_out_compressed_accounts: &[ClientCompressedAccount],
 ) {
     for output_account in created_out_compressed_accounts.iter() {
-        assert!(output_compressed_accounts.iter().any(|x| x.lamports
-            == output_account.compressed_account.lamports
-            && x.owner == output_account.compressed_account.owner
-            && x.data == output_account.compressed_account.data
-            && x.address == output_account.compressed_account.address),);
-        assert!(output_merkle_tree_pubkeys.iter().any(|x| *x
-            == output_account.merkle_context.merkle_tree_pubkey.into()
-            || *x == output_account.merkle_context.queue_pubkey.into()),);
+        assert!(output_compressed_accounts.iter().any(|x| {
+            x.lamports == output_account.lamports
+                && x.owner.to_bytes() == output_account.owner.to_bytes()
+                && x.data == output_account.data
+                && x.address == output_account.address
+        }));
+        assert!(
+            output_merkle_tree_pubkeys.iter().any(|x| {
+                *x == output_account.tree_info.tree || *x == output_account.tree_info.queue
+            }),
+            "tree/queue pubkey match failed for created account"
+        );
     }
 }
 

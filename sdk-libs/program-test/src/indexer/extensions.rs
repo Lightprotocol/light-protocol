@@ -1,11 +1,10 @@
 use anchor_lang::solana_program::pubkey::Pubkey;
 use async_trait::async_trait;
 use light_client::indexer::{
-    AddressMerkleTreeAccounts, MerkleProof, NewAddressProofWithContext, StateMerkleTreeAccounts,
+    AddressMerkleTreeAccounts, CompressedAccount, CompressedTokenAccount, MerkleProof,
+    NewAddressProofWithContext, StateMerkleTreeAccounts,
 };
-use light_compressed_account::compressed_account::CompressedAccountWithMerkleContext;
 use light_event::event::PublicTransactionEvent;
-use light_token::compat::TokenDataWithMerkleContext;
 use solana_sdk::signature::Keypair;
 
 use super::{address_tree::AddressMerkleTreeBundle, state_tree::StateMerkleTreeBundle};
@@ -41,7 +40,7 @@ pub trait TestIndexerExtensions {
 
     fn get_address_merkle_trees_mut(&mut self) -> &mut Vec<AddressMerkleTreeBundle>;
 
-    fn get_token_compressed_accounts(&self) -> &Vec<TokenDataWithMerkleContext>;
+    fn get_token_compressed_accounts(&self) -> &Vec<CompressedTokenAccount>;
 
     fn get_group_pda(&self) -> &Pubkey;
 
@@ -55,7 +54,7 @@ pub trait TestIndexerExtensions {
     fn get_compressed_accounts_with_merkle_context_by_owner(
         &self,
         owner: &Pubkey,
-    ) -> Vec<CompressedAccountWithMerkleContext>;
+    ) -> Vec<CompressedAccount>;
 
     fn add_state_bundle(&mut self, state_bundle: StateMerkleTreeBundle);
 
@@ -63,10 +62,7 @@ pub trait TestIndexerExtensions {
         &mut self,
         slot: u64,
         event: &PublicTransactionEvent,
-    ) -> (
-        Vec<CompressedAccountWithMerkleContext>,
-        Vec<TokenDataWithMerkleContext>,
-    );
+    ) -> (Vec<CompressedAccount>, Vec<CompressedTokenAccount>);
 
     fn get_proof_by_index(&mut self, merkle_tree_pubkey: Pubkey, index: u64) -> MerkleProof;
 

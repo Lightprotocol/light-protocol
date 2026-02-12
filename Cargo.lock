@@ -6556,6 +6556,7 @@ name = "sdk-native-test"
 version = "1.0.0"
 dependencies = [
  "borsh 0.10.4",
+ "light-client",
  "light-compressed-account",
  "light-hasher",
  "light-macros",
@@ -6573,6 +6574,7 @@ name = "sdk-pinocchio-v1-test"
 version = "1.0.0"
 dependencies = [
  "borsh 0.10.4",
+ "light-client",
  "light-compressed-account",
  "light-hasher",
  "light-macros",
@@ -6590,6 +6592,7 @@ name = "sdk-pinocchio-v2-test"
 version = "1.0.0"
 dependencies = [
  "borsh 0.10.4",
+ "light-client",
  "light-compressed-account",
  "light-hasher",
  "light-macros",
@@ -6641,6 +6644,7 @@ name = "sdk-v1-native-test"
 version = "1.0.0"
 dependencies = [
  "borsh 0.10.4",
+ "light-client",
  "light-compressed-account",
  "light-hasher",
  "light-macros",

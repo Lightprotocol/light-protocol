@@ -196,14 +196,17 @@ async fn functional_read_only() {
                                 let account = accounts
                                     .get(accounts.len().saturating_sub(i as usize))
                                     .unwrap();
-                                println!("leaf index {}", account.merkle_context.leaf_index);
-                                let mut merkle_context = account.merkle_context;
+                                println!("leaf index {}", account.leaf_index);
+                                let mut merkle_context = account.tree_info.to_light_merkle_context(
+                                    account.leaf_index,
+                                    account.prove_by_index,
+                                );
                                 if batched {
                                     merkle_context.prove_by_index = true;
                                 }
                                 ReadOnlyCompressedAccount {
                                     merkle_context,
-                                    account_hash: account.hash().unwrap(),
+                                    account_hash: account.hash,
                                     root_index: 0,
                                 }
                             })
@@ -495,14 +498,17 @@ async fn functional_account_infos() {
                                 let account = accounts
                                     .get(accounts.len().saturating_sub(i as usize))
                                     .unwrap();
-                                println!("leaf index {}", account.merkle_context.leaf_index);
-                                let mut merkle_context = account.merkle_context;
+                                println!("leaf index {}", account.leaf_index);
+                                let mut merkle_context = account.tree_info.to_light_merkle_context(
+                                    account.leaf_index,
+                                    account.prove_by_index,
+                                );
                                 if batched {
                                     merkle_context.prove_by_index = true;
                                 }
                                 ReadOnlyCompressedAccount {
                                     merkle_context,
-                                    account_hash: account.hash().unwrap(),
+                                    account_hash: account.hash,
                                     root_index: 0,
                                 }
                             })
@@ -1940,7 +1946,6 @@ async fn compress_sol_with_account_info() {
                     .get_compressed_accounts_with_merkle_context_by_owner(
                         &create_address_test_program::ID,
                     )[0]
-                .compressed_account
                 .lamports;
                 assert_eq!(output_account_balance, compression_lamports);
             }
@@ -2294,10 +2299,7 @@ async fn cpi_context_with_read_only() {
                     &create_address_test_program::ID,
                 );
             assert_eq!(output_account_balance.len(), 1);
-            assert_eq!(
-                output_account_balance[0].compressed_account.address,
-                Some(address)
-            );
+            assert_eq!(output_account_balance[0].address, Some(address));
 
             let account = test_indexer
                 .get_compressed_account(address1, None)
@@ -2308,13 +2310,10 @@ async fn cpi_context_with_read_only() {
             assert_eq!(account.owner, owner_account1);
             let output_account_balance =
                 test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&owner_account1);
-            assert_eq!(
-                output_account_balance[0].compressed_account.address,
-                Some(address1)
-            );
+            assert_eq!(output_account_balance[0].address, Some(address1));
             let output_account_balance =
                 test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&owner_account2);
-            assert_eq!(output_account_balance[0].compressed_account.address, None);
+            assert_eq!(output_account_balance[0].address, None);
         }
     }
 }
@@ -2619,22 +2618,12 @@ async fn cpi_context_with_account_info() {
                 .get_compressed_accounts_with_merkle_context_by_owner(
                     &create_address_test_program::ID,
                 );
-            output_account_balance.sort_by(|a, b| {
-                a.merkle_context
-                    .leaf_index
-                    .cmp(&b.merkle_context.leaf_index)
-            });
+            output_account_balance.sort_by(|a, b| a.leaf_index.cmp(&b.leaf_index));
             assert_eq!(output_account_balance.len(), 4);
-            assert_eq!(
-                output_account_balance[2].compressed_account.address,
-                Some(address)
-            );
-            assert_eq!(output_account_balance[1].compressed_account.address, None);
-            assert_eq!(
-                output_account_balance[0].compressed_account.address,
-                Some(address1)
-            );
-            assert_eq!(output_account_balance[3].compressed_account.address, None);
+            assert_eq!(output_account_balance[2].address, Some(address));
+            assert_eq!(output_account_balance[1].address, None);
+            assert_eq!(output_account_balance[0].address, Some(address1));
+            assert_eq!(output_account_balance[3].address, None);
         }
     }
 }
@@ -2741,7 +2730,6 @@ async fn compress_sol_with_read_only() {
                     .get_compressed_accounts_with_merkle_context_by_owner(
                         &create_address_test_program::ID,
                     )[0]
-                .compressed_account
                 .lamports;
                 assert_eq!(output_account_balance, compression_lamports);
             }
@@ -2891,7 +2879,7 @@ async fn test_duplicate_account_in_inputs_and_read_only() {
     let compressed_account = test_indexer.compressed_accounts[0].clone();
 
     let read_only_account = ReadOnlyCompressedAccount {
-        account_hash: compressed_account.hash().unwrap(),
+        account_hash: compressed_account.hash,
         merkle_context: MerkleContext {
             merkle_tree_pubkey: tree.into(),
             queue_pubkey: queue.into(),
@@ -2904,7 +2892,7 @@ async fn test_duplicate_account_in_inputs_and_read_only() {
 
     // Get validity proof for the input account
     let rpc_result = rpc
-        .get_validity_proof(vec![compressed_account.hash().unwrap()], Vec::new(), None)
+        .get_validity_proof(vec![compressed_account.hash], Vec::new(), None)
         .await
         .unwrap();
 
@@ -2913,16 +2901,16 @@ async fn test_duplicate_account_in_inputs_and_read_only() {
         &mut rpc,
         &mut test_indexer,
         &payer,
-        vec![compressed_account], // input_accounts
-        vec![],                   // output_accounts
-        vec![],                   // new_addresses
-        rpc_result.value.proof.0, // proof
-        None,                     // sol_compression_recipient
-        None,                     // account_infos
-        false,                    // v2_ix
-        false,                    // with_transaction_hash
-        vec![read_only_account],  // read_only_accounts
-        Vec::new(),               // read_only_addresses
+        vec![compressed_account.clone().into()], // input_accounts
+        vec![],                                  // output_accounts
+        vec![],                                  // new_addresses
+        rpc_result.value.proof.0,                // proof
+        None,                                    // sol_compression_recipient
+        None,                                    // account_infos
+        false,                                   // v2_ix
+        false,                                   // with_transaction_hash
+        vec![read_only_account],                 // read_only_accounts
+        Vec::new(),                              // read_only_addresses
         queue,
         tree,
         false, // is_compress

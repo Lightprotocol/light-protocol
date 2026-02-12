@@ -388,17 +388,10 @@ impl Rpc for LightProgramTest {
         // Cold: check TestIndexer (mirrors Photon cold_lookup behavior)
         if let Some(indexer) = self.indexer.as_ref() {
             // First try: lookup by onchain_pubkey (for accounts with DECOMPRESSED_PDA_DISCRIMINATOR)
-            if let Some(compressed_with_ctx) =
+            if let Some(compressed) =
                 indexer.find_compressed_account_by_onchain_pubkey(&address.to_bytes())
             {
-                let compressed: CompressedAccount = compressed_with_ctx.clone().try_into().map_err(
-                    |e| {
-                        RpcError::CustomError(format!(
-                            "CompressedAccountWithMerkleContext conversion failed for address {}: {:?}",
-                            address, e
-                        ))
-                    },
-                )?;
+                let compressed = compressed.clone();
                 let synthetic = synthesize_pda_account(&compressed);
                 return Ok(Response {
                     context: Context { slot },
@@ -411,17 +404,10 @@ impl Rpc for LightProgramTest {
             }
 
             // Second try: lookup by PDA seed (for accounts whose address was derived from this pubkey)
-            if let Some(compressed_with_ctx) =
+            if let Some(compressed) =
                 indexer.find_compressed_account_by_pda_seed(&address.to_bytes())
             {
-                let compressed: CompressedAccount = compressed_with_ctx.clone().try_into().map_err(
-                    |e| {
-                        RpcError::CustomError(format!(
-                            "CompressedAccountWithMerkleContext conversion failed for PDA seed {}: {:?}",
-                            address, e
-                        ))
-                    },
-                )?;
+                let compressed = compressed.clone();
                 let synthetic = synthesize_pda_account(&compressed);
                 return Ok(Response {
                     context: Context { slot },
@@ -439,21 +425,14 @@ impl Rpc for LightProgramTest {
                 .or_else(|| indexer.find_token_account_by_pda_seed(&address.to_bytes()));
 
             if let Some(token_acc) = token_acc {
-                let compressed: CompressedAccount = token_acc
-                    .compressed_account
-                    .clone()
-                    .try_into()
-                    .map_err(|e| RpcError::CustomError(format!("conversion error: {:?}", e)))?;
+                let compressed = token_acc.account.clone();
                 let wallet_owner = indexer
                     .ata_owner_map
                     .get(address)
                     .copied()
                     .unwrap_or(*address);
-                let synthetic = synthesize_token_account(
-                    &token_acc.token_data,
-                    &wallet_owner,
-                    compressed.lamports,
-                );
+                let synthetic =
+                    synthesize_token_account(&token_acc.token, &wallet_owner, compressed.lamports);
                 return Ok(Response {
                     context: Context { slot },
                     value: Some(AccountInterface::cold(
@@ -544,11 +523,8 @@ impl Rpc for LightProgramTest {
 
                 for (lookup_idx, maybe_compressed) in cold_results.into_iter().enumerate() {
                     let original_idx = cold_lookup_indices[lookup_idx];
-                    if let Some(compressed_with_ctx) = maybe_compressed {
-                        let compressed: CompressedAccount =
-                            compressed_with_ctx.clone().try_into().map_err(|e| {
-                                RpcError::CustomError(format!("conversion error: {:?}", e))
-                            })?;
+                    if let Some(compressed) = maybe_compressed {
+                        let compressed = compressed.clone();
                         let synthetic = synthesize_pda_account(&compressed);
                         results[original_idx] = Some(AccountInterface::cold(
                             *addresses[original_idx],
@@ -567,13 +543,8 @@ impl Rpc for LightProgramTest {
 
                 for (i, pubkey) in pda_seed_lookup_pubkeys.iter().enumerate() {
                     let original_idx = pda_seed_lookup_indices[i];
-                    if let Some(compressed_with_ctx) =
-                        indexer.find_compressed_account_by_pda_seed(pubkey)
-                    {
-                        let compressed: CompressedAccount =
-                            compressed_with_ctx.clone().try_into().map_err(|e| {
-                                RpcError::CustomError(format!("conversion error: {:?}", e))
-                            })?;
+                    if let Some(compressed) = indexer.find_compressed_account_by_pda_seed(pubkey) {
+                        let compressed = compressed.clone();
                         let synthetic = synthesize_pda_account(&compressed);
                         results[original_idx] = Some(AccountInterface::cold(
                             *addresses[original_idx],
@@ -597,18 +568,12 @@ impl Rpc for LightProgramTest {
                         .or_else(|| indexer.find_token_account_by_pda_seed(pubkey));
 
                     if let Some(token_acc) = token_acc {
-                        let compressed: CompressedAccount = token_acc
-                            .compressed_account
-                            .clone()
-                            .try_into()
-                            .map_err(|e| {
-                                RpcError::CustomError(format!("conversion error: {:?}", e))
-                            })?;
+                        let compressed = token_acc.account.clone();
                         let addr = addresses[original_idx];
                         let wallet_owner =
                             indexer.ata_owner_map.get(addr).copied().unwrap_or(*addr);
                         let synthetic = synthesize_token_account(
-                            &token_acc.token_data,
+                            &token_acc.token,
                             &wallet_owner,
                             compressed.lamports,
                         );

@@ -5,7 +5,7 @@ pub const CREATE_MINT_HELPER_DECIMALS: u8 = 2;
 use forester_utils::instructions::create_account::create_account_instruction;
 use light_client::{
     fee::TransactionParams,
-    indexer::Indexer,
+    indexer::{CompressedTokenAccount, Indexer},
     rpc::{errors::RpcError, Rpc},
 };
 use light_compressed_account::{
@@ -30,7 +30,6 @@ use light_compressed_token::{
 };
 use light_hasher::Poseidon;
 use light_program_test::{indexer::TestIndexerExtensions, program_test::TestRpc};
-use light_token::compat::TokenDataWithMerkleContext;
 use light_token_interface::state::{CompressedTokenAccountState, TokenData};
 use solana_banks_client::BanksClientError;
 use solana_sdk::{
@@ -508,7 +507,7 @@ pub async fn compressed_transfer_test<
     recipients: &[Pubkey],
     amounts: &[u64],
     lamports: Option<Vec<Option<u64>>>,
-    input_compressed_accounts: &[TokenDataWithMerkleContext],
+    input_compressed_accounts: &[CompressedTokenAccount],
     output_merkle_tree_pubkeys: &[Pubkey],
     delegate_change_account_index: Option<u8>,
     delegate_is_signer: bool,
@@ -546,13 +545,19 @@ pub async fn compressed_transfer_22_test<
     recipients: &[Pubkey],
     amounts: &[u64],
     mut lamports: Option<Vec<Option<u64>>>,
-    input_compressed_accounts: &[TokenDataWithMerkleContext],
+    input_compressed_accounts: &[CompressedTokenAccount],
     output_merkle_tree_pubkeys: &[Pubkey],
     delegate_change_account_index: Option<u8>,
     delegate_is_signer: bool,
     transaction_params: Option<TransactionParams>,
     token_22: bool,
 ) {
+    let input_compressed_accounts: Vec<light_token::compat::TokenDataWithMerkleContext> =
+        input_compressed_accounts
+            .iter()
+            .cloned()
+            .map(Into::into)
+            .collect();
     if recipients.len() != amounts.len() && amounts.len() != output_merkle_tree_pubkeys.len() {
         println!("{:?}", recipients);
         println!("{:?}", amounts);
@@ -563,7 +568,7 @@ pub async fn compressed_transfer_22_test<
     let mut input_compressed_account_token_data = Vec::new();
     let mut input_compressed_account_hashes = Vec::new();
     let mut sum_input_amounts = 0;
-    for account in input_compressed_accounts {
+    for account in &input_compressed_accounts {
         let leaf_index = account.compressed_account.merkle_context.leaf_index;
         input_compressed_account_token_data.push(account.token_data.clone());
         input_compressed_account_hashes.push(account.compressed_account.hash().unwrap());
@@ -715,7 +720,7 @@ pub async fn compressed_transfer_22_test<
     };
     let mut created_output_accounts = Vec::new();
     created_token_output_accounts.iter().for_each(|x| {
-        created_output_accounts.push(x.compressed_account.clone());
+        created_output_accounts.push(x.account.clone());
     });
     created_change_output_account.iter().for_each(|x| {
         created_output_accounts.push(x.clone());
@@ -743,7 +748,7 @@ pub async fn decompress_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexe
     payer: &Keypair,
     rpc: &mut R,
     test_indexer: &mut I,
-    input_compressed_accounts: Vec<TokenDataWithMerkleContext>,
+    input_compressed_accounts: Vec<CompressedTokenAccount>,
     amount: u64,
     output_merkle_tree_pubkey: &Pubkey,
     recipient_token_account: &Pubkey,
@@ -752,6 +757,11 @@ pub async fn decompress_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexe
     token_pool_index: u8,
     additional_pool_accounts: Option<Vec<Pubkey>>,
 ) {
+    let input_compressed_accounts: Vec<light_token::compat::TokenDataWithMerkleContext> =
+        input_compressed_accounts
+            .into_iter()
+            .map(Into::into)
+            .collect();
     let max_amount: u64 = input_compressed_accounts
         .iter()
         .map(|x| x.token_data.amount)
@@ -890,7 +900,7 @@ pub async fn decompress_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexe
         &[change_out_compressed_account],
         created_output_accounts
             .iter()
-            .map(|x| x.compressed_account.clone())
+            .map(|x| x.account.clone())
             .collect::<Vec<_>>()
             .as_slice(),
         None,
@@ -1103,7 +1113,7 @@ pub async fn compress_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerE
         &[output_compressed_account],
         created_output_accounts
             .iter()
-            .map(|x| x.compressed_account.clone())
+            .map(|x| x.account.clone())
             .collect::<Vec<_>>()
             .as_slice(),
         None,
@@ -1134,7 +1144,7 @@ pub async fn approve_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerEx
     authority: &Keypair,
     rpc: &mut R,
     test_indexer: &mut I,
-    input_compressed_accounts: Vec<TokenDataWithMerkleContext>,
+    input_compressed_accounts: Vec<CompressedTokenAccount>,
     delegated_amount: u64,
     delegate_lamports: Option<u64>,
     delegate: &Pubkey,
@@ -1142,6 +1152,11 @@ pub async fn approve_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerEx
     change_compressed_account_merkle_tree: &Pubkey,
     transaction_params: Option<TransactionParams>,
 ) {
+    let input_compressed_accounts: Vec<light_token::compat::TokenDataWithMerkleContext> =
+        input_compressed_accounts
+            .into_iter()
+            .map(Into::into)
+            .collect();
     let input_compressed_account_hashes = input_compressed_accounts
         .iter()
         .map(|x| x.compressed_account.hash().unwrap())
@@ -1264,7 +1279,7 @@ pub async fn approve_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerEx
 
     assert_eq!(
         expected_delegated_token_data,
-        sdk_to_program_token_data(created_output_accounts[0].token_data.clone())
+        sdk_to_program_token_data(created_output_accounts[0].token.clone())
     );
     let mut expected_token_data = vec![expected_delegated_token_data];
     let mut delegates = vec![Some(*delegate)];
@@ -1279,7 +1294,7 @@ pub async fn approve_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerEx
         };
         assert_eq!(
             expected_change_token_data,
-            sdk_to_program_token_data(created_output_accounts[1].token_data.clone())
+            sdk_to_program_token_data(created_output_accounts[1].token.clone())
         );
         expected_token_data.push(expected_change_token_data);
         delegates.push(None);
@@ -1294,7 +1309,7 @@ pub async fn approve_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerEx
         expected_compressed_output_accounts.as_slice(),
         created_output_accounts
             .iter()
-            .map(|x| x.compressed_account.clone())
+            .map(|x| x.account.clone())
             .collect::<Vec<_>>()
             .as_slice(),
         change_lamports,
@@ -1312,10 +1327,15 @@ pub async fn revoke_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerExt
     authority: &Keypair,
     rpc: &mut R,
     test_indexer: &mut I,
-    input_compressed_accounts: Vec<TokenDataWithMerkleContext>,
+    input_compressed_accounts: Vec<CompressedTokenAccount>,
     output_account_merkle_tree: &Pubkey,
     transaction_params: Option<TransactionParams>,
 ) {
+    let input_compressed_accounts: Vec<light_token::compat::TokenDataWithMerkleContext> =
+        input_compressed_accounts
+            .into_iter()
+            .map(Into::into)
+            .collect();
     let input_compressed_account_hashes = input_compressed_accounts
         .iter()
         .map(|x| x.compressed_account.hash().unwrap())
@@ -1400,7 +1420,7 @@ pub async fn revoke_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerExt
     };
     assert_eq!(
         expected_token_data,
-        sdk_to_program_token_data(created_output_accounts[0].token_data.clone())
+        sdk_to_program_token_data(created_output_accounts[0].token.clone())
     );
     let expected_compressed_output_accounts =
         create_expected_token_output_data(vec![expected_token_data], &output_merkle_tree_pubkeys);
@@ -1419,7 +1439,7 @@ pub async fn revoke_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerExt
         expected_compressed_output_accounts.as_slice(),
         created_output_accounts
             .iter()
-            .map(|x| x.compressed_account.clone())
+            .map(|x| x.account.clone())
             .collect::<Vec<_>>()
             .as_slice(),
         change_lamports,
@@ -1436,7 +1456,7 @@ pub async fn freeze_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerExt
     authority: &Keypair,
     rpc: &mut R,
     test_indexer: &mut I,
-    input_compressed_accounts: Vec<TokenDataWithMerkleContext>,
+    input_compressed_accounts: Vec<CompressedTokenAccount>,
     outputs_merkle_tree: &Pubkey,
     transaction_params: Option<TransactionParams>,
 ) {
@@ -1455,7 +1475,7 @@ pub async fn thaw_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerExten
     authority: &Keypair,
     rpc: &mut R,
     test_indexer: &mut I,
-    input_compressed_accounts: Vec<TokenDataWithMerkleContext>,
+    input_compressed_accounts: Vec<CompressedTokenAccount>,
     outputs_merkle_tree: &Pubkey,
     transaction_params: Option<TransactionParams>,
 ) {
@@ -1478,10 +1498,15 @@ pub async fn freeze_or_thaw_test<
     authority: &Keypair,
     rpc: &mut R,
     test_indexer: &mut I,
-    input_compressed_accounts: Vec<TokenDataWithMerkleContext>,
+    input_compressed_accounts: Vec<CompressedTokenAccount>,
     outputs_merkle_tree: &Pubkey,
     transaction_params: Option<TransactionParams>,
 ) {
+    let input_compressed_accounts: Vec<light_token::compat::TokenDataWithMerkleContext> =
+        input_compressed_accounts
+            .into_iter()
+            .map(Into::into)
+            .collect();
     let input_compressed_account_hashes = input_compressed_accounts
         .iter()
         .map(|x| x.compressed_account.hash().unwrap())
@@ -1602,7 +1627,7 @@ pub async fn freeze_or_thaw_test<
         expected_compressed_output_accounts.as_slice(),
         created_output_accounts
             .iter()
-            .map(|x| x.compressed_account.clone())
+            .map(|x| x.account.clone())
             .collect::<Vec<_>>()
             .as_slice(),
         change_lamports,
@@ -1620,7 +1645,7 @@ pub async fn burn_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerExten
     authority: &Keypair,
     rpc: &mut R,
     test_indexer: &mut I,
-    input_compressed_accounts: Vec<TokenDataWithMerkleContext>,
+    input_compressed_accounts: Vec<CompressedTokenAccount>,
     change_account_merkle_tree: &Pubkey,
     burn_amount: u64,
     signer_is_delegate: bool,
@@ -1628,6 +1653,11 @@ pub async fn burn_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerExten
     is_token_22: bool,
     token_pool_index: u8,
 ) {
+    let input_compressed_accounts: Vec<light_token::compat::TokenDataWithMerkleContext> =
+        input_compressed_accounts
+            .into_iter()
+            .map(Into::into)
+            .collect();
     let (
         input_compressed_account_hashes,
         input_merkle_tree_pubkeys,
@@ -1727,7 +1757,7 @@ pub async fn burn_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerExten
         expected_compressed_output_accounts.as_slice(),
         created_output_accounts
             .iter()
-            .map(|x| x.compressed_account.clone())
+            .map(|x| x.account.clone())
             .collect::<Vec<_>>()
             .as_slice(),
         change_lamports,
@@ -1764,7 +1794,7 @@ pub async fn create_burn_test_instruction<R: Rpc + Indexer, I: Indexer + TestInd
     authority: &Keypair,
     rpc: &mut R,
     test_indexer: &mut I,
-    input_compressed_accounts: &[TokenDataWithMerkleContext],
+    input_compressed_accounts: &[light_token::compat::TokenDataWithMerkleContext],
     change_account_merkle_tree: &Pubkey,
     burn_amount: u64,
     signer_is_delegate: bool,

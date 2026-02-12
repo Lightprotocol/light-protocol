@@ -154,7 +154,7 @@ use light_sdk::{
 use light_sparse_merkle_tree::{
     changelog::ChangelogEntry, indexed_changelog::IndexedChangelogEntry, SparseMerkleTree,
 };
-use light_token::compat::{AccountState, TokenDataWithMerkleContext};
+use light_token::compat::AccountState;
 use log::info;
 use num_bigint::{BigUint, RandBigInt};
 use num_traits::Num;
@@ -1907,7 +1907,7 @@ where
         println!("Recipients: {:?}", recipients.len());
         let max_amount = token_accounts
             .iter()
-            .map(|token_account| token_account.token_data.amount)
+            .map(|token_account| token_account.token.amount)
             .sum::<u64>();
         let amount = Self::safe_gen_range(&mut self.rng, 1000..max_amount, max_amount / 2);
         let equal_amount = amount / recipients.len() as u64;
@@ -1980,7 +1980,7 @@ where
         let delegate = self.users[rnd_user_index].keypair.pubkey();
         let max_amount = token_accounts
             .iter()
-            .map(|token_account| token_account.token_data.amount)
+            .map(|token_account| token_account.token.amount)
             .sum::<u64>();
         let delegate_amount = Self::safe_gen_range(&mut self.rng, 0..max_amount, max_amount / 2);
         let num_output_compressed_accounts = if delegate_amount != max_amount { 2 } else { 1 };
@@ -2084,7 +2084,7 @@ where
         }
         let max_amount = token_accounts
             .iter()
-            .map(|token_account| token_account.token_data.amount)
+            .map(|token_account| token_account.token.amount)
             .sum::<u64>();
         let burn_amount = Self::safe_gen_range(&mut self.rng, 0..max_amount, max_amount / 2);
         let num_output_compressed_accounts = if burn_amount != max_amount { 1 } else { 0 };
@@ -2315,7 +2315,7 @@ where
         let output_merkle_tree_account = self.get_merkle_tree_pubkeys(1);
         let max_amount = token_accounts
             .iter()
-            .map(|token_account| token_account.token_data.amount)
+            .map(|token_account| token_account.token.amount)
             .sum::<u64>();
         let amount = Self::safe_gen_range(&mut self.rng, 1000..max_amount, max_amount / 2);
         let transaction_paramets = if self.keypair_action_config.fee_assert {
@@ -2498,9 +2498,7 @@ where
             }
 
             accounts.iter().for_each(|account| {
-                let hash = account.hash().unwrap();
-
-                proof_input_accounts.push((hash, account.merkle_context.merkle_tree_pubkey));
+                proof_input_accounts.push((account.hash, account.tree_info.tree));
             });
 
             accounts
@@ -2528,14 +2526,17 @@ where
             accounts
                 .iter()
                 .map(|account| {
-                    let account_hash = account.hash().unwrap();
-                    proof_input_accounts
-                        .push((account_hash, account.merkle_context.merkle_tree_pubkey));
+                    let acc_program: CompressedAccountWithMerkleContext = account.clone().into();
+                    let account_hash = acc_program.hash().unwrap();
+                    proof_input_accounts.push((
+                        account_hash,
+                        acc_program.merkle_context.merkle_tree_pubkey.into(),
+                    ));
 
                     ReadOnlyCompressedAccount {
                         account_hash,
-                        merkle_context: account.merkle_context,
-                        root_index: 0, // set after proof generation
+                        merkle_context: acc_program.merkle_context,
+                        root_index: 0,
                     }
                 })
                 .collect::<Vec<_>>()
@@ -2724,8 +2725,10 @@ where
         let packed_new_address_params =
             pack_new_address_params(new_address_params.as_slice(), &mut remaining_accounts);
 
+        let input_accounts_program: Vec<CompressedAccountWithMerkleContext> =
+            input_accounts.iter().cloned().map(Into::into).collect();
         let packed_inputs = pack_compressed_accounts(
-            input_accounts.as_slice(),
+            input_accounts_program.as_slice(),
             root_indices.as_slice(),
             &mut remaining_accounts,
         );
@@ -2895,49 +2898,46 @@ where
         &mut self,
         user_index: usize,
     ) -> Vec<CompressedAccountWithMerkleContext> {
-        let input_compressed_accounts = self
+        let input_compressed_accounts: Vec<light_client::indexer::CompressedAccount> = self
             .indexer
             .get_compressed_accounts_with_merkle_context_by_owner(
                 &self.users[user_index].keypair.pubkey(),
-            )
-            .into_iter()
-            .collect::<Vec<_>>();
+            );
         if input_compressed_accounts.is_empty() {
             return vec![];
         }
         let index = Self::safe_gen_range(&mut self.rng, 0..input_compressed_accounts.len(), 0);
-        // pick random first account to decompress
         let first_account = &input_compressed_accounts[index];
         let first_mt = self
             .indexer
             .get_state_merkle_trees()
             .iter()
-            .find(|x| {
-                x.accounts.merkle_tree.to_bytes()
-                    == first_account.merkle_context.merkle_tree_pubkey.to_bytes()
-            })
+            .find(|x| x.accounts.merkle_tree.to_bytes() == first_account.tree_info.tree.to_bytes())
             .unwrap()
             .tree_type;
-        let input_compressed_accounts_with_same_version = input_compressed_accounts
+        let input_compressed_accounts_with_same_version: Vec<
+            light_client::indexer::CompressedAccount,
+        > = input_compressed_accounts
             .iter()
             .filter(|x| {
                 self.indexer
                     .get_state_merkle_trees()
                     .iter()
-                    .find(|y| {
-                        y.accounts.merkle_tree.to_bytes()
-                            == x.merkle_context.merkle_tree_pubkey.to_bytes()
-                    })
+                    .find(|y| y.accounts.merkle_tree.to_bytes() == x.tree_info.tree.to_bytes())
                     .unwrap()
                     .tree_type
                     == first_mt
             })
             .cloned()
-            .collect::<Vec<_>>();
+            .collect();
         let range = std::cmp::min(input_compressed_accounts_with_same_version.len(), 4);
 
         let number_of_compressed_accounts = Self::safe_gen_range(&mut self.rng, 0..=range, 0);
-        input_compressed_accounts_with_same_version[0..number_of_compressed_accounts].to_vec()
+        input_compressed_accounts_with_same_version[0..number_of_compressed_accounts]
+            .iter()
+            .cloned()
+            .map(Into::into)
+            .collect()
     }
 
     pub fn get_compressed_sol_accounts(
@@ -2947,6 +2947,7 @@ where
         self.indexer
             .get_compressed_accounts_with_merkle_context_by_owner(pubkey)
             .into_iter()
+            .map(Into::into)
             .collect()
     }
 
@@ -3036,7 +3037,7 @@ where
     pub async fn select_random_compressed_token_accounts(
         &mut self,
         user: &Pubkey,
-    ) -> (Pubkey, Vec<TokenDataWithMerkleContext>) {
+    ) -> (Pubkey, Vec<light_client::indexer::CompressedTokenAccount>) {
         self.select_random_compressed_token_accounts_delegated(user, false, None, false)
             .await
     }
@@ -3044,7 +3045,7 @@ where
     pub async fn select_random_compressed_token_accounts_frozen(
         &mut self,
         user: &Pubkey,
-    ) -> (Pubkey, Vec<TokenDataWithMerkleContext>) {
+    ) -> (Pubkey, Vec<light_client::indexer::CompressedTokenAccount>) {
         self.select_random_compressed_token_accounts_delegated(user, false, None, true)
             .await
     }
@@ -3055,7 +3056,7 @@ where
         delegated: bool,
         delegate: Option<Pubkey>,
         frozen: bool,
-    ) -> (Pubkey, Vec<TokenDataWithMerkleContext>) {
+    ) -> (Pubkey, Vec<light_client::indexer::CompressedTokenAccount>) {
         let user_token_accounts = &mut self
             .indexer
             .get_compressed_token_accounts_by_owner(user, None, None)
@@ -3066,14 +3067,14 @@ where
             .value
             .items
             .retain(|t| t.token.amount > 1000);
-        let mut token_accounts_with_mint: Vec<TokenDataWithMerkleContext>;
+        let mut token_accounts_with_mint: Vec<light_client::indexer::CompressedTokenAccount>;
         let mint;
         let tree_version;
         if user_token_accounts.value.items.is_empty() {
             mint = self.indexer.get_token_compressed_accounts()[self
                 .rng
                 .gen_range(0..self.indexer.get_token_compressed_accounts().len())]
-            .token_data
+            .token
             .mint;
             let number_of_compressed_accounts = Self::safe_gen_range(&mut self.rng, 1..8, 1);
             let bundle = &self.indexer.get_state_merkle_trees()[0];
@@ -3112,8 +3113,7 @@ where
                     token_account.token.mint == mint && tree_version == version
                 })
                 .cloned()
-                .map(|account| account.into())
-                .collect::<Vec<TokenDataWithMerkleContext>>();
+                .collect::<Vec<light_client::indexer::CompressedTokenAccount>>();
         } else {
             let token_account = &user_token_accounts.value.items
                 [Self::safe_gen_range(&mut self.rng, 0..user_token_accounts.value.items.len(), 0)];
@@ -3140,15 +3140,15 @@ where
                         .tree_type;
                     token_account.token.mint == mint && tree_version == version
                 })
-                .map(|token_account| (*token_account).clone().into())
-                .collect::<Vec<TokenDataWithMerkleContext>>();
+                .cloned()
+                .collect::<Vec<light_client::indexer::CompressedTokenAccount>>();
         }
         if delegated {
             token_accounts_with_mint = token_accounts_with_mint
                 .iter()
-                .filter(|token_account| token_account.token_data.delegate.is_some())
-                .map(|token_account| (*token_account).clone())
-                .collect::<Vec<TokenDataWithMerkleContext>>();
+                .filter(|token_account| token_account.token.delegate.is_some())
+                .cloned()
+                .collect::<Vec<light_client::indexer::CompressedTokenAccount>>();
             if token_accounts_with_mint.is_empty() {
                 return (mint, Vec::new());
             }
@@ -3156,25 +3156,25 @@ where
         if let Some(delegate) = delegate {
             token_accounts_with_mint = token_accounts_with_mint
                 .iter()
-                .filter(|token_account| token_account.token_data.delegate.unwrap() == delegate)
-                .map(|token_account| (*token_account).clone())
-                .collect::<Vec<TokenDataWithMerkleContext>>();
+                .filter(|token_account| token_account.token.delegate.unwrap() == delegate)
+                .cloned()
+                .collect::<Vec<light_client::indexer::CompressedTokenAccount>>();
         }
         if frozen {
             token_accounts_with_mint = token_accounts_with_mint
                 .iter()
-                .filter(|token_account| token_account.token_data.state == AccountState::Frozen)
-                .map(|token_account| (*token_account).clone())
-                .collect::<Vec<TokenDataWithMerkleContext>>();
+                .filter(|token_account| token_account.token.state == AccountState::Frozen)
+                .cloned()
+                .collect::<Vec<light_client::indexer::CompressedTokenAccount>>();
             if token_accounts_with_mint.is_empty() {
                 return (mint, Vec::new());
             }
         } else {
             token_accounts_with_mint = token_accounts_with_mint
                 .iter()
-                .filter(|token_account| token_account.token_data.state == AccountState::Initialized)
-                .map(|token_account| (*token_account).clone())
-                .collect::<Vec<TokenDataWithMerkleContext>>();
+                .filter(|token_account| token_account.token.state == AccountState::Initialized)
+                .cloned()
+                .collect::<Vec<light_client::indexer::CompressedTokenAccount>>();
         }
         let range_end = if token_accounts_with_mint.len() == 1 {
             1
@@ -3188,16 +3188,11 @@ where
             token_accounts_with_mint[0..range_end].to_vec();
         // Sorting input and output Merkle tree pubkeys the same way so the pubkey indices do not get out of order
         get_random_subset_of_token_accounts.sort_by(|a, b| {
-            a.compressed_account
-                .merkle_context
-                .merkle_tree_pubkey
+            a.account
+                .tree_info
+                .tree
                 .to_bytes()
-                .cmp(
-                    &b.compressed_account
-                        .merkle_context
-                        .merkle_tree_pubkey
-                        .to_bytes(),
-                )
+                .cmp(&b.account.tree_info.tree.to_bytes())
         });
         (mint, get_random_subset_of_token_accounts)
     }

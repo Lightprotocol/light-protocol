@@ -1,11 +1,10 @@
 use anchor_lang::solana_program::pubkey::Pubkey;
 use async_trait::async_trait;
 use light_client::indexer::{
-    AddressMerkleTreeAccounts, MerkleProof, NewAddressProofWithContext, StateMerkleTreeAccounts,
+    AddressMerkleTreeAccounts, CompressedAccount, CompressedTokenAccount, MerkleProof,
+    NewAddressProofWithContext, StateMerkleTreeAccounts,
 };
-use light_compressed_account::compressed_account::CompressedAccountWithMerkleContext;
 use light_event::event::PublicTransactionEvent;
-use light_token::compat::TokenDataWithMerkleContext;
 use solana_sdk::signature::Keypair;
 
 use crate::{
@@ -83,7 +82,7 @@ impl TestIndexerExtensions for LightProgramTest {
             .get_address_merkle_trees_mut()
     }
 
-    fn get_token_compressed_accounts(&self) -> &Vec<TokenDataWithMerkleContext> {
+    fn get_token_compressed_accounts(&self) -> &Vec<CompressedTokenAccount> {
         self.indexer()
             .expect("Indexer not initialized")
             .get_token_compressed_accounts()
@@ -109,7 +108,7 @@ impl TestIndexerExtensions for LightProgramTest {
     fn get_compressed_accounts_with_merkle_context_by_owner(
         &self,
         owner: &Pubkey,
-    ) -> Vec<CompressedAccountWithMerkleContext> {
+    ) -> Vec<CompressedAccount> {
         self.indexer()
             .expect("Indexer not initialized")
             .get_compressed_accounts_with_merkle_context_by_owner(owner)
@@ -125,10 +124,7 @@ impl TestIndexerExtensions for LightProgramTest {
         &mut self,
         slot: u64,
         event: &PublicTransactionEvent,
-    ) -> (
-        Vec<CompressedAccountWithMerkleContext>,
-        Vec<TokenDataWithMerkleContext>,
-    ) {
+    ) -> (Vec<CompressedAccount>, Vec<CompressedTokenAccount>) {
         self.indexer_mut()
             .expect("Indexer not initialized")
             .add_event_and_compressed_accounts(slot, event)

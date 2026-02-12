@@ -200,9 +200,12 @@ pub async fn failing_transaction_inputs(
     }
     let (mut new_address_params, derived_addresses) =
         create_address_test_inputs(&env, num_addresses);
-    let input_compressed_accounts = rpc
+    let input_compressed_accounts: Vec<CompressedAccountWithMerkleContext> = rpc
         .get_compressed_accounts_with_merkle_context_by_owner(&payer.pubkey())[0..num_inputs]
-        .to_vec();
+        .to_vec()
+        .into_iter()
+        .map(Into::into)
+        .collect();
     let hashes = input_compressed_accounts
         .iter()
         .map(|x| x.hash().unwrap())
@@ -1330,7 +1333,9 @@ async fn test_with_address() {
     // transfer with address
     println!("transfer with address-------------------------");
 
-    let compressed_account_with_context = rpc.indexer().unwrap().compressed_accounts[0].clone();
+    let compressed_account = rpc.indexer().unwrap().compressed_accounts[0].clone();
+    let compressed_account_with_context: CompressedAccountWithMerkleContext =
+        compressed_account.clone().into();
     let recipient_pubkey = Keypair::new().pubkey();
     let mut indexer = rpc.clone_indexer().unwrap();
     transfer_compressed_sol_test(
@@ -1339,10 +1344,7 @@ async fn test_with_address() {
         &payer,
         std::slice::from_ref(&compressed_account_with_context),
         &[recipient_pubkey],
-        &[compressed_account_with_context
-            .merkle_context
-            .merkle_tree_pubkey
-            .into()],
+        &[compressed_account.tree_info.tree],
         None,
     )
     .await
@@ -1350,17 +1352,11 @@ async fn test_with_address() {
 
     assert_eq!(indexer.compressed_accounts.len(), 1);
     assert_eq!(
-        indexer.compressed_accounts[0]
-            .compressed_account
-            .address
-            .unwrap(),
+        indexer.compressed_accounts[0].address.unwrap(),
         derived_address
     );
     assert_eq!(
-        indexer.compressed_accounts[0]
-            .compressed_account
-            .owner
-            .to_bytes(),
+        indexer.compressed_accounts[0].owner.to_bytes(),
         recipient_pubkey.to_bytes()
     );
     (*rpc.indexer_mut().unwrap()) = indexer;
@@ -1432,10 +1428,13 @@ async fn test_with_address() {
         (4, 2),
     ];
     for (n_input_compressed_accounts, n_new_addresses) in test_inputs {
-        let compressed_input_accounts = rpc
+        let compressed_input_accounts: Vec<CompressedAccountWithMerkleContext> = rpc
             .get_compressed_accounts_with_merkle_context_by_owner(&payer_pubkey)
             [0..n_input_compressed_accounts]
-            .to_vec();
+            .to_vec()
+            .into_iter()
+            .map(Into::into)
+            .collect();
 
         let mut address_vec = Vec::new();
         // creates multiple seeds by taking the number of input accounts and zeroing out the jth byte
@@ -1625,15 +1624,17 @@ async fn test_with_compression() {
     assert_custom_error_or_program_error(result, SystemProgramError::SumCheckFailed.into())
         .unwrap();
 
-    let compressed_account_with_context =
-        rpc.get_compressed_accounts_with_merkle_context_by_owner(&payer_pubkey)[0].clone();
+    let compressed_account_with_context: CompressedAccountWithMerkleContext = rpc
+        .get_compressed_accounts_with_merkle_context_by_owner(&payer_pubkey)[0]
+        .clone()
+        .into();
 
     let mut test_indexer = (*rpc.indexer().unwrap()).clone();
     decompress_sol_test(
         &mut rpc,
         &mut test_indexer,
         &payer,
-        &vec![compressed_account_with_context],
+        &[compressed_account_with_context],
         &recipient_pubkey,
         compress_amount,
         &env.v1_state_trees[0].merkle_tree,

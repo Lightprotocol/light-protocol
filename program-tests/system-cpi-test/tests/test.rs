@@ -2,7 +2,8 @@ use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 use light_account_checks::error::AccountError;
 use light_batched_merkle_tree::initialize_state_tree::InitStateTreeAccountsInstructionData;
 use light_client::indexer::{
-    AddressMerkleTreeAccounts, AddressWithTree, Indexer, StateMerkleTreeAccounts,
+    AddressMerkleTreeAccounts, AddressWithTree, CompressedAccount as ClientCompressedAccount,
+    Indexer, StateMerkleTreeAccounts,
 };
 use light_compressed_account::{
     address::{derive_address, derive_address_legacy},
@@ -217,9 +218,8 @@ async fn test_read_only_accounts() {
         .get_compressed_accounts_with_merkle_context_by_owner(&ID)
         .iter()
         .find(|x| {
-            x.merkle_context.leaf_index == 101
-                && x.merkle_context.merkle_tree_pubkey.to_bytes()
-                    == env.v2_state_trees[0].merkle_tree.to_bytes()
+            x.leaf_index == 101
+                && x.tree_info.tree.to_bytes() == env.v2_state_trees[0].merkle_tree.to_bytes()
         })
         .unwrap()
         .clone();
@@ -229,9 +229,8 @@ async fn test_read_only_accounts() {
         .get_compressed_accounts_with_merkle_context_by_owner(&ID)
         .iter()
         .find(|x| {
-            x.merkle_context.leaf_index == 1
-                && x.merkle_context.merkle_tree_pubkey.to_bytes()
-                    == env.v2_state_trees[0].merkle_tree.to_bytes()
+            x.leaf_index == 1
+                && x.tree_info.tree.to_bytes() == env.v2_state_trees[0].merkle_tree.to_bytes()
         })
         .unwrap()
         .clone();
@@ -327,10 +326,7 @@ async fn test_read_only_accounts() {
             .indexer
             .get_compressed_accounts_with_merkle_context_by_owner(&ID)
             .iter()
-            .find(|x| {
-                x.merkle_context.merkle_tree_pubkey.to_bytes()
-                    == env.v1_state_trees[0].merkle_tree.to_bytes()
-            })
+            .find(|x| x.tree_info.tree.to_bytes() == env.v1_state_trees[0].merkle_tree.to_bytes())
             .unwrap()
             .clone();
         let result = perform_create_pda_with_event(
@@ -615,13 +611,9 @@ async fn test_read_only_accounts() {
             .get_compressed_accounts_with_merkle_context_by_owner(&ID)
             .iter()
             .find(|x| {
-                x.merkle_context.leaf_index == 2
-                    && x.merkle_context.merkle_tree_pubkey.to_bytes()
-                        == env.v2_state_trees[0].merkle_tree.to_bytes()
-                    && x.merkle_context.leaf_index
-                        != account_not_in_value_array_and_in_mt
-                            .merkle_context
-                            .leaf_index
+                x.leaf_index == 2
+                    && x.tree_info.tree.to_bytes() == env.v2_state_trees[0].merkle_tree.to_bytes()
+                    && x.leaf_index != account_not_in_value_array_and_in_mt.leaf_index
             })
             .unwrap()
             .clone();
@@ -1013,8 +1005,7 @@ async fn only_test_create_pda() {
         .value
         .items[0]
         .account
-        .clone()
-        .into();
+        .clone();
     println!("only_test_create_pda 8");
 
     // Failing 4 input account that is not owned by signer ----------------------------------------------
@@ -1146,7 +1137,7 @@ async fn only_test_create_pda() {
                 &mut rpc,
                 &mut test_indexer,
                 &keypair,
-                &[compressed_account],
+                &[compressed_account.clone().into()],
                 &[Pubkey::new_unique()],
                 &[env.v1_state_trees[0].merkle_tree],
                 None,
@@ -1631,8 +1622,8 @@ pub async fn perform_create_pda_with_event<R: Rpc, I: Indexer + TestIndexerExten
     seed: [u8; 32],
     data: &[u8; 31],
     owner_program: &Pubkey,
-    input_accounts: Option<Vec<CompressedAccountWithMerkleContext>>,
-    read_only_accounts: Option<Vec<CompressedAccountWithMerkleContext>>,
+    input_accounts: Option<Vec<ClientCompressedAccount>>,
+    read_only_accounts: Option<Vec<ClientCompressedAccount>>,
     mode: CreatePdaMode,
 ) -> Result<(), RpcError> {
     let payer_pubkey = payer.pubkey();
@@ -1678,10 +1669,14 @@ async fn perform_create_pda<I: Indexer + TestIndexerExtensions>(
     data: &[u8; 31],
     payer_pubkey: Pubkey,
     owner_program: &Pubkey,
-    input_accounts: Option<Vec<CompressedAccountWithMerkleContext>>,
-    read_only_accounts: Option<Vec<CompressedAccountWithMerkleContext>>,
+    input_accounts: Option<Vec<ClientCompressedAccount>>,
+    read_only_accounts: Option<Vec<ClientCompressedAccount>>,
     mode: CreatePdaMode,
 ) -> solana_sdk::instruction::Instruction {
+    let input_accounts: Option<Vec<CompressedAccountWithMerkleContext>> =
+        input_accounts.map(|v| v.into_iter().map(Into::into).collect());
+    let read_only_accounts: Option<Vec<CompressedAccountWithMerkleContext>> =
+        read_only_accounts.map(|v| v.into_iter().map(Into::into).collect());
     let output_compressed_account_merkle_tree_pubkey = if mode == CreatePdaMode::BatchFunctional {
         &env.v2_state_trees[0].output_queue
     } else {
@@ -1881,19 +1876,9 @@ pub async fn assert_created_pda<R: Rpc, I: Indexer + TestIndexerExtensions>(
     let compressed_escrow_pda =
         test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&ID)[0].clone();
     let address = derive_address_legacy(&env.v1_address_trees[0].merkle_tree.into(), seed).unwrap();
-    assert_eq!(
-        compressed_escrow_pda.compressed_account.address.unwrap(),
-        address
-    );
-    assert_eq!(
-        compressed_escrow_pda.compressed_account.owner.to_bytes(),
-        ID.to_bytes()
-    );
-    let compressed_escrow_pda_deserialized = compressed_escrow_pda
-        .compressed_account
-        .data
-        .as_ref()
-        .unwrap();
+    assert_eq!(compressed_escrow_pda.address.unwrap(), address);
+    assert_eq!(compressed_escrow_pda.owner.to_bytes(), ID.to_bytes());
+    let compressed_escrow_pda_deserialized = compressed_escrow_pda.data.as_ref().unwrap();
     let compressed_escrow_pda_data =
         RegisteredUser::deserialize_reader(&mut &compressed_escrow_pda_deserialized.data[..])
             .unwrap();
@@ -1919,11 +1904,12 @@ pub async fn perform_with_input_accounts<R: Rpc, I: Indexer + TestIndexerExtensi
     rpc: &mut R,
     payer: &Keypair,
     fee_payer: Option<&Keypair>,
-    compressed_account: &CompressedAccountWithMerkleContext,
+    compressed_account: &ClientCompressedAccount,
     token_account: Option<TokenDataWithMerkleContext>,
     expected_error_code: u32,
     mode: WithInputAccountsMode,
 ) -> Result<(), RpcError> {
+    let compressed_account: CompressedAccountWithMerkleContext = compressed_account.clone().into();
     let payer_pubkey = payer.pubkey();
     let hash = compressed_account.hash().unwrap();
     let mut hashes = vec![hash];
