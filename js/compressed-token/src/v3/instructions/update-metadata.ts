@@ -89,6 +89,11 @@ function encodeUpdateMetadataInstructionData(
         );
     }
 
+    // When mint is decompressed (cmintDecompressed=true), the program reads from CMint account
+    // so we don't need to include mint data in the instruction
+    const isDecompressed =
+        mintInterface.mintContext?.cmintDecompressed ?? false;
+
     const instructionData: MintActionCompressedInstructionData = {
         leafIndex: params.leafIndex,
         proveByIndex: params.proof === null,
@@ -98,31 +103,41 @@ function encodeUpdateMetadataInstructionData(
         actions: [convertActionToBorsh(params.action)],
         proof: params.proof,
         cpiContext: null,
-        mint: {
-            supply: mintInterface.mint.supply,
-            decimals: mintInterface.mint.decimals,
-            metadata: {
-                version: mintInterface.mintContext!.version,
-                cmintDecompressed: mintInterface.mintContext!.cmintDecompressed,
-                mint: mintInterface.mintContext!.splMint,
-                mintSigner: Array.from(mintInterface.mintContext!.mintSigner),
-                bump: mintInterface.mintContext!.bump,
-            },
-            mintAuthority: mintInterface.mint.mintAuthority,
-            freezeAuthority: mintInterface.mint.freezeAuthority,
-            extensions: [
-                {
-                    tokenMetadata: {
-                        updateAuthority:
-                            mintInterface.tokenMetadata.updateAuthority ?? null,
-                        name: Buffer.from(mintInterface.tokenMetadata.name),
-                        symbol: Buffer.from(mintInterface.tokenMetadata.symbol),
-                        uri: Buffer.from(mintInterface.tokenMetadata.uri),
-                        additionalMetadata: null,
-                    },
-                },
-            ],
-        },
+        mint: isDecompressed
+            ? null
+            : {
+                  supply: mintInterface.mint.supply,
+                  decimals: mintInterface.mint.decimals,
+                  metadata: {
+                      version: mintInterface.mintContext!.version,
+                      cmintDecompressed:
+                          mintInterface.mintContext!.cmintDecompressed,
+                      mint: mintInterface.mintContext!.splMint,
+                      mintSigner: Array.from(
+                          mintInterface.mintContext!.mintSigner,
+                      ),
+                      bump: mintInterface.mintContext!.bump,
+                  },
+                  mintAuthority: mintInterface.mint.mintAuthority,
+                  freezeAuthority: mintInterface.mint.freezeAuthority,
+                  extensions: [
+                      {
+                          tokenMetadata: {
+                              updateAuthority:
+                                  mintInterface.tokenMetadata.updateAuthority ??
+                                  null,
+                              name: Buffer.from(
+                                  mintInterface.tokenMetadata.name,
+                              ),
+                              symbol: Buffer.from(
+                                  mintInterface.tokenMetadata.symbol,
+                              ),
+                              uri: Buffer.from(mintInterface.tokenMetadata.uri),
+                              additionalMetadata: null,
+                          },
+                      },
+                  ],
+              },
     };
 
     return encodeMintActionInstructionData(instructionData);
@@ -132,7 +147,7 @@ function createUpdateMetadataInstruction(
     mintInterface: MintInterface,
     authority: PublicKey,
     payer: PublicKey,
-    validityProof: ValidityProofWithContext,
+    validityProof: ValidityProofWithContext | null,
     action: UpdateMetadataAction,
 ): TransactionInstruction {
     if (!mintInterface.merkleContext) {
@@ -153,14 +168,15 @@ function createUpdateMetadataInstruction(
 
     const merkleContext = mintInterface.merkleContext;
     const outputQueue = getOutputQueue(merkleContext);
+    const isDecompressed = mintInterface.mintContext.cmintDecompressed ?? false;
 
     const addressTreeInfo = getDefaultAddressTreeInfo();
     const data = encodeUpdateMetadataInstructionData({
         splMint: mintInterface.mintContext.splMint,
         addressTree: addressTreeInfo.tree,
         leafIndex: merkleContext.leafIndex,
-        rootIndex: validityProof.rootIndices[0],
-        proof: validityProof.compressedProof,
+        rootIndex: validityProof?.rootIndices[0] ?? 0,
+        proof: isDecompressed ? null : (validityProof?.compressedProof ?? null),
         mintInterface,
         action,
     });
@@ -173,6 +189,16 @@ function createUpdateMetadataInstruction(
             isWritable: false,
         },
         { pubkey: authority, isSigner: true, isWritable: false },
+        // CMint account when decompressed (must come before payer for correct account ordering)
+        ...(isDecompressed
+            ? [
+                  {
+                      pubkey: mintInterface.mint.address,
+                      isSigner: false,
+                      isWritable: true,
+                  },
+              ]
+            : []),
         { pubkey: payer, isSigner: true, isWritable: true },
         {
             pubkey: CompressedTokenProgram.deriveCpiAuthorityPda,
@@ -224,7 +250,7 @@ function createUpdateMetadataInstruction(
  * @param mintInterface  MintInterface from getMintInterface() - must have merkleContext and tokenMetadata
  * @param authority      Metadata update authority public key (must sign)
  * @param payer          Fee payer public key
- * @param validityProof  Validity proof for the compressed mint
+ * @param validityProof  Validity proof for the compressed mint (null for decompressed mints)
  * @param fieldType      Field to update: 'name', 'symbol', 'uri', or 'custom'
  * @param value          New value for the field
  * @param customKey      Custom key name (required if fieldType is 'custom')
@@ -234,7 +260,7 @@ export function createUpdateMetadataFieldInstruction(
     mintInterface: MintInterface,
     authority: PublicKey,
     payer: PublicKey,
-    validityProof: ValidityProofWithContext,
+    validityProof: ValidityProofWithContext | null,
     fieldType: 'name' | 'symbol' | 'uri' | 'custom',
     value: string,
     customKey?: string,
@@ -274,7 +300,7 @@ export function createUpdateMetadataFieldInstruction(
  * @param currentAuthority Current metadata update authority public key (must sign)
  * @param newAuthority     New metadata update authority public key
  * @param payer            Fee payer public key
- * @param validityProof    Validity proof for the compressed mint
+ * @param validityProof    Validity proof for the compressed mint (null for decompressed mints)
  * @param extensionIndex   Extension index (default: 0)
  */
 export function createUpdateMetadataAuthorityInstruction(
@@ -282,7 +308,7 @@ export function createUpdateMetadataAuthorityInstruction(
     currentAuthority: PublicKey,
     newAuthority: PublicKey,
     payer: PublicKey,
-    validityProof: ValidityProofWithContext,
+    validityProof: ValidityProofWithContext | null,
     extensionIndex: number = 0,
 ): TransactionInstruction {
     const action: UpdateMetadataAction = {
@@ -309,7 +335,7 @@ export function createUpdateMetadataAuthorityInstruction(
  * @param mintInterface  MintInterface from getMintInterface() - must have merkleContext and tokenMetadata
  * @param authority      Metadata update authority public key (must sign)
  * @param payer          Fee payer public key
- * @param validityProof  Validity proof for the compressed mint
+ * @param validityProof  Validity proof for the compressed mint (null for decompressed mints)
  * @param key            Metadata key to remove
  * @param idempotent     If true, don't error if key doesn't exist (default: false)
  * @param extensionIndex Extension index (default: 0)
@@ -318,7 +344,7 @@ export function createRemoveMetadataKeyInstruction(
     mintInterface: MintInterface,
     authority: PublicKey,
     payer: PublicKey,
-    validityProof: ValidityProofWithContext,
+    validityProof: ValidityProofWithContext | null,
     key: string,
     idempotent: boolean = false,
     extensionIndex: number = 0,
