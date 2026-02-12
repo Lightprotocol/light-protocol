@@ -10,7 +10,7 @@ pub mod load_accounts;
 pub mod pack;
 pub mod tx_size;
 
-pub use account_interface::{AccountInterface, AccountInterfaceError, ColdContext};
+pub use account_interface::AccountInterface;
 pub use create_accounts_proof::{
     get_create_accounts_proof, CreateAccountsProofError, CreateAccountsProofInput,
     CreateAccountsProofResult,

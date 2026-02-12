@@ -35,10 +35,7 @@ use crate::rpc::get_light_state_tree_infos::{
     default_state_tree_lookup_tables, get_light_state_tree_infos,
 };
 use crate::{
-    indexer::{
-        photon_indexer::PhotonIndexer, AccountInterface as IndexerAccountInterface, Indexer,
-        IndexerRpcConfig, Response, TreeInfo,
-    },
+    indexer::{photon_indexer::PhotonIndexer, Indexer, IndexerRpcConfig, Response, TreeInfo},
     interface::AccountInterface,
     rpc::{errors::RpcError, merkle_tree::MerkleTreeExt, Rpc},
 };
@@ -501,69 +498,6 @@ impl LightClient {
     }
 }
 
-// Conversion helpers from indexer types to interface types
-
-use crate::indexer::ColdContext as IndexerColdContext;
-
-fn cold_context_to_compressed_account(
-    cold: &IndexerColdContext,
-    lamports: u64,
-    owner: Pubkey,
-) -> crate::indexer::CompressedAccount {
-    use light_compressed_account::compressed_account::CompressedAccountData;
-
-    crate::indexer::CompressedAccount {
-        address: cold.address,
-        data: Some(CompressedAccountData {
-            discriminator: cold.data.discriminator,
-            data: cold.data.data.clone(),
-            data_hash: cold.data.data_hash,
-        }),
-        hash: cold.hash,
-        lamports,
-        leaf_index: cold.leaf_index as u32,
-        owner,
-        prove_by_index: cold.prove_by_index,
-        seq: cold.tree_info.seq,
-        slot_created: cold.tree_info.slot_created,
-        tree_info: TreeInfo {
-            tree: cold.tree_info.tree,
-            queue: cold.tree_info.queue,
-            cpi_context: None,
-            next_tree_info: None,
-            tree_type: cold.tree_info.tree_type,
-        },
-    }
-}
-
-fn convert_account_interface(
-    indexer_ai: IndexerAccountInterface,
-) -> Result<AccountInterface, RpcError> {
-    let account = Account {
-        lamports: indexer_ai.account.lamports,
-        data: indexer_ai.account.data,
-        owner: indexer_ai.account.owner,
-        executable: indexer_ai.account.executable,
-        rent_epoch: indexer_ai.account.rent_epoch,
-    };
-
-    match indexer_ai.cold {
-        None => Ok(AccountInterface::hot(indexer_ai.key, account)),
-        Some(cold) => {
-            let compressed = cold_context_to_compressed_account(
-                &cold,
-                indexer_ai.account.lamports,
-                indexer_ai.account.owner,
-            );
-            Ok(AccountInterface::cold(
-                indexer_ai.key,
-                compressed,
-                indexer_ai.account.owner,
-            ))
-        }
-    }
-}
-
 #[async_trait]
 impl Rpc for LightClient {
     async fn new(config: LightClientConfig) -> Result<Self, RpcError>
@@ -1016,16 +950,10 @@ impl Rpc for LightClient {
             .indexer
             .as_ref()
             .ok_or(RpcError::IndexerNotInitialized)?;
-        let resp = indexer
+        indexer
             .get_account_interface(address, config)
             .await
-            .map_err(|e| RpcError::CustomError(format!("Indexer error: {e}")))?;
-
-        let value = resp.value.map(convert_account_interface).transpose()?;
-        Ok(Response {
-            context: resp.context,
-            value,
-        })
+            .map_err(|e| RpcError::CustomError(format!("Indexer error: {e}")))
     }
 
     async fn get_multiple_account_interfaces(
@@ -1037,21 +965,10 @@ impl Rpc for LightClient {
             .indexer
             .as_ref()
             .ok_or(RpcError::IndexerNotInitialized)?;
-        let resp = indexer
+        indexer
             .get_multiple_account_interfaces(addresses, config)
             .await
-            .map_err(|e| RpcError::CustomError(format!("Indexer error: {e}")))?;
-
-        let value: Result<Vec<Option<AccountInterface>>, RpcError> = resp
-            .value
-            .into_iter()
-            .map(|opt| opt.map(convert_account_interface).transpose())
-            .collect();
-
-        Ok(Response {
-            context: resp.context,
-            value: value?,
-        })
+            .map_err(|e| RpcError::CustomError(format!("Indexer error: {e}")))
     }
 }
 

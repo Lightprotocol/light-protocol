@@ -1,65 +1,36 @@
-//! Unified account interfaces for hot/cold account handling.
+//! Unified account interface for hot/cold account handling.
 //!
-//! Core type: `AccountInterface` - Generic account (PDAs, mints, ATAs).
-//! Consumers parse `account.data` (SPL layout) for hot or cold.
-//!
-//! All interfaces use standard Solana/SPL types:
-//! - `solana_account::Account` for raw account data
-//! - `spl_token_2022_interface::pod::PodAccount` for parsed token data
+//! Single type: `AccountInterface` - works for PDAs, mints, ATAs.
+//! For hot accounts: real on-chain data.
+//! For cold accounts: synthetic data from Photon + compressed account metadata.
 
+use borsh::BorshDeserialize;
+use light_sdk_types::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
 use solana_account::Account;
 use solana_pubkey::Pubkey;
-use spl_pod::{bytemuck::pod_bytes_of, primitives::PodU64};
-use spl_token_2022_interface::{
-    pod::{PodAccount, PodCOption},
-    state::AccountState,
-};
-use thiserror::Error;
 
 use crate::indexer::{CompressedAccount, CompressedTokenAccount, TreeInfo};
 
-/// Context for cold accounts.
-///
-/// Three variants based on data structure:
-/// - `Account` - Generic PDA
-/// - `Token` - Token account
-/// - `Mint` - Compressed mint
-#[derive(Clone, Debug, PartialEq)]
-pub enum ColdContext {
-    /// Generic PDA
-    Account(CompressedAccount),
-    /// Token account
-    Token(CompressedTokenAccount),
-    /// Compressed mint
-    Mint(CompressedAccount),
-}
-
-/// Error type for account interface operations.
-#[derive(Debug, Error)]
-pub enum AccountInterfaceError {
-    #[error("Account not found")]
-    NotFound,
-
-    #[error("Invalid account data")]
-    InvalidData,
-
-    #[error("Parse error: {0}")]
-    ParseError(String),
-}
+/// C_TOKEN_DISCRIMINATOR_V2: batched Merkle trees.
+const C_TOKEN_V2: [u8; 8] = [0, 0, 0, 0, 0, 0, 0, 3];
+/// C_TOKEN_DISCRIMINATOR_V3: SHA256 flat hash with TLV extensions.
+const C_TOKEN_V3: [u8; 8] = [0, 0, 0, 0, 0, 0, 0, 4];
 
 /// Unified account interface for PDAs, mints, and tokens.
 ///
-/// Uses standard `solana_account::Account` for raw data.
-/// For hot accounts: actual on-chain bytes.
-/// For cold accounts: synthetic bytes from cold data.
+/// `account` contains usable data bytes in both hot and cold cases:
+/// - Hot: actual on-chain bytes
+/// - Cold: synthetic bytes from Photon (SPL layout for tokens, disc+data for PDAs)
+///
+/// `cold` contains the raw compressed account(s) when cold, needed for proof generation.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct AccountInterface {
     /// The account's public key.
     pub key: Pubkey,
     /// Standard Solana Account (lamports, data, owner, executable, rent_epoch).
     pub account: Account,
-    /// Cold context (only present when cold).
-    pub cold: Option<ColdContext>,
+    /// Compressed accounts when cold (None = hot).
+    pub cold: Option<Vec<CompressedAccount>>,
 }
 
 impl AccountInterface {
@@ -72,68 +43,12 @@ impl AccountInterface {
         }
     }
 
-    /// Create a cold account interface for a PDA/mint.
-    pub fn cold(key: Pubkey, compressed: CompressedAccount, owner: Pubkey) -> Self {
-        let data = compressed
-            .data
-            .as_ref()
-            .map(|d| {
-                let mut buf = d.discriminator.to_vec();
-                buf.extend_from_slice(&d.data);
-                buf
-            })
-            .unwrap_or_default();
-
+    /// Create a cold account interface from compressed accounts and synthetic account data.
+    pub fn cold(key: Pubkey, account: Account, compressed: Vec<CompressedAccount>) -> Self {
         Self {
             key,
-            account: Account {
-                lamports: compressed.lamports,
-                data,
-                owner,
-                executable: false,
-                rent_epoch: 0,
-            },
-            cold: Some(ColdContext::Account(compressed)),
-        }
-    }
-
-    /// Create a cold account interface for a token account.
-    pub fn cold_token(
-        key: Pubkey,
-        compressed: CompressedTokenAccount,
-        wallet_owner: Pubkey,
-    ) -> Self {
-        use light_token::compat::AccountState as LightAccountState;
-
-        let token = &compressed.token;
-        let parsed = PodAccount {
-            mint: token.mint,
-            owner: wallet_owner,
-            amount: PodU64::from(token.amount),
-            delegate: match token.delegate {
-                Some(pk) => PodCOption::some(pk),
-                None => PodCOption::none(),
-            },
-            state: match token.state {
-                LightAccountState::Frozen => AccountState::Frozen as u8,
-                _ => AccountState::Initialized as u8,
-            },
-            is_native: PodCOption::none(),
-            delegated_amount: PodU64::from(0u64),
-            close_authority: PodCOption::none(),
-        };
-        let data = pod_bytes_of(&parsed).to_vec();
-
-        Self {
-            key,
-            account: Account {
-                lamports: compressed.account.lamports,
-                data,
-                owner: light_token::instruction::LIGHT_TOKEN_PROGRAM_ID,
-                executable: false,
-                rent_epoch: 0,
-            },
-            cold: Some(ColdContext::Token(compressed)),
+            account,
+            cold: Some(compressed),
         }
     }
 
@@ -149,68 +64,65 @@ impl AccountInterface {
         self.cold.is_none()
     }
 
-    /// Get data bytes.
+    /// Get data bytes (works for both hot and cold).
     #[inline]
     pub fn data(&self) -> &[u8] {
         &self.account.data
     }
 
+    /// Get the primary compressed account (first in the cold vec).
+    pub fn compressed(&self) -> Option<&CompressedAccount> {
+        self.cold.as_ref().and_then(|v| v.first())
+    }
+
+    /// Get all compressed accounts.
+    pub fn compressed_accounts(&self) -> Option<&[CompressedAccount]> {
+        self.cold.as_deref()
+    }
+
     /// Get the account hash if cold.
     pub fn hash(&self) -> Option<[u8; 32]> {
-        match &self.cold {
-            Some(ColdContext::Account(c)) => Some(c.hash),
-            Some(ColdContext::Token(c)) => Some(c.account.hash),
-            Some(ColdContext::Mint(c)) => Some(c.hash),
-            None => None,
-        }
+        self.compressed().map(|c| c.hash)
     }
 
     /// Get tree info if cold.
     pub fn tree_info(&self) -> Option<&TreeInfo> {
-        match &self.cold {
-            Some(ColdContext::Account(c)) => Some(&c.tree_info),
-            Some(ColdContext::Token(c)) => Some(&c.account.tree_info),
-            Some(ColdContext::Mint(c)) => Some(&c.tree_info),
-            None => None,
-        }
+        self.compressed().map(|c| &c.tree_info)
     }
 
     /// Get leaf index if cold.
     pub fn leaf_index(&self) -> Option<u32> {
-        match &self.cold {
-            Some(ColdContext::Account(c)) => Some(c.leaf_index),
-            Some(ColdContext::Token(c)) => Some(c.account.leaf_index),
-            Some(ColdContext::Mint(c)) => Some(c.leaf_index),
-            None => None,
-        }
+        self.compressed().map(|c| c.leaf_index)
     }
 
-    /// Get as CompressedAccount if cold account or mint type.
-    pub fn as_compressed_account(&self) -> Option<&CompressedAccount> {
-        match &self.cold {
-            Some(ColdContext::Account(c)) => Some(c),
-            Some(ColdContext::Mint(c)) => Some(c),
-            _ => None,
-        }
-    }
+    /// Parse as CompressedTokenAccount if the primary compressed account is a token.
+    ///
+    /// Token detection: owner == LIGHT_TOKEN_PROGRAM_ID and c_token discriminator.
+    /// Token data is borsh-deserialized from the compressed account data.
+    pub fn as_compressed_token(&self) -> Option<CompressedTokenAccount> {
+        let compressed = self.compressed()?;
+        let data = compressed.data.as_ref()?;
 
-    /// Get as CompressedTokenAccount if cold token type.
-    pub fn as_compressed_token(&self) -> Option<&CompressedTokenAccount> {
-        match &self.cold {
-            Some(ColdContext::Token(c)) => Some(c),
-            _ => None,
+        if compressed.owner != light_token::instruction::LIGHT_TOKEN_PROGRAM_ID {
+            return None;
         }
+        if !is_c_token_discriminator(&data.discriminator) {
+            return None;
+        }
+
+        let token =
+            light_token::compat::TokenData::deserialize(&mut data.data.as_slice()).ok()?;
+        Some(CompressedTokenAccount {
+            token,
+            account: compressed.clone(),
+        })
     }
 
     /// Try to parse as Mint. Returns None if not a mint or parse fails.
     pub fn as_mint(&self) -> Option<light_token_interface::state::Mint> {
-        match &self.cold {
-            Some(ColdContext::Mint(ca)) | Some(ColdContext::Account(ca)) => {
-                let data = ca.data.as_ref()?;
-                borsh::BorshDeserialize::deserialize(&mut data.data.as_slice()).ok()
-            }
-            _ => None,
-        }
+        let compressed = self.compressed()?;
+        let data = compressed.data.as_ref()?;
+        BorshDeserialize::deserialize(&mut data.data.as_slice()).ok()
     }
 
     /// Get mint signer if this is a cold mint.
@@ -222,4 +134,9 @@ impl AccountInterface {
     pub fn mint_compressed_address(&self) -> Option<[u8; 32]> {
         self.as_mint().map(|m| m.metadata.compressed_address())
     }
+}
+
+/// Check if a discriminator is a c_token discriminator (V1, V2, or V3).
+fn is_c_token_discriminator(disc: &[u8; 8]) -> bool {
+    *disc == TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR || *disc == C_TOKEN_V2 || *disc == C_TOKEN_V3
 }

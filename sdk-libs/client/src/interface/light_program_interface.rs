@@ -10,8 +10,8 @@ use std::fmt::Debug;
 use light_account::Pack;
 use solana_pubkey::Pubkey;
 
-use super::{AccountInterface, ColdContext};
-use crate::indexer::{CompressedAccount, CompressedTokenAccount};
+use super::AccountInterface;
+use crate::indexer::CompressedAccount;
 
 /// Specification for a program-owned PDA with typed variant.
 ///
@@ -68,21 +68,10 @@ impl<V> PdaSpec<V> {
     /// Get the compressed account if cold.
     #[must_use]
     pub fn compressed(&self) -> Option<&CompressedAccount> {
-        match &self.interface.cold {
-            Some(ColdContext::Account(c)) => Some(c),
-            Some(ColdContext::Token(c)) => Some(&c.account),
-            Some(ColdContext::Mint(c)) => Some(c),
-            None => None,
-        }
+        self.interface.compressed()
     }
 
-    /// Get the compressed token account if this is a cold token PDA.
-    #[must_use]
-    pub fn compressed_token(&self) -> Option<&CompressedTokenAccount> {
-        self.interface.as_compressed_token()
-    }
-
-    /// Whether this spec is for a token PDA (cold context is Token variant).
+    /// Whether this spec is for a token PDA (compressed account is a token).
     #[must_use]
     pub fn is_token_pda(&self) -> bool {
         self.interface.as_compressed_token().is_some()

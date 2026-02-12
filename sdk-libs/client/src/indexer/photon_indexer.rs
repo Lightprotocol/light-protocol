@@ -8,9 +8,9 @@ use solana_pubkey::Pubkey;
 use tracing::{error, trace, warn};
 
 use super::types::{
-    AccountInterface, CompressedAccount, CompressedTokenAccount, OwnerBalance,
-    SignatureWithMetadata, TokenBalance,
+    CompressedAccount, CompressedTokenAccount, OwnerBalance, SignatureWithMetadata, TokenBalance,
 };
+use crate::interface::AccountInterface;
 use crate::indexer::{
     base58::Base58Conversions,
     config::RetryConfig,
@@ -1747,7 +1747,7 @@ impl PhotonIndexer {
             }
 
             let account = match api_response.value {
-                Some(ref ai) => Some(AccountInterface::try_from(ai)?),
+                Some(ref ai) => Some(convert_photon_account_interface(ai)?),
                 None => None,
             };
 
@@ -1798,7 +1798,7 @@ impl PhotonIndexer {
                 .into_iter()
                 .map(|maybe_acc| {
                     maybe_acc
-                        .map(|ai| AccountInterface::try_from(&ai))
+                        .map(|ai| convert_photon_account_interface(&ai))
                         .transpose()
                 })
                 .collect();
@@ -1812,4 +1812,36 @@ impl PhotonIndexer {
         })
         .await
     }
+}
+
+/// Convert a photon_api AccountInterface directly to the consumer AccountInterface.
+fn convert_photon_account_interface(
+    ai: &photon_api::types::AccountInterface,
+) -> Result<AccountInterface, IndexerError> {
+    use super::base58::decode_base58_to_fixed_array;
+    use solana_account::Account;
+
+    let key = Pubkey::new_from_array(decode_base58_to_fixed_array(&ai.key)?);
+    let data = base64::decode_config(&*ai.account.data, base64::STANDARD_NO_PAD)
+        .map_err(|e| IndexerError::decode_error("account.data", e))?;
+    let account = Account {
+        lamports: *ai.account.lamports,
+        data,
+        owner: Pubkey::new_from_array(decode_base58_to_fixed_array(&ai.account.owner)?),
+        executable: ai.account.executable,
+        rent_epoch: *ai.account.rent_epoch,
+    };
+
+    let cold = ai
+        .cold
+        .as_ref()
+        .map(|entries| {
+            entries
+                .iter()
+                .map(CompressedAccount::try_from)
+                .collect::<Result<Vec<_>, _>>()
+        })
+        .transpose()?;
+
+    Ok(AccountInterface { key, account, cold })
 }

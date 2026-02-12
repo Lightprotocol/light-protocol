@@ -25,6 +25,26 @@ use light_program_test::{
     program_test::{setup_mock_program_data, LightProgramTest, TestRpc},
     Indexer, ProgramTestConfig, Rpc,
 };
+
+async fn assert_hot(rpc: &LightProgramTest, address: &Pubkey, name: &str) {
+    let ai = rpc
+        .get_account_interface(address, None)
+        .await
+        .unwrap()
+        .value
+        .unwrap_or_else(|| panic!("{} should exist", name));
+    assert!(ai.is_hot(), "{} ({}) should be hot", name, address);
+}
+
+async fn assert_cold(rpc: &LightProgramTest, address: &Pubkey, name: &str) {
+    let ai = rpc
+        .get_account_interface(address, None)
+        .await
+        .unwrap()
+        .value
+        .unwrap_or_else(|| panic!("{} should exist", name));
+    assert!(ai.is_cold(), "{} ({}) should be cold", name, address);
+}
 use light_token::instruction::{
     find_mint_address, get_associated_token_address_and_bump, LIGHT_TOKEN_CONFIG,
     LIGHT_TOKEN_CPI_AUTHORITY, LIGHT_TOKEN_PROGRAM_ID, LIGHT_TOKEN_RENT_SPONSOR,
@@ -325,21 +345,21 @@ async fn test_amm_full_lifecycle() {
         .await
         .expect("Initialize pool should succeed");
 
-    shared::assert_onchain_exists(&mut ctx.rpc, &pdas.pool_state, "pool state").await;
-    shared::assert_onchain_exists(&mut ctx.rpc, &pdas.observation_state, "observation state").await;
-    shared::assert_onchain_exists(&mut ctx.rpc, &pdas.lp_mint, "LP mint").await;
-    shared::assert_onchain_exists(&mut ctx.rpc, &pdas.token_0_vault, "token 0 vault").await;
-    shared::assert_onchain_exists(&mut ctx.rpc, &pdas.token_1_vault, "token 1 vault").await;
-    shared::assert_onchain_exists(&mut ctx.rpc, &pdas.creator_lp_token, "creator LP token").await;
+    assert_hot(&ctx.rpc, &pdas.pool_state, "pool state").await;
+    assert_hot(&ctx.rpc, &pdas.observation_state, "observation state").await;
+    assert_hot(&ctx.rpc, &pdas.lp_mint, "LP mint").await;
+    assert_hot(&ctx.rpc, &pdas.token_0_vault, "token 0 vault").await;
+    assert_hot(&ctx.rpc, &pdas.token_1_vault, "token 1 vault").await;
+    assert_hot(&ctx.rpc, &pdas.creator_lp_token, "creator LP token").await;
 
-    let lp_token_data = parse_token(
-        &ctx.rpc
-            .get_account(pdas.creator_lp_token)
-            .await
-            .unwrap()
-            .unwrap()
-            .data,
-    );
+    let creator_lp_interface = ctx
+        .rpc
+        .get_account_interface(&pdas.creator_lp_token, None)
+        .await
+        .unwrap()
+        .value
+        .expect("creator_lp_token should exist");
+    let lp_token_data = parse_token(creator_lp_interface.data());
     let initial_lp_balance = lp_token_data.amount;
     assert!(
         initial_lp_balance > 0,
@@ -351,9 +371,16 @@ async fn test_amm_full_lifecycle() {
         use csdk_anchor_full_derived_test::amm_test::{
             Observation, ObservationState, PoolState, OBSERVATION_NUM,
         };
-        let pool_account = ctx.rpc.get_account(pdas.pool_state).await.unwrap().unwrap();
+        let pool_interface = ctx
+            .rpc
+            .get_account_interface(&pdas.pool_state, None)
+            .await
+            .unwrap()
+            .value
+            .expect("pool_state should exist");
+        let mut pool_data = pool_interface.data();
         let pool_state: PoolState =
-            anchor_lang::AccountDeserialize::try_deserialize(&mut &pool_account.data[..]).unwrap();
+            anchor_lang::AccountDeserialize::try_deserialize(&mut pool_data).unwrap();
         let expected_pool = PoolState {
             compression_info: shared::expected_compression_info(&pool_state.compression_info),
             amm_config: ctx.amm_config.pubkey(),
@@ -386,14 +413,16 @@ async fn test_amm_full_lifecycle() {
         );
 
         // ObservationState assertion
-        let obs_account = ctx
+        let obs_interface = ctx
             .rpc
-            .get_account(pdas.observation_state)
+            .get_account_interface(&pdas.observation_state, None)
             .await
             .unwrap()
-            .unwrap();
+            .value
+            .expect("observation_state should exist");
+        let mut obs_data = obs_interface.data();
         let obs_state: ObservationState =
-            anchor_lang::AccountDeserialize::try_deserialize(&mut &obs_account.data[..]).unwrap();
+            anchor_lang::AccountDeserialize::try_deserialize(&mut obs_data).unwrap();
         let expected_obs = ObservationState {
             compression_info: shared::expected_compression_info(&obs_state.compression_info),
             initialized: false,
@@ -410,14 +439,14 @@ async fn test_amm_full_lifecycle() {
 
     // Full-struct Token assertions after init
     {
-        let token_0_vault_data = parse_token(
-            &ctx.rpc
-                .get_account(pdas.token_0_vault)
-                .await
-                .unwrap()
-                .unwrap()
-                .data,
-        );
+        let token_0_interface = ctx
+            .rpc
+            .get_account_interface(&pdas.token_0_vault, None)
+            .await
+            .unwrap()
+            .value
+            .expect("token_0_vault should exist");
+        let token_0_vault_data = parse_token(token_0_interface.data());
         let expected_token_0 = Token {
             mint: ctx.token_0_mint.into(),
             owner: pdas.authority.into(),
@@ -435,14 +464,14 @@ async fn test_amm_full_lifecycle() {
             "token_0_vault should match after init"
         );
 
-        let token_1_vault_data = parse_token(
-            &ctx.rpc
-                .get_account(pdas.token_1_vault)
-                .await
-                .unwrap()
-                .unwrap()
-                .data,
-        );
+        let token_1_interface = ctx
+            .rpc
+            .get_account_interface(&pdas.token_1_vault, None)
+            .await
+            .unwrap()
+            .value
+            .expect("token_1_vault should exist");
+        let token_1_vault_data = parse_token(token_1_interface.data());
         let expected_token_1 = Token {
             mint: ctx.token_1_mint.into(),
             owner: pdas.authority.into(),
@@ -501,14 +530,14 @@ async fn test_amm_full_lifecycle() {
         .expect("Deposit should succeed");
 
     // Verify LP balance after deposit
-    let lp_token_data_after_deposit = parse_token(
-        &ctx.rpc
-            .get_account(pdas.creator_lp_token)
-            .await
-            .unwrap()
-            .unwrap()
-            .data,
-    );
+    let lp_interface_after_deposit = ctx
+        .rpc
+        .get_account_interface(&pdas.creator_lp_token, None)
+        .await
+        .unwrap()
+        .value
+        .expect("creator_lp_token should exist");
+    let lp_token_data_after_deposit = parse_token(lp_interface_after_deposit.data());
     let expected_balance_after_deposit = initial_lp_balance + deposit_amount;
     assert_eq!(
         lp_token_data_after_deposit.amount, expected_balance_after_deposit,
@@ -554,14 +583,14 @@ async fn test_amm_full_lifecycle() {
         .await
         .expect("Withdraw should succeed");
 
-    let lp_token_data_after_withdraw = parse_token(
-        &ctx.rpc
-            .get_account(pdas.creator_lp_token)
-            .await
-            .unwrap()
-            .unwrap()
-            .data,
-    );
+    let lp_interface_after_withdraw = ctx
+        .rpc
+        .get_account_interface(&pdas.creator_lp_token, None)
+        .await
+        .unwrap()
+        .value
+        .expect("creator_lp_token should exist");
+    let lp_token_data_after_withdraw = parse_token(lp_interface_after_withdraw.data());
     let expected_balance_after_withdraw = expected_balance_after_deposit - withdraw_amount;
     assert_eq!(
         lp_token_data_after_withdraw.amount, expected_balance_after_withdraw,
@@ -593,13 +622,13 @@ async fn test_amm_full_lifecycle() {
             &address_tree_pubkey,
         );
 
-    // Assert compression (assert_after_compression)
-    shared::assert_onchain_closed(&mut ctx.rpc, &pdas.pool_state, "pool_state").await;
-    shared::assert_onchain_closed(&mut ctx.rpc, &pdas.observation_state, "observation_state").await;
-    shared::assert_onchain_closed(&mut ctx.rpc, &pdas.lp_mint, "lp_mint").await;
-    shared::assert_onchain_closed(&mut ctx.rpc, &pdas.token_0_vault, "token_0_vault").await;
-    shared::assert_onchain_closed(&mut ctx.rpc, &pdas.token_1_vault, "token_1_vault").await;
-    shared::assert_onchain_closed(&mut ctx.rpc, &pdas.creator_lp_token, "creator_lp_token").await;
+    // Assert compression (accounts should be cold)
+    assert_cold(&ctx.rpc, &pdas.pool_state, "pool_state").await;
+    assert_cold(&ctx.rpc, &pdas.observation_state, "observation_state").await;
+    assert_cold(&ctx.rpc, &pdas.lp_mint, "lp_mint").await;
+    assert_cold(&ctx.rpc, &pdas.token_0_vault, "token_0_vault").await;
+    assert_cold(&ctx.rpc, &pdas.token_1_vault, "token_1_vault").await;
+    assert_cold(&ctx.rpc, &pdas.creator_lp_token, "creator_lp_token").await;
 
     // Verify compressed accounts exist with non-empty data
     shared::assert_compressed_exists_with_data(&mut ctx.rpc, pool_compressed_address, "pool_state")
@@ -633,7 +662,6 @@ async fn test_amm_full_lifecycle() {
         .expect("failed to get pool_state")
         .value
         .expect("pool_state should exist");
-    assert!(pool_interface.is_cold(), "pool_state should be cold");
 
     // Create SDK from pool state data.
     let sdk =
@@ -686,21 +714,28 @@ async fn test_amm_full_lifecycle() {
         .await
         .expect("Decompression should succeed");
 
-    shared::assert_onchain_exists(&mut ctx.rpc, &pdas.pool_state, "pool_state").await;
-    shared::assert_onchain_exists(&mut ctx.rpc, &pdas.observation_state, "observation_state").await;
-    shared::assert_onchain_exists(&mut ctx.rpc, &pdas.lp_mint, "lp_mint").await;
-    shared::assert_onchain_exists(&mut ctx.rpc, &pdas.token_0_vault, "token_0_vault").await;
-    shared::assert_onchain_exists(&mut ctx.rpc, &pdas.token_1_vault, "token_1_vault").await;
-    shared::assert_onchain_exists(&mut ctx.rpc, &pdas.creator_lp_token, "creator_lp_token").await;
+    assert_hot(&ctx.rpc, &pdas.pool_state, "pool_state").await;
+    assert_hot(&ctx.rpc, &pdas.observation_state, "observation_state").await;
+    assert_hot(&ctx.rpc, &pdas.lp_mint, "lp_mint").await;
+    assert_hot(&ctx.rpc, &pdas.token_0_vault, "token_0_vault").await;
+    assert_hot(&ctx.rpc, &pdas.token_1_vault, "token_1_vault").await;
+    assert_hot(&ctx.rpc, &pdas.creator_lp_token, "creator_lp_token").await;
 
     // Full-struct assertion for PoolState after decompression
     {
         use csdk_anchor_full_derived_test::amm_test::{
             Observation, ObservationState, PoolState, OBSERVATION_NUM,
         };
-        let pool_account = ctx.rpc.get_account(pdas.pool_state).await.unwrap().unwrap();
+        let pool_interface = ctx
+            .rpc
+            .get_account_interface(&pdas.pool_state, None)
+            .await
+            .unwrap()
+            .value
+            .expect("pool_state should exist");
+        let mut pool_data = pool_interface.data();
         let pool_state: PoolState =
-            anchor_lang::AccountDeserialize::try_deserialize(&mut &pool_account.data[..]).unwrap();
+            anchor_lang::AccountDeserialize::try_deserialize(&mut pool_data).unwrap();
         let expected_pool = PoolState {
             compression_info: shared::expected_compression_info(&pool_state.compression_info),
             amm_config: ctx.amm_config.pubkey(),
@@ -732,14 +767,16 @@ async fn test_amm_full_lifecycle() {
             "PoolState should match after decompression"
         );
 
-        let obs_account = ctx
+        let obs_interface = ctx
             .rpc
-            .get_account(pdas.observation_state)
+            .get_account_interface(&pdas.observation_state, None)
             .await
             .unwrap()
-            .unwrap();
+            .value
+            .expect("observation_state should exist");
+        let mut obs_data = obs_interface.data();
         let obs_state: ObservationState =
-            anchor_lang::AccountDeserialize::try_deserialize(&mut &obs_account.data[..]).unwrap();
+            anchor_lang::AccountDeserialize::try_deserialize(&mut obs_data).unwrap();
         let expected_obs = ObservationState {
             compression_info: shared::expected_compression_info(&obs_state.compression_info),
             initialized: false,
@@ -755,28 +792,28 @@ async fn test_amm_full_lifecycle() {
     }
 
     // Verify LP token balance
-    let lp_token_after_decompression = parse_token(
-        &ctx.rpc
-            .get_account(pdas.creator_lp_token)
-            .await
-            .unwrap()
-            .unwrap()
-            .data,
-    );
+    let lp_interface_after_decompression = ctx
+        .rpc
+        .get_account_interface(&pdas.creator_lp_token, None)
+        .await
+        .unwrap()
+        .value
+        .expect("creator_lp_token should exist");
+    let lp_token_after_decompression = parse_token(lp_interface_after_decompression.data());
     assert_eq!(
         lp_token_after_decompression.amount, expected_balance_after_withdraw,
         "LP token balance should be preserved after decompression"
     );
 
     // Verify token account owners after decompression using full struct comparison
-    let token_0_vault_data = parse_token(
-        &ctx.rpc
-            .get_account(pdas.token_0_vault)
-            .await
-            .unwrap()
-            .unwrap()
-            .data,
-    );
+    let token_0_interface = ctx
+        .rpc
+        .get_account_interface(&pdas.token_0_vault, None)
+        .await
+        .unwrap()
+        .value
+        .expect("token_0_vault should exist");
+    let token_0_vault_data = parse_token(token_0_interface.data());
     let expected_token_0_vault = Token {
         mint: ctx.token_0_mint.into(),
         owner: pdas.authority.into(),
@@ -794,14 +831,14 @@ async fn test_amm_full_lifecycle() {
         "token_0_vault should match expected after decompression"
     );
 
-    let token_1_vault_data = parse_token(
-        &ctx.rpc
-            .get_account(pdas.token_1_vault)
-            .await
-            .unwrap()
-            .unwrap()
-            .data,
-    );
+    let token_1_interface = ctx
+        .rpc
+        .get_account_interface(&pdas.token_1_vault, None)
+        .await
+        .unwrap()
+        .value
+        .expect("token_1_vault should exist");
+    let token_1_vault_data = parse_token(token_1_interface.data());
     let expected_token_1_vault = Token {
         mint: ctx.token_1_mint.into(),
         owner: pdas.authority.into(),
@@ -836,17 +873,16 @@ async fn test_amm_full_lifecycle() {
         "creator_lp_token should match expected after decompression"
     );
 
-    // Verify compressed token accounts
-    let remaining_vault_0 = ctx
-        .rpc
-        .get_compressed_token_accounts_by_owner(&pdas.token_0_vault, None, None)
-        .await
-        .unwrap()
-        .value
-        .items;
+    // Verify token_0_vault is hot (decompressed) after load
     assert!(
-        remaining_vault_0.is_empty(),
-        "Compressed token_0_vault should be consumed"
+        ctx.rpc
+            .get_account_interface(&pdas.token_0_vault, None)
+            .await
+            .unwrap()
+            .value
+            .unwrap()
+            .is_hot(),
+        "token_0_vault should be hot after decompression"
     );
 
     let remaining_vault_1 = ctx

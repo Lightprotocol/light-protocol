@@ -284,18 +284,15 @@ where
     .map_err(|e| LoadAccountsError::BuildInstruction(e.to_string()))
 }
 
-struct AtaContext<'a> {
-    compressed: &'a CompressedTokenAccount,
+struct AtaContext {
+    compressed: CompressedTokenAccount,
     wallet_owner: Pubkey,
     mint: Pubkey,
     bump: u8,
 }
 
-impl<'a> AtaContext<'a> {
-    fn from_interface(
-        iface: &'a AccountInterface,
-        index: usize,
-    ) -> Result<Self, LoadAccountsError> {
+impl AtaContext {
+    fn from_interface(iface: &AccountInterface, index: usize) -> Result<Self, LoadAccountsError> {
         let compressed =
             iface
                 .as_compressed_token()
