@@ -412,8 +412,8 @@ async fn test_spl_to_ctoken_fails_when_mint_paused() {
         .rpc
         .create_and_send_transaction(&[transfer_ix], &payer.pubkey(), &[&payer])
         .await;
-    // fails because of token 2022 check Transferring, minting, and burning is paused on this mint
-    assert_rpc_error(result, 0, 67).unwrap();
+    // Fails in Light Token program with MintPaused (6127) before SPL transfer
+    assert_rpc_error(result, 0, 6127).unwrap();
     println!("Correctly rejected SPL→Light Token when mint is paused");
 }
 
