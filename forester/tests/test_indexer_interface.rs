@@ -3,12 +3,6 @@
 /// This test creates various account types for testing the indexer's interface racing logic.
 /// After running, use `cargo xtask export-photon-test-data --test-name indexer_interface`
 /// to export transactions to the indexer's test snapshot directory.
-///
-/// Scenarios covered:
-/// 1. Light Token Mint - mint for token operations
-/// 2. Token accounts (via light-token-client MintTo) - for getTokenAccountInterface
-/// 3. Registered v2 address in batched address tree - for address tree verification
-/// 4. Compressible token accounts - on-chain accounts that can be compressed
 use std::collections::HashMap;
 
 use anchor_lang::{AnchorDeserialize, Discriminator};

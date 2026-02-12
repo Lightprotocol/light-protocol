@@ -20,7 +20,7 @@ pub use types::{
     MerkleProofWithContext, NewAddressProofWithContext, NextTreeInfo, OutputQueueData,
     OwnerBalance, ProofOfLeaf, QueueElementsResult, QueueInfo, QueueInfoResult, RootIndex,
     SignatureWithMetadata, SolanaAccountData, StateMerkleTreeAccounts, StateQueueData,
-    TokenAccountInterface, TokenBalance, TreeInfo, ValidityProofWithContext,
+    TokenBalance, TreeInfo, ValidityProofWithContext,
 };
 mod options;
 pub use options::*;

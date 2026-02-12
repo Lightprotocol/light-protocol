@@ -9,7 +9,6 @@ mod tree;
 pub use account::CompressedAccount;
 pub use interface::{
     AccountInterface, ColdContext, ColdData, InterfaceTreeInfo, SolanaAccountData,
-    TokenAccountInterface,
 };
 pub use proof::{
     AccountProofInputs, AddressProofInputs, AddressWithTree, MerkleProof, MerkleProofWithContext,

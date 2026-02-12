@@ -1,5 +1,4 @@
 use light_compressed_account::TreeType;
-use light_token::compat::TokenData;
 use solana_account::Account;
 use solana_pubkey::Pubkey;
 
@@ -158,13 +157,4 @@ impl TryFrom<&photon_api::types::AccountInterface> for AccountInterface {
     fn try_from(ai: &photon_api::types::AccountInterface) -> Result<Self, Self::Error> {
         convert_account_interface(ai)
     }
-}
-
-/// Token account interface with parsed token data
-#[derive(Clone, Debug, PartialEq)]
-pub struct TokenAccountInterface {
-    /// Base account interface data
-    pub account: AccountInterface,
-    /// Parsed token data (same as CompressedTokenAccount.token)
-    pub token: TokenData,
 }

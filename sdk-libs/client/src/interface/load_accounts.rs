@@ -14,7 +14,8 @@ use light_sdk::instruction::PackedAccounts;
 use light_token::{
     compat::AccountState,
     instruction::{
-        derive_token_ata, CreateAssociatedTokenAccount, DecompressMint, LIGHT_TOKEN_PROGRAM_ID,
+        derive_token_ata, get_associated_token_address_and_bump, CreateAssociatedTokenAccount,
+        DecompressMint, LIGHT_TOKEN_PROGRAM_ID,
     },
 };
 use light_token_interface::{
@@ -311,7 +312,7 @@ impl<'a> AtaContext<'a> {
             })?;
         let wallet_owner = parsed.owner;
         let mint = parsed.mint;
-        let (derived_ata, bump) = derive_token_ata(&wallet_owner, &mint);
+        let (derived_ata, bump) = get_associated_token_address_and_bump(&wallet_owner, &mint);
         if derived_ata != iface.key {
             return Err(LoadAccountsError::MissingAtaContext {
                 index,
