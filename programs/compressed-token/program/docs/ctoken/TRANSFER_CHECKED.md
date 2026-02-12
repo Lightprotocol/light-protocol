@@ -23,7 +23,7 @@ Transfers tokens between decompressed ctoken solana accounts with mint decimals 
 **Instruction data:**
 - **9 bytes (legacy):** amount (u64) + decimals (u8)
 - **11 bytes (with max_top_up):** amount (u64) + decimals (u8) + max_top_up (u16)
-  - max_top_up: Maximum lamports for top-up in units of 1,000 lamports (e.g., max_top_up=1 means 1,000 lamports, max_top_up=65535 means ~65.5M lamports). 0 = no limit.
+  - max_top_up: Maximum lamports for top-up in units of 1,000 lamports (e.g., max_top_up=1 means 1,000 lamports, max_top_up=65535 means ~65.5M lamports). u16::MAX = no limit, 0 = no top-ups allowed.
 
 **Accounts:**
 1. source
@@ -77,11 +77,11 @@ Transfers tokens between decompressed ctoken solana accounts with mint decimals 
 3. **Validate instruction data:**
    - Must be at least 9 bytes (amount + decimals)
    - If 11 bytes, parse max_top_up from bytes [9..11]
-   - If 9 bytes, set max_top_up = 0 (legacy, no limit)
+   - If 9 bytes, set max_top_up = u16::MAX (legacy, no limit)
    - Any other length returns InvalidInstructionData
 
 4. **Parse max_top_up parameter:**
-   - 0 = no limit on top-up lamports
+   - u16::MAX = no limit on top-up lamports, 0 = no top-ups allowed
    - Non-zero = maximum combined lamports for source + destination top-up
    - Transaction fails if calculated top-up exceeds max_top_up
 
@@ -107,7 +107,7 @@ Transfers tokens between decompressed ctoken solana accounts with mint decimals 
      - Get current slot from Clock sysvar (lazy loaded once)
      - Call calculate_top_up_lamports for each account
    - Transfer lamports from authority to accounts if top-up needed:
-     - Check max_top_up budget if set (non-zero)
+     - Check max_top_up budget if not unlimited (not u16::MAX)
      - Execute multi_transfer_lamports atomically
    - Return (signer_is_validated, extension_decimals) tuple
 

@@ -950,7 +950,7 @@ async fn test_ata_decompress_with_mismatched_amount_fails() {
         out_tlv: None,
         compressions: Some(compressions),
         cpi_context: None,
-        max_top_up: 0,
+        max_top_up: u16::MAX, // No limit on top-ups
     };
 
     // Serialize instruction data

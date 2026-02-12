@@ -15,13 +15,13 @@ If the CToken account has a compressible extension and requires a rent top-up, t
 - **NOT SPL-compatible (payer required):** Compressible accounts that need rent top-up based on current slot
 
 **description:**
-Revokes any previously granted delegation on a decompressed ctoken account (account layout `CToken` defined in program-libs/token-interface/src/state/ctoken/ctoken_struct.rs). After the revoke operation, automatically tops up compressible accounts (extension layout `CompressionInfo` defined in program-libs/compressible/src/compression_info.rs) with additional lamports if needed to prevent accounts from becoming compressible during normal operations. The instruction supports a max_top_up parameter (0 = no limit) that enforces transaction failure if the calculated top-up exceeds this limit. Uses pinocchio-token-program for SPL-compatible revoke semantics. Supports backwards-compatible instruction data format (0 bytes legacy vs 2 bytes with max_top_up). The revoke operation follows SPL Token rules exactly (clears delegate and delegated_amount).
+Revokes any previously granted delegation on a decompressed ctoken account (account layout `CToken` defined in program-libs/token-interface/src/state/ctoken/ctoken_struct.rs). After the revoke operation, automatically tops up compressible accounts (extension layout `CompressionInfo` defined in program-libs/compressible/src/compression_info.rs) with additional lamports if needed to prevent accounts from becoming compressible during normal operations. The instruction supports a max_top_up parameter (u16::MAX = no limit, 0 = no top-ups allowed) that enforces transaction failure if the calculated top-up exceeds this limit. Uses pinocchio-token-program for SPL-compatible revoke semantics. Supports backwards-compatible instruction data format (0 bytes legacy vs 2 bytes with max_top_up). The revoke operation follows SPL Token rules exactly (clears delegate and delegated_amount).
 
 **Instruction data:**
 Path: programs/compressed-token/program/src/ctoken/approve_revoke.rs (lines 49-59 for revoke, lines 86-124 for top-up processing)
 
-- Empty (0 bytes): legacy format, no max_top_up enforcement (max_top_up = 0, no limit)
-- Bytes 0-1 (optional): `max_top_up` (u16, little-endian) - Maximum lamports for top-up in units of 1,000 lamports (e.g., max_top_up=1 means 1,000 lamports, max_top_up=65535 means ~65.5M lamports). 0 = no limit.
+- Empty (0 bytes): legacy format, no max_top_up enforcement (max_top_up = u16::MAX, no limit)
+- Bytes 0-1 (optional): `max_top_up` (u16, little-endian) - Maximum lamports for top-up in units of 1,000 lamports (e.g., max_top_up=1 means 1,000 lamports, max_top_up=65535 means ~65.5M lamports). u16::MAX = no limit, 0 = no top-ups allowed.
 
 **Accounts:**
 1. source
@@ -50,12 +50,12 @@ Path: programs/compressed-token/program/src/ctoken/approve_revoke.rs (lines 49-5
    - Fast path: if account data length is 165 bytes (no extensions), skip top-up
    - Otherwise, process compressible top-up:
      - Parse instruction data to get max_top_up:
-       - If 0 bytes: legacy format, set max_top_up = 0 (no limit)
+       - If 0 bytes: legacy format, set max_top_up = u16::MAX (no limit)
        - If 2 bytes: parse max_top_up (u16, little-endian)
        - Return InvalidInstructionData for any other length
      - Calculate required top-up using `top_up_lamports_from_account_info_unchecked`
      - If transfer_amount > 0:
-       - If max_top_up > 0 and transfer_amount > max_top_up: return MaxTopUpExceeded
+       - If max_top_up != u16::MAX and transfer_amount > max_top_up: return MaxTopUpExceeded
        - Get payer from accounts[1], return MissingPayer if not present
        - Transfer lamports from payer to source via CPI
 

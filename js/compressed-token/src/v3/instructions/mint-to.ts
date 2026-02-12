@@ -18,7 +18,7 @@ export interface CreateMintToInstructionParams {
     amount: number | bigint;
     /** Mint authority (must be signer) */
     authority: PublicKey;
-    /** Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (0 = no limit) */
+    /** Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (u16::MAX = no limit, 0 = no top-ups allowed) */
     maxTopUp?: number;
     /** Optional fee payer for rent top-ups. If not provided, authority pays. */
     feePayer?: PublicKey;

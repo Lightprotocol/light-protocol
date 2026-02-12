@@ -165,7 +165,7 @@ fn serialize_actions(actions: &[Action]) -> Vec<u8> {
         leaf_index: 0,
         prove_by_index: false,
         root_index: 0,
-        max_top_up: 0,
+        max_top_up: u16::MAX, // No limit
         actions: actions.to_vec(),
         proof: None,
         cpi_context: Some(CpiContext {

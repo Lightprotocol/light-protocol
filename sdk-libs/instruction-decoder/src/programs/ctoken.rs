@@ -135,7 +135,7 @@ pub fn format_transfer2(
 
     // Top-level fields
     let _ = writeln!(output, "output_queue: {}", resolve(data.output_queue));
-    if data.max_top_up > 0 {
+    if data.max_top_up != u16::MAX {
         let _ = writeln!(output, "max_top_up: {}", data.max_top_up);
     }
     if data.with_transaction_hash {
@@ -754,7 +754,7 @@ pub fn format_mint_action(
         }
     }
     let _ = writeln!(output, "root_index: {}", data.root_index);
-    if data.max_top_up > 0 {
+    if data.max_top_up != u16::MAX {
         let _ = writeln!(output, "max_top_up: {}", data.max_top_up);
     }
 

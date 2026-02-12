@@ -47,7 +47,7 @@ pub struct MintActionCompressedInstructionData {
     /// If mint already exists, root index of validity proof
     /// If proof by index not used.
     pub root_index: u16,
-    /// Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (0 = no limit)
+    /// Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (u16::MAX = no limit, 0 = no top-ups allowed)
     pub max_top_up: u16,
     pub create_mint: Option<CreateMint>,
     pub actions: Vec<Action>,

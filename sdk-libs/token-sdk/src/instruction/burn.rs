@@ -31,7 +31,7 @@ pub struct Burn {
     pub amount: u64,
     /// Owner of the Light Token account
     pub authority: Pubkey,
-    /// Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (0 = no limit)
+    /// Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (u16::MAX = no limit, 0 = no top-ups allowed)
     /// When set to a non-zero value, includes max_top_up in instruction data
     pub max_top_up: Option<u16>,
     /// Optional fee payer for rent top-ups. If not provided, authority pays.
@@ -64,7 +64,7 @@ pub struct BurnCpi<'info> {
     pub amount: u64,
     pub authority: AccountInfo<'info>,
     pub system_program: AccountInfo<'info>,
-    /// Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (0 = no limit)
+    /// Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (u16::MAX = no limit, 0 = no top-ups allowed)
     pub max_top_up: Option<u16>,
     /// Optional fee payer for rent top-ups. If not provided, authority pays.
     pub fee_payer: Option<AccountInfo<'info>>,
