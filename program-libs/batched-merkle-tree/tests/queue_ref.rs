@@ -355,3 +355,66 @@ fn test_queue_ref_different_batch_configurations() {
         );
     }
 }
+
+#[test]
+fn test_queue_ref_randomized_equivalence() {
+    use rand::{rngs::StdRng, Rng, SeedableRng};
+
+    let mut rng = StdRng::seed_from_u64(0xCAFE_BABE);
+    let batch_size = 1000u64;
+    let associated_tree = Pubkey::new_unique();
+
+    let (mut account_data, _pubkey) = QueueAccountBuilder::output_queue()
+        .with_batch_size(batch_size)
+        .with_zkp_batch_size(1)
+        .with_associated_tree(associated_tree)
+        .build();
+
+    let mut inserted: Vec<(u64, [u8; 32])> = Vec::new();
+
+    for _ in 0..1000 {
+        // Insert a value into the current batch (stop when batch is full).
+        let value: [u8; 32] = rng.gen();
+        let slot = 0u64;
+        {
+            let mut queue_mut =
+                BatchedQueueAccount::output_from_bytes(&mut account_data).unwrap();
+            let result = queue_mut.insert_into_current_batch(&value, &slot);
+            if let Ok(_) = result {
+                inserted.push((inserted.len() as u64, value));
+            } else {
+                // Batch is full, skip further inserts.
+                continue;
+            }
+        }
+
+        // Clone data so we can deserialize both paths independently.
+        let mut account_data_clone = account_data.clone();
+
+        let queue_ref = BatchedQueueRef::output_from_bytes(&account_data).unwrap();
+        let queue_mut =
+            BatchedQueueAccount::output_from_bytes(&mut account_data_clone).unwrap();
+
+        // Metadata via Deref.
+        assert_eq!(*queue_ref, *queue_mut.get_metadata());
+
+        // next_index.
+        assert_eq!(
+            queue_ref.batch_metadata.next_index,
+            queue_mut.get_metadata().batch_metadata.next_index,
+        );
+
+        // Prove inclusion for all inserted values.
+        for &(leaf_index, ref val) in &inserted {
+            assert_eq!(
+                queue_ref.prove_inclusion_by_index(leaf_index, val).unwrap(),
+                true,
+                "Inclusion failed at leaf_index {}",
+                leaf_index
+            );
+        }
+
+        // Association check.
+        queue_ref.check_is_associated(&associated_tree).unwrap();
+    }
+}

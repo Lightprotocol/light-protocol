@@ -439,3 +439,94 @@ fn test_merkle_tree_ref_different_configurations() {
         );
     }
 }
+
+#[test]
+fn test_merkle_tree_ref_randomized_equivalence() {
+    use light_bloom_filter::BloomFilter;
+    use rand::{rngs::StdRng, Rng, SeedableRng};
+
+    let mut rng = StdRng::seed_from_u64(0xDEAD_BEEF);
+    let root_history_capacity: u32 = 10;
+    let bloom_filter_capacity: u64 = 100_000;
+
+    let (mut account_data, pubkey) = MerkleTreeAccountBuilder::state_tree()
+        .with_root_history_capacity(root_history_capacity)
+        .with_bloom_filter_capacity(bloom_filter_capacity)
+        .with_num_iters(1)
+        .build();
+
+    for _ in 0..1000 {
+        let action = rng.gen_range(0..3u8);
+        match action {
+            0 => {
+                // Push random root.
+                let mut tree_mut =
+                    BatchedMerkleTreeAccount::state_from_bytes(&mut account_data, &pubkey)
+                        .unwrap();
+                tree_mut.root_history.push(rng.gen());
+            }
+            1 => {
+                // Insert into bloom filter of a random batch.
+                let mut tree_mut =
+                    BatchedMerkleTreeAccount::state_from_bytes(&mut account_data, &pubkey)
+                        .unwrap();
+                let batch_idx = rng.gen_range(0..2usize);
+                let num_iters =
+                    tree_mut.queue_batches.batches[batch_idx].num_iters as usize;
+                let capacity =
+                    tree_mut.queue_batches.batches[batch_idx].bloom_filter_capacity;
+                let value: [u8; 32] = rng.gen();
+                let mut bf = BloomFilter::new(
+                    num_iters,
+                    capacity,
+                    &mut tree_mut.bloom_filter_stores[batch_idx],
+                )
+                .unwrap();
+                bf.insert(&value).unwrap();
+            }
+            2 => {
+                // Increment sequence number.
+                let mut tree_mut =
+                    BatchedMerkleTreeAccount::state_from_bytes(&mut account_data, &pubkey)
+                        .unwrap();
+                tree_mut.sequence_number += 1;
+            }
+            _ => unreachable!(),
+        }
+
+        // Clone data so we can deserialize both paths independently.
+        let mut account_data_clone = account_data.clone();
+
+        let tree_ref =
+            BatchedMerkleTreeRef::state_from_bytes(&account_data, &pubkey).unwrap();
+        let tree_mut =
+            BatchedMerkleTreeAccount::state_from_bytes(&mut account_data_clone, &pubkey)
+                .unwrap();
+
+        // Metadata via Deref.
+        assert_eq!(*tree_ref, *tree_mut.get_metadata());
+
+        // Root history.
+        for i in 0..root_history_capacity as usize {
+            assert_eq!(
+                tree_ref.get_root_by_index(i).copied(),
+                tree_mut.get_root_by_index(i).copied(),
+                "Root mismatch at index {}",
+                i
+            );
+        }
+
+        // Bloom filter stores byte-equal.
+        for j in 0..2 {
+            assert_eq!(
+                tree_ref.bloom_filter_stores[j],
+                tree_mut.bloom_filter_stores[j].as_ref(),
+                "Bloom filter store {} mismatch",
+                j
+            );
+        }
+
+        // Pubkey.
+        assert_eq!(tree_ref.pubkey(), tree_mut.pubkey());
+    }
+}
