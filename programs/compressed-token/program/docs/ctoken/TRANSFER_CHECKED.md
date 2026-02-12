@@ -82,7 +82,7 @@ Transfers tokens between decompressed ctoken solana accounts with mint decimals 
 
 4. **Parse max_top_up parameter:**
    - u16::MAX = no limit on top-up lamports, 0 = no top-ups allowed
-   - Non-zero = maximum combined lamports for source + destination top-up
+   - Values in [1, u16::MAX-1] = maximum combined lamports for source + destination top-up
    - Transaction fails if calculated top-up exceeds max_top_up
 
 5. **Process transfer extensions:**
