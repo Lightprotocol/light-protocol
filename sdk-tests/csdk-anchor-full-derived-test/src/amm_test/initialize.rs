@@ -8,12 +8,11 @@
 //! - MintToCpi
 
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::Mint;
 use light_account::{
     CreateAccountsProof, CreateTokenAccountCpi, CreateTokenAtaCpi, LightAccounts,
     LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR,
 };
-use light_anchor_spl::token_interface::{TokenAccount, TokenInterface};
+use light_anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 use light_token::instruction::MintToCpi;
 
 use super::states::*;
