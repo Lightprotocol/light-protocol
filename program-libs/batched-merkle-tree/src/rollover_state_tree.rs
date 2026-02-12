@@ -100,11 +100,7 @@ pub fn rollover_batched_state_tree_from_account_info<A: AccountInfoTrait>(
     let reimbursement_for_rent = merkle_tree_rent + queue_rent + additional_bytes_rent;
     // 6. Check that queue account is rent exempt post rollover.
     #[cfg(target_os = "solana")]
-    if old_output_queue
-        .lamports()
-        .saturating_sub(reimbursement_for_rent)
-        == 0
-    {
+    if old_output_queue.lamports() < reimbursement_for_rent.saturating_add(queue_rent) {
         return Err(MerkleTreeMetadataError::NotReadyForRollover.into());
     }
     Ok(reimbursement_for_rent)
