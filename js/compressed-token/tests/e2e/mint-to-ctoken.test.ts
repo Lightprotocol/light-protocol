@@ -13,7 +13,7 @@ import {
     featureFlags,
     CTOKEN_PROGRAM_ID,
 } from '@lightprotocol/stateless.js';
-import { createMintInterface } from '../../src/v3/actions/create-mint-interface';
+import { createMintInterface, decompressMint } from '../../src/v3/actions';
 import { mintTo } from '../../src/v3/actions/mint-to';
 import { getMintInterface } from '../../src/v3/get-mint-interface';
 import { createAssociatedCTokenAccount } from '../../src/v3/actions/create-associated-ctoken';
@@ -51,6 +51,9 @@ describe('mintTo (MintToCToken)', () => {
         );
         await rpc.confirmTransaction(result.transactionSignature, 'confirmed');
         mint = result.mint;
+
+        // Decompress mint so it exists on-chain (required for ATA creation)
+        await decompressMint(rpc, payer, mint);
 
         await createAssociatedCTokenAccount(
             rpc,

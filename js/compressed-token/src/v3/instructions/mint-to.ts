@@ -4,175 +4,68 @@ import {
     TransactionInstruction,
 } from '@solana/web3.js';
 import { Buffer } from 'buffer';
-import {
-    ValidityProofWithContext,
-    CTOKEN_PROGRAM_ID,
-    LightSystemProgram,
-    defaultStaticAccountsStruct,
-    getDefaultAddressTreeInfo,
-    MerkleContext,
-    TreeInfo,
-} from '@lightprotocol/stateless.js';
-import { CompressedTokenProgram } from '../../program';
-import { MintInstructionData } from '../layout/layout-mint';
-import {
-    encodeMintActionInstructionData,
-    MintActionCompressedInstructionData,
-} from '../layout/layout-mint-action';
+import { CTOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
 
-interface EncodeMintToCTokenInstructionParams {
-    addressTree: PublicKey;
-    leafIndex: number;
-    rootIndex: number;
-    proof: { a: number[]; b: number[]; c: number[] } | null;
-    mintData: MintInstructionData;
-    recipientAccountIndex: number;
-    amount: number | bigint;
-}
-
-function encodeMintToCTokenInstructionData(
-    params: EncodeMintToCTokenInstructionParams,
-): Buffer {
-    // TokenMetadata extension not supported in mintTo instruction
-    if (params.mintData.metadata) {
-        throw new Error(
-            'TokenMetadata extension not supported in mintTo instruction',
-        );
-    }
-
-    const instructionData: MintActionCompressedInstructionData = {
-        leafIndex: params.leafIndex,
-        proveByIndex: true,
-        rootIndex: params.rootIndex,
-        maxTopUp: 0,
-        createMint: null,
-        actions: [
-            {
-                mintToCToken: {
-                    accountIndex: params.recipientAccountIndex,
-                    amount: BigInt(params.amount.toString()),
-                },
-            },
-        ],
-        proof: params.proof,
-        cpiContext: null,
-        mint: {
-            supply: params.mintData.supply,
-            decimals: params.mintData.decimals,
-            metadata: {
-                version: params.mintData.version,
-                cmintDecompressed: params.mintData.cmintDecompressed,
-                mint: params.mintData.splMint,
-                mintSigner: Array.from(params.mintData.mintSigner),
-                bump: params.mintData.bump,
-            },
-            mintAuthority: params.mintData.mintAuthority,
-            freezeAuthority: params.mintData.freezeAuthority,
-            extensions: null,
-        },
-    };
-
-    return encodeMintActionInstructionData(instructionData);
-}
-
-// Keep old interface type for backwards compatibility export
+/**
+ * Parameters for creating a MintTo instruction.
+ */
 export interface CreateMintToInstructionParams {
-    mintSigner: PublicKey;
-    authority: PublicKey;
-    payer: PublicKey;
-    validityProof: ValidityProofWithContext;
-    merkleContext: MerkleContext;
-    mintData: MintInstructionData;
-    outputStateTreeInfo: TreeInfo;
-    tokensOutQueue: PublicKey;
-    recipientAccount: PublicKey;
+    /** Mint account (CMint - decompressed compressed mint) */
+    mint: PublicKey;
+    /** Destination CToken account to mint to */
+    destination: PublicKey;
+    /** Amount of tokens to mint */
     amount: number | bigint;
+    /** Mint authority (must be signer) */
+    authority: PublicKey;
+    /** Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (0 = no limit) */
+    maxTopUp?: number;
+    /** Optional fee payer for rent top-ups. If not provided, authority pays. */
+    feePayer?: PublicKey;
 }
 
 /**
- * Create instruction for minting compressed tokens to an onchain token account.
+ * Create instruction for minting tokens to a CToken account.
  *
- * @param authority           Mint authority public key.
- * @param payer               Fee payer public key.
- * @param validityProof       Validity proof for the compressed mint.
- * @param merkleContext       Merkle context of the compressed mint.
- * @param mintData            Mint instruction data.
- * @param outputStateTreeInfo Output state tree info.
- * @param recipientAccount    Recipient onchain token account address.
- * @param amount              Amount to mint.
+ * This is a simple 3-4 account instruction for minting to decompressed CToken accounts.
+ * Uses discriminator 7 (CTokenMintTo).
+ *
+ * @param params - Mint instruction parameters
+ * @returns TransactionInstruction for minting tokens
  */
 export function createMintToInstruction(
-    authority: PublicKey,
-    payer: PublicKey,
-    validityProof: ValidityProofWithContext,
-    merkleContext: MerkleContext,
-    mintData: MintInstructionData,
-    outputStateTreeInfo: TreeInfo,
-    recipientAccount: PublicKey,
-    amount: number | bigint,
+    params: CreateMintToInstructionParams,
 ): TransactionInstruction {
-    const addressTreeInfo = getDefaultAddressTreeInfo();
-    const data = encodeMintToCTokenInstructionData({
-        addressTree: addressTreeInfo.tree,
-        leafIndex: merkleContext.leafIndex,
-        rootIndex: validityProof.rootIndices[0],
-        proof: validityProof.compressedProof,
-        mintData,
-        recipientAccountIndex: 0,
-        amount,
-    });
+    const { mint, destination, amount, authority, maxTopUp, feePayer } = params;
 
-    const sys = defaultStaticAccountsStruct();
+    // Authority is writable only when maxTopUp is set AND no feePayer
+    // (authority pays for top-ups only if no separate feePayer)
+    const authorityWritable = maxTopUp !== undefined && !feePayer;
+
     const keys = [
-        {
-            pubkey: LightSystemProgram.programId,
-            isSigner: false,
-            isWritable: false,
-        },
-        { pubkey: authority, isSigner: true, isWritable: false },
-        { pubkey: payer, isSigner: true, isWritable: true },
-        {
-            pubkey: CompressedTokenProgram.deriveCpiAuthorityPda,
-            isSigner: false,
-            isWritable: false,
-        },
-        {
-            pubkey: sys.registeredProgramPda,
-            isSigner: false,
-            isWritable: false,
-        },
-        {
-            pubkey: sys.accountCompressionAuthority,
-            isSigner: false,
-            isWritable: false,
-        },
-        {
-            pubkey: sys.accountCompressionProgram,
-            isSigner: false,
-            isWritable: false,
-        },
+        { pubkey: mint, isSigner: false, isWritable: true },
+        { pubkey: destination, isSigner: false, isWritable: true },
+        { pubkey: authority, isSigner: true, isWritable: authorityWritable },
+        // System program required for rent top-up CPIs
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-        {
-            pubkey: outputStateTreeInfo.queue,
-            isSigner: false,
-            isWritable: true,
-        },
-        {
-            pubkey: merkleContext.treeInfo.tree,
-            isSigner: false,
-            isWritable: true,
-        },
-        {
-            pubkey: merkleContext.treeInfo.queue,
-            isSigner: false,
-            isWritable: true,
-        },
-        // Note: tokensOutQueue is NOT included for MintToCToken-only actions.
-        // MintToCToken mints to existing decompressed accounts, doesn't create
-        // new compressed outputs so Rust expects no tokens_out_queue account.
     ];
 
-    keys.push({ pubkey: recipientAccount, isSigner: false, isWritable: true });
+    // Add fee_payer if provided (must be signer and writable)
+    if (feePayer) {
+        keys.push({ pubkey: feePayer, isSigner: true, isWritable: true });
+    }
+
+    // Build instruction data: discriminator (7) + amount (u64) + optional max_top_up (u16)
+    const amountBigInt = BigInt(amount.toString());
+    const dataSize = maxTopUp !== undefined ? 11 : 9; // 1 + 8 + optional 2
+    const data = Buffer.alloc(dataSize);
+
+    data.writeUInt8(7, 0); // CTokenMintTo discriminator
+    data.writeBigUInt64LE(amountBigInt, 1);
+
+    if (maxTopUp !== undefined) {
+        data.writeUInt16LE(maxTopUp, 9);
+    }
 
     return new TransactionInstruction({
         programId: CTOKEN_PROGRAM_ID,

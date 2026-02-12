@@ -103,9 +103,31 @@ export async function getMintInterface(
             );
         }
 
-        const compressedMintData = deserializeMint(
-            Buffer.from(compressedAccount.data.data),
-        );
+        const compressedData = Buffer.from(compressedAccount.data.data);
+
+        // After decompressMint, the compressed account contains sentinel data (just hash ~32 bytes).
+        // The actual mint data lives on-chain in the CMint account.
+        // Minimum compressed mint size is 82 (base) + 34 (context) + 33 (signer+bump) = 149+ bytes.
+        const SENTINEL_THRESHOLD = 64;
+        const isDecompressed = compressedData.length < SENTINEL_THRESHOLD;
+
+        let compressedMintData: CompressedMint;
+
+        if (isDecompressed) {
+            // Mint is decompressed - read from on-chain CMint account
+            const cmintAccountInfo = await rpc.getAccountInfo(address);
+            if (!cmintAccountInfo?.data) {
+                throw new Error(
+                    `Decompressed CMint account not found on-chain for ${address.toString()}`,
+                );
+            }
+            compressedMintData = deserializeMint(
+                Buffer.from(cmintAccountInfo.data),
+            );
+        } else {
+            // Mint is still compressed - use compressed account data
+            compressedMintData = deserializeMint(compressedData);
+        }
 
         const mint: Mint = {
             address,

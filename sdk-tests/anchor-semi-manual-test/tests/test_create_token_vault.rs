@@ -98,9 +98,19 @@ async fn test_create_token_vault_derive() {
 
     // PHASE 2: Warp to trigger auto-compression
     rpc.warp_slot_forward(SLOTS_PER_EPOCH * 30).await.unwrap();
+    shared::assert_onchain_closed(&mut rpc, &mint, "Mint").await;
     shared::assert_onchain_closed(&mut rpc, &vault, "Vault").await;
 
-    // PHASE 3: Decompress vault
+    // PHASE 3: Decompress vault (mint must be decompressed first since vault depends on it)
+    let mint_iface = rpc
+        .get_mint_interface(&mint, None)
+        .await
+        .expect("failed to get mint interface")
+        .value
+        .expect("mint interface should exist");
+    assert!(mint_iface.is_cold(), "Mint should be cold");
+    let mint_ai = AccountInterface::from(mint_iface);
+
     let vault_iface = rpc
         .get_token_account_interface(&vault, None)
         .await
@@ -126,7 +136,9 @@ async fn test_create_token_vault_derive() {
     };
     let vault_spec = PdaSpec::new(vault_interface, vault_variant, program_id);
 
-    let specs: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Pda(vault_spec)];
+    // Mint must come before vault since vault depends on mint being decompressed
+    let specs: Vec<AccountSpec<LightAccountVariant>> =
+        vec![AccountSpec::Mint(mint_ai), AccountSpec::Pda(vault_spec)];
 
     let ixs = create_load_instructions(&specs, payer.pubkey(), env.config_pda, &rpc)
         .await
@@ -137,6 +149,7 @@ async fn test_create_token_vault_derive() {
         .expect("Vault decompression should succeed");
 
     // PHASE 4: Assert state preserved after decompression
+    shared::assert_onchain_exists(&mut rpc, &mint, "Mint").await;
     shared::assert_onchain_exists(&mut rpc, &vault, "Vault").await;
 
     let vault_account = rpc

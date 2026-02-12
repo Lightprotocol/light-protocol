@@ -766,6 +766,33 @@ async fn test_compression_duplicate_account_no_double_charge_top_up() -> Result<
     let (mint, _) = find_mint_address(&mint_seed.pubkey());
     let ctoken_ata = derive_token_ata(&owner.pubkey(), &mint);
 
+    // First create AND decompress the mint (ATA creation requires mint to exist on-chain)
+    light_test_utils::actions::mint_action_comprehensive(
+        &mut rpc,
+        &mint_seed,
+        &mint_authority,
+        &payer,
+        Some(
+            light_test_utils::actions::legacy::instructions::mint_action::DecompressMintParams::default(),
+        ),                       // decompress mint so it exists on-chain
+        false,                   // no close mint
+        vec![],                  // no compressed recipients
+        vec![],                  // no decompressed recipients yet
+        None,
+        None,
+        Some(
+            light_test_utils::actions::legacy::instructions::mint_action::NewMint {
+                decimals: 6,
+                supply: 0,
+                mint_authority: mint_authority.pubkey(),
+                freeze_authority: None,
+                metadata: None,
+                version: 3, // ShaFlat for compressible accounts
+            },
+        ),
+    )
+    .await?;
+
     // Create compressible Light Token ATA with pre_pay_num_epochs = 0 (NO prepaid rent)
     let compressible_params = CompressibleParams {
         compressible_config: rpc
@@ -798,22 +825,13 @@ async fn test_compression_duplicate_account_no_double_charge_top_up() -> Result<
         &mint_seed,
         &mint_authority,
         &payer,
-        None,
+        None, // mint already decompressed
         false,
         vec![],
         decompressed_recipients,
         None,
         None,
-        Some(
-            light_test_utils::actions::legacy::instructions::mint_action::NewMint {
-                decimals: 6,
-                supply: 0,
-                mint_authority: mint_authority.pubkey(),
-                freeze_authority: None,
-                metadata: None,
-                version: 3,
-            },
-        ),
+        None, // mint already exists
     )
     .await?;
 

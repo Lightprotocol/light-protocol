@@ -209,7 +209,9 @@ async fn test_create_all_derive() {
 
     shared::assert_onchain_closed(&mut rpc, &record_pda, "MinimalRecord").await;
     shared::assert_onchain_closed(&mut rpc, &zc_record_pda, "ZeroCopyRecord").await;
+    shared::assert_onchain_closed(&mut rpc, &ata_mint, "AtaMint").await;
     shared::assert_onchain_closed(&mut rpc, &ata, "ATA").await;
+    shared::assert_onchain_closed(&mut rpc, &vault_mint, "VaultMint").await;
     shared::assert_onchain_closed(&mut rpc, &vault, "Vault").await;
     shared::assert_onchain_closed(&mut rpc, &mint_a_pda, "MintA").await;
     shared::assert_onchain_closed(&mut rpc, &mint_b_pda, "MintB").await;
@@ -251,6 +253,16 @@ async fn test_create_all_derive() {
     };
     let zc_spec = PdaSpec::new(zc_interface, zc_variant, program_id);
 
+    // ATA Mint (pre-existing light mint that also gets compressed)
+    let ata_mint_iface = rpc
+        .get_mint_interface(&ata_mint, None)
+        .await
+        .expect("failed to get ATA mint interface")
+        .value
+        .expect("ATA mint interface should exist");
+    assert!(ata_mint_iface.is_cold(), "ATA mint should be cold");
+    let ata_mint_ai = AccountInterface::from(ata_mint_iface);
+
     // ATA
     let ata_interface = rpc
         .get_associated_token_account_interface(&ata_owner, &ata_mint, None)
@@ -259,6 +271,16 @@ async fn test_create_all_derive() {
         .value
         .expect("ATA interface should exist");
     assert!(ata_interface.is_cold(), "ATA should be cold");
+
+    // Vault Mint (pre-existing light mint that also gets compressed)
+    let vault_mint_iface = rpc
+        .get_mint_interface(&vault_mint, None)
+        .await
+        .expect("failed to get vault mint interface")
+        .value
+        .expect("vault mint interface should exist");
+    assert!(vault_mint_iface.is_cold(), "Vault mint should be cold");
+    let vault_mint_ai = AccountInterface::from(vault_mint_iface);
 
     // Mint A
     let mint_a_iface = rpc
@@ -306,10 +328,13 @@ async fn test_create_all_derive() {
     };
     let vault_spec = PdaSpec::new(vault_interface, vault_variant, program_id);
 
+    // Mints must come before ATA and vault since they depend on mints being decompressed
     let specs: Vec<AccountSpec<LightAccountVariant>> = vec![
         AccountSpec::Pda(record_spec),
         AccountSpec::Pda(zc_spec),
+        AccountSpec::Mint(ata_mint_ai),
         AccountSpec::Ata(Box::new(ata_interface)),
+        AccountSpec::Mint(vault_mint_ai),
         AccountSpec::Pda(vault_spec),
         AccountSpec::Mint(mint_a_ai),
         AccountSpec::Mint(mint_b_ai),
@@ -326,7 +351,9 @@ async fn test_create_all_derive() {
     // PHASE 4: Assert state preserved after decompression
     shared::assert_onchain_exists(&mut rpc, &record_pda, "MinimalRecord").await;
     shared::assert_onchain_exists(&mut rpc, &zc_record_pda, "ZeroCopyRecord").await;
+    shared::assert_onchain_exists(&mut rpc, &ata_mint, "AtaMint").await;
     shared::assert_onchain_exists(&mut rpc, &ata, "ATA").await;
+    shared::assert_onchain_exists(&mut rpc, &vault_mint, "VaultMint").await;
     shared::assert_onchain_exists(&mut rpc, &vault, "Vault").await;
     shared::assert_onchain_exists(&mut rpc, &mint_a_pda, "MintA").await;
     shared::assert_onchain_exists(&mut rpc, &mint_b_pda, "MintB").await;

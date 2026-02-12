@@ -314,6 +314,28 @@ async fn decompress_all(ctx: &mut StressTestContext, pdas: &TestPdas, cached: &C
     };
     let vault_spec = PdaSpec::new(vault_interface, vault_variant, ctx.program_id);
 
+    // ATA Mint (pre-existing light mint that also gets compressed)
+    let ata_mint_iface = ctx
+        .rpc
+        .get_mint_interface(&pdas.ata_mint, None)
+        .await
+        .expect("failed to get ATA mint interface")
+        .value
+        .expect("ATA mint interface should exist");
+    assert!(ata_mint_iface.is_cold(), "ATA mint should be cold");
+    let ata_mint_ai = AccountInterface::from(ata_mint_iface);
+
+    // Vault Mint (pre-existing light mint that also gets compressed)
+    let vault_mint_iface = ctx
+        .rpc
+        .get_mint_interface(&pdas.vault_mint, None)
+        .await
+        .expect("failed to get vault mint interface")
+        .value
+        .expect("vault mint interface should exist");
+    assert!(vault_mint_iface.is_cold(), "Vault mint should be cold");
+    let vault_mint_ai = AccountInterface::from(vault_mint_iface);
+
     // Mint A
     let mint_a_iface = ctx
         .rpc
@@ -336,10 +358,13 @@ async fn decompress_all(ctx: &mut StressTestContext, pdas: &TestPdas, cached: &C
     assert!(mint_b_iface.is_cold(), "Mint B should be cold");
     let mint_b_ai = AccountInterface::from(mint_b_iface);
 
+    // Mints must come before ATA and vault since they depend on mints being decompressed
     let specs: Vec<AccountSpec<LightAccountVariant>> = vec![
         AccountSpec::Pda(record_spec),
         AccountSpec::Pda(zc_spec),
+        AccountSpec::Mint(ata_mint_ai),
         AccountSpec::Ata(Box::new(ata_interface)),
+        AccountSpec::Mint(vault_mint_ai),
         AccountSpec::Pda(vault_spec),
         AccountSpec::Mint(mint_a_ai),
         AccountSpec::Mint(mint_b_ai),
@@ -359,7 +384,9 @@ async fn decompress_all(ctx: &mut StressTestContext, pdas: &TestPdas, cached: &C
     for (pda, name) in [
         (&pdas.record, "MinimalRecord"),
         (&pdas.zc_record, "ZeroCopyRecord"),
+        (&pdas.ata_mint, "AtaMint"),
         (&pdas.ata, "ATA"),
+        (&pdas.vault_mint, "VaultMint"),
         (&pdas.vault, "Vault"),
         (&pdas.mint_a, "MintA"),
         (&pdas.mint_b, "MintB"),
@@ -378,7 +405,9 @@ async fn compress_all(ctx: &mut StressTestContext, pdas: &TestPdas) {
     for (pda, name) in [
         (&pdas.record, "MinimalRecord"),
         (&pdas.zc_record, "ZeroCopyRecord"),
+        (&pdas.ata_mint, "AtaMint"),
         (&pdas.ata, "ATA"),
+        (&pdas.vault_mint, "VaultMint"),
         (&pdas.vault, "Vault"),
         (&pdas.mint_a, "MintA"),
         (&pdas.mint_b, "MintB"),
@@ -469,7 +498,9 @@ async fn test_stress_20_iterations() {
     for (pda, name) in [
         (&pdas.record, "MinimalRecord"),
         (&pdas.zc_record, "ZeroCopyRecord"),
+        (&pdas.ata_mint, "AtaMint"),
         (&pdas.ata, "ATA"),
+        (&pdas.vault_mint, "VaultMint"),
         (&pdas.vault, "Vault"),
         (&pdas.mint_a, "MintA"),
         (&pdas.mint_b, "MintB"),

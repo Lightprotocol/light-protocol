@@ -1,8 +1,5 @@
 import { PublicKey, TransactionInstruction } from '@solana/web3.js';
-import {
-    getOutputTreeInfo,
-    ValidityProofWithContext,
-} from '@lightprotocol/stateless.js';
+import { ValidityProofWithContext } from '@lightprotocol/stateless.js';
 import { createMintToInstruction as createSplMintToInstruction } from '@solana/spl-token';
 import { createMintToInstruction as createCtokenMintToInstruction } from './mint-to';
 import { MintInterface } from '../get-mint-interface';
@@ -19,16 +16,18 @@ export interface CreateMintToInterfaceInstructionParams {
 }
 
 /**
- * Create mint-to instruction for SPL, Token-2022, or compressed token mints.
+ * Create mint-to instruction for SPL, Token-2022, or CToken mints.
  * This instruction ONLY mints to decompressed/onchain token accounts.
  *
- * @param mintInterface   Mint interface (SPL, Token-2022, or compressed).
+ * For CToken mints, the mint must be decompressed first (CMint account must exist on-chain).
+ *
+ * @param mintInterface   Mint interface (SPL, Token-2022, or CToken).
  * @param destination     Destination onchain token account address.
  * @param authority       Mint authority public key.
  * @param payer           Fee payer public key.
  * @param amount          Amount to mint.
- * @param validityProof   Validity proof (required for compressed mints).
- * @param multiSigners    Multi-signature signer public keys.
+ * @param validityProof   Not used (legacy parameter, kept for compatibility).
+ * @param multiSigners    Multi-signature signer public keys (SPL/T22 only).
  */
 export function createMintToInterfaceInstruction(
     mintInterface: MintInterface,
@@ -42,7 +41,7 @@ export function createMintToInterfaceInstruction(
     const mint = mintInterface.mint.address;
     const programId = mintInterface.programId;
 
-    // SPL/T22
+    // SPL/T22 - no merkleContext means it's a native SPL mint
     if (!mintInterface.merkleContext) {
         return createSplMintToInstruction(
             mint,
@@ -54,42 +53,20 @@ export function createMintToInterfaceInstruction(
         );
     }
 
-    if (!validityProof) {
-        throw new Error('Validity proof required for c-token mint-to');
-    }
+    // CToken (compressed token) - use simple CTokenMintTo instruction
+    // The mint must be decompressed for this to work (CMint account must exist on-chain)
     if (!mintInterface.mintContext) {
-        throw new Error('mintContext required for c-token mint-to');
+        throw new Error('mintContext required for CToken mint-to');
     }
 
-    const mintData = {
-        supply: mintInterface.mint.supply,
-        decimals: mintInterface.mint.decimals,
-        mintAuthority: mintInterface.mint.mintAuthority,
-        freezeAuthority: mintInterface.mint.freezeAuthority,
-        splMint: mintInterface.mintContext.splMint,
-        cmintDecompressed: mintInterface.mintContext.cmintDecompressed,
-        version: mintInterface.mintContext.version,
-        mintSigner: mintInterface.mintContext.mintSigner,
-        bump: mintInterface.mintContext.bump,
-        metadata: mintInterface.tokenMetadata
-            ? {
-                  updateAuthority:
-                      mintInterface.tokenMetadata.updateAuthority || null,
-                  name: mintInterface.tokenMetadata.name,
-                  symbol: mintInterface.tokenMetadata.symbol,
-                  uri: mintInterface.tokenMetadata.uri,
-              }
-            : undefined,
-    };
+    // Use payer as fee payer for top-ups if different from authority
+    const feePayer = authority.equals(payer) ? undefined : payer;
 
-    return createCtokenMintToInstruction(
-        authority,
-        payer,
-        validityProof,
-        mintInterface.merkleContext,
-        mintData,
-        getOutputTreeInfo(mintInterface.merkleContext),
+    return createCtokenMintToInstruction({
+        mint,
         destination,
         amount,
-    );
+        authority,
+        feePayer,
+    });
 }
