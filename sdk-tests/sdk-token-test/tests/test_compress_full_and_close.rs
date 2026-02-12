@@ -10,7 +10,7 @@ use light_program_test::{Indexer, LightProgramTest, ProgramTestConfig, Rpc};
 use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
 use light_test_utils::actions::legacy::instructions::transfer2::create_decompress_instruction;
 use light_token::instruction::{
-    config_pda, derive_token_ata, rent_sponsor_pda, CompressibleParams,
+    config_pda, get_associated_token_address, rent_sponsor_pda, CompressibleParams,
     CreateAssociatedTokenAccount,
 };
 use light_token_interface::{
@@ -176,7 +176,7 @@ async fn test_compress_full_and_close() {
     println!("✅ Minted {} compressed tokens to recipient", mint_amount);
 
     // Step 4: Create compressible associated token account for decompression
-    let ctoken_ata_pubkey = derive_token_ata(&recipient, &mint_pda);
+    let ctoken_ata_pubkey = get_associated_token_address(&recipient, &mint_pda);
     let compressible_params = CompressibleParams {
         token_account_version: TokenDataVersion::ShaFlat,
         pre_pay_num_epochs: 2,

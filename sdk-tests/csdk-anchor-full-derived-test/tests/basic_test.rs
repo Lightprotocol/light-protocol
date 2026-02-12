@@ -352,9 +352,7 @@ async fn test_create_pdas_and_mint_auto() {
         GameSession as GameSessionState, UserRecord,
     };
     use light_account::TokenDataWithSeeds;
-    use light_client::interface::{
-        create_load_instructions, AccountInterface, AccountSpec, PdaSpec,
-    };
+    use light_client::interface::{create_load_instructions, AccountSpec, PdaSpec};
 
     // Fetch unified interfaces (hot/cold transparent)
     let user_interface = rpc
@@ -374,13 +372,20 @@ async fn test_create_pdas_and_mint_auto() {
     assert!(game_interface.is_cold(), "GameSession should be cold");
 
     let vault_interface = rpc
-        .get_token_account_interface(&vault_pda, None)
+        .get_account_interface(&vault_pda, None)
         .await
         .expect("failed to get vault")
         .value
         .expect("vault should exist");
     assert!(vault_interface.is_cold(), "Vault should be cold");
-    assert_eq!(vault_interface.amount(), vault_mint_amount);
+    let vault_amount = {
+        let token = light_token_interface::state::Token::deserialize(
+            &mut &vault_interface.account.data[..],
+        )
+        .expect("parse vault");
+        token.amount
+    };
+    assert_eq!(vault_amount, vault_mint_amount);
 
     // Build PdaSpec for UserRecord
     let user_data = UserRecord::deserialize(&mut &user_interface.account.data[8..])
@@ -409,8 +414,8 @@ async fn test_create_pdas_and_mint_auto() {
     };
     let game_spec = PdaSpec::new(game_interface.clone(), game_variant, program_id);
 
-    // Build PdaSpec for Vault (CToken)
-    // Vault is fetched as token account but decompressed as PDA, so convert cold context
+    // Build PdaSpec for Vault (CToken). PdaSpec accepts ColdContext::Token;
+    // load_accounts uses compressed() which returns inner CompressedAccount.
     let token =
         light_token_interface::state::Token::deserialize(&mut &vault_interface.account.data[..])
             .expect("Failed to parse Token");
@@ -418,53 +423,40 @@ async fn test_create_pdas_and_mint_auto() {
         seeds: VaultSeeds { mint: mint_pda },
         token_data: token,
     });
-    let vault_compressed = vault_interface
-        .compressed()
-        .expect("cold vault must have compressed data");
-    // Convert TokenAccountInterface to AccountInterface with compressed account
-    let vault_interface_for_pda = AccountInterface {
-        key: vault_interface.key,
-        account: vault_interface.account.clone(),
-        cold: Some(vault_compressed.account.clone()),
-    };
-    let vault_spec = PdaSpec::new(vault_interface_for_pda, vault_variant, program_id);
+    let vault_spec = PdaSpec::new(vault_interface.clone(), vault_variant, program_id);
 
-    // get_associated_token_account_interface: fetches ATA with unified handling using standard SPL types
+    let ata = light_token::instruction::get_associated_token_address(&payer.pubkey(), &mint_pda);
     let ata_interface = rpc
-        .get_associated_token_account_interface(&payer.pubkey(), &mint_pda, None)
+        .get_account_interface(&ata, None)
         .await
-        .expect("get_associated_token_account_interface should succeed")
+        .expect("get_account_interface for ATA should succeed")
         .value
         .expect("ATA should exist");
     assert!(ata_interface.is_cold(), "ATA should be cold after warp");
-    assert_eq!(ata_interface.amount(), user_ata_mint_amount);
-    assert_eq!(ata_interface.mint(), mint_pda);
-    // After fix: parsed.owner = wallet_owner (payer), not ATA address
-    assert_eq!(ata_interface.owner(), payer.pubkey());
+    {
+        let token =
+            light_token_interface::state::Token::deserialize(&mut &ata_interface.account.data[..])
+                .expect("parse ATA");
+        assert_eq!(token.amount, user_ata_mint_amount);
+        assert_eq!(token.mint, mint_pda);
+        assert_eq!(token.owner, payer.pubkey());
+    }
 
-    // Use TokenAccountInterface directly for ATA
-    // (no separate AtaSpec needed - TokenAccountInterface has all the data)
-
-    // Fetch mint via get_mint_interface
-    let mint_account_interface = light_client::interface::AccountInterface::from(
-        rpc.get_mint_interface(&mint_pda, None)
-            .await
-            .expect("get_mint_interface should succeed")
-            .value
-            .expect("Mint should exist"),
-    );
-    assert!(
-        mint_account_interface.is_cold(),
-        "Mint should be cold after warp"
-    );
+    let mint_interface = rpc
+        .get_account_interface(&mint_pda, None)
+        .await
+        .expect("get_account_interface for mint should succeed")
+        .value
+        .expect("Mint should exist");
+    assert!(mint_interface.is_cold(), "Mint should be cold after warp");
 
     // Build AccountSpec slice for all accounts
     let specs: Vec<AccountSpec<LightAccountVariant>> = vec![
         AccountSpec::Pda(user_spec),
         AccountSpec::Pda(game_spec),
         AccountSpec::Pda(vault_spec),
-        AccountSpec::Ata(Box::new(ata_interface.clone())),
-        AccountSpec::Mint(mint_account_interface),
+        AccountSpec::Ata(ata_interface.clone()),
+        AccountSpec::Mint(mint_interface),
     ];
 
     // Load all accounts with single call

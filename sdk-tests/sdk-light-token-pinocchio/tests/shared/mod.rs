@@ -97,12 +97,12 @@ pub async fn setup_create_mint(
     }
 
     // Create ATAs for each recipient
-    use light_token::instruction::derive_token_ata;
+    use light_token::instruction::get_associated_token_address;
 
     let mut ata_pubkeys = Vec::with_capacity(recipients.len());
 
     for (_amount, owner) in &recipients {
-        let ata_address = derive_token_ata(owner, &mint);
+        let ata_address = get_associated_token_address(owner, &mint);
         ata_pubkeys.push(ata_address);
 
         let create_ata = CreateAssociatedTokenAccount::new(payer.pubkey(), *owner, mint);
@@ -218,12 +218,12 @@ pub async fn setup_create_mint_with_freeze_authority(
     }
 
     // Create ATAs for each recipient
-    use light_token::instruction::derive_token_ata;
+    use light_token::instruction::get_associated_token_address;
 
     let mut ata_pubkeys = Vec::with_capacity(recipients.len());
 
     for (_amount, owner) in &recipients {
-        let ata_address = derive_token_ata(owner, &mint);
+        let ata_address = get_associated_token_address(owner, &mint);
         ata_pubkeys.push(ata_address);
 
         let create_ata = CreateAssociatedTokenAccount::new(payer.pubkey(), *owner, mint);
@@ -351,7 +351,7 @@ pub async fn setup_create_mint_with_compression_only(
     }
 
     // Create ATAs for each recipient with custom compression_only setting
-    use light_token::instruction::derive_token_ata;
+    use light_token::instruction::get_associated_token_address;
 
     let mut ata_pubkeys = Vec::with_capacity(recipients.len());
 
@@ -362,7 +362,7 @@ pub async fn setup_create_mint_with_compression_only(
     };
 
     for (_amount, owner) in &recipients {
-        let ata_address = derive_token_ata(owner, &mint);
+        let ata_address = get_associated_token_address(owner, &mint);
         ata_pubkeys.push(ata_address);
 
         let create_ata = CreateAssociatedTokenAccount::new(payer.pubkey(), *owner, mint)

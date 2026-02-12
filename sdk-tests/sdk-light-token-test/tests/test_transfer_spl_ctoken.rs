@@ -9,7 +9,7 @@ use light_test_utils::spl::{
     create_mint_helper, create_token_2022_account, mint_spl_tokens, CREATE_MINT_HELPER_DECIMALS,
 };
 use light_token::{
-    instruction::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount},
+    instruction::{get_associated_token_address, CompressibleParams, CreateAssociatedTokenAccount},
     spl_interface::find_spl_interface_pda_with_index,
 };
 use light_token_types::CPI_AUTHORITY_PDA;
@@ -73,7 +73,7 @@ async fn test_spl_to_ctoken_invoke() {
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
-    let ctoken_account = derive_token_ata(&recipient.pubkey(), &mint);
+    let ctoken_account = get_associated_token_address(&recipient.pubkey(), &mint);
 
     // Get initial balances
     use spl_token_2022::pod::PodAccount;
@@ -195,7 +195,7 @@ async fn test_ctoken_to_spl_invoke() {
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
-    let ctoken_account = derive_token_ata(&owner.pubkey(), &mint);
+    let ctoken_account = get_associated_token_address(&owner.pubkey(), &mint);
 
     // Create a temporary SPL account to mint tokens then transfer to ctoken
     let temp_spl_account_keypair = Keypair::new();
@@ -385,7 +385,7 @@ async fn test_spl_to_ctoken_invoke_signed() {
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
-    let ctoken_account = derive_token_ata(&recipient.pubkey(), &mint);
+    let ctoken_account = get_associated_token_address(&recipient.pubkey(), &mint);
 
     // Get SPL interface PDA
     let (spl_interface_pda, spl_interface_pda_bump) =
@@ -484,7 +484,7 @@ async fn test_ctoken_to_spl_invoke_signed() {
     .unwrap();
 
     // Create ctoken ATA owned by the PDA
-    let ctoken_account = derive_token_ata(&authority_pda, &mint);
+    let ctoken_account = get_associated_token_address(&authority_pda, &mint);
     let instruction = CreateAssociatedTokenAccount {
         idempotent: false,
         payer: payer.pubkey(),

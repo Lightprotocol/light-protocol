@@ -122,7 +122,7 @@ async fn test_create_single_ata() {
     let ata_owner = payer.pubkey();
 
     // Derive the ATA address using Light Token SDK's derivation
-    let ata = light_token::instruction::derive_token_ata(&ata_owner, &mint);
+    let ata = light_token::instruction::get_associated_token_address(&ata_owner, &mint);
 
     // Get proof (no PDA accounts for ATA-only instruction)
     let proof_result = get_create_accounts_proof(&rpc, &program_id, vec![])

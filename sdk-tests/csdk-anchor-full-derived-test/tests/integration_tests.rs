@@ -237,41 +237,30 @@ impl TestContext {
         expected_owner: Pubkey,
         expected_amount: u64,
     ) {
-        use light_client::interface::AccountInterface;
-
         // Fetch token account interface
         let vault_interface = self
             .rpc
-            .get_token_account_interface(vault_pda, None)
+            .get_account_interface(vault_pda, None)
             .await
-            .expect("get_token_account_interface should succeed")
+            .expect("get_account_interface for vault should succeed")
             .value
             .expect("token account interface should exist");
         assert!(vault_interface.is_cold(), "Token vault should be cold");
 
-        // Deserialize token data
         let token = light_token_interface::state::Token::deserialize(
             &mut &vault_interface.account.data[..],
         )
         .expect("Failed to parse Token");
 
-        // Build variant using provided closure
         let vault_variant = build_variant(token);
 
-        // Get compressed context
-        let vault_compressed = vault_interface
-            .compressed()
-            .expect("cold vault must have compressed data");
+        assert!(
+            vault_interface.as_compressed_token().is_some(),
+            "cold vault must have compressed data"
+        );
 
-        // Convert to AccountInterface with compressed account
-        let vault_interface_for_pda = AccountInterface {
-            key: vault_interface.key,
-            account: vault_interface.account.clone(),
-            cold: Some(vault_compressed.account.clone()),
-        };
-
-        // Create PdaSpec and decompress
-        let vault_spec = PdaSpec::new(vault_interface_for_pda, vault_variant, self.program_id);
+        // Create PdaSpec and decompress. PdaSpec accepts ColdContext::Token directly.
+        let vault_spec = PdaSpec::new(vault_interface.clone(), vault_variant, self.program_id);
         let specs: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Pda(vault_spec)];
 
         let decompress_instructions =

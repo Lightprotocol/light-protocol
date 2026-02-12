@@ -1,7 +1,7 @@
 use light_client::rpc::Rpc;
 use light_compressible::{compression_info::CompressionInfo, rent::RentConfig};
 use light_program_test::LightProgramTest;
-use light_token::instruction::derive_token_ata;
+use light_token::instruction::get_associated_token_address;
 use light_token_interface::{
     state::{
         extensions::CompressibleExtension, token::Token, AccountState, ExtensionStruct,
@@ -404,7 +404,7 @@ pub async fn assert_create_associated_token_account(
     expected_extensions: Option<Vec<ExtensionStruct>>,
 ) {
     // Derive the associated token account address
-    let ata_pubkey = derive_token_ata(&owner_pubkey, &mint_pubkey);
+    let ata_pubkey = get_associated_token_address(&owner_pubkey, &mint_pubkey);
 
     // Verify the account exists at the derived address
     let account = rpc

@@ -16,8 +16,8 @@ pub use light_test_utils::{
     Rpc, RpcError,
 };
 pub use light_token::instruction::{
-    derive_token_ata, Approve, CloseAccount, CompressibleParams, CreateAssociatedTokenAccount,
-    CreateTokenAccount, Revoke,
+    get_associated_token_address, Approve, CloseAccount, CompressibleParams,
+    CreateAssociatedTokenAccount, CreateTokenAccount, Revoke,
 };
 pub use serial_test::serial;
 pub use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
@@ -384,7 +384,7 @@ pub async fn create_and_assert_ata(
     let owner_pubkey = context.owner_keypair.pubkey();
 
     // Derive ATA address
-    let ata_pubkey = derive_token_ata(&owner_pubkey, &context.mint_pubkey);
+    let ata_pubkey = get_associated_token_address(&owner_pubkey, &context.mint_pubkey);
 
     // Build instruction based on whether it's compressible
     let create_ata_ix = if let Some(compressible) = compressible_data.as_ref() {

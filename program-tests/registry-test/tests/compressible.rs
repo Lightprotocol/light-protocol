@@ -37,7 +37,7 @@ use light_test_utils::{
     Rpc, RpcError,
 };
 use light_token::instruction::{
-    derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount, MintTo,
+    get_associated_token_address, CompressibleParams, CreateAssociatedTokenAccount, MintTo,
 };
 use solana_sdk::{
     instruction::Instruction,
@@ -850,7 +850,7 @@ async fn test_deprecate_compressible_config_with_valid_authority() -> Result<(),
     // Test 3: CAN claim rent with deprecated config
 
     let forester_keypair = rpc.test_accounts.protocol.forester.insecure_clone();
-    let ata_pubkey = derive_token_ata(&token_account_keypair.pubkey(), &mint);
+    let ata_pubkey = get_associated_token_address(&token_account_keypair.pubkey(), &mint);
 
     // Claim from the account we created earlier
     let claim_result = claim_forester(&mut rpc, &[ata_pubkey], &forester_keypair, &payer).await;

@@ -14,7 +14,8 @@ use light_sdk::instruction::PackedAccounts;
 use light_token::{
     compat::AccountState,
     instruction::{
-        derive_token_ata, CreateAssociatedTokenAccount, DecompressMint, LIGHT_TOKEN_PROGRAM_ID,
+        get_associated_token_address, get_associated_token_address_and_bump,
+        CreateAssociatedTokenAccount, DecompressMint, LIGHT_TOKEN_PROGRAM_ID,
     },
 };
 use light_token_interface::{
@@ -27,13 +28,15 @@ use light_token_interface::{
 };
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
+use spl_pod::bytemuck::{pod_from_bytes, pod_get_packed_len};
+use spl_token_2022_interface::pod::PodAccount;
 use thiserror::Error;
 
 use super::{
     decompress_mint::{DEFAULT_RENT_PAYMENT, DEFAULT_WRITE_TOP_UP},
     instructions::{self, DECOMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR},
     light_program_interface::{AccountSpec, PdaSpec},
-    AccountInterface, TokenAccountInterface,
+    AccountInterface,
 };
 use crate::indexer::{
     CompressedAccount, CompressedTokenAccount, Indexer, IndexerError, ValidityProofWithContext,
@@ -59,8 +62,14 @@ pub enum LoadAccountsError {
     #[error("Cold mint at index {index} (mint {mint}) missing hash")]
     MissingMintHash { index: usize, mint: Pubkey },
 
-    #[error("ATA at index {index} (pubkey {pubkey}) missing compressed data or ATA bump")]
-    MissingAtaContext { index: usize, pubkey: Pubkey },
+    #[error("ATA at index {index} (pubkey {pubkey}) not a compressed token account")]
+    MissingAtaCompressedData { index: usize, pubkey: Pubkey },
+
+    #[error("ATA at index {index} (pubkey {pubkey}) invalid POD account data")]
+    InvalidAtaPodData { index: usize, pubkey: Pubkey },
+
+    #[error("ATA at index {index} (pubkey {pubkey}) derivation mismatch")]
+    AtaDerivationMismatch { index: usize, pubkey: Pubkey },
 
     #[error("Tree info index {index} out of bounds (len {len})")]
     TreeInfoIndexOutOfBounds { index: usize, len: usize },
@@ -100,7 +109,7 @@ where
     let cold_atas: Vec<_> = specs
         .iter()
         .filter_map(|s| match s {
-            AccountSpec::Ata(a) if a.is_cold() => Some(a.as_ref()),
+            AccountSpec::Ata(a) if a.is_cold() => Some(a),
             _ => None,
         })
         .collect();
@@ -166,9 +175,7 @@ fn collect_pda_hashes<V>(specs: &[&PdaSpec<V>]) -> Result<Vec<[u8; 32]>, LoadAcc
         .collect()
 }
 
-fn collect_ata_hashes(
-    ifaces: &[&TokenAccountInterface],
-) -> Result<Vec<[u8; 32]>, LoadAccountsError> {
+fn collect_ata_hashes(ifaces: &[&AccountInterface]) -> Result<Vec<[u8; 32]>, LoadAccountsError> {
     ifaces
         .iter()
         .enumerate()
@@ -248,7 +255,6 @@ where
             .unwrap_or(false)
     });
 
-    // Derive rent sponsor PDA from program_id
     let program_id = specs.first().map(|s| s.program_id()).unwrap_or_default();
     let (rent_sponsor, _) = derive_rent_sponsor_pda(&program_id);
 
@@ -267,8 +273,6 @@ where
         })
         .collect();
 
-    let program_id = specs.first().map(|s| s.program_id()).unwrap_or_default();
-
     instructions::create_decompress_accounts_idempotent_instruction(
         &program_id,
         &DECOMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR,
@@ -280,41 +284,52 @@ where
     .map_err(|e| LoadAccountsError::BuildInstruction(e.to_string()))
 }
 
-struct AtaContext<'a> {
-    compressed: &'a CompressedTokenAccount,
+struct AtaContext {
+    compressed: CompressedTokenAccount,
     wallet_owner: Pubkey,
     mint: Pubkey,
     bump: u8,
 }
 
-impl<'a> AtaContext<'a> {
-    fn from_interface(
-        iface: &'a TokenAccountInterface,
-        index: usize,
-    ) -> Result<Self, LoadAccountsError> {
-        let compressed = iface
-            .compressed()
-            .ok_or(LoadAccountsError::MissingAtaContext {
+impl AtaContext {
+    fn from_interface(iface: &AccountInterface, index: usize) -> Result<Self, LoadAccountsError> {
+        let compressed =
+            iface
+                .as_compressed_token()
+                .ok_or(LoadAccountsError::MissingAtaCompressedData {
+                    index,
+                    pubkey: iface.key,
+                })?;
+        let pod_len = pod_get_packed_len::<PodAccount>();
+        let parsed: &PodAccount = iface
+            .account
+            .data
+            .get(..pod_len)
+            .and_then(|d| pod_from_bytes(d).ok())
+            .ok_or(LoadAccountsError::InvalidAtaPodData {
                 index,
                 pubkey: iface.key,
             })?;
-        let bump = iface
-            .ata_bump()
-            .ok_or(LoadAccountsError::MissingAtaContext {
+        let wallet_owner = parsed.owner;
+        let mint = parsed.mint;
+        let (derived_ata, bump) = get_associated_token_address_and_bump(&wallet_owner, &mint);
+        if derived_ata != iface.key {
+            return Err(LoadAccountsError::AtaDerivationMismatch {
                 index,
                 pubkey: iface.key,
-            })?;
+            });
+        }
         Ok(Self {
             compressed,
-            wallet_owner: iface.owner(),
-            mint: iface.mint(),
+            wallet_owner,
+            mint,
             bump,
         })
     }
 }
 
 fn build_ata_load(
-    ifaces: &[&TokenAccountInterface],
+    ifaces: &[&AccountInterface],
     proof: ValidityProofWithContext,
     fee_payer: Pubkey,
 ) -> Result<Vec<Instruction>, LoadAccountsError> {
@@ -364,7 +379,8 @@ fn build_transfer2(
         )?;
 
         let owner_idx = packed.insert_or_get_config(ctx.wallet_owner, true, false);
-        let ata_idx = packed.insert_or_get(derive_token_ata(&ctx.wallet_owner, &ctx.mint));
+        let ata_idx =
+            packed.insert_or_get(get_associated_token_address(&ctx.wallet_owner, &ctx.mint));
         let mint_idx = packed.insert_or_get(token.mint);
         let delegate_idx = token.delegate.map(|d| packed.insert_or_get(d)).unwrap_or(0);
 
@@ -461,7 +477,7 @@ fn build_mint_load(
         .mint_compressed_address()
         .ok_or_else(|| LoadAccountsError::BuildInstruction("missing compressed_address".into()))?;
     let mint_ix_data = MintInstructionData::try_from(mint_data)
-        .map_err(|_| LoadAccountsError::BuildInstruction("invalid mint data".into()))?;
+        .map_err(|e| LoadAccountsError::BuildInstruction(format!("invalid mint data: {}", e)))?;
 
     DecompressMint {
         payer: fee_payer,

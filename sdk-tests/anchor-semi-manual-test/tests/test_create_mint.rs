@@ -3,8 +3,7 @@ mod shared;
 use anchor_lang::{InstructionData, ToAccountMetas};
 use anchor_semi_manual_test::{CreateMintParams, MINT_SIGNER_SEED_A};
 use light_client::interface::{
-    create_load_instructions, get_create_accounts_proof, AccountInterface, AccountSpec,
-    CreateAccountsProofInput,
+    create_load_instructions, get_create_accounts_proof, AccountSpec, CreateAccountsProofInput,
 };
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{program_test::TestRpc, Rpc};
@@ -99,16 +98,14 @@ async fn test_create_mint_derive() {
     use anchor_semi_manual_test::LightAccountVariant;
 
     let mint_interface = rpc
-        .get_mint_interface(&mint_pda, None)
+        .get_account_interface(&mint_pda, None)
         .await
         .expect("failed to get mint interface")
         .value
         .expect("mint interface should exist");
     assert!(mint_interface.is_cold(), "Mint should be cold");
-    let mint_account_interface = AccountInterface::from(mint_interface);
 
-    let specs: Vec<AccountSpec<LightAccountVariant>> =
-        vec![AccountSpec::Mint(mint_account_interface)];
+    let specs: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Mint(mint_interface)];
 
     let ixs = create_load_instructions(&specs, payer.pubkey(), env.config_pda, &rpc)
         .await

@@ -20,7 +20,7 @@ async fn test_create_ata_derive() {
     let (mint, _mint_seed) = shared::setup_create_mint(&mut rpc, &payer, payer.pubkey(), 9).await;
 
     let ata_owner = payer.pubkey();
-    let ata = light_token::instruction::derive_token_ata(&ata_owner, &mint);
+    let ata = light_token::instruction::get_associated_token_address(&ata_owner, &mint);
 
     let proof_result = get_create_accounts_proof(&rpc, &program_id, vec![])
         .await
@@ -94,15 +94,14 @@ async fn test_create_ata_derive() {
     use anchor_semi_manual_test::LightAccountVariant;
 
     let ata_interface = rpc
-        .get_associated_token_account_interface(&ata_owner, &mint, None)
+        .get_account_interface(&ata, None)
         .await
         .expect("failed to get ATA interface")
         .value
         .expect("ATA interface should exist");
     assert!(ata_interface.is_cold(), "ATA should be cold");
 
-    let specs: Vec<AccountSpec<LightAccountVariant>> =
-        vec![AccountSpec::Ata(Box::new(ata_interface))];
+    let specs: Vec<AccountSpec<LightAccountVariant>> = vec![AccountSpec::Ata(ata_interface)];
 
     let ixs = create_load_instructions(&specs, payer.pubkey(), env.config_pda, &rpc)
         .await

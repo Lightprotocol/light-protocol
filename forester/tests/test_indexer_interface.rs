@@ -3,15 +3,9 @@
 /// This test creates various account types for testing the indexer's interface racing logic.
 /// After running, use `cargo xtask export-photon-test-data --test-name indexer_interface`
 /// to export transactions to the indexer's test snapshot directory.
-///
-/// Scenarios covered:
-/// 1. Light Token Mint - mint for token operations
-/// 2. Token accounts (via light-token-client MintTo) - for getTokenAccountInterface
-/// 3. Registered v2 address in batched address tree - for address tree verification
-/// 4. Compressible token accounts - on-chain accounts that can be compressed
 use std::collections::HashMap;
 
-use anchor_lang::Discriminator;
+use anchor_lang::{AnchorDeserialize, Discriminator};
 use borsh::BorshSerialize;
 use create_address_test_program::create_invoke_cpi_instruction;
 use light_client::{
@@ -368,6 +362,13 @@ async fn test_indexer_interface_scenarios() {
         compressed_mint_pda, create_mint_sig
     );
 
+    // Warp forward so rent expires - required before CompressAndCloseMint
+    let current_slot = rpc.get_slot().await.unwrap();
+    let target_slot = current_slot + light_compressible::rent::SLOTS_PER_EPOCH * 30;
+    rpc.warp_to_slot(target_slot)
+        .await
+        .expect("warp_to_slot so mint rent expires");
+
     // Now compress and close the mint to make it fully compressed
     println!("Compressing mint via CompressAndCloseMint...");
 
@@ -483,36 +484,41 @@ async fn test_indexer_interface_scenarios() {
     );
     println!("  PASSED: Compressible account resolved from on-chain");
 
-    // ============ Test 2: getTokenAccountInterface with compressible token account (on-chain) ============
-    println!("\nTest 2: getTokenAccountInterface with compressible token account (on-chain)...");
-    let compressible_token_interface = photon_indexer
-        .get_token_account_interface(&compressible_token_account, None)
+    println!("\nTest 2: getAccountInterface for compressible token account (on-chain)...");
+    let compressible_token_interface = rpc
+        .get_account_interface(&compressible_token_account, None)
         .await
-        .expect("getTokenAccountInterface should not error")
+        .expect("getAccountInterface should not error")
         .value
-        .expect("Compressible token account should be found via token interface");
+        .expect("Compressible token account should be found");
 
     assert!(
-        compressible_token_interface.account.is_hot(),
+        compressible_token_interface.is_hot(),
         "Token account should be hot (on-chain)"
     );
     assert!(
-        compressible_token_interface.account.cold.is_none(),
+        compressible_token_interface.cold.is_none(),
         "On-chain token account should not have cold context"
     );
     assert_eq!(
-        compressible_token_interface.account.key, compressible_token_account,
+        compressible_token_interface.key, compressible_token_account,
         "Token account key should match"
     );
-    assert_eq!(
-        compressible_token_interface.token.mint, decompressed_mint_pda,
-        "Token mint should match decompressed mint"
-    );
-    assert_eq!(
-        compressible_token_interface.token.owner,
-        compressible_owner.pubkey(),
-        "Token owner should match compressible owner"
-    );
+    {
+        let token = light_token_interface::state::Token::deserialize(
+            &mut &compressible_token_interface.account.data[..],
+        )
+        .expect("parse token account");
+        assert_eq!(
+            token.mint, decompressed_mint_pda,
+            "Token mint should match decompressed mint"
+        );
+        assert_eq!(
+            token.owner,
+            compressible_owner.pubkey(),
+            "Token owner should match compressible owner"
+        );
+    }
     println!("  PASSED: Token account interface resolved with correct token data");
 
     // ============ Test 3: getMultipleAccountInterfaces batch lookup ============

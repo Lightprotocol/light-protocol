@@ -46,7 +46,7 @@ use light_program_test::{
 use light_sdk::instruction::PackedAccounts;
 use light_test_utils::RpcError;
 use light_token::{
-    instruction::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount},
+    instruction::{get_associated_token_address, CompressibleParams, CreateAssociatedTokenAccount},
     ValidityProof,
 };
 use light_token_interface::{
@@ -89,7 +89,7 @@ async fn setup_decompression_test(
 
     // Derive mint and ATA addresses
     let (mint, _) = find_mint_address(&mint_seed.pubkey());
-    let ctoken_ata = derive_token_ata(&owner.pubkey(), &mint);
+    let ctoken_ata = get_associated_token_address(&owner.pubkey(), &mint);
 
     // Create compressible Light Token ATA for owner (recipient of decompression)
     let compressible_params = CompressibleParams {

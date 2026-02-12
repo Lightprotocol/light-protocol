@@ -10,7 +10,7 @@ use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::spl::{
     create_mint_helper, create_token_account, mint_spl_tokens, CREATE_MINT_HELPER_DECIMALS,
 };
-use light_token::instruction::derive_token_ata;
+use light_token::instruction::get_associated_token_address;
 use light_token_client::actions::{CreateAta, Unwrap, Wrap};
 use light_token_interface::state::Token;
 use solana_sdk::{program_pack::Pack, signature::Keypair, signer::Signer};
@@ -50,7 +50,7 @@ async fn test_wrap_basic() {
 
     // Create Light Token ATA for destination
     let owner = payer.pubkey();
-    let light_token_ata = derive_token_ata(&owner, &mint);
+    let light_token_ata = get_associated_token_address(&owner, &mint);
 
     CreateAta {
         mint,
@@ -123,7 +123,7 @@ async fn test_unwrap_basic() {
 
     // Create Light Token ATA
     let owner = payer.pubkey();
-    let light_token_ata = derive_token_ata(&owner, &mint);
+    let light_token_ata = get_associated_token_address(&owner, &mint);
 
     CreateAta {
         mint,
@@ -213,7 +213,7 @@ async fn test_wrap_unwrap_round_trip() {
 
     // Create Light Token ATA
     let owner = payer.pubkey();
-    let light_token_ata = derive_token_ata(&owner, &mint);
+    let light_token_ata = get_associated_token_address(&owner, &mint);
 
     CreateAta {
         mint,
@@ -297,7 +297,7 @@ async fn test_wrap_large_amount() {
 
     // Create Light Token ATA
     let owner = payer.pubkey();
-    let light_token_ata = derive_token_ata(&owner, &mint);
+    let light_token_ata = get_associated_token_address(&owner, &mint);
 
     CreateAta {
         mint,

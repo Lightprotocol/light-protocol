@@ -228,6 +228,30 @@ pub async fn claim_and_compress(
         }
     }
 
+    // Track ATA wallet owners before compression closes the on-chain accounts.
+    // For ATAs, the compressed token owner is the ATA pubkey (not the wallet owner),
+    // so we need to record the wallet owner for cold ATA lookups during decompression.
+    {
+        use light_zero_copy::traits::ZeroCopyAt;
+        for pubkey in compress_accounts_compression_only
+            .iter()
+            .chain(compress_accounts_normal.iter())
+        {
+            if let Some(account) = rpc.context.get_account(pubkey) {
+                if let Ok((ctoken, _)) = Token::zero_copy_at(&account.data) {
+                    if let Some(ext) = ctoken.get_compressible_extension() {
+                        if ext.is_ata != 0 {
+                            let wallet_owner = Pubkey::from(ctoken.owner.to_bytes());
+                            if let Some(indexer) = rpc.indexer.as_mut() {
+                                indexer.ata_owner_map.insert(*pubkey, wallet_owner);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // Process claimable accounts in batches
     for token_accounts in claim_accounts.as_slice().chunks(20) {
         claim_forester(rpc, token_accounts, &forester_keypair, &payer).await?;

@@ -8,16 +8,18 @@ use solana_pubkey::Pubkey;
 use tracing::{error, trace, warn};
 
 use super::types::{
-    AccountInterface, CompressedAccount, CompressedTokenAccount, OwnerBalance,
-    SignatureWithMetadata, TokenAccountInterface, TokenBalance,
+    CompressedAccount, CompressedTokenAccount, OwnerBalance, SignatureWithMetadata, TokenBalance,
 };
-use crate::indexer::{
-    base58::Base58Conversions,
-    config::RetryConfig,
-    response::{Context, Items, ItemsWithCursor, Response},
-    Address, AddressWithTree, GetCompressedAccountsByOwnerConfig,
-    GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash, Indexer, IndexerError,
-    IndexerRpcConfig, MerkleProof, NewAddressProofWithContext, PaginatedOptions,
+use crate::{
+    indexer::{
+        base58::Base58Conversions,
+        config::RetryConfig,
+        response::{Context, Items, ItemsWithCursor, Response},
+        Address, AddressWithTree, GetCompressedAccountsByOwnerConfig,
+        GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash, Indexer, IndexerError,
+        IndexerRpcConfig, MerkleProof, NewAddressProofWithContext, PaginatedOptions,
+    },
+    interface::AccountInterface,
 };
 
 // Tests are in program-tests/client-test/tests/light-client.rs
@@ -1747,7 +1749,7 @@ impl PhotonIndexer {
             }
 
             let account = match api_response.value {
-                Some(ref ai) => Some(AccountInterface::try_from(ai)?),
+                Some(ref ai) => Some(convert_photon_account_interface(ai)?),
                 None => None,
             };
 
@@ -1759,46 +1761,6 @@ impl PhotonIndexer {
             })
         })
         .await
-    }
-
-    pub async fn get_token_account_interface(
-        &self,
-        address: &Pubkey,
-        config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Option<TokenAccountInterface>>, IndexerError> {
-        let response = self.get_account_interface(address, config).await?;
-        let value = match response.value {
-            Some(ai) => {
-                let token = parse_token_data_from_indexer_account(&ai)?;
-                Some(TokenAccountInterface { account: ai, token })
-            }
-            None => None,
-        };
-        Ok(Response {
-            context: response.context,
-            value,
-        })
-    }
-
-    pub async fn get_associated_token_account_interface(
-        &self,
-        owner: &Pubkey,
-        mint: &Pubkey,
-        config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Option<TokenAccountInterface>>, IndexerError> {
-        let ata_address = light_token::instruction::get_associated_token_address(owner, mint);
-        let response = self.get_account_interface(&ata_address, config).await?;
-        let value = match response.value {
-            Some(ai) => {
-                let token = parse_token_data_from_indexer_account(&ai)?;
-                Some(TokenAccountInterface { account: ai, token })
-            }
-            None => None,
-        };
-        Ok(Response {
-            context: response.context,
-            value,
-        })
     }
 
     pub async fn get_multiple_account_interfaces(
@@ -1838,7 +1800,7 @@ impl PhotonIndexer {
                 .into_iter()
                 .map(|maybe_acc| {
                     maybe_acc
-                        .map(|ai| AccountInterface::try_from(&ai))
+                        .map(|ai| convert_photon_account_interface(&ai))
                         .transpose()
                 })
                 .collect();
@@ -1854,18 +1816,35 @@ impl PhotonIndexer {
     }
 }
 
-/// Parse token data from an indexer AccountInterface.
-/// For compressed (cold) accounts: borsh-deserializes TokenData from the cold data bytes.
-/// For on-chain (hot) accounts: returns default TokenData (downstream conversion re-parses from SPL layout).
-fn parse_token_data_from_indexer_account(
-    ai: &AccountInterface,
-) -> Result<light_token::compat::TokenData, IndexerError> {
-    match &ai.cold {
-        Some(cold) => borsh::BorshDeserialize::deserialize(&mut cold.data.data.as_slice())
-            .map_err(|e| IndexerError::decode_error("token_data", e)),
-        None => {
-            // Hot account — downstream will re-parse from SPL account data directly
-            Ok(light_token::compat::TokenData::default())
-        }
-    }
+/// Convert a photon_api AccountInterface directly to the consumer AccountInterface.
+fn convert_photon_account_interface(
+    ai: &photon_api::types::AccountInterface,
+) -> Result<AccountInterface, IndexerError> {
+    use solana_account::Account;
+
+    use super::base58::decode_base58_to_fixed_array;
+
+    let key = Pubkey::new_from_array(decode_base58_to_fixed_array(&ai.key)?);
+    let data = base64::decode_config(&*ai.account.data, base64::STANDARD_NO_PAD)
+        .map_err(|e| IndexerError::decode_error("account.data", e))?;
+    let account = Account {
+        lamports: *ai.account.lamports,
+        data,
+        owner: Pubkey::new_from_array(decode_base58_to_fixed_array(&ai.account.owner)?),
+        executable: ai.account.executable,
+        rent_epoch: *ai.account.rent_epoch,
+    };
+
+    let cold = ai
+        .cold
+        .as_ref()
+        .map(|entries| {
+            entries
+                .iter()
+                .map(CompressedAccount::try_from)
+                .collect::<Result<Vec<_>, _>>()
+        })
+        .transpose()?;
+
+    Ok(AccountInterface { key, account, cold })
 }

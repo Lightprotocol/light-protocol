@@ -10,7 +10,7 @@ use light_test_utils::{
     spl::{create_token_account, mint_spl_tokens},
 };
 use light_token::{
-    instruction::{derive_token_ata, CreateAssociatedTokenAccount, TransferFromSpl},
+    instruction::{get_associated_token_address, CreateAssociatedTokenAccount, TransferFromSpl},
     spl_interface::{find_spl_interface_pda_with_index, CreateSplInterfacePda},
 };
 use light_token_interface::state::Token;
@@ -96,8 +96,8 @@ async fn test_ctoken_transfer_checked_spl_mint() {
     let source_owner = payer.pubkey();
     let dest_owner = Pubkey::new_unique();
 
-    let source_ata = derive_token_ata(&source_owner, &mint);
-    let dest_ata = derive_token_ata(&dest_owner, &mint);
+    let source_ata = get_associated_token_address(&source_owner, &mint);
+    let dest_ata = get_associated_token_address(&dest_owner, &mint);
 
     let create_source_ata = CreateAssociatedTokenAccount::new(payer.pubkey(), source_owner, mint)
         .instruction()
@@ -194,8 +194,8 @@ async fn test_ctoken_transfer_checked_t22_mint() {
     let source_owner = payer.pubkey();
     let dest_owner = Pubkey::new_unique();
 
-    let source_ata = derive_token_ata(&source_owner, &mint);
-    let dest_ata = derive_token_ata(&dest_owner, &mint);
+    let source_ata = get_associated_token_address(&source_owner, &mint);
+    let dest_ata = get_associated_token_address(&dest_owner, &mint);
 
     use light_token::instruction::CompressibleParams;
     let compressible_params = CompressibleParams {

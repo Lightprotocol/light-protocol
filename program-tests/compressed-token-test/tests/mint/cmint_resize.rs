@@ -27,7 +27,7 @@ use light_test_utils::{
     Rpc,
 };
 use light_token::instruction::{
-    derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount,
+    get_associated_token_address, CompressibleParams, CreateAssociatedTokenAccount,
 };
 use light_token_interface::{
     instructions::extensions::token_metadata::TokenMetadataInstructionData,
@@ -566,7 +566,7 @@ async fn test_cmint_all_operations() {
         },
         // MintToCToken (decompressed recipient)
         MintActionType::MintToCToken {
-            account: derive_token_ata(&recipient.pubkey(), &spl_mint_pda),
+            account: get_associated_token_address(&recipient.pubkey(), &spl_mint_pda),
             amount: 2000,
         },
         // UpdateMintAuthority
@@ -967,7 +967,7 @@ async fn test_decompress_with_mint_to_ctoken() {
             write_top_up: 0,
         },
         MintActionType::MintToCToken {
-            account: derive_token_ata(&recipient.pubkey(), &spl_mint_pda),
+            account: get_associated_token_address(&recipient.pubkey(), &spl_mint_pda),
             amount: 5000,
         },
     ];
@@ -1103,7 +1103,7 @@ async fn test_decompress_with_all_operations() {
         },
         // MintToCToken (decompressed recipient)
         MintActionType::MintToCToken {
-            account: derive_token_ata(&recipient.pubkey(), &spl_mint_pda),
+            account: get_associated_token_address(&recipient.pubkey(), &spl_mint_pda),
             amount: 2000,
         },
         // UpdateMintAuthority

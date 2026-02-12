@@ -49,7 +49,7 @@ use light_program_test::{
 use light_sdk::instruction::PackedAccounts;
 use light_test_utils::RpcError;
 use light_token::{
-    instruction::{derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount},
+    instruction::{get_associated_token_address, CompressibleParams, CreateAssociatedTokenAccount},
     ValidityProof,
 };
 use light_token_interface::{
@@ -89,7 +89,7 @@ async fn setup_compression_test(token_amount: u64) -> Result<CompressionTestCont
 
     // Derive mint and ATA addresses
     let (mint, _) = find_mint_address(&mint_seed.pubkey());
-    let ctoken_ata = derive_token_ata(&owner.pubkey(), &mint);
+    let ctoken_ata = get_associated_token_address(&owner.pubkey(), &mint);
 
     // Create compressible Light Token ATA for owner
     let compressible_params = CompressibleParams {
@@ -600,7 +600,7 @@ async fn test_compression_max_top_up_exceeded() -> Result<(), RpcError> {
 
     // Derive mint and ATA addresses
     let (mint, _) = find_mint_address(&mint_seed.pubkey());
-    let ctoken_ata = derive_token_ata(&owner.pubkey(), &mint);
+    let ctoken_ata = get_associated_token_address(&owner.pubkey(), &mint);
 
     // Create compressible Light Token ATA with pre_pay_num_epochs = 0 (NO prepaid rent)
     // This means any write operation will require immediate rent top-up
@@ -732,7 +732,7 @@ async fn test_compression_duplicate_account_no_double_charge_top_up() -> Result<
 
     // Derive mint and ATA addresses
     let (mint, _) = find_mint_address(&mint_seed.pubkey());
-    let ctoken_ata = derive_token_ata(&owner.pubkey(), &mint);
+    let ctoken_ata = get_associated_token_address(&owner.pubkey(), &mint);
 
     // Create compressible Light Token ATA with pre_pay_num_epochs = 0 (NO prepaid rent)
     let compressible_params = CompressibleParams {
