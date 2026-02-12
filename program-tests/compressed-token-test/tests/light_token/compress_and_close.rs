@@ -164,7 +164,8 @@ async fn test_compress_and_close_owner_scenarios() {
 
         // Set token balance on ATA
         use light_token::instruction::get_associated_token_address;
-        let ata_pubkey = get_associated_token_address(&context.owner_keypair.pubkey(), &context.mint_pubkey);
+        let ata_pubkey =
+            get_associated_token_address(&context.owner_keypair.pubkey(), &context.mint_pubkey);
 
         let mut ata_account = context.rpc.get_account(ata_pubkey).await.unwrap().unwrap();
 

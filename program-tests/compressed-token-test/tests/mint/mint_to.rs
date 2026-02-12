@@ -4,7 +4,9 @@ use light_test_utils::{
     actions::legacy::instructions::mint_action::DecompressMintParams,
     assert_ctoken_mint_to::assert_ctoken_mint_to, Rpc,
 };
-use light_token::instruction::{get_associated_token_address, CreateAssociatedTokenAccount, MintTo};
+use light_token::instruction::{
+    get_associated_token_address, CreateAssociatedTokenAccount, MintTo,
+};
 use serial_test::serial;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 

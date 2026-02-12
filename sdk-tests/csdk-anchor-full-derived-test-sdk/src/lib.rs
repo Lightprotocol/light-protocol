@@ -92,6 +92,7 @@ impl AmmSdk {
 impl LightProgramInterface for AmmSdk {
     type Variant = LightAccountVariant;
     type Instruction = AmmInstruction;
+    type Error = AmmSdkError;
 
     fn program_id() -> Pubkey {
         PROGRAM_ID
@@ -118,7 +119,7 @@ impl LightProgramInterface for AmmSdk {
     fn load_specs(
         &self,
         cold_accounts: &[AccountInterface],
-    ) -> Result<Vec<AccountSpec<Self::Variant>>, Box<dyn std::error::Error>> {
+    ) -> Result<Vec<AccountSpec<Self::Variant>>, Self::Error> {
         use light_account::{token::TokenDataWithSeeds, Token};
 
         let mut specs = Vec::new();

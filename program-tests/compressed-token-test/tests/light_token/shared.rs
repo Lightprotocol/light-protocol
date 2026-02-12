@@ -16,8 +16,8 @@ pub use light_test_utils::{
     Rpc, RpcError,
 };
 pub use light_token::instruction::{
-    get_associated_token_address, Approve, CloseAccount, CompressibleParams, CreateAssociatedTokenAccount,
-    CreateTokenAccount, Revoke,
+    get_associated_token_address, Approve, CloseAccount, CompressibleParams,
+    CreateAssociatedTokenAccount, CreateTokenAccount, Revoke,
 };
 pub use serial_test::serial;
 pub use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};

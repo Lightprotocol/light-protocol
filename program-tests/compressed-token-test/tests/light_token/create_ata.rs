@@ -419,7 +419,8 @@ async fn test_create_ata_failing() {
 
         // Use different mint for this test
         context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
-        let ata_pubkey = get_associated_token_address(&context.owner_keypair.pubkey(), &context.mint_pubkey);
+        let ata_pubkey =
+            get_associated_token_address(&context.owner_keypair.pubkey(), &context.mint_pubkey);
 
         // Manually build instruction data with compress_to_account_pubkey (forbidden for ATAs)
         let compress_to_pubkey = CompressToPubkey {

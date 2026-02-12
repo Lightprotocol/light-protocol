@@ -22,7 +22,8 @@ use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestCon
 use light_test_utils::spl::{create_token_account, mint_spl_tokens};
 use light_token::{
     instruction::{
-        get_associated_token_address, CreateAssociatedTokenAccount, Decompress, Freeze, Thaw, TransferFromSpl,
+        get_associated_token_address, CreateAssociatedTokenAccount, Decompress, Freeze, Thaw,
+        TransferFromSpl,
     },
     spl_interface::{find_spl_interface_pda_with_index, CreateSplInterfacePda},
 };

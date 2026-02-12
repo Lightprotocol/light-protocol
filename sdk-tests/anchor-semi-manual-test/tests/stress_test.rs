@@ -276,7 +276,8 @@ async fn decompress_all(ctx: &mut StressTestContext, pdas: &TestPdas, cached: &C
     let zc_spec = PdaSpec::new(zc_interface, zc_variant, ctx.program_id);
 
     // ATA
-    let ata = light_token::instruction::get_associated_token_address(&pdas.ata_owner, &pdas.ata_mint);
+    let ata =
+        light_token::instruction::get_associated_token_address(&pdas.ata_owner, &pdas.ata_mint);
     let ata_interface = ctx
         .rpc
         .get_account_interface(&ata, None)

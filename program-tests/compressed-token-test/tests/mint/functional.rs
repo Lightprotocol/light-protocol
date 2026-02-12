@@ -422,7 +422,8 @@ async fn test_create_compressed_mint() {
     // This already exists from our previous test
 
     // Create non-compressible SPL token account for decompression destination
-    let decompress_dest_ata = get_associated_token_address(&decompress_recipient.pubkey(), &spl_mint_pda);
+    let decompress_dest_ata =
+        get_associated_token_address(&decompress_recipient.pubkey(), &spl_mint_pda);
     let create_decompress_ata_instruction = CreateAssociatedTokenAccount {
         idempotent: false,
         payer: payer.pubkey(),
@@ -759,7 +760,8 @@ async fn test_ctoken_transfer() {
 
     // === CREATE SECOND RECIPIENT FOR TRANSFER TEST ===
     let second_recipient_keypair = Keypair::new();
-    let second_recipient_ata = get_associated_token_address(&second_recipient_keypair.pubkey(), &spl_mint_pda);
+    let second_recipient_ata =
+        get_associated_token_address(&second_recipient_keypair.pubkey(), &spl_mint_pda);
 
     rpc.airdrop_lamports(&second_recipient_keypair.pubkey(), 10_000_000_000)
         .await

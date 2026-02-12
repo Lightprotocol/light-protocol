@@ -182,6 +182,9 @@ pub trait LightProgramInterface: Sized {
     /// Program-specific instruction enum.
     type Instruction;
 
+    /// Error type returned by load_specs.
+    type Error: std::error::Error + Send + Sync + 'static;
+
     /// The program ID.
     fn program_id() -> Pubkey;
 
@@ -197,7 +200,7 @@ pub trait LightProgramInterface: Sized {
     fn load_specs(
         &self,
         cold_accounts: &[AccountInterface],
-    ) -> Result<Vec<AccountSpec<Self::Variant>>, Box<dyn std::error::Error>>;
+    ) -> Result<Vec<AccountSpec<Self::Variant>>, Self::Error>;
 }
 
 /// Extract 8-byte discriminator from account data.
