@@ -120,7 +120,7 @@ pub fn process_transfer_extensions_transfer_checked(
 ///
 /// # Arguments
 /// * `transfer_accounts` - Account references for source, destination, authority, and optional mint
-/// * `max_top_up` - Maximum lamports for top-up. Transaction fails if exceeded. (0 = no limit)
+/// * `max_top_up` - Maximum lamports for top-up. Transaction fails if exceeded. (u16::MAX = no limit, 0 = no top-ups allowed)
 /// * `deny_restricted_extensions` - If true, reject source accounts with restricted T22 extensions
 ///
 /// Returns:
@@ -167,10 +167,11 @@ fn transfer_top_up(
     max_top_up: u16,
 ) -> Result<(), ProgramError> {
     if sender_top_up > 0 || recipient_top_up > 0 {
-        // Check budget if max_top_up is set (non-zero)
+        // Check budget if limit is set (not u16::MAX)
+        // 0 means no top-ups allowed, u16::MAX means no limit
         // max_top_up is in units of 1,000 lamports (max ~65.5M lamports).
         let total_top_up = sender_top_up.saturating_add(recipient_top_up);
-        if max_top_up != 0 && total_top_up > (max_top_up as u64).saturating_mul(1000) {
+        if max_top_up != u16::MAX && total_top_up > (max_top_up as u64).saturating_mul(1000) {
             return Err(TokenError::MaxTopUpExceeded.into());
         }
 

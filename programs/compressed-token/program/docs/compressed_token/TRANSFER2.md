@@ -47,7 +47,7 @@
    - `lamports_change_account_merkle_tree_index`: u8 - Merkle tree index for lamport change account (placeholder, unimplemented)
    - `lamports_change_account_owner_index`: u8 - Owner index for lamport change account (placeholder, unimplemented)
    - `output_queue`: u8 - Output queue index for compressed account outputs
-   - `max_top_up`: u16 - Maximum lamports for rent and top-up combined, in units of 1,000 lamports (e.g., max_top_up=1 means 1,000 lamports, max_top_up=65535 means ~65.5M lamports). Transaction fails if exceeded. (0 = no limit)
+   - `max_top_up`: u16 - Maximum lamports for rent and top-up combined, in units of 1,000 lamports (e.g., max_top_up=1 means 1,000 lamports, max_top_up=65535 means ~65.5M lamports). Transaction fails if exceeded. (u16::MAX = no limit, 0 = no top-ups allowed)
    - `cpi_context`: Optional CompressedCpiContext - Required for CPI operations; write mode: set either first_set_context or set_context (not both); execute mode: provide with all flags false
    - `compressions`: Optional Vec<Compression> - Compress/decompress operations
    - `proof`: Optional CompressedProof - Required for ZK validation of compressed inputs; not needed for proof by index or when no compressed inputs exist

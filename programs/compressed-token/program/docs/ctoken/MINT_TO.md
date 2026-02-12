@@ -5,7 +5,7 @@
 **path:** programs/compressed-token/program/src/ctoken/mint_to.rs
 
 **description:**
-Mints tokens from a decompressed CMint account to a destination CToken account, fully compatible with SPL Token mint_to semantics. Uses pinocchio-token-program to process the mint_to operation which handles balance/supply updates, authority validation, and frozen account checks. After minting, automatically tops up compressible accounts with additional lamports if needed to prevent accounts from becoming compressible during normal operations. Both CMint and destination CToken can receive top-ups based on their current slot and account balance. Supports max_top_up parameter to limit rent top-up costs where 0 means no limit. Instruction data is backwards-compatible with two formats: 8-byte format for legacy compatibility without max_top_up enforcement and 10-byte format with max_top_up. This instruction only works with CMints (compressed mints). CMints do not support restricted Token-2022 extensions (Pausable, TransferFee, TransferHook, PermanentDelegate, DefaultAccountState) - only TokenMetadata is allowed.
+Mints tokens from a decompressed CMint account to a destination CToken account, fully compatible with SPL Token mint_to semantics. Uses pinocchio-token-program to process the mint_to operation which handles balance/supply updates, authority validation, and frozen account checks. After minting, automatically tops up compressible accounts with additional lamports if needed to prevent accounts from becoming compressible during normal operations. Both CMint and destination CToken can receive top-ups based on their current slot and account balance. Supports max_top_up parameter to limit rent top-up costs where u16::MAX means no limit, 0 means no top-ups allowed. Instruction data is backwards-compatible with two formats: 8-byte format for legacy compatibility without max_top_up enforcement and 10-byte format with max_top_up. This instruction only works with CMints (compressed mints). CMints do not support restricted Token-2022 extensions (Pausable, TransferFee, TransferHook, PermanentDelegate, DefaultAccountState) - only TokenMetadata is allowed.
 
 Account layouts:
 - `CToken` defined in: program-libs/token-interface/src/state/ctoken/ctoken_struct.rs
@@ -17,7 +17,7 @@ Path: programs/compressed-token/program/src/ctoken/mint_to.rs (see `process_ctok
 
 Byte layout:
 - Bytes 0-7: `amount` (u64, little-endian) - Number of tokens to mint
-- Bytes 8-9: `max_top_up` (u16, little-endian, optional) - Maximum lamports for top-ups in units of 1,000 lamports (e.g., max_top_up=1 means 1,000 lamports, max_top_up=65535 means ~65.5M lamports). 0 = no limit.
+- Bytes 8-9: `max_top_up` (u16, little-endian, optional) - Maximum lamports for top-ups in units of 1,000 lamports (e.g., max_top_up=1 means 1,000 lamports, max_top_up=65535 means ~65.5M lamports). u16::MAX = no limit, 0 = no top-ups allowed.
 
 Format variants:
 - 8-byte format: amount only, no max_top_up enforcement
@@ -60,7 +60,7 @@ Format variants:
 2. **Parse instruction data:**
    - Require at least 8 bytes for amount
    - Parse max_top_up from bytes 8-10 if present (10-byte format)
-   - Default to 0 (no limit) if only 8 bytes provided (legacy format)
+   - Default to u16::MAX (no limit) if only 8 bytes provided (legacy format)
    - Return InvalidInstructionData if length is invalid (not 8 or 10 bytes)
 
 3. **Process mint_to (inline via pinocchio-token-program library):**

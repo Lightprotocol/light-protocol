@@ -22,7 +22,7 @@ use super::{
 /// * `cmint` - The CMint account (may or may not have Compressible extension)
 /// * `ctoken` - The CToken account (may or may not have Compressible extension)
 /// * `payer` - The fee payer for top-ups
-/// * `max_top_up` - Maximum lamports for top-ups combined (0 = no limit)
+/// * `max_top_up` - Maximum lamports for top-ups combined (u16::MAX = no limit, 0 = no top-ups allowed)
 #[inline(always)]
 #[profile]
 #[allow(unused)]
@@ -74,7 +74,8 @@ pub fn calculate_and_execute_compressible_top_ups<'a>(
     }
 
     // Check budget wasn't exhausted (0 means exceeded max_top_up)
-    if max_top_up != 0 && lamports_budget == 0 {
+    // u16::MAX means no limit, 0 means no top-ups allowed
+    if max_top_up != u16::MAX && lamports_budget == 0 {
         return Err(TokenError::MaxTopUpExceeded.into());
     }
     let payer = payer.ok_or(TokenError::MissingPayer)?;

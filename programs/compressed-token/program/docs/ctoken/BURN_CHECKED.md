@@ -17,7 +17,7 @@ Format 1 (9 bytes, legacy):
 Format 2 (11 bytes):
 - Bytes 0-7: `amount` (u64, little-endian) - Number of tokens to burn
 - Byte 8: `decimals` (u8) - Expected token decimals
-- Bytes 9-10: `max_top_up` (u16, little-endian) - Maximum lamports for combined CMint + CToken top-ups in units of 1,000 lamports (e.g., max_top_up=1 means 1,000 lamports, max_top_up=65535 means ~65.5M lamports). 0 = no limit.
+- Bytes 9-10: `max_top_up` (u16, little-endian) - Maximum lamports for combined CMint + CToken top-ups in units of 1,000 lamports (e.g., max_top_up=1 means 1,000 lamports, max_top_up=65535 means ~65.5M lamports). u16::MAX = no limit, 0 = no top-ups allowed.
 
 **Accounts:**
 1. source CToken
@@ -56,7 +56,7 @@ Format 2 (11 bytes):
 2. **Parse instruction data:**
    - Require at least 9 bytes (amount + decimals)
    - Parse max_top_up:
-     - If instruction_data.len() == 9: max_top_up = 0 (no limit, legacy format)
+     - If instruction_data.len() == 9: max_top_up = u16::MAX (no limit, legacy format)
      - If instruction_data.len() == 11: parse u16 from bytes 9-10 as max_top_up
      - Otherwise: return InvalidInstructionData
 
@@ -103,7 +103,7 @@ Format 2 (11 bytes):
    d. **Validate budget:**
       - If no compressible accounts were found (current_slot == 0), exit early
       - If both top-up amounts are 0, exit early
-      - If max_top_up != 0 and lamports_budget == 0, fail with MaxTopUpExceeded
+      - If max_top_up != u16::MAX and lamports_budget == 0, fail with MaxTopUpExceeded
       - If payer is None but top-up is needed, fail with MissingPayer
 
    e. **Execute transfers:**

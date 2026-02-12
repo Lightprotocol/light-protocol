@@ -445,7 +445,7 @@ where
             lamports_change_account_merkle_tree_index: 0,
             lamports_change_account_owner_index: 0,
             output_queue: 0,
-            max_top_up: 0,
+            max_top_up: u16::MAX, // No limit
             cpi_context: None,
             compressions: Some(compressions),
             proof: params.proof.0,

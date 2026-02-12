@@ -20,7 +20,7 @@ const ACCOUNT_FEE_PAYER: usize = 4;
 ///
 /// Instruction data format (backwards compatible):
 /// - 8 bytes: amount (legacy, no max_top_up enforcement)
-/// - 10 bytes: amount + max_top_up (u16, 0 = no limit)
+/// - 10 bytes: amount + max_top_up (u16, u16::MAX = no limit, 0 = no top-ups allowed)
 #[profile]
 #[inline(always)]
 pub fn process_ctoken_transfer(
@@ -58,9 +58,9 @@ pub fn process_ctoken_transfer(
     }
 
     // Parse max_top_up based on instruction data length
-    // 0 means no limit
+    // u16::MAX means no limit, 0 means no top-ups allowed
     let max_top_up = match instruction_data.len() {
-        8 => 0u16, // Legacy: no max_top_up
+        8 => u16::MAX, // Legacy: no max_top_up limit
         10 => u16::from_le_bytes(
             instruction_data[8..10]
                 .try_into()

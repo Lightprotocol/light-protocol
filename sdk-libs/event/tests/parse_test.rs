@@ -51,7 +51,7 @@ fn create_transfer2_with_ata(owner_index: u8, is_ata: bool) -> Vec<u8> {
         lamports_change_account_merkle_tree_index: 0,
         lamports_change_account_owner_index: 0,
         output_queue: 0,
-        max_top_up: 0,
+        max_top_up: u16::MAX, // No limit
         cpi_context: None,
         compressions: None,
         proof: None,
@@ -123,7 +123,7 @@ fn create_transfer2_with_multiple_outputs(
         lamports_change_account_merkle_tree_index: 0,
         lamports_change_account_owner_index: 0,
         output_queue: 0,
-        max_top_up: 0,
+        max_top_up: u16::MAX, // No limit
         cpi_context: None,
         compressions: None,
         proof: None,

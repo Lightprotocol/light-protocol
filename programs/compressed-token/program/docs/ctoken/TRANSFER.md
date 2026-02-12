@@ -32,7 +32,7 @@ After discriminator byte, the following formats are supported:
 - **8 bytes (legacy):** amount (u64) - No max_top_up enforcement
 - **10 bytes (extended):** amount (u64) + max_top_up (u16)
   - `amount`: u64 - Number of tokens to transfer
-  - `max_top_up`: u16 - Maximum lamports for top-up in units of 1,000 lamports (e.g., max_top_up=1 means 1,000 lamports, max_top_up=65535 means ~65.5M lamports). 0 = no limit.
+  - `max_top_up`: u16 - Maximum lamports for top-up in units of 1,000 lamports (e.g., max_top_up=1 means 1,000 lamports, max_top_up=65535 means ~65.5M lamports). u16::MAX = no limit, 0 = no top-ups allowed.
 
 **Accounts:**
 1. source
@@ -78,7 +78,7 @@ After discriminator byte, the following formats are supported:
 
 4. **Parse max_top_up (extended path only):**
    - If 10 bytes, parse max_top_up from bytes [8..10]
-   - If 8 bytes, set max_top_up = 0 (legacy, no limit)
+   - If 8 bytes, set max_top_up = u16::MAX (legacy, no limit)
    - Any other length returns InvalidInstructionData
 
 5. **Process transfer extensions:**
@@ -104,7 +104,7 @@ After discriminator byte, the following formats are supported:
       - Error if flags mismatch (InvalidInstructionData)
 
    d. **Perform compressible top-up:**
-      - Check max_top_up budget if set (non-zero)
+      - Check max_top_up budget if not unlimited (not u16::MAX)
       - Execute multi_transfer_lamports from authority to accounts
 
 6. **Process SPL transfer:**

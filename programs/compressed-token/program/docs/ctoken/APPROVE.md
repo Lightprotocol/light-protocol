@@ -14,13 +14,13 @@ If the CToken account has a compressible extension and requires a rent top-up, t
 - **NOT SPL-compatible (system program required):** Compressible accounts that need rent top-up based on current slot
 
 **description:**
-Delegates a specified amount to a delegate authority on a decompressed ctoken account (account layout `CToken` defined in program-libs/token-interface/src/state/ctoken/ctoken_struct.rs). After the SPL approve operation, automatically tops up compressible accounts (extension layout `CompressionInfo` defined in program-libs/compressible/src/compression_info.rs) with additional lamports if needed to prevent accounts from becoming compressible during normal operations. The instruction supports a max_top_up parameter (0 = no limit) that enforces transaction failure if the calculated top-up exceeds this limit. Uses pinocchio-token-program for SPL-compatible approve semantics. Supports backwards-compatible instruction data format (8 bytes legacy vs 10 bytes with max_top_up).
+Delegates a specified amount to a delegate authority on a decompressed ctoken account (account layout `CToken` defined in program-libs/token-interface/src/state/ctoken/ctoken_struct.rs). After the SPL approve operation, automatically tops up compressible accounts (extension layout `CompressionInfo` defined in program-libs/compressible/src/compression_info.rs) with additional lamports if needed to prevent accounts from becoming compressible during normal operations. The instruction supports a max_top_up parameter (u16::MAX = no limit, 0 = no top-ups allowed) that enforces transaction failure if the calculated top-up exceeds this limit. Uses pinocchio-token-program for SPL-compatible approve semantics. Supports backwards-compatible instruction data format (8 bytes legacy vs 10 bytes with max_top_up).
 
 **Instruction data:**
 Path: programs/compressed-token/program/src/ctoken/approve_revoke.rs (lines 14-15, 98-106)
 
 - Bytes 0-7: `amount` (u64, little-endian) - Number of tokens to delegate
-- Bytes 8-9 (optional): `max_top_up` (u16, little-endian) - Maximum lamports for top-up in units of 1,000 lamports (e.g., max_top_up=1 means 1,000 lamports, max_top_up=65535 means ~65.5M lamports). 0 = no limit, default for legacy format.
+- Bytes 8-9 (optional): `max_top_up` (u16, little-endian) - Maximum lamports for top-up in units of 1,000 lamports (e.g., max_top_up=1 means 1,000 lamports, max_top_up=65535 means ~65.5M lamports). u16::MAX = no limit (default for legacy format), 0 = no top-ups allowed.
 
 **Accounts:**
 1. source
@@ -57,13 +57,13 @@ Path: programs/compressed-token/program/src/ctoken/approve_revoke.rs (lines 14-1
 
 4. **Process compressible top-up (cold path):**
    - Parse max_top_up from instruction data:
-     - If 8 bytes: legacy format, set max_top_up = 0 (no limit)
+     - If 8 bytes: legacy format, set max_top_up = u16::MAX (no limit)
      - If 10 bytes: parse max_top_up from last 2 bytes
      - Return InvalidInstructionData for any other length
    - Read CompressionInfo directly from account bytes using bytemuck (no full CToken deserialization)
    - Calculate transfer_amount using `top_up_lamports_from_account_info_unchecked`
    - If transfer_amount > 0:
-     - If max_top_up > 0 and transfer_amount > max_top_up: return MaxTopUpExceeded
+     - If max_top_up != u16::MAX and transfer_amount > max_top_up: return MaxTopUpExceeded
      - Get payer account (index 2), return MissingPayer if not present
      - Transfer lamports from payer to source via CPI
 
@@ -114,7 +114,7 @@ let transfer_amount = top_up_lamports_from_account_info_unchecked(account, &mut 
 
 if transfer_amount > 0 {
     // max_top_up is in units of 1,000 lamports (max ~65.5M lamports).
-    if max_top_up > 0 && transfer_amount > (max_top_up as u64).saturating_mul(1000) {
+    if max_top_up != u16::MAX && transfer_amount > (max_top_up as u64).saturating_mul(1000) {
         return Err(CTokenError::MaxTopUpExceeded.into());
     }
     let payer = payer.ok_or(CTokenError::MissingPayer)?;
@@ -130,12 +130,12 @@ if transfer_amount > 0 {
 
 Extended instruction data format (10 bytes total):
 - Bytes 0-7: amount (u64)
-- Bytes 8-9: max_top_up (u16, 0 = no limit)
+- Bytes 8-9: max_top_up (u16, u16::MAX = no limit, 0 = no top-ups allowed)
 
 **Enforcement**:
 ```rust
 // max_top_up is in units of 1,000 lamports (max ~65.5M lamports).
-if max_top_up > 0 && transfer_amount > (max_top_up as u64).saturating_mul(1000) {
+if max_top_up != u16::MAX && transfer_amount > (max_top_up as u64).saturating_mul(1000) {
     return Err(CTokenError::MaxTopUpExceeded.into());
 }
 ```

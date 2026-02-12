@@ -23,7 +23,7 @@ const REVOKE_PAYER_IDX: usize = 1;
 ///
 /// Instruction data format (backwards compatible):
 /// - 8 bytes: amount (legacy, no max_top_up enforcement)
-/// - 10 bytes: amount + max_top_up (u16, 0 = no limit)
+/// - 10 bytes: amount + max_top_up (u16, u16::MAX = no limit, 0 = no top-ups allowed)
 #[inline(always)]
 pub fn process_ctoken_approve(
     accounts: &[AccountInfo],
@@ -45,7 +45,7 @@ pub fn process_ctoken_approve(
 ///
 /// Instruction data format (backwards compatible):
 /// - 0 bytes: legacy, no max_top_up enforcement
-/// - 2 bytes: max_top_up (u16, 0 = no limit)
+/// - 2 bytes: max_top_up (u16, u16::MAX = no limit, 0 = no top-ups allowed)
 #[inline(always)]
 pub fn process_ctoken_revoke(
     accounts: &[AccountInfo],
@@ -95,8 +95,9 @@ fn process_compressible_top_up<const BASE_LEN: usize, const PAYER_IDX: usize>(
     {
         let payer = accounts.get(PAYER_IDX);
 
+        // u16::MAX means no limit, 0 means no top-ups allowed
         let max_top_up = match instruction_data.len() {
-            len if len == BASE_LEN => 0u16,
+            len if len == BASE_LEN => u16::MAX, // Legacy: no max_top_up limit
             len if len == BASE_LEN + 2 => u16::from_le_bytes(
                 instruction_data[BASE_LEN..BASE_LEN + 2]
                     .try_into()
@@ -111,8 +112,10 @@ fn process_compressible_top_up<const BASE_LEN: usize, const PAYER_IDX: usize>(
         };
 
         if transfer_amount > 0 {
+            // u16::MAX means no limit, 0 means no top-ups allowed
             // max_top_up is in units of 1,000 lamports (max ~65.5M lamports).
-            if max_top_up > 0 && transfer_amount > (max_top_up as u64).saturating_mul(1000) {
+            if max_top_up != u16::MAX && transfer_amount > (max_top_up as u64).saturating_mul(1000)
+            {
                 return Err(TokenError::MaxTopUpExceeded.into());
             }
             let payer = payer.ok_or(TokenError::MissingPayer)?;

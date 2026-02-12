@@ -177,7 +177,8 @@ pub fn process_actions<'a>(
     // Execute transfers if any exist
     if !transfers.is_empty() {
         // Check budget wasn't exhausted (0 means exceeded max_top_up)
-        if max_top_up != 0 && lamports_budget == 0 {
+        // u16::MAX means no limit, 0 means no top-ups allowed
+        if max_top_up != u16::MAX && lamports_budget == 0 {
             return Err(TokenError::MaxTopUpExceeded.into());
         }
 

@@ -227,7 +227,7 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
         out_tlv: if has_any_tlv { Some(out_tlv) } else { None },
         compressions: Some(compressions),
         cpi_context: None,
-        max_top_up: 0,
+        max_top_up: u16::MAX, // No limit
     };
     // Serialize instruction data
     let serialized = instruction_data

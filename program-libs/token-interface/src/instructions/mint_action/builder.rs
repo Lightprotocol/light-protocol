@@ -28,7 +28,7 @@ impl MintActionCompressedInstructionData {
             leaf_index: mint_with_context.leaf_index,
             prove_by_index: mint_with_context.prove_by_index,
             root_index: mint_with_context.root_index,
-            max_top_up: 0, // No limit by default
+            max_top_up: u16::MAX, // No limit by default
             create_mint: None,
             actions: Vec::new(),
             proof,
@@ -47,7 +47,7 @@ impl MintActionCompressedInstructionData {
             leaf_index: 0,         // New mint has no existing leaf
             prove_by_index: false, // Using address proof, not validity proof
             root_index: address_merkle_tree_root_index,
-            max_top_up: 0, // No limit by default
+            max_top_up: u16::MAX, // No limit by default
             create_mint: Some(CreateMint::default()),
             actions: Vec::new(),
             proof: Some(proof),
@@ -66,7 +66,7 @@ impl MintActionCompressedInstructionData {
             leaf_index: 0,         // New mint has no existing leaf
             prove_by_index: false, // Using address proof, not validity proof
             root_index: address_merkle_tree_root_index,
-            max_top_up: 0, // No limit by default
+            max_top_up: u16::MAX, // No limit by default
             create_mint: Some(CreateMint::default()),
             actions: Vec::new(),
             proof: None, // Proof is verified with execution not write

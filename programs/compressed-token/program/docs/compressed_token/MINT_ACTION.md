@@ -36,7 +36,7 @@ Key concepts integrated:
    - `leaf_index`: u32 - Merkle tree leaf index of existing compressed mint (only used if create_mint is None)
    - `prove_by_index`: bool - Use proof-by-index for existing mint validation (only used if create_mint is None)
    - `root_index`: u16 - Root index for address proof (create) or validity proof (update). Not used if proof by index.
-   - `max_top_up`: u16 - Maximum lamports for rent and top-up combined, in units of 1,000 lamports (e.g., max_top_up=1 means 1,000 lamports, max_top_up=65535 means ~65.5M lamports). Transaction fails if exceeded. (0 = no limit)
+   - `max_top_up`: u16 - Maximum lamports for rent and top-up combined, in units of 1,000 lamports (e.g., max_top_up=1 means 1,000 lamports, max_top_up=65535 means ~65.5M lamports). Transaction fails if exceeded. (u16::MAX = no limit, 0 = no top-ups allowed)
    - `create_mint`: Option<CreateMint> - Configuration for creating new compressed mint (None for existing mint operations)
    - `actions`: Vec<Action> - Ordered list of actions to execute
    - `proof`: Option<CompressedProof> - ZK proof for compressed account validation (required unless prove_by_index=true)

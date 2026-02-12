@@ -398,7 +398,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
             leaf_index: 0,
             prove_by_index: false,
             root_index: self.params.address_merkle_tree_root_index,
-            max_top_up: 0,
+            max_top_up: u16::MAX, // No limit
             create_mint: Some(CreateMint::default()),
             actions: vec![Action::DecompressMint(*decompress_action)],
             proof: Some(self.params.proof),
@@ -447,7 +447,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
             leaf_index: base_leaf_index + self.params.cpi_context_offset as u32 + index as u32,
             prove_by_index: true,
             root_index: 0,
-            max_top_up: 0,
+            max_top_up: u16::MAX, // No limit
             create_mint: None,
             actions: vec![Action::DecompressMint(*decompress_action)],
             proof: None,

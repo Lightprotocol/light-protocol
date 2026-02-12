@@ -5,7 +5,7 @@
 **path:** programs/compressed-token/program/src/ctoken/burn.rs
 
 **description:**
-Burns tokens from a decompressed CToken account and decreases the CMint supply, fully compatible with SPL Token burn semantics. Account layout `CToken` is defined in `program-libs/token-interface/src/state/ctoken/ctoken_struct.rs`. Account layout `CompressedMint` (CMint) is defined in `program-libs/token-interface/src/state/mint/compressed_mint.rs`. Extension layout `CompressionInfo` is defined in `program-libs/compressible/src/compression_info.rs` and is embedded in both CToken and CMint structs. Uses pinocchio-token-program to process the burn (handles balance/supply updates, authority check, frozen check). After the burn, automatically tops up compressible accounts with additional lamports if needed. Top-up is calculated for both CMint and source CToken based on current slot and account balance. Top-up prevents accounts from becoming compressible during normal operations. Enforces max_top_up limit if provided (transaction fails if exceeded). Supports max_top_up parameter to limit rent top-up costs (0 = no limit). Instruction data is backwards-compatible: 8-byte format (legacy, no max_top_up enforcement) and 10-byte format (with max_top_up). This instruction only works with CMints (compressed mints). CMints do not support restricted Token-2022 extensions (Pausable, TransferFee, TransferHook, PermanentDelegate, DefaultAccountState) - only TokenMetadata is allowed. To burn tokens from spl or T22 mints, use Transfer2 with decompress mode to convert to SPL tokens first, then burn via SPL Token-2022.
+Burns tokens from a decompressed CToken account and decreases the CMint supply, fully compatible with SPL Token burn semantics. Account layout `CToken` is defined in `program-libs/token-interface/src/state/ctoken/ctoken_struct.rs`. Account layout `CompressedMint` (CMint) is defined in `program-libs/token-interface/src/state/mint/compressed_mint.rs`. Extension layout `CompressionInfo` is defined in `program-libs/compressible/src/compression_info.rs` and is embedded in both CToken and CMint structs. Uses pinocchio-token-program to process the burn (handles balance/supply updates, authority check, frozen check). After the burn, automatically tops up compressible accounts with additional lamports if needed. Top-up is calculated for both CMint and source CToken based on current slot and account balance. Top-up prevents accounts from becoming compressible during normal operations. Enforces max_top_up limit if provided (transaction fails if exceeded). Supports max_top_up parameter to limit rent top-up costs (u16::MAX = no limit, 0 = no top-ups allowed). Instruction data is backwards-compatible: 8-byte format (legacy, no max_top_up enforcement) and 10-byte format (with max_top_up). This instruction only works with CMints (compressed mints). CMints do not support restricted Token-2022 extensions (Pausable, TransferFee, TransferHook, PermanentDelegate, DefaultAccountState) - only TokenMetadata is allowed. To burn tokens from spl or T22 mints, use Transfer2 with decompress mode to convert to SPL tokens first, then burn via SPL Token-2022.
 
 **Instruction data:**
 
@@ -15,7 +15,7 @@ Format 1 (8 bytes, legacy):
 
 Format 2 (10 bytes):
 - Bytes 0-7: `amount` (u64, little-endian) - Number of tokens to burn
-- Bytes 8-9: `max_top_up` (u16, little-endian) - Maximum lamports for combined CMint + CToken top-ups in units of 1,000 lamports (e.g., max_top_up=1 means 1,000 lamports, max_top_up=65535 means ~65.5M lamports). 0 = no limit.
+- Bytes 8-9: `max_top_up` (u16, little-endian) - Maximum lamports for combined CMint + CToken top-ups in units of 1,000 lamports (e.g., max_top_up=1 means 1,000 lamports, max_top_up=65535 means ~65.5M lamports). u16::MAX = no limit, 0 = no top-ups allowed.
 
 **Accounts:**
 1. source CToken
@@ -53,7 +53,7 @@ Format 2 (10 bytes):
 2. **Parse instruction data:**
    - Require at least 8 bytes for amount
    - Parse max_top_up:
-     - If instruction_data.len() == 8: max_top_up = 0 (no limit, legacy format)
+     - If instruction_data.len() == 8: max_top_up = u16::MAX (no limit, legacy format)
      - If instruction_data.len() == 10: parse u16 from bytes 8-9 as max_top_up
      - Otherwise: return InvalidInstructionData
 
@@ -95,7 +95,7 @@ Format 2 (10 bytes):
    d. **Validate budget:**
       - If no compressible accounts were found (current_slot == 0), exit early
       - If both top-up amounts are 0, exit early
-      - If max_top_up != 0 and lamports_budget == 0, fail with MaxTopUpExceeded
+      - If max_top_up != u16::MAX and lamports_budget == 0, fail with MaxTopUpExceeded
 
    e. **Execute transfers:**
       - Fail with MissingPayer if payer account is not provided

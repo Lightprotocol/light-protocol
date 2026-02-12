@@ -37,7 +37,7 @@ const ID: &[u8; 32] = &LIGHT_CPI_SIGNER.program_id;
 /// Process native compressions/decompressions with token accounts
 ///
 /// # Arguments
-/// * `max_top_up` - Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (0 = no limit)
+/// * `max_top_up` - Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (u16::MAX = no limit, 0 = no top-ups allowed)
 /// * `compression_to_input` - Lookup array mapping compression index to input index for decompress operations
 #[profile]
 pub fn process_token_compression<'a>(
@@ -183,7 +183,8 @@ pub fn process_token_compression<'a>(
 
         if !transfers.is_empty() {
             // Check budget wasn't exhausted (0 means exceeded max_top_up)
-            if max_top_up != 0 && lamports_budget == 0 {
+            // u16::MAX means no limit, 0 means no top-ups allowed
+            if max_top_up != u16::MAX && lamports_budget == 0 {
                 return Err(TokenError::MaxTopUpExceeded.into());
             }
             multi_transfer_lamports(fee_payer, &transfers).map_err(convert_program_error)?

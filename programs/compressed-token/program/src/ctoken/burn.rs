@@ -25,7 +25,7 @@ const FEE_PAYER_IDX: usize = 4;
 ///
 /// Instruction data format (same as CTokenTransfer/CTokenMintTo):
 /// - 8 bytes: amount (legacy, no max_top_up enforcement)
-/// - 10 bytes: amount + max_top_up (u16, 0 = no limit)
+/// - 10 bytes: amount + max_top_up (u16, u16::MAX = no limit, 0 = no top-ups allowed)
 ///
 /// Account layout:
 /// 0: source CToken account (writable)
@@ -50,7 +50,7 @@ pub fn process_ctoken_burn(
 ///
 /// Instruction data format:
 /// - 9 bytes: amount (8) + decimals (1) - legacy, no max_top_up enforcement
-/// - 11 bytes: amount (8) + decimals (1) + max_top_up (2, u16, 0 = no limit)
+/// - 11 bytes: amount (8) + decimals (1) + max_top_up (2, u16, u16::MAX = no limit, 0 = no top-ups allowed)
 ///
 /// Account layout (same as burn):
 /// 0: source CToken account (writable)
@@ -104,8 +104,9 @@ pub(crate) fn process_ctoken_supply_change_inner<
         return Err(ProgramError::InvalidInstructionData);
     }
 
+    // u16::MAX means no limit, 0 means no top-ups allowed
     let max_top_up = match instruction_data.len() {
-        len if len == BASE_LEN => 0u16,
+        len if len == BASE_LEN => u16::MAX, // Legacy: no max_top_up limit
         len if len == BASE_LEN + 2 => u16::from_le_bytes(
             instruction_data[BASE_LEN..BASE_LEN + 2]
                 .try_into()

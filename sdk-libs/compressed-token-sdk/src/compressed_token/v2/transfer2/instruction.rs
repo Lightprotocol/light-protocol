@@ -17,15 +17,28 @@ use crate::{
     AnchorSerialize,
 };
 
-#[derive(Debug, Default, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Transfer2Config {
     pub cpi_context: Option<CompressedCpiContext>,
     pub with_transaction_hash: bool,
     pub sol_pool_pda: bool,
     pub sol_decompression_recipient: Option<Pubkey>,
     pub filter_zero_amount_outputs: bool,
-    /// Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (0 = no limit)
+    /// Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (u16::MAX = no limit, 0 = no top-ups allowed)
     pub max_top_up: u16,
+}
+
+impl Default for Transfer2Config {
+    fn default() -> Self {
+        Self {
+            cpi_context: None,
+            with_transaction_hash: false,
+            sol_pool_pda: false,
+            sol_decompression_recipient: None,
+            filter_zero_amount_outputs: false,
+            max_top_up: u16::MAX, // Default to no limit for backwards compatibility
+        }
+    }
 }
 
 impl Transfer2Config {
@@ -54,7 +67,7 @@ impl Transfer2Config {
         self
     }
 
-    /// Set maximum per-account top-up lamports (0 = no limit)
+    /// Set maximum per-account top-up lamports (u16::MAX = no limit, 0 = no top-ups allowed)
     pub fn with_max_top_up(mut self, max_top_up: u16) -> Self {
         self.max_top_up = max_top_up;
         self
