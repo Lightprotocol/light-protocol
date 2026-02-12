@@ -63,15 +63,13 @@ impl AccountInterface {
     }
 
     /// Create a cold account interface for a PDA/mint.
+    ///
+    /// `data.data` contains the full on-chain account bytes as-is (no reassembly needed).
     pub fn cold(key: Pubkey, compressed: CompressedAccount, owner: Pubkey) -> Self {
         let data = compressed
             .data
             .as_ref()
-            .map(|d| {
-                let mut buf = d.discriminator.to_vec();
-                buf.extend_from_slice(&d.data);
-                buf
-            })
+            .map(|d| d.data.clone())
             .unwrap_or_default();
 
         Self {
