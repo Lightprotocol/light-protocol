@@ -1,21 +1,25 @@
 // cMint to cToken scenario test - Direct SDK calls without wrapper program
 //
 // This test demonstrates the complete flow:
-// 1. Create cMint (compressed mint)
+// 1. Create cMint (compressed mint with auto-decompress)
 // 2. Create 2 cToken ATAs for different owners
 // 3. Mint cTokens to both accounts
 // 4. Transfer cTokens from account 1 to account 2
-// 5. Advance epochs to trigger compression
+// 5. Advance epochs to trigger compression (both cToken ATAs and Mint get compressed)
 // 6. Verify cToken account is compressed and closed
-// 7. Recreate cToken ATA
-// 8. Decompress compressed tokens back to cToken account
-// 9. Verify cToken account has tokens again
+// 7. Decompress the light mint (compressed when epochs advanced)
+// 8. Recreate cToken ATA
+// 9. Decompress compressed tokens back to cToken account
+// 10. Verify cToken account has tokens again
 
 mod shared;
 
 use borsh::BorshDeserialize;
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestConfig};
+use light_test_utils::actions::legacy::instructions::mint_action::{
+    create_mint_action_instruction, MintActionParams, MintActionType,
+};
 use light_token::instruction::{CreateAssociatedTokenAccount, Decompress, Token, Transfer};
 use solana_sdk::{signature::Keypair, signer::Signer};
 
@@ -46,7 +50,7 @@ async fn test_mint_to_ctoken_scenario() {
     let mint_amount2 = 5_000u64;
     let transfer_amount = 3_000u64;
 
-    let (mint, _compression_address, ata_pubkeys, _mint_seed) = shared::setup_create_mint(
+    let (mint, compression_address, ata_pubkeys, mint_seed) = shared::setup_create_mint(
         &mut rpc,
         &payer,
         payer.pubkey(), // mint_authority
@@ -185,7 +189,31 @@ async fn test_mint_to_ctoken_scenario() {
         compressed_account.token.amount
     );
 
-    // 9. Recreate cToken ATA for decompression (idempotent)
+    // 9. Decompress the light mint (which was compressed when epochs advanced)
+    println!("\nDecompressing light mint...");
+    let decompress_mint_ix = create_mint_action_instruction(
+        &mut rpc,
+        MintActionParams {
+            compressed_mint_address: compression_address,
+            mint_seed: mint_seed.pubkey(),
+            authority: payer.pubkey(), // mint_authority from setup_create_mint
+            payer: payer.pubkey(),
+            actions: vec![MintActionType::DecompressMint {
+                rent_payment: 16,
+                write_top_up: 766,
+            }],
+            new_mint: None,
+        },
+    )
+    .await
+    .unwrap();
+
+    rpc.create_and_send_transaction(&[decompress_mint_ix], &payer.pubkey(), &[&payer])
+        .await
+        .unwrap();
+    println!("  - Light mint decompressed");
+
+    // 10. Recreate cToken ATA for decompression (idempotent)
     println!("\nRecreating cToken ATA for decompression...");
     let create_ata_instruction =
         CreateAssociatedTokenAccount::new(payer.pubkey(), owner2.pubkey(), mint)
@@ -207,7 +235,7 @@ async fn test_mint_to_ctoken_scenario() {
     let deserialized_ata = Token::try_from_slice(ctoken_account_data.data.as_slice()).unwrap();
     println!("deserialized ata {:?}", deserialized_ata);
 
-    // 10. Get validity proof for the compressed account
+    // 11. Get validity proof for the compressed account
     let compressed_hashes: Vec<_> = compressed_accounts
         .iter()
         .map(|acc| acc.account.hash)
@@ -231,7 +259,7 @@ async fn test_mint_to_ctoken_scenario() {
     // Get tree info from validity proof result
     let account_proof = &rpc_result.accounts[0];
 
-    // 11. Decompress compressed tokens to cToken account
+    // 12. Decompress compressed tokens to cToken account
     // For ATA decompress, the wallet owner (owner2) must sign
     println!("Decompressing tokens to cToken account...");
     println!("discriminator {:?}", discriminator);
@@ -259,7 +287,7 @@ async fn test_mint_to_ctoken_scenario() {
     .await
     .unwrap();
 
-    // 12. Verify compressed accounts are consumed
+    // 13. Verify compressed accounts are consumed
     let remaining_compressed = rpc
         .get_compressed_token_accounts_by_owner(&ctoken_ata2, None, None)
         .await
@@ -274,7 +302,7 @@ async fn test_mint_to_ctoken_scenario() {
     );
     println!("  - Compressed accounts consumed");
 
-    // 13. Verify cToken account has tokens again
+    // 14. Verify cToken account has tokens again
     let ctoken_account_data = rpc.get_account(ctoken_ata2).await.unwrap().unwrap();
     let ctoken_account = Token::deserialize(&mut &ctoken_account_data.data[..]).unwrap();
     let decompressed_balance = ctoken_account.amount;

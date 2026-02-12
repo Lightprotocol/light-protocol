@@ -215,7 +215,24 @@ async fn test_create_compressed_mint() {
 
     let decompress_amount = 300u64;
 
-    // 5. Decompress compressed tokens to ctokens
+    // 5. Decompress the mint first (required before creating CToken ATA)
+    light_test_utils::actions::mint_action_comprehensive(
+        &mut rpc,
+        &mint_seed,
+        &mint_authority_keypair,
+        &payer,
+        Some(DecompressMintParams::default()), // Create on-chain Mint
+        false,
+        vec![],
+        vec![],
+        None,
+        None,
+        None, // No new mint - already exists as compressed
+    )
+    .await
+    .unwrap();
+
+    // 6. Decompress compressed tokens to ctokens
     // Create non-compressible token associated token account for decompression
     let ctoken_ata_pubkey = derive_token_ata(&new_recipient, &spl_mint_pda);
     let create_ata_instruction = CreateAssociatedTokenAccount {
@@ -685,7 +702,33 @@ async fn test_ctoken_transfer() {
     // Derive addresses
     let (spl_mint_pda, _) = find_mint_address(&mint_seed.pubkey());
 
-    // Create compressed token ATA for recipient
+    // === STEP 1: CREATE COMPRESSED MINT + DECOMPRESS FIRST ===
+    light_test_utils::actions::mint_action_comprehensive(
+        &mut rpc,
+        &mint_seed,
+        &mint_authority,
+        &payer,
+        Some(DecompressMintParams::default()), // decompress_mint - creates on-chain Mint
+        false,                                 // compress_and_close_mint
+        vec![],                                // no compressed recipients
+        vec![],                                // no decompressed recipients yet
+        None,                                  // no mint authority update
+        None,                                  // no freeze authority update
+        Some(
+            light_test_utils::actions::legacy::instructions::mint_action::NewMint {
+                decimals,
+                supply: 0,
+                mint_authority: mint_authority.pubkey(),
+                freeze_authority: Some(freeze_authority.pubkey()),
+                metadata: None, // No metadata for simplicity
+                version: 3,
+            },
+        ),
+    )
+    .await
+    .unwrap();
+
+    // === STEP 2: CREATE COMPRESSED TOKEN ATA (after mint exists on-chain) ===
     let recipient_ata = derive_token_ata(&recipient_keypair.pubkey(), &spl_mint_pda);
     let compressible_params = CompressibleParams {
         compressible_config: rpc
@@ -708,10 +751,8 @@ async fn test_ctoken_transfer() {
     rpc.create_and_send_transaction(&[create_ata_instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
-    // rpc.airdrop_lamports(&recipient_ata, 10_000_000_090)
-    //     .await
-    //     .unwrap();
-    // === STEP 1: CREATE COMPRESSED MINT AND MINT TO DECOMPRESSED ACCOUNT ===
+
+    // === STEP 3: MINT TO DECOMPRESSED ACCOUNT ===
     let decompressed_recipients = vec![Recipient {
         recipient: recipient_keypair.pubkey().to_bytes().into(),
         amount: 100000000u64,
@@ -722,22 +763,13 @@ async fn test_ctoken_transfer() {
         &mint_seed,
         &mint_authority,
         &payer,
-        None,                    // decompress_mint
+        None,                    // decompress_mint - already decompressed
         false,                   // compress_and_close_mint
         vec![],                  // no compressed recipients
         decompressed_recipients, // mint to decompressed recipients
         None,                    // no mint authority update
         None,                    // no freeze authority update
-        Some(
-            light_test_utils::actions::legacy::instructions::mint_action::NewMint {
-                decimals,
-                supply: 0,
-                mint_authority: mint_authority.pubkey(),
-                freeze_authority: Some(freeze_authority.pubkey()),
-                metadata: None, // No metadata for simplicity
-                version: 3,
-            },
-        ),
+        None,                    // no new mint - already exists
     )
     .await
     .unwrap();

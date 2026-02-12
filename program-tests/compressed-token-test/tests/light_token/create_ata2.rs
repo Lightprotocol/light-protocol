@@ -95,7 +95,7 @@ async fn test_create_ata2_basic() {
     }
 
     {
-        context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
+        context.mint_pubkey = create_additional_mint(&mut context.rpc, &context.payer).await;
         // All accounts now have compression infrastructure, so pass CompressibleData
         // with 0 prepaid epochs (immediately compressible)
         let compressible_data = CompressibleData {

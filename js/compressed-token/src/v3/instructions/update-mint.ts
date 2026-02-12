@@ -42,9 +42,14 @@ function encodeUpdateMintInstructionData(
             ? { updateMintAuthority: { newAuthority: params.newAuthority } }
             : { updateFreezeAuthority: { newAuthority: params.newAuthority } };
 
-    // Build extensions if metadata present
+    // When mint is decompressed (cmintDecompressed=true), the program reads from CMint account
+    // so we don't need to include mint data in the instruction
+    const isDecompressed =
+        params.mintInterface.mintContext?.cmintDecompressed ?? false;
+
+    // Build extensions if metadata present (only needed when not decompressed)
     let extensions: ExtensionInstructionData[] | null = null;
-    if (params.mintInterface.tokenMetadata) {
+    if (!isDecompressed && params.mintInterface.tokenMetadata) {
         extensions = [
             {
                 tokenMetadata: {
@@ -71,23 +76,25 @@ function encodeUpdateMintInstructionData(
         actions: [action],
         proof: params.proof,
         cpiContext: null,
-        mint: {
-            supply: params.mintInterface.mint.supply,
-            decimals: params.mintInterface.mint.decimals,
-            metadata: {
-                version: params.mintInterface.mintContext!.version,
-                cmintDecompressed:
-                    params.mintInterface.mintContext!.cmintDecompressed,
-                mint: params.mintInterface.mintContext!.splMint,
-                mintSigner: Array.from(
-                    params.mintInterface.mintContext!.mintSigner,
-                ),
-                bump: params.mintInterface.mintContext!.bump,
-            },
-            mintAuthority: params.mintInterface.mint.mintAuthority,
-            freezeAuthority: params.mintInterface.mint.freezeAuthority,
-            extensions,
-        },
+        mint: isDecompressed
+            ? null
+            : {
+                  supply: params.mintInterface.mint.supply,
+                  decimals: params.mintInterface.mint.decimals,
+                  metadata: {
+                      version: params.mintInterface.mintContext!.version,
+                      cmintDecompressed:
+                          params.mintInterface.mintContext!.cmintDecompressed,
+                      mint: params.mintInterface.mintContext!.splMint,
+                      mintSigner: Array.from(
+                          params.mintInterface.mintContext!.mintSigner,
+                      ),
+                      bump: params.mintInterface.mintContext!.bump,
+                  },
+                  mintAuthority: params.mintInterface.mint.mintAuthority,
+                  freezeAuthority: params.mintInterface.mint.freezeAuthority,
+                  extensions,
+              },
     };
 
     return encodeMintActionInstructionData(instructionData);
@@ -95,19 +102,20 @@ function encodeUpdateMintInstructionData(
 
 /**
  * Create instruction for updating a compressed mint's mint authority.
+ * Works for both compressed and decompressed mints.
  *
  * @param mintInterface          MintInterface from getMintInterface() - must have merkleContext
  * @param currentMintAuthority   Current mint authority public key (must sign)
  * @param newMintAuthority       New mint authority (or null to revoke)
  * @param payer                  Fee payer public key
- * @param validityProof          Validity proof for the compressed mint
+ * @param validityProof          Validity proof for the compressed mint (null for decompressed mints)
  */
 export function createUpdateMintAuthorityInstruction(
     mintInterface: MintInterface,
     currentMintAuthority: PublicKey,
     newMintAuthority: PublicKey | null,
     payer: PublicKey,
-    validityProof: ValidityProofWithContext,
+    validityProof: ValidityProofWithContext | null,
 ): TransactionInstruction {
     if (!mintInterface.merkleContext) {
         throw new Error(
@@ -122,6 +130,7 @@ export function createUpdateMintAuthorityInstruction(
 
     const merkleContext = mintInterface.merkleContext;
     const outputQueue = getOutputQueue(merkleContext);
+    const isDecompressed = mintInterface.mintContext.cmintDecompressed ?? false;
 
     const addressTreeInfo = getDefaultAddressTreeInfo();
     const data = encodeUpdateMintInstructionData({
@@ -129,8 +138,8 @@ export function createUpdateMintAuthorityInstruction(
         addressTree: addressTreeInfo.tree,
         leafIndex: merkleContext.leafIndex,
         proveByIndex: true,
-        rootIndex: validityProof.rootIndices[0],
-        proof: validityProof.compressedProof,
+        rootIndex: validityProof?.rootIndices[0] ?? 0,
+        proof: isDecompressed ? null : (validityProof?.compressedProof ?? null),
         mintInterface,
         newAuthority: newMintAuthority,
         actionType: 'mintAuthority',
@@ -144,6 +153,16 @@ export function createUpdateMintAuthorityInstruction(
             isWritable: false,
         },
         { pubkey: currentMintAuthority, isSigner: true, isWritable: false },
+        // CMint account when decompressed (must come before payer for correct account ordering)
+        ...(isDecompressed
+            ? [
+                  {
+                      pubkey: mintInterface.mint.address,
+                      isSigner: false,
+                      isWritable: true,
+                  },
+              ]
+            : []),
         { pubkey: payer, isSigner: true, isWritable: true },
         {
             pubkey: CompressedTokenProgram.deriveCpiAuthorityPda,
@@ -188,6 +207,7 @@ export function createUpdateMintAuthorityInstruction(
 
 /**
  * Create instruction for updating a compressed mint's freeze authority.
+ * Works for both compressed and decompressed mints.
  *
  * Output queue is automatically derived from mintInterface.merkleContext.treeInfo
  * (preferring nextTreeInfo.queue if available for rollover support).
@@ -196,14 +216,14 @@ export function createUpdateMintAuthorityInstruction(
  * @param currentFreezeAuthority   Current freeze authority public key (must sign)
  * @param newFreezeAuthority       New freeze authority (or null to revoke)
  * @param payer                    Fee payer public key
- * @param validityProof            Validity proof for the compressed mint
+ * @param validityProof            Validity proof for the compressed mint (null for decompressed mints)
  */
 export function createUpdateFreezeAuthorityInstruction(
     mintInterface: MintInterface,
     currentFreezeAuthority: PublicKey,
     newFreezeAuthority: PublicKey | null,
     payer: PublicKey,
-    validityProof: ValidityProofWithContext,
+    validityProof: ValidityProofWithContext | null,
 ): TransactionInstruction {
     if (!mintInterface.merkleContext) {
         throw new Error(
@@ -218,6 +238,7 @@ export function createUpdateFreezeAuthorityInstruction(
 
     const merkleContext = mintInterface.merkleContext;
     const outputQueue = getOutputQueue(merkleContext);
+    const isDecompressed = mintInterface.mintContext.cmintDecompressed ?? false;
 
     const addressTreeInfo = getDefaultAddressTreeInfo();
     const data = encodeUpdateMintInstructionData({
@@ -225,8 +246,8 @@ export function createUpdateFreezeAuthorityInstruction(
         addressTree: addressTreeInfo.tree,
         leafIndex: merkleContext.leafIndex,
         proveByIndex: true,
-        rootIndex: validityProof.rootIndices[0],
-        proof: validityProof.compressedProof,
+        rootIndex: validityProof?.rootIndices[0] ?? 0,
+        proof: isDecompressed ? null : (validityProof?.compressedProof ?? null),
         mintInterface,
         newAuthority: newFreezeAuthority,
         actionType: 'freezeAuthority',
@@ -240,6 +261,16 @@ export function createUpdateFreezeAuthorityInstruction(
             isWritable: false,
         },
         { pubkey: currentFreezeAuthority, isSigner: true, isWritable: false },
+        // CMint account when decompressed (must come before payer for correct account ordering)
+        ...(isDecompressed
+            ? [
+                  {
+                      pubkey: mintInterface.mint.address,
+                      isSigner: false,
+                      isWritable: true,
+                  },
+              ]
+            : []),
         { pubkey: payer, isSigner: true, isWritable: true },
         {
             pubkey: CompressedTokenProgram.deriveCpiAuthorityPda,

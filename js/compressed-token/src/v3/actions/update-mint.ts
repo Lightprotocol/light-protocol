@@ -22,6 +22,7 @@ import { getMintInterface } from '../get-mint-interface';
 
 /**
  * Update the mint authority of a compressed token mint.
+ * Works for both compressed and decompressed mints.
  *
  * @param rpc                    RPC connection
  * @param payer                  Fee payer (signer)
@@ -51,18 +52,23 @@ export async function updateMintAuthority(
         throw new Error('Mint does not have MerkleContext');
     }
 
-    const validityProof = await rpc.getValidityProofV2(
-        [
-            {
-                hash: bn(mintInterface.merkleContext.hash),
-                leafIndex: mintInterface.merkleContext.leafIndex,
-                treeInfo: mintInterface.merkleContext.treeInfo,
-                proveByIndex: mintInterface.merkleContext.proveByIndex,
-            },
-        ],
-        [],
-        DerivationMode.compressible,
-    );
+    // When mint is decompressed, no validity proof needed - program reads from CMint account
+    const isDecompressed =
+        mintInterface.mintContext?.cmintDecompressed ?? false;
+    const validityProof = isDecompressed
+        ? null
+        : await rpc.getValidityProofV2(
+              [
+                  {
+                      hash: bn(mintInterface.merkleContext.hash),
+                      leafIndex: mintInterface.merkleContext.leafIndex,
+                      treeInfo: mintInterface.merkleContext.treeInfo,
+                      proveByIndex: mintInterface.merkleContext.proveByIndex,
+                  },
+              ],
+              [],
+              DerivationMode.compressible,
+          );
 
     const ix = createUpdateMintAuthorityInstruction(
         mintInterface,
@@ -91,6 +97,7 @@ export async function updateMintAuthority(
 
 /**
  * Update the freeze authority of a compressed token mint.
+ * Works for both compressed and decompressed mints.
  *
  * @param rpc                      RPC connection
  * @param payer                    Fee payer (signer)
@@ -120,18 +127,23 @@ export async function updateFreezeAuthority(
         throw new Error('Mint does not have MerkleContext');
     }
 
-    const validityProof = await rpc.getValidityProofV2(
-        [
-            {
-                hash: bn(mintInterface.merkleContext.hash),
-                leafIndex: mintInterface.merkleContext.leafIndex,
-                treeInfo: mintInterface.merkleContext.treeInfo,
-                proveByIndex: mintInterface.merkleContext.proveByIndex,
-            },
-        ],
-        [],
-        DerivationMode.compressible,
-    );
+    // When mint is decompressed, no validity proof needed - program reads from CMint account
+    const isDecompressed =
+        mintInterface.mintContext?.cmintDecompressed ?? false;
+    const validityProof = isDecompressed
+        ? null
+        : await rpc.getValidityProofV2(
+              [
+                  {
+                      hash: bn(mintInterface.merkleContext.hash),
+                      leafIndex: mintInterface.merkleContext.leafIndex,
+                      treeInfo: mintInterface.merkleContext.treeInfo,
+                      proveByIndex: mintInterface.merkleContext.proveByIndex,
+                  },
+              ],
+              [],
+              DerivationMode.compressible,
+          );
 
     const ix = createUpdateFreezeAuthorityInstruction(
         mintInterface,

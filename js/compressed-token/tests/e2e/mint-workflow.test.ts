@@ -9,7 +9,7 @@ import {
     getDefaultAddressTreeInfo,
     CTOKEN_PROGRAM_ID,
 } from '@lightprotocol/stateless.js';
-import { createMintInterface } from '../../src/v3/actions';
+import { createMintInterface, decompressMint } from '../../src/v3/actions';
 import { createTokenMetadata } from '../../src/v3/instructions';
 import {
     updateMintAuthority,
@@ -183,6 +183,9 @@ describe('Complete Mint Workflow', () => {
         const owner2 = Keypair.generate();
         const owner3 = Keypair.generate();
 
+        // Decompress mint so it exists on-chain (required for CToken ATA creation)
+        await decompressMint(rpc, payer, mint);
+
         const ata1 = await createAtaInterfaceIdempotent(
             rpc,
             payer,
@@ -298,6 +301,9 @@ describe('Complete Mint Workflow', () => {
             mintAuthority.publicKey.toString(),
         );
 
+        // Decompress mint so it exists on-chain (required for CToken ATA creation)
+        await decompressMint(rpc, payer, mintPda);
+
         const owner = Keypair.generate();
         const ataAddress = await createAtaInterfaceIdempotent(
             rpc,
@@ -341,6 +347,9 @@ describe('Complete Mint Workflow', () => {
             CTOKEN_PROGRAM_ID,
         );
         expect(mintInfo.tokenMetadata).toBeUndefined();
+
+        // Decompress mint so it exists on-chain (required for CToken ATA creation)
+        await decompressMint(rpc, payer, mint);
 
         const owners = [
             Keypair.generate(),
@@ -393,6 +402,9 @@ describe('Complete Mint Workflow', () => {
             metadata,
         );
         await rpc.confirmTransaction(createSig, 'confirmed');
+
+        // Decompress mint so it exists on-chain (required for CToken ATA creation)
+        await decompressMint(rpc, payer, mintPda);
 
         const owner = Keypair.generate();
         const ataAddress = await createAtaInterfaceIdempotent(
@@ -483,6 +495,9 @@ describe('Complete Mint Workflow', () => {
         expect(mintInfo.merkleContext).toBeDefined();
         expect(mintInfo.mintContext).toBeDefined();
         expect(mintInfo.mintContext?.version).toBeGreaterThan(0);
+
+        // Decompress mint so it exists on-chain (required for CToken ATA creation)
+        await decompressMint(rpc, payer, mint);
 
         const owner1 = Keypair.generate();
         const owner2 = Keypair.generate();
@@ -583,6 +598,9 @@ describe('Complete Mint Workflow', () => {
         expect(mintInfo.mint.freezeAuthority).toBe(null);
         expect(mintInfo.tokenMetadata).toBeUndefined();
 
+        // Decompress mint so it exists on-chain (required for CToken ATA creation)
+        await decompressMint(rpc, payer, mint);
+
         const owner = Keypair.generate();
         const ataAddress = await createAtaInterfaceIdempotent(
             rpc,
@@ -646,6 +664,9 @@ describe('Complete Mint Workflow', () => {
             mint,
             owner.publicKey,
         );
+
+        // Decompress mint so it exists on-chain (required for CToken ATA creation)
+        await decompressMint(rpc, payer, mint);
 
         const ataAddress = await createAtaInterfaceIdempotent(
             rpc,

@@ -48,7 +48,21 @@ async fn get_expected_extensions_from_mint(
 
     // Check if this is a Token-2022 mint (program owner)
     if mint_account.owner != spl_token_2022::ID {
-        // Regular SPL Token mint - no extensions, not compression_only
+        // Regular SPL Token mint - read decimals, but no extensions
+        // SPL Token mint layout: supply (8) + decimals (1) + ...
+        use anchor_spl::token::spl_token;
+        use solana_sdk::program_pack::Pack;
+        if mint_account.owner == spl_token::ID {
+            let mint_state = spl_token::state::Mint::unpack(&mint_account.data)
+                .expect("Failed to unpack SPL Token mint");
+            return (
+                Some(mint_state.decimals),
+                AccountState::Initialized,
+                None,
+                false,
+            );
+        }
+        // Unknown mint program - no extensions, not compression_only
         return (None, AccountState::Initialized, None, false);
     }
 

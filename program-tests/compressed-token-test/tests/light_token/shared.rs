@@ -13,6 +13,7 @@ pub use light_test_utils::{
     },
     assert_ctoken_approve_revoke::{assert_ctoken_approve, assert_ctoken_revoke},
     assert_transfer2::assert_transfer2_compress,
+    spl::create_mint_helper,
     Rpc, RpcError,
 };
 pub use light_token::instruction::{
@@ -35,9 +36,9 @@ pub struct AccountTestContext {
 
 /// Set up test environment with common accounts and context
 pub async fn setup_account_test() -> Result<AccountTestContext, RpcError> {
-    let rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None)).await?;
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None)).await?;
     let payer = rpc.get_payer().insecure_clone();
-    let mint_pubkey = Pubkey::new_unique();
+    let mint_pubkey = create_mint_helper(&mut rpc, &payer).await;
     let owner_keypair = Keypair::new();
     let token_account_keypair = Keypair::new();
 
@@ -57,6 +58,11 @@ pub async fn setup_account_test() -> Result<AccountTestContext, RpcError> {
         owner_keypair,
         token_account_keypair,
     })
+}
+
+/// Create an additional SPL mint for tests that need multiple mints
+pub async fn create_additional_mint(rpc: &mut LightProgramTest, payer: &Keypair) -> Pubkey {
+    create_mint_helper(rpc, payer).await
 }
 
 /// Create destination account for testing account closure

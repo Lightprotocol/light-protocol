@@ -8,10 +8,13 @@ use forester_utils::{
     rpc_pool::{SolanaRpcPool, SolanaRpcPoolBuilder},
 };
 use light_client::{
+    indexer::{AddressWithTree, Indexer},
     local_test_validator::{spawn_validator, LightValidatorConfig},
     rpc::{LightClient, LightClientConfig, Rpc},
 };
-use light_compressed_token_sdk::compressed_token::create_compressed_mint;
+use light_compressed_token_sdk::compressed_token::create_compressed_mint::{
+    derive_mint_compressed_address, find_mint_address,
+};
 use light_registry::{
     protocol_config::state::ProtocolConfigPda,
     sdk::{
@@ -24,10 +27,76 @@ use light_registry::{
 use light_test_utils::actions::legacy::{
     create_compressible_token_account, CreateCompressibleTokenAccountInputs,
 };
+use light_token::instruction::{CreateMint, CreateMintParams};
 use light_token_interface::state::TokenDataVersion;
 use serial_test::serial;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
 use tokio::{sync::oneshot, time::sleep};
+
+/// Helper to create a decompressed mint (auto-decompresses on creation).
+/// Returns (mint_pda, mint_seed).
+async fn create_decompressed_mint(
+    rpc: &mut LightClient,
+    payer: &Keypair,
+    mint_authority: Pubkey,
+    decimals: u8,
+) -> (Pubkey, Keypair) {
+    let mint_seed = Keypair::new();
+    let address_tree = rpc.get_address_tree_v2();
+    let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
+
+    // Derive compression address
+    let compression_address =
+        derive_mint_compressed_address(&mint_seed.pubkey(), &address_tree.tree);
+
+    let (mint_pda, bump) = find_mint_address(&mint_seed.pubkey());
+
+    // Get validity proof for the address
+    let rpc_result = rpc
+        .get_validity_proof(
+            vec![],
+            vec![AddressWithTree {
+                address: compression_address,
+                tree: address_tree.tree,
+            }],
+            None,
+        )
+        .await
+        .unwrap()
+        .value;
+
+    // Build params - rent_payment = 2 is the minimum required by the program
+    let params = CreateMintParams {
+        decimals,
+        address_merkle_tree_root_index: rpc_result.addresses[0].root_index,
+        mint_authority,
+        proof: rpc_result.proof.0.unwrap(),
+        compression_address,
+        mint: mint_pda,
+        bump,
+        freeze_authority: None,
+        extensions: None,
+        rent_payment: 2, // Minimum required epochs of rent prepayment
+        write_top_up: 0,
+    };
+
+    // Create instruction
+    let create_mint_builder = CreateMint::new(
+        params,
+        mint_seed.pubkey(),
+        payer.pubkey(),
+        address_tree.tree,
+        output_queue,
+    );
+    let instruction = create_mint_builder.instruction().unwrap();
+
+    // Send transaction
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer, &mint_seed])
+        .await
+        .expect("CreateMint should succeed");
+
+    (mint_pda, mint_seed)
+}
 
 /// Context returned from forester registration containing everything needed for compression testing
 struct ForesterContext {
@@ -231,13 +300,8 @@ async fn test_compressible_ctoken_compression() {
     });
 
     sleep(Duration::from_secs(2)).await;
-    // Create mint
-    let mint_seed = Keypair::new();
-    let address_tree = rpc.get_address_tree_v2().tree;
-    let mint = Pubkey::from(create_compressed_mint::derive_mint_compressed_address(
-        &mint_seed.pubkey(),
-        &address_tree,
-    ));
+    // Create mint (must exist on-chain before creating token accounts)
+    let (mint, _mint_seed) = create_decompressed_mint(&mut rpc, &payer, payer.pubkey(), 9).await;
     // Create first account with 2 epochs rent
     let owner_keypair = Keypair::new();
     let token_account_pubkey = create_compressible_token_account(
@@ -404,13 +468,8 @@ async fn test_compressible_ctoken_bootstrap() {
         })
         .count();
 
-    // Create mint
-    let mint_seed = Keypair::new();
-    let address_tree = rpc.get_address_tree_v2().tree;
-    let mint = Pubkey::from(create_compressed_mint::derive_mint_compressed_address(
-        &mint_seed.pubkey(),
-        &address_tree,
-    ));
+    // Create mint (must exist on-chain before creating token accounts)
+    let (mint, _mint_seed) = create_decompressed_mint(&mut rpc, &payer, payer.pubkey(), 9).await;
 
     // Create 3 compressible token accounts BEFORE bootstrap runs
     let mut created_pubkeys = vec![];

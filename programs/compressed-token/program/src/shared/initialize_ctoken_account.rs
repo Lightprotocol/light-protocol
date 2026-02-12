@@ -167,6 +167,22 @@ pub fn initialize_ctoken_account(
         mint_account,
     } = config;
 
+    // Validate mint account and extract decimals for all token accounts
+    let mint_decimals = {
+        let mint_data = AccountInfoTrait::try_borrow_data(mint_account)?;
+        if mint_data.is_empty() {
+            msg!("Invalid mint account: account data is empty");
+            return Err(ProgramError::InvalidAccountData);
+        }
+        if !is_valid_mint(mint_account.owner(), &mint_data)? {
+            msg!("Invalid mint account: not a valid mint");
+            return Err(ProgramError::InvalidAccountData);
+        }
+        // Mint layout: decimals at byte 44 for all token programs
+        // (mint_authority option: 36, supply: 8) = 44
+        mint_data.get(44).copied()
+    };
+
     // Build extensions Vec from boolean flags
     // +1 for potential Compressible extension
     let mut extensions = Vec::with_capacity(mint_extensions.num_token_account_extensions() + 1);
@@ -233,7 +249,7 @@ pub fn initialize_ctoken_account(
     // We need to re-read using zero_copy_at_mut because new_zero_copy doesn't
     // populate the extensions field (it only writes them to bytes)
     if let Some(compressible) = compressible {
-        configure_compression_info(&mut ctoken, compressible, mint_account)?;
+        configure_compression_info(&mut ctoken, compressible, mint_decimals)?;
     }
 
     Ok(())
@@ -244,7 +260,7 @@ pub fn initialize_ctoken_account(
 fn configure_compression_info(
     ctoken: &mut light_token_interface::state::ZTokenMut<'_>,
     compressible: CompressibleInitData<'_>,
-    mint_account: &AccountInfo,
+    mint_decimals: Option<u8>,
 ) -> Result<(), ProgramError> {
     let CompressibleInitData {
         ix_data,
@@ -325,21 +341,8 @@ fn configure_compression_info(
     }
     compressible_ext.info.account_version = ix_data.token_account_version;
 
-    // Read decimals from mint account and cache in extension
-    let mint_data = AccountInfoTrait::try_borrow_data(mint_account)?;
-    // Only try to read decimals if mint has data (is initialized)
-    if !mint_data.is_empty() {
-        let owner = mint_account.owner();
-
-        if !is_valid_mint(owner, &mint_data)? {
-            msg!("Invalid mint account: not a valid mint");
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        // Mint layout: decimals at byte 44 for all token programs
-        // (mint_authority option: 36, supply: 8) = 44
-        compressible_ext.set_decimals(mint_data.get(44).copied());
-    }
+    // Cache mint decimals in extension (already extracted during validation)
+    compressible_ext.set_decimals(mint_decimals);
 
     Ok(())
 }

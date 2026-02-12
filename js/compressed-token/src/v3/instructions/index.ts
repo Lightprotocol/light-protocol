@@ -1,6 +1,7 @@
 export * from './create-mint';
 export * from './update-mint';
 export * from './update-metadata';
+export * from './decompress-mint';
 export * from './create-associated-ctoken';
 export * from './create-ata-interface';
 export * from './mint-to';

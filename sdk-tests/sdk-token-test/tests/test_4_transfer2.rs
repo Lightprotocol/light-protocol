@@ -12,7 +12,6 @@ use light_sdk::{
     instruction::{PackedAccounts, PackedStateTreeInfo, SystemAccountMetaConfig},
 };
 use light_test_utils::RpcError;
-use light_token::instruction::CreateAssociatedTokenAccount;
 use light_token_interface::{
     instructions::{
         mint_action::{MintWithContext, Recipient},
@@ -79,25 +78,47 @@ async fn create_compressed_mints_and_tokens(
     payer: &Keypair,
 ) -> (Pubkey, Pubkey, Pubkey, Pubkey) {
     let decimals = 6u8;
-    let compress_amount = 1000; // Amount to mint as compressed tokens
+    let compress_amount = 1000;
 
-    // Create 3 compressed mints
-    let (mint1_pda, mint1_pubkey) = create_compressed_mint_helper(rpc, payer, decimals).await;
-    let (mint2_pda, mint2_pubkey) = create_compressed_mint_helper(rpc, payer, decimals).await;
-    let (mint3_pda, mint3_pubkey) = create_compressed_mint_helper(rpc, payer, decimals).await;
+    // Create 3 compressed mints - keep mint1_seed for decompression
+    let (mint1_seed, mint1_pda, mint1_pubkey) =
+        create_compressed_mint_helper(rpc, payer, decimals).await;
+    let (_, mint2_pda, mint2_pubkey) = create_compressed_mint_helper(rpc, payer, decimals).await;
+    let (_, mint3_pda, mint3_pubkey) = create_compressed_mint_helper(rpc, payer, decimals).await;
 
     println!("Created compressed mint 1: {}", mint1_pubkey);
     println!("Created compressed mint 2: {}", mint2_pubkey);
     println!("Created compressed mint 3: {}", mint3_pubkey);
 
-    // Mint compressed tokens for all three mints
-    mint_compressed_tokens(rpc, payer, &mint1_pda, mint1_pubkey, compress_amount).await;
+    // Mint compressed tokens for mint2 and mint3 (for transfer tests)
     mint_compressed_tokens(rpc, payer, &mint2_pda, mint2_pubkey, compress_amount).await;
     mint_compressed_tokens(rpc, payer, &mint3_pda, mint3_pubkey, compress_amount).await;
 
-    // Create associated token account for mint1 decompression
-    let token_account1_pubkey =
-        light_token::instruction::derive_token_ata(&payer.pubkey(), &mint1_pda);
+    // Step 1: Decompress mint1 so it exists on-chain (required for CToken ATA creation)
+    use light_test_utils::actions::{
+        legacy::instructions::mint_action::DecompressMintParams, mint_action_comprehensive,
+    };
+
+    mint_action_comprehensive(
+        rpc,
+        &mint1_seed,
+        payer,
+        payer,
+        Some(DecompressMintParams::default()),
+        false,
+        vec![],
+        vec![],
+        None,
+        None,
+        None,
+    )
+    .await
+    .unwrap();
+
+    // Step 2: Create CToken ATA for mint1 (mint now exists on-chain)
+    use light_token::instruction::{derive_token_ata, CreateAssociatedTokenAccount};
+    let token_account1_pubkey = derive_token_ata(&payer.pubkey(), &mint1_pda);
+
     let create_ata_instruction =
         CreateAssociatedTokenAccount::new(payer.pubkey(), payer.pubkey(), mint1_pda)
             .instruction()
@@ -106,41 +127,26 @@ async fn create_compressed_mints_and_tokens(
         .await
         .unwrap();
 
-    // Decompress some compressed tokens for mint1 into the associated token account
-    let decompress_amount = 500u64;
-    let compressed_token_accounts = rpc
-        .indexer()
-        .unwrap()
-        .get_compressed_token_accounts_by_owner(&payer.pubkey(), None, None)
-        .await
-        .unwrap()
-        .value
-        .items;
-
-    let mint1_token_account = compressed_token_accounts
-        .iter()
-        .find(|acc| acc.token.mint == mint1_pda)
-        .expect("Compressed token account for mint1 should exist");
-
-    let decompress_instruction =
-        light_test_utils::actions::legacy::instructions::transfer2::create_decompress_instruction(
-            rpc,
-            std::slice::from_ref(mint1_token_account),
-            decompress_amount,
-            token_account1_pubkey,
-            payer.pubkey(),
-            9,
-        )
-        .await
-        .unwrap();
-
-    rpc.create_and_send_transaction(&[decompress_instruction], &payer.pubkey(), &[payer])
-        .await
-        .unwrap();
+    // Step 3: Mint tokens to the CToken ATA (via decompressed_recipients)
+    mint_action_comprehensive(
+        rpc,
+        &mint1_seed,
+        payer,
+        payer,
+        None,
+        false,
+        vec![],
+        vec![Recipient::new(payer.pubkey(), 500)],
+        None,
+        None,
+        None,
+    )
+    .await
+    .unwrap();
 
     println!(
-        "✅ Minted {} compressed tokens for all three mints and decompressed {} tokens for mint1",
-        compress_amount, decompress_amount
+        "Created decompressed mint {} with 500 tokens in ATA {} for compression test",
+        mint1_pda, token_account1_pubkey
     );
 
     (mint1_pda, mint2_pda, mint3_pda, token_account1_pubkey)
@@ -150,7 +156,7 @@ async fn create_compressed_mint_helper(
     rpc: &mut LightProgramTest,
     payer: &Keypair,
     decimals: u8,
-) -> (Pubkey, Pubkey) {
+) -> (Keypair, Pubkey, Pubkey) {
     let mint_authority = payer.pubkey();
     let mint_signer = Keypair::new();
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
@@ -206,7 +212,7 @@ async fn create_compressed_mint_helper(
         .await
         .unwrap();
 
-    (mint_pda, compressed_mint_address.into())
+    (mint_signer, mint_pda, compressed_mint_address.into())
 }
 
 async fn mint_compressed_tokens(

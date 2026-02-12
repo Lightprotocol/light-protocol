@@ -402,6 +402,23 @@ async fn functional_and_failing_tests() {
 
     // 9. MintToCToken with invalid mint authority
     {
+        // Decompress mint first so CToken ATAs can be created
+        light_test_utils::actions::mint_action_comprehensive(
+            &mut rpc,
+            &mint_seed,
+            &new_mint_authority, // Use new_mint_authority since we updated it in step 6
+            &payer,
+            Some(light_test_utils::actions::legacy::instructions::mint_action::DecompressMintParams::default()),
+            false,
+            vec![],
+            vec![],
+            None,
+            None,
+            None,
+        )
+        .await
+        .unwrap();
+
         // Create a ctoken account first
         let recipient = Keypair::new();
 
@@ -443,19 +460,14 @@ async fn functional_and_failing_tests() {
 
     // 10. SUCCEED - MintToCToken with valid mint authority
     {
-        // Get pre-transaction compressed mint state
-        let pre_compressed_mint_account = rpc
-            .indexer()
-            .unwrap()
-            .get_compressed_account(compressed_mint_address, None)
+        // Get pre-transaction state from on-chain CMint (since mint was decompressed)
+        let cmint_account_data = rpc
+            .get_account(spl_mint_pda)
             .await
             .unwrap()
-            .value
-            .unwrap();
-        let pre_compressed_mint: Mint = BorshDeserialize::deserialize(
-            &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
-        )
-        .unwrap();
+            .expect("CMint should exist after decompression");
+        let pre_compressed_mint: Mint =
+            BorshDeserialize::deserialize(&mut cmint_account_data.data.as_slice()).unwrap();
 
         // Create a new recipient for successful mint
         let recipient2 = Keypair::new();
@@ -539,19 +551,14 @@ async fn functional_and_failing_tests() {
 
     // 12. SUCCEED - UpdateMetadataField with valid metadata authority
     {
-        // Get pre-transaction compressed mint state
-        let pre_compressed_mint_account = rpc
-            .indexer()
-            .unwrap()
-            .get_compressed_account(compressed_mint_address, None)
+        // Get pre-transaction state from on-chain CMint (since mint was decompressed)
+        let cmint_account_data = rpc
+            .get_account(spl_mint_pda)
             .await
             .unwrap()
-            .value
-            .unwrap();
-        let pre_compressed_mint: Mint = BorshDeserialize::deserialize(
-            &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
-        )
-        .unwrap();
+            .expect("CMint should exist");
+        let pre_compressed_mint: Mint =
+            BorshDeserialize::deserialize(&mut cmint_account_data.data.as_slice()).unwrap();
 
         let actions = vec![MintActionType::UpdateMetadataField {
             extension_index: 0,
@@ -620,19 +627,14 @@ async fn functional_and_failing_tests() {
 
     // 14. SUCCEED - UpdateMetadataAuthority with valid metadata authority
     {
-        // Get pre-transaction compressed mint state
-        let pre_compressed_mint_account = rpc
-            .indexer()
-            .unwrap()
-            .get_compressed_account(compressed_mint_address, None)
+        // Get pre-transaction state from on-chain CMint (since mint was decompressed)
+        let cmint_account_data = rpc
+            .get_account(spl_mint_pda)
             .await
             .unwrap()
-            .value
-            .unwrap();
-        let pre_compressed_mint: Mint = BorshDeserialize::deserialize(
-            &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
-        )
-        .unwrap();
+            .expect("CMint should exist");
+        let pre_compressed_mint: Mint =
+            BorshDeserialize::deserialize(&mut cmint_account_data.data.as_slice()).unwrap();
 
         let actions = vec![MintActionType::UpdateMetadataAuthority {
             extension_index: 0,
@@ -700,19 +702,14 @@ async fn functional_and_failing_tests() {
 
     // 16. SUCCEED - RemoveMetadataKey with valid metadata authority
     {
-        // Get pre-transaction compressed mint state
-        let pre_compressed_mint_account = rpc
-            .indexer()
-            .unwrap()
-            .get_compressed_account(compressed_mint_address, None)
+        // Get pre-transaction state from on-chain CMint (since mint was decompressed)
+        let cmint_account_data = rpc
+            .get_account(spl_mint_pda)
             .await
             .unwrap()
-            .value
-            .unwrap();
-        let pre_compressed_mint: Mint = BorshDeserialize::deserialize(
-            &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
-        )
-        .unwrap();
+            .expect("CMint should exist");
+        let pre_compressed_mint: Mint =
+            BorshDeserialize::deserialize(&mut cmint_account_data.data.as_slice()).unwrap();
 
         let actions = vec![MintActionType::RemoveMetadataKey {
             extension_index: 0,
@@ -753,19 +750,14 @@ async fn functional_and_failing_tests() {
 
     // 17. SUCCEED - RemoveMetadataKey idempotent (try to remove same key again)
     {
-        // Get pre-transaction compressed mint state
-        let pre_compressed_mint_account = rpc
-            .indexer()
-            .unwrap()
-            .get_compressed_account(compressed_mint_address, None)
+        // Get pre-transaction state from on-chain CMint (since mint was decompressed)
+        let cmint_account_data = rpc
+            .get_account(spl_mint_pda)
             .await
             .unwrap()
-            .value
-            .unwrap();
-        let pre_compressed_mint: Mint = BorshDeserialize::deserialize(
-            &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
-        )
-        .unwrap();
+            .expect("CMint should exist");
+        let pre_compressed_mint: Mint =
+            BorshDeserialize::deserialize(&mut cmint_account_data.data.as_slice()).unwrap();
 
         let actions = vec![MintActionType::RemoveMetadataKey {
             extension_index: 0,
@@ -857,6 +849,23 @@ async fn test_mint_to_ctoken_max_top_up_exceeded() {
     .await
     .unwrap();
 
+    // 1b. Decompress mint so CToken ATA can be created
+    light_test_utils::actions::mint_action_comprehensive(
+        &mut rpc,
+        &mint_seed,
+        &mint_authority,
+        &payer,
+        Some(light_test_utils::actions::legacy::instructions::mint_action::DecompressMintParams::default()),
+        false,
+        vec![],
+        vec![],
+        None,
+        None,
+        None,
+    )
+    .await
+    .unwrap();
+
     // 2. Create compressible Light Token ATA with pre_pay_num_epochs = 0 (NO prepaid rent)
     let recipient = Keypair::new();
 
@@ -886,7 +895,17 @@ async fn test_mint_to_ctoken_max_top_up_exceeded() {
     let ctoken_ata = light_token::instruction::derive_token_ata(&recipient.pubkey(), &spl_mint_pda);
 
     // 3. Build MintToCToken instruction with max_top_up = 1 (too low)
-    // Get current compressed mint state
+    // Get current mint state from on-chain CMint (since mint was decompressed)
+    let cmint_account_data = rpc
+        .get_account(spl_mint_pda)
+        .await
+        .unwrap()
+        .expect("CMint should exist after decompression");
+
+    let compressed_mint: light_token_interface::state::Mint =
+        BorshDeserialize::deserialize(&mut cmint_account_data.data.as_slice()).unwrap();
+
+    // Get compressed account for proof (still exists but with mint_decompressed=true)
     let compressed_mint_account = rpc
         .indexer()
         .unwrap()
@@ -895,10 +914,6 @@ async fn test_mint_to_ctoken_max_top_up_exceeded() {
         .unwrap()
         .value
         .unwrap();
-
-    let compressed_mint: light_token_interface::state::Mint =
-        BorshDeserialize::deserialize(&mut compressed_mint_account.data.unwrap().data.as_slice())
-            .unwrap();
 
     // Get validity proof
     let rpc_proof_result = rpc

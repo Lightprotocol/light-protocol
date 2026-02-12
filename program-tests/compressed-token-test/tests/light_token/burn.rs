@@ -319,8 +319,8 @@ struct BurnTestContext {
 ///
 /// Steps:
 /// 1. Init LightProgramTest
-/// 2. Create compressed mint + Mint via mint_action_comprehensive
-/// 3. Create Light Token ATA
+/// 2. Create compressed mint + Mint via mint_action_comprehensive (mint must exist first)
+/// 3. Create Light Token ATA (now that mint exists)
 /// 4. Mint 100 tokens
 async fn setup_burn_test() -> BurnTestContext {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
@@ -335,19 +335,7 @@ async fn setup_burn_test() -> BurnTestContext {
     // Derive Mint PDA
     let (mint_pda, _) = find_mint_address(&mint_seed.pubkey());
 
-    // Step 1: Create Light Token ATA for owner
-    let ctoken_ata = derive_token_ata(&owner_keypair.pubkey(), &mint_pda);
-
-    let create_ata_ix =
-        CreateAssociatedTokenAccount::new(payer.pubkey(), owner_keypair.pubkey(), mint_pda)
-            .instruction()
-            .unwrap();
-
-    rpc.create_and_send_transaction(&[create_ata_ix], &payer.pubkey(), &[&payer])
-        .await
-        .unwrap();
-
-    // Step 2: Create compressed mint + Mint (no recipients)
+    // Step 1: Create compressed mint + Mint (must happen before ATA creation)
     light_test_utils::actions::mint_action_comprehensive(
         &mut rpc,
         &mint_seed,
@@ -372,6 +360,18 @@ async fn setup_burn_test() -> BurnTestContext {
     )
     .await
     .unwrap();
+
+    // Step 2: Create Light Token ATA for owner (mint now exists)
+    let ctoken_ata = derive_token_ata(&owner_keypair.pubkey(), &mint_pda);
+
+    let create_ata_ix =
+        CreateAssociatedTokenAccount::new(payer.pubkey(), owner_keypair.pubkey(), mint_pda)
+            .instruction()
+            .unwrap();
+
+    rpc.create_and_send_transaction(&[create_ata_ix], &payer.pubkey(), &[&payer])
+        .await
+        .unwrap();
 
     // Step 3: Mint 100 tokens to the Light Token account
     let mint_ix = MintTo {

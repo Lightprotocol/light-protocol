@@ -9,8 +9,6 @@ import {
     Rpc,
     buildAndSignTx,
     sendAndConfirmTx,
-    DerivationMode,
-    bn,
     assertBetaEnabled,
 } from '@lightprotocol/stateless.js';
 import { createMintToInterfaceInstruction } from '../instructions/mint-to-interface';
@@ -18,20 +16,22 @@ import { getMintInterface } from '../get-mint-interface';
 
 /**
  * Mint tokens to a decompressed/onchain token account.
- * Works with SPL, Token-2022, and compressed token (c-token) mints.
+ * Works with SPL, Token-2022, and CToken mints.
  *
  * This function ONLY mints to decompressed onchain token accounts, never to compressed accounts.
+ * For CToken mints, the mint must be decompressed first (CMint account must exist on-chain).
+ *
  * The signature matches the standard SPL mintTo for simplicity and consistency.
  *
  * @param rpc - RPC connection to use
  * @param payer - Transaction fee payer
- * @param mint - Mint address (SPL, Token-2022, or compressed mint)
+ * @param mint - Mint address (SPL, Token-2022, or CToken mint)
  * @param destination - Destination token account address (must be an existing onchain token account)
  * @param authority - Mint authority (can be Signer or PublicKey if multiSigners provided)
  * @param amount - Amount to mint
  * @param multiSigners - Optional: Multi-signature signers (default: [])
  * @param confirmOptions - Optional: Transaction confirmation options
- * @param programId - Optional: Token program ID (TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, or CTOKEN_PROGRAM_ID). If undefined, auto-detects.
+ * @param programId - Optional: Token program ID. If undefined, auto-detects.
  *
  * @returns Transaction signature
  */
@@ -56,23 +56,6 @@ export async function mintToInterface(
         programId,
     );
 
-    // Fetch validity proof if this is a compressed mint (has merkleContext)
-    let validityProof;
-    if (mintInterface.merkleContext) {
-        validityProof = await rpc.getValidityProofV2(
-            [
-                {
-                    hash: bn(mintInterface.merkleContext.hash),
-                    leafIndex: mintInterface.merkleContext.leafIndex,
-                    treeInfo: mintInterface.merkleContext.treeInfo,
-                    proveByIndex: mintInterface.merkleContext.proveByIndex,
-                },
-            ],
-            [],
-            DerivationMode.compressible,
-        );
-    }
-
     // Create instruction
     const authorityPubkey =
         authority instanceof PublicKey ? authority : authority.publicKey;
@@ -84,7 +67,7 @@ export async function mintToInterface(
         authorityPubkey,
         payer.publicKey,
         amount,
-        validityProof,
+        undefined, // validityProof - not needed for simple CTokenMintTo
         multiSignerPubkeys,
     );
 
@@ -103,7 +86,7 @@ export async function mintToInterface(
 
     const { blockhash } = await rpc.getLatestBlockhash();
     const tx = buildAndSignTx(
-        [ComputeBudgetProgram.setComputeUnitLimit({ units: 500_000 }), ix],
+        [ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 }), ix],
         payer,
         blockhash,
         signers,

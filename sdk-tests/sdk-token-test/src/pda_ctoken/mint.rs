@@ -4,7 +4,7 @@ use light_compressed_token_sdk::compressed_token::{
 };
 use light_sdk_types::cpi_accounts::v2::CpiAccounts;
 use light_token_interface::instructions::mint_action::{
-    MintActionCompressedInstructionData, MintToAction, MintToCompressedAction, UpdateAuthority,
+    MintActionCompressedInstructionData, MintToCompressedAction, UpdateAuthority,
 };
 
 use super::{processor::ChainedCtokenInstructionData, PdaCToken};
@@ -17,6 +17,10 @@ pub fn process_mint_action<'a, 'info>(
     // Build instruction data using builder pattern
     // ValidityProof is a wrapper around Option<CompressedProof>
     let compressed_proof = input.pda_creation.proof.0.unwrap();
+    // NOTE: .with_mint_to() removed because MintToCToken requires an ATA, but ATAs
+    // require the mint to exist first. Since the mint is created in this same instruction,
+    // we cannot have an ATA ready. MintToCToken should be tested separately after mint
+    // decompression.
     let instruction_data = MintActionCompressedInstructionData::new_mint(
         input.compressed_mint_with_context.root_index,
         compressed_proof,
@@ -25,10 +29,6 @@ pub fn process_mint_action<'a, 'info>(
     .with_mint_to_compressed(MintToCompressedAction {
         token_account_version: 2,
         recipients: input.token_recipients.clone(),
-    })
-    .with_mint_to(MintToAction {
-        account_index: 0, // Index in remaining accounts
-        amount: input.token_recipients[0].amount,
     })
     .with_update_mint_authority(UpdateAuthority {
         new_authority: input
@@ -50,7 +50,6 @@ pub fn process_mint_action<'a, 'info>(
 
     // Build account structure for CPI - manually construct from CpiAccounts
     let tree_accounts = cpi_accounts.tree_accounts().unwrap();
-    let ctoken_accounts_vec = vec![ctx.accounts.token_account.to_account_info()];
     let mint_action_accounts = MintActionCpiAccounts {
         compressed_token_program: ctx.accounts.light_token_program.as_ref(),
         light_system_program: cpi_accounts.system_program().unwrap(),
@@ -66,8 +65,8 @@ pub fn process_mint_action<'a, 'info>(
         out_output_queue: &tree_accounts[1],       // output queue
         in_merkle_tree: &tree_accounts[0],         // address tree
         in_output_queue: None,                     // Not needed for create
-        tokens_out_queue: Some(&tree_accounts[0]), // Same as output queue for mint_to
-        ctoken_accounts: &ctoken_accounts_vec,     // For MintToCToken
+        tokens_out_queue: Some(&tree_accounts[0]), // Required even without MintToCToken
+        ctoken_accounts: &[],                      // Not using MintToCToken
     };
 
     // Build instruction using trait method
@@ -80,7 +79,6 @@ pub fn process_mint_action<'a, 'info>(
     account_infos.push(ctx.accounts.mint_authority.to_account_info());
     account_infos.push(ctx.accounts.mint_seed.to_account_info());
     account_infos.push(ctx.accounts.payer.to_account_info());
-    account_infos.push(ctx.accounts.token_account.to_account_info());
     msg!("mint_action_instruction {:?}", mint_action_instruction);
     msg!(
         "account infos pubkeys {:?}",

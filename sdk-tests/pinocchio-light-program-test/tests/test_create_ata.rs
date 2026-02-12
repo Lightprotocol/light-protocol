@@ -81,9 +81,22 @@ async fn test_create_ata_derive() {
 
     // PHASE 2: Warp to trigger auto-compression
     rpc.warp_slot_forward(SLOTS_PER_EPOCH * 30).await.unwrap();
+    shared::assert_onchain_closed(&mut rpc, &mint, "Mint").await;
     shared::assert_onchain_closed(&mut rpc, &ata, "ATA").await;
 
     // PHASE 3: Decompress via create_load_instructions
+    use light_client::interface::AccountInterface;
+
+    // Mint must be decompressed first since ATA depends on it
+    let mint_iface = rpc
+        .get_mint_interface(&mint, None)
+        .await
+        .expect("failed to get mint interface")
+        .value
+        .expect("mint interface should exist");
+    assert!(mint_iface.is_cold(), "Mint should be cold");
+    let mint_ai = AccountInterface::from(mint_iface);
+
     let ata_interface = rpc
         .get_associated_token_account_interface(&ata_owner, &mint, None)
         .await
@@ -92,8 +105,11 @@ async fn test_create_ata_derive() {
         .expect("ATA interface should exist");
     assert!(ata_interface.is_cold(), "ATA should be cold");
 
-    let specs: Vec<AccountSpec<LightAccountVariant>> =
-        vec![AccountSpec::Ata(Box::new(ata_interface))];
+    // Mint must come before ATA since ATA depends on mint being decompressed
+    let specs: Vec<AccountSpec<LightAccountVariant>> = vec![
+        AccountSpec::Mint(mint_ai),
+        AccountSpec::Ata(Box::new(ata_interface)),
+    ];
 
     let ixs = create_load_instructions(&specs, payer.pubkey(), env.config_pda, &rpc)
         .await
@@ -104,6 +120,7 @@ async fn test_create_ata_derive() {
         .expect("Decompression should succeed");
 
     // PHASE 4: Assert state preserved after decompression
+    shared::assert_onchain_exists(&mut rpc, &mint, "Mint").await;
     shared::assert_onchain_exists(&mut rpc, &ata, "ATA").await;
 
     let actual: Token = shared::parse_token(&rpc.get_account(ata).await.unwrap().unwrap().data);

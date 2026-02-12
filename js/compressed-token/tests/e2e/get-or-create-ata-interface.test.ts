@@ -22,6 +22,7 @@ import {
 import { createMintInterface } from '../../src/v3/actions/create-mint-interface';
 import { createAtaInterfaceIdempotent } from '../../src/v3/actions/create-ata-interface';
 import { getOrCreateAtaInterface } from '../../src/v3/actions/get-or-create-ata-interface';
+import { decompressMint } from '../../src/v3/actions/decompress-mint';
 import { getAssociatedTokenAddressInterface } from '../../src/v3/get-associated-token-address-interface';
 import { findMintAddress } from '../../src/v3/derivation';
 import { getAtaProgramId } from '../../src/v3/ata-utils';
@@ -432,6 +433,9 @@ describe('getOrCreateAtaInterface', () => {
                 mintSigner,
             );
             ctokenMint = mintPda;
+
+            // Decompress mint so it exists on-chain (required for CToken ATA creation)
+            await decompressMint(rpc, payer, ctokenMint);
         });
 
         it('should create c-token ATA when it does not exist (uninited)', async () => {
@@ -565,6 +569,9 @@ describe('getOrCreateAtaInterface', () => {
                 mintSigner,
             );
 
+            // Decompress mint so it exists on-chain (required for CToken ATA creation)
+            await decompressMint(rpc, payer, testMint);
+
             // Create ATA
             await createAtaInterfaceIdempotent(
                 rpc,
@@ -619,10 +626,14 @@ describe('getOrCreateAtaInterface', () => {
             );
 
             // Mint compressed tokens directly (creates cold balance, no hot ATA)
+            // Must happen BEFORE decompressMint since mintToCompressed needs compressed mint
             const mintAmount = 1000000n;
             await mintToCompressed(rpc, payer, testMint, testMintAuth, [
                 { recipient: owner.publicKey, amount: mintAmount },
             ]);
+
+            // Decompress mint so it exists on-chain (required for CToken ATA creation)
+            await decompressMint(rpc, payer, testMint);
 
             const expectedAddress = getAssociatedTokenAddressInterface(
                 testMint,
@@ -688,10 +699,14 @@ describe('getOrCreateAtaInterface', () => {
             );
 
             // Mint compressed tokens directly (creates cold balance, no hot ATA)
+            // Must happen BEFORE decompressMint since mintToCompressed needs compressed mint
             const mintAmount = 1000000n;
             await mintToCompressed(rpc, payer, testMint, testMintAuth, [
                 { recipient: owner.publicKey, amount: mintAmount },
             ]);
+
+            // Decompress mint so it exists on-chain (required for CToken ATA creation)
+            await decompressMint(rpc, payer, testMint);
 
             const expectedAddress = getAssociatedTokenAddressInterface(
                 testMint,
@@ -772,7 +787,17 @@ describe('getOrCreateAtaInterface', () => {
                 mintSigner,
             );
 
-            // Create hot ATA first
+            // Mint compressed tokens first (creates cold balance)
+            // Must happen BEFORE decompressMint since mintToCompressed needs compressed mint
+            const coldAmount = 500000n;
+            await mintToCompressed(rpc, payer, testMint, testMintAuth, [
+                { recipient: owner.publicKey, amount: coldAmount },
+            ]);
+
+            // Decompress mint so it exists on-chain (required for CToken ATA creation)
+            await decompressMint(rpc, payer, testMint);
+
+            // Create hot ATA (after decompression)
             await createAtaInterfaceIdempotent(
                 rpc,
                 payer,
@@ -782,12 +807,6 @@ describe('getOrCreateAtaInterface', () => {
                 undefined,
                 CTOKEN_PROGRAM_ID,
             );
-
-            // Mint compressed tokens (creates cold balance)
-            const coldAmount = 500000n;
-            await mintToCompressed(rpc, payer, testMint, testMintAuth, [
-                { recipient: owner.publicKey, amount: coldAmount },
-            ]);
 
             // Call getOrCreateAtaInterface
             const account = await getOrCreateAtaInterface(
@@ -819,6 +838,9 @@ describe('getOrCreateAtaInterface', () => {
                 9,
             );
             ctokenMint = result.mint;
+
+            // Decompress mint so it exists on-chain (required for CToken ATA creation)
+            await decompressMint(rpc, payer, ctokenMint);
         });
 
         it('should default to CTOKEN_PROGRAM_ID when programId not specified', async () => {
@@ -923,6 +945,9 @@ describe('getOrCreateAtaInterface', () => {
                 mintSigner,
             );
 
+            // Decompress mint so it exists on-chain (required for CToken ATA creation)
+            await decompressMint(rpc, payer, testMint);
+
             const account1 = await getOrCreateAtaInterface(
                 rpc,
                 payer,
@@ -991,6 +1016,9 @@ describe('getOrCreateAtaInterface', () => {
                 9,
                 mintSigner,
             );
+
+            // Decompress mint so it exists on-chain (required for CToken ATA creation)
+            await decompressMint(rpc, payer, ctokenMint);
 
             // Get/Create ATAs for all programs
             const splAccount = await getOrCreateAtaInterface(

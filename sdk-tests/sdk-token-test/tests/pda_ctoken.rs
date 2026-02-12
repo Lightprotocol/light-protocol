@@ -1,7 +1,4 @@
-use anchor_lang::{
-    solana_program::program_pack::Pack, AnchorDeserialize, InstructionData, ToAccountMetas,
-};
-use anchor_spl::token_interface::spl_token_2022;
+use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
 use light_client::indexer::Indexer;
 use light_compressed_account::{address::derive_address, hash_to_bn254_field_size_be};
 use light_compressed_token_sdk::compressed_token::create_compressed_mint::{
@@ -9,9 +6,6 @@ use light_compressed_token_sdk::compressed_token::create_compressed_mint::{
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc, RpcError};
 use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
-use light_token::instruction::{
-    derive_token_ata, CompressibleParams, CreateAssociatedTokenAccount,
-};
 use light_token_interface::{
     instructions::{
         extensions::token_metadata::TokenMetadataInstructionData,
@@ -67,7 +61,10 @@ async fn test_pda_ctoken() {
     };
 
     // Create the compressed mint (with chained operations including update mint)
-    let (compressed_mint_address, token_account, mint) = create_mint(
+    // NOTE: MintToCToken is not tested here because ATAs require the mint to exist first,
+    // and the mint is created in this same instruction. MintToCToken should be tested
+    // separately after mint decompression.
+    let compressed_mint_address = create_mint(
         &mut rpc,
         &mint_seed,
         decimals,
@@ -121,8 +118,8 @@ async fn test_pda_ctoken() {
         "Mint authority should be revoked (None)"
     );
     assert_eq!(
-        compressed_mint.base.supply, 2000u64,
-        "Supply should be 2000 after minting (1000 regular + 1000 from MintToCToken)"
+        compressed_mint.base.supply, 1000u64,
+        "Supply should be 1000 after minting to compressed accounts"
     );
     assert_eq!(
         compressed_mint.base.decimals, decimals,
@@ -133,28 +130,9 @@ async fn test_pda_ctoken() {
     let token_accounts = rpc
         .get_compressed_token_accounts_by_owner(&payer.pubkey(), None, None)
         .await
-        .unwrap();
-
-    // 3. Verify decompressed tokens were minted to the token account
-    let token_account_info = rpc.get_account(token_account).await.unwrap().unwrap();
-    let token_account_data =
-        spl_token_2022::state::Account::unpack(&token_account_info.data[..165]).unwrap();
-
-    assert_eq!(
-        token_account_data.amount, 1000u64,
-        "Token account should have 1000 tokens from MintToCToken action"
-    );
-    assert_eq!(
-        token_account_data.owner,
-        mint_authority_keypair.pubkey(),
-        "Token account should be owned by mint authority"
-    );
-    assert_eq!(
-        token_account_data.mint, mint,
-        "Token account should be associated with the SPL mint"
-    );
-
-    let token_accounts = token_accounts.value.items;
+        .unwrap()
+        .value
+        .items;
 
     println!("✅ Tokens minted:");
     println!("   - Token accounts found: {}", token_accounts.len());
@@ -171,11 +149,11 @@ async fn test_pda_ctoken() {
         "Token amount should be 1000"
     );
 
-    println!("🎉 All chained CPI operations completed successfully!");
-    println!("   1. ✅ Created compressed mint with mint authority");
-    println!("   2. ✅ Minted 1000 tokens to payer");
-    println!("   3. ✅ Revoked mint authority (set to None)");
-    println!("   4. ✅ Created escrow PDA");
+    println!("All chained CPI operations completed successfully!");
+    println!("   1. Created compressed mint with mint authority");
+    println!("   2. Minted 1000 tokens to payer (compressed)");
+    println!("   3. Revoked mint authority (set to None)");
+    println!("   4. Created escrow PDA");
 }
 
 pub async fn create_mint(
@@ -186,7 +164,7 @@ pub async fn create_mint(
     freeze_authority: Option<Pubkey>,
     metadata: Option<TokenMetadataInstructionData>,
     payer: &Keypair,
-) -> Result<([u8; 32], Pubkey, Pubkey), RpcError> {
+) -> Result<[u8; 32], RpcError> {
     // Get address tree and output queue from RPC
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
 
@@ -199,31 +177,9 @@ pub async fn create_mint(
     // Find mint bump for the instruction
     let (mint, mint_bump) = find_mint_address(&mint_seed.pubkey());
 
-    // Create compressed token associated token account for the mint authority
-    let token_account = derive_token_ata(&mint_authority.pubkey(), &mint);
-    println!("Created token_account (ATA): {:?}", token_account);
-
-    let compressible_params = CompressibleParams {
-        compressible_config: rpc
-            .test_accounts
-            .funding_pool_config
-            .compressible_config_pda,
-        rent_sponsor: rpc.test_accounts.funding_pool_config.rent_sponsor_pda,
-        pre_pay_num_epochs: 2,
-        lamports_per_write: Some(1000),
-        compress_to_account_pubkey: None,
-        token_account_version: light_token_interface::state::TokenDataVersion::ShaFlat,
-        compression_only: true,
-    };
-
-    let create_ata_instruction =
-        CreateAssociatedTokenAccount::new(payer.pubkey(), mint_authority.pubkey(), mint)
-            .with_compressible(compressible_params)
-            .instruction()
-            .unwrap();
-    rpc.create_and_send_transaction(&[create_ata_instruction], &payer.pubkey(), &[payer])
-        .await
-        .expect("Failed to create associated token account");
+    // NOTE: ATA creation removed because ATAs require the mint to exist first,
+    // and the mint is created in this instruction. MintToCToken should be tested
+    // separately after mint decompression.
 
     let pda_address_seed = hash_to_bn254_field_size_be(
         [b"escrow", payer.pubkey().to_bytes().as_ref()]
@@ -301,7 +257,6 @@ pub async fn create_mint(
         mint_seed: mint_seed.pubkey(),
         light_token_program: Pubkey::new_from_array(LIGHT_TOKEN_PROGRAM_ID),
         light_token_cpi_authority: Pubkey::new_from_array(CPI_AUTHORITY_PDA),
-        token_account,
     };
 
     let pda_new_address_params = light_sdk::address::NewAddressParamsAssignedPacked {
@@ -346,6 +301,6 @@ pub async fn create_mint(
     rpc.create_and_send_transaction(&[ix], &payer.pubkey(), &signers)
         .await?;
 
-    // Return the compressed mint address, token account, and SPL mint
-    Ok((compressed_mint_address, token_account, mint))
+    // Return the compressed mint address
+    Ok(compressed_mint_address)
 }

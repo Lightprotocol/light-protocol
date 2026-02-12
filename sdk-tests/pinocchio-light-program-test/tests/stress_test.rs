@@ -314,12 +314,13 @@ async fn decompress_all(ctx: &mut StressTestContext, pdas: &TestPdas, cached: &C
     assert!(mint_iface.is_cold(), "Mint should be cold");
     let mint_ai = AccountInterface::from(mint_iface);
 
+    // Mint must come before ATA and vault since they depend on mint being decompressed
     let specs: Vec<AccountSpec<LightAccountVariant>> = vec![
         AccountSpec::Pda(record_spec),
         AccountSpec::Pda(zc_spec),
+        AccountSpec::Mint(mint_ai),
         AccountSpec::Ata(Box::new(ata_interface)),
         AccountSpec::Pda(vault_spec),
-        AccountSpec::Mint(mint_ai),
     ];
 
     let decompress_ixs =

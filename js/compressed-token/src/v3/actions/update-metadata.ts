@@ -23,6 +23,7 @@ import { getMintInterface } from '../get-mint-interface';
 
 /**
  * Update a metadata field on a compressed token mint.
+ * Works for both compressed and decompressed mints.
  *
  * @param rpc            RPC connection
  * @param payer          Fee payer (signer)
@@ -58,18 +59,23 @@ export async function updateMetadataField(
         throw new Error('Mint does not have TokenMetadata extension');
     }
 
-    const validityProof = await rpc.getValidityProofV2(
-        [
-            {
-                hash: bn(mintInterface.merkleContext.hash),
-                leafIndex: mintInterface.merkleContext.leafIndex,
-                treeInfo: mintInterface.merkleContext.treeInfo,
-                proveByIndex: mintInterface.merkleContext.proveByIndex,
-            },
-        ],
-        [],
-        DerivationMode.compressible,
-    );
+    // When mint is decompressed, no validity proof needed - program reads from CMint account
+    const isDecompressed =
+        mintInterface.mintContext?.cmintDecompressed ?? false;
+    const validityProof = isDecompressed
+        ? null
+        : await rpc.getValidityProofV2(
+              [
+                  {
+                      hash: bn(mintInterface.merkleContext.hash),
+                      leafIndex: mintInterface.merkleContext.leafIndex,
+                      treeInfo: mintInterface.merkleContext.treeInfo,
+                      proveByIndex: mintInterface.merkleContext.proveByIndex,
+                  },
+              ],
+              [],
+              DerivationMode.compressible,
+          );
 
     const ix = createUpdateMetadataFieldInstruction(
         mintInterface,
@@ -99,6 +105,7 @@ export async function updateMetadataField(
 
 /**
  * Update the metadata authority of a compressed token mint.
+ * Works for both compressed and decompressed mints.
  *
  * @param rpc              RPC connection
  * @param payer            Fee payer (signer)
@@ -130,18 +137,23 @@ export async function updateMetadataAuthority(
         throw new Error('Mint does not have TokenMetadata extension');
     }
 
-    const validityProof = await rpc.getValidityProofV2(
-        [
-            {
-                hash: bn(mintInterface.merkleContext.hash),
-                leafIndex: mintInterface.merkleContext.leafIndex,
-                treeInfo: mintInterface.merkleContext.treeInfo,
-                proveByIndex: mintInterface.merkleContext.proveByIndex,
-            },
-        ],
-        [],
-        DerivationMode.compressible,
-    );
+    // When mint is decompressed, no validity proof needed - program reads from CMint account
+    const isDecompressed =
+        mintInterface.mintContext?.cmintDecompressed ?? false;
+    const validityProof = isDecompressed
+        ? null
+        : await rpc.getValidityProofV2(
+              [
+                  {
+                      hash: bn(mintInterface.merkleContext.hash),
+                      leafIndex: mintInterface.merkleContext.leafIndex,
+                      treeInfo: mintInterface.merkleContext.treeInfo,
+                      proveByIndex: mintInterface.merkleContext.proveByIndex,
+                  },
+              ],
+              [],
+              DerivationMode.compressible,
+          );
 
     const ix = createUpdateMetadataAuthorityInstruction(
         mintInterface,
@@ -169,6 +181,7 @@ export async function updateMetadataAuthority(
 
 /**
  * Remove a metadata key from a compressed token mint.
+ * Works for both compressed and decompressed mints.
  *
  * @param rpc            RPC connection
  * @param payer          Fee payer (signer)
@@ -202,18 +215,23 @@ export async function removeMetadataKey(
         throw new Error('Mint does not have TokenMetadata extension');
     }
 
-    const validityProof = await rpc.getValidityProofV2(
-        [
-            {
-                hash: bn(mintInterface.merkleContext.hash),
-                leafIndex: mintInterface.merkleContext.leafIndex,
-                treeInfo: mintInterface.merkleContext.treeInfo,
-                proveByIndex: mintInterface.merkleContext.proveByIndex,
-            },
-        ],
-        [],
-        DerivationMode.compressible,
-    );
+    // When mint is decompressed, no validity proof needed - program reads from CMint account
+    const isDecompressed =
+        mintInterface.mintContext?.cmintDecompressed ?? false;
+    const validityProof = isDecompressed
+        ? null
+        : await rpc.getValidityProofV2(
+              [
+                  {
+                      hash: bn(mintInterface.merkleContext.hash),
+                      leafIndex: mintInterface.merkleContext.leafIndex,
+                      treeInfo: mintInterface.merkleContext.treeInfo,
+                      proveByIndex: mintInterface.merkleContext.proveByIndex,
+                  },
+              ],
+              [],
+              DerivationMode.compressible,
+          );
 
     const ix = createRemoveMetadataKeyInstruction(
         mintInterface,
