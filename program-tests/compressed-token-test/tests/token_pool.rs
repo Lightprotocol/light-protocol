@@ -378,8 +378,8 @@ async fn failing_tests_add_token_pool() {
             )
             .unwrap();
         }
-        // 4. failing invalid mint - now fails with ConstraintSeeds because mint validation
-        // happens after PDA derivation (mint changed from InterfaceAccount to AccountInfo)
+        // 4. failing invalid mint - fails with InvalidMint because restricted_seed() is called
+        // in the seeds constraint and tries to parse mint data before PDA derivation check
         {
             let result = add_token_pool(
                 &mut rpc,
@@ -391,12 +391,7 @@ async fn failing_tests_add_token_pool() {
                 FailingTestsAddTokenPool::InvalidMint,
             )
             .await;
-            assert_rpc_error(
-                result,
-                0,
-                anchor_lang::error::ErrorCode::ConstraintSeeds.into(),
-            )
-            .unwrap();
+            assert_rpc_error(result, 0, ErrorCode::InvalidMint.into()).unwrap();
         }
         // 5. failing inconsistent mints
         {
