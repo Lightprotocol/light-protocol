@@ -177,6 +177,9 @@ fn validate_compressed_token_account(
     } else if compression_only_ext.is_some() {
         Err(ProgramError::InvalidInstructionData)
     } else {
+        if compressed_token_account.has_delegate() {
+            return Err(ErrorCode::CompressAndCloseDelegateNotAllowed.into());
+        }
         Ok(())
     }
 }
