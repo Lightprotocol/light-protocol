@@ -9,7 +9,10 @@ use light_compressed_account::{
     pubkey::Pubkey, ADDRESS_MERKLE_TREE_TYPE_V2, STATE_MERKLE_TREE_TYPE_V2,
 };
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
-use light_zero_copy::{cyclic_vec::ZeroCopyCyclicVecU64, errors::ZeroCopyError};
+use light_zero_copy::{
+    cyclic_vec::ZeroCopyCyclicVecRefU64,
+    errors::ZeroCopyError,
+};
 use zerocopy::Ref;
 
 use crate::{
@@ -31,9 +34,7 @@ use crate::{
 pub struct BatchedMerkleTreeRef<'a> {
     pubkey: Pubkey,
     metadata: Ref<&'a [u8], BatchedMerkleTreeMetadata>,
-    /// Cyclic vec metadata: [current_index, length, capacity]
-    _root_history_meta: Ref<&'a [u8], [u64; 3]>,
-    root_history_data: Ref<&'a [u8], [[u8; 32]]>,
+    root_history: ZeroCopyCyclicVecRefU64<'a, [u8; 32]>,
     pub bloom_filter_stores: [&'a [u8]; 2],
 }
 
@@ -115,16 +116,9 @@ impl<'a> BatchedMerkleTreeRef<'a> {
             return Err(MerkleTreeMetadataError::InvalidTreeType.into());
         }
 
-        // 3. Parse cyclic vec (root history) inline.
-        //    Layout: [u64; 3] metadata (current_index, length, capacity), then [u8; 32] * capacity.
-        let metadata_size = ZeroCopyCyclicVecU64::<[u8; 32]>::metadata_size();
-        let (meta_bytes, account_data) = account_data.split_at(metadata_size);
-        let (root_history_meta, _padding) =
-            Ref::<&'a [u8], [u64; 3]>::from_prefix(meta_bytes).map_err(ZeroCopyError::from)?;
-        let capacity = root_history_meta[2] as usize; // CAPACITY_INDEX = 2
-        let (root_history_data, account_data) =
-            Ref::<&'a [u8], [[u8; 32]]>::from_prefix_with_elems(account_data, capacity)
-                .map_err(ZeroCopyError::from)?;
+        // 3. Parse root history (cyclic vec).
+        let (root_history, account_data) =
+            ZeroCopyCyclicVecRefU64::<[u8; 32]>::from_bytes_at(account_data)?;
 
         // 4. Parse bloom filter stores (immutable).
         let bloom_filter_size = metadata.queue_batches.get_bloomfilter_size_bytes();
@@ -136,8 +130,7 @@ impl<'a> BatchedMerkleTreeRef<'a> {
         Ok(BatchedMerkleTreeRef {
             pubkey: *pubkey,
             metadata,
-            _root_history_meta: root_history_meta,
-            root_history_data,
+            root_history,
             bloom_filter_stores: [bf_store_0, bf_store_1],
         })
     }
@@ -171,26 +164,9 @@ impl Deref for BatchedMerkleTreeRef<'_> {
     }
 }
 
-/// Provide index access to root_history for compatibility with
-/// existing code that does `merkle_tree.root_history[index]`.
-pub struct RootHistoryAccess<'a> {
-    data: &'a Ref<&'a [u8], [[u8; 32]]>,
-}
-
-impl<'a> std::ops::Index<usize> for RootHistoryAccess<'a> {
-    type Output = [u8; 32];
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.data[index]
-    }
-}
-
 impl<'a> BatchedMerkleTreeRef<'a> {
-    /// Access root_history with index syntax for compatibility with
-    /// code like `merkle_tree.root_history[root_index as usize]`.
-    pub fn root_history(&self) -> RootHistoryAccess<'_> {
-        RootHistoryAccess {
-            data: &self.root_history_data,
-        }
+    /// Return root from the root history by index.
+    pub fn get_root_by_index(&self, index: usize) -> Option<&[u8; 32]> {
+        self.root_history.get(index)
     }
 }

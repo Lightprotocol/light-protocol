@@ -69,7 +69,7 @@ fn test_merkle_tree_ref_matches_mutable() {
 
     // Root history should match (using root_history() accessor).
     for (i, expected) in expected_roots.iter().enumerate() {
-        assert_eq!(Some(tree_ref.root_history()[i]), *expected);
+        assert_eq!(Some(*tree_ref.get_root_by_index(i).unwrap()), *expected);
     }
 
     // Bloom filter stores should match.
@@ -187,7 +187,7 @@ fn test_merkle_tree_ref_root_history_access() {
     // Verify root_history at physical indices matches mutable path
     for (i, expected) in expected_roots.iter().enumerate() {
         assert_eq!(
-            Some(tree_ref.root_history()[i]),
+            Some(*tree_ref.get_root_by_index(i).unwrap()),
             *expected,
             "Root at index {} should match",
             i
@@ -213,16 +213,21 @@ fn test_merkle_tree_ref_root_history_boundaries() {
     let tree_ref = BatchedMerkleTreeRef::state_from_bytes(&account_data, &pubkey).unwrap();
 
     // Verify boundary access works (index 0 and capacity-1)
-    assert_eq!(tree_ref.root_history()[0], first_root, "First root should be accessible");
     assert_eq!(
-        tree_ref.root_history()[(root_history_len - 1) as usize],
+        *tree_ref.get_root_by_index(0).unwrap(),
+        first_root,
+        "First root should be accessible"
+    );
+    assert_eq!(
+        *tree_ref
+            .get_root_by_index((root_history_len - 1) as usize)
+            .unwrap(),
         last_root,
         "Last root should be accessible"
     );
 }
 
 #[test]
-#[should_panic(expected = "index out of bounds")]
 fn test_merkle_tree_ref_root_history_out_of_bounds() {
     let (data, pubkey) = MerkleTreeAccountBuilder::state_tree()
         .with_root_history_capacity(5)
@@ -230,8 +235,8 @@ fn test_merkle_tree_ref_root_history_out_of_bounds() {
 
     let tree_ref = BatchedMerkleTreeRef::state_from_bytes(&data, &pubkey).unwrap();
 
-    // Access beyond capacity should panic
-    let _ = tree_ref.root_history()[10]; // Capacity is 5, so index 10 is out of bounds
+    // Access beyond length returns None
+    assert!(tree_ref.get_root_by_index(10).is_none());
 }
 
 #[test]
