@@ -16,8 +16,8 @@ pub use response::{Context, Items, ItemsWithCursor, Response};
 pub use types::{
     AccountProofInputs, Address, AddressMerkleTreeAccounts, AddressProofInputs, AddressQueueData,
     AddressWithTree, CompressedAccount, CompressedTokenAccount, Hash, InputQueueData, MerkleProof,
-    MerkleProofWithContext, NewAddressProofWithContext, NextTreeInfo, OutputQueueData, OwnerBalance,
-    ProofOfLeaf, QueueElementsResult, QueueInfo, QueueInfoResult, RootIndex,
+    MerkleProofWithContext, NewAddressProofWithContext, NextTreeInfo, OutputQueueData,
+    OwnerBalance, ProofOfLeaf, QueueElementsResult, QueueInfo, QueueInfoResult, RootIndex,
     SignatureWithMetadata, StateMerkleTreeAccounts, StateQueueData, TokenBalance, TreeInfo,
     ValidityProofWithContext,
 };

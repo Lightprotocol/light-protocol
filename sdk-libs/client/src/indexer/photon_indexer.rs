@@ -10,14 +10,16 @@ use tracing::{error, trace, warn};
 use super::types::{
     CompressedAccount, CompressedTokenAccount, OwnerBalance, SignatureWithMetadata, TokenBalance,
 };
-use crate::interface::AccountInterface;
-use crate::indexer::{
-    base58::Base58Conversions,
-    config::RetryConfig,
-    response::{Context, Items, ItemsWithCursor, Response},
-    Address, AddressWithTree, GetCompressedAccountsByOwnerConfig,
-    GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash, Indexer, IndexerError,
-    IndexerRpcConfig, MerkleProof, NewAddressProofWithContext, PaginatedOptions,
+use crate::{
+    indexer::{
+        base58::Base58Conversions,
+        config::RetryConfig,
+        response::{Context, Items, ItemsWithCursor, Response},
+        Address, AddressWithTree, GetCompressedAccountsByOwnerConfig,
+        GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash, Indexer, IndexerError,
+        IndexerRpcConfig, MerkleProof, NewAddressProofWithContext, PaginatedOptions,
+    },
+    interface::AccountInterface,
 };
 
 // Tests are in program-tests/client-test/tests/light-client.rs
@@ -1818,8 +1820,9 @@ impl PhotonIndexer {
 fn convert_photon_account_interface(
     ai: &photon_api::types::AccountInterface,
 ) -> Result<AccountInterface, IndexerError> {
-    use super::base58::decode_base58_to_fixed_array;
     use solana_account::Account;
+
+    use super::base58::decode_base58_to_fixed_array;
 
     let key = Pubkey::new_from_array(decode_base58_to_fixed_array(&ai.key)?);
     let data = base64::decode_config(&*ai.account.data, base64::STANDARD_NO_PAD)

@@ -110,8 +110,7 @@ impl AccountInterface {
             return None;
         }
 
-        let token =
-            light_token::compat::TokenData::deserialize(&mut data.data.as_slice()).ok()?;
+        let token = light_token::compat::TokenData::deserialize(&mut data.data.as_slice()).ok()?;
         Some(CompressedTokenAccount {
             token,
             account: compressed.clone(),
