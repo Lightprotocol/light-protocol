@@ -5,14 +5,12 @@
 
 use anchor_lang::prelude::*;
 use light_account::{
+    create_accounts,
     light_account_checks::{self, packed_accounts::ProgramPackedAccounts},
-    prepare_compressed_account_on_init, CpiAccounts, CpiAccountsConfig, CpiContextWriteAccounts,
-    InvokeLightSystemProgram, LightAccount, LightAccountVariantTrait, LightFinalize, LightPreInit,
-    LightSdkTypesError, PackedAddressTreeInfoExt, PackedLightAccountVariantTrait,
+    LightAccount, LightAccountVariantTrait, LightFinalize, LightPreInit, LightSdkTypesError,
+    PackedLightAccountVariantTrait, PdaInitParam, SharedAccounts,
 };
-use light_compressed_account::instruction_data::{
-    cpi_context::CompressedCpiContext, with_account_info::InstructionDataInvokeCpiWithAccountInfo,
-};
+use solana_account_info::AccountInfo;
 
 use super::{
     accounts::{CreateZeroCopy, CreateZeroCopyParams},
@@ -42,107 +40,36 @@ impl<'info> LightPreInit<AccountInfo<'info>, CreateZeroCopyParams> for CreateZer
         remaining_accounts: &[AccountInfo<'info>],
         params: &CreateZeroCopyParams,
     ) -> std::result::Result<bool, LightSdkTypesError> {
-        let inner = || -> std::result::Result<bool, LightSdkTypesError> {
-            use light_account::{LightAccount, LightConfig};
-            use solana_program::{clock::Clock, sysvar::Sysvar};
+        let record_info = self.record.to_account_info();
 
-            // 1. Build CPI accounts (slice remaining_accounts at system_accounts_offset)
-            let system_accounts_offset =
-                params.create_accounts_proof.system_accounts_offset as usize;
-            if remaining_accounts.len() < system_accounts_offset {
-                return Err(LightSdkTypesError::FewerAccountsThanSystemAccounts);
-            }
-            let config = CpiAccountsConfig::new(crate::LIGHT_CPI_SIGNER);
-            let cpi_accounts = CpiAccounts::new_with_config(
-                &self.fee_payer,
-                &remaining_accounts[system_accounts_offset..],
-                config,
-            );
-
-            // 2. Get address tree pubkey from packed tree info
-            let address_tree_info = &params.create_accounts_proof.address_tree_info;
-            let address_tree_pubkey = address_tree_info
-                .get_tree_pubkey(&cpi_accounts)
-                .map_err(|_| LightSdkTypesError::InvalidInstructionData)?;
-            let output_tree_index = params.create_accounts_proof.output_state_tree_index;
-            let current_account_index: u8 = 0;
-            // Is true if the instruction creates 1 or more light mints in addition to 1 or more light pda accounts.
-            const WITH_CPI_CONTEXT: bool = false;
-            // Is first if the instruction creates 1 or more light mints in addition to 1 or more light pda accounts.
-            let cpi_context = if WITH_CPI_CONTEXT {
-                CompressedCpiContext::first()
-            } else {
-                CompressedCpiContext::default()
-            };
-            const NUM_LIGHT_PDAS: usize = 1;
-            let mut new_address_params = Vec::with_capacity(NUM_LIGHT_PDAS);
-            let mut account_infos = Vec::with_capacity(NUM_LIGHT_PDAS);
-
-            // 3. Load config and get current slot
-            let light_config =
-                LightConfig::load_checked(&self.compression_config, &crate::ID.to_bytes())
-                    .map_err(|_| LightSdkTypesError::InvalidInstructionData)?;
-            let current_slot = Clock::get()
-                .map_err(|_| LightSdkTypesError::InvalidInstructionData)?
-                .slot;
-
-            // 4. Prepare compressed account using helper function
-            // Get the record's key from AccountLoader
-            let record_key = self.record.key();
-            prepare_compressed_account_on_init(
-                &record_key.to_bytes(),
-                &address_tree_pubkey.to_bytes(),
-                address_tree_info,
-                output_tree_index,
-                current_account_index,
-                &crate::ID.to_bytes(),
-                &mut new_address_params,
-                &mut account_infos,
-            )?;
-
-            // 5. Set compression_info on the zero-copy record
-            // For AccountLoader, we need to use load_init() which was already called by Anchor
-            {
+        create_accounts::<AccountInfo<'info>, 1, 0, 0, 0, _>(
+            [PdaInitParam {
+                account: &record_info,
+            }],
+            |light_config, current_slot| {
                 let mut record = self
                     .record
                     .load_init()
                     .map_err(|_| LightSdkTypesError::Borsh)?;
-                record.set_decompressed(&light_config, current_slot);
-            }
-
-            // 6. Build instruction data manually (no builder pattern)
-            let instruction_data = InstructionDataInvokeCpiWithAccountInfo {
-                mode: 1, // V2 mode
-                bump: crate::LIGHT_CPI_SIGNER.bump,
-                invoking_program_id: crate::LIGHT_CPI_SIGNER.program_id.into(),
-                compress_or_decompress_lamports: 0,
-                is_compress: false,
-                with_cpi_context: WITH_CPI_CONTEXT,
-                with_transaction_hash: false,
-                cpi_context,
-                proof: params.create_accounts_proof.proof.0,
-                new_address_params,
-                account_infos,
-                read_only_addresses: vec![],
-                read_only_accounts: vec![],
-            };
-            if !WITH_CPI_CONTEXT {
-                // 7. Invoke Light System Program CPI
-                instruction_data.invoke(cpi_accounts)?;
-            } else {
-                // For flows that combine light mints with light PDAs, write to CPI context first.
-                let cpi_context_accounts = CpiContextWriteAccounts {
-                    fee_payer: cpi_accounts.fee_payer(),
-                    authority: cpi_accounts.authority()?,
-                    cpi_context: cpi_accounts.cpi_context()?,
-                    cpi_signer: crate::LIGHT_CPI_SIGNER,
-                };
-                instruction_data.invoke_write_to_cpi_context_first(cpi_context_accounts)?;
-            }
-
-            Ok(false) // No mints, so no CPI context write
-        };
-        inner()
+                record.set_decompressed(light_config, current_slot);
+                Ok(())
+            },
+            None,
+            [],
+            [],
+            &SharedAccounts {
+                fee_payer: &self.fee_payer.to_account_info(),
+                cpi_signer: crate::LIGHT_CPI_SIGNER,
+                proof: &params.create_accounts_proof,
+                program_id: crate::LIGHT_CPI_SIGNER.program_id,
+                compression_config: Some(&self.compression_config),
+                compressible_config: None,
+                rent_sponsor: None,
+                cpi_authority: None,
+                system_program: None,
+            },
+            remaining_accounts,
+        )
     }
 }
 
