@@ -60,18 +60,24 @@ export async function mintToCompressed(
         outputStateTreeInfo = selectStateTreeInfo(trees);
     }
 
-    const validityProof = await rpc.getValidityProofV2(
-        [
-            {
-                hash: bn(mintInfo.merkleContext.hash),
-                leafIndex: mintInfo.merkleContext.leafIndex,
-                treeInfo: mintInfo.merkleContext.treeInfo,
-                proveByIndex: mintInfo.merkleContext.proveByIndex,
-            },
-        ],
-        [],
-        DerivationMode.compressible,
-    );
+    const isDecompressed =
+        mintInfo.mintContext?.cmintDecompressed ?? false;
+
+    // Skip validity proof for decompressed mints (program reads from CMint account)
+    const validityProof = isDecompressed
+        ? null
+        : await rpc.getValidityProofV2(
+              [
+                  {
+                      hash: bn(mintInfo.merkleContext.hash),
+                      leafIndex: mintInfo.merkleContext.leafIndex,
+                      treeInfo: mintInfo.merkleContext.treeInfo,
+                      proveByIndex: mintInfo.merkleContext.proveByIndex,
+                  },
+              ],
+              [],
+              DerivationMode.compressible,
+          );
 
     const ix = createMintToCompressedInstruction(
         authority.publicKey,

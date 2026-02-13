@@ -353,6 +353,8 @@ export {
     createAtaInterfaceIdempotent,
     // getOrCreateAtaInterface is defined locally with unified behavior
     decompressInterface,
+    decompressMint,
+    DecompressMintParams,
     wrap,
     unwrap,
     mintTo as mintToCToken,

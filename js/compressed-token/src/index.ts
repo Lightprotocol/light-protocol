@@ -81,6 +81,8 @@ export {
     getOrCreateAtaInterface,
     transferInterface,
     decompressInterface,
+    decompressMint,
+    DecompressMintParams,
     wrap,
     mintTo as mintToCToken,
     mintToCompressed,

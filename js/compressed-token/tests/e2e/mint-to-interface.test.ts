@@ -14,7 +14,7 @@ import {
     TOKEN_PROGRAM_ID,
     TOKEN_2022_PROGRAM_ID,
 } from '@solana/spl-token';
-import { createMintInterface, decompressMint } from '../../src/v3/actions';
+import { createMintInterface } from '../../src/v3/actions';
 import { mintToInterface } from '../../src/v3/actions/mint-to-interface';
 import { createMint } from '../../src/actions/create-mint';
 import { createAssociatedCTokenAccount } from '../../src/v3/actions/create-associated-ctoken';
@@ -194,8 +194,6 @@ describe('mintToInterface - Compressed Mints', () => {
         await rpc.confirmTransaction(result.transactionSignature, 'confirmed');
         mint = result.mint;
 
-        // Decompress mint so it exists on-chain (required for ATA creation)
-        await decompressMint(rpc, payer, mint);
     });
 
     it('should mint compressed tokens to onchain ctoken account', async () => {
@@ -490,8 +488,6 @@ describe('mintToInterface - Edge Cases', () => {
         await rpc.confirmTransaction(result.transactionSignature, 'confirmed');
         compressedMint = result.mint;
 
-        // Decompress mint so it exists on-chain (required for ATA creation)
-        await decompressMint(rpc, payer, compressedMint);
     });
 
     it('should handle zero amount minting', async () => {
@@ -538,9 +534,6 @@ describe('mintToInterface - Edge Cases', () => {
             mintSigner,
         );
         await rpc.confirmTransaction(result.transactionSignature, 'confirmed');
-
-        // Decompress mint so it exists on-chain (required for ATA creation)
-        await decompressMint(rpc, payer, result.mint);
 
         const recipient = Keypair.generate();
         await createAssociatedCTokenAccount(

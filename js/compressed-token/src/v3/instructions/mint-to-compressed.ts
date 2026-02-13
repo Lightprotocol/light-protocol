@@ -42,10 +42,12 @@ function encodeCompressedMintToInstructionData(
         );
     }
 
+    const isDecompressed = params.mintData.cmintDecompressed;
+
     const instructionData: MintActionCompressedInstructionData = {
         leafIndex: params.leafIndex,
         proveByIndex: true,
-        rootIndex: params.rootIndex,
+        rootIndex: isDecompressed ? 0 : params.rootIndex,
         maxTopUp: 0,
         createMint: null,
         actions: [
@@ -59,22 +61,24 @@ function encodeCompressedMintToInstructionData(
                 },
             },
         ],
-        proof: params.proof,
+        proof: isDecompressed ? null : params.proof,
         cpiContext: null,
-        mint: {
-            supply: params.mintData.supply,
-            decimals: params.mintData.decimals,
-            metadata: {
-                version: params.mintData.version,
-                cmintDecompressed: params.mintData.cmintDecompressed,
-                mint: params.mintData.splMint,
-                mintSigner: Array.from(params.mintData.mintSigner),
-                bump: params.mintData.bump,
-            },
-            mintAuthority: params.mintData.mintAuthority,
-            freezeAuthority: params.mintData.freezeAuthority,
-            extensions: null,
-        },
+        mint: isDecompressed
+            ? null
+            : {
+                  supply: params.mintData.supply,
+                  decimals: params.mintData.decimals,
+                  metadata: {
+                      version: params.mintData.version,
+                      cmintDecompressed: params.mintData.cmintDecompressed,
+                      mint: params.mintData.splMint,
+                      mintSigner: Array.from(params.mintData.mintSigner),
+                      bump: params.mintData.bump,
+                  },
+                  mintAuthority: params.mintData.mintAuthority,
+                  freezeAuthority: params.mintData.freezeAuthority,
+                  extensions: null,
+              },
     };
 
     return encodeMintActionInstructionData(instructionData);
@@ -100,7 +104,7 @@ export interface CreateMintToCompressedInstructionParams {
  *
  * @param authority             Mint authority public key.
  * @param payer                 Fee payer public key.
- * @param validityProof         Validity proof for the compressed mint.
+ * @param validityProof         Validity proof for the compressed mint (null for decompressed mints).
  * @param merkleContext         Merkle context of the compressed mint.
  * @param mintData              Mint instruction data.
  * @param recipients            Array of recipients with amounts.
@@ -112,7 +116,7 @@ export interface CreateMintToCompressedInstructionParams {
 export function createMintToCompressedInstruction(
     authority: PublicKey,
     payer: PublicKey,
-    validityProof: ValidityProofWithContext,
+    validityProof: ValidityProofWithContext | null,
     merkleContext: MerkleContext,
     mintData: MintInstructionData,
     recipients: Array<{ recipient: PublicKey; amount: number | bigint }>,
@@ -123,8 +127,8 @@ export function createMintToCompressedInstruction(
     const data = encodeCompressedMintToInstructionData({
         addressTree: addressTreeInfo.tree,
         leafIndex: merkleContext.leafIndex,
-        rootIndex: validityProof.rootIndices[0],
-        proof: validityProof.compressedProof,
+        rootIndex: validityProof?.rootIndices[0] ?? 0,
+        proof: validityProof?.compressedProof ?? null,
         mintData,
         recipients,
         tokenAccountVersion,
@@ -134,6 +138,7 @@ export function createMintToCompressedInstruction(
     const outputQueue =
         outputStateTreeInfo?.queue ?? getOutputQueue(merkleContext);
 
+    const isDecompressed = mintData.cmintDecompressed;
     const sys = defaultStaticAccountsStruct();
     const keys = [
         {
@@ -142,6 +147,17 @@ export function createMintToCompressedInstruction(
             isWritable: false,
         },
         { pubkey: authority, isSigner: true, isWritable: false },
+        // CMint account (decompressed SPL mint PDA) - parsed by on-chain
+        // iterator via needs_cmint_account() when mint data is None.
+        ...(isDecompressed
+            ? [
+                  {
+                      pubkey: mintData.splMint,
+                      isSigner: false,
+                      isWritable: true,
+                  },
+              ]
+            : []),
         { pubkey: payer, isSigner: true, isWritable: true },
         {
             pubkey: CompressedTokenProgram.deriveCpiAuthorityPda,

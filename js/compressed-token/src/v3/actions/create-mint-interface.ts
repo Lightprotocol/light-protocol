@@ -59,6 +59,8 @@ export async function createMintInterface(
     tokenMetadata?: TokenMetadataInstructionData,
     outputStateTreeInfo?: TreeInfo,
     addressTreeInfo?: AddressTreeInfo,
+    rentPayment?: number,
+    writeTopUp?: number,
 ): Promise<{ mint: PublicKey; transactionSignature: TransactionSignature }> {
     assertBetaEnabled();
 
@@ -130,6 +132,8 @@ export async function createMintInterface(
         addressTreeInfo,
         outputStateTreeInfo,
         tokenMetadata,
+        rentPayment,
+        writeTopUp,
     );
 
     const additionalSigners = dedupeSigner(payer, [keypair, mintAuthority]);
