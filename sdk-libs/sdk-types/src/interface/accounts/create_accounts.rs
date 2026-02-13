@@ -141,6 +141,9 @@ pub fn create_accounts<
     // ====================================================================
     // 1. Validate required Option fields based on const generics
     // ====================================================================
+    if PDAS > u8::MAX as usize || MINTS > u8::MAX as usize {
+        return Err(LightSdkTypesError::InvalidInstructionData);
+    }
     if PDAS > 0 && shared.compression_config.is_none() {
         return Err(LightSdkTypesError::InvalidInstructionData);
     }
