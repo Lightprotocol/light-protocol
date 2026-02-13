@@ -4,7 +4,7 @@ import {
     createAssociatedTokenAccountInstruction as createSplAssociatedTokenAccountInstruction,
     createAssociatedTokenAccountIdempotentInstruction as createSplAssociatedTokenAccountIdempotentInstruction,
 } from '@solana/spl-token';
-import { CTOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
+import { LIGHT_TOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
 import { getAtaProgramId } from '../ata-utils';
 import {
     createAssociatedCTokenAccountInstruction,
@@ -20,7 +20,7 @@ export { DEFAULT_COMPRESSIBLE_CONFIG };
  * c-token-specific config for createAssociatedTokenAccountInterfaceInstruction
  */
 export interface CTokenConfig {
-    compressibleConfig?: CompressibleConfig;
+    compressibleConfig?: CompressibleConfig | null;
     configAccount?: PublicKey;
     rentPayerPda?: PublicKey;
 }
@@ -63,7 +63,7 @@ export function createAssociatedTokenAccountInterfaceInstruction(
     const effectiveAssociatedTokenProgramId =
         associatedTokenProgramId ?? getAtaProgramId(programId);
 
-    if (programId.equals(CTOKEN_PROGRAM_ID)) {
+    if (programId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
         return createAssociatedCTokenAccountInstruction(
             payer,
             owner,
@@ -109,7 +109,7 @@ export function createAssociatedTokenAccountInterfaceIdempotentInstruction(
     const effectiveAssociatedTokenProgramId =
         associatedTokenProgramId ?? getAtaProgramId(programId);
 
-    if (programId.equals(CTOKEN_PROGRAM_ID)) {
+    if (programId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
         return createAssociatedCTokenAccountIdempotentInstruction(
             payer,
             owner,

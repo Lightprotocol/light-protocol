@@ -11,6 +11,7 @@ import {
     sendAndConfirmTx,
     assertBetaEnabled,
 } from '@lightprotocol/stateless.js';
+import { MAX_TOP_UP } from '../../constants';
 import { createMintToInstruction } from '../instructions/mint-to';
 
 /**
@@ -51,7 +52,7 @@ export async function mintTo(
         destination,
         amount,
         authority: authority.publicKey,
-        maxTopUp,
+        maxTopUp: maxTopUp ?? MAX_TOP_UP,
         feePayer,
     });
 

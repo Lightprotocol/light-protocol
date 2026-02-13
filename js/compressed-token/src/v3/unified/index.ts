@@ -10,10 +10,11 @@ import {
     ConfirmOptions,
     Commitment,
     ComputeBudgetProgram,
+    TransactionInstruction,
 } from '@solana/web3.js';
 import {
     Rpc,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
     buildAndSignTx,
     sendAndConfirmTx,
 } from '@lightprotocol/stateless.js';
@@ -29,8 +30,17 @@ import {
     loadAta as _loadAta,
 } from '../actions/load-ata';
 import { createAssociatedTokenAccountInterfaceIdempotentInstruction } from '../instructions/create-ata-interface';
-import { transferInterface as _transferInterface } from '../actions/transfer-interface';
+import {
+    transferInterface as _transferInterface,
+    createTransferInterfaceInstructions as _createTransferInterfaceInstructions,
+} from '../actions/transfer-interface';
+import type { TransferOptions as _TransferOptions } from '../actions/transfer-interface';
 import { _getOrCreateAtaInterface } from '../actions/get-or-create-ata-interface';
+import {
+    createUnwrapInstructions as _createUnwrapInstructions,
+    unwrap as _unwrap,
+} from '../actions/unwrap';
+import { SplInterfaceInfo } from '../../utils/get-token-pool-infos';
 import { getAtaProgramId } from '../ata-utils';
 import { InterfaceOptions } from '..';
 
@@ -59,7 +69,7 @@ export async function getAtaInterface(
 /**
  * Derive the canonical token ATA for SPL/T22/c-token in the unified path.
  *
- * Enforces CTOKEN_PROGRAM_ID.
+ * Enforces LIGHT_TOKEN_PROGRAM_ID.
  *
  * @param mint                      Mint public key
  * @param owner                     Owner public key
@@ -73,10 +83,10 @@ export function getAssociatedTokenAddressInterface(
     mint: PublicKey,
     owner: PublicKey,
     allowOwnerOffCurve = false,
-    programId: PublicKey = CTOKEN_PROGRAM_ID,
+    programId: PublicKey = LIGHT_TOKEN_PROGRAM_ID,
     associatedTokenProgramId?: PublicKey,
 ): PublicKey {
-    if (!programId.equals(CTOKEN_PROGRAM_ID)) {
+    if (!programId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
         throw new Error(
             'Please derive the unified ATA from the c-token program; balances across SPL, T22, and c-token are unified under the canonical c-token ATA.',
         );
@@ -92,7 +102,7 @@ export function getAssociatedTokenAddressInterface(
 }
 
 /**
- * Create instructions to load ALL token balances into a c-token ATA.
+ * Create instruction batches for loading ALL token balances into a c-token ATA.
  *
  * @param rpc     RPC connection
  * @param ata     Associated token address
@@ -100,7 +110,7 @@ export function getAssociatedTokenAddressInterface(
  * @param mint    Mint public key
  * @param payer   Fee payer (defaults to owner)
  * @param options Optional interface options
- * @returns Array of instructions (empty if nothing to load)
+ * @returns Instruction batches - each inner array is one transaction
  */
 export async function createLoadAtaInstructions(
     rpc: Rpc,
@@ -109,7 +119,7 @@ export async function createLoadAtaInstructions(
     mint: PublicKey,
     payer?: PublicKey,
     options?: InterfaceOptions,
-) {
+): Promise<TransactionInstruction[][]> {
     return _createLoadAtaInstructions(
         rpc,
         ata,
@@ -169,7 +179,7 @@ export async function loadAta(
                     ata,
                     owner.publicKey,
                     mint,
-                    CTOKEN_PROGRAM_ID,
+                    LIGHT_TOKEN_PROGRAM_ID,
                 );
             const { blockhash } = await rpc.getLatestBlockhash();
             const tx = buildAndSignTx(
@@ -191,7 +201,7 @@ export async function loadAta(
 /**
  * Transfer tokens using the unified ata interface.
  *
- * Matches SPL Token's transferChecked signature order. Destination must exist.
+ * Destination ATA must exist. Automatically wraps SPL/T22 to c-token ATA.
  *
  * @param rpc             RPC connection
  * @param payer           Fee payer (signer)
@@ -200,7 +210,6 @@ export async function loadAta(
  * @param destination     Destination c-token ATA address (must exist)
  * @param owner           Source owner (signer)
  * @param amount          Amount to transfer
- * @param programId       Token program ID (default: CTOKEN_PROGRAM_ID)
  * @param confirmOptions  Optional confirm options
  * @param options         Optional interface options
  * @returns Transaction signature
@@ -213,7 +222,6 @@ export async function transferInterface(
     destination: PublicKey,
     owner: Signer,
     amount: number | bigint | BN,
-    programId: PublicKey = CTOKEN_PROGRAM_ID,
     confirmOptions?: ConfirmOptions,
     options?: InterfaceOptions,
 ) {
@@ -225,17 +233,17 @@ export async function transferInterface(
         destination,
         owner,
         amount,
-        programId,
+        undefined, // programId: use default LIGHT_TOKEN_PROGRAM_ID
         confirmOptions,
         options,
-        true,
+        true, // wrap=true for unified
     );
 }
 
 /**
  * Get or create c-token ATA with unified balance detection and auto-loading.
  *
- * Enforces CTOKEN_PROGRAM_ID. Aggregates balances from:
+ * Enforces LIGHT_TOKEN_PROGRAM_ID. Aggregates balances from:
  * - c-token hot (on-chain) account
  * - c-token cold (compressed) accounts
  * - SPL token accounts (for unified wrapping)
@@ -277,11 +285,128 @@ export async function getOrCreateAtaInterface(
         allowOwnerOffCurve,
         commitment,
         confirmOptions,
-        CTOKEN_PROGRAM_ID,
-        getAtaProgramId(CTOKEN_PROGRAM_ID),
+        LIGHT_TOKEN_PROGRAM_ID,
+        getAtaProgramId(LIGHT_TOKEN_PROGRAM_ID),
         true, // wrap=true for unified path
     );
 }
+
+/**
+ * Create transfer instructions for a unified token transfer.
+ *
+ * Unified variant: always wraps SPL/T22 to c-token ATA.
+ *
+ * Returns `TransactionInstruction[][]`. Send [0..n-2] in parallel, then [n-1].
+ * Use `sliceLast` to separate the parallel prefix from the final transfer.
+ *
+ * @see createTransferInterfaceInstructions in v3/actions/transfer-interface.ts
+ */
+export async function createTransferInterfaceInstructions(
+    rpc: Rpc,
+    payer: PublicKey,
+    mint: PublicKey,
+    amount: number | bigint | BN,
+    sender: PublicKey,
+    recipient: PublicKey,
+    options?: Omit<_TransferOptions, 'wrap'>,
+): Promise<TransactionInstruction[][]> {
+    return _createTransferInterfaceInstructions(
+        rpc,
+        payer,
+        mint,
+        amount,
+        sender,
+        recipient,
+        {
+            ...options,
+            wrap: true,
+        },
+    );
+}
+
+/**
+ * Build instruction batches for unwrapping c-tokens to SPL/T22.
+ *
+ * Unified variant: uses wrap=true for loading, so SPL/T22 balances are
+ * consolidated before unwrapping.
+ *
+ * Returns `TransactionInstruction[][]`. Load batches (if any) come first,
+ * followed by one final unwrap transaction.
+ *
+ * @param rpc               RPC connection
+ * @param destination       Destination SPL/T22 token account (must exist)
+ * @param owner             Owner of the c-token
+ * @param mint              Mint address
+ * @param amount            Amount to unwrap (defaults to full balance)
+ * @param payer             Fee payer (defaults to owner)
+ * @param splInterfaceInfo  Optional: SPL interface info
+ * @param interfaceOptions  Optional: interface options for load
+ * @returns Instruction batches - each inner array is one transaction
+ */
+export async function createUnwrapInstructions(
+    rpc: Rpc,
+    destination: PublicKey,
+    owner: PublicKey,
+    mint: PublicKey,
+    amount?: number | bigint | BN,
+    payer?: PublicKey,
+    splInterfaceInfo?: SplInterfaceInfo,
+    interfaceOptions?: InterfaceOptions,
+): Promise<TransactionInstruction[][]> {
+    return _createUnwrapInstructions(
+        rpc,
+        destination,
+        owner,
+        mint,
+        amount,
+        payer,
+        splInterfaceInfo,
+        undefined, // maxTopUp - use default
+        interfaceOptions,
+        true, // wrap=true for unified
+    );
+}
+
+/**
+ * Unwrap c-tokens to SPL tokens.
+ *
+ * Unified variant: loads all cold + SPL/T22 balances to c-token ATA first,
+ * then unwraps to the destination SPL/T22 account.
+ *
+ * @param rpc                RPC connection
+ * @param payer              Fee payer
+ * @param destination        Destination SPL/T22 token account
+ * @param owner              Owner of the c-token (signer)
+ * @param mint               Mint address
+ * @param amount             Amount to unwrap (defaults to all)
+ * @param splInterfaceInfo   SPL interface info
+ * @param confirmOptions     Confirm options
+ * @returns Transaction signature of the unwrap transaction
+ */
+export async function unwrap(
+    rpc: Rpc,
+    payer: Signer,
+    destination: PublicKey,
+    owner: Signer,
+    mint: PublicKey,
+    amount?: number | bigint | BN,
+    splInterfaceInfo?: SplInterfaceInfo,
+    confirmOptions?: ConfirmOptions,
+): Promise<string> {
+    return _unwrap(
+        rpc,
+        payer,
+        destination,
+        owner,
+        mint,
+        amount,
+        splInterfaceInfo,
+        undefined, // maxTopUp - use default
+        confirmOptions,
+    );
+}
+
+export type { _TransferOptions as TransferOptions };
 
 export {
     getAccountInterface,
@@ -307,7 +432,7 @@ export {
     LoadResult,
 } from '../actions/load-ata';
 
-export { InterfaceOptions } from '../actions/transfer-interface';
+export { InterfaceOptions, sliceLast } from '../actions/transfer-interface';
 
 export * from '../../actions';
 export * from '../../utils';
@@ -338,8 +463,7 @@ export {
     createWrapInstruction,
     createUnwrapInstruction,
     createDecompressInterfaceInstruction,
-    createTransferInterfaceInstruction,
-    createCTokenTransferInstruction,
+    createLightTokenTransferInstruction,
     // Types
     TokenMetadataInstructionData,
     CompressibleConfig,
@@ -354,7 +478,7 @@ export {
     // getOrCreateAtaInterface is defined locally with unified behavior
     decompressInterface,
     wrap,
-    unwrap,
+    // unwrap and createUnwrapInstructions are defined locally with unified behavior
     mintTo as mintToCToken,
     mintToCompressed,
     mintToInterface,

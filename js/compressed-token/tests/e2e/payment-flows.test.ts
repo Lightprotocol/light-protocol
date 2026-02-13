@@ -20,7 +20,7 @@ import {
     TreeInfo,
     VERSION,
     featureFlags,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
     buildAndSignTx,
     sendAndConfirmTx,
 } from '@lightprotocol/stateless.js';
@@ -33,12 +33,16 @@ import {
 import { getAtaInterface } from '../../src/v3/get-account-interface';
 import { getAssociatedTokenAddressInterface } from '../../src/v3/get-associated-token-address-interface';
 import { getOrCreateAtaInterface } from '../../src/v3/actions/get-or-create-ata-interface';
-import { transferInterface } from '../../src/v3/actions/transfer-interface';
+import {
+    transferInterface,
+    createTransferInterfaceInstructions,
+    sliceLast,
+} from '../../src/v3/actions/transfer-interface';
 import {
     createLoadAccountsParams,
     loadAta,
 } from '../../src/v3/actions/load-ata';
-import { createTransferInterfaceInstruction } from '../../src/v3/instructions/transfer-interface';
+import { createLightTokenTransferInstruction } from '../../src/v3/instructions/transfer-interface';
 import { createAssociatedTokenAccountInterfaceIdempotentInstruction } from '../../src/v3/instructions/create-ata-interface';
 
 featureFlags.version = VERSION.V2;
@@ -103,7 +107,7 @@ describe('Payment Flows', () => {
                 recipient.publicKey,
             );
 
-            // STEP 2: transfer (auto-loads sender, destination must exist)
+            // STEP 2: transfer (auto-loads sender, auto-creates recipient ATA)
             const sourceAta = getAssociatedTokenAddressInterface(
                 mint,
                 sender.publicKey,
@@ -113,10 +117,10 @@ describe('Payment Flows', () => {
                 payer,
                 sourceAta,
                 mint,
-                recipientAta.parsed.address,
+                recipient.publicKey,
                 sender,
                 amount,
-                CTOKEN_PROGRAM_ID,
+                undefined,
                 undefined,
                 { splInterfaceInfos: tokenPoolInfos },
             );
@@ -154,7 +158,7 @@ describe('Payment Flows', () => {
                 recipient.publicKey,
             );
 
-            // Transfer - auto-loads sender
+            // Transfer - auto-loads sender, auto-creates recipient ATA
             const sourceAta = getAssociatedTokenAddressInterface(
                 mint,
                 sender.publicKey,
@@ -164,10 +168,10 @@ describe('Payment Flows', () => {
                 payer,
                 sourceAta,
                 mint,
-                recipientAta.parsed.address,
+                recipient.publicKey,
                 sender,
                 BigInt(2000),
-                CTOKEN_PROGRAM_ID,
+                undefined,
                 undefined,
                 { splInterfaceInfos: tokenPoolInfos },
             );
@@ -234,13 +238,13 @@ describe('Payment Flows', () => {
                 destAta,
             ))!.data.readBigUInt64LE(64);
 
-            // Transfer - no loading needed
+            // Transfer - no loading needed, pass wallet pubkey
             await transferInterface(
                 rpc,
                 payer,
                 sourceAta,
                 mint,
-                destAta,
+                recipient.publicKey,
                 sender,
                 BigInt(500),
             );
@@ -290,7 +294,7 @@ describe('Payment Flows', () => {
             const result = await createLoadAccountsParams(
                 rpc,
                 payer.publicKey,
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
                 [],
                 [senderAta],
                 { splInterfaceInfos: tokenPoolInfos },
@@ -312,10 +316,10 @@ describe('Payment Flows', () => {
                     recipientAtaAddress,
                     recipient.publicKey,
                     mint,
-                    CTOKEN_PROGRAM_ID,
+                    LIGHT_TOKEN_PROGRAM_ID,
                 ),
                 // Transfer
-                createTransferInterfaceInstruction(
+                createLightTokenTransferInstruction(
                     senderAtaAddress,
                     recipientAtaAddress,
                     sender.publicKey,
@@ -368,7 +372,7 @@ describe('Payment Flows', () => {
             const result = await createLoadAccountsParams(
                 rpc,
                 payer.publicKey,
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
                 [],
                 [senderAta],
             );
@@ -386,9 +390,9 @@ describe('Payment Flows', () => {
                     recipientAtaAddress,
                     recipient.publicKey,
                     mint,
-                    CTOKEN_PROGRAM_ID,
+                    LIGHT_TOKEN_PROGRAM_ID,
                 ),
-                createTransferInterfaceInstruction(
+                createLightTokenTransferInstruction(
                     senderAtaAddress,
                     recipientAtaAddress,
                     sender.publicKey,
@@ -450,23 +454,23 @@ describe('Payment Flows', () => {
                     r1AtaAddress,
                     recipient1.publicKey,
                     mint,
-                    CTOKEN_PROGRAM_ID,
+                    LIGHT_TOKEN_PROGRAM_ID,
                 ),
                 createAssociatedTokenAccountInterfaceIdempotentInstruction(
                     payer.publicKey,
                     r2AtaAddress,
                     recipient2.publicKey,
                     mint,
-                    CTOKEN_PROGRAM_ID,
+                    LIGHT_TOKEN_PROGRAM_ID,
                 ),
                 // Transfers
-                createTransferInterfaceInstruction(
+                createLightTokenTransferInstruction(
                     senderAtaAddress,
                     r1AtaAddress,
                     sender.publicKey,
                     BigInt(1000),
                 ),
-                createTransferInterfaceInstruction(
+                createLightTokenTransferInstruction(
                     senderAtaAddress,
                     r2AtaAddress,
                     sender.publicKey,
@@ -488,6 +492,258 @@ describe('Payment Flows', () => {
             expect(r1Balance).toBe(BigInt(1000));
             expect(r2Balance).toBe(BigInt(2000));
         });
+    });
+
+    // ================================================================
+    // TRANSFER INSTRUCTIONS (Production Payment Pattern)
+    // ================================================================
+
+    describe('createTransferInterfaceInstructions', () => {
+        it('hot sender: single batch', async () => {
+            const sender = await newAccountWithLamports(rpc, 1e9);
+            const recipient = Keypair.generate();
+            const amount = BigInt(500);
+
+            // Setup: mint and load to make sender hot
+            await mintTo(
+                rpc,
+                payer,
+                mint,
+                sender.publicKey,
+                mintAuthority,
+                bn(2000),
+                stateTreeInfo,
+                selectTokenPoolInfo(tokenPoolInfos),
+            );
+            const senderAta = getAssociatedTokenAddressInterface(
+                mint,
+                sender.publicKey,
+            );
+            await loadAta(rpc, senderAta, sender, mint);
+
+            // Ensure recipient ATA exists
+            await getOrCreateAtaInterface(
+                rpc,
+                payer,
+                mint,
+                recipient.publicKey,
+            );
+
+            // Get transfer instructions
+            const batches = await createTransferInterfaceInstructions(
+                rpc,
+                payer.publicKey,
+                mint,
+                amount,
+                sender.publicKey,
+                recipient.publicKey,
+            );
+
+            // Hot sender: single transaction (no loads)
+            expect(batches.length).toBe(1);
+
+            // Production pattern: build tx, sign, send
+            const { blockhash } = await rpc.getLatestBlockhash();
+            const tx = buildAndSignTx(batches[0], payer, blockhash, [sender]);
+            const sig = await sendAndConfirmTx(rpc, tx);
+            expect(sig).toBeDefined();
+
+            // Verify
+            const recipientAta = getAssociatedTokenAddressInterface(
+                mint,
+                recipient.publicKey,
+            );
+            const recipientBalance = (await rpc.getAccountInfo(
+                recipientAta,
+            ))!.data.readBigUInt64LE(64);
+            expect(recipientBalance).toBe(amount);
+        });
+
+        it('cold sender (<=8 inputs): single transaction', async () => {
+            const sender = await newAccountWithLamports(rpc, 1e9);
+            const recipient = Keypair.generate();
+
+            // Mint 3 compressed accounts
+            for (let i = 0; i < 3; i++) {
+                await mintTo(
+                    rpc,
+                    payer,
+                    mint,
+                    sender.publicKey,
+                    mintAuthority,
+                    bn(1000),
+                    stateTreeInfo,
+                    selectTokenPoolInfo(tokenPoolInfos),
+                );
+            }
+
+            // Ensure recipient ATA exists
+            await getOrCreateAtaInterface(
+                rpc,
+                payer,
+                mint,
+                recipient.publicKey,
+            );
+
+            const batches = await createTransferInterfaceInstructions(
+                rpc,
+                payer.publicKey,
+                mint,
+                BigInt(2500),
+                sender.publicKey,
+                recipient.publicKey,
+            );
+
+            // <=8 cold inputs: all fits in one transaction
+            expect(batches.length).toBe(1);
+
+            const { blockhash } = await rpc.getLatestBlockhash();
+            const tx = buildAndSignTx(batches[0], payer, blockhash, [sender]);
+            const sig = await sendAndConfirmTx(rpc, tx);
+            expect(sig).toBeDefined();
+
+            const recipientAta = getAssociatedTokenAddressInterface(
+                mint,
+                recipient.publicKey,
+            );
+            const recipientBalance = (await rpc.getAccountInfo(
+                recipientAta,
+            ))!.data.readBigUInt64LE(64);
+            expect(recipientBalance).toBe(BigInt(2500));
+        });
+
+        it('cold sender (12 inputs): parallel load + sequential transfer', async () => {
+            const sender = await newAccountWithLamports(rpc, 1e9);
+            const recipient = Keypair.generate();
+
+            // Mint 12 compressed accounts (100 each = 1200 total)
+            for (let i = 0; i < 12; i++) {
+                await mintTo(
+                    rpc,
+                    payer,
+                    mint,
+                    sender.publicKey,
+                    mintAuthority,
+                    bn(100),
+                    stateTreeInfo,
+                    selectTokenPoolInfo(tokenPoolInfos),
+                );
+            }
+
+            // Ensure recipient ATA exists
+            await getOrCreateAtaInterface(
+                rpc,
+                payer,
+                mint,
+                recipient.publicKey,
+            );
+
+            const batches = await createTransferInterfaceInstructions(
+                rpc,
+                payer.publicKey,
+                mint,
+                BigInt(1100),
+                sender.publicKey,
+                recipient.publicKey,
+            );
+
+            // >8 inputs: 2 batches (load + transfer)
+            expect(batches.length).toBe(2);
+
+            // Send: loads in parallel, then transfer
+            const { rest: loads, last: transferIxs } = sliceLast(batches);
+            const loadSigs = await Promise.all(
+                loads.map(async ixs => {
+                    const { blockhash } = await rpc.getLatestBlockhash();
+                    const tx = buildAndSignTx(ixs, payer, blockhash, [sender]);
+                    return sendAndConfirmTx(rpc, tx);
+                }),
+            );
+            for (const sig of loadSigs) {
+                expect(sig).toBeDefined();
+            }
+
+            const { blockhash } = await rpc.getLatestBlockhash();
+            const tx = buildAndSignTx(transferIxs, payer, blockhash, [sender]);
+            const sig = await sendAndConfirmTx(rpc, tx);
+            expect(sig).toBeDefined();
+
+            // Verify
+            const recipientAta = getAssociatedTokenAddressInterface(
+                mint,
+                recipient.publicKey,
+            );
+            const recipientBalance = (await rpc.getAccountInfo(
+                recipientAta,
+            ))!.data.readBigUInt64LE(64);
+            expect(recipientBalance).toBe(BigInt(1100));
+        }, 120_000);
+
+        it('cold sender (20 inputs): parallel loads + sequential transfer', async () => {
+            const sender = await newAccountWithLamports(rpc, 1e9);
+            const recipient = Keypair.generate();
+
+            // Mint 20 compressed accounts (50 each = 1000 total)
+            for (let i = 0; i < 20; i++) {
+                await mintTo(
+                    rpc,
+                    payer,
+                    mint,
+                    sender.publicKey,
+                    mintAuthority,
+                    bn(50),
+                    stateTreeInfo,
+                    selectTokenPoolInfo(tokenPoolInfos),
+                );
+            }
+
+            // Ensure recipient ATA exists
+            await getOrCreateAtaInterface(
+                rpc,
+                payer,
+                mint,
+                recipient.publicKey,
+            );
+
+            const batches = await createTransferInterfaceInstructions(
+                rpc,
+                payer.publicKey,
+                mint,
+                BigInt(900),
+                sender.publicKey,
+                recipient.publicKey,
+            );
+
+            // 20 inputs: 3 batches (8+8 loads + last 4 + transfer)
+            expect(batches.length).toBe(3);
+
+            // Send: loads in parallel, then transfer
+            const { rest: loads, last: transferIxs } = sliceLast(batches);
+            const loadSigs = await Promise.all(
+                loads.map(async ixs => {
+                    const { blockhash } = await rpc.getLatestBlockhash();
+                    const tx = buildAndSignTx(ixs, payer, blockhash, [sender]);
+                    return sendAndConfirmTx(rpc, tx);
+                }),
+            );
+            for (const sig of loadSigs) {
+                expect(sig).toBeDefined();
+            }
+
+            const { blockhash } = await rpc.getLatestBlockhash();
+            const tx = buildAndSignTx(transferIxs, payer, blockhash, [sender]);
+            const sig = await sendAndConfirmTx(rpc, tx);
+            expect(sig).toBeDefined();
+
+            const recipientAta = getAssociatedTokenAddressInterface(
+                mint,
+                recipient.publicKey,
+            );
+            const recipientBalance = (await rpc.getAccountInfo(
+                recipientAta,
+            ))!.data.readBigUInt64LE(64);
+            expect(recipientBalance).toBe(BigInt(900));
+        }, 180_000);
     });
 
     // ================================================================
@@ -549,9 +805,9 @@ describe('Payment Flows', () => {
                     recipientAtaAddress,
                     recipient.publicKey,
                     mint,
-                    CTOKEN_PROGRAM_ID,
+                    LIGHT_TOKEN_PROGRAM_ID,
                 ),
-                createTransferInterfaceInstruction(
+                createLightTokenTransferInstruction(
                     senderAtaAddress,
                     recipientAtaAddress,
                     sender.publicKey,

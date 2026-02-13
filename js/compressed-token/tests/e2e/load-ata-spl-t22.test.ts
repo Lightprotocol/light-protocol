@@ -34,10 +34,7 @@ import {
 } from '../../src/utils/get-token-pool-infos';
 import { getAtaProgramId } from '../../src/v3/ata-utils';
 
-import {
-    loadAta,
-    createLoadAtaInstructions,
-} from '../../src/v3/actions/load-ata';
+import { loadAta } from '../../src/v3/actions/load-ata';
 import { checkAtaAddress } from '../../src/v3/ata-utils';
 import { getAssociatedTokenAddressInterface } from '../../src/v3/get-associated-token-address-interface';
 

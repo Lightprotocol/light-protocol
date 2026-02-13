@@ -106,7 +106,7 @@ export interface LoadResult {
  * ```typescript
  * const poolInfo = await myProgram.fetchPoolState(rpc, poolAddress);
  * const vault0Ata = getAssociatedTokenAddressInterface(token0Mint, poolAddress);
- * const vault0Info = await getAtaInterface(rpc, vault0Ata, poolAddress, token0Mint, undefined, CTOKEN_PROGRAM_ID);
+ * const vault0Info = await getAtaInterface(rpc, vault0Ata, poolAddress, token0Mint, undefined, LIGHT_TOKEN_PROGRAM_ID);
  * const userAta = getAssociatedTokenAddressInterface(tokenMint, userWallet);
  * const userAtaInfo = await getAtaInterface(rpc, userAta, userWallet, tokenMint);
  *

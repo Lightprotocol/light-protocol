@@ -4,7 +4,7 @@ import {
     TOKEN_2022_PROGRAM_ID,
     getAssociatedTokenAddressSync,
 } from '@solana/spl-token';
-import { CTOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
+import { LIGHT_TOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
 import { PublicKey } from '@solana/web3.js';
 
 /**
@@ -13,8 +13,8 @@ import { PublicKey } from '@solana/web3.js';
  * @returns ATA program ID
  */
 export function getAtaProgramId(tokenProgramId: PublicKey): PublicKey {
-    if (tokenProgramId.equals(CTOKEN_PROGRAM_ID)) {
-        return CTOKEN_PROGRAM_ID;
+    if (tokenProgramId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
+        return LIGHT_TOKEN_PROGRAM_ID;
     }
     return ASSOCIATED_TOKEN_PROGRAM_ID;
 }
@@ -79,14 +79,14 @@ export function checkAtaAddress(
         mint,
         owner,
         allowOwnerOffCurve,
-        CTOKEN_PROGRAM_ID,
-        getAtaProgramId(CTOKEN_PROGRAM_ID),
+        LIGHT_TOKEN_PROGRAM_ID,
+        getAtaProgramId(LIGHT_TOKEN_PROGRAM_ID),
     );
     if (ata.equals(ctokenExpected)) {
         return {
             valid: true,
             type: 'ctoken',
-            programId: CTOKEN_PROGRAM_ID,
+            programId: LIGHT_TOKEN_PROGRAM_ID,
         };
     }
 
@@ -132,7 +132,7 @@ export function checkAtaAddress(
  * Convert programId to AtaType
  */
 function programIdToAtaType(programId: PublicKey): AtaType {
-    if (programId.equals(CTOKEN_PROGRAM_ID)) return 'ctoken';
+    if (programId.equals(LIGHT_TOKEN_PROGRAM_ID)) return 'ctoken';
     if (programId.equals(TOKEN_PROGRAM_ID)) return 'spl';
     if (programId.equals(TOKEN_2022_PROGRAM_ID)) return 'token2022';
     throw new Error(`Unknown program ID: ${programId.toBase58()}`);

@@ -59,6 +59,13 @@ export const ADD_TOKEN_POOL_DISCRIMINATOR = Buffer.from([
 export const DECOMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR = Buffer.from([107]);
 
 /**
+ * Maximum lamports for rent top-up in a single instruction.
+ * u16::MAX = no limit; 0 = no top-ups allowed.
+ * Matches Rust SDK (e.g. token-sdk create_mints uses u16::MAX for "no limit").
+ */
+export const MAX_TOP_UP = 65535;
+
+/**
  * Rent configuration constants for compressible ctoken accounts.
  * These match the Rust SDK defaults in program-libs/compressible/src/rent/config.rs
  */

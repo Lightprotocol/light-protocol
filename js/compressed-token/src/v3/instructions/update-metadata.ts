@@ -6,12 +6,13 @@ import {
 import { Buffer } from 'buffer';
 import {
     ValidityProofWithContext,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
     LightSystemProgram,
     defaultStaticAccountsStruct,
     getDefaultAddressTreeInfo,
     getOutputQueue,
 } from '@lightprotocol/stateless.js';
+import { MAX_TOP_UP } from '../../constants';
 import { CompressedTokenProgram } from '../../program';
 import { MintInterface } from '../get-mint-interface';
 import {
@@ -48,6 +49,7 @@ interface EncodeUpdateMetadataInstructionParams {
     proof: { a: number[]; b: number[]; c: number[] } | null;
     mintInterface: MintInterface;
     action: UpdateMetadataAction;
+    maxTopUp?: number;
 }
 
 function convertActionToBorsh(action: UpdateMetadataAction): Action {
@@ -98,7 +100,7 @@ function encodeUpdateMetadataInstructionData(
         leafIndex: params.leafIndex,
         proveByIndex: params.proof === null,
         rootIndex: params.rootIndex,
-        maxTopUp: 65535,
+        maxTopUp: params.maxTopUp ?? MAX_TOP_UP,
         createMint: null,
         actions: [convertActionToBorsh(params.action)],
         proof: params.proof,
@@ -149,6 +151,7 @@ function createUpdateMetadataInstruction(
     payer: PublicKey,
     validityProof: ValidityProofWithContext | null,
     action: UpdateMetadataAction,
+    maxTopUp?: number,
 ): TransactionInstruction {
     if (!mintInterface.merkleContext) {
         throw new Error(
@@ -179,6 +182,7 @@ function createUpdateMetadataInstruction(
         proof: isDecompressed ? null : (validityProof?.compressedProof ?? null),
         mintInterface,
         action,
+        maxTopUp,
     });
 
     const sys = defaultStaticAccountsStruct();
@@ -235,7 +239,7 @@ function createUpdateMetadataInstruction(
     ];
 
     return new TransactionInstruction({
-        programId: CTOKEN_PROGRAM_ID,
+        programId: LIGHT_TOKEN_PROGRAM_ID,
         keys,
         data,
     });
@@ -255,6 +259,7 @@ function createUpdateMetadataInstruction(
  * @param value          New value for the field
  * @param customKey      Custom key name (required if fieldType is 'custom')
  * @param extensionIndex Extension index (default: 0)
+ * @param maxTopUp        Optional cap on rent top-up (units of 1k lamports; default no cap)
  */
 export function createUpdateMetadataFieldInstruction(
     mintInterface: MintInterface,
@@ -265,6 +270,7 @@ export function createUpdateMetadataFieldInstruction(
     value: string,
     customKey?: string,
     extensionIndex: number = 0,
+    maxTopUp?: number,
 ): TransactionInstruction {
     const action: UpdateMetadataAction = {
         type: 'updateField',
@@ -287,6 +293,7 @@ export function createUpdateMetadataFieldInstruction(
         payer,
         validityProof,
         action,
+        maxTopUp,
     );
 }
 
@@ -302,6 +309,7 @@ export function createUpdateMetadataFieldInstruction(
  * @param payer            Fee payer public key
  * @param validityProof    Validity proof for the compressed mint (null for decompressed mints)
  * @param extensionIndex   Extension index (default: 0)
+ * @param maxTopUp         Optional cap on rent top-up (units of 1k lamports; default no cap)
  */
 export function createUpdateMetadataAuthorityInstruction(
     mintInterface: MintInterface,
@@ -310,6 +318,7 @@ export function createUpdateMetadataAuthorityInstruction(
     payer: PublicKey,
     validityProof: ValidityProofWithContext | null,
     extensionIndex: number = 0,
+    maxTopUp?: number,
 ): TransactionInstruction {
     const action: UpdateMetadataAction = {
         type: 'updateAuthority',
@@ -323,6 +332,7 @@ export function createUpdateMetadataAuthorityInstruction(
         payer,
         validityProof,
         action,
+        maxTopUp,
     );
 }
 
@@ -339,6 +349,7 @@ export function createUpdateMetadataAuthorityInstruction(
  * @param key            Metadata key to remove
  * @param idempotent     If true, don't error if key doesn't exist (default: false)
  * @param extensionIndex Extension index (default: 0)
+ * @param maxTopUp        Optional cap on rent top-up (units of 1k lamports; default no cap)
  */
 export function createRemoveMetadataKeyInstruction(
     mintInterface: MintInterface,
@@ -348,6 +359,7 @@ export function createRemoveMetadataKeyInstruction(
     key: string,
     idempotent: boolean = false,
     extensionIndex: number = 0,
+    maxTopUp?: number,
 ): TransactionInstruction {
     const action: UpdateMetadataAction = {
         type: 'removeKey',
@@ -362,5 +374,6 @@ export function createRemoveMetadataKeyInstruction(
         payer,
         validityProof,
         action,
+        maxTopUp,
     );
 }

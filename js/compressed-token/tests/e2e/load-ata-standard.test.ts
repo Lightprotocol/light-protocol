@@ -13,7 +13,7 @@ import {
     getTestRpc,
     selectStateTreeInfo,
     TreeInfo,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
     VERSION,
     featureFlags,
 } from '@lightprotocol/stateless.js';
@@ -294,14 +294,14 @@ describe('loadAta - Standard Path (wrap=false)', () => {
                 owner.publicKey,
             );
 
-            const ixs = await createLoadAtaInstructions(
+            const batches = await createLoadAtaInstructions(
                 rpc,
                 ata,
                 owner.publicKey,
                 mint,
                 payer.publicKey,
             );
-            expect(ixs.length).toBe(0);
+            expect(batches.length).toBe(0);
         });
 
         it('should return empty when hot exists but no cold', async () => {
@@ -319,7 +319,7 @@ describe('loadAta - Standard Path (wrap=false)', () => {
                 owner.publicKey,
             );
 
-            const ixs = await createLoadAtaInstructions(
+            const batches = await createLoadAtaInstructions(
                 rpc,
                 ata,
                 owner.publicKey,
@@ -327,7 +327,7 @@ describe('loadAta - Standard Path (wrap=false)', () => {
                 payer.publicKey,
             );
 
-            expect(ixs.length).toBe(0);
+            expect(batches.length).toBe(0);
         });
 
         it('should build instructions for cold balance', async () => {
@@ -348,7 +348,7 @@ describe('loadAta - Standard Path (wrap=false)', () => {
                 mint,
                 owner.publicKey,
             );
-            const ixs = await createLoadAtaInstructions(
+            const batches = await createLoadAtaInstructions(
                 rpc,
                 ata,
                 owner.publicKey,
@@ -356,7 +356,7 @@ describe('loadAta - Standard Path (wrap=false)', () => {
                 payer.publicKey,
             );
 
-            expect(ixs.length).toBeGreaterThan(0);
+            expect(batches.length).toBeGreaterThan(0);
         });
     });
 

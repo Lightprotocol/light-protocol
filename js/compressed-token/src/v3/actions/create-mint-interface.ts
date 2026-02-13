@@ -16,7 +16,7 @@ import {
     selectStateTreeInfo,
     getBatchAddressTreeInfo,
     DerivationMode,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
     getDefaultAddressTreeInfo,
     assertBetaEnabled,
 } from '@lightprotocol/stateless.js';
@@ -40,7 +40,7 @@ export { TokenMetadataInstructionData };
  * @param decimals              Location of the decimal place
  * @param keypair               Mint keypair (defaults to a random keypair)
  * @param confirmOptions        Confirm options
- * @param programId             Token program ID (defaults to CTOKEN_PROGRAM_ID)
+ * @param programId             Token program ID (defaults to LIGHT_TOKEN_PROGRAM_ID)
  * @param tokenMetadata         Optional token metadata (c-token mints only)
  * @param outputStateTreeInfo   Optional output state tree info (c-token mints only)
  * @param addressTreeInfo       Optional address tree info (c-token mints only)
@@ -55,7 +55,7 @@ export async function createMintInterface(
     decimals: number,
     keypair: Keypair = Keypair.generate(),
     confirmOptions?: ConfirmOptions,
-    programId: PublicKey = CTOKEN_PROGRAM_ID,
+    programId: PublicKey = LIGHT_TOKEN_PROGRAM_ID,
     tokenMetadata?: TokenMetadataInstructionData,
     outputStateTreeInfo?: TreeInfo,
     addressTreeInfo?: AddressTreeInfo,

@@ -4,7 +4,7 @@ import {
     TransactionInstruction,
 } from '@solana/web3.js';
 import { Buffer } from 'buffer';
-import { CTOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
+import { LIGHT_TOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
 import { struct, u8, u32, option, vec, array } from '@coral-xyz/borsh';
 import { LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR } from '../../constants';
 
@@ -49,7 +49,7 @@ export interface CompressibleConfig {
 }
 
 export interface CreateAssociatedCTokenAccountParams {
-    compressibleConfig?: CompressibleConfig;
+    compressibleConfig?: CompressibleConfig | null;
 }
 
 /**
@@ -96,8 +96,8 @@ function getAssociatedCTokenAddress(
     mint: PublicKey,
 ): PublicKey {
     return PublicKey.findProgramAddressSync(
-        [owner.toBuffer(), CTOKEN_PROGRAM_ID.toBuffer(), mint.toBuffer()],
-        CTOKEN_PROGRAM_ID,
+        [owner.toBuffer(), LIGHT_TOKEN_PROGRAM_ID.toBuffer(), mint.toBuffer()],
+        LIGHT_TOKEN_PROGRAM_ID,
     )[0];
 }
 
@@ -145,7 +145,7 @@ export function createAssociatedCTokenAccountInstruction(
     feePayer: PublicKey,
     owner: PublicKey,
     mint: PublicKey,
-    compressibleConfig: CompressibleConfig = DEFAULT_COMPRESSIBLE_CONFIG,
+    compressibleConfig: CompressibleConfig | null = DEFAULT_COMPRESSIBLE_CONFIG,
     configAccount: PublicKey = LIGHT_TOKEN_CONFIG,
     rentPayerPda: PublicKey = LIGHT_TOKEN_RENT_SPONSOR,
 ): TransactionInstruction {
@@ -164,9 +164,14 @@ export function createAssociatedCTokenAccountInstruction(
     // 2. fee_payer (signer, mut)
     // 3. associated_token_account (mut)
     // 4. system_program
+    // Optional (only when compressibleConfig is non-null):
     // 5. config account
     // 6. rent_payer PDA
-    const keys = [
+    const keys: {
+        pubkey: PublicKey;
+        isSigner: boolean;
+        isWritable: boolean;
+    }[] = [
         { pubkey: owner, isSigner: false, isWritable: false },
         { pubkey: mint, isSigner: false, isWritable: false },
         { pubkey: feePayer, isSigner: true, isWritable: true },
@@ -175,13 +180,22 @@ export function createAssociatedCTokenAccountInstruction(
             isSigner: false,
             isWritable: true,
         },
-        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-        { pubkey: configAccount, isSigner: false, isWritable: false },
-        { pubkey: rentPayerPda, isSigner: false, isWritable: true },
+        {
+            pubkey: SystemProgram.programId,
+            isSigner: false,
+            isWritable: false,
+        },
     ];
 
+    if (compressibleConfig) {
+        keys.push(
+            { pubkey: configAccount, isSigner: false, isWritable: false },
+            { pubkey: rentPayerPda, isSigner: false, isWritable: true },
+        );
+    }
+
     return new TransactionInstruction({
-        programId: CTOKEN_PROGRAM_ID,
+        programId: LIGHT_TOKEN_PROGRAM_ID,
         keys,
         data,
     });
@@ -202,7 +216,7 @@ export function createAssociatedCTokenAccountIdempotentInstruction(
     feePayer: PublicKey,
     owner: PublicKey,
     mint: PublicKey,
-    compressibleConfig: CompressibleConfig = DEFAULT_COMPRESSIBLE_CONFIG,
+    compressibleConfig: CompressibleConfig | null = DEFAULT_COMPRESSIBLE_CONFIG,
     configAccount: PublicKey = LIGHT_TOKEN_CONFIG,
     rentPayerPda: PublicKey = LIGHT_TOKEN_RENT_SPONSOR,
 ): TransactionInstruction {
@@ -215,7 +229,11 @@ export function createAssociatedCTokenAccountIdempotentInstruction(
         true,
     );
 
-    const keys = [
+    const keys: {
+        pubkey: PublicKey;
+        isSigner: boolean;
+        isWritable: boolean;
+    }[] = [
         { pubkey: owner, isSigner: false, isWritable: false },
         { pubkey: mint, isSigner: false, isWritable: false },
         { pubkey: feePayer, isSigner: true, isWritable: true },
@@ -224,13 +242,22 @@ export function createAssociatedCTokenAccountIdempotentInstruction(
             isSigner: false,
             isWritable: true,
         },
-        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-        { pubkey: configAccount, isSigner: false, isWritable: false },
-        { pubkey: rentPayerPda, isSigner: false, isWritable: true },
+        {
+            pubkey: SystemProgram.programId,
+            isSigner: false,
+            isWritable: false,
+        },
     ];
 
+    if (compressibleConfig) {
+        keys.push(
+            { pubkey: configAccount, isSigner: false, isWritable: false },
+            { pubkey: rentPayerPda, isSigner: false, isWritable: true },
+        );
+    }
+
     return new TransactionInstruction({
-        programId: CTOKEN_PROGRAM_ID,
+        programId: LIGHT_TOKEN_PROGRAM_ID,
         keys,
         data,
     });

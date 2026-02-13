@@ -9,6 +9,8 @@ import {
     TreeInfo,
     VERSION,
     featureFlags,
+    buildAndSignTx,
+    sendAndConfirmTx,
 } from '@lightprotocol/stateless.js';
 import { createMint, mintTo } from '../../src/actions';
 import {
@@ -24,7 +26,7 @@ import {
     TokenPoolInfo,
 } from '../../src/utils/get-token-pool-infos';
 import { createUnwrapInstruction } from '../../src/v3/instructions/unwrap';
-import { unwrap } from '../../src/v3/actions/unwrap';
+import { unwrap, createUnwrapInstructions } from '../../src/v3/actions/unwrap';
 import { getAssociatedTokenAddressInterface } from '../../src';
 import { createAtaInterfaceIdempotent } from '../../src/v3/actions/create-ata-interface';
 import { getAtaProgramId } from '../../src/v3/ata-utils';
@@ -134,6 +136,221 @@ describe('createUnwrapInstruction', () => {
         );
         expect(payerKey).toBeDefined();
     });
+});
+
+describe('createUnwrapInstructions', () => {
+    let rpc: Rpc;
+    let payer: Signer;
+    let mint: PublicKey;
+    let mintAuthority: Keypair;
+    let stateTreeInfo: TreeInfo;
+    let tokenPoolInfos: TokenPoolInfo[];
+
+    beforeAll(async () => {
+        rpc = createRpc();
+        payer = await newAccountWithLamports(rpc, 10e9);
+        mintAuthority = Keypair.generate();
+        const mintKeypair = Keypair.generate();
+
+        mint = (
+            await createMint(
+                rpc,
+                payer,
+                mintAuthority.publicKey,
+                TEST_TOKEN_DECIMALS,
+                mintKeypair,
+            )
+        ).mint;
+
+        stateTreeInfo = selectStateTreeInfo(await rpc.getStateTreeInfos());
+        tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
+    }, 60_000);
+
+    it('should return instruction batches including unwrap (from cold)', async () => {
+        const owner = await newAccountWithLamports(rpc, 1e9);
+
+        // Mint compressed tokens (cold)
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(1000),
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
+        );
+
+        // Create destination SPL ATA
+        const splAta = await createAssociatedTokenAccount(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            undefined,
+            TOKEN_PROGRAM_ID,
+        );
+
+        const batches = await createUnwrapInstructions(
+            rpc,
+            splAta,
+            owner.publicKey,
+            mint,
+            BigInt(500),
+            payer.publicKey,
+        );
+
+        // Should have at least one batch (load + unwrap, or just unwrap)
+        expect(batches.length).toBeGreaterThanOrEqual(1);
+        // Each batch should be a non-empty array of instructions
+        for (const batch of batches) {
+            expect(batch.length).toBeGreaterThan(0);
+        }
+
+        // Execute all batches
+        for (const ixs of batches) {
+            const { blockhash } = await rpc.getLatestBlockhash();
+            const tx = buildAndSignTx(ixs, payer, blockhash, [owner]);
+            await sendAndConfirmTx(rpc, tx);
+        }
+
+        // Verify SPL balance
+        const splBalance = await getAccount(rpc, splAta);
+        expect(splBalance.amount).toBe(BigInt(500));
+
+        // Verify remaining c-token balance
+        const ctokenAta = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
+        const ctokenBalance = await getCTokenBalance(rpc, ctokenAta);
+        expect(ctokenBalance).toBe(BigInt(500));
+    }, 60_000);
+
+    it('should return single batch when balance is already hot', async () => {
+        const owner = await newAccountWithLamports(rpc, 1e9);
+
+        // Create c-token ATA and mint to hot
+        const ctokenAta = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
+        await createAtaInterfaceIdempotent(rpc, payer, mint, owner.publicKey);
+
+        // Mint compressed tokens
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(800),
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
+        );
+
+        // Load to hot first
+        const { loadAta } = await import('../../src/v3/actions/load-ata');
+        await loadAta(rpc, ctokenAta, owner, mint, payer);
+
+        // Create destination SPL ATA
+        const splAta = await createAssociatedTokenAccount(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            undefined,
+            TOKEN_PROGRAM_ID,
+        );
+
+        const batches = await createUnwrapInstructions(
+            rpc,
+            splAta,
+            owner.publicKey,
+            mint,
+            BigInt(300),
+            payer.publicKey,
+        );
+
+        // Should be a single batch (no load needed, just unwrap)
+        expect(batches.length).toBe(1);
+
+        // Execute
+        const { blockhash } = await rpc.getLatestBlockhash();
+        const tx = buildAndSignTx(batches[0], payer, blockhash, [owner]);
+        await sendAndConfirmTx(rpc, tx);
+
+        const splBalance = await getAccount(rpc, splAta);
+        expect(splBalance.amount).toBe(BigInt(300));
+    }, 60_000);
+
+    it('should throw when destination does not exist', async () => {
+        const owner = await newAccountWithLamports(rpc, 1e9);
+
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(100),
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
+        );
+
+        const splAta = getAssociatedTokenAddressSync(
+            mint,
+            owner.publicKey,
+            false,
+            TOKEN_PROGRAM_ID,
+        );
+
+        await expect(
+            createUnwrapInstructions(
+                rpc,
+                splAta,
+                owner.publicKey,
+                mint,
+                BigInt(50),
+                payer.publicKey,
+            ),
+        ).rejects.toThrow(/does not exist/);
+    }, 60_000);
+
+    it('should throw on insufficient balance', async () => {
+        const owner = await newAccountWithLamports(rpc, 1e9);
+
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(100),
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
+        );
+
+        const splAta = await createAssociatedTokenAccount(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            undefined,
+            TOKEN_PROGRAM_ID,
+        );
+
+        await expect(
+            createUnwrapInstructions(
+                rpc,
+                splAta,
+                owner.publicKey,
+                mint,
+                BigInt(99999),
+                payer.publicKey,
+            ),
+        ).rejects.toThrow(/Insufficient/);
+    }, 60_000);
 });
 
 describe('unwrap action', () => {

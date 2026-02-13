@@ -10,7 +10,7 @@ import {
     MerkleContext,
     VERSION,
     featureFlags,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
 } from '@lightprotocol/stateless.js';
 import { createMint, mintTo } from '../../src/actions';
 import {
@@ -67,7 +67,7 @@ describe('compressible-load', () => {
                 const result = await createLoadAccountsParams(
                     rpc,
                     payer.publicKey,
-                    CTOKEN_PROGRAM_ID,
+                    LIGHT_TOKEN_PROGRAM_ID,
                     [],
                     [],
                 );
@@ -93,7 +93,7 @@ describe('compressible-load', () => {
                 const result = await createLoadAccountsParams(
                     rpc,
                     payer.publicKey,
-                    CTOKEN_PROGRAM_ID,
+                    LIGHT_TOKEN_PROGRAM_ID,
                     accounts,
                     [],
                 );
@@ -120,7 +120,7 @@ describe('compressible-load', () => {
                     owner.publicKey,
                     mint,
                     undefined,
-                    CTOKEN_PROGRAM_ID,
+                    LIGHT_TOKEN_PROGRAM_ID,
                 );
 
                 const hotInfo: ParsedAccountInfoInterface = {
@@ -149,7 +149,7 @@ describe('compressible-load', () => {
                 const result = await createLoadAccountsParams(
                     rpc,
                     payer.publicKey,
-                    CTOKEN_PROGRAM_ID,
+                    LIGHT_TOKEN_PROGRAM_ID,
                     accounts,
                     [],
                 );
@@ -182,7 +182,7 @@ describe('compressible-load', () => {
                     owner.publicKey,
                     mint,
                     undefined,
-                    CTOKEN_PROGRAM_ID,
+                    LIGHT_TOKEN_PROGRAM_ID,
                 );
 
                 const accounts: CompressibleAccountInput[] = [
@@ -200,7 +200,7 @@ describe('compressible-load', () => {
                     createLoadAccountsParams(
                         rpc,
                         payer.publicKey,
-                        CTOKEN_PROGRAM_ID,
+                        LIGHT_TOKEN_PROGRAM_ID,
                         accounts,
                         [],
                     ),
@@ -227,7 +227,7 @@ describe('compressible-load', () => {
                     owner.publicKey,
                     mint,
                     undefined,
-                    CTOKEN_PROGRAM_ID,
+                    LIGHT_TOKEN_PROGRAM_ID,
                 );
 
                 const accounts: CompressibleAccountInput[] = [
@@ -245,7 +245,7 @@ describe('compressible-load', () => {
                 const result = await createLoadAccountsParams(
                     rpc,
                     payer.publicKey,
-                    CTOKEN_PROGRAM_ID,
+                    LIGHT_TOKEN_PROGRAM_ID,
                     accounts,
                     [],
                 );
@@ -282,13 +282,13 @@ describe('compressible-load', () => {
                     owner.publicKey,
                     mint,
                     undefined,
-                    CTOKEN_PROGRAM_ID,
+                    LIGHT_TOKEN_PROGRAM_ID,
                 );
 
                 const result = await createLoadAccountsParams(
                     rpc,
                     payer.publicKey,
-                    CTOKEN_PROGRAM_ID,
+                    LIGHT_TOKEN_PROGRAM_ID,
                     [],
                     [ata],
                     { tokenPoolInfos },
@@ -318,7 +318,7 @@ describe('compressible-load', () => {
                     owner.publicKey,
                     mint,
                     undefined,
-                    CTOKEN_PROGRAM_ID,
+                    LIGHT_TOKEN_PROGRAM_ID,
                 );
 
                 const loadIxs = await createLoadAtaInstructionsFromInterface(
@@ -381,7 +381,7 @@ describe('compressible-load', () => {
                 owner.publicKey,
                 mint,
                 undefined,
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
             );
 
             expect(ata._isAta).toBe(true);
@@ -418,7 +418,7 @@ describe('compressible-load', () => {
                 mint,
                 owner.publicKey,
             );
-            const ixs = await createLoadAtaInstructions(
+            const batches = await createLoadAtaInstructions(
                 rpc,
                 ata,
                 owner.publicKey,
@@ -427,7 +427,7 @@ describe('compressible-load', () => {
                 { tokenPoolInfos },
             );
 
-            expect(ixs.length).toBeGreaterThan(0);
+            expect(batches.length).toBeGreaterThan(0);
         });
 
         it('should return empty when nothing to load (hot ATA)', async () => {

@@ -6,7 +6,7 @@ import {
     createRpc,
     VERSION,
     featureFlags,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
 } from '@lightprotocol/stateless.js';
 import {
     getOrCreateAssociatedTokenAccount,
@@ -14,7 +14,7 @@ import {
     TOKEN_PROGRAM_ID,
     TOKEN_2022_PROGRAM_ID,
 } from '@solana/spl-token';
-import { createMintInterface, decompressMint } from '../../src/v3/actions';
+import { createMintInterface } from '../../src/v3/actions';
 import { mintToInterface } from '../../src/v3/actions/mint-to-interface';
 import { createMint } from '../../src/actions/create-mint';
 import { createAssociatedCTokenAccount } from '../../src/v3/actions/create-associated-ctoken';
@@ -193,9 +193,6 @@ describe('mintToInterface - Compressed Mints', () => {
         );
         await rpc.confirmTransaction(result.transactionSignature, 'confirmed');
         mint = result.mint;
-
-        // Decompress mint so it exists on-chain (required for ATA creation)
-        await decompressMint(rpc, payer, mint);
     });
 
     it('should mint compressed tokens to onchain ctoken account', async () => {
@@ -232,7 +229,7 @@ describe('mintToInterface - Compressed Mints', () => {
         );
         expect(accountInterface).toBeDefined();
         expect(accountInterface.accountInfo.owner.toString()).toBe(
-            CTOKEN_PROGRAM_ID.toBase58(),
+            LIGHT_TOKEN_PROGRAM_ID.toBase58(),
         );
         expect(accountInterface.parsed.amount).toBe(BigInt(amount));
     });
@@ -298,7 +295,7 @@ describe('mintToInterface - Compressed Mints', () => {
         ).rejects.toThrow();
     });
 
-    it('should auto-detect CTOKEN_PROGRAM_ID when programId not provided', async () => {
+    it('should auto-detect LIGHT_TOKEN_PROGRAM_ID when programId not provided', async () => {
         const recipient = Keypair.generate();
         await createAssociatedCTokenAccount(
             rpc,
@@ -489,9 +486,6 @@ describe('mintToInterface - Edge Cases', () => {
         );
         await rpc.confirmTransaction(result.transactionSignature, 'confirmed');
         compressedMint = result.mint;
-
-        // Decompress mint so it exists on-chain (required for ATA creation)
-        await decompressMint(rpc, payer, compressedMint);
     });
 
     it('should handle zero amount minting', async () => {
@@ -538,9 +532,6 @@ describe('mintToInterface - Edge Cases', () => {
             mintSigner,
         );
         await rpc.confirmTransaction(result.transactionSignature, 'confirmed');
-
-        // Decompress mint so it exists on-chain (required for ATA creation)
-        await decompressMint(rpc, payer, result.mint);
 
         const recipient = Keypair.generate();
         await createAssociatedCTokenAccount(

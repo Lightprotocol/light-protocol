@@ -7,7 +7,7 @@ import {
     createRpc,
     selectStateTreeInfo,
     TreeInfo,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
     VERSION,
     featureFlags,
 } from '@lightprotocol/stateless.js';
@@ -21,7 +21,7 @@ import {
     getAccount,
 } from '@solana/spl-token';
 
-// Helper to read CToken account balance (CToken accounts are owned by CTOKEN_PROGRAM_ID)
+// Helper to read CToken account balance (CToken accounts are owned by LIGHT_TOKEN_PROGRAM_ID)
 async function getCTokenBalance(rpc: Rpc, address: PublicKey): Promise<bigint> {
     const accountInfo = await rpc.getAccountInfo(address);
     if (!accountInfo) {
@@ -36,10 +36,16 @@ import {
     selectTokenPoolInfosForDecompression,
     TokenPoolInfo,
 } from '../../src/utils/get-token-pool-infos';
+import { MAX_TOP_UP } from '../../src/constants';
 import { createWrapInstruction } from '../../src/v3/instructions/wrap';
 import { wrap } from '../../src/v3/actions/wrap';
 import { getAssociatedTokenAddressInterface } from '../../src';
 import { createAtaInterfaceIdempotent } from '../../src/v3/actions/create-ata-interface';
+import type { CompressibleConfig } from '../../src/v3/instructions/create-associated-ctoken';
+import {
+    LIGHT_TOKEN_CONFIG,
+    LIGHT_TOKEN_RENT_SPONSOR,
+} from '../../src/constants';
 
 // Force V2 for CToken tests
 featureFlags.version = VERSION.V2;
@@ -105,6 +111,37 @@ describe('createWrapInstruction', () => {
         expect(ix.programId).toBeDefined();
         expect(ix.keys.length).toBeGreaterThan(0);
         expect(ix.data.length).toBeGreaterThan(0);
+    });
+
+    it('should encode default MAX_TOP_UP (no cap) when maxTopUp not provided', async () => {
+        const owner = Keypair.generate();
+        const source = getAssociatedTokenAddressSync(
+            mint,
+            owner.publicKey,
+            false,
+            TOKEN_PROGRAM_ID,
+        );
+        const destination = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
+
+        const tokenPoolInfo = tokenPoolInfos.find(info => info.isInitialized);
+        expect(tokenPoolInfo).toBeDefined();
+
+        const ix = createWrapInstruction(
+            source,
+            destination,
+            owner.publicKey,
+            mint,
+            BigInt(1000),
+            tokenPoolInfo!,
+            TEST_TOKEN_DECIMALS,
+        );
+
+        const maxTopUpInData = ix.data.readUInt16LE(6);
+        expect(maxTopUpInData).toBe(MAX_TOP_UP);
+        expect(maxTopUpInData).toBe(65535);
     });
 
     it('should create instruction with explicit payer', async () => {
@@ -471,6 +508,261 @@ describe('wrap action', () => {
 
         const ctokenBalance = await getCTokenBalance(rpc, ctokenAta);
         expect(ctokenBalance).toBe(BigInt(150));
+    }, 60_000);
+
+    /**
+     * Wrap with default maxTopUp (MAX_TOP_UP) must succeed so that rent top-up
+     * can occur when the ctoken ATA needs it. Regression test for default maxTopUp.
+     */
+    it('should wrap successfully with default maxTopUp so rent top-up is allowed when needed', async () => {
+        const owner = await newAccountWithLamports(rpc, 1e9);
+
+        const splAta = await createAssociatedTokenAccount(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+        );
+
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(200),
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
+        );
+
+        tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
+        await decompress(
+            rpc,
+            payer,
+            mint,
+            bn(200),
+            owner,
+            splAta,
+            selectTokenPoolInfosForDecompression(tokenPoolInfos, bn(200)),
+        );
+
+        const ctokenAta = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
+        await createAtaInterfaceIdempotent(rpc, payer, mint, owner.publicKey);
+
+        tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
+        const tokenPoolInfo = tokenPoolInfos.find(info => info.isInitialized);
+        expect(tokenPoolInfo).toBeDefined();
+
+        const ix = createWrapInstruction(
+            splAta,
+            ctokenAta,
+            owner.publicKey,
+            mint,
+            BigInt(50),
+            tokenPoolInfo!,
+            TEST_TOKEN_DECIMALS,
+        );
+        const maxTopUpInData = ix.data.readUInt16LE(6);
+        expect(maxTopUpInData).toBe(MAX_TOP_UP);
+
+        const result = await wrap(
+            rpc,
+            payer,
+            splAta,
+            ctokenAta,
+            owner,
+            mint,
+            BigInt(50),
+            tokenPoolInfo,
+        );
+        expect(result).toBeDefined();
+        const ctokenBalance = await getCTokenBalance(rpc, ctokenAta);
+        expect(ctokenBalance).toBe(BigInt(50));
+    }, 60_000);
+
+    /**
+     * CToken ATA created with minimal prepay (rentPayment: 2) so the first write (wrap)
+     * triggers rent top-up. Asserts payer is charged writeTopUp and the ctoken ATA
+     * receives that amount.
+     */
+    it('should trigger rent top-up when ctoken ATA has minimal prepay and payer pays correct amount', async () => {
+        const owner = await newAccountWithLamports(rpc, 1e9);
+
+        const splAta = await createAssociatedTokenAccount(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+        );
+
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(1000),
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
+        );
+
+        tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
+        await decompress(
+            rpc,
+            payer,
+            mint,
+            bn(1000),
+            owner,
+            splAta,
+            selectTokenPoolInfosForDecompression(tokenPoolInfos, bn(1000)),
+        );
+
+        const ctokenAta = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
+
+        const minimalPrepayConfig: CompressibleConfig = {
+            tokenAccountVersion: 3,
+            rentPayment: 2,
+            compressionOnly: 1,
+            writeTopUp: 766,
+            compressToAccountPubkey: null,
+        };
+        await createAtaInterfaceIdempotent(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            false,
+            undefined,
+            undefined,
+            undefined,
+            {
+                compressibleConfig: minimalPrepayConfig,
+                configAccount: LIGHT_TOKEN_CONFIG,
+                rentPayerPda: LIGHT_TOKEN_RENT_SPONSOR,
+            },
+        );
+
+        const ctokenInfoBefore = await rpc.getAccountInfo(ctokenAta);
+        expect(ctokenInfoBefore).not.toBeNull();
+        const ctokenLamportsBefore = ctokenInfoBefore!.lamports;
+
+        const payerLamportsBefore = await rpc.getBalance(payer.publicKey);
+
+        tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
+        const tokenPoolInfo = tokenPoolInfos.find(info => info.isInitialized);
+        expect(tokenPoolInfo).toBeDefined();
+
+        await wrap(
+            rpc,
+            payer,
+            splAta,
+            ctokenAta,
+            owner,
+            mint,
+            BigInt(500),
+            tokenPoolInfo,
+        );
+
+        const payerLamportsAfter = await rpc.getBalance(payer.publicKey);
+        const ctokenInfoAfter = await rpc.getAccountInfo(ctokenAta);
+        expect(ctokenInfoAfter).not.toBeNull();
+        const ctokenLamportsAfter = ctokenInfoAfter!.lamports;
+
+        const payerSpent = payerLamportsBefore - payerLamportsAfter;
+        expect(payerSpent).toBeGreaterThanOrEqual(766);
+        expect(ctokenLamportsAfter - ctokenLamportsBefore).toBe(766);
+
+        const ctokenBalance = await getCTokenBalance(rpc, ctokenAta);
+        expect(ctokenBalance).toBe(BigInt(500));
+    }, 60_000);
+
+    /**
+     * When maxTopUp is 0 and the ctoken ATA needs rent top-up, the wrap must fail
+     * with MaxTopUpExceeded (program error 18043 / 0x467b).
+     */
+    it('should fail wrap with maxTopUp 0 when rent top-up is required', async () => {
+        const owner = await newAccountWithLamports(rpc, 1e9);
+
+        const splAta = await createAssociatedTokenAccount(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+        );
+
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(500),
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
+        );
+
+        tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
+        await decompress(
+            rpc,
+            payer,
+            mint,
+            bn(500),
+            owner,
+            splAta,
+            selectTokenPoolInfosForDecompression(tokenPoolInfos, bn(500)),
+        );
+
+        const ctokenAta = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
+
+        const minimalPrepayConfig: CompressibleConfig = {
+            tokenAccountVersion: 3,
+            rentPayment: 0,
+            compressionOnly: 1,
+            writeTopUp: 766,
+            compressToAccountPubkey: null,
+        };
+        await createAtaInterfaceIdempotent(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            false,
+            undefined,
+            undefined,
+            undefined,
+            {
+                compressibleConfig: minimalPrepayConfig,
+                configAccount: LIGHT_TOKEN_CONFIG,
+                rentPayerPda: LIGHT_TOKEN_RENT_SPONSOR,
+            },
+        );
+
+        tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
+        const tokenPoolInfo = tokenPoolInfos.find(info => info.isInitialized);
+        expect(tokenPoolInfo).toBeDefined();
+
+        await expect(
+            wrap(
+                rpc,
+                payer,
+                splAta,
+                ctokenAta,
+                owner,
+                mint,
+                BigInt(100),
+                tokenPoolInfo,
+                0,
+            ),
+        ).rejects.toThrow(/18043|MaxTopUpExceeded|0x467b/i);
     }, 60_000);
 });
 

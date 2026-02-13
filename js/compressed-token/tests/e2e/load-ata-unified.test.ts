@@ -463,7 +463,7 @@ describe('loadAta - Unified Path (wrap=true)', () => {
                 owner.publicKey,
             );
 
-            const ixs = await createLoadAtaInstructionsUnified(
+            const batches = await createLoadAtaInstructionsUnified(
                 rpc,
                 ctokenAta,
                 owner.publicKey,
@@ -471,7 +471,7 @@ describe('loadAta - Unified Path (wrap=true)', () => {
                 payer.publicKey,
             );
 
-            expect(ixs.length).toBeGreaterThan(1);
+            expect(batches.flat().length).toBeGreaterThan(1);
         });
     });
 });

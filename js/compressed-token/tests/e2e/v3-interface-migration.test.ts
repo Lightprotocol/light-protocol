@@ -29,7 +29,6 @@ import {
     getAtaInterface,
     getAssociatedTokenAddressInterface,
     transferInterface,
-    createAtaInterfaceIdempotent,
 } from '../../src/v3';
 import { createLoadAtaInstructions, loadAta } from '../../src/index';
 
@@ -326,26 +325,15 @@ describe('v3-interface-v1-rejection', () => {
                 mint,
                 owner.publicKey,
             );
-            const destAta = getAssociatedTokenAddressInterface(
-                mint,
-                recipient.publicKey,
-            );
 
-            await createAtaInterfaceIdempotent(
-                rpc,
-                payer,
-                recipient.publicKey,
-                mint,
-            );
-
-            // transferInterface(rpc, payer, source, mint, destination, owner, amount)
+            // transferInterface(rpc, payer, source, mint, recipientWallet, owner, amount)
             await expect(
                 transferInterface(
                     rpc,
                     payer,
                     sourceAta,
                     mint,
-                    destAta,
+                    recipient.publicKey,
                     owner,
                     BigInt(500),
                 ),

@@ -1,5 +1,5 @@
 import {
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
     deriveAddressV2,
     TreeInfo,
 } from '@lightprotocol/stateless.js';
@@ -18,7 +18,7 @@ export function deriveCMintAddress(
     const address = deriveAddressV2(
         findMintAddress(mintSeed)[0].toBytes(),
         addressTreeInfo.tree,
-        CTOKEN_PROGRAM_ID,
+        LIGHT_TOKEN_PROGRAM_ID,
     );
     return Array.from(address.toBytes());
 }
@@ -36,7 +36,7 @@ export const COMPRESSED_MINT_SEED: Buffer = Buffer.from([
 export function findMintAddress(mintSigner: PublicKey): [PublicKey, number] {
     const [address, bump] = PublicKey.findProgramAddressSync(
         [COMPRESSED_MINT_SEED, mintSigner.toBuffer()],
-        CTOKEN_PROGRAM_ID,
+        LIGHT_TOKEN_PROGRAM_ID,
     );
     return [address, bump];
 }
@@ -48,15 +48,15 @@ export function getAssociatedCTokenAddressAndBump(
     mint: PublicKey,
 ) {
     return PublicKey.findProgramAddressSync(
-        [owner.toBuffer(), CTOKEN_PROGRAM_ID.toBuffer(), mint.toBuffer()],
-        CTOKEN_PROGRAM_ID,
+        [owner.toBuffer(), LIGHT_TOKEN_PROGRAM_ID.toBuffer(), mint.toBuffer()],
+        LIGHT_TOKEN_PROGRAM_ID,
     );
 }
 
 /// Same as "getAssociatedTokenAddress" but with c-token program ID.
 export function getAssociatedCTokenAddress(owner: PublicKey, mint: PublicKey) {
     return PublicKey.findProgramAddressSync(
-        [owner.toBuffer(), CTOKEN_PROGRAM_ID.toBuffer(), mint.toBuffer()],
-        CTOKEN_PROGRAM_ID,
+        [owner.toBuffer(), LIGHT_TOKEN_PROGRAM_ID.toBuffer(), mint.toBuffer()],
+        LIGHT_TOKEN_PROGRAM_ID,
     )[0];
 }

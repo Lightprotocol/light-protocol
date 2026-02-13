@@ -11,7 +11,7 @@ import {
     sendAndConfirmTx,
     DerivationMode,
     bn,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
     assertBetaEnabled,
 } from '@lightprotocol/stateless.js';
 import {
@@ -45,7 +45,7 @@ export async function updateMintAuthority(
         rpc,
         mint,
         confirmOptions?.commitment,
-        CTOKEN_PROGRAM_ID,
+        LIGHT_TOKEN_PROGRAM_ID,
     );
 
     if (!mintInterface.merkleContext) {
@@ -120,7 +120,7 @@ export async function updateFreezeAuthority(
         rpc,
         mint,
         confirmOptions?.commitment,
-        CTOKEN_PROGRAM_ID,
+        LIGHT_TOKEN_PROGRAM_ID,
     );
 
     if (!mintInterface.merkleContext) {

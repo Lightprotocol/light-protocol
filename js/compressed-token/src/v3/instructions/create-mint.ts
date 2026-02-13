@@ -6,7 +6,7 @@ import {
 import { Buffer } from 'buffer';
 import {
     ValidityProofWithContext,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
     LightSystemProgram,
     defaultStaticAccountsStruct,
     TreeInfo,
@@ -21,7 +21,12 @@ import {
     MintActionCompressedInstructionData,
     TokenMetadataLayoutData as TokenMetadataBorshData,
 } from '../layout/layout-mint-action';
-import { TokenDataVersion } from '../../constants';
+import {
+    MAX_TOP_UP,
+    TokenDataVersion,
+    LIGHT_TOKEN_CONFIG,
+    LIGHT_TOKEN_RENT_SPONSOR,
+} from '../../constants';
 
 /**
  * Token metadata for creating a c-token mint.
@@ -44,6 +49,7 @@ export interface EncodeCreateMintInstructionParams {
     rootIndex: number;
     proof: ValidityProof | null;
     metadata?: TokenMetadataInstructionData;
+    maxTopUp?: number;
 }
 
 export function createTokenMetadata(
@@ -120,12 +126,19 @@ export function encodeCreateMintInstructionData(
         leafIndex: 0,
         proveByIndex: false,
         rootIndex: params.rootIndex,
-        maxTopUp: 65535,
+        maxTopUp: params.maxTopUp ?? MAX_TOP_UP,
         createMint: {
             readOnlyAddressTrees: [0, 0, 0, 0],
             readOnlyAddressTreeRootIndices: [0, 0, 0, 0],
         },
-        actions: [], // No actions for create mint
+        actions: [
+            {
+                decompressMint: {
+                    rentPayment: 16,
+                    writeTopUp: 766,
+                },
+            },
+        ],
         proof: validatedProof,
         cpiContext: null,
         mint: {
@@ -172,6 +185,7 @@ export interface CreateMintInstructionParams {
  * @param addressTreeInfo     Address tree info for the mint.
  * @param outputStateTreeInfo Output state tree info.
  * @param metadata            Optional token metadata.
+ * @param maxTopUp             Optional cap on rent top-up (units of 1k lamports; default no cap)
  */
 export function createMintInstruction(
     mintSigner: PublicKey,
@@ -183,6 +197,7 @@ export function createMintInstruction(
     addressTreeInfo: AddressTreeInfo,
     outputStateTreeInfo: TreeInfo,
     metadata?: TokenMetadataInstructionData,
+    maxTopUp?: number,
 ): TransactionInstruction {
     const data = encodeCreateMintInstructionData({
         mintSigner,
@@ -194,6 +209,7 @@ export function createMintInstruction(
         rootIndex: validityProof.rootIndices[0],
         proof: validityProof.compressedProof,
         metadata,
+        maxTopUp,
     });
 
     return buildCreateMintIx(
@@ -216,6 +232,7 @@ function buildCreateMintIx(
     data: Buffer,
 ): TransactionInstruction {
     const sys = defaultStaticAccountsStruct();
+    const [splMintPda] = findMintAddress(mintSigner);
     const keys = [
         {
             pubkey: LightSystemProgram.programId,
@@ -224,6 +241,17 @@ function buildCreateMintIx(
         },
         { pubkey: mintSigner, isSigner: true, isWritable: false },
         { pubkey: mintAuthority, isSigner: true, isWritable: false },
+        {
+            pubkey: LIGHT_TOKEN_CONFIG,
+            isSigner: false,
+            isWritable: false,
+        },
+        { pubkey: splMintPda, isSigner: false, isWritable: true },
+        {
+            pubkey: LIGHT_TOKEN_RENT_SPONSOR,
+            isSigner: false,
+            isWritable: true,
+        },
         { pubkey: payer, isSigner: true, isWritable: true },
         {
             pubkey: CompressedTokenProgram.deriveCpiAuthorityPda,
@@ -259,7 +287,7 @@ function buildCreateMintIx(
     ];
 
     return new TransactionInstruction({
-        programId: CTOKEN_PROGRAM_ID,
+        programId: LIGHT_TOKEN_PROGRAM_ID,
         keys,
         data,
     });
