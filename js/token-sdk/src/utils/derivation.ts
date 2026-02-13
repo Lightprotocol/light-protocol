@@ -4,7 +4,6 @@
 
 import {
     type Address,
-    address,
     getAddressCodec,
     getProgramDerivedAddress,
 } from '@solana/addresses';
@@ -134,16 +133,3 @@ export async function derivePoolAddress(
     return { address: derivedAddress, bump };
 }
 
-// ============================================================================
-// CPI AUTHORITY
-// ============================================================================
-
-/**
- * Derives the CPI authority PDA.
- *
- * @returns The CPI authority address
- */
-export async function deriveCpiAuthority(): Promise<Address> {
-    // CPI authority is a known constant, but we can derive it for verification
-    return address('GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy');
-}

@@ -3,10 +3,18 @@
  */
 
 import type { Address } from '@solana/addresses';
-import type { IInstruction, IAccountMeta } from '@solana/instructions';
-import { getU64Encoder } from '@solana/codecs';
+import {
+    AccountRole,
+    type Instruction,
+    type AccountMeta,
+} from '@solana/instructions';
 
 import { DISCRIMINATOR, LIGHT_TOKEN_PROGRAM_ID } from '../constants.js';
+import { validatePositiveAmount, validateDecimals } from '../utils/validation.js';
+import {
+    getAmountInstructionEncoder,
+    getCheckedInstructionEncoder,
+} from '../codecs/instructions.js';
 
 /**
  * Parameters for burning tokens.
@@ -30,21 +38,25 @@ export interface BurnParams {
  * @param params - Burn parameters
  * @returns The burn instruction
  */
-export function createBurnInstruction(params: BurnParams): IInstruction {
+export function createBurnInstruction(params: BurnParams): Instruction {
     const { tokenAccount, mint, authority, amount } = params;
 
+    validatePositiveAmount(amount);
+
     // Build accounts
-    const accounts: IAccountMeta[] = [
-        { address: tokenAccount, role: 1 }, // writable
-        { address: mint, role: 1 }, // writable
-        { address: authority, role: 2 }, // readonly+signer
+    const accounts: AccountMeta[] = [
+        { address: tokenAccount, role: AccountRole.WRITABLE },
+        { address: mint, role: AccountRole.WRITABLE },
+        { address: authority, role: AccountRole.READONLY_SIGNER },
     ];
 
     // Build instruction data
-    const amountBytes = getU64Encoder().encode(amount);
-    const data = new Uint8Array(1 + amountBytes.length);
-    data[0] = DISCRIMINATOR.BURN;
-    data.set(new Uint8Array(amountBytes), 1);
+    const data = new Uint8Array(
+        getAmountInstructionEncoder().encode({
+            discriminator: DISCRIMINATOR.BURN,
+            amount,
+        }),
+    );
 
     return {
         programAddress: LIGHT_TOKEN_PROGRAM_ID,
@@ -71,22 +83,27 @@ export interface BurnCheckedParams extends BurnParams {
  */
 export function createBurnCheckedInstruction(
     params: BurnCheckedParams,
-): IInstruction {
+): Instruction {
     const { tokenAccount, mint, authority, amount, decimals } = params;
 
+    validatePositiveAmount(amount);
+    validateDecimals(decimals);
+
     // Build accounts
-    const accounts: IAccountMeta[] = [
-        { address: tokenAccount, role: 1 }, // writable
-        { address: mint, role: 1 }, // writable
-        { address: authority, role: 2 }, // readonly+signer
+    const accounts: AccountMeta[] = [
+        { address: tokenAccount, role: AccountRole.WRITABLE },
+        { address: mint, role: AccountRole.WRITABLE },
+        { address: authority, role: AccountRole.READONLY_SIGNER },
     ];
 
     // Build instruction data
-    const amountBytes = getU64Encoder().encode(amount);
-    const data = new Uint8Array(1 + amountBytes.length + 1);
-    data[0] = DISCRIMINATOR.BURN_CHECKED;
-    data.set(new Uint8Array(amountBytes), 1);
-    data[1 + amountBytes.length] = decimals;
+    const data = new Uint8Array(
+        getCheckedInstructionEncoder().encode({
+            discriminator: DISCRIMINATOR.BURN_CHECKED,
+            amount,
+            decimals,
+        }),
+    );
 
     return {
         programAddress: LIGHT_TOKEN_PROGRAM_ID,

@@ -47,3 +47,21 @@ export {
     encodeCreateAtaInstructionData,
     defaultCompressibleParams,
 } from './compressible.js';
+
+// Simple instruction codecs
+export {
+    getAmountInstructionEncoder,
+    getAmountInstructionDecoder,
+    getAmountInstructionCodec,
+    getCheckedInstructionEncoder,
+    getCheckedInstructionDecoder,
+    getCheckedInstructionCodec,
+    getDiscriminatorOnlyEncoder,
+    getDiscriminatorOnlyDecoder,
+    getDiscriminatorOnlyCodec,
+    encodeMaxTopUp,
+    decodeMaxTopUp,
+    type AmountInstructionData,
+    type CheckedInstructionData,
+    type DiscriminatorOnlyData,
+} from './instructions.js';

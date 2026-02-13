@@ -3,7 +3,7 @@
  */
 
 import type { Address } from '@solana/addresses';
-import type { IInstruction } from '@solana/instructions';
+import type { Instruction } from '@solana/instructions';
 
 import { determineTransferType } from '../utils/validation.js';
 import { createTransferInstruction } from './transfer.js';
@@ -46,7 +46,7 @@ export interface TransferInterfaceResult {
     /** The determined transfer type */
     transferType: TransferType;
     /** The instruction(s) to execute */
-    instructions: IInstruction[];
+    instructions: Instruction[];
 }
 
 /**

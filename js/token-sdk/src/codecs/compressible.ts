@@ -52,19 +52,26 @@ function getVecDecoder<T>(itemDecoder: Decoder<T>): Decoder<T[]> {
 // COMPRESS TO PUBKEY CODEC
 // ============================================================================
 
+// Seeds are Vec<Vec<u8>> which we encode as Vec<bytes> using u32 length-prefixed bytes.
+// This correctly maps ReadonlyUint8Array[] ↔ Borsh Vec<Vec<u8>>.
+const getSeedEncoder = () =>
+    addEncoderSizePrefix(getBytesEncoder(), getU32Encoder());
+const getSeedDecoder = () =>
+    addDecoderSizePrefix(getBytesDecoder(), getU32Decoder());
+
 export const getCompressToPubkeyEncoder = (): Encoder<CompressToPubkey> =>
     getStructEncoder([
         ['bump', getU8Encoder()],
         ['programId', fixEncoderSize(getBytesEncoder(), 32)],
-        ['seeds', getVecEncoder(getVecEncoder(getU8Encoder()))],
-    ]) as unknown as Encoder<CompressToPubkey>;
+        ['seeds', getVecEncoder(getSeedEncoder())],
+    ]);
 
 export const getCompressToPubkeyDecoder = (): Decoder<CompressToPubkey> =>
     getStructDecoder([
         ['bump', getU8Decoder()],
         ['programId', fixDecoderSize(getBytesDecoder(), 32)],
-        ['seeds', getVecDecoder(getVecDecoder(getU8Decoder()))],
-    ]) as unknown as Decoder<CompressToPubkey>;
+        ['seeds', getVecDecoder(getSeedDecoder())],
+    ]);
 
 export const getCompressToPubkeyCodec = (): Codec<CompressToPubkey> =>
     combineCodec(getCompressToPubkeyEncoder(), getCompressToPubkeyDecoder());
@@ -86,6 +93,7 @@ export const getCompressibleExtensionDataEncoder =
             ],
         ]);
 
+// Cast needed: getOptionDecoder returns Option<T> but interface uses T | null.
 export const getCompressibleExtensionDataDecoder =
     (): Decoder<CompressibleExtensionInstructionData> =>
         getStructDecoder([
@@ -119,6 +127,7 @@ export const getCreateAtaDataEncoder = (): Encoder<CreateAtaInstructionData> =>
         ],
     ]);
 
+// Cast needed: getOptionDecoder returns Option<T> but interface uses T | null.
 export const getCreateAtaDataDecoder = (): Decoder<CreateAtaInstructionData> =>
     getStructDecoder([
         ['bump', getU8Decoder()],

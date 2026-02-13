@@ -257,6 +257,8 @@ export enum IndexerErrorCode {
     RpcError = 'RPC_ERROR',
     /** Account not found */
     NotFound = 'NOT_FOUND',
+    /** Insufficient balance for operation */
+    InsufficientBalance = 'INSUFFICIENT_BALANCE',
 }
 
 /**

@@ -3,9 +3,14 @@
  */
 
 import type { Address } from '@solana/addresses';
-import type { IInstruction, IAccountMeta } from '@solana/instructions';
+import {
+    AccountRole,
+    type Instruction,
+    type AccountMeta,
+} from '@solana/instructions';
 
 import { DISCRIMINATOR, LIGHT_TOKEN_PROGRAM_ID } from '../constants.js';
+import { getDiscriminatorOnlyEncoder } from '../codecs/instructions.js';
 
 /**
  * Parameters for freezing a token account.
@@ -27,18 +32,22 @@ export interface FreezeParams {
  * @param params - Freeze parameters
  * @returns The freeze instruction
  */
-export function createFreezeInstruction(params: FreezeParams): IInstruction {
+export function createFreezeInstruction(params: FreezeParams): Instruction {
     const { tokenAccount, mint, freezeAuthority } = params;
 
     // Build accounts
-    const accounts: IAccountMeta[] = [
-        { address: tokenAccount, role: 1 }, // writable
-        { address: mint, role: 0 }, // readonly
-        { address: freezeAuthority, role: 2 }, // readonly+signer
+    const accounts: AccountMeta[] = [
+        { address: tokenAccount, role: AccountRole.WRITABLE },
+        { address: mint, role: AccountRole.READONLY },
+        { address: freezeAuthority, role: AccountRole.READONLY_SIGNER },
     ];
 
     // Build instruction data (just discriminator)
-    const data = new Uint8Array([DISCRIMINATOR.FREEZE]);
+    const data = new Uint8Array(
+        getDiscriminatorOnlyEncoder().encode({
+            discriminator: DISCRIMINATOR.FREEZE,
+        }),
+    );
 
     return {
         programAddress: LIGHT_TOKEN_PROGRAM_ID,
@@ -67,18 +76,22 @@ export interface ThawParams {
  * @param params - Thaw parameters
  * @returns The thaw instruction
  */
-export function createThawInstruction(params: ThawParams): IInstruction {
+export function createThawInstruction(params: ThawParams): Instruction {
     const { tokenAccount, mint, freezeAuthority } = params;
 
     // Build accounts
-    const accounts: IAccountMeta[] = [
-        { address: tokenAccount, role: 1 }, // writable
-        { address: mint, role: 0 }, // readonly
-        { address: freezeAuthority, role: 2 }, // readonly+signer
+    const accounts: AccountMeta[] = [
+        { address: tokenAccount, role: AccountRole.WRITABLE },
+        { address: mint, role: AccountRole.READONLY },
+        { address: freezeAuthority, role: AccountRole.READONLY_SIGNER },
     ];
 
     // Build instruction data (just discriminator)
-    const data = new Uint8Array([DISCRIMINATOR.THAW]);
+    const data = new Uint8Array(
+        getDiscriminatorOnlyEncoder().encode({
+            discriminator: DISCRIMINATOR.THAW,
+        }),
+    );
 
     return {
         programAddress: LIGHT_TOKEN_PROGRAM_ID,

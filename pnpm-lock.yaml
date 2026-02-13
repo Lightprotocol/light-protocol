@@ -446,10 +446,19 @@ importers:
       '@solana/codecs':
         specifier: ^2.1.0
         version: 2.3.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
+      '@solana/instructions':
+        specifier: ^2.1.0
+        version: 2.3.0(typescript@5.9.3)
       '@solana/kit':
         specifier: ^2.1.0
         version: 2.3.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(ws@8.18.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))
     devDependencies:
+      '@lightprotocol/compressed-token':
+        specifier: workspace:*
+        version: link:../compressed-token
+      '@lightprotocol/stateless.js':
+        specifier: workspace:*
+        version: link:../stateless.js
       typescript:
         specifier: ^5.7.3
         version: 5.9.3
@@ -520,6 +529,12 @@ importers:
       '@eslint/js':
         specifier: 9.36.0
         version: 9.36.0
+      '@lightprotocol/compressed-token':
+        specifier: workspace:*
+        version: link:../compressed-token
+      '@lightprotocol/stateless.js':
+        specifier: workspace:*
+        version: link:../stateless.js
       '@solana/kit':
         specifier: ^2.1.0
         version: 2.3.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(ws@8.18.3(bufferutil@4.0.8)(utf-8-validate@5.0.10))

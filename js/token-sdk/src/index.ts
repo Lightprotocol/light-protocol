@@ -81,7 +81,6 @@ export {
     getAssociatedTokenAddressWithBump,
     deriveMintAddress,
     derivePoolAddress,
-    deriveCpiAuthority,
 
     // Validation
     isLightTokenAccount,
@@ -129,6 +128,16 @@ export {
     getCreateAtaDataCodec,
     encodeCreateAtaInstructionData,
     defaultCompressibleParams,
+
+    // Simple instruction codecs
+    getAmountInstructionCodec,
+    getCheckedInstructionCodec,
+    getDiscriminatorOnlyCodec,
+    encodeMaxTopUp,
+    decodeMaxTopUp,
+    type AmountInstructionData,
+    type CheckedInstructionData,
+    type DiscriminatorOnlyData,
 } from './codecs/index.js';
 
 // ============================================================================

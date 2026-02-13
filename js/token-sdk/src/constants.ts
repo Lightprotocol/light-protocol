@@ -162,19 +162,19 @@ export const RESTRICTED_POOL_SEED = 'restricted';
 // ============================================================================
 
 /** Size of a compressed mint account */
-export const MINT_ACCOUNT_SIZE = 82n;
+export const MINT_ACCOUNT_SIZE = 82;
 
 /** Base size of a CToken account (without extensions) */
-export const BASE_TOKEN_ACCOUNT_SIZE = 266n;
+export const BASE_TOKEN_ACCOUNT_SIZE = 266;
 
 /** Extension metadata overhead (Vec length) */
-export const EXTENSION_METADATA_SIZE = 4n;
+export const EXTENSION_METADATA_SIZE = 4;
 
 /** CompressedOnly extension size */
-export const COMPRESSED_ONLY_EXTENSION_SIZE = 16n;
+export const COMPRESSED_ONLY_EXTENSION_SIZE = 16;
 
 /** Transfer fee account extension size */
-export const TRANSFER_FEE_ACCOUNT_EXTENSION_SIZE = 9n;
+export const TRANSFER_FEE_ACCOUNT_EXTENSION_SIZE = 9;
 
 /** Transfer hook account extension size */
-export const TRANSFER_HOOK_ACCOUNT_EXTENSION_SIZE = 2n;
+export const TRANSFER_HOOK_ACCOUNT_EXTENSION_SIZE = 2;

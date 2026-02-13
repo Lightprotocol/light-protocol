@@ -3,9 +3,14 @@
  */
 
 import type { Address } from '@solana/addresses';
-import type { IInstruction, IAccountMeta } from '@solana/instructions';
+import {
+    AccountRole,
+    type Instruction,
+    type AccountMeta,
+} from '@solana/instructions';
 
 import { DISCRIMINATOR, LIGHT_TOKEN_PROGRAM_ID } from '../constants.js';
+import { getDiscriminatorOnlyEncoder } from '../codecs/instructions.js';
 
 /**
  * Parameters for closing a token account.
@@ -30,18 +35,22 @@ export interface CloseAccountParams {
  */
 export function createCloseAccountInstruction(
     params: CloseAccountParams,
-): IInstruction {
+): Instruction {
     const { tokenAccount, destination, owner } = params;
 
     // Build accounts
-    const accounts: IAccountMeta[] = [
-        { address: tokenAccount, role: 1 }, // writable
-        { address: destination, role: 1 }, // writable
-        { address: owner, role: 2 }, // readonly+signer
+    const accounts: AccountMeta[] = [
+        { address: tokenAccount, role: AccountRole.WRITABLE },
+        { address: destination, role: AccountRole.WRITABLE },
+        { address: owner, role: AccountRole.READONLY_SIGNER },
     ];
 
     // Build instruction data (just discriminator)
-    const data = new Uint8Array([DISCRIMINATOR.CLOSE]);
+    const data = new Uint8Array(
+        getDiscriminatorOnlyEncoder().encode({
+            discriminator: DISCRIMINATOR.CLOSE,
+        }),
+    );
 
     return {
         programAddress: LIGHT_TOKEN_PROGRAM_ID,

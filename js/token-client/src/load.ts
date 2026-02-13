@@ -8,12 +8,14 @@
 import type { Address } from '@solana/addresses';
 
 import type { LightIndexer } from './indexer.js';
-import type {
-    CompressedAccount,
-    CompressedTokenAccount,
-    ValidityProofWithContext,
-    GetCompressedTokenAccountsOptions,
-    TreeInfo,
+import {
+    IndexerError,
+    IndexerErrorCode,
+    type CompressedAccount,
+    type CompressedTokenAccount,
+    type ValidityProofWithContext,
+    type GetCompressedTokenAccountsOptions,
+    type TreeInfo,
 } from '@lightprotocol/token-sdk';
 
 // ============================================================================
@@ -125,14 +127,18 @@ export async function loadTokenAccountsForTransfer(
     const tokenAccounts = response.value.items;
 
     if (tokenAccounts.length === 0) {
-        throw new Error(`No token accounts found for owner ${owner}`);
+        throw new IndexerError(
+            IndexerErrorCode.NotFound,
+            `No token accounts found for owner ${owner}`,
+        );
     }
 
     // Select accounts to meet the required amount
     const selectedAccounts = selectAccountsForAmount(tokenAccounts, amount);
 
     if (selectedAccounts.totalAmount < amount) {
-        throw new Error(
+        throw new IndexerError(
+            IndexerErrorCode.InsufficientBalance,
             `Insufficient balance: have ${selectedAccounts.totalAmount}, need ${amount}`,
         );
     }
@@ -190,6 +196,9 @@ export async function loadTokenAccount(
  * @param options - Optional filters
  * @returns Array of token accounts
  */
+/** Maximum number of pages to fetch to prevent infinite pagination loops. */
+const MAX_PAGES = 100;
+
 export async function loadAllTokenAccounts(
     indexer: LightIndexer,
     owner: Address,
@@ -197,8 +206,16 @@ export async function loadAllTokenAccounts(
 ): Promise<CompressedTokenAccount[]> {
     const allAccounts: CompressedTokenAccount[] = [];
     let cursor: string | undefined = options?.cursor;
+    let pages = 0;
 
     do {
+        if (++pages > MAX_PAGES) {
+            throw new IndexerError(
+                IndexerErrorCode.InvalidResponse,
+                `Pagination exceeded maximum of ${MAX_PAGES} pages`,
+            );
+        }
+
         const response = await indexer.getCompressedTokenAccountsByOwner(
             owner,
             { ...options, cursor },

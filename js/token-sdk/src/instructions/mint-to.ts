@@ -3,10 +3,18 @@
  */
 
 import type { Address } from '@solana/addresses';
-import type { IInstruction, IAccountMeta } from '@solana/instructions';
-import { getU64Encoder } from '@solana/codecs';
+import {
+    AccountRole,
+    type Instruction,
+    type AccountMeta,
+} from '@solana/instructions';
 
 import { DISCRIMINATOR, LIGHT_TOKEN_PROGRAM_ID } from '../constants.js';
+import { validatePositiveAmount, validateDecimals } from '../utils/validation.js';
+import {
+    getAmountInstructionEncoder,
+    getCheckedInstructionEncoder,
+} from '../codecs/instructions.js';
 
 /**
  * Parameters for minting tokens.
@@ -30,21 +38,25 @@ export interface MintToParams {
  * @param params - Mint-to parameters
  * @returns The mint-to instruction
  */
-export function createMintToInstruction(params: MintToParams): IInstruction {
+export function createMintToInstruction(params: MintToParams): Instruction {
     const { mint, tokenAccount, mintAuthority, amount } = params;
 
+    validatePositiveAmount(amount);
+
     // Build accounts
-    const accounts: IAccountMeta[] = [
-        { address: mint, role: 1 }, // writable
-        { address: tokenAccount, role: 1 }, // writable
-        { address: mintAuthority, role: 2 }, // readonly+signer
+    const accounts: AccountMeta[] = [
+        { address: mint, role: AccountRole.WRITABLE },
+        { address: tokenAccount, role: AccountRole.WRITABLE },
+        { address: mintAuthority, role: AccountRole.READONLY_SIGNER },
     ];
 
     // Build instruction data
-    const amountBytes = getU64Encoder().encode(amount);
-    const data = new Uint8Array(1 + amountBytes.length);
-    data[0] = DISCRIMINATOR.MINT_TO;
-    data.set(new Uint8Array(amountBytes), 1);
+    const data = new Uint8Array(
+        getAmountInstructionEncoder().encode({
+            discriminator: DISCRIMINATOR.MINT_TO,
+            amount,
+        }),
+    );
 
     return {
         programAddress: LIGHT_TOKEN_PROGRAM_ID,
@@ -71,22 +83,27 @@ export interface MintToCheckedParams extends MintToParams {
  */
 export function createMintToCheckedInstruction(
     params: MintToCheckedParams,
-): IInstruction {
+): Instruction {
     const { mint, tokenAccount, mintAuthority, amount, decimals } = params;
 
+    validatePositiveAmount(amount);
+    validateDecimals(decimals);
+
     // Build accounts
-    const accounts: IAccountMeta[] = [
-        { address: mint, role: 1 }, // writable
-        { address: tokenAccount, role: 1 }, // writable
-        { address: mintAuthority, role: 2 }, // readonly+signer
+    const accounts: AccountMeta[] = [
+        { address: mint, role: AccountRole.WRITABLE },
+        { address: tokenAccount, role: AccountRole.WRITABLE },
+        { address: mintAuthority, role: AccountRole.READONLY_SIGNER },
     ];
 
     // Build instruction data
-    const amountBytes = getU64Encoder().encode(amount);
-    const data = new Uint8Array(1 + amountBytes.length + 1);
-    data[0] = DISCRIMINATOR.MINT_TO_CHECKED;
-    data.set(new Uint8Array(amountBytes), 1);
-    data[1 + amountBytes.length] = decimals;
+    const data = new Uint8Array(
+        getCheckedInstructionEncoder().encode({
+            discriminator: DISCRIMINATOR.MINT_TO_CHECKED,
+            amount,
+            decimals,
+        }),
+    );
 
     return {
         programAddress: LIGHT_TOKEN_PROGRAM_ID,

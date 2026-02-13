@@ -3,7 +3,11 @@
  */
 
 import type { Address } from '@solana/addresses';
-import type { IInstruction, IAccountMeta } from '@solana/instructions';
+import {
+    AccountRole,
+    type Instruction,
+    type AccountMeta,
+} from '@solana/instructions';
 
 import { LIGHT_TOKEN_PROGRAM_ID, SYSTEM_PROGRAM_ID } from '../constants.js';
 import { deriveAssociatedTokenAddress } from '../utils/derivation.js';
@@ -42,7 +46,7 @@ export interface CreateAtaResult {
     /** The PDA bump */
     bump: number;
     /** The instruction to create the ATA */
-    instruction: IInstruction;
+    instruction: Instruction;
 }
 
 /**
@@ -71,14 +75,14 @@ export async function createAssociatedTokenAccountInstruction(
     );
 
     // Build accounts
-    const accounts: IAccountMeta[] = [
-        { address: owner, role: 0 }, // readonly
-        { address: mint, role: 0 }, // readonly
-        { address: payer, role: 3 }, // writable+signer
-        { address: ata, role: 1 }, // writable
-        { address: SYSTEM_PROGRAM_ID, role: 0 }, // readonly
-        { address: compressibleConfig, role: 0 }, // readonly
-        { address: rentSponsor, role: 1 }, // writable
+    const accounts: AccountMeta[] = [
+        { address: owner, role: AccountRole.READONLY },
+        { address: mint, role: AccountRole.READONLY },
+        { address: payer, role: AccountRole.WRITABLE_SIGNER },
+        { address: ata, role: AccountRole.WRITABLE },
+        { address: SYSTEM_PROGRAM_ID, role: AccountRole.READONLY },
+        { address: compressibleConfig, role: AccountRole.READONLY },
+        { address: rentSponsor, role: AccountRole.WRITABLE },
     ];
 
     // Build instruction data
@@ -90,7 +94,7 @@ export async function createAssociatedTokenAccountInstruction(
         idempotent,
     );
 
-    const instruction: IInstruction = {
+    const instruction: Instruction = {
         programAddress: LIGHT_TOKEN_PROGRAM_ID,
         accounts,
         data,

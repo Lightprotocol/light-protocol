@@ -202,14 +202,14 @@ export const getCompressedProofEncoder = (): Encoder<CompressedProof> =>
         ['a', fixEncoderSize(getBytesEncoder(), 32)],
         ['b', fixEncoderSize(getBytesEncoder(), 64)],
         ['c', fixEncoderSize(getBytesEncoder(), 32)],
-    ]) as unknown as Encoder<CompressedProof>;
+    ]);
 
 export const getCompressedProofDecoder = (): Decoder<CompressedProof> =>
     getStructDecoder([
         ['a', fixDecoderSize(getBytesDecoder(), 32)],
         ['b', fixDecoderSize(getBytesDecoder(), 64)],
         ['c', fixDecoderSize(getBytesDecoder(), 32)],
-    ]) as unknown as Decoder<CompressedProof>;
+    ]);
 
 export const getCompressedProofCodec = (): Codec<CompressedProof> =>
     combineCodec(getCompressedProofEncoder(), getCompressedProofDecoder());
@@ -259,6 +259,10 @@ export interface Transfer2BaseInstructionData {
     outLamports: readonly bigint[] | null;
 }
 
+// The encoder/decoder use `as unknown` casts because Kit's getOptionEncoder
+// accepts OptionOrNullable<T> (broader than T | null) and getOptionDecoder
+// returns Option<T> (narrower than T | null). The binary format is correct;
+// the casts bridge the Rust Option<T> ↔ TypeScript T | null mismatch.
 export const getTransfer2BaseEncoder =
     (): Encoder<Transfer2BaseInstructionData> =>
         getStructEncoder([
@@ -374,13 +378,16 @@ function encodeTlv(tlv: unknown[][] | null): Uint8Array {
 
     // For each inner vec
     for (const innerVec of tlv) {
+        if (innerVec.length > 0) {
+            throw new Error(
+                'TLV extension serialization is not yet implemented',
+            );
+        }
+
         // Inner vec length (u32)
         const innerLen = new Uint8Array(4);
         new DataView(innerLen.buffer).setUint32(0, innerVec.length, true);
         chunks.push(innerLen);
-
-        // Note: Extension serialization would go here
-        // For now, we only support empty inner vectors
     }
 
     // Concatenate all chunks

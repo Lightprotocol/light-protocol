@@ -54,3 +54,9 @@ export {
     getTreeInfo,
     getOutputTreeInfo,
 } from './load.js';
+
+// Actions (high-level builders)
+export {
+    buildTransferInstruction,
+    type BuildTransferResult,
+} from './actions.js';

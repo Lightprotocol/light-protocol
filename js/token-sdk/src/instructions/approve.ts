@@ -3,10 +3,18 @@
  */
 
 import type { Address } from '@solana/addresses';
-import type { IInstruction, IAccountMeta } from '@solana/instructions';
-import { getU64Encoder } from '@solana/codecs';
+import {
+    AccountRole,
+    type Instruction,
+    type AccountMeta,
+} from '@solana/instructions';
 
 import { DISCRIMINATOR, LIGHT_TOKEN_PROGRAM_ID } from '../constants.js';
+import { validatePositiveAmount } from '../utils/validation.js';
+import {
+    getAmountInstructionEncoder,
+    getDiscriminatorOnlyEncoder,
+} from '../codecs/instructions.js';
 
 /**
  * Parameters for approving a delegate.
@@ -30,21 +38,25 @@ export interface ApproveParams {
  * @param params - Approve parameters
  * @returns The approve instruction
  */
-export function createApproveInstruction(params: ApproveParams): IInstruction {
+export function createApproveInstruction(params: ApproveParams): Instruction {
     const { tokenAccount, delegate, owner, amount } = params;
 
+    validatePositiveAmount(amount);
+
     // Build accounts
-    const accounts: IAccountMeta[] = [
-        { address: tokenAccount, role: 1 }, // writable
-        { address: delegate, role: 0 }, // readonly
-        { address: owner, role: 2 }, // readonly+signer
+    const accounts: AccountMeta[] = [
+        { address: tokenAccount, role: AccountRole.WRITABLE },
+        { address: delegate, role: AccountRole.READONLY },
+        { address: owner, role: AccountRole.READONLY_SIGNER },
     ];
 
     // Build instruction data
-    const amountBytes = getU64Encoder().encode(amount);
-    const data = new Uint8Array(1 + amountBytes.length);
-    data[0] = DISCRIMINATOR.APPROVE;
-    data.set(new Uint8Array(amountBytes), 1);
+    const data = new Uint8Array(
+        getAmountInstructionEncoder().encode({
+            discriminator: DISCRIMINATOR.APPROVE,
+            amount,
+        }),
+    );
 
     return {
         programAddress: LIGHT_TOKEN_PROGRAM_ID,
@@ -71,17 +83,21 @@ export interface RevokeParams {
  * @param params - Revoke parameters
  * @returns The revoke instruction
  */
-export function createRevokeInstruction(params: RevokeParams): IInstruction {
+export function createRevokeInstruction(params: RevokeParams): Instruction {
     const { tokenAccount, owner } = params;
 
     // Build accounts
-    const accounts: IAccountMeta[] = [
-        { address: tokenAccount, role: 1 }, // writable
-        { address: owner, role: 2 }, // readonly+signer
+    const accounts: AccountMeta[] = [
+        { address: tokenAccount, role: AccountRole.WRITABLE },
+        { address: owner, role: AccountRole.READONLY_SIGNER },
     ];
 
     // Build instruction data (just discriminator)
-    const data = new Uint8Array([DISCRIMINATOR.REVOKE]);
+    const data = new Uint8Array(
+        getDiscriminatorOnlyEncoder().encode({
+            discriminator: DISCRIMINATOR.REVOKE,
+        }),
+    );
 
     return {
         programAddress: LIGHT_TOKEN_PROGRAM_ID,

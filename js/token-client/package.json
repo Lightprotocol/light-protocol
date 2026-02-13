@@ -18,7 +18,8 @@
     "scripts": {
         "build": "tsc",
         "clean": "rm -rf dist",
-        "test": "vitest run",
+        "test": "vitest run tests/unit/",
+        "test:e2e": "vitest run --config vitest.e2e.config.ts",
         "test:watch": "vitest"
     },
     "peerDependencies": {
@@ -27,9 +28,12 @@
     "dependencies": {
         "@lightprotocol/token-sdk": "workspace:*",
         "@solana/addresses": "^2.1.0",
-        "@solana/codecs": "^2.1.0"
+        "@solana/codecs": "^2.1.0",
+        "@solana/instructions": "^2.1.0"
     },
     "devDependencies": {
+        "@lightprotocol/stateless.js": "workspace:*",
+        "@lightprotocol/compressed-token": "workspace:*",
         "typescript": "^5.7.3",
         "vitest": "^2.1.8"
     },

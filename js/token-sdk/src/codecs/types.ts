@@ -3,6 +3,7 @@
  */
 
 import type { Address } from '@solana/addresses';
+import type { ReadonlyUint8Array } from '@solana/codecs';
 
 // ============================================================================
 // COMPRESSION TYPES
@@ -120,11 +121,11 @@ export interface CompressedCpiContext {
  */
 export interface CompressedProof {
     /** Proof element A (32 bytes) */
-    a: Uint8Array;
+    a: ReadonlyUint8Array;
     /** Proof element B (64 bytes) */
-    b: Uint8Array;
+    b: ReadonlyUint8Array;
     /** Proof element C (32 bytes) */
-    c: Uint8Array;
+    c: ReadonlyUint8Array;
 }
 
 // ============================================================================
@@ -138,13 +139,16 @@ export interface TokenMetadataExtension {
     /** Update authority (optional) */
     updateAuthority: Address | null;
     /** Token name */
-    name: Uint8Array;
+    name: ReadonlyUint8Array;
     /** Token symbol */
-    symbol: Uint8Array;
+    symbol: ReadonlyUint8Array;
     /** Token URI */
-    uri: Uint8Array;
+    uri: ReadonlyUint8Array;
     /** Additional metadata key-value pairs */
-    additionalMetadata: Array<{ key: Uint8Array; value: Uint8Array }> | null;
+    additionalMetadata: Array<{
+        key: ReadonlyUint8Array;
+        value: ReadonlyUint8Array;
+    }> | null;
 }
 
 /**
@@ -268,9 +272,9 @@ export interface CompressToPubkey {
     /** PDA bump */
     bump: number;
     /** Program ID for the PDA */
-    programId: Uint8Array;
+    programId: ReadonlyUint8Array;
     /** Seeds for the PDA */
-    seeds: Uint8Array[];
+    seeds: ReadonlyUint8Array[];
 }
 
 /**

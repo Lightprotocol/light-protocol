@@ -7,21 +7,19 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { address, type Address } from '@solana/addresses';
+import { address } from '@solana/addresses';
 
 import {
     deriveAssociatedTokenAddress,
     getAssociatedTokenAddressWithBump,
     deriveMintAddress,
     derivePoolAddress,
-    deriveCpiAuthority,
     validatePositiveAmount,
     validateDecimals,
     validateAtaDerivation,
     isLightTokenAccount,
     determineTransferType,
     LIGHT_TOKEN_PROGRAM_ID,
-    CPI_AUTHORITY,
 } from '../../src/index.js';
 
 // ============================================================================
@@ -59,6 +57,17 @@ describe('deriveAssociatedTokenAddress', () => {
 
         const result1 = await deriveAssociatedTokenAddress(owner1, mint);
         const result2 = await deriveAssociatedTokenAddress(owner2, mint);
+
+        expect(result1.address).not.toBe(result2.address);
+    });
+
+    it('6.1.3 produces different addresses for different mints', async () => {
+        const owner = address('11111111111111111111111111111111');
+        const mint1 = address('So11111111111111111111111111111111111111112');
+        const mint2 = address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+
+        const result1 = await deriveAssociatedTokenAddress(owner, mint1);
+        const result2 = await deriveAssociatedTokenAddress(owner, mint2);
 
         expect(result1.address).not.toBe(result2.address);
     });
@@ -115,7 +124,9 @@ describe('deriveMintAddress', () => {
     });
 
     it('6.3.1 produces consistent results', async () => {
-        const mintSigner = address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+        const mintSigner = address(
+            'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+        );
 
         const result1 = await deriveMintAddress(mintSigner);
         const result2 = await deriveMintAddress(mintSigner);
@@ -163,14 +174,6 @@ describe('derivePoolAddress', () => {
     });
 });
 
-describe('deriveCpiAuthority', () => {
-    it('6.5 derives correct CPI authority', async () => {
-        const result = await deriveCpiAuthority();
-
-        expect(result).toBe(CPI_AUTHORITY);
-    });
-});
-
 // ============================================================================
 // TEST: Validation Functions
 // ============================================================================
@@ -179,16 +182,24 @@ describe('validatePositiveAmount', () => {
     it('7.1 passes for positive amount', () => {
         expect(() => validatePositiveAmount(1n)).not.toThrow();
         expect(() => validatePositiveAmount(100n)).not.toThrow();
-        expect(() => validatePositiveAmount(BigInt(Number.MAX_SAFE_INTEGER))).not.toThrow();
+        expect(() =>
+            validatePositiveAmount(BigInt(Number.MAX_SAFE_INTEGER)),
+        ).not.toThrow();
     });
 
     it('7.1.1 throws for zero', () => {
-        expect(() => validatePositiveAmount(0n)).toThrow('Amount must be positive');
+        expect(() => validatePositiveAmount(0n)).toThrow(
+            'Amount must be positive',
+        );
     });
 
     it('7.1.2 throws for negative', () => {
-        expect(() => validatePositiveAmount(-1n)).toThrow('Amount must be positive');
-        expect(() => validatePositiveAmount(-100n)).toThrow('Amount must be positive');
+        expect(() => validatePositiveAmount(-1n)).toThrow(
+            'Amount must be positive',
+        );
+        expect(() => validatePositiveAmount(-100n)).toThrow(
+            'Amount must be positive',
+        );
     });
 });
 
@@ -227,7 +238,10 @@ describe('validateAtaDerivation', () => {
         const owner = address('11111111111111111111111111111111');
         const mint = address('So11111111111111111111111111111111111111112');
 
-        const { address: ata } = await deriveAssociatedTokenAddress(owner, mint);
+        const { address: ata } = await deriveAssociatedTokenAddress(
+            owner,
+            mint,
+        );
 
         const isValid = await validateAtaDerivation(ata, owner, mint);
 
@@ -237,7 +251,9 @@ describe('validateAtaDerivation', () => {
     it('7.3.1 returns false for wrong ATA', async () => {
         const owner = address('11111111111111111111111111111111');
         const mint = address('So11111111111111111111111111111111111111112');
-        const wrongAta = address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+        const wrongAta = address(
+            'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+        );
 
         const isValid = await validateAtaDerivation(wrongAta, owner, mint);
 
@@ -251,7 +267,9 @@ describe('isLightTokenAccount', () => {
     });
 
     it('7.4.1 returns false for non-Light accounts', () => {
-        const splToken = address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+        const splToken = address(
+            'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+        );
         const systemProgram = address('11111111111111111111111111111111');
 
         expect(isLightTokenAccount(splToken)).toBe(false);
@@ -282,6 +300,8 @@ describe('determineTransferType', () => {
     });
 
     it('7.5.3 returns spl-to-spl for both SPL accounts', () => {
-        expect(determineTransferType(splProgram, splProgram)).toBe('spl-to-spl');
+        expect(determineTransferType(splProgram, splProgram)).toBe(
+            'spl-to-spl',
+        );
     });
 });

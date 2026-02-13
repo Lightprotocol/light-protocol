@@ -3,14 +3,23 @@
  */
 
 import type { Address } from '@solana/addresses';
-import type { IInstruction, IAccountMeta } from '@solana/instructions';
-import { getU64Encoder, getU16Encoder } from '@solana/codecs';
+import {
+    AccountRole,
+    type Instruction,
+    type AccountMeta,
+} from '@solana/instructions';
 
 import {
     DISCRIMINATOR,
     LIGHT_TOKEN_PROGRAM_ID,
     SYSTEM_PROGRAM_ID,
 } from '../constants.js';
+import { validatePositiveAmount, validateDecimals } from '../utils/validation.js';
+import {
+    getAmountInstructionEncoder,
+    getCheckedInstructionEncoder,
+    encodeMaxTopUp,
+} from '../codecs/instructions.js';
 
 /**
  * Parameters for CToken transfer.
@@ -40,38 +49,42 @@ export interface TransferParams {
  */
 export function createTransferInstruction(
     params: TransferParams,
-): IInstruction {
+): Instruction {
     const { source, destination, amount, authority, maxTopUp, feePayer } =
         params;
 
+    validatePositiveAmount(amount);
+
     // Build accounts
-    const accounts: IAccountMeta[] = [
-        { address: source, role: 1 }, // writable
-        { address: destination, role: 1 }, // writable
+    const accounts: AccountMeta[] = [
+        { address: source, role: AccountRole.WRITABLE },
+        { address: destination, role: AccountRole.WRITABLE },
         {
             address: authority,
-            role: maxTopUp !== undefined && !feePayer ? 3 : 2, // writable+signer if paying, else readonly+signer
+            role:
+                maxTopUp !== undefined && !feePayer
+                    ? AccountRole.WRITABLE_SIGNER
+                    : AccountRole.READONLY_SIGNER,
         },
-        { address: SYSTEM_PROGRAM_ID, role: 0 }, // readonly
+        { address: SYSTEM_PROGRAM_ID, role: AccountRole.READONLY },
     ];
 
     // Add fee payer if provided
     if (feePayer) {
-        accounts.push({ address: feePayer, role: 3 }); // writable+signer
+        accounts.push({ address: feePayer, role: AccountRole.WRITABLE_SIGNER });
     }
 
-    // Build instruction data
-    const amountBytes = getU64Encoder().encode(amount);
-    const maxTopUpBytes =
-        maxTopUp !== undefined
-            ? getU16Encoder().encode(maxTopUp)
-            : new Uint8Array(0);
+    // Build instruction data: discriminator + amount [+ maxTopUp]
+    const baseBytes = getAmountInstructionEncoder().encode({
+        discriminator: DISCRIMINATOR.TRANSFER,
+        amount,
+    });
+    const maxTopUpBytes = encodeMaxTopUp(maxTopUp);
 
-    const data = new Uint8Array(1 + amountBytes.length + maxTopUpBytes.length);
-    data[0] = DISCRIMINATOR.TRANSFER;
-    data.set(new Uint8Array(amountBytes), 1);
+    const data = new Uint8Array(baseBytes.length + maxTopUpBytes.length);
+    data.set(new Uint8Array(baseBytes), 0);
     if (maxTopUpBytes.length > 0) {
-        data.set(new Uint8Array(maxTopUpBytes), 1 + amountBytes.length);
+        data.set(maxTopUpBytes, baseBytes.length);
     }
 
     return {
@@ -101,7 +114,7 @@ export interface TransferCheckedParams extends TransferParams {
  */
 export function createTransferCheckedInstruction(
     params: TransferCheckedParams,
-): IInstruction {
+): Instruction {
     const {
         source,
         mint,
@@ -113,38 +126,41 @@ export function createTransferCheckedInstruction(
         feePayer,
     } = params;
 
+    validatePositiveAmount(amount);
+    validateDecimals(decimals);
+
     // Build accounts
-    const accounts: IAccountMeta[] = [
-        { address: source, role: 1 }, // writable
-        { address: mint, role: 0 }, // readonly
-        { address: destination, role: 1 }, // writable
+    const accounts: AccountMeta[] = [
+        { address: source, role: AccountRole.WRITABLE },
+        { address: mint, role: AccountRole.READONLY },
+        { address: destination, role: AccountRole.WRITABLE },
         {
             address: authority,
-            role: maxTopUp !== undefined && !feePayer ? 3 : 2, // writable+signer if paying, else readonly+signer
+            role:
+                maxTopUp !== undefined && !feePayer
+                    ? AccountRole.WRITABLE_SIGNER
+                    : AccountRole.READONLY_SIGNER,
         },
-        { address: SYSTEM_PROGRAM_ID, role: 0 }, // readonly
+        { address: SYSTEM_PROGRAM_ID, role: AccountRole.READONLY },
     ];
 
     // Add fee payer if provided
     if (feePayer) {
-        accounts.push({ address: feePayer, role: 3 }); // writable+signer
+        accounts.push({ address: feePayer, role: AccountRole.WRITABLE_SIGNER });
     }
 
-    // Build instruction data
-    const amountBytes = getU64Encoder().encode(amount);
-    const maxTopUpBytes =
-        maxTopUp !== undefined
-            ? getU16Encoder().encode(maxTopUp)
-            : new Uint8Array(0);
+    // Build instruction data: discriminator + amount + decimals [+ maxTopUp]
+    const baseBytes = getCheckedInstructionEncoder().encode({
+        discriminator: DISCRIMINATOR.TRANSFER_CHECKED,
+        amount,
+        decimals,
+    });
+    const maxTopUpBytes = encodeMaxTopUp(maxTopUp);
 
-    const data = new Uint8Array(
-        1 + amountBytes.length + 1 + maxTopUpBytes.length,
-    );
-    data[0] = DISCRIMINATOR.TRANSFER_CHECKED;
-    data.set(new Uint8Array(amountBytes), 1);
-    data[1 + amountBytes.length] = decimals;
+    const data = new Uint8Array(baseBytes.length + maxTopUpBytes.length);
+    data.set(new Uint8Array(baseBytes), 0);
     if (maxTopUpBytes.length > 0) {
-        data.set(new Uint8Array(maxTopUpBytes), 1 + amountBytes.length + 1);
+        data.set(maxTopUpBytes, baseBytes.length);
     }
 
     return {

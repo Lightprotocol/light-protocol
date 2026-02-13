@@ -7,7 +7,6 @@ export {
     getAssociatedTokenAddressWithBump,
     deriveMintAddress,
     derivePoolAddress,
-    deriveCpiAuthority,
 } from './derivation.js';
 
 export {
