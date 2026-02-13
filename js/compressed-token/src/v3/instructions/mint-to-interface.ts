@@ -1,5 +1,5 @@
 import { PublicKey, TransactionInstruction } from '@solana/web3.js';
-import { ValidityProofWithContext } from '@lightprotocol/stateless.js';
+import { ValidityProofWithContext, CTOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
 import { createMintToInstruction as createSplMintToInstruction } from '@solana/spl-token';
 import { createMintToInstruction as createCtokenMintToInstruction } from './mint-to';
 import { MintInterface } from '../get-mint-interface';
@@ -41,8 +41,8 @@ export function createMintToInterfaceInstruction(
     const mint = mintInterface.mint.address;
     const programId = mintInterface.programId;
 
-    // SPL/T22 - no merkleContext means it's a native SPL mint
-    if (!mintInterface.merkleContext) {
+    // SPL/T22 dispatch
+    if (!programId.equals(CTOKEN_PROGRAM_ID)) {
         return createSplMintToInstruction(
             mint,
             destination,

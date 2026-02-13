@@ -97,10 +97,40 @@ export async function getMintInterface(
             bn(compressedAddress.toBytes()),
         );
 
+        // If indexer hasn't indexed the sentinel yet, fall back to on-chain CMint
         if (!compressedAccount?.data?.data) {
-            throw new Error(
-                `Compressed mint not found for ${address.toString()}`,
+            const cmintAccountInfo = await rpc.getAccountInfo(address);
+            if (!cmintAccountInfo?.data) {
+                throw new Error(
+                    `Compressed mint not found for ${address.toString()}`,
+                );
+            }
+
+            const compressedMintData = deserializeMint(
+                Buffer.from(cmintAccountInfo.data),
             );
+            const mint: Mint = {
+                address,
+                mintAuthority: compressedMintData.base.mintAuthority,
+                supply: compressedMintData.base.supply,
+                decimals: compressedMintData.base.decimals,
+                isInitialized: compressedMintData.base.isInitialized,
+                freezeAuthority: compressedMintData.base.freezeAuthority,
+                tlvData: Buffer.alloc(0),
+            };
+            const tokenMetadata = extractTokenMetadata(
+                compressedMintData.extensions,
+            );
+
+            return {
+                mint,
+                programId,
+                merkleContext: undefined,
+                mintContext: compressedMintData.mintContext,
+                tokenMetadata: tokenMetadata || undefined,
+                extensions: compressedMintData.extensions || undefined,
+                compression: compressedMintData.compression,
+            };
         }
 
         const compressedData = Buffer.from(compressedAccount.data.data);
@@ -161,11 +191,6 @@ export async function getMintInterface(
         };
 
         if (programId.equals(CTOKEN_PROGRAM_ID)) {
-            if (!result.merkleContext) {
-                throw new Error(
-                    `Invalid compressed mint: merkleContext is required for CTOKEN_PROGRAM_ID`,
-                );
-            }
             if (!result.mintContext) {
                 throw new Error(
                     `Invalid compressed mint: mintContext is required for CTOKEN_PROGRAM_ID`,
