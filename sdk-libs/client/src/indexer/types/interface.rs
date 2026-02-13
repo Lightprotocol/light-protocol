@@ -1,5 +1,4 @@
 use light_compressed_account::TreeType;
-use light_compressible::DECOMPRESSED_PDA_DISCRIMINATOR;
 use light_token::compat::TokenData;
 use solana_account::Account;
 use solana_pubkey::Pubkey;
@@ -116,19 +115,12 @@ pub struct AccountInterface {
 impl AccountInterface {
     /// Returns true if this account is on-chain (hot).
     pub fn is_hot(&self) -> bool {
-        !self.is_cold()
+        self.cold.is_none()
     }
 
     /// Returns true if this account is compressed (cold).
-    ///
-    /// An account is cold when compressed data exists AND the discriminator
-    /// is NOT `DECOMPRESSED_PDA_DISCRIMINATOR`. Decompressed accounts keep a
-    /// compressed placeholder with that discriminator but are on-chain (hot).
     pub fn is_cold(&self) -> bool {
-        match &self.cold {
-            Some(cold) => cold.data.discriminator != DECOMPRESSED_PDA_DISCRIMINATOR,
-            None => false,
-        }
+        self.cold.is_some()
     }
 }
 
@@ -136,19 +128,10 @@ impl AccountInterface {
 fn convert_account_interface(
     ai: &photon_api::types::AccountInterface,
 ) -> Result<AccountInterface, IndexerError> {
-    // Photon can return multiple cold entries for the same pubkey (e.g. a
-    // decompressed placeholder alongside the active compressed account, or
-    // multiple compressed token accounts for the same owner). Skip decompressed
-    // placeholders and take the first truly cold entry.
     let cold = ai
         .cold
         .as_ref()
-        .and_then(|entries| {
-            entries.iter().find(|e| match &e.data {
-                Some(d) => (*d.discriminator).to_le_bytes() != DECOMPRESSED_PDA_DISCRIMINATOR,
-                None => true,
-            })
-        })
+        .and_then(|entries| entries.first())
         .map(convert_account_v2)
         .transpose()?;
 
@@ -247,32 +230,7 @@ mod tests {
     }
 
     #[test]
-    fn test_decompressed_is_hot() {
-        let ai = AccountInterface {
-            key: Pubkey::new_unique(),
-            account: make_account(1_000_000),
-            cold: Some(make_cold_context(DECOMPRESSED_PDA_DISCRIMINATOR)),
-        };
-        assert!(ai.is_hot());
-        assert!(!ai.is_cold());
-    }
-
-    #[test]
-    fn test_compressed_with_lamports_sent_to_closed_account_is_still_cold() {
-        // Someone sent lamports to the closed on-chain account — old check
-        // would wrongly say is_hot() because lamports > 0.
-        let ai = AccountInterface {
-            key: Pubkey::new_unique(),
-            account: make_account(500_000),
-            cold: Some(make_cold_context([10, 20, 30, 40, 50, 60, 70, 80])),
-        };
-        assert!(ai.is_cold());
-        assert!(!ai.is_hot());
-    }
-
-    #[test]
     fn test_zero_discriminator_is_cold() {
-        // Default/zero discriminator means compressed (no data case).
         let ai = AccountInterface {
             key: Pubkey::new_unique(),
             account: make_account(0),
@@ -280,19 +238,6 @@ mod tests {
         };
         assert!(ai.is_cold());
         assert!(!ai.is_hot());
-    }
-
-    #[test]
-    fn test_decompressed_with_zero_lamports_is_hot() {
-        // Discriminator wins over lamports — decompressed placeholder with
-        // zero lamports is still hot.
-        let ai = AccountInterface {
-            key: Pubkey::new_unique(),
-            account: make_account(0),
-            cold: Some(make_cold_context(DECOMPRESSED_PDA_DISCRIMINATOR)),
-        };
-        assert!(ai.is_hot());
-        assert!(!ai.is_cold());
     }
 
     #[test]
@@ -309,14 +254,14 @@ mod tests {
         };
         assert!(cold_tai.account.is_cold());
 
-        let decompressed_tai = TokenAccountInterface {
+        let hot_tai = TokenAccountInterface {
             account: AccountInterface {
                 key: Pubkey::new_unique(),
                 account: make_account(1_000_000),
-                cold: Some(make_cold_context(DECOMPRESSED_PDA_DISCRIMINATOR)),
+                cold: None,
             },
             token,
         };
-        assert!(decompressed_tai.account.is_hot());
+        assert!(hot_tai.account.is_hot());
     }
 }

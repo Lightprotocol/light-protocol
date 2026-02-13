@@ -88,13 +88,6 @@ impl AccountInterface {
     }
 
     /// Whether this account is cold.
-    ///
-    /// This simple `cold.is_some()` check intentionally differs from
-    /// `IndexerAccountInterface::is_cold()` (which inspects
-    /// `DECOMPRESSED_PDA_DISCRIMINATOR`). `AccountInterface` is produced from
-    /// already-filtered client-side data where decompressed placeholders have
-    /// been removed; decompressed accounts will have `cold: None` here, so
-    /// the presence check is correct.
     #[inline]
     pub fn is_cold(&self) -> bool {
         self.cold.is_some()
