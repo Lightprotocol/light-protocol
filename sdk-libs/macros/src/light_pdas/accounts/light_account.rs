@@ -608,7 +608,7 @@ pub(crate) fn parse_light_account_attr(
                     )?))))
                 }
                 LightAccountType::Mint => Ok(Some(LightAccountField::Mint(Box::new(
-                    build_mint_field(field_ident, &args.key_values, attr, direct_proof_arg)?,
+                    build_mint_field(field_ident, &args.key_values, attr)?,
                 )))),
                 LightAccountType::Token => Ok(Some(LightAccountField::TokenAccount(Box::new(
                     build_token_account_field(field_ident, &args.key_values, args.has_init, attr)?,
@@ -740,7 +740,6 @@ fn build_mint_field(
     field_ident: &Ident,
     key_values: &[NamespacedKeyValue],
     attr: &syn::Attribute,
-    direct_proof_arg: &Option<Ident>,
 ) -> Result<LightMintField, syn::Error> {
     // Required fields
     let mut mint_signer: Option<Expr> = None;
@@ -835,19 +834,11 @@ fn build_mint_field(
         attr,
     )?;
 
-    // Always fetch from CreateAccountsProof - depends on whether proof is direct arg or nested
-    let address_tree_info = if let Some(proof_ident) = direct_proof_arg {
-        syn::parse_quote!(#proof_ident.address_tree_info)
-    } else {
-        syn::parse_quote!(params.create_accounts_proof.address_tree_info)
-    };
-
     Ok(LightMintField {
         field_ident: field_ident.clone(),
         mint_signer,
         authority,
         decimals,
-        address_tree_info,
         freeze_authority,
         mint_seeds,
         mint_bump,
@@ -1799,21 +1790,6 @@ mod tests {
         match result.unwrap() {
             LightAccountField::Mint(mint) => {
                 assert_eq!(mint.field_ident.to_string(), "cmint");
-
-                // Verify default address_tree_info uses the direct proof identifier
-                // Should be: create_proof.address_tree_info
-                let addr_tree_info = &mint.address_tree_info;
-                let addr_tree_str = quote::quote!(#addr_tree_info).to_string();
-                assert!(
-                    addr_tree_str.contains("create_proof"),
-                    "address_tree_info should reference 'create_proof', got: {}",
-                    addr_tree_str
-                );
-                assert!(
-                    addr_tree_str.contains("address_tree_info"),
-                    "address_tree_info should access .address_tree_info field, got: {}",
-                    addr_tree_str
-                );
             }
             _ => panic!("Expected Mint field"),
         }
