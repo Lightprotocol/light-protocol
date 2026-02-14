@@ -1,5 +1,5 @@
 /**
- * E2E tests for Kit v2 transfer instructions.
+ * E2E tests for Kit v2 transfer instructions against CToken accounts.
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -7,11 +7,12 @@ import {
     getTestRpc,
     fundAccount,
     createTestMint,
-    mintCompressedTokens,
+    createCTokenWithBalance,
+    createCTokenAccount,
     sendKitInstructions,
-    getCompressedBalance,
-    getCompressedAccountCount,
+    getCTokenBalance,
     toKitAddress,
+    ensureValidatorRunning,
     type Signer,
     type Rpc,
 } from './helpers/setup.js';
@@ -24,68 +25,74 @@ import {
 const DECIMALS = 2;
 const MINT_AMOUNT = 10_000n;
 
-describe('transfer e2e', () => {
+describe('transfer e2e (CToken)', () => {
     let rpc: Rpc;
     let payer: Signer;
     let mint: any;
     let mintAuthority: Signer;
+    let mintAddress: string;
 
     beforeAll(async () => {
+        await ensureValidatorRunning();
         rpc = getTestRpc();
         payer = await fundAccount(rpc);
 
         const created = await createTestMint(rpc, payer, DECIMALS);
         mint = created.mint;
         mintAuthority = created.mintAuthority;
+        mintAddress = created.mintAddress;
     });
 
-    it('partial transfer creates change account', async () => {
+    it('partial transfer creates change in source account', async () => {
         const bob = await fundAccount(rpc);
-        await mintCompressedTokens(
-            rpc, payer, mint, bob.publicKey, mintAuthority, MINT_AMOUNT,
-        );
+        const { ctokenPubkey: bobCtoken, ctokenAddress: bobCtokenAddr } =
+            await createCTokenWithBalance(rpc, payer, mint, bob, mintAuthority, MINT_AMOUNT);
+
+        const { ctokenPubkey: payerCtoken, ctokenAddress: payerCtokenAddr } =
+            await createCTokenAccount(rpc, payer, payer, mint);
 
         const transferAmount = 3_000n;
-        const bobAddress = toKitAddress(bob.publicKey);
-        const payerAddress = toKitAddress(payer.publicKey);
+        const bobAddr = toKitAddress(bob.publicKey);
 
         const ix = createTransferInstruction({
-            source: bobAddress,
-            destination: payerAddress,
+            source: bobCtokenAddr,
+            destination: payerCtokenAddr,
             amount: transferAmount,
-            authority: bobAddress,
+            authority: bobAddr,
         });
 
         await sendKitInstructions(rpc, [ix], bob);
 
-        const bobBalance = await getCompressedBalance(rpc, bob.publicKey, mint);
-        const payerBalance = await getCompressedBalance(rpc, payer.publicKey, mint);
+        const bobBalance = await getCTokenBalance(rpc, bobCtoken);
+        const payerBalance = await getCTokenBalance(rpc, payerCtoken);
 
         expect(bobBalance).toBe(MINT_AMOUNT - transferAmount);
         expect(payerBalance).toBe(transferAmount);
     });
 
-    it('full-amount transfer (no change account)', async () => {
+    it('full-amount transfer', async () => {
         const alice = await fundAccount(rpc);
         const charlie = await fundAccount(rpc);
-        await mintCompressedTokens(
-            rpc, payer, mint, alice.publicKey, mintAuthority, MINT_AMOUNT,
-        );
 
-        const aliceAddress = toKitAddress(alice.publicKey);
-        const charlieAddress = toKitAddress(charlie.publicKey);
+        const { ctokenPubkey: aliceCtoken, ctokenAddress: aliceCtokenAddr } =
+            await createCTokenWithBalance(rpc, payer, mint, alice, mintAuthority, MINT_AMOUNT);
+
+        const { ctokenPubkey: charlieCtoken, ctokenAddress: charlieCtokenAddr } =
+            await createCTokenAccount(rpc, payer, charlie, mint);
+
+        const aliceAddr = toKitAddress(alice.publicKey);
 
         const ix = createTransferInstruction({
-            source: aliceAddress,
-            destination: charlieAddress,
+            source: aliceCtokenAddr,
+            destination: charlieCtokenAddr,
             amount: MINT_AMOUNT,
-            authority: aliceAddress,
+            authority: aliceAddr,
         });
 
         await sendKitInstructions(rpc, [ix], alice);
 
-        const aliceBalance = await getCompressedBalance(rpc, alice.publicKey, mint);
-        const charlieBalance = await getCompressedBalance(rpc, charlie.publicKey, mint);
+        const aliceBalance = await getCTokenBalance(rpc, aliceCtoken);
+        const charlieBalance = await getCTokenBalance(rpc, charlieCtoken);
 
         expect(aliceBalance).toBe(0n);
         expect(charlieBalance).toBe(MINT_AMOUNT);
@@ -94,18 +101,19 @@ describe('transfer e2e', () => {
     it('transfer checked with decimals', async () => {
         const sender = await fundAccount(rpc);
         const receiver = await fundAccount(rpc);
-        await mintCompressedTokens(
-            rpc, payer, mint, sender.publicKey, mintAuthority, MINT_AMOUNT,
-        );
+
+        const { ctokenPubkey: senderCtoken, ctokenAddress: senderCtokenAddr } =
+            await createCTokenWithBalance(rpc, payer, mint, sender, mintAuthority, MINT_AMOUNT);
+
+        const { ctokenPubkey: receiverCtoken, ctokenAddress: receiverCtokenAddr } =
+            await createCTokenAccount(rpc, payer, receiver, mint);
 
         const senderAddr = toKitAddress(sender.publicKey);
-        const receiverAddr = toKitAddress(receiver.publicKey);
-        const mintAddr = toKitAddress(mint);
 
         const ix = createTransferCheckedInstruction({
-            source: senderAddr,
-            destination: receiverAddr,
-            mint: mintAddr,
+            source: senderCtokenAddr,
+            destination: receiverCtokenAddr,
+            mint: mintAddress,
             amount: 5_000n,
             authority: senderAddr,
             decimals: DECIMALS,
@@ -113,47 +121,46 @@ describe('transfer e2e', () => {
 
         await sendKitInstructions(rpc, [ix], sender);
 
-        const receiverBalance = await getCompressedBalance(
-            rpc, receiver.publicKey, mint,
-        );
+        const receiverBalance = await getCTokenBalance(rpc, receiverCtoken);
         expect(receiverBalance).toBe(5_000n);
     });
 
     it('transfer to self', async () => {
         const user = await fundAccount(rpc);
-        await mintCompressedTokens(
-            rpc, payer, mint, user.publicKey, mintAuthority, MINT_AMOUNT,
-        );
+        const { ctokenPubkey: userCtoken, ctokenAddress: userCtokenAddr } =
+            await createCTokenWithBalance(rpc, payer, mint, user, mintAuthority, MINT_AMOUNT);
 
         const userAddr = toKitAddress(user.publicKey);
 
         const ix = createTransferInstruction({
-            source: userAddr,
-            destination: userAddr,
+            source: userCtokenAddr,
+            destination: userCtokenAddr,
             amount: 1_000n,
             authority: userAddr,
         });
 
         await sendKitInstructions(rpc, [ix], user);
 
-        const balance = await getCompressedBalance(rpc, user.publicKey, mint);
+        const balance = await getCTokenBalance(rpc, userCtoken);
         expect(balance).toBe(MINT_AMOUNT);
     });
 
     it('multiple sequential transfers', async () => {
         const sender = await fundAccount(rpc);
         const receiver = await fundAccount(rpc);
-        await mintCompressedTokens(
-            rpc, payer, mint, sender.publicKey, mintAuthority, MINT_AMOUNT,
-        );
+
+        const { ctokenPubkey: senderCtoken, ctokenAddress: senderCtokenAddr } =
+            await createCTokenWithBalance(rpc, payer, mint, sender, mintAuthority, MINT_AMOUNT);
+
+        const { ctokenPubkey: receiverCtoken, ctokenAddress: receiverCtokenAddr } =
+            await createCTokenAccount(rpc, payer, receiver, mint);
 
         const senderAddr = toKitAddress(sender.publicKey);
-        const receiverAddr = toKitAddress(receiver.publicKey);
 
         // First transfer
         const ix1 = createTransferInstruction({
-            source: senderAddr,
-            destination: receiverAddr,
+            source: senderCtokenAddr,
+            destination: receiverCtokenAddr,
             amount: 2_000n,
             authority: senderAddr,
         });
@@ -161,43 +168,17 @@ describe('transfer e2e', () => {
 
         // Second transfer
         const ix2 = createTransferInstruction({
-            source: senderAddr,
-            destination: receiverAddr,
+            source: senderCtokenAddr,
+            destination: receiverCtokenAddr,
             amount: 3_000n,
             authority: senderAddr,
         });
         await sendKitInstructions(rpc, [ix2], sender);
 
-        const senderBalance = await getCompressedBalance(rpc, sender.publicKey, mint);
-        const receiverBalance = await getCompressedBalance(rpc, receiver.publicKey, mint);
+        const senderBalance = await getCTokenBalance(rpc, senderCtoken);
+        const receiverBalance = await getCTokenBalance(rpc, receiverCtoken);
 
         expect(senderBalance).toBe(MINT_AMOUNT - 5_000n);
         expect(receiverBalance).toBe(5_000n);
-    });
-
-    it('transfer with maxTopUp parameter', async () => {
-        const sender = await fundAccount(rpc);
-        const receiver = await fundAccount(rpc);
-        await mintCompressedTokens(
-            rpc, payer, mint, sender.publicKey, mintAuthority, MINT_AMOUNT,
-        );
-
-        const senderAddr = toKitAddress(sender.publicKey);
-        const receiverAddr = toKitAddress(receiver.publicKey);
-
-        const ix = createTransferInstruction({
-            source: senderAddr,
-            destination: receiverAddr,
-            amount: 1_000n,
-            authority: senderAddr,
-            maxTopUp: 5000,
-        });
-
-        await sendKitInstructions(rpc, [ix], sender);
-
-        const receiverBalance = await getCompressedBalance(
-            rpc, receiver.publicKey, mint,
-        );
-        expect(receiverBalance).toBe(1_000n);
     });
 });

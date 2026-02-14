@@ -85,19 +85,17 @@ export function createTransferInterfaceInstruction(
             };
 
         case 'light-to-spl':
-            // Light -> SPL requires Transfer2 with decompress mode
-            // This is a placeholder - full implementation requires validity proofs
             throw new Error(
-                'Light-to-SPL transfer requires Transfer2 with decompress mode. ' +
-                    'Use createDecompressInstruction() with a validity proof.',
+                'Light-to-SPL transfer requires Transfer2 with DECOMPRESS mode. ' +
+                    'Use createTransfer2Instruction() with createDecompress() or ' +
+                    'createDecompressSpl() to build the Compression struct.',
             );
 
         case 'spl-to-light':
-            // SPL -> Light requires Transfer2 with compress mode
-            // This is a placeholder - full implementation requires validity proofs
             throw new Error(
-                'SPL-to-Light transfer requires Transfer2 with compress mode. ' +
-                    'Use createCompressInstruction() with a validity proof.',
+                'SPL-to-Light transfer requires Transfer2 with COMPRESS mode. ' +
+                    'Use createTransfer2Instruction() with createCompress() or ' +
+                    'createCompressSpl() to build the Compression struct.',
             );
 
         case 'spl-to-spl':

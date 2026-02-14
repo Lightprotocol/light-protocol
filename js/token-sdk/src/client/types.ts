@@ -49,8 +49,8 @@ export interface TreeInfo {
  * Account state for token accounts.
  */
 export enum AccountState {
-    Initialized = 0,
-    Frozen = 1,
+    Initialized = 1,
+    Frozen = 2,
 }
 
 /**

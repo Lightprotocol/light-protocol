@@ -44,7 +44,11 @@ export {
     getCreateAtaDataEncoder,
     getCreateAtaDataDecoder,
     getCreateAtaDataCodec,
+    getCreateTokenAccountDataEncoder,
+    getCreateTokenAccountDataDecoder,
+    getCreateTokenAccountDataCodec,
     encodeCreateAtaInstructionData,
+    encodeCreateTokenAccountInstructionData,
     defaultCompressibleParams,
 } from './compressible.js';
 
@@ -65,3 +69,23 @@ export {
     type CheckedInstructionData,
     type DiscriminatorOnlyData,
 } from './instructions.js';
+
+// MintAction codecs
+export {
+    encodeMintActionInstructionData,
+    type MintRecipient,
+    type MintToCompressedAction,
+    type MintToAction,
+    type UpdateAuthorityAction,
+    type UpdateMetadataFieldAction,
+    type UpdateMetadataAuthorityAction,
+    type RemoveMetadataKeyAction,
+    type DecompressMintAction,
+    type CompressAndCloseMintAction,
+    type MintAction,
+    type CreateMint,
+    type MintMetadata,
+    type MintInstructionData,
+    type MintActionCpiContext,
+    type MintActionInstructionData,
+} from './mint-action.js';

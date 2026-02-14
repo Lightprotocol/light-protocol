@@ -164,13 +164,32 @@ describe('derivePoolAddress', () => {
         expect(result0.address).not.toBe(result1.address);
     });
 
-    it('6.4.3 no index differs from index 0', async () => {
+    it('6.4.3 no index equals index 0 (both omit index from seeds)', async () => {
         const mint = address('So11111111111111111111111111111111111111112');
 
         const resultNoIndex = await derivePoolAddress(mint);
         const resultIndex0 = await derivePoolAddress(mint, 0);
 
-        expect(resultNoIndex.address).not.toBe(resultIndex0.address);
+        // Rust: index 0 means no index bytes in seeds, same as omitting index
+        expect(resultNoIndex.address).toBe(resultIndex0.address);
+    });
+
+    it('6.4.4 restricted pool differs from regular pool', async () => {
+        const mint = address('So11111111111111111111111111111111111111112');
+
+        const regular = await derivePoolAddress(mint, 0, false);
+        const restricted = await derivePoolAddress(mint, 0, true);
+
+        expect(regular.address).not.toBe(restricted.address);
+    });
+
+    it('6.4.5 restricted pool with index differs from without', async () => {
+        const mint = address('So11111111111111111111111111111111111111112');
+
+        const restricted0 = await derivePoolAddress(mint, 0, true);
+        const restricted1 = await derivePoolAddress(mint, 1, true);
+
+        expect(restricted0.address).not.toBe(restricted1.address);
     });
 });
 

@@ -31,6 +31,10 @@ import {
     fixDecoderSize,
 } from '@solana/codecs';
 
+import type { Address } from '@solana/addresses';
+import { getAddressCodec } from '@solana/addresses';
+import type { ReadonlyUint8Array } from '@solana/codecs';
+
 import type {
     Compression,
     PackedMerkleContext,
@@ -39,6 +43,11 @@ import type {
     CompressedCpiContext,
     CompressedProof,
     Transfer2InstructionData,
+    ExtensionInstructionData,
+    TokenMetadataExtension,
+    CompressedOnlyExtension,
+    CompressionInfo,
+    RentConfig,
 } from './types.js';
 
 import { DISCRIMINATOR } from '../constants.js';
@@ -180,14 +189,12 @@ export const getCpiContextEncoder = (): Encoder<CompressedCpiContext> =>
     getStructEncoder([
         ['setContext', getBooleanEncoder()],
         ['firstSetContext', getBooleanEncoder()],
-        ['cpiContextAccountIndex', getU8Encoder()],
     ]);
 
 export const getCpiContextDecoder = (): Decoder<CompressedCpiContext> =>
     getStructDecoder([
         ['setContext', getBooleanDecoder()],
         ['firstSetContext', getBooleanDecoder()],
-        ['cpiContextAccountIndex', getU8Decoder()],
     ]);
 
 export const getCpiContextCodec = (): Codec<CompressedCpiContext> =>
@@ -356,48 +363,198 @@ export function encodeTransfer2InstructionData(
 
 /**
  * Encodes TLV data as Option<Vec<Vec<ExtensionInstructionData>>>.
- * For now, we support null (None) or empty arrays.
- * Full extension serialization would require additional codec implementations.
+ *
+ * Borsh format:
+ * - None: [0x00]
+ * - Some: [0x01] [outer_len: u32] [inner_vec_0] [inner_vec_1] ...
+ *   where each inner_vec = [len: u32] [ext_0] [ext_1] ...
+ *   and each ext = [discriminant: u8] [data...]
+ *
+ * Extension discriminants match Rust enum variant indices:
+ * - 19: TokenMetadata
+ * - 31: CompressedOnly
+ * - 32: Compressible
  */
-function encodeTlv(tlv: unknown[][] | null): Uint8Array {
+function encodeTlv(
+    tlv: ExtensionInstructionData[][] | null,
+): Uint8Array {
     if (tlv === null) {
-        // Option::None
         return new Uint8Array([0]);
     }
 
-    // Option::Some + Vec<Vec<...>>
     const chunks: Uint8Array[] = [];
 
     // Option::Some
     chunks.push(new Uint8Array([1]));
 
     // Outer vec length (u32)
-    const outerLen = new Uint8Array(4);
-    new DataView(outerLen.buffer).setUint32(0, tlv.length, true);
-    chunks.push(outerLen);
+    chunks.push(writeU32(tlv.length));
 
-    // For each inner vec
     for (const innerVec of tlv) {
-        if (innerVec.length > 0) {
-            throw new Error(
-                'TLV extension serialization is not yet implemented',
-            );
-        }
-
         // Inner vec length (u32)
-        const innerLen = new Uint8Array(4);
-        new DataView(innerLen.buffer).setUint32(0, innerVec.length, true);
-        chunks.push(innerLen);
+        chunks.push(writeU32(innerVec.length));
+
+        for (const ext of innerVec) {
+            chunks.push(encodeExtensionInstructionData(ext));
+        }
     }
 
-    // Concatenate all chunks
-    const totalLen = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+    return concatBytes(chunks);
+}
+
+function writeU32(value: number): Uint8Array {
+    const buf = new Uint8Array(4);
+    new DataView(buf.buffer).setUint32(0, value, true);
+    return buf;
+}
+
+function writeU16(value: number): Uint8Array {
+    const buf = new Uint8Array(2);
+    new DataView(buf.buffer).setUint16(0, value, true);
+    return buf;
+}
+
+function writeU64(value: bigint): Uint8Array {
+    const buf = new Uint8Array(8);
+    new DataView(buf.buffer).setBigUint64(0, value, true);
+    return buf;
+}
+
+function writeBool(value: boolean): Uint8Array {
+    return new Uint8Array([value ? 1 : 0]);
+}
+
+/** Borsh Vec<u8> encoding: u32 length + bytes */
+function writeVecBytes(bytes: ReadonlyUint8Array): Uint8Array {
+    return concatBytes([writeU32(bytes.length), new Uint8Array(bytes)]);
+}
+
+/** Borsh Option encoding: 0x00 for None, 0x01 + data for Some */
+function writeOption(
+    value: unknown | null,
+    encoder: (v: unknown) => Uint8Array,
+): Uint8Array {
+    if (value === null || value === undefined) {
+        return new Uint8Array([0]);
+    }
+    return concatBytes([new Uint8Array([1]), encoder(value)]);
+}
+
+function concatBytes(arrays: Uint8Array[]): Uint8Array {
+    const totalLen = arrays.reduce((sum, a) => sum + a.length, 0);
     const result = new Uint8Array(totalLen);
     let offset = 0;
-    for (const chunk of chunks) {
-        result.set(chunk, offset);
-        offset += chunk.length;
+    for (const arr of arrays) {
+        result.set(arr, offset);
+        offset += arr.length;
     }
-
     return result;
+}
+
+/**
+ * Encodes a single ExtensionInstructionData with its Borsh enum discriminant.
+ */
+export function encodeExtensionInstructionData(
+    ext: ExtensionInstructionData,
+): Uint8Array {
+    switch (ext.type) {
+        case 'TokenMetadata':
+            return concatBytes([
+                new Uint8Array([19]), // discriminant
+                encodeTokenMetadata(ext.data),
+            ]);
+        case 'PausableAccount':
+            // Marker extension: discriminant only, zero data bytes
+            return new Uint8Array([27]);
+        case 'PermanentDelegateAccount':
+            // Marker extension: discriminant only, zero data bytes
+            return new Uint8Array([28]);
+        case 'TransferFeeAccount':
+            // Rust Placeholder29: unit variant, discriminant only (no data)
+            return new Uint8Array([29]);
+        case 'TransferHookAccount':
+            // Rust Placeholder30: unit variant, discriminant only (no data)
+            return new Uint8Array([30]);
+        case 'CompressedOnly':
+            return concatBytes([
+                new Uint8Array([31]), // discriminant
+                encodeCompressedOnly(ext.data),
+            ]);
+        case 'Compressible':
+            return concatBytes([
+                new Uint8Array([32]), // discriminant
+                encodeCompressionInfo(ext.data),
+            ]);
+    }
+}
+
+function encodeTokenMetadata(data: TokenMetadataExtension): Uint8Array {
+    const chunks: Uint8Array[] = [];
+
+    // Option<Pubkey> - update_authority
+    chunks.push(
+        writeOption(data.updateAuthority, (v) =>
+            new Uint8Array(getAddressCodec().encode(v as Address)),
+        ),
+    );
+
+    // Vec<u8> fields
+    chunks.push(writeVecBytes(data.name));
+    chunks.push(writeVecBytes(data.symbol));
+    chunks.push(writeVecBytes(data.uri));
+
+    // Option<Vec<AdditionalMetadata>>
+    chunks.push(
+        writeOption(data.additionalMetadata, (v) => {
+            const items = v as Array<{
+                key: ReadonlyUint8Array;
+                value: ReadonlyUint8Array;
+            }>;
+            const parts: Uint8Array[] = [writeU32(items.length)];
+            for (const item of items) {
+                parts.push(writeVecBytes(item.key));
+                parts.push(writeVecBytes(item.value));
+            }
+            return concatBytes(parts);
+        }),
+    );
+
+    return concatBytes(chunks);
+}
+
+function encodeCompressedOnly(data: CompressedOnlyExtension): Uint8Array {
+    return concatBytes([
+        writeU64(data.delegatedAmount),
+        writeU64(data.withheldTransferFee),
+        writeBool(data.isFrozen),
+        new Uint8Array([data.compressionIndex]),
+        writeBool(data.isAta),
+        new Uint8Array([data.bump]),
+        new Uint8Array([data.ownerIndex]),
+    ]);
+}
+
+function encodeCompressionInfo(data: CompressionInfo): Uint8Array {
+    return concatBytes([
+        writeU16(data.configAccountVersion),
+        new Uint8Array([data.compressToPubkey]),
+        new Uint8Array([data.accountVersion]),
+        writeU32(data.lamportsPerWrite),
+        new Uint8Array(data.compressionAuthority),
+        new Uint8Array(data.rentSponsor),
+        writeU64(data.lastClaimedSlot),
+        writeU32(data.rentExemptionPaid),
+        writeU32(data.reserved),
+        encodeRentConfig(data.rentConfig),
+    ]);
+}
+
+function encodeRentConfig(data: RentConfig): Uint8Array {
+    return concatBytes([
+        writeU16(data.baseRent),
+        writeU16(data.compressionCost),
+        new Uint8Array([data.lamportsPerBytePerEpoch]),
+        new Uint8Array([data.maxFundedEpochs]),
+        writeU16(data.maxTopUp),
+    ]);
 }

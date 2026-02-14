@@ -9,7 +9,12 @@ import {
     type AccountMeta,
 } from '@solana/instructions';
 
-import { LIGHT_TOKEN_PROGRAM_ID, SYSTEM_PROGRAM_ID } from '../constants.js';
+import {
+    LIGHT_TOKEN_PROGRAM_ID,
+    SYSTEM_PROGRAM_ID,
+    LIGHT_TOKEN_CONFIG,
+    LIGHT_TOKEN_RENT_SPONSOR,
+} from '../constants.js';
 import { deriveAssociatedTokenAddress } from '../utils/derivation.js';
 import {
     encodeCreateAtaInstructionData,
@@ -27,11 +32,11 @@ export interface CreateAtaParams {
     owner: Address;
     /** Mint address */
     mint: Address;
-    /** Compressible config account (for rent-free accounts) */
-    compressibleConfig: Address;
-    /** Rent sponsor (for rent-free accounts) */
-    rentSponsor: Address;
-    /** Compressible extension params (optional, uses defaults) */
+    /** Compressible config account (defaults to LIGHT_TOKEN_CONFIG) */
+    compressibleConfig?: Address;
+    /** Rent sponsor PDA (defaults to LIGHT_TOKEN_RENT_SPONSOR) */
+    rentSponsor?: Address;
+    /** Compressible extension params (optional, uses production defaults) */
     compressibleParams?: CompressibleExtensionInstructionData;
     /** Whether to use idempotent variant (no-op if exists) */
     idempotent?: boolean;
@@ -62,8 +67,8 @@ export async function createAssociatedTokenAccountInstruction(
         payer,
         owner,
         mint,
-        compressibleConfig,
-        rentSponsor,
+        compressibleConfig = LIGHT_TOKEN_CONFIG,
+        rentSponsor = LIGHT_TOKEN_RENT_SPONSOR,
         compressibleParams = defaultCompressibleParams(),
         idempotent = false,
     } = params;
@@ -88,7 +93,6 @@ export async function createAssociatedTokenAccountInstruction(
     // Build instruction data
     const data = encodeCreateAtaInstructionData(
         {
-            bump,
             compressibleConfig: compressibleParams,
         },
         idempotent,

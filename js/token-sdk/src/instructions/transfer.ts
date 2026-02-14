@@ -61,10 +61,9 @@ export function createTransferInstruction(
         { address: destination, role: AccountRole.WRITABLE },
         {
             address: authority,
-            role:
-                maxTopUp !== undefined && !feePayer
-                    ? AccountRole.WRITABLE_SIGNER
-                    : AccountRole.READONLY_SIGNER,
+            role: feePayer
+                ? AccountRole.READONLY_SIGNER
+                : AccountRole.WRITABLE_SIGNER,
         },
         { address: SYSTEM_PROGRAM_ID, role: AccountRole.READONLY },
     ];
@@ -136,10 +135,9 @@ export function createTransferCheckedInstruction(
         { address: destination, role: AccountRole.WRITABLE },
         {
             address: authority,
-            role:
-                maxTopUp !== undefined && !feePayer
-                    ? AccountRole.WRITABLE_SIGNER
-                    : AccountRole.READONLY_SIGNER,
+            role: feePayer
+                ? AccountRole.READONLY_SIGNER
+                : AccountRole.WRITABLE_SIGNER,
         },
         { address: SYSTEM_PROGRAM_ID, role: AccountRole.READONLY },
     ];

@@ -7,5 +7,9 @@ export default defineConfig({
         testTimeout: 120_000,
         hookTimeout: 60_000,
         reporters: ['verbose'],
+        env: {
+            LIGHT_PROTOCOL_VERSION: 'V2',
+            LIGHT_PROTOCOL_BETA: 'true',
+        },
     },
 });

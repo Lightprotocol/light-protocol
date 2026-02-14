@@ -24,11 +24,13 @@ import {
     fixEncoderSize,
     fixDecoderSize,
 } from '@solana/codecs';
+import { getAddressCodec, type Address } from '@solana/addresses';
 
 import type {
     CompressToPubkey,
     CompressibleExtensionInstructionData,
     CreateAtaInstructionData,
+    CreateTokenAccountInstructionData,
 } from './types.js';
 
 import { DISCRIMINATOR } from '../constants.js';
@@ -120,7 +122,6 @@ export const getCompressibleExtensionDataCodec =
 
 export const getCreateAtaDataEncoder = (): Encoder<CreateAtaInstructionData> =>
     getStructEncoder([
-        ['bump', getU8Encoder()],
         [
             'compressibleConfig',
             getOptionEncoder(getCompressibleExtensionDataEncoder()),
@@ -130,7 +131,6 @@ export const getCreateAtaDataEncoder = (): Encoder<CreateAtaInstructionData> =>
 // Cast needed: getOptionDecoder returns Option<T> but interface uses T | null.
 export const getCreateAtaDataDecoder = (): Decoder<CreateAtaInstructionData> =>
     getStructDecoder([
-        ['bump', getU8Decoder()],
         [
             'compressibleConfig',
             getOptionDecoder(getCompressibleExtensionDataDecoder()),
@@ -139,6 +139,44 @@ export const getCreateAtaDataDecoder = (): Decoder<CreateAtaInstructionData> =>
 
 export const getCreateAtaDataCodec = (): Codec<CreateAtaInstructionData> =>
     combineCodec(getCreateAtaDataEncoder(), getCreateAtaDataDecoder());
+
+// ============================================================================
+// CREATE TOKEN ACCOUNT INSTRUCTION DATA CODEC
+// ============================================================================
+
+const getOwnerEncoder = (): Encoder<Address> =>
+    getAddressCodec() as unknown as Encoder<Address>;
+
+const getOwnerDecoder = (): Decoder<Address> =>
+    getAddressCodec() as unknown as Decoder<Address>;
+
+export const getCreateTokenAccountDataEncoder =
+    (): Encoder<CreateTokenAccountInstructionData> =>
+        getStructEncoder([
+            ['owner', getOwnerEncoder()],
+            [
+                'compressibleConfig',
+                getOptionEncoder(getCompressibleExtensionDataEncoder()),
+            ],
+        ]);
+
+// Cast needed: getOptionDecoder returns Option<T> but interface uses T | null.
+export const getCreateTokenAccountDataDecoder =
+    (): Decoder<CreateTokenAccountInstructionData> =>
+        getStructDecoder([
+            ['owner', getOwnerDecoder()],
+            [
+                'compressibleConfig',
+                getOptionDecoder(getCompressibleExtensionDataDecoder()),
+            ],
+        ]) as unknown as Decoder<CreateTokenAccountInstructionData>;
+
+export const getCreateTokenAccountDataCodec =
+    (): Codec<CreateTokenAccountInstructionData> =>
+        combineCodec(
+            getCreateTokenAccountDataEncoder(),
+            getCreateTokenAccountDataDecoder(),
+        );
 
 // ============================================================================
 // FULL INSTRUCTION ENCODERS
@@ -166,14 +204,45 @@ export function encodeCreateAtaInstructionData(
 }
 
 /**
+ * Encodes the CreateTokenAccount instruction data.
+ *
+ * When `splCompatibleOwnerOnlyData` is true, this emits the SPL-compatible
+ * owner-only payload (`[owner:32]`) instead of the full Borsh struct.
+ */
+export function encodeCreateTokenAccountInstructionData(
+    data: CreateTokenAccountInstructionData,
+    splCompatibleOwnerOnlyData = false,
+): Uint8Array {
+    let payload: Uint8Array;
+    if (splCompatibleOwnerOnlyData) {
+        payload = new Uint8Array(getAddressCodec().encode(data.owner));
+    } else {
+        const dataEncoder = getCreateTokenAccountDataEncoder();
+        payload = new Uint8Array(dataEncoder.encode(data));
+    }
+
+    const result = new Uint8Array(1 + payload.length);
+    result[0] = DISCRIMINATOR.CREATE_TOKEN_ACCOUNT;
+    result.set(payload, 1);
+    return result;
+}
+
+/**
  * Default compressible extension params for rent-free ATAs.
+ *
+ * Matches the Rust SDK defaults:
+ * - tokenAccountVersion: 3 (ShaFlat hashing)
+ * - rentPayment: 16 (16 epochs, ~24 hours)
+ * - compressionOnly: 1 (required for ATAs)
+ * - writeTopUp: 766 (per-write top-up, ~2 epochs rent)
+ * - compressToPubkey: null (required null for ATAs)
  */
 export function defaultCompressibleParams(): CompressibleExtensionInstructionData {
     return {
-        tokenAccountVersion: 0,
-        rentPayment: 0,
-        compressionOnly: 0,
-        writeTopUp: 0,
+        tokenAccountVersion: 3,
+        rentPayment: 16,
+        compressionOnly: 1,
+        writeTopUp: 766,
         compressToPubkey: null,
     };
 }

@@ -241,7 +241,7 @@ export class PhotonIndexer implements LightIndexer {
             'getValidityProofV2',
             {
                 hashes: hashesB58,
-                newAddresses: addressesParam ?? [],
+                newAddressesWithTrees: addressesParam ?? [],
             },
         );
 
@@ -290,7 +290,16 @@ export class PhotonIndexer implements LightIndexer {
 
         let json: JsonRpcResponse<T>;
         try {
-            json = (await response.json()) as JsonRpcResponse<T>;
+            // Parse JSON text manually to preserve big integer precision.
+            // JSON.parse() silently truncates integers > 2^53.
+            // Wrap large numbers as strings before parsing so BigInt()
+            // conversion in parse methods receives the full value.
+            const text = await response.text();
+            const safeText = text.replace(
+                /:\s*(\d{16,})\s*([,}\]])/g,
+                ': "$1"$2',
+            );
+            json = JSON.parse(safeText) as JsonRpcResponse<T>;
         } catch (e) {
             throw new IndexerError(
                 IndexerErrorCode.InvalidResponse,

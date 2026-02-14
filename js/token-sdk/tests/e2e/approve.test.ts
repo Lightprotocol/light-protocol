@@ -1,5 +1,5 @@
 /**
- * E2E tests for Kit v2 approve and revoke instructions.
+ * E2E tests for Kit v2 approve and revoke instructions against CToken accounts.
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -7,9 +7,11 @@ import {
     getTestRpc,
     fundAccount,
     createTestMint,
-    mintCompressedTokens,
+    createCTokenWithBalance,
     sendKitInstructions,
+    getCTokenAccountData,
     toKitAddress,
+    ensureValidatorRunning,
     type Signer,
     type Rpc,
 } from './helpers/setup.js';
@@ -22,13 +24,14 @@ import {
 const DECIMALS = 2;
 const MINT_AMOUNT = 10_000n;
 
-describe('approve/revoke e2e', () => {
+describe('approve/revoke e2e (CToken)', () => {
     let rpc: Rpc;
     let payer: Signer;
     let mint: any;
     let mintAuthority: Signer;
 
     beforeAll(async () => {
+        await ensureValidatorRunning();
         rpc = getTestRpc();
         payer = await fundAccount(rpc);
 
@@ -40,15 +43,16 @@ describe('approve/revoke e2e', () => {
     it('approve delegate', async () => {
         const owner = await fundAccount(rpc);
         const delegate = await fundAccount(rpc);
-        await mintCompressedTokens(
-            rpc, payer, mint, owner.publicKey, mintAuthority, MINT_AMOUNT,
+
+        const { ctokenPubkey, ctokenAddress } = await createCTokenWithBalance(
+            rpc, payer, mint, owner, mintAuthority, MINT_AMOUNT,
         );
 
         const ownerAddr = toKitAddress(owner.publicKey);
         const delegateAddr = toKitAddress(delegate.publicKey);
 
         const ix = createApproveInstruction({
-            tokenAccount: ownerAddr,
+            tokenAccount: ctokenAddress,
             delegate: delegateAddr,
             owner: ownerAddr,
             amount: 5_000n,
@@ -56,22 +60,20 @@ describe('approve/revoke e2e', () => {
 
         await sendKitInstructions(rpc, [ix], owner);
 
-        // Verify via indexer that the delegate field is set
-        const accounts = await rpc.getCompressedTokenAccountsByOwner(
-            owner.publicKey,
-            { mint },
-        );
-        const delegated = accounts.items.find(
-            (a) => a.parsed.delegate !== null,
-        );
-        expect(delegated).toBeDefined();
+        // Verify on-chain: delegate is set
+        const data = await getCTokenAccountData(rpc, ctokenPubkey);
+        expect(data).not.toBeNull();
+        expect(data!.hasDelegate).toBe(true);
+        expect(data!.delegate).toBe(delegate.publicKey.toBase58());
+        expect(data!.delegatedAmount).toBe(5_000n);
     });
 
     it('revoke delegate', async () => {
         const owner = await fundAccount(rpc);
         const delegate = await fundAccount(rpc);
-        await mintCompressedTokens(
-            rpc, payer, mint, owner.publicKey, mintAuthority, MINT_AMOUNT,
+
+        const { ctokenPubkey, ctokenAddress } = await createCTokenWithBalance(
+            rpc, payer, mint, owner, mintAuthority, MINT_AMOUNT,
         );
 
         const ownerAddr = toKitAddress(owner.publicKey);
@@ -79,7 +81,7 @@ describe('approve/revoke e2e', () => {
 
         // Approve first
         const approveIx = createApproveInstruction({
-            tokenAccount: ownerAddr,
+            tokenAccount: ctokenAddress,
             delegate: delegateAddr,
             owner: ownerAddr,
             amount: 5_000n,
@@ -88,19 +90,15 @@ describe('approve/revoke e2e', () => {
 
         // Then revoke
         const revokeIx = createRevokeInstruction({
-            tokenAccount: ownerAddr,
+            tokenAccount: ctokenAddress,
             owner: ownerAddr,
         });
         await sendKitInstructions(rpc, [revokeIx], owner);
 
-        // Verify delegate is cleared
-        const accounts = await rpc.getCompressedTokenAccountsByOwner(
-            owner.publicKey,
-            { mint },
-        );
-        const withDelegate = accounts.items.filter(
-            (a) => a.parsed.delegate !== null,
-        );
-        expect(withDelegate.length).toBe(0);
+        // Verify on-chain: delegate is cleared
+        const data = await getCTokenAccountData(rpc, ctokenPubkey);
+        expect(data).not.toBeNull();
+        expect(data!.hasDelegate).toBe(false);
+        expect(data!.delegate).toBeNull();
     });
 });

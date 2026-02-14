@@ -1,5 +1,5 @@
 /**
- * E2E tests for Kit v2 close account instruction.
+ * E2E tests for Kit v2 close account instruction against CToken accounts.
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -7,11 +7,11 @@ import {
     getTestRpc,
     fundAccount,
     createTestMint,
-    mintCompressedTokens,
+    createCTokenWithBalance,
     sendKitInstructions,
-    getCompressedBalance,
-    getCompressedAccountCount,
+    getCTokenAccountData,
     toKitAddress,
+    ensureValidatorRunning,
     type Signer,
     type Rpc,
 } from './helpers/setup.js';
@@ -19,62 +19,59 @@ import {
 import {
     createCloseAccountInstruction,
     createBurnInstruction,
+    LIGHT_TOKEN_RENT_SPONSOR,
 } from '../../src/index.js';
 
 const DECIMALS = 2;
 const MINT_AMOUNT = 10_000n;
 
-describe('close account e2e', () => {
+describe('close account e2e (CToken)', () => {
     let rpc: Rpc;
     let payer: Signer;
     let mint: any;
     let mintAuthority: Signer;
+    let mintAddress: string;
 
     beforeAll(async () => {
+        await ensureValidatorRunning();
         rpc = getTestRpc();
         payer = await fundAccount(rpc);
 
         const created = await createTestMint(rpc, payer, DECIMALS);
         mint = created.mint;
         mintAuthority = created.mintAuthority;
+        mintAddress = created.mintAddress;
     });
 
-    it('close zero-balance account', async () => {
+    it('close zero-balance CToken account', async () => {
         const holder = await fundAccount(rpc);
-        await mintCompressedTokens(
-            rpc, payer, mint, holder.publicKey, mintAuthority, MINT_AMOUNT,
+        const { ctokenPubkey, ctokenAddress } = await createCTokenWithBalance(
+            rpc, payer, mint, holder, mintAuthority, MINT_AMOUNT,
         );
 
         const holderAddr = toKitAddress(holder.publicKey);
-        const mintAddr = toKitAddress(mint);
         const payerAddr = toKitAddress(payer.publicKey);
 
         // Burn all tokens to get zero balance
         const burnIx = createBurnInstruction({
-            tokenAccount: holderAddr,
-            mint: mintAddr,
+            tokenAccount: ctokenAddress,
+            mint: mintAddress,
             authority: holderAddr,
             amount: MINT_AMOUNT,
         });
         await sendKitInstructions(rpc, [burnIx], holder);
 
-        const balanceAfterBurn = await getCompressedBalance(
-            rpc, holder.publicKey, mint,
-        );
-        expect(balanceAfterBurn).toBe(0n);
-
-        // Close the zero-balance account
+        // Close the zero-balance account (rentSponsor required for compressible CToken accounts)
         const closeIx = createCloseAccountInstruction({
-            tokenAccount: holderAddr,
+            tokenAccount: ctokenAddress,
             destination: payerAddr,
             owner: holderAddr,
+            rentSponsor: LIGHT_TOKEN_RENT_SPONSOR,
         });
         await sendKitInstructions(rpc, [closeIx], holder);
 
-        // Account count should be 0
-        const count = await getCompressedAccountCount(
-            rpc, holder.publicKey, mint,
-        );
-        expect(count).toBe(0);
+        // Account should no longer exist (or be zeroed)
+        const data = await getCTokenAccountData(rpc, ctokenPubkey);
+        expect(data).toBeNull();
     });
 });

@@ -81,6 +81,7 @@ export {
     getOrCreateAtaInterface,
     transferInterface,
     decompressInterface,
+    decompressMint,
     wrap,
     mintTo as mintToCToken,
     mintToCompressed,
@@ -90,6 +91,8 @@ export {
     updateMetadataField,
     updateMetadataAuthority,
     removeMetadataKey,
+    createAssociatedCTokenAccount,
+    createAssociatedCTokenAccountIdempotent,
     // Action types
     InterfaceOptions,
     // Helpers
@@ -120,6 +123,10 @@ export {
     encodeTokenMetadata,
     extractTokenMetadata,
     ExtensionType,
+    // Derivation
+    getAssociatedCTokenAddress,
+    getAssociatedCTokenAddressAndBump,
+    findMintAddress,
     // Metadata formatting (for use with any uploader)
     toOffChainMetadataJson,
     OffChainTokenMetadata,

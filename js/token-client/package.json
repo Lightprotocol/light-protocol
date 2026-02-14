@@ -32,8 +32,6 @@
         "@solana/instructions": "^2.1.0"
     },
     "devDependencies": {
-        "@lightprotocol/stateless.js": "workspace:*",
-        "@lightprotocol/compressed-token": "workspace:*",
         "typescript": "^5.7.3",
         "vitest": "^2.1.8"
     },

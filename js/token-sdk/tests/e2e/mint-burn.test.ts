@@ -1,5 +1,5 @@
 /**
- * E2E tests for Kit v2 mint-to and burn instructions.
+ * E2E tests for Kit v2 mint-to and burn instructions against CToken accounts.
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -7,10 +7,12 @@ import {
     getTestRpc,
     fundAccount,
     createTestMint,
-    mintCompressedTokens,
+    createCTokenWithBalance,
+    createCTokenAccount,
     sendKitInstructions,
-    getCompressedBalance,
+    getCTokenBalance,
     toKitAddress,
+    ensureValidatorRunning,
     type Signer,
     type Rpc,
 } from './helpers/setup.js';
@@ -25,51 +27,56 @@ import {
 const DECIMALS = 2;
 const MINT_AMOUNT = 10_000n;
 
-describe('mint-to e2e', () => {
+describe('mint-to e2e (CToken)', () => {
     let rpc: Rpc;
     let payer: Signer;
     let mint: any;
     let mintAuthority: Signer;
+    let mintAddress: string;
 
     beforeAll(async () => {
+        await ensureValidatorRunning();
         rpc = getTestRpc();
         payer = await fundAccount(rpc);
 
         const created = await createTestMint(rpc, payer, DECIMALS);
         mint = created.mint;
         mintAuthority = created.mintAuthority;
+        mintAddress = created.mintAddress;
     });
 
-    it('mintTo: mint compressed tokens and verify balance', async () => {
+    it('mintTo: mint tokens to CToken account and verify balance', async () => {
         const recipient = await fundAccount(rpc);
-        const recipientAddr = toKitAddress(recipient.publicKey);
-        const mintAddr = toKitAddress(mint);
+        const { ctokenPubkey, ctokenAddress } = await createCTokenAccount(
+            rpc, payer, recipient, mint,
+        );
+
         const authorityAddr = toKitAddress(mintAuthority.publicKey);
 
         const ix = createMintToInstruction({
-            mint: mintAddr,
-            tokenAccount: recipientAddr,
+            mint: mintAddress,
+            tokenAccount: ctokenAddress,
             mintAuthority: authorityAddr,
             amount: MINT_AMOUNT,
         });
 
         await sendKitInstructions(rpc, [ix], payer, [mintAuthority]);
 
-        const balance = await getCompressedBalance(
-            rpc, recipient.publicKey, mint,
-        );
+        const balance = await getCTokenBalance(rpc, ctokenPubkey);
         expect(balance).toBe(MINT_AMOUNT);
     });
 
     it('mintTo checked: with decimals', async () => {
         const recipient = await fundAccount(rpc);
-        const recipientAddr = toKitAddress(recipient.publicKey);
-        const mintAddr = toKitAddress(mint);
+        const { ctokenPubkey, ctokenAddress } = await createCTokenAccount(
+            rpc, payer, recipient, mint,
+        );
+
         const authorityAddr = toKitAddress(mintAuthority.publicKey);
 
         const ix = createMintToCheckedInstruction({
-            mint: mintAddr,
-            tokenAccount: recipientAddr,
+            mint: mintAddress,
+            tokenAccount: ctokenAddress,
             mintAuthority: authorityAddr,
             amount: 5_000n,
             decimals: DECIMALS,
@@ -77,63 +84,62 @@ describe('mint-to e2e', () => {
 
         await sendKitInstructions(rpc, [ix], payer, [mintAuthority]);
 
-        const balance = await getCompressedBalance(
-            rpc, recipient.publicKey, mint,
-        );
+        const balance = await getCTokenBalance(rpc, ctokenPubkey);
         expect(balance).toBe(5_000n);
     });
 });
 
-describe('burn e2e', () => {
+describe('burn e2e (CToken)', () => {
     let rpc: Rpc;
     let payer: Signer;
     let mint: any;
     let mintAuthority: Signer;
+    let mintAddress: string;
 
     beforeAll(async () => {
+        await ensureValidatorRunning();
         rpc = getTestRpc();
         payer = await fundAccount(rpc);
 
         const created = await createTestMint(rpc, payer, DECIMALS);
         mint = created.mint;
         mintAuthority = created.mintAuthority;
+        mintAddress = created.mintAddress;
     });
 
     it('burn: reduce balance', async () => {
         const holder = await fundAccount(rpc);
-        await mintCompressedTokens(
-            rpc, payer, mint, holder.publicKey, mintAuthority, MINT_AMOUNT,
+        const { ctokenPubkey, ctokenAddress } = await createCTokenWithBalance(
+            rpc, payer, mint, holder, mintAuthority, MINT_AMOUNT,
         );
 
         const holderAddr = toKitAddress(holder.publicKey);
-        const mintAddr = toKitAddress(mint);
         const burnAmount = 3_000n;
 
         const ix = createBurnInstruction({
-            tokenAccount: holderAddr,
-            mint: mintAddr,
+            tokenAccount: ctokenAddress,
+            mint: mintAddress,
             authority: holderAddr,
             amount: burnAmount,
         });
 
         await sendKitInstructions(rpc, [ix], holder);
 
-        const balance = await getCompressedBalance(rpc, holder.publicKey, mint);
+        const balance = await getCTokenBalance(rpc, ctokenPubkey);
         expect(balance).toBe(MINT_AMOUNT - burnAmount);
     });
 
     it('burn checked: with decimals', async () => {
         const holder = await fundAccount(rpc);
-        await mintCompressedTokens(
-            rpc, payer, mint, holder.publicKey, mintAuthority, MINT_AMOUNT,
+        const { ctokenPubkey, ctokenAddress } = await createCTokenWithBalance(
+            rpc, payer, mint, holder, mintAuthority, MINT_AMOUNT,
         );
 
         const holderAddr = toKitAddress(holder.publicKey);
-        const mintAddr = toKitAddress(mint);
 
         const ix = createBurnCheckedInstruction({
-            tokenAccount: holderAddr,
-            mint: mintAddr,
+            tokenAccount: ctokenAddress,
+            mint: mintAddress,
             authority: holderAddr,
             amount: 2_000n,
             decimals: DECIMALS,
@@ -141,29 +147,28 @@ describe('burn e2e', () => {
 
         await sendKitInstructions(rpc, [ix], holder);
 
-        const balance = await getCompressedBalance(rpc, holder.publicKey, mint);
+        const balance = await getCTokenBalance(rpc, ctokenPubkey);
         expect(balance).toBe(MINT_AMOUNT - 2_000n);
     });
 
     it('burn full amount', async () => {
         const holder = await fundAccount(rpc);
-        await mintCompressedTokens(
-            rpc, payer, mint, holder.publicKey, mintAuthority, MINT_AMOUNT,
+        const { ctokenPubkey, ctokenAddress } = await createCTokenWithBalance(
+            rpc, payer, mint, holder, mintAuthority, MINT_AMOUNT,
         );
 
         const holderAddr = toKitAddress(holder.publicKey);
-        const mintAddr = toKitAddress(mint);
 
         const ix = createBurnInstruction({
-            tokenAccount: holderAddr,
-            mint: mintAddr,
+            tokenAccount: ctokenAddress,
+            mint: mintAddress,
             authority: holderAddr,
             amount: MINT_AMOUNT,
         });
 
         await sendKitInstructions(rpc, [ix], holder);
 
-        const balance = await getCompressedBalance(rpc, holder.publicKey, mint);
+        const balance = await getCTokenBalance(rpc, ctokenPubkey);
         expect(balance).toBe(0n);
     });
 });

@@ -47,6 +47,7 @@ export {
 
     // Account selection
     selectAccountsForAmount,
+    DEFAULT_MAX_INPUTS,
 
     // Proof helpers
     getValidityProofForAccounts,
@@ -57,6 +58,6 @@ export {
 
 // Actions (high-level builders)
 export {
-    buildTransferInstruction,
+    buildCompressedTransfer,
     type BuildTransferResult,
 } from './actions.js';

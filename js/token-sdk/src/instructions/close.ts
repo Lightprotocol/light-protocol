@@ -22,6 +22,8 @@ export interface CloseAccountParams {
     destination: Address;
     /** Owner of the token account - must be signer */
     owner: Address;
+    /** Rent sponsor for compressible accounts (optional, writable) */
+    rentSponsor?: Address;
 }
 
 /**
@@ -30,13 +32,19 @@ export interface CloseAccountParams {
  * Closes a decompressed CToken account and returns rent to the destination.
  * For compressible accounts, rent goes to the rent sponsor.
  *
+ * Account layout:
+ * 0: token account (writable)
+ * 1: destination (writable)
+ * 2: authority/owner (signer)
+ * 3: rent_sponsor (optional, writable) - required for compressible accounts
+ *
  * @param params - Close account parameters
  * @returns The close instruction
  */
 export function createCloseAccountInstruction(
     params: CloseAccountParams,
 ): Instruction {
-    const { tokenAccount, destination, owner } = params;
+    const { tokenAccount, destination, owner, rentSponsor } = params;
 
     // Build accounts
     const accounts: AccountMeta[] = [
@@ -44,6 +52,11 @@ export function createCloseAccountInstruction(
         { address: destination, role: AccountRole.WRITABLE },
         { address: owner, role: AccountRole.READONLY_SIGNER },
     ];
+
+    // Add rent sponsor if provided (required for compressible accounts)
+    if (rentSponsor) {
+        accounts.push({ address: rentSponsor, role: AccountRole.WRITABLE });
+    }
 
     // Build instruction data (just discriminator)
     const data = new Uint8Array(

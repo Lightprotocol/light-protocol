@@ -13,7 +13,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { address } from '@solana/addresses';
+import { address, getAddressCodec } from '@solana/addresses';
 import { AccountRole } from '@solana/instructions';
 
 import {
@@ -30,13 +30,31 @@ import {
     createThawInstruction,
     createApproveInstruction,
     createRevokeInstruction,
+    createTokenAccountInstruction,
     createAssociatedTokenAccountInstruction,
     createAssociatedTokenAccountIdempotentInstruction,
+    createTransfer2Instruction,
+    createClaimInstruction,
+    createWithdrawFundingPoolInstruction,
+    createMintActionInstruction,
+
+    // Compression factory functions
+    createCompress,
+    createCompressSpl,
+    createDecompress,
+    createDecompressSpl,
+    createCompressAndClose,
 
     // Constants
     LIGHT_TOKEN_PROGRAM_ID,
+    LIGHT_SYSTEM_PROGRAM_ID,
+    CPI_AUTHORITY,
+    REGISTERED_PROGRAM_PDA,
+    ACCOUNT_COMPRESSION_AUTHORITY_PDA,
     DISCRIMINATOR,
     SYSTEM_PROGRAM_ID,
+    ACCOUNT_COMPRESSION_PROGRAM_ID,
+    COMPRESSION_MODE,
 
     // Codecs
     getAmountInstructionCodec,
@@ -107,7 +125,7 @@ describe('createTransferInstruction', () => {
         });
         expect(ix.accounts[0].role).toBe(AccountRole.WRITABLE);
         expect(ix.accounts[1].role).toBe(AccountRole.WRITABLE);
-        expect(ix.accounts[2].role).toBe(AccountRole.READONLY_SIGNER);
+        expect(ix.accounts[2].role).toBe(AccountRole.WRITABLE_SIGNER);
         expect(ix.accounts[3].role).toBe(AccountRole.READONLY);
     });
 
@@ -146,7 +164,7 @@ describe('createTransferInstruction', () => {
         expect(ix.data.length).toBe(9);
     });
 
-    it('with maxTopUp has 11-byte data and authority becomes WRITABLE_SIGNER', () => {
+    it('with maxTopUp has 11-byte data and authority is WRITABLE_SIGNER', () => {
         const ix = createTransferInstruction({
             source: TEST_SOURCE,
             destination: TEST_DEST,
@@ -156,7 +174,7 @@ describe('createTransferInstruction', () => {
         });
         // 1 (disc) + 8 (amount) + 2 (maxTopUp u16) = 11 bytes
         expect(ix.data.length).toBe(11);
-        // authority becomes WRITABLE_SIGNER when maxTopUp is set and no feePayer
+        // authority is WRITABLE_SIGNER (default when no feePayer)
         expect(ix.accounts[2].role).toBe(AccountRole.WRITABLE_SIGNER);
 
         // Verify maxTopUp decoding
@@ -290,7 +308,7 @@ describe('createTransferCheckedInstruction', () => {
         expect(ix.accounts[0].role).toBe(AccountRole.WRITABLE);
         expect(ix.accounts[1].role).toBe(AccountRole.READONLY);
         expect(ix.accounts[2].role).toBe(AccountRole.WRITABLE);
-        expect(ix.accounts[3].role).toBe(AccountRole.READONLY_SIGNER);
+        expect(ix.accounts[3].role).toBe(AccountRole.WRITABLE_SIGNER);
         expect(ix.accounts[4].role).toBe(AccountRole.READONLY);
     });
 
@@ -426,14 +444,14 @@ describe('createMintToInstruction', () => {
         expect(ix.programAddress).toBe(LIGHT_TOKEN_PROGRAM_ID);
     });
 
-    it('has correct number of accounts (3)', () => {
+    it('has correct number of accounts (4)', () => {
         const ix = createMintToInstruction({
             mint: TEST_MINT,
             tokenAccount: TEST_DEST,
             mintAuthority: TEST_AUTHORITY,
             amount: 1_000_000n,
         });
-        expect(ix.accounts).toHaveLength(3);
+        expect(ix.accounts).toHaveLength(4);
     });
 
     it('has correct account addresses in correct order', () => {
@@ -446,6 +464,7 @@ describe('createMintToInstruction', () => {
         expect(ix.accounts[0].address).toBe(TEST_MINT);
         expect(ix.accounts[1].address).toBe(TEST_DEST);
         expect(ix.accounts[2].address).toBe(TEST_AUTHORITY);
+        expect(ix.accounts[3].address).toBe(SYSTEM_PROGRAM_ID);
     });
 
     it('has correct account roles', () => {
@@ -457,7 +476,8 @@ describe('createMintToInstruction', () => {
         });
         expect(ix.accounts[0].role).toBe(AccountRole.WRITABLE);
         expect(ix.accounts[1].role).toBe(AccountRole.WRITABLE);
-        expect(ix.accounts[2].role).toBe(AccountRole.READONLY_SIGNER);
+        expect(ix.accounts[2].role).toBe(AccountRole.WRITABLE_SIGNER);
+        expect(ix.accounts[3].role).toBe(AccountRole.READONLY);
     });
 
     it('has correct discriminator byte', () => {
@@ -512,7 +532,7 @@ describe('createMintToCheckedInstruction', () => {
         expect(ix.programAddress).toBe(LIGHT_TOKEN_PROGRAM_ID);
     });
 
-    it('has correct number of accounts (3)', () => {
+    it('has correct number of accounts (4)', () => {
         const ix = createMintToCheckedInstruction({
             mint: TEST_MINT,
             tokenAccount: TEST_DEST,
@@ -520,7 +540,7 @@ describe('createMintToCheckedInstruction', () => {
             amount: 1_000_000n,
             decimals: 6,
         });
-        expect(ix.accounts).toHaveLength(3);
+        expect(ix.accounts).toHaveLength(4);
     });
 
     it('has correct account addresses in correct order', () => {
@@ -534,6 +554,7 @@ describe('createMintToCheckedInstruction', () => {
         expect(ix.accounts[0].address).toBe(TEST_MINT);
         expect(ix.accounts[1].address).toBe(TEST_DEST);
         expect(ix.accounts[2].address).toBe(TEST_AUTHORITY);
+        expect(ix.accounts[3].address).toBe(SYSTEM_PROGRAM_ID);
     });
 
     it('has correct account roles', () => {
@@ -546,7 +567,8 @@ describe('createMintToCheckedInstruction', () => {
         });
         expect(ix.accounts[0].role).toBe(AccountRole.WRITABLE);
         expect(ix.accounts[1].role).toBe(AccountRole.WRITABLE);
-        expect(ix.accounts[2].role).toBe(AccountRole.READONLY_SIGNER);
+        expect(ix.accounts[2].role).toBe(AccountRole.WRITABLE_SIGNER);
+        expect(ix.accounts[3].role).toBe(AccountRole.READONLY);
     });
 
     it('has correct discriminator byte', () => {
@@ -616,14 +638,14 @@ describe('createBurnInstruction', () => {
         expect(ix.programAddress).toBe(LIGHT_TOKEN_PROGRAM_ID);
     });
 
-    it('has correct number of accounts (3)', () => {
+    it('has correct number of accounts (4)', () => {
         const ix = createBurnInstruction({
             tokenAccount: TEST_SOURCE,
             mint: TEST_MINT,
             authority: TEST_AUTHORITY,
             amount: 500n,
         });
-        expect(ix.accounts).toHaveLength(3);
+        expect(ix.accounts).toHaveLength(4);
     });
 
     it('has correct account addresses in correct order', () => {
@@ -636,6 +658,7 @@ describe('createBurnInstruction', () => {
         expect(ix.accounts[0].address).toBe(TEST_SOURCE);
         expect(ix.accounts[1].address).toBe(TEST_MINT);
         expect(ix.accounts[2].address).toBe(TEST_AUTHORITY);
+        expect(ix.accounts[3].address).toBe(SYSTEM_PROGRAM_ID);
     });
 
     it('has correct account roles', () => {
@@ -647,7 +670,8 @@ describe('createBurnInstruction', () => {
         });
         expect(ix.accounts[0].role).toBe(AccountRole.WRITABLE);
         expect(ix.accounts[1].role).toBe(AccountRole.WRITABLE);
-        expect(ix.accounts[2].role).toBe(AccountRole.READONLY_SIGNER);
+        expect(ix.accounts[2].role).toBe(AccountRole.WRITABLE_SIGNER);
+        expect(ix.accounts[3].role).toBe(AccountRole.READONLY);
     });
 
     it('has correct discriminator byte', () => {
@@ -702,7 +726,7 @@ describe('createBurnCheckedInstruction', () => {
         expect(ix.programAddress).toBe(LIGHT_TOKEN_PROGRAM_ID);
     });
 
-    it('has correct number of accounts (3)', () => {
+    it('has correct number of accounts (4)', () => {
         const ix = createBurnCheckedInstruction({
             tokenAccount: TEST_SOURCE,
             mint: TEST_MINT,
@@ -710,7 +734,7 @@ describe('createBurnCheckedInstruction', () => {
             amount: 500n,
             decimals: 9,
         });
-        expect(ix.accounts).toHaveLength(3);
+        expect(ix.accounts).toHaveLength(4);
     });
 
     it('has correct account addresses in correct order', () => {
@@ -724,6 +748,7 @@ describe('createBurnCheckedInstruction', () => {
         expect(ix.accounts[0].address).toBe(TEST_SOURCE);
         expect(ix.accounts[1].address).toBe(TEST_MINT);
         expect(ix.accounts[2].address).toBe(TEST_AUTHORITY);
+        expect(ix.accounts[3].address).toBe(SYSTEM_PROGRAM_ID);
     });
 
     it('has correct account roles', () => {
@@ -736,7 +761,8 @@ describe('createBurnCheckedInstruction', () => {
         });
         expect(ix.accounts[0].role).toBe(AccountRole.WRITABLE);
         expect(ix.accounts[1].role).toBe(AccountRole.WRITABLE);
-        expect(ix.accounts[2].role).toBe(AccountRole.READONLY_SIGNER);
+        expect(ix.accounts[2].role).toBe(AccountRole.WRITABLE_SIGNER);
+        expect(ix.accounts[3].role).toBe(AccountRole.READONLY);
     });
 
     it('has correct discriminator byte', () => {
@@ -837,7 +863,7 @@ describe('createApproveInstruction', () => {
         });
         expect(ix.accounts[0].role).toBe(AccountRole.WRITABLE);
         expect(ix.accounts[1].role).toBe(AccountRole.READONLY);
-        expect(ix.accounts[2].role).toBe(AccountRole.READONLY_SIGNER);
+        expect(ix.accounts[2].role).toBe(AccountRole.WRITABLE_SIGNER);
     });
 
     it('has correct discriminator byte', () => {
@@ -912,7 +938,7 @@ describe('createRevokeInstruction', () => {
             owner: TEST_OWNER,
         });
         expect(ix.accounts[0].role).toBe(AccountRole.WRITABLE);
-        expect(ix.accounts[1].role).toBe(AccountRole.READONLY_SIGNER);
+        expect(ix.accounts[1].role).toBe(AccountRole.WRITABLE_SIGNER);
     });
 
     it('has correct discriminator byte', () => {
@@ -1281,6 +1307,117 @@ describe('createTransferInterfaceInstruction', () => {
 });
 
 // ============================================================================
+// TEST: createTokenAccountInstruction
+// ============================================================================
+
+describe('createTokenAccountInstruction', () => {
+    it('non-compressible path has 2 accounts and discriminator 18', () => {
+        const ix = createTokenAccountInstruction({
+            tokenAccount: TEST_SOURCE,
+            mint: TEST_MINT,
+            owner: TEST_OWNER,
+        });
+        expect(ix.programAddress).toBe(LIGHT_TOKEN_PROGRAM_ID);
+        expect(ix.accounts).toHaveLength(2);
+        expect(ix.accounts[0].address).toBe(TEST_SOURCE);
+        expect(ix.accounts[0].role).toBe(AccountRole.WRITABLE);
+        expect(ix.accounts[1].address).toBe(TEST_MINT);
+        expect(ix.accounts[1].role).toBe(AccountRole.READONLY);
+        expect(ix.data[0]).toBe(DISCRIMINATOR.CREATE_TOKEN_ACCOUNT);
+    });
+
+    it('compressible path includes payer/config/system/rent accounts', () => {
+        const ix = createTokenAccountInstruction({
+            tokenAccount: TEST_SOURCE,
+            mint: TEST_MINT,
+            owner: TEST_OWNER,
+            payer: TEST_PAYER,
+            compressibleConfig: TEST_CONFIG,
+            rentSponsor: TEST_SPONSOR,
+            compressibleParams: {
+                tokenAccountVersion: 3,
+                rentPayment: 16,
+                compressionOnly: 0,
+                writeTopUp: 766,
+                compressToPubkey: null,
+            },
+        });
+        expect(ix.accounts).toHaveLength(6);
+        expect(ix.accounts[0].role).toBe(AccountRole.WRITABLE_SIGNER);
+        expect(ix.accounts[2].address).toBe(TEST_PAYER);
+        expect(ix.accounts[2].role).toBe(AccountRole.WRITABLE_SIGNER);
+        expect(ix.accounts[3].address).toBe(TEST_CONFIG);
+        expect(ix.accounts[4].address).toBe(SYSTEM_PROGRAM_ID);
+        expect(ix.accounts[5].address).toBe(TEST_SPONSOR);
+        expect(ix.data[0]).toBe(DISCRIMINATOR.CREATE_TOKEN_ACCOUNT);
+        expect(ix.data.length).toBeGreaterThan(33);
+    });
+
+    it('throws when compressibleParams is set without payer', () => {
+        expect(() =>
+            createTokenAccountInstruction({
+                tokenAccount: TEST_SOURCE,
+                mint: TEST_MINT,
+                owner: TEST_OWNER,
+                compressibleParams: {
+                    tokenAccountVersion: 3,
+                    rentPayment: 16,
+                    compressionOnly: 0,
+                    writeTopUp: 766,
+                    compressToPubkey: null,
+                },
+            }),
+        ).toThrow('payer is required when compressibleParams is provided');
+    });
+
+    it('throws when compressible-only accounts are provided without compressibleParams', () => {
+        expect(() =>
+            createTokenAccountInstruction({
+                tokenAccount: TEST_SOURCE,
+                mint: TEST_MINT,
+                owner: TEST_OWNER,
+                payer: TEST_PAYER,
+            }),
+        ).toThrow('payer/compressibleConfig/rentSponsor require compressibleParams');
+    });
+
+    it('supports SPL-compatible owner-only payload mode', () => {
+        const ix = createTokenAccountInstruction({
+            tokenAccount: TEST_SOURCE,
+            mint: TEST_MINT,
+            owner: TEST_OWNER,
+            splCompatibleOwnerOnlyData: true,
+        });
+        expect(ix.data[0]).toBe(DISCRIMINATOR.CREATE_TOKEN_ACCOUNT);
+        expect(ix.data).toHaveLength(33);
+        expect(ix.data.slice(1)).toEqual(
+            new Uint8Array(getAddressCodec().encode(TEST_OWNER)),
+        );
+    });
+
+    it('throws when SPL-compatible owner-only mode is used with compressible params', () => {
+        expect(() =>
+            createTokenAccountInstruction({
+                tokenAccount: TEST_SOURCE,
+                mint: TEST_MINT,
+                owner: TEST_OWNER,
+                payer: TEST_PAYER,
+                splCompatibleOwnerOnlyData: true,
+                compressibleParams: {
+                    tokenAccountVersion: 3,
+                    rentPayment: 16,
+                    compressionOnly: 0,
+                    writeTopUp: 766,
+                    compressToPubkey: null,
+                },
+            }),
+        ).toThrow(
+            'splCompatibleOwnerOnlyData is only valid for non-compressible token account creation',
+        );
+    });
+});
+
+// ============================================================================
 // TEST: createAssociatedTokenAccountInstruction
 // ============================================================================
 
@@ -1398,7 +1535,7 @@ describe('createAssociatedTokenAccountInstruction', () => {
             compressibleConfig: TEST_CONFIG,
             rentSponsor: TEST_SPONSOR,
         });
-        // discriminator (1) + bump (1) + compressibleConfig option prefix (1) + data
+        // discriminator (1) + compressibleConfig option prefix (1) + data
         expect(result.instruction.data.length).toBeGreaterThan(1);
     });
 });
@@ -1604,11 +1741,724 @@ describe('DISCRIMINATOR constant values', () => {
         expect(DISCRIMINATOR.BURN_CHECKED).toBe(15);
     });
 
+    it('CREATE_TOKEN_ACCOUNT = 18', () => {
+        expect(DISCRIMINATOR.CREATE_TOKEN_ACCOUNT).toBe(18);
+    });
+
     it('CREATE_ATA = 100', () => {
         expect(DISCRIMINATOR.CREATE_ATA).toBe(100);
     });
 
     it('CREATE_ATA_IDEMPOTENT = 102', () => {
         expect(DISCRIMINATOR.CREATE_ATA_IDEMPOTENT).toBe(102);
+    });
+
+    it('TRANSFER2 = 101', () => {
+        expect(DISCRIMINATOR.TRANSFER2).toBe(101);
+    });
+
+    it('MINT_ACTION = 103', () => {
+        expect(DISCRIMINATOR.MINT_ACTION).toBe(103);
+    });
+});
+
+// ============================================================================
+// TEST: createApproveInstruction with maxTopUp (no feePayer - Rust doesn't support it)
+// ============================================================================
+
+describe('createApproveInstruction (maxTopUp)', () => {
+    it('includes maxTopUp in data when provided', () => {
+        const ix = createApproveInstruction({
+            tokenAccount: TEST_SOURCE,
+            delegate: TEST_DELEGATE,
+            owner: TEST_OWNER,
+            amount: 10_000n,
+            maxTopUp: 500,
+        });
+        // disc(1) + amount(8) + maxTopUp(2) = 11
+        expect(ix.data.length).toBe(11);
+        const maxTopUp = decodeMaxTopUp(ix.data, 9);
+        expect(maxTopUp).toBe(500);
+    });
+
+    it('owner is always WRITABLE_SIGNER (payer at APPROVE_PAYER_IDX=2)', () => {
+        const ix = createApproveInstruction({
+            tokenAccount: TEST_SOURCE,
+            delegate: TEST_DELEGATE,
+            owner: TEST_OWNER,
+            amount: 10_000n,
+            maxTopUp: 500,
+        });
+        // Always 3 accounts, no separate feePayer
+        expect(ix.accounts).toHaveLength(3);
+        expect(ix.accounts[2].address).toBe(TEST_OWNER);
+        expect(ix.accounts[2].role).toBe(AccountRole.WRITABLE_SIGNER);
+    });
+});
+
+// ============================================================================
+// TEST: createRevokeInstruction with maxTopUp (no feePayer - Rust doesn't support it)
+// ============================================================================
+
+describe('createRevokeInstruction (maxTopUp)', () => {
+    it('includes maxTopUp in data when provided', () => {
+        const ix = createRevokeInstruction({
+            tokenAccount: TEST_SOURCE,
+            owner: TEST_OWNER,
+            maxTopUp: 1000,
+        });
+        // disc(1) + maxTopUp(2) = 3
+        expect(ix.data.length).toBe(3);
+        const maxTopUp = decodeMaxTopUp(ix.data, 1);
+        expect(maxTopUp).toBe(1000);
+    });
+
+    it('owner is always WRITABLE_SIGNER (payer at REVOKE_PAYER_IDX=1)', () => {
+        const ix = createRevokeInstruction({
+            tokenAccount: TEST_SOURCE,
+            owner: TEST_OWNER,
+            maxTopUp: 1000,
+        });
+        // Always 2 accounts, no separate feePayer
+        expect(ix.accounts).toHaveLength(2);
+        expect(ix.accounts[1].address).toBe(TEST_OWNER);
+        expect(ix.accounts[1].role).toBe(AccountRole.WRITABLE_SIGNER);
+    });
+});
+
+// ============================================================================
+// TEST: createTransfer2Instruction
+// ============================================================================
+
+describe('createTransfer2Instruction', () => {
+    it('Path A: compression-only has cpiAuthority + feePayer + packed accounts', () => {
+        const ix = createTransfer2Instruction({
+            feePayer: TEST_PAYER,
+            packedAccounts: [
+                { address: TEST_MINT, role: AccountRole.READONLY },
+                { address: TEST_SOURCE, role: AccountRole.WRITABLE },
+            ],
+            data: {
+                withTransactionHash: false,
+                withLamportsChangeAccountMerkleTreeIndex: false,
+                lamportsChangeAccountMerkleTreeIndex: 0,
+                lamportsChangeAccountOwnerIndex: 0,
+                outputQueue: 0,
+                maxTopUp: 65535,
+                cpiContext: null,
+                compressions: [{
+                    mode: 0, amount: 1000n, mint: 0, sourceOrRecipient: 1,
+                    authority: 0, poolAccountIndex: 0, poolIndex: 0, bump: 0, decimals: 2,
+                }],
+                proof: null,
+                inTokenData: [],
+                outTokenData: [],
+                inLamports: null,
+                outLamports: null,
+                inTlv: null,
+                outTlv: null,
+            },
+        });
+        // Path A: 2 fixed + 2 packed = 4
+        expect(ix.accounts).toHaveLength(4);
+        expect(ix.programAddress).toBe(LIGHT_TOKEN_PROGRAM_ID);
+        expect(ix.data[0]).toBe(DISCRIMINATOR.TRANSFER2);
+    });
+
+    it('Path A: packed accounts preserve their roles', () => {
+        const ix = createTransfer2Instruction({
+            feePayer: TEST_PAYER,
+            packedAccounts: [
+                { address: TEST_MINT, role: AccountRole.READONLY },
+                { address: TEST_SOURCE, role: AccountRole.WRITABLE },
+                { address: TEST_OWNER, role: AccountRole.READONLY_SIGNER },
+            ],
+            data: {
+                withTransactionHash: false,
+                withLamportsChangeAccountMerkleTreeIndex: false,
+                lamportsChangeAccountMerkleTreeIndex: 0,
+                lamportsChangeAccountOwnerIndex: 0,
+                outputQueue: 0,
+                maxTopUp: 65535,
+                cpiContext: null,
+                compressions: [{
+                    mode: 0, amount: 1000n, mint: 0, sourceOrRecipient: 1,
+                    authority: 2, poolAccountIndex: 0, poolIndex: 0, bump: 0, decimals: 0,
+                }],
+                proof: null,
+                inTokenData: [],
+                outTokenData: [],
+                inLamports: null,
+                outLamports: null,
+                inTlv: null,
+                outTlv: null,
+            },
+        });
+        // 2 fixed + 3 packed = 5
+        expect(ix.accounts).toHaveLength(5);
+        // Packed accounts start at index 2
+        expect(ix.accounts[2].address).toBe(TEST_MINT);
+        expect(ix.accounts[2].role).toBe(AccountRole.READONLY);
+        expect(ix.accounts[3].address).toBe(TEST_SOURCE);
+        expect(ix.accounts[3].role).toBe(AccountRole.WRITABLE);
+        expect(ix.accounts[4].address).toBe(TEST_OWNER);
+        expect(ix.accounts[4].role).toBe(AccountRole.READONLY_SIGNER);
+    });
+
+    it('Path B: full transfer has 7+ fixed accounts', () => {
+        const ix = createTransfer2Instruction({
+            feePayer: TEST_PAYER,
+            packedAccounts: [
+                { address: TEST_MINT, role: AccountRole.READONLY },
+            ],
+            data: {
+                withTransactionHash: false,
+                withLamportsChangeAccountMerkleTreeIndex: false,
+                lamportsChangeAccountMerkleTreeIndex: 0,
+                lamportsChangeAccountOwnerIndex: 0,
+                outputQueue: 0,
+                maxTopUp: 65535,
+                cpiContext: null,
+                compressions: null,
+                proof: null,
+                inTokenData: [{
+                    owner: 0, amount: 1000n, hasDelegate: false, delegate: 0,
+                    mint: 0, version: 3,
+                    merkleContext: { merkleTreePubkeyIndex: 0, queuePubkeyIndex: 0, leafIndex: 0, proveByIndex: true },
+                    rootIndex: 0,
+                }],
+                outTokenData: [{
+                    owner: 0, amount: 1000n, hasDelegate: false, delegate: 0,
+                    mint: 0, version: 3,
+                }],
+                inLamports: null,
+                outLamports: null,
+                inTlv: null,
+                outTlv: null,
+            },
+        });
+        // Path B: 7 fixed + 1 packed = 8
+        expect(ix.accounts).toHaveLength(8);
+        expect(ix.data[0]).toBe(DISCRIMINATOR.TRANSFER2);
+        // Rust parity defaults for system CPI accounts
+        expect(ix.accounts[3].address).toBe(REGISTERED_PROGRAM_PDA);
+        expect(ix.accounts[4].address).toBe(
+            ACCOUNT_COMPRESSION_AUTHORITY_PDA,
+        );
+        // Packed account at index 7 preserves readonly role
+        expect(ix.accounts[7].address).toBe(TEST_MINT);
+        expect(ix.accounts[7].role).toBe(AccountRole.READONLY);
+    });
+
+    it('Path C: CPI context write has lightSystemProgram + feePayer + cpiAuthority + cpiContext + packed', () => {
+        const cpiContextAccount = address('Sysvar1111111111111111111111111111111111111');
+        const ix = createTransfer2Instruction({
+            feePayer: TEST_PAYER,
+            cpiContextAccount,
+            packedAccounts: [
+                { address: TEST_MINT, role: AccountRole.READONLY },
+                { address: TEST_SOURCE, role: AccountRole.WRITABLE },
+            ],
+            data: {
+                withTransactionHash: false,
+                withLamportsChangeAccountMerkleTreeIndex: false,
+                lamportsChangeAccountMerkleTreeIndex: 0,
+                lamportsChangeAccountOwnerIndex: 0,
+                outputQueue: 0,
+                maxTopUp: 65535,
+                cpiContext: { setContext: true, firstSetContext: true },
+                compressions: null,
+                proof: null,
+                inTokenData: [{
+                    owner: 0, amount: 1000n, hasDelegate: false, delegate: 0,
+                    mint: 0, version: 3,
+                    merkleContext: { merkleTreePubkeyIndex: 0, queuePubkeyIndex: 0, leafIndex: 0, proveByIndex: true },
+                    rootIndex: 0,
+                }],
+                outTokenData: [{
+                    owner: 0, amount: 1000n, hasDelegate: false, delegate: 0,
+                    mint: 0, version: 3,
+                }],
+                inLamports: null,
+                outLamports: null,
+                inTlv: null,
+                outTlv: null,
+            },
+        });
+        // Path C: 4 fixed + 2 packed = 6
+        expect(ix.accounts).toHaveLength(6);
+        // Account 0: lightSystemProgram (readonly)
+        expect(ix.accounts[0].address).toBe(LIGHT_SYSTEM_PROGRAM_ID);
+        expect(ix.accounts[0].role).toBe(AccountRole.READONLY);
+        // Account 1: feePayer (writable signer)
+        expect(ix.accounts[1].address).toBe(TEST_PAYER);
+        expect(ix.accounts[1].role).toBe(AccountRole.WRITABLE_SIGNER);
+        // Account 2: cpiAuthorityPda (readonly)
+        expect(ix.accounts[2].address).toBe(CPI_AUTHORITY);
+        expect(ix.accounts[2].role).toBe(AccountRole.READONLY);
+        // Account 3: cpiContext (writable — program writes CPI data to it)
+        expect(ix.accounts[3].address).toBe(cpiContextAccount);
+        expect(ix.accounts[3].role).toBe(AccountRole.WRITABLE);
+        // Packed accounts
+        expect(ix.accounts[4].address).toBe(TEST_MINT);
+        expect(ix.accounts[5].address).toBe(TEST_SOURCE);
+    });
+});
+
+// ============================================================================
+// TEST: Compression factory functions
+// ============================================================================
+
+describe('Compression factory functions', () => {
+    it('createCompress: CToken compression', () => {
+        const comp = createCompress({
+            amount: 5000n,
+            mintIndex: 2,
+            sourceIndex: 1,
+            authorityIndex: 0,
+        });
+        expect(comp.mode).toBe(COMPRESSION_MODE.COMPRESS);
+        expect(comp.amount).toBe(5000n);
+        expect(comp.mint).toBe(2);
+        expect(comp.sourceOrRecipient).toBe(1);
+        expect(comp.authority).toBe(0);
+        expect(comp.poolAccountIndex).toBe(0);
+        expect(comp.poolIndex).toBe(0);
+        expect(comp.bump).toBe(0);
+        expect(comp.decimals).toBe(0);
+    });
+
+    it('createCompressSpl: SPL compression', () => {
+        const comp = createCompressSpl({
+            amount: 5000n,
+            mintIndex: 3,
+            sourceIndex: 4,
+            authorityIndex: 0,
+            poolAccountIndex: 5,
+            poolIndex: 1,
+            bump: 254,
+            decimals: 6,
+        });
+        expect(comp.mode).toBe(COMPRESSION_MODE.COMPRESS);
+        expect(comp.amount).toBe(5000n);
+        expect(comp.mint).toBe(3);
+        expect(comp.sourceOrRecipient).toBe(4);
+        expect(comp.authority).toBe(0);
+        expect(comp.poolAccountIndex).toBe(5);
+        expect(comp.poolIndex).toBe(1);
+        expect(comp.bump).toBe(254);
+        expect(comp.decimals).toBe(6);
+    });
+
+    it('createDecompress: CToken decompression', () => {
+        const comp = createDecompress({
+            amount: 3000n,
+            mintIndex: 2,
+            recipientIndex: 7,
+        });
+        expect(comp.mode).toBe(COMPRESSION_MODE.DECOMPRESS);
+        expect(comp.amount).toBe(3000n);
+        expect(comp.mint).toBe(2);
+        expect(comp.sourceOrRecipient).toBe(7);
+        expect(comp.authority).toBe(0);
+        expect(comp.poolAccountIndex).toBe(0);
+    });
+
+    it('createDecompressSpl: SPL decompression', () => {
+        const comp = createDecompressSpl({
+            amount: 2000n,
+            mintIndex: 3,
+            recipientIndex: 8,
+            poolAccountIndex: 9,
+            poolIndex: 0,
+            bump: 123,
+            decimals: 9,
+        });
+        expect(comp.mode).toBe(COMPRESSION_MODE.DECOMPRESS);
+        expect(comp.amount).toBe(2000n);
+        expect(comp.sourceOrRecipient).toBe(8);
+        expect(comp.authority).toBe(0);
+        expect(comp.poolAccountIndex).toBe(9);
+        expect(comp.poolIndex).toBe(0);
+        expect(comp.bump).toBe(123);
+        expect(comp.decimals).toBe(9);
+    });
+
+    it('createCompressAndClose: repurposed fields', () => {
+        const comp = createCompressAndClose({
+            amount: 1000n,
+            mintIndex: 2,
+            sourceIndex: 1,
+            authorityIndex: 0,
+            rentSponsorIndex: 10,
+            compressedAccountIndex: 11,
+            destinationIndex: 5,
+        });
+        expect(comp.mode).toBe(COMPRESSION_MODE.COMPRESS_AND_CLOSE);
+        expect(comp.amount).toBe(1000n);
+        expect(comp.mint).toBe(2);
+        expect(comp.sourceOrRecipient).toBe(1);
+        expect(comp.authority).toBe(0);
+        // Repurposed fields
+        expect(comp.poolAccountIndex).toBe(10); // rentSponsorIndex
+        expect(comp.poolIndex).toBe(11);         // compressedAccountIndex
+        expect(comp.bump).toBe(5);               // destinationIndex
+        expect(comp.decimals).toBe(0);
+    });
+});
+
+// ============================================================================
+// TEST: createClaimInstruction
+// ============================================================================
+
+describe('createClaimInstruction', () => {
+    it('builds correct instruction with discriminator and accounts', () => {
+        const ix = createClaimInstruction({
+            rentSponsor: TEST_PAYER,
+            compressionAuthority: TEST_AUTHORITY,
+            compressibleConfig: TEST_MINT,
+            tokenAccounts: [TEST_SOURCE, TEST_DEST],
+        });
+
+        expect(ix.programAddress).toBe(LIGHT_TOKEN_PROGRAM_ID);
+        // 3 fixed + 2 token accounts = 5
+        expect(ix.accounts).toHaveLength(5);
+
+        // Account roles
+        expect(ix.accounts[0].address).toBe(TEST_PAYER);
+        expect(ix.accounts[0].role).toBe(AccountRole.WRITABLE);
+        expect(ix.accounts[1].address).toBe(TEST_AUTHORITY);
+        expect(ix.accounts[1].role).toBe(AccountRole.READONLY_SIGNER);
+        expect(ix.accounts[2].address).toBe(TEST_MINT);
+        expect(ix.accounts[2].role).toBe(AccountRole.READONLY);
+        expect(ix.accounts[3].address).toBe(TEST_SOURCE);
+        expect(ix.accounts[3].role).toBe(AccountRole.WRITABLE);
+        expect(ix.accounts[4].address).toBe(TEST_DEST);
+        expect(ix.accounts[4].role).toBe(AccountRole.WRITABLE);
+
+        // Data: discriminator only (no instruction data)
+        expect(ix.data).toHaveLength(1);
+        expect(ix.data[0]).toBe(DISCRIMINATOR.CLAIM);
+    });
+
+    it('works with no token accounts', () => {
+        const ix = createClaimInstruction({
+            rentSponsor: TEST_PAYER,
+            compressionAuthority: TEST_AUTHORITY,
+            compressibleConfig: TEST_MINT,
+            tokenAccounts: [],
+        });
+        expect(ix.accounts).toHaveLength(3);
+    });
+});
+
+// ============================================================================
+// TEST: createWithdrawFundingPoolInstruction
+// ============================================================================
+
+describe('createWithdrawFundingPoolInstruction', () => {
+    it('builds correct instruction with amount encoding', () => {
+        const ix = createWithdrawFundingPoolInstruction({
+            rentSponsor: TEST_PAYER,
+            compressionAuthority: TEST_AUTHORITY,
+            destination: TEST_DEST,
+            compressibleConfig: TEST_MINT,
+            amount: 1_000_000_000n,
+        });
+
+        expect(ix.programAddress).toBe(LIGHT_TOKEN_PROGRAM_ID);
+        expect(ix.accounts).toHaveLength(5);
+
+        // Account roles
+        expect(ix.accounts[0].address).toBe(TEST_PAYER);
+        expect(ix.accounts[0].role).toBe(AccountRole.WRITABLE);
+        expect(ix.accounts[1].address).toBe(TEST_AUTHORITY);
+        expect(ix.accounts[1].role).toBe(AccountRole.READONLY_SIGNER);
+        expect(ix.accounts[2].address).toBe(TEST_DEST);
+        expect(ix.accounts[2].role).toBe(AccountRole.WRITABLE);
+        expect(ix.accounts[3].address).toBe(SYSTEM_PROGRAM_ID);
+        expect(ix.accounts[3].role).toBe(AccountRole.READONLY);
+        expect(ix.accounts[4].address).toBe(TEST_MINT);
+        expect(ix.accounts[4].role).toBe(AccountRole.READONLY);
+
+        // Data: discriminator (1) + u64 amount (8) = 9 bytes
+        expect(ix.data).toHaveLength(9);
+        expect(ix.data[0]).toBe(DISCRIMINATOR.WITHDRAW_FUNDING_POOL);
+
+        // Decode amount (LE u64)
+        const view = new DataView(ix.data.buffer, ix.data.byteOffset);
+        const amount = view.getBigUint64(1, true);
+        expect(amount).toBe(1_000_000_000n);
+    });
+
+    it('encodes zero amount', () => {
+        const ix = createWithdrawFundingPoolInstruction({
+            rentSponsor: TEST_PAYER,
+            compressionAuthority: TEST_AUTHORITY,
+            destination: TEST_DEST,
+            compressibleConfig: TEST_MINT,
+            amount: 0n,
+        });
+
+        const view = new DataView(ix.data.buffer, ix.data.byteOffset);
+        expect(view.getBigUint64(1, true)).toBe(0n);
+    });
+
+    it('encodes large amount', () => {
+        const largeAmount = 18_446_744_073_709_551_615n; // u64::MAX
+        const ix = createWithdrawFundingPoolInstruction({
+            rentSponsor: TEST_PAYER,
+            compressionAuthority: TEST_AUTHORITY,
+            destination: TEST_DEST,
+            compressibleConfig: TEST_MINT,
+            amount: largeAmount,
+        });
+
+        const view = new DataView(ix.data.buffer, ix.data.byteOffset);
+        expect(view.getBigUint64(1, true)).toBe(largeAmount);
+    });
+});
+
+// ============================================================================
+// TEST: createMintActionInstruction
+// ============================================================================
+
+describe('createMintActionInstruction', () => {
+    const TEST_OUT_QUEUE = address('Vote111111111111111111111111111111111111111');
+    const TEST_MERKLE_TREE = address('BPFLoaderUpgradeab1e11111111111111111111111');
+    const mintActionData = {
+        leafIndex: 0,
+        proveByIndex: false,
+        rootIndex: 0,
+        maxTopUp: 0,
+        createMint: null,
+        actions: [] as [],
+        proof: null,
+        cpiContext: null,
+        mint: null,
+    };
+
+    it('has correct program address', () => {
+        const ix = createMintActionInstruction({
+            authority: TEST_AUTHORITY,
+            feePayer: TEST_PAYER,
+            outOutputQueue: TEST_OUT_QUEUE,
+            merkleTree: TEST_MERKLE_TREE,
+            data: mintActionData,
+        });
+        expect(ix.programAddress).toBe(LIGHT_TOKEN_PROGRAM_ID);
+    });
+
+    it('has correct discriminator byte (103)', () => {
+        const ix = createMintActionInstruction({
+            authority: TEST_AUTHORITY,
+            feePayer: TEST_PAYER,
+            outOutputQueue: TEST_OUT_QUEUE,
+            merkleTree: TEST_MERKLE_TREE,
+            data: mintActionData,
+        });
+        expect(ix.data[0]).toBe(DISCRIMINATOR.MINT_ACTION);
+        expect(ix.data[0]).toBe(103);
+    });
+
+    it('normal path: lightSystemProgram, authority, LightSystemAccounts(6), queues, tree', () => {
+        const ix = createMintActionInstruction({
+            authority: TEST_AUTHORITY,
+            feePayer: TEST_PAYER,
+            outOutputQueue: TEST_OUT_QUEUE,
+            merkleTree: TEST_MERKLE_TREE,
+            data: mintActionData,
+        });
+
+        // lightSystemProgram(1) + authority(1) + LightSystemAccounts(6) + outQueue(1) + merkleTree(1) = 10
+        expect(ix.accounts).toHaveLength(10);
+
+        // Account 0: Light System Program (readonly)
+        expect(ix.accounts[0].address).toBe(LIGHT_SYSTEM_PROGRAM_ID);
+        expect(ix.accounts[0].role).toBe(AccountRole.READONLY);
+
+        // Account 1: authority (signer)
+        expect(ix.accounts[1].address).toBe(TEST_AUTHORITY);
+        expect(ix.accounts[1].role).toBe(AccountRole.READONLY_SIGNER);
+
+        // LightSystemAccounts (6 accounts):
+        // 2: feePayer (writable signer)
+        expect(ix.accounts[2].address).toBe(TEST_PAYER);
+        expect(ix.accounts[2].role).toBe(AccountRole.WRITABLE_SIGNER);
+        // 3: cpiAuthorityPda (readonly)
+        expect(ix.accounts[3].address).toBe(CPI_AUTHORITY);
+        expect(ix.accounts[3].role).toBe(AccountRole.READONLY);
+        // 4: registeredProgramPda (readonly, defaults to REGISTERED_PROGRAM_PDA)
+        expect(ix.accounts[4].address).toBe(REGISTERED_PROGRAM_PDA);
+        expect(ix.accounts[4].role).toBe(AccountRole.READONLY);
+        // 5: accountCompressionAuthority (readonly, defaults to ACCOUNT_COMPRESSION_AUTHORITY_PDA)
+        expect(ix.accounts[5].address).toBe(
+            ACCOUNT_COMPRESSION_AUTHORITY_PDA,
+        );
+        expect(ix.accounts[5].role).toBe(AccountRole.READONLY);
+        // 6: accountCompressionProgram (readonly)
+        expect(ix.accounts[6].address).toBe(ACCOUNT_COMPRESSION_PROGRAM_ID);
+        expect(ix.accounts[6].role).toBe(AccountRole.READONLY);
+        // 7: systemProgram (readonly)
+        expect(ix.accounts[7].address).toBe(SYSTEM_PROGRAM_ID);
+        expect(ix.accounts[7].role).toBe(AccountRole.READONLY);
+
+        // 8: outOutputQueue (writable)
+        expect(ix.accounts[8].address).toBe(TEST_OUT_QUEUE);
+        expect(ix.accounts[8].role).toBe(AccountRole.WRITABLE);
+        // 9: merkleTree (writable)
+        expect(ix.accounts[9].address).toBe(TEST_MERKLE_TREE);
+        expect(ix.accounts[9].role).toBe(AccountRole.WRITABLE);
+    });
+
+    it('includes CPI_AUTHORITY, ACCOUNT_COMPRESSION_PROGRAM_ID, SYSTEM_PROGRAM_ID', () => {
+        const ix = createMintActionInstruction({
+            authority: TEST_AUTHORITY,
+            feePayer: TEST_PAYER,
+            outOutputQueue: TEST_OUT_QUEUE,
+            merkleTree: TEST_MERKLE_TREE,
+            data: mintActionData,
+        });
+
+        const addresses = ix.accounts.map(a => a.address);
+        expect(addresses).toContain(CPI_AUTHORITY);
+        expect(addresses).toContain(ACCOUNT_COMPRESSION_PROGRAM_ID);
+        expect(addresses).toContain(SYSTEM_PROGRAM_ID);
+    });
+
+    it('output queue and merkle tree are writable', () => {
+        const ix = createMintActionInstruction({
+            authority: TEST_AUTHORITY,
+            feePayer: TEST_PAYER,
+            outOutputQueue: TEST_OUT_QUEUE,
+            merkleTree: TEST_MERKLE_TREE,
+            data: mintActionData,
+        });
+
+        const outQueueAccount = ix.accounts.find(a => a.address === TEST_OUT_QUEUE);
+        const treeAccount = ix.accounts.find(a => a.address === TEST_MERKLE_TREE);
+        expect(outQueueAccount?.role).toBe(AccountRole.WRITABLE);
+        expect(treeAccount?.role).toBe(AccountRole.WRITABLE);
+    });
+
+    it('with mintSigner: adds it as signer for createMint', () => {
+        const mintSigner = address('Sysvar1111111111111111111111111111111111111');
+        const ix = createMintActionInstruction({
+            mintSigner,
+            authority: TEST_AUTHORITY,
+            feePayer: TEST_PAYER,
+            outOutputQueue: TEST_OUT_QUEUE,
+            merkleTree: TEST_MERKLE_TREE,
+            data: {
+                ...mintActionData,
+                createMint: {
+                    readOnlyAddressTrees: new Uint8Array(4),
+                    readOnlyAddressTreeRootIndices: [0, 0, 0, 0],
+                },
+            },
+        });
+
+        const signerAccount = ix.accounts.find(a => a.address === mintSigner);
+        expect(signerAccount).toBeDefined();
+        expect(signerAccount?.role).toBe(AccountRole.READONLY_SIGNER);
+    });
+
+    it('with mintSigner but no createMint: adds as readonly', () => {
+        const mintSigner = address('Sysvar1111111111111111111111111111111111111');
+        const ix = createMintActionInstruction({
+            mintSigner,
+            authority: TEST_AUTHORITY,
+            feePayer: TEST_PAYER,
+            outOutputQueue: TEST_OUT_QUEUE,
+            merkleTree: TEST_MERKLE_TREE,
+            data: mintActionData,
+        });
+
+        const signerAccount = ix.accounts.find(a => a.address === mintSigner);
+        expect(signerAccount).toBeDefined();
+        expect(signerAccount?.role).toBe(AccountRole.READONLY);
+    });
+
+    it('packed accounts preserve their roles', () => {
+        const ix = createMintActionInstruction({
+            authority: TEST_AUTHORITY,
+            feePayer: TEST_PAYER,
+            outOutputQueue: TEST_OUT_QUEUE,
+            merkleTree: TEST_MERKLE_TREE,
+            packedAccounts: [
+                { address: TEST_SOURCE, role: AccountRole.WRITABLE },
+                { address: TEST_DEST, role: AccountRole.READONLY },
+                { address: TEST_OWNER, role: AccountRole.READONLY_SIGNER },
+            ],
+            data: mintActionData,
+        });
+
+        // Packed accounts at the end
+        const lastThree = ix.accounts.slice(-3);
+        expect(lastThree[0].address).toBe(TEST_SOURCE);
+        expect(lastThree[0].role).toBe(AccountRole.WRITABLE);
+        expect(lastThree[1].address).toBe(TEST_DEST);
+        expect(lastThree[1].role).toBe(AccountRole.READONLY);
+        expect(lastThree[2].address).toBe(TEST_OWNER);
+        expect(lastThree[2].role).toBe(AccountRole.READONLY_SIGNER);
+    });
+
+    it('optional accounts: compressibleConfig, cmint, rentSponsor', () => {
+        const ix = createMintActionInstruction({
+            authority: TEST_AUTHORITY,
+            feePayer: TEST_PAYER,
+            compressibleConfig: TEST_CONFIG,
+            cmint: TEST_SOURCE,
+            rentSponsor: TEST_SPONSOR,
+            outOutputQueue: TEST_OUT_QUEUE,
+            merkleTree: TEST_MERKLE_TREE,
+            data: mintActionData,
+        });
+
+        const addresses = ix.accounts.map(a => a.address);
+        expect(addresses).toContain(TEST_CONFIG);
+        expect(addresses).toContain(TEST_SOURCE);
+        expect(addresses).toContain(TEST_SPONSOR);
+
+        // Config is readonly, cmint and rentSponsor are writable
+        const configAccount = ix.accounts.find(a => a.address === TEST_CONFIG);
+        expect(configAccount?.role).toBe(AccountRole.READONLY);
+        const cmintAccount = ix.accounts.find(a => a.address === TEST_SOURCE);
+        expect(cmintAccount?.role).toBe(AccountRole.WRITABLE);
+        const sponsorAccount = ix.accounts.find(a => a.address === TEST_SPONSOR);
+        expect(sponsorAccount?.role).toBe(AccountRole.WRITABLE);
+    });
+
+    it('CPI context path: feePayer + cpiAuthorityPda + cpiContext (3 accounts)', () => {
+        const cpiContext = address('Sysvar1111111111111111111111111111111111111');
+        const ix = createMintActionInstruction({
+            authority: TEST_AUTHORITY,
+            feePayer: TEST_PAYER,
+            outOutputQueue: TEST_OUT_QUEUE,
+            merkleTree: TEST_MERKLE_TREE,
+            cpiContextAccounts: {
+                feePayer: TEST_PAYER,
+                cpiAuthorityPda: CPI_AUTHORITY,
+                cpiContext,
+            },
+            data: mintActionData,
+        });
+
+        // CPI context path: lightSystemProgram(1) + authority(1) + CpiContextLightSystemAccounts(3) = 5
+        expect(ix.accounts).toHaveLength(5);
+
+        // Account 0: Light System Program
+        expect(ix.accounts[0].address).toBe(LIGHT_SYSTEM_PROGRAM_ID);
+        // Account 1: authority
+        expect(ix.accounts[1].address).toBe(TEST_AUTHORITY);
+        // Account 2: feePayer (writable signer)
+        expect(ix.accounts[2].address).toBe(TEST_PAYER);
+        expect(ix.accounts[2].role).toBe(AccountRole.WRITABLE_SIGNER);
+        // Account 3: cpiAuthorityPda (readonly)
+        expect(ix.accounts[3].address).toBe(CPI_AUTHORITY);
+        expect(ix.accounts[3].role).toBe(AccountRole.READONLY);
+        // Account 4: cpiContext (writable — program writes CPI data to it)
+        expect(ix.accounts[4].address).toBe(cpiContext);
+        expect(ix.accounts[4].role).toBe(AccountRole.WRITABLE);
     });
 });

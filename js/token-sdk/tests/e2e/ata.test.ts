@@ -8,7 +8,9 @@ import {
     fundAccount,
     createTestMint,
     sendKitInstructions,
+    getCTokenAccountData,
     toKitAddress,
+    ensureValidatorRunning,
     type Signer,
     type Rpc,
 } from './helpers/setup.js';
@@ -18,55 +20,53 @@ import {
     deriveAssociatedTokenAddress,
     LIGHT_TOKEN_PROGRAM_ID,
 } from '../../src/index.js';
-import { address } from '@solana/addresses';
 
 const DECIMALS = 2;
 
-describe('create ATA e2e', () => {
+describe('create ATA e2e (CToken)', () => {
     let rpc: Rpc;
     let payer: Signer;
     let mint: any;
     let mintAuthority: Signer;
+    let mintAddress: string;
 
     beforeAll(async () => {
+        await ensureValidatorRunning();
         rpc = getTestRpc();
         payer = await fundAccount(rpc);
 
         const created = await createTestMint(rpc, payer, DECIMALS);
         mint = created.mint;
         mintAuthority = created.mintAuthority;
+        mintAddress = created.mintAddress;
     });
 
-    it('create ATA idempotent: derives correct address', async () => {
+    it('derive ATA address: deterministic and valid', async () => {
         const owner = await fundAccount(rpc);
         const ownerAddr = toKitAddress(owner.publicKey);
-        const mintAddr = toKitAddress(mint);
 
-        // Derive expected ATA
         const { address: expectedAta, bump } =
-            await deriveAssociatedTokenAddress(ownerAddr, mintAddr);
+            await deriveAssociatedTokenAddress(ownerAddr, mintAddress);
 
         expect(expectedAta).toBeDefined();
         expect(bump).toBeGreaterThanOrEqual(0);
         expect(bump).toBeLessThanOrEqual(255);
+
+        // Same inputs produce same output
+        const { address: ata2 } =
+            await deriveAssociatedTokenAddress(ownerAddr, mintAddress);
+        expect(ata2).toBe(expectedAta);
     });
 
     it('create ATA idempotent: builds valid instruction', async () => {
         const owner = await fundAccount(rpc);
         const ownerAddr = toKitAddress(owner.publicKey);
-        const mintAddr = toKitAddress(mint);
         const payerAddr = toKitAddress(payer.publicKey);
-
-        // Use a placeholder config and sponsor for the test
-        const config = address('11111111111111111111111111111111');
-        const sponsor = payerAddr;
 
         const result = await createAssociatedTokenAccountIdempotentInstruction({
             payer: payerAddr,
             owner: ownerAddr,
-            mint: mintAddr,
-            compressibleConfig: config,
-            rentSponsor: sponsor,
+            mint: mintAddress,
         });
 
         expect(result.address).toBeDefined();

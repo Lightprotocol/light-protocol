@@ -108,8 +108,6 @@ export interface CompressedCpiContext {
     setContext: boolean;
     /** Whether this is the first set context call */
     firstSetContext: boolean;
-    /** Index of CPI context account in packed accounts */
-    cpiContextAccountIndex: number;
 }
 
 // ============================================================================
@@ -199,10 +197,10 @@ export interface CompressionInfo {
     accountVersion: number;
     /** Lamports per write operation */
     lamportsPerWrite: number;
-    /** Compression authority */
-    compressionAuthority: Address;
-    /** Rent sponsor */
-    rentSponsor: Address;
+    /** Compression authority (32 bytes) */
+    compressionAuthority: Uint8Array;
+    /** Rent sponsor (32 bytes) */
+    rentSponsor: Uint8Array;
     /** Last claimed slot */
     lastClaimedSlot: bigint;
     /** Rent exemption paid */
@@ -214,10 +212,30 @@ export interface CompressionInfo {
 }
 
 /**
+ * Transfer fee account extension data.
+ */
+export interface TransferFeeAccountExtension {
+    /** Withheld transfer fee amount */
+    withheldAmount: bigint;
+}
+
+/**
+ * Transfer hook account extension data.
+ */
+export interface TransferHookAccountExtension {
+    /** Reentrancy guard (always 0 at rest in Light Protocol) */
+    transferring: number;
+}
+
+/**
  * Extension instruction data (union type).
  */
 export type ExtensionInstructionData =
     | { type: 'TokenMetadata'; data: TokenMetadataExtension }
+    | { type: 'PausableAccount' }
+    | { type: 'PermanentDelegateAccount' }
+    | { type: 'TransferFeeAccount' }
+    | { type: 'TransferHookAccount' }
     | { type: 'CompressedOnly'; data: CompressedOnlyExtension }
     | { type: 'Compressible'; data: CompressionInfo };
 
@@ -294,15 +312,25 @@ export interface CompressibleExtensionInstructionData {
 }
 
 // ============================================================================
-// CREATE ATA TYPES
+// CREATE ACCOUNT TYPES
 // ============================================================================
 
 /**
  * Create Associated Token Account instruction data.
+ * Note: bump is NOT included in instruction data — the on-chain program
+ * derives it via validate_ata_derivation.
  */
 export interface CreateAtaInstructionData {
-    /** PDA bump */
-    bump: number;
+    /** Compressible config (optional) */
+    compressibleConfig: CompressibleExtensionInstructionData | null;
+}
+
+/**
+ * Create Token Account instruction data.
+ */
+export interface CreateTokenAccountInstructionData {
+    /** Owner of the token account */
+    owner: Address;
     /** Compressible config (optional) */
     compressibleConfig: CompressibleExtensionInstructionData | null;
 }

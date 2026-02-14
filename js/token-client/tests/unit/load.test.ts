@@ -1,12 +1,16 @@
 /**
- * Unit tests for load functions.
+ * Unit tests for load functions and actions.
  *
  * Tests for:
  * - loadTokenAccountsForTransfer
  * - loadAllTokenAccounts
  * - loadTokenAccount
+ * - loadCompressedAccount
+ * - loadCompressedAccountByHash
+ * - getValidityProofForAccounts
  * - getOutputTreeInfo
  * - needsValidityProof
+ * - buildCompressedTransfer
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -16,9 +20,16 @@ import {
     loadTokenAccountsForTransfer,
     loadAllTokenAccounts,
     loadTokenAccount,
+    loadCompressedAccount,
+    loadCompressedAccountByHash,
+    getValidityProofForAccounts,
     getOutputTreeInfo,
     needsValidityProof,
     type LightIndexer,
+} from '../../src/index.js';
+
+import {
+    buildCompressedTransfer,
 } from '../../src/index.js';
 
 import {
@@ -26,6 +37,7 @@ import {
     IndexerErrorCode,
     TreeType,
     AccountState,
+    DISCRIMINATOR,
     type TreeInfo,
     type CompressedTokenAccount,
     type CompressedAccount,
@@ -158,6 +170,29 @@ describe('loadTokenAccountsForTransfer', () => {
         }
     });
 
+    it('respects maxInputs option during selection', async () => {
+        const accounts = [
+            createMockTokenAccount(500n),
+            createMockTokenAccount(400n),
+            createMockTokenAccount(300n),
+        ];
+
+        const indexer = createMockIndexer({
+            getCompressedTokenAccountsByOwner: vi.fn().mockResolvedValue({
+                context: { slot: 100n },
+                value: { items: accounts, cursor: null },
+            }),
+        });
+
+        await expect(
+            loadTokenAccountsForTransfer(indexer, MOCK_OWNER, 700n, {
+                maxInputs: 1,
+            }),
+        ).rejects.toMatchObject({
+            code: IndexerErrorCode.InsufficientBalance,
+        });
+    });
+
     it('throws IndexerError with InsufficientBalance when balance is too low', async () => {
         const accounts = [createMockTokenAccount(50n)];
 
@@ -288,6 +323,152 @@ describe('loadTokenAccount', () => {
 });
 
 // ============================================================================
+// TESTS: loadCompressedAccount
+// ============================================================================
+
+describe('loadCompressedAccount', () => {
+    it('returns account when found', async () => {
+        const mockAccount: CompressedAccount = {
+            hash: new Uint8Array(32).fill(0xab),
+            address: null,
+            owner: address('cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m'),
+            lamports: 1000n,
+            data: null,
+            leafIndex: 5,
+            treeInfo: createMockTreeInfo(TreeType.StateV2),
+            proveByIndex: false,
+            seq: 10n,
+            slotCreated: 42n,
+        };
+
+        const indexer = createMockIndexer({
+            getCompressedAccount: vi.fn().mockResolvedValue({
+                context: { slot: 100n },
+                value: mockAccount,
+            }),
+        });
+
+        const result = await loadCompressedAccount(indexer, new Uint8Array(32));
+        expect(result).not.toBeNull();
+        expect(result!.lamports).toBe(1000n);
+        expect(result!.leafIndex).toBe(5);
+    });
+
+    it('returns null when not found', async () => {
+        const indexer = createMockIndexer({
+            getCompressedAccount: vi.fn().mockResolvedValue({
+                context: { slot: 100n },
+                value: null,
+            }),
+        });
+
+        const result = await loadCompressedAccount(indexer, new Uint8Array(32));
+        expect(result).toBeNull();
+    });
+});
+
+// ============================================================================
+// TESTS: loadCompressedAccountByHash
+// ============================================================================
+
+describe('loadCompressedAccountByHash', () => {
+    it('returns account when found', async () => {
+        const mockAccount: CompressedAccount = {
+            hash: new Uint8Array(32).fill(0xcd),
+            address: null,
+            owner: address('cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m'),
+            lamports: 2000n,
+            data: null,
+            leafIndex: 10,
+            treeInfo: createMockTreeInfo(TreeType.StateV2),
+            proveByIndex: true,
+            seq: 20n,
+            slotCreated: 100n,
+        };
+
+        const indexer = createMockIndexer({
+            getCompressedAccountByHash: vi.fn().mockResolvedValue({
+                context: { slot: 100n },
+                value: mockAccount,
+            }),
+        });
+
+        const result = await loadCompressedAccountByHash(indexer, new Uint8Array(32));
+        expect(result).not.toBeNull();
+        expect(result!.lamports).toBe(2000n);
+        expect(result!.proveByIndex).toBe(true);
+    });
+
+    it('returns null when not found', async () => {
+        const indexer = createMockIndexer({
+            getCompressedAccountByHash: vi.fn().mockResolvedValue({
+                context: { slot: 100n },
+                value: null,
+            }),
+        });
+
+        const result = await loadCompressedAccountByHash(indexer, new Uint8Array(32));
+        expect(result).toBeNull();
+    });
+});
+
+// ============================================================================
+// TESTS: getValidityProofForAccounts
+// ============================================================================
+
+describe('getValidityProofForAccounts', () => {
+    it('fetches proof using account hashes', async () => {
+        const account1 = createMockTokenAccount(100n);
+        account1.account.hash = new Uint8Array(32).fill(0x11);
+        const account2 = createMockTokenAccount(200n);
+        account2.account.hash = new Uint8Array(32).fill(0x22);
+
+        const mockProof = {
+            proof: { a: new Uint8Array(32), b: new Uint8Array(64), c: new Uint8Array(32) },
+            accounts: [],
+            addresses: [],
+        };
+
+        const getValidityProofFn = vi.fn().mockResolvedValue({
+            context: { slot: 100n },
+            value: mockProof,
+        });
+
+        const indexer = createMockIndexer({
+            getValidityProof: getValidityProofFn,
+        });
+
+        const result = await getValidityProofForAccounts(indexer, [account1, account2]);
+
+        expect(result).toBe(mockProof);
+        // Verify it was called with the correct hashes
+        expect(getValidityProofFn).toHaveBeenCalledTimes(1);
+        const calledHashes = getValidityProofFn.mock.calls[0][0];
+        expect(calledHashes).toHaveLength(2);
+        expect(calledHashes[0]).toEqual(new Uint8Array(32).fill(0x11));
+        expect(calledHashes[1]).toEqual(new Uint8Array(32).fill(0x22));
+    });
+
+    it('handles empty accounts array', async () => {
+        const mockProof = {
+            proof: { a: new Uint8Array(32), b: new Uint8Array(64), c: new Uint8Array(32) },
+            accounts: [],
+            addresses: [],
+        };
+
+        const indexer = createMockIndexer({
+            getValidityProof: vi.fn().mockResolvedValue({
+                context: { slot: 100n },
+                value: mockProof,
+            }),
+        });
+
+        const result = await getValidityProofForAccounts(indexer, []);
+        expect(result).toBe(mockProof);
+    });
+});
+
+// ============================================================================
 // TESTS: getOutputTreeInfo
 // ============================================================================
 
@@ -350,5 +531,335 @@ describe('needsValidityProof', () => {
         };
 
         expect(needsValidityProof(account)).toBe(false);
+    });
+});
+
+// ============================================================================
+// TESTS: buildCompressedTransfer
+// ============================================================================
+
+describe('buildCompressedTransfer', () => {
+    const RECIPIENT = address('GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy');
+    const FEE_PAYER = address('BPFLoaderUpgradeab1e11111111111111111111111');
+    const DELEGATE = address('Sysvar1111111111111111111111111111111111111');
+    const ALT_TREE = address('Vote111111111111111111111111111111111111111');
+    const ALT_QUEUE = address('11111111111111111111111111111111');
+
+    function createMockAccountWithHash(
+        amount: bigint,
+        hashByte: number,
+        leafIndex: number,
+        delegate: ReturnType<typeof address> | null = null,
+    ): CompressedTokenAccount {
+        const account = createMockTokenAccount(amount);
+        account.account.hash = new Uint8Array(32).fill(hashByte);
+        account.account.leafIndex = leafIndex;
+        account.token.delegate = delegate;
+        return account;
+    }
+
+    function createProofInput(hashByte: number, rootIndex: number) {
+        return {
+            hash: new Uint8Array(32).fill(hashByte),
+            root: new Uint8Array(32),
+            rootIndex: { rootIndex, proveByIndex: false },
+            leafIndex: 0,
+            treeInfo: createMockTreeInfo(TreeType.StateV2),
+        };
+    }
+
+    function decodeTransfer2OutputQueueIndex(data: Uint8Array): number {
+        return data[5];
+    }
+
+    function decodeTransfer2MaxTopUp(data: Uint8Array): number {
+        const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+        return view.getUint16(6, true);
+    }
+
+    it('builds Transfer2 instruction with correct discriminator', async () => {
+        const accounts = [createMockAccountWithHash(1000n, 0xab, 5)];
+        const mockProof = {
+            proof: { a: new Uint8Array(32), b: new Uint8Array(64), c: new Uint8Array(32) },
+            accounts: [createProofInput(0xab, 10)],
+            addresses: [],
+        };
+        const indexer = createMockIndexer({
+            getCompressedTokenAccountsByOwner: vi.fn().mockResolvedValue({
+                context: { slot: 100n },
+                value: { items: accounts, cursor: null },
+            }),
+            getValidityProof: vi.fn().mockResolvedValue({
+                context: { slot: 100n },
+                value: mockProof,
+            }),
+        });
+
+        const result = await buildCompressedTransfer(indexer, {
+            owner: MOCK_OWNER,
+            mint: MOCK_MINT,
+            amount: 500n,
+            recipientOwner: RECIPIENT,
+            feePayer: FEE_PAYER,
+        });
+
+        expect(result.instruction.data[0]).toBe(DISCRIMINATOR.TRANSFER2);
+        expect(result.totalInputAmount).toBe(1000n);
+    });
+
+    it('uses Rust-compatible default maxTopUp (u16::MAX)', async () => {
+        const accounts = [createMockAccountWithHash(1000n, 0xab, 5)];
+        const mockProof = {
+            proof: { a: new Uint8Array(32), b: new Uint8Array(64), c: new Uint8Array(32) },
+            accounts: [createProofInput(0xab, 10)],
+            addresses: [],
+        };
+        const indexer = createMockIndexer({
+            getCompressedTokenAccountsByOwner: vi.fn().mockResolvedValue({
+                context: { slot: 100n },
+                value: { items: accounts, cursor: null },
+            }),
+            getValidityProof: vi.fn().mockResolvedValue({
+                context: { slot: 100n },
+                value: mockProof,
+            }),
+        });
+
+        const result = await buildCompressedTransfer(indexer, {
+            owner: MOCK_OWNER,
+            mint: MOCK_MINT,
+            amount: 500n,
+            recipientOwner: RECIPIENT,
+            feePayer: FEE_PAYER,
+        });
+
+        expect(decodeTransfer2MaxTopUp(result.instruction.data)).toBe(65535);
+    });
+
+    it('uses explicit maxTopUp when provided', async () => {
+        const accounts = [createMockAccountWithHash(1000n, 0xab, 5)];
+        const mockProof = {
+            proof: { a: new Uint8Array(32), b: new Uint8Array(64), c: new Uint8Array(32) },
+            accounts: [createProofInput(0xab, 10)],
+            addresses: [],
+        };
+        const indexer = createMockIndexer({
+            getCompressedTokenAccountsByOwner: vi.fn().mockResolvedValue({
+                context: { slot: 100n },
+                value: { items: accounts, cursor: null },
+            }),
+            getValidityProof: vi.fn().mockResolvedValue({
+                context: { slot: 100n },
+                value: mockProof,
+            }),
+        });
+
+        const result = await buildCompressedTransfer(indexer, {
+            owner: MOCK_OWNER,
+            mint: MOCK_MINT,
+            amount: 500n,
+            recipientOwner: RECIPIENT,
+            feePayer: FEE_PAYER,
+            maxTopUp: 321,
+        });
+
+        expect(decodeTransfer2MaxTopUp(result.instruction.data)).toBe(321);
+    });
+
+    it('uses nextTreeInfo queue for output queue when present', async () => {
+        const account = createMockAccountWithHash(1000n, 0xab, 5);
+        account.account.treeInfo = createMockTreeInfo(TreeType.StateV2, {
+            tree: ALT_TREE,
+            queue: ALT_QUEUE,
+            treeType: TreeType.StateV2,
+        });
+
+        const mockProof = {
+            proof: { a: new Uint8Array(32), b: new Uint8Array(64), c: new Uint8Array(32) },
+            accounts: [createProofInput(0xab, 10)],
+            addresses: [],
+        };
+        const indexer = createMockIndexer({
+            getCompressedTokenAccountsByOwner: vi.fn().mockResolvedValue({
+                context: { slot: 100n },
+                value: { items: [account], cursor: null },
+            }),
+            getValidityProof: vi.fn().mockResolvedValue({
+                context: { slot: 100n },
+                value: mockProof,
+            }),
+        });
+
+        const result = await buildCompressedTransfer(indexer, {
+            owner: MOCK_OWNER,
+            mint: MOCK_MINT,
+            amount: 500n,
+            recipientOwner: RECIPIENT,
+            feePayer: FEE_PAYER,
+        });
+
+        const outputQueueIdx = decodeTransfer2OutputQueueIndex(
+            result.instruction.data,
+        );
+        const packedAccountsOffset = 7;
+        expect(
+            result.instruction.accounts[packedAccountsOffset + outputQueueIdx]
+                .address,
+        ).toBe(ALT_QUEUE);
+    });
+
+    it('returns correct inputs, proof, and totalInputAmount', async () => {
+        const accounts = [
+            createMockAccountWithHash(600n, 0x11, 1),
+            createMockAccountWithHash(400n, 0x22, 2),
+        ];
+        // Reverse order on purpose to verify hash-based mapping, not position-based.
+        const mockProof = {
+            proof: { a: new Uint8Array(32), b: new Uint8Array(64), c: new Uint8Array(32) },
+            accounts: [createProofInput(0x22, 6), createProofInput(0x11, 5)],
+            addresses: [],
+        };
+        const indexer = createMockIndexer({
+            getCompressedTokenAccountsByOwner: vi.fn().mockResolvedValue({
+                context: { slot: 100n },
+                value: { items: accounts, cursor: null },
+            }),
+            getValidityProof: vi.fn().mockResolvedValue({
+                context: { slot: 100n },
+                value: mockProof,
+            }),
+        });
+
+        const result = await buildCompressedTransfer(indexer, {
+            owner: MOCK_OWNER,
+            mint: MOCK_MINT,
+            amount: 800n,
+            recipientOwner: RECIPIENT,
+            feePayer: FEE_PAYER,
+        });
+
+        expect(result.inputs).toHaveLength(2);
+        expect(result.proof).toBe(mockProof);
+        expect(result.totalInputAmount).toBe(1000n);
+    });
+
+    it('forwards maxInputs to selection via loadTokenAccountsForTransfer', async () => {
+        const accounts = [
+            createMockAccountWithHash(500n, 0x11, 1),
+            createMockAccountWithHash(400n, 0x22, 2),
+            createMockAccountWithHash(300n, 0x33, 3),
+        ];
+        const mockProof = {
+            proof: { a: new Uint8Array(32), b: new Uint8Array(64), c: new Uint8Array(32) },
+            accounts: [createProofInput(0x11, 7)],
+            addresses: [],
+        };
+        const indexer = createMockIndexer({
+            getCompressedTokenAccountsByOwner: vi.fn().mockResolvedValue({
+                context: { slot: 100n },
+                value: { items: accounts, cursor: null },
+            }),
+            getValidityProof: vi.fn().mockResolvedValue({
+                context: { slot: 100n },
+                value: mockProof,
+            }),
+        });
+
+        await expect(
+            buildCompressedTransfer(indexer, {
+                owner: MOCK_OWNER,
+                mint: MOCK_MINT,
+                amount: 700n,
+                recipientOwner: RECIPIENT,
+                feePayer: FEE_PAYER,
+                maxInputs: 1,
+            }),
+        ).rejects.toMatchObject({
+            code: IndexerErrorCode.InsufficientBalance,
+        });
+    });
+
+    it('includes delegate account in packed accounts when selected input has delegate', async () => {
+        const accounts = [
+            createMockAccountWithHash(1000n, 0xab, 5, DELEGATE),
+        ];
+        const mockProof = {
+            proof: { a: new Uint8Array(32), b: new Uint8Array(64), c: new Uint8Array(32) },
+            accounts: [createProofInput(0xab, 10)],
+            addresses: [],
+        };
+        const indexer = createMockIndexer({
+            getCompressedTokenAccountsByOwner: vi.fn().mockResolvedValue({
+                context: { slot: 100n },
+                value: { items: accounts, cursor: null },
+            }),
+            getValidityProof: vi.fn().mockResolvedValue({
+                context: { slot: 100n },
+                value: mockProof,
+            }),
+        });
+
+        const result = await buildCompressedTransfer(indexer, {
+            owner: MOCK_OWNER,
+            mint: MOCK_MINT,
+            amount: 300n,
+            recipientOwner: RECIPIENT,
+            feePayer: FEE_PAYER,
+        });
+        expect(
+            result.instruction.accounts.some((acc) => acc.address === DELEGATE),
+        ).toBe(true);
+    });
+
+    it('throws InvalidResponse when proof does not contain selected input hash', async () => {
+        const accounts = [createMockAccountWithHash(1000n, 0xab, 5)];
+        const mockProof = {
+            proof: { a: new Uint8Array(32), b: new Uint8Array(64), c: new Uint8Array(32) },
+            accounts: [createProofInput(0xcd, 99)],
+            addresses: [],
+        };
+        const indexer = createMockIndexer({
+            getCompressedTokenAccountsByOwner: vi.fn().mockResolvedValue({
+                context: { slot: 100n },
+                value: { items: accounts, cursor: null },
+            }),
+            getValidityProof: vi.fn().mockResolvedValue({
+                context: { slot: 100n },
+                value: mockProof,
+            }),
+        });
+
+        await expect(
+            buildCompressedTransfer(indexer, {
+                owner: MOCK_OWNER,
+                mint: MOCK_MINT,
+                amount: 100n,
+                recipientOwner: RECIPIENT,
+                feePayer: FEE_PAYER,
+            }),
+        ).rejects.toMatchObject({
+            code: IndexerErrorCode.InvalidResponse,
+        });
+    });
+
+    it('throws when insufficient balance', async () => {
+        const accounts = [createMockAccountWithHash(100n, 0xab, 5)];
+
+        const indexer = createMockIndexer({
+            getCompressedTokenAccountsByOwner: vi.fn().mockResolvedValue({
+                context: { slot: 100n },
+                value: { items: accounts, cursor: null },
+            }),
+        });
+
+        await expect(
+            buildCompressedTransfer(indexer, {
+                owner: MOCK_OWNER,
+                mint: MOCK_MINT,
+                amount: 1000n,
+                recipientOwner: RECIPIENT,
+                feePayer: FEE_PAYER,
+            }),
+        ).rejects.toThrow(IndexerError);
     });
 });

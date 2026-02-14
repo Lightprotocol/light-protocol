@@ -8,7 +8,7 @@
 import { describe, it, expect } from 'vitest';
 import { address } from '@solana/addresses';
 
-import { selectAccountsForAmount } from '../../src/index.js';
+import { selectAccountsForAmount, DEFAULT_MAX_INPUTS } from '../../src/index.js';
 
 import {
     type CompressedTokenAccount,
@@ -197,5 +197,82 @@ describe('selectAccountsForAmount', () => {
         expect(result.accounts).toHaveLength(1);
         expect(result.accounts[0].token.amount).toBe(500n);
         expect(result.totalAmount).toBe(500n);
+    });
+
+    it('DEFAULT_MAX_INPUTS is 4', () => {
+        expect(DEFAULT_MAX_INPUTS).toBe(4);
+    });
+
+    it('respects maxInputs cap (default 4)', () => {
+        const accounts = [
+            createMockTokenAccount(100n),
+            createMockTokenAccount(100n),
+            createMockTokenAccount(100n),
+            createMockTokenAccount(100n),
+            createMockTokenAccount(100n),
+            createMockTokenAccount(100n),
+        ];
+
+        // Without explicit maxInputs, defaults to 4
+        const result = selectAccountsForAmount(accounts, 600n);
+
+        // Should select at most 4 accounts even though 6 would be needed
+        expect(result.accounts).toHaveLength(4);
+        expect(result.totalAmount).toBe(400n);
+    });
+
+    it('respects custom maxInputs', () => {
+        const accounts = [
+            createMockTokenAccount(100n),
+            createMockTokenAccount(100n),
+            createMockTokenAccount(100n),
+            createMockTokenAccount(100n),
+        ];
+
+        const result = selectAccountsForAmount(accounts, 400n, 2);
+        expect(result.accounts).toHaveLength(2);
+        expect(result.totalAmount).toBe(200n);
+    });
+
+    it('maxInputs=1 selects only the largest account', () => {
+        const accounts = [
+            createMockTokenAccount(50n),
+            createMockTokenAccount(300n),
+            createMockTokenAccount(100n),
+        ];
+
+        const result = selectAccountsForAmount(accounts, 400n, 1);
+        expect(result.accounts).toHaveLength(1);
+        expect(result.accounts[0].token.amount).toBe(300n);
+        expect(result.totalAmount).toBe(300n);
+    });
+
+    it('zero-balance accounts are skipped and do not count toward maxInputs', () => {
+        const accounts = [
+            createMockTokenAccount(0n),
+            createMockTokenAccount(0n),
+            createMockTokenAccount(0n),
+            createMockTokenAccount(100n),
+            createMockTokenAccount(200n),
+        ];
+
+        // maxInputs=2, but zero accounts should not count
+        const result = selectAccountsForAmount(accounts, 300n, 2);
+        expect(result.accounts).toHaveLength(2);
+        expect(result.accounts[0].token.amount).toBe(200n);
+        expect(result.accounts[1].token.amount).toBe(100n);
+        expect(result.totalAmount).toBe(300n);
+    });
+
+    it('all-zero accounts returns empty selection', () => {
+        const accounts = [
+            createMockTokenAccount(0n),
+            createMockTokenAccount(0n),
+            createMockTokenAccount(0n),
+        ];
+
+        const result = selectAccountsForAmount(accounts, 100n);
+        expect(result.accounts).toHaveLength(0);
+        expect(result.totalAmount).toBe(0n);
     });
 });

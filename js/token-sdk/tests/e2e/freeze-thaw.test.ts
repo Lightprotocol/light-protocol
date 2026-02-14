@@ -1,5 +1,5 @@
 /**
- * E2E tests for Kit v2 freeze and thaw instructions.
+ * E2E tests for Kit v2 freeze and thaw instructions against CToken accounts.
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -7,10 +7,13 @@ import {
     getTestRpc,
     fundAccount,
     createTestMint,
-    mintCompressedTokens,
+    createCTokenWithBalance,
+    createCTokenAccount,
     sendKitInstructions,
-    getCompressedBalance,
+    getCTokenAccountData,
+    getCTokenBalance,
     toKitAddress,
+    ensureValidatorRunning,
     type Signer,
     type Rpc,
 } from './helpers/setup.js';
@@ -24,14 +27,16 @@ import {
 const DECIMALS = 2;
 const MINT_AMOUNT = 10_000n;
 
-describe('freeze/thaw e2e', () => {
+describe('freeze/thaw e2e (CToken)', () => {
     let rpc: Rpc;
     let payer: Signer;
     let mint: any;
     let mintAuthority: Signer;
+    let mintAddress: string;
     let freezeAuthority: Signer;
 
     beforeAll(async () => {
+        await ensureValidatorRunning();
         rpc = getTestRpc();
         payer = await fundAccount(rpc);
         freezeAuthority = await fundAccount(rpc, 1e9);
@@ -44,114 +49,100 @@ describe('freeze/thaw e2e', () => {
         );
         mint = created.mint;
         mintAuthority = created.mintAuthority;
+        mintAddress = created.mintAddress;
     });
 
     it('freeze account', async () => {
         const holder = await fundAccount(rpc);
-        await mintCompressedTokens(
-            rpc, payer, mint, holder.publicKey, mintAuthority, MINT_AMOUNT,
+        const { ctokenPubkey, ctokenAddress } = await createCTokenWithBalance(
+            rpc, payer, mint, holder, mintAuthority, MINT_AMOUNT,
         );
 
-        const holderAddr = toKitAddress(holder.publicKey);
-        const mintAddr = toKitAddress(mint);
         const freezeAddr = toKitAddress(freezeAuthority.publicKey);
 
         const ix = createFreezeInstruction({
-            tokenAccount: holderAddr,
-            mint: mintAddr,
+            tokenAccount: ctokenAddress,
+            mint: mintAddress,
             freezeAuthority: freezeAddr,
         });
 
         await sendKitInstructions(rpc, [ix], payer, [freezeAuthority]);
 
-        // Verify account is frozen via indexer
-        const accounts = await rpc.getCompressedTokenAccountsByOwner(
-            holder.publicKey,
-            { mint },
-        );
-        const frozen = accounts.items.find(
-            (a) => a.parsed.state === 'frozen',
-        );
-        expect(frozen).toBeDefined();
+        // Verify on-chain: state = 2 (frozen)
+        const data = await getCTokenAccountData(rpc, ctokenPubkey);
+        expect(data).not.toBeNull();
+        expect(data!.state).toBe(2);
     });
 
     it('thaw account', async () => {
         const holder = await fundAccount(rpc);
-        await mintCompressedTokens(
-            rpc, payer, mint, holder.publicKey, mintAuthority, MINT_AMOUNT,
+        const { ctokenPubkey, ctokenAddress } = await createCTokenWithBalance(
+            rpc, payer, mint, holder, mintAuthority, MINT_AMOUNT,
         );
 
-        const holderAddr = toKitAddress(holder.publicKey);
-        const mintAddr = toKitAddress(mint);
         const freezeAddr = toKitAddress(freezeAuthority.publicKey);
 
         // Freeze first
         const freezeIx = createFreezeInstruction({
-            tokenAccount: holderAddr,
-            mint: mintAddr,
+            tokenAccount: ctokenAddress,
+            mint: mintAddress,
             freezeAuthority: freezeAddr,
         });
         await sendKitInstructions(rpc, [freezeIx], payer, [freezeAuthority]);
 
         // Then thaw
         const thawIx = createThawInstruction({
-            tokenAccount: holderAddr,
-            mint: mintAddr,
+            tokenAccount: ctokenAddress,
+            mint: mintAddress,
             freezeAuthority: freezeAddr,
         });
         await sendKitInstructions(rpc, [thawIx], payer, [freezeAuthority]);
 
-        // Verify account is unfrozen
-        const accounts = await rpc.getCompressedTokenAccountsByOwner(
-            holder.publicKey,
-            { mint },
-        );
-        const frozen = accounts.items.filter(
-            (a) => a.parsed.state === 'frozen',
-        );
-        expect(frozen.length).toBe(0);
+        // Verify on-chain: state = 1 (initialized, not frozen)
+        const data = await getCTokenAccountData(rpc, ctokenPubkey);
+        expect(data).not.toBeNull();
+        expect(data!.state).toBe(1);
     });
 
     it('transfer after thaw succeeds', async () => {
         const holder = await fundAccount(rpc);
         const receiver = await fundAccount(rpc);
-        await mintCompressedTokens(
-            rpc, payer, mint, holder.publicKey, mintAuthority, MINT_AMOUNT,
-        );
 
-        const holderAddr = toKitAddress(holder.publicKey);
-        const receiverAddr = toKitAddress(receiver.publicKey);
-        const mintAddr = toKitAddress(mint);
+        const { ctokenPubkey: holderCtoken, ctokenAddress: holderCtokenAddr } =
+            await createCTokenWithBalance(rpc, payer, mint, holder, mintAuthority, MINT_AMOUNT);
+
+        const { ctokenPubkey: receiverCtoken, ctokenAddress: receiverCtokenAddr } =
+            await createCTokenAccount(rpc, payer, receiver, mint);
+
         const freezeAddr = toKitAddress(freezeAuthority.publicKey);
+        const holderAddr = toKitAddress(holder.publicKey);
 
         // Freeze
         const freezeIx = createFreezeInstruction({
-            tokenAccount: holderAddr,
-            mint: mintAddr,
+            tokenAccount: holderCtokenAddr,
+            mint: mintAddress,
             freezeAuthority: freezeAddr,
         });
         await sendKitInstructions(rpc, [freezeIx], payer, [freezeAuthority]);
 
         // Thaw
         const thawIx = createThawInstruction({
-            tokenAccount: holderAddr,
-            mint: mintAddr,
+            tokenAccount: holderCtokenAddr,
+            mint: mintAddress,
             freezeAuthority: freezeAddr,
         });
         await sendKitInstructions(rpc, [thawIx], payer, [freezeAuthority]);
 
         // Transfer should succeed after thaw
         const transferIx = createTransferInstruction({
-            source: holderAddr,
-            destination: receiverAddr,
+            source: holderCtokenAddr,
+            destination: receiverCtokenAddr,
             amount: 5_000n,
             authority: holderAddr,
         });
         await sendKitInstructions(rpc, [transferIx], holder);
 
-        const receiverBalance = await getCompressedBalance(
-            rpc, receiver.publicKey, mint,
-        );
+        const receiverBalance = await getCTokenBalance(rpc, receiverCtoken);
         expect(receiverBalance).toBe(5_000n);
     });
 });

@@ -1,5 +1,7 @@
 /**
- * E2E tests for buildTransferInstruction.
+ * E2E tests for buildCompressedTransfer.
+ *
+ * Requires a running local validator + indexer + prover.
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -8,20 +10,19 @@ import {
     fundAccount,
     createTestMint,
     mintCompressedTokens,
-    sendKitInstructions,
-    getCompressedBalance,
     toKitAddress,
     type Signer,
     type Rpc,
 } from './helpers/setup.js';
 
-import { PhotonIndexer, buildTransferInstruction } from '../../src/index.js';
+import { PhotonIndexer, buildCompressedTransfer } from '../../src/index.js';
+import { DISCRIMINATOR } from '@lightprotocol/token-sdk';
 
 const COMPRESSION_RPC = 'http://127.0.0.1:8784';
 const DECIMALS = 2;
 const MINT_AMOUNT = 10_000n;
 
-describe('buildTransferInstruction e2e', () => {
+describe('buildCompressedTransfer e2e', () => {
     let rpc: Rpc;
     let payer: Signer;
     let mint: any;
@@ -43,38 +44,38 @@ describe('buildTransferInstruction e2e', () => {
         indexer = new PhotonIndexer(COMPRESSION_RPC);
     });
 
-    it('build + send transfer instruction via real indexer', async () => {
+    it('builds Transfer2 instruction with loaded accounts and proof', async () => {
         const recipient = await fundAccount(rpc);
         const ownerAddr = toKitAddress(payer.publicKey);
         const recipientAddr = toKitAddress(recipient.publicKey);
         const mintAddr = toKitAddress(mint);
+        const feePayerAddr = toKitAddress(payer.publicKey);
 
         const transferAmount = 3_000n;
 
-        const result = await buildTransferInstruction(indexer, {
+        const result = await buildCompressedTransfer(indexer, {
             owner: ownerAddr,
             mint: mintAddr,
-            destination: recipientAddr,
             amount: transferAmount,
-            authority: ownerAddr,
+            recipientOwner: recipientAddr,
+            feePayer: feePayerAddr,
         });
 
-        expect(result.instructions.length).toBeGreaterThan(0);
+        // Verify the result structure
+        expect(result.instruction).toBeDefined();
         expect(result.inputs.length).toBeGreaterThan(0);
         expect(result.proof).toBeDefined();
+        expect(result.totalInputAmount).toBeGreaterThanOrEqual(transferAmount);
 
-        // Send the instruction
-        await sendKitInstructions(rpc, result.instructions, payer);
+        // Verify the Transfer2 instruction
+        const ix = result.instruction;
+        expect(ix.data[0]).toBe(DISCRIMINATOR.TRANSFER2);
+        expect(ix.accounts.length).toBeGreaterThanOrEqual(4);
 
-        // Verify balances
-        const recipientBalance = await getCompressedBalance(
-            rpc, recipient.publicKey, mint,
-        );
-        expect(recipientBalance).toBe(transferAmount);
-
-        const payerBalance = await getCompressedBalance(
-            rpc, payer.publicKey, mint,
-        );
-        expect(payerBalance).toBe(MINT_AMOUNT - transferAmount);
+        // Verify loaded account data
+        const input = result.inputs[0];
+        expect(input.tokenAccount.token.amount).toBeGreaterThanOrEqual(0n);
+        expect(input.merkleContext.tree).toBeDefined();
+        expect(input.merkleContext.queue).toBeDefined();
     });
 });

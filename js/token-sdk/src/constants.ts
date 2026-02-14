@@ -47,6 +47,16 @@ export const CPI_AUTHORITY: Address = address(
     'GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy',
 );
 
+/** Registered Program PDA - expected by Light system account parsing */
+export const REGISTERED_PROGRAM_PDA: Address = address(
+    '35hkDgaAKwMCaxRz2ocSZ6NaUrtKkyNqU6c4RV3tYJRh',
+);
+
+/** Account Compression Authority PDA - expected by Light system account parsing */
+export const ACCOUNT_COMPRESSION_AUTHORITY_PDA: Address = address(
+    'HwXnGK3tPkkVY6P439H2p68AxpeuWXd5PcrAxFpbmfbA',
+);
+
 /** Mint Address Tree - default tree for compressed mint addresses */
 export const MINT_ADDRESS_TREE: Address = address(
     'amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx',
@@ -55,6 +65,21 @@ export const MINT_ADDRESS_TREE: Address = address(
 /** Native Mint (wrapped SOL) */
 export const NATIVE_MINT: Address = address(
     'So11111111111111111111111111111111111111112',
+);
+
+/** Default compressible config PDA (V1) */
+export const LIGHT_TOKEN_CONFIG: Address = address(
+    'ACXg8a7VaqecBWrSbdu73W4Pg9gsqXJ3EXAqkHyhvVXg',
+);
+
+/** Default rent sponsor PDA (V1) */
+export const LIGHT_TOKEN_RENT_SPONSOR: Address = address(
+    'r18WwUxfG8kQ69bQPAB2jV6zGNKy3GosFGctjQoV4ti',
+);
+
+/** Noop program (used for logging in Light Protocol) */
+export const NOOP_PROGRAM: Address = address(
+    'noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV',
 );
 
 // ============================================================================
@@ -135,6 +160,14 @@ export type CompressionMode =
 export const EXTENSION_DISCRIMINANT = {
     /** Token metadata extension */
     TOKEN_METADATA: 19,
+    /** Pausable account marker extension (zero-size) */
+    PAUSABLE_ACCOUNT: 27,
+    /** Permanent delegate account marker extension (zero-size) */
+    PERMANENT_DELEGATE_ACCOUNT: 28,
+    /** Transfer fee account extension (u64 withheld_amount) */
+    TRANSFER_FEE_ACCOUNT: 29,
+    /** Transfer hook account extension (u8 transferring flag) */
+    TRANSFER_HOOK_ACCOUNT: 30,
     /** CompressedOnly extension */
     COMPRESSED_ONLY: 31,
     /** Compressible extension */
@@ -171,7 +204,7 @@ export const BASE_TOKEN_ACCOUNT_SIZE = 266;
 export const EXTENSION_METADATA_SIZE = 4;
 
 /** CompressedOnly extension size */
-export const COMPRESSED_ONLY_EXTENSION_SIZE = 16;
+export const COMPRESSED_ONLY_EXTENSION_SIZE = 17;
 
 /** Transfer fee account extension size */
 export const TRANSFER_FEE_ACCOUNT_EXTENSION_SIZE = 9;

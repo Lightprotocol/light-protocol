@@ -71,8 +71,8 @@ export interface LoadTokenAccountsOptions {
     mint?: Address;
     /** Maximum number of accounts to load */
     limit?: number;
-    /** Minimum amount required (will load accounts until this is met) */
-    minAmount?: bigint;
+    /** Maximum number of selected input accounts (default: 4) */
+    maxInputs?: number;
 }
 
 // ============================================================================
@@ -134,7 +134,11 @@ export async function loadTokenAccountsForTransfer(
     }
 
     // Select accounts to meet the required amount
-    const selectedAccounts = selectAccountsForAmount(tokenAccounts, amount);
+    const selectedAccounts = selectAccountsForAmount(
+        tokenAccounts,
+        amount,
+        options?.maxInputs ?? DEFAULT_MAX_INPUTS,
+    );
 
     if (selectedAccounts.totalAmount < amount) {
         throw new IndexerError(
@@ -273,18 +277,28 @@ export interface SelectedAccounts {
 }
 
 /**
+ * Default maximum number of input accounts per transaction.
+ * Limits transaction size and compute budget usage.
+ */
+export const DEFAULT_MAX_INPUTS = 4;
+
+/**
  * Select token accounts to meet the required amount.
  *
  * Uses a greedy algorithm that prefers larger accounts first
- * to minimize the number of inputs.
+ * to minimize the number of inputs. Skips zero-balance accounts
+ * and enforces a maximum input count to keep transactions within
+ * Solana's size and compute budget limits.
  *
  * @param accounts - Available token accounts
  * @param requiredAmount - Amount needed
+ * @param maxInputs - Maximum number of input accounts (default: 4)
  * @returns Selected accounts and their total amount
  */
 export function selectAccountsForAmount(
     accounts: CompressedTokenAccount[],
     requiredAmount: bigint,
+    maxInputs: number = DEFAULT_MAX_INPUTS,
 ): SelectedAccounts {
     // Sort by amount descending (prefer larger accounts)
     const sorted = [...accounts].sort((a, b) => {
@@ -296,8 +310,12 @@ export function selectAccountsForAmount(
     let total = 0n;
 
     for (const account of sorted) {
-        if (total >= requiredAmount) {
+        if (total >= requiredAmount || selected.length >= maxInputs) {
             break;
+        }
+        // Skip zero-balance accounts
+        if (account.token.amount === 0n) {
+            continue;
         }
         selected.push(account);
         total += account.token.amount;

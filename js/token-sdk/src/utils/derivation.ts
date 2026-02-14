@@ -12,6 +12,7 @@ import {
     LIGHT_TOKEN_PROGRAM_ID,
     COMPRESSED_MINT_SEED,
     POOL_SEED,
+    RESTRICTED_POOL_SEED,
 } from '../constants.js';
 
 // ============================================================================
@@ -102,15 +103,25 @@ export async function deriveMintAddress(
 /**
  * Derives the SPL interface pool PDA address.
  *
- * Seeds: ["pool", mint] or ["pool", mint, index]
+ * Seed format:
+ * - Regular index 0: ["pool", mint]
+ * - Regular index 1-4: ["pool", mint, index]
+ * - Restricted index 0: ["pool", mint, "restricted"]
+ * - Restricted index 1-4: ["pool", mint, "restricted", index]
+ *
+ * Restricted pools are required for mints with extensions:
+ * Pausable, PermanentDelegate, TransferFeeConfig, TransferHook,
+ * DefaultAccountState, MintCloseAuthority.
  *
  * @param mint - The token mint address
- * @param index - Optional pool index (for multi-pool mints)
+ * @param index - Pool index (0-4, default 0)
+ * @param restricted - Whether to use restricted derivation path
  * @returns The derived pool address and bump
  */
 export async function derivePoolAddress(
     mint: Address,
-    index?: number,
+    index = 0,
+    restricted = false,
 ): Promise<{ address: Address; bump: number }> {
     const mintBytes = getAddressCodec().encode(mint);
     const seeds: Uint8Array[] = [
@@ -118,11 +129,13 @@ export async function derivePoolAddress(
         new Uint8Array(mintBytes),
     ];
 
-    if (index !== undefined) {
-        // Add index as u16 little-endian
-        const indexBytes = new Uint8Array(2);
-        new DataView(indexBytes.buffer).setUint16(0, index, true);
-        seeds.push(indexBytes);
+    if (restricted) {
+        seeds.push(new TextEncoder().encode(RESTRICTED_POOL_SEED));
+    }
+
+    if (index > 0) {
+        // Index as single u8 byte (matches Rust: let index_bytes = [index])
+        seeds.push(new Uint8Array([index]));
     }
 
     const [derivedAddress, bump] = await getProgramDerivedAddress({
@@ -132,4 +145,3 @@ export async function derivePoolAddress(
 
     return { address: derivedAddress, bump };
 }
-

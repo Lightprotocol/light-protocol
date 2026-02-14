@@ -42,8 +42,13 @@ export {
 
     // Known accounts
     CPI_AUTHORITY,
+    REGISTERED_PROGRAM_PDA,
+    ACCOUNT_COMPRESSION_AUTHORITY_PDA,
     MINT_ADDRESS_TREE,
     NATIVE_MINT,
+    LIGHT_TOKEN_CONFIG,
+    LIGHT_TOKEN_RENT_SPONSOR,
+    NOOP_PROGRAM,
 
     // Instruction discriminators
     DISCRIMINATOR,
@@ -104,6 +109,8 @@ export {
     type CompressedProof,
     type TokenMetadataExtension,
     type CompressedOnlyExtension,
+    type TransferFeeAccountExtension,
+    type TransferHookAccountExtension,
     type RentConfig,
     type CompressionInfo,
     type ExtensionInstructionData,
@@ -111,6 +118,7 @@ export {
     type CompressToPubkey,
     type CompressibleExtensionInstructionData,
     type CreateAtaInstructionData,
+    type CreateTokenAccountInstructionData,
 
     // Transfer2 codecs
     getCompressionCodec,
@@ -126,7 +134,9 @@ export {
     getCompressToPubkeyCodec,
     getCompressibleExtensionDataCodec,
     getCreateAtaDataCodec,
+    getCreateTokenAccountDataCodec,
     encodeCreateAtaInstructionData,
+    encodeCreateTokenAccountInstructionData,
     defaultCompressibleParams,
 
     // Simple instruction codecs
@@ -138,6 +148,24 @@ export {
     type AmountInstructionData,
     type CheckedInstructionData,
     type DiscriminatorOnlyData,
+
+    // MintAction codecs
+    encodeMintActionInstructionData,
+    type MintRecipient,
+    type MintToCompressedAction,
+    type MintToAction,
+    type UpdateAuthorityAction,
+    type UpdateMetadataFieldAction,
+    type UpdateMetadataAuthorityAction,
+    type RemoveMetadataKeyAction,
+    type DecompressMintAction,
+    type CompressAndCloseMintAction,
+    type MintAction,
+    type CreateMint,
+    type MintMetadata,
+    type MintInstructionData,
+    type MintActionCpiContext,
+    type MintActionInstructionData,
 } from './codecs/index.js';
 
 // ============================================================================
@@ -159,9 +187,11 @@ export {
     // Account
     createAssociatedTokenAccountInstruction,
     createAssociatedTokenAccountIdempotentInstruction,
+    createTokenAccountInstruction,
     createCloseAccountInstruction,
     type CreateAtaParams,
     type CreateAtaResult,
+    type CreateTokenAccountParams,
     type CloseAccountParams,
 
     // Token operations
@@ -183,6 +213,27 @@ export {
     createMintToCheckedInstruction,
     type MintToParams,
     type MintToCheckedParams,
+
+    // Transfer2 (compressed account operations)
+    createTransfer2Instruction,
+    type Transfer2Params,
+
+    // Compression factory functions (for Transfer2)
+    createCompress,
+    createCompressSpl,
+    createDecompress,
+    createDecompressSpl,
+    createCompressAndClose,
+
+    // MintAction (compressed mint management)
+    createMintActionInstruction,
+    type MintActionParams,
+
+    // Rent management
+    createClaimInstruction,
+    type ClaimParams,
+    createWithdrawFundingPoolInstruction,
+    type WithdrawFundingPoolParams,
 } from './instructions/index.js';
 
 // ============================================================================
