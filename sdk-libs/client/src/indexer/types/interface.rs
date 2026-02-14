@@ -57,13 +57,18 @@ fn decode_tree_info_v2(
 }
 
 /// Decode cold data from photon_api AccountData format.
+/// Photon sends combined (disc + payload) in the `data` field;
+/// strip the discriminator prefix so `ColdData.data` is payload-only.
 fn decode_account_data(data: &photon_api::types::AccountData) -> Result<ColdData, IndexerError> {
     let disc_val = *data.discriminator;
     let discriminator = disc_val.to_le_bytes();
+    let disc_len = *data.discriminator_length as usize;
+    let full_data = base64::decode_config(&*data.data, base64::STANDARD_NO_PAD)
+        .map_err(|e| IndexerError::decode_error("data", e))?;
+    let payload = full_data[disc_len..].to_vec();
     Ok(ColdData {
         discriminator,
-        data: base64::decode_config(&*data.data, base64::STANDARD_NO_PAD)
-            .map_err(|e| IndexerError::decode_error("data", e))?,
+        data: payload,
         data_hash: decode_base58_to_fixed_array(&data.data_hash)?,
     })
 }
