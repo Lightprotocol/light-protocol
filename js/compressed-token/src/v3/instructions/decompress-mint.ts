@@ -57,7 +57,7 @@ function encodeDecompressMintInstructionData(
         leafIndex: params.leafIndex,
         proveByIndex: params.proveByIndex,
         rootIndex: params.rootIndex,
-        maxTopUp: 0,
+        maxTopUp: 65535,
         createMint: null,
         actions: [
             {

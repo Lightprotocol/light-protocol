@@ -71,7 +71,7 @@ export function createWrapInstruction(
         lamportsChangeAccountMerkleTreeIndex: 0,
         lamportsChangeAccountOwnerIndex: 0,
         outputQueue: 0,
-        maxTopUp: 0,
+        maxTopUp: 65535,
         cpiContext: null,
         compressions,
         proof: null,
