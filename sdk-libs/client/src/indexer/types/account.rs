@@ -92,15 +92,10 @@ impl TryFrom<&photon_api::types::AccountV2> for CompressedAccount {
 
     fn try_from(account: &photon_api::types::AccountV2) -> Result<Self, Self::Error> {
         let data = if let Some(data) = &account.data {
-            let disc_len = *data.discriminator_length as usize;
-            let full_data = base64::decode_config(&*data.data, base64::STANDARD_NO_PAD)
-                .map_err(|e| IndexerError::decode_error("data", e))?;
-            // Strip the discriminator prefix — photon now sends combined
-            // (disc + payload) but CompressedAccountData.data is payload-only.
-            let payload = full_data[disc_len..].to_vec();
             Ok::<Option<CompressedAccountData>, IndexerError>(Some(CompressedAccountData {
                 discriminator: (*data.discriminator).to_le_bytes(),
-                data: payload,
+                data: base64::decode_config(&*data.data, base64::STANDARD_NO_PAD)
+                    .map_err(|e| IndexerError::decode_error("data", e))?,
                 data_hash: decode_base58_to_fixed_array(&data.data_hash)?,
             }))
         } else {
@@ -154,13 +149,10 @@ impl TryFrom<&photon_api::types::Account> for CompressedAccount {
 
     fn try_from(account: &photon_api::types::Account) -> Result<Self, Self::Error> {
         let data = if let Some(data) = &account.data {
-            let disc_len = *data.discriminator_length as usize;
-            let full_data = base64::decode_config(&*data.data, base64::STANDARD_NO_PAD)
-                .map_err(|e| IndexerError::decode_error("data", e))?;
-            let payload = full_data[disc_len..].to_vec();
             Ok::<Option<CompressedAccountData>, IndexerError>(Some(CompressedAccountData {
                 discriminator: (*data.discriminator).to_le_bytes(),
-                data: payload,
+                data: base64::decode_config(&*data.data, base64::STANDARD_NO_PAD)
+                    .map_err(|e| IndexerError::decode_error("data", e))?,
                 data_hash: decode_base58_to_fixed_array(&data.data_hash)?,
             }))
         } else {

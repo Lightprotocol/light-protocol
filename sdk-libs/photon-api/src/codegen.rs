@@ -200,8 +200,7 @@ All endpoints return AccountV2.*/
     ///  "required": [
     ///    "data",
     ///    "dataHash",
-    ///    "discriminator",
-    ///    "discriminatorLength"
+    ///    "discriminator"
     ///  ],
     ///  "properties": {
     ///    "data": {
@@ -211,9 +210,6 @@ All endpoints return AccountV2.*/
     ///      "$ref": "#/components/schemas/Hash"
     ///    },
     ///    "discriminator": {
-    ///      "$ref": "#/components/schemas/UnsignedInteger"
-    ///    },
-    ///    "discriminatorLength": {
     ///      "$ref": "#/components/schemas/UnsignedInteger"
     ///    }
     ///  },
@@ -228,8 +224,6 @@ All endpoints return AccountV2.*/
         #[serde(rename = "dataHash")]
         pub data_hash: Hash,
         pub discriminator: UnsignedInteger,
-        #[serde(rename = "discriminatorLength")]
-        pub discriminator_length: UnsignedInteger,
     }
     impl AccountData {
         pub fn builder() -> builder::AccountData {
@@ -28769,22 +28763,13 @@ All endpoints return AccountV2.*/
                 super::UnsignedInteger,
                 ::std::string::String,
             >,
-            discriminator_length: ::std::result::Result<
-                super::UnsignedInteger,
-                ::std::string::String,
-            >,
         }
         impl ::std::default::Default for AccountData {
             fn default() -> Self {
                 Self {
                     data: Err("no value supplied for data".to_string()),
                     data_hash: Err("no value supplied for data_hash".to_string()),
-                    discriminator: Err(
-                        "no value supplied for discriminator".to_string(),
-                    ),
-                    discriminator_length: Err(
-                        "no value supplied for discriminator_length".to_string(),
-                    ),
+                    discriminator: Err("no value supplied for discriminator".to_string()),
                 }
             }
         }
@@ -28825,20 +28810,6 @@ All endpoints return AccountV2.*/
                     });
                 self
             }
-            pub fn discriminator_length<T>(mut self, value: T) -> Self
-            where
-                T: ::std::convert::TryInto<super::UnsignedInteger>,
-                T::Error: ::std::fmt::Display,
-            {
-                self.discriminator_length = value
-                    .try_into()
-                    .map_err(|e| {
-                        format!(
-                            "error converting supplied value for discriminator_length: {e}"
-                        )
-                    });
-                self
-            }
         }
         impl ::std::convert::TryFrom<AccountData> for super::AccountData {
             type Error = super::error::ConversionError;
@@ -28849,7 +28820,6 @@ All endpoints return AccountV2.*/
                     data: value.data?,
                     data_hash: value.data_hash?,
                     discriminator: value.discriminator?,
-                    discriminator_length: value.discriminator_length?,
                 })
             }
         }
@@ -28859,7 +28829,6 @@ All endpoints return AccountV2.*/
                     data: Ok(value.data),
                     data_hash: Ok(value.data_hash),
                     discriminator: Ok(value.discriminator),
-                    discriminator_length: Ok(value.discriminator_length),
                 }
             }
         }
