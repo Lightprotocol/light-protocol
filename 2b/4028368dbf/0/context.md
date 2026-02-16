@@ -71,3 +71,12 @@ add failing tests for the other checks we added as well see git diff to main
 
 update the pr description that you added the tests
 
+### Prompt 13
+
+9m 15s
+│ Program REDACTED success
+│ Program REDACTED consumed 16086 of 1397248 compute units
+│ Program REDACTED success
+│ Program REDACTED success
+└───────────────────────────────────────────────────────────────────�...
+
