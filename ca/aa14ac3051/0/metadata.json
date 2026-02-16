@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "caaa14ac3051",
+  "session_id": "23d79622-85e3-4884-8002-e422e8552c8f",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-16T22:43:12.058205Z",
+  "branch": "jorrit/refactor-add-additional-ctoken-transfer-checks",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "programs/compressed-token/program/src/ctoken/transfer/checked.rs",
+    "programs/compressed-token/program/src/ctoken/transfer/default.rs",
+    "programs/compressed-token/program/src/ctoken/transfer/shared.rs"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 24,
+    "cache_creation_tokens": 40228,
+    "cache_read_tokens": 974113,
+    "output_tokens": 595,
+    "api_call_count": 22
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-16T22:43:11.848813Z",
+    "agent_lines": 0,
+    "human_added": 5,
+    "human_modified": 26,
+    "human_removed": 0,
+    "total_committed": 31,
+    "agent_percentage": 0
+  }
+}
