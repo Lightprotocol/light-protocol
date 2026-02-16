@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "2b4028368dbf",
+  "session_id": "23d79622-85e3-4884-8002-e422e8552c8f",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-16T23:20:03.086932Z",
+  "branch": "jorrit/refactor-add-additional-ctoken-transfer-checks",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "program-tests/compressed-token-test/tests/light_token/create.rs",
+    "program-tests/compressed-token-test/tests/light_token/create_ata.rs",
+    "program-tests/compressed-token-test/tests/light_token/transfer.rs",
+    "programs/compressed-token/program/src/ctoken/create_ata.rs",
+    "programs/compressed-token/program/src/ctoken/transfer/checked.rs",
+    "programs/compressed-token/program/src/ctoken/transfer/default.rs",
+    "programs/compressed-token/program/src/ctoken/transfer/shared.rs"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "a2b0ed17-4ed6-4f23-9fe7-d5df2c44ae8b",
+  "checkpoint_transcript_start": 136,
+  "transcript_lines_at_start": 136,
+  "token_usage": {
+    "input_tokens": 84,
+    "cache_creation_tokens": 91748,
+    "cache_read_tokens": 6946073,
+    "output_tokens": 3336,
+    "api_call_count": 72
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-16T23:20:02.297968Z",
+    "agent_lines": 174,
+    "human_added": 296,
+    "human_modified": 6,
+    "human_removed": 0,
+    "total_committed": 476,
+    "agent_percentage": 36.554621848739494
+  },
+  "transcript_path": ".claude/projects/-Users-ananas-dev-light-protocol/23d79622-85e3-4884-8002-e422e8552c8f.jsonl"
+}
