@@ -3,7 +3,7 @@ use borsh::BorshDeserialize;
 use light_account_checks::AccountIterator;
 use light_program_profiler::profile;
 use light_token_interface::instructions::create_associated_token_account::CreateAssociatedTokenAccountInstructionData;
-use pinocchio::{account_info::AccountInfo, instruction::Seed};
+use pinocchio::{account_info::AccountInfo, instruction::Seed, pubkey::pubkey_eq};
 use spl_pod::solana_msg::msg;
 
 use crate::{
@@ -67,6 +67,20 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
 
     // If idempotent mode, check if account already exists
     if IDEMPOTENT && associated_token_account.is_owned_by(&crate::LIGHT_CPI_SIGNER.program_id) {
+        // Verify the account's mint and owner fields match the expected values.
+        // Without this check, an ATA whose authority was transferred could still
+        // pass the PDA derivation check alone (audit issue #4).
+        let token = light_token_interface::state::Token::from_account_info_checked(
+            associated_token_account,
+        )?;
+        if !pubkey_eq(token.base.mint.array_ref(), mint_bytes) {
+            msg!("Token account mint mismatch");
+            return Err(ProgramError::InvalidAccountData);
+        }
+        if !pubkey_eq(token.base.owner.array_ref(), owner_bytes) {
+            msg!("Token account owner mismatch");
+            return Err(ProgramError::InvalidAccountData);
+        }
         return Ok(());
     }
 

@@ -92,6 +92,24 @@ pub fn process_create_token_account(
         // Non-compressible account: token_account must already exist and be owned by CToken program.
         // Unlike SPL initialize_account3 (which expects System-owned), this expects a pre-existing
         // CToken-owned account. Ownership is implicitly validated when writing to the account.
+        // Non-compressible accounts must be exactly BASE_TOKEN_ACCOUNT_SIZE (165 bytes).
+        if token_account.data_len() != light_token_interface::BASE_TOKEN_ACCOUNT_SIZE as usize {
+            msg!("Token account data length mismatch");
+            return Err(ProgramError::InvalidAccountData);
+        }
+        // Verify the account is rent-exempt to prevent garbage collection.
+        #[cfg(target_os = "solana")]
+        {
+            use pinocchio::sysvars::Sysvar;
+            let rent = pinocchio::sysvars::rent::Rent::get()
+                .map_err(|_| ProgramError::UnsupportedSysvar)?;
+            let min_lamports =
+                rent.minimum_balance(light_token_interface::BASE_TOKEN_ACCOUNT_SIZE as usize);
+            if token_account.lamports() < min_lamports {
+                msg!("Token account is not rent-exempt");
+                return Err(ProgramError::AccountNotRentExempt);
+            }
+        }
         None
     };
 
