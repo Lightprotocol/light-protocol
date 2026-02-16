@@ -67,9 +67,6 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
 
     // If idempotent mode, check if account already exists
     if IDEMPOTENT && associated_token_account.is_owned_by(&crate::LIGHT_CPI_SIGNER.program_id) {
-        // Verify the account's mint and owner fields match the expected values.
-        // Without this check, an ATA whose authority was transferred could still
-        // pass the PDA derivation check alone (audit issue #4).
         let token = light_token_interface::state::Token::from_account_info_checked(
             associated_token_account,
         )?;

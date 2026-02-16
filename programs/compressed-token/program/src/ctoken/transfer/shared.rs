@@ -43,11 +43,9 @@ fn validate_self_transfer_authority(
     if !authority.is_signer() {
         return Err(ProgramError::MissingRequiredSignature);
     }
+    // from_account_info_checked rejects frozen accounts (state != 1)
     let token =
         Token::from_account_info_checked(source).map_err(|_| ProgramError::InvalidAccountData)?;
-    if token.base.is_frozen() {
-        return Err(ErrorCode::AccountFrozen.into());
-    }
     let amount = u64::from_le_bytes(
         instruction_data[..8]
             .try_into()

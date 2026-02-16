@@ -507,7 +507,70 @@ async fn test_create_compressible_token_account_failing() {
         light_program_test::utils::assert::assert_rpc_error(result, 0, 8).unwrap();
     }
 
-    // Test 10: Non-compressible account for mint with restricted extensions
+    // Test 10: Non-compressible account with wrong data length (not 165 bytes)
+    // Non-compressible accounts must be exactly BASE_TOKEN_ACCOUNT_SIZE (165 bytes).
+    // Error: 3 (InvalidAccountData)
+    {
+        use forester_utils::instructions::create_account::create_account_instruction;
+        use solana_sdk::instruction::{AccountMeta, Instruction};
+
+        println!("Test 10: Non-compressible account with wrong data length");
+
+        // Pre-allocate 200-byte token account owned by ctoken program (wrong size)
+        let token_account_keypair = Keypair::new();
+        let token_account_pubkey = token_account_keypair.pubkey();
+        let account_size = 200usize;
+
+        let create_account_ix = create_account_instruction(
+            &payer_pubkey,
+            account_size,
+            context
+                .rpc
+                .get_minimum_balance_for_rent_exemption(account_size)
+                .await
+                .unwrap(),
+            &light_compressed_token::ID,
+            Some(&token_account_keypair),
+        );
+
+        context
+            .rpc
+            .create_and_send_transaction(
+                &[create_account_ix],
+                &payer_pubkey,
+                &[&context.payer, &token_account_keypair],
+            )
+            .await
+            .unwrap();
+
+        // Build manual instruction for non-compressible path
+        let owner_pubkey = context.owner_keypair.pubkey();
+        let mut instruction_data = vec![18u8]; // discriminator
+        instruction_data.extend_from_slice(&owner_pubkey.to_bytes());
+
+        let create_non_compressible_ix = Instruction {
+            program_id: light_compressed_token::ID,
+            accounts: vec![
+                AccountMeta::new(token_account_pubkey, false),
+                AccountMeta::new_readonly(context.mint_pubkey, false),
+            ],
+            data: instruction_data,
+        };
+
+        let result = context
+            .rpc
+            .create_and_send_transaction(
+                &[create_non_compressible_ix],
+                &payer_pubkey,
+                &[&context.payer],
+            )
+            .await;
+
+        // Should fail with InvalidAccountData (3) - wrong data length
+        light_program_test::utils::assert::assert_rpc_error(result, 0, 3).unwrap();
+    }
+
+    // Test 10b: Non-compressible account for mint with restricted extensions
     // Mints with restricted extensions (Pausable, PermanentDelegate, TransferFee, TransferHook)
     // require the compression_only marker which is part of the Compressible extension.
     // Error: 6115 (MissingCompressibleConfig)
@@ -529,10 +592,10 @@ async fn test_create_compressible_token_account_failing() {
         .await;
         let mint_with_restricted_ext = mint_keypair.pubkey();
 
-        // Pre-allocate 200-byte token account owned by ctoken program
+        // Pre-allocate 165-byte token account owned by ctoken program
         let token_account_keypair = Keypair::new();
         let token_account_pubkey = token_account_keypair.pubkey();
-        let account_size = 200usize;
+        let account_size = 165usize;
 
         let create_account_ix = create_account_instruction(
             &payer_pubkey,
