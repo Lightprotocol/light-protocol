@@ -1,6 +1,6 @@
 [package]
 name = "light-compressed-token-sdk"
-version = "0.20.0"
+version = "0.22.0"
 edition = { workspace = true }
 description = "Low-level SDK for compressed token operations on Light Protocol"
 license = "Apache-2.0"

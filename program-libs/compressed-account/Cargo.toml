@@ -1,6 +1,6 @@
 [package]
 name = "light-compressed-account"
-version = "0.10.1"
+version = "0.11.0"
 description = "Compressed account struct and common utility functions used in Light Protocol."
 readme = "README.md"
 repository = "https://github.com/Lightprotocol/light-protocol"

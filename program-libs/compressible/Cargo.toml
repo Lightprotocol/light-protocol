@@ -1,6 +1,6 @@
 [package]
 name = "light-compressible"
-version = "0.5.0"
+version = "0.6.0"
 edition = "2021"
 description = "Light Protocol compressible data structures"
 readme = "README.md"

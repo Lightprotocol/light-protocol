@@ -3654,7 +3654,7 @@ dependencies = [
 
 [[package]]
 name = "light-account"
-version = "0.20.0"
+version = "0.22.0"
 dependencies = [
  "anchor-lang",
  "light-account-checks",
@@ -3691,7 +3691,7 @@ dependencies = [
 
 [[package]]
 name = "light-account-pinocchio"
-version = "0.20.0"
+version = "0.22.0"
 dependencies = [
  "light-account-checks",
  "light-compressed-account",
@@ -3732,7 +3732,7 @@ dependencies = [
 
 [[package]]
 name = "light-batched-merkle-tree"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "aligned-sized",
  "borsh 0.10.4",
@@ -3784,7 +3784,7 @@ dependencies = [
 
 [[package]]
 name = "light-client"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "anchor-lang",
  "async-trait",
@@ -3842,7 +3842,7 @@ dependencies = [
 
 [[package]]
 name = "light-compressed-account"
-version = "0.10.1"
+version = "0.11.0"
 dependencies = [
  "anchor-lang",
  "ark-bn254 0.5.0",
@@ -3905,7 +3905,7 @@ dependencies = [
 
 [[package]]
 name = "light-compressed-token-sdk"
-version = "0.20.0"
+version = "0.22.0"
 dependencies = [
  "anchor-lang",
  "arrayvec",
@@ -3930,7 +3930,7 @@ dependencies = [
 
 [[package]]
 name = "light-compressible"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "aligned-sized",
  "anchor-lang",
@@ -3978,7 +3978,7 @@ dependencies = [
 
 [[package]]
 name = "light-event"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "borsh 0.10.4",
  "light-compressed-account",
@@ -4060,7 +4060,7 @@ dependencies = [
 
 [[package]]
 name = "light-instruction-decoder"
-version = "0.20.0"
+version = "0.22.0"
 dependencies = [
  "borsh 0.10.4",
  "bs58",
@@ -4077,7 +4077,7 @@ dependencies = [
 
 [[package]]
 name = "light-instruction-decoder-derive"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bs58",
  "darling",
@@ -4101,7 +4101,7 @@ dependencies = [
 
 [[package]]
 name = "light-merkle-tree-metadata"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "anchor-lang",
  "borsh 0.10.4",
@@ -4173,7 +4173,7 @@ dependencies = [
 
 [[package]]
 name = "light-program-test"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
@@ -4232,7 +4232,7 @@ dependencies = [
 
 [[package]]
 name = "light-prover-client"
-version = "7.0.0"
+version = "8.0.0"
 dependencies = [
  "ark-bn254 0.5.0",
  "ark-serialize 0.5.0",
@@ -4283,7 +4283,7 @@ dependencies = [
 
 [[package]]
 name = "light-sdk"
-version = "0.20.0"
+version = "0.22.0"
 dependencies = [
  "anchor-lang",
  "bincode",
@@ -4317,7 +4317,7 @@ dependencies = [
 
 [[package]]
 name = "light-sdk-macros"
-version = "0.20.0"
+version = "0.22.0"
 dependencies = [
  "borsh 0.10.4",
  "darling",
@@ -4338,7 +4338,7 @@ dependencies = [
 
 [[package]]
 name = "light-sdk-pinocchio"
-version = "0.20.0"
+version = "0.22.0"
 dependencies = [
  "borsh 0.10.4",
  "light-account-checks",
@@ -4354,7 +4354,7 @@ dependencies = [
 
 [[package]]
 name = "light-sdk-types"
-version = "0.20.0"
+version = "0.22.0"
 dependencies = [
  "anchor-lang",
  "borsh 0.10.4",
@@ -4484,7 +4484,7 @@ dependencies = [
 
 [[package]]
 name = "light-token"
-version = "0.20.0"
+version = "0.22.0"
 dependencies = [
  "anchor-lang",
  "arrayvec",
@@ -4517,7 +4517,7 @@ dependencies = [
 
 [[package]]
 name = "light-token-client"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "borsh 0.10.4",
  "light-client",
@@ -4542,7 +4542,7 @@ dependencies = [
 
 [[package]]
 name = "light-token-interface"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "aligned-sized",
  "anchor-lang",
@@ -4577,7 +4577,7 @@ dependencies = [
 
 [[package]]
 name = "light-token-pinocchio"
-version = "0.20.0"
+version = "0.22.0"
 dependencies = [
  "borsh 0.10.4",
  "light-account-checks",
@@ -4591,7 +4591,7 @@ dependencies = [
 
 [[package]]
 name = "light-token-types"
-version = "0.20.0"
+version = "0.22.0"
 dependencies = [
  "anchor-lang",
  "borsh 0.10.4",
@@ -4605,7 +4605,7 @@ dependencies = [
 
 [[package]]
 name = "light-verifier"
-version = "9.0.0"
+version = "10.0.0"
 dependencies = [
  "groth16-solana",
  "light-compressed-account",
@@ -5258,7 +5258,7 @@ dependencies = [
 
 [[package]]
 name = "photon-api"
-version = "0.54.0"
+version = "0.55.0"
 dependencies = [
  "openapiv3",
  "prettyplease",
