@@ -32,6 +32,8 @@ jobs:
     name: token-kit-tests
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout sources
