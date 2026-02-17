@@ -1,6 +1,6 @@
 [package]
 name = "light-event"
-version = "0.21.0"
+version = "0.22.0"
 description = "Event types and utilities for Light Protocol"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"

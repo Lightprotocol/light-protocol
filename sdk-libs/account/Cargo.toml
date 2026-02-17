@@ -1,6 +1,6 @@
 [package]
 name = "light-account"
-version = "0.20.0"
+version = "0.22.0"
 description = "Light Protocol account types with Solana AccountInfo specializations"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"

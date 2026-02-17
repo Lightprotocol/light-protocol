@@ -1,6 +1,6 @@
 [package]
 name = "light-token-client"
-version = "0.21.0"
+version = "0.22.0"
 description = "Client library for Light Tokens"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"

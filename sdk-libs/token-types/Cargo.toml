@@ -1,6 +1,6 @@
 [package]
 name = "light-token-types"
-version = "0.20.0"
+version = "0.22.0"
 edition = "2021"
 description = "Light token sdk types"
 license = "Apache-2.0"
