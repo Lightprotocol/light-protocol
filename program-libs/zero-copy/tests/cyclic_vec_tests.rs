@@ -588,18 +588,36 @@ fn test_metadata_size() {
 
     assert_eq!(ZeroCopyCyclicVec::<&mut [u8], u8, u16>::metadata_size(), 3);
     assert_eq!(ZeroCopyCyclicVec::<&mut [u8], u16, u16>::metadata_size(), 6);
-    assert_eq!(ZeroCopyCyclicVec::<&mut [u8], u32, u16>::metadata_size(), 12);
-    assert_eq!(ZeroCopyCyclicVec::<&mut [u8], u64, u16>::metadata_size(), 24);
+    assert_eq!(
+        ZeroCopyCyclicVec::<&mut [u8], u32, u16>::metadata_size(),
+        12
+    );
+    assert_eq!(
+        ZeroCopyCyclicVec::<&mut [u8], u64, u16>::metadata_size(),
+        24
+    );
 
     assert_eq!(ZeroCopyCyclicVec::<&mut [u8], u8, u32>::metadata_size(), 4);
     assert_eq!(ZeroCopyCyclicVec::<&mut [u8], u16, u32>::metadata_size(), 6);
-    assert_eq!(ZeroCopyCyclicVec::<&mut [u8], u32, u32>::metadata_size(), 12);
-    assert_eq!(ZeroCopyCyclicVec::<&mut [u8], u64, u32>::metadata_size(), 24);
+    assert_eq!(
+        ZeroCopyCyclicVec::<&mut [u8], u32, u32>::metadata_size(),
+        12
+    );
+    assert_eq!(
+        ZeroCopyCyclicVec::<&mut [u8], u64, u32>::metadata_size(),
+        24
+    );
 
     assert_eq!(ZeroCopyCyclicVec::<&mut [u8], u8, u64>::metadata_size(), 8);
     assert_eq!(ZeroCopyCyclicVec::<&mut [u8], u16, u64>::metadata_size(), 8);
-    assert_eq!(ZeroCopyCyclicVec::<&mut [u8], u32, u64>::metadata_size(), 12);
-    assert_eq!(ZeroCopyCyclicVec::<&mut [u8], u64, u64>::metadata_size(), 24);
+    assert_eq!(
+        ZeroCopyCyclicVec::<&mut [u8], u32, u64>::metadata_size(),
+        12
+    );
+    assert_eq!(
+        ZeroCopyCyclicVec::<&mut [u8], u64, u64>::metadata_size(),
+        24
+    );
 }
 
 #[test]

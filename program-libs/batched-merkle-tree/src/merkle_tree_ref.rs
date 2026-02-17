@@ -9,10 +9,7 @@ use light_compressed_account::{
     pubkey::Pubkey, ADDRESS_MERKLE_TREE_TYPE_V2, STATE_MERKLE_TREE_TYPE_V2,
 };
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
-use light_zero_copy::{
-    cyclic_vec::ZeroCopyCyclicVecRefU64,
-    errors::ZeroCopyError,
-};
+use light_zero_copy::{cyclic_vec::ZeroCopyCyclicVecRefU64, errors::ZeroCopyError};
 use zerocopy::Ref;
 
 use crate::{
@@ -39,8 +36,9 @@ pub struct BatchedMerkleTreeRef<'a> {
 }
 
 impl Discriminator for BatchedMerkleTreeRef<'_> {
-    const LIGHT_DISCRIMINATOR: [u8; 8] = *b"BatchMta";
-    const LIGHT_DISCRIMINATOR_SLICE: &'static [u8] = b"BatchMta";
+    const LIGHT_DISCRIMINATOR: [u8; 8] = BatchedMerkleTreeAccount::LIGHT_DISCRIMINATOR;
+    const LIGHT_DISCRIMINATOR_SLICE: &'static [u8] =
+        BatchedMerkleTreeAccount::LIGHT_DISCRIMINATOR_SLICE;
 }
 
 impl<'a> BatchedMerkleTreeRef<'a> {

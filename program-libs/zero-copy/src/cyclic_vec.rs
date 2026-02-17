@@ -60,9 +60,9 @@ where
             ));
         }
 
-        let (meta_data, bytes) = bytes.split_at(metadata_size).map_err(|_| {
-            ZeroCopyError::InsufficientMemoryAllocated(0, metadata_size)
-        })?;
+        let (meta_data, bytes) = bytes
+            .split_at(metadata_size)
+            .map_err(|_| ZeroCopyError::InsufficientMemoryAllocated(0, metadata_size))?;
         let (metadata, _padding) = Ref::<B, [L; 3]>::from_prefix(meta_data)?;
         let usize_capacity: usize = u64::from(metadata[CAPACITY_INDEX]) as usize;
         let usize_len: usize = u64::from(metadata[LENGTH_INDEX]) as usize;
@@ -229,9 +229,9 @@ where
                 metadata_size,
             ));
         }
-        let (meta_data, bytes) = bytes.split_at(metadata_size).map_err(|_| {
-            ZeroCopyError::InsufficientMemoryAllocated(0, metadata_size)
-        })?;
+        let (meta_data, bytes) = bytes
+            .split_at(metadata_size)
+            .map_err(|_| ZeroCopyError::InsufficientMemoryAllocated(0, metadata_size))?;
 
         let (mut metadata, _padding) = Ref::<B, [L; 3]>::from_prefix(meta_data)?;
 

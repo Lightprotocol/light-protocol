@@ -1,7 +1,8 @@
+use std::fmt::Debug;
+
 use light_batched_merkle_tree::errors::BatchedMerkleTreeError;
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_zero_copy::errors::ZeroCopyError;
-use std::fmt::Debug;
 
 /// Assert that a result is an error and matches the expected error.
 pub fn assert_error<T, E>(result: Result<T, E>, expected: E, context: &str)
@@ -32,10 +33,7 @@ where
         Err(BatchedMerkleTreeError::ZeroCopy(_)) => {
             // Success - it's a ZeroCopy error
         }
-        Err(other) => panic!(
-            "{}: Expected ZeroCopyError, but got {:?}",
-            context, other
-        ),
+        Err(other) => panic!("{}: Expected ZeroCopyError, but got {:?}", context, other),
     }
 }
 
@@ -82,18 +80,14 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use light_account_checks::error::AccountError;
+
+    use super::*;
 
     #[test]
     fn test_assert_error_catches_mismatch() {
-        let result: Result<(), BatchedMerkleTreeError> =
-            Err(BatchedMerkleTreeError::InvalidIndex);
-        assert_error(
-            result,
-            BatchedMerkleTreeError::InvalidIndex,
-            "Should match",
-        );
+        let result: Result<(), BatchedMerkleTreeError> = Err(BatchedMerkleTreeError::InvalidIndex);
+        assert_error(result, BatchedMerkleTreeError::InvalidIndex, "Should match");
     }
 
     #[test]
@@ -117,9 +111,9 @@ mod tests {
 
     #[test]
     fn test_assert_account_error() {
-        let result: Result<(), BatchedMerkleTreeError> = Err(
-            BatchedMerkleTreeError::AccountError(AccountError::InvalidDiscriminator),
-        );
+        let result: Result<(), BatchedMerkleTreeError> = Err(BatchedMerkleTreeError::AccountError(
+            AccountError::InvalidDiscriminator,
+        ));
         assert_account_error(result, "Should be AccountError");
     }
 }

@@ -33,8 +33,8 @@ pub struct BatchedQueueRef<'a> {
 }
 
 impl Discriminator for BatchedQueueRef<'_> {
-    const LIGHT_DISCRIMINATOR: [u8; 8] = *b"queueacc";
-    const LIGHT_DISCRIMINATOR_SLICE: &'static [u8] = b"queueacc";
+    const LIGHT_DISCRIMINATOR: [u8; 8] = BatchedQueueAccount::LIGHT_DISCRIMINATOR;
+    const LIGHT_DISCRIMINATOR_SLICE: &'static [u8] = BatchedQueueAccount::LIGHT_DISCRIMINATOR_SLICE;
 }
 
 impl<'a> BatchedQueueRef<'a> {

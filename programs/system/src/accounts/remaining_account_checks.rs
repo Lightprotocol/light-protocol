@@ -1,9 +1,7 @@
 use light_account_checks::{checks::check_owner, discriminator::Discriminator};
 use light_batched_merkle_tree::{
-    merkle_tree::BatchedMerkleTreeAccount,
-    merkle_tree_ref::BatchedMerkleTreeRef,
-    queue::BatchedQueueAccount,
-    queue_ref::BatchedQueueRef,
+    merkle_tree::BatchedMerkleTreeAccount, merkle_tree_ref::BatchedMerkleTreeRef,
+    queue::BatchedQueueAccount, queue_ref::BatchedQueueRef,
 };
 use light_compressed_account::{
     constants::{

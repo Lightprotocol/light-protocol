@@ -11,10 +11,30 @@ use test_helpers::{account_builders::MerkleTreeAccountBuilder, assertions::*};
 fn test_merkle_tree_ref_deserialization_matrix() {
     // Test matrix: tree type x API method (table-driven test)
     let test_cases = vec![
-        ("State tree with state API", TreeType::StateV2, "state", true),
-        ("Address tree with address API", TreeType::AddressV2, "address", true),
-        ("State tree with address API", TreeType::StateV2, "address", false),
-        ("Address tree with state API", TreeType::AddressV2, "state", false),
+        (
+            "State tree with state API",
+            TreeType::StateV2,
+            "state",
+            true,
+        ),
+        (
+            "Address tree with address API",
+            TreeType::AddressV2,
+            "address",
+            true,
+        ),
+        (
+            "State tree with address API",
+            TreeType::StateV2,
+            "address",
+            false,
+        ),
+        (
+            "Address tree with state API",
+            TreeType::AddressV2,
+            "state",
+            false,
+        ),
     ];
 
     for (description, tree_type, api, should_succeed) in test_cases {
@@ -55,8 +75,7 @@ fn test_merkle_tree_ref_deserialization_matrix() {
 #[test]
 fn test_merkle_tree_ref_from_bytes_errors() {
     // Test 1: Bad discriminator
-    let (data, pubkey) = MerkleTreeAccountBuilder::state_tree()
-        .build_with_bad_discriminator();
+    let (data, pubkey) = MerkleTreeAccountBuilder::state_tree().build_with_bad_discriminator();
     let result = BatchedMerkleTreeRef::state_from_bytes(&data, &pubkey);
     assert_account_error(result, "Bad discriminator should fail");
 
@@ -72,8 +91,7 @@ fn test_merkle_tree_ref_from_bytes_errors() {
     assert_account_error(result, "Empty data should fail discriminator check");
 
     // Test 4: Wrong tree type
-    let (data, pubkey) = MerkleTreeAccountBuilder::state_tree()
-        .build_with_wrong_tree_type(999);
+    let (data, pubkey) = MerkleTreeAccountBuilder::state_tree().build_with_wrong_tree_type(999);
     let result = BatchedMerkleTreeRef::state_from_bytes(&data, &pubkey);
     assert_metadata_error(
         result,
@@ -185,20 +203,16 @@ fn test_merkle_tree_ref_randomized_equivalence() {
             0 => {
                 // Push random root.
                 let mut tree_mut =
-                    BatchedMerkleTreeAccount::state_from_bytes(&mut account_data, &pubkey)
-                        .unwrap();
+                    BatchedMerkleTreeAccount::state_from_bytes(&mut account_data, &pubkey).unwrap();
                 tree_mut.root_history.push(rng.gen());
             }
             1 => {
                 // Insert into bloom filter of a random batch.
                 let mut tree_mut =
-                    BatchedMerkleTreeAccount::state_from_bytes(&mut account_data, &pubkey)
-                        .unwrap();
+                    BatchedMerkleTreeAccount::state_from_bytes(&mut account_data, &pubkey).unwrap();
                 let batch_idx = rng.gen_range(0..2usize);
-                let num_iters =
-                    tree_mut.queue_batches.batches[batch_idx].num_iters as usize;
-                let capacity =
-                    tree_mut.queue_batches.batches[batch_idx].bloom_filter_capacity;
+                let num_iters = tree_mut.queue_batches.batches[batch_idx].num_iters as usize;
+                let capacity = tree_mut.queue_batches.batches[batch_idx].bloom_filter_capacity;
                 let value: [u8; 32] = rng.gen();
                 let mut bf = BloomFilter::new(
                     num_iters,
@@ -211,8 +225,7 @@ fn test_merkle_tree_ref_randomized_equivalence() {
             2 => {
                 // Increment sequence number.
                 let mut tree_mut =
-                    BatchedMerkleTreeAccount::state_from_bytes(&mut account_data, &pubkey)
-                        .unwrap();
+                    BatchedMerkleTreeAccount::state_from_bytes(&mut account_data, &pubkey).unwrap();
                 tree_mut.sequence_number += 1;
             }
             _ => unreachable!(),
@@ -221,11 +234,9 @@ fn test_merkle_tree_ref_randomized_equivalence() {
         // Clone data so we can deserialize both paths independently.
         let mut account_data_clone = account_data.clone();
 
-        let tree_ref =
-            BatchedMerkleTreeRef::state_from_bytes(&account_data, &pubkey).unwrap();
+        let tree_ref = BatchedMerkleTreeRef::state_from_bytes(&account_data, &pubkey).unwrap();
         let tree_mut =
-            BatchedMerkleTreeAccount::state_from_bytes(&mut account_data_clone, &pubkey)
-                .unwrap();
+            BatchedMerkleTreeAccount::state_from_bytes(&mut account_data_clone, &pubkey).unwrap();
 
         // Metadata via Deref.
         assert_eq!(*tree_ref, *tree_mut.get_metadata());

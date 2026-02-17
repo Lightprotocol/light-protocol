@@ -1,6 +1,5 @@
 use light_batched_merkle_tree::{
-    merkle_tree::BatchedMerkleTreeAccount,
-    merkle_tree_metadata::BatchedMerkleTreeMetadata,
+    merkle_tree::BatchedMerkleTreeAccount, merkle_tree_metadata::BatchedMerkleTreeMetadata,
     queue::BatchedQueueAccount,
 };
 use light_compressed_account::{pubkey::Pubkey, QueueType, TreeType};
@@ -117,7 +116,6 @@ impl MerkleTreeAccountBuilder {
         data[tree_type_offset..tree_type_offset + 8].copy_from_slice(&wrong_type.to_le_bytes());
         (data, pubkey)
     }
-
 }
 
 /// Builder for creating valid and invalid BatchedQueueAccount test data.

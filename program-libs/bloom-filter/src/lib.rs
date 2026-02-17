@@ -104,7 +104,6 @@ impl<'a> BloomFilter<'a> {
         }
     }
 
-    // TODO: reconsider &mut self
     pub fn contains(&mut self, value: &[u8; 32]) -> bool {
         !self._insert(value, false)
     }
@@ -140,11 +139,7 @@ pub struct BloomFilterRef<'a> {
 }
 
 impl<'a> BloomFilterRef<'a> {
-    pub fn new(
-        num_iters: usize,
-        capacity: u64,
-        store: &'a [u8],
-    ) -> Result<Self, BloomFilterError> {
+    pub fn new(num_iters: usize, capacity: u64, store: &'a [u8]) -> Result<Self, BloomFilterError> {
         if store.len() * 8 != capacity as usize {
             return Err(BloomFilterError::InvalidStoreCapacity);
         }
@@ -275,6 +270,12 @@ mod test {
                 match bf.insert(&value) {
                     Ok(_) => {
                         assert!(bf.contains(&value));
+                        let bf_ref = BloomFilterRef {
+                            num_iters: bf.num_iters,
+                            capacity: bf.capacity,
+                            store: bf.store,
+                        };
+                        assert!(bf_ref.contains(&value));
                     }
                     Err(_) => {
                         println!("Failed to insert iter: {}", i);
@@ -284,6 +285,12 @@ mod test {
                     }
                 };
                 assert!(bf.contains(&value));
+                let bf_ref = BloomFilterRef {
+                    num_iters: bf.num_iters,
+                    capacity: bf.capacity,
+                    store: bf.store,
+                };
+                assert!(bf_ref.contains(&value));
                 assert!(bf.insert(&value).is_err());
             }
         }

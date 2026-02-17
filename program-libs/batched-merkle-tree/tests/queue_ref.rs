@@ -8,8 +8,7 @@ use test_helpers::{account_builders::QueueAccountBuilder, assertions::*};
 #[test]
 fn test_queue_ref_deserialization_errors() {
     // Test 1: Bad discriminator
-    let (data, _pubkey) = QueueAccountBuilder::output_queue()
-        .build_with_bad_discriminator();
+    let (data, _pubkey) = QueueAccountBuilder::output_queue().build_with_bad_discriminator();
     let result = BatchedQueueRef::output_from_bytes(&data);
     assert_account_error(result, "Bad discriminator should fail");
 
@@ -19,8 +18,7 @@ fn test_queue_ref_deserialization_errors() {
     assert_zerocopy_error(result, "Insufficient size should fail");
 
     // Test 3: Wrong queue type
-    let (data, _pubkey) = QueueAccountBuilder::output_queue()
-        .build_with_wrong_queue_type(999);
+    let (data, _pubkey) = QueueAccountBuilder::output_queue().build_with_wrong_queue_type(999);
     let result = BatchedQueueRef::output_from_bytes(&data);
     assert_metadata_error(
         result,
@@ -63,8 +61,12 @@ fn test_queue_ref_prove_inclusion_by_index() {
     let test_hash_2 = [0x22; 32];
     {
         let mut queue_mut = BatchedQueueAccount::output_from_bytes(&mut account_data).unwrap();
-        queue_mut.insert_into_current_batch(&test_hash_1, &0).unwrap();
-        queue_mut.insert_into_current_batch(&test_hash_2, &0).unwrap();
+        queue_mut
+            .insert_into_current_batch(&test_hash_1, &0)
+            .unwrap();
+        queue_mut
+            .insert_into_current_batch(&test_hash_2, &0)
+            .unwrap();
     }
 
     // Read via immutable ref
@@ -170,8 +172,7 @@ fn test_queue_ref_randomized_equivalence() {
         let value: [u8; 32] = rng.gen();
         let slot = 0u64;
         {
-            let mut queue_mut =
-                BatchedQueueAccount::output_from_bytes(&mut account_data).unwrap();
+            let mut queue_mut = BatchedQueueAccount::output_from_bytes(&mut account_data).unwrap();
             let result = queue_mut.insert_into_current_batch(&value, &slot);
             if result.is_ok() {
                 inserted.push((inserted.len() as u64, value));
@@ -185,8 +186,7 @@ fn test_queue_ref_randomized_equivalence() {
         let mut account_data_clone = account_data.clone();
 
         let queue_ref = BatchedQueueRef::output_from_bytes(&account_data).unwrap();
-        let queue_mut =
-            BatchedQueueAccount::output_from_bytes(&mut account_data_clone).unwrap();
+        let queue_mut = BatchedQueueAccount::output_from_bytes(&mut account_data_clone).unwrap();
 
         // Metadata via Deref.
         assert_eq!(*queue_ref, *queue_mut.get_metadata());
