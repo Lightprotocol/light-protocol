@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "842763084445",
+  "strategy": "manual-commit",
+  "branch": "jorrit/feat-add-bmt-from-account-info",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "CLAUDE.md",
+    "program-libs/batched-merkle-tree/src/batch.rs",
+    "program-libs/batched-merkle-tree/src/merkle_tree_ref.rs",
+    "program-libs/bloom-filter/src/lib.rs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/84/2763084445/0/metadata.json",
+      "transcript": "/84/2763084445/0/full.jsonl",
+      "context": "/84/2763084445/0/context.md",
+      "content_hash": "/84/2763084445/0/content_hash.txt",
+      "prompt": "/84/2763084445/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 152,
+    "cache_creation_tokens": 104996,
+    "cache_read_tokens": 7419494,
+    "output_tokens": 5145,
+    "api_call_count": 89
+  }
+}
