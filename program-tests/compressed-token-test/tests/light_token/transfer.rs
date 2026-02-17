@@ -439,6 +439,139 @@ async fn test_ctoken_transfer_mint_mismatch() {
 }
 
 // ============================================================================
+// Self-Transfer Tests
+// ============================================================================
+
+#[tokio::test]
+async fn test_ctoken_self_transfer_frozen() {
+    let (mut context, source, _destination, _mint_amount, _source_keypair, _dest_keypair) =
+        setup_transfer_test(None, 1000).await.unwrap();
+
+    // Freeze the source account
+    let mut source_account = context.rpc.get_account(source).await.unwrap().unwrap();
+    source_account.data[108] = 2; // AccountState::Frozen
+    context.rpc.set_account(source, source_account);
+
+    let owner_keypair = context.owner_keypair.insecure_clone();
+
+    // Self-transfer on frozen account should fail
+    // from_account_info_checked rejects frozen accounts (state != initialized)
+    transfer_and_assert_fails(
+        &mut context,
+        source,
+        source, // self-transfer: source == destination
+        500,
+        &owner_keypair,
+        "self_transfer_frozen",
+        3, // InvalidAccountData (from_account_info_checked rejects frozen)
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn test_ctoken_self_transfer_insufficient_funds() {
+    let (mut context, source, _destination, _mint_amount, _source_keypair, _dest_keypair) =
+        setup_transfer_test(None, 1000).await.unwrap();
+
+    let owner_keypair = context.owner_keypair.insecure_clone();
+
+    // Self-transfer with amount > balance should fail with InsufficientFunds
+    transfer_and_assert_fails(
+        &mut context,
+        source,
+        source, // self-transfer: source == destination
+        1500,   // more than the 1000 balance
+        &owner_keypair,
+        "self_transfer_insufficient_funds",
+        6154, // InsufficientFunds
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn test_ctoken_self_transfer_success() {
+    let (mut context, source, _destination, _mint_amount, _source_keypair, _dest_keypair) =
+        setup_transfer_test(None, 1000).await.unwrap();
+
+    let owner_keypair = context.owner_keypair.insecure_clone();
+    let payer_pubkey = context.payer.pubkey();
+
+    // Self-transfer with valid amount should succeed
+    let transfer_ix = build_transfer_instruction(source, source, 500, owner_keypair.pubkey());
+    context
+        .rpc
+        .create_and_send_transaction(
+            &[transfer_ix],
+            &payer_pubkey,
+            &[&context.payer, &owner_keypair],
+        )
+        .await
+        .unwrap();
+
+    // Verify balance unchanged (self-transfer is a no-op)
+    let source_account = context.rpc.get_account(source).await.unwrap().unwrap();
+    let token_account =
+        spl_token_2022::state::Account::unpack_unchecked(&source_account.data[..165]).unwrap();
+    assert_eq!(token_account.amount, 1000);
+}
+
+#[tokio::test]
+async fn test_ctoken_transfer_checked_self_transfer_frozen() {
+    let (mut context, source, _destination, _mint_amount, _source_keypair, _dest_keypair) =
+        setup_transfer_checked_test_with_spl_mint(None, 1000, 9)
+            .await
+            .unwrap();
+
+    // Freeze the source account
+    let mut source_account = context.rpc.get_account(source).await.unwrap().unwrap();
+    source_account.data[108] = 2; // AccountState::Frozen
+    context.rpc.set_account(source, source_account);
+
+    let mint = context.mint_pubkey;
+    let owner_keypair = context.owner_keypair.insecure_clone();
+
+    // Self-transfer on frozen account should fail
+    // from_account_info_checked rejects frozen accounts (state != initialized)
+    transfer_checked_and_assert_fails(
+        &mut context,
+        source,
+        mint,
+        source, // self-transfer: source == destination
+        500,
+        9,
+        &owner_keypair,
+        "self_transfer_checked_frozen",
+        3, // InvalidAccountData (from_account_info_checked rejects frozen)
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn test_ctoken_transfer_checked_self_transfer_insufficient_funds() {
+    let (mut context, source, _destination, _mint_amount, _source_keypair, _dest_keypair) =
+        setup_transfer_checked_test_with_spl_mint(None, 1000, 9)
+            .await
+            .unwrap();
+
+    let mint = context.mint_pubkey;
+    let owner_keypair = context.owner_keypair.insecure_clone();
+
+    // Self-transfer with amount > balance should fail with InsufficientFunds
+    transfer_checked_and_assert_fails(
+        &mut context,
+        source,
+        mint,
+        source, // self-transfer: source == destination
+        1500,   // more than the 1000 balance
+        9,
+        &owner_keypair,
+        "self_transfer_checked_insufficient_funds",
+        6154, // InsufficientFunds
+    )
+    .await;
+}
+
+// ============================================================================
 // Edge Case Tests
 // ============================================================================
 

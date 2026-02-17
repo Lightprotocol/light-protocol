@@ -17,6 +17,7 @@ use crate::{
 
 /// Validates self-transfer: if source == destination, checks authority is signer
 /// and is owner or delegate of the token account.
+/// Also checks that the account is not frozen and has sufficient funds.
 /// Returns Ok(true) if self-transfer was validated (caller should return Ok(())),
 /// Returns Ok(false) if not a self-transfer (caller should continue).
 #[inline(always)]
@@ -24,11 +25,12 @@ pub fn validate_self_transfer(
     source: &AccountInfo,
     destination: &AccountInfo,
     authority: &AccountInfo,
+    instruction_data: &[u8],
 ) -> Result<bool, ProgramError> {
     if !pubkey_eq(source.key(), destination.key()) {
         return Ok(false);
     }
-    validate_self_transfer_authority(source, authority)?;
+    validate_self_transfer_authority(source, authority, instruction_data)?;
     Ok(true)
 }
 
@@ -36,12 +38,22 @@ pub fn validate_self_transfer(
 fn validate_self_transfer_authority(
     source: &AccountInfo,
     authority: &AccountInfo,
+    instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
     if !authority.is_signer() {
         return Err(ProgramError::MissingRequiredSignature);
     }
+    // from_account_info_checked rejects frozen accounts (state != 1)
     let token =
         Token::from_account_info_checked(source).map_err(|_| ProgramError::InvalidAccountData)?;
+    let amount = u64::from_le_bytes(
+        instruction_data[..8]
+            .try_into()
+            .map_err(|_| ProgramError::InvalidInstructionData)?,
+    );
+    if token.base.amount < amount {
+        return Err(ErrorCode::InsufficientFunds.into());
+    }
     let is_owner = pubkey_eq(authority.key(), token.base.owner.array_ref());
     let is_delegate = token
         .base
