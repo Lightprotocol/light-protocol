@@ -258,7 +258,7 @@ export function createDecompressInterfaceInstruction(
         lamportsChangeAccountMerkleTreeIndex: 0,
         lamportsChangeAccountOwnerIndex: 0,
         outputQueue: firstQueueIndex, // First queue in packed accounts
-        maxTopUp: 0,
+        maxTopUp: 65535,
         cpiContext: null,
         compressions,
         proof: validityProof.compressedProof

@@ -98,7 +98,7 @@ function encodeUpdateMetadataInstructionData(
         leafIndex: params.leafIndex,
         proveByIndex: params.proof === null,
         rootIndex: params.rootIndex,
-        maxTopUp: 0,
+        maxTopUp: 65535,
         createMint: null,
         actions: [convertActionToBorsh(params.action)],
         proof: params.proof,

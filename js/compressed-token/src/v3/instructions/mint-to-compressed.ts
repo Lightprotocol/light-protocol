@@ -46,7 +46,7 @@ function encodeCompressedMintToInstructionData(
         leafIndex: params.leafIndex,
         proveByIndex: true,
         rootIndex: params.rootIndex,
-        maxTopUp: 0,
+        maxTopUp: 65535,
         createMint: null,
         actions: [
             {

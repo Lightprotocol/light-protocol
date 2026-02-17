@@ -120,7 +120,7 @@ export function encodeCreateMintInstructionData(
         leafIndex: 0,
         proveByIndex: false,
         rootIndex: params.rootIndex,
-        maxTopUp: 0,
+        maxTopUp: 65535,
         createMint: {
             readOnlyAddressTrees: [0, 0, 0, 0],
             readOnlyAddressTreeRootIndices: [0, 0, 0, 0],
