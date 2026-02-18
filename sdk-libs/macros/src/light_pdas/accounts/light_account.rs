@@ -1541,7 +1541,7 @@ mod tests {
             LightAccountField::AssociatedToken(ata) => {
                 assert_eq!(ata.field_ident.to_string(), "user_ata");
                 assert!(!ata.has_init, "Mark-only should have has_init = false");
-                assert_eq!(ata.idempotent, false, "idempotent should default to false");
+                assert!(!ata.idempotent, "idempotent should default to false");
             }
             _ => panic!("Expected AssociatedToken field"),
         }
@@ -1564,7 +1564,7 @@ mod tests {
             LightAccountField::AssociatedToken(ata) => {
                 assert_eq!(ata.field_ident.to_string(), "user_ata");
                 assert!(ata.has_init);
-                assert_eq!(ata.idempotent, false, "idempotent should default to false");
+                assert!(!ata.idempotent, "idempotent should default to false");
             }
             _ => panic!("Expected AssociatedToken field"),
         }
@@ -1582,10 +1582,7 @@ mod tests {
         assert!(result.is_ok());
         match result.unwrap().unwrap() {
             LightAccountField::AssociatedToken(ata) => {
-                assert_eq!(
-                    ata.idempotent, false,
-                    "absent idempotent flag should be false"
-                );
+                assert!(!ata.idempotent, "absent idempotent flag should be false");
             }
             _ => panic!("Expected AssociatedToken field"),
         }
@@ -1610,10 +1607,7 @@ mod tests {
         );
         match result.unwrap().unwrap() {
             LightAccountField::AssociatedToken(ata) => {
-                assert_eq!(
-                    ata.idempotent, true,
-                    "present idempotent flag should be true"
-                );
+                assert!(ata.idempotent, "present idempotent flag should be true");
             }
             _ => panic!("Expected AssociatedToken field"),
         }
