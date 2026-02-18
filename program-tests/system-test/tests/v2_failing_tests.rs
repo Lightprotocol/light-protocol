@@ -1,4 +1,3 @@
-#![cfg(feature = "test-sbf")]
 //! Test for CPI context address owner derivation.
 //!
 //! When creating new addresses via CPI context, the owner should always be the
@@ -19,19 +18,28 @@
 //! }
 //! ```
 
-use anchor_lang::AnchorSerialize;
+use anchor_lang::{AnchorSerialize, Discriminator};
+use create_address_test_program::create_invoke_cpi_instruction;
 use light_account_checks::account_info::test_account_info::pinocchio::get_account_info;
 use light_compressed_account::{
     compressed_account::{
-        CompressedAccount, PackedCompressedAccountWithMerkleContext, PackedMerkleContext,
+        CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
+        PackedMerkleContext,
     },
     instruction_data::{
         cpi_context::CompressedCpiContext,
         data::{NewAddressParamsPacked, OutputCompressedAccountWithPackedContext},
         invoke_cpi::InstructionDataInvokeCpi,
+        with_readonly::{InAccount, InstructionDataInvokeCpiWithReadOnly},
         zero_copy::ZInstructionDataInvokeCpi,
     },
 };
+use light_program_test::indexer::TestIndexerExtensions;
+use light_program_test::{
+    utils::assert::assert_rpc_error, AddressWithTree, LightProgramTest, ProgramTestConfig,
+};
+use light_program_test::{Indexer, Rpc};
+use light_sdk::{address::v2::derive_address, address::NewAddressParamsAssigned};
 use light_system_program_pinocchio::{
     context::WrappedInstructionData,
     cpi_context::{
@@ -42,9 +50,17 @@ use light_system_program_pinocchio::{
     },
     ID,
 };
+use light_test_utils::{
+    e2e_test_env::to_account_metas_light,
+    pack::{
+        pack_compressed_accounts, pack_new_address_params_assigned, pack_output_compressed_accounts,
+    },
+};
 use light_zero_copy::traits::ZeroCopyAt;
 use pinocchio::pubkey::Pubkey as PinocchioPubkey;
 use solana_sdk::pubkey::Pubkey;
+use solana_sdk::signature::Signer;
+use std::collections::HashMap;
 
 /// Creates a test CPI context account with the given associated merkle tree.
 fn create_test_cpi_context_account(
@@ -276,4 +292,309 @@ fn test_cpi_context_new_address_uses_invoking_program_owner_with_inputs() {
         stored_address.owner, input_account_owner,
         "Owner should NOT be input account's owner"
     );
+}
+
+/// Test that duplicate addresses are rejected in V2 batched address trees.
+///
+/// This test verifies that the bloom filter catches duplicate address
+/// insertions within the same transaction.
+#[tokio::test]
+async fn test_duplicate_address_in_v2_batched_tree() {
+    let mut rpc = LightProgramTest::new({
+        let mut config = ProgramTestConfig::default_with_batched_trees(true);
+        config.additional_programs = Some(vec![(
+            "create_address_test_program",
+            create_address_test_program::ID,
+        )]);
+        config
+    })
+    .await
+    .expect("Failed to setup test programs");
+
+    let env = rpc.test_accounts.clone();
+    let payer = rpc.get_payer().insecure_clone();
+
+    let v2_address_tree = env.v2_address_trees[0];
+    let address_seed = [42u8; 32];
+
+    let (derived_address, address_seed) = derive_address(
+        &[address_seed.as_slice()],
+        &v2_address_tree,
+        &create_address_test_program::ID,
+    );
+
+    // Request proof for the same address twice
+    let addresses_with_tree = vec![
+        AddressWithTree {
+            address: derived_address,
+            tree: v2_address_tree,
+        },
+        AddressWithTree {
+            address: derived_address,
+            tree: v2_address_tree,
+        },
+    ];
+
+    let proof_result = rpc
+        .get_validity_proof(Vec::new(), addresses_with_tree, None)
+        .await
+        .expect("Failed to get validity proof")
+        .value;
+
+    // Two new_address_params with the SAME seed
+    let new_address_params = vec![
+        NewAddressParamsAssigned {
+            seed: address_seed.into(),
+            address_queue_pubkey: v2_address_tree.into(),
+            address_merkle_tree_pubkey: v2_address_tree.into(),
+            address_merkle_tree_root_index: proof_result.get_address_root_indices()[0],
+            assigned_account_index: None,
+        },
+        NewAddressParamsAssigned {
+            seed: address_seed.into(),
+            address_queue_pubkey: v2_address_tree.into(),
+            address_merkle_tree_pubkey: v2_address_tree.into(),
+            address_merkle_tree_root_index: proof_result.get_address_root_indices()[0],
+            assigned_account_index: None,
+        },
+    ];
+
+    let mut remaining_accounts = HashMap::<Pubkey, usize>::new();
+    let packed_new_address_params =
+        pack_new_address_params_assigned(new_address_params.as_slice(), &mut remaining_accounts);
+
+    let ix_data = InstructionDataInvokeCpiWithReadOnly {
+        mode: 0,
+        bump: 255,
+        with_cpi_context: false,
+        invoking_program_id: create_address_test_program::ID.into(),
+        proof: proof_result.proof.0,
+        new_address_params: packed_new_address_params,
+        is_compress: false,
+        compress_or_decompress_lamports: 0,
+        output_compressed_accounts: vec![],
+        input_compressed_accounts: vec![],
+        with_transaction_hash: true,
+        ..Default::default()
+    };
+
+    let remaining_accounts_light: HashMap<light_compressed_account::Pubkey, usize> =
+        remaining_accounts
+            .into_iter()
+            .map(|(k, v)| (k.into(), v))
+            .collect();
+    let remaining_accounts = to_account_metas_light(remaining_accounts_light);
+
+    let instruction = create_invoke_cpi_instruction(
+        payer.pubkey(),
+        [
+            light_system_program::instruction::InvokeCpiWithReadOnly::DISCRIMINATOR.to_vec(),
+            ix_data.try_to_vec().unwrap(),
+        ]
+        .concat(),
+        remaining_accounts,
+        None,
+    );
+
+    let result = rpc
+        .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+        .await;
+
+    // Expected: BloomFilterError::Full (14201)
+    assert_rpc_error(result, 0, 14201).unwrap();
+}
+
+#[tokio::test]
+async fn test_address_position_with_none_in_context_addresses() {
+    let mut rpc = LightProgramTest::new({
+        let mut config = ProgramTestConfig::default_with_batched_trees(true);
+        config.additional_programs = Some(vec![(
+            "create_address_test_program",
+            create_address_test_program::ID,
+        )]);
+        config
+    })
+    .await
+    .expect("Failed to setup test programs");
+
+    let env = rpc.test_accounts.clone();
+    let payer = rpc.get_payer().insecure_clone();
+    let v2_state_tree = env.v2_state_trees[0];
+    let v2_address_tree = env.v2_address_trees[0];
+    let output_queue = v2_state_tree.output_queue;
+
+    // -------------------------------------------------------------------
+    // Transaction 1: Create a compressed account WITHOUT an address.
+    // Owner = create_address_test_program so it can be consumed via CPI.
+    // Data is set to zero discriminator/hash so InAccount can reproduce the
+    // same account hash when consuming it.
+    // -------------------------------------------------------------------
+    {
+        let mut remaining_accounts = HashMap::<Pubkey, usize>::new();
+        let packed_outputs = pack_output_compressed_accounts(
+            &[CompressedAccount {
+                owner: create_address_test_program::ID.into(),
+                lamports: 0,
+                address: None,
+                data: Some(CompressedAccountData {
+                    discriminator: [0u8; 8],
+                    data: vec![],
+                    data_hash: [0u8; 32],
+                }),
+            }],
+            &[output_queue],
+            &mut remaining_accounts,
+        );
+
+        let ix_data = InstructionDataInvokeCpiWithReadOnly {
+            mode: 0,
+            bump: 255,
+            with_cpi_context: false,
+            invoking_program_id: create_address_test_program::ID.into(),
+            output_compressed_accounts: packed_outputs,
+            with_transaction_hash: true,
+            ..Default::default()
+        };
+
+        let remaining_accounts_light: HashMap<light_compressed_account::Pubkey, usize> =
+            remaining_accounts
+                .into_iter()
+                .map(|(k, v)| (k.into(), v))
+                .collect();
+        let remaining_accounts_vec = to_account_metas_light(remaining_accounts_light);
+
+        let instruction = create_invoke_cpi_instruction(
+            payer.pubkey(),
+            [
+                light_system_program::instruction::InvokeCpiWithReadOnly::DISCRIMINATOR.to_vec(),
+                ix_data.try_to_vec().unwrap(),
+            ]
+            .concat(),
+            remaining_accounts_vec,
+            None,
+        );
+
+        rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+            .await
+            .expect("Transaction 1 (create account without address) should succeed");
+    }
+
+    // -------------------------------------------------------------------
+    // Transaction 2: Consume the addressless account as input, create ONE
+    // -------------------------------------------------------------------
+    {
+        let accounts = rpc
+            .get_compressed_accounts_with_merkle_context_by_owner(&create_address_test_program::ID);
+        assert_eq!(
+            accounts.len(),
+            1,
+            "Should have exactly 1 compressed account"
+        );
+        let input_account = accounts[0].clone();
+        let input_hash = input_account.hash().unwrap();
+
+        // Derive a single address.
+        let (addr, seed) = derive_address(
+            &[&[1u8; 32]],
+            &v2_address_tree,
+            &create_address_test_program::ID,
+        );
+
+        // Proof covers the input account inclusion and addr non-inclusion.
+        let proof_result = rpc
+            .get_validity_proof(
+                vec![input_hash],
+                vec![AddressWithTree {
+                    address: addr,
+                    tree: v2_address_tree,
+                }],
+                None,
+            )
+            .await
+            .expect("Failed to get validity proof")
+            .value;
+
+        let mut remaining_accounts = HashMap::<Pubkey, usize>::new();
+
+        // Pack the input account.
+        let root_indices = proof_result.get_root_indices();
+        let packed_inputs =
+            pack_compressed_accounts(&[input_account], &root_indices, &mut remaining_accounts);
+        let in_accounts: Vec<InAccount> = packed_inputs.into_iter().map(InAccount::from).collect();
+
+        // Single new address param, assigned to output[0].
+        // context.addresses will be [None, Some(addr)] when outputs are processed.
+        let address_root_indices = proof_result.get_address_root_indices();
+        let new_address_params = vec![NewAddressParamsAssigned {
+            seed: seed.into(),
+            address_queue_pubkey: v2_address_tree.into(),
+            address_merkle_tree_pubkey: v2_address_tree.into(),
+            address_merkle_tree_root_index: address_root_indices[0],
+            assigned_account_index: Some(0),
+        }];
+        let packed_new_address_params =
+            pack_new_address_params_assigned(&new_address_params, &mut remaining_accounts);
+
+        // Both outputs claim the same address - the exploit.
+        let zero_data = Some(CompressedAccountData {
+            discriminator: [0u8; 8],
+            data: vec![],
+            data_hash: [0u8; 32],
+        });
+        let packed_outputs = pack_output_compressed_accounts(
+            &[
+                CompressedAccount {
+                    owner: create_address_test_program::ID.into(),
+                    lamports: 0,
+                    address: Some(addr),
+                    data: zero_data.clone(),
+                },
+                CompressedAccount {
+                    owner: create_address_test_program::ID.into(),
+                    lamports: 0,
+                    address: Some(addr),
+                    data: zero_data,
+                },
+            ],
+            &[output_queue, output_queue],
+            &mut remaining_accounts,
+        );
+
+        let ix_data = InstructionDataInvokeCpiWithReadOnly {
+            mode: 0,
+            bump: 255,
+            with_cpi_context: false,
+            invoking_program_id: create_address_test_program::ID.into(),
+            proof: proof_result.proof.0,
+            new_address_params: packed_new_address_params,
+            input_compressed_accounts: in_accounts,
+            output_compressed_accounts: packed_outputs,
+            with_transaction_hash: true,
+            ..Default::default()
+        };
+
+        let remaining_accounts_light: HashMap<light_compressed_account::Pubkey, usize> =
+            remaining_accounts
+                .into_iter()
+                .map(|(k, v)| (k.into(), v))
+                .collect();
+        let remaining_accounts_vec = to_account_metas_light(remaining_accounts_light);
+
+        let instruction = create_invoke_cpi_instruction(
+            payer.pubkey(),
+            [
+                light_system_program::instruction::InvokeCpiWithReadOnly::DISCRIMINATOR.to_vec(),
+                ix_data.try_to_vec().unwrap(),
+            ]
+            .concat(),
+            remaining_accounts_vec,
+            None,
+        );
+
+        // Correctly rejects duplicate address usage with InvalidAddress (6006).
+        let result = rpc
+            .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+            .await;
+        assert_rpc_error(result, 0, 6006).unwrap();
+    }
 }

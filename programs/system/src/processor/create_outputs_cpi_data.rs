@@ -171,12 +171,7 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
 
         // Check 3.
         if let Some(address) = account.address() {
-            if let Some(position) = context
-                .addresses
-                .iter()
-                .filter(|x| x.is_some())
-                .position(|&x| x.unwrap() == address)
-            {
+            if let Some(position) = context.addresses.iter().position(|&x| x == Some(address)) {
                 context.addresses.remove(position);
             } else {
                 msg!(format!("context.addresses: {:?}", context.addresses).as_str());

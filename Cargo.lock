@@ -10928,6 +10928,7 @@ version = "1.1.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
+ "create-address-test-program",
  "light-account-checks",
  "light-batched-merkle-tree",
  "light-bloom-filter",
