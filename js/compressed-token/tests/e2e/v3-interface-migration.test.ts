@@ -29,7 +29,11 @@ import {
     getAssociatedTokenAddressInterface,
     transferInterface,
 } from '../../src/v3';
-import { createLoadAtaInstructions, loadAta } from '../../src/index';
+import {
+    createLoadAtaInstructions,
+    createLoadAtaInstructionsFromInterface,
+    loadAta,
+} from '../../src/index';
 
 featureFlags.version = VERSION.V2;
 
@@ -239,6 +243,39 @@ describe('v3-interface-v1-rejection', () => {
 
             const sig = await loadAta(rpc, ctokenAta, owner, mint, payer);
             expect(sig === null || typeof sig === 'string').toBe(true);
+        });
+
+        it('createLoadAtaInstructionsFromInterface rejects V1 at instruction builder boundary', async () => {
+            await mintTo(
+                rpc,
+                payer,
+                mint,
+                owner.publicKey,
+                mintAuthority,
+                bn(1000),
+                v1TreeInfo,
+                selectTokenPoolInfo(tokenPoolInfos),
+            );
+
+            const ataInterface = await getAtaInterface(
+                rpc,
+                ctokenAta,
+                owner.publicKey,
+                mint,
+            );
+
+            await expect(
+                createLoadAtaInstructionsFromInterface(
+                    rpc,
+                    payer.publicKey,
+                    ataInterface,
+                    undefined,
+                    false,
+                    ctokenAta,
+                ),
+            ).rejects.toThrow(
+                'v3 interface does not support V1 compressed accounts',
+            );
         });
     });
 

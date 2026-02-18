@@ -454,6 +454,63 @@ describe('Multi-Cold-Inputs Batching', () => {
             );
         }, 120_000);
 
+        it('should throw when duplicate compressed account hash is injected across chunks', async () => {
+            const owner = await newAccountWithLamports(rpc, 3e9);
+            const coldCount = 9;
+            const amountPerAccount = BigInt(100);
+
+            await mintMultipleColdAccounts(
+                rpc,
+                payer,
+                mint,
+                owner.publicKey,
+                mintAuthority,
+                coldCount,
+                amountPerAccount,
+                stateTreeInfo,
+                tokenPoolInfos,
+            );
+
+            const ata = getAssociatedTokenAddressInterface(
+                mint,
+                owner.publicKey,
+            );
+            const ataInterface = await getAtaInterface(
+                rpc,
+                ata,
+                owner.publicKey,
+                mint,
+            );
+
+            const sources = ataInterface._sources ?? [];
+            const coldSources = sources.filter(
+                s =>
+                    s.type === 'ctoken-cold' ||
+                    s.type === 'spl-cold' ||
+                    s.type === 'token2022-cold',
+            );
+            expect(coldSources.length).toBeGreaterThanOrEqual(9);
+
+            const tamperedSources = [...sources, coldSources[0]];
+            const tamperedInterface: AccountInterface = {
+                ...ataInterface,
+                _sources: tamperedSources,
+            };
+
+            await expect(
+                _buildLoadBatches(
+                    rpc,
+                    payer.publicKey,
+                    tamperedInterface,
+                    undefined,
+                    false,
+                    ata,
+                ),
+            ).rejects.toThrow(
+                'Duplicate compressed account hash across chunks',
+            );
+        }, 120_000);
+
         it('should transfer with 10 cold inputs using unique hashes end-to-end', async () => {
             const owner = await newAccountWithLamports(rpc, 3e9);
             const recipient = Keypair.generate();
