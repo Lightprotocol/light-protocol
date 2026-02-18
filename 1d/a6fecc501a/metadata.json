@@ -2,7 +2,7 @@
   "cli_version": "0.4.4",
   "checkpoint_id": "1da6fecc501a",
   "strategy": "manual-commit",
-  "branch": "jorrit/feat-formally-verify-light-account",
+  "branch": "jorrit/refactor-light-account-creation-to-generic-function",
   "checkpoints_count": 7,
   "files_touched": [
     "sdk-libs/sdk-types/src/interface/program/compression/pda.rs",
@@ -28,13 +28,20 @@
       "context": "/1d/a6fecc501a/1/context.md",
       "content_hash": "/1d/a6fecc501a/1/content_hash.txt",
       "prompt": "/1d/a6fecc501a/1/prompt.txt"
+    },
+    {
+      "metadata": "/1d/a6fecc501a/2/metadata.json",
+      "transcript": "/1d/a6fecc501a/2/full.jsonl",
+      "context": "/1d/a6fecc501a/2/context.md",
+      "content_hash": "/1d/a6fecc501a/2/content_hash.txt",
+      "prompt": "/1d/a6fecc501a/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 152,
-    "cache_creation_tokens": 219219,
-    "cache_read_tokens": 7787867,
-    "output_tokens": 28984,
-    "api_call_count": 80
+    "input_tokens": 243,
+    "cache_creation_tokens": 656514,
+    "cache_read_tokens": 15204266,
+    "output_tokens": 59669,
+    "api_call_count": 157
   }
 }

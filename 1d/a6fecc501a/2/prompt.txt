@@ -1,0 +1,762 @@
+Implement the following plan:
+
+# Compositional Contracts for Compression
+
+## Context
+
+Layered verification of `prepare_account_for_compression` following the GUIDE.md compositional pattern. Each layer proves its piece, then higher layers stub lower layers.
+
+Properties documented in `sdk-tests/sdk-types-kani/docs/compress_properties.md`.
+
+## IMPORTANT - Autonomous Execution Mode
+
+- This plan must execute without user intervention
+- All questions have been resolved in planning phase
+- Use subagents for research, parallel work, or when stuck
+- If blocked, find alternative approach - do not stop
+- Keep working until ALL todos are complete
+- Use `kani::vec::exact_vec::<T, N>()` for symbolic Vecs to keep verification fast
+- Run each harness independently to verify before moving to the next task
+
+## Architecture
+
+```
+Layer 1: Functions with contracts (proven independently)
+  ├── modify_input_account (NEW)   → A1-A3, C3
+  └── build_compression_output     → B2-B8, C4-C6, D1
+
+Layer 2: Orchestrator (stubs Layer 1)
+  └── prepare_account_for_compression → F1+F2 (decision), G1-G4 (ctx mutations)
+```
+
+`canonicalize_for_hashing` and `hash_account_data` remain as helper functions called by `modify_input_account`. They are stubbed (Sha256) inside `modify_input_account`'s harness -- no separate contracts needed.
+
+## Files to Modify
+
+1. `sdk-libs/sdk-types/src/interface/program/compression/pda.rs` -- extract `modify_input_account`, add contracts
+2. `sdk-tests/sdk-types-kani/tests/kani_proofs/compression.rs` -- proof_for_contract harnesses
+3. `sdk-tests/sdk-types-kani/src/mock_account.rs` -- any new stubs needed
+
+## Layer 1 Tasks
+
+### Task 1: Extract and contract `modify_input_account`
+
+Extract lines 159-177 of `prepare_account_for_compression` into a standalone function.
+This function: marks compressed, writes back to PDA, canonicalizes, and hashes.
+
+Function (to create in pda.rs):
+```rust
+pub fn modify_input_account<AI, A>(
+    account_info: &AI,
+    account_data: &mut A,
+) -> Result<(alloc::vec::Vec<u8>, [u8; 32]), LightSdkTypesError>
+where
+    AI: AccountInfoTrait,
+    A: HasCompressionInfo + LightDiscriminator + Clone + borsh::BorshSerialize,
+{
+    // A3: Mark as compressed
+    account_data.compression_info_mut()?.set_compressed();
+
+    // A1+A2: Write discriminator + serialized data back to PDA
+    {
+        let mut data = account_info
+            .try_borrow_mut_data()
+            .map_err(LightSdkTypesError::AccountError)?;
+        data[..8].copy_from_slice(&A::LIGHT_DISCRIMINATOR);
+        let writer = &mut &mut data[8..];
+        account_data
+            .serialize(writer)
+            .map_err(|_| LightSdkTypesError::Borsh)?;
+    }
+
+    // Canonicalize and hash
+    let data_bytes = canonicalize_for_hashing(account_data)?;
+    let output_data_hash = hash_account_data(&data_bytes)?;
+
+    Ok((data_bytes, output_data_hash))
+}
+```
+
+Update `prepare_account_for_compression` to call it:
+```rust
+// Replace lines 159-177 with:
+let (data_bytes, output_data_hash) = modify_input_account(account_info, account_data)?;
+```
+
+Contract:
+```rust
+#[cfg_attr(kani, kani::ensures(|result| {
+    kani::implies!(result.is_ok() => {
+        let (ref _data_bytes, ref hash) = *result.as_ref().unwrap();
+
+        // A3: account_data state is Compressed
+        account_data.compression_info().unwrap().state == CompressionState::Compressed
+
+        // C3: hash[0] == 0
+        && hash[0] == 0
+    })
+}))]
+```
+
+Properties: A3 (compressed state), C3 (hash first byte zero).
+A1+A2 (PDA data correctness) are risky in ensures -- covered by existing assertion harness.
+
+Harness:
+```rust
+#[kani::proof_for_contract(modify_input_account)]
+#[kani::unwind(34)]
+#[kani::stub(light_hasher::sha256::Sha256::hash, stub_sha256_hash)]
+fn verify_modify_input_account_contract() {
+    let program_id = [42u8; 32];
+    let value: u64 = kani::any();
+    kani::assume(value <= 1_000);
+
+    let mut test_account = TestAccount {
+        value,
+        compression_info: Some(CompressionInfo {
+            last_claimed_slot: 0,
+            lamports_per_write: 100,
+            config_version: 1,
+            state: CompressionState::Decompressed,
+            _padding: 0,
+            rent_config: RentConfig::default(),
+        }),
+    };
+
+    let mut pda_data = Vec::new();
+    pda_data.extend_from_slice(&TestAccount::LIGHT_DISCRIMINATOR);
+    borsh::BorshSerialize::serialize(&test_account, &mut pda_data).unwrap();
+
+    let pda_account = MockAccountInfo::new(
+        [10u8; 32], program_id, 1_000_000, &pda_data, false, true,
+    );
+
+    let _ = modify_input_account::<MockAccountInfo, TestAccount>(&pda_account, &mut test_account);
+}
+```
+
+### Task 2: Contract on `build_compression_output`
+
+Function: `pub fn build_compression_output<A: LightDiscriminator>(address, input_data_hash, output_data_hash, output_data, tree_info, root_index, output_state_tree_index) -> CompressedAccountInfo`
+
+Contract:
+```rust
+#[cfg_attr(kani, kani::ensures(|result| {
+    let input = result.input.as_ref().unwrap();
+    let output = result.output.as_ref().unwrap();
+
+    // D1: Address set
+    result.address == Some(address)
+
+    // B2-B5: Merkle context passthrough
+    && input.merkle_context.merkle_tree_pubkey_index == tree_info.merkle_tree_pubkey_index
+    && input.merkle_context.queue_pubkey_index == tree_info.queue_pubkey_index
+    && input.merkle_context.leaf_index == tree_info.leaf_index
+    && input.merkle_context.prove_by_index == tree_info.prove_by_index
+
+    // B6: Root index
+    && input.root_index == root_index
+
+    // B7-B8: Input constants
+    && input.discriminator == DECOMPRESSED_PDA_DISCRIMINATOR
+    && input.lamports == 0
+
+    // C4: Output discriminator
+    && output.discriminator == A::LIGHT_DISCRIMINATOR
+
+    // C5-C6: Output constants and passthrough
+    && output.lamports == 0
+    && output.output_merkle_tree_index == output_state_tree_index
+
+    // Data passthrough
+    && output.data_hash == output_data_hash
+    && input.data_hash == input_data_hash
+    && output.data == output_data
+}))]
+```
+
+Properties: B2-B8, C4-C6, D1, plus data/hash passthrough.
+Pure struct constructor -- contract is straightforward, proves for ALL symbolic inputs.
+
+## Layer 2 Tasks
+
+### Task 3: Contract on `prepare_account_for_compression` (decision + ctx mutations)
+
+Stubs Layer 1 functions + derive_address + Sha256. Focuses on decision correctness and ctx mutation properties.
+
+Stubs:
+- `modify_input_account` -- returns Ok((vec![], [0u8; 32]))
+- `build_compression_output` -- returns dummy CompressedAccountInfo
+- `Sha256BE::hash` -- reuse existing `stub_sha256_hash` (for input_data_hash)
+- `derive_address` -- returns deterministic address
+
+Contract:
+```rust
+#[cfg_attr(kani, kani::ensures(|result| {
+    let old_infos_len = old(ctx.compressed_account_infos.len());
+    let old_close_len = old(ctx.pda_indices_to_close.len());
+    let old_flag = old(ctx.has_non_compressible);
+
+    // Capture rent decision inputs before mutation
+    let old_last_claimed = old(account_data.compression_info().unwrap().last_claimed_slot());
+    let old_rent_config = old(account_data.compression_info().unwrap().rent_config);
+
+    kani::implies!(result.is_ok() => {
+        // Reconstruct rent decision
+        let rent_state = AccountRentState {
+            num_bytes: account_info.data_len() as u64,
+            current_slot: AI::get_current_slot().unwrap(),
+            current_lamports: account_info.lamports(),
+            last_claimed_slot: old_last_claimed,
+        };
+        let rent_exemption = AI::get_min_rent_balance(account_info.data_len()).unwrap();
+        let was_compressible = rent_state.is_compressible(&old_rent_config, rent_exemption).is_some();
+
+        let skipped = ctx.compressed_account_infos.len() == old_infos_len;
+        let compressed = ctx.compressed_account_infos.len() == old_infos_len + 1;
+
+        // F1+F2: Decision biconditional
+        (skipped == !was_compressible)
+
+        // G1: Push consistency
+        && (ctx.compressed_account_infos.len() - old_infos_len
+            == ctx.pda_indices_to_close.len() - old_close_len)
+
+        // G2: Correct index on compress
+        && kani::implies!(compressed =>
+            *ctx.pda_indices_to_close.last().unwrap() == pda_index)
+
+        // G3: Skip sets flag
+        && kani::implies!(skipped => ctx.has_non_compressible)
+
+        // G4: Monotonicity
+        && kani::implies!(old_flag => ctx.has_non_compressible)
+    })
+}))]
+```
+
+Properties: F1, F2, G1, G2, G3, G4
+
+Harness:
+```rust
+#[kani::proof_for_contract(prepare_account_for_compression)]
+#[kani::unwind(64)]
+#[kani::stub(modify_input_account, stub_modify_input_account)]
+#[kani::stub(build_compression_output, stub_build_compression_output)]
+#[kani::stub(light_hasher::sha256::Sha256BE::hash, stub_sha256_hash)]
+#[kani::stub(light_compressed_account::address::derive_address, stub_derive_address)]
+fn verify_prepare_contract() {
+    let program_id = [42u8; 32];
+    let value: u64 = kani::any();
+    kani::assume(value <= 1_000);
+
+    // Symbolic slot -- both low (non-compressible) and high (compressible)
+    let slot: u64 = kani::any();
+    kani::assume(slot <= 2_000_000);
+    set_mock_slot(slot);
+
+    // Symbolic lamports -- both high (non-compressible) and low (compressible)
+    let lamports: u64 = kani::any();
+    kani::assume(lamports <= 10_000_000);
+
+    let rent_config = RentConfig {
+        base_rent: 100,
+        compression_cost: 0,
+        lamports_per_byte_per_epoch: 1,
+        max_funded_epochs: 2,
+        max_top_up: 0,
+    };
+
+    let mut test_account = TestAccount {
+        value,
+        compression_info: Some(CompressionInfo {
+            last_claimed_slot: 0,
+            lamports_per_write: 100,
+            config_version: 1,
+            state: CompressionState::Decompressed,
+            _padding: 0,
+            rent_config,
+        }),
+    };
+
+    let mut pda_data = Vec::new();
+    pda_data.extend_from_slice(&TestAccount::LIGHT_DISCRIMINATOR);
+    borsh::BorshSerialize::serialize(&test_account, &mut pda_data).unwrap();
+
+    let pda_key = [10u8; 32];
+    let pda_account = MockAccountInfo::new(
+        pda_key, program_id, lamports, &pda_data, false, true,
+    );
+
+    let config = test_config(&program_id);
+    let rent_sponsor = MockAccountInfo::new(
+        config.rent_sponsor, program_id, 1_000_000, &[], false, true,
+    );
+
+    let remaining_accounts = [];
+    let mut ctx = CompressCtx {
+        program_id: &program_id,
+        remaining_accounts: &remaining_accounts,
+        rent_sponsor: &rent_sponsor,
+        light_config: &config,
+        compressed_account_infos: Vec::new(),
+        pda_indices_to_close: Vec::new(),
+        has_non_compressible: false,
+    };
+
+    let meta = CompressedAccountMetaNoLamportsNoAddress {
+        tree_info: PackedStateTreeInfo {
+            root_index: 0,
+            prove_by_index: false,
+            merkle_tree_pubkey_index: 0,
+            queue_pubkey_index: 0,
+            leaf_index: 0,
+        },
+        output_state_tree_index: 0,
+    };
+
+    let result = prepare_account_for_compression(
+        &pda_account, &mut test_account, &meta, 0, &mut ctx,
+    );
+
+    // Anti-vacuity: both paths must be reachable
+    kani::cover!(result.is_ok() && ctx.compressed_account_infos.len() == 1, "compress path");
+    kani::cover!(result.is_ok() && ctx.has_non_compressible, "skip path");
+}
+```
+
+Key: symbolic `slot` and `lamports` ensure BOTH the compressible and non-compressible paths are explored.
+
+## Properties Coverage
+
+| Property | Covered By |
+|---|---|
+| A3, C3 | Task 1 contract (modify_input_account) |
+| A1, A2 | Existing harness (verify_compression_serializes_back) |
+| B2-B8, C4-C6, D1 | Task 2 contract (build_compression_output) |
+| F1, F2 | Task 3 contract (prepare -- decision biconditional) |
+| G1-G4 | Task 3 contract (prepare -- ctx mutations) |
+| A4, A5 | Existing harness (verify_processor_non_compressible_skip) |
+| D2 | Existing harness (verify_compression_output) |
+| B1, C2 | Existing harnesses (via stub counter) |
+| C1, E1 | Existing harnesses (verify_canonicalize_*) |
+| H1-H3 | Vacuous with current stubs -- skip |
+
+## Verification
+
+Run each task's harness independently:
+```bash
+cargo kani -p sdk-types-kani --tests --harness <harness_name> -Z stubbing -Z function-contracts
+```
+
+After all tasks, run all harnesses together:
+```bash
+cargo kani -p sdk-types-kani --tests -Z stubbing -Z function-contracts
+```
+
+Check that existing assertion-based harnesses still pass too.
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ananas/.REDACTED.jsonl
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+use deepwiki
+
+---
+
+[Request interrupted by user]
+
+---
+
+<task-notification>
+<task-id>bd39932</task-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Background command "Run Task 2 kani harness with higher unwind" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: REDACTED.output
+
+---
+
+[Request interrupted by user]
+
+---
+
+<task-notification>
+<task-id>bd98b6c</task-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Background command "Run Task 3 harness with stub_verified" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: REDACTED.output
+
+---
+
+[Request interrupted by user]
+
+---
+
+<task-notification>
+<task-id>bb36aa3</task-id>
+<output-file>/private/tmp/claude-501/-Users-ananas-dev-light-protocol3/tasks/bb36aa3.output</output-file>
+<status>completed</status>
+<summary>Background command "Run Task 3 harness without Layer 1 stubs" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: /private/tmp/claude-501/-Users-ananas-dev-light-protocol3/tasks/bb36aa3.output
+
+---
+
+[Request interrupted by user]
+
+---
+
+⏺ CBMC has been running 14 minutes with growing memory. The proof_for_contract mechanism adds too much overhead for functions with borsh serialization. Let me take the pragmatic  
+  approach: keep contracts as documentation but use assertion-based proof harnesses (like the existing working ones).   no
+
+---
+
+[Request interrupted by user]
+
+---
+
+<task-notification>
+<task-id>bba1772</task-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Background command "Run Task 3 harness" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: REDACTED.output
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+<task-notification>
+<task-id>bac7f59</task-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Background command "Run Task 1 harness with pre-allocated buffer" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: REDACTED.output
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. The user asked to implement a plan for "Compositional Contracts for Compression" - a layered verification approach using Kani formal verification for `prepare_account_for_compression` and related functions.
+
+2. The plan has 3 tasks:
+   - Task 1: Extract `modify_input_account` from `prepare_account_for_compression`, add Kani contracts
+   - Task 2: Add contract to `build_compression_output`
+   - Task 3: Add contract to `prepare_account_for_compression` (Layer 2, stubs Layer 1)
+
+3. I read the key files: pda.rs, compression.rs (test harnesses), mock_account.rs, test_types.rs, Cargo.toml, compression_info.rs
+
+4. I implemented all three tasks:
+   - Added `modify_input_account` function to pda.rs with `#[cfg_attr(kani, kani::ensures(...))]`
+   - Added contract to `build_compression_output`
+   - Added contract to `prepare_account_for_compression` with `old()` for pre-state capture
+   - Updated `prepare_account_for_compression` body to call `modify_input_account`
+   - Added stub functions to mock_account.rs
+   - Added harnesses to compression.rs
+
+5. Errors encountered:
+   - `kani::implies!` syntax uses `=>` not `,` - fixed
+   - Task 2 failed with unwind too low (10) - increased to 34, then it PASSED (0.6s)
+   - Task 1 with `proof_for_contract` was extremely slow (20+ min, 38GB memory) - tried pre-allocated buffer, reduced memory to 12GB but still slow
+   - Task 3 with explicit `stub` on contracted functions failed: "Failed to find contract closure `__kani_recursion_check_build_compression_output`" - cross-crate stub/contract conflict
+   - Tried `stub_verified` - failed because `CompressedAccountInfo` doesn't implement `kani::Arbitrary`
+   - Tried running without stubs - completed in 16818s but FAILED with 8 "assignable" check failures (modifies-related)
+   - Added `modifies(account_data)` to `modify_input_account` - Task 1 completed in 8343s but FAILED with 3 "assignable" checks (sub-object writes not covered by parent modifies)
+   - Removed `modifies` - CBMC ran indefinitely
+
+6. User feedback:
+   - "also check /Users/ananas/dev/experiments/formally-verified-programs/test-programs/token" - reference code with good patterns
+   - "it uses old among others" and "has good patterns"
+   - "use deepwiki" instead of WebFetch
+   - "no I dont like that we should use contracts" - rejecting my proposal to fall back to assertion-based proofs
+
+7. Key findings from reference code:
+   - Contracts work on CONCRETE types, not generic functions
+   - `modifies` uses specific field references like `&accounts.mint.supply`
+   - `stub_verified` is used for compositional verification (Layer 2 stubs Layer 1)
+   - `proof_for_contract` verifies individual layers
+   - `old()` captures pre-state via accessor methods
+   - All types implement `kani::Arbitrary` for `stub_verified`
+   - Reference code uses zero-copy byte-level field access, not borsh serialization
+
+8. The fundamental issues:
+   - Generic functions can't have specific `modifies` (fields unknown at attribute level)
+   - `modifies(parent_struct)` doesn't cover sub-object writes through derived references
+   - Vec::push modifies internal heap memory incompatible with static `modifies`
+   - Cross-crate `stub` on contracted functions fails
+   - `stub_verified` requires `Arbitrary` on return types
+
+9. Current state of code changes:
+   - pda.rs: Has `modify_input_account` extracted, contracts on all 3 functions (ensures, requires with old()), body refactored
+   - mock_account.rs: Has `stub_modify_input_account` and `stub_build_compression_output` added
+   - compression.rs: Has 3 new harnesses (verify_modify_input_account using proof, verify_build_compression_output_contract using proof_for_contract, verify_prepare_contract using proof_for_contract with stub)
+
+10. Task 2 (build_compression_output) is the ONLY successfully verified contract (pure function, 0.6s).
+
+11. I was about to convert Tasks 1 and 3 to assertion-based `proof` harnesses when the user rejected that approach saying "no I dont like that we should use contracts."
+
+12. The user wants actual `proof_for_contract` verification, not assertion-based fallbacks.
+
+Let me capture the current file states accurately.
+
+Current pda.rs state (after all edits):
+- `hash_account_data` unchanged
+- NEW `modify_input_account` with ensures contract (no modifies)
+- `build_compression_output` with ensures contract (verified successfully)
+- `canonicalize_for_hashing` unchanged
+- `prepare_account_for_compression` with requires + ensures contract using old(), body refactored to call modify_input_account
+
+Current compression.rs harness state:
+- Existing harnesses unchanged
+- NEW `verify_modify_input_account` (was proof_for_contract, last edit attempt was to convert to proof but was REJECTED by user)
+- NEW `verify_build_compression_output_contract` (proof_for_contract, VERIFIED SUCCESSFULLY)
+- NEW `verify_prepare_contract` (proof_for_contract with stub attributes - last version uses Sha256::hash and derive_address stubs only, not stub_verified)
+
+Current mock_account.rs:
+- Added `stub_modify_input_account` and `stub_build_compression_output`
+
+Background tasks status:
+- Task tracking: #1 in_progress, #2 completed, #3 pending
+- Multiple background kani runs completed/killed
+
+Summary:
+1. Primary Request and Intent:
+   The user asked to implement a plan titled "Compositional Contracts for Compression" - a layered formal verification approach using Kani for the compression functions in Light Protocol. The plan specifies:
+   - Layer 1: `modify_input_account` (NEW, extracted) and `build_compression_output` with independent contracts
+   - Layer 2: `prepare_account_for_compression` with contracts that stub Layer 1
+   - Properties to verify: A1-A3 (PDA data), B2-B8 (Merkle context), C3-C6 (hash/output), D1 (address), F1-F2 (decision), G1-G4 (ctx mutations)
+   
+   The user explicitly wants `proof_for_contract` with Kani contracts (`ensures`, `requires`, `old()`, `modifies`), NOT assertion-based proof harnesses. The user rejected a fallback to assertion-based proofs.
+
+2. Key Technical Concepts:
+   - Kani formal verification (v0.67) with function contracts (`ensures`, `requires`, `modifies`, `old()`)
+   - `proof_for_contract` harnesses vs assertion-based `proof` harnesses
+   - `stub_verified` for compositional verification (assumes contract, replaces body)
+   - `#[kani::stub]` for explicit function stubbing
+   - Borsh serialization in Kani verification context
+   - CBMC backend for Kani (SAT solving, unwinding, memory modeling)
+   - Cross-crate contract limitations in Kani
+   - `modifies` attribute semantics for sub-object writes through derived references
+   - Reference implementation at `/Users/ananas/dev/experiments/formally-verified-programs/test-programs/token` uses concrete types with zero-copy byte-level field access
+
+3. Files and Code Sections:
+
+   - `/Users/ananas/dev/light-protocol3/sdk-libs/sdk-types/src/interface/program/compression/pda.rs`
+     - Core file containing all 3 functions being verified
+     - **Changes made**: Extracted `modify_input_account`, added contracts to all 3 functions, refactored `prepare_account_for_compression` body
+     - Current state after all edits:
+     ```rust
+     // Lines 35-70: NEW modify_input_account with ensures contract
+     #[cfg_attr(kani, kani::ensures(|result| {
+         kani::implies!(result.is_ok() =>
+             account_data.compression_info().unwrap().state
+                 == crate::interface::account::compression_info::CompressionState::Compressed
+             && result.as_ref().unwrap().1[0] == 0
+         )
+     }))]
+     pub fn modify_input_account<AI, A>(
+         account_info: &AI,
+         account_data: &mut A,
+     ) -> Result<(alloc::vec::Vec<u8>, [u8; 32]), LightSdkTypesError>
+     where
+         AI: AccountInfoTrait,
+         A: HasCompressionInfo + LightDiscriminator + Clone + borsh::BorshSerialize,
+     {
+         account_data.compression_info_mut()?.set_compressed();
+         {
+             let mut data = account_info.try_borrow_mut_data().map_err(LightSdkTypesError::AccountError)?;
+             data[..8].copy_from_slice(&A::LIGHT_DISCRIMINATOR);
+             let writer = &mut &mut data[8..];
+             account_data.serialize(writer).map_err(|_| LightSdkTypesError::Borsh)?;
+         }
+         let data_bytes = canonicalize_for_hashing(account_data)?;
+         let output_data_hash = hash_account_data(&data_bytes)?;
+         Ok((data_bytes, output_data_hash))
+     }
+     
+     // Lines 77-93: build_compression_output with ensures contract (VERIFIED SUCCESSFULLY)
+     #[cfg_attr(kani, kani::ensures(|result| {
+         let input = result.input.as_ref().unwrap();
+         let output = result.output.as_ref().unwrap();
+         result.address == Some(address)
+         && input.merkle_context.merkle_tree_pubkey_index == tree_info.merkle_tree_pubkey_index
+         && input.merkle_context.queue_pubkey_index == tree_info.queue_pubkey_index
+         && input.merkle_context.leaf_index == tree_info.leaf_index
+         && input.merkle_context.prove_by_index == tree_info.prove_by_index
+         && input.root_index == root_index
+         && input.discriminator == DECOMPRESSED_PDA_DISCRIMINATOR
+         && input.lamports == 0
+         && output.discriminator == A::LIGHT_DISCRIMINATOR
+         && output.lamports == 0
+         && output.output_merkle_tree_index == output_state_tree_index
+         && output.data_hash == output_data_hash
+         && input.data_hash == input_data_hash
+     }))]
+     pub fn build_compression_output<A: LightDiscriminator>(...)
+     
+     // Lines 161-194: prepare_account_for_compression with requires + ensures using old()
+     #[cfg_attr(kani, kani::requires(account_data.compression_info().is_ok()))]
+     #[cfg_attr(kani, kani::ensures(|result| {
+         let old_infos_len = old(ctx.compressed_account_infos.len());
+         let old_close_len = old(ctx.pda_indices_to_close.len());
+         let old_flag = old(ctx.has_non_compressible);
+         let old_last_claimed = old(account_data.compression_info().unwrap().last_claimed_slot());
+         let old_rent_config = old(account_data.compression_info().unwrap().rent_config);
+         kani::implies!(result.is_ok() => {
+             let rent_state = light_compressible::rent::AccountRentState {
+                 num_bytes: account_info.data_len() as u64,
+                 current_slot: AI::get_current_slot().unwrap(),
+                 current_lamports: account_info.lamports(),
+                 last_claimed_slot: old_last_claimed,
+             };
+             let rent_exemption = AI::get_min_rent_balance(account_info.data_len()).unwrap();
+             let was_compressible = rent_state.is_compressible(&old_rent_config, rent_exemption).is_some();
+             let skipped = ctx.compressed_account_infos.len() == old_infos_len;
+             let compressed = ctx.compressed_account_infos.len() == old_infos_len + 1;
+             (skipped == !was_compressible)
+             && (ctx.compressed_account_infos.len() - old_infos_len
+                 == ctx.pda_indices_to_close.len() - old_close_len)
+             && (skipped || ctx.pda_indices_to_close.last() == Some(&pda_index))
+             && kani::implies!(skipped => ctx.has_non_compressible)
+             && kani::implies!(old_flag => ctx.has_non_compressible)
+         })
+     }))]
+     pub fn prepare_account_for_compression<AI, A>(...)
+     
+     // Body refactored - lines 246-247:
+     let (data_bytes, output_data_hash) = modify_input_account(account_info, account_data)?;
+     ```
+
+   - `/Users/ananas/dev/light-protocol3/sdk-tests/sdk-types-kani/tests/kani_proofs/compression.rs`
+     - Test harnesses file with existing and new harnesses
+     - **Changes made**: Added imports for `modify_input_account` and `build_compression_output`, added 3 new harnesses
+     - Current harness state (after last successful edit):
+     ```rust
+     // verify_build_compression_output_contract - VERIFIED SUCCESSFULLY (0.6s)
+     #[kani::proof_for_contract(build_compression_output)]
+     #[kani::unwind(34)]
+     fn verify_build_compression_output_contract() {
+         let address: [u8; 32] = kani::any();
+         let input_data_hash: [u8; 32] = kani::any();
+         let output_data_hash: [u8; 32] = kani::any();
+         let output_data: Vec<u8> = kani::vec::exact_vec::<u8, 8>();
+         let tree_info = PackedStateTreeInfo { root_index: kani::any(), prove_by_index: kani::any(), merkle_tree_pubkey_index: kani::any(), queue_pubkey_index: kani::any(), leaf_index: kani::any() };
+         let root_index: u16 = kani::any();
+         let output_state_tree_index: u8 = kani::any();
+         let _ = build_compression_output::<TestAccount>(address, input_data_hash, output_data_hash, output_data, tree_info, root_index, output_state_tree_index);
+     }
+     
+     // verify_modify_input_account_contract - NOT YET WORKING
+     #[kani::proof_for_contract(modify_input_account)]
+     #[kani::unwind(64)]
+     #[kani::solver(cadical)]
+     #[kani::stub(light_hasher::sha256::Sha256::hash, sdk_types_kani::mock_account::stub_sha256_hash)]
+     fn verify_modify_input_account_contract() {
+         reset_hash_counter();
+         let program_id = [42u8; 32];
+         let value: u64 = kani::any();
+         kani::assume(value <= 1_000);
+         let mut test_account = TestAccount { value, compression_info: Some(CompressionInfo { ... }) };
+         let pda_data = [0u8; 41]; // Pre-allocated to avoid Vec growth
+         let pda_account = MockAccountInfo::new([10u8; 32], program_id, 1_000_000, &pda_data, false, true);
+         let _ = modify_input_account::<MockAccountInfo, TestAccount>(&pda_account, &mut test_account);
+     }
+     
+     // verify_prepare_contract - NOT YET WORKING
+     #[kani::proof_for_contract(prepare_account_for_compression)]
+     #[kani::unwind(64)]
+     #[kani::stub(light_hasher::sha256::Sha256::hash, sdk_types_kani::mock_account::stub_sha256_hash)]
+     #[kani::stub(light_compressed_account::address::derive_address, sdk_types_kani::mock_account::stub_derive_address)]
+     fn verify_prepare_contract() { /* symbolic slot/lamports, covers both compress and skip paths */ }
+     ```
+
+   - `/Users/ananas/dev/light-protocol3/sdk-tests/sdk-types-kani/src/mock_account.rs`
+     - Mock AccountInfoTrait implementation and stubs
+     - **Changes made**: Added `stub_modify_input_account` and `stub_build_compression_output` before the `impl AccountInfoTrait` block
+     ```rust
+     pub fn stub_modify_input_account<AI, A>(_account_info: &AI, _account_data: &mut A,
+     ) -> Result<(Vec<u8>, [u8; 32]), light_sdk_types::error::LightSdkTypesError>
+     where AI: AccountInfoTrait, A: HasCompressionInfo + LightDiscriminator + Clone + borsh::BorshSerialize,
+     { Ok((Vec::new(), [0u8; 32])) }
+     
+     pub fn stub_build_compression_output<A: light_sdk_types::LightDiscriminator>(
+         _address: [u8; 32], _input_data_hash: [u8; 32], _output_data_hash: [u8; 32],
+         _output_data: Vec<u8>, _tree_info: light_sdk_types::instruction::PackedStateTreeInfo,
+         _root_index: u16, _output_state_tree_index: u8,
+     ) -> light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo {
+         light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo { address: None, input: None, output: None }
+     }
+     ```
+
+   - `/Users/ananas/dev/light-protocol3/sdk-tests/sdk-types-kani/src/test_types.rs` - Read only, TestAccount and TestAccountBytes definitions
+   - `/Users/ananas/dev/light-protocol3/sdk-libs/sdk-types/src/interface/account/compression_info.rs` - Read only, CompressionInfo, HasCompressionInfo trait
+   - `/Users/ananas/dev/light-protocol3/sdk-tests/sdk-types-kani/Cargo.toml` - Read only
+   - `/Users/ananas/dev/experiments/formally-verified-programs/test-programs/token` - Reference code studied via subagent
+
+4. Errors and fixes:
+   - **`kani::implies!` syntax error**: Used `,` instead of `=>`. Fixed by changing to `kani::implies!(result.is_ok() => ...)`.
+   - **Task 2 unwind too low (10)**: `memcmp` unwinding assertion failed. Fixed by increasing to `#[kani::unwind(34)]`. Task 2 then PASSED in 0.6s.
+   - **Task 1 extreme slowness without modifies**: `proof_for_contract` on `modify_input_account` ran 20+ min at 38GB. Partially mitigated by using pre-allocated `[0u8; 41]` instead of Vec for PDA data (reduced to 12GB), but still slow. Not fully resolved.
+   - **Task 1 with `modifies(account_data)` - assignable failures**: Completed in 8343s but FAILED with 3 checks: `self->state` not assignable (set_compressed), `*dst` not assignable (atomic hash counter), `memcpy` not assignable (PDA data write). Root cause: kani's `modifies` doesn't transitively cover sub-object writes through derived references.
+   - **Cross-crate stub on contracted function**: `#[kani::stub(build_compression_output, stub_fn)]` failed with "Failed to find contract closure `__kani_recursion_check_build_compression_output`". Contract closures generated in sdk-types are not visible to sdk-types-kani test crate.
+   - **`stub_verified` requires Arbitrary**: `CompressedAccountInfo` doesn't implement `kani::Arbitrary`. Error: "doesn't implement kani::Arbitrary. All objects in the modifies clause must implement the Arbitrary."
+   - **Task 3 without stubs, proof_for_contract**: Completed in 16818s but FAILED with 8 "assignable" check failures for Vec::push internal fields, set_compressed, PDA data, hash counter.
+   - **User rejected assertion-based fallback**: I proposed converting to `#[kani::proof]` with assertions. User said "no I dont like that we should use contracts."
+
+5. Problem Solving:
+   - **SOLVED**: Task 2 (build_compression_output) - pure function contract verified with `proof_for_contract` in 0.6s
+   - **UNSOLVED**: Task 1 (modify_input_account) - `proof_for_contract` either too slow (without modifies) or fails on assignable checks (with modifies). The fundamental issue is kani's `modifies` doesn't cover nested field writes through generic type parameters.
+   - **UNSOLVED**: Task 3 (prepare_account_for_compression) - multiple issues: cross-crate stub conflicts, Arbitrary requirements for stub_verified, assignable failures for Vec::push. Vec push is fundamentally incompatible with kani's static `modifies` mechanism.
+   - **KEY INSIGHT from reference code**: The reference implementation uses CONCRETE types with zero-copy byte-level field access and specific field references in `modifies` (e.g., `&accounts.mint.supply`). Our code uses GENERIC types with borsh serialization, making precise `modifies` impossible at the attribute level.
+
+6. All user messages:
+   - "Implement the following plan: [Compositional Contracts for Compression plan]" - initial request with full plan
+   - "also check /Users/ananas/dev/experiments/formally-verified-programs/test-programs/token" - pointing to reference code
+   - "it uses old among others" - clarifying the reference code uses kani `old()` 
+   - "and has good patterns" - emphasizing the reference code quality
+   - "use deepwiki" - when I tried WebFetch, user redirected to use deepwiki MCP tool
+   - "no I dont like that we should use contracts" - REJECTING my proposal to fall back to assertion-based `#[kani::proof]` harnesses, insisting on `proof_for_contract` approach
+
+7. Pending Tasks:
+   - Task 1: Make `proof_for_contract` work for `modify_input_account` (need to solve modifies issue)
+   - Task 3: Make `proof_for_contract` work for `prepare_account_for_compression` (need to solve stub + modifies issues)
+   - Verify all existing harnesses still pass after the refactor
+   - Run all harnesses together: `cargo kani -p sdk-types-kani --tests -Z stubbing -Z function-contracts`
+
+8. Current Work:
+   I was studying the reference code patterns from `/Users/ananas/dev/experiments/formally-verified-programs/test-programs/token` to understand how to properly use `modifies` with `proof_for_contract`. The user rejected my attempt to convert to assertion-based proofs. The last rejected edit was converting `verify_modify_input_account_contract` from `proof_for_contract` to `proof` with assertions.
+
+   The core unresolved problem is: how to make `modifies` work for generic functions that write to nested fields. The reference code solves this by using concrete types with specific field references. A potential approach (not yet attempted) is creating concrete wrapper functions in the test crate with specific `modifies` targeting TestAccount's fields.
+
+9. Optional Next Step:
+   Based on the user's insistence on using contracts ("no I dont like that we should use contracts"), the next step is to find a way to make `proof_for_contract` work for Tasks 1 and 3. The most promising approach (learned from the reference code) is:
+   
+   1. Create concrete wrapper functions in the test file that call the generic functions with MockAccountInfo + TestAccount
+   2. Put contracts with precise `modifies` on the concrete wrappers (e.g., `modifies(&account_data.compression_info)` or lower-level field references)
+   3. Need to expose MockAccountInfo's data pointer and make HASH_COUNTER accessible for modifies
+   4. Test a minimal case first to understand if `modifies(account_data)` can cover sub-object writes through `&mut TestAccount`
+   
+   I was about to test this approach when the user's rejection of assertion-based proofs halted progress. Need to explore whether kani's `modifies` can work with direct field references on concrete types (following the reference code's pattern of `&accounts.mint.supply`).
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ananas/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+[Request interrupted by user]
