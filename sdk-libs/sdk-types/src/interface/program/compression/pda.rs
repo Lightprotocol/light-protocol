@@ -3,6 +3,8 @@
 //! These functions are generic over account types and can be reused by the macro.
 //! The compress flow uses a dispatch callback pattern (same as decompress).
 
+use alloc::vec::Vec;
+
 use light_account_checks::AccountInfoTrait;
 use light_compressed_account::{
     address::derive_address,
@@ -111,8 +113,11 @@ where
     *compressed_data.compression_info_mut()? =
         crate::interface::account::compression_info::CompressionInfo::compressed();
 
-    // Hash the data (discriminator NOT included per protocol convention)
-    let data_bytes = borsh::to_vec(&compressed_data).map_err(|_| LightSdkTypesError::Borsh)?;
+    // Serialize with disc prefix: disc(8) + borsh(struct) — mirrors on-chain layout.
+    let borsh_bytes = borsh::to_vec(&compressed_data).map_err(|_| LightSdkTypesError::Borsh)?;
+    let mut data_bytes = Vec::with_capacity(8 + borsh_bytes.len());
+    data_bytes.extend_from_slice(&A::LIGHT_DISCRIMINATOR);
+    data_bytes.extend_from_slice(&borsh_bytes);
     let mut output_data_hash = Sha256::hash(&data_bytes).map_err(LightSdkTypesError::Hasher)?;
     output_data_hash[0] = 0; // Zero first byte per protocol convention
 

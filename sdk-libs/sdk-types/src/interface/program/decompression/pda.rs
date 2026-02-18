@@ -92,11 +92,15 @@ where
         return Ok(());
     }
 
-    // 5. Hash with canonical CompressionInfo::compressed() for input verification
-    let data_bytes = account_data
+    // 5. Hash with canonical CompressionInfo::compressed() for input verification.
+    // data = disc(8) + borsh(struct) — mirrors on-chain layout.
+    let borsh_bytes = account_data
         .try_to_vec()
         .map_err(|_| LightSdkTypesError::Borsh)?;
-    let data_len = data_bytes.len();
+    let data_len = borsh_bytes.len();
+    let mut data_bytes = Vec::with_capacity(8 + data_len);
+    data_bytes.extend_from_slice(&<Data<SEED_COUNT, P> as LightDiscriminator>::LIGHT_DISCRIMINATOR);
+    data_bytes.extend_from_slice(&borsh_bytes);
     let mut input_data_hash = Sha256BE::hash(&data_bytes)?;
     input_data_hash[0] = 0; // Zero first byte per protocol convention
 
