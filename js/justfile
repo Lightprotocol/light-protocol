@@ -7,6 +7,10 @@ build:
     cd stateless.js && pnpm build
     cd compressed-token && pnpm build
 
+build-token-kit:
+    cd token-sdk && pnpm build
+    cd token-client && pnpm build
+
 test: test-stateless test-compressed-token
 
 test-stateless:
@@ -18,9 +22,31 @@ test-compressed-token:
 test-compressed-token-unit-v2:
     cd compressed-token && pnpm test:unit:all:v2
 
+test-token-sdk:
+    cd token-sdk && pnpm test
+
+test-token-client:
+    cd token-client && pnpm test
+
+test-token-kit: test-token-sdk test-token-client
+
+start-validator:
+    ./../cli/test_bin/run test-validator
+
+test-token-sdk-e2e: start-validator
+    cd token-sdk && LIGHT_PROTOCOL_VERSION=V2 LIGHT_PROTOCOL_BETA=true pnpm test:e2e
+
+test-token-client-e2e: start-validator
+    cd token-client && LIGHT_PROTOCOL_VERSION=V2 LIGHT_PROTOCOL_BETA=true pnpm test:e2e
+
+test-token-kit-e2e: start-validator test-token-sdk-e2e test-token-client-e2e
+
 lint:
     cd stateless.js && pnpm lint
     cd compressed-token && pnpm lint
+
+lint-token-kit:
+    cd token-sdk && pnpm lint
 
 format:
     cd stateless.js && pnpm format
