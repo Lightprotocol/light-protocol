@@ -1,0 +1,101 @@
+let token_metadata_binding = if has_metadata {
+            let name_expr = mint.name.as_ref().map(|e| quote! { #e }).unwrap();
+            let symbol_expr = mint.symbol.as_ref().map(|e| quote! { #e }).unwrap();
+            let uri_expr = mint.uri.as_ref().map(|e| quote! { #e }).unwrap(); in 
+sdk-libs/macros/src/light_pdas/accounts/builder.rs
+ switch unwraps to expect
+
+---
+
+[Request interrupted by user]
+
+---
+
+the naming should be so that it makes sense to someone debugging the macro
+
+---
+
+[Request interrupted by user]
+
+---
+
+name is required for metadata
+the
+
+---
+
+ok do we have any other unwraps in builder.rs?
+
+---
+
+[Request interrupted by user]
+
+---
+
+ok do we have any other unwraps in builder.rs?
+
+---
+
+In `@sdk-libs/sdk-types/src/interface/accounts/create_accounts.rs` around lines
+396 - 417, Lift the duplicate CreateTokenAtaCpi construction out of the
+conditional: inside the atas loop build a single CreateTokenAtaCpi instance
+using shared.fee_payer, ata.owner, ata.mint, ata.ata, then if ata.idempotent
+call .idempotent() on that instance else keep the base instance, and finally
+call .rent_free(compressible_config, rent_sponsor, system_program).invoke()?;
+this preserves the type-state flow of CreateTokenAtaCpi ->
+CreateTokenAtaCpiIdempotent while removing duplicated struct construction and
+keeping .rent_free()/.invoke() applied to the resulting value.
+
+---
+
+In `@sdk-libs/sdk-types/src/interface/accounts/create_accounts.rs` around lines
+168 - 185, The code constructs a CpiAccounts (via CpiAccounts::new_with_config
+and CpiAccountsConfig::new/_with_cpi_context) even when PDAS == 0 and MINTS == 0
+and the resulting cpi_accounts is never used by create_token_vaults or
+create_atas; avoid the unnecessary validation/slicing by guarding construction:
+check the conditions (e.g., if shared.proof.PDAS > 0 || shared.proof.MINTS > 0)
+before creating CpiAccounts and only call CpiAccounts::new_with_config when
+needed, otherwise skip building cpi_accounts (or make it an Option) and
+propagate that to callers so unused allocation/validation is not performed;
+refer to symbols CpiAccounts, CpiAccountsConfig, create_token_vaults,
+create_atas, remaining_accounts, and shared.proof.system_accounts_offset when
+applying the change.
+
+---
+
+In `@sdk-libs/sdk-types/src/interface/accounts/create_accounts.rs` around lines
+105 - 140, In create_accounts, the pda_setup closure parameter is silently
+ignored when the const generic PDAS == 0; add a short runtime/debug assertion
+and/or an inline comment just before the PDAS > 0 check to document and assert
+this behavior so callers aren’t surprised (reference the create_accounts
+function, the pda_setup parameter, and the PDAS const generic); specifically,
+add a brief debug_assert or explicit comment indicating “pda_setup is
+intentionally not called when PDAS == 0” and consume/drop the closure in that
+branch if needed to avoid unused-value warnings.
+
+---
+
+do this / create_accounts SDK function and parameter types
+#[cfg(feature = "token")], 
+
+we should add a light-account feature that contains cpi-context and token
+
+---
+
+we need to use it correctly in light-account and light-account-pinocchio
+
+---
+
+[Request interrupted by user]
+
+---
+
+wes
+
+---
+
+[Request interrupted by user]
+
+---
+
+it should import light-sdk-types witht the light-account feature always
