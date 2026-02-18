@@ -47,8 +47,8 @@ use syn::{
 
 use super::mint::LightMintField;
 use crate::light_pdas::light_account_keywords::{
-    is_shorthand_key, is_standalone_keyword, missing_namespace_error, valid_keys_for_namespace,
-    validate_namespaced_key,
+    is_boolean_flag_key, is_shorthand_key, is_standalone_keyword, missing_namespace_error,
+    valid_keys_for_namespace, validate_namespaced_key,
 };
 pub(super) use crate::light_pdas::seeds::extract_account_inner_type;
 
@@ -132,6 +132,9 @@ pub struct AtaField {
     pub owner: Expr,
     /// Mint for the ATA (from associated_token::mint = ... parameter)
     pub mint: Expr,
+    /// Whether to use idempotent ATA creation.
+    /// Set via `associated_token::idempotent` flag (presence = true, absence = false).
+    pub idempotent: bool,
 }
 
 // ============================================================================
@@ -153,7 +156,19 @@ impl Parse for NamespacedKeyValue {
         let key: Ident = input.parse()?;
 
         // Check for shorthand syntax (key alone without = value)
+        let namespace_str = namespace.to_string();
+        let key_str = key.to_string();
         let value: Expr = if input.peek(Token![=]) {
+            // Reject explicit `= value` for boolean flag keys
+            if is_boolean_flag_key(&namespace_str, &key_str) {
+                return Err(Error::new_spanned(
+                    &key,
+                    format!(
+                        "`{}::{}` is a boolean flag — write it without a value (e.g., `{}::{}`)",
+                        namespace_str, key_str, namespace_str, key_str
+                    ),
+                ));
+            }
             input.parse::<Token![=]>()?;
 
             // Handle bracketed content for authority and seeds arrays
@@ -174,10 +189,11 @@ impl Parse for NamespacedKeyValue {
             }
         } else {
             // Shorthand: key alone means key = key
-            let namespace_str = namespace.to_string();
-            let key_str = key.to_string();
             if is_shorthand_key(&namespace_str, &key_str) {
                 syn::parse_quote!(#key)
+            } else if is_boolean_flag_key(&namespace_str, &key_str) {
+                // Boolean flag: presence means true
+                syn::parse_quote!(true)
             } else {
                 return Err(Error::new_spanned(
                     &key,
@@ -301,6 +317,16 @@ impl Parse for LightAccountArgs {
 
             // Parse value (handle shorthand and array syntax)
             let value: Expr = if input.peek(Token![=]) {
+                // Reject explicit `= value` for boolean flag keys
+                if is_boolean_flag_key(&namespace_str, &key_str) {
+                    return Err(Error::new_spanned(
+                        &key,
+                        format!(
+                            "`{}::{}` is a boolean flag — write it without a value (e.g., `{}::{}`)",
+                            namespace_str, key_str, namespace_str, key_str
+                        ),
+                    ));
+                }
                 input.parse::<Token![=]>()?;
 
                 // Handle bracketed content for authority and seeds arrays
@@ -324,6 +350,9 @@ impl Parse for LightAccountArgs {
                 // Shorthand: key alone means key = key
                 if is_shorthand_key(&namespace_str, &key_str) {
                     syn::parse_quote!(#key)
+                } else if is_boolean_flag_key(&namespace_str, &key_str) {
+                    // Boolean flag: presence means true
+                    syn::parse_quote!(true)
                 } else {
                     return Err(Error::new_spanned(
                         &key,
@@ -1005,11 +1034,16 @@ fn build_ata_field(
 ) -> Result<AtaField, syn::Error> {
     let mut owner: Option<Expr> = None; // from associated_token::authority
     let mut mint: Option<Expr> = None;
+    let mut idempotent: bool = false;
 
     for kv in key_values {
         match kv.key.to_string().as_str() {
             "authority" => owner = Some(kv.value.clone()), // authority -> owner
             "mint" => mint = Some(kv.value.clone()),
+            "idempotent" => {
+                // Value is always synthesized `true` by the parser (flag semantics).
+                idempotent = true;
+            }
             "bump" => {
                 return Err(Error::new_spanned(
                     &kv.key,
@@ -1020,7 +1054,7 @@ fn build_ata_field(
                 return Err(Error::new_spanned(
                     &kv.key,
                     format!(
-                        "Unknown key `associated_token::{}`. Allowed: authority, mint",
+                        "Unknown key `associated_token::{}`. Allowed: authority, mint, idempotent",
                         other
                     ),
                 ));
@@ -1047,6 +1081,7 @@ fn build_ata_field(
         has_init,
         owner,
         mint,
+        idempotent,
     })
 }
 
@@ -1506,6 +1541,7 @@ mod tests {
             LightAccountField::AssociatedToken(ata) => {
                 assert_eq!(ata.field_ident.to_string(), "user_ata");
                 assert!(!ata.has_init, "Mark-only should have has_init = false");
+                assert_eq!(ata.idempotent, false, "idempotent should default to false");
             }
             _ => panic!("Expected AssociatedToken field"),
         }
@@ -1528,9 +1564,83 @@ mod tests {
             LightAccountField::AssociatedToken(ata) => {
                 assert_eq!(ata.field_ident.to_string(), "user_ata");
                 assert!(ata.has_init);
+                assert_eq!(ata.idempotent, false, "idempotent should default to false");
             }
             _ => panic!("Expected AssociatedToken field"),
         }
+    }
+
+    #[test]
+    fn test_parse_associated_token_idempotent_absent_is_false() {
+        let field: syn::Field = parse_quote! {
+            #[light_account(init, associated_token::authority = owner, associated_token::mint = mint)]
+            pub user_ata: Account<'info, CToken>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident, &None);
+        assert!(result.is_ok());
+        match result.unwrap().unwrap() {
+            LightAccountField::AssociatedToken(ata) => {
+                assert_eq!(
+                    ata.idempotent, false,
+                    "absent idempotent flag should be false"
+                );
+            }
+            _ => panic!("Expected AssociatedToken field"),
+        }
+    }
+
+    #[test]
+    fn test_parse_associated_token_idempotent_flag_is_true() {
+        let field: syn::Field = parse_quote! {
+            #[light_account(init,
+                associated_token::authority = owner,
+                associated_token::mint = mint,
+                associated_token::idempotent)]
+            pub user_ata: Account<'info, CToken>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident, &None);
+        assert!(
+            result.is_ok(),
+            "idempotent flag should parse successfully: {:?}",
+            result.err()
+        );
+        match result.unwrap().unwrap() {
+            LightAccountField::AssociatedToken(ata) => {
+                assert_eq!(
+                    ata.idempotent, true,
+                    "present idempotent flag should be true"
+                );
+            }
+            _ => panic!("Expected AssociatedToken field"),
+        }
+    }
+
+    #[test]
+    fn test_parse_associated_token_idempotent_with_value_fails() {
+        let field: syn::Field = parse_quote! {
+            #[light_account(init,
+                associated_token::authority = owner,
+                associated_token::mint = mint,
+                associated_token::idempotent = true)]
+            pub user_ata: Account<'info, CToken>
+        };
+        let ident = field.ident.clone().unwrap();
+
+        let result = parse_light_account_attr(&field, &ident, &None);
+        assert!(
+            result.is_err(),
+            "idempotent with explicit value should be rejected"
+        );
+        let err = result.err().unwrap().to_string();
+        assert!(
+            err.contains("boolean flag"),
+            "Expected boolean flag error, got: {}",
+            err
+        );
     }
 
     #[test]

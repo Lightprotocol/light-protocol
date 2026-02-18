@@ -853,12 +853,13 @@ fn generate_ata_init_params(fields: &[&AtaField]) -> (TokenStream, Vec<TokenStre
             let #mint_info_ident = self.#mint.to_account_info();
         });
 
+        let idempotent_val = field.idempotent;
         params.push(quote! {
             light_account::AtaInitParam {
                 ata: &#ata_info_ident,
                 owner: &#owner_info_ident,
                 mint: &#mint_info_ident,
-                idempotent: true,
+                idempotent: #idempotent_val,
             }
         });
     }
