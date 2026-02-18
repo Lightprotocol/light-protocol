@@ -1,0 +1,44 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "5a3de7e68923",
+  "strategy": "manual-commit",
+  "branch": "jorrit/fix-system-program-addresses",
+  "checkpoints_count": 10,
+  "files_touched": [
+    ".claude/logic-review-process-20260218-report.md",
+    ".claude/tmp/jorrit-fix-system-program-addresses-0/phase2-P1-trace.json",
+    ".claude/tmp/jorrit-fix-system-program-addresses-0/phase2-P2-trace.json",
+    ".claude/tmp/jorrit-fix-system-program-addresses-0/phase2-P3-trace.json",
+    ".claude/tmp/jorrit-fix-system-program-addresses-0/phase2-P4-trace.json",
+    ".claude/tmp/jorrit-fix-system-program-addresses-0/phase2-P5-trace.json",
+    ".claude/tmp/jorrit-fix-system-program-addresses-0/phase3-P3-validation.json",
+    "forester/node_modules/@lightprotocol/.ignored_zk-compression-cli/package.json",
+    "js/compressed-token/docs/interface.md",
+    "js/compressed-token/docs/payment-integration.md",
+    "js/compressed-token/src/v3/utils/estimate-tx-size.ts",
+    "js/compressed-token/tests/e2e/input-selection.test.ts",
+    "js/compressed-token/tests/e2e/multi-cold-inputs-batching.test.ts",
+    "js/compressed-token/tests/unit/constants.test.ts",
+    "js/compressed-token/tests/unit/estimate-tx-size.test.ts",
+    "js/compressed-token/tests/unit/instructions-max-top-up.test.ts",
+    "js/compressed-token/tests/unit/parse-account-fields.test.ts",
+    "js/compressed-token/tests/unit/select-inputs.test.ts",
+    "programs/system/src/processor/process.rs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/5a/3de7e68923/0/metadata.json",
+      "transcript": "/5a/3de7e68923/0/full.jsonl",
+      "context": "/5a/3de7e68923/0/context.md",
+      "content_hash": "/5a/3de7e68923/0/content_hash.txt",
+      "prompt": "/5a/3de7e68923/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 100,
+    "cache_creation_tokens": 271224,
+    "cache_read_tokens": 6367883,
+    "output_tokens": 1762,
+    "api_call_count": 60
+  }
+}
