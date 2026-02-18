@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { Keypair, Signer, PublicKey } from '@solana/web3.js';
+import { Keypair, Signer, PublicKey, SystemProgram } from '@solana/web3.js';
 import {
     Rpc,
     bn,
@@ -115,6 +115,62 @@ describe('transfer-interface', () => {
             // fee_payer defaults to owner
             expect(ix.keys[4].pubkey.equals(owner)).toBe(true);
             expect(ix.keys[4].isWritable).toBe(true);
+        });
+    });
+
+    describe('createTransferInterfaceInstructions validation', () => {
+        it('should throw when amount is zero', async () => {
+            const sender = await newAccountWithLamports(rpc, 1e9);
+            const recipient = Keypair.generate().publicKey;
+
+            await expect(
+                createTransferInterfaceInstructions(
+                    rpc,
+                    payer.publicKey,
+                    mint,
+                    0,
+                    sender.publicKey,
+                    recipient,
+                ),
+            ).rejects.toThrow('Transfer amount must be greater than zero.');
+        });
+
+        it('should throw when amount is negative', async () => {
+            const sender = await newAccountWithLamports(rpc, 1e9);
+            const recipient = Keypair.generate().publicKey;
+
+            await expect(
+                createTransferInterfaceInstructions(
+                    rpc,
+                    payer.publicKey,
+                    mint,
+                    -100,
+                    sender.publicKey,
+                    recipient,
+                ),
+            ).rejects.toThrow('Transfer amount must be greater than zero.');
+        });
+
+        it('should throw when recipient is off-curve (PDA)', async () => {
+            const sender = await newAccountWithLamports(rpc, 1e9);
+            const [pdaRecipient] = PublicKey.findProgramAddressSync(
+                [Buffer.from('transfer-test-pda')],
+                SystemProgram.programId,
+            );
+            expect(PublicKey.isOnCurve(pdaRecipient.toBytes())).toBe(false);
+
+            await expect(
+                createTransferInterfaceInstructions(
+                    rpc,
+                    payer.publicKey,
+                    mint,
+                    BigInt(100),
+                    sender.publicKey,
+                    pdaRecipient,
+                ),
+            ).rejects.toThrow(
+                'Recipient must be a wallet public key (on-curve), not a PDA or ATA',
+            );
         });
     });
 
