@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "caaa14ac3051",
+  "strategy": "manual-commit",
+  "branch": "jorrit/refactor-add-additional-ctoken-transfer-checks",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "programs/compressed-token/program/src/ctoken/transfer/checked.rs",
+    "programs/compressed-token/program/src/ctoken/transfer/default.rs",
+    "programs/compressed-token/program/src/ctoken/transfer/shared.rs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ca/aa14ac3051/0/metadata.json",
+      "transcript": "/ca/aa14ac3051/0/full.jsonl",
+      "context": "/ca/aa14ac3051/0/context.md",
+      "content_hash": "/ca/aa14ac3051/0/content_hash.txt",
+      "prompt": "/ca/aa14ac3051/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 24,
+    "cache_creation_tokens": 40228,
+    "cache_read_tokens": 974113,
+    "output_tokens": 595,
+    "api_call_count": 22
+  }
+}

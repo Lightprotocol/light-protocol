@@ -1,0 +1,264 @@
+Implement the following plan:
+
+# Plan: Add Frozen + InsufficientFunds Checks to CToken Self-Transfer
+
+**Date:** 2026-02-16
+**Issue:** https://github.REDACTED
+
+## IMPORTANT
+- Split into todos, work through one by one
+- If stuck, use subagent to research
+
+## Context
+
+The self-transfer fix (commit 8835b72) added early return in `process_ctoken_transfer` and `process_ctoken_transfer_checked` when `source == destination`. This bypasses pinocchio's `process_transfer` which normally validates:
+
+1. **Frozen**: `source_account.is_frozen()` -> AccountFrozen (pinocchio shared/transfer.rs:82)
+2. **InsufficientFunds**: `source_account.amount.checked_sub(amount)` -> InsufficientFunds (pinocchio shared/transfer.rs:86-89)
+3. **MintMismatch**: Not applicable for self-transfer (same account)
+
+Currently `validate_self_transfer` (`shared.rs:23-33`) only checks authority (signer + owner/delegate). A frozen account self-transfer succeeds. A self-transfer with `amount > balance` succeeds.
+
+## Task 1: Add frozen and insufficient funds checks to validate_self_transfer
+
+**File:** `programs/compressed-token/program/src/ctoken/transfer/shared.rs`
+
+Modify `validate_self_transfer` to accept the transfer amount and check both conditions. The token account is already deserialized in `validate_self_transfer_authority` (line 43-44).
+
+**Change `validate_self_transfer` signature** to accept amount:
+```rust
+pub fn validate_self_transfer(
+    source: &AccountInfo,
+    destination: &AccountInfo,
+    authority: &AccountInfo,
+    amount: u64,
+) -> Result<bool, ProgramError>
+```
+
+**Pass amount through to `validate_self_transfer_authority`** and add checks after deserializing the token (line 44), before the owner/delegate check:
+```rust
+fn validate_self_transfer_authority(
+    source: &AccountInfo,
+    authority: &AccountInfo,
+    amount: u64,
+) -> Result<(), ProgramError> {
+    if !authority.is_signer() {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+    let token =
+        Token::from_account_info_checked(source).map_err(|_| ProgramError::InvalidAccountData)?;
+    if token.base.is_frozen() {
+        return Err(ErrorCode::AccountFrozen.into());
+    }
+    if token.base.amount.get() < amount {
+        return Err(ErrorCode::InsufficientFunds.into());
+    }
+    // ... existing owner/delegate check ...
+}
+```
+
+- `token.base.is_frozen()` -- method on `ZTokenZeroCopyMeta` (zero_copy.rs:369), checks state == 2
+- `token.base.amount.get()` -- returns `u64` from zero-copy wrapper
+- `ErrorCode::AccountFrozen` and `ErrorCode::InsufficientFunds` already defined in anchor crate
+
+## Task 2: Update callers to pass amount
+
+**File:** `programs/compressed-token/program/src/ctoken/transfer/default.rs`
+
+Parse amount from instruction_data before the self-transfer check:
+```rust
+let amount = u64::from_le_bytes(instruction_data[..8].try_into().map_err(|_| ProgramError::InvalidInstructionData)?);
+if validate_self_transfer(source, destination, &accounts[ACCOUNT_AUTHORITY], amount)? {
+    return Ok(());
+}
+```
+
+**File:** `programs/compressed-token/program/src/ctoken/transfer/checked.rs`
+
+Same pattern -- parse amount from instruction_data[..8] before self-transfer check:
+```rust
+let amount = u64::from_le_bytes(instruction_data[..8].try_into().map_err(|_| ProgramError::InvalidInstructionData)?);
+if validate_self_transfer(source, destination, &accounts[ACCOUNT_AUTHORITY], amount)? {
+    return Ok(());
+}
+```
+
+## Task 3: Add tests
+
+Add tests verifying:
+1. Frozen CToken account self-transfer returns AccountFrozen
+2. Self-transfer with amount > balance returns InsufficientFunds
+3. Normal self-transfer (unfrozen, sufficient balance) still succeeds
+
+Location: existing test file or new test in `program-tests/compressed-token-test/`
+
+## Files to Modify
+1. `programs/compressed-token/program/src/ctoken/transfer/shared.rs` -- add frozen + insufficient funds checks
+2. `programs/compressed-token/program/src/ctoken/transfer/default.rs` -- pass amount to validate_self_transfer
+3. `programs/compressed-token/program/src/ctoken/transfer/checked.rs` -- pass amount to validate_self_transfer
+
+## Verification
+1. `cargo check -p light-compressed-token-program`
+2. `cargo test-sbf -p compressed-token-test` -- verify no regressions
+3. New tests pass for frozen and insufficient funds self-transfer rejection
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ananas/.REDACTED.jsonl
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+<task-notification>
+<task-id>b880989</task-id>
+<output-file>/private/tmp/claude-501/-Users-ananas-dev-light-protocol/tasks/b880989.output</output-file>
+<status>completed</status>
+<summary>Background command "Run compressed token integration tests" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: /private/tmp/claude-501/-Users-ananas-dev-light-protocol/tasks/b880989.output
+
+---
+
+[Request interrupted by user]
+
+---
+
+remove this comment // Verify the account's mint and owner fields match the expected values.
+        // Without this check, an ATA whose authority was transferred could still
+        // pass the PDA derivation check alone (audit issue #4).
+
+---
+
+[Request interrupted by user]
+
+---
+
+thats ok
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+no
+
+---
+
+[Request interrupted by user]
+
+---
+
+add failing tests for the other checks we added as well see git diff to main
+
+---
+
+update the pr description that you added the tests
+
+---
+
+9m 15s
+│ Program REDACTED success
+│ Program REDACTED consumed 16086 of 1397248 compute units
+│ Program REDACTED success
+│ Program REDACTED success
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────── Transaction #10 ─────────────────────────────────────────────────────────────┐
+│ Transaction: REDACTED | Slot: 3 | Status: Success
+│ Fee: 0.000010 SOL | Compute Used: 150/1400000 CU
+│
+│ Instructions (1):
+│
+│ ├─ #1 11111111111111111111111111111111 (System Program) - CreateAccount
+│ │    lamports: 2282880
+│ │    space: 200
+│ │  Accounts (2):
+│ │  +----+----------------------------------------------+-----------------+-----------------+-------+----------+--------------------+------------+
+│ │  | #  | Account                                      | Type            | Name            | Owner | Data Len | Lamports           | Change     |
+│ │  +----+----------------------------------------------+-----------------+-----------------+-------+----------+--------------------+------------+
+│ │  | #1 | REDACTED | signer+writable | funding_account | 11111 | 0        | 99,999,985,973,040 | -2,292,880 |
+│ │  +----+----------------------------------------------+-----------------+-----------------+-------+----------+--------------------+------------+
+│ │  | #2 | REDACTED | signer+writable | new_account     | cToke | 0        | 0                  | +2,282,880 |
+│ │  +----+----------------------------------------------+-----------------+-----------------+-------+----------+--------------------+------------+
+
+│ Program Logs:
+│
+│ Program 11111111111111111111111111111111 invoke [1]
+│ Program 11111111111111111111111111111111 success
+│ Program 11111111111111111111111111111111 success
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────── Transaction #11 ─────────────────────────────────────────────────────────────┐
+│ Transaction: REDACTED | Slot: 3 | Status: Failed: InstructionError(0, InvalidAccountData)
+│ Fee: 0.000005 SOL | Compute Used: 937/1400000 CU
+│
+│ Instructions (1):
+│
+│ ├─ #1 REDACTED (Light Token) - CreateTokenAccount
+│ │  Accounts (2):
+│ │  +----+----------------------------------------------+----------+---------------+-------+----------+-----------+--------+
+│ │  | #  | Account                                      | Type     | Name          | Owner | Data Len | Lamports  | Change |
+│ │  +----+----------------------------------------------+----------+---------------+-------+----------+-----------+--------+
+│ │  | #1 | REDACTED | writable | token_account | cToke | 200      | 2,282,880 | 0      |
+│ │  +----+----------------------------------------------+----------+---------------+-------+----------+-----------+--------+
+│ │  | #2 | REDACTED | readonly | mint          | Token | 278      | 2,825,760 | 0      |
+│ │  +----+----------------------------------------------+----------+---------------+-------+----------+-----------+--------+
+
+│ Program Logs:
+│
+│ Program REDACTED invoke [1]
+│ CreateTokenAccount
+│ Token account data length mismatch
+│ Program REDACTED consumed 937 of 1400000 compute units
+│ Program REDACTED failed: invalid account data for instruction
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+thread 'create::test_create_compressible_token_account_failing' panicked at program-tests/compressed-token-test/tests/light_token/create.rs:588:78:
+called `Result::unwrap()` on an `Err` value: AssertRpcError("Expected error code 6115, but got InvalidAccountData")
+stack backtrace:
+   0: __rustc::rust_begin_unwind
+             at REDACTED.rs:697:5
+   1: core::panicking::panic_fmt
+             at /rustc/1159e78c4747b02ef996e55082b704c09b970588/library/core/src/panicking.rs:75:14
+   2: core::result::unwrap_failed
+             at /rustc/1159e78c4747b02ef996e55082b704c09b970588/library/core/src/result.rs:1765:5
+   3: light_token::create::test_create_compressible_token_account_failing::{{closure}}
+   4: <core::pin::Pin<P> as core::future::future::Future>::poll
+   5: <core::pin::Pin<P> as core::future::future::Future>::poll
+   6: tokio::runtime::scheduler::current_thread::CoreGuard::block_on::{{closure}}::{{closure}}::{{closure}}
+   7: tokio::runtime::scheduler::current_thread::CoreGuard::block_on::{{closure}}::{{closure}}
+   8: tokio::runtime::scheduler::current_thread::Context::enter
+   9: tokio::runtime::scheduler::current_thread::CoreGuard::block_on::{{closure}}
+  10: tokio::runtime::scheduler::current_thread::CoreGuard::enter::{{closure}}
+  11: tokio::runtime::context::scoped::Scoped<T>::set
+  12: tokio::runtime::context::set_scheduler::{{closure}}
+  13: std::thread::local::LocalKey<T>::try_with
+  14: std::thread::local::LocalKey<T>::with
+  15: tokio::runtime::context::set_scheduler
+  16: tokio::runtime::scheduler::current_thread::CoreGuard::enter
+  17: tokio::runtime::scheduler::current_thread::CoreGuard::block_on
+  18: tokio::runtime::scheduler::current_thread::CurrentThread::block_on::{{closure}}
+  19: tokio::runtime::context::runtime::enter_runtime
+  20: tokio::runtime::scheduler::current_thread::CurrentThread::block_on
+  21: tokio::runtime::runtime::Runtime::block_on_inner
+  22: tokio::runtime::runtime::Runtime::block_on
+  23: light_token::create::test_create_compressible_token_account_failing
+  24: light_token::create::test_create_compressible_token_account_failing::{{closure}}
+  25: core::ops::function::FnOnce::call_once
+  26: core::ops::function::FnOnce::call_once
+             at /rustc/1159e78c4747b02ef996e55082b704c09b970588/library/core/src/ops/function.rs:253:5
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
+
+
+failures:
+    create::test_create_compressible_token_account_failing
+
+test result: FAILED. 69 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 115.84s
+
+error: Recipe `test-compressed-token-light-token` failed on line 67 with exit code 1
+Error: Process completed with exit code 1.
+10s

@@ -1,0 +1,17 @@
+bump light-token in  sdk-libs/token-sdk by a patch release
+
+---
+
+[Request interrupted by user]
+
+---
+
+run the local rust release script in scripts/release/...
+
+---
+
+[Request interrupted by user]
+
+---
+
+bump light-token in  sdk-libs/token-sdk by a patch release

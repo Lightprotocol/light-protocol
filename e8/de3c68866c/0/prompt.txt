@@ -1,0 +1,322 @@
+Implement the following plan:
+
+# Regression Test for Address Position Bug in create_outputs_cpi_data
+
+## IMPORTANT
+- Split the task into todos
+- Use subagents where it makes sense
+- Work through todos one by one
+- If stuck or starting to do random stuff, use a subagent to research
+
+## Context
+
+**Audit issue**: [REDACTED#18](https://github.REDACTED)
+
+**The bug**: In `programs/system/src/processor/create_outputs_cpi_data.rs` (line 174), the old code used `.filter(|x| x.is_some()).position(...)` to find addresses in `context.addresses`. This returns a position relative to the *filtered* iterator (skipping None values), but `context.addresses.remove(position)` operates on the *original* Vec. When input accounts without addresses create `None` entries at the beginning of `context.addresses`, the wrong element gets removed, causing `InvalidAddress` (6006) errors for valid transactions.
+
+**The fix** (already applied in working tree): Changed to `.position(|x| *x == Some(address))` which returns the position in the original Vec.
+
+**What's needed**: A regression integration test added to `program-tests/system-test/tests/v2_failing_tests.rs` (alongside the existing tests) that exercises the exact code path that was buggy. The test succeeds now (proving the fix works) and would fail with `InvalidAddress` if the fix were reverted.
+
+## Bug Mechanics
+
+`context.addresses` is `Vec<Option<[u8; 32]>>` populated in this order:
+1. **Step 6** (`process.rs:150`): Push each input account's address (None if no address)
+2. **Step 7** (`create_address_cpi_data.rs:101-111`): Push `Some(addr)` for new addresses with `assigned_compressed_account_index`
+3. **Step 9** (`create_outputs_cpi_data.rs:173-179`): For each output account with an address, find and remove it from `context.addresses`
+
+**Triggering scenario**: `context.addresses = [None, Some(addr_0), Some(addr_1)]`
+- Output[0] references `addr_1`: old code finds filtered position 1, `remove(1)` removes `Some(addr_0)` (wrong!)
+- Output[1] references `addr_0`: old code can't find it (was removed) -> `InvalidAddress`
+
+## File to Modify
+
+`program-tests/system-test/tests/v2_failing_tests.rs` - Add new test alongside existing tests
+
+## Tasks
+
+### Task 1: Add the integration test
+
+Add `test_address_position_bug_with_none_in_context_addresses` as a `#[tokio::test]` async test.
+
+**Two-transaction integration test:**
+
+#### Transaction 1: Create a compressed account WITHOUT address
+- Use CPI through `create_address_test_program` (so owner = `create_address_test_program::ID`)
+- Build `InstructionDataInvokeCpiWithReadOnly` with:
+  - `mode: 1` (V2, no program ids)
+  - 1 output account: `{ owner: create_address_test_program::ID, lamports: 0, data: None, address: None }`
+  - No inputs, no new addresses
+- Send via `create_invoke_cpi_instruction`
+- Assert success
+
+#### Transaction 2: Use input account + create addresses with swapped assignment
+- Get the compressed account from the indexer using `get_compressed_accounts_with_merkle_context_by_owner`
+- Derive 2 new addresses using `derive_address` from `light_sdk::address::v2`
+- Get validity proof for input account hash + address non-inclusion
+- Build `InstructionDataInvokeCpiWithReadOnly` with:
+  - `mode: 1`
+  - **Input**: The account from tx 1 (has `address: None` -> pushes `None` to `context.addresses`)
+  - **New addresses** with **swapped** assignment:
+    - `new_address_params[0]`: seed_0, `assigned_account_index: Some(1)` -> addr_0 for output[1]
+    - `new_address_params[1]`: seed_1, `assigned_account_index: Some(0)` -> addr_1 for output[0]
+  - **Outputs**: 2 accounts with addresses:
+    - output[0]: `address: Some(addr_1)` (matches new_address_params[1])
+    - output[1]: `address: Some(addr_0)` (matches new_address_params[0])
+- Send via `create_invoke_cpi_instruction`
+- Assert success (the fix works)
+- Document in comments: reverting the fix produces `SystemProgramError::InvalidAddress` (6006)
+
+### Key functions/utilities to reuse
+
+- `create_invoke_cpi_instruction` from `program-tests/create-address-test-program/src/lib.rs`
+- `pack_new_address_params_assigned` from `program-tests/utils/src/pack.rs:185`
+- `pack_compressed_accounts` from `program-tests/utils/src/pack.rs:159`
+- `pack_output_compressed_accounts` from `program-tests/utils/src/pack.rs:144`
+- `to_account_metas_light` from `program-tests/utils/src/e2e_test_env.rs:3410`
+- `LightProgramTest`, `ProgramTestConfig` from `light-program-test`
+- `derive_address` from `light_sdk::address::v2`
+- `InstructionDataInvokeCpiWithReadOnly`, `InAccount` from `light_compressed_account::instruction_data::with_readonly`
+- `TestIndexerExtensions::get_compressed_accounts_with_merkle_context_by_owner` from `light-program-test`
+- `Rpc`, `Indexer` traits from `light-program-test`
+- `AddressWithTree` from `light-program-test`
+
+Follow the pattern of the existing `test_duplicate_address_in_v2_batched_tree` test for setup, instruction building, and transaction sending. For the input account InAccount, use `discriminator: [0;8]`, `data_hash: [0;32]` since the account has no data.
+
+### Task 2: Verify
+
+```bash
+# Run the specific test
+RUST_BACKTRACE=1 cargo test-sbf -p system-test --test v2_failing_tests -- test_address_position_bug --nocapture 2>&1 | tail -500
+```
+
+Also temporarily revert the fix in `create_outputs_cpi_data.rs:174` back to the old `.filter().position()` code and confirm the test fails with InvalidAddress (6006), then re-apply the fix.
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ananas/.REDACTED.jsonl
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. The user asked me to implement a plan for a regression test for an address position bug in `create_outputs_cpi_data.rs`.
+
+2. The plan details:
+   - Bug: `.filter(|x| x.is_some()).position(...)` returns position relative to filtered iterator, but `remove(position)` operates on original Vec
+   - Fix already applied: Changed to `.position(|x| *x == Some(address))`
+   - Need: Regression test in `v2_failing_tests.rs`
+
+3. I read multiple files to understand the codebase:
+   - `v2_failing_tests.rs` - existing tests
+   - `create_outputs_cpi_data.rs` - the fixed code
+   - `create-address-test-program/src/lib.rs` - CPI helper
+   - `pack.rs` - packing utilities
+   - Various type definitions (InAccount, InstructionDataInvokeCpiWithReadOnly, etc.)
+
+4. I used an Explore subagent to research types and functions.
+
+5. I wrote the test with two transactions:
+   - TX1: Create compressed account without address
+   - TX2: Consume that account + create 2 addresses with swapped assignment
+
+6. Errors encountered:
+   - Error 1: `mode: 1` caused `StateMerkleTreeAccountDiscriminatorMismatch` (6042) - Fixed by changing to `mode: 0` (Anchor/V1 account layout matches `create_invoke_cpi_instruction`)
+   - Error 2: Output accounts in TX2 had `data: None` which caused error 6033 "For program owned compressed accounts the data field needs to be defined" - Fixed by adding `CompressedAccountData` with zero discriminator/hash
+   - Error 3: TX2 still fails with `InvalidAddress` (6006) - This is the error we're testing for, but it occurs even WITH the fix applied
+
+7. The subagent research revealed that `derive_new_addresses()` iterates through all new_address_params using `accounts.get(address_merkle_tree_account_index)` - so the accounts slice has one entry per remaining account, not per address param. Both params can reference the same tree at index 2.
+
+8. The actual issue with the current test: The log shows `context.addresses: [None, Some([0, 77, ...])]` when the error occurs on output[1]. This means only one address is in context.addresses besides the None, but we expected two addresses. The system program seems to be processing the addresses correctly (both are pushed), but the output addresses don't match the system-derived addresses, OR there's an issue with how the addresses are being matched/removed.
+
+9. The user's most recent message says: "use assert_rpc_error to assert the error" - This suggests changing approach: instead of expecting the transaction to succeed, assert it fails with the expected error code. But wait, the plan says the test should SUCCEED with the fix and FAIL without it. The user might be suggesting something different.
+
+Actually, re-reading the user message: "use assert_rpc_error to assert the error" - this was sent while I was working. The user wants me to use `assert_rpc_error` to assert error 6006 happens. This means the user might want me to change the test approach - perhaps making the test verify the error happens in a specific scenario, or the user might want a different test structure.
+
+Wait, let me reconsider. The test is supposed to:
+1. Succeed with the fix (current code)
+2. Fail with InvalidAddress (6006) if the fix is reverted
+
+But currently, the test fails with 6006 even with the fix. So maybe the test setup is wrong. The user's message "use assert_rpc_error to assert the error" might mean: temporarily assert the error to debug what's happening, or restructure the test differently.
+
+Current state of the code - the test file has been modified (formatter ran on it based on the system reminder about file modifications). The test still fails with InvalidAddress (6006).
+
+The key unresolved issue is that TX2 fails with InvalidAddress despite the fix being applied. The context.addresses log shows only [None, Some(addr)] when there should be [None, Some(addr_0), Some(addr_1)].
+
+Let me also note the running tasks:
+- Task #1: [in_progress] Add regression test for address position bug
+- Task #2: [pending] Verify regression test passes
+
+Summary:
+1. Primary Request and Intent:
+   The user asked me to implement a detailed plan for a regression test for an address position bug in `programs/system/src/processor/create_outputs_cpi_data.rs`. The bug was that `.filter(|x| x.is_some()).position(...)` returned a position relative to the filtered iterator (skipping None values), but `context.addresses.remove(position)` operates on the original Vec. The fix (already applied at line 174) changed to `.position(|x| *x == Some(address))`. The test should be added to `program-tests/system-test/tests/v2_failing_tests.rs` and exercise the exact buggy code path with a two-transaction integration test.
+
+2. Key Technical Concepts:
+   - Light Protocol ZK Compression on Solana
+   - `context.addresses` is `Vec<Option<[u8; 32]>>` populated in steps: input addresses (None if no address), new address params, then consumed by output accounts
+   - `InstructionDataInvokeCpiWithReadOnly` - V2 instruction format with `InAccount` for inputs, `NewAddressParamsAssignedPacked` for addresses
+   - `InAccount` always reports `has_data() = true`, so accounts consumed via this type MUST have been created with `data: Some(...)`
+   - `mode: 0` (Anchor/V1 account layout) must be used with `create_invoke_cpi_instruction` because the V1 CPI path passes accounts in V1 format
+   - `mode: 1` (V2 without program ids) causes `StateMerkleTreeAccountDiscriminatorMismatch` when used with V1 CPI wrapper
+   - `assigned_account_index` in `NewAddressParamsAssigned` maps an address to a specific output account index
+   - `derive_address` from `light_sdk::address::v2` takes `seeds: &[&[u8]]`, returns `([u8; 32], AddressSeed)`
+   - For batched V2 trees: `v2_state_trees[0].merkle_tree` is the state tree, `v2_state_trees[0].output_queue` is the queue, `v2_address_trees[0]` is the address tree (queue = tree for batched)
+
+3. Files and Code Sections:
+   - `/Users/ananas/dev/light-protocol/program-tests/system-test/tests/v2_failing_tests.rs`
+     - Main test file being modified. Contains existing tests for CPI context address owner derivation and duplicate address detection.
+     - Added imports: `CompressedAccountData`, `InAccount`, `TestIndexerExtensions`, `pack_compressed_accounts`, `pack_output_compressed_accounts`
+     - Added new test function `test_address_position_bug_with_none_in_context_addresses` (starts at line ~420)
+     - Full test structure:
+       ```rust
+       #[tokio::test]
+       async fn test_address_position_bug_with_none_in_context_addresses() {
+           // Setup with batched trees + create_address_test_program
+           let mut rpc = LightProgramTest::new({
+               let mut config = ProgramTestConfig::default_with_batched_trees(true);
+               config.additional_programs = Some(vec![(
+                   "create_address_test_program",
+                   create_address_test_program::ID,
+               )]);
+               config
+           }).await.expect("Failed to setup test programs");
+           
+           // TX1: Create compressed account WITHOUT address, WITH zero data
+           // Uses mode: 0, output_queue for merkle_tree_index
+           // data: Some(CompressedAccountData { discriminator: [0u8; 8], data: vec![], data_hash: [0u8; 32] })
+           
+           // TX2: Consume addressless account + create 2 new addresses with swapped assignment
+           // new_address_params[0]: seed_0, assigned_account_index: Some(1) -> addr_0 for output[1]
+           // new_address_params[1]: seed_1, assigned_account_index: Some(0) -> addr_1 for output[0]
+           // output[0]: address: Some(addr_1), output[1]: address: Some(addr_0)
+       }
+       ```
+
+   - `/Users/ananas/dev/light-protocol/programs/system/src/processor/create_outputs_cpi_data.rs` (line 174)
+     - Contains the fix: `.position(|x| *x == Some(address))` replacing `.filter(|x| x.is_some()).position(...)`
+
+   - `/Users/ananas/dev/light-protocol/program-tests/create-address-test-program/src/lib.rs`
+     - Provides `create_invoke_cpi_instruction` which wraps data in V1 `InvokeCpi` instruction
+     - Uses `CPI_AUTHORITY_PDA_SEED` for PDA signing in CPI
+
+   - `/Users/ananas/dev/light-protocol/program-tests/utils/src/pack.rs` and `compressed_account_pack.rs`
+     - Pack functions: `pack_compressed_accounts`, `pack_output_compressed_accounts`, `pack_new_address_params_assigned`
+     - Uses `HashMap<Pubkey, usize>` for remaining account index tracking
+
+   - `/Users/ananas/dev/light-protocol/programs/system/src/processor/create_address_cpi_data.rs`
+     - `derive_new_addresses()` iterates through all new_address_params using `accounts.get(address_merkle_tree_account_index)` - NOT zipping with accounts
+     - Pushes to `context.addresses` when `ADDRESS_ASSIGNMENT=true` and `assigned_compressed_account_index().is_some()`
+
+   - `/Users/ananas/dev/light-protocol/program-tests/system-test/Cargo.toml`
+     - Dependencies already include all needed crates
+
+4. Errors and fixes:
+   - **Error 1: `StateMerkleTreeAccountDiscriminatorMismatch` (6042) on TX1**:
+     - Caused by using `mode: 1` (V2) with V1 CPI wrapper (`create_invoke_cpi_instruction`)
+     - Fixed by changing to `mode: 0` in both TX1 and TX2
+   
+   - **Error 2: "For program owned compressed accounts the data field needs to be defined" (6033) on TX2**:
+     - Output accounts in TX2 had `data: None` but were owned by `create_address_test_program::ID`
+     - Fixed by adding `data: Some(CompressedAccountData { discriminator: [0u8; 8], data: vec![], data_hash: [0u8; 32] })` to output accounts
+
+   - **Error 3 (UNRESOLVED): `InvalidAddress` (6006) on TX2**:
+     - TX2 fails with the EXACT error the bug produces, even though the fix IS applied
+     - Log shows `context.addresses: [None, Some([0, 77, ...])]` when output[1] fails - only 2 entries instead of expected 3
+     - The Some entry matches output[0]'s address, meaning output[0]'s address was NOT removed properly
+     - Root cause still under investigation - possibly related to how addresses are derived/matched in mode 0
+     - User feedback: "use assert_rpc_error to assert the error"
+
+5. Problem Solving:
+   - Successfully got TX1 to pass (creating a compressed account without address via CPI)
+   - TX2 still fails with InvalidAddress (6006). The investigation revealed the system program log shows only one address in `context.addresses` besides None, when two were expected. The `derive_new_addresses` function should iterate through all address params using indexed access (not zip), so both addresses should be pushed. The unresolved question is why only one address appears in context.addresses, or why the address matching fails.
+
+6. All user messages:
+   - "Implement the following plan: [detailed plan for regression test]" - with full context about the bug, fix, and test structure
+   - "use assert_rpc_error to assert the error" - sent while I was investigating TX2's failure
+
+7. Pending Tasks:
+   - Task #1: [in_progress] Add regression test for address position bug - test written but TX2 fails
+   - Task #2: [pending] Verify regression test passes - blocked on TX2 fix
+   - User instruction: "use assert_rpc_error to assert the error" - needs to be addressed
+
+8. Current Work:
+   The test `test_address_position_bug_with_none_in_context_addresses` is written in `v2_failing_tests.rs`. TX1 succeeds (creates account without address). TX2 fails with `InvalidAddress` (6006) even with the fix applied. The last subagent research confirmed that `derive_new_addresses` uses indexed access (`accounts.get(address_merkle_tree_account_index)`) not zip, so both addresses should be processed. The user sent a message "use assert_rpc_error to assert the error" which I need to address.
+
+9. Optional Next Step:
+   Address the user's message: "use assert_rpc_error to assert the error". This likely means using `assert_rpc_error(result, 0, 6006).unwrap()` to assert the transaction fails with InvalidAddress, which would make the test verify the error behavior rather than expecting success. This changes the test from "succeeds with fix, fails without" to potentially "always fails in this specific configuration" - or it could mean the user wants to debug by first asserting the error, then fixing the test setup. I should change the TX2 assertion to use `assert_rpc_error` with error code 6006 and then continue investigating why the fix doesn't prevent the error in this test configuration.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ananas/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+Continue from where you left off.
+
+---
+
+continue
+
+---
+
+[Request interrupted by user]
+
+---
+
+hm I just reverted the fix back to    // Check 3.
+        if let Some(address) = account.address() {
+            if let Some(position) = context
+                .addresses
+                .iter()
+                .filter(|x| x.is_some())
+                .position(|&x| x.unwrap() == address)
+            {
+
+---
+
+[Request interrupted by user]
+
+---
+
+and it is still failing with invalid address error
+
+---
+
+[Request interrupted by user]
+
+---
+
+continue
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+I reverted the fix to santiy check, the reproducer test test_address_position_bug_with_none_in_context_addresses should not fail now, why does it not work? read the issue again https://github.REDACTED
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+no it should not
+
+---
+
+it should succeed
+
+---
+
+[Request interrupted by user]
+
+---
+
+so the reproducer worked, and now I added the fix again and it produces the correct error, can you remove the first tx from the reproducer test? is the first tx necessary?
+
+---
+
+got it

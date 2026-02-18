@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "e8de3c68866c",
+  "strategy": "manual-commit",
+  "branch": "jorrit/fix-system-program-addresses",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "program-tests/system-test/tests/v2_failing_tests.rs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/e8/de3c68866c/0/metadata.json",
+      "transcript": "/e8/de3c68866c/0/full.jsonl",
+      "context": "/e8/de3c68866c/0/context.md",
+      "content_hash": "/e8/de3c68866c/0/content_hash.txt",
+      "prompt": "/e8/de3c68866c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 114,
+    "cache_creation_tokens": 320243,
+    "cache_read_tokens": 9309755,
+    "output_tokens": 6510,
+    "api_call_count": 97
+  }
+}
