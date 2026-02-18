@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "5a7704933620",
+  "session_id": "7adad1d7-2fa8-4694-9cf8-1e40b25edd6c",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-18T22:06:28.44361Z",
+  "branch": "jorrit/refactor-light-account-creation-to-generic-function",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "sdk-tests/anchor-semi-manual-test/src/instruction_accounts.rs",
+    "sdk-tests/csdk-anchor-full-derived-test/src/instructions/d10_token_accounts/mod.rs",
+    "sdk-tests/csdk-anchor-full-derived-test/src/instructions/d10_token_accounts/single_ata.rs",
+    "sdk-tests/csdk-anchor-full-derived-test/src/instructions/d10_token_accounts/single_ata_non_idempotent.rs",
+    "sdk-tests/csdk-anchor-full-derived-test/src/lib.rs",
+    "sdk-tests/csdk-anchor-full-derived-test/tests/d10_ata_idempotent_test.rs",
+    "sdk-tests/single-ata-test/src/lib.rs"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "0bb939cb-c219-4338-bc03-1e3e4281c839",
+  "token_usage": {
+    "input_tokens": 91,
+    "cache_creation_tokens": 228684,
+    "cache_read_tokens": 6273387,
+    "output_tokens": 7309,
+    "api_call_count": 81
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-18T22:06:27.87955Z",
+    "agent_lines": 242,
+    "human_added": 468,
+    "human_modified": 10,
+    "human_removed": 0,
+    "total_committed": 720,
+    "agent_percentage": 33.611111111111114
+  },
+  "transcript_path": ".claude/projects/-Users-ananas-dev-light-protocol3/7adad1d7-2fa8-4694-9cf8-1e40b25edd6c.jsonl"
+}
