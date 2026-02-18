@@ -75,7 +75,6 @@ export {
     createWrapInstruction,
     createUnwrapInstruction,
     createUnwrapInstructions,
-    createDecompressInterfaceInstruction,
     createLightTokenTransferInstruction,
     // Types
     TokenMetadataInstructionData,
@@ -93,7 +92,6 @@ export {
     transferInterface,
     createTransferInterfaceInstructions,
     sliceLast,
-    decompressInterface,
     wrap,
     mintTo as mintToCToken,
     mintToCompressed,

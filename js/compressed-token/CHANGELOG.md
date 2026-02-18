@@ -1,3 +1,11 @@
+## [0.23.0-beta.10]
+
+### Breaking Changes
+
+- **`decompressInterface` removed.** Use `loadAta` (action) or `createLoadAtaInstructions` (instruction builder) instead. `decompressInterface` did not support >8 compressed inputs and has been fully removed.
+  - **Action (send transaction):** Replace `decompressInterface(rpc, payer, owner, mint, amount?, destinationAta?, destinationOwner?, splInterfaceInfo?, confirmOptions?)` with `loadAta(rpc, ata, owner, mint, payer?, confirmOptions?, interfaceOptions?, wrap?)`. Derive the target ATA with `getAssociatedTokenAddressInterface(mint, owner)` for c-token, or pass the SPL/T22 ATA to decompress to that program. `loadAta` loads all cold balance into the given ATA (no partial amount); it supports >8 inputs via batched transactions and creates the ATA if needed.
+  - **Instruction-level:** Use `createLoadAtaInstructions(rpc, ata, owner, mint, payer?, interfaceOptions?, wrap?)` to get `TransactionInstruction[][]` and send batches yourself. The single-instruction primitive is no longer exported; use the batched API only.
+
 ## [0.23.0-beta.9]
 
 ### Fixed

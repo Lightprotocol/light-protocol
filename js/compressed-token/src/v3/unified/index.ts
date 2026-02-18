@@ -462,7 +462,6 @@ export {
     createRemoveMetadataKeyInstruction,
     createWrapInstruction,
     createUnwrapInstruction,
-    createDecompressInterfaceInstruction,
     createLightTokenTransferInstruction,
     // Types
     TokenMetadataInstructionData,
@@ -476,7 +475,6 @@ export {
     createAtaInterface,
     createAtaInterfaceIdempotent,
     // getOrCreateAtaInterface is defined locally with unified behavior
-    decompressInterface,
     wrap,
     // unwrap and createUnwrapInstructions are defined locally with unified behavior
     mintTo as mintToCToken,

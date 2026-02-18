@@ -82,7 +82,7 @@ export interface CompressibleLoadParams {
 export interface LoadResult {
     /** Params for decompressAccountsIdempotent (null if no program accounts need decompressing) */
     decompressParams: CompressibleLoadParams | null;
-    /** Instructions to load ATAs (create ATA, wrap SPL/T22, decompressInterface) */
+    /** Instructions to load ATAs (create ATA, wrap SPL/T22, decompress) */
     ataInstructions: TransactionInstruction[];
 }
 
