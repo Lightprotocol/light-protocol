@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "1da6fecc501a",
+  "strategy": "manual-commit",
+  "branch": "jorrit/feat-formally-verify-light-account",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "sdk-tests/sdk-types-kani/docs/compress_properties.md",
+    "sdk-tests/sdk-types-kani/tests/kani_proofs.rs",
+    "sdk-tests/sdk-types-kani/tests/kani_proofs/compression.rs",
+    "sdk-tests/sdk-types-kani/tests/kani_proofs/config.rs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/1d/a6fecc501a/0/metadata.json",
+      "transcript": "/1d/a6fecc501a/0/full.jsonl",
+      "context": "/1d/a6fecc501a/0/context.md",
+      "content_hash": "/1d/a6fecc501a/0/content_hash.txt",
+      "prompt": "/1d/a6fecc501a/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 152,
+    "cache_creation_tokens": 219219,
+    "cache_read_tokens": 7787867,
+    "output_tokens": 28984,
+    "api_call_count": 80
+  }
+}
