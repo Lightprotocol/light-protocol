@@ -1,0 +1,184 @@
+Implement the following plan:
+
+# Logic Review: `create_accounts()`
+
+**Date:** 2026-02-18
+**Branch:** `jorrit/refactor-light-account-creation-to-generic-function`
+**Commit:** `7c776f2eb`
+**Review directory:** `.claude/tmp/jorrit-refactor-light-account-creation-to-generic-function-1/`
+**Report path:** `.claude/logic-review-create_accounts-20260218-report.md`
+
+---
+
+## Target
+
+**File:** `sdk-libs/sdk-types/src/interface/accounts/create_accounts.rs` (421 lines, entirely new on this branch)
+
+**Functions (5 total, 2 non-trivial):**
+
+| Function | Lines | Branches | Trivial? |
+|----------|-------|----------|----------|
+| `create_accounts()` | 125-220 | 13 | NO |
+| `create_pdas()` | 227-312 | 6 | NO |
+| `create_mints_inner()` | 315-345 | 3 | YES |
+| `create_token_vaults()` | 348-379 | 4 | YES |
+| `create_atas()` | 382-420 | 5 | YES |
+
+---
+
+## Execution Paths
+
+### P1: PDA-only (PDAS=1, MINTS=0, TOKENS=0, ATAS=0)
+
+**Preconditions:** `compression_config=Some`, all token fields=None, `remaining_accounts.len() >= system_accounts_offset`
+
+**Concrete input:**
+- `pdas = [PdaInitParam { account: &pda_account }]`
+- `pda_setup = |config, slot| { record.set_decompressed(config, slot); Ok(()) }`
+- `mints = None`, `tokens = []`, `atas = []`
+- `shared.compression_config = Some(&config_ai)`, `compressible_config = None`, `rent_sponsor = None`, `cpi_authority = None`, `system_program = None`
+
+**Expected behavior:**
+1. Passes validation (PDAS=1 < 255, compression_config present, has_tokens=false)
+2. `with_cpi_context = false` (MINTS=0)
+3. CpiAccountsConfig::new (no CPI context)
+4. Calls `create_pdas()` with `with_cpi_context=false`
+5. In create_pdas: builds address params, calls pda_setup closure, builds InstructionData, calls `instruction_data.invoke()` directly (not write-to-cpi-context)
+6. Skips MINTS/TOKENS/ATAS blocks
+7. Returns `Ok(false)`
+
+---
+
+### P2: Mints-only (PDAS=0, MINTS=2, TOKENS=0, ATAS=0)
+
+**Preconditions:** `compressible_config=Some`, `rent_sponsor=Some`, `cpi_authority=Some`
+
+**Concrete input:**
+- `pdas = []`, `pda_setup = |_, _| Ok(())`
+- `mints = Some(CreateMintsInput { params: [mint1, mint2], seed_accounts: [s1, s2], accounts: [a1, a2] })`
+- `tokens = []`, `atas = []`
+- `shared.compression_config = None`, `compressible_config = Some(...)`, `rent_sponsor = Some(...)`, `cpi_authority = Some(...)`, `system_program = None`
+
+**Expected behavior:**
+1. Passes validation (MINTS=2 < 255, compressible_config present, cpi_authority present)
+2. `with_cpi_context = true` (MINTS > 0)
+3. CpiAccountsConfig::new_with_cpi_context
+4. Skips PDAS block (PDAS=0)
+5. Enters MINTS block: calls `create_mints_inner` with `cpi_context_offset = 0`
+6. In create_mints_inner: invokes CreateMints with offset=0
+7. Returns `Ok(true)`
+
+---
+
+### P3: PDAs + Mints combined (PDAS=2, MINTS=1, TOKENS=0, ATAS=0)
+
+**Preconditions:** All PDA and mint accounts required
+
+**Concrete input:**
+- `pdas = [PdaInitParam { account: &pda1 }, PdaInitParam { account: &pda2 }]`
+- `pda_setup = |config, slot| { rec1.set_decompressed(config, slot); rec2.set_decompressed(config, slot); Ok(()) }`
+- `mints = Some(CreateMintsInput { params: [mint_params], ... })`
+- `tokens = []`, `atas = []`
+- All shared accounts except system_program present
+
+**Expected behavior:**
+1. Passes validation
+2. `with_cpi_context = true` (MINTS > 0)
+3. CpiAccountsConfig::new_with_cpi_context
+4. `create_pdas()` called with `with_cpi_context=true` -- writes to CPI context (not direct invoke)
+5. `create_mints_inner()` called with `cpi_context_offset = 2` (PDAS=2)
+6. In create_mints_inner: mint gets `assigned_account_index = 2 + 0 = 2`
+7. Returns `Ok(true)`
+
+**Key coordination:** PDA writes to CPI context first, then mints execute with offset knowing PDAs precede them.
+
+---
+
+### P4: Full path (PDAS=2, MINTS=1, TOKENS=1, ATAS=1)
+
+**Preconditions:** All shared accounts present including system_program
+
+**Concrete input:** Same as real `all/derived.rs` test case -- 2 PDAs, 1 mint, 1 token vault, 1 ATA
+
+**Expected behavior:**
+1. All validations pass (all Option fields present)
+2. `with_cpi_context = true`
+3. Executes all 4 creation blocks sequentially: pdas -> mints -> token_vaults -> atas
+4. Returns `Ok(true)`
+
+---
+
+### P5: Tokens-only (PDAS=0, MINTS=0, TOKENS=1, ATAS=0)
+
+**Preconditions:** `compressible_config=Some`, `rent_sponsor=Some`, `system_program=Some`
+
+**Concrete input:**
+- `pdas = []`, `pda_setup = |_, _| Ok(())`
+- `mints = None`, `tokens = [TokenInitParam { ... }]`, `atas = []`
+- `shared.compression_config = None`, `cpi_authority = None`, `system_program = Some(...)`
+
+**Expected behavior:**
+1. Passes validation (has_tokens=true checks compressible_config + rent_sponsor, system_program checked)
+2. `with_cpi_context = false` (MINTS=0)
+3. CpiAccountsConfig::new (no CPI context)
+4. Skips PDAS and MINTS blocks
+5. Enters TOKENS block: calls `create_token_vaults()`
+6. Returns `Ok(false)`
+
+**Note:** No manual callers exist yet; this path would be generated by the macro for tokens-only structs.
+
+---
+
+### P6: Edge case -- PDAS+MINTS sum overflow (PDAS=200, MINTS=200)
+
+**Preconditions:** Artificially large const generics, all accounts present
+
+**Expected behavior:**
+1. Passes validation at line 144 (PDAS=200 < 255, MINTS=200 < 255 -- both pass individually)
+2. `create_pdas()` loops 200 times, each `i as u8` is safe (0..199)
+3. `create_mints_inner()` called with `cpi_context_offset = 200`
+4. In `create_mints.rs` line 305: `assigned_account_index = 200 + index as u8`
+5. For mint index 56+: `200 + 56 = 256` overflows u8 to 0 -- **SILENT CORRUPTION**
+
+**This is the suspected bug:** The sum PDAS+MINTS is not bounded, only individual values are.
+
+---
+
+### P7: Edge case -- insufficient remaining_accounts
+
+**Preconditions:** `remaining_accounts.len() < system_accounts_offset`
+
+**Expected behavior:**
+1. Passes const generic validation
+2. Line 171: `system_accounts_offset = shared.proof.system_accounts_offset as usize`
+3. Line 172: `remaining_accounts.len() < system_accounts_offset` -- true
+4. Returns `Err(FewerAccountsThanSystemAccounts)`
+
+---
+
+## Subagent Estimate
+
+- **Phase 2 (Tracing):** 7 subagents (one per path), model: haiku
+- **Phase 3 (Validation):** 7 subagents (one per path), model: sonnet
+- **Phase 4 (Critical Review):** 1 subagent (all functions together), model: opus
+- **Total:** 15 subagents
+
+---
+
+## Key Areas of Concern (from exploration)
+
+1. **PDAS+MINTS u8 overflow:** Line 144 checks each individually but not their sum. Downstream at `create_mints.rs:305`, `cpi_context_offset + index as u8` can overflow.
+2. **CPI context coordination:** PDAs write to CPI context, mints read from it with offset. Is the offset calculation correct for all PDAS/MINTS combinations?
+3. **Tokens-only path untested:** No existing callers exercise PDAS=0, MINTS=0, TOKENS>0. Does proof handling work correctly without CPI context?
+4. **`create_atas` idempotent branching:** Both branches of `if ata.idempotent` call `.rent_free()` but with different builder chains. Are they equivalent for the non-idempotent case?
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ananas/.REDACTED.jsonl
+
+---
+
+plan to fix it
+
+---
+
+[Request interrupted by user for tool use]
