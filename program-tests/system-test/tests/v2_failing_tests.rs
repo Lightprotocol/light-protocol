@@ -18,6 +18,8 @@
 //! }
 //! ```
 
+use std::collections::HashMap;
+
 use anchor_lang::{AnchorSerialize, Discriminator};
 use create_address_test_program::create_invoke_cpi_instruction;
 use light_account_checks::account_info::test_account_info::pinocchio::get_account_info;
@@ -34,12 +36,11 @@ use light_compressed_account::{
         zero_copy::ZInstructionDataInvokeCpi,
     },
 };
-use light_program_test::indexer::TestIndexerExtensions;
 use light_program_test::{
-    utils::assert::assert_rpc_error, AddressWithTree, LightProgramTest, ProgramTestConfig,
+    indexer::TestIndexerExtensions, utils::assert::assert_rpc_error, AddressWithTree, Indexer,
+    LightProgramTest, ProgramTestConfig, Rpc,
 };
-use light_program_test::{Indexer, Rpc};
-use light_sdk::{address::v2::derive_address, address::NewAddressParamsAssigned};
+use light_sdk::address::{v2::derive_address, NewAddressParamsAssigned};
 use light_system_program_pinocchio::{
     context::WrappedInstructionData,
     cpi_context::{
@@ -58,9 +59,7 @@ use light_test_utils::{
 };
 use light_zero_copy::traits::ZeroCopyAt;
 use pinocchio::pubkey::Pubkey as PinocchioPubkey;
-use solana_sdk::pubkey::Pubkey;
-use solana_sdk::signature::Signer;
-use std::collections::HashMap;
+use solana_sdk::{pubkey::Pubkey, signature::Signer};
 
 /// Creates a test CPI context account with the given associated merkle tree.
 fn create_test_cpi_context_account(
