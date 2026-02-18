@@ -224,7 +224,7 @@ pub use light_sdk_types::interface::account::token_seeds::{
     PackedTokenData, TokenDataWithPackedSeeds, TokenDataWithSeeds,
 };
 // create_accounts SDK function and parameter types
-#[cfg(feature = "token")]
+#[cfg(feature = "light-account")]
 pub use light_sdk_types::interface::accounts::create_accounts::{
     create_accounts, AtaInitParam, CreateMintsInput, PdaInitParam, SharedAccounts, TokenInitParam,
 };

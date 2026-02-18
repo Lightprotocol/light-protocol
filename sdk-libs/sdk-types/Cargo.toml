@@ -17,6 +17,7 @@ anchor = ["anchor-lang", "light-compressed-account/anchor", "light-compressible/
 idl-build = ["anchor-lang/idl-build", "light-compressible/idl-build", "anchor", "light-token-interface?/idl-build"]
 v2 = []
 cpi-context = []
+light-account = ["cpi-context", "token"]
 poseidon = ["light-hasher/poseidon", "light-compressed-account/poseidon"]
 
 [dependencies]

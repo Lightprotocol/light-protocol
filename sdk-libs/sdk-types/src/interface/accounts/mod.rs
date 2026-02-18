@@ -6,5 +6,5 @@
 pub mod finalize;
 pub mod init_compressed_account;
 
-#[cfg(all(feature = "cpi-context", feature = "token"))]
+#[cfg(feature = "light-account")]
 pub mod create_accounts;
