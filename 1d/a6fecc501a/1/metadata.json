@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "1da6fecc501a",
+  "session_id": "56be90d2-a216-4475-9617-ff47f0050dd5",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-18T16:54:44.151572Z",
+  "branch": "jorrit/feat-formally-verify-light-account",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "sdk-libs/sdk-types/src/interface/program/compression/pda.rs",
+    "sdk-libs/sdk-types/src/interface/program/compression/processor.rs",
+    "sdk-tests/sdk-types-kani/src/mock_account.rs",
+    "sdk-tests/sdk-types-kani/src/test_types.rs",
+    "sdk-tests/sdk-types-kani/tests/kani_proofs/compression.rs"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "a53c272b-6688-4be4-845a-aa0e19e1282b",
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-18T16:54:34.72125Z",
+    "agent_lines": 735,
+    "human_added": 2622,
+    "human_modified": 112,
+    "human_removed": 0,
+    "total_committed": 3469,
+    "agent_percentage": 21.187662150475642
+  },
+  "transcript_path": ".claude/projects/-Users-ananas-dev-light-protocol3/56be90d2-a216-4475-9617-ff47f0050dd5.jsonl"
+}

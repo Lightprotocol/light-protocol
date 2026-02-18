@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "c788d31d848b",
+  "strategy": "manual-commit",
+  "branch": "jorrit/refactor-light-account-creation-to-generic-function",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "sdk-libs/macros/src/light_pdas/accounts/builder.rs",
+    "sdk-libs/sdk-types/src/interface/accounts/create_accounts.rs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/c7/88d31d848b/0/metadata.json",
+      "transcript": "/c7/88d31d848b/0/full.jsonl",
+      "context": "/c7/88d31d848b/0/context.md",
+      "content_hash": "/c7/88d31d848b/0/content_hash.txt",
+      "prompt": "/c7/88d31d848b/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 37,
+    "cache_creation_tokens": 29200,
+    "cache_read_tokens": 809679,
+    "output_tokens": 3980,
+    "api_call_count": 23
+  }
+}

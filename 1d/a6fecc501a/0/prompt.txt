@@ -1,0 +1,563 @@
+check the current diff what do we currently prove for which functions?
+
+---
+
+which of these harnesses really make sense?
+
+---
+
+remove all of these   ~7 are weak -- they test trivial constructors or mocks rather than production code.
+
+  ~9 are unit tests dressed up as Kani proofs. They'd be better as #[test] functions -- they don't benefit from symbolic execution because they test constants, trivial setters, or
+   stub behavior. ~7 are modeling proofs that verify logic the harness itself wrote, not the actual codebase. These give false confidence. The decompression module is the worst offender -- every
+  proof there either models the logic or tests trivial discriminator checks.
+
+---
+
+ok what remains in compression?
+
+---
+
+what are the inputs and outputs to dispatch_compress_pda_accounts ?
+
+---
+
+ok read  /Users/ananas/dev/experiments/formally-verified-programs/GUIDE.md
+
+---
+
+I want to write a contract as outlined in the guide for the dispatch function
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+we are brainstorming now describe to me in a numbered list what you want to prove for what
+
+---
+
+ok this is insufficient, we need to prove relation ship between inputs and outputs
+
+---
+
+and we need to prove that the correct accounts are skipped
+
+---
+
+and not skipped
+
+---
+
+ok what else do we need to prove to prove complete correctness?
+
+---
+
+ok so split it up what for accounts, for output data, for other variables create a numbered list each
+
+---
+
+ok write this into your plan
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+Use a subagent with model=opus to validate the current plan.
+
+The subagent should analyze the plan and answer these questions:
+
+1. Are there any open questions?
+2. Are there any conflicting objectives?
+
+Report findings clearly and suggest resolutions if issues are found.
+
+---
+
+ok can you write up the properties in a dispact_compress.md file where would be the best place to put it?
+
+---
+
+we use old in /Users/ananas/dev/experiments/formally-verified-programs and you can ask deepwiki
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+what harnesses cover what?
+
+---
+
+can we stub the output creation?
+
+---
+
+I dont follow on these - canonicalize_for_hashing -- returns Ok(vec![]) (never inspected in contract)
+  - hash_account_data -- returns Ok([0u8; 32]) (never inspected in contract)
+  - Sha256BE::hash -- returns Ok([0u8; 32]) (never inspected in contract)
+
+---
+
+├── canonicalize_for_hashing(account_data)  → data_bytes                                                                                                                       
+    ├── hash_account_data(&data_bytes)          → output_data_hash                                                                                                                 
+    ├── Sha256BE::hash(&account_key)            → input_data_hash    we should do a separate input accounts proof first like we have a proof for build_compression_output plan to implement that
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+walk me through your composition it is ok to refactor the code so that it is easier to compose
+
+---
+
+this  is layer 2   Layer: 1c
+  Function: build_compression_output
+  Contract Proves: B2-B8, C4-C6, D1: field passthrough, discriminators, lamports
+  Stubs: none
+
+---
+
+and layer 2 should also have prepare_account_for_compression right?
+
+---
+
+build_compression_output also stubs stuff
+
+---
+
+layer 1 should be stubs for layer 2 nothgin else
+
+---
+
+[Request interrupted by user]
+
+---
+
+thats why I dont see build_compression_output this as layer1
+
+---
+
+[Request interrupted by user]
+
+---
+
+<local-command-stderr>Error: Compaction canceled.</local-command-stderr>
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me go through the conversation chronologically:
+
+1. User asks to check the current diff and what's being formally verified
+2. I examine the diff (refactoring pda.rs and processor.rs) and all Kani proof files
+3. I provide a comprehensive summary of all proofs across 6 modules
+4. User asks which harnesses "really make sense"
+5. I categorize into: genuinely valuable (~16), weak (~7), modeling (~7), unit tests (~9)
+6. User asks to remove all weak, modeling, and unit-test-dressed proofs
+7. I remove them: delete decompression.rs, roundtrip.rs, trim compression.rs and config.rs
+8. User asks what remains in compression - I list 7 proofs
+9. User asks about inputs/outputs of dispatch_compress_pda_accounts
+10. I read and explain the function
+11. User asks to read /Users/ananas/dev/experiments/formally-verified-programs/GUIDE.md
+12. I read the full guide (1094 lines) about building formally verified Solana programs
+13. User wants to write a contract for the dispatch function
+14. I enter plan mode, explore the codebase
+15. User interrupts - wants brainstorming, not planning. Asks for numbered list of what to prove
+16. I list properties but user says "this is insufficient, we need to prove relationship between inputs and outputs"
+17. I expand with input-output relationship properties (1-10)
+18. User says "and we need to prove that the correct accounts are skipped"
+19. I add properties 11-12 about skip/compress biconditional
+20. User says "and not skipped" - I clarify both directions of the biconditional
+21. User asks "what else do we need to prove for complete correctness"
+22. I add properties 13-18 covering account state mutations, user data integrity, hash distinctness, error atomicity
+23. User asks to split into categories with numbered lists
+24. I create categorized lists: Groups A-I with 33 total properties
+25. User asks to write this into the plan
+26. I update the plan file
+27. User runs /validate-plan - I spawn a validation subagent
+28. Validation finds: cross-crate contract issues, counter-based stub incompatibility with ensures (B1, C2, D1), old() on raw pointers doesn't work (A4, A5), error atomicity is vacuous (H1-H3)
+29. User points me to experiments repo and deepwiki for old() patterns
+30. I explore experiments repo - find old() works with method calls returning Copy types, modifies targets individual byte array fields, NO Vec examples, NO generic function contracts
+31. User mentions kani::vec::exact_vec for heap
+32. I update the plan with POC-first approach
+33. User asks "can we stub the output creation?"
+34. I discuss stubbing build_compression_output and related functions
+35. User says "we should do a separate input accounts proof first like we have a proof for build_compression_output plan to implement that"
+36. I propose layered verification: Layer 1 (individual functions), Layer 2 (prepare_account_for_compression)
+37. User corrects: "this is layer 2" for build_compression_output - I fix
+38. User corrects: "layer 2 should also have prepare_account_for_compression" - I fix
+39. User asks about build_compression_output stubbing
+40. I realize build_compression_output is a pure constructor, belongs in Layer 1
+41. Final architecture agreed upon
+
+Key files modified:
+- sdk-tests/sdk-types-kani/tests/kani_proofs/compression.rs (rewritten, 9 proofs removed)
+- sdk-tests/sdk-types-kani/tests/kani_proofs/config.rs (rewritten, 5 proofs removed)
+- sdk-tests/sdk-types-kani/tests/kani_proofs.rs (removed decompression and roundtrip modules)
+- Deleted: decompression.rs, roundtrip.rs
+- Created: sdk-tests/sdk-types-kani/docs/compress_properties.md
+
+The plan file at /Users/ananas/.claude/plans/happy-chasing-axolotl.md was updated multiple times but the user never approved it via ExitPlanMode.
+
+Current state: We're in plan mode, discussing the compositional verification architecture. The final agreed-upon architecture is:
+
+Layer 1: Pure functions
+- 1a. hash_account_data → C3
+- 1b. canonicalize_for_hashing → C1+E1
+- 1c. evaluate_compressibility (NEW, to be extracted) → F1+F2
+- 1d. write_compressed_state (NEW, to be extracted) → A1-A3
+- 1e. build_compression_output → B2-B8, C4-C6, D1
+
+Layer 2: Orchestrator
+- 2a. prepare_account_for_compression (stubs Layer 1) → G1-G4, push iff compressible
+
+The user is open to refactoring the code to make composition easier. Two new functions need to be extracted: evaluate_compressibility and write_compressed_state.
+
+Summary:
+1. Primary Request and Intent:
+   The user wants to add Kani formal verification contracts (modifies + ensures) to the compression functions in Light Protocol, following the patterns from their GUIDE.md at `/Users/ananas/dev/experiments/formally-verified-programs/GUIDE.md`. The goal is compositional verification where each function has its own contract, and higher-level functions stub lower-level ones. The user explicitly wants to prove:
+   - Input-output relationships (every output field traces back to a specific input)
+   - Decision correctness: accounts are skipped IFF not compressible, compressed IFF compressible (both directions)
+   - Ctx mutation correctness: push consistency, correct indices, flag monotonicity
+   - The user is open to refactoring the code to make it easier to compose proofs
+
+2. Key Technical Concepts:
+   - Kani model checker for Rust with `#[kani::ensures]`, `#[kani::modifies]`, `#[kani::proof_for_contract]`
+   - `old()` pseudo-function to capture pre-call state in ensures clauses
+   - `stub_verified` for compositional verification
+   - Layered/compositional verification: Layer 1 (pure functions) → Layer 2 (orchestrator stubs Layer 1)
+   - Counter-based hash stub (`stub_sha256_hash`) is incompatible with ensures clauses (calling hash again in ensures returns different counter value)
+   - `old()` on raw pointers captures the pointer not the data behind it
+   - `kani::vec::exact_vec::<T, N>()` for symbolic Vecs with fixed size to keep CBMC fast
+   - Cross-crate contracts (annotations on library crate, harness in test crate) are experimental
+   - Generic function contracts work with one monomorphization per harness
+   - The experiments repo uses bytemuck zero-copy `[u8; N]` fields with `modifies` targeting specific fields; our code uses borsh + Vec which is fundamentally different
+
+3. Files and Code Sections:
+   - **`sdk-libs/sdk-types/src/interface/program/compression/pda.rs`** — Contains `prepare_account_for_compression`, `hash_account_data`, `canonicalize_for_hashing`, `build_compression_output`. These are the functions that will receive contract annotations. Two new functions need to be extracted: `evaluate_compressibility` and `write_compressed_state`.
+     - Current `prepare_account_for_compression` signature:
+       ```rust
+       pub fn prepare_account_for_compression<AI, A>(
+           account_info: &AI,
+           account_data: &mut A,
+           compressed_account_meta: &CompressedAccountMetaNoLamportsNoAddress,
+           pda_index: usize,
+           ctx: &mut CompressCtx<'_, AI>,
+       ) -> Result<(), LightSdkTypesError>
+       where
+           AI: AccountInfoTrait,
+           A: HasCompressionInfo + LightDiscriminator + Clone + borsh::BorshSerialize,
+       ```
+   
+   - **`sdk-libs/sdk-types/src/interface/program/compression/processor.rs`** — Contains `dispatch_compress_pda_accounts`, `process_compress_pda_accounts_idempotent`, `CompressCtx`, `DispatchResult`, `CompressAndCloseParams`. The diff refactored this to extract `dispatch_compress_pda_accounts` and `DispatchResult`.
+
+   - **`sdk-tests/sdk-types-kani/tests/kani_proofs/compression.rs`** — Rewritten to keep only 7 meaningful harnesses (removed 9 weak/modeling/unit-test proofs). Will receive `proof_for_contract` harnesses.
+     - Remaining harnesses: `verify_compression_output`, `verify_hash_first_byte_zeroed`, `verify_canonicalize_sets_compressed`, `verify_canonicalize_preserves_value`, `verify_processor_non_compressible_skip`, `verify_compression_serializes_back`, `verify_compression_arbitrary_data`
+
+   - **`sdk-tests/sdk-types-kani/tests/kani_proofs/config.rs`** — Rewritten to keep only 2 harnesses: `verify_load_checked_rejects_wrong_owner`, `verify_load_checked_rejects_bad_discriminator`
+
+   - **`sdk-tests/sdk-types-kani/tests/kani_proofs.rs`** — Edited to remove `decompression` and `roundtrip` module entries
+
+   - **`sdk-tests/sdk-types-kani/tests/kani_proofs/decompression.rs`** — Deleted (all 8 proofs were modeling/unit tests)
+
+   - **`sdk-tests/sdk-types-kani/tests/kani_proofs/roundtrip.rs`** — Deleted (all 4 proofs were stub-determinism/constant checks)
+
+   - **`sdk-tests/sdk-types-kani/docs/compress_properties.md`** — Created. Documents all 32 properties organized in Groups A-I with feasibility analysis for each.
+
+   - **`sdk-tests/sdk-types-kani/src/mock_account.rs`** — MockAccountInfo implementation using raw pointers and Box::leak. Key stubs: `stub_sha256_hash` (counter-based), `stub_derive_address` (deterministic XOR), `stub_load_checked`, `stub_validate_rent_sponsor`.
+
+   - **`sdk-tests/sdk-types-kani/tests/kani_proofs/rent.rs`** — Unchanged, 5 proofs kept (all genuine).
+
+   - **`sdk-tests/sdk-types-kani/tests/kani_proofs/validation.rs`** — Unchanged, 2 proofs kept (both genuine).
+
+   - **`/Users/ananas/dev/experiments/formally-verified-programs/GUIDE.md`** — Read in full (1094 lines). Key patterns: two-layer architecture (parse/process), contracts on everything, modifies+ensures preferred, avoid requires, proof_for_contract harnesses, stub_verified for composition.
+
+   - **`/Users/ananas/.claude/plans/happy-chasing-axolotl.md`** — Plan file, updated multiple times but never approved by user.
+
+4. Errors and Fixes:
+   - **Validation found counter-based stub incompatible with ensures**: Properties B1 (input hash), C2 (output hash), D1 (address) cannot be expressed in ensures because calling the stub again returns a different counter value. Fix: stub the entire output construction chain in the Layer 2 contract, verify these properties separately in Layer 1.
+   - **old() on raw pointers captures pointer not data**: Properties A4, A5 (skip leaves data unchanged) cannot be expressed. Fix: these remain covered by existing assertion-based harnesses.
+   - **Error atomicity properties are vacuous**: H1-H3 unreachable because all stubs succeed. Fix: skip these.
+   - **User corrected layer assignments multiple times**: build_compression_output was initially in Layer 1, moved to Layer 2, then back to Layer 1 (it's a pure constructor with no function calls). prepare_account_for_compression needed to be in Layer 2 alongside build_compression_output initially, but final architecture has build_compression_output in Layer 1 and prepare as the sole Layer 2.
+
+5. Problem Solving:
+   - Categorized 37 Kani proofs into meaningful/weak/modeling/unit-test tiers, removed 23 that provided false confidence
+   - Designed 32 formal properties organized in 9 groups (A-I) covering account state, output fields, decision correctness, ctx mutations, error atomicity, frame condition
+   - Identified feasibility blockers: 16 expressible, 6 risky, 5 blocked, 3 vacuous, 2 uncertain
+   - Designed compositional verification architecture separating pure functions (Layer 1) from orchestration (Layer 2)
+   - Identified need to extract two new functions (`evaluate_compressibility`, `write_compressed_state`) from monolithic `prepare_account_for_compression`
+
+6. All User Messages:
+   - "check the current diff what do we currently prove for which functions?"
+   - "which of these harnesses really make sense?"
+   - "remove all of these ~7 are weak... ~9 are unit tests... ~7 are modeling proofs..."
+   - "ok what remains in compression?"
+   - "what are the inputs and outputs to dispatch_compress_pda_accounts?"
+   - "ok read /Users/ananas/dev/experiments/formally-verified-programs/GUIDE.md"
+   - "I want to write a contract as outlined in the guide for the dispatch function"
+   - "we need to prove that the result is consistent with the inputs, we need to prove that if we skip an account its index is not in pda_indices_to_close, and other things"
+   - "we are brainstorming now describe to me in a numbered list what you want to prove for what"
+   - "this is insufficient, we need to prove relation ship between inputs and outputs"
+   - "and we need to prove that the correct accounts are skipped"
+   - "and not skipped"
+   - "ok what else do we need to prove to prove complete correctness?"
+   - "ok so split it up what for accounts, for output data, for other variables create a numbered list each"
+   - "ok write this into your plan"
+   - "/validate-plan"
+   - "ok can you write up the properties in a dispatch_compress.md file where would be the best place to put it?"
+   - "we use old in /Users/ananas/dev/experiments/formally-verified-programs and you can ask deepwiki"
+   - "Collection APIs (kani::vec::) ... use exact vec to make verification times small for heap"
+   - "can we stub the output creation?"
+   - "I dont follow on these - canonicalize_for_hashing -- returns Ok(vec![]) ... Sha256BE::hash -- returns Ok([0u8; 32])"
+   - "we should do a separate input accounts proof first like we have a proof for build_compression_output plan to implement that"
+   - "this is layer 2" (correcting build_compression_output placement)
+   - "and layer 2 should also have prepare_account_for_compression right?"
+   - "build_compression_output also stubs stuff"
+   - "walk me through your composition it is ok to refactor the code so that it is easier to compose"
+
+7. Pending Tasks:
+   - Update the plan file with the final agreed-upon architecture
+   - Refactor `prepare_account_for_compression` to extract `evaluate_compressibility` and `write_compressed_state`
+   - Implement Layer 1 contracts on: hash_account_data, canonicalize_for_hashing, evaluate_compressibility (new), write_compressed_state (new), build_compression_output
+   - Implement Layer 2 contract on `prepare_account_for_compression` with Layer 1 stubs
+   - Write `proof_for_contract` harnesses for each contract
+   - Plan is still in plan mode, not yet approved
+
+8. Current Work:
+   We are in plan mode, brainstorming the compositional verification architecture. The final agreed-upon architecture is:
+
+   ```
+   Layer 1: Pure functions (no dependencies on each other)
+   ├── 1a. hash_account_data          → C3: hash[0]==0
+   ├── 1b. canonicalize_for_hashing   → C1+E1: canonical data, user fields preserved
+   ├── 1c. evaluate_compressibility   → F1+F2: true iff is_compressible returns Some
+   ├── 1d. write_compressed_state     → A1-A3: PDA disc + state==Compressed
+   └── 1e. build_compression_output   → B2-B8, C4-C6, D1: field passthrough
+
+   Layer 2: Orchestrator (stubs Layer 1 + derive_address + Sha256)
+   └── 2a. prepare_account_for_compression → G1-G4: push/skip/index/monotonicity
+   ```
+
+   The user confirmed `build_compression_output` belongs in Layer 1 (pure constructor, no function calls, no stubs needed). `prepare_account_for_compression` is the sole Layer 2 function. Two new functions (`evaluate_compressibility`, `write_compressed_state`) need to be extracted from `prepare_account_for_compression`.
+
+   The plan file needs to be updated with this final architecture, then ExitPlanMode called for approval.
+
+9. Optional Next Step:
+   Update `/Users/ananas/.claude/plans/happy-chasing-axolotl.md` with the final two-layer architecture and the refactoring plan (extracting `evaluate_compressibility` and `write_compressed_state`), then call ExitPlanMode for user approval. The user's most recent message was "walk me through your composition it is ok to refactor the code so that it is easier to compose" and the last exchange clarified that `build_compression_output` is Layer 1 (pure constructor) and `prepare_account_for_compression` is the sole Layer 2.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ananas/.REDACTED.jsonl
+
+---
+
+ok whats the current state?
+
+---
+
+we are still disussing
+
+---
+
+I want a modify input account function with a contract similar to build_compression_output
+
+---
+
+├── Task 1: hash_account_data         → C3                                                                                                                                     
+    ├── Task 2: canonicalize_for_hashing  → C1, E1     these should only be used in modify_input_account
+
+---
+
+hm cant we just make this a single stub
+
+---
+
+ok what else is requried to verify dispatch compress completely?
+
+---
+
+ok no skip it
+
+---
+
+ok show me the complete plan
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+Use a subagent with model=opus to validate the current plan.
+
+The subagent should analyze the plan and answer these questions:
+
+1. Are there any open questions?
+2. Are there any conflicting objectives?
+
+Report findings clearly and suggest resolutions if issues are found.
+
+---
+
+use the existing stub_sha256_hash stub
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+use mode auto skill
+
+---
+
+# Autonomous Execution Mode
+
+You are now in **autonomous execution mode**. This mode is optimized for long-running tasks (hours) that should complete without user intervention.
+
+## Core Principles
+
+1. **NEVER STOP** until the goal is reached
+2. **NEVER ASK** questions during execution (ask everything in planning phase)
+3. **NEVER REQUEST** new permissions - work within what's allowed
+4. **ALWAYS RECOVER** from errors autonomously
+5. **USE SUBAGENTS** when stuck or for parallel work
+
+## Instructions
+
+### 1. Planning Phase (CRITICAL)
+
+Before execution begins, the plan MUST be crystal clear. In plan mode:
+
+- **Ask ALL questions upfront** - anything unclear must be resolved NOW
+- **Validate requirements** - confirm understanding of the goal
+- **Identify potential blockers** - permissions, dependencies, unknowns
+- **Ensure the plan can run for hours** without needing clarification
+
+If the plan is not clear enough for autonomous execution, **ask questions now**.
+
+Update the plan's **IMPORTANT** section:
+
+```markdown
+## IMPORTANT - Autonomous Execution Mode
+
+- This plan must execute without user intervention
+- All questions have been resolved in planning phase
+- Use subagents for research, parallel work, or when stuck
+- If blocked, find alternative approach - do not stop
+- Keep working until ALL todos are complete
+- Plan includes phases that generate new todos dynamically
+```
+
+### 2. Plan Structure
+
+Keep the plan **high-level** with planning phases built in:
+
+```markdown
+## Phase 1: Research & Discovery
+1. Explore codebase for existing patterns
+2. Identify files that need modification
+3. **PLANNING**: Define detailed implementation todos based on findings
+
+## Phase 2: Implementation
+4. [Generated from Phase 1 planning]
+5. [Generated from Phase 1 planning]
+6. ...
+
+## Phase 3: Testing & Validation
+7. Run test suite
+8. **PLANNING**: Create fix todos for any failures
+9. [Generated fix todos]
+
+## Phase 4: Completion
+10. Final verification
+11. Summary of changes
+```
+
+### 3. Execution Protocol
+
+For each todo:
+
+1. **Execute** without hesitation
+2. **Log progress** briefly (no need to wait for feedback)
+3. **Handle errors** autonomously:
+   - Try alternative approaches
+   - Use subagent to research solutions
+   - If truly blocked, note it and continue with other todos
+4. **Review**: After completing a todo that involves code changes, use `/review-diff` skill to verify:
+   - The main goal of the todo is achieved
+   - No general constraints are violated (from CLAUDE.md, plan requirements, etc.)
+   - No regressions or broken code introduced
+5. **Generate new todos** during planning phases
+6. **Move to next todo** immediately after completion (and after review passes)
+
+### 4. Subagent Usage
+
+**Always spawn subagents with `mode: "dontAsk"`** so they never prompt for permissions.
+
+Use subagents liberally for:
+- **Research**: Understanding unfamiliar code/patterns
+- **Parallel work**: Multiple independent tasks
+- **When stuck**: Fresh perspective on problems
+- **Complex analysis**: Deep dives that might derail main thread
+
+### 5. Error Recovery
+
+When encountering errors:
+
+1. **First**: Try to fix it directly
+2. **Second**: Use subagent to research the error
+3. **Third**: Try alternative approach
+4. **Fourth**: Skip and note for later, continue with other todos
+5. **NEVER**: Stop and ask user
+
+### 6. Permission Handling
+
+- Work within existing permissions only
+- If a command needs permission, find an alternative approach
+- Pre-approved commands are listed in settings - use those
+- Do not attempt commands that will trigger permission prompts
+- **Never use `cat > file << 'EOF'` or bash heredocs to write files.** Always use the Write tool instead. Heredoc commands cause permission prompts because the `*` glob in Bash permission patterns does not match newline characters.
+- When writing to /tmp or any other path, use the Write tool, not bash redirection.
+
+### 7. Progress Tracking
+
+- Keep the todo list updated via TodoWrite
+- Mark todos complete as you finish them
+- Add new todos discovered during planning phases
+- Provide periodic status updates (every 5-10 todos)
+
+### 8. Completion Criteria
+
+Continue until:
+- ALL todos are marked complete
+- The original goal is fully achieved
+- A comprehensive summary is provided
+
+## Activation Checklist
+
+Before activating, confirm:
+- [ ] Plan is detailed enough for hours of autonomous work
+- [ ] All questions have been asked and answered
+- [ ] No ambiguous requirements remain
+- [ ] Permissions are understood (what's allowed/denied)
+- [ ] Success criteria are clear
+
+## Activation
+
+If in plan mode: Ensure the plan meets the checklist above. Ask any remaining questions NOW.
+
+If ready to execute: Say "Autonomous mode activated. Executing until goal is complete." and begin.
+
+**WARNING**: Once execution starts, I will not stop for questions or confirmations. Ensure the plan is solid before proceeding.
+
+---
+
+[Request interrupted by user for tool use]

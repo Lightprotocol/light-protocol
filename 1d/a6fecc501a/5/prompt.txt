@@ -1,0 +1,93 @@
+Implement the following plan:
+
+# Fix: `assigned_account_index` u8 overflow in `create_accounts()`
+
+**Date:** 2026-02-18
+**Branch:** `jorrit/refactor-light-account-creation-to-generic-function`
+
+---
+
+## IMPORTANT
+
+- Single task: two one-line edits to one file
+- No new files, no helpers, no test extraction
+- After edits: run `cargo check -p light-sdk-types` to confirm compilation
+
+---
+
+## Context
+
+The logic review of `create_accounts()` found that the validation at line 144 of
+`sdk-libs/sdk-types/src/interface/accounts/create_accounts.rs` checks `PDAS` and
+`MINTS` individually against `u8::MAX` (255) but not their sum.
+
+Downstream, `create_mints_inner` receives `cpi_context_offset = PDAS as u8`.
+Inside `CreateMintsCpi::invoke_cpi_write` and `invoke_execute` the field is set:
+
+```rust
+assigned_account_index: offset + index as u8,   // create_mints.rs:305
+assigned_account_index: offset + last_idx as u8, // create_mints.rs:412
+```
+
+When `PDAS + any_mint_index >= 256`, this overflows `u8`:
+- **Release builds**: silent wrap → wrong CPI context slot index → proof verification
+  failure or silent state corruption
+- **Debug builds**: arithmetic overflow panic
+
+The doc comment on line 107 also mis-states the return condition as
+`(PDAS > 0 && MINTS > 0)` when the actual code uses `MINTS > 0`.
+
+---
+
+## Files to Edit
+
+- `sdk-libs/sdk-types/src/interface/accounts/create_accounts.rs`
+
+---
+
+## Changes
+
+### Change 1 — Add combined bound check (line 144)
+
+```rust
+// Before
+if PDAS > u8::MAX as usize || MINTS > u8::MAX as usize {
+    return Err(LightSdkTypesError::InvalidInstructionData);
+}
+
+// After
+if PDAS > u8::MAX as usize || MINTS > u8::MAX as usize || PDAS.saturating_add(MINTS) > u8::MAX as usize {
+    return Err(LightSdkTypesError::InvalidInstructionData);
+}
+```
+
+`PDAS.saturating_add(MINTS)` cannot overflow `usize` because both are already
+proven `<= 255` by the earlier terms in the same condition (short-circuit evaluation
+guarantees the right-hand term only executes when both are `<= 255`, so the sum is
+at most 510, well within `usize` range on all platforms).
+
+### Change 2 — Fix doc comment (line 107)
+
+```rust
+// Before
+/// Returns `true` if CPI context was used (PDAS > 0 && MINTS > 0), `false` otherwise.
+
+// After
+/// Returns `true` if CPI context was set up (MINTS > 0), `false` otherwise.
+```
+
+---
+
+## Verification
+
+```bash
+cargo check -p light-sdk-types
+```
+
+No tests cover the combined overflow path (triggering it requires `[PdaInitParam;
+200+]` arrays which are impractical in unit tests). The fix is correct by inspection:
+`cpi_context_offset + index` is never computed when `PDAS + MINTS > 255` because
+the function returns early.
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ananas/.REDACTED.jsonl

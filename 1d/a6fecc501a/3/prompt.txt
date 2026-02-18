@@ -1,0 +1,756 @@
+Implement the following plan:
+
+# Fix Actionable Issues and Remove Dead Code from builder.rs Review
+
+**Date:** 2026-02-18
+**Branch:** `jorrit/refactor-light-account-creation-to-generic-function`
+**Source:** Logic review of `builder.rs` (report: `.claude/logic-review-builder-20260218-report.md`)
+
+## Context
+
+A logic review identified two correctness bugs in `validation.rs` and confirmed dead code in `builder.rs`. The bugs were introduced alongside the refactor adding `generate_pre_init_with_create_accounts()`. The dead code results from parser invariants that the builder does not exploit.
+
+## Files to Modify
+
+- `sdk-libs/macros/src/light_pdas/accounts/validation.rs`
+- `sdk-libs/macros/src/light_pdas/accounts/builder.rs`
+
+---
+
+## Changes
+
+### 1. Fix F1: CPI authority over-required for tokens-only path (`validation.rs`)
+
+**Location:** lines 25-26 (doc) and line 159 (logic)
+
+**Problem:** Rule 7 requires `light_token_cpi_authority` for `has_mints || has_tokens_with_init`. The runtime (`create_accounts.rs:154`) only gates `cpi_authority` on `MINTS > 0`. Token init uses program-derived signing, not CPI authority.
+
+**Doc fix (lines 25-26):**
+```
+// Before:
+//! 7. **Light token CPI authority** - When mints or token accounts exist (but not ATAs
+//!    alone), `light_token_cpi_authority` field is required
+
+// After:
+//! 7. **Light token CPI authority** - When mints exist,
+//!    `light_token_cpi_authority` field is required
+```
+
+**Logic fix (lines 158-161):**
+```rust
+// Before:
+// CPI authority is required for mints and token accounts with init (PDA-based signing)
+if (ctx.has_mints || ctx.has_tokens_with_init) && !ctx.has_light_token_cpi_authority {
+
+// After:
+// CPI authority is required for mints only (token init uses program-derived PDA signing)
+if ctx.has_mints && !ctx.has_light_token_cpi_authority {
+```
+
+---
+
+### 2. Fix F2: Proof availability check incomplete (`validation.rs`)
+
+**Location:** lines 201-204 (doc comment) and line 206 (logic)
+
+**Problem:** `validate_proof_availability()` only gates on `has_pdas || has_mints`, but tokens-only and ATAs-only paths through `generate_pre_init_with_create_accounts()` also call `get_proof_access()` and pass proof to `create_accounts()`. The runtime reads `shared.proof.system_accounts_offset` unconditionally (line 171). Without this fix, a user who has only token init fields gets a confusing compile error about a missing `create_accounts_proof` field instead of a clear macro error.
+
+**Doc fix (line 201):**
+```
+// Before:
+/// CreateAccountsProof is required when there are any init fields (PDAs, mints).
+
+// After:
+/// CreateAccountsProof is required when there are any init fields (PDAs, mints, tokens, ATAs).
+```
+
+**Logic fix (line 206):**
+```rust
+// Before:
+let needs_proof = ctx.has_pdas || ctx.has_mints;
+
+// After:
+let needs_proof = ctx.has_pdas || ctx.has_mints || ctx.has_tokens_with_init || ctx.has_atas_with_init;
+```
+
+---
+
+### 3. Remove dead code: mint fallback (`builder.rs:758-762`)
+
+**Problem:** Parser invariant in `light_account.rs::build_token_account_field()`: init-mode token fields always have `mint = Some(...)`. The `unwrap_or_else` fallback (`self.mint`) is unreachable.
+
+```rust
+// Before:
+let mint_binding = field
+    .mint
+    .as_ref()
+    .map(|m| quote! { let #mint_info_ident = self.#m.to_account_info(); })
+    .unwrap_or_else(|| quote! { let #mint_info_ident = self.mint.to_account_info(); });
+
+// After:
+let m = field.mint.as_ref()
+    .expect("parser invariant: token init fields always have mint");
+let mint_binding = quote! { let #mint_info_ident = self.#m.to_account_info(); };
+```
+
+---
+
+### 4. Remove dead code: owner fallback (`builder.rs:766-773`)
+
+**Problem:** Same parser invariant: init-mode token fields always have `owner = Some(...)`. The `unwrap_or_else` fallback (fee payer) is unreachable.
+
+```rust
+// Before:
+let owner_expr = field
+    .owner
+    .as_ref()
+    .map(|o| quote! { self.#o.to_account_info().key.to_bytes() })
+    .unwrap_or_else(|| {
+        let fee_payer = &infra.fee_payer;
+        quote! { self.#fee_payer.to_account_info().key.to_bytes() }
+    });
+
+// After:
+let o = field.owner.as_ref()
+    .expect("parser invariant: token init fields always have owner");
+let owner_expr = quote! { self.#o.to_account_info().key.to_bytes() };
+```
+
+---
+
+### 5. Remove dead code: empty-seeds bump derivation branch (`builder.rs:798-822`)
+
+**Problem:** Parser rejects token init fields with empty seeds. The `if token_seeds.is_empty()` branch is unreachable.
+
+```rust
+// Before:
+.unwrap_or_else(|| {
+    let seed_refs: Vec<&syn::Ident> = seed_ref_idents.iter().collect();
+    if token_seeds.is_empty() {
+        quote! { ... find_program_address(&[], ...) ... }
+    } else {
+        quote! { ... find_program_address(seeds, ...) ... }
+    }
+});
+
+// After:
+.unwrap_or_else(|| {
+    let seed_refs: Vec<&syn::Ident> = seed_ref_idents.iter().collect();
+    quote! {
+        let #bump_ident: u8 = {
+            let seeds: &[&[u8]] = &[#(#seed_refs),*];
+            let (_, bump) = solana_pubkey::Pubkey::find_program_address(
+                seeds,
+                &solana_pubkey::Pubkey::from(crate::LIGHT_CPI_SIGNER.program_id),
+            );
+            bump
+        };
+    }
+});
+```
+
+---
+
+### 6. Remove dead code: empty-seeds `seeds_array_expr` branch (`builder.rs:831-836`)
+
+**Problem:** Same — seeds are always non-empty for init-mode tokens.
+
+```rust
+// Before:
+let seeds_array_expr = if token_seeds.is_empty() {
+    quote! { &[&#bump_slice_ident[..]] }
+} else {
+    let seed_refs: Vec<&syn::Ident> = seed_ref_idents.iter().collect();
+    quote! { &[#(#seed_refs,)* &#bump_slice_ident[..]] }
+};
+
+// After:
+let seed_refs: Vec<&syn::Ident> = seed_ref_idents.iter().collect();
+let seeds_array_expr = quote! { &[#(#seed_refs,)* &#bump_slice_ident[..]] };
+```
+
+---
+
+## Verification
+
+Baseline confirmed: `cargo test-sbf -p csdk-anchor-full-derived-test` passes (76 tests, 0 failed).
+
+After applying changes, re-run both:
+```bash
+cargo test -p light-sdk-macros
+cargo test-sbf -p csdk-anchor-full-derived-test
+```
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ananas/.REDACTED.jsonl
+
+---
+
+<bash-input>git add .</bash-input>
+
+---
+
+<bash-stdout></bash-stdout><bash-stderr></bash-stderr>
+
+---
+
+<bash-input>git commit -m "fix minor issues & cleanup"</bash-input>
+
+---
+
+<bash-stdout>[jorrit/refactor-light-account-creation-to-generic-function 7c776f2eb] fix minor issues & cleanup
+ 4 files changed, 29 insertions(+), 49 deletions(-)
+ create mode 100644 .entire/.gitignore</bash-stdout><bash-stderr></bash-stderr>
+
+---
+
+use a subagent to check diff to main and identify other functions and files that should be analyzed like we just did the changes in teh macro code
+
+---
+
+whats the full path for create_accounts.rs
+
+---
+
+give me a concise summary of its contents and the num loc changed diff ot main in this file
+
+---
+
+ok run a logic review on that one clear the existing plan
+
+---
+
+**Input:**
+sdk-libs/sdk-types/src/interface/accounts/create_accounts.rs
+
+**Dynamic Context:**
+```
+Recent changes: !git log --oneline -5 2>/dev/null || echo "not a git repo"
+Current branch: !git branch --show-current 2>/dev/null || echo "n/a"
+```
+
+**PATH RESTRICTIONS:**
+- **NEVER** write, edit, or create files in `/Users/ananas/` or `~` EXCEPT:
+  - `.claude/` directory (plans, reports, tmp)
+  - The current working directory (project being analyzed)
+- **READ-ONLY** access to `~/.cargo/` (dependency source inspection only)
+- All subagent output MUST go to the review directory (`.claude/tmp/[branch]-[N]/`)
+- Violating these restrictions is a critical error - STOP and report
+
+**ASSUMPTIONS:**
+- All tests in the repository pass - do NOT execute tests
+- However, DO question whether test assertions are sufficient (tests may pass but miss edge cases, validation gaps, or incomplete coverage)
+
+**IMPORTANT:** This is a multi-phase review. Each phase must complete before the next begins. Do not skip phases or rush through analysis.
+
+**EXECUTION MODE:**
+1. This command MUST start in **plan mode** (use EnterPlanMode tool)
+2. Complete Phase 0 and Phase 1 in plan mode - this creates the execution plan
+3. Write the plan to `.claude/logic-review-[timestamp]-plan.md`
+4. Use ExitPlanMode to get user approval of the plan
+5. After user approves, execute Phases 2-4 outside of plan mode
+
+This ensures the user reviews and approves the analysis scope before expensive subagent work begins.
+
+**CONFIDENCE THRESHOLD:** All findings must include a confidence score (0-100%). Findings below 80% confidence are automatically filtered out and moved to "Low Confidence (Filtered)" section in the report.
+
+**Process:**
+
+## PLAN MODE PHASES
+
+## Phase 0: Setup and Gate Check
+
+0. **SETUP WORKING DIRECTORY:**
+   - Get current branch name: `git branch --show-current` (fallback to "nobranch" if not a git repo)
+   - Sanitize branch name for filesystem (replace `/` with `-`, remove special chars)
+   - Find next available suffix number:
+     - Check `.claude/tmp/[branch]-0`, `.claude/tmp/[branch]-1`, etc.
+     - Use the first number that doesn't exist (start at 0)
+   - Create the review directory: `.claude/tmp/[branch]-[N]/`
+   - Example: `.claude/tmp/feat-token-support-0/` or `.claude/tmp/main-3/`
+   - This **review directory path** must be included in the plan file
+   - All subagent output files will be written to this directory:
+     - `[review-dir]/phase2-[path-id]-trace.json`
+     - `[review-dir]/phase3-[path-id]-validation.json`
+     - `[review-dir]/phase4-[function]-critical.json`
+
+1. **SPAWN GATE CHECK AGENT** (model: haiku)
+   - Verify target functions exist and can be located
+   - Check functions are non-trivial (more than 5 lines, has branches/logic)
+   - If functions not found or trivial: STOP and report to user
+   - Return: {functions_found: [], trivial_functions: [], proceed: boolean}
+
+## Phase 1: Analysis and Planning
+
+1. **IDENTIFY FUNCTIONS:**
+   - Parse input to locate target function(s)
+   - Use LSP/Grep to find function definitions
+   - Read full function implementation
+
+2. **ANALYZE USAGE PATHS:**
+   - For each function, identify all possible execution paths:
+     - Different input combinations that trigger different branches
+     - Error paths vs success paths
+     - Edge cases (empty inputs, max values, zero values, None/null)
+   - Use LSP to find all callers and understand real-world usage patterns
+
+3. **CONFIRM WITH USER:**
+   - Present discovered usage paths to user
+   - Ask: "Are these the relevant paths to analyze? Any to add/remove?"
+   - Wait for user confirmation before proceeding
+
+4. **DOCUMENT EXPECTED BEHAVIOR:**
+   - Generate timestamp once (e.g., `20260111-143022`)
+   - Sanitize function name(s) for filename (replace `::` with `-`, remove special chars)
+   - Write to `.claude/logic-review-[function-name]-[timestamp]-plan.md`:
+     - **Review directory:** `[review-dir from Phase 0]` (e.g., `.claude/tmp/feat-token-support-0/`)
+     - **Report path:** `.claude/logic-review-[function-name]-[timestamp]-report.md`
+     - **Subagent output pattern:** `[review-dir]/phase[N]-[id]-[type].json`
+     - Example: `.claude/logic-review-process_transfer-20260111-143022-report.md`
+     - Function signature and purpose
+     - For each usage path:
+       - Path name/description
+       - Preconditions required
+       - Plausible concrete input values
+       - Expected output/behavior
+       - Relevant validation checks in the code
+     - Estimated subagent count for Phases 2-4
+     - This becomes the "specification" for comparison
+
+5. **EXIT PLAN MODE:**
+   - Use ExitPlanMode tool to request user approval
+   - User reviews the plan file and approves or requests changes
+   - Do NOT proceed to Phase 2 until user explicitly approves
+
+## EXECUTION MODE PHASES (after user approves plan)
+
+**NOTE FOR ALL SUBAGENTS:** The review directory (`[review-dir]`) already exists - it was created in Phase 0. Do NOT attempt to create it. Just write output files directly to the path provided.
+
+## Phase 2: Input Tracing (Subagents) - model: haiku
+
+6. **SPAWN TRACING SUBAGENTS:**
+   - One subagent per usage path
+   - **Model: haiku** (fast, cost-effective for mechanical tracing)
+   - Maximum 10 concurrent subagents (wait for batch to complete before next batch)
+   - **Output file:** `[review-dir]/phase2-[path-id]-trace.json`
+   - **IMPORTANT:** Use the Write tool to create output files. Do NOT use `cat << 'EOF'` or heredocs.
+   - Each subagent receives:
+     - Function code
+     - Usage path description
+     - Plausible input from Phase 1
+     - Output file path to write results
+
+7. **EACH TRACING SUBAGENT MUST:**
+   - **Iteration 1-4** (loop 4 times, each iteration builds on previous):
+
+     For each iteration:
+     a. Start with the plausible input
+     b. Trace execution line-by-line in extreme detail:
+        - What is the value of each variable at each step?
+        - Which branch is taken at each conditional?
+        - What state changes occur?
+        - What functions are called and with what arguments?
+     c. Identify potential logic inconsistencies and validation gaps:
+        - Off-by-one errors
+        - Incorrect comparison operators (< vs <=, == vs !=)
+        - Missing null/bounds checks
+        - Integer overflow/underflow possibilities
+        - State not properly updated
+        - Early returns that skip important logic
+        - Assumptions that may not hold
+        - **Input validation gaps:**
+          - Unchecked input parameters
+          - Missing range validation
+          - Type confusion possibilities
+          - Untrusted data used without sanitization
+          - Missing length/size checks
+          - Format string issues
+          - Inputs that bypass validation via alternative paths
+     d. Arrive at computed output
+     e. Compare computed output to intuitive expectation
+     f. In next iteration, focus on areas of uncertainty from previous iteration
+
+   - **Return structured result:**
+     ```
+     {
+       usage_path: string,
+       state_machine_diagram: string,  // Mermaid stateDiagram-v2 format (see below)
+       iterations: [
+         {
+           iteration: 1-4,
+           trace_summary: string,
+           computed_output: any,
+           inconsistencies_found: [{location, description, severity, confidence: 0-100}],
+           areas_of_uncertainty: [string]
+         }
+       ],
+       final_computed_output: any,
+       all_inconsistencies: [{location, description, severity, confidence: 0-100}]
+     }
+     ```
+
+     **State Machine Diagram Format (Mermaid):**
+     ```mermaid
+     stateDiagram-v2
+         [*] --> EntryPoint: input
+         EntryPoint --> Validation: validate_input()
+         Validation --> Processing: valid
+         Validation --> ErrorState: invalid
+         Processing --> BranchA: condition_x
+         Processing --> BranchB: !condition_x
+         BranchA --> Checkpoint: update_state()
+         BranchB --> Checkpoint: skip_update()
+         Checkpoint --> Exit: return result
+         ErrorState --> Exit: return error
+         Exit --> [*]
+
+         note right of Validation: CHECK: bounds validation
+         note right of BranchA: RISK: potential overflow
+     ```
+
+     Requirements for diagram:
+     - Show all states/checkpoints in the execution flow
+     - Label transitions with function calls or conditions
+     - Mark validation checkpoints with `note` annotations
+     - Highlight risky transitions or states with `note` annotations prefixed with "RISK:"
+     - Show error paths explicitly
+
+     **Note:** confidence must be 0-100 integer. Only findings with confidence >= 80 proceed to Phase 3.
+
+8. **AFTER EACH BATCH:**
+   - Collect results from completed subagents
+   - Update plan file with progress
+   - Do NOT proceed to Phase 3 until ALL Phase 2 subagents complete
+
+## Phase 3: Validation (Subagents) - model: sonnet
+
+9. **SPAWN VALIDATION SUBAGENTS:**
+   - One subagent per usage path
+   - **Model: sonnet** (balanced reasoning for validation)
+   - Maximum 10 concurrent subagents
+   - **Input file:** `[review-dir]/phase2-[path-id]-trace.json`
+   - **Output file:** `[review-dir]/phase3-[path-id]-validation.json`
+   - **IMPORTANT:** Use the Write tool to create output files. Do NOT use `cat << 'EOF'` or heredocs.
+   - Each subagent receives:
+     - Full Phase 1 specification (including expected output)
+     - Path to Phase 2 trace file to read
+     - Function code
+     - Output file path to write results
+
+10. **EACH VALIDATION SUBAGENT MUST:**
+   a. Compare Phase 2 computed output with Phase 1 expected output
+      - Do they match? If not, why?
+      - Is the discrepancy a bug or was the expectation wrong?
+
+   b. Validate each inconsistency found in Phase 2:
+      - Is it a real issue or false positive?
+      - What is the actual impact?
+      - Can it be triggered in practice?
+
+   c. Look for NEW inconsistencies missed in Phase 2:
+      - Fresh eyes on the trace
+      - Cross-reference with other usage paths
+      - Consider interactions between paths
+
+   d. **Return structured result:**
+     ```
+     {
+       usage_path: string,
+       output_comparison: {
+         expected: any,
+         computed: any,
+         match: boolean,
+         discrepancy_analysis: string
+       },
+       validated_inconsistencies: [{
+         original: object,
+         is_valid: boolean,
+         confidence: 0-100,
+         impact: string,
+         exploitability: string
+       }],
+       new_inconsistencies: [{location, description, severity, confidence: 0-100}],
+       filtered_low_confidence: [{finding, confidence, reason_for_low_confidence}],
+       overall_assessment: string
+     }
+     ```
+     **Note:** Move findings with confidence < 80 to filtered_low_confidence array.
+
+## Phase 4: Critical Review and Report - model: opus
+
+11. **SPAWN CRITICAL REVIEW SUBAGENTS:**
+    - One subagent per function (not per usage path)
+    - **Model: opus** (deep reasoning for debate and adversarial analysis)
+    - Maximum 10 concurrent
+    - **Input files:** `[review-dir]/phase3-*-validation.json` (all for this function)
+    - **Output file:** `[review-dir]/phase4-[function]-critical.json`
+    - **IMPORTANT:** Use the Write tool to create output files. Do NOT use `cat << 'EOF'` or heredocs.
+    - Each receives:
+      - Function code
+      - All usage paths and expected behaviors from Phase 1
+      - Paths to Phase 3 validation files to read
+      - Output file path to write results
+
+12. **EACH CRITICAL REVIEW SUBAGENT MUST:**
+
+    a. **Debate Each Finding (internal prosecutor/defense):**
+       - For each finding, argue BOTH sides:
+         - Why it IS valid: evidence, attack scenarios, impact
+         - Why it's NOT valid: mitigating factors, unreachable paths, safe defaults
+       - Make ruling: VALID, INVALID, or NEEDS_MORE_ANALYSIS
+       - Assign final severity with justification
+
+    b. **Devil's Advocate - Challenge the Spec:**
+       - Are the "expected behaviors" from Phase 1 actually correct?
+       - What edge cases were NOT considered?
+       - Craft adversarial inputs to break the function
+       - Consider: malicious callers, corrupted state, MAX_INT, empty, null
+       - **Probe input validation gaps:**
+         - What inputs are NOT validated that should be?
+         - Can validation be bypassed via different call paths?
+         - Are there implicit assumptions about input format/range?
+
+    c. **Find Missed Issues:**
+       - Are there execution paths not covered?
+       - Are there WORSE issues than what was found?
+       - What if caller violates expected conventions?
+
+    d. **Return structured result:**
+      ```
+      {
+        function: string,
+        debated_findings: [{
+          original_finding: object,
+          prosecutor_argument: string,
+          defense_argument: string,
+          ruling: "VALID" | "INVALID" | "NEEDS_MORE_ANALYSIS",
+          final_severity: string,
+          justification: string
+        }],
+        adversarial_inputs: [{
+          input: any,
+          expected: any,
+          actual: string,
+          is_bug: boolean
+        }],
+        missed_issues: [{
+          description: string,
+          severity: string,
+          location: string
+        }],
+        specification_corrections: [string]
+      }
+      ```
+
+13. **SYNTHESIZE AND WRITE REPORT:**
+    - Collect all Phase 4 results
+    - Deduplicate and prioritize by final severity
+    - **PRIORITIZATION ORDER:**
+      1. Critical findings first (fund loss, security bypass, data corruption)
+      2. High findings (significant logic errors, exploitable under conditions)
+      3. Medium findings (logic issues with limited impact)
+      4. Low findings (minor issues, edge cases)
+      5. Informational (observations, best practices)
+    - Within same severity: sort by confidence (highest first)
+    - Write to the report path specified in the plan file
+    - Use professional security audit report format:
+
+```markdown
+# Logic Review Security Audit Report
+
+| Field | Value |
+|-------|-------|
+| **Report Date** | [YYYY-MM-DD] |
+| **Auditor** | Claude Code (Automated Logic Review) |
+| **Target** | [function names] |
+| **Repository** | [repo name/path] |
+| **Commit** | [git commit hash if available] |
+| **Review Type** | Logic Flow Analysis |
+
+---
+
+## 1. Executive Summary
+
+### 1.1 Overview
+[2-3 sentence summary of what was reviewed and why]
+
+### 1.2 Scope
+| Item | Description |
+|------|-------------|
+| Functions Reviewed | [count] |
+| Usage Paths Analyzed | [count] |
+| Subagents Deployed | [count] |
+
+### 1.3 Findings Summary
+| Severity | Count |
+|----------|-------|
+| Critical | [n] |
+| High | [n] |
+| Medium | [n] |
+| Low | [n] |
+| Informational | [n] |
+
+### 1.4 Overall Risk Assessment
+[CRITICAL / HIGH / MEDIUM / LOW / SECURE]
+
+[1-2 sentence justification]
+
+---
+
+## 2. Methodology
+
+### 2.1 Review Process
+1. **Gate Check** - Verified target functions exist and are non-trivial
+2. **Path Analysis** - Identified [n] execution paths across [n] functions
+3. **Input Tracing** - Traced concrete inputs through each path (4 iterations per path)
+4. **Validation** - Cross-validated findings and computed vs expected outputs
+5. **Critical Review** - Adversarial debate and devil's advocate analysis
+
+### 2.2 Confidence Scoring
+All findings assigned confidence score (0-100%). Findings below 80% filtered to appendix.
+
+---
+
+## 3. Findings
+
+### 3.1 Critical Severity
+
+#### [LOGIC-001] [Finding Title]
+| Field | Value |
+|-------|-------|
+| **Severity** | CRITICAL |
+| **Confidence** | [X]% |
+| **Status** | Open |
+| **Location** | `[file:line]` |
+
+**Description:**
+[What the issue is]
+
+**Impact:**
+[What could go wrong - attack scenarios, data corruption, fund loss, etc.]
+
+**Root Cause:**
+[Why the issue exists]
+
+**Proof of Concept:**
+```
+Input: [adversarial input that triggers issue]
+Expected: [what should happen]
+Actual: [what actually happens]
+```
+
+**Recommendation:**
+[Specific fix with code example if applicable]
+
+**Audit Trail:**
+- Prosecutor: [key argument for validity]
+- Defense: [key argument against]
+- Ruling: VALID - [justification]
+
+---
+
+### 3.2 High Severity
+[Same format as Critical]
+
+### 3.3 Medium Severity
+[Same format, abbreviated - no Proof of Concept required]
+
+### 3.4 Low Severity
+[Same format, abbreviated]
+
+### 3.5 Informational
+[Observations that are not vulnerabilities but worth noting]
+
+---
+
+## 4. Disputed Findings
+
+### 4.1 Dismissed (Ruled Invalid)
+| ID | Title | Original Severity | Dismissal Reason |
+|----|-------|-------------------|------------------|
+| [ID] | [title] | [sev] | [defense argument that won] |
+
+### 4.2 Requires Human Review
+| ID | Title | Severity | Reason for Uncertainty |
+|----|-------|----------|------------------------|
+| [ID] | [title] | [sev] | [why NEEDS_MORE_ANALYSIS] |
+
+---
+
+## 5. Adversarial Analysis Results
+
+### 5.1 Specification Challenges
+| Assumption | Challenge | Counterexample | Valid? |
+|------------|-----------|----------------|--------|
+| [assumption from Phase 1] | [why questionable] | [input that breaks it] | [Y/N] |
+
+### 5.2 Successful Adversarial Inputs
+| Input | Expected Behavior | Actual Behavior | Severity |
+|-------|-------------------|-----------------|----------|
+| [input] | [expected] | [actual] | [sev] |
+
+### 5.3 Input Validation Gaps
+| Input | Expected Validation | Actual Validation | Risk |
+|-------|---------------------|-------------------|------|
+| [parameter] | [what should be checked] | [what is checked or "NONE"] | [sev] |
+
+### 5.4 Missed Execution Paths
+| Path | Why Missed | Risk Level |
+|------|------------|------------|
+| [path description] | [reason] | [HIGH/MED/LOW] |
+
+---
+
+## 6. Appendices
+
+### Appendix A: Functions Reviewed
+| Function | File | Lines | Paths |
+|----------|------|-------|-------|
+| [name] | [file] | [start-end] | [count] |
+
+### Appendix B: Usage Paths Analyzed
+| Path ID | Function | Description | Input | Expected Output |
+|---------|----------|-------------|-------|-----------------|
+| [P1] | [func] | [desc] | [input] | [output] |
+
+### Appendix C: State Machine Diagrams
+
+#### [Function Name] - [Path ID]
+```mermaid
+stateDiagram-v2
+    [state machine diagram from Phase 2 tracing]
+```
+[Repeat for each usage path]
+
+### Appendix D: Low Confidence Findings (Filtered)
+| Finding | Confidence | Reason |
+|---------|------------|--------|
+| [finding] | [X]% | [why low confidence] |
+
+### Appendix E: Output Discrepancies
+| Path | Expected | Computed | Analysis |
+|------|----------|----------|----------|
+| [path] | [expected] | [computed] | [why different] |
+
+---
+
+## 7. Disclaimer
+
+This report was generated by an automated logic review system. While the analysis is thorough, it should not be considered a substitute for a comprehensive manual security audit. All findings should be verified by qualified security engineers before remediation.
+
+---
+
+*Report generated by Claude Code Logic Review*
+*Plan file: [plan file path]*
+*Review directory: [review-dir]*
+```
+
+**CONCURRENCY RULES:**
+- Maximum 10 subagents running at any time
+- After spawning a batch, wait for ALL to complete before spawning next batch
+- Use TaskOutput with block=true to wait
+- Update plan file after each batch completes
+
+---
+
+[Request interrupted by user for tool use]

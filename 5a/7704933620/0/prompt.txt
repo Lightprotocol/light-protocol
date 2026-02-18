@@ -1,0 +1,384 @@
+Implement the following plan:
+
+# Add `associated_token::idempotent` flag to `#[light_account]` macro
+
+## Context
+
+Currently, `generate_ata_init_params` hardcodes `idempotent: true` for every ATA. This adds a
+standalone flag keyword `associated_token::idempotent` (no value, just presence/absence):
+
+- **Present** → `AtaInitParam { idempotent: true }` (idempotent creation, safe to call twice)
+- **Absent** → `AtaInitParam { idempotent: false }` (strict creation, fails if ATA exists)
+
+All existing `#[light_account(init, associated_token::...)]` sites need `associated_token::idempotent`
+added to preserve current behavior. The new test instruction omits the flag to test strict creation.
+
+## IMPORTANT
+
+- Work through todos one by one, do not batch
+- Run `cargo test -p light-sdk-macros` after macro changes
+- Use subagents for research if stuck
+
+## Existing sites that need `associated_token::idempotent` added (to stay idempotent)
+
+| File | Line |
+|------|------|
+| `sdk-tests/anchor-semi-manual-test/src/instruction_accounts.rs` | 73, 366 |
+| `sdk-tests/single-ata-test/src/lib.rs` | 39 |
+| `sdk-tests/csdk-anchor-full-derived-test/src/instructions/d10_token_accounts/single_ata.rs` | 36 |
+| `sdk-tests/csdk-anchor-full-derived-test/src/instructions/d11_zero_copy/with_ata.rs` | 56 |
+
+Note: `single_ata_markonly.rs` (no `init`) is unaffected — no macro-generated CPI.
+
+## Files to Create or Modify
+
+| File | Change |
+|------|--------|
+| `sdk-libs/macros/src/light_pdas/light_account_keywords.rs` | Add `"idempotent"` to `ASSOCIATED_TOKEN_NAMESPACE_KEYS`; add `BOOLEAN_FLAG_KEYS_BY_NAMESPACE` constant and `is_boolean_flag_key` helper |
+| `sdk-libs/macros/src/light_pdas/accounts/light_account.rs` | Add `idempotent: bool` to `AtaField` (default `false`); parse the flag in `build_ata_field`; update tests |
+| `sdk-libs/macros/src/light_pdas/accounts/builder.rs` | Use `field.idempotent` instead of hardcoded `true` |
+| All 5 existing sites listed above | Add `associated_token::idempotent` flag |
+| `sdk-tests/csdk-anchor-full-derived-test/src/instructions/d10_token_accounts/single_ata_non_idempotent.rs` | NEW: Accounts struct without `idempotent` flag |
+| `sdk-tests/csdk-anchor-full-derived-test/src/instructions/d10_token_accounts/mod.rs` | Register new module |
+| `sdk-tests/csdk-anchor-full-derived-test/src/lib.rs` | Add import + instruction handler |
+| `sdk-tests/csdk-anchor-full-derived-test/tests/d10_ata_idempotent_test.rs` | NEW: integration tests |
+
+---
+
+## Step-by-step Plan
+
+### TODO 1 — Update keyword definitions
+
+**File:** `sdk-libs/macros/src/light_pdas/light_account_keywords.rs`
+
+1a. Add `"idempotent"` to `ASSOCIATED_TOKEN_NAMESPACE_KEYS`:
+```rust
+pub const ASSOCIATED_TOKEN_NAMESPACE_KEYS: &[&str] = &["authority", "mint", "idempotent"];
+```
+
+1b. Add a new constant listing boolean flag keys (standalone, no `= value`):
+```rust
+/// Keys that act as boolean flags: presence means `true`, absence means `false`.
+/// Unlike shorthand keys, these do NOT use `key = key` syntax.
+pub const BOOLEAN_FLAG_KEYS_BY_NAMESPACE: &[(&str, &[&str])] = &[
+    ("associated_token", &["idempotent"]),
+];
+```
+
+1c. Add helper:
+```rust
+#[inline]
+pub fn is_boolean_flag_key(namespace: &str, key: &str) -> bool {
+    for (ns, keys) in BOOLEAN_FLAG_KEYS_BY_NAMESPACE {
+        if *ns == namespace {
+            return keys.contains(&key);
+        }
+    }
+    false
+}
+```
+
+1d. Update `test_associated_token_namespace_keys` to assert `idempotent` is in the list.
+
+### TODO 2 — Extend BOTH parse paths to handle boolean flag keys
+
+The file has **two separate parse paths** that both need updating:
+
+**Path A — `NamespacedKeyValue::parse()` (~line 156)**
+
+In the `if input.peek(Token![=])` branch (value present), add a guard **before** parsing the value:
+```rust
+// Reject explicit `= value` for flag keys — use the flag without assignment
+if is_boolean_flag_key(&namespace_str, &key_str) {
+    return Err(Error::new_spanned(
+        &key,
+        format!(
+            "`{}::{}` is a boolean flag — write it without a value (e.g., `{}::{}`)",
+            namespace_str, key_str, namespace_str, key_str
+        ),
+    ));
+}
+```
+
+In the `else` branch (no `=`), after the shorthand check, add before the error:
+```rust
+} else if is_boolean_flag_key(&namespace_str, &key_str) {
+    syn::parse_quote!(true)
+} else {
+    // existing error
+}
+```
+
+**Path B — mark-only inline parse block (~line 303)**
+
+This block (lines 302–336) has identical `=` / else logic. Apply the **same two changes** there:
+- Reject `= value` when key is a boolean flag key (before the existing value parse)
+- In the `else` branch, add `is_boolean_flag_key` → synthesize `true` before the error
+
+Import `is_boolean_flag_key` alongside the existing `is_shorthand_key` import.
+
+### TODO 3 — Add `idempotent: bool` to `AtaField` and parse it in `build_ata_field`
+
+**File:** `sdk-libs/macros/src/light_pdas/accounts/light_account.rs`
+
+3a. Add field to `AtaField` (line ~135):
+```rust
+/// Whether to use idempotent ATA creation.
+/// Set via `associated_token::idempotent` flag (presence = true, absence = false).
+pub idempotent: bool,
+```
+
+3b. In `build_ata_field`, add `let mut idempotent: bool = false;` before the loop.
+
+3c. Add match arm in the loop. Since the parser now rejects `= value` for flag keys and always
+synthesizes `true` for the flag form, just set `idempotent = true` when the key is present:
+```rust
+"idempotent" => {
+    // Value is always synthesized `true` by the parser (flag semantics: presence = true).
+    idempotent = true;
+}
+```
+
+3d. Include `idempotent` in the `Ok(AtaField { ... })` constructor.
+
+3e. Update the error message in the `other` arm to list `idempotent`.
+
+3f. **Unit tests** (add to existing test module):
+- `test_parse_associated_token_idempotent_absent_is_false` — no `idempotent` key → `ata.idempotent == false`
+- `test_parse_associated_token_idempotent_flag_is_true` — `associated_token::idempotent` present → `ata.idempotent == true`
+- `test_parse_associated_token_idempotent_with_value_fails` — `associated_token::idempotent = true` → compile error (rejected by parser)
+- Update the two existing tests that destructure `AtaField` (add `assert_eq!(ata.idempotent, false)`)
+
+### TODO 4 — Wire up `field.idempotent` in codegen
+
+**File:** `sdk-libs/macros/src/light_pdas/accounts/builder.rs` line 861
+
+```rust
+let idempotent_val = field.idempotent;
+params.push(quote! {
+    light_account::AtaInitParam {
+        ata: &#ata_info_ident,
+        owner: &#owner_info_ident,
+        mint: &#mint_info_ident,
+        idempotent: #idempotent_val,
+    }
+});
+```
+
+After this, run `cargo test -p light-sdk-macros` to confirm all macro unit tests pass.
+
+### TODO 5 — Update existing `associated_token::authority` sites to stay idempotent
+
+Add `associated_token::idempotent` to the end of each `#[light_account]` attribute at the sites
+listed above. The flag must appear after `authority` and `mint` keys:
+
+```rust
+#[light_account(init,
+    associated_token::authority = ...,
+    associated_token::mint = ...,
+    associated_token::idempotent)]
+```
+
+Files and lines:
+- `sdk-tests/anchor-semi-manual-test/src/instruction_accounts.rs` lines 73, 366
+- `sdk-tests/single-ata-test/src/lib.rs` line 39
+- `sdk-tests/csdk-anchor-full-derived-test/src/instructions/d10_token_accounts/single_ata.rs` line 36
+- `sdk-tests/csdk-anchor-full-derived-test/src/instructions/d11_zero_copy/with_ata.rs` line 56
+
+### TODO 6 — New instruction file: `single_ata_non_idempotent.rs`
+
+**File:** `sdk-tests/csdk-anchor-full-derived-test/src/instructions/d10_token_accounts/single_ata_non_idempotent.rs` (NEW)
+
+Model after `single_ata.rs`. The `#[light_account]` attribute has NO `idempotent` flag:
+```rust
+#[light_account(init,
+    associated_token::authority = d10_non_idem_ata_owner,
+    associated_token::mint = d10_non_idem_ata_mint)]
+pub d10_non_idem_ata: UncheckedAccount<'info>,
+```
+
+Name the params struct `D10SingleAtaNonIdempotentParams`.
+
+### TODO 7 — Register new module
+
+**File:** `sdk-tests/csdk-anchor-full-derived-test/src/instructions/d10_token_accounts/mod.rs`
+
+Add:
+```rust
+pub mod single_ata_non_idempotent;
+pub use single_ata_non_idempotent::*;
+```
+
+### TODO 8 — Add instruction handler to `lib.rs`
+
+**File:** `sdk-tests/csdk-anchor-full-derived-test/src/lib.rs`
+
+In the `use` block for `instructions::d10_token_accounts` (~line 283), add:
+```rust
+D10SingleAtaNonIdempotent, D10SingleAtaNonIdempotentParams,
+```
+
+Add instruction handler in the `#[program]` block near the other D10 handlers:
+```rust
+/// D10: Non-idempotent ATA — strict creation, fails if ATA already exists.
+#[allow(unused_variables)]
+pub fn d10_single_ata_non_idempotent<'info>(
+    ctx: Context<'_, '_, '_, 'info, D10SingleAtaNonIdempotent<'info>>,
+    params: D10SingleAtaNonIdempotentParams,
+) -> Result<()> {
+    Ok(())
+}
+```
+
+### TODO 9 — New integration test file
+
+**File:** `sdk-tests/csdk-anchor-full-derived-test/tests/d10_ata_idempotent_test.rs` (NEW)
+
+Two tests using `D10TestContext` (copied/adapted from `d10_token_accounts_test.rs`):
+
+1. **`test_d10_ata_non_idempotent_first_creation_succeeds`**
+   - Set up mint
+   - Call `d10_single_ata_non_idempotent` once
+   - Assert the call succeeded
+   - Assert ATA exists on-chain
+
+2. **`test_d10_ata_non_idempotent_second_creation_fails`**
+   - Set up mint
+   - Call `d10_single_ata_non_idempotent` once (succeeds)
+   - Get fresh proof, call same instruction again
+   - Assert the second call returns an error (ATA already exists, non-idempotent)
+
+---
+
+## Verification Step Before TODO 5
+
+Before updating existing sites, grep to confirm the full list:
+```
+Grep pattern: "associated_token::authority"
+Path: sdk-tests/
+```
+Compare against the 5 sites listed above. If any new sites are found, add `associated_token::idempotent`
+to them as well.
+
+## Acceptance Criteria
+
+- `cargo test -p light-sdk-macros` passes with all new/updated unit tests
+- `associated_token::idempotent` flag (no `=`) parses → `AtaField.idempotent = true`
+- `associated_token::idempotent = true` (with value) → compile-time error
+- No `idempotent` flag → `AtaField.idempotent = false`
+- Generated `AtaInitParam { idempotent: false }` causes non-idempotent discriminator at runtime
+- All existing ATA tests continue to pass (they now carry the explicit `idempotent` flag)
+- New integration tests demonstrate first-call success and second-call failure for non-idempotent ATA
+- `cargo test-sbf -p csdk-anchor-full-derived-test` passes
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ananas/.REDACTED.jsonl
+
+---
+
+[Request interrupted by user]
+
+---
+
+no dont update existing sites
+
+---
+
+revert these changes                                                                                                                                            
+⏺ Update(sdk-tests/single-ata-test/src/lib.rs)                                                                                                                                     
+  ⎿  Added 1 line, removed 1 line                                        
+      36                                                                                                                                                                           
+      37      /// ATA account - macro should generate creation code.                                          
+      38      #[account(mut)]                                                                                                                                                      
+      39 -    #[light_account(init, associated_token::authority = ata_owner, associated_token::mint = ata_mint)]                                                            
+      39 +    #[light_account(init, associated_token::authority = ata_owner, associated_token::mint = ata_mint, associated_token::idempotent)]                                     
+      40      pub ata: UncheckedAccount<'info>,                                                                                                                                    
+      41                                                                                                                                                                           
+      42      #[account(address = LIGHT_TOKEN_CONFIG)]                                                                                                                             
+                                                                                                                                                                                   
+⏺ Read 1 file (ctrl+o to expand)                                                                              
+                                                                                                                                                                                   
+⏺ The two lines at 73 and 366 have identical content. I'll use replace_all to update both:                                                                                         
+                                                                                                                                                                                   
+⏺ Update(sdk-tests/anchor-semi-manual-test/src/instruction_accounts.rs)                                       
+  ⎿  Added 2 lines, removed 2 lines                                     
+      70                                                                
+      71      /// ATA account - created via LightFinalize CPI.        
+      72      #[account(mut)]                                         
+      73 -    #[light_account(init, associated_token::authority = ata_owner, associated_token::mint = ata_mint)]                                                            
+      73 +    #[light_account(init, associated_token::authority = ata_owner, associated_token::mint = ata_mint, associated_token::idempotent)]                              
+      74      pub ata: UncheckedAccount<'info>,                                                                                                                                    
+      75                                                     
+      76      #[account(address = LIGHT_TOKEN_CONFIG)]                                                                                                                             
+     ...                                                                                                                                                                           
+      363      pub ata_owner: AccountInfo<'info>,                                                                                                                                  
+      364                                                                                                                                                                          
+      365      #[account(mut)]                                                                                                                                                     
+      366 -    #[light_account(init, associated_token::authority = ata_owner, associated_token::mint = ata_mint)]                                                           
+      366 +    #[light_account(init, associated_token::authority = ata_owner, associated_token::mint = ata_mint, associated_token::idempotent)]                             
+      367      pub ata: UncheckedAccount<'info>,
+      368  
+      369      // -- Token vault --
+
+⏺ Update(sdk-tests/csdk-anchor-full-derived-test/src/instructions/d10_token_accounts/single_ata.rs)
+  ⎿  File must be read first
+
+---
+
+do all integration tests pass?
+
+---
+
+[Request interrupted by user]
+
+---
+
+, 145, 104, 189]), queue_index: 0 }], input_sequence_numbers: [], address_sequence_numbers: [MerkleTreeSequenceNumber { tree_pubkey: Pubkey([8, 166, 233, 152, 176, 95, 233, 43, 152, 160, 217, 247, 121, 217, 219, 232, 178, 243, 238, 246, 120, 19, 40, 123, 235, 165, 38, 73, 128, 145, 104, 189]), queue_pubkey: Pubkey([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]), tree_type: 4, seq: 0 }], tx_hash: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], batch_input_accounts: [] }])
+event:
+ None
+┌──────────────────────────────────────────────────────────── Transaction #4 ─────────────────────────────────────────────────────────────┐
+│ Transaction: REDACTED | Slot: 3 | Status: Failed: InstructionError(0, IllegalOwner)
+│ Fee: 0.000005 SOL | Compute Used: 10896/1400000 CU
+│
+│ Instructions (1):
+│
+│ ├─ #1.1 REDACTED (Unknown Program (REDACTED))
+│ │  └─ #1 REDACTED (Light Token) - CreateAssociatedTokenAccount
+
+│ Program Logs:
+│
+│ Program REDACTED invoke [1]
+│ Instruction: D10SingleAta
+│ Program REDACTED invoke [2]
+│ CreateAssociatedTokenAccount
+│ Program REDACTED consumed 2139 of 1391243 compute units
+│ Program REDACTED failed: Provided owner is not allowed
+│ Program REDACTED consumed 10896 of 1400000 compute units
+│ Program REDACTED failed: Provided owner is not allowed
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+thread 'test_d10_single_ata_idempotent_creation' panicked at sdk-tests/csdk-anchor-full-derived-test/tests/d10_token_accounts_test.rs:355:10:
+Second D10SingleAta creation should succeed (idempotent): TransactionError(InstructionError(0, IllegalOwner))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    test_d10_single_ata_idempotent_creation
+
+test result: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.41s
+
+error: test failed, to rerun pass `-p csdk-anchor-full-derived-test --test d10_token_accounts_test`
+ananas@Mac light-protocol3 %
+
+---
+
+is that previous test or did you add it?
+
+---
+
+ok what test did you add what asserts does it have?
+
+---
+
+ok then add the idempotent flag to the other one that asserts idempotent behavior

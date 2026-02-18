@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "7bbee35ce40f",
+  "strategy": "manual-commit",
+  "branch": "jorrit/refactor-light-account-creation-to-generic-function",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "sdk-libs/account-pinocchio/Cargo.toml",
+    "sdk-libs/account-pinocchio/src/lib.rs",
+    "sdk-libs/account/Cargo.toml",
+    "sdk-libs/account/src/lib.rs",
+    "sdk-libs/macros/src/light_pdas/accounts/builder.rs",
+    "sdk-libs/sdk-types/Cargo.toml",
+    "sdk-libs/sdk-types/src/interface/accounts/create_accounts.rs",
+    "sdk-libs/sdk-types/src/interface/accounts/mod.rs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/7b/bee35ce40f/0/metadata.json",
+      "transcript": "/7b/bee35ce40f/0/full.jsonl",
+      "context": "/7b/bee35ce40f/0/context.md",
+      "content_hash": "/7b/bee35ce40f/0/content_hash.txt",
+      "prompt": "/7b/bee35ce40f/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 21,
+    "cache_creation_tokens": 42979,
+    "cache_read_tokens": 754400,
+    "output_tokens": 1606,
+    "api_call_count": 17
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "5a7704933620",
+  "strategy": "manual-commit",
+  "branch": "jorrit/refactor-light-account-creation-to-generic-function",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "sdk-tests/anchor-semi-manual-test/src/instruction_accounts.rs",
+    "sdk-tests/csdk-anchor-full-derived-test/src/instructions/d10_token_accounts/mod.rs",
+    "sdk-tests/csdk-anchor-full-derived-test/src/instructions/d10_token_accounts/single_ata.rs",
+    "sdk-tests/csdk-anchor-full-derived-test/src/instructions/d10_token_accounts/single_ata_non_idempotent.rs",
+    "sdk-tests/csdk-anchor-full-derived-test/src/lib.rs",
+    "sdk-tests/csdk-anchor-full-derived-test/tests/d10_ata_idempotent_test.rs",
+    "sdk-tests/single-ata-test/src/lib.rs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/5a/7704933620/0/metadata.json",
+      "transcript": "/5a/7704933620/0/full.jsonl",
+      "context": "/5a/7704933620/0/context.md",
+      "content_hash": "/5a/7704933620/0/content_hash.txt",
+      "prompt": "/5a/7704933620/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 91,
+    "cache_creation_tokens": 228684,
+    "cache_read_tokens": 6273387,
+    "output_tokens": 7309,
+    "api_call_count": 81
+  }
+}
