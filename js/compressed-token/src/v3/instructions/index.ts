@@ -8,7 +8,7 @@ export * from './mint-to';
 export * from './mint-to-compressed';
 export * from './mint-to-interface';
 export * from './transfer-interface';
-export * from './create-decompress-interface-instruction';
 export * from './create-load-accounts-params';
 export * from './wrap';
 export * from './unwrap';
+export * from './freeze-thaw';

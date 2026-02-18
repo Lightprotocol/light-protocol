@@ -10,7 +10,8 @@ import {
     TransactionInstruction,
 } from '@solana/web3.js';
 import { AccountInterface } from '../get-account-interface';
-import { createLoadAtaInstructionsFromInterface } from '../actions/load-ata';
+import { _buildLoadBatches } from '../actions/load-ata';
+import { getAssociatedTokenAddressInterface } from '../get-associated-token-address-interface';
 import { InterfaceOptions } from '../actions/transfer-interface';
 
 /**
@@ -83,7 +84,7 @@ export interface LoadResult {
     /** Params for decompressAccountsIdempotent (null if no program accounts need decompressing) */
     decompressParams: CompressibleLoadParams | null;
     /** Instructions to load ATAs (create associated token account, wrap SPL/T22, decompressInterface) */
-    ataInstructions: TransactionInstruction[];
+    ataInstructions: TransactionInstruction[][];
 }
 
 /**
@@ -118,13 +119,13 @@ export interface LoadResult {
  *         { address: poolAddress, accountType: 'poolState', info: poolInfo },
  *         { address: vault0, accountType: 'cTokenData', tokenVariant: 'token0Vault', info: vault0Info },
  *     ],
- *     [userAta],
+ *     [userAtaInfo],
  * );
  *
  * // Build transaction with both program decompress and associated token account load
  * const instructions = [...result.ataInstructions];
  * if (result.decompressParams) {
- *     instructions.push(await program.methods
+ *     programIxs.push(await program.methods
  *         .decompressAccountsIdempotent(
  *             result.decompressParams.proofOption,
  *             result.decompressParams.compressedAccounts,
@@ -207,16 +208,29 @@ export async function createLoadAccountsParams(
         };
     }
 
-    const ataInstructions: TransactionInstruction[] = [];
+    const ataInstructions: TransactionInstruction[][] = [];
 
     for (const ata of atas) {
-        const ixs = await createLoadAtaInstructionsFromInterface(
+        if (!ata._isAta || !ata._owner || !ata._mint) {
+            throw new Error(
+                'Each ATA must be from getAtaInterface (requires _isAta, _owner, _mint)',
+            );
+        }
+        const targetAta = getAssociatedTokenAddressInterface(
+            ata._mint,
+            ata._owner,
+        );
+        const batches = await _buildLoadBatches(
             rpc,
             payer,
             ata,
             options,
+            false,
+            targetAta,
         );
-        ataInstructions.push(...ixs);
+        for (const batch of batches) {
+            ataInstructions.push(batch.instructions);
+        }
     }
 
     return {

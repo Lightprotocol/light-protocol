@@ -62,6 +62,7 @@ export interface DecompressAccountsIdempotentInstructionData<T = any> {
     systemAccountsOffset: number;
 }
 
+/** @internal */
 export function createCompressedAccountDataLayout<T>(dataLayout: any): any {
     return struct([
         CompressedAccountMetaLayout.replicate('meta'),
@@ -70,6 +71,7 @@ export function createCompressedAccountDataLayout<T>(dataLayout: any): any {
     ]);
 }
 
+/** @internal */
 export function createDecompressAccountsIdempotentLayout<T>(
     dataLayout: any,
 ): any {
@@ -88,6 +90,7 @@ export function createDecompressAccountsIdempotentLayout<T>(
  * @param data       The decompress idempotent instruction data
  * @param dataLayout The data layout
  * @returns The serialized decompress idempotent instruction data
+ * @internal
  */
 export function serializeDecompressIdempotentInstructionData<T = any>(
     data: DecompressAccountsIdempotentInstructionData<T>,
@@ -109,6 +112,7 @@ export function serializeDecompressIdempotentInstructionData<T = any>(
  * @param buffer The serialized decompress idempotent instruction data
  * @param dataLayout The data layout
  * @returns The decompress idempotent instruction data
+ * @internal
  */
 export function deserializeDecompressIdempotentInstructionData<T = any>(
     buffer: Buffer,

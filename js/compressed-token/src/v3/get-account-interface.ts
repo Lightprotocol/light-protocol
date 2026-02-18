@@ -13,9 +13,6 @@ import {
     LIGHT_TOKEN_PROGRAM_ID,
     MerkleContext,
     CompressedAccountWithMerkleContext,
-    deriveAddressV2,
-    bn,
-    getDefaultAddressTreeInfo,
     assertBetaEnabled,
 } from '@lightprotocol/stateless.js';
 import { Buffer } from 'buffer';
@@ -35,6 +32,18 @@ export const TokenAccountSourceType = {
 
 export type TokenAccountSourceTypeValue =
     (typeof TokenAccountSourceType)[keyof typeof TokenAccountSourceType];
+
+/** Cold (compressed) source types. Used for load/decompress and isCold. */
+export const COLD_SOURCE_TYPES: ReadonlySet<TokenAccountSourceTypeValue> =
+    new Set([
+        TokenAccountSourceType.CTokenCold,
+        TokenAccountSourceType.SplCold,
+        TokenAccountSourceType.Token2022Cold,
+    ]);
+
+function isColdSourceType(type: TokenAccountSourceTypeValue): boolean {
+    return COLD_SOURCE_TYPES.has(type);
+}
 
 /** @internal */
 export interface TokenAccountSource {
@@ -485,52 +494,8 @@ async function _tryFetchCTokenColdByOwner(
 }
 
 /**
- * @internal
- * Fetch light-token account by deriving its compressed address from the on-chain address.
- * Uses deriveAddressV2(address, addressTree, LIGHT_TOKEN_PROGRAM_ID) to get the compressed address.
- *
- * Note: This only works for accounts that were **compressed from on-chain** (via compress_accounts_idempotent).
- * For tokens minted compressed (via mintTo), use getAtaInterface with owner+mint instead.
- */
-async function _tryFetchCTokenColdByAddress(
-    rpc: Rpc,
-    address: PublicKey,
-): Promise<{
-    accountInfo: AccountInfo<Buffer>;
-    loadContext: MerkleContext;
-    parsed: Account;
-    isCold: true;
-}> {
-    // Derive compressed address from on-chain token account address
-    const addressTree = getDefaultAddressTreeInfo().tree;
-    const compressedAddress = deriveAddressV2(
-        address.toBytes(),
-        addressTree,
-        LIGHT_TOKEN_PROGRAM_ID,
-    );
-
-    // Fetch by derived compressed address
-    const compressedAccount = await rpc.getCompressedAccount(
-        bn(compressedAddress.toBytes()),
-    );
-
-    if (!compressedAccount?.data?.data.length) {
-        throw new Error(
-            'Light-token account not found at derived address. ' +
-                'Note: getAccountInterface only finds compressed accounts that were ' +
-                'compressed from on-chain (via compress_accounts_idempotent). ' +
-                'For tokens minted compressed (via mintTo), use getAtaInterface with owner+mint.',
-        );
-    }
-    if (!compressedAccount.owner.equals(LIGHT_TOKEN_PROGRAM_ID)) {
-        throw new Error('Invalid owner for light-token');
-    }
-    return parseCTokenCold(address, compressedAccount);
-}
-
-/**
- * @internal
  * Retrieve information about a token account SPL/T22/light-token.
+ * @internal
  */
 async function _getAccountInterface(
     rpc: Rpc,
@@ -589,6 +554,7 @@ async function _getAccountInterface(
     throw new Error(`Unsupported program ID: ${programId.toBase58()}`);
 }
 
+/** @internal */
 async function getUnifiedAccountInterface(
     rpc: Rpc,
     address: PublicKey | undefined,
@@ -727,6 +693,7 @@ async function getUnifiedAccountInterface(
     return buildAccountInterfaceFromSources(sources, cTokenAta);
 }
 
+/** @internal */
 async function getCTokenAccountInterface(
     rpc: Rpc,
     address: PublicKey | undefined,
@@ -812,6 +779,7 @@ async function getCTokenAccountInterface(
     return buildAccountInterfaceFromSources(sources, address);
 }
 
+/** @internal */
 async function getSplOrToken2022AccountInterface(
     rpc: Rpc,
     address: PublicKey | undefined,
@@ -904,7 +872,8 @@ async function getSplOrToken2022AccountInterface(
     return buildAccountInterfaceFromSources(sources, address);
 }
 
-function buildAccountInterfaceFromSources(
+/** @internal */
+export function buildAccountInterfaceFromSources(
     sources: TokenAccountSource[],
     canonicalAddress: PublicKey,
 ): AccountInterface {
@@ -923,22 +892,115 @@ function buildAccountInterfaceFromSources(
         ...primarySource.parsed,
         address: canonicalAddress,
         amount: totalAmount,
+        ...(anyFrozen ? { state: AccountState.Frozen, isFrozen: true } : {}),
     };
-
-    const coldTypes: TokenAccountSource['type'][] = [
-        'ctoken-cold',
-        'spl-cold',
-        'token2022-cold',
-    ];
 
     return {
         accountInfo: primarySource.accountInfo!,
         parsed: unifiedAccount,
-        isCold: coldTypes.includes(primarySource.type),
+        isCold: isColdSourceType(primarySource.type),
         loadContext: primarySource.loadContext,
         _sources: sources,
         _needsConsolidation: needsConsolidation,
         _hasDelegate: hasDelegate,
+        _anyFrozen: anyFrozen,
+    };
+}
+
+/**
+ * Spendable amount for a given authority (owner or delegate).
+ * - If authority equals the ATA owner: full parsed.amount.
+ * - If authority is a delegate: sum over sources where delegate === authority
+ *   of min(source.amount, source.delegatedAmount).
+ *
+ * For compress-and-close accounts (CompressedOnly TLV), decompress carries
+ * delegate state to the hot ATA. For approve-style accounts (no TLV), the
+ * delegate is set in token data but NOT applied to the hot ATA on decompress.
+ * The transfer-interface validates this and errors for approve-style cold
+ * sources that require loading.
+ * @internal
+ */
+export function spendableAmountForAuthority(
+    iface: AccountInterface,
+    authority: PublicKey,
+): bigint {
+    const owner = iface._owner;
+    const sources = iface._sources ?? [];
+    if (owner && authority.equals(owner)) {
+        return iface.parsed.amount;
+    }
+    let sum = BigInt(0);
+    for (const src of sources) {
+        if (src.parsed.delegate && authority.equals(src.parsed.delegate)) {
+            const amt = src.amount;
+            const delegated = src.parsed.delegatedAmount ?? amt;
+            sum += amt < delegated ? amt : delegated;
+        }
+    }
+    return sum;
+}
+
+/**
+ * Whether the given authority can sign for this ATA (is owner or delegate of at least one source).
+ * @internal
+ */
+export function isAuthorityForInterface(
+    iface: AccountInterface,
+    authority: PublicKey,
+): boolean {
+    const owner = iface._owner;
+    if (owner && authority.equals(owner)) return true;
+    const sources = iface._sources ?? [];
+    return sources.some(
+        src =>
+            src.parsed.delegate !== null &&
+            authority.equals(src.parsed.delegate),
+    );
+}
+
+/**
+ * @internal
+ * Filter an AccountInterface to only sources the given authority can use (owner or delegate).
+ * Preserves _owner, _mint, _isAta. Use for load/transfer when authority is delegate.
+ */
+export function filterInterfaceForAuthority(
+    iface: AccountInterface,
+    authority: PublicKey,
+): AccountInterface {
+    const sources = iface._sources ?? [];
+    const owner = iface._owner;
+    const filtered = sources.filter(
+        src =>
+            (owner && authority.equals(owner)) ||
+            (src.parsed.delegate !== null &&
+                authority.equals(src.parsed.delegate)),
+    );
+    if (filtered.length === 0) {
+        return {
+            ...iface,
+            _sources: [],
+            parsed: { ...iface.parsed, amount: BigInt(0) },
+        };
+    }
+    const spendable = spendableAmountForAuthority(iface, authority);
+    const primary = filtered[0];
+    const anyFrozen = filtered.some(s => s.parsed.isFrozen);
+    return {
+        ...iface,
+        _sources: filtered,
+        accountInfo: primary.accountInfo!,
+        parsed: {
+            ...primary.parsed,
+            address: iface.parsed.address,
+            amount: spendable,
+            ...(anyFrozen
+                ? { state: AccountState.Frozen, isFrozen: true }
+                : {}),
+        },
+        isCold: isColdSourceType(primary.type),
+        loadContext: primary.loadContext,
+        _needsConsolidation: filtered.length > 1,
+        _hasDelegate: filtered.some(s => s.parsed.delegate !== null),
         _anyFrozen: anyFrozen,
     };
 }

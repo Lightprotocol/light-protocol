@@ -71,6 +71,7 @@ export function createTokenMetadata(
 /**
  * Validate and normalize proof arrays to ensure correct sizes for Borsh serialization.
  * The compressed proof must have exactly: a[32], b[64], c[32] bytes.
+ * @internal
  */
 function validateProofArrays(
     proof: ValidityProof | null,
@@ -97,6 +98,7 @@ function validateProofArrays(
     return proof;
 }
 
+/** @internal */
 export function encodeCreateMintInstructionData(
     params: EncodeCreateMintInstructionParams,
 ): Buffer {
