@@ -2,9 +2,11 @@
 
 set -e
 
-# JS linting (use subshells to avoid directory issues)
-(cd js/stateless.js && pnpm prettier --write . && pnpm lint)
-(cd js/compressed-token && pnpm prettier --write . && pnpm lint)
+# JS linting
+cd js/stateless.js && pnpm prettier --check . && pnpm lint && cd ../..
+cd js/compressed-token && pnpm prettier --check . && pnpm lint && cd ../..
+cd js/token-idl && pnpm prettier --check . && pnpm lint && cd ../..
+cd js/token-sdk && pnpm prettier --check . && pnpm lint && cd ../..
 
 # Rust linting
 cargo +nightly fmt --all -- --check
