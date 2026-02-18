@@ -134,7 +134,7 @@ impl TransferInterface {
                 amount: self.amount,
                 authority: self.authority,
                 max_top_up: self.max_top_up,
-                fee_payer: None,
+                fee_payer: Some(self.payer),
             }
             .instruction(),
 
@@ -344,6 +344,8 @@ impl<'info> TransferInterfaceCpi<'info> {
                     self.source_account,
                     self.destination_account,
                     self.authority,
+                    self.system_program,
+                    self.payer,
                 ];
                 invoke(&instruction, &account_infos)
             }
@@ -414,6 +416,8 @@ impl<'info> TransferInterfaceCpi<'info> {
                     self.source_account,
                     self.destination_account,
                     self.authority,
+                    self.system_program,
+                    self.payer,
                 ];
                 invoke_signed(&instruction, &account_infos, signer_seeds)
             }
