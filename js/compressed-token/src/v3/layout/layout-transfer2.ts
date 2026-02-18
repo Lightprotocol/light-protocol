@@ -197,6 +197,7 @@ const CompressionInfoLayout = struct([
 
 /**
  * Serialize a single Transfer2ExtensionData to bytes
+ * @internal
  */
 function serializeExtensionInstructionData(
     ext: Transfer2ExtensionData,
@@ -269,6 +270,7 @@ function serializeExtensionInstructionData(
 
 /**
  * Serialize Vec<Vec<Transfer2ExtensionData>> to bytes for Borsh
+ * @internal
  */
 function serializeExtensionTlv(
     tlv: Transfer2ExtensionData[][] | null,
@@ -369,6 +371,7 @@ const Transfer2InstructionDataBaseLayout = struct([
 
 /**
  * Encode Transfer2 instruction data using Borsh
+ * @internal
  */
 export function encodeTransfer2InstructionData(
     data: Transfer2InstructionData,
@@ -445,6 +448,7 @@ export function encodeTransfer2InstructionData(
 }
 
 /**
+ * @internal
  * Create a compression struct for wrapping SPL tokens to light-token
  * (compress from SPL associated token account)
  */
@@ -472,6 +476,7 @@ export function createCompressSpl(
 }
 
 /**
+ * @internal
  * Create a compression struct for decompressing to light-token associated token account
  * @param amount - Amount to decompress
  * @param mintIndex - Index of mint in packed accounts
@@ -498,6 +503,7 @@ export function createDecompressCtoken(
 }
 
 /**
+ * @internal
  * Create a compression struct for compressing light-token (burn from light-token associated token account)
  * Used in unwrap flow: light-token associated token account -> pool -> SPL associated token account
  * @param amount - Amount to compress (burn from light-token)
@@ -528,6 +534,7 @@ export function createCompressCtoken(
 
 /**
  * Create a compression struct for decompressing SPL tokens
+ * @internal
  */
 export function createDecompressSpl(
     amount: bigint,

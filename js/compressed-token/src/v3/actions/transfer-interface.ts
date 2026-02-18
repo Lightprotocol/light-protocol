@@ -29,18 +29,23 @@ import { type SplInterfaceInfo } from '../../utils/get-token-pool-infos';
 import {
     _buildLoadBatches,
     calculateLoadBatchComputeUnits,
+    rawLoadBatchComputeUnits,
     type InternalLoadBatch,
 } from './load-ata';
 import {
     getAtaInterface as _getAtaInterface,
     type AccountInterface,
-    TokenAccountSourceType,
+    spendableAmountForAuthority,
+    isAuthorityForInterface,
+    filterInterfaceForAuthority,
 } from '../get-account-interface';
 import { DEFAULT_COMPRESSIBLE_CONFIG } from '../instructions/create-associated-ctoken';
 import {
+    assertTransactionSizeWithinLimit,
     estimateTransactionSize,
     MAX_TRANSACTION_SIZE,
 } from '../utils/estimate-tx-size';
+import { COLD_SOURCE_TYPES } from '../get-account-interface';
 
 /**
  * Options for interface operations (load, transfer)
@@ -48,6 +53,12 @@ import {
 export interface InterfaceOptions {
     /** SPL interface infos (fetched if not provided) */
     splInterfaceInfos?: SplInterfaceInfo[];
+    /**
+     * ATA owner when the signer is the delegate (not the owner).
+     * For load: use this owner for getAtaInterface; only sources the delegate
+     * can use are included. For transfer: see TransferOptions.owner.
+     */
+    owner?: PublicKey;
 }
 
 /**
@@ -86,10 +97,10 @@ export async function transferInterface(
 ): Promise<TransactionSignature> {
     assertBetaEnabled();
 
-    // Validate source matches owner
+    const effectiveOwner = options?.owner ?? owner.publicKey;
     const expectedSource = getAssociatedTokenAddressInterface(
         mint,
-        owner.publicKey,
+        effectiveOwner,
         false,
         programId,
     );
@@ -101,9 +112,6 @@ export async function transferInterface(
 
     const amountBigInt = BigInt(amount.toString());
 
-    // Build all instruction batches. ensureRecipientAta: true (default)
-    // includes idempotent associated token account creation in the transfer tx -- no extra RPC
-    // fetch needed.
     const batches = await createTransferInterfaceInstructions(
         rpc,
         payer.publicKey,
@@ -111,7 +119,13 @@ export async function transferInterface(
         amountBigInt,
         owner.publicKey,
         destination,
-        { ...options, wrap, programId, ensureRecipientAta: true },
+        {
+            ...options,
+            wrap,
+            programId,
+            ensureRecipientAta: true,
+            owner: options?.owner,
+        },
     );
 
     const additionalSigners = dedupeSigner(payer, [owner]);
@@ -156,6 +170,12 @@ export interface TransferOptions extends InterfaceOptions {
      * Default: true.
      */
     ensureRecipientAta?: boolean;
+    /**
+     * ATA owner when the signer is the delegate (not the owner).
+     * Required when transferring as delegate: pass the owner so the SDK
+     * can derive the source ATA and validate the signer is the account delegate.
+     */
+    owner?: PublicKey;
 }
 
 /**
@@ -175,51 +195,19 @@ export function sliceLast<T>(items: T[]): { rest: T[]; last: T } {
     return { rest: items.slice(0, -1), last: items.at(-1)! };
 }
 
+/** c-token transfer instruction base CU. */
+const TRANSFER_BASE_CU = 10_000;
+
 /**
  * Compute units for the transfer transaction (load chunk + transfer).
+ * @internal
  */
-function calculateTransferCU(loadBatch: InternalLoadBatch | null): number {
-    let cu = 10_000; // light-token transfer base
-
-    if (loadBatch) {
-        if (loadBatch.hasAtaCreation) cu += 30_000;
-        cu += loadBatch.wrapCount * 50_000;
-
-        if (loadBatch.compressedAccounts.length > 0) {
-            // Base cost for Transfer2 CPI chain
-            cu += 50_000;
-            const needsFullProof = loadBatch.compressedAccounts.some(
-                acc => !(acc.compressedAccount.proveByIndex ?? false),
-            );
-            if (needsFullProof) cu += 100_000;
-            for (const acc of loadBatch.compressedAccounts) {
-                cu +=
-                    (acc.compressedAccount.proveByIndex ?? false)
-                        ? 10_000
-                        : 30_000;
-            }
-        }
-    }
-
-    cu = Math.ceil(cu * 1.3);
+export function calculateTransferCU(
+    loadBatch: InternalLoadBatch | null,
+): number {
+    const rawLoadCu = loadBatch ? rawLoadBatchComputeUnits(loadBatch) : 0;
+    const cu = Math.ceil((TRANSFER_BASE_CU + rawLoadCu) * 1.3);
     return Math.max(50_000, Math.min(1_400_000, cu));
-}
-
-/**
- * Assert that a batch of instructions fits within the max transaction size.
- * Throws if the estimated size exceeds MAX_TRANSACTION_SIZE.
- */
-function assertTxSize(
-    instructions: TransactionInstruction[],
-    numSigners: number,
-): void {
-    const size = estimateTransactionSize(instructions, numSigners);
-    if (size > MAX_TRANSACTION_SIZE) {
-        throw new Error(
-            `Batch exceeds max transaction size: ${size} > ${MAX_TRANSACTION_SIZE}. ` +
-                `This indicates a bug in batch assembly.`,
-        );
-    }
 }
 
 /**
@@ -281,11 +269,12 @@ export async function createTransferInterfaceInstructions(
         wrap = false,
         programId = LIGHT_TOKEN_PROGRAM_ID,
         ensureRecipientAta = true,
+        owner: optionsOwner,
         ...interfaceOptions
     } = options ?? {};
 
-    // Validate recipient is a wallet (on-curve), not a PDA or associated token account.
-    // Passing an associated token account here would derive an associated token account of associated token account and lose funds.
+    const effectiveOwner = optionsOwner ?? sender;
+
     if (!PublicKey.isOnCurve(recipient.toBytes())) {
         throw new Error(
             `Recipient must be a wallet public key (on-curve), not a PDA or associated token account. ` +
@@ -297,10 +286,9 @@ export async function createTransferInterfaceInstructions(
         programId.equals(TOKEN_PROGRAM_ID) ||
         programId.equals(TOKEN_2022_PROGRAM_ID);
 
-    // Derive associated token accounts
     const senderAta = getAssociatedTokenAddressInterface(
         mint,
-        sender,
+        effectiveOwner,
         false,
         programId,
     );
@@ -311,13 +299,12 @@ export async function createTransferInterfaceInstructions(
         programId,
     );
 
-    // Get sender's account state
     let senderInterface: AccountInterface;
     try {
         senderInterface = await _getAtaInterface(
             rpc,
             senderAta,
-            sender,
+            effectiveOwner,
             mint,
             undefined,
             programId.equals(LIGHT_TOKEN_PROGRAM_ID) ? undefined : programId,
@@ -330,41 +317,34 @@ export async function createTransferInterfaceInstructions(
         throw error;
     }
 
-    // Frozen handling: match SPL semantics. Frozen accounts cannot be
-    // decompressed or wrapped, but unfrozen accounts can still be used.
-    // If the hot account itself is frozen, the on-chain transfer program
-    // will reject, so we fail early.
-    const senderSources = senderInterface._sources ?? [];
-    const hotSourceType =
-        isSplOrT22 && !wrap
-            ? programId.equals(TOKEN_PROGRAM_ID)
-                ? TokenAccountSourceType.Spl
-                : TokenAccountSourceType.Token2022
-            : TokenAccountSourceType.CTokenHot;
-    const hotSource = senderSources.find(s => s.type === hotSourceType);
-    if (hotSource?.parsed.isFrozen) {
-        throw new Error('Cannot transfer: sender token account is frozen.');
-    }
-
-    // Calculate unfrozen balance (frozen accounts are excluded from load batches)
-    const unfrozenBalance = senderSources
-        .filter(s => !s.parsed.isFrozen)
-        .reduce((sum, s) => sum + s.amount, BigInt(0));
-
-    if (unfrozenBalance < amountBigInt) {
-        const frozenBalance = senderInterface.parsed.amount - unfrozenBalance;
-        const frozenNote =
-            frozenBalance > BigInt(0)
-                ? ` (${frozenBalance} frozen, not usable)`
-                : '';
+    if (senderInterface._anyFrozen) {
         throw new Error(
-            `Insufficient balance. Required: ${amountBigInt}, ` +
-                `Available (unfrozen): ${unfrozenBalance}${frozenNote}`,
+            'Account is frozen. One or more sources (hot or cold) are frozen; transfer is not allowed.',
         );
     }
 
-    // Build load batches for sender (empty if sender is fully hot).
-    // Pass amountBigInt so only needed cold inputs are selected.
+    const isDelegate = !effectiveOwner.equals(sender);
+    if (isDelegate) {
+        if (!isAuthorityForInterface(senderInterface, sender)) {
+            throw new Error(
+                'Signer is not the owner or a delegate of the sender account.',
+            );
+        }
+        const spendable = spendableAmountForAuthority(senderInterface, sender);
+        if (amountBigInt > spendable) {
+            throw new Error(
+                `Insufficient delegated balance. Required: ${amountBigInt}, Available (delegate): ${spendable}`,
+            );
+        }
+        senderInterface = filterInterfaceForAuthority(senderInterface, sender);
+    } else {
+        if (senderInterface.parsed.amount < amountBigInt) {
+            throw new Error(
+                `Insufficient balance. Required: ${amountBigInt}, Available: ${senderInterface.parsed.amount}`,
+            );
+        }
+    }
+
     const internalBatches = await _buildLoadBatches(
         rpc,
         payer,
@@ -373,7 +353,31 @@ export async function createTransferInterfaceInstructions(
         wrap,
         senderAta,
         amountBigInt,
+        sender,
     );
+
+    // For delegate transfers that need cold source loading: approve-style
+    // compressed accounts (no CompressedOnly TLV) will NOT have their delegate
+    // applied to the hot ATA during decompress. Only compress-and-close
+    // accounts (with CompressedOnly TLV) carry over delegate state.
+    if (isDelegate && internalBatches.length > 0) {
+        const sources = senderInterface._sources ?? [];
+        const hasApproveStyleCold = sources.some(
+            s =>
+                COLD_SOURCE_TYPES.has(s.type) &&
+                s.parsed.delegate !== null &&
+                s.parsed.delegate.equals(sender) &&
+                (!s.parsed.tlvData || s.parsed.tlvData.length === 0),
+        );
+        if (hasApproveStyleCold) {
+            throw new Error(
+                'Delegate transfer requires loading cold sources that were delegated ' +
+                    'via approve (no CompressedOnly TLV). Decompress will not carry ' +
+                    'the delegate to the hot ATA. Load as owner first, then approve ' +
+                    'the delegate on the hot ATA.',
+            );
+        }
+    }
 
     // Transfer instruction: dispatch based on program
     let transferIx: TransactionInstruction;
@@ -431,7 +435,7 @@ export async function createTransferInterfaceInstructions(
             ...recipientAtaIxs,
             transferIx,
         ];
-        assertTxSize(txIxs, numSigners);
+        assertTransactionSizeWithinLimit(txIxs, numSigners, 'Batch');
         return [txIxs];
     }
 
@@ -445,7 +449,7 @@ export async function createTransferInterfaceInstructions(
             ...batch.instructions,
             transferIx,
         ];
-        assertTxSize(txIxs, numSigners);
+        assertTransactionSizeWithinLimit(txIxs, numSigners, 'Batch');
         return [txIxs];
     }
 
@@ -461,7 +465,7 @@ export async function createTransferInterfaceInstructions(
             ComputeBudgetProgram.setComputeUnitLimit({ units: cu }),
             ...batch.instructions,
         ];
-        assertTxSize(txIxs, numSigners);
+        assertTransactionSizeWithinLimit(txIxs, numSigners, 'Batch');
         result.push(txIxs);
     }
 
@@ -473,7 +477,7 @@ export async function createTransferInterfaceInstructions(
         ...lastBatch.instructions,
         transferIx,
     ];
-    assertTxSize(lastTxIxs, numSigners);
+    assertTransactionSizeWithinLimit(lastTxIxs, numSigners, 'Batch');
     result.push(lastTxIxs);
 
     return result;

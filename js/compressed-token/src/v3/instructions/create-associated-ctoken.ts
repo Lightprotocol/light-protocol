@@ -91,6 +91,7 @@ export const DEFAULT_COMPRESSIBLE_CONFIG: CompressibleConfig = {
     compressToAccountPubkey: null, // Required null for ATAs
 };
 
+/** @internal */
 function getAssociatedCTokenAddress(
     owner: PublicKey,
     mint: PublicKey,
@@ -101,6 +102,7 @@ function getAssociatedCTokenAddress(
     )[0];
 }
 
+/** @internal */
 function encodeCreateAssociatedCTokenAccountData(
     params: CreateAssociatedCTokenAccountParams,
     idempotent: boolean,
@@ -140,7 +142,6 @@ export interface CreateAssociatedCTokenAccountInstructionParams {
  * @param configAccount     Config account (defaults to LIGHT_TOKEN_CONFIG).
  * @param rentPayerPda      Rent payer PDA (defaults to LIGHT_TOKEN_RENT_SPONSOR).
  */
-// TODO: use createAssociatedCTokenAccount2.
 export function createAssociatedCTokenAccountInstruction(
     feePayer: PublicKey,
     owner: PublicKey,
