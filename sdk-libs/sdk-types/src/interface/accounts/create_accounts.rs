@@ -141,7 +141,10 @@ pub fn create_accounts<
     // ====================================================================
     // 1. Validate required Option fields based on const generics
     // ====================================================================
-    if PDAS > u8::MAX as usize || MINTS > u8::MAX as usize || PDAS.saturating_add(MINTS) > u8::MAX as usize {
+    if PDAS > u8::MAX as usize
+        || MINTS > u8::MAX as usize
+        || PDAS.saturating_add(MINTS) > u8::MAX as usize
+    {
         return Err(LightSdkTypesError::InvalidInstructionData);
     }
     if PDAS > 0 && shared.compression_config.is_none() {
@@ -168,27 +171,42 @@ pub fn create_accounts<
     // ====================================================================
     // 2. Build CPI accounts
     // ====================================================================
-    let system_accounts_offset = shared.proof.system_accounts_offset as usize;
-    if remaining_accounts.len() < system_accounts_offset {
-        return Err(LightSdkTypesError::FewerAccountsThanSystemAccounts);
-    }
-
-    let config = if with_cpi_context {
-        CpiAccountsConfig::new_with_cpi_context(shared.cpi_signer)
+    let cpi_accounts = if PDAS > 0 || MINTS > 0 {
+        let system_accounts_offset = shared.proof.system_accounts_offset as usize;
+        if remaining_accounts.len() < system_accounts_offset {
+            return Err(LightSdkTypesError::FewerAccountsThanSystemAccounts);
+        }
+        let config = if with_cpi_context {
+            CpiAccountsConfig::new_with_cpi_context(shared.cpi_signer)
+        } else {
+            CpiAccountsConfig::new(shared.cpi_signer)
+        };
+        Some(CpiAccounts::new_with_config(
+            shared.fee_payer,
+            &remaining_accounts[system_accounts_offset..],
+            config,
+        ))
     } else {
-        CpiAccountsConfig::new(shared.cpi_signer)
+        None
     };
-    let cpi_accounts = CpiAccounts::new_with_config(
-        shared.fee_payer,
-        &remaining_accounts[system_accounts_offset..],
-        config,
-    );
 
     // ====================================================================
     // 3. Create PDAs
     // ====================================================================
+    // pda_setup is intentionally not called when PDAS == 0; callers should
+    // pass `|_, _| Ok(())` in that case (see function doc).
     if PDAS > 0 {
-        create_pdas(&pdas, pda_setup, shared, &cpi_accounts, with_cpi_context)?;
+        create_pdas(
+            &pdas,
+            pda_setup,
+            shared,
+            cpi_accounts
+                .as_ref()
+                .expect("cpi_accounts is built when PDAS > 0"),
+            with_cpi_context,
+        )?;
+    } else {
+        drop(pda_setup);
     }
 
     // ====================================================================
@@ -196,7 +214,14 @@ pub fn create_accounts<
     // ====================================================================
     if MINTS > 0 {
         if let Some(mints_input) = mints {
-            create_mints_inner::<AI, MINTS>(mints_input, shared, &cpi_accounts, PDAS as u8)?;
+            create_mints_inner::<AI, MINTS>(
+                mints_input,
+                shared,
+                cpi_accounts
+                    .as_ref()
+                    .expect("cpi_accounts is built when MINTS > 0"),
+                PDAS as u8,
+            )?;
         } else {
             return Err(LightSdkTypesError::InvalidInstructionData);
         }
@@ -394,25 +419,19 @@ fn create_atas<AI: AccountInfoTrait + Clone>(
         .ok_or(LightSdkTypesError::InvalidInstructionData)?;
 
     for ata in atas {
+        let cpi = CreateTokenAtaCpi {
+            payer: shared.fee_payer,
+            owner: ata.owner,
+            mint: ata.mint,
+            ata: ata.ata,
+        };
         if ata.idempotent {
-            CreateTokenAtaCpi {
-                payer: shared.fee_payer,
-                owner: ata.owner,
-                mint: ata.mint,
-                ata: ata.ata,
-            }
-            .idempotent()
-            .rent_free(compressible_config, rent_sponsor, system_program)
-            .invoke()?;
+            cpi.idempotent()
+                .rent_free(compressible_config, rent_sponsor, system_program)
+                .invoke()?;
         } else {
-            CreateTokenAtaCpi {
-                payer: shared.fee_payer,
-                owner: ata.owner,
-                mint: ata.mint,
-                ata: ata.ata,
-            }
-            .rent_free(compressible_config, rent_sponsor, system_program)
-            .invoke()?;
+            cpi.rent_free(compressible_config, rent_sponsor, system_program)
+                .invoke()?;
         }
     }
 

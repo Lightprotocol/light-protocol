@@ -299,8 +299,7 @@ impl LightAccountsBuilder {
         };
 
         // --- Token init params ---
-        let (token_bindings, token_init_params) =
-            generate_token_init_params(&token_init_fields);
+        let (token_bindings, token_init_params) = generate_token_init_params(&token_init_fields);
 
         // --- ATA init params ---
         let (ata_bindings, ata_init_params) = generate_ata_init_params(&ata_init_fields);
@@ -628,9 +627,9 @@ fn generate_mint_input(mints: &[LightMintField]) -> Result<(TokenStream, TokenSt
         // Token metadata binding
         let has_metadata = mint.name.is_some();
         let token_metadata_binding = if has_metadata {
-            let name_expr = mint.name.as_ref().map(|e| quote! { #e }).unwrap();
-            let symbol_expr = mint.symbol.as_ref().map(|e| quote! { #e }).unwrap();
-            let uri_expr = mint.uri.as_ref().map(|e| quote! { #e }).unwrap();
+            let name_expr = mint.name.as_ref().map(|e| quote! { #e }).expect("mint::name is required when mint::symbol or mint::uri is set");
+            let symbol_expr = mint.symbol.as_ref().map(|e| quote! { #e }).expect("mint::symbol is required when mint::name or mint::uri is set");
+            let uri_expr = mint.uri.as_ref().map(|e| quote! { #e }).expect("mint::uri is required when mint::name or mint::symbol is set");
             let update_authority_expr = mint.update_authority.as_ref()
                 .map(|f| quote! { Some(self.#f.to_account_info().key.to_bytes().into()) })
                 .unwrap_or_else(|| quote! { None });
@@ -733,9 +732,7 @@ fn generate_mint_input(mints: &[LightMintField]) -> Result<(TokenStream, TokenSt
 }
 
 /// Generate token vault init param bindings and `TokenInitParam` array elements.
-fn generate_token_init_params(
-    fields: &[&TokenAccountField],
-) -> (TokenStream, Vec<TokenStream>) {
+fn generate_token_init_params(fields: &[&TokenAccountField]) -> (TokenStream, Vec<TokenStream>) {
     if fields.is_empty() {
         return (quote! {}, vec![]);
     }
@@ -754,13 +751,17 @@ fn generate_token_init_params(
         });
 
         // Bind mint info
-        let m = field.mint.as_ref()
+        let m = field
+            .mint
+            .as_ref()
             .expect("parser invariant: token init fields always have mint");
         let mint_binding = quote! { let #mint_info_ident = self.#m.to_account_info(); };
         all_bindings.push(mint_binding);
 
         // Owner expression
-        let o = field.owner.as_ref()
+        let o = field
+            .owner
+            .as_ref()
             .expect("parser invariant: token init fields always have owner");
         let owner_expr = quote! { self.#o.to_account_info().key.to_bytes() };
 

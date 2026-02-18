@@ -203,7 +203,8 @@ fn validate_infra_fields(ctx: &ValidationContext) -> Result<(), syn::Error> {
 /// - As a direct argument: `proof: CreateAccountsProof`
 /// - As a field on the first instruction arg: `params.create_accounts_proof`
 fn validate_proof_availability(ctx: &ValidationContext) -> Result<(), syn::Error> {
-    let needs_proof = ctx.has_pdas || ctx.has_mints || ctx.has_tokens_with_init || ctx.has_atas_with_init;
+    let needs_proof =
+        ctx.has_pdas || ctx.has_mints || ctx.has_tokens_with_init || ctx.has_atas_with_init;
 
     if !needs_proof {
         return Ok(());
