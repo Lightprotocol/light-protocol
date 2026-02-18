@@ -15,15 +15,15 @@ import { MAX_TOP_UP } from '../../constants';
 import { createMintToInstruction } from '../instructions/mint-to';
 
 /**
- * Mint tokens to a CToken account.
+ * Mint tokens to a light-token account.
  *
- * This is a simple mint instruction for minting to decompressed CToken accounts.
- * The mint must be decompressed (CMint account must exist on-chain).
+ * This is a simple mint instruction for minting to light-token associated token accounts (hot).
+ * The light mint account must exist (mint must be decompressed first).
  *
  * @param rpc - RPC connection
  * @param payer - Fee payer (signer)
- * @param mint - Mint address (CMint account)
- * @param destination - Destination CToken account
+ * @param mint - Mint address (light mint account)
+ * @param destination - Destination light-token account
  * @param authority - Mint authority (signer)
  * @param amount - Amount to mint
  * @param maxTopUp - Optional maximum lamports for rent top-up

@@ -20,7 +20,7 @@ import { createMintToCompressedInstruction } from '../instructions/mint-to-compr
 import { getMintInterface } from '../get-mint-interface';
 
 /**
- * Mint compressed tokens directly to compressed accounts.
+ * Mint light-tokens directly to compressed accounts.
  *
  * @param rpc                   RPC connection
  * @param payer                 Fee payer

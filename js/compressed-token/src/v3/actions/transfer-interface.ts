@@ -51,16 +51,16 @@ export interface InterfaceOptions {
 }
 
 /**
- * Transfer tokens using the c-token interface.
+ * Transfer tokens using the light-token interface.
  *
  * High-level action: resolves balances, builds all instructions (load +
- * transfer), signs, and sends. Creates the recipient ATA if it does not exist.
+ * transfer), signs, and sends. Creates the recipient associated token account if it does not exist.
  *
  * For instruction-level control, use `createTransferInterfaceInstructions`.
  *
  * @param rpc             RPC connection
  * @param payer           Fee payer (signer)
- * @param source          Source c-token ATA address
+ * @param source          Source light-token associated token account address
  * @param mint            Mint address
  * @param destination     Recipient wallet public key
  * @param owner           Source owner (signer)
@@ -102,7 +102,7 @@ export async function transferInterface(
     const amountBigInt = BigInt(amount.toString());
 
     // Build all instruction batches. ensureRecipientAta: true (default)
-    // includes idempotent ATA creation in the transfer tx -- no extra RPC
+    // includes idempotent associated token account creation in the transfer tx -- no extra RPC
     // fetch needed.
     const batches = await createTransferInterfaceInstructions(
         rpc,
@@ -144,15 +144,15 @@ export async function transferInterface(
  * Options for createTransferInterfaceInstructions.
  */
 export interface TransferOptions extends InterfaceOptions {
-    /** Include SPL/T22 wrapping to c-token ATA (unified path). Default: false. */
+    /** Include SPL/T22 wrapping to light-token associated token account (unified path). Default: false. */
     wrap?: boolean;
     /** Token program ID. Default: LIGHT_TOKEN_PROGRAM_ID. */
     programId?: PublicKey;
     /**
-     * Include an idempotent recipient ATA creation instruction in the
+     * Include an idempotent recipient associated token account creation instruction in the
      * transfer transaction. No extra RPC fetch -- uses
      * createAssociatedTokenAccountInterfaceIdempotentInstruction which is
-     * a no-op on-chain if the ATA already exists (~200 CU overhead).
+     * a no-op on-chain if the associated token account already exists (~200 CU overhead).
      * Default: true.
      */
     ensureRecipientAta?: boolean;
@@ -179,7 +179,7 @@ export function sliceLast<T>(items: T[]): { rest: T[]; last: T } {
  * Compute units for the transfer transaction (load chunk + transfer).
  */
 function calculateTransferCU(loadBatch: InternalLoadBatch | null): number {
-    let cu = 10_000; // c-token transfer base
+    let cu = 10_000; // light-token transfer base
 
     if (loadBatch) {
         if (loadBatch.hasAtaCreation) cu += 30_000;
@@ -223,7 +223,7 @@ function assertTxSize(
 }
 
 /**
- * Create instructions for a c-token transfer.
+ * Create instructions for a light-token transfer.
  *
  * Returns `TransactionInstruction[][]` -- an array of transaction instruction
  * arrays. Each inner array is one transaction to sign and send.
@@ -239,10 +239,10 @@ function assertTxSize(
  * const { rest, last } = sliceLast(batches);
  * ```
  *
- * When `ensureRecipientAta` is true (the default), an idempotent ATA creation
+ * When `ensureRecipientAta` is true (the default), an idempotent associated token account creation
  * instruction is included in the transfer (last) transaction. No extra RPC
- * fetch -- the instruction is a no-op on-chain if the ATA already exists.
- * Set `ensureRecipientAta: false` if you manage recipient ATAs yourself.
+ * fetch -- the instruction is a no-op on-chain if the associated token account already exists.
+ * Set `ensureRecipientAta: false` if you manage recipient associated token accounts yourself.
  *
  * All transactions require payer + sender as signers.
  *
@@ -284,11 +284,11 @@ export async function createTransferInterfaceInstructions(
         ...interfaceOptions
     } = options ?? {};
 
-    // Validate recipient is a wallet (on-curve), not an ATA or PDA.
-    // Passing an ATA here would derive an ATA-of-ATA and lose funds.
+    // Validate recipient is a wallet (on-curve), not a PDA or associated token account.
+    // Passing an associated token account here would derive an associated token account of associated token account and lose funds.
     if (!PublicKey.isOnCurve(recipient.toBytes())) {
         throw new Error(
-            `Recipient must be a wallet public key (on-curve), not a PDA or ATA. ` +
+            `Recipient must be a wallet public key (on-curve), not a PDA or associated token account. ` +
                 `Got: ${recipient.toBase58()}`,
         );
     }
@@ -297,7 +297,7 @@ export async function createTransferInterfaceInstructions(
         programId.equals(TOKEN_PROGRAM_ID) ||
         programId.equals(TOKEN_2022_PROGRAM_ID);
 
-    // Derive ATAs
+    // Derive associated token accounts
     const senderAta = getAssociatedTokenAddressInterface(
         mint,
         sender,
@@ -398,7 +398,7 @@ export async function createTransferInterfaceInstructions(
         );
     }
 
-    // Create Recipient ATA idempotently. Optional.
+    // Create recipient associated token account idempotently. Optional.
     const recipientAtaIxs: TransactionInstruction[] = [];
     if (ensureRecipientAta) {
         recipientAtaIxs.push(
@@ -422,7 +422,7 @@ export async function createTransferInterfaceInstructions(
     // Assemble result: TransactionInstruction[][]
     // Last element is always the transfer tx. Preceding elements are
     // load txs that can be sent in parallel.
-    // Load txs include budgeting and ATA creation too.
+    // Load txs include budgeting and associated token account creation too.
     if (internalBatches.length === 0) {
         // Sender is hot: single transfer tx
         const cu = calculateTransferCU(null);

@@ -412,7 +412,7 @@ describe('loadAta - Unified Path (wrap=true)', () => {
                     mint,
                     owner.publicKey,
                 ),
-            ).rejects.toThrow('For wrap=true, ata must be the c-token ATA');
+            ).rejects.toThrow('For wrap=true, ata must be the light-token ATA');
         });
 
         it('should build instructions for SPL + cold balance', async () => {

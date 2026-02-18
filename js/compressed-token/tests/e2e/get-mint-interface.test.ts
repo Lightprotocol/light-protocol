@@ -167,7 +167,7 @@ describe('getMintInterface', () => {
                     undefined,
                     LIGHT_TOKEN_PROGRAM_ID,
                 ),
-            ).rejects.toThrow('Compressed mint not found');
+            ).rejects.toThrow('Light mint not found');
         });
     });
 

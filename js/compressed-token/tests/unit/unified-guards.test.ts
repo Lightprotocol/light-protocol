@@ -17,7 +17,7 @@ import {
 } from '../../src/v3/unified';
 
 describe('unified guards', () => {
-    it('throws when unified getAssociatedTokenAddressInterface uses non c-token program', () => {
+    it('throws when unified getAssociatedTokenAddressInterface uses non light-token program', () => {
         const mint = Keypair.generate().publicKey;
         const owner = Keypair.generate().publicKey;
 
@@ -29,11 +29,11 @@ describe('unified guards', () => {
                 TOKEN_PROGRAM_ID,
             ),
         ).toThrow(
-            'Please derive the unified ATA from the c-token program; balances across SPL, T22, and c-token are unified under the canonical c-token ATA.',
+            'Please derive the unified ATA from the light-token program; balances across SPL, T22, and light-token are unified under the canonical light-token ATA.',
         );
     });
 
-    it('allows unified getAssociatedTokenAddressInterface with c-token program', () => {
+    it('allows unified getAssociatedTokenAddressInterface with light-token program', () => {
         const mint = Keypair.generate().publicKey;
         const owner = Keypair.generate().publicKey;
 
@@ -49,7 +49,7 @@ describe('unified guards', () => {
 
     // Skip unless V2+beta - createLoadAtaInstructions is a V2-only interface method requiring beta
     it.skipIf(!featureFlags.isV2() || !featureFlags.isBeta())(
-        'throws when unified createLoadAtaInstructions receives non c-token ATA',
+        'throws when unified createLoadAtaInstructions receives non light-token ATA',
         async () => {
             const rpc = {} as Rpc;
             const owner = Keypair.generate().publicKey;
@@ -73,7 +73,7 @@ describe('unified guards', () => {
                     owner,
                 ),
             ).rejects.toThrow(
-                'For wrap=true, ata must be the c-token ATA. Got spl ATA instead.',
+                'For wrap=true, ata must be the light-token ATA. Got spl ATA instead.',
             );
         },
     );

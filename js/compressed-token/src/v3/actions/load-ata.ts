@@ -78,7 +78,7 @@ function chunkArray<T>(array: T[], chunkSize: number): T[][] {
  *   (no padding beyond the amount-needed count).
  * - Returns [] when `neededAmount <= 0` or `accounts` is empty.
  *
- * @param accounts      Cold compressed token accounts available for loading.
+ * @param accounts      Cold light-token accounts available for loading.
  * @param neededAmount  Amount that must be covered by selected inputs.
  * @returns Subset of `accounts`, sorted largest-first.
  */
@@ -140,7 +140,7 @@ function assertUniqueInputHashes(chunks: ParsedTokenAccount[][]): void {
  * @param rpc                RPC connection
  * @param payer              Fee payer
  * @param compressedAccounts Compressed accounts to decompress (max 8)
- * @param destinationAta     Destination ATA address
+ * @param destinationAta     Destination associated token account address
  * @param splInterfaceInfo   Optional SPL interface info (for SPL/T22 decompression)
  * @param decimals           Mint decimals
  * @returns Single decompress instruction
@@ -196,7 +196,7 @@ async function createDecompressInstructionForAccounts(
  * @param rpc                RPC connection
  * @param payer              Fee payer
  * @param compressedAccounts All compressed accounts to decompress
- * @param destinationAta     Destination ATA address
+ * @param destinationAta     Destination associated token account address
  * @param splInterfaceInfo   Optional SPL interface info (for SPL/T22 decompression)
  * @param decimals           Mint decimals
  * @returns Array of decompress instructions (one per chunk of 8 accounts)
@@ -341,19 +341,19 @@ export {
 export { AtaType } from '../ata-utils';
 
 /**
- * Create instructions to load an ATA from its AccountInterface.
+ * Create instructions to load an associated token account from its AccountInterface.
  *
  * Behavior depends on `wrap` parameter:
- * - wrap=false (standard): Decompress compressed tokens to the target ATA type
- *   (SPL ATA via pool, T22 ATA via pool, or c-token ATA direct)
- * - wrap=true (unified): Wrap SPL/T22 + decompress all to c-token ATA
+ * - wrap=false (standard): Decompress compressed light-tokens to the target associated token account type
+ *   (SPL associated token account via interface PDA, T22 associated token account via interface PDA, or light-token associated token account direct)
+ * - wrap=true (unified): Wrap SPL/T22 + decompress all to light-token associated token account
  *
  * @param rpc         RPC connection
  * @param payer       Fee payer
  * @param ata         AccountInterface from getAtaInterface (must have _isAta, _owner, _mint)
  * @param options     Optional load options
- * @param wrap        Unified mode: wrap SPL/T22 to c-token (default: false)
- * @param targetAta   Target ATA address (used for type detection in standard mode)
+ * @param wrap        Unified mode: wrap SPL/T22 to light-token (default: false)
+ * @param targetAta   Target associated token account address (used for type detection in standard mode)
  * @returns           Array of instructions (empty if nothing to load)
  */
 export async function createLoadAtaInstructionsFromInterface(
@@ -396,7 +396,7 @@ export async function createLoadAtaInstructionsFromInterface(
         getAtaProgramId(TOKEN_2022_PROGRAM_ID),
     );
 
-    // Validate and detect target ATA type
+    // Validate and detect target associated token account type
     // If called via createLoadAtaInstructions, validation already happened in getAtaInterface.
     // If called directly, this validates the targetAta is correct.
     let ataType: AtaType = 'ctoken';
@@ -404,10 +404,10 @@ export async function createLoadAtaInstructionsFromInterface(
         const validation = checkAtaAddress(targetAta, mint, owner);
         ataType = validation.type;
 
-        // For wrap=true, must be c-token ATA
+        // For wrap=true, must be light-token associated token account
         if (wrap && ataType !== 'ctoken') {
             throw new Error(
-                `For wrap=true, targetAta must be c-token ATA. Got ${ataType} ATA.`,
+                `For wrap=true, targetAta must be light-token associated token account. Got ${ataType} associated token account.`,
             );
         }
     }
@@ -475,9 +475,9 @@ export async function createLoadAtaInstructionsFromInterface(
     }
 
     if (wrap) {
-        // UNIFIED MODE: Everything goes to c-token ATA
+        // UNIFIED MODE: Everything goes to light-token associated token account
 
-        // 1. Create c-token ATA if needed
+        // 1. Create light-token associated token account if needed
         if (!ctokenHotSource) {
             instructions.push(
                 createAssociatedTokenAccountInterfaceIdempotentInstruction(
@@ -490,7 +490,7 @@ export async function createLoadAtaInstructionsFromInterface(
             );
         }
 
-        // 2. Wrap SPL tokens to c-token
+        // 2. Wrap SPL tokens to light-token
         if (splBalance > BigInt(0) && splInterfaceInfo) {
             instructions.push(
                 createWrapInstruction(
@@ -506,7 +506,7 @@ export async function createLoadAtaInstructionsFromInterface(
             );
         }
 
-        // 3. Wrap T22 tokens to c-token
+        // 3. Wrap T22 tokens to light-token
         if (t22Balance > BigInt(0) && splInterfaceInfo) {
             instructions.push(
                 createWrapInstruction(
@@ -522,7 +522,7 @@ export async function createLoadAtaInstructionsFromInterface(
             );
         }
 
-        // 4. Decompress compressed tokens to c-token ATA
+        // 4. Decompress compressed light-tokens to light-token associated token account
         // Note: v3 interface only supports V2 trees
         // Handles >8 accounts via chunking into multiple instructions
         if (coldBalance > BigInt(0) && coldSources.length > 0) {
@@ -535,14 +535,14 @@ export async function createLoadAtaInstructionsFromInterface(
                     payer,
                     compressedAccounts,
                     ctokenAtaAddress,
-                    undefined, // No SPL interface for c-token direct
+                    undefined, // No SPL interface for light-token direct
                     decimals,
                 );
                 instructions.push(...decompressIxs);
             }
         }
     } else {
-        // STANDARD MODE: Decompress to target ATA type
+        // STANDARD MODE: Decompress to target associated token account type
         // Handles >8 accounts via chunking into multiple instructions
 
         if (coldBalance > BigInt(0) && coldSources.length > 0) {
@@ -551,7 +551,7 @@ export async function createLoadAtaInstructionsFromInterface(
 
             if (compressedAccounts.length > 0) {
                 if (ataType === 'ctoken') {
-                    // Decompress to c-token ATA (direct)
+                    // Decompress to light-token associated token account (direct)
                     if (!ctokenHotSource) {
                         instructions.push(
                             createAssociatedTokenAccountInterfaceIdempotentInstruction(
@@ -569,13 +569,13 @@ export async function createLoadAtaInstructionsFromInterface(
                             payer,
                             compressedAccounts,
                             ctokenAtaAddress,
-                            undefined, // No SPL interface for c-token direct
+                            undefined, // No SPL interface for light-token direct
                             decimals,
                         );
                     instructions.push(...decompressIxs);
                 } else if (ataType === 'spl' && splInterfaceInfo) {
-                    // Decompress to SPL ATA via token pool
-                    // Create SPL ATA if needed
+                    // Decompress to SPL associated token account via interface PDA
+                    // Create SPL associated token account if needed
                     if (!splSource) {
                         instructions.push(
                             createAssociatedTokenAccountIdempotentInstruction(
@@ -598,8 +598,8 @@ export async function createLoadAtaInstructionsFromInterface(
                         );
                     instructions.push(...decompressIxs);
                 } else if (ataType === 'token2022' && splInterfaceInfo) {
-                    // Decompress to T22 ATA via token pool
-                    // Create T22 ATA if needed
+                    // Decompress to T22 associated token account via interface PDA
+                    // Create T22 associated token account if needed
                     if (!t22Source) {
                         instructions.push(
                             createAssociatedTokenAccountIdempotentInstruction(
@@ -630,7 +630,7 @@ export async function createLoadAtaInstructionsFromInterface(
 }
 
 /**
- * Create instruction batches for loading token balances into an ATA.
+ * Create instruction batches for loading token balances into an associated token account.
  * Handles >8 compressed accounts by returning multiple transaction batches.
  *
  * IMPORTANT: Each batch must be sent as a SEPARATE transaction because
@@ -638,12 +638,12 @@ export async function createLoadAtaInstructionsFromInterface(
  * (the Merkle tree root changes after each decompress).
  *
  * @param rpc               RPC connection
- * @param ata               Associated token address (SPL, T22, or c-token)
+ * @param ata               Associated token address (SPL, T22, or light-token)
  * @param owner             Owner public key
  * @param mint              Mint public key
  * @param payer             Fee payer public key (defaults to owner)
  * @param interfaceOptions  Optional interface options
- * @param wrap              Unified mode: wrap SPL/T22 to c-token (default: false)
+ * @param wrap              Unified mode: wrap SPL/T22 to light-token (default: false)
  * @returns Instruction batches - each inner array is one transaction
  */
 export async function createLoadAtaInstructions(
@@ -658,7 +658,7 @@ export async function createLoadAtaInstructions(
     assertBetaEnabled();
     payer ??= owner;
 
-    // Fetch account state (pass wrap so c-token ATA is validated before RPC)
+    // Fetch account state (pass wrap so light-token associated token account is validated before RPC)
     let accountInterface: AccountInterface;
     try {
         accountInterface = await _getAtaInterface(
@@ -678,7 +678,7 @@ export async function createLoadAtaInstructions(
     }
 
     // Delegate to _buildLoadBatches which handles wrapping, decompression,
-    // ATA creation, and parallel-safe batching.
+    // associated token account creation, and parallel-safe batching.
     const internalBatches = await _buildLoadBatches(
         rpc,
         payer,
@@ -707,7 +707,7 @@ export interface InternalLoadBatch {
  * Calculate compute units for a load batch with 30% buffer.
  *
  * Heuristics:
- * - ATA creation: ~30k CU
+ * - Associated token account creation: ~30k CU
  * - Wrap operation: ~50k CU each
  * - Decompress base cost (CPI overhead, hash computation): ~50k CU
  * - Full proof verification (when any input is NOT proveByIndex): ~100k CU
@@ -751,10 +751,10 @@ export function calculateLoadBatchComputeUnits(
  * Build load instruction batches for parallel sending.
  *
  * Returns one or more batches:
- * - Batch 0: setup (ATA creation, wraps) + first decompress chunk
- * - Batch 1..N: idempotent ATA creation + decompress chunk 1..N
+ * - Batch 0: setup (associated token account creation, wraps) + first decompress chunk
+ * - Batch 1..N: idempotent associated token account creation + decompress chunk 1..N
  *
- * Each batch is independent and can be sent in parallel. Idempotent ATA
+ * Each batch is independent and can be sent in parallel. Idempotent associated token account
  * creation is included in every batch so they can land in any order.
  *
  * @internal
@@ -799,13 +799,13 @@ export async function _buildLoadBatches(
         getAtaProgramId(TOKEN_2022_PROGRAM_ID),
     );
 
-    // Validate target ATA type
+    // Validate target associated token account type
     let ataType: AtaType = 'ctoken';
     const validation = checkAtaAddress(targetAta, mint, owner);
     ataType = validation.type;
     if (wrap && ataType !== 'ctoken') {
         throw new Error(
-            `For wrap=true, targetAta must be c-token ATA. Got ${ataType} ATA.`,
+            `For wrap=true, targetAta must be light-token associated token account. Got ${ataType} associated token account.`,
         );
     }
 
@@ -869,7 +869,7 @@ export async function _buildLoadBatches(
         }
     }
 
-    // Build setup instructions (ATA creation + wraps)
+    // Build setup instructions (associated token account creation + wraps)
     const setupInstructions: TransactionInstruction[] = [];
     let wrapCount = 0;
     let needsAtaCreation = false;
@@ -1051,7 +1051,7 @@ export async function _buildLoadBatches(
         }),
     );
 
-    // Build idempotent ATA creation instruction for subsequent batches
+    // Build idempotent associated token account creation instruction for subsequent batches
     const idempotentAtaIx = (() => {
         if (wrap || ataType === 'ctoken') {
             return createAssociatedTokenAccountInterfaceIdempotentInstruction(
@@ -1096,12 +1096,12 @@ export async function _buildLoadBatches(
         let batchHasAtaCreation = false;
 
         if (i === 0) {
-            // First batch includes all setup (ATA creation + wraps)
+            // First batch includes all setup (associated token account creation + wraps)
             batchIxs.push(...setupInstructions);
             batchWrapCount = wrapCount;
             batchHasAtaCreation = needsAtaCreation;
         } else {
-            // Subsequent batches: include idempotent ATA creation so
+            // Subsequent batches: include idempotent associated token account creation so
             // batches can land in any order
             batchIxs.push(idempotentAtaIx);
             batchHasAtaCreation = true;
@@ -1131,28 +1131,28 @@ export async function _buildLoadBatches(
 }
 
 /**
- * Load token balances into an ATA.
+ * Load token balances into an associated token account.
  *
  * Behavior depends on `wrap` parameter:
- * - wrap=false (standard): Decompress compressed tokens to the target ATA.
- *   ATA can be SPL (via pool), T22 (via pool), or c-token (direct).
- * - wrap=true (unified): Wrap SPL/T22 + decompress all to c-token ATA.
+ * - wrap=false (standard): Decompress compressed light-tokens to the target associated token account.
+ *   Target can be SPL (via interface PDA), T22 (via interface PDA), or light-token (direct).
+ * - wrap=true (unified): Wrap SPL/T22 + decompress all to light-token associated token account.
  *
  * Handles any number of compressed accounts by building per-chunk batches
  * (max 8 inputs per decompress instruction) and sending all batches in
- * parallel. Each batch includes idempotent ATA creation so landing order
+ * parallel. Each batch includes idempotent associated token account creation so landing order
  * does not matter.
  *
  * Idempotent: returns null if nothing to load.
  *
  * @param rpc               RPC connection
- * @param ata               Associated token address (SPL, T22, or c-token)
+ * @param ata               Associated token address (SPL, T22, or light-token)
  * @param owner             Owner of the tokens (signer)
  * @param mint              Mint public key
  * @param payer             Fee payer (signer, defaults to owner)
  * @param confirmOptions    Optional confirm options
  * @param interfaceOptions  Optional interface options
- * @param wrap              Unified mode: wrap SPL/T22 to c-token (default: false)
+ * @param wrap              Unified mode: wrap SPL/T22 to light-token (default: false)
  * @returns Last transaction signature, or null if nothing to load
  */
 export async function loadAta(

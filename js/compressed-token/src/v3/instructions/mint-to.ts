@@ -10,9 +10,9 @@ import { LIGHT_TOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
  * Parameters for creating a MintTo instruction.
  */
 export interface CreateMintToInstructionParams {
-    /** Mint account (CMint - decompressed compressed mint) */
+    /** Light mint account (decompressed from compressed light mint) */
     mint: PublicKey;
-    /** Destination CToken account to mint to */
+    /** Destination light-token account to mint to */
     destination: PublicKey;
     /** Amount of tokens to mint */
     amount: number | bigint;
@@ -25,9 +25,9 @@ export interface CreateMintToInstructionParams {
 }
 
 /**
- * Create instruction for minting tokens to a CToken account.
+ * Create instruction for minting tokens to a light-token account.
  *
- * This is a simple 3-4 account instruction for minting to decompressed CToken accounts.
+ * This is a simple 3-4 account instruction for minting to light-token associated token accounts (hot).
  * Uses discriminator 7 (CTokenMintTo).
  *
  * @param params - Mint instruction parameters

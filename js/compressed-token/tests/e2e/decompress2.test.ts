@@ -475,7 +475,7 @@ describe('decompressInterface', () => {
                     undefined,
                     TEST_TOKEN_DECIMALS,
                 ),
-            ).toThrow('No input compressed token accounts provided');
+            ).toThrow('No input light-token accounts provided');
         });
 
         it('should handle multiple input accounts', async () => {

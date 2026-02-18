@@ -16,16 +16,16 @@ import { getMintInterface } from '../get-mint-interface';
 
 /**
  * Mint tokens to a decompressed/onchain token account.
- * Works with SPL, Token-2022, and CToken mints.
+ * Works with SPL, Token-2022, and light-token mints.
  *
- * This function ONLY mints to decompressed onchain token accounts, never to compressed accounts.
- * For CToken mints, the mint must be decompressed first (CMint account must exist on-chain).
+ * This function ONLY mints to light-token associated token accounts (hot), never to compressed light-token accounts (cold).
+ * For light-token mints, the light mint account must exist (mint must be decompressed first).
  *
  * The signature matches the standard SPL mintTo for simplicity and consistency.
  *
  * @param rpc - RPC connection to use
  * @param payer - Transaction fee payer
- * @param mint - Mint address (SPL, Token-2022, or CToken mint)
+ * @param mint - Mint address (SPL, Token-2022, or light-token mint)
  * @param destination - Destination token account address (must be an existing onchain token account)
  * @param authority - Mint authority (can be Signer or PublicKey if multiSigners provided)
  * @param amount - Amount to mint

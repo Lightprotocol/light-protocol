@@ -103,7 +103,7 @@ export interface DecompressMintInstructionParams {
     authority: PublicKey;
     /** Fee payer public key */
     payer: PublicKey;
-    /** Validity proof for the compressed mint */
+    /** Validity proof for the light mint */
     validityProof: ValidityProofWithContext;
     /** Number of epochs to prepay rent (minimum 2) */
     rentPayment?: number;
@@ -118,10 +118,10 @@ export interface DecompressMintInstructionParams {
 }
 
 /**
- * Create instruction for decompressing a compressed mint.
+ * Create instruction for decompressing a light mint.
  *
- * This creates the CMint Solana account from a compressed mint, making
- * the mint available on-chain. This is required before creating CToken
+ * This creates the light mint Solana account from a light mint, making
+ * the light mint account. This is required before creating light-token
  * associated token accounts.
  *
  * DecompressMint is **permissionless** - any account can call it. The
@@ -146,12 +146,12 @@ export function createDecompressMintInstruction(
 
     if (!mintInterface.merkleContext) {
         throw new Error(
-            'MintInterface must have merkleContext for compressed mint operations',
+            'MintInterface must have merkleContext for light mint operations',
         );
     }
     if (!mintInterface.mintContext) {
         throw new Error(
-            'MintInterface must have mintContext for compressed mint operations',
+            'MintInterface must have mintContext for light mint operations',
         );
     }
 

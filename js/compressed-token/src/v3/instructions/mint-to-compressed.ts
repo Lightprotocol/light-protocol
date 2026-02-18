@@ -43,7 +43,7 @@ function encodeCompressedMintToInstructionData(
         );
     }
 
-    // When mint is decompressed, the program reads mint data from the CMint
+    // When mint is decompressed, the program reads mint data from the light mint
     // Solana account. Setting mint to null signals this to the program.
     const isDecompressed = params.mintData.cmintDecompressed;
 
@@ -101,14 +101,14 @@ export interface CreateMintToCompressedInstructionParams {
 }
 
 /**
- * Create instruction for minting tokens from a c-mint to compressed accounts.
- * To mint to onchain token accounts across SPL/T22/c-mints, use
+ * Create instruction for minting tokens from a light mint to compressed accounts.
+ * To mint to light-token associated token accounts across SPL/T22/light mints, use
  * {@link createMintToInterfaceInstruction} instead.
  *
  * @param authority             Mint authority public key.
  * @param payer                 Fee payer public key.
- * @param validityProof         Validity proof for the compressed mint.
- * @param merkleContext         Merkle context of the compressed mint.
+ * @param validityProof         Validity proof for the light mint.
+ * @param merkleContext         Merkle context of the light mint.
  * @param mintData              Mint instruction data.
  * @param recipients            Array of recipients with amounts.
  * @param outputStateTreeInfo   Optional output state tree info. Uses merkle
@@ -153,7 +153,7 @@ export function createMintToCompressedInstruction(
             isWritable: false,
         },
         { pubkey: authority, isSigner: true, isWritable: false },
-        // CMint account when decompressed (must come before payer for correct account ordering)
+        // light mint account when decompressed (must come before payer for correct account ordering)
         ...(isDecompressed
             ? [
                   {

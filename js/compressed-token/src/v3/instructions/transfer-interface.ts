@@ -11,17 +11,17 @@ import { LIGHT_TOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
 const LIGHT_TOKEN_TRANSFER_DISCRIMINATOR = 3;
 
 /**
- * Create a Light token transfer instruction.
+ * Create a light-token transfer instruction.
  *
- * For c-token accounts with compressible extension, the program needs
+ * For light-token accounts with compressible extension, the program needs
  * system_program and fee_payer to handle rent top-ups.
  *
- * @param source        Source c-token account
- * @param destination   Destination c-token account
+ * @param source        Source light-token account
+ * @param destination   Destination light-token account
  * @param owner         Owner of the source account (signer, also pays for compressible extension top-ups)
  * @param amount        Amount to transfer
  * @param feePayer      Optional fee payer for top-ups (defaults to owner)
- * @returns Transaction instruction for Light token transfer
+ * @returns Transaction instruction for light-token transfer
  */
 export function createLightTokenTransferInstruction(
     source: PublicKey,

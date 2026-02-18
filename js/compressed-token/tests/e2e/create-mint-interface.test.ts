@@ -152,7 +152,7 @@ describe('createMintInterface', () => {
                     mintSigner,
                 ),
             ).rejects.toThrow(
-                'mintAuthority must be a Signer for compressed token mints',
+                'mintAuthority must be a Signer for light-token mints',
             );
         });
     });

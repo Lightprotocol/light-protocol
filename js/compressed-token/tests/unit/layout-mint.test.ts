@@ -500,7 +500,7 @@ describe('layout-mint', () => {
 
             expect(() =>
                 toMintInstructionDataWithMetadata(compressedMint),
-            ).toThrow('CompressedMint does not have TokenMetadata extension');
+            ).toThrow('light mint does not have TokenMetadata extension');
         });
     });
 });

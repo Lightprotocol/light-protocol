@@ -8,9 +8,9 @@ import { LIGHT_TOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
 import { PublicKey } from '@solana/web3.js';
 
 /**
- * Get ATA program ID for a token program ID
+ * Get associated token account program ID for a token program ID
  * @param tokenProgramId    Token program ID
- * @returns ATA program ID
+ * @returns associated token account program ID
  */
 export function getAtaProgramId(tokenProgramId: PublicKey): PublicKey {
     if (tokenProgramId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
@@ -19,10 +19,10 @@ export function getAtaProgramId(tokenProgramId: PublicKey): PublicKey {
     return ASSOCIATED_TOKEN_PROGRAM_ID;
 }
 
-/** ATA type for validation result */
+/** associated token account type for validation result */
 export type AtaType = 'spl' | 'token2022' | 'ctoken';
 
-/** Result of ATA validation */
+/** Result of associated token account validation */
 export interface AtaValidationResult {
     valid: true;
     type: AtaType;
@@ -30,14 +30,14 @@ export interface AtaValidationResult {
 }
 
 /**
- * Check if an ATA address matches the expected derivation from mint+owner.
+ * Check if an associated token account address matches the expected derivation from mint+owner.
  *
  * Pass programId for fast path.
  *
- * @param ata                ATA address to check
+ * @param ata                associated token account address to check
  * @param mint               Mint address
  * @param owner              Owner address
- * @param programId          Optional: if known, only check this program's ATA
+ * @param programId          Optional: if known, only check this program's associated token account
  * @param allowOwnerOffCurve Allow the owner to be off-curve (PDA)
  * @returns                  Result with detected type, or throws on mismatch
  */
@@ -74,7 +74,7 @@ export function checkAtaAddress(
     let splExpected: PublicKey;
     let t22Expected: PublicKey;
 
-    // c-token
+    // light-token
     ctokenExpected = getAssociatedTokenAddressSync(
         mint,
         owner,
@@ -122,7 +122,7 @@ export function checkAtaAddress(
     throw new Error(
         `ATA address does not match any valid derivation from mint+owner. ` +
             `Got: ${ata.toBase58()}, expected one of: ` +
-            `c-token=${ctokenExpected.toBase58()}, ` +
+            `light-token=${ctokenExpected.toBase58()}, ` +
             `SPL=${splExpected.toBase58()}, ` +
             `T22=${t22Expected.toBase58()}`,
     );

@@ -22,8 +22,8 @@ import {
 import { getMintInterface } from '../get-mint-interface';
 
 /**
- * Update a metadata field on a compressed token mint.
- * Works for both compressed and decompressed mints.
+ * Update a metadata field on a light-token mint.
+ * Works for both compressed and decompressed light mints.
  *
  * @param rpc            RPC connection
  * @param payer          Fee payer (signer)
@@ -59,7 +59,7 @@ export async function updateMetadataField(
         throw new Error('Mint does not have TokenMetadata extension');
     }
 
-    // When mint is decompressed, no validity proof needed - program reads from CMint account
+    // When light mint account exists (decompressed), no validity proof needed - program reads from light mint account
     const isDecompressed =
         mintInterface.mintContext?.cmintDecompressed ?? false;
     const validityProof = isDecompressed
@@ -104,8 +104,8 @@ export async function updateMetadataField(
 }
 
 /**
- * Update the metadata authority of a compressed token mint.
- * Works for both compressed and decompressed mints.
+ * Update the metadata authority of a light-token mint.
+ * Works for both compressed and decompressed light mints.
  *
  * @param rpc              RPC connection
  * @param payer            Fee payer (signer)
@@ -137,7 +137,7 @@ export async function updateMetadataAuthority(
         throw new Error('Mint does not have TokenMetadata extension');
     }
 
-    // When mint is decompressed, no validity proof needed - program reads from CMint account
+    // When light mint account exists (decompressed), no validity proof needed - program reads from light mint account
     const isDecompressed =
         mintInterface.mintContext?.cmintDecompressed ?? false;
     const validityProof = isDecompressed
@@ -180,8 +180,8 @@ export async function updateMetadataAuthority(
 }
 
 /**
- * Remove a metadata key from a compressed token mint.
- * Works for both compressed and decompressed mints.
+ * Remove a metadata key from a light-token mint.
+ * Works for both compressed and decompressed light mints.
  *
  * @param rpc            RPC connection
  * @param payer          Fee payer (signer)
@@ -215,7 +215,7 @@ export async function removeMetadataKey(
         throw new Error('Mint does not have TokenMetadata extension');
     }
 
-    // When mint is decompressed, no validity proof needed - program reads from CMint account
+    // When light mint account exists (decompressed), no validity proof needed - program reads from light mint account
     const isDecompressed =
         mintInterface.mintContext?.cmintDecompressed ?? false;
     const validityProof = isDecompressed

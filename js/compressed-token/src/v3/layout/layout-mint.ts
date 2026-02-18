@@ -28,12 +28,12 @@ export interface BaseMint {
 }
 
 /**
- * Compressed mint context (protocol version, SPL mint reference)
+ * Light mint context (protocol version, SPL mint reference)
  */
 export interface MintContext {
     /** Protocol version for upgradability */
     version: number;
-    /** Whether the compressed mint is decompressed to a CMint Solana account */
+    /** Whether the compressed light mint has been decompressed to a light mint account */
     cmintDecompressed: boolean;
     /** PDA of the associated SPL mint */
     splMint: PublicKey;
@@ -84,7 +84,7 @@ export const TokenMetadataLayout = borshStruct([
 ]);
 
 /**
- * Complete compressed mint structure (raw format)
+ * Complete light mint structure (raw format)
  */
 export interface CompressedMint {
     base: BaseMint;
@@ -128,7 +128,7 @@ export const RESERVED_SIZE = 16;
 /** Account type discriminator size */
 export const ACCOUNT_TYPE_SIZE = 1;
 
-/** Account type value for CMint */
+/** Account type value for light mint */
 export const ACCOUNT_TYPE_MINT = 1;
 
 /**
@@ -151,7 +151,7 @@ export interface RentConfig {
 export const RENT_CONFIG_SIZE = 8; // 2 + 2 + 1 + 1 + 2
 
 /**
- * Compression info embedded in CompressedMint
+ * Compression info embedded in light mint
  */
 export interface CompressionInfo {
     /** Config account version (0 = uninitialized) */
@@ -314,11 +314,11 @@ function deserializeCompressionInfo(
 }
 
 /**
- * Deserialize a compressed mint from buffer
+ * Deserialize a light mint from buffer
  * Uses SPL's MintLayout for BaseMint and buffer-layout struct for context
  *
  * @param data - The raw account data buffer
- * @returns The deserialized CompressedMint
+ * @returns The deserialized light mint
  */
 export function deserializeMint(data: Buffer | Uint8Array): CompressedMint {
     const buffer = data instanceof Buffer ? data : Buffer.from(data);
@@ -469,10 +469,10 @@ function serializeCompressionInfo(compression: CompressionInfo): Buffer {
 }
 
 /**
- * Serialize a CompressedMint to buffer
+ * Serialize a light mint to buffer
  * Uses SPL's MintLayout for BaseMint, helper functions for context/metadata
  *
- * @param mint - The CompressedMint to serialize
+ * @param mint - The light mint to serialize
  * @returns The serialized buffer
  */
 export function serializeMint(mint: CompressedMint): Buffer {
@@ -702,10 +702,10 @@ export interface MintInstructionDataWithMetadata extends MintInstructionData {
 }
 
 /**
- * Convert a deserialized CompressedMint to MintInstructionData format
+ * Convert a deserialized light mint to MintInstructionData format
  * This extracts and flattens the data structure for instruction encoding
  *
- * @param compressedMint - Deserialized CompressedMint from account data
+ * @param compressedMint - Deserialized light mint from account data
  * @returns Flattened MintInstructionData for instruction encoding
  */
 export function toMintInstructionData(
@@ -739,10 +739,10 @@ export function toMintInstructionData(
 }
 
 /**
- * Convert a deserialized CompressedMint to MintInstructionDataWithMetadata
+ * Convert a deserialized light mint to MintInstructionDataWithMetadata
  * Throws if the mint doesn't have metadata extension
  *
- * @param compressedMint - Deserialized CompressedMint from account data
+ * @param compressedMint - Deserialized light mint from account data
  * @returns MintInstructionDataWithMetadata for metadata update instructions
  * @throws Error if metadata extension is not present
  */
@@ -752,7 +752,7 @@ export function toMintInstructionDataWithMetadata(
     const data = toMintInstructionData(compressedMint);
 
     if (!data.metadata) {
-        throw new Error('CompressedMint does not have TokenMetadata extension');
+        throw new Error('light mint does not have TokenMetadata extension');
     }
 
     return data as MintInstructionDataWithMetadata;

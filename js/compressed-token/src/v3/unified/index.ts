@@ -1,7 +1,7 @@
 /**
  * Exports for @lightprotocol/compressed-token/unified
  *
- * Import from `/unified` to get a single unified ATA for SPL/T22 and c-token
+ * Import from `/unified` to get a single unified associated token account for SPL/T22 and light-token
  * mints.
  */
 import {
@@ -67,14 +67,14 @@ export async function getAtaInterface(
 }
 
 /**
- * Derive the canonical token ATA for SPL/T22/c-token in the unified path.
+ * Derive the canonical token associated token account for SPL/T22/light-token in the unified path.
  *
  * Enforces LIGHT_TOKEN_PROGRAM_ID.
  *
  * @param mint                      Mint public key
  * @param owner                     Owner public key
  * @param allowOwnerOffCurve        Allow owner to be a PDA. Default false.
- * @param programId                 Token program ID. Default c-token.
+ * @param programId                 Token program ID. Default light-token.
  * @param associatedTokenProgramId  Associated token program ID. Default
  *                                  auto-detected.
  * @returns                         Associated token address.
@@ -88,7 +88,7 @@ export function getAssociatedTokenAddressInterface(
 ): PublicKey {
     if (!programId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
         throw new Error(
-            'Please derive the unified ATA from the c-token program; balances across SPL, T22, and c-token are unified under the canonical c-token ATA.',
+            'Please derive the unified ATA from the light-token program; balances across SPL, T22, and light-token are unified under the canonical light-token ATA.',
         );
     }
 
@@ -102,7 +102,7 @@ export function getAssociatedTokenAddressInterface(
 }
 
 /**
- * Create instruction batches for loading ALL token balances into a c-token ATA.
+ * Create instruction batches for loading ALL token balances into a light-token associated token account.
  *
  * @param rpc     RPC connection
  * @param ata     Associated token address
@@ -132,14 +132,14 @@ export async function createLoadAtaInstructions(
 }
 
 /**
- * Load all token balances into the c-token ATA.
+ * Load all token balances into the light-token associated token account.
  *
- * Wraps SPL/Token-2022 balances and decompresses compressed c-tokens
- * into the on-chain c-token ATA. If no balances exist and the ATA doesn't
+ * Wraps SPL/Token-2022 balances and decompresses compressed light-tokens
+ * into the on-chain light-token associated token account. If no balances exist and the associated token account doesn't
  * exist, creates an empty ATA (idempotent).
  *
  * @param rpc               RPC connection
- * @param ata               Associated token address (c-token)
+ * @param ata               Associated token address (light-token)
  * @param owner             Owner of the tokens (signer)
  * @param mint              Mint public key
  * @param payer             Fee payer (signer, defaults to owner)
@@ -201,13 +201,13 @@ export async function loadAta(
 /**
  * Transfer tokens using the unified ata interface.
  *
- * Destination ATA must exist. Automatically wraps SPL/T22 to c-token ATA.
+ * Destination associated token account must exist. Automatically wraps SPL/T22 to light-token associated token account.
  *
  * @param rpc             RPC connection
  * @param payer           Fee payer (signer)
- * @param source          Source c-token ATA address
+ * @param source          Source light-token associated token account address
  * @param mint            Mint address
- * @param destination     Destination c-token ATA address (must exist)
+ * @param destination     Destination light-token associated token account address (must exist)
  * @param owner           Source owner (signer)
  * @param amount          Amount to transfer
  * @param confirmOptions  Optional confirm options
@@ -241,18 +241,18 @@ export async function transferInterface(
 }
 
 /**
- * Get or create c-token ATA with unified balance detection and auto-loading.
+ * Get or create light-token ATA with unified balance detection and auto-loading.
  *
  * Enforces LIGHT_TOKEN_PROGRAM_ID. Aggregates balances from:
- * - c-token hot (on-chain) account
- * - c-token cold (compressed) accounts
+ * - light-token associated token account (hot balance)
+ * - compressed light-token accounts (cold balance)
  * - SPL token accounts (for unified wrapping)
  * - Token-2022 accounts (for unified wrapping)
  *
  * When owner is a Signer:
  * - Creates hot ATA if it doesn't exist
  * - Loads cold (compressed) tokens into hot ATA
- * - Wraps SPL/T22 tokens into c-token ATA
+ * - Wraps SPL/T22 tokens into light-token associated token account
  * - Returns account with all tokens ready to use
  *
  * When owner is a PublicKey:
@@ -294,7 +294,7 @@ export async function getOrCreateAtaInterface(
 /**
  * Create transfer instructions for a unified token transfer.
  *
- * Unified variant: always wraps SPL/T22 to c-token ATA.
+ * Unified variant: always wraps SPL/T22 to light-token associated token account.
  *
  * Returns `TransactionInstruction[][]`. Send [0..n-2] in parallel, then [n-1].
  * Use `sliceLast` to separate the parallel prefix from the final transfer.
@@ -325,7 +325,7 @@ export async function createTransferInterfaceInstructions(
 }
 
 /**
- * Build instruction batches for unwrapping c-tokens to SPL/T22.
+ * Build instruction batches for unwrapping light-tokens to SPL/T22.
  *
  * Unified variant: uses wrap=true for loading, so SPL/T22 balances are
  * consolidated before unwrapping.
@@ -335,7 +335,7 @@ export async function createTransferInterfaceInstructions(
  *
  * @param rpc               RPC connection
  * @param destination       Destination SPL/T22 token account (must exist)
- * @param owner             Owner of the c-token
+ * @param owner             Owner of the light-token
  * @param mint              Mint address
  * @param amount            Amount to unwrap (defaults to full balance)
  * @param payer             Fee payer (defaults to owner)
@@ -368,15 +368,15 @@ export async function createUnwrapInstructions(
 }
 
 /**
- * Unwrap c-tokens to SPL tokens.
+ * Unwrap light-tokens to SPL tokens.
  *
- * Unified variant: loads all cold + SPL/T22 balances to c-token ATA first,
+ * Unified variant: loads all cold + SPL/T22 balances to light-token associated token account first,
  * then unwraps to the destination SPL/T22 account.
  *
  * @param rpc                RPC connection
  * @param payer              Fee payer
  * @param destination        Destination SPL/T22 token account
- * @param owner              Owner of the c-token (signer)
+ * @param owner              Owner of the light-token (signer)
  * @param mint               Mint address
  * @param amount             Amount to unwrap (defaults to all)
  * @param splInterfaceInfo   SPL interface info

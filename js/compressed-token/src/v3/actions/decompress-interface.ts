@@ -27,17 +27,17 @@ import { LIGHT_TOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
 import { SplInterfaceInfo } from '../../utils/get-token-pool-infos';
 
 /**
- * Decompress compressed (cold) tokens to an on-chain token account.
+ * Decompress compressed light-tokens (cold balance) to a light-token associated token account (hot balance).
  *
  * For unified loading, use {@link loadAta} instead.
  *
  * @param rpc                  RPC connection
  * @param payer                Fee payer (signer)
- * @param owner                Owner of the compressed tokens (signer)
+ * @param owner                Owner of the light-tokens (signer)
  * @param mint                 Mint address
  * @param amount               Amount to decompress (defaults to all)
  * @param destinationAta       Destination token account address
- * @param destinationOwner     Owner of the destination ATA
+ * @param destinationOwner     Owner of the destination associated token account
  * @param splInterfaceInfo     SPL interface info for SPL/T22 destinations
  * @param confirmOptions       Confirm options
  * @returns Transaction signature, null if nothing to load.
@@ -55,10 +55,10 @@ export async function decompressInterface(
 ): Promise<TransactionSignature | null> {
     assertBetaEnabled();
 
-    // Determine if this is SPL or c-token destination
+    // Determine if this is SPL or light-token destination
     const isSplDestination = splInterfaceInfo !== undefined;
 
-    // Get compressed token accounts
+    // Get compressed light-token accounts (cold balance)
     const compressedResult = await rpc.getCompressedTokenAccountsByOwner(
         owner.publicKey,
         { mint },
@@ -104,12 +104,12 @@ export async function decompressInterface(
         })),
     );
 
-    // Determine destination ATA based on token program
+    // Determine destination associated token account based on token program
     const ataOwner = destinationOwner ?? owner.publicKey;
     let destinationAtaAddress: PublicKey;
 
     if (isSplDestination) {
-        // SPL destination - use SPL ATA
+        // SPL destination - use SPL associated token account
         destinationAtaAddress =
             destinationAta ??
             (await getAssociatedTokenAddress(
@@ -119,7 +119,7 @@ export async function decompressInterface(
                 splInterfaceInfo.tokenProgram,
             ));
     } else {
-        // c-token destination - use c-token ATA
+        // light-token destination - use light-token associated token account
         destinationAtaAddress =
             destinationAta ??
             getAssociatedTokenAddressInterface(mint, ataOwner);
@@ -128,11 +128,11 @@ export async function decompressInterface(
     // Build instructions
     const instructions = [];
 
-    // Create ATA if needed (idempotent)
+    // Create associated token account if needed (idempotent)
     const ataInfo = await rpc.getAccountInfo(destinationAtaAddress);
     if (!ataInfo) {
         if (isSplDestination) {
-            // Create SPL ATA
+            // Create SPL associated token account
             instructions.push(
                 createAssociatedTokenAccountIdempotentInstruction(
                     payer.publicKey,
@@ -143,7 +143,7 @@ export async function decompressInterface(
                 ),
             );
         } else {
-            // Create c-token ATA
+            // Create light-token associated token account
             instructions.push(
                 createAssociatedTokenAccountInterfaceIdempotentInstruction(
                     payer.publicKey,
