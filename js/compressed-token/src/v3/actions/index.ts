@@ -9,7 +9,6 @@ export * from './mint-to-compressed';
 export * from './mint-to-interface';
 export * from './get-or-create-ata-interface';
 export * from './transfer-interface';
-export * from './decompress-interface';
 export * from './wrap';
 export * from './unwrap';
 export * from './load-ata';

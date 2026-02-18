@@ -27,10 +27,7 @@ import {
 } from '../get-account-interface';
 import { _buildLoadBatches, calculateLoadBatchComputeUnits } from './load-ata';
 import { InterfaceOptions } from './transfer-interface';
-import {
-    estimateTransactionSize,
-    MAX_TRANSACTION_SIZE,
-} from '../utils/estimate-tx-size';
+import { assertTransactionSizeWithinLimit } from '../utils/estimate-tx-size';
 
 /**
  * Build instruction batches for unwrapping light-tokens to SPL/T22 tokens.
@@ -118,28 +115,23 @@ export async function createUnwrapInstructions(
         throw error;
     }
 
-    const totalBalance = accountInterface.parsed.amount;
-    const unfrozenBalance = (accountInterface._sources ?? [])
-        .filter(s => !s.parsed.isFrozen)
-        .reduce((sum, s) => sum + s.amount, BigInt(0));
+    if (accountInterface._anyFrozen) {
+        throw new Error(
+            'Account is frozen. One or more sources (hot or cold) are frozen; unwrap is not allowed.',
+        );
+    }
 
-    if (unfrozenBalance === BigInt(0)) {
-        if (totalBalance > BigInt(0)) {
-            throw new Error('All light-token balance is frozen');
-        }
+    const totalBalance = accountInterface.parsed.amount;
+    if (totalBalance === BigInt(0)) {
         throw new Error('No light-token balance to unwrap');
     }
 
     const unwrapAmount =
-        amount != null ? BigInt(amount.toString()) : unfrozenBalance;
+        amount != null ? BigInt(amount.toString()) : totalBalance;
 
-    if (unwrapAmount > unfrozenBalance) {
-        const frozenNote =
-            totalBalance > unfrozenBalance
-                ? ` (${totalBalance - unfrozenBalance} frozen, not usable)`
-                : '';
+    if (unwrapAmount > totalBalance) {
         throw new Error(
-            `Insufficient light-token balance. Requested: ${unwrapAmount}, Available: ${unfrozenBalance}${frozenNote}`,
+            `Insufficient light-token balance. Requested: ${unwrapAmount}, Available: ${totalBalance}`,
         );
     }
 
@@ -192,30 +184,14 @@ export async function createUnwrapInstructions(
             ComputeBudgetProgram.setComputeUnitLimit({ units: cu }),
             ...batch.instructions,
         ];
-        assertUnwrapTxSize(txIxs, numSigners);
+        assertTransactionSizeWithinLimit(txIxs, numSigners, 'Unwrap batch');
         result.push(txIxs);
     }
 
-    assertUnwrapTxSize(unwrapBatch, numSigners);
+    assertTransactionSizeWithinLimit(unwrapBatch, numSigners, 'Unwrap batch');
     result.push(unwrapBatch);
 
     return result;
-}
-
-/**
- * Assert that a batch of instructions fits within the max transaction size.
- */
-function assertUnwrapTxSize(
-    instructions: TransactionInstruction[],
-    numSigners: number,
-): void {
-    const size = estimateTransactionSize(instructions, numSigners);
-    if (size > MAX_TRANSACTION_SIZE) {
-        throw new Error(
-            `Unwrap batch exceeds max transaction size: ${size} > ${MAX_TRANSACTION_SIZE}. ` +
-                `This indicates a bug in batch assembly.`,
-        );
-    }
 }
 
 /**

@@ -10,6 +10,7 @@ Concise reference for the v3 interface surface: reads (`getAtaInterface`), loads
 | `getOrCreateAtaInterface`             | v3              | Create ATA if missing, return interface            |
 | `createLoadAtaInstructions`           | v3              | Instruction batches for loading cold/wrap into ATA |
 | `loadAta`                             | v3              | Action: execute load, return signature             |
+| `createLoadAccountsParams`            | v3              | Build load params for program PDAs + ATAs          |
 | `createTransferInterfaceInstructions` | v3              | Instruction builder for transfers                  |
 | `transferInterface`                   | v3              | Action: load + transfer, creates recipient ATA     |
 | `createLightTokenTransferInstruction` | v3/instructions | Raw c-token transfer ix (no load/wrap)             |
