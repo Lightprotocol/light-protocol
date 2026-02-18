@@ -6,7 +6,7 @@ import {
 } from '@solana/spl-token';
 import {
     Rpc,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
     featureFlags,
 } from '@lightprotocol/stateless.js';
 import { getAtaProgramId } from '../../src/v3/ata-utils';
@@ -42,7 +42,7 @@ describe('unified guards', () => {
                 mint,
                 owner,
                 false,
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
             ),
         ).not.toThrow();
     });

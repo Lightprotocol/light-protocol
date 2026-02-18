@@ -27,15 +27,18 @@ export const validateSameOwner = (
     }
 };
 
-/// for V1 circuits.
+/// Client-side pre-flight validation for proof requests.
+/// V1 inclusion: {1, 2, 3, 4, 8}, V2 inclusion: {1..8}.
+/// Combined proofs (hashes + addresses): max 4 hashes for both V1 and V2.
 export const validateNumbersForProof = (
     hashesLength: number,
     newAddressesLength: number,
 ) => {
     if (hashesLength > 0 && newAddressesLength > 0) {
-        if (hashesLength === 8) {
+        // Combined circuits (V1 and V2) support max 4 hashes.
+        if (hashesLength > 4) {
             throw new Error(
-                `Invalid number of compressed accounts for proof: ${hashesLength}. Allowed numbers: ${[1, 2, 3, 4].join(', ')}`,
+                `Invalid number of compressed accounts for combined proof: ${hashesLength}. Allowed: 1-4`,
             );
         }
         validateNumbers(hashesLength, [1, 2, 3, 4], 'compressed accounts');
@@ -49,9 +52,15 @@ export const validateNumbersForProof = (
     }
 };
 
-/// Ensure that the amount if compressed accounts is allowed.
+/// Validate inclusion proof input count.
+/// Accepts 1-8 (union of V1 {1,2,3,4,8} and V2 {1..8}).
+/// Version-specific validation happens in the chunking layer.
 export const validateNumbersForInclusionProof = (hashesLength: number) => {
-    validateNumbers(hashesLength, [1, 2, 3, 4, 8], 'compressed accounts');
+    validateNumbers(
+        hashesLength,
+        [1, 2, 3, 4, 5, 6, 7, 8],
+        'compressed accounts',
+    );
 };
 
 /// Ensure that the amount if new addresses is allowed.

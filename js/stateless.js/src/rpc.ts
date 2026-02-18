@@ -89,7 +89,7 @@ import {
     versionedEndpoint,
     featureFlags,
     batchAddressTree,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
     getDefaultAddressSpace,
     assertBetaEnabled,
 } from './constants';
@@ -1938,7 +1938,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 const publicKey = deriveAddressV2(
                     Uint8Array.from(address.address),
                     address.treeInfo.tree,
-                    CTOKEN_PROGRAM_ID,
+                    LIGHT_TOKEN_PROGRAM_ID,
                 );
                 derivedAddress = bn(publicKey.toBytes());
             } else {

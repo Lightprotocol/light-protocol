@@ -33,6 +33,7 @@ import {
  * @param mint            Mint address
  * @param amount          Amount to wrap
  * @param splInterfaceInfo Optional: SPL interface info (will be fetched if not provided)
+ * @param maxTopUp         Optional: cap on rent top-up (units of 1k lamports; default no cap)
  * @param confirmOptions  Optional: Confirm options
  *
  * @example
@@ -60,6 +61,7 @@ export async function wrap(
     mint: PublicKey,
     amount: bigint,
     splInterfaceInfo?: SplInterfaceInfo,
+    maxTopUp?: number,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     assertBetaEnabled();
@@ -98,6 +100,7 @@ export async function wrap(
         resolvedSplInterfaceInfo,
         mintInfo.decimals,
         payer.publicKey,
+        maxTopUp,
     );
 
     // Build and send transaction

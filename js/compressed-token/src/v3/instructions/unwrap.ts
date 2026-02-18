@@ -3,7 +3,8 @@ import {
     TransactionInstruction,
     SystemProgram,
 } from '@solana/web3.js';
-import { CTOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
+import { LIGHT_TOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
+import { MAX_TOP_UP } from '../../constants';
 import { CompressedTokenProgram } from '../../program';
 import { SplInterfaceInfo } from '../../utils/get-token-pool-infos';
 import {
@@ -26,6 +27,7 @@ import {
  * @param splInterfaceInfo SPL interface info for the decompression
  * @param decimals         Mint decimals (required for transfer_checked)
  * @param payer            Fee payer (defaults to owner if not provided)
+ * @param maxTopUp         Optional cap on rent top-up (units of 1k lamports; default no cap)
  * @returns TransactionInstruction to unwrap tokens
  */
 export function createUnwrapInstruction(
@@ -37,6 +39,7 @@ export function createUnwrapInstruction(
     splInterfaceInfo: SplInterfaceInfo,
     decimals: number,
     payer: PublicKey = owner,
+    maxTopUp?: number,
 ): TransactionInstruction {
     const MINT_INDEX = 0;
     const OWNER_INDEX = 1;
@@ -72,7 +75,7 @@ export function createUnwrapInstruction(
         lamportsChangeAccountMerkleTreeIndex: 0,
         lamportsChangeAccountOwnerIndex: 0,
         outputQueue: 0,
-        maxTopUp: 65535,
+        maxTopUp: maxTopUp ?? MAX_TOP_UP,
         cpiContext: null,
         compressions,
         proof: null,
@@ -109,7 +112,7 @@ export function createUnwrapInstruction(
             isWritable: false,
         },
         {
-            pubkey: CTOKEN_PROGRAM_ID,
+            pubkey: LIGHT_TOKEN_PROGRAM_ID,
             isSigner: false,
             isWritable: false,
         },

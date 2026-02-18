@@ -11,7 +11,7 @@ import {
     sendAndConfirmTx,
     DerivationMode,
     bn,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
     selectStateTreeInfo,
     TreeInfo,
     assertBetaEnabled,
@@ -29,6 +29,7 @@ import { getMintInterface } from '../get-mint-interface';
  * @param recipients            Array of recipients with amounts
  * @param outputStateTreeInfo   Optional output state tree info (auto-fetched if not provided)
  * @param tokenAccountVersion   Token account version (default: 3)
+ * @param maxTopUp              Optional: cap on rent top-up (units of 1k lamports; default no cap)
  * @param confirmOptions        Optional confirm options
  */
 export async function mintToCompressed(
@@ -39,6 +40,7 @@ export async function mintToCompressed(
     recipients: Array<{ recipient: PublicKey; amount: number | bigint }>,
     outputStateTreeInfo?: TreeInfo,
     tokenAccountVersion: number = 3,
+    maxTopUp?: number,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     assertBetaEnabled();
@@ -47,7 +49,7 @@ export async function mintToCompressed(
         rpc,
         mint,
         confirmOptions?.commitment,
-        CTOKEN_PROGRAM_ID,
+        LIGHT_TOKEN_PROGRAM_ID,
     );
 
     if (!mintInfo.merkleContext) {
@@ -101,6 +103,7 @@ export async function mintToCompressed(
         recipients,
         outputStateTreeInfo,
         tokenAccountVersion,
+        maxTopUp,
     );
 
     const additionalSigners = authority.publicKey.equals(payer.publicKey)

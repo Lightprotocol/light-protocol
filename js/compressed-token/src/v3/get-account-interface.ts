@@ -10,7 +10,7 @@ import {
 } from '@solana/spl-token';
 import {
     Rpc,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
     MerkleContext,
     CompressedAccountWithMerkleContext,
     deriveAddressV2,
@@ -108,6 +108,87 @@ function parseTokenData(data: Buffer): {
     }
 }
 
+/**
+ * Known extension data sizes by Borsh enum discriminator.
+ * undefined = variable-length (cannot skip without full parsing).
+ * @internal
+ */
+const EXTENSION_DATA_SIZES: Record<number, number | undefined> = {
+    0: 0,
+    1: 0,
+    2: 0,
+    3: 0,
+    4: 0,
+    5: 0,
+    6: 0,
+    7: 0,
+    8: 0,
+    9: 0,
+    10: 0,
+    11: 0,
+    12: 0,
+    13: 0,
+    14: 0,
+    15: 0,
+    16: 0,
+    17: 0,
+    18: 0,
+    19: undefined, // TokenMetadata (variable)
+    20: 0,
+    21: 0,
+    22: 0,
+    23: 0,
+    24: 0,
+    25: 0,
+    26: 0,
+    27: 0, // PausableAccountExtension (unit struct)
+    28: 0, // PermanentDelegateAccountExtension (unit struct)
+    29: 8, // TransferFeeAccountExtension (u64)
+    30: 1, // TransferHookAccountExtension (u8)
+    31: 17, // CompressedOnlyExtension (u64 + u64 + u8)
+    32: undefined, // CompressibleExtension (variable)
+};
+
+const COMPRESSED_ONLY_DISCRIMINATOR = 31;
+
+/**
+ * Extract delegated_amount from CompressedOnly extension in Borsh-serialized
+ * TLV data (Vec<ExtensionStruct>).
+ * @internal
+ */
+function extractDelegatedAmountFromTlv(tlv: Buffer | null): bigint | null {
+    if (!tlv || tlv.length < 5) return null;
+
+    try {
+        let offset = 0;
+        const vecLen = tlv.readUInt32LE(offset);
+        offset += 4;
+
+        for (let i = 0; i < vecLen; i++) {
+            if (offset >= tlv.length) return null;
+
+            const discriminator = tlv[offset];
+            offset += 1;
+
+            if (discriminator === COMPRESSED_ONLY_DISCRIMINATOR) {
+                if (offset + 8 > tlv.length) return null;
+                // delegated_amount is the first u64 field
+                const lo = BigInt(tlv.readUInt32LE(offset));
+                const hi = BigInt(tlv.readUInt32LE(offset + 4));
+                return lo | (hi << BigInt(32));
+            }
+
+            const size = EXTENSION_DATA_SIZES[discriminator];
+            if (size === undefined) return null;
+            offset += size;
+        }
+    } catch {
+        return null;
+    }
+
+    return null;
+}
+
 /** @internal */
 export function convertTokenDataToAccount(
     address: PublicKey,
@@ -120,13 +201,28 @@ export function convertTokenDataToAccount(
         tlv: Buffer | null;
     },
 ): Account {
+    // Determine delegatedAmount for compressed TokenData:
+    // 1. If CompressedOnly extension present in TLV, use its delegated_amount
+    // 2. If delegate is set (regular compressed approve), the entire compressed
+    //    account's amount is the delegation (change goes to a separate account)
+    // 3. Otherwise, 0
+    let delegatedAmount = BigInt(0);
+    const extensionDelegatedAmount = extractDelegatedAmountFromTlv(
+        tokenData.tlv,
+    );
+    if (extensionDelegatedAmount !== null) {
+        delegatedAmount = extensionDelegatedAmount;
+    } else if (tokenData.delegate) {
+        delegatedAmount = BigInt(tokenData.amount.toString());
+    }
+
     return {
         address,
         mint: tokenData.mint,
         owner: tokenData.owner,
         amount: BigInt(tokenData.amount.toString()),
         delegate: tokenData.delegate,
-        delegatedAmount: BigInt(0),
+        delegatedAmount,
         isInitialized: tokenData.state !== AccountState.Uninitialized,
         isFrozen: tokenData.state === AccountState.Frozen,
         isNative: false,
@@ -165,12 +261,18 @@ export function parseCTokenHot(
     parsed: Account;
     isCold: false;
 } {
-    const parsed = parseTokenData(accountInfo.data);
-    if (!parsed) throw new Error('Invalid token data');
+    // Hot c-token accounts use SPL-compatible layout with 4-byte COption tags.
+    // unpackAccountSPL correctly parses all fields including delegatedAmount,
+    // isNative, and closeAuthority.
+    const parsed = unpackAccountSPL(
+        address,
+        accountInfo,
+        LIGHT_TOKEN_PROGRAM_ID,
+    );
     return {
         accountInfo,
         loadContext: undefined,
-        parsed: convertTokenDataToAccount(address, parsed),
+        parsed,
         isCold: false,
     };
 }
@@ -348,7 +450,7 @@ async function _tryFetchCTokenHot(
     isCold: false;
 }> {
     const info = await rpc.getAccountInfo(address, commitment);
-    if (!info || !info.owner.equals(CTOKEN_PROGRAM_ID)) {
+    if (!info || !info.owner.equals(LIGHT_TOKEN_PROGRAM_ID)) {
         throw new Error('Not a CTOKEN onchain account');
     }
     return parseCTokenHot(address, info);
@@ -376,7 +478,7 @@ async function _tryFetchCTokenColdByOwner(
     if (!compressedAccount?.data?.data.length) {
         throw new Error('Not a compressed token account');
     }
-    if (!compressedAccount.owner.equals(CTOKEN_PROGRAM_ID)) {
+    if (!compressedAccount.owner.equals(LIGHT_TOKEN_PROGRAM_ID)) {
         throw new Error('Invalid owner for compressed token');
     }
     return parseCTokenCold(ataAddress, compressedAccount);
@@ -385,7 +487,7 @@ async function _tryFetchCTokenColdByOwner(
 /**
  * @internal
  * Fetch compressed token account by deriving its compressed address from the on-chain address.
- * Uses deriveAddressV2(address, addressTree, CTOKEN_PROGRAM_ID) to get the compressed address.
+ * Uses deriveAddressV2(address, addressTree, LIGHT_TOKEN_PROGRAM_ID) to get the compressed address.
  *
  * Note: This only works for accounts that were **compressed from on-chain** (via compress_accounts_idempotent).
  * For tokens minted compressed (via mintTo), use getAtaInterface with owner+mint instead.
@@ -404,7 +506,7 @@ async function _tryFetchCTokenColdByAddress(
     const compressedAddress = deriveAddressV2(
         address.toBytes(),
         addressTree,
-        CTOKEN_PROGRAM_ID,
+        LIGHT_TOKEN_PROGRAM_ID,
     );
 
     // Fetch by derived compressed address
@@ -420,7 +522,7 @@ async function _tryFetchCTokenColdByAddress(
                 'For tokens minted compressed (via mintTo), use getAtaInterface with owner+mint.',
         );
     }
-    if (!compressedAccount.owner.equals(CTOKEN_PROGRAM_ID)) {
+    if (!compressedAccount.owner.equals(LIGHT_TOKEN_PROGRAM_ID)) {
         throw new Error('Invalid owner for compressed token');
     }
     return parseCTokenCold(address, compressedAccount);
@@ -461,7 +563,7 @@ async function _getAccountInterface(
     }
 
     // c-token-only mode
-    if (programId.equals(CTOKEN_PROGRAM_ID)) {
+    if (programId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
         return getCTokenAccountInterface(
             rpc,
             address,
@@ -501,8 +603,8 @@ async function getUnifiedAccountInterface(
             fetchByOwner!.mint,
             fetchByOwner!.owner,
             false,
-            CTOKEN_PROGRAM_ID,
-            getAtaProgramId(CTOKEN_PROGRAM_ID),
+            LIGHT_TOKEN_PROGRAM_ID,
+            getAtaProgramId(LIGHT_TOKEN_PROGRAM_ID),
         );
 
     const fetchPromises: Promise<{
@@ -589,7 +691,7 @@ async function getUnifiedAccountInterface(
             compressedAccount &&
             compressedAccount.data &&
             compressedAccount.data.data.length > 0 &&
-            compressedAccount.owner.equals(CTOKEN_PROGRAM_ID)
+            compressedAccount.owner.equals(LIGHT_TOKEN_PROGRAM_ID)
         ) {
             const parsed = parseCTokenCold(cTokenAta, compressedAccount);
             sources.push({
@@ -640,8 +742,8 @@ async function getCTokenAccountInterface(
             fetchByOwner.mint,
             fetchByOwner.owner,
             false,
-            CTOKEN_PROGRAM_ID,
-            getAtaProgramId(CTOKEN_PROGRAM_ID),
+            LIGHT_TOKEN_PROGRAM_ID,
+            getAtaProgramId(LIGHT_TOKEN_PROGRAM_ID),
         );
     }
 
@@ -665,7 +767,7 @@ async function getCTokenAccountInterface(
     const sources: TokenAccountSource[] = [];
 
     // Collect hot (decompressed) c-token account
-    if (onchainAccount && onchainAccount.owner.equals(CTOKEN_PROGRAM_ID)) {
+    if (onchainAccount && onchainAccount.owner.equals(LIGHT_TOKEN_PROGRAM_ID)) {
         const parsed = parseCTokenHot(address, onchainAccount);
         sources.push({
             type: TokenAccountSourceType.CTokenHot,
@@ -682,7 +784,7 @@ async function getCTokenAccountInterface(
             compressedAccount &&
             compressedAccount.data &&
             compressedAccount.data.data.length > 0 &&
-            compressedAccount.owner.equals(CTOKEN_PROGRAM_ID)
+            compressedAccount.owner.equals(LIGHT_TOKEN_PROGRAM_ID)
         ) {
             const parsed = parseCTokenCold(address, compressedAccount);
             sources.push({
@@ -730,66 +832,73 @@ async function getSplOrToken2022AccountInterface(
         );
     }
 
-    const info = await rpc.getAccountInfo(address, commitment);
-    if (!info) {
-        throw new TokenAccountNotFoundError();
-    }
-
-    const account = unpackAccountSPL(address, info, programId);
-
     const hotType: TokenAccountSource['type'] = programId.equals(
         TOKEN_PROGRAM_ID,
     )
         ? TokenAccountSourceType.Spl
         : TokenAccountSourceType.Token2022;
 
-    const sources: TokenAccountSource[] = [
-        {
-            type: hotType,
-            address,
-            amount: account.amount,
-            accountInfo: info,
-            parsed: account,
-        },
-    ];
+    const coldType: TokenAccountSource['type'] = programId.equals(
+        TOKEN_PROGRAM_ID,
+    )
+        ? TokenAccountSourceType.SplCold
+        : TokenAccountSourceType.Token2022Cold;
 
-    // For ATA-based calls (fetchByOwner present), also include cold (compressed) balances
-    if (fetchByOwner) {
-        const compressedResult = await rpc.getCompressedTokenAccountsByOwner(
-            fetchByOwner.owner,
-            {
-                mint: fetchByOwner.mint,
-            },
-        );
-        const compressedAccounts = compressedResult.items.map(
-            item => item.compressedAccount,
-        );
+    // Fetch hot and cold in parallel (neither is required individually)
+    const hotPromise = rpc
+        .getAccountInfo(address, commitment)
+        .catch(() => null);
+    const coldPromise = fetchByOwner
+        ? rpc
+              .getCompressedTokenAccountsByOwner(fetchByOwner.owner, {
+                  mint: fetchByOwner.mint,
+              })
+              .catch(() => ({ items: [] as any[] }))
+        : Promise.resolve({ items: [] as any[] });
 
-        const coldType: TokenAccountSource['type'] = programId.equals(
-            TOKEN_PROGRAM_ID,
-        )
-            ? TokenAccountSourceType.SplCold
-            : TokenAccountSourceType.Token2022Cold;
+    const [hotInfo, coldResult] = await Promise.all([hotPromise, coldPromise]);
 
-        for (const compressedAccount of compressedAccounts) {
-            if (
-                compressedAccount &&
-                compressedAccount.data &&
-                compressedAccount.data.data.length > 0 &&
-                compressedAccount.owner.equals(CTOKEN_PROGRAM_ID)
-            ) {
-                // Represent cold supply as belonging to this SPL/T22 ATA
-                const parsedCold = parseCTokenCold(address, compressedAccount);
-                sources.push({
-                    type: coldType,
-                    address,
-                    amount: parsedCold.parsed.amount,
-                    accountInfo: parsedCold.accountInfo,
-                    loadContext: parsedCold.loadContext,
-                    parsed: parsedCold.parsed,
-                });
-            }
+    const sources: TokenAccountSource[] = [];
+
+    // Hot SPL/T22 account (may not exist)
+    if (hotInfo) {
+        try {
+            const account = unpackAccountSPL(address, hotInfo, programId);
+            sources.push({
+                type: hotType,
+                address,
+                amount: account.amount,
+                accountInfo: hotInfo,
+                parsed: account,
+            });
+        } catch {
+            // Not a valid SPL/T22 account at this address, skip
         }
+    }
+
+    // Cold (compressed) accounts
+    for (const item of coldResult.items) {
+        const compressedAccount = item.compressedAccount;
+        if (
+            compressedAccount &&
+            compressedAccount.data &&
+            compressedAccount.data.data.length > 0 &&
+            compressedAccount.owner.equals(LIGHT_TOKEN_PROGRAM_ID)
+        ) {
+            const parsedCold = parseCTokenCold(address, compressedAccount);
+            sources.push({
+                type: coldType,
+                address,
+                amount: parsedCold.parsed.amount,
+                accountInfo: parsedCold.accountInfo,
+                loadContext: parsedCold.loadContext,
+                parsed: parsedCold.parsed,
+            });
+        }
+    }
+
+    if (sources.length === 0) {
+        throw new TokenAccountNotFoundError();
     }
 
     return buildAccountInterfaceFromSources(sources, address);

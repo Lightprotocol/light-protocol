@@ -4,7 +4,7 @@ import {
     SystemProgram,
 } from '@solana/web3.js';
 import {
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
     LightSystemProgram,
     defaultStaticAccountsStruct,
     ParsedTokenAccount,
@@ -18,7 +18,7 @@ import {
     COMPRESSION_MODE_DECOMPRESS,
     Compression,
 } from '../layout/layout-transfer2';
-import { TokenDataVersion } from '../../constants';
+import { MAX_TOP_UP, TokenDataVersion } from '../../constants';
 import { SplInterfaceInfo } from '../../utils/get-token-pool-infos';
 
 /**
@@ -105,6 +105,7 @@ function buildInputTokenData(
  * @param validityProof                Validity proof (contains compressedProof and rootIndices)
  * @param splInterfaceInfo             Optional: SPL interface info for SPL destinations
  * @param decimals                     Mint decimals (required for SPL destinations)
+ * @param maxTopUp                     Optional cap on rent top-up (units of 1k lamports; default no cap)
  * @returns TransactionInstruction
  */
 export function createDecompressInterfaceInstruction(
@@ -115,6 +116,7 @@ export function createDecompressInterfaceInstruction(
     validityProof: ValidityProofWithContext,
     splInterfaceInfo: SplInterfaceInfo | undefined,
     decimals: number,
+    maxTopUp?: number,
 ): TransactionInstruction {
     if (inputCompressedTokenAccounts.length === 0) {
         throw new Error('No input compressed token accounts provided');
@@ -167,6 +169,17 @@ export function createDecompressInterfaceInstruction(
     const destinationIndex = packedAccounts.length;
     packedAccountIndices.set(toAddress.toBase58(), destinationIndex);
     packedAccounts.push(toAddress);
+
+    // Add unique delegate pubkeys from input accounts
+    for (const acc of inputCompressedTokenAccounts) {
+        if (acc.parsed.delegate) {
+            const delegateKey = acc.parsed.delegate.toBase58();
+            if (!packedAccountIndices.has(delegateKey)) {
+                packedAccountIndices.set(delegateKey, packedAccounts.length);
+                packedAccounts.push(acc.parsed.delegate);
+            }
+        }
+    }
 
     // For SPL decompression, add pool account and token program
     let poolAccountIndex = 0;
@@ -258,7 +271,7 @@ export function createDecompressInterfaceInstruction(
         lamportsChangeAccountMerkleTreeIndex: 0,
         lamportsChangeAccountOwnerIndex: 0,
         outputQueue: firstQueueIndex, // First queue in packed accounts
-        maxTopUp: 65535,
+        maxTopUp: maxTopUp ?? MAX_TOP_UP,
         cpiContext: null,
         compressions,
         proof: validityProof.compressedProof

@@ -23,7 +23,7 @@ import BN from 'bn.js';
 import { createDecompressInterfaceInstruction } from '../instructions/create-decompress-interface-instruction';
 import { createAssociatedTokenAccountInterfaceIdempotentInstruction } from '../instructions/create-ata-interface';
 import { getAssociatedTokenAddressInterface } from '../get-associated-token-address-interface';
-import { CTOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
+import { LIGHT_TOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
 import { SplInterfaceInfo } from '../../utils/get-token-pool-infos';
 
 /**
@@ -150,7 +150,7 @@ export async function decompressInterface(
                     destinationAtaAddress,
                     ataOwner,
                     mint,
-                    CTOKEN_PROGRAM_ID,
+                    LIGHT_TOKEN_PROGRAM_ID,
                 ),
             );
         }

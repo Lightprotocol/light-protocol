@@ -11,7 +11,7 @@ import {
     sendAndConfirmTx,
     DerivationMode,
     bn,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
     assertBetaEnabled,
 } from '@lightprotocol/stateless.js';
 import {
@@ -52,7 +52,7 @@ export async function updateMetadataField(
         rpc,
         mint,
         confirmOptions?.commitment,
-        CTOKEN_PROGRAM_ID,
+        LIGHT_TOKEN_PROGRAM_ID,
     );
 
     if (!mintInterface.tokenMetadata || !mintInterface.merkleContext) {
@@ -130,7 +130,7 @@ export async function updateMetadataAuthority(
         rpc,
         mint,
         confirmOptions?.commitment,
-        CTOKEN_PROGRAM_ID,
+        LIGHT_TOKEN_PROGRAM_ID,
     );
 
     if (!mintInterface.tokenMetadata || !mintInterface.merkleContext) {
@@ -208,7 +208,7 @@ export async function removeMetadataKey(
         rpc,
         mint,
         confirmOptions?.commitment,
-        CTOKEN_PROGRAM_ID,
+        LIGHT_TOKEN_PROGRAM_ID,
     );
 
     if (!mintInterface.tokenMetadata || !mintInterface.merkleContext) {

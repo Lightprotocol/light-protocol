@@ -786,9 +786,9 @@ export class CompressedTokenProgram {
      * @param mintSize              Optional: mint size. Default: MINT_SIZE
      *
      * @returns [createMintAccountInstruction, initializeMintInstruction,
-     * createTokenPoolInstruction]
+     * createSplInterfaceInstruction]
      *
-     * Note that `createTokenPoolInstruction` must be executed after
+     * Note that `createSplInterfaceInstruction` must be executed after
      * `initializeMintInstruction`.
      */
     static async createMint({
@@ -820,7 +820,7 @@ export class CompressedTokenProgram {
             tokenProgram,
         );
 
-        const createTokenPoolInstruction = await this.createTokenPool({
+        const createSplInterfaceInstruction = await this.createSplInterface({
             feePayer,
             mint,
             tokenProgramId: tokenProgram,
@@ -829,12 +829,12 @@ export class CompressedTokenProgram {
         return [
             createMintAccountInstruction,
             initializeMintInstruction,
-            createTokenPoolInstruction,
+            createSplInterfaceInstruction,
         ];
     }
 
     /**
-     * Enable compression for an existing SPL mint, creating an omnibus account.
+     * Create SPL interface (omnibus account) for an existing SPL mint.
      * For new mints, use `CompressedTokenProgram.createMint`.
      *
      * @param feePayer              Fee payer.
@@ -842,9 +842,9 @@ export class CompressedTokenProgram {
      * @param tokenProgramId        Optional: Token program ID. Default: SPL
      *                              Token Program ID
      *
-     * @returns The createTokenPool instruction
+     * @returns The createSplInterface instruction
      */
-    static async createTokenPool({
+    static async createSplInterface({
         feePayer,
         mint,
         tokenProgramId,
@@ -870,8 +870,17 @@ export class CompressedTokenProgram {
     }
 
     /**
+     * @deprecated Use {@link createSplInterface} instead.
+     */
+    static async createTokenPool(
+        params: CreateSplInterfaceParams,
+    ): Promise<TransactionInstruction> {
+        return this.createSplInterface(params);
+    }
+
+    /**
      * Add a token pool to an existing SPL mint.  For new mints, use
-     * {@link createTokenPool}.
+     * {@link createSplInterface}.
      *
      * @param feePayer              Fee payer.
      * @param mint                  SPL Mint address.

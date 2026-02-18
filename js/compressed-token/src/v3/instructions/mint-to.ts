@@ -4,7 +4,7 @@ import {
     TransactionInstruction,
 } from '@solana/web3.js';
 import { Buffer } from 'buffer';
-import { CTOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
+import { LIGHT_TOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
 
 /**
  * Parameters for creating a MintTo instruction.
@@ -68,7 +68,7 @@ export function createMintToInstruction(
     }
 
     return new TransactionInstruction({
-        programId: CTOKEN_PROGRAM_ID,
+        programId: LIGHT_TOKEN_PROGRAM_ID,
         keys,
         data,
     });

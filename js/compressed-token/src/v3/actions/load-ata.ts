@@ -1,6 +1,6 @@
 import {
     Rpc,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
     buildAndSignTx,
     sendAndConfirmTx,
     dedupeSigner,
@@ -48,6 +48,13 @@ import { InterfaceOptions } from './transfer-interface';
  */
 export const MAX_INPUT_ACCOUNTS = 8;
 
+/** All source types that represent compressed (cold) accounts. */
+const COLD_SOURCE_TYPES: ReadonlySet<string> = new Set([
+    TokenAccountSourceType.CTokenCold,
+    TokenAccountSourceType.SplCold,
+    TokenAccountSourceType.Token2022Cold,
+]);
+
 /**
  * Split an array into chunks of specified size
  */
@@ -57,6 +64,73 @@ function chunkArray<T>(array: T[], chunkSize: number): T[][] {
         chunks.push(array.slice(i, i + chunkSize));
     }
     return chunks;
+}
+
+/**
+ * Select compressed inputs for a target amount.
+ *
+ * Sorts by amount descending (largest first), accumulates until the target
+ * is met, then pads to {@link MAX_INPUT_ACCOUNTS} if possible within a
+ * single batch.
+ *
+ * - If the amount is covered by N <= 8 inputs, returns min(8, total) inputs.
+ * - If more than 8 inputs are needed, returns exactly as many as required
+ *   (no padding beyond the amount-needed count).
+ * - Returns [] when `neededAmount <= 0` or `accounts` is empty.
+ *
+ * @param accounts      Cold compressed token accounts available for loading.
+ * @param neededAmount  Amount that must be covered by selected inputs.
+ * @returns Subset of `accounts`, sorted largest-first.
+ */
+export function selectInputsForAmount(
+    accounts: ParsedTokenAccount[],
+    neededAmount: bigint,
+): ParsedTokenAccount[] {
+    if (accounts.length === 0 || neededAmount <= BigInt(0)) return [];
+
+    const sorted = [...accounts].sort((a, b) => {
+        const amtA = BigInt(a.parsed.amount.toString());
+        const amtB = BigInt(b.parsed.amount.toString());
+        if (amtB > amtA) return 1;
+        if (amtB < amtA) return -1;
+        return 0;
+    });
+
+    let accumulated = BigInt(0);
+    let countNeeded = 0;
+    for (const acc of sorted) {
+        countNeeded++;
+        accumulated += BigInt(acc.parsed.amount.toString());
+        if (accumulated >= neededAmount) break;
+    }
+
+    // Pad to MAX_INPUT_ACCOUNTS if within a single batch
+    const selectCount = Math.min(
+        Math.max(countNeeded, MAX_INPUT_ACCOUNTS),
+        sorted.length,
+    );
+
+    return sorted.slice(0, selectCount);
+}
+
+/**
+ * Verify no compressed account hash appears in more than one chunk.
+ * Prevents double-spending of inputs across parallel batches.
+ */
+function assertUniqueInputHashes(chunks: ParsedTokenAccount[][]): void {
+    const seen = new Set<string>();
+    for (const chunk of chunks) {
+        for (const acc of chunk) {
+            const hashStr = acc.compressedAccount.hash.toString();
+            if (seen.has(hashStr)) {
+                throw new Error(
+                    `Duplicate compressed account hash across chunks: ${hashStr}. ` +
+                        `Each compressed account must appear in exactly one chunk.`,
+                );
+            }
+            seen.add(hashStr);
+        }
+    }
 }
 
 /**
@@ -85,11 +159,9 @@ async function createDecompressInstructionForAccounts(
     if (compressedAccounts.length > MAX_INPUT_ACCOUNTS) {
         throw new Error(
             `Too many compressed accounts: ${compressedAccounts.length} > ${MAX_INPUT_ACCOUNTS}. ` +
-                `Use createLoadAtaInstructionBatches for >8 accounts.`,
+                `Use createLoadAtaInstructions for >8 accounts.`,
         );
     }
-
-    assertV2Only(compressedAccounts);
 
     const amount = compressedAccounts.reduce(
         (sum, acc) => sum + BigInt(acc.parsed.amount.toString()),
@@ -151,6 +223,7 @@ async function createChunkedDecompressInstructions(
 
     // Split accounts into non-overlapping chunks of MAX_INPUT_ACCOUNTS
     const chunks = chunkArray(compressedAccounts, MAX_INPUT_ACCOUNTS);
+    assertUniqueInputHashes(chunks);
 
     // Get separate proofs for each chunk
     const proofs = await Promise.all(
@@ -201,6 +274,7 @@ function getCompressedTokenAccountsFromAtaSources(
     return sources
         .filter(source => source.loadContext !== undefined)
         .filter(source => coldTypes.has(source.type))
+        .filter(source => !source.parsed.isFrozen)
         .map(source => {
             const fullData = source.accountInfo.data;
             const discriminatorBytes = fullData.subarray(
@@ -263,67 +337,6 @@ export {
     calculateCompressibleLoadComputeUnits,
 } from '../instructions/create-load-accounts-params';
 
-/**
- * Create instructions to load token balances into an ATA.
- *
- * Behavior depends on `wrap` parameter:
- * - wrap=false (standard): Decompress compressed tokens to the target ATA.
- *   ATA can be SPL (via pool), T22 (via pool), or c-token (direct).
- * - wrap=true (unified): Wrap SPL/T22 + decompress all to c-token ATA.
- *   ATA must be a c-token ATA.
- *
- * @param rpc     RPC connection
- * @param ata     Associated token address (SPL, T22, or c-token)
- * @param owner   Owner public key
- * @param mint    Mint public key
- * @param payer   Fee payer (defaults to owner)
- * @param options Optional load options
- * @param wrap    Unified mode: wrap SPL/T22 to c-token (default: false)
- * @returns       Array of instructions (empty if nothing to load)
- */
-export async function createLoadAtaInstructions(
-    rpc: Rpc,
-    ata: PublicKey,
-    owner: PublicKey,
-    mint: PublicKey,
-    payer?: PublicKey,
-    options?: InterfaceOptions,
-    wrap = false,
-): Promise<TransactionInstruction[]> {
-    assertBetaEnabled();
-
-    payer ??= owner;
-
-    // Validation happens inside getAtaInterface via checkAtaAddress helper:
-    // - Always validates ata matches mint+owner derivation
-    // - For wrap=true, additionally requires c-token ATA
-    try {
-        const ataInterface = await _getAtaInterface(
-            rpc,
-            ata,
-            owner,
-            mint,
-            undefined,
-            undefined,
-            wrap,
-        );
-        return createLoadAtaInstructionsFromInterface(
-            rpc,
-            payer,
-            ataInterface,
-            options,
-            wrap,
-            ata,
-        );
-    } catch (error) {
-        // If account doesn't exist, there's nothing to load
-        if (error instanceof TokenAccountNotFoundError) {
-            return [];
-        }
-        throw error;
-    }
-}
-
 // Re-export AtaType for backwards compatibility
 export { AtaType } from '../ata-utils';
 
@@ -362,12 +375,9 @@ export async function createLoadAtaInstructionsFromInterface(
     const mint = ata._mint;
     const sources = ata._sources ?? [];
 
-    // v3 interface only supports V2 trees - check cold sources early
+    // Precompute compressed accounts from cold sources
     const compressedAccountsToCheck =
         getCompressedTokenAccountsFromAtaSources(sources);
-    if (compressedAccountsToCheck.length > 0) {
-        assertV2Only(compressedAccountsToCheck);
-    }
 
     // Derive addresses
     const ctokenAtaAddress = getAssociatedTokenAddressInterface(mint, owner);
@@ -402,22 +412,26 @@ export async function createLoadAtaInstructionsFromInterface(
         }
     }
 
-    // Check sources for balances
-    // Note: There can be multiple cold sources (one per compressed account)
-    const splSource = sources.find(s => s.type === 'spl');
-    const t22Source = sources.find(s => s.type === 'token2022');
-    const ctokenHotSource = sources.find(s => s.type === 'ctoken-hot');
-    const ctokenColdSources = sources.filter(s => s.type === 'ctoken-cold');
+    // Check sources for balances (skip frozen -- cannot wrap/decompress frozen accounts)
+    const splSource = sources.find(s => s.type === 'spl' && !s.parsed.isFrozen);
+    const t22Source = sources.find(
+        s => s.type === 'token2022' && !s.parsed.isFrozen,
+    );
+    const ctokenHotSource = sources.find(
+        s => s.type === 'ctoken-hot' && !s.parsed.isFrozen,
+    );
+    const coldSources = sources.filter(
+        s => COLD_SOURCE_TYPES.has(s.type) && !s.parsed.isFrozen,
+    );
 
     const splBalance = splSource?.amount ?? BigInt(0);
     const t22Balance = t22Source?.amount ?? BigInt(0);
-    // Sum ALL cold balances, not just the first
-    const coldBalance = ctokenColdSources.reduce(
+    const coldBalance = coldSources.reduce(
         (sum, s) => sum + s.amount,
         BigInt(0),
     );
 
-    // Nothing to load
+    // Nothing to load (all balances are zero or frozen)
     if (
         splBalance === BigInt(0) &&
         t22Balance === BigInt(0) &&
@@ -453,8 +467,10 @@ export async function createLoadAtaInstructionsFromInterface(
                 );
                 decimals = mintInfo.decimals;
             }
-        } catch {
-            // No SPL interface exists
+        } catch (e) {
+            if (splBalance > BigInt(0) || t22Balance > BigInt(0)) {
+                throw e;
+            }
         }
     }
 
@@ -469,7 +485,7 @@ export async function createLoadAtaInstructionsFromInterface(
                     ctokenAtaAddress,
                     owner,
                     mint,
-                    CTOKEN_PROGRAM_ID,
+                    LIGHT_TOKEN_PROGRAM_ID,
                 ),
             );
         }
@@ -509,7 +525,7 @@ export async function createLoadAtaInstructionsFromInterface(
         // 4. Decompress compressed tokens to c-token ATA
         // Note: v3 interface only supports V2 trees
         // Handles >8 accounts via chunking into multiple instructions
-        if (coldBalance > BigInt(0) && ctokenColdSources.length > 0) {
+        if (coldBalance > BigInt(0) && coldSources.length > 0) {
             const compressedAccounts =
                 getCompressedTokenAccountsFromAtaSources(sources);
 
@@ -529,7 +545,7 @@ export async function createLoadAtaInstructionsFromInterface(
         // STANDARD MODE: Decompress to target ATA type
         // Handles >8 accounts via chunking into multiple instructions
 
-        if (coldBalance > BigInt(0) && ctokenColdSources.length > 0) {
+        if (coldBalance > BigInt(0) && coldSources.length > 0) {
             const compressedAccounts =
                 getCompressedTokenAccountsFromAtaSources(sources);
 
@@ -543,7 +559,7 @@ export async function createLoadAtaInstructionsFromInterface(
                                 ctokenAtaAddress,
                                 owner,
                                 mint,
-                                CTOKEN_PROGRAM_ID,
+                                LIGHT_TOKEN_PROGRAM_ID,
                             ),
                         );
                     }
@@ -614,16 +630,6 @@ export async function createLoadAtaInstructionsFromInterface(
 }
 
 /**
- * Result type for createLoadAtaInstructionBatches
- */
-export interface LoadAtaInstructionBatches {
-    /** Array of instruction batches - each batch is one transaction */
-    batches: TransactionInstruction[][];
-    /** Total number of compressed accounts being processed */
-    totalCompressedAccounts: number;
-}
-
-/**
  * Create instruction batches for loading token balances into an ATA.
  * Handles >8 compressed accounts by returning multiple transaction batches.
  *
@@ -638,9 +644,9 @@ export interface LoadAtaInstructionBatches {
  * @param payer             Fee payer public key (defaults to owner)
  * @param interfaceOptions  Optional interface options
  * @param wrap              Unified mode: wrap SPL/T22 to c-token (default: false)
- * @returns Instruction batches and metadata
+ * @returns Instruction batches - each inner array is one transaction
  */
-export async function createLoadAtaInstructionBatches(
+export async function createLoadAtaInstructions(
     rpc: Rpc,
     ata: PublicKey,
     owner: PublicKey,
@@ -648,12 +654,133 @@ export async function createLoadAtaInstructionBatches(
     payer?: PublicKey,
     interfaceOptions?: InterfaceOptions,
     wrap = false,
-): Promise<LoadAtaInstructionBatches> {
+): Promise<TransactionInstruction[][]> {
     assertBetaEnabled();
     payer ??= owner;
 
-    // Determine target ATA type
-    const { type: ataType } = checkAtaAddress(ata, mint, owner);
+    // Fetch account state (pass wrap so c-token ATA is validated before RPC)
+    let accountInterface: AccountInterface;
+    try {
+        accountInterface = await _getAtaInterface(
+            rpc,
+            ata,
+            owner,
+            mint,
+            undefined,
+            undefined,
+            wrap,
+        );
+    } catch (e) {
+        if (e instanceof TokenAccountNotFoundError) {
+            return [];
+        }
+        throw e;
+    }
+
+    // Delegate to _buildLoadBatches which handles wrapping, decompression,
+    // ATA creation, and parallel-safe batching.
+    const internalBatches = await _buildLoadBatches(
+        rpc,
+        payer,
+        accountInterface,
+        interfaceOptions,
+        wrap,
+        ata,
+    );
+
+    // Map InternalLoadBatch[] -> TransactionInstruction[][]
+    return internalBatches.map(batch => batch.instructions);
+}
+
+/**
+ * Internal batch structure for loadAta parallel sending.
+ * @internal Exported for use by createTransferInterfaceInstructions.
+ */
+export interface InternalLoadBatch {
+    instructions: TransactionInstruction[];
+    compressedAccounts: ParsedTokenAccount[];
+    wrapCount: number;
+    hasAtaCreation: boolean;
+}
+
+/**
+ * Calculate compute units for a load batch with 30% buffer.
+ *
+ * Heuristics:
+ * - ATA creation: ~30k CU
+ * - Wrap operation: ~50k CU each
+ * - Decompress base cost (CPI overhead, hash computation): ~50k CU
+ * - Full proof verification (when any input is NOT proveByIndex): ~100k CU
+ * - Per compressed account: ~10k (proveByIndex) or ~30k (full proof) CU
+ */
+/** @internal Exported for use by createTransferInterfaceInstructions. */
+export function calculateLoadBatchComputeUnits(
+    batch: InternalLoadBatch,
+): number {
+    let cu = 0;
+
+    if (batch.hasAtaCreation) {
+        cu += 30_000;
+    }
+
+    cu += batch.wrapCount * 50_000;
+
+    if (batch.compressedAccounts.length > 0) {
+        // Base cost for Transfer2 CPI chain (cToken -> system -> account-compression)
+        cu += 50_000;
+
+        const needsFullProof = batch.compressedAccounts.some(
+            acc => !(acc.compressedAccount.proveByIndex ?? false),
+        );
+        if (needsFullProof) {
+            cu += 100_000;
+        }
+        for (const acc of batch.compressedAccounts) {
+            const proveByIndex = acc.compressedAccount.proveByIndex ?? false;
+            cu += proveByIndex ? 10_000 : 30_000;
+        }
+    }
+
+    // 30% buffer
+    cu = Math.ceil(cu * 1.3);
+
+    return Math.max(50_000, Math.min(1_400_000, cu));
+}
+
+/**
+ * Build load instruction batches for parallel sending.
+ *
+ * Returns one or more batches:
+ * - Batch 0: setup (ATA creation, wraps) + first decompress chunk
+ * - Batch 1..N: idempotent ATA creation + decompress chunk 1..N
+ *
+ * Each batch is independent and can be sent in parallel. Idempotent ATA
+ * creation is included in every batch so they can land in any order.
+ *
+ * @internal
+ */
+/** @internal Exported for use by createTransferInterfaceInstructions. */
+export async function _buildLoadBatches(
+    rpc: Rpc,
+    payer: PublicKey,
+    ata: AccountInterface,
+    options: InterfaceOptions | undefined,
+    wrap: boolean,
+    targetAta: PublicKey,
+    targetAmount?: bigint,
+): Promise<InternalLoadBatch[]> {
+    if (!ata._isAta || !ata._owner || !ata._mint) {
+        throw new Error(
+            'AccountInterface must be from getAtaInterface (requires _isAta, _owner, _mint)',
+        );
+    }
+
+    const owner = ata._owner;
+    const mint = ata._mint;
+    const sources = ata._sources ?? [];
+
+    const allCompressedAccounts =
+        getCompressedTokenAccountsFromAtaSources(sources);
 
     // Derive addresses
     const ctokenAtaAddress = getAssociatedTokenAddressInterface(mint, owner);
@@ -672,93 +799,159 @@ export async function createLoadAtaInstructionBatches(
         getAtaProgramId(TOKEN_2022_PROGRAM_ID),
     );
 
-    // Fetch account state and sources
-    const accountInterface = await _getAtaInterface(rpc, ata, owner, mint);
-    const sources = accountInterface._sources ?? [];
+    // Validate target ATA type
+    let ataType: AtaType = 'ctoken';
+    const validation = checkAtaAddress(targetAta, mint, owner);
+    ataType = validation.type;
+    if (wrap && ataType !== 'ctoken') {
+        throw new Error(
+            `For wrap=true, targetAta must be c-token ATA. Got ${ataType} ATA.`,
+        );
+    }
 
-    // Get cold sources
-    const ctokenColdSources = sources.filter(
-        s => s.type === TokenAccountSourceType.CTokenCold,
+    // Check sources for balances (skip frozen for wrappable/decompressible sources)
+    const splSource = sources.find(s => s.type === 'spl' && !s.parsed.isFrozen);
+    const t22Source = sources.find(
+        s => s.type === 'token2022' && !s.parsed.isFrozen,
+    );
+    const ctokenHotSource = sources.find(
+        s => s.type === 'ctoken-hot' && !s.parsed.isFrozen,
+    );
+    const coldSources = sources.filter(
+        s => COLD_SOURCE_TYPES.has(s.type) && !s.parsed.isFrozen,
     );
 
-    const coldBalance = ctokenColdSources.reduce(
+    const splBalance = splSource?.amount ?? BigInt(0);
+    const t22Balance = t22Source?.amount ?? BigInt(0);
+    const coldBalance = coldSources.reduce(
         (sum, s) => sum + s.amount,
         BigInt(0),
     );
 
-    // If no cold balance, return empty
-    if (coldBalance === BigInt(0) || ctokenColdSources.length === 0) {
-        return { batches: [], totalCompressedAccounts: 0 };
+    if (
+        splBalance === BigInt(0) &&
+        t22Balance === BigInt(0) &&
+        coldBalance === BigInt(0)
+    ) {
+        return [];
     }
 
-    // Get decimals
-    const mintInfo = await getMint(rpc, mint).catch(() => null);
-    const decimals = mintInfo?.decimals ?? 9;
-
-    // Get all compressed accounts
-    const compressedAccounts =
-        getCompressedTokenAccountsFromAtaSources(sources);
-    const totalCompressedAccounts = compressedAccounts.length;
-
-    // Determine target ATA and SPL interface info
-    let targetAta: PublicKey;
+    // Get SPL interface info if needed
     let splInterfaceInfo: SplInterfaceInfo | undefined;
-
-    if (wrap) {
-        targetAta = ctokenAtaAddress;
-        splInterfaceInfo = undefined;
-    } else if (ataType === 'ctoken') {
-        targetAta = ctokenAtaAddress;
-        splInterfaceInfo = undefined;
-    } else {
-        // For SPL/T22, we need the interface info
-        const splInterfaceInfos = await getSplInterfaceInfos(rpc, mint);
-        if (ataType === 'spl') {
-            targetAta = splAta;
-            splInterfaceInfo = splInterfaceInfos.find(info =>
-                info.tokenProgram.equals(TOKEN_PROGRAM_ID),
+    const needsSplInfo =
+        wrap ||
+        ataType === 'spl' ||
+        ataType === 'token2022' ||
+        splBalance > BigInt(0) ||
+        t22Balance > BigInt(0);
+    let decimals = 0;
+    if (needsSplInfo) {
+        try {
+            const splInterfaceInfos =
+                options?.splInterfaceInfos ??
+                (await getSplInterfaceInfos(rpc, mint));
+            splInterfaceInfo = splInterfaceInfos.find(
+                (info: SplInterfaceInfo) => info.isInitialized,
             );
-        } else {
-            targetAta = t22Ata;
-            splInterfaceInfo = splInterfaceInfos.find(info =>
-                info.tokenProgram.equals(TOKEN_2022_PROGRAM_ID),
-            );
+            if (splInterfaceInfo) {
+                const mintInfo = await getMint(
+                    rpc,
+                    mint,
+                    undefined,
+                    splInterfaceInfo.tokenProgram,
+                );
+                decimals = mintInfo.decimals;
+            }
+        } catch (e) {
+            if (splBalance > BigInt(0) || t22Balance > BigInt(0)) {
+                throw e;
+            }
         }
     }
 
-    // Split into chunks
-    const chunks = chunkArray(compressedAccounts, MAX_INPUT_ACCOUNTS);
-    const batches: TransactionInstruction[][] = [];
+    // Build setup instructions (ATA creation + wraps)
+    const setupInstructions: TransactionInstruction[] = [];
+    let wrapCount = 0;
+    let needsAtaCreation = false;
 
-    // Check if we need to create the ATA
-    const ctokenHotSource = sources.find(
-        s => s.type === TokenAccountSourceType.CTokenHot,
-    );
-    const splSource = sources.find(s => s.type === TokenAccountSourceType.Spl);
-    const t22Source = sources.find(
-        s => s.type === TokenAccountSourceType.Token2022,
-    );
+    // Determine decompress target based on mode
+    let decompressTarget: PublicKey = ctokenAtaAddress;
+    let decompressSplInfo: SplInterfaceInfo | undefined;
+    let canDecompress = false;
 
-    for (let i = 0; i < chunks.length; i++) {
-        const chunk = chunks[i];
-        const batchInstructions: TransactionInstruction[] = [];
+    if (wrap) {
+        decompressTarget = ctokenAtaAddress;
+        decompressSplInfo = undefined;
+        canDecompress = true;
 
-        // First batch includes ATA creation if needed
-        if (i === 0) {
-            if (wrap || ataType === 'ctoken') {
-                if (!ctokenHotSource) {
-                    batchInstructions.push(
-                        createAssociatedTokenAccountInterfaceIdempotentInstruction(
-                            payer,
-                            ctokenAtaAddress,
-                            owner,
-                            mint,
-                            CTOKEN_PROGRAM_ID,
-                        ),
-                    );
-                }
-            } else if (ataType === 'spl' && !splSource) {
-                batchInstructions.push(
+        if (!ctokenHotSource) {
+            needsAtaCreation = true;
+            setupInstructions.push(
+                createAssociatedTokenAccountInterfaceIdempotentInstruction(
+                    payer,
+                    ctokenAtaAddress,
+                    owner,
+                    mint,
+                    LIGHT_TOKEN_PROGRAM_ID,
+                ),
+            );
+        }
+
+        if (splBalance > BigInt(0) && splInterfaceInfo) {
+            setupInstructions.push(
+                createWrapInstruction(
+                    splAta,
+                    ctokenAtaAddress,
+                    owner,
+                    mint,
+                    splBalance,
+                    splInterfaceInfo,
+                    decimals,
+                    payer,
+                ),
+            );
+            wrapCount++;
+        }
+
+        if (t22Balance > BigInt(0) && splInterfaceInfo) {
+            setupInstructions.push(
+                createWrapInstruction(
+                    t22Ata,
+                    ctokenAtaAddress,
+                    owner,
+                    mint,
+                    t22Balance,
+                    splInterfaceInfo,
+                    decimals,
+                    payer,
+                ),
+            );
+            wrapCount++;
+        }
+    } else {
+        if (ataType === 'ctoken') {
+            decompressTarget = ctokenAtaAddress;
+            decompressSplInfo = undefined;
+            canDecompress = true;
+            if (!ctokenHotSource) {
+                needsAtaCreation = true;
+                setupInstructions.push(
+                    createAssociatedTokenAccountInterfaceIdempotentInstruction(
+                        payer,
+                        ctokenAtaAddress,
+                        owner,
+                        mint,
+                        LIGHT_TOKEN_PROGRAM_ID,
+                    ),
+                );
+            }
+        } else if (ataType === 'spl' && splInterfaceInfo) {
+            decompressTarget = splAta;
+            decompressSplInfo = splInterfaceInfo;
+            canDecompress = true;
+            if (!splSource) {
+                needsAtaCreation = true;
+                setupInstructions.push(
                     createAssociatedTokenAccountIdempotentInstruction(
                         payer,
                         splAta,
@@ -767,8 +960,14 @@ export async function createLoadAtaInstructionBatches(
                         TOKEN_PROGRAM_ID,
                     ),
                 );
-            } else if (ataType === 'token2022' && !t22Source) {
-                batchInstructions.push(
+            }
+        } else if (ataType === 'token2022' && splInterfaceInfo) {
+            decompressTarget = t22Ata;
+            decompressSplInfo = splInterfaceInfo;
+            canDecompress = true;
+            if (!t22Source) {
+                needsAtaCreation = true;
+                setupInstructions.push(
                     createAssociatedTokenAccountIdempotentInstruction(
                         payer,
                         t22Ata,
@@ -779,22 +978,156 @@ export async function createLoadAtaInstructionBatches(
                 );
             }
         }
-
-        // Add decompress instruction for this chunk
-        const decompressIx = await createDecompressInstructionForAccounts(
-            rpc,
-            payer,
-            chunk,
-            targetAta,
-            splInterfaceInfo,
-            decimals,
-        );
-        batchInstructions.push(decompressIx);
-
-        batches.push(batchInstructions);
     }
 
-    return { batches, totalCompressedAccounts };
+    // Amount-aware input selection: when targetAmount is provided, only
+    // load the cold inputs needed to cover the transfer/unwrap amount.
+    // When targetAmount is undefined (e.g. loadAta), load everything.
+    let accountsToLoad = allCompressedAccounts;
+
+    if (
+        targetAmount !== undefined &&
+        canDecompress &&
+        allCompressedAccounts.length > 0
+    ) {
+        const hotBalance = ctokenHotSource?.amount ?? BigInt(0);
+        let effectiveHotAfterSetup: bigint;
+
+        if (wrap) {
+            effectiveHotAfterSetup = hotBalance + splBalance + t22Balance;
+        } else if (ataType === 'ctoken') {
+            effectiveHotAfterSetup = hotBalance;
+        } else if (ataType === 'spl') {
+            effectiveHotAfterSetup = splBalance;
+        } else {
+            // token2022
+            effectiveHotAfterSetup = t22Balance;
+        }
+
+        const neededFromCold =
+            targetAmount > effectiveHotAfterSetup
+                ? targetAmount - effectiveHotAfterSetup
+                : BigInt(0);
+
+        if (neededFromCold === BigInt(0)) {
+            accountsToLoad = [];
+        } else {
+            accountsToLoad = selectInputsForAmount(
+                allCompressedAccounts,
+                neededFromCold,
+            );
+        }
+    }
+
+    // If no cold accounts to decompress, return just the setup batch
+    if (!canDecompress || accountsToLoad.length === 0) {
+        if (setupInstructions.length === 0) return [];
+        return [
+            {
+                instructions: setupInstructions,
+                compressedAccounts: [],
+                wrapCount,
+                hasAtaCreation: needsAtaCreation,
+            },
+        ];
+    }
+
+    // V2-only: reject V1 inputs early
+    assertV2Only(accountsToLoad);
+
+    // Chunk into non-overlapping groups of MAX_INPUT_ACCOUNTS and verify uniqueness
+    const chunks = chunkArray(accountsToLoad, MAX_INPUT_ACCOUNTS);
+    assertUniqueInputHashes(chunks);
+
+    // Get proofs for all chunks in parallel
+    const proofs = await Promise.all(
+        chunks.map(async chunk => {
+            const proofInputs = chunk.map(acc => ({
+                hash: acc.compressedAccount.hash,
+                tree: acc.compressedAccount.treeInfo.tree,
+                queue: acc.compressedAccount.treeInfo.queue,
+            }));
+            return rpc.getValidityProofV0(proofInputs);
+        }),
+    );
+
+    // Build idempotent ATA creation instruction for subsequent batches
+    const idempotentAtaIx = (() => {
+        if (wrap || ataType === 'ctoken') {
+            return createAssociatedTokenAccountInterfaceIdempotentInstruction(
+                payer,
+                ctokenAtaAddress,
+                owner,
+                mint,
+                LIGHT_TOKEN_PROGRAM_ID,
+            );
+        } else if (ataType === 'spl') {
+            return createAssociatedTokenAccountIdempotentInstruction(
+                payer,
+                splAta,
+                owner,
+                mint,
+                TOKEN_PROGRAM_ID,
+            );
+        } else {
+            return createAssociatedTokenAccountIdempotentInstruction(
+                payer,
+                t22Ata,
+                owner,
+                mint,
+                TOKEN_2022_PROGRAM_ID,
+            );
+        }
+    })();
+
+    // Build batches
+    const batches: InternalLoadBatch[] = [];
+
+    for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        const proof = proofs[i];
+        const chunkAmount = chunk.reduce(
+            (sum, acc) => sum + BigInt(acc.parsed.amount.toString()),
+            BigInt(0),
+        );
+
+        const batchIxs: TransactionInstruction[] = [];
+        let batchWrapCount = 0;
+        let batchHasAtaCreation = false;
+
+        if (i === 0) {
+            // First batch includes all setup (ATA creation + wraps)
+            batchIxs.push(...setupInstructions);
+            batchWrapCount = wrapCount;
+            batchHasAtaCreation = needsAtaCreation;
+        } else {
+            // Subsequent batches: include idempotent ATA creation so
+            // batches can land in any order
+            batchIxs.push(idempotentAtaIx);
+            batchHasAtaCreation = true;
+        }
+
+        batchIxs.push(
+            createDecompressInterfaceInstruction(
+                payer,
+                chunk,
+                decompressTarget,
+                chunkAmount,
+                proof,
+                decompressSplInfo,
+                decimals,
+            ),
+        );
+
+        batches.push({
+            instructions: batchIxs,
+            compressedAccounts: chunk,
+            wrapCount: batchWrapCount,
+            hasAtaCreation: batchHasAtaCreation,
+        });
+    }
+
+    return batches;
 }
 
 /**
@@ -805,7 +1138,11 @@ export async function createLoadAtaInstructionBatches(
  *   ATA can be SPL (via pool), T22 (via pool), or c-token (direct).
  * - wrap=true (unified): Wrap SPL/T22 + decompress all to c-token ATA.
  *
- * Handles >8 compressed accounts by sending multiple transactions sequentially.
+ * Handles any number of compressed accounts by building per-chunk batches
+ * (max 8 inputs per decompress instruction) and sending all batches in
+ * parallel. Each batch includes idempotent ATA creation so landing order
+ * does not matter.
+ *
  * Idempotent: returns null if nothing to load.
  *
  * @param rpc               RPC connection
@@ -832,41 +1169,61 @@ export async function loadAta(
 
     payer ??= owner;
 
-    const ixs = await createLoadAtaInstructions(
+    // Get account interface
+    let ataInterface: AccountInterface;
+    try {
+        ataInterface = await _getAtaInterface(
+            rpc,
+            ata,
+            owner.publicKey,
+            mint,
+            undefined,
+            undefined,
+            wrap,
+        );
+    } catch (error) {
+        if (error instanceof TokenAccountNotFoundError) {
+            return null;
+        }
+        throw error;
+    }
+
+    // Build batched instructions
+    const batches = await _buildLoadBatches(
         rpc,
-        ata,
-        owner.publicKey,
-        mint,
         payer.publicKey,
+        ataInterface,
         interfaceOptions,
         wrap,
+        ata,
     );
 
-    if (ixs.length === 0) {
+    if (batches.length === 0) {
         return null;
     }
 
-    const { blockhash } = await rpc.getLatestBlockhash();
     const additionalSigners = dedupeSigner(payer, [owner]);
 
-    // Scale CU based on number of decompress instructions
-    const decompressIxCount = ixs.filter(
-        ix => ix.programId.equals(CTOKEN_PROGRAM_ID) && ix.data.length > 50,
-    ).length;
-    const computeUnits = Math.min(
-        1_400_000,
-        500_000 + decompressIxCount * 100_000,
-    );
+    // Send all batches in parallel
+    const txPromises = batches.map(async batch => {
+        const { blockhash } = await rpc.getLatestBlockhash();
+        const computeUnits = calculateLoadBatchComputeUnits(batch);
 
-    const tx = buildAndSignTx(
-        [
-            ComputeBudgetProgram.setComputeUnitLimit({ units: computeUnits }),
-            ...ixs,
-        ],
-        payer,
-        blockhash,
-        additionalSigners,
-    );
+        const tx = buildAndSignTx(
+            [
+                ComputeBudgetProgram.setComputeUnitLimit({
+                    units: computeUnits,
+                }),
+                ...batch.instructions,
+            ],
+            payer!,
+            blockhash,
+            additionalSigners,
+        );
 
-    return sendAndConfirmTx(rpc, tx, confirmOptions);
+        return sendAndConfirmTx(rpc, tx, confirmOptions);
+    });
+
+    const results = await Promise.all(txPromises);
+    return results[results.length - 1];
 }

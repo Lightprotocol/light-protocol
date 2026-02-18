@@ -6,7 +6,7 @@ import {
     createRpc,
     VERSION,
     featureFlags,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
 } from '@lightprotocol/stateless.js';
 import {
     TOKEN_PROGRAM_ID,
@@ -52,7 +52,7 @@ describe('createMintInterface', () => {
                 rpc,
                 mintPda,
                 undefined,
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
             );
             expect(fetchedMint.mintAuthority?.toBase58()).toBe(
                 mintAuthority.publicKey.toBase58(),
@@ -60,7 +60,7 @@ describe('createMintInterface', () => {
             expect(fetchedMint.isInitialized).toBe(true);
         });
 
-        it('should create compressed mint with explicit CTOKEN_PROGRAM_ID', async () => {
+        it('should create compressed mint with explicit LIGHT_TOKEN_PROGRAM_ID', async () => {
             const mintSigner = Keypair.generate();
             const mintAuthority = Keypair.generate();
             const [mintPda] = findMintAddress(mintSigner.publicKey);
@@ -73,7 +73,7 @@ describe('createMintInterface', () => {
                 6,
                 mintSigner,
                 undefined,
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
             );
 
             await rpc.confirmTransaction(transactionSignature, 'confirmed');
@@ -102,7 +102,7 @@ describe('createMintInterface', () => {
                 rpc,
                 mintPda,
                 undefined,
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
             );
             expect(fetchedMint.freezeAuthority?.toBase58()).toBe(
                 freezeAuthority.publicKey.toBase58(),
@@ -129,7 +129,7 @@ describe('createMintInterface', () => {
                 9,
                 mintSigner,
                 undefined,
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
                 metadata,
             );
 
@@ -329,7 +329,7 @@ describe('createMintInterface', () => {
                 rpc,
                 mintPda,
                 undefined,
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
             );
             expect(fetchedMint.decimals).toBe(0);
         });

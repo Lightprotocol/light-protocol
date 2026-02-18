@@ -8,7 +8,7 @@ import {
     featureFlags,
     getDefaultAddressTreeInfo,
 } from '@lightprotocol/stateless.js';
-import { createMintInterface, decompressMint } from '../../src/v3/actions';
+import { createMintInterface } from '../../src/v3/actions';
 import {
     createAssociatedCTokenAccount,
     createAssociatedCTokenAccountIdempotent,
@@ -46,10 +46,6 @@ describe('createAssociatedCTokenAccount', () => {
                 mintSigner,
             );
         await rpc.confirmTransaction(createMintSig, 'confirmed');
-
-        // Decompress mint so it exists on-chain (required for ATA creation)
-        const decompressSig = await decompressMint(rpc, payer, mintPda);
-        await rpc.confirmTransaction(decompressSig, 'confirmed');
 
         const ataAddress = await createAssociatedCTokenAccount(
             rpc,
@@ -90,10 +86,6 @@ describe('createAssociatedCTokenAccount', () => {
             );
         await rpc.confirmTransaction(createMintSig, 'confirmed');
 
-        // Decompress mint so it exists on-chain (required for ATA creation)
-        const decompressSig = await decompressMint(rpc, payer, mintPda);
-        await rpc.confirmTransaction(decompressSig, 'confirmed');
-
         await createAssociatedCTokenAccount(
             rpc,
             payer,
@@ -124,10 +116,6 @@ describe('createAssociatedCTokenAccount', () => {
                 mintSigner,
             );
         await rpc.confirmTransaction(createMintSig, 'confirmed');
-
-        // Decompress mint so it exists on-chain (required for ATA creation)
-        const decompressSig = await decompressMint(rpc, payer, mintPda);
-        await rpc.confirmTransaction(decompressSig, 'confirmed');
 
         const ataAddress1 = await createAssociatedCTokenAccountIdempotent(
             rpc,
@@ -175,10 +163,6 @@ describe('createAssociatedCTokenAccount', () => {
                 mintSigner,
             );
         await rpc.confirmTransaction(createMintSig, 'confirmed');
-
-        // Decompress mint so it exists on-chain (required for ATA creation)
-        const decompressSig = await decompressMint(rpc, payer, mintPda);
-        await rpc.confirmTransaction(decompressSig, 'confirmed');
 
         const ata1 = await createAssociatedCTokenAccount(
             rpc,
@@ -241,10 +225,6 @@ describe('createAssociatedCTokenAccount', () => {
                 mintSigner,
             );
         await rpc.confirmTransaction(createMintSig, 'confirmed');
-
-        // Decompress mint so it exists on-chain (required for ATA creation)
-        const decompressSig = await decompressMint(rpc, payer, mintPda);
-        await rpc.confirmTransaction(decompressSig, 'confirmed');
 
         const createPromises = Array(3)
             .fill(null)
@@ -318,10 +298,6 @@ describe('createMint -> createAssociatedCTokenAccount flow', () => {
 
         expect(mint.toString()).toBe(mintPda.toString());
 
-        // Decompress mint so it exists on-chain (required for ATA creation)
-        const decompressSig = await decompressMint(rpc, payer, mintPda);
-        await rpc.confirmTransaction(decompressSig, 'confirmed');
-
         const owner1 = Keypair.generate();
         const owner2 = Keypair.generate();
 
@@ -378,10 +354,6 @@ describe('createMint -> createAssociatedCTokenAccount flow', () => {
             );
         await rpc.confirmTransaction(createMintSig, 'confirmed');
 
-        // Decompress mint so it exists on-chain (required for ATA creation)
-        const decompressSig = await decompressMint(rpc, payer, mintPda);
-        await rpc.confirmTransaction(decompressSig, 'confirmed');
-
         const ataAddress = await createAssociatedCTokenAccountIdempotent(
             rpc,
             payer,
@@ -416,10 +388,6 @@ describe('createMint -> createAssociatedCTokenAccount flow', () => {
             );
         await rpc.confirmTransaction(createMint1Sig, 'confirmed');
 
-        // Decompress mint1 so it exists on-chain (required for ATA creation)
-        const decompressSig1 = await decompressMint(rpc, payer, mintPda1);
-        await rpc.confirmTransaction(decompressSig1, 'confirmed');
-
         const mintSigner2 = Keypair.generate();
         const mintAuthority2 = Keypair.generate();
         const [mintPda2] = findMintAddress(mintSigner2.publicKey);
@@ -434,10 +402,6 @@ describe('createMint -> createAssociatedCTokenAccount flow', () => {
                 mintSigner2,
             );
         await rpc.confirmTransaction(createMint2Sig, 'confirmed');
-
-        // Decompress mint2 so it exists on-chain (required for ATA creation)
-        const decompressSig2 = await decompressMint(rpc, payer, mintPda2);
-        await rpc.confirmTransaction(decompressSig2, 'confirmed');
 
         const ata1 = await createAssociatedCTokenAccount(
             rpc,
@@ -486,10 +450,6 @@ describe('createMint -> createAssociatedCTokenAccount flow', () => {
             );
         await rpc.confirmTransaction(createMintSig, 'confirmed');
 
-        // Decompress mint so it exists on-chain (required for ATA creation)
-        const decompressSig = await decompressMint(rpc, payer, mintPda);
-        await rpc.confirmTransaction(decompressSig, 'confirmed');
-
         await new Promise(resolve => setTimeout(resolve, 1000));
 
         const owner = Keypair.generate();
@@ -525,10 +485,6 @@ describe('createMint -> createAssociatedCTokenAccount flow', () => {
                 mintSigner,
             );
         await rpc.confirmTransaction(createMintSig, 'confirmed');
-
-        // Decompress mint so it exists on-chain (required for ATA creation)
-        const decompressSig = await decompressMint(rpc, payer, mintPda);
-        await rpc.confirmTransaction(decompressSig, 'confirmed');
 
         const ataAddress1 = await createAssociatedCTokenAccountIdempotent(
             rpc,

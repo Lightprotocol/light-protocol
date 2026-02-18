@@ -11,7 +11,7 @@ import {
     sendAndConfirmTx,
     DerivationMode,
     bn,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
     assertBetaEnabled,
 } from '@lightprotocol/stateless.js';
 import { createDecompressMintInstruction } from '../instructions/decompress-mint';
@@ -26,6 +26,8 @@ export interface DecompressMintParams {
     configAccount?: PublicKey;
     /** Rent sponsor PDA (default: LIGHT_TOKEN_RENT_SPONSOR) */
     rentSponsor?: PublicKey;
+    /** Cap on rent top-up for this instruction (units of 1k lamports; default no cap) */
+    maxTopUp?: number;
 }
 
 /**
@@ -60,16 +62,17 @@ export async function decompressMint(
         rpc,
         mint,
         confirmOptions?.commitment,
-        CTOKEN_PROGRAM_ID,
+        LIGHT_TOKEN_PROGRAM_ID,
     );
 
     if (!mintInterface.merkleContext) {
         throw new Error('Mint does not have MerkleContext');
     }
 
-    // Check if already decompressed
+    // Already decompressed (e.g. createMintInterface now does it atomically).
+    // Return early instead of throwing so callers are idempotent.
     if (mintInterface.mintContext?.cmintDecompressed) {
-        throw new Error('Mint is already decompressed');
+        return '' as TransactionSignature;
     }
 
     const validityProof = await rpc.getValidityProofV2(
@@ -94,6 +97,7 @@ export async function decompressMint(
         writeTopUp: params?.writeTopUp,
         configAccount: params?.configAccount,
         rentSponsor: params?.rentSponsor,
+        maxTopUp: params?.maxTopUp,
     });
 
     const additionalSigners: Signer[] = [];

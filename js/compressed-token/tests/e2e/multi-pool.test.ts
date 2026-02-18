@@ -12,7 +12,7 @@ import {
     addTokenPools,
     compress,
     createMint,
-    createTokenPool,
+    createSplInterface,
     decompress,
 } from '../../src/actions';
 import {
@@ -126,7 +126,7 @@ describe('multi-pool', () => {
             ),
         ).rejects.toThrow();
 
-        await createTokenPool(rpc, payer, mint);
+        await createSplInterface(rpc, payer, mint);
         await addTokenPools(rpc, payer, mint, 3);
 
         const stateTreeInfos = await rpc.getStateTreeInfos();

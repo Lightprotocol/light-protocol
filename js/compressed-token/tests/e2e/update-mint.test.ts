@@ -7,7 +7,7 @@ import {
     VERSION,
     featureFlags,
     getDefaultAddressTreeInfo,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
 } from '@lightprotocol/stateless.js';
 import { createMintInterface } from '../../src/v3/actions';
 import {
@@ -50,7 +50,7 @@ describe('updateMint', () => {
             rpc,
             mintPda,
             undefined,
-            CTOKEN_PROGRAM_ID,
+            LIGHT_TOKEN_PROGRAM_ID,
         );
         expect(mintInfoBefore.mint.mintAuthority?.toString()).toBe(
             initialMintAuthority.publicKey.toString(),
@@ -69,7 +69,7 @@ describe('updateMint', () => {
             rpc,
             mintPda,
             undefined,
-            CTOKEN_PROGRAM_ID,
+            LIGHT_TOKEN_PROGRAM_ID,
         );
         expect(mintInfoAfter.mint.mintAuthority?.toString()).toBe(
             newMintAuthority.publicKey.toString(),
@@ -108,7 +108,7 @@ describe('updateMint', () => {
             rpc,
             mintPda,
             undefined,
-            CTOKEN_PROGRAM_ID,
+            LIGHT_TOKEN_PROGRAM_ID,
         );
         expect(mintInfoAfter.mint.mintAuthority).toBe(null);
         expect(mintInfoAfter.mint.supply).toBe(0n);
@@ -137,7 +137,7 @@ describe('updateMint', () => {
             rpc,
             mintPda,
             undefined,
-            CTOKEN_PROGRAM_ID,
+            LIGHT_TOKEN_PROGRAM_ID,
         );
         expect(mintInfoBefore.mint.freezeAuthority?.toString()).toBe(
             initialFreezeAuthority.publicKey.toString(),
@@ -156,7 +156,7 @@ describe('updateMint', () => {
             rpc,
             mintPda,
             undefined,
-            CTOKEN_PROGRAM_ID,
+            LIGHT_TOKEN_PROGRAM_ID,
         );
         expect(mintInfoAfter.mint.freezeAuthority?.toString()).toBe(
             newFreezeAuthority.publicKey.toString(),
@@ -197,7 +197,7 @@ describe('updateMint', () => {
             rpc,
             mintPda,
             undefined,
-            CTOKEN_PROGRAM_ID,
+            LIGHT_TOKEN_PROGRAM_ID,
         );
         expect(mintInfoAfter.mint.freezeAuthority).toBe(null);
         expect(mintInfoAfter.mint.mintAuthority?.toString()).toBe(
@@ -238,7 +238,7 @@ describe('updateMint', () => {
             rpc,
             mintPda,
             undefined,
-            CTOKEN_PROGRAM_ID,
+            LIGHT_TOKEN_PROGRAM_ID,
         );
         expect(mintInfoAfterMintAuth.mint.mintAuthority?.toString()).toBe(
             newMintAuthority.publicKey.toString(),
@@ -257,7 +257,7 @@ describe('updateMint', () => {
             rpc,
             mintPda,
             undefined,
-            CTOKEN_PROGRAM_ID,
+            LIGHT_TOKEN_PROGRAM_ID,
         );
         expect(mintInfoAfterBoth.mint.mintAuthority?.toString()).toBe(
             newMintAuthority.publicKey.toString(),

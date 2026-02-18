@@ -10,6 +10,7 @@ import {
     COMPRESSION_MODE_COMPRESS,
     COMPRESSION_MODE_DECOMPRESS,
 } from '../../src/v3/layout/layout-transfer2';
+import { MAX_TOP_UP } from '../../src/constants';
 
 describe('layout-transfer2', () => {
     describe('encodeTransfer2InstructionData', () => {
@@ -37,6 +38,31 @@ describe('layout-transfer2', () => {
             // Check discriminator
             expect(encoded.subarray(0, 1)).toEqual(TRANSFER2_DISCRIMINATOR);
             expect(encoded.length).toBeGreaterThan(1);
+        });
+
+        it('should encode maxTopUp MAX_TOP_UP (65535) and round-trip at offset 6', () => {
+            const data: Transfer2InstructionData = {
+                withTransactionHash: false,
+                withLamportsChangeAccountMerkleTreeIndex: false,
+                lamportsChangeAccountMerkleTreeIndex: 0,
+                lamportsChangeAccountOwnerIndex: 0,
+                outputQueue: 0,
+                maxTopUp: MAX_TOP_UP,
+                cpiContext: null,
+                compressions: null,
+                proof: null,
+                inTokenData: [],
+                outTokenData: [],
+                inLamports: null,
+                outLamports: null,
+                inTlv: null,
+                outTlv: null,
+            };
+
+            const encoded = encodeTransfer2InstructionData(data);
+
+            expect(encoded.subarray(0, 1)).toEqual(TRANSFER2_DISCRIMINATOR);
+            expect(encoded.readUInt16LE(6)).toBe(65535);
         });
 
         it('should encode with compressions array', () => {

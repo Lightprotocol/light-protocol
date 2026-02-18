@@ -6,7 +6,7 @@ import {
 import { Buffer } from 'buffer';
 import {
     ValidityProofWithContext,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
     LightSystemProgram,
     defaultStaticAccountsStruct,
     getDefaultAddressTreeInfo,
@@ -20,7 +20,7 @@ import {
     encodeMintActionInstructionData,
     MintActionCompressedInstructionData,
 } from '../layout/layout-mint-action';
-import { TokenDataVersion } from '../../constants';
+import { MAX_TOP_UP, TokenDataVersion } from '../../constants';
 
 interface EncodeCompressedMintToInstructionParams {
     addressTree: PublicKey;
@@ -30,6 +30,7 @@ interface EncodeCompressedMintToInstructionParams {
     mintData: MintInstructionData;
     recipients: Array<{ recipient: PublicKey; amount: number | bigint }>;
     tokenAccountVersion: number;
+    maxTopUp?: number;
 }
 
 function encodeCompressedMintToInstructionData(
@@ -42,11 +43,15 @@ function encodeCompressedMintToInstructionData(
         );
     }
 
+    // When mint is decompressed, the program reads mint data from the CMint
+    // Solana account. Setting mint to null signals this to the program.
+    const isDecompressed = params.mintData.cmintDecompressed;
+
     const instructionData: MintActionCompressedInstructionData = {
         leafIndex: params.leafIndex,
         proveByIndex: true,
         rootIndex: params.rootIndex,
-        maxTopUp: 65535,
+        maxTopUp: params.maxTopUp ?? MAX_TOP_UP,
         createMint: null,
         actions: [
             {
@@ -59,22 +64,24 @@ function encodeCompressedMintToInstructionData(
                 },
             },
         ],
-        proof: params.proof,
+        proof: isDecompressed ? null : params.proof,
         cpiContext: null,
-        mint: {
-            supply: params.mintData.supply,
-            decimals: params.mintData.decimals,
-            metadata: {
-                version: params.mintData.version,
-                cmintDecompressed: params.mintData.cmintDecompressed,
-                mint: params.mintData.splMint,
-                mintSigner: Array.from(params.mintData.mintSigner),
-                bump: params.mintData.bump,
-            },
-            mintAuthority: params.mintData.mintAuthority,
-            freezeAuthority: params.mintData.freezeAuthority,
-            extensions: null,
-        },
+        mint: isDecompressed
+            ? null
+            : {
+                  supply: params.mintData.supply,
+                  decimals: params.mintData.decimals,
+                  metadata: {
+                      version: params.mintData.version,
+                      cmintDecompressed: params.mintData.cmintDecompressed,
+                      mint: params.mintData.splMint,
+                      mintSigner: Array.from(params.mintData.mintSigner),
+                      bump: params.mintData.bump,
+                  },
+                  mintAuthority: params.mintData.mintAuthority,
+                  freezeAuthority: params.mintData.freezeAuthority,
+                  extensions: null,
+              },
     };
 
     return encodeMintActionInstructionData(instructionData);
@@ -108,6 +115,7 @@ export interface CreateMintToCompressedInstructionParams {
  * context queue if not provided.
  * @param tokenAccountVersion   Token account version (default:
  * TokenDataVersion.ShaFlat).
+ * @param maxTopUp              Optional cap on rent top-up (units of 1k lamports; default no cap)
  */
 export function createMintToCompressedInstruction(
     authority: PublicKey,
@@ -118,7 +126,9 @@ export function createMintToCompressedInstruction(
     recipients: Array<{ recipient: PublicKey; amount: number | bigint }>,
     outputStateTreeInfo?: TreeInfo,
     tokenAccountVersion: TokenDataVersion = TokenDataVersion.ShaFlat,
+    maxTopUp?: number,
 ): TransactionInstruction {
+    const isDecompressed = mintData.cmintDecompressed;
     const addressTreeInfo = getDefaultAddressTreeInfo();
     const data = encodeCompressedMintToInstructionData({
         addressTree: addressTreeInfo.tree,
@@ -128,6 +138,7 @@ export function createMintToCompressedInstruction(
         mintData,
         recipients,
         tokenAccountVersion,
+        maxTopUp,
     });
 
     // Use outputStateTreeInfo.queue if provided, otherwise derive from merkleContext
@@ -142,6 +153,16 @@ export function createMintToCompressedInstruction(
             isWritable: false,
         },
         { pubkey: authority, isSigner: true, isWritable: false },
+        // CMint account when decompressed (must come before payer for correct account ordering)
+        ...(isDecompressed
+            ? [
+                  {
+                      pubkey: mintData.splMint,
+                      isSigner: false,
+                      isWritable: true,
+                  },
+              ]
+            : []),
         { pubkey: payer, isSigner: true, isWritable: true },
         {
             pubkey: CompressedTokenProgram.deriveCpiAuthorityPda,
@@ -180,7 +201,7 @@ export function createMintToCompressedInstruction(
     ];
 
     return new TransactionInstruction({
-        programId: CTOKEN_PROGRAM_ID,
+        programId: LIGHT_TOKEN_PROGRAM_ID,
         keys,
         data,
     });

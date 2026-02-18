@@ -1,6 +1,6 @@
 import {
     Rpc,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
     buildAndSignTx,
     sendAndConfirmTx,
     assertBetaEnabled,
@@ -54,7 +54,7 @@ import { loadAta } from './load-ata';
  *                                  state.
  * @param confirmOptions            Options for confirming the transaction
  * @param programId                 Token program ID (defaults to
- *                                  CTOKEN_PROGRAM_ID)
+ *                                  LIGHT_TOKEN_PROGRAM_ID)
  * @param associatedTokenProgramId  Associated token program ID (auto-derived if
  *                                  not provided)
  *
@@ -68,7 +68,7 @@ export async function getOrCreateAtaInterface(
     allowOwnerOffCurve = false,
     commitment?: Commitment,
     confirmOptions?: ConfirmOptions,
-    programId = CTOKEN_PROGRAM_ID,
+    programId = LIGHT_TOKEN_PROGRAM_ID,
     associatedTokenProgramId = getAtaProgramId(programId),
 ): Promise<AccountInterface> {
     assertBetaEnabled();
@@ -133,7 +133,7 @@ export async function _getOrCreateAtaInterface(
 
     // For c-token, use getAtaInterface which properly aggregates hot+cold balances
     // When wrap=true (unified path), also includes SPL/T22 balances
-    if (programId.equals(CTOKEN_PROGRAM_ID)) {
+    if (programId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
         return getOrCreateCTokenAta(
             rpc,
             payer,
@@ -200,7 +200,7 @@ async function getOrCreateCTokenAta(
             ownerPubkey,
             mint,
             commitment,
-            CTOKEN_PROGRAM_ID,
+            LIGHT_TOKEN_PROGRAM_ID,
             wrap,
             allowOwnerOffCurve,
         );
@@ -232,7 +232,7 @@ async function getOrCreateCTokenAta(
                 ownerPubkey,
                 mint,
                 commitment,
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
                 wrap,
                 allowOwnerOffCurve,
             );
@@ -305,7 +305,7 @@ async function getOrCreateCTokenAta(
                 ownerPubkey,
                 mint,
                 commitment,
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
                 wrap,
                 allowOwnerOffCurve,
             );
@@ -338,7 +338,7 @@ async function createCTokenAtaIdempotent(
             associatedToken,
             owner,
             mint,
-            CTOKEN_PROGRAM_ID,
+            LIGHT_TOKEN_PROGRAM_ID,
         );
 
         const { blockhash } = await rpc.getLatestBlockhash();

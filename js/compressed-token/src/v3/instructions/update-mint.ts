@@ -6,12 +6,13 @@ import {
 import { Buffer } from 'buffer';
 import {
     ValidityProofWithContext,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
     LightSystemProgram,
     defaultStaticAccountsStruct,
     getDefaultAddressTreeInfo,
     getOutputQueue,
 } from '@lightprotocol/stateless.js';
+import { MAX_TOP_UP } from '../../constants';
 import { CompressedTokenProgram } from '../../program';
 import { MintInterface } from '../get-mint-interface';
 import {
@@ -31,6 +32,7 @@ interface EncodeUpdateMintInstructionParams {
     mintInterface: MintInterface;
     newAuthority: PublicKey | null;
     actionType: 'mintAuthority' | 'freezeAuthority';
+    maxTopUp?: number;
 }
 
 function encodeUpdateMintInstructionData(
@@ -71,7 +73,7 @@ function encodeUpdateMintInstructionData(
         leafIndex: params.leafIndex,
         proveByIndex: params.proveByIndex,
         rootIndex: params.rootIndex,
-        maxTopUp: 65535,
+        maxTopUp: params.maxTopUp ?? MAX_TOP_UP,
         createMint: null,
         actions: [action],
         proof: params.proof,
@@ -109,6 +111,7 @@ function encodeUpdateMintInstructionData(
  * @param newMintAuthority       New mint authority (or null to revoke)
  * @param payer                  Fee payer public key
  * @param validityProof          Validity proof for the compressed mint (null for decompressed mints)
+ * @param maxTopUp               Optional cap on rent top-up (units of 1k lamports; default no cap)
  */
 export function createUpdateMintAuthorityInstruction(
     mintInterface: MintInterface,
@@ -116,6 +119,7 @@ export function createUpdateMintAuthorityInstruction(
     newMintAuthority: PublicKey | null,
     payer: PublicKey,
     validityProof: ValidityProofWithContext | null,
+    maxTopUp?: number,
 ): TransactionInstruction {
     if (!mintInterface.merkleContext) {
         throw new Error(
@@ -143,6 +147,7 @@ export function createUpdateMintAuthorityInstruction(
         mintInterface,
         newAuthority: newMintAuthority,
         actionType: 'mintAuthority',
+        maxTopUp,
     });
 
     const sys = defaultStaticAccountsStruct();
@@ -199,7 +204,7 @@ export function createUpdateMintAuthorityInstruction(
     ];
 
     return new TransactionInstruction({
-        programId: CTOKEN_PROGRAM_ID,
+        programId: LIGHT_TOKEN_PROGRAM_ID,
         keys,
         data,
     });
@@ -217,6 +222,7 @@ export function createUpdateMintAuthorityInstruction(
  * @param newFreezeAuthority       New freeze authority (or null to revoke)
  * @param payer                    Fee payer public key
  * @param validityProof            Validity proof for the compressed mint (null for decompressed mints)
+ * @param maxTopUp                 Optional cap on rent top-up (units of 1k lamports; default no cap)
  */
 export function createUpdateFreezeAuthorityInstruction(
     mintInterface: MintInterface,
@@ -224,6 +230,7 @@ export function createUpdateFreezeAuthorityInstruction(
     newFreezeAuthority: PublicKey | null,
     payer: PublicKey,
     validityProof: ValidityProofWithContext | null,
+    maxTopUp?: number,
 ): TransactionInstruction {
     if (!mintInterface.merkleContext) {
         throw new Error(
@@ -251,6 +258,7 @@ export function createUpdateFreezeAuthorityInstruction(
         mintInterface,
         newAuthority: newFreezeAuthority,
         actionType: 'freezeAuthority',
+        maxTopUp,
     });
 
     const sys = defaultStaticAccountsStruct();
@@ -307,7 +315,7 @@ export function createUpdateFreezeAuthorityInstruction(
     ];
 
     return new TransactionInstruction({
-        programId: CTOKEN_PROGRAM_ID,
+        programId: LIGHT_TOKEN_PROGRAM_ID,
         keys,
         data,
     });

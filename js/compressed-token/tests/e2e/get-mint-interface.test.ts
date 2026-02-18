@@ -6,7 +6,7 @@ import {
     createRpc,
     VERSION,
     featureFlags,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
 } from '@lightprotocol/stateless.js';
 import {
     TOKEN_PROGRAM_ID,
@@ -47,7 +47,7 @@ describe('getMintInterface', () => {
         payer = await newAccountWithLamports(rpc, 10e9);
     });
 
-    describe('CToken mint (CTOKEN_PROGRAM_ID)', () => {
+    describe('CToken mint (LIGHT_TOKEN_PROGRAM_ID)', () => {
         it('should fetch compressed mint with explicit programId', async () => {
             const mintSigner = Keypair.generate();
             const mintAuthority = Keypair.generate();
@@ -68,7 +68,7 @@ describe('getMintInterface', () => {
                 rpc,
                 mintPda,
                 undefined,
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
             );
 
             expect(result.mint.address.toBase58()).toBe(mintPda.toBase58());
@@ -80,7 +80,7 @@ describe('getMintInterface', () => {
             expect(result.mint.isInitialized).toBe(true);
             expect(result.mint.freezeAuthority).toBeNull();
             expect(result.programId.toBase58()).toBe(
-                CTOKEN_PROGRAM_ID.toBase58(),
+                LIGHT_TOKEN_PROGRAM_ID.toBase58(),
             );
             expect(result.merkleContext).toBeDefined();
             expect(result.mintContext).toBeDefined();
@@ -107,7 +107,7 @@ describe('getMintInterface', () => {
                 rpc,
                 mintPda,
                 undefined,
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
             );
 
             expect(result.mint.freezeAuthority?.toBase58()).toBe(
@@ -136,7 +136,7 @@ describe('getMintInterface', () => {
                 decimals,
                 mintSigner,
                 { skipPreflight: true },
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
                 metadata,
             );
 
@@ -144,7 +144,7 @@ describe('getMintInterface', () => {
                 rpc,
                 mintPda,
                 undefined,
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
             );
 
             expect(result.tokenMetadata).toBeDefined();
@@ -161,7 +161,12 @@ describe('getMintInterface', () => {
             const fakeMint = Keypair.generate().publicKey;
 
             await expect(
-                getMintInterface(rpc, fakeMint, undefined, CTOKEN_PROGRAM_ID),
+                getMintInterface(
+                    rpc,
+                    fakeMint,
+                    undefined,
+                    LIGHT_TOKEN_PROGRAM_ID,
+                ),
             ).rejects.toThrow('Compressed mint not found');
         });
     });
@@ -338,7 +343,7 @@ describe('getMintInterface', () => {
 
             expect(result.mint.address.toBase58()).toBe(mintPda.toBase58());
             expect(result.programId.toBase58()).toBe(
-                CTOKEN_PROGRAM_ID.toBase58(),
+                LIGHT_TOKEN_PROGRAM_ID.toBase58(),
             );
             expect(result.merkleContext).toBeDefined();
             expect(result.mintContext).toBeDefined();
@@ -373,7 +378,7 @@ describe('getMintInterface', () => {
                 rpc,
                 mintPda,
                 undefined,
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
             );
 
             expect(result.mintContext).toBeDefined();
@@ -405,7 +410,7 @@ describe('getMintInterface', () => {
                 rpc,
                 mintPda,
                 undefined,
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
             );
 
             expect(result.merkleContext).toBeDefined();
@@ -574,7 +579,7 @@ describe('unpackMintInterface', () => {
             const result = unpackMintInterface(
                 mintAddress,
                 buffer,
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
             );
 
             expect(result.mint.address.toBase58()).toBe(mintAddress.toBase58());
@@ -585,7 +590,7 @@ describe('unpackMintInterface', () => {
             expect(result.mint.decimals).toBe(9);
             expect(result.mint.isInitialized).toBe(true);
             expect(result.programId.toBase58()).toBe(
-                CTOKEN_PROGRAM_ID.toBase58(),
+                LIGHT_TOKEN_PROGRAM_ID.toBase58(),
             );
             expect(result.mintContext).toBeDefined();
             expect(result.mintContext!.version).toBe(1);
@@ -638,7 +643,7 @@ describe('unpackMintInterface', () => {
             const result = unpackMintInterface(
                 mintAddress,
                 buffer,
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
             );
 
             expect(result.tokenMetadata).toBeDefined();
@@ -680,7 +685,7 @@ describe('unpackMintInterface', () => {
             const result = unpackMintInterface(
                 mintAddress,
                 buffer,
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
             );
 
             expect(result.mint.supply).toBe(100n);
@@ -713,7 +718,7 @@ describe('unpackMintInterface', () => {
             const result = unpackMintInterface(
                 mintAddress,
                 uint8Array,
-                CTOKEN_PROGRAM_ID,
+                LIGHT_TOKEN_PROGRAM_ID,
             );
 
             expect(result.mint.supply).toBe(200n);

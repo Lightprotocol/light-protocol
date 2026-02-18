@@ -32,7 +32,7 @@ describe('validateNumbersForProof', () => {
     });
 
     it('should throw error for invalid hashesLength with zero newAddressesLength', () => {
-        expect(() => validateNumbersForProof(5, 0)).toThrow();
+        expect(() => validateNumbersForProof(9, 0)).toThrow();
     });
 
     it('should throw error for invalid newAddressesLength with zero hashesLength', () => {
@@ -49,8 +49,12 @@ describe('validateNumbersForInclusionProof', () => {
         expect(() => validateNumbersForInclusionProof(4)).not.toThrow();
     });
 
+    it('should not throw error for hashesLength 5 (allowed in V2)', () => {
+        expect(() => validateNumbersForInclusionProof(5)).not.toThrow();
+    });
+
     it('should throw error for invalid hashesLength', () => {
-        expect(() => validateNumbersForInclusionProof(5)).toThrow();
+        expect(() => validateNumbersForInclusionProof(9)).toThrow();
     });
 });
 
@@ -77,14 +81,14 @@ describe('validateNumbers', () => {
     });
 });
 
-describe('validateNumbersForProof', () => {
+describe('validateNumbersForProof error messages', () => {
     it('should not throw error for valid hashesLength and newAddressesLength', () => {
         expect(() => validateNumbersForProof(2, 1)).not.toThrow();
     });
 
     it('should throw error for invalid hashesLength with zero newAddressesLength', () => {
-        expect(() => validateNumbersForProof(5, 0)).toThrowError(
-            'Invalid number of compressed accounts: 5. Allowed numbers: 1, 2, 3, 4, 8',
+        expect(() => validateNumbersForProof(9, 0)).toThrowError(
+            'Invalid number of compressed accounts: 9. Allowed numbers: 1, 2, 3, 4, 5, 6, 7, 8',
         );
     });
 
@@ -96,7 +100,7 @@ describe('validateNumbersForProof', () => {
 
     it('should throw error for invalid hashesLength with non-zero newAddressesLength', () => {
         expect(() => validateNumbersForProof(8, 1)).toThrowError(
-            'Invalid number of compressed accounts for proof: 8. Allowed numbers: 1, 2, 3, 4',
+            'Invalid number of compressed accounts for combined proof: 8. Allowed: 1-4',
         );
     });
 });

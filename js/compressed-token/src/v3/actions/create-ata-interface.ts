@@ -8,7 +8,7 @@ import {
 } from '@solana/web3.js';
 import {
     Rpc,
-    CTOKEN_PROGRAM_ID,
+    LIGHT_TOKEN_PROGRAM_ID,
     buildAndSignTx,
     sendAndConfirmTx,
     assertBetaEnabled,
@@ -35,7 +35,7 @@ export type { CTokenConfig };
  * @param allowOwnerOffCurve        Allow owner to be a PDA (default: false)
  * @param confirmOptions            Options for confirming the transaction
  * @param programId                 Token program ID (default:
- *                                  CTOKEN_PROGRAM_ID)
+ *                                  LIGHT_TOKEN_PROGRAM_ID)
  * @param associatedTokenProgramId  ATA program ID (auto-derived if not
  *                                  provided)
  * @param ctokenConfig              Optional rent config
@@ -48,7 +48,7 @@ export async function createAtaInterface(
     owner: PublicKey,
     allowOwnerOffCurve = false,
     confirmOptions?: ConfirmOptions,
-    programId: PublicKey = CTOKEN_PROGRAM_ID,
+    programId: PublicKey = LIGHT_TOKEN_PROGRAM_ID,
     associatedTokenProgramId?: PublicKey,
     ctokenConfig?: CTokenConfig,
 ): Promise<PublicKey> {
@@ -75,7 +75,7 @@ export async function createAtaInterface(
         ctokenConfig,
     );
 
-    if (programId.equals(CTOKEN_PROGRAM_ID)) {
+    if (programId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
         const { blockhash } = await rpc.getLatestBlockhash();
         const tx = buildAndSignTx(
             [ComputeBudgetProgram.setComputeUnitLimit({ units: 30_000 }), ix],
@@ -110,7 +110,7 @@ export async function createAtaInterface(
  * @param allowOwnerOffCurve        Allow owner to be a PDA (default: false)
  * @param confirmOptions            Options for confirming the transaction
  * @param programId                 Token program ID (default:
- *                                  CTOKEN_PROGRAM_ID)
+ *                                  LIGHT_TOKEN_PROGRAM_ID)
  * @param associatedTokenProgramId  ATA program ID (auto-derived if not
  *                                  provided)
  * @param ctokenConfig              Optional c-token-specific configuration
@@ -124,7 +124,7 @@ export async function createAtaInterfaceIdempotent(
     owner: PublicKey,
     allowOwnerOffCurve = false,
     confirmOptions?: ConfirmOptions,
-    programId: PublicKey = CTOKEN_PROGRAM_ID,
+    programId: PublicKey = LIGHT_TOKEN_PROGRAM_ID,
     associatedTokenProgramId?: PublicKey,
     ctokenConfig?: CTokenConfig,
 ): Promise<PublicKey> {
@@ -151,7 +151,7 @@ export async function createAtaInterfaceIdempotent(
         ctokenConfig,
     );
 
-    if (programId.equals(CTOKEN_PROGRAM_ID)) {
+    if (programId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
         const { blockhash } = await rpc.getLatestBlockhash();
         const tx = buildAndSignTx(
             [ComputeBudgetProgram.setComputeUnitLimit({ units: 30_000 }), ix],
