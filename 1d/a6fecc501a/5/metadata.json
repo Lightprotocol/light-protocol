@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "1da6fecc501a",
+  "session_id": "c30f0370-2f3d-4acb-825f-baf25fed7ed6",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-18T19:27:20.502181Z",
+  "branch": "jorrit/refactor-light-account-creation-to-generic-function",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "forester/node_modules/@lightprotocol/.ignored_zk-compression-cli/package.json",
+    "sdk-libs/sdk-types/src/interface/accounts/create_accounts.rs"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 7,
+    "cache_creation_tokens": 10343,
+    "cache_read_tokens": 136019,
+    "output_tokens": 90,
+    "api_call_count": 5
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-18T19:27:20.488123Z",
+    "agent_lines": 2,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 2,
+    "agent_percentage": 100
+  }
+}
