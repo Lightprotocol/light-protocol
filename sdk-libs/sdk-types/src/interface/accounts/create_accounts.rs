@@ -104,7 +104,7 @@ pub struct SharedAccounts<'a, AI: AccountInfoTrait> {
 
 /// Create compressed PDAs, mints, token vaults, and ATAs in a single instruction.
 ///
-/// Returns `true` if CPI context was used (PDAS > 0 && MINTS > 0), `false` otherwise.
+/// Returns `true` if CPI context was set up (MINTS > 0), `false` otherwise.
 ///
 /// # Const Generics
 ///
@@ -141,7 +141,7 @@ pub fn create_accounts<
     // ====================================================================
     // 1. Validate required Option fields based on const generics
     // ====================================================================
-    if PDAS > u8::MAX as usize || MINTS > u8::MAX as usize {
+    if PDAS > u8::MAX as usize || MINTS > u8::MAX as usize || PDAS.saturating_add(MINTS) > u8::MAX as usize {
         return Err(LightSdkTypesError::InvalidInstructionData);
     }
     if PDAS > 0 && shared.compression_config.is_none() {

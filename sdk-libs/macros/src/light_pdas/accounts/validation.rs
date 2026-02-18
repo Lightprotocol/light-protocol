@@ -22,8 +22,8 @@
 //! 6. **Light token rent sponsor** - When mints, tokens, or ATAs exist,
 //!    `light_token_rent_sponsor` field is required
 //!
-//! 7. **Light token CPI authority** - When mints or token accounts exist (but not ATAs
-//!    alone), `light_token_cpi_authority` field is required
+//! 7. **Light token CPI authority** - When mints exist,
+//!    `light_token_cpi_authority` field is required
 //!
 //! 8. **CreateAccountsProof availability** - When PDAs or mints exist,
 //!    `CreateAccountsProof` must be available via either:
@@ -155,8 +155,8 @@ fn validate_infra_fields(ctx: &ValidationContext) -> Result<(), syn::Error> {
         if !ctx.has_light_token_rent_sponsor {
             missing.push(InfraFieldType::LightTokenRentSponsor);
         }
-        // CPI authority is required for mints and token accounts with init (PDA-based signing)
-        if (ctx.has_mints || ctx.has_tokens_with_init) && !ctx.has_light_token_cpi_authority {
+        // CPI authority is required for mints only (token init uses program-derived PDA signing)
+        if ctx.has_mints && !ctx.has_light_token_cpi_authority {
             missing.push(InfraFieldType::LightTokenCpiAuthority);
         }
     }
@@ -198,12 +198,12 @@ fn validate_infra_fields(ctx: &ValidationContext) -> Result<(), syn::Error> {
 
 /// Validate that CreateAccountsProof is available when needed.
 ///
-/// CreateAccountsProof is required when there are any init fields (PDAs, mints).
+/// CreateAccountsProof is required when there are any init fields (PDAs, mints, tokens, ATAs).
 /// It can be provided either:
 /// - As a direct argument: `proof: CreateAccountsProof`
 /// - As a field on the first instruction arg: `params.create_accounts_proof`
 fn validate_proof_availability(ctx: &ValidationContext) -> Result<(), syn::Error> {
-    let needs_proof = ctx.has_pdas || ctx.has_mints;
+    let needs_proof = ctx.has_pdas || ctx.has_mints || ctx.has_tokens_with_init || ctx.has_atas_with_init;
 
     if !needs_proof {
         return Ok(());

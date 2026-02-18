@@ -300,7 +300,7 @@ impl LightAccountsBuilder {
 
         // --- Token init params ---
         let (token_bindings, token_init_params) =
-            generate_token_init_params(&token_init_fields, &self.infra);
+            generate_token_init_params(&token_init_fields);
 
         // --- ATA init params ---
         let (ata_bindings, ata_init_params) = generate_ata_init_params(&ata_init_fields);
@@ -735,7 +735,6 @@ fn generate_mint_input(mints: &[LightMintField]) -> Result<(TokenStream, TokenSt
 /// Generate token vault init param bindings and `TokenInitParam` array elements.
 fn generate_token_init_params(
     fields: &[&TokenAccountField],
-    infra: &InfraRefs,
 ) -> (TokenStream, Vec<TokenStream>) {
     if fields.is_empty() {
         return (quote! {}, vec![]);
@@ -755,22 +754,15 @@ fn generate_token_init_params(
         });
 
         // Bind mint info
-        let mint_binding = field
-            .mint
-            .as_ref()
-            .map(|m| quote! { let #mint_info_ident = self.#m.to_account_info(); })
-            .unwrap_or_else(|| quote! { let #mint_info_ident = self.mint.to_account_info(); });
+        let m = field.mint.as_ref()
+            .expect("parser invariant: token init fields always have mint");
+        let mint_binding = quote! { let #mint_info_ident = self.#m.to_account_info(); };
         all_bindings.push(mint_binding);
 
         // Owner expression
-        let owner_expr = field
-            .owner
-            .as_ref()
-            .map(|o| quote! { self.#o.to_account_info().key.to_bytes() })
-            .unwrap_or_else(|| {
-                let fee_payer = &infra.fee_payer;
-                quote! { self.#fee_payer.to_account_info().key.to_bytes() }
-            });
+        let o = field.owner.as_ref()
+            .expect("parser invariant: token init fields always have owner");
+        let owner_expr = quote! { self.#o.to_account_info().key.to_bytes() };
 
         // Seed bindings and bump derivation
         let token_seeds = &field.seeds;
@@ -797,27 +789,15 @@ fn generate_token_init_params(
             .map(|b| quote! { let #bump_ident: u8 = #b; })
             .unwrap_or_else(|| {
                 let seed_refs: Vec<&syn::Ident> = seed_ref_idents.iter().collect();
-                if token_seeds.is_empty() {
-                    quote! {
-                        let #bump_ident: u8 = {
-                            let (_, bump) = solana_pubkey::Pubkey::find_program_address(
-                                &[],
-                                &solana_pubkey::Pubkey::from(crate::LIGHT_CPI_SIGNER.program_id),
-                            );
-                            bump
-                        };
-                    }
-                } else {
-                    quote! {
-                        let #bump_ident: u8 = {
-                            let seeds: &[&[u8]] = &[#(#seed_refs),*];
-                            let (_, bump) = solana_pubkey::Pubkey::find_program_address(
-                                seeds,
-                                &solana_pubkey::Pubkey::from(crate::LIGHT_CPI_SIGNER.program_id),
-                            );
-                            bump
-                        };
-                    }
+                quote! {
+                    let #bump_ident: u8 = {
+                        let seeds: &[&[u8]] = &[#(#seed_refs),*];
+                        let (_, bump) = solana_pubkey::Pubkey::find_program_address(
+                            seeds,
+                            &solana_pubkey::Pubkey::from(crate::LIGHT_CPI_SIGNER.program_id),
+                        );
+                        bump
+                    };
                 }
             });
         all_bindings.push(bump_derivation);
@@ -828,12 +808,8 @@ fn generate_token_init_params(
             let #bump_slice_ident: [u8; 1] = [#bump_ident];
         });
 
-        let seeds_array_expr = if token_seeds.is_empty() {
-            quote! { &[&#bump_slice_ident[..]] }
-        } else {
-            let seed_refs: Vec<&syn::Ident> = seed_ref_idents.iter().collect();
-            quote! { &[#(#seed_refs,)* &#bump_slice_ident[..]] }
-        };
+        let seed_refs: Vec<&syn::Ident> = seed_ref_idents.iter().collect();
+        let seeds_array_expr = quote! { &[#(#seed_refs,)* &#bump_slice_ident[..]] };
         all_bindings.push(quote! {
             let #seeds_ident: &[&[u8]] = #seeds_array_expr;
         });
