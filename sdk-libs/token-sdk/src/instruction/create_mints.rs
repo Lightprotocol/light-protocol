@@ -9,7 +9,7 @@
 //! - N=1: Single CPI (create + decompress)
 //! - N>1: 2N-1 CPIs (N-1 writes + 1 execute with decompress + N-1 decompress)
 
-use light_batched_merkle_tree::queue::BatchedQueueAccount;
+use light_batched_merkle_tree::queue_ref::BatchedQueueRef;
 use light_compressed_account::instruction_data::traits::LightInstructionData;
 use light_compressed_token_sdk::compressed_token::mint_action::{
     get_mint_action_instruction_account_metas_cpi_write, MintActionMetaConfig,
@@ -607,7 +607,7 @@ fn build_mint_instruction_data(
 /// Get base leaf index from output queue account.
 #[inline(never)]
 fn get_base_leaf_index(output_queue: &AccountInfo) -> Result<u32, ProgramError> {
-    let queue = BatchedQueueAccount::output_from_account_info(output_queue)
+    let queue = BatchedQueueRef::output_from_account_info(output_queue)
         .map_err(|_| ProgramError::InvalidAccountData)?;
     Ok(queue.batch_metadata.next_index as u32)
 }

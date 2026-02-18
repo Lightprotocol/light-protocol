@@ -7,7 +7,7 @@ use crate::{accounts::remaining_account_checks::AcpAccount, errors::SystemProgra
 #[inline(always)]
 #[profile]
 pub fn verify_read_only_address_queue_non_inclusion(
-    remaining_accounts: &mut [AcpAccount<'_>],
+    remaining_accounts: &[AcpAccount<'_>],
     read_only_addresses: &[ZPackedReadOnlyAddress],
 ) -> Result<()> {
     if read_only_addresses.is_empty() {
@@ -15,7 +15,7 @@ pub fn verify_read_only_address_queue_non_inclusion(
     }
     for read_only_address in read_only_addresses.iter() {
         let merkle_tree = if let AcpAccount::BatchedAddressTree(tree) =
-            &mut remaining_accounts[read_only_address.address_merkle_tree_account_index as usize]
+            &remaining_accounts[read_only_address.address_merkle_tree_account_index as usize]
         {
             tree
         } else {
