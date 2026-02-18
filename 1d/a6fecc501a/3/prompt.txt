@@ -1,0 +1,185 @@
+Implement the following plan:
+
+# Fix Actionable Issues and Remove Dead Code from builder.rs Review
+
+**Date:** 2026-02-18
+**Branch:** `jorrit/refactor-light-account-creation-to-generic-function`
+**Source:** Logic review of `builder.rs` (report: `.claude/logic-review-builder-20260218-report.md`)
+
+## Context
+
+A logic review identified two correctness bugs in `validation.rs` and confirmed dead code in `builder.rs`. The bugs were introduced alongside the refactor adding `generate_pre_init_with_create_accounts()`. The dead code results from parser invariants that the builder does not exploit.
+
+## Files to Modify
+
+- `sdk-libs/macros/src/light_pdas/accounts/validation.rs`
+- `sdk-libs/macros/src/light_pdas/accounts/builder.rs`
+
+---
+
+## Changes
+
+### 1. Fix F1: CPI authority over-required for tokens-only path (`validation.rs`)
+
+**Location:** lines 25-26 (doc) and line 159 (logic)
+
+**Problem:** Rule 7 requires `light_token_cpi_authority` for `has_mints || has_tokens_with_init`. The runtime (`create_accounts.rs:154`) only gates `cpi_authority` on `MINTS > 0`. Token init uses program-derived signing, not CPI authority.
+
+**Doc fix (lines 25-26):**
+```
+// Before:
+//! 7. **Light token CPI authority** - When mints or token accounts exist (but not ATAs
+//!    alone), `light_token_cpi_authority` field is required
+
+// After:
+//! 7. **Light token CPI authority** - When mints exist,
+//!    `light_token_cpi_authority` field is required
+```
+
+**Logic fix (lines 158-161):**
+```rust
+// Before:
+// CPI authority is required for mints and token accounts with init (PDA-based signing)
+if (ctx.has_mints || ctx.has_tokens_with_init) && !ctx.has_light_token_cpi_authority {
+
+// After:
+// CPI authority is required for mints only (token init uses program-derived PDA signing)
+if ctx.has_mints && !ctx.has_light_token_cpi_authority {
+```
+
+---
+
+### 2. Fix F2: Proof availability check incomplete (`validation.rs`)
+
+**Location:** lines 201-204 (doc comment) and line 206 (logic)
+
+**Problem:** `validate_proof_availability()` only gates on `has_pdas || has_mints`, but tokens-only and ATAs-only paths through `generate_pre_init_with_create_accounts()` also call `get_proof_access()` and pass proof to `create_accounts()`. The runtime reads `shared.proof.system_accounts_offset` unconditionally (line 171). Without this fix, a user who has only token init fields gets a confusing compile error about a missing `create_accounts_proof` field instead of a clear macro error.
+
+**Doc fix (line 201):**
+```
+// Before:
+/// CreateAccountsProof is required when there are any init fields (PDAs, mints).
+
+// After:
+/// CreateAccountsProof is required when there are any init fields (PDAs, mints, tokens, ATAs).
+```
+
+**Logic fix (line 206):**
+```rust
+// Before:
+let needs_proof = ctx.has_pdas || ctx.has_mints;
+
+// After:
+let needs_proof = ctx.has_pdas || ctx.has_mints || ctx.has_tokens_with_init || ctx.has_atas_with_init;
+```
+
+---
+
+### 3. Remove dead code: mint fallback (`builder.rs:758-762`)
+
+**Problem:** Parser invariant in `light_account.rs::build_token_account_field()`: init-mode token fields always have `mint = Some(...)`. The `unwrap_or_else` fallback (`self.mint`) is unreachable.
+
+```rust
+// Before:
+let mint_binding = field
+    .mint
+    .as_ref()
+    .map(|m| quote! { let #mint_info_ident = self.#m.to_account_info(); })
+    .unwrap_or_else(|| quote! { let #mint_info_ident = self.mint.to_account_info(); });
+
+// After:
+let m = field.mint.as_ref()
+    .expect("parser invariant: token init fields always have mint");
+let mint_binding = quote! { let #mint_info_ident = self.#m.to_account_info(); };
+```
+
+---
+
+### 4. Remove dead code: owner fallback (`builder.rs:766-773`)
+
+**Problem:** Same parser invariant: init-mode token fields always have `owner = Some(...)`. The `unwrap_or_else` fallback (fee payer) is unreachable.
+
+```rust
+// Before:
+let owner_expr = field
+    .owner
+    .as_ref()
+    .map(|o| quote! { self.#o.to_account_info().key.to_bytes() })
+    .unwrap_or_else(|| {
+        let fee_payer = &infra.fee_payer;
+        quote! { self.#fee_payer.to_account_info().key.to_bytes() }
+    });
+
+// After:
+let o = field.owner.as_ref()
+    .expect("parser invariant: token init fields always have owner");
+let owner_expr = quote! { self.#o.to_account_info().key.to_bytes() };
+```
+
+---
+
+### 5. Remove dead code: empty-seeds bump derivation branch (`builder.rs:798-822`)
+
+**Problem:** Parser rejects token init fields with empty seeds. The `if token_seeds.is_empty()` branch is unreachable.
+
+```rust
+// Before:
+.unwrap_or_else(|| {
+    let seed_refs: Vec<&syn::Ident> = seed_ref_idents.iter().collect();
+    if token_seeds.is_empty() {
+        quote! { ... find_program_address(&[], ...) ... }
+    } else {
+        quote! { ... find_program_address(seeds, ...) ... }
+    }
+});
+
+// After:
+.unwrap_or_else(|| {
+    let seed_refs: Vec<&syn::Ident> = seed_ref_idents.iter().collect();
+    quote! {
+        let #bump_ident: u8 = {
+            let seeds: &[&[u8]] = &[#(#seed_refs),*];
+            let (_, bump) = solana_pubkey::Pubkey::find_program_address(
+                seeds,
+                &solana_pubkey::Pubkey::from(crate::LIGHT_CPI_SIGNER.program_id),
+            );
+            bump
+        };
+    }
+});
+```
+
+---
+
+### 6. Remove dead code: empty-seeds `seeds_array_expr` branch (`builder.rs:831-836`)
+
+**Problem:** Same — seeds are always non-empty for init-mode tokens.
+
+```rust
+// Before:
+let seeds_array_expr = if token_seeds.is_empty() {
+    quote! { &[&#bump_slice_ident[..]] }
+} else {
+    let seed_refs: Vec<&syn::Ident> = seed_ref_idents.iter().collect();
+    quote! { &[#(#seed_refs,)* &#bump_slice_ident[..]] }
+};
+
+// After:
+let seed_refs: Vec<&syn::Ident> = seed_ref_idents.iter().collect();
+let seeds_array_expr = quote! { &[#(#seed_refs,)* &#bump_slice_ident[..]] };
+```
+
+---
+
+## Verification
+
+Baseline confirmed: `cargo test-sbf -p csdk-anchor-full-derived-test` passes (76 tests, 0 failed).
+
+After applying changes, re-run both:
+```bash
+cargo test -p light-sdk-macros
+cargo test-sbf -p csdk-anchor-full-derived-test
+```
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ananas/.REDACTED.jsonl

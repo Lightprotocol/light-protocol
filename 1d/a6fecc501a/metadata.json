@@ -3,8 +3,11 @@
   "checkpoint_id": "1da6fecc501a",
   "strategy": "manual-commit",
   "branch": "jorrit/refactor-light-account-creation-to-generic-function",
-  "checkpoints_count": 7,
+  "checkpoints_count": 8,
   "files_touched": [
+    "forester/node_modules/@lightprotocol/.ignored_zk-compression-cli/package.json",
+    "sdk-libs/macros/src/light_pdas/accounts/builder.rs",
+    "sdk-libs/macros/src/light_pdas/accounts/validation.rs",
     "sdk-libs/sdk-types/src/interface/program/compression/pda.rs",
     "sdk-libs/sdk-types/src/interface/program/compression/processor.rs",
     "sdk-tests/sdk-types-kani/docs/compress_properties.md",
@@ -35,13 +38,20 @@
       "context": "/1d/a6fecc501a/2/context.md",
       "content_hash": "/1d/a6fecc501a/2/content_hash.txt",
       "prompt": "/1d/a6fecc501a/2/prompt.txt"
+    },
+    {
+      "metadata": "/1d/a6fecc501a/3/metadata.json",
+      "transcript": "/1d/a6fecc501a/3/full.jsonl",
+      "context": "/1d/a6fecc501a/3/context.md",
+      "content_hash": "/1d/a6fecc501a/3/content_hash.txt",
+      "prompt": "/1d/a6fecc501a/3/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 243,
-    "cache_creation_tokens": 656514,
-    "cache_read_tokens": 15204266,
-    "output_tokens": 59669,
-    "api_call_count": 157
+    "input_tokens": 277,
+    "cache_creation_tokens": 696048,
+    "cache_read_tokens": 16515491,
+    "output_tokens": 61693,
+    "api_call_count": 189
   }
 }
