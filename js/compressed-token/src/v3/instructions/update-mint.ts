@@ -73,11 +73,7 @@ function encodeUpdateMintInstructionData(
         leafIndex: params.leafIndex,
         proveByIndex: params.proveByIndex,
         rootIndex: params.rootIndex,
-<<<<<<< HEAD
-        maxTopUp: 65535,
-=======
         maxTopUp: params.maxTopUp ?? MAX_TOP_UP,
->>>>>>> 03b831af0 (fix: add delegate to packed accounts in decompress instruction, version-aware proof chunking)
         createMint: null,
         actions: [action],
         proof: params.proof,

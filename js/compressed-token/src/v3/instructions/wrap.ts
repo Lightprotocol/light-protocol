@@ -74,11 +74,7 @@ export function createWrapInstruction(
         lamportsChangeAccountMerkleTreeIndex: 0,
         lamportsChangeAccountOwnerIndex: 0,
         outputQueue: 0,
-<<<<<<< HEAD
-        maxTopUp: 65535,
-=======
         maxTopUp: maxTopUp ?? MAX_TOP_UP,
->>>>>>> 03b831af0 (fix: add delegate to packed accounts in decompress instruction, version-aware proof chunking)
         cpiContext: null,
         compressions,
         proof: null,
