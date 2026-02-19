@@ -97,10 +97,12 @@ where
         let mut data = account_info
             .try_borrow_mut_data()
             .map_err(LightSdkTypesError::AccountError)?;
-        // Write discriminator first
-        data[..8].copy_from_slice(&A::LIGHT_DISCRIMINATOR);
+        // Write discriminator first (variable length: LIGHT_DISCRIMINATOR_SLICE may be < 8 bytes)
+        let disc_slice = A::LIGHT_DISCRIMINATOR_SLICE;
+        let disc_len = disc_slice.len();
+        data[..disc_len].copy_from_slice(disc_slice);
         // Write serialized account data after discriminator
-        let writer = &mut &mut data[8..];
+        let writer = &mut &mut data[disc_len..];
         account_data
             .serialize(writer)
             .map_err(|_| LightSdkTypesError::Borsh)?;

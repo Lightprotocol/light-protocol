@@ -395,7 +395,7 @@ pub fn light_account_derive(input: TokenStream) -> TokenStream {
 /// - The `compression_info` field must be first or last field in the struct
 /// - Struct should be `#[repr(C)]` for predictable memory layout
 /// - Use `[u8; 32]` instead of `Pubkey` for address fields
-#[proc_macro_derive(LightPinocchioAccount, attributes(compress_as, skip))]
+#[proc_macro_derive(LightPinocchioAccount, attributes(compress_as, skip, light_pinocchio))]
 pub fn light_pinocchio_account_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     into_token_stream(light_pdas::account::derive::derive_light_pinocchio_account(

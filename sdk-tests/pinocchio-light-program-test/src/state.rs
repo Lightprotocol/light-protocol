@@ -24,6 +24,21 @@ pub struct MinimalRecord {
     pub owner: Pubkey,
 }
 
+/// A PDA with a 1-byte on-chain type identifier instead of the standard 8-byte
+/// LIGHT_DISCRIMINATOR. On-chain layout: `[1 byte DISC][borsh data]`.
+///
+/// `LIGHT_DISCRIMINATOR = [1,0,0,0,0,0,0,0]` (8 bytes, for the compressed Merkle leaf).
+/// `LIGHT_DISCRIMINATOR_SLICE = &[1u8]` (1 byte, written on-chain).
+#[derive(
+    Default, Debug, Clone, PartialEq, BorshSerialize, BorshDeserialize, LightPinocchioAccount,
+)]
+#[light_pinocchio(discriminator = [1u8])]
+#[repr(C)]
+pub struct OneByteRecord {
+    pub compression_info: CompressionInfo,
+    pub owner: Pubkey,
+}
+
 /// A zero-copy account using Pod serialization.
 /// Used for efficient on-chain zero-copy access.
 #[derive(

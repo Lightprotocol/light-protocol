@@ -311,6 +311,18 @@ impl CompressBuilder {
     }
 
     /// Generate compress dispatch as an associated function on the enum using the specified backend.
+    ///
+    /// # Discriminator ordering invariant
+    ///
+    /// The dispatch uses a sequential if-chain keyed on `LIGHT_DISCRIMINATOR_SLICE`. Because a
+    /// shorter discriminator is a prefix of any byte sequence, types with shorter discriminators
+    /// MUST be placed *after* all types with longer discriminators in the `ProgramAccounts` enum.
+    /// Violating this ordering causes the short discriminator to match prematurely, corrupting
+    /// dispatch for longer-discriminator types whose on-chain prefix happens to share the same
+    /// leading bytes.
+    ///
+    /// The `LightProgramPinocchio` derive preserves enum declaration order, so the caller must
+    /// declare non-standard (short) discriminator variants last.
     pub fn generate_enum_dispatch_method_with_backend(
         &self,
         enum_name: &syn::Ident,
@@ -329,25 +341,33 @@ impl CompressBuilder {
 
                 if info.is_zero_copy {
                     quote! {
-                        d if d == #name::LIGHT_DISCRIMINATOR => {
-                            let pod_bytes = &data[8..8 + core::mem::size_of::<#name>()];
-                            let mut account_data: #name = *bytemuck::from_bytes(pod_bytes);
-                            drop(data);
-                            #account_crate::prepare_account_for_compression(
-                                account_info, &mut account_data, meta, index, ctx,
-                            )
+                        {
+                            let __disc_slice = <#name as #account_crate::LightDiscriminator>::LIGHT_DISCRIMINATOR_SLICE;
+                            let __disc_len = __disc_slice.len();
+                            if data.len() >= __disc_len && &data[..__disc_len] == __disc_slice {
+                                let pod_bytes = &data[__disc_len..__disc_len + core::mem::size_of::<#name>()];
+                                let mut account_data: #name = *bytemuck::from_bytes(pod_bytes);
+                                drop(data);
+                                return #account_crate::prepare_account_for_compression(
+                                    account_info, &mut account_data, meta, index, ctx,
+                                );
+                            }
                         }
                     }
                 } else {
                     quote! {
-                        d if d == #name::LIGHT_DISCRIMINATOR => {
-                            let mut reader = &data[8..];
-                            let mut account_data = #name::deserialize(&mut reader)
-                                .map_err(|_| #sdk_error::InvalidInstructionData)?;
-                            drop(data);
-                            #account_crate::prepare_account_for_compression(
-                                account_info, &mut account_data, meta, index, ctx,
-                            )
+                        {
+                            let __disc_slice = <#name as #account_crate::LightDiscriminator>::LIGHT_DISCRIMINATOR_SLICE;
+                            let __disc_len = __disc_slice.len();
+                            if data.len() >= __disc_len && &data[..__disc_len] == __disc_slice {
+                                let mut reader = &data[__disc_len..];
+                                let mut account_data = #name::deserialize(&mut reader)
+                                    .map_err(|_| #sdk_error::InvalidInstructionData)?;
+                                drop(data);
+                                return #account_crate::prepare_account_for_compression(
+                                    account_info, &mut account_data, meta, index, ctx,
+                                );
+                            }
                         }
                     }
                 }
@@ -363,16 +383,10 @@ impl CompressBuilder {
                         index: usize,
                         ctx: &mut #account_crate::CompressCtx<'_>,
                     ) -> std::result::Result<(), #sdk_error> {
-                        use #account_crate::LightDiscriminator;
                         use borsh::BorshDeserialize;
                         let data = account_info.try_borrow_data()#borrow_error;
-                        let discriminator: [u8; 8] = data[..8]
-                            .try_into()
-                            .map_err(|_| #sdk_error::InvalidInstructionData)?;
-                        match discriminator {
-                            #(#compress_arms)*
-                            _ => Ok(()),
-                        }
+                        #(#compress_arms)*
+                        Ok(())
                     }
                 }
             })
@@ -385,16 +399,10 @@ impl CompressBuilder {
                         index: usize,
                         ctx: &mut #account_crate::CompressCtx<'_, 'info>,
                     ) -> std::result::Result<(), #sdk_error> {
-                        use #account_crate::LightDiscriminator;
                         use borsh::BorshDeserialize;
                         let data = account_info.try_borrow_data()#borrow_error;
-                        let discriminator: [u8; 8] = data[..8]
-                            .try_into()
-                            .map_err(|_| #sdk_error::InvalidInstructionData)?;
-                        match discriminator {
-                            #(#compress_arms)*
-                            _ => Ok(()),
-                        }
+                        #(#compress_arms)*
+                        Ok(())
                     }
                 }
             })
@@ -448,10 +456,13 @@ impl CompressBuilder {
             let qualified_type = qualify_type_with_crate(&info.account_type);
 
             if backend.is_pinocchio() {
-                // For pinocchio, all types use INIT_SPACE constant (no CompressedInitSpace trait)
+                // For pinocchio, use LIGHT_DISCRIMINATOR_SLICE.len() for the on-chain prefix size.
+                // This supports types with non-standard (e.g. 1-byte) discriminators.
                 quote! {
                     const _: () = {
-                        const COMPRESSED_SIZE: usize = 8 + #qualified_type::INIT_SPACE;
+                        const COMPRESSED_SIZE: usize =
+                            <#qualified_type as #account_crate::LightDiscriminator>::LIGHT_DISCRIMINATOR_SLICE.len()
+                            + #qualified_type::INIT_SPACE;
                         assert!(
                             COMPRESSED_SIZE <= 800,
                             concat!(
