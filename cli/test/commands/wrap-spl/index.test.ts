@@ -28,20 +28,10 @@ describe("wrap-spl", () => {
   });
 
   it(`wrap tokens`, async () => {
-    // First unwrap some tokens to have SPL tokens available
-    const { stdout: unwrapStdout } = await runCommand([
-      "unwrap-spl",
-      `--mint=${mintKeypair.publicKey.toBase58()}`,
-      `--amount=${mintAmount - 1}`,
-      `--to=${payerKeypair.publicKey.toBase58()}`,
-    ]);
-    console.log(unwrapStdout);
-
-    // Then wrap SPL tokens back
     const { stdout } = await runCommand([
       "wrap-spl",
       `--mint=${mintKeypair.publicKey.toBase58()}`,
-      `--amount=${mintAmount - 2}`,
+      `--amount=${mintAmount - 1}`,
       `--to=${payerKeypair.publicKey.toBase58()}`,
     ]);
     expect(stdout).to.contain("wrap-spl successful");

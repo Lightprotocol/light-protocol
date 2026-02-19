@@ -17,7 +17,6 @@ import {
 import {
   createMintInterface,
   createSplInterface,
-  mintTo,
   mintToInterface,
   createAtaInterfaceIdempotent,
   getAssociatedTokenAddressInterface,
@@ -26,6 +25,8 @@ import {
   MINT_SIZE,
   TOKEN_PROGRAM_ID,
   createInitializeMint2Instruction,
+  mintTo as splMintTo,
+  createAssociatedTokenAccountIdempotent,
 } from "@solana/spl-token";
 
 export async function requestAirdrop(address: PublicKey, amount = 3e9) {
@@ -74,8 +75,8 @@ export async function testMintTo(
 }
 
 /**
- * Create a standard SPL mint, register it with the compressed token program,
- * and mint compressed tokens. Used by wrap/unwrap tests.
+ * Create a standard SPL mint, register it with the Light Token program,
+ * and mint SPL tokens to the destination's ATA. Used by wrap/unwrap tests.
  */
 export async function createTestSplMintWithPool(
   mintKeypair: Keypair,
@@ -88,11 +89,18 @@ export async function createTestSplMintWithPool(
 
   await createTestSplMint(rpc, payer, mintKeypair, mintAuthority);
   await createSplInterface(rpc, payer, mintKeypair.publicKey);
-  await mintTo(
+
+  const ata = await createAssociatedTokenAccountIdempotent(
     rpc,
     payer,
     mintKeypair.publicKey,
     mintDestination,
+  );
+  await splMintTo(
+    rpc,
+    payer,
+    mintKeypair.publicKey,
+    ata,
     mintAuthority,
     mintAmount,
   );

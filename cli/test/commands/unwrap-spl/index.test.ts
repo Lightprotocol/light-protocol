@@ -28,6 +28,14 @@ describe("unwrap-spl", () => {
   });
 
   it(`unwrap tokens`, async () => {
+    // Wrap SPL tokens first to get Light Tokens
+    await runCommand([
+      "wrap-spl",
+      `--mint=${mintKeypair.publicKey.toBase58()}`,
+      `--amount=${mintAmount}`,
+      `--to=${payerKeypair.publicKey.toBase58()}`,
+    ]);
+
     const { stdout } = await runCommand([
       "unwrap-spl",
       `--mint=${mintKeypair.publicKey.toBase58()}`,
