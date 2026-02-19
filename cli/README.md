@@ -197,36 +197,6 @@ FLAGS
 
 ```
 
-#### Wrap SOL into compressed account
-
-```bash
-light wrap-sol --amount 1000 --to "YOUR_WALLET_ADDRESS_BASE58"
-```
-
-```
-USAGE
-  $ light wrap-sol --to <value> --amount <value>
-
-FLAGS
-  --amount=<value>  (required) Amount to wrap in lamports.
-  --to=<value>      (required) Specify the recipient address.
-```
-
-#### Unwrap SOL from compressed account
-
-```bash
-light unwrap-sol --amount 42 --to "YOUR_WALLET_ADDRESS_BASE58"
-```
-
-```
-USAGE
-  $ light unwrap-sol --to <value> --amount <value>
-
-FLAGS
-  --amount=<value>  (required) Amount to unwrap in lamports.
-  --to=<value>      (required) Specify the recipient address.
-```
-
 #### Get token balance
 
 ```bash
