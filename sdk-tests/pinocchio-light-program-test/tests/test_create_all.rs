@@ -1,5 +1,6 @@
 mod shared;
 
+use light_account::LightDiscriminator;
 use light_account_pinocchio::token::TokenDataWithSeeds;
 use light_client::interface::{
     create_load_instructions, get_create_accounts_proof, AccountInterface, AccountSpec,
@@ -10,7 +11,6 @@ use light_program_test::{program_test::TestRpc, Rpc};
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
 use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
 use light_token_interface::state::token::{AccountState, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT};
-use light_account::LightDiscriminator;
 use pinocchio_light_program_test::{
     all::accounts::CreateAllParams, discriminators, LightAccountVariant, MinimalRecord,
     MinimalRecordSeeds, OneByteRecord, OneByteRecordSeeds, VaultSeeds, ZeroCopyRecord,
@@ -160,15 +160,17 @@ async fn test_create_all_derive() {
         .unwrap()
         .expect("OneByteRecord PDA should exist");
     let disc_len = OneByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
-    assert_eq!(
-        &ob_account.data[..disc_len],
-        OneByteRecord::LIGHT_DISCRIMINATOR_SLICE,
-        "OneByteRecord discriminator should match"
-    );
     let actual_ob: OneByteRecord =
         borsh::BorshDeserialize::deserialize(&mut &ob_account.data[disc_len..])
             .expect("Failed to deserialize OneByteRecord");
-    assert_eq!(actual_ob.owner, owner.to_bytes(), "OneByteRecord owner should match");
+    let expected_ob = OneByteRecord {
+        compression_info: shared::expected_compression_info(&actual_ob.compression_info),
+        owner: owner.to_bytes(),
+    };
+    assert_eq!(
+        actual_ob, expected_ob,
+        "OneByteRecord should match after creation"
+    );
 
     let ata_account = rpc
         .get_account(ata)
@@ -398,7 +400,10 @@ async fn test_create_all_derive() {
         compression_info: shared::expected_compression_info(&actual_ob.compression_info),
         owner: owner.to_bytes(),
     };
-    assert_eq!(actual_ob, expected_ob, "OneByteRecord should match after decompression");
+    assert_eq!(
+        actual_ob, expected_ob,
+        "OneByteRecord should match after decompression"
+    );
 
     // ATA
     let actual_ata: Token = shared::parse_token(&rpc.get_account(ata).await.unwrap().unwrap().data);

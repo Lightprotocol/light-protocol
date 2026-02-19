@@ -1,12 +1,10 @@
 /// Stress test: 20-iteration compression/decompression cycles for all account types.
 ///
-/// Tests repeated cycles of:
-/// 1. Decompress all accounts
-/// 2. Assert cached state matches on-chain state
-/// 3. Update cache from on-chain state
-/// 4. Compress all accounts (warp forward)
+/// Each iteration randomly selects a subset of accounts to decompress, leaving the rest
+/// compressed. Tests that hot/cold accounts coexist correctly across repeated cycles.
 mod shared;
 
+use light_account::LightDiscriminator;
 use light_account_pinocchio::token::TokenDataWithSeeds;
 use light_batched_merkle_tree::{
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
@@ -24,19 +22,54 @@ use light_program_test::{
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
 use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
 use light_token_interface::state::{token::Token, Mint};
-use light_account::LightDiscriminator;
 use pinocchio_light_program_test::{
     all::accounts::CreateAllParams, discriminators, LightAccountVariant, MinimalRecord,
     MinimalRecordSeeds, OneByteRecord, OneByteRecordSeeds, VaultSeeds, ZeroCopyRecord,
     ZeroCopyRecordSeeds, MINT_SIGNER_SEED_A, RECORD_SEED, VAULT_AUTH_SEED, VAULT_SEED,
 };
+use rand::{seq::SliceRandom, thread_rng, Rng};
 use solana_instruction::{AccountMeta, Instruction};
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
 
-/// Stores all derived PDAs
-#[allow(dead_code)]
+/// Which accounts are hot (decompressed / on-chain) this iteration.
+#[derive(Debug, Clone)]
+struct HotSet {
+    record: bool,
+    zc_record: bool,
+    one_byte: bool,
+    /// Mint must be true whenever ata or vault is true.
+    mint: bool,
+    ata: bool,
+    vault: bool,
+}
+
+impl HotSet {
+    /// Random subset. Ensures Mint is hot when ATA or Vault is, and at least
+    /// one account is always hot.
+    fn random(rng: &mut impl Rng) -> Self {
+        let ata = rng.gen_bool(0.7);
+        let vault = rng.gen_bool(0.7);
+        // Mint must precede ATA/Vault, so force it hot when either is selected.
+        let mint = ata || vault || rng.gen_bool(0.7);
+        let mut hot = Self {
+            record: rng.gen_bool(0.7),
+            zc_record: rng.gen_bool(0.7),
+            one_byte: rng.gen_bool(0.7),
+            mint,
+            ata,
+            vault,
+        };
+        // Guarantee at least one account is hot.
+        if !hot.record && !hot.zc_record && !hot.one_byte && !hot.mint {
+            hot.record = true;
+        }
+        hot
+    }
+}
+
+/// Stores all derived PDAs.
 struct TestPdas {
     record: Pubkey,
     zc_record: Pubkey,
@@ -44,7 +77,6 @@ struct TestPdas {
     ata: Pubkey,
     ata_owner: Pubkey,
     vault: Pubkey,
-    vault_owner: Pubkey,
     mint: Pubkey,
 }
 
@@ -59,7 +91,7 @@ struct CachedState {
     owner: [u8; 32],
 }
 
-/// Test context
+/// Test context.
 struct StressTestContext {
     rpc: LightProgramTest,
     payer: Keypair,
@@ -71,7 +103,7 @@ fn parse_token(data: &[u8]) -> Token {
     borsh::BorshDeserialize::deserialize(&mut &data[..]).unwrap()
 }
 
-/// Setup environment with larger queues for stress test
+/// Setup environment with larger queues for stress test.
 async fn setup() -> (StressTestContext, TestPdas) {
     let program_id = Pubkey::new_from_array(pinocchio_light_program_test::ID);
     let mut config = ProgramTestConfig::new_v2(
@@ -114,23 +146,19 @@ async fn setup() -> (StressTestContext, TestPdas) {
     let (one_byte_pda, _) =
         Pubkey::find_program_address(&[b"one_byte_record", owner.as_ref()], &program_id);
 
-    // Mint signer PDA
     let (mint_signer, mint_signer_bump) = Pubkey::find_program_address(
         &[MINT_SIGNER_SEED_A, authority.pubkey().as_ref()],
         &program_id,
     );
     let (mint_pda, _) = light_token::instruction::find_mint_address(&mint_signer);
 
-    // Token vault PDA (uses the mint we're creating)
     let (vault_owner, _) = Pubkey::find_program_address(&[VAULT_AUTH_SEED], &program_id);
     let (vault, vault_bump) =
         Pubkey::find_program_address(&[VAULT_SEED, mint_pda.as_ref()], &program_id);
 
-    // ATA (uses the mint we're creating)
     let ata_owner = payer.pubkey();
     let ata = light_token::instruction::derive_token_ata(&ata_owner, &mint_pda);
 
-    // Create all accounts in one instruction
     let proof_result = get_create_accounts_proof(
         &rpc,
         &program_id,
@@ -151,7 +179,6 @@ async fn setup() -> (StressTestContext, TestPdas) {
         token_vault_bump: vault_bump,
     };
 
-    // Account order per all/accounts.rs
     let accounts = vec![
         AccountMeta::new(payer.pubkey(), true),
         AccountMeta::new_readonly(authority.pubkey(), true),
@@ -189,7 +216,6 @@ async fn setup() -> (StressTestContext, TestPdas) {
         ata,
         ata_owner,
         vault,
-        vault_owner,
         mint: mint_pda,
     };
 
@@ -203,26 +229,46 @@ async fn setup() -> (StressTestContext, TestPdas) {
     (ctx, pdas)
 }
 
-/// Re-read all on-chain accounts into the cache
-async fn refresh_cache(
+/// Read on-chain state for all accounts in `hot`, keep old values for the rest.
+async fn refresh_cache_partial(
     rpc: &mut LightProgramTest,
     pdas: &TestPdas,
-    owner: [u8; 32],
+    hot: &HotSet,
+    old: &CachedState,
 ) -> CachedState {
-    let record_account = rpc.get_account(pdas.record).await.unwrap().unwrap();
-    let record: MinimalRecord =
-        borsh::BorshDeserialize::deserialize(&mut &record_account.data[8..]).unwrap();
+    let record = if hot.record {
+        let data = rpc.get_account(pdas.record).await.unwrap().unwrap().data;
+        borsh::BorshDeserialize::deserialize(&mut &data[8..]).unwrap()
+    } else {
+        old.record.clone()
+    };
 
-    let zc_account = rpc.get_account(pdas.zc_record).await.unwrap().unwrap();
-    let zc_record: ZeroCopyRecord = *bytemuck::from_bytes(&zc_account.data[8..]);
+    let zc_record = if hot.zc_record {
+        let data = rpc.get_account(pdas.zc_record).await.unwrap().unwrap().data;
+        *bytemuck::from_bytes(&data[8..])
+    } else {
+        old.zc_record
+    };
 
-    let ob_account = rpc.get_account(pdas.one_byte).await.unwrap().unwrap();
-    let disc_len = OneByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
-    let ob_record: OneByteRecord =
-        borsh::BorshDeserialize::deserialize(&mut &ob_account.data[disc_len..]).unwrap();
+    let ob_record = if hot.one_byte {
+        let data = rpc.get_account(pdas.one_byte).await.unwrap().unwrap().data;
+        let disc_len = OneByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
+        borsh::BorshDeserialize::deserialize(&mut &data[disc_len..]).unwrap()
+    } else {
+        old.ob_record.clone()
+    };
 
-    let ata_token = parse_token(&rpc.get_account(pdas.ata).await.unwrap().unwrap().data);
-    let vault_token = parse_token(&rpc.get_account(pdas.vault).await.unwrap().unwrap().data);
+    let ata_token = if hot.ata {
+        parse_token(&rpc.get_account(pdas.ata).await.unwrap().unwrap().data)
+    } else {
+        old.ata_token.clone()
+    };
+
+    let vault_token = if hot.vault {
+        parse_token(&rpc.get_account(pdas.vault).await.unwrap().unwrap().data)
+    } else {
+        old.vault_token.clone()
+    };
 
     CachedState {
         record,
@@ -230,159 +276,187 @@ async fn refresh_cache(
         ob_record,
         ata_token,
         vault_token,
-        owner,
+        owner: old.owner,
     }
 }
 
-/// Decompress all accounts
-async fn decompress_all(ctx: &mut StressTestContext, pdas: &TestPdas, cached: &CachedState) {
-    // PDA: MinimalRecord
-    let record_interface = ctx
-        .rpc
-        .get_account_interface(&pdas.record, None)
-        .await
-        .expect("failed to get MinimalRecord interface")
-        .value
-        .expect("MinimalRecord interface should exist");
-    assert!(record_interface.is_cold(), "MinimalRecord should be cold");
+/// Decompress only the accounts listed in `hot`. Mint is always placed first in the
+/// specs vec; everything else is shuffled.
+async fn decompress_subset(
+    ctx: &mut StressTestContext,
+    pdas: &TestPdas,
+    cached: &CachedState,
+    hot: &HotSet,
+) {
+    let mut specs: Vec<AccountSpec<LightAccountVariant>> = Vec::new();
 
-    let record_data: MinimalRecord =
-        borsh::BorshDeserialize::deserialize(&mut &record_interface.account.data[8..])
-            .expect("Failed to parse MinimalRecord");
-    let record_variant = LightAccountVariant::MinimalRecord {
-        seeds: MinimalRecordSeeds {
-            owner: cached.owner,
-        },
-        data: record_data,
-    };
-    let record_spec = PdaSpec::new(record_interface, record_variant, ctx.program_id);
-
-    // PDA: ZeroCopyRecord
-    let zc_interface = ctx
-        .rpc
-        .get_account_interface(&pdas.zc_record, None)
-        .await
-        .expect("failed to get ZeroCopyRecord interface")
-        .value
-        .expect("ZeroCopyRecord interface should exist");
-    assert!(zc_interface.is_cold(), "ZeroCopyRecord should be cold");
-
-    let zc_data: ZeroCopyRecord =
-        borsh::BorshDeserialize::deserialize(&mut &zc_interface.account.data[8..])
-            .expect("Failed to parse ZeroCopyRecord");
-    let zc_variant = LightAccountVariant::ZeroCopyRecord {
-        seeds: ZeroCopyRecordSeeds {
-            owner: cached.owner,
-        },
-        data: zc_data,
-    };
-    let zc_spec = PdaSpec::new(zc_interface, zc_variant, ctx.program_id);
-
-    // PDA: OneByteRecord
-    let ob_interface = ctx
-        .rpc
-        .get_account_interface(&pdas.one_byte, None)
-        .await
-        .expect("failed to get OneByteRecord interface")
-        .value
-        .expect("OneByteRecord interface should exist");
-    assert!(ob_interface.is_cold(), "OneByteRecord should be cold");
-
-    let ob_data: OneByteRecord =
-        borsh::BorshDeserialize::deserialize(&mut &ob_interface.account.data[8..])
-            .expect("Failed to parse OneByteRecord from interface");
-    let ob_variant = LightAccountVariant::OneByteRecord {
-        seeds: OneByteRecordSeeds {
-            owner: cached.owner,
-        },
-        data: ob_data,
-    };
-    let ob_spec = PdaSpec::new(ob_interface, ob_variant, ctx.program_id);
-
-    // ATA
-    let ata_interface = ctx
-        .rpc
-        .get_associated_token_account_interface(&pdas.ata_owner, &pdas.mint, None)
-        .await
-        .expect("failed to get ATA interface")
-        .value
-        .expect("ATA interface should exist");
-    assert!(ata_interface.is_cold(), "ATA should be cold");
-
-    // Token PDA: Vault
-    let vault_iface = ctx
-        .rpc
-        .get_token_account_interface(&pdas.vault, None)
-        .await
-        .expect("failed to get vault interface")
-        .value
-        .expect("vault interface should exist");
-    assert!(vault_iface.is_cold(), "Vault should be cold");
-
-    let vault_token_data: Token =
-        borsh::BorshDeserialize::deserialize(&mut &vault_iface.account.data[..])
-            .expect("Failed to parse vault Token");
-    let vault_variant = LightAccountVariant::Vault(TokenDataWithSeeds {
-        seeds: VaultSeeds {
-            mint: pdas.mint.to_bytes(),
-        },
-        token_data: vault_token_data,
-    });
-    let vault_compressed = vault_iface
-        .compressed()
-        .expect("cold vault must have compressed data");
-    let vault_interface = AccountInterface {
-        key: vault_iface.key,
-        account: vault_iface.account.clone(),
-        cold: Some(vault_compressed.account.clone()),
-    };
-    let vault_spec = PdaSpec::new(vault_interface, vault_variant, ctx.program_id);
-
-    // Mint
-    let mint_iface = ctx
-        .rpc
-        .get_mint_interface(&pdas.mint, None)
-        .await
-        .expect("failed to get mint interface")
-        .value
-        .expect("mint interface should exist");
-    assert!(mint_iface.is_cold(), "Mint should be cold");
-    let mint_ai = AccountInterface::from(mint_iface);
-
-    // Mint must come before ATA and vault since they depend on mint being decompressed
-    let specs: Vec<AccountSpec<LightAccountVariant>> = vec![
-        AccountSpec::Pda(record_spec),
-        AccountSpec::Pda(zc_spec),
-        AccountSpec::Pda(ob_spec),
-        AccountSpec::Mint(mint_ai),
-        AccountSpec::Ata(Box::new(ata_interface)),
-        AccountSpec::Pda(vault_spec),
-    ];
-
-    let decompress_ixs =
-        create_load_instructions(&specs, ctx.payer.pubkey(), ctx.config_pda, &ctx.rpc)
+    // Mint first (ATA and Vault depend on it).
+    if hot.mint {
+        let mint_iface = ctx
+            .rpc
+            .get_mint_interface(&pdas.mint, None)
             .await
-            .expect("create_load_instructions should succeed");
+            .expect("failed to get mint interface")
+            .value
+            .expect("mint interface should exist");
+        assert!(mint_iface.is_cold(), "Mint should be cold");
+        specs.push(AccountSpec::Mint(AccountInterface::from(mint_iface)));
+    }
+
+    // Remaining specs, shuffled.
+    let mut rest: Vec<AccountSpec<LightAccountVariant>> = Vec::new();
+
+    if hot.record {
+        let iface = ctx
+            .rpc
+            .get_account_interface(&pdas.record, None)
+            .await
+            .expect("failed to get MinimalRecord interface")
+            .value
+            .expect("MinimalRecord interface should exist");
+        assert!(iface.is_cold(), "MinimalRecord should be cold");
+        let data: MinimalRecord =
+            borsh::BorshDeserialize::deserialize(&mut &iface.account.data[8..])
+                .expect("Failed to parse MinimalRecord");
+        let variant = LightAccountVariant::MinimalRecord {
+            seeds: MinimalRecordSeeds {
+                owner: cached.owner,
+            },
+            data,
+        };
+        rest.push(AccountSpec::Pda(PdaSpec::new(
+            iface,
+            variant,
+            ctx.program_id,
+        )));
+    }
+
+    if hot.zc_record {
+        let iface = ctx
+            .rpc
+            .get_account_interface(&pdas.zc_record, None)
+            .await
+            .expect("failed to get ZeroCopyRecord interface")
+            .value
+            .expect("ZeroCopyRecord interface should exist");
+        assert!(iface.is_cold(), "ZeroCopyRecord should be cold");
+        let data: ZeroCopyRecord =
+            borsh::BorshDeserialize::deserialize(&mut &iface.account.data[8..])
+                .expect("Failed to parse ZeroCopyRecord");
+        let variant = LightAccountVariant::ZeroCopyRecord {
+            seeds: ZeroCopyRecordSeeds {
+                owner: cached.owner,
+            },
+            data,
+        };
+        rest.push(AccountSpec::Pda(PdaSpec::new(
+            iface,
+            variant,
+            ctx.program_id,
+        )));
+    }
+
+    if hot.one_byte {
+        let iface = ctx
+            .rpc
+            .get_account_interface(&pdas.one_byte, None)
+            .await
+            .expect("failed to get OneByteRecord interface")
+            .value
+            .expect("OneByteRecord interface should exist");
+        assert!(iface.is_cold(), "OneByteRecord should be cold");
+        let data: OneByteRecord =
+            borsh::BorshDeserialize::deserialize(&mut &iface.account.data[8..])
+                .expect("Failed to parse OneByteRecord");
+        let variant = LightAccountVariant::OneByteRecord {
+            seeds: OneByteRecordSeeds {
+                owner: cached.owner,
+            },
+            data,
+        };
+        rest.push(AccountSpec::Pda(PdaSpec::new(
+            iface,
+            variant,
+            ctx.program_id,
+        )));
+    }
+
+    if hot.ata {
+        let iface = ctx
+            .rpc
+            .get_associated_token_account_interface(&pdas.ata_owner, &pdas.mint, None)
+            .await
+            .expect("failed to get ATA interface")
+            .value
+            .expect("ATA interface should exist");
+        assert!(iface.is_cold(), "ATA should be cold");
+        rest.push(AccountSpec::Ata(Box::new(iface)));
+    }
+
+    if hot.vault {
+        let iface = ctx
+            .rpc
+            .get_token_account_interface(&pdas.vault, None)
+            .await
+            .expect("failed to get vault interface")
+            .value
+            .expect("vault interface should exist");
+        assert!(iface.is_cold(), "Vault should be cold");
+        let token_data: Token = borsh::BorshDeserialize::deserialize(&mut &iface.account.data[..])
+            .expect("Failed to parse vault Token");
+        let variant = LightAccountVariant::Vault(TokenDataWithSeeds {
+            seeds: VaultSeeds {
+                mint: pdas.mint.to_bytes(),
+            },
+            token_data,
+        });
+        let compressed = iface
+            .compressed()
+            .expect("cold vault must have compressed data");
+        let vault_interface = AccountInterface {
+            key: iface.key,
+            account: iface.account.clone(),
+            cold: Some(compressed.account.clone()),
+        };
+        rest.push(AccountSpec::Pda(PdaSpec::new(
+            vault_interface,
+            variant,
+            ctx.program_id,
+        )));
+    }
+
+    rest.shuffle(&mut thread_rng());
+    specs.extend(rest);
+
+    if specs.is_empty() {
+        return;
+    }
+
+    let ixs = create_load_instructions(&specs, ctx.payer.pubkey(), ctx.config_pda, &ctx.rpc)
+        .await
+        .expect("create_load_instructions should succeed");
 
     ctx.rpc
-        .create_and_send_transaction(&decompress_ixs, &ctx.payer.pubkey(), &[&ctx.payer])
+        .create_and_send_transaction(&ixs, &ctx.payer.pubkey(), &[&ctx.payer])
         .await
         .expect("Decompression should succeed");
 
-    // Verify all decompressed accounts exist on-chain
-    for (pda, name) in [
-        (&pdas.record, "MinimalRecord"),
-        (&pdas.zc_record, "ZeroCopyRecord"),
-        (&pdas.one_byte, "OneByteRecord"),
-        (&pdas.ata, "ATA"),
-        (&pdas.vault, "Vault"),
-        (&pdas.mint, "Mint"),
+    // Assert hot accounts are now on-chain.
+    for (flag, pda, name) in [
+        (hot.record, &pdas.record, "MinimalRecord"),
+        (hot.zc_record, &pdas.zc_record, "ZeroCopyRecord"),
+        (hot.one_byte, &pdas.one_byte, "OneByteRecord"),
+        (hot.mint, &pdas.mint, "Mint"),
+        (hot.ata, &pdas.ata, "ATA"),
+        (hot.vault, &pdas.vault, "Vault"),
     ] {
-        shared::assert_onchain_exists(&mut ctx.rpc, pda, name).await;
+        if flag {
+            shared::assert_onchain_exists(&mut ctx.rpc, pda, name).await;
+        }
     }
 }
 
-/// Compress all accounts by warping forward epochs
+/// Compress all accounts by warping forward. Everything goes cold regardless of what was hot.
 async fn compress_all(ctx: &mut StressTestContext, pdas: &TestPdas) {
     ctx.rpc
         .warp_slot_forward(SLOTS_PER_EPOCH * 100)
@@ -401,83 +475,84 @@ async fn compress_all(ctx: &mut StressTestContext, pdas: &TestPdas) {
     }
 }
 
-/// Full-struct assertions for all accounts against cached state
-async fn assert_all_state(
+/// Assert on-chain state only for accounts in `hot`.
+async fn assert_hot_state(
     rpc: &mut LightProgramTest,
     pdas: &TestPdas,
     cached: &CachedState,
+    hot: &HotSet,
     iteration: usize,
 ) {
-    // MinimalRecord
-    let account = rpc.get_account(pdas.record).await.unwrap().unwrap();
-    let actual_record: MinimalRecord =
-        borsh::BorshDeserialize::deserialize(&mut &account.data[8..]).unwrap();
-    let expected_record = MinimalRecord {
-        compression_info: shared::expected_compression_info(&actual_record.compression_info),
-        ..cached.record.clone()
-    };
-    assert_eq!(
-        actual_record, expected_record,
-        "MinimalRecord mismatch at iteration {iteration}"
-    );
+    if hot.record {
+        let account = rpc.get_account(pdas.record).await.unwrap().unwrap();
+        let actual: MinimalRecord =
+            borsh::BorshDeserialize::deserialize(&mut &account.data[8..]).unwrap();
+        let expected = MinimalRecord {
+            compression_info: shared::expected_compression_info(&actual.compression_info),
+            ..cached.record.clone()
+        };
+        assert_eq!(
+            actual, expected,
+            "MinimalRecord mismatch at iteration {iteration}"
+        );
+    }
 
-    // ZeroCopyRecord
-    let account = rpc.get_account(pdas.zc_record).await.unwrap().unwrap();
-    let actual_zc: &ZeroCopyRecord = bytemuck::from_bytes(&account.data[8..]);
-    let expected_zc = ZeroCopyRecord {
-        compression_info: shared::expected_compression_info(&actual_zc.compression_info),
-        ..cached.zc_record
-    };
-    assert_eq!(
-        *actual_zc, expected_zc,
-        "ZeroCopyRecord mismatch at iteration {iteration}"
-    );
+    if hot.zc_record {
+        let account = rpc.get_account(pdas.zc_record).await.unwrap().unwrap();
+        let actual: &ZeroCopyRecord = bytemuck::from_bytes(&account.data[8..]);
+        let expected = ZeroCopyRecord {
+            compression_info: shared::expected_compression_info(&actual.compression_info),
+            ..cached.zc_record
+        };
+        assert_eq!(
+            *actual, expected,
+            "ZeroCopyRecord mismatch at iteration {iteration}"
+        );
+    }
 
-    // OneByteRecord
-    let ob_account = rpc.get_account(pdas.one_byte).await.unwrap().unwrap();
-    let disc_len = OneByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
-    let actual_ob: OneByteRecord =
-        borsh::BorshDeserialize::deserialize(&mut &ob_account.data[disc_len..]).unwrap();
-    let expected_ob = OneByteRecord {
-        compression_info: shared::expected_compression_info(&actual_ob.compression_info),
-        ..cached.ob_record.clone()
-    };
-    assert_eq!(
-        actual_ob, expected_ob,
-        "OneByteRecord mismatch at iteration {iteration}"
-    );
+    if hot.one_byte {
+        let account = rpc.get_account(pdas.one_byte).await.unwrap().unwrap();
+        let disc_len = OneByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
+        let actual: OneByteRecord =
+            borsh::BorshDeserialize::deserialize(&mut &account.data[disc_len..]).unwrap();
+        let expected = OneByteRecord {
+            compression_info: shared::expected_compression_info(&actual.compression_info),
+            ..cached.ob_record.clone()
+        };
+        assert_eq!(
+            actual, expected,
+            "OneByteRecord mismatch at iteration {iteration}"
+        );
+    }
 
-    // ATA
-    let actual_ata = parse_token(&rpc.get_account(pdas.ata).await.unwrap().unwrap().data);
-    let expected_ata = Token {
-        extensions: actual_ata.extensions.clone(),
-        ..cached.ata_token.clone()
-    };
-    assert_eq!(
-        actual_ata, expected_ata,
-        "ATA mismatch at iteration {iteration}"
-    );
+    if hot.ata {
+        let actual = parse_token(&rpc.get_account(pdas.ata).await.unwrap().unwrap().data);
+        let expected = Token {
+            extensions: actual.extensions.clone(),
+            ..cached.ata_token.clone()
+        };
+        assert_eq!(actual, expected, "ATA mismatch at iteration {iteration}");
+    }
 
-    // Vault
-    let actual_vault = parse_token(&rpc.get_account(pdas.vault).await.unwrap().unwrap().data);
-    let expected_vault = Token {
-        extensions: actual_vault.extensions.clone(),
-        ..cached.vault_token.clone()
-    };
-    assert_eq!(
-        actual_vault, expected_vault,
-        "Vault mismatch at iteration {iteration}"
-    );
+    if hot.vault {
+        let actual = parse_token(&rpc.get_account(pdas.vault).await.unwrap().unwrap().data);
+        let expected = Token {
+            extensions: actual.extensions.clone(),
+            ..cached.vault_token.clone()
+        };
+        assert_eq!(actual, expected, "Vault mismatch at iteration {iteration}");
+    }
 
-    // Mint
-    let actual_mint: Mint = borsh::BorshDeserialize::deserialize(
-        &mut &rpc.get_account(pdas.mint).await.unwrap().unwrap().data[..],
-    )
-    .unwrap();
-    assert_eq!(
-        actual_mint.base.decimals, 9,
-        "Mint decimals mismatch at iteration {iteration}"
-    );
+    if hot.mint {
+        let actual: Mint = borsh::BorshDeserialize::deserialize(
+            &mut &rpc.get_account(pdas.mint).await.unwrap().unwrap().data[..],
+        )
+        .unwrap();
+        assert_eq!(
+            actual.base.decimals, 9,
+            "Mint decimals mismatch at iteration {iteration}"
+        );
+    }
 }
 
 #[tokio::test]
@@ -496,32 +571,58 @@ async fn test_stress_20_iterations() {
         shared::assert_onchain_exists(&mut ctx.rpc, pda, name).await;
     }
 
-    // Cache initial state
-    let owner = {
-        let account = ctx.rpc.get_account(pdas.record).await.unwrap().unwrap();
-        let record: MinimalRecord =
-            borsh::BorshDeserialize::deserialize(&mut &account.data[8..]).unwrap();
-        record.owner
+    // Read initial state — all accounts are on-chain right after creation.
+    let record_data = ctx
+        .rpc
+        .get_account(pdas.record)
+        .await
+        .unwrap()
+        .unwrap()
+        .data;
+    let owner: [u8; 32] = {
+        let r: MinimalRecord =
+            borsh::BorshDeserialize::deserialize(&mut &record_data[8..]).unwrap();
+        r.owner
     };
-    let mut cached = refresh_cache(&mut ctx.rpc, &pdas, owner).await;
+    let zc_data = ctx
+        .rpc
+        .get_account(pdas.zc_record)
+        .await
+        .unwrap()
+        .unwrap()
+        .data;
+    let ob_data = ctx
+        .rpc
+        .get_account(pdas.one_byte)
+        .await
+        .unwrap()
+        .unwrap()
+        .data;
+    let disc_len = OneByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
+    let mut cached = CachedState {
+        record: borsh::BorshDeserialize::deserialize(&mut &record_data[8..]).unwrap(),
+        zc_record: *bytemuck::from_bytes(&zc_data[8..]),
+        ob_record: borsh::BorshDeserialize::deserialize(&mut &ob_data[disc_len..]).unwrap(),
+        ata_token: parse_token(&ctx.rpc.get_account(pdas.ata).await.unwrap().unwrap().data),
+        vault_token: parse_token(&ctx.rpc.get_account(pdas.vault).await.unwrap().unwrap().data),
+        owner,
+    };
 
-    // First compression
+    // First compression — all accounts go cold.
     compress_all(&mut ctx, &pdas).await;
 
-    // Main loop: 20 iterations
+    let mut rng = thread_rng();
+
     for i in 0..20 {
-        println!("--- Iteration {i} ---");
+        let hot = HotSet::random(&mut rng);
+        println!("--- Iteration {i}: hot={hot:?} ---");
 
-        // Decompress all
-        decompress_all(&mut ctx, &pdas, &cached).await;
+        decompress_subset(&mut ctx, &pdas, &cached, &hot).await;
+        assert_hot_state(&mut ctx.rpc, &pdas, &cached, &hot, i).await;
 
-        // Assert all cached state
-        assert_all_state(&mut ctx.rpc, &pdas, &cached, i).await;
+        // Update cache only for accounts that were decompressed this iteration.
+        cached = refresh_cache_partial(&mut ctx.rpc, &pdas, &hot, &cached).await;
 
-        // Update cache after decompression (compression_info changes)
-        cached = refresh_cache(&mut ctx.rpc, &pdas, owner).await;
-
-        // Compress all
         compress_all(&mut ctx, &pdas).await;
 
         println!("  iteration {i} complete");

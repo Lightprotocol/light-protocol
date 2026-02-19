@@ -1,6 +1,6 @@
 use borsh::BorshDeserialize;
 use light_account_pinocchio::{
-    prepare_compressed_account_on_init, CompressionInfo, CompressedCpiContext, CpiAccounts,
+    prepare_compressed_account_on_init, CompressedCpiContext, CompressionInfo, CpiAccounts,
     CpiAccountsConfig, InstructionDataInvokeCpiWithAccountInfo, InvokeLightSystemProgram,
     LightConfig, LightDiscriminator, LightSdkTypesError, PackedAddressTreeInfoExt,
 };

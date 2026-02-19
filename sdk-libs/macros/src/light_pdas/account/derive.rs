@@ -156,7 +156,7 @@ fn parse_pinocchio_discriminator(attrs: &[syn::Attribute]) -> Result<Option<Vec<
                             .collect::<Result<Vec<u8>>>()?;
                         if bytes.is_empty() {
                             return Err(syn::Error::new_spanned(
-                                &arr,
+                                arr,
                                 "discriminator must have at least one byte",
                             ));
                         }
@@ -882,7 +882,10 @@ mod tests {
             }
         };
         let result = derive_light_pinocchio_account(input);
-        assert!(result.is_err(), "Empty discriminator array should be rejected");
+        assert!(
+            result.is_err(),
+            "Empty discriminator array should be rejected"
+        );
         let err = result.unwrap_err().to_string();
         assert!(
             err.contains("at least one byte"),

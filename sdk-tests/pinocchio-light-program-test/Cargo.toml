@@ -33,6 +33,7 @@ light-token-client = { workspace = true }
 light-account = { workspace = true }
 light-batched-merkle-tree = { workspace = true }
 tokio = { workspace = true }
+rand = { workspace = true }
 solana-sdk = { workspace = true }
 solana-account = { workspace = true }
 solana-keypair = { workspace = true }
