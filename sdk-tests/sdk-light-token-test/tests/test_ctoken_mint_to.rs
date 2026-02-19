@@ -169,18 +169,18 @@ async fn test_ctoken_mint_to_invoke_signed() {
             AccountMeta::new_readonly(compressed_token_program_id, false), // [0]
             AccountMeta::new_readonly(default_pubkeys.light_system_program, false), // [1]
             AccountMeta::new_readonly(mint_signer_pda, false),             // [2] mint_signer PDA
-            AccountMeta::new(pda_mint_authority, false),                    // [3] authority PDA (writable, pays for top-ups)
+            AccountMeta::new(pda_mint_authority, false), // [3] authority PDA (writable, pays for top-ups)
             AccountMeta::new_readonly(compressible_config, false), // [4] compressible_config
-            AccountMeta::new(mint_pda, false),                     // [5] mint
-            AccountMeta::new(rent_sponsor, false),                 // [6] rent_sponsor
-            AccountMeta::new(payer.pubkey(), true),                // [7] fee_payer (signer)
+            AccountMeta::new(mint_pda, false),           // [5] mint
+            AccountMeta::new(rent_sponsor, false),       // [6] rent_sponsor
+            AccountMeta::new(payer.pubkey(), true),      // [7] fee_payer (signer)
             AccountMeta::new_readonly(default_pubkeys.cpi_authority_pda, false), // [8]
             AccountMeta::new_readonly(default_pubkeys.registered_program_pda, false), // [9]
             AccountMeta::new_readonly(default_pubkeys.account_compression_authority, false), // [10]
             AccountMeta::new_readonly(default_pubkeys.account_compression_program, false), // [11]
             AccountMeta::new_readonly(default_pubkeys.system_program, false), // [12]
-            AccountMeta::new(output_queue, false),                 // [13]
-            AccountMeta::new(address_tree.tree, false),            // [14]
+            AccountMeta::new(output_queue, false),       // [13]
+            AccountMeta::new(address_tree.tree, false),  // [14]
         ];
 
         let create_mint_ix = Instruction {

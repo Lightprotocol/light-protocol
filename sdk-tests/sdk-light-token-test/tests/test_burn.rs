@@ -119,9 +119,9 @@ async fn test_burn_invoke_signed() {
         accounts: vec![
             AccountMeta::new(ata, false),                          // source
             AccountMeta::new(mint_pda, false),                     // mint
-            AccountMeta::new(pda_owner, false),                     // PDA authority (writable, pays for top-ups)
+            AccountMeta::new(pda_owner, false), // PDA authority (writable, pays for top-ups)
             AccountMeta::new_readonly(light_token_program, false), // light_token_program
-            AccountMeta::new_readonly(Pubkey::default(), false),   // system_program
+            AccountMeta::new_readonly(Pubkey::default(), false), // system_program
         ],
         data: instruction_data,
     };
