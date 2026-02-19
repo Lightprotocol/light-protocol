@@ -4365,6 +4365,7 @@ dependencies = [
  "light-hasher",
  "light-macros",
  "light-token-interface",
+ "rand 0.8.5",
  "solana-account-info",
  "solana-msg 2.2.1",
  "solana-program-error 2.2.2",
