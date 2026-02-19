@@ -10,6 +10,7 @@
 //! | Invalid ctoken (non-existent) | test_approve_fails | test_revoke_fails |
 //! | Invalid ctoken (wrong owner) | test_approve_fails | test_revoke_fails |
 //! | Invalid ctoken (spl account) | test_approve_fails | test_revoke_fails |
+//! | Max top-up exceeded | test_approve_fails | test_revoke_fails |
 //!
 //! **Note**: "Invalid mint" tests not applicable - approve/revoke don't take mint as account.
 
@@ -128,8 +129,41 @@ async fn test_approve_fails() {
             delegate.pubkey(),
             &owner,
             100,
+            None,
             "wrong_program_owner",
             13, // InstructionError::ExternalAccountDataModified - program tried to modify account it doesn't own
+        )
+        .await;
+    }
+
+    // Test 3: Max top-up exceeded
+    {
+        let mut context = setup_account_test_with_created_account(Some((10, false)))
+            .await
+            .unwrap();
+
+        // Fund owner so the test doesn't fail due to insufficient lamports
+        context
+            .rpc
+            .airdrop_lamports(&context.owner_keypair.pubkey(), 1_000_000_000)
+            .await
+            .unwrap();
+
+        // Warp time to trigger top-up requirement (past funded epochs)
+        context.rpc.warp_to_slot(SLOTS_PER_EPOCH * 12 + 1).unwrap();
+
+        let delegate = Keypair::new();
+        let token_account = context.token_account_keypair.pubkey();
+        let owner = context.owner_keypair.insecure_clone();
+        approve_and_assert_fails(
+            &mut context,
+            token_account,
+            delegate.pubkey(),
+            &owner,
+            100,
+            Some(1), // max_top_up = 1 (1,000 lamports budget, still too low for rent top-up)
+            "max_topup_exceeded",
+            18043, // TokenError::MaxTopUpExceeded
         )
         .await;
     }
@@ -217,6 +251,7 @@ async fn test_revoke_fails() {
             &mut context,
             non_existent,
             &owner,
+            None,
             "non_existent_account",
             6153, // NotRentExempt (SPL Token code 0 -> ErrorCode::NotRentExempt)
         )
@@ -261,8 +296,40 @@ async fn test_revoke_fails() {
             &mut context,
             wrong_owner_account.pubkey(),
             &owner,
+            None,
             "wrong_program_owner",
             13, // InstructionError::ExternalAccountDataModified - program tried to modify account it doesn't own
+        )
+        .await;
+    }
+
+    // Test 3: Max top-up exceeded
+    {
+        let mut context = setup_account_test_with_created_account(Some((10, false)))
+            .await
+            .unwrap();
+
+        // First approve to set delegate (need to do before warping)
+        context
+            .rpc
+            .airdrop_lamports(&context.owner_keypair.pubkey(), 1_000_000_000)
+            .await
+            .unwrap();
+        let delegate = Keypair::new();
+        approve_and_assert(&mut context, delegate.pubkey(), 100, "approve_before_warp").await;
+
+        // Warp time to trigger top-up requirement (past funded epochs)
+        context.rpc.warp_to_slot(SLOTS_PER_EPOCH * 12 + 1).unwrap();
+
+        let token_account = context.token_account_keypair.pubkey();
+        let owner = context.owner_keypair.insecure_clone();
+        revoke_and_assert_fails(
+            &mut context,
+            token_account,
+            &owner,
+            Some(1), // max_top_up = 1 (1,000 lamports budget, still too low for rent top-up)
+            "max_topup_exceeded",
+            18043, // TokenError::MaxTopUpExceeded
         )
         .await;
     }
