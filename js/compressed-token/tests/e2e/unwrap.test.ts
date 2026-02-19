@@ -27,6 +27,7 @@ import {
 } from '../../src/utils/get-token-pool-infos';
 import { createUnwrapInstruction } from '../../src/v3/instructions/unwrap';
 import { unwrap, createUnwrapInstructions } from '../../src/v3/actions/unwrap';
+import { createCTokenFreezeAccountInstruction } from '../../src/v3/instructions/freeze-thaw';
 import { getAssociatedTokenAddressInterface } from '../../src';
 import { createAtaInterfaceIdempotent } from '../../src/v3/actions/create-ata-interface';
 import { getAtaProgramId } from '../../src/v3/ata-utils';
@@ -351,6 +352,83 @@ describe('createUnwrapInstructions', () => {
             ),
         ).rejects.toThrow(/Insufficient/);
     }, 60_000);
+
+    it('should throw when all c-token balance is frozen', async () => {
+        // This test needs a mint with a freeze authority set.
+        const freezeAuthority = Keypair.generate();
+        const mintWithFreezeKeypair = Keypair.generate();
+        const { mint: freezableMint } = await createMint(
+            rpc,
+            payer,
+            mintAuthority.publicKey,
+            TEST_TOKEN_DECIMALS,
+            mintWithFreezeKeypair,
+            undefined,
+            TOKEN_PROGRAM_ID,
+            freezeAuthority.publicKey,
+        );
+        const freezableMintPoolInfos = await getTokenPoolInfos(
+            rpc,
+            freezableMint,
+        );
+
+        const owner = await newAccountWithLamports(rpc, 1e9);
+
+        await mintTo(
+            rpc,
+            payer,
+            freezableMint,
+            owner.publicKey,
+            mintAuthority,
+            bn(500),
+            stateTreeInfo,
+            selectTokenPoolInfo(freezableMintPoolInfos),
+        );
+
+        const splAta = await createAssociatedTokenAccount(
+            rpc,
+            payer,
+            freezableMint,
+            owner.publicKey,
+            undefined,
+            TOKEN_PROGRAM_ID,
+        );
+
+        const ctokenAta = getAssociatedTokenAddressInterface(
+            freezableMint,
+            owner.publicKey,
+        );
+        const { loadAta } = await import('../../src/v3/actions/load-ata');
+        await loadAta(rpc, ctokenAta, owner, freezableMint, payer);
+
+        // Freeze the hot c-token ATA
+        const freezeIx = createCTokenFreezeAccountInstruction(
+            ctokenAta,
+            freezableMint,
+            freezeAuthority.publicKey,
+        );
+        const { blockhash: fh } = await rpc.getLatestBlockhash();
+        const freezeTx = buildAndSignTx([freezeIx], payer, fh, [
+            freezeAuthority,
+        ]);
+        await sendAndConfirmTx(rpc, freezeTx);
+
+        // Verify account is frozen (state byte 108 == 2)
+        const accountInfo = await rpc.getAccountInfo(ctokenAta);
+        expect(accountInfo).not.toBeNull();
+        expect(accountInfo!.data[108]).toBe(2);
+
+        await expect(
+            createUnwrapInstructions(
+                rpc,
+                splAta,
+                owner.publicKey,
+                freezableMint,
+                undefined,
+                payer.publicKey,
+            ),
+        ).rejects.toThrow('All c-token balance is frozen');
+    }, 90_000);
 });
 
 describe('unwrap action', () => {

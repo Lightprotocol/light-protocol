@@ -92,7 +92,9 @@ function buildInputTokenData(
 }
 
 /**
- * Create decompressInterface instruction using Transfer2.
+ * Create decompress instruction using Transfer2.
+ *
+ * @internal Use createLoadAtaInstructions instead.
  *
  * Supports decompressing to both c-token accounts and SPL token accounts:
  * - For c-token destinations: No splInterfaceInfo needed

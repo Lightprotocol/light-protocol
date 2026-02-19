@@ -20,7 +20,6 @@ import {
 } from '../../src/utils/get-token-pool-infos';
 import {
     createLoadAccountsParams,
-    createLoadAtaInstructionsFromInterface,
     createLoadAtaInstructions,
     CompressibleAccountInput,
     ParsedAccountInfoInterface,
@@ -311,91 +310,18 @@ describe('compressible-load', () => {
                     selectTokenPoolInfo(tokenPoolInfos),
                 );
 
-                // Load first to make it hot
-                const coldAta = await getAtaInterface(
+                const ataAddress = getAssociatedTokenAddressInterface(mint, owner.publicKey);
+                const loadBatches = await createLoadAtaInstructions(
                     rpc,
-                    getAssociatedTokenAddressInterface(mint, owner.publicKey),
+                    ataAddress,
                     owner.publicKey,
                     mint,
-                    undefined,
-                    LIGHT_TOKEN_PROGRAM_ID,
-                );
-
-                const loadIxs = await createLoadAtaInstructionsFromInterface(
-                    rpc,
                     payer.publicKey,
-                    coldAta,
                     { tokenPoolInfos },
                 );
 
-                // Execute load (this would need actual tx, simplified here)
-                // After load, ATA would be hot - for this test we just verify the flow
-                expect(loadIxs.length).toBeGreaterThan(0);
+                expect(loadBatches.length).toBeGreaterThan(0);
             });
-        });
-    });
-
-    describe('createLoadAtaInstructionsFromInterface', () => {
-        it('should throw if AccountInterface not from getAtaInterface', async () => {
-            const fakeInterface = {
-                accountInfo: { data: Buffer.alloc(0) },
-                parsed: {},
-                isCold: false,
-                // Missing _isAta, _owner, _mint
-            } as any;
-
-            await expect(
-                createLoadAtaInstructionsFromInterface(
-                    rpc,
-                    payer.publicKey,
-                    fakeInterface,
-                ),
-            ).rejects.toThrow('must be from getAtaInterface');
-        });
-
-        it('should return empty when nothing to load', async () => {
-            const owner = Keypair.generate();
-
-            // No balance - getAtaInterface will throw, so we test the empty case differently
-            // For an owner with no tokens, getAtaInterface throws TokenAccountNotFoundError
-            // This is expected behavior
-        });
-
-        it('should build instructions for cold ATA', async () => {
-            const owner = await newAccountWithLamports(rpc, 1e9);
-
-            await mintTo(
-                rpc,
-                payer,
-                mint,
-                owner.publicKey,
-                mintAuthority,
-                bn(1000),
-                stateTreeInfo,
-                selectTokenPoolInfo(tokenPoolInfos),
-            );
-
-            const ata = await getAtaInterface(
-                rpc,
-                getAssociatedTokenAddressInterface(mint, owner.publicKey),
-                owner.publicKey,
-                mint,
-                undefined,
-                LIGHT_TOKEN_PROGRAM_ID,
-            );
-
-            expect(ata._isAta).toBe(true);
-            expect(ata._owner?.equals(owner.publicKey)).toBe(true);
-            expect(ata._mint?.equals(mint)).toBe(true);
-
-            const ixs = await createLoadAtaInstructionsFromInterface(
-                rpc,
-                payer.publicKey,
-                ata,
-                { tokenPoolInfos },
-            );
-
-            expect(ixs.length).toBeGreaterThan(0);
         });
     });
 
@@ -430,10 +356,17 @@ describe('compressible-load', () => {
             expect(batches.length).toBeGreaterThan(0);
         });
 
-        it('should return empty when nothing to load (hot ATA)', async () => {
-            // For a hot ATA with no cold/SPL/T22 balance, should return empty
-            // This is tested via createLoadAtaInstructionsFromInterface since createLoadAtaInstructions
-            // fetches internally
+        it('should return empty for owner with no token accounts', async () => {
+            const owner = Keypair.generate();
+            const ata = getAssociatedTokenAddressInterface(mint, owner.publicKey);
+            const batches = await createLoadAtaInstructions(
+                rpc,
+                ata,
+                owner.publicKey,
+                mint,
+                payer.publicKey,
+            );
+            expect(batches.length).toBe(0);
         });
     });
 

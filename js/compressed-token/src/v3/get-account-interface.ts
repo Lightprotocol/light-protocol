@@ -904,7 +904,8 @@ async function getSplOrToken2022AccountInterface(
     return buildAccountInterfaceFromSources(sources, address);
 }
 
-function buildAccountInterfaceFromSources(
+/** @internal */
+export function buildAccountInterfaceFromSources(
     sources: TokenAccountSource[],
     canonicalAddress: PublicKey,
 ): AccountInterface {

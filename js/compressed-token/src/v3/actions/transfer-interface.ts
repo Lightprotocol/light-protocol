@@ -177,8 +177,9 @@ export function sliceLast<T>(items: T[]): { rest: T[]; last: T } {
 
 /**
  * Compute units for the transfer transaction (load chunk + transfer).
+ * @internal Exported for unit testing.
  */
-function calculateTransferCU(loadBatch: InternalLoadBatch | null): number {
+export function calculateTransferCU(loadBatch: InternalLoadBatch | null): number {
     let cu = 10_000; // c-token transfer base
 
     if (loadBatch) {

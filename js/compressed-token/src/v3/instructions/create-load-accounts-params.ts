@@ -10,7 +10,8 @@ import {
     TransactionInstruction,
 } from '@solana/web3.js';
 import { AccountInterface } from '../get-account-interface';
-import { createLoadAtaInstructionsFromInterface } from '../actions/load-ata';
+import { _buildLoadBatches } from '../actions/load-ata';
+import { getAssociatedTokenAddressInterface } from '../get-associated-token-address-interface';
 import { InterfaceOptions } from '../actions/transfer-interface';
 
 /**
@@ -82,8 +83,14 @@ export interface CompressibleLoadParams {
 export interface LoadResult {
     /** Params for decompressAccountsIdempotent (null if no program accounts need decompressing) */
     decompressParams: CompressibleLoadParams | null;
-    /** Instructions to load ATAs (create ATA, wrap SPL/T22, decompressInterface) */
-    ataInstructions: TransactionInstruction[];
+    /**
+     * Instruction batches to load ATAs (create ATA, wrap SPL/T22, decompress).
+     * Each inner array is one transaction. When >8 compressed inputs exist for
+     * a single ATA, multiple batches are returned and must be sent as separate
+     * transactions. Send all batches in parallel, then proceed with the program
+     * instruction. Most use cases produce a single batch.
+     */
+    ataInstructions: TransactionInstruction[][];
 }
 
 /**
@@ -118,13 +125,20 @@ export interface LoadResult {
  *         { address: poolAddress, accountType: 'poolState', info: poolInfo },
  *         { address: vault0, accountType: 'cTokenData', tokenVariant: 'token0Vault', info: vault0Info },
  *     ],
- *     [userAta],
+ *     [userAtaInfo],
  * );
  *
- * // Build transaction with both program decompress and ATA load
- * const instructions = [...result.ataInstructions];
+ * // Send ATA load batches first (parallel when >1 batch), then the program instruction
+ * await Promise.all(result.ataInstructions.map(async ixs => {
+ *     const { blockhash } = await rpc.getLatestBlockhash();
+ *     const tx = buildAndSignTx(ixs, payer, blockhash, [owner]);
+ *     return sendAndConfirmTx(rpc, tx);
+ * }));
+ *
+ * // Build and send the program instruction
+ * const programIxs: TransactionInstruction[] = [];
  * if (result.decompressParams) {
- *     instructions.push(await program.methods
+ *     programIxs.push(await program.methods
  *         .decompressAccountsIdempotent(
  *             result.decompressParams.proofOption,
  *             result.decompressParams.compressedAccounts,
@@ -207,16 +221,19 @@ export async function createLoadAccountsParams(
         };
     }
 
-    const ataInstructions: TransactionInstruction[] = [];
+    const ataInstructions: TransactionInstruction[][] = [];
 
     for (const ata of atas) {
-        const ixs = await createLoadAtaInstructionsFromInterface(
-            rpc,
-            payer,
-            ata,
-            options,
-        );
-        ataInstructions.push(...ixs);
+        if (!ata._isAta || !ata._owner || !ata._mint) {
+            throw new Error(
+                'Each ATA must be from getAtaInterface (requires _isAta, _owner, _mint)',
+            );
+        }
+        const targetAta = getAssociatedTokenAddressInterface(ata._mint, ata._owner);
+        const batches = await _buildLoadBatches(rpc, payer, ata, options, false, targetAta);
+        for (const batch of batches) {
+            ataInstructions.push(batch.instructions);
+        }
     }
 
     return {

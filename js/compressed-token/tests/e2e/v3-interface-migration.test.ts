@@ -25,12 +25,14 @@ import {
     TokenPoolInfo,
 } from '../../src/utils/get-token-pool-infos';
 import {
-    decompressInterface,
     getAtaInterface,
     getAssociatedTokenAddressInterface,
     transferInterface,
 } from '../../src/v3';
-import { createLoadAtaInstructions, loadAta } from '../../src/index';
+import {
+    createLoadAtaInstructions,
+    loadAta,
+} from '../../src/index';
 
 featureFlags.version = VERSION.V2;
 
@@ -69,7 +71,7 @@ describe('v3-interface-v1-rejection', () => {
         tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
     }, 120_000);
 
-    describe('decompressInterface', () => {
+    describe('loadAta (V1 rejection)', () => {
         let owner: Signer;
 
         beforeEach(async () => {
@@ -88,8 +90,12 @@ describe('v3-interface-v1-rejection', () => {
                 selectTokenPoolInfo(tokenPoolInfos),
             );
 
+            const ctokenAta = getAssociatedTokenAddressInterface(
+                mint,
+                owner.publicKey,
+            );
             await expect(
-                decompressInterface(rpc, payer, owner, mint, bn(500)),
+                loadAta(rpc, ctokenAta, owner, mint, payer),
             ).rejects.toThrow(
                 'v3 interface does not support V1 compressed accounts',
             );
@@ -117,8 +123,12 @@ describe('v3-interface-v1-rejection', () => {
                 selectTokenPoolInfo(tokenPoolInfos),
             );
 
+            const ctokenAta = getAssociatedTokenAddressInterface(
+                mint,
+                owner.publicKey,
+            );
             await expect(
-                decompressInterface(rpc, payer, owner, mint, bn(200)),
+                loadAta(rpc, ctokenAta, owner, mint, payer),
             ).rejects.toThrow(
                 'v3 interface does not support V1 compressed accounts',
             );
@@ -136,13 +146,11 @@ describe('v3-interface-v1-rejection', () => {
                 selectTokenPoolInfo(tokenPoolInfos),
             );
 
-            const sig = await decompressInterface(
-                rpc,
-                payer,
-                owner,
+            const ctokenAta = getAssociatedTokenAddressInterface(
                 mint,
-                bn(500),
+                owner.publicKey,
             );
+            const sig = await loadAta(rpc, ctokenAta, owner, mint, payer);
             expect(sig).toBeDefined();
             expect(sig).not.toBeNull();
         });
@@ -234,6 +242,31 @@ describe('v3-interface-v1-rejection', () => {
 
             const sig = await loadAta(rpc, ctokenAta, owner, mint, payer);
             expect(sig === null || typeof sig === 'string').toBe(true);
+        });
+
+        it('createLoadAtaInstructions rejects V1 at instruction builder boundary', async () => {
+            await mintTo(
+                rpc,
+                payer,
+                mint,
+                owner.publicKey,
+                mintAuthority,
+                bn(1000),
+                v1TreeInfo,
+                selectTokenPoolInfo(tokenPoolInfos),
+            );
+
+            await expect(
+                createLoadAtaInstructions(
+                    rpc,
+                    ctokenAta,
+                    owner.publicKey,
+                    mint,
+                    payer.publicKey,
+                ),
+            ).rejects.toThrow(
+                'v3 interface does not support V1 compressed accounts',
+            );
         });
     });
 

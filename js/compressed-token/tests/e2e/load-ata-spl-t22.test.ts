@@ -436,6 +436,81 @@ describe('loadAta - Decompress to T22 ATA', () => {
     }, 90_000);
 });
 
+/**
+ * H6: T22 batching >8 inputs.
+ * All multi-cold-input tests previously used c-token ATA. This covers >8 cold
+ * inputs decompressing to a T22 ATA (idempotent batched sends via loadAta).
+ */
+describe('loadAta - T22 ATA >8 cold inputs (H6)', () => {
+    let rpc: Rpc;
+    let payer: Signer;
+    let t22Mint: PublicKey;
+    let t22MintAuthority: Keypair;
+    let stateTreeInfo: TreeInfo;
+    let t22TokenPoolInfos: TokenPoolInfo[];
+
+    beforeAll(async () => {
+        const lightWasm = await WasmFactory.getInstance();
+        rpc = await getTestRpc(lightWasm);
+        payer = await newAccountWithLamports(rpc, 20e9);
+        t22MintAuthority = Keypair.generate();
+        const mintKeypair = Keypair.generate();
+
+        const result = await createMint(
+            rpc,
+            payer,
+            t22MintAuthority.publicKey,
+            TEST_TOKEN_DECIMALS,
+            mintKeypair,
+            undefined,
+            TOKEN_2022_PROGRAM_ID,
+        );
+        t22Mint = result.mint;
+        stateTreeInfo = selectStateTreeInfo(await rpc.getStateTreeInfos());
+        t22TokenPoolInfos = await getTokenPoolInfos(rpc, t22Mint);
+    }, 60_000);
+
+    it('should load 9 cold inputs to T22 ATA in two batches (8+1)', async () => {
+        const owner = await newAccountWithLamports(rpc, 3e9);
+        const coldCount = 9;
+        const amountPerAccount = BigInt(100);
+
+        for (let i = 0; i < coldCount; i++) {
+            await mintTo(
+                rpc,
+                payer,
+                t22Mint,
+                owner.publicKey,
+                t22MintAuthority,
+                bn(amountPerAccount.toString()),
+                stateTreeInfo,
+                selectTokenPoolInfo(t22TokenPoolInfos),
+            );
+        }
+
+        const totalAmount = BigInt(coldCount) * amountPerAccount;
+        const coldBefore = await getCompressedBalance(rpc, owner.publicKey, t22Mint);
+        expect(coldBefore).toBe(totalAmount);
+
+        const t22Ata = getAssociatedTokenAddressSync(
+            t22Mint,
+            owner.publicKey,
+            false,
+            TOKEN_2022_PROGRAM_ID,
+            getAtaProgramId(TOKEN_2022_PROGRAM_ID),
+        );
+
+        const signature = await loadAta(rpc, t22Ata, owner, t22Mint, payer);
+        expect(signature).not.toBeNull();
+
+        const coldAfter = await getCompressedBalance(rpc, owner.publicKey, t22Mint);
+        expect(coldAfter).toBe(BigInt(0));
+
+        const t22Balance = await getAccount(rpc, t22Ata, undefined, TOKEN_2022_PROGRAM_ID);
+        expect(t22Balance.amount).toBe(totalAmount);
+    }, 300_000);
+});
+
 describe('loadAta - Standard vs Unified Distinction', () => {
     let rpc: Rpc;
     let payer: Signer;

@@ -34,7 +34,7 @@ import {
 } from '../../src/v3/get-account-interface';
 import { getAssociatedTokenAddressInterface } from '../../src/v3/get-associated-token-address-interface';
 import { createAtaInterfaceIdempotent } from '../../src/v3/actions/create-ata-interface';
-import { decompressInterface } from '../../src/v3/actions/decompress-interface';
+import { loadAta } from '../../src/index';
 
 featureFlags.version = VERSION.V2;
 
@@ -258,13 +258,11 @@ describe('get-account-interface', () => {
                     selectTokenPoolInfo(ctokenPoolInfos),
                 );
 
-                // Decompress to make it hot
-                await decompressInterface(rpc, payer, owner, ctokenMint);
-
                 const ctokenAta = getAssociatedTokenAddressInterface(
                     ctokenMint,
                     owner.publicKey,
                 );
+                await loadAta(rpc, ctokenAta, owner, ctokenMint, payer);
 
                 const result = await getAccountInterface(
                     rpc,
@@ -390,12 +388,11 @@ describe('get-account-interface', () => {
                     selectTokenPoolInfo(ctokenPoolInfos),
                 );
 
-                await decompressInterface(rpc, payer, owner, ctokenMint);
-
                 const ctokenAta = getAssociatedTokenAddressInterface(
                     ctokenMint,
                     owner.publicKey,
                 );
+                await loadAta(rpc, ctokenAta, owner, ctokenMint, payer);
 
                 // No programId - should auto-detect
                 const result = await getAccountInterface(
@@ -514,12 +511,11 @@ describe('get-account-interface', () => {
                     selectTokenPoolInfo(ctokenPoolInfos),
                 );
 
-                await decompressInterface(rpc, payer, owner, ctokenMint);
-
                 const ctokenAta = getAssociatedTokenAddressInterface(
                     ctokenMint,
                     owner.publicKey,
                 );
+                await loadAta(rpc, ctokenAta, owner, ctokenMint, payer);
 
                 const result = await getAtaInterface(
                     rpc,
@@ -626,7 +622,11 @@ describe('get-account-interface', () => {
                     stateTreeInfo,
                     selectTokenPoolInfo(ctokenPoolInfos),
                 );
-                await decompressInterface(rpc, payer, owner, ctokenMint);
+                const ctokenAtaEarly = getAssociatedTokenAddressInterface(
+                    ctokenMint,
+                    owner.publicKey,
+                );
+                await loadAta(rpc, ctokenAtaEarly, owner, ctokenMint, payer);
 
                 // Mint second batch (cold)
                 await mintTo(
@@ -999,7 +999,11 @@ describe('get-account-interface', () => {
                 selectTokenPoolInfo(ctokenPoolInfos),
             );
             await rpc.confirmTransaction(sig1, 'confirmed');
-            await decompressInterface(rpc, payer, owner, ctokenMint);
+            const ctokenAtaEarly = getAssociatedTokenAddressInterface(
+                ctokenMint,
+                owner.publicKey,
+            );
+            await loadAta(rpc, ctokenAtaEarly, owner, ctokenMint, payer);
 
             // Mint more to create cold balance
             const sig2 = await mintTo(
@@ -1064,7 +1068,11 @@ describe('get-account-interface', () => {
                 stateTreeInfo,
                 selectTokenPoolInfo(ctokenPoolInfos),
             );
-            await decompressInterface(rpc, payer, owner, ctokenMint);
+            const ctokenAtaEarly = getAssociatedTokenAddressInterface(
+                ctokenMint,
+                owner.publicKey,
+            );
+            await loadAta(rpc, ctokenAtaEarly, owner, ctokenMint, payer);
 
             // Then add cold
             await mintTo(
@@ -1181,7 +1189,11 @@ describe('get-account-interface', () => {
                 stateTreeInfo,
                 selectTokenPoolInfo(ctokenPoolInfos),
             );
-            await decompressInterface(rpc, payer, owner, ctokenMint);
+            const ctokenAtaForCold = getAssociatedTokenAddressInterface(
+                ctokenMint,
+                owner.publicKey,
+            );
+            await loadAta(rpc, ctokenAtaForCold, owner, ctokenMint, payer);
 
             for (const amount of coldAmounts) {
                 await mintTo(
@@ -1373,7 +1385,17 @@ describe('get-account-interface', () => {
                 stateTreeInfo,
                 selectTokenPoolInfo(ctokenPoolInfos),
             );
-            await decompressInterface(rpc, payer, unifiedOwner, ctokenMint);
+            const unifiedCtokenAta = getAssociatedTokenAddressInterface(
+                ctokenMint,
+                unifiedOwner.publicKey,
+            );
+            await loadAta(
+                rpc,
+                unifiedCtokenAta,
+                unifiedOwner,
+                ctokenMint,
+                payer,
+            );
 
             // 2 cold accounts
             await mintTo(
@@ -1679,7 +1701,11 @@ describe('get-account-interface', () => {
                 stateTreeInfo,
                 selectTokenPoolInfo(ctokenPoolInfos),
             );
-            await decompressInterface(rpc, payer, owner, ctokenMint);
+            const ctokenAtaForLoad = getAssociatedTokenAddressInterface(
+                ctokenMint,
+                owner.publicKey,
+            );
+            await loadAta(rpc, ctokenAtaForLoad, owner, ctokenMint, payer);
 
             // SPL hot
             const splAta = await getOrCreateAssociatedTokenAccount(
