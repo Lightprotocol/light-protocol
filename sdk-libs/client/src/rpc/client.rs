@@ -540,16 +540,7 @@ fn cold_context_to_compressed_account(
 fn convert_account_interface(
     indexer_ai: IndexerAccountInterface,
 ) -> Result<AccountInterface, RpcError> {
-    let account = Account {
-        lamports: indexer_ai.account.lamports,
-        data: indexer_ai.account.data,
-        owner: indexer_ai.account.owner,
-        executable: indexer_ai.account.executable,
-        rent_epoch: indexer_ai.account.rent_epoch,
-    };
-
     match indexer_ai.cold {
-        None => Ok(AccountInterface::hot(indexer_ai.key, account)),
         Some(cold) => {
             let compressed = cold_context_to_compressed_account(
                 &cold,
@@ -562,6 +553,16 @@ fn convert_account_interface(
                 indexer_ai.account.owner,
             ))
         }
+        None => {
+            let account = Account {
+                lamports: indexer_ai.account.lamports,
+                data: indexer_ai.account.data,
+                owner: indexer_ai.account.owner,
+                executable: indexer_ai.account.executable,
+                rent_epoch: indexer_ai.account.rent_epoch,
+            };
+            Ok(AccountInterface::hot(indexer_ai.key, account))
+        }
     }
 }
 
@@ -570,17 +571,7 @@ fn convert_token_account_interface(
 ) -> Result<TokenAccountInterface, RpcError> {
     use crate::indexer::CompressedTokenAccount;
 
-    let account = Account {
-        lamports: indexer_tai.account.account.lamports,
-        data: indexer_tai.account.account.data.clone(),
-        owner: indexer_tai.account.account.owner,
-        executable: indexer_tai.account.account.executable,
-        rent_epoch: indexer_tai.account.account.rent_epoch,
-    };
-
     match indexer_tai.account.cold {
-        None => TokenAccountInterface::hot(indexer_tai.account.key, account)
-            .map_err(|e| RpcError::CustomError(format!("parse error: {}", e))),
         Some(cold) => {
             let compressed_account = cold_context_to_compressed_account(
                 &cold,
@@ -599,6 +590,17 @@ fn convert_token_account_interface(
                 token_owner, // owner_override: use token owner, not account key
                 indexer_tai.account.account.owner,
             ))
+        }
+        None => {
+            let account = Account {
+                lamports: indexer_tai.account.account.lamports,
+                data: indexer_tai.account.account.data,
+                owner: indexer_tai.account.account.owner,
+                executable: indexer_tai.account.account.executable,
+                rent_epoch: indexer_tai.account.account.rent_epoch,
+            };
+            TokenAccountInterface::hot(indexer_tai.account.key, account)
+                .map_err(|e| RpcError::CustomError(format!("parse error: {}", e)))
         }
     }
 }
