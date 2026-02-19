@@ -1,5 +1,6 @@
 mod common;
 
+use common::{make_config_account, make_dummy_account};
 use light_account_checks::account_info::test_account_info::solana_program::TestAccount;
 use light_compressed_account::instruction_data::{
     compressed_proof::ValidityProof,
@@ -15,8 +16,6 @@ use light_sdk_types::{
 };
 use solana_account_info::AccountInfo;
 use solana_pubkey::Pubkey;
-
-use common::{make_config_account, make_dummy_account};
 
 // ============================================================================
 // Mock dispatch functions
@@ -54,13 +53,25 @@ fn mock_dispatch_non_compressible<'a>(
 
 fn make_valid_accounts(
     program_id: [u8; 32],
-) -> (TestAccount, TestAccount, TestAccount, TestAccount, TestAccount) {
+) -> (
+    TestAccount,
+    TestAccount,
+    TestAccount,
+    TestAccount,
+    TestAccount,
+) {
     let (config_account, rent_sponsor_key) = make_config_account(program_id);
     let fee_payer = make_dummy_account([1u8; 32], [0u8; 32], 0);
     let rent_sponsor = make_dummy_account(rent_sponsor_key, [0u8; 32], 0);
     let system_account = make_dummy_account([11u8; 32], [0u8; 32], 0);
     let pda_account = make_dummy_account([10u8; 32], program_id, 100);
-    (fee_payer, config_account, rent_sponsor, system_account, pda_account)
+    (
+        fee_payer,
+        config_account,
+        rent_sponsor,
+        system_account,
+        pda_account,
+    )
 }
 
 // ============================================================================
@@ -85,7 +96,11 @@ fn test_system_offset_exceeds_accounts_returns_error() {
         compressed_accounts: vec![CompressedAccountMetaNoLamportsNoAddress::default()],
         system_accounts_offset: 100,
     };
-    let cpi_signer = CpiSigner { program_id, cpi_signer: [0u8; 32], bump: 255 };
+    let cpi_signer = CpiSigner {
+        program_id,
+        cpi_signer: [0u8; 32],
+        bump: 255,
+    };
 
     let result = build_compress_pda_cpi_data(
         &remaining_accounts,
@@ -95,7 +110,10 @@ fn test_system_offset_exceeds_accounts_returns_error() {
         &program_id,
     );
 
-    assert!(matches!(result, Err(LightSdkTypesError::InvalidInstructionData)));
+    assert!(matches!(
+        result,
+        Err(LightSdkTypesError::InvalidInstructionData)
+    ));
 }
 
 #[test]
@@ -117,7 +135,11 @@ fn test_empty_compressed_accounts_returns_error() {
         compressed_accounts: vec![],
         system_accounts_offset: 3,
     };
-    let cpi_signer = CpiSigner { program_id, cpi_signer: [0u8; 32], bump: 255 };
+    let cpi_signer = CpiSigner {
+        program_id,
+        cpi_signer: [0u8; 32],
+        bump: 255,
+    };
 
     let result = build_compress_pda_cpi_data(
         &remaining_accounts,
@@ -127,7 +149,10 @@ fn test_empty_compressed_accounts_returns_error() {
         &program_id,
     );
 
-    assert!(matches!(result, Err(LightSdkTypesError::InvalidInstructionData)));
+    assert!(matches!(
+        result,
+        Err(LightSdkTypesError::InvalidInstructionData)
+    ));
 }
 
 #[test]
@@ -148,7 +173,11 @@ fn test_not_enough_remaining_accounts_returns_error() {
         compressed_accounts: vec![CompressedAccountMetaNoLamportsNoAddress::default(); 10],
         system_accounts_offset: 3,
     };
-    let cpi_signer = CpiSigner { program_id, cpi_signer: [0u8; 32], bump: 255 };
+    let cpi_signer = CpiSigner {
+        program_id,
+        cpi_signer: [0u8; 32],
+        bump: 255,
+    };
 
     let result = build_compress_pda_cpi_data(
         &remaining_accounts,
@@ -158,7 +187,10 @@ fn test_not_enough_remaining_accounts_returns_error() {
         &program_id,
     );
 
-    assert!(matches!(result, Err(LightSdkTypesError::NotEnoughAccountKeys)));
+    assert!(matches!(
+        result,
+        Err(LightSdkTypesError::NotEnoughAccountKeys)
+    ));
 }
 
 #[test]
@@ -183,7 +215,11 @@ fn test_config_wrong_owner_returns_error() {
         compressed_accounts: vec![CompressedAccountMetaNoLamportsNoAddress::default()],
         system_accounts_offset: 3,
     };
-    let cpi_signer = CpiSigner { program_id, cpi_signer: [0u8; 32], bump: 255 };
+    let cpi_signer = CpiSigner {
+        program_id,
+        cpi_signer: [0u8; 32],
+        bump: 255,
+    };
 
     let result = build_compress_pda_cpi_data(
         &remaining_accounts,
@@ -193,7 +229,10 @@ fn test_config_wrong_owner_returns_error() {
         &program_id,
     );
 
-    assert!(matches!(result, Err(LightSdkTypesError::ConstraintViolation)));
+    assert!(matches!(
+        result,
+        Err(LightSdkTypesError::ConstraintViolation)
+    ));
 }
 
 #[test]
@@ -218,7 +257,11 @@ fn test_config_wrong_discriminator_returns_error() {
         compressed_accounts: vec![CompressedAccountMetaNoLamportsNoAddress::default()],
         system_accounts_offset: 3,
     };
-    let cpi_signer = CpiSigner { program_id, cpi_signer: [0u8; 32], bump: 255 };
+    let cpi_signer = CpiSigner {
+        program_id,
+        cpi_signer: [0u8; 32],
+        bump: 255,
+    };
 
     let result = build_compress_pda_cpi_data(
         &remaining_accounts,
@@ -228,7 +271,10 @@ fn test_config_wrong_discriminator_returns_error() {
         &program_id,
     );
 
-    assert!(matches!(result, Err(LightSdkTypesError::ConstraintViolation)));
+    assert!(matches!(
+        result,
+        Err(LightSdkTypesError::ConstraintViolation)
+    ));
 }
 
 #[test]
@@ -253,7 +299,11 @@ fn test_wrong_rent_sponsor_key_returns_error() {
         compressed_accounts: vec![CompressedAccountMetaNoLamportsNoAddress::default()],
         system_accounts_offset: 3,
     };
-    let cpi_signer = CpiSigner { program_id, cpi_signer: [0u8; 32], bump: 255 };
+    let cpi_signer = CpiSigner {
+        program_id,
+        cpi_signer: [0u8; 32],
+        bump: 255,
+    };
 
     let result = build_compress_pda_cpi_data(
         &remaining_accounts,
@@ -263,7 +313,10 @@ fn test_wrong_rent_sponsor_key_returns_error() {
         &program_id,
     );
 
-    assert!(matches!(result, Err(LightSdkTypesError::InvalidRentSponsor)));
+    assert!(matches!(
+        result,
+        Err(LightSdkTypesError::InvalidRentSponsor)
+    ));
 }
 
 #[test]
@@ -285,7 +338,11 @@ fn test_idempotent_returns_none_when_non_compressible() {
         compressed_accounts: vec![CompressedAccountMetaNoLamportsNoAddress::default()],
         system_accounts_offset: 3,
     };
-    let cpi_signer = CpiSigner { program_id, cpi_signer: [0u8; 32], bump: 255 };
+    let cpi_signer = CpiSigner {
+        program_id,
+        cpi_signer: [0u8; 32],
+        bump: 255,
+    };
 
     let result = build_compress_pda_cpi_data(
         &remaining_accounts,
@@ -319,7 +376,11 @@ fn test_build_compress_produces_expected_instruction_data() {
         compressed_accounts: vec![CompressedAccountMetaNoLamportsNoAddress::default()],
         system_accounts_offset: 3,
     };
-    let cpi_signer = CpiSigner { program_id, cpi_signer: [0u8; 32], bump: 255 };
+    let cpi_signer = CpiSigner {
+        program_id,
+        cpi_signer: [0u8; 32],
+        bump: 255,
+    };
 
     let result = build_compress_pda_cpi_data(
         &remaining_accounts,

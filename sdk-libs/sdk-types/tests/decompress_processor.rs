@@ -1,6 +1,7 @@
 mod common;
 
 use borsh::{BorshDeserialize, BorshSerialize};
+use common::{make_config_account, make_dummy_account};
 use light_account_checks::account_info::test_account_info::solana_program::TestAccount;
 use light_compressed_account::instruction_data::{
     compressed_proof::ValidityProof,
@@ -20,8 +21,6 @@ use light_sdk_types::{
 };
 use solana_account_info::AccountInfo;
 use solana_pubkey::Pubkey;
-
-use common::{make_config_account, make_dummy_account};
 
 // ============================================================================
 // Mock DecompressVariant implementations
@@ -70,13 +69,25 @@ impl<'info> DecompressVariant<AccountInfo<'info>> for DecompressVariantMock {
 
 fn make_valid_accounts(
     program_id: [u8; 32],
-) -> (TestAccount, TestAccount, TestAccount, TestAccount, TestAccount) {
+) -> (
+    TestAccount,
+    TestAccount,
+    TestAccount,
+    TestAccount,
+    TestAccount,
+) {
     let (config_account, rent_sponsor_key) = make_config_account(program_id);
     let fee_payer = make_dummy_account([1u8; 32], [0u8; 32], 0);
     let rent_sponsor = make_dummy_account(rent_sponsor_key, [0u8; 32], 0);
     let system_account = make_dummy_account([11u8; 32], [0u8; 32], 0);
     let pda_account = make_dummy_account([10u8; 32], program_id, 100);
-    (fee_payer, config_account, rent_sponsor, system_account, pda_account)
+    (
+        fee_payer,
+        config_account,
+        rent_sponsor,
+        system_account,
+        pda_account,
+    )
 }
 
 fn one_pda_params<V: BorshSerialize + BorshDeserialize + Clone>(
@@ -122,12 +133,19 @@ fn test_system_offset_exceeds_accounts_returns_error() {
             data: SkipVariant,
         }],
     };
-    let cpi_signer = CpiSigner { program_id, cpi_signer: [0u8; 32], bump: 255 };
+    let cpi_signer = CpiSigner {
+        program_id,
+        cpi_signer: [0u8; 32],
+        bump: 255,
+    };
 
     let result =
         build_decompress_pda_cpi_data(&remaining_accounts, &params, cpi_signer, &program_id, 0);
 
-    assert!(matches!(result, Err(LightSdkTypesError::InvalidInstructionData)));
+    assert!(matches!(
+        result,
+        Err(LightSdkTypesError::InvalidInstructionData)
+    ));
 }
 
 #[test]
@@ -153,12 +171,19 @@ fn test_empty_pda_accounts_returns_error() {
             data: SkipVariant,
         }],
     };
-    let cpi_signer = CpiSigner { program_id, cpi_signer: [0u8; 32], bump: 255 };
+    let cpi_signer = CpiSigner {
+        program_id,
+        cpi_signer: [0u8; 32],
+        bump: 255,
+    };
 
     let result =
         build_decompress_pda_cpi_data(&remaining_accounts, &params, cpi_signer, &program_id, 0);
 
-    assert!(matches!(result, Err(LightSdkTypesError::InvalidInstructionData)));
+    assert!(matches!(
+        result,
+        Err(LightSdkTypesError::InvalidInstructionData)
+    ));
 }
 
 #[test]
@@ -180,19 +205,41 @@ fn test_not_enough_hot_accounts_returns_error() {
         output_queue_index: 0,
         proof: ValidityProof::default(),
         accounts: vec![
-            CompressedAccountData { tree_info: PackedStateTreeInfo::default(), data: SkipVariant },
-            CompressedAccountData { tree_info: PackedStateTreeInfo::default(), data: SkipVariant },
-            CompressedAccountData { tree_info: PackedStateTreeInfo::default(), data: SkipVariant },
-            CompressedAccountData { tree_info: PackedStateTreeInfo::default(), data: SkipVariant },
-            CompressedAccountData { tree_info: PackedStateTreeInfo::default(), data: SkipVariant },
+            CompressedAccountData {
+                tree_info: PackedStateTreeInfo::default(),
+                data: SkipVariant,
+            },
+            CompressedAccountData {
+                tree_info: PackedStateTreeInfo::default(),
+                data: SkipVariant,
+            },
+            CompressedAccountData {
+                tree_info: PackedStateTreeInfo::default(),
+                data: SkipVariant,
+            },
+            CompressedAccountData {
+                tree_info: PackedStateTreeInfo::default(),
+                data: SkipVariant,
+            },
+            CompressedAccountData {
+                tree_info: PackedStateTreeInfo::default(),
+                data: SkipVariant,
+            },
         ],
     };
-    let cpi_signer = CpiSigner { program_id, cpi_signer: [0u8; 32], bump: 255 };
+    let cpi_signer = CpiSigner {
+        program_id,
+        cpi_signer: [0u8; 32],
+        bump: 255,
+    };
 
     let result =
         build_decompress_pda_cpi_data(&remaining_accounts, &params, cpi_signer, &program_id, 0);
 
-    assert!(matches!(result, Err(LightSdkTypesError::NotEnoughAccountKeys)));
+    assert!(matches!(
+        result,
+        Err(LightSdkTypesError::NotEnoughAccountKeys)
+    ));
 }
 
 #[test]
@@ -212,12 +259,19 @@ fn test_config_wrong_owner_returns_error() {
 
     let remaining_accounts = vec![fee_payer_ai, config_ai, rent_sponsor_ai, system_ai, pda_ai];
     let params = one_pda_params(SkipVariant, 3);
-    let cpi_signer = CpiSigner { program_id, cpi_signer: [0u8; 32], bump: 255 };
+    let cpi_signer = CpiSigner {
+        program_id,
+        cpi_signer: [0u8; 32],
+        bump: 255,
+    };
 
     let result =
         build_decompress_pda_cpi_data(&remaining_accounts, &params, cpi_signer, &program_id, 0);
 
-    assert!(matches!(result, Err(LightSdkTypesError::ConstraintViolation)));
+    assert!(matches!(
+        result,
+        Err(LightSdkTypesError::ConstraintViolation)
+    ));
 }
 
 #[test]
@@ -237,12 +291,19 @@ fn test_wrong_rent_sponsor_key_returns_error() {
 
     let remaining_accounts = vec![fee_payer_ai, config_ai, rent_sponsor_ai, system_ai, pda_ai];
     let params = one_pda_params(SkipVariant, 3);
-    let cpi_signer = CpiSigner { program_id, cpi_signer: [0u8; 32], bump: 255 };
+    let cpi_signer = CpiSigner {
+        program_id,
+        cpi_signer: [0u8; 32],
+        bump: 255,
+    };
 
     let result =
         build_decompress_pda_cpi_data(&remaining_accounts, &params, cpi_signer, &program_id, 0);
 
-    assert!(matches!(result, Err(LightSdkTypesError::InvalidRentSponsor)));
+    assert!(matches!(
+        result,
+        Err(LightSdkTypesError::InvalidRentSponsor)
+    ));
 }
 
 #[test]
@@ -260,7 +321,11 @@ fn test_idempotent_returns_none_when_all_initialized() {
     let remaining_accounts = vec![fee_payer_ai, config_ai, rent_sponsor_ai, system_ai, pda_ai];
     // SkipVariant pushes nothing -> compressed_account_infos.is_empty() -> Ok(None)
     let params = one_pda_params(SkipVariant, 3);
-    let cpi_signer = CpiSigner { program_id, cpi_signer: [0u8; 32], bump: 255 };
+    let cpi_signer = CpiSigner {
+        program_id,
+        cpi_signer: [0u8; 32],
+        bump: 255,
+    };
 
     let result =
         build_decompress_pda_cpi_data(&remaining_accounts, &params, cpi_signer, &program_id, 0);
@@ -284,7 +349,11 @@ fn test_build_decompress_produces_expected_instruction_data() {
     let remaining_accounts = vec![fee_payer_ai, config_ai, rent_sponsor_ai, system_ai, pda_ai];
     // DecompressVariantMock pushes one CompressedAccountInfo -> CPI data built
     let params = one_pda_params(DecompressVariantMock, 3);
-    let cpi_signer = CpiSigner { program_id, cpi_signer: [0u8; 32], bump: 255 };
+    let cpi_signer = CpiSigner {
+        program_id,
+        cpi_signer: [0u8; 32],
+        bump: 255,
+    };
 
     let result =
         build_decompress_pda_cpi_data(&remaining_accounts, &params, cpi_signer, &program_id, 0);

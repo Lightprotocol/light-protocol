@@ -1,8 +1,11 @@
 use borsh::BorshSerialize;
-use light_account_checks::account_info::test_account_info::solana_program::TestAccount;
-use light_account_checks::discriminator::Discriminator;
+use light_account_checks::{
+    account_info::test_account_info::solana_program::TestAccount, discriminator::Discriminator,
+};
 use light_compressible::rent::RentConfig;
-use light_sdk_types::interface::program::config::{LightConfig, LIGHT_CONFIG_SEED, RENT_SPONSOR_SEED};
+use light_sdk_types::interface::program::config::{
+    LightConfig, LIGHT_CONFIG_SEED, RENT_SPONSOR_SEED,
+};
 use solana_pubkey::Pubkey;
 
 /// Creates a fully valid LightConfig TestAccount for the given program_id.

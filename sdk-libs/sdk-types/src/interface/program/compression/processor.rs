@@ -165,9 +165,13 @@ pub fn process_compress_pda_accounts_idempotent<AI: AccountInfoTrait + Clone>(
     cpi_signer: CpiSigner,
     program_id: &[u8; 32],
 ) -> Result<(), LightSdkTypesError> {
-    if let Some(built) =
-        build_compress_pda_cpi_data(remaining_accounts, params, dispatch_fn, cpi_signer, program_id)?
-    {
+    if let Some(built) = build_compress_pda_cpi_data(
+        remaining_accounts,
+        params,
+        dispatch_fn,
+        cpi_signer,
+        program_id,
+    )? {
         let rent_sponsor = &remaining_accounts[RENT_SPONSOR_INDEX];
         built.cpi_ix_data.invoke::<AI>(built.cpi_accounts)?;
         for pda_index in &built.pda_indices_to_close {
