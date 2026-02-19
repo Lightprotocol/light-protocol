@@ -34,7 +34,6 @@ import {
 import {
     getAtaInterface as _getAtaInterface,
     type AccountInterface,
-    TokenAccountSourceType,
 } from '../get-account-interface';
 import { DEFAULT_COMPRESSIBLE_CONFIG } from '../instructions/create-associated-ctoken';
 import {
@@ -333,36 +332,15 @@ export async function createTransferInterfaceInstructions(
         throw error;
     }
 
-    // Frozen handling: match SPL semantics. Frozen accounts cannot be
-    // decompressed or wrapped, but unfrozen accounts can still be used.
-    // If the hot account itself is frozen, the on-chain transfer program
-    // will reject, so we fail early.
-    const senderSources = senderInterface._sources ?? [];
-    const hotSourceType =
-        isSplOrT22 && !wrap
-            ? programId.equals(TOKEN_PROGRAM_ID)
-                ? TokenAccountSourceType.Spl
-                : TokenAccountSourceType.Token2022
-            : TokenAccountSourceType.CTokenHot;
-    const hotSource = senderSources.find(s => s.type === hotSourceType);
-    if (hotSource?.parsed.isFrozen) {
-        throw new Error('Cannot transfer: sender token account is frozen.');
+    if (senderInterface._anyFrozen) {
+        throw new Error(
+            'Account is frozen. One or more sources (hot or cold) are frozen; transfer is not allowed.',
+        );
     }
 
-    // Calculate unfrozen balance (frozen accounts are excluded from load batches)
-    const unfrozenBalance = senderSources
-        .filter(s => !s.parsed.isFrozen)
-        .reduce((sum, s) => sum + s.amount, BigInt(0));
-
-    if (unfrozenBalance < amountBigInt) {
-        const frozenBalance = senderInterface.parsed.amount - unfrozenBalance;
-        const frozenNote =
-            frozenBalance > BigInt(0)
-                ? ` (${frozenBalance} frozen, not usable)`
-                : '';
+    if (senderInterface.parsed.amount < amountBigInt) {
         throw new Error(
-            `Insufficient balance. Required: ${amountBigInt}, ` +
-                `Available (unfrozen): ${unfrozenBalance}${frozenNote}`,
+            `Insufficient balance. Required: ${amountBigInt}, Available: ${senderInterface.parsed.amount}`,
         );
     }
 

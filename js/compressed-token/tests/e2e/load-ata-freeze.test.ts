@@ -1,17 +1,11 @@
 /**
  * Load ATA - Freeze Interaction Coverage
  *
- * Tests all combinations of frozen sources (hot ctoken, SPL, T22, cold) with
- * createLoadAtaInstructions and loadAta (both wrap=false and wrap=true paths).
- *
- * Design invariants (from _buildLoadBatches source filtering):
- *   - Frozen hot ctoken ATA  → treated as absent; needsAtaCreation=true
- *   - Frozen SPL source      → excluded; splBalance=0
- *   - Frozen T22 source      → excluded; t22Balance=0
- *   - Frozen cold sources    → excluded from allCompressedAccounts
- *   - If splBalance+t22Balance+coldBalance==0 → returns []
- *
- * Any scenario where all loadable balances are zero must return [] /null.
+ * Design: if ANY source (hot or cold) for the ATA is frozen, the entire
+ * AccountInterface is treated as frozen. createLoadAtaInstructions and
+ * loadAta REJECT (throw) in that case; no instructions are built.
+ * getAtaInterface/getAccountInterface show the unified Account as frozen
+ * when any source is frozen.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { Keypair, Signer, PublicKey } from '@solana/web3.js';
@@ -47,6 +41,7 @@ import {
 } from '../../src/v3/actions/load-ata';
 import { getAssociatedTokenAddressInterface } from '../../src/v3/get-associated-token-address-interface';
 import { createAtaInterfaceIdempotent } from '../../src/v3/actions/create-ata-interface';
+import { getAtaInterface } from '../../src/v3/get-account-interface';
 import {
     createCTokenFreezeAccountInstruction,
     createCTokenThawAccountInstruction,
@@ -181,14 +176,44 @@ describe('loadAta standard (wrap=false) - frozen hot ctoken ATA', () => {
         tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
     }, 60_000);
 
-    it('returns null when hot is frozen and no cold exists', async () => {
+    it('getAtaInterface returns parsed.isFrozen true when hot is frozen', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
         const ctokenAta = getAssociatedTokenAddressInterface(
             mint,
             owner.publicKey,
         );
 
-        // Create hot, load cold, freeze hot – leaves zero cold remaining
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(100),
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
+        );
+        await createAtaInterfaceIdempotent(rpc, payer, mint, owner.publicKey);
+        await loadAta(rpc, ctokenAta, owner, mint, payer);
+        await freezeCtokenAta(rpc, payer, ctokenAta, mint, freezeAuthority);
+
+        const iface = await getAtaInterface(
+            rpc,
+            ctokenAta,
+            owner.publicKey,
+            mint,
+        );
+        expect(iface._anyFrozen).toBe(true);
+        expect(iface.parsed.isFrozen).toBe(true);
+    }, 90_000);
+
+    it('loadAta throws when hot is frozen and no cold exists', async () => {
+        const owner = await newAccountWithLamports(rpc, 1e9);
+        const ctokenAta = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
+
         await mintTo(
             rpc,
             payer,
@@ -203,12 +228,12 @@ describe('loadAta standard (wrap=false) - frozen hot ctoken ATA', () => {
         await loadAta(rpc, ctokenAta, owner, mint, payer);
         await freezeCtokenAta(rpc, payer, ctokenAta, mint, freezeAuthority);
 
-        // No cold, hot is frozen → nothing to load
-        const result = await loadAta(rpc, ctokenAta, owner, mint, payer);
-        expect(result).toBeNull();
+        await expect(
+            loadAta(rpc, ctokenAta, owner, mint, payer),
+        ).rejects.toThrow(/Account is frozen|load is not allowed/);
     }, 90_000);
 
-    it('createLoadAtaInstructions returns [] when hot is frozen and no cold', async () => {
+    it('createLoadAtaInstructions throws when hot is frozen and no cold', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
         const ctokenAta = getAssociatedTokenAddressInterface(
             mint,
@@ -229,18 +254,18 @@ describe('loadAta standard (wrap=false) - frozen hot ctoken ATA', () => {
         await loadAta(rpc, ctokenAta, owner, mint, payer);
         await freezeCtokenAta(rpc, payer, ctokenAta, mint, freezeAuthority);
 
-        const batches = await createLoadAtaInstructions(
-            rpc,
-            ctokenAta,
-            owner.publicKey,
-            mint,
-            payer.publicKey,
-        );
-        expect(batches.length).toBe(0);
+        await expect(
+            createLoadAtaInstructions(
+                rpc,
+                ctokenAta,
+                owner.publicKey,
+                mint,
+                payer.publicKey,
+            ),
+        ).rejects.toThrow(/Account is frozen|load is not allowed/);
     }, 90_000);
 
-    it('hot frozen account preserves balance after failed load attempt', async () => {
-        // If hot is frozen and no cold, loadAta returns null without touching the account.
+    it('hot frozen account preserves balance when loadAta rejects', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
         const ctokenAta = getAssociatedTokenAddressInterface(
             mint,
@@ -264,11 +289,13 @@ describe('loadAta standard (wrap=false) - frozen hot ctoken ATA', () => {
         const balanceBefore = await getCTokenBalance(rpc, ctokenAta);
         expect(balanceBefore).toBe(BigInt(200));
 
-        await loadAta(rpc, ctokenAta, owner, mint, payer); // no-op
+        await expect(
+            loadAta(rpc, ctokenAta, owner, mint, payer),
+        ).rejects.toThrow(/Account is frozen|load is not allowed/);
 
         const balanceAfter = await getCTokenBalance(rpc, ctokenAta);
-        expect(balanceAfter).toBe(BigInt(200)); // unchanged
-        expect(await getCtokenState(rpc, ctokenAta)).toBe(2); // still frozen
+        expect(balanceAfter).toBe(BigInt(200));
+        expect(await getCtokenState(rpc, ctokenAta)).toBe(2);
     }, 90_000);
 
     it('thaw restores normal load behavior', async () => {
@@ -293,8 +320,9 @@ describe('loadAta standard (wrap=false) - frozen hot ctoken ATA', () => {
         await loadAta(rpc, ctokenAta, owner, mint, payer);
         await freezeCtokenAta(rpc, payer, ctokenAta, mint, freezeAuthority);
 
-        // Nothing to load while frozen
-        expect(await loadAta(rpc, ctokenAta, owner, mint, payer)).toBeNull();
+        await expect(
+            loadAta(rpc, ctokenAta, owner, mint, payer),
+        ).rejects.toThrow(/Account is frozen|load is not allowed/);
 
         // Thaw then mint more cold
         await thawCtokenAta(rpc, payer, ctokenAta, mint, freezeAuthority);
@@ -316,18 +344,13 @@ describe('loadAta standard (wrap=false) - frozen hot ctoken ATA', () => {
         expect(balance).toBe(BigInt(600)); // 400 original + 200 new cold
     }, 90_000);
 
-    it('hot frozen + cold unfrozen → cold is filtered from load (instructions built, decompress attempted)', async () => {
-        // Load partial (300), keep 200 cold, then freeze hot.
-        // The SDK sees cold=200 (unfrozen) and tries to build load instructions.
-        // The instructions ARE built (cold is not frozen), but execution into a
-        // frozen hot ATA will fail on-chain because Transfer2 enforces frozen state.
+    it('hot frozen + cold unfrozen → SDK rejects entirely (no instructions)', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
         const ctokenAta = getAssociatedTokenAddressInterface(
             mint,
             owner.publicKey,
         );
 
-        // Mint 500 cold, load 300 to hot (leaves 200 cold)
         await mintTo(
             rpc,
             payer,
@@ -351,31 +374,24 @@ describe('loadAta standard (wrap=false) - frozen hot ctoken ATA', () => {
             selectTokenPoolInfo(tokenPoolInfos),
         );
 
-        // Freeze the hot ATA (200 cold still unfrozen in Merkle tree)
         await freezeCtokenAta(rpc, payer, ctokenAta, mint, freezeAuthority);
         expect(await getCtokenState(rpc, ctokenAta)).toBe(2);
 
-        // The SDK builds load instructions (cold=200 is unfrozen → included)
-        const batches = await createLoadAtaInstructions(
-            rpc,
-            ctokenAta,
-            owner.publicKey,
-            mint,
-            payer.publicKey,
-        );
-        // Instructions ARE generated for the unfrozen cold (200)
-        expect(batches.length).toBeGreaterThan(0);
+        await expect(
+            createLoadAtaInstructions(
+                rpc,
+                ctokenAta,
+                owner.publicKey,
+                mint,
+                payer.publicKey,
+            ),
+        ).rejects.toThrow(/Account is frozen|load is not allowed/);
 
-        // Executing them fails: Transfer2 decompresses into frozen hot ATA → on-chain error
-        // (The ctoken program / pinocchio enforces frozen state on the destination)
-        const batch = batches[0];
-        const { blockhash } = await rpc.getLatestBlockhash();
-        const tx = buildAndSignTx(batch, payer, blockhash, [owner]);
-        await expect(sendAndConfirmTx(rpc, tx)).rejects.toThrow();
+        await expect(
+            loadAta(rpc, ctokenAta, owner, mint, payer),
+        ).rejects.toThrow(/Account is frozen|load is not allowed/);
 
-        // Hot balance is unchanged (freeze blocked the decompress)
         expect(await getCTokenBalance(rpc, ctokenAta)).toBe(BigInt(300));
-        // Cold 200 is still in the Merkle tree
         expect(await getCompressedBalance(rpc, owner.publicKey, mint)).toBe(
             BigInt(200),
         );
@@ -419,7 +435,7 @@ describe('loadAta unified (wrap=true) - frozen SPL source', () => {
         tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
     }, 60_000);
 
-    it('returns null when SPL source is frozen and no cold exists (wrap=true)', async () => {
+    it('loadAta throws when SPL source is frozen and no cold exists (wrap=true)', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
 
         const splAta = await createAssociatedTokenAccount(
@@ -459,26 +475,25 @@ describe('loadAta unified (wrap=true) - frozen SPL source', () => {
             mint,
             owner.publicKey,
         );
-        // Frozen SPL → splBalance=0; no cold → nothing to load
-        const result = await loadAta(
-            rpc,
-            ctokenAta,
-            owner,
-            mint,
-            payer,
-            undefined,
-            undefined,
-            true,
-        );
-        expect(result).toBeNull();
+        await expect(
+            loadAta(
+                rpc,
+                ctokenAta,
+                owner,
+                mint,
+                payer,
+                undefined,
+                undefined,
+                true,
+            ),
+        ).rejects.toThrow(/Account is frozen|load is not allowed/);
 
-        // SPL account still frozen with original balance
         const splAfter = await getAccount(rpc, splAta);
         expect(splAfter.amount).toBe(BigInt(500));
         expect(splAfter.isFrozen).toBe(true);
     }, 90_000);
 
-    it('createLoadAtaInstructions returns [] when SPL frozen, no cold (wrap=true)', async () => {
+    it('createLoadAtaInstructions throws when SPL frozen, no cold (wrap=true)', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
 
         const splAta = await createAssociatedTokenAccount(
@@ -513,22 +528,22 @@ describe('loadAta unified (wrap=true) - frozen SPL source', () => {
             mint,
             owner.publicKey,
         );
-        const batches = await createLoadAtaInstructions(
-            rpc,
-            ctokenAta,
-            owner.publicKey,
-            mint,
-            payer.publicKey,
-            undefined,
-            true,
-        );
-        expect(batches.length).toBe(0);
+        await expect(
+            createLoadAtaInstructions(
+                rpc,
+                ctokenAta,
+                owner.publicKey,
+                mint,
+                payer.publicKey,
+                undefined,
+                true,
+            ),
+        ).rejects.toThrow(/Account is frozen|load is not allowed/);
     }, 90_000);
 
-    it('frozen SPL excluded, cold unfrozen → only cold is decompressed (wrap=true)', async () => {
+    it('SPL frozen + cold unfrozen → SDK rejects entirely (wrap=true)', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
 
-        // Set up: 500 SPL (will freeze) + 400 cold compressed
         const splAta = await createAssociatedTokenAccount(
             rpc,
             payer,
@@ -566,47 +581,34 @@ describe('loadAta unified (wrap=true) - frozen SPL source', () => {
             selectTokenPoolInfo(tokenPoolInfos),
         );
 
-        // Freeze the SPL ATA
         await freezeSplAta(rpc, payer, splAta, mint, freezeAuthority);
 
         const ctokenAta = getAssociatedTokenAddressInterface(
             mint,
             owner.publicKey,
         );
-        const batches = await createLoadAtaInstructions(
-            rpc,
-            ctokenAta,
-            owner.publicKey,
-            mint,
-            payer.publicKey,
-            undefined,
-            true,
-        );
-        // Should build instructions for the 400 cold (SPL is frozen → excluded)
-        expect(batches.length).toBeGreaterThan(0);
+        await expect(
+            createLoadAtaInstructions(
+                rpc,
+                ctokenAta,
+                owner.publicKey,
+                mint,
+                payer.publicKey,
+                undefined,
+                true,
+            ),
+        ).rejects.toThrow(/Account is frozen|load is not allowed/);
 
-        for (const batch of batches) {
-            const { blockhash } = await rpc.getLatestBlockhash();
-            const tx = buildAndSignTx(batch, payer, blockhash, [owner]);
-            await sendAndConfirmTx(rpc, tx);
-        }
+        await expect(
+            loadAta(rpc, ctokenAta, owner, mint, payer, undefined, undefined, true),
+        ).rejects.toThrow(/Account is frozen|load is not allowed/);
 
-        // Cold decompressed to hot
-        const hotBalance = await getCTokenBalance(rpc, ctokenAta);
-        expect(hotBalance).toBe(BigInt(400));
-
-        // SPL ATA still frozen with 500
         const splAfter = await getAccount(rpc, splAta);
         expect(splAfter.amount).toBe(BigInt(500));
         expect(splAfter.isFrozen).toBe(true);
-
-        // No cold remaining
-        const coldAfter = await getCompressedBalance(
-            rpc,
-            owner.publicKey,
-            mint,
+        expect(await getCompressedBalance(rpc, owner.publicKey, mint)).toBe(
+            BigInt(400),
         );
-        expect(coldAfter).toBe(BigInt(0));
     }, 90_000);
 });
 
@@ -647,7 +649,7 @@ describe('loadAta unified (wrap=true) - frozen T22 source', () => {
         tokenPoolInfos = await getTokenPoolInfos(rpc, t22Mint);
     }, 60_000);
 
-    it('returns null when T22 source is frozen and no cold exists (wrap=true)', async () => {
+    it('loadAta throws when T22 source is frozen and no cold exists (wrap=true)', async () => {
         const { getOrCreateAssociatedTokenAccount } = await import(
             '@solana/spl-token'
         );
@@ -699,17 +701,18 @@ describe('loadAta unified (wrap=true) - frozen T22 source', () => {
             t22Mint,
             owner.publicKey,
         );
-        const result = await loadAta(
-            rpc,
-            ctokenAta,
-            owner,
-            t22Mint,
-            payer,
-            undefined,
-            undefined,
-            true,
-        );
-        expect(result).toBeNull();
+        await expect(
+            loadAta(
+                rpc,
+                ctokenAta,
+                owner,
+                t22Mint,
+                payer,
+                undefined,
+                undefined,
+                true,
+            ),
+        ).rejects.toThrow(/Account is frozen|load is not allowed/);
 
         const t22After = await getAccount(
             rpc,
@@ -720,7 +723,7 @@ describe('loadAta unified (wrap=true) - frozen T22 source', () => {
         expect(t22After.isFrozen).toBe(true);
     }, 90_000);
 
-    it('frozen T22 excluded, cold unfrozen → only cold decompressed (wrap=true)', async () => {
+    it('T22 frozen + cold unfrozen → SDK rejects entirely (wrap=true)', async () => {
         const { getOrCreateAssociatedTokenAccount } = await import(
             '@solana/spl-token'
         );
@@ -738,7 +741,6 @@ describe('loadAta unified (wrap=true) - frozen T22 source', () => {
         );
         const t22Ata = t22AtaAccount.address;
 
-        // 600 T22 (will freeze) + 300 cold
         await mintTo(
             rpc,
             payer,
@@ -783,21 +785,30 @@ describe('loadAta unified (wrap=true) - frozen T22 source', () => {
             t22Mint,
             owner.publicKey,
         );
-        const result = await loadAta(
-            rpc,
-            ctokenAta,
-            owner,
-            t22Mint,
-            payer,
-            undefined,
-            undefined,
-            true,
-        );
-        expect(result).not.toBeNull();
+        await expect(
+            createLoadAtaInstructions(
+                rpc,
+                ctokenAta,
+                owner.publicKey,
+                t22Mint,
+                payer.publicKey,
+                undefined,
+                true,
+            ),
+        ).rejects.toThrow(/Account is frozen|load is not allowed/);
 
-        // Cold 300 loaded, T22 600 still frozen
-        const hotBalance = await getCTokenBalance(rpc, ctokenAta);
-        expect(hotBalance).toBe(BigInt(300));
+        await expect(
+            loadAta(
+                rpc,
+                ctokenAta,
+                owner,
+                t22Mint,
+                payer,
+                undefined,
+                undefined,
+                true,
+            ),
+        ).rejects.toThrow(/Account is frozen|load is not allowed/);
 
         const t22After = await getAccount(
             rpc,
@@ -807,6 +818,9 @@ describe('loadAta unified (wrap=true) - frozen T22 source', () => {
         );
         expect(t22After.amount).toBe(BigInt(600));
         expect(t22After.isFrozen).toBe(true);
+        expect(await getCompressedBalance(rpc, owner.publicKey, t22Mint)).toBe(
+            BigInt(300),
+        );
     }, 90_000);
 });
 
@@ -847,15 +861,13 @@ describe('loadAta unified (wrap=true) - combined freeze scenarios', () => {
         tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
     }, 60_000);
 
-    it('hot ctoken frozen + SPL unfrozen → only SPL is wrapped (wrap=true)', async () => {
-        // Hot is frozen → treated as absent by SDK (coldBalance=0 from hot, just wraps SPL)
+    it('hot ctoken frozen + SPL unfrozen → SDK rejects entirely (wrap=true)', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
         const ctokenAta = getAssociatedTokenAddressInterface(
             mint,
             owner.publicKey,
         );
 
-        // Load some cold to create the hot ATA, then freeze it
         await mintTo(
             rpc,
             payer,
@@ -871,7 +883,6 @@ describe('loadAta unified (wrap=true) - combined freeze scenarios', () => {
         await freezeCtokenAta(rpc, payer, ctokenAta, mint, freezeAuthority);
         expect(await getCtokenState(rpc, ctokenAta)).toBe(2);
 
-        // Set up unfrozen SPL balance
         const splAta = await createAssociatedTokenAccount(
             rpc,
             payer,
@@ -900,31 +911,23 @@ describe('loadAta unified (wrap=true) - combined freeze scenarios', () => {
         );
         expect((await getAccount(rpc, splAta)).amount).toBe(BigInt(500));
 
-        // wrap=true with frozen hot → builds SPL wrap instruction
-        const batches = await createLoadAtaInstructions(
-            rpc,
-            ctokenAta,
-            owner.publicKey,
-            mint,
-            payer.publicKey,
-            undefined,
-            true,
-        );
-        // SPL balance (500) is unfrozen → should build wrap instruction
-        expect(batches.length).toBeGreaterThan(0);
+        await expect(
+            createLoadAtaInstructions(
+                rpc,
+                ctokenAta,
+                owner.publicKey,
+                mint,
+                payer.publicKey,
+                undefined,
+                true,
+            ),
+        ).rejects.toThrow(/Account is frozen|load is not allowed/);
 
-        // But submitting will fail because the destination hot ATA is frozen
-        // (Transfer2/wrap into frozen ctoken ATA is rejected on-chain)
-        const { blockhash } = await rpc.getLatestBlockhash();
-        const tx = buildAndSignTx(batches[0], payer, blockhash, [owner]);
-        await expect(sendAndConfirmTx(rpc, tx)).rejects.toThrow();
-
-        // SPL balance unchanged, hot still frozen at 300
         expect((await getAccount(rpc, splAta)).amount).toBe(BigInt(500));
         expect(await getCTokenBalance(rpc, ctokenAta)).toBe(BigInt(300));
     }, 90_000);
 
-    it('SPL frozen + cold unfrozen → cold decompressed, SPL excluded (wrap=true)', async () => {
+    it('SPL frozen + cold unfrozen → SDK rejects entirely (wrap=true)', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
 
         const splAta = await createAssociatedTokenAccount(
@@ -970,32 +973,33 @@ describe('loadAta unified (wrap=true) - combined freeze scenarios', () => {
             mint,
             owner.publicKey,
         );
-        const result = await loadAta(
-            rpc,
-            ctokenAta,
-            owner,
-            mint,
-            payer,
-            undefined,
-            undefined,
-            true,
-        );
-        expect(result).not.toBeNull();
+        await expect(
+            loadAta(
+                rpc,
+                ctokenAta,
+                owner,
+                mint,
+                payer,
+                undefined,
+                undefined,
+                true,
+            ),
+        ).rejects.toThrow(/Account is frozen|load is not allowed/);
 
-        // Hot should have 250 (cold only; SPL 400 still frozen)
-        expect(await getCTokenBalance(rpc, ctokenAta)).toBe(BigInt(250));
         expect((await getAccount(rpc, splAta)).amount).toBe(BigInt(400));
         expect((await getAccount(rpc, splAta)).isFrozen).toBe(true);
+        expect(await getCompressedBalance(rpc, owner.publicKey, mint)).toBe(
+            BigInt(250),
+        );
     }, 90_000);
 
-    it('all sources frozen → createLoadAtaInstructions returns [] (wrap=true)', async () => {
+    it('all sources frozen → SDK rejects (wrap=true)', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
         const ctokenAta = getAssociatedTokenAddressInterface(
             mint,
             owner.publicKey,
         );
 
-        // Freeze hot ctoken ATA
         await mintTo(
             rpc,
             payer,
@@ -1010,7 +1014,6 @@ describe('loadAta unified (wrap=true) - combined freeze scenarios', () => {
         await loadAta(rpc, ctokenAta, owner, mint, payer);
         await freezeCtokenAta(rpc, payer, ctokenAta, mint, freezeAuthority);
 
-        // Freeze SPL ATA
         const splAta = await createAssociatedTokenAccount(
             rpc,
             payer,
@@ -1039,33 +1042,33 @@ describe('loadAta unified (wrap=true) - combined freeze scenarios', () => {
         );
         await freezeSplAta(rpc, payer, splAta, mint, freezeAuthority);
 
-        // No cold remaining
-        // All sources frozen → nothing to load
-        const batches = await createLoadAtaInstructions(
-            rpc,
-            ctokenAta,
-            owner.publicKey,
-            mint,
-            payer.publicKey,
-            undefined,
-            true,
-        );
-        expect(batches.length).toBe(0);
+        await expect(
+            createLoadAtaInstructions(
+                rpc,
+                ctokenAta,
+                owner.publicKey,
+                mint,
+                payer.publicKey,
+                undefined,
+                true,
+            ),
+        ).rejects.toThrow(/Account is frozen|load is not allowed/);
 
-        const loadResult = await loadAta(
-            rpc,
-            ctokenAta,
-            owner,
-            mint,
-            payer,
-            undefined,
-            undefined,
-            true,
-        );
-        expect(loadResult).toBeNull();
+        await expect(
+            loadAta(
+                rpc,
+                ctokenAta,
+                owner,
+                mint,
+                payer,
+                undefined,
+                undefined,
+                true,
+            ),
+        ).rejects.toThrow(/Account is frozen|load is not allowed/);
     }, 90_000);
 
-    it('all sources frozen → loadAta returns null (wrap=false)', async () => {
+    it('all sources frozen → loadAta throws (wrap=false)', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
         const ctokenAta = getAssociatedTokenAddressInterface(
             mint,
@@ -1086,23 +1089,18 @@ describe('loadAta unified (wrap=true) - combined freeze scenarios', () => {
         await loadAta(rpc, ctokenAta, owner, mint, payer);
         await freezeCtokenAta(rpc, payer, ctokenAta, mint, freezeAuthority);
 
-        // No cold left; hot is frozen
-        const result = await loadAta(rpc, ctokenAta, owner, mint, payer);
-        expect(result).toBeNull();
+        await expect(
+            loadAta(rpc, ctokenAta, owner, mint, payer),
+        ).rejects.toThrow(/Account is frozen|load is not allowed/);
     }, 90_000);
 
-    it('frozen hot does not prevent independent cold→SPL decompress (standard wrap=false, SPL ATA target)', async () => {
-        // Scenario: hot ctoken ATA is frozen. User wants to loadAta targeting
-        // a plain SPL ATA (wrap=false, ataType='spl'). Cold should still be
-        // decompressed directly to the SPL ATA without involving the frozen
-        // hot ctoken ATA.
+    it('loadAta targeting SPL ATA uses SPL+cold view only (ctoken hot not in that view)', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
         const ctokenAta = getAssociatedTokenAddressInterface(
             mint,
             owner.publicKey,
         );
 
-        // Create and freeze the hot ctoken ATA
         await mintTo(
             rpc,
             payer,
@@ -1117,7 +1115,6 @@ describe('loadAta unified (wrap=true) - combined freeze scenarios', () => {
         await loadAta(rpc, ctokenAta, owner, mint, payer);
         await freezeCtokenAta(rpc, payer, ctokenAta, mint, freezeAuthority);
 
-        // Mint 300 more cold compressed
         await mintTo(
             rpc,
             payer,
@@ -1129,7 +1126,6 @@ describe('loadAta unified (wrap=true) - combined freeze scenarios', () => {
             selectTokenPoolInfo(tokenPoolInfos),
         );
 
-        // Target: SPL ATA (not the frozen ctoken ATA)
         tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
         const splAta = await createAssociatedTokenAccount(
             rpc,
@@ -1138,15 +1134,11 @@ describe('loadAta unified (wrap=true) - combined freeze scenarios', () => {
             owner.publicKey,
         );
 
-        // Load cold → SPL ATA (wrap=false, direct decompress to SPL)
         const result = await loadAta(rpc, splAta, owner, mint, payer);
         expect(result).not.toBeNull();
 
-        // Cold 300 decompressed to SPL ATA
         const splBalance = await getAccount(rpc, splAta);
         expect(splBalance.amount).toBe(BigInt(300));
-
-        // Hot ctoken ATA still frozen with 200
         expect(await getCTokenBalance(rpc, ctokenAta)).toBe(BigInt(200));
         expect(await getCtokenState(rpc, ctokenAta)).toBe(2);
     }, 90_000);

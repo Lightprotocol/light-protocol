@@ -241,7 +241,6 @@ export async function createLoadAtaInstructions(
     assertBetaEnabled();
     payer ??= owner;
 
-    // Fetch account state (pass wrap so c-token ATA is validated before RPC)
     let accountInterface: AccountInterface;
     try {
         accountInterface = await _getAtaInterface(
@@ -260,8 +259,12 @@ export async function createLoadAtaInstructions(
         throw e;
     }
 
-    // Delegate to _buildLoadBatches which handles wrapping, decompression,
-    // ATA creation, and parallel-safe batching.
+    if (accountInterface._anyFrozen) {
+        throw new Error(
+            'Account is frozen. One or more sources (hot or cold) are frozen; load is not allowed.',
+        );
+    }
+
     const internalBatches = await _buildLoadBatches(
         rpc,
         payer,
@@ -355,6 +358,12 @@ export async function _buildLoadBatches(
     if (!ata._isAta || !ata._owner || !ata._mint) {
         throw new Error(
             'AccountInterface must be from getAtaInterface (requires _isAta, _owner, _mint)',
+        );
+    }
+
+    if (ata._anyFrozen) {
+        throw new Error(
+            'Account is frozen. One or more sources (hot or cold) are frozen; load is not allowed.',
         );
     }
 
@@ -752,7 +761,6 @@ export async function loadAta(
 
     payer ??= owner;
 
-    // Get account interface
     let ataInterface: AccountInterface;
     try {
         ataInterface = await _getAtaInterface(
@@ -771,7 +779,12 @@ export async function loadAta(
         throw error;
     }
 
-    // Build batched instructions
+    if (ataInterface._anyFrozen) {
+        throw new Error(
+            'Account is frozen. One or more sources (hot or cold) are frozen; load is not allowed.',
+        );
+    }
+
     const batches = await _buildLoadBatches(
         rpc,
         payer.publicKey,

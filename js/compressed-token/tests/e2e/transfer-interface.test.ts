@@ -37,6 +37,8 @@ import {
     loadAta,
     createLoadAtaInstructions,
 } from '../../src/v3/actions/load-ata';
+import { createAtaInterfaceIdempotent } from '../../src/v3/actions/create-ata-interface';
+import { createCTokenFreezeAccountInstruction } from '../../src/v3/instructions/freeze-thaw';
 import { createLightTokenTransferInstruction } from '../../src/v3/instructions/transfer-interface';
 import {
     LIGHT_TOKEN_RENT_SPONSOR,
@@ -249,8 +251,93 @@ describe('transfer-interface', () => {
                     TOKEN_PROGRAM_ID,
                 ),
             ).rejects.toThrow(
-                'Cannot transfer: sender token account is frozen.',
+                /Account is frozen|transfer is not allowed/,
             );
+        });
+
+        it('should throw when sender has frozen source (wrap=true unified path)', async () => {
+            const freezeAuthority = Keypair.generate();
+            const mintKeypair = Keypair.generate();
+            const { mint: freezableMint } = await createMint(
+                rpc,
+                payer,
+                mintAuthority.publicKey,
+                TEST_TOKEN_DECIMALS,
+                mintKeypair,
+                undefined,
+                TOKEN_PROGRAM_ID,
+                freezeAuthority.publicKey,
+            );
+            const freezablePoolInfos = await getTokenPoolInfos(
+                rpc,
+                freezableMint,
+            );
+
+            const sender = await newAccountWithLamports(rpc, 2e9);
+            const recipient = Keypair.generate().publicKey;
+
+            await mintTo(
+                rpc,
+                payer,
+                freezableMint,
+                sender.publicKey,
+                mintAuthority,
+                bn(1000),
+                stateTreeInfo,
+                selectTokenPoolInfo(freezablePoolInfos),
+            );
+            const senderAta = getAssociatedTokenAddressInterface(
+                freezableMint,
+                sender.publicKey,
+            );
+            await createAtaInterfaceIdempotent(
+                rpc,
+                payer,
+                freezableMint,
+                sender.publicKey,
+            );
+            await loadAta(rpc, senderAta, sender, freezableMint, payer);
+
+            const freezeIx = createCTokenFreezeAccountInstruction(
+                senderAta,
+                freezableMint,
+                freezeAuthority.publicKey,
+            );
+            const { blockhash } = await rpc.getLatestBlockhash();
+            await sendAndConfirmTx(
+                rpc,
+                buildAndSignTx([freezeIx], payer, blockhash, [
+                    freezeAuthority,
+                ]),
+            );
+
+            await expect(
+                createTransferInterfaceInstructions(
+                    rpc,
+                    payer.publicKey,
+                    freezableMint,
+                    BigInt(100),
+                    sender.publicKey,
+                    recipient,
+                    { wrap: true },
+                ),
+            ).rejects.toThrow(/Account is frozen|transfer is not allowed/);
+
+            await expect(
+                transferInterface(
+                    rpc,
+                    payer,
+                    senderAta,
+                    freezableMint,
+                    recipient,
+                    sender,
+                    BigInt(100),
+                    LIGHT_TOKEN_PROGRAM_ID,
+                    undefined,
+                    undefined,
+                    true,
+                ),
+            ).rejects.toThrow(/Account is frozen|transfer is not allowed/);
         });
     });
 
@@ -786,7 +873,7 @@ describe('transfer-interface', () => {
                     { splInterfaceInfos: tokenPoolInfos },
                     true, // wrap=true
                 ),
-            ).rejects.toThrow('For wrap=true, targetAta must be c-token ATA');
+            ).rejects.toThrow(/For wrap=true, ata must be the c-token ATA/);
         }, 120_000);
     });
 
@@ -830,7 +917,7 @@ describe('transfer-interface', () => {
                     recipient.publicKey,
                 ),
             ).rejects.toThrow(
-                /Insufficient balance.*Required: 99999.*Available \(unfrozen\): 100$/,
+                /Insufficient balance.*Required: 99999.*Available: 100$/,
             );
         }, 90_000);
 

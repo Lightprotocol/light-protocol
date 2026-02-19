@@ -427,7 +427,22 @@ describe('createUnwrapInstructions', () => {
                 undefined,
                 payer.publicKey,
             ),
-        ).rejects.toThrow('All c-token balance is frozen');
+        ).rejects.toThrow(/Account is frozen|unwrap is not allowed/);
+
+        await expect(
+            createUnwrapInstructions(
+                rpc,
+                splAta,
+                owner.publicKey,
+                freezableMint,
+                undefined,
+                payer.publicKey,
+                undefined,
+                undefined,
+                undefined,
+                true,
+            ),
+        ).rejects.toThrow(/Account is frozen|unwrap is not allowed/);
     }, 90_000);
 });
 

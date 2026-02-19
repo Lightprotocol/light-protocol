@@ -978,11 +978,9 @@ describe('buildAccountInterfaceFromSources – frozen source inflation', () => {
             hotAmount + frozenColdAmount + unfrozenColdAmount,
         );
 
-        // _anyFrozen signals the inflation
         expect(result._anyFrozen).toBe(true);
+        expect(result.parsed.isFrozen).toBe(true);
 
-        // Loadable balance = hot + unfrozen cold = 2000 + 3000 = 5000
-        // (NOT 10000 which parsed.amount shows)
         const loadableAmount = result
             ._sources!.filter(s => !s.parsed.isFrozen)
             .reduce((sum, s) => sum + s.amount, 0n);
@@ -1011,6 +1009,7 @@ describe('buildAccountInterfaceFromSources – frozen source inflation', () => {
 
         expect(result.parsed.amount).toBe(10_000n);
         expect(result._anyFrozen).toBe(true);
+        expect(result.parsed.isFrozen).toBe(true);
         expect(result._needsConsolidation).toBe(true);
 
         const loadableAmount = result

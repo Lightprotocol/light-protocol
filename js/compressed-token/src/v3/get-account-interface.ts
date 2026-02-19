@@ -924,6 +924,9 @@ export function buildAccountInterfaceFromSources(
         ...primarySource.parsed,
         address: canonicalAddress,
         amount: totalAmount,
+        ...(anyFrozen
+            ? { state: AccountState.Frozen, isFrozen: true }
+            : {}),
     };
 
     const coldTypes: TokenAccountSource['type'][] = [

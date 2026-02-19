@@ -790,6 +790,7 @@ describe('get-account-interface', () => {
                 );
 
                 expect(result._anyFrozen).toBe(false);
+                expect(result.parsed.isFrozen).toBe(false);
             });
         });
 
