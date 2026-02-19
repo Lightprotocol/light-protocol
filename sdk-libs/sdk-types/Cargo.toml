@@ -39,6 +39,9 @@ thiserror = { workspace = true }
 
 [dev-dependencies]
 solana-pubkey = { workspace = true }
+solana-account-info = { workspace = true }
+light-account-checks = { workspace = true, features = ["solana", "test-only"] }
+light-compressed-account = { workspace = true, features = ["keccak"] }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

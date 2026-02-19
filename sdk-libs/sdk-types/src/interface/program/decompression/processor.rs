@@ -133,27 +133,21 @@ pub struct DecompressCtx<'a, AI: AccountInfoTrait + Clone> {
 // PDA-only Processor
 // ============================================================================
 
-/// Process decompression for PDA accounts (idempotent, PDA-only).
-///
-/// Iterates over PDA accounts, dispatches each for decompression via `DecompressVariant`,
-/// then invokes the Light system program CPI to commit compressed state.
-///
-/// Idempotent: if a PDA is already initialized, it is silently skipped.
-///
-/// # Account layout in remaining_accounts:
-/// - `[0]`: fee_payer (Signer, mut)
-/// - `[1]`: config (LightConfig PDA)
-/// - `[2]`: rent_sponsor (mut)
-/// - `[system_accounts_offset..hot_accounts_start]`: Light system + tree accounts
-/// - `[hot_accounts_start..]`: PDA accounts to decompress into
-#[inline(never)]
-pub fn process_decompress_pda_accounts_idempotent<AI, V>(
-    remaining_accounts: &[AI],
+/// Result of building CPI data for PDA decompression.
+pub struct DecompressPdaBuilt<'a, AI: AccountInfoTrait + Clone> {
+    pub cpi_ix_data: InstructionDataInvokeCpiWithAccountInfo,
+    pub cpi_accounts: CpiAccounts<'a, AI>,
+}
+
+/// Validates accounts and builds CPI data for PDA decompression.
+/// Returns None when all accounts already initialized (idempotent skip, no CPI needed).
+pub fn build_decompress_pda_cpi_data<'a, AI, V>(
+    remaining_accounts: &'a [AI],
     params: &DecompressIdempotentParams<V>,
     cpi_signer: CpiSigner,
     program_id: &[u8; 32],
     current_slot: u64,
-) -> Result<(), LightSdkTypesError>
+) -> Result<Option<DecompressPdaBuilt<'a, AI>>, LightSdkTypesError>
 where
     AI: AccountInfoTrait + Clone,
     V: DecompressVariant<AI>,
@@ -234,18 +228,57 @@ where
 
     // 6. If no compressed accounts were produced (all already initialized), skip CPI
     if compressed_account_infos.is_empty() {
-        return Ok(());
+        return Ok(None);
     }
 
-    // 7. Build and invoke Light system program CPI
+    // 7. Build CPI instruction data
     let mut cpi_ix_data = InstructionDataInvokeCpiWithAccountInfo::new(
         program_id.into(),
         cpi_signer.bump,
         params.proof.into(),
     );
     cpi_ix_data.account_infos = compressed_account_infos;
-    cpi_ix_data.invoke::<AI>(cpi_accounts)?;
 
+    Ok(Some(DecompressPdaBuilt {
+        cpi_ix_data,
+        cpi_accounts,
+    }))
+}
+
+/// Process decompression for PDA accounts (idempotent, PDA-only).
+///
+/// Iterates over PDA accounts, dispatches each for decompression via `DecompressVariant`,
+/// then invokes the Light system program CPI to commit compressed state.
+///
+/// Idempotent: if a PDA is already initialized, it is silently skipped.
+///
+/// # Account layout in remaining_accounts:
+/// - `[0]`: fee_payer (Signer, mut)
+/// - `[1]`: config (LightConfig PDA)
+/// - `[2]`: rent_sponsor (mut)
+/// - `[system_accounts_offset..hot_accounts_start]`: Light system + tree accounts
+/// - `[hot_accounts_start..]`: PDA accounts to decompress into
+#[inline(never)]
+pub fn process_decompress_pda_accounts_idempotent<AI, V>(
+    remaining_accounts: &[AI],
+    params: &DecompressIdempotentParams<V>,
+    cpi_signer: CpiSigner,
+    program_id: &[u8; 32],
+    current_slot: u64,
+) -> Result<(), LightSdkTypesError>
+where
+    AI: AccountInfoTrait + Clone,
+    V: DecompressVariant<AI>,
+{
+    if let Some(built) = build_decompress_pda_cpi_data(
+        remaining_accounts,
+        params,
+        cpi_signer,
+        program_id,
+        current_slot,
+    )? {
+        built.cpi_ix_data.invoke::<AI>(built.cpi_accounts)?;
+    }
     Ok(())
 }
 
@@ -283,6 +316,8 @@ where
     AI: AccountInfoTrait + Clone,
     V: DecompressVariant<AI>,
 {
+    // TODO: extract into testable setup function and add a randomized unit test
+    // - start context setup
     let system_accounts_offset = params.system_accounts_offset as usize;
     if system_accounts_offset > remaining_accounts.len() {
         return Err(LightSdkTypesError::InvalidInstructionData);
@@ -387,6 +422,7 @@ where
             decompress_ctx.token_seeds,
         )
     };
+    // - end context setup
 
     // 7. PDA CPI (Light system program)
     if has_pda_accounts {
