@@ -400,8 +400,18 @@ describe('buildAccountInterfaceFromSources – delegate merge semantics', () => 
         const coldAmount = 3_000n;
 
         const sources: TokenAccountSource[] = [
-            hotSource({ address: ata, amount: hotAmount, delegate: null, delegatedAmount: 0n }),
-            coldSource({ address: ata, amount: coldAmount, delegate: null, delegatedAmount: 0n }),
+            hotSource({
+                address: ata,
+                amount: hotAmount,
+                delegate: null,
+                delegatedAmount: 0n,
+            }),
+            coldSource({
+                address: ata,
+                amount: coldAmount,
+                delegate: null,
+                delegatedAmount: 0n,
+            }),
         ];
 
         const result = buildAccountInterfaceFromSources(sources, ata);
@@ -422,9 +432,24 @@ describe('buildAccountInterfaceFromSources – delegate merge semantics', () => 
         const user2 = Keypair.generate().publicKey;
 
         const sources: TokenAccountSource[] = [
-            coldSource({ address: ata, amount: 1_000n, delegate: user1, delegatedAmount: 1_000n }),
-            coldSource({ address: ata, amount: 2_000n, delegate: user2, delegatedAmount: 2_000n }),
-            coldSource({ address: ata, amount: 3_000n, delegate: null, delegatedAmount: 0n }),
+            coldSource({
+                address: ata,
+                amount: 1_000n,
+                delegate: user1,
+                delegatedAmount: 1_000n,
+            }),
+            coldSource({
+                address: ata,
+                amount: 2_000n,
+                delegate: user2,
+                delegatedAmount: 2_000n,
+            }),
+            coldSource({
+                address: ata,
+                amount: 3_000n,
+                delegate: null,
+                delegatedAmount: 0n,
+            }),
         ];
 
         const result = buildAccountInterfaceFromSources(sources, ata);
@@ -459,20 +484,24 @@ describe('selectInputsForAmount – delegated accounts selected by amount not by
         // Need 500n → should pick the 500n account (delegated to delegate1)
         const result = selectInputsForAmount(accounts, 500n);
         expect(result.length).toBeGreaterThanOrEqual(1);
-        const selectedAmounts = result.map(a => BigInt(a.parsed.amount.toString()));
+        const selectedAmounts = result.map(a =>
+            BigInt(a.parsed.amount.toString()),
+        );
         expect(selectedAmounts).toContain(500n);
     });
 
     it('mix of delegated and non-delegated: largest amount picked first regardless of delegate', () => {
         const accounts = [
-            mockParsedAccount({ amount: 100n, delegate: null }),        // smallest
+            mockParsedAccount({ amount: 100n, delegate: null }), // smallest
             mockParsedAccount({ amount: 1_000n, delegate: delegate1 }), // largest (delegated)
             mockParsedAccount({ amount: 400n, delegate: delegate2 }),
         ];
 
         // Need 1000n → must pick the delegated 1000n account
         const result = selectInputsForAmount(accounts, 1_000n);
-        const selectedAmounts = result.map(a => BigInt(a.parsed.amount.toString()));
+        const selectedAmounts = result.map(a =>
+            BigInt(a.parsed.amount.toString()),
+        );
         expect(selectedAmounts[0]).toBe(1_000n);
     });
 
@@ -485,7 +514,9 @@ describe('selectInputsForAmount – delegated accounts selected by amount not by
 
         // Need 700 → pick 700n account (one delegated account covers it)
         const result = selectInputsForAmount(accounts, 700n);
-        const selectedAmounts = result.map(a => BigInt(a.parsed.amount.toString()));
+        const selectedAmounts = result.map(a =>
+            BigInt(a.parsed.amount.toString()),
+        );
         expect(selectedAmounts[0]).toBe(700n);
     });
 
@@ -496,15 +527,23 @@ describe('selectInputsForAmount – delegated accounts selected by amount not by
          * The cold account is still a valid input for the decompress instruction;
          * the on-chain program drops the delegation-to-user1 silently.
          */
-        const accountDelegatedToUser1 = mockParsedAccount({ amount: 2_000n, delegate: delegate1 });
-        const accountNoDelegated = mockParsedAccount({ amount: 1_000n, delegate: null });
+        const accountDelegatedToUser1 = mockParsedAccount({
+            amount: 2_000n,
+            delegate: delegate1,
+        });
+        const accountNoDelegated = mockParsedAccount({
+            amount: 1_000n,
+            delegate: null,
+        });
 
         const result = selectInputsForAmount(
             [accountDelegatedToUser1, accountNoDelegated],
             2_000n,
         );
         // The delegated account should be selected (largest first)
-        const selectedAmounts = result.map(a => BigInt(a.parsed.amount.toString()));
+        const selectedAmounts = result.map(a =>
+            BigInt(a.parsed.amount.toString()),
+        );
         expect(selectedAmounts[0]).toBe(2_000n);
     });
 });
@@ -643,7 +682,9 @@ describe('createDecompressInterfaceInstruction – delegate pubkeys in packed ac
         );
 
         const keyPubkeys = ix.keys.map(k => k.pubkey.toBase58());
-        const user1Count = keyPubkeys.filter(k => k === user1.toBase58()).length;
+        const user1Count = keyPubkeys.filter(
+            k => k === user1.toBase58(),
+        ).length;
         // Deduplication: user1 must appear exactly once
         expect(user1Count).toBe(1);
     });
@@ -810,10 +851,25 @@ describe('getCompressedTokenAccountsFromAtaSources – frozen filtering and dele
          * should be generated. An empty result here ensures _buildLoadBatches
          * returns [] and the caller gets an empty instruction set.
          */
-        const frozen1 = coldSource({ address: ata, amount: 5_000n, delegate: null, delegatedAmount: 0n, isFrozen: true });
-        const frozen2 = coldSource({ address: ata, amount: 3_000n, delegate: Keypair.generate().publicKey, delegatedAmount: 3_000n, isFrozen: true });
+        const frozen1 = coldSource({
+            address: ata,
+            amount: 5_000n,
+            delegate: null,
+            delegatedAmount: 0n,
+            isFrozen: true,
+        });
+        const frozen2 = coldSource({
+            address: ata,
+            amount: 3_000n,
+            delegate: Keypair.generate().publicKey,
+            delegatedAmount: 3_000n,
+            isFrozen: true,
+        });
 
-        const result = getCompressedTokenAccountsFromAtaSources([frozen1, frozen2]);
+        const result = getCompressedTokenAccountsFromAtaSources([
+            frozen1,
+            frozen2,
+        ]);
 
         expect(result.length).toBe(0);
     });
@@ -894,31 +950,61 @@ describe('buildAccountInterfaceFromSources – frozen source inflation', () => {
         const unfrozenColdAmount = 3_000n;
 
         const sources: TokenAccountSource[] = [
-            hotSource({ address: ata, amount: hotAmount, delegate: null, delegatedAmount: 0n }),
-            coldSource({ address: ata, amount: frozenColdAmount, delegate: null, delegatedAmount: 0n, isFrozen: true }),
-            coldSource({ address: ata, amount: unfrozenColdAmount, delegate: null, delegatedAmount: 0n }),
+            hotSource({
+                address: ata,
+                amount: hotAmount,
+                delegate: null,
+                delegatedAmount: 0n,
+            }),
+            coldSource({
+                address: ata,
+                amount: frozenColdAmount,
+                delegate: null,
+                delegatedAmount: 0n,
+                isFrozen: true,
+            }),
+            coldSource({
+                address: ata,
+                amount: unfrozenColdAmount,
+                delegate: null,
+                delegatedAmount: 0n,
+            }),
         ];
 
         const result = buildAccountInterfaceFromSources(sources, ata);
 
         // parsed.amount includes the frozen cold amount
-        expect(result.parsed.amount).toBe(hotAmount + frozenColdAmount + unfrozenColdAmount);
+        expect(result.parsed.amount).toBe(
+            hotAmount + frozenColdAmount + unfrozenColdAmount,
+        );
 
         // _anyFrozen signals the inflation
         expect(result._anyFrozen).toBe(true);
 
         // Loadable balance = hot + unfrozen cold = 2000 + 3000 = 5000
         // (NOT 10000 which parsed.amount shows)
-        const loadableAmount = result._sources!
-            .filter(s => !s.parsed.isFrozen)
+        const loadableAmount = result
+            ._sources!.filter(s => !s.parsed.isFrozen)
             .reduce((sum, s) => sum + s.amount, 0n);
         expect(loadableAmount).toBe(hotAmount + unfrozenColdAmount);
     });
 
     it('all sources frozen: _anyFrozen=true, _needsConsolidation=true, no unfrozen balance', () => {
         const sources: TokenAccountSource[] = [
-            coldSource({ address: ata, amount: 4_000n, delegate: null, delegatedAmount: 0n, isFrozen: true }),
-            coldSource({ address: ata, amount: 6_000n, delegate: Keypair.generate().publicKey, delegatedAmount: 6_000n, isFrozen: true }),
+            coldSource({
+                address: ata,
+                amount: 4_000n,
+                delegate: null,
+                delegatedAmount: 0n,
+                isFrozen: true,
+            }),
+            coldSource({
+                address: ata,
+                amount: 6_000n,
+                delegate: Keypair.generate().publicKey,
+                delegatedAmount: 6_000n,
+                isFrozen: true,
+            }),
         ];
 
         const result = buildAccountInterfaceFromSources(sources, ata);
@@ -927,8 +1013,8 @@ describe('buildAccountInterfaceFromSources – frozen source inflation', () => {
         expect(result._anyFrozen).toBe(true);
         expect(result._needsConsolidation).toBe(true);
 
-        const loadableAmount = result._sources!
-            .filter(s => !s.parsed.isFrozen)
+        const loadableAmount = result
+            ._sources!.filter(s => !s.parsed.isFrozen)
             .reduce((sum, s) => sum + s.amount, 0n);
         expect(loadableAmount).toBe(0n);
     });
@@ -943,8 +1029,19 @@ describe('buildAccountInterfaceFromSources – frozen source inflation', () => {
         const coldAmount = 2_000n;
 
         const sources: TokenAccountSource[] = [
-            hotSource({ address: ata, amount: frozenHotAmount, delegate: null, delegatedAmount: 0n, isFrozen: true }),
-            coldSource({ address: ata, amount: coldAmount, delegate: null, delegatedAmount: 0n }),
+            hotSource({
+                address: ata,
+                amount: frozenHotAmount,
+                delegate: null,
+                delegatedAmount: 0n,
+                isFrozen: true,
+            }),
+            coldSource({
+                address: ata,
+                amount: coldAmount,
+                delegate: null,
+                delegatedAmount: 0n,
+            }),
         ];
 
         const result = buildAccountInterfaceFromSources(sources, ata);
@@ -963,8 +1060,19 @@ describe('buildAccountInterfaceFromSources – frozen source inflation', () => {
         const user1 = Keypair.generate().publicKey;
 
         const sources: TokenAccountSource[] = [
-            hotSource({ address: ata, amount: 5_000n, delegate: null, delegatedAmount: 0n }),
-            coldSource({ address: ata, amount: 3_000n, delegate: user1, delegatedAmount: 3_000n, isFrozen: true }),
+            hotSource({
+                address: ata,
+                amount: 5_000n,
+                delegate: null,
+                delegatedAmount: 0n,
+            }),
+            coldSource({
+                address: ata,
+                amount: 3_000n,
+                delegate: user1,
+                delegatedAmount: 3_000n,
+                isFrozen: true,
+            }),
         ];
 
         const result = buildAccountInterfaceFromSources(sources, ata);
@@ -1000,7 +1108,11 @@ describe('createDecompressInterfaceInstruction – partial decompress and instru
             },
             compressedAccount: {
                 hash: new Uint8Array(32),
-                treeInfo: { tree: tree2, queue: queue2, treeType: TreeType.StateV2 },
+                treeInfo: {
+                    tree: tree2,
+                    queue: queue2,
+                    treeType: TreeType.StateV2,
+                },
                 leafIndex: 0,
                 proveByIndex: false,
                 owner: LIGHT_TOKEN_PROGRAM_ID,

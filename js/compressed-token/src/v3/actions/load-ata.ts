@@ -133,7 +133,6 @@ function assertUniqueInputHashes(chunks: ParsedTokenAccount[][]): void {
     }
 }
 
-
 /** @internal */
 export function getCompressedTokenAccountsFromAtaSources(
     sources: TokenAccountSource[],

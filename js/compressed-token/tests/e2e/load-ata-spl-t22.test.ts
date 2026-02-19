@@ -489,7 +489,11 @@ describe('loadAta - T22 ATA >8 cold inputs (H6)', () => {
         }
 
         const totalAmount = BigInt(coldCount) * amountPerAccount;
-        const coldBefore = await getCompressedBalance(rpc, owner.publicKey, t22Mint);
+        const coldBefore = await getCompressedBalance(
+            rpc,
+            owner.publicKey,
+            t22Mint,
+        );
         expect(coldBefore).toBe(totalAmount);
 
         const t22Ata = getAssociatedTokenAddressSync(
@@ -503,10 +507,19 @@ describe('loadAta - T22 ATA >8 cold inputs (H6)', () => {
         const signature = await loadAta(rpc, t22Ata, owner, t22Mint, payer);
         expect(signature).not.toBeNull();
 
-        const coldAfter = await getCompressedBalance(rpc, owner.publicKey, t22Mint);
+        const coldAfter = await getCompressedBalance(
+            rpc,
+            owner.publicKey,
+            t22Mint,
+        );
         expect(coldAfter).toBe(BigInt(0));
 
-        const t22Balance = await getAccount(rpc, t22Ata, undefined, TOKEN_2022_PROGRAM_ID);
+        const t22Balance = await getAccount(
+            rpc,
+            t22Ata,
+            undefined,
+            TOKEN_2022_PROGRAM_ID,
+        );
         expect(t22Balance.amount).toBe(totalAmount);
     }, 300_000);
 });

@@ -49,7 +49,9 @@ function mockParsedAccount(proveByIndex: boolean): any {
     };
 }
 
-function emptyBatch(overrides: Partial<InternalLoadBatch> = {}): InternalLoadBatch {
+function emptyBatch(
+    overrides: Partial<InternalLoadBatch> = {},
+): InternalLoadBatch {
     return {
         instructions: [],
         compressedAccounts: [],
@@ -86,9 +88,7 @@ describe('calculateLoadBatchComputeUnits', () => {
     });
 
     it('adds 50_000 per wrap', () => {
-        const cu = calculateLoadBatchComputeUnits(
-            emptyBatch({ wrapCount: 2 }),
-        );
+        const cu = calculateLoadBatchComputeUnits(emptyBatch({ wrapCount: 2 }));
         // 100_000 * 1.3 = 130_000
         expect(cu).toBe(130_000);
     });
@@ -122,7 +122,9 @@ describe('calculateLoadBatchComputeUnits', () => {
     });
 
     it('8 full-proof accounts: (50_000 + 100_000 + 8*30_000) * 1.3 = 507_000', () => {
-        const accounts = Array.from({ length: 8 }, () => mockParsedAccount(false));
+        const accounts = Array.from({ length: 8 }, () =>
+            mockParsedAccount(false),
+        );
         const cu = calculateLoadBatchComputeUnits(
             emptyBatch({ compressedAccounts: accounts }),
         );
@@ -130,7 +132,9 @@ describe('calculateLoadBatchComputeUnits', () => {
     });
 
     it('8 proveByIndex accounts: (50_000 + 8*10_000) * 1.3 = 169_000', () => {
-        const accounts = Array.from({ length: 8 }, () => mockParsedAccount(true));
+        const accounts = Array.from({ length: 8 }, () =>
+            mockParsedAccount(true),
+        );
         const cu = calculateLoadBatchComputeUnits(
             emptyBatch({ compressedAccounts: accounts }),
         );
@@ -151,7 +155,9 @@ describe('calculateLoadBatchComputeUnits', () => {
     });
 
     it('caps at 1_400_000 for extreme inputs', () => {
-        const accounts = Array.from({ length: 100 }, () => mockParsedAccount(false));
+        const accounts = Array.from({ length: 100 }, () =>
+            mockParsedAccount(false),
+        );
         const cu = calculateLoadBatchComputeUnits(
             emptyBatch({ compressedAccounts: accounts }),
         );
@@ -195,24 +201,34 @@ describe('calculateTransferCU', () => {
 
     it('1 full-proof compressed account: (10_000 + 50_000 + 100_000 + 30_000) * 1.3 = 247_000', () => {
         const acc = mockParsedAccount(false);
-        const cu = calculateTransferCU(emptyBatch({ compressedAccounts: [acc] }));
+        const cu = calculateTransferCU(
+            emptyBatch({ compressedAccounts: [acc] }),
+        );
         expect(cu).toBe(247_000);
     });
 
     it('1 proveByIndex account: (10_000 + 50_000 + 10_000) * 1.3 = 91_000', () => {
         const acc = mockParsedAccount(true);
-        const cu = calculateTransferCU(emptyBatch({ compressedAccounts: [acc] }));
+        const cu = calculateTransferCU(
+            emptyBatch({ compressedAccounts: [acc] }),
+        );
         expect(cu).toBe(91_000);
     });
 
     it('8 full-proof accounts: (10_000 + 50_000 + 100_000 + 8*30_000) * 1.3 = 520_000', () => {
-        const accounts = Array.from({ length: 8 }, () => mockParsedAccount(false));
-        const cu = calculateTransferCU(emptyBatch({ compressedAccounts: accounts }));
+        const accounts = Array.from({ length: 8 }, () =>
+            mockParsedAccount(false),
+        );
+        const cu = calculateTransferCU(
+            emptyBatch({ compressedAccounts: accounts }),
+        );
         expect(cu).toBe(520_000);
     });
 
     it('ATA + 1 wrap + 8 full-proof: combines all costs', () => {
-        const accounts = Array.from({ length: 8 }, () => mockParsedAccount(false));
+        const accounts = Array.from({ length: 8 }, () =>
+            mockParsedAccount(false),
+        );
         const cu = calculateTransferCU(
             emptyBatch({
                 hasAtaCreation: true,
@@ -227,8 +243,12 @@ describe('calculateTransferCU', () => {
     });
 
     it('caps at 1_400_000', () => {
-        const accounts = Array.from({ length: 100 }, () => mockParsedAccount(false));
-        const cu = calculateTransferCU(emptyBatch({ compressedAccounts: accounts }));
+        const accounts = Array.from({ length: 100 }, () =>
+            mockParsedAccount(false),
+        );
+        const cu = calculateTransferCU(
+            emptyBatch({ compressedAccounts: accounts }),
+        );
         expect(cu).toBe(1_400_000);
     });
 
@@ -250,7 +270,9 @@ describe('calculateTransferCU', () => {
 
 describe('sliceLast', () => {
     it('throws for empty array', () => {
-        expect(() => sliceLast([])).toThrow('sliceLast: array must not be empty');
+        expect(() => sliceLast([])).toThrow(
+            'sliceLast: array must not be empty',
+        );
     });
 
     it('single element: rest=[], last=element', () => {

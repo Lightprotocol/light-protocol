@@ -247,13 +247,7 @@ describe('cToken freeze/thaw - E2E', () => {
         const stateBefore = await getCtokenState(rpc, ctokenAta);
         expect(stateBefore).toBe(1); // Initialized
 
-        await freezeCtokenAccount(
-            rpc,
-            payer,
-            ctokenAta,
-            mint,
-            freezeAuthority,
-        );
+        await freezeCtokenAccount(rpc, payer, ctokenAta, mint, freezeAuthority);
 
         const stateAfter = await getCtokenState(rpc, ctokenAta);
         expect(stateAfter).toBe(2); // Frozen
@@ -284,13 +278,7 @@ describe('cToken freeze/thaw - E2E', () => {
         await loadAta(rpc, ctokenAta, owner, mint, payer);
 
         // Freeze
-        await freezeCtokenAccount(
-            rpc,
-            payer,
-            ctokenAta,
-            mint,
-            freezeAuthority,
-        );
+        await freezeCtokenAccount(rpc, payer, ctokenAta, mint, freezeAuthority);
         expect(await getCtokenState(rpc, ctokenAta)).toBe(2);
 
         // Thaw
@@ -317,13 +305,7 @@ describe('cToken freeze/thaw - E2E', () => {
             selectTokenPoolInfo(tokenPoolInfos),
         );
         await loadAta(rpc, ctokenAta, owner, mint, payer);
-        await freezeCtokenAccount(
-            rpc,
-            payer,
-            ctokenAta,
-            mint,
-            freezeAuthority,
-        );
+        await freezeCtokenAccount(rpc, payer, ctokenAta, mint, freezeAuthority);
 
         // Second freeze attempt must fail
         await expect(
@@ -456,13 +438,7 @@ describe('createUnwrapInstructions - freeze interactions', () => {
         );
 
         // Freeze the hot c-token ATA
-        await freezeCtokenAccount(
-            rpc,
-            payer,
-            ctokenAta,
-            mint,
-            freezeAuthority,
-        );
+        await freezeCtokenAccount(rpc, payer, ctokenAta, mint, freezeAuthority);
         expect(await getCtokenState(rpc, ctokenAta)).toBe(2);
 
         // createUnwrapInstructions must detect all balance is frozen
@@ -507,13 +483,7 @@ describe('createUnwrapInstructions - freeze interactions', () => {
             TOKEN_PROGRAM_ID,
         );
 
-        await freezeCtokenAccount(
-            rpc,
-            payer,
-            ctokenAta,
-            mint,
-            freezeAuthority,
-        );
+        await freezeCtokenAccount(rpc, payer, ctokenAta, mint, freezeAuthority);
 
         // Requesting a subset of the frozen balance also throws
         await expect(
@@ -558,13 +528,7 @@ describe('createUnwrapInstructions - freeze interactions', () => {
         );
 
         // Freeze → confirm unwrap is blocked
-        await freezeCtokenAccount(
-            rpc,
-            payer,
-            ctokenAta,
-            mint,
-            freezeAuthority,
-        );
+        await freezeCtokenAccount(rpc, payer, ctokenAta, mint, freezeAuthority);
         await expect(
             createUnwrapInstructions(
                 rpc,
@@ -639,13 +603,7 @@ describe('createUnwrapInstructions - freeze interactions', () => {
         );
 
         // Freeze hot (600 frozen)
-        await freezeCtokenAccount(
-            rpc,
-            payer,
-            ctokenAta,
-            mint,
-            freezeAuthority,
-        );
+        await freezeCtokenAccount(rpc, payer, ctokenAta, mint, freezeAuthority);
 
         // Requesting any amount throws "All c-token balance is frozen"
         // (since all 600 are frozen hot, none unfrozen)

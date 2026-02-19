@@ -229,8 +229,18 @@ export async function createLoadAccountsParams(
                 'Each ATA must be from getAtaInterface (requires _isAta, _owner, _mint)',
             );
         }
-        const targetAta = getAssociatedTokenAddressInterface(ata._mint, ata._owner);
-        const batches = await _buildLoadBatches(rpc, payer, ata, options, false, targetAta);
+        const targetAta = getAssociatedTokenAddressInterface(
+            ata._mint,
+            ata._owner,
+        );
+        const batches = await _buildLoadBatches(
+            rpc,
+            payer,
+            ata,
+            options,
+            false,
+            targetAta,
+        );
         for (const batch of batches) {
             ataInstructions.push(batch.instructions);
         }

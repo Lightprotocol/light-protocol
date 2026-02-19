@@ -219,12 +219,9 @@ describe('transfer-interface', () => {
                 1000,
             );
             const { blockhash } = await rpc.getLatestBlockhash();
-            const mintTx = buildAndSignTx(
-                [mintIx],
-                payer,
-                blockhash,
-                [mintAuthority],
-            );
+            const mintTx = buildAndSignTx([mintIx], payer, blockhash, [
+                mintAuthority,
+            ]);
             await sendAndConfirmTx(rpc, mintTx);
 
             const freezeIx = createFreezeAccountInstruction(
@@ -816,7 +813,10 @@ describe('transfer-interface', () => {
                 selectTokenPoolInfo(tokenPoolInfos),
             );
 
-            const senderAta = getAssociatedTokenAddressInterface(mint, sender.publicKey);
+            const senderAta = getAssociatedTokenAddressInterface(
+                mint,
+                sender.publicKey,
+            );
             await loadAta(rpc, senderAta, sender, mint);
 
             // Try to transfer more than available; no frozen accounts → no "frozen, not usable" note
@@ -829,7 +829,9 @@ describe('transfer-interface', () => {
                     sender.publicKey,
                     recipient.publicKey,
                 ),
-            ).rejects.toThrow(/Insufficient balance.*Required: 99999.*Available \(unfrozen\): 100$/);
+            ).rejects.toThrow(
+                /Insufficient balance.*Required: 99999.*Available \(unfrozen\): 100$/,
+            );
         }, 90_000);
 
         it('should succeed transferring exactly the unfrozen balance (cold-only, no frozen)', async () => {
@@ -847,7 +849,10 @@ describe('transfer-interface', () => {
                 selectTokenPoolInfo(tokenPoolInfos),
             );
 
-            const senderAta = getAssociatedTokenAddressInterface(mint, sender.publicKey);
+            const senderAta = getAssociatedTokenAddressInterface(
+                mint,
+                sender.publicKey,
+            );
 
             // Transfer exactly the cold balance - auto-load should succeed
             const signature = await transferInterface(
@@ -862,8 +867,13 @@ describe('transfer-interface', () => {
 
             expect(signature).toBeDefined();
 
-            const recipientAta = getAssociatedTokenAddressInterface(mint, recipient.publicKey);
-            const recipientBalance = (await rpc.getAccountInfo(recipientAta))!.data.readBigUInt64LE(64);
+            const recipientAta = getAssociatedTokenAddressInterface(
+                mint,
+                recipient.publicKey,
+            );
+            const recipientBalance = (await rpc.getAccountInfo(
+                recipientAta,
+            ))!.data.readBigUInt64LE(64);
             expect(recipientBalance).toBe(BigInt(1500));
         }, 120_000);
     });

@@ -29,10 +29,7 @@ import {
     getAssociatedTokenAddressInterface,
     transferInterface,
 } from '../../src/v3';
-import {
-    createLoadAtaInstructions,
-    loadAta,
-} from '../../src/index';
+import { createLoadAtaInstructions, loadAta } from '../../src/index';
 
 featureFlags.version = VERSION.V2;
 

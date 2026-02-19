@@ -310,7 +310,10 @@ describe('compressible-load', () => {
                     selectTokenPoolInfo(tokenPoolInfos),
                 );
 
-                const ataAddress = getAssociatedTokenAddressInterface(mint, owner.publicKey);
+                const ataAddress = getAssociatedTokenAddressInterface(
+                    mint,
+                    owner.publicKey,
+                );
                 const loadBatches = await createLoadAtaInstructions(
                     rpc,
                     ataAddress,
@@ -358,7 +361,10 @@ describe('compressible-load', () => {
 
         it('should return empty for owner with no token accounts', async () => {
             const owner = Keypair.generate();
-            const ata = getAssociatedTokenAddressInterface(mint, owner.publicKey);
+            const ata = getAssociatedTokenAddressInterface(
+                mint,
+                owner.publicKey,
+            );
             const batches = await createLoadAtaInstructions(
                 rpc,
                 ata,
