@@ -436,6 +436,7 @@ async fn test_approve_revoke_compressible() -> Result<(), RpcError> {
         delegate: delegate.pubkey(),
         owner: owner.pubkey(),
         amount: approve_amount,
+        max_top_up: None,
     }
     .instruction()
     .map_err(|e| {
@@ -460,6 +461,7 @@ async fn test_approve_revoke_compressible() -> Result<(), RpcError> {
     let revoke_ix = Revoke {
         token_account: account_pubkey,
         owner: owner.pubkey(),
+        max_top_up: None,
     }
     .instruction()
     .map_err(|e| RpcError::AssertRpcError(format!("Failed to create revoke instruction: {}", e)))?;

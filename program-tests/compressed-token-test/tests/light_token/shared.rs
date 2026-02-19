@@ -903,6 +903,7 @@ pub async fn approve_and_assert(
         delegate,
         owner: context.owner_keypair.pubkey(),
         amount,
+        max_top_up: None,
     }
     .instruction()
     .unwrap();
@@ -941,20 +942,15 @@ pub async fn approve_and_assert_fails(
 ) {
     println!("Approve (expecting failure) initiated for: {}", name);
 
-    // Build using SDK, then modify if needed for max_top_up
-    let mut instruction = Approve {
+    let instruction = Approve {
         token_account,
         delegate,
         owner: authority.pubkey(),
         amount,
+        max_top_up,
     }
     .instruction()
     .unwrap();
-
-    // Add max_top_up to instruction data if specified
-    if let Some(max) = max_top_up {
-        instruction.data.extend_from_slice(&max.to_le_bytes());
-    }
 
     let result = context
         .rpc
@@ -976,6 +972,7 @@ pub async fn revoke_and_assert(context: &mut AccountTestContext, name: &str) {
     let revoke_ix = Revoke {
         token_account: context.token_account_keypair.pubkey(),
         owner: context.owner_keypair.pubkey(),
+        max_top_up: None,
     }
     .instruction()
     .unwrap();
@@ -1005,18 +1002,13 @@ pub async fn revoke_and_assert_fails(
 ) {
     println!("Revoke (expecting failure) initiated for: {}", name);
 
-    // Build using SDK, then modify if needed for max_top_up
-    let mut instruction = Revoke {
+    let instruction = Revoke {
         token_account,
         owner: authority.pubkey(),
+        max_top_up,
     }
     .instruction()
     .unwrap();
-
-    // Add max_top_up to instruction data if specified
-    if let Some(max) = max_top_up {
-        instruction.data.extend_from_slice(&max.to_le_bytes());
-    }
 
     let result = context
         .rpc
