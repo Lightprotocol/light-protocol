@@ -423,7 +423,6 @@ export {
 
 export {
     createLoadAccountsParams,
-    createLoadAtaInstructionsFromInterface,
     calculateCompressibleLoadComputeUnits,
     CompressibleAccountInput,
     ParsedAccountInfoInterface,

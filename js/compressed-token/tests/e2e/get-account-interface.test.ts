@@ -1389,7 +1389,13 @@ describe('get-account-interface', () => {
                 ctokenMint,
                 unifiedOwner.publicKey,
             );
-            await loadAta(rpc, unifiedCtokenAta, unifiedOwner, ctokenMint, payer);
+            await loadAta(
+                rpc,
+                unifiedCtokenAta,
+                unifiedOwner,
+                ctokenMint,
+                payer,
+            );
 
             // 2 cold accounts
             await mintTo(

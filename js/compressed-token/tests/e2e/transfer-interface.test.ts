@@ -10,11 +10,16 @@ import {
     LIGHT_TOKEN_PROGRAM_ID,
     VERSION,
     featureFlags,
+    buildAndSignTx,
+    sendAndConfirmTx,
 } from '@lightprotocol/stateless.js';
 import {
     TOKEN_PROGRAM_ID,
     getAccount,
     getAssociatedTokenAddressSync,
+    createAssociatedTokenAccount,
+    createFreezeAccountInstruction,
+    createMintToInstruction,
 } from '@solana/spl-token';
 import { createMint, mintTo } from '../../src/actions';
 import {
@@ -170,6 +175,84 @@ describe('transfer-interface', () => {
                 ),
             ).rejects.toThrow(
                 'Recipient must be a wallet public key (on-curve), not a PDA or ATA',
+            );
+        });
+    });
+
+    describe('transferInterface frozen sender', () => {
+        let splMintWithFreeze: PublicKey;
+        let freezeAuthority: Keypair;
+
+        beforeAll(async () => {
+            freezeAuthority = Keypair.generate();
+            const mintKeypair = Keypair.generate();
+            const { mint } = await createMint(
+                rpc,
+                payer,
+                mintAuthority.publicKey,
+                TEST_TOKEN_DECIMALS,
+                mintKeypair,
+                undefined,
+                TOKEN_PROGRAM_ID,
+                freezeAuthority.publicKey,
+            );
+            splMintWithFreeze = mint;
+        }, 60_000);
+
+        it('should throw when sender SPL token account is frozen', async () => {
+            const sender = await newAccountWithLamports(rpc, 2e9);
+            const recipient = Keypair.generate().publicKey;
+
+            const senderSplAta = await createAssociatedTokenAccount(
+                rpc,
+                payer,
+                splMintWithFreeze,
+                sender.publicKey,
+                undefined,
+                TOKEN_PROGRAM_ID,
+            );
+
+            const mintIx = createMintToInstruction(
+                splMintWithFreeze,
+                senderSplAta,
+                mintAuthority.publicKey,
+                1000,
+            );
+            const { blockhash } = await rpc.getLatestBlockhash();
+            const mintTx = buildAndSignTx(
+                [mintIx],
+                payer,
+                blockhash,
+                [mintAuthority],
+            );
+            await sendAndConfirmTx(rpc, mintTx);
+
+            const freezeIx = createFreezeAccountInstruction(
+                senderSplAta,
+                splMintWithFreeze,
+                freezeAuthority.publicKey,
+            );
+            const freezeTx = buildAndSignTx(
+                [freezeIx],
+                payer,
+                await rpc.getLatestBlockhash().then(b => b.blockhash),
+                [freezeAuthority],
+            );
+            await sendAndConfirmTx(rpc, freezeTx);
+
+            await expect(
+                transferInterface(
+                    rpc,
+                    payer,
+                    senderSplAta,
+                    splMintWithFreeze,
+                    recipient,
+                    sender,
+                    BigInt(100),
+                    TOKEN_PROGRAM_ID,
+                ),
+            ).rejects.toThrow(
+                'Cannot transfer: sender token account is frozen.',
             );
         });
     });
@@ -655,6 +738,134 @@ describe('transfer-interface', () => {
             // ATA balance should EXACTLY match (no tolerance needed when using actual size)
             expect(recipientAtaBalance).toBe(expectedAtaBalance);
         });
+    });
+
+    // ================================================================
+    // H7: wrap=true + programId=TOKEN_PROGRAM_ID
+    // isSplOrT22 && !wrap is false → would route to c-token transfer path,
+    // but _buildLoadBatches rejects a non-ctoken targetAta when wrap=true.
+    // ================================================================
+    describe('H7: transferInterface wrap=true + programId=TOKEN_PROGRAM_ID', () => {
+        it('should throw when wrap=true is combined with programId=TOKEN_PROGRAM_ID (targetAta is SPL)', async () => {
+            const sender = await newAccountWithLamports(rpc, 2e9);
+            const recipient = Keypair.generate();
+
+            // Mint compressed tokens and decompress to SPL ATA so the sender has SPL hot balance
+            await mintTo(
+                rpc,
+                payer,
+                mint,
+                sender.publicKey,
+                mintAuthority,
+                bn(2000),
+                stateTreeInfo,
+                selectTokenPoolInfo(tokenPoolInfos),
+            );
+
+            const senderSplAta = getAssociatedTokenAddressSync(
+                mint,
+                sender.publicKey,
+                false,
+                TOKEN_PROGRAM_ID,
+                getAtaProgramId(TOKEN_PROGRAM_ID),
+            );
+            await loadAta(rpc, senderSplAta, sender, mint, payer, undefined, {
+                splInterfaceInfos: tokenPoolInfos,
+            });
+
+            // wrap=true + programId=TOKEN_PROGRAM_ID: senderAta is SPL ATA.
+            // _buildLoadBatches validates targetAta is ctoken when wrap=true → throws.
+            await expect(
+                transferInterface(
+                    rpc,
+                    payer,
+                    senderSplAta,
+                    mint,
+                    recipient.publicKey,
+                    sender,
+                    BigInt(500),
+                    TOKEN_PROGRAM_ID,
+                    undefined,
+                    { splInterfaceInfos: tokenPoolInfos },
+                    true, // wrap=true
+                ),
+            ).rejects.toThrow('For wrap=true, targetAta must be c-token ATA');
+        }, 120_000);
+    });
+
+    // ================================================================
+    // H8: partially frozen cold sources, hot is unfrozen
+    // Full e2e requires a freeze-compressed-account SDK operation which is
+    // not yet exposed. The tests below cover what can be verified without it:
+    // - hot-only sender with insufficient balance reports no frozen note
+    // - unfrozen cold load path works correctly (covered by auto-load test)
+    // ================================================================
+    describe('H8: unfrozen balance calc – frozen balance note in error', () => {
+        it('should report no frozen note when all sources are unfrozen and balance is insufficient', async () => {
+            const sender = await newAccountWithLamports(rpc, 1e9);
+            const recipient = Keypair.generate();
+
+            await mintTo(
+                rpc,
+                payer,
+                mint,
+                sender.publicKey,
+                mintAuthority,
+                bn(100),
+                stateTreeInfo,
+                selectTokenPoolInfo(tokenPoolInfos),
+            );
+
+            const senderAta = getAssociatedTokenAddressInterface(mint, sender.publicKey);
+            await loadAta(rpc, senderAta, sender, mint);
+
+            // Try to transfer more than available; no frozen accounts → no "frozen, not usable" note
+            await expect(
+                createTransferInterfaceInstructions(
+                    rpc,
+                    payer.publicKey,
+                    mint,
+                    BigInt(99_999),
+                    sender.publicKey,
+                    recipient.publicKey,
+                ),
+            ).rejects.toThrow(/Insufficient balance.*Required: 99999.*Available \(unfrozen\): 100$/);
+        }, 90_000);
+
+        it('should succeed transferring exactly the unfrozen balance (cold-only, no frozen)', async () => {
+            const sender = await newAccountWithLamports(rpc, 1e9);
+            const recipient = Keypair.generate();
+
+            await mintTo(
+                rpc,
+                payer,
+                mint,
+                sender.publicKey,
+                mintAuthority,
+                bn(1500),
+                stateTreeInfo,
+                selectTokenPoolInfo(tokenPoolInfos),
+            );
+
+            const senderAta = getAssociatedTokenAddressInterface(mint, sender.publicKey);
+
+            // Transfer exactly the cold balance - auto-load should succeed
+            const signature = await transferInterface(
+                rpc,
+                payer,
+                senderAta,
+                mint,
+                recipient.publicKey,
+                sender,
+                BigInt(1500),
+            );
+
+            expect(signature).toBeDefined();
+
+            const recipientAta = getAssociatedTokenAddressInterface(mint, recipient.publicKey);
+            const recipientBalance = (await rpc.getAccountInfo(recipientAta))!.data.readBigUInt64LE(64);
+            expect(recipientBalance).toBe(BigInt(1500));
+        }, 120_000);
     });
 
     // ================================================================

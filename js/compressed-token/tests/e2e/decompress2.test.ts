@@ -298,7 +298,6 @@ describe('decompressInterface', () => {
             const afterInfo = await rpc.getAccountInfo(ctokenAta);
             expect(afterInfo!.data.readBigUInt64LE(64)).toBe(BigInt(5000));
         });
-
     });
 
     describe('createDecompressInterfaceInstruction', () => {

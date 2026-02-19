@@ -6,7 +6,9 @@
  * consume ~92 output queue entries, and the combined total (~175)
  * exceeds the local test validator's 100-entry batch queue limit.
  *
- * Run with a fresh validator: `light test-validator` before this file.
+ * Reset ledger/queues before running: `pnpm test-validator` (or `light test-validator`).
+ * The npm script runs in two passes (validator reset between) so output-queue-heavy
+ * "parallel multi-tx batching" tests get a fresh queue; use `pnpm test:e2e:multi-cold-inputs-batching`.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import {
@@ -330,8 +332,10 @@ describe('Multi-Cold-Inputs Batching', () => {
                 }
             }
 
-            expect(batches[0].length).toBe(2); // createATA + decompress 8
-            expect(batches[1].length).toBe(1); // decompress 7
+            // Batch 0: setup (createATA) + decompress 8. Batch 1: idempotent ATA + decompress 7
+            // (_buildLoadBatches adds idempotent ATA to every batch after the first so order does not matter)
+            expect(batches[0].length).toBe(2);
+            expect(batches[1].length).toBe(2);
 
             const signatures: string[] = [];
             for (let batchIdx = 0; batchIdx < batches.length; batchIdx++) {
@@ -746,58 +750,6 @@ describe('Multi-Cold-Inputs Batching', () => {
     // parallel multi-tx batching (~44 output entries)
     // ---------------------------------------------------------------
     describe('parallel multi-tx batching (>16 inputs)', () => {
-        it('should load 20 cold compressed accounts via parallel batches (3 batches: 8+8+4)', async () => {
-            const owner = await newAccountWithLamports(rpc, 5e9);
-            const coldCount = 20;
-            const amountPerAccount = BigInt(100);
-
-            await mintMultipleColdAccounts(
-                rpc,
-                payer,
-                mint,
-                owner.publicKey,
-                mintAuthority,
-                coldCount,
-                amountPerAccount,
-                stateTreeInfo,
-                tokenPoolInfos,
-            );
-
-            const countBefore = await getCompressedAccountCount(
-                rpc,
-                owner.publicKey,
-                mint,
-            );
-            expect(countBefore).toBe(coldCount);
-
-            const totalColdBalance = await getCompressedBalance(
-                rpc,
-                owner.publicKey,
-                mint,
-            );
-            expect(totalColdBalance).toBe(BigInt(coldCount) * amountPerAccount);
-
-            const ata = getAssociatedTokenAddressInterface(
-                mint,
-                owner.publicKey,
-            );
-
-            const signature = await loadAta(rpc, ata, owner, mint);
-            expect(signature).not.toBeNull();
-
-            const countAfter = await getCompressedAccountCount(
-                rpc,
-                owner.publicKey,
-                mint,
-            );
-            expect(countAfter).toBe(0);
-
-            const hotBalance = (await rpc.getAccountInfo(
-                ata,
-            ))!.data.readBigUInt64LE(64);
-            expect(hotBalance).toBe(totalColdBalance);
-        }, 300_000);
-
         it('should load 24 cold compressed accounts via parallel batches (3 batches: 8+8+8)', async () => {
             const owner = await newAccountWithLamports(rpc, 6e9);
             const coldCount = 24;
@@ -849,5 +801,57 @@ describe('Multi-Cold-Inputs Batching', () => {
             ))!.data.readBigUInt64LE(64);
             expect(hotBalance).toBe(totalColdBalance);
         }, 360_000);
+
+        it('should load 20 cold compressed accounts via parallel batches (3 batches: 8+8+4)', async () => {
+            const owner = await newAccountWithLamports(rpc, 5e9);
+            const coldCount = 20;
+            const amountPerAccount = BigInt(100);
+
+            await mintMultipleColdAccounts(
+                rpc,
+                payer,
+                mint,
+                owner.publicKey,
+                mintAuthority,
+                coldCount,
+                amountPerAccount,
+                stateTreeInfo,
+                tokenPoolInfos,
+            );
+
+            const countBefore = await getCompressedAccountCount(
+                rpc,
+                owner.publicKey,
+                mint,
+            );
+            expect(countBefore).toBe(coldCount);
+
+            const totalColdBalance = await getCompressedBalance(
+                rpc,
+                owner.publicKey,
+                mint,
+            );
+            expect(totalColdBalance).toBe(BigInt(coldCount) * amountPerAccount);
+
+            const ata = getAssociatedTokenAddressInterface(
+                mint,
+                owner.publicKey,
+            );
+
+            const signature = await loadAta(rpc, ata, owner, mint);
+            expect(signature).not.toBeNull();
+
+            const countAfter = await getCompressedAccountCount(
+                rpc,
+                owner.publicKey,
+                mint,
+            );
+            expect(countAfter).toBe(0);
+
+            const hotBalance = (await rpc.getAccountInfo(
+                ata,
+            ))!.data.readBigUInt64LE(64);
+            expect(hotBalance).toBe(totalColdBalance);
+        }, 300_000);
     });
 });

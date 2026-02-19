@@ -31,7 +31,6 @@ import {
 } from '../../src/v3';
 import {
     createLoadAtaInstructions,
-    createLoadAtaInstructionsFromInterface,
     loadAta,
 } from '../../src/index';
 
@@ -245,7 +244,7 @@ describe('v3-interface-v1-rejection', () => {
             expect(sig === null || typeof sig === 'string').toBe(true);
         });
 
-        it('createLoadAtaInstructionsFromInterface rejects V1 at instruction builder boundary', async () => {
+        it('createLoadAtaInstructions rejects V1 at instruction builder boundary', async () => {
             await mintTo(
                 rpc,
                 payer,
@@ -257,21 +256,13 @@ describe('v3-interface-v1-rejection', () => {
                 selectTokenPoolInfo(tokenPoolInfos),
             );
 
-            const ataInterface = await getAtaInterface(
-                rpc,
-                ctokenAta,
-                owner.publicKey,
-                mint,
-            );
-
             await expect(
-                createLoadAtaInstructionsFromInterface(
+                createLoadAtaInstructions(
                     rpc,
-                    payer.publicKey,
-                    ataInterface,
-                    undefined,
-                    false,
                     ctokenAta,
+                    owner.publicKey,
+                    mint,
+                    payer.publicKey,
                 ),
             ).rejects.toThrow(
                 'v3 interface does not support V1 compressed accounts',

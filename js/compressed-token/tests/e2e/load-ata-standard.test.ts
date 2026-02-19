@@ -19,7 +19,6 @@ import {
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 import {
-    TOKEN_PROGRAM_ID,
     createAssociatedTokenAccount,
     getAccount,
     TokenAccountNotFoundError,
@@ -35,9 +34,7 @@ import {
 import {
     loadAta,
     createLoadAtaInstructions,
-    createLoadAtaInstructionsFromInterface,
 } from '../../src/v3/actions/load-ata';
-import { getAtaInterface } from '../../src/v3/get-account-interface';
 import { getAssociatedTokenAddressInterface } from '../../src/v3/get-associated-token-address-interface';
 import { createAtaInterfaceIdempotent } from '../../src/v3/actions/create-ata-interface';
 
@@ -360,59 +357,4 @@ describe('loadAta - Standard Path (wrap=false)', () => {
         });
     });
 
-    describe('createLoadAtaInstructionsFromInterface', () => {
-        it('should throw if AccountInterface not from getAtaInterface', async () => {
-            const fakeInterface = {
-                accountInfo: { data: Buffer.alloc(0) },
-                parsed: {},
-                isCold: false,
-            } as any;
-
-            await expect(
-                createLoadAtaInstructionsFromInterface(
-                    rpc,
-                    payer.publicKey,
-                    fakeInterface,
-                ),
-            ).rejects.toThrow('must be from getAtaInterface');
-        });
-
-        it('should build instructions from valid AccountInterface', async () => {
-            const owner = await newAccountWithLamports(rpc, 1e9);
-
-            await mintTo(
-                rpc,
-                payer,
-                mint,
-                owner.publicKey,
-                mintAuthority,
-                bn(1200),
-                stateTreeInfo,
-                selectTokenPoolInfo(tokenPoolInfos),
-            );
-
-            const ataAddress = getAssociatedTokenAddressInterface(
-                mint,
-                owner.publicKey,
-            );
-            const ataInterface = await getAtaInterface(
-                rpc,
-                ataAddress,
-                owner.publicKey,
-                mint,
-            );
-
-            expect(ataInterface._isAta).toBe(true);
-            expect(ataInterface._owner?.equals(owner.publicKey)).toBe(true);
-            expect(ataInterface._mint?.equals(mint)).toBe(true);
-
-            const ixs = await createLoadAtaInstructionsFromInterface(
-                rpc,
-                payer.publicKey,
-                ataInterface,
-            );
-
-            expect(ixs.length).toBeGreaterThan(0);
-        });
-    });
 });

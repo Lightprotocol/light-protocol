@@ -23,7 +23,6 @@ export { CompressedTokenProgram as LightTokenProgram } from './program';
 export * from './types';
 import {
     createLoadAccountsParams,
-    createLoadAtaInstructionsFromInterface,
     createLoadAtaInstructions as _createLoadAtaInstructions,
     loadAta as _loadAta,
     calculateCompressibleLoadComputeUnits,
@@ -37,7 +36,6 @@ import {
 
 export {
     createLoadAccountsParams,
-    createLoadAtaInstructionsFromInterface,
     calculateCompressibleLoadComputeUnits,
     selectInputsForAmount,
     CompressibleAccountInput,
