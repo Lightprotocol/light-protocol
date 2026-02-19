@@ -1,0 +1,1052 @@
+Implement the following plan:
+
+# Logic Review: Light System Program `process` Function
+
+## IMPORTANT
+- Split the task into todos
+- Use subagents where it makes sense
+- Work through todos one by one
+- If stuck or starting to do random stuff, use a subagent to research
+
+## Context
+
+Review the Light system program `process` function and all sub-processors for logic bugs similar to the address position bug (`.filter().position()` returning filtered-iterator index used on original Vec). The bug class is: **iterator/index confusion, off-by-one, position mismatch between filtered and unfiltered collections, unchecked arithmetic, and state corruption across function boundaries**.
+
+## Review Directory
+
+`.claude/tmp/jorrit-fix-system-program-addresses-0/`
+
+## Report Path
+
+`.claude/logic-review-process-20260218-report.md`
+
+## Files in Scope
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `programs/system/src/processor/process.rs` | 384 | Main orchestrator |
+| `programs/system/src/processor/create_outputs_cpi_data.rs` | 270 | Output account hashing, address consumption |
+| `programs/system/src/processor/create_inputs_cpi_data.rs` | 149 | Input account hashing, nullifier creation |
+| `programs/system/src/processor/create_address_cpi_data.rs` | 127 | Address derivation |
+| `programs/system/src/processor/verify_proof.rs` | 221 | Root reading, proof verification |
+| `programs/system/src/processor/read_only_account.rs` | 84 | Read-only account inclusion verification |
+| `programs/system/src/processor/read_only_address.rs` | 35 | Read-only address non-inclusion |
+| `programs/system/src/processor/sum_check.rs` | 67 | Lamport balance check |
+| `programs/system/src/processor/sol_compression.rs` | 112 | Compress/decompress lamports |
+| `programs/system/src/processor/cpi.rs` | 102 | CPI data construction |
+| `programs/system/src/context.rs` | 434 | SystemContext, WrappedInstructionData |
+| `programs/system/src/accounts/remaining_account_checks.rs` | 256 | Account deserialization |
+
+## Preliminary Findings from Phase 1 Exploration
+
+### Finding 1: No more `.filter().position()` bugs
+The exact bug pattern has only one instance - the already-fixed one in `create_outputs_cpi_data.rs:174`.
+
+### Finding 2 (SUSPICIOUS): Unchecked overflow in `set_rollover_fee`
+**Location:** `context.rs:156`
+```rust
+Some(payment) => payment.1 += fee,  // NO checked_add!
+```
+Compare with `set_additive_fee` (context.rs:73-76) which uses `checked_add`.
+
+### Finding 3 (SUSPICIOUS): `get_output_account` vs filtered output iterator index mismatch
+- `inputs.output_accounts()` returns a **filtered** iterator (skipping `skip() == true`)
+- `inputs.get_output_account(index)` accesses **unfiltered** slices directly
+- `assigned_compressed_account_index` uses `get_output_account` (unfiltered)
+- Address consumption in `create_outputs_cpi_data` iterates filtered outputs
+
+### Finding 4 (MINOR): Double push to `context.addresses`
+`process.rs:150-152` and `create_inputs_cpi_data.rs:48-50` both push input addresses. Second push is after consumption, so harmless but wasteful.
+
+### Finding 5 (SUSPICIOUS): `network_fee_v2` only set once per tx
+`context.rs:84-89` - `network_fee_is_set` is global. Doc says "charge once per tree" but flag prevents charging for second tree.
+
+### Finding 6 (TO INVESTIGATE): `num_address_queues` overcounting
+`create_address_cpi_data.rs:116-124` counts ALL address trees in remaining accounts, not just those referenced by new addresses.
+
+## Execution Paths for Deep Analysis
+
+### P1: Full path - inputs + new addresses + outputs (ADDRESS_ASSIGNMENT=true)
+Most complex/security-critical. Exercises address derivation, assignment, consumption, proof verification.
+**Input:** 2 inputs (1 with address, 1 without), 2 new addresses (assigned to outputs), 2 outputs with addresses, proof
+
+### P2: Outputs only with CPI context (skip filtering active)
+Tests skip() filtering interaction with indexing.
+**Input:** CPI context with skipped outputs + regular outputs, new addresses with assigned_compressed_account_index
+
+### P3: Read-only accounts + read-only addresses + proof
+Tests proof input filtering and root reading.
+**Input:** 2 read-only accounts (1 prove_by_index, 1 by proof), 1 read-only address, proof
+
+### P4: Compress/decompress with sum check
+Tests lamport balance arithmetic.
+**Input:** Inputs with lamports, outputs with lamports, decompress_lamports, relay_fee
+
+### P5: Multiple output trees with network fees
+Tests fee accumulation and `network_fee_is_set` flag.
+**Input:** Outputs across 2 different V2 state trees with different network fees
+
+## Tasks
+
+### Task 1: Phase 2 - Tracing (5 subagents, model: haiku)
+One per execution path. 4 iterations each, tracing concrete inputs line-by-line.
+Output: `[review-dir]/phase2-P[N]-trace.json`
+
+### Task 2: Phase 3 - Validation (5 subagents, model: sonnet)
+Cross-validate Phase 2 findings.
+Output: `[review-dir]/phase3-P[N]-validation.json`
+
+### Task 3: Phase 4 - Critical Review (1 subagent, model: opus)
+Debate all findings, craft adversarial inputs, challenge assumptions.
+Output: `[review-dir]/phase4-process-critical.json`
+
+### Task 4: Phase 5 - Report
+Synthesize into `.claude/logic-review-process-20260218-report.md`
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ananas/.REDACTED.jsonl
+
+---
+
+<task-notification>
+<task-id>a2c92c1</task-id>
+<status>completed</status>
+<summary>Agent "Trace P2: CPI context outputs with skip filtering" completed</summary>
+<result>I understand the permission restrictions. Let me provide my detailed findings directly in JSON format as requested:
+
+## P2 Scenario Trace Analysis
+
+I've completed a thorough line-by-line trace of execution path P2 with concrete values. Here are my findings:
+
+### ITERATION 1: chain_outputs vs get_output_account
+
+**Key Discovery:** Two different indexing systems exist
+
+**chain_outputs (context.rs:390-405)** - FILTERS skip=true:
+- Yields position 0: cpi_out[0] (ADDR_C0, skip=false)
+- Yields position 1: cpi_out[2] (ADDR_C2, skip=false)  
+- Yields position 2: ix_out[0] (ADDR_IX0, skip=false)
+- **SKIPS:** cpi_out[1] (ADDR_C1, skip=TRUE)
+
+**get_output_account(1) (context.rs:293-318)** - NO FILTERING:
+- Checks: `index (1) < cpi_outputs_len (3)` = TRUE
+- Returns: `cpi_context.output_accounts()[1]` = **cpi_out[1] (ADDR_C1, skip=TRUE)**
+
+**Critical Mismatch:**
+- Position 1 in **filtered** iterator = cpi_out[2]
+- Index 1 in **unfiltered** array = cpi_out[1]
+- **These refer to DIFFERENT accounts!**
+
+### ITERATION 2: derive_new_addresses execution
+
+**Input:** new_addr[0] with assigned_compressed_account_index=Some(1)
+
+**Execution (create_address_cpi_data.rs:26-115):**
+```
+Loop i=0:
+  - ADDRESS_ASSIGNMENT=true
+  - new_addr[0].assigned_compressed_account_index().is_some() = true
+  - Line 110: context.addresses.push(Some(address))
+  - cpi_ix_data.addresses[0].address = DERIVED_ADDR_0
+```
+
+**After completion:**
+- `context.addresses = [Some(DERIVED_ADDR_0)]`
+- `cpi_ix_data.addresses[0].address = DERIVED_ADDR_0`
+
+### ITERATION 3: check_new_address_assignment - THE BUG LOCATION
+
+**Function (create_outputs_cpi_data.rs:231-269):**
+
+```
+Iteration 0:
+  derived_addresses = cpi_ix_data.addresses[0] (address=DERIVED_ADDR_0)
+  new_addresses = inputs.new_addresses()[0] (assigned_index=Some(1))
+  
+  assigned_account_index = 1
+  output_account = inputs.get_output_account(1)
+  
+  *** GETS UNFILTERED INDEX 1 = cpi_out[1] (ADDR_C1, skip=true) ***
+  
+  Check: DERIVED_ADDR_0 == output_account.address()?
+  Check: DERIVED_ADDR_0 == ADDR_C1?
+  
+  *** VALIDATES AGAINST WRONG ACCOUNT ***
+```
+
+**What Should Happen:**
+- new_addr[0] assigned to position 1 in FILTERED outputs
+- Position 1 filtered = cpi_out[2] (ADDR_C2)
+- Should check: DERIVED_ADDR_0 == ADDR_C2
+
+**What Actually Happens:**
+- Checks against cpi_out[1] (the SKIPPED account)
+- If DERIVED_ADDR_0 != ADDR_C1: Transaction fails with AddressDoesNotMatch
+- If they happen to match: Bug silently succeeds but validates wrong account
+
+### ITERATION 4: create_outputs_cpi_data - SILENT OMISSION
+
+**Processing loop (create_outputs_cpi_data.rs:61-223):**
+
+```
+for (j, account) in inputs.output_accounts().enumerate() {
+    // chain_outputs filters, yields:
+    // j=0: cpi_out[0] (processed)
+    // j=1: cpi_out[2] (processed)
+    // j=2: ix_out[0] (processed)
+    
+    // NEVER ENTERED:
+    // cpi_out[1] (skip=true) is completely ignored
+}
+```
+
+**What gets processed:**
+- cpi_out[0] (ADDR_C0): leaf computed, address checked, account_index set
+- cpi_out[2] (ADDR_C2): leaf computed, address checked, account_index set
+- ix_out[0] (ADDR_IX0): leaf computed, address checked, account_index set
+
+**What doesn't get processed:**
+- cpi_out[1] (ADDR_C1): **COMPLETELY SKIPPED**
+  - Address never validated
+  - Leaf never computed
+  - Account index never set
+  - **Still present in CPI context data but orphaned**
+
+---
+
+## Bugs Found
+
+**BUG P2-BUG-1 (CRITICAL):**
+- **Location:** create_outputs_cpi_data.rs:231-269 (check_new_address_assignment function)
+- **ID:** Filtered-vs-Unfiltered Index Mismatch in Address Assignment Validation
+- **Severity:** CRITICAL
+- **Description:** 
+  - `assigned_compressed_account_index` field semantically refers to position in FILTERED output accounts list
+  - `get_output_account(index)` interprets index as position in UNFILTERED accounts list
+  - When CPI context contains skipped accounts, these indices refer to DIFFERENT accounts
+  - Result: validation checks the wrong account against the derived address
+- **Exploit (P2):**
+  - CPI outputs: [skip=false, skip=TRUE, skip=false]
+  - new_addr[0].assigned_compressed_account_index = 1 (means filtered pos 1 = accounts[2])
+  - get_output_account(1) returns accounts[1] instead (which has skip=true)
+  - Validation compares DERIVED_ADDR against wrong account, fails or passes for wrong reasons
+- **Impact:**
+  - Valid transactions rejected (if derived address doesn't match the wrong account)
+  - Invalid transactions accepted (if derived address happens to match the wrong account)
+  - Address mapping corruption
+  - Cross-CPI account confusion
+
+**BUG P2-BUG-2 (HIGH):**
+- **Location:** context.rs:354-363 (output_accounts method) and create_outputs_cpi_data.rs:61 (for loop)
+- **ID:** Skipped Accounts Silently Omitted From Output Processing
+- **Severity:** HIGH
+- **Description:**
+  - `chain_outputs` filters skip=true accounts before iteration
+  - create_outputs_cpi_data loop only processes filtered accounts
+  - Skipped accounts in CPI context are present but never hashed, indexed, or validated
+  - Leaf indices computed only for non-skipped accounts, causing misalignment with account_index field
+- **Exploit (P2):**
+  - CPI output[1] has skip=true and contains ADDR_C1
+  - Loop iteration skips this account entirely
+  - ADDR_C1's address is never checked against context.addresses
+  - ADDR_C1's leaf is never computed
+  - ADDR_C1's account_index (leaves[j].account_index = index_merkle_tree_account_account - 1) never set
+  - Orphaned account data in CPI instruction
+- **Impact:**
+  - CPI instruction data corrupted (missing leaf hashes)
+  - Merkle tree insertion failures
+  - Inconsistent leaf_index to account_index mapping
+
+**BUG P2-BUG-3 (CRITICAL):**
+- **Location:** context.rs:293-318 (get_output_account method)
+- **ID:** Index Interpretation Mismatch Between Filtered and Unfiltered Collections
+- **Severity:** CRITICAL  
+- **Description:**
+  - Semantic intent: `assigned_compressed_account_index` from user input refers to filtered output position
+  - Implementation: `get_output_account(index)` treats index as unfiltered array position
+  - No filtering applied in get_output_account; direct array indexing used
+  - This is the root cause of P2-BUG-1 and P2-BUG-2
+- **Exploit (P2):**
+  - Intention: new_addr[0] assigned to "the 1st non-skipped output" (filtered position 1)
+  - Reality: code retrieves "unfiltered output at index 1"
+  - When CPI context has skipped outputs, these don't align
+- **Impact:** CRITICAL - breaks address assignment validation for any transaction with skipped outputs in CPI context
+
+---
+
+## Suspicious Patterns
+
+1. **Two separate code paths for indexing outputs:**
+   - chain_outputs: filters skip=true via iterator
+   - get_output_account: no filtering, direct array access
+   - These can return different accounts for same index
+
+2. **User-facing semantic (assigned_compressed_account_index) vs code interpretation mismatch:**
+   - User expectation: index refers to position in non-skipped output list
+   - Code behavior: index refers to position in full output list
+   - Documentation gap between trait definition (traits.rs:73) and implementation
+
+3. **Silent data loss in create_outputs_cpi_data:**
+   - Skipped accounts silently omitted from processing loop
+   - No validation that all CPI accounts are actually processed
+   - Leaf count mismatch with actual processed accounts
+
+4. **Indexing inconsistency across module boundary:**
+   - check_new_address_assignment uses get_output_account (unfiltered)
+   - create_outputs_cpi_data uses chain_outputs iteration (filtered)
+   - Same data structure, different indexing semantics
+
+---
+
+## Root Cause Analysis
+
+The fundamental issue is that **assigned_compressed_account_index is ambiguously defined**. The code has two valid interpretations:
+
+1. **Filtered interpretation:** Index into the logical stream of non-skipped outputs (what users likely intend)
+2. **Unfiltered interpretation:** Index into the raw output_accounts array (what get_output_account does)
+
+When CPI context contains skipped accounts, these produce different results. The code needs to consistently choose ONE interpretation throughout all validation and processing paths.</result>
+<usage>total_tokens: 44606
+tool_uses: 9
+duration_ms: 61402</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-ananas-dev-light-protocol/tasks/a2c92c1.output
+
+---
+
+<task-notification>
+<task-id>a8616c8</task-id>
+<status>completed</status>
+<summary>Agent "Trace P1: inputs+addresses+outputs" completed</summary>
+<result>I need permission to write files. Let me explain what I've found in a detailed writeup instead:
+
+## Deep Logic Review of Light Protocol System Program - Path P1 Analysis
+
+I have completed a comprehensive 4-iteration trace of execution path P1 (full path with inputs, new addresses, and outputs when ADDRESS_ASSIGNMENT=true). Here are my findings:
+
+### **Iteration 1: High-Level Execution Flow**
+
+The `process()` function executes in this order:
+1. **Lines 93-115**: Initialize context and deserialize CPI instruction data
+2. **Lines 150-152**: Collect input addresses by pushing them to `context.addresses`
+3. **Lines 155-172**: Call `derive_new_addresses()` which pushes new addresses to `context.addresses`
+4. **Lines 164-165**: Call `check_new_address_assignment()` to validate address-to-output mapping
+5. **Lines 184-190**: Call `create_outputs_cpi_data()` which validates and REMOVES addresses from the pool
+6. **Lines 197-203**: Call `create_inputs_cpi_data()` which **ALSO pushes input addresses again**
+
+### **Iteration 2: Address Derivation and Validation**
+
+With P1 inputs (2 new addresses with `assigned_compressed_account_index` set):
+
+**In `derive_new_addresses()`:**
+- Loop i=0: Derives `ADDR_NEW_0`, condition at lines 105-107 is TRUE (ADDRESS_ASSIGNMENT=true AND assigned_index exists), pushes `Some(ADDR_NEW_0)` to context.addresses
+- Loop i=1: Same for `ADDR_NEW_1`
+- Result: `context.addresses = [Some(ADDR_A), None, Some(ADDR_NEW_0), Some(ADDR_NEW_1)]`
+
+**In `check_new_address_assignment()`:**
+- Zips `cpi_ix_data.addresses` with `inputs.new_addresses()` in lockstep
+- For each, verifies that `derived_addresses.address` equals the output account's address
+- This assumes newly derived addresses match output addresses (deterministic derivation)
+
+### **Iteration 3: Output Processing**
+
+**For j=0 (output[0] with address=DERIVED_ADDR_0, merkle_tree_index=0):**
+- Since `current_index=-1` initially, tree is fetched and metadata loaded
+- At lines 173-179, searches for `DERIVED_ADDR_0` in context.addresses
+- Should find it at position 2 (if `DERIVED_ADDR_0 == ADDR_NEW_0`), removes it
+- State after: `context.addresses = [Some(ADDR_A), None, Some(ADDR_NEW_1)]`
+- Leaf index calculated: `cpi_ix_data.output_leaf_indices[0] = mt_next_index + 0`
+
+**For j=1 (output[1] with address=DERIVED_ADDR_1, merkle_tree_index=0):**
+- Tree already cached, skips fetch
+- Searches for `DERIVED_ADDR_1` in context.addresses
+- Finds and removes it at position 2
+- State after: `context.addresses = [Some(ADDR_A), None]`
+- Leaf index: `cpi_ix_data.output_leaf_indices[1] = mt_next_index + 1`
+
+### **Iteration 4: Critical Bugs Identified**
+
+**BUG-1: CRITICAL - Double Push of Input Addresses**
+- **Location**: process.rs:150-152 AND create_inputs_cpi_data.rs:48-50
+- **Issue**: Input addresses are pushed to context.addresses at line 150-152, then pushed AGAIN inside the loop at create_inputs_cpi_data.rs:48-50
+- **Timeline**:
+  1. After process:150-152: `context.addresses=[Some(ADDR_A), None]`
+  2. After derive_new_addresses:110: `context.addresses=[Some(ADDR_A), None, Some(ADDR_NEW_0), Some(ADDR_NEW_1)]`
+  3. After create_outputs_cpi_data:175: `context.addresses=[Some(ADDR_A), None]` (new addresses consumed)
+  4. After create_inputs_cpi_data:50 (i=0): `context.addresses=[Some(ADDR_A), None, Some(ADDR_A)]` (ADDR_A pushed again!)
+  5. After create_inputs_cpi_data:50 (i=1): `context.addresses=[Some(ADDR_A), None, Some(ADDR_A), None]` (None pushed again!)
+- **Impact**: State corruption with duplicate addresses. This breaks the address tracking invariant where each address should appear exactly once and be consumed once.
+- **Root Cause**: The initial push at lines 150-152 was meant to collect addresses for validation, but create_inputs_cpi_data shouldn't re-push them.
+
+**BUG-2: HIGH - Unchecked Arithmetic Overflow**
+- **Location**: context.rs:156 in `set_rollover_fee()`
+- **Issue**: `payment.1 += fee` uses unchecked addition without `checked_add`
+- **Scenario**: Multiple outputs to same tree with large rollover fees can overflow u64 silently
+- **Impact**: Fee calculation wraps around, potentially transferring far fewer lamports than required, breaking protocol invariants
+
+**BUG-3: MEDIUM - Fee Index Collision**
+- **Location**: create_address_cpi_data.rs:114 in `derive_new_addresses()`
+- **Issue**: `set_rollover_fee` is called with `address_queue_index`, but this is keyed in the same rollover_fee_payments map as state tree indices from `create_outputs_cpi_data.rs:222`
+- **Risk**: If address_queue_index=2 and a state tree also has index=2, fees accumulate together incorrectly
+
+### **Suspicious Patterns**
+
+1. **Double iteration**: Inputs are iterated at lines 150-152 with `for_each`, then again at lines 46-47 in `create_inputs_cpi_data`
+2. **Order dependency**: `create_outputs_cpi_data` is called BEFORE `create_inputs_cpi_data`, but outputs consume addresses that inputs should also provide
+3. **Option wrapper confusion**: `context.addresses` is `Vec<Option<[u8; 32]>>` where `None` represents unaddressed inputs, but `None` values are still pushed and processed
+4. **No lifecycle documentation**: When should context.addresses be populated? When consumed? By which functions? Not clearly specified.
+5. **Index namespace collision**: Both address fees and state tree fees use the same index space in `rollover_fee_payments`
+6. **num_address_queues calculation**: Counts all AddressTree/BatchedAddressTree accounts in remaining_accounts, independent of how many addresses were created
+
+Due to permission restrictions, I cannot write the JSON file directly, but I have provided complete findings above showing the trace and identified bugs with full context and impact analysis.</result>
+<usage>total_tokens: 48162
+tool_uses: 8
+duration_ms: 95464</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-ananas-dev-light-protocol/tasks/a8616c8.output
+
+---
+
+<task-notification>
+<task-id>a9354aa</task-id>
+<status>completed</status>
+<summary>Agent "Trace P4: compress/decompress lamports sum check" completed</summary>
+<result>I need to request permission to write the output file. However, let me provide the complete analysis here in text format:
+
+## Deep Logic Review of P4: Compress/Decompress with Sum Check
+
+I have completed a thorough line-by-line trace of execution path P4 with the concrete values you provided. Here are my findings:
+
+### **Iteration 1: Main P4 Scenario Trace**
+
+**Inputs:**
+- input[0]: lamports=1000, prove_by_index=false
+- input[1]: lamports=500, prove_by_index=true
+- output[0]: lamports=800, skip=false
+- decompress_lamports=700, is_compress=false
+- relay_fee=None
+
+**Sum check execution (sum_check.rs:8-67):**
+
+1. **Line 14-15:** Get compress_or_decompress_lamports=700 and input_accounts iterator
+2. **Line 17:** Get output_accounts iterator
+3. **Line 20-32:** Loop through inputs
+   - Iteration 1 (input[0]): lamports=1000, prove_by_index=false → num_prove_by_index_accounts stays 0, sum=0+1000=1000
+   - Iteration 2 (input[1]): lamports=500, prove_by_index=true → num_prove_by_index_accounts=1, sum=1000+500=1500
+4. **Line 34-45:** Check compress_or_decompress_lamports (is_compress=false, so decompress)
+   - sum = 1500 - 700 = 800
+5. **Line 48-53:** Loop through outputs (only output[0])
+   - sum = 800 - 800 = 0
+6. **Line 55-60:** relay_fee is None, skip this
+7. **Line 62-66:** sum==0, return num_prove_by_index_accounts=1
+
+**Finding:** CORRECT - sum check balances as expected.
+
+---
+
+### **Iteration 2: Skip() Filtering in Output Accounts**
+
+**Critical observation:** In context.rs:354-363, `output_accounts()` calls `chain_outputs()` which filters by `!x.skip()` at lines 397 and 402.
+
+**In sum_check.rs:17 and 48:** The `output_accounts` iterator is FILTERED. Skipped outputs are NOT included in the sum.
+
+**Trace of skip() handling:**
+- `WrappedInstructionData::new()` (context.rs:204-225) counts outputs using `.filter(|x| !x.skip()).count()` at line 208
+- `output_accounts()` (context.rs:354-363) uses `chain_outputs()` which filters `!x.skip()` at lines 397, 402
+- `sum_check()` (sum_check.rs:48) iterates over `inputs.output_accounts()` which is already filtered
+
+**Attack scenario test:** If an attacker creates an output with `skip()=true`:
+- It won't be counted in `output_len` (context.rs:208)
+- It won't appear in `output_accounts()` iterator (context.rs:397)
+- It won't be included in sum check (sum_check.rs:48-53)
+- It won't be passed to `create_outputs_cpi_data` (process.rs:184)
+
+**Finding:** CORRECT - skip filtering is consistently applied across sum check, output length, and output processing. No bypass detected.
+
+---
+
+### **Iteration 3: Set_rollover_fee Overflow Vulnerability** ⚠️ **BUG FOUND**
+
+**Location:** context.rs:150-158
+
+```rust
+pub fn set_rollover_fee(&mut self, ix_data_index: u8, fee: u64) {
+    let payment = self
+        .rollover_fee_payments
+        .iter_mut()
+        .find(|a| a.0 == ix_data_index);
+    match payment {
+        Some(payment) => payment.1 += fee,  // LINE 156: UNCHECKED OVERFLOW
+        None => self.rollover_fee_payments.push((ix_data_index, fee)),
+    };
+}
+```
+
+**Vulnerability:** Line 156 uses `+=` operator for u64 addition without overflow checking.
+
+**Comparison with safe equivalent (context.rs:68-81):**
+```rust
+fn set_additive_fee(&mut self, fee: u64, index: u8) -> Result<()> {
+    let payment = self.rollover_fee_payments.iter_mut().find(|a| a.0 == index);
+    match payment {
+        Some(payment) => {
+            payment.1 = payment.1
+                .checked_add(fee)  // CHECKED - returns Result
+                .ok_or(ProgramError::ArithmeticOverflow)?;
+        }
+        None => self.rollover_fee_payments.push((index, fee)),
+    };
+    Ok(())
+}
+```
+
+**Concrete exploit:**
+1. Initialize: `set_rollover_fee(5, u64::MAX - 100)` → payment = (5, 18446744073709551515)
+2. Add more: `set_rollover_fee(5, 200)` → payment.1 += 200 
+3. Expected: overflow error or payment = 18446744073709551715
+4. Actual: payment.1 wraps to 99 (unsigned overflow)
+5. Result: Fee paid to account[5] is corrupted from expected 18446744073709551715 to 99
+
+**Impact:** Silent corruption of fee accumulation, potential loss of protocol fees.
+
+---
+
+### **Iteration 4: Interaction Between sum_check Return and num_accounts_by_zkp**
+
+**Location:** process.rs:224, 237
+
+```rust
+224: let num_input_accounts_by_index = sum_check(&inputs, &None, &inputs.is_compress())?;
+...
+237: let num_accounts_by_zkp = num_input_accounts - num_input_accounts_by_index;
+```
+
+**Potential underflow?** If `num_input_accounts_by_index > num_input_accounts`, this would underflow.
+
+**Can this happen?**
+
+Let me trace the sources:
+- `num_input_accounts` (line 93): comes from `inputs.input_len()` → counts non-skipped inputs at context.rs:214-218
+- `num_input_accounts_by_index` (line 224): returned from `sum_check()` at sum_check.rs:63, which counts `prove_by_index=true` flags in inputs
+
+**Both use the same filtered iterator:**
+1. `inputs.input_len()` calls `instruction_data.input_accounts().iter().filter(|x| !x.skip()).count()` (context.rs:214-218)
+2. `sum_check()` gets `inputs.input_accounts()` at sum_check.rs:15, which calls `chain_inputs()` (context.rs:365-375)
+3. `chain_inputs()` filters `!x.skip()` for both CPI and instruction data slices (context.rs:413-414)
+
+**Critical observation:** Both paths filter by `!skip()` using the same `chain_inputs()` function. The `num_prove_by_index_accounts` is a COUNT of true flags WITHIN the filtered set, while `num_input_accounts` is the COUNT of the filtered set itself.
+
+**Math check:**
+- If filtered set has N inputs, then `num_input_accounts = N`
+- If K of those have `prove_by_index=true`, then `num_input_accounts_by_index = K`
+- Since K ≤ N, the subtraction `N - K = num_accounts_by_zkp` is always safe
+
+**Finding:** NO UNDERFLOW - sum_check counts a subset of the inputs (those with prove_by_index=true), so `num_input_accounts_by_index ≤ num_input_accounts` always holds.
+
+**However:** This is TIGHTLY COUPLED to the filtering behavior of `chain_inputs()`. If someone modifies the filtering logic in the future without updating both paths, it could break.
+
+---
+
+## Summary
+
+### **Bugs Found:**
+
+1. **P4-BUG-1 (HIGH SEVERITY):** `set_rollover_fee()` at context.rs:156 uses unchecked `+=` operator on u64, allowing silent overflow. Unlike the identical `set_additive_fee()` which uses `checked_add()`, this function corrupts fee state when accumulating large values.
+
+### **Suspicious Patterns:**
+
+- **context.rs:150-158 vs 68-81:** Inconsistent error handling for the same fee accumulation operation
+- **chain_inputs/chain_outputs filtering:** Both filter `!skip()` but logic could diverge if not maintained together
+- **sum_check/num_accounts coupling:** Subtly depends on consistent filtering behavior between sum_check count and input_len count
+
+### **Verified Safe:**
+
+- Sum check math for P4 scenario is correct
+- Edge case handling for u64::MAX decompress_lamports is correctly caught by `checked_sub`
+- Skip filtering is consistently applied to prevent account bypass
+- No off-by-one errors in prove_by_index counting</result>
+<usage>total_tokens: 41356
+tool_uses: 6
+duration_ms: 64763</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-ananas-dev-light-protocol/tasks/a9354aa.output
+
+---
+
+<task-notification>
+<task-id>aa78295</task-id>
+<status>completed</status>
+<summary>Agent "Trace P3: Read-only accounts+addresses with proof" completed</summary>
+<result>I need to explain what I've discovered from my deep logic review of the P3 execution path.
+
+## Summary of P3 Logic Review
+
+I have completed a comprehensive line-by-line trace of the P3 execution path (read-only accounts + read-only addresses + proof). Here are my findings:
+
+### Iteration 1: num_inclusion_proof_inputs Calculation
+**CORRECT** - The calculation at process.rs:234-239 is accurate for P3:
+- `num_read_only_accounts_by_zkp = 2 - 1 = 1` (2 total accounts minus 1 proven by index)
+- `num_accounts_by_zkp = 0 - 0 = 0` (no writable inputs)
+- `num_inclusion_proof_inputs = 1` (correctly represents ro_acct[0] needing ZKP)
+
+### Iteration 2: read_input_state_roots Assembly
+**CORRECT** - The function correctly filters and collects roots:
+- Input accounts: 0 items (none exist in P3)
+- Read-only accounts: filters to 1 item (ro_acct[0] with prove_by_index=false)
+- Result: `input_roots = [ro_acct[0].root]`
+- No off-by-one errors; order maintained consistently
+
+### Iteration 3: filter_for_accounts_not_proven_by_index Assembly
+**CORRECT** - The filtering logic mirrors read_input_state_roots:
+- Input accounts: 0 items
+- Read-only accounts: filters to 1 item (ro_acct[0])
+- Result: `proof_input_compressed_account_hashes = [ro_acct[0].hash]`
+- No position mismatches between filtered/unfiltered collections
+
+### Iteration 4: verify_proof Proof Input Consistency
+**CORRECT** - All proof inputs are properly assembled and ordered:
+- `roots = [ro_acct[0].root]`
+- `leaves = [ro_acct[0].hash]`
+- `address_roots = [ro_addr[0].root]`
+- `addresses = [ro_addr[0].address]`
+- Branch selection: Combined proof (both leaves and addresses non-empty) ✓
+- Verifying key selection: `select_verifying_key(1, 1)` ✓
+- Hash chain ordering matches documented comment (inputs→read-only→new_addresses→read-only_addresses)
+
+### Code Style Issue Found
+**Severity: LOW** - At `/Users/ananas/dev/light-protocol/programs/system/src/processor/read_only_account.rs` lines 61-62 and 67-71:
+
+The counter `num_prove_read_only_accounts_prove_by_index` is incremented at line 62 before the validation check at line 67. While this doesn't cause a functional bug (the function returns early on error, so the counter is never used in failure cases), it's semantically incorrect. The counter should only be incremented AFTER the validation passes.
+
+### No Critical Logic Bugs Found in P3
+All calculations, filtering operations, and proof input assembly are correct. The ordering is consistent between all parallel operations, array capacities match actual usage, and the verifier receives the expected inputs.
+
+Unfortunately, I cannot write the JSON file to `/Users/ananas/dev/light-protocol/.claude/tmp/jorrit-fix-system-program-addresses-0/phase2-P3-trace.json` due to file system permissions. However, I have completed the detailed analysis above which covers all four iterations and any bugs found.</result>
+<usage>total_tokens: 51779
+tool_uses: 19
+duration_ms: 134754</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-ananas-dev-light-protocol/tasks/aa78295.output
+
+---
+
+<task-notification>
+<task-id>a34b920</task-id>
+<status>completed</status>
+<summary>Agent "Trace P5: Multiple output trees network fees" completed</summary>
+<result>I need to request permission to write the findings to the file. Let me explain the situation:
+
+## Summary of Findings
+
+I have completed a comprehensive 4-iteration deep logic review of the Light Protocol system program's P5 execution path. I have identified **2 critical bugs** and **1 code smell/latent bug**, but I am unable to write the detailed findings to the output file due to permission restrictions.
+
+Here are my key findings:
+
+### Bug P5-BUG-1 (CRITICAL - HIGH SEVERITY)
+**Location:** `programs/system/src/context.rs:84-89`
+
+The `set_network_fee_v2` function uses a **global boolean flag** that prevents charging network fees for multiple V2 trees in a single transaction.
+
+**The Problem:**
+```rust
+pub fn set_network_fee_v2(&mut self, fee: u64, index: u8) {
+    if !self.network_fee_is_set {  // Global flag
+        self.network_fee_is_set = true;  // Set to true once
+        self.rollover_fee_payments.push((index, fee));  // Only first tree charged
+    }
+}
+```
+
+The docstring explicitly states: *"V2 batched state trees: charge **once per tree**"*, but the implementation enforces "once per transaction."
+
+**Concrete Exploit:** A user submits a transaction with 3 output accounts: two pointing to tree 0 (network_fee=5000) and one pointing to tree 1 (network_fee=8000). After processing outputs:
+- Tree 0's 5000 fee is charged ✓
+- Tree 1's 8000 fee is NEVER charged ✗
+- **Expected: 13000 lamports | Actual: 5000 lamports | Loss: 8000 lamports**
+
+### Bug P5-BUG-1B (CRITICAL - HIGH SEVERITY)  
+**Location:** `programs/system/src/processor/create_outputs_cpi_data.rs:75-77` and `create_inputs_cpi_data.rs:62-65`
+
+When a transaction uses **inputs and outputs from different V2 trees**, the execution order creates asymmetric charging:
+1. `create_outputs_cpi_data()` runs first → sets `network_fee_is_set=true` 
+2. `create_inputs_cpi_data()` runs second → cannot charge due to flag being set
+
+**Concrete Exploit:** User submits transaction with:
+- Input from V2 BatchedStateTree A (network_fee=5000)
+- Output to V2 OutputQueue B (network_fee=8000)
+
+Result: Only 8000 charged, 5000 network fee completely skipped. **Loss: 5000 lamports**
+
+### Bug P5-BUG-2 (MEDIUM SEVERITY - CODE SMELL)
+**Location:** `programs/system/src/processor/create_address_cpi_data.rs:116-124`
+
+The `num_address_queues` value counts **ALL address trees in remaining_accounts**, not just the trees actually used by new_addresses. Currently works by accident due to validation checking address count, not tree count. A fragile pattern that will break if account-compression changes.
+
+---
+
+**I need permission to write the detailed JSON trace file to:**
+```
+/Users/ananas/dev/light-protocol/.claude/tmp/jorrit-fix-system-program-addresses-0/phase2-P5-trace.json
+```
+
+This file would contain all 4 iterations' findings, concrete value traces, and exploitation scenarios. Would you like me to proceed, or would you prefer I output the findings in a different format?</result>
+<usage>total_tokens: 53874
+tool_uses: 13
+duration_ms: 106570</usage>
+</task-notification>
+Full transcript available at: REDACTED.output
+
+---
+
+<task-notification>
+<task-id>a902e22</task-id>
+<status>completed</status>
+<summary>Agent "Validate P3 findings: proof input ordering" completed</summary>
+<result>## Phase 3 Cross-Validation Results: P3
+
+All four adversarial checks have been traced in full. Here is a summary:
+
+### P3-BUG-1: Counter increment before validation check (read_only_account.rs:61-62)
+
+**Verdict: Confirmed as low severity (no change from Phase 2).**
+
+The counter at line 62 is incremented before the check at line 67. However, the only execution path that reaches line 62 is when `prove_inclusion_by_index` returned `Ok(false)` — if it returned `Err`, the `?` at line 60 exits before line 62. When `prove_by_index()` is true and `proved_inclusion` is false, the function returns an error at line 71 and the incremented counter value is never returned to the caller. The return value is always correct.
+
+### Additional Adversarial Findings (all false positives)
+
+**P3-ADDITIONAL-1: Proof input ordering**
+
+`filter_for_accounts_not_proven_by_index` and `read_input_state_roots` both iterate the same source arrays in the same order (input accounts first, then read-only accounts) with the same `!prove_by_index()` filter. The `roots[i]` and `leaves[i]` arrays fed to `verify_proof` are always aligned to the same account. No ordering mismatch exists.
+
+**P3-ADDITIONAL-2: proof_is_none edge case**
+
+When `num_inclusion_proof_inputs == 0` and `num_non_inclusion_proof_inputs != 0` and `proof == None`: the outer condition at process.rs:251 (`num_inclusion != 0 || num_non_inclusion != 0`) is true, so the first branch is entered. The `if let Some(proof)` fails and falls to `return Err(ProofIsNone)`. Correctly handled.
+
+**P3-ADDITIONAL-3: Underflow risk in subtraction**
+
+`verify_read_only_account_inclusion_by_index` increments its counter at most once per element in `read_only_accounts`. Its maximum return value is exactly `read_only_accounts.len()`. The subtraction `read_only_accounts.len() - num_read_only_accounts_by_index` at process.rs:236 cannot underflow.
+
+**P3-ADDITIONAL-4: Proof bypass via crafted prove_by_index accounts**
+
+Accounts with `prove_by_index=true` have their hash verified against on-chain queue state via `prove_inclusion_by_index`. A false hash returns `InclusionProofByIndexFailed` immediately; an out-of-range index returns `InvalidIndex`. There is no bypass path.
+
+**Overall verdict**: The Phase 2 P3 "no critical bugs" finding is correct and validated. P3-BUG-1 remains a low-severity stylistic issue with no functional impact. No additional issues were found.</result>
+<usage>total_tokens: 37724
+tool_uses: 10
+duration_ms: 81824</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-ananas-dev-light-protocol/tasks/a902e22.output
+
+---
+
+<task-notification>
+<task-id>ae579e0</task-id>
+<status>completed</status>
+<summary>Agent "Validate P1 findings: double-push and fee index collision" completed</summary>
+<result>Here is a detailed summary of the Phase 3 cross-validation findings for P1:
+
+---
+
+## P1-BUG-1: Double push of input addresses -- CONFIRMED (low)
+
+**Confirmed correct.** The two push sites were verified:
+
+- `process.rs:150-152`: iterates `input_accounts()` and pushes each address to `context.addresses` (step 6)
+- `create_inputs_cpi_data.rs:48-50`: iterates the same `input_accounts()` again and pushes each address to `context.addresses` (step 10)
+
+The call order matters: step 9 (`create_outputs_cpi_data`) runs between the two pushes and is the only consumer of `context.addresses` -- it removes matched addresses using `remove(position)` at line 174-179 of `create_outputs_cpi_data.rs`. After step 9, `context.addresses` is exhausted. The second push at step 10 re-populates `context.addresses` with data that is never read again.
+
+There is no correctness or security impact: the address validation check runs before the second push, so no double-counted address can cause an invalid output to pass. The first push in `process.rs:150-152` is the dead code (the push in `create_inputs_cpi_data.rs` is the one actually within the processing iteration, and should be the canonical location).
+
+---
+
+## P1-BUG-2: Unchecked += in set_rollover_fee -- FALSE POSITIVE
+
+**Demoted to false positive.** The unchecked `payment.1 += fee` at `context.rs:156` is confirmed, and there is indeed an inconsistency with `set_additive_fee` which uses `checked_add`. However, overflow is not reachable in practice:
+
+- Default rollover fees: 300 lamports (state tree), 392 lamports (address queue)
+- `set_rollover_fee` is called at most once per unique output tree index per transaction
+- Even with the theoretical maximum of 255 outputs to the same tree: 392 * 255 = 99,960 lamports -- negligibly small relative to u64::MAX (~1.84 * 10^19)
+
+The inconsistency is a code quality concern (documented as P1-NEW-1) but not a real overflow risk.
+
+---
+
+## P1-BUG-3: Shared namespace collision between address queue fees and state tree fees -- FALSE POSITIVE
+
+**False positive.** The core premise -- that an address queue and a state tree could occupy the same `ix_data_index` -- is structurally impossible:
+
+Each slot in `remaining_accounts` is a single on-chain account. `try_from_account_info` in `remaining_account_checks.rs` classifies accounts by their on-chain discriminator byte prefix. A `STATE_MERKLE_TREE_ACCOUNT_DISCRIMINATOR` account becomes `AcpAccount::StateTree`; an address queue becomes `AcpAccount::AddressQueue`/`AcpAccount::AddressTree`. No single account can carry two discriminators simultaneously.
+
+Additionally, the Phase 2 claim that `create_inputs_cpi_data.rs:84` calls `set_rollover_fee` is factually incorrect -- that line contains `context.set_network_fee_v1(...)`. There is no `set_rollover_fee` call anywhere in `create_inputs_cpi_data.rs`.
+
+---
+
+## Additional Findings
+
+**P1-NEW-1 (low)** -- `context.rs:150-158`: `set_rollover_fee` uses unchecked `+=` while the parallel `set_additive_fee` uses `checked_add`. This is an inconsistency that should be fixed for defensive correctness even though it cannot overflow today.
+
+**P1-NEW-2 (low)** -- `process.rs:150-152` + `create_inputs_cpi_data.rs:46-50`: The double push is confirmed dead code. The first push site (`process.rs:150-152`) should be removed; the push inside `create_inputs_cpi_data.rs` is the one co-located with the actual processing logic and should be kept.</result>
+<usage>total_tokens: 54709
+tool_uses: 16
+duration_ms: 116449</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-ananas-dev-light-protocol/tasks/ae579e0.output
+
+---
+
+<task-notification>
+<task-id>aee6846</task-id>
+<status>completed</status>
+<summary>Agent "Validate P4 findings: sum check skip bypass and fee overflow" completed</summary>
+<result>Here is a detailed writeup of the Phase 3 cross-validation findings for P4.
+
+---
+
+## P4-BUG-1: Unchecked `payment.1 += fee` in `set_rollover_fee` — FALSE POSITIVE
+
+**Verdict: false_positive | revised severity: false_positive**
+
+**Mathematical analysis:**
+
+The unchecked addition at `/Users/ananas/dev/light-protocol/programs/system/src/context.rs:156` cannot overflow in practice.
+
+Bounding factors:
+- `MAX_OUTPUT_ACCOUNTS = 30` (`constants.rs:7`), enforced at context.rs:210 and 232. This is the hard limit on accumulation calls per tx.
+- `set_rollover_fee` is called once per output account in the loop at `create_outputs_cpi_data.rs:222`, and once per new address in `create_address_cpi_data.rs:114`.
+- Rollover fee magnitude comes from `compute_rollover_fee` (`fee.rs:3-18`): `fee = ceil(rent * 100 / (2^height * rollover_threshold))`. From actual test data, realistic fees for height-26 trees are ~175-200 lamports. For an extreme pathological case (height=1, threshold=1%, rent=10 billion lamports): `fee = ceil(10e9 * 100 / (2 * 1)) = 5e11 lamports`.
+- Overflow check: `30 * 5e11 = 1.5e13` lamports. `u64::MAX = 1.8e19` lamports. **6 orders of magnitude of headroom.**
+
+The asymmetry with `set_additive_fee` (which uses `checked_add`) is a code quality concern but not a security bug.
+
+---
+
+## Additional Findings
+
+### P4-NEW-1: `relay_fee` is dead code in the execution path (low severity)
+
+**File:** `/Users/ananas/dev/light-protocol/programs/system/src/processor/process.rs:224`
+
+```rust
+let num_input_accounts_by_index = sum_check(&inputs, &None, &inputs.is_compress())?;
+//                                                    ^^^^^ always None
+```
+
+The `relay_fee` parameter is hardcoded to `&None` at the only call site to `sum_check` in the execution path. The `relay_fee` field exists in:
+- The instruction data struct (`ZInstructionDataInvokeCpi.relay_fee`)
+- Event parsing (`sdk-libs/event/src/parse.rs:362,380`)
+- Instruction decoder (`sdk-libs/instruction-decoder/src/programs/light_system.rs:367-381`)
+
+But it is **never enforced on-chain**. A user can set `relay_fee: Some(N)` and the sum check will pass without deducting N. Relay nodes relying on this mechanism for payment cannot be compensated. This appears to be an incomplete/abandoned feature.
+
+### P4-NEW-2: `set_rollover_fee` accumulates per output, not per tree (informational)
+
+`context.set_rollover_fee(current_index as u8, rollover_fee)` is called for every output account, including multiple outputs going to the same tree. This is the correct design (each leaf slot owes one rollover fee), but it creates an intentional asymmetry with `set_network_fee_v2`, which is idempotent (called once per tree). Not a bug, but worth documenting.
+
+### P4-CONFIRM-SAFE-1: skip() filtering is consistently applied — Phase 2 safe finding confirmed
+
+`chain_outputs` and `chain_inputs` (context.rs:391-422) both filter `x.skip()`. `WrappedInstructionData::new` counts only non-skipped accounts. `sum_check`, `create_inputs_cpi_data`, `create_outputs_cpi_data`, and `filter_for_accounts_not_proven_by_index` all use these filtered iterators. There is no path by which a skipped output avoids the sum check while still being inserted.
+
+---
+
+**Output written to:** `/Users/ananas/dev/light-protocol/.claude/tmp/jorrit-fix-system-program-addresses-0/phase3-P4-validation.json`</result>
+<usage>total_tokens: 65735
+tool_uses: 26
+duration_ms: 135410</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-ananas-dev-light-protocol/tasks/aee6846.output
+
+---
+
+<task-notification>
+<task-id>a08f08a</task-id>
+<status>completed</status>
+<summary>Agent "Validate P5 findings: network fee global flag and num_address_queues" completed</summary>
+<result>Here is a detailed summary of the validation findings.
+
+---
+
+## Phase 3 Cross-Validation: P5 Findings
+
+### P5-BUG-1 (network_fee_is_set for V2 trees) - Verdict: SEVERITY DOWNGRADE to low
+
+**Analysis of the docstring intent (context.rs:161-175):**
+
+The docstring is explicit:
+```
+// V2 batched state trees: charge once per tree if inputs > 0 OR outputs > 0 (5000 lamports)
+// Example 4: transfer with 2 V2 inputs, 1 address: 15,000 lamports (5k + 1×10k)
+```
+
+Example 4 is a 2-input V2 tx with one address creation, and the documented fee is 5k + 10k = 15k. If the intent were "per V2 tree", with 2 inputs potentially on different trees, you would expect 10k + 10k = 20k. The 5k flat charge for all V2 state activity is the documented design.
+
+The `set_network_fee_v2` function (context.rs:84-89) is a boolean gate — once any V2 tree encounters the fee, `network_fee_is_set = true` and all subsequent V2 tree calls are no-ops. This is initialized to `false` at context creation (cpi.rs:73).
+
+Both callers — `create_inputs_cpi_data.rs` (BatchedStateTree branch) and `create_outputs_cpi_data.rs` (OutputQueue branch) — call `set_network_fee_v2`, meaning inputs OR outputs from any V2 tree triggers the single fee. Cross-tree V2 transactions with inputs from tree A and outputs to tree B would charge 5k once total, which exactly matches the documented example.
+
+**Conclusion:** The code implements the documented intent correctly. This is not a code bug. If the protocol design should charge per-tree rather than once-per-tx, that is an unresolved design question, not a code defect. No financial loss occurs relative to the documented specification. Downgraded to **low** (documentation could more explicitly state "once per tx total" vs "once per tree").
+
+---
+
+### P5-BUG-2 (num_address_queues overcounting) - Verdict: FALSE POSITIVE
+
+**Where num_address_queues is set** (create_address_cpi_data.rs:116-124):
+```rust
+cpi_ix_data.num_address_queues = accounts
+    .iter()
+    .filter(|x| {
+        matches!(x, AcpAccount::AddressTree(_) | AcpAccount::BatchedAddressTree(_))
+    })
+    .count() as u8;
+```
+This counts ALL address tree accounts in `remaining_accounts`, not just those referenced by addresses being inserted.
+
+**Where num_address_queues is consumed** (insert_addresses.rs:25-37):
+```rust
+let mut visited = Vec::with_capacity(num_queues as usize);
+visited.push((addresses[0].tree_index, addresses[0].queue_index));
+for nf in addresses.iter().skip(1) {
+    if visited.len() == num_queues as usize {
+        break;  // cap reached
+    }
+    ...
+}
+```
+
+The `visited` vector is built by iterating the `addresses` slice (actual InsertAddressInput elements). If `num_address_queues = 3` but only 1 address is being inserted, then `addresses` has 1 element, `visited` gets 1 entry on line 27, and the `skip(1)` loop processes zero remaining elements — the cap of 3 is never triggered. The loop terminates naturally at end-of-slice.
+
+The final check at line 77 (`if inserted_addresses != addresses.len()`) ensures every address in the slice was actually processed and would catch any logic error that skipped an address. With overcounting, this check still passes because all addresses are processed.
+
+The overcounting only allocates a slightly larger `Vec::with_capacity()` buffer — a minor heap allocation, not a behavioral difference.
+
+**Conclusion:** False positive. Overcounting `num_address_queues` is harmless because the consumer's loop terminates at end of the addresses slice before hitting the cap, and the completion check enforces correctness regardless.
+
+---
+
+**Output written to:** `/Users/ananas/dev/light-protocol/.claude/tmp/jorrit-fix-system-program-addresses-0/phase3-P5-validation.json`</result>
+<usage>total_tokens: 47721
+tool_uses: 17
+duration_ms: 210176</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-ananas-dev-light-protocol/tasks/a08f08a.output
+
+---
+
+<task-notification>
+<task-id>a7678a9</task-id>
+<status>completed</status>
+<summary>Agent "Validate P2 findings: filtered/unfiltered index mismatch" completed</summary>
+<result>Here is the detailed writeup of the Phase 3 cross-validation findings for P2:
+
+---
+
+## Phase 3 P2 Validation Results
+
+Written to: `/Users/ananas/dev/light-protocol/.claude/tmp/jorrit-fix-system-program-addresses-0/phase3-P2-validation.json`
+
+---
+
+### P2-BUG-1 (index mismatch between get_output_account and chain_outputs)
+
+**Verdict: partially_confirmed, severity downgraded from critical to high**
+
+The mismatch is real, but only exploitable in a narrow condition.
+
+**What was confirmed:**
+
+`get_output_account` (context.rs:294-318) uses unfiltered array indexing. For ix-data outputs, it calls `self.instruction_data.output_accounts().get(ix_index)` — a raw slice index. `chain_outputs` (context.rs:390-405) applies `.filter(|x| !x.skip())` to both slices.
+
+**Critical scoping of which types can skip:**
+
+- `CpiContextOutAccount::skip()` → always returns `false` (account.rs:91, 135). Entries in the CPI context's `out_accounts` are pre-filtered at write time by `store_data` (state.rs:209-213 already calls `output.skip()` before pushing). So `cpi_context.output_accounts().len()` equals the effective (filtered) count. The offset arithmetic in `get_output_account` is correct for the CPI context portion.
+- `ZOutputCompressedAccountWithPackedContext::skip()` → always returns `false` (zero_copy.rs:119-121). Used by `ZInstructionDataInvoke` and `ZInstructionDataInvokeCpi`. These never produce a mismatch.
+- `ZCompressedAccountInfo::skip()` as `OutputAccount` → returns `self.output.is_none()` (with_account_info.rs:224-226). **This CAN be true.** Used by `ZInstructionDataInvokeCpiWithAccountInfo`, which is a live code path (lib.rs:84-85).
+
+**The real scenario:** When `ZInstructionDataInvokeCpiWithAccountInfo` is the executing instruction (not write-to-cpi-context) AND a CPI context is set AND `account_infos` contains some entries where `output.is_none()` before non-skipped entries, then `get_output_account(cpi_outputs_len + k)` returns `account_infos[k]` (possibly skip=true), while position k in the filtered iterator skips those entries. `check_new_address_assignment` then validates the address against the wrong (skipped, null-output) account.
+
+**Why not critical:** The bug does not affect the two most common instruction data types. It requires `ZInstructionDataInvokeCpiWithAccountInfo` with a CPI context plus skip=true entries, which is an advanced usage pattern.
+
+---
+
+### P2-BUG-2 (skipped outputs not processed, addresses not consumed)
+
+**Verdict: partially_confirmed, severity downgraded from high to medium**
+
+**Sub-case A (CPI context outputs):** Cannot happen. `store_data` pre-filters skip=true outputs before writing to `out_accounts`, and `CpiContextOutAccount::skip()` is hardcoded false. No CPI context output is ever skipped in `create_outputs_cpi_data`.
+
+**Sub-case B (ix-data outputs with skip=true):** Confirmed real. When `ZCompressedAccountInfo` has `output=None` but `address=Some(X)`, and a corresponding entry exists in `context.addresses`, the skipped output account is never processed in the `chain_outputs` loop, so `context.addresses` is never drained of that address. There is **no post-condition check** that `context.addresses` is empty after `create_outputs_cpi_data` (confirmed by exhaustive search of all `context.addresses` usages — the only consumer after `derive_new_addresses` is `create_outputs_cpi_data` itself).
+
+**Concrete harm:** A new address is inserted into the address queue (permanently marking it as used in the address Merkle tree) but no output compressed account holding that address is ever created. The address is permanently burned. The harm is address exhaustion plus fee waste, not incorrect Merkle state insertion. An adversary cannot use this to create unauthorized compressed accounts; they can only lock addresses they paid to create.
+
+---
+
+### P2-BUG-3 (ambiguous semantics of assigned_compressed_account_index)
+
+**Verdict: partially_confirmed, severity downgraded from critical to high**
+
+The root cause is confirmed. `assigned_compressed_account_index` is copied verbatim into `CpiContextNewAddressParamsAssignedPacked::assigned_account_index` (address.rs:14-15) at write time by `store_data` (state.rs:140-152). `get_output_account` treats this as an index into unfiltered arrays; `chain_outputs` produces filtered positions. These diverge when skip=true entries exist in the ix-data account_infos before the target account.
+
+**The outputs_len inconsistency sub-claim is false:** `set_cpi_context` adds `cpi_context.out_accounts.len()` (unfiltered but skip=false, since pre-filtered at write time) to `outputs_len`. `WrappedInstructionData::new()` counts filtered ix-data outputs. The sum is consistent. No bug here.
+
+---
+
+### Additional Findings
+
+**P2-AF-1 (low):** `store_data` copies `assigned_compressed_account_index` without documenting whether the expected convention is filtered-position or unfiltered-position. This API ambiguity is the root of BUG-3 and will cause future misuse.
+
+**P2-AF-2 (low):** No post-condition check that `context.addresses` is empty after `create_outputs_cpi_data`. This silently swallows BUG-2 class errors. An assertion would catch regressions.</result>
+<usage>total_tokens: 69642
+tool_uses: 38
+duration_ms: 298796</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-ananas-dev-light-protocol/tasks/a7678a9.output
+
+---
+
+<task-notification>
+<task-id>aa3795f</task-id>
+<status>completed</status>
+<summary>Agent "Phase 4: Critical adversarial review of all findings" completed</summary>
+<result>The Phase 4 critical review is complete. Here is a summary of the final severity assignments:
+
+**Finding A (filtered/unfiltered index mismatch):** Downgraded from critical/high to **medium**. The bug is real but manifests as transaction rejection (liveness), not invalid state acceptance (safety). `create_outputs_cpi_data` provides an independent address check that prevents safety violations. Only affects the `WithAccountInfo` instruction path with skip=true entries. Not exploitable by third parties.
+
+**Finding B (unconsumed context.addresses):** Downgraded to **low**. The address burning scenario requires passing through Finding A's check first, which likely fails. Self-inflicted only. Recommendation: add a post-condition assertion as defense-in-depth.
+
+**Finding C (double push):** Downgraded to **informational**. Dead code with no consumer after `create_outputs_cpi_data`.
+
+**Finding D (unchecked rollover fee +=):** Confirmed **false positive**. Mathematically impossible to overflow given `MAX_OUTPUT_ACCOUNTS=30` and rent-bounded fees.
+
+**Finding E (relay_fee always None):** Confirmed **informational**. Dead/deprecated feature, no funds at risk.
+
+**Finding F (network_fee_is_set global flag):** Confirmed **low**. Code matches documented intent (once per tx for V2 trees). Documentation wording could be clearer.
+
+No critical missed bugs were identified. Proof ordering and duplicate-hash protections are correct. The output has been written to `/Users/ananas/dev/light-protocol/.claude/tmp/jorrit-fix-system-program-addresses-0/phase4-process-critical.json`.</result>
+<usage>total_tokens: 87079
+tool_uses: 31
+duration_ms: 173091</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-ananas-dev-light-protocol/tasks/aa3795f.output
+
+---
+
+expand on this one ID: C
+  Severity: Informational
+  Location: process.rs:150-152
+  Issue: Dead code: input addresses pushed to context.addresses twice.
+
+---
+
+yeah remove it
+
+---
+
+restore it
+
+---
+
+search for the latest light system program git tag
+
+---
+
+give me the command to exclude tests
