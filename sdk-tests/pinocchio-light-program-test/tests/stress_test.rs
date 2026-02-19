@@ -24,10 +24,11 @@ use light_program_test::{
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
 use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
 use light_token_interface::state::{token::Token, Mint};
+use light_account::LightDiscriminator;
 use pinocchio_light_program_test::{
     all::accounts::CreateAllParams, discriminators, LightAccountVariant, MinimalRecord,
-    MinimalRecordSeeds, VaultSeeds, ZeroCopyRecord, ZeroCopyRecordSeeds, MINT_SIGNER_SEED_A,
-    RECORD_SEED, VAULT_AUTH_SEED, VAULT_SEED,
+    MinimalRecordSeeds, OneByteRecord, OneByteRecordSeeds, VaultSeeds, ZeroCopyRecord,
+    ZeroCopyRecordSeeds, MINT_SIGNER_SEED_A, RECORD_SEED, VAULT_AUTH_SEED, VAULT_SEED,
 };
 use solana_instruction::{AccountMeta, Instruction};
 use solana_keypair::Keypair;
@@ -39,6 +40,7 @@ use solana_signer::Signer;
 struct TestPdas {
     record: Pubkey,
     zc_record: Pubkey,
+    one_byte: Pubkey,
     ata: Pubkey,
     ata_owner: Pubkey,
     vault: Pubkey,
@@ -51,6 +53,7 @@ struct TestPdas {
 struct CachedState {
     record: MinimalRecord,
     zc_record: ZeroCopyRecord,
+    ob_record: OneByteRecord,
     ata_token: Token,
     vault_token: Token,
     owner: [u8; 32],
@@ -108,6 +111,8 @@ async fn setup() -> (StressTestContext, TestPdas) {
         Pubkey::find_program_address(&[b"minimal_record", owner.as_ref()], &program_id);
     let (zc_record_pda, _) =
         Pubkey::find_program_address(&[RECORD_SEED, owner.as_ref()], &program_id);
+    let (one_byte_pda, _) =
+        Pubkey::find_program_address(&[b"one_byte_record", owner.as_ref()], &program_id);
 
     // Mint signer PDA
     let (mint_signer, mint_signer_bump) = Pubkey::find_program_address(
@@ -132,6 +137,7 @@ async fn setup() -> (StressTestContext, TestPdas) {
         vec![
             CreateAccountsProofInput::pda(record_pda),
             CreateAccountsProofInput::pda(zc_record_pda),
+            CreateAccountsProofInput::pda(one_byte_pda),
             CreateAccountsProofInput::mint(mint_signer),
         ],
     )
@@ -152,6 +158,7 @@ async fn setup() -> (StressTestContext, TestPdas) {
         AccountMeta::new_readonly(config_pda, false),
         AccountMeta::new(record_pda, false),
         AccountMeta::new(zc_record_pda, false),
+        AccountMeta::new(one_byte_pda, false),
         AccountMeta::new_readonly(mint_signer, false),
         AccountMeta::new(mint_pda, false),
         AccountMeta::new(vault, false),
@@ -178,6 +185,7 @@ async fn setup() -> (StressTestContext, TestPdas) {
     let pdas = TestPdas {
         record: record_pda,
         zc_record: zc_record_pda,
+        one_byte: one_byte_pda,
         ata,
         ata_owner,
         vault,
@@ -208,12 +216,18 @@ async fn refresh_cache(
     let zc_account = rpc.get_account(pdas.zc_record).await.unwrap().unwrap();
     let zc_record: ZeroCopyRecord = *bytemuck::from_bytes(&zc_account.data[8..]);
 
+    let ob_account = rpc.get_account(pdas.one_byte).await.unwrap().unwrap();
+    let disc_len = OneByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
+    let ob_record: OneByteRecord =
+        borsh::BorshDeserialize::deserialize(&mut &ob_account.data[disc_len..]).unwrap();
+
     let ata_token = parse_token(&rpc.get_account(pdas.ata).await.unwrap().unwrap().data);
     let vault_token = parse_token(&rpc.get_account(pdas.vault).await.unwrap().unwrap().data);
 
     CachedState {
         record,
         zc_record,
+        ob_record,
         ata_token,
         vault_token,
         owner,
@@ -263,6 +277,27 @@ async fn decompress_all(ctx: &mut StressTestContext, pdas: &TestPdas, cached: &C
         data: zc_data,
     };
     let zc_spec = PdaSpec::new(zc_interface, zc_variant, ctx.program_id);
+
+    // PDA: OneByteRecord
+    let ob_interface = ctx
+        .rpc
+        .get_account_interface(&pdas.one_byte, None)
+        .await
+        .expect("failed to get OneByteRecord interface")
+        .value
+        .expect("OneByteRecord interface should exist");
+    assert!(ob_interface.is_cold(), "OneByteRecord should be cold");
+
+    let ob_data: OneByteRecord =
+        borsh::BorshDeserialize::deserialize(&mut &ob_interface.account.data[8..])
+            .expect("Failed to parse OneByteRecord from interface");
+    let ob_variant = LightAccountVariant::OneByteRecord {
+        seeds: OneByteRecordSeeds {
+            owner: cached.owner,
+        },
+        data: ob_data,
+    };
+    let ob_spec = PdaSpec::new(ob_interface, ob_variant, ctx.program_id);
 
     // ATA
     let ata_interface = ctx
@@ -318,6 +353,7 @@ async fn decompress_all(ctx: &mut StressTestContext, pdas: &TestPdas, cached: &C
     let specs: Vec<AccountSpec<LightAccountVariant>> = vec![
         AccountSpec::Pda(record_spec),
         AccountSpec::Pda(zc_spec),
+        AccountSpec::Pda(ob_spec),
         AccountSpec::Mint(mint_ai),
         AccountSpec::Ata(Box::new(ata_interface)),
         AccountSpec::Pda(vault_spec),
@@ -337,6 +373,7 @@ async fn decompress_all(ctx: &mut StressTestContext, pdas: &TestPdas, cached: &C
     for (pda, name) in [
         (&pdas.record, "MinimalRecord"),
         (&pdas.zc_record, "ZeroCopyRecord"),
+        (&pdas.one_byte, "OneByteRecord"),
         (&pdas.ata, "ATA"),
         (&pdas.vault, "Vault"),
         (&pdas.mint, "Mint"),
@@ -355,6 +392,7 @@ async fn compress_all(ctx: &mut StressTestContext, pdas: &TestPdas) {
     for (pda, name) in [
         (&pdas.record, "MinimalRecord"),
         (&pdas.zc_record, "ZeroCopyRecord"),
+        (&pdas.one_byte, "OneByteRecord"),
         (&pdas.ata, "ATA"),
         (&pdas.vault, "Vault"),
         (&pdas.mint, "Mint"),
@@ -393,6 +431,20 @@ async fn assert_all_state(
     assert_eq!(
         *actual_zc, expected_zc,
         "ZeroCopyRecord mismatch at iteration {iteration}"
+    );
+
+    // OneByteRecord
+    let ob_account = rpc.get_account(pdas.one_byte).await.unwrap().unwrap();
+    let disc_len = OneByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
+    let actual_ob: OneByteRecord =
+        borsh::BorshDeserialize::deserialize(&mut &ob_account.data[disc_len..]).unwrap();
+    let expected_ob = OneByteRecord {
+        compression_info: shared::expected_compression_info(&actual_ob.compression_info),
+        ..cached.ob_record.clone()
+    };
+    assert_eq!(
+        actual_ob, expected_ob,
+        "OneByteRecord mismatch at iteration {iteration}"
     );
 
     // ATA
@@ -436,6 +488,7 @@ async fn test_stress_20_iterations() {
     for (pda, name) in [
         (&pdas.record, "MinimalRecord"),
         (&pdas.zc_record, "ZeroCopyRecord"),
+        (&pdas.one_byte, "OneByteRecord"),
         (&pdas.ata, "ATA"),
         (&pdas.vault, "Vault"),
         (&pdas.mint, "Mint"),

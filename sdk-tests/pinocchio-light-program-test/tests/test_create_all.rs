@@ -10,10 +10,11 @@ use light_program_test::{program_test::TestRpc, Rpc};
 use light_sdk_types::LIGHT_TOKEN_PROGRAM_ID;
 use light_token::instruction::{LIGHT_TOKEN_CONFIG, LIGHT_TOKEN_RENT_SPONSOR};
 use light_token_interface::state::token::{AccountState, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT};
+use light_account::LightDiscriminator;
 use pinocchio_light_program_test::{
     all::accounts::CreateAllParams, discriminators, LightAccountVariant, MinimalRecord,
-    MinimalRecordSeeds, VaultSeeds, ZeroCopyRecord, ZeroCopyRecordSeeds, MINT_SIGNER_SEED_A,
-    RECORD_SEED, VAULT_AUTH_SEED, VAULT_SEED,
+    MinimalRecordSeeds, OneByteRecord, OneByteRecordSeeds, VaultSeeds, ZeroCopyRecord,
+    ZeroCopyRecordSeeds, MINT_SIGNER_SEED_A, RECORD_SEED, VAULT_AUTH_SEED, VAULT_SEED,
 };
 use solana_instruction::{AccountMeta, Instruction};
 use solana_keypair::Keypair;
@@ -38,6 +39,10 @@ async fn test_create_all_derive() {
     let (zc_record_pda, _) =
         Pubkey::find_program_address(&[RECORD_SEED, owner.as_ref()], &program_id);
 
+    // PDA: OneByteRecord
+    let (one_byte_pda, _) =
+        Pubkey::find_program_address(&[b"one_byte_record", owner.as_ref()], &program_id);
+
     // Mint signer PDA
     let (mint_signer, mint_signer_bump) = Pubkey::find_program_address(
         &[MINT_SIGNER_SEED_A, authority.pubkey().as_ref()],
@@ -61,6 +66,7 @@ async fn test_create_all_derive() {
         vec![
             CreateAccountsProofInput::pda(record_pda),
             CreateAccountsProofInput::pda(zc_record_pda),
+            CreateAccountsProofInput::pda(one_byte_pda),
             CreateAccountsProofInput::mint(mint_signer),
         ],
     )
@@ -80,23 +86,25 @@ async fn test_create_all_derive() {
     // [2] compression_config
     // [3] borsh_record (writable)
     // [4] zero_copy_record (writable)
-    // [5] mint_signer
-    // [6] mint (writable)
-    // [7] token_vault (writable)
-    // [8] vault_owner
-    // [9] ata_owner
-    // [10] user_ata (writable)
-    // [11] compressible_config (LIGHT_TOKEN_CONFIG)
-    // [12] rent_sponsor (LIGHT_TOKEN_RENT_SPONSOR, writable)
-    // [13] light_token_program
-    // [14] cpi_authority
-    // [15] system_program
+    // [5] one_byte_record (writable)
+    // [6] mint_signer
+    // [7] mint (writable)
+    // [8] token_vault (writable)
+    // [9] vault_owner
+    // [10] ata_owner
+    // [11] user_ata (writable)
+    // [12] compressible_config (LIGHT_TOKEN_CONFIG)
+    // [13] rent_sponsor (LIGHT_TOKEN_RENT_SPONSOR, writable)
+    // [14] light_token_program
+    // [15] cpi_authority
+    // [16] system_program
     let accounts = vec![
         AccountMeta::new(payer.pubkey(), true),
         AccountMeta::new_readonly(authority.pubkey(), true),
         AccountMeta::new_readonly(env.config_pda, false),
         AccountMeta::new(record_pda, false),
         AccountMeta::new(zc_record_pda, false),
+        AccountMeta::new(one_byte_pda, false),
         AccountMeta::new_readonly(mint_signer, false),
         AccountMeta::new(mint_pda, false),
         AccountMeta::new(vault, false),
@@ -145,6 +153,22 @@ async fn test_create_all_derive() {
         "ZC record owner should match"
     );
     assert_eq!(zc_record.counter, 0, "ZC record counter should be 0");
+
+    let ob_account = rpc
+        .get_account(one_byte_pda)
+        .await
+        .unwrap()
+        .expect("OneByteRecord PDA should exist");
+    let disc_len = OneByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
+    assert_eq!(
+        &ob_account.data[..disc_len],
+        OneByteRecord::LIGHT_DISCRIMINATOR_SLICE,
+        "OneByteRecord discriminator should match"
+    );
+    let actual_ob: OneByteRecord =
+        borsh::BorshDeserialize::deserialize(&mut &ob_account.data[disc_len..])
+            .expect("Failed to deserialize OneByteRecord");
+    assert_eq!(actual_ob.owner, owner.to_bytes(), "OneByteRecord owner should match");
 
     let ata_account = rpc
         .get_account(ata)
@@ -198,6 +222,7 @@ async fn test_create_all_derive() {
 
     shared::assert_onchain_closed(&mut rpc, &record_pda, "MinimalRecord").await;
     shared::assert_onchain_closed(&mut rpc, &zc_record_pda, "ZeroCopyRecord").await;
+    shared::assert_onchain_closed(&mut rpc, &one_byte_pda, "OneByteRecord").await;
     shared::assert_onchain_closed(&mut rpc, &ata, "ATA").await;
     shared::assert_onchain_closed(&mut rpc, &vault, "Vault").await;
     shared::assert_onchain_closed(&mut rpc, &mint_pda, "Mint").await;
@@ -243,6 +268,27 @@ async fn test_create_all_derive() {
         data: zc_data,
     };
     let zc_spec = PdaSpec::new(zc_interface, zc_variant, program_id);
+
+    // PDA: OneByteRecord
+    let ob_interface = rpc
+        .get_account_interface(&one_byte_pda, None)
+        .await
+        .expect("failed to get OneByteRecord interface")
+        .value
+        .expect("OneByteRecord interface should exist");
+    assert!(ob_interface.is_cold(), "OneByteRecord should be cold");
+
+    // The indexer returns: [8-byte LIGHT_DISCRIMINATOR] + [borsh(OneByteRecord)]
+    let ob_data: OneByteRecord =
+        borsh::BorshDeserialize::deserialize(&mut &ob_interface.account.data[8..])
+            .expect("Failed to parse OneByteRecord from interface");
+    let ob_variant = LightAccountVariant::OneByteRecord {
+        seeds: OneByteRecordSeeds {
+            owner: owner.to_bytes(),
+        },
+        data: ob_data,
+    };
+    let ob_spec = PdaSpec::new(ob_interface, ob_variant, program_id);
 
     // ATA
     let ata_interface = rpc
@@ -295,6 +341,7 @@ async fn test_create_all_derive() {
     let specs: Vec<AccountSpec<LightAccountVariant>> = vec![
         AccountSpec::Pda(record_spec),
         AccountSpec::Pda(zc_spec),
+        AccountSpec::Pda(ob_spec),
         AccountSpec::Mint(mint_ai),
         AccountSpec::Ata(Box::new(ata_interface)),
         AccountSpec::Pda(vault_spec),
@@ -311,6 +358,7 @@ async fn test_create_all_derive() {
     // PHASE 4: Assert state preserved after decompression
     shared::assert_onchain_exists(&mut rpc, &record_pda, "MinimalRecord").await;
     shared::assert_onchain_exists(&mut rpc, &zc_record_pda, "ZeroCopyRecord").await;
+    shared::assert_onchain_exists(&mut rpc, &one_byte_pda, "OneByteRecord").await;
     shared::assert_onchain_exists(&mut rpc, &ata, "ATA").await;
     shared::assert_onchain_exists(&mut rpc, &vault, "Vault").await;
     shared::assert_onchain_exists(&mut rpc, &mint_pda, "Mint").await;
@@ -340,6 +388,17 @@ async fn test_create_all_derive() {
         *actual_zc, expected_zc,
         "ZeroCopyRecord should match after decompression"
     );
+
+    // OneByteRecord
+    let ob_account = rpc.get_account(one_byte_pda).await.unwrap().unwrap();
+    let disc_len = OneByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
+    let actual_ob: OneByteRecord =
+        borsh::BorshDeserialize::deserialize(&mut &ob_account.data[disc_len..]).unwrap();
+    let expected_ob = OneByteRecord {
+        compression_info: shared::expected_compression_info(&actual_ob.compression_info),
+        owner: owner.to_bytes(),
+    };
+    assert_eq!(actual_ob, expected_ob, "OneByteRecord should match after decompression");
 
     // ATA
     let actual_ata: Token = shared::parse_token(&rpc.get_account(ata).await.unwrap().unwrap().data);

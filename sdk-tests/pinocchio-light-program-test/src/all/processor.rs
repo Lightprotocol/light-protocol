@@ -13,7 +13,7 @@ pub fn process(
 ) -> Result<(), LightSdkTypesError> {
     use borsh::BorshDeserialize;
 
-    const NUM_LIGHT_PDAS: usize = 2;
+    const NUM_LIGHT_PDAS: usize = 3;
     const NUM_LIGHT_MINTS: usize = 1;
     const NUM_TOKENS: usize = 1;
     const NUM_ATAS: usize = 1;
@@ -36,6 +36,7 @@ pub fn process(
 
     let borsh_record = ctx.borsh_record;
     let zero_copy_record = ctx.zero_copy_record;
+    let one_byte_record = ctx.one_byte_record;
 
     create_accounts::<AccountInfo, NUM_LIGHT_PDAS, NUM_LIGHT_MINTS, NUM_TOKENS, NUM_ATAS, _>(
         [
@@ -44,6 +45,9 @@ pub fn process(
             },
             PdaInitParam {
                 account: ctx.zero_copy_record,
+            },
+            PdaInitParam {
+                account: ctx.one_byte_record,
             },
         ],
         |light_config, current_slot| {
@@ -68,6 +72,20 @@ pub fn process(
                 let record: &mut crate::state::ZeroCopyRecord =
                     bytemuck::from_bytes_mut(record_bytes);
                 record.set_decompressed(light_config, current_slot);
+            }
+            // Set compression_info on the OneByteRecord
+            {
+                use light_account_pinocchio::LightDiscriminator;
+                let disc_len = crate::state::OneByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
+                let mut account_data = one_byte_record
+                    .try_borrow_mut_data()
+                    .map_err(|_| LightSdkTypesError::Borsh)?;
+                let mut record =
+                    crate::state::OneByteRecord::try_from_slice(&account_data[disc_len..])
+                        .map_err(|_| LightSdkTypesError::Borsh)?;
+                record.set_decompressed(light_config, current_slot);
+                let serialized = borsh::to_vec(&record).map_err(|_| LightSdkTypesError::Borsh)?;
+                account_data[disc_len..disc_len + serialized.len()].copy_from_slice(&serialized);
             }
             Ok(())
         },

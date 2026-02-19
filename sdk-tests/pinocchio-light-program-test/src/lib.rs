@@ -277,6 +277,19 @@ fn process_create_all(accounts: &[AccountInfo], data: &[u8]) -> Result<(), Progr
         let record: &mut state::ZeroCopyRecord = bytemuck::from_bytes_mut(record_bytes);
         record.owner = params.owner;
     }
+    {
+        use light_account_pinocchio::LightDiscriminator;
+        let disc_len = state::OneByteRecord::LIGHT_DISCRIMINATOR_SLICE.len();
+        let mut ob_data = ctx
+            .one_byte_record
+            .try_borrow_mut_data()
+            .map_err(|_| ProgramError::AccountBorrowFailed)?;
+        let mut ob_record = state::OneByteRecord::try_from_slice(&ob_data[disc_len..])
+            .map_err(|_| ProgramError::BorshIoError)?;
+        ob_record.owner = params.owner;
+        let serialized = borsh::to_vec(&ob_record).map_err(|_| ProgramError::BorshIoError)?;
+        ob_data[disc_len..disc_len + serialized.len()].copy_from_slice(&serialized);
+    }
 
     all::processor::process(&ctx, &params, remaining_accounts)
         .map_err(|e| ProgramError::Custom(u32::from(e)))?;
