@@ -4,7 +4,7 @@ use solana_pubkey::Pubkey;
 
 /// Test Transfer instruction without fee_payer.
 /// Authority is writable signer since it pays for top-ups.
-/// Data always includes max_top_up as u16::MAX.
+/// Short format: discriminator (1) + amount (8) = 9 bytes.
 #[test]
 fn test_transfer_basic() {
     let source = Pubkey::new_from_array([1u8; 32]);
@@ -23,7 +23,7 @@ fn test_transfer_basic() {
 
     // Hardcoded expected instruction
     // - authority is writable (no fee_payer -> authority pays for top-ups)
-    // - data: discriminator (3) + amount (8 bytes) + max_top_up u16::MAX (2 bytes) = 11 bytes
+    // - data: discriminator (3) + amount (8 bytes) = 9 bytes (short format, on-chain defaults max_top_up to u16::MAX)
     let expected = Instruction {
         program_id: LIGHT_TOKEN_PROGRAM_ID,
         accounts: vec![
@@ -35,7 +35,6 @@ fn test_transfer_basic() {
         data: vec![
             3u8, // Transfer discriminator
             100, 0, 0, 0, 0, 0, 0, 0, // amount: 100 as little-endian u64
-            255, 255, // max_top_up: u16::MAX as little-endian u16
         ],
     };
 
@@ -47,7 +46,7 @@ fn test_transfer_basic() {
 
 /// Test Transfer instruction with fee_payer set.
 /// Fee_payer is added as 5th account. Authority is readonly.
-/// Data always includes max_top_up as u16::MAX.
+/// Short format: discriminator (1) + amount (8) = 9 bytes.
 #[test]
 fn test_transfer_with_fee_payer() {
     let source = Pubkey::new_from_array([1u8; 32]);
@@ -68,7 +67,7 @@ fn test_transfer_with_fee_payer() {
     // Hardcoded expected instruction
     // - authority is readonly (fee_payer pays instead)
     // - fee_payer is 5th account: writable, signer
-    // - data: discriminator (3) + amount (8 bytes) + max_top_up u16::MAX (2 bytes) = 11 bytes
+    // - data: discriminator (3) + amount (8 bytes) = 9 bytes (short format)
     let expected = Instruction {
         program_id: LIGHT_TOKEN_PROGRAM_ID,
         accounts: vec![
@@ -81,7 +80,6 @@ fn test_transfer_with_fee_payer() {
         data: vec![
             3u8, // Transfer discriminator
             100, 0, 0, 0, 0, 0, 0, 0, // amount: 100 as little-endian u64
-            255, 255, // max_top_up: u16::MAX as little-endian u16
         ],
     };
 

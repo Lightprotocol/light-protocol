@@ -150,7 +150,6 @@ impl BurnChecked {
                 let mut data = vec![15u8]; // CTokenBurnChecked discriminator
                 data.extend_from_slice(&self.amount.to_le_bytes());
                 data.push(self.decimals);
-                data.extend_from_slice(&u16::MAX.to_le_bytes());
                 data
             },
         })

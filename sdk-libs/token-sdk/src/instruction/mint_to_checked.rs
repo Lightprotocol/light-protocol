@@ -160,7 +160,6 @@ impl MintToChecked {
                 let mut data = vec![14u8]; // TokenMintToChecked discriminator
                 data.extend_from_slice(&self.amount.to_le_bytes());
                 data.push(self.decimals);
-                data.extend_from_slice(&u16::MAX.to_le_bytes());
                 data
             },
         })

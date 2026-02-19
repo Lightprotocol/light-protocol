@@ -143,7 +143,6 @@ impl Burn {
             data: {
                 let mut data = vec![8u8]; // CTokenBurn discriminator
                 data.extend_from_slice(&self.amount.to_le_bytes());
-                data.extend_from_slice(&u16::MAX.to_le_bytes());
                 data
             },
         })

@@ -150,7 +150,6 @@ impl Transfer {
             data: {
                 let mut data = vec![3u8];
                 data.extend_from_slice(&self.amount.to_le_bytes());
-                data.extend_from_slice(&u16::MAX.to_le_bytes());
                 data
             },
         })

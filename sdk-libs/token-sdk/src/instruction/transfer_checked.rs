@@ -167,7 +167,6 @@ impl TransferChecked {
                 let mut data = vec![12u8]; // TransferChecked discriminator (SPL compatible)
                 data.extend_from_slice(&self.amount.to_le_bytes());
                 data.push(self.decimals);
-                data.extend_from_slice(&u16::MAX.to_le_bytes());
                 data
             },
         })
