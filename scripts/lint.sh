@@ -26,113 +26,127 @@ done
 
 echo "Testing feature combinations..."
 
-# Test no-default-features for all library crates
-echo "Testing all library crates with --no-default-features..."
-NO_DEFAULT_CRATES=(
-    "light-account-checks"
-    "light-batched-merkle-tree"
-    "light-bloom-filter"
-    "light-compressed-account"
-    "light-compressible"
-    "light-concurrent-merkle-tree"
-    "light-token-interface"
-    "light-hash-set"
-    "light-hasher"
-    "light-indexed-merkle-tree"
-    "light-macros"
-    "light-merkle-tree-metadata"
-    "light-verifier"
-    "light-zero-copy"
-    "light-heap"
-    "light-array-map"
-    "light-indexed-array"
-    "aligned-sized"
-    "light-sdk-types"
-    "light-sdk-pinocchio"
-    "light-token-pinocchio"
-    "light-sdk-macros"
-    "light-token"
-    "light-token-types"
-    "light-sdk"
-    "light-account"
-    "light-account-pinocchio"
-    "light-client"
-    "light-compressed-token-sdk"
-    "light-instruction-decoder"
-    "light-program-test"
-    "light-token-client"
-    "csdk-anchor-full-derived-test"
-)
+# Batched feature checks - cargo can check multiple -p flags in one invocation,
+# sharing compilation work and drastically reducing wall-clock time.
 
-for crate in "${NO_DEFAULT_CRATES[@]}"; do
-    echo "Checking $crate with --no-default-features..."
-    cargo check -p "$crate" --no-default-features
-done
+echo "Checking all library crates with --no-default-features..."
+cargo check \
+    -p light-account-checks \
+    -p light-batched-merkle-tree \
+    -p light-bloom-filter \
+    -p light-compressed-account \
+    -p light-compressible \
+    -p light-concurrent-merkle-tree \
+    -p light-token-interface \
+    -p light-hash-set \
+    -p light-hasher \
+    -p light-indexed-merkle-tree \
+    -p light-macros \
+    -p light-merkle-tree-metadata \
+    -p light-verifier \
+    -p light-zero-copy \
+    -p light-heap \
+    -p light-array-map \
+    -p light-indexed-array \
+    -p aligned-sized \
+    -p light-sdk-types \
+    -p light-sdk-pinocchio \
+    -p light-token-pinocchio \
+    -p light-sdk-macros \
+    -p light-token \
+    -p light-token-types \
+    -p light-sdk \
+    -p light-account \
+    -p light-account-pinocchio \
+    -p light-client \
+    -p light-compressed-token-sdk \
+    -p light-instruction-decoder \
+    -p light-program-test \
+    -p light-token-client \
+    -p csdk-anchor-full-derived-test \
+    --no-default-features
 
-# Test pinocchio feature for all crates that have it
-PINOCCHIO_CRATES=(
-    "light-hasher"
-    "light-indexed-merkle-tree"
-    "light-zero-copy"
-    "light-bloom-filter"
-    "light-compressed-account"
-    "light-merkle-tree-metadata"
-    "light-macros"
-    "light-batched-merkle-tree"
-    "light-concurrent-merkle-tree"
-    "light-verifier"
-    "light-account-checks"
-    "light-compressible"
-)
+echo "Checking pinocchio feature..."
+cargo check \
+    -p light-hasher \
+    -p light-indexed-merkle-tree \
+    -p light-zero-copy \
+    -p light-bloom-filter \
+    -p light-compressed-account \
+    -p light-merkle-tree-metadata \
+    -p light-macros \
+    -p light-batched-merkle-tree \
+    -p light-concurrent-merkle-tree \
+    -p light-verifier \
+    -p light-account-checks \
+    -p light-compressible \
+    --features pinocchio
 
-for crate in "${PINOCCHIO_CRATES[@]}"; do
-    echo "Checking $crate with pinocchio feature..."
-    cargo check -p "$crate" --features pinocchio
-done
+echo "Checking solana feature..."
+cargo check \
+    -p light-hasher \
+    -p light-indexed-merkle-tree \
+    -p light-zero-copy \
+    -p light-bloom-filter \
+    -p light-compressed-account \
+    -p light-hash-set \
+    -p light-merkle-tree-metadata \
+    -p light-token-interface \
+    -p light-macros \
+    -p light-batched-merkle-tree \
+    -p light-concurrent-merkle-tree \
+    -p light-verifier \
+    -p light-account-checks \
+    -p light-compressible \
+    --features solana
 
-# Test solana feature for all crates that have it
-SOLANA_CRATES=(
-    "light-hasher"
-    "light-indexed-merkle-tree"
-    "light-zero-copy"
-    "light-bloom-filter"
-    "light-compressed-account"
-    "light-hash-set"
-    "light-merkle-tree-metadata"
-    "light-token-interface"
-    "light-macros"
-    "light-batched-merkle-tree"
-    "light-concurrent-merkle-tree"
-    "light-verifier"
-    "light-account-checks"
-    "light-compressible"
-)
+echo "Checking anchor feature..."
+cargo check \
+    -p light-indexed-merkle-tree \
+    -p light-compressed-account \
+    -p light-merkle-tree-metadata \
+    -p light-token-interface \
+    -p light-verifier \
+    -p light-compressible \
+    -p light-sdk-types \
+    -p light-sdk \
+    -p light-token \
+    -p light-token-types \
+    --features anchor
 
-for crate in "${SOLANA_CRATES[@]}"; do
-    echo "Checking $crate with solana feature..."
-    cargo check -p "$crate" --features solana
-done
-
-# Test anchor feature for all crates that have it
-ANCHOR_CRATES=(
-    "light-indexed-merkle-tree"
-    "light-compressed-account"
-    "light-merkle-tree-metadata"
-    "light-token-interface"
-    "light-verifier"
-    "light-compressible"
-    "light-sdk-types"
-    "light-sdk"
-    "light-token"
-    "light-token-types"
-)
-
-for crate in "${ANCHOR_CRATES[@]}"; do
-    echo "Checking $crate with anchor feature..."
-    cargo check -p "$crate" --features anchor
-done
-
-for crate in "${NO_DEFAULT_CRATES[@]}"; do
-    echo "Checking $crate with --no-default-features..."
-    cargo test -p "$crate" --no-run
-done
+echo "Checking all library crates compile tests..."
+cargo test \
+    -p light-account-checks \
+    -p light-batched-merkle-tree \
+    -p light-bloom-filter \
+    -p light-compressed-account \
+    -p light-compressible \
+    -p light-concurrent-merkle-tree \
+    -p light-token-interface \
+    -p light-hash-set \
+    -p light-hasher \
+    -p light-indexed-merkle-tree \
+    -p light-macros \
+    -p light-merkle-tree-metadata \
+    -p light-verifier \
+    -p light-zero-copy \
+    -p light-heap \
+    -p light-array-map \
+    -p light-indexed-array \
+    -p aligned-sized \
+    -p light-sdk-types \
+    -p light-sdk-pinocchio \
+    -p light-token-pinocchio \
+    -p light-sdk-macros \
+    -p light-token \
+    -p light-token-types \
+    -p light-sdk \
+    -p light-account \
+    -p light-account-pinocchio \
+    -p light-client \
+    -p light-compressed-token-sdk \
+    -p light-instruction-decoder \
+    -p light-program-test \
+    -p light-token-client \
+    -p csdk-anchor-full-derived-test \
+    --no-run

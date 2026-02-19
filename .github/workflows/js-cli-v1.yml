@@ -1,0 +1,196 @@
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "js/**"
+      - "cli/**"
+      - "programs/**"
+      - "program-libs/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/js-cli-v1.yml"
+  pull_request:
+    branches:
+      - "*"
+    paths:
+      - "js/**"
+      - "cli/**"
+      - "programs/**"
+      - "program-libs/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/js-cli-v1.yml"
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+name: js-cli-tests-v1
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: build
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    env:
+      LIGHT_PROTOCOL_VERSION: V1
+      CI: true
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+
+      - name: Setup and build
+        uses: ./.github/actions/setup-and-build
+        with:
+          skip-components: "redis,disk-cleanup,go"
+          cache-key: "js"
+
+      - name: Build stateless.js with V1
+        run: |
+          cd js/stateless.js
+          pnpm build:v1
+
+      - name: Build compressed-token with V1
+        run: |
+          cd js/compressed-token
+          pnpm build:v1
+
+      - name: Build CLI
+        run: |
+          just cli build
+
+      - name: Package build artifacts
+        run: |
+          DIRS=()
+          for d in target/deploy target/idl target/types cli/bin cli/dist js/stateless.js/dist js/compressed-token/dist; do
+            [ -d "$d" ] && DIRS+=("$d")
+          done
+          tar -czf build-artifacts.tar.gz "${DIRS[@]}"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: js-cli-v1-build-artifacts
+          path: build-artifacts.tar.gz
+          retention-days: 1
+          compression-level: 0
+
+  js-tests:
+    name: js-tests-v1
+    needs: build
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:8.0.1
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      LIGHT_PROTOCOL_VERSION: V1
+      REDIS_URL: redis://localhost:6379
+      CI: true
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+
+      - name: Setup test runner
+        uses: ./.github/actions/setup-test-runner
+        with:
+          build-artifact-name: js-cli-v1-build-artifacts
+
+      - name: Run stateless.js tests with V1
+        run: |
+          echo "Running stateless.js tests with retry logic (max 2 attempts)..."
+          attempt=1
+          max_attempts=2
+          until just js test-stateless; do
+            attempt=$((attempt + 1))
+            if [ $attempt -gt $max_attempts ]; then
+              echo "Tests failed after $max_attempts attempts"
+              exit 1
+            fi
+            echo "Attempt $attempt/$max_attempts failed, retrying..."
+            sleep 5
+          done
+          echo "Tests passed on attempt $attempt"
+
+      - name: Run compressed-token tests with V1
+        run: |
+          echo "Running compressed-token tests with retry logic (max 2 attempts)..."
+          attempt=1
+          max_attempts=2
+          until just js test-compressed-token; do
+            attempt=$((attempt + 1))
+            if [ $attempt -gt $max_attempts ]; then
+              echo "Tests failed after $max_attempts attempts"
+              exit 1
+            fi
+            echo "Attempt $attempt/$max_attempts failed, retrying..."
+            sleep 5
+          done
+          echo "Tests passed on attempt $attempt"
+
+  cli-tests:
+    name: cli-tests-v1
+    needs: build
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:8.0.1
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      LIGHT_PROTOCOL_VERSION: V1
+      REDIS_URL: redis://localhost:6379
+      CI: true
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+
+      - name: Setup test runner
+        uses: ./.github/actions/setup-test-runner
+        with:
+          build-artifact-name: js-cli-v1-build-artifacts
+
+      - name: Run CLI tests with V1
+        run: |
+          just cli test
+
+      - name: Display prover logs on failure
+        if: failure()
+        run: |
+          echo "=== Displaying prover logs ==="
+          find cli/test-ledger -name "*prover*.log" -type f -exec echo "=== Contents of {} ===" \; -exec cat {} \; -exec echo "=== End of {} ===" \; || echo "No prover logs found"

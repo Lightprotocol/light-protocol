@@ -18,6 +18,9 @@ on:
       - ".github/workflows/rust.yml"
     types: [opened, synchronize, reopened, ready_for_review]
 
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -27,9 +30,47 @@ env:
   RUSTFLAGS: "-D warnings"
 
 jobs:
+  build:
+    name: build
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: true
+
+      - name: Setup and build
+        uses: ./.github/actions/setup-and-build
+        with:
+          skip-components: "redis,disk-cleanup,go"
+          cache-key: "rust"
+
+      - name: Build CLI
+        run: |
+          just cli build
+
+      - name: Package build artifacts
+        run: |
+          DIRS=()
+          for d in target/deploy target/idl target/types cli/bin cli/dist js/stateless.js/dist js/compressed-token/dist; do
+            [ -d "$d" ] && DIRS+=("$d")
+          done
+          tar -czf build-artifacts.tar.gz "${DIRS[@]}"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-build-artifacts
+          path: build-artifacts.tar.gz
+          retention-days: 1
+          compression-level: 0
+
   test:
     if: github.event.pull_request.draft == false
-    runs-on: warp-ubuntu-latest-x64-4x
+    needs: build
+    runs-on: ubuntu-latest
 
     strategy:
       matrix:
@@ -62,15 +103,10 @@ jobs:
         with:
           submodules: true
 
-      - name: Setup and build
-        uses: ./.github/actions/setup-and-build
+      - name: Setup test runner
+        uses: ./.github/actions/setup-test-runner
         with:
-          skip-components: "redis,disk-cleanup,go"
-          cache-key: "rust"
-
-      - name: Build CLI
-        run: |
-          just cli build
+          build-artifact-name: rust-build-artifacts
 
       - name: Run tests for ${{ matrix.group.name }}
         run: |
