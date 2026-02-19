@@ -6,10 +6,7 @@ import {
   getKeypairFromFile,
   rpc,
 } from "../../utils/utils";
-import {
-  createMintInterface,
-  decompressMint,
-} from "@lightprotocol/compressed-token";
+import { createMintInterface } from "@lightprotocol/compressed-token";
 import { Keypair } from "@solana/web3.js";
 
 const DEFAULT_DECIMAL_COUNT = 9;
@@ -57,7 +54,6 @@ class CreateMintCommand extends Command {
         mintDecimals,
         mintKeypair,
       );
-      await decompressMint(rpc(), payer, mint);
       loader.stop(false);
       console.log("\x1b[1mMint public key:\x1b[0m ", mint.toBase58());
       console.log(

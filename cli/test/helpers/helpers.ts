@@ -16,7 +16,6 @@ import {
 } from "@lightprotocol/stateless.js";
 import {
   createMintInterface,
-  decompressMint,
   createSplInterface,
   mintTo,
   mintToInterface,
@@ -49,7 +48,6 @@ export async function createTestMint(mintKeypair: Keypair) {
     mintKeypair,
   );
   await confirmTx(rpc, transactionSignature);
-  await decompressMint(rpc, payer, mint);
   return mint;
 }
 
