@@ -1,0 +1,726 @@
+{
+  "address": "2tzfijPBGbrR5PboyFUFKzfEoLTwdDSHUjANCw929wyt",
+  "metadata": {
+    "name": "sdk_anchor_test",
+    "version": "0.7.0",
+    "spec": "0.1.0",
+    "description": "Test program for Light SDK and Light Macros"
+  },
+  "instructions": [
+    {
+      "name": "close_compressed_account",
+      "discriminator": [
+        55,
+        108,
+        99,
+        108,
+        119,
+        228,
+        247,
+        203
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "proof",
+          "type": {
+            "defined": {
+              "name": "ValidityProof"
+            }
+          }
+        },
+        {
+          "name": "my_compressed_account",
+          "type": {
+            "defined": {
+              "name": "MyCompressedAccount"
+            }
+          }
+        },
+        {
+          "name": "account_meta",
+          "type": {
+            "defined": {
+              "name": "CompressedAccountMeta"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "close_compressed_account_permanent",
+      "discriminator": [
+        117,
+        145,
+        242,
+        98,
+        46,
+        187,
+        118,
+        125
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "proof",
+          "type": {
+            "defined": {
+              "name": "ValidityProof"
+            }
+          }
+        },
+        {
+          "name": "account_meta",
+          "type": {
+            "defined": {
+              "name": "CompressedAccountMetaBurn"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "close_compressed_account_v2",
+      "discriminator": [
+        12,
+        21,
+        104,
+        30,
+        185,
+        99,
+        10,
+        30
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "proof",
+          "type": {
+            "defined": {
+              "name": "ValidityProof"
+            }
+          }
+        },
+        {
+          "name": "my_compressed_account",
+          "type": {
+            "defined": {
+              "name": "MyCompressedAccount"
+            }
+          }
+        },
+        {
+          "name": "account_meta",
+          "type": {
+            "defined": {
+              "name": "CompressedAccountMeta"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "create_compressed_account",
+      "discriminator": [
+        74,
+        87,
+        131,
+        150,
+        204,
+        209,
+        66,
+        94
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "proof",
+          "type": {
+            "defined": {
+              "name": "ValidityProof"
+            }
+          }
+        },
+        {
+          "name": "address_tree_info",
+          "type": {
+            "defined": {
+              "name": "PackedAddressTreeInfo"
+            }
+          }
+        },
+        {
+          "name": "output_tree_index",
+          "type": "u8"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "create_compressed_account_v2",
+      "discriminator": [
+        16,
+        69,
+        137,
+        87,
+        207,
+        37,
+        81,
+        138
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "proof",
+          "type": {
+            "defined": {
+              "name": "ValidityProof"
+            }
+          }
+        },
+        {
+          "name": "address_tree_info",
+          "type": {
+            "defined": {
+              "name": "PackedAddressTreeInfo"
+            }
+          }
+        },
+        {
+          "name": "output_tree_index",
+          "type": "u8"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "reinit_closed_account",
+      "discriminator": [
+        100,
+        26,
+        249,
+        27,
+        243,
+        0,
+        206,
+        64
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "proof",
+          "type": {
+            "defined": {
+              "name": "ValidityProof"
+            }
+          }
+        },
+        {
+          "name": "account_meta",
+          "type": {
+            "defined": {
+              "name": "CompressedAccountMeta"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "update_compressed_account",
+      "discriminator": [
+        3,
+        98,
+        6,
+        60,
+        116,
+        45,
+        88,
+        166
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "proof",
+          "type": {
+            "defined": {
+              "name": "ValidityProof"
+            }
+          }
+        },
+        {
+          "name": "my_compressed_account",
+          "type": {
+            "defined": {
+              "name": "MyCompressedAccount"
+            }
+          }
+        },
+        {
+          "name": "account_meta",
+          "type": {
+            "defined": {
+              "name": "CompressedAccountMeta"
+            }
+          }
+        },
+        {
+          "name": "nested_data",
+          "type": {
+            "defined": {
+              "name": "NestedData"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "update_compressed_account_v2",
+      "discriminator": [
+        100,
+        134,
+        47,
+        184,
+        220,
+        7,
+        96,
+        236
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "proof",
+          "type": {
+            "defined": {
+              "name": "ValidityProof"
+            }
+          }
+        },
+        {
+          "name": "my_compressed_account",
+          "type": {
+            "defined": {
+              "name": "MyCompressedAccount"
+            }
+          }
+        },
+        {
+          "name": "account_meta",
+          "type": {
+            "defined": {
+              "name": "CompressedAccountMeta"
+            }
+          }
+        },
+        {
+          "name": "nested_data",
+          "type": {
+            "defined": {
+              "name": "NestedData"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "without_compressed_account",
+      "discriminator": [
+        68,
+        84,
+        81,
+        196,
+        24,
+        131,
+        208,
+        209
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "my_regular_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  109,
+                  112,
+                  114,
+                  101,
+                  115,
+                  115,
+                  101,
+                  100
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "name"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "MyRegularAccount",
+      "discriminator": [
+        186,
+        181,
+        76,
+        117,
+        61,
+        130,
+        63,
+        14
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "MyCompressedAccount",
+      "discriminator": [
+        147,
+        40,
+        99,
+        80,
+        53,
+        44,
+        10,
+        210
+      ]
+    }
+  ],
+  "types": [
+    {
+      "name": "CompressedAccountMeta",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "tree_info",
+            "docs": [
+              "Merkle tree context."
+            ],
+            "type": {
+              "defined": {
+                "name": "PackedStateTreeInfo"
+              }
+            }
+          },
+          {
+            "name": "address",
+            "docs": [
+              "Address."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "output_state_tree_index",
+            "docs": [
+              "Output merkle tree index."
+            ],
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CompressedAccountMetaBurn",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "tree_info",
+            "docs": [
+              "State Merkle tree context."
+            ],
+            "type": {
+              "defined": {
+                "name": "PackedStateTreeInfo"
+              }
+            }
+          },
+          {
+            "name": "address",
+            "docs": [
+              "Address."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "CompressedProof",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "a",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "b",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "c",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "MyCompressedAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "nested",
+            "type": {
+              "defined": {
+                "name": "NestedData"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "MyRegularAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "name",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "NestedData",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "one",
+            "type": "u16"
+          },
+          {
+            "name": "two",
+            "type": "u16"
+          },
+          {
+            "name": "three",
+            "type": "u16"
+          },
+          {
+            "name": "four",
+            "type": "u16"
+          },
+          {
+            "name": "five",
+            "type": "u16"
+          },
+          {
+            "name": "six",
+            "type": "u16"
+          },
+          {
+            "name": "seven",
+            "type": "u16"
+          },
+          {
+            "name": "eight",
+            "type": "u16"
+          },
+          {
+            "name": "nine",
+            "type": "u16"
+          },
+          {
+            "name": "ten",
+            "type": "u16"
+          },
+          {
+            "name": "eleven",
+            "type": "u16"
+          },
+          {
+            "name": "twelve",
+            "type": "u16"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PackedAddressTreeInfo",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "address_merkle_tree_pubkey_index",
+            "type": "u8"
+          },
+          {
+            "name": "address_queue_pubkey_index",
+            "type": "u8"
+          },
+          {
+            "name": "root_index",
+            "type": "u16"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PackedStateTreeInfo",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "root_index",
+            "type": "u16"
+          },
+          {
+            "name": "prove_by_index",
+            "type": "bool"
+          },
+          {
+            "name": "merkle_tree_pubkey_index",
+            "type": "u8"
+          },
+          {
+            "name": "queue_pubkey_index",
+            "type": "u8"
+          },
+          {
+            "name": "leaf_index",
+            "type": "u32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ValidityProof",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "option": {
+              "defined": {
+                "name": "CompressedProof"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
