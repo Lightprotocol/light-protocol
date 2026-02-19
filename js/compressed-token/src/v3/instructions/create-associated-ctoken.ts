@@ -53,7 +53,7 @@ export interface CreateAssociatedCTokenAccountParams {
 }
 
 /**
- * Default compressible config for c-token ATAs - matches Rust SDK defaults.
+ * Default compressible config for light-token ATAs - matches Rust SDK defaults.
  *
  * - tokenAccountVersion: 3 (ShaFlat) - latest hashing scheme
  * - rentPayment: 16 - prepay 16 epochs (~24 hours rent)
@@ -61,7 +61,7 @@ export interface CreateAssociatedCTokenAccountParams {
  * - writeTopUp: 766 - per-write top-up (~2 epochs rent) when rent < 2 epochs
  * - compressToAccountPubkey: null - required for ATAs
  *
- * Cost breakdown at ATA creation:
+ * Cost breakdown at associated token account creation:
  * - Rent sponsor PDA (LIGHT_TOKEN_RENT_SPONSOR) pays: rent exemption (~890,880 lamports)
  * - Fee payer pays: compression_cost (11K) + 16 epochs rent (~6,400) = ~17,400 lamports + tx fees
  *
@@ -130,7 +130,7 @@ export interface CreateAssociatedCTokenAccountInstructionParams {
 }
 
 /**
- * Create instruction for creating an associated compressed token account.
+ * Create instruction for creating an associated light-token account.
  * Uses the default rent sponsor PDA by default.
  *
  * @param feePayer          Fee payer public key.
@@ -202,7 +202,7 @@ export function createAssociatedCTokenAccountInstruction(
 }
 
 /**
- * Create idempotent instruction for creating an associated compressed token account.
+ * Create idempotent instruction for creating an associated light-token account.
  * Uses the default rent sponsor PDA by default.
  *
  * @param feePayer          Fee payer public key.

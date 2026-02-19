@@ -29,7 +29,7 @@ import {
 } from '../../constants';
 
 /**
- * Token metadata for creating a c-token mint.
+ * Token metadata for creating a light-token mint.
  */
 export interface TokenMetadataInstructionData {
     name: string;
@@ -174,7 +174,7 @@ export interface CreateMintInstructionParams {
 }
 
 /**
- * Create instruction for initializing a c-token mint.
+ * Create instruction for initializing a light-token mint.
  *
  * @param mintSigner          Mint signer keypair public key.
  * @param decimals            Number of decimals for the mint.

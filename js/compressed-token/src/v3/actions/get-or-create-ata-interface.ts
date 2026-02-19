@@ -46,7 +46,7 @@ import { loadAta } from './load-ata';
  * @param mint                      Mint associated with the account to set or
  *                                  verify.
  * @param owner                     Owner of the account. Pass Signer to
- *                                  auto-load cold (compressed) tokens, or
+ *                                  auto-load compressed light-tokens (cold balance), or
  *                                  PublicKey for read-only.
  * @param allowOwnerOffCurve        Allow the owner account to be a PDA (Program
  *                                  Derived Address).
@@ -131,7 +131,7 @@ export async function _getOrCreateAtaInterface(
         associatedTokenProgramId,
     );
 
-    // For c-token, use getAtaInterface which properly aggregates hot+cold balances
+    // For light-token, use getAtaInterface which properly aggregates hot+cold balances
     // When wrap=true (unified path), also includes SPL/T22 balances
     if (programId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
         return getOrCreateCTokenAta(
@@ -162,14 +162,14 @@ export async function _getOrCreateAtaInterface(
 }
 
 /**
- * Get or create c-token ATA with proper cold balance handling.
+ * Get or create light-token associated token account with proper compressed balance handling.
  *
  * Like SPL's getOrCreateAssociatedTokenAccount, this is a write operation:
- * 1. Creates hot ATA if it doesn't exist
- * 2. If owner is Signer: loads cold (compressed) tokens into hot ATA
+ * 1. Creates hot associated token account if it doesn't exist
+ * 2. If owner is Signer: loads compressed light-tokens (cold balance) into light-token associated token account
  * 3. When wrap=true and owner is Signer: also wraps SPL/T22 tokens
  *
- * After this call (with Signer owner), all tokens are in the hot ATA and ready
+ * After this call (with Signer owner), all tokens are in the hot associated token account and ready
  * to use.
  *
  * @internal
@@ -215,7 +215,7 @@ async function getOrCreateCTokenAta(
             error instanceof TokenAccountNotFoundError ||
             error instanceof TokenInvalidAccountOwnerError
         ) {
-            // No account found (neither hot nor cold), create hot ATA
+            // No account found (neither hot nor cold), create hot associated token account
             await createCTokenAtaIdempotent(
                 rpc,
                 payer,
@@ -242,7 +242,7 @@ async function getOrCreateCTokenAta(
         }
     }
 
-    // If we only have cold balance (no hot ATA), create the hot ATA first
+    // If we only have cold balance (no hot associated token account), create the hot associated token account first
     if (!hasHotAccount) {
         await createCTokenAtaIdempotent(
             rpc,
@@ -257,7 +257,7 @@ async function getOrCreateCTokenAta(
     // Only auto-load if owner is a Signer (we can sign the load transaction)
     // Use direct type guard in the if condition for proper type narrowing
     if (isSigner(owner)) {
-        // Check if we need to load tokens into the hot ATA
+        // Check if we need to load tokens into the hot associated token account
         // Load if: cold balance exists, or (wrap=true and SPL/T22 balance exists)
         const sources = accountInterface._sources ?? [];
         const hasCold = sources.some(
@@ -285,7 +285,7 @@ async function getOrCreateCTokenAta(
                 );
             }
 
-            // Load all tokens into hot ATA (decompress cold, wrap SPL/T22 if
+            // Load all tokens into hot associated token account (decompress cold, wrap SPL/T22 if
             // wrap=true)
             await loadAta(
                 rpc,
@@ -321,7 +321,7 @@ async function getOrCreateCTokenAta(
 }
 
 /**
- * Create c-token ATA idempotently.
+ * Create light-token associated token account idempotently.
  * @internal
  */
 async function createCTokenAtaIdempotent(
@@ -351,12 +351,12 @@ async function createCTokenAtaIdempotent(
 
         await sendAndConfirmTx(rpc, tx, confirmOptions);
     } catch {
-        // Ignore errors - ATA may already exist
+        // Ignore errors - associated token account may already exist
     }
 }
 
 /**
- * Get or create SPL/T22 ATA.
+ * Get or create SPL/T22 associated token account.
  * @internal
  */
 async function getOrCreateSplAta(

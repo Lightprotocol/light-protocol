@@ -18,7 +18,7 @@ import {
 import { getAssociatedCTokenAddress } from '../derivation';
 
 /**
- * Create an associated c-token account.
+ * Create an associated light-token account.
  *
  * @param rpc                RPC connection
  * @param payer              Fee payer
@@ -65,7 +65,7 @@ export async function createAssociatedCTokenAccount(
 }
 
 /**
- * Create an associated compressed token account idempotently.
+ * Create an associated light-token account idempotently.
  *
  * @param rpc                RPC connection
  * @param payer              Fee payer

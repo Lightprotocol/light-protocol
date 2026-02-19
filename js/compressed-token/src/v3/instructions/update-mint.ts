@@ -44,7 +44,7 @@ function encodeUpdateMintInstructionData(
             ? { updateMintAuthority: { newAuthority: params.newAuthority } }
             : { updateFreezeAuthority: { newAuthority: params.newAuthority } };
 
-    // When mint is decompressed (cmintDecompressed=true), the program reads from CMint account
+    // When mint is decompressed (cmintDecompressed=true), the program reads from light mint account
     // so we don't need to include mint data in the instruction
     const isDecompressed =
         params.mintInterface.mintContext?.cmintDecompressed ?? false;
@@ -103,14 +103,14 @@ function encodeUpdateMintInstructionData(
 }
 
 /**
- * Create instruction for updating a compressed mint's mint authority.
- * Works for both compressed and decompressed mints.
+ * Create instruction for updating a light mint's mint authority.
+ * Works for both compressed and decompressed light mints.
  *
  * @param mintInterface          MintInterface from getMintInterface() - must have merkleContext
  * @param currentMintAuthority   Current mint authority public key (must sign)
  * @param newMintAuthority       New mint authority (or null to revoke)
  * @param payer                  Fee payer public key
- * @param validityProof          Validity proof for the compressed mint (null for decompressed mints)
+ * @param validityProof          Validity proof for the compressed light mint (null for decompressed light mints)
  * @param maxTopUp               Optional cap on rent top-up (units of 1k lamports; default no cap)
  */
 export function createUpdateMintAuthorityInstruction(
@@ -123,12 +123,12 @@ export function createUpdateMintAuthorityInstruction(
 ): TransactionInstruction {
     if (!mintInterface.merkleContext) {
         throw new Error(
-            'MintInterface must have merkleContext for compressed mint operations',
+            'MintInterface must have merkleContext for light mint operations',
         );
     }
     if (!mintInterface.mintContext) {
         throw new Error(
-            'MintInterface must have mintContext for compressed mint operations',
+            'MintInterface must have mintContext for light mint operations',
         );
     }
 
@@ -158,7 +158,7 @@ export function createUpdateMintAuthorityInstruction(
             isWritable: false,
         },
         { pubkey: currentMintAuthority, isSigner: true, isWritable: false },
-        // CMint account when decompressed (must come before payer for correct account ordering)
+        // light mint account when decompressed (must come before payer for correct account ordering)
         ...(isDecompressed
             ? [
                   {
@@ -211,8 +211,8 @@ export function createUpdateMintAuthorityInstruction(
 }
 
 /**
- * Create instruction for updating a compressed mint's freeze authority.
- * Works for both compressed and decompressed mints.
+ * Create instruction for updating a light mint's freeze authority.
+ * Works for both compressed and decompressed light mints.
  *
  * Output queue is automatically derived from mintInterface.merkleContext.treeInfo
  * (preferring nextTreeInfo.queue if available for rollover support).
@@ -221,7 +221,7 @@ export function createUpdateMintAuthorityInstruction(
  * @param currentFreezeAuthority   Current freeze authority public key (must sign)
  * @param newFreezeAuthority       New freeze authority (or null to revoke)
  * @param payer                    Fee payer public key
- * @param validityProof            Validity proof for the compressed mint (null for decompressed mints)
+ * @param validityProof            Validity proof for the compressed light mint (null for decompressed light mints)
  * @param maxTopUp                 Optional cap on rent top-up (units of 1k lamports; default no cap)
  */
 export function createUpdateFreezeAuthorityInstruction(
@@ -234,12 +234,12 @@ export function createUpdateFreezeAuthorityInstruction(
 ): TransactionInstruction {
     if (!mintInterface.merkleContext) {
         throw new Error(
-            'MintInterface must have merkleContext for compressed mint operations',
+            'MintInterface must have merkleContext for light mint operations',
         );
     }
     if (!mintInterface.mintContext) {
         throw new Error(
-            'MintInterface must have mintContext for compressed mint operations',
+            'MintInterface must have mintContext for light mint operations',
         );
     }
 
@@ -269,7 +269,7 @@ export function createUpdateFreezeAuthorityInstruction(
             isWritable: false,
         },
         { pubkey: currentFreezeAuthority, isSigner: true, isWritable: false },
-        // CMint account when decompressed (must come before payer for correct account ordering)
+        // light mint account when decompressed (must come before payer for correct account ordering)
         ...(isDecompressed
             ? [
                   {

@@ -21,8 +21,8 @@ import {
 import { getMintInterface } from '../get-mint-interface';
 
 /**
- * Update the mint authority of a compressed token mint.
- * Works for both compressed and decompressed mints.
+ * Update the mint authority of a light-token mint.
+ * Works for both compressed and decompressed light mints.
  *
  * @param rpc                    RPC connection
  * @param payer                  Fee payer (signer)
@@ -52,7 +52,7 @@ export async function updateMintAuthority(
         throw new Error('Mint does not have MerkleContext');
     }
 
-    // When mint is decompressed, no validity proof needed - program reads from CMint account
+    // When light mint account exists (decompressed), no validity proof needed - program reads from light mint account
     const isDecompressed =
         mintInterface.mintContext?.cmintDecompressed ?? false;
     const validityProof = isDecompressed
@@ -96,8 +96,8 @@ export async function updateMintAuthority(
 }
 
 /**
- * Update the freeze authority of a compressed token mint.
- * Works for both compressed and decompressed mints.
+ * Update the freeze authority of a light-token mint.
+ * Works for both compressed and decompressed light mints.
  *
  * @param rpc                      RPC connection
  * @param payer                    Fee payer (signer)
@@ -127,7 +127,7 @@ export async function updateFreezeAuthority(
         throw new Error('Mint does not have MerkleContext');
     }
 
-    // When mint is decompressed, no validity proof needed - program reads from CMint account
+    // When light mint account exists (decompressed), no validity proof needed - program reads from light mint account
     const isDecompressed =
         mintInterface.mintContext?.cmintDecompressed ?? false;
     const validityProof = isDecompressed

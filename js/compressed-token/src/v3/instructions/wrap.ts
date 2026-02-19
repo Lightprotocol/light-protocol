@@ -17,10 +17,10 @@ import {
 
 /**
  * Create a wrap instruction that moves tokens from an SPL/T22 account to a
- * c-token account.
+ * light-token account.
  *
  * @param source            Source SPL/T22 token account
- * @param destination       Destination c-token account
+ * @param destination       Destination light-token account
  * @param owner             Owner of the source account (signer)
  * @param mint              Mint address
  * @param amount            Amount to wrap,

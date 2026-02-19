@@ -33,7 +33,7 @@ import {
 } from '../utils/estimate-tx-size';
 
 /**
- * Build instruction batches for unwrapping c-tokens to SPL/T22 tokens.
+ * Build instruction batches for unwrapping light-tokens to SPL/T22 tokens.
  *
  * Returns `TransactionInstruction[][]` with the same shape as
  * `createLoadAtaInstructions` and `createTransferInterfaceInstructions`:
@@ -45,7 +45,7 @@ import {
  *
  * @param rpc               RPC connection
  * @param destination       Destination SPL/T22 token account (must exist)
- * @param owner             Owner of the c-token
+ * @param owner             Owner of the light-token
  * @param mint              Mint address
  * @param amount            Amount to unwrap (defaults to full balance)
  * @param payer             Fee payer (defaults to owner)
@@ -97,7 +97,7 @@ export async function createUnwrapInstructions(
         );
     }
 
-    // 3. Derive c-token ATA and get account interface
+    // 3. Derive light-token associated token account and get account interface
     const ctokenAta = getAssociatedTokenAddressInterface(mint, owner);
 
     let accountInterface: AccountInterface;
@@ -113,7 +113,7 @@ export async function createUnwrapInstructions(
         );
     } catch (error) {
         if (error instanceof TokenAccountNotFoundError) {
-            throw new Error('No c-token balance to unwrap');
+            throw new Error('No light-token balance to unwrap');
         }
         throw error;
     }
@@ -125,9 +125,9 @@ export async function createUnwrapInstructions(
 
     if (unfrozenBalance === BigInt(0)) {
         if (totalBalance > BigInt(0)) {
-            throw new Error('All c-token balance is frozen');
+            throw new Error('All light-token balance is frozen');
         }
-        throw new Error('No c-token balance to unwrap');
+        throw new Error('No light-token balance to unwrap');
     }
 
     const unwrapAmount =
@@ -139,7 +139,7 @@ export async function createUnwrapInstructions(
                 ? ` (${totalBalance - unfrozenBalance} frozen, not usable)`
                 : '';
         throw new Error(
-            `Insufficient c-token balance. Requested: ${unwrapAmount}, Available: ${unfrozenBalance}${frozenNote}`,
+            `Insufficient light-token balance. Requested: ${unwrapAmount}, Available: ${unfrozenBalance}${frozenNote}`,
         );
     }
 
@@ -219,15 +219,15 @@ function assertUnwrapTxSize(
 }
 
 /**
- * Unwrap c-tokens to SPL tokens.
+ * Unwrap light-tokens to SPL tokens.
  *
- * Loads cold state to the c-token ATA, then unwraps to the destination
+ * Loads cold state to the light-token associated token account, then unwraps to the destination
  * SPL/T22 token account. Uses `createUnwrapInstructions` internally.
  *
  * @param rpc                RPC connection
  * @param payer              Fee payer
  * @param destination        Destination SPL/T22 token account
- * @param owner              Owner of the c-token (signer)
+ * @param owner              Owner of the light-token (signer)
  * @param mint               Mint address
  * @param amount             Amount to unwrap (defaults to all)
  * @param splInterfaceInfo   SPL interface info

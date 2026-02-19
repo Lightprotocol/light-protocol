@@ -28,7 +28,7 @@ export interface ParsedAccountInfoInterface<T = unknown> {
 
 /**
  * Input for createLoadAccountsParams.
- * Supports both program PDAs and c-token vaults.
+ * Supports both program PDAs and light-token vaults.
  *
  * The integrating program is responsible for fetching and parsing their accounts.
  * This helper just packs them for the decompressAccountsIdempotent instruction.
@@ -39,7 +39,7 @@ export interface CompressibleAccountInput<T = unknown> {
     /**
      * Account type key for packing:
      * - For PDAs: program-specific type name (e.g., "poolState", "observationState")
-     * - For c-token vaults: "cTokenData"
+     * - For light-token vaults: "cTokenData"
      */
     accountType: string;
     /**
@@ -82,7 +82,7 @@ export interface CompressibleLoadParams {
 export interface LoadResult {
     /** Params for decompressAccountsIdempotent (null if no program accounts need decompressing) */
     decompressParams: CompressibleLoadParams | null;
-    /** Instructions to load ATAs (create ATA, wrap SPL/T22, decompressInterface) */
+    /** Instructions to load ATAs (create associated token account, wrap SPL/T22, decompressInterface) */
     ataInstructions: TransactionInstruction[];
 }
 
@@ -95,7 +95,7 @@ export interface LoadResult {
  * - ataInstructions: for loading user ATAs
  *
  * @param rpc              RPC connection
- * @param payer            Fee payer (needed for ATA instructions)
+ * @param payer            Fee payer (needed for associated token account instructions)
  * @param programId        Program ID for decompressAccountsIdempotent
  * @param programAccounts  PDAs and vaults (caller pre-fetches)
  * @param atas             User ATAs (fetched via getAtaInterface)
@@ -121,7 +121,7 @@ export interface LoadResult {
  *     [userAta],
  * );
  *
- * // Build transaction with both program decompress and ATA load
+ * // Build transaction with both program decompress and associated token account load
  * const instructions = [...result.ataInstructions];
  * if (result.decompressParams) {
  *     instructions.push(await program.methods

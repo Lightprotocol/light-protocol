@@ -31,10 +31,10 @@ export interface DecompressMintParams {
 }
 
 /**
- * Decompress a compressed mint to create the CMint Solana account.
+ * Decompress a compressed light mint to create the light mint account.
  *
- * This makes the mint available on-chain, which is required before creating
- * CToken associated token accounts. DecompressMint is **permissionless** -
+ * This creates the light mint account, which is required before creating
+ * light-token associated token accounts. DecompressMint is **permissionless** -
  * any account can call it.
  *
  * @param rpc - RPC connection

@@ -25,8 +25,8 @@ import { getAssociatedTokenAddressInterface } from '../get-associated-token-addr
 export type { CTokenConfig };
 
 /**
- * Create an associated token account for SPL/T22/c-token. Defaults to c-token
- * program.
+ * Create an associated token account for SPL/T22/light-token. Defaults to
+ * light-token program.
  *
  * @param rpc                       RPC connection
  * @param payer                     Fee payer and transaction signer
@@ -36,8 +36,8 @@ export type { CTokenConfig };
  * @param confirmOptions            Options for confirming the transaction
  * @param programId                 Token program ID (default:
  *                                  LIGHT_TOKEN_PROGRAM_ID)
- * @param associatedTokenProgramId  ATA program ID (auto-derived if not
- *                                  provided)
+ * @param associatedTokenProgramId  associated token account program ID
+ *                                  (auto-derived if not provided)
  * @param ctokenConfig              Optional rent config
  * @returns Address of the new associated token account
  */
@@ -98,8 +98,8 @@ export async function createAtaInterface(
 }
 
 /**
- * Create an associated token account idempotently for SPL/T22/c-token. Defaults
- * to c-token program.
+ * Create an associated token account idempotently for SPL/T22/light-token.
+ * Defaults to light-token program.
  *
  * If the account already exists, the instruction succeeds without error.
  *
@@ -111,9 +111,9 @@ export async function createAtaInterface(
  * @param confirmOptions            Options for confirming the transaction
  * @param programId                 Token program ID (default:
  *                                  LIGHT_TOKEN_PROGRAM_ID)
- * @param associatedTokenProgramId  ATA program ID (auto-derived if not
- *                                  provided)
- * @param ctokenConfig              Optional c-token-specific configuration
+ * @param associatedTokenProgramId  associated token account program ID
+ *                                  (auto-derived if not provided)
+ * @param ctokenConfig              Optional light-token-specific configuration
  *
  * @returns Address of the associated token account
  */

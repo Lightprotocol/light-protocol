@@ -33,12 +33,12 @@ export interface MintInterface {
     mintContext?: MintContext;
     tokenMetadata?: TokenMetadata;
     extensions?: MintExtension[];
-    /** Compression info for c-token mints */
+    /** Compression info for light-token mints */
     compression?: CompressionInfo;
 }
 
 /**
- * Get unified mint info for SPL/T22/c-token mints.
+ * Get unified mint info for SPL/T22/light-token mints.
  *
  * @param rpc           RPC connection
  * @param address       The mint address
@@ -104,26 +104,26 @@ export async function getMintInterface(
 
         if (!compressedAccount?.data?.data) {
             throw new Error(
-                `Compressed mint not found for ${address.toString()}`,
+                `Light mint not found for ${address.toString()}`,
             );
         }
 
         const compressedData = Buffer.from(compressedAccount.data.data);
 
         // After decompressMint, the compressed account contains sentinel data (just hash ~32 bytes).
-        // The actual mint data lives on-chain in the CMint account.
-        // Minimum compressed mint size is 82 (base) + 34 (context) + 33 (signer+bump) = 149+ bytes.
+        // The actual mint data lives in the light mint account.
+        // Minimum light mint size is 82 (base) + 34 (context) + 33 (signer+bump) = 149+ bytes.
         const SENTINEL_THRESHOLD = 64;
         const isDecompressed = compressedData.length < SENTINEL_THRESHOLD;
 
         let compressedMintData: CompressedMint;
 
         if (isDecompressed) {
-            // Mint is decompressed - read from on-chain CMint account
+            // Light mint account exists - read from light mint account
             const cmintAccountInfo = await rpc.getAccountInfo(address);
             if (!cmintAccountInfo?.data) {
                 throw new Error(
-                    `Decompressed CMint account not found on-chain for ${address.toString()}`,
+                    `Decompressed light mint account not found on-chain for ${address.toString()}`,
                 );
             }
             compressedMintData = deserializeMint(
@@ -168,12 +168,12 @@ export async function getMintInterface(
         if (programId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
             if (!result.merkleContext) {
                 throw new Error(
-                    `Invalid compressed mint: merkleContext is required for LIGHT_TOKEN_PROGRAM_ID`,
+                    `Invalid light mint: merkleContext is required for LIGHT_TOKEN_PROGRAM_ID`,
                 );
             }
             if (!result.mintContext) {
                 throw new Error(
-                    `Invalid compressed mint: mintContext is required for LIGHT_TOKEN_PROGRAM_ID`,
+                    `Invalid light mint: mintContext is required for LIGHT_TOKEN_PROGRAM_ID`,
                 );
             }
         }
@@ -187,11 +187,11 @@ export async function getMintInterface(
 }
 
 /**
- * Unpack mint info from raw account data for SPL/T22/c-token.
+ * Unpack mint info from raw account data for SPL/T22/light-token.
  *
  * @param address       The mint pubkey
  * @param data          The raw account data or AccountInfo
- * @param programId     Token program ID. Default c-token.
+ * @param programId     Token program ID. Default light-token.
  * @returns Object with mint, optional mintContext and tokenMetadata.
  */
 export function unpackMintInterface(
@@ -206,7 +206,7 @@ export function unpackMintInterface(
               ? Buffer.from(data)
               : data.data;
 
-    // If compressed token program, deserialize as compressed mint
+    // If light-token program, deserialize as light mint
     if (programId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
         const compressedMintData = deserializeMint(buffer);
 
@@ -238,7 +238,7 @@ export function unpackMintInterface(
         if (programId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
             if (!result.mintContext) {
                 throw new Error(
-                    `Invalid compressed mint: mintContext is required for LIGHT_TOKEN_PROGRAM_ID`,
+                    `Invalid light mint: mintContext is required for LIGHT_TOKEN_PROGRAM_ID`,
                 );
             }
         }
@@ -253,7 +253,7 @@ export function unpackMintInterface(
 }
 
 /**
- * Unpack c-token mint context and metadata from raw account data
+ * Unpack light-token mint context and metadata from raw account data
  *
  * @param data  The raw account data
  * @returns     Object with mintContext, tokenMetadata, and extensions
