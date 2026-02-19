@@ -80,6 +80,7 @@ async fn test_approve_fails() {
             delegate.pubkey(),
             &owner,
             100,
+            None,
             "non_existent_account",
             6153, // NotRentExempt (SPL Token code 0 -> ErrorCode::NotRentExempt)
         )
