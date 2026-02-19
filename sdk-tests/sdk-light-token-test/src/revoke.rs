@@ -19,7 +19,6 @@ pub fn process_revoke_invoke(accounts: &[AccountInfo]) -> Result<(), ProgramErro
         token_account: accounts[0].clone(),
         owner: accounts[1].clone(),
         system_program: accounts[2].clone(),
-        fee_payer: None,
     }
     .invoke()?;
 
@@ -51,7 +50,6 @@ pub fn process_revoke_invoke_signed(accounts: &[AccountInfo]) -> Result<(), Prog
         token_account: accounts[0].clone(),
         owner: accounts[1].clone(),
         system_program: accounts[2].clone(),
-        fee_payer: None,
     }
     .invoke_signed(&[signer_seeds])?;
 

@@ -903,7 +903,6 @@ pub async fn approve_and_assert(
         delegate,
         owner: context.owner_keypair.pubkey(),
         amount,
-        fee_payer: None,
     }
     .instruction()
     .unwrap();
@@ -946,7 +945,6 @@ pub async fn approve_and_assert_fails(
         delegate,
         owner: authority.pubkey(),
         amount,
-        fee_payer: None,
     }
     .instruction()
     .unwrap();
@@ -971,7 +969,6 @@ pub async fn revoke_and_assert(context: &mut AccountTestContext, name: &str) {
     let revoke_ix = Revoke {
         token_account: context.token_account_keypair.pubkey(),
         owner: context.owner_keypair.pubkey(),
-        fee_payer: None,
     }
     .instruction()
     .unwrap();
@@ -1003,7 +1000,6 @@ pub async fn revoke_and_assert_fails(
     let instruction = Revoke {
         token_account,
         owner: authority.pubkey(),
-        fee_payer: None,
     }
     .instruction()
     .unwrap();

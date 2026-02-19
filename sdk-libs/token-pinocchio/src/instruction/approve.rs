@@ -23,7 +23,6 @@ use crate::constants::LIGHT_TOKEN_PROGRAM_ID;
 ///     owner: &ctx.accounts.owner,
 ///     system_program: &ctx.accounts.system_program,
 ///     amount: 100,
-///     fee_payer: None,
 /// }
 /// .invoke()?;
 /// ```
@@ -33,8 +32,6 @@ pub struct ApproveCpi<'info> {
     pub owner: &'info AccountInfo,
     pub system_program: &'info AccountInfo,
     pub amount: u64,
-    /// Optional fee payer for rent top-ups. If not provided, owner pays.
-    pub fee_payer: Option<&'info AccountInfo>,
 }
 
 impl<'info> ApproveCpi<'info> {
@@ -43,68 +40,37 @@ impl<'info> ApproveCpi<'info> {
     }
 
     pub fn invoke_signed(self, signers: &[Signer]) -> Result<(), ProgramError> {
-        // Build instruction data: discriminator(1) + amount(8) + max_top_up(2)
-        let mut data = [0u8; 11];
+        // Build instruction data: discriminator(1) + amount(8)
+        let mut data = [0u8; 9];
         data[0] = 4u8; // Approve discriminator
         data[1..9].copy_from_slice(&self.amount.to_le_bytes());
-        data[9..11].copy_from_slice(&u16::MAX.to_le_bytes());
 
         let program_id = Pubkey::from(LIGHT_TOKEN_PROGRAM_ID);
 
-        if let Some(fee_payer) = self.fee_payer {
-            let account_metas = [
-                AccountMeta::writable(self.token_account.key()),
-                AccountMeta::readonly(self.delegate.key()),
-                AccountMeta::readonly_signer(self.owner.key()),
-                AccountMeta::readonly(self.system_program.key()),
-                AccountMeta::writable_signer(fee_payer.key()),
-            ];
+        let account_metas = [
+            AccountMeta::writable(self.token_account.key()),
+            AccountMeta::readonly(self.delegate.key()),
+            AccountMeta::writable_signer(self.owner.key()),
+            AccountMeta::readonly(self.system_program.key()),
+        ];
 
-            let instruction = Instruction {
-                program_id: &program_id,
-                accounts: &account_metas,
-                data: &data,
-            };
+        let instruction = Instruction {
+            program_id: &program_id,
+            accounts: &account_metas,
+            data: &data,
+        };
 
-            let account_infos = [
-                self.token_account,
-                self.delegate,
-                self.owner,
-                self.system_program,
-                fee_payer,
-            ];
+        let account_infos = [
+            self.token_account,
+            self.delegate,
+            self.owner,
+            self.system_program,
+        ];
 
-            if signers.is_empty() {
-                slice_invoke(&instruction, &account_infos)
-            } else {
-                slice_invoke_signed(&instruction, &account_infos, signers)
-            }
+        if signers.is_empty() {
+            slice_invoke(&instruction, &account_infos)
         } else {
-            let account_metas = [
-                AccountMeta::writable(self.token_account.key()),
-                AccountMeta::readonly(self.delegate.key()),
-                AccountMeta::writable_signer(self.owner.key()),
-                AccountMeta::readonly(self.system_program.key()),
-            ];
-
-            let instruction = Instruction {
-                program_id: &program_id,
-                accounts: &account_metas,
-                data: &data,
-            };
-
-            let account_infos = [
-                self.token_account,
-                self.delegate,
-                self.owner,
-                self.system_program,
-            ];
-
-            if signers.is_empty() {
-                slice_invoke(&instruction, &account_infos)
-            } else {
-                slice_invoke_signed(&instruction, &account_infos, signers)
-            }
+            slice_invoke_signed(&instruction, &account_infos, signers)
         }
     }
 }
