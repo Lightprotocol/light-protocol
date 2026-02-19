@@ -134,7 +134,8 @@ function assertUniqueInputHashes(chunks: ParsedTokenAccount[][]): void {
 }
 
 
-function getCompressedTokenAccountsFromAtaSources(
+/** @internal */
+export function getCompressedTokenAccountsFromAtaSources(
     sources: TokenAccountSource[],
 ): ParsedTokenAccount[] {
     const coldTypes = new Set<TokenAccountSource['type']>([

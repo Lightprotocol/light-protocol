@@ -11,3 +11,4 @@ export * from './transfer-interface';
 export * from './create-load-accounts-params';
 export * from './wrap';
 export * from './unwrap';
+export * from './freeze-thaw';

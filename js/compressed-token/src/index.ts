@@ -73,6 +73,8 @@ export {
     createWrapInstruction,
     createUnwrapInstruction,
     createUnwrapInstructions,
+    createCTokenFreezeAccountInstruction,
+    createCTokenThawAccountInstruction,
     createLightTokenTransferInstruction,
     // Types
     TokenMetadataInstructionData,

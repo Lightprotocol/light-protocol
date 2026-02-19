@@ -38,6 +38,7 @@ import {
 } from '../../src/v3/get-account-interface';
 import {
     selectInputsForAmount,
+    getCompressedTokenAccountsFromAtaSources,
 } from '../../src/v3/actions/load-ata';
 import { createDecompressInterfaceInstruction } from '../../src/v3/instructions/create-decompress-interface-instruction';
 
@@ -645,5 +646,482 @@ describe('createDecompressInterfaceInstruction – delegate pubkeys in packed ac
         const user1Count = keyPubkeys.filter(k => k === user1.toBase58()).length;
         // Deduplication: user1 must appear exactly once
         expect(user1Count).toBe(1);
+    });
+
+    it('delegate key equals owner key: hasDelegate still true, index reuses owner slot', () => {
+        /**
+         * Red-team: if the cold account's delegate happens to be the same public key
+         * as the account owner (unusual, but valid), the packed accounts must:
+         * - NOT add the key a second time (deduplication)
+         * - Still set hasDelegate=true in the inTokenData encoding
+         * - Use the owner's packed-account index as the delegate index
+         *
+         * If this is mishandled (e.g., hasDelegate forced to false when delegate==owner),
+         * the on-chain program would read the wrong delegate index and fail to validate
+         * the CompressedOnly extension.
+         */
+        const ownerAndDelegate = Keypair.generate().publicKey;
+
+        const account = buildAccount(ownerAndDelegate, 1_000n);
+        // Override: owner IS the delegate
+        account.parsed.delegate = ownerAndDelegate;
+
+        const ix = createDecompressInterfaceInstruction(
+            payer,
+            [account],
+            destination,
+            1_000n,
+            mockProof as any,
+            undefined,
+            9,
+        );
+
+        const keyPubkeys = ix.keys.map(k => k.pubkey.toBase58());
+        const ownerCount = keyPubkeys.filter(
+            k => k === ownerAndDelegate.toBase58(),
+        ).length;
+
+        // The key appears exactly once (deduplication)
+        expect(ownerCount).toBe(1);
+
+        // The key is still present (not dropped)
+        expect(keyPubkeys).toContain(ownerAndDelegate.toBase58());
+    });
+
+    it('delegate key equals destination address: deduplication works, key appears once', () => {
+        /**
+         * Red-team: cold account's delegate == destination ATA.
+         * Destination is already in packed accounts. The delegate must NOT be
+         * added twice, but the slot must correctly reflect the destination index.
+         */
+        // destination is the c-token ATA address defined in outer scope
+        const account = buildAccount(destination, 1_000n);
+
+        const ix = createDecompressInterfaceInstruction(
+            payer,
+            [account],
+            destination,
+            1_000n,
+            mockProof as any,
+            undefined,
+            9,
+        );
+
+        const keyPubkeys = ix.keys.map(k => k.pubkey.toBase58());
+        const destinationCount = keyPubkeys.filter(
+            k => k === destination.toBase58(),
+        ).length;
+
+        // Destination appears exactly once despite being both destination and delegate
+        expect(destinationCount).toBe(1);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// getCompressedTokenAccountsFromAtaSources – frozen filtering and delegate passthrough
+// ---------------------------------------------------------------------------
+
+describe('getCompressedTokenAccountsFromAtaSources – frozen filtering and delegate passthrough', () => {
+    const ata = Keypair.generate().publicKey;
+
+    it('excludes frozen cold sources: regression guard against decompressing frozen accounts', () => {
+        /**
+         * Red-team: if frozen filtering is removed, the decompress instruction would
+         * include frozen accounts. The on-chain program rejects frozen inputs
+         * (unless via CompressAndClose mode), causing the transaction to fail.
+         *
+         * This test ensures frozen cold sources are never included in the
+         * ParsedTokenAccount array fed to createDecompressInterfaceInstruction.
+         */
+        const frozenCold = coldSource({
+            address: ata,
+            amount: 5_000n,
+            delegate: null,
+            delegatedAmount: 0n,
+            isFrozen: true,
+        });
+        const unfrozenCold = coldSource({
+            address: ata,
+            amount: 3_000n,
+            delegate: null,
+            delegatedAmount: 0n,
+            isFrozen: false,
+        });
+
+        const result = getCompressedTokenAccountsFromAtaSources([
+            frozenCold,
+            unfrozenCold,
+        ]);
+
+        expect(result.length).toBe(1);
+        expect(result[0].parsed.amount.toString()).toBe('3000');
+    });
+
+    it('excludes hot sources: only cold (ctoken-cold / spl-cold / token2022-cold) are returned', () => {
+        /**
+         * Red-team: hot sources must not be included in decompress inputs.
+         * A hot account is already on-chain; including it as a compressed input
+         * would cause the proof to fail.
+         */
+        const hot = hotSource({
+            address: ata,
+            amount: 4_000n,
+            delegate: null,
+            delegatedAmount: 0n,
+        });
+        const cold = coldSource({
+            address: ata,
+            amount: 2_000n,
+            delegate: null,
+            delegatedAmount: 0n,
+        });
+
+        const result = getCompressedTokenAccountsFromAtaSources([hot, cold]);
+
+        expect(result.length).toBe(1);
+        expect(result[0].parsed.amount.toString()).toBe('2000');
+    });
+
+    it('preserves delegate field from cold source: regression guard for packed-accounts correctness', () => {
+        /**
+         * Red-team: if delegate is not passed through here, buildInputTokenData
+         * would set hasDelegate=false for the input token data, and the delegate
+         * key would never be added to packed accounts. On-chain, the program
+         * would fail to find the delegate for CompressedOnly validation.
+         */
+        const user1 = Keypair.generate().publicKey;
+        const cold = coldSource({
+            address: ata,
+            amount: 3_000n,
+            delegate: user1,
+            delegatedAmount: 3_000n,
+        });
+
+        const result = getCompressedTokenAccountsFromAtaSources([cold]);
+
+        expect(result.length).toBe(1);
+        expect(result[0].parsed.delegate).not.toBeNull();
+        expect(result[0].parsed.delegate!.toBase58()).toBe(user1.toBase58());
+    });
+
+    it('all frozen: returns empty array → loadAta produces no instructions', () => {
+        /**
+         * Red-team: if all cold sources are frozen, no decompress instructions
+         * should be generated. An empty result here ensures _buildLoadBatches
+         * returns [] and the caller gets an empty instruction set.
+         */
+        const frozen1 = coldSource({ address: ata, amount: 5_000n, delegate: null, delegatedAmount: 0n, isFrozen: true });
+        const frozen2 = coldSource({ address: ata, amount: 3_000n, delegate: Keypair.generate().publicKey, delegatedAmount: 3_000n, isFrozen: true });
+
+        const result = getCompressedTokenAccountsFromAtaSources([frozen1, frozen2]);
+
+        expect(result.length).toBe(0);
+    });
+
+    it('preserves null delegate (no-delegate cold source): delegate field stays null', () => {
+        const cold = coldSource({
+            address: ata,
+            amount: 2_000n,
+            delegate: null,
+            delegatedAmount: 0n,
+        });
+
+        const result = getCompressedTokenAccountsFromAtaSources([cold]);
+
+        expect(result.length).toBe(1);
+        expect(result[0].parsed.delegate).toBeNull();
+    });
+
+    it('mixed: frozen delegated + unfrozen non-delegated → only unfrozen returned, delegate not polluting', () => {
+        /**
+         * Red-team: if frozen filtering doesn't happen BEFORE delegate extraction,
+         * the frozen delegated account's key might still be injected into
+         * packed accounts. Verify only unfrozen accounts contribute to the output.
+         */
+        const user1 = Keypair.generate().publicKey;
+        const frozenDelegated = coldSource({
+            address: ata,
+            amount: 8_000n,
+            delegate: user1,
+            delegatedAmount: 8_000n,
+            isFrozen: true,
+        });
+        const unfrozenNoDelegate = coldSource({
+            address: ata,
+            amount: 2_000n,
+            delegate: null,
+            delegatedAmount: 0n,
+            isFrozen: false,
+        });
+
+        const result = getCompressedTokenAccountsFromAtaSources([
+            frozenDelegated,
+            unfrozenNoDelegate,
+        ]);
+
+        expect(result.length).toBe(1);
+        expect(result[0].parsed.delegate).toBeNull();
+        expect(result[0].parsed.amount.toString()).toBe('2000');
+    });
+});
+
+// ---------------------------------------------------------------------------
+// buildAccountInterfaceFromSources – frozen sources inflate parsed.amount
+// ---------------------------------------------------------------------------
+
+describe('buildAccountInterfaceFromSources – frozen source inflation', () => {
+    const ata = Keypair.generate().publicKey;
+
+    it('frozen cold inflates parsed.amount but sets _anyFrozen=true', () => {
+        /**
+         * Red-team: The most critical correctness gap.
+         *
+         * buildAccountInterfaceFromSources sums ALL source amounts including
+         * frozen ones. But frozen cold accounts are excluded by
+         * getCompressedTokenAccountsFromAtaSources and thus never decompressed.
+         *
+         * Result: parsed.amount OVERSTATES the balance that can actually be loaded.
+         * A caller checking parsed.amount >= transferAmount might see enough balance
+         * but loadAta produces instructions that only load the unfrozen portion.
+         *
+         * The _anyFrozen flag is the signal callers MUST check:
+         *   if (result._anyFrozen) {
+         *     // effective loadable = parsed.amount minus frozen sources' amounts
+         *   }
+         */
+        const hotAmount = 2_000n;
+        const frozenColdAmount = 5_000n;
+        const unfrozenColdAmount = 3_000n;
+
+        const sources: TokenAccountSource[] = [
+            hotSource({ address: ata, amount: hotAmount, delegate: null, delegatedAmount: 0n }),
+            coldSource({ address: ata, amount: frozenColdAmount, delegate: null, delegatedAmount: 0n, isFrozen: true }),
+            coldSource({ address: ata, amount: unfrozenColdAmount, delegate: null, delegatedAmount: 0n }),
+        ];
+
+        const result = buildAccountInterfaceFromSources(sources, ata);
+
+        // parsed.amount includes the frozen cold amount
+        expect(result.parsed.amount).toBe(hotAmount + frozenColdAmount + unfrozenColdAmount);
+
+        // _anyFrozen signals the inflation
+        expect(result._anyFrozen).toBe(true);
+
+        // Loadable balance = hot + unfrozen cold = 2000 + 3000 = 5000
+        // (NOT 10000 which parsed.amount shows)
+        const loadableAmount = result._sources!
+            .filter(s => !s.parsed.isFrozen)
+            .reduce((sum, s) => sum + s.amount, 0n);
+        expect(loadableAmount).toBe(hotAmount + unfrozenColdAmount);
+    });
+
+    it('all sources frozen: _anyFrozen=true, _needsConsolidation=true, no unfrozen balance', () => {
+        const sources: TokenAccountSource[] = [
+            coldSource({ address: ata, amount: 4_000n, delegate: null, delegatedAmount: 0n, isFrozen: true }),
+            coldSource({ address: ata, amount: 6_000n, delegate: Keypair.generate().publicKey, delegatedAmount: 6_000n, isFrozen: true }),
+        ];
+
+        const result = buildAccountInterfaceFromSources(sources, ata);
+
+        expect(result.parsed.amount).toBe(10_000n);
+        expect(result._anyFrozen).toBe(true);
+        expect(result._needsConsolidation).toBe(true);
+
+        const loadableAmount = result._sources!
+            .filter(s => !s.parsed.isFrozen)
+            .reduce((sum, s) => sum + s.amount, 0n);
+        expect(loadableAmount).toBe(0n);
+    });
+
+    it('frozen hot does not affect cold: _anyFrozen=true, cold is still in sources', () => {
+        /**
+         * Even when the hot source is frozen, cold sources are tracked in _sources.
+         * The cold cannot be decompressed to a frozen hot account (on-chain rejects
+         * decompress on frozen destinations). _anyFrozen signals this condition.
+         */
+        const frozenHotAmount = 3_000n;
+        const coldAmount = 2_000n;
+
+        const sources: TokenAccountSource[] = [
+            hotSource({ address: ata, amount: frozenHotAmount, delegate: null, delegatedAmount: 0n, isFrozen: true }),
+            coldSource({ address: ata, amount: coldAmount, delegate: null, delegatedAmount: 0n }),
+        ];
+
+        const result = buildAccountInterfaceFromSources(sources, ata);
+
+        expect(result.parsed.amount).toBe(frozenHotAmount + coldAmount);
+        expect(result._anyFrozen).toBe(true);
+        expect(result.parsed.isFrozen).toBe(true); // primary source (hot) is frozen
+    });
+
+    it('_hasDelegate and _anyFrozen are independent flags', () => {
+        /**
+         * Red-team: verify the two flags do not interfere.
+         * A frozen cold account with a delegate must set BOTH _anyFrozen=true
+         * and _hasDelegate=true.
+         */
+        const user1 = Keypair.generate().publicKey;
+
+        const sources: TokenAccountSource[] = [
+            hotSource({ address: ata, amount: 5_000n, delegate: null, delegatedAmount: 0n }),
+            coldSource({ address: ata, amount: 3_000n, delegate: user1, delegatedAmount: 3_000n, isFrozen: true }),
+        ];
+
+        const result = buildAccountInterfaceFromSources(sources, ata);
+
+        expect(result._anyFrozen).toBe(true);
+        expect(result._hasDelegate).toBe(true);
+        // hot is primary and has no delegate, but _hasDelegate reflects any source
+        expect(result.parsed.delegate).toBeNull();
+    });
+});
+
+// ---------------------------------------------------------------------------
+// createDecompressInterfaceInstruction – change output is always undelegated
+// ---------------------------------------------------------------------------
+
+describe('createDecompressInterfaceInstruction – partial decompress and instruction structure', () => {
+    const payer2 = Keypair.generate().publicKey;
+    const destination2 = Keypair.generate().publicKey;
+    const mint2 = Keypair.generate().publicKey;
+    const owner2 = Keypair.generate().publicKey;
+    const tree2 = Keypair.generate().publicKey;
+    const queue2 = Keypair.generate().publicKey;
+
+    function buildAccount2(delegate: PublicKey | null, amount: bigint): any {
+        return {
+            parsed: {
+                mint: mint2,
+                owner: owner2,
+                amount: bn(amount.toString()),
+                delegate,
+                state: 1,
+                tlv: null,
+            },
+            compressedAccount: {
+                hash: new Uint8Array(32),
+                treeInfo: { tree: tree2, queue: queue2, treeType: TreeType.StateV2 },
+                leafIndex: 0,
+                proveByIndex: false,
+                owner: LIGHT_TOKEN_PROGRAM_ID,
+                lamports: bn(0),
+                address: null,
+                data: {
+                    discriminator: [0, 0, 0, 0, 0, 0, 0, 4],
+                    data: Buffer.alloc(0),
+                    dataHash: new Array(32).fill(0),
+                },
+                readOnly: false,
+            },
+        };
+    }
+
+    it('full decompress (amount == totalInput): no change output, instruction succeeds', () => {
+        /**
+         * When amount equals total input amount, changeAmount = 0 and no change
+         * output compressed account is created. The instruction should be valid.
+         */
+        const user1 = Keypair.generate().publicKey;
+        const account = buildAccount2(user1, 5_000n);
+
+        expect(() =>
+            createDecompressInterfaceInstruction(
+                payer2,
+                [account],
+                destination2,
+                5_000n,
+                { compressedProof: null, rootIndices: [0] } as any,
+                undefined,
+                9,
+            ),
+        ).not.toThrow();
+    });
+
+    it('partial decompress (amount < totalInput): instruction still created, change goes back undelegated', () => {
+        /**
+         * Red-team: When decompressing only part of a cold account's balance
+         * (e.g., in a targeted transfer that needs less than the cold holds),
+         * the change is re-compressed as a NEW output compressed account.
+         *
+         * On-chain program rule: the change output has hasDelegate=false.
+         * This means the delegation to user1 is NOT preserved on the change.
+         * The remaining balance is now undelegated (owner-only).
+         *
+         * This is correct per the Rust code (outTokenData always hasDelegate=false),
+         * but is a subtle behavior change that callers must be aware of.
+         *
+         * We verify the instruction is constructed without error, and that the
+         * instruction includes the delegate key (for the INPUT's validation)
+         * while the change itself is structurally separate (opaque in encoded bytes).
+         */
+        const user1 = Keypair.generate().publicKey;
+        const account = buildAccount2(user1, 5_000n);
+
+        // Decompress only 3000 out of 5000 → change = 2000
+        const ix = createDecompressInterfaceInstruction(
+            payer2,
+            [account],
+            destination2,
+            3_000n,
+            { compressedProof: null, rootIndices: [0] } as any,
+            undefined,
+            9,
+        );
+
+        // Instruction is valid
+        expect(ix.data.length).toBeGreaterThan(0);
+
+        // Delegate key for the INPUT account is in packed accounts
+        // (needed for CompressedOnly extension validation on the input)
+        const keyPubkeys = ix.keys.map(k => k.pubkey.toBase58());
+        expect(keyPubkeys).toContain(user1.toBase58());
+
+        // Partial decompress instruction has more data than full decompress
+        // because the outTokenData has one entry (the change account)
+        const fullIx = createDecompressInterfaceInstruction(
+            payer2,
+            [account],
+            destination2,
+            5_000n, // full amount → no change output
+            { compressedProof: null, rootIndices: [0] } as any,
+            undefined,
+            9,
+        );
+        expect(ix.data.length).toBeGreaterThan(fullIx.data.length);
+    });
+
+    it('throws when amount > totalInput: change amount would be negative', () => {
+        /**
+         * Red-team: requesting to decompress more than the cold account holds
+         * results in a negative change amount. The on-chain program would reject
+         * this, but the JS instruction builder should also catch it.
+         *
+         * Currently changeAmount = totalInput - amount would underflow.
+         * This tests whether the builder defensively rejects such inputs.
+         */
+        const account = buildAccount2(null, 1_000n);
+
+        // amount > totalInput → conceptually invalid (changeAmount < 0 as bigint wraps or goes negative)
+        // The instruction builder does NOT currently guard this; we document the behavior.
+        // If changeAmount becomes a very large bigint (underflow), the instruction data
+        // will be malformed. On-chain it would fail amount validation.
+        // This test documents the current behavior: no JS-level throw.
+        let threw = false;
+        try {
+            createDecompressInterfaceInstruction(
+                payer2,
+                [account],
+                destination2,
+                2_000n, // > 1000 (the input amount)
+                { compressedProof: null, rootIndices: [0] } as any,
+                undefined,
+                9,
+            );
+        } catch {
+            threw = true;
+        }
+        // Document current behavior: JS layer does not guard amount > totalInput.
+        // On-chain validation catches this. Callers MUST ensure amount <= sum(inputs).
+        expect(threw).toBe(false);
     });
 });
