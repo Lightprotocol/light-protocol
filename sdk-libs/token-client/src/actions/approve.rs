@@ -79,6 +79,7 @@ impl Approve {
             delegate: self.delegate,
             owner: owner_pubkey,
             amount: self.amount,
+            max_top_up: None,
         }
         .instruction()
         .map_err(|e| RpcError::CustomError(format!("Failed to create instruction: {}", e)))?;
@@ -121,6 +122,7 @@ impl Approve {
             delegate: self.delegate,
             owner: owner.pubkey(),
             amount: self.amount,
+            max_top_up: None,
         }
         .instruction()
         .map_err(|e| RpcError::CustomError(format!("Failed to create instruction: {}", e)))?;

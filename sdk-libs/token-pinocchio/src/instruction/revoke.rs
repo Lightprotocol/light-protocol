@@ -21,6 +21,7 @@ use crate::constants::LIGHT_TOKEN_PROGRAM_ID;
 ///     token_account: &ctx.accounts.token_account,
 ///     owner: &ctx.accounts.owner,
 ///     system_program: &ctx.accounts.system_program,
+///     max_top_up: None,
 /// }
 /// .invoke()?;
 /// ```
@@ -28,6 +29,7 @@ pub struct RevokeCpi<'info> {
     pub token_account: &'info AccountInfo,
     pub owner: &'info AccountInfo,
     pub system_program: &'info AccountInfo,
+    pub max_top_up: Option<u16>,
 }
 
 impl<'info> RevokeCpi<'info> {
@@ -36,21 +38,33 @@ impl<'info> RevokeCpi<'info> {
     }
 
     pub fn invoke_signed(self, signers: &[Signer]) -> Result<(), ProgramError> {
-        // Build instruction data: discriminator(1) only
-        let data = [5u8]; // Revoke discriminator
+        // Build instruction data: discriminator(1) + optional max_top_up(2)
+        let mut data = [0u8; 3];
+        data[0] = 5u8; // Revoke discriminator
+        let mut data_len = 1;
+        if let Some(max_top_up) = self.max_top_up {
+            data[1..3].copy_from_slice(&max_top_up.to_le_bytes());
+            data_len = 3;
+        }
+
+        let owner_meta = if self.max_top_up.is_some() {
+            AccountMeta::writable_signer(self.owner.key())
+        } else {
+            AccountMeta::readonly_signer(self.owner.key())
+        };
 
         let program_id = Pubkey::from(LIGHT_TOKEN_PROGRAM_ID);
 
         let account_metas = [
             AccountMeta::writable(self.token_account.key()),
-            AccountMeta::writable_signer(self.owner.key()),
+            owner_meta,
             AccountMeta::readonly(self.system_program.key()),
         ];
 
         let instruction = Instruction {
             program_id: &program_id,
             accounts: &account_metas,
-            data: &data,
+            data: &data[..data_len],
         };
 
         let account_infos = [self.token_account, self.owner, self.system_program];

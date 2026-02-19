@@ -32,6 +32,7 @@ pub fn process_approve_invoke(
         owner: accounts[2].clone(),
         system_program: accounts[3].clone(),
         amount: data.amount,
+        max_top_up: None,
     }
     .invoke()?;
 
@@ -69,6 +70,7 @@ pub fn process_approve_invoke_signed(
         owner: accounts[2].clone(),
         system_program: accounts[3].clone(),
         amount: data.amount,
+        max_top_up: None,
     }
     .invoke_signed(&[signer_seeds])?;
 

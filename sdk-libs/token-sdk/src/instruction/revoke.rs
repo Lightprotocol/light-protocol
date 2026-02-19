@@ -14,6 +14,7 @@ use solana_pubkey::Pubkey;
 /// let instruction = Revoke {
 ///     token_account,
 ///     owner,
+///     max_top_up: None,
 /// }.instruction()?;
 /// # Ok::<(), solana_program_error::ProgramError>(())
 /// ```
@@ -22,6 +23,9 @@ pub struct Revoke {
     pub token_account: Pubkey,
     /// Owner of the Light Token account (signer, payer for top-up)
     pub owner: Pubkey,
+    /// Maximum lamports for compressible top-up. Transaction fails if exceeded.
+    /// When set, includes max_top_up in instruction data and marks owner writable.
+    pub max_top_up: Option<u16>,
 }
 
 /// # Revoke Light Token via CPI:
@@ -35,6 +39,7 @@ pub struct Revoke {
 ///     token_account,
 ///     owner,
 ///     system_program,
+///     max_top_up: None,
 /// }
 /// .invoke()?;
 /// # Ok::<(), solana_program_error::ProgramError>(())
@@ -43,6 +48,7 @@ pub struct RevokeCpi<'info> {
     pub token_account: AccountInfo<'info>,
     pub owner: AccountInfo<'info>,
     pub system_program: AccountInfo<'info>,
+    pub max_top_up: Option<u16>,
 }
 
 impl<'info> RevokeCpi<'info> {
@@ -68,20 +74,32 @@ impl<'info> From<&RevokeCpi<'info>> for Revoke {
         Self {
             token_account: *cpi.token_account.key,
             owner: *cpi.owner.key,
+            max_top_up: cpi.max_top_up,
         }
     }
 }
 
 impl Revoke {
     pub fn instruction(self) -> Result<Instruction, ProgramError> {
+        let mut data = vec![5u8]; // CTokenRevoke discriminator
+        if let Some(max_top_up) = self.max_top_up {
+            data.extend_from_slice(&max_top_up.to_le_bytes());
+        }
+
+        let owner_meta = if self.max_top_up.is_some() {
+            AccountMeta::new(self.owner, true)
+        } else {
+            AccountMeta::new_readonly(self.owner, true)
+        };
+
         Ok(Instruction {
             program_id: Pubkey::from(LIGHT_TOKEN_PROGRAM_ID),
             accounts: vec![
                 AccountMeta::new(self.token_account, false),
-                AccountMeta::new(self.owner, true),
+                owner_meta,
                 AccountMeta::new_readonly(Pubkey::default(), false),
             ],
-            data: vec![5u8], // CTokenRevoke discriminator
+            data,
         })
     }
 }
