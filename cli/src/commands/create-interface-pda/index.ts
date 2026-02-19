@@ -9,10 +9,10 @@ import {
 import { PublicKey } from "@solana/web3.js";
 import { createSplInterface } from "@lightprotocol/compressed-token";
 
-class RegisterMintCommand extends Command {
-  static summary = "Register an existing mint with the CompressedToken program";
+class CreateInterfacePdaCommand extends Command {
+  static summary = "Create an SPL interface PDA for an existing mint";
 
-  static examples = ["$ light create-token-pool --mint-decimals 5"];
+  static examples = ["$ light create-interface-pda --mint <value>"];
 
   static flags = {
     mint: Flags.string({
@@ -24,9 +24,9 @@ class RegisterMintCommand extends Command {
   static args = {};
 
   async run() {
-    const { flags } = await this.parse(RegisterMintCommand);
+    const { flags } = await this.parse(CreateInterfacePdaCommand);
 
-    const loader = new CustomLoader(`Performing create-token-pool...\n`);
+    const loader = new CustomLoader(`Creating SPL interface PDA...\n`);
     loader.start();
     try {
       const payer = defaultSolanaWalletKeypair();
@@ -38,11 +38,11 @@ class RegisterMintCommand extends Command {
         "\x1b[1mMint tx:\x1b[0m ",
         generateSolanaTransactionURL("tx", txId, "custom"),
       );
-      console.log("create-token-pool successful");
+      console.log("create-interface-pda successful");
     } catch (error) {
-      this.error(`Failed to create-token-pool!\n${error}`);
+      this.error(`Failed to create-interface-pda!\n${error}`);
     }
   }
 }
 
-export default RegisterMintCommand;
+export default CreateInterfacePdaCommand;

@@ -6,13 +6,13 @@ import {
   getKeypairFromFile,
   rpc,
 } from "../../utils/utils";
-import { createMint } from "@lightprotocol/compressed-token";
-import { Keypair, PublicKey } from "@solana/web3.js";
+import { createMintInterface } from "@lightprotocol/compressed-token";
+import { Keypair } from "@solana/web3.js";
 
 const DEFAULT_DECIMAL_COUNT = 9;
 
 class CreateMintCommand extends Command {
-  static summary = "Create a new compressed token mint";
+  static summary = "Create a new Light Token mint";
 
   static examples = ["$ light create-mint --mint-decimals 5"];
 
@@ -23,7 +23,8 @@ class CreateMintCommand extends Command {
       required: false,
     }),
     "mint-authority": Flags.string({
-      description: "Address of the mint authority. Defaults to the fee payer",
+      description:
+        "Path to the mint authority keypair file. Defaults to the fee payer.",
       required: false,
     }),
     "mint-decimals": Flags.integer({
@@ -44,11 +45,12 @@ class CreateMintCommand extends Command {
       const payer = defaultSolanaWalletKeypair();
       const mintDecimals = this.getMintDecimals(flags);
       const mintKeypair = await this.getMintKeypair(flags);
-      const mintAuthority = await this.getMintAuthority(flags, payer.publicKey);
-      const { mint, transactionSignature } = await createMint(
+      const mintAuthority = await this.getMintAuthority(flags, payer);
+      const { mint, transactionSignature } = await createMintInterface(
         rpc(),
         payer,
         mintAuthority,
+        null,
         mintDecimals,
         mintKeypair,
       );
@@ -76,9 +78,9 @@ class CreateMintCommand extends Command {
     return await getKeypairFromFile(mintKeypairFilePath);
   }
 
-  async getMintAuthority(flags: any, feePayer: PublicKey): Promise<PublicKey> {
+  async getMintAuthority(flags: any, feePayer: Keypair): Promise<Keypair> {
     return flags["mint-authority"]
-      ? new PublicKey(flags["mint-authority"])
+      ? await getKeypairFromFile(flags["mint-authority"])
       : feePayer;
   }
 }

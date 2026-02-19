@@ -1,6 +1,6 @@
 # ZK Compression CLI
 
-CLI to interact with compressed accounts and compressed tokens on Solana.
+CLI to interact with compressed accounts and Light Tokens on Solana.
 
 ## Requirements
 
@@ -119,7 +119,7 @@ solana address
 
 ### Commands
 
-#### Create a compressed token mint
+#### Create a Light Token mint
 
 ```bash
 light create-mint
@@ -140,7 +140,25 @@ FLAGS
                             random keypair.
 ```
 
-#### Mint compressed tokens to a Solana wallet
+#### Create a token account
+
+```bash
+light create-token-account YOUR_MINT_ADDRESS
+```
+
+```
+USAGE
+  $ light create-token-account MINT [--owner <value>]
+
+ARGUMENTS
+  MINT  Base58 encoded mint address.
+
+FLAGS
+  --owner=<value>  Owner of the token account. Defaults to the fee
+                   payer's public key.
+```
+
+#### Mint Light Tokens to a Solana wallet
 
 ```bash
 light mint-to --mint "YOUR_MINT_ADDRESS" --to "YOUR_WALLET_ADDRESS" --amount 4200000000
@@ -159,7 +177,7 @@ FLAGS
   --to=<value>              (required) Recipient address.
 ```
 
-#### Transfer compressed tokens from one wallet to another
+#### Transfer Light Tokens from one wallet to another
 
 ```bash
 light transfer --mint "YOUR_MINT_ADDRESS" --to "RECIPIENT_WALLET_ADDRESS" --amount 4200000000
@@ -179,35 +197,22 @@ FLAGS
 
 ```
 
-#### Assign native SOL to a compressed account
+#### Get token balance
 
 ```bash
-light compress-sol --amount 1000 --to "YOUR_WALLET_ADDRESS_BASE58"
+light token-balance --mint "YOUR_MINT_ADDRESS" --owner "OWNER_ADDRESS"
 ```
 
 ```
 USAGE
-  $ light compress-sol --to <value> --amount <value>
+  $ light token-balance --mint <value> --owner <value>
 
 FLAGS
-  --amount=<value>  (required) Amount to compress in lamports.
-  --to=<value>      (required) Specify the recipient address.
+  --mint=<value>   (required) Mint address of the token account.
+  --owner=<value>  (required) Address of the token owner.
 ```
 
-#### Decompress into native SOL
-
-```bash
-light decompress-sol --amount 42 --to "YOUR_WALLET_ADDRESS_BASE58"
-```
-
-```
-USAGE
-  $ light decompress-sol --to <value> --amount <value>
-
-FLAGS
-  --amount=<value>  (required) Amount to decompress in lamports.
-  --to=<value>      (required) Specify the recipient address.
-```
+Displays light token account (hot), compressed light token (cold), and total balances.
 
 ### Support
 
