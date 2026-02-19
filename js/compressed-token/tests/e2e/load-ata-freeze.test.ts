@@ -97,7 +97,10 @@ async function freezeCtokenAta(
         freezeAuthority.publicKey,
     );
     const { blockhash } = await rpc.getLatestBlockhash();
-    await sendAndConfirmTx(rpc, buildAndSignTx([ix], payer, blockhash, [freezeAuthority]));
+    await sendAndConfirmTx(
+        rpc,
+        buildAndSignTx([ix], payer, blockhash, [freezeAuthority]),
+    );
 }
 
 async function thawCtokenAta(
@@ -113,7 +116,10 @@ async function thawCtokenAta(
         freezeAuthority.publicKey,
     );
     const { blockhash } = await rpc.getLatestBlockhash();
-    await sendAndConfirmTx(rpc, buildAndSignTx([ix], payer, blockhash, [freezeAuthority]));
+    await sendAndConfirmTx(
+        rpc,
+        buildAndSignTx([ix], payer, blockhash, [freezeAuthority]),
+    );
 }
 
 async function freezeSplAta(
@@ -132,7 +138,10 @@ async function freezeSplAta(
         tokenProgram,
     );
     const { blockhash } = await rpc.getLatestBlockhash();
-    await sendAndConfirmTx(rpc, buildAndSignTx([ix], payer, blockhash, [freezeAuthority]));
+    await sendAndConfirmTx(
+        rpc,
+        buildAndSignTx([ix], payer, blockhash, [freezeAuthority]),
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -180,7 +189,16 @@ describe('loadAta standard (wrap=false) - frozen hot ctoken ATA', () => {
         );
 
         // Create hot, load cold, freeze hot – leaves zero cold remaining
-        await mintTo(rpc, payer, mint, owner.publicKey, mintAuthority, bn(500), stateTreeInfo, selectTokenPoolInfo(tokenPoolInfos));
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(500),
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
+        );
         await createAtaInterfaceIdempotent(rpc, payer, mint, owner.publicKey);
         await loadAta(rpc, ctokenAta, owner, mint, payer);
         await freezeCtokenAta(rpc, payer, ctokenAta, mint, freezeAuthority);
@@ -197,13 +215,26 @@ describe('loadAta standard (wrap=false) - frozen hot ctoken ATA', () => {
             owner.publicKey,
         );
 
-        await mintTo(rpc, payer, mint, owner.publicKey, mintAuthority, bn(300), stateTreeInfo, selectTokenPoolInfo(tokenPoolInfos));
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(300),
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
+        );
         await createAtaInterfaceIdempotent(rpc, payer, mint, owner.publicKey);
         await loadAta(rpc, ctokenAta, owner, mint, payer);
         await freezeCtokenAta(rpc, payer, ctokenAta, mint, freezeAuthority);
 
         const batches = await createLoadAtaInstructions(
-            rpc, ctokenAta, owner.publicKey, mint, payer.publicKey,
+            rpc,
+            ctokenAta,
+            owner.publicKey,
+            mint,
+            payer.publicKey,
         );
         expect(batches.length).toBe(0);
     }, 90_000);
@@ -216,7 +247,16 @@ describe('loadAta standard (wrap=false) - frozen hot ctoken ATA', () => {
             owner.publicKey,
         );
 
-        await mintTo(rpc, payer, mint, owner.publicKey, mintAuthority, bn(200), stateTreeInfo, selectTokenPoolInfo(tokenPoolInfos));
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(200),
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
+        );
         await createAtaInterfaceIdempotent(rpc, payer, mint, owner.publicKey);
         await loadAta(rpc, ctokenAta, owner, mint, payer);
         await freezeCtokenAta(rpc, payer, ctokenAta, mint, freezeAuthority);
@@ -239,7 +279,16 @@ describe('loadAta standard (wrap=false) - frozen hot ctoken ATA', () => {
             owner.publicKey,
         );
 
-        await mintTo(rpc, payer, mint, owner.publicKey, mintAuthority, bn(400), stateTreeInfo, selectTokenPoolInfo(tokenPoolInfos));
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(400),
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
+        );
         await createAtaInterfaceIdempotent(rpc, payer, mint, owner.publicKey);
         await loadAta(rpc, ctokenAta, owner, mint, payer);
         await freezeCtokenAta(rpc, payer, ctokenAta, mint, freezeAuthority);
@@ -249,7 +298,16 @@ describe('loadAta standard (wrap=false) - frozen hot ctoken ATA', () => {
 
         // Thaw then mint more cold
         await thawCtokenAta(rpc, payer, ctokenAta, mint, freezeAuthority);
-        await mintTo(rpc, payer, mint, owner.publicKey, mintAuthority, bn(200), stateTreeInfo, selectTokenPoolInfo(tokenPoolInfos));
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(200),
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
+        );
 
         const result = await loadAta(rpc, ctokenAta, owner, mint, payer);
         expect(result).not.toBeNull();
@@ -270,10 +328,28 @@ describe('loadAta standard (wrap=false) - frozen hot ctoken ATA', () => {
         );
 
         // Mint 500 cold, load 300 to hot (leaves 200 cold)
-        await mintTo(rpc, payer, mint, owner.publicKey, mintAuthority, bn(300), stateTreeInfo, selectTokenPoolInfo(tokenPoolInfos));
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(300),
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
+        );
         await createAtaInterfaceIdempotent(rpc, payer, mint, owner.publicKey);
         await loadAta(rpc, ctokenAta, owner, mint, payer);
-        await mintTo(rpc, payer, mint, owner.publicKey, mintAuthority, bn(200), stateTreeInfo, selectTokenPoolInfo(tokenPoolInfos));
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(200),
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
+        );
 
         // Freeze the hot ATA (200 cold still unfrozen in Merkle tree)
         await freezeCtokenAta(rpc, payer, ctokenAta, mint, freezeAuthority);
@@ -281,7 +357,11 @@ describe('loadAta standard (wrap=false) - frozen hot ctoken ATA', () => {
 
         // The SDK builds load instructions (cold=200 is unfrozen → included)
         const batches = await createLoadAtaInstructions(
-            rpc, ctokenAta, owner.publicKey, mint, payer.publicKey,
+            rpc,
+            ctokenAta,
+            owner.publicKey,
+            mint,
+            payer.publicKey,
         );
         // Instructions ARE generated for the unfrozen cold (200)
         expect(batches.length).toBeGreaterThan(0);
@@ -296,7 +376,9 @@ describe('loadAta standard (wrap=false) - frozen hot ctoken ATA', () => {
         // Hot balance is unchanged (freeze blocked the decompress)
         expect(await getCTokenBalance(rpc, ctokenAta)).toBe(BigInt(300));
         // Cold 200 is still in the Merkle tree
-        expect(await getCompressedBalance(rpc, owner.publicKey, mint)).toBe(BigInt(200));
+        expect(await getCompressedBalance(rpc, owner.publicKey, mint)).toBe(
+            BigInt(200),
+        );
     }, 90_000);
 });
 
@@ -340,20 +422,54 @@ describe('loadAta unified (wrap=true) - frozen SPL source', () => {
     it('returns null when SPL source is frozen and no cold exists (wrap=true)', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
 
-        const splAta = await createAssociatedTokenAccount(rpc, payer, mint, owner.publicKey);
+        const splAta = await createAssociatedTokenAccount(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+        );
         // Decompress some compressed tokens to the SPL ATA
-        await mintTo(rpc, payer, mint, owner.publicKey, mintAuthority, bn(500), stateTreeInfo, selectTokenPoolInfo(tokenPoolInfos));
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(500),
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
+        );
         tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
-        await decompress(rpc, payer, mint, bn(500), owner, splAta, selectTokenPoolInfosForDecompression(tokenPoolInfos, bn(500)));
+        await decompress(
+            rpc,
+            payer,
+            mint,
+            bn(500),
+            owner,
+            splAta,
+            selectTokenPoolInfosForDecompression(tokenPoolInfos, bn(500)),
+        );
         const splBefore = await getAccount(rpc, splAta);
         expect(splBefore.amount).toBe(BigInt(500));
 
         // Freeze the SPL ATA
         await freezeSplAta(rpc, payer, splAta, mint, freezeAuthority);
 
-        const ctokenAta = getAssociatedTokenAddressInterface(mint, owner.publicKey);
+        const ctokenAta = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
         // Frozen SPL → splBalance=0; no cold → nothing to load
-        const result = await loadAta(rpc, ctokenAta, owner, mint, payer, undefined, undefined, true);
+        const result = await loadAta(
+            rpc,
+            ctokenAta,
+            owner,
+            mint,
+            payer,
+            undefined,
+            undefined,
+            true,
+        );
         expect(result).toBeNull();
 
         // SPL account still frozen with original balance
@@ -365,15 +481,46 @@ describe('loadAta unified (wrap=true) - frozen SPL source', () => {
     it('createLoadAtaInstructions returns [] when SPL frozen, no cold (wrap=true)', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
 
-        const splAta = await createAssociatedTokenAccount(rpc, payer, mint, owner.publicKey);
-        await mintTo(rpc, payer, mint, owner.publicKey, mintAuthority, bn(300), stateTreeInfo, selectTokenPoolInfo(tokenPoolInfos));
+        const splAta = await createAssociatedTokenAccount(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+        );
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(300),
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
+        );
         tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
-        await decompress(rpc, payer, mint, bn(300), owner, splAta, selectTokenPoolInfosForDecompression(tokenPoolInfos, bn(300)));
+        await decompress(
+            rpc,
+            payer,
+            mint,
+            bn(300),
+            owner,
+            splAta,
+            selectTokenPoolInfosForDecompression(tokenPoolInfos, bn(300)),
+        );
         await freezeSplAta(rpc, payer, splAta, mint, freezeAuthority);
 
-        const ctokenAta = getAssociatedTokenAddressInterface(mint, owner.publicKey);
+        const ctokenAta = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
         const batches = await createLoadAtaInstructions(
-            rpc, ctokenAta, owner.publicKey, mint, payer.publicKey, undefined, true,
+            rpc,
+            ctokenAta,
+            owner.publicKey,
+            mint,
+            payer.publicKey,
+            undefined,
+            true,
         );
         expect(batches.length).toBe(0);
     }, 90_000);
@@ -382,18 +529,58 @@ describe('loadAta unified (wrap=true) - frozen SPL source', () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
 
         // Set up: 500 SPL (will freeze) + 400 cold compressed
-        const splAta = await createAssociatedTokenAccount(rpc, payer, mint, owner.publicKey);
-        await mintTo(rpc, payer, mint, owner.publicKey, mintAuthority, bn(500), stateTreeInfo, selectTokenPoolInfo(tokenPoolInfos));
+        const splAta = await createAssociatedTokenAccount(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+        );
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(500),
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
+        );
         tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
-        await decompress(rpc, payer, mint, bn(500), owner, splAta, selectTokenPoolInfosForDecompression(tokenPoolInfos, bn(500)));
-        await mintTo(rpc, payer, mint, owner.publicKey, mintAuthority, bn(400), stateTreeInfo, selectTokenPoolInfo(tokenPoolInfos));
+        await decompress(
+            rpc,
+            payer,
+            mint,
+            bn(500),
+            owner,
+            splAta,
+            selectTokenPoolInfosForDecompression(tokenPoolInfos, bn(500)),
+        );
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(400),
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
+        );
 
         // Freeze the SPL ATA
         await freezeSplAta(rpc, payer, splAta, mint, freezeAuthority);
 
-        const ctokenAta = getAssociatedTokenAddressInterface(mint, owner.publicKey);
+        const ctokenAta = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
         const batches = await createLoadAtaInstructions(
-            rpc, ctokenAta, owner.publicKey, mint, payer.publicKey, undefined, true,
+            rpc,
+            ctokenAta,
+            owner.publicKey,
+            mint,
+            payer.publicKey,
+            undefined,
+            true,
         );
         // Should build instructions for the 400 cold (SPL is frozen → excluded)
         expect(batches.length).toBeGreaterThan(0);
@@ -414,7 +601,11 @@ describe('loadAta unified (wrap=true) - frozen SPL source', () => {
         expect(splAfter.isFrozen).toBe(true);
 
         // No cold remaining
-        const coldAfter = await getCompressedBalance(rpc, owner.publicKey, mint);
+        const coldAfter = await getCompressedBalance(
+            rpc,
+            owner.publicKey,
+            mint,
+        );
         expect(coldAfter).toBe(BigInt(0));
     }, 90_000);
 });
@@ -457,50 +648,163 @@ describe('loadAta unified (wrap=true) - frozen T22 source', () => {
     }, 60_000);
 
     it('returns null when T22 source is frozen and no cold exists (wrap=true)', async () => {
-        const { getOrCreateAssociatedTokenAccount } = await import('@solana/spl-token');
+        const { getOrCreateAssociatedTokenAccount } = await import(
+            '@solana/spl-token'
+        );
         const owner = await newAccountWithLamports(rpc, 1e9);
 
-        const t22AtaAccount = await getOrCreateAssociatedTokenAccount(rpc, payer as Keypair, t22Mint, owner.publicKey, false, 'confirmed', undefined, TOKEN_2022_PROGRAM_ID);
+        const t22AtaAccount = await getOrCreateAssociatedTokenAccount(
+            rpc,
+            payer as Keypair,
+            t22Mint,
+            owner.publicKey,
+            false,
+            'confirmed',
+            undefined,
+            TOKEN_2022_PROGRAM_ID,
+        );
         const t22Ata = t22AtaAccount.address;
 
-        await mintTo(rpc, payer, t22Mint, owner.publicKey, mintAuthority, bn(500), stateTreeInfo, selectTokenPoolInfo(tokenPoolInfos));
+        await mintTo(
+            rpc,
+            payer,
+            t22Mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(500),
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
+        );
         tokenPoolInfos = await getTokenPoolInfos(rpc, t22Mint);
-        await decompress(rpc, payer, t22Mint, bn(500), owner, t22Ata, selectTokenPoolInfosForDecompression(tokenPoolInfos, bn(500)));
+        await decompress(
+            rpc,
+            payer,
+            t22Mint,
+            bn(500),
+            owner,
+            t22Ata,
+            selectTokenPoolInfosForDecompression(tokenPoolInfos, bn(500)),
+        );
 
-        await freezeSplAta(rpc, payer, t22Ata, t22Mint, freezeAuthority, TOKEN_2022_PROGRAM_ID);
+        await freezeSplAta(
+            rpc,
+            payer,
+            t22Ata,
+            t22Mint,
+            freezeAuthority,
+            TOKEN_2022_PROGRAM_ID,
+        );
 
-        const ctokenAta = getAssociatedTokenAddressInterface(t22Mint, owner.publicKey);
-        const result = await loadAta(rpc, ctokenAta, owner, t22Mint, payer, undefined, undefined, true);
+        const ctokenAta = getAssociatedTokenAddressInterface(
+            t22Mint,
+            owner.publicKey,
+        );
+        const result = await loadAta(
+            rpc,
+            ctokenAta,
+            owner,
+            t22Mint,
+            payer,
+            undefined,
+            undefined,
+            true,
+        );
         expect(result).toBeNull();
 
-        const t22After = await getAccount(rpc, t22Ata, undefined, TOKEN_2022_PROGRAM_ID);
+        const t22After = await getAccount(
+            rpc,
+            t22Ata,
+            undefined,
+            TOKEN_2022_PROGRAM_ID,
+        );
         expect(t22After.isFrozen).toBe(true);
     }, 90_000);
 
     it('frozen T22 excluded, cold unfrozen → only cold decompressed (wrap=true)', async () => {
-        const { getOrCreateAssociatedTokenAccount } = await import('@solana/spl-token');
+        const { getOrCreateAssociatedTokenAccount } = await import(
+            '@solana/spl-token'
+        );
         const owner = await newAccountWithLamports(rpc, 1e9);
 
-        const t22AtaAccount = await getOrCreateAssociatedTokenAccount(rpc, payer as Keypair, t22Mint, owner.publicKey, false, 'confirmed', undefined, TOKEN_2022_PROGRAM_ID);
+        const t22AtaAccount = await getOrCreateAssociatedTokenAccount(
+            rpc,
+            payer as Keypair,
+            t22Mint,
+            owner.publicKey,
+            false,
+            'confirmed',
+            undefined,
+            TOKEN_2022_PROGRAM_ID,
+        );
         const t22Ata = t22AtaAccount.address;
 
         // 600 T22 (will freeze) + 300 cold
-        await mintTo(rpc, payer, t22Mint, owner.publicKey, mintAuthority, bn(600), stateTreeInfo, selectTokenPoolInfo(tokenPoolInfos));
+        await mintTo(
+            rpc,
+            payer,
+            t22Mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(600),
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
+        );
         tokenPoolInfos = await getTokenPoolInfos(rpc, t22Mint);
-        await decompress(rpc, payer, t22Mint, bn(600), owner, t22Ata, selectTokenPoolInfosForDecompression(tokenPoolInfos, bn(600)));
-        await mintTo(rpc, payer, t22Mint, owner.publicKey, mintAuthority, bn(300), stateTreeInfo, selectTokenPoolInfo(tokenPoolInfos));
+        await decompress(
+            rpc,
+            payer,
+            t22Mint,
+            bn(600),
+            owner,
+            t22Ata,
+            selectTokenPoolInfosForDecompression(tokenPoolInfos, bn(600)),
+        );
+        await mintTo(
+            rpc,
+            payer,
+            t22Mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(300),
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
+        );
 
-        await freezeSplAta(rpc, payer, t22Ata, t22Mint, freezeAuthority, TOKEN_2022_PROGRAM_ID);
+        await freezeSplAta(
+            rpc,
+            payer,
+            t22Ata,
+            t22Mint,
+            freezeAuthority,
+            TOKEN_2022_PROGRAM_ID,
+        );
 
-        const ctokenAta = getAssociatedTokenAddressInterface(t22Mint, owner.publicKey);
-        const result = await loadAta(rpc, ctokenAta, owner, t22Mint, payer, undefined, undefined, true);
+        const ctokenAta = getAssociatedTokenAddressInterface(
+            t22Mint,
+            owner.publicKey,
+        );
+        const result = await loadAta(
+            rpc,
+            ctokenAta,
+            owner,
+            t22Mint,
+            payer,
+            undefined,
+            undefined,
+            true,
+        );
         expect(result).not.toBeNull();
 
         // Cold 300 loaded, T22 600 still frozen
         const hotBalance = await getCTokenBalance(rpc, ctokenAta);
         expect(hotBalance).toBe(BigInt(300));
 
-        const t22After = await getAccount(rpc, t22Ata, undefined, TOKEN_2022_PROGRAM_ID);
+        const t22After = await getAccount(
+            rpc,
+            t22Ata,
+            undefined,
+            TOKEN_2022_PROGRAM_ID,
+        );
         expect(t22After.amount).toBe(BigInt(600));
         expect(t22After.isFrozen).toBe(true);
     }, 90_000);
@@ -546,25 +850,65 @@ describe('loadAta unified (wrap=true) - combined freeze scenarios', () => {
     it('hot ctoken frozen + SPL unfrozen → only SPL is wrapped (wrap=true)', async () => {
         // Hot is frozen → treated as absent by SDK (coldBalance=0 from hot, just wraps SPL)
         const owner = await newAccountWithLamports(rpc, 1e9);
-        const ctokenAta = getAssociatedTokenAddressInterface(mint, owner.publicKey);
+        const ctokenAta = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
 
         // Load some cold to create the hot ATA, then freeze it
-        await mintTo(rpc, payer, mint, owner.publicKey, mintAuthority, bn(300), stateTreeInfo, selectTokenPoolInfo(tokenPoolInfos));
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(300),
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
+        );
         await createAtaInterfaceIdempotent(rpc, payer, mint, owner.publicKey);
         await loadAta(rpc, ctokenAta, owner, mint, payer);
         await freezeCtokenAta(rpc, payer, ctokenAta, mint, freezeAuthority);
         expect(await getCtokenState(rpc, ctokenAta)).toBe(2);
 
         // Set up unfrozen SPL balance
-        const splAta = await createAssociatedTokenAccount(rpc, payer, mint, owner.publicKey);
-        await mintTo(rpc, payer, mint, owner.publicKey, mintAuthority, bn(500), stateTreeInfo, selectTokenPoolInfo(tokenPoolInfos));
+        const splAta = await createAssociatedTokenAccount(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+        );
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(500),
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
+        );
         tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
-        await decompress(rpc, payer, mint, bn(500), owner, splAta, selectTokenPoolInfosForDecompression(tokenPoolInfos, bn(500)));
+        await decompress(
+            rpc,
+            payer,
+            mint,
+            bn(500),
+            owner,
+            splAta,
+            selectTokenPoolInfosForDecompression(tokenPoolInfos, bn(500)),
+        );
         expect((await getAccount(rpc, splAta)).amount).toBe(BigInt(500));
 
         // wrap=true with frozen hot → builds SPL wrap instruction
         const batches = await createLoadAtaInstructions(
-            rpc, ctokenAta, owner.publicKey, mint, payer.publicKey, undefined, true,
+            rpc,
+            ctokenAta,
+            owner.publicKey,
+            mint,
+            payer.publicKey,
+            undefined,
+            true,
         );
         // SPL balance (500) is unfrozen → should build wrap instruction
         expect(batches.length).toBeGreaterThan(0);
@@ -583,16 +927,59 @@ describe('loadAta unified (wrap=true) - combined freeze scenarios', () => {
     it('SPL frozen + cold unfrozen → cold decompressed, SPL excluded (wrap=true)', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
 
-        const splAta = await createAssociatedTokenAccount(rpc, payer, mint, owner.publicKey);
-        await mintTo(rpc, payer, mint, owner.publicKey, mintAuthority, bn(400), stateTreeInfo, selectTokenPoolInfo(tokenPoolInfos));
+        const splAta = await createAssociatedTokenAccount(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+        );
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(400),
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
+        );
         tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
-        await decompress(rpc, payer, mint, bn(400), owner, splAta, selectTokenPoolInfosForDecompression(tokenPoolInfos, bn(400)));
-        await mintTo(rpc, payer, mint, owner.publicKey, mintAuthority, bn(250), stateTreeInfo, selectTokenPoolInfo(tokenPoolInfos));
+        await decompress(
+            rpc,
+            payer,
+            mint,
+            bn(400),
+            owner,
+            splAta,
+            selectTokenPoolInfosForDecompression(tokenPoolInfos, bn(400)),
+        );
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(250),
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
+        );
 
         await freezeSplAta(rpc, payer, splAta, mint, freezeAuthority);
 
-        const ctokenAta = getAssociatedTokenAddressInterface(mint, owner.publicKey);
-        const result = await loadAta(rpc, ctokenAta, owner, mint, payer, undefined, undefined, true);
+        const ctokenAta = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
+        const result = await loadAta(
+            rpc,
+            ctokenAta,
+            owner,
+            mint,
+            payer,
+            undefined,
+            undefined,
+            true,
+        );
         expect(result).not.toBeNull();
 
         // Hot should have 250 (cold only; SPL 400 still frozen)
@@ -603,39 +990,98 @@ describe('loadAta unified (wrap=true) - combined freeze scenarios', () => {
 
     it('all sources frozen → createLoadAtaInstructions returns [] (wrap=true)', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
-        const ctokenAta = getAssociatedTokenAddressInterface(mint, owner.publicKey);
+        const ctokenAta = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
 
         // Freeze hot ctoken ATA
-        await mintTo(rpc, payer, mint, owner.publicKey, mintAuthority, bn(200), stateTreeInfo, selectTokenPoolInfo(tokenPoolInfos));
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(200),
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
+        );
         await createAtaInterfaceIdempotent(rpc, payer, mint, owner.publicKey);
         await loadAta(rpc, ctokenAta, owner, mint, payer);
         await freezeCtokenAta(rpc, payer, ctokenAta, mint, freezeAuthority);
 
         // Freeze SPL ATA
-        const splAta = await createAssociatedTokenAccount(rpc, payer, mint, owner.publicKey);
-        await mintTo(rpc, payer, mint, owner.publicKey, mintAuthority, bn(300), stateTreeInfo, selectTokenPoolInfo(tokenPoolInfos));
+        const splAta = await createAssociatedTokenAccount(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+        );
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(300),
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
+        );
         tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
-        await decompress(rpc, payer, mint, bn(300), owner, splAta, selectTokenPoolInfosForDecompression(tokenPoolInfos, bn(300)));
+        await decompress(
+            rpc,
+            payer,
+            mint,
+            bn(300),
+            owner,
+            splAta,
+            selectTokenPoolInfosForDecompression(tokenPoolInfos, bn(300)),
+        );
         await freezeSplAta(rpc, payer, splAta, mint, freezeAuthority);
 
         // No cold remaining
         // All sources frozen → nothing to load
         const batches = await createLoadAtaInstructions(
-            rpc, ctokenAta, owner.publicKey, mint, payer.publicKey, undefined, true,
+            rpc,
+            ctokenAta,
+            owner.publicKey,
+            mint,
+            payer.publicKey,
+            undefined,
+            true,
         );
         expect(batches.length).toBe(0);
 
         const loadResult = await loadAta(
-            rpc, ctokenAta, owner, mint, payer, undefined, undefined, true,
+            rpc,
+            ctokenAta,
+            owner,
+            mint,
+            payer,
+            undefined,
+            undefined,
+            true,
         );
         expect(loadResult).toBeNull();
     }, 90_000);
 
     it('all sources frozen → loadAta returns null (wrap=false)', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
-        const ctokenAta = getAssociatedTokenAddressInterface(mint, owner.publicKey);
+        const ctokenAta = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
 
-        await mintTo(rpc, payer, mint, owner.publicKey, mintAuthority, bn(400), stateTreeInfo, selectTokenPoolInfo(tokenPoolInfos));
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(400),
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
+        );
         await createAtaInterfaceIdempotent(rpc, payer, mint, owner.publicKey);
         await loadAta(rpc, ctokenAta, owner, mint, payer);
         await freezeCtokenAta(rpc, payer, ctokenAta, mint, freezeAuthority);
@@ -651,20 +1097,46 @@ describe('loadAta unified (wrap=true) - combined freeze scenarios', () => {
         // decompressed directly to the SPL ATA without involving the frozen
         // hot ctoken ATA.
         const owner = await newAccountWithLamports(rpc, 1e9);
-        const ctokenAta = getAssociatedTokenAddressInterface(mint, owner.publicKey);
+        const ctokenAta = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
 
         // Create and freeze the hot ctoken ATA
-        await mintTo(rpc, payer, mint, owner.publicKey, mintAuthority, bn(200), stateTreeInfo, selectTokenPoolInfo(tokenPoolInfos));
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(200),
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
+        );
         await createAtaInterfaceIdempotent(rpc, payer, mint, owner.publicKey);
         await loadAta(rpc, ctokenAta, owner, mint, payer);
         await freezeCtokenAta(rpc, payer, ctokenAta, mint, freezeAuthority);
 
         // Mint 300 more cold compressed
-        await mintTo(rpc, payer, mint, owner.publicKey, mintAuthority, bn(300), stateTreeInfo, selectTokenPoolInfo(tokenPoolInfos));
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(300),
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
+        );
 
         // Target: SPL ATA (not the frozen ctoken ATA)
         tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
-        const splAta = await createAssociatedTokenAccount(rpc, payer, mint, owner.publicKey);
+        const splAta = await createAssociatedTokenAccount(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+        );
 
         // Load cold → SPL ATA (wrap=false, direct decompress to SPL)
         const result = await loadAta(rpc, splAta, owner, mint, payer);
