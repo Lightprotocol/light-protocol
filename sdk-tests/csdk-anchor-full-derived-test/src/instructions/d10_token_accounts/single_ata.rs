@@ -33,7 +33,7 @@ pub struct D10SingleAta<'info> {
 
     /// ATA account - macro should generate creation code.
     #[account(mut)]
-    #[light_account(init, associated_token::authority = d10_ata_owner, associated_token::mint = d10_ata_mint)]
+    #[light_account(init, associated_token::authority = d10_ata_owner, associated_token::mint = d10_ata_mint, associated_token::idempotent)]
     pub d10_single_ata: UncheckedAccount<'info>,
 
     #[account(address = LIGHT_TOKEN_CONFIG)]

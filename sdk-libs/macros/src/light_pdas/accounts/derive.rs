@@ -85,22 +85,18 @@ mod tests {
 
         let output = result.unwrap().to_string();
 
-        // Verify pre_init generates token account creation
+        // Verify pre_init generates create_accounts call
         assert!(
             output.contains("LightPreInit"),
             "Should generate LightPreInit impl"
         );
         assert!(
-            output.contains("CreateTokenAccountCpi"),
-            "Should generate CreateTokenAccountCpi call"
+            output.contains("create_accounts"),
+            "Should generate create_accounts call"
         );
         assert!(
-            output.contains("rent_free"),
-            "Should call rent_free on CreateTokenAccountCpi"
-        );
-        assert!(
-            output.contains("invoke_signed"),
-            "Should call invoke_signed with seeds"
+            output.contains("TokenInitParam"),
+            "Should generate TokenInitParam for vault"
         );
     }
 
@@ -128,14 +124,18 @@ mod tests {
 
         let output = result.unwrap().to_string();
 
-        // Verify pre_init generates ATA creation
+        // Verify pre_init generates create_accounts call with ATA
         assert!(
             output.contains("LightPreInit"),
             "Should generate LightPreInit impl"
         );
         assert!(
-            output.contains("CreateTokenAtaCpi"),
-            "Should generate CreateTokenAtaCpi call"
+            output.contains("create_accounts"),
+            "Should generate create_accounts call"
+        );
+        assert!(
+            output.contains("AtaInitParam"),
+            "Should generate AtaInitParam for ATA"
         );
     }
 
@@ -202,18 +202,22 @@ mod tests {
 
         let output = result.unwrap().to_string();
 
-        // Should have both creation types in pre_init
+        // Should have create_accounts call with both token and ATA params
         assert!(
             output.contains("LightPreInit"),
             "Should generate LightPreInit impl"
         );
         assert!(
-            output.contains("CreateTokenAccountCpi"),
-            "Should generate CreateTokenAccountCpi for vault"
+            output.contains("create_accounts"),
+            "Should generate create_accounts call"
         );
         assert!(
-            output.contains("CreateTokenAtaCpi"),
-            "Should generate CreateTokenAtaCpi for ATA"
+            output.contains("TokenInitParam"),
+            "Should generate TokenInitParam for vault"
+        );
+        assert!(
+            output.contains("AtaInitParam"),
+            "Should generate AtaInitParam for ATA"
         );
     }
 

@@ -21,32 +21,24 @@ impl LightPreInit<AccountInfo, CreateTokenVaultParams> for CreateTokenVaultAccou
         _remaining_accounts: &[AccountInfo],
         params: &CreateTokenVaultParams,
     ) -> std::result::Result<bool, LightSdkTypesError> {
-        let inner = || -> std::result::Result<bool, LightSdkTypesError> {
-            // Build PDA seeds: [TOKEN_VAULT_SEED, mint.key(), &[bump]]
-            let mint_key = *self.mint.key();
-            let vault_seeds: &[&[u8]] =
-                &[TOKEN_VAULT_SEED, mint_key.as_ref(), &[params.vault_bump]];
+        let mint_key = *self.mint.key();
+        let vault_seeds: &[&[u8]] = &[TOKEN_VAULT_SEED, mint_key.as_ref(), &[params.vault_bump]];
 
-            // Create token account via CPI with rent-free mode
-            // In pinocchio, accounts are already &AccountInfo, no .to_account_info() needed
-            CreateTokenAccountCpi {
-                payer: self.payer,
-                account: self.token_vault,
-                mint: self.mint,
-                owner: *self.vault_owner.key(),
-            }
-            .rent_free(
-                self.compressible_config,
-                self.rent_sponsor,
-                self.system_program,
-                &crate::ID,
-            )
-            .invoke_signed(vault_seeds)?;
+        CreateTokenAccountCpi {
+            payer: self.payer,
+            account: self.token_vault,
+            mint: self.mint,
+            owner: *self.vault_owner.key(),
+        }
+        .rent_free(
+            self.compressible_config,
+            self.rent_sponsor,
+            self.system_program,
+            &crate::ID,
+        )
+        .invoke_signed(vault_seeds)?;
 
-            // Token accounts don't use CPI context, return false
-            Ok(false)
-        };
-        inner()
+        Ok(false)
     }
 }
 

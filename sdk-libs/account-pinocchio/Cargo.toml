@@ -15,7 +15,7 @@ poseidon = ["light-sdk-types/poseidon", "light-hasher/poseidon"]
 sha256 = ["light-sdk-types/sha256", "light-hasher/sha256"]
 
 [dependencies]
-light-sdk-types = { workspace = true, default-features = false, features = ["alloc", "v2", "cpi-context"] }
+light-sdk-types = { workspace = true, default-features = false, features = ["alloc", "v2", "light-account"] }
 light-sdk-macros = { workspace = true }
 light-macros = { workspace = true }
 light-account-checks = { workspace = true, default-features = false, features = ["pinocchio"] }

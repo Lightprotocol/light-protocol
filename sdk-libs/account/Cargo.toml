@@ -16,7 +16,7 @@ sha256 = ["light-sdk-types/sha256", "light-hasher/sha256"]
 anchor = ["light-sdk-types/anchor", "dep:anchor-lang"]
 
 [dependencies]
-light-sdk-types = { workspace = true, features = ["std", "v2", "cpi-context"] }
+light-sdk-types = { workspace = true, features = ["std", "v2", "light-account"] }
 light-sdk-macros = { workspace = true }
 light-macros = { workspace = true }
 light-account-checks = { workspace = true, features = ["solana"] }
