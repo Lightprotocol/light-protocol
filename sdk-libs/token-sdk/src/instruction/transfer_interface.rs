@@ -102,7 +102,6 @@ pub struct SplInterfaceCpi<'info> {
 ///     authority,
 ///     payer,
 ///     spl_interface: None,
-///     max_top_up: None,
 ///     source_owner: LIGHT_TOKEN_PROGRAM_ID,
 ///     destination_owner: LIGHT_TOKEN_PROGRAM_ID,
 /// }.instruction()?;
@@ -116,8 +115,6 @@ pub struct TransferInterface {
     pub authority: Pubkey,
     pub payer: Pubkey,
     pub spl_interface: Option<SplInterface>,
-    /// Maximum lamports for rent and top-up combined (for light->light transfers)
-    pub max_top_up: Option<u16>,
     /// Owner of the source account (used to determine transfer type)
     pub source_owner: Pubkey,
     /// Owner of the destination account (used to determine transfer type)
@@ -133,7 +130,6 @@ impl TransferInterface {
                 destination: self.destination,
                 amount: self.amount,
                 authority: self.authority,
-                max_top_up: self.max_top_up,
                 fee_payer: Some(self.payer),
             }
             .instruction(),
@@ -212,7 +208,6 @@ impl<'info> From<&TransferInterfaceCpi<'info>> for TransferInterface {
             authority: *cpi.authority.key,
             payer: *cpi.payer.key,
             spl_interface: cpi.spl_interface.as_ref().map(SplInterface::from),
-            max_top_up: None,
             source_owner: *cpi.source_account.owner,
             destination_owner: *cpi.destination_account.owner,
         }

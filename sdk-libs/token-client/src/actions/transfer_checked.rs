@@ -69,7 +69,6 @@ impl TransferChecked {
             amount: self.amount,
             decimals: self.decimals,
             authority: authority.pubkey(),
-            max_top_up: None,
             fee_payer,
         }
         .instruction()

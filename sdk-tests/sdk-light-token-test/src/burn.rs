@@ -29,7 +29,6 @@ pub fn process_burn_invoke(accounts: &[AccountInfo], amount: u64) -> Result<(), 
         amount,
         authority: accounts[2].clone(),
         system_program: accounts[4].clone(),
-        max_top_up: None,
         fee_payer: None,
     }
     .invoke()?;
@@ -68,7 +67,6 @@ pub fn process_burn_invoke_signed(
         amount,
         authority: accounts[2].clone(),
         system_program: accounts[4].clone(),
-        max_top_up: None,
         fee_payer: None,
     }
     .invoke_signed(&[signer_seeds])?;

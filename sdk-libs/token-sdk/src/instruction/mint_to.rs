@@ -17,7 +17,6 @@ use solana_pubkey::Pubkey;
 ///     destination,
 ///     amount: 100,
 ///     authority,
-///     max_top_up: None,
 ///     fee_payer: None,
 /// }.instruction()?;
 /// # Ok::<(), solana_program_error::ProgramError>(())
@@ -31,9 +30,6 @@ pub struct MintTo {
     pub amount: u64,
     /// Mint authority
     pub authority: Pubkey,
-    /// Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (u16::MAX = no limit, 0 = no top-ups allowed)
-    /// When set (Some), includes max_top_up in instruction data
-    pub max_top_up: Option<u16>,
     /// Optional fee payer for rent top-ups. If not provided, authority pays.
     pub fee_payer: Option<Pubkey>,
 }
@@ -52,7 +48,6 @@ pub struct MintTo {
 ///     amount: 100,
 ///     authority,
 ///     system_program,
-///     max_top_up: None,
 ///     fee_payer: None,
 /// }
 /// .invoke()?;
@@ -64,8 +59,6 @@ pub struct MintToCpi<'info> {
     pub amount: u64,
     pub authority: AccountInfo<'info>,
     pub system_program: AccountInfo<'info>,
-    /// Maximum lamports for rent and top-up combined. Transaction fails if exceeded. (u16::MAX = no limit, 0 = no top-ups allowed)
-    pub max_top_up: Option<u16>,
     /// Optional fee payer for rent top-ups. If not provided, authority pays.
     pub fee_payer: Option<AccountInfo<'info>>,
 }
@@ -127,7 +120,6 @@ impl<'info> From<&MintToCpi<'info>> for MintTo {
             destination: *cpi.destination.key,
             amount: cpi.amount,
             authority: *cpi.authority.key,
-            max_top_up: cpi.max_top_up,
             fee_payer: cpi.fee_payer.as_ref().map(|a| *a.key),
         }
     }
@@ -135,9 +127,8 @@ impl<'info> From<&MintToCpi<'info>> for MintTo {
 
 impl MintTo {
     pub fn instruction(self) -> Result<Instruction, ProgramError> {
-        // Authority is writable only when max_top_up is set AND no fee_payer
-        // (authority pays for top-ups only if no separate fee_payer)
-        let authority_meta = if self.max_top_up.is_some() && self.fee_payer.is_none() {
+        // Authority is writable only when no fee_payer (authority pays for top-ups)
+        let authority_meta = if self.fee_payer.is_none() {
             AccountMeta::new(self.authority, true)
         } else {
             AccountMeta::new_readonly(self.authority, true)
@@ -162,10 +153,7 @@ impl MintTo {
             data: {
                 let mut data = vec![7u8]; // MintTo discriminator
                 data.extend_from_slice(&self.amount.to_le_bytes());
-                // Include max_top_up if set (10-byte format)
-                if let Some(max_top_up) = self.max_top_up {
-                    data.extend_from_slice(&max_top_up.to_le_bytes());
-                }
+                data.extend_from_slice(&u16::MAX.to_le_bytes());
                 data
             },
         })

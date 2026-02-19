@@ -104,7 +104,6 @@ impl TransferInterface {
             authority: authority.pubkey(),
             payer: payer.pubkey(),
             spl_interface,
-            max_top_up: None,
             source_owner,
             destination_owner,
         }

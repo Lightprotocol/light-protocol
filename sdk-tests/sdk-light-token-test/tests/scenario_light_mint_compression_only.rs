@@ -98,7 +98,6 @@ async fn test_mint_to_ctoken_scenario_compression_only() {
         destination: ctoken_ata2,
         amount: transfer_amount,
         authority: owner1.pubkey(),
-        max_top_up: None,
         fee_payer: None,
     }
     .instruction()

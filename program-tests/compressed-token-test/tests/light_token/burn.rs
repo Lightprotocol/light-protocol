@@ -47,7 +47,6 @@ async fn test_burn_success_cases() {
             mint: ctx.mint_pda,
             amount: burn_amount,
             authority: ctx.owner_keypair.pubkey(),
-            max_top_up: None,
             fee_payer: None,
         }
         .instruction()
@@ -79,7 +78,6 @@ async fn test_burn_success_cases() {
             mint: ctx.mint_pda,
             amount: burn_amount,
             authority: ctx.owner_keypair.pubkey(),
-            max_top_up: None,
             fee_payer: None,
         }
         .instruction()
@@ -130,7 +128,6 @@ async fn test_burn_fails() {
             mint: other_mint_pda, // Wrong mint
             amount: 50,
             authority: ctx.owner_keypair.pubkey(),
-            max_top_up: None,
             fee_payer: None,
         }
         .instruction()
@@ -161,7 +158,6 @@ async fn test_burn_fails() {
             mint: ctx.mint_pda,
             amount: 50,
             authority: ctx.owner_keypair.pubkey(),
-            max_top_up: None,
             fee_payer: None,
         }
         .instruction()
@@ -208,7 +204,6 @@ async fn test_burn_fails() {
             mint: ctx.mint_pda,
             amount: 50,
             authority: ctx.owner_keypair.pubkey(),
-            max_top_up: None,
             fee_payer: None,
         }
         .instruction()
@@ -239,7 +234,6 @@ async fn test_burn_fails() {
             mint: ctx.mint_pda,
             amount: 200, // More than 100 balance
             authority: ctx.owner_keypair.pubkey(),
-            max_top_up: None,
             fee_payer: None,
         }
         .instruction()
@@ -275,7 +269,6 @@ async fn test_burn_fails() {
             mint: ctx.mint_pda,
             amount: 50,
             authority: wrong_authority.pubkey(),
-            max_top_up: None,
             fee_payer: None,
         }
         .instruction()
@@ -379,7 +372,6 @@ async fn setup_burn_test() -> BurnTestContext {
         destination: ctoken_ata,
         amount: 100,
         authority: mint_authority.pubkey(),
-        max_top_up: None,
         fee_payer: None,
     }
     .instruction()
@@ -425,7 +417,6 @@ async fn test_burn_checked_success() {
         amount: burn_amount,
         decimals: 8, // Correct decimals
         authority: ctx.owner_keypair.pubkey(),
-        max_top_up: None,
         fee_payer: None,
     }
     .instruction()
@@ -458,7 +449,6 @@ async fn test_burn_checked_wrong_decimals() {
         amount: 50,
         decimals: 7, // Wrong decimals
         authority: ctx.owner_keypair.pubkey(),
-        max_top_up: None,
         fee_payer: None,
     }
     .instruction()

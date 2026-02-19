@@ -58,7 +58,6 @@ impl MintTo {
             destination: self.destination,
             amount: self.amount,
             authority: authority.pubkey(),
-            max_top_up: None,
             fee_payer,
         }
         .instruction()

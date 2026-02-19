@@ -36,7 +36,6 @@ pub fn process_transfer_invoke(
         amount: data.amount,
         authority: accounts[2].clone(),
         system_program: accounts[3].clone(),
-        max_top_up: None,
         fee_payer: None,
     }
     .invoke()?;
@@ -79,7 +78,6 @@ pub fn process_transfer_invoke_signed(
         amount: data.amount,
         authority: accounts[2].clone(),
         system_program: accounts[3].clone(),
-        max_top_up: None,
         fee_payer: None,
     };
 
