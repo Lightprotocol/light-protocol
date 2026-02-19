@@ -4,7 +4,7 @@ import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
 import { defaultSolanaWalletKeypair } from "../../../src";
 import { requestAirdrop } from "../../helpers/helpers";
 
-describe("decompress-sol", () => {
+describe("unwrap-sol", () => {
   const keypair = defaultSolanaWalletKeypair();
   const to = keypair.publicKey.toBase58();
   const amount = 200;
@@ -14,7 +14,7 @@ describe("decompress-sol", () => {
     await requestAirdrop(keypair.publicKey);
   });
 
-  it(`full compress-check-decompress-check cycle for ${amount} SOL to ${to}`, async () => {
+  it(`full wrap-check-unwrap-check cycle for ${amount} SOL to ${to}`, async () => {
     // Get initial balance first
     const { stdout: initialBalanceStdout } = await runCommand([
       "balance",
@@ -26,7 +26,7 @@ describe("decompress-sol", () => {
       initialBalance = 0;
     } else {
       const balanceMatch = initialBalanceStdout.match(
-        /Compressed SOL balance:\s+(\d+)/,
+        /Wrapped SOL balance:\s+(\d+)/,
       );
       if (balanceMatch && balanceMatch[1]) {
         initialBalance = parseInt(balanceMatch[1], 10);
@@ -34,45 +34,45 @@ describe("decompress-sol", () => {
     }
     console.log(`Initial balance captured: ${initialBalance}`);
 
-    // Compress SOL
-    const { stdout: compressStdout } = await runCommand([
-      "compress-sol",
+    // Wrap SOL
+    const { stdout: wrapStdout } = await runCommand([
+      "wrap-sol",
       `--amount=${amount}`,
       `--to=${to}`,
     ]);
-    expect(compressStdout).to.contain("compress-sol successful");
+    expect(wrapStdout).to.contain("wrap-sol successful");
 
-    // Check balance after compression
-    const { stdout: afterCompressStdout } = await runCommand([
+    // Check balance after wrapping
+    const { stdout: afterWrapStdout } = await runCommand([
       "balance",
       `--owner=${to}`,
     ]);
 
-    const balanceMatchAfterCompress = afterCompressStdout.match(
-      /Compressed SOL balance:\s+(\d+)/,
+    const balanceMatchAfterWrap = afterWrapStdout.match(
+      /Wrapped SOL balance:\s+(\d+)/,
     );
-    expect(balanceMatchAfterCompress).to.not.be.null;
+    expect(balanceMatchAfterWrap).to.not.be.null;
 
-    let balanceAfterCompression = 0;
-    if (balanceMatchAfterCompress && balanceMatchAfterCompress[1]) {
-      balanceAfterCompression = parseInt(balanceMatchAfterCompress[1], 10);
-      console.log(`Balance after compression: ${balanceAfterCompression}`);
+    let balanceAfterWrap = 0;
+    if (balanceMatchAfterWrap && balanceMatchAfterWrap[1]) {
+      balanceAfterWrap = parseInt(balanceMatchAfterWrap[1], 10);
+      console.log(`Balance after wrapping: ${balanceAfterWrap}`);
 
-      // Verify the balance increased by the compressed amount
-      expect(balanceAfterCompression).to.equal(initialBalance + amount);
+      // Verify the balance increased by the wrapped amount
+      expect(balanceAfterWrap).to.equal(initialBalance + amount);
     } else {
       throw new Error("Could not extract balance from output");
     }
 
-    // Decompress SOL
-    const { stdout: decompressStdout } = await runCommand([
-      "decompress-sol",
+    // Unwrap SOL
+    const { stdout: unwrapStdout } = await runCommand([
+      "unwrap-sol",
       `--amount=${amount}`,
       `--to=${to}`,
     ]);
-    expect(decompressStdout).to.contain("decompress-sol successful");
+    expect(unwrapStdout).to.contain("unwrap-sol successful");
 
-    // Check balance after decompression
+    // Check balance after unwrapping
     const { stdout: finalBalanceStdout } = await runCommand([
       "balance",
       `--owner=${to}`,
@@ -80,24 +80,24 @@ describe("decompress-sol", () => {
 
     // Extract the final balance
     if (finalBalanceStdout.includes("No accounts found")) {
-      // If there were no accounts before compression, there should be none after decompression
+      // If there were no accounts before wrapping, there should be none after unwrapping
       expect(initialBalance).to.equal(0);
     } else {
       const balanceMatch = finalBalanceStdout.match(
-        /Compressed SOL balance:\s+(\d+)/,
+        /Wrapped SOL balance:\s+(\d+)/,
       );
       if (balanceMatch && balanceMatch[1]) {
         const finalBalance = parseInt(balanceMatch[1], 10);
         console.log(
-          `Final balance: ${finalBalance}, Expected: ${balanceAfterCompression - amount}`,
+          `Final balance: ${finalBalance}, Expected: ${balanceAfterWrap - amount}`,
         );
 
-        // Verify the balance decreased by the decompressed amount
-        expect(finalBalance).to.equal(balanceAfterCompression - amount);
+        // Verify the balance decreased by the unwrapped amount
+        expect(finalBalance).to.equal(balanceAfterWrap - amount);
       } else {
         // If we can't extract the balance but initial balance was equal to amount,
         // we should get "No accounts found"
-        if (balanceAfterCompression === amount) {
+        if (balanceAfterWrap === amount) {
           expect(finalBalanceStdout).to.contain("No accounts found");
         } else {
           throw new Error("Could not extract balance from output");

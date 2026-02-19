@@ -3,7 +3,7 @@ import { expect } from "chai";
 import { before } from "mocha";
 import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
 import { defaultSolanaWalletKeypair } from "../../../src";
-import { Keypair } from "@solana/web3.js";
+import { Keypair, PublicKey } from "@solana/web3.js";
 import { createTestMint, requestAirdrop } from "../../helpers/helpers";
 
 describe("mint-to", () => {
@@ -13,15 +13,15 @@ describe("mint-to", () => {
   let mintAuthority: Keypair = defaultSolanaWalletKeypair();
 
   let mintKeypair = Keypair.generate();
-  let mintAddress = mintKeypair.publicKey;
+  let mintAddress: PublicKey;
 
   before(async () => {
     await initTestEnvIfNeeded({ indexer: true, prover: true });
     await requestAirdrop(mintAuthority.publicKey);
-    await createTestMint(mintKeypair);
+    mintAddress = await createTestMint(mintKeypair);
   });
 
-  it(`mint-to ${mintAmount} tokens to ${mintAuthority.publicKey.toBase58()} from mint: ${mintAddress.toBase58()} with authority ${mintAuthority.publicKey.toBase58()}`, async () => {
+  it(`mint-to tokens`, async () => {
     const { stdout } = await runCommand([
       "mint-to",
       `--amount=${mintAmount}`,

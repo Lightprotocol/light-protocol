@@ -6,7 +6,11 @@ import {
   getKeypairFromFile,
   rpc,
 } from "../../utils/utils";
-import { transfer } from "@lightprotocol/compressed-token";
+import {
+  transferInterface,
+  createAtaInterfaceIdempotent,
+  getAssociatedTokenAddressInterface,
+} from "@lightprotocol/compressed-token";
 import { PublicKey } from "@solana/web3.js";
 
 class TransferCommand extends Command {
@@ -57,13 +61,17 @@ class TransferCommand extends Command {
       if (flags["fee-payer"] !== undefined) {
         payer = await getKeypairFromFile(flags["fee-payer"]);
       }
-      const txId = await transfer(
+      await createAtaInterfaceIdempotent(rpc(), payer, mintPublicKey, toPublicKey);
+      const source = getAssociatedTokenAddressInterface(mintPublicKey, payer.publicKey);
+      const destination = getAssociatedTokenAddressInterface(mintPublicKey, toPublicKey);
+      const txId = await transferInterface(
         rpc(),
         payer,
+        source,
         mintPublicKey,
-        amount,
+        destination,
         payer,
-        toPublicKey,
+        amount,
       );
       loader.stop(false);
       console.log(

@@ -3,7 +3,7 @@ import { CustomLoader, rpc } from "../../utils/utils";
 import { PublicKey } from "@solana/web3.js";
 
 class BalanceCommand extends Command {
-  static summary = "Get compressed SOL balance";
+  static summary = "Get wrapped SOL balance";
   static examples = ["$ light balance --owner=<ADDRESS>"];
 
   static flags = {
@@ -38,7 +38,7 @@ class BalanceCommand extends Command {
       }
 
       console.log(
-        "\u001B[1mCompressed SOL balance:\u001B[0m",
+        "\u001B[1mWrapped SOL balance:\u001B[0m",
         totalAmount.toString(),
       );
     } catch (error) {

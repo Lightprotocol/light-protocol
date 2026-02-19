@@ -4,15 +4,12 @@ import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
 import { defaultSolanaWalletKeypair } from "../../../src";
 import { Keypair } from "@solana/web3.js";
 import {
-  createTestMint,
+  createTestSplMintWithPool,
   requestAirdrop,
-  testMintTo,
 } from "../../helpers/helpers";
 
-describe("compress-spl", () => {
+describe("wrap-spl", () => {
   const payerKeypair = defaultSolanaWalletKeypair();
-  /// TODO: add test case for separate fee-payer
-  const payerKeypairPath = process.env.HOME + "/.config/solana/id.json";
 
   const mintKeypair = Keypair.generate();
   const mintAuthority = payerKeypair;
@@ -22,37 +19,31 @@ describe("compress-spl", () => {
   before(async () => {
     await initTestEnvIfNeeded({ indexer: true, prover: true });
     await requestAirdrop(payerKeypair.publicKey);
-
-    await createTestMint(mintKeypair);
-
-    await testMintTo(
-      payerKeypair,
-      mintKeypair.publicKey,
-      payerKeypair.publicKey,
+    await createTestSplMintWithPool(
+      mintKeypair,
       mintAuthority,
       mintAmount,
+      payerKeypair.publicKey,
     );
   });
 
-  it(`compress ${
-    mintAmount - 2
-  } tokens to ${payerKeypair.publicKey.toBase58()} from ${payerKeypair.publicKey.toBase58()}`, async () => {
-    // First decompress some tokens to have them available
-    const { stdout: decompressStdout } = await runCommand([
-      "decompress-spl",
+  it(`wrap tokens`, async () => {
+    // First unwrap some tokens to have SPL tokens available
+    const { stdout: unwrapStdout } = await runCommand([
+      "unwrap-spl",
       `--mint=${mintKeypair.publicKey.toBase58()}`,
       `--amount=${mintAmount - 1}`,
       `--to=${payerKeypair.publicKey.toBase58()}`,
     ]);
-    console.log(decompressStdout);
+    console.log(unwrapStdout);
 
-    // Then compress tokens
+    // Then wrap SPL tokens back
     const { stdout } = await runCommand([
-      "compress-spl",
+      "wrap-spl",
       `--mint=${mintKeypair.publicKey.toBase58()}`,
       `--amount=${mintAmount - 2}`,
       `--to=${payerKeypair.publicKey.toBase58()}`,
     ]);
-    expect(stdout).to.contain("compress-spl successful");
+    expect(stdout).to.contain("wrap-spl successful");
   });
 });

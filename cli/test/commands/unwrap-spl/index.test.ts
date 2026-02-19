@@ -4,15 +4,12 @@ import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
 import { defaultSolanaWalletKeypair } from "../../../src";
 import { Keypair } from "@solana/web3.js";
 import {
-  createTestMint,
+  createTestSplMintWithPool,
   requestAirdrop,
-  testMintTo,
 } from "../../helpers/helpers";
 
-describe("decompress-spl", () => {
+describe("unwrap-spl", () => {
   const payerKeypair = defaultSolanaWalletKeypair();
-  /// TODO: add test case for separate fee-payer
-  const payerKeypairPath = process.env.HOME + "/.config/solana/id.json";
 
   const mintKeypair = Keypair.generate();
   const mintAuthority = payerKeypair;
@@ -22,26 +19,21 @@ describe("decompress-spl", () => {
   before(async () => {
     await initTestEnvIfNeeded({ indexer: true, prover: true });
     await requestAirdrop(payerKeypair.publicKey);
-    await createTestMint(mintKeypair);
-
-    await testMintTo(
-      payerKeypair,
-      mintKeypair.publicKey,
-      payerKeypair.publicKey,
+    await createTestSplMintWithPool(
+      mintKeypair,
       mintAuthority,
       mintAmount,
+      payerKeypair.publicKey,
     );
   });
 
-  it(`decompress ${
-    mintAmount - 1
-  } tokens to ${payerKeypair.publicKey.toBase58()} from ${payerKeypair.publicKey.toBase58()}`, async () => {
+  it(`unwrap tokens`, async () => {
     const { stdout } = await runCommand([
-      "decompress-spl",
+      "unwrap-spl",
       `--mint=${mintKeypair.publicKey.toBase58()}`,
       `--amount=${mintAmount - 1}`,
       `--to=${payerKeypair.publicKey.toBase58()}`,
     ]);
-    expect(stdout).to.contain("decompress-spl successful");
+    expect(stdout).to.contain("unwrap-spl successful");
   });
 });

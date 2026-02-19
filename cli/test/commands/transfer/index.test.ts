@@ -2,7 +2,7 @@ import { runCommand } from "@oclif/test";
 import { expect } from "chai";
 import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
 import { defaultSolanaWalletKeypair } from "../../../src";
-import { Keypair } from "@solana/web3.js";
+import { Keypair, PublicKey } from "@solana/web3.js";
 import {
   createTestMint,
   requestAirdrop,
@@ -15,6 +15,7 @@ describe("transfer", () => {
 
   const mintKeypair = Keypair.generate();
   const mintAuthority = payerKeypair;
+  let mintAddress: PublicKey;
 
   const mintAmount = 10;
   const mintDestination = Keypair.generate().publicKey;
@@ -22,25 +23,23 @@ describe("transfer", () => {
   before(async () => {
     await initTestEnvIfNeeded({ indexer: true, prover: true });
     await requestAirdrop(payerKeypair.publicKey);
-    await createTestMint(mintKeypair);
+    mintAddress = await createTestMint(mintKeypair);
 
     await testMintTo(
       payerKeypair,
-      mintKeypair.publicKey,
+      mintAddress,
       payerKeypair.publicKey,
       mintAuthority,
       mintAmount,
     );
   });
 
-  it(`transfer ${
-    mintAmount - 1
-  } tokens to ${mintDestination.toBase58()} from ${mintKeypair.publicKey.toBase58()}, fee-payer: ${payerKeypair.publicKey.toBase58()} `, async () => {
+  it(`transfer tokens`, async () => {
     const { stdout } = await runCommand([
       "transfer",
       `--amount=${mintAmount - 1}`,
       `--fee-payer=${payerKeypairPath}`,
-      `--mint=${mintKeypair.publicKey.toBase58()}`,
+      `--mint=${mintAddress.toBase58()}`,
       `--to=${mintDestination.toBase58()}`,
     ]);
     expect(stdout).to.contain("transfer successful");

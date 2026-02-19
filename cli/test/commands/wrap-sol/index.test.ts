@@ -4,7 +4,7 @@ import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
 import { defaultSolanaWalletKeypair } from "../../../src";
 import { requestAirdrop } from "../../helpers/helpers";
 
-describe("compress-sol", () => {
+describe("wrap-sol", () => {
   const keypair = defaultSolanaWalletKeypair();
   const to = keypair.publicKey.toBase58();
   const amount = 1000_000;
@@ -15,7 +15,7 @@ describe("compress-sol", () => {
     await requestAirdrop(keypair.publicKey);
   });
 
-  it(`compress-sol ${amount} lamports to ${to} and verify balance increase`, async () => {
+  it(`wrap-sol ${amount} lamports to ${to} and verify balance increase`, async () => {
     // Get initial balance first
     const { stdout: initialStdout } = await runCommand([
       "balance",
@@ -28,7 +28,7 @@ describe("compress-sol", () => {
     } else {
       // Extract the balance number
       const balanceMatch = initialStdout.match(
-        /Compressed SOL balance:\s+(\d+)/,
+        /Wrapped SOL balance:\s+(\d+)/,
       );
       if (balanceMatch && balanceMatch[1]) {
         initialBalance = parseInt(balanceMatch[1], 10);
@@ -36,22 +36,22 @@ describe("compress-sol", () => {
     }
     console.log(`Initial balance captured: ${initialBalance}`);
 
-    // Compress SOL
-    const { stdout: compressStdout } = await runCommand([
-      "compress-sol",
+    // Wrap SOL
+    const { stdout: wrapStdout } = await runCommand([
+      "wrap-sol",
       `--amount=${amount}`,
       `--to=${to}`,
     ]);
-    expect(compressStdout).to.contain("compress-sol successful");
+    expect(wrapStdout).to.contain("wrap-sol successful");
 
-    // Check balance after compression
+    // Check balance after wrapping
     const { stdout: finalStdout } = await runCommand([
       "balance",
       `--owner=${to}`,
     ]);
 
     // Extract the new balance
-    const balanceMatch = finalStdout.match(/Compressed SOL balance:\s+(\d+)/);
+    const balanceMatch = finalStdout.match(/Wrapped SOL balance:\s+(\d+)/);
     expect(balanceMatch).to.not.be.null;
 
     if (balanceMatch && balanceMatch[1]) {
@@ -60,7 +60,7 @@ describe("compress-sol", () => {
         `New balance: ${newBalance}, Initial balance: ${initialBalance}, Expected increase: ${amount}`,
       );
 
-      // Verify the balance increased by the compressed amount
+      // Verify the balance increased by the wrapped amount
       expect(newBalance).to.equal(initialBalance + amount);
     } else {
       throw new Error("Could not extract balance from output");

@@ -14,7 +14,7 @@ describe("balance", () => {
     await requestAirdrop(keypair.publicKey);
   });
 
-  it(`get compressed SOL balance for ${owner}`, async () => {
+  it(`get wrapped SOL balance for ${owner}`, async () => {
     // Get initial balance first
     const { stdout: initialStdout } = await runCommand([
       "balance",
@@ -26,7 +26,7 @@ describe("balance", () => {
       initialBalance = 0;
     } else {
       const balanceMatch = initialStdout.match(
-        /Compressed SOL balance:\s+(\d+)/,
+        /Wrapped SOL balance:\s+(\d+)/,
       );
       if (balanceMatch && balanceMatch[1]) {
         initialBalance = parseInt(balanceMatch[1], 10);
@@ -34,13 +34,13 @@ describe("balance", () => {
     }
     console.log(`Initial balance captured: ${initialBalance}`);
 
-    // Compress SOL to create a balance to check
-    const { stdout: compressStdout } = await runCommand([
-      "compress-sol",
+    // Wrap SOL to create a balance to check
+    const { stdout: wrapStdout } = await runCommand([
+      "wrap-sol",
       `--amount=${amount}`,
       `--to=${owner}`,
     ]);
-    expect(compressStdout).to.contain("compress-sol successful");
+    expect(wrapStdout).to.contain("wrap-sol successful");
 
     // Test the balance command
     const { stdout: finalStdout } = await runCommand([
@@ -49,7 +49,7 @@ describe("balance", () => {
     ]);
 
     // Extract the balance
-    const balanceMatch = finalStdout.match(/Compressed SOL balance:\s+(\d+)/);
+    const balanceMatch = finalStdout.match(/Wrapped SOL balance:\s+(\d+)/);
     expect(balanceMatch).to.not.be.null;
 
     if (balanceMatch && balanceMatch[1]) {
@@ -58,7 +58,7 @@ describe("balance", () => {
         `Current balance: ${currentBalance}, Initial balance: ${initialBalance}, Expected increase: ${amount}`,
       );
 
-      // Verify the balance increased by the compressed amount
+      // Verify the balance increased by the wrapped amount
       expect(currentBalance).to.equal(initialBalance + amount);
     } else {
       throw new Error("Could not extract balance from output");

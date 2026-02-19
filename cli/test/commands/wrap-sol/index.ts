@@ -6,12 +6,12 @@ import {
   rpc,
 } from "../../utils/utils";
 import { PublicKey } from "@solana/web3.js";
-import { decompress } from "@lightprotocol/stateless.js";
+import { compress } from "@lightprotocol/stateless.js";
 
-class DecompressSolCommand extends Command {
-  static summary = "Decompress SOL.";
+class WrapSolCommand extends Command {
+  static summary = "Wrap SOL into compressed account.";
 
-  static examples = ["$ light decompress-sol --to PublicKey --amount 10"];
+  static examples = ["$ light wrap-sol --to PublicKey --amount 10"];
 
   static flags = {
     to: Flags.string({
@@ -19,7 +19,7 @@ class DecompressSolCommand extends Command {
       required: true,
     }),
     amount: Flags.integer({
-      description: "Amount to decompress, in lamports.",
+      description: "Amount to wrap, in lamports.",
       required: true,
     }),
   };
@@ -27,31 +27,33 @@ class DecompressSolCommand extends Command {
   static args = {};
 
   async run() {
-    const { flags } = await this.parse(DecompressSolCommand);
+    const { flags } = await this.parse(WrapSolCommand);
     const to = flags["to"];
     const amount = flags["amount"];
     if (!to || !amount) {
       throw new Error("Invalid arguments");
     }
 
-    const loader = new CustomLoader(`Performing decompress-sol...\n`);
+    const loader = new CustomLoader(`Performing wrap-sol...\n`);
     loader.start();
-
+    let txId;
     try {
       const toPublicKey = new PublicKey(to);
       const payer = defaultSolanaWalletKeypair();
 
-      const txId = await decompress(rpc(), payer, amount, toPublicKey);
+      txId = await compress(rpc(), payer, amount, toPublicKey);
+
       loader.stop(false);
       console.log(
-        "\x1b[32mdecompress-sol:\x1b[0m ",
+        "\x1b[32mtxId:\x1b[0m ",
         generateSolanaTransactionURL("tx", txId, "custom"),
       );
-      console.log("decompress-sol successful");
+      console.log("wrap-sol successful");
     } catch (error) {
-      this.error(`Failed to decompress-sol!\n${error}`);
+      console.log("wrap-sol failed", txId);
+      this.error(`Failed to wrap-sol!\n${error}`);
     }
   }
 }
 
-export default DecompressSolCommand;
+export default WrapSolCommand;
