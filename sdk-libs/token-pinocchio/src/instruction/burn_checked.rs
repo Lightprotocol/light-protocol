@@ -24,7 +24,6 @@ use crate::constants::LIGHT_TOKEN_PROGRAM_ID;
 ///     decimals: 9,
 ///     authority: &ctx.accounts.authority,
 ///     system_program: &ctx.accounts.system_program,
-///     max_top_up: None,
 ///     fee_payer: None,
 /// }
 /// .invoke()?;

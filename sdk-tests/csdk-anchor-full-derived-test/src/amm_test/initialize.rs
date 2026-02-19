@@ -254,7 +254,6 @@ pub fn process_initialize_pool<'info>(
         amount: lp_amount,
         authority: ctx.accounts.authority.to_account_info(),
         system_program: ctx.accounts.system_program.to_account_info(),
-        max_top_up: None,
         fee_payer: None,
     }
     .invoke_signed(&[&[AUTH_SEED.as_bytes(), &[ctx.bumps.authority]]])?;
