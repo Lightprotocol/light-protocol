@@ -74,3 +74,33 @@ pub fn process_burn_invoke_signed(
 
     Ok(())
 }
+
+/// Handler for burning CTokens with a separate fee_payer (invoke)
+///
+/// Account order:
+/// - accounts[0]: source (Light Token account, writable)
+/// - accounts[1]: mint (writable)
+/// - accounts[2]: authority (owner, signer)
+/// - accounts[3]: light_token_program
+/// - accounts[4]: system_program
+/// - accounts[5]: fee_payer (writable, signer)
+pub fn process_burn_invoke_with_fee_payer(
+    accounts: &[AccountInfo],
+    amount: u64,
+) -> Result<(), ProgramError> {
+    if accounts.len() < 6 {
+        return Err(ProgramError::NotEnoughAccountKeys);
+    }
+
+    BurnCpi {
+        source: accounts[0].clone(),
+        mint: accounts[1].clone(),
+        amount,
+        authority: accounts[2].clone(),
+        system_program: accounts[4].clone(),
+        fee_payer: accounts[5].clone(),
+    }
+    .invoke()?;
+
+    Ok(())
+}

@@ -252,3 +252,73 @@ async fn test_ctoken_mint_to_invoke_signed() {
         "Light Token should match expected state after mint"
     );
 }
+
+/// Test minting to Light Token with separate fee_payer using CTokenMintToCpi::invoke()
+#[tokio::test]
+async fn test_ctoken_mint_to_invoke_with_separate_fee_payer() {
+    let config = ProgramTestConfig::new_v2(true, Some(vec![("sdk_light_token_test", ID)]));
+    let mut rpc = LightProgramTest::new(config).await.unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+
+    let fee_payer_keypair = solana_sdk::signature::Keypair::new();
+    rpc.airdrop_lamports(&fee_payer_keypair.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+
+    // payer is the mint_authority (setup_create_mint_with_freeze_authority signs with payer)
+    let (mint_pda, _compression_address, ata_pubkeys) = setup_create_mint_with_freeze_authority(
+        &mut rpc,
+        &payer,
+        payer.pubkey(), // mint authority is payer
+        None,
+        9,
+        vec![(0, payer.pubkey())],
+    )
+    .await;
+
+    let ata = ata_pubkeys[0];
+    let mint_amount = 750u64;
+
+    let ata_account_before = rpc.get_account(ata).await.unwrap().unwrap();
+    let ctoken_before = Token::deserialize(&mut &ata_account_before.data[..]).unwrap();
+
+    let mut instruction_data = vec![InstructionType::CTokenMintToInvokeWithFeePayer as u8];
+    let mint_data = MintToData {
+        amount: mint_amount,
+    };
+    mint_data.serialize(&mut instruction_data).unwrap();
+
+    let light_token_program = LIGHT_TOKEN_PROGRAM_ID;
+    let system_program = Pubkey::default();
+    let instruction = Instruction {
+        program_id: ID,
+        accounts: vec![
+            AccountMeta::new(mint_pda, false),                          // mint
+            AccountMeta::new(ata, false),                               // destination
+            AccountMeta::new_readonly(payer.pubkey(), true), // authority (signer, not fee_payer)
+            AccountMeta::new_readonly(system_program, false),           // system_program
+            AccountMeta::new_readonly(light_token_program, false),      // light_token_program
+            AccountMeta::new(fee_payer_keypair.pubkey(), true),         // fee_payer
+        ],
+        data: instruction_data,
+    };
+
+    rpc.create_and_send_transaction(
+        &[instruction],
+        &payer.pubkey(),
+        &[&payer, &fee_payer_keypair],
+    )
+    .await
+    .unwrap();
+
+    let ata_account_after = rpc.get_account(ata).await.unwrap().unwrap();
+    let ctoken_after = Token::deserialize(&mut &ata_account_after.data[..]).unwrap();
+
+    let mut expected_ctoken = ctoken_before;
+    expected_ctoken.amount = 750; // 0 + 750
+
+    assert_eq!(
+        ctoken_after, expected_ctoken,
+        "Light Token should match expected state after mint"
+    );
+}

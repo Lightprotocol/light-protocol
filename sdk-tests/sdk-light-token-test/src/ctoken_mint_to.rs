@@ -74,3 +74,33 @@ pub fn process_mint_to_invoke_signed(
 
     Ok(())
 }
+
+/// Handler for minting to Token with a separate fee_payer (invoke)
+///
+/// Account order:
+/// - accounts[0]: mint (writable)
+/// - accounts[1]: destination (Token account, writable)
+/// - accounts[2]: authority (mint authority, signer)
+/// - accounts[3]: system_program
+/// - accounts[4]: light_token_program
+/// - accounts[5]: fee_payer (writable, signer)
+pub fn process_mint_to_invoke_with_fee_payer(
+    accounts: &[AccountInfo],
+    amount: u64,
+) -> Result<(), ProgramError> {
+    if accounts.len() < 6 {
+        return Err(ProgramError::NotEnoughAccountKeys);
+    }
+
+    MintToCpi {
+        mint: accounts[0].clone(),
+        destination: accounts[1].clone(),
+        amount,
+        authority: accounts[2].clone(),
+        system_program: accounts[3].clone(),
+        fee_payer: accounts[5].clone(),
+    }
+    .invoke()?;
+
+    Ok(())
+}

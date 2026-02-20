@@ -47,11 +47,12 @@ pub fn process_approve_invoke(
 /// - accounts[2]: PDA owner (program signs)
 /// - accounts[3]: system_program
 /// - accounts[4]: light_token_program
+/// - accounts[5]: fee_payer (writable, signer)
 pub fn process_approve_invoke_signed(
     accounts: &[AccountInfo],
     data: ApproveData,
 ) -> Result<(), ProgramError> {
-    if accounts.len() < 5 {
+    if accounts.len() < 6 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
@@ -70,9 +71,39 @@ pub fn process_approve_invoke_signed(
         owner: accounts[2].clone(),
         system_program: accounts[3].clone(),
         amount: data.amount,
-        fee_payer: accounts[2].clone(),
+        fee_payer: accounts[5].clone(),
     }
     .invoke_signed(&[signer_seeds])?;
+
+    Ok(())
+}
+
+/// Handler for approving a delegate with a separate fee_payer (invoke)
+///
+/// Account order:
+/// - accounts[0]: token_account (writable)
+/// - accounts[1]: delegate
+/// - accounts[2]: owner (signer)
+/// - accounts[3]: system_program
+/// - accounts[4]: light_token_program
+/// - accounts[5]: fee_payer (writable, signer)
+pub fn process_approve_invoke_with_fee_payer(
+    accounts: &[AccountInfo],
+    data: ApproveData,
+) -> Result<(), ProgramError> {
+    if accounts.len() < 6 {
+        return Err(ProgramError::NotEnoughAccountKeys);
+    }
+
+    ApproveCpi {
+        token_account: accounts[0].clone(),
+        delegate: accounts[1].clone(),
+        owner: accounts[2].clone(),
+        system_program: accounts[3].clone(),
+        amount: data.amount,
+        fee_payer: accounts[5].clone(),
+    }
+    .invoke()?;
 
     Ok(())
 }

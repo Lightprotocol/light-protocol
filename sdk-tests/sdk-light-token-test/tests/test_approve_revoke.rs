@@ -108,9 +108,10 @@ async fn test_approve_invoke_signed() {
         accounts: vec![
             AccountMeta::new(ata, false),                          // token_account
             AccountMeta::new_readonly(delegate.pubkey(), false),   // delegate
-            AccountMeta::new(pda_owner, false),                    // PDA owner (program signs)
+            AccountMeta::new_readonly(pda_owner, false),           // PDA owner (program signs)
             AccountMeta::new_readonly(Pubkey::default(), false),   // system_program
             AccountMeta::new_readonly(light_token_program, false), // light_token_program
+            AccountMeta::new(payer.pubkey(), true),                // fee_payer
         ],
         data: instruction_data,
     };
@@ -256,9 +257,10 @@ async fn test_revoke_invoke_signed() {
         accounts: vec![
             AccountMeta::new(ata, false),
             AccountMeta::new_readonly(delegate.pubkey(), false),
-            AccountMeta::new(pda_owner, false),
+            AccountMeta::new_readonly(pda_owner, false),
             AccountMeta::new_readonly(Pubkey::default(), false),
             AccountMeta::new_readonly(light_token_program, false),
+            AccountMeta::new(payer.pubkey(), true), // fee_payer
         ],
         data: approve_instruction_data,
     };
@@ -283,9 +285,10 @@ async fn test_revoke_invoke_signed() {
         program_id: ID,
         accounts: vec![
             AccountMeta::new(ata, false),                          // token_account
-            AccountMeta::new(pda_owner, false),                    // PDA owner (program signs)
+            AccountMeta::new_readonly(pda_owner, false),           // PDA owner (program signs)
             AccountMeta::new_readonly(Pubkey::default(), false),   // system_program
             AccountMeta::new_readonly(light_token_program, false), // light_token_program
+            AccountMeta::new(payer.pubkey(), true),                // fee_payer
         ],
         data: revoke_instruction_data,
     };
@@ -295,6 +298,161 @@ async fn test_revoke_invoke_signed() {
         .unwrap();
 
     // Verify the delegate was cleared
+    let ata_account_after_revoke = rpc.get_account(ata).await.unwrap().unwrap();
+    let ctoken_after_revoke = Token::deserialize(&mut &ata_account_after_revoke.data[..]).unwrap();
+
+    assert_eq!(
+        ctoken_after_revoke.delegate, None,
+        "Delegate should be cleared after revoke"
+    );
+    assert_eq!(
+        ctoken_after_revoke.delegated_amount, 0,
+        "Delegated amount should be 0 after revoke"
+    );
+}
+
+/// Test approving a delegate with a separate fee_payer using ApproveCTokenCpi::invoke()
+#[tokio::test]
+async fn test_approve_invoke_with_separate_fee_payer() {
+    let config = ProgramTestConfig::new_v2(true, Some(vec![("sdk_light_token_test", ID)]));
+    let mut rpc = LightProgramTest::new(config).await.unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+
+    let owner_keypair = Keypair::new();
+    rpc.airdrop_lamports(&owner_keypair.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+
+    let (_mint_pda, _compression_address, ata_pubkeys, _mint_seed) = setup_create_mint(
+        &mut rpc,
+        &payer,
+        payer.pubkey(),
+        9,
+        vec![(1000, owner_keypair.pubkey())],
+    )
+    .await;
+
+    let ata = ata_pubkeys[0];
+    let delegate = Keypair::new();
+    let approve_amount = 100u64;
+
+    let mut instruction_data = vec![InstructionType::ApproveInvokeWithFeePayer as u8];
+    let approve_data = ApproveData {
+        amount: approve_amount,
+    };
+    approve_data.serialize(&mut instruction_data).unwrap();
+
+    let light_token_program = LIGHT_TOKEN_PROGRAM_ID;
+    let instruction = Instruction {
+        program_id: ID,
+        accounts: vec![
+            AccountMeta::new(ata, false),                            // token_account
+            AccountMeta::new_readonly(delegate.pubkey(), false),     // delegate
+            AccountMeta::new_readonly(owner_keypair.pubkey(), true), // owner (signer, not fee_payer)
+            AccountMeta::new_readonly(Pubkey::default(), false),     // system_program
+            AccountMeta::new_readonly(light_token_program, false),   // light_token_program
+            AccountMeta::new(payer.pubkey(), true),                  // fee_payer
+        ],
+        data: instruction_data,
+    };
+
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer, &owner_keypair])
+        .await
+        .unwrap();
+
+    let ata_account = rpc.get_account(ata).await.unwrap().unwrap();
+    let ctoken = Token::deserialize(&mut &ata_account.data[..]).unwrap();
+
+    assert_eq!(
+        ctoken.delegate,
+        Some(delegate.pubkey().to_bytes().into()),
+        "Delegate should be set after approve"
+    );
+    assert_eq!(
+        ctoken.delegated_amount, approve_amount,
+        "Delegated amount should match"
+    );
+}
+
+/// Test revoking delegation with a separate fee_payer using RevokeCTokenCpi::invoke()
+#[tokio::test]
+async fn test_revoke_invoke_with_separate_fee_payer() {
+    let config = ProgramTestConfig::new_v2(true, Some(vec![("sdk_light_token_test", ID)]));
+    let mut rpc = LightProgramTest::new(config).await.unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+
+    let owner_keypair = Keypair::new();
+    rpc.airdrop_lamports(&owner_keypair.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+
+    let (_mint_pda, _compression_address, ata_pubkeys, _mint_seed) = setup_create_mint(
+        &mut rpc,
+        &payer,
+        payer.pubkey(),
+        9,
+        vec![(1000, owner_keypair.pubkey())],
+    )
+    .await;
+
+    let ata = ata_pubkeys[0];
+    let delegate = Keypair::new();
+    let approve_amount = 100u64;
+    let light_token_program = LIGHT_TOKEN_PROGRAM_ID;
+
+    // First approve a delegate
+    let mut approve_instruction_data = vec![InstructionType::ApproveInvokeWithFeePayer as u8];
+    let approve_data = ApproveData {
+        amount: approve_amount,
+    };
+    approve_data
+        .serialize(&mut approve_instruction_data)
+        .unwrap();
+
+    let approve_instruction = Instruction {
+        program_id: ID,
+        accounts: vec![
+            AccountMeta::new(ata, false),
+            AccountMeta::new_readonly(delegate.pubkey(), false),
+            AccountMeta::new_readonly(owner_keypair.pubkey(), true),
+            AccountMeta::new_readonly(Pubkey::default(), false),
+            AccountMeta::new_readonly(light_token_program, false),
+            AccountMeta::new(payer.pubkey(), true), // fee_payer
+        ],
+        data: approve_instruction_data,
+    };
+
+    rpc.create_and_send_transaction(
+        &[approve_instruction],
+        &payer.pubkey(),
+        &[&payer, &owner_keypair],
+    )
+    .await
+    .unwrap();
+
+    // Now revoke with separate fee_payer
+    let revoke_instruction_data = vec![InstructionType::RevokeInvokeWithFeePayer as u8];
+
+    let revoke_instruction = Instruction {
+        program_id: ID,
+        accounts: vec![
+            AccountMeta::new(ata, false),                            // token_account
+            AccountMeta::new_readonly(owner_keypair.pubkey(), true), // owner (signer, not fee_payer)
+            AccountMeta::new_readonly(Pubkey::default(), false),     // system_program
+            AccountMeta::new_readonly(light_token_program, false),   // light_token_program
+            AccountMeta::new(payer.pubkey(), true),                  // fee_payer
+        ],
+        data: revoke_instruction_data,
+    };
+
+    rpc.create_and_send_transaction(
+        &[revoke_instruction],
+        &payer.pubkey(),
+        &[&payer, &owner_keypair],
+    )
+    .await
+    .unwrap();
+
     let ata_account_after_revoke = rpc.get_account(ata).await.unwrap().unwrap();
     let ctoken_after_revoke = Token::deserialize(&mut &ata_account_after_revoke.data[..]).unwrap();
 
