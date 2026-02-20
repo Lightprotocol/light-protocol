@@ -20,10 +20,12 @@ mod transfer_spl_ctoken;
 
 // Re-export all instruction data types
 pub use approve::{
-    process_approve_invoke, process_approve_invoke_signed,
-    process_approve_invoke_with_fee_payer, ApproveData,
+    process_approve_invoke, process_approve_invoke_signed, process_approve_invoke_with_fee_payer,
+    ApproveData,
 };
-pub use burn::{process_burn_invoke, process_burn_invoke_signed, process_burn_invoke_with_fee_payer, BurnData};
+pub use burn::{
+    process_burn_invoke, process_burn_invoke_signed, process_burn_invoke_with_fee_payer, BurnData,
+};
 pub use close::{process_close_account_invoke, process_close_account_invoke_signed};
 pub use create_ata::{process_create_ata_invoke, process_create_ata_invoke_signed, CreateAtaData};
 pub use create_mint::{
@@ -367,9 +369,7 @@ pub fn process_instruction(
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
             process_approve_invoke_with_fee_payer(accounts, data)
         }
-        InstructionType::RevokeInvokeWithFeePayer => {
-            process_revoke_invoke_with_fee_payer(accounts)
-        }
+        InstructionType::RevokeInvokeWithFeePayer => process_revoke_invoke_with_fee_payer(accounts),
         _ => Err(ProgramError::InvalidInstructionData),
     }
 }

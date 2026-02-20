@@ -132,12 +132,12 @@ async fn test_ctoken_mint_to_invoke_with_separate_fee_payer() {
     let instruction = Instruction {
         program_id: PROGRAM_ID,
         accounts: vec![
-            AccountMeta::new(mint_pda, false),                    // mint
-            AccountMeta::new(ata, false),                         // destination
-            AccountMeta::new_readonly(payer.pubkey(), true),      // authority (readonly signer)
-            AccountMeta::new_readonly(system_program, false),     // system_program
+            AccountMeta::new(mint_pda, false),                     // mint
+            AccountMeta::new(ata, false),                          // destination
+            AccountMeta::new_readonly(payer.pubkey(), true),       // authority (readonly signer)
+            AccountMeta::new_readonly(system_program, false),      // system_program
             AccountMeta::new_readonly(light_token_program, false), // light_token_program
-            AccountMeta::new(fee_payer_keypair.pubkey(), true),   // fee_payer (separate)
+            AccountMeta::new(fee_payer_keypair.pubkey(), true),    // fee_payer (separate)
         ],
         data: instruction_data,
     };

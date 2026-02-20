@@ -114,10 +114,10 @@ async fn test_approve_invoke_signed() {
         accounts: vec![
             AccountMeta::new(ata, false),                          // token_account
             AccountMeta::new_readonly(delegate.pubkey(), false),   // delegate
-            AccountMeta::new_readonly(pda_owner, false),           // PDA owner (program signs, readonly)
-            AccountMeta::new_readonly(Pubkey::default(), false),   // system_program
+            AccountMeta::new_readonly(pda_owner, false), // PDA owner (program signs, readonly)
+            AccountMeta::new_readonly(Pubkey::default(), false), // system_program
             AccountMeta::new_readonly(light_token_program, false), // light_token_program
-            AccountMeta::new(payer.pubkey(), true),                // fee_payer
+            AccountMeta::new(payer.pubkey(), true),      // fee_payer
         ],
         data: instruction_data,
     };
@@ -269,7 +269,7 @@ async fn test_revoke_invoke_signed() {
         accounts: vec![
             AccountMeta::new(ata, false),
             AccountMeta::new_readonly(delegate.pubkey(), false),
-            AccountMeta::new_readonly(pda_owner, false),           // PDA owner (program signs, readonly)
+            AccountMeta::new_readonly(pda_owner, false), // PDA owner (program signs, readonly)
             AccountMeta::new_readonly(Pubkey::default(), false),
             AccountMeta::new_readonly(light_token_program, false),
             AccountMeta::new(payer.pubkey(), true), // fee_payer
@@ -297,10 +297,10 @@ async fn test_revoke_invoke_signed() {
         program_id: PROGRAM_ID,
         accounts: vec![
             AccountMeta::new(ata, false),                          // token_account
-            AccountMeta::new_readonly(pda_owner, false),           // PDA owner (program signs, readonly)
-            AccountMeta::new_readonly(Pubkey::default(), false),   // system_program
+            AccountMeta::new_readonly(pda_owner, false), // PDA owner (program signs, readonly)
+            AccountMeta::new_readonly(Pubkey::default(), false), // system_program
             AccountMeta::new_readonly(light_token_program, false), // light_token_program
-            AccountMeta::new(payer.pubkey(), true),                // fee_payer
+            AccountMeta::new(payer.pubkey(), true),      // fee_payer
         ],
         data: revoke_instruction_data,
     };

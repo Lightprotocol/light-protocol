@@ -48,8 +48,8 @@ use solana_program::{
 };
 pub use thaw::{process_thaw_invoke, process_thaw_invoke_signed};
 pub use transfer::{
-    process_transfer_invoke, process_transfer_invoke_signed, process_transfer_invoke_with_fee_payer,
-    TransferData,
+    process_transfer_invoke, process_transfer_invoke_signed,
+    process_transfer_invoke_with_fee_payer, TransferData,
 };
 pub use transfer_checked::{
     process_transfer_checked_invoke, process_transfer_checked_invoke_signed, TransferCheckedData,
@@ -375,9 +375,7 @@ pub fn process_instruction(
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
             process_approve_invoke_with_fee_payer(accounts, data)
         }
-        InstructionType::RevokeInvokeWithFeePayer => {
-            process_revoke_invoke_with_fee_payer(accounts)
-        }
+        InstructionType::RevokeInvokeWithFeePayer => process_revoke_invoke_with_fee_payer(accounts),
         _ => Err(ProgramError::InvalidInstructionData),
     }
 }
