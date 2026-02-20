@@ -22,7 +22,7 @@ use solana_pubkey::Pubkey;
 pub struct Revoke {
     /// Light Token account to revoke delegation for
     pub token_account: Pubkey,
-    /// Owner of the Light Token account (writable signer)
+    /// Owner of the Light Token account (readonly signer)
     pub owner: Pubkey,
     /// Fee payer for compressible rent top-ups (writable signer)
     pub fee_payer: Pubkey,
@@ -97,7 +97,7 @@ impl Revoke {
             program_id: Pubkey::from(LIGHT_TOKEN_PROGRAM_ID),
             accounts: vec![
                 AccountMeta::new(self.token_account, false),
-                AccountMeta::new(self.owner, true),
+                AccountMeta::new_readonly(self.owner, true),
                 AccountMeta::new_readonly(Pubkey::default(), false),
                 AccountMeta::new(self.fee_payer, true),
             ],

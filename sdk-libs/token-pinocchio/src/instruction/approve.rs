@@ -53,7 +53,7 @@ impl<'info> ApproveCpi<'info> {
         let account_metas = [
             AccountMeta::writable(self.token_account.key()),
             AccountMeta::readonly(self.delegate.key()),
-            AccountMeta::writable_signer(self.owner.key()),
+            AccountMeta::readonly_signer(self.owner.key()),
             AccountMeta::readonly(self.system_program.key()),
             AccountMeta::writable_signer(self.fee_payer.key()),
         ];

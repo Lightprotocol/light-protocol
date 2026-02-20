@@ -27,7 +27,7 @@ pub struct Approve {
     pub token_account: Pubkey,
     /// Delegate to approve
     pub delegate: Pubkey,
-    /// Owner of the Light Token account (writable signer)
+    /// Owner of the Light Token account (readonly signer)
     pub owner: Pubkey,
     /// Amount of tokens to delegate
     pub amount: u64,
@@ -117,7 +117,7 @@ impl Approve {
             accounts: vec![
                 AccountMeta::new(self.token_account, false),
                 AccountMeta::new_readonly(self.delegate, false),
-                AccountMeta::new(self.owner, true),
+                AccountMeta::new_readonly(self.owner, true),
                 AccountMeta::new_readonly(Pubkey::default(), false),
                 AccountMeta::new(self.fee_payer, true),
             ],
