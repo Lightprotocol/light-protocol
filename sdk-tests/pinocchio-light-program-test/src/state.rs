@@ -39,6 +39,72 @@ pub struct OneByteRecord {
     pub owner: Pubkey,
 }
 
+/// 2-byte on-chain discriminator. LIGHT_DISCRIMINATOR_SLICE = &[2u8, 2u8].
+#[derive(
+    Default, Debug, Clone, PartialEq, BorshSerialize, BorshDeserialize, LightPinocchioAccount,
+)]
+#[light_pinocchio(discriminator = [2u8, 2u8])]
+#[repr(C)]
+pub struct TwoByteRecord {
+    pub compression_info: CompressionInfo,
+    pub owner: Pubkey,
+}
+
+/// 3-byte on-chain discriminator. LIGHT_DISCRIMINATOR_SLICE = &[3u8, 3u8, 3u8].
+#[derive(
+    Default, Debug, Clone, PartialEq, BorshSerialize, BorshDeserialize, LightPinocchioAccount,
+)]
+#[light_pinocchio(discriminator = [3u8, 3u8, 3u8])]
+#[repr(C)]
+pub struct ThreeByteRecord {
+    pub compression_info: CompressionInfo,
+    pub owner: Pubkey,
+}
+
+/// 4-byte on-chain discriminator.
+#[derive(
+    Default, Debug, Clone, PartialEq, BorshSerialize, BorshDeserialize, LightPinocchioAccount,
+)]
+#[light_pinocchio(discriminator = [4u8, 4u8, 4u8, 4u8])]
+#[repr(C)]
+pub struct FourByteRecord {
+    pub compression_info: CompressionInfo,
+    pub owner: Pubkey,
+}
+
+/// 5-byte on-chain discriminator.
+#[derive(
+    Default, Debug, Clone, PartialEq, BorshSerialize, BorshDeserialize, LightPinocchioAccount,
+)]
+#[light_pinocchio(discriminator = [5u8, 5u8, 5u8, 5u8, 5u8])]
+#[repr(C)]
+pub struct FiveByteRecord {
+    pub compression_info: CompressionInfo,
+    pub owner: Pubkey,
+}
+
+/// 6-byte on-chain discriminator.
+#[derive(
+    Default, Debug, Clone, PartialEq, BorshSerialize, BorshDeserialize, LightPinocchioAccount,
+)]
+#[light_pinocchio(discriminator = [6u8, 6u8, 6u8, 6u8, 6u8, 6u8])]
+#[repr(C)]
+pub struct SixByteRecord {
+    pub compression_info: CompressionInfo,
+    pub owner: Pubkey,
+}
+
+/// 7-byte on-chain discriminator.
+#[derive(
+    Default, Debug, Clone, PartialEq, BorshSerialize, BorshDeserialize, LightPinocchioAccount,
+)]
+#[light_pinocchio(discriminator = [7u8, 7u8, 7u8, 7u8, 7u8, 7u8, 7u8])]
+#[repr(C)]
+pub struct SevenByteRecord {
+    pub compression_info: CompressionInfo,
+    pub owner: Pubkey,
+}
+
 /// A zero-copy account using Pod serialization.
 /// Used for efficient on-chain zero-copy access.
 #[derive(
