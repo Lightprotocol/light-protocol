@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "7c9c24f71fe9",
+  "strategy": "manual-commit",
+  "branch": "jorrit/test-random-unit-tests-light-program-compress-decompres",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "sdk-libs/sdk-types/Cargo.toml",
+    "sdk-libs/sdk-types/src/interface/program/compression/processor.rs",
+    "sdk-libs/sdk-types/src/interface/program/decompression/processor.rs",
+    "sdk-libs/sdk-types/tests/common/mod.rs",
+    "sdk-libs/sdk-types/tests/compress_processor.rs",
+    "sdk-libs/sdk-types/tests/decompress_accounts_processor.rs",
+    "sdk-libs/sdk-types/tests/decompress_processor.rs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/7c/9c24f71fe9/0/metadata.json",
+      "transcript": "/7c/9c24f71fe9/0/full.jsonl",
+      "context": "/7c/9c24f71fe9/0/context.md",
+      "content_hash": "/7c/9c24f71fe9/0/content_hash.txt",
+      "prompt": "/7c/9c24f71fe9/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 20,
+    "cache_creation_tokens": 119395,
+    "cache_read_tokens": 841521,
+    "output_tokens": 13502,
+    "api_call_count": 13
+  }
+}

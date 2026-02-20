@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "7c9c24f71fe9",
+  "session_id": "3ad45457-2801-4c87-b0ed-53aeaba2e205",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-20T00:46:15.044692Z",
+  "branch": "jorrit/test-random-unit-tests-light-program-compress-decompres",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "sdk-libs/sdk-types/Cargo.toml",
+    "sdk-libs/sdk-types/src/interface/program/compression/processor.rs",
+    "sdk-libs/sdk-types/src/interface/program/decompression/processor.rs",
+    "sdk-libs/sdk-types/tests/common/mod.rs",
+    "sdk-libs/sdk-types/tests/compress_processor.rs",
+    "sdk-libs/sdk-types/tests/decompress_accounts_processor.rs",
+    "sdk-libs/sdk-types/tests/decompress_processor.rs"
+  ],
+  "agent": "Claude Code",
+  "checkpoint_transcript_start": 921,
+  "transcript_lines_at_start": 921,
+  "token_usage": {
+    "input_tokens": 20,
+    "cache_creation_tokens": 119395,
+    "cache_read_tokens": 841521,
+    "output_tokens": 13502,
+    "api_call_count": 13
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-20T00:46:13.837578Z",
+    "agent_lines": 889,
+    "human_added": 2126,
+    "human_modified": 10,
+    "human_removed": 0,
+    "total_committed": 3025,
+    "agent_percentage": 29.388429752066113
+  },
+  "transcript_path": ".claude/projects/-Users-ananas-dev-light-protocol/3ad45457-2801-4c87-b0ed-53aeaba2e205.jsonl"
+}
