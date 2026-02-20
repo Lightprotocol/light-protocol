@@ -27,9 +27,7 @@ async fn test_priority_fee_request() {
         ws_rpc_url: Some(
             std::env::var("WS_RPC_URL").expect("WS_RPC_URL must be set in environment"),
         ),
-        indexer_url: Some(
-            std::env::var("INDEXER_URL").expect("INDEXER_URL must be set in environment"),
-        ),
+        indexer_url: std::env::var("INDEXER_URL").expect("INDEXER_URL must be set in environment"),
         prover_url: Some(
             std::env::var("PROVER_URL").expect("PROVER_URL must be set in environment"),
         ),
@@ -84,6 +82,7 @@ async fn test_priority_fee_request() {
         api_server_port: 8080,
         group_authority: None,
         light_pda_programs: vec![],
+        helius_rpc: false,
         prometheus_url: None,
     };
 

@@ -250,7 +250,7 @@ pub async fn get_forester_status_with_options(
 
     // Filter trees by protocol group authority if enabled
     if filter_by_group_authority {
-        match fetch_protocol_group_authority(&rpc).await {
+        match fetch_protocol_group_authority(&rpc, "status").await {
             Ok(group_authority) => {
                 let before_count = trees.len();
                 trees.retain(|tree| tree.owner == group_authority);

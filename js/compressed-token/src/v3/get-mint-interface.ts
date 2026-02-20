@@ -103,9 +103,7 @@ export async function getMintInterface(
         );
 
         if (!compressedAccount?.data?.data) {
-            throw new Error(
-                `Light mint not found for ${address.toString()}`,
-            );
+            throw new Error(`Light mint not found for ${address.toString()}`);
         }
 
         const compressedData = Buffer.from(compressedAccount.data.data);

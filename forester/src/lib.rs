@@ -9,6 +9,7 @@ pub mod errors;
 pub mod forester_status;
 pub mod health_check;
 pub mod helius_priority_fee_types;
+pub mod logging;
 pub mod metrics;
 pub mod pagerduty;
 pub mod processor;
@@ -38,7 +39,7 @@ use tokio::sync::{mpsc, oneshot, Mutex};
 use tracing::debug;
 
 use crate::{
-    epoch_manager::{run_service, WorkReport},
+    epoch_manager::{generate_run_id, run_service, WorkReport},
     metrics::QUEUE_LENGTH,
     processor::tx_cache::ProcessedHashCache,
     queue_helpers::{
@@ -149,6 +150,30 @@ pub async fn run_pipeline<R: Rpc + Indexer>(
     shutdown_bootstrap: Option<oneshot::Receiver<()>>,
     work_report_sender: mpsc::Sender<WorkReport>,
 ) -> Result<()> {
+    run_pipeline_with_run_id::<R>(
+        config,
+        rpc_rate_limiter,
+        send_tx_rate_limiter,
+        shutdown_service,
+        shutdown_compressible,
+        shutdown_bootstrap,
+        work_report_sender,
+        generate_run_id(),
+    )
+    .await
+}
+
+#[allow(clippy::too_many_arguments)]
+pub async fn run_pipeline_with_run_id<R: Rpc + Indexer>(
+    config: Arc<ForesterConfig>,
+    rpc_rate_limiter: Option<RateLimiter>,
+    send_tx_rate_limiter: Option<RateLimiter>,
+    shutdown_service: oneshot::Receiver<()>,
+    shutdown_compressible: Option<tokio::sync::broadcast::Receiver<()>>,
+    shutdown_bootstrap: Option<oneshot::Receiver<()>>,
+    work_report_sender: mpsc::Sender<WorkReport>,
+    run_id: String,
+) -> Result<()> {
     let mut builder = SolanaRpcPoolBuilder::<R>::default()
         .url(config.external_services.rpc_url.to_string())
         .photon_url(config.external_services.indexer_url.clone())
@@ -240,6 +265,9 @@ pub async fn run_pipeline<R: Rpc + Indexer>(
                 }
             });
 
+            // Extract flag before async closures to avoid moving config Arc
+            let helius_rpc = config.general_config.helius_rpc;
+
             // Spawn bootstrap task for ctokens with shutdown support
             if let Some(mut shutdown_bootstrap_rx) = shutdown_bootstrap {
                 let tracker_clone = ctoken_tracker.clone();
@@ -254,7 +282,10 @@ pub async fn run_pipeline<R: Rpc + Indexer>(
                         let rpc_url = rpc_url.clone();
                         let tracker = tracker_clone.clone();
                         async move {
-                            compressible::bootstrap_ctoken_accounts(rpc_url, tracker, None).await
+                            compressible::bootstrap_ctoken_accounts(
+                                rpc_url, tracker, None, helius_rpc,
+                            )
+                            .await
                         }
                     });
 
@@ -321,7 +352,10 @@ pub async fn run_pipeline<R: Rpc + Indexer>(
                         let rpc_url = rpc_url.clone();
                         let tracker = pda_tracker_clone.clone();
                         async move {
-                            compressible::pda::bootstrap_pda_accounts(rpc_url, tracker, None).await
+                            compressible::pda::bootstrap_pda_accounts(
+                                rpc_url, tracker, None, helius_rpc,
+                            )
+                            .await
                         }
                     });
 
@@ -377,8 +411,10 @@ pub async fn run_pipeline<R: Rpc + Indexer>(
                         let rpc_url = rpc_url.clone();
                         let tracker = mint_tracker_clone.clone();
                         async move {
-                            compressible::mint::bootstrap_mint_accounts(rpc_url, tracker, None)
-                                .await
+                            compressible::mint::bootstrap_mint_accounts(
+                                rpc_url, tracker, None, helius_rpc,
+                            )
+                            .await
                         }
                     });
 
@@ -420,6 +456,7 @@ pub async fn run_pipeline<R: Rpc + Indexer>(
         compressible_tracker,
         pda_tracker,
         mint_tracker,
+        run_id,
     )
     .await;
 
