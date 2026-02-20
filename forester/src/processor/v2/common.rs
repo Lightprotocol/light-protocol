@@ -78,6 +78,7 @@ pub struct ProverConfig {
 pub struct BatchContext<R: Rpc> {
     pub rpc_pool: Arc<SolanaRpcPool<R>>,
     pub authority: Arc<Keypair>,
+    pub run_id: Arc<str>,
     pub derivation: Pubkey,
     pub epoch: u64,
     pub merkle_tree: Pubkey,
@@ -104,6 +105,7 @@ impl<R: Rpc> Clone for BatchContext<R> {
         Self {
             rpc_pool: self.rpc_pool.clone(),
             authority: self.authority.clone(),
+            run_id: self.run_id.clone(),
             derivation: self.derivation,
             epoch: self.epoch,
             merkle_tree: self.merkle_tree,

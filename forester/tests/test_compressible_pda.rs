@@ -398,6 +398,7 @@ async fn test_compressible_pda_bootstrap() {
             rpc_url,
             tracker_clone,
             Some(shutdown_rx),
+            false,
         )
         .await
         {

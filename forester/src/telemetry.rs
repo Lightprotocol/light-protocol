@@ -31,15 +31,22 @@ pub fn setup_telemetry() {
         let env_filter =
             EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
 
-        let stdout_layer = fmt::Layer::new()
+        let stdout_layer = fmt::layer()
             .with_writer(std::io::stdout)
+            .compact()
             .with_ansi(true);
 
         if let Some(file_appender) = file_appender {
             let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
             let _ = LOG_GUARD.set(guard);
 
-            let file_layer = fmt::Layer::new().with_writer(non_blocking);
+            let file_layer = fmt::layer()
+                .json()
+                .with_current_span(true)
+                .with_span_list(true)
+                .flatten_event(true)
+                .with_ansi(false)
+                .with_writer(non_blocking);
 
             tracing_subscriber::registry()
                 .with(stdout_layer)

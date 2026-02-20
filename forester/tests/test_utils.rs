@@ -115,6 +115,7 @@ pub fn forester_config() -> ForesterConfig {
             sleep_when_idle_ms: 100,
             queue_polling_mode: QueuePollingMode::OnChain,
             group_authority: None,
+            helius_rpc: false,
         },
         rpc_pool_config: RpcPoolConfig {
             max_size: 50,

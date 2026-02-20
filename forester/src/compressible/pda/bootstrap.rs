@@ -7,7 +7,7 @@ use super::state::PdaAccountTracker;
 use crate::{
     compressible::{
         bootstrap_helpers::{
-            bootstrap_standard_api, bootstrap_v2_api, is_localhost, RawAccountData,
+            bootstrap_standard_api, bootstrap_v2_api, use_helius_rpc, RawAccountData,
         },
         config::PdaProgramConfig,
         traits::CompressibleTracker,
@@ -20,6 +20,7 @@ pub async fn bootstrap_pda_accounts(
     rpc_url: String,
     tracker: Arc<PdaAccountTracker>,
     shutdown_rx: Option<oneshot::Receiver<()>>,
+    helius_rpc: bool,
 ) -> Result<()> {
     info!("Starting bootstrap of compressible PDA accounts");
 
@@ -54,8 +55,15 @@ pub async fn bootstrap_pda_accounts(
             program_config.program_id
         );
 
-        let result =
-            bootstrap_program(&client, &rpc_url, &tracker, &program_config, &shutdown_flag).await;
+        let result = bootstrap_program(
+            &client,
+            &rpc_url,
+            &tracker,
+            &program_config,
+            &shutdown_flag,
+            helius_rpc,
+        )
+        .await;
 
         if let Err(e) = result {
             error!(
@@ -81,6 +89,7 @@ async fn bootstrap_program(
     tracker: &PdaAccountTracker,
     program_config: &PdaProgramConfig,
     shutdown_flag: &std::sync::atomic::AtomicBool,
+    helius_rpc: bool,
 ) -> Result<()> {
     let program_id = &program_config.program_id;
 
@@ -108,7 +117,7 @@ async fn bootstrap_program(
         }
     })]);
 
-    if is_localhost(rpc_url) {
+    if !use_helius_rpc(rpc_url, helius_rpc) {
         let (total_fetched, total_inserted) = bootstrap_standard_api(
             client,
             rpc_url,

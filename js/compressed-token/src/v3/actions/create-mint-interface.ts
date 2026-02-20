@@ -81,9 +81,7 @@ export async function createMintInterface(
 
     // Default: light-token mint creation
     if (!('secretKey' in mintAuthority)) {
-        throw new Error(
-            'mintAuthority must be a Signer for light-token mints',
-        );
+        throw new Error('mintAuthority must be a Signer for light-token mints');
     }
     if (
         addressTreeInfo &&

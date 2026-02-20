@@ -4,12 +4,12 @@ use std::{
         atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
         Arc,
     },
-    time::Duration,
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 use anyhow::{anyhow, Context};
 use borsh::BorshSerialize;
-use dashmap::{mapref::entry::Entry, DashMap};
+use dashmap::DashMap;
 use forester_utils::{
     forester_epoch::{get_epoch_phases, Epoch, ForesterSlot, TreeAccounts, TreeForesterSchedule},
     rpc_pool::SolanaRpcPool,
@@ -41,7 +41,7 @@ use solana_sdk::{
 use tokio::{
     sync::{broadcast, broadcast::error::RecvError, mpsc, oneshot, Mutex},
     task::JoinHandle,
-    time::{sleep, Instant},
+    time::{sleep, Instant, MissedTickBehavior},
 };
 use tracing::{debug, error, info, info_span, instrument, trace, warn};
 
@@ -50,6 +50,7 @@ use crate::{
     errors::{
         ChannelError, ForesterError, InitializationError, RegistrationError, WorkReportError,
     },
+    logging::{should_emit_rate_limited_warning, ServiceHeartbeat},
     metrics::{push_metrics, queue_metric_update, update_forester_sol_balance},
     pagerduty::send_pagerduty_alert,
     processor::{
@@ -84,6 +85,7 @@ type StateBatchProcessorMap<R> =
     Arc<DashMap<Pubkey, (u64, Arc<Mutex<QueueProcessor<R, StateTreeStrategy>>>)>>;
 type AddressBatchProcessorMap<R> =
     Arc<DashMap<Pubkey, (u64, Arc<Mutex<QueueProcessor<R, AddressTreeStrategy>>>)>>;
+type ProcessorInitLockMap = Arc<DashMap<Pubkey, Arc<Mutex<()>>>>;
 
 /// Timing for a single circuit type (circuit inputs + proof generation)
 #[derive(Copy, Clone, Debug, Default)]
@@ -207,12 +209,16 @@ pub struct EpochManager<R: Rpc + Indexer> {
     proof_caches: Arc<DashMap<Pubkey, Arc<SharedProofCache>>>,
     state_processors: StateBatchProcessorMap<R>,
     address_processors: AddressBatchProcessorMap<R>,
+    state_processor_init_locks: ProcessorInitLockMap,
+    address_processor_init_locks: ProcessorInitLockMap,
     compressible_tracker: Option<Arc<CTokenAccountTracker>>,
     pda_tracker: Option<Arc<crate::compressible::pda::PdaAccountTracker>>,
     mint_tracker: Option<Arc<crate::compressible::mint::MintAccountTracker>>,
     /// Cached zkp_batch_size per tree to filter queue updates below threshold
     zkp_batch_sizes: Arc<DashMap<Pubkey, u64>>,
     address_lookup_tables: Arc<Vec<AddressLookupTableAccount>>,
+    heartbeat: Arc<ServiceHeartbeat>,
+    run_id: Arc<str>,
 }
 
 impl<R: Rpc + Indexer> Clone for EpochManager<R> {
@@ -234,11 +240,15 @@ impl<R: Rpc + Indexer> Clone for EpochManager<R> {
             proof_caches: self.proof_caches.clone(),
             state_processors: self.state_processors.clone(),
             address_processors: self.address_processors.clone(),
+            state_processor_init_locks: self.state_processor_init_locks.clone(),
+            address_processor_init_locks: self.address_processor_init_locks.clone(),
             compressible_tracker: self.compressible_tracker.clone(),
             pda_tracker: self.pda_tracker.clone(),
             mint_tracker: self.mint_tracker.clone(),
             zkp_batch_sizes: self.zkp_batch_sizes.clone(),
             address_lookup_tables: self.address_lookup_tables.clone(),
+            heartbeat: self.heartbeat.clone(),
+            run_id: self.run_id.clone(),
         }
     }
 }
@@ -259,6 +269,8 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         pda_tracker: Option<Arc<crate::compressible::pda::PdaAccountTracker>>,
         mint_tracker: Option<Arc<crate::compressible::mint::MintAccountTracker>>,
         address_lookup_tables: Arc<Vec<AddressLookupTableAccount>>,
+        heartbeat: Arc<ServiceHeartbeat>,
+        run_id: String,
     ) -> Result<Self> {
         let authority = Arc::new(config.payer_keypair.insecure_clone());
         Ok(Self {
@@ -278,11 +290,15 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             proof_caches: Arc::new(DashMap::new()),
             state_processors: Arc::new(DashMap::new()),
             address_processors: Arc::new(DashMap::new()),
+            state_processor_init_locks: Arc::new(DashMap::new()),
+            address_processor_init_locks: Arc::new(DashMap::new()),
             compressible_tracker,
             pda_tracker,
             mint_tracker,
             zkp_batch_sizes: Arc::new(DashMap::new()),
             address_lookup_tables,
+            heartbeat,
+            run_id: Arc::<str>::from(run_id),
         })
     }
 
@@ -324,7 +340,11 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 balance_check_handle,
             ),
             |(h2, h3, h4)| {
-                info!("Aborting EpochManager background tasks");
+                info!(
+                    event = "background_tasks_aborting",
+                    run_id = %self.run_id,
+                    "Aborting EpochManager background tasks"
+                );
                 h2.abort();
                 h3.abort();
                 h4.abort();
@@ -336,16 +356,49 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 epoch_opt = rx.recv() => {
                     match epoch_opt {
                         Some(epoch) => {
-                            debug!("Received new epoch: {}", epoch);
+                            debug!(
+                                event = "epoch_queued_for_processing",
+                                run_id = %self.run_id,
+                                epoch,
+                                "Received epoch from monitor"
+                            );
                             let self_clone = Arc::clone(&self);
                             tokio::spawn(async move {
                                 if let Err(e) = self_clone.process_epoch(epoch).await {
-                                    error!("Error processing epoch {}: {:?}", epoch, e);
+                                    if let Some(ForesterError::Registration(
+                                        RegistrationError::FinalizeRegistrationPhaseEnded {
+                                            epoch,
+                                            current_slot,
+                                            active_phase_end_slot,
+                                        },
+                                    )) = e.downcast_ref::<ForesterError>()
+                                    {
+                                        debug!(
+                                            event = "epoch_processing_skipped_finalize_registration_phase_ended",
+                                            run_id = %self_clone.run_id,
+                                            epoch = *epoch,
+                                            current_slot = *current_slot,
+                                            active_phase_end_slot = *active_phase_end_slot,
+                                            "Skipping epoch processing because FinalizeRegistration is no longer possible"
+                                        );
+                                    } else {
+                                        error!(
+                                            event = "epoch_processing_failed",
+                                            run_id = %self_clone.run_id,
+                                            epoch,
+                                            error = ?e,
+                                            "Error processing epoch"
+                                        );
+                                    }
                                 }
                             });
                         }
                         None => {
-                            error!("Epoch monitor channel closed unexpectedly!");
+                            error!(
+                                event = "epoch_monitor_channel_closed",
+                                run_id = %self.run_id,
+                                "Epoch monitor channel closed unexpectedly"
+                            );
                             break Err(anyhow!(
                                 "Epoch monitor channel closed - forester cannot function without it"
                             ));
@@ -355,13 +408,27 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 result = &mut monitor_handle => {
                     match result {
                         Ok(Ok(())) => {
-                            error!("Epoch monitor exited unexpectedly with Ok(())");
+                            error!(
+                                event = "epoch_monitor_exited_unexpected_ok",
+                                run_id = %self.run_id,
+                                "Epoch monitor exited unexpectedly with Ok(())"
+                            );
                         }
                         Ok(Err(e)) => {
-                            error!("Epoch monitor exited with error: {:?}", e);
+                            error!(
+                                event = "epoch_monitor_exited_with_error",
+                                run_id = %self.run_id,
+                                error = ?e,
+                                "Epoch monitor exited with error"
+                            );
                         }
                         Err(e) => {
-                            error!("Epoch monitor task panicked or was cancelled: {:?}", e);
+                            error!(
+                                event = "epoch_monitor_task_failed",
+                                run_id = %self.run_id,
+                                error = ?e,
+                                "Epoch monitor task panicked or was cancelled"
+                            );
                         }
                     }
                     if let Some(pagerduty_key) = &self.config.external_services.pagerduty_routing_key {
@@ -396,11 +463,26 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                             &self.config.payer_keypair.pubkey().to_string(),
                             balance_in_sol,
                         );
-                        debug!("Current SOL balance: {} SOL", balance_in_sol);
+                        debug!(
+                            event = "forester_balance_updated",
+                            run_id = %self.run_id,
+                            balance_sol = balance_in_sol,
+                            "Current SOL balance updated"
+                        );
                     }
-                    Err(e) => error!("Failed to get balance: {:?}", e),
+                    Err(e) => error!(
+                        event = "forester_balance_fetch_failed",
+                        run_id = %self.run_id,
+                        error = ?e,
+                        "Failed to get balance"
+                    ),
                 },
-                Err(e) => error!("Failed to get RPC connection for balance check: {:?}", e),
+                Err(e) => error!(
+                    event = "forester_balance_rpc_connection_failed",
+                    run_id = %self.run_id,
+                    error = ?e,
+                    "Failed to get RPC connection for balance check"
+                ),
             }
         }
     }
@@ -410,18 +492,37 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         loop {
             match receiver.recv().await {
                 Ok(new_tree) => {
-                    info!("Received new tree: {:?}", new_tree);
+                    info!(
+                        event = "new_tree_received",
+                        run_id = %self.run_id,
+                        tree = %new_tree.merkle_tree,
+                        tree_type = ?new_tree.tree_type,
+                        "Received new tree"
+                    );
                     if let Err(e) = self.add_new_tree(new_tree).await {
-                        error!("Failed to add new tree: {:?}", e);
+                        error!(
+                            event = "new_tree_add_failed",
+                            run_id = %self.run_id,
+                            error = ?e,
+                            "Failed to add new tree"
+                        );
                         // Continue processing other trees instead of crashing
                     }
                 }
                 Err(e) => match e {
                     RecvError::Lagged(lag) => {
-                        warn!("Lagged in receiving new trees: {:?}", lag);
+                        warn!(
+                            event = "new_tree_receiver_lagged",
+                            run_id = %self.run_id,
+                            lag, "Lagged while receiving new trees"
+                        );
                     }
                     RecvError::Closed => {
-                        info!("New tree receiver closed");
+                        info!(
+                            event = "new_tree_receiver_closed",
+                            run_id = %self.run_id,
+                            "New tree receiver closed"
+                        );
                         break;
                     }
                 },
@@ -431,23 +532,54 @@ impl<R: Rpc + Indexer> EpochManager<R> {
     }
 
     async fn add_new_tree(&self, new_tree: TreeAccounts) -> Result<()> {
-        info!("Adding new tree: {:?}", new_tree);
+        info!(
+            event = "new_tree_add_started",
+            run_id = %self.run_id,
+            tree = %new_tree.merkle_tree,
+            tree_type = ?new_tree.tree_type,
+            "Adding new tree"
+        );
         let mut trees = self.trees.lock().await;
         trees.push(new_tree);
         drop(trees);
 
-        info!("New tree added to the list of trees");
+        info!(
+            event = "new_tree_added",
+            run_id = %self.run_id,
+            tree = %new_tree.merkle_tree,
+            "New tree added to tracked list"
+        );
 
         let (current_slot, current_epoch) = self.get_current_slot_and_epoch().await?;
         let phases = get_epoch_phases(&self.protocol_config, current_epoch);
 
         // Check if we're currently in the active phase
         if current_slot >= phases.active.start && current_slot < phases.active.end {
-            info!("Currently in active phase. Attempting to process the new tree immediately.");
-            info!("Recovering registration info...");
+            info!(
+                event = "new_tree_active_phase_injection",
+                run_id = %self.run_id,
+                tree = %new_tree.merkle_tree,
+                current_slot,
+                active_phase_start_slot = phases.active.start,
+                active_phase_end_slot = phases.active.end,
+                "In active phase; attempting immediate processing for new tree"
+            );
+            info!(
+                event = "new_tree_recover_registration_started",
+                run_id = %self.run_id,
+                tree = %new_tree.merkle_tree,
+                epoch = current_epoch,
+                "Recovering registration info for new tree"
+            );
             match self.recover_registration_info(current_epoch).await {
                 Ok(mut epoch_info) => {
-                    info!("Recovered registration info for current epoch");
+                    info!(
+                        event = "new_tree_recover_registration_succeeded",
+                        run_id = %self.run_id,
+                        tree = %new_tree.merkle_tree,
+                        epoch = current_epoch,
+                        "Recovered registration info for current epoch"
+                    );
                     let tree_schedule = TreeForesterSchedule::new_with_schedule(
                         &new_tree,
                         current_slot,
@@ -458,8 +590,15 @@ impl<R: Rpc + Indexer> EpochManager<R> {
 
                     let self_clone = Arc::new(self.clone());
 
-                    info!("Spawning task to process new tree in current epoch");
+                    info!(
+                        event = "new_tree_processing_task_spawned",
+                        run_id = %self.run_id,
+                        tree = %new_tree.merkle_tree,
+                        epoch = current_epoch,
+                        "Spawning task to process new tree in current epoch"
+                    );
                     tokio::spawn(async move {
+                        let tree_pubkey = tree_schedule.tree_accounts.merkle_tree;
                         if let Err(e) = self_clone
                             .process_queue(
                                 &epoch_info.epoch,
@@ -468,9 +607,20 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                             )
                             .await
                         {
-                            error!("Error processing queue for new tree: {:?}", e);
+                            error!(
+                                event = "new_tree_process_queue_failed",
+                                run_id = %self_clone.run_id,
+                                tree = %tree_pubkey,
+                                error = ?e,
+                                "Error processing queue for new tree"
+                            );
                         } else {
-                            info!("Successfully processed new tree in current epoch");
+                            info!(
+                                event = "new_tree_process_queue_succeeded",
+                                run_id = %self_clone.run_id,
+                                tree = %tree_pubkey,
+                                "Successfully processed new tree in current epoch"
+                            );
                         }
                     });
                 }
@@ -482,19 +632,33 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                     ) {
                         debug!("Not registered for current epoch yet, new tree will be picked up during next registration");
                     } else {
-                        warn!("Failed to recover registration info for new tree: {:?}", e);
+                        warn!(
+                            event = "new_tree_recover_registration_failed",
+                            run_id = %self.run_id,
+                            tree = %new_tree.merkle_tree,
+                            epoch = current_epoch,
+                            error = ?e,
+                            "Failed to recover registration info for new tree"
+                        );
                     }
                 }
             }
 
             info!(
-                "Injected new tree into current epoch {}: {:?}",
-                current_epoch, new_tree
+                event = "new_tree_injected_into_current_epoch",
+                run_id = %self.run_id,
+                tree = %new_tree.merkle_tree,
+                epoch = current_epoch,
+                "Injected new tree into current epoch"
             );
         } else {
             info!(
-                "Not in active phase (current slot: {}, active start: {}). Tree will be picked up in next registration.",
-                current_slot, phases.active.start
+                event = "new_tree_queued_for_next_registration",
+                run_id = %self.run_id,
+                tree = %new_tree.merkle_tree,
+                current_slot,
+                active_phase_start_slot = phases.active.start,
+                "Not in active phase; new tree will be picked up in next registration"
             );
         }
 
@@ -507,15 +671,20 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         let mut consecutive_failures = 0u32;
         const MAX_BACKOFF_SECS: u64 = 60;
 
-        info!("Starting epoch monitor");
+        info!(
+            event = "epoch_monitor_started",
+            run_id = %self.run_id,
+            "Starting epoch monitor"
+        );
 
         loop {
             let (slot, current_epoch) = match self.get_current_slot_and_epoch().await {
                 Ok(result) => {
                     if consecutive_failures > 0 {
                         info!(
-                            "Epoch monitor recovered after {} consecutive failures",
-                            consecutive_failures
+                            event = "epoch_monitor_recovered",
+                            run_id = %self.run_id,
+                            consecutive_failures, "Epoch monitor recovered after failures"
                         );
                     }
                     consecutive_failures = 0;
@@ -528,13 +697,21 @@ impl<R: Rpc + Indexer> EpochManager<R> {
 
                     if consecutive_failures == 1 {
                         warn!(
-                            "Epoch monitor: failed to get slot/epoch: {:?}. Retrying in {:?}",
-                            e, backoff
+                            event = "epoch_monitor_slot_epoch_failed",
+                            run_id = %self.run_id,
+                            consecutive_failures,
+                            error = ?e,
+                            backoff_ms = backoff.as_millis() as u64,
+                            "Epoch monitor failed to get slot/epoch; retrying"
                         );
                     } else if consecutive_failures.is_multiple_of(10) {
                         error!(
-                            "Epoch monitor: {} consecutive failures, last error: {:?}. Still retrying every {:?}",
-                            consecutive_failures, e, backoff
+                            event = "epoch_monitor_slot_epoch_failed_repeated",
+                            run_id = %self.run_id,
+                            consecutive_failures,
+                            error = ?e,
+                            backoff_ms = backoff.as_millis() as u64,
+                            "Epoch monitor still failing repeatedly"
                         );
                     }
 
@@ -544,19 +721,36 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             };
 
             debug!(
-                "last_epoch: {:?}, current_epoch: {:?}, slot: {:?}",
-                last_epoch, current_epoch, slot
+                event = "epoch_monitor_tick",
+                run_id = %self.run_id,
+                last_epoch = ?last_epoch,
+                current_epoch,
+                slot,
+                "Epoch monitor tick"
             );
 
             if last_epoch.is_none_or(|last| current_epoch > last) {
-                debug!("New epoch detected: {}", current_epoch);
+                debug!(
+                    event = "epoch_monitor_new_epoch_detected",
+                    run_id = %self.run_id,
+                    epoch = current_epoch,
+                    "New epoch detected"
+                );
                 let phases = get_epoch_phases(&self.protocol_config, current_epoch);
                 if slot < phases.registration.end {
-                    debug!("Sending current epoch {} for processing", current_epoch);
+                    debug!(
+                        event = "epoch_monitor_send_current_epoch",
+                        run_id = %self.run_id,
+                        epoch = current_epoch,
+                        "Sending current epoch for processing"
+                    );
                     if let Err(e) = tx.send(current_epoch).await {
                         error!(
-                            "Failed to send current epoch {} for processing: {:?}. Channel closed, exiting.",
-                            current_epoch, e
+                            event = "epoch_monitor_send_current_epoch_failed",
+                            run_id = %self.run_id,
+                            epoch = current_epoch,
+                            error = ?e,
+                            "Failed to send current epoch for processing; channel closed"
                         );
                         return Err(anyhow!("Epoch channel closed: {}", e));
                     }
@@ -577,7 +771,13 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                         let mut rpc = match self.rpc_pool.get_connection().await {
                             Ok(rpc) => rpc,
                             Err(e) => {
-                                warn!("Failed to get RPC connection for slot waiting: {:?}", e);
+                                warn!(
+                                    event = "epoch_monitor_wait_rpc_connection_failed",
+                                    run_id = %self.run_id,
+                                    target_epoch,
+                                    error = ?e,
+                                    "Failed to get RPC connection while waiting for registration slot"
+                                );
                                 tokio::time::sleep(Duration::from_secs(1)).await;
                                 break;
                             }
@@ -591,36 +791,59 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                         let slots_to_wait = wait_target.saturating_sub(slot);
 
                         debug!(
-                            "Waiting for epoch {} registration phase. Current slot: {}, Wait target: {} (registration starts at {}), Slots to wait: {}",
-                            target_epoch, slot, wait_target, target_phases.registration.start, slots_to_wait
+                            event = "epoch_monitor_wait_for_registration",
+                            run_id = %self.run_id,
+                            target_epoch,
+                            current_slot = slot,
+                            wait_target_slot = wait_target,
+                            registration_start_slot = target_phases.registration.start,
+                            slots_to_wait,
+                            "Waiting for target epoch registration phase"
                         );
 
                         if let Err(e) =
                             wait_until_slot_reached(&mut *rpc, &self.slot_tracker, wait_target)
                                 .await
                         {
-                            error!("Error waiting for registration phase: {:?}", e);
+                            error!(
+                                event = "epoch_monitor_wait_for_registration_failed",
+                                run_id = %self.run_id,
+                                target_epoch,
+                                error = ?e,
+                                "Error waiting for registration phase"
+                            );
                             break;
                         }
 
                         let current_slot = self.slot_tracker.estimated_current_slot();
                         if current_slot >= target_phases.registration.end {
                             debug!(
-                                "Epoch {} registration ended while waiting (current slot {} >= end {}), trying next epoch",
-                                target_epoch, current_slot, target_phases.registration.end
+                                event = "epoch_monitor_registration_ended_while_waiting",
+                                run_id = %self.run_id,
+                                target_epoch,
+                                current_slot,
+                                registration_end_slot = target_phases.registration.end,
+                                "Target epoch registration ended while waiting; trying next epoch"
                             );
                             target_epoch += 1;
                             continue;
                         }
 
                         debug!(
-                            "Epoch {} registration phase ready, sending for processing (current slot: {}, registration end: {})",
-                            target_epoch, current_slot, target_phases.registration.end
+                            event = "epoch_monitor_send_target_epoch_after_wait",
+                            run_id = %self.run_id,
+                            target_epoch,
+                            current_slot,
+                            registration_end_slot = target_phases.registration.end,
+                            "Target epoch registration phase ready; sending for processing"
                         );
                         if let Err(e) = tx.send(target_epoch).await {
                             error!(
-                                "Failed to send epoch {} for processing: {:?}",
-                                target_epoch, e
+                                event = "epoch_monitor_send_target_epoch_failed",
+                                run_id = %self.run_id,
+                                target_epoch,
+                                error = ?e,
+                                "Failed to send target epoch for processing"
                             );
                             break;
                         }
@@ -631,13 +854,20 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                     // If we're within the registration window, send it
                     if slot < target_phases.registration.end {
                         debug!(
-                            "Epoch {} registration phase is open (slot {} < end {}), sending for processing",
-                            target_epoch, slot, target_phases.registration.end
+                            event = "epoch_monitor_send_target_epoch_window_open",
+                            run_id = %self.run_id,
+                            target_epoch,
+                            slot,
+                            registration_end_slot = target_phases.registration.end,
+                            "Target epoch registration window is open; sending for processing"
                         );
                         if let Err(e) = tx.send(target_epoch).await {
                             error!(
-                                "Failed to send epoch {} for processing: {:?}",
-                                target_epoch, e
+                                event = "epoch_monitor_send_target_epoch_failed",
+                                run_id = %self.run_id,
+                                target_epoch,
+                                error = ?e,
+                                "Failed to send target epoch for processing"
                             );
                             break;
                         }
@@ -647,8 +877,12 @@ impl<R: Rpc + Indexer> EpochManager<R> {
 
                     // Registration already ended, try next epoch
                     debug!(
-                        "Epoch {} registration already ended (slot {} >= end {}), checking next epoch",
-                        target_epoch, slot, target_phases.registration.end
+                        event = "epoch_monitor_target_epoch_registration_closed",
+                        run_id = %self.run_id,
+                        target_epoch,
+                        slot,
+                        registration_end_slot = target_phases.registration.end,
+                        "Target epoch registration already ended; checking next epoch"
                     );
                     target_epoch += 1;
                 }
@@ -718,7 +952,13 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         if slot > current_phases.registration.start {
             debug!("Processing previous epoch: {}", previous_epoch);
             if let Err(e) = tx.send(previous_epoch).await {
-                error!("Failed to send previous epoch for processing: {:?}", e);
+                error!(
+                    event = "initial_epoch_send_previous_failed",
+                    run_id = %self.run_id,
+                    epoch = previous_epoch,
+                    error = ?e,
+                    "Failed to send previous epoch for processing"
+                );
                 return Ok(());
             }
         }
@@ -731,7 +971,13 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 current_epoch
             );
             if let Err(e) = tx.send(current_epoch).await {
-                error!("Failed to send current epoch for processing: {:?}", e);
+                error!(
+                    event = "initial_epoch_send_current_failed",
+                    run_id = %self.run_id,
+                    epoch = current_epoch,
+                    error = ?e,
+                    "Failed to send current epoch for processing"
+                );
                 return Ok(()); // Channel closed, exit gracefully
             }
         } else {
@@ -752,20 +998,32 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                             current_epoch
                         );
                         if let Err(e) = tx.send(current_epoch).await {
-                            error!("Failed to send current epoch for processing: {:?}", e);
+                            error!(
+                                event = "initial_epoch_send_current_registered_failed",
+                                run_id = %self.run_id,
+                                epoch = current_epoch,
+                                error = ?e,
+                                "Failed to send current epoch for processing"
+                            );
                             return Ok(()); // Channel closed, exit gracefully
                         }
                     } else {
-                        warn!(
-                            "Skipping current epoch {} - registration ended at slot {} (current slot: {})",
-                            current_epoch, current_phases.registration.end, slot
+                        info!(
+                            event = "skip_current_epoch_registration_closed",
+                            run_id = %self.run_id,
+                            epoch = current_epoch,
+                            registration_end_slot = current_phases.registration.end,
+                            current_slot = slot,
+                            "Skipping current epoch because registration has ended"
                         );
                     }
                 }
                 Err(e) => {
                     warn!(
-                        "Failed to get RPC connection to check registration, skipping: {:?}",
-                        e
+                        event = "registration_check_rpc_failed",
+                        run_id = %self.run_id,
+                        error = ?e,
+                        "Failed to get RPC connection to check registration, skipping"
                     );
                 }
             }
@@ -818,7 +1076,13 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                         epoch
                     );
                 } else {
-                    warn!("Failed to recover registration info: {:?}", e);
+                    warn!(
+                        event = "recover_registration_info_failed",
+                        run_id = %self.run_id,
+                        epoch,
+                        error = ?e,
+                        "Failed to recover registration info"
+                    );
                 }
                 // Attempt to register
                 match self
@@ -839,9 +1103,16 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                             next_phases.registration.start.saturating_sub(current_slot);
 
                         info!(
-                            "Too late to register for epoch {} (registration ended at slot {}, current slot: {}). Next available epoch: {}. Registration opens at slot {} ({} slots to wait).",
-                            failed_epoch, registration_end, current_slot, next_epoch, next_phases.registration.start, slots_to_wait
-                            );
+                            event = "registration_window_missed",
+                            run_id = %self.run_id,
+                            failed_epoch,
+                            registration_end_slot = registration_end,
+                            current_slot,
+                            next_epoch,
+                            next_registration_start_slot = next_phases.registration.start,
+                            slots_to_wait,
+                            "Too late to register for requested epoch; next epoch will be used"
+                        );
                         return Ok(());
                     }
                     Err(e) => return Err(e.into()),
@@ -870,16 +1141,25 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         if self.sync_slot().await? < phases.report_work.end {
             self.report_work_onchain(&registration_info).await?;
         } else {
+            let current_slot = self.slot_tracker.estimated_current_slot();
             info!(
-                "Skipping on-chain work report for epoch {} (report_work phase ended)",
-                registration_info.epoch.epoch
+                event = "skip_onchain_work_report_phase_ended",
+                run_id = %self.run_id,
+                epoch = registration_info.epoch.epoch,
+                current_slot,
+                report_work_end_slot = phases.report_work.end,
+                "Skipping on-chain work report because report_work phase has ended"
             );
         }
 
         // TODO: implement
         // self.claim(&registration_info).await?;
 
-        info!("Exiting process_epoch");
+        info!(
+            event = "process_epoch_completed",
+            run_id = %self.run_id,
+            epoch, "Exiting process_epoch"
+        );
         Ok(())
     }
 
@@ -920,8 +1200,13 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         if slot < phases.registration.start {
             let slots_to_wait = phases.registration.start.saturating_sub(slot);
             info!(
-                "Registration for epoch {} hasn't started yet (current slot: {}, starts at: {}). Waiting {} slots...",
-                epoch, slot, phases.registration.start, slots_to_wait
+                event = "registration_wait_for_window",
+                run_id = %self.run_id,
+                epoch,
+                current_slot = slot,
+                registration_start_slot = phases.registration.start,
+                slots_to_wait,
+                "Registration window not open yet; waiting"
             );
             let wait_duration = slot_duration() * slots_to_wait as u32;
             sleep(wait_duration).await;
@@ -932,10 +1217,13 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 Ok(registration_info) => return Ok(registration_info),
                 Err(e) => {
                     warn!(
-                        "Failed to register for epoch {} (attempt {}): {:?}",
+                        event = "registration_attempt_failed",
+                        run_id = %self.run_id,
                         epoch,
-                        attempt + 1,
-                        e
+                        attempt = attempt + 1,
+                        max_attempts = max_retries,
+                        error = ?e,
+                        "Failed to register for epoch; retrying"
                     );
                     if attempt < max_retries - 1 {
                         sleep(retry_delay).await;
@@ -954,7 +1242,13 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                             )
                             .await
                             {
-                                error!("Failed to send PagerDuty alert: {:?}", alert_err);
+                                error!(
+                                    event = "pagerduty_alert_failed",
+                                    run_id = %self.run_id,
+                                    epoch,
+                                    error = ?alert_err,
+                                    "Failed to send PagerDuty alert"
+                                );
                             }
                         }
                         return Err(ForesterError::Other(e));
@@ -972,7 +1266,11 @@ impl<R: Rpc + Indexer> EpochManager<R> {
     #[instrument(level = "debug", skip(self), fields(forester = %self.config.payer_keypair.pubkey(), epoch = epoch
     ))]
     async fn register_for_epoch(&self, epoch: u64) -> Result<ForesterEpochInfo> {
-        info!("Registering for epoch: {}", epoch);
+        info!(
+            event = "registration_attempt_started",
+            run_id = %self.run_id,
+            epoch, "Registering for epoch"
+        );
         let mut rpc = LightClient::new(LightClientConfig {
             url: self.config.external_services.rpc_url.to_string(),
             photon_url: self.config.external_services.indexer_url.clone(),
@@ -992,8 +1290,9 @@ impl<R: Rpc + Indexer> EpochManager<R> {
 
             if let Some(existing_pda) = existing_registration {
                 info!(
-                    "Already registered for epoch {}. Recovering registration info.",
-                    epoch
+                    event = "registration_already_exists",
+                    run_id = %self.run_id,
+                    epoch, "Already registered for epoch; recovering registration info"
                 );
                 let registration_info = self
                     .recover_registration_info_internal(
@@ -1067,8 +1366,12 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             Ok(registration_info)
         } else if slot < phases.registration.start {
             warn!(
-                "Too early to register for epoch {}. Current slot: {}, Registration starts: {}",
-                epoch, slot, phases.registration.start
+                event = "registration_too_early",
+                run_id = %self.run_id,
+                epoch,
+                current_slot = slot,
+                registration_start_slot = phases.registration.start,
+                "Too early to register for epoch"
             );
             Err(RegistrationError::RegistrationPhaseNotStarted {
                 epoch,
@@ -1078,8 +1381,12 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             .into())
         } else {
             warn!(
-                "Too late to register for epoch {}. Current slot: {}, Registration end: {}",
-                epoch, slot, phases.registration.end
+                event = "registration_too_late",
+                run_id = %self.run_id,
+                epoch,
+                current_slot = slot,
+                registration_end_slot = phases.registration.end,
+                "Too late to register for epoch"
             );
             Err(RegistrationError::RegistrationPhaseEnded {
                 epoch,
@@ -1144,16 +1451,26 @@ impl<R: Rpc + Indexer> EpochManager<R> {
 
         if current_slot >= active_phase_start_slot {
             info!(
-                "Active phase has already started. Current slot: {}. Active phase start slot: {}. Slots left: {}.",
-                current_slot, active_phase_start_slot, active_phase_end_slot.saturating_sub(current_slot)
+                event = "active_phase_already_started",
+                run_id = %self.run_id,
+                current_slot,
+                active_phase_start_slot,
+                active_phase_end_slot,
+                slots_left = active_phase_end_slot.saturating_sub(current_slot),
+                "Active phase has already started"
             );
         } else {
             let waiting_slots = active_phase_start_slot - current_slot;
             let waiting_secs = waiting_slots / 2;
-            info!("Waiting for active phase to start. Current slot: {}. Active phase start slot: {}. Waiting time: ~ {} seconds",
+            info!(
+                event = "wait_for_active_phase",
+                run_id = %self.run_id,
                 current_slot,
                 active_phase_start_slot,
-                waiting_secs);
+                waiting_slots,
+                approx_wait_seconds = waiting_secs,
+                "Waiting for active phase to start"
+            );
         }
 
         self.prewarm_all_trees_during_wait(epoch_info, active_phase_start_slot)
@@ -1175,13 +1492,19 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 let current_slot = rpc.get_slot().await?;
                 if current_slot > epoch_info.epoch.phases.active.end {
                     info!(
-                        "Skipping FinalizeRegistration for epoch {}: active phase ended (current slot: {}, end: {})",
-                        epoch_info.epoch.epoch, current_slot, epoch_info.epoch.phases.active.end
+                        event = "skip_finalize_registration_phase_ended",
+                        run_id = %self.run_id,
+                        epoch = epoch_info.epoch.epoch,
+                        current_slot,
+                        active_phase_end_slot = epoch_info.epoch.phases.active.end,
+                        "Skipping FinalizeRegistration because active phase ended"
                     );
-                    return Err(anyhow::anyhow!(
-                        "Epoch {} active phase has ended, cannot finalize registration",
-                        epoch_info.epoch.epoch
-                    ));
+                    return Err(RegistrationError::FinalizeRegistrationPhaseEnded {
+                        epoch: epoch_info.epoch.epoch,
+                        current_slot,
+                        active_phase_end_slot: epoch_info.epoch.phases.active.end,
+                    }
+                    .into());
                 }
 
                 // TODO: we can put this ix into every tx of the first batch of the current active phase
@@ -1237,7 +1560,12 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             debug!("Added compression tree to epoch {}", epoch_info.epoch.epoch);
         }
 
-        info!("Finished waiting for active phase");
+        info!(
+            event = "active_phase_ready",
+            run_id = %self.run_id,
+            epoch = epoch_info.epoch.epoch,
+            "Finished waiting for active phase"
+        );
         Ok(epoch_info)
     }
 
@@ -1249,13 +1577,19 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         fields(forester = %self.config.payer_keypair.pubkey(), epoch = epoch_info.epoch.epoch
     ))]
     async fn perform_active_work(&self, epoch_info: &ForesterEpochInfo) -> Result<()> {
-        info!("Performing active work");
+        self.heartbeat.increment_active_cycle();
 
         let current_slot = self.slot_tracker.estimated_current_slot();
         let active_phase_end = epoch_info.epoch.phases.active.end;
 
         if !self.is_in_active_phase(current_slot, epoch_info)? {
-            info!("No longer in active phase. Skipping work.");
+            info!(
+                event = "active_work_skipped_not_in_phase",
+                run_id = %self.run_id,
+                current_slot,
+                active_phase_end,
+                "No longer in active phase. Skipping work."
+            );
             return Ok(());
         }
 
@@ -1268,16 +1602,29 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             .cloned()
             .collect();
 
+        info!(
+            event = "active_work_cycle_started",
+            run_id = %self.run_id,
+            current_slot,
+            active_phase_end,
+            tree_count = trees_to_process.len(),
+            "Starting active work cycle"
+        );
+
         let self_arc = Arc::new(self.clone());
         let epoch_info_arc = Arc::new(epoch_info.clone());
 
         let mut handles: Vec<JoinHandle<Result<()>>> = Vec::with_capacity(trees_to_process.len());
 
         for tree in trees_to_process {
-            info!(
-                "Creating thread for tree {} (type: {:?})",
-                tree.tree_accounts.merkle_tree, tree.tree_accounts.tree_type
+            debug!(
+                event = "tree_processing_task_spawned",
+                run_id = %self.run_id,
+                tree = %tree.tree_accounts.merkle_tree,
+                tree_type = ?tree.tree_accounts.tree_type,
+                "Spawning tree processing task"
             );
+            self.heartbeat.add_tree_tasks_spawned(1);
 
             let self_clone = self_arc.clone();
             let epoch_info_clone = epoch_info_arc.clone();
@@ -1295,17 +1642,43 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             handles.push(handle);
         }
 
-        info!("Waiting for {} tree processing tasks", handles.len());
+        debug!("Waiting for {} tree processing tasks", handles.len());
         let results = join_all(handles).await;
+        let mut success_count = 0usize;
+        let mut error_count = 0usize;
+        let mut panic_count = 0usize;
         for result in results {
             match result {
-                Ok(Ok(())) => {
-                    debug!("Queue processed successfully");
+                Ok(Ok(())) => success_count += 1,
+                Ok(Err(e)) => {
+                    error_count += 1;
+                    error!(
+                        event = "tree_processing_task_failed",
+                        run_id = %self.run_id,
+                        error = ?e,
+                        "Error processing queue"
+                    );
                 }
-                Ok(Err(e)) => error!("Error processing queue: {:?}", e),
-                Err(e) => error!("Task panicked: {:?}", e),
+                Err(e) => {
+                    panic_count += 1;
+                    error!(
+                        event = "tree_processing_task_panicked",
+                        run_id = %self.run_id,
+                        error = ?e,
+                        "Tree processing task panicked"
+                    );
+                }
             }
         }
+        info!(
+            event = "active_work_cycle_completed",
+            run_id = %self.run_id,
+            tree_tasks = success_count + error_count + panic_count,
+            succeeded = success_count,
+            failed = error_count,
+            panicked = panic_count,
+            "Active work cycle completed"
+        );
 
         debug!("Waiting for active phase to end");
         let mut rpc = self.rpc_pool.get_connection().await?;
@@ -1332,19 +1705,23 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         epoch_pda: &ForesterEpochPda,
         mut tree_schedule: TreeForesterSchedule,
     ) -> Result<()> {
+        self.heartbeat.increment_queue_started();
         let mut current_slot = self.slot_tracker.estimated_current_slot();
 
         let total_slots = tree_schedule.slots.len();
         let eligible_slots = tree_schedule.slots.iter().filter(|s| s.is_some()).count();
         let tree_type = tree_schedule.tree_accounts.tree_type;
 
-        info!(
-            "process_queue tree={}, total_slots={}, eligible_slots={}, current_slot={}, active_phase_end={}",
-            tree_schedule.tree_accounts.merkle_tree,
+        debug!(
+            event = "process_queue_started",
+            run_id = %self.run_id,
+            tree = %tree_schedule.tree_accounts.merkle_tree,
+            tree_type = ?tree_type,
             total_slots,
             eligible_slots,
             current_slot,
-            epoch_info.phases.active.end
+            active_phase_end = epoch_info.phases.active.end,
+            "Processing queue for tree"
         );
 
         'outer_slot_loop: while current_slot < epoch_info.phases.active.end {
@@ -1389,16 +1766,21 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                     }
                     Err(e) => {
                         error!(
-                            "Error processing light slot {:?}: {:?}",
-                            light_slot_details.slot, e
+                            event = "light_slot_processing_error",
+                            run_id = %self.run_id,
+                            light_slot = light_slot_details.slot,
+                            error = ?e,
+                            "Error processing light slot"
                         );
                     }
                 }
                 tree_schedule.slots[slot_idx] = None;
             } else {
-                info!(
-                    "No further eligible slots in schedule for tree {}",
-                    tree_schedule.tree_accounts.merkle_tree
+                debug!(
+                    event = "process_queue_no_eligible_slots",
+                    run_id = %self.run_id,
+                    tree = %tree_schedule.tree_accounts.merkle_tree,
+                    "No further eligible slots in schedule"
                 );
                 break 'outer_slot_loop;
             }
@@ -1406,9 +1788,12 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             current_slot = self.slot_tracker.estimated_current_slot();
         }
 
-        info!(
-            "Exiting process_queue for tree {}",
-            tree_schedule.tree_accounts.merkle_tree
+        self.heartbeat.increment_queue_finished();
+        debug!(
+            event = "process_queue_finished",
+            run_id = %self.run_id,
+            tree = %tree_schedule.tree_accounts.merkle_tree,
+            "Exiting process_queue"
         );
         Ok(())
     }
@@ -1426,12 +1811,15 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         tree_accounts: &TreeAccounts,
         forester_slot_details: &ForesterSlot,
     ) -> Result<()> {
-        info!(
-            "Processing slot {} ({}-{}) epoch {}",
-            forester_slot_details.slot,
-            forester_slot_details.start_solana_slot,
-            forester_slot_details.end_solana_slot,
-            epoch_info.epoch
+        debug!(
+            event = "light_slot_processing_started",
+            run_id = %self.run_id,
+            tree = %tree_accounts.merkle_tree,
+            epoch = epoch_info.epoch,
+            light_slot = forester_slot_details.slot,
+            slot_start = forester_slot_details.start_solana_slot,
+            slot_end = forester_slot_details.end_solana_slot,
+            "Processing light slot"
         );
         let mut rpc = self.rpc_pool.get_connection().await?;
         wait_until_slot_reached(
@@ -1454,7 +1842,15 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             let current_light_slot = (estimated_slot - epoch_info.phases.active.start)
                 / epoch_pda.protocol_config.slot_length;
             if current_light_slot != forester_slot_details.slot {
-                warn!("Light slot mismatch. Exiting processing for this slot.");
+                warn!(
+                    event = "light_slot_mismatch",
+                    run_id = %self.run_id,
+                    tree = %tree_accounts.merkle_tree,
+                    expected_light_slot = forester_slot_details.slot,
+                    actual_light_slot = current_light_slot,
+                    estimated_slot,
+                    "Light slot mismatch; exiting processing for this slot"
+                );
                 break 'inner_processing_loop;
             }
 
@@ -1486,16 +1882,23 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 Ok(count) => count,
                 Err(e) => {
                     error!(
-                        "Failed processing in slot {:?}: {:?}",
-                        forester_slot_details.slot, e
+                        event = "light_slot_processing_failed",
+                        run_id = %self.run_id,
+                        tree = %tree_accounts.merkle_tree,
+                        light_slot = forester_slot_details.slot,
+                        error = ?e,
+                        "Failed processing in light slot"
                     );
                     break 'inner_processing_loop;
                 }
             };
             if items_processed_this_iteration > 0 {
                 debug!(
-                    "Processed {} items in slot {:?}",
-                    items_processed_this_iteration, forester_slot_details.slot
+                    event = "light_slot_items_processed",
+                    run_id = %self.run_id,
+                    light_slot = forester_slot_details.slot,
+                    items = items_processed_this_iteration,
+                    "Processed items in light slot"
                 );
             }
 
@@ -1507,7 +1910,21 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             .await;
 
             if let Err(e) = push_metrics(&self.config.external_services.pushgateway_url).await {
-                warn!("Failed to push metrics: {:?}", e);
+                if should_emit_rate_limited_warning("push_metrics_v1", Duration::from_secs(30)) {
+                    warn!(
+                        event = "metrics_push_failed",
+                        run_id = %self.run_id,
+                        error = ?e,
+                        "Failed to push metrics"
+                    );
+                } else {
+                    debug!(
+                        event = "metrics_push_failed_suppressed",
+                        run_id = %self.run_id,
+                        error = ?e,
+                        "Suppressing repeated metrics push failure"
+                    );
+                }
             }
             estimated_slot = self.slot_tracker.estimated_current_slot();
 
@@ -1535,12 +1952,15 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         forester_slot_details: &ForesterSlot,
         consecutive_eligibility_end: u64,
     ) -> Result<()> {
-        info!(
-            "Processing V2 light slot {} ({}-{}, consecutive_end={})",
-            forester_slot_details.slot,
-            forester_slot_details.start_solana_slot,
-            forester_slot_details.end_solana_slot,
-            consecutive_eligibility_end
+        debug!(
+            event = "v2_light_slot_processing_started",
+            run_id = %self.run_id,
+            tree = %tree_accounts.merkle_tree,
+            light_slot = forester_slot_details.slot,
+            slot_start = forester_slot_details.start_solana_slot,
+            slot_end = forester_slot_details.end_solana_slot,
+            consecutive_eligibility_end_slot = consecutive_eligibility_end,
+            "Processing V2 light slot"
         );
 
         let tree_pubkey = tree_accounts.merkle_tree;
@@ -1562,8 +1982,12 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             if items_sent > 0 {
                 let cached_send_duration = cached_send_start.elapsed();
                 info!(
-                    "Sent {} items from cache for tree {} in {:?}",
-                    items_sent, tree_pubkey, cached_send_duration
+                    event = "cached_proofs_sent",
+                    run_id = %self.run_id,
+                    tree = %tree_pubkey,
+                    items = items_sent,
+                    duration_ms = cached_send_duration.as_millis() as u64,
+                    "Sent items from proof cache"
                 );
                 self.update_metrics_and_counts(epoch_info.epoch, items_sent, cached_send_duration)
                     .await;
@@ -1587,7 +2011,15 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             let current_light_slot = (estimated_slot - epoch_info.phases.active.start)
                 / epoch_pda.protocol_config.slot_length;
             if current_light_slot != forester_slot_details.slot {
-                warn!("V2 slot mismatch. Exiting processing.");
+                warn!(
+                    event = "v2_light_slot_mismatch",
+                    run_id = %self.run_id,
+                    tree = %tree_pubkey,
+                    expected_light_slot = forester_slot_details.slot,
+                    actual_light_slot = current_light_slot,
+                    estimated_slot,
+                    "V2 slot mismatch; exiting processing"
+                );
                 break 'inner_processing_loop;
             }
 
@@ -1619,7 +2051,14 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             {
                 Ok(count) => {
                     if count > 0 {
-                        info!("V2 processed {} items for tree {}", count, tree_pubkey);
+                        info!(
+                            event = "v2_tree_processed_items",
+                            run_id = %self.run_id,
+                            tree = %tree_pubkey,
+                            items = count,
+                            epoch = epoch_info.epoch,
+                            "V2 processed items for tree"
+                        );
                         self.update_metrics_and_counts(
                             epoch_info.epoch,
                             count,
@@ -1632,13 +2071,33 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                     }
                 }
                 Err(e) => {
-                    error!("V2 processing failed for tree {}: {:?}", tree_pubkey, e);
+                    error!(
+                        event = "v2_tree_processing_failed",
+                        run_id = %self.run_id,
+                        tree = %tree_pubkey,
+                        error = ?e,
+                        "V2 processing failed for tree"
+                    );
                     tokio::time::sleep(POLL_INTERVAL).await;
                 }
             }
 
             if let Err(e) = push_metrics(&self.config.external_services.pushgateway_url).await {
-                warn!("Failed to push metrics: {:?}", e);
+                if should_emit_rate_limited_warning("push_metrics_v2", Duration::from_secs(30)) {
+                    warn!(
+                        event = "metrics_push_failed",
+                        run_id = %self.run_id,
+                        error = ?e,
+                        "Failed to push metrics"
+                    );
+                } else {
+                    debug!(
+                        event = "metrics_push_failed_suppressed",
+                        run_id = %self.run_id,
+                        error = ?e,
+                        "Suppressing repeated metrics push failure"
+                    );
+                }
             }
             estimated_slot = self.slot_tracker.estimated_current_slot();
         }
@@ -1680,16 +2139,26 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             current_epoch_num,
         )
         .map_err(|e| {
-            error!("Failed to calculate eligible forester index: {:?}", e);
+            error!(
+                event = "eligibility_index_calculation_failed",
+                run_id = %self.run_id,
+                queue = %queue_pubkey,
+                epoch = current_epoch_num,
+                light_slot = current_light_slot,
+                error = ?e,
+                "Failed to calculate eligible forester index"
+            );
             anyhow::anyhow!("Eligibility calculation failed: {}", e)
         })?;
 
         if !epoch_pda.is_eligible(eligible_forester_slot_index) {
             warn!(
-                "Forester {} is no longer eligible to process tree {} in light slot {}.",
-                self.config.payer_keypair.pubkey(),
-                queue_pubkey,
-                current_light_slot
+                event = "forester_not_eligible_for_slot",
+                run_id = %self.run_id,
+                forester = %self.config.payer_keypair.pubkey(),
+                queue = %queue_pubkey,
+                light_slot = current_light_slot,
+                "Forester is no longer eligible to process this queue in current light slot"
             );
             return Ok(false);
         }
@@ -1781,10 +2250,12 @@ impl<R: Rpc + Indexer> EpochManager<R> {
 
         let num_batches = accounts.len().div_ceil(config.batch_size);
         info!(
-            "Processing {} compressible accounts in {} batches (batch_size={})",
-            accounts.len(),
-            num_batches,
-            config.batch_size
+            event = "compression_ctoken_started",
+            run_id = %self.run_id,
+            accounts = accounts.len(),
+            batches = num_batches,
+            batch_size = config.batch_size,
+            "Starting ctoken compression batches"
         );
 
         let compressor = CTokenCompressor::new(
@@ -1835,11 +2306,17 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                     // Signal cancellation to all other futures
                     cancelled.store(true, Ordering::Relaxed);
                     warn!(
-                        "Cancelling compression: forester no longer eligible (current_slot={}, eligibility_end={})",
+                        event = "compression_ctoken_cancelled_not_eligible",
+                        run_id = %self.run_id,
                         current_slot,
-                        consecutive_eligibility_end
+                        eligibility_end_slot = consecutive_eligibility_end,
+                        "Cancelling compression because forester is no longer eligible"
                     );
-                    return Err((batch_idx, batch.len(), anyhow!("Forester no longer eligible")));
+                    return Err((
+                        batch_idx,
+                        batch.len(),
+                        anyhow!("Forester no longer eligible"),
+                    ));
                 }
 
                 debug!(
@@ -1864,10 +2341,12 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                     }
                     Err(e) => {
                         error!(
-                            "Compression batch {}/{} failed: {:?}",
-                            batch_idx + 1,
-                            num_batches,
-                            e
+                            event = "compression_ctoken_batch_failed",
+                            run_id = %self.run_id,
+                            batch = batch_idx + 1,
+                            total_batches = num_batches,
+                            error = ?e,
+                            "Compression batch failed"
                         );
                         Err((batch_idx, batch.len(), e))
                     }
@@ -1887,29 +2366,36 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             match result {
                 Ok((batch_idx, count, sig)) => {
                     info!(
-                        "Successfully compressed {} accounts in batch {}/{}: {}",
-                        count,
-                        batch_idx + 1,
-                        num_batches,
-                        sig
+                        event = "compression_ctoken_batch_succeeded",
+                        run_id = %self.run_id,
+                        batch = batch_idx + 1,
+                        total_batches = num_batches,
+                        accounts = count,
+                        signature = %sig,
+                        "Compression batch succeeded"
                     );
                     total_compressed += count;
                 }
                 Err((batch_idx, count, e)) => {
                     error!(
-                        "Compression batch {}/{} ({} accounts) failed: {:?}",
-                        batch_idx + 1,
-                        num_batches,
-                        count,
-                        e
+                        event = "compression_ctoken_batch_failed_final",
+                        run_id = %self.run_id,
+                        batch = batch_idx + 1,
+                        total_batches = num_batches,
+                        accounts = count,
+                        error = ?e,
+                        "Compression batch failed"
                     );
                 }
             }
         }
 
         info!(
-            "Completed ctoken compression for epoch {}: compressed {} accounts",
-            epoch_info.epoch, total_compressed
+            event = "compression_ctoken_completed",
+            run_id = %self.run_id,
+            epoch = epoch_info.epoch,
+            compressed_accounts = total_compressed,
+            "Completed ctoken compression"
         );
 
         // Process PDA compression if configured
@@ -1917,7 +2403,12 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             .dispatch_pda_compression(consecutive_eligibility_end)
             .await
             .unwrap_or_else(|e| {
-                error!("PDA compression failed: {:?}", e);
+                error!(
+                    event = "compression_pda_dispatch_failed",
+                    run_id = %self.run_id,
+                    error = ?e,
+                    "PDA compression failed"
+                );
                 0
             });
 
@@ -1926,14 +2417,25 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             .dispatch_mint_compression(consecutive_eligibility_end)
             .await
             .unwrap_or_else(|e| {
-                error!("Mint compression failed: {:?}", e);
+                error!(
+                    event = "compression_mint_dispatch_failed",
+                    run_id = %self.run_id,
+                    error = ?e,
+                    "Mint compression failed"
+                );
                 0
             });
 
         let total = total_compressed + pda_compressed + mint_compressed;
         info!(
-            "Completed all compression for epoch {}: {} ctoken + {} PDA + {} Mint = {} total",
-            epoch_info.epoch, total_compressed, pda_compressed, mint_compressed, total
+            event = "compression_all_completed",
+            run_id = %self.run_id,
+            epoch = epoch_info.epoch,
+            ctoken_compressed = total_compressed,
+            pda_compressed,
+            mint_compressed,
+            total_compressed = total,
+            "Completed all compression"
         );
         Ok(total)
     }
@@ -1986,9 +2488,11 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             }
 
             info!(
-                "Processing {} compressible PDA accounts for program {}",
-                accounts.len(),
-                program_config.program_id
+                event = "compression_pda_program_started",
+                run_id = %self.run_id,
+                program = %program_config.program_id,
+                accounts = accounts.len(),
+                "Processing compressible PDA accounts for program"
             );
 
             let pda_compressor = crate::compressible::pda::PdaCompressor::new(
@@ -2002,8 +2506,11 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 Ok(cfg) => cfg,
                 Err(e) => {
                     error!(
-                        "Failed to fetch config for program {}: {:?}",
-                        program_config.program_id, e
+                        event = "compression_pda_program_config_failed",
+                        run_id = %self.run_id,
+                        program = %program_config.program_id,
+                        error = ?e,
+                        "Failed to fetch config for PDA program"
                     );
                     continue;
                 }
@@ -2014,8 +2521,11 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             if current_slot >= consecutive_eligibility_end {
                 cancelled.store(true, Ordering::Relaxed);
                 warn!(
-                    "Stopping PDA compression: forester no longer eligible (current_slot={}, eligibility_end={})",
-                    current_slot, consecutive_eligibility_end
+                    event = "compression_pda_cancelled_not_eligible",
+                    run_id = %self.run_id,
+                    current_slot,
+                    eligibility_end_slot = consecutive_eligibility_end,
+                    "Stopping PDA compression because forester is no longer eligible"
                 );
                 break;
             }
@@ -2044,8 +2554,12 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                     Err((account_state, e)) => {
                         if e.to_string() != "Cancelled" {
                             error!(
-                                "Failed to compress PDA {} for program {}: {:?}",
-                                account_state.pubkey, program_config.program_id, e
+                                event = "compression_pda_account_failed",
+                                run_id = %self.run_id,
+                                account = %account_state.pubkey,
+                                program = %program_config.program_id,
+                                error = ?e,
+                                "Failed to compress PDA account"
                             );
                         }
                     }
@@ -2053,7 +2567,12 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             }
         }
 
-        info!("Completed PDA compression: {} accounts", total_compressed);
+        info!(
+            event = "compression_pda_completed",
+            run_id = %self.run_id,
+            compressed_accounts = total_compressed,
+            "Completed PDA compression"
+        );
         Ok(total_compressed)
     }
 
@@ -2085,9 +2604,11 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         }
 
         info!(
-            "Processing {} compressible Mint accounts concurrently (max_concurrent={})",
-            accounts.len(),
-            config.max_concurrent_batches
+            event = "compression_mint_started",
+            run_id = %self.run_id,
+            accounts = accounts.len(),
+            max_concurrent = config.max_concurrent_batches,
+            "Processing compressible Mint accounts"
         );
 
         let mint_compressor = crate::compressible::mint::MintCompressor::new(
@@ -2114,13 +2635,24 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 }
                 Err((mint_state, e)) => {
                     if e.to_string() != "Cancelled" {
-                        error!("Failed to compress Mint {}: {:?}", mint_state.pubkey, e);
+                        error!(
+                            event = "compression_mint_account_failed",
+                            run_id = %self.run_id,
+                            mint = %mint_state.pubkey,
+                            error = ?e,
+                            "Failed to compress mint account"
+                        );
                     }
                 }
             }
         }
 
-        info!("Completed Mint compression: {} accounts", total_compressed);
+        info!(
+            event = "compression_mint_completed",
+            run_id = %self.run_id,
+            compressed_accounts = total_compressed,
+            "Completed Mint compression"
+        );
         Ok(total_compressed)
     }
 
@@ -2174,15 +2706,25 @@ impl<R: Rpc + Indexer> EpochManager<R> {
 
         if num_sent > 0 {
             debug!(
-                "processed {} items v1 tree {}",
-                num_sent, tree_accounts.merkle_tree
+                event = "v1_tree_items_processed",
+                run_id = %self.run_id,
+                tree = %tree_accounts.merkle_tree,
+                items = num_sent,
+                "Processed items for V1 tree"
             );
         }
 
         match self.rollover_if_needed(tree_accounts).await {
             Ok(_) => Ok(num_sent),
             Err(e) => {
-                error!("Failed to rollover tree: {:?}", e);
+                error!(
+                    event = "tree_rollover_failed",
+                    run_id = %self.run_id,
+                    tree = %tree_accounts.merkle_tree,
+                    tree_type = ?tree_accounts.tree_type,
+                    error = ?e,
+                    "Failed to rollover tree"
+                );
                 Err(e)
             }
         }
@@ -2201,6 +2743,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         BatchContext {
             rpc_pool: self.rpc_pool.clone(),
             authority: self.authority.clone(),
+            run_id: self.run_id.clone(),
             derivation: self.config.derivation_pubkey,
             epoch: epoch_info.epoch,
             merkle_tree: tree_accounts.merkle_tree,
@@ -2257,6 +2800,14 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         epoch_info: &Epoch,
         tree_accounts: &TreeAccounts,
     ) -> Result<Arc<Mutex<QueueProcessor<R, StateTreeStrategy>>>> {
+        // Serialize initialization per tree to avoid duplicate expensive processor construction.
+        let init_lock = self
+            .state_processor_init_locks
+            .entry(tree_accounts.merkle_tree)
+            .or_insert_with(|| Arc::new(Mutex::new(())))
+            .clone();
+        let _init_guard = init_lock.lock().await;
+
         // First check if we already have a processor for this tree
         // We REUSE processors across epochs to preserve cached state for optimistic processing
         if let Some(entry) = self.state_processors.get(&tree_accounts.merkle_tree) {
@@ -2295,17 +2846,11 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         self.zkp_batch_sizes
             .insert(tree_accounts.merkle_tree, batch_size);
 
-        // Insert the new processor (or get existing if another task beat us to it)
-        match self.state_processors.entry(tree_accounts.merkle_tree) {
-            Entry::Occupied(occupied) => {
-                // Another task already inserted - use theirs (they may have cached state)
-                Ok(occupied.get().1.clone())
-            }
-            Entry::Vacant(vacant) => {
-                vacant.insert((epoch_info.epoch, processor.clone()));
-                Ok(processor)
-            }
-        }
+        self.state_processors.insert(
+            tree_accounts.merkle_tree,
+            (epoch_info.epoch, processor.clone()),
+        );
+        Ok(processor)
     }
 
     async fn get_or_create_address_processor(
@@ -2313,6 +2858,14 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         epoch_info: &Epoch,
         tree_accounts: &TreeAccounts,
     ) -> Result<Arc<Mutex<QueueProcessor<R, AddressTreeStrategy>>>> {
+        // Serialize initialization per tree to avoid duplicate expensive processor construction.
+        let init_lock = self
+            .address_processor_init_locks
+            .entry(tree_accounts.merkle_tree)
+            .or_insert_with(|| Arc::new(Mutex::new(())))
+            .clone();
+        let _init_guard = init_lock.lock().await;
+
         if let Some(entry) = self.address_processors.get(&tree_accounts.merkle_tree) {
             let (stored_epoch, processor_ref) = entry.value();
             let processor_clone = processor_ref.clone();
@@ -2347,14 +2900,11 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         self.zkp_batch_sizes
             .insert(tree_accounts.merkle_tree, batch_size);
 
-        // Insert the new processor (or get existing if another task beat us to it)
-        match self.address_processors.entry(tree_accounts.merkle_tree) {
-            Entry::Occupied(occupied) => Ok(occupied.get().1.clone()),
-            Entry::Vacant(vacant) => {
-                vacant.insert((epoch_info.epoch, processor.clone()));
-                Ok(processor)
-            }
-        }
+        self.address_processors.insert(
+            tree_accounts.merkle_tree,
+            (epoch_info.epoch, processor.clone()),
+        );
+        Ok(processor)
     }
 
     async fn process_v2(
@@ -2387,28 +2937,52 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                     Err(e) => {
                         if is_v2_error(&e, V2Error::is_constraint) {
                             warn!(
-                                "State processing hit constraint error for tree {}: {}. Dropping processor to flush cache.",
-                                tree_accounts.merkle_tree,
-                                e
+                                event = "v2_state_constraint_error",
+                                run_id = %self.run_id,
+                                tree = %tree_accounts.merkle_tree,
+                                error = %e,
+                                "State processing hit constraint error. Dropping processor to flush cache."
                             );
                             drop(proc); // Release lock before removing
                             self.state_processors.remove(&tree_accounts.merkle_tree);
                             self.proof_caches.remove(&tree_accounts.merkle_tree);
                             Err(e)
                         } else if is_v2_error(&e, V2Error::is_hashchain_mismatch) {
-                            warn!(
-                                "State processing hit hashchain mismatch for tree {}: {}. Clearing cache and retrying.",
-                                tree_accounts.merkle_tree,
-                                e
+                            let warning_key = format!(
+                                "v2_state_hashchain_mismatch:{}",
+                                tree_accounts.merkle_tree
                             );
+                            if should_emit_rate_limited_warning(
+                                warning_key,
+                                Duration::from_secs(15),
+                            ) {
+                                warn!(
+                                    event = "v2_state_hashchain_mismatch",
+                                    run_id = %self.run_id,
+                                    tree = %tree_accounts.merkle_tree,
+                                    error = %e,
+                                    "State processing hit hashchain mismatch. Clearing cache and retrying."
+                                );
+                            }
+                            self.heartbeat.increment_v2_recoverable_error();
                             proc.clear_cache().await;
                             Ok(ProcessingResult::default())
                         } else {
-                            warn!(
-                                "Failed to process state queue for tree {}: {}. Will retry next tick without dropping processor.",
-                                tree_accounts.merkle_tree,
-                                e
-                            );
+                            let warning_key =
+                                format!("v2_state_process_failed:{}", tree_accounts.merkle_tree);
+                            if should_emit_rate_limited_warning(
+                                warning_key,
+                                Duration::from_secs(10),
+                            ) {
+                                warn!(
+                                    event = "v2_state_process_failed_retrying",
+                                    run_id = %self.run_id,
+                                    tree = %tree_accounts.merkle_tree,
+                                    error = %e,
+                                    "Failed to process state queue. Will retry next tick without dropping processor."
+                                );
+                            }
+                            self.heartbeat.increment_v2_recoverable_error();
                             Ok(ProcessingResult::default())
                         }
                     }
@@ -2437,28 +3011,52 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                     Err(e) => {
                         if is_v2_error(&e, V2Error::is_constraint) {
                             warn!(
-                                "Address processing hit constraint error for tree {}: {}. Dropping processor to flush cache.",
-                                tree_accounts.merkle_tree,
-                                e
+                                event = "v2_address_constraint_error",
+                                run_id = %self.run_id,
+                                tree = %tree_accounts.merkle_tree,
+                                error = %e,
+                                "Address processing hit constraint error. Dropping processor to flush cache."
                             );
                             drop(proc);
                             self.address_processors.remove(&tree_accounts.merkle_tree);
                             self.proof_caches.remove(&tree_accounts.merkle_tree);
                             Err(e)
                         } else if is_v2_error(&e, V2Error::is_hashchain_mismatch) {
-                            warn!(
-                                "Address processing hit hashchain mismatch for tree {}: {}. Clearing cache and retrying.",
-                                tree_accounts.merkle_tree,
-                                e
+                            let warning_key = format!(
+                                "v2_address_hashchain_mismatch:{}",
+                                tree_accounts.merkle_tree
                             );
+                            if should_emit_rate_limited_warning(
+                                warning_key,
+                                Duration::from_secs(15),
+                            ) {
+                                warn!(
+                                    event = "v2_address_hashchain_mismatch",
+                                    run_id = %self.run_id,
+                                    tree = %tree_accounts.merkle_tree,
+                                    error = %e,
+                                    "Address processing hit hashchain mismatch. Clearing cache and retrying."
+                                );
+                            }
+                            self.heartbeat.increment_v2_recoverable_error();
                             proc.clear_cache().await;
                             Ok(ProcessingResult::default())
                         } else {
-                            warn!(
-                                "Failed to process address queue for tree {}: {}. Will retry next tick without dropping processor.",
-                                tree_accounts.merkle_tree,
-                                e
-                            );
+                            let warning_key =
+                                format!("v2_address_process_failed:{}", tree_accounts.merkle_tree);
+                            if should_emit_rate_limited_warning(
+                                warning_key,
+                                Duration::from_secs(10),
+                            ) {
+                                warn!(
+                                    event = "v2_address_process_failed_retrying",
+                                    run_id = %self.run_id,
+                                    tree = %tree_accounts.merkle_tree,
+                                    error = %e,
+                                    "Failed to process address queue. Will retry next tick without dropping processor."
+                                );
+                            }
+                            self.heartbeat.increment_v2_recoverable_error();
                             Ok(ProcessingResult::default())
                         }
                     }
@@ -2466,8 +3064,10 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             }
             _ => {
                 warn!(
-                    "Unsupported tree type for V2 processing: {:?}",
-                    tree_accounts.tree_type
+                    event = "v2_unsupported_tree_type",
+                    run_id = %self.run_id,
+                    tree_type = ?tree_accounts.tree_type,
+                    "Unsupported tree type for V2 processing"
                 );
                 Ok(ProcessingResult::default())
             }
@@ -2489,6 +3089,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             queue_metric_update(epoch_num, items_processed, duration);
             self.increment_processed_items_count(epoch_num, items_processed)
                 .await;
+            self.heartbeat.add_items_processed(items_processed);
         }
     }
 
@@ -2519,8 +3120,10 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         if v2_state_trees.is_empty() {
             if skipped_count > 0 {
                 info!(
-                    "No trees to pre-warm: {} StateV2 trees skipped by config",
-                    skipped_count
+                    event = "prewarm_skipped_all_trees_filtered",
+                    run_id = %self.run_id,
+                    skipped_trees = skipped_count,
+                    "No trees to pre-warm; all StateV2 trees skipped by config"
                 );
             }
             return;
@@ -2528,8 +3131,11 @@ impl<R: Rpc + Indexer> EpochManager<R> {
 
         if slots_until_active < 15 {
             info!(
-                "Skipping pre-warming: only {} slots until active phase, not enough time",
-                slots_until_active
+                event = "prewarm_skipped_not_enough_time",
+                run_id = %self.run_id,
+                slots_until_active,
+                min_required_slots = 15,
+                "Skipping pre-warming; not enough slots until active phase"
             );
             return;
         }
@@ -2554,7 +3160,13 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                         let mut rpc = match self_clone.rpc_pool.get_connection().await {
                             Ok(r) => r,
                             Err(e) => {
-                                warn!("Failed to get RPC for cache validation: {:?}", e);
+                                warn!(
+                                    event = "prewarm_cache_validation_rpc_failed",
+                                    run_id = %self_clone.run_id,
+                                    tree = %tree_pubkey,
+                                    error = ?e,
+                                    "Failed to get RPC for cache validation"
+                                );
                                 return;
                             }
                         };
@@ -2562,8 +3174,12 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                             self_clone.fetch_current_root(&mut *rpc, &tree_accounts).await
                         {
                             info!(
-                                "Tree {} has {} cached proofs from previous epoch (root: {:?}), skipping pre-warm",
-                                tree_pubkey, cache_len, &current_root[..4]
+                                event = "prewarm_skipped_cache_already_warm",
+                                run_id = %self_clone.run_id,
+                                tree = %tree_pubkey,
+                                cached_proofs = cache_len,
+                                root_prefix = ?&current_root[..4],
+                                "Tree already has cached proofs from previous epoch; skipping pre-warm"
                             );
                             return;
                         }
@@ -2576,8 +3192,11 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                         Ok(p) => p,
                         Err(e) => {
                             warn!(
-                                "Failed to create processor for pre-warming tree {}: {:?}",
-                                tree_pubkey, e
+                                event = "prewarm_processor_create_failed",
+                                run_id = %self_clone.run_id,
+                                tree = %tree_pubkey,
+                                error = ?e,
+                                "Failed to create processor for pre-warming tree"
                             );
                             return;
                         }
@@ -2596,8 +3215,11 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                         Ok(result) => {
                             if result.items_processed > 0 {
                                 info!(
-                                    "Pre-warmed {} items for tree {} during wait (metrics: {:?})",
-                                    result.items_processed, tree_pubkey, result.metrics
+                                    event = "prewarm_tree_completed",
+                                    run_id = %self_clone.run_id,
+                                    tree = %tree_pubkey,
+                                    items = result.items_processed,
+                                    "Pre-warmed items for tree during wait"
                                 );
                                 self_clone
                                     .add_processing_metrics(epoch_info.epoch.epoch, result.metrics)
@@ -2621,20 +3243,32 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             (slot_duration() * timeout_slots as u32).min(Duration::from_secs(30));
 
         info!(
-            "Starting pre-warming for {} trees ({} skipped by config) with {}ms timeout",
-            v2_state_trees.len(),
-            skipped_count,
-            timeout_duration.as_millis()
+            event = "prewarm_started",
+            run_id = %self.run_id,
+            trees = v2_state_trees.len(),
+            skipped_trees = skipped_count,
+            timeout_ms = timeout_duration.as_millis() as u64,
+            "Starting pre-warming"
         );
 
         match tokio::time::timeout(timeout_duration, futures::future::join_all(prewarm_futures))
             .await
         {
             Ok(_) => {
-                info!("Completed pre-warming for all trees");
+                info!(
+                    event = "prewarm_completed",
+                    run_id = %self.run_id,
+                    trees = v2_state_trees.len(),
+                    "Completed pre-warming for all trees"
+                );
             }
             Err(_) => {
-                info!("Pre-warming timed out after {:?}", timeout_duration);
+                info!(
+                    event = "prewarm_timed_out",
+                    run_id = %self.run_id,
+                    timeout_ms = timeout_duration.as_millis() as u64,
+                    "Pre-warming timed out"
+                );
             }
         }
     }
@@ -2651,8 +3285,12 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         let current_slot = self.slot_tracker.estimated_current_slot();
         if current_slot >= consecutive_eligibility_end {
             debug!(
-                "Skipping cached proof send for tree {}: past eligibility window (slot {} >= {})",
-                tree_pubkey, current_slot, consecutive_eligibility_end
+                event = "cached_proofs_skipped_outside_eligibility",
+                run_id = %self.run_id,
+                tree = %tree_pubkey,
+                current_slot,
+                eligibility_end_slot = consecutive_eligibility_end,
+                "Skipping cached proof send because eligibility window has ended"
             );
             return Ok(None);
         }
@@ -2663,7 +3301,12 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         };
 
         if cache.is_warming().await {
-            debug!("Cache still warming for tree {}, skipping", tree_pubkey);
+            debug!(
+                event = "cached_proofs_skipped_cache_warming",
+                run_id = %self.run_id,
+                tree = %tree_pubkey,
+                "Skipping cached proofs because cache is still warming"
+            );
             return Ok(None);
         }
 
@@ -2672,8 +3315,11 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             Ok(root) => root,
             Err(e) => {
                 warn!(
-                    "Failed to fetch current root for tree {}: {:?}",
-                    tree_pubkey, e
+                    event = "cached_proofs_root_fetch_failed",
+                    run_id = %self.run_id,
+                    tree = %tree_pubkey,
+                    error = ?e,
+                    "Failed to fetch current root for tree"
                 );
                 return Ok(None);
             }
@@ -2683,9 +3329,11 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             Some(proofs) => proofs,
             None => {
                 debug!(
-                    "No valid cached proofs for tree {} (root: {:?})",
-                    tree_pubkey,
-                    &current_root[..4]
+                    event = "cached_proofs_not_available",
+                    run_id = %self.run_id,
+                    tree = %tree_pubkey,
+                    root_prefix = ?&current_root[..4],
+                    "No valid cached proofs for tree"
                 );
                 return Ok(None);
             }
@@ -2696,10 +3344,12 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         }
 
         info!(
-            "Sending {} cached proofs for tree {} (root: {:?})",
-            cached_proofs.len(),
-            tree_pubkey,
-            &current_root[..4]
+            event = "cached_proofs_send_started",
+            run_id = %self.run_id,
+            tree = %tree_pubkey,
+            proofs = cached_proofs.len(),
+            root_prefix = ?&current_root[..4],
+            "Sending cached proofs for tree"
         );
 
         let items_sent = self
@@ -2813,14 +3463,21 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 {
                     Ok(sig) => {
                         info!(
-                            "Sent cached proofs tx: {} ({} instructions)",
-                            sig,
-                            instructions.len()
+                            event = "cached_proofs_tx_sent",
+                            run_id = %self.run_id,
+                            signature = %sig,
+                            instruction_count = instructions.len(),
+                            "Sent cached proofs transaction"
                         );
                         total_items += chunk_items;
                     }
                     Err(e) => {
-                        warn!("Failed to send cached proofs tx: {:?}", e);
+                        warn!(
+                            event = "cached_proofs_tx_send_failed",
+                            run_id = %self.run_id,
+                            error = ?e,
+                            "Failed to send cached proofs transaction"
+                        );
                     }
                 }
             }
@@ -2834,7 +3491,13 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         if is_tree_ready_for_rollover(&mut *rpc, tree_account.merkle_tree, tree_account.tree_type)
             .await?
         {
-            info!("Starting {} rollover.", tree_account.merkle_tree);
+            info!(
+                event = "tree_rollover_started",
+                run_id = %self.run_id,
+                tree = %tree_account.merkle_tree,
+                tree_type = ?tree_account.tree_type,
+                "Starting tree rollover"
+            );
             self.perform_rollover(tree_account).await?;
         }
         Ok(())
@@ -2855,12 +3518,23 @@ impl<R: Rpc + Indexer> EpochManager<R> {
     #[instrument(level = "debug", skip(self, epoch_info), fields(forester = %self.config.payer_keypair.pubkey(), epoch = epoch_info.epoch.epoch
     ))]
     async fn wait_for_report_work_phase(&self, epoch_info: &ForesterEpochInfo) -> Result<()> {
-        info!("Waiting for report work phase");
+        info!(
+            event = "wait_for_report_work_phase",
+            run_id = %self.run_id,
+            epoch = epoch_info.epoch.epoch,
+            report_work_start_slot = epoch_info.epoch.phases.report_work.start,
+            "Waiting for report work phase"
+        );
         let mut rpc = self.rpc_pool.get_connection().await?;
         let report_work_start_slot = epoch_info.epoch.phases.report_work.start;
         wait_until_slot_reached(&mut *rpc, &self.slot_tracker, report_work_start_slot).await?;
 
-        info!("Finished waiting for report work phase");
+        info!(
+            event = "report_work_phase_ready",
+            run_id = %self.run_id,
+            epoch = epoch_info.epoch.epoch,
+            "Finished waiting for report work phase"
+        );
         Ok(())
     }
 
@@ -2874,8 +3548,15 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         };
 
         info!(
-            "Sending work report: epoch={} items={} metrics={:?}",
-            report.epoch, report.processed_items, report.metrics
+            event = "work_report_sent_to_channel",
+            run_id = %self.run_id,
+            epoch = report.epoch,
+            items = report.processed_items,
+            total_circuit_inputs_ms = report.metrics.total_circuit_inputs().as_millis() as u64,
+            total_proof_generation_ms = report.metrics.total_proof_generation().as_millis() as u64,
+            total_round_trip_ms = report.metrics.total_round_trip().as_millis() as u64,
+            tx_sending_ms = report.metrics.tx_sending_duration.as_millis() as u64,
+            "Sending work report to channel"
         );
 
         self.work_report_sender
@@ -2885,6 +3566,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 epoch: report.epoch,
                 error: e.to_string(),
             })?;
+        self.heartbeat.increment_work_report_sent();
 
         Ok(())
     }
@@ -2892,7 +3574,12 @@ impl<R: Rpc + Indexer> EpochManager<R> {
     #[instrument(level = "debug", skip(self, epoch_info), fields(forester = %self.config.payer_keypair.pubkey(), epoch = epoch_info.epoch.epoch
     ))]
     async fn report_work_onchain(&self, epoch_info: &ForesterEpochInfo) -> Result<()> {
-        info!("Reporting work on-chain");
+        info!(
+            event = "work_report_onchain_started",
+            run_id = %self.run_id,
+            epoch = epoch_info.epoch.epoch,
+            "Reporting work on-chain"
+        );
         let mut rpc = LightClient::new(LightClientConfig {
             url: self.config.external_services.rpc_url.to_string(),
             photon_url: self.config.external_services.indexer_url.clone(),
@@ -2935,11 +3622,21 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             .await
         {
             Ok(_) => {
-                info!("Work reported on-chain");
+                info!(
+                    event = "work_report_onchain_succeeded",
+                    run_id = %self.run_id,
+                    epoch = epoch_info.epoch.epoch,
+                    "Work reported on-chain"
+                );
             }
             Err(e) => {
                 if e.to_string().contains("already been processed") {
-                    info!("Work already reported for epoch {}", epoch_info.epoch.epoch);
+                    info!(
+                        event = "work_report_onchain_already_reported",
+                        run_id = %self.run_id,
+                        epoch = epoch_info.epoch.epoch,
+                        "Work already reported on-chain for epoch"
+                    );
                     return Ok(());
                 }
                 if let RpcError::ClientError(client_error) = &e {
@@ -2985,7 +3682,13 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 )
                 .await?;
 
-                info!("Address rollover signature: {:?}", rollover_signature);
+                info!(
+                    event = "address_tree_rollover_succeeded",
+                    run_id = %self.run_id,
+                    tree = %tree_account.merkle_tree,
+                    signature = %rollover_signature,
+                    "Address tree rollover succeeded"
+                );
                 Ok(())
             }
             TreeType::StateV1 => {
@@ -3007,7 +3710,13 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 )
                 .await?;
 
-                info!("State rollover signature: {:?}", rollover_signature);
+                info!(
+                    event = "state_tree_rollover_succeeded",
+                    run_id = %self.run_id,
+                    tree = %tree_account.merkle_tree,
+                    signature = %rollover_signature,
+                    "State tree rollover succeeded"
+                );
 
                 Ok(())
             }
@@ -3052,9 +3761,73 @@ fn should_skip_tree(config: &ForesterConfig, tree_type: &TreeType) -> bool {
     }
 }
 
+pub fn generate_run_id() -> String {
+    let epoch_ms = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis();
+    format!("{}-{}", std::process::id(), epoch_ms)
+}
+
+fn spawn_heartbeat_task(
+    heartbeat: Arc<ServiceHeartbeat>,
+    slot_tracker: Arc<SlotTracker>,
+    protocol_config: Arc<ProtocolConfig>,
+    run_id: String,
+) -> JoinHandle<()> {
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_secs(20));
+        interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
+        let mut previous = heartbeat.snapshot();
+
+        loop {
+            interval.tick().await;
+
+            let slot = slot_tracker.estimated_current_slot();
+            let epoch = protocol_config.get_current_active_epoch(slot).ok();
+            let epoch_known = epoch.is_some();
+            let epoch_value = epoch.unwrap_or_default();
+            let current = heartbeat.snapshot();
+            let delta = current.delta_since(&previous);
+            previous = current;
+
+            info!(
+                event = "service_heartbeat",
+                run_id = %run_id,
+                slot,
+                epoch = epoch_value,
+                epoch_known,
+                cycle_delta = delta.active_cycles,
+                tree_tasks_delta = delta.tree_tasks_spawned,
+                queues_started_delta = delta.queues_started,
+                queues_finished_delta = delta.queues_finished,
+                items_processed_delta = delta.items_processed,
+                work_reports_delta = delta.work_reports_sent,
+                recoverable_v2_errors_delta = delta.v2_recoverable_errors,
+                cycle_total = current.active_cycles,
+                items_processed_total = current.items_processed,
+                "Forester heartbeat"
+            );
+        }
+    })
+}
+
 #[instrument(
     level = "info",
-    skip(config, protocol_config, rpc_pool, shutdown, work_report_sender, slot_tracker),
+    skip(
+        config,
+        protocol_config,
+        rpc_pool,
+        shutdown,
+        work_report_sender,
+        slot_tracker,
+        tx_cache,
+        ops_cache,
+        compressible_tracker,
+        pda_tracker,
+        mint_tracker,
+        run_id
+    ),
     fields(forester = %config.payer_keypair.pubkey())
 )]
 #[allow(clippy::too_many_arguments)]
@@ -3070,9 +3843,22 @@ pub async fn run_service<R: Rpc + Indexer>(
     compressible_tracker: Option<Arc<CTokenAccountTracker>>,
     pda_tracker: Option<Arc<crate::compressible::pda::PdaAccountTracker>>,
     mint_tracker: Option<Arc<crate::compressible::mint::MintAccountTracker>>,
+    run_id: String,
 ) -> Result<()> {
-    info_span!("run_service", forester = %config.payer_keypair.pubkey())
-        .in_scope(|| async {
+    let heartbeat = Arc::new(ServiceHeartbeat::default());
+    let heartbeat_handle = spawn_heartbeat_task(
+        heartbeat.clone(),
+        slot_tracker.clone(),
+        protocol_config.clone(),
+        run_id.clone(),
+    );
+
+    let run_id_for_logs = run_id.clone();
+    let result = info_span!(
+        "run_service",
+        forester = %config.payer_keypair.pubkey()
+    )
+    .in_scope(|| async move {
             let processor_mode_str = match (
                 config.general_config.skip_v1_state_trees
                     && config.general_config.skip_v1_address_trees,
@@ -3084,7 +3870,12 @@ pub async fn run_service<R: Rpc + Indexer>(
                 (false, false) => "all",
                 _ => "unknown",
             };
-            info!("Starting forester in {} mode", processor_mode_str);
+            info!(
+                event = "forester_starting",
+                run_id = %run_id_for_logs,
+                processor_mode = processor_mode_str,
+                "Starting forester"
+            );
 
             const INITIAL_RETRY_DELAY: Duration = Duration::from_secs(1);
             const MAX_RETRY_DELAY: Duration = Duration::from_secs(30);
@@ -3102,7 +3893,12 @@ pub async fn run_service<R: Rpc + Indexer>(
                     tokio::select! {
                         biased;
                         _ = &mut shutdown => {
-                            info!("Received shutdown signal during tree fetch. Stopping.");
+                            info!(
+                                event = "shutdown_received",
+                                run_id = %run_id_for_logs,
+                                phase = "tree_fetch",
+                                "Received shutdown signal during tree fetch. Stopping."
+                            );
                             return Ok(());
                         }
                         result = rpc_pool.get_connection() => {
@@ -3111,7 +3907,12 @@ pub async fn run_service<R: Rpc + Indexer>(
                                     tokio::select! {
                                         biased;
                                         _ = &mut shutdown => {
-                                            info!("Received shutdown signal during tree fetch. Stopping.");
+                                            info!(
+                                                event = "shutdown_received",
+                                                run_id = %run_id_for_logs,
+                                                phase = "tree_fetch",
+                                                "Received shutdown signal during tree fetch. Stopping."
+                                            );
                                             return Ok(());
                                         }
                                         fetch_result = fetch_trees(&*rpc) => {
@@ -3120,15 +3921,22 @@ pub async fn run_service<R: Rpc + Indexer>(
                                                     let group_authority = match config.general_config.group_authority {
                                                         Some(ga) => Some(ga),
                                                         None => {
-                                                            match fetch_protocol_group_authority(&*rpc).await {
+                                                            match fetch_protocol_group_authority(&*rpc, run_id_for_logs.as_str()).await {
                                                                 Ok(ga) => {
-                                                                    info!("Using protocol default group authority: {}", ga);
+                                                                    info!(
+                                                                        event = "group_authority_default_fetched",
+                                                                        run_id = %run_id_for_logs,
+                                                                        group_authority = %ga,
+                                                                        "Using protocol default group authority"
+                                                                    );
                                                                     Some(ga)
                                                                 }
                                                                 Err(e) => {
                                                                     warn!(
-                                                                        "Failed to fetch protocol group authority, processing all trees: {:?}",
-                                                                        e
+                                                                        event = "group_authority_fetch_failed",
+                                                                        run_id = %run_id_for_logs,
+                                                                        error = ?e,
+                                                                        "Failed to fetch protocol group authority; processing all trees"
                                                                     );
                                                                     None
                                                                 }
@@ -3140,10 +3948,12 @@ pub async fn run_service<R: Rpc + Indexer>(
                                                         let before_count = fetched_trees.len();
                                                         fetched_trees.retain(|tree| tree.owner == group_authority);
                                                         info!(
-                                                            "Filtered trees by group authority {}: {} -> {} trees",
-                                                            group_authority,
-                                                            before_count,
-                                                            fetched_trees.len()
+                                                            event = "trees_filtered_by_group_authority",
+                                                            run_id = %run_id_for_logs,
+                                                            group_authority = %group_authority,
+                                                            trees_before = before_count,
+                                                            trees_after = fetched_trees.len(),
+                                                            "Filtered trees by group authority"
                                                         );
                                                     }
 
@@ -3151,13 +3961,24 @@ pub async fn run_service<R: Rpc + Indexer>(
                                                         let tree_ids = &config.general_config.tree_ids;
                                                         fetched_trees.retain(|tree| tree_ids.contains(&tree.merkle_tree));
                                                         if fetched_trees.is_empty() {
-                                                            error!("None of the specified trees found: {:?}", tree_ids);
+                                                            error!(
+                                                                event = "trees_filter_explicit_ids_empty",
+                                                                run_id = %run_id_for_logs,
+                                                                requested_tree_count = tree_ids.len(),
+                                                                requested_trees = ?tree_ids,
+                                                                "None of the specified trees were found"
+                                                            );
                                                             return Err(anyhow::anyhow!(
                                                                 "None of the specified trees found: {:?}",
                                                                 tree_ids
                                                             ));
                                                         }
-                                                        info!("Processing only trees: {:?}", tree_ids);
+                                                        info!(
+                                                            event = "trees_filter_explicit_ids",
+                                                            run_id = %run_id_for_logs,
+                                                            tree_count = tree_ids.len(),
+                                                            "Processing only explicitly requested trees"
+                                                        );
                                                     }
                                                     break fetched_trees;
                                                 }
@@ -3171,8 +3992,13 @@ pub async fn run_service<R: Rpc + Indexer>(
                                                         ));
                                                     }
                                                     warn!(
-                                                        "Failed to fetch trees (attempt {}/{}), retrying in {:?}: {:?}",
-                                                        attempts, max_attempts, delay, e
+                                                        event = "fetch_trees_failed_retrying",
+                                                        run_id = %run_id_for_logs,
+                                                        attempt = attempts,
+                                                        max_attempts,
+                                                        retry_delay_ms = delay.as_millis() as u64,
+                                                        error = ?e,
+                                                        "Failed to fetch trees; retrying"
                                                     );
                                                 }
                                             }
@@ -3189,8 +4015,13 @@ pub async fn run_service<R: Rpc + Indexer>(
                                         ));
                                     }
                                     warn!(
-                                        "Failed to get RPC connection (attempt {}/{}), retrying in {:?}: {:?}",
-                                        attempts, max_attempts, delay, e
+                                        event = "rpc_connection_failed_retrying",
+                                        run_id = %run_id_for_logs,
+                                        attempt = attempts,
+                                        max_attempts,
+                                        retry_delay_ms = delay.as_millis() as u64,
+                                        error = ?e,
+                                        "Failed to get RPC connection; retrying"
                                     );
                                 }
                             }
@@ -3200,7 +4031,12 @@ pub async fn run_service<R: Rpc + Indexer>(
                     tokio::select! {
                         biased;
                         _ = &mut shutdown => {
-                            info!("Received shutdown signal during retry wait. Stopping.");
+                            info!(
+                                event = "shutdown_received",
+                                run_id = %run_id_for_logs,
+                                phase = "tree_fetch_retry_wait",
+                                "Received shutdown signal during retry wait. Stopping."
+                            );
                             return Ok(());
                         }
                         _ = sleep(delay) => {
@@ -3214,7 +4050,12 @@ pub async fn run_service<R: Rpc + Indexer>(
             let (new_tree_sender, _) = broadcast::channel(100);
 
             if !config.general_config.tree_ids.is_empty() {
-                info!("Processing specific trees, tree discovery will be limited");
+                info!(
+                    event = "tree_discovery_limited_to_explicit_ids",
+                    run_id = %run_id_for_logs,
+                    tree_count = config.general_config.tree_ids.len(),
+                    "Processing specific trees; tree discovery will be limited"
+                );
             }
 
             while retry_count < config.retry_config.max_retries {
@@ -3226,9 +4067,11 @@ pub async fn run_service<R: Rpc + Indexer>(
                         match load_lookup_table_async(&*rpc, lut_address).await {
                             Ok(lut) => {
                                 info!(
-                                    "Loaded lookup table {} with {} addresses",
-                                    lut_address,
-                                    lut.addresses.len()
+                                    event = "lookup_table_loaded",
+                                    run_id = %run_id_for_logs,
+                                    lookup_table = %lut_address,
+                                    address_count = lut.addresses.len(),
+                                    "Loaded lookup table"
                                 );
                                 Arc::new(vec![lut])
                             }
@@ -3260,6 +4103,8 @@ pub async fn run_service<R: Rpc + Indexer>(
                     pda_tracker.clone(),
                     mint_tracker.clone(),
                     address_lookup_tables,
+                    heartbeat.clone(),
+                    run_id.clone(),
                 )
                 .await
                 {
@@ -3273,7 +4118,12 @@ pub async fn run_service<R: Rpc + Indexer>(
                         let result = tokio::select! {
                             result = epoch_manager.run() => result,
                             _ = shutdown => {
-                                info!("Received shutdown signal. Stopping the service.");
+                                info!(
+                                    event = "shutdown_received",
+                                    run_id = %run_id_for_logs,
+                                    phase = "service_run",
+                                    "Received shutdown signal. Stopping the service."
+                                );
                                 Ok(())
                             }
                         };
@@ -3282,9 +4132,11 @@ pub async fn run_service<R: Rpc + Indexer>(
                     }
                     Err(e) => {
                         warn!(
-                            "Failed to create EpochManager (attempt {}): {:?}",
-                            retry_count + 1,
-                            e
+                            event = "epoch_manager_create_failed",
+                            run_id = %run_id_for_logs,
+                            attempt = retry_count + 1,
+                            error = ?e,
+                            "Failed to create EpochManager"
                         );
                         retry_count += 1;
                         if retry_count < config.retry_config.max_retries {
@@ -3293,9 +4145,12 @@ pub async fn run_service<R: Rpc + Indexer>(
                             retry_delay = std::cmp::min(retry_delay * 2, MAX_RETRY_DELAY);
                         } else {
                             error!(
-                                "Failed to start forester after {} attempts over {:?}",
-                                config.retry_config.max_retries,
-                                start_time.elapsed()
+                                event = "forester_start_failed_max_retries",
+                                run_id = %run_id_for_logs,
+                                attempts = config.retry_config.max_retries,
+                                elapsed_ms = start_time.elapsed().as_millis() as u64,
+                                error = ?e,
+                                "Failed to start forester after max retries"
                             );
                             return Err(InitializationError::MaxRetriesExceeded {
                                 attempts: config.retry_config.max_retries,
@@ -3312,7 +4167,10 @@ pub async fn run_service<R: Rpc + Indexer>(
                     .into(),
             )
         })
-        .await
+        .await;
+
+    heartbeat_handle.abort();
+    result
 }
 
 /// Async version of load_lookup_table that works with the Rpc trait
@@ -3379,18 +4237,14 @@ mod tests {
             indexer_config: Default::default(),
             transaction_config: Default::default(),
             general_config: GeneralConfig {
-                slot_update_interval_seconds: 10,
-                tree_discovery_interval_seconds: 1,
                 enable_metrics: false,
                 skip_v1_state_trees: skip_v1_state,
                 skip_v1_address_trees: skip_v1_address,
                 skip_v2_state_trees: skip_v2_state,
                 skip_v2_address_trees: skip_v2_address,
-                tree_ids: vec![],
                 sleep_after_processing_ms: 50,
                 sleep_when_idle_ms: 100,
-                queue_polling_mode: crate::cli::QueuePollingMode::Indexer,
-                group_authority: None,
+                ..Default::default()
             },
             rpc_pool_config: Default::default(),
             registry_pubkey: Pubkey::default(),

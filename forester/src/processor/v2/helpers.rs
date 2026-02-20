@@ -134,7 +134,7 @@ pub async fn fetch_paginated_batches<R: Rpc>(
 
     let page_size_elements = PAGE_SIZE_BATCHES * zkp_batch_size;
     if total_elements <= page_size_elements {
-        tracing::info!(
+        tracing::debug!(
             "fetch_paginated_batches: single page fetch with start_index=None, total_elements={}, page_size={}",
             total_elements, page_size_elements
         );
@@ -302,7 +302,7 @@ pub async fn fetch_batches<R: Rpc>(
     fetch_len: u64,
     zkp_batch_size: u64,
 ) -> crate::Result<Option<StateQueueData>> {
-    tracing::info!(
+    tracing::debug!(
         "fetch_batches: tree={}, output_start={:?}, input_start={:?}, fetch_len={}, zkp_batch_size={}",
         context.merkle_tree, output_start_index, input_start_index, fetch_len, zkp_batch_size
     );
@@ -574,7 +574,7 @@ pub async fn fetch_streaming_address_batches<R: Rpc + 'static>(
     let page_size_elements = ADDRESS_PAGE_SIZE_BATCHES * zkp_batch_size;
     let num_pages = total_elements.div_ceil(page_size_elements) as usize;
 
-    tracing::info!(
+    tracing::debug!(
         "address fetch: {} elements ({} batches) in {} pages of {} batches each",
         total_elements,
         total_elements / zkp_batch_size,
