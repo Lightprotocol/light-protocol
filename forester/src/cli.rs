@@ -389,6 +389,14 @@ pub struct DashboardArgs {
         help = "Prometheus server URL for querying metrics (e.g. http://prometheus:9090)"
     )]
     pub prometheus_url: Option<String>,
+
+    #[arg(
+        long = "forester-api-url",
+        env = "FORESTER_API_URLS",
+        value_delimiter = ',',
+        help = "Forester API base URL(s) to aggregate compressible data from (e.g. http://forester-a:8080,http://forester-b:8080)"
+    )]
+    pub forester_api_urls: Vec<String>,
 }
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]

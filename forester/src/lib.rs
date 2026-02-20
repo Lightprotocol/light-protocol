@@ -141,6 +141,225 @@ pub async fn run_queue_info(
     Ok(())
 }
 
+#[derive(Clone, Default)]
+pub struct CompressibleTrackerHandles {
+    pub ctoken_tracker: Option<Arc<compressible::CTokenAccountTracker>>,
+    pub pda_tracker: Option<Arc<compressible::pda::PdaAccountTracker>>,
+    pub mint_tracker: Option<Arc<compressible::mint::MintAccountTracker>>,
+}
+
+pub async fn initialize_compressible_trackers(
+    config: Arc<ForesterConfig>,
+    shutdown_compressible: Option<tokio::sync::broadcast::Receiver<()>>,
+    shutdown_bootstrap: Option<oneshot::Receiver<()>>,
+) -> Result<CompressibleTrackerHandles> {
+    let Some(compressible_config) = &config.compressible_config else {
+        return Ok(CompressibleTrackerHandles::default());
+    };
+
+    // Validate on-chain CompressibleConfig at startup (fail fast on misconfiguration)
+    compressible::validate_compressible_config(&config.external_services.rpc_url).await?;
+
+    let Some(shutdown_rx) = shutdown_compressible else {
+        tracing::warn!("Compressible config enabled but no shutdown receiver provided");
+        return Ok(CompressibleTrackerHandles::default());
+    };
+
+    // Create all shutdown receivers upfront (before any are moved)
+    let shutdown_rx_ctoken = shutdown_rx.resubscribe();
+    let shutdown_rx_mint = shutdown_rx.resubscribe();
+    let shutdown_rx_mint_bootstrap = shutdown_rx.resubscribe();
+    // Keep original for PDA subscriptions (will resubscribe per-program)
+    let shutdown_rx_pda_base = shutdown_rx;
+
+    // Create ctoken tracker
+    let ctoken_tracker = Arc::new(compressible::CTokenAccountTracker::new());
+    let tracker_clone = ctoken_tracker.clone();
+    let ws_url = compressible_config.ws_url.clone();
+
+    // Spawn account subscriber for ctokens
+    tokio::spawn(async move {
+        let mut subscriber = compressible::AccountSubscriber::new(
+            ws_url,
+            tracker_clone,
+            compressible::SubscriptionConfig::ctoken(),
+            shutdown_rx_ctoken,
+        );
+        if let Err(e) = subscriber.run().await {
+            tracing::error!("Compressible subscriber error: {:?}", e);
+        }
+    });
+
+    // Extract flag before async closures to avoid moving config Arc
+    let helius_rpc = config.general_config.helius_rpc;
+
+    // Spawn bootstrap task for ctokens with shutdown support
+    if let Some(mut shutdown_bootstrap_rx) = shutdown_bootstrap {
+        let tracker_clone = ctoken_tracker.clone();
+        let rpc_url = config.external_services.rpc_url.clone();
+
+        tokio::spawn(async move {
+            let retry_config = RetryConfig::new("CToken bootstrap")
+                .with_max_attempts(3)
+                .with_initial_delay(Duration::from_secs(5));
+
+            let bootstrap_future = retry_with_backoff(retry_config, || {
+                let rpc_url = rpc_url.clone();
+                let tracker = tracker_clone.clone();
+                async move {
+                    compressible::bootstrap_ctoken_accounts(rpc_url, tracker, None, helius_rpc)
+                        .await
+                }
+            });
+
+            tokio::select! {
+                result = bootstrap_future => {
+                    match result {
+                        Ok(()) => tracing::info!("CToken bootstrap complete"),
+                        Err(e) => tracing::error!("CToken bootstrap failed after retries: {:?}", e),
+                    }
+                }
+                _ = &mut shutdown_bootstrap_rx => {
+                    tracing::info!("CToken bootstrap interrupted by shutdown signal");
+                }
+            }
+        });
+    }
+
+    // Create PDA tracker if there are PDA programs configured
+    let pda_tracker = if !compressible_config.pda_programs.is_empty() {
+        let pda_tracker = Arc::new(compressible::pda::PdaAccountTracker::new(
+            compressible_config.pda_programs.clone(),
+        ));
+
+        // Spawn account subscribers for each PDA program
+        for pda_config in &compressible_config.pda_programs {
+            let pda_tracker_sub = pda_tracker.clone();
+            let ws_url_pda = compressible_config.ws_url.clone();
+            let shutdown_rx_pda = shutdown_rx_pda_base.resubscribe();
+            let program_id = pda_config.program_id;
+            let discriminator = pda_config.discriminator;
+            let program_name = format!(
+                "pda-{}",
+                program_id.to_string().chars().take(8).collect::<String>()
+            );
+
+            tokio::spawn(async move {
+                let mut subscriber = compressible::AccountSubscriber::new(
+                    ws_url_pda,
+                    pda_tracker_sub,
+                    compressible::SubscriptionConfig::pda(
+                        program_id,
+                        discriminator,
+                        program_name.clone(),
+                    ),
+                    shutdown_rx_pda,
+                );
+                if let Err(e) = subscriber.run().await {
+                    tracing::error!("PDA subscriber error for {}: {:?}", program_name, e);
+                }
+            });
+        }
+
+        // Spawn bootstrap task for PDAs with shutdown support
+        let pda_tracker_clone = pda_tracker.clone();
+        let rpc_url = config.external_services.rpc_url.clone();
+        let mut shutdown_rx_pda_bootstrap = shutdown_rx_pda_base.resubscribe();
+
+        tokio::spawn(async move {
+            let retry_config = RetryConfig::new("PDA bootstrap")
+                .with_max_attempts(3)
+                .with_initial_delay(Duration::from_secs(5));
+
+            let bootstrap_future = retry_with_backoff(retry_config, || {
+                let rpc_url = rpc_url.clone();
+                let tracker = pda_tracker_clone.clone();
+                async move {
+                    compressible::pda::bootstrap_pda_accounts(rpc_url, tracker, None, helius_rpc)
+                        .await
+                }
+            });
+
+            tokio::select! {
+                result = bootstrap_future => {
+                    match result {
+                        Ok(()) => tracing::info!("PDA bootstrap complete"),
+                        Err(e) => tracing::error!("PDA bootstrap failed after retries: {:?}", e),
+                    }
+                }
+                _ = shutdown_rx_pda_bootstrap.recv() => {
+                    tracing::info!("PDA bootstrap interrupted by shutdown signal");
+                }
+            }
+        });
+
+        Some(pda_tracker)
+    } else {
+        None
+    };
+
+    // Create Mint tracker and spawn subscriptions + bootstrap
+    let mint_tracker = {
+        let mint_tracker = Arc::new(compressible::mint::MintAccountTracker::new());
+
+        // Spawn account subscriber for mints
+        let mint_tracker_sub = mint_tracker.clone();
+        let ws_url_mint = compressible_config.ws_url.clone();
+
+        tokio::spawn(async move {
+            let mut subscriber = compressible::AccountSubscriber::new(
+                ws_url_mint,
+                mint_tracker_sub,
+                compressible::SubscriptionConfig::mint(),
+                shutdown_rx_mint,
+            );
+            if let Err(e) = subscriber.run().await {
+                tracing::error!("Mint subscriber error: {:?}", e);
+            }
+        });
+
+        // Spawn bootstrap task for Mints with shutdown support
+        let mint_tracker_clone = mint_tracker.clone();
+        let rpc_url = config.external_services.rpc_url.clone();
+        let mut shutdown_rx_mint_bootstrap = shutdown_rx_mint_bootstrap;
+
+        tokio::spawn(async move {
+            let retry_config = RetryConfig::new("Mint bootstrap")
+                .with_max_attempts(3)
+                .with_initial_delay(Duration::from_secs(5));
+
+            let bootstrap_future = retry_with_backoff(retry_config, || {
+                let rpc_url = rpc_url.clone();
+                let tracker = mint_tracker_clone.clone();
+                async move {
+                    compressible::mint::bootstrap_mint_accounts(rpc_url, tracker, None, helius_rpc)
+                        .await
+                }
+            });
+
+            tokio::select! {
+                result = bootstrap_future => {
+                    match result {
+                        Ok(()) => tracing::info!("Mint bootstrap complete"),
+                        Err(e) => tracing::error!("Mint bootstrap failed after retries: {:?}", e),
+                    }
+                }
+                _ = shutdown_rx_mint_bootstrap.recv() => {
+                    tracing::info!("Mint bootstrap interrupted by shutdown signal");
+                }
+            }
+        });
+
+        Some(mint_tracker)
+    };
+
+    Ok(CompressibleTrackerHandles {
+        ctoken_tracker: Some(ctoken_tracker),
+        pda_tracker,
+        mint_tracker,
+    })
+}
+
 pub async fn run_pipeline<R: Rpc + Indexer>(
     config: Arc<ForesterConfig>,
     rpc_rate_limiter: Option<RateLimiter>,
@@ -159,6 +378,7 @@ pub async fn run_pipeline<R: Rpc + Indexer>(
         shutdown_bootstrap,
         work_report_sender,
         generate_run_id(),
+        None,
     )
     .await
 }
@@ -173,6 +393,7 @@ pub async fn run_pipeline_with_run_id<R: Rpc + Indexer>(
     shutdown_bootstrap: Option<oneshot::Receiver<()>>,
     work_report_sender: mpsc::Sender<WorkReport>,
     run_id: String,
+    preconfigured_trackers: Option<CompressibleTrackerHandles>,
 ) -> Result<()> {
     let mut builder = SolanaRpcPoolBuilder::<R>::default()
         .url(config.external_services.rpc_url.to_string())
@@ -233,215 +454,18 @@ pub async fn run_pipeline_with_run_id<R: Rpc + Indexer>(
         config.transaction_config.ops_cache_ttl_seconds,
     )));
 
-    let (compressible_tracker, pda_tracker, mint_tracker) = if let Some(compressible_config) =
-        &config.compressible_config
-    {
-        // Validate on-chain CompressibleConfig at startup (fail fast on misconfiguration)
-        compressible::validate_compressible_config(&config.external_services.rpc_url).await?;
-
-        if let Some(shutdown_rx) = shutdown_compressible {
-            // Create all shutdown receivers upfront (before any are moved)
-            let shutdown_rx_ctoken = shutdown_rx.resubscribe();
-            let shutdown_rx_mint = shutdown_rx.resubscribe();
-            let shutdown_rx_mint_bootstrap = shutdown_rx.resubscribe();
-            // Keep original for PDA subscriptions (will resubscribe per-program)
-            let shutdown_rx_pda_base = shutdown_rx;
-
-            // Create ctoken tracker
-            let ctoken_tracker = Arc::new(compressible::CTokenAccountTracker::new());
-            let tracker_clone = ctoken_tracker.clone();
-            let ws_url = compressible_config.ws_url.clone();
-
-            // Spawn account subscriber for ctokens
-            tokio::spawn(async move {
-                let mut subscriber = compressible::AccountSubscriber::new(
-                    ws_url,
-                    tracker_clone,
-                    compressible::SubscriptionConfig::ctoken(),
-                    shutdown_rx_ctoken,
-                );
-                if let Err(e) = subscriber.run().await {
-                    tracing::error!("Compressible subscriber error: {:?}", e);
-                }
-            });
-
-            // Extract flag before async closures to avoid moving config Arc
-            let helius_rpc = config.general_config.helius_rpc;
-
-            // Spawn bootstrap task for ctokens with shutdown support
-            if let Some(mut shutdown_bootstrap_rx) = shutdown_bootstrap {
-                let tracker_clone = ctoken_tracker.clone();
-                let rpc_url = config.external_services.rpc_url.clone();
-
-                tokio::spawn(async move {
-                    let retry_config = RetryConfig::new("CToken bootstrap")
-                        .with_max_attempts(3)
-                        .with_initial_delay(Duration::from_secs(5));
-
-                    let bootstrap_future = retry_with_backoff(retry_config, || {
-                        let rpc_url = rpc_url.clone();
-                        let tracker = tracker_clone.clone();
-                        async move {
-                            compressible::bootstrap_ctoken_accounts(
-                                rpc_url, tracker, None, helius_rpc,
-                            )
-                            .await
-                        }
-                    });
-
-                    tokio::select! {
-                        result = bootstrap_future => {
-                            match result {
-                                Ok(()) => tracing::info!("CToken bootstrap complete"),
-                                Err(e) => tracing::error!("CToken bootstrap failed after retries: {:?}", e),
-                            }
-                        }
-                        _ = &mut shutdown_bootstrap_rx => {
-                            tracing::info!("CToken bootstrap interrupted by shutdown signal");
-                        }
-                    }
-                });
-            }
-
-            // Create PDA tracker if there are PDA programs configured
-            let pda_tracker = if !compressible_config.pda_programs.is_empty() {
-                let pda_tracker = Arc::new(compressible::pda::PdaAccountTracker::new(
-                    compressible_config.pda_programs.clone(),
-                ));
-
-                // Spawn account subscribers for each PDA program
-                for pda_config in &compressible_config.pda_programs {
-                    let pda_tracker_sub = pda_tracker.clone();
-                    let ws_url_pda = compressible_config.ws_url.clone();
-                    let shutdown_rx_pda = shutdown_rx_pda_base.resubscribe();
-                    let program_id = pda_config.program_id;
-                    let discriminator = pda_config.discriminator;
-                    let program_name = format!(
-                        "pda-{}",
-                        program_id.to_string().chars().take(8).collect::<String>()
-                    );
-
-                    tokio::spawn(async move {
-                        let mut subscriber = compressible::AccountSubscriber::new(
-                            ws_url_pda,
-                            pda_tracker_sub,
-                            compressible::SubscriptionConfig::pda(
-                                program_id,
-                                discriminator,
-                                program_name.clone(),
-                            ),
-                            shutdown_rx_pda,
-                        );
-                        if let Err(e) = subscriber.run().await {
-                            tracing::error!("PDA subscriber error for {}: {:?}", program_name, e);
-                        }
-                    });
-                }
-
-                // Spawn bootstrap task for PDAs with shutdown support
-                let pda_tracker_clone = pda_tracker.clone();
-                let rpc_url = config.external_services.rpc_url.clone();
-                let mut shutdown_rx_pda_bootstrap = shutdown_rx_pda_base.resubscribe();
-
-                tokio::spawn(async move {
-                    let retry_config = RetryConfig::new("PDA bootstrap")
-                        .with_max_attempts(3)
-                        .with_initial_delay(Duration::from_secs(5));
-
-                    let bootstrap_future = retry_with_backoff(retry_config, || {
-                        let rpc_url = rpc_url.clone();
-                        let tracker = pda_tracker_clone.clone();
-                        async move {
-                            compressible::pda::bootstrap_pda_accounts(
-                                rpc_url, tracker, None, helius_rpc,
-                            )
-                            .await
-                        }
-                    });
-
-                    tokio::select! {
-                        result = bootstrap_future => {
-                            match result {
-                                Ok(()) => tracing::info!("PDA bootstrap complete"),
-                                Err(e) => tracing::error!("PDA bootstrap failed after retries: {:?}", e),
-                            }
-                        }
-                        _ = shutdown_rx_pda_bootstrap.recv() => {
-                            tracing::info!("PDA bootstrap interrupted by shutdown signal");
-                        }
-                    }
-                });
-
-                Some(pda_tracker)
-            } else {
-                None
-            };
-
-            // Create Mint tracker and spawn subscriptions + bootstrap
-            let mint_tracker = {
-                let mint_tracker = Arc::new(compressible::mint::MintAccountTracker::new());
-
-                // Spawn account subscriber for mints
-                let mint_tracker_sub = mint_tracker.clone();
-                let ws_url_mint = compressible_config.ws_url.clone();
-
-                tokio::spawn(async move {
-                    let mut subscriber = compressible::AccountSubscriber::new(
-                        ws_url_mint,
-                        mint_tracker_sub,
-                        compressible::SubscriptionConfig::mint(),
-                        shutdown_rx_mint,
-                    );
-                    if let Err(e) = subscriber.run().await {
-                        tracing::error!("Mint subscriber error: {:?}", e);
-                    }
-                });
-
-                // Spawn bootstrap task for Mints with shutdown support
-                let mint_tracker_clone = mint_tracker.clone();
-                let rpc_url = config.external_services.rpc_url.clone();
-                let mut shutdown_rx_mint_bootstrap = shutdown_rx_mint_bootstrap;
-
-                tokio::spawn(async move {
-                    let retry_config = RetryConfig::new("Mint bootstrap")
-                        .with_max_attempts(3)
-                        .with_initial_delay(Duration::from_secs(5));
-
-                    let bootstrap_future = retry_with_backoff(retry_config, || {
-                        let rpc_url = rpc_url.clone();
-                        let tracker = mint_tracker_clone.clone();
-                        async move {
-                            compressible::mint::bootstrap_mint_accounts(
-                                rpc_url, tracker, None, helius_rpc,
-                            )
-                            .await
-                        }
-                    });
-
-                    tokio::select! {
-                        result = bootstrap_future => {
-                            match result {
-                                Ok(()) => tracing::info!("Mint bootstrap complete"),
-                                Err(e) => tracing::error!("Mint bootstrap failed after retries: {:?}", e),
-                            }
-                        }
-                        _ = shutdown_rx_mint_bootstrap.recv() => {
-                            tracing::info!("Mint bootstrap interrupted by shutdown signal");
-                        }
-                    }
-                });
-
-                Some(mint_tracker)
-            };
-
-            (Some(ctoken_tracker), pda_tracker, mint_tracker)
-        } else {
-            tracing::warn!("Compressible config enabled but no shutdown receiver provided");
-            (None, None, None)
-        }
+    let tracker_handles = if let Some(trackers) = preconfigured_trackers {
+        trackers
     } else {
-        (None, None, None)
+        initialize_compressible_trackers(config.clone(), shutdown_compressible, shutdown_bootstrap)
+            .await?
     };
+
+    let CompressibleTrackerHandles {
+        ctoken_tracker: compressible_tracker,
+        pda_tracker,
+        mint_tracker,
+    } = tracker_handles;
 
     debug!("Starting Forester pipeline");
     let result = run_service(
