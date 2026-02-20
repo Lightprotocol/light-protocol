@@ -35,8 +35,9 @@ pub async fn fetch_trees<R: Rpc>(rpc: &R) -> Result<Vec<TreeAccounts>> {
         }
         Err(e) => {
             warn!(
-                "Filtered tree fetch failed, falling back to unfiltered: {:?}",
-                e
+                event = "filtered_tree_fetch_failed_fallback_unfiltered",
+                error = ?e,
+                "Filtered tree fetch failed; falling back to unfiltered fetch"
             );
             fetch_trees_unfiltered(rpc).await
         }
@@ -92,7 +93,11 @@ pub async fn fetch_trees_filtered(rpc_url: &str) -> Result<Vec<TreeAccounts>> {
             }
         }
         Err(e) => {
-            warn!("Failed to fetch batched trees: {:?}", e);
+            warn!(
+                event = "fetch_batched_trees_failed",
+                error = ?e,
+                "Failed to fetch batched trees"
+            );
             errors.push(format!("batched: {}", e));
         }
     }
@@ -108,7 +113,11 @@ pub async fn fetch_trees_filtered(rpc_url: &str) -> Result<Vec<TreeAccounts>> {
             }
         }
         Err(e) => {
-            warn!("Failed to fetch state V1 trees: {:?}", e);
+            warn!(
+                event = "fetch_state_v1_trees_failed",
+                error = ?e,
+                "Failed to fetch StateV1 trees"
+            );
             errors.push(format!("state_v1: {}", e));
         }
     }
@@ -124,7 +133,11 @@ pub async fn fetch_trees_filtered(rpc_url: &str) -> Result<Vec<TreeAccounts>> {
             }
         }
         Err(e) => {
-            warn!("Failed to fetch address V1 trees: {:?}", e);
+            warn!(
+                event = "fetch_address_v1_trees_failed",
+                error = ?e,
+                "Failed to fetch AddressV1 trees"
+            );
             errors.push(format!("address_v1: {}", e));
         }
     }
@@ -316,7 +329,7 @@ fn create_tree_accounts(
     tree_accounts
 }
 
-pub async fn fetch_protocol_group_authority<R: Rpc>(rpc: &R) -> Result<Pubkey> {
+pub async fn fetch_protocol_group_authority<R: Rpc>(rpc: &R, run_id: &str) -> Result<Pubkey> {
     let registered_program_pda =
         light_registry::account_compression_cpi::sdk::get_registered_program_pda(
             &light_registry::ID,
@@ -336,8 +349,10 @@ pub async fn fetch_protocol_group_authority<R: Rpc>(rpc: &R) -> Result<Pubkey> {
         .map_err(|e| anyhow::anyhow!("Failed to deserialize RegisteredProgram: {}", e))?;
 
     info!(
-        "Fetched protocol group authority: {}",
-        registered_program.group_authority_pda
+        event = "protocol_group_authority_fetched",
+        run_id = %run_id,
+        group_authority = %registered_program.group_authority_pda,
+        "Fetched protocol group authority"
     );
 
     Ok(registered_program.group_authority_pda)

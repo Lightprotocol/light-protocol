@@ -81,6 +81,13 @@ pub enum RegistrationError {
         registration_end: u64,
     },
 
+    #[error("Cannot finalize registration for epoch {epoch}. Current slot: {current_slot}, active phase ended: {active_phase_end_slot}")]
+    FinalizeRegistrationPhaseEnded {
+        epoch: u64,
+        current_slot: u64,
+        active_phase_end_slot: u64,
+    },
+
     #[error("Epoch registration returned no result")]
     EmptyRegistration,
 

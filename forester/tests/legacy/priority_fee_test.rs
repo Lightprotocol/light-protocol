@@ -30,10 +30,8 @@ async fn test_priority_fee_request() {
             std::env::var("FORESTER_WS_RPC_URL")
                 .expect("FORESTER_WS_RPC_URL must be set in environment"),
         ),
-        indexer_url: Some(
-            std::env::var("FORESTER_INDEXER_URL")
-                .expect("FORESTER_INDEXER_URL must be set in environment"),
-        ),
+        indexer_url: std::env::var("FORESTER_INDEXER_URL")
+            .expect("FORESTER_INDEXER_URL must be set in environment"),
         prover_url: Some(
             std::env::var("FORESTER_PROVER_URL")
                 .expect("FORESTER_PROVER_URL must be set in environment"),
