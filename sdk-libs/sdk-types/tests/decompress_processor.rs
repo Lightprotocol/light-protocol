@@ -1,8 +1,7 @@
 mod common;
 
 use borsh::{BorshDeserialize, BorshSerialize};
-use common::{make_config_account, make_dummy_account};
-use light_account_checks::account_info::test_account_info::solana_program::TestAccount;
+use common::{make_dummy_account, make_valid_accounts, SkipVariant};
 use light_compressed_account::instruction_data::{
     compressed_proof::ValidityProof,
     with_account_info::{CompressedAccountInfo, InstructionDataInvokeCpiWithAccountInfo},
@@ -26,22 +25,6 @@ use solana_pubkey::Pubkey;
 // Mock DecompressVariant implementations
 // ============================================================================
 
-/// Simulates an already-initialized PDA: pushes nothing to compressed_account_infos.
-#[derive(BorshSerialize, BorshDeserialize, Clone)]
-struct SkipVariant;
-
-impl<'info> DecompressVariant<AccountInfo<'info>> for SkipVariant {
-    fn decompress(
-        &self,
-        _meta: &PackedStateTreeInfo,
-        _pda_account: &AccountInfo<'info>,
-        _ctx: &mut DecompressCtx<'_, AccountInfo<'info>>,
-    ) -> Result<(), LightSdkTypesError> {
-        // Don't push anything -> idempotent skip (all already initialized)
-        Ok(())
-    }
-}
-
 /// Pushes one known CompressedAccountInfo to simulate decompression.
 #[derive(BorshSerialize, BorshDeserialize, Clone)]
 struct DecompressVariantMock;
@@ -60,34 +43,6 @@ impl<'info> DecompressVariant<AccountInfo<'info>> for DecompressVariantMock {
         });
         Ok(())
     }
-}
-
-// ============================================================================
-// Helper: build the standard account list for valid tests
-// [0]=fee_payer, [1]=config, [2]=rent_sponsor, [3]=system_account, [4]=pda_account
-// ============================================================================
-
-fn make_valid_accounts(
-    program_id: [u8; 32],
-) -> (
-    TestAccount,
-    TestAccount,
-    TestAccount,
-    TestAccount,
-    TestAccount,
-) {
-    let (config_account, rent_sponsor_key) = make_config_account(program_id);
-    let fee_payer = make_dummy_account([1u8; 32], [0u8; 32], 0);
-    let rent_sponsor = make_dummy_account(rent_sponsor_key, [0u8; 32], 0);
-    let system_account = make_dummy_account([11u8; 32], [0u8; 32], 0);
-    let pda_account = make_dummy_account([10u8; 32], program_id, 100);
-    (
-        fee_payer,
-        config_account,
-        rent_sponsor,
-        system_account,
-        pda_account,
-    )
 }
 
 fn one_pda_params<V: BorshSerialize + BorshDeserialize + Clone>(
@@ -373,4 +328,78 @@ fn test_build_decompress_produces_expected_instruction_data() {
 
     let built = result.unwrap().unwrap();
     assert_eq!(built.cpi_ix_data, expected_cpi_ix_data);
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Clone)]
+struct ErrorVariant;
+
+impl<'info> DecompressVariant<AccountInfo<'info>> for ErrorVariant {
+    fn decompress(
+        &self,
+        _meta: &PackedStateTreeInfo,
+        _pda_account: &AccountInfo<'info>,
+        _ctx: &mut DecompressCtx<'_, AccountInfo<'info>>,
+    ) -> Result<(), LightSdkTypesError> {
+        Err(LightSdkTypesError::ConstraintViolation)
+    }
+}
+
+#[test]
+fn test_decompress_variant_error_propagates() {
+    let program_id = [42u8; 32];
+    let (mut fee_payer, mut config_account, mut rent_sponsor, mut system_account, mut pda_account) =
+        make_valid_accounts(program_id);
+
+    let fee_payer_ai = fee_payer.get_account_info();
+    let config_ai = config_account.get_account_info();
+    let rent_sponsor_ai = rent_sponsor.get_account_info();
+    let system_ai = system_account.get_account_info();
+    let pda_ai = pda_account.get_account_info();
+
+    let remaining_accounts = vec![fee_payer_ai, config_ai, rent_sponsor_ai, system_ai, pda_ai];
+    let params = one_pda_params(ErrorVariant, 3);
+    let cpi_signer = CpiSigner {
+        program_id,
+        cpi_signer: [0u8; 32],
+        bump: 255,
+    };
+
+    let result =
+        build_decompress_pda_cpi_data(&remaining_accounts, &params, cpi_signer, &program_id, 0);
+
+    assert!(matches!(
+        result,
+        Err(LightSdkTypesError::ConstraintViolation)
+    ));
+}
+
+#[test]
+fn test_config_wrong_discriminator_returns_error() {
+    let program_id = [42u8; 32];
+    let (mut fee_payer, mut config_account, mut rent_sponsor, mut system_account, mut pda_account) =
+        make_valid_accounts(program_id);
+
+    config_account.data = vec![0u8; 170];
+
+    let fee_payer_ai = fee_payer.get_account_info();
+    let config_ai = config_account.get_account_info();
+    let rent_sponsor_ai = rent_sponsor.get_account_info();
+    let system_ai = system_account.get_account_info();
+    let pda_ai = pda_account.get_account_info();
+
+    let remaining_accounts = vec![fee_payer_ai, config_ai, rent_sponsor_ai, system_ai, pda_ai];
+    let params = one_pda_params(SkipVariant, 3);
+    let cpi_signer = CpiSigner {
+        program_id,
+        cpi_signer: [0u8; 32],
+        bump: 255,
+    };
+
+    let result =
+        build_decompress_pda_cpi_data(&remaining_accounts, &params, cpi_signer, &program_id, 0);
+
+    assert!(matches!(
+        result,
+        Err(LightSdkTypesError::ConstraintViolation)
+    ));
 }
