@@ -23,11 +23,12 @@ pub struct TransferCheckedData {
 /// - accounts[2]: destination ctoken account
 /// - accounts[3]: authority (signer)
 /// - accounts[4]: system_program
+/// - accounts[5]: fee_payer (writable, signer)
 pub fn process_transfer_checked_invoke(
     accounts: &[AccountInfo],
     data: TransferCheckedData,
 ) -> Result<(), ProgramError> {
-    if accounts.len() < 5 {
+    if accounts.len() < 6 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
@@ -39,7 +40,7 @@ pub fn process_transfer_checked_invoke(
         decimals: data.decimals,
         authority: &accounts[3],
         system_program: &accounts[4],
-        fee_payer: None,
+        fee_payer: &accounts[5],
     }
     .invoke()?;
 
@@ -54,11 +55,12 @@ pub fn process_transfer_checked_invoke(
 /// - accounts[2]: destination ctoken account
 /// - accounts[3]: authority (PDA)
 /// - accounts[4]: system_program
+/// - accounts[5]: fee_payer (writable, signer)
 pub fn process_transfer_checked_invoke_signed(
     accounts: &[AccountInfo],
     data: TransferCheckedData,
 ) -> Result<(), ProgramError> {
-    if accounts.len() < 5 {
+    if accounts.len() < 6 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
@@ -78,7 +80,7 @@ pub fn process_transfer_checked_invoke_signed(
         decimals: data.decimals,
         authority: &accounts[3],
         system_program: &accounts[4],
-        fee_payer: None,
+        fee_payer: &accounts[5],
     };
 
     // Invoke with PDA signing

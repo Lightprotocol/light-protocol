@@ -118,8 +118,7 @@ async fn test_ctoken_burn() {
         mint: ctx.mint_pda,
         amount: 500,
         authority: ctx.owner_keypair.pubkey(),
-        max_top_up: None,
-        fee_payer: None,
+        fee_payer: ctx.payer.pubkey(),
     }
     .instruction()
     .unwrap();
@@ -141,8 +140,7 @@ async fn test_ctoken_burn() {
         mint: ctx.mint_pda,
         amount: 500,
         authority: ctx.owner_keypair.pubkey(),
-        max_top_up: None,
-        fee_payer: None,
+        fee_payer: ctx.payer.pubkey(),
     }
     .instruction()
     .unwrap();

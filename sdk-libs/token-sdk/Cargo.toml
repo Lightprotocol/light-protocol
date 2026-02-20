@@ -33,7 +33,7 @@ light-compressed-token-sdk = { workspace = true }
 light-token-types = { workspace = true }
 light-compressed-account = { workspace = true, features = ["std", "solana"] }
 light-compressible = { workspace = true }
-light-token-interface = { workspace = true }
+light-token-interface = { workspace = true, features = ["solana"] }
 light-sdk = { workspace = true, features = ["v2", "cpi-context"] }
 light-account = { workspace = true }
 light-batched-merkle-tree = { workspace = true }

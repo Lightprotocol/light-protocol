@@ -29,8 +29,7 @@ pub fn process_mint_to_invoke(accounts: &[AccountInfo], amount: u64) -> Result<(
         amount,
         authority: accounts[2].clone(),
         system_program: accounts[3].clone(),
-        max_top_up: None,
-        fee_payer: None,
+        fee_payer: accounts[2].clone(),
     }
     .invoke()?;
 
@@ -45,11 +44,12 @@ pub fn process_mint_to_invoke(accounts: &[AccountInfo], amount: u64) -> Result<(
 /// - accounts[2]: PDA authority (mint authority, program signs)
 /// - accounts[3]: system_program
 /// - accounts[4]: light_token_program
+/// - accounts[5]: fee_payer (writable, signer)
 pub fn process_mint_to_invoke_signed(
     accounts: &[AccountInfo],
     amount: u64,
 ) -> Result<(), ProgramError> {
-    if accounts.len() < 5 {
+    if accounts.len() < 6 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
@@ -68,10 +68,39 @@ pub fn process_mint_to_invoke_signed(
         amount,
         authority: accounts[2].clone(),
         system_program: accounts[3].clone(),
-        max_top_up: None,
-        fee_payer: None,
+        fee_payer: accounts[5].clone(),
     }
     .invoke_signed(&[signer_seeds])?;
+
+    Ok(())
+}
+
+/// Handler for minting to Token with a separate fee_payer (invoke)
+///
+/// Account order:
+/// - accounts[0]: mint (writable)
+/// - accounts[1]: destination (Token account, writable)
+/// - accounts[2]: authority (mint authority, signer)
+/// - accounts[3]: system_program
+/// - accounts[4]: light_token_program
+/// - accounts[5]: fee_payer (writable, signer)
+pub fn process_mint_to_invoke_with_fee_payer(
+    accounts: &[AccountInfo],
+    amount: u64,
+) -> Result<(), ProgramError> {
+    if accounts.len() < 6 {
+        return Err(ProgramError::NotEnoughAccountKeys);
+    }
+
+    MintToCpi {
+        mint: accounts[0].clone(),
+        destination: accounts[1].clone(),
+        amount,
+        authority: accounts[2].clone(),
+        system_program: accounts[3].clone(),
+        fee_payer: accounts[5].clone(),
+    }
+    .invoke()?;
 
     Ok(())
 }

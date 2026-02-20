@@ -21,6 +21,7 @@ use crate::constants::LIGHT_TOKEN_PROGRAM_ID;
 ///     token_account: &ctx.accounts.token_account,
 ///     owner: &ctx.accounts.owner,
 ///     system_program: &ctx.accounts.system_program,
+///     fee_payer: &ctx.accounts.fee_payer,
 /// }
 /// .invoke()?;
 /// ```
@@ -28,6 +29,8 @@ pub struct RevokeCpi<'info> {
     pub token_account: &'info AccountInfo,
     pub owner: &'info AccountInfo,
     pub system_program: &'info AccountInfo,
+    /// Fee payer for compressible rent top-ups (writable signer)
+    pub fee_payer: &'info AccountInfo,
 }
 
 impl<'info> RevokeCpi<'info> {
@@ -43,8 +46,9 @@ impl<'info> RevokeCpi<'info> {
 
         let account_metas = [
             AccountMeta::writable(self.token_account.key()),
-            AccountMeta::writable_signer(self.owner.key()),
+            AccountMeta::readonly_signer(self.owner.key()),
             AccountMeta::readonly(self.system_program.key()),
+            AccountMeta::writable_signer(self.fee_payer.key()),
         ];
 
         let instruction = Instruction {
@@ -53,7 +57,12 @@ impl<'info> RevokeCpi<'info> {
             data: &data,
         };
 
-        let account_infos = [self.token_account, self.owner, self.system_program];
+        let account_infos = [
+            self.token_account,
+            self.owner,
+            self.system_program,
+            self.fee_payer,
+        ];
 
         if signers.is_empty() {
             slice_invoke(&instruction, &account_infos)

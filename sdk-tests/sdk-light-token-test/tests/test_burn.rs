@@ -12,6 +12,7 @@ use shared::*;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
+    signature::Keypair,
     signer::Signer,
 };
 
@@ -122,6 +123,7 @@ async fn test_burn_invoke_signed() {
             AccountMeta::new_readonly(pda_owner, false),           // PDA authority (program signs)
             AccountMeta::new_readonly(light_token_program, false), // light_token_program
             AccountMeta::new_readonly(Pubkey::default(), false),   // system_program
+            AccountMeta::new(payer.pubkey(), true),                // fee_payer
         ],
         data: instruction_data,
     };
@@ -137,6 +139,70 @@ async fn test_burn_invoke_signed() {
 
     let mut expected_ctoken = ctoken_before;
     expected_ctoken.amount = 500; // 1000 - 500
+
+    assert_eq!(
+        ctoken_after, expected_ctoken,
+        "Light Token should match expected state after burn"
+    );
+}
+
+/// Test burning CTokens with separate fee_payer using BurnCTokenCpi::invoke()
+#[tokio::test]
+async fn test_burn_invoke_with_separate_fee_payer() {
+    let config = ProgramTestConfig::new_v2(true, Some(vec![("sdk_light_token_test", ID)]));
+    let mut rpc = LightProgramTest::new(config).await.unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+
+    let owner_keypair = Keypair::new();
+    rpc.airdrop_lamports(&owner_keypair.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+
+    let (mint_pda, _compression_address, ata_pubkeys) = setup_create_mint_with_freeze_authority(
+        &mut rpc,
+        &payer,
+        payer.pubkey(),
+        None,
+        9,
+        vec![(1000, owner_keypair.pubkey())],
+    )
+    .await;
+
+    let ata = ata_pubkeys[0];
+    let burn_amount = 200u64;
+
+    let ata_account_before = rpc.get_account(ata).await.unwrap().unwrap();
+    let ctoken_before = Token::deserialize(&mut &ata_account_before.data[..]).unwrap();
+
+    let mut instruction_data = vec![InstructionType::BurnInvokeWithFeePayer as u8];
+    let burn_data = BurnData {
+        amount: burn_amount,
+    };
+    burn_data.serialize(&mut instruction_data).unwrap();
+
+    let light_token_program = LIGHT_TOKEN_PROGRAM_ID;
+    let instruction = Instruction {
+        program_id: ID,
+        accounts: vec![
+            AccountMeta::new(ata, false),                            // source
+            AccountMeta::new(mint_pda, false),                       // mint
+            AccountMeta::new_readonly(owner_keypair.pubkey(), true), // authority (signer, not fee_payer)
+            AccountMeta::new_readonly(light_token_program, false),   // light_token_program
+            AccountMeta::new_readonly(Pubkey::default(), false),     // system_program
+            AccountMeta::new(payer.pubkey(), true),                  // fee_payer
+        ],
+        data: instruction_data,
+    };
+
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer, &owner_keypair])
+        .await
+        .unwrap();
+
+    let ata_account_after = rpc.get_account(ata).await.unwrap().unwrap();
+    let ctoken_after = Token::deserialize(&mut &ata_account_after.data[..]).unwrap();
+
+    let mut expected_ctoken = ctoken_before;
+    expected_ctoken.amount = 800; // 1000 - 200
 
     assert_eq!(
         ctoken_after, expected_ctoken,

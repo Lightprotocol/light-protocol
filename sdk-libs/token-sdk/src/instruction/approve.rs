@@ -12,11 +12,13 @@ use solana_pubkey::Pubkey;
 /// # let token_account = Pubkey::new_unique();
 /// # let delegate = Pubkey::new_unique();
 /// # let owner = Pubkey::new_unique();
+/// # let fee_payer = Pubkey::new_unique();
 /// let instruction = Approve {
 ///     token_account,
 ///     delegate,
 ///     owner,
 ///     amount: 100,
+///     fee_payer,
 /// }.instruction()?;
 /// # Ok::<(), solana_program_error::ProgramError>(())
 /// ```
@@ -25,10 +27,12 @@ pub struct Approve {
     pub token_account: Pubkey,
     /// Delegate to approve
     pub delegate: Pubkey,
-    /// Owner of the Light Token account (signer, payer for top-up)
+    /// Owner of the Light Token account (readonly signer)
     pub owner: Pubkey,
     /// Amount of tokens to delegate
     pub amount: u64,
+    /// Fee payer for compressible rent top-ups (writable signer)
+    pub fee_payer: Pubkey,
 }
 
 /// # Approve Light Token via CPI:
@@ -39,12 +43,14 @@ pub struct Approve {
 /// # let delegate: AccountInfo = todo!();
 /// # let owner: AccountInfo = todo!();
 /// # let system_program: AccountInfo = todo!();
+/// # let fee_payer: AccountInfo = todo!();
 /// ApproveCpi {
 ///     token_account,
 ///     delegate,
 ///     owner,
 ///     system_program,
 ///     amount: 100,
+///     fee_payer,
 /// }
 /// .invoke()?;
 /// # Ok::<(), solana_program_error::ProgramError>(())
@@ -55,6 +61,8 @@ pub struct ApproveCpi<'info> {
     pub owner: AccountInfo<'info>,
     pub system_program: AccountInfo<'info>,
     pub amount: u64,
+    /// Fee payer for compressible rent top-ups (writable signer)
+    pub fee_payer: AccountInfo<'info>,
 }
 
 impl<'info> ApproveCpi<'info> {
@@ -69,6 +77,7 @@ impl<'info> ApproveCpi<'info> {
             self.delegate,
             self.owner,
             self.system_program,
+            self.fee_payer,
         ];
         invoke(&instruction, &account_infos)
     }
@@ -80,6 +89,7 @@ impl<'info> ApproveCpi<'info> {
             self.delegate,
             self.owner,
             self.system_program,
+            self.fee_payer,
         ];
         invoke_signed(&instruction, &account_infos, signer_seeds)
     }
@@ -92,6 +102,7 @@ impl<'info> From<&ApproveCpi<'info>> for Approve {
             delegate: *cpi.delegate.key,
             owner: *cpi.owner.key,
             amount: cpi.amount,
+            fee_payer: *cpi.fee_payer.key,
         }
     }
 }
@@ -106,8 +117,9 @@ impl Approve {
             accounts: vec![
                 AccountMeta::new(self.token_account, false),
                 AccountMeta::new_readonly(self.delegate, false),
-                AccountMeta::new(self.owner, true),
+                AccountMeta::new_readonly(self.owner, true),
                 AccountMeta::new_readonly(Pubkey::default(), false),
+                AccountMeta::new(self.fee_payer, true),
             ],
             data,
         })

@@ -23,6 +23,7 @@ use crate::constants::LIGHT_TOKEN_PROGRAM_ID;
 ///     owner: &ctx.accounts.owner,
 ///     system_program: &ctx.accounts.system_program,
 ///     amount: 100,
+///     fee_payer: &ctx.accounts.fee_payer,
 /// }
 /// .invoke()?;
 /// ```
@@ -32,6 +33,8 @@ pub struct ApproveCpi<'info> {
     pub owner: &'info AccountInfo,
     pub system_program: &'info AccountInfo,
     pub amount: u64,
+    /// Fee payer for compressible rent top-ups (writable signer)
+    pub fee_payer: &'info AccountInfo,
 }
 
 impl<'info> ApproveCpi<'info> {
@@ -50,8 +53,9 @@ impl<'info> ApproveCpi<'info> {
         let account_metas = [
             AccountMeta::writable(self.token_account.key()),
             AccountMeta::readonly(self.delegate.key()),
-            AccountMeta::writable_signer(self.owner.key()),
+            AccountMeta::readonly_signer(self.owner.key()),
             AccountMeta::readonly(self.system_program.key()),
+            AccountMeta::writable_signer(self.fee_payer.key()),
         ];
 
         let instruction = Instruction {
@@ -65,6 +69,7 @@ impl<'info> ApproveCpi<'info> {
             self.delegate,
             self.owner,
             self.system_program,
+            self.fee_payer,
         ];
 
         if signers.is_empty() {

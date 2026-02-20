@@ -49,7 +49,7 @@ impl CloseAccount {
         let accounts = vec![
             AccountMeta::new(self.account, false),
             AccountMeta::new(self.destination, false),
-            AccountMeta::new(self.owner, true), // signer, mutable to receive write_top_up
+            AccountMeta::new_readonly(self.owner, true),
             AccountMeta::new(self.rent_sponsor, false),
         ];
 
