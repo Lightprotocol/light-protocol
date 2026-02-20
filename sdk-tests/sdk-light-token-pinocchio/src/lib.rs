@@ -19,8 +19,11 @@ mod transfer_interface;
 mod transfer_spl_ctoken;
 
 // Re-export all instruction data types
-pub use approve::{process_approve_invoke, process_approve_invoke_signed, ApproveData};
-pub use burn::{process_burn_invoke, process_burn_invoke_signed, BurnData};
+pub use approve::{
+    process_approve_invoke, process_approve_invoke_signed,
+    process_approve_invoke_with_fee_payer, ApproveData,
+};
+pub use burn::{process_burn_invoke, process_burn_invoke_signed, process_burn_invoke_with_fee_payer, BurnData};
 pub use close::{process_close_account_invoke, process_close_account_invoke_signed};
 pub use create_ata::{process_create_ata_invoke, process_create_ata_invoke_signed, CreateAtaData};
 pub use create_mint::{
@@ -31,15 +34,23 @@ pub use create_token_account::{
     process_create_token_account_invoke, process_create_token_account_invoke_signed,
     CreateTokenAccountData,
 };
-pub use ctoken_mint_to::{process_mint_to_invoke, process_mint_to_invoke_signed, MintToData};
+pub use ctoken_mint_to::{
+    process_mint_to_invoke, process_mint_to_invoke_signed, process_mint_to_invoke_with_fee_payer,
+    MintToData,
+};
 pub use freeze::{process_freeze_invoke, process_freeze_invoke_signed};
 use light_macros::pubkey_array;
 use pinocchio::{
     account_info::AccountInfo, entrypoint, program_error::ProgramError, ProgramResult,
 };
-pub use revoke::{process_revoke_invoke, process_revoke_invoke_signed};
+pub use revoke::{
+    process_revoke_invoke, process_revoke_invoke_signed, process_revoke_invoke_with_fee_payer,
+};
 pub use thaw::{process_thaw_invoke, process_thaw_invoke_signed};
-pub use transfer::{process_transfer_invoke, process_transfer_invoke_signed, TransferData};
+pub use transfer::{
+    process_transfer_invoke, process_transfer_invoke_signed,
+    process_transfer_invoke_with_fee_payer, TransferData,
+};
 pub use transfer_checked::{
     process_transfer_checked_invoke, process_transfer_checked_invoke_signed, TransferCheckedData,
 };
@@ -134,6 +145,16 @@ pub enum InstructionType {
     CTokenTransferCheckedInvoke = 34,
     /// Transfer cTokens with checked decimals from PDA-owned account (invoke_signed)
     CTokenTransferCheckedInvokeSigned = 35,
+    /// Transfer cTokens with separate fee_payer (invoke, non-PDA authority)
+    CTokenTransferInvokeWithFeePayer = 36,
+    /// Burn CTokens with separate fee_payer (invoke, non-PDA authority)
+    BurnInvokeWithFeePayer = 37,
+    /// Mint to Light Token with separate fee_payer (invoke, non-PDA authority)
+    CTokenMintToInvokeWithFeePayer = 38,
+    /// Approve delegate with separate fee_payer (invoke, non-PDA authority)
+    ApproveInvokeWithFeePayer = 39,
+    /// Revoke delegation with separate fee_payer (invoke, non-PDA authority)
+    RevokeInvokeWithFeePayer = 40,
 }
 
 impl TryFrom<u8> for InstructionType {
@@ -174,6 +195,11 @@ impl TryFrom<u8> for InstructionType {
             32 => Ok(InstructionType::CTokenMintToInvokeSigned),
             34 => Ok(InstructionType::CTokenTransferCheckedInvoke),
             35 => Ok(InstructionType::CTokenTransferCheckedInvokeSigned),
+            36 => Ok(InstructionType::CTokenTransferInvokeWithFeePayer),
+            37 => Ok(InstructionType::BurnInvokeWithFeePayer),
+            38 => Ok(InstructionType::CTokenMintToInvokeWithFeePayer),
+            39 => Ok(InstructionType::ApproveInvokeWithFeePayer),
+            40 => Ok(InstructionType::RevokeInvokeWithFeePayer),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
@@ -320,6 +346,29 @@ pub fn process_instruction(
             let data = TransferCheckedData::try_from_slice(&instruction_data[1..])
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
             process_transfer_checked_invoke_signed(accounts, data)
+        }
+        InstructionType::CTokenTransferInvokeWithFeePayer => {
+            let data = TransferData::try_from_slice(&instruction_data[1..])
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            process_transfer_invoke_with_fee_payer(accounts, data)
+        }
+        InstructionType::BurnInvokeWithFeePayer => {
+            let data = BurnData::try_from_slice(&instruction_data[1..])
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            process_burn_invoke_with_fee_payer(accounts, data.amount)
+        }
+        InstructionType::CTokenMintToInvokeWithFeePayer => {
+            let data = MintToData::try_from_slice(&instruction_data[1..])
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            process_mint_to_invoke_with_fee_payer(accounts, data.amount)
+        }
+        InstructionType::ApproveInvokeWithFeePayer => {
+            let data = ApproveData::try_from_slice(&instruction_data[1..])
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            process_approve_invoke_with_fee_payer(accounts, data)
+        }
+        InstructionType::RevokeInvokeWithFeePayer => {
+            process_revoke_invoke_with_fee_payer(accounts)
         }
         _ => Err(ProgramError::InvalidInstructionData),
     }

@@ -94,3 +94,32 @@ pub fn process_transfer_invoke_signed(
 
     Ok(())
 }
+
+/// Handler for transferring compressed tokens with a separate fee_payer (invoke)
+///
+/// Account order:
+/// - accounts[0]: source ctoken account
+/// - accounts[1]: destination ctoken account
+/// - accounts[2]: authority (signer)
+/// - accounts[3]: system_program
+/// - accounts[4]: fee_payer (writable, signer)
+pub fn process_transfer_invoke_with_fee_payer(
+    accounts: &[AccountInfo],
+    data: TransferData,
+) -> Result<(), ProgramError> {
+    if accounts.len() < 5 {
+        return Err(ProgramError::NotEnoughAccountKeys);
+    }
+
+    TransferCpi {
+        source: &accounts[0],
+        destination: &accounts[1],
+        amount: data.amount,
+        authority: &accounts[2],
+        system_program: &accounts[3],
+        fee_payer: &accounts[4],
+    }
+    .invoke()?;
+
+    Ok(())
+}

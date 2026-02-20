@@ -150,3 +150,70 @@ async fn test_burn_invoke_signed() {
         "Light Token should match expected state after burn"
     );
 }
+
+/// Test burning CTokens with a separate fee_payer using BurnCTokenCpi::invoke()
+#[tokio::test]
+async fn test_burn_invoke_with_separate_fee_payer() {
+    use solana_sdk::signature::Keypair;
+
+    let config = ProgramTestConfig::new_v2(
+        true,
+        Some(vec![("sdk_light_token_pinocchio_test", PROGRAM_ID)]),
+    );
+    let mut rpc = LightProgramTest::new(config).await.unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+
+    // Separate keypair as the token account owner (not the fee payer)
+    let owner_keypair = Keypair::new();
+
+    let (mint_pda, _compression_address, ata_pubkeys) = setup_create_mint_with_freeze_authority(
+        &mut rpc,
+        &payer,
+        payer.pubkey(),
+        None,
+        9,
+        vec![(1000, owner_keypair.pubkey())],
+    )
+    .await;
+
+    let ata = ata_pubkeys[0];
+    let burn_amount = 200u64;
+
+    let ata_account_before = rpc.get_account(ata).await.unwrap().unwrap();
+    let ctoken_before = Token::deserialize(&mut &ata_account_before.data[..]).unwrap();
+
+    let mut instruction_data = vec![InstructionType::BurnInvokeWithFeePayer as u8];
+    let burn_data = BurnData {
+        amount: burn_amount,
+    };
+    burn_data.serialize(&mut instruction_data).unwrap();
+
+    let light_token_program = LIGHT_TOKEN_PROGRAM_ID;
+    let instruction = Instruction {
+        program_id: PROGRAM_ID,
+        accounts: vec![
+            AccountMeta::new(ata, false),                            // source
+            AccountMeta::new(mint_pda, false),                       // mint
+            AccountMeta::new_readonly(owner_keypair.pubkey(), true), // authority (readonly signer)
+            AccountMeta::new_readonly(light_token_program, false),   // light_token_program
+            AccountMeta::new_readonly(Pubkey::default(), false),     // system_program
+            AccountMeta::new(payer.pubkey(), true),                  // fee_payer (separate)
+        ],
+        data: instruction_data,
+    };
+
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer, &owner_keypair])
+        .await
+        .unwrap();
+
+    let ata_account_after = rpc.get_account(ata).await.unwrap().unwrap();
+    let ctoken_after = Token::deserialize(&mut &ata_account_after.data[..]).unwrap();
+
+    let mut expected_ctoken_after = ctoken_before;
+    expected_ctoken_after.amount = 800; // 1000 - 200
+
+    assert_eq!(
+        ctoken_after, expected_ctoken_after,
+        "Light Token should match expected state after burn with separate fee payer"
+    );
+}
