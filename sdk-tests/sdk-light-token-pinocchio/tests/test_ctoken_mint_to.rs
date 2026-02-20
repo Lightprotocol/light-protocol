@@ -235,7 +235,7 @@ async fn test_ctoken_mint_to_invoke_signed() {
             AccountMeta::new(mint_pda, false),                     // mint
             AccountMeta::new(ata, false),                          // destination
             AccountMeta::new_readonly(pda_mint_authority, false), // PDA authority (program signs, readonly)
-            AccountMeta::new_readonly(system_program, false), // system_program
+            AccountMeta::new_readonly(system_program, false),     // system_program
             AccountMeta::new_readonly(light_token_program, false), // light_token_program
             AccountMeta::new(payer.pubkey(), true), // fee_payer (PDA authority != tx fee payer)
         ],

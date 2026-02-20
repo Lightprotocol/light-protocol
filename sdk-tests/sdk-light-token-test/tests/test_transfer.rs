@@ -109,7 +109,7 @@ async fn test_ctoken_transfer_invoke_signed() {
             AccountMeta::new(dest_ata, false),
             AccountMeta::new_readonly(pda_owner, false), // PDA authority, not signer
             AccountMeta::new_readonly(Pubkey::default(), false), // system_program
-            AccountMeta::new(payer.pubkey(), true),              // fee_payer
+            AccountMeta::new(payer.pubkey(), true),      // fee_payer
             AccountMeta::new_readonly(LIGHT_TOKEN_PROGRAM_ID, false),
         ],
         data: instruction_data,
