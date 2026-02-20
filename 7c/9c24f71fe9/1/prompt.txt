@@ -1,0 +1,298 @@
+Implement the following plan:
+
+# Plan: Fill Coverage Gaps + Refactor Test Helpers
+
+**Date:** 2026-02-20
+
+## IMPORTANT
+
+- Split into todos and work through one by one
+- Full `assert_eq!` for all non-error assertions; `assert!(matches!(...))` for errors
+- Use `TestAccount` from `light-account-checks` (solana feature)
+- No changes to production files — tests and common helpers only
+
+## Context
+
+Two tasks:
+
+1. **Helper consolidation**: `make_valid_accounts` is duplicated word-for-word in all three test files (`compress_processor.rs`, `decompress_processor.rs`, `decompress_accounts_processor.rs`). `SkipVariant` and its `DecompressVariant` impl are duplicated between `decompress_processor.rs` and `decompress_accounts_processor.rs`. Move both to `tests/common/mod.rs` and remove the duplicates.
+
+2. **Coverage gaps + randomized test**: 10 uncovered paths were identified across the three processor test files; a subagent verified them against the code. Additionally, `test_randomized_pda_and_token_decompression` runs a single unreproducible iteration that skips the (0,0) case.
+
+## Critical Files
+
+| File | Change type |
+|------|-------------|
+| `sdk-libs/sdk-types/tests/common/mod.rs` | Add `make_valid_accounts`, `SkipVariant` |
+| `sdk-libs/sdk-types/tests/compress_processor.rs` | Remove duplicate, import from common; add 3 tests |
+| `sdk-libs/sdk-types/tests/decompress_processor.rs` | Remove duplicates, import from common; add 2 tests |
+| `sdk-libs/sdk-types/tests/decompress_accounts_processor.rs` | Remove duplicates, import from common; improve randomized test; add 5 tests |
+
+## Account Layout Reference
+
+```
+compress / decompress_pda tests:
+  [0] fee_payer, [1] config, [2] rent_sponsor, [3] system, [4..] pdas
+  system_accounts_offset = 3
+
+decompress_accounts tests (PDA+token):
+  [0] fee_payer, [1] config, [2] rent_sponsor
+  [3] ctoken_rent_sponsor, [4] dummy, [5] dummy, [6] ctoken_config
+  [7..hot_accounts_start] system accounts
+  [hot_accounts_start..] pdas then tokens
+  system_accounts_offset = 7
+```
+
+---
+
+## Todo 1: Consolidate shared helpers into `common/mod.rs`
+
+**File:** `sdk-libs/sdk-types/tests/common/mod.rs`
+
+### 1a. Add `make_valid_accounts`
+
+Copy verbatim from any of the three test files (all three are identical):
+
+```rust
+pub fn make_valid_accounts(
+    program_id: [u8; 32],
+) -> (TestAccount, TestAccount, TestAccount, TestAccount, TestAccount) {
+    let (config_account, rent_sponsor_key) = make_config_account(program_id);
+    let fee_payer = make_dummy_account([1u8; 32], [0u8; 32], 0);
+    let rent_sponsor = make_dummy_account(rent_sponsor_key, [0u8; 32], 0);
+    let system_account = make_dummy_account([11u8; 32], [0u8; 32], 0);
+    let pda_account = make_dummy_account([10u8; 32], program_id, 100);
+    (fee_payer, config_account, rent_sponsor, system_account, pda_account)
+}
+```
+
+### 1b. Add `SkipVariant`
+
+Copy verbatim from either decompress file. Add required imports to common/mod.rs
+(`light_sdk_types::{error::LightSdkTypesError, interface::program::decompression::processor::DecompressCtx, ...}`).
+
+Exact struct + impl from `decompress_processor.rs` lines 30-43:
+
+```rust
+#[derive(BorshSerialize, BorshDeserialize, Clone)]
+pub struct SkipVariant;
+
+impl<'info> DecompressVariant<AccountInfo<'info>> for SkipVariant {
+    fn decompress(
+        &self,
+        _meta: &PackedStateTreeInfo,
+        _pda_account: &AccountInfo<'info>,
+        _ctx: &mut DecompressCtx<'_, AccountInfo<'info>>,
+    ) -> Result<(), LightSdkTypesError> {
+        Ok(())
+    }
+}
+```
+
+### 1c. Remove duplicates in three test files + update imports
+
+- **`compress_processor.rs`**: Remove `make_valid_accounts` (lines 54-75); update `use common::` to include `make_valid_accounts`.
+- **`decompress_processor.rs`**: Remove `make_valid_accounts` (lines 70-91) and `SkipVariant` (lines 30-43); update `use common::` to include both.
+- **`decompress_accounts_processor.rs`**: Remove `make_valid_accounts` (lines 107-128) and `SkipVariant` (lines 34-46); update `use common::` to include both.
+
+---
+
+## Todo 2: Improve `test_randomized_pda_and_token_decompression`
+
+**File:** `sdk-libs/sdk-types/tests/decompress_accounts_processor.rs` (lines 618-764)
+
+Three changes to make, verified against current code:
+
+### 2a. Switch to seeded, reproducible RNG
+
+Current (line 621): `let mut rng = rand::thread_rng();`
+
+Replace with:
+```rust
+let seed: [u8; 32] = rand::thread_rng().gen();
+println!("seed: {seed:?}");
+let mut rng = rand::rngs::StdRng::from_seed(seed);
+```
+
+Add `rand::SeedableRng` and `rand::rngs::StdRng` to the import at the top of the file.
+
+### 2b. Wrap body in a loop
+
+Wrap the entire existing body (random counts through final asserts) in:
+```rust
+for _ in 0..50 {
+    // per-iteration: generate seed, build accounts, call build_decompress_accounts_cpi_data, assert
+}
+```
+
+Move the seed generation inside the loop so each iteration gets its own seed and prints it.
+
+### 2c. Replace clamp with explicit (0,0) sub-case
+
+Current clamp (lines 626-630):
+```rust
+if n_pdas + n_tokens == 0 {
+    n_pdas = 1;
+    n_tokens = 1;
+}
+```
+
+Remove the clamp so (0,0) is a valid random outcome. Before the loop, add a single explicit
+sub-case that tests (0,0) directly:
+
+```rust
+// Explicit edge case: zero PDAs, zero tokens
+{
+    // build 7-header-only remaining_accounts, accounts = vec![], token_accounts_offset = 0
+    // assert Ok(built) with all-false flags and empty vecs
+}
+```
+
+This (0,0) explicit case also doubles as the new `test_empty_accounts_list` from the coverage
+gaps list, so **remove Todo 5f** (`test_empty_accounts_list`) — it is now covered here.
+
+---
+
+## Todo 3: `compress_processor.rs` — 3 new tests
+
+**File:** `sdk-libs/sdk-types/tests/compress_processor.rs`
+
+### 3a. Add `mock_dispatch_error`
+
+```rust
+fn mock_dispatch_error<'a>(
+    _account: &AccountInfo<'a>,
+    _meta: &CompressedAccountMetaNoLamportsNoAddress,
+    _pda_index: usize,
+    _ctx: &mut CompressCtx<'_, AccountInfo<'a>>,
+) -> Result<(), LightSdkTypesError> {
+    Err(LightSdkTypesError::ConstraintViolation)
+}
+```
+
+### 3b. `test_dispatch_fn_error_propagates`
+
+Valid 5-account layout (from `make_valid_accounts`), 1 PDA, `system_accounts_offset = 3`.
+Call `build_compress_pda_cpi_data` with `mock_dispatch_error`.
+Assert: `Err(LightSdkTypesError::ConstraintViolation)`.
+
+### 3c. `test_multiple_pdas_non_compressible_skips_all`
+
+Layout: `make_valid_accounts` 5 accounts + 2 extra PDA accounts via `make_dummy_account`
+(total 7 accounts), 3 `compressed_accounts`, `system_accounts_offset = 3`.
+(`pda_start = 7 - 3 = 4`; accounts [4][5][6] are the three PDAs.)
+Call with `mock_dispatch_non_compressible`.
+Assert: `Ok(None)`.
+
+### 3d. `test_empty_system_accounts_slice`
+
+Layout: `[fee_payer, config, rent_sponsor, pda]` (4 accounts), 1 PDA, `system_accounts_offset = 3`.
+`pda_start = 4 - 1 = 3 = system_accounts_offset` → `remaining_accounts[3..3]` = empty system slice.
+Call with `mock_dispatch_compressible`.
+Assert: `Ok(Some(_))` — no panic, builds successfully with an empty system accounts slice.
+
+---
+
+## Todo 4: `decompress_processor.rs` — 2 new tests
+
+**File:** `sdk-libs/sdk-types/tests/decompress_processor.rs`
+
+### 4a. Add `ErrorVariant`
+
+```rust
+#[derive(BorshSerialize, BorshDeserialize, Clone)]
+struct ErrorVariant;
+
+impl<'info> DecompressVariant<AccountInfo<'info>> for ErrorVariant {
+    fn decompress(
+        &self,
+        _meta: &PackedStateTreeInfo,
+        _pda_account: &AccountInfo<'info>,
+        _ctx: &mut DecompressCtx<'_, AccountInfo<'info>>,
+    ) -> Result<(), LightSdkTypesError> {
+        Err(LightSdkTypesError::ConstraintViolation)
+    }
+}
+```
+
+(Exact signature confirmed from existing `SkipVariant`/`DecompressVariantMock` impls in this file.)
+
+### 4b. `test_decompress_variant_error_propagates`
+
+Valid 5-account layout (from `make_valid_accounts`), 1 PDA, `system_accounts_offset = 3`.
+Call `build_decompress_pda_cpi_data` with `ErrorVariant`.
+Assert: `Err(LightSdkTypesError::ConstraintViolation)`.
+
+### 4c. `test_config_wrong_discriminator_returns_error`
+
+Valid 5-account layout, override `config_account.data = vec![0u8; 170]` (zeros = wrong discriminator).
+Call with any valid variant.
+Assert: `Err(LightSdkTypesError::ConstraintViolation)`.
+
+---
+
+## Todo 5: `decompress_accounts_processor.rs` — 4 new tests
+
+**File:** `sdk-libs/sdk-types/tests/decompress_accounts_processor.rs`
+
+(`test_empty_accounts_list` is removed from this list — covered by the (0,0) sub-case in Todo 2c.)
+
+### 5a. Add `Error` arm to `MockVariant` enum
+
+```rust
+enum MockVariant {
+    Pda(PdaMockVariant),
+    Token(TokenMockVariant),
+    Error,
+}
+// impl match arm: MockVariant::Error => Err(LightSdkTypesError::ConstraintViolation)
+```
+
+### 5b. `test_config_wrong_discriminator_returns_error`
+
+Valid 5-account layout (from `make_valid_accounts`), override `config_account.data = vec![0u8; 170]`.
+1 PDA account, `token_accounts_offset = 1`, `system_accounts_offset = 3`.
+Assert: `Err(LightSdkTypesError::ConstraintViolation)`.
+(Config load at [1] happens before `get(6)` check, so 5 accounts is sufficient.)
+
+### 5c. `test_decompress_variant_error_during_pda_phase`
+
+Use `make_valid_accounts_with_tokens` (9-account layout), `system_accounts_offset = 7`,
+`token_accounts_offset = 1`, 2 entries in `params.accounts`:
+`[MockVariant::Error, MockVariant::Token(...)]`.
+Assert: `Err(LightSdkTypesError::ConstraintViolation)`.
+Rationale: PDA-phase error is propagated; token phase is never reached.
+
+### 5d. `test_decompress_variant_error_during_token_phase`
+
+Use `make_valid_accounts_with_tokens` (9-account layout), `system_accounts_offset = 7`,
+`token_accounts_offset = 1`, 2 entries in `params.accounts`:
+`[MockVariant::Pda(...), MockVariant::Error]`.
+Assert: `Err(LightSdkTypesError::ConstraintViolation)`.
+
+### 5e. `test_token_decompression_missing_ctoken_config`
+
+Layout: `[fee_payer=0, config=1, rent_sponsor=2, ctoken_rent_sponsor=3, hot_token=4]` (5 accounts).
+Config is valid. `system_accounts_offset = 3`, 1 token account (`token_accounts_offset = 0`,
+`accounts.len() = 1`). `hot_accounts_start = 5 - 1 = 4`. `remaining_accounts.get(6)` → None.
+(Config load at [1] and rent_sponsor at [2] succeed; then `has_token_accounts = true` triggers
+the `get(6)` check which fails because there are only 5 accounts.)
+Assert: `Err(LightSdkTypesError::NotEnoughAccountKeys)`.
+
+---
+
+## Todo 6: Run tests
+
+```bash
+cargo test -p light-sdk-types --features token
+```
+
+Expected totals after all changes:
+- `compress_processor.rs`: 8 existing + 3 new = **11 tests**
+- `decompress_processor.rs`: 7 existing + 2 new = **9 tests**
+- `decompress_accounts_processor.rs`: 9 existing + 4 new = **13 tests** (empty_accounts_list folded into randomized)
+
+Total: **33 tests**
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ananas/.REDACTED.jsonl

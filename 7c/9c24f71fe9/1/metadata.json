@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "7c9c24f71fe9",
+  "session_id": "963378ab-8ce4-472d-9903-07279f2a4b07",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-20T00:46:15.831206Z",
+  "branch": "jorrit/test-random-unit-tests-light-program-compress-decompres",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "forester/node_modules/@lightprotocol/.ignored_zk-compression-cli/package.json",
+    "sdk-libs/sdk-types/tests/common/mod.rs",
+    "sdk-libs/sdk-types/tests/compress_processor.rs",
+    "sdk-libs/sdk-types/tests/decompress_accounts_processor.rs",
+    "sdk-libs/sdk-types/tests/decompress_processor.rs"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 63,
+    "cache_creation_tokens": 80780,
+    "cache_read_tokens": 4163230,
+    "output_tokens": 17587,
+    "api_call_count": 61
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-20T00:46:15.55556Z",
+    "agent_lines": 642,
+    "human_added": 17,
+    "human_modified": 10,
+    "human_removed": 0,
+    "total_committed": 669,
+    "agent_percentage": 95.96412556053812
+  }
+}

@@ -3,8 +3,9 @@
   "checkpoint_id": "7c9c24f71fe9",
   "strategy": "manual-commit",
   "branch": "jorrit/test-random-unit-tests-light-program-compress-decompres",
-  "checkpoints_count": 0,
+  "checkpoints_count": 1,
   "files_touched": [
+    "forester/node_modules/@lightprotocol/.ignored_zk-compression-cli/package.json",
     "sdk-libs/sdk-types/Cargo.toml",
     "sdk-libs/sdk-types/src/interface/program/compression/processor.rs",
     "sdk-libs/sdk-types/src/interface/program/decompression/processor.rs",
@@ -20,13 +21,20 @@
       "context": "/7c/9c24f71fe9/0/context.md",
       "content_hash": "/7c/9c24f71fe9/0/content_hash.txt",
       "prompt": "/7c/9c24f71fe9/0/prompt.txt"
+    },
+    {
+      "metadata": "/7c/9c24f71fe9/1/metadata.json",
+      "transcript": "/7c/9c24f71fe9/1/full.jsonl",
+      "context": "/7c/9c24f71fe9/1/context.md",
+      "content_hash": "/7c/9c24f71fe9/1/content_hash.txt",
+      "prompt": "/7c/9c24f71fe9/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 20,
-    "cache_creation_tokens": 119395,
-    "cache_read_tokens": 841521,
-    "output_tokens": 13502,
-    "api_call_count": 13
+    "input_tokens": 83,
+    "cache_creation_tokens": 200175,
+    "cache_read_tokens": 5004751,
+    "output_tokens": 31089,
+    "api_call_count": 74
   }
 }
