@@ -17,9 +17,115 @@ import {
     MultiInputTokenDataWithContext,
     COMPRESSION_MODE_DECOMPRESS,
     Compression,
+    Transfer2ExtensionData,
 } from '../layout/layout-transfer2';
 import { MAX_TOP_UP, TokenDataVersion } from '../../constants';
 import { SplInterfaceInfo } from '../../utils/get-token-pool-infos';
+
+const COMPRESSED_ONLY_DISC = 31;
+const COMPRESSED_ONLY_SIZE = 17; // u64 + u64 + u8
+
+interface ParsedCompressedOnly {
+    delegatedAmount: bigint;
+    withheldTransferFee: bigint;
+    isAta: boolean;
+}
+
+/**
+ * Parse CompressedOnly extension from a Borsh-serialized TLV buffer
+ * (Vec<ExtensionStruct>). Returns null if no CompressedOnly found.
+ */
+function parseCompressedOnlyFromTlv(
+    tlv: Buffer | null,
+): ParsedCompressedOnly | null {
+    if (!tlv || tlv.length < 5) return null;
+    try {
+        let offset = 0;
+        const vecLen = tlv.readUInt32LE(offset);
+        offset += 4;
+        for (let i = 0; i < vecLen; i++) {
+            if (offset >= tlv.length) return null;
+            const disc = tlv[offset];
+            offset += 1;
+            if (disc === COMPRESSED_ONLY_DISC) {
+                if (offset + COMPRESSED_ONLY_SIZE > tlv.length) return null;
+                const loDA = BigInt(tlv.readUInt32LE(offset));
+                const hiDA = BigInt(tlv.readUInt32LE(offset + 4));
+                const delegatedAmount = loDA | (hiDA << 32n);
+                const loFee = BigInt(tlv.readUInt32LE(offset + 8));
+                const hiFee = BigInt(tlv.readUInt32LE(offset + 12));
+                const withheldTransferFee = loFee | (hiFee << 32n);
+                const isAta = tlv[offset + 16] !== 0;
+                return { delegatedAmount, withheldTransferFee, isAta };
+            }
+            const SIZES: Record<number, number | undefined> = {
+                29: 8,
+                30: 1,
+                31: 17,
+            };
+            const size = SIZES[disc] ?? 0;
+            if (size === undefined) return null;
+            offset += size;
+        }
+    } catch {
+        return null;
+    }
+    return null;
+}
+
+/**
+ * Build inTlv array for Transfer2 from input compressed accounts.
+ * For each account, if CompressedOnly TLV is present, converts it to
+ * the instruction format (enriched with is_frozen, compression_index,
+ * bump, owner_index). Returns null if no accounts have TLV.
+ */
+function buildInTlv(
+    accounts: ParsedTokenAccount[],
+    ownerIndex: number,
+    owner: PublicKey,
+    mint: PublicKey,
+): Transfer2ExtensionData[][] | null {
+    let hasAny = false;
+    const result: Transfer2ExtensionData[][] = [];
+
+    for (const acc of accounts) {
+        const co = parseCompressedOnlyFromTlv(acc.parsed.tlv);
+        if (!co) {
+            result.push([]);
+            continue;
+        }
+        hasAny = true;
+        let bump = 0;
+        if (co.isAta) {
+            const seeds = [
+                owner.toBuffer(),
+                LIGHT_TOKEN_PROGRAM_ID.toBuffer(),
+                mint.toBuffer(),
+            ];
+            const [, b] = PublicKey.findProgramAddressSync(
+                seeds,
+                LIGHT_TOKEN_PROGRAM_ID,
+            );
+            bump = b;
+        }
+        const isFrozen = acc.parsed.state === 2;
+        result.push([
+            {
+                type: 'CompressedOnly',
+                data: {
+                    delegatedAmount: co.delegatedAmount,
+                    withheldTransferFee: co.withheldTransferFee,
+                    isFrozen,
+                    compressionIndex: 0,
+                    isAta: co.isAta,
+                    bump,
+                    ownerIndex,
+                },
+            },
+        ]);
+    }
+    return hasAny ? result : null;
+}
 
 /**
  * Get token data version from compressed account discriminator.
@@ -108,6 +214,7 @@ function buildInputTokenData(
  * @param splInterfaceInfo             Optional: SPL interface info for SPL destinations
  * @param decimals                     Mint decimals (required for SPL destinations)
  * @param maxTopUp                     Optional cap on rent top-up (units of 1k lamports; default no cap)
+ * @param authority                    Optional signer (owner or delegate). When omitted, owner is the signer.
  * @returns TransactionInstruction
  */
 export function createDecompressInterfaceInstruction(
@@ -119,6 +226,7 @@ export function createDecompressInterfaceInstruction(
     splInterfaceInfo: SplInterfaceInfo | undefined,
     decimals: number,
     maxTopUp?: number,
+    authority?: PublicKey,
 ): TransactionInstruction {
     if (inputCompressedTokenAccounts.length === 0) {
         throw new Error('No input compressed token accounts provided');
@@ -287,7 +395,12 @@ export function createDecompressInterfaceInstruction(
         outTokenData,
         inLamports: null,
         outLamports: null,
-        inTlv: null,
+        inTlv: buildInTlv(
+            inputCompressedTokenAccounts,
+            ownerIndex,
+            owner,
+            mint,
+        ),
         outTlv: null,
     };
 
@@ -341,19 +454,20 @@ export function createDecompressInterfaceInstruction(
         },
         // 7+: packed_accounts (trees/queues come first)
         ...packedAccounts.map((pubkey, i) => {
-            // Trees need to be writable
             const isTreeOrQueue = i < treeSet.size + queueSet.size;
-            // Destination account needs to be writable
             const isDestination = pubkey.equals(toAddress);
-            // SPL interface PDA (pool) needs to be writable for SPL decompression
             const isPool =
                 splInterfaceInfo !== undefined &&
                 pubkey.equals(splInterfaceInfo.splInterfacePda);
-            // Owner must be marked as signer in packed accounts
-            const isOwner = i === ownerIndex;
+            const signerIndex =
+                authority &&
+                !authority.equals(owner) &&
+                packedAccountIndices.has(authority.toBase58())
+                    ? packedAccountIndices.get(authority.toBase58())!
+                    : ownerIndex;
             return {
                 pubkey,
-                isSigner: isOwner,
+                isSigner: i === signerIndex,
                 isWritable: isTreeOrQueue || isDestination || isPool,
             };
         }),

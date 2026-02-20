@@ -600,7 +600,16 @@ describe('loadAta unified (wrap=true) - frozen SPL source', () => {
         ).rejects.toThrow(/Account is frozen|load is not allowed/);
 
         await expect(
-            loadAta(rpc, ctokenAta, owner, mint, payer, undefined, undefined, true),
+            loadAta(
+                rpc,
+                ctokenAta,
+                owner,
+                mint,
+                payer,
+                undefined,
+                undefined,
+                true,
+            ),
         ).rejects.toThrow(/Account is frozen|load is not allowed/);
 
         const splAfter = await getAccount(rpc, splAta);

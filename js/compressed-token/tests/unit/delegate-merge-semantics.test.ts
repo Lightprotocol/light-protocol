@@ -35,6 +35,10 @@ import {
     buildAccountInterfaceFromSources,
     TokenAccountSourceType,
     type TokenAccountSource,
+    type AccountInterface,
+    spendableAmountForAuthority,
+    isAuthorityForInterface,
+    filterInterfaceForAuthority,
 } from '../../src/v3/get-account-interface';
 import {
     selectInputsForAmount,
@@ -1234,5 +1238,135 @@ describe('createDecompressInterfaceInstruction – partial decompress and instru
         // Document current behavior: JS layer does not guard amount > totalInput.
         // On-chain validation catches this. Callers MUST ensure amount <= sum(inputs).
         expect(threw).toBe(false);
+    });
+});
+
+describe('spendableAmountForAuthority, isAuthorityForInterface, filterInterfaceForAuthority', () => {
+    const ata = Keypair.generate().publicKey;
+    const owner = Keypair.generate().publicKey;
+    const delegateD = Keypair.generate().publicKey;
+    const delegateE = Keypair.generate().publicKey;
+
+    function hotWithOwner(params: {
+        amount: bigint;
+        delegate: PublicKey | null;
+        delegatedAmount: bigint;
+    }): TokenAccountSource {
+        return hotSource({
+            address: ata,
+            amount: params.amount,
+            delegate: params.delegate,
+            delegatedAmount: params.delegatedAmount,
+        });
+    }
+
+    function coldWithOwner(params: {
+        amount: bigint;
+        delegate: PublicKey | null;
+        delegatedAmount: bigint;
+    }): TokenAccountSource {
+        return coldSource({
+            address: ata,
+            amount: params.amount,
+            delegate: params.delegate,
+            delegatedAmount: params.delegatedAmount,
+        });
+    }
+
+    it('spendableAmountForAuthority(owner) returns full amount when authority is owner', () => {
+        const sources: TokenAccountSource[] = [
+            hotWithOwner({
+                amount: 1000n,
+                delegate: null,
+                delegatedAmount: 0n,
+            }),
+            coldWithOwner({
+                amount: 2000n,
+                delegate: delegateD,
+                delegatedAmount: 1500n,
+            }),
+        ];
+        const iface = buildAccountInterfaceFromSources(sources, ata);
+        (iface as AccountInterface)._owner = owner;
+        expect(spendableAmountForAuthority(iface, owner)).toBe(3000n);
+    });
+
+    it('spendableAmountForAuthority(delegate) returns sum of min(amount, delegatedAmount) for matching delegate', () => {
+        const sources: TokenAccountSource[] = [
+            hotWithOwner({
+                amount: 1000n,
+                delegate: delegateD,
+                delegatedAmount: 800n,
+            }),
+            coldWithOwner({
+                amount: 2000n,
+                delegate: delegateD,
+                delegatedAmount: 1500n,
+            }),
+        ];
+        const iface = buildAccountInterfaceFromSources(sources, ata);
+        (iface as AccountInterface)._owner = owner;
+        expect(spendableAmountForAuthority(iface, delegateD)).toBe(
+            800n + 1500n,
+        );
+        expect(spendableAmountForAuthority(iface, delegateE)).toBe(0n);
+    });
+
+    it('spendableAmountForAuthority(delegate) includes cold sources with matching delegate', () => {
+        const sources: TokenAccountSource[] = [
+            hotWithOwner({
+                amount: 1000n,
+                delegate: delegateD,
+                delegatedAmount: 800n,
+            }),
+            coldWithOwner({
+                amount: 2000n,
+                delegate: delegateD,
+                delegatedAmount: 1500n,
+            }),
+        ];
+        const iface = buildAccountInterfaceFromSources(sources, ata);
+        (iface as AccountInterface)._owner = owner;
+        expect(spendableAmountForAuthority(iface, delegateD)).toBe(
+            800n + 1500n,
+        );
+    });
+
+    it('isAuthorityForInterface: owner or delegate returns true, other returns false', () => {
+        const sources: TokenAccountSource[] = [
+            hotWithOwner({
+                amount: 500n,
+                delegate: delegateD,
+                delegatedAmount: 500n,
+            }),
+        ];
+        const iface = buildAccountInterfaceFromSources(sources, ata);
+        (iface as AccountInterface)._owner = owner;
+        expect(isAuthorityForInterface(iface, owner)).toBe(true);
+        expect(isAuthorityForInterface(iface, delegateD)).toBe(true);
+        expect(isAuthorityForInterface(iface, delegateE)).toBe(false);
+    });
+
+    it('filterInterfaceForAuthority(delegate) keeps only sources delegated to that delegate', () => {
+        const sources: TokenAccountSource[] = [
+            hotWithOwner({
+                amount: 1000n,
+                delegate: delegateD,
+                delegatedAmount: 1000n,
+            }),
+            coldWithOwner({
+                amount: 500n,
+                delegate: delegateE,
+                delegatedAmount: 500n,
+            }),
+        ];
+        const iface = buildAccountInterfaceFromSources(sources, ata);
+        (iface as AccountInterface)._owner = owner;
+        const filteredD = filterInterfaceForAuthority(iface, delegateD);
+        expect(filteredD._sources!.length).toBe(1);
+        expect(filteredD.parsed.amount).toBe(1000n);
+        const filteredE = filterInterfaceForAuthority(iface, delegateE);
+        expect(filteredE._sources!.length).toBe(1);
+        expect(filteredE.parsed.amount).toBe(500n);
     });
 });

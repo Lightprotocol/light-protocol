@@ -34,6 +34,9 @@ import {
 import {
     getAtaInterface as _getAtaInterface,
     type AccountInterface,
+    spendableAmountForAuthority,
+    isAuthorityForInterface,
+    filterInterfaceForAuthority,
 } from '../get-account-interface';
 import { DEFAULT_COMPRESSIBLE_CONFIG } from '../instructions/create-associated-ctoken';
 import {
@@ -41,12 +44,24 @@ import {
     MAX_TRANSACTION_SIZE,
 } from '../utils/estimate-tx-size';
 
+const COLD_SOURCE_TYPES_SET: ReadonlySet<string> = new Set([
+    'ctoken-cold',
+    'spl-cold',
+    'token2022-cold',
+]);
+
 /**
  * Options for interface operations (load, transfer)
  */
 export interface InterfaceOptions {
     /** SPL interface infos (fetched if not provided) */
     splInterfaceInfos?: SplInterfaceInfo[];
+    /**
+     * ATA owner when the signer is the delegate (not the owner).
+     * For load: use this owner for getAtaInterface; only sources the delegate
+     * can use are included. For transfer: see TransferOptions.owner.
+     */
+    owner?: PublicKey;
 }
 
 /**
@@ -85,10 +100,10 @@ export async function transferInterface(
 ): Promise<TransactionSignature> {
     assertBetaEnabled();
 
-    // Validate source matches owner
+    const effectiveOwner = options?.owner ?? owner.publicKey;
     const expectedSource = getAssociatedTokenAddressInterface(
         mint,
-        owner.publicKey,
+        effectiveOwner,
         false,
         programId,
     );
@@ -100,9 +115,6 @@ export async function transferInterface(
 
     const amountBigInt = BigInt(amount.toString());
 
-    // Build all instruction batches. ensureRecipientAta: true (default)
-    // includes idempotent ATA creation in the transfer tx -- no extra RPC
-    // fetch needed.
     const batches = await createTransferInterfaceInstructions(
         rpc,
         payer.publicKey,
@@ -110,7 +122,13 @@ export async function transferInterface(
         amountBigInt,
         owner.publicKey,
         destination,
-        { ...options, wrap, programId, ensureRecipientAta: true },
+        {
+            ...options,
+            wrap,
+            programId,
+            ensureRecipientAta: true,
+            owner: options?.owner,
+        },
     );
 
     const additionalSigners = dedupeSigner(payer, [owner]);
@@ -155,6 +173,12 @@ export interface TransferOptions extends InterfaceOptions {
      * Default: true.
      */
     ensureRecipientAta?: boolean;
+    /**
+     * ATA owner when the signer is the delegate (not the owner).
+     * Required when transferring as delegate: pass the owner so the SDK
+     * can derive the source ATA and validate the signer is the account delegate.
+     */
+    owner?: PublicKey;
 }
 
 /**
@@ -283,11 +307,12 @@ export async function createTransferInterfaceInstructions(
         wrap = false,
         programId = LIGHT_TOKEN_PROGRAM_ID,
         ensureRecipientAta = true,
+        owner: optionsOwner,
         ...interfaceOptions
     } = options ?? {};
 
-    // Validate recipient is a wallet (on-curve), not an ATA or PDA.
-    // Passing an ATA here would derive an ATA-of-ATA and lose funds.
+    const effectiveOwner = optionsOwner ?? sender;
+
     if (!PublicKey.isOnCurve(recipient.toBytes())) {
         throw new Error(
             `Recipient must be a wallet public key (on-curve), not a PDA or ATA. ` +
@@ -299,10 +324,9 @@ export async function createTransferInterfaceInstructions(
         programId.equals(TOKEN_PROGRAM_ID) ||
         programId.equals(TOKEN_2022_PROGRAM_ID);
 
-    // Derive ATAs
     const senderAta = getAssociatedTokenAddressInterface(
         mint,
-        sender,
+        effectiveOwner,
         false,
         programId,
     );
@@ -313,13 +337,12 @@ export async function createTransferInterfaceInstructions(
         programId,
     );
 
-    // Get sender's account state
     let senderInterface: AccountInterface;
     try {
         senderInterface = await _getAtaInterface(
             rpc,
             senderAta,
-            sender,
+            effectiveOwner,
             mint,
             undefined,
             programId.equals(LIGHT_TOKEN_PROGRAM_ID) ? undefined : programId,
@@ -338,14 +361,28 @@ export async function createTransferInterfaceInstructions(
         );
     }
 
-    if (senderInterface.parsed.amount < amountBigInt) {
-        throw new Error(
-            `Insufficient balance. Required: ${amountBigInt}, Available: ${senderInterface.parsed.amount}`,
-        );
+    const isDelegate = !effectiveOwner.equals(sender);
+    if (isDelegate) {
+        if (!isAuthorityForInterface(senderInterface, sender)) {
+            throw new Error(
+                'Signer is not the owner or a delegate of the sender account.',
+            );
+        }
+        const spendable = spendableAmountForAuthority(senderInterface, sender);
+        if (amountBigInt > spendable) {
+            throw new Error(
+                `Insufficient delegated balance. Required: ${amountBigInt}, Available (delegate): ${spendable}`,
+            );
+        }
+        senderInterface = filterInterfaceForAuthority(senderInterface, sender);
+    } else {
+        if (senderInterface.parsed.amount < amountBigInt) {
+            throw new Error(
+                `Insufficient balance. Required: ${amountBigInt}, Available: ${senderInterface.parsed.amount}`,
+            );
+        }
     }
 
-    // Build load batches for sender (empty if sender is fully hot).
-    // Pass amountBigInt so only needed cold inputs are selected.
     const internalBatches = await _buildLoadBatches(
         rpc,
         payer,
@@ -354,7 +391,31 @@ export async function createTransferInterfaceInstructions(
         wrap,
         senderAta,
         amountBigInt,
+        sender,
     );
+
+    // For delegate transfers that need cold source loading: approve-style
+    // compressed accounts (no CompressedOnly TLV) will NOT have their delegate
+    // applied to the hot ATA during decompress. Only compress-and-close
+    // accounts (with CompressedOnly TLV) carry over delegate state.
+    if (isDelegate && internalBatches.length > 0) {
+        const sources = senderInterface._sources ?? [];
+        const hasApproveStyleCold = sources.some(
+            s =>
+                COLD_SOURCE_TYPES_SET.has(s.type) &&
+                s.parsed.delegate !== null &&
+                s.parsed.delegate.equals(sender) &&
+                (!s.parsed.tlvData || s.parsed.tlvData.length === 0),
+        );
+        if (hasApproveStyleCold) {
+            throw new Error(
+                'Delegate transfer requires loading cold sources that were delegated ' +
+                    'via approve (no CompressedOnly TLV). Decompress will not carry ' +
+                    'the delegate to the hot ATA. Load as owner first, then approve ' +
+                    'the delegate on the hot ATA.',
+            );
+        }
+    }
 
     // Transfer instruction: dispatch based on program
     let transferIx: TransactionInstruction;

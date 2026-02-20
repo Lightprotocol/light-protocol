@@ -30,6 +30,8 @@ import {
     getAtaInterface as _getAtaInterface,
     TokenAccountSource,
     TokenAccountSourceType,
+    isAuthorityForInterface,
+    filterInterfaceForAuthority,
 } from '../get-account-interface';
 import { getAssociatedTokenAddressInterface } from '../get-associated-token-address-interface';
 import { createAssociatedTokenAccountInterfaceIdempotentInstruction } from '../instructions/create-ata-interface';
@@ -241,12 +243,14 @@ export async function createLoadAtaInstructions(
     assertBetaEnabled();
     payer ??= owner;
 
+    const effectiveOwner = interfaceOptions?.owner ?? owner;
+
     let accountInterface: AccountInterface;
     try {
         accountInterface = await _getAtaInterface(
             rpc,
             ata,
-            owner,
+            effectiveOwner,
             mint,
             undefined,
             undefined,
@@ -265,6 +269,22 @@ export async function createLoadAtaInstructions(
         );
     }
 
+    const isDelegate = !effectiveOwner.equals(owner);
+    if (isDelegate) {
+        if (!isAuthorityForInterface(accountInterface, owner)) {
+            throw new Error(
+                'Signer is not the owner or a delegate of the account.',
+            );
+        }
+        accountInterface = filterInterfaceForAuthority(accountInterface, owner);
+        if (
+            (accountInterface._sources?.length ?? 0) === 0 ||
+            accountInterface.parsed.amount === BigInt(0)
+        ) {
+            return [];
+        }
+    }
+
     const internalBatches = await _buildLoadBatches(
         rpc,
         payer,
@@ -272,9 +292,10 @@ export async function createLoadAtaInstructions(
         interfaceOptions,
         wrap,
         ata,
+        undefined,
+        owner,
     );
 
-    // Map InternalLoadBatch[] -> TransactionInstruction[][]
     return internalBatches.map(batch => batch.instructions);
 }
 
@@ -354,6 +375,7 @@ export async function _buildLoadBatches(
     wrap: boolean,
     targetAta: PublicKey,
     targetAmount?: bigint,
+    authority?: PublicKey,
 ): Promise<InternalLoadBatch[]> {
     if (!ata._isAta || !ata._owner || !ata._mint) {
         throw new Error(
@@ -699,6 +721,7 @@ export async function _buildLoadBatches(
             batchHasAtaCreation = true;
         }
 
+        const authorityForDecompress = authority ?? owner;
         batchIxs.push(
             createDecompressInterfaceInstruction(
                 payer,
@@ -708,6 +731,8 @@ export async function _buildLoadBatches(
                 proof,
                 decompressSplInfo,
                 decimals,
+                undefined,
+                authorityForDecompress,
             ),
         );
 
@@ -760,13 +785,14 @@ export async function loadAta(
     assertBetaEnabled();
 
     payer ??= owner;
+    const effectiveOwner = interfaceOptions?.owner ?? owner.publicKey;
 
     let ataInterface: AccountInterface;
     try {
         ataInterface = await _getAtaInterface(
             rpc,
             ata,
-            owner.publicKey,
+            effectiveOwner,
             mint,
             undefined,
             undefined,
@@ -785,6 +811,25 @@ export async function loadAta(
         );
     }
 
+    const isDelegate = !effectiveOwner.equals(owner.publicKey);
+    if (isDelegate) {
+        if (!isAuthorityForInterface(ataInterface, owner.publicKey)) {
+            throw new Error(
+                'Signer is not the owner or a delegate of the account.',
+            );
+        }
+        ataInterface = filterInterfaceForAuthority(
+            ataInterface,
+            owner.publicKey,
+        );
+        if (
+            (ataInterface._sources?.length ?? 0) === 0 ||
+            ataInterface.parsed.amount === BigInt(0)
+        ) {
+            return null;
+        }
+    }
+
     const batches = await _buildLoadBatches(
         rpc,
         payer.publicKey,
@@ -792,6 +837,8 @@ export async function loadAta(
         interfaceOptions,
         wrap,
         ata,
+        undefined,
+        owner.publicKey,
     );
 
     if (batches.length === 0) {

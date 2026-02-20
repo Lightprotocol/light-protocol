@@ -924,9 +924,7 @@ export function buildAccountInterfaceFromSources(
         ...primarySource.parsed,
         address: canonicalAddress,
         amount: totalAmount,
-        ...(anyFrozen
-            ? { state: AccountState.Frozen, isFrozen: true }
-            : {}),
+        ...(anyFrozen ? { state: AccountState.Frozen, isFrozen: true } : {}),
     };
 
     const coldTypes: TokenAccountSource['type'][] = [
@@ -943,6 +941,103 @@ export function buildAccountInterfaceFromSources(
         _sources: sources,
         _needsConsolidation: needsConsolidation,
         _hasDelegate: hasDelegate,
+        _anyFrozen: anyFrozen,
+    };
+}
+
+/**
+ * Spendable amount for a given authority (owner or delegate).
+ * - If authority equals the ATA owner: full parsed.amount.
+ * - If authority is a delegate: sum over sources where delegate === authority
+ *   of min(source.amount, source.delegatedAmount).
+ *
+ * For compress-and-close accounts (CompressedOnly TLV), decompress carries
+ * delegate state to the hot ATA. For approve-style accounts (no TLV), the
+ * delegate is set in token data but NOT applied to the hot ATA on decompress.
+ * The transfer-interface validates this and errors for approve-style cold
+ * sources that require loading.
+ */
+export function spendableAmountForAuthority(
+    iface: AccountInterface,
+    authority: PublicKey,
+): bigint {
+    const owner = iface._owner;
+    const sources = iface._sources ?? [];
+    if (owner && authority.equals(owner)) {
+        return iface.parsed.amount;
+    }
+    let sum = BigInt(0);
+    for (const src of sources) {
+        if (src.parsed.delegate && authority.equals(src.parsed.delegate)) {
+            const amt = src.amount;
+            const delegated = src.parsed.delegatedAmount ?? amt;
+            sum += amt < delegated ? amt : delegated;
+        }
+    }
+    return sum;
+}
+
+/**
+ * Whether the given authority can sign for this ATA (is owner or delegate of at least one source).
+ */
+export function isAuthorityForInterface(
+    iface: AccountInterface,
+    authority: PublicKey,
+): boolean {
+    const owner = iface._owner;
+    if (owner && authority.equals(owner)) return true;
+    const sources = iface._sources ?? [];
+    return sources.some(
+        src =>
+            src.parsed.delegate !== null &&
+            authority.equals(src.parsed.delegate),
+    );
+}
+
+/**
+ * Filter an AccountInterface to only sources the given authority can use (owner or delegate).
+ * Preserves _owner, _mint, _isAta. Use for load/transfer when authority is delegate.
+ */
+export function filterInterfaceForAuthority(
+    iface: AccountInterface,
+    authority: PublicKey,
+): AccountInterface {
+    const sources = iface._sources ?? [];
+    const owner = iface._owner;
+    const filtered = sources.filter(
+        src =>
+            (owner && authority.equals(owner)) ||
+            (src.parsed.delegate !== null &&
+                authority.equals(src.parsed.delegate)),
+    );
+    if (filtered.length === 0) {
+        return {
+            ...iface,
+            _sources: [],
+            parsed: { ...iface.parsed, amount: BigInt(0) },
+        };
+    }
+    const spendable = spendableAmountForAuthority(iface, authority);
+    const primary = filtered[0];
+    const anyFrozen = filtered.some(s => s.parsed.isFrozen);
+    return {
+        ...iface,
+        _sources: filtered,
+        accountInfo: primary.accountInfo!,
+        parsed: {
+            ...primary.parsed,
+            address: iface.parsed.address,
+            amount: spendable,
+            ...(anyFrozen
+                ? { state: AccountState.Frozen, isFrozen: true }
+                : {}),
+        },
+        isCold: ['ctoken-cold', 'spl-cold', 'token2022-cold'].includes(
+            primary.type,
+        ),
+        loadContext: primary.loadContext,
+        _needsConsolidation: filtered.length > 1,
+        _hasDelegate: filtered.some(s => s.parsed.delegate !== null),
         _anyFrozen: anyFrozen,
     };
 }
