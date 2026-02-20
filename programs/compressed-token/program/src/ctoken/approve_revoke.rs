@@ -73,7 +73,7 @@ pub fn process_ctoken_revoke(
 /// # Type Parameters
 /// * `BASE_LEN` - Base instruction data length (8 for approve, 0 for revoke)
 /// * `OWNER_IDX` - Index of owner account (2 for approve, 1 for revoke)
-/// * `FEE_PAYER_IDX` - Index of optional fee payer account (3 for approve, 2 for revoke)
+/// * `FEE_PAYER_IDX` - Index of optional fee payer account (4 for approve, 3 for revoke)
 #[inline(always)]
 fn handle_compressible_top_up<
     const BASE_LEN: usize,
@@ -102,7 +102,7 @@ fn handle_compressible_top_up<
 /// # Type Parameters
 /// * `BASE_LEN` - Base instruction data length (8 for approve, 0 for revoke)
 /// * `OWNER_IDX` - Index of owner account (2 for approve, 1 for revoke)
-/// * `FEE_PAYER_IDX` - Index of optional fee payer account (3 for approve, 2 for revoke)
+/// * `FEE_PAYER_IDX` - Index of optional fee payer account (4 for approve, 3 for revoke)
 #[cold]
 #[allow(unused)]
 fn process_compressible_top_up<
