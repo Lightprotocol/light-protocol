@@ -30,6 +30,7 @@ light-token = { workspace = true }
 light-indexed-array = { workspace = true }
 light-merkle-tree-reference = { workspace = true }
 light-macros = { workspace = true }
+light-event = { workspace = true }
 
 tokio = { workspace = true }
 rand = { workspace = true }

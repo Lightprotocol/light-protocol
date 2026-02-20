@@ -28,3 +28,24 @@ impl Default for RetryConfig {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_retry_config_default_values() {
+        let config = RetryConfig::default();
+        assert_eq!(config.num_retries, 10);
+        assert_eq!(config.delay_ms, 400);
+        assert_eq!(config.max_delay_ms, 8000);
+    }
+
+    #[test]
+    fn test_indexer_rpc_config_new_sets_slot() {
+        let slot = 42u64;
+        let config = IndexerRpcConfig::new(slot);
+        assert_eq!(config.slot, slot);
+        assert_eq!(config.retry_config, RetryConfig::default());
+    }
+}

@@ -72,19 +72,23 @@ async fn test_create_ata_invoke() {
     let ata_account_data = rpc.get_account(ata_address).await.unwrap().unwrap();
 
     // Parse and verify account data
-    use light_token_interface::state::Token;
+    use light_token_interface::state::{AccountState, Token};
     let account_state = Token::deserialize(&mut &ata_account_data.data[..]).unwrap();
     assert_eq!(
-        account_state.mint.to_bytes(),
-        mint_pda.to_bytes(),
-        "Mint should match"
+        account_state,
+        Token {
+            mint: mint_pda.to_bytes().into(),
+            owner: owner.to_bytes().into(),
+            amount: 0,
+            delegate: None,
+            state: AccountState::Initialized,
+            is_native: None,
+            delegated_amount: 0,
+            close_authority: None,
+            account_type: account_state.account_type,
+            extensions: account_state.extensions.clone(),
+        }
     );
-    assert_eq!(
-        account_state.owner.to_bytes(),
-        owner.to_bytes(),
-        "Owner should match"
-    );
-    assert_eq!(account_state.amount, 0, "Initial amount should be 0");
 }
 
 /// Test creating an ATA with PDA payer using CreateAssociatedTokenAccountCpi::invoke_signed()
@@ -157,17 +161,21 @@ async fn test_create_ata_invoke_signed() {
     let ata_account_data = rpc.get_account(ata_address).await.unwrap().unwrap();
 
     // Parse and verify account data
-    use light_token_interface::state::Token;
+    use light_token_interface::state::{AccountState, Token};
     let account_state = Token::deserialize(&mut &ata_account_data.data[..]).unwrap();
     assert_eq!(
-        account_state.mint.to_bytes(),
-        mint_pda.to_bytes(),
-        "Mint should match"
+        account_state,
+        Token {
+            mint: mint_pda.to_bytes().into(),
+            owner: pda_owner.to_bytes().into(),
+            amount: 0,
+            delegate: None,
+            state: AccountState::Initialized,
+            is_native: None,
+            delegated_amount: 0,
+            close_authority: None,
+            account_type: account_state.account_type,
+            extensions: account_state.extensions.clone(),
+        }
     );
-    assert_eq!(
-        account_state.owner.to_bytes(),
-        pda_owner.to_bytes(),
-        "Owner should match PDA"
-    );
-    assert_eq!(account_state.amount, 0, "Initial amount should be 0");
 }

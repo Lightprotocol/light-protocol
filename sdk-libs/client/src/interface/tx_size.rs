@@ -154,6 +154,93 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_empty_input_returns_empty_batches() {
+        let payer = Pubkey::new_unique();
+        let result = split_by_tx_size(vec![], &payer, None).unwrap();
+        assert_eq!(result, vec![] as Vec<Vec<Instruction>>);
+    }
+
+    #[test]
+    fn test_single_small_instruction_one_batch() {
+        let payer = Pubkey::new_unique();
+        let ix = Instruction {
+            program_id: Pubkey::new_unique(),
+            accounts: vec![AccountMeta::new(Pubkey::new_unique(), false)],
+            data: vec![0u8; 10],
+        };
+        let batches = split_by_tx_size(vec![ix], &payer, None).unwrap();
+        assert_eq!(batches.len(), 1);
+        assert_eq!(batches[0].len(), 1);
+    }
+
+    #[test]
+    fn test_multiple_small_instructions_fit_in_one_batch() {
+        let payer = Pubkey::new_unique();
+        // Three tiny instructions that easily fit in one tx
+        let instructions: Vec<Instruction> = (0..3)
+            .map(|_| Instruction {
+                program_id: Pubkey::new_unique(),
+                accounts: vec![AccountMeta::new(Pubkey::new_unique(), false)],
+                data: vec![0u8; 5],
+            })
+            .collect();
+        let batches = split_by_tx_size(instructions, &payer, None).unwrap();
+        assert_eq!(batches.len(), 1);
+        assert_eq!(batches[0].len(), 3);
+    }
+
+    #[test]
+    fn test_instructions_split_into_multiple_batches_with_small_max_size() {
+        let payer = Pubkey::new_unique();
+        // Use a very small max_size to force each instruction into its own batch.
+        // Each instruction has 1 account + 10 bytes data. Estimate:
+        //   header(3) + accounts(compact+32*2) + blockhash(32) + ixs + sigs ~ 200 bytes
+        // Set max_size=250 to allow one instruction per tx but not two.
+        let max_size = 250usize;
+        let instructions: Vec<Instruction> = (0..3)
+            .map(|_| Instruction {
+                program_id: Pubkey::new_unique(),
+                accounts: vec![AccountMeta::new(Pubkey::new_unique(), false)],
+                data: vec![0u8; 10],
+            })
+            .collect();
+        let batches = split_by_tx_size(instructions, &payer, Some(max_size)).unwrap();
+        assert_eq!(
+            batches.len(),
+            3,
+            "each of 3 instructions should be in its own batch at max_size=250"
+        );
+        for batch in &batches {
+            assert_eq!(
+                batch.len(),
+                1,
+                "each batch should contain exactly one instruction"
+            );
+            assert!(estimate_tx_size(batch, &payer) <= max_size);
+        }
+    }
+
+    #[test]
+    fn test_single_instruction_exceeding_max_size_returns_error() {
+        let payer = Pubkey::new_unique();
+        let oversized_ix = Instruction {
+            program_id: Pubkey::new_unique(),
+            accounts: vec![AccountMeta::new(Pubkey::new_unique(), false)],
+            data: vec![0u8; 100],
+        };
+        // Set max_size to 50 - smaller than any valid instruction
+        let result = split_by_tx_size(vec![oversized_ix], &payer, Some(50));
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err.instruction_index, 0);
+        assert_eq!(err.max_size, 50);
+        assert!(err.estimated_size > 50);
+        // Display impl sanity check
+        let msg = err.to_string();
+        assert!(msg.contains("instruction at index 0"));
+    }
+
+    #[test]
     fn test_split_by_tx_size() {
         let payer = Pubkey::new_unique();
         let instructions: Vec<Instruction> = (0..10)
