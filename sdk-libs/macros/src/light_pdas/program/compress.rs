@@ -446,6 +446,76 @@ impl CompressBuilder {
         }
     }
 
+    /// Generate compile-time discriminator collision checks for all pairs of account types.
+    ///
+    /// Only emitted for the Pinocchio backend. The Pinocchio compress dispatch uses a sequential
+    /// `if &data[..disc_len] == disc_slice` chain keyed on `LIGHT_DISCRIMINATOR_SLICE` (variable
+    /// length). A shorter discriminator that is a prefix of a longer one causes incorrect dispatch,
+    /// and users can introduce such collisions via `#[light_pinocchio(discriminator = [...])]`.
+    ///
+    /// Anchor discriminators are 8-byte SHA256-derived values; we rely on Anchor for collision safety.
+    ///
+    /// For each pair (A, B), emits a `const _: () = { ... }` block asserting neither slice is a
+    /// prefix of the other — catching both ordering violations and exact discriminator collisions.
+    pub fn generate_discriminator_collision_checks(
+        &self,
+        backend: &dyn CodegenBackend,
+    ) -> Result<TokenStream> {
+        if !backend.is_pinocchio() {
+            return Ok(quote! {});
+        }
+        let account_crate = backend.account_crate();
+        // Deduplicate by qualified type string so that types used in multiple instructions are
+        // only compared once (and a type is never compared against itself).
+        let mut seen = std::collections::HashSet::new();
+        let unique_accounts: Vec<&CompressibleAccountInfo> = self
+            .accounts
+            .iter()
+            .filter(|info| {
+                let ty = qualify_type_with_crate(&info.account_type);
+                seen.insert(quote::quote!(#ty).to_string())
+            })
+            .collect();
+        let mut checks = Vec::new();
+
+        for i in 0..unique_accounts.len() {
+            for j in (i + 1)..unique_accounts.len() {
+                let type_a = qualify_type_with_crate(&unique_accounts[i].account_type);
+                let type_b = qualify_type_with_crate(&unique_accounts[j].account_type);
+
+                // Compute type name strings at proc-macro time for the error message.
+                // Replace token-stream spacing (" :: ") with idiomatic Rust path separators ("::").
+                let type_a_str = quote::quote!(#type_a).to_string().replace(" :: ", "::");
+                let type_b_str = quote::quote!(#type_b).to_string().replace(" :: ", "::");
+                let msg = format!(
+                    "Discriminator collision: {} and {} share a prefix. \
+                     Declare variants with longer discriminators before those with shorter ones in the enum.",
+                    type_a_str, type_b_str
+                );
+
+                checks.push(quote! {
+                    const _: () = {
+                        const A: &[u8] = <#type_a as #account_crate::LightDiscriminator>::LIGHT_DISCRIMINATOR_SLICE;
+                        const B: &[u8] = <#type_b as #account_crate::LightDiscriminator>::LIGHT_DISCRIMINATOR_SLICE;
+                        let min_len = if A.len() < B.len() { A.len() } else { B.len() };
+                        let mut i = 0usize;
+                        let mut is_prefix = true;
+                        while i < min_len {
+                            if A[i] != B[i] {
+                                is_prefix = false;
+                                break;
+                            }
+                            i += 1;
+                        }
+                        assert!(!is_prefix, #msg);
+                    };
+                });
+            }
+        }
+
+        Ok(quote! { #(#checks)* })
+    }
+
     /// Generate compile-time size validation for compressed accounts using the specified backend.
     pub fn generate_size_validation_with_backend(
         &self,
