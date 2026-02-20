@@ -324,12 +324,26 @@ async fn test_compressible_ctoken_compression() {
     assert_eq!(accounts.len(), 1);
     let account_state = &accounts[0];
     assert_eq!(account_state.pubkey, token_account_pubkey);
-    assert_eq!(account_state.account.mint, mint.to_bytes());
+    use light_token_interface::state::{AccountState, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT};
     assert_eq!(
-        account_state.account.owner,
-        owner_keypair.pubkey().to_bytes()
+        account_state.account,
+        Token {
+            mint: mint.to_bytes().into(),
+            owner: owner_keypair.pubkey().to_bytes().into(),
+            amount: 0,
+            delegate: None,
+            state: AccountState::Initialized,
+            is_native: None,
+            delegated_amount: 0,
+            close_authority: None,
+            account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
+            extensions: account_state.account.extensions.clone(),
+        }
     );
-    assert_eq!(account_state.account.amount, 0);
+    assert!(
+        account_state.account.extensions.is_some(),
+        "compressible token account should have extensions"
+    );
     assert!(account_state.lamports > 0);
     let lamports = account_state.lamports;
     // Test lamports update
