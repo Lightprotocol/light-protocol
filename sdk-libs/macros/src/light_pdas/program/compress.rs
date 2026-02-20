@@ -344,8 +344,9 @@ impl CompressBuilder {
                         {
                             let __disc_slice = <#name as #account_crate::LightDiscriminator>::LIGHT_DISCRIMINATOR_SLICE;
                             let __disc_len = __disc_slice.len();
-                            if data.len() >= __disc_len && &data[..__disc_len] == __disc_slice {
-                                let pod_bytes = &data[__disc_len..__disc_len + core::mem::size_of::<#name>()];
+                            let __expected_len = __disc_len + core::mem::size_of::<#name>();
+                            if data.len() >= __expected_len && &data[..__disc_len] == __disc_slice {
+                                let pod_bytes = &data[__disc_len..__expected_len];
                                 let mut account_data: #name = *bytemuck::from_bytes(pod_bytes);
                                 drop(data);
                                 return #account_crate::prepare_account_for_compression(

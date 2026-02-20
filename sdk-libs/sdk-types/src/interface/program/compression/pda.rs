@@ -92,7 +92,7 @@ where
     // Mark as compressed
     account_data.compression_info_mut()?.set_compressed();
 
-    // Serialize updated account data back (includes 8-byte discriminator)
+    // Serialize updated account data back (includes discriminator prefix)
     {
         let mut data = account_info
             .try_borrow_mut_data()

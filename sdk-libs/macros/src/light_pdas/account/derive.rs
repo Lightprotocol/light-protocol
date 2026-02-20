@@ -160,6 +160,12 @@ fn parse_pinocchio_discriminator(attrs: &[syn::Attribute]) -> Result<Option<Vec<
                                 "discriminator must have at least one byte",
                             ));
                         }
+                        if bytes.len() > 8 {
+                            return Err(syn::Error::new_spanned(
+                                arr,
+                                "discriminator must not exceed 8 bytes",
+                            ));
+                        }
                         return Ok(Some(bytes));
                     }
                     return Err(syn::Error::new_spanned(
@@ -890,6 +896,27 @@ mod tests {
         assert!(
             err.contains("at least one byte"),
             "Error should mention 'at least one byte', got: {err}"
+        );
+    }
+
+    #[test]
+    fn test_light_pinocchio_custom_discriminator_too_long_rejected() {
+        let input: DeriveInput = parse_quote! {
+            #[light_pinocchio(discriminator = [1, 2, 3, 4, 5, 6, 7, 8, 9])]
+            pub struct TooLongDisc {
+                pub compression_info: CompressionInfo,
+                pub owner: [u8; 32],
+            }
+        };
+        let result = derive_light_pinocchio_account(input);
+        assert!(
+            result.is_err(),
+            "Discriminator longer than 8 bytes should be rejected"
+        );
+        let err = result.unwrap_err().to_string();
+        assert!(
+            err.contains("exceed 8 bytes"),
+            "Error should mention max length, got: {err}"
         );
     }
 

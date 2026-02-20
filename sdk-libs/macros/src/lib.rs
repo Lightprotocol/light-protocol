@@ -395,6 +395,13 @@ pub fn light_account_derive(input: TokenStream) -> TokenStream {
 /// - The `compression_info` field must be first or last field in the struct
 /// - Struct should be `#[repr(C)]` for predictable memory layout
 /// - Use `[u8; 32]` instead of `Pubkey` for address fields
+///
+/// ## Custom discriminator
+///
+/// Use `#[light_pinocchio(discriminator = [1u8])]` to override the default
+/// 8-byte SHA256 discriminator with a shorter custom discriminator (1-8 bytes).
+/// Variants with short discriminators should be declared last in `ProgramAccounts`
+/// enums to avoid prefix-matching conflicts during dispatch.
 #[proc_macro_derive(LightPinocchioAccount, attributes(compress_as, skip, light_pinocchio))]
 pub fn light_pinocchio_account_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
