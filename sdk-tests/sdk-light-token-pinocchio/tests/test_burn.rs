@@ -128,6 +128,7 @@ async fn test_burn_invoke_signed() {
             AccountMeta::new(pda_owner, false), // PDA authority (writable, program signs)
             AccountMeta::new_readonly(light_token_program, false), // light_token_program
             AccountMeta::new_readonly(Pubkey::default(), false), // system_program
+            AccountMeta::new(payer.pubkey(), true), // fee_payer (PDA authority != tx fee payer)
         ],
         data: instruction_data,
     };

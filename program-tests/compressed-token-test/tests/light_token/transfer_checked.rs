@@ -162,7 +162,7 @@ async fn test_transfer_requires_checked_for_restricted_extensions() {
         destination: account_b_pubkey,
         amount: transfer_amount,
         authority: owner.pubkey(),
-        fee_payer: None,
+        fee_payer: payer.pubkey(),
     }
     .instruction()
     .unwrap();
@@ -185,7 +185,7 @@ async fn test_transfer_requires_checked_for_restricted_extensions() {
         amount: transfer_amount,
         decimals: 9,
         authority: owner.pubkey(),
-        fee_payer: None,
+        fee_payer: payer.pubkey(),
     }
     .instruction()
     .unwrap();

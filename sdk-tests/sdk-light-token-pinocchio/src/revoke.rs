@@ -23,6 +23,7 @@ pub fn process_revoke_invoke(accounts: &[AccountInfo]) -> Result<(), ProgramErro
         token_account: &accounts[0],
         owner: &accounts[1],
         system_program: &accounts[2],
+        fee_payer: &accounts[1],
     }
     .invoke()?;
 
@@ -57,6 +58,7 @@ pub fn process_revoke_invoke_signed(accounts: &[AccountInfo]) -> Result<(), Prog
         token_account: &accounts[0],
         owner: &accounts[1],
         system_program: &accounts[2],
+        fee_payer: &accounts[1],
     }
     .invoke_signed(&[signer])?;
 

@@ -36,6 +36,7 @@ pub fn process_approve_invoke(
         owner: &accounts[2],
         system_program: &accounts[3],
         amount: data.amount,
+        fee_payer: &accounts[2],
     }
     .invoke()?;
 
@@ -74,6 +75,7 @@ pub fn process_approve_invoke_signed(
         owner: &accounts[2],
         system_program: &accounts[3],
         amount: data.amount,
+        fee_payer: &accounts[2],
     }
     .invoke_signed(&[signer])?;
 

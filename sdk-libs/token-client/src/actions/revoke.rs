@@ -69,6 +69,7 @@ impl Revoke {
         let ix = RevokeInstruction {
             token_account: self.token_account,
             owner: owner_pubkey,
+            fee_payer: payer.pubkey(),
         }
         .instruction()
         .map_err(|e| RpcError::CustomError(format!("Failed to create instruction: {}", e)))?;
@@ -95,6 +96,7 @@ impl Revoke {
         let ix = RevokeInstruction {
             token_account: self.token_account,
             owner: owner.pubkey(),
+            fee_payer: payer.pubkey(),
         }
         .instruction()
         .map_err(|e| RpcError::CustomError(format!("Failed to create instruction: {}", e)))?;

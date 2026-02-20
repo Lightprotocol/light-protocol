@@ -127,7 +127,7 @@ pub async fn setup_create_mint(
             destination: ata_pubkeys[*idx],
             amount: *amount,
             authority: mint_authority,
-            fee_payer: None,
+            fee_payer: payer.pubkey(),
         }
         .instruction()
         .unwrap();
@@ -247,7 +247,7 @@ pub async fn setup_create_mint_with_freeze_authority(
                 destination: ata_pubkeys[*idx],
                 amount: *amount,
                 authority: mint_authority,
-                fee_payer: None,
+                fee_payer: payer.pubkey(),
             }
             .instruction()
             .unwrap();
@@ -386,7 +386,7 @@ pub async fn setup_create_mint_with_compression_only(
             destination: ata_pubkeys[*idx],
             amount: *amount,
             authority: mint_authority,
-            fee_payer: None,
+            fee_payer: payer.pubkey(),
         }
         .instruction()
         .unwrap();

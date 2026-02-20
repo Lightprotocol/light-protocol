@@ -21,6 +21,7 @@ use crate::constants::LIGHT_TOKEN_PROGRAM_ID;
 ///     token_account: &ctx.accounts.token_account,
 ///     owner: &ctx.accounts.owner,
 ///     system_program: &ctx.accounts.system_program,
+///     fee_payer: &ctx.accounts.fee_payer,
 /// }
 /// .invoke()?;
 /// ```
@@ -28,6 +29,9 @@ pub struct RevokeCpi<'info> {
     pub token_account: &'info AccountInfo,
     pub owner: &'info AccountInfo,
     pub system_program: &'info AccountInfo,
+    // TODO: fee_payer will be sent as a separate account when on-chain supports it.
+    /// Fee payer for rent top-ups. Not yet sent to on-chain (owner pays instead).
+    pub fee_payer: &'info AccountInfo,
 }
 
 impl<'info> RevokeCpi<'info> {
@@ -41,6 +45,7 @@ impl<'info> RevokeCpi<'info> {
 
         let program_id = Pubkey::from(LIGHT_TOKEN_PROGRAM_ID);
 
+        // Owner is writable (on-chain requires it — no fee_payer support yet)
         let account_metas = [
             AccountMeta::writable(self.token_account.key()),
             AccountMeta::writable_signer(self.owner.key()),

@@ -23,7 +23,7 @@ use crate::constants::LIGHT_TOKEN_PROGRAM_ID;
 ///     amount: 100,
 ///     authority: &ctx.accounts.authority,
 ///     system_program: &ctx.accounts.system_program,
-///     fee_payer: None,
+///     fee_payer: &ctx.accounts.fee_payer,
 /// }
 /// .invoke()?;
 /// ```
@@ -33,8 +33,8 @@ pub struct TransferCpi<'info> {
     pub amount: u64,
     pub authority: &'info AccountInfo,
     pub system_program: &'info AccountInfo,
-    /// Optional fee payer for rent top-ups. If not provided, authority pays.
-    pub fee_payer: Option<&'info AccountInfo>,
+    /// Fee payer for rent top-ups (writable signer). Authority stays readonly.
+    pub fee_payer: &'info AccountInfo,
 }
 
 impl<'info> TransferCpi<'info> {
@@ -43,79 +43,38 @@ impl<'info> TransferCpi<'info> {
     }
 
     pub fn invoke_signed(self, signers: &[Signer]) -> Result<(), ProgramError> {
-        // Build instruction data
-        let mut data = [0u8; 11]; // discriminator(1) + amount(8) + optional max_top_up(2)
-        data[0] = 3u8; // Transfer discriminator
+        let mut data = [0u8; 9]; // discriminator(1) + amount(8)
+        data[0] = 3u8;
         data[1..9].copy_from_slice(&self.amount.to_le_bytes());
-        let data_len = 9;
-
-        // Authority is writable when no fee_payer is provided
-        let authority_writable = self.fee_payer.is_none();
 
         let program_id = Pubkey::from(LIGHT_TOKEN_PROGRAM_ID);
 
-        if let Some(fee_payer) = self.fee_payer {
-            let account_metas = [
-                AccountMeta::writable(self.source.key()),
-                AccountMeta::writable(self.destination.key()),
-                if authority_writable {
-                    AccountMeta::writable_signer(self.authority.key())
-                } else {
-                    AccountMeta::readonly_signer(self.authority.key())
-                },
-                AccountMeta::readonly(self.system_program.key()),
-                AccountMeta::writable_signer(fee_payer.key()),
-            ];
+        let account_metas = [
+            AccountMeta::writable(self.source.key()),
+            AccountMeta::writable(self.destination.key()),
+            AccountMeta::readonly_signer(self.authority.key()),
+            AccountMeta::readonly(self.system_program.key()),
+            AccountMeta::writable_signer(self.fee_payer.key()),
+        ];
 
-            let instruction = Instruction {
-                program_id: &program_id,
-                accounts: &account_metas,
-                data: &data[..data_len],
-            };
+        let instruction = Instruction {
+            program_id: &program_id,
+            accounts: &account_metas,
+            data: &data,
+        };
 
-            let account_infos = [
-                self.source,
-                self.destination,
-                self.authority,
-                self.system_program,
-                fee_payer,
-            ];
+        let account_infos = [
+            self.source,
+            self.destination,
+            self.authority,
+            self.system_program,
+            self.fee_payer,
+        ];
 
-            if signers.is_empty() {
-                slice_invoke(&instruction, &account_infos)
-            } else {
-                slice_invoke_signed(&instruction, &account_infos, signers)
-            }
+        if signers.is_empty() {
+            slice_invoke(&instruction, &account_infos)
         } else {
-            let account_metas = [
-                AccountMeta::writable(self.source.key()),
-                AccountMeta::writable(self.destination.key()),
-                if authority_writable {
-                    AccountMeta::writable_signer(self.authority.key())
-                } else {
-                    AccountMeta::readonly_signer(self.authority.key())
-                },
-                AccountMeta::readonly(self.system_program.key()),
-            ];
-
-            let instruction = Instruction {
-                program_id: &program_id,
-                accounts: &account_metas,
-                data: &data[..data_len],
-            };
-
-            let account_infos = [
-                self.source,
-                self.destination,
-                self.authority,
-                self.system_program,
-            ];
-
-            if signers.is_empty() {
-                slice_invoke(&instruction, &account_infos)
-            } else {
-                slice_invoke_signed(&instruction, &account_infos, signers)
-            }
+            slice_invoke_signed(&instruction, &account_infos, signers)
         }
     }
 }

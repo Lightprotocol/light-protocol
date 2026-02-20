@@ -130,7 +130,7 @@ impl TransferInterface {
                 destination: self.destination,
                 amount: self.amount,
                 authority: self.authority,
-                fee_payer: Some(self.payer),
+                fee_payer: self.payer,
             }
             .instruction(),
 

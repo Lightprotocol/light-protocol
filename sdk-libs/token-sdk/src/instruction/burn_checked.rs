@@ -12,13 +12,14 @@ use solana_pubkey::Pubkey;
 /// # let source = Pubkey::new_unique();
 /// # let mint = Pubkey::new_unique();
 /// # let authority = Pubkey::new_unique();
+/// # let fee_payer = Pubkey::new_unique();
 /// let instruction = BurnChecked {
 ///     source,
 ///     mint,
 ///     amount: 100,
 ///     decimals: 8,
 ///     authority,
-///     fee_payer: None,
+///     fee_payer,
 /// }.instruction()?;
 /// # Ok::<(), solana_program_error::ProgramError>(())
 /// ```
@@ -33,8 +34,8 @@ pub struct BurnChecked {
     pub decimals: u8,
     /// Owner of the Light Token account
     pub authority: Pubkey,
-    /// Optional fee payer for rent top-ups. If not provided, authority pays.
-    pub fee_payer: Option<Pubkey>,
+    /// Fee payer for rent top-ups (writable signer). Authority stays readonly.
+    pub fee_payer: Pubkey,
 }
 
 /// # Burn ctoken via CPI with decimals validation:
@@ -45,6 +46,7 @@ pub struct BurnChecked {
 /// # let mint: AccountInfo = todo!();
 /// # let authority: AccountInfo = todo!();
 /// # let system_program: AccountInfo = todo!();
+/// # let fee_payer: AccountInfo = todo!();
 /// BurnCheckedCpi {
 ///     source,
 ///     mint,
@@ -52,7 +54,7 @@ pub struct BurnChecked {
 ///     decimals: 8,
 ///     authority,
 ///     system_program,
-///     fee_payer: None,
+///     fee_payer,
 /// }
 /// .invoke()?;
 /// # Ok::<(), solana_program_error::ProgramError>(())
@@ -64,8 +66,8 @@ pub struct BurnCheckedCpi<'info> {
     pub decimals: u8,
     pub authority: AccountInfo<'info>,
     pub system_program: AccountInfo<'info>,
-    /// Optional fee payer for rent top-ups. If not provided, authority pays.
-    pub fee_payer: Option<AccountInfo<'info>>,
+    /// Fee payer for rent top-ups (writable signer). Authority stays readonly.
+    pub fee_payer: AccountInfo<'info>,
 }
 
 impl<'info> BurnCheckedCpi<'info> {
@@ -75,36 +77,26 @@ impl<'info> BurnCheckedCpi<'info> {
 
     pub fn invoke(self) -> Result<(), ProgramError> {
         let instruction = BurnChecked::from(&self).instruction()?;
-        if let Some(fee_payer) = self.fee_payer {
-            let account_infos = [
-                self.source,
-                self.mint,
-                self.authority,
-                self.system_program,
-                fee_payer,
-            ];
-            invoke(&instruction, &account_infos)
-        } else {
-            let account_infos = [self.source, self.mint, self.authority, self.system_program];
-            invoke(&instruction, &account_infos)
-        }
+        let account_infos = [
+            self.source,
+            self.mint,
+            self.authority,
+            self.system_program,
+            self.fee_payer,
+        ];
+        invoke(&instruction, &account_infos)
     }
 
     pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
         let instruction = BurnChecked::from(&self).instruction()?;
-        if let Some(fee_payer) = self.fee_payer {
-            let account_infos = [
-                self.source,
-                self.mint,
-                self.authority,
-                self.system_program,
-                fee_payer,
-            ];
-            invoke_signed(&instruction, &account_infos, signer_seeds)
-        } else {
-            let account_infos = [self.source, self.mint, self.authority, self.system_program];
-            invoke_signed(&instruction, &account_infos, signer_seeds)
-        }
+        let account_infos = [
+            self.source,
+            self.mint,
+            self.authority,
+            self.system_program,
+            self.fee_payer,
+        ];
+        invoke_signed(&instruction, &account_infos, signer_seeds)
     }
 }
 
@@ -116,42 +108,54 @@ impl<'info> From<&BurnCheckedCpi<'info>> for BurnChecked {
             amount: cpi.amount,
             decimals: cpi.decimals,
             authority: *cpi.authority.key,
-            fee_payer: cpi.fee_payer.as_ref().map(|a| *a.key),
+            fee_payer: *cpi.fee_payer.key,
         }
     }
 }
 
 impl BurnChecked {
-    pub fn instruction(self) -> Result<Instruction, ProgramError> {
-        // Authority is writable only when no fee_payer (authority pays for top-ups)
-        let authority_meta = if self.fee_payer.is_none() {
-            AccountMeta::new(self.authority, true)
-        } else {
-            AccountMeta::new_readonly(self.authority, true)
-        };
+    pub fn with_max_top_up(self, max_top_up: u16) -> BurnCheckedWithTopUp {
+        BurnCheckedWithTopUp {
+            inner: self,
+            max_top_up,
+        }
+    }
 
-        let mut accounts = vec![
+    pub fn instruction(self) -> Result<Instruction, ProgramError> {
+        self.build_instruction(None)
+    }
+
+    fn build_instruction(self, max_top_up: Option<u16>) -> Result<Instruction, ProgramError> {
+        let accounts = vec![
             AccountMeta::new(self.source, false),
             AccountMeta::new(self.mint, false),
-            authority_meta,
-            // System program required for rent top-up CPIs
+            AccountMeta::new_readonly(self.authority, true),
             AccountMeta::new_readonly(Pubkey::default(), false),
+            AccountMeta::new(self.fee_payer, true),
         ];
 
-        // Add fee_payer if provided (must be signer and writable)
-        if let Some(fee_payer) = self.fee_payer {
-            accounts.push(AccountMeta::new(fee_payer, true));
+        let mut data = vec![15u8];
+        data.extend_from_slice(&self.amount.to_le_bytes());
+        data.push(self.decimals);
+        if let Some(max_top_up) = max_top_up {
+            data.extend_from_slice(&max_top_up.to_le_bytes());
         }
 
         Ok(Instruction {
             program_id: Pubkey::from(LIGHT_TOKEN_PROGRAM_ID),
             accounts,
-            data: {
-                let mut data = vec![15u8]; // CTokenBurnChecked discriminator
-                data.extend_from_slice(&self.amount.to_le_bytes());
-                data.push(self.decimals);
-                data
-            },
+            data,
         })
+    }
+}
+
+pub struct BurnCheckedWithTopUp {
+    inner: BurnChecked,
+    max_top_up: u16,
+}
+
+impl BurnCheckedWithTopUp {
+    pub fn instruction(self) -> Result<Instruction, ProgramError> {
+        self.inner.build_instruction(Some(self.max_top_up))
     }
 }

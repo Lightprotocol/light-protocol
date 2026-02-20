@@ -860,7 +860,7 @@ async fn transfer_checked_and_assert(
         amount,
         decimals,
         authority: authority.pubkey(),
-        fee_payer: None,
+        fee_payer: context.payer.pubkey(),
     }
     .instruction()
     .unwrap();
@@ -901,7 +901,7 @@ async fn transfer_checked_and_assert_fails(
         amount,
         decimals,
         authority: authority.pubkey(),
-        fee_payer: None,
+        fee_payer: context.payer.pubkey(),
     }
     .instruction()
     .unwrap();
@@ -1066,30 +1066,18 @@ async fn test_ctoken_transfer_checked_max_top_up_exceeded() {
     let owner_keypair = context.owner_keypair.insecure_clone();
     let payer_pubkey = context.payer.pubkey();
 
-    // Build raw instruction with low max_top_up to test on-chain error path
-    // (TransferChecked struct no longer exposes max_top_up)
-    let transfer_ix = {
-        use anchor_lang::prelude::AccountMeta;
-        use solana_sdk::instruction::Instruction;
-
-        // Discriminator (12) + amount (8) + decimals (1) + max_top_up (2)
-        let mut data = vec![12u8];
-        data.extend_from_slice(&100u64.to_le_bytes());
-        data.push(9u8); // decimals
-        data.extend_from_slice(&1u16.to_le_bytes()); // max_top_up = 1
-
-        Instruction {
-            program_id: light_compressed_token::ID,
-            accounts: vec![
-                AccountMeta::new(source, false),
-                AccountMeta::new_readonly(mint, false),
-                AccountMeta::new(destination, false),
-                AccountMeta::new(owner_keypair.pubkey(), true),
-                AccountMeta::new_readonly(solana_sdk::system_program::ID, false),
-            ],
-            data,
-        }
-    };
+    let transfer_ix = TransferChecked {
+        source,
+        mint,
+        destination,
+        amount: 100,
+        decimals: 9,
+        authority: owner_keypair.pubkey(),
+        fee_payer: context.payer.pubkey(),
+    }
+    .with_max_top_up(1)
+    .instruction()
+    .unwrap();
 
     let result = context
         .rpc

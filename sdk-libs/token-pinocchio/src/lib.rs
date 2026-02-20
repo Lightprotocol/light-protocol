@@ -35,7 +35,7 @@
 //!     amount: 100,
 //!     authority: &ctx.accounts.authority,
 //!     system_program: &ctx.accounts.system_program,
-//!     fee_payer: None,
+//!     fee_payer: &ctx.accounts.fee_payer,
 //! }
 //! .invoke()?;
 //! ```

@@ -132,7 +132,7 @@ impl<'info> TransferInterfaceCpi<'info> {
                 amount: self.amount,
                 authority: self.authority,
                 system_program: self.system_program,
-                fee_payer: Some(self.payer),
+                fee_payer: self.payer,
             }
             .invoke(),
 
@@ -228,7 +228,7 @@ impl<'info> TransferInterfaceCpi<'info> {
                 amount: self.amount,
                 authority: self.authority,
                 system_program: self.system_program,
-                fee_payer: Some(self.payer),
+                fee_payer: self.payer,
             }
             .invoke_signed(signers),
 

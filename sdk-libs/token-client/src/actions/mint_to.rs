@@ -46,19 +46,12 @@ impl MintTo {
         payer: &Keypair,
         authority: &Keypair,
     ) -> Result<Signature, RpcError> {
-        // Only set fee_payer if payer differs from authority
-        let fee_payer = if payer.pubkey() != authority.pubkey() {
-            Some(payer.pubkey())
-        } else {
-            None
-        };
-
         let ix = MintToInstruction {
             mint: self.mint,
             destination: self.destination,
             amount: self.amount,
             authority: authority.pubkey(),
-            fee_payer,
+            fee_payer: payer.pubkey(),
         }
         .instruction()
         .map_err(|e| RpcError::CustomError(format!("Failed to create instruction: {}", e)))?;

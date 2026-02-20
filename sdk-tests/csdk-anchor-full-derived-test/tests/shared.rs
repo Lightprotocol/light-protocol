@@ -341,7 +341,7 @@ pub async fn setup_create_mint(
             destination: ata_pubkeys[*idx],
             amount: *amount,
             authority: mint_authority,
-            fee_payer: None,
+            fee_payer: payer.pubkey(),
         }
         .instruction()
         .unwrap();

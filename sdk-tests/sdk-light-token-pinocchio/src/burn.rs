@@ -33,7 +33,7 @@ pub fn process_burn_invoke(accounts: &[AccountInfo], amount: u64) -> Result<(), 
         amount,
         authority: &accounts[2],
         system_program: &accounts[4],
-        fee_payer: None,
+        fee_payer: &accounts[2],
     }
     .invoke()?;
 
@@ -48,11 +48,12 @@ pub fn process_burn_invoke(accounts: &[AccountInfo], amount: u64) -> Result<(), 
 /// - accounts[2]: PDA authority (owner, program signs)
 /// - accounts[3]: light_token_program
 /// - accounts[4]: system_program
+/// - accounts[5]: fee_payer (writable, signer)
 pub fn process_burn_invoke_signed(
     accounts: &[AccountInfo],
     amount: u64,
 ) -> Result<(), ProgramError> {
-    if accounts.len() < 5 {
+    if accounts.len() < 6 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
@@ -73,7 +74,7 @@ pub fn process_burn_invoke_signed(
         amount,
         authority: &accounts[2],
         system_program: &accounts[4],
-        fee_payer: None,
+        fee_payer: &accounts[5],
     }
     .invoke_signed(&[signer])?;
 

@@ -36,7 +36,7 @@ pub fn process_transfer_invoke(
         amount: data.amount,
         authority: accounts[2].clone(),
         system_program: accounts[3].clone(),
-        fee_payer: None,
+        fee_payer: accounts[2].clone(),
     }
     .invoke()?;
 
@@ -55,11 +55,12 @@ pub fn process_transfer_invoke(
 /// - accounts[1]: destination ctoken account
 /// - accounts[2]: authority (PDA)
 /// - accounts[3]: system_program
+/// - accounts[4]: fee_payer (writable, signer)
 pub fn process_transfer_invoke_signed(
     accounts: &[AccountInfo],
     data: TransferData,
 ) -> Result<(), ProgramError> {
-    if accounts.len() < 4 {
+    if accounts.len() < 5 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
@@ -78,7 +79,7 @@ pub fn process_transfer_invoke_signed(
         amount: data.amount,
         authority: accounts[2].clone(),
         system_program: accounts[3].clone(),
-        fee_payer: None,
+        fee_payer: accounts[4].clone(),
     };
 
     // Invoke with PDA signing - the builder handles instruction creation and invoke_signed CPI

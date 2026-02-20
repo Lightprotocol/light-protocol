@@ -385,7 +385,7 @@ pub mod csdk_anchor_full_derived_test {
                 amount: params.vault_mint_amount,
                 authority: ctx.accounts.mint_authority.to_account_info(),
                 system_program: ctx.accounts.system_program.to_account_info(),
-                fee_payer: None,
+                fee_payer: ctx.accounts.fee_payer.to_account_info(),
             }
             .invoke()?;
         }
@@ -397,7 +397,7 @@ pub mod csdk_anchor_full_derived_test {
                 amount: params.user_ata_mint_amount,
                 authority: ctx.accounts.mint_authority.to_account_info(),
                 system_program: ctx.accounts.system_program.to_account_info(),
-                fee_payer: None,
+                fee_payer: ctx.accounts.fee_payer.to_account_info(),
             }
             .invoke()?;
         }
@@ -1601,7 +1601,7 @@ pub mod csdk_anchor_full_derived_test {
                 amount: params.mint_amount,
                 authority: ctx.accounts.mint_authority.to_account_info(),
                 system_program: ctx.accounts.system_program.to_account_info(),
-                fee_payer: None,
+                fee_payer: ctx.accounts.fee_payer.to_account_info(),
             }
             .invoke()?;
         }

@@ -96,7 +96,7 @@ async fn test_ctoken_mint_to() {
         destination: ctx.ctoken_account,
         amount: 500,
         authority: ctx.mint_authority.pubkey(),
-        fee_payer: None,
+        fee_payer: ctx.payer.pubkey(),
     }
     .instruction()
     .unwrap();
@@ -118,7 +118,7 @@ async fn test_ctoken_mint_to() {
         destination: ctx.ctoken_account,
         amount: 500,
         authority: ctx.mint_authority.pubkey(),
-        fee_payer: None,
+        fee_payer: ctx.payer.pubkey(),
     }
     .instruction()
     .unwrap();
@@ -169,7 +169,7 @@ async fn test_ctoken_mint_to_checked_success() {
         amount: 500,
         decimals: 8, // Correct decimals
         authority: ctx.mint_authority.pubkey(),
-        fee_payer: None,
+        fee_payer: ctx.payer.pubkey(),
     }
     .instruction()
     .unwrap();
@@ -211,7 +211,7 @@ async fn test_ctoken_mint_to_checked_wrong_decimals() {
         amount: 500,
         decimals: 7, // Wrong decimals
         authority: ctx.mint_authority.pubkey(),
-        fee_payer: None,
+        fee_payer: ctx.payer.pubkey(),
     }
     .instruction()
     .unwrap();

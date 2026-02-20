@@ -55,13 +55,6 @@ impl TransferChecked {
         payer: &Keypair,
         authority: &Keypair,
     ) -> Result<Signature, RpcError> {
-        // Only set fee_payer if payer differs from authority
-        let fee_payer = if payer.pubkey() != authority.pubkey() {
-            Some(payer.pubkey())
-        } else {
-            None
-        };
-
         let ix = TransferCheckedInstruction {
             source: self.source,
             mint: self.mint,
@@ -69,7 +62,7 @@ impl TransferChecked {
             amount: self.amount,
             decimals: self.decimals,
             authority: authority.pubkey(),
-            fee_payer,
+            fee_payer: payer.pubkey(),
         }
         .instruction()
         .map_err(|e| RpcError::CustomError(format!("Failed to create instruction: {}", e)))?;

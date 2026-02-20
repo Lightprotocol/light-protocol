@@ -112,6 +112,7 @@ fn test_transfer_interface_light_to_light_no_spl_interface() {
         authority,
         payer,
         spl_interface: None, // No SPL interface needed
+
         source_owner: LIGHT_TOKEN_PROGRAM_ID,
         destination_owner: LIGHT_TOKEN_PROGRAM_ID,
     };
@@ -146,6 +147,7 @@ fn test_transfer_interface_light_to_spl_requires_interface() {
         authority,
         payer,
         spl_interface: None, // Missing required interface
+
         source_owner: LIGHT_TOKEN_PROGRAM_ID,
         destination_owner: SPL_TOKEN_PROGRAM_ID,
     };
@@ -175,6 +177,7 @@ fn test_transfer_interface_spl_to_light_requires_interface() {
         authority,
         payer,
         spl_interface: None, // Missing required interface
+
         source_owner: SPL_TOKEN_PROGRAM_ID,
         destination_owner: LIGHT_TOKEN_PROGRAM_ID,
     };
@@ -210,6 +213,7 @@ fn test_transfer_interface_light_to_spl_with_interface() {
             spl_interface_pda,
             spl_interface_pda_bump: 255,
         }),
+
         source_owner: LIGHT_TOKEN_PROGRAM_ID,
         destination_owner: SPL_TOKEN_PROGRAM_ID,
     };
@@ -239,6 +243,7 @@ fn test_transfer_interface_spl_to_spl_requires_interface() {
         authority,
         payer,
         spl_interface: None, // Missing interface
+
         source_owner: SPL_TOKEN_PROGRAM_ID,
         destination_owner: SPL_TOKEN_PROGRAM_ID,
     };
@@ -275,6 +280,7 @@ fn test_transfer_interface_spl_program_mismatch() {
             spl_interface_pda,
             spl_interface_pda_bump: 255,
         }),
+
         source_owner: SPL_TOKEN_PROGRAM_ID,
         destination_owner: SPL_TOKEN_2022_PROGRAM_ID,
     };

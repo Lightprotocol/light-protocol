@@ -116,6 +116,7 @@ async fn test_ctoken_transfer_invoke_signed() {
             AccountMeta::new(pda_owner, false), // PDA authority (writable, program signs)
             AccountMeta::new_readonly(Pubkey::default(), false), // system_program
             AccountMeta::new_readonly(LIGHT_TOKEN_PROGRAM_ID, false),
+            AccountMeta::new(payer.pubkey(), true), // fee_payer (PDA authority != tx fee payer)
         ],
         data: instruction_data,
     };
