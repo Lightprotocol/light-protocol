@@ -312,17 +312,13 @@ impl CompressBuilder {
 
     /// Generate compress dispatch as an associated function on the enum using the specified backend.
     ///
-    /// # Discriminator ordering invariant
+    /// # Discriminator uniqueness invariant
     ///
-    /// The dispatch uses a sequential if-chain keyed on `LIGHT_DISCRIMINATOR_SLICE`. Because a
-    /// shorter discriminator is a prefix of any byte sequence, types with shorter discriminators
-    /// MUST be placed *after* all types with longer discriminators in the `ProgramAccounts` enum.
-    /// Violating this ordering causes the short discriminator to match prematurely, corrupting
-    /// dispatch for longer-discriminator types whose on-chain prefix happens to share the same
-    /// leading bytes.
-    ///
-    /// The `LightProgramPinocchio` derive preserves enum declaration order, so the caller must
-    /// declare non-standard (short) discriminator variants last.
+    /// The dispatch uses a sequential if-chain keyed on `LIGHT_DISCRIMINATOR_SLICE`. No
+    /// discriminator may be a prefix of another — including exact duplicates. Violating this
+    /// causes silent incorrect dispatch. The `LightProgramPinocchio` derive enforces this at
+    /// compile time via `generate_discriminator_collision_checks`; if the check fires, change
+    /// the discriminator bytes so that no pair shares a prefix.
     pub fn generate_enum_dispatch_method_with_backend(
         &self,
         enum_name: &syn::Ident,
@@ -488,8 +484,8 @@ impl CompressBuilder {
                 let type_a_str = quote::quote!(#type_a).to_string().replace(" :: ", "::");
                 let type_b_str = quote::quote!(#type_b).to_string().replace(" :: ", "::");
                 let msg = format!(
-                    "Discriminator collision: {} and {} share a prefix. \
-                     Declare variants with longer discriminators before those with shorter ones in the enum.",
+                    "Discriminator collision: {} and {} share a prefix (or are identical). \
+                     Change one of the discriminator byte arrays so no pair shares a prefix.",
                     type_a_str, type_b_str
                 );
 
