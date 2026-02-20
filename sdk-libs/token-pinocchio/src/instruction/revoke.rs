@@ -29,8 +29,7 @@ pub struct RevokeCpi<'info> {
     pub token_account: &'info AccountInfo,
     pub owner: &'info AccountInfo,
     pub system_program: &'info AccountInfo,
-    // TODO: fee_payer will be sent as a separate account when on-chain supports it.
-    /// Fee payer for rent top-ups. Not yet sent to on-chain (owner pays instead).
+    /// Fee payer for compressible rent top-ups (writable signer)
     pub fee_payer: &'info AccountInfo,
 }
 
@@ -45,11 +44,11 @@ impl<'info> RevokeCpi<'info> {
 
         let program_id = Pubkey::from(LIGHT_TOKEN_PROGRAM_ID);
 
-        // Owner is writable (on-chain requires it — no fee_payer support yet)
         let account_metas = [
             AccountMeta::writable(self.token_account.key()),
             AccountMeta::writable_signer(self.owner.key()),
             AccountMeta::readonly(self.system_program.key()),
+            AccountMeta::writable_signer(self.fee_payer.key()),
         ];
 
         let instruction = Instruction {
@@ -58,7 +57,12 @@ impl<'info> RevokeCpi<'info> {
             data: &data,
         };
 
-        let account_infos = [self.token_account, self.owner, self.system_program];
+        let account_infos = [
+            self.token_account,
+            self.owner,
+            self.system_program,
+            self.fee_payer,
+        ];
 
         if signers.is_empty() {
             slice_invoke(&instruction, &account_infos)

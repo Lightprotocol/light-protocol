@@ -27,13 +27,11 @@ pub struct Approve {
     pub token_account: Pubkey,
     /// Delegate to approve
     pub delegate: Pubkey,
-    /// Owner of the Light Token account (signer, writable — on-chain requires owner to pay)
+    /// Owner of the Light Token account (writable signer)
     pub owner: Pubkey,
     /// Amount of tokens to delegate
     pub amount: u64,
-    // TODO: fee_payer will be sent as a separate account when on-chain supports it.
-    // Currently owner pays for top-ups directly.
-    /// Fee payer for rent top-ups. Not yet sent to on-chain (owner pays instead).
+    /// Fee payer for compressible rent top-ups (writable signer)
     pub fee_payer: Pubkey,
 }
 
@@ -63,8 +61,7 @@ pub struct ApproveCpi<'info> {
     pub owner: AccountInfo<'info>,
     pub system_program: AccountInfo<'info>,
     pub amount: u64,
-    // TODO: fee_payer will be sent as a separate account when on-chain supports it.
-    /// Fee payer for rent top-ups. Not yet sent to on-chain (owner pays instead).
+    /// Fee payer for compressible rent top-ups (writable signer)
     pub fee_payer: AccountInfo<'info>,
 }
 
@@ -80,6 +77,7 @@ impl<'info> ApproveCpi<'info> {
             self.delegate,
             self.owner,
             self.system_program,
+            self.fee_payer,
         ];
         invoke(&instruction, &account_infos)
     }
@@ -91,6 +89,7 @@ impl<'info> ApproveCpi<'info> {
             self.delegate,
             self.owner,
             self.system_program,
+            self.fee_payer,
         ];
         invoke_signed(&instruction, &account_infos, signer_seeds)
     }
@@ -115,12 +114,12 @@ impl Approve {
 
         Ok(Instruction {
             program_id: Pubkey::from(LIGHT_TOKEN_PROGRAM_ID),
-            // Owner is writable (on-chain requires it — no fee_payer support yet)
             accounts: vec![
                 AccountMeta::new(self.token_account, false),
                 AccountMeta::new_readonly(self.delegate, false),
                 AccountMeta::new(self.owner, true),
                 AccountMeta::new_readonly(Pubkey::default(), false),
+                AccountMeta::new(self.fee_payer, true),
             ],
             data,
         })

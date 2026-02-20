@@ -39,7 +39,7 @@ pub fn process_transfer_checked_invoke(
         decimals: data.decimals,
         authority: &accounts[3],
         system_program: &accounts[4],
-        fee_payer: &accounts[3],
+        fee_payer: Some(&accounts[3]),
     }
     .invoke()?;
 
@@ -79,7 +79,7 @@ pub fn process_transfer_checked_invoke_signed(
         decimals: data.decimals,
         authority: &accounts[3],
         system_program: &accounts[4],
-        fee_payer: &accounts[5],
+        fee_payer: Some(&accounts[5]),
     };
 
     // Invoke with PDA signing
