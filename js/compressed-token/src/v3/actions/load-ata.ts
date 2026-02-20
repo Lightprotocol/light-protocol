@@ -27,6 +27,7 @@ import {
 } from '@solana/spl-token';
 import {
     AccountInterface,
+    COLD_SOURCE_TYPES,
     getAtaInterface as _getAtaInterface,
     TokenAccountSource,
     TokenAccountSourceType,
@@ -49,13 +50,6 @@ import { InterfaceOptions } from './transfer-interface';
  * Defined in programs/compressed-token/program/src/shared/cpi_bytes_size.rs
  */
 export const MAX_INPUT_ACCOUNTS = 8;
-
-/** All source types that represent compressed (cold) accounts. */
-const COLD_SOURCE_TYPES: ReadonlySet<string> = new Set([
-    TokenAccountSourceType.CTokenCold,
-    TokenAccountSourceType.SplCold,
-    TokenAccountSourceType.Token2022Cold,
-]);
 
 /**
  * Split an array into chunks of specified size.
@@ -141,15 +135,9 @@ function assertUniqueInputHashes(chunks: ParsedTokenAccount[][]): void {
 export function getCompressedTokenAccountsFromAtaSources(
     sources: TokenAccountSource[],
 ): ParsedTokenAccount[] {
-    const coldTypes = new Set<TokenAccountSource['type']>([
-        TokenAccountSourceType.CTokenCold,
-        TokenAccountSourceType.SplCold,
-        TokenAccountSourceType.Token2022Cold,
-    ]);
-
     return sources
         .filter(source => source.loadContext !== undefined)
-        .filter(source => coldTypes.has(source.type))
+        .filter(source => COLD_SOURCE_TYPES.has(source.type))
         .filter(source => !source.parsed.isFrozen)
         .map(source => {
             const fullData = source.accountInfo.data;
@@ -323,37 +311,42 @@ export interface InternalLoadBatch {
  * - Per compressed account: ~10k (proveByIndex) or ~30k (full proof) CU
  * @internal
  */
-export function calculateLoadBatchComputeUnits(
-    batch: InternalLoadBatch,
-): number {
+const CU_ATA_CREATION = 30_000;
+const CU_WRAP = 50_000;
+const CU_DECOMPRESS_BASE = 50_000;
+const CU_FULL_PROOF = 100_000;
+const CU_PER_ACCOUNT_PROVE_BY_INDEX = 10_000;
+const CU_PER_ACCOUNT_FULL_PROOF = 30_000;
+const CU_BUFFER_FACTOR = 1.3;
+const CU_MIN = 50_000;
+const CU_MAX = 1_400_000;
+
+/** @internal Raw load batch CU before buffer/clamp. Used by calculateTransferCU. */
+export function rawLoadBatchComputeUnits(batch: InternalLoadBatch): number {
     let cu = 0;
-
-    if (batch.hasAtaCreation) {
-        cu += 30_000;
-    }
-
-    cu += batch.wrapCount * 50_000;
-
+    if (batch.hasAtaCreation) cu += CU_ATA_CREATION;
+    cu += batch.wrapCount * CU_WRAP;
     if (batch.compressedAccounts.length > 0) {
-        // Base cost for Transfer2 CPI chain (cToken -> system -> account-compression)
-        cu += 50_000;
-
+        cu += CU_DECOMPRESS_BASE;
         const needsFullProof = batch.compressedAccounts.some(
             acc => !(acc.compressedAccount.proveByIndex ?? false),
         );
-        if (needsFullProof) {
-            cu += 100_000;
-        }
+        if (needsFullProof) cu += CU_FULL_PROOF;
         for (const acc of batch.compressedAccounts) {
-            const proveByIndex = acc.compressedAccount.proveByIndex ?? false;
-            cu += proveByIndex ? 10_000 : 30_000;
+            cu +=
+                (acc.compressedAccount.proveByIndex ?? false)
+                    ? CU_PER_ACCOUNT_PROVE_BY_INDEX
+                    : CU_PER_ACCOUNT_FULL_PROOF;
         }
     }
+    return cu;
+}
 
-    // 30% buffer
-    cu = Math.ceil(cu * 1.3);
-
-    return Math.max(50_000, Math.min(1_400_000, cu));
+export function calculateLoadBatchComputeUnits(
+    batch: InternalLoadBatch,
+): number {
+    const cu = Math.ceil(rawLoadBatchComputeUnits(batch) * CU_BUFFER_FACTOR);
+    return Math.max(CU_MIN, Math.min(CU_MAX, cu));
 }
 
 /**

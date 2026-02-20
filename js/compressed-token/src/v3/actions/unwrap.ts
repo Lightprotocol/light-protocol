@@ -27,10 +27,7 @@ import {
 } from '../get-account-interface';
 import { _buildLoadBatches, calculateLoadBatchComputeUnits } from './load-ata';
 import { InterfaceOptions } from './transfer-interface';
-import {
-    estimateTransactionSize,
-    MAX_TRANSACTION_SIZE,
-} from '../utils/estimate-tx-size';
+import { assertTransactionSizeWithinLimit } from '../utils/estimate-tx-size';
 
 /**
  * Build instruction batches for unwrapping c-tokens to SPL/T22 tokens.
@@ -187,31 +184,14 @@ export async function createUnwrapInstructions(
             ComputeBudgetProgram.setComputeUnitLimit({ units: cu }),
             ...batch.instructions,
         ];
-        assertUnwrapTxSize(txIxs, numSigners);
+        assertTransactionSizeWithinLimit(txIxs, numSigners, 'Unwrap batch');
         result.push(txIxs);
     }
 
-    assertUnwrapTxSize(unwrapBatch, numSigners);
+    assertTransactionSizeWithinLimit(unwrapBatch, numSigners, 'Unwrap batch');
     result.push(unwrapBatch);
 
     return result;
-}
-
-/**
- * Assert that a batch of instructions fits within the max transaction size.
- * @internal
- */
-function assertUnwrapTxSize(
-    instructions: TransactionInstruction[],
-    numSigners: number,
-): void {
-    const size = estimateTransactionSize(instructions, numSigners);
-    if (size > MAX_TRANSACTION_SIZE) {
-        throw new Error(
-            `Unwrap batch exceeds max transaction size: ${size} > ${MAX_TRANSACTION_SIZE}. ` +
-                `This indicates a bug in batch assembly.`,
-        );
-    }
 }
 
 /**

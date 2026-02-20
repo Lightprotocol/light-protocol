@@ -33,6 +33,18 @@ export const TokenAccountSourceType = {
 export type TokenAccountSourceTypeValue =
     (typeof TokenAccountSourceType)[keyof typeof TokenAccountSourceType];
 
+/** Cold (compressed) source types. Used for load/decompress and isCold. */
+export const COLD_SOURCE_TYPES: ReadonlySet<TokenAccountSourceTypeValue> =
+    new Set([
+        TokenAccountSourceType.CTokenCold,
+        TokenAccountSourceType.SplCold,
+        TokenAccountSourceType.Token2022Cold,
+    ]);
+
+function isColdSourceType(type: TokenAccountSourceTypeValue): boolean {
+    return COLD_SOURCE_TYPES.has(type);
+}
+
 /** @internal */
 export interface TokenAccountSource {
     type: TokenAccountSourceTypeValue;
@@ -883,16 +895,10 @@ export function buildAccountInterfaceFromSources(
         ...(anyFrozen ? { state: AccountState.Frozen, isFrozen: true } : {}),
     };
 
-    const coldTypes: TokenAccountSource['type'][] = [
-        'ctoken-cold',
-        'spl-cold',
-        'token2022-cold',
-    ];
-
     return {
         accountInfo: primarySource.accountInfo!,
         parsed: unifiedAccount,
-        isCold: coldTypes.includes(primarySource.type),
+        isCold: isColdSourceType(primarySource.type),
         loadContext: primarySource.loadContext,
         _sources: sources,
         _needsConsolidation: needsConsolidation,
@@ -991,9 +997,7 @@ export function filterInterfaceForAuthority(
                 ? { state: AccountState.Frozen, isFrozen: true }
                 : {}),
         },
-        isCold: ['ctoken-cold', 'spl-cold', 'token2022-cold'].includes(
-            primary.type,
-        ),
+        isCold: isColdSourceType(primary.type),
         loadContext: primary.loadContext,
         _needsConsolidation: filtered.length > 1,
         _hasDelegate: filtered.some(s => s.parsed.delegate !== null),

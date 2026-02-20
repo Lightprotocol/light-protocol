@@ -15,6 +15,24 @@ export const MAX_COMBINED_BATCH_BYTES = 900;
 export const MAX_LOAD_ONLY_BATCH_BYTES = 1000;
 
 /**
+ * Asserts that the serialized transaction size is within MAX_TRANSACTION_SIZE.
+ * @internal
+ */
+export function assertTransactionSizeWithinLimit(
+    instructions: TransactionInstruction[],
+    numSigners: number,
+    context = 'Batch',
+): void {
+    const size = estimateTransactionSize(instructions, numSigners);
+    if (size > MAX_TRANSACTION_SIZE) {
+        throw new Error(
+            `${context} exceeds max transaction size: ${size} > ${MAX_TRANSACTION_SIZE}. ` +
+                'This indicates a bug in batch assembly.',
+        );
+    }
+}
+
+/**
  * Encode length as compact-u16 (Solana's variable-length encoding).
  * Returns the number of bytes the encoded value occupies.
  * @internal

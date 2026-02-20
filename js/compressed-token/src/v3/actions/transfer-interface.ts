@@ -29,6 +29,7 @@ import { type SplInterfaceInfo } from '../../utils/get-token-pool-infos';
 import {
     _buildLoadBatches,
     calculateLoadBatchComputeUnits,
+    rawLoadBatchComputeUnits,
     type InternalLoadBatch,
 } from './load-ata';
 import {
@@ -40,15 +41,11 @@ import {
 } from '../get-account-interface';
 import { DEFAULT_COMPRESSIBLE_CONFIG } from '../instructions/create-associated-ctoken';
 import {
+    assertTransactionSizeWithinLimit,
     estimateTransactionSize,
     MAX_TRANSACTION_SIZE,
 } from '../utils/estimate-tx-size';
-
-const COLD_SOURCE_TYPES_SET: ReadonlySet<string> = new Set([
-    'ctoken-cold',
-    'spl-cold',
-    'token2022-cold',
-]);
+import { COLD_SOURCE_TYPES } from '../get-account-interface';
 
 /**
  * Options for interface operations (load, transfer)
@@ -198,6 +195,9 @@ export function sliceLast<T>(items: T[]): { rest: T[]; last: T } {
     return { rest: items.slice(0, -1), last: items.at(-1)! };
 }
 
+/** c-token transfer instruction base CU. */
+const TRANSFER_BASE_CU = 10_000;
+
 /**
  * Compute units for the transfer transaction (load chunk + transfer).
  * @internal
@@ -205,49 +205,11 @@ export function sliceLast<T>(items: T[]): { rest: T[]; last: T } {
 export function calculateTransferCU(
     loadBatch: InternalLoadBatch | null,
 ): number {
-    let cu = 10_000; // c-token transfer base
-
-    if (loadBatch) {
-        if (loadBatch.hasAtaCreation) cu += 30_000;
-        cu += loadBatch.wrapCount * 50_000;
-
-        if (loadBatch.compressedAccounts.length > 0) {
-            // Base cost for Transfer2 CPI chain
-            cu += 50_000;
-            const needsFullProof = loadBatch.compressedAccounts.some(
-                acc => !(acc.compressedAccount.proveByIndex ?? false),
-            );
-            if (needsFullProof) cu += 100_000;
-            for (const acc of loadBatch.compressedAccounts) {
-                cu +=
-                    (acc.compressedAccount.proveByIndex ?? false)
-                        ? 10_000
-                        : 30_000;
-            }
-        }
-    }
-
-    cu = Math.ceil(cu * 1.3);
+    const rawLoadCu = loadBatch ? rawLoadBatchComputeUnits(loadBatch) : 0;
+    const cu = Math.ceil((TRANSFER_BASE_CU + rawLoadCu) * 1.3);
     return Math.max(50_000, Math.min(1_400_000, cu));
 }
 
-/**
- * Assert that a batch of instructions fits within the max transaction size.
- * Throws if the estimated size exceeds MAX_TRANSACTION_SIZE.
- * @internal
- */
-function assertTxSize(
-    instructions: TransactionInstruction[],
-    numSigners: number,
-): void {
-    const size = estimateTransactionSize(instructions, numSigners);
-    if (size > MAX_TRANSACTION_SIZE) {
-        throw new Error(
-            `Batch exceeds max transaction size: ${size} > ${MAX_TRANSACTION_SIZE}. ` +
-                `This indicates a bug in batch assembly.`,
-        );
-    }
-}
 
 /**
  * Create instructions for a c-token transfer.
@@ -403,7 +365,7 @@ export async function createTransferInterfaceInstructions(
         const sources = senderInterface._sources ?? [];
         const hasApproveStyleCold = sources.some(
             s =>
-                COLD_SOURCE_TYPES_SET.has(s.type) &&
+                COLD_SOURCE_TYPES.has(s.type) &&
                 s.parsed.delegate !== null &&
                 s.parsed.delegate.equals(sender) &&
                 (!s.parsed.tlvData || s.parsed.tlvData.length === 0),
@@ -474,7 +436,7 @@ export async function createTransferInterfaceInstructions(
             ...recipientAtaIxs,
             transferIx,
         ];
-        assertTxSize(txIxs, numSigners);
+        assertTransactionSizeWithinLimit(txIxs, numSigners, 'Batch');
         return [txIxs];
     }
 
@@ -488,7 +450,7 @@ export async function createTransferInterfaceInstructions(
             ...batch.instructions,
             transferIx,
         ];
-        assertTxSize(txIxs, numSigners);
+        assertTransactionSizeWithinLimit(txIxs, numSigners, 'Batch');
         return [txIxs];
     }
 
@@ -504,7 +466,7 @@ export async function createTransferInterfaceInstructions(
             ComputeBudgetProgram.setComputeUnitLimit({ units: cu }),
             ...batch.instructions,
         ];
-        assertTxSize(txIxs, numSigners);
+        assertTransactionSizeWithinLimit(txIxs, numSigners, 'Batch');
         result.push(txIxs);
     }
 
@@ -516,7 +478,7 @@ export async function createTransferInterfaceInstructions(
         ...lastBatch.instructions,
         transferIx,
     ];
-    assertTxSize(lastTxIxs, numSigners);
+    assertTransactionSizeWithinLimit(lastTxIxs, numSigners, 'Batch');
     result.push(lastTxIxs);
 
     return result;
