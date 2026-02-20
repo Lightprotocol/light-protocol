@@ -123,3 +123,113 @@ fn pack_proof_internal(
         system_accounts_offset: system_offset as u8,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use light_compressed_account::TreeType;
+    use solana_pubkey::Pubkey;
+
+    use super::{pack_proof, pack_proof_for_mints};
+    use crate::indexer::{TreeInfo, ValidityProofWithContext};
+
+    fn make_state_v1_tree_info() -> TreeInfo {
+        TreeInfo {
+            tree_type: TreeType::StateV1,
+            tree: Pubkey::new_unique(),
+            queue: Pubkey::new_unique(),
+            cpi_context: None,
+            next_tree_info: None,
+        }
+    }
+
+    #[test]
+    fn test_pack_proof_minimal_valid_proof_no_cpi_context() {
+        let program_id = Pubkey::new_unique();
+        let proof = ValidityProofWithContext::default();
+        let output_tree = make_state_v1_tree_info();
+
+        let result = pack_proof(&program_id, proof, &output_tree, None).unwrap();
+
+        // v2 system accounts (with self_program, no cpi_context):
+        //   light_system_program, cpi_signer, registered_program_pda,
+        //   account_compression_authority, account_compression_program, system_program = 6
+        // + output queue = 1
+        // Total = 7
+        assert_eq!(
+            result.remaining_accounts.len(),
+            7,
+            "expected 7 remaining accounts without cpi_context"
+        );
+        assert_eq!(result.state_tree_index, None);
+        // system_accounts_offset is 0 because system accounts are prepended
+        // at the start of remaining_accounts by add_system_accounts_raw
+        assert_eq!(result.system_accounts_offset, 0);
+    }
+
+    #[test]
+    fn test_pack_proof_with_cpi_context_adds_extra_account() {
+        let program_id = Pubkey::new_unique();
+        let cpi_context_pubkey = Pubkey::new_unique();
+        let proof = ValidityProofWithContext::default();
+        let output_tree = make_state_v1_tree_info();
+
+        let result_no_cpi = pack_proof(&program_id, proof.clone(), &output_tree, None).unwrap();
+        let result_with_cpi =
+            pack_proof(&program_id, proof, &output_tree, Some(cpi_context_pubkey)).unwrap();
+
+        // cpi_context adds one more account
+        assert_eq!(
+            result_with_cpi.remaining_accounts.len(),
+            result_no_cpi.remaining_accounts.len() + 1,
+            "cpi_context should add exactly one account"
+        );
+    }
+
+    #[test]
+    fn test_pack_proof_for_mints_adds_state_tree_index() {
+        let program_id = Pubkey::new_unique();
+        let proof = ValidityProofWithContext::default();
+        let output_tree = make_state_v1_tree_info();
+
+        let result = pack_proof_for_mints(&program_id, proof, &output_tree, None).unwrap();
+
+        // state_tree_index must be Some for mint creation path
+        assert!(
+            result.state_tree_index.is_some(),
+            "pack_proof_for_mints should set state_tree_index"
+        );
+        let idx = result.state_tree_index.unwrap();
+        assert!(
+            (idx as usize) < result.remaining_accounts.len(),
+            "state_tree_index must be a valid index into remaining_accounts"
+        );
+    }
+
+    #[test]
+    fn test_pack_proof_vs_pack_proof_for_mints_output_tree_index_consistent() {
+        let program_id = Pubkey::new_unique();
+        let proof = ValidityProofWithContext::default();
+        let tree = Pubkey::new_unique();
+        let queue = Pubkey::new_unique();
+        let output_tree = TreeInfo {
+            tree_type: TreeType::StateV1,
+            tree,
+            queue,
+            cpi_context: None,
+            next_tree_info: None,
+        };
+
+        let r1 = pack_proof(&program_id, proof.clone(), &output_tree, None).unwrap();
+        let r2 = pack_proof_for_mints(&program_id, proof, &output_tree, None).unwrap();
+
+        // Both should have the same output_tree_index since they use the same output_tree
+        assert_eq!(r1.output_tree_index, r2.output_tree_index);
+
+        // pack_proof_for_mints adds exactly one account (the state tree)
+        assert_eq!(
+            r2.remaining_accounts.len(),
+            r1.remaining_accounts.len() + 1,
+            "pack_proof_for_mints adds exactly one account (the state tree)"
+        );
+    }
+}
