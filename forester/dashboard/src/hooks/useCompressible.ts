@@ -4,7 +4,7 @@ import type { CompressibleResponse } from "@/types/forester";
 
 export function useCompressible() {
   return useSWR<CompressibleResponse>("/compressible", fetcher, {
-    refreshInterval: 15000,
+    refreshInterval: 5000,
     revalidateOnFocus: true,
   });
 }

@@ -23,7 +23,13 @@ export default function CompressiblePage() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-bold">Compressible Accounts</h2>
+      <div>
+        <h2 className="text-xl font-bold">Compressible Accounts</h2>
+        <p className="text-sm text-gray-500 mt-1">
+          Track what is currently compressible, what is waiting on rent
+          windows, and how fresh this view is.
+        </p>
+      </div>
       <CompressiblePanel data={data} />
     </div>
   );

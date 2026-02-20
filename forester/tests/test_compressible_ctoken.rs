@@ -539,6 +539,7 @@ async fn run_bootstrap_test(
             rpc_url_clone,
             tracker_clone,
             Some(shutdown_rx),
+            false,
         )
         .await
         {
