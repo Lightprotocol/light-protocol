@@ -1216,6 +1216,30 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             match self.register_for_epoch(epoch).await {
                 Ok(registration_info) => return Ok(registration_info),
                 Err(e) => {
+                    if let Some(RegistrationError::RegistrationPhaseEnded {
+                        epoch: ended_epoch,
+                        current_slot,
+                        registration_end,
+                    }) = e.downcast_ref::<RegistrationError>()
+                    {
+                        warn!(
+                            event = "registration_attempt_non_retryable",
+                            run_id = %self.run_id,
+                            epoch,
+                            attempt = attempt + 1,
+                            max_attempts = max_retries,
+                            error = ?e,
+                            "Registration phase ended; stopping retries for this epoch"
+                        );
+                        return Err(ForesterError::Registration(
+                            RegistrationError::RegistrationPhaseEnded {
+                                epoch: *ended_epoch,
+                                current_slot: *current_slot,
+                                registration_end: *registration_end,
+                            },
+                        ));
+                    }
+
                     warn!(
                         event = "registration_attempt_failed",
                         run_id = %self.run_id,

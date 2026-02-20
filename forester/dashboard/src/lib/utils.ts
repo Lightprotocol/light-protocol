@@ -16,13 +16,37 @@ export function formatPercentage(n: number, decimals = 2): string {
   return `${n.toFixed(decimals)}%`;
 }
 
+const DEFAULT_SLOT_DURATION_MS = 400;
+
 export function slotsToTime(slots: number): string {
-  const seconds = Math.round(slots * 0.46);
+  const seconds = Math.round((slots * DEFAULT_SLOT_DURATION_MS) / 1000);
   if (seconds < 60) return `${seconds}s`;
   if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
   const hours = Math.floor(seconds / 3600);
   const mins = Math.round((seconds % 3600) / 60);
   return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+}
+
+export function formatAgeFromUnixSeconds(unixTs: number | null | undefined): string {
+  if (unixTs == null || unixTs <= 0) return "unknown";
+  const ageSec = Math.max(0, Math.floor(Date.now() / 1000) - unixTs);
+  if (ageSec < 5) return "just now";
+  if (ageSec < 60) return `${ageSec}s ago`;
+  if (ageSec < 3600) return `${Math.round(ageSec / 60)}m ago`;
+  const hours = Math.floor(ageSec / 3600);
+  const mins = Math.round((ageSec % 3600) / 60);
+  return mins > 0 ? `${hours}h ${mins}m ago` : `${hours}h ago`;
+}
+
+export function formatSlotCountdown(
+  currentSlot: number | null | undefined,
+  nextReadySlot: number | null | undefined
+): string {
+  if (nextReadySlot == null) return "n/a";
+  if (currentSlot == null) return `slot ${nextReadySlot.toLocaleString()}`;
+  if (currentSlot > nextReadySlot) return "ready now";
+  const remaining = nextReadySlot - currentSlot;
+  return `${remaining.toLocaleString()} slots (~${slotsToTime(remaining)})`;
 }
 
 export function batchStateLabel(state: number): string {
