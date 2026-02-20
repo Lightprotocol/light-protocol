@@ -210,7 +210,6 @@ export function calculateTransferCU(
     return Math.max(50_000, Math.min(1_400_000, cu));
 }
 
-
 /**
  * Create instructions for a c-token transfer.
  *
