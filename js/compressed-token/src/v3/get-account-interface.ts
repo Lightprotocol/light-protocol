@@ -13,9 +13,6 @@ import {
     LIGHT_TOKEN_PROGRAM_ID,
     MerkleContext,
     CompressedAccountWithMerkleContext,
-    deriveAddressV2,
-    bn,
-    getDefaultAddressTreeInfo,
     assertBetaEnabled,
 } from '@lightprotocol/stateless.js';
 import { Buffer } from 'buffer';
@@ -482,50 +479,6 @@ async function _tryFetchCTokenColdByOwner(
         throw new Error('Invalid owner for compressed token');
     }
     return parseCTokenCold(ataAddress, compressedAccount);
-}
-
-/**
- * Fetch compressed token account by deriving its compressed address from the on-chain address.
- * Uses deriveAddressV2(address, addressTree, LIGHT_TOKEN_PROGRAM_ID) to get the compressed address.
- *
- * Note: This only works for accounts that were **compressed from on-chain** (via compress_accounts_idempotent).
- * For tokens minted compressed (via mintTo), use getAtaInterface with owner+mint instead.
- * @internal
- */
-async function _tryFetchCTokenColdByAddress(
-    rpc: Rpc,
-    address: PublicKey,
-): Promise<{
-    accountInfo: AccountInfo<Buffer>;
-    loadContext: MerkleContext;
-    parsed: Account;
-    isCold: true;
-}> {
-    // Derive compressed address from on-chain token account address
-    const addressTree = getDefaultAddressTreeInfo().tree;
-    const compressedAddress = deriveAddressV2(
-        address.toBytes(),
-        addressTree,
-        LIGHT_TOKEN_PROGRAM_ID,
-    );
-
-    // Fetch by derived compressed address
-    const compressedAccount = await rpc.getCompressedAccount(
-        bn(compressedAddress.toBytes()),
-    );
-
-    if (!compressedAccount?.data?.data.length) {
-        throw new Error(
-            'Compressed token account not found at derived address. ' +
-                'Note: getAccountInterface only finds compressed accounts that were ' +
-                'compressed from on-chain (via compress_accounts_idempotent). ' +
-                'For tokens minted compressed (via mintTo), use getAtaInterface with owner+mint.',
-        );
-    }
-    if (!compressedAccount.owner.equals(LIGHT_TOKEN_PROGRAM_ID)) {
-        throw new Error('Invalid owner for compressed token');
-    }
-    return parseCTokenCold(address, compressedAccount);
 }
 
 /**
