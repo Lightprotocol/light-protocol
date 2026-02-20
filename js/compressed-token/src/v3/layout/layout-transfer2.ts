@@ -197,6 +197,7 @@ const CompressionInfoLayout = struct([
 
 /**
  * Serialize a single Transfer2ExtensionData to bytes
+ * @internal
  */
 function serializeExtensionInstructionData(
     ext: Transfer2ExtensionData,
@@ -269,6 +270,7 @@ function serializeExtensionInstructionData(
 
 /**
  * Serialize Vec<Vec<Transfer2ExtensionData>> to bytes for Borsh
+ * @internal
  */
 function serializeExtensionTlv(
     tlv: Transfer2ExtensionData[][] | null,
@@ -369,6 +371,7 @@ const Transfer2InstructionDataBaseLayout = struct([
 
 /**
  * Encode Transfer2 instruction data using Borsh
+ * @internal
  */
 export function encodeTransfer2InstructionData(
     data: Transfer2InstructionData,
@@ -447,6 +450,7 @@ export function encodeTransfer2InstructionData(
 /**
  * Create a compression struct for wrapping SPL tokens to c-token
  * (compress from SPL ATA)
+ * @internal
  */
 export function createCompressSpl(
     amount: bigint,
@@ -477,6 +481,7 @@ export function createCompressSpl(
  * @param mintIndex - Index of mint in packed accounts
  * @param recipientIndex - Index of recipient c-token account in packed accounts
  * @param tokenProgramIndex - Index of c-token program in packed accounts (for CPI)
+ * @internal
  */
 export function createDecompressCtoken(
     amount: bigint,
@@ -505,6 +510,7 @@ export function createDecompressCtoken(
  * @param sourceIndex - Index of source c-token account in packed accounts
  * @param authorityIndex - Index of authority/owner in packed accounts (must sign)
  * @param tokenProgramIndex - Index of c-token program in packed accounts (for CPI)
+ * @internal
  */
 export function createCompressCtoken(
     amount: bigint,
@@ -528,6 +534,7 @@ export function createCompressCtoken(
 
 /**
  * Create a compression struct for decompressing SPL tokens
+ * @internal
  */
 export function createDecompressSpl(
     amount: bigint,

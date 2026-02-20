@@ -91,6 +91,7 @@ export const DEFAULT_COMPRESSIBLE_CONFIG: CompressibleConfig = {
     compressToAccountPubkey: null, // Required null for ATAs
 };
 
+/** @internal */
 function getAssociatedCTokenAddress(
     owner: PublicKey,
     mint: PublicKey,
@@ -101,6 +102,7 @@ function getAssociatedCTokenAddress(
     )[0];
 }
 
+/** @internal */
 function encodeCreateAssociatedCTokenAccountData(
     params: CreateAssociatedCTokenAccountParams,
     idempotent: boolean,

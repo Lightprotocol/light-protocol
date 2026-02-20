@@ -35,6 +35,7 @@ interface EncodeDecompressMintInstructionParams {
     maxTopUp?: number;
 }
 
+/** @internal */
 function encodeDecompressMintInstructionData(
     params: EncodeDecompressMintInstructionParams,
 ): Buffer {
@@ -129,6 +130,7 @@ export interface DecompressMintInstructionParams {
  *
  * @param params - Instruction parameters
  * @returns TransactionInstruction for decompressing the mint
+ * @internal
  */
 export function createDecompressMintInstruction(
     params: DecompressMintInstructionParams,

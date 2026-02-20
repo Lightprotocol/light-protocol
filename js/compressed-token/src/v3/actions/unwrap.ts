@@ -199,6 +199,7 @@ export async function createUnwrapInstructions(
 
 /**
  * Assert that a batch of instructions fits within the max transaction size.
+ * @internal
  */
 function assertUnwrapTxSize(
     instructions: TransactionInstruction[],

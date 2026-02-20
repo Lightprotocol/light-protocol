@@ -87,7 +87,7 @@ export async function getOrCreateAtaInterface(
     );
 }
 
-/** Helper to check if owner is a Signer (has both publicKey and secretKey) */
+/** @internal */
 function isSigner(owner: PublicKey | Signer): owner is Signer {
     // Check for both publicKey and secretKey properties
     // A proper Signer (like Keypair) has secretKey as Uint8Array
@@ -101,7 +101,7 @@ function isSigner(owner: PublicKey | Signer): owner is Signer {
     );
 }
 
-/** Helper to get PublicKey from owner (which may be Signer or PublicKey) */
+/** @internal */
 function getOwnerPublicKey(owner: PublicKey | Signer): PublicKey {
     return isSigner(owner) ? owner.publicKey : owner;
 }

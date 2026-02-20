@@ -34,6 +34,7 @@ interface ParsedCompressedOnly {
 /**
  * Parse CompressedOnly extension from a Borsh-serialized TLV buffer
  * (Vec<ExtensionStruct>). Returns null if no CompressedOnly found.
+ * @internal
  */
 function parseCompressedOnlyFromTlv(
     tlv: Buffer | null,
@@ -78,6 +79,7 @@ function parseCompressedOnlyFromTlv(
  * For each account, if CompressedOnly TLV is present, converts it to
  * the instruction format (enriched with is_frozen, compression_index,
  * bump, owner_index). Returns null if no accounts have TLV.
+ * @internal
  */
 function buildInTlv(
     accounts: ParsedTokenAccount[],
@@ -129,6 +131,7 @@ function buildInTlv(
 
 /**
  * Get token data version from compressed account discriminator.
+ * @internal
  */
 function getVersionFromDiscriminator(
     discriminator: number[] | undefined,
@@ -158,6 +161,7 @@ function getVersionFromDiscriminator(
 
 /**
  * Build input token data for Transfer2 from parsed token accounts
+ * @internal
  */
 function buildInputTokenData(
     accounts: ParsedTokenAccount[],

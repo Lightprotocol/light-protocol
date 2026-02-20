@@ -182,6 +182,7 @@ export const COMPRESSION_INFO_SIZE = 96; // 2 + 1 + 1 + 4 + 32 + 32 + 8 + 4 + 4 
 /**
  * Calculate the byte length of a TokenMetadata extension from buffer.
  * Format: updateAuthority (32) + mint (32) + name (4+len) + symbol (4+len) + uri (4+len) + additional (4 + items)
+ * @internal
  */
 function getTokenMetadataByteLength(
     buffer: Buffer,
@@ -222,6 +223,7 @@ function getTokenMetadataByteLength(
 /**
  * Get the byte length of an extension based on its type.
  * Returns the length of the extension data (excluding the 1-byte discriminant).
+ * @internal
  */
 function getExtensionByteLength(
     extensionType: number,
@@ -241,6 +243,7 @@ function getExtensionByteLength(
 /**
  * Deserialize CompressionInfo from buffer at given offset
  * @returns Tuple of [CompressionInfo, bytesRead]
+ * @internal
  */
 function deserializeCompressionInfo(
     buffer: Buffer,
@@ -421,6 +424,7 @@ export function deserializeMint(data: Buffer | Uint8Array): CompressedMint {
 
 /**
  * Serialize CompressionInfo to buffer
+ * @internal
  */
 function serializeCompressionInfo(compression: CompressionInfo): Buffer {
     const buffer = Buffer.alloc(COMPRESSION_INFO_SIZE);
@@ -707,6 +711,7 @@ export interface MintInstructionDataWithMetadata extends MintInstructionData {
  *
  * @param compressedMint - Deserialized CompressedMint from account data
  * @returns Flattened MintInstructionData for instruction encoding
+ * @internal
  */
 export function toMintInstructionData(
     compressedMint: CompressedMint,
@@ -745,6 +750,7 @@ export function toMintInstructionData(
  * @param compressedMint - Deserialized CompressedMint from account data
  * @returns MintInstructionDataWithMetadata for metadata update instructions
  * @throws Error if metadata extension is not present
+ * @internal
  */
 export function toMintInstructionDataWithMetadata(
     compressedMint: CompressedMint,

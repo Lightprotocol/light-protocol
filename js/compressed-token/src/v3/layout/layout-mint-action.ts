@@ -297,6 +297,7 @@ export interface MintActionCompressedInstructionData {
  *
  * @param data - The instruction data to encode
  * @returns Encoded buffer with discriminator prepended
+ * @internal
  */
 export function encodeMintActionInstructionData(
     data: MintActionCompressedInstructionData,
@@ -350,6 +351,7 @@ export function encodeMintActionInstructionData(
  *
  * @param buffer - The buffer to decode (including discriminator)
  * @returns Decoded instruction data
+ * @internal
  */
 export function decodeMintActionInstructionData(
     buffer: Buffer,

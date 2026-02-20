@@ -485,12 +485,12 @@ async function _tryFetchCTokenColdByOwner(
 }
 
 /**
- * @internal
  * Fetch compressed token account by deriving its compressed address from the on-chain address.
  * Uses deriveAddressV2(address, addressTree, LIGHT_TOKEN_PROGRAM_ID) to get the compressed address.
  *
  * Note: This only works for accounts that were **compressed from on-chain** (via compress_accounts_idempotent).
  * For tokens minted compressed (via mintTo), use getAtaInterface with owner+mint instead.
+ * @internal
  */
 async function _tryFetchCTokenColdByAddress(
     rpc: Rpc,
@@ -529,8 +529,8 @@ async function _tryFetchCTokenColdByAddress(
 }
 
 /**
- * @internal
  * Retrieve information about a token account SPL/T22/c-token.
+ * @internal
  */
 async function _getAccountInterface(
     rpc: Rpc,
@@ -589,6 +589,7 @@ async function _getAccountInterface(
     throw new Error(`Unsupported program ID: ${programId.toBase58()}`);
 }
 
+/** @internal */
 async function getUnifiedAccountInterface(
     rpc: Rpc,
     address: PublicKey | undefined,
@@ -727,6 +728,7 @@ async function getUnifiedAccountInterface(
     return buildAccountInterfaceFromSources(sources, cTokenAta);
 }
 
+/** @internal */
 async function getCTokenAccountInterface(
     rpc: Rpc,
     address: PublicKey | undefined,
@@ -812,6 +814,7 @@ async function getCTokenAccountInterface(
     return buildAccountInterfaceFromSources(sources, address);
 }
 
+/** @internal */
 async function getSplOrToken2022AccountInterface(
     rpc: Rpc,
     address: PublicKey | undefined,
@@ -956,6 +959,7 @@ export function buildAccountInterfaceFromSources(
  * delegate is set in token data but NOT applied to the hot ATA on decompress.
  * The transfer-interface validates this and errors for approve-style cold
  * sources that require loading.
+ * @internal
  */
 export function spendableAmountForAuthority(
     iface: AccountInterface,
@@ -979,6 +983,7 @@ export function spendableAmountForAuthority(
 
 /**
  * Whether the given authority can sign for this ATA (is owner or delegate of at least one source).
+ * @internal
  */
 export function isAuthorityForInterface(
     iface: AccountInterface,
@@ -995,6 +1000,7 @@ export function isAuthorityForInterface(
 }
 
 /**
+ * @internal
  * Filter an AccountInterface to only sources the given authority can use (owner or delegate).
  * Preserves _owner, _mint, _isAta. Use for load/transfer when authority is delegate.
  */

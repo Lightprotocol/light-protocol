@@ -200,7 +200,7 @@ export function sliceLast<T>(items: T[]): { rest: T[]; last: T } {
 
 /**
  * Compute units for the transfer transaction (load chunk + transfer).
- * @internal Exported for unit testing.
+ * @internal
  */
 export function calculateTransferCU(
     loadBatch: InternalLoadBatch | null,
@@ -234,6 +234,7 @@ export function calculateTransferCU(
 /**
  * Assert that a batch of instructions fits within the max transaction size.
  * Throws if the estimated size exceeds MAX_TRANSACTION_SIZE.
+ * @internal
  */
 function assertTxSize(
     instructions: TransactionInstruction[],

@@ -11,6 +11,7 @@ import { PublicKey } from '@solana/web3.js';
  * Get ATA program ID for a token program ID
  * @param tokenProgramId    Token program ID
  * @returns ATA program ID
+ * @internal
  */
 export function getAtaProgramId(tokenProgramId: PublicKey): PublicKey {
     if (tokenProgramId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
@@ -40,6 +41,7 @@ export interface AtaValidationResult {
  * @param programId          Optional: if known, only check this program's ATA
  * @param allowOwnerOffCurve Allow the owner to be off-curve (PDA)
  * @returns                  Result with detected type, or throws on mismatch
+ * @internal
  */
 export function checkAtaAddress(
     ata: PublicKey,
@@ -130,6 +132,7 @@ export function checkAtaAddress(
 
 /**
  * Convert programId to AtaType
+ * @internal
  */
 function programIdToAtaType(programId: PublicKey): AtaType {
     if (programId.equals(LIGHT_TOKEN_PROGRAM_ID)) return 'ctoken';

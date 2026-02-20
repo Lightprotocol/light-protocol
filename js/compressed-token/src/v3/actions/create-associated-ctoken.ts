@@ -29,6 +29,7 @@ import { getAssociatedCTokenAddress } from '../derivation';
  * @param rentPayerPda       Optional rent payer PDA
  * @param confirmOptions     Optional confirm options
  * @returns Address of the new associated token account
+ * @internal
  */
 export async function createAssociatedCTokenAccount(
     rpc: Rpc,
@@ -76,6 +77,7 @@ export async function createAssociatedCTokenAccount(
  * @param rentPayerPda       Optional rent payer PDA
  * @param confirmOptions     Optional confirm options
  * @returns Address of the associated token account
+ * @internal
  */
 export async function createAssociatedCTokenAccountIdempotent(
     rpc: Rpc,

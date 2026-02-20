@@ -33,6 +33,7 @@ interface EncodeCompressedMintToInstructionParams {
     maxTopUp?: number;
 }
 
+/** @internal */
 function encodeCompressedMintToInstructionData(
     params: EncodeCompressedMintToInstructionParams,
 ): Buffer {

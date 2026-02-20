@@ -58,7 +58,8 @@ const COLD_SOURCE_TYPES: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Split an array into chunks of specified size
+ * Split an array into chunks of specified size.
+ * @internal
  */
 function chunkArray<T>(array: T[], chunkSize: number): T[][] {
     const chunks: T[][] = [];
@@ -118,6 +119,7 @@ export function selectInputsForAmount(
 /**
  * Verify no compressed account hash appears in more than one chunk.
  * Prevents double-spending of inputs across parallel batches.
+ * @internal
  */
 function assertUniqueInputHashes(chunks: ParsedTokenAccount[][]): void {
     const seen = new Set<string>();
@@ -319,8 +321,8 @@ export interface InternalLoadBatch {
  * - Decompress base cost (CPI overhead, hash computation): ~50k CU
  * - Full proof verification (when any input is NOT proveByIndex): ~100k CU
  * - Per compressed account: ~10k (proveByIndex) or ~30k (full proof) CU
+ * @internal
  */
-/** @internal Exported for use by createTransferInterfaceInstructions. */
 export function calculateLoadBatchComputeUnits(
     batch: InternalLoadBatch,
 ): number {
@@ -363,10 +365,8 @@ export function calculateLoadBatchComputeUnits(
  *
  * Each batch is independent and can be sent in parallel. Idempotent ATA
  * creation is included in every batch so they can land in any order.
- *
  * @internal
  */
-/** @internal Exported for use by createTransferInterfaceInstructions. */
 export async function _buildLoadBatches(
     rpc: Rpc,
     payer: PublicKey,

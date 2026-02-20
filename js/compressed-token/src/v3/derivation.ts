@@ -8,6 +8,7 @@ import { Buffer } from 'buffer';
 
 /**
  * Returns the compressed mint address as bytes.
+ * @internal
  */
 export function deriveCMintAddress(
     mintSeed: PublicKey,
@@ -32,6 +33,7 @@ export const COMPRESSED_MINT_SEED: Buffer = Buffer.from([
  * Finds the SPL mint PDA for a c-token mint.
  * @param mintSeed The mint seed public key.
  * @returns [PDA, bump]
+ * @internal
  */
 export function findMintAddress(mintSigner: PublicKey): [PublicKey, number] {
     const [address, bump] = PublicKey.findProgramAddressSync(
@@ -41,8 +43,10 @@ export function findMintAddress(mintSigner: PublicKey): [PublicKey, number] {
     return [address, bump];
 }
 
-/// Same as "getAssociatedTokenAddress" but returns the bump as well.
-/// Uses c-token program ID.
+/**
+ * Same as getAssociatedTokenAddress but returns the bump as well. Uses c-token program ID.
+ * @internal
+ */
 export function getAssociatedCTokenAddressAndBump(
     owner: PublicKey,
     mint: PublicKey,
@@ -53,7 +57,10 @@ export function getAssociatedCTokenAddressAndBump(
     );
 }
 
-/// Same as "getAssociatedTokenAddress" but with c-token program ID.
+/**
+ * Same as getAssociatedTokenAddress but with c-token program ID.
+ * @internal
+ */
 export function getAssociatedCTokenAddress(owner: PublicKey, mint: PublicKey) {
     return PublicKey.findProgramAddressSync(
         [owner.toBuffer(), LIGHT_TOKEN_PROGRAM_ID.toBuffer(), mint.toBuffer()],

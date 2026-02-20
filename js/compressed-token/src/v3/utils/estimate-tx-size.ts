@@ -17,6 +17,7 @@ export const MAX_LOAD_ONLY_BATCH_BYTES = 1000;
 /**
  * Encode length as compact-u16 (Solana's variable-length encoding).
  * Returns the number of bytes the encoded value occupies.
+ * @internal
  */
 function compactU16Size(value: number): number {
     if (value < 0x80) return 1;
