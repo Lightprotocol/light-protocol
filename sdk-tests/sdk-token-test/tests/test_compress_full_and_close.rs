@@ -88,6 +88,7 @@ async fn test_compress_full_and_close() {
         address_tree_pubkey,
         output_queue,
         extensions: None,
+        rent_sponsor: rent_sponsor_pda(),
     })
     .unwrap();
 

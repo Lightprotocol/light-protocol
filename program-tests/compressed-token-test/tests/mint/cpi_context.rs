@@ -448,13 +448,15 @@ async fn test_execute_cpi_context_invalid_tree_index() {
     .with_cpi_context(execute_cpi_context);
 
     // Build account metas using regular MintActionMetaConfig for execute mode
+    let rent_sponsor = rpc.test_accounts.funding_pool_config.rent_sponsor_pda;
     let mut config = MintActionMetaConfig::new_create_mint(
         payer.pubkey(),
         mint_authority.pubkey(),
         mint_seed.pubkey(),
         Pubkey::new_from_array(MINT_ADDRESS_TREE),
         output_queue,
-    );
+    )
+    .with_rent_sponsor(rent_sponsor);
 
     // Set CPI context for execute mode
     config.cpi_context = Some(cpi_context_pubkey);
