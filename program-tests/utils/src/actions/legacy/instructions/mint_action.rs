@@ -324,6 +324,23 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
     }
 
     // Build account metas configuration
+    // Fetch rent_sponsor early when creating mint (needed as a required parameter).
+    let create_mint_rent_sponsor = if is_creating_mint {
+        let config_address = CompressibleConfig::light_token_v1_config_pda();
+        let compressible_config: CompressibleConfig = rpc
+            .get_anchor_account(&config_address)
+            .await?
+            .ok_or_else(|| {
+                RpcError::CustomError(format!(
+                    "CompressibleConfig not found at {}",
+                    config_address
+                ))
+            })?;
+        Some(compressible_config.rent_sponsor)
+    } else {
+        None
+    };
+
     let mut config = if is_creating_mint {
         MintActionMetaConfig::new_create_mint(
             params.payer,
@@ -331,6 +348,7 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
             params.mint_seed,
             address_tree_pubkey,
             state_tree_info.queue,
+            create_mint_rent_sponsor.unwrap(),
         )
     } else {
         MintActionMetaConfig::new(
@@ -354,10 +372,10 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
 
     // Add CMint account handling based on operation type:
     // 1. DecompressMint/CompressAndCloseMint: needs config, cmint, and rent_sponsor
-    // 2. Plain create_mint (no decompress/compress-and-close): needs only rent_sponsor for fee
+    // 2. Plain create_mint: rent_sponsor already set via new_create_mint()
     // 3. Already decompressed (cmint_decompressed): only needs cmint account
     let (mint_pda, _) = find_mint_address(&params.mint_seed);
-    if is_creating_mint || has_decompress_mint || has_compress_and_close_mint {
+    if has_decompress_mint || has_compress_and_close_mint {
         let config_address = CompressibleConfig::light_token_v1_config_pda();
         let compressible_config: CompressibleConfig = rpc
             .get_anchor_account(&config_address)
@@ -368,16 +386,11 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
                     config_address
                 ))
             })?;
-        if has_decompress_mint || has_compress_and_close_mint {
-            config = config.with_compressible_mint(
-                mint_pda,
-                config_address,
-                compressible_config.rent_sponsor,
-            );
-        } else {
-            // Plain create_mint: only rent_sponsor needed, no config or cmint account
-            config = config.with_rent_sponsor(compressible_config.rent_sponsor);
-        }
+        config = config.with_compressible_mint(
+            mint_pda,
+            config_address,
+            compressible_config.rent_sponsor,
+        );
     } else if cmint_decompressed {
         // For operations on already-decompressed mints, only need the cmint account
         config = config.with_mint(mint_pda);

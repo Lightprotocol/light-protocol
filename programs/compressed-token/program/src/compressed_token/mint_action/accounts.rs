@@ -20,8 +20,9 @@ pub struct MintActionAccounts<'info> {
     pub light_system_program: &'info AccountInfo,
     /// Seed for mint PDA derivation.
     /// Required only for compressed mint creation.
-    /// Note: mint_signer is not in executing accounts since create mint
-    /// is allowed in combination with write to cpi context.
+    /// Note: mint_signer is not in executing accounts since it is parsed
+    /// before the executing/cpi-write branch. create_mint is NOT allowed
+    /// in combination with write to cpi context (rejected in AccountsConfig::new).
     pub mint_signer: Option<&'info AccountInfo>,
     pub authority: &'info AccountInfo,
     /// Required accounts to execute an instruction
@@ -447,6 +448,12 @@ impl AccountsConfig {
         // Validation: CompressAndCloseCMint must be the only action
         if has_compress_and_close_cmint_action && parsed_instruction_data.actions.len() != 1 {
             msg!("CompressAndCloseCMint must be the only action in the instruction");
+            return Err(ErrorCode::CompressAndCloseCMintMustBeOnlyAction.into());
+        }
+
+        // Validation: Cannot combine create_mint with CompressAndCloseCMint
+        if has_compress_and_close_cmint_action && parsed_instruction_data.create_mint.is_some() {
+            msg!("Cannot combine create_mint with CompressAndCloseCMint");
             return Err(ErrorCode::CompressAndCloseCMintMustBeOnlyAction.into());
         }
 

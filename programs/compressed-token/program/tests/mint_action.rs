@@ -345,10 +345,21 @@ fn check_if_config_should_error(instruction_data: &MintActionCompressedInstructi
             .metadata
             .mint_decompressed;
 
+        // Check if this is creating a new mint (not from an existing compressed mint)
+        let is_creating_mint = instruction_data.mint.is_none();
+
+        // Check if create_mint is set (create_mint + write_to_cpi_context not allowed)
+        let create_mint_with_cpi_write = instruction_data.create_mint.is_some();
+
         // Error conditions matching AccountsConfig::new:
         // 1. has_mint_to_ctoken (MintToCToken actions not allowed)
         // 2. mint_decompressed && require_token_output_queue (mint decompressed + MintToCompressed not allowed)
-        has_mint_to_ctoken || (mint_decompressed && require_token_output_queue)
+        // 3. is_creating_mint (mint creation not allowed when writing to cpi context)
+        // 4. create_mint_with_cpi_write (create_mint + write_to_cpi_context not allowed)
+        has_mint_to_ctoken
+            || (mint_decompressed && require_token_output_queue)
+            || is_creating_mint
+            || create_mint_with_cpi_write
     } else {
         false
     }
