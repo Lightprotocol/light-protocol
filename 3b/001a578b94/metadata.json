@@ -3,9 +3,10 @@
   "checkpoint_id": "3b001a578b94",
   "strategy": "manual-commit",
   "branch": "jorrit/feat-add-mint-fee",
-  "checkpoints_count": 1,
+  "checkpoints_count": 3,
   "files_touched": [
     "forester/node_modules/@lightprotocol/.ignored_zk-compression-cli/package.json",
+    "program-tests/compressed-token-test/tests/mint/cpi_context.rs",
     "program-tests/compressed-token-test/tests/mint/failing.rs",
     "program-tests/utils/src/actions/legacy/instructions/mint_action.rs",
     "program-tests/utils/src/lib.rs",
@@ -19,13 +20,20 @@
       "context": "/3b/001a578b94/0/context.md",
       "content_hash": "/3b/001a578b94/0/content_hash.txt",
       "prompt": "/3b/001a578b94/0/prompt.txt"
+    },
+    {
+      "metadata": "/3b/001a578b94/1/metadata.json",
+      "transcript": "/3b/001a578b94/1/full.jsonl",
+      "context": "/3b/001a578b94/1/context.md",
+      "content_hash": "/3b/001a578b94/1/content_hash.txt",
+      "prompt": "/3b/001a578b94/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 82,
-    "cache_creation_tokens": 102210,
-    "cache_read_tokens": 3966912,
-    "output_tokens": 3740,
-    "api_call_count": 77
+    "input_tokens": 182,
+    "cache_creation_tokens": 378459,
+    "cache_read_tokens": 14150898,
+    "output_tokens": 12206,
+    "api_call_count": 167
   }
 }

@@ -1,0 +1,176 @@
+Implement the following plan:
+
+# Plan: Fix review issues in mint creation fee implementation
+
+**Date:** 2026-02-21
+
+## IMPORTANT
+
+- 2 todos, work through one at a time, no batching
+
+---
+
+## Context
+
+Code review of the mint creation fee implementation found two issues:
+
+1. **Duplicate `CompressibleConfig` fetch** — both the plain-create-mint branch and the decompress/compress-and-close branch call `CompressibleConfig::light_token_v1_config_pda()` and `rpc.get_anchor_account()` with identical boilerplate. Only the post-fetch action differs.
+
+2. **Test missing `fee_payer` deduction assertion** — the test verifies `rent_sponsor` gained +50,000 lamports but doesn't confirm the fee actually came from `fee_payer`. Without this, the test would pass even if lamports were minted from thin air.
+
+---
+
+## Todo 1: Deduplicate `CompressibleConfig` fetch
+
+**File:** `program-tests/utils/src/actions/legacy/instructions/mint_action.rs`
+
+Replace the two separate if/else-if branches (which each independently fetch `CompressibleConfig`) with a single fetch guarded by the union condition, then dispatch on the specific case:
+
+```rust
+let (mint_pda, _) = find_mint_address(&params.mint_seed);
+// Add CMint account handling based on operation type:
+// 1. DecompressMint/CompressAndCloseMint: needs config, cmint, and rent_sponsor
+// 2. Plain create_mint (no decompress/compress-and-close): needs only rent_sponsor for fee
+// 3. Already decompressed (cmint_decompressed): only needs cmint account
+if is_creating_mint || has_decompress_mint || has_compress_and_close_mint {
+    let config_address = CompressibleConfig::light_token_v1_config_pda();
+    let compressible_config: CompressibleConfig = rpc
+        .get_anchor_account(&config_address)
+        .await?
+        .ok_or_else(|| {
+            RpcError::CustomError(format!(
+                "CompressibleConfig not found at {}",
+                config_address
+            ))
+        })?;
+    if has_decompress_mint || has_compress_and_close_mint {
+        config = config.with_compressible_mint(
+            mint_pda,
+            config_address,
+            compressible_config.rent_sponsor,
+        );
+    } else {
+        // Plain create_mint: only rent_sponsor needed, no config or cmint account
+        config = config.with_rent_sponsor(compressible_config.rent_sponsor);
+    }
+} else if cmint_decompressed {
+    config = config.with_mint(mint_pda);
+}
+```
+
+---
+
+## Todo 2: Add `fee_payer` deduction assertion to the test
+
+**File:** `program-tests/compressed-token-test/tests/mint/failing.rs`
+
+In `test_mint_creation_fee_charged`, add a `fee_payer` balance capture before and after `create_mint`, then assert the payer was debited at least `MINT_CREATION_FEE` lamports. Use `<=` (not `==`) because transaction base fees are non-deterministic and also deducted from the payer.
+
+Add import: `use light_compressed_token::MINT_CREATION_FEE;`
+
+```rust
+let fee_payer_before = rpc
+    .get_account(payer.pubkey())
+    .await
+    .unwrap()
+    .unwrap()
+    .lamports;
+
+// ... existing create_mint call ...
+
+let fee_payer_after = rpc
+    .get_account(payer.pubkey())
+    .await
+    .unwrap()
+    .unwrap()
+    .lamports;
+
+assert!(
+    fee_payer_after <= fee_payer_before - MINT_CREATION_FEE,
+    "Fee payer should have paid at least {} lamports mint creation fee (before={}, after={})",
+    MINT_CREATION_FEE,
+    fee_payer_before,
+    fee_payer_after,
+);
+```
+
+---
+
+## Verification
+
+```bash
+cargo check -p light-test-utils
+cargo check -p compressed-token-test
+cargo test-sbf -p compressed-token-test --test mint -- test_mint_creation_fee_charged --nocapture 2>&1 | tail -50
+```
+
+## Critical Files
+
+| File | Change |
+|------|--------|
+| `program-tests/utils/src/actions/legacy/instructions/mint_action.rs` | Merge duplicate CompressibleConfig fetches into one |
+| `program-tests/compressed-token-test/tests/mint/failing.rs` | Add fee_payer deduction assertion |
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ananas/.REDACTED.jsonl
+
+---
+
+ree_index stdout ----
+Use only in light protocol monorepo. Using 'git rev-parse --show-toplevel' to find the location of 'light' binary
+deserialized_account CompressibleConfig { version: 1, state: 1, bump: 254, update_authority: REDACTED, withdrawal_authority: REDACTED, rent_sponsor: REDACTED, compression_authority: REDACTED, rent_sponsor_bump: 255, compression_authority_bump: 255, rent_config: RentConfig { base_rent: 128, compression_cost: 11000, lamports_per_byte_per_epoch: 1, max_funded_epochs: 2, max_top_up: 12416 }, address_space: [REDACTED, 11111111111111111111111111111111, 11111111111111111111111111111111, 11111111111111111111111111111111], _place_holder: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] }
+compressible_config_pda REDACTED
+Use only in light protocol monorepo. Using 'git rev-parse --show-toplevel' to find the accounts directory
+Use only in light protocol monorepo. Using 'git rev-parse --show-toplevel' to find the accounts directory
+┌──────────────────────────────────────────────────────────── Transaction #1 ─────────────────────────────────────────────────────────────┐
+│ Transaction: REDACTED | Slot: 3 | Status: Failed: InstructionError(0, Custom(20009))
+│ Fee: 0.000015 SOL | Compute Used: 17424/1400000 CU
+│
+│ Instructions (1):
+│
+│ ├─ #1.1 CompressedTokenTestProgram11111111111111111 (Unknown Program (CompressedTokenTestProgram11111111111111111))
+│ │  └─ #1 REDACTED (Light Token) - MintAction
+
+│ Program Logs:
+│
+│ Program CompressedTokenTestProgram11111111111111111 invoke [1]
+│ Instruction: ExecuteCpiContextMintAction
+│ Program REDACTED invoke [2]
+│ MintAction
+│ ERROR: Invalid Signer. for account 'fee_payer' at index 4  program-libs/account-checks/src/account_iterator.rs:150:67
+│ Program REDACTED consumed 2464 of 1385040 compute units
+│ Program REDACTED failed: custom program error: 0x4e29
+│ Program CompressedTokenTestProgram11111111111111111 consumed 17424 of 1400000 compute units
+│ Program CompressedTokenTestProgram11111111111111111 failed: custom program error: 0x4e29
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+thread 'cpi_context::test_execute_cpi_context_invalid_tree_index' panicked at program-tests/compressed-token-test/tests/mint/cpi_context.rs:503:39:
+called `Result::unwrap()` on an `Err` value: AssertRpcError("Expected error code 6104, but got Custom(20009)")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    cpi_context::test_execute_cpi_context_invalid_tree_index
+
+test result: FAILED. 35 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 138.40s
+
+error: test failed, to rerun pass `-p compressed-token-test --test mint`
+ananas@Mac light-protocol %
+
+---
+
+are there any other tests that will likely fail?
+
+---
+
+yes
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+⏺ Bash(RUST_BACKTRACE=1 cargo test-sbf -p compressed-token-test --test mint -- --nocapture 2>&1 | grep -E "^test result|FAILED|^failures:" | head -10)
+those work
