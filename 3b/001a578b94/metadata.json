@@ -3,7 +3,7 @@
   "checkpoint_id": "3b001a578b94",
   "strategy": "manual-commit",
   "branch": "jorrit/feat-add-mint-fee",
-  "checkpoints_count": 3,
+  "checkpoints_count": 5,
   "files_touched": [
     "forester/node_modules/@lightprotocol/.ignored_zk-compression-cli/package.json",
     "program-tests/compressed-token-test/tests/mint/cpi_context.rs",
@@ -11,6 +11,10 @@
     "program-tests/utils/src/actions/legacy/instructions/mint_action.rs",
     "program-tests/utils/src/lib.rs",
     "program-tests/utils/src/mint_assert.rs",
+    "programs/compressed-token/program/src/compressed_token/mint_action/accounts.rs",
+    "programs/compressed-token/program/src/compressed_token/mint_action/processor.rs",
+    "programs/compressed-token/program/src/lib.rs",
+    "programs/compressed-token/program/src/shared/accounts.rs",
     "sdk-libs/compressed-token-sdk/src/compressed_token/v2/mint_action/account_metas.rs"
   ],
   "sessions": [
@@ -27,13 +31,20 @@
       "context": "/3b/001a578b94/1/context.md",
       "content_hash": "/3b/001a578b94/1/content_hash.txt",
       "prompt": "/3b/001a578b94/1/prompt.txt"
+    },
+    {
+      "metadata": "/3b/001a578b94/2/metadata.json",
+      "transcript": "/3b/001a578b94/2/full.jsonl",
+      "context": "/3b/001a578b94/2/context.md",
+      "content_hash": "/3b/001a578b94/2/content_hash.txt",
+      "prompt": "/3b/001a578b94/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 182,
-    "cache_creation_tokens": 378459,
-    "cache_read_tokens": 14150898,
-    "output_tokens": 12206,
-    "api_call_count": 167
+    "input_tokens": 243,
+    "cache_creation_tokens": 488969,
+    "cache_read_tokens": 17869527,
+    "output_tokens": 14939,
+    "api_call_count": 215
   }
 }
