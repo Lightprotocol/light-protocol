@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "3b001a578b94",
+  "session_id": "3ccffa05-ed7d-4ab4-a37b-d0752f56f74c",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-21T22:44:05.968087Z",
+  "branch": "jorrit/feat-add-mint-fee",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "forester/node_modules/@lightprotocol/.ignored_zk-compression-cli/package.json",
+    "program-tests/compressed-token-test/tests/mint/failing.rs",
+    "program-tests/utils/src/actions/legacy/instructions/mint_action.rs",
+    "program-tests/utils/src/lib.rs",
+    "program-tests/utils/src/mint_assert.rs",
+    "sdk-libs/compressed-token-sdk/src/compressed_token/v2/mint_action/account_metas.rs"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 82,
+    "cache_creation_tokens": 102210,
+    "cache_read_tokens": 3966912,
+    "output_tokens": 3740,
+    "api_call_count": 77
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-21T22:44:05.759871Z",
+    "agent_lines": 105,
+    "human_added": 79,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 184,
+    "agent_percentage": 57.065217391304344
+  },
+  "transcript_path": ".claude/projects/-Users-ananas-dev-light-protocol/3ccffa05-ed7d-4ab4-a37b-d0752f56f74c.jsonl"
+}

@@ -1,0 +1,263 @@
+Implement the following plan:
+
+# Plan: Add Tests for Mint Creation Fee
+
+**Date:** 2026-02-21
+
+## Context
+
+The `MintAction` instruction now charges a 50,000 lamport fee when creating a compressed mint (`create_mint` is Some). The fee is transferred from `fee_payer` to `rent_sponsor` via system program CPI. The `rent_sponsor` account is now always required when creating a mint (program change in `accounts.rs`).
+
+The SDK (`MintActionMetaConfig`) currently does NOT include `rent_sponsor` in account metas for plain create-mint operations. This must be fixed first, then tests can be added.
+
+## IMPORTANT
+
+- Split into todos and work through one at a time
+- No batching — each task must be completed and verified before moving to the next
+- If stuck, use a subagent to research
+
+---
+
+## Todo 1: Fix SDK account metas — add `with_rent_sponsor()` method
+
+**File:** `sdk-libs/compressed-token-sdk/src/compressed_token/v2/mint_action/account_metas.rs`
+
+Add a new builder method:
+```rust
+/// Set only the rent_sponsor account (without compressible_config or mint/cmint).
+/// Required for create_mint operations to receive the mint creation fee.
+pub fn with_rent_sponsor(mut self, rent_sponsor: Pubkey) -> Self {
+    self.rent_sponsor = Some(rent_sponsor);
+    self
+}
+```
+
+This is distinct from `with_compressible_mint()` which sets all three (compressible_config + cmint + rent_sponsor). For plain create_mint we need only rent_sponsor.
+
+---
+
+## Todo 2: Update instruction builder to include rent_sponsor for create_mint
+
+**File:** `program-tests/utils/src/actions/legacy/instructions/mint_action.rs`
+
+**Key constraint:** Only add `with_rent_sponsor()` when `is_creating_mint && !has_decompress_mint && !has_compress_and_close_mint`. When DecompressMint is also present, the existing `with_compressible_mint()` call (around line 371) already sets rent_sponsor — and in that case the program also expects compressible_config + cmint, which `with_compressible_mint()` provides.
+
+After building `config` (around line 343), add:
+```rust
+// When creating a plain compressed mint (no decompress/compress-and-close),
+// set rent_sponsor for the mint creation fee. When decompress is also present,
+// with_compressible_mint() below handles all three accounts.
+if is_creating_mint && !has_decompress_mint && !has_compress_and_close_mint {
+    let config_address = CompressibleConfig::light_token_v1_config_pda();
+    let compressible_config: CompressibleConfig = rpc
+        .get_anchor_account(&config_address)
+        .await?
+        .ok_or_else(|| RpcError::CustomError(format!(
+            "CompressibleConfig not found at {}", config_address
+        )))?;
+    config = config.with_rent_sponsor(compressible_config.rent_sponsor);
+}
+```
+
+**`sdk-libs/token-sdk/src/instruction/create_mint.rs` and `create_mints.rs` do NOT need changes** — they always pair `create_mint` with `DecompressMint`, so `with_compressible_mint()` already covers rent_sponsor in those paths.
+
+---
+
+## Todo 3: Extend `assert_compressed_mint_account` for fee assertion
+
+**File:** `program-tests/utils/src/mint_assert.rs`
+
+The existing function already verifies the mint state. Extend it (or add a wrapper) to also accept and verify the rent_sponsor balance delta:
+
+Add a new function `assert_mint_creation_fee` in `mint_assert.rs`:
+```rust
+/// Assert that the mint creation fee (50,000 lamports) was charged.
+/// Compares rent_sponsor balance before and after mint creation.
+pub fn assert_mint_creation_fee(
+    rent_sponsor_lamports_before: u64,
+    rent_sponsor_lamports_after: u64,
+) {
+    assert_eq!(
+        rent_sponsor_lamports_after,
+        rent_sponsor_lamports_before + light_compressed_token::MINT_CREATION_FEE,
+        "Rent sponsor should receive {} lamports mint creation fee",
+        light_compressed_token::MINT_CREATION_FEE,
+    );
+}
+```
+
+Export it from `program-tests/utils/src/lib.rs` (add `pub use mint_assert::assert_mint_creation_fee;`).
+
+---
+
+## Todo 4: Add new test for mint creation fee
+
+**File:** `program-tests/compressed-token-test/tests/mint/failing.rs`
+
+Add a new test at the bottom of the file:
+
+```rust
+/// Tests that the mint creation fee is charged from fee_payer to rent_sponsor.
+/// Also tests that the fee is charged even without any actions (compressed-only mint).
+#[tokio::test]
+#[serial]
+async fn test_mint_creation_fee_charged() {
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
+        .await
+        .unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+    let rent_sponsor = rpc.test_accounts.funding_pool_config.rent_sponsor_pda;
+    let mint_seed = Keypair::new();
+    let mint_authority = Keypair::new();
+
+    // Capture balances before
+    let rent_sponsor_before = rpc
+        .get_account(rent_sponsor)
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
+
+    // Create compressed mint (no actions)
+    create_mint(
+        &mut rpc,
+        &mint_seed,
+        6, // decimals
+        &mint_authority,
+        None,
+        None,
+        &payer,
+    )
+    .await
+    .unwrap();
+
+    // Capture balances after
+    let rent_sponsor_after = rpc
+        .get_account(rent_sponsor)
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
+
+    // Assert fee was charged
+    assert_mint_creation_fee(rent_sponsor_before, rent_sponsor_after);
+}
+```
+
+---
+
+## Todo 5: Verify with cargo check and run tests
+
+```bash
+cargo check -p light-compressed-token
+cargo check -p light-test-utils
+cargo check -p compressed-token-test
+cargo test-sbf -p compressed-token-test --test mint -- test_mint_creation_fee_charged --nocapture 2>&1 | tail -100
+```
+
+---
+
+## Critical Files
+
+| File | Change |
+|------|--------|
+| `sdk-libs/compressed-token-sdk/src/compressed_token/v2/mint_action/account_metas.rs` | Add `with_rent_sponsor()` method |
+| `program-tests/utils/src/actions/legacy/instructions/mint_action.rs` | Fetch rent_sponsor and call `with_rent_sponsor()` for create_mint |
+| `sdk-libs/token-sdk/src/instruction/create_mint.rs` | No change needed (always pairs with DecompressMint) |
+| `sdk-libs/token-sdk/src/instruction/create_mints.rs` | No change needed (always pairs with DecompressMint) |
+| `program-tests/utils/src/mint_assert.rs` | Add `assert_mint_creation_fee()` |
+| `program-tests/utils/src/lib.rs` | Export `assert_mint_creation_fee` |
+| `program-tests/compressed-token-test/tests/mint/failing.rs` | Add `test_mint_creation_fee_charged` |
+
+## Acceptance Criteria
+
+- `cargo check` passes for all changed crates
+- New test `test_mint_creation_fee_charged` passes
+- Existing `cargo test-sbf -p compressed-token-test --test mint` tests continue to pass
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ananas/.REDACTED.jsonl
+
+---
+
+You are a senior code reviewer ensuring high standards of code quality and security.
+
+When invoked:
+1. Take a step back, think hard and be critical.
+2. Run `git diff` and `git diff --cached` to see all changes (unstaged and staged) unless instructed otherwise
+3. Focus on modified files
+4. Create state machine diagrams (internally) to understand the flow:
+   - Identify entry points and exit points
+   - Map state transitions and decision branches
+   - Trace data flow through functions
+   - For complex reviews, create multiple diagrams:
+     - One high-level diagram showing overall architecture and module interactions
+     - Multiple lower-level diagrams for each significant component/function
+   - Write diagrams to /tmp/review-diagrams/ for reference
+5. Begin review with full understanding of the code flow
+
+
+### 1. Correctness
+
+Review the plan and conversation history - is the implementation actually done and does it do what was requested?
+Does it follow solana best practices see ~/dev/claude-context/CLAUDE.md, specifically solana tips and check whether you can get additional context to consider in your review?
+Does duplicate code exist?
+
+### 2. Test Assertions
+
+When reviewing tests that check account state:
+- Prefer borsh deserialization with single `assert_eq` against expected reference account
+- Flag magic byte offset assertions like `account.data[108]` - suggest struct deserialization instead
+- Flag multiple scattered assertions on individual fields - suggest single comparison against expected struct
+
+```rust
+// Deserialize the account
+let account = AccountType::deserialize(&mut &account.data[..])?;
+
+// Build expected account for comparison
+let expected = AccountType {
+    field1: value1,
+    field2: value2,
+    // ... all fields
+};
+
+// Single assert comparing full account state
+assert_eq!(account, expected, "Account should match expected");
+```
+
+### 3. Dead Code
+
+Flag dead code patterns:
+- Underscore-prefixed variables that suppress warnings: `let _owner_program_id = ...` - remove unused variables entirely
+- Do not use underscore prefix to silence warnings - delete the dead code instead
+- Do not add `#[allow(dead_code)]` or `#[allow(unused_variables)]` - remove the dead code instead
+
+### 4. Backwards Compatibility Hacks
+
+Flag and warn on backwards compatibility patterns - these add unnecessary complexity:
+- Re-exporting types/functions that are no longer used internally
+- Adding `// removed`, `// deprecated`, or `// legacy` comments for removed code
+- Renaming unused parameters to `_param` instead of removing them from the signature
+- Feature flags added solely for backwards compatibility (e.g., `#[cfg(feature = "legacy")]`)
+- Wrapper functions that just delegate to new implementations
+- `#[deprecated]` attributes on new code - if it's deprecated, don't add it
+- Keeping old enum variants that are never constructed
+- Shim modules that re-export from new locations
+- Default trait implementations that exist only for backwards compatibility
+- `From`/`Into` implementations between old and new types when old type should be deleted
+- Version-specific conditional compilation for old behavior
+
+Prefer clean breaks:
+- Delete unused code entirely rather than commenting or deprecating
+- Remove unused function parameters from signatures
+- Delete old enum variants when they're no longer valid
+- Remove re-exports when the canonical path changes
+- If something is unused, it should not exist in the codebase
+
+---
+
+plan to fix the issues
+
+---
+
+[Request interrupted by user for tool use]
