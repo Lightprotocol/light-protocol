@@ -38,7 +38,7 @@ jobs:
           go-version-file: "./prover/server/go.mod"
 
       - name: Cache Go modules
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cache/go-build
@@ -84,7 +84,7 @@ jobs:
           go-version-file: "./prover/server/go.mod"
 
       - name: Restore Go cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cache/go-build
@@ -134,7 +134,7 @@ jobs:
           go-version-file: "./prover/server/go.mod"
 
       - name: Restore Go cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cache/go-build
@@ -169,7 +169,7 @@ jobs:
           go-version-file: "./prover/server/go.mod"
 
       - name: Restore Go cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cache/go-build
@@ -202,7 +202,7 @@ jobs:
           go-version-file: "./prover/server/go.mod"
 
       - name: Restore Go cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cache/go-build
@@ -234,7 +234,7 @@ jobs:
           go-version-file: "./prover/server/go.mod"
 
       - name: Restore Go cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cache/go-build
@@ -280,7 +280,7 @@ jobs:
           echo "version=$(~/.elan/bin/lake --version)" >> "$GITHUB_OUTPUT"
 
       - name: Cache Lean dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: prover/server/formal-verification/lake-packages
           key: lean-${{ steps.lake-version.outputs.version }}-${{ hashFiles('prover/server/formal-verification/lakefile.lean') }}
