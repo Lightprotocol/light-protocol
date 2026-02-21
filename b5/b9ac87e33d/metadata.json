@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "b5b9ac87e33d",
+  "strategy": "manual-commit",
+  "branch": "jorrit/feat-add-mint-fee",
+  "checkpoints_count": 4,
+  "files_touched": [
+    ".claude/tmp/main-0/path1-trace.md",
+    ".claude/tmp/main-0/path3-trace.md",
+    ".claude/tmp/main-0/path4-trace.md",
+    ".claude/tmp/main-0/path5-trace.md",
+    ".claude/tmp/main-0/path6-trace.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/b5/b9ac87e33d/0/metadata.json",
+      "transcript": "/b5/b9ac87e33d/0/full.jsonl",
+      "context": "/b5/b9ac87e33d/0/context.md",
+      "content_hash": "/b5/b9ac87e33d/0/content_hash.txt",
+      "prompt": "/b5/b9ac87e33d/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 65,
+    "cache_creation_tokens": 66459,
+    "cache_read_tokens": 4341850,
+    "output_tokens": 953,
+    "api_call_count": 36
+  }
+}
