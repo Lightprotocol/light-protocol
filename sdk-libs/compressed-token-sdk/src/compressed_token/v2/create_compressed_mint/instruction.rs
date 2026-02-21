@@ -86,8 +86,8 @@ pub fn create_compressed_mint_cpi(
             input.mint_signer,
             input.address_tree_pubkey,
             input.output_queue,
+            input.rent_sponsor,
         )
-        .with_rent_sponsor(input.rent_sponsor)
     };
 
     let account_metas = meta_config.to_account_metas();

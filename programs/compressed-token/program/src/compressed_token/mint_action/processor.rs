@@ -159,9 +159,13 @@ pub fn process_mint_action(
         &accounts_config,
     );
 
-    // Check for idempotent early exit - skip CPI and return success
+    // Check for idempotent early exit - skip CPI and return success.
+    // create_mint must never use idempotent early exit (fee already charged).
     if let Err(ref err) = result {
         if is_idempotent_early_exit(err) {
+            if accounts_config.create_mint {
+                return Err(ErrorCode::MintActionMissingExecutingAccounts.into());
+            }
             return Ok(());
         }
     }

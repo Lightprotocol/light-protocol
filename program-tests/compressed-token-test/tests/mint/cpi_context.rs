@@ -1,6 +1,5 @@
 use anchor_lang::InstructionData;
 use compressed_token_test::ID as WRAPPER_PROGRAM_ID;
-use light_client::indexer::Indexer;
 use light_compressed_account::instruction_data::traits::LightInstructionData;
 use light_compressed_token_sdk::compressed_token::{
     create_compressed_mint::{derive_mint_compressed_address, find_mint_address},
@@ -117,7 +116,7 @@ async fn test_write_to_cpi_context_create_mint() {
         payer,
         mint_seed,
         mint_authority,
-        compressed_mint_address,
+        compressed_mint_address: _,
         cpi_context_pubkey,
         address_tree,
         address_tree_index,
@@ -181,48 +180,17 @@ async fn test_write_to_cpi_context_create_mint() {
         data: wrapper_ix_data.data(),
     };
 
-    // Execute wrapper instruction
-    rpc.create_and_send_transaction(
-        &[wrapper_instruction],
-        &payer.pubkey(),
-        &[&payer, &mint_seed, &mint_authority],
-    )
-    .await
-    .expect("Failed to execute wrapper instruction");
+    // Execute wrapper instruction - should fail because create_mint + write_to_cpi_context
+    // is rejected (error 6035: CpiContextSetNotUsable).
+    let result = rpc
+        .create_and_send_transaction(
+            &[wrapper_instruction],
+            &payer.pubkey(),
+            &[&payer, &mint_seed, &mint_authority],
+        )
+        .await;
 
-    // Verify CPI context account has data written
-    let cpi_context_account_data = rpc
-        .get_account(cpi_context_pubkey)
-        .await
-        .expect("Failed to get CPI context account")
-        .expect("CPI context account should exist");
-
-    // Verify the account has data (not empty)
-    assert!(
-        !cpi_context_account_data.data.is_empty(),
-        "CPI context account should have data"
-    );
-
-    // Verify the account is owned by light system program
-    assert_eq!(
-        cpi_context_account_data.owner,
-        light_system_program::ID,
-        "CPI context account should be owned by light system program"
-    );
-
-    // Verify no on-chain compressed mint was created (write mode doesn't execute)
-    let indexer_result = rpc
-        .indexer()
-        .unwrap()
-        .get_compressed_account(compressed_mint_address, None)
-        .await
-        .unwrap()
-        .value;
-
-    assert!(
-        indexer_result.is_none(),
-        "Compressed mint should NOT exist (write mode doesn't execute)"
-    );
+    assert_rpc_error(result, 0, 6035).unwrap();
 }
 
 #[tokio::test]
@@ -455,8 +423,8 @@ async fn test_execute_cpi_context_invalid_tree_index() {
         mint_seed.pubkey(),
         Pubkey::new_from_array(MINT_ADDRESS_TREE),
         output_queue,
-    )
-    .with_rent_sponsor(rent_sponsor);
+        rent_sponsor,
+    );
 
     // Set CPI context for execute mode
     config.cpi_context = Some(cpi_context_pubkey);
