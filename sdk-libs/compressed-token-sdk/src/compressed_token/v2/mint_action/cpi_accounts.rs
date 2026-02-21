@@ -45,6 +45,9 @@ pub struct MintActionCpiAccounts<'a, A: AccountInfoTrait + Clone> {
     pub mint_signer: Option<&'a A>,
     pub authority: &'a A,
 
+    /// Rent sponsor PDA — required when creating a new compressed mint (receives the creation fee).
+    pub rent_sponsor: Option<&'a A>,
+
     pub fee_payer: &'a A,
     pub compressed_token_cpi_authority: &'a A,
     pub registered_program_pda: &'a A,
@@ -85,6 +88,8 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
             msg!("Authority must be a signer");
             return Err(AccountError::InvalidSigner.into());
         }
+
+        let rent_sponsor = iter.next_option_mut("rent_sponsor", config.create_mint)?;
 
         let fee_payer = iter.next_account("fee_payer")?;
         if !fee_payer.is_signer() || !fee_payer.is_writable() {
@@ -153,6 +158,7 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
             light_system_program,
             mint_signer,
             authority,
+            rent_sponsor,
             fee_payer,
             compressed_token_cpi_authority,
             registered_program_pda,
@@ -203,6 +209,10 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
         }
 
         accounts.push(self.authority.clone());
+
+        if let Some(sponsor) = self.rent_sponsor {
+            accounts.push(sponsor.clone());
+        }
 
         accounts.extend_from_slice(
             &[
@@ -260,6 +270,14 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
             is_writable: false,
             is_signer: true,
         });
+
+        if let Some(sponsor) = self.rent_sponsor {
+            metas.push(AccountMeta {
+                pubkey: sponsor.key().into(),
+                is_writable: true,
+                is_signer: false,
+            });
+        }
 
         metas.push(AccountMeta {
             pubkey: self.fee_payer.key().into(),

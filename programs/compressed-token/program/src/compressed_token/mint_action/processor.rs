@@ -20,7 +20,8 @@ use crate::{
         queue_indices::QueueIndices,
         zero_copy_config::get_zero_copy_configs,
     },
-    shared::cpi::execute_cpi_invoke,
+    shared::{convert_program_error, cpi::execute_cpi_invoke, transfer_lamports_via_cpi},
+    MINT_CREATION_FEE,
 };
 
 pub fn process_mint_action(
@@ -42,6 +43,20 @@ pub fn process_mint_action(
     // Validate and parse
     let validated_accounts =
         MintActionAccounts::validate_and_parse(accounts, &accounts_config, cmint_pubkey.as_ref())?;
+
+    // Charge mint creation fee. create_mint is rejected in CPI context write path
+    // (validated in AccountsConfig::new), so executing and rent_sponsor are always present here.
+    if accounts_config.create_mint {
+        let executing = validated_accounts
+            .executing
+            .as_ref()
+            .ok_or(ErrorCode::MintActionMissingExecutingAccounts)?;
+        let rent_sponsor = executing
+            .rent_sponsor
+            .ok_or(ErrorCode::MintActionMissingExecutingAccounts)?;
+        transfer_lamports_via_cpi(MINT_CREATION_FEE, executing.system.fee_payer, rent_sponsor)
+            .map_err(convert_program_error)?;
+    }
 
     // Get mint data based on source:
     // 1. Creating new mint: mint data required in instruction

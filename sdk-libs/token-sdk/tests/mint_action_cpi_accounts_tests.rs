@@ -6,7 +6,7 @@ use light_compressed_token_sdk::compressed_token::mint_action::{
 };
 use light_sdk_types::{
     ACCOUNT_COMPRESSION_AUTHORITY_PDA, ACCOUNT_COMPRESSION_PROGRAM_ID, LIGHT_SYSTEM_PROGRAM_ID,
-    REGISTERED_PROGRAM_PDA,
+    LIGHT_TOKEN_RENT_SPONSOR, REGISTERED_PROGRAM_PDA,
 };
 use light_token_interface::LIGHT_TOKEN_PROGRAM_ID;
 use light_token_types::CPI_AUTHORITY_PDA;
@@ -286,6 +286,15 @@ fn test_successful_create_mint() {
         create_test_account(mint_signer, [0u8; 32], true, false, false, vec![]),
         // Authority
         create_test_account(pubkey_unique(), [0u8; 32], true, false, false, vec![]),
+        // Rent sponsor (required for create_mint, known PDA)
+        create_test_account(
+            LIGHT_TOKEN_RENT_SPONSOR,
+            [0u8; 32],
+            false,
+            true,
+            false,
+            vec![],
+        ),
         // Fee payer
         create_test_account(pubkey_unique(), [0u8; 32], true, true, false, vec![]),
         // Core system accounts
@@ -342,6 +351,7 @@ fn test_successful_create_mint() {
 
     let parsed = result.unwrap();
     assert!(parsed.mint_signer.is_some());
+    assert!(parsed.rent_sponsor.is_some()); // Required for create_mint
     assert!(parsed.in_output_queue.is_none()); // Not needed for create_mint
 }
 

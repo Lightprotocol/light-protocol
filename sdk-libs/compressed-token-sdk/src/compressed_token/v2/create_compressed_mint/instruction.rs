@@ -36,6 +36,8 @@ pub struct CreateMintInputs {
     pub output_queue: Pubkey,
     pub extensions: Option<Vec<ExtensionInstructionData>>,
     pub version: u8,
+    /// Rent sponsor PDA that receives the mint creation fee.
+    pub rent_sponsor: Pubkey,
 }
 
 /// Creates a compressed mint instruction (wrapper around mint_action)
@@ -85,6 +87,7 @@ pub fn create_compressed_mint_cpi(
             input.address_tree_pubkey,
             input.output_queue,
         )
+        .with_rent_sponsor(input.rent_sponsor)
     };
 
     let account_metas = meta_config.to_account_metas();

@@ -124,6 +124,13 @@ impl MintActionMetaConfig {
         self
     }
 
+    /// Set only the rent_sponsor account (without compressible_config or mint/cmint).
+    /// Required for create_mint operations to receive the mint creation fee.
+    pub fn with_rent_sponsor(mut self, rent_sponsor: Pubkey) -> Self {
+        self.rent_sponsor = Some(rent_sponsor);
+        self
+    }
+
     /// Configure compressible Mint with config and rent sponsor.
     /// Mint is always compressible - this sets all required accounts.
     pub fn with_compressible_mint(
