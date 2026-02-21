@@ -32,6 +32,7 @@ import {
 import { createAssociatedTokenAccountInterfaceIdempotentInstruction } from '../instructions/create-ata-interface';
 import {
     transferInterface as _transferInterface,
+    transferInterfaceChecked as _transferInterfaceChecked,
     createTransferInterfaceInstructions as _createTransferInterfaceInstructions,
 } from '../actions/transfer-interface';
 import type { TransferOptions as _TransferOptions } from '../actions/transfer-interface';
@@ -233,6 +234,52 @@ export async function transferInterface(
         destination,
         owner,
         amount,
+        undefined, // programId: use default LIGHT_TOKEN_PROGRAM_ID
+        confirmOptions,
+        options,
+        true, // wrap=true for unified
+    );
+}
+
+/**
+ * Transfer tokens using the unified ata interface with decimals validation.
+ *
+ * Like SPL Token's transferChecked, the on-chain program validates that the
+ * provided `decimals` matches the mint's decimals field. Destination must exist.
+ *
+ * @param rpc             RPC connection
+ * @param payer           Fee payer (signer)
+ * @param source          Source light-token associated token account address
+ * @param mint            Mint address
+ * @param destination     Destination light-token associated token account address (must exist)
+ * @param owner           Source owner (signer)
+ * @param amount          Amount to transfer
+ * @param decimals        Expected decimals of the mint (validated on-chain)
+ * @param confirmOptions  Optional confirm options
+ * @param options         Optional interface options
+ * @returns Transaction signature
+ */
+export async function transferInterfaceChecked(
+    rpc: Rpc,
+    payer: Signer,
+    source: PublicKey,
+    mint: PublicKey,
+    destination: PublicKey,
+    owner: Signer,
+    amount: number | bigint | BN,
+    decimals: number,
+    confirmOptions?: ConfirmOptions,
+    options?: InterfaceOptions,
+) {
+    return _transferInterfaceChecked(
+        rpc,
+        payer,
+        source,
+        mint,
+        destination,
+        owner,
+        amount,
+        decimals,
         undefined, // programId: use default LIGHT_TOKEN_PROGRAM_ID
         confirmOptions,
         options,
@@ -464,6 +511,9 @@ export {
     createUnwrapInstruction,
     createDecompressInterfaceInstruction,
     createLightTokenTransferInstruction,
+    createLightTokenTransferCheckedInstruction,
+    createTransferInterfaceInstruction,
+    createTransferInterfaceCheckedInstruction,
     // Types
     TokenMetadataInstructionData,
     CompressibleConfig,
