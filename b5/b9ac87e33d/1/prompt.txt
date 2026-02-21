@@ -1,0 +1,596 @@
+# Diff Description
+
+Review the complete diff and produce a concise numbered list of changes.
+
+## Context
+
+- Current branch: jorrit/feat-add-mint-fee
+- Recent commits: 6451e6d10 chore: add mint creation fee Entire-Checkpoint: 3b001a578b94
+- Diff to main:
+```diff
+diff --git a/program-tests/compressed-token-test/tests/mint/cpi_context.rs b/program-tests/compressed-token-test/tests/mint/cpi_context.rs
+index c22c2f4ad..85b51e8ff 100644
+--- a/program-tests/compressed-token-test/tests/mint/cpi_context.rs
++++ b/program-tests/compressed-token-test/tests/mint/cpi_context.rs
+@@ -448,13 +448,15 @@ async fn test_execute_cpi_context_invalid_tree_index() {
+     .with_cpi_context(execute_cpi_context);
+ 
+     // Build account metas using regular MintActionMetaConfig for execute mode
++    let rent_sponsor = rpc.test_accounts.funding_pool_config.rent_sponsor_pda;
+     let mut config = MintActionMetaConfig::new_create_mint(
+         payer.pubkey(),
+         mint_authority.pubkey(),
+         mint_seed.pubkey(),
+         Pubkey::new_from_array(MINT_ADDRESS_TREE),
+         output_queue,
+-    );
++    )
++    .with_rent_sponsor(rent_sponsor);
+ 
+     // Set CPI context for execute mode
+     config.cpi_context = Some(cpi_context_pubkey);
+diff --git a/program-tests/compressed-token-test/tests/mint/failing.rs b/program-tests/compressed-token-test/tests/mint/failing.rs
+index 0a44925ac..a05851feb 100644
+--- a/program-tests/compressed-token-test/tests/mint/failing.rs
++++ b/program-tests/compressed-token-test/tests/mint/failing.rs
+@@ -2,6 +2,7 @@
+ 
+ use anchor_lang::prelude::borsh::BorshDeserialize;
+ use light_client::indexer::Indexer;
++use light_compressed_token::MINT_CREATION_FEE;
+ use light_compressed_token_sdk::compressed_token::create_compressed_mint::{
+     derive_mint_compressed_address, find_mint_address,
+ };
+@@ -12,6 +13,7 @@ use light_test_utils::{
+         legacy::instructions::mint_action::{MintActionType, MintToRecipient},
+     },
+     assert_mint_action::assert_mint_action,
++    assert_mint_creation_fee,
+     mint_assert::assert_compressed_mint_account,
+     Rpc,
+ };
+@@ -1121,3 +1123,70 @@ async fn test_compress_and_close_mint_must_be_only_action() {
+     )
+     .unwrap();
+ }
++
++/// Tests that the mint creation fee is charged from fee_payer to rent_sponsor.
++/// Also tests that the fee is charged even without any actions (compressed-only mint).
++#[tokio::test]
++#[serial]
++async fn test_mint_creation_fee_charged() {
++    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
++        .await
++        .unwrap();
++    let payer = rpc.get_payer().insecure_clone();
++    let rent_sponsor = rpc.test_accounts.funding_pool_config.rent_sponsor_pda;
++    let mint_seed = Keypair::new();
++    let mint_authority = Keypair::new();
++
++    // Capture balances before
++    let rent_sponsor_before = rpc
++        .get_account(rent_sponsor)
++        .await
++        .unwrap()
++        .unwrap()
++        .lamports;
++    let fee_payer_before = rpc
++        .get_account(payer.pubkey())
++        .await
++        .unwrap()
++        .unwrap()
++        .lamports;
++
++    // Create compressed mint (no actions)
++    create_mint(
++        &mut rpc,
++        &mint_seed,
++        6, // decimals
++        &mint_authority,
++        None,
++        None,
++        &payer,
++    )
++    .await
++    .unwrap();
++
++    // Capture balances after
++    let rent_sponsor_after = rpc
++        .get_account(rent_sponsor)
++        .await
++        .unwrap()
++        .unwrap()
++        .lamports;
++    let fee_payer_after = rpc
++        .get_account(payer.pubkey())
++        .await
++        .unwrap()
++        .unwrap()
++        .lamports;
++
++    // Assert fee was credited to rent_sponsor
++    assert_mint_creation_fee(rent_sponsor_before, rent_sponsor_after);
++
++    // Assert fee was debited from fee_payer (use <= because tx base fees are also deducted)
++    assert!(
++        fee_payer_after <= fee_payer_before - MINT_CREATION_FEE,
++        "Fee payer should have paid at least {} lamports mint creation fee (before={}, after={})",
++        MINT_CREATION_FEE,
++        fee_payer_before,
++        fee_payer_after,
++    );
++}
+diff --git a/program-tests/utils/src/actions/legacy/instructions/mint_action.rs b/program-tests/utils/src/actions/legacy/instructions/mint_action.rs
+index 5ae25f698..b871247ee 100644
+--- a/program-tests/utils/src/actions/legacy/instructions/mint_action.rs
++++ b/program-tests/utils/src/actions/legacy/instructions/mint_action.rs
+@@ -354,10 +354,10 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
+ 
+     // Add CMint account handling based on operation type:
+     // 1. DecompressMint/CompressAndCloseMint: needs config, cmint, and rent_sponsor
+-    // 2. Already decompressed (cmint_decompressed): only needs cmint account
++    // 2. Plain create_mint (no decompress/compress-and-close): needs only rent_sponsor for fee
++    // 3. Already decompressed (cmint_decompressed): only needs cmint account
+     let (mint_pda, _) = find_mint_address(&params.mint_seed);
+-    if has_decompress_mint || has_compress_and_close_mint {
+-        // Get config and rent_sponsor from v1 config PDA
++    if is_creating_mint || has_decompress_mint || has_compress_and_close_mint {
+         let config_address = CompressibleConfig::light_token_v1_config_pda();
+         let compressible_config: CompressibleConfig = rpc
+             .get_anchor_account(&config_address)
+@@ -368,11 +368,16 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
+                     config_address
+                 ))
+             })?;
+-        config = config.with_compressible_mint(
+-            mint_pda,
+-            config_address,
+-            compressible_config.rent_sponsor,
+-        );
++        if has_decompress_mint || has_compress_and_close_mint {
++            config = config.with_compressible_mint(
++                mint_pda,
++                config_address,
++                compressible_config.rent_sponsor,
++            );
++        } else {
++            // Plain create_mint: only rent_sponsor needed, no config or cmint account
++            config = config.with_rent_sponsor(compressible_config.rent_sponsor);
++        }
+     } else if cmint_decompressed {
+         // For operations on already-decompressed mints, only need the cmint account
+         config = config.with_mint(mint_pda);
+diff --git a/program-tests/utils/src/lib.rs b/program-tests/utils/src/lib.rs
+index 9af83e2d0..a7fa07c4f 100644
+--- a/program-tests/utils/src/lib.rs
++++ b/program-tests/utils/src/lib.rs
+@@ -45,6 +45,7 @@ pub mod e2e_test_env;
+ pub mod legacy_cpi_context_account;
+ pub mod mint_2022;
+ pub mod mint_assert;
++pub use mint_assert::assert_mint_creation_fee;
+ pub mod mock_batched_forester;
+ pub mod pack;
+ pub mod registered_program_accounts_v1;
+diff --git a/program-tests/utils/src/mint_assert.rs b/program-tests/utils/src/mint_assert.rs
+index 115ff2141..d8e9fab43 100644
+--- a/program-tests/utils/src/mint_assert.rs
++++ b/program-tests/utils/src/mint_assert.rs
+@@ -92,3 +92,18 @@ pub fn assert_compressed_mint_account(
+ 
+     expected_compressed_mint
+ }
++
++/// Assert that the mint creation fee (50,000 lamports) was charged.
++/// Compares rent_sponsor balance before and after mint creation.
++#[track_caller]
++pub fn assert_mint_creation_fee(
++    rent_sponsor_lamports_before: u64,
++    rent_sponsor_lamports_after: u64,
++) {
++    assert_eq!(
++        rent_sponsor_lamports_after,
++        rent_sponsor_lamports_before + light_compressed_token::MINT_CREATION_FEE,
++        "Rent sponsor should receive {} lamports mint creation fee",
++        light_compressed_token::MINT_CREATION_FEE,
++    );
++}
+diff --git a/programs/compressed-token/program/src/compressed_token/mint_action/accounts.rs b/programs/compressed-token/program/src/compressed_token/mint_action/accounts.rs
+index 4df242900..c9fa2473d 100644
+--- a/programs/compressed-token/program/src/compressed_token/mint_action/accounts.rs
++++ b/programs/compressed-token/program/src/compressed_token/mint_action/accounts.rs
+@@ -110,9 +110,8 @@ impl<'info> MintActionAccounts<'info> {
+             // CMint account required if already decompressed OR being decompressed/closed
+             let cmint = iter.next_option_mut("cmint", config.needs_cmint_account())?;
+ 
+-            // Parse rent_sponsor when creating or closing CMint
+-            let rent_sponsor =
+-                iter.next_option_mut("rent_sponsor", config.needs_compressible_accounts())?;
++            // Parse rent_sponsor when creating mint (fee recipient) or when creating/closing CMint
++            let rent_sponsor = iter.next_option_mut("rent_sponsor", config.needs_rent_sponsor())?;
+ 
+             let system = LightSystemAccounts::validate_and_parse(
+                 &mut iter,
+@@ -377,6 +376,13 @@ impl AccountsConfig {
+         self.has_decompress_mint_action || self.has_compress_and_close_cmint_action
+     }
+ 
++    /// Returns true if rent_sponsor account is needed.
++    /// Required when creating a new mint (mint creation fee recipient) or when compressible accounts are needed.
++    #[inline(always)]
++    pub fn needs_rent_sponsor(&self) -> bool {
++        self.create_mint || self.needs_compressible_accounts()
++    }
++
+     /// Returns true if CMint account is needed in the transaction.
+     /// Required when: already decompressed, decompressing, or compressing and closing CMint.
+     #[inline(always)]
+@@ -452,6 +458,14 @@ impl AccountsConfig {
+         let cmint_decompressed = parsed_instruction_data.mint.is_none();
+ 
+         if write_to_cpi_context {
++            // Cannot create a compressed mint when writing to CPI context.
++            // Mint creation charges the creation fee and requires the rent_sponsor account,
++            // which is not available in the CPI context write path.
++            if parsed_instruction_data.create_mint.is_some() {
++                msg!("Compressed mint creation not allowed when writing to cpi context");
++                return Err(ErrorCode::CpiContextSetNotUsable.into());
++            }
++
+             // Must not have any MintToCToken actions
+             let has_mint_to_ctoken_actions = parsed_instruction_data
+                 .actions
+diff --git a/programs/compressed-token/program/src/compressed_token/mint_action/processor.rs b/programs/compressed-token/program/src/compressed_token/mint_action/processor.rs
+index a7d0031c3..326dc17f1 100644
+--- a/programs/compressed-token/program/src/compressed_token/mint_action/processor.rs
++++ b/programs/compressed-token/program/src/compressed_token/mint_action/processor.rs
+@@ -20,7 +20,8 @@ use crate::{
+         queue_indices::QueueIndices,
+         zero_copy_config::get_zero_copy_configs,
+     },
+-    shared::cpi::execute_cpi_invoke,
++    shared::{convert_program_error, cpi::execute_cpi_invoke, transfer_lamports_via_cpi},
++    MINT_CREATION_FEE,
+ };
+ 
+ pub fn process_mint_action(
+@@ -43,6 +44,20 @@ pub fn process_mint_action(
+     let validated_accounts =
+         MintActionAccounts::validate_and_parse(accounts, &accounts_config, cmint_pubkey.as_ref())?;
+ 
++    // Charge mint creation fee. create_mint is rejected in CPI context write path
++    // (validated in AccountsConfig::new), so executing and rent_sponsor are always present here.
++    if accounts_config.create_mint {
++        let executing = validated_accounts
++            .executing
++            .as_ref()
++            .ok_or(ErrorCode::MintActionMissingExecutingAccounts)?;
++        let rent_sponsor = executing
++            .rent_sponsor
++            .ok_or(ErrorCode::MintActionMissingExecutingAccounts)?;
++        transfer_lamports_via_cpi(MINT_CREATION_FEE, executing.system.fee_payer, rent_sponsor)
++            .map_err(convert_program_error)?;
++    }
++
+     // Get mint data based on source:
+     // 1. Creating new mint: mint data required in instruction
+     // 2. Existing compressed mint: mint data in instruction (cmint_decompressed = false)
+diff --git a/programs/compressed-token/program/src/lib.rs b/programs/compressed-token/program/src/lib.rs
+index d88773e4d..ec62bf061 100644
+--- a/programs/compressed-token/program/src/lib.rs
++++ b/programs/compressed-token/program/src/lib.rs
+@@ -36,6 +36,7 @@ pub const LIGHT_CPI_SIGNER: CpiSigner =
+     derive_light_cpi_signer!("REDACTED");
+ 
+ pub const MAX_ACCOUNTS: usize = 30;
++pub const MINT_CREATION_FEE: u64 = 50_000;
+ pub(crate) const MAX_PACKED_ACCOUNTS: usize = 40;
+ /// Maximum number of compression operations per instruction.
+ /// Used for compression_to_input lookup array sizing.
+diff --git a/sdk-libs/compressed-token-sdk/src/compressed_token/v2/create_compressed_mint/instruction.rs b/sdk-libs/compressed-token-sdk/src/compressed_token/v2/create_compressed_mint/instruction.rs
+index 5e8e25492..466250fcf 100644
+--- a/sdk-libs/compressed-token-sdk/src/compressed_token/v2/create_compressed_mint/instruction.rs
++++ b/sdk-libs/compressed-token-sdk/src/compressed_token/v2/create_compressed_mint/instruction.rs
+@@ -36,6 +36,8 @@ pub struct CreateMintInputs {
+     pub output_queue: Pubkey,
+     pub extensions: Option<Vec<ExtensionInstructionData>>,
+     pub version: u8,
++    /// Rent sponsor PDA that receives the mint creation fee.
++    pub rent_sponsor: Pubkey,
+ }
+ 
+ /// Creates a compressed mint instruction (wrapper around mint_action)
+@@ -85,6 +87,7 @@ pub fn create_compressed_mint_cpi(
+             input.address_tree_pubkey,
+             input.output_queue,
+         )
++        .with_rent_sponsor(input.rent_sponsor)
+     };
+ 
+     let account_metas = meta_config.to_account_metas();
+diff --git a/sdk-libs/compressed-token-sdk/src/compressed_token/v2/mint_action/account_metas.rs b/sdk-libs/compressed-token-sdk/src/compressed_token/v2/mint_action/account_metas.rs
+index e04b9eda1..c6d082fd8 100644
+--- a/sdk-libs/compressed-token-sdk/src/compressed_token/v2/mint_action/account_metas.rs
++++ b/sdk-libs/compressed-token-sdk/src/compressed_token/v2/mint_action/account_metas.rs
+@@ -124,6 +124,13 @@ impl MintActionMetaConfig {
+         self
+     }
+ 
++    /// Set only the rent_sponsor account (without compressible_config or mint/cmint).
++    /// Required for create_mint operations to receive the mint creation fee.
++    pub fn with_rent_sponsor(mut self, rent_sponsor: Pubkey) -> Self {
++        self.rent_sponsor = Some(rent_sponsor);
++        self
++    }
++
+     /// Configure compressible Mint with config and rent sponsor.
+     /// Mint is always compressible - this sets all required accounts.
+     pub fn with_compressible_mint(
+diff --git a/sdk-libs/compressed-token-sdk/src/compressed_token/v2/mint_action/cpi_accounts.rs b/sdk-libs/compressed-token-sdk/src/compressed_token/v2/mint_action/cpi_accounts.rs
+index 051f727c3..850657e23 100644
+--- a/sdk-libs/compressed-token-sdk/src/compressed_token/v2/mint_action/cpi_accounts.rs
++++ b/sdk-libs/compressed-token-sdk/src/compressed_token/v2/mint_action/cpi_accounts.rs
+@@ -45,6 +45,9 @@ pub struct MintActionCpiAccounts<'a, A: AccountInfoTrait + Clone> {
+     pub mint_signer: Option<&'a A>,
+     pub authority: &'a A,
+ 
++    /// Rent sponsor PDA — required when creating a new compressed mint (receives the creation fee).
++    pub rent_sponsor: Option<&'a A>,
++
+     pub fee_payer: &'a A,
+     pub compressed_token_cpi_authority: &'a A,
+     pub registered_program_pda: &'a A,
+@@ -86,6 +89,8 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
+             return Err(AccountError::InvalidSigner.into());
+         }
+ 
++        let rent_sponsor = iter.next_option_mut("rent_sponsor", config.create_mint)?;
++
+         let fee_payer = iter.next_account("fee_payer")?;
+         if !fee_payer.is_signer() || !fee_payer.is_writable() {
+             msg!("Fee payer must be a signer and mutable");
+@@ -153,6 +158,7 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
+             light_system_program,
+             mint_signer,
+             authority,
++            rent_sponsor,
+             fee_payer,
+             compressed_token_cpi_authority,
+             registered_program_pda,
+@@ -204,6 +210,10 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
+ 
+         accounts.push(self.authority.clone());
+ 
++        if let Some(sponsor) = self.rent_sponsor {
++            accounts.push(sponsor.clone());
++        }
++
+         accounts.extend_from_slice(
+             &[
+                 self.fee_payer.clone(),
+@@ -261,6 +271,14 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
+             is_signer: true,
+         });
+ 
++        if let Some(sponsor) = self.rent_sponsor {
++            metas.push(AccountMeta {
++                pubkey: sponsor.key().into(),
++                is_writable: true,
++                is_signer: false,
++            });
++        }
++
+         metas.push(AccountMeta {
+             pubkey: self.fee_payer.key().into(),
+             is_writable: true,
+diff --git a/sdk-libs/token-sdk/tests/mint_action_cpi_accounts_tests.rs b/sdk-libs/token-sdk/tests/mint_action_cpi_accounts_tests.rs
+index 48665a726..42ce47cbb 100644
+--- a/sdk-libs/token-sdk/tests/mint_action_cpi_accounts_tests.rs
++++ b/sdk-libs/token-sdk/tests/mint_action_cpi_accounts_tests.rs
+@@ -6,7 +6,7 @@ use light_compressed_token_sdk::compressed_token::mint_action::{
+ };
+ use light_sdk_types::{
+     ACCOUNT_COMPRESSION_AUTHORITY_PDA, ACCOUNT_COMPRESSION_PROGRAM_ID, LIGHT_SYSTEM_PROGRAM_ID,
+-    REGISTERED_PROGRAM_PDA,
++    LIGHT_TOKEN_RENT_SPONSOR, REGISTERED_PROGRAM_PDA,
+ };
+ use light_token_interface::LIGHT_TOKEN_PROGRAM_ID;
+ use light_token_types::CPI_AUTHORITY_PDA;
+@@ -286,6 +286,15 @@ fn test_successful_create_mint() {
+         create_test_account(mint_signer, [0u8; 32], true, false, false, vec![]),
+         // Authority
+         create_test_account(pubkey_unique(), [0u8; 32], true, false, false, vec![]),
++        // Rent sponsor (required for create_mint, known PDA)
++        create_test_account(
++            LIGHT_TOKEN_RENT_SPONSOR,
++            [0u8; 32],
++            false,
++            true,
++            false,
++            vec![],
++        ),
+         // Fee payer
+         create_test_account(pubkey_unique(), [0u8; 32], true, true, false, vec![]),
+         // Core system accounts
+@@ -342,6 +351,7 @@ fn test_successful_create_mint() {
+ 
+     let parsed = result.unwrap();
+     assert!(parsed.mint_signer.is_some());
++    assert!(parsed.rent_sponsor.is_some()); // Required for create_mint
+     assert!(parsed.in_output_queue.is_none()); // Not needed for create_mint
+ }
+ 
+diff --git a/sdk-tests/sdk-token-test/src/pda_ctoken/mint.rs b/sdk-tests/sdk-token-test/src/pda_ctoken/mint.rs
+index 0d803802b..9bc7da619 100644
+--- a/sdk-tests/sdk-token-test/src/pda_ctoken/mint.rs
++++ b/sdk-tests/sdk-token-test/src/pda_ctoken/mint.rs
+@@ -55,6 +55,7 @@ pub fn process_mint_action<'a, 'info>(
+         light_system_program: cpi_accounts.system_program().unwrap(),
+         mint_signer: Some(ctx.accounts.mint_seed.as_ref()),
+         authority: ctx.accounts.mint_authority.as_ref(),
++        rent_sponsor: Some(ctx.accounts.rent_sponsor.as_ref()),
+         fee_payer: ctx.accounts.payer.as_ref(),
+         compressed_token_cpi_authority: ctx.accounts.light_token_cpi_authority.as_ref(),
+         registered_program_pda: cpi_accounts.registered_program_pda().unwrap(),
+@@ -79,6 +80,7 @@ pub fn process_mint_action<'a, 'info>(
+     account_infos.push(ctx.accounts.mint_authority.to_account_info());
+     account_infos.push(ctx.accounts.mint_seed.to_account_info());
+     account_infos.push(ctx.accounts.payer.to_account_info());
++    account_infos.push(ctx.accounts.rent_sponsor.to_account_info());
+     msg!("mint_action_instruction {:?}", mint_action_instruction);
+     msg!(
+         "account infos pubkeys {:?}",
+diff --git a/sdk-tests/sdk-token-test/src/pda_ctoken/mod.rs b/sdk-tests/sdk-token-test/src/pda_ctoken/mod.rs
+index d5e9efc15..b73a35700 100644
+--- a/sdk-tests/sdk-token-test/src/pda_ctoken/mod.rs
++++ b/sdk-tests/sdk-token-test/src/pda_ctoken/mod.rs
+@@ -16,4 +16,7 @@ pub struct PdaCToken<'info> {
+     pub light_token_program: UncheckedAccount<'info>,
+     /// CHECK:
+     pub light_token_cpi_authority: UncheckedAccount<'info>,
++    /// CHECK: Rent sponsor PDA that receives the mint creation fee.
++    #[account(mut)]
++    pub rent_sponsor: UncheckedAccount<'info>,
+ }
+diff --git a/sdk-tests/sdk-token-test/tests/pda_ctoken.rs b/sdk-tests/sdk-token-test/tests/pda_ctoken.rs
+index fcae1ce1f..24c437c08 100644
+--- a/sdk-tests/sdk-token-test/tests/pda_ctoken.rs
++++ b/sdk-tests/sdk-token-test/tests/pda_ctoken.rs
+@@ -6,6 +6,7 @@ use light_compressed_token_sdk::compressed_token::create_compressed_mint::{
+ };
+ use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc, RpcError};
+ use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
++use light_token::instruction::rent_sponsor_pda;
+ use light_token_interface::{
+     instructions::{
+         extensions::token_metadata::TokenMetadataInstructionData,
+@@ -257,6 +258,7 @@ pub async fn create_mint(
+         mint_seed: mint_seed.pubkey(),
+         light_token_program: Pubkey::new_from_array(LIGHT_TOKEN_PROGRAM_ID),
+         light_token_cpi_authority: Pubkey::new_from_array(CPI_AUTHORITY_PDA),
++        rent_sponsor: rent_sponsor_pda(),
+     };
+ 
+     let pda_new_address_params = light_sdk::address::NewAddressParamsAssignedPacked {
+diff --git a/sdk-tests/sdk-token-test/tests/test_4_transfer2.rs b/sdk-tests/sdk-token-test/tests/test_4_transfer2.rs
+index 991b44d6b..6544778c0 100644
+--- a/sdk-tests/sdk-token-test/tests/test_4_transfer2.rs
++++ b/sdk-tests/sdk-token-test/tests/test_4_transfer2.rs
+@@ -12,6 +12,7 @@ use light_sdk::{
+     instruction::{PackedAccounts, PackedStateTreeInfo, SystemAccountMetaConfig},
+ };
+ use light_test_utils::RpcError;
++use light_token::instruction::rent_sponsor_pda;
+ use light_token_interface::{
+     instructions::{
+         mint_action::{MintWithContext, Recipient},
+@@ -205,6 +206,7 @@ async fn create_compressed_mint_helper(
+         address_tree_pubkey,
+         output_queue,
+         extensions: None,
++        rent_sponsor: rent_sponsor_pda(),
+     })
+     .unwrap();
+ 
+diff --git a/sdk-tests/sdk-token-test/tests/test_compress_full_and_close.rs b/sdk-tests/sdk-token-test/tests/test_compress_full_and_close.rs
+index 99e99751e..a37ed6151 100644
+--- a/sdk-tests/sdk-token-test/tests/test_compress_full_and_close.rs
++++ b/sdk-tests/sdk-token-test/tests/test_compress_full_and_close.rs
+@@ -88,6 +88,7 @@ async fn test_compress_full_and_close() {
+         address_tree_pubkey,
+         output_queue,
+         extensions: None,
++        rent_sponsor: rent_sponsor_pda(),
+     })
+     .unwrap();
+```
+
+## Instructions
+
+1. Analyze the diff above
+2. Write a numbered list of changes
+3. Keep each item concise (one line)
+4. Group related changes into single items where sensible
+5. Exclude test file changes unless the user specifically requested them
+6. Focus on what changed, not how (no implementation details)
+7. Order by significance or logical grouping
+8. Maximum 10 items
+
+## Example Output (for renamings)
+
+```
+1. Crate Renames (Root Cargo.toml)
+
+1. light-ctoken-interface -> light-token-interface
+2. light-ctoken-sdk -> light-token-sdk
+3. light-ctoken-types -> light-token-types
+4. sdk-ctoken-test -> sdk-light-token-test
+
+---
+2. program-libs/token-interface (26 renamings)
+
+Structs:
+5. CToken -> Token
+6. MintToCTokenAction -> MintToAction
+7. ZCToken<'a> -> ZToken<'a>
+8. ZCTokenMut<'a> -> ZTokenMut<'a>
+```
+
+---
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests/mint_action.rs (REDACTED)
+
+running 1 test
+test test_accounts_config_randomized ... FAILED
+
+failures:
+
+---- test_accounts_config_randomized stdout ----
+seed value: 5602713290190363106
+Compressed mint creation not allowed when writing to cpi context
+Compressed mint creation not allowed when writing to cpi context
+
+thread 'test_accounts_config_randomized' panicked at programs/compressed-token/program/tests/mint_action.rs:312:38:
+AccountsConfig::new failed unexpectedly: Custom(6035)
+stack backtrace:
+   0: __rustc::rust_begin_unwind
+             at REDACTED.rs:697:5
+   1: core::panicking::panic_fmt
+             at /rustc/1159e78c4747b02ef996e55082b704c09b970588/library/core/src/panicking.rs:75:14
+   2: core::result::unwrap_failed
+             at /rustc/1159e78c4747b02ef996e55082b704c09b970588/library/core/src/result.rs:1765:5
+   3: core::result::Result<T,E>::expect
+   4: mint_action::test_accounts_config_randomized
+   5: mint_action::test_accounts_config_randomized::{{closure}}
+   6: core::ops::function::FnOnce::call_once
+   7: core::ops::function::FnOnce::call_once
+             at /rustc/1159e78c4747b02ef996e55082b704c09b970588/library/core/src/ops/function.rs:253:5
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
+
+
+failures:
+    test_accounts_config_randomized
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p light-compressed-token --test mint_action`
+error: Recipe `test-compressed-token-unit` failed on line 58 with exit code 101
+ fix it
+
+---
+
+[Request interrupted by user]
+
+---
+
+restore this       // Check if this is creating a new mint (not from an existing compressed mint)
+      349 -        let is_creating_mint = instruction_data.mint.is_none();
+      348 +        // Check if this is creating a new mint
+      349 +        let is_creating_mint = instruction_data.create_mint.is_some();
+      350
+
+---
+
+ok try to run the test
