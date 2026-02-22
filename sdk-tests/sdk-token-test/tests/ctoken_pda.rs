@@ -62,9 +62,9 @@ async fn test_ctoken_pda() {
         additional_metadata: Some(additional_metadata),
     };
 
-    // create_mint + write_to_cpi_context is rejected because mint creation
-    // charges a fee requiring the rent_sponsor account, which is not available
-    // in the CPI context write path (error 6035: CpiContextSetNotUsable).
+    // create_mint + write_to_cpi_context now works, but the wrapper program
+    // doesn't include rent_sponsor in its CPI accounts. Without rent_sponsor,
+    // the account iterator shifts and fails parsing (error 20009).
     let result = create_mint(
         &mut rpc,
         &mint_seed,
@@ -76,7 +76,7 @@ async fn test_ctoken_pda() {
     )
     .await;
 
-    assert_rpc_error(result, 0, 6035).unwrap();
+    assert_rpc_error(result, 0, 20009).unwrap();
 }
 
 pub async fn create_mint<R: Rpc + Indexer>(
