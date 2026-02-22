@@ -45,6 +45,7 @@ pub mod e2e_test_env;
 pub mod legacy_cpi_context_account;
 pub mod mint_2022;
 pub mod mint_assert;
+pub use mint_assert::assert_mint_creation_fee;
 pub mod mock_batched_forester;
 pub mod pack;
 pub mod registered_program_accounts_v1;

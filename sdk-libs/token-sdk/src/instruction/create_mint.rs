@@ -165,6 +165,8 @@ impl CreateMint {
             self.mint_seed_pubkey,
             self.address_tree_pubkey,
             self.output_queue,
+            config_pda(),
+            rent_sponsor_pda(),
         )
         // Always include compressible accounts for Mint creation
         .with_compressible_mint(self.params.mint, config_pda(), rent_sponsor_pda());

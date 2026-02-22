@@ -1,5 +1,8 @@
 use anchor_lang::InstructionData;
-use light_program_test::{AddressWithTree, Indexer, LightProgramTest, ProgramTestConfig, Rpc};
+use light_program_test::{
+    utils::assert::assert_rpc_error, AddressWithTree, Indexer, LightProgramTest, ProgramTestConfig,
+    Rpc,
+};
 use light_token::instruction::{
     config_pda, derive_mint_compressed_address, find_mint_address, rent_sponsor_pda,
     SystemAccounts, LIGHT_TOKEN_PROGRAM_ID,
@@ -15,11 +18,15 @@ async fn test_create_single_mint() {
     test_create_mints(1).await;
 }
 
+/// create_mint + write_to_cpi_context is rejected (error 6035: CpiContextSetNotUsable)
+/// because mint creation charges a fee in the processor before CPI context execution.
+/// Allowing create_mint in CPI context write path would bypass the fee.
 #[tokio::test]
 async fn test_create_two_mints() {
     test_create_mints(2).await;
 }
 
+/// Same as test_create_two_mints: create_mint + write_to_cpi_context is rejected.
 #[tokio::test]
 async fn test_create_three_mints() {
     test_create_mints(3).await;
@@ -137,21 +144,28 @@ async fn test_create_mints(n: usize) {
     let mut signers: Vec<&Keypair> = vec![&payer];
     signers.extend(mint_signers.iter());
 
-    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &signers)
-        .await
-        .unwrap();
+    let result = rpc
+        .create_and_send_transaction(&[instruction], &payer.pubkey(), &signers)
+        .await;
 
-    for (i, (mint_pda, _)) in mint_pdas.iter().enumerate() {
-        let mint_account = rpc
-            .get_account(*mint_pda)
-            .await
-            .expect("Failed to get mint account")
-            .unwrap_or_else(|| panic!("Mint PDA {} should exist after decompress", i + 1));
+    if n > 1 {
+        // N>1 uses CPI context write for create_mint, which is rejected because
+        // mint creation charges a fee before CPI context execution.
+        assert_rpc_error(result, 0, 6035).unwrap();
+    } else {
+        result.unwrap();
+        for (i, (mint_pda, _)) in mint_pdas.iter().enumerate() {
+            let mint_account = rpc
+                .get_account(*mint_pda)
+                .await
+                .expect("Failed to get mint account")
+                .unwrap_or_else(|| panic!("Mint PDA {} should exist after decompress", i + 1));
 
-        assert!(
-            !mint_account.data.is_empty(),
-            "Mint {} account should have data",
-            i + 1
-        );
+            assert!(
+                !mint_account.data.is_empty(),
+                "Mint {} account should have data",
+                i + 1
+            );
+        }
     }
 }

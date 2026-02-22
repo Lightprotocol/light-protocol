@@ -20,8 +20,9 @@ pub struct MintActionAccounts<'info> {
     pub light_system_program: &'info AccountInfo,
     /// Seed for mint PDA derivation.
     /// Required only for compressed mint creation.
-    /// Note: mint_signer is not in executing accounts since create mint
-    /// is allowed in combination with write to cpi context.
+    /// Note: mint_signer is not in executing accounts since it is parsed
+    /// before the executing/cpi-write branch. create_mint is NOT allowed
+    /// in combination with write to cpi context (rejected in AccountsConfig::new).
     pub mint_signer: Option<&'info AccountInfo>,
     pub authority: &'info AccountInfo,
     /// Required accounts to execute an instruction
@@ -100,8 +101,10 @@ impl<'info> MintActionAccounts<'info> {
                 packed_accounts: ProgramPackedAccounts { accounts: &[] },
             })
         } else {
-            // Parse and validate compressible config when creating or closing CMint
-            let compressible_config = if config.needs_compressible_accounts() {
+            // Parse and validate compressible config when creating mint (fee validation),
+            // decompressing, or closing CMint
+            let compressible_config = if config.create_mint || config.needs_compressible_accounts()
+            {
                 Some(next_config_account(&mut iter)?)
             } else {
                 None
@@ -110,9 +113,8 @@ impl<'info> MintActionAccounts<'info> {
             // CMint account required if already decompressed OR being decompressed/closed
             let cmint = iter.next_option_mut("cmint", config.needs_cmint_account())?;
 
-            // Parse rent_sponsor when creating or closing CMint
-            let rent_sponsor =
-                iter.next_option_mut("rent_sponsor", config.needs_compressible_accounts())?;
+            // Parse rent_sponsor when creating mint (fee recipient) or when creating/closing CMint
+            let rent_sponsor = iter.next_option_mut("rent_sponsor", config.needs_rent_sponsor())?;
 
             let system = LightSystemAccounts::validate_and_parse(
                 &mut iter,
@@ -213,7 +215,7 @@ impl<'info> MintActionAccounts<'info> {
         }
 
         if let Some(executing) = &self.executing {
-            // compressible_config (optional) - when creating CMint
+            // compressible_config (optional) - when creating mint or CMint
             if executing.compressible_config.is_some() {
                 offset += 1;
             }
@@ -221,7 +223,7 @@ impl<'info> MintActionAccounts<'info> {
             if executing.cmint.is_some() {
                 offset += 1;
             }
-            // rent_sponsor (optional) - when creating CMint
+            // rent_sponsor (optional) - when creating mint or CMint
             if executing.rent_sponsor.is_some() {
                 offset += 1;
             }
@@ -377,6 +379,13 @@ impl AccountsConfig {
         self.has_decompress_mint_action || self.has_compress_and_close_cmint_action
     }
 
+    /// Returns true if rent_sponsor account is needed.
+    /// Required when creating a new mint (mint creation fee recipient) or when compressible accounts are needed.
+    #[inline(always)]
+    pub fn needs_rent_sponsor(&self) -> bool {
+        self.create_mint || self.needs_compressible_accounts()
+    }
+
     /// Returns true if CMint account is needed in the transaction.
     /// Required when: already decompressed, decompressing, or compressing and closing CMint.
     #[inline(always)]
@@ -444,6 +453,12 @@ impl AccountsConfig {
             return Err(ErrorCode::CompressAndCloseCMintMustBeOnlyAction.into());
         }
 
+        // Validation: Cannot combine create_mint with CompressAndCloseCMint
+        if has_compress_and_close_cmint_action && parsed_instruction_data.create_mint.is_some() {
+            msg!("Cannot combine create_mint with CompressAndCloseCMint");
+            return Err(ErrorCode::CompressAndCloseCMintMustBeOnlyAction.into());
+        }
+
         // We need mint signer only if creating a new mint.
         // CompressAndCloseCMint does NOT need mint_signer - it verifies CMint by compressed_mint.metadata.mint
         let with_mint_signer = parsed_instruction_data.create_mint.is_some();
@@ -452,6 +467,14 @@ impl AccountsConfig {
         let cmint_decompressed = parsed_instruction_data.mint.is_none();
 
         if write_to_cpi_context {
+            // Cannot create a compressed mint when writing to CPI context.
+            // Mint creation charges the creation fee and requires the rent_sponsor account,
+            // which is not available in the CPI context write path.
+            if parsed_instruction_data.create_mint.is_some() {
+                msg!("Compressed mint creation not allowed when writing to cpi context");
+                return Err(ErrorCode::CpiContextSetNotUsable.into());
+            }
+
             // Must not have any MintToCToken actions
             let has_mint_to_ctoken_actions = parsed_instruction_data
                 .actions

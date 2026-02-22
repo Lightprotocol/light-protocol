@@ -36,6 +36,7 @@ pub const LIGHT_CPI_SIGNER: CpiSigner =
     derive_light_cpi_signer!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
 
 pub const MAX_ACCOUNTS: usize = 30;
+pub const MINT_CREATION_FEE: u64 = 50_000;
 pub(crate) const MAX_PACKED_ACCOUNTS: usize = 40;
 /// Maximum number of compression operations per instruction.
 /// Used for compression_to_input lookup array sizing.

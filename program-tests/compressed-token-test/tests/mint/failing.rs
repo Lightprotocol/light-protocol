@@ -2,6 +2,7 @@
 
 use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_client::indexer::Indexer;
+use light_compressed_token::MINT_CREATION_FEE;
 use light_compressed_token_sdk::compressed_token::create_compressed_mint::{
     derive_mint_compressed_address, find_mint_address,
 };
@@ -12,6 +13,7 @@ use light_test_utils::{
         legacy::instructions::mint_action::{MintActionType, MintToRecipient},
     },
     assert_mint_action::assert_mint_action,
+    assert_mint_creation_fee,
     mint_assert::assert_compressed_mint_account,
     Rpc,
 };
@@ -1120,4 +1122,71 @@ async fn test_compress_and_close_mint_must_be_only_action() {
         result, 0, 6169, // CompressAndCloseMintMustBeOnlyAction
     )
     .unwrap();
+}
+
+/// Tests that the mint creation fee is charged from fee_payer to rent_sponsor.
+/// Also tests that the fee is charged even without any actions (compressed-only mint).
+#[tokio::test]
+#[serial]
+async fn test_mint_creation_fee_charged() {
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
+        .await
+        .unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+    let rent_sponsor = rpc.test_accounts.funding_pool_config.rent_sponsor_pda;
+    let mint_seed = Keypair::new();
+    let mint_authority = Keypair::new();
+
+    // Capture balances before
+    let rent_sponsor_before = rpc
+        .get_account(rent_sponsor)
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
+    let fee_payer_before = rpc
+        .get_account(payer.pubkey())
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
+
+    // Create compressed mint (no actions)
+    create_mint(
+        &mut rpc,
+        &mint_seed,
+        6, // decimals
+        &mint_authority,
+        None,
+        None,
+        &payer,
+    )
+    .await
+    .unwrap();
+
+    // Capture balances after
+    let rent_sponsor_after = rpc
+        .get_account(rent_sponsor)
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
+    let fee_payer_after = rpc
+        .get_account(payer.pubkey())
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
+
+    // Assert fee was credited to rent_sponsor
+    assert_mint_creation_fee(rent_sponsor_before, rent_sponsor_after);
+
+    // Assert fee was debited from fee_payer (use <= because tx base fees are also deducted)
+    assert!(
+        fee_payer_after <= fee_payer_before - MINT_CREATION_FEE,
+        "Fee payer should have paid at least {} lamports mint creation fee (before={}, after={})",
+        MINT_CREATION_FEE,
+        fee_payer_before,
+        fee_payer_after,
+    );
 }

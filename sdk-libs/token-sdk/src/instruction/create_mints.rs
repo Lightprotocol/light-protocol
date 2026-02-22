@@ -265,6 +265,8 @@ impl<'a, 'info> CreateMintsCpi<'a, 'info> {
             *self.mint_seed_accounts[0].key,
             *self.address_tree.key,
             *self.output_queue.key,
+            *self.compressible_config.key,
+            *self.rent_sponsor.key,
         )
         .with_compressible_mint(
             *self.mints[0].key,
@@ -437,6 +439,8 @@ impl<'a, 'info> CreateMintsCpi<'a, 'info> {
             *self.mint_seed_accounts[last_idx].key,
             *self.address_tree.key,
             *self.output_queue.key,
+            *self.compressible_config.key,
+            *self.rent_sponsor.key,
         )
         .with_compressible_mint(
             *self.mints[last_idx].key,
