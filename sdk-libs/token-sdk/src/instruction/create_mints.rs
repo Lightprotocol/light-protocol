@@ -348,6 +348,7 @@ impl<'a, 'info> CreateMintsCpi<'a, 'info> {
             fee_payer: *self.payer.key,
             mint_signer: Some(*self.mint_seed_accounts[index].key),
             authority: *self.payer.key,
+            rent_sponsor: Some(*self.rent_sponsor.key),
             cpi_context: *self.cpi_context_account.key,
         };
 
@@ -360,16 +361,20 @@ impl<'a, 'info> CreateMintsCpi<'a, 'info> {
         // [0]: light_system_program
         // [1]: mint_signer (optional, when present)
         // [2]: authority
-        // [3]: fee_payer
-        // [4]: cpi_authority_pda
-        // [5]: cpi_context
+        // [3]: rent_sponsor (writable)
+        // [4]: fee_payer
+        // [5]: cpi_authority_pda
+        // [6]: cpi_context
+        // [7]: system_program (for fee transfer CPI)
         let account_infos = [
             self.system_accounts.light_system_program.clone(),
             self.mint_seed_accounts[index].clone(),
             self.payer.clone(),
+            self.rent_sponsor.clone(),
             self.payer.clone(),
             self.system_accounts.cpi_authority_pda.clone(),
             self.cpi_context_account.clone(),
+            self.system_accounts.system_program.clone(),
         ];
         let instruction = Instruction {
             program_id: Pubkey::new_from_array(LIGHT_TOKEN_PROGRAM_ID),

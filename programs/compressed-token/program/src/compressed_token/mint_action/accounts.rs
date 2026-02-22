@@ -21,8 +21,7 @@ pub struct MintActionAccounts<'info> {
     /// Seed for mint PDA derivation.
     /// Required only for compressed mint creation.
     /// Note: mint_signer is not in executing accounts since it is parsed
-    /// before the executing/cpi-write branch. create_mint is NOT allowed
-    /// in combination with write to cpi context (rejected in AccountsConfig::new).
+    /// before the executing/cpi-write branch.
     pub mint_signer: Option<&'info AccountInfo>,
     pub authority: &'info AccountInfo,
     /// Required accounts to execute an instruction
@@ -32,6 +31,9 @@ pub struct MintActionAccounts<'info> {
     /// Required accounts to write into a cpi context account.
     /// - executing is None
     pub write_to_cpi_context_system: Option<CpiContextLightSystemAccounts<'info>>,
+    /// Rent sponsor account in write mode (when create_mint + write_to_cpi_context).
+    /// Validated against hardcoded RENT_SPONSOR_V1 constant.
+    pub write_mode_rent_sponsor: Option<&'info AccountInfo>,
     /// Packed accounts contain
     /// [
     ///     ..tree_accounts,
@@ -86,7 +88,18 @@ impl<'info> MintActionAccounts<'info> {
         // Authority is always required to sign
         let authority = iter.next_signer("authority")?;
         if config.write_to_cpi_context {
+            let write_mode_rent_sponsor = if config.create_mint {
+                Some(iter.next_account("rent_sponsor")?)
+            } else {
+                None
+            };
             let write_to_cpi_context_system = CpiContextLightSystemAccounts::new(&mut iter)?;
+            // System program is needed for the fee transfer CPI when creating mint in write mode.
+            // It's placed after all parsed accounts - the account iterator consumes it here,
+            // but it's available for the system program CPI via the transaction accounts.
+            if config.create_mint {
+                let _system_program = iter.next_account("system_program")?;
+            }
 
             if !iter.iterator_is_empty() {
                 msg!("Too many accounts for write to cpi context.");
@@ -98,6 +111,7 @@ impl<'info> MintActionAccounts<'info> {
                 authority,
                 executing: None,
                 write_to_cpi_context_system: Some(write_to_cpi_context_system),
+                write_mode_rent_sponsor,
                 packed_accounts: ProgramPackedAccounts { accounts: &[] },
             })
         } else {
@@ -156,6 +170,7 @@ impl<'info> MintActionAccounts<'info> {
                     tokens_out_queue,
                 }),
                 write_to_cpi_context_system: None,
+                write_mode_rent_sponsor: None,
                 packed_accounts: ProgramPackedAccounts {
                     accounts: iter.remaining_unchecked()?,
                 },
@@ -211,6 +226,11 @@ impl<'info> MintActionAccounts<'info> {
 
         // mint_signer (optional)
         if self.mint_signer.is_some() {
+            offset += 1;
+        }
+
+        // write_mode_rent_sponsor (optional) - when create_mint + write_to_cpi_context
+        if self.write_mode_rent_sponsor.is_some() {
             offset += 1;
         }
 
@@ -467,14 +487,6 @@ impl AccountsConfig {
         let cmint_decompressed = parsed_instruction_data.mint.is_none();
 
         if write_to_cpi_context {
-            // Cannot create a compressed mint when writing to CPI context.
-            // Mint creation charges the creation fee and requires the rent_sponsor account,
-            // which is not available in the CPI context write path.
-            if parsed_instruction_data.create_mint.is_some() {
-                msg!("Compressed mint creation not allowed when writing to cpi context");
-                return Err(ErrorCode::CpiContextSetNotUsable.into());
-            }
-
             // Must not have any MintToCToken actions
             let has_mint_to_ctoken_actions = parsed_instruction_data
                 .actions

@@ -247,6 +247,7 @@ pub struct MintActionMetaConfigCpiWrite {
     pub fee_payer: Pubkey,
     pub mint_signer: Option<Pubkey>, // Optional - only when creating mint
     pub authority: Pubkey,
+    pub rent_sponsor: Option<Pubkey>, // Optional - only when creating mint (write mode)
     pub cpi_context: Pubkey,
 }
 
@@ -270,6 +271,11 @@ pub fn get_mint_action_instruction_account_metas_cpi_write(
 
     metas.push(AccountMeta::new_readonly(config.authority, true));
 
+    // rent_sponsor (optional) - when creating mint in write mode
+    if let Some(rent_sponsor) = config.rent_sponsor {
+        metas.push(AccountMeta::new(rent_sponsor, false));
+    }
+
     metas.push(AccountMeta::new(config.fee_payer, true));
 
     metas.push(AccountMeta::new_readonly(
@@ -278,6 +284,16 @@ pub fn get_mint_action_instruction_account_metas_cpi_write(
     ));
 
     metas.push(AccountMeta::new(config.cpi_context, false));
+
+    // System program needed for fee transfer CPI when creating mint in write mode.
+    // Placed after all parsed accounts - the account iterator won't consume it,
+    // but it's available for the system program CPI.
+    if config.rent_sponsor.is_some() {
+        metas.push(AccountMeta::new_readonly(
+            default_pubkeys.system_program,
+            false,
+        ));
+    }
 
     metas
 }
