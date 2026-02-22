@@ -1,0 +1,48 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "75af397ef5ab",
+  "session_id": "9a6fcd2a-b956-4e75-92f4-ec40f93190e6",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-22T01:10:11.677386Z",
+  "branch": "jorrit/feat-add-mint-fee",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "program-tests/compressed-token-test/tests/mint/cpi_context.rs",
+    "program-tests/utils/src/actions/legacy/instructions/mint_action.rs",
+    "programs/compressed-token/program/src/compressed_token/mint_action/accounts.rs",
+    "programs/compressed-token/program/src/compressed_token/mint_action/processor.rs",
+    "programs/compressed-token/program/tests/mint_action.rs",
+    "sdk-libs/compressed-token-sdk/src/compressed_token/v2/create_compressed_mint/instruction.rs",
+    "sdk-libs/compressed-token-sdk/src/compressed_token/v2/mint_action/account_metas.rs",
+    "sdk-libs/compressed-token-sdk/src/compressed_token/v2/mint_action/cpi_accounts.rs",
+    "sdk-libs/token-sdk/src/instruction/create_mint.rs",
+    "sdk-libs/token-sdk/src/instruction/create_mints.rs",
+    "sdk-libs/token-sdk/tests/mint_action_cpi_accounts_tests.rs",
+    "sdk-tests/sdk-token-test/src/pda_ctoken/mint.rs",
+    "sdk-tests/sdk-token-test/src/pda_ctoken/mod.rs",
+    "sdk-tests/sdk-token-test/tests/ctoken_pda.rs",
+    "sdk-tests/sdk-token-test/tests/pda_ctoken.rs",
+    "sdk-tests/sdk-token-test/tests/test_create_two_mints.rs"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "3453ed83-ff0e-427e-97c4-fd597d499955",
+  "checkpoint_transcript_start": 371,
+  "transcript_lines_at_start": 371,
+  "token_usage": {
+    "input_tokens": 235,
+    "cache_creation_tokens": 481186,
+    "cache_read_tokens": 26890997,
+    "output_tokens": 18952,
+    "api_call_count": 219
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-22T01:10:10.302692Z",
+    "agent_lines": 47,
+    "human_added": 192,
+    "human_modified": 18,
+    "human_removed": 0,
+    "total_committed": 257,
+    "agent_percentage": 18.28793774319066
+  },
+  "transcript_path": ".claude/projects/-Users-ananas-dev-light-protocol/9a6fcd2a-b956-4e75-92f4-ec40f93190e6.jsonl"
+}
