@@ -23,6 +23,7 @@ pub struct MintActionMetaConfig {
 
 impl MintActionMetaConfig {
     /// Create a new MintActionMetaConfig for creating a new compressed mint.
+    /// `compressible_config` is required for on-chain rent_sponsor validation.
     /// `rent_sponsor` is required because mint creation charges a creation fee
     /// transferred to the rent sponsor PDA.
     pub fn new_create_mint(
@@ -31,6 +32,7 @@ impl MintActionMetaConfig {
         mint_signer: Pubkey,
         address_tree: Pubkey,
         output_queue: Pubkey,
+        compressible_config: Pubkey,
         rent_sponsor: Pubkey,
     ) -> Self {
         Self {
@@ -44,7 +46,7 @@ impl MintActionMetaConfig {
             cpi_context: None,
             token_accounts: Vec::new(),
             mint: None,
-            compressible_config: None,
+            compressible_config: Some(compressible_config),
             rent_sponsor: Some(rent_sponsor),
             mint_signer_must_sign: true,
         }

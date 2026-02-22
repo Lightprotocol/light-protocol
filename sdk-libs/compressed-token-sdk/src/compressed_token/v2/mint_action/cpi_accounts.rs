@@ -45,6 +45,8 @@ pub struct MintActionCpiAccounts<'a, A: AccountInfoTrait + Clone> {
     pub mint_signer: Option<&'a A>,
     pub authority: &'a A,
 
+    /// CompressibleConfig account — required when creating a new compressed mint (fee validation).
+    pub compressible_config: Option<&'a A>,
     /// Rent sponsor PDA — required when creating a new compressed mint (receives the creation fee).
     pub rent_sponsor: Option<&'a A>,
 
@@ -89,6 +91,7 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
             return Err(AccountError::InvalidSigner.into());
         }
 
+        let compressible_config = iter.next_option("compressible_config", config.create_mint)?;
         let rent_sponsor = iter.next_option_mut("rent_sponsor", config.create_mint)?;
 
         let fee_payer = iter.next_account("fee_payer")?;
@@ -158,6 +161,7 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
             light_system_program,
             mint_signer,
             authority,
+            compressible_config,
             rent_sponsor,
             fee_payer,
             compressed_token_cpi_authority,
@@ -209,6 +213,10 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
         }
 
         accounts.push(self.authority.clone());
+
+        if let Some(config) = self.compressible_config {
+            accounts.push(config.clone());
+        }
 
         if let Some(sponsor) = self.rent_sponsor {
             accounts.push(sponsor.clone());
@@ -270,6 +278,14 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
             is_writable: false,
             is_signer: true,
         });
+
+        if let Some(config) = self.compressible_config {
+            metas.push(AccountMeta {
+                pubkey: config.key().into(),
+                is_writable: false,
+                is_signer: false,
+            });
+        }
 
         if let Some(sponsor) = self.rent_sponsor {
             metas.push(AccountMeta {

@@ -6,7 +6,7 @@ use light_compressed_token_sdk::compressed_token::create_compressed_mint::{
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc, RpcError};
 use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
-use light_token::instruction::rent_sponsor_pda;
+use light_token::instruction::{config_pda, rent_sponsor_pda};
 use light_token_interface::{
     instructions::{
         extensions::token_metadata::TokenMetadataInstructionData,
@@ -258,6 +258,7 @@ pub async fn create_mint(
         mint_seed: mint_seed.pubkey(),
         light_token_program: Pubkey::new_from_array(LIGHT_TOKEN_PROGRAM_ID),
         light_token_cpi_authority: Pubkey::new_from_array(CPI_AUTHORITY_PDA),
+        compressible_config: config_pda(),
         rent_sponsor: rent_sponsor_pda(),
     };
 

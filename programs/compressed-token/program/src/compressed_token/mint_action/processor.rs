@@ -10,6 +10,7 @@ use light_token_interface::{
 };
 use light_zero_copy::{traits::ZeroCopyAt, ZeroCopyNew};
 use pinocchio::account_info::AccountInfo;
+use spl_pod::solana_msg::msg;
 
 use crate::{
     compressed_token::mint_action::{
@@ -54,6 +55,14 @@ pub fn process_mint_action(
         let rent_sponsor = executing
             .rent_sponsor
             .ok_or(ErrorCode::MintActionMissingExecutingAccounts)?;
+        // Validate rent_sponsor matches config to prevent fee bypass.
+        let config = executing
+            .compressible_config
+            .ok_or(ErrorCode::MintActionMissingExecutingAccounts)?;
+        if rent_sponsor.key() != &config.rent_sponsor.to_bytes() {
+            msg!("Rent sponsor account does not match config");
+            return Err(ErrorCode::InvalidRentSponsor.into());
+        }
         transfer_lamports_via_cpi(MINT_CREATION_FEE, executing.system.fee_payer, rent_sponsor)
             .map_err(convert_program_error)?;
     }

@@ -101,8 +101,10 @@ impl<'info> MintActionAccounts<'info> {
                 packed_accounts: ProgramPackedAccounts { accounts: &[] },
             })
         } else {
-            // Parse and validate compressible config when creating or closing CMint
-            let compressible_config = if config.needs_compressible_accounts() {
+            // Parse and validate compressible config when creating mint (fee validation),
+            // decompressing, or closing CMint
+            let compressible_config = if config.create_mint || config.needs_compressible_accounts()
+            {
                 Some(next_config_account(&mut iter)?)
             } else {
                 None
@@ -213,7 +215,7 @@ impl<'info> MintActionAccounts<'info> {
         }
 
         if let Some(executing) = &self.executing {
-            // compressible_config (optional) - when creating CMint
+            // compressible_config (optional) - when creating mint or CMint
             if executing.compressible_config.is_some() {
                 offset += 1;
             }
@@ -221,7 +223,7 @@ impl<'info> MintActionAccounts<'info> {
             if executing.cmint.is_some() {
                 offset += 1;
             }
-            // rent_sponsor (optional) - when creating CMint
+            // rent_sponsor (optional) - when creating mint or CMint
             if executing.rent_sponsor.is_some() {
                 offset += 1;
             }

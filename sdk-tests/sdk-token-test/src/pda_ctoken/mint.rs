@@ -55,6 +55,7 @@ pub fn process_mint_action<'a, 'info>(
         light_system_program: cpi_accounts.system_program().unwrap(),
         mint_signer: Some(ctx.accounts.mint_seed.as_ref()),
         authority: ctx.accounts.mint_authority.as_ref(),
+        compressible_config: Some(ctx.accounts.compressible_config.as_ref()),
         rent_sponsor: Some(ctx.accounts.rent_sponsor.as_ref()),
         fee_payer: ctx.accounts.payer.as_ref(),
         compressed_token_cpi_authority: ctx.accounts.light_token_cpi_authority.as_ref(),
@@ -80,6 +81,7 @@ pub fn process_mint_action<'a, 'info>(
     account_infos.push(ctx.accounts.mint_authority.to_account_info());
     account_infos.push(ctx.accounts.mint_seed.to_account_info());
     account_infos.push(ctx.accounts.payer.to_account_info());
+    account_infos.push(ctx.accounts.compressible_config.to_account_info());
     account_infos.push(ctx.accounts.rent_sponsor.to_account_info());
     msg!("mint_action_instruction {:?}", mint_action_instruction);
     msg!(

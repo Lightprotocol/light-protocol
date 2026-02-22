@@ -286,6 +286,8 @@ fn test_successful_create_mint() {
         create_test_account(mint_signer, [0u8; 32], true, false, false, vec![]),
         // Authority
         create_test_account(pubkey_unique(), [0u8; 32], true, false, false, vec![]),
+        // Compressible config (required for create_mint, read-only)
+        create_test_account(pubkey_unique(), [0u8; 32], false, false, false, vec![]),
         // Rent sponsor (required for create_mint, known PDA)
         create_test_account(
             LIGHT_TOKEN_RENT_SPONSOR,
@@ -351,6 +353,7 @@ fn test_successful_create_mint() {
 
     let parsed = result.unwrap();
     assert!(parsed.mint_signer.is_some());
+    assert!(parsed.compressible_config.is_some()); // Required for create_mint
     assert!(parsed.rent_sponsor.is_some()); // Required for create_mint
     assert!(parsed.in_output_queue.is_none()); // Not needed for create_mint
 }
