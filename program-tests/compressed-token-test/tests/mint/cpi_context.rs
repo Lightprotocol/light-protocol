@@ -8,6 +8,7 @@ use light_compressed_token_sdk::compressed_token::{
         MintActionMetaConfigCpiWrite,
     },
 };
+use light_compressible::config::CompressibleConfig;
 use light_program_test::{utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig};
 use light_test_utils::Rpc;
 use light_token_interface::{
@@ -269,7 +270,8 @@ async fn test_write_to_cpi_context_invalid_address_tree() {
         data: wrapper_ix_data.data(),
     };
 
-    // Execute wrapper instruction - should fail
+    // Execute wrapper instruction - should fail because create_mint + write_to_cpi_context
+    // is rejected (error 6035: CpiContextSetNotUsable) before address tree validation.
     let result = rpc
         .create_and_send_transaction(
             &[wrapper_instruction],
@@ -278,9 +280,7 @@ async fn test_write_to_cpi_context_invalid_address_tree() {
         )
         .await;
 
-    // Assert that the transaction failed with MintActionInvalidCpiContextAddressTreePubkey error
-    // Error code 6105 = MintActionInvalidCpiContextAddressTreePubkey
-    assert_rpc_error(result, 0, 6105).unwrap();
+    assert_rpc_error(result, 0, 6035).unwrap();
 }
 
 #[tokio::test]
@@ -363,7 +363,8 @@ async fn test_write_to_cpi_context_invalid_compressed_address() {
         data: wrapper_ix_data.data(),
     };
 
-    // Execute wrapper instruction - should fail
+    // Execute wrapper instruction - should fail because create_mint + write_to_cpi_context
+    // is rejected (error 6035: CpiContextSetNotUsable) before mint signer validation.
     let result = rpc
         .create_and_send_transaction(
             &[wrapper_instruction],
@@ -372,9 +373,7 @@ async fn test_write_to_cpi_context_invalid_compressed_address() {
         )
         .await;
 
-    // Assert that the transaction failed with MintActionInvalidMintSigner error
-    // Error code 6171 = MintActionInvalidMintSigner (mint_signer mismatch is caught before compressed address validation)
-    assert_rpc_error(result, 0, 6171).unwrap();
+    assert_rpc_error(result, 0, 6035).unwrap();
 }
 
 #[tokio::test]
@@ -417,12 +416,14 @@ async fn test_execute_cpi_context_invalid_tree_index() {
 
     // Build account metas using regular MintActionMetaConfig for execute mode
     let rent_sponsor = rpc.test_accounts.funding_pool_config.rent_sponsor_pda;
+    let compressible_config = CompressibleConfig::light_token_v1_config_pda();
     let mut config = MintActionMetaConfig::new_create_mint(
         payer.pubkey(),
         mint_authority.pubkey(),
         mint_seed.pubkey(),
         Pubkey::new_from_array(MINT_ADDRESS_TREE),
         output_queue,
+        compressible_config,
         rent_sponsor,
     );
 

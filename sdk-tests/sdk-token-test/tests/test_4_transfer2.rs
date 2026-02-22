@@ -12,7 +12,7 @@ use light_sdk::{
     instruction::{PackedAccounts, PackedStateTreeInfo, SystemAccountMetaConfig},
 };
 use light_test_utils::RpcError;
-use light_token::instruction::rent_sponsor_pda;
+use light_token::instruction::{config_pda, rent_sponsor_pda};
 use light_token_interface::{
     instructions::{
         mint_action::{MintWithContext, Recipient},
@@ -206,6 +206,7 @@ async fn create_compressed_mint_helper(
         address_tree_pubkey,
         output_queue,
         extensions: None,
+        compressible_config: config_pda(),
         rent_sponsor: rent_sponsor_pda(),
     })
     .unwrap();

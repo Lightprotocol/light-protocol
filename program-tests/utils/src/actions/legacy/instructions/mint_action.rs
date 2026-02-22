@@ -324,8 +324,8 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
     }
 
     // Build account metas configuration
-    // Fetch rent_sponsor early when creating mint (needed as a required parameter).
-    let create_mint_rent_sponsor = if is_creating_mint {
+    // Fetch config + rent_sponsor early when creating mint (needed as required parameters).
+    let create_mint_config = if is_creating_mint {
         let config_address = CompressibleConfig::light_token_v1_config_pda();
         let compressible_config: CompressibleConfig = rpc
             .get_anchor_account(&config_address)
@@ -336,19 +336,21 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
                     config_address
                 ))
             })?;
-        Some(compressible_config.rent_sponsor)
+        Some((config_address, compressible_config.rent_sponsor))
     } else {
         None
     };
 
     let mut config = if is_creating_mint {
+        let (config_address, rent_sponsor) = create_mint_config.unwrap();
         MintActionMetaConfig::new_create_mint(
             params.payer,
             params.authority,
             params.mint_seed,
             address_tree_pubkey,
             state_tree_info.queue,
-            create_mint_rent_sponsor.unwrap(),
+            config_address,
+            rent_sponsor,
         )
     } else {
         MintActionMetaConfig::new(
