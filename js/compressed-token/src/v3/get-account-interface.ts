@@ -72,6 +72,19 @@ export interface AccountInterface {
     _mint?: PublicKey;
 }
 
+export type FrozenOperation = 'load' | 'transfer' | 'unwrap';
+
+export function assertNotFrozen(
+    iface: AccountInterface,
+    operation: FrozenOperation,
+): void {
+    if (iface._anyFrozen) {
+        throw new Error(
+            `Account is frozen. One or more sources (hot or cold) are frozen; ${operation} is not allowed.`,
+        );
+    }
+}
+
 /** @internal */
 function parseTokenData(data: Buffer): {
     mint: PublicKey;

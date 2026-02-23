@@ -34,6 +34,7 @@ import {
 } from './load-ata';
 import {
     getAtaInterface as _getAtaInterface,
+    assertNotFrozen,
     type AccountInterface,
     spendableAmountForAuthority,
     isAuthorityForInterface,
@@ -307,11 +308,7 @@ export async function createTransferInterfaceInstructions(
         throw error;
     }
 
-    if (senderInterface._anyFrozen) {
-        throw new Error(
-            'Account is frozen. One or more sources (hot or cold) are frozen; transfer is not allowed.',
-        );
-    }
+    assertNotFrozen(senderInterface, 'transfer');
 
     const isDelegate = !effectiveOwner.equals(sender);
     if (isDelegate) {

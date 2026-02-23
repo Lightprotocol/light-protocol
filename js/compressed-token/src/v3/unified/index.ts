@@ -421,16 +421,6 @@ export {
     convertTokenDataToAccount,
 } from '../get-account-interface';
 
-export {
-    createLoadAccountsParams,
-    calculateCompressibleLoadComputeUnits,
-    CompressibleAccountInput,
-    ParsedAccountInfoInterface,
-    CompressibleLoadParams,
-    PackedCompressedAccount,
-    LoadResult,
-} from '../actions/load-ata';
-
 export { InterfaceOptions, sliceLast } from '../actions/transfer-interface';
 
 export * from '../../actions';

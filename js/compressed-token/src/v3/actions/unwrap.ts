@@ -24,6 +24,7 @@ import {
 import { getAssociatedTokenAddressInterface } from '../get-associated-token-address-interface';
 import {
     getAtaInterface as _getAtaInterface,
+    assertNotFrozen,
     type AccountInterface,
 } from '../get-account-interface';
 import { _buildLoadBatches, calculateLoadBatchComputeUnits } from './load-ata';
@@ -116,11 +117,7 @@ export async function createUnwrapInstructions(
         throw error;
     }
 
-    if (accountInterface._anyFrozen) {
-        throw new Error(
-            'Account is frozen. One or more sources (hot or cold) are frozen; unwrap is not allowed.',
-        );
-    }
+    assertNotFrozen(accountInterface, 'unwrap');
 
     const totalBalance = accountInterface.parsed.amount;
     if (totalBalance === BigInt(0)) {
