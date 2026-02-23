@@ -52,10 +52,10 @@ function parseCompressedOnlyFromTlv(
                 if (offset + COMPRESSED_ONLY_SIZE > tlv.length) return null;
                 const loDA = BigInt(tlv.readUInt32LE(offset));
                 const hiDA = BigInt(tlv.readUInt32LE(offset + 4));
-                const delegatedAmount = loDA | (hiDA << 32n);
+                const delegatedAmount = loDA | (hiDA << BigInt(32));
                 const loFee = BigInt(tlv.readUInt32LE(offset + 8));
                 const hiFee = BigInt(tlv.readUInt32LE(offset + 12));
-                const withheldTransferFee = loFee | (hiFee << 32n);
+                const withheldTransferFee = loFee | (hiFee << BigInt(32));
                 const isAta = tlv[offset + 16] !== 0;
                 return { delegatedAmount, withheldTransferFee, isAta };
             }

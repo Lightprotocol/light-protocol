@@ -98,5 +98,4 @@ describe('compressible-load', () => {
             expect(batches.length).toBe(0);
         });
     });
-
 });

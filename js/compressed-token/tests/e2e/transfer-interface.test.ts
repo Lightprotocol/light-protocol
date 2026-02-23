@@ -1048,7 +1048,7 @@ describe('transfer-interface', () => {
                     { splInterfaceInfos: tokenPoolInfos },
                     true, // wrap=true
                 ),
-            ).rejects.toThrow(/For wrap=true, ata must be the c-token ATA/);
+            ).rejects.toThrow(/For wrap=true, ata must be the light-token ATA/);
         }, 120_000);
     });
 
