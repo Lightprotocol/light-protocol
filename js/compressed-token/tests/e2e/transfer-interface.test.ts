@@ -184,7 +184,7 @@ describe('transfer-interface', () => {
                     pdaRecipient,
                 ),
             ).rejects.toThrow(
-                'Recipient must be a wallet public key (on-curve), not a PDA or ATA',
+                /Recipient must be a wallet public key \(on-curve\), not a PDA or associated token account/,
             );
         });
     });

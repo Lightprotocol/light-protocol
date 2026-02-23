@@ -131,26 +131,16 @@ export async function transferInterface(
     const additionalSigners = dedupeSigner(payer, [owner]);
     const { rest: loads, last: transferIxs } = sliceLast(batches);
 
-    // Send load transactions in parallel (if any)
-    if (loads.length > 0) {
-        await Promise.all(
-            loads.map(async ixs => {
-                const { blockhash } = await rpc.getLatestBlockhash();
-                const tx = buildAndSignTx(
-                    ixs,
-                    payer,
-                    blockhash,
-                    additionalSigners,
-                );
-                return sendAndConfirmTx(rpc, tx, confirmOptions);
-            }),
-        );
-    }
+    await Promise.all(
+        loads.map(async ixs => {
+            const { blockhash } = await rpc.getLatestBlockhash();
+            const tx = buildAndSignTx(ixs, payer, blockhash, additionalSigners);
+            return sendAndConfirmTx(rpc, tx, confirmOptions);
+        }),
+    );
 
-    // Send transfer transaction
     const { blockhash } = await rpc.getLatestBlockhash();
     const tx = buildAndSignTx(transferIxs, payer, blockhash, additionalSigners);
-
     return sendAndConfirmTx(rpc, tx, confirmOptions);
 }
 
