@@ -13,6 +13,7 @@ import {
     dedupeSigner,
     assertBetaEnabled,
 } from '@lightprotocol/stateless.js';
+import { sliceLast } from './transfer-interface';
 import { getMint, TokenAccountNotFoundError } from '@solana/spl-token';
 import BN from 'bn.js';
 import { createUnwrapInstruction } from '../instructions/unwrap';
@@ -234,14 +235,18 @@ export async function unwrap(
         maxTopUp,
     );
 
-    let txId: TransactionSignature = '';
+    const additionalSigners = dedupeSigner(payer, [owner]);
+    const { rest: loads, last: unwrapIxs } = sliceLast(batches);
 
-    for (const ixs of batches) {
-        const { blockhash } = await rpc.getLatestBlockhash();
-        const additionalSigners = dedupeSigner(payer, [owner]);
-        const tx = buildAndSignTx(ixs, payer, blockhash, additionalSigners);
-        txId = await sendAndConfirmTx(rpc, tx, confirmOptions);
-    }
+    await Promise.all(
+        loads.map(async ixs => {
+            const { blockhash } = await rpc.getLatestBlockhash();
+            const tx = buildAndSignTx(ixs, payer, blockhash, additionalSigners);
+            return sendAndConfirmTx(rpc, tx, confirmOptions);
+        }),
+    );
 
-    return txId;
+    const { blockhash } = await rpc.getLatestBlockhash();
+    const tx = buildAndSignTx(unwrapIxs, payer, blockhash, additionalSigners);
+    return sendAndConfirmTx(rpc, tx, confirmOptions);
 }

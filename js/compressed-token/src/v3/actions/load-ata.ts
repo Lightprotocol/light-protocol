@@ -900,11 +900,9 @@ export async function loadAta(
 
     const additionalSigners = dedupeSigner(payer, [owner]);
 
-    // Send all batches in parallel
     const txPromises = batches.map(async batch => {
         const { blockhash } = await rpc.getLatestBlockhash();
         const computeUnits = calculateLoadBatchComputeUnits(batch);
-
         const tx = buildAndSignTx(
             [
                 ComputeBudgetProgram.setComputeUnitLimit({
@@ -916,7 +914,6 @@ export async function loadAta(
             blockhash,
             additionalSigners,
         );
-
         return sendAndConfirmTx(rpc, tx, confirmOptions);
     });
 
