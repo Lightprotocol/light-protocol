@@ -27,6 +27,7 @@ import {
 } from '@solana/spl-token';
 import {
     AccountInterface,
+    assertNotFrozen,
     COLD_SOURCE_TYPES,
     getAtaInterface as _getAtaInterface,
     TokenAccountSource,
@@ -250,17 +251,6 @@ export function getCompressedTokenAccountsFromAtaSources(
         });
 }
 
-// Re-export types moved to instructions
-export {
-    ParsedAccountInfoInterface,
-    CompressibleAccountInput,
-    PackedCompressedAccount,
-    CompressibleLoadParams,
-    LoadResult,
-    createLoadAccountsParams,
-    calculateCompressibleLoadComputeUnits,
-} from '../instructions/create-load-accounts-params';
-
 // Re-export AtaType for backwards compatibility
 export { AtaType } from '../ata-utils';
 
@@ -313,11 +303,7 @@ export async function createLoadAtaInstructions(
         throw e;
     }
 
-    if (accountInterface._anyFrozen) {
-        throw new Error(
-            'Account is frozen. One or more sources (hot or cold) are frozen; load is not allowed.',
-        );
-    }
+    assertNotFrozen(accountInterface, 'load');
 
     const isDelegate = !effectiveOwner.equals(owner);
     if (isDelegate) {
@@ -436,11 +422,7 @@ export async function _buildLoadBatches(
         );
     }
 
-    if (ata._anyFrozen) {
-        throw new Error(
-            'Account is frozen. One or more sources (hot or cold) are frozen; load is not allowed.',
-        );
-    }
+    assertNotFrozen(ata, 'load');
 
     const owner = ata._owner;
     const mint = ata._mint;
@@ -858,11 +840,7 @@ export async function loadAta(
         throw error;
     }
 
-    if (ataInterface._anyFrozen) {
-        throw new Error(
-            'Account is frozen. One or more sources (hot or cold) are frozen; load is not allowed.',
-        );
-    }
+    assertNotFrozen(ataInterface, 'load');
 
     const isDelegate = !effectiveOwner.equals(owner.publicKey);
     if (isDelegate) {
