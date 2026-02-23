@@ -16,6 +16,7 @@ import {
 } from '@lightprotocol/stateless.js';
 import { createDecompressMintInstruction } from '../instructions/decompress-mint';
 import { getMintInterface } from '../get-mint-interface';
+import { ERR_MINT_MISSING_MERKLE_CONTEXT } from '../errors';
 
 export interface DecompressMintParams {
     /** Number of epochs to prepay rent (minimum 2, default: 16 for ~24 hours) */
@@ -66,7 +67,7 @@ export async function decompressMint(
     );
 
     if (!mintInterface.merkleContext) {
-        throw new Error('Mint does not have MerkleContext');
+        throw new Error(ERR_MINT_MISSING_MERKLE_CONTEXT);
     }
 
     // Already decompressed (e.g. createMintInterface now does it atomically).

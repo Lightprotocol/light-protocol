@@ -19,6 +19,7 @@ import {
     createUpdateFreezeAuthorityInstruction,
 } from '../instructions/update-mint';
 import { getMintInterface } from '../get-mint-interface';
+import { ERR_MINT_MISSING_MERKLE_CONTEXT } from '../errors';
 
 /**
  * Update the mint authority of a light-token mint.
@@ -49,7 +50,7 @@ export async function updateMintAuthority(
     );
 
     if (!mintInterface.merkleContext) {
-        throw new Error('Mint does not have MerkleContext');
+        throw new Error(ERR_MINT_MISSING_MERKLE_CONTEXT);
     }
 
     // When light mint account exists (decompressed), no validity proof needed - program reads from light mint account
@@ -124,7 +125,7 @@ export async function updateFreezeAuthority(
     );
 
     if (!mintInterface.merkleContext) {
-        throw new Error('Mint does not have MerkleContext');
+        throw new Error(ERR_MINT_MISSING_MERKLE_CONTEXT);
     }
 
     // When light mint account exists (decompressed), no validity proof needed - program reads from light mint account
