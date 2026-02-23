@@ -30,6 +30,7 @@ import {
 import { _buildLoadBatches, calculateLoadBatchComputeUnits } from './load-ata';
 import { InterfaceOptions } from './transfer-interface';
 import { assertTransactionSizeWithinLimit } from '../utils/estimate-tx-size';
+import { ERR_NO_LIGHT_TOKEN_BALANCE_UNWRAP } from '../errors';
 
 /**
  * Build instruction batches for unwrapping light-tokens to SPL/T22 tokens.
@@ -112,7 +113,7 @@ export async function createUnwrapInstructions(
         );
     } catch (error) {
         if (error instanceof TokenAccountNotFoundError) {
-            throw new Error('No light-token balance to unwrap');
+            throw new Error(ERR_NO_LIGHT_TOKEN_BALANCE_UNWRAP);
         }
         throw error;
     }
@@ -121,7 +122,7 @@ export async function createUnwrapInstructions(
 
     const totalBalance = accountInterface.parsed.amount;
     if (totalBalance === BigInt(0)) {
-        throw new Error('No light-token balance to unwrap');
+        throw new Error(ERR_NO_LIGHT_TOKEN_BALANCE_UNWRAP);
     }
 
     const unwrapAmount =

@@ -18,6 +18,7 @@ import {
 import { Buffer } from 'buffer';
 import BN from 'bn.js';
 import { getAtaProgramId, checkAtaAddress } from './ata-utils';
+import { ERR_FETCH_BY_OWNER_REQUIRED } from './errors';
 export { Account, AccountState } from '@solana/spl-token';
 export { ParsedTokenAccount } from '@lightprotocol/stateless.js';
 
@@ -716,7 +717,7 @@ async function getCTokenAccountInterface(
     // Derive address if not provided
     if (!address) {
         if (!fetchByOwner) {
-            throw new Error('fetchByOwner is required');
+            throw new Error(ERR_FETCH_BY_OWNER_REQUIRED);
         }
         address = getAssociatedTokenAddressSync(
             fetchByOwner.mint,
@@ -802,7 +803,7 @@ async function getSplOrToken2022AccountInterface(
 ): Promise<AccountInterface> {
     if (!address) {
         if (!fetchByOwner) {
-            throw new Error('fetchByOwner is required');
+            throw new Error(ERR_FETCH_BY_OWNER_REQUIRED);
         }
         address = getAssociatedTokenAddressSync(
             fetchByOwner.mint,
