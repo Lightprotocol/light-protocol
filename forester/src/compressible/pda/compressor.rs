@@ -153,6 +153,10 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
             return Vec::new();
         }
 
+        // Mark all accounts as pending upfront so concurrent cycles skip them
+        let all_pubkeys: Vec<Pubkey> = account_states.iter().map(|s| s.pubkey).collect();
+        self.tracker.mark_pending(&all_pubkeys);
+
         // Create futures for each account
         let compression_futures = account_states.iter().cloned().map(|account_state| {
             let compressor = self.clone();
@@ -163,6 +167,8 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
             async move {
                 // Check cancellation before processing
                 if cancelled.load(Ordering::Relaxed) {
+                    // Unmark since we won't process this account
+                    compressor.tracker.unmark_pending(&[account_state.pubkey]);
                     return Err((account_state, anyhow::anyhow!("Cancelled")));
                 }
 
@@ -182,9 +188,16 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
             .collect()
             .await;
 
-        // Remove successfully compressed PDAs from tracker
-        for (_, pda_state) in results.iter().flatten() {
-            self.tracker.remove(&pda_state.pubkey);
+        // Remove successfully compressed PDAs; unmark failed ones
+        for result in &results {
+            match result {
+                Ok((_, pda_state)) => {
+                    self.tracker.remove_compressed(&pda_state.pubkey);
+                }
+                Err((pda_state, _)) => {
+                    self.tracker.unmark_pending(&[pda_state.pubkey]);
+                }
+            }
         }
 
         results
@@ -279,15 +292,25 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
             program_id
         );
 
+        // Mark as pending before sending
+        let pubkeys: Vec<Pubkey> = account_states.iter().map(|s| s.pubkey).collect();
+        self.tracker.mark_pending(&pubkeys);
+
         // Send single transaction
-        let signature = rpc
+        let signature = match rpc
             .create_and_send_transaction(
                 &[ix],
                 &self.payer_keypair.pubkey(),
                 &[&self.payer_keypair],
             )
             .await
-            .map_err(|e| anyhow::anyhow!("Failed to send transaction: {:?}", e))?;
+        {
+            Ok(sig) => sig,
+            Err(e) => {
+                self.tracker.unmark_pending(&pubkeys);
+                return Err(anyhow::anyhow!("Failed to send transaction: {:?}", e));
+            }
+        };
 
         info!(
             "Batched compress_accounts_idempotent tx for {} PDAs sent: {}",
@@ -295,16 +318,15 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
             signature
         );
 
-        // Wait for confirmation before removing from tracker
+        // Wait for confirmation
         let confirmed = rpc
             .confirm_transaction(signature)
             .await
             .map_err(|e| anyhow::anyhow!("Failed to confirm transaction: {:?}", e))?;
 
         if confirmed {
-            // Only remove from tracker after confirmed
             for state in account_states {
-                self.tracker.remove(&state.pubkey);
+                self.tracker.remove_compressed(&state.pubkey);
             }
             info!(
                 "Batched compress_accounts_idempotent tx confirmed: {}",
@@ -312,8 +334,9 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
             );
             Ok(signature)
         } else {
+            self.tracker.unmark_pending(&pubkeys);
             tracing::warn!(
-                "compress_accounts_idempotent tx not confirmed: {} - accounts kept in tracker for retry",
+                "compress_accounts_idempotent tx not confirmed: {} - returned to work pool",
                 signature
             );
             Err(anyhow::anyhow!(
@@ -341,6 +364,20 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
         );
 
         let mut rpc = self.rpc_pool.get_connection().await?;
+
+        // Pre-check: verify the PDA still exists on-chain to avoid no-op txs
+        let account_info = rpc
+            .get_account(*pda)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to check PDA {}: {:?}", pda, e))?;
+        if account_info.is_none() {
+            debug!(
+                "PDA {} no longer exists on-chain, removing from tracker",
+                pda
+            );
+            self.tracker.remove_compressed(pda);
+            return Err(anyhow::anyhow!("PDA {} already closed, skipping", pda));
+        }
 
         // Get the compressed account
         let compressed_account = rpc
@@ -378,7 +415,7 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
             pda, program_id
         );
 
-        // Send transaction
+        // Send transaction (pending is managed by the caller)
         let signature = rpc
             .create_and_send_transaction(
                 &[ix],

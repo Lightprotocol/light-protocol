@@ -76,6 +76,8 @@ pub struct CompressibleResponse {
 pub struct CompressibleTypeStats {
     pub tracked: usize,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub compressed: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub ready: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub waiting: Option<usize>,
@@ -87,6 +89,8 @@ pub struct CompressibleTypeStats {
 pub struct PdaProgramStats {
     pub program_id: String,
     pub tracked: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub compressed: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ready: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -162,7 +166,11 @@ impl CompressibleSnapshot {
     }
 }
 
-fn summarize_slots<I>(slots: I, current_slot: Option<u64>) -> CompressibleTypeStats
+fn summarize_slots<I>(
+    slots: I,
+    current_slot: Option<u64>,
+    compressed: Option<u64>,
+) -> CompressibleTypeStats
 where
     I: IntoIterator<Item = u64>,
 {
@@ -185,6 +193,7 @@ where
         }
         CompressibleTypeStats {
             tracked,
+            compressed,
             ready: Some(ready),
             waiting: Some(tracked.saturating_sub(ready)),
             next_ready_slot,
@@ -192,6 +201,7 @@ where
     } else {
         CompressibleTypeStats {
             tracked,
+            compressed,
             ready: None,
             waiting: None,
             next_ready_slot: None,
@@ -234,20 +244,19 @@ fn summarize_ctoken_and_ata_slots(
         }
     }
 
+    let compressed = Some(tracker.total_compressed());
     (
-        summarize_slots(ctoken_slots, current_slot),
-        summarize_slots(ata_slots, current_slot),
+        summarize_slots(ctoken_slots, current_slot, compressed),
+        summarize_slots(ata_slots, current_slot, None),
     )
 }
 
 fn aggregate_optional_sum(values: impl Iterator<Item = Option<usize>>) -> Option<usize> {
     let mut sum = 0usize;
     let mut seen = false;
-    for value in values {
-        if let Some(v) = value {
-            sum = sum.saturating_add(v);
-            seen = true;
-        }
+    for v in values.flatten() {
+        sum = sum.saturating_add(v);
+        seen = true;
     }
     if seen {
         Some(sum)
@@ -293,6 +302,7 @@ fn aggregate_type_stats(
 
     Some(CompressibleTypeStats {
         tracked,
+        compressed: None,
         ready: ready_seen.then_some(ready),
         waiting: waiting_seen.then_some(waiting),
         next_ready_slot,
@@ -462,6 +472,7 @@ async fn fetch_compressible_snapshot_from_foresters(
                 let entry = pda_program_map.entry(row.program_id.clone()).or_insert(
                     CompressibleTypeStats {
                         tracked: 0,
+                        compressed: None,
                         ready: Some(0),
                         waiting: Some(0),
                         next_ready_slot: None,
@@ -497,6 +508,7 @@ async fn fetch_compressible_snapshot_from_foresters(
         .map(|(program_id, stats)| PdaProgramStats {
             program_id,
             tracked: stats.tracked,
+            compressed: stats.compressed,
             ready: stats.ready,
             waiting: stats.waiting,
             next_ready_slot: stats.next_ready_slot,
@@ -714,6 +726,7 @@ pub(crate) async fn fetch_compressible_snapshot(
                     .iter()
                     .map(|entry| entry.value().compressible_slot()),
                 current_slot,
+                Some(tracker.total_compressed()),
             )
         });
 
@@ -724,6 +737,7 @@ pub(crate) async fn fetch_compressible_snapshot(
                     .iter()
                     .map(|entry| entry.value().compressible_slot()),
                 current_slot,
+                Some(tracker.total_compressed()),
             )
         });
 
@@ -740,10 +754,11 @@ pub(crate) async fn fetch_compressible_snapshot(
             let mut rows: Vec<PdaProgramStats> = by_program
                 .into_iter()
                 .map(|(program_id, slots)| {
-                    let stats = summarize_slots(slots, current_slot);
+                    let stats = summarize_slots(slots, current_slot, None);
                     PdaProgramStats {
                         program_id,
                         tracked: stats.tracked,
+                        compressed: None,
                         ready: stats.ready,
                         waiting: stats.waiting,
                         next_ready_slot: stats.next_ready_slot,
@@ -826,12 +841,14 @@ pub(crate) async fn fetch_compressible_snapshot(
         Ok(Ok((ctoken_count, mint_count))) => {
             let ctoken = CompressibleTypeStats {
                 tracked: ctoken_count,
+                compressed: None,
                 ready: None,
                 waiting: None,
                 next_ready_slot: None,
             };
             let mint = CompressibleTypeStats {
                 tracked: mint_count,
+                compressed: None,
                 ready: None,
                 waiting: None,
                 next_ready_slot: None,

@@ -211,15 +211,27 @@ impl<R: Rpc + Indexer> CTokenCompressor<R> {
             data: instruction.data(),
         };
 
+        // Mark accounts as pending before sending to prevent other cycles from
+        // picking them up while the tx is in-flight.
+        let pubkeys: Vec<Pubkey> = account_states.iter().map(|a| a.pubkey).collect();
+        self.tracker.mark_pending(&pubkeys);
+
         // Send transaction
-        let signature = rpc
+        let signature = match rpc
             .create_and_send_transaction(
                 &[ix],
                 &self.payer_keypair.pubkey(),
                 &[&self.payer_keypair],
             )
             .await
-            .map_err(|e| anyhow::anyhow!("Failed to send transaction: {}", e))?;
+        {
+            Ok(sig) => sig,
+            Err(e) => {
+                // Tx failed to send — return accounts to work pool
+                self.tracker.unmark_pending(&pubkeys);
+                return Err(anyhow::anyhow!("Failed to send transaction: {}", e));
+            }
+        };
 
         info!(
             "compress_and_close tx with ({:?}) accounts sent {}",
@@ -227,23 +239,23 @@ impl<R: Rpc + Indexer> CTokenCompressor<R> {
             signature
         );
 
-        // Wait for confirmation before removing from tracker
+        // Wait for confirmation
         let confirmed = rpc
             .confirm_transaction(signature)
             .await
             .map_err(|e| anyhow::anyhow!("Failed to confirm transaction: {}", e))?;
 
         if confirmed {
-            // Only remove from tracker after confirmed
             for account_state in account_states {
-                self.tracker.remove(&account_state.pubkey);
+                self.tracker.remove_compressed(&account_state.pubkey);
             }
             info!("compress_and_close tx confirmed: {}", signature);
             Ok(signature)
         } else {
-            // Transaction not confirmed - keep accounts in tracker for retry
+            // Transaction not confirmed — return accounts to work pool for retry
+            self.tracker.unmark_pending(&pubkeys);
             Err(anyhow::anyhow!(
-                "compress_and_close tx not confirmed: {} - accounts kept in tracker for retry",
+                "compress_and_close tx not confirmed: {} - accounts returned to work pool",
                 signature
             ))
         }

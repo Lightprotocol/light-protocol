@@ -134,7 +134,9 @@ impl CompressBuilder {
                 use light_account::LightDiscriminator;
                 use borsh::BorshDeserialize;
                 let data = account_info.try_borrow_data()?;
-                let discriminator: [u8; 8] = data[..8]
+                let discriminator: [u8; 8] = data
+                    .get(..8)
+                    .ok_or(light_account::LightSdkTypesError::InvalidInstructionData)?
                     .try_into()
                     .map_err(|_| light_account::LightSdkTypesError::InvalidInstructionData)?;
                 match discriminator {
@@ -382,8 +384,15 @@ impl CompressBuilder {
                     ) -> std::result::Result<(), #sdk_error> {
                         use borsh::BorshDeserialize;
                         let data = account_info.try_borrow_data()#borrow_error;
-                        #(#compress_arms)*
-                        Ok(())
+                        let discriminator: [u8; 8] = data
+                            .get(..8)
+                            .ok_or(#sdk_error::InvalidInstructionData)?
+                            .try_into()
+                            .map_err(|_| #sdk_error::InvalidInstructionData)?;
+                        match discriminator {
+                            #(#compress_arms)*
+                            _ => Ok(()),
+                        }
                     }
                 }
             })
@@ -398,8 +407,15 @@ impl CompressBuilder {
                     ) -> std::result::Result<(), #sdk_error> {
                         use borsh::BorshDeserialize;
                         let data = account_info.try_borrow_data()#borrow_error;
-                        #(#compress_arms)*
-                        Ok(())
+                        let discriminator: [u8; 8] = data
+                            .get(..8)
+                            .ok_or(#sdk_error::InvalidInstructionData)?
+                            .try_into()
+                            .map_err(|_| #sdk_error::InvalidInstructionData)?;
+                        match discriminator {
+                            #(#compress_arms)*
+                            _ => Ok(()),
+                        }
                     }
                 }
             })

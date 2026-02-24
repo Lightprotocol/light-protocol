@@ -1,5 +1,7 @@
+use std::sync::atomic::AtomicU64;
+
 use borsh::BorshDeserialize;
-use dashmap::DashMap;
+use dashmap::{DashMap, DashSet};
 use light_account::CompressionInfo;
 use light_compressible::rent::{
     get_last_funded_epoch, get_rent_exemption_lamports, SLOTS_PER_EPOCH,
@@ -48,6 +50,8 @@ fn calculate_compressible_slot(
 pub struct PdaAccountTracker {
     accounts: DashMap<Pubkey, PdaAccountState>,
     programs: Vec<PdaProgramConfig>,
+    compressed_count: AtomicU64,
+    pending: DashSet<Pubkey>,
 }
 
 impl PdaAccountTracker {
@@ -55,6 +59,8 @@ impl PdaAccountTracker {
         Self {
             accounts: DashMap::new(),
             programs,
+            compressed_count: AtomicU64::new(0),
+            pending: DashSet::new(),
         }
     }
 
@@ -110,10 +116,10 @@ impl PdaAccountTracker {
         };
 
         if compression_info.is_compressed() {
-            debug!(
-                "Account {} is already compressed; skipping re-compression",
-                pubkey
-            );
+            // Account was compressed — remove stale entry from tracker if present
+            if self.accounts.remove(&pubkey).is_some() {
+                debug!("PDA {} already compressed, removed from tracker", pubkey);
+            }
             return Ok(());
         }
 
@@ -150,11 +156,24 @@ impl CompressibleTracker<PdaAccountState> for PdaAccountTracker {
     fn accounts(&self) -> &DashMap<Pubkey, PdaAccountState> {
         &self.accounts
     }
+
+    fn compressed_counter(&self) -> &AtomicU64 {
+        &self.compressed_count
+    }
+
+    fn pending(&self) -> &DashSet<Pubkey> {
+        &self.pending
+    }
 }
 
 impl Default for PdaAccountTracker {
     fn default() -> Self {
-        Self::new(Vec::new())
+        Self {
+            accounts: DashMap::new(),
+            programs: Vec::new(),
+            compressed_count: AtomicU64::new(0),
+            pending: DashSet::new(),
+        }
     }
 }
 
@@ -166,6 +185,13 @@ impl SubscriptionHandler for PdaAccountTracker {
         data: &[u8],
         lamports: u64,
     ) -> Result<()> {
+        // If account data is empty (account was closed), remove from tracker
+        if data.is_empty() {
+            if self.accounts.remove(&pubkey).is_some() {
+                debug!("Removed closed PDA account {} from tracker", pubkey);
+            }
+            return Ok(());
+        }
         self.update_from_account(pubkey, program_id, data, lamports)
     }
 

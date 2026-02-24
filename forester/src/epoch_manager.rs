@@ -2203,6 +2203,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             TreeType::Unknown => {
                 self.dispatch_compression(
                     epoch_info,
+                    epoch_pda,
                     forester_slot_details,
                     consecutive_eligibility_end,
                 )
@@ -2233,6 +2234,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
     async fn dispatch_compression(
         &self,
         epoch_info: &Epoch,
+        epoch_pda: &ForesterEpochPda,
         forester_slot_details: &ForesterSlot,
         consecutive_eligibility_end: u64,
     ) -> Result<usize> {
@@ -2249,6 +2251,25 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             debug!(
                 "Skipping compression: forester slot ended (current_slot={}, slot_end={})",
                 current_slot, forester_slot_details.end_solana_slot
+            );
+            return Ok(0);
+        }
+
+        let current_light_slot = current_slot.saturating_sub(epoch_info.phases.active.start)
+            / epoch_pda.protocol_config.slot_length;
+        if !self
+            .check_forester_eligibility(
+                epoch_pda,
+                current_light_slot,
+                &Pubkey::default(),
+                epoch_info.epoch,
+                epoch_info,
+            )
+            .await?
+        {
+            debug!(
+                "Skipping compression: forester not eligible for current light slot {}",
+                current_light_slot
             );
             return Ok(0);
         }
@@ -2424,7 +2445,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
 
         // Process PDA compression if configured
         let pda_compressed = self
-            .dispatch_pda_compression(consecutive_eligibility_end)
+            .dispatch_pda_compression(epoch_info, epoch_pda, consecutive_eligibility_end)
             .await
             .unwrap_or_else(|e| {
                 error!(
@@ -2438,7 +2459,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
 
         // Process Mint compression
         let mint_compressed = self
-            .dispatch_mint_compression(consecutive_eligibility_end)
+            .dispatch_mint_compression(epoch_info, epoch_pda, consecutive_eligibility_end)
             .await
             .unwrap_or_else(|e| {
                 error!(
@@ -2464,7 +2485,12 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         Ok(total)
     }
 
-    async fn dispatch_pda_compression(&self, consecutive_eligibility_end: u64) -> Result<usize> {
+    async fn dispatch_pda_compression(
+        &self,
+        epoch_info: &Epoch,
+        epoch_pda: &ForesterEpochPda,
+        consecutive_eligibility_end: u64,
+    ) -> Result<usize> {
         let pda_tracker = match &self.pda_tracker {
             Some(tracker) => tracker,
             None => return Ok(0),
@@ -2484,6 +2510,26 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             debug!(
                 "Skipping PDA compression: forester no longer eligible (current_slot={}, eligibility_end={})",
                 current_slot, consecutive_eligibility_end
+            );
+            return Ok(0);
+        }
+
+        // Check forester eligibility before PDA compression
+        let current_light_slot = current_slot.saturating_sub(epoch_info.phases.active.start)
+            / epoch_pda.protocol_config.slot_length;
+        if !self
+            .check_forester_eligibility(
+                epoch_pda,
+                current_light_slot,
+                &Pubkey::default(),
+                epoch_info.epoch,
+                epoch_info,
+            )
+            .await?
+        {
+            debug!(
+                "Skipping PDA compression: forester not eligible for current light slot {}",
+                current_light_slot
             );
             return Ok(0);
         }
@@ -2600,7 +2646,12 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         Ok(total_compressed)
     }
 
-    async fn dispatch_mint_compression(&self, consecutive_eligibility_end: u64) -> Result<usize> {
+    async fn dispatch_mint_compression(
+        &self,
+        epoch_info: &Epoch,
+        epoch_pda: &ForesterEpochPda,
+        consecutive_eligibility_end: u64,
+    ) -> Result<usize> {
         let mint_tracker = match &self.mint_tracker {
             Some(tracker) => tracker,
             None => return Ok(0),
@@ -2616,6 +2667,26 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             debug!(
                 "Skipping Mint compression: forester no longer eligible (current_slot={}, eligibility_end={})",
                 current_slot, consecutive_eligibility_end
+            );
+            return Ok(0);
+        }
+
+        // Check forester eligibility before Mint compression
+        let current_light_slot = current_slot.saturating_sub(epoch_info.phases.active.start)
+            / epoch_pda.protocol_config.slot_length;
+        if !self
+            .check_forester_eligibility(
+                epoch_pda,
+                current_light_slot,
+                &Pubkey::default(),
+                epoch_info.epoch,
+                epoch_info,
+            )
+            .await?
+        {
+            debug!(
+                "Skipping Mint compression: forester not eligible for current light slot {}",
+                current_light_slot
             );
             return Ok(0);
         }
