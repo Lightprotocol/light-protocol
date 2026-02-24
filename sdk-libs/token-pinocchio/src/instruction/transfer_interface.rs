@@ -9,7 +9,8 @@ use pinocchio::{
 };
 
 use super::{
-    transfer::TransferCpi, transfer_from_spl::TransferFromSplCpi, transfer_to_spl::TransferToSplCpi,
+    transfer_checked::TransferCheckedCpi, transfer_from_spl::TransferFromSplCpi,
+    transfer_to_spl::TransferToSplCpi,
 };
 
 /// SPL Token transfer_checked instruction discriminator
@@ -69,6 +70,7 @@ pub struct SplInterfaceCpi<'info> {
 ///     &authority,
 ///     &payer,
 ///     &compressed_token_program_authority,
+///     &mint,
 ///     &system_program,
 /// )
 /// .invoke()?;
@@ -81,6 +83,7 @@ pub struct TransferInterfaceCpi<'info> {
     pub authority: &'info AccountInfo,
     pub payer: &'info AccountInfo,
     pub compressed_token_program_authority: &'info AccountInfo,
+    pub mint: &'info AccountInfo,
     pub spl_interface: Option<SplInterfaceCpi<'info>>,
     /// System program - required for compressible account lamport top-ups
     pub system_program: &'info AccountInfo,
@@ -97,6 +100,7 @@ impl<'info> TransferInterfaceCpi<'info> {
         authority: &'info AccountInfo,
         payer: &'info AccountInfo,
         compressed_token_program_authority: &'info AccountInfo,
+        mint: &'info AccountInfo,
         system_program: &'info AccountInfo,
     ) -> Self {
         Self {
@@ -107,6 +111,7 @@ impl<'info> TransferInterfaceCpi<'info> {
             authority,
             payer,
             compressed_token_program_authority,
+            mint,
             spl_interface: None,
             system_program,
         }
@@ -126,10 +131,12 @@ impl<'info> TransferInterfaceCpi<'info> {
         );
 
         match transfer_type {
-            TransferType::LightToLight => TransferCpi {
+            TransferType::LightToLight => TransferCheckedCpi {
                 source: self.source_account,
+                mint: self.mint,
                 destination: self.destination_account,
                 amount: self.amount,
+                decimals: self.decimals,
                 authority: self.authority,
                 system_program: self.system_program,
                 fee_payer: self.payer,
@@ -222,10 +229,12 @@ impl<'info> TransferInterfaceCpi<'info> {
         );
 
         match transfer_type {
-            TransferType::LightToLight => TransferCpi {
+            TransferType::LightToLight => TransferCheckedCpi {
                 source: self.source_account,
+                mint: self.mint,
                 destination: self.destination_account,
                 amount: self.amount,
+                decimals: self.decimals,
                 authority: self.authority,
                 system_program: self.system_program,
                 fee_payer: self.payer,

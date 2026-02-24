@@ -102,6 +102,7 @@ fn test_transfer_interface_light_to_light_no_spl_interface() {
     let destination = Pubkey::new_unique();
     let authority = Pubkey::new_unique();
     let payer = Pubkey::new_unique();
+    let mint = Pubkey::new_unique();
 
     // Create TransferInterface for light-to-light transfer
     let transfer = TransferInterface {
@@ -111,6 +112,7 @@ fn test_transfer_interface_light_to_light_no_spl_interface() {
         decimals: 9,
         authority,
         payer,
+        mint,
         spl_interface: None, // No SPL interface needed
 
         source_owner: LIGHT_TOKEN_PROGRAM_ID,
@@ -137,6 +139,7 @@ fn test_transfer_interface_light_to_spl_requires_interface() {
     let destination = Pubkey::new_unique();
     let authority = Pubkey::new_unique();
     let payer = Pubkey::new_unique();
+    let mint = Pubkey::new_unique();
 
     // Create TransferInterface for light-to-SPL transfer without interface
     let transfer = TransferInterface {
@@ -146,6 +149,7 @@ fn test_transfer_interface_light_to_spl_requires_interface() {
         decimals: 9,
         authority,
         payer,
+        mint,
         spl_interface: None, // Missing required interface
 
         source_owner: LIGHT_TOKEN_PROGRAM_ID,
@@ -167,6 +171,7 @@ fn test_transfer_interface_spl_to_light_requires_interface() {
     let destination = Pubkey::new_unique();
     let authority = Pubkey::new_unique();
     let payer = Pubkey::new_unique();
+    let mint = Pubkey::new_unique();
 
     // Create TransferInterface for SPL-to-light transfer without interface
     let transfer = TransferInterface {
@@ -176,6 +181,7 @@ fn test_transfer_interface_spl_to_light_requires_interface() {
         decimals: 9,
         authority,
         payer,
+        mint,
         spl_interface: None, // Missing required interface
 
         source_owner: SPL_TOKEN_PROGRAM_ID,
@@ -207,6 +213,7 @@ fn test_transfer_interface_light_to_spl_with_interface() {
         decimals: 9,
         authority,
         payer,
+        mint,
         spl_interface: Some(SplInterface {
             mint,
             spl_token_program: SPL_TOKEN_PROGRAM_ID,
@@ -233,6 +240,7 @@ fn test_transfer_interface_spl_to_spl_requires_interface() {
     let destination = Pubkey::new_unique();
     let authority = Pubkey::new_unique();
     let payer = Pubkey::new_unique();
+    let mint = Pubkey::new_unique();
 
     // Both owners are the same SPL token program
     let transfer = TransferInterface {
@@ -242,6 +250,7 @@ fn test_transfer_interface_spl_to_spl_requires_interface() {
         decimals: 9,
         authority,
         payer,
+        mint,
         spl_interface: None, // Missing interface
 
         source_owner: SPL_TOKEN_PROGRAM_ID,
@@ -274,6 +283,7 @@ fn test_transfer_interface_spl_program_mismatch() {
         decimals: 9,
         authority,
         payer,
+        mint,
         spl_interface: Some(SplInterface {
             mint,
             spl_token_program: SPL_TOKEN_PROGRAM_ID,
