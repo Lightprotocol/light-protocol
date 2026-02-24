@@ -27,3 +27,28 @@
 - **`PhotonIndexer::new` takes 1 parameter instead of 2** (`url`).
 
 - **`LightClient::add_indexer` takes 1 parameter instead of 2** (`url`).
+
+## [0.22.0] - 2026-02-17
+
+### Fixed
+
+- Fixed mint validation to apply to all token accounts, not just compressible ones. (#2251)
+- Enforced canonical bump in ATA verification. (#2249)
+
+### Changed
+
+- Refactored `AccountInterface` to use photon v2 types and simplified `ColdContext`. (#2274)
+
+## [0.21.0] - 2026-02-10
+
+### Changed
+
+- Replaced photon-api client with [progenitor](https://github.com/oxidecomputer/progenitor)-generated client. (#2219)
+
+### Fixed
+
+- Fixed tree infos v2 helpers. (#2244)
+
+### Added
+
+- Added compressed mint support via photon API. (#2198)
