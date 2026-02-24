@@ -117,18 +117,9 @@ impl<'info> From<&TransferCheckedCpi<'info>> for TransferChecked {
     }
 }
 
+impl_with_top_up!(TransferChecked, TransferCheckedWithTopUp);
+
 impl TransferChecked {
-    pub fn with_max_top_up(self, max_top_up: u16) -> TransferCheckedWithTopUp {
-        TransferCheckedWithTopUp {
-            inner: self,
-            max_top_up,
-        }
-    }
-
-    pub fn instruction(self) -> Result<Instruction, ProgramError> {
-        self.build_instruction(None)
-    }
-
     fn build_instruction(self, max_top_up: Option<u16>) -> Result<Instruction, ProgramError> {
         let accounts = vec![
             AccountMeta::new(self.source, false),
@@ -151,16 +142,5 @@ impl TransferChecked {
             accounts,
             data,
         })
-    }
-}
-
-pub struct TransferCheckedWithTopUp {
-    inner: TransferChecked,
-    max_top_up: u16,
-}
-
-impl TransferCheckedWithTopUp {
-    pub fn instruction(self) -> Result<Instruction, ProgramError> {
-        self.inner.build_instruction(Some(self.max_top_up))
     }
 }

@@ -113,18 +113,9 @@ impl<'info> From<&MintToCheckedCpi<'info>> for MintToChecked {
     }
 }
 
+impl_with_top_up!(MintToChecked, MintToCheckedWithTopUp);
+
 impl MintToChecked {
-    pub fn with_max_top_up(self, max_top_up: u16) -> MintToCheckedWithTopUp {
-        MintToCheckedWithTopUp {
-            inner: self,
-            max_top_up,
-        }
-    }
-
-    pub fn instruction(self) -> Result<Instruction, ProgramError> {
-        self.build_instruction(None)
-    }
-
     fn build_instruction(self, max_top_up: Option<u16>) -> Result<Instruction, ProgramError> {
         let accounts = vec![
             AccountMeta::new(self.mint, false),
@@ -146,16 +137,5 @@ impl MintToChecked {
             accounts,
             data,
         })
-    }
-}
-
-pub struct MintToCheckedWithTopUp {
-    inner: MintToChecked,
-    max_top_up: u16,
-}
-
-impl MintToCheckedWithTopUp {
-    pub fn instruction(self) -> Result<Instruction, ProgramError> {
-        self.inner.build_instruction(Some(self.max_top_up))
     }
 }

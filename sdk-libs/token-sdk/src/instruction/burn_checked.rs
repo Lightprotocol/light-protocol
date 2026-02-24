@@ -113,18 +113,9 @@ impl<'info> From<&BurnCheckedCpi<'info>> for BurnChecked {
     }
 }
 
+impl_with_top_up!(BurnChecked, BurnCheckedWithTopUp);
+
 impl BurnChecked {
-    pub fn with_max_top_up(self, max_top_up: u16) -> BurnCheckedWithTopUp {
-        BurnCheckedWithTopUp {
-            inner: self,
-            max_top_up,
-        }
-    }
-
-    pub fn instruction(self) -> Result<Instruction, ProgramError> {
-        self.build_instruction(None)
-    }
-
     fn build_instruction(self, max_top_up: Option<u16>) -> Result<Instruction, ProgramError> {
         let accounts = vec![
             AccountMeta::new(self.source, false),
@@ -146,16 +137,5 @@ impl BurnChecked {
             accounts,
             data,
         })
-    }
-}
-
-pub struct BurnCheckedWithTopUp {
-    inner: BurnChecked,
-    max_top_up: u16,
-}
-
-impl BurnCheckedWithTopUp {
-    pub fn instruction(self) -> Result<Instruction, ProgramError> {
-        self.inner.build_instruction(Some(self.max_top_up))
     }
 }
