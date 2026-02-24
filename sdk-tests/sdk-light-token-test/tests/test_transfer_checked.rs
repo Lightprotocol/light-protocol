@@ -153,6 +153,7 @@ async fn test_ctoken_transfer_checked_spl_mint() {
             AccountMeta::new(dest_ata, false),
             AccountMeta::new_readonly(source_owner, true),
             AccountMeta::new_readonly(Pubkey::default(), false), // system_program
+            AccountMeta::new(payer.pubkey(), true),              // fee_payer
             AccountMeta::new_readonly(light_token_program, false),
         ],
         data: instruction_data,
@@ -259,6 +260,7 @@ async fn test_ctoken_transfer_checked_t22_mint() {
             AccountMeta::new(dest_ata, false),
             AccountMeta::new_readonly(source_owner, true),
             AccountMeta::new_readonly(Pubkey::default(), false), // system_program
+            AccountMeta::new(payer.pubkey(), true),              // fee_payer
             AccountMeta::new_readonly(light_token_program, false),
         ],
         data: instruction_data,
@@ -320,6 +322,7 @@ async fn test_ctoken_transfer_checked_mint() {
             AccountMeta::new(dest_ata, false),
             AccountMeta::new_readonly(source_owner, true),
             AccountMeta::new_readonly(Pubkey::default(), false), // system_program
+            AccountMeta::new(payer.pubkey(), true),              // fee_payer
             AccountMeta::new_readonly(light_token_program, false),
         ],
         data: instruction_data,

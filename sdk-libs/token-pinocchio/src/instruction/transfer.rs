@@ -33,7 +33,7 @@ pub struct TransferCpi<'info> {
     pub amount: u64,
     pub authority: &'info AccountInfo,
     pub system_program: &'info AccountInfo,
-    /// Fee payer for rent top-ups (writable signer). Authority stays readonly.
+    /// Fee payer for rent top-ups.
     pub fee_payer: &'info AccountInfo,
 }
 

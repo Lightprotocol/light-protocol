@@ -29,7 +29,7 @@ pub struct RevokeCpi<'info> {
     pub token_account: &'info AccountInfo,
     pub owner: &'info AccountInfo,
     pub system_program: &'info AccountInfo,
-    /// Fee payer for compressible rent top-ups (writable signer)
+    /// Fee payer for rent top-ups.
     pub fee_payer: &'info AccountInfo,
 }
 

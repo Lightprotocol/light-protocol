@@ -10,8 +10,6 @@ use pinocchio::{
 
 use crate::constants::LIGHT_TOKEN_PROGRAM_ID;
 
-const SYSTEM_PROGRAM_ID: Pubkey = [0u8; 32];
-
 /// Transfer ctoken checked via CPI.
 ///
 /// # Example
@@ -39,7 +37,7 @@ pub struct TransferCheckedCpi<'info> {
     pub decimals: u8,
     pub authority: &'info AccountInfo,
     pub system_program: &'info AccountInfo,
-    /// Fee payer for rent top-ups (writable signer). Authority stays readonly.
+    /// Fee payer for rent top-ups.
     pub fee_payer: &'info AccountInfo,
 }
 
@@ -61,7 +59,7 @@ impl<'info> TransferCheckedCpi<'info> {
             AccountMeta::readonly(self.mint.key()),
             AccountMeta::writable(self.destination.key()),
             AccountMeta::readonly_signer(self.authority.key()),
-            AccountMeta::readonly(&SYSTEM_PROGRAM_ID),
+            AccountMeta::readonly(self.system_program.key()),
             AccountMeta::writable_signer(self.fee_payer.key()),
         ];
 

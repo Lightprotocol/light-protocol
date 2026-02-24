@@ -24,7 +24,7 @@ pub struct Revoke {
     pub token_account: Pubkey,
     /// Owner of the Light Token account (readonly signer)
     pub owner: Pubkey,
-    /// Fee payer for compressible rent top-ups (writable signer)
+    /// Fee payer for rent top-ups.
     pub fee_payer: Pubkey,
 }
 
@@ -49,7 +49,7 @@ pub struct RevokeCpi<'info> {
     pub token_account: AccountInfo<'info>,
     pub owner: AccountInfo<'info>,
     pub system_program: AccountInfo<'info>,
-    /// Fee payer for compressible rent top-ups (writable signer)
+    /// Fee payer for rent top-ups.
     pub fee_payer: AccountInfo<'info>,
 }
 

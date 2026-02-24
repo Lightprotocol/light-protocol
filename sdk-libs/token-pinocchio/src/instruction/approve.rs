@@ -33,7 +33,7 @@ pub struct ApproveCpi<'info> {
     pub owner: &'info AccountInfo,
     pub system_program: &'info AccountInfo,
     pub amount: u64,
-    /// Fee payer for compressible rent top-ups (writable signer)
+    /// Fee payer for rent top-ups.
     pub fee_payer: &'info AccountInfo,
 }
 

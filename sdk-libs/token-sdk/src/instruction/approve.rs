@@ -31,7 +31,7 @@ pub struct Approve {
     pub owner: Pubkey,
     /// Amount of tokens to delegate
     pub amount: u64,
-    /// Fee payer for compressible rent top-ups (writable signer)
+    /// Fee payer for rent top-ups.
     pub fee_payer: Pubkey,
 }
 
@@ -61,7 +61,7 @@ pub struct ApproveCpi<'info> {
     pub owner: AccountInfo<'info>,
     pub system_program: AccountInfo<'info>,
     pub amount: u64,
-    /// Fee payer for compressible rent top-ups (writable signer)
+    /// Fee payer for rent top-ups.
     pub fee_payer: AccountInfo<'info>,
 }
 

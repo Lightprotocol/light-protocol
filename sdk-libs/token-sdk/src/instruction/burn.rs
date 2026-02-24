@@ -31,7 +31,7 @@ pub struct Burn {
     pub amount: u64,
     /// Owner of the Light Token account
     pub authority: Pubkey,
-    /// Fee payer for rent top-ups (writable signer). Authority stays readonly.
+    /// Fee payer for rent top-ups.
     pub fee_payer: Pubkey,
 }
 
@@ -61,7 +61,7 @@ pub struct BurnCpi<'info> {
     pub amount: u64,
     pub authority: AccountInfo<'info>,
     pub system_program: AccountInfo<'info>,
-    /// Fee payer for rent top-ups (writable signer). Authority stays readonly.
+    /// Fee payer for rent top-ups.
     pub fee_payer: AccountInfo<'info>,
 }
 

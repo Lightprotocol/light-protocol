@@ -34,7 +34,7 @@ pub struct BurnChecked {
     pub decimals: u8,
     /// Owner of the Light Token account
     pub authority: Pubkey,
-    /// Fee payer for rent top-ups (writable signer). Authority stays readonly.
+    /// Fee payer for rent top-ups.
     pub fee_payer: Pubkey,
 }
 
@@ -66,7 +66,7 @@ pub struct BurnCheckedCpi<'info> {
     pub decimals: u8,
     pub authority: AccountInfo<'info>,
     pub system_program: AccountInfo<'info>,
-    /// Fee payer for rent top-ups (writable signer). Authority stays readonly.
+    /// Fee payer for rent top-ups.
     pub fee_payer: AccountInfo<'info>,
 }
 
