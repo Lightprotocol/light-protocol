@@ -108,14 +108,21 @@ pub async fn verify_transaction_execution(rpc: &impl Rpc, signature: Signature) 
         .map_err(|e| {
             anyhow::anyhow!("Failed to get signature status for {}: {:?}", signature, e)
         })?;
-    if let Some(Some(status)) = statuses.first() {
-        if let Some(err) = &status.err {
-            return Err(anyhow::anyhow!(
-                "Transaction {} confirmed but execution failed: {:?}",
-                signature,
-                err
-            ));
+
+    match statuses.first() {
+        Some(Some(status)) => {
+            if let Some(err) = &status.err {
+                return Err(anyhow::anyhow!(
+                    "Transaction {} confirmed but execution failed: {:?}",
+                    signature,
+                    err
+                ));
+            }
+            Ok(())
         }
+        _ => Err(anyhow::anyhow!(
+            "Transaction {} status unavailable",
+            signature
+        )),
     }
-    Ok(())
 }

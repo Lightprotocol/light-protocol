@@ -322,10 +322,13 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
         );
 
         // Wait for confirmation
-        let confirmed = rpc
-            .confirm_transaction(signature)
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to confirm transaction: {:?}", e))?;
+        let confirmed = match rpc.confirm_transaction(signature).await {
+            Ok(confirmed) => confirmed,
+            Err(e) => {
+                self.tracker.unmark_pending(&pubkeys);
+                return Err(anyhow::anyhow!("Failed to confirm transaction: {:?}", e));
+            }
+        };
 
         if confirmed {
             if let Err(e) = verify_transaction_execution(&*rpc, signature).await {
@@ -383,7 +386,7 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
                 "PDA {} no longer exists on-chain, removing from tracker",
                 pda
             );
-            self.tracker.remove_compressed(pda);
+            self.tracker.remove(pda);
             return Err(anyhow::anyhow!("PDA {} already closed, skipping", pda));
         }
 
