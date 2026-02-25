@@ -4,7 +4,11 @@ import {
     TransactionInstruction,
     SystemProgram,
 } from '@solana/web3.js';
-import { Rpc, assertBetaEnabled, LIGHT_TOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
+import {
+    Rpc,
+    assertBetaEnabled,
+    LIGHT_TOKEN_PROGRAM_ID,
+} from '@lightprotocol/stateless.js';
 import { getMint, TokenAccountNotFoundError } from '@solana/spl-token';
 import type BN from 'bn.js';
 import { MAX_TOP_UP } from '../../constants';
@@ -216,6 +220,10 @@ export async function createUnwrapInstructions(
     const unwrapAmount =
         amount != null ? BigInt(amount.toString()) : totalBalance;
 
+    if (unwrapAmount === BigInt(0)) {
+        throw new Error('Unwrap amount must be greater than zero.');
+    }
+
     if (unwrapAmount > totalBalance) {
         throw new Error(
             `Insufficient light-token balance. Requested: ${unwrapAmount}, Available: ${totalBalance}`,
@@ -229,7 +237,7 @@ export async function createUnwrapInstructions(
         interfaceOptions,
         wrap,
         ctokenAta,
-        amount !== undefined ? unwrapAmount : undefined,
+        amount != null ? unwrapAmount : undefined,
     );
 
     const mintInfo = await getMint(

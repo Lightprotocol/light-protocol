@@ -64,7 +64,7 @@ function parseCompressedOnlyFromTlv(
                 30: 1,
                 31: 17,
             };
-            const size = SIZES[disc] ?? 0;
+            const size = SIZES[disc];
             if (size === undefined) return null;
             offset += size;
         }
@@ -118,6 +118,8 @@ function buildInTlv(
                     delegatedAmount: co.delegatedAmount,
                     withheldTransferFee: co.withheldTransferFee,
                     isFrozen,
+                    // This builder emits a single decompress compression per batch.
+                    // Keep index at 0 unless multi-compression output is added here.
                     compressionIndex: 0,
                     isAta: co.isAta,
                     bump,
@@ -416,6 +418,18 @@ export function createDecompressInterfaceInstruction(
         registeredProgramPda,
         accountCompressionProgram,
     } = defaultStaticAccountsStruct();
+    const signerIndex = (() => {
+        if (!authority || authority.equals(owner)) {
+            return ownerIndex;
+        }
+        const authorityIndex = packedAccountIndices.get(authority.toBase58());
+        if (authorityIndex === undefined) {
+            throw new Error(
+                `Authority ${authority.toBase58()} is not present in packed accounts`,
+            );
+        }
+        return authorityIndex;
+    })();
 
     const keys = [
         // 0: light_system_program (non-mutable)
@@ -463,12 +477,6 @@ export function createDecompressInterfaceInstruction(
             const isPool =
                 splInterfaceInfo !== undefined &&
                 pubkey.equals(splInterfaceInfo.splInterfacePda);
-            const signerIndex =
-                authority &&
-                !authority.equals(owner) &&
-                packedAccountIndices.has(authority.toBase58())
-                    ? packedAccountIndices.get(authority.toBase58())!
-                    : ownerIndex;
             return {
                 pubkey,
                 isSigner: i === signerIndex,

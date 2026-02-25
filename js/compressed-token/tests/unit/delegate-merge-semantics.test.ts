@@ -113,8 +113,9 @@ function coldSource(params: {
             tree: PublicKey.default,
             queue: PublicKey.default,
             treeType: TreeType.StateV2,
+            nextTreeInfo: null,
         },
-        hash: new Uint8Array(32),
+        hash: bn(0),
         leafIndex: 0,
         proveByIndex: false,
     };
@@ -276,18 +277,10 @@ describe('buildAccountInterfaceFromSources – delegate merge semantics', () => 
         // Delegate stays user2
         expect(result.parsed.delegate!.toBase58()).toBe(user2.toBase58());
 
-        // delegatedAmount accumulates both (hot is primary, includes both via spread
-        // NOTE: buildAccountInterfaceFromSources spreads primarySource.parsed which
-        // already has the hot's delegatedAmount. On-chain the cold's delegatedAmount
-        // also accumulates into hot when delegates match. Since the synthetic view
-        // reflects the PRIMARY source's parsed data, this test documents the current
-        // behaviour: the synthetic delegatedAmount is only the hot's portion.
-        // The accumulated value would be hotDelegatedAmount + coldDelegatedAmount
-        // on-chain, but the synthetic shows only hotDelegatedAmount.
-        // This is a known approximation: for the common "same delegate" case the
-        // delegatedAmount underestimates the true post-decompress value by
-        // coldDelegatedAmount. callers should use _sources to get per-source amounts.
-        expect(result.parsed.delegatedAmount).toBe(hotDelegatedAmount);
+        // Canonical delegated amount accumulates all sources for same delegate.
+        expect(result.parsed.delegatedAmount).toBe(
+            hotDelegatedAmount + coldDelegatedAmount,
+        );
 
         expect(result._hasDelegate).toBe(true);
     });
@@ -349,17 +342,12 @@ describe('buildAccountInterfaceFromSources – delegate merge semantics', () => 
         expect(result.parsed.delegatedAmount).toBe(coldDelegated);
     });
 
-    it('hot(no delegate) + cold(user1): synthetic currently reflects hot-no-delegate (documented limitation)', () => {
+    it('hot(no delegate) + cold(user1): canonical delegate is user1 with delegated amount from cold', () => {
         /**
          * On-chain: when hot has NO delegate and cold has delegate user1,
          * apply_delegate sets hot.delegate = user1 and adds cold.delegatedAmount.
          *
-         * Current buildAccountInterfaceFromSources spreads the primary (hot) source
-         * which has delegate=null. This underestimates the post-decompress state.
-         *
-         * This test documents the current behaviour. Callers should be aware that
-         * after loadAta the on-chain hot account will have user1 as delegate
-         * even though the synthetic parsed shows null.
+         * Canonical view should reflect this merge-compatible delegate state.
          */
         const user1 = Keypair.generate().publicKey;
 
@@ -387,10 +375,8 @@ describe('buildAccountInterfaceFromSources – delegate merge semantics', () => 
         // Amounts still sum correctly
         expect(result.parsed.amount).toBe(hotAmount + coldAmount);
 
-        // Current synthetic reflects primary (hot) with no delegate
-        // On-chain reality: hot would inherit user1. See limitation note above.
-        expect(result.parsed.delegate).toBeNull();
-        expect(result.parsed.delegatedAmount).toBe(0n);
+        expect(result.parsed.delegate!.toBase58()).toBe(user1.toBase58());
+        expect(result.parsed.delegatedAmount).toBe(coldDelegated);
 
         // _hasDelegate is true because the cold source has a delegate
         expect(result._hasDelegate).toBe(true);
@@ -426,11 +412,10 @@ describe('buildAccountInterfaceFromSources – delegate merge semantics', () => 
         expect(result._hasDelegate).toBe(false);
     });
 
-    it('three cold accounts: user1, user2, no-delegate – _hasDelegate true, primary source wins', () => {
+    it('three cold accounts: choose canonical delegate by highest aggregated delegated amount', () => {
         /**
          * Multiple cold accounts with mixed delegate state.
-         * Primary = first source (user1). Synthetic reflects user1 as delegate.
-         * _hasDelegate = true (at least one source has delegate).
+         * Canonical delegate should be chosen by highest aggregated delegated amount.
          */
         const user1 = Keypair.generate().publicKey;
         const user2 = Keypair.generate().publicKey;
@@ -459,9 +444,40 @@ describe('buildAccountInterfaceFromSources – delegate merge semantics', () => 
         const result = buildAccountInterfaceFromSources(sources, ata);
 
         expect(result.parsed.amount).toBe(6_000n);
-        expect(result.parsed.delegate!.toBase58()).toBe(user1.toBase58());
+        expect(result.parsed.delegate!.toBase58()).toBe(user2.toBase58());
+        expect(result.parsed.delegatedAmount).toBe(2_000n);
         expect(result._hasDelegate).toBe(true);
         expect(result._needsConsolidation).toBe(true);
+    });
+
+    it('cold-only with differing delegates: aggregate by delegate pubkey, pick max aggregate', () => {
+        const user1 = Keypair.generate().publicKey;
+        const user2 = Keypair.generate().publicKey;
+        const sources: TokenAccountSource[] = [
+            coldSource({
+                address: ata,
+                amount: 900n,
+                delegate: user1,
+                delegatedAmount: 700n,
+            }),
+            coldSource({
+                address: ata,
+                amount: 1200n,
+                delegate: user2,
+                delegatedAmount: 1200n,
+            }),
+            coldSource({
+                address: ata,
+                amount: 1000n,
+                delegate: user1,
+                delegatedAmount: 800n,
+            }),
+        ];
+
+        const result = buildAccountInterfaceFromSources(sources, ata);
+        // user1 aggregate = 700 + 800 = 1500, user2 aggregate = 1200
+        expect(result.parsed.delegate!.toBase58()).toBe(user1.toBase58());
+        expect(result.parsed.delegatedAmount).toBe(1500n);
     });
 });
 
@@ -766,10 +782,10 @@ describe('createDecompressInterfaceInstruction – delegate pubkeys in packed ac
 // getCompressedTokenAccountsFromAtaSources – frozen filtering and delegate passthrough
 // ---------------------------------------------------------------------------
 
-describe('getCompressedTokenAccountsFromAtaSources – frozen filtering and delegate passthrough', () => {
+describe('getCompressedTokenAccountsFromAtaSources – frozen passthrough and delegate passthrough', () => {
     const ata = Keypair.generate().publicKey;
 
-    it('excludes frozen cold sources: regression guard against decompressing frozen accounts', () => {
+    it('includes frozen cold sources (callers must block earlier via _anyFrozen)', () => {
         /**
          * Red-team: if frozen filtering is removed, the decompress instruction would
          * include frozen accounts. The on-chain program rejects frozen inputs
@@ -798,8 +814,10 @@ describe('getCompressedTokenAccountsFromAtaSources – frozen filtering and dele
             unfrozenCold,
         ]);
 
-        expect(result.length).toBe(1);
-        expect(result[0].parsed.amount.toString()).toBe('3000');
+        expect(result.length).toBe(2);
+        expect(result.map(r => r.parsed.amount.toString())).toEqual(
+            expect.arrayContaining(['5000', '3000']),
+        );
     });
 
     it('excludes hot sources: only cold (ctoken-cold / spl-cold / token2022-cold) are returned', () => {
@@ -849,7 +867,7 @@ describe('getCompressedTokenAccountsFromAtaSources – frozen filtering and dele
         expect(result[0].parsed.delegate!.toBase58()).toBe(user1.toBase58());
     });
 
-    it('all frozen: returns empty array → loadAta produces no instructions', () => {
+    it('all frozen: function still maps all cold sources; operation-level freeze checks block usage', () => {
         /**
          * Red-team: if all cold sources are frozen, no decompress instructions
          * should be generated. An empty result here ensures _buildLoadBatches
@@ -875,7 +893,7 @@ describe('getCompressedTokenAccountsFromAtaSources – frozen filtering and dele
             frozen2,
         ]);
 
-        expect(result.length).toBe(0);
+        expect(result.length).toBe(2);
     });
 
     it('preserves null delegate (no-delegate cold source): delegate field stays null', () => {
@@ -892,7 +910,7 @@ describe('getCompressedTokenAccountsFromAtaSources – frozen filtering and dele
         expect(result[0].parsed.delegate).toBeNull();
     });
 
-    it('mixed: frozen delegated + unfrozen non-delegated → only unfrozen returned, delegate not polluting', () => {
+    it('mixed: frozen delegated + unfrozen non-delegated → both are preserved in raw mapped output', () => {
         /**
          * Red-team: if frozen filtering doesn't happen BEFORE delegate extraction,
          * the frozen delegated account's key might still be injected into
@@ -919,9 +937,12 @@ describe('getCompressedTokenAccountsFromAtaSources – frozen filtering and dele
             unfrozenNoDelegate,
         ]);
 
-        expect(result.length).toBe(1);
-        expect(result[0].parsed.delegate).toBeNull();
-        expect(result[0].parsed.amount.toString()).toBe('2000');
+        expect(result.length).toBe(2);
+        const delegates = result.map(
+            r => r.parsed.delegate?.toBase58() ?? null,
+        );
+        expect(delegates).toContain(user1.toBase58());
+        expect(delegates).toContain(null);
     });
 });
 
@@ -1082,8 +1103,8 @@ describe('buildAccountInterfaceFromSources – frozen source inflation', () => {
 
         expect(result._anyFrozen).toBe(true);
         expect(result._hasDelegate).toBe(true);
-        // hot is primary and has no delegate, but _hasDelegate reflects any source
-        expect(result.parsed.delegate).toBeNull();
+        // Canonical delegate is selected by highest aggregated delegated amount.
+        expect(result.parsed.delegate!.toBase58()).toBe(user1.toBase58());
     });
 });
 
@@ -1291,7 +1312,7 @@ describe('spendableAmountForAuthority, isAuthorityForInterface, filterInterfaceF
         expect(spendableAmountForAuthority(iface, owner)).toBe(3000n);
     });
 
-    it('spendableAmountForAuthority(delegate) returns sum of min(amount, delegatedAmount) for matching delegate', () => {
+    it('spendableAmountForAuthority(delegate) returns canonical delegated amount for canonical delegate only', () => {
         const sources: TokenAccountSource[] = [
             hotWithOwner({
                 amount: 1000n,
@@ -1347,7 +1368,7 @@ describe('spendableAmountForAuthority, isAuthorityForInterface, filterInterfaceF
         expect(isAuthorityForInterface(iface, delegateE)).toBe(false);
     });
 
-    it('filterInterfaceForAuthority(delegate) keeps only sources delegated to that delegate', () => {
+    it('filterInterfaceForAuthority(delegate) keeps only canonical delegate sources', () => {
         const sources: TokenAccountSource[] = [
             hotWithOwner({
                 amount: 1000n,
@@ -1366,7 +1387,40 @@ describe('spendableAmountForAuthority, isAuthorityForInterface, filterInterfaceF
         expect(filteredD._sources!.length).toBe(1);
         expect(filteredD.parsed.amount).toBe(1000n);
         const filteredE = filterInterfaceForAuthority(iface, delegateE);
-        expect(filteredE._sources!.length).toBe(1);
-        expect(filteredE.parsed.amount).toBe(500n);
+        expect(filteredE._sources!.length).toBe(0);
+        expect(filteredE.parsed.amount).toBe(0n);
+    });
+
+    it('filterInterfaceForAuthority(delegate) on mixed delegates with no hot: winner delegate sources only', () => {
+        const sources: TokenAccountSource[] = [
+            coldWithOwner({
+                amount: 900n,
+                delegate: delegateD,
+                delegatedAmount: 700n,
+            }),
+            coldWithOwner({
+                amount: 1200n,
+                delegate: delegateE,
+                delegatedAmount: 1200n,
+            }),
+            coldWithOwner({
+                amount: 1000n,
+                delegate: delegateD,
+                delegatedAmount: 800n,
+            }),
+        ];
+        const iface = buildAccountInterfaceFromSources(sources, ata);
+        (iface as AccountInterface)._owner = owner;
+        // delegateD aggregate (1500) wins over delegateE (1200)
+        expect(iface.parsed.delegate!.toBase58()).toBe(delegateD.toBase58());
+        expect(iface.parsed.delegatedAmount).toBe(1500n);
+
+        const filteredD = filterInterfaceForAuthority(iface, delegateD);
+        expect(filteredD._sources!.length).toBe(2);
+        expect(filteredD.parsed.amount).toBe(1500n);
+
+        const filteredE = filterInterfaceForAuthority(iface, delegateE);
+        expect(filteredE._sources!.length).toBe(0);
+        expect(filteredE.parsed.amount).toBe(0n);
     });
 });
