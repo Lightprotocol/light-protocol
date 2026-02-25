@@ -296,7 +296,6 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
         );
 
         // Mark as pending before sending
-        let pubkeys: Vec<Pubkey> = account_states.iter().map(|s| s.pubkey).collect();
         self.tracker.mark_pending(&pubkeys);
 
         // Send single transaction
