@@ -17,7 +17,10 @@ use solana_sdk::{
 use tracing::{debug, info};
 
 use super::{state::MintAccountTracker, types::MintAccountState};
-use crate::{compressible::traits::CompressibleTracker, Result};
+use crate::{
+    compressible::traits::{verify_transaction_execution, CompressibleTracker},
+    Result,
+};
 
 /// Compressor for decompressed Mint accounts - builds and sends CompressAndCloseMint transactions.
 pub struct MintCompressor<R: Rpc + Indexer> {
@@ -137,6 +140,11 @@ impl<R: Rpc + Indexer> MintCompressor<R> {
             .map_err(|e| anyhow::anyhow!("Failed to confirm transaction: {:?}", e))?;
 
         if confirmed {
+            if let Err(e) = verify_transaction_execution(&*rpc, signature).await {
+                self.tracker.unmark_pending(&pubkeys);
+                return Err(e);
+            }
+
             for mint_state in mint_states {
                 self.tracker.remove_compressed(&mint_state.pubkey);
             }
@@ -295,6 +303,8 @@ impl<R: Rpc + Indexer> MintCompressor<R> {
             .map_err(|e| anyhow::anyhow!("Failed to confirm transaction: {:?}", e))?;
 
         if confirmed {
+            verify_transaction_execution(&*rpc, signature).await?;
+
             info!("CompressAndCloseMint tx for Mint {} confirmed", mint_pda);
             Ok(signature)
         } else {

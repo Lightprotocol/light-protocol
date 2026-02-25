@@ -26,7 +26,10 @@ use tracing::{debug, info};
 
 use super::{state::PdaAccountTracker, types::PdaAccountState};
 use crate::{
-    compressible::{config::PdaProgramConfig, traits::CompressibleTracker},
+    compressible::{
+        config::PdaProgramConfig,
+        traits::{verify_transaction_execution, CompressibleTracker},
+    },
     Result,
 };
 
@@ -325,6 +328,11 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
             .map_err(|e| anyhow::anyhow!("Failed to confirm transaction: {:?}", e))?;
 
         if confirmed {
+            if let Err(e) = verify_transaction_execution(&*rpc, signature).await {
+                self.tracker.unmark_pending(&pubkeys);
+                return Err(e);
+            }
+
             for state in account_states {
                 self.tracker.remove_compressed(&state.pubkey);
             }
@@ -437,6 +445,8 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
             .map_err(|e| anyhow::anyhow!("Failed to confirm transaction: {:?}", e))?;
 
         if confirmed {
+            verify_transaction_execution(&*rpc, signature).await?;
+
             info!("compress_accounts_idempotent tx for PDA {} confirmed", pda);
             Ok(signature)
         } else {

@@ -20,7 +20,10 @@ use solana_sdk::{
 use tracing::{debug, info};
 
 use super::{state::CTokenAccountTracker, types::CTokenAccountState};
-use crate::{compressible::traits::CompressibleTracker, Result};
+use crate::{
+    compressible::traits::{verify_transaction_execution, CompressibleTracker},
+    Result,
+};
 
 /// Compression executor for CToken accounts via the registry program's compress_and_close instruction.
 pub struct CTokenCompressor<R: Rpc + Indexer> {
@@ -249,6 +252,11 @@ impl<R: Rpc + Indexer> CTokenCompressor<R> {
         };
 
         if confirmed {
+            if let Err(e) = verify_transaction_execution(&*rpc, signature).await {
+                self.tracker.unmark_pending(&pubkeys);
+                return Err(e);
+            }
+
             for account_state in account_states {
                 self.tracker.remove_compressed(&account_state.pubkey);
             }

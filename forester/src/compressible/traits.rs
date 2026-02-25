@@ -3,7 +3,8 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use dashmap::{DashMap, DashSet};
-use solana_sdk::pubkey::Pubkey;
+use light_client::rpc::Rpc;
+use solana_sdk::{pubkey::Pubkey, signature::Signature};
 
 use crate::Result;
 
@@ -98,4 +99,23 @@ pub trait SubscriptionHandler: Send + Sync {
     ) -> Result<()>;
 
     fn handle_removal(&self, pubkey: &Pubkey);
+}
+
+pub async fn verify_transaction_execution(rpc: &impl Rpc, signature: Signature) -> Result<()> {
+    let statuses = rpc
+        .get_signature_statuses(&[signature])
+        .await
+        .map_err(|e| {
+            anyhow::anyhow!("Failed to get signature status for {}: {:?}", signature, e)
+        })?;
+    if let Some(Some(status)) = statuses.first() {
+        if let Some(err) = &status.err {
+            return Err(anyhow::anyhow!(
+                "Transaction {} confirmed but execution failed: {:?}",
+                signature,
+                err
+            ));
+        }
+    }
+    Ok(())
 }

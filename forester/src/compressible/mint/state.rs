@@ -43,11 +43,7 @@ pub struct MintAccountTracker {
 
 impl MintAccountTracker {
     pub fn new() -> Self {
-        Self {
-            accounts: DashMap::new(),
-            compressed_count: AtomicU64::new(0),
-            pending: DashSet::new(),
-        }
+        Self::default()
     }
 
     pub fn update_from_account(
