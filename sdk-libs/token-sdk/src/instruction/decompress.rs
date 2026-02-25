@@ -18,7 +18,7 @@ use solana_pubkey::Pubkey;
 
 use crate::utils::get_associated_token_address_and_bump;
 
-/// # Decompress compressed tokens to a cToken account
+/// # Decompress compressed tokens to a light-token account
 ///
 /// ```rust
 /// # use solana_pubkey::Pubkey;

@@ -571,7 +571,7 @@ async fn create_two_mints(
         2,
     )
     .unwrap();
-    // Create token pool for compression
+    // Create SPL interface PDA for compression
     let create_pool_ix =
         create_create_token_pool_instruction(&payer_pubkey, &mint_1.pubkey(), false);
     let create_pool_ix_2 =

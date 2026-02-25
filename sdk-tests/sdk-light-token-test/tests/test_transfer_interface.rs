@@ -76,7 +76,7 @@ async fn test_transfer_interface_spl_to_ctoken_invoke() {
         .unwrap();
     let ctoken_account = derive_token_ata(&recipient.pubkey(), &mint);
 
-    // Get token pool PDA
+    // Get SPL interface PDA
     let (spl_interface_pda, spl_interface_pda_bump) =
         find_spl_interface_pda_with_index(&mint, 0, false);
     let compressed_token_program_id =

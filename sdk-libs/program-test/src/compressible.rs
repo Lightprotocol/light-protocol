@@ -137,7 +137,7 @@ pub async fn claim_and_compress(
         .context
         .get_program_accounts(&Pubkey::from(LIGHT_TOKEN_PROGRAM_ID));
 
-    // CToken base accounts are 165 bytes, filter above that to exclude empty/minimal accounts
+    // Light Token base accounts are 165 bytes, filter above that to exclude empty/minimal accounts
     for account in compressible_ctoken_accounts
         .iter()
         .filter(|e| e.1.data.len() >= 165 && e.1.lamports > 0)
@@ -205,7 +205,7 @@ pub async fn claim_and_compress(
             None => {
                 // Account is compressible (has rent deficit)
                 if stored_account.account_type == ACCOUNT_TYPE_TOKEN_ACCOUNT {
-                    // CToken accounts - separate by compression_only
+                    // Light Token accounts - separate by compression_only
                     if stored_account.compression_only {
                         compress_accounts_compression_only.push(*pubkey);
                     } else {
@@ -237,7 +237,7 @@ pub async fn claim_and_compress(
     // This prevents TlvExtensionLengthMismatch errors when batching accounts together
     const BATCH_SIZE: usize = 10;
 
-    // Process compression_only=true CToken accounts
+    // Process compression_only=true Light Token accounts
     for chunk in compress_accounts_compression_only.chunks(BATCH_SIZE) {
         compress_and_close_forester(rpc, chunk, &forester_keypair, &payer, None).await?;
         for account_pubkey in chunk {
@@ -245,7 +245,7 @@ pub async fn claim_and_compress(
         }
     }
 
-    // Process compression_only=false CToken accounts
+    // Process compression_only=false Light Token accounts
     for chunk in compress_accounts_normal.chunks(BATCH_SIZE) {
         compress_and_close_forester(rpc, chunk, &forester_keypair, &payer, None).await?;
         for account_pubkey in chunk {
@@ -440,13 +440,13 @@ async fn compress_mint_forester(
     let compressed_mint_address = mint.metadata.compressed_address();
     let rent_sponsor = Pubkey::from(mint.compression.rent_sponsor);
 
-    // Get the compressed mint account from indexer
+    // Get the light mint account from indexer
     let compressed_mint_account = rpc
         .get_compressed_account(compressed_mint_address, None)
         .await?
         .value
         .ok_or(RpcError::AccountDoesNotExist(format!(
-            "Compressed mint {:?}",
+            "Light mint {:?}",
             compressed_mint_address
         )))?;
 
@@ -456,7 +456,7 @@ async fn compress_mint_forester(
         .await?
         .value;
 
-    // Build compressed mint inputs
+    // Build light mint inputs
     // IMPORTANT: Set mint to None when Mint is decompressed
     // This tells on-chain code to read mint data from Mint Solana account
     // (not from instruction data which would have stale compression_info)

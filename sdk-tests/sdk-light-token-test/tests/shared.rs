@@ -203,7 +203,7 @@ pub async fn setup_create_mint_with_freeze_authority(
     );
     let instruction = create_mint_builder.instruction().unwrap();
 
-    // Send transaction (CreateMint now creates both compressed mint AND Mint Solana account)
+    // Send transaction (CreateMint now creates both light mint AND light mint account)
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer, &mint_seed])
         .await
         .unwrap();

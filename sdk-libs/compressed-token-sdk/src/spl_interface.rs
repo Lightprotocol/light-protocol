@@ -33,10 +33,10 @@ pub fn derive_spl_interface_pda(mint: &Pubkey, index: u8, restricted: bool) -> S
     }
 }
 
-/// # Create SPL interface PDA (token pool) instruction builder
+/// # Create SPL interface PDA instruction builder
 ///
 /// Creates or adds an spl interface pda for an SPL mint.
-/// Spl interface pdas store spl tokens that are wrapped in ctoken or compressed token accounts.
+/// SPL interface PDAs store SPL tokens that are wrapped in light-token accounts.
 ///
 /// ```rust
 /// # use solana_pubkey::Pubkey;

@@ -37,7 +37,7 @@ pub struct CreateAllParams {
 /// CPI context indices:
 /// - PDA 0: Borsh PDA (MinimalRecord) - index 0
 /// - PDA 1: ZeroCopy PDA (ZeroCopyRecord) - index 1
-/// - Mint 0: Compressed mint - index 2 (offset by NUM_LIGHT_PDAS=2)
+/// - Mint 0: Light Mint - index 2 (offset by NUM_LIGHT_PDAS=2)
 pub struct CreateAllAccounts<'a> {
     pub payer: &'a AccountInfo,
     pub authority: &'a AccountInfo,

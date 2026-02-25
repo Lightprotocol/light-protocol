@@ -39,7 +39,7 @@ pub struct PdaInitParam<'a, AI: AccountInfoTrait> {
     pub account: &'a AI,
 }
 
-/// Input for creating compressed mints.
+/// Input for creating light mints.
 ///
 /// Uses owned arrays because `CreateMints` expects `&[AI]` slices,
 /// and Anchor requires `.to_account_info()` conversion.
@@ -109,7 +109,7 @@ pub struct SharedAccounts<'a, AI: AccountInfoTrait> {
 /// # Const Generics
 ///
 /// - `PDAS`: Number of compressed PDAs to register.
-/// - `MINTS`: Number of compressed mints to create via `CreateMints`.
+/// - `MINTS`: Number of light mints to create via `CreateMints`.
 /// - `TOKENS`: Number of PDA token vaults to create via `CreateTokenAccountCpi`.
 /// - `ATAS`: Number of ATAs to create via `CreateTokenAtaCpi`.
 ///

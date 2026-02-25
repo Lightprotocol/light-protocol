@@ -1,7 +1,7 @@
 /// Stress test: 20-iteration compression/decompression cycles for all account types.
 ///
 /// Each iteration randomly selects a subset of accounts to decompress, leaving the rest
-/// compressed. Tests that hot/cold accounts coexist correctly across repeated cycles.
+/// compressed. Tests that hot/cold light-token accounts coexist correctly across repeated cycles.
 mod shared;
 
 use light_account::LightDiscriminator;
@@ -33,7 +33,7 @@ use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
 
-/// Which accounts are hot (decompressed / on-chain) this iteration.
+/// Which accounts are hot (decompressed to light-token accounts) this iteration.
 #[derive(Debug, Clone)]
 struct HotSet {
     record: bool,

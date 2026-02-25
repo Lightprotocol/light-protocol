@@ -5,7 +5,7 @@ use solana_instruction::{AccountMeta, Instruction};
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-/// # Burn tokens from a ctoken account:
+/// # Burn tokens from a light-token account:
 /// ```rust
 /// # use solana_pubkey::Pubkey;
 /// # use light_token::instruction::Burn;
@@ -38,7 +38,7 @@ pub struct Burn {
     pub fee_payer: Option<Pubkey>,
 }
 
-/// # Burn ctoken via CPI:
+/// # Burn light-token via CPI:
 /// ```rust,no_run
 /// # use light_token::instruction::BurnCpi;
 /// # use solana_account_info::AccountInfo;

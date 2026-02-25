@@ -5,7 +5,7 @@ use solana_instruction::{AccountMeta, Instruction};
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-/// # Mint tokens to a ctoken account with decimals validation:
+/// # Mint tokens to a light-token account with decimals validation:
 /// ```rust
 /// # use solana_pubkey::Pubkey;
 /// # use light_token::instruction::MintToChecked;
@@ -41,7 +41,7 @@ pub struct MintToChecked {
     pub fee_payer: Option<Pubkey>,
 }
 
-/// # Mint to ctoken via CPI with decimals validation:
+/// # Mint to light-token via CPI with decimals validation:
 /// ```rust,no_run
 /// # use light_token::instruction::MintToCheckedCpi;
 /// # use solana_account_info::AccountInfo;

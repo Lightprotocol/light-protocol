@@ -65,7 +65,7 @@ pub trait InstructionDecoder: Send + Sync {
     /// Program ID this decoder handles.
     fn program_id(&self) -> Pubkey;
 
-    /// Human-readable program name (e.g., "Compressed Token Program").
+    /// Human-readable program name (e.g., "Light Token Program").
     fn program_name(&self) -> &'static str;
 
     /// Decode instruction data into a structured representation.

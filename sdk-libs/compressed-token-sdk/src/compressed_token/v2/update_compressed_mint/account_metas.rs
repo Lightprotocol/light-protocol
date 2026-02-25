@@ -3,7 +3,7 @@ use solana_pubkey::Pubkey;
 
 use crate::utils::TokenDefaultAccounts;
 
-/// Configuration for generating account metas for update compressed mint instruction
+/// Configuration for generating account metas for update light mint instruction
 #[derive(Debug, Clone)]
 pub struct UpdateMintMetaConfig {
     pub fee_payer: Option<Pubkey>,
@@ -14,7 +14,7 @@ pub struct UpdateMintMetaConfig {
     pub with_cpi_context: bool,
 }
 
-/// Generates account metas for the update compressed mint instruction
+/// Generates account metas for the update light mint instruction
 pub fn get_update_compressed_mint_instruction_account_metas(
     config: UpdateMintMetaConfig,
 ) -> Vec<AccountMeta> {

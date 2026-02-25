@@ -1,4 +1,4 @@
-//! Create CToken ATA CPI builder for pinocchio.
+//! Create light-token associated token account CPI builder for pinocchio.
 //!
 //! Re-exports the generic `CreateTokenAtaCpi` from `light_sdk_types`
 //! specialized for pinocchio's `AccountInfo`.

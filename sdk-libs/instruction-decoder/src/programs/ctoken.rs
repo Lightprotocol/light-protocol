@@ -1,6 +1,6 @@
-//! Compressed Token (CToken) program instruction decoder.
+//! Light Token program instruction decoder.
 //!
-//! This module provides a macro-derived decoder for the Light Token (CToken) program,
+//! This module provides a macro-derived decoder for the Light Token program,
 //! which uses non-sequential 1-byte discriminators for Pinocchio instructions.
 //!
 //! Note: This decoder only handles Pinocchio (1-byte) instructions.
@@ -8,7 +8,7 @@
 //!
 //! ## Instruction Data Formats
 //!
-//! Most CToken instructions have optional max_top_up suffix:
+//! Most Light Token instructions have optional max_top_up suffix:
 //! - Transfer, MintTo, Burn: 8 bytes (amount) or 10 bytes (amount + max_top_up)
 //! - TransferChecked, MintToChecked, BurnChecked: 9 bytes (amount + decimals) or 11 bytes (+ max_top_up)
 //! - Approve: 8 bytes (amount) or 10 bytes (amount + max_top_up)
@@ -523,16 +523,16 @@ pub fn resolve_transfer2_account_names(
 /// Resolve MintAction account names dynamically based on instruction data.
 ///
 /// MintAction has a dynamic account layout that depends on:
-/// - `create_mint`: whether creating a new compressed mint
+/// - `create_mint`: whether creating a new light mint
 /// - `cpi_context`: whether using CPI context mode
-/// - `mint` (None = decompressed): whether mint is decompressed to CMint
+/// - `mint` (None = decompressed): whether mint is decompressed to light mint account
 /// - `actions`: may contain DecompressMint, CompressAndCloseMint, MintToCompressed
 ///
 /// Account layout (see plan for full details):
 /// 1. Fixed: light_system_program, [mint_signer if create_mint], authority
 /// 2. CPI Context Mode: fee_payer, cpi_authority_pda, cpi_context
 /// 3. Executing Mode:
-///    - Optional: compressible_config, cmint, rent_sponsor
+///    - Optional: compressible_config, light mint account, rent_sponsor
 ///    - LightSystemAccounts (6 required)
 ///    - Optional: cpi_context_account
 ///    - Tree accounts
@@ -624,7 +624,7 @@ pub fn resolve_mint_action_account_names(
             );
         }
 
-        // Optional: cmint
+        // Optional: light mint account
         if needs_cmint_account {
             add_name("cmint", accounts, &mut idx, &mut known_pubkeys);
         }
@@ -911,9 +911,9 @@ pub fn format_mint_action(
     output
 }
 
-/// Compressed Token (CToken) program instructions.
+/// Light Token program instructions.
 ///
-/// The CToken program uses non-sequential 1-byte discriminators.
+/// The Light Token program uses non-sequential 1-byte discriminators.
 /// Each variant has an explicit #[discriminator = N] attribute.
 ///
 /// Field definitions show the base required fields; max_top_up is optional.
@@ -924,13 +924,13 @@ pub fn format_mint_action(
     discriminator_size = 1
 )]
 pub enum CTokenInstruction {
-    /// Transfer compressed tokens (discriminator 3)
+    /// Transfer compressed light tokens (discriminator 3)
     /// Data: amount (u64) [+ max_top_up (u16)]
     #[discriminator = 3]
     #[instruction_decoder(account_names = ["source", "destination", "authority"])]
     Transfer { amount: u64 },
 
-    /// Approve delegate for compressed tokens (discriminator 4)
+    /// Approve delegate for compressed light tokens (discriminator 4)
     /// Data: amount (u64) [+ max_top_up (u16)]
     #[discriminator = 4]
     #[instruction_decoder(account_names = ["source", "delegate", "owner"])]
@@ -942,57 +942,57 @@ pub enum CTokenInstruction {
     #[instruction_decoder(account_names = ["source", "owner"])]
     Revoke,
 
-    /// Mint compressed tokens to an account (discriminator 7)
+    /// Mint compressed light tokens to an account (discriminator 7)
     /// Data: amount (u64) [+ max_top_up (u16)]
     #[discriminator = 7]
     #[instruction_decoder(account_names = ["cmint", "destination", "authority"])]
     MintTo { amount: u64 },
 
-    /// Burn compressed tokens (discriminator 8)
+    /// Burn compressed light tokens (discriminator 8)
     /// Data: amount (u64) [+ max_top_up (u16)]
     #[discriminator = 8]
     #[instruction_decoder(account_names = ["source", "cmint", "authority"])]
     Burn { amount: u64 },
 
-    /// Close a compressed token account (discriminator 9)
+    /// Close a light token account (discriminator 9)
     #[discriminator = 9]
     #[instruction_decoder(account_names = ["account", "destination", "authority"])]
     CloseTokenAccount,
 
-    /// Freeze a compressed token account (discriminator 10)
+    /// Freeze a light token account (discriminator 10)
     #[discriminator = 10]
     #[instruction_decoder(account_names = ["account", "mint", "authority"])]
     FreezeAccount,
 
-    /// Thaw a frozen compressed token account (discriminator 11)
+    /// Thaw a frozen light token account (discriminator 11)
     #[discriminator = 11]
     #[instruction_decoder(account_names = ["account", "mint", "authority"])]
     ThawAccount,
 
-    /// Transfer compressed tokens with decimals check (discriminator 12)
+    /// Transfer compressed light tokens with decimals check (discriminator 12)
     /// Data: amount (u64) + decimals (u8) [+ max_top_up (u16)]
     #[discriminator = 12]
     #[instruction_decoder(account_names = ["source", "mint", "destination", "authority"])]
     TransferChecked { amount: u64, decimals: u8 },
 
-    /// Mint compressed tokens with decimals check (discriminator 14)
+    /// Mint compressed light tokens with decimals check (discriminator 14)
     /// Data: amount (u64) + decimals (u8) [+ max_top_up (u16)]
     #[discriminator = 14]
     #[instruction_decoder(account_names = ["cmint", "destination", "authority"])]
     MintToChecked { amount: u64, decimals: u8 },
 
-    /// Burn compressed tokens with decimals check (discriminator 15)
+    /// Burn compressed light tokens with decimals check (discriminator 15)
     /// Data: amount (u64) + decimals (u8) [+ max_top_up (u16)]
     #[discriminator = 15]
     #[instruction_decoder(account_names = ["source", "cmint", "authority"])]
     BurnChecked { amount: u64, decimals: u8 },
 
-    /// Create a new compressed token account (discriminator 18)
+    /// Create a new light token account (discriminator 18)
     #[discriminator = 18]
     #[instruction_decoder(account_names = ["token_account", "mint", "payer", "config", "system_program", "rent_payer"])]
     CreateTokenAccount,
 
-    /// Create an associated compressed token account (discriminator 100)
+    /// Create an associated light token account (discriminator 100)
     #[discriminator = 100]
     #[instruction_decoder(account_names = ["owner", "mint", "fee_payer", "ata", "system_program", "config", "rent_payer"])]
     CreateAssociatedTokenAccount,

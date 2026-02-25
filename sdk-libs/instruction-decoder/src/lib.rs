@@ -5,7 +5,7 @@
 //! This crate provides:
 //! - Core types for instruction decoding (`DecodedField`, `DecodedInstruction`, `InstructionDecoder` trait)
 //! - Decoder registry for managing multiple program decoders
-//! - Built-in decoders for Light Protocol programs (System, Compressed Token, etc.)
+//! - Built-in decoders for Light Protocol programs (System, Light Token, etc.)
 //! - Transaction logging configuration and formatting utilities
 //!
 //! | Export | Description |

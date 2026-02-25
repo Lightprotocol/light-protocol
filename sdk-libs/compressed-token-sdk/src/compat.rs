@@ -58,7 +58,7 @@ pub struct TokenData {
     pub delegate: Option<Pubkey>,
     /// The account's state
     pub state: AccountState,
-    /// TLV extensions for compressed token accounts
+    /// TLV extensions for light token accounts
     pub tlv: Option<Vec<light_token_interface::state::ExtensionStruct>>,
 }
 

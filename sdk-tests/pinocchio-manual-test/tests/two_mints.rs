@@ -18,7 +18,7 @@ use solana_sdk::{
     signature::{Keypair, Signer},
 };
 
-/// Test creating two compressed mints using derived PDA mint signers.
+/// Test creating two Light Mints using derived PDA mint signers.
 #[tokio::test]
 async fn test_create_derived_mints() {
     let (mut rpc, payer, _) = shared::setup_test_env().await;

@@ -327,7 +327,7 @@ where
         cpi_config,
     );
 
-    // Token (ctoken) accounts layout (only required when token accounts are present):
+    // Token (light-token) accounts layout (only required when token accounts are present):
     // [3] ctoken_rent_sponsor, [6] ctoken_compressible_config
     let (ctoken_rent_sponsor, ctoken_compressible_config) = if has_token_accounts {
         let rent_sponsor = remaining_accounts

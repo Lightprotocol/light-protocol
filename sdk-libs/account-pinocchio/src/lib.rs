@@ -307,7 +307,7 @@ pub fn find_mint_address(mint_seed: &[u8; 32]) -> ([u8; 32], u8) {
     light_sdk_types::interface::cpi::create_mints::find_mint_address::<AccountInfo>(mint_seed)
 }
 
-/// Derive the compressed mint address from a mint seed and address tree pubkey.
+/// Derive the light mint address from a mint seed and address tree pubkey.
 #[cfg(feature = "token")]
 pub fn derive_mint_compressed_address(
     mint_seed: &[u8; 32],

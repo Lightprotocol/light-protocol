@@ -1,10 +1,10 @@
 //! # light-token-types
 //!
-//! Instruction data and account metadata types for compressed tokens.
+//! Instruction data and account metadata types for light tokens.
 //!
 //! | Type | Description |
 //! |------|-------------|
-//! | [`TokenAccountMeta`](instruction::TokenAccountMeta) | Compressed token account metadata |
+//! | [`TokenAccountMeta`](instruction::TokenAccountMeta) | Light token account metadata |
 //! | [`BatchCompressInstructionData`](instruction::BatchCompressInstructionData) | Batch compress instruction data |
 //! | [`CompressedTokenInstructionDataApprove`](instruction::CompressedTokenInstructionDataApprove) | Approve/delegation instruction data |
 //! | [`PackedMerkleContext`](instruction::PackedMerkleContext) | Merkle tree context for proofs |

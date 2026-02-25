@@ -768,7 +768,7 @@ pub(crate) fn generate_light_program_items_with_backend(
         items.push(pda_impl);
     }
 
-    // CToken seed provider impls (one per token variant)
+    // Light Token seed provider impls (one per token variant)
     if let Some(ref seeds) = token_seeds {
         if !seeds.is_empty() {
             let impl_code =

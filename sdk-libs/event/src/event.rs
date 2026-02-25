@@ -29,12 +29,12 @@ pub struct PublicTransactionEvent {
     pub compress_or_decompress_lamports: Option<u64>,
     pub pubkey_array: Vec<Pubkey>,
     pub message: Option<Vec<u8>>,
-    /// ATA owner info for compressed ATAs (output_index -> wallet_owner_pubkey).
+    /// Associated token account owner info for light-token ATAs (output_index -> wallet_owner_pubkey).
     /// Only populated for compress_and_close operations where is_ata=true.
     pub ata_owners: Vec<AssociatedTokenAccountOwnerInfo>,
 }
 
-/// ATA owner info extracted from compress_and_close operations.
+/// Associated token account owner info extracted from compress_and_close operations.
 #[derive(Debug, Clone, Copy, BorshSerialize, BorshDeserialize, Default, PartialEq, Eq)]
 pub struct AssociatedTokenAccountOwnerInfo {
     /// Index into output_compressed_accounts

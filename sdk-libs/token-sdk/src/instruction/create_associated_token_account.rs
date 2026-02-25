@@ -30,7 +30,7 @@ pub struct CreateCompressibleAssociatedTokenAccountInputs {
     pub pre_pay_num_epochs: u8,
     /// Initial lamports to top up for rent payments (optional)
     pub lamports_per_write: Option<u32>,
-    /// Version of the compressed token account when ctoken account is
+    /// Version of the compressed token account when light-token account is
     /// compressed and closed. (The version specifies the hashing scheme.)
     pub token_account_version: TokenDataVersion,
 }
@@ -181,7 +181,7 @@ pub fn derive_associated_token_account(owner: &Pubkey, mint: &Pubkey) -> Pubkey 
     .0
 }
 
-/// CPI wrapper to create a compressible c-token associated token account.
+/// CPI wrapper to create a compressible light-token associated token account.
 #[allow(clippy::too_many_arguments)]
 pub fn create_associated_token_account_cpi<'info>(
     payer: AccountInfo<'info>,
@@ -220,7 +220,7 @@ pub fn create_associated_token_account_cpi<'info>(
     )
 }
 
-/// CPI wrapper to create a compressible c-token associated token account
+/// CPI wrapper to create a compressible light-token associated token account
 /// idempotently.
 #[allow(clippy::too_many_arguments)]
 pub fn create_associated_token_account_idempotent_cpi<'info>(

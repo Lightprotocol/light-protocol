@@ -38,7 +38,7 @@ impl<'info, const N: usize> TransferAccountInfos<'_, 'info, N> {
         account_infos.push(self.fee_payer.clone());
         account_infos.push(self.authority.clone());
 
-        // Add ctoken accounts
+        // Add light-token accounts
         for account in self.ctoken_accounts {
             account_infos.push(account.clone());
         }

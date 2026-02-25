@@ -3,7 +3,7 @@ use solana_pubkey::Pubkey;
 
 use crate::utils::TokenDefaultAccounts;
 
-/// Account metadata configuration for compressed token instructions
+/// Account metadata configuration for light token instructions
 #[derive(Debug, Default, Copy, Clone)]
 pub struct TokenAccountsMetaConfig {
     pub fee_payer: Option<Pubkey>,
@@ -134,7 +134,7 @@ impl TokenAccountsMetaConfig {
     }
 }
 
-/// Get the standard account metas for a compressed token transfer instruction
+/// Get the standard account metas for a light token transfer instruction
 pub fn get_transfer_instruction_account_metas(config: TokenAccountsMetaConfig) -> Vec<AccountMeta> {
     let default_pubkeys = TokenDefaultAccounts::default();
     // Direct invoke adds fee_payer, and authority
@@ -159,7 +159,7 @@ pub fn get_transfer_instruction_account_metas(config: TokenAccountsMetaConfig) -
             AccountMeta::new_readonly(default_pubkeys.account_compression_authority, false),
             // account_compression_program
             AccountMeta::new_readonly(default_pubkeys.account_compression_program, false),
-            // self_program (compressed token program)
+            // self_program (light token program)
             AccountMeta::new_readonly(default_pubkeys.self_program, false),
         ]
     } else {
@@ -176,12 +176,12 @@ pub fn get_transfer_instruction_account_metas(config: TokenAccountsMetaConfig) -
             AccountMeta::new_readonly(default_pubkeys.account_compression_authority, false),
             // account_compression_program
             AccountMeta::new_readonly(default_pubkeys.account_compression_program, false),
-            // self_program (compressed token program)
+            // self_program (light token program)
             AccountMeta::new_readonly(default_pubkeys.self_program, false),
         ]
     };
 
-    // Optional token pool PDA (for compression/decompression)
+    // Optional SPL interface PDA (for compression/decompression)
     if let Some(spl_interface_pda) = config.spl_interface_pda {
         metas.push(AccountMeta::new(spl_interface_pda, false));
     } else if config.fee_payer.is_some() || config.with_anchor_none {

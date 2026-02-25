@@ -95,7 +95,7 @@ async fn test_create_ata_derive() {
     use anchor_semi_manual_test::LightAccountVariant;
     use light_client::interface::AccountInterface;
 
-    // Mint must be decompressed first since ATA depends on it
+    // Mint must be decompressed first since associated token account depends on it
     let mint_iface = rpc
         .get_mint_interface(&mint, None)
         .await
@@ -111,7 +111,7 @@ async fn test_create_ata_derive() {
         .expect("failed to get ATA interface")
         .value
         .expect("ATA interface should exist");
-    assert!(ata_interface.is_cold(), "ATA should be cold");
+    assert!(ata_interface.is_cold(), "Associated token account should be cold");
 
     // Mint must come before ATA since ATA depends on mint being decompressed
     let specs: Vec<AccountSpec<LightAccountVariant>> = vec![

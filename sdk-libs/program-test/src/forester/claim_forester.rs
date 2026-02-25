@@ -16,7 +16,7 @@ use crate::registry_sdk::{
 /// Claim rent from compressible token accounts via the registry program
 ///
 /// This function invokes the registry program's claim instruction,
-/// which then CPIs to the compressed token program with the correct compression_authority PDA signer.
+/// which then CPIs to the Light Token program with the correct compression_authority PDA signer.
 ///
 /// # Arguments
 /// * `rpc` - RPC client with indexer capabilities
@@ -32,7 +32,7 @@ pub async fn claim_forester<R: Rpc + Indexer>(
     authority: &Keypair,
     payer: &Keypair,
 ) -> Result<Signature, RpcError> {
-    // Compressed token program ID
+    // Light Token program ID
     let compressed_token_program_id =
         Pubkey::from_str_const("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
 

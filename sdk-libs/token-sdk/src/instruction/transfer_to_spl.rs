@@ -13,7 +13,7 @@ use solana_instruction::{AccountMeta, Instruction};
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-/// # Create a transfer ctoken to SPL instruction:
+/// # Create a light-token to SPL transfer instruction:
 /// ```rust
 /// # use solana_pubkey::Pubkey;
 /// # use light_token::instruction::TransferToSpl;
@@ -51,7 +51,7 @@ pub struct TransferToSpl {
     pub spl_token_program: Pubkey,
 }
 
-/// # Transfer ctoken to SPL via CPI:
+/// # Transfer light-token to SPL via CPI:
 /// ```rust,no_run
 /// # use light_token::instruction::TransferToSplCpi;
 /// # use solana_account_info::AccountInfo;
@@ -105,7 +105,7 @@ impl<'info> TransferToSplCpi<'info> {
             self.compressed_token_program_authority, // CPI authority PDA (first)
             self.payer,                              // Fee payer (second)
             self.mint,                               // Index 0: Mint
-            self.source,                             // Index 1: Source ctoken account
+            self.source,                             // Index 1: Source light-token account
             self.destination_spl_token_account,      // Index 2: Destination SPL token account
             self.authority,                          // Index 3: Authority (signer)
             self.spl_interface_pda,                  // Index 4: SPL interface PDA
@@ -121,7 +121,7 @@ impl<'info> TransferToSplCpi<'info> {
             self.compressed_token_program_authority, // CPI authority PDA (first)
             self.payer,                              // Fee payer (second)
             self.mint,                               // Index 0: Mint
-            self.source,                             // Index 1: Source ctoken account
+            self.source,                             // Index 1: Source light-token account
             self.destination_spl_token_account,      // Index 2: Destination SPL token account
             self.authority,                          // Index 3: Authority (signer)
             self.spl_interface_pda,                  // Index 4: SPL interface PDA
@@ -154,7 +154,7 @@ impl TransferToSpl {
         let packed_accounts = vec![
             // Mint (index 0)
             AccountMeta::new_readonly(self.mint, false),
-            // Source ctoken account (index 1) - writable
+            // Source light-token account (index 1) - writable
             AccountMeta::new(self.source, false),
             // Destination SPL token account (index 2) - writable
             AccountMeta::new(self.destination_spl_token_account, false),
@@ -166,14 +166,14 @@ impl TransferToSpl {
             AccountMeta::new_readonly(self.spl_token_program, false),
         ];
 
-        // First operation: compress from ctoken account to pool using compress_spl
+        // First operation: compress from light-token account via SPL interface PDA
         let compress_to_pool = CTokenAccount2 {
             inputs: vec![],
             output: MultiTokenTransferOutputData::default(),
             compression: Some(Compression::compress(
                 self.amount,
                 0, // mint index
-                1, // source ctoken account index
+                1, // source light-token account index
                 3, // authority index
             )),
             delegate_is_set: false,

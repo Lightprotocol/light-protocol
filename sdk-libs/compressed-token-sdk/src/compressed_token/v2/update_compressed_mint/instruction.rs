@@ -20,7 +20,7 @@ use crate::{
 
 pub const UPDATE_COMPRESSED_MINT_DISCRIMINATOR: u8 = 105;
 
-/// Input struct for updating a compressed mint instruction
+/// Input struct for updating a light mint instruction
 #[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize)]
 pub struct UpdateMintInputs {
     pub compressed_mint_inputs: MintWithContext,
@@ -35,7 +35,7 @@ pub struct UpdateMintInputs {
     pub out_output_queue: Pubkey,
 }
 
-/// Creates an update compressed mint instruction with CPI context support (now uses mint_action)
+/// Creates an update light mint instruction with CPI context support (now uses mint_action)
 pub fn update_compressed_mint_cpi(
     input: UpdateMintInputs,
     cpi_context: Option<CpiContext>,
@@ -86,12 +86,12 @@ pub fn update_compressed_mint_cpi(
     })
 }
 
-/// Creates an update compressed mint instruction without CPI context
+/// Creates an update light mint instruction without CPI context
 pub fn update_compressed_mint(input: UpdateMintInputs) -> Result<Instruction> {
     update_compressed_mint_cpi(input, None)
 }
 
-/// Input struct for creating an update compressed mint instruction with CPI context write
+/// Input struct for creating an update light mint instruction with CPI context write
 #[derive(Debug, Clone)]
 pub struct UpdateMintInputsCpiWrite {
     pub compressed_mint_inputs: MintWithContext,
@@ -103,7 +103,7 @@ pub struct UpdateMintInputsCpiWrite {
     pub cpi_context_pubkey: Pubkey,
 }
 
-/// Creates an update compressed mint instruction for CPI context writes (now uses mint_action)
+/// Creates an update light mint instruction for CPI context writes (now uses mint_action)
 pub fn create_update_compressed_mint_cpi_write(
     inputs: UpdateMintInputsCpiWrite,
 ) -> Result<Instruction> {

@@ -5,7 +5,7 @@ use solana_pubkey::Pubkey;
 
 use crate::utils::TokenDefaultAccounts;
 
-/// Account metadata configuration for compressed token multi-transfer instructions
+/// Account metadata configuration for light token multi-transfer instructions
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct Transfer2AccountsMetaConfig {
     pub fee_payer: Option<Pubkey>,
@@ -46,7 +46,7 @@ impl Transfer2AccountsMetaConfig {
     }
 }
 
-/// Get the standard account metas for a compressed token multi-transfer instruction
+/// Get the standard account metas for a light token multi-transfer instruction
 pub fn get_transfer2_instruction_account_metas(
     config: Transfer2AccountsMetaConfig,
 ) -> Vec<AccountMeta> {

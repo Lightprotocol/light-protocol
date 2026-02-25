@@ -20,7 +20,7 @@
 | `associated_token::authority` | Yes | ATA owner field reference |
 | `associated_token::mint` | Yes | Token mint field reference |
 
-**Note:** The ATA bump is derived on-chain by the cToken program. It is no longer
+**Note:** The ATA bump is derived on-chain by the Light Token program. It is no longer
 passed in instruction data.
 
 ### Infrastructure (auto-detected by name)
@@ -29,7 +29,7 @@ passed in instruction data.
 fee_payer                            # Pays tx fee
 light_token_config                   # Token program config
 light_token_rent_sponsor             # Funds rent-free creation
-light_token_program                  # CToken program
+light_token_program                  # Light Token program
 system_program                       # System program
 ```
 

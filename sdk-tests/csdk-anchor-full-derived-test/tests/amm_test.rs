@@ -110,7 +110,7 @@ async fn setup() -> AmmTestContext {
         .await
         .unwrap();
 
-    // Create two light mints (cmints) for token_0 and token_1
+    // Create two Light Mints for token_0 and token_1
     // Using shared::setup_create_mint which creates both compressed mint and on-chain Mint account
     let (mint_a, _compression_addr_a, ata_pubkeys_a, _mint_seed_a) = shared::setup_create_mint(
         &mut rpc,

@@ -26,7 +26,7 @@ pub fn derive_associated_token_account(owner: &Pubkey, mint: &Pubkey) -> Pubkey 
     .0
 }
 
-/// # Create an associated ctoken account instruction:
+/// # Create an associated light-token account instruction:
 /// ```rust
 /// # use solana_pubkey::Pubkey;
 /// # use light_token::instruction::CreateAssociatedTokenAccount;
@@ -112,7 +112,7 @@ impl CreateAssociatedTokenAccount {
     }
 }
 
-/// CPI builder for creating CToken ATAs.
+/// CPI builder for creating Light Token associated token accounts.
 ///
 /// # Example - Rent-free ATA (idempotent)
 /// ```rust,ignore
@@ -225,7 +225,7 @@ impl<'info> CreateTokenAtaCpiIdempotent<'info> {
     }
 }
 
-/// Rent-free enabled CToken ATA creation CPI.
+/// Rent-free enabled Light Token associated token account creation CPI.
 pub struct CreateTokenAtaRentFreeCpi<'info> {
     payer: AccountInfo<'info>,
     owner: AccountInfo<'info>,

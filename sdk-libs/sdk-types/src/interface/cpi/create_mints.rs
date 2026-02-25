@@ -1,4 +1,4 @@
-//! Generic CPI for creating multiple compressed mints.
+//! Generic CPI for creating multiple light mints.
 //!
 //! This module provides framework-agnostic mint creation via `CreateMintsCpi`,
 //! generic over `AccountInfoTrait`. Account order matches the cToken program
@@ -59,9 +59,9 @@ pub struct SingleMintParams<'a> {
     pub token_metadata: Option<&'a TokenMetadataInstructionData>,
 }
 
-/// Parameters for creating one or more compressed mints with decompression.
+/// Parameters for creating one or more light mints with decompression.
 ///
-/// Creates N compressed mints and decompresses all to Solana Mint accounts.
+/// Creates N light mints and decompresses all to light mint accounts.
 /// Uses CPI context pattern when N > 1 for efficiency.
 #[derive(Debug, Clone)]
 pub struct CreateMintsParams<'a> {
@@ -159,7 +159,7 @@ pub struct CreateMintsStaticAccounts<'a, AI: AccountInfoTrait + Clone> {
     pub cpi_authority: &'a AI,
 }
 
-/// CPI struct for creating multiple compressed mints.
+/// CPI struct for creating multiple light mints.
 ///
 /// Generic over `AccountInfoTrait` to work with both solana and pinocchio backends.
 /// Uses named account fields for clarity and safety.
@@ -837,7 +837,7 @@ pub fn find_mint_address<AI: AccountInfoTrait>(mint_seed: &[u8; 32]) -> ([u8; 32
     )
 }
 
-/// Derive the compressed mint address from a mint seed and address tree pubkey.
+/// Derive the light mint address from a mint seed and address tree pubkey.
 ///
 /// This computes `derive_address(find_mint_address(mint_seed).0, address_tree, LIGHT_TOKEN_PROGRAM_ID)`.
 pub fn derive_mint_compressed_address<AI: AccountInfoTrait>(
@@ -877,7 +877,7 @@ pub fn get_output_queue_next_index<AI: AccountInfoTrait>(
 // High-level CreateMints API
 // ============================================================================
 
-/// High-level struct for creating compressed mints.
+/// High-level struct for creating light mints.
 ///
 /// Consolidates proof parsing, tree account resolution, and CPI invocation into
 /// a single `.invoke()` call. This is the recommended API for creating mints.

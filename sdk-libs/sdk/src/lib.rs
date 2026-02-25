@@ -71,7 +71,7 @@
 //! 3. `cpi-context` - Enables CPI context operations for batched compressed account operations.
 //!    - available on devnet, localnet, and light-program-test.
 //!    - Enables the use of one validity proof across multiple cpis from different programs in one instruction.
-//!    - For example spending compressed tokens (owned by the ctoken program) and updating a compressed pda (owned by a custom program)
+//!    - For example spending compressed tokens (owned by the Light Token program) and updating a compressed pda (owned by a custom program)
 //!      with one validity proof.
 //!    - An instruction should not use more than one validity proof.
 //!    - Requires the v2 feature.

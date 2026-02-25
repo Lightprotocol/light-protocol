@@ -5,7 +5,7 @@ use solana_instruction::{AccountMeta, Instruction};
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-/// # Mint tokens to a ctoken account (simple 3-account instruction):
+/// # Mint tokens to a light-token account (simple 3-account instruction):
 /// ```rust
 /// # use solana_pubkey::Pubkey;
 /// # use light_token::instruction::MintTo;
@@ -38,7 +38,7 @@ pub struct MintTo {
     pub fee_payer: Option<Pubkey>,
 }
 
-/// # Mint to ctoken via CPI:
+/// # Mint to light-token via CPI:
 /// ```rust,no_run
 /// # use light_token::instruction::MintToCpi;
 /// # use solana_account_info::AccountInfo;

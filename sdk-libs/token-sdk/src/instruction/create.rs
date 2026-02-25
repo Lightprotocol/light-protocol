@@ -11,7 +11,7 @@ use solana_pubkey::Pubkey;
 
 use crate::instruction::{compressible::CompressibleParamsCpi, CompressibleParams};
 
-/// # Create a create ctoken account instruction:
+/// # Create a light-token account instruction:
 /// ```rust
 /// # use solana_pubkey::Pubkey;
 /// # use light_token::instruction::CreateTokenAccount;
@@ -84,7 +84,7 @@ impl CreateTokenAccount {
     }
 }
 
-/// CPI builder for creating CToken accounts (vaults).
+/// CPI builder for creating Light Token accounts (vaults).
 ///
 /// # Example - Rent-free vault with PDA signing
 /// ```rust,ignore
@@ -163,7 +163,7 @@ impl<'info> CreateTokenAccountCpi<'info> {
     }
 }
 
-/// Rent-free enabled CToken account creation CPI.
+/// Rent-free enabled Light Token account creation CPI.
 pub struct CreateTokenAccountRentFreeCpi<'info> {
     base: CreateTokenAccountCpi<'info>,
     config: AccountInfo<'info>,

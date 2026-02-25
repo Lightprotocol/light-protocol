@@ -69,7 +69,7 @@ Tests for Light SDK V2 with Pinocchio framework.
 ```bash
 cargo test-sbf -p sdk-token-test
 ```
-Tests for compressed token SDK operations (mint, transfer, burn, etc.).
+Tests for light token SDK operations (mint, transfer, burn, etc.).
 
 ### Client Tests
 ```bash

@@ -61,7 +61,7 @@ pub(super) use crate::light_pdas::seeds::extract_account_inner_type;
 pub enum LightAccountType {
     #[default]
     Pda, // Default (no type specifier) - for PDAs
-    Mint,            // `mint` keyword - for compressed mints
+    Mint,            // `mint` keyword - for light mints
     Token,           // `token` keyword - for token accounts
     AssociatedToken, // `associated_token` keyword - for ATAs
 }

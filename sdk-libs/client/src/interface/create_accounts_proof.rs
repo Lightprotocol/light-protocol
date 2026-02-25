@@ -56,7 +56,7 @@ impl CreateAccountsProofInput {
         Self::PdaWithOwner { pda, owner }
     }
 
-    /// Compressed mint (Mint).
+    /// Light mint (Mint).
     /// Address derived: `derive_mint_compressed_address(&mint_signer, &tree)`
     pub fn mint(mint_signer: Pubkey) -> Self {
         Self::Mint(mint_signer)

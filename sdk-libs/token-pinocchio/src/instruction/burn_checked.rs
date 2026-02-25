@@ -10,7 +10,7 @@ use pinocchio::{
 
 use crate::constants::LIGHT_TOKEN_PROGRAM_ID;
 
-/// Burn ctoken checked via CPI.
+/// Burn light-token checked via CPI.
 ///
 /// # Example
 ///

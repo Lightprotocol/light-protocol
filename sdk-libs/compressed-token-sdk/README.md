@@ -38,7 +38,7 @@ For full examples, see the [Compressed Token Examples](https://github.com/Lightp
 | Compress SPL account | [create-compressed-token-accounts](https://www.zkcompression.com/compressed-tokens/guides/create-compressed-token-accounts) | [example](https://github.com/Lightprotocol/examples-zk-compression/blob/main/compressed-token-cookbook/actions/compress-spl-account.ts) |
 | Decompress | [create-compressed-token-accounts](https://www.zkcompression.com/compressed-tokens/guides/create-compressed-token-accounts) | [example](https://github.com/Lightprotocol/examples-zk-compression/blob/main/compressed-token-cookbook/actions/decompress.ts) |
 | Merge token accounts | [create-compressed-token-accounts](https://www.zkcompression.com/compressed-tokens/guides/create-compressed-token-accounts) | [example](https://github.com/Lightprotocol/examples-zk-compression/blob/main/compressed-token-cookbook/actions/merge-token-accounts.ts) |
-| Create token pool | [create-compressed-token-accounts](https://www.zkcompression.com/compressed-tokens/guides/create-compressed-token-accounts) | [example](https://github.com/Lightprotocol/examples-zk-compression/blob/main/compressed-token-cookbook/actions/create-token-pool.ts) |
+| Create SPL interface PDA | [create-compressed-token-accounts](https://www.zkcompression.com/compressed-tokens/guides/create-compressed-token-accounts) | [example](https://github.com/Lightprotocol/examples-zk-compression/blob/main/compressed-token-cookbook/actions/create-token-pool.ts) |
 
 ### Toolkit guides
 

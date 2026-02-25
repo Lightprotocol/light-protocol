@@ -1,4 +1,4 @@
-// Tests for CreateMintCpi (CreateCmint instruction)
+// Tests for CreateMintCpi (CreateMint instruction)
 
 mod shared;
 

@@ -90,7 +90,7 @@ fn find_account_indices(
     destination_pubkey: &Pubkey,
 ) -> Result<CompressAndCloseIndices, TokenSdkError> {
     let source_index = find_index(ctoken_account_key).ok_or_else(|| {
-        msg!("Source ctoken account not found in packed_accounts");
+        msg!("Source light-token account not found in packed_accounts");
         TokenSdkError::InvalidAccountData
     })?;
 
@@ -129,7 +129,7 @@ fn find_account_indices(
     })
 }
 
-/// Compress and close compressed token accounts with pre-computed indices
+/// Compress and close light token accounts with pre-computed indices
 ///
 /// # Arguments
 /// * `fee_payer` - The fee payer pubkey
@@ -174,7 +174,7 @@ pub fn compress_and_close_token_accounts_with_indices<'info>(
 
         let amount = light_token_interface::state::Token::amount_from_slice(&account_data)?;
 
-        // Create CTokenAccount2 for CompressAndClose operation
+        // Create light-token account for CompressAndClose operation
         let mut token_account = CTokenAccount2::new_empty(idx.owner_index, idx.mint_index);
 
         // Set up compress_and_close with actual indices
@@ -230,12 +230,12 @@ pub fn compress_and_close_token_accounts_with_indices<'info>(
     create_transfer2_instruction(inputs)
 }
 
-/// Compress and close compressed token accounts
+/// Compress and close light token accounts
 ///
 /// # Arguments
 /// * `fee_payer` - The fee payer pubkey
 /// * `output_queue_pubkey` - The output queue pubkey where compressed accounts will be stored
-/// * `ctoken_solana_accounts` - Slice of ctoken Solana account infos to compress and close
+/// * `ctoken_solana_accounts` - Slice of light-token account infos to compress and close
 /// * `packed_accounts` - Slice of all accounts that will be used in the instruction (tree accounts)
 ///
 /// # Returns
@@ -262,11 +262,11 @@ pub fn compress_and_close_token_accounts<'info>(
             .map(|idx| (idx + 1) as u8) // Add 1 because output_queue will be at index 0
     };
 
-    // Process each ctoken Solana account and build indices
+    // Process each light-token account and build indices
     let mut indices_vec = Vec::with_capacity(ctoken_solana_accounts.len());
 
     for ctoken_account_info in ctoken_solana_accounts.iter() {
-        // Deserialize the ctoken Solana account using light zero copy
+        // Deserialize the light-token account using light zero copy
         let account_data = ctoken_account_info
             .try_borrow_data()
             .map_err(|_| TokenSdkError::AccountBorrowFailed)?;
@@ -313,7 +313,7 @@ pub fn compress_and_close_token_accounts<'info>(
     )
 }
 
-/// Compress and close ctoken accounts, and invoke cpi.
+/// Compress and close light-token accounts, and invoke cpi.
 ///
 /// Wraps `compress_and_close_token_accounts`, builds the instruction, and
 /// calls `invoke_signed` with provided seeds.
@@ -404,7 +404,7 @@ impl CompressAndCloseAccounts {
 impl AccountMetasVec<AccountMeta> for CompressAndCloseAccounts {
     /// Adds:
     /// 1. system accounts if not set
-    /// 2. compressed token program and ctoken cpi authority pda to pre accounts
+    /// 2. light token program and light-token CPI authority PDA to pre accounts
     fn get_account_metas_vec(
         &self,
         accounts: &mut PackedAccounts,

@@ -91,7 +91,7 @@ pub struct Transfer2Inputs {
     pub in_tlv: Option<Vec<Vec<ExtensionInstructionData>>>,
 }
 
-/// Create the instruction for compressed token multi-transfer operations
+/// Create the instruction for light token multi-transfer operations
 #[profile]
 pub fn create_transfer2_instruction(inputs: Transfer2Inputs) -> Result<Instruction> {
     let Transfer2Inputs {

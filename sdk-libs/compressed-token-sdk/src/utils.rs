@@ -76,7 +76,7 @@ pub struct AccountInfoToCompress<'info> {
     pub signer_seeds: Vec<Vec<u8>>,
 }
 
-/// Standard pubkeys for compressed token instructions
+/// Standard pubkeys for light token instructions
 #[derive(Debug, Copy, Clone)]
 pub struct TokenDefaultAccounts {
     pub light_system_program: Pubkey,

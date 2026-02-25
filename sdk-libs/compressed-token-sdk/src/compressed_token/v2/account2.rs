@@ -307,7 +307,7 @@ impl CTokenAccount2 {
             pool_account_index: 0,
             pool_index: 0,
             bump: 0,
-            decimals: 0, // Not used for ctoken compression
+            decimals: 0, // Not used for light-token compression
         });
         self.method_used = true;
 

@@ -5,7 +5,7 @@ use solana_instruction::{AccountMeta, Instruction};
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-/// # Burn tokens from a ctoken account with decimals validation:
+/// # Burn tokens from a light-token account with decimals validation:
 /// ```rust
 /// # use solana_pubkey::Pubkey;
 /// # use light_token::instruction::BurnChecked;
@@ -41,7 +41,7 @@ pub struct BurnChecked {
     pub fee_payer: Option<Pubkey>,
 }
 
-/// # Burn ctoken via CPI with decimals validation:
+/// # Burn light-token via CPI with decimals validation:
 /// ```rust,no_run
 /// # use light_token::instruction::BurnCheckedCpi;
 /// # use solana_account_info::AccountInfo;

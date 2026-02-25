@@ -1,4 +1,4 @@
-# Compressed Mint Lifecycle
+# Light Mint Lifecycle
 
 ## Usage
 
@@ -54,7 +54,7 @@ fee_payer                            # Pays tx fee
 light_token_config                   # Token program config
 light_token_rent_sponsor             # Funds rent-free creation
 light_token_cpi_authority            # CPI authority for signing
-light_token_program                  # CToken program
+light_token_program                  # Light Token program
 system_program                       # System program
 ```
 
@@ -179,7 +179,7 @@ State machine: **No Account -> Compressed+Decompressed -> Compressed <-> Decompr
 
 ## 1. Init Phase (Creation)
 
-Creates **both** a compressed mint **and** a decompressed Mint Solana account in a single instruction.
+Creates **both** a Light Mint **and** a decompressed Mint Solana account in a single instruction.
 
 ### Accounts Layout
 
@@ -206,7 +206,7 @@ Creates **both** a compressed mint **and** a decompressed Mint Solana account in
 ### State Changes
 
 - **On-chain**: Mint PDA created with `CompressionInfo`
-- **Off-chain**: Compressed mint registered with address
+- **Off-chain**: Light Mint registered with address
 - **Mint metadata**: `mint_decompressed = false` initially
 
 ### CreateMintParams
@@ -244,7 +244,7 @@ Compresses and closes the Mint Solana account. **Permissionless** when `is_compr
 ### State Changes
 
 - **On-chain**: Mint PDA closed, lamports returned to `rent_sponsor`
-- **Off-chain**: Compressed mint state preserved
+- **Off-chain**: Light Mint state preserved
 - **Mint metadata**: `mint_decompressed = false`
 
 ### CompressAndCloseMintAction
@@ -256,7 +256,7 @@ pub struct CompressAndCloseMintAction {
 }
 ```
 
-**Idempotent mode**: Useful for foresters to handle already-compressed mints without failing.
+**Idempotent mode**: Useful for foresters to handle already-compressed Light Mints without failing.
 
 ---
 
@@ -289,14 +289,14 @@ Note: `mint_seed` is not included for decompress (only needed for create/init).
 
 | Check | Error |
 |-------|-------|
-| Compressed mint proof valid | `SystemProgramError::ProofVerificationFailed` |
-| Authority matches compressed mint authority | `TokenError::InvalidAccountData` |
+| Light Mint proof valid | `SystemProgramError::ProofVerificationFailed` |
+| Authority matches Light Mint authority | `TokenError::InvalidAccountData` |
 | `rent_payment >= 2` | `ProgramError::InvalidInstructionData` |
 
 ### State Changes
 
 - **On-chain**: Mint PDA created/updated
-- **Off-chain**: Compressed mint updated with `mint_decompressed = true`
+- **Off-chain**: Light Mint updated with `mint_decompressed = true`
 
 ### DecompressMintAction
 
@@ -366,7 +366,7 @@ impl Mint {
 ### Mint Compressed
 
 1. On-chain Mint PDA closed (data empty)
-2. Compressed mint exists (query via RPC)
+2. Light Mint exists (query via RPC)
 3. `metadata.mint_decompressed == false`
 4. `metadata.version == 3`
 

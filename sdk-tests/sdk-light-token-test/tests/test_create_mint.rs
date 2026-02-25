@@ -23,7 +23,7 @@ use solana_sdk::{
     signer::Signer,
 };
 
-/// Test creating a compressed mint using CreateMintCpi::invoke()
+/// Test creating a light mint using CreateMintCpi::invoke()
 #[tokio::test]
 async fn test_create_compressed_mint() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(
@@ -144,7 +144,7 @@ async fn test_create_compressed_mint() {
         .await
         .unwrap();
 
-    // Verify the Mint Solana account was created (CreateMint now decompresses automatically)
+    // Verify the light mint account was created (CreateMint now decompresses automatically)
     let mint_account = rpc.get_account(mint_pda).await.unwrap();
     assert!(mint_account.is_some(), "Mint Solana account should exist");
 }

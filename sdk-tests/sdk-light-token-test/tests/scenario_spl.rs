@@ -13,7 +13,7 @@
 // 10. Advance epochs to trigger compression
 // 11. Verify cToken account is compressed and closed
 // 12. Recreate cToken ATA
-// 13. Decompress compressed tokens back to cToken account
+// 13. Decompress compressed light tokens to light-token account
 // 14. Verify cToken account has tokens again
 
 use anchor_spl::token::{spl_token, Mint};

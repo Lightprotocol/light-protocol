@@ -10,7 +10,7 @@
 //!
 //! Account types handled:
 //! - PDAs (compressed accounts)
-//! - Mints (compressed mints - CREATE + DECOMPRESS atomically)
+//! - Mints (light mints - CREATE + DECOMPRESS atomically)
 //! - Token accounts (vaults for transfers)
 //! - ATAs (associated token accounts)
 //!

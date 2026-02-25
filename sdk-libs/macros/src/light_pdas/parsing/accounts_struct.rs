@@ -29,7 +29,7 @@ pub struct ParsedAccountsStruct {
     pub generics: syn::Generics,
     /// Fields marked with `#[light_account(init)]` for compressed PDAs
     pub pda_fields: Vec<ParsedPdaField>,
-    /// Fields marked with `#[light_account(init, mint::...)]` for compressed mints
+    /// Fields marked with `#[light_account(init, mint::...)]` for light mints
     pub mint_fields: Vec<ParsedMintField>,
     /// Fields marked with `#[light_account([init,] token::...)]` for token accounts
     pub token_fields: Vec<ParsedTokenField>,

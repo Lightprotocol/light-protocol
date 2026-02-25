@@ -66,7 +66,7 @@ async fn test_ctoken_transfer_checked_spl_mint() {
     .await
     .unwrap();
 
-    // Create token pool for SPL interface
+    // Create SPL interface PDA
     let create_pool_ix =
         CreateSplInterfacePda::new(payer.pubkey(), mint, anchor_spl::token::ID, false)
             .instruction();

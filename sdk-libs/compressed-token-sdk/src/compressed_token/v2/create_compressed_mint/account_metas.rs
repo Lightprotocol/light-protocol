@@ -3,7 +3,7 @@ use solana_pubkey::Pubkey;
 
 use crate::utils::TokenDefaultAccounts;
 
-/// Account metadata configuration for create cMint instruction
+/// Account metadata configuration for create light mint instruction
 #[derive(Debug, Copy, Clone)]
 pub struct CreateMintMetaConfig {
     pub fee_payer: Option<Pubkey>,
@@ -43,7 +43,7 @@ impl CreateMintMetaConfig {
     }
 }
 
-/// Get the standard account metas for a create cMint instruction
+/// Get the standard account metas for a create light mint instruction
 pub fn get_create_compressed_mint_instruction_account_metas(
     config: CreateMintMetaConfig,
 ) -> Vec<AccountMeta> {

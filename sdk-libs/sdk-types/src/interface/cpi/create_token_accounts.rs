@@ -59,7 +59,7 @@ pub fn derive_associated_token_account<AI: AccountInfoTrait>(
 // CreateTokenAccountCpi
 // ============================================================================
 
-/// CPI builder for creating CToken accounts (vaults).
+/// CPI builder for creating Light Token accounts (vaults).
 ///
 /// Generic over `AccountInfoTrait` for framework independence.
 ///
@@ -109,7 +109,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateTokenAccountCpi<'a, AI> {
     }
 }
 
-/// Rent-free enabled CToken account creation CPI.
+/// Rent-free enabled Light Token account creation CPI.
 pub struct CreateTokenAccountRentFreeCpi<'a, AI: AccountInfoTrait + Clone> {
     base: CreateTokenAccountCpi<'a, AI>,
     config: &'a AI,
@@ -236,7 +236,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateTokenAccountRentFreeCpi<'a, AI> {
 // CreateTokenAtaCpi
 // ============================================================================
 
-/// CPI builder for creating CToken ATAs.
+/// CPI builder for creating Light Token associated token accounts.
 ///
 /// Generic over `AccountInfoTrait` for framework independence.
 ///
@@ -315,7 +315,7 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateTokenAtaCpiIdempotent<'a, AI> {
     }
 }
 
-/// Rent-free enabled CToken ATA creation CPI.
+/// Rent-free enabled Light Token associated token account creation CPI.
 pub struct CreateTokenAtaRentFreeCpi<'a, AI: AccountInfoTrait + Clone> {
     payer: &'a AI,
     owner: &'a AI,

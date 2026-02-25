@@ -1,7 +1,7 @@
 use light_account_checks::AccountInfoTrait;
 
 use crate::CpiSigner;
-// TODO: move to ctoken types
+// TODO: move to light-token types
 #[derive(Clone, Debug)]
 pub struct CpiContextWriteAccounts<'a, T: AccountInfoTrait + Clone> {
     pub fee_payer: &'a T,

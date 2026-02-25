@@ -14,7 +14,7 @@ use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
 
-/// Setup helper: Creates a compressed mint directly using the ctoken SDK.
+/// Setup helper: Creates a light mint directly using the light-token SDK.
 /// Returns (mint_pda, mint_seed_keypair)
 async fn setup_create_mint(
     rpc: &mut (impl Rpc + Indexer),

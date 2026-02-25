@@ -320,7 +320,7 @@ async fn test_create_all_derive() {
     });
     let vault_compressed = vault_iface
         .compressed()
-        .expect("cold vault must have compressed data");
+        .expect("cold vault must have compressed light-token data");
     let vault_interface = AccountInterface {
         key: vault_iface.key,
         account: vault_iface.account.clone(),

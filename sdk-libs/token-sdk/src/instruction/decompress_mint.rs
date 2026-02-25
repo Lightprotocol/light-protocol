@@ -263,9 +263,9 @@ pub struct DecompressCMintWithCpiContext {
     pub cpi_context_pubkey: Pubkey,
     /// CPI context flags
     pub cpi_context: CpiContext,
-    /// Compressible config account (ctoken's config)
+    /// Compressible config account (Light Token program config)
     pub compressible_config: Pubkey,
-    /// Rent sponsor account (ctoken's rent sponsor)
+    /// Rent sponsor account (Light Token program rent sponsor)
     pub rent_sponsor: Pubkey,
 }
 
@@ -396,7 +396,7 @@ impl<'info> DecompressCMintCpiWithContext<'info> {
             self.mint.clone(),
             self.rent_sponsor.clone(),
             self.payer.clone(),
-            // Use ctoken's CPI authority for the CPI, not the calling program's authority
+            // Use the Light Token program's CPI authority for the CPI, not the calling program's authority
             self.light_token_cpi_authority.clone(),
             self.system_accounts.registered_program_pda.clone(),
             self.system_accounts.account_compression_authority.clone(),

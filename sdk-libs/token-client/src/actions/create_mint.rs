@@ -36,7 +36,7 @@ pub struct TokenMetadata {
 
 /// Parameters for creating a new Light Token mint.
 ///
-/// This creates both a compressed mint AND a decompressed Mint Solana account
+/// This creates both a light mint AND a light mint account
 /// in a single instruction.
 ///
 /// # Example

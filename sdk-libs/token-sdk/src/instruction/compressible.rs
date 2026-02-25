@@ -4,7 +4,7 @@ use solana_pubkey::Pubkey;
 
 use crate::constants::{LIGHT_TOKEN_CONFIG, RENT_SPONSOR_V1 as RENT_SPONSOR};
 
-/// Parameters for creating compressible ctoken accounts.
+/// Parameters for creating compressible light-token accounts.
 ///
 /// Compressible accounts have sponsored rent and can be compressed to compressed
 /// token accounts when their lamports balance is insufficient.
@@ -27,7 +27,7 @@ pub struct CompressibleParams {
     pub pre_pay_num_epochs: u8,
     /// Number of lamports transferred on a write operation (eg transfer) when account rent is insufficient to cover the next 2 rent-epochs.
     /// Default: 766 lamports for 3 hours rent.
-    /// These lamports keep the ctoken account perpetually funded when used.
+    /// These lamports keep the light-token account perpetually funded when used.
     pub lamports_per_write: Option<u32>,
     pub compress_to_account_pubkey: Option<CompressToPubkey>,
     pub compressible_config: Pubkey,
@@ -75,7 +75,7 @@ impl CompressibleParams {
     }
 }
 
-/// Parameters for creating compressible ctoken accounts via CPI.
+/// Parameters for creating compressible light-token accounts via CPI.
 ///
 /// # Example
 /// ```rust,no_run

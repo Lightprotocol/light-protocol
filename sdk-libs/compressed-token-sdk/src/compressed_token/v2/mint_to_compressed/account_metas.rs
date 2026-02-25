@@ -21,7 +21,7 @@ pub struct MintToCompressedMetaConfig {
 }
 
 impl MintToCompressedMetaConfig {
-    /// Create a new MintToCompressedMetaConfig for standard compressed mint operations
+    /// Create a new MintToCompressedMetaConfig for standard light mint operations
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         mint_authority: Pubkey,
@@ -74,7 +74,7 @@ impl MintToCompressedMetaConfig {
         }
     }
 
-    /// Create a new MintToCompressedMetaConfig for decompressed mint operations
+    /// Create a new MintToCompressedMetaConfig for light mint account operations
     #[allow(clippy::too_many_arguments)]
     pub fn new_decompressed(
         mint_authority: Pubkey,
@@ -164,7 +164,7 @@ pub fn get_mint_to_compressed_instruction_account_metas(
         metas.push(AccountMeta::new_readonly(mint_authority, true));
     }
 
-    // Optional decompressed mint accounts
+    // Optional light mint account accounts
     if config.spl_mint_initialized {
         metas.push(AccountMeta::new(config.mint_pda.unwrap(), false)); // mint
         metas.push(AccountMeta::new(config.spl_interface_pda.unwrap(), false)); // spl_interface_pda

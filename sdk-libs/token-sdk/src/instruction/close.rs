@@ -6,7 +6,7 @@ use solana_pubkey::Pubkey;
 
 use crate::constants::RENT_SPONSOR_V1 as RENT_SPONSOR;
 
-/// # Create a close ctoken account instruction:
+/// # Create a close light-token account instruction:
 /// ```rust
 /// # use solana_pubkey::Pubkey;
 /// # use light_token::instruction::{CloseAccount, LIGHT_TOKEN_PROGRAM_ID};
@@ -61,7 +61,7 @@ impl CloseAccount {
     }
 }
 
-/// # Close a ctoken account via CPI:
+/// # Close a light-token account via CPI:
 /// ```rust,no_run
 /// # use light_token::instruction::CloseAccountCpi;
 /// # use solana_account_info::AccountInfo;

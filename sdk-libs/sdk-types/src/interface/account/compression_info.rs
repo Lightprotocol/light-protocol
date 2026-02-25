@@ -120,7 +120,7 @@ pub trait CompressAs {
 /// SDK CompressionInfo - a compact 24-byte struct for custom zero-copy PDAs.
 ///
 /// This is the lightweight version of compression info used in the SDK.
-/// CToken has its own compression handling via `light_compressible::CompressionInfo`.
+/// Light Token has its own compression handling via `light_compressible::CompressionInfo`.
 ///
 /// # Memory Layout (24 bytes with #[repr(C)])
 /// - `last_claimed_slot`: u64 @ offset 0 (8 bytes, 8-byte aligned)
@@ -245,7 +245,7 @@ impl CompressionInfo {
 impl CompressionInfo {
     /// Calculate top-up lamports required for a write.
     ///
-    /// Logic (same as CTokens):
+    /// Logic (same as Light Tokens):
     /// - If account is compressible (can't pay current + next epoch): return lamports_per_write + deficit
     /// - If account has >= max_funded_epochs: return 0 (no top-up needed)
     /// - Otherwise: return lamports_per_write (maintenance mode)

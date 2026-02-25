@@ -37,8 +37,8 @@ use crate::{
 #[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize)]
 pub struct DecompressFullIndices {
     pub source: MultiInputTokenDataWithContext, // Complete compressed account data with merkle context
-    pub destination_index: u8,                  // Destination ctoken Solana account (must exist)
-    /// Whether this is an ATA decompression. For ATAs, the source.owner is the ATA address
+    pub destination_index: u8,                  // Destination light-token account (must exist)
+    /// Whether this is an associated token account decompression. For ATAs, the source.owner is the ATA address
     /// (not the wallet), so it should NOT be marked as a signer - the wallet signs the tx instead.
     pub is_ata: bool,
     /// TLV extensions for this compressed account (e.g., CompressedOnly extension).
@@ -156,7 +156,7 @@ impl<'a> Unpack<AccountInfo<'a>> for DecompressFullIndices {
     }
 }
 
-/// Decompress full balance from compressed token accounts with pre-computed indices
+/// Decompress full balance from compressed light token accounts with pre-computed indices
 ///
 /// # Arguments
 /// * `fee_payer` - The fee payer pubkey
@@ -195,7 +195,7 @@ pub fn decompress_full_token_accounts_with_indices<'info>(
         // For decompress_full, we don't have an output tree since everything goes to the destination
         let mut token_account = CTokenAccount2::new(vec![idx.source])?;
 
-        // Set up decompress_full - decompress entire balance to destination ctoken account
+        // Set up decompress_full - decompress entire balance to destination light-token account
         token_account.decompress(idx.source.amount, idx.destination_index)?;
         token_accounts.push(token_account);
 
@@ -267,10 +267,10 @@ pub fn decompress_full_token_accounts_with_indices<'info>(
     create_transfer2_instruction(inputs)
 }
 
-/// Helper function to pack compressed token accounts into DecompressFullIndices.
+/// Helper function to pack compressed light token accounts into DecompressFullIndices.
 /// Delegates to `DecompressFullInput::pack()`.
 ///
-/// For non-ATA decompress: owner is marked as a signer.
+/// For non-associated-token-account decompress: owner is marked as a signer.
 #[cfg(not(target_os = "solana"))]
 #[profile]
 pub fn pack_for_decompress_full(
@@ -354,7 +354,7 @@ impl DecompressFullAccounts {
 impl AccountMetasVec<AccountMeta> for DecompressFullAccounts {
     /// Adds:
     /// 1. system accounts if not set
-    /// 2. compressed token program and ctoken cpi authority pda to pre accounts
+    /// 2. light token program and light-token CPI authority PDA to pre accounts
     fn get_account_metas_vec(
         &self,
         accounts: &mut PackedAccounts,

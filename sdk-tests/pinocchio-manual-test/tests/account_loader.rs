@@ -123,7 +123,7 @@ async fn test_zero_copy_create_compress_decompress() {
         .expect("account interface should exist");
     assert!(
         account_interface.is_cold(),
-        "Account should be cold (compressed)"
+        "Account should be cold (compressed light-token)"
     );
 
     // Build variant using IntoVariant - verify seeds match the compressed data

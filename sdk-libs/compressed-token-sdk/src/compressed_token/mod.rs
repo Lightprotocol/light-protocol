@@ -1,4 +1,4 @@
-//! Compressed token account types and instruction builders.
+//! Light token account types and instruction builders.
 
 #[cfg(feature = "v1")]
 mod v1;

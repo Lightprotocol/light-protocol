@@ -1,4 +1,4 @@
-//! Create CToken account CPI builder for pinocchio.
+//! Create Light Token account CPI builder for pinocchio.
 //!
 //! Re-exports the generic `CreateTokenAccountCpi` from `light_sdk_types`
 //! specialized for pinocchio's `AccountInfo`.

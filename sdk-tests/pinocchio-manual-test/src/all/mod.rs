@@ -3,7 +3,7 @@
 //! This module demonstrates creating ALL account types in a single instruction:
 //! - Borsh PDA (MinimalRecord)
 //! - ZeroCopy PDA (ZeroCopyRecord)
-//! - Compressed Mint
+//! - Light Mint
 //! - Token Vault
 //! - Associated Token Account (ATA)
 //!

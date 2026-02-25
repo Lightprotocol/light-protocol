@@ -212,7 +212,7 @@ impl<'a, T: AccountInfoTrait + Clone> TransferAccountInfos<'a, T> {
     pub fn system_accounts_len(&self) -> usize {
         let mut len = 12; // Base system accounts length
         if !self.config.is_compress_or_decompress() {
-            // Token pool pda & compression sender or decompression recipient
+            // SPL interface PDA & compression sender or decompression recipient
             len -= 3;
         }
         if !self.config.cpi_context {

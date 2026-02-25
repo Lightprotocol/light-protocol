@@ -25,7 +25,7 @@ pub struct ApproveInputs {
     pub change_compressed_account_merkle_tree: Pubkey,
 }
 
-/// Create a compressed token approve instruction
+/// Create a light token approve instruction
 /// This creates two output accounts:
 /// 1. A delegated account with the specified amount and delegate
 /// 2. A change account with the remaining balance (if any)

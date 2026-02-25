@@ -108,7 +108,7 @@ pub fn get_approve_instruction_account_metas(config: ApproveMetaConfig) -> Vec<A
         false,
     ));
 
-    // self_program (compressed token program)
+    // self_program (light token program)
     metas.push(AccountMeta::new_readonly(
         default_pubkeys.self_program,
         false,

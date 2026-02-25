@@ -449,7 +449,7 @@ pub fn derive_light_rent_sponsor(input: TokenStream) -> TokenStream {
 /// This derive macro works alongside Anchor's `#[derive(Accounts)]` to add
 /// compression finalize logic for:
 /// - Accounts marked with `#[light_account(init)]` (PDAs)
-/// - Accounts marked with `#[light_account(init, mint, ...)]` (compressed mints)
+/// - Accounts marked with `#[light_account(init, mint, ...)]` (light mints)
 /// - Accounts marked with `#[light_account(token, ...)]` (rent-free token accounts)
 ///
 /// The trait is defined in `light_account::LightFinalize`.

@@ -105,7 +105,7 @@ pub trait TestRpc: Rpc + Sized {
     fn warp_to_slot(&mut self, slot: Slot) -> Result<(), RpcError>;
 
     /// Warps current slot forward by slots.
-    /// Claims and compresses compressible ctoken accounts.
+    /// Claims and compresses compressible light-token accounts.
     async fn warp_slot_forward(&mut self, slot: Slot) -> Result<(), RpcError>;
 
     /// Warps forward by the specified number of epochs.
@@ -146,7 +146,7 @@ impl TestRpc for LightProgramTest {
     }
 
     /// Warps current slot forward by slots.
-    /// Claims and compresses compressible ctoken accounts and program PDAs (auto compress).
+    /// Claims and compresses compressible light-token accounts and program PDAs (auto compress).
     async fn warp_slot_forward(&mut self, slot: Slot) -> Result<(), RpcError> {
         let mut current_slot = self.context.get_sysvar::<Clock>().slot;
         current_slot += slot;

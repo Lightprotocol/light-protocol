@@ -22,7 +22,7 @@ use crate::{
     AnchorDeserialize, AnchorSerialize,
 };
 
-/// Input struct for creating a compressed mint instruction
+/// Input struct for creating a light mint instruction
 #[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize)]
 pub struct CreateMintInputs {
     pub decimals: u8,
@@ -38,7 +38,7 @@ pub struct CreateMintInputs {
     pub version: u8,
 }
 
-/// Creates a compressed mint instruction (wrapper around mint_action)
+/// Creates a light mint instruction (wrapper around mint_action)
 pub fn create_compressed_mint_cpi(
     input: CreateMintInputs,
     cpi_context: Option<CpiContext>,
@@ -170,12 +170,12 @@ pub fn create_compressed_mint_cpi_write(input: CreateMintInputsCpiWrite) -> Resu
     })
 }
 
-/// Creates a compressed mint instruction with automatic mint address derivation
+/// Creates a light mint instruction with automatic mint address derivation
 pub fn create_compressed_mint(input: CreateMintInputs) -> Result<Instruction> {
     create_compressed_mint_cpi(input, None, None)
 }
 
-/// Derives the compressed mint address from the mint seed and address tree
+/// Derives the light mint address from the mint seed and address tree
 pub fn derive_mint_compressed_address(
     mint_seed: &Pubkey,
     address_tree_pubkey: &Pubkey,

@@ -12,19 +12,19 @@ use crate::{
     error::{Result, TokenSdkError},
     AnchorSerialize,
 };
-// CTokenAccount abstraction to bundle inputs and create outputs.
+// Light-token account abstraction to bundle inputs and create outputs.
 // Users don't really need to interact with this struct directly.
-// Counter point for an anchor like TokenAccount we need the CTokenAccount
+// Counter point for an anchor like TokenAccount we need the light-token account
 //
 // Rename TokenAccountMeta -> TokenAccountMeta
 //
 
 // We should have a create instruction function that works onchain and offchain.
 // - account infos don't belong into the create instruction function.
-// One difference between spl and compressed token program is that you don't want to make a separate cpi per transfer.
+// One difference between spl and light token program is that you don't want to make a separate cpi per transfer.
 // -> transfer(from, to, amount) doesn't work well
 //    -
-// -> compress(token_account, Option<amount>) could be compressed token account
+// -> compress(token_account, Option<amount>) could be light token account
 // -> decompress()
 // TODO:
 // - test decompress and compress in the same instruction
@@ -39,7 +39,7 @@ pub struct TransferConfig {
 
 /// Create instruction function should only take Pubkeys as inputs not account infos.
 ///
-/// Create the instruction for compressed token operations
+/// Create the instruction for light token operations
 pub fn create_transfer_instruction_raw(
     mint: Pubkey,
     token_accounts: Vec<CTokenAccount>,

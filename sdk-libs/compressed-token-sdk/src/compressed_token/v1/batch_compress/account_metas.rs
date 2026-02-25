@@ -152,7 +152,7 @@ pub fn get_batch_compress_instruction_account_metas(
     // merkle_tree (mut)
     metas.push(AccountMeta::new(config.merkle_tree, false));
 
-    // self_program (compressed token program)
+    // self_program (light token program)
     metas.push(AccountMeta::new_readonly(
         default_pubkeys.self_program,
         false,

@@ -14,7 +14,7 @@ pub struct MintActionMetaConfig {
     pub input_queue: Option<Pubkey>, // Input queue for existing compressed mint operations
     pub tokens_out_queue: Option<Pubkey>, // Output queue for new token accounts
     pub cpi_context: Option<Pubkey>,
-    pub token_accounts: Vec<Pubkey>, // For mint_to_ctoken actions
+    pub token_accounts: Vec<Pubkey>, // For mint to light-token actions
     pub mint: Option<Pubkey>,        // Mint PDA account for DecompressMint action
     pub compressible_config: Option<Pubkey>, // CompressibleConfig account (when creating Mint)
     pub rent_sponsor: Option<Pubkey>, // Rent sponsor PDA (when creating Mint)
@@ -22,7 +22,7 @@ pub struct MintActionMetaConfig {
 }
 
 impl MintActionMetaConfig {
-    /// Create a new MintActionMetaConfig for creating a new compressed mint.
+    /// Create a new MintActionMetaConfig for creating a new light mint.
     pub fn new_create_mint(
         fee_payer: Pubkey,
         authority: Pubkey,
@@ -47,7 +47,7 @@ impl MintActionMetaConfig {
         }
     }
 
-    /// Create a new MintActionMetaConfig for operations on an existing compressed mint.
+    /// Create a new MintActionMetaConfig for operations on an existing light mint.
     #[inline(never)]
     pub fn new(
         fee_payer: Pubkey,
@@ -211,7 +211,7 @@ impl MintActionMetaConfig {
 
         metas.push(AccountMeta::new(self.tree_pubkey, false));
 
-        // input_queue is present when operating on an existing compressed mint
+        // input_queue is present when operating on an existing compressed light mint
         // (input_queue is set via new() for existing mints, None via new_create_mint() for new mints)
         if let Some(input_queue) = self.input_queue {
             metas.push(AccountMeta::new(input_queue, false));

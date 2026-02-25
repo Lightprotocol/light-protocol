@@ -55,7 +55,7 @@ pub async fn setup_test_env() -> TestEnv {
     }
 }
 
-/// Creates a compressed mint using the ctoken SDK.
+/// Creates a light mint using the light-token SDK.
 /// Returns (mint_pda, mint_seed_keypair).
 pub async fn setup_create_mint(
     rpc: &mut (impl Rpc + Indexer),

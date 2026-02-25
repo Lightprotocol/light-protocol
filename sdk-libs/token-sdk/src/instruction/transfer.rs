@@ -5,7 +5,7 @@ use solana_instruction::{AccountMeta, Instruction};
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-/// # Create a transfer ctoken instruction:
+/// # Create a light-token transfer instruction:
 /// ```rust
 /// # use solana_pubkey::Pubkey;
 /// # use light_token::instruction::Transfer;
@@ -35,7 +35,7 @@ pub struct Transfer {
     pub fee_payer: Option<Pubkey>,
 }
 
-/// # Transfer ctoken via CPI:
+/// # Transfer light-token via CPI:
 /// ```rust,no_run
 /// # use light_token::instruction::TransferCpi;
 /// # use solana_account_info::AccountInfo;

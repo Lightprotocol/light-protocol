@@ -681,7 +681,7 @@ sdk-libs/macros/src/light_pdas/
 ### Account Type Documentation
 
 - **`pda.md`** - Compressed PDA creation with `#[light_account(init)]`
-- **`mint.md`** - Compressed mint creation with `#[light_account(init, mint::...)]`
+- **`mint.md`** - Light Mint creation with `#[light_account(init, mint::...)]`
 - **`token.md`** - Token account creation with `#[light_account(init, token::...)]`
 - **`associated_token.md`** - ATA creation with `#[light_account(init, associated_token::...)]`
 

@@ -217,10 +217,10 @@ async fn test_create_mint_with_metadata() {
     rpc.warp_slot_forward(SLOTS_PER_EPOCH * 30).await.unwrap();
 
     // After warp: mint should be closed on-chain
-    shared::assert_onchain_closed(&mut rpc, &cmint_pda, "cmint").await;
+    shared::assert_onchain_closed(&mut rpc, &cmint_pda, "light_mint").await;
 
     // Compressed mint should exist with non-empty data (now compressed)
-    shared::assert_compressed_exists_with_data(&mut rpc, mint_compressed_address, "cmint").await;
+    shared::assert_compressed_exists_with_data(&mut rpc, mint_compressed_address, "light_mint").await;
 
     // PHASE 3: Decompress mint and verify metadata is preserved
 

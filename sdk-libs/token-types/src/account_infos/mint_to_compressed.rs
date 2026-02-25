@@ -7,7 +7,7 @@ use crate::error::{LightTokenSdkTypeError, Result};
 pub struct DecompressedMintConfig<T> {
     /// SPL mint account
     pub mint_pda: T,
-    /// Token pool PDA
+    /// SPL interface PDA
     pub token_pool_pda: T,
     /// Token program (typically spl_token_2022::ID)
     pub token_program: T,

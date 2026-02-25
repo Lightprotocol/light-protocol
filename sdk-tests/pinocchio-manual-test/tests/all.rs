@@ -3,7 +3,7 @@
 //! Creates:
 //! - Borsh PDA (MinimalRecord)
 //! - ZeroCopy PDA (ZeroCopyRecord)
-//! - Compressed Mint
+//! - Light Mint
 //! - Token Vault
 //! - Associated Token Account (ATA)
 

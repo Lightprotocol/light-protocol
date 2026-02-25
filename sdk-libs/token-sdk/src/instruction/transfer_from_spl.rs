@@ -42,7 +42,7 @@ pub struct TransferFromSpl {
     pub spl_interface_pda_bump: u8,
     pub decimals: u8,
     pub source_spl_token_account: Pubkey,
-    /// Destination ctoken account (writable)
+    /// Destination light-token account (writable)
     pub destination: Pubkey,
     pub authority: Pubkey,
     pub mint: Pubkey,
@@ -51,7 +51,7 @@ pub struct TransferFromSpl {
     pub spl_token_program: Pubkey,
 }
 
-/// # Transfer SPL to ctoken via CPI:
+/// # Transfer SPL to light-token via CPI:
 /// ```rust,no_run
 /// # use light_token::instruction::TransferFromSplCpi;
 /// # use solana_account_info::AccountInfo;
@@ -86,7 +86,7 @@ pub struct TransferFromSplCpi<'info> {
     pub spl_interface_pda_bump: u8,
     pub decimals: u8,
     pub source_spl_token_account: AccountInfo<'info>,
-    /// Destination ctoken account (writable)
+    /// Destination light-token account (writable)
     pub destination: AccountInfo<'info>,
     pub authority: AccountInfo<'info>,
     pub mint: AccountInfo<'info>,
@@ -110,7 +110,7 @@ impl<'info> TransferFromSplCpi<'info> {
             self.compressed_token_program_authority, // CPI authority PDA (first)
             self.payer,                              // Fee payer (second)
             self.mint,                               // Index 0: Mint
-            self.destination,                        // Index 1: Destination ctoken account
+            self.destination,                        // Index 1: Destination light-token account
             self.authority,                          // Index 2: Authority (signer)
             self.source_spl_token_account,           // Index 3: Source SPL token account
             self.spl_interface_pda,                  // Index 4: SPL interface PDA
@@ -127,7 +127,7 @@ impl<'info> TransferFromSplCpi<'info> {
             self.compressed_token_program_authority, // CPI authority PDA (first)
             self.payer,                              // Fee payer (second)
             self.mint,                               // Index 0: Mint
-            self.destination,                        // Index 1: Destination ctoken account
+            self.destination,                        // Index 1: Destination light-token account
             self.authority,                          // Index 2: Authority (signer)
             self.source_spl_token_account,           // Index 3: Source SPL token account
             self.spl_interface_pda,                  // Index 4: SPL interface PDA
@@ -160,7 +160,7 @@ impl TransferFromSpl {
         let packed_accounts = vec![
             // Mint (index 0)
             AccountMeta::new_readonly(self.mint, false),
-            // Destination ctoken account (index 1) - writable
+            // Destination light-token account (index 1) - writable
             AccountMeta::new(self.destination, false),
             // Authority for compression (index 2) - signer
             AccountMeta::new_readonly(self.authority, true),

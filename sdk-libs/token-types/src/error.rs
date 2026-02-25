@@ -14,7 +14,7 @@ pub enum LightTokenSdkTypeError {
     SolPoolPdaUndefined,
     #[error("Mint is undefined for batch compress")]
     MintUndefinedForBatchCompress,
-    #[error("Token pool PDA is undefined for compressed")]
+    #[error("SPL interface PDA is undefined for compressed")]
     TokenPoolUndefinedForCompressed,
     #[error("Token program is undefined for compressed")]
     TokenProgramUndefinedForCompressed,

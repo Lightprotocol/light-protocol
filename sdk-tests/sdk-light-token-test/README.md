@@ -1,6 +1,6 @@
-# Native CToken Examples
+# Native Light Token Examples
 
-This program demonstrates how to use compressed tokens (ctokens) from Light Protocol in a native Solana program (no Anchor framework).
+This program demonstrates how to use light tokens from Light Protocol in a native Solana program (no Anchor framework).
 
 ## Overview
 
@@ -15,9 +15,9 @@ The program showcases **8 different instructions** that cover the core compresse
 7. **transfer_interface_invoke** - Transfer compressed tokens (regular authority)
 8. **transfer_interface_invoke_signed** - Transfer from PDA-owned account
 
-## Implementation Pattern: Builder Pattern from `ctoken` Module
+## Implementation Pattern: Builder Pattern from `light-token` Module
 
-This implementation uses the **builder pattern** from the `light-token::ctoken` module. This pattern provides a clean, ergonomic API for CPI operations.
+This implementation uses the **builder pattern** from the `light-token` module. This pattern provides a clean, ergonomic API for CPI operations.
 
 ### Why Use the Builder Pattern?
 
@@ -66,7 +66,7 @@ transfer_accounts.invoke_signed(&[signer_seeds])?;
 
 ### ✅ Fully Implemented (8/8 Instructions)
 
-All instructions use the **builder pattern** from `light-token::ctoken`:
+All instructions use the **builder pattern** from `light-token`:
 
 - **create_cmint** (Instruction 0): Create compressed mint using `CreateCMintCpi::invoke()`
 - **mint_to_ctoken** (Instruction 1): Mint tokens to compressed accounts using `MintToCTokenCpi::invoke()`
@@ -82,7 +82,7 @@ All instructions compile successfully and demonstrate the clean builder pattern 
 ## Project Structure
 
 ```
-ctoken/native/
+light-token/native/
 ├── Cargo.toml           # Path dependencies to light-protocol2/sdk-libs
 ├── Xargo.toml           # Solana BPF build configuration
 ├── src/
@@ -94,7 +94,7 @@ ctoken/native/
 
 All dependencies use **path references** to `/Users/ananas/dev/light-protocol2/sdk-libs/`:
 
-- `light-token` → Main SDK with ctoken builder pattern
+- `light-token` → Main SDK with light-token builder pattern
 - `light-token-types` → Type definitions
 - `light-sdk` → Core SDK
 - `light-sdk-types` → Common types
@@ -144,7 +144,7 @@ This is useful for:
 
 ### Builder Pattern Benefits
 
-The `Cpi` structs from the `ctoken` module provide:
+The `Cpi` structs from the `light-token` module provide:
 
 1. **invoke()** - For regular CPI calls where the program acts as authority
 2. **invoke_signed()** - For PDA-signed CPI calls
@@ -167,5 +167,5 @@ To complete this example program:
 ## References
 
 - [Light Protocol Documentation](https://www.lightprotocol.com/developers)
-- [Compressed Token SDK Source](/Users/ananas/dev/light-protocol2/sdk-libs/compressed-token-sdk)
-- [CToken Module](/Users/ananas/dev/light-protocol2/sdk-libs/compressed-token-sdk/src/ctoken)
+- [Light Token SDK Source](/Users/ananas/dev/light-protocol2/sdk-libs/compressed-token-sdk)
+- [Light Token Module](/Users/ananas/dev/light-protocol2/sdk-libs/compressed-token-sdk/src/ctoken)

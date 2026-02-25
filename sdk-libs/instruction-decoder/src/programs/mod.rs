@@ -2,7 +2,7 @@
 //!
 //! This module contains instruction decoders for native Solana programs
 //! that use various discriminator sizes:
-//! - 1-byte: SPL Token, Token 2022, Compute Budget, Light Token (CToken)
+//! - 1-byte: SPL Token, Token 2022, Compute Budget, Light Token
 //! - 4-byte: System Program
 //! - 8-byte: Anchor programs (Light Registry, Account Compression, Light System)
 

@@ -19,7 +19,7 @@ use crate::registry_sdk::{
 /// Compress and close token accounts via the registry program
 ///
 /// This function invokes the registry program's compress_and_close instruction,
-/// which then CPIs to the compressed token program with the correct compression_authority PDA signer.
+/// which then CPIs to the Light Token program with the correct compression_authority PDA signer.
 ///
 /// # Arguments
 /// * `rpc` - RPC client with indexer capabilities
@@ -37,7 +37,7 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
     payer: &Keypair,
     destination: Option<Pubkey>,
 ) -> Result<Signature, RpcError> {
-    // Compressed token program ID
+    // Light Token program ID
     let compressed_token_program_id =
         Pubkey::from_str_const("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
 
@@ -76,7 +76,7 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
     // Add output queue first
     packed_accounts.insert_or_get(output_queue);
 
-    // Parse the ctoken account to get required pubkeys
+    // Parse the light-token account to get required pubkeys
     use light_token_interface::state::Token;
     use light_zero_copy::traits::ZeroCopyAt;
 
@@ -85,13 +85,13 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
     let mut compression_authority_pubkey: Option<Pubkey> = None;
 
     for solana_ctoken_account_pubkey in solana_ctoken_accounts {
-        // Get the ctoken account data
+        // Get the light-token account data
         let ctoken_solana_account = rpc
             .get_account(*solana_ctoken_account_pubkey)
             .await
             .map_err(|e| {
                 RpcError::CustomError(format!(
-                    "Failed to get ctoken account {}: {}",
+                    "Failed to get light-token account {}: {}",
                     solana_ctoken_account_pubkey, e
                 ))
             })?
@@ -105,7 +105,7 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
         let (ctoken_account, _) = Token::zero_copy_at(ctoken_solana_account.data.as_slice())
             .map_err(|e| {
                 RpcError::CustomError(format!(
-                    "Failed to parse ctoken account {}: {:?}",
+                    "Failed to parse light-token account {}: {:?}",
                     solana_ctoken_account_pubkey, e
                 ))
             })?;
