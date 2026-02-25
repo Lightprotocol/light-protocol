@@ -17,11 +17,11 @@ use solana_sdk::{
     signature::{Keypair, Signature},
     signer::Signer,
 };
-use tracing::{debug, info};
+use tracing::debug;
 
 use super::{state::CTokenAccountTracker, types::CTokenAccountState};
 use crate::{
-    compressible::traits::{verify_transaction_execution, CompressibleTracker},
+    compressible::traits::{send_and_confirm_with_tracking, CompressibleTracker},
     Result,
 };
 
@@ -82,8 +82,37 @@ impl<R: Rpc + Indexer> CTokenCompressor<R> {
 
         debug!("Compressible config: {}", compressible_config);
 
-        // Get output tree from RPC
         let mut rpc = self.rpc_pool.get_connection().await?;
+
+        // Pre-check: filter out accounts that no longer exist on-chain
+        let all_pubkeys: Vec<Pubkey> = account_states.iter().map(|a| a.pubkey).collect();
+        let on_chain_accounts = rpc
+            .get_multiple_accounts(&all_pubkeys)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to pre-check accounts: {:?}", e))?;
+
+        let account_states: Vec<&CTokenAccountState> = account_states
+            .iter()
+            .zip(on_chain_accounts.iter())
+            .filter_map(|(state, on_chain)| {
+                if on_chain.is_some() {
+                    Some(state)
+                } else {
+                    debug!(
+                        "CToken account {} no longer exists on-chain, removing from tracker",
+                        state.pubkey
+                    );
+                    self.tracker.remove(&state.pubkey);
+                    None
+                }
+            })
+            .collect();
+
+        if account_states.is_empty() {
+            return Err(anyhow::anyhow!(
+                "All accounts already closed, nothing to compress"
+            ));
+        }
 
         // Fetch latest active state trees and get a random one
         rpc.get_latest_active_state_trees()
@@ -105,7 +134,7 @@ impl<R: Rpc + Indexer> CTokenCompressor<R> {
 
         let mut indices_vec = Vec::with_capacity(account_states.len());
 
-        for account_state in account_states {
+        for account_state in &account_states {
             let source_index = packed_accounts.insert_or_get(account_state.pubkey);
 
             // Convert mint from light_compressed_account::Pubkey to solana_sdk::Pubkey
@@ -214,61 +243,16 @@ impl<R: Rpc + Indexer> CTokenCompressor<R> {
             data: instruction.data(),
         };
 
-        // Mark accounts as pending before sending to prevent other cycles from
-        // picking them up while the tx is in-flight.
         let pubkeys: Vec<Pubkey> = account_states.iter().map(|a| a.pubkey).collect();
-        self.tracker.mark_pending(&pubkeys);
 
-        // Send transaction
-        let signature = match rpc
-            .create_and_send_transaction(
-                &[ix],
-                &self.payer_keypair.pubkey(),
-                &[&self.payer_keypair],
-            )
-            .await
-        {
-            Ok(sig) => sig,
-            Err(e) => {
-                // Tx failed to send — return accounts to work pool
-                self.tracker.unmark_pending(&pubkeys);
-                return Err(anyhow::anyhow!("Failed to send transaction: {}", e));
-            }
-        };
-
-        info!(
-            "compress_and_close tx with ({:?}) accounts sent {}",
-            account_states.iter().map(|a| a.pubkey.to_string()),
-            signature
-        );
-
-        // Wait for confirmation
-        let confirmed = match rpc.confirm_transaction(signature).await {
-            Ok(confirmed) => confirmed,
-            Err(e) => {
-                self.tracker.unmark_pending(&pubkeys);
-                return Err(anyhow::anyhow!("Failed to confirm transaction: {}", e));
-            }
-        };
-
-        if confirmed {
-            if let Err(e) = verify_transaction_execution(&*rpc, signature).await {
-                self.tracker.unmark_pending(&pubkeys);
-                return Err(e);
-            }
-
-            for account_state in account_states {
-                self.tracker.remove_compressed(&account_state.pubkey);
-            }
-            info!("compress_and_close tx confirmed: {}", signature);
-            Ok(signature)
-        } else {
-            // Transaction not confirmed — return accounts to work pool for retry
-            self.tracker.unmark_pending(&pubkeys);
-            Err(anyhow::anyhow!(
-                "compress_and_close tx not confirmed: {} - accounts returned to work pool",
-                signature
-            ))
-        }
+        send_and_confirm_with_tracking(
+            &mut *rpc,
+            &[ix],
+            &self.payer_keypair,
+            &*self.tracker,
+            &pubkeys,
+            "compress_and_close",
+        )
+        .await
     }
 }

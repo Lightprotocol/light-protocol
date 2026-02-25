@@ -18,7 +18,10 @@ use tracing::{debug, info};
 
 use super::{state::MintAccountTracker, types::MintAccountState};
 use crate::{
-    compressible::traits::{verify_transaction_execution, CompressibleTracker},
+    compressible::traits::{
+        send_and_confirm_with_tracking, verify_transaction_execution, Cancelled,
+        CompressibleTracker,
+    },
     Result,
 };
 
@@ -103,67 +106,18 @@ impl<R: Rpc + Indexer> MintCompressor<R> {
             instructions.len()
         );
 
-        // Mark as pending before sending
         let pubkeys: Vec<Pubkey> = mint_states.iter().map(|s| s.pubkey).collect();
-        self.tracker.mark_pending(&pubkeys);
 
-        // Send all instructions in a single transaction
         let mut rpc = self.rpc_pool.get_connection().await?;
-        let signature = match rpc
-            .create_and_send_transaction(
-                &instructions,
-                &self.payer_keypair.pubkey(),
-                &[&self.payer_keypair],
-            )
-            .await
-        {
-            Ok(sig) => sig,
-            Err(e) => {
-                self.tracker.unmark_pending(&pubkeys);
-                return Err(anyhow::anyhow!(
-                    "Failed to send batched CompressAndCloseMint transaction: {:?}",
-                    e
-                ));
-            }
-        };
-
-        info!(
-            "Batched CompressAndCloseMint tx for {} mints sent: {}",
-            mint_states.len(),
-            signature
-        );
-
-        // Wait for confirmation
-        let confirmed = match rpc.confirm_transaction(signature).await {
-            Ok(confirmed) => confirmed,
-            Err(e) => {
-                self.tracker.unmark_pending(&pubkeys);
-                return Err(anyhow::anyhow!("Failed to confirm transaction: {:?}", e));
-            }
-        };
-
-        if confirmed {
-            if let Err(e) = verify_transaction_execution(&*rpc, signature).await {
-                self.tracker.unmark_pending(&pubkeys);
-                return Err(e);
-            }
-
-            for mint_state in mint_states {
-                self.tracker.remove_compressed(&mint_state.pubkey);
-            }
-            info!("Batched CompressAndCloseMint tx confirmed: {}", signature);
-            Ok(signature)
-        } else {
-            self.tracker.unmark_pending(&pubkeys);
-            tracing::warn!(
-                "Batch CompressAndCloseMint tx not confirmed: {} - returned to work pool",
-                signature
-            );
-            Err(anyhow::anyhow!(
-                "Batch CompressAndCloseMint tx not confirmed: {}",
-                signature
-            ))
-        }
+        send_and_confirm_with_tracking(
+            &mut *rpc,
+            &instructions,
+            &self.payer_keypair,
+            &*self.tracker,
+            &pubkeys,
+            "CompressAndCloseMint",
+        )
+        .await
     }
 
     /// Compress a batch of decompressed Mint accounts with concurrent execution.
@@ -203,7 +157,7 @@ impl<R: Rpc + Indexer> MintCompressor<R> {
                 // Check cancellation before processing
                 if cancelled.load(Ordering::Relaxed) {
                     compressor.tracker.unmark_pending(&[mint_state.pubkey]);
-                    return Err((mint_state, anyhow::anyhow!("Cancelled")));
+                    return Err((mint_state, Cancelled.into()));
                 }
 
                 match compressor.compress(&mint_state).await {

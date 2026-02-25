@@ -107,11 +107,29 @@ impl CTokenAccountTracker {
             }
         };
 
+        let is_ata = {
+            let owner = Pubkey::new_from_array(ctoken.owner.to_bytes());
+            let mint = Pubkey::new_from_array(ctoken.mint.to_bytes());
+            let light_token_program_id =
+                Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
+            let expected_ata = Pubkey::find_program_address(
+                &[
+                    owner.as_ref(),
+                    light_token_program_id.as_ref(),
+                    mint.as_ref(),
+                ],
+                &light_token_program_id,
+            )
+            .0;
+            pubkey == expected_ata
+        };
+
         let state = CTokenAccountState {
             pubkey,
             account: ctoken,
             lamports,
             compressible_slot,
+            is_ata,
         };
 
         debug!(

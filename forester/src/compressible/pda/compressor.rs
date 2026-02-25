@@ -28,7 +28,10 @@ use super::{state::PdaAccountTracker, types::PdaAccountState};
 use crate::{
     compressible::{
         config::PdaProgramConfig,
-        traits::{verify_transaction_execution, CompressibleTracker},
+        traits::{
+            send_and_confirm_with_tracking, verify_transaction_execution, Cancelled,
+            CompressibleTracker,
+        },
     },
     Result,
 };
@@ -172,7 +175,7 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
                 if cancelled.load(Ordering::Relaxed) {
                     // Unmark since we won't process this account
                     compressor.tracker.unmark_pending(&[account_state.pubkey]);
-                    return Err((account_state, anyhow::anyhow!("Cancelled")));
+                    return Err((account_state, Cancelled.into()));
                 }
 
                 match compressor
@@ -295,65 +298,15 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
             program_id
         );
 
-        // Mark as pending before sending
-        self.tracker.mark_pending(&pubkeys);
-
-        // Send single transaction
-        let signature = match rpc
-            .create_and_send_transaction(
-                &[ix],
-                &self.payer_keypair.pubkey(),
-                &[&self.payer_keypair],
-            )
-            .await
-        {
-            Ok(sig) => sig,
-            Err(e) => {
-                self.tracker.unmark_pending(&pubkeys);
-                return Err(anyhow::anyhow!("Failed to send transaction: {:?}", e));
-            }
-        };
-
-        info!(
-            "Batched compress_accounts_idempotent tx for {} PDAs sent: {}",
-            account_states.len(),
-            signature
-        );
-
-        // Wait for confirmation
-        let confirmed = match rpc.confirm_transaction(signature).await {
-            Ok(confirmed) => confirmed,
-            Err(e) => {
-                self.tracker.unmark_pending(&pubkeys);
-                return Err(anyhow::anyhow!("Failed to confirm transaction: {:?}", e));
-            }
-        };
-
-        if confirmed {
-            if let Err(e) = verify_transaction_execution(&*rpc, signature).await {
-                self.tracker.unmark_pending(&pubkeys);
-                return Err(e);
-            }
-
-            for state in account_states {
-                self.tracker.remove_compressed(&state.pubkey);
-            }
-            info!(
-                "Batched compress_accounts_idempotent tx confirmed: {}",
-                signature
-            );
-            Ok(signature)
-        } else {
-            self.tracker.unmark_pending(&pubkeys);
-            tracing::warn!(
-                "compress_accounts_idempotent tx not confirmed: {} - returned to work pool",
-                signature
-            );
-            Err(anyhow::anyhow!(
-                "Batch transaction not confirmed: {}",
-                signature
-            ))
-        }
+        send_and_confirm_with_tracking(
+            &mut *rpc,
+            &[ix],
+            &self.payer_keypair,
+            &*self.tracker,
+            &pubkeys,
+            "compress_accounts_idempotent",
+        )
+        .await
     }
 
     /// Compress a single PDA account using cached config

@@ -210,22 +210,7 @@ where
 }
 
 fn is_ctoken_ata(state: &CTokenAccountState) -> bool {
-    let owner = solana_sdk::pubkey::Pubkey::new_from_array(state.account.owner.to_bytes());
-    let mint = solana_sdk::pubkey::Pubkey::new_from_array(state.account.mint.to_bytes());
-    let light_token_program_id =
-        solana_sdk::pubkey::Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
-
-    let expected_ata = solana_sdk::pubkey::Pubkey::find_program_address(
-        &[
-            owner.as_ref(),
-            light_token_program_id.as_ref(),
-            mint.as_ref(),
-        ],
-        &light_token_program_id,
-    )
-    .0;
-
-    state.pubkey == expected_ata
+    state.is_ata
 }
 
 fn summarize_ctoken_and_ata_slots(
@@ -269,6 +254,8 @@ fn aggregate_type_stats(
     stats: impl Iterator<Item = Option<CompressibleTypeStats>>,
 ) -> Option<CompressibleTypeStats> {
     let mut tracked = 0usize;
+    let mut compressed = 0u64;
+    let mut compressed_seen = false;
     let mut ready = 0usize;
     let mut waiting = 0usize;
     let mut ready_seen = false;
@@ -279,6 +266,10 @@ fn aggregate_type_stats(
     for stat in stats.flatten() {
         any = true;
         tracked = tracked.saturating_add(stat.tracked);
+        if let Some(v) = stat.compressed {
+            compressed = compressed.saturating_add(v);
+            compressed_seen = true;
+        }
         if let Some(v) = stat.ready {
             ready = ready.saturating_add(v);
             ready_seen = true;
@@ -302,7 +293,7 @@ fn aggregate_type_stats(
 
     Some(CompressibleTypeStats {
         tracked,
-        compressed: None,
+        compressed: compressed_seen.then_some(compressed),
         ready: ready_seen.then_some(ready),
         waiting: waiting_seen.then_some(waiting),
         next_ready_slot,

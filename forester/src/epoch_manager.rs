@@ -46,7 +46,10 @@ use tokio::{
 use tracing::{debug, error, info, info_span, instrument, trace, warn};
 
 use crate::{
-    compressible::{traits::CompressibleTracker, CTokenAccountTracker, CTokenCompressor},
+    compressible::{
+        traits::{Cancelled, CompressibleTracker},
+        CTokenAccountTracker, CTokenCompressor,
+    },
     errors::{
         ChannelError, ForesterError, InitializationError, RegistrationError, WorkReportError,
     },
@@ -2342,7 +2345,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                         batch_idx + 1,
                         num_batches
                     );
-                    return Err((batch_idx, batch.len(), anyhow!("Cancelled")));
+                    return Err((batch_idx, batch.len(), Cancelled.into()));
                 }
 
                 // Check forester is still eligible before processing this batch
@@ -2622,7 +2625,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                         total_compressed += 1;
                     }
                     Err((account_state, e)) => {
-                        if e.to_string() != "Cancelled" {
+                        if e.downcast_ref::<Cancelled>().is_none() {
                             error!(
                                 event = "compression_pda_account_failed",
                                 run_id = %self.run_id,
@@ -2729,7 +2732,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                     total_compressed += 1;
                 }
                 Err((mint_state, e)) => {
-                    if e.to_string() != "Cancelled" {
+                    if e.downcast_ref::<Cancelled>().is_none() {
                         error!(
                             event = "compression_mint_account_failed",
                             run_id = %self.run_id,
