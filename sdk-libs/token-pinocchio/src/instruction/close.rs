@@ -8,7 +8,7 @@ use pinocchio::{
     pubkey::Pubkey,
 };
 
-/// Close ctoken account via CPI.
+/// Close light-token account via CPI.
 ///
 /// # Example
 ///

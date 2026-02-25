@@ -10,7 +10,7 @@ use pinocchio::{
 
 use crate::constants::LIGHT_TOKEN_PROGRAM_ID;
 
-/// Transfer ctoken via CPI.
+/// Transfer light-token via CPI.
 ///
 /// # Example
 ///

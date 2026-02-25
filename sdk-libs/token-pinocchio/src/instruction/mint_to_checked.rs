@@ -10,7 +10,7 @@ use pinocchio::{
 
 use crate::constants::LIGHT_TOKEN_PROGRAM_ID;
 
-/// Mint to ctoken checked via CPI.
+/// Mint to light-token account checked via CPI.
 ///
 /// # Example
 ///

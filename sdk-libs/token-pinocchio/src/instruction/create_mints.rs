@@ -71,7 +71,7 @@ pub use light_sdk_types::interface::cpi::create_mints::{
 };
 use pinocchio::account_info::AccountInfo;
 
-/// High-level struct for creating compressed mints (pinocchio).
+/// High-level struct for creating light mints (pinocchio).
 ///
 /// Type alias with pinocchio's `AccountInfo` already set.
 /// Consolidates proof parsing, tree account resolution, and CPI invocation.

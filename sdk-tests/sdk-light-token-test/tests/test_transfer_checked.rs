@@ -14,7 +14,7 @@ use light_token::{
     spl_interface::{find_spl_interface_pda_with_index, CreateSplInterfacePda},
 };
 use light_token_interface::state::Token;
-use sdk_light_token_test::{InstructionType, TransferCheckedData, ID};
+use sdk_light_token_test::{InstructionType, TransferCheckedData, ID, TOKEN_ACCOUNT_SEED};
 use shared::*;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
@@ -340,4 +340,133 @@ async fn test_ctoken_transfer_checked_mint() {
     let dest_data = rpc.get_account(dest_ata).await.unwrap().unwrap();
     let dest_state = Token::deserialize(&mut &dest_data.data[..]).unwrap();
     assert_eq!(dest_state.amount, 500);
+}
+
+/// Test transfer_checked using invoke_signed() with PDA authority
+#[tokio::test]
+async fn test_ctoken_transfer_checked_invoke_signed() {
+    let config = ProgramTestConfig::new_v2(true, Some(vec![("sdk_light_token_test", ID)]));
+    let mut rpc = LightProgramTest::new(config).await.unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+
+    let decimals = 9u8;
+
+    // Derive the PDA that will own the source account
+    let (pda_owner, _bump) = Pubkey::find_program_address(&[TOKEN_ACCOUNT_SEED], &ID);
+    let dest_owner = payer.pubkey();
+
+    let (mint, _compression_address, ata_pubkeys) = setup_create_mint_with_freeze_authority(
+        &mut rpc,
+        &payer,
+        payer.pubkey(),
+        None,
+        decimals,
+        vec![(1000, pda_owner), (0, dest_owner)],
+    )
+    .await;
+
+    let source_ata = ata_pubkeys[0];
+    let dest_ata = ata_pubkeys[1];
+
+    // Transfer 300 tokens using invoke_signed
+    let transfer_data = TransferCheckedData {
+        amount: 300,
+        decimals,
+    };
+    let mut instruction_data = vec![InstructionType::CTokenTransferCheckedInvokeSigned as u8];
+    transfer_data.serialize(&mut instruction_data).unwrap();
+
+    let light_token_program = light_token::instruction::LIGHT_TOKEN_PROGRAM_ID;
+    let instruction = Instruction {
+        program_id: ID,
+        accounts: vec![
+            AccountMeta::new(source_ata, false),
+            AccountMeta::new_readonly(mint, false),
+            AccountMeta::new(dest_ata, false),
+            AccountMeta::new_readonly(pda_owner, false), // PDA authority, not signer
+            AccountMeta::new_readonly(Pubkey::default(), false), // system_program
+            AccountMeta::new(payer.pubkey(), true),      // fee_payer
+            AccountMeta::new_readonly(light_token_program, false),
+        ],
+        data: instruction_data,
+    };
+
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+        .await
+        .unwrap();
+
+    // Verify balances
+    let source_data = rpc.get_account(source_ata).await.unwrap().unwrap();
+    let source_state = Token::deserialize(&mut &source_data.data[..]).unwrap();
+    assert_eq!(source_state.amount, 700);
+
+    let dest_data = rpc.get_account(dest_ata).await.unwrap().unwrap();
+    let dest_state = Token::deserialize(&mut &dest_data.data[..]).unwrap();
+    assert_eq!(dest_state.amount, 300);
+}
+
+/// Test transfer_checked with separate fee_payer using invoke()
+#[tokio::test]
+async fn test_ctoken_transfer_checked_invoke_with_separate_fee_payer() {
+    let config = ProgramTestConfig::new_v2(true, Some(vec![("sdk_light_token_test", ID)]));
+    let mut rpc = LightProgramTest::new(config).await.unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+
+    let decimals = 9u8;
+
+    let owner_keypair = Keypair::new();
+    rpc.airdrop_lamports(&owner_keypair.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+
+    let dest_owner = Pubkey::new_unique();
+
+    let (mint, _compression_address, ata_pubkeys) = setup_create_mint_with_freeze_authority(
+        &mut rpc,
+        &payer,
+        payer.pubkey(),
+        None,
+        decimals,
+        vec![(1000, owner_keypair.pubkey()), (0, dest_owner)],
+    )
+    .await;
+
+    let source_ata = ata_pubkeys[0];
+    let dest_ata = ata_pubkeys[1];
+
+    // Transfer 400 tokens with separate fee_payer
+    let transfer_data = TransferCheckedData {
+        amount: 400,
+        decimals,
+    };
+    let mut instruction_data = vec![InstructionType::CTokenTransferCheckedInvoke as u8];
+    transfer_data.serialize(&mut instruction_data).unwrap();
+
+    let light_token_program = light_token::instruction::LIGHT_TOKEN_PROGRAM_ID;
+    let instruction = Instruction {
+        program_id: ID,
+        accounts: vec![
+            AccountMeta::new(source_ata, false),
+            AccountMeta::new_readonly(mint, false),
+            AccountMeta::new(dest_ata, false),
+            AccountMeta::new_readonly(owner_keypair.pubkey(), true), // authority (signer, not fee_payer)
+            AccountMeta::new_readonly(Pubkey::default(), false),     // system_program
+            AccountMeta::new(payer.pubkey(), true),                  // fee_payer (separate)
+            AccountMeta::new_readonly(light_token_program, false),
+        ],
+        data: instruction_data,
+    };
+
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer, &owner_keypair])
+        .await
+        .unwrap();
+
+    // Verify balances
+    let source_data = rpc.get_account(source_ata).await.unwrap().unwrap();
+    let source_state = Token::deserialize(&mut &source_data.data[..]).unwrap();
+    assert_eq!(source_state.amount, 600);
+
+    let dest_data = rpc.get_account(dest_ata).await.unwrap().unwrap();
+    let dest_state = Token::deserialize(&mut &dest_data.data[..]).unwrap();
+    assert_eq!(dest_state.amount, 400);
 }

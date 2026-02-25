@@ -1,13 +1,13 @@
 <!-- cargo-rdme start -->
 
-# Light Compressed Token SDK
+# Light Token SDK
 
-Low-level SDK for compressed token operations on Light Protocol.
+Low-level SDK for light token operations on Light Protocol.
 
-This crate provides the core building blocks for working with compressed token accounts,
+This crate provides the core building blocks for working with light token accounts,
 including instruction builders for transfers, mints, and compress/decompress operations.
 
-## Compressed Token Accounts
+## Light Token Accounts
 - are on Solana mainnet.
 - are compressed accounts.
 - can hold Light Mint and SPL Mint tokens.
@@ -16,14 +16,14 @@ including instruction builders for transfers, mints, and compress/decompress ope
 
 ## Difference to Light-Token:
 light-token: Solana account that holds token balances of light-mints, SPL or Token 22 mints.
-Compressed token: Compressed account storing token data. Rent-free, for storage and distribution.
+Compressed light token: Compressed account storing token data. Rent-free, for storage and distribution.
 
 ## Features
 
-- `v1` - Enable v1 compressed token support
+- `v1` - Enable v1 light token support
 - `anchor` - Enable Anchor framework integration
 
-For full examples, see the [Compressed Token Examples](https://github.com/Lightprotocol/examples-zk-compression).
+For full examples, see the [Light Token Examples](https://github.com/Lightprotocol/examples-zk-compression).
 
 ## Operations reference
 
@@ -38,7 +38,7 @@ For full examples, see the [Compressed Token Examples](https://github.com/Lightp
 | Compress SPL account | [create-compressed-token-accounts](https://www.zkcompression.com/compressed-tokens/guides/create-compressed-token-accounts) | [example](https://github.com/Lightprotocol/examples-zk-compression/blob/main/compressed-token-cookbook/actions/compress-spl-account.ts) |
 | Decompress | [create-compressed-token-accounts](https://www.zkcompression.com/compressed-tokens/guides/create-compressed-token-accounts) | [example](https://github.com/Lightprotocol/examples-zk-compression/blob/main/compressed-token-cookbook/actions/decompress.ts) |
 | Merge token accounts | [create-compressed-token-accounts](https://www.zkcompression.com/compressed-tokens/guides/create-compressed-token-accounts) | [example](https://github.com/Lightprotocol/examples-zk-compression/blob/main/compressed-token-cookbook/actions/merge-token-accounts.ts) |
-| Create token pool | [create-compressed-token-accounts](https://www.zkcompression.com/compressed-tokens/guides/create-compressed-token-accounts) | [example](https://github.com/Lightprotocol/examples-zk-compression/blob/main/compressed-token-cookbook/actions/create-token-pool.ts) |
+| Create SPL interface PDA | [create-compressed-token-accounts](https://www.zkcompression.com/compressed-tokens/guides/create-compressed-token-accounts) | [example](https://github.com/Lightprotocol/examples-zk-compression/blob/main/compressed-token-cookbook/actions/create-token-pool.ts) |
 
 ### Toolkit guides
 
@@ -49,8 +49,8 @@ For full examples, see the [Compressed Token Examples](https://github.com/Lightp
 
 ## Modules
 
-- [`compressed_token`] - Core compressed token types and instruction builders
-- [`error`] - Error types for compressed token operations
+- [`compressed_token`] - Core light token types and instruction builders
+- [`error`] - Error types for light token operations
 - [`utils`] - Utility functions and default account configurations
 - [`constants`] - Program IDs and other constants
 - [`spl_interface`] - SPL interface PDA derivation utilities

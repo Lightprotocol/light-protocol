@@ -23,7 +23,7 @@ const TRANSFER2_DISCRIMINATOR: u8 = 101;
 /// # Example
 /// ```rust,ignore
 /// TransferToSplCpi {
-///     source: &source_ctoken,
+///     source: &source_light_token,
 ///     destination_spl_token_account: &destination_spl,
 ///     amount: 100,
 ///     authority: &authority,
@@ -78,12 +78,12 @@ impl<'info> TransferToSplCpi<'info> {
         &self,
     ) -> Result<(Vec<u8>, Vec<AccountMeta<'_>>, Vec<&AccountInfo>), ProgramError> {
         // Build compressions:
-        // 1. Compress from ctoken account to pool
+        // 1. Transfer from light-token account via SPL interface PDA
         // 2. Decompress from pool to SPL token account
         let compress_to_pool = Compression::compress(
             self.amount,
             0, // mint index
-            1, // source ctoken account index
+            1, // source light-token account index
             3, // authority index
         );
 
@@ -129,7 +129,7 @@ impl<'info> TransferToSplCpi<'info> {
         // [1] fee_payer (signer, writable)
         // [2..] packed_accounts:
         //   - [0] mint (readonly)
-        //   - [1] source ctoken account (writable)
+        //   - [1] source light-token account (writable)
         //   - [2] destination SPL token account (writable)
         //   - [3] authority (signer, readonly)
         //   - [4] SPL interface PDA (writable)

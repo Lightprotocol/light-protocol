@@ -10,7 +10,7 @@ use pinocchio::{
 
 use crate::constants::LIGHT_TOKEN_PROGRAM_ID;
 
-/// Revoke ctoken via CPI.
+/// Revoke light-token via CPI.
 ///
 /// # Example
 ///

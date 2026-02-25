@@ -10,7 +10,7 @@ use pinocchio::{
 
 use crate::constants::LIGHT_TOKEN_PROGRAM_ID;
 
-/// Freeze ctoken via CPI.
+/// Freeze light-token account via CPI.
 ///
 /// # Example
 ///
