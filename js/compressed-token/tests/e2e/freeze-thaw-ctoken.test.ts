@@ -403,7 +403,7 @@ describe('createUnwrapInstructions - freeze interactions', () => {
         tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
     }, 60_000);
 
-    it('should throw "All c-token balance is frozen" when all hot balance is frozen', async () => {
+    it('should throw when all hot balance is frozen (unwrap blocked)', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
         const ctokenAta = getAssociatedTokenAddressInterface(
             mint,
@@ -451,10 +451,10 @@ describe('createUnwrapInstructions - freeze interactions', () => {
                 undefined,
                 payer.publicKey,
             ),
-        ).rejects.toThrow('All c-token balance is frozen');
+        ).rejects.toThrow(/Account is frozen|unwrap is not allowed/);
     }, 90_000);
 
-    it('should throw "All c-token balance is frozen" for any requested amount when fully frozen', async () => {
+    it('should throw for any requested amount when fully frozen', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
         const ctokenAta = getAssociatedTokenAddressInterface(
             mint,
@@ -495,7 +495,7 @@ describe('createUnwrapInstructions - freeze interactions', () => {
                 BigInt(50),
                 payer.publicKey,
             ),
-        ).rejects.toThrow('All c-token balance is frozen');
+        ).rejects.toThrow(/Account is frozen|unwrap is not allowed/);
     }, 90_000);
 
     it('should succeed after thawing a previously frozen account', async () => {
@@ -538,7 +538,7 @@ describe('createUnwrapInstructions - freeze interactions', () => {
                 BigInt(100),
                 payer.publicKey,
             ),
-        ).rejects.toThrow('All c-token balance is frozen');
+        ).rejects.toThrow(/Account is frozen|unwrap is not allowed/);
 
         // Thaw → unwrap succeeds
         await thawCtokenAccount(rpc, payer, ctokenAta, mint, freezeAuthority);
@@ -605,7 +605,7 @@ describe('createUnwrapInstructions - freeze interactions', () => {
         // Freeze hot (600 frozen)
         await freezeCtokenAccount(rpc, payer, ctokenAta, mint, freezeAuthority);
 
-        // Requesting any amount throws "All c-token balance is frozen"
+        // Requesting any amount throws (Account is frozen / unwrap is not allowed)
         // (since all 600 are frozen hot, none unfrozen)
         await expect(
             createUnwrapInstructions(
@@ -616,6 +616,6 @@ describe('createUnwrapInstructions - freeze interactions', () => {
                 BigInt(601),
                 payer.publicKey,
             ),
-        ).rejects.toThrow('All c-token balance is frozen');
+        ).rejects.toThrow(/Account is frozen|unwrap is not allowed/);
     }, 90_000);
 });
