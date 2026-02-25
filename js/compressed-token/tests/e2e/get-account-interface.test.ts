@@ -10,17 +10,20 @@ import {
     VERSION,
     featureFlags,
     LIGHT_TOKEN_PROGRAM_ID,
+    buildAndSignTx,
+    sendAndConfirmTx,
 } from '@lightprotocol/stateless.js';
 import {
     createMint as createSplMint,
     getOrCreateAssociatedTokenAccount,
     mintTo as splMintTo,
+    createApproveInstruction,
     TOKEN_PROGRAM_ID,
     TOKEN_2022_PROGRAM_ID,
     getAssociatedTokenAddressSync,
     TokenAccountNotFoundError,
 } from '@solana/spl-token';
-import { createMint, mintTo } from '../../src/actions';
+import { createMint, mintTo, approve } from '../../src/actions';
 import {
     getTokenPoolInfos,
     selectTokenPoolInfo,
@@ -453,6 +456,68 @@ describe('get-account-interface', () => {
             });
         });
 
+        describe('canonical delegate read shape', () => {
+            it('should return canonical delegate/delegatedAmount for a hot account', async () => {
+                const owner = await newAccountWithLamports(rpc, 1e9);
+                const delegate = await newAccountWithLamports(rpc, 1e9);
+                const amount = bn(900);
+                const delegated = BigInt(500);
+
+                await createAtaInterfaceIdempotent(
+                    rpc,
+                    payer,
+                    ctokenMint,
+                    owner.publicKey,
+                    false,
+                    undefined,
+                    undefined,
+                    undefined,
+                    { compressibleConfig: null },
+                );
+                await mintTo(
+                    rpc,
+                    payer,
+                    ctokenMint,
+                    owner.publicKey,
+                    mintAuthority,
+                    amount,
+                    stateTreeInfo,
+                    selectTokenPoolInfo(ctokenPoolInfos),
+                );
+                const ctokenAta = getAssociatedTokenAddressInterface(
+                    ctokenMint,
+                    owner.publicKey,
+                );
+                await loadAta(rpc, ctokenAta, owner, ctokenMint, payer);
+
+                const approveIx = createApproveInstruction(
+                    ctokenAta,
+                    delegate.publicKey,
+                    owner.publicKey,
+                    delegated,
+                    [],
+                    LIGHT_TOKEN_PROGRAM_ID,
+                );
+                const { blockhash } = await rpc.getLatestBlockhash();
+                await sendAndConfirmTx(
+                    rpc,
+                    buildAndSignTx([approveIx], payer, blockhash, [owner]),
+                );
+
+                const result = await getAccountInterface(
+                    rpc,
+                    ctokenAta,
+                    'confirmed',
+                    LIGHT_TOKEN_PROGRAM_ID,
+                );
+                expect(result.parsed.delegate?.toBase58()).toBe(
+                    delegate.publicKey.toBase58(),
+                );
+                expect(result.parsed.delegatedAmount).toBe(delegated);
+                expect(result.parsed.amount).toBe(BigInt(amount.toString()));
+            }, 120_000);
+        });
+
         describe('error cases', () => {
             it('should throw for unsupported program ID', async () => {
                 const fakeAddress = Keypair.generate().publicKey;
@@ -792,6 +857,171 @@ describe('get-account-interface', () => {
                 expect(result._anyFrozen).toBe(false);
                 expect(result.parsed.isFrozen).toBe(false);
             });
+
+            it('should return canonical delegate aggregation for same delegate across hot and cold', async () => {
+                const owner = await newAccountWithLamports(rpc, 1e9);
+                const delegate = await newAccountWithLamports(rpc, 1e9);
+                const hotAmount = bn(1200);
+                const hotDelegated = BigInt(700);
+                const coldAmount = bn(500);
+
+                await createAtaInterfaceIdempotent(
+                    rpc,
+                    payer,
+                    ctokenMint,
+                    owner.publicKey,
+                    false,
+                    undefined,
+                    undefined,
+                    undefined,
+                    { compressibleConfig: null },
+                );
+                await mintTo(
+                    rpc,
+                    payer,
+                    ctokenMint,
+                    owner.publicKey,
+                    mintAuthority,
+                    hotAmount,
+                    stateTreeInfo,
+                    selectTokenPoolInfo(ctokenPoolInfos),
+                );
+
+                const ctokenAta = getAssociatedTokenAddressInterface(
+                    ctokenMint,
+                    owner.publicKey,
+                );
+                await loadAta(rpc, ctokenAta, owner, ctokenMint, payer);
+
+                const approveHotIx = createApproveInstruction(
+                    ctokenAta,
+                    delegate.publicKey,
+                    owner.publicKey,
+                    hotDelegated,
+                    [],
+                    LIGHT_TOKEN_PROGRAM_ID,
+                );
+                const { blockhash: bhHot } = await rpc.getLatestBlockhash();
+                await sendAndConfirmTx(
+                    rpc,
+                    buildAndSignTx([approveHotIx], payer, bhHot, [owner]),
+                );
+
+                await mintTo(
+                    rpc,
+                    payer,
+                    ctokenMint,
+                    owner.publicKey,
+                    mintAuthority,
+                    coldAmount,
+                    stateTreeInfo,
+                    selectTokenPoolInfo(ctokenPoolInfos),
+                );
+                await approve(
+                    rpc,
+                    payer,
+                    ctokenMint,
+                    coldAmount,
+                    owner,
+                    delegate.publicKey,
+                );
+
+                const result = await getAtaInterface(
+                    rpc,
+                    ctokenAta,
+                    owner.publicKey,
+                    ctokenMint,
+                );
+                expect(result.parsed.delegate?.toBase58()).toBe(
+                    delegate.publicKey.toBase58(),
+                );
+                expect(result.parsed.delegatedAmount).toBe(
+                    hotDelegated + BigInt(coldAmount.toString()),
+                );
+            }, 120_000);
+
+            it('should choose canonical delegate by largest aggregated delegated amount', async () => {
+                const owner = await newAccountWithLamports(rpc, 1e9);
+                const delegateA = await newAccountWithLamports(rpc, 1e9);
+                const delegateB = await newAccountWithLamports(rpc, 1e9);
+                const hotAmount = bn(1000);
+                const hotDelegatedA = BigInt(200);
+                const coldAmountB = bn(900);
+
+                await createAtaInterfaceIdempotent(
+                    rpc,
+                    payer,
+                    ctokenMint,
+                    owner.publicKey,
+                    false,
+                    undefined,
+                    undefined,
+                    undefined,
+                    { compressibleConfig: null },
+                );
+                await mintTo(
+                    rpc,
+                    payer,
+                    ctokenMint,
+                    owner.publicKey,
+                    mintAuthority,
+                    hotAmount,
+                    stateTreeInfo,
+                    selectTokenPoolInfo(ctokenPoolInfos),
+                );
+
+                const ctokenAta = getAssociatedTokenAddressInterface(
+                    ctokenMint,
+                    owner.publicKey,
+                );
+                await loadAta(rpc, ctokenAta, owner, ctokenMint, payer);
+
+                const approveHotIx = createApproveInstruction(
+                    ctokenAta,
+                    delegateA.publicKey,
+                    owner.publicKey,
+                    hotDelegatedA,
+                    [],
+                    LIGHT_TOKEN_PROGRAM_ID,
+                );
+                const { blockhash: bhA } = await rpc.getLatestBlockhash();
+                await sendAndConfirmTx(
+                    rpc,
+                    buildAndSignTx([approveHotIx], payer, bhA, [owner]),
+                );
+
+                await mintTo(
+                    rpc,
+                    payer,
+                    ctokenMint,
+                    owner.publicKey,
+                    mintAuthority,
+                    coldAmountB,
+                    stateTreeInfo,
+                    selectTokenPoolInfo(ctokenPoolInfos),
+                );
+                await approve(
+                    rpc,
+                    payer,
+                    ctokenMint,
+                    coldAmountB,
+                    owner,
+                    delegateB.publicKey,
+                );
+
+                const result = await getAtaInterface(
+                    rpc,
+                    ctokenAta,
+                    owner.publicKey,
+                    ctokenMint,
+                );
+                expect(result.parsed.delegate?.toBase58()).toBe(
+                    delegateB.publicKey.toBase58(),
+                );
+                expect(result.parsed.delegatedAmount).toBe(
+                    BigInt(coldAmountB.toString()),
+                );
+            }, 120_000);
         });
 
         describe('error cases', () => {

@@ -35,7 +35,6 @@ import {
     filterInterfaceForAuthority,
 } from '../get-account-interface';
 import { assertTransactionSizeWithinLimit } from '../utils/estimate-tx-size';
-import { COLD_SOURCE_TYPES } from '../get-account-interface';
 import type { TransferOptions } from '../actions/transfer-interface';
 
 const LIGHT_TOKEN_TRANSFER_DISCRIMINATOR = 3;
@@ -207,25 +206,6 @@ export async function createTransferInterfaceInstructions(
         amountBigInt,
         sender,
     );
-
-    if (isDelegate && internalBatches.length > 0) {
-        const sources = senderInterface._sources ?? [];
-        const hasApproveStyleCold = sources.some(
-            s =>
-                COLD_SOURCE_TYPES.has(s.type) &&
-                s.parsed.delegate !== null &&
-                s.parsed.delegate.equals(sender) &&
-                (!s.parsed.tlvData || s.parsed.tlvData.length === 0),
-        );
-        if (hasApproveStyleCold) {
-            throw new Error(
-                'Delegate transfer requires loading cold sources that were delegated ' +
-                    'via approve (no CompressedOnly TLV). Decompress will not carry ' +
-                    'the delegate to the hot ATA. Load as owner first, then approve ' +
-                    'the delegate on the hot ATA.',
-            );
-        }
-    }
 
     let transferIx: TransactionInstruction;
     if (isSplOrT22 && !wrap) {

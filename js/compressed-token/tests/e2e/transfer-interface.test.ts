@@ -417,7 +417,7 @@ describe('transfer-interface', () => {
             expect(recipientBalance).toBe(BigInt(500));
         });
 
-        it('throws when delegate transfer needs cold approve-style sources (no CompressedOnly TLV)', async () => {
+        it('allows delegate transfer planning for cold approve-style sources under canonical delegate policy', async () => {
             const owner = await newAccountWithLamports(rpc, 2e9);
             const delegate = await newAccountWithLamports(rpc, 2e9);
             const recipient = Keypair.generate().publicKey;
@@ -441,17 +441,16 @@ describe('transfer-interface', () => {
                 delegate.publicKey,
             );
 
-            await expect(
-                createTransferInterfaceInstructions(
-                    rpc,
-                    payer.publicKey,
-                    mint,
-                    BigInt(500),
-                    delegate.publicKey,
-                    recipient,
-                    { owner: owner.publicKey },
-                ),
-            ).rejects.toThrow(/delegated via approve/);
+            const batches = await createTransferInterfaceInstructions(
+                rpc,
+                payer.publicKey,
+                mint,
+                BigInt(500),
+                delegate.publicKey,
+                recipient,
+                { owner: owner.publicKey },
+            );
+            expect(batches.length).toBeGreaterThan(0);
         });
 
         it('createTransferInterfaceInstructions throws when signer is not owner or delegate', async () => {

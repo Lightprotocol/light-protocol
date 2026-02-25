@@ -11,9 +11,7 @@ import {
     TransactionSignature,
     ConfirmOptions,
 } from '@solana/web3.js';
-import {
-    createLoadAtaInstructions,
-} from '../instructions/load-ata';
+import { createLoadAtaInstructions } from '../instructions/load-ata';
 import { InterfaceOptions } from './transfer-interface';
 
 export {
@@ -60,12 +58,7 @@ export async function loadAta(
 
     const txPromises = batches.map(async ixs => {
         const { blockhash } = await rpc.getLatestBlockhash();
-        const tx = buildAndSignTx(
-            ixs,
-            payer!,
-            blockhash,
-            additionalSigners,
-        );
+        const tx = buildAndSignTx(ixs, payer!, blockhash, additionalSigners);
         return sendAndConfirmTx(rpc, tx, confirmOptions);
     });
 
