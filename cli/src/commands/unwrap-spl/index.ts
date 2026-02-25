@@ -6,16 +6,15 @@ import {
   rpc,
 } from "../../utils/utils";
 import { PublicKey } from "@solana/web3.js";
-import { compress } from "@lightprotocol/compressed-token";
-import { getAssociatedTokenAddressSync } from "@solana/spl-token";
-import { CompressedTokenProgram } from "@lightprotocol/compressed-token";
+import { unwrap, CompressedTokenProgram } from "@lightprotocol/compressed-token";
+import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 
-/// TODO: add ability to compress from non-fee payer
-class CompressSplCommand extends Command {
-  static summary = "Compress SPL tokens.";
+/// TODO: add ability to unwrap from non-fee payer
+class UnwrapSplCommand extends Command {
+  static summary = "Unwrap Light Tokens into SPL token account.";
 
   static examples = [
-    "$ light compress-spl --mint PublicKey --to PublicKey --amount 10",
+    "$ light unwrap-spl --mint PublicKey --to PublicKey --amount 10",
   ];
 
   static flags = {
@@ -25,11 +24,11 @@ class CompressSplCommand extends Command {
     }),
     to: Flags.string({
       description:
-        "Specify the recipient address (owner of destination compressed token account).",
+        "Specify the recipient address. (owner of destination SPL token account)",
       required: true,
     }),
     amount: Flags.integer({
-      description: "Amount to compress, in tokens.",
+      description: "Amount to unwrap, in tokens.",
       required: true,
     }),
   };
@@ -37,7 +36,7 @@ class CompressSplCommand extends Command {
   static args = {};
 
   async run() {
-    const { flags } = await this.parse(CompressSplCommand);
+    const { flags } = await this.parse(UnwrapSplCommand);
     const to = flags["to"];
     const mint = flags["mint"];
     const amount = flags["amount"];
@@ -45,7 +44,7 @@ class CompressSplCommand extends Command {
       throw new Error("Invalid arguments");
     }
 
-    const loader = new CustomLoader(`Performing compress-spl...\n`);
+    const loader = new CustomLoader(`Performing unwrap-spl...\n`);
     loader.start();
     let txId;
     try {
@@ -57,22 +56,24 @@ class CompressSplCommand extends Command {
         rpc(),
       );
 
-      /// TODO: add explicit check that the ata is valid
-      const sourceAta = getAssociatedTokenAddressSync(
+      const recipientAta = await getOrCreateAssociatedTokenAccount(
+        rpc(),
+        payer,
         mintPublicKey,
-        payer.publicKey,
+        toPublicKey,
+        undefined,
+        undefined,
         undefined,
         tokenProgramId,
       );
 
-      txId = await compress(
+      txId = await unwrap(
         rpc(),
         payer,
-        mintPublicKey,
-        amount,
+        recipientAta.address,
         payer,
-        sourceAta,
-        toPublicKey,
+        mintPublicKey,
+        BigInt(amount),
       );
 
       loader.stop(false);
@@ -80,12 +81,12 @@ class CompressSplCommand extends Command {
         "\x1b[32mtxId:\x1b[0m ",
         generateSolanaTransactionURL("tx", txId, "custom"),
       );
-      console.log("compress-spl successful");
+      console.log("unwrap-spl successful");
     } catch (error) {
-      console.log("compress-spl failed", txId);
-      this.error(`Failed to compress-spl!\n${error}`);
+      console.log("unwrap-spl failed", txId);
+      this.error(`Failed to unwrap-spl!\n${error}`);
     }
   }
 }
 
-export default CompressSplCommand;
+export default UnwrapSplCommand;

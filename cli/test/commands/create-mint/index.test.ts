@@ -12,10 +12,7 @@ describe("create-mint", () => {
   });
 
   it(`create mint for mintAuthority: ${mintAuthority.publicKey.toBase58()}`, async () => {
-    const { stdout } = await runCommand([
-      "create-mint",
-      `--mint-authority=${mintAuthority.publicKey.toBase58()}`,
-    ]);
+    const { stdout } = await runCommand(["create-mint"]);
     expect(stdout).to.contain("create-mint successful");
   });
 });

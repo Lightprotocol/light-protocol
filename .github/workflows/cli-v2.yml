@@ -11,15 +11,15 @@ on:
       - reopened
       - ready_for_review
 
-name: cli-tests-v2
+name: cli-tests
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  cli-v2:
-    name: cli-v2
+  cli:
+    name: cli
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
 
@@ -61,11 +61,11 @@ jobs:
           cd js/compressed-token
           pnpm build:v2
 
-      - name: Build CLI with V2
+      - name: Build CLI
         run: |
           just cli build
 
-      - name: Run CLI tests with V2
+      - name: Run CLI tests
         run: |
           just cli test
 

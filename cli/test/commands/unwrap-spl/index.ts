@@ -6,16 +6,15 @@ import {
   rpc,
 } from "../../utils/utils";
 import { PublicKey } from "@solana/web3.js";
-import { decompress } from "@lightprotocol/compressed-token";
+import { unwrap, CompressedTokenProgram } from "@lightprotocol/compressed-token";
 import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
-import { CompressedTokenProgram } from "@lightprotocol/compressed-token";
 
-/// TODO: add ability to decompress from non-fee payer
-class DecompressSplCommand extends Command {
-  static summary = "Decompress into SPL tokens.";
+/// TODO: add ability to unwrap from non-fee payer
+class UnwrapSplCommand extends Command {
+  static summary = "Unwrap Light Tokens into SPL token account.";
 
   static examples = [
-    "$ light decompress-spl --mint PublicKey --to PublicKey --amount 10",
+    "$ light unwrap-spl --mint PublicKey --to PublicKey --amount 10",
   ];
 
   static flags = {
@@ -25,11 +24,11 @@ class DecompressSplCommand extends Command {
     }),
     to: Flags.string({
       description:
-        "Specify the recipient address. (owner of destination token account)",
+        "Specify the recipient address. (owner of destination SPL token account)",
       required: true,
     }),
     amount: Flags.integer({
-      description: "Amount to decompress, in tokens.",
+      description: "Amount to unwrap, in tokens.",
       required: true,
     }),
   };
@@ -37,7 +36,7 @@ class DecompressSplCommand extends Command {
   static args = {};
 
   async run() {
-    const { flags } = await this.parse(DecompressSplCommand);
+    const { flags } = await this.parse(UnwrapSplCommand);
     const to = flags["to"];
     const mint = flags["mint"];
     const amount = flags["amount"];
@@ -45,7 +44,7 @@ class DecompressSplCommand extends Command {
       throw new Error("Invalid arguments");
     }
 
-    const loader = new CustomLoader(`Performing decompress-spl...\n`);
+    const loader = new CustomLoader(`Performing unwrap-spl...\n`);
     loader.start();
     let txId;
     try {
@@ -68,13 +67,13 @@ class DecompressSplCommand extends Command {
         tokenProgramId,
       );
 
-      txId = await decompress(
+      txId = await unwrap(
         rpc(),
         payer,
-        mintPublicKey,
-        amount,
-        payer,
         recipientAta.address,
+        payer,
+        mintPublicKey,
+        BigInt(amount),
       );
 
       loader.stop(false);
@@ -82,12 +81,12 @@ class DecompressSplCommand extends Command {
         "\x1b[32mtxId:\x1b[0m ",
         generateSolanaTransactionURL("tx", txId, "custom"),
       );
-      console.log("decompress-spl successful");
+      console.log("unwrap-spl successful");
     } catch (error) {
-      console.log("decompress-spl failed", txId);
-      this.error(`Failed to decompress-spl!\n${error}`);
+      console.log("unwrap-spl failed", txId);
+      this.error(`Failed to unwrap-spl!\n${error}`);
     }
   }
 }
 
-export default DecompressSplCommand;
+export default UnwrapSplCommand;

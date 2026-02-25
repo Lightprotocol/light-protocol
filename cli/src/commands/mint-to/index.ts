@@ -7,7 +7,11 @@ import {
   rpc,
 } from "../../utils/utils";
 import { Keypair, PublicKey } from "@solana/web3.js";
-import { mintTo } from "@lightprotocol/compressed-token";
+import {
+  mintToInterface,
+  createAtaInterfaceIdempotent,
+  getAssociatedTokenAddressInterface,
+} from "@lightprotocol/compressed-token";
 
 class MintToCommand extends Command {
   static summary = "Mint tokens to an account.";
@@ -60,11 +64,13 @@ class MintToCommand extends Command {
         mintAuthority = await getKeypairFromFile(flags["mint-authority"]);
       }
 
-      const txId = await mintTo(
+      await createAtaInterfaceIdempotent(rpc(), payer, mintPublicKey, toPublicKey);
+      const destination = getAssociatedTokenAddressInterface(mintPublicKey, toPublicKey);
+      const txId = await mintToInterface(
         rpc(),
         payer,
         mintPublicKey,
-        toPublicKey,
+        destination,
         mintAuthority,
         amount,
       );
@@ -75,7 +81,7 @@ class MintToCommand extends Command {
       );
       console.log("mint-to successful");
     } catch (error) {
-      this.error(`Failed to create-mint!\n${error}`);
+      this.error(`Failed to mint-to!\n${error}`);
     }
   }
 }

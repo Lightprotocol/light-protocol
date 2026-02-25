@@ -7,7 +7,7 @@ import { Keypair } from "@solana/web3.js";
 import { getTestRpc } from "@lightprotocol/stateless.js";
 import { WasmFactory } from "@lightprotocol/hasher.rs";
 
-describe("create-mint", () => {
+describe("create-interface-pda", () => {
   let mintAuthority: Keypair = defaultSolanaWalletKeypair();
   let mintKeypair = Keypair.generate();
   before(async () => {
@@ -26,9 +26,9 @@ describe("create-mint", () => {
 
   it(`register mint for mintAuthority: ${mintAuthority.publicKey.toBase58()}`, async () => {
     const { stdout } = await runCommand([
-      "create-token-pool",
+      "create-interface-pda",
       `--mint=${mintKeypair.publicKey.toBase58()}`,
     ]);
-    expect(stdout).to.contain("create-token-pool successful");
+    expect(stdout).to.contain("create-interface-pda successful");
   });
 });

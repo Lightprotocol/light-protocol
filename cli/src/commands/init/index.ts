@@ -37,7 +37,7 @@ import {
 } from "case-anything";
 
 export default class InitCommand extends Command {
-  static description = "Initialize a compressed account project.";
+  static description = "Initialize a Light Token project.";
 
   static args = {
     name: Args.string({

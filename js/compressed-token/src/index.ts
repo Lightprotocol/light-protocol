@@ -95,6 +95,8 @@ export {
     sliceLast,
     decompressInterface,
     wrap,
+    unwrap,
+    decompressMint,
     mintTo as mintToCToken,
     mintToCompressed,
     mintToInterface,
