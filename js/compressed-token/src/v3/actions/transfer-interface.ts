@@ -19,6 +19,10 @@ import { type SplInterfaceInfo } from '../../utils/get-token-pool-infos';
 
 export interface InterfaceOptions {
     splInterfaceInfos?: SplInterfaceInfo[];
+    /**
+     * ATA owner (authority owner) used to derive the ATA when the signer is a
+     * delegate. For owner-signed flows, omit this field.
+     */
     owner?: PublicKey;
 }
 
@@ -88,7 +92,6 @@ export interface TransferOptions extends InterfaceOptions {
     wrap?: boolean;
     programId?: PublicKey;
     ensureRecipientAta?: boolean;
-    owner?: PublicKey;
 }
 
 export function sliceLast<T>(items: T[]): { rest: T[]; last: T } {

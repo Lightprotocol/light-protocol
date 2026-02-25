@@ -101,7 +101,6 @@ export function getCompressedTokenAccountsFromAtaSources(
     return sources
         .filter(source => source.loadContext !== undefined)
         .filter(source => COLD_SOURCE_TYPES.has(source.type))
-        .filter(source => !source.parsed.isFrozen)
         .map(source => {
             const fullData = source.accountInfo.data;
             const discriminatorBytes = fullData.subarray(
@@ -197,12 +196,6 @@ export async function createLoadAtaInstructions(
             );
         }
         accountInterface = filterInterfaceForAuthority(accountInterface, owner);
-        if (
-            (accountInterface._sources?.length ?? 0) === 0 ||
-            accountInterface.parsed.amount === BigInt(0)
-        ) {
-            return [];
-        }
     }
 
     const internalBatches = await _buildLoadBatches(
@@ -318,16 +311,10 @@ export async function _buildLoadBatches(
         );
     }
 
-    const splSource = sources.find(s => s.type === 'spl' && !s.parsed.isFrozen);
-    const t22Source = sources.find(
-        s => s.type === 'token2022' && !s.parsed.isFrozen,
-    );
-    const ctokenHotSource = sources.find(
-        s => s.type === 'ctoken-hot' && !s.parsed.isFrozen,
-    );
-    const coldSources = sources.filter(
-        s => COLD_SOURCE_TYPES.has(s.type) && !s.parsed.isFrozen,
-    );
+    const splSource = sources.find(s => s.type === 'spl');
+    const t22Source = sources.find(s => s.type === 'token2022');
+    const ctokenHotSource = sources.find(s => s.type === 'ctoken-hot');
+    const coldSources = sources.filter(s => COLD_SOURCE_TYPES.has(s.type));
 
     const splBalance = splSource?.amount ?? BigInt(0);
     const t22Balance = t22Source?.amount ?? BigInt(0);
