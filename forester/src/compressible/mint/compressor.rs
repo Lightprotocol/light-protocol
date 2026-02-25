@@ -246,7 +246,7 @@ impl<R: Rpc + Indexer> MintCompressor<R> {
                 "Mint PDA {} no longer exists on-chain, removing from tracker",
                 mint_pda
             );
-            self.tracker.remove_compressed(mint_pda);
+            self.tracker.remove(mint_pda);
             return Err(anyhow::anyhow!(
                 "Mint PDA {} already closed, skipping",
                 mint_pda

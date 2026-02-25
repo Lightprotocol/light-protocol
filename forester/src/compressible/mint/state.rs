@@ -76,7 +76,7 @@ impl MintAccountTracker {
 
         if !mint.metadata.mint_decompressed {
             // Mint was compressed — remove stale entry from tracker if present
-            if self.accounts.remove(&pubkey).is_some() {
+            if self.remove(&pubkey).is_some() {
                 debug!(
                     "Mint {} no longer decompressed, removed from tracker",
                     pubkey
@@ -162,7 +162,7 @@ impl SubscriptionHandler for MintAccountTracker {
     ) -> Result<()> {
         // If account data is empty (account was closed), remove from tracker
         if data.is_empty() {
-            if self.accounts.remove(&pubkey).is_some() {
+            if self.remove(&pubkey).is_some() {
                 debug!("Removed closed Mint account {} from tracker", pubkey);
             }
             return Ok(());

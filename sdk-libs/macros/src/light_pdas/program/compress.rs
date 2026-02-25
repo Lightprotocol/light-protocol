@@ -85,60 +85,117 @@ impl CompressBuilder {
     // Code Generation Methods
     // -------------------------------------------------------------------------
 
-    /// Generate the compress dispatch function.
+    /// Generate per-account compress dispatch arms appropriate for the backend.
+    ///
+    /// - Anchor: match arms with fixed 8-byte `LIGHT_DISCRIMINATOR`
+    ///   (`d if d == Type::LIGHT_DISCRIMINATOR => { ... }`)
+    /// - Pinocchio: if-chain blocks with variable-length `LIGHT_DISCRIMINATOR_SLICE`
+    ///   (`{ if &data[..disc_len] == disc_slice { return ...; } }`)
+    fn generate_compress_arms(&self, backend: &dyn CodegenBackend) -> Vec<TokenStream> {
+        let account_crate = backend.account_crate();
+        let sdk_error = backend.sdk_error_type();
+
+        self.accounts
+            .iter()
+            .map(|info| {
+                let name = qualify_type_with_crate(&info.account_type);
+
+                if backend.is_pinocchio() {
+                    // Pinocchio: variable-length discriminator if-chain blocks.
+                    // Uses LIGHT_DISCRIMINATOR_SLICE (&[u8]) and dynamic disc_len.
+                    if info.is_zero_copy {
+                        quote! {
+                            {
+                                let __disc_slice = <#name as #account_crate::LightDiscriminator>::LIGHT_DISCRIMINATOR_SLICE;
+                                let __disc_len = __disc_slice.len();
+                                let __expected_len = __disc_len + core::mem::size_of::<#name>();
+                                if data.len() >= __expected_len && &data[..__disc_len] == __disc_slice {
+                                    let pod_bytes = &data[__disc_len..__expected_len];
+                                    let mut account_data: #name = *bytemuck::from_bytes(pod_bytes);
+                                    drop(data);
+                                    return #account_crate::prepare_account_for_compression(
+                                        account_info, &mut account_data, meta, index, ctx,
+                                    );
+                                }
+                            }
+                        }
+                    } else {
+                        quote! {
+                            {
+                                let __disc_slice = <#name as #account_crate::LightDiscriminator>::LIGHT_DISCRIMINATOR_SLICE;
+                                let __disc_len = __disc_slice.len();
+                                if data.len() >= __disc_len && &data[..__disc_len] == __disc_slice {
+                                    let mut reader = &data[__disc_len..];
+                                    let mut account_data = #name::deserialize(&mut reader)
+                                        .map_err(|_| #sdk_error::InvalidInstructionData)?;
+                                    drop(data);
+                                    return #account_crate::prepare_account_for_compression(
+                                        account_info, &mut account_data, meta, index, ctx,
+                                    );
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // Anchor: fixed 8-byte discriminator match arms.
+                    // Uses LIGHT_DISCRIMINATOR ([u8; 8]) with hardcoded offset 8.
+                    if info.is_zero_copy {
+                        quote! {
+                            d if d == #name::LIGHT_DISCRIMINATOR => {
+                                let pod_bytes = &data[8..8 + core::mem::size_of::<#name>()];
+                                let mut account_data: #name = *bytemuck::from_bytes(pod_bytes);
+                                drop(data);
+                                #account_crate::prepare_account_for_compression(
+                                    account_info, &mut account_data, meta, index, ctx,
+                                )
+                            }
+                        }
+                    } else {
+                        // Borsh: use deserialize (not try_from_slice which requires all bytes consumed).
+                        // Anchor allocates INIT_SPACE (max size) but actual Borsh data may be shorter
+                        // due to variable-length fields (String, Vec), leaving trailing bytes.
+                        quote! {
+                            d if d == #name::LIGHT_DISCRIMINATOR => {
+                                let mut reader = &data[8..];
+                                let mut account_data = #name::deserialize(&mut reader)
+                                    .map_err(|_| #sdk_error::InvalidInstructionData)?;
+                                drop(data);
+                                #account_crate::prepare_account_for_compression(
+                                    account_info, &mut account_data, meta, index, ctx,
+                                )
+                            }
+                        }
+                    }
+                }
+            })
+            .collect()
+    }
+
+    /// Generate the compress dispatch function (Anchor only).
     ///
     /// Creates a function matching `CompressDispatchFn` signature that handles
     /// discriminator-based deserialization and compression dispatch.
     /// This function is placed inside the processor module.
-    pub fn generate_dispatch_fn(&self) -> Result<syn::ItemFn> {
-        let compress_arms: Vec<_> = self.accounts.iter().map(|info| {
-            let name = qualify_type_with_crate(&info.account_type);
-
-            if info.is_zero_copy {
-                // Pod (zero-copy) path: use bytemuck
-                quote! {
-                    d if d == #name::LIGHT_DISCRIMINATOR => {
-                        let pod_bytes = &data[8..8 + core::mem::size_of::<#name>()];
-                        let mut account_data: #name = *bytemuck::from_bytes(pod_bytes);
-                        drop(data);
-                        light_account::prepare_account_for_compression(
-                            account_info, &mut account_data, meta, index, ctx,
-                        )
-                    }
-                }
-            } else {
-                // Borsh path: use deserialize (not try_from_slice which requires all bytes consumed)
-                // Anchor allocates INIT_SPACE (max size) but actual Borsh data may be shorter
-                // due to variable-length fields (String, Vec), leaving trailing bytes.
-                quote! {
-                    d if d == #name::LIGHT_DISCRIMINATOR => {
-                        let mut reader = &data[8..];
-                        let mut account_data = #name::deserialize(&mut reader)
-                            .map_err(|_| light_account::LightSdkTypesError::InvalidInstructionData)?;
-                        drop(data);
-                        light_account::prepare_account_for_compression(
-                            account_info, &mut account_data, meta, index, ctx,
-                        )
-                    }
-                }
-            }
-        }).collect();
+    pub fn generate_dispatch_fn(&self, backend: &dyn CodegenBackend) -> Result<syn::ItemFn> {
+        let account_crate = backend.account_crate();
+        let sdk_error = backend.sdk_error_type();
+        let compress_arms = self.generate_compress_arms(backend);
 
         Ok(syn::parse_quote! {
             fn __compress_dispatch<'info>(
                 account_info: &anchor_lang::prelude::AccountInfo<'info>,
-                meta: &light_account::account_meta::CompressedAccountMetaNoLamportsNoAddress,
+                meta: &#account_crate::account_meta::CompressedAccountMetaNoLamportsNoAddress,
                 index: usize,
-                ctx: &mut light_account::CompressCtx<'_, 'info>,
-            ) -> std::result::Result<(), light_account::LightSdkTypesError> {
-                use light_account::LightDiscriminator;
+                ctx: &mut #account_crate::CompressCtx<'_, 'info>,
+            ) -> std::result::Result<(), #sdk_error> {
+                use #account_crate::LightDiscriminator;
                 use borsh::BorshDeserialize;
                 let data = account_info.try_borrow_data()?;
                 let discriminator: [u8; 8] = data
                     .get(..8)
-                    .ok_or(light_account::LightSdkTypesError::InvalidInstructionData)?
+                    .ok_or(#sdk_error::InvalidInstructionData)?
                     .try_into()
-                    .map_err(|_| light_account::LightSdkTypesError::InvalidInstructionData)?;
+                    .map_err(|_| #sdk_error::InvalidInstructionData)?;
                 match discriminator {
                     #(#compress_arms)*
                     _ => Ok(()),
@@ -314,13 +371,11 @@ impl CompressBuilder {
 
     /// Generate compress dispatch as an associated function on the enum using the specified backend.
     ///
-    /// # Discriminator uniqueness invariant
-    ///
-    /// The dispatch uses a sequential if-chain keyed on `LIGHT_DISCRIMINATOR_SLICE`. No
-    /// discriminator may be a prefix of another — including exact duplicates. Violating this
-    /// causes silent incorrect dispatch. The `LightProgramPinocchio` derive enforces this at
-    /// compile time via `generate_discriminator_collision_checks`; if the check fires, change
-    /// the discriminator bytes so that no pair shares a prefix.
+    /// - Anchor: uses a `match` on fixed 8-byte discriminators (same as `generate_dispatch_fn`)
+    /// - Pinocchio: uses a sequential if-chain keyed on `LIGHT_DISCRIMINATOR_SLICE` (variable
+    ///   length). No discriminator may be a prefix of another — including exact duplicates.
+    ///   Violating this causes silent incorrect dispatch. The `LightProgramPinocchio` derive
+    ///   enforces this at compile time via `generate_discriminator_collision_checks`.
     pub fn generate_enum_dispatch_method_with_backend(
         &self,
         enum_name: &syn::Ident,
@@ -330,48 +385,7 @@ impl CompressBuilder {
         let account_info_type = backend.account_info_type();
         let sdk_error = backend.sdk_error_type();
         let borrow_error = backend.borrow_error();
-
-        let compress_arms: Vec<_> = self
-            .accounts
-            .iter()
-            .map(|info| {
-                let name = qualify_type_with_crate(&info.account_type);
-
-                if info.is_zero_copy {
-                    quote! {
-                        {
-                            let __disc_slice = <#name as #account_crate::LightDiscriminator>::LIGHT_DISCRIMINATOR_SLICE;
-                            let __disc_len = __disc_slice.len();
-                            let __expected_len = __disc_len + core::mem::size_of::<#name>();
-                            if data.len() >= __expected_len && &data[..__disc_len] == __disc_slice {
-                                let pod_bytes = &data[__disc_len..__expected_len];
-                                let mut account_data: #name = *bytemuck::from_bytes(pod_bytes);
-                                drop(data);
-                                return #account_crate::prepare_account_for_compression(
-                                    account_info, &mut account_data, meta, index, ctx,
-                                );
-                            }
-                        }
-                    }
-                } else {
-                    quote! {
-                        {
-                            let __disc_slice = <#name as #account_crate::LightDiscriminator>::LIGHT_DISCRIMINATOR_SLICE;
-                            let __disc_len = __disc_slice.len();
-                            if data.len() >= __disc_len && &data[..__disc_len] == __disc_slice {
-                                let mut reader = &data[__disc_len..];
-                                let mut account_data = #name::deserialize(&mut reader)
-                                    .map_err(|_| #sdk_error::InvalidInstructionData)?;
-                                drop(data);
-                                return #account_crate::prepare_account_for_compression(
-                                    account_info, &mut account_data, meta, index, ctx,
-                                );
-                            }
-                        }
-                    }
-                }
-            })
-            .collect();
+        let compress_arms = self.generate_compress_arms(backend);
 
         if backend.is_pinocchio() {
             Ok(quote! {
@@ -384,15 +398,8 @@ impl CompressBuilder {
                     ) -> std::result::Result<(), #sdk_error> {
                         use borsh::BorshDeserialize;
                         let data = account_info.try_borrow_data()#borrow_error;
-                        let discriminator: [u8; 8] = data
-                            .get(..8)
-                            .ok_or(#sdk_error::InvalidInstructionData)?
-                            .try_into()
-                            .map_err(|_| #sdk_error::InvalidInstructionData)?;
-                        match discriminator {
-                            #(#compress_arms)*
-                            _ => Ok(()),
-                        }
+                        #(#compress_arms)*
+                        Ok(())
                     }
                 }
             })
@@ -405,6 +412,7 @@ impl CompressBuilder {
                         index: usize,
                         ctx: &mut #account_crate::CompressCtx<'_, 'info>,
                     ) -> std::result::Result<(), #sdk_error> {
+                        use #account_crate::LightDiscriminator;
                         use borsh::BorshDeserialize;
                         let data = account_info.try_borrow_data()#borrow_error;
                         let discriminator: [u8; 8] = data

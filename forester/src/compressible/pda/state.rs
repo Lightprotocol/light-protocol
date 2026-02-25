@@ -117,7 +117,7 @@ impl PdaAccountTracker {
 
         if compression_info.is_compressed() {
             // Account was compressed — remove stale entry from tracker if present
-            if self.accounts.remove(&pubkey).is_some() {
+            if self.remove(&pubkey).is_some() {
                 debug!("PDA {} already compressed, removed from tracker", pubkey);
             }
             return Ok(());
@@ -187,7 +187,7 @@ impl SubscriptionHandler for PdaAccountTracker {
     ) -> Result<()> {
         // If account data is empty (account was closed), remove from tracker
         if data.is_empty() {
-            if self.accounts.remove(&pubkey).is_some() {
+            if self.remove(&pubkey).is_some() {
                 debug!("Removed closed PDA account {} from tracker", pubkey);
             }
             return Ok(());

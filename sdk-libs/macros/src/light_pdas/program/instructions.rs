@@ -562,7 +562,7 @@ pub(crate) fn generate_light_program_items_with_backend(
         update_config_instruction,
     ) = if !backend.is_pinocchio() {
         let compress_accounts = compress_builder.generate_accounts_struct()?;
-        let compress_dispatch_fn = compress_builder.generate_dispatch_fn()?;
+        let compress_dispatch_fn = compress_builder.generate_dispatch_fn(backend)?;
         let compress_processor_fn = compress_builder.generate_processor()?;
         let compress_instruction = compress_builder.generate_entrypoint()?;
 

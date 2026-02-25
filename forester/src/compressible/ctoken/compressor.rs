@@ -240,10 +240,13 @@ impl<R: Rpc + Indexer> CTokenCompressor<R> {
         );
 
         // Wait for confirmation
-        let confirmed = rpc
-            .confirm_transaction(signature)
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to confirm transaction: {}", e))?;
+        let confirmed = match rpc.confirm_transaction(signature).await {
+            Ok(confirmed) => confirmed,
+            Err(e) => {
+                self.tracker.unmark_pending(&pubkeys);
+                return Err(anyhow::anyhow!("Failed to confirm transaction: {}", e));
+            }
+        };
 
         if confirmed {
             for account_state in account_states {
