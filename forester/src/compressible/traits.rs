@@ -102,27 +102,44 @@ pub trait SubscriptionHandler: Send + Sync {
 }
 
 pub async fn verify_transaction_execution(rpc: &impl Rpc, signature: Signature) -> Result<()> {
-    let statuses = rpc
-        .get_signature_statuses(&[signature])
-        .await
-        .map_err(|e| {
-            anyhow::anyhow!("Failed to get signature status for {}: {:?}", signature, e)
-        })?;
+    const MAX_RETRIES: u32 = 3;
+    const RETRY_DELAY: std::time::Duration = std::time::Duration::from_millis(500);
 
-    match statuses.first() {
-        Some(Some(status)) => {
-            if let Some(err) = &status.err {
-                return Err(anyhow::anyhow!(
-                    "Transaction {} confirmed but execution failed: {:?}",
-                    signature,
-                    err
-                ));
+    for attempt in 0..MAX_RETRIES {
+        let statuses = rpc
+            .get_signature_statuses(&[signature])
+            .await
+            .map_err(|e| {
+                anyhow::anyhow!("Failed to get signature status for {}: {:?}", signature, e)
+            })?;
+
+        match statuses.first() {
+            Some(Some(status)) => {
+                if let Some(err) = &status.err {
+                    return Err(anyhow::anyhow!(
+                        "Transaction {} confirmed but execution failed: {:?}",
+                        signature,
+                        err
+                    ));
+                }
+                return Ok(());
             }
-            Ok(())
+            _ if attempt < MAX_RETRIES - 1 => {
+                tracing::debug!(
+                    "Transaction {} status not yet available, retrying ({}/{})",
+                    signature,
+                    attempt + 1,
+                    MAX_RETRIES
+                );
+                tokio::time::sleep(RETRY_DELAY).await;
+            }
+            _ => {}
         }
-        _ => Err(anyhow::anyhow!(
-            "Transaction {} status unavailable",
-            signature
-        )),
     }
+
+    Err(anyhow::anyhow!(
+        "Transaction {} status unavailable after {} retries",
+        signature,
+        MAX_RETRIES
+    ))
 }
