@@ -15,8 +15,8 @@ including instruction builders for transfers, mints, and compress/decompress ope
 - are well suited for airdrops and reward distribution.
 
 ## Difference to Light-Token:
-[light-token](../token-sdk): Solana account that holds token balances of light-mints, SPL or Token 22 mints for most token use cases (launchpads, DeFi, payments). Mint and token accounts with sponsored rent-exemption.
-Compressed token: Compressed account storing token data. Rent-free, for storage and distribution. Prefer Light Token for other purposes. Used by Light Token under the hood for rent-free storage of inactive Light Tokens. Supported by Phantom and Backpack.
+[light-token](https://github.com/Lightprotocol/light-protocol/tree/main/sdk-libs/token-sdk): Solana account that holds token balances of light-mints, SPL or Token 22 mints for most token use cases (launchpads, DeFi, payments). Mint and token accounts with sponsored rent-exemption.
+Compressed token: Compressed account storing token data. Rent-free, for storage and distribution. Prefer Light Token for other purposes. Used by Light Token under the hood for rent-free storage of inactive Light Tokens.
 
 ## Features
 
