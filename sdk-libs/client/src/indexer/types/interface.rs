@@ -113,12 +113,12 @@ pub struct AccountInterface {
 }
 
 impl AccountInterface {
-    /// Returns true if this account is on-chain (hot)
+    /// Returns true if this account is on-chain (hot).
     pub fn is_hot(&self) -> bool {
         self.cold.is_none()
     }
 
-    /// Returns true if this account is compressed (cold)
+    /// Returns true if this account is compressed (cold).
     pub fn is_cold(&self) -> bool {
         self.cold.is_some()
     }
@@ -128,7 +128,6 @@ impl AccountInterface {
 fn convert_account_interface(
     ai: &photon_api::types::AccountInterface,
 ) -> Result<AccountInterface, IndexerError> {
-    // Take the first compressed account entry if present
     let cold = ai
         .cold
         .as_ref()
@@ -167,4 +166,102 @@ pub struct TokenAccountInterface {
     pub account: AccountInterface,
     /// Parsed token data (same as CompressedTokenAccount.token)
     pub token: TokenData,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn default_tree_info() -> InterfaceTreeInfo {
+        InterfaceTreeInfo {
+            tree: Pubkey::default(),
+            queue: Pubkey::default(),
+            tree_type: TreeType::StateV2,
+            seq: Some(1),
+            slot_created: 100,
+        }
+    }
+
+    fn make_cold_context(discriminator: [u8; 8]) -> ColdContext {
+        ColdContext {
+            hash: [1u8; 32],
+            leaf_index: 0,
+            tree_info: default_tree_info(),
+            data: ColdData {
+                discriminator,
+                data: vec![1, 2, 3],
+                data_hash: [2u8; 32],
+            },
+            address: Some([3u8; 32]),
+            prove_by_index: false,
+        }
+    }
+
+    fn make_account(lamports: u64) -> SolanaAccountData {
+        Account {
+            lamports,
+            data: vec![],
+            owner: Pubkey::default(),
+            executable: false,
+            rent_epoch: 0,
+        }
+    }
+
+    #[test]
+    fn test_pure_on_chain_is_hot() {
+        let ai = AccountInterface {
+            key: Pubkey::new_unique(),
+            account: make_account(1_000_000),
+            cold: None,
+        };
+        assert!(ai.is_hot());
+        assert!(!ai.is_cold());
+    }
+
+    #[test]
+    fn test_compressed_is_cold() {
+        let ai = AccountInterface {
+            key: Pubkey::new_unique(),
+            account: make_account(0),
+            cold: Some(make_cold_context([1, 2, 3, 4, 5, 6, 7, 8])),
+        };
+        assert!(ai.is_cold());
+        assert!(!ai.is_hot());
+    }
+
+    #[test]
+    fn test_zero_discriminator_is_cold() {
+        let ai = AccountInterface {
+            key: Pubkey::new_unique(),
+            account: make_account(0),
+            cold: Some(make_cold_context([0u8; 8])),
+        };
+        assert!(ai.is_cold());
+        assert!(!ai.is_hot());
+    }
+
+    #[test]
+    fn test_token_account_interface_delegates_is_cold() {
+        let token = TokenData::default();
+
+        let cold_tai = TokenAccountInterface {
+            account: AccountInterface {
+                key: Pubkey::new_unique(),
+                account: make_account(0),
+                cold: Some(make_cold_context([1, 2, 3, 4, 5, 6, 7, 8])),
+            },
+            token: token.clone(),
+        };
+        assert!(cold_tai.account.is_cold());
+
+        let hot_tai = TokenAccountInterface {
+            account: AccountInterface {
+                key: Pubkey::new_unique(),
+                account: make_account(1_000_000),
+                cold: None,
+            },
+            token,
+        };
+        assert!(hot_tai.account.is_hot());
+    }
 }
