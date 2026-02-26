@@ -44,7 +44,7 @@ env:
 jobs:
   test:
     name: Forester e2e test
-    runs-on: warp-ubuntu-latest-x64-4x
+    runs-on: ubuntu-latest
     timeout-minutes: 60
 
     services:
@@ -86,7 +86,7 @@ jobs:
 
   compressible-tests:
     name: Forester compressible tests
-    runs-on: warp-ubuntu-latest-x64-4x
+    runs-on: ubuntu-latest
     timeout-minutes: 60
 
     services:
