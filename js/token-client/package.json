@@ -1,0 +1,54 @@
+{
+    "name": "@lightprotocol/token-client",
+    "version": "0.1.0",
+    "description": "Light Protocol indexer client for compressed tokens",
+    "type": "module",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "import": "./dist/index.js",
+            "types": "./dist/index.d.ts"
+        }
+    },
+    "files": [
+        "dist",
+        "src"
+    ],
+    "scripts": {
+        "build": "tsc",
+        "clean": "rm -rf dist",
+        "test": "vitest run tests/unit/",
+        "test:e2e": "vitest run --config vitest.e2e.config.ts",
+        "test:watch": "vitest"
+    },
+    "peerDependencies": {
+        "@solana/kit": "^2.1.0"
+    },
+    "dependencies": {
+        "@lightprotocol/token-sdk": "workspace:*",
+        "@solana/addresses": "^2.1.0",
+        "@solana/codecs": "^2.1.0",
+        "@solana/instructions": "^2.1.0"
+    },
+    "devDependencies": {
+        "typescript": "^5.7.3",
+        "vitest": "^2.1.8"
+    },
+    "engines": {
+        "node": ">=18"
+    },
+    "keywords": [
+        "solana",
+        "light-protocol",
+        "compressed-token",
+        "indexer",
+        "zk-compression"
+    ],
+    "license": "Apache-2.0",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/Lightprotocol/light-protocol.git",
+        "directory": "js/token-client"
+    }
+}

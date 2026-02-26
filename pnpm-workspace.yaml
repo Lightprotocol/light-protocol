@@ -5,4 +5,7 @@ packages:
   - "sdk-tests/sdk-anchor-test/**"
   - "js/stateless.js/**"
   - "js/compressed-token/**"
+  - "js/token-idl/**"
+  - "js/token-sdk/**"
+  - "js/token-client/**"
   - "examples/**"
