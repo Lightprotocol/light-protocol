@@ -195,8 +195,7 @@ async fn test_ctoken_transfer_fails_when_mint_paused() {
         amount: 100_000_000,
         decimals: 9,
         authority: owner.pubkey(),
-        max_top_up: None,
-        fee_payer: None,
+        fee_payer: context.payer.pubkey(),
     }
     .instruction()
     .unwrap();
@@ -243,8 +242,7 @@ async fn test_ctoken_transfer_fails_with_non_zero_transfer_fee() {
         amount: 100_000_000,
         decimals: 9,
         authority: owner.pubkey(),
-        max_top_up: None,
-        fee_payer: None,
+        fee_payer: context.payer.pubkey(),
     }
     .instruction()
     .unwrap();
@@ -292,8 +290,7 @@ async fn test_ctoken_transfer_fails_with_non_nil_transfer_hook() {
         amount: 100_000_000,
         decimals: 9,
         authority: owner.pubkey(),
-        max_top_up: None,
-        fee_payer: None,
+        fee_payer: context.payer.pubkey(),
     }
     .instruction()
     .unwrap();

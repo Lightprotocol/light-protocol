@@ -13,7 +13,7 @@
 //!     - rent is 388 lamports per rent epoch (1.5 hours).
 //!     - once the account's lamports balance is insufficient, it is auto-compressed to a compressed token account.
 //!     - the accounts state is cryptographically preserved on the Solana ledger.
-//!     - compressed tokens can be loaded to a Light Token account.
+//!     - compressed tokens can be loaded to a Light Token account in-flight when using the account again.
 //!     - configurable lamports per write (eg transfer) keep the Light Token account perpetually funded when used. So you don't have to worry about funding rent.
 //!     - users load a compressed account into a light account in-flight when using the account again.
 //!

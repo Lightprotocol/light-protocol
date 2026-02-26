@@ -103,8 +103,8 @@ impl TransferInterface {
             decimals: self.decimals,
             authority: authority.pubkey(),
             payer: payer.pubkey(),
+            mint: self.mint,
             spl_interface,
-            max_top_up: None,
             source_owner,
             destination_owner,
         }

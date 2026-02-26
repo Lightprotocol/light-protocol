@@ -9,15 +9,36 @@ use pinocchio::{
 };
 
 use super::{
-    transfer::TransferCpi, transfer_from_spl::TransferFromSplCpi, transfer_to_spl::TransferToSplCpi,
+    transfer_checked::TransferCheckedCpi, transfer_from_spl::TransferFromSplCpi,
+    transfer_to_spl::TransferToSplCpi,
 };
+use crate::error::LightTokenError;
 
 /// SPL Token transfer_checked instruction discriminator
 const SPL_TRANSFER_CHECKED_DISCRIMINATOR: u8 = 12;
 
+/// SPL Token Program ID
+const SPL_TOKEN_PROGRAM_ID: [u8; 32] =
+    light_macros::pubkey_array!("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
+
+/// SPL Token 2022 Program ID
+const SPL_TOKEN_2022_PROGRAM_ID: [u8; 32] =
+    light_macros::pubkey_array!("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
+
 /// Check if an account is owned by the Light Token program.
-fn is_light_token_owner(owner: &[u8; 32]) -> bool {
-    owner == &LIGHT_TOKEN_PROGRAM_ID
+///
+/// Returns `Ok(true)` for Light Token program, `Ok(false)` for SPL Token / Token-2022,
+/// and `Err(CannotDetermineAccountType)` for unrecognized owners.
+fn is_light_token_owner(owner: &[u8; 32]) -> Result<bool, LightTokenError> {
+    if owner == &LIGHT_TOKEN_PROGRAM_ID {
+        return Ok(true);
+    }
+
+    if owner == &SPL_TOKEN_PROGRAM_ID || owner == &SPL_TOKEN_2022_PROGRAM_ID {
+        return Ok(false);
+    }
+
+    Err(LightTokenError::CannotDetermineAccountType)
 }
 
 /// Internal enum to classify transfer types based on account owners.
@@ -34,15 +55,33 @@ enum TransferType {
 }
 
 /// Determine transfer type from account owners.
-fn determine_transfer_type(source_owner: &[u8; 32], destination_owner: &[u8; 32]) -> TransferType {
-    let source_is_light = is_light_token_owner(source_owner);
-    let dest_is_light = is_light_token_owner(destination_owner);
+///
+/// Returns `Ok(TransferType)` for valid account combinations.
+/// Returns `Err(CannotDetermineAccountType)` if an account owner is unrecognized.
+/// Returns `Err(SplTokenProgramMismatch)` if both are SPL but with different token programs.
+fn determine_transfer_type(
+    source_owner: &[u8; 32],
+    destination_owner: &[u8; 32],
+) -> Result<TransferType, ProgramError> {
+    let source_is_light = is_light_token_owner(source_owner)
+        .map_err(|_| ProgramError::Custom(LightTokenError::CannotDetermineAccountType.into()))?;
+    let dest_is_light = is_light_token_owner(destination_owner)
+        .map_err(|_| ProgramError::Custom(LightTokenError::CannotDetermineAccountType.into()))?;
 
     match (source_is_light, dest_is_light) {
-        (true, true) => TransferType::LightToLight,
-        (true, false) => TransferType::LightToSpl,
-        (false, true) => TransferType::SplToLight,
-        (false, false) => TransferType::SplToSpl,
+        (true, true) => Ok(TransferType::LightToLight),
+        (true, false) => Ok(TransferType::LightToSpl),
+        (false, true) => Ok(TransferType::SplToLight),
+        (false, false) => {
+            // Both are SPL - verify same token program
+            if source_owner == destination_owner {
+                Ok(TransferType::SplToSpl)
+            } else {
+                Err(ProgramError::Custom(
+                    LightTokenError::SplTokenProgramMismatch.into(),
+                ))
+            }
+        }
     }
 }
 
@@ -69,6 +108,7 @@ pub struct SplInterfaceCpi<'info> {
 ///     &authority,
 ///     &payer,
 ///     &compressed_token_program_authority,
+///     &mint,
 ///     &system_program,
 /// )
 /// .invoke()?;
@@ -81,6 +121,7 @@ pub struct TransferInterfaceCpi<'info> {
     pub authority: &'info AccountInfo,
     pub payer: &'info AccountInfo,
     pub compressed_token_program_authority: &'info AccountInfo,
+    pub mint: &'info AccountInfo,
     pub spl_interface: Option<SplInterfaceCpi<'info>>,
     /// System program - required for compressible account lamport top-ups
     pub system_program: &'info AccountInfo,
@@ -97,6 +138,7 @@ impl<'info> TransferInterfaceCpi<'info> {
         authority: &'info AccountInfo,
         payer: &'info AccountInfo,
         compressed_token_program_authority: &'info AccountInfo,
+        mint: &'info AccountInfo,
         system_program: &'info AccountInfo,
     ) -> Self {
         Self {
@@ -107,6 +149,7 @@ impl<'info> TransferInterfaceCpi<'info> {
             authority,
             payer,
             compressed_token_program_authority,
+            mint,
             spl_interface: None,
             system_program,
         }
@@ -123,21 +166,25 @@ impl<'info> TransferInterfaceCpi<'info> {
         let transfer_type = determine_transfer_type(
             self.source_account.owner(),
             self.destination_account.owner(),
-        );
+        )?;
 
         match transfer_type {
-            TransferType::LightToLight => TransferCpi {
+            TransferType::LightToLight => TransferCheckedCpi {
                 source: self.source_account,
+                mint: self.mint,
                 destination: self.destination_account,
                 amount: self.amount,
+                decimals: self.decimals,
                 authority: self.authority,
                 system_program: self.system_program,
-                fee_payer: Some(self.payer),
+                fee_payer: self.payer,
             }
             .invoke(),
 
             TransferType::LightToSpl => {
-                let spl = self.spl_interface.ok_or(ProgramError::InvalidAccountData)?;
+                let spl = self.spl_interface.ok_or(ProgramError::Custom(
+                    LightTokenError::SplInterfaceRequired.into(),
+                ))?;
                 TransferToSplCpi {
                     source: self.source_account,
                     destination_spl_token_account: self.destination_account,
@@ -155,7 +202,9 @@ impl<'info> TransferInterfaceCpi<'info> {
             }
 
             TransferType::SplToLight => {
-                let spl = self.spl_interface.ok_or(ProgramError::InvalidAccountData)?;
+                let spl = self.spl_interface.ok_or(ProgramError::Custom(
+                    LightTokenError::SplInterfaceRequired.into(),
+                ))?;
                 TransferFromSplCpi {
                     amount: self.amount,
                     spl_interface_pda_bump: spl.spl_interface_pda_bump,
@@ -175,7 +224,9 @@ impl<'info> TransferInterfaceCpi<'info> {
 
             TransferType::SplToSpl => {
                 // For SPL-to-SPL, invoke SPL token program directly via transfer_checked
-                let spl = self.spl_interface.ok_or(ProgramError::InvalidAccountData)?;
+                let spl = self.spl_interface.ok_or(ProgramError::Custom(
+                    LightTokenError::SplInterfaceRequired.into(),
+                ))?;
 
                 // Build SPL transfer_checked instruction data: [12, amount(8), decimals(1)]
                 let mut ix_data = [0u8; 10];
@@ -219,21 +270,25 @@ impl<'info> TransferInterfaceCpi<'info> {
         let transfer_type = determine_transfer_type(
             self.source_account.owner(),
             self.destination_account.owner(),
-        );
+        )?;
 
         match transfer_type {
-            TransferType::LightToLight => TransferCpi {
+            TransferType::LightToLight => TransferCheckedCpi {
                 source: self.source_account,
+                mint: self.mint,
                 destination: self.destination_account,
                 amount: self.amount,
+                decimals: self.decimals,
                 authority: self.authority,
                 system_program: self.system_program,
-                fee_payer: Some(self.payer),
+                fee_payer: self.payer,
             }
             .invoke_signed(signers),
 
             TransferType::LightToSpl => {
-                let spl = self.spl_interface.ok_or(ProgramError::InvalidAccountData)?;
+                let spl = self.spl_interface.ok_or(ProgramError::Custom(
+                    LightTokenError::SplInterfaceRequired.into(),
+                ))?;
                 TransferToSplCpi {
                     source: self.source_account,
                     destination_spl_token_account: self.destination_account,
@@ -251,7 +306,9 @@ impl<'info> TransferInterfaceCpi<'info> {
             }
 
             TransferType::SplToLight => {
-                let spl = self.spl_interface.ok_or(ProgramError::InvalidAccountData)?;
+                let spl = self.spl_interface.ok_or(ProgramError::Custom(
+                    LightTokenError::SplInterfaceRequired.into(),
+                ))?;
                 TransferFromSplCpi {
                     amount: self.amount,
                     spl_interface_pda_bump: spl.spl_interface_pda_bump,
@@ -271,7 +328,9 @@ impl<'info> TransferInterfaceCpi<'info> {
 
             TransferType::SplToSpl => {
                 // For SPL-to-SPL, invoke SPL token program directly via transfer_checked
-                let spl = self.spl_interface.ok_or(ProgramError::InvalidAccountData)?;
+                let spl = self.spl_interface.ok_or(ProgramError::Custom(
+                    LightTokenError::SplInterfaceRequired.into(),
+                ))?;
 
                 // Build SPL transfer_checked instruction data: [12, amount(8), decimals(1)]
                 let mut ix_data = [0u8; 10];

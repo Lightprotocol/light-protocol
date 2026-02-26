@@ -35,15 +35,15 @@ pub struct TransferInterfaceData {
 /// - accounts[4]: payer (signer)
 /// - accounts[5]: compressed_token_program_authority
 /// - accounts[6]: system_program
-///   For SPL bridge (optional, required for SPL<->Light Token):
 /// - accounts[7]: mint
+///   For SPL bridge (optional, required for SPL<->Light Token):
 /// - accounts[8]: spl_interface_pda
 /// - accounts[9]: spl_token_program
 pub fn process_transfer_interface_invoke(
     accounts: &[AccountInfo],
     data: TransferInterfaceData,
 ) -> Result<(), ProgramError> {
-    if accounts.len() < 7 {
+    if accounts.len() < 8 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
@@ -55,6 +55,7 @@ pub fn process_transfer_interface_invoke(
         &accounts[3], // authority
         &accounts[4], // payer
         &accounts[5], // compressed_token_program_authority
+        &accounts[7], // mint
         &accounts[6], // system_program
     );
 
@@ -85,15 +86,15 @@ pub fn process_transfer_interface_invoke(
 /// - accounts[4]: payer (signer)
 /// - accounts[5]: compressed_token_program_authority
 /// - accounts[6]: system_program
-///   For SPL bridge (optional, required for SPL<->Light Token):
 /// - accounts[7]: mint
+///   For SPL bridge (optional, required for SPL<->Light Token):
 /// - accounts[8]: spl_interface_pda
 /// - accounts[9]: spl_token_program
 pub fn process_transfer_interface_invoke_signed(
     accounts: &[AccountInfo],
     data: TransferInterfaceData,
 ) -> Result<(), ProgramError> {
-    if accounts.len() < 7 {
+    if accounts.len() < 8 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
@@ -114,6 +115,7 @@ pub fn process_transfer_interface_invoke_signed(
         &accounts[3], // authority (PDA)
         &accounts[4], // payer
         &accounts[5], // compressed_token_program_authority
+        &accounts[7], // mint
         &accounts[6], // system_program
     );
 
