@@ -11,12 +11,7 @@
  * "parallel multi-tx batching" tests get a fresh queue; use `pnpm test:e2e:multi-cold-inputs-batching`.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
-import {
-    Keypair,
-    Signer,
-    PublicKey,
-    ComputeBudgetProgram,
-} from '@solana/web3.js';
+import { Keypair, Signer, PublicKey } from '@solana/web3.js';
 import {
     Rpc,
     bn,
@@ -179,12 +174,7 @@ describe('Multi-Cold-Inputs Batching', () => {
 
             const { blockhash } = await rpc.getLatestBlockhash();
             const tx = buildAndSignTx(
-                [
-                    ComputeBudgetProgram.setComputeUnitLimit({
-                        units: 500_000,
-                    }),
-                    ...ixs,
-                ],
+                ixs,
                 payer,
                 blockhash,
                 [owner],
@@ -246,12 +236,7 @@ describe('Multi-Cold-Inputs Batching', () => {
 
             const { blockhash } = await rpc.getLatestBlockhash();
             const tx = buildAndSignTx(
-                [
-                    ComputeBudgetProgram.setComputeUnitLimit({
-                        units: 500_000,
-                    }),
-                    ...ixs,
-                ],
+                ixs,
                 payer,
                 blockhash,
                 [owner],
@@ -332,10 +317,10 @@ describe('Multi-Cold-Inputs Batching', () => {
                 }
             }
 
-            // Batch 0: setup (createATA) + decompress 8. Batch 1: idempotent ATA + decompress 7
+            // Batch 0: CU + setup (createATA) + decompress 8. Batch 1: CU + idempotent ATA + decompress 7
             // (_buildLoadBatches adds idempotent ATA to every batch after the first so order does not matter)
-            expect(batches[0].length).toBe(2);
-            expect(batches[1].length).toBe(2);
+            expect(batches[0].length).toBe(3);
+            expect(batches[1].length).toBe(3);
 
             const signatures: string[] = [];
             for (let batchIdx = 0; batchIdx < batches.length; batchIdx++) {
@@ -343,12 +328,7 @@ describe('Multi-Cold-Inputs Batching', () => {
                 const { blockhash } = await rpc.getLatestBlockhash();
 
                 const tx = buildAndSignTx(
-                    [
-                        ComputeBudgetProgram.setComputeUnitLimit({
-                            units: 600_000,
-                        }),
-                        ...batch,
-                    ],
+                    batch,
                     payer,
                     blockhash,
                     [owner],
