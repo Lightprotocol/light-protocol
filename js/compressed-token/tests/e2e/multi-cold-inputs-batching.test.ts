@@ -173,12 +173,7 @@ describe('Multi-Cold-Inputs Batching', () => {
             }
 
             const { blockhash } = await rpc.getLatestBlockhash();
-            const tx = buildAndSignTx(
-                ixs,
-                payer,
-                blockhash,
-                [owner],
-            );
+            const tx = buildAndSignTx(ixs, payer, blockhash, [owner]);
 
             const signature = await sendAndConfirmTx(rpc, tx);
             expect(signature).toBeDefined();
@@ -235,12 +230,7 @@ describe('Multi-Cold-Inputs Batching', () => {
             });
 
             const { blockhash } = await rpc.getLatestBlockhash();
-            const tx = buildAndSignTx(
-                ixs,
-                payer,
-                blockhash,
-                [owner],
-            );
+            const tx = buildAndSignTx(ixs, payer, blockhash, [owner]);
 
             const serialized = tx.serialize();
             console.log('Serialized transaction size:', serialized.length);
@@ -327,12 +317,7 @@ describe('Multi-Cold-Inputs Batching', () => {
                 const batch = batches[batchIdx];
                 const { blockhash } = await rpc.getLatestBlockhash();
 
-                const tx = buildAndSignTx(
-                    batch,
-                    payer,
-                    blockhash,
-                    [owner],
-                );
+                const tx = buildAndSignTx(batch, payer, blockhash, [owner]);
 
                 const serialized = tx.serialize();
                 console.log(
