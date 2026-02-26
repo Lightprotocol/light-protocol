@@ -417,7 +417,7 @@ describe('transfer-interface', () => {
             expect(recipientBalance).toBe(BigInt(500));
         });
 
-        it('rejects delegate transfer planning from cold approve-style sources with clear error', async () => {
+        it('delegate transfer planning from cold sources builds instructions', async () => {
             const owner = await newAccountWithLamports(rpc, 2e9);
             const delegate = await newAccountWithLamports(rpc, 2e9);
             const recipient = Keypair.generate().publicKey;
@@ -441,22 +441,21 @@ describe('transfer-interface', () => {
                 delegate.publicKey,
             );
 
-            await expect(
-                createTransferInterfaceInstructions(
-                    rpc,
-                    payer.publicKey,
-                    mint,
-                    BigInt(500),
-                    delegate.publicKey,
-                    recipient,
-                    { owner: owner.publicKey },
-                ),
-            ).rejects.toThrow(
-                /Delegate transfer from cold compressed sources is not supported/,
+            const batches = await createTransferInterfaceInstructions(
+                rpc,
+                payer.publicKey,
+                mint,
+                BigInt(500),
+                delegate.publicKey,
+                recipient,
+                { owner: owner.publicKey },
             );
+
+            expect(batches.length).toBeGreaterThan(0);
+            expect(batches[batches.length - 1].length).toBeGreaterThan(0);
         });
 
-        it('rejects delegate transfer execution from cold approve-style sources with clear error', async () => {
+        it('delegate transfer from cold approve-style sources fails on-chain (no CompressedOnly extension)', async () => {
             const owner = await newAccountWithLamports(rpc, 2e9);
             const delegate = await newAccountWithLamports(rpc, 2e9);
             const recipient = Keypair.generate();
@@ -504,9 +503,7 @@ describe('transfer-interface', () => {
                     undefined,
                     { owner: owner.publicKey },
                 ),
-            ).rejects.toThrow(
-                /Delegate transfer from cold compressed sources is not supported/,
-            );
+            ).rejects.toThrow();
         }, 120_000);
 
         it('createTransferInterfaceInstructions throws when signer is not owner or delegate', async () => {

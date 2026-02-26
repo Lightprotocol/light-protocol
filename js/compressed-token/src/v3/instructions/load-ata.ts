@@ -479,7 +479,18 @@ export async function _buildLoadBatches(
         canDecompress &&
         allCompressedAccounts.length > 0
     ) {
-        const hotBalance = ctokenHotSource?.amount ?? BigInt(0);
+        const isDelegate = authority !== undefined && !authority.equals(owner);
+        const hotBalance = (() => {
+            if (!ctokenHotSource) return BigInt(0);
+            if (isDelegate) {
+                const delegated =
+                    ctokenHotSource.parsed.delegatedAmount ?? BigInt(0);
+                return delegated < ctokenHotSource.amount
+                    ? delegated
+                    : ctokenHotSource.amount;
+            }
+            return ctokenHotSource.amount;
+        })();
         let effectiveHotAfterSetup: bigint;
 
         if (wrap) {
