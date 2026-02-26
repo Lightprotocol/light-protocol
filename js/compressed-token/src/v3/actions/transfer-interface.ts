@@ -22,7 +22,10 @@ import {
     getMint,
 } from '@solana/spl-token';
 import BN from 'bn.js';
-import { createLightTokenTransferInstruction } from '../instructions/transfer-interface';
+import {
+    createLightTokenTransferInstruction,
+    createLightTokenTransferCheckedInstruction,
+} from '../instructions/transfer-interface';
 import { createAssociatedTokenAccountInterfaceIdempotentInstruction } from '../instructions/create-ata-interface';
 import { getAssociatedTokenAddressInterface } from '../get-associated-token-address-interface';
 import { type SplInterfaceInfo } from '../../utils/get-token-pool-infos';
@@ -156,6 +159,11 @@ export interface TransferOptions extends InterfaceOptions {
      * Default: true.
      */
     ensureRecipientAta?: boolean;
+    /**
+     * When set, uses transfer_checked instructions (discriminator 12) that
+     * validate decimals on-chain. Undefined uses basic transfer (discriminator 3).
+     */
+    checkedDecimals?: number;
 }
 
 /**
@@ -281,6 +289,7 @@ export async function createTransferInterfaceInstructions(
         wrap = false,
         programId = LIGHT_TOKEN_PROGRAM_ID,
         ensureRecipientAta = true,
+        checkedDecimals,
         ...interfaceOptions
     } = options ?? {};
 
@@ -375,7 +384,7 @@ export async function createTransferInterfaceInstructions(
         amountBigInt,
     );
 
-    // Transfer instruction: dispatch based on program
+    // Transfer instruction: dispatch based on program and checked mode
     let transferIx: TransactionInstruction;
     if (isSplOrT22 && !wrap) {
         const mintInfo = await getMint(rpc, mint, undefined, programId);
@@ -385,9 +394,18 @@ export async function createTransferInterfaceInstructions(
             recipientAta,
             sender,
             amountBigInt,
-            mintInfo.decimals,
+            checkedDecimals ?? mintInfo.decimals,
             [],
             programId,
+        );
+    } else if (checkedDecimals !== undefined) {
+        transferIx = createLightTokenTransferCheckedInstruction(
+            senderAta,
+            mint,
+            recipientAta,
+            sender,
+            amountBigInt,
+            checkedDecimals,
         );
     } else {
         transferIx = createLightTokenTransferInstruction(
@@ -477,4 +495,100 @@ export async function createTransferInterfaceInstructions(
     result.push(lastTxIxs);
 
     return result;
+}
+
+/**
+ * Transfer tokens using the light-token interface with decimals validation.
+ *
+ * Like SPL Token's transferChecked, the on-chain program validates that the
+ * provided `decimals` matches the mint's decimals field, preventing
+ * decimal-related transfer errors (e.g. sending 1e9 when you meant 1e6).
+ *
+ * Creates the recipient associated token account if it does not exist.
+ *
+ * @param rpc             RPC connection
+ * @param payer           Fee payer (signer)
+ * @param source          Source light-token associated token account address
+ * @param mint            Mint address
+ * @param destination     Recipient wallet public key
+ * @param owner           Source owner (signer)
+ * @param amount          Amount to transfer
+ * @param decimals        Expected decimals of the mint (validated on-chain)
+ * @param programId       Token program ID (default: LIGHT_TOKEN_PROGRAM_ID)
+ * @param confirmOptions  Optional confirm options
+ * @param options         Optional interface options
+ * @param wrap            Include SPL/T22 wrapping (default: false)
+ * @returns Transaction signature
+ */
+export async function transferInterfaceChecked(
+    rpc: Rpc,
+    payer: Signer,
+    source: PublicKey,
+    mint: PublicKey,
+    destination: PublicKey,
+    owner: Signer,
+    amount: number | bigint | BN,
+    decimals: number,
+    programId: PublicKey = LIGHT_TOKEN_PROGRAM_ID,
+    confirmOptions?: ConfirmOptions,
+    options?: InterfaceOptions,
+    wrap = false,
+): Promise<TransactionSignature> {
+    assertBetaEnabled();
+
+    // Validate source matches owner
+    const expectedSource = getAssociatedTokenAddressInterface(
+        mint,
+        owner.publicKey,
+        false,
+        programId,
+    );
+    if (!source.equals(expectedSource)) {
+        throw new Error(
+            `Source mismatch. Expected ${expectedSource.toBase58()}, got ${source.toBase58()}`,
+        );
+    }
+
+    const amountBigInt = BigInt(amount.toString());
+
+    const batches = await createTransferInterfaceInstructions(
+        rpc,
+        payer.publicKey,
+        mint,
+        amountBigInt,
+        owner.publicKey,
+        destination,
+        {
+            ...options,
+            wrap,
+            programId,
+            ensureRecipientAta: true,
+            checkedDecimals: decimals,
+        },
+    );
+
+    const additionalSigners = dedupeSigner(payer, [owner]);
+    const { rest: loads, last: transferIxs } = sliceLast(batches);
+
+    // Send load transactions in parallel (if any)
+    if (loads.length > 0) {
+        await Promise.all(
+            loads.map(async ixs => {
+                const { blockhash } = await rpc.getLatestBlockhash();
+                const tx = buildAndSignTx(
+                    ixs,
+                    payer,
+                    blockhash,
+                    additionalSigners,
+                );
+                return sendAndConfirmTx(rpc, tx, confirmOptions);
+            }),
+        );
+    }
+
+    // Send transfer transaction
+    const { blockhash } = await rpc.getLatestBlockhash();
+    const tx = buildAndSignTx(transferIxs, payer, blockhash, additionalSigners);
+
+    return sendAndConfirmTx(rpc, tx, confirmOptions);
 }

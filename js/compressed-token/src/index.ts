@@ -77,6 +77,9 @@ export {
     createUnwrapInstructions,
     createDecompressInterfaceInstruction,
     createLightTokenTransferInstruction,
+    createLightTokenTransferCheckedInstruction,
+    createTransferInterfaceInstruction,
+    createTransferInterfaceCheckedInstruction,
     // Types
     TokenMetadataInstructionData,
     CompressibleConfig,
@@ -91,6 +94,7 @@ export {
     getAssociatedTokenAddressInterface,
     getOrCreateAtaInterface,
     transferInterface,
+    transferInterfaceChecked,
     createTransferInterfaceInstructions,
     sliceLast,
     decompressInterface,
