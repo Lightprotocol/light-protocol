@@ -1022,6 +1022,62 @@ describe('get-account-interface', () => {
                     BigInt(coldAmountB.toString()),
                 );
             }, 120_000);
+
+            it('should return canonical delegate and delegatedAmount for cold-only (approve-style) sources', async () => {
+                const owner = await newAccountWithLamports(rpc, 1e9);
+                const delegate = await newAccountWithLamports(rpc, 1e9);
+                const coldAmount = bn(1100);
+
+                await mintTo(
+                    rpc,
+                    payer,
+                    ctokenMint,
+                    owner.publicKey,
+                    mintAuthority,
+                    coldAmount,
+                    stateTreeInfo,
+                    selectTokenPoolInfo(ctokenPoolInfos),
+                );
+                await approve(
+                    rpc,
+                    payer,
+                    ctokenMint,
+                    coldAmount,
+                    owner,
+                    delegate.publicKey,
+                );
+
+                const ctokenAta = getAssociatedTokenAddressInterface(
+                    ctokenMint,
+                    owner.publicKey,
+                );
+
+                const result = await getAtaInterface(
+                    rpc,
+                    ctokenAta,
+                    owner.publicKey,
+                    ctokenMint,
+                );
+
+                expect(result.parsed.delegate?.toBase58()).toBe(
+                    delegate.publicKey.toBase58(),
+                );
+                expect(result.parsed.delegatedAmount).toBe(
+                    BigInt(coldAmount.toString()),
+                );
+                expect(result.parsed.amount).toBe(
+                    BigInt(coldAmount.toString()),
+                );
+                expect(result.isCold).toBe(true);
+                expect(result._hasDelegate).toBe(true);
+                expect(result._sources?.length).toBeGreaterThanOrEqual(1);
+                expect(
+                    result._sources?.every(
+                        s =>
+                            s.type === TokenAccountSourceType.CTokenCold,
+                    ),
+                ).toBe(true);
+            }, 120_000);
         });
 
         describe('error cases', () => {
