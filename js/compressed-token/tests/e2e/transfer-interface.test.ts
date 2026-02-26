@@ -1043,7 +1043,9 @@ describe('transfer-interface', () => {
 
             await getOrCreateAtaInterface(rpc, payer, mint, owner.publicKey);
 
-            const balanceBefore = (await rpc.getAccountInfo(ownerAta))!.data.readBigUInt64LE(64);
+            const balanceBefore = (await rpc.getAccountInfo(
+                ownerAta,
+            ))!.data.readBigUInt64LE(64);
 
             const sig = await transferInterface(
                 rpc,
@@ -1056,7 +1058,9 @@ describe('transfer-interface', () => {
             );
             expect(sig).toBeDefined();
 
-            const balanceAfter = (await rpc.getAccountInfo(ownerAta))!.data.readBigUInt64LE(64);
+            const balanceAfter = (await rpc.getAccountInfo(
+                ownerAta,
+            ))!.data.readBigUInt64LE(64);
             expect(balanceAfter).toBe(balanceBefore);
         });
 
