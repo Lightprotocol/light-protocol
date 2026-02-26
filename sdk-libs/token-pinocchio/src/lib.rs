@@ -22,7 +22,6 @@
 //! | Create Token ATA | [`CreateTokenAtaCpi`](instruction::CreateTokenAtaCpi) |
 //! | Create Mint | [`CreateMintCpi`](instruction::CreateMintCpi) |
 //! | Create Mints (Batch) | [`CreateMintsCpi`](instruction::CreateMintsCpi) |
-//! | Decompress Mint | [`DecompressMintCpi`](instruction::DecompressMintCpi) |
 //!
 //! ## Example: Transfer via CPI
 //!

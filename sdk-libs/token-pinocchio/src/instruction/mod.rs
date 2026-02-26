@@ -34,6 +34,7 @@ mod approve;
 mod burn;
 mod burn_checked;
 mod close;
+pub mod compressible;
 mod create;
 mod create_ata;
 mod create_mint;
@@ -53,6 +54,7 @@ pub use approve::*;
 pub use burn::*;
 pub use burn_checked::*;
 pub use close::*;
+pub use compressible::{CompressibleParams, CompressibleParamsCpi};
 pub use create::*;
 pub use create_ata::{
     derive_associated_token_account, CreateTokenAtaCpi, CreateTokenAtaCpiIdempotent,

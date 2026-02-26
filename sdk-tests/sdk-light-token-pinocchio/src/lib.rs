@@ -27,13 +27,17 @@ pub use burn::{
     process_burn_invoke, process_burn_invoke_signed, process_burn_invoke_with_fee_payer, BurnData,
 };
 pub use close::{process_close_account_invoke, process_close_account_invoke_signed};
-pub use create_ata::{process_create_ata_invoke, process_create_ata_invoke_signed, CreateAtaData};
+pub use create_ata::{
+    process_create_ata_idempotent_invoke_with, process_create_ata_invoke,
+    process_create_ata_invoke_signed, process_create_ata_invoke_with, CreateAtaData,
+};
 pub use create_mint::{
     process_create_mint, process_create_mint_invoke_signed, process_create_mint_with_pda_authority,
     CreateCmintData, MINT_SIGNER_SEED,
 };
 pub use create_token_account::{
     process_create_token_account_invoke, process_create_token_account_invoke_signed,
+    process_create_token_account_invoke_signed_with, process_create_token_account_invoke_with,
     CreateTokenAccountData,
 };
 pub use ctoken_mint_to::{
@@ -157,6 +161,14 @@ pub enum InstructionType {
     ApproveInvokeWithFeePayer = 39,
     /// Revoke delegation with separate fee_payer (invoke, non-PDA authority)
     RevokeInvokeWithFeePayer = 40,
+    /// Create compressible token account using invoke_with (explicit CompressibleParamsCpi)
+    CreateTokenAccountInvokeWith = 41,
+    /// Create compressible token account using invoke_signed_with (explicit CompressibleParamsCpi)
+    CreateTokenAccountInvokeSignedWith = 42,
+    /// Create compressible ATA using invoke_with (explicit CompressibleParamsCpi)
+    CreateAtaInvokeWith = 43,
+    /// Create compressible ATA idempotently using idempotent().invoke_with()
+    CreateAtaIdempotentInvokeWith = 44,
 }
 
 impl TryFrom<u8> for InstructionType {
@@ -202,6 +214,10 @@ impl TryFrom<u8> for InstructionType {
             38 => Ok(InstructionType::CTokenMintToInvokeWithFeePayer),
             39 => Ok(InstructionType::ApproveInvokeWithFeePayer),
             40 => Ok(InstructionType::RevokeInvokeWithFeePayer),
+            41 => Ok(InstructionType::CreateTokenAccountInvokeWith),
+            42 => Ok(InstructionType::CreateTokenAccountInvokeSignedWith),
+            43 => Ok(InstructionType::CreateAtaInvokeWith),
+            44 => Ok(InstructionType::CreateAtaIdempotentInvokeWith),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
@@ -370,6 +386,26 @@ pub fn process_instruction(
             process_approve_invoke_with_fee_payer(accounts, data)
         }
         InstructionType::RevokeInvokeWithFeePayer => process_revoke_invoke_with_fee_payer(accounts),
+        InstructionType::CreateTokenAccountInvokeWith => {
+            let data = CreateTokenAccountData::try_from_slice(&instruction_data[1..])
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            process_create_token_account_invoke_with(accounts, data)
+        }
+        InstructionType::CreateTokenAccountInvokeSignedWith => {
+            let data = CreateTokenAccountData::try_from_slice(&instruction_data[1..])
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            process_create_token_account_invoke_signed_with(accounts, data)
+        }
+        InstructionType::CreateAtaInvokeWith => {
+            let data = CreateAtaData::try_from_slice(&instruction_data[1..])
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            process_create_ata_invoke_with(accounts, data)
+        }
+        InstructionType::CreateAtaIdempotentInvokeWith => {
+            let data = CreateAtaData::try_from_slice(&instruction_data[1..])
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            process_create_ata_idempotent_invoke_with(accounts, data)
+        }
         _ => Err(ProgramError::InvalidInstructionData),
     }
 }
