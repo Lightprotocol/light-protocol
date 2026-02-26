@@ -294,10 +294,10 @@ describe('Payment Flows', () => {
                 payer.publicKey,
                 { splInterfaceInfos: tokenPoolInfos },
             );
+            expect(loadBatches.length).toBe(1);
 
             const instructions = [
-                ComputeBudgetProgram.setComputeUnitLimit({ units: 500_000 }),
-                ...loadBatches.flat(),
+                ...loadBatches[0],
                 // Create recipient ATA (idempotent)
                 createAssociatedTokenAccountInterfaceIdempotentInstruction(
                     payer.publicKey,
