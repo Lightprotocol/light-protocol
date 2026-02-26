@@ -1073,8 +1073,7 @@ describe('get-account-interface', () => {
                 expect(result._sources?.length).toBeGreaterThanOrEqual(1);
                 expect(
                     result._sources?.every(
-                        s =>
-                            s.type === TokenAccountSourceType.CTokenCold,
+                        s => s.type === TokenAccountSourceType.CTokenCold,
                     ),
                 ).toBe(true);
             }, 120_000);
