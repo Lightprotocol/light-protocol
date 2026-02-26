@@ -1,29 +1,37 @@
 # Changelog
 
-## [Unreleased]
+All notable changes to this package will be documented in this file.
+
+## 2026-02-17
+
+### Features
+
+- `AccountInterface` uses photon v2 types, `ColdContext` simplified. (#2274)
+
+### Fixes
+
+- `validate_mint()` validates mint for all token accounts, not just compressible. (#2251)
+- Enforces canonical bump in ATA verification. (#2249)
+
+## 2026-02-10
 
 ### Breaking Changes
 
-- **Removed `api_key` field from `LightClientConfig`.** The API key is now part of the `photon_url`:
-  ```rust
-  // Before
-  LightClientConfig::new(
-      "https://api.devnet.solana.com".to_string(),
-      Some("https://photon.helius.com".to_string()),
-      Some("YOUR_KEY".to_string()),
-  )
+- `LightClientConfig::new()` takes 2 parameters instead of 3. The API key is now part of `photon_url`.
+  Before: `LightClientConfig::new(url, photon_url, Some(api_key))`
+  After: `LightClientConfig::new(url, Some("https://photon.helius.com?api-key=YOUR_KEY"))`
+  Migration: embed the API key as a query parameter in the photon URL. (#2219)
 
-  // After
-  LightClientConfig::new(
-      "https://api.devnet.solana.com".to_string(),
-      Some("https://photon.helius.com?api-key=YOUR_KEY".to_string()),
-  )
-  ```
+- `LightClientConfig::devnet()` takes 1 parameter instead of 2. (#2219)
 
-- **`LightClientConfig::new` takes 2 parameters instead of 3** (`url`, `photon_url`).
+- `PhotonIndexer::new()` takes 1 parameter instead of 2. (#2219)
 
-- **`LightClientConfig::devnet` takes 1 parameter instead of 2** (`photon_url`).
+- `LightClient::add_indexer()` takes 1 parameter instead of 2. (#2219)
 
-- **`PhotonIndexer::new` takes 1 parameter instead of 2** (`url`).
+### Features
 
-- **`LightClient::add_indexer` takes 1 parameter instead of 2** (`url`).
+- `compressed_mint` photon API support. (#2198)
+
+### Fixes
+
+- Tree infos v2 helpers fixed. (#2244)
