@@ -142,11 +142,11 @@ describe('layout-mint-action', () => {
             expect(action.mintToCompressed.recipients.length).toBe(2);
         });
 
-        it('should encode and decode with mintToCToken action', () => {
+        it('should encode and decode with mintToLightToken action', () => {
             const mint = Keypair.generate().publicKey;
 
-            const mintToCTokenAction: Action = {
-                mintToCToken: {
+            const mintToLightTokenAction: Action = {
+                mintToLightToken: {
                     accountIndex: 3,
                     amount: 1000000n,
                 },
@@ -158,7 +158,7 @@ describe('layout-mint-action', () => {
                 rootIndex: 0,
                 maxTopUp: 0,
                 createMint: null,
-                actions: [mintToCTokenAction],
+                actions: [mintToLightTokenAction],
                 proof: null,
                 cpiContext: null,
                 mint: {
@@ -180,12 +180,12 @@ describe('layout-mint-action', () => {
             const decoded = decodeMintActionInstructionData(encoded);
 
             expect(decoded.actions.length).toBe(1);
-            expect('mintToCToken' in decoded.actions[0]).toBe(true);
+            expect('mintToLightToken' in decoded.actions[0]).toBe(true);
 
             const action = decoded.actions[0] as {
-                mintToCToken: { accountIndex: number; amount: bigint };
+                mintToLightToken: { accountIndex: number; amount: bigint };
             };
-            expect(action.mintToCToken.accountIndex).toBe(3);
+            expect(action.mintToLightToken.accountIndex).toBe(3);
         });
 
         it('should encode and decode with updateMintAuthority action', () => {

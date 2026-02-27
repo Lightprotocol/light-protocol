@@ -7,11 +7,11 @@ import {
 import { LIGHT_TOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
 import { getAtaProgramId } from '../ata-utils';
 import {
-    createAssociatedCTokenAccountInstruction,
-    createAssociatedCTokenAccountIdempotentInstruction,
+    createAssociatedLightTokenAccountInstruction,
+    createAssociatedLightTokenAccountIdempotentInstruction,
     CompressibleConfig,
     DEFAULT_COMPRESSIBLE_CONFIG,
-} from './create-associated-ctoken';
+} from './create-associated-light-token';
 
 // Re-export for convenience
 export { DEFAULT_COMPRESSIBLE_CONFIG };
@@ -19,7 +19,7 @@ export { DEFAULT_COMPRESSIBLE_CONFIG };
 /**
  * light-token-specific config for createAssociatedTokenAccountInterfaceInstruction
  */
-export interface CTokenConfig {
+export interface LightTokenConfig {
     compressibleConfig?: CompressibleConfig | null;
     configAccount?: PublicKey;
     rentPayerPda?: PublicKey;
@@ -49,7 +49,7 @@ export interface CreateAssociatedTokenAccountInterfaceInstructionParams {
  * @param mint                     Mint address.
  * @param programId                Token program ID (default: TOKEN_PROGRAM_ID).
  * @param associatedTokenProgramId Associated token program ID.
- * @param ctokenConfig             Optional light-token-specific configuration.
+ * @param lightTokenConfig             Optional light-token-specific configuration.
  */
 export function createAssociatedTokenAccountInterfaceInstruction(
     payer: PublicKey,
@@ -58,19 +58,19 @@ export function createAssociatedTokenAccountInterfaceInstruction(
     mint: PublicKey,
     programId: PublicKey = TOKEN_PROGRAM_ID,
     associatedTokenProgramId?: PublicKey,
-    ctokenConfig?: CTokenConfig,
+    lightTokenConfig?: LightTokenConfig,
 ): TransactionInstruction {
     const effectiveAssociatedTokenProgramId =
         associatedTokenProgramId ?? getAtaProgramId(programId);
 
     if (programId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
-        return createAssociatedCTokenAccountInstruction(
+        return createAssociatedLightTokenAccountInstruction(
             payer,
             owner,
             mint,
-            ctokenConfig?.compressibleConfig,
-            ctokenConfig?.configAccount,
-            ctokenConfig?.rentPayerPda,
+            lightTokenConfig?.compressibleConfig,
+            lightTokenConfig?.configAccount,
+            lightTokenConfig?.rentPayerPda,
         );
     } else {
         return createSplAssociatedTokenAccountInstruction(
@@ -95,7 +95,7 @@ export function createAssociatedTokenAccountInterfaceInstruction(
  * @param mint                     Mint address.
  * @param programId                Token program ID (default: TOKEN_PROGRAM_ID).
  * @param associatedTokenProgramId Associated token program ID.
- * @param ctokenConfig             Optional light-token-specific configuration.
+ * @param lightTokenConfig             Optional light-token-specific configuration.
  */
 export function createAssociatedTokenAccountInterfaceIdempotentInstruction(
     payer: PublicKey,
@@ -104,19 +104,19 @@ export function createAssociatedTokenAccountInterfaceIdempotentInstruction(
     mint: PublicKey,
     programId: PublicKey = TOKEN_PROGRAM_ID,
     associatedTokenProgramId?: PublicKey,
-    ctokenConfig?: CTokenConfig,
+    lightTokenConfig?: LightTokenConfig,
 ): TransactionInstruction {
     const effectiveAssociatedTokenProgramId =
         associatedTokenProgramId ?? getAtaProgramId(programId);
 
     if (programId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
-        return createAssociatedCTokenAccountIdempotentInstruction(
+        return createAssociatedLightTokenAccountIdempotentInstruction(
             payer,
             owner,
             mint,
-            ctokenConfig?.compressibleConfig,
-            ctokenConfig?.configAccount,
-            ctokenConfig?.rentPayerPda,
+            lightTokenConfig?.compressibleConfig,
+            lightTokenConfig?.configAccount,
+            lightTokenConfig?.rentPayerPda,
         );
     } else {
         return createSplAssociatedTokenAccountIdempotentInstruction(

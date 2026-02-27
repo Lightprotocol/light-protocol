@@ -28,7 +28,7 @@ export interface CreateMintToInstructionParams {
  * Create instruction for minting tokens to a light-token account.
  *
  * This is a simple 3-4 account instruction for minting to light-token associated token accounts (hot).
- * Uses discriminator 7 (CTokenMintTo).
+ * Uses discriminator 7 (LightTokenMintTo).
  *
  * @param params - Mint instruction parameters
  * @returns TransactionInstruction for minting tokens
@@ -60,7 +60,7 @@ export function createMintToInstruction(
     const dataSize = maxTopUp !== undefined ? 11 : 9; // 1 + 8 + optional 2
     const data = Buffer.alloc(dataSize);
 
-    data.writeUInt8(7, 0); // CTokenMintTo discriminator
+    data.writeUInt8(7, 0); // LightTokenMintTo discriminator
     data.writeBigUInt64LE(amountBigInt, 1);
 
     if (maxTopUp !== undefined) {

@@ -19,7 +19,7 @@ import {
 import BN from 'bn.js';
 import { getAssociatedTokenAddressInterface } from '../get-associated-token-address-interface';
 import { createAssociatedTokenAccountInterfaceIdempotentInstruction } from './create-ata-interface';
-import { DEFAULT_COMPRESSIBLE_CONFIG } from './create-associated-ctoken';
+import { DEFAULT_COMPRESSIBLE_CONFIG } from './create-associated-light-token';
 import {
     _buildLoadBatches,
     rawLoadBatchComputeUnits,
@@ -40,12 +40,13 @@ import type { TransferOptions } from '../actions/transfer-interface';
 const LIGHT_TOKEN_TRANSFER_DISCRIMINATOR = 3;
 
 const TRANSFER_BASE_CU = 10_000;
+const CU_BUFFER_FACTOR = 1.3;
 
 export function calculateTransferCU(
     loadBatch: InternalLoadBatch | null,
 ): number {
     const rawLoadCu = loadBatch ? rawLoadBatchComputeUnits(loadBatch) : 0;
-    const cu = Math.ceil((TRANSFER_BASE_CU + rawLoadCu) * 1.3);
+    const cu = Math.ceil((TRANSFER_BASE_CU + rawLoadCu) * CU_BUFFER_FACTOR);
     return Math.max(50_000, Math.min(1_400_000, cu));
 }
 

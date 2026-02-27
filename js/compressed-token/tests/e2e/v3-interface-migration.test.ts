@@ -87,12 +87,12 @@ describe('v3-interface-v1-rejection', () => {
                 selectTokenPoolInfo(tokenPoolInfos),
             );
 
-            const ctokenAta = getAssociatedTokenAddressInterface(
+            const lightTokenAta = getAssociatedTokenAddressInterface(
                 mint,
                 owner.publicKey,
             );
             await expect(
-                loadAta(rpc, ctokenAta, owner, mint, payer),
+                loadAta(rpc, lightTokenAta, owner, mint, payer),
             ).rejects.toThrow(
                 'v3 interface does not support V1 compressed accounts',
             );
@@ -120,12 +120,12 @@ describe('v3-interface-v1-rejection', () => {
                 selectTokenPoolInfo(tokenPoolInfos),
             );
 
-            const ctokenAta = getAssociatedTokenAddressInterface(
+            const lightTokenAta = getAssociatedTokenAddressInterface(
                 mint,
                 owner.publicKey,
             );
             await expect(
-                loadAta(rpc, ctokenAta, owner, mint, payer),
+                loadAta(rpc, lightTokenAta, owner, mint, payer),
             ).rejects.toThrow(
                 'v3 interface does not support V1 compressed accounts',
             );
@@ -143,11 +143,11 @@ describe('v3-interface-v1-rejection', () => {
                 selectTokenPoolInfo(tokenPoolInfos),
             );
 
-            const ctokenAta = getAssociatedTokenAddressInterface(
+            const lightTokenAta = getAssociatedTokenAddressInterface(
                 mint,
                 owner.publicKey,
             );
-            const sig = await loadAta(rpc, ctokenAta, owner, mint, payer);
+            const sig = await loadAta(rpc, lightTokenAta, owner, mint, payer);
             expect(sig).toBeDefined();
             expect(sig).not.toBeNull();
         });
@@ -155,11 +155,11 @@ describe('v3-interface-v1-rejection', () => {
 
     describe('loadAta / createLoadAtaInstructions', () => {
         let owner: Signer;
-        let ctokenAta: PublicKey;
+        let lightTokenAta: PublicKey;
 
         beforeEach(async () => {
             owner = await newAccountWithLamports(rpc, 1e9);
-            ctokenAta = getAssociatedTokenAddressInterface(
+            lightTokenAta = getAssociatedTokenAddressInterface(
                 mint,
                 owner.publicKey,
             );
@@ -180,7 +180,7 @@ describe('v3-interface-v1-rejection', () => {
             await expect(
                 createLoadAtaInstructions(
                     rpc,
-                    ctokenAta,
+                    lightTokenAta,
                     owner.publicKey,
                     mint,
                     payer.publicKey,
@@ -215,7 +215,7 @@ describe('v3-interface-v1-rejection', () => {
             await expect(
                 createLoadAtaInstructions(
                     rpc,
-                    ctokenAta,
+                    lightTokenAta,
                     owner.publicKey,
                     mint,
                     payer.publicKey,
@@ -237,7 +237,7 @@ describe('v3-interface-v1-rejection', () => {
                 selectTokenPoolInfo(tokenPoolInfos),
             );
 
-            const sig = await loadAta(rpc, ctokenAta, owner, mint, payer);
+            const sig = await loadAta(rpc, lightTokenAta, owner, mint, payer);
             expect(sig === null || typeof sig === 'string').toBe(true);
         });
 
@@ -256,7 +256,7 @@ describe('v3-interface-v1-rejection', () => {
             await expect(
                 createLoadAtaInstructions(
                     rpc,
-                    ctokenAta,
+                    lightTokenAta,
                     owner.publicKey,
                     mint,
                     payer.publicKey,
@@ -286,13 +286,13 @@ describe('v3-interface-v1-rejection', () => {
                 selectTokenPoolInfo(tokenPoolInfos),
             );
 
-            const ctokenAta = getAssociatedTokenAddressInterface(
+            const lightTokenAta = getAssociatedTokenAddressInterface(
                 mint,
                 owner.publicKey,
             );
             const ataInfo = await getAtaInterface(
                 rpc,
-                ctokenAta,
+                lightTokenAta,
                 owner.publicKey,
                 mint,
             );
@@ -314,13 +314,13 @@ describe('v3-interface-v1-rejection', () => {
                 selectTokenPoolInfo(tokenPoolInfos),
             );
 
-            const ctokenAta = getAssociatedTokenAddressInterface(
+            const lightTokenAta = getAssociatedTokenAddressInterface(
                 mint,
                 owner.publicKey,
             );
             const ataInfo = await getAtaInterface(
                 rpc,
-                ctokenAta,
+                lightTokenAta,
                 owner.publicKey,
                 mint,
             );

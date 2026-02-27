@@ -3,16 +3,16 @@ import { Buffer } from 'buffer';
 import { LIGHT_TOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
 
 /**
- * Discriminator for CTokenFreezeAccount (native instruction 10).
- * Matches InstructionType::CTokenFreezeAccount in the on-chain program.
+ * Discriminator for LightTokenFreezeAccount (native instruction 10).
+ * Matches InstructionType::LightTokenFreezeAccount in the on-chain program.
  */
-const CTOKEN_FREEZE_ACCOUNT_DISCRIMINATOR = Buffer.from([10]);
+const LIGHT_TOKEN_FREEZE_ACCOUNT_DISCRIMINATOR = Buffer.from([10]);
 
 /**
- * Discriminator for CTokenThawAccount (native instruction 11).
- * Matches InstructionType::CTokenThawAccount in the on-chain program.
+ * Discriminator for LightTokenThawAccount (native instruction 11).
+ * Matches InstructionType::LightTokenThawAccount in the on-chain program.
  */
-const CTOKEN_THAW_ACCOUNT_DISCRIMINATOR = Buffer.from([11]);
+const LIGHT_TOKEN_THAW_ACCOUNT_DISCRIMINATOR = Buffer.from([11]);
 
 /**
  * Create an instruction to freeze a decompressed c-token account.
@@ -31,7 +31,7 @@ const CTOKEN_THAW_ACCOUNT_DISCRIMINATOR = Buffer.from([11]);
  * @param freezeAuthority The freeze authority of the mint (signer)
  * @returns TransactionInstruction
  */
-export function createCTokenFreezeAccountInstruction(
+export function createLightTokenFreezeAccountInstruction(
     tokenAccount: PublicKey,
     mint: PublicKey,
     freezeAuthority: PublicKey,
@@ -43,7 +43,7 @@ export function createCTokenFreezeAccountInstruction(
             { pubkey: mint, isSigner: false, isWritable: false },
             { pubkey: freezeAuthority, isSigner: true, isWritable: false },
         ],
-        data: CTOKEN_FREEZE_ACCOUNT_DISCRIMINATOR,
+        data: LIGHT_TOKEN_FREEZE_ACCOUNT_DISCRIMINATOR,
     });
 }
 
@@ -64,7 +64,7 @@ export function createCTokenFreezeAccountInstruction(
  * @param freezeAuthority The freeze authority of the mint (signer)
  * @returns TransactionInstruction
  */
-export function createCTokenThawAccountInstruction(
+export function createLightTokenThawAccountInstruction(
     tokenAccount: PublicKey,
     mint: PublicKey,
     freezeAuthority: PublicKey,
@@ -76,6 +76,6 @@ export function createCTokenThawAccountInstruction(
             { pubkey: mint, isSigner: false, isWritable: false },
             { pubkey: freezeAuthority, isSigner: true, isWritable: false },
         ],
-        data: CTOKEN_THAW_ACCOUNT_DISCRIMINATOR,
+        data: LIGHT_TOKEN_THAW_ACCOUNT_DISCRIMINATOR,
     });
 }

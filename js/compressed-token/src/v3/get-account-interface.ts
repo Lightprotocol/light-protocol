@@ -27,8 +27,8 @@ export const TokenAccountSourceType = {
     Token2022: 'token2022',
     SplCold: 'spl-cold',
     Token2022Cold: 'token2022-cold',
-    CTokenHot: 'ctoken-hot',
-    CTokenCold: 'ctoken-cold',
+    LightTokenHot: 'light-token-hot',
+    LightTokenCold: 'light-token-cold',
 } as const;
 
 export type TokenAccountSourceTypeValue =
@@ -37,7 +37,7 @@ export type TokenAccountSourceTypeValue =
 /** Cold (compressed) source types. Used for load/decompress and isCold. */
 export const COLD_SOURCE_TYPES: ReadonlySet<TokenAccountSourceTypeValue> =
     new Set([
-        TokenAccountSourceType.CTokenCold,
+        TokenAccountSourceType.LightTokenCold,
         TokenAccountSourceType.SplCold,
         TokenAccountSourceType.Token2022Cold,
     ]);
@@ -275,7 +275,7 @@ export function toAccountInfo(
 }
 
 /** @internal */
-export function parseCTokenHot(
+export function parseLightTokenHot(
     address: PublicKey,
     accountInfo: AccountInfo<Buffer>,
 ): {
@@ -301,7 +301,7 @@ export function parseCTokenHot(
 }
 
 /** @internal */
-export function parseCTokenCold(
+export function parseLightTokenCold(
     address: PublicKey,
     compressedAccount: CompressedAccountWithMerkleContext,
 ): {
@@ -381,7 +381,7 @@ export async function getAtaInterface(
         allowOwnerOffCurve,
     );
 
-    if (wrap && validation.type !== 'ctoken') {
+    if (wrap && validation.type !== 'light-token') {
         throw new Error(
             `For wrap=true, ata must be the light-token ATA. Got ${validation.type} ATA instead.`,
         );
@@ -462,7 +462,7 @@ async function _tryFetchToken2022(
 /**
  * @internal
  */
-async function _tryFetchCTokenHot(
+async function _tryFetchLightTokenHot(
     rpc: Rpc,
     address: PublicKey,
     commitment?: Commitment,
@@ -474,15 +474,15 @@ async function _tryFetchCTokenHot(
 }> {
     const info = await rpc.getAccountInfo(address, commitment);
     if (!info || !info.owner.equals(LIGHT_TOKEN_PROGRAM_ID)) {
-        throw new Error('Not a CTOKEN onchain account');
+        throw new Error('Not a LIGHT_TOKEN onchain account');
     }
-    return parseCTokenHot(address, info);
+    return parseLightTokenHot(address, info);
 }
 
 /**
  * @internal
  */
-async function _tryFetchCTokenColdByOwner(
+async function _tryFetchLightTokenColdByOwner(
     rpc: Rpc,
     owner: PublicKey,
     mint: PublicKey,
@@ -504,7 +504,7 @@ async function _tryFetchCTokenColdByOwner(
     if (!compressedAccount.owner.equals(LIGHT_TOKEN_PROGRAM_ID)) {
         throw new Error('Invalid owner for light-token');
     }
-    return parseCTokenCold(ataAddress, compressedAccount);
+    return parseLightTokenCold(ataAddress, compressedAccount);
 }
 
 /**
@@ -543,7 +543,7 @@ async function _getAccountInterface(
 
     // light-token-only mode
     if (programId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
-        return getCTokenAccountInterface(
+        return getLightTokenAccountInterface(
             rpc,
             address,
             commitment,
@@ -577,7 +577,7 @@ async function getUnifiedAccountInterface(
     wrap: boolean,
 ): Promise<AccountInterface> {
     // Canonical address for unified mode is always the light-token associated token account
-    const cTokenAta =
+    const lightTokenAta =
         address ??
         getAssociatedTokenAddressSync(
             fetchByOwner!.mint,
@@ -597,9 +597,9 @@ async function getUnifiedAccountInterface(
     const fetchAddresses: PublicKey[] = [];
 
     // light-token hot
-    fetchPromises.push(_tryFetchCTokenHot(rpc, cTokenAta, commitment));
-    fetchTypes.push(TokenAccountSourceType.CTokenHot);
-    fetchAddresses.push(cTokenAta);
+    fetchPromises.push(_tryFetchLightTokenHot(rpc, lightTokenAta, commitment));
+    fetchTypes.push(TokenAccountSourceType.LightTokenHot);
+    fetchAddresses.push(lightTokenAta);
 
     // SPL / Token-2022 (only when wrap is enabled)
     if (wrap) {
@@ -673,10 +673,13 @@ async function getUnifiedAccountInterface(
             compressedAccount.data.data.length > 0 &&
             compressedAccount.owner.equals(LIGHT_TOKEN_PROGRAM_ID)
         ) {
-            const parsed = parseCTokenCold(cTokenAta, compressedAccount);
+            const parsed = parseLightTokenCold(
+                lightTokenAta,
+                compressedAccount,
+            );
             sources.push({
-                type: TokenAccountSourceType.CTokenCold,
-                address: cTokenAta,
+                type: TokenAccountSourceType.LightTokenCold,
+                address: lightTokenAta,
                 amount: parsed.parsed.amount,
                 accountInfo: parsed.accountInfo,
                 loadContext: parsed.loadContext,
@@ -692,8 +695,8 @@ async function getUnifiedAccountInterface(
 
     // priority order: light-token hot > light-token cold > SPL/T22
     const priority: TokenAccountSource['type'][] = [
-        TokenAccountSourceType.CTokenHot,
-        TokenAccountSourceType.CTokenCold,
+        TokenAccountSourceType.LightTokenHot,
+        TokenAccountSourceType.LightTokenCold,
         TokenAccountSourceType.Spl,
         TokenAccountSourceType.Token2022,
     ];
@@ -704,11 +707,11 @@ async function getUnifiedAccountInterface(
         return aIdx - bIdx;
     });
 
-    return buildAccountInterfaceFromSources(sources, cTokenAta);
+    return buildAccountInterfaceFromSources(sources, lightTokenAta);
 }
 
 /** @internal */
-async function getCTokenAccountInterface(
+async function getLightTokenAccountInterface(
     rpc: Rpc,
     address: PublicKey | undefined,
     commitment: Commitment | undefined,
@@ -749,9 +752,9 @@ async function getCTokenAccountInterface(
 
     // Collect light-token associated token account (hot balance)
     if (onchainAccount && onchainAccount.owner.equals(LIGHT_TOKEN_PROGRAM_ID)) {
-        const parsed = parseCTokenHot(address, onchainAccount);
+        const parsed = parseLightTokenHot(address, onchainAccount);
         sources.push({
-            type: TokenAccountSourceType.CTokenHot,
+            type: TokenAccountSourceType.LightTokenHot,
             address,
             amount: parsed.parsed.amount,
             accountInfo: onchainAccount,
@@ -767,9 +770,9 @@ async function getCTokenAccountInterface(
             compressedAccount.data.data.length > 0 &&
             compressedAccount.owner.equals(LIGHT_TOKEN_PROGRAM_ID)
         ) {
-            const parsed = parseCTokenCold(address, compressedAccount);
+            const parsed = parseLightTokenCold(address, compressedAccount);
             sources.push({
-                type: TokenAccountSourceType.CTokenCold,
+                type: TokenAccountSourceType.LightTokenCold,
                 address,
                 amount: parsed.parsed.amount,
                 accountInfo: parsed.accountInfo,
@@ -785,8 +788,10 @@ async function getCTokenAccountInterface(
 
     // Priority: hot > cold
     sources.sort((a, b) => {
-        if (a.type === 'ctoken-hot' && b.type === 'ctoken-cold') return -1;
-        if (a.type === 'ctoken-cold' && b.type === 'ctoken-hot') return 1;
+        if (a.type === 'light-token-hot' && b.type === 'light-token-cold')
+            return -1;
+        if (a.type === 'light-token-cold' && b.type === 'light-token-hot')
+            return 1;
         return 0;
     });
 
@@ -867,7 +872,7 @@ async function getSplOrToken2022AccountInterface(
             compressedAccount.data.data.length > 0 &&
             compressedAccount.owner.equals(LIGHT_TOKEN_PROGRAM_ID)
         ) {
-            const parsedCold = parseCTokenCold(address, compressedAccount);
+            const parsedCold = parseLightTokenCold(address, compressedAccount);
             sources.push({
                 type: coldType,
                 address,
