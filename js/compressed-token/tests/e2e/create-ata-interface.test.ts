@@ -26,7 +26,7 @@ import { findMintAddress } from '../../src/v3/derivation';
 import {
     LIGHT_TOKEN_RENT_SPONSOR,
     TOTAL_COMPRESSION_COST,
-    COMPRESSIBLE_CTOKEN_RENT_PER_EPOCH,
+    COMPRESSIBLE_LIGHT_TOKEN_RENT_PER_EPOCH,
     DEFAULT_PREPAY_EPOCHS,
     calculateFeePayerCostAtCreation,
 } from '../../src/constants';
@@ -211,7 +211,7 @@ describe('createAtaInterface', () => {
             // The fee payer pays the compression_cost + prepaid rent portion
             const payerDiff = payerBalanceBefore - payerBalanceAfter;
             const expectedPrepaidRent =
-                DEFAULT_PREPAY_EPOCHS * COMPRESSIBLE_CTOKEN_RENT_PER_EPOCH; // 16 * 400 = 6,400
+                DEFAULT_PREPAY_EPOCHS * COMPRESSIBLE_LIGHT_TOKEN_RENT_PER_EPOCH; // 16 * 400 = 6,400
             const expectedFeePayerCost =
                 TOTAL_COMPRESSION_COST + expectedPrepaidRent; // 11,000 + 6,400 = 17,400
 

@@ -195,7 +195,7 @@ describe('mintToInterface - Compressed Mints', () => {
         mint = result.mint;
     });
 
-    it('should mint compressed tokens to onchain ctoken account', async () => {
+    it('should mint compressed tokens to onchain light-token account', async () => {
         const recipient = Keypair.generate();
         await createAssociatedLightTokenAccount(
             rpc,
@@ -204,7 +204,7 @@ describe('mintToInterface - Compressed Mints', () => {
             mint,
         );
 
-        const recipientCToken = getAssociatedLightTokenAddress(
+        const recipientLightToken = getAssociatedLightTokenAddress(
             recipient.publicKey,
             mint,
         );
@@ -214,17 +214,17 @@ describe('mintToInterface - Compressed Mints', () => {
             rpc,
             payer,
             mint,
-            recipientCToken,
+            recipientLightToken,
             mintAuthority,
             amount,
         );
 
         await rpc.confirmTransaction(txId, 'confirmed');
 
-        // Verify the account exists and is owned by CToken program
+        // Verify the account exists and is owned by LightToken program
         const accountInterface = await getAccountInterface(
             rpc,
-            recipientCToken,
+            recipientLightToken,
             'confirmed',
         );
         expect(accountInterface).toBeDefined();
@@ -243,7 +243,7 @@ describe('mintToInterface - Compressed Mints', () => {
             mint,
         );
 
-        const recipientCToken = getAssociatedLightTokenAddress(
+        const recipientLightToken = getAssociatedLightTokenAddress(
             recipient.publicKey,
             mint,
         );
@@ -253,7 +253,7 @@ describe('mintToInterface - Compressed Mints', () => {
             rpc,
             payer,
             mint,
-            recipientCToken,
+            recipientLightToken,
             mintAuthority,
             amount,
         );
@@ -262,7 +262,7 @@ describe('mintToInterface - Compressed Mints', () => {
 
         const accountInterface = await getAccountInterface(
             rpc,
-            recipientCToken,
+            recipientLightToken,
             'confirmed',
         );
         expect(accountInterface.parsed.amount).toBe(amount);
@@ -278,7 +278,7 @@ describe('mintToInterface - Compressed Mints', () => {
             mint,
         );
 
-        const recipientCToken = getAssociatedLightTokenAddress(
+        const recipientLightToken = getAssociatedLightTokenAddress(
             recipient.publicKey,
             mint,
         );
@@ -288,7 +288,7 @@ describe('mintToInterface - Compressed Mints', () => {
                 rpc,
                 payer,
                 mint,
-                recipientCToken,
+                recipientLightToken,
                 wrongAuthority,
                 100,
             ),
@@ -304,7 +304,7 @@ describe('mintToInterface - Compressed Mints', () => {
             mint,
         );
 
-        const recipientCToken = getAssociatedLightTokenAddress(
+        const recipientLightToken = getAssociatedLightTokenAddress(
             recipient.publicKey,
             mint,
         );
@@ -315,7 +315,7 @@ describe('mintToInterface - Compressed Mints', () => {
             rpc,
             payer,
             mint,
-            recipientCToken,
+            recipientLightToken,
             mintAuthority,
             amount,
         );
@@ -324,7 +324,7 @@ describe('mintToInterface - Compressed Mints', () => {
 
         const accountInterface = await getAccountInterface(
             rpc,
-            recipientCToken,
+            recipientLightToken,
             'confirmed',
         );
         expect(accountInterface.parsed.amount).toBe(BigInt(amount));
@@ -497,7 +497,7 @@ describe('mintToInterface - Edge Cases', () => {
             compressedMint,
         );
 
-        const recipientCToken = getAssociatedLightTokenAddress(
+        const recipientLightToken = getAssociatedLightTokenAddress(
             recipient.publicKey,
             compressedMint,
         );
@@ -506,7 +506,7 @@ describe('mintToInterface - Edge Cases', () => {
             rpc,
             payer,
             compressedMint,
-            recipientCToken,
+            recipientLightToken,
             mintAuthority,
             0,
         );
@@ -515,7 +515,7 @@ describe('mintToInterface - Edge Cases', () => {
 
         const accountInterface = await getAccountInterface(
             rpc,
-            recipientCToken,
+            recipientLightToken,
             'confirmed',
         );
         expect(accountInterface.parsed.amount).toBe(BigInt(0));
@@ -541,7 +541,7 @@ describe('mintToInterface - Edge Cases', () => {
             result.mint,
         );
 
-        const recipientCToken = getAssociatedLightTokenAddress(
+        const recipientLightToken = getAssociatedLightTokenAddress(
             recipient.publicKey,
             result.mint,
         );
@@ -551,7 +551,7 @@ describe('mintToInterface - Edge Cases', () => {
             rpc,
             payer,
             result.mint,
-            recipientCToken,
+            recipientLightToken,
             payer as Keypair,
             amount,
         );
@@ -560,7 +560,7 @@ describe('mintToInterface - Edge Cases', () => {
 
         const accountInterface = await getAccountInterface(
             rpc,
-            recipientCToken,
+            recipientLightToken,
             'confirmed',
         );
         expect(accountInterface.parsed.amount).toBe(BigInt(amount));

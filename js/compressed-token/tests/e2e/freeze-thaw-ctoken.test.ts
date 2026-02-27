@@ -63,7 +63,7 @@ async function getLightTokenBalance(
     return info.data.readBigUInt64LE(64);
 }
 
-/** Freeze a hot light-token account using the native CTokenFreezeAccount instruction. */
+/** Freeze a hot light-token account using the native LightTokenFreezeAccount instruction. */
 async function freezeLightTokenAccount(
     rpc: Rpc,
     payer: Signer,
@@ -81,7 +81,7 @@ async function freezeLightTokenAccount(
     await sendAndConfirmTx(rpc, tx);
 }
 
-/** Thaw a frozen light-token account using the native CTokenThawAccount instruction. */
+/** Thaw a frozen light-token account using the native LightTokenThawAccount instruction. */
 async function thawLightTokenAccount(
     rpc: Rpc,
     payer: Signer,

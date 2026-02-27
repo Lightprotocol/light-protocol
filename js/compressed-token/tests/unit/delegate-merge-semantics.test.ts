@@ -62,9 +62,9 @@ function mockAccountInfo(data: Buffer = Buffer.alloc(0)): AccountInfo<Buffer> {
 
 /**
  * Build a minimal TokenAccountSource that represents a hot light-token account.
- * Uses real SPL-compatible layout so parseCTokenHot would work, but here we
+ * Uses real SPL-compatible layout so parseLightTokenHot would work, but here we
  * supply parsed directly (simulating what buildAccountInterfaceFromSources
- * actually receives from getCTokenAccountInterface).
+ * actually receives from getLightTokenAccountInterface).
  */
 function hotSource(params: {
     address: PublicKey;
