@@ -186,7 +186,7 @@ pub fn process_mint_action(
     if let Err(ref err) = result {
         if is_idempotent_early_exit(err) {
             if accounts_config.create_mint {
-                return Err(ErrorCode::MintActionMissingExecutingAccounts.into());
+                return Err(ErrorCode::CreateMintIdempotentNotAllowed.into());
             }
             return Ok(());
         }

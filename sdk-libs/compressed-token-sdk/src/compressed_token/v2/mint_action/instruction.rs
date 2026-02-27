@@ -90,7 +90,9 @@ fn build_cpi_write_instruction<A: light_account_checks::AccountInfoTrait + Clone
         accounts: {
             let mut account_metas = Vec::with_capacity(
                 6 + accounts.recipient_token_accounts.len()
-                    + if accounts.mint_signer.is_some() { 1 } else { 0 },
+                    + if accounts.mint_signer.is_some() { 1 } else { 0 }
+                    + if accounts.rent_sponsor.is_some() { 1 } else { 0 }
+                    + if accounts.system_program.is_some() { 1 } else { 0 },
             );
 
             account_metas.push(solana_instruction::AccountMeta {
@@ -113,6 +115,14 @@ fn build_cpi_write_instruction<A: light_account_checks::AccountInfoTrait + Clone
                 is_signer: true,
             });
 
+            if let Some(rent_sponsor) = accounts.rent_sponsor {
+                account_metas.push(solana_instruction::AccountMeta {
+                    pubkey: rent_sponsor.key().into(),
+                    is_writable: true,
+                    is_signer: false,
+                });
+            }
+
             account_metas.push(solana_instruction::AccountMeta {
                 pubkey: accounts.fee_payer.key().into(),
                 is_writable: true,
@@ -130,6 +140,14 @@ fn build_cpi_write_instruction<A: light_account_checks::AccountInfoTrait + Clone
                 is_writable: true,
                 is_signer: false,
             });
+
+            if let Some(system_program) = accounts.system_program {
+                account_metas.push(solana_instruction::AccountMeta {
+                    pubkey: system_program.key().into(),
+                    is_writable: false,
+                    is_signer: false,
+                });
+            }
 
             for acc in &accounts.recipient_token_accounts {
                 account_metas.push(solana_instruction::AccountMeta {

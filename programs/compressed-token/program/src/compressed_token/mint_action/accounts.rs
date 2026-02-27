@@ -98,7 +98,9 @@ impl<'info> MintActionAccounts<'info> {
             // It's placed after all parsed accounts - the account iterator consumes it here,
             // but it's available for the system program CPI via the transaction accounts.
             if config.create_mint {
-                let _system_program = iter.next_account("system_program")?;
+                // Consumed from iterator to satisfy the "too many accounts" check.
+                // The system program is accessible to CPI calls via the transaction accounts list.
+                let _ = iter.next_account("system_program")?;
             }
 
             if !iter.iterator_is_empty() {
@@ -476,7 +478,7 @@ impl AccountsConfig {
         // Validation: Cannot combine create_mint with CompressAndCloseCMint
         if has_compress_and_close_cmint_action && parsed_instruction_data.create_mint.is_some() {
             msg!("Cannot combine create_mint with CompressAndCloseCMint");
-            return Err(ErrorCode::CompressAndCloseCMintMustBeOnlyAction.into());
+            return Err(ErrorCode::CreateMintCannotCombineWithCompressAndClose.into());
         }
 
         // We need mint signer only if creating a new mint.

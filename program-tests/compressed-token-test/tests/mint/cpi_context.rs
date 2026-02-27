@@ -10,7 +10,7 @@ use light_compressed_token_sdk::compressed_token::{
 };
 use light_compressible::config::CompressibleConfig;
 use light_program_test::{utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig};
-use light_test_utils::Rpc;
+use light_test_utils::{assert_mint_creation_fee, Rpc};
 use light_token_interface::{
     instructions::mint_action::{
         CpiContext, DecompressMintAction, MintActionCompressedInstructionData, MintInstructionData,
@@ -126,6 +126,12 @@ async fn test_write_to_cpi_context_create_mint() {
     } = test_setup().await;
 
     let rent_sponsor = rpc.test_accounts.funding_pool_config.rent_sponsor_pda;
+    let rent_sponsor_before = rpc
+        .get_account(rent_sponsor)
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
 
     // Build instruction data using new builder API
     let instruction_data = MintActionCompressedInstructionData::new_mint(
@@ -193,6 +199,14 @@ async fn test_write_to_cpi_context_create_mint() {
     )
     .await
     .expect("create_mint + write_to_cpi_context should succeed");
+
+    let rent_sponsor_after = rpc
+        .get_account(rent_sponsor)
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
+    assert_mint_creation_fee(rent_sponsor_before, rent_sponsor_after);
 }
 
 #[tokio::test]
@@ -372,7 +386,11 @@ async fn test_write_to_cpi_context_create_mint_missing_rent_sponsor() {
         )
         .await;
 
-    assert_rpc_error(result, 0, 20009).unwrap();
+    // Error from the account iterator when it runs out of accounts due to
+    // fee_payer being parsed as rent_sponsor (account shift), leaving the
+    // iterator one account short. Defined in light-account-checks error codes.
+    const ACCOUNT_ITERATOR_EXHAUSTED: u32 = 20009;
+    assert_rpc_error(result, 0, ACCOUNT_ITERATOR_EXHAUSTED).unwrap();
 }
 
 #[tokio::test]

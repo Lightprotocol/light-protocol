@@ -1,23 +1,22 @@
-use anchor_lang::{InstructionData, ToAccountMetas};
+use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
 use light_client::indexer::Indexer;
 use light_compressed_account::{address::derive_address, hash_to_bn254_field_size_be};
 use light_compressed_token_sdk::compressed_token::create_compressed_mint::{
     derive_mint_compressed_address, find_mint_address,
 };
-use light_program_test::{
-    utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig, Rpc, RpcError,
-};
+use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc, RpcError};
 use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
 use light_token_interface::{
     instructions::{
         extensions::token_metadata::TokenMetadataInstructionData,
         mint_action::{MintInstructionData, MintWithContext, Recipient},
     },
-    state::{extensions::AdditionalMetadata, MintMetadata},
+    state::{extensions::AdditionalMetadata, BaseMint, Mint, MintMetadata},
     LIGHT_TOKEN_PROGRAM_ID,
 };
 use light_token_types::CPI_AUTHORITY_PDA;
 use sdk_token_test::{ChainedCtokenInstructionData, PdaCreationData, ID};
+use light_token::instruction::rent_sponsor_pda;
 use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signer},
@@ -62,10 +61,8 @@ async fn test_ctoken_pda() {
         additional_metadata: Some(additional_metadata),
     };
 
-    // create_mint + write_to_cpi_context now works, but the wrapper program
-    // doesn't include rent_sponsor in its CPI accounts. Without rent_sponsor,
-    // the account iterator shifts and fails parsing (error 20009).
-    let result = create_mint(
+    // Create the compressed mint using write-to-cpi-context mode.
+    let (compressed_mint_address, _spl_mint) = create_mint(
         &mut rpc,
         &mint_seed,
         decimals,
@@ -74,9 +71,33 @@ async fn test_ctoken_pda() {
         Some(token_metadata),
         &payer,
     )
-    .await;
+    .await
+    .unwrap();
 
-    assert_rpc_error(result, 0, 20009).unwrap();
+    // Verify the compressed mint was created.
+    let mint_account = rpc
+        .get_compressed_account(compressed_mint_address, None)
+        .await
+        .unwrap()
+        .value;
+    assert!(
+        mint_account.is_some(),
+        "Compressed mint account should have been created"
+    );
+
+    let account_data = mint_account.unwrap();
+    let compressed_account_data = account_data.data.unwrap();
+    let compressed_mint =
+        Mint::deserialize(&mut compressed_account_data.data.as_slice()).unwrap();
+
+    let expected_base = BaseMint {
+        supply: 1000,
+        decimals,
+        is_initialized: true,
+        mint_authority: None,
+        freeze_authority: Some(freeze_authority.to_bytes().into()),
+    };
+    assert_eq!(compressed_mint.base, expected_base, "BaseMint fields should match");
 }
 
 pub async fn create_mint<R: Rpc + Indexer>(
@@ -177,6 +198,8 @@ pub async fn create_mint<R: Rpc + Indexer>(
         mint_seed: mint_seed.pubkey(),
         light_token_program: Pubkey::new_from_array(LIGHT_TOKEN_PROGRAM_ID),
         light_token_cpi_authority: Pubkey::new_from_array(CPI_AUTHORITY_PDA),
+        rent_sponsor: rent_sponsor_pda(),
+        system_program: solana_sdk::system_program::ID,
     };
 
     let pda_new_address_params = light_sdk::address::NewAddressParamsAssignedPacked {

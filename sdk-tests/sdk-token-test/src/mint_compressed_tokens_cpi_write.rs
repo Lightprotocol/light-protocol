@@ -40,11 +40,13 @@ pub fn process_mint_compressed_tokens_cpi_write<'info>(
         authority: ctx.accounts.signer.as_ref(),
         light_system_program: cpi_accounts.light_system_program,
         mint_signer: None, // No mint signer for existing mint
+        rent_sponsor: None, // No rent_sponsor for existing mint (only needed for create_mint)
         fee_payer: ctx.accounts.signer.as_ref(),
         cpi_authority_pda: cpi_accounts.compressed_token_cpi_authority,
         cpi_context: cpi_accounts.cpi_context.unwrap(),
         cpi_signer: crate::LIGHT_CPI_SIGNER,
         recipient_token_accounts: vec![],
+        system_program: None,
     };
 
     // Determine which CPI write method to use based on cpi_context flags
