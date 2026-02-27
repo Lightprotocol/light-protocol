@@ -227,6 +227,13 @@ pub fn is_localhost(rpc_url: &str) -> bool {
     rpc_url.contains("localhost") || rpc_url.contains("127.0.0.1")
 }
 
+/// Whether to use Helius `getProgramAccountsV2` instead of standard
+/// `getProgramAccounts`. Returns `true` only when `--helius-rpc` CLI flag
+/// is set **and** the URL is not localhost.
+pub fn use_helius_rpc(rpc_url: &str, helius_rpc_flag: bool) -> bool {
+    helius_rpc_flag && !is_localhost(rpc_url)
+}
+
 /// Generic bootstrap using standard getProgramAccounts API
 ///
 /// Calls `process_fn` for each account that passes initial extraction.
@@ -390,6 +397,7 @@ pub async fn run_bootstrap<F>(
     shutdown_rx: Option<oneshot::Receiver<()>>,
     process_fn: F,
     label: &str,
+    helius_rpc: bool,
 ) -> Result<BootstrapResult>
 where
     F: FnMut(RawAccountData) -> bool,
@@ -415,8 +423,8 @@ where
         label, program_id
     );
 
-    let result = if is_localhost(rpc_url) {
-        debug!("Detected localhost, using standard getProgramAccounts");
+    let result = if !use_helius_rpc(rpc_url, helius_rpc) {
+        debug!("Using standard getProgramAccounts");
         let api_result = bootstrap_standard_api(
             &client,
             rpc_url,
@@ -489,13 +497,14 @@ pub async fn count_program_accounts(
     rpc_url: &str,
     program_id: &Pubkey,
     filters: Option<Vec<serde_json::Value>>,
+    helius_rpc: bool,
 ) -> Result<usize> {
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(30))
         .build()
         .map_err(|e| anyhow::anyhow!("Failed to create HTTP client: {}", e))?;
 
-    if is_localhost(rpc_url) {
+    if !use_helius_rpc(rpc_url, helius_rpc) {
         let mut params = json!({
             "encoding": "base64",
             "commitment": "confirmed",
@@ -563,7 +572,10 @@ pub async fn count_program_accounts(
 /// Uses `count_program_accounts` with `dataSlice` to minimize
 /// bandwidth. Both queries run concurrently. Errors are propagated so callers
 /// can distinguish "0 accounts" from "RPC failure".
-pub async fn count_compressible_accounts(rpc_url: &str) -> Result<(usize, usize)> {
+pub async fn count_compressible_accounts(
+    rpc_url: &str,
+    helius_rpc: bool,
+) -> Result<(usize, usize)> {
     let program_id = Pubkey::new_from_array(light_token_interface::LIGHT_TOKEN_PROGRAM_ID);
 
     let ctoken_filters = vec![json!({"memcmp": {
@@ -579,8 +591,8 @@ pub async fn count_compressible_accounts(rpc_url: &str) -> Result<(usize, usize)
     }})];
 
     let (ctoken_result, mint_result) = tokio::join!(
-        count_program_accounts(rpc_url, &program_id, Some(ctoken_filters)),
-        count_program_accounts(rpc_url, &program_id, Some(mint_filters)),
+        count_program_accounts(rpc_url, &program_id, Some(ctoken_filters), helius_rpc),
+        count_program_accounts(rpc_url, &program_id, Some(mint_filters), helius_rpc),
     );
 
     Ok((ctoken_result?, mint_result?))

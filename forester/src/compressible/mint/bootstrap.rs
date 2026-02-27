@@ -18,6 +18,7 @@ pub async fn bootstrap_mint_accounts(
     rpc_url: String,
     tracker: Arc<MintAccountTracker>,
     shutdown_rx: Option<oneshot::Receiver<()>>,
+    helius_rpc: bool,
 ) -> Result<()> {
     // Light Token Program ID
     let program_id =
@@ -50,6 +51,7 @@ pub async fn bootstrap_mint_accounts(
         shutdown_rx,
         process_account,
         "Mint",
+        helius_rpc,
     )
     .await?;
 

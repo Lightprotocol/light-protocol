@@ -587,7 +587,6 @@ fn convert_token_account_interface(
                 indexer_tai.account.account.lamports,
                 indexer_tai.account.account.owner,
             );
-            // Extract token owner before moving token into CompressedTokenAccount
             let token_owner = indexer_tai.token.owner;
             let compressed_token = CompressedTokenAccount {
                 token: indexer_tai.token,
@@ -596,7 +595,7 @@ fn convert_token_account_interface(
             Ok(TokenAccountInterface::cold(
                 indexer_tai.account.key,
                 compressed_token,
-                token_owner, // owner_override: use token owner, not account key
+                token_owner,
                 indexer_tai.account.account.owner,
             ))
         }
@@ -1108,7 +1107,16 @@ impl Rpc for LightClient {
             .map_err(|e| RpcError::CustomError(format!("Indexer error: {e}")))?;
 
         let value = match resp.value {
-            Some(tai) => Some(convert_token_account_interface(tai)?),
+            Some(tai) => {
+                let mut iface = convert_token_account_interface(tai)?;
+                // For cold ATAs, the compressed token stores token.owner =
+                // ATA pubkey (for hash verification). Override parsed.owner
+                // with the wallet owner so ata_bump() derivation succeeds.
+                if iface.is_cold() {
+                    iface.parsed.owner = *owner;
+                }
+                Some(iface)
+            }
             None => None,
         };
 

@@ -10,6 +10,8 @@ pub struct CTokenAccountState {
     pub lamports: u64,
     /// Ready to compress when current_slot > compressible_slot
     pub compressible_slot: u64,
+    /// Whether this account is an ATA (computed once at insert time).
+    pub is_ata: bool,
 }
 
 impl CompressibleState for CTokenAccountState {

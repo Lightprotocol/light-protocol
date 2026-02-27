@@ -17,10 +17,13 @@ use solana_sdk::{
     signature::{Keypair, Signature},
     signer::Signer,
 };
-use tracing::{debug, info};
+use tracing::debug;
 
 use super::{state::CTokenAccountTracker, types::CTokenAccountState};
-use crate::{compressible::traits::CompressibleTracker, Result};
+use crate::{
+    compressible::traits::{send_and_confirm_with_tracking, CompressibleTracker},
+    Result,
+};
 
 /// Compression executor for CToken accounts via the registry program's compress_and_close instruction.
 pub struct CTokenCompressor<R: Rpc + Indexer> {
@@ -79,8 +82,37 @@ impl<R: Rpc + Indexer> CTokenCompressor<R> {
 
         debug!("Compressible config: {}", compressible_config);
 
-        // Get output tree from RPC
         let mut rpc = self.rpc_pool.get_connection().await?;
+
+        // Pre-check: filter out accounts that no longer exist on-chain
+        let all_pubkeys: Vec<Pubkey> = account_states.iter().map(|a| a.pubkey).collect();
+        let on_chain_accounts = rpc
+            .get_multiple_accounts(&all_pubkeys)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to pre-check accounts: {:?}", e))?;
+
+        let account_states: Vec<&CTokenAccountState> = account_states
+            .iter()
+            .zip(on_chain_accounts.iter())
+            .filter_map(|(state, on_chain)| {
+                if on_chain.is_some() {
+                    Some(state)
+                } else {
+                    debug!(
+                        "CToken account {} no longer exists on-chain, removing from tracker",
+                        state.pubkey
+                    );
+                    self.tracker.remove(&state.pubkey);
+                    None
+                }
+            })
+            .collect();
+
+        if account_states.is_empty() {
+            return Err(anyhow::anyhow!(
+                "All accounts already closed, nothing to compress"
+            ));
+        }
 
         // Fetch latest active state trees and get a random one
         rpc.get_latest_active_state_trees()
@@ -102,7 +134,7 @@ impl<R: Rpc + Indexer> CTokenCompressor<R> {
 
         let mut indices_vec = Vec::with_capacity(account_states.len());
 
-        for account_state in account_states {
+        for account_state in &account_states {
             let source_index = packed_accounts.insert_or_get(account_state.pubkey);
 
             // Convert mint from light_compressed_account::Pubkey to solana_sdk::Pubkey
@@ -211,41 +243,16 @@ impl<R: Rpc + Indexer> CTokenCompressor<R> {
             data: instruction.data(),
         };
 
-        // Send transaction
-        let signature = rpc
-            .create_and_send_transaction(
-                &[ix],
-                &self.payer_keypair.pubkey(),
-                &[&self.payer_keypair],
-            )
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to send transaction: {}", e))?;
+        let pubkeys: Vec<Pubkey> = account_states.iter().map(|a| a.pubkey).collect();
 
-        info!(
-            "compress_and_close tx with ({:?}) accounts sent {}",
-            account_states.iter().map(|a| a.pubkey.to_string()),
-            signature
-        );
-
-        // Wait for confirmation before removing from tracker
-        let confirmed = rpc
-            .confirm_transaction(signature)
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to confirm transaction: {}", e))?;
-
-        if confirmed {
-            // Only remove from tracker after confirmed
-            for account_state in account_states {
-                self.tracker.remove(&account_state.pubkey);
-            }
-            info!("compress_and_close tx confirmed: {}", signature);
-            Ok(signature)
-        } else {
-            // Transaction not confirmed - keep accounts in tracker for retry
-            Err(anyhow::anyhow!(
-                "compress_and_close tx not confirmed: {} - accounts kept in tracker for retry",
-                signature
-            ))
-        }
+        send_and_confirm_with_tracking(
+            &mut *rpc,
+            &[ix],
+            &self.payer_keypair,
+            &*self.tracker,
+            &pubkeys,
+            "compress_and_close",
+        )
+        .await
     }
 }

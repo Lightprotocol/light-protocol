@@ -74,7 +74,9 @@ pub struct ForesterStatus {
     pub active_trees: usize,
     /// Number of rolled-over trees
     pub rolled_over_trees: usize,
-    /// Total pending items across all trees
+    /// Total pending batches across all trees (each batch = 1 instruction)
+    pub total_pending_batches: u64,
+    /// Total pending items across all trees (batches × batch_size)
     pub total_pending_items: u64,
     /// Aggregate queue statistics by tree type
     pub aggregate_queue_stats: AggregateQueueStats,
@@ -87,6 +89,10 @@ pub struct AggregateQueueStats {
     pub state_v2_output_pending: u64,
     pub address_v1_total_pending: u64,
     pub address_v2_input_pending: u64,
+    /// Batch counts (each batch = 1 instruction/tx)
+    pub state_v2_input_pending_batches: u64,
+    pub state_v2_output_pending_batches: u64,
+    pub address_v2_input_pending_batches: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -236,6 +242,7 @@ pub async fn get_forester_status_with_options(
                 total_trees: 0,
                 active_trees: 0,
                 rolled_over_trees: 0,
+                total_pending_batches: 0,
                 total_pending_items: 0,
                 aggregate_queue_stats: AggregateQueueStats {
                     state_v1_total_pending: 0,
@@ -243,6 +250,9 @@ pub async fn get_forester_status_with_options(
                     state_v2_output_pending: 0,
                     address_v1_total_pending: 0,
                     address_v2_input_pending: 0,
+                    state_v2_input_pending_batches: 0,
+                    state_v2_output_pending_batches: 0,
+                    address_v2_input_pending_batches: 0,
                 },
             });
         }
@@ -250,7 +260,7 @@ pub async fn get_forester_status_with_options(
 
     // Filter trees by protocol group authority if enabled
     if filter_by_group_authority {
-        match fetch_protocol_group_authority(&rpc).await {
+        match fetch_protocol_group_authority(&rpc, "status").await {
             Ok(group_authority) => {
                 let before_count = trees.len();
                 trees.retain(|tree| tree.owner == group_authority);
@@ -389,6 +399,9 @@ pub async fn get_forester_status_with_options(
         state_v2_output_pending: 0,
         address_v1_total_pending: 0,
         address_v2_input_pending: 0,
+        state_v2_input_pending_batches: 0,
+        state_v2_output_pending_batches: 0,
+        address_v2_input_pending_batches: 0,
     };
 
     for t in &tree_statuses {
@@ -402,6 +415,10 @@ pub async fn get_forester_status_with_options(
                         info.input_pending_batches * info.zkp_batch_size;
                     aggregate_queue_stats.state_v2_output_pending +=
                         info.output_pending_batches * info.zkp_batch_size;
+                    aggregate_queue_stats.state_v2_input_pending_batches +=
+                        info.input_pending_batches;
+                    aggregate_queue_stats.state_v2_output_pending_batches +=
+                        info.output_pending_batches;
                 }
             }
             "AddressV1" => {
@@ -411,11 +428,17 @@ pub async fn get_forester_status_with_options(
                 if let Some(ref info) = t.v2_queue_info {
                     aggregate_queue_stats.address_v2_input_pending +=
                         info.input_pending_batches * info.zkp_batch_size;
+                    aggregate_queue_stats.address_v2_input_pending_batches +=
+                        info.input_pending_batches;
                 }
             }
             _ => {}
         }
     }
+
+    let total_pending_batches = aggregate_queue_stats.state_v2_input_pending_batches
+        + aggregate_queue_stats.state_v2_output_pending_batches
+        + aggregate_queue_stats.address_v2_input_pending_batches;
 
     Ok(ForesterStatus {
         slot,
@@ -437,6 +460,7 @@ pub async fn get_forester_status_with_options(
         total_trees,
         active_trees,
         rolled_over_trees,
+        total_pending_batches,
         total_pending_items,
         aggregate_queue_stats,
     })

@@ -11,7 +11,7 @@ use super::state::CTokenAccountTracker;
 use crate::{
     compressible::{
         bootstrap_helpers::{
-            bootstrap_standard_api, bootstrap_v2_api, is_localhost, RawAccountData,
+            bootstrap_standard_api, bootstrap_v2_api, use_helius_rpc, RawAccountData,
         },
         config::{ACCOUNT_TYPE_OFFSET, CTOKEN_ACCOUNT_TYPE_FILTER},
     },
@@ -24,6 +24,7 @@ pub async fn bootstrap_ctoken_accounts(
     rpc_url: String,
     tracker: Arc<CTokenAccountTracker>,
     shutdown_rx: Option<oneshot::Receiver<()>>,
+    helius_rpc: bool,
 ) -> Result<()> {
     info!("Starting bootstrap of CToken accounts");
 
@@ -88,8 +89,8 @@ pub async fn bootstrap_ctoken_accounts(
         true
     };
 
-    if is_localhost(&rpc_url) {
-        info!("Detected localhost, using standard getProgramAccounts");
+    if !use_helius_rpc(&rpc_url, helius_rpc) {
+        info!("Using standard getProgramAccounts");
         let (total_fetched, total_inserted) = bootstrap_standard_api(
             &client,
             &rpc_url,

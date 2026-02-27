@@ -97,6 +97,8 @@ pub struct GeneralConfig {
     pub sleep_when_idle_ms: u64,
     pub queue_polling_mode: QueuePollingMode,
     pub group_authority: Option<Pubkey>,
+    /// Use Helius getProgramAccountsV2 instead of standard getProgramAccounts
+    pub helius_rpc: bool,
 }
 
 impl Default for GeneralConfig {
@@ -114,6 +116,7 @@ impl Default for GeneralConfig {
             sleep_when_idle_ms: 45_000,
             queue_polling_mode: QueuePollingMode::Indexer,
             group_authority: None,
+            helius_rpc: false,
         }
     }
 }
@@ -121,35 +124,23 @@ impl Default for GeneralConfig {
 impl GeneralConfig {
     pub fn test_address_v2() -> Self {
         GeneralConfig {
-            slot_update_interval_seconds: 10,
-            tree_discovery_interval_seconds: 1,
-            enable_metrics: true,
             skip_v1_state_trees: true,
             skip_v1_address_trees: true,
             skip_v2_state_trees: true,
-            skip_v2_address_trees: false,
-            tree_ids: vec![],
             sleep_after_processing_ms: 50,
             sleep_when_idle_ms: 100,
-            queue_polling_mode: QueuePollingMode::Indexer,
-            group_authority: None,
+            ..Default::default()
         }
     }
 
     pub fn test_state_v2() -> Self {
         GeneralConfig {
-            slot_update_interval_seconds: 10,
-            tree_discovery_interval_seconds: 1,
-            enable_metrics: true,
             skip_v1_state_trees: true,
             skip_v1_address_trees: true,
-            skip_v2_state_trees: false,
             skip_v2_address_trees: true,
-            tree_ids: vec![],
             sleep_after_processing_ms: 50,
             sleep_when_idle_ms: 100,
-            queue_polling_mode: QueuePollingMode::Indexer,
-            group_authority: None,
+            ..Default::default()
         }
     }
 }
@@ -245,12 +236,13 @@ impl ForesterConfig {
             .rpc_url
             .clone()
             .ok_or(ConfigError::MissingField { field: "rpc_url" })?;
+        let indexer_url = args.indexer_url.clone();
 
         Ok(Self {
             external_services: ExternalServicesConfig {
                 rpc_url,
                 ws_rpc_url: args.ws_rpc_url.clone(),
-                indexer_url: args.indexer_url.clone(),
+                indexer_url: Some(indexer_url),
                 prover_url: args.prover_url.clone(),
                 prover_append_url: args
                     .prover_append_url
@@ -341,6 +333,7 @@ impl ForesterConfig {
                         })
                     })
                     .transpose()?,
+                helius_rpc: args.helius_rpc,
             },
             rpc_pool_config: RpcPoolConfig {
                 max_size: args.rpc_pool_size,
@@ -436,18 +429,10 @@ impl ForesterConfig {
             indexer_config: IndexerConfig::default(),
             transaction_config: TransactionConfig::default(),
             general_config: GeneralConfig {
-                slot_update_interval_seconds: 10,
                 tree_discovery_interval_seconds: 60,
                 enable_metrics: args.enable_metrics(),
-                skip_v1_state_trees: false,
-                skip_v2_state_trees: false,
-                skip_v1_address_trees: false,
-                skip_v2_address_trees: false,
-                tree_ids: vec![],
-                sleep_after_processing_ms: 10_000,
-                sleep_when_idle_ms: 45_000,
                 queue_polling_mode: QueuePollingMode::OnChain, // Status uses on-chain reads
-                group_authority: None,
+                ..Default::default()
             },
             rpc_pool_config: RpcPoolConfig {
                 max_size: 10,

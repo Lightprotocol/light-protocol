@@ -36,7 +36,7 @@ pub struct StartArgs {
         env = "INDEXER_URL",
         help = "Photon indexer URL. API key can be included as query param: https://host?api-key=KEY"
     )]
-    pub indexer_url: Option<String>,
+    pub indexer_url: String,
 
     #[arg(long, env = "PROVER_URL")]
     pub prover_url: Option<String>,
@@ -272,6 +272,14 @@ pub struct StartArgs {
 
     #[arg(
         long,
+        env = "HELIUS_RPC",
+        help = "Use Helius getProgramAccountsV2 for compressible account queries (default: standard getProgramAccounts)",
+        default_value = "false"
+    )]
+    pub helius_rpc: bool,
+
+    #[arg(
+        long,
         env = "GROUP_AUTHORITY",
         help = "Filter trees by group authority pubkey. Only process trees owned by this authority."
     )]
@@ -381,6 +389,14 @@ pub struct DashboardArgs {
         help = "Prometheus server URL for querying metrics (e.g. http://prometheus:9090)"
     )]
     pub prometheus_url: Option<String>,
+
+    #[arg(
+        long = "forester-api-url",
+        env = "FORESTER_API_URLS",
+        value_delimiter = ',',
+        help = "Forester API base URL(s) to aggregate compressible data from (e.g. http://forester-a:8080,http://forester-b:8080)"
+    )]
+    pub forester_api_urls: Vec<String>,
 }
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -438,6 +454,7 @@ mod tests {
             "forester",
             "--processor-mode", "v1",
             "--rpc-url", "http://test.com",
+            "--indexer-url", "http://indexer.test.com",
             "--payer", "[1,2,3]",
             "--derivation", "[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32]"
         ]).unwrap();
@@ -448,6 +465,7 @@ mod tests {
             "forester",
             "--processor-mode", "v2",
             "--rpc-url", "http://test.com",
+            "--indexer-url", "http://indexer.test.com",
             "--payer", "[1,2,3]",
             "--derivation", "[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32]"
         ]).unwrap();
@@ -457,6 +475,7 @@ mod tests {
         let args = StartArgs::try_parse_from([
             "forester",
             "--rpc-url", "http://test.com",
+            "--indexer-url", "http://indexer.test.com",
             "--payer", "[1,2,3]",
             "--derivation", "[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32]"
         ]).unwrap();
@@ -467,6 +486,7 @@ mod tests {
             "forester",
             "--processor-mode", "invalid-mode",
             "--rpc-url", "http://test.com",
+            "--indexer-url", "http://indexer.test.com",
             "--payer", "[1,2,3]",
             "--derivation", "[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32]"
         ]);

@@ -1,5 +1,7 @@
+use std::sync::atomic::AtomicU64;
+
 use borsh::BorshDeserialize;
-use dashmap::DashMap;
+use dashmap::{DashMap, DashSet};
 use light_compressible::rent::{
     get_last_funded_epoch, get_rent_exemption_lamports, SLOTS_PER_EPOCH,
 };
@@ -35,13 +37,13 @@ fn calculate_compressible_slot(mint: &Mint, lamports: u64, account_size: usize) 
 #[derive(Debug)]
 pub struct MintAccountTracker {
     accounts: DashMap<Pubkey, MintAccountState>,
+    compressed_count: AtomicU64,
+    pending: DashSet<Pubkey>,
 }
 
 impl MintAccountTracker {
     pub fn new() -> Self {
-        Self {
-            accounts: DashMap::new(),
-        }
+        Self::default()
     }
 
     pub fn update_from_account(
@@ -69,7 +71,13 @@ impl MintAccountTracker {
         };
 
         if !mint.metadata.mint_decompressed {
-            debug!("Mint {} is not decompressed, skipping", pubkey);
+            // Mint was compressed — remove stale entry from tracker if present
+            if self.remove(&pubkey).is_some() {
+                debug!(
+                    "Mint {} no longer decompressed, removed from tracker",
+                    pubkey
+                );
+            }
             return Ok(());
         }
 
@@ -120,11 +128,23 @@ impl CompressibleTracker<MintAccountState> for MintAccountTracker {
     fn accounts(&self) -> &DashMap<Pubkey, MintAccountState> {
         &self.accounts
     }
+
+    fn compressed_counter(&self) -> &AtomicU64 {
+        &self.compressed_count
+    }
+
+    fn pending(&self) -> &DashSet<Pubkey> {
+        &self.pending
+    }
 }
 
 impl Default for MintAccountTracker {
     fn default() -> Self {
-        Self::new()
+        Self {
+            accounts: DashMap::new(),
+            compressed_count: AtomicU64::new(0),
+            pending: DashSet::new(),
+        }
     }
 }
 
@@ -136,6 +156,13 @@ impl SubscriptionHandler for MintAccountTracker {
         data: &[u8],
         lamports: u64,
     ) -> Result<()> {
+        // If account data is empty (account was closed), remove from tracker
+        if data.is_empty() {
+            if self.remove(&pubkey).is_some() {
+                debug!("Removed closed Mint account {} from tracker", pubkey);
+            }
+            return Ok(());
+        }
         self.update_from_account(pubkey, data, lamports)
     }
 
