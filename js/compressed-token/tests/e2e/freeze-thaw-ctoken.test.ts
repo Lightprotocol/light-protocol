@@ -1,9 +1,9 @@
 /**
- * E2E tests for createCTokenFreezeAccountInstruction and
- * createCTokenThawAccountInstruction (native discriminator 10/11).
+ * E2E tests for createLightTokenFreezeAccountInstruction and
+ * createLightTokenThawAccountInstruction (native discriminator 10/11).
  *
- * These instructions operate on decompressed c-token (hot) accounts,
- * mimicking SPL Token freeze/thaw semantics through the cToken program.
+ * These instructions operate on decompressed light-token (hot) accounts,
+ * mimicking SPL Token freeze/thaw semantics through the LightToken program.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { Keypair, PublicKey, Signer } from '@solana/web3.js';
@@ -35,8 +35,8 @@ import { createAtaInterfaceIdempotent } from '../../src/v3/actions/create-ata-in
 import { loadAta } from '../../src/v3/actions/load-ata';
 import { createUnwrapInstructions } from '../../src/v3/actions/unwrap';
 import {
-    createCTokenFreezeAccountInstruction,
-    createCTokenThawAccountInstruction,
+    createLightTokenFreezeAccountInstruction,
+    createLightTokenThawAccountInstruction,
 } from '../../src/v3/instructions/freeze-thaw';
 
 featureFlags.version = VERSION.V2;
@@ -44,28 +44,34 @@ featureFlags.version = VERSION.V2;
 const TEST_TOKEN_DECIMALS = 9;
 
 /** Read the raw token account state byte at offset 108 (AccountState field). */
-async function getCtokenState(rpc: Rpc, account: PublicKey): Promise<number> {
+async function getLightTokenState(
+    rpc: Rpc,
+    account: PublicKey,
+): Promise<number> {
     const info = await rpc.getAccountInfo(account);
     if (!info) throw new Error(`Account not found: ${account.toBase58()}`);
     return info.data[108];
 }
 
-/** Read the amount from a c-token account (LE u64 at offset 64). */
-async function getCTokenBalance(rpc: Rpc, address: PublicKey): Promise<bigint> {
+/** Read the amount from a light-token account (LE u64 at offset 64). */
+async function getLightTokenBalance(
+    rpc: Rpc,
+    address: PublicKey,
+): Promise<bigint> {
     const info = await rpc.getAccountInfo(address);
     if (!info) return BigInt(0);
     return info.data.readBigUInt64LE(64);
 }
 
-/** Freeze a hot c-token account using the native CTokenFreezeAccount instruction. */
-async function freezeCtokenAccount(
+/** Freeze a hot light-token account using the native CTokenFreezeAccount instruction. */
+async function freezeLightTokenAccount(
     rpc: Rpc,
     payer: Signer,
     tokenAccount: PublicKey,
     mint: PublicKey,
     freezeAuthority: Keypair,
 ): Promise<void> {
-    const ix = createCTokenFreezeAccountInstruction(
+    const ix = createLightTokenFreezeAccountInstruction(
         tokenAccount,
         mint,
         freezeAuthority.publicKey,
@@ -75,15 +81,15 @@ async function freezeCtokenAccount(
     await sendAndConfirmTx(rpc, tx);
 }
 
-/** Thaw a frozen c-token account using the native CTokenThawAccount instruction. */
-async function thawCtokenAccount(
+/** Thaw a frozen light-token account using the native CTokenThawAccount instruction. */
+async function thawLightTokenAccount(
     rpc: Rpc,
     payer: Signer,
     tokenAccount: PublicKey,
     mint: PublicKey,
     freezeAuthority: Keypair,
 ): Promise<void> {
-    const ix = createCTokenThawAccountInstruction(
+    const ix = createLightTokenThawAccountInstruction(
         tokenAccount,
         mint,
         freezeAuthority.publicKey,
@@ -97,13 +103,13 @@ async function thawCtokenAccount(
 // Unit tests (no RPC required)
 // ---------------------------------------------------------------------------
 
-describe('createCTokenFreezeAccountInstruction - unit', () => {
+describe('createLightTokenFreezeAccountInstruction - unit', () => {
     const tokenAccount = Keypair.generate().publicKey;
     const mint = Keypair.generate().publicKey;
     const freezeAuthority = Keypair.generate().publicKey;
 
     it('uses LIGHT_TOKEN_PROGRAM_ID as programId', () => {
-        const ix = createCTokenFreezeAccountInstruction(
+        const ix = createLightTokenFreezeAccountInstruction(
             tokenAccount,
             mint,
             freezeAuthority,
@@ -112,7 +118,7 @@ describe('createCTokenFreezeAccountInstruction - unit', () => {
     });
 
     it('encodes discriminator byte 10', () => {
-        const ix = createCTokenFreezeAccountInstruction(
+        const ix = createLightTokenFreezeAccountInstruction(
             tokenAccount,
             mint,
             freezeAuthority,
@@ -122,7 +128,7 @@ describe('createCTokenFreezeAccountInstruction - unit', () => {
     });
 
     it('has exactly 3 account metas in correct order', () => {
-        const ix = createCTokenFreezeAccountInstruction(
+        const ix = createLightTokenFreezeAccountInstruction(
             tokenAccount,
             mint,
             freezeAuthority,
@@ -143,13 +149,13 @@ describe('createCTokenFreezeAccountInstruction - unit', () => {
     });
 });
 
-describe('createCTokenThawAccountInstruction - unit', () => {
+describe('createLightTokenThawAccountInstruction - unit', () => {
     const tokenAccount = Keypair.generate().publicKey;
     const mint = Keypair.generate().publicKey;
     const freezeAuthority = Keypair.generate().publicKey;
 
     it('uses LIGHT_TOKEN_PROGRAM_ID as programId', () => {
-        const ix = createCTokenThawAccountInstruction(
+        const ix = createLightTokenThawAccountInstruction(
             tokenAccount,
             mint,
             freezeAuthority,
@@ -158,7 +164,7 @@ describe('createCTokenThawAccountInstruction - unit', () => {
     });
 
     it('encodes discriminator byte 11', () => {
-        const ix = createCTokenThawAccountInstruction(
+        const ix = createLightTokenThawAccountInstruction(
             tokenAccount,
             mint,
             freezeAuthority,
@@ -168,7 +174,7 @@ describe('createCTokenThawAccountInstruction - unit', () => {
     });
 
     it('has exactly 3 account metas in correct order', () => {
-        const ix = createCTokenThawAccountInstruction(
+        const ix = createLightTokenThawAccountInstruction(
             tokenAccount,
             mint,
             freezeAuthority,
@@ -190,7 +196,7 @@ describe('createCTokenThawAccountInstruction - unit', () => {
 // E2E tests
 // ---------------------------------------------------------------------------
 
-describe('cToken freeze/thaw - E2E', () => {
+describe('LightToken freeze/thaw - E2E', () => {
     let rpc: Rpc;
     let payer: Signer;
     let mint: PublicKey;
@@ -223,14 +229,14 @@ describe('cToken freeze/thaw - E2E', () => {
         tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
     }, 60_000);
 
-    it('should freeze a hot c-token account (state → Frozen)', async () => {
+    it('should freeze a hot light-token account (state → Frozen)', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
-        const ctokenAta = getAssociatedTokenAddressInterface(
+        const lightTokenAta = getAssociatedTokenAddressInterface(
             mint,
             owner.publicKey,
         );
 
-        // Create hot c-token ATA and mint into it
+        // Create hot light-token ATA and mint into it
         await createAtaInterfaceIdempotent(rpc, payer, mint, owner.publicKey);
         await mintTo(
             rpc,
@@ -242,24 +248,30 @@ describe('cToken freeze/thaw - E2E', () => {
             stateTreeInfo,
             selectTokenPoolInfo(tokenPoolInfos),
         );
-        await loadAta(rpc, ctokenAta, owner, mint, payer);
+        await loadAta(rpc, lightTokenAta, owner, mint, payer);
 
-        const stateBefore = await getCtokenState(rpc, ctokenAta);
+        const stateBefore = await getLightTokenState(rpc, lightTokenAta);
         expect(stateBefore).toBe(1); // Initialized
 
-        await freezeCtokenAccount(rpc, payer, ctokenAta, mint, freezeAuthority);
+        await freezeLightTokenAccount(
+            rpc,
+            payer,
+            lightTokenAta,
+            mint,
+            freezeAuthority,
+        );
 
-        const stateAfter = await getCtokenState(rpc, ctokenAta);
+        const stateAfter = await getLightTokenState(rpc, lightTokenAta);
         expect(stateAfter).toBe(2); // Frozen
 
         // Balance is unchanged after freeze
-        const balance = await getCTokenBalance(rpc, ctokenAta);
+        const balance = await getLightTokenBalance(rpc, lightTokenAta);
         expect(balance).toBe(BigInt(500));
     }, 60_000);
 
-    it('should thaw a frozen c-token account (state → Initialized)', async () => {
+    it('should thaw a frozen light-token account (state → Initialized)', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
-        const ctokenAta = getAssociatedTokenAddressInterface(
+        const lightTokenAta = getAssociatedTokenAddressInterface(
             mint,
             owner.publicKey,
         );
@@ -275,20 +287,32 @@ describe('cToken freeze/thaw - E2E', () => {
             stateTreeInfo,
             selectTokenPoolInfo(tokenPoolInfos),
         );
-        await loadAta(rpc, ctokenAta, owner, mint, payer);
+        await loadAta(rpc, lightTokenAta, owner, mint, payer);
 
         // Freeze
-        await freezeCtokenAccount(rpc, payer, ctokenAta, mint, freezeAuthority);
-        expect(await getCtokenState(rpc, ctokenAta)).toBe(2);
+        await freezeLightTokenAccount(
+            rpc,
+            payer,
+            lightTokenAta,
+            mint,
+            freezeAuthority,
+        );
+        expect(await getLightTokenState(rpc, lightTokenAta)).toBe(2);
 
         // Thaw
-        await thawCtokenAccount(rpc, payer, ctokenAta, mint, freezeAuthority);
-        expect(await getCtokenState(rpc, ctokenAta)).toBe(1); // Initialized
+        await thawLightTokenAccount(
+            rpc,
+            payer,
+            lightTokenAta,
+            mint,
+            freezeAuthority,
+        );
+        expect(await getLightTokenState(rpc, lightTokenAta)).toBe(1); // Initialized
     }, 60_000);
 
     it('should fail to freeze an already-frozen account', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
-        const ctokenAta = getAssociatedTokenAddressInterface(
+        const lightTokenAta = getAssociatedTokenAddressInterface(
             mint,
             owner.publicKey,
         );
@@ -304,18 +328,30 @@ describe('cToken freeze/thaw - E2E', () => {
             stateTreeInfo,
             selectTokenPoolInfo(tokenPoolInfos),
         );
-        await loadAta(rpc, ctokenAta, owner, mint, payer);
-        await freezeCtokenAccount(rpc, payer, ctokenAta, mint, freezeAuthority);
+        await loadAta(rpc, lightTokenAta, owner, mint, payer);
+        await freezeLightTokenAccount(
+            rpc,
+            payer,
+            lightTokenAta,
+            mint,
+            freezeAuthority,
+        );
 
         // Second freeze attempt must fail
         await expect(
-            freezeCtokenAccount(rpc, payer, ctokenAta, mint, freezeAuthority),
+            freezeLightTokenAccount(
+                rpc,
+                payer,
+                lightTokenAta,
+                mint,
+                freezeAuthority,
+            ),
         ).rejects.toThrow();
     }, 60_000);
 
     it('should fail to thaw an already-initialized account', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
-        const ctokenAta = getAssociatedTokenAddressInterface(
+        const lightTokenAta = getAssociatedTokenAddressInterface(
             mint,
             owner.publicKey,
         );
@@ -331,18 +367,24 @@ describe('cToken freeze/thaw - E2E', () => {
             stateTreeInfo,
             selectTokenPoolInfo(tokenPoolInfos),
         );
-        await loadAta(rpc, ctokenAta, owner, mint, payer);
+        await loadAta(rpc, lightTokenAta, owner, mint, payer);
 
         // Thaw on initialized (not frozen) must fail
         await expect(
-            thawCtokenAccount(rpc, payer, ctokenAta, mint, freezeAuthority),
+            thawLightTokenAccount(
+                rpc,
+                payer,
+                lightTokenAta,
+                mint,
+                freezeAuthority,
+            ),
         ).rejects.toThrow();
     }, 60_000);
 
     it('should fail when wrong freeze authority signs', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
         const wrongAuthority = Keypair.generate();
-        const ctokenAta = getAssociatedTokenAddressInterface(
+        const lightTokenAta = getAssociatedTokenAddressInterface(
             mint,
             owner.publicKey,
         );
@@ -358,10 +400,16 @@ describe('cToken freeze/thaw - E2E', () => {
             stateTreeInfo,
             selectTokenPoolInfo(tokenPoolInfos),
         );
-        await loadAta(rpc, ctokenAta, owner, mint, payer);
+        await loadAta(rpc, lightTokenAta, owner, mint, payer);
 
         await expect(
-            freezeCtokenAccount(rpc, payer, ctokenAta, mint, wrongAuthority),
+            freezeLightTokenAccount(
+                rpc,
+                payer,
+                lightTokenAta,
+                mint,
+                wrongAuthority,
+            ),
         ).rejects.toThrow();
     }, 60_000);
 });
@@ -405,7 +453,7 @@ describe('createUnwrapInstructions - freeze interactions', () => {
 
     it('should throw when all hot balance is frozen (unwrap blocked)', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
-        const ctokenAta = getAssociatedTokenAddressInterface(
+        const lightTokenAta = getAssociatedTokenAddressInterface(
             mint,
             owner.publicKey,
         );
@@ -422,10 +470,12 @@ describe('createUnwrapInstructions - freeze interactions', () => {
             selectTokenPoolInfo(tokenPoolInfos),
         );
         await createAtaInterfaceIdempotent(rpc, payer, mint, owner.publicKey);
-        await loadAta(rpc, ctokenAta, owner, mint, payer);
+        await loadAta(rpc, lightTokenAta, owner, mint, payer);
 
         // Confirm hot balance = 500
-        expect(await getCTokenBalance(rpc, ctokenAta)).toBe(BigInt(500));
+        expect(await getLightTokenBalance(rpc, lightTokenAta)).toBe(
+            BigInt(500),
+        );
 
         // Create SPL ATA (destination)
         const splAta = await createAssociatedTokenAccount(
@@ -437,9 +487,15 @@ describe('createUnwrapInstructions - freeze interactions', () => {
             TOKEN_PROGRAM_ID,
         );
 
-        // Freeze the hot c-token ATA
-        await freezeCtokenAccount(rpc, payer, ctokenAta, mint, freezeAuthority);
-        expect(await getCtokenState(rpc, ctokenAta)).toBe(2);
+        // Freeze the hot light-token ATA
+        await freezeLightTokenAccount(
+            rpc,
+            payer,
+            lightTokenAta,
+            mint,
+            freezeAuthority,
+        );
+        expect(await getLightTokenState(rpc, lightTokenAta)).toBe(2);
 
         // createUnwrapInstructions must detect all balance is frozen
         await expect(
@@ -456,7 +512,7 @@ describe('createUnwrapInstructions - freeze interactions', () => {
 
     it('should throw for any requested amount when fully frozen', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
-        const ctokenAta = getAssociatedTokenAddressInterface(
+        const lightTokenAta = getAssociatedTokenAddressInterface(
             mint,
             owner.publicKey,
         );
@@ -472,7 +528,7 @@ describe('createUnwrapInstructions - freeze interactions', () => {
             selectTokenPoolInfo(tokenPoolInfos),
         );
         await createAtaInterfaceIdempotent(rpc, payer, mint, owner.publicKey);
-        await loadAta(rpc, ctokenAta, owner, mint, payer);
+        await loadAta(rpc, lightTokenAta, owner, mint, payer);
 
         const splAta = await createAssociatedTokenAccount(
             rpc,
@@ -483,7 +539,13 @@ describe('createUnwrapInstructions - freeze interactions', () => {
             TOKEN_PROGRAM_ID,
         );
 
-        await freezeCtokenAccount(rpc, payer, ctokenAta, mint, freezeAuthority);
+        await freezeLightTokenAccount(
+            rpc,
+            payer,
+            lightTokenAta,
+            mint,
+            freezeAuthority,
+        );
 
         // Requesting a subset of the frozen balance also throws
         await expect(
@@ -500,7 +562,7 @@ describe('createUnwrapInstructions - freeze interactions', () => {
 
     it('should succeed after thawing a previously frozen account', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
-        const ctokenAta = getAssociatedTokenAddressInterface(
+        const lightTokenAta = getAssociatedTokenAddressInterface(
             mint,
             owner.publicKey,
         );
@@ -516,7 +578,7 @@ describe('createUnwrapInstructions - freeze interactions', () => {
             selectTokenPoolInfo(tokenPoolInfos),
         );
         await createAtaInterfaceIdempotent(rpc, payer, mint, owner.publicKey);
-        await loadAta(rpc, ctokenAta, owner, mint, payer);
+        await loadAta(rpc, lightTokenAta, owner, mint, payer);
 
         const splAta = await createAssociatedTokenAccount(
             rpc,
@@ -528,7 +590,13 @@ describe('createUnwrapInstructions - freeze interactions', () => {
         );
 
         // Freeze → confirm unwrap is blocked
-        await freezeCtokenAccount(rpc, payer, ctokenAta, mint, freezeAuthority);
+        await freezeLightTokenAccount(
+            rpc,
+            payer,
+            lightTokenAta,
+            mint,
+            freezeAuthority,
+        );
         await expect(
             createUnwrapInstructions(
                 rpc,
@@ -541,7 +609,13 @@ describe('createUnwrapInstructions - freeze interactions', () => {
         ).rejects.toThrow(/Account is frozen|unwrap is not allowed/);
 
         // Thaw → unwrap succeeds
-        await thawCtokenAccount(rpc, payer, ctokenAta, mint, freezeAuthority);
+        await thawLightTokenAccount(
+            rpc,
+            payer,
+            lightTokenAta,
+            mint,
+            freezeAuthority,
+        );
 
         const batches = await createUnwrapInstructions(
             rpc,
@@ -564,14 +638,14 @@ describe('createUnwrapInstructions - freeze interactions', () => {
         const splBalance = await getAccount(rpc, splAta);
         expect(splBalance.amount).toBe(BigInt(100));
 
-        // Hot c-token balance reduced
-        const hotBalance = await getCTokenBalance(rpc, ctokenAta);
+        // Hot light-token balance reduced
+        const hotBalance = await getLightTokenBalance(rpc, lightTokenAta);
         expect(hotBalance).toBe(BigInt(300));
     }, 90_000);
 
     it('should throw "Insufficient" when requested amount exceeds unfrozen balance (partial freeze)', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
-        const ctokenAta = getAssociatedTokenAddressInterface(
+        const lightTokenAta = getAssociatedTokenAddressInterface(
             mint,
             owner.publicKey,
         );
@@ -591,7 +665,7 @@ describe('createUnwrapInstructions - freeze interactions', () => {
         // Load only 400 by first loading all, then... actually loadAta loads everything.
         // Instead: mint 400 in one batch and load, then mint 200 more (cold).
         // For simplicity: just test with all-hot frozen scenario asking for too much.
-        await loadAta(rpc, ctokenAta, owner, mint, payer);
+        await loadAta(rpc, lightTokenAta, owner, mint, payer);
 
         const splAta = await createAssociatedTokenAccount(
             rpc,
@@ -603,7 +677,13 @@ describe('createUnwrapInstructions - freeze interactions', () => {
         );
 
         // Freeze hot (600 frozen)
-        await freezeCtokenAccount(rpc, payer, ctokenAta, mint, freezeAuthority);
+        await freezeLightTokenAccount(
+            rpc,
+            payer,
+            lightTokenAta,
+            mint,
+            freezeAuthority,
+        );
 
         // Requesting any amount throws (Account is frozen / unwrap is not allowed)
         // (since all 600 are frozen hot, none unfrozen)

@@ -46,7 +46,7 @@ import {
     createLoadAtaInstructions,
 } from '../../src/v3/actions/load-ata';
 import { createAtaInterfaceIdempotent } from '../../src/v3/actions/create-ata-interface';
-import { createCTokenFreezeAccountInstruction } from '../../src/v3/instructions/freeze-thaw';
+import { createLightTokenFreezeAccountInstruction } from '../../src/v3/instructions/freeze-thaw';
 import { createLightTokenTransferInstruction } from '../../src/v3/instructions/transfer-interface';
 import {
     LIGHT_TOKEN_RENT_SPONSOR,
@@ -304,7 +304,7 @@ describe('transfer-interface', () => {
             );
             await loadAta(rpc, senderAta, sender, freezableMint, payer);
 
-            const freezeIx = createCTokenFreezeAccountInstruction(
+            const freezeIx = createLightTokenFreezeAccountInstruction(
                 senderAta,
                 freezableMint,
                 freezeAuthority.publicKey,
@@ -694,11 +694,11 @@ describe('transfer-interface', () => {
             expect(typeof signature).toBe('string');
 
             // Verify hot balance increased
-            const ctokenAta = getAssociatedTokenAddressInterface(
+            const lightTokenAta = getAssociatedTokenAddressInterface(
                 mint,
                 owner.publicKey,
             );
-            const ataInfo = await rpc.getAccountInfo(ctokenAta);
+            const ataInfo = await rpc.getAccountInfo(lightTokenAta);
             expect(ataInfo).not.toBeNull();
             const hotBalance = ataInfo!.data.readBigUInt64LE(64);
             expect(hotBalance).toBe(BigInt(2000));
@@ -1144,8 +1144,8 @@ describe('transfer-interface', () => {
 
     // ================================================================
     // H7: wrap=true + programId=TOKEN_PROGRAM_ID
-    // isSplOrT22 && !wrap is false → would route to c-token transfer path,
-    // but _buildLoadBatches rejects a non-ctoken targetAta when wrap=true.
+    // isSplOrT22 && !wrap is false → would route to light-token transfer path,
+    // but _buildLoadBatches rejects a non-light-token targetAta when wrap=true.
     // ================================================================
     describe('H7: transferInterface wrap=true + programId=TOKEN_PROGRAM_ID', () => {
         it('should throw when wrap=true is combined with programId=TOKEN_PROGRAM_ID (targetAta is SPL)', async () => {
@@ -1176,7 +1176,7 @@ describe('transfer-interface', () => {
             });
 
             // wrap=true + programId=TOKEN_PROGRAM_ID: senderAta is SPL ATA.
-            // _buildLoadBatches validates targetAta is ctoken when wrap=true → throws.
+            // _buildLoadBatches validates targetAta is light-token when wrap=true → throws.
             await expect(
                 transferInterface(
                     rpc,
@@ -1303,7 +1303,7 @@ describe('transfer-interface', () => {
                 selectTokenPoolInfo(tokenPoolInfos),
             );
 
-            // Derive SPL ATAs (not c-token ATAs)
+            // Derive SPL ATAs (not light-token ATAs)
             const senderSplAta = getAssociatedTokenAddressSync(
                 mint,
                 sender.publicKey,

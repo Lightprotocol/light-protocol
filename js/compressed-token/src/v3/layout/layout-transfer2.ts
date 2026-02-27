@@ -483,7 +483,7 @@ export function createCompressSpl(
  * @param recipientIndex - Index of recipient light-token account in packed accounts
  * @param tokenProgramIndex - Index of light-token program in packed accounts (for CPI)
  */
-export function createDecompressCtoken(
+export function createDecompressLightToken(
     amount: bigint,
     mintIndex: number,
     recipientIndex: number,
@@ -512,7 +512,7 @@ export function createDecompressCtoken(
  * @param authorityIndex - Index of authority/owner in packed accounts (must sign)
  * @param tokenProgramIndex - Index of light-token program in packed accounts (for CPI)
  */
-export function createCompressCtoken(
+export function createCompressLightToken(
     amount: bigint,
     mintIndex: number,
     sourceIndex: number,

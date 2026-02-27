@@ -2,7 +2,7 @@ export * from './create-mint-interface';
 export * from './update-mint';
 export * from './update-metadata';
 export * from './decompress-mint';
-export * from './create-associated-ctoken';
+export * from './create-associated-light-token';
 export * from './create-ata-interface';
 export * from './mint-to';
 export * from './mint-to-compressed';

@@ -56,17 +56,23 @@ describe('decompressInterface', () => {
     describe('loadAta (decompress cold to hot)', () => {
         it('should return null when no compressed tokens', async () => {
             const owner = await newAccountWithLamports(rpc, 1e9);
-            const ctokenAta = getAssociatedTokenAddressInterface(
+            const lightTokenAta = getAssociatedTokenAddressInterface(
                 mint,
                 owner.publicKey,
             );
 
-            const signature = await loadAta(rpc, ctokenAta, owner, mint, payer);
+            const signature = await loadAta(
+                rpc,
+                lightTokenAta,
+                owner,
+                mint,
+                payer,
+            );
 
             expect(signature).toBeNull();
         });
 
-        it('should decompress compressed tokens to CToken ATA', async () => {
+        it('should decompress compressed tokens to LightToken ATA', async () => {
             const owner = await newAccountWithLamports(rpc, 1e9);
 
             // Mint compressed tokens
@@ -88,15 +94,21 @@ describe('decompressInterface', () => {
                 });
             expect(compressedBefore.items.length).toBeGreaterThan(0);
 
-            const ctokenAta = getAssociatedTokenAddressInterface(
+            const lightTokenAta = getAssociatedTokenAddressInterface(
                 mint,
                 owner.publicKey,
             );
-            const signature = await loadAta(rpc, ctokenAta, owner, mint, payer);
+            const signature = await loadAta(
+                rpc,
+                lightTokenAta,
+                owner,
+                mint,
+                payer,
+            );
 
             expect(signature).not.toBeNull();
 
-            const ataInfo = await rpc.getAccountInfo(ctokenAta);
+            const ataInfo = await rpc.getAccountInfo(lightTokenAta);
             expect(ataInfo).not.toBeNull();
             const hotBalance = ataInfo!.data.readBigUInt64LE(64);
             expect(hotBalance).toBe(BigInt(5000));
@@ -109,7 +121,7 @@ describe('decompressInterface', () => {
             expect(compressedAfter.items.length).toBe(0);
         });
 
-        it('should load all compressed tokens to CToken ATA (loadAta)', async () => {
+        it('should load all compressed tokens to LightToken ATA (loadAta)', async () => {
             const owner = await newAccountWithLamports(rpc, 1e9);
 
             await mintTo(
@@ -123,15 +135,21 @@ describe('decompressInterface', () => {
                 selectTokenPoolInfo(tokenPoolInfos),
             );
 
-            const ctokenAta = getAssociatedTokenAddressInterface(
+            const lightTokenAta = getAssociatedTokenAddressInterface(
                 mint,
                 owner.publicKey,
             );
-            const signature = await loadAta(rpc, ctokenAta, owner, mint, payer);
+            const signature = await loadAta(
+                rpc,
+                lightTokenAta,
+                owner,
+                mint,
+                payer,
+            );
 
             expect(signature).not.toBeNull();
 
-            const ataInfo = await rpc.getAccountInfo(ctokenAta);
+            const ataInfo = await rpc.getAccountInfo(lightTokenAta);
             expect(ataInfo).not.toBeNull();
             const hotBalance = ataInfo!.data.readBigUInt64LE(64);
             expect(hotBalance).toBe(BigInt(10000));
@@ -179,15 +197,21 @@ describe('decompressInterface', () => {
                 });
             expect(compressedBefore.items.length).toBe(3);
 
-            const ctokenAta = getAssociatedTokenAddressInterface(
+            const lightTokenAta = getAssociatedTokenAddressInterface(
                 mint,
                 owner.publicKey,
             );
-            const signature = await loadAta(rpc, ctokenAta, owner, mint, payer);
+            const signature = await loadAta(
+                rpc,
+                lightTokenAta,
+                owner,
+                mint,
+                payer,
+            );
 
             expect(signature).not.toBeNull();
 
-            const ataInfo = await rpc.getAccountInfo(ctokenAta);
+            const ataInfo = await rpc.getAccountInfo(lightTokenAta);
             expect(ataInfo).not.toBeNull();
             const hotBalance = ataInfo!.data.readBigUInt64LE(64);
             expect(hotBalance).toBe(BigInt(6000));
@@ -200,7 +224,7 @@ describe('decompressInterface', () => {
             expect(compressedAfter.items.length).toBe(0);
         });
 
-        it('should load small compressed balance to CToken ATA', async () => {
+        it('should load small compressed balance to LightToken ATA', async () => {
             const owner = await newAccountWithLamports(rpc, 1e9);
 
             await mintTo(
@@ -214,26 +238,32 @@ describe('decompressInterface', () => {
                 selectTokenPoolInfo(tokenPoolInfos),
             );
 
-            const ctokenAta = getAssociatedTokenAddressInterface(
+            const lightTokenAta = getAssociatedTokenAddressInterface(
                 mint,
                 owner.publicKey,
             );
-            const signature = await loadAta(rpc, ctokenAta, owner, mint, payer);
+            const signature = await loadAta(
+                rpc,
+                lightTokenAta,
+                owner,
+                mint,
+                payer,
+            );
 
             expect(signature).not.toBeNull();
-            const ataInfo = await rpc.getAccountInfo(ctokenAta);
+            const ataInfo = await rpc.getAccountInfo(lightTokenAta);
             expect(ataInfo!.data.readBigUInt64LE(64)).toBe(BigInt(100));
         });
 
-        it('should create CToken ATA if not exists', async () => {
+        it('should create LightToken ATA if not exists', async () => {
             const owner = await newAccountWithLamports(rpc, 1e9);
 
             // Verify ATA doesn't exist
-            const ctokenAta = getAssociatedTokenAddressInterface(
+            const lightTokenAta = getAssociatedTokenAddressInterface(
                 mint,
                 owner.publicKey,
             );
-            const beforeInfo = await rpc.getAccountInfo(ctokenAta);
+            const beforeInfo = await rpc.getAccountInfo(lightTokenAta);
             expect(beforeInfo).toBeNull();
 
             // Mint compressed tokens
@@ -248,17 +278,23 @@ describe('decompressInterface', () => {
                 selectTokenPoolInfo(tokenPoolInfos),
             );
 
-            const signature = await loadAta(rpc, ctokenAta, owner, mint, payer);
+            const signature = await loadAta(
+                rpc,
+                lightTokenAta,
+                owner,
+                mint,
+                payer,
+            );
 
             expect(signature).not.toBeNull();
 
-            const afterInfo = await rpc.getAccountInfo(ctokenAta);
+            const afterInfo = await rpc.getAccountInfo(lightTokenAta);
             expect(afterInfo).not.toBeNull();
             const hotBalance = afterInfo!.data.readBigUInt64LE(64);
             expect(hotBalance).toBe(BigInt(1000));
         });
 
-        it('should decompress to existing CToken ATA with balance', async () => {
+        it('should decompress to existing LightToken ATA with balance', async () => {
             const owner = await newAccountWithLamports(rpc, 1e9);
 
             // Mint and decompress first batch
@@ -273,13 +309,13 @@ describe('decompressInterface', () => {
                 selectTokenPoolInfo(tokenPoolInfos),
             );
 
-            const ctokenAta = getAssociatedTokenAddressInterface(
+            const lightTokenAta = getAssociatedTokenAddressInterface(
                 mint,
                 owner.publicKey,
             );
-            await loadAta(rpc, ctokenAta, owner, mint, payer);
+            await loadAta(rpc, lightTokenAta, owner, mint, payer);
 
-            const midInfo = await rpc.getAccountInfo(ctokenAta);
+            const midInfo = await rpc.getAccountInfo(lightTokenAta);
             expect(midInfo!.data.readBigUInt64LE(64)).toBe(BigInt(2000));
 
             await mintTo(
@@ -293,9 +329,9 @@ describe('decompressInterface', () => {
                 selectTokenPoolInfo(tokenPoolInfos),
             );
 
-            await loadAta(rpc, ctokenAta, owner, mint, payer);
+            await loadAta(rpc, lightTokenAta, owner, mint, payer);
 
-            const afterInfo = await rpc.getAccountInfo(ctokenAta);
+            const afterInfo = await rpc.getAccountInfo(lightTokenAta);
             expect(afterInfo!.data.readBigUInt64LE(64)).toBe(BigInt(5000));
         });
     });
@@ -330,7 +366,7 @@ describe('decompressInterface', () => {
                 })),
             );
 
-            const ctokenAta = getAssociatedTokenAddressInterface(
+            const lightTokenAta = getAssociatedTokenAddressInterface(
                 mint,
                 owner.publicKey,
             );
@@ -338,7 +374,7 @@ describe('decompressInterface', () => {
             const ix = createDecompressInterfaceInstruction(
                 payer.publicKey,
                 compressedResult.items,
-                ctokenAta,
+                lightTokenAta,
                 BigInt(1000),
                 proof,
                 undefined,
@@ -374,13 +410,13 @@ describe('decompressInterface', () => {
         });
 
         it('should throw when no input accounts provided', () => {
-            const ctokenAta = Keypair.generate().publicKey;
+            const lightTokenAta = Keypair.generate().publicKey;
 
             expect(() =>
                 createDecompressInterfaceInstruction(
                     payer.publicKey,
                     [],
-                    ctokenAta,
+                    lightTokenAta,
                     BigInt(1000),
                     // Minimal mock - instruction throws before using proof
                     { compressedProof: null, rootIndices: [] } as any,
@@ -430,7 +466,7 @@ describe('decompressInterface', () => {
                 })),
             );
 
-            const ctokenAta = getAssociatedTokenAddressInterface(
+            const lightTokenAta = getAssociatedTokenAddressInterface(
                 mint,
                 owner.publicKey,
             );
@@ -438,7 +474,7 @@ describe('decompressInterface', () => {
             const ix = createDecompressInterfaceInstruction(
                 payer.publicKey,
                 compressedResult.items,
-                ctokenAta,
+                lightTokenAta,
                 BigInt(1000),
                 proof,
                 undefined,
@@ -481,7 +517,7 @@ describe('decompressInterface', () => {
                 })),
             );
 
-            const ctokenAta = getAssociatedTokenAddressInterface(
+            const lightTokenAta = getAssociatedTokenAddressInterface(
                 mint,
                 owner.publicKey,
             );
@@ -489,7 +525,7 @@ describe('decompressInterface', () => {
             const ix = createDecompressInterfaceInstruction(
                 payer.publicKey,
                 compressedResult.items,
-                ctokenAta,
+                lightTokenAta,
                 BigInt(1000),
                 proof,
                 undefined,
@@ -503,16 +539,16 @@ describe('decompressInterface', () => {
             expect(ix.keys[2].isWritable).toBe(false);
 
             // Find destination account and verify it's writable
-            const destKey = ix.keys.find(k => k.pubkey.equals(ctokenAta));
+            const destKey = ix.keys.find(k => k.pubkey.equals(lightTokenAta));
             expect(destKey).toBeDefined();
             expect(destKey!.isWritable).toBe(true);
         });
     });
 
     describe('SPL mint scenarios', () => {
-        it('should decompress compressed SPL tokens to c-token account', async () => {
+        it('should decompress compressed SPL tokens to light-token account', async () => {
             // This test explicitly uses an SPL mint (created via createMint with token pools)
-            // to show that compressed SPL tokens can be decompressed to c-token accounts.
+            // to show that compressed SPL tokens can be decompressed to light-token accounts.
             const owner = await newAccountWithLamports(rpc, 1e9);
 
             // Mint compressed SPL tokens (from SPL mint with token pool)
@@ -538,18 +574,25 @@ describe('decompressInterface', () => {
             );
             expect(compressedBalanceBefore).toBe(BigInt(5000));
 
-            const ctokenAta = getAssociatedTokenAddressInterface(
+            const lightTokenAta = getAssociatedTokenAddressInterface(
                 mint,
                 owner.publicKey,
             );
-            const signature = await loadAta(rpc, ctokenAta, owner, mint, payer);
+            const signature = await loadAta(
+                rpc,
+                lightTokenAta,
+                owner,
+                mint,
+                payer,
+            );
 
             expect(signature).not.toBeNull();
 
-            const ctokenAtaInfo = await rpc.getAccountInfo(ctokenAta);
-            expect(ctokenAtaInfo).not.toBeNull();
-            const ctokenBalance = ctokenAtaInfo!.data.readBigUInt64LE(64);
-            expect(ctokenBalance).toBe(BigInt(5000));
+            const lightTokenAtaInfo = await rpc.getAccountInfo(lightTokenAta);
+            expect(lightTokenAtaInfo).not.toBeNull();
+            const lightTokenBalance =
+                lightTokenAtaInfo!.data.readBigUInt64LE(64);
+            expect(lightTokenBalance).toBe(BigInt(5000));
 
             const compressedAfter = await rpc.getCompressedTokenAccountsByOwner(
                 owner.publicKey,
@@ -558,7 +601,7 @@ describe('decompressInterface', () => {
             expect(compressedAfter.items.length).toBe(0);
         });
 
-        it('should load all compressed SPL tokens to c-token ATA', async () => {
+        it('should load all compressed SPL tokens to light-token ATA', async () => {
             const owner = await newAccountWithLamports(rpc, 1e9);
 
             await mintTo(
@@ -572,16 +615,17 @@ describe('decompressInterface', () => {
                 selectTokenPoolInfo(tokenPoolInfos),
             );
 
-            const ctokenAta = getAssociatedTokenAddressInterface(
+            const lightTokenAta = getAssociatedTokenAddressInterface(
                 mint,
                 owner.publicKey,
             );
-            await loadAta(rpc, ctokenAta, owner, mint, payer);
+            await loadAta(rpc, lightTokenAta, owner, mint, payer);
 
-            const ctokenAtaInfo = await rpc.getAccountInfo(ctokenAta);
-            expect(ctokenAtaInfo).not.toBeNull();
-            const ctokenBalance = ctokenAtaInfo!.data.readBigUInt64LE(64);
-            expect(ctokenBalance).toBe(BigInt(8000));
+            const lightTokenAtaInfo = await rpc.getAccountInfo(lightTokenAta);
+            expect(lightTokenAtaInfo).not.toBeNull();
+            const lightTokenBalance =
+                lightTokenAtaInfo!.data.readBigUInt64LE(64);
+            expect(lightTokenBalance).toBe(BigInt(8000));
 
             const compressedAfter = await rpc.getCompressedTokenAccountsByOwner(
                 owner.publicKey,

@@ -61,7 +61,7 @@ function mockAccountInfo(data: Buffer = Buffer.alloc(0)): AccountInfo<Buffer> {
 }
 
 /**
- * Build a minimal TokenAccountSource that represents a hot c-token account.
+ * Build a minimal TokenAccountSource that represents a hot light-token account.
  * Uses real SPL-compatible layout so parseCTokenHot would work, but here we
  * supply parsed directly (simulating what buildAccountInterfaceFromSources
  * actually receives from getCTokenAccountInterface).
@@ -74,7 +74,7 @@ function hotSource(params: {
     isFrozen?: boolean;
 }): TokenAccountSource {
     return {
-        type: TokenAccountSourceType.CTokenHot,
+        type: TokenAccountSourceType.LightTokenHot,
         address: params.address,
         amount: params.amount,
         accountInfo: mockAccountInfo(),
@@ -98,7 +98,7 @@ function hotSource(params: {
 
 /**
  * Build a minimal TokenAccountSource that represents a cold (compressed)
- * c-token account.  delegate and delegatedAmount mirror what
+ * light-token account.  delegate and delegatedAmount mirror what
  * convertTokenDataToAccount would compute from the CompressedOnly TLV.
  */
 function coldSource(params: {
@@ -120,7 +120,7 @@ function coldSource(params: {
         proveByIndex: false,
     };
     return {
-        type: TokenAccountSourceType.CTokenCold,
+        type: TokenAccountSourceType.LightTokenCold,
         address: params.address,
         amount: params.amount,
         accountInfo: mockAccountInfo(),
@@ -755,7 +755,7 @@ describe('createDecompressInterfaceInstruction – delegate pubkeys in packed ac
          * Destination is already in packed accounts. The delegate must NOT be
          * added twice, but the slot must correctly reflect the destination index.
          */
-        // destination is the c-token ATA address defined in outer scope
+        // destination is the light-token ATA address defined in outer scope
         const account = buildAccount(destination, 1_000n);
 
         const ix = createDecompressInterfaceInstruction(
@@ -820,7 +820,7 @@ describe('getCompressedTokenAccountsFromAtaSources – frozen passthrough and de
         );
     });
 
-    it('excludes hot sources: only cold (ctoken-cold / spl-cold / token2022-cold) are returned', () => {
+    it('excludes hot sources: only cold (light-token-cold / spl-cold / token2022-cold) are returned', () => {
         /**
          * Red-team: hot sources must not be included in decompress inputs.
          * A hot account is already on-chain; including it as a compressed input

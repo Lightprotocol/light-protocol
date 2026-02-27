@@ -48,7 +48,7 @@ export function findMintAddress(mintSigner: PublicKey): [PublicKey, number] {
  * Uses light-token program ID.
  * @internal
  */
-export function getAssociatedCTokenAddressAndBump(
+export function getAssociatedLightTokenAddressAndBump(
     owner: PublicKey,
     mint: PublicKey,
 ) {
@@ -63,7 +63,7 @@ export function getAssociatedCTokenAddressAndBump(
  * Uses light-token program ID.
  * @internal
  */
-export function getAssociatedCTokenAddress(
+export function getAssociatedLightTokenAddress(
     owner: PublicKey,
     mint: PublicKey,
 ): PublicKey {

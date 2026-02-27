@@ -29,7 +29,7 @@ import { assertTransactionSizeWithinLimit } from '../utils/estimate-tx-size';
 import { ERR_NO_LIGHT_TOKEN_BALANCE_UNWRAP } from '../errors';
 import {
     encodeTransfer2InstructionData,
-    createCompressCtoken,
+    createCompressLightToken,
     createDecompressSpl,
     Transfer2InstructionData,
     Compression,
@@ -67,16 +67,16 @@ export function createUnwrapInstruction(
     const DESTINATION_INDEX = 3;
     const POOL_INDEX = 4;
     const _SPL_TOKEN_PROGRAM_INDEX = 5;
-    const CTOKEN_PROGRAM_INDEX = 6;
+    const LIGHT_TOKEN_PROGRAM_INDEX = 6;
 
     // Unwrap flow: compress from light-token, decompress to SPL
     const compressions: Compression[] = [
-        createCompressCtoken(
+        createCompressLightToken(
             amount,
             MINT_INDEX,
             SOURCE_INDEX,
             OWNER_INDEX,
-            CTOKEN_PROGRAM_INDEX,
+            LIGHT_TOKEN_PROGRAM_INDEX,
         ),
         createDecompressSpl(
             amount,
@@ -190,13 +190,13 @@ export async function createUnwrapInstructions(
         );
     }
 
-    const ctokenAta = getAssociatedTokenAddressInterface(mint, owner);
+    const lightTokenAta = getAssociatedTokenAddressInterface(mint, owner);
 
     let accountInterface: AccountInterface;
     try {
         accountInterface = await _getAtaInterface(
             rpc,
-            ctokenAta,
+            lightTokenAta,
             owner,
             mint,
             undefined,
@@ -236,7 +236,7 @@ export async function createUnwrapInstructions(
         accountInterface,
         interfaceOptions,
         wrap,
-        ctokenAta,
+        lightTokenAta,
         amount != null ? unwrapAmount : undefined,
     );
 
@@ -248,7 +248,7 @@ export async function createUnwrapInstructions(
     );
 
     const ix = createUnwrapInstruction(
-        ctokenAta,
+        lightTokenAta,
         destination,
         owner,
         mint,

@@ -50,7 +50,7 @@ describe('getMintInterface', () => {
         payer = await newAccountWithLamports(rpc, 10e9);
     });
 
-    describe('CToken mint (LIGHT_TOKEN_PROGRAM_ID)', () => {
+    describe('LightToken mint (LIGHT_TOKEN_PROGRAM_ID)', () => {
         it('should fetch compressed mint with explicit programId', async () => {
             const mintSigner = Keypair.generate();
             const mintAuthority = Keypair.generate();
@@ -636,7 +636,7 @@ describe('unpackMintInterface', () => {
         });
     });
 
-    describe('CToken mint', () => {
+    describe('LightToken mint', () => {
         it('should unpack compressed mint data without extensions', () => {
             const mintAddress = Keypair.generate().publicKey;
             const mintAuthority = Keypair.generate().publicKey;

@@ -286,7 +286,10 @@ export async function _buildLoadBatches(
     const allCompressedAccounts =
         getCompressedTokenAccountsFromAtaSources(sources);
 
-    const ctokenAtaAddress = getAssociatedTokenAddressInterface(mint, owner);
+    const lightTokenAtaAddress = getAssociatedTokenAddressInterface(
+        mint,
+        owner,
+    );
     const splAta = getAssociatedTokenAddressSync(
         mint,
         owner,
@@ -302,10 +305,10 @@ export async function _buildLoadBatches(
         getAtaProgramId(TOKEN_2022_PROGRAM_ID),
     );
 
-    let ataType: AtaType = 'ctoken';
+    let ataType: AtaType = 'light-token';
     const validation = checkAtaAddress(targetAta, mint, owner);
     ataType = validation.type;
-    if (wrap && ataType !== 'ctoken') {
+    if (wrap && ataType !== 'light-token') {
         throw new Error(
             `For wrap=true, targetAta must be light-token associated token account. Got ${ataType} associated token account.`,
         );
@@ -313,7 +316,7 @@ export async function _buildLoadBatches(
 
     const splSource = sources.find(s => s.type === 'spl');
     const t22Source = sources.find(s => s.type === 'token2022');
-    const ctokenHotSource = sources.find(s => s.type === 'ctoken-hot');
+    const lightTokenHotSource = sources.find(s => s.type === 'light-token-hot');
     const coldSources = sources.filter(s => COLD_SOURCE_TYPES.has(s.type));
 
     const splBalance = splSource?.amount ?? BigInt(0);
@@ -367,21 +370,21 @@ export async function _buildLoadBatches(
     let wrapCount = 0;
     let needsAtaCreation = false;
 
-    let decompressTarget: PublicKey = ctokenAtaAddress;
+    let decompressTarget: PublicKey = lightTokenAtaAddress;
     let decompressSplInfo: SplInterfaceInfo | undefined;
     let canDecompress = false;
 
     if (wrap) {
-        decompressTarget = ctokenAtaAddress;
+        decompressTarget = lightTokenAtaAddress;
         decompressSplInfo = undefined;
         canDecompress = true;
 
-        if (!ctokenHotSource) {
+        if (!lightTokenHotSource) {
             needsAtaCreation = true;
             setupInstructions.push(
                 createAssociatedTokenAccountInterfaceIdempotentInstruction(
                     payer,
-                    ctokenAtaAddress,
+                    lightTokenAtaAddress,
                     owner,
                     mint,
                     LIGHT_TOKEN_PROGRAM_ID,
@@ -393,7 +396,7 @@ export async function _buildLoadBatches(
             setupInstructions.push(
                 createWrapInstruction(
                     splAta,
-                    ctokenAtaAddress,
+                    lightTokenAtaAddress,
                     owner,
                     mint,
                     splBalance,
@@ -409,7 +412,7 @@ export async function _buildLoadBatches(
             setupInstructions.push(
                 createWrapInstruction(
                     t22Ata,
-                    ctokenAtaAddress,
+                    lightTokenAtaAddress,
                     owner,
                     mint,
                     t22Balance,
@@ -421,16 +424,16 @@ export async function _buildLoadBatches(
             wrapCount++;
         }
     } else {
-        if (ataType === 'ctoken') {
-            decompressTarget = ctokenAtaAddress;
+        if (ataType === 'light-token') {
+            decompressTarget = lightTokenAtaAddress;
             decompressSplInfo = undefined;
             canDecompress = true;
-            if (!ctokenHotSource) {
+            if (!lightTokenHotSource) {
                 needsAtaCreation = true;
                 setupInstructions.push(
                     createAssociatedTokenAccountInterfaceIdempotentInstruction(
                         payer,
-                        ctokenAtaAddress,
+                        lightTokenAtaAddress,
                         owner,
                         mint,
                         LIGHT_TOKEN_PROGRAM_ID,
@@ -481,21 +484,21 @@ export async function _buildLoadBatches(
     ) {
         const isDelegate = authority !== undefined && !authority.equals(owner);
         const hotBalance = (() => {
-            if (!ctokenHotSource) return BigInt(0);
+            if (!lightTokenHotSource) return BigInt(0);
             if (isDelegate) {
                 const delegated =
-                    ctokenHotSource.parsed.delegatedAmount ?? BigInt(0);
-                return delegated < ctokenHotSource.amount
+                    lightTokenHotSource.parsed.delegatedAmount ?? BigInt(0);
+                return delegated < lightTokenHotSource.amount
                     ? delegated
-                    : ctokenHotSource.amount;
+                    : lightTokenHotSource.amount;
             }
-            return ctokenHotSource.amount;
+            return lightTokenHotSource.amount;
         })();
         let effectiveHotAfterSetup: bigint;
 
         if (wrap) {
             effectiveHotAfterSetup = hotBalance + splBalance + t22Balance;
-        } else if (ataType === 'ctoken') {
+        } else if (ataType === 'light-token') {
             effectiveHotAfterSetup = hotBalance;
         } else if (ataType === 'spl') {
             effectiveHotAfterSetup = splBalance;
@@ -547,10 +550,10 @@ export async function _buildLoadBatches(
     );
 
     const idempotentAtaIx = (() => {
-        if (wrap || ataType === 'ctoken') {
+        if (wrap || ataType === 'light-token') {
             return createAssociatedTokenAccountInterfaceIdempotentInstruction(
                 payer,
-                ctokenAtaAddress,
+                lightTokenAtaAddress,
                 owner,
                 mint,
                 LIGHT_TOKEN_PROGRAM_ID,

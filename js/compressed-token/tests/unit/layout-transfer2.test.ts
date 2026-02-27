@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
     encodeTransfer2InstructionData,
     createCompressSpl,
-    createDecompressCtoken,
+    createDecompressLightToken,
     createDecompressSpl,
     Transfer2InstructionData,
     Compression,
@@ -340,9 +340,9 @@ describe('layout-transfer2', () => {
         });
     });
 
-    describe('createDecompressCtoken', () => {
-        it('should create decompression struct for CToken', () => {
-            const decompression = createDecompressCtoken(
+    describe('createDecompressLightToken', () => {
+        it('should create decompression struct for LightToken', () => {
+            const decompression = createDecompressLightToken(
                 2000n, // amount
                 0, // mintIndex
                 1, // recipientIndex
@@ -361,7 +361,7 @@ describe('layout-transfer2', () => {
         });
 
         it('should use default tokenProgramIndex when not provided', () => {
-            const decompression = createDecompressCtoken(
+            const decompression = createDecompressLightToken(
                 1000n, // amount
                 0, // mintIndex
                 1, // recipientIndex
@@ -372,10 +372,10 @@ describe('layout-transfer2', () => {
         });
 
         it('should handle different amounts', () => {
-            const decompression = createDecompressCtoken(1n, 0, 1);
+            const decompression = createDecompressLightToken(1n, 0, 1);
             expect(decompression.amount).toBe(1n);
 
-            const largeDecompression = createDecompressCtoken(
+            const largeDecompression = createDecompressLightToken(
                 BigInt('18446744073709551615'),
                 0,
                 1,
@@ -436,8 +436,8 @@ describe('layout-transfer2', () => {
             const compress = createCompressSpl(100n, 0, 1, 2, 3, 0, 255, 9);
             expect(compress.mode).toBe(COMPRESSION_MODE_COMPRESS);
 
-            const decompressCtoken = createDecompressCtoken(100n, 0, 1);
-            expect(decompressCtoken.mode).toBe(COMPRESSION_MODE_DECOMPRESS);
+            const decompressLightToken = createDecompressLightToken(100n, 0, 1);
+            expect(decompressLightToken.mode).toBe(COMPRESSION_MODE_DECOMPRESS);
 
             const decompressSpl = createDecompressSpl(100n, 0, 1, 2, 0, 255, 9);
             expect(decompressSpl.mode).toBe(COMPRESSION_MODE_DECOMPRESS);
@@ -448,7 +448,7 @@ describe('layout-transfer2', () => {
         it('should encode complex wrap instruction correctly', () => {
             const compressions = [
                 createCompressSpl(1000n, 0, 2, 1, 4, 0, 255, 9),
-                createDecompressCtoken(1000n, 0, 3, 6),
+                createDecompressLightToken(1000n, 0, 3, 6),
             ];
 
             const data: Transfer2InstructionData = {

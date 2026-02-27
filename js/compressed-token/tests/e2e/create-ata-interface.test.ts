@@ -42,8 +42,8 @@ describe('createAtaInterface', () => {
         payer = await newAccountWithLamports(rpc, 10e9);
     });
 
-    describe('CToken (default programId)', () => {
-        it('should create CToken ATA with default programId', async () => {
+    describe('LightToken (default programId)', () => {
+        it('should create LightToken ATA with default programId', async () => {
             const mintSigner = Keypair.generate();
             const mintAuthority = Keypair.generate();
             const owner = Keypair.generate();
@@ -78,7 +78,7 @@ describe('createAtaInterface', () => {
             );
         });
 
-        it('should create CToken ATA with explicit LIGHT_TOKEN_PROGRAM_ID', async () => {
+        it('should create LightToken ATA with explicit LIGHT_TOKEN_PROGRAM_ID', async () => {
             const mintSigner = Keypair.generate();
             const mintAuthority = Keypair.generate();
             const owner = Keypair.generate();
@@ -241,7 +241,7 @@ describe('createAtaInterface', () => {
             expect(ataBalance).toBe(actualExpectedAtaBalance);
         });
 
-        it('should fail creating CToken ATA twice (non-idempotent)', async () => {
+        it('should fail creating LightToken ATA twice (non-idempotent)', async () => {
             const mintSigner = Keypair.generate();
             const mintAuthority = Keypair.generate();
             const owner = Keypair.generate();
@@ -263,7 +263,7 @@ describe('createAtaInterface', () => {
             ).rejects.toThrow();
         });
 
-        it('should create CToken ATA idempotently', async () => {
+        it('should create LightToken ATA idempotently', async () => {
             const mintSigner = Keypair.generate();
             const mintAuthority = Keypair.generate();
             const owner = Keypair.generate();
@@ -303,7 +303,7 @@ describe('createAtaInterface', () => {
             expect(addr2.toBase58()).toBe(addr3.toBase58());
         });
 
-        it('should create CToken ATAs for multiple owners', async () => {
+        it('should create LightToken ATAs for multiple owners', async () => {
             const mintSigner = Keypair.generate();
             const mintAuthority = Keypair.generate();
             const owner1 = Keypair.generate();
@@ -550,7 +550,7 @@ describe('createAtaInterface', () => {
     });
 
     describe('PDA owner (allowOwnerOffCurve)', () => {
-        it('should create CToken ATA for PDA owner with allowOwnerOffCurve=true', async () => {
+        it('should create LightToken ATA for PDA owner with allowOwnerOffCurve=true', async () => {
             const mintSigner = Keypair.generate();
             const mintAuthority = Keypair.generate();
             const [mintPda] = findMintAddress(mintSigner.publicKey);
@@ -644,9 +644,9 @@ describe('createAtaInterface', () => {
                 TOKEN_PROGRAM_ID,
             );
 
-            // Create CToken mint
+            // Create LightToken mint
             const mintSigner = Keypair.generate();
-            const [ctokenMint] = findMintAddress(mintSigner.publicKey);
+            const [lightTokenMint] = findMintAddress(mintSigner.publicKey);
             await createMintInterface(
                 rpc,
                 payer,
@@ -667,15 +667,15 @@ describe('createAtaInterface', () => {
                 TOKEN_PROGRAM_ID,
             );
 
-            const ctokenAta = await createAtaInterfaceIdempotent(
+            const lightTokenAta = await createAtaInterfaceIdempotent(
                 rpc,
                 payer,
-                ctokenMint,
+                lightTokenMint,
                 owner.publicKey,
             );
 
             // ATAs should be different (different mints and programs)
-            expect(splAta.toBase58()).not.toBe(ctokenAta.toBase58());
+            expect(splAta.toBase58()).not.toBe(lightTokenAta.toBase58());
         });
 
         it('should match expected derivation for each program', async () => {
@@ -741,34 +741,36 @@ describe('createAtaInterface', () => {
             );
             expect(t22Ata.toBase58()).toBe(expectedT22Ata.toBase58());
 
-            // CToken
+            // LightToken
             const mintSigner = Keypair.generate();
-            const ctokenMintAuth = Keypair.generate();
-            const [ctokenMint] = findMintAddress(mintSigner.publicKey);
+            const lightTokenMintAuth = Keypair.generate();
+            const [lightTokenMint] = findMintAddress(mintSigner.publicKey);
             await createMintInterface(
                 rpc,
                 payer,
-                ctokenMintAuth,
+                lightTokenMintAuth,
                 null,
                 9,
                 mintSigner,
             );
-            const ctokenAta = await createAtaInterfaceIdempotent(
+            const lightTokenAta = await createAtaInterfaceIdempotent(
                 rpc,
                 payer,
-                ctokenMint,
+                lightTokenMint,
                 owner.publicKey,
             );
-            const expectedCtokenAta = getAssociatedTokenAddressInterface(
-                ctokenMint,
+            const expectedLightTokenAta = getAssociatedTokenAddressInterface(
+                lightTokenMint,
                 owner.publicKey,
             );
-            expect(ctokenAta.toBase58()).toBe(expectedCtokenAta.toBase58());
+            expect(lightTokenAta.toBase58()).toBe(
+                expectedLightTokenAta.toBase58(),
+            );
         });
     });
 
     describe('concurrent calls', () => {
-        it('should handle concurrent idempotent calls for CToken', async () => {
+        it('should handle concurrent idempotent calls for LightToken', async () => {
             const mintSigner = Keypair.generate();
             const mintAuthority = Keypair.generate();
             const owner = Keypair.generate();

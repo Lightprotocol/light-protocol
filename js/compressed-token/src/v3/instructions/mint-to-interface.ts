@@ -1,7 +1,7 @@
 import { PublicKey, TransactionInstruction } from '@solana/web3.js';
 import { ValidityProofWithContext } from '@lightprotocol/stateless.js';
 import { createMintToInstruction as createSplMintToInstruction } from '@solana/spl-token';
-import { createMintToInstruction as createCtokenMintToInstruction } from './mint-to';
+import { createMintToInstruction as createLightTokenMintToInstruction } from './mint-to';
 import { MintInterface } from '../get-mint-interface';
 
 // Keep old interface type for backwards compatibility export
@@ -53,7 +53,7 @@ export function createMintToInterfaceInstruction(
         );
     }
 
-    // light-token (light-token) - use simple CTokenMintTo instruction
+    // light-token (light-token) - use simple LightTokenMintTo instruction
     // The light mint account must exist for this to work (mint must be decompressed first)
     if (!mintInterface.mintContext) {
         throw new Error('mintContext required for light-token mint-to');
@@ -62,7 +62,7 @@ export function createMintToInterfaceInstruction(
     // Use payer as fee payer for top-ups if different from authority
     const feePayer = authority.equals(payer) ? undefined : payer;
 
-    return createCtokenMintToInstruction({
+    return createLightTokenMintToInstruction({
         mint,
         destination,
         amount,

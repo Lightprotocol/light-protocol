@@ -3,7 +3,7 @@
  *
  * Tests decompressing compressed tokens to SPL/T22 ATAs via token pools.
  * This is the standard path where compressed tokens are loaded into
- * SPL or T22 ATAs rather than c-token ATAs.
+ * SPL or T22 ATAs rather than light-token ATAs.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { Keypair, Signer, PublicKey } from '@solana/web3.js';
@@ -55,14 +55,14 @@ async function getCompressedBalance(
 }
 
 describe('checkAtaAddress', () => {
-    it('should validate c-token ATA', () => {
+    it('should validate light-token ATA', () => {
         const mint = Keypair.generate().publicKey;
         const owner = Keypair.generate().publicKey;
 
-        const ctokenAta = getAssociatedTokenAddressInterface(mint, owner);
-        const result = checkAtaAddress(ctokenAta, mint, owner);
+        const lightTokenAta = getAssociatedTokenAddressInterface(mint, owner);
+        const result = checkAtaAddress(lightTokenAta, mint, owner);
         expect(result.valid).toBe(true);
-        expect(result.type).toBe('ctoken');
+        expect(result.type).toBe('light-token');
     });
 
     it('should validate SPL ATA', () => {
@@ -184,7 +184,7 @@ describe('loadAta - Decompress to SPL ATA', () => {
             owner.publicKey,
         );
 
-        // Load to SPL ATA (not c-token ATA!)
+        // Load to SPL ATA (not light-token ATA!)
         const signature = await loadAta(rpc, splAta, owner, mint, payer);
 
         expect(signature).not.toBeNull();
@@ -438,7 +438,7 @@ describe('loadAta - Decompress to T22 ATA', () => {
 
 /**
  * H6: T22 batching >8 inputs.
- * All multi-cold-input tests previously used c-token ATA. This covers >8 cold
+ * All multi-cold-input tests previously used light-token ATA. This covers >8 cold
  * inputs decompressing to a T22 ATA (idempotent batched sends via loadAta).
  */
 describe('loadAta - T22 ATA >8 cold inputs (H6)', () => {
@@ -553,7 +553,7 @@ describe('loadAta - Standard vs Unified Distinction', () => {
         tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
     }, 60_000);
 
-    it('wrap=false with SPL ATA decompresses to SPL, not c-token', async () => {
+    it('wrap=false with SPL ATA decompresses to SPL, not light-token', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
 
         // Mint compressed tokens
@@ -583,16 +583,16 @@ describe('loadAta - Standard vs Unified Distinction', () => {
         const splBalance = await getAccount(rpc, splAta);
         expect(splBalance.amount).toBe(BigInt(1500));
 
-        // c-token ATA should NOT exist (we didn't create it)
-        const ctokenAta = getAssociatedTokenAddressInterface(
+        // light-token ATA should NOT exist (we didn't create it)
+        const lightTokenAta = getAssociatedTokenAddressInterface(
             mint,
             owner.publicKey,
         );
-        const ctokenInfo = await rpc.getAccountInfo(ctokenAta);
-        expect(ctokenInfo).toBeNull();
+        const lightTokenInfo = await rpc.getAccountInfo(lightTokenAta);
+        expect(lightTokenInfo).toBeNull();
     });
 
-    it('wrap=false with c-token ATA decompresses to c-token', async () => {
+    it('wrap=false with light-token ATA decompresses to light-token', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
 
         // Mint compressed tokens
@@ -607,19 +607,19 @@ describe('loadAta - Standard vs Unified Distinction', () => {
             selectTokenPoolInfo(tokenPoolInfos),
         );
 
-        // Derive c-token ATA
-        const ctokenAta = getAssociatedTokenAddressInterface(
+        // Derive light-token ATA
+        const lightTokenAta = getAssociatedTokenAddressInterface(
             mint,
             owner.publicKey,
         );
 
-        // Load to c-token ATA with wrap=false
-        await loadAta(rpc, ctokenAta, owner, mint, payer);
+        // Load to light-token ATA with wrap=false
+        await loadAta(rpc, lightTokenAta, owner, mint, payer);
 
-        // c-token ATA should have balance
-        const ctokenInfo = await rpc.getAccountInfo(ctokenAta);
-        expect(ctokenInfo).not.toBeNull();
-        const ctokenBalance = ctokenInfo!.data.readBigUInt64LE(64);
-        expect(ctokenBalance).toBe(BigInt(2000));
+        // light-token ATA should have balance
+        const lightTokenInfo = await rpc.getAccountInfo(lightTokenAta);
+        expect(lightTokenInfo).not.toBeNull();
+        const lightTokenBalance = lightTokenInfo!.data.readBigUInt64LE(64);
+        expect(lightTokenBalance).toBe(BigInt(2000));
     });
 });

@@ -1,7 +1,7 @@
 /**
  * Load ATA - Standard Path (wrap=false)
  *
- * Tests the standard load path which only decompresses ctoken-cold.
+ * Tests the standard load path which only decompresses light-token-cold.
  * SPL/T22 balances are NOT wrapped in this mode.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -42,7 +42,10 @@ featureFlags.version = VERSION.V2;
 
 const TEST_TOKEN_DECIMALS = 9;
 
-async function getCTokenBalance(rpc: Rpc, address: PublicKey): Promise<bigint> {
+async function getLightTokenBalance(
+    rpc: Rpc,
+    address: PublicKey,
+): Promise<bigint> {
     const accountInfo = await rpc.getAccountInfo(address);
     if (!accountInfo) return BigInt(0);
     return accountInfo.data.readBigUInt64LE(64);
@@ -89,7 +92,7 @@ describe('loadAta - Standard Path (wrap=false)', () => {
         tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
     }, 60_000);
 
-    describe('ctoken-cold only', () => {
+    describe('light-token-cold only', () => {
         it('should decompress cold balance to hot ATA', async () => {
             const owner = await newAccountWithLamports(rpc, 1e9);
 
@@ -119,7 +122,7 @@ describe('loadAta - Standard Path (wrap=false)', () => {
 
             expect(signature).not.toBeNull();
 
-            const hotBalance = await getCTokenBalance(rpc, ata);
+            const hotBalance = await getLightTokenBalance(rpc, ata);
             expect(hotBalance).toBe(BigInt(5000));
 
             const coldAfter = await getCompressedBalance(
@@ -159,7 +162,7 @@ describe('loadAta - Standard Path (wrap=false)', () => {
         });
     });
 
-    describe('ctoken-hot exists', () => {
+    describe('light-token-hot exists', () => {
         it('should return null when no cold balance (nothing to load)', async () => {
             const owner = await newAccountWithLamports(rpc, 1e9);
 
@@ -199,7 +202,7 @@ describe('loadAta - Standard Path (wrap=false)', () => {
             );
             await loadAta(rpc, ata, owner, mint);
 
-            const hotBefore = await getCTokenBalance(rpc, ata);
+            const hotBefore = await getLightTokenBalance(rpc, ata);
             expect(hotBefore).toBe(BigInt(3000));
 
             await mintTo(
@@ -215,7 +218,7 @@ describe('loadAta - Standard Path (wrap=false)', () => {
 
             await loadAta(rpc, ata, owner, mint);
 
-            const hotAfter = await getCTokenBalance(rpc, ata);
+            const hotAfter = await getLightTokenBalance(rpc, ata);
             expect(hotAfter).toBe(BigInt(5000));
         });
     });
@@ -267,18 +270,18 @@ describe('loadAta - Standard Path (wrap=false)', () => {
             const splBalanceBefore = await getAccount(rpc, splAta);
             expect(splBalanceBefore.amount).toBe(BigInt(2000));
 
-            const ctokenAta = getAssociatedTokenAddressInterface(
+            const lightTokenAta = getAssociatedTokenAddressInterface(
                 mint,
                 owner.publicKey,
             );
-            const signature = await loadAta(rpc, ctokenAta, owner, mint);
+            const signature = await loadAta(rpc, lightTokenAta, owner, mint);
 
             expect(signature).not.toBeNull();
 
             const splBalanceAfter = await getAccount(rpc, splAta);
             expect(splBalanceAfter.amount).toBe(BigInt(2000));
 
-            const hotBalance = await getCTokenBalance(rpc, ctokenAta);
+            const hotBalance = await getLightTokenBalance(rpc, lightTokenAta);
             expect(hotBalance).toBe(BigInt(500));
         });
     });

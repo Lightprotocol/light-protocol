@@ -41,8 +41,8 @@ export {
     // Instructions
     createMintInstruction,
     createTokenMetadata,
-    createAssociatedCTokenAccountInstruction,
-    createAssociatedCTokenAccountIdempotentInstruction,
+    createAssociatedLightTokenAccountInstruction,
+    createAssociatedLightTokenAccountIdempotentInstruction,
     createAssociatedTokenAccountInterfaceInstruction,
     createAssociatedTokenAccountInterfaceIdempotentInstruction,
     createAtaInterfaceIdempotentInstruction,
@@ -57,14 +57,14 @@ export {
     createWrapInstruction,
     createUnwrapInstruction,
     createUnwrapInstructions,
-    createCTokenFreezeAccountInstruction,
-    createCTokenThawAccountInstruction,
+    createLightTokenFreezeAccountInstruction,
+    createLightTokenThawAccountInstruction,
     createLightTokenTransferInstruction,
     // Types
     TokenMetadataInstructionData,
     CompressibleConfig,
-    CTokenConfig,
-    CreateAssociatedCTokenAccountParams,
+    LightTokenConfig,
+    CreateAssociatedLightTokenAccountParams,
     // Constants for rent sponsor
     DEFAULT_COMPRESSIBLE_CONFIG,
     // Actions
@@ -77,7 +77,7 @@ export {
     createTransferInterfaceInstructions,
     sliceLast,
     wrap,
-    mintTo as mintToCToken,
+    mintTo as mintToLightToken,
     mintToCompressed,
     mintToInterface,
     updateMintAuthority,
@@ -96,8 +96,8 @@ export {
     Account,
     AccountState,
     ParsedTokenAccount as ParsedTokenAccountInterface,
-    parseCTokenHot,
-    parseCTokenCold,
+    parseLightTokenHot,
+    parseLightTokenCold,
     toAccountInfo,
     convertTokenDataToAccount,
     // Types
@@ -175,7 +175,7 @@ export async function createLoadAtaInstructions(
 }
 
 /**
- * Load token balances into a c-token ATA.
+ * Load token balances into a light-token ATA.
  *
  * @param rpc               RPC connection
  * @param ata               Associated token address

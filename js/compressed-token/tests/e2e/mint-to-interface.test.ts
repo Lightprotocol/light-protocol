@@ -17,8 +17,8 @@ import {
 import { createMintInterface } from '../../src/v3/actions';
 import { mintToInterface } from '../../src/v3/actions/mint-to-interface';
 import { createMint } from '../../src/actions/create-mint';
-import { createAssociatedCTokenAccount } from '../../src/v3/actions/create-associated-ctoken';
-import { getAssociatedCTokenAddress } from '../../src/v3/derivation';
+import { createAssociatedLightTokenAccount } from '../../src/v3/actions/create-associated-light-token';
+import { getAssociatedLightTokenAddress } from '../../src/v3/derivation';
 import { getAccountInterface } from '../../src/v3/get-account-interface';
 
 featureFlags.version = VERSION.V2;
@@ -197,14 +197,14 @@ describe('mintToInterface - Compressed Mints', () => {
 
     it('should mint compressed tokens to onchain ctoken account', async () => {
         const recipient = Keypair.generate();
-        await createAssociatedCTokenAccount(
+        await createAssociatedLightTokenAccount(
             rpc,
             payer,
             recipient.publicKey,
             mint,
         );
 
-        const recipientCToken = getAssociatedCTokenAddress(
+        const recipientCToken = getAssociatedLightTokenAddress(
             recipient.publicKey,
             mint,
         );
@@ -236,14 +236,14 @@ describe('mintToInterface - Compressed Mints', () => {
 
     it('should mint compressed tokens with bigint amount', async () => {
         const recipient = Keypair.generate();
-        await createAssociatedCTokenAccount(
+        await createAssociatedLightTokenAccount(
             rpc,
             payer,
             recipient.publicKey,
             mint,
         );
 
-        const recipientCToken = getAssociatedCTokenAddress(
+        const recipientCToken = getAssociatedLightTokenAddress(
             recipient.publicKey,
             mint,
         );
@@ -271,14 +271,14 @@ describe('mintToInterface - Compressed Mints', () => {
     it('should fail with wrong authority for compressed mint', async () => {
         const wrongAuthority = Keypair.generate();
         const recipient = Keypair.generate();
-        await createAssociatedCTokenAccount(
+        await createAssociatedLightTokenAccount(
             rpc,
             payer,
             recipient.publicKey,
             mint,
         );
 
-        const recipientCToken = getAssociatedCTokenAddress(
+        const recipientCToken = getAssociatedLightTokenAddress(
             recipient.publicKey,
             mint,
         );
@@ -297,14 +297,14 @@ describe('mintToInterface - Compressed Mints', () => {
 
     it('should auto-detect LIGHT_TOKEN_PROGRAM_ID when programId not provided', async () => {
         const recipient = Keypair.generate();
-        await createAssociatedCTokenAccount(
+        await createAssociatedLightTokenAccount(
             rpc,
             payer,
             recipient.publicKey,
             mint,
         );
 
-        const recipientCToken = getAssociatedCTokenAddress(
+        const recipientCToken = getAssociatedLightTokenAddress(
             recipient.publicKey,
             mint,
         );
@@ -490,14 +490,14 @@ describe('mintToInterface - Edge Cases', () => {
 
     it('should handle zero amount minting', async () => {
         const recipient = Keypair.generate();
-        await createAssociatedCTokenAccount(
+        await createAssociatedLightTokenAccount(
             rpc,
             payer,
             recipient.publicKey,
             compressedMint,
         );
 
-        const recipientCToken = getAssociatedCTokenAddress(
+        const recipientCToken = getAssociatedLightTokenAddress(
             recipient.publicKey,
             compressedMint,
         );
@@ -534,14 +534,14 @@ describe('mintToInterface - Edge Cases', () => {
         await rpc.confirmTransaction(result.transactionSignature, 'confirmed');
 
         const recipient = Keypair.generate();
-        await createAssociatedCTokenAccount(
+        await createAssociatedLightTokenAccount(
             rpc,
             payer,
             recipient.publicKey,
             result.mint,
         );
 
-        const recipientCToken = getAssociatedCTokenAddress(
+        const recipientCToken = getAssociatedLightTokenAddress(
             recipient.publicKey,
             result.mint,
         );
