@@ -2,6 +2,12 @@
 
 All notable changes to this package will be documented in this file.
 
+## 2026-02-27
+
+### Features
+
+- Forester dashboard with compression improvements, pending state tracking, and eligibility checks. (#2310)
+
 ## 2026-02-17
 
 ### Features
