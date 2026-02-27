@@ -1699,13 +1699,13 @@ describe('get-account-interface', () => {
                 stateTreeInfo,
                 selectTokenPoolInfo(lightTokenPoolInfos),
             );
-            const unifiedCtokenAta = getAssociatedTokenAddressInterface(
+            const unifiedLightTokenAta = getAssociatedTokenAddressInterface(
                 lightTokenMint,
                 unifiedOwner.publicKey,
             );
             await loadAta(
                 rpc,
-                unifiedCtokenAta,
+                unifiedLightTokenAta,
                 unifiedOwner,
                 lightTokenMint,
                 payer,
@@ -1888,7 +1888,7 @@ describe('get-account-interface', () => {
     });
 
     describe('wrap=true edge cases', () => {
-        it('wrap=true with only SPL hot (no ctoken accounts)', async () => {
+        it('wrap=true with only SPL hot (no light-token accounts)', async () => {
             const owner = await newAccountWithLamports(rpc, 1e9);
             const splHotAmount = 5000n;
 

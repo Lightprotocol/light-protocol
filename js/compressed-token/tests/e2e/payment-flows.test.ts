@@ -1,7 +1,7 @@
 /**
  * Payment Flows Test
  *
- * Demonstrates CToken payment patterns at both action and instruction level.
+ * Demonstrates Light token payment patterns at both action and instruction level.
  * Mirrors SPL Token's flow: destination ATA must exist before transfer.
  */
 import { describe, it, expect, beforeAll } from 'vitest';

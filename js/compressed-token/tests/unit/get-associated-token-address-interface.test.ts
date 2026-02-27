@@ -128,7 +128,7 @@ describe('getAssociatedTokenAddressInterface', () => {
     });
 
     describe('different programIds produce different ATAs', () => {
-        it('should produce different ATAs for CTOKEN vs TOKEN_PROGRAM_ID', () => {
+        it('should produce different ATAs for LIGHT_TOKEN vs TOKEN_PROGRAM_ID', () => {
             const lightTokenAta = getAssociatedTokenAddressInterface(
                 mint,
                 owner,

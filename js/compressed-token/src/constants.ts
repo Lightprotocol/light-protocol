@@ -64,7 +64,7 @@ export const ADD_TOKEN_POOL_DISCRIMINATOR = Buffer.from([
 export const MAX_TOP_UP = 65535;
 
 /**
- * Rent configuration constants for compressible ctoken accounts.
+ * Rent configuration constants for compressible light token accounts.
  * These match the Rust SDK defaults in program-libs/compressible/src/rent/config.rs
  */
 
@@ -87,11 +87,11 @@ export const COMPRESSION_INCENTIVE = 1000;
 export const TOTAL_COMPRESSION_COST = COMPRESSION_COST + COMPRESSION_INCENTIVE;
 
 /**
- * Compressible ctoken account size in bytes.
+ * Compressible light token account size in bytes.
  * = 165 (base SPL token) + 1 (account_type) + 1 (Option) + 4 (Vec len) + 1 (ext disc) + 4 (ext header) + 96 (CompressionInfo) = 272
  * Source: program-libs/token-interface/src/state/token/top_up.rs MIN_SIZE_WITH_COMPRESSIBLE
  */
-export const COMPRESSIBLE_CTOKEN_ACCOUNT_SIZE = 272;
+export const COMPRESSIBLE_LIGHT_TOKEN_ACCOUNT_SIZE = 272;
 
 /**
  * Calculate rent per epoch for a given account size.
@@ -102,11 +102,11 @@ export function rentPerEpoch(bytes: number): number {
 }
 
 /**
- * Default rent per epoch for a compressible ctoken account (272 bytes).
+ * Default rent per epoch for a compressible light token account (272 bytes).
  * = 128 + 272 = 400 lamports
  */
-export const COMPRESSIBLE_CTOKEN_RENT_PER_EPOCH = rentPerEpoch(
-    COMPRESSIBLE_CTOKEN_ACCOUNT_SIZE,
+export const COMPRESSIBLE_LIGHT_TOKEN_RENT_PER_EPOCH = rentPerEpoch(
+    COMPRESSIBLE_LIGHT_TOKEN_ACCOUNT_SIZE,
 );
 
 /** Default prepaid epochs (24 hours = 16 epochs * 1.5h) */
@@ -121,7 +121,7 @@ export const DEFAULT_WRITE_TOP_UP = 766;
  */
 export function calculateFeePayerCostAtCreation(
     prepayEpochs: number = DEFAULT_PREPAY_EPOCHS,
-    accountBytes: number = COMPRESSIBLE_CTOKEN_ACCOUNT_SIZE,
+    accountBytes: number = COMPRESSIBLE_LIGHT_TOKEN_ACCOUNT_SIZE,
 ): number {
     return TOTAL_COMPRESSION_COST + prepayEpochs * rentPerEpoch(accountBytes);
 }
