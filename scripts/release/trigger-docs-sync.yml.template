@@ -1,0 +1,28 @@
+# Template: trigger-docs-sync.yml for downstream example repos.
+# Copy this file to .github/workflows/trigger-docs-sync.yml in the target repo.
+# Requires a repo secret `docs_sync` with a PAT that has repo scope on docs-v2.
+#
+# This mirrors the existing trigger-docs-sync.yml in program-examples.
+
+name: Trigger Docs Sync
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  trigger-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger docs-v2 sync
+        env:
+          TOKEN: ${{ secrets.docs_sync }}
+          # Change the event_type to match the receiver workflow in docs-v2.
+          # For examples-light-token use: sync-examples-light-token
+          EVENT_TYPE: sync-examples-light-token
+        run: |
+          curl -fsSL -X POST \
+            -H "Authorization: token $TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/Lightprotocol/docs-v2/dispatches" \
+            -d "{\"event_type\":\"$EVENT_TYPE\",\"client_payload\":{\"commit\":\"${{ github.sha }}\"}}"

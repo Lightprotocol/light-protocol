@@ -1,0 +1,210 @@
+name: Sync Downstream Examples
+
+on:
+  workflow_run:
+    workflows: ["Publish Rust Release"]
+    types: [completed]
+    branches: [main]
+
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run — create branches but do not open PRs'
+        type: boolean
+        default: false
+      repos:
+        description: 'Comma-separated repo list (empty = all)'
+        required: false
+        default: ''
+
+jobs:
+  collect-versions:
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    outputs:
+      version: ${{ steps.versions.outputs.sdk_version }}
+      versions_artifact: ${{ steps.upload.outputs.artifact-id }}
+
+    steps:
+      - name: Checkout light-protocol
+        uses: actions/checkout@v4
+
+      - name: Install jq
+        run: sudo apt-get install -y jq
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Collect versions
+        id: versions
+        run: |
+          ./scripts/release/collect-versions.sh > /tmp/versions.env
+          cat /tmp/versions.env
+          SDK_VERSION=$(grep '^LIGHT_SDK_VERSION=' /tmp/versions.env | cut -d= -f2)
+          echo "sdk_version=$SDK_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Upload versions artifact
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: versions-env
+          path: /tmp/versions.env
+          retention-days: 7
+
+  bump-repo:
+    needs: collect-versions
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        repo:
+          - examples-light-token
+          - cp-swap-reference
+          - program-examples
+          - nullifier-program
+
+    # Skip repos not in the comma-separated list (if provided)
+    if: >-
+      inputs.repos == '' ||
+      contains(inputs.repos, matrix.repo)
+
+    steps:
+      - name: Checkout light-protocol (for scripts)
+        uses: actions/checkout@v4
+        with:
+          path: light-protocol
+
+      - name: Download versions artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: versions-env
+          path: /tmp
+
+      - name: Clone downstream repo
+        env:
+          GH_TOKEN: ${{ secrets.DOWNSTREAM_SYNC_PAT }}
+        run: |
+          gh repo clone "Lightprotocol/${{ matrix.repo }}" /tmp/downstream -- --depth=1
+
+      - name: Create bump branch
+        working-directory: /tmp/downstream
+        run: |
+          BRANCH="auto-bump/light-v${{ needs.collect-versions.outputs.version }}"
+          git checkout -b "$BRANCH"
+          echo "BUMP_BRANCH=$BRANCH" >> "$GITHUB_ENV"
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Install jq
+        run: sudo apt-get install -y jq
+
+      - name: Run bump-downstream
+        id: bump
+        run: |
+          cd light-protocol
+          ./scripts/release/bump-downstream.sh \
+            /tmp/downstream \
+            /tmp/versions.env \
+            --migrations-dir ./scripts/release/migrations
+          echo "build_passed=true" >> "$GITHUB_OUTPUT"
+        continue-on-error: true
+
+      - name: Check for changes
+        id: changes
+        working-directory: /tmp/downstream
+        run: |
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit changes
+        if: steps.changes.outputs.has_changes == 'true'
+        working-directory: /tmp/downstream
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          VERSION="${{ needs.collect-versions.outputs.version }}"
+          git commit -m "$(cat <<EOF
+          chore: bump Light Protocol deps to v${VERSION}
+
+          Automated version bump from Lightprotocol/light-protocol release.
+          See: https://github.com/Lightprotocol/light-protocol/releases
+          EOF
+          )"
+
+      - name: Push branch
+        if: steps.changes.outputs.has_changes == 'true'
+        working-directory: /tmp/downstream
+        env:
+          GH_TOKEN: ${{ secrets.DOWNSTREAM_SYNC_PAT }}
+        run: |
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/Lightprotocol/${{ matrix.repo }}.git"
+          git push -u origin "$BUMP_BRANCH" --force
+
+      - name: Read bump report
+        id: report
+        if: steps.changes.outputs.has_changes == 'true'
+        run: |
+          if [ -f /tmp/downstream/.bump-report.md ]; then
+            {
+              echo 'body<<REPORT_EOF'
+              cat /tmp/downstream/.bump-report.md
+              echo ''
+              echo '---'
+              echo 'Automated by [sync-downstream-examples](https://github.com/Lightprotocol/light-protocol/actions/workflows/sync-downstream-examples.yml)'
+              echo 'REPORT_EOF'
+            } >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open pull request
+        if: >-
+          steps.changes.outputs.has_changes == 'true' &&
+          inputs.dry_run != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.DOWNSTREAM_SYNC_PAT }}
+        run: |
+          VERSION="${{ needs.collect-versions.outputs.version }}"
+
+          # Check if PR already exists for this branch
+          EXISTING=$(gh pr list \
+            --repo "Lightprotocol/${{ matrix.repo }}" \
+            --head "$BUMP_BRANCH" \
+            --state open \
+            --json number \
+            --jq '.[0].number // empty')
+
+          if [ -n "$EXISTING" ]; then
+            echo "PR #$EXISTING already exists — updating"
+            gh pr edit "$EXISTING" \
+              --repo "Lightprotocol/${{ matrix.repo }}" \
+              --body "${{ steps.report.outputs.body }}"
+          else
+            gh pr create \
+              --repo "Lightprotocol/${{ matrix.repo }}" \
+              --head "$BUMP_BRANCH" \
+              --base main \
+              --title "chore: bump Light Protocol deps to v${VERSION}" \
+              --body "${{ steps.report.outputs.body }}"
+          fi
+
+  trigger-docs-sync:
+    needs: [collect-versions, bump-repo]
+    runs-on: ubuntu-latest
+    if: inputs.dry_run != 'true'
+
+    steps:
+      - name: Trigger docs-v2 sync-handlers
+        env:
+          GH_TOKEN: ${{ secrets.DOWNSTREAM_SYNC_PAT }}
+        run: |
+          curl -fsSL -X POST \
+            -H "Authorization: token $GH_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/Lightprotocol/docs-v2/dispatches" \
+            -d "{\"event_type\":\"sync-handlers\",\"client_payload\":{\"commit\":\"${{ github.sha }}\"}}"
