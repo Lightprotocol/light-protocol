@@ -83,6 +83,16 @@ pub fn derive_new_addresses<'info, 'a, 'b: 'a, const ADDRESS_ASSIGNMENT: bool>(
                     tree.queue_batches.next_index,
                 );
 
+                // For batched address trees the queue is embedded in the tree
+                // account so both indices must point to the same account.
+                if new_address_params.address_queue_index()
+                    != new_address_params.address_merkle_tree_account_index()
+                {
+                    return Err(ProgramError::from(
+                        SystemProgramError::AddressMerkleTreeAccountDiscriminatorMismatch,
+                    ));
+                }
+
                 (
                     derive_address(
                         &new_address_params.seed(),
