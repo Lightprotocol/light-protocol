@@ -184,12 +184,16 @@ impl ProtocolConfig {
 
     /// In the last part of the active phase the registration phase starts.
     /// Returns end slot of the registration phase/start slot of the next active phase.
+    /// Registration phase time check is temporarily disabled to allow
+    /// foresters to register for the current epoch at any time.        
     pub fn is_registration_phase(&self, slot: u64) -> Result<u64> {
         let latest_register_epoch = self.get_latest_register_epoch(slot)?;
+        /* 
         let latest_register_epoch_progress = self.get_latest_register_epoch_progress(slot)?;
         if latest_register_epoch_progress >= self.registration_phase_length {
             return err!(RegistryError::NotInRegistrationPeriod);
-        }
+        } */
+        
         Ok((latest_register_epoch) * self.active_phase_length
             + self.genesis_slot
             + self.registration_phase_length)
