@@ -6,6 +6,7 @@ use light_compressed_token_sdk::compressed_token::create_compressed_mint::{
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc, RpcError};
 use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
+use light_token::instruction::rent_sponsor_pda;
 use light_token_interface::{
     instructions::{
         extensions::token_metadata::TokenMetadataInstructionData,
@@ -16,7 +17,6 @@ use light_token_interface::{
 };
 use light_token_types::CPI_AUTHORITY_PDA;
 use sdk_token_test::{ChainedCtokenInstructionData, PdaCreationData, ID};
-use light_token::instruction::rent_sponsor_pda;
 use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signer},
@@ -87,8 +87,7 @@ async fn test_ctoken_pda() {
 
     let account_data = mint_account.unwrap();
     let compressed_account_data = account_data.data.unwrap();
-    let compressed_mint =
-        Mint::deserialize(&mut compressed_account_data.data.as_slice()).unwrap();
+    let compressed_mint = Mint::deserialize(&mut compressed_account_data.data.as_slice()).unwrap();
 
     let expected_base = BaseMint {
         supply: 1000,
@@ -97,7 +96,10 @@ async fn test_ctoken_pda() {
         mint_authority: None,
         freeze_authority: Some(freeze_authority.to_bytes().into()),
     };
-    assert_eq!(compressed_mint.base, expected_base, "BaseMint fields should match");
+    assert_eq!(
+        compressed_mint.base, expected_base,
+        "BaseMint fields should match"
+    );
 }
 
 pub async fn create_mint<R: Rpc + Indexer>(

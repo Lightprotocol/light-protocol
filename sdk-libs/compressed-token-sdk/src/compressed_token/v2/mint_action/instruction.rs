@@ -91,8 +91,16 @@ fn build_cpi_write_instruction<A: light_account_checks::AccountInfoTrait + Clone
             let mut account_metas = Vec::with_capacity(
                 6 + accounts.recipient_token_accounts.len()
                     + if accounts.mint_signer.is_some() { 1 } else { 0 }
-                    + if accounts.rent_sponsor.is_some() { 1 } else { 0 }
-                    + if accounts.system_program.is_some() { 1 } else { 0 },
+                    + if accounts.rent_sponsor.is_some() {
+                        1
+                    } else {
+                        0
+                    }
+                    + if accounts.system_program.is_some() {
+                        1
+                    } else {
+                        0
+                    },
             );
 
             account_metas.push(solana_instruction::AccountMeta {
