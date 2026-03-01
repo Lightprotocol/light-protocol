@@ -737,158 +737,92 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                     event = "epoch_monitor_new_epoch_detected",
                     run_id = %self.run_id,
                     epoch = current_epoch,
-                    "New epoch detected"
+                    "New epoch detected; sending for processing"
                 );
-                let phases = get_epoch_phases(&self.protocol_config, current_epoch);
-                if slot < phases.registration.end {
-                    debug!(
-                        event = "epoch_monitor_send_current_epoch",
+                if let Err(e) = tx.send(current_epoch).await {
+                    error!(
+                        event = "epoch_monitor_send_current_epoch_failed",
                         run_id = %self.run_id,
                         epoch = current_epoch,
-                        "Sending current epoch for processing"
+                        error = ?e,
+                        "Failed to send current epoch for processing; channel closed"
                     );
-                    if let Err(e) = tx.send(current_epoch).await {
-                        error!(
-                            event = "epoch_monitor_send_current_epoch_failed",
-                            run_id = %self.run_id,
-                            epoch = current_epoch,
-                            error = ?e,
-                            "Failed to send current epoch for processing; channel closed"
-                        );
-                        return Err(anyhow!("Epoch channel closed: {}", e));
-                    }
-                    last_epoch = Some(current_epoch);
+                    return Err(anyhow!("Epoch channel closed: {}", e));
                 }
+                last_epoch = Some(current_epoch);
             }
 
-            // Find the next epoch we can register for (scan forward if needed)
-            let mut target_epoch = current_epoch + 1;
+            // Find the next epoch to process
+            let target_epoch = current_epoch + 1;
             if last_epoch.is_none_or(|last| target_epoch > last) {
-                // Scan forward to find an epoch whose registration is still open
-                // This handles the case where we missed multiple epochs
-                loop {
-                    let target_phases = get_epoch_phases(&self.protocol_config, target_epoch);
+                let target_phases = get_epoch_phases(&self.protocol_config, target_epoch);
 
-                    // If registration hasn't started yet, wait for it
-                    if slot < target_phases.registration.start {
-                        let mut rpc = match self.rpc_pool.get_connection().await {
-                            Ok(rpc) => rpc,
-                            Err(e) => {
-                                warn!(
-                                    event = "epoch_monitor_wait_rpc_connection_failed",
-                                    run_id = %self.run_id,
-                                    target_epoch,
-                                    error = ?e,
-                                    "Failed to get RPC connection while waiting for registration slot"
-                                );
-                                tokio::time::sleep(Duration::from_secs(1)).await;
-                                break;
-                            }
-                        };
-
-                        const REGISTRATION_BUFFER_SLOTS: u64 = 30;
-                        let wait_target = target_phases
-                            .registration
-                            .start
-                            .saturating_sub(REGISTRATION_BUFFER_SLOTS);
-                        let slots_to_wait = wait_target.saturating_sub(slot);
-
-                        debug!(
-                            event = "epoch_monitor_wait_for_registration",
-                            run_id = %self.run_id,
-                            target_epoch,
-                            current_slot = slot,
-                            wait_target_slot = wait_target,
-                            registration_start_slot = target_phases.registration.start,
-                            slots_to_wait,
-                            "Waiting for target epoch registration phase"
-                        );
-
-                        if let Err(e) =
-                            wait_until_slot_reached(&mut *rpc, &self.slot_tracker, wait_target)
-                                .await
-                        {
-                            error!(
-                                event = "epoch_monitor_wait_for_registration_failed",
+                // If registration hasn't started yet, wait for it
+                if slot < target_phases.registration.start {
+                    let mut rpc = match self.rpc_pool.get_connection().await {
+                        Ok(rpc) => rpc,
+                        Err(e) => {
+                            warn!(
+                                event = "epoch_monitor_wait_rpc_connection_failed",
                                 run_id = %self.run_id,
                                 target_epoch,
                                 error = ?e,
-                                "Error waiting for registration phase"
+                                "Failed to get RPC connection while waiting for registration slot"
                             );
-                            break;
-                        }
-
-                        let current_slot = self.slot_tracker.estimated_current_slot();
-                        if current_slot >= target_phases.registration.end {
-                            debug!(
-                                event = "epoch_monitor_registration_ended_while_waiting",
-                                run_id = %self.run_id,
-                                target_epoch,
-                                current_slot,
-                                registration_end_slot = target_phases.registration.end,
-                                "Target epoch registration ended while waiting; trying next epoch"
-                            );
-                            target_epoch += 1;
+                            tokio::time::sleep(Duration::from_secs(1)).await;
                             continue;
                         }
+                    };
 
-                        debug!(
-                            event = "epoch_monitor_send_target_epoch_after_wait",
-                            run_id = %self.run_id,
-                            target_epoch,
-                            current_slot,
-                            registration_end_slot = target_phases.registration.end,
-                            "Target epoch registration phase ready; sending for processing"
-                        );
-                        if let Err(e) = tx.send(target_epoch).await {
-                            error!(
-                                event = "epoch_monitor_send_target_epoch_failed",
-                                run_id = %self.run_id,
-                                target_epoch,
-                                error = ?e,
-                                "Failed to send target epoch for processing"
-                            );
-                            break;
-                        }
-                        last_epoch = Some(target_epoch);
-                        break;
-                    }
+                    const REGISTRATION_BUFFER_SLOTS: u64 = 30;
+                    let wait_target = target_phases
+                        .registration
+                        .start
+                        .saturating_sub(REGISTRATION_BUFFER_SLOTS);
+                    let slots_to_wait = wait_target.saturating_sub(slot);
 
-                    // If we're within the registration window, send it
-                    if slot < target_phases.registration.end {
-                        debug!(
-                            event = "epoch_monitor_send_target_epoch_window_open",
-                            run_id = %self.run_id,
-                            target_epoch,
-                            slot,
-                            registration_end_slot = target_phases.registration.end,
-                            "Target epoch registration window is open; sending for processing"
-                        );
-                        if let Err(e) = tx.send(target_epoch).await {
-                            error!(
-                                event = "epoch_monitor_send_target_epoch_failed",
-                                run_id = %self.run_id,
-                                target_epoch,
-                                error = ?e,
-                                "Failed to send target epoch for processing"
-                            );
-                            break;
-                        }
-                        last_epoch = Some(target_epoch);
-                        break;
-                    }
-
-                    // Registration already ended, try next epoch
                     debug!(
-                        event = "epoch_monitor_target_epoch_registration_closed",
+                        event = "epoch_monitor_wait_for_registration",
                         run_id = %self.run_id,
                         target_epoch,
-                        slot,
-                        registration_end_slot = target_phases.registration.end,
-                        "Target epoch registration already ended; checking next epoch"
+                        current_slot = slot,
+                        wait_target_slot = wait_target,
+                        registration_start_slot = target_phases.registration.start,
+                        slots_to_wait,
+                        "Waiting for target epoch registration phase"
                     );
-                    target_epoch += 1;
+
+                    if let Err(e) =
+                        wait_until_slot_reached(&mut *rpc, &self.slot_tracker, wait_target).await
+                    {
+                        error!(
+                            event = "epoch_monitor_wait_for_registration_failed",
+                            run_id = %self.run_id,
+                            target_epoch,
+                            error = ?e,
+                            "Error waiting for registration phase"
+                        );
+                        continue;
+                    }
                 }
+
+                debug!(
+                    event = "epoch_monitor_send_target_epoch",
+                    run_id = %self.run_id,
+                    target_epoch,
+                    "Sending target epoch for processing"
+                );
+                if let Err(e) = tx.send(target_epoch).await {
+                    error!(
+                        event = "epoch_monitor_send_target_epoch_failed",
+                        run_id = %self.run_id,
+                        target_epoch,
+                        error = ?e,
+                        "Failed to send target epoch for processing"
+                    );
+                    continue;
+                }
+                last_epoch = Some(target_epoch);
                 continue; // Re-check state after processing
             } else {
                 // we've already sent the next epoch, wait a bit before checking again
@@ -966,70 +900,17 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             }
         }
 
-        // Only process current epoch if we can still register or are already registered
-        // If registration has ended and we haven't registered, skip it to avoid errors
-        if slot < current_phases.registration.end {
-            debug!(
-                "Processing current epoch: {} (registration still open)",
-                current_epoch
+        // Always process the current epoch (registration is allowed at any time)
+        debug!("Processing current epoch: {}", current_epoch);
+        if let Err(e) = tx.send(current_epoch).await {
+            error!(
+                event = "initial_epoch_send_current_failed",
+                run_id = %self.run_id,
+                epoch = current_epoch,
+                error = ?e,
+                "Failed to send current epoch for processing"
             );
-            if let Err(e) = tx.send(current_epoch).await {
-                error!(
-                    event = "initial_epoch_send_current_failed",
-                    run_id = %self.run_id,
-                    epoch = current_epoch,
-                    error = ?e,
-                    "Failed to send current epoch for processing"
-                );
-                return Ok(()); // Channel closed, exit gracefully
-            }
-        } else {
-            // Check if we're already registered for this epoch
-            let forester_epoch_pda_pubkey = get_forester_epoch_pda_from_authority(
-                &self.config.derivation_pubkey,
-                current_epoch,
-            )
-            .0;
-            match self.rpc_pool.get_connection().await {
-                Ok(rpc) => {
-                    if let Ok(Some(_)) = rpc
-                        .get_anchor_account::<ForesterEpochPda>(&forester_epoch_pda_pubkey)
-                        .await
-                    {
-                        debug!(
-                            "Processing current epoch: {} (already registered)",
-                            current_epoch
-                        );
-                        if let Err(e) = tx.send(current_epoch).await {
-                            error!(
-                                event = "initial_epoch_send_current_registered_failed",
-                                run_id = %self.run_id,
-                                epoch = current_epoch,
-                                error = ?e,
-                                "Failed to send current epoch for processing"
-                            );
-                            return Ok(()); // Channel closed, exit gracefully
-                        }
-                    } else {
-                        info!(
-                            event = "skip_current_epoch_registration_closed",
-                            run_id = %self.run_id,
-                            epoch = current_epoch,
-                            registration_end_slot = current_phases.registration.end,
-                            current_slot = slot,
-                            "Skipping current epoch because registration has ended"
-                        );
-                    }
-                }
-                Err(e) => {
-                    warn!(
-                        event = "registration_check_rpc_failed",
-                        run_id = %self.run_id,
-                        error = ?e,
-                        "Failed to get RPC connection to check registration, skipping"
-                    );
-                }
-            }
+            return Ok(()); // Channel closed, exit gracefully
         }
 
         debug!("Finished processing current and previous epochs");
@@ -1190,16 +1071,6 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         let slot = rpc.get_slot().await.map_err(ForesterError::Rpc)?;
         let phases = get_epoch_phases(&self.protocol_config, epoch);
 
-        // Check if it's already too late to register
-        if slot >= phases.registration.end {
-            return Err(RegistrationError::RegistrationPhaseEnded {
-                epoch,
-                current_slot: slot,
-                registration_end: phases.registration.end,
-            }
-            .into());
-        }
-
         if slot < phases.registration.start {
             let slots_to_wait = phases.registration.start.saturating_sub(slot);
             info!(
@@ -1219,30 +1090,6 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             match self.register_for_epoch(epoch).await {
                 Ok(registration_info) => return Ok(registration_info),
                 Err(e) => {
-                    if let Some(RegistrationError::RegistrationPhaseEnded {
-                        epoch: ended_epoch,
-                        current_slot,
-                        registration_end,
-                    }) = e.downcast_ref::<RegistrationError>()
-                    {
-                        warn!(
-                            event = "registration_attempt_non_retryable",
-                            run_id = %self.run_id,
-                            epoch,
-                            attempt = attempt + 1,
-                            max_attempts = max_retries,
-                            error = ?e,
-                            "Registration phase ended; stopping retries for this epoch"
-                        );
-                        return Err(ForesterError::Registration(
-                            RegistrationError::RegistrationPhaseEnded {
-                                epoch: *ended_epoch,
-                                current_slot: *current_slot,
-                                registration_end: *registration_end,
-                            },
-                        ));
-                    }
-
                     warn!(
                         event = "registration_attempt_failed",
                         run_id = %self.run_id,
@@ -1308,7 +1155,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         let slot = rpc.get_slot().await?;
         let phases = get_epoch_phases(&self.protocol_config, epoch);
 
-        if slot >= phases.registration.start && slot < phases.registration.end {
+        if slot >= phases.registration.start {
             let forester_epoch_pda_pubkey =
                 get_forester_epoch_pda_from_authority(&self.config.derivation_pubkey, epoch).0;
             let existing_registration = rpc
@@ -1391,7 +1238,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             };
             debug!("Registered: {:?}", registration_info);
             Ok(registration_info)
-        } else if slot < phases.registration.start {
+        } else {
             warn!(
                 event = "registration_too_early",
                 run_id = %self.run_id,
@@ -1404,21 +1251,6 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 epoch,
                 current_slot: slot,
                 registration_start: phases.registration.start,
-            }
-            .into())
-        } else {
-            warn!(
-                event = "registration_too_late",
-                run_id = %self.run_id,
-                epoch,
-                current_slot = slot,
-                registration_end_slot = phases.registration.end,
-                "Too late to register for epoch"
-            );
-            Err(RegistrationError::RegistrationPhaseEnded {
-                epoch,
-                current_slot: slot,
-                registration_end: phases.registration.end,
             }
             .into())
         }

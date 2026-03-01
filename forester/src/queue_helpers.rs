@@ -14,10 +14,13 @@ use crate::Result;
 pub struct V2QueueInfo {
     pub next_index: u64,
     pub pending_batch_index: u64,
+    pub batch_size: u64,
     pub zkp_batch_size: u64,
     pub batches: Vec<BatchInfo>,
     pub input_pending_batches: u64,
     pub output_pending_batches: u64,
+    pub input_total_zkp_batches: u64,
+    pub output_total_zkp_batches: u64,
     pub input_items_in_current_zkp_batch: u64,
     pub output_items_in_current_zkp_batch: u64,
 }
@@ -36,6 +39,7 @@ pub struct BatchInfo {
 pub struct ParsedBatchData {
     pub batch_infos: Vec<BatchInfo>,
     pub total_pending_batches: u64,
+    pub batch_size: u64,
     pub zkp_batch_size: u64,
     pub items_in_current_zkp_batch: u64,
 }
@@ -50,7 +54,10 @@ pub fn parse_batch_metadata(
     let mut batch_infos = Vec::with_capacity(batches.len());
     let mut items_in_current_zkp_batch = 0u64;
 
+    let mut batch_size = 0u64;
+
     for (batch_idx, batch) in batches.iter().enumerate() {
+        batch_size = batch.batch_size;
         zkp_batch_size = batch.zkp_batch_size;
         let num_inserted = batch.get_num_inserted_zkps();
         let current_index = batch.get_current_zkp_batch_index();
@@ -75,6 +82,7 @@ pub fn parse_batch_metadata(
     ParsedBatchData {
         batch_infos,
         total_pending_batches,
+        batch_size,
         zkp_batch_size,
         items_in_current_zkp_batch,
     }
@@ -92,13 +100,29 @@ pub fn parse_state_v2_queue_info(
     let output_parsed = parse_batch_metadata(&output_queue.batch_metadata.batches);
     let input_parsed = parse_batch_metadata(&merkle_tree.queue_batches.batches);
 
+    let input_total_zkp_batches = if input_parsed.zkp_batch_size > 0 {
+        input_parsed.batch_infos.len() as u64
+            * (input_parsed.batch_size / input_parsed.zkp_batch_size)
+    } else {
+        0
+    };
+    let output_total_zkp_batches = if output_parsed.zkp_batch_size > 0 {
+        output_parsed.batch_infos.len() as u64
+            * (output_parsed.batch_size / output_parsed.zkp_batch_size)
+    } else {
+        0
+    };
+
     Ok(V2QueueInfo {
         next_index,
         pending_batch_index: output_queue.batch_metadata.pending_batch_index,
+        batch_size: output_parsed.batch_size,
         zkp_batch_size: output_parsed.zkp_batch_size,
         batches: output_parsed.batch_infos,
         input_pending_batches: input_parsed.total_pending_batches,
         output_pending_batches: output_parsed.total_pending_batches,
+        input_total_zkp_batches,
+        output_total_zkp_batches,
         input_items_in_current_zkp_batch: input_parsed.items_in_current_zkp_batch,
         output_items_in_current_zkp_batch: output_parsed.items_in_current_zkp_batch,
     })
@@ -108,13 +132,22 @@ pub fn parse_address_v2_queue_info(merkle_tree: &BatchedMerkleTreeAccount) -> V2
     let next_index = merkle_tree.queue_batches.next_index;
     let parsed = parse_batch_metadata(&merkle_tree.queue_batches.batches);
 
+    let input_total_zkp_batches = if parsed.zkp_batch_size > 0 {
+        parsed.batch_infos.len() as u64 * (parsed.batch_size / parsed.zkp_batch_size)
+    } else {
+        0
+    };
+
     V2QueueInfo {
         next_index,
         pending_batch_index: merkle_tree.queue_batches.pending_batch_index,
+        batch_size: parsed.batch_size,
         zkp_batch_size: parsed.zkp_batch_size,
         batches: parsed.batch_infos,
         input_pending_batches: parsed.total_pending_batches,
         output_pending_batches: 0,
+        input_total_zkp_batches,
+        output_total_zkp_batches: 0,
         input_items_in_current_zkp_batch: parsed.items_in_current_zkp_batch,
         output_items_in_current_zkp_batch: 0,
     }
@@ -402,13 +435,22 @@ pub async fn get_state_v2_output_queue_info<R: Rpc>(
 
         let parsed = parse_batch_metadata(&queue.batch_metadata.batches);
 
+        let output_total_zkp_batches = if parsed.zkp_batch_size > 0 {
+            parsed.batch_infos.len() as u64 * (parsed.batch_size / parsed.zkp_batch_size)
+        } else {
+            0
+        };
+
         Ok(V2QueueInfo {
             next_index,
             pending_batch_index: queue.batch_metadata.pending_batch_index,
+            batch_size: parsed.batch_size,
             zkp_batch_size: parsed.zkp_batch_size,
             batches: parsed.batch_infos,
             input_pending_batches: 0,
             output_pending_batches: parsed.total_pending_batches,
+            input_total_zkp_batches: 0,
+            output_total_zkp_batches,
             input_items_in_current_zkp_batch: 0,
             output_items_in_current_zkp_batch: parsed.items_in_current_zkp_batch,
         })

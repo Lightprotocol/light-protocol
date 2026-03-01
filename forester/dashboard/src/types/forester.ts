@@ -15,10 +15,13 @@ export interface BatchInfo {
 export interface V2QueueInfo {
   next_index: number;
   pending_batch_index: number;
+  batch_size: number;
   zkp_batch_size: number;
   batches: BatchInfo[];
   input_pending_batches: number;
   output_pending_batches: number;
+  input_total_zkp_batches: number;
+  output_total_zkp_batches: number;
   input_items_in_current_zkp_batch: number;
   output_items_in_current_zkp_batch: number;
 }
@@ -34,6 +37,7 @@ export interface TreeStatus {
   threshold: number;
   is_rolledover: boolean;
   queue_length: number | null;
+  queue_capacity: number | null;
   v2_queue_info: V2QueueInfo | null;
   assigned_forester: string | null;
   schedule: (number | null)[];
@@ -59,6 +63,7 @@ export interface ForesterStatus {
   active_phase_length: number;
   active_epoch_progress_percentage: number;
   hours_until_next_epoch: number;
+  registration_is_open: boolean;
   slots_until_next_registration: number;
   hours_until_next_registration: number;
   active_epoch_foresters: ForesterInfo[];
