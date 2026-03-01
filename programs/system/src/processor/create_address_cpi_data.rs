@@ -66,11 +66,13 @@ pub fn derive_new_addresses<'info, 'a, 'b: 'a, const ADDRESS_ASSIGNMENT: bool>(
                     Err(SystemProgramError::DeriveAddressError)
                 }?;
 
-                cpi_ix_data.addresses[i].tree_index = context.get_index_or_insert(
+                let tree_index = context.get_index_or_insert(
                     new_address_params.address_merkle_tree_account_index(),
                     remaining_accounts,
                     "V2 address tree",
                 )?;
+                cpi_ix_data.addresses[i].tree_index = tree_index;
+                cpi_ix_data.addresses[i].queue_index = tree_index;
 
                 context.set_address_fee(
                     tree.metadata.rollover_metadata.network_fee,
