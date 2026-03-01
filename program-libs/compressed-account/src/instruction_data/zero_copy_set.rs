@@ -169,7 +169,7 @@ impl ZNewAddressParamsAssignedPackedMut<'_> {
     ) {
         self.seed = seed;
         self.address_merkle_tree_root_index = address_merkle_tree_root_index;
-        self.address_queue_account_index = 0; // always 0 for v2 address trees.
+        self.address_queue_account_index = address_merkle_tree_account_index;
         if let Some(assigned_account_index) = assigned_account_index {
             self.assigned_account_index = assigned_account_index;
             self.assigned_to_account = 1; // set to true
