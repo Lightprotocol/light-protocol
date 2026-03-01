@@ -453,6 +453,30 @@ async fn test_initialize_protocol_config() {
         .await
         .unwrap();
     }
+    // FAIL: initialize a Merkle tree with network_fee + forester (must be rejected)
+    {
+        let merkle_tree_keypair = Keypair::new();
+        let nullifier_queue_keypair = Keypair::new();
+        let cpi_context_keypair = Keypair::new();
+        let result = create_state_merkle_tree_and_queue_account(
+            &payer,
+            true,
+            &mut rpc,
+            &merkle_tree_keypair,
+            &nullifier_queue_keypair,
+            Some(&cpi_context_keypair),
+            None,
+            Some(Pubkey::new_unique()),
+            1,
+            &StateMerkleTreeConfig {
+                network_fee: Some(5000),
+                ..Default::default()
+            },
+            &NullifierQueueConfig::default(),
+        )
+        .await;
+        assert_rpc_error(result, 3, RegistryError::ForesterDefined.into()).unwrap();
+    }
     // FAIL: initialize a Merkle tree with network fee != 0 || 5000
     {
         let merkle_tree_keypair = Keypair::new();

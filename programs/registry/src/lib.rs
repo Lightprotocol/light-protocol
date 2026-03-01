@@ -677,13 +677,16 @@ pub mod light_registry {
         bump: u8,
         inputs: MigrateLeafParams,
     ) -> Result<()> {
-        check_forester(
-            &ctx.accounts.merkle_tree.load()?.metadata,
-            ctx.accounts.authority.key(),
-            ctx.accounts.merkle_tree.key(),
-            &mut Some(ctx.accounts.registered_forester_pda.clone()),
+        let metadata = ctx.accounts.merkle_tree.load()?.metadata;
+        ForesterEpochPda::check_forester_in_program(
+            &mut ctx.accounts.registered_forester_pda,
+            &ctx.accounts.authority.key(),
+            &ctx.accounts.merkle_tree.key(),
             DEFAULT_WORK_V1,
         )?;
+        if metadata.rollover_metadata.network_fee == 0 {
+            return err!(RegistryError::InvalidNetworkFee);
+        }
         process_migrate_state(&ctx, bump, inputs)
     }
 
