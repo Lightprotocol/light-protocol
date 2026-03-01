@@ -124,7 +124,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
                 Ok(mut rpc) => match rpc.get_latest_blockhash().await {
                     Ok((new_hash, new_height)) => {
                         recent_blockhash = new_hash;
-                        last_valid_block_height = new_height + 150;
+                        last_valid_block_height = new_height;
                         last_blockhash_refresh = Instant::now();
                         debug!(tree = %tree_accounts.merkle_tree, "Refreshed blockhash");
                     }
@@ -242,7 +242,7 @@ async fn prepare_batch_prerequisites<R: Rpc, T: TransactionBuilder>(
             error!(tree = %tree_id_str, "Failed to get latest blockhash: {:?}", e);
             ForesterError::Rpc(e)
         })?;
-        (r_blockhash.0, r_blockhash.1 + 150)
+        (r_blockhash.0, r_blockhash.1)
     };
 
     let priority_fee = if config.build_transaction_batch_config.enable_priority_fees {
