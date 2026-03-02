@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "c994844a3394",
+  "strategy": "manual-commit",
+  "branch": "jorrit/fix-migrate-trees-preserve-work",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "program-tests/registry-test/tests/tests.rs",
+    "programs/registry/src/lib.rs",
+    "sdk-libs/program-test/src/indexer/test_indexer.rs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/c9/94844a3394/0/metadata.json",
+      "transcript": "/c9/94844a3394/0/full.jsonl",
+      "context": "/c9/94844a3394/0/context.md",
+      "content_hash": "/c9/94844a3394/0/content_hash.txt",
+      "prompt": "/c9/94844a3394/0/prompt.txt"
+    },
+    {
+      "metadata": "/c9/94844a3394/1/metadata.json",
+      "transcript": "/c9/94844a3394/1/full.jsonl",
+      "context": "/c9/94844a3394/1/context.md",
+      "content_hash": "/c9/94844a3394/1/content_hash.txt",
+      "prompt": "/c9/94844a3394/1/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2840,
+    "cache_creation_tokens": 1643596,
+    "cache_read_tokens": 86310814,
+    "output_tokens": 153028,
+    "api_call_count": 793
+  }
+}
