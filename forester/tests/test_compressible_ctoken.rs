@@ -324,7 +324,20 @@ async fn test_compressible_ctoken_compression() {
     assert_eq!(accounts.len(), 1);
     let account_state = &accounts[0];
     assert_eq!(account_state.pubkey, token_account_pubkey);
-    use light_token_interface::state::{AccountState, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT};
+    use light_token_interface::state::{
+        extensions::ExtensionStruct, AccountState, Token, ACCOUNT_TYPE_TOKEN_ACCOUNT,
+    };
+    let compressible_ext = account_state
+        .account
+        .extensions
+        .as_ref()
+        .and_then(|exts| {
+            exts.iter().find_map(|e| match e {
+                ExtensionStruct::Compressible(ext) => Some(*ext),
+                _ => None,
+            })
+        })
+        .expect("Should have Compressible extension");
     assert_eq!(
         account_state.account,
         Token {
@@ -337,12 +350,8 @@ async fn test_compressible_ctoken_compression() {
             delegated_amount: 0,
             close_authority: None,
             account_type: ACCOUNT_TYPE_TOKEN_ACCOUNT,
-            extensions: account_state.account.extensions.clone(),
+            extensions: Some(vec![ExtensionStruct::Compressible(compressible_ext)]),
         }
-    );
-    assert!(
-        account_state.account.extensions.is_some(),
-        "compressible token account should have extensions"
     );
     assert!(account_state.lamports > 0);
     let lamports = account_state.lamports;
