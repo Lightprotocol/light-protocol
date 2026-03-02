@@ -1,6 +1,8 @@
-use clap::Parser;
-use solana_sdk::{bpf_loader_upgradeable, bs58, message::Message, pubkey::Pubkey};
 use std::str::FromStr;
+
+use clap::Parser;
+use solana_loader_v3_interface::instruction as bpf_loader_instruction;
+use solana_sdk::{bs58, message::Message, pubkey::Pubkey};
 
 #[derive(Debug, Parser)]
 pub struct Options {
@@ -30,7 +32,7 @@ pub fn close_buffer(options: Options) -> anyhow::Result<()> {
         .map_err(|e| anyhow::anyhow!("Invalid recipient pubkey: {e}"))?;
 
     let instruction =
-        bpf_loader_upgradeable::close_any(&buffer, &recipient, Some(&authority), None);
+        bpf_loader_instruction::close_any(&buffer, &recipient, Some(&authority), None);
 
     println!("instruction: {:?}", instruction);
     println!(
