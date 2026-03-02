@@ -1638,6 +1638,14 @@ impl TestIndexer {
     ) {
         let (rollover_fee, merkle_tree, output_queue_batch_size) = match tree_type {
             TreeType::StateV1 => {
+                let config = if forester.is_some() {
+                    StateMerkleTreeConfig {
+                        network_fee: None,
+                        ..StateMerkleTreeConfig::default()
+                    }
+                } else {
+                    StateMerkleTreeConfig::default()
+                };
                 create_state_merkle_tree_and_queue_account(
                     &self.payer,
                     true,
@@ -1648,7 +1656,7 @@ impl TestIndexer {
                     owning_program_id,
                     forester,
                     self.state_merkle_trees.len() as u64,
-                    &StateMerkleTreeConfig::default(),
+                    &config,
                     &NullifierQueueConfig::default(),
                 )
                     .await
