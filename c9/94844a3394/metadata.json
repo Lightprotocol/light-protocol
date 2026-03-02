@@ -5,7 +5,9 @@
   "branch": "jorrit/fix-migrate-trees-preserve-work",
   "checkpoints_count": 1,
   "files_touched": [
-    "programs/registry/src/lib.rs"
+    "program-tests/registry-test/tests/tests.rs",
+    "programs/registry/src/lib.rs",
+    "sdk-libs/program-test/src/indexer/test_indexer.rs"
   ],
   "sessions": [
     {
@@ -14,13 +16,20 @@
       "context": "/c9/94844a3394/0/context.md",
       "content_hash": "/c9/94844a3394/0/content_hash.txt",
       "prompt": "/c9/94844a3394/0/prompt.txt"
+    },
+    {
+      "metadata": "/c9/94844a3394/1/metadata.json",
+      "transcript": "/c9/94844a3394/1/full.jsonl",
+      "context": "/c9/94844a3394/1/context.md",
+      "content_hash": "/c9/94844a3394/1/content_hash.txt",
+      "prompt": "/c9/94844a3394/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 121,
-    "cache_creation_tokens": 149244,
-    "cache_read_tokens": 12666698,
-    "output_tokens": 37221,
-    "api_call_count": 114
+    "input_tokens": 2840,
+    "cache_creation_tokens": 1643596,
+    "cache_read_tokens": 86310814,
+    "output_tokens": 153028,
+    "api_call_count": 793
   }
 }
