@@ -1,0 +1,312 @@
+Implement the following plan:
+
+# Logic Review: Mint Creation Fee Feature
+
+**Date:** 2026-02-21
+**Review Directory:** `.claude/tmp/main-0/`
+**Report Path:** `.claude/logic-review-mint-creation-fee-20260221-report.md`
+**Commit:** 12bec0c35 (uncommitted changes on main)
+
+## IMPORTANT
+- Split into subagent tasks per usage path
+- Work through phases sequentially (Phase 2 -> Phase 3 -> Phase 4)
+- Each phase completes fully before the next begins
+- Subagent output files go to `.claude/tmp/main-0/`
+
+## Context
+
+This diff introduces a 50,000 lamport mint creation fee charged from `fee_payer` to `rent_sponsor` when creating new compressed mints. The fee is transferred via system program CPI in `process_mint_action()`.
+
+## Target Functions
+
+### Function 1: `process_mint_action` (processor.rs:27-201)
+- Main instruction processor for mint action
+- New code at lines 49-59: fee transfer when `create_mint` is true
+
+### Function 2: `AccountsConfig::needs_rent_sponsor` (accounts.rs:383-385)
+- New method controlling when `rent_sponsor` account is parsed
+- Returns `create_mint || needs_compressible_accounts()`
+
+### Function 3: `AccountsConfig::new` (accounts.rs:406-522)
+- Validation gate: rejects `create_mint` in CPI context write path (lines 462-468)
+
+### Function 4: `MintActionAccounts::validate_and_parse` (accounts.rs:70-165)
+- Account parsing: loads `rent_sponsor` based on `needs_rent_sponsor()` (line 114-115)
+- Loads `compressible_config` only when `needs_compressible_accounts()` (line 104)
+
+### Function 5: `MintActionMetaConfig::with_rent_sponsor` (account_metas.rs:129-132)
+- SDK method to set only rent_sponsor without compressible_config
+
+## Usage Paths to Analyze
+
+### Path 1: Happy path - create_mint with rent_sponsor (no decompress/close)
+- `create_mint = true`, `has_decompress_mint_action = false`, `has_compress_and_close_cmint_action = false`
+- `needs_rent_sponsor()` = true, `needs_compressible_accounts()` = false
+- `compressible_config` NOT loaded, `rent_sponsor` IS loaded
+- Fee transferred: fee_payer -> rent_sponsor (50,000 lamports)
+- **Key concern:** rent_sponsor is an arbitrary writable account with NO validation against config
+
+### Path 2: create_mint with CPI context write (rejected)
+- `create_mint = true`, `write_to_cpi_context = true`
+- Should be rejected in `AccountsConfig::new` with `CpiContextSetNotUsable`
+
+### Path 3: create_mint + decompress_mint combined
+- `create_mint = true`, `has_decompress_mint_action = true`
+- `needs_rent_sponsor()` = true, `needs_compressible_accounts()` = true
+- `compressible_config` IS loaded, `rent_sponsor` IS loaded
+- Both fee transfer AND decompress_mint's own rent_sponsor validation occur
+
+### Path 4: Existing mint operations (no create_mint)
+- `create_mint = false`
+- `needs_rent_sponsor()` depends only on `needs_compressible_accounts()`
+- No fee transfer occurs - unchanged behavior
+
+### Path 5: Idempotent early exit after fee charged
+- `create_mint = true`, fee is transferred at line 57
+- `process_output_compressed_account` returns idempotent early exit at line 164
+- Fee was already charged but transaction returns Ok(()) - is fee refunded?
+
+### Path 6: SDK `create_compressed_mint` (compressed-token-sdk)
+- Uses `MintActionMetaConfig::new_create_mint()` WITHOUT calling `with_rent_sponsor()`
+- `rent_sponsor` remains `None`
+- Program expects rent_sponsor when `create_mint = true` -- will this fail?
+
+## Estimated Subagent Count
+- Phase 2: 6 tracing agents (haiku) - one per path
+- Phase 3: 6 validation agents (sonnet) - one per path
+- Phase 4: 1 critical review agent (opus) - synthesizes all paths
+- Total: 13 subagents
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ananas/.REDACTED.jsonl
+
+---
+
+<task-notification>
+<task-id>ac65c825a033ac930</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<status>completed</status>
+<summary>Agent "Trace Path 1: Happy path create_mint" completed</summary>
+<result>I'm unable to write the file due to permission restrictions. However, I can provide you with the complete trace analysis directly. Here's the comprehensive execution trace:
+
+---
+
+# Path 1: Happy Path - Create Mint with Rent Sponsor (Complete Trace)
+
+## AccountsConfig::new() Initialization
+**Location:** `/Users/ananas/dev/light-protocol/programs/compressed-token/program/src/compressed_token/mint_action/accounts.rs:406-522`
+
+**Initialization values:**
+- `with_cpi_context: false`
+- `write_to_cpi_context: false`
+- `cmint_decompressed: false` (mint data provided in instruction)
+- `require_token_output_queue: false`
+- `with_mint_signer: true` (create_mint.is_some())
+- `create_mint: true` (parsed_instruction_data.create_mint.is_some())
+- `has_decompress_mint_action: false`
+- `has_compress_and_close_cmint_action: false`
+
+No validation errors. All checks pass (lines 409-416 validate read_only_address_trees and root_indices).
+
+## AccountsConfig::needs_rent_sponsor() Result
+**Location:** `accounts.rs:382-384`
+
+```rust
+pub fn needs_rent_sponsor(&self) -> bool {
+    self.create_mint || self.needs_compressible_accounts()
+}
+```
+
+**Evaluation:**
+- `self.create_mint = true` → returns **true** (short-circuit)
+- `needs_compressible_accounts() = false` (not needed since no decompress/close actions)
+
+## MintActionAccounts::validate_and_parse() Account Loading
+**Location:** `accounts.rs:70-164` (executing path since write_to_cpi_context=false)
+
+**Account parsing order:**
+1. **light_system_program** (line 76) - always required, writable
+2. **mint_signer** (lines 79-83) - loaded as signer (config.mint_signer_must_sign()=true)
+3. **authority** (line 86) - always required as signer
+4. **compressible_config** (lines 104-108) - **NOT loaded** (needs_compressible_accounts()=false)
+5. **cmint** (line 111) - **NOT loaded** (needs_cmint_account()=false)
+6. **rent_sponsor** (line 114) - **LOADED** as mutable (needs_rent_sponsor()=true)
+   - Parsed as `iter.next_option_mut("rent_sponsor", true)`
+   - Returns `Some(&'info AccountInfo)` 
+7. **LightSystemAccounts** (lines 116-121) - system program accounts
+8. **out_output_queue** (line 122) - always required
+9. **address_merkle_tree** (line 127) - for create_mint path
+10. **in_output_queue** (line 135) - NOT loaded (!config.create_mint=false)
+11. **tokens_out_queue** (lines 137-138) - NOT loaded (require_token_output_queue=false)
+
+**Validation:** Line 160 calls `validate_accounts(cmint_pubkey)` which verifies address_merkle_tree == MINT_ADDRESS_TREE.
+
+## process_mint_action() Fee Transfer Execution
+**Location:** `processor.rs:49-59`
+
+```rust
+if accounts_config.create_mint {
+    let executing = validated_accounts.executing.as_ref()
+        .ok_or(ErrorCode::MintActionMissingExecutingAccounts)?;
+    let rent_sponsor = executing.rent_sponsor
+        .ok_or(ErrorCode::MintActionMissingExecutingAccounts)?;
+    transfer_lamports_via_cpi(MINT_CREATION_FEE, executing.system.fee_payer, rent_sponsor)
+        .map_err(convert_program_error)?;
+}
+```
+
+**Execution:**
+- Condition `accounts_config.create_mint = true` passes
+- `executing.unwrap()` succeeds (Some)
+- `rent_sponsor.unwrap()` succeeds (Some) 
+- Calls `transfer_lamports_via_cpi(50_000, fee_payer, rent_sponsor)`
+
+**Transfer details:**
+- Amount: `MINT_CREATION_FEE = 50_000` lamports (from `lib.rs:39`)
+- From: `executing.system.fee_payer` (mutable, must be signer in outer transaction)
+- To: `rent_sponsor` (mutable)
+- Mechanism: pinocchio system program Transfer CPI via `SystemTransfer::invoke()`
+
+**Source code** (`shared/transfer_lamports.rs:43-55`):
+```rust
+pub fn transfer_lamports_via_cpi(
+    amount: u64,
+    from: &AccountInfo,
+    to: &AccountInfo,
+) -> Result<(), ProgramError> {
+    let transfer = SystemTransfer { from, to, lamports: amount };
+    transfer.invoke()
+}
+```
+
+## Account Metadata in account_metas.rs
+**Location:** `sdk-libs/compressed-token-sdk/src/compressed_token/v2/mint_action/account_metas.rs:148-237`
+
+**rent_sponsor in to_account_metas() (lines 181-184):**
+```rust
+if let Some(rent_sponsor) = self.rent_sponsor {
+    metas.push(AccountMeta::new(rent_sponsor, false));
+}
+```
+
+**Properties:**
+- `AccountMeta::new()` → `is_writable: true`
+- `Signer: false` → does NOT need to sign
+- Marked as **writable** (required for system program Transfer CPI)
+
+**Account order in instruction:**
+1. light_system_program (readonly)
+2. mint_signer (when present)
+3. authority (signer)
+4. compressible_config (when present, readonly)
+5. mint (when present, writable)
+6. **rent_sponsor (WRITABLE, NOT signer)** ← Here
+7. fee_payer (writable, signer)
+8. cpi_authority_pda (readonly)
+9. ... (more system program accounts)
+
+## CPI Accounts Parsing - rent_sponsor Validation
+**Location:** `sdk-libs/compressed-token-sdk/src/compressed_token/v2/mint_action/cpi_accounts.rs:72-175`
+
+**Line 92 - rent_sponsor parsing:**
+```rust
+let rent_sponsor = iter.next_option_mut("rent_sponsor", config.create_mint)?;
+```
+
+For `config.create_mint=true`:
+- Account is **required** (condition=true)
+- **NO validation checks** on:
+  - Ownership (unlike merkle trees checked at line 132-135)
+  - Derivation or PDA identity
+  - Rent status
+  - Freeze status
+  - Data format
+- Returns `Some(&'a A)` if account exists
+
+**Stored in struct (line 49):**
+```rust
+pub rent_sponsor: Option<&'a A>,
+```
+
+## SDK Path: MintActionMetaConfig
+**Location:** `sdk-libs/compressed-token-sdk/src/compressed_token/v2/mint_action/account_metas.rs:26-132`
+
+**new_create_mint() factory (lines 26-48):**
+```rust
+pub fn new_create_mint(
+    fee_payer: Pubkey,
+    authority: Pubkey,
+    mint_signer: Pubkey,
+    address_tree: Pubkey,
+    output_queue: Pubkey,
+) -> Self {
+    Self {
+        // ... other fields ...
+        rent_sponsor: None,  // ← CRITICAL: Starts as None
+        // ... other fields ...
+    }
+}
+```
+
+**with_rent_sponsor() builder (lines 129-132):**
+```rust
+pub fn with_rent_sponsor(mut self, rent_sponsor: Pubkey) -> Self {
+    self.rent_sponsor = Some(rent_sponsor);
+    self
+}
+```
+
+**SDK Consistency Assessment:** The SDK does **NOT enforce** rent_sponsor being set. Callers **MUST explicitly call `.with_rent_sponsor()`** or the field remains None, causing the transaction to fail on-chain with `MintActionMissingExecutingAccounts`.
+
+## Validation Gaps on rent_sponsor
+
+### What IS validated:
+1. **Presence:** Must exist if create_mint=true (else error)
+2. **Writability:** Must be writable (system program requirement)
+3. **Lamport balance:** System program checks fee_payer has sufficient lamports
+
+### What IS NOT validated:
+1. **Identity/Derivation:** No PDA verification. Can be any account.
+2. **Ownership:** No owner check (unlike merkle trees)
+3. **Freeze status:** No account freeze check
+4. **Data format:** No data validation
+5. **Self-transfer:** fee_payer == rent_sponsor is allowed (self-transfer via CPI)
+6. **Previous state:** No historical state validation
+
+### Implications:
+- **Arbitrary fee recipient:** Any writable account can receive the fee
+- **No program ownership required:** Works with any account (PDAs not owned by token program)
+- **Potential loss mechanism:** If rent_sponsor is an unrelated account, fee is transferred there
+- **SDK caller responsibility:** Callers must ensure correct rent_sponsor is provided
+
+## CPI Account Offset
+**Location:** `accounts.rs:204-233` - cpi_accounts_start_offset()
+
+**For Path 1:**
+```
+offset = 2                    // light_system_program + authority
+offset += 1                   // mint_signer is present
+offset += 0                   // compressible_config NOT present
+offset += 0                   // cmint NOT present  
+offset += 1                   // rent_sponsor IS present
+Total: 4
+```
+
+CPI accounts begin at index 4 in the account array.
+
+## Key Findings Summary
+
+| Aspect | Value | Security Note |
+|--------|-------|---------------|
+| rent_sponsor required | YES | For create_mint |
+| rent_sponsor writable | YES | System program CPI |
+| rent_sponsor signer | NO | Not required |
+| Identity check | NO | Arbitrary account allowed |
+| Ownership check | NO | Any program OK |
+| Fee amount | 50,000 lamports | Constant MINT_CREATION_FEE |
+| Fee direction | fee_payer → rent_sponsor | Via SystemTransfer CPI |
+| SDK default | None | Must call with_rent_sponsor() |
+| Self-transfer allowed | YES | fee_payer == rent_sponsor works |</result>
+<usage><total_tokens>65087</total_tokens><tool_uses>18</tool_uses><duration_ms>86104</duration_ms></usage>
+</task-notification>
+Full transcript available at: REDACTED.output

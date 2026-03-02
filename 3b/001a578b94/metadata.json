@@ -1,0 +1,58 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "3b001a578b94",
+  "strategy": "manual-commit",
+  "branch": "jorrit/feat-add-mint-fee",
+  "checkpoints_count": 7,
+  "files_touched": [
+    ".claude/tmp/main-0/path1-trace.md",
+    "forester/node_modules/@lightprotocol/.ignored_zk-compression-cli/package.json",
+    "program-tests/compressed-token-test/tests/mint/cpi_context.rs",
+    "program-tests/compressed-token-test/tests/mint/failing.rs",
+    "program-tests/utils/src/actions/legacy/instructions/mint_action.rs",
+    "program-tests/utils/src/lib.rs",
+    "program-tests/utils/src/mint_assert.rs",
+    "programs/compressed-token/program/src/compressed_token/mint_action/accounts.rs",
+    "programs/compressed-token/program/src/compressed_token/mint_action/processor.rs",
+    "programs/compressed-token/program/src/lib.rs",
+    "programs/compressed-token/program/src/shared/accounts.rs",
+    "sdk-libs/compressed-token-sdk/src/compressed_token/v2/mint_action/account_metas.rs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/3b/001a578b94/0/metadata.json",
+      "transcript": "/3b/001a578b94/0/full.jsonl",
+      "context": "/3b/001a578b94/0/context.md",
+      "content_hash": "/3b/001a578b94/0/content_hash.txt",
+      "prompt": "/3b/001a578b94/0/prompt.txt"
+    },
+    {
+      "metadata": "/3b/001a578b94/1/metadata.json",
+      "transcript": "/3b/001a578b94/1/full.jsonl",
+      "context": "/3b/001a578b94/1/context.md",
+      "content_hash": "/3b/001a578b94/1/content_hash.txt",
+      "prompt": "/3b/001a578b94/1/prompt.txt"
+    },
+    {
+      "metadata": "/3b/001a578b94/2/metadata.json",
+      "transcript": "/3b/001a578b94/2/full.jsonl",
+      "context": "/3b/001a578b94/2/context.md",
+      "content_hash": "/3b/001a578b94/2/content_hash.txt",
+      "prompt": "/3b/001a578b94/2/prompt.txt"
+    },
+    {
+      "metadata": "/3b/001a578b94/3/metadata.json",
+      "transcript": "/3b/001a578b94/3/full.jsonl",
+      "context": "/3b/001a578b94/3/context.md",
+      "content_hash": "/3b/001a578b94/3/content_hash.txt",
+      "prompt": "/3b/001a578b94/3/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 262,
+    "cache_creation_tokens": 580061,
+    "cache_read_tokens": 18721762,
+    "output_tokens": 15166,
+    "api_call_count": 228
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "b5b9ac87e33d",
+  "session_id": "9a6fcd2a-b956-4e75-92f4-ec40f93190e6",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-21T23:45:29.547065Z",
+  "branch": "jorrit/feat-add-mint-fee",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "forester/node_modules/@lightprotocol/.ignored_zk-compression-cli/package.json",
+    "program-tests/compressed-token-test/tests/mint/cpi_context.rs",
+    "program-tests/utils/src/actions/legacy/instructions/mint_action.rs",
+    "programs/compressed-token/program/src/compressed_token/mint_action/accounts.rs",
+    "programs/compressed-token/program/src/compressed_token/mint_action/processor.rs",
+    "programs/compressed-token/program/tests/mint_action.rs",
+    "sdk-libs/compressed-token-sdk/src/compressed_token/v2/create_compressed_mint/instruction.rs",
+    "sdk-libs/compressed-token-sdk/src/compressed_token/v2/mint_action/account_metas.rs",
+    "sdk-libs/token-sdk/src/instruction/create_mint.rs",
+    "sdk-libs/token-sdk/src/instruction/create_mints.rs"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 97,
+    "cache_creation_tokens": 75402,
+    "cache_read_tokens": 5161440,
+    "output_tokens": 5085,
+    "api_call_count": 91
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-21T23:45:29.203442Z",
+    "agent_lines": 72,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 72,
+    "agent_percentage": 100
+  },
+  "transcript_path": ".claude/projects/-Users-ananas-dev-light-protocol/9a6fcd2a-b956-4e75-92f4-ec40f93190e6.jsonl"
+}

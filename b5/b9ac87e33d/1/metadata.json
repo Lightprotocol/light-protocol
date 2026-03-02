@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "b5b9ac87e33d",
+  "session_id": "7ea942a1-ab04-4066-8e91-03a1782a313a",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-21T23:45:28.555174Z",
+  "branch": "jorrit/feat-add-mint-fee",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "programs/compressed-token/program/tests/mint_action.rs"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "ee6afcbd-869e-4f11-9734-6fdcd8997cb0",
+  "token_usage": {
+    "input_tokens": 29,
+    "cache_creation_tokens": 59568,
+    "cache_read_tokens": 629546,
+    "output_tokens": 47,
+    "api_call_count": 15
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-21T23:45:28.476843Z",
+    "agent_lines": 6,
+    "human_added": 172,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 179,
+    "agent_percentage": 3.35195530726257
+  },
+  "transcript_path": ".claude/projects/-Users-ananas-dev-light-protocol/7ea942a1-ab04-4066-8e91-03a1782a313a.jsonl"
+}

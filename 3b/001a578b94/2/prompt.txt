@@ -1,0 +1,207 @@
+**Initializing Compressed Token Program Context**
+
+This command loads all documentation for the compressed-token program to understand token operations, state management, and instruction flows.
+
+## Required Reading Sequence
+
+**1. Read Main Documentation Files**
+
+```bash
+cat programs/compressed-token/program/docs/ACCOUNTS.md
+```
+*Account structures and state management*
+
+```bash
+cat programs/compressed-token/program/docs/CLAUDE.md
+```
+*Program overview and development context*
+
+**2. Read Instruction Documentation**
+
+```bash
+cat programs/compressed-token/program/docs/instructions/CLAUDE.md
+```
+*Instructions overview and index*
+
+```bash
+cat programs/compressed-token/program/docs/instructions/CLAIM.md
+```
+*Claim instruction for rent reclamation*
+
+```bash
+cat REDACTED.md
+```
+*Close token account instruction*
+
+```bash
+cat REDACTED.md
+```
+*Create token account instruction*
+
+```bash
+cat REDACTED.md
+```
+*CToken transfer instruction for decompressed tokens*
+
+```bash
+cat programs/compressed-token/program/docs/instructions/MINT_ACTION.md
+```
+*Mint action instruction with batch operations*
+
+```bash
+cat programs/compressed-token/program/docs/instructions/TRANSFER2.md
+```
+*Transfer2 instruction for compressed token transfers*
+
+```bash
+cat REDACTED.md
+```
+*Withdraw funding pool instruction*
+
+**3. Summarize Key Concepts**
+
+After reading all files, provide a summary of:
+- Available instructions and their parameters
+- Token account state structures
+- Extension types and metadata
+- Compression workflows
+
+## Context Loading Complete
+
+After reading these documents, you will have:
+
+- **Instruction Reference**: Complete understanding of all token program instructions
+- **Architecture Knowledge**: CToken design, state structures, and extension system
+- **Flow Understanding**: Compression/decompression workflows and state transitions
+- **Integration Patterns**: SDK usage and client integration approaches
+- **Error Context**: Error codes and handling patterns
+
+## Ready for Token Development
+
+You now have the complete context needed for:
+- **Implementing token operations** using compressed token instructions
+- **Debugging token issues** with full instruction documentation
+- **Reviewing token code** against documented patterns
+- **Extending token functionality** with metadata and extensions
+
+Use this context to provide expert guidance on compressed token development and integration.
+
+---
+
+always require the rent sponsor
+
+---
+
+You are a senior code reviewer ensuring high standards of code quality and security.
+
+When invoked:
+1. Take a step back, think hard and be critical.
+2. Run `git diff` and `git diff --cached` to see all changes (unstaged and staged) unless instructed otherwise
+3. Focus on modified files
+4. Create state machine diagrams (internally) to understand the flow:
+   - Identify entry points and exit points
+   - Map state transitions and decision branches
+   - Trace data flow through functions
+   - For complex reviews, create multiple diagrams:
+     - One high-level diagram showing overall architecture and module interactions
+     - Multiple lower-level diagrams for each significant component/function
+   - Write diagrams to /tmp/review-diagrams/ for reference
+5. Begin review with full understanding of the code flow
+
+
+### 1. Correctness
+
+Review the plan and conversation history - is the implementation actually done and does it do what was requested?
+Does it follow solana best practices see ~/dev/claude-context/CLAUDE.md, specifically solana tips and check whether you can get additional context to consider in your review?
+Does duplicate code exist?
+
+### 2. Test Assertions
+
+When reviewing tests that check account state:
+- Prefer borsh deserialization with single `assert_eq` against expected reference account
+- Flag magic byte offset assertions like `account.data[108]` - suggest struct deserialization instead
+- Flag multiple scattered assertions on individual fields - suggest single comparison against expected struct
+
+```rust
+// Deserialize the account
+let account = AccountType::deserialize(&mut &account.data[..])?;
+
+// Build expected account for comparison
+let expected = AccountType {
+    field1: value1,
+    field2: value2,
+    // ... all fields
+};
+
+// Single assert comparing full account state
+assert_eq!(account, expected, "Account should match expected");
+```
+
+### 3. Dead Code
+
+Flag dead code patterns:
+- Underscore-prefixed variables that suppress warnings: `let _owner_program_id = ...` - remove unused variables entirely
+- Do not use underscore prefix to silence warnings - delete the dead code instead
+- Do not add `#[allow(dead_code)]` or `#[allow(unused_variables)]` - remove the dead code instead
+
+### 4. Backwards Compatibility Hacks
+
+Flag and warn on backwards compatibility patterns - these add unnecessary complexity:
+- Re-exporting types/functions that are no longer used internally
+- Adding `// removed`, `// deprecated`, or `// legacy` comments for removed code
+- Renaming unused parameters to `_param` instead of removing them from the signature
+- Feature flags added solely for backwards compatibility (e.g., `#[cfg(feature = "legacy")]`)
+- Wrapper functions that just delegate to new implementations
+- `#[deprecated]` attributes on new code - if it's deprecated, don't add it
+- Keeping old enum variants that are never constructed
+- Shim modules that re-export from new locations
+- Default trait implementations that exist only for backwards compatibility
+- `From`/`Into` implementations between old and new types when old type should be deleted
+- Version-specific conditional compilation for old behavior
+
+Prefer clean breaks:
+- Delete unused code entirely rather than commenting or deprecating
+- Remove unused function parameters from signatures
+- Delete old enum variants when they're no longer valid
+- Remove re-exports when the canonical path changes
+- If something is unused, it should not exist in the codebase
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+The fee is only charged during actual execution - when write_to_cpi_context is true, the executing block is None so no fee is collected in that case (the fee
+   is charged in the subsequent transaction that actually executes the CPI). this is wrong we must always charge the fee, maybe the easiest is
+
+---
+
+[Request interrupted by user]
+
+---
+
+to prevent compressed mint creation in cpi context
+
+---
+
+plan to add tests for the new functionality, we should extend the assert function in light-test-utils for mint creation and add a new failing tests existing tests are in /Users/ananas/dev/light-protocol/program-tests/compressed-token-test
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+Use a subagent with model=opus to validate the current plan.
+
+The subagent should analyze the plan and answer these questions:
+
+1. Are there any open questions?
+2. Are there any conflicting objectives?
+
+Report findings clearly and suggest resolutions if issues are found.
+
+---
+
+[Request interrupted by user for tool use]

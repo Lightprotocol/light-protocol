@@ -1,0 +1,139 @@
+Implement the following plan:
+
+# Fix Mint Creation Fee Logic Review Issues
+
+**Date:** 2026-02-21
+**Source:** `.claude/logic-review-mint-creation-fee-20260221-report.md`
+
+## Context
+
+The logic review of the mint creation fee feature found 6 actionable issues (3 HIGH, 2 MEDIUM, 1 LOW). This plan addresses 5 of 6: the 3 HIGH issues, 1 MEDIUM (stale comment), and 1 LOW (SDK usability). Finding #2 (MEDIUM: rent_sponsor on-chain validation) is intentionally deferred -- fee_payer's signature provides consent, high-level SDK enforces correct PDA, and per-incident amount is 50k lamports.
+
+## Task 1: Add create_mint + CompressAndCloseCMint mutual-exclusion guard [HIGH]
+
+**File:** `programs/compressed-token/program/src/compressed_token/mint_action/accounts.rs`
+
+Add guard after the existing check at line 451, before line 454:
+
+```rust
+// Validation: Cannot combine create_mint with CompressAndCloseCMint
+if has_compress_and_close_cmint_action && parsed_instruction_data.create_mint.is_some() {
+    msg!("Cannot combine create_mint with CompressAndCloseCMint");
+    return Err(ErrorCode::CompressAndCloseCMintMustBeOnlyAction.into());
+}
+```
+
+Reuse `CompressAndCloseCMintMustBeOnlyAction` (6169) since the semantics match: CompressAndCloseCMint cannot combine with create_mint.
+
+## Task 2: Add defense-in-depth guard at IdempotentEarlyExit handler [HIGH]
+
+**File:** `programs/compressed-token/program/src/compressed_token/mint_action/processor.rs`
+
+Replace lines 162-167:
+
+```rust
+// Check for idempotent early exit - skip CPI and return success
+if let Err(ref err) = result {
+    if is_idempotent_early_exit(err) {
+        return Ok(());
+    }
+}
+```
+
+With:
+
+```rust
+// Check for idempotent early exit - skip CPI and return success.
+// create_mint must never use idempotent early exit (fee already charged).
+if let Err(ref err) = result {
+    if is_idempotent_early_exit(err) {
+        if accounts_config.create_mint {
+            return Err(ErrorCode::MintActionMissingExecutingAccounts.into());
+        }
+        return Ok(());
+    }
+}
+```
+
+Reuse `MintActionMissingExecutingAccounts` as a generic "this shouldn't happen" error. This is defense-in-depth only -- Task 1's guard prevents reaching here.
+
+## Task 3: Fix broken test `test_write_to_cpi_context_create_mint` [HIGH]
+
+**File:** `program-tests/compressed-token-test/tests/mint/cpi_context.rs`
+
+The test at line 113-226 uses `new_mint()` (sets `create_mint`) with `first_set_context: true` (sets `write_to_cpi_context`). This combination is now rejected with error 6035. Update the test to expect the error:
+
+Replace the `.expect("Failed to execute wrapper instruction")` at line 191 and the verification code after it with `assert_rpc_error(result, 0, 6035)`.
+
+## Task 4: Fix broken randomized unit test oracle [HIGH]
+
+**File:** `programs/compressed-token/program/tests/mint_action.rs`
+
+The `check_if_config_should_error()` function (line 318-359) is missing the `create_mint.is_some() && write_to_cpi_context` error condition. The generator produces `create_mint=Some(...)` + `cpi_context` with randomized `first_set_context`, but the oracle doesn't predict the error.
+
+In `check_if_config_should_error`, add:
+
+```rust
+let create_mint_with_cpi_write =
+    instruction_data.create_mint.is_some() && write_to_cpi_context;
+```
+
+And update the return to:
+
+```rust
+has_mint_to_ctoken
+    || (mint_decompressed && require_token_output_queue)
+    || is_creating_mint
+    || create_mint_with_cpi_write
+```
+
+Also: the randomized test asserts specifically `CpiContextSetNotUsable` (line 302), but new validation guards may produce different error codes (`CannotDecompressAndCloseInSameInstruction`, `CompressAndCloseCMintMustBeOnlyAction`). Since the random generator does NOT produce `DecompressMint` or `CompressAndCloseMint` actions (only 7 action types in `random_action()`), those new error codes won't fire. However, the new `create_mint + CompressAndCloseCMint` guard from Task 1 also won't fire since `CompressAndCloseMint` isn't generated. So only the `CpiContextSetNotUsable` assertion matters, and it's correct for the new condition.
+
+## Task 5: Fix stale comment [MEDIUM]
+
+**File:** `programs/compressed-token/program/src/compressed_token/mint_action/accounts.rs`
+
+Replace comment at lines 22-24:
+
+```rust
+/// Note: mint_signer is not in executing accounts since create mint
+/// is allowed in combination with write to cpi context.
+```
+
+With:
+
+```rust
+/// Seed for mint PDA derivation.
+/// Required only for compressed mint creation.
+/// Note: mint_signer is not in executing accounts since it is parsed
+/// before the executing/cpi-write branch. create_mint is NOT allowed
+/// in combination with write to cpi context (rejected in AccountsConfig::new).
+```
+
+## Task 6 (optional): Make rent_sponsor required in `new_create_mint()` [LOW]
+
+**File:** `sdk-libs/compressed-token-sdk/src/compressed_token/v2/mint_action/account_metas.rs`
+
+Add `rent_sponsor: Pubkey` parameter to `new_create_mint()` and set it directly instead of requiring `.with_rent_sponsor()`. Update all callers.
+
+This is a usability improvement only -- the on-chain program already fails safely if rent_sponsor is missing.
+
+## Verification
+
+1. `cargo test -p light-compressed-token-program` -- unit tests including the fixed randomized oracle
+2. `RUST_BACKTRACE=1 cargo test-sbf -p compressed-token-test -- --test mint --nocapture 2>&1 | tail -500` -- integration tests including the fixed CPI context test
+3. `cargo check -p light-compressed-token-program` -- compile check for the program changes
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ananas/.REDACTED.jsonl
+
+---
+
+<task-notification>
+<task-id>b02f1c6</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Background command "Run compressed-token-test mint integration tests" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: REDACTED.output

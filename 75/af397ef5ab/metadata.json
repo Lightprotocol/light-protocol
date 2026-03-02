@@ -1,0 +1,41 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "75af397ef5ab",
+  "strategy": "manual-commit",
+  "branch": "jorrit/feat-add-mint-fee",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "program-tests/compressed-token-test/tests/mint/cpi_context.rs",
+    "program-tests/utils/src/actions/legacy/instructions/mint_action.rs",
+    "programs/compressed-token/program/src/compressed_token/mint_action/accounts.rs",
+    "programs/compressed-token/program/src/compressed_token/mint_action/processor.rs",
+    "programs/compressed-token/program/tests/mint_action.rs",
+    "sdk-libs/compressed-token-sdk/src/compressed_token/v2/create_compressed_mint/instruction.rs",
+    "sdk-libs/compressed-token-sdk/src/compressed_token/v2/mint_action/account_metas.rs",
+    "sdk-libs/compressed-token-sdk/src/compressed_token/v2/mint_action/cpi_accounts.rs",
+    "sdk-libs/token-sdk/src/instruction/create_mint.rs",
+    "sdk-libs/token-sdk/src/instruction/create_mints.rs",
+    "sdk-libs/token-sdk/tests/mint_action_cpi_accounts_tests.rs",
+    "sdk-tests/sdk-token-test/src/pda_ctoken/mint.rs",
+    "sdk-tests/sdk-token-test/src/pda_ctoken/mod.rs",
+    "sdk-tests/sdk-token-test/tests/ctoken_pda.rs",
+    "sdk-tests/sdk-token-test/tests/pda_ctoken.rs",
+    "sdk-tests/sdk-token-test/tests/test_create_two_mints.rs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/75/af397ef5ab/0/metadata.json",
+      "transcript": "/75/af397ef5ab/0/full.jsonl",
+      "context": "/75/af397ef5ab/0/context.md",
+      "content_hash": "/75/af397ef5ab/0/content_hash.txt",
+      "prompt": "/75/af397ef5ab/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 235,
+    "cache_creation_tokens": 481186,
+    "cache_read_tokens": 26890997,
+    "output_tokens": 18952,
+    "api_call_count": 219
+  }
+}
