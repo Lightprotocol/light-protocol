@@ -1281,6 +1281,7 @@ where
                     .metadata
                     .rollover_metadata
                     .rollover_fee as i64,
+                network_fee: FeeConfig::default().network_fee,
                 accounts: StateMerkleTreeAccounts {
                     merkle_tree: merkle_tree_keypair.pubkey(),
                     nullifier_queue: nullifier_queue_keypair.pubkey(),
@@ -1547,6 +1548,7 @@ where
             TreeType::StateV2 => bundle.accounts.nullifier_queue,
             _ => panic!("Unsupported version"),
         };
+        let network_fee = bundle.network_fee;
         let recipients = vec![*to];
         let transaction_params = if self.keypair_action_config.fee_assert {
             let (inputs, is_v2) = if bundle.tree_type == TreeType::StateV2 {
@@ -1562,6 +1564,7 @@ where
                 compress: 0,
                 fee_config: FeeConfig {
                     state_merkle_tree_rollover: rollover_fee as u64,
+                    network_fee,
                     ..Default::default()
                 },
             })
@@ -1700,6 +1703,7 @@ where
         };
         let bundle = self.indexer.get_state_merkle_trees()[tree_index.unwrap_or(0)].clone();
         let rollover_fee = bundle.rollover_fee;
+        let network_fee = bundle.network_fee;
         let output_merkle_tree = match bundle.tree_type {
             TreeType::StateV1 => bundle.accounts.merkle_tree,
             // Output queue for batched trees
@@ -1721,6 +1725,7 @@ where
                 compress: amount as i64,
                 fee_config: FeeConfig {
                     state_merkle_tree_rollover: rollover_fee as u64,
+                    network_fee,
                     ..Default::default()
                 },
             })
@@ -2406,6 +2411,7 @@ where
             .push(StateMerkleTreeBundle {
                 // TODO: fetch correct fee when this property is used
                 rollover_fee: 0,
+                network_fee: FeeConfig::default().network_fee,
                 accounts: StateMerkleTreeAccounts {
                     merkle_tree: new_merkle_tree_keypair.pubkey(),
                     nullifier_queue: new_nullifier_queue_keypair.pubkey(),
