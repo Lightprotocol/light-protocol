@@ -35,6 +35,7 @@ solana-client = { workspace = true }
 solana-transaction-status = { workspace = true }
 light-batched-merkle-tree = { workspace = true }
 light-registry = { workspace = true }
+solana-loader-v3-interface = { workspace = true, features = ["bincode"] }
 light-compressible = { workspace = true }
 anchor-lang = { workspace = true }
 light-token = { workspace = true }
