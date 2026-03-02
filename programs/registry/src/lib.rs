@@ -833,6 +833,9 @@ pub fn check_forester(
         }
         Ok(())
     } else if metadata.access_metadata.forester == authority {
+        if metadata.rollover_metadata.network_fee != 0 {
+            return err!(RegistryError::InvalidNetworkFee);
+        }
         Ok(())
     } else {
         err!(RegistryError::InvalidSigner)

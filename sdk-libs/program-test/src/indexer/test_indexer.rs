@@ -1328,6 +1328,7 @@ impl TestIndexer {
                 accounts: *state_merkle_tree_account,
                 merkle_tree,
                 rollover_fee: FeeConfig::default().state_merkle_tree_rollover as i64,
+                network_fee: FeeConfig::default().network_fee,
                 tree_type,
                 output_queue_elements: vec![],
                 input_leaf_indices: vec![],
@@ -1709,10 +1710,16 @@ impl TestIndexer {
             tree_type,
         };
 
+        let network_fee = if forester.is_some() {
+            0
+        } else {
+            FeeConfig::default().network_fee
+        };
         self.state_merkle_trees.push(StateMerkleTreeBundle {
             merkle_tree,
             accounts: state_merkle_tree_account,
             rollover_fee,
+            network_fee,
             tree_type,
             output_queue_elements: vec![],
             input_leaf_indices: vec![],
