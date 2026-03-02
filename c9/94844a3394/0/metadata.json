@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "c994844a3394",
+  "session_id": "3926665a-b6e0-4261-9003-3cb9a1f432a7",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-02T18:37:18.370893Z",
+  "branch": "jorrit/fix-migrate-trees-preserve-work",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "programs/registry/src/lib.rs"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "998d1ce51a86",
+  "transcript_identifier_at_start": "21bb32e2-622d-420a-a35d-2322c068d56b",
+  "token_usage": {
+    "input_tokens": 121,
+    "cache_creation_tokens": 149244,
+    "cache_read_tokens": 12666698,
+    "output_tokens": 37221,
+    "api_call_count": 114
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-02T18:37:17.65002Z",
+    "agent_lines": 4,
+    "human_added": 11,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 15,
+    "agent_percentage": 26.666666666666668
+  },
+  "transcript_path": ".claude/projects/-Users-ananas-dev-light-protocol3/3926665a-b6e0-4261-9003-3cb9a1f432a7.jsonl"
+}
