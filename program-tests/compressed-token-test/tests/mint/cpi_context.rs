@@ -376,8 +376,8 @@ async fn test_write_to_cpi_context_create_mint_missing_rent_sponsor() {
     };
 
     // Should fail - when rent_sponsor is missing, the account iterator shifts:
-    // fee_payer is parsed as rent_sponsor, then CpiContextLightSystemAccounts
-    // runs out of accounts. Error 20009 is from the account iterator.
+    // fee_payer is parsed as rent_sponsor and validated against RENT_SPONSOR_V1.
+    // Since fee_payer != RENT_SPONSOR_V1, we get InvalidRentSponsor (6099).
     let result = rpc
         .create_and_send_transaction(
             &[wrapper_instruction],
@@ -386,11 +386,9 @@ async fn test_write_to_cpi_context_create_mint_missing_rent_sponsor() {
         )
         .await;
 
-    // Error from the account iterator when it runs out of accounts due to
-    // fee_payer being parsed as rent_sponsor (account shift), leaving the
-    // iterator one account short. Defined in light-account-checks error codes.
-    const ACCOUNT_ITERATOR_EXHAUSTED: u32 = 20009;
-    assert_rpc_error(result, 0, ACCOUNT_ITERATOR_EXHAUSTED).unwrap();
+    // Error code 6099 = InvalidRentSponsor. fee_payer is consumed as rent_sponsor
+    // and fails the RENT_SPONSOR_V1 check.
+    assert_rpc_error(result, 0, 6099).unwrap();
 }
 
 #[tokio::test]

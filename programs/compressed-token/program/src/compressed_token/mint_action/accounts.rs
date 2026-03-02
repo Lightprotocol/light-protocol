@@ -89,7 +89,12 @@ impl<'info> MintActionAccounts<'info> {
         let authority = iter.next_signer("authority")?;
         if config.write_to_cpi_context {
             let write_mode_rent_sponsor = if config.create_mint {
-                Some(iter.next_account("rent_sponsor")?)
+                let sponsor = iter.next_mut("rent_sponsor")?;
+                if sponsor.key() != &crate::RENT_SPONSOR_V1 {
+                    msg!("Rent sponsor account does not match RENT_SPONSOR_V1");
+                    return Err(ErrorCode::InvalidRentSponsor.into());
+                }
+                Some(sponsor)
             } else {
                 None
             };
@@ -131,6 +136,16 @@ impl<'info> MintActionAccounts<'info> {
 
             // Parse rent_sponsor when creating mint (fee recipient) or when creating/closing CMint
             let rent_sponsor = iter.next_option_mut("rent_sponsor", config.needs_rent_sponsor())?;
+
+            // Validate rent_sponsor matches compressible_config when creating a mint.
+            if let Some(sponsor) = rent_sponsor {
+                let cfg =
+                    compressible_config.ok_or(ErrorCode::MintActionMissingExecutingAccounts)?;
+                if sponsor.key() != &cfg.rent_sponsor.to_bytes() {
+                    msg!("Rent sponsor account does not match config");
+                    return Err(ErrorCode::InvalidRentSponsor.into());
+                }
+            }
 
             let system = LightSystemAccounts::validate_and_parse(
                 &mut iter,

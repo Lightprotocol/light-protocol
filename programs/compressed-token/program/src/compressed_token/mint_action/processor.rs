@@ -10,7 +10,6 @@ use light_token_interface::{
 };
 use light_zero_copy::{traits::ZeroCopyAt, ZeroCopyNew};
 use pinocchio::account_info::AccountInfo;
-use spl_pod::solana_msg::msg;
 
 use crate::{
     compressed_token::mint_action::{
@@ -46,30 +45,20 @@ pub fn process_mint_action(
         MintActionAccounts::validate_and_parse(accounts, &accounts_config, cmint_pubkey.as_ref())?;
 
     // Charge mint creation fee in both execute and write modes.
+    // Rent sponsor accounts are already validated in validate_and_parse:
+    // - Execute mode: validated against compressible_config.rent_sponsor
+    // - Write mode: validated against hardcoded RENT_SPONSOR_V1
     if accounts_config.create_mint {
         if let Some(executing) = validated_accounts.executing.as_ref() {
-            // Execute mode: validate rent_sponsor against compressible_config.
             let rent_sponsor = executing
                 .rent_sponsor
                 .ok_or(ErrorCode::MintActionMissingExecutingAccounts)?;
-            let config = executing
-                .compressible_config
-                .ok_or(ErrorCode::MintActionMissingExecutingAccounts)?;
-            if rent_sponsor.key() != &config.rent_sponsor.to_bytes() {
-                msg!("Rent sponsor account does not match config");
-                return Err(ErrorCode::InvalidRentSponsor.into());
-            }
             transfer_lamports_via_cpi(MINT_CREATION_FEE, executing.system.fee_payer, rent_sponsor)
                 .map_err(convert_program_error)?;
         } else {
-            // Write mode: validate rent_sponsor against hardcoded RENT_SPONSOR_V1.
             let rent_sponsor = validated_accounts
                 .write_mode_rent_sponsor
                 .ok_or(ErrorCode::MintActionMissingExecutingAccounts)?;
-            if rent_sponsor.key() != &crate::RENT_SPONSOR_V1 {
-                msg!("Rent sponsor account does not match RENT_SPONSOR_V1");
-                return Err(ErrorCode::InvalidRentSponsor.into());
-            }
             let fee_payer = validated_accounts
                 .write_to_cpi_context_system
                 .as_ref()
