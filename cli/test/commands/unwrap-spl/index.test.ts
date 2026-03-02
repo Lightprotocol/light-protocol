@@ -29,12 +29,13 @@ describe("unwrap-spl", () => {
 
   it(`unwrap tokens`, async () => {
     // Wrap SPL tokens first to get Light Tokens
-    await runCommand([
+    const { stdout: wrapStdout } = await runCommand([
       "wrap-spl",
       `--mint=${mintKeypair.publicKey.toBase58()}`,
       `--amount=${mintAmount}`,
       `--to=${payerKeypair.publicKey.toBase58()}`,
     ]);
+    expect(wrapStdout).to.contain("wrap-spl successful");
 
     const { stdout } = await runCommand([
       "unwrap-spl",

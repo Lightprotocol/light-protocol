@@ -16,8 +16,8 @@ build-js: build-js-deps copy-programs
     pnpm build
 
 build-js-deps:
-    cd ../js/stateless.js && pnpm build
-    cd ../js/compressed-token && pnpm build
+    cd ../js/stateless.js && pnpm build:v2
+    cd ../js/compressed-token && pnpm build:v2
 
 # Build Solana programs
 build-programs:

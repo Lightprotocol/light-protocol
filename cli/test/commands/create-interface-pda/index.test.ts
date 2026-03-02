@@ -4,8 +4,8 @@ import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
 import { defaultSolanaWalletKeypair } from "../../../src";
 import { createTestSplMint, requestAirdrop } from "../../helpers/helpers";
 import { Keypair } from "@solana/web3.js";
-import { getTestRpc } from "@lightprotocol/stateless.js";
-import { WasmFactory } from "@lightprotocol/hasher.rs";
+import { createRpc } from "@lightprotocol/stateless.js";
+import { getSolanaRpcUrl, getIndexerUrl, getProverUrl } from "../../../src/utils/utils";
 
 describe("create-interface-pda", () => {
   let mintAuthority: Keypair = defaultSolanaWalletKeypair();
@@ -13,18 +13,12 @@ describe("create-interface-pda", () => {
   before(async () => {
     await initTestEnvIfNeeded({ indexer: true, prover: true });
     await requestAirdrop(mintAuthority.publicKey);
-    const lightWasm = await WasmFactory.getInstance();
-    const rpc = await getTestRpc(lightWasm);
-
-    await createTestSplMint(
-      rpc,
-      defaultSolanaWalletKeypair(),
-      mintKeypair,
-      mintAuthority,
-    );
+    const rpc = createRpc(getSolanaRpcUrl(), getIndexerUrl(), getProverUrl());
+    const payer = defaultSolanaWalletKeypair();
+    await createTestSplMint(rpc, payer, mintKeypair, mintAuthority);
   });
 
-  it(`register mint for mintAuthority: ${mintAuthority.publicKey.toBase58()}`, async () => {
+  it(`create interface PDA for mint`, async () => {
     const { stdout } = await runCommand([
       "create-interface-pda",
       `--mint=${mintKeypair.publicKey.toBase58()}`,

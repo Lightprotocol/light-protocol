@@ -39,9 +39,7 @@ class CreateTokenAccountCommand extends Command {
   async run() {
     const { args, flags } = await this.parse(CreateTokenAccountCommand);
 
-    const loader = new CustomLoader(
-      `Performing create-token-account...\n`,
-    );
+    const loader = new CustomLoader(`Performing create-token-account...\n`);
     loader.start();
 
     try {
@@ -53,8 +51,11 @@ class CreateTokenAccountCommand extends Command {
 
       try {
         await decompressMint(rpc(), payer, mintPublicKey);
-      } catch {
-        // Mint may already be decompressed; ignore.
+      } catch (e: unknown) {
+        const msg = String(e);
+        if (!msg.includes("AlreadyInUse") && !msg.includes("0x0")) {
+          throw e;
+        }
       }
 
       await createAtaInterfaceIdempotent(
@@ -70,10 +71,7 @@ class CreateTokenAccountCommand extends Command {
       );
 
       loader.stop(false);
-      console.log(
-        "\x1b[1mToken account:\x1b[0m ",
-        ataAddress.toBase58(),
-      );
+      console.log("\x1b[1mToken account:\x1b[0m ", ataAddress.toBase58());
       console.log(
         "\x1b[1mAccount address:\x1b[0m ",
         generateSolanaTransactionURL(

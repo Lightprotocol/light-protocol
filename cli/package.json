@@ -110,7 +110,7 @@
     "test-mint-to": "mocha ./test/commands/mint-to/index.test.ts -t 10000000 --exit",
     "test-transfer": "mocha ./test/commands/transfer/index.test.ts -t 10000000 --exit",
     "test-token-balance": "mocha test/commands/token-balance/index.test.ts -t 10000000 --exit",
-"test-wrap-spl": "mocha ./test/commands/wrap-spl/index.test.ts -t 10000000 --exit",
+    "test-wrap-spl": "mocha ./test/commands/wrap-spl/index.test.ts -t 10000000 --exit",
     "test-unwrap-spl": "mocha ./test/commands/unwrap-spl/index.test.ts -t 10000000 --exit",
     "test-test-validator": "mocha ./test/commands/test-validator/index.test.ts -t 10000000 --exit",
     "kill": "killall solana-test-validator || true && killall solana-test-val || true && sleep 1",
