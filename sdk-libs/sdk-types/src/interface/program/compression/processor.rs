@@ -58,26 +58,30 @@ pub type CompressDispatchFn<AI> = fn(
     ctx: &mut CompressCtx<'_, AI>,
 ) -> Result<(), LightSdkTypesError>;
 
-/// Process compress-and-close for PDA accounts (idempotent).
-///
-/// Iterates over PDA accounts, dispatches each for compression via `dispatch_fn`,
-/// then invokes the Light system program CPI to commit compressed state,
-/// and closes the PDA accounts (transferring lamports to rent_sponsor).
-///
-/// Idempotent: if any account is not yet compressible (rent function check fails),
-/// the entire batch is silently skipped.
-#[inline(never)]
-pub fn process_compress_pda_accounts_idempotent<AI: AccountInfoTrait + Clone>(
-    remaining_accounts: &[AI],
+/// Result of building CPI data for compress-and-close.
+pub struct CompressPdaBuilt<'a, AI: AccountInfoTrait + Clone> {
+    pub cpi_ix_data: InstructionDataInvokeCpiWithAccountInfo,
+    pub cpi_accounts: CpiAccounts<'a, AI>,
+    pub pda_indices_to_close: Vec<usize>,
+}
+
+/// Validates accounts and builds CPI data for compress-and-close.
+/// Returns None when any account is non-compressible (idempotent skip, no CPI needed).
+pub fn build_compress_pda_cpi_data<'a, AI: AccountInfoTrait + Clone>(
+    remaining_accounts: &'a [AI],
     params: &CompressAndCloseParams,
     dispatch_fn: CompressDispatchFn<AI>,
     cpi_signer: CpiSigner,
     program_id: &[u8; 32],
-) -> Result<(), LightSdkTypesError> {
+) -> Result<Option<CompressPdaBuilt<'a, AI>>, LightSdkTypesError> {
     let system_accounts_offset = params.system_accounts_offset as usize;
     let num_pdas = params.compressed_accounts.len();
 
     if num_pdas == 0 {
+        return Err(LightSdkTypesError::InvalidInstructionData);
+    }
+
+    if system_accounts_offset > remaining_accounts.len() {
         return Err(LightSdkTypesError::InvalidInstructionData);
     }
 
@@ -120,7 +124,7 @@ pub fn process_compress_pda_accounts_idempotent<AI: AccountInfoTrait + Clone>(
 
     // 6. Idempotent: if any account is not yet compressible, skip entire batch
     if has_non_compressible {
-        return Ok(());
+        return Ok(None);
     }
 
     // 7. Build CPI instruction data
@@ -138,14 +142,42 @@ pub fn process_compress_pda_accounts_idempotent<AI: AccountInfoTrait + Clone>(
         cpi_signer,
     );
 
-    // 9. Invoke Light system program CPI
-    cpi_ix_data.invoke::<AI>(cpi_accounts)?;
+    Ok(Some(CompressPdaBuilt {
+        cpi_ix_data,
+        cpi_accounts,
+        pda_indices_to_close,
+    }))
+}
 
-    // 10. Close PDA accounts, transferring lamports to rent_sponsor
-    for pda_index in &pda_indices_to_close {
-        light_account_checks::close_account(&remaining_accounts[*pda_index], rent_sponsor)
-            .map_err(LightSdkTypesError::AccountError)?;
+/// Process compress-and-close for PDA accounts (idempotent).
+///
+/// Iterates over PDA accounts, dispatches each for compression via `dispatch_fn`,
+/// then invokes the Light system program CPI to commit compressed state,
+/// and closes the PDA accounts (transferring lamports to rent_sponsor).
+///
+/// Idempotent: if any account is not yet compressible (rent function check fails),
+/// the entire batch is silently skipped.
+#[inline(never)]
+pub fn process_compress_pda_accounts_idempotent<AI: AccountInfoTrait + Clone>(
+    remaining_accounts: &[AI],
+    params: &CompressAndCloseParams,
+    dispatch_fn: CompressDispatchFn<AI>,
+    cpi_signer: CpiSigner,
+    program_id: &[u8; 32],
+) -> Result<(), LightSdkTypesError> {
+    if let Some(built) = build_compress_pda_cpi_data(
+        remaining_accounts,
+        params,
+        dispatch_fn,
+        cpi_signer,
+        program_id,
+    )? {
+        let rent_sponsor = &remaining_accounts[RENT_SPONSOR_INDEX];
+        built.cpi_ix_data.invoke::<AI>(built.cpi_accounts)?;
+        for pda_index in &built.pda_indices_to_close {
+            light_account_checks::close_account(&remaining_accounts[*pda_index], rent_sponsor)
+                .map_err(LightSdkTypesError::AccountError)?;
+        }
     }
-
     Ok(())
 }

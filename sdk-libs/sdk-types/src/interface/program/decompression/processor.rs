@@ -133,27 +133,21 @@ pub struct DecompressCtx<'a, AI: AccountInfoTrait + Clone> {
 // PDA-only Processor
 // ============================================================================
 
-/// Process decompression for PDA accounts (idempotent, PDA-only).
-///
-/// Iterates over PDA accounts, dispatches each for decompression via `DecompressVariant`,
-/// then invokes the Light system program CPI to commit compressed state.
-///
-/// Idempotent: if a PDA is already initialized, it is silently skipped.
-///
-/// # Account layout in remaining_accounts:
-/// - `[0]`: fee_payer (Signer, mut)
-/// - `[1]`: config (LightConfig PDA)
-/// - `[2]`: rent_sponsor (mut)
-/// - `[system_accounts_offset..hot_accounts_start]`: Light system + tree accounts
-/// - `[hot_accounts_start..]`: PDA accounts to decompress into
-#[inline(never)]
-pub fn process_decompress_pda_accounts_idempotent<AI, V>(
-    remaining_accounts: &[AI],
+/// Result of building CPI data for PDA decompression.
+pub struct DecompressPdaBuilt<'a, AI: AccountInfoTrait + Clone> {
+    pub cpi_ix_data: InstructionDataInvokeCpiWithAccountInfo,
+    pub cpi_accounts: CpiAccounts<'a, AI>,
+}
+
+/// Validates accounts and builds CPI data for PDA decompression.
+/// Returns None when all accounts already initialized (idempotent skip, no CPI needed).
+pub fn build_decompress_pda_cpi_data<'a, AI, V>(
+    remaining_accounts: &'a [AI],
     params: &DecompressIdempotentParams<V>,
     cpi_signer: CpiSigner,
     program_id: &[u8; 32],
     current_slot: u64,
-) -> Result<(), LightSdkTypesError>
+) -> Result<Option<DecompressPdaBuilt<'a, AI>>, LightSdkTypesError>
 where
     AI: AccountInfoTrait + Clone,
     V: DecompressVariant<AI>,
@@ -234,18 +228,57 @@ where
 
     // 6. If no compressed accounts were produced (all already initialized), skip CPI
     if compressed_account_infos.is_empty() {
-        return Ok(());
+        return Ok(None);
     }
 
-    // 7. Build and invoke Light system program CPI
+    // 7. Build CPI instruction data
     let mut cpi_ix_data = InstructionDataInvokeCpiWithAccountInfo::new(
         program_id.into(),
         cpi_signer.bump,
         params.proof.into(),
     );
     cpi_ix_data.account_infos = compressed_account_infos;
-    cpi_ix_data.invoke::<AI>(cpi_accounts)?;
 
+    Ok(Some(DecompressPdaBuilt {
+        cpi_ix_data,
+        cpi_accounts,
+    }))
+}
+
+/// Process decompression for PDA accounts (idempotent, PDA-only).
+///
+/// Iterates over PDA accounts, dispatches each for decompression via `DecompressVariant`,
+/// then invokes the Light system program CPI to commit compressed state.
+///
+/// Idempotent: if a PDA is already initialized, it is silently skipped.
+///
+/// # Account layout in remaining_accounts:
+/// - `[0]`: fee_payer (Signer, mut)
+/// - `[1]`: config (LightConfig PDA)
+/// - `[2]`: rent_sponsor (mut)
+/// - `[system_accounts_offset..hot_accounts_start]`: Light system + tree accounts
+/// - `[hot_accounts_start..]`: PDA accounts to decompress into
+#[inline(never)]
+pub fn process_decompress_pda_accounts_idempotent<AI, V>(
+    remaining_accounts: &[AI],
+    params: &DecompressIdempotentParams<V>,
+    cpi_signer: CpiSigner,
+    program_id: &[u8; 32],
+    current_slot: u64,
+) -> Result<(), LightSdkTypesError>
+where
+    AI: AccountInfoTrait + Clone,
+    V: DecompressVariant<AI>,
+{
+    if let Some(built) = build_decompress_pda_cpi_data(
+        remaining_accounts,
+        params,
+        cpi_signer,
+        program_id,
+        current_slot,
+    )? {
+        built.cpi_ix_data.invoke::<AI>(built.cpi_accounts)?;
+    }
     Ok(())
 }
 
@@ -253,32 +286,32 @@ where
 // Full Processor (PDA + Token)
 // ============================================================================
 
-/// Process decompression for both PDA and token accounts (idempotent).
-///
-/// Handles the combined PDA + token decompression flow:
-/// - PDA accounts are decompressed first
-/// - If both PDAs and tokens exist, PDA data is written to CPI context first
-/// - Token accounts are decompressed via Transfer2 CPI to the light token program
-///
-/// # Account layout in remaining_accounts:
-/// - `[0]`: fee_payer (Signer, mut)
-/// - `[1]`: config (LightConfig PDA)
-/// - `[2]`: rent_sponsor (mut)
-/// - `[3]`: ctoken_rent_sponsor (mut)
-/// - `[4]`: light_token_program
-/// - `[5]`: cpi_authority
-/// - `[6]`: ctoken_compressible_config
-/// - `[system_accounts_offset..hot_accounts_start]`: Light system + tree accounts
-/// - `[hot_accounts_start..]`: Hot accounts (PDAs then tokens)
+/// Result of building CPI data for the combined PDA + token decompression.
 #[cfg(feature = "token")]
-#[inline(never)]
-pub fn process_decompress_accounts_idempotent<AI, V>(
-    remaining_accounts: &[AI],
+pub struct DecompressAccountsBuilt<'a, AI: AccountInfoTrait + Clone> {
+    pub cpi_accounts: CpiAccounts<'a, AI>,
+    pub compressed_account_infos: Vec<CompressedAccountInfo>,
+    pub has_pda_accounts: bool,
+    pub has_token_accounts: bool,
+    pub cpi_context: bool,
+    pub in_token_data: Vec<MultiInputTokenDataWithContext>,
+    pub in_tlv: Option<Vec<Vec<ExtensionInstructionData>>>,
+    pub token_seeds: Vec<Vec<u8>>,
+}
+
+/// Validates accounts, dispatches all variants, and collects CPI inputs for
+/// the combined PDA + token decompression.
+///
+/// Returns the assembled [`DecompressAccountsBuilt`] on success.
+/// The caller is responsible for executing the actual CPIs.
+#[cfg(feature = "token")]
+pub fn build_decompress_accounts_cpi_data<'a, AI, V>(
+    remaining_accounts: &'a [AI],
     params: &DecompressIdempotentParams<V>,
     cpi_signer: CpiSigner,
     program_id: &[u8; 32],
     current_slot: u64,
-) -> Result<(), LightSdkTypesError>
+) -> Result<DecompressAccountsBuilt<'a, AI>, LightSdkTypesError>
 where
     AI: AccountInfoTrait + Clone,
     V: DecompressVariant<AI>,
@@ -387,6 +420,66 @@ where
             decompress_ctx.token_seeds,
         )
     };
+
+    Ok(DecompressAccountsBuilt {
+        cpi_accounts,
+        compressed_account_infos,
+        has_pda_accounts,
+        has_token_accounts,
+        cpi_context,
+        in_token_data,
+        in_tlv,
+        token_seeds,
+    })
+}
+
+/// Process decompression for both PDA and token accounts (idempotent).
+///
+/// Handles the combined PDA + token decompression flow:
+/// - PDA accounts are decompressed first
+/// - If both PDAs and tokens exist, PDA data is written to CPI context first
+/// - Token accounts are decompressed via Transfer2 CPI to the light token program
+///
+/// # Account layout in remaining_accounts:
+/// - `[0]`: fee_payer (Signer, mut)
+/// - `[1]`: config (LightConfig PDA)
+/// - `[2]`: rent_sponsor (mut)
+/// - `[3]`: ctoken_rent_sponsor (mut)
+/// - `[4]`: light_token_program
+/// - `[5]`: cpi_authority
+/// - `[6]`: ctoken_compressible_config
+/// - `[system_accounts_offset..hot_accounts_start]`: Light system + tree accounts
+/// - `[hot_accounts_start..]`: Hot accounts (PDAs then tokens)
+#[cfg(feature = "token")]
+#[inline(never)]
+pub fn process_decompress_accounts_idempotent<AI, V>(
+    remaining_accounts: &[AI],
+    params: &DecompressIdempotentParams<V>,
+    cpi_signer: CpiSigner,
+    program_id: &[u8; 32],
+    current_slot: u64,
+) -> Result<(), LightSdkTypesError>
+where
+    AI: AccountInfoTrait + Clone,
+    V: DecompressVariant<AI>,
+{
+    let DecompressAccountsBuilt {
+        cpi_accounts,
+        compressed_account_infos,
+        has_pda_accounts,
+        has_token_accounts,
+        cpi_context,
+        in_token_data,
+        in_tlv,
+        token_seeds,
+    } = build_decompress_accounts_cpi_data(
+        remaining_accounts,
+        params,
+        cpi_signer,
+        program_id,
+        current_slot,
+    )?;
+    let system_accounts_offset = params.system_accounts_offset as usize;
 
     // 7. PDA CPI (Light system program)
     if has_pda_accounts {
