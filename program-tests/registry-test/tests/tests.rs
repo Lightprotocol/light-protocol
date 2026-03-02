@@ -619,6 +619,8 @@ async fn test_custom_forester() {
         let (mut state_merkle_tree_bundle, _, mut rpc) = {
             let mut e2e_env = init_program_test_env(rpc, &env, 50).await;
             e2e_env.indexer.state_merkle_trees.clear();
+            // Custom forester trees have no network fee, disable fee assertions.
+            e2e_env.keypair_action_config.fee_assert = false;
             // add state merkle tree to the indexer
             e2e_env
                 .indexer
