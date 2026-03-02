@@ -539,7 +539,7 @@ fn test_new_address_set_success_with_assigned_account() {
     assert_eq!(z_new_address.assigned_account_index, 7);
     assert_eq!(z_new_address.address_merkle_tree_account_index, 10);
     assert_eq!(z_new_address.assigned_to_account, 1);
-    assert_eq!(z_new_address.address_queue_account_index, 0); // Invariant: always 0
+    assert_eq!(z_new_address.address_queue_account_index, 10);
 }
 
 #[test]
@@ -567,7 +567,7 @@ fn test_new_address_set_success_without_assigned_account() {
     assert_eq!(z_new_address.assigned_account_index, 0);
     assert_eq!(z_new_address.address_merkle_tree_account_index, 10);
     assert_eq!(z_new_address.assigned_to_account, 0);
-    assert_eq!(z_new_address.address_queue_account_index, 0); // Invariant: always 0
+    assert_eq!(z_new_address.address_queue_account_index, 10);
 }
 
 #[test]
@@ -580,16 +580,16 @@ fn test_new_address_set_invariant_address_queue_account_index() {
         NewAddressParamsAssignedPacked::zero_copy_at_mut(&mut data).unwrap();
 
     // Execute multiple times with different inputs
+    // Invariant: address_queue_account_index == address_merkle_tree_account_index
+    // for v2 batched address trees (queue is embedded in the tree account).
     z_new_address.set([1u8; 32], U16::new(100), Some(5), 10);
-    assert_eq!(z_new_address.address_queue_account_index, 0);
+    assert_eq!(z_new_address.address_queue_account_index, 10);
 
     z_new_address.set([2u8; 32], U16::new(200), None, 20);
-    assert_eq!(z_new_address.address_queue_account_index, 0);
+    assert_eq!(z_new_address.address_queue_account_index, 20);
 
     z_new_address.set([3u8; 32], U16::new(300), Some(50), 30);
-    assert_eq!(z_new_address.address_queue_account_index, 0);
-
-    // Assert invariant: address_queue_account_index always 0 for v2 address trees
+    assert_eq!(z_new_address.address_queue_account_index, 30);
 }
 
 // =============================================================================
