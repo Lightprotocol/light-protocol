@@ -328,10 +328,11 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
         // [0]: light_system_program
         // [1]: mint_signer
         // [2]: authority (payer)
-        // [3]: fee_payer (payer)
-        // [4]: cpi_authority_pda
-        // [5]: cpi_context
-        let metas = vec![
+        // [3]: rent_sponsor (writable)
+        // [4]: fee_payer (payer)
+        // [5]: cpi_authority_pda
+        // [6]: cpi_context
+        let mut metas = vec![
             CpiMeta {
                 pubkey: self.light_system_program.key(),
                 is_signer: false,
@@ -347,31 +348,51 @@ impl<'a, AI: AccountInfoTrait + Clone> CreateMintsCpi<'a, AI> {
                 is_signer: true,
                 is_writable: false,
             },
-            CpiMeta {
-                pubkey: self.payer.key(),
-                is_signer: true,
-                is_writable: true,
-            },
-            CpiMeta {
-                pubkey: self.cpi_authority_pda.key(),
-                is_signer: false,
-                is_writable: false,
-            },
-            CpiMeta {
-                pubkey: self.cpi_context_account.key(),
-                is_signer: false,
-                is_writable: true,
-            },
         ];
 
-        let account_infos = vec![
+        let mut account_infos = vec![
             self.light_system_program.clone(),
             self.mint_seed_accounts[index].clone(),
             self.payer.clone(),
-            self.payer.clone(),
-            self.cpi_authority_pda.clone(),
-            self.cpi_context_account.clone(),
         ];
+
+        // rent_sponsor (writable) - for mint creation fee in write mode
+        metas.push(CpiMeta {
+            pubkey: self.rent_sponsor.key(),
+            is_signer: false,
+            is_writable: true,
+        });
+        account_infos.push(self.rent_sponsor.clone());
+
+        // fee_payer, cpi_authority_pda, cpi_context
+        metas.push(CpiMeta {
+            pubkey: self.payer.key(),
+            is_signer: true,
+            is_writable: true,
+        });
+        account_infos.push(self.payer.clone());
+
+        metas.push(CpiMeta {
+            pubkey: self.cpi_authority_pda.key(),
+            is_signer: false,
+            is_writable: false,
+        });
+        account_infos.push(self.cpi_authority_pda.clone());
+
+        metas.push(CpiMeta {
+            pubkey: self.cpi_context_account.key(),
+            is_signer: false,
+            is_writable: true,
+        });
+        account_infos.push(self.cpi_context_account.clone());
+
+        // System program needed for fee transfer CPI
+        metas.push(CpiMeta {
+            pubkey: self.system_program.key(),
+            is_signer: false,
+            is_writable: false,
+        });
+        account_infos.push(self.system_program.clone());
 
         self.invoke_mint_action_raw(&ix_data, &account_infos, &metas, index)
     }

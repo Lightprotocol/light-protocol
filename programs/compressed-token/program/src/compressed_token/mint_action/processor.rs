@@ -20,7 +20,8 @@ use crate::{
         queue_indices::QueueIndices,
         zero_copy_config::get_zero_copy_configs,
     },
-    shared::cpi::execute_cpi_invoke,
+    shared::{convert_program_error, cpi::execute_cpi_invoke, transfer_lamports_via_cpi},
+    MINT_CREATION_FEE,
 };
 
 pub fn process_mint_action(
@@ -42,6 +43,31 @@ pub fn process_mint_action(
     // Validate and parse
     let validated_accounts =
         MintActionAccounts::validate_and_parse(accounts, &accounts_config, cmint_pubkey.as_ref())?;
+
+    // Charge mint creation fee in both execute and write modes.
+    // Rent sponsor accounts are already validated in validate_and_parse:
+    // - Execute mode: validated against compressible_config.rent_sponsor
+    // - Write mode: validated against hardcoded RENT_SPONSOR_V1
+    if accounts_config.create_mint {
+        if let Some(executing) = validated_accounts.executing.as_ref() {
+            let rent_sponsor = executing
+                .rent_sponsor
+                .ok_or(ErrorCode::MintActionMissingExecutingAccounts)?;
+            transfer_lamports_via_cpi(MINT_CREATION_FEE, executing.system.fee_payer, rent_sponsor)
+                .map_err(convert_program_error)?;
+        } else {
+            let rent_sponsor = validated_accounts
+                .write_mode_rent_sponsor
+                .ok_or(ErrorCode::MintActionMissingExecutingAccounts)?;
+            let fee_payer = validated_accounts
+                .write_to_cpi_context_system
+                .as_ref()
+                .ok_or(ErrorCode::MintActionMissingExecutingAccounts)?
+                .fee_payer;
+            transfer_lamports_via_cpi(MINT_CREATION_FEE, fee_payer, rent_sponsor)
+                .map_err(convert_program_error)?;
+        }
+    }
 
     // Get mint data based on source:
     // 1. Creating new mint: mint data required in instruction
@@ -144,9 +170,13 @@ pub fn process_mint_action(
         &accounts_config,
     );
 
-    // Check for idempotent early exit - skip CPI and return success
+    // Check for idempotent early exit - skip CPI and return success.
+    // create_mint must never use idempotent early exit (fee already charged).
     if let Err(ref err) = result {
         if is_idempotent_early_exit(err) {
+            if accounts_config.create_mint {
+                return Err(ErrorCode::CreateMintIdempotentNotAllowed.into());
+            }
             return Ok(());
         }
     }

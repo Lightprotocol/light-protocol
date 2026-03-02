@@ -36,6 +36,10 @@ pub struct CreateMintInputs {
     pub output_queue: Pubkey,
     pub extensions: Option<Vec<ExtensionInstructionData>>,
     pub version: u8,
+    /// CompressibleConfig account for on-chain rent_sponsor validation.
+    pub compressible_config: Pubkey,
+    /// Rent sponsor PDA that receives the mint creation fee.
+    pub rent_sponsor: Pubkey,
 }
 
 /// Creates a compressed mint instruction (wrapper around mint_action)
@@ -84,6 +88,8 @@ pub fn create_compressed_mint_cpi(
             input.mint_signer,
             input.address_tree_pubkey,
             input.output_queue,
+            input.compressible_config,
+            input.rent_sponsor,
         )
     };
 
@@ -115,6 +121,8 @@ pub struct CreateMintInputsCpiWrite {
     pub cpi_context_pubkey: Pubkey,
     pub extensions: Option<Vec<ExtensionInstructionData>>,
     pub version: u8,
+    /// Rent sponsor PDA for mint creation fee in write mode.
+    pub rent_sponsor: Pubkey,
 }
 
 pub fn create_compressed_mint_cpi_write(input: CreateMintInputsCpiWrite) -> Result<Instruction> {
@@ -152,6 +160,7 @@ pub fn create_compressed_mint_cpi_write(input: CreateMintInputsCpiWrite) -> Resu
         fee_payer: input.payer,
         mint_signer: Some(input.mint_signer),
         authority: input.mint_authority,
+        rent_sponsor: Some(input.rent_sponsor),
         cpi_context: input.cpi_context_pubkey,
     };
 

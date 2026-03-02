@@ -20,8 +20,8 @@ pub struct MintActionAccounts<'info> {
     pub light_system_program: &'info AccountInfo,
     /// Seed for mint PDA derivation.
     /// Required only for compressed mint creation.
-    /// Note: mint_signer is not in executing accounts since create mint
-    /// is allowed in combination with write to cpi context.
+    /// Note: mint_signer is not in executing accounts since it is parsed
+    /// before the executing/cpi-write branch.
     pub mint_signer: Option<&'info AccountInfo>,
     pub authority: &'info AccountInfo,
     /// Required accounts to execute an instruction
@@ -31,6 +31,9 @@ pub struct MintActionAccounts<'info> {
     /// Required accounts to write into a cpi context account.
     /// - executing is None
     pub write_to_cpi_context_system: Option<CpiContextLightSystemAccounts<'info>>,
+    /// Rent sponsor account in write mode (when create_mint + write_to_cpi_context).
+    /// Validated against hardcoded RENT_SPONSOR_V1 constant.
+    pub write_mode_rent_sponsor: Option<&'info AccountInfo>,
     /// Packed accounts contain
     /// [
     ///     ..tree_accounts,
@@ -85,7 +88,25 @@ impl<'info> MintActionAccounts<'info> {
         // Authority is always required to sign
         let authority = iter.next_signer("authority")?;
         if config.write_to_cpi_context {
+            let write_mode_rent_sponsor = if config.create_mint {
+                let sponsor = iter.next_mut("rent_sponsor")?;
+                if sponsor.key() != &crate::RENT_SPONSOR_V1 {
+                    msg!("Rent sponsor account does not match RENT_SPONSOR_V1");
+                    return Err(ErrorCode::InvalidRentSponsor.into());
+                }
+                Some(sponsor)
+            } else {
+                None
+            };
             let write_to_cpi_context_system = CpiContextLightSystemAccounts::new(&mut iter)?;
+            // System program is needed for the fee transfer CPI when creating mint in write mode.
+            // It's placed after all parsed accounts - the account iterator consumes it here,
+            // but it's available for the system program CPI via the transaction accounts.
+            if config.create_mint {
+                // Consumed from iterator to satisfy the "too many accounts" check.
+                // The system program is accessible to CPI calls via the transaction accounts list.
+                let _ = iter.next_account("system_program")?;
+            }
 
             if !iter.iterator_is_empty() {
                 msg!("Too many accounts for write to cpi context.");
@@ -97,11 +118,14 @@ impl<'info> MintActionAccounts<'info> {
                 authority,
                 executing: None,
                 write_to_cpi_context_system: Some(write_to_cpi_context_system),
+                write_mode_rent_sponsor,
                 packed_accounts: ProgramPackedAccounts { accounts: &[] },
             })
         } else {
-            // Parse and validate compressible config when creating or closing CMint
-            let compressible_config = if config.needs_compressible_accounts() {
+            // Parse and validate compressible config when creating mint (fee validation),
+            // decompressing, or closing CMint
+            let compressible_config = if config.create_mint || config.needs_compressible_accounts()
+            {
                 Some(next_config_account(&mut iter)?)
             } else {
                 None
@@ -110,9 +134,18 @@ impl<'info> MintActionAccounts<'info> {
             // CMint account required if already decompressed OR being decompressed/closed
             let cmint = iter.next_option_mut("cmint", config.needs_cmint_account())?;
 
-            // Parse rent_sponsor when creating or closing CMint
-            let rent_sponsor =
-                iter.next_option_mut("rent_sponsor", config.needs_compressible_accounts())?;
+            // Parse rent_sponsor when creating mint (fee recipient) or when creating/closing CMint
+            let rent_sponsor = iter.next_option_mut("rent_sponsor", config.needs_rent_sponsor())?;
+
+            // Validate rent_sponsor matches compressible_config when creating a mint.
+            if let Some(sponsor) = rent_sponsor {
+                let cfg =
+                    compressible_config.ok_or(ErrorCode::MintActionMissingExecutingAccounts)?;
+                if sponsor.key() != &cfg.rent_sponsor.to_bytes() {
+                    msg!("Rent sponsor account does not match config");
+                    return Err(ErrorCode::InvalidRentSponsor.into());
+                }
+            }
 
             let system = LightSystemAccounts::validate_and_parse(
                 &mut iter,
@@ -154,6 +187,7 @@ impl<'info> MintActionAccounts<'info> {
                     tokens_out_queue,
                 }),
                 write_to_cpi_context_system: None,
+                write_mode_rent_sponsor: None,
                 packed_accounts: ProgramPackedAccounts {
                     accounts: iter.remaining_unchecked()?,
                 },
@@ -212,8 +246,13 @@ impl<'info> MintActionAccounts<'info> {
             offset += 1;
         }
 
+        // write_mode_rent_sponsor (optional) - when create_mint + write_to_cpi_context
+        if self.write_mode_rent_sponsor.is_some() {
+            offset += 1;
+        }
+
         if let Some(executing) = &self.executing {
-            // compressible_config (optional) - when creating CMint
+            // compressible_config (optional) - when creating mint or CMint
             if executing.compressible_config.is_some() {
                 offset += 1;
             }
@@ -221,7 +260,7 @@ impl<'info> MintActionAccounts<'info> {
             if executing.cmint.is_some() {
                 offset += 1;
             }
-            // rent_sponsor (optional) - when creating CMint
+            // rent_sponsor (optional) - when creating mint or CMint
             if executing.rent_sponsor.is_some() {
                 offset += 1;
             }
@@ -377,6 +416,13 @@ impl AccountsConfig {
         self.has_decompress_mint_action || self.has_compress_and_close_cmint_action
     }
 
+    /// Returns true if rent_sponsor account is needed.
+    /// Required when creating a new mint (mint creation fee recipient) or when compressible accounts are needed.
+    #[inline(always)]
+    pub fn needs_rent_sponsor(&self) -> bool {
+        self.create_mint || self.needs_compressible_accounts()
+    }
+
     /// Returns true if CMint account is needed in the transaction.
     /// Required when: already decompressed, decompressing, or compressing and closing CMint.
     #[inline(always)]
@@ -442,6 +488,12 @@ impl AccountsConfig {
         if has_compress_and_close_cmint_action && parsed_instruction_data.actions.len() != 1 {
             msg!("CompressAndCloseCMint must be the only action in the instruction");
             return Err(ErrorCode::CompressAndCloseCMintMustBeOnlyAction.into());
+        }
+
+        // Validation: Cannot combine create_mint with CompressAndCloseCMint
+        if has_compress_and_close_cmint_action && parsed_instruction_data.create_mint.is_some() {
+            msg!("Cannot combine create_mint with CompressAndCloseCMint");
+            return Err(ErrorCode::CreateMintCannotCombineWithCompressAndClose.into());
         }
 
         // We need mint signer only if creating a new mint.

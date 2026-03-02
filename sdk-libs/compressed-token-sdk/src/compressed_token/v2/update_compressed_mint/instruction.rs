@@ -136,6 +136,7 @@ pub fn create_update_compressed_mint_cpi_write(
         fee_payer: inputs.payer,
         mint_signer: None, // Not needed for authority updates
         authority: inputs.authority,
+        rent_sponsor: None, // Not creating mint
         cpi_context: inputs.cpi_context_pubkey,
     };
 
