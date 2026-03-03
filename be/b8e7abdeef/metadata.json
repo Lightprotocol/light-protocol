@@ -3,7 +3,7 @@
   "checkpoint_id": "beb8e7abdeef",
   "strategy": "manual-commit",
   "branch": "jorrit/chore-limit-tree-creations-to-protocol-auth",
-  "checkpoints_count": 2,
+  "checkpoints_count": 4,
   "files_touched": [
     "program-tests/account-compression-test/tests/batched_merkle_tree_test.rs",
     "program-tests/registry-test/tests/tests.rs",
@@ -42,13 +42,20 @@
       "context": "/be/b8e7abdeef/2/context.md",
       "content_hash": "/be/b8e7abdeef/2/content_hash.txt",
       "prompt": "/be/b8e7abdeef/2/prompt.txt"
+    },
+    {
+      "metadata": "/be/b8e7abdeef/3/metadata.json",
+      "transcript": "/be/b8e7abdeef/3/full.jsonl",
+      "context": "/be/b8e7abdeef/3/context.md",
+      "content_hash": "/be/b8e7abdeef/3/content_hash.txt",
+      "prompt": "/be/b8e7abdeef/3/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 2991,
-    "cache_creation_tokens": 1906820,
-    "cache_read_tokens": 101823316,
-    "output_tokens": 194739,
-    "api_call_count": 942
+    "input_tokens": 3128,
+    "cache_creation_tokens": 2117079,
+    "cache_read_tokens": 113644292,
+    "output_tokens": 243925,
+    "api_call_count": 1068
   }
 }
