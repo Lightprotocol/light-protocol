@@ -1,0 +1,1420 @@
+Implement the following plan:
+
+# Fix Tests After Registry Authority Checks
+
+## IMPORTANT - Autonomous Execution Mode
+
+- This plan must execute without user intervention
+- Use subagents for research, parallel work, or when stuck
+- If blocked, find alternative approach - do not stop
+- Keep working until ALL todos are complete
+- Goal: `cargo test-sbf -p system-test`, `registry-test`, `account-compression-test` all green
+- MUST NOT revert the protocol authority signer checks in registry program
+- The authority checks limit tree creation to protocol authority for batched trees and v1 state trees with network fees
+
+## Context
+
+The diff adds authority signer checks to the registry program and separates payer/authority params in tree creation SDK functions. Some tests fail because:
+1. Call sites may not pass the correct authority
+2. Test environments may use payer as authority but payer != protocol authority in some contexts
+3. Error expectations in tests may need updating if the error path changed
+
+## Phase 1: Research & Discovery
+
+1. Explore all call sites of changed functions and verify they pass correct authority
+2. Understand the MissingLegacyMerkleContext error in system-test
+3. Check registry-test and account-compression-test for issues
+
+## Phase 2: Fix Issues Found
+
+4. Fix each identified issue
+
+## Phase 3: Testing & Validation
+
+5. Run `cargo test-sbf -p system-test` - fix failures
+6. Run `cargo test-sbf -p registry-test` - fix failures
+7. Run `cargo test-sbf -p account-compression-test` - fix failures
+8. Iterate until all green
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ananas/.REDACTED.jsonl
+
+---
+
+# Diff Description
+
+Review the complete diff and produce a concise numbered list of changes.
+
+## Context
+
+- Current branch: jorrit/chore-limit-tree-creations-to-protocol-auth
+- Recent commits: 4bc5eaef3 chore: limit v1 state tree, v2 state&address tree creations to protocol authority
+- Diff to main:
+```diff
+diff --git a/program-tests/account-compression-test/tests/batched_merkle_tree_test.rs b/program-tests/account-compression-test/tests/batched_merkle_tree_test.rs
+index 018e1192f..23207121d 100644
+--- a/program-tests/account-compression-test/tests/batched_merkle_tree_test.rs
++++ b/program-tests/account-compression-test/tests/batched_merkle_tree_test.rs
+@@ -379,6 +379,7 @@ async fn test_batch_state_merkle_tree() {
+         let new_keypair_queue = Keypair::new();
+         let payer = context.get_payer().insecure_clone();
+         create_batched_state_merkle_tree(
++            &payer,
+             &payer,
+             false,
+             &mut context,
+diff --git a/program-tests/registry-test/tests/tests.rs b/program-tests/registry-test/tests/tests.rs
+index 569959f47..d93776fd9 100644
+--- a/program-tests/registry-test/tests/tests.rs
++++ b/program-tests/registry-test/tests/tests.rs
+@@ -31,6 +31,7 @@ use light_program_test::{
+             deregister_program_with_registry_program, register_program_with_registry_program,
+         },
+         state_tree::create_state_merkle_tree_and_queue_account,
++        state_tree_v2::create_batched_state_merkle_tree,
+         test_accounts::{TestAccounts, NOOP_PROGRAM_ID},
+         test_keypairs::{GROUP_PDA_SEED_TEST_KEYPAIR, OLD_REGISTRY_ID_TEST_KEYPAIR},
+     },
+@@ -387,6 +388,7 @@ async fn test_initialize_protocol_config() {
+         let nullifier_queue_keypair = Keypair::new();
+         let cpi_context_keypair = Keypair::new();
+         create_state_merkle_tree_and_queue_account(
++            &payer,
+             &payer,
+             true,
+             &mut rpc,
+@@ -411,6 +413,7 @@ async fn test_initialize_protocol_config() {
+         let nullifier_queue_keypair = Keypair::new();
+         let cpi_context_keypair = Keypair::new();
+         let result = create_state_merkle_tree_and_queue_account(
++            &payer,
+             &payer,
+             true,
+             &mut rpc,
+@@ -436,6 +439,7 @@ async fn test_initialize_protocol_config() {
+         let cpi_context_keypair = Keypair::new();
+         create_state_merkle_tree_and_queue_account(
+             &payer,
++            &updated_keypair,
+             true,
+             &mut rpc,
+             &merkle_tree_keypair,
+@@ -453,12 +457,38 @@ async fn test_initialize_protocol_config() {
+         .await
+         .unwrap();
+     }
++    // FAIL: initialize a Merkle tree with network_fee but wrong authority
++    {
++        let merkle_tree_keypair = Keypair::new();
++        let nullifier_queue_keypair = Keypair::new();
++        let cpi_context_keypair = Keypair::new();
++        let result = create_state_merkle_tree_and_queue_account(
++            &payer,
++            &payer,
++            true,
++            &mut rpc,
++            &merkle_tree_keypair,
++            &nullifier_queue_keypair,
++            Some(&cpi_context_keypair),
++            None,
++            None,
++            1,
++            &StateMerkleTreeConfig {
++                network_fee: Some(5000),
++                ..Default::default()
++            },
++            &NullifierQueueConfig::default(),
++        )
++        .await;
++        assert_rpc_error(result, 3, RegistryError::InvalidSigner.into()).unwrap();
++    }
+     // FAIL: initialize a Merkle tree with network_fee + forester (must be rejected)
+     {
+         let merkle_tree_keypair = Keypair::new();
+         let nullifier_queue_keypair = Keypair::new();
+         let cpi_context_keypair = Keypair::new();
+         let result = create_state_merkle_tree_and_queue_account(
++            &payer,
+             &payer,
+             true,
+             &mut rpc,
+@@ -483,6 +513,7 @@ async fn test_initialize_protocol_config() {
+         let nullifier_queue_keypair = Keypair::new();
+         let cpi_context_keypair = Keypair::new();
+         let result = create_state_merkle_tree_and_queue_account(
++            &payer,
+             &payer,
+             true,
+             &mut rpc,
+@@ -1875,11 +1906,48 @@ async fn test_batch_address_tree() {
+             network_fee: Some(1),
+             ..Default::default()
+         };
+-        let result =
+-            create_batch_address_merkle_tree(&mut rpc, &payer, &new_merkle_tree, test_tree_params)
+-                .await;
++        let result = create_batch_address_merkle_tree(
++            &mut rpc,
++            &payer,
++            &payer,
++            &new_merkle_tree,
++            test_tree_params,
++        )
++        .await;
+         assert_rpc_error(result, 1, RegistryError::InvalidNetworkFee.into()).unwrap();
+     }
++    // FAIL: create batched address tree with correct fee but wrong authority
++    {
++        let new_merkle_tree = Keypair::new();
++        let test_tree_params = InitAddressTreeAccountsInstructionData::default();
++        let result = create_batch_address_merkle_tree(
++            &mut rpc,
++            &payer,
++            &payer,
++            &new_merkle_tree,
++            test_tree_params,
++        )
++        .await;
++        assert_rpc_error(result, 1, RegistryError::InvalidSigner.into()).unwrap();
++    }
++    // FAIL: create batched state tree with correct fee but wrong authority
++    {
++        let merkle_tree_keypair = Keypair::new();
++        let queue_keypair = Keypair::new();
++        let cpi_context_keypair = Keypair::new();
++        let result = create_batched_state_merkle_tree(
++            &payer,
++            &payer,
++            true,
++            &mut rpc,
++            &merkle_tree_keypair,
++            &queue_keypair,
++            &cpi_context_keypair,
++            InitStateTreeAccountsInstructionData::default(),
++        )
++        .await;
++        assert_rpc_error(result, 3, RegistryError::InvalidSigner.into()).unwrap();
++    }
+ 
+     for i in 0..tree_params.input_queue_batch_size * 2 {
+         println!("tx {}", i);
+diff --git a/program-tests/system-test/tests/test.rs b/program-tests/system-test/tests/test.rs
+index 5768a9a66..45d7ee413 100644
+--- a/program-tests/system-test/tests/test.rs
++++ b/program-tests/system-test/tests/test.rs
+@@ -20,7 +20,6 @@ use light_compressed_account::{
+     },
+     TreeType,
+ };
+-use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
+ use light_program_test::{
+     accounts::test_accounts::TestAccounts,
+     indexer::{TestIndexer, TestIndexerExtensions},
+@@ -623,7 +622,9 @@ pub async fn failing_transaction_address<R: Rpc>(
+         .unwrap();
+     }
+ 
+-    // invalid address queue account
++    // invalid address queue account (replaced with nullifier queue)
++    // The system program hits MissingLegacyMerkleContext (error code 6066)
++    // when trying to look up the legacy context for the replaced queue account.
+     {
+         let inputs_struct = inputs_struct.clone();
+         let mut remaining_accounts = remaining_accounts.clone();
+@@ -639,7 +640,7 @@ pub async fn failing_transaction_address<R: Rpc>(
+             payer,
+             inputs_struct,
+             remaining_accounts.clone(),
+-            MerkleTreeMetadataError::InvalidQueueType.into(),
++            6066, // SystemProgramError::MissingLegacyMerkleContext
+         )
+         .await
+         .unwrap();
+diff --git a/program-tests/utils/src/e2e_test_env.rs b/program-tests/utils/src/e2e_test_env.rs
+index b7ae6acc9..a5423e346 100644
+--- a/program-tests/utils/src/e2e_test_env.rs
++++ b/program-tests/utils/src/e2e_test_env.rs
+@@ -1245,6 +1245,7 @@ where
+         let forester = Pubkey::new_unique();
+         println!("queue config: {:?}", queue_config);
+         create_state_merkle_tree_and_queue_account(
++            &self.payer,
+             &self.payer,
+             true,
+             &mut self.rpc,
+diff --git a/programs/registry/src/account_compression_cpi/sdk.rs b/programs/registry/src/account_compression_cpi/sdk.rs
+index 1879ccb1f..ce3d1d771 100644
+--- a/programs/registry/src/account_compression_cpi/sdk.rs
++++ b/programs/registry/src/account_compression_cpi/sdk.rs
+@@ -289,7 +289,7 @@ pub fn create_initialize_address_merkle_tree_and_queue_instruction(
+ }
+ 
+ pub fn create_initialize_merkle_tree_instruction(
+-    payer: Pubkey,
++    authority: Pubkey,
+     merkle_tree_pubkey: Pubkey,
+     nullifier_queue_pubkey: Pubkey,
+     cpi_context_pubkey: Pubkey,
+@@ -309,7 +309,7 @@ pub fn create_initialize_merkle_tree_instruction(
+         queue_config: nullifier_queue_config,
+     };
+     let accounts = crate::accounts::InitializeMerkleTreeAndQueue {
+-        authority: payer,
++        authority,
+         registered_program_pda: register_program_pda,
+         merkle_tree: merkle_tree_pubkey,
+         queue: nullifier_queue_pubkey,
+@@ -327,7 +327,7 @@ pub fn create_initialize_merkle_tree_instruction(
+ }
+ 
+ pub fn create_initialize_batched_merkle_tree_instruction(
+-    payer: Pubkey,
++    authority: Pubkey,
+     merkle_tree_pubkey: Pubkey,
+     queue_pubkey: Pubkey,
+     cpi_context_pubkey: Pubkey,
+@@ -341,7 +341,7 @@ pub fn create_initialize_batched_merkle_tree_instruction(
+         params: params.try_to_vec().unwrap(),
+     };
+     let accounts = crate::accounts::InitializeBatchedStateMerkleTreeAndQueue {
+-        authority: payer,
++        authority,
+         registered_program_pda: register_program_pda,
+         merkle_tree: merkle_tree_pubkey,
+         queue: queue_pubkey,
+@@ -460,7 +460,7 @@ pub fn create_rollover_batch_state_tree_instruction(
+ }
+ 
+ pub fn create_initialize_batched_address_merkle_tree_instruction(
+-    payer: Pubkey,
++    authority: Pubkey,
+     merkle_tree_pubkey: Pubkey,
+     params: InitAddressTreeAccountsInstructionData,
+ ) -> Instruction {
+@@ -473,7 +473,7 @@ pub fn create_initialize_batched_address_merkle_tree_instruction(
+     };
+     let protocol_config_pda = get_protocol_config_pda_address().0;
+     let accounts = crate::accounts::InitializeBatchedAddressTree {
+-        authority: payer,
++        authority,
+         registered_program_pda: register_program_pda,
+         merkle_tree: merkle_tree_pubkey,
+         cpi_authority,
+diff --git a/programs/registry/src/lib.rs b/programs/registry/src/lib.rs
+index a4882c4ed..a21b58cd4 100644
+--- a/programs/registry/src/lib.rs
++++ b/programs/registry/src/lib.rs
+@@ -345,6 +345,9 @@ pub mod light_registry {
+                 msg!("Forester pubkey must not be defined for trees serviced by light foresters.");
+                 return err!(RegistryError::ForesterDefined);
+             }
++            if ctx.accounts.authority.key() != ctx.accounts.protocol_config_pda.authority {
++                return err!(RegistryError::InvalidSigner);
++            }
+         } else if forester.is_none() {
+             msg!("Forester pubkey required for trees without a network fee.");
+             msg!("Trees without a network fee will not be serviced by light foresters.");
+@@ -518,6 +521,9 @@ pub mod light_registry {
+         } else {
+             return err!(RegistryError::InvalidNetworkFee);
+         }
++        if ctx.accounts.authority.key() != ctx.accounts.protocol_config_pda.authority {
++            return err!(RegistryError::InvalidSigner);
++        }
+         check_cpi_context(
+             ctx.accounts.cpi_context_account.to_account_info(),
+             &ctx.accounts.protocol_config_pda.config,
+@@ -606,6 +612,9 @@ pub mod light_registry {
+         } else {
+             return err!(RegistryError::InvalidNetworkFee);
+         }
++        if ctx.accounts.authority.key() != ctx.accounts.protocol_config_pda.authority {
++            return err!(RegistryError::InvalidSigner);
++        }
+         process_initialize_batched_address_merkle_tree(&ctx, bump, params.try_to_vec()?)
+     }
+ 
+diff --git a/sdk-libs/program-test/src/accounts/address_tree_v2.rs b/sdk-libs/program-test/src/accounts/address_tree_v2.rs
+index fe9bccee9..0a0d59e3c 100644
+--- a/sdk-libs/program-test/src/accounts/address_tree_v2.rs
++++ b/sdk-libs/program-test/src/accounts/address_tree_v2.rs
+@@ -11,6 +11,7 @@ use crate::utils::create_account::create_account_instruction;
+ pub async fn create_batch_address_merkle_tree<R: Rpc>(
+     rpc: &mut R,
+     payer: &Keypair,
++    authority: &Keypair,
+     new_address_merkle_tree_keypair: &Keypair,
+     address_tree_params: InitAddressTreeAccountsInstructionData,
+ ) -> Result<Signature, RpcError> {
+@@ -34,14 +35,18 @@ pub async fn create_batch_address_merkle_tree<R: Rpc>(
+     );
+ 
+     let instruction = create_initialize_batched_address_merkle_tree_instruction(
+-        payer.pubkey(),
++        authority.pubkey(),
+         new_address_merkle_tree_keypair.pubkey(),
+         address_tree_params,
+     );
++    let mut signers: Vec<&Keypair> = vec![payer, new_address_merkle_tree_keypair];
++    if authority.pubkey() != payer.pubkey() {
++        signers.push(authority);
++    }
+     rpc.create_and_send_transaction(
+         &[create_mt_account_ix, instruction],
+         &payer.pubkey(),
+-        &[payer, new_address_merkle_tree_keypair],
++        &signers,
+     )
+     .await
+ }
+diff --git a/sdk-libs/program-test/src/accounts/initialize.rs b/sdk-libs/program-test/src/accounts/initialize.rs
+index 37700d239..f739b47be 100644
+--- a/sdk-libs/program-test/src/accounts/initialize.rs
++++ b/sdk-libs/program-test/src/accounts/initialize.rs
+@@ -117,6 +117,7 @@ pub async fn initialize_accounts<R: Rpc + TestRpc>(
+     }
+     if !config.skip_v1_trees {
+         create_state_merkle_tree_and_queue_account(
++            &keypairs.governance_authority,
+             &keypairs.governance_authority,
+             true,
+             context,
+@@ -133,6 +134,7 @@ pub async fn initialize_accounts<R: Rpc + TestRpc>(
+ 
+         if !skip_second_v1_tree {
+             create_state_merkle_tree_and_queue_account(
++                &keypairs.governance_authority,
+                 &keypairs.governance_authority,
+                 true,
+                 context,
+@@ -168,6 +170,7 @@ pub async fn initialize_accounts<R: Rpc + TestRpc>(
+     #[cfg(feature = "v2")]
+     if let Some(v2_state_tree_config) = _v2_state_tree_config {
+         create_batched_state_merkle_tree(
++            &keypairs.governance_authority,
+             &keypairs.governance_authority,
+             true,
+             context,
+@@ -183,6 +186,7 @@ pub async fn initialize_accounts<R: Rpc + TestRpc>(
+         create_batch_address_merkle_tree(
+             context,
+             &keypairs.governance_authority,
++            &keypairs.governance_authority,
+             &keypairs.batch_address_merkle_tree,
+             *params,
+         )
+diff --git a/sdk-libs/program-test/src/accounts/state_tree.rs b/sdk-libs/program-test/src/accounts/state_tree.rs
+index d43f7f768..b39f7ec67 100644
+--- a/sdk-libs/program-test/src/accounts/state_tree.rs
++++ b/sdk-libs/program-test/src/accounts/state_tree.rs
+@@ -105,6 +105,7 @@ pub fn create_insert_leaves_instruction(
+ #[allow(clippy::too_many_arguments)]
+ pub async fn create_state_merkle_tree_and_queue_account<R: Rpc>(
+     payer: &Keypair,
++    authority: &Keypair,
+     registry: bool,
+     rpc: &mut R,
+     merkle_tree_keypair: &Keypair,
+@@ -163,7 +164,7 @@ pub async fn create_state_merkle_tree_and_queue_account<R: Rpc>(
+         );
+ 
+         let instruction = create_initialize_merkle_tree_instruction_registry(
+-            payer.pubkey(),
++            authority.pubkey(),
+             merkle_tree_keypair.pubkey(),
+             nullifier_queue_keypair.pubkey(),
+             cpi_context_keypair.pubkey(),
+@@ -172,6 +173,15 @@ pub async fn create_state_merkle_tree_and_queue_account<R: Rpc>(
+             program_owner,
+             forester,
+         );
++        let mut signers = vec![
++            payer,
++            merkle_tree_keypair,
++            nullifier_queue_keypair,
++            cpi_context_keypair,
++        ];
++        if authority.pubkey() != payer.pubkey() {
++            signers.push(authority);
++        }
+         Transaction::new_signed_with_payer(
+             &[
+                 create_cpi_context_instruction,
+@@ -180,12 +190,7 @@ pub async fn create_state_merkle_tree_and_queue_account<R: Rpc>(
+                 instruction,
+             ],
+             Some(&payer.pubkey()),
+-            &vec![
+-                payer,
+-                merkle_tree_keypair,
+-                nullifier_queue_keypair,
+-                cpi_context_keypair,
+-            ],
++            &signers,
+             rpc.get_latest_blockhash().await?.0,
+         )
+     } else {
+diff --git a/sdk-libs/program-test/src/accounts/state_tree_v2.rs b/sdk-libs/program-test/src/accounts/state_tree_v2.rs
+index b3c4bb618..7095263d0 100644
+--- a/sdk-libs/program-test/src/accounts/state_tree_v2.rs
++++ b/sdk-libs/program-test/src/accounts/state_tree_v2.rs
+@@ -14,8 +14,10 @@ use solana_sdk::signature::{Keypair, Signature, Signer};
+ 
+ use crate::utils::create_account::create_account_instruction;
+ 
++#[allow(clippy::too_many_arguments)]
+ pub async fn create_batched_state_merkle_tree<R: Rpc>(
+     payer: &Keypair,
++    authority: &Keypair,
+     registry: bool,
+     rpc: &mut R,
+     merkle_tree_keypair: &Keypair,
+@@ -66,7 +68,7 @@ pub async fn create_batched_state_merkle_tree<R: Rpc>(
+     );
+     let instruction = if registry {
+         create_initialize_batched_merkle_tree_instruction(
+-            payer.pubkey(),
++            authority.pubkey(),
+             merkle_tree_keypair.pubkey(),
+             queue_keypair.pubkey(),
+             cpi_context_keypair.pubkey(),
+@@ -90,6 +92,16 @@ pub async fn create_batched_state_merkle_tree<R: Rpc>(
+         }
+     };
+ 
++    let mut signers: Vec<&Keypair> = vec![
++        payer,
++        merkle_tree_keypair,
++        queue_keypair,
++        cpi_context_keypair,
++    ];
++    if registry && authority.pubkey() != payer.pubkey() {
++        signers.push(authority);
++    }
++
+     rpc.create_and_send_transaction(
+         &[
+             create_mt_account_ix,
+@@ -98,12 +110,7 @@ pub async fn create_batched_state_merkle_tree<R: Rpc>(
+             instruction,
+         ],
+         &payer.pubkey(),
+-        &[
+-            payer,
+-            merkle_tree_keypair,
+-            queue_keypair,
+-            cpi_context_keypair,
+-        ],
++        &signers,
+     )
+     .await
+ }
+diff --git a/sdk-libs/program-test/src/indexer/test_indexer.rs b/sdk-libs/program-test/src/indexer/test_indexer.rs
+index f01b9ec8e..0b5b0583a 100644
+--- a/sdk-libs/program-test/src/indexer/test_indexer.rs
++++ b/sdk-libs/program-test/src/indexer/test_indexer.rs
+@@ -100,6 +100,10 @@ pub struct TestIndexer {
+     pub state_merkle_trees: Vec<StateMerkleTreeBundle>,
+     pub address_merkle_trees: Vec<AddressMerkleTreeBundle>,
+     pub payer: Keypair,
++    /// Protocol authority keypair used as the `authority` signer when creating
++    /// new trees through the registry program (which enforces that the authority
++    /// matches `protocol_config_pda.authority`).
++    pub governance_authority: Keypair,
+     pub group_pda: Pubkey,
+     pub compressed_accounts: Vec<CompressedAccountWithMerkleContext>,
+     pub nullified_compressed_accounts: Vec<CompressedAccountWithMerkleContext>,
+@@ -116,6 +120,7 @@ impl Clone for TestIndexer {
+             state_merkle_trees: self.state_merkle_trees.clone(),
+             address_merkle_trees: self.address_merkle_trees.clone(),
+             payer: self.payer.insecure_clone(),
++            governance_authority: self.governance_authority.insecure_clone(),
+             group_pda: self.group_pda,
+             compressed_accounts: self.compressed_accounts.clone(),
+             nullified_compressed_accounts: self.nullified_compressed_accounts.clone(),
+@@ -1286,6 +1291,7 @@ impl TestIndexer {
+             state_merkle_tree_accounts,
+             address_merkle_tree_accounts,
+             payer.insecure_clone(),
++            env.protocol.governance_authority.insecure_clone(),
+             env.protocol.group_pda,
+             output_queue_batch_size,
+         )
+@@ -1296,6 +1302,7 @@ impl TestIndexer {
+         state_merkle_tree_accounts: Vec<StateMerkleTreeAccounts>,
+         address_merkle_tree_accounts: Vec<AddressMerkleTreeAccounts>,
+         payer: Keypair,
++        governance_authority: Keypair,
+         group_pda: Pubkey,
+         output_queue_batch_size: usize,
+     ) -> Self {
+@@ -1347,6 +1354,7 @@ impl TestIndexer {
+             state_merkle_trees,
+             address_merkle_trees,
+             payer,
++            governance_authority,
+             compressed_accounts: vec![],
+             nullified_compressed_accounts: vec![],
+             events: vec![],
+@@ -1575,7 +1583,14 @@ impl TestIndexer {
+             "Creating batched address merkle tree {:?}",
+             merkle_tree_keypair.pubkey()
+         );
+-        create_batch_address_merkle_tree(rpc, &self.payer, merkle_tree_keypair, params).await?;
++        create_batch_address_merkle_tree(
++            rpc,
++            &self.payer,
++            &self.governance_authority,
++            merkle_tree_keypair,
++            params,
++        )
++        .await?;
+         info!(
+             "Batched address merkle tree created {:?}",
+             merkle_tree_keypair.pubkey()
+@@ -1649,6 +1664,7 @@ impl TestIndexer {
+                 };
+                 create_state_merkle_tree_and_queue_account(
+                     &self.payer,
++                    &self.governance_authority,
+                     true,
+                     rpc,
+                     merkle_tree_keypair,
+@@ -1678,6 +1694,7 @@ impl TestIndexer {
+ 
+                     create_batched_state_merkle_tree(
+                         &self.payer,
++                        &self.governance_authority,
+                         true,
+                         rpc,
+                         merkle_tree_keypair,
+diff --git a/xtask/src/create_batch_address_tree.rs b/xtask/src/create_batch_address_tree.rs
+index ffb39ef36..89bf53b1a 100644
+--- a/xtask/src/create_batch_address_tree.rs
++++ b/xtask/src/create_batch_address_tree.rs
+@@ -93,7 +93,7 @@ pub async fn create_batch_address_tree(options: Options) -> anyhow::Result<()> {
+         let balance = rpc.get_balance(&payer.pubkey()).await.unwrap();
+         println!("Payer balance: {:?}", balance);
+         let tx_hash =
+-            create_batch_address_merkle_tree(&mut rpc, &payer, merkle_tree_keypair, config)
++            create_batch_address_merkle_tree(&mut rpc, &payer, &payer, merkle_tree_keypair, config)
+                 .await
+                 .unwrap();
+ 
+diff --git a/xtask/src/create_batch_state_tree.rs b/xtask/src/create_batch_state_tree.rs
+index 0cf7810b7..9d0c1e2be 100644
+--- a/xtask/src/create_batch_state_tree.rs
++++ b/xtask/src/create_batch_state_tree.rs
+@@ -128,6 +128,7 @@ pub async fn create_batch_state_tree(options: Options) -> anyhow::Result<()> {
+         let balance = rpc.get_balance(&payer.pubkey()).await.unwrap();
+         println!("Payer balance: {:?}", balance);
+         let tx_hash = create_batched_state_merkle_tree(
++            &payer,
+             &payer,
+             true,
+             &mut rpc,
+diff --git a/xtask/src/create_state_tree.rs b/xtask/src/create_state_tree.rs
+index e1b8a7b73..ef0fe83e0 100644
+--- a/xtask/src/create_state_tree.rs
++++ b/xtask/src/create_state_tree.rs
+@@ -140,6 +140,7 @@ pub async fn create_state_tree(options: Options) -> anyhow::Result<()> {
+         let balance = rpc.get_balance(&payer.pubkey()).await.unwrap();
+         println!("Payer balance: {:?}", balance);
+         let tx_hash = create_state_merkle_tree_and_queue_account(
++            &payer,
+             &payer,
+             true,
+             &mut rpc,
+diff --git a/xtask/src/new_deployment.rs b/xtask/src/new_deployment.rs
+index 7de66cea3..b5af0d100 100644
+--- a/xtask/src/new_deployment.rs
++++ b/xtask/src/new_deployment.rs
+@@ -257,6 +257,7 @@ pub async fn init_new_deployment(options: Options) -> anyhow::Result<()> {
+             )
+             .unwrap();
+             light_program_test::accounts::state_tree_v2::create_batched_state_merkle_tree(
++                &test_keypairs.governance_authority,
+                 &test_keypairs.governance_authority,
+                 true,
+                 &mut rpc,
+@@ -269,6 +270,7 @@ pub async fn init_new_deployment(options: Options) -> anyhow::Result<()> {
+             light_program_test::accounts::address_tree_v2::create_batch_address_merkle_tree(
+                 &mut rpc,
+                 &test_keypairs.governance_authority,
++                &test_keypairs.governance_authority,
+                 &v2_address_mt,
+                 config.v2_address_tree_config.unwrap(),
+             )
+```
+
+## Instructions
+
+1. Analyze the diff above
+2. Write a numbered list of changes
+3. Keep each item concise (one line)
+4. Group related changes into single items where sensible
+5. Exclude test file changes unless the user specifically requested them
+6. Focus on what changed, not how (no implementation details)
+7. Order by significance or logical grouping
+8. Maximum 10 items
+
+## Example Output (for renamings)
+
+```
+1. Crate Renames (Root Cargo.toml)
+
+1. light-ctoken-interface -> light-token-interface
+2. light-ctoken-sdk -> light-token-sdk
+3. light-ctoken-types -> light-token-types
+4. sdk-ctoken-test -> sdk-light-token-test
+
+---
+2. program-libs/token-interface (26 renamings)
+
+Structs:
+5. CToken -> Token
+6. MintToCTokenAction -> MintToAction
+7. ZCToken<'a> -> ZToken<'a>
+8. ZCTokenMut<'a> -> ZTokenMut<'a>
+```
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   Implement a plan to fix tests that broke after registry authority checks were added to the Light Protocol registry program. The goal was to make `cargo test-sbf -p system-test`, `cargo test-sbf -p registry-test`, and `cargo test-sbf -p account-compression-test` all pass. The authority checks enforce that only the protocol authority can create batched trees and v1 state trees with network fees. The MUST NOT revert these checks - they are the intended behavior.
+
+2. Key Technical Concepts:
+   - Registry authority signer checks limiting tree creation to protocol authority
+   - Authority parameter separation from payer parameter in tree creation SDK functions
+   - TestIndexer rollover operations and tree creation during test execution
+   - Test environment setup with governance_authority vs RPC payer distinction
+   - System program error path handling and error code expectations
+   - Stack overflow handling in complex test scenarios
+   - Solana program error codes and custom error handling
+
+3. Files and Code Sections:
+
+   **sdk-libs/program-test/src/indexer/test_indexer.rs** (Critical fix)
+   - Added `governance_authority: Keypair` field to TestIndexer struct with documentation explaining it's used for tree creation through registry
+   - Updated Clone impl to include governance_authority
+   - Updated `new()` function signature to accept governance_authority parameter
+   - Updated `init_from_acounts()` to extract governance_authority from `env.protocol.governance_authority` and pass to new()
+   - Changed three tree creation calls to use `&self.governance_authority` instead of `&self.payer`:
+     - `add_address_merkle_tree_v2`: passes governance_authority to create_batch_address_merkle_tree
+     - `add_state_merkle_tree` (StateV1): passes governance_authority to create_state_merkle_tree_and_queue_account
+     - `add_state_merkle_tree` (StateV2): passes governance_authority to create_batched_state_merkle_tree
+
+   **program-tests/system-test/tests/test.rs** (Error path fix)
+   - Updated "invalid address queue account" test case in failing_transaction_address function
+   - Changed expected error code from `MerkleTreeMetadataError::InvalidQueueType.into()` to raw error code 6066
+   - Added comments explaining that system program hits MissingLegacyMerkleContext (6066) when looking up legacy context for replaced queue account
+   - Reason: System program changed its error processing order in a previous commit, now hitting MissingLegacyMerkleContext before the InvalidQueueType check
+
+4. Errors and fixes:
+   - Error 1: TestIndexer using wrong authority for tree creation
+     - Symptom: registry-test `test_custom_forester_batched` failed with `InvalidSigner` error when TestIndexer tried to create trees
+     - Root cause: TestIndexer was using `self.payer` (RPC payer, a random keypair) as authority, but protocol requires authority to be the governance_authority
+     - Fix: Added governance_authority field to TestIndexer and updated all tree creation calls to use it
+   
+   - Error 2: system-test expected wrong error code
+     - Symptom: `invoke_failing_test` expected error code 21 (InvalidQueueType) but got Custom(6066) (MissingLegacyMerkleContext)
+     - Root cause: System program's error processing order changed; now checks legacy merkle context before queue type
+     - Fix: Updated test expectation to use error code 6066
+     - Additional issue: Tried to use SystemProgramError::MissingLegacyMerkleContext but it wasn't available in anchor wrapper
+     - Resolution: Used raw error code 6066 instead
+   
+   - Error 3: Stack overflow in some registry tests
+     - Symptom: test_custom_forester_batched and test_register_and_update_forester_pda had stack overflow
+     - Root cause: Pre-existing deep call stack in complex test scenarios
+     - Fix: Used RUST_MIN_STACK=16777216 environment variable when running tests with larger stack
+
+5. Problem Solving:
+   - Solved TestIndexer authority problem by understanding that test environment uses different keypairs for payer (RPC transaction payer) vs governance_authority (protocol authority)
+   - Solved system-test error mismatch by investigating actual error codes returned by system program and updating test expectations
+   - Handled pre-existing stack overflow issues with environment variable configuration rather than code changes
+   - Successfully verified all three test suites pass after fixes
+
+6. All user messages:
+   - Initial message with plan to fix tests after registry authority checks added, including context about the diff changes and specific test failures
+
+7. Pending Tasks:
+   - None. All tasks from the plan have been completed:
+     - Task 1: Research and explore all changed files ✓ (completed)
+     - Task 2: Fix system-test failures ✓ (completed)
+     - Task 3: Fix registry-test failures ✓ (completed)
+     - Task 4: Fix account-compression-test failures ✓ (completed)
+
+8. Current Work:
+   Completed all required test fixes. Final test results:
+   - system-test: 5 passed, 0 failed (1 ignored)
+   - registry-test: 10 passed, 0 failed (6 ignored - expected ignores for mainnet-specific tests)
+   - account-compression-test: 15 passed, 0 failed (2 ignored)
+   
+   All changes implemented:
+   - TestIndexer now properly uses governance_authority for tree creation during rollover
+   - system-test error expectation updated to match actual system program error path
+   - Tests run successfully with RUST_MIN_STACK=16777216 to handle pre-existing stack depth
+
+9. Optional Next Step:
+   No additional steps needed. The plan has been fully executed and all tests are passing. The protocol authority checks remain in place (not reverted) as required. The code changes ensure test infrastructure properly uses the protocol authority when creating trees through the registry program.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ananas/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+# Diff Description
+
+Review the complete diff and produce a concise numbered list of changes.
+
+## Context
+
+- Current branch: jorrit/chore-limit-tree-creations-to-protocol-auth
+- Recent commits: 4bc5eaef3 chore: limit v1 state tree, v2 state&address tree creations to protocol authority
+- Diff to main:
+```diff
+diff --git a/program-tests/account-compression-test/tests/batched_merkle_tree_test.rs b/program-tests/account-compression-test/tests/batched_merkle_tree_test.rs
+index 018e1192f..23207121d 100644
+--- a/program-tests/account-compression-test/tests/batched_merkle_tree_test.rs
++++ b/program-tests/account-compression-test/tests/batched_merkle_tree_test.rs
+@@ -379,6 +379,7 @@ async fn test_batch_state_merkle_tree() {
+         let new_keypair_queue = Keypair::new();
+         let payer = context.get_payer().insecure_clone();
+         create_batched_state_merkle_tree(
++            &payer,
+             &payer,
+             false,
+             &mut context,
+diff --git a/program-tests/registry-test/tests/tests.rs b/program-tests/registry-test/tests/tests.rs
+index 569959f47..d93776fd9 100644
+--- a/program-tests/registry-test/tests/tests.rs
++++ b/program-tests/registry-test/tests/tests.rs
+@@ -31,6 +31,7 @@ use light_program_test::{
+             deregister_program_with_registry_program, register_program_with_registry_program,
+         },
+         state_tree::create_state_merkle_tree_and_queue_account,
++        state_tree_v2::create_batched_state_merkle_tree,
+         test_accounts::{TestAccounts, NOOP_PROGRAM_ID},
+         test_keypairs::{GROUP_PDA_SEED_TEST_KEYPAIR, OLD_REGISTRY_ID_TEST_KEYPAIR},
+     },
+@@ -387,6 +388,7 @@ async fn test_initialize_protocol_config() {
+         let nullifier_queue_keypair = Keypair::new();
+         let cpi_context_keypair = Keypair::new();
+         create_state_merkle_tree_and_queue_account(
++            &payer,
+             &payer,
+             true,
+             &mut rpc,
+@@ -411,6 +413,7 @@ async fn test_initialize_protocol_config() {
+         let nullifier_queue_keypair = Keypair::new();
+         let cpi_context_keypair = Keypair::new();
+         let result = create_state_merkle_tree_and_queue_account(
++            &payer,
+             &payer,
+             true,
+             &mut rpc,
+@@ -436,6 +439,7 @@ async fn test_initialize_protocol_config() {
+         let cpi_context_keypair = Keypair::new();
+         create_state_merkle_tree_and_queue_account(
+             &payer,
++            &updated_keypair,
+             true,
+             &mut rpc,
+             &merkle_tree_keypair,
+@@ -453,12 +457,38 @@ async fn test_initialize_protocol_config() {
+         .await
+         .unwrap();
+     }
++    // FAIL: initialize a Merkle tree with network_fee but wrong authority
++    {
++        let merkle_tree_keypair = Keypair::new();
++        let nullifier_queue_keypair = Keypair::new();
++        let cpi_context_keypair = Keypair::new();
++        let result = create_state_merkle_tree_and_queue_account(
++            &payer,
++            &payer,
++            true,
++            &mut rpc,
++            &merkle_tree_keypair,
++            &nullifier_queue_keypair,
++            Some(&cpi_context_keypair),
++            None,
++            None,
++            1,
++            &StateMerkleTreeConfig {
++                network_fee: Some(5000),
++                ..Default::default()
++            },
++            &NullifierQueueConfig::default(),
++        )
++        .await;
++        assert_rpc_error(result, 3, RegistryError::InvalidSigner.into()).unwrap();
++    }
+     // FAIL: initialize a Merkle tree with network_fee + forester (must be rejected)
+     {
+         let merkle_tree_keypair = Keypair::new();
+         let nullifier_queue_keypair = Keypair::new();
+         let cpi_context_keypair = Keypair::new();
+         let result = create_state_merkle_tree_and_queue_account(
++            &payer,
+             &payer,
+             true,
+             &mut rpc,
+@@ -483,6 +513,7 @@ async fn test_initialize_protocol_config() {
+         let nullifier_queue_keypair = Keypair::new();
+         let cpi_context_keypair = Keypair::new();
+         let result = create_state_merkle_tree_and_queue_account(
++            &payer,
+             &payer,
+             true,
+             &mut rpc,
+@@ -1875,11 +1906,48 @@ async fn test_batch_address_tree() {
+             network_fee: Some(1),
+             ..Default::default()
+         };
+-        let result =
+-            create_batch_address_merkle_tree(&mut rpc, &payer, &new_merkle_tree, test_tree_params)
+-                .await;
++        let result = create_batch_address_merkle_tree(
++            &mut rpc,
++            &payer,
++            &payer,
++            &new_merkle_tree,
++            test_tree_params,
++        )
++        .await;
+         assert_rpc_error(result, 1, RegistryError::InvalidNetworkFee.into()).unwrap();
+     }
++    // FAIL: create batched address tree with correct fee but wrong authority
++    {
++        let new_merkle_tree = Keypair::new();
++        let test_tree_params = InitAddressTreeAccountsInstructionData::default();
++        let result = create_batch_address_merkle_tree(
++            &mut rpc,
++            &payer,
++            &payer,
++            &new_merkle_tree,
++            test_tree_params,
++        )
++        .await;
++        assert_rpc_error(result, 1, RegistryError::InvalidSigner.into()).unwrap();
++    }
++    // FAIL: create batched state tree with correct fee but wrong authority
++    {
++        let merkle_tree_keypair = Keypair::new();
++        let queue_keypair = Keypair::new();
++        let cpi_context_keypair = Keypair::new();
++        let result = create_batched_state_merkle_tree(
++            &payer,
++            &payer,
++            true,
++            &mut rpc,
++            &merkle_tree_keypair,
++            &queue_keypair,
++            &cpi_context_keypair,
++            InitStateTreeAccountsInstructionData::default(),
++        )
++        .await;
++        assert_rpc_error(result, 3, RegistryError::InvalidSigner.into()).unwrap();
++    }
+ 
+     for i in 0..tree_params.input_queue_batch_size * 2 {
+         println!("tx {}", i);
+diff --git a/program-tests/system-test/tests/test.rs b/program-tests/system-test/tests/test.rs
+index 5768a9a66..45d7ee413 100644
+--- a/program-tests/system-test/tests/test.rs
++++ b/program-tests/system-test/tests/test.rs
+@@ -20,7 +20,6 @@ use light_compressed_account::{
+     },
+     TreeType,
+ };
+-use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
+ use light_program_test::{
+     accounts::test_accounts::TestAccounts,
+     indexer::{TestIndexer, TestIndexerExtensions},
+@@ -623,7 +622,9 @@ pub async fn failing_transaction_address<R: Rpc>(
+         .unwrap();
+     }
+ 
+-    // invalid address queue account
++    // invalid address queue account (replaced with nullifier queue)
++    // The system program hits MissingLegacyMerkleContext (error code 6066)
++    // when trying to look up the legacy context for the replaced queue account.
+     {
+         let inputs_struct = inputs_struct.clone();
+         let mut remaining_accounts = remaining_accounts.clone();
+@@ -639,7 +640,7 @@ pub async fn failing_transaction_address<R: Rpc>(
+             payer,
+             inputs_struct,
+             remaining_accounts.clone(),
+-            MerkleTreeMetadataError::InvalidQueueType.into(),
++            6066, // SystemProgramError::MissingLegacyMerkleContext
+         )
+         .await
+         .unwrap();
+diff --git a/program-tests/utils/src/e2e_test_env.rs b/program-tests/utils/src/e2e_test_env.rs
+index b7ae6acc9..a5423e346 100644
+--- a/program-tests/utils/src/e2e_test_env.rs
++++ b/program-tests/utils/src/e2e_test_env.rs
+@@ -1245,6 +1245,7 @@ where
+         let forester = Pubkey::new_unique();
+         println!("queue config: {:?}", queue_config);
+         create_state_merkle_tree_and_queue_account(
++            &self.payer,
+             &self.payer,
+             true,
+             &mut self.rpc,
+diff --git a/programs/registry/src/account_compression_cpi/sdk.rs b/programs/registry/src/account_compression_cpi/sdk.rs
+index 1879ccb1f..ce3d1d771 100644
+--- a/programs/registry/src/account_compression_cpi/sdk.rs
++++ b/programs/registry/src/account_compression_cpi/sdk.rs
+@@ -289,7 +289,7 @@ pub fn create_initialize_address_merkle_tree_and_queue_instruction(
+ }
+ 
+ pub fn create_initialize_merkle_tree_instruction(
+-    payer: Pubkey,
++    authority: Pubkey,
+     merkle_tree_pubkey: Pubkey,
+     nullifier_queue_pubkey: Pubkey,
+     cpi_context_pubkey: Pubkey,
+@@ -309,7 +309,7 @@ pub fn create_initialize_merkle_tree_instruction(
+         queue_config: nullifier_queue_config,
+     };
+     let accounts = crate::accounts::InitializeMerkleTreeAndQueue {
+-        authority: payer,
++        authority,
+         registered_program_pda: register_program_pda,
+         merkle_tree: merkle_tree_pubkey,
+         queue: nullifier_queue_pubkey,
+@@ -327,7 +327,7 @@ pub fn create_initialize_merkle_tree_instruction(
+ }
+ 
+ pub fn create_initialize_batched_merkle_tree_instruction(
+-    payer: Pubkey,
++    authority: Pubkey,
+     merkle_tree_pubkey: Pubkey,
+     queue_pubkey: Pubkey,
+     cpi_context_pubkey: Pubkey,
+@@ -341,7 +341,7 @@ pub fn create_initialize_batched_merkle_tree_instruction(
+         params: params.try_to_vec().unwrap(),
+     };
+     let accounts = crate::accounts::InitializeBatchedStateMerkleTreeAndQueue {
+-        authority: payer,
++        authority,
+         registered_program_pda: register_program_pda,
+         merkle_tree: merkle_tree_pubkey,
+         queue: queue_pubkey,
+@@ -460,7 +460,7 @@ pub fn create_rollover_batch_state_tree_instruction(
+ }
+ 
+ pub fn create_initialize_batched_address_merkle_tree_instruction(
+-    payer: Pubkey,
++    authority: Pubkey,
+     merkle_tree_pubkey: Pubkey,
+     params: InitAddressTreeAccountsInstructionData,
+ ) -> Instruction {
+@@ -473,7 +473,7 @@ pub fn create_initialize_batched_address_merkle_tree_instruction(
+     };
+     let protocol_config_pda = get_protocol_config_pda_address().0;
+     let accounts = crate::accounts::InitializeBatchedAddressTree {
+-        authority: payer,
++        authority,
+         registered_program_pda: register_program_pda,
+         merkle_tree: merkle_tree_pubkey,
+         cpi_authority,
+diff --git a/programs/registry/src/lib.rs b/programs/registry/src/lib.rs
+index a4882c4ed..a21b58cd4 100644
+--- a/programs/registry/src/lib.rs
++++ b/programs/registry/src/lib.rs
+@@ -345,6 +345,9 @@ pub mod light_registry {
+                 msg!("Forester pubkey must not be defined for trees serviced by light foresters.");
+                 return err!(RegistryError::ForesterDefined);
+             }
++            if ctx.accounts.authority.key() != ctx.accounts.protocol_config_pda.authority {
++                return err!(RegistryError::InvalidSigner);
++            }
+         } else if forester.is_none() {
+             msg!("Forester pubkey required for trees without a network fee.");
+             msg!("Trees without a network fee will not be serviced by light foresters.");
+@@ -518,6 +521,9 @@ pub mod light_registry {
+         } else {
+             return err!(RegistryError::InvalidNetworkFee);
+         }
++        if ctx.accounts.authority.key() != ctx.accounts.protocol_config_pda.authority {
++            return err!(RegistryError::InvalidSigner);
++        }
+         check_cpi_context(
+             ctx.accounts.cpi_context_account.to_account_info(),
+             &ctx.accounts.protocol_config_pda.config,
+@@ -606,6 +612,9 @@ pub mod light_registry {
+         } else {
+             return err!(RegistryError::InvalidNetworkFee);
+         }
++        if ctx.accounts.authority.key() != ctx.accounts.protocol_config_pda.authority {
++            return err!(RegistryError::InvalidSigner);
++        }
+         process_initialize_batched_address_merkle_tree(&ctx, bump, params.try_to_vec()?)
+     }
+ 
+diff --git a/sdk-libs/program-test/src/accounts/address_tree_v2.rs b/sdk-libs/program-test/src/accounts/address_tree_v2.rs
+index fe9bccee9..0a0d59e3c 100644
+--- a/sdk-libs/program-test/src/accounts/address_tree_v2.rs
++++ b/sdk-libs/program-test/src/accounts/address_tree_v2.rs
+@@ -11,6 +11,7 @@ use crate::utils::create_account::create_account_instruction;
+ pub async fn create_batch_address_merkle_tree<R: Rpc>(
+     rpc: &mut R,
+     payer: &Keypair,
++    authority: &Keypair,
+     new_address_merkle_tree_keypair: &Keypair,
+     address_tree_params: InitAddressTreeAccountsInstructionData,
+ ) -> Result<Signature, RpcError> {
+@@ -34,14 +35,18 @@ pub async fn create_batch_address_merkle_tree<R: Rpc>(
+     );
+ 
+     let instruction = create_initialize_batched_address_merkle_tree_instruction(
+-        payer.pubkey(),
++        authority.pubkey(),
+         new_address_merkle_tree_keypair.pubkey(),
+         address_tree_params,
+     );
++    let mut signers: Vec<&Keypair> = vec![payer, new_address_merkle_tree_keypair];
++    if authority.pubkey() != payer.pubkey() {
++        signers.push(authority);
++    }
+     rpc.create_and_send_transaction(
+         &[create_mt_account_ix, instruction],
+         &payer.pubkey(),
+-        &[payer, new_address_merkle_tree_keypair],
++        &signers,
+     )
+     .await
+ }
+diff --git a/sdk-libs/program-test/src/accounts/initialize.rs b/sdk-libs/program-test/src/accounts/initialize.rs
+index 37700d239..f739b47be 100644
+--- a/sdk-libs/program-test/src/accounts/initialize.rs
++++ b/sdk-libs/program-test/src/accounts/initialize.rs
+@@ -117,6 +117,7 @@ pub async fn initialize_accounts<R: Rpc + TestRpc>(
+     }
+     if !config.skip_v1_trees {
+         create_state_merkle_tree_and_queue_account(
++            &keypairs.governance_authority,
+             &keypairs.governance_authority,
+             true,
+             context,
+@@ -133,6 +134,7 @@ pub async fn initialize_accounts<R: Rpc + TestRpc>(
+ 
+         if !skip_second_v1_tree {
+             create_state_merkle_tree_and_queue_account(
++                &keypairs.governance_authority,
+                 &keypairs.governance_authority,
+                 true,
+                 context,
+@@ -168,6 +170,7 @@ pub async fn initialize_accounts<R: Rpc + TestRpc>(
+     #[cfg(feature = "v2")]
+     if let Some(v2_state_tree_config) = _v2_state_tree_config {
+         create_batched_state_merkle_tree(
++            &keypairs.governance_authority,
+             &keypairs.governance_authority,
+             true,
+             context,
+@@ -183,6 +186,7 @@ pub async fn initialize_accounts<R: Rpc + TestRpc>(
+         create_batch_address_merkle_tree(
+             context,
+             &keypairs.governance_authority,
++            &keypairs.governance_authority,
+             &keypairs.batch_address_merkle_tree,
+             *params,
+         )
+diff --git a/sdk-libs/program-test/src/accounts/state_tree.rs b/sdk-libs/program-test/src/accounts/state_tree.rs
+index d43f7f768..b39f7ec67 100644
+--- a/sdk-libs/program-test/src/accounts/state_tree.rs
++++ b/sdk-libs/program-test/src/accounts/state_tree.rs
+@@ -105,6 +105,7 @@ pub fn create_insert_leaves_instruction(
+ #[allow(clippy::too_many_arguments)]
+ pub async fn create_state_merkle_tree_and_queue_account<R: Rpc>(
+     payer: &Keypair,
++    authority: &Keypair,
+     registry: bool,
+     rpc: &mut R,
+     merkle_tree_keypair: &Keypair,
+@@ -163,7 +164,7 @@ pub async fn create_state_merkle_tree_and_queue_account<R: Rpc>(
+         );
+ 
+         let instruction = create_initialize_merkle_tree_instruction_registry(
+-            payer.pubkey(),
++            authority.pubkey(),
+             merkle_tree_keypair.pubkey(),
+             nullifier_queue_keypair.pubkey(),
+             cpi_context_keypair.pubkey(),
+@@ -172,6 +173,15 @@ pub async fn create_state_merkle_tree_and_queue_account<R: Rpc>(
+             program_owner,
+             forester,
+         );
++        let mut signers = vec![
++            payer,
++            merkle_tree_keypair,
++            nullifier_queue_keypair,
++            cpi_context_keypair,
++        ];
++        if authority.pubkey() != payer.pubkey() {
++            signers.push(authority);
++        }
+         Transaction::new_signed_with_payer(
+             &[
+                 create_cpi_context_instruction,
+@@ -180,12 +190,7 @@ pub async fn create_state_merkle_tree_and_queue_account<R: Rpc>(
+                 instruction,
+             ],
+             Some(&payer.pubkey()),
+-            &vec![
+-                payer,
+-                merkle_tree_keypair,
+-                nullifier_queue_keypair,
+-                cpi_context_keypair,
+-            ],
++            &signers,
+             rpc.get_latest_blockhash().await?.0,
+         )
+     } else {
+diff --git a/sdk-libs/program-test/src/accounts/state_tree_v2.rs b/sdk-libs/program-test/src/accounts/state_tree_v2.rs
+index b3c4bb618..7095263d0 100644
+--- a/sdk-libs/program-test/src/accounts/state_tree_v2.rs
++++ b/sdk-libs/program-test/src/accounts/state_tree_v2.rs
+@@ -14,8 +14,10 @@ use solana_sdk::signature::{Keypair, Signature, Signer};
+ 
+ use crate::utils::create_account::create_account_instruction;
+ 
++#[allow(clippy::too_many_arguments)]
+ pub async fn create_batched_state_merkle_tree<R: Rpc>(
+     payer: &Keypair,
++    authority: &Keypair,
+     registry: bool,
+     rpc: &mut R,
+     merkle_tree_keypair: &Keypair,
+@@ -66,7 +68,7 @@ pub async fn create_batched_state_merkle_tree<R: Rpc>(
+     );
+     let instruction = if registry {
+         create_initialize_batched_merkle_tree_instruction(
+-            payer.pubkey(),
++            authority.pubkey(),
+             merkle_tree_keypair.pubkey(),
+             queue_keypair.pubkey(),
+             cpi_context_keypair.pubkey(),
+@@ -90,6 +92,16 @@ pub async fn create_batched_state_merkle_tree<R: Rpc>(
+         }
+     };
+ 
++    let mut signers: Vec<&Keypair> = vec![
++        payer,
++        merkle_tree_keypair,
++        queue_keypair,
++        cpi_context_keypair,
++    ];
++    if registry && authority.pubkey() != payer.pubkey() {
++        signers.push(authority);
++    }
++
+     rpc.create_and_send_transaction(
+         &[
+             create_mt_account_ix,
+@@ -98,12 +110,7 @@ pub async fn create_batched_state_merkle_tree<R: Rpc>(
+             instruction,
+         ],
+         &payer.pubkey(),
+-        &[
+-            payer,
+-            merkle_tree_keypair,
+-            queue_keypair,
+-            cpi_context_keypair,
+-        ],
++        &signers,
+     )
+     .await
+ }
+diff --git a/sdk-libs/program-test/src/indexer/test_indexer.rs b/sdk-libs/program-test/src/indexer/test_indexer.rs
+index f01b9ec8e..0b5b0583a 100644
+--- a/sdk-libs/program-test/src/indexer/test_indexer.rs
++++ b/sdk-libs/program-test/src/indexer/test_indexer.rs
+@@ -100,6 +100,10 @@ pub struct TestIndexer {
+     pub state_merkle_trees: Vec<StateMerkleTreeBundle>,
+     pub address_merkle_trees: Vec<AddressMerkleTreeBundle>,
+     pub payer: Keypair,
++    /// Protocol authority keypair used as the `authority` signer when creating
++    /// new trees through the registry program (which enforces that the authority
++    /// matches `protocol_config_pda.authority`).
++    pub governance_authority: Keypair,
+     pub group_pda: Pubkey,
+     pub compressed_accounts: Vec<CompressedAccountWithMerkleContext>,
+     pub nullified_compressed_accounts: Vec<CompressedAccountWithMerkleContext>,
+@@ -116,6 +120,7 @@ impl Clone for TestIndexer {
+             state_merkle_trees: self.state_merkle_trees.clone(),
+             address_merkle_trees: self.address_merkle_trees.clone(),
+             payer: self.payer.insecure_clone(),
++            governance_authority: self.governance_authority.insecure_clone(),
+             group_pda: self.group_pda,
+             compressed_accounts: self.compressed_accounts.clone(),
+             nullified_compressed_accounts: self.nullified_compressed_accounts.clone(),
+@@ -1286,6 +1291,7 @@ impl TestIndexer {
+             state_merkle_tree_accounts,
+             address_merkle_tree_accounts,
+             payer.insecure_clone(),
++            env.protocol.governance_authority.insecure_clone(),
+             env.protocol.group_pda,
+             output_queue_batch_size,
+         )
+@@ -1296,6 +1302,7 @@ impl TestIndexer {
+         state_merkle_tree_accounts: Vec<StateMerkleTreeAccounts>,
+         address_merkle_tree_accounts: Vec<AddressMerkleTreeAccounts>,
+         payer: Keypair,
++        governance_authority: Keypair,
+         group_pda: Pubkey,
+         output_queue_batch_size: usize,
+     ) -> Self {
+@@ -1347,6 +1354,7 @@ impl TestIndexer {
+             state_merkle_trees,
+             address_merkle_trees,
+             payer,
++            governance_authority,
+             compressed_accounts: vec![],
+             nullified_compressed_accounts: vec![],
+             events: vec![],
+@@ -1575,7 +1583,14 @@ impl TestIndexer {
+             "Creating batched address merkle tree {:?}",
+             merkle_tree_keypair.pubkey()
+         );
+-        create_batch_address_merkle_tree(rpc, &self.payer, merkle_tree_keypair, params).await?;
++        create_batch_address_merkle_tree(
++            rpc,
++            &self.payer,
++            &self.governance_authority,
++            merkle_tree_keypair,
++            params,
++        )
++        .await?;
+         info!(
+             "Batched address merkle tree created {:?}",
+             merkle_tree_keypair.pubkey()
+@@ -1649,6 +1664,7 @@ impl TestIndexer {
+                 };
+                 create_state_merkle_tree_and_queue_account(
+                     &self.payer,
++                    &self.governance_authority,
+                     true,
+                     rpc,
+                     merkle_tree_keypair,
+@@ -1678,6 +1694,7 @@ impl TestIndexer {
+ 
+                     create_batched_state_merkle_tree(
+                         &self.payer,
++                        &self.governance_authority,
+                         true,
+                         rpc,
+                         merkle_tree_keypair,
+diff --git a/xtask/src/create_batch_address_tree.rs b/xtask/src/create_batch_address_tree.rs
+index ffb39ef36..89bf53b1a 100644
+--- a/xtask/src/create_batch_address_tree.rs
++++ b/xtask/src/create_batch_address_tree.rs
+@@ -93,7 +93,7 @@ pub async fn create_batch_address_tree(options: Options) -> anyhow::Result<()> {
+         let balance = rpc.get_balance(&payer.pubkey()).await.unwrap();
+         println!("Payer balance: {:?}", balance);
+         let tx_hash =
+-            create_batch_address_merkle_tree(&mut rpc, &payer, merkle_tree_keypair, config)
++            create_batch_address_merkle_tree(&mut rpc, &payer, &payer, merkle_tree_keypair, config)
+                 .await
+                 .unwrap();
+ 
+diff --git a/xtask/src/create_batch_state_tree.rs b/xtask/src/create_batch_state_tree.rs
+index 0cf7810b7..9d0c1e2be 100644
+--- a/xtask/src/create_batch_state_tree.rs
++++ b/xtask/src/create_batch_state_tree.rs
+@@ -128,6 +128,7 @@ pub async fn create_batch_state_tree(options: Options) -> anyhow::Result<()> {
+         let balance = rpc.get_balance(&payer.pubkey()).await.unwrap();
+         println!("Payer balance: {:?}", balance);
+         let tx_hash = create_batched_state_merkle_tree(
++            &payer,
+             &payer,
+             true,
+             &mut rpc,
+diff --git a/xtask/src/create_state_tree.rs b/xtask/src/create_state_tree.rs
+index e1b8a7b73..ef0fe83e0 100644
+--- a/xtask/src/create_state_tree.rs
++++ b/xtask/src/create_state_tree.rs
+@@ -140,6 +140,7 @@ pub async fn create_state_tree(options: Options) -> anyhow::Result<()> {
+         let balance = rpc.get_balance(&payer.pubkey()).await.unwrap();
+         println!("Payer balance: {:?}", balance);
+         let tx_hash = create_state_merkle_tree_and_queue_account(
++            &payer,
+             &payer,
+             true,
+             &mut rpc,
+diff --git a/xtask/src/new_deployment.rs b/xtask/src/new_deployment.rs
+index 7de66cea3..b5af0d100 100644
+--- a/xtask/src/new_deployment.rs
++++ b/xtask/src/new_deployment.rs
+@@ -257,6 +257,7 @@ pub async fn init_new_deployment(options: Options) -> anyhow::Result<()> {
+             )
+             .unwrap();
+             light_program_test::accounts::state_tree_v2::create_batched_state_merkle_tree(
++                &test_keypairs.governance_authority,
+                 &test_keypairs.governance_authority,
+                 true,
+                 &mut rpc,
+@@ -269,6 +270,7 @@ pub async fn init_new_deployment(options: Options) -> anyhow::Result<()> {
+             light_program_test::accounts::address_tree_v2::create_batch_address_merkle_tree(
+                 &mut rpc,
+                 &test_keypairs.governance_authority,
++                &test_keypairs.governance_authority,
+                 &v2_address_mt,
+                 config.v2_address_tree_config.unwrap(),
+             )
+```
+
+## Instructions
+
+1. Analyze the diff above
+2. Write a numbered list of changes
+3. Keep each item concise (one line)
+4. Group related changes into single items where sensible
+5. Exclude test file changes unless the user specifically requested them
+6. Focus on what changed, not how (no implementation details)
+7. Order by significance or logical grouping
+8. Maximum 10 items
+
+## Example Output (for renamings)
+
+```
+1. Crate Renames (Root Cargo.toml)
+
+1. light-ctoken-interface -> light-token-interface
+2. light-ctoken-sdk -> light-token-sdk
+3. light-ctoken-types -> light-token-types
+4. sdk-ctoken-test -> sdk-light-token-test
+
+---
+2. program-libs/token-interface (26 renamings)
+
+Structs:
+5. CToken -> Token
+6. MintToCTokenAction -> MintToAction
+7. ZCToken<'a> -> ZToken<'a>
+8. ZCTokenMut<'a> -> ZTokenMut<'a>
+```
+
+---
+
+[Request interrupted by user]
+
+---
+
+focus only on the program diff
+
+---
+
+https://github.REDACTED?pr=2325
