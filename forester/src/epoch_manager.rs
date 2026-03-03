@@ -4166,6 +4166,8 @@ mod tests {
                 send_tx_rate_limit: None,
                 prover_polling_interval: None,
                 prover_max_wait_time: None,
+                fallback_rpc_url: None,
+                fallback_indexer_url: None,
             },
             retry_config: RetryConfig::default(),
             queue_config: Default::default(),

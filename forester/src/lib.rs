@@ -72,12 +72,8 @@ pub async fn run_queue_info(
     for tree_data in trees {
         match tree_data.tree_type {
             TreeType::StateV1 => {
-                let qdata =
-                    fetch_queue_item_data(&mut rpc, &tree_data.queue, 0).await?;
-                let labels = [
-                    &*queue_type.to_string(),
-                    &tree_data.merkle_tree.to_string(),
-                ];
+                let qdata = fetch_queue_item_data(&mut rpc, &tree_data.queue, 0).await?;
+                let labels = [&*queue_type.to_string(), &tree_data.merkle_tree.to_string()];
                 QUEUE_LENGTH
                     .with_label_values(&labels)
                     .set(qdata.total_pending as i64);
@@ -91,12 +87,8 @@ pub async fn run_queue_info(
                 );
             }
             TreeType::AddressV1 => {
-                let qdata =
-                    fetch_queue_item_data(&mut rpc, &tree_data.queue, 0).await?;
-                let labels = [
-                    &*queue_type.to_string(),
-                    &tree_data.merkle_tree.to_string(),
-                ];
+                let qdata = fetch_queue_item_data(&mut rpc, &tree_data.queue, 0).await?;
+                let labels = [&*queue_type.to_string(), &tree_data.merkle_tree.to_string()];
                 QUEUE_LENGTH
                     .with_label_values(&labels)
                     .set(qdata.total_pending as i64);
@@ -113,8 +105,7 @@ pub async fn run_queue_info(
                 println!("\n=== StateV2 {} ===", tree_data.merkle_tree);
 
                 println!("\n1. APPEND OPERATIONS:");
-                let append =
-                    print_state_v2_output_queue_info(&mut rpc, &tree_data.queue).await?;
+                let append = print_state_v2_output_queue_info(&mut rpc, &tree_data.queue).await?;
 
                 println!("\n2. NULLIFY OPERATIONS:");
                 let nullify =
@@ -130,8 +121,7 @@ pub async fn run_queue_info(
                     .with_label_values(&append_labels)
                     .set(append.capacity as i64);
 
-                let nullify_labels =
-                    ["StateV2.Nullify", &tree_data.merkle_tree.to_string()];
+                let nullify_labels = ["StateV2.Nullify", &tree_data.merkle_tree.to_string()];
                 QUEUE_LENGTH
                     .with_label_values(&nullify_labels)
                     .set(nullify.length as i64);
@@ -141,8 +131,7 @@ pub async fn run_queue_info(
             }
             TreeType::AddressV2 => {
                 println!("\n=== AddressV2 {} ===", tree_data.merkle_tree);
-                let qdata =
-                    print_address_v2_queue_info(&mut rpc, &tree_data.merkle_tree).await?;
+                let qdata = print_address_v2_queue_info(&mut rpc, &tree_data.merkle_tree).await?;
                 println!("===========================================\n");
                 let labels = ["AddressV2", &tree_data.merkle_tree.to_string()];
                 QUEUE_LENGTH
@@ -417,13 +406,17 @@ pub async fn run_pipeline_with_run_id<R: Rpc + Indexer>(
     let mut builder = SolanaRpcPoolBuilder::<R>::default()
         .url(config.external_services.rpc_url.to_string())
         .photon_url(config.external_services.indexer_url.clone())
+        .fallback_rpc_url(config.external_services.fallback_rpc_url.clone())
+        .fallback_photon_url(config.external_services.fallback_indexer_url.clone())
         .commitment(CommitmentConfig::processed())
         .max_size(config.rpc_pool_config.max_size)
         .connection_timeout_secs(config.rpc_pool_config.connection_timeout_secs)
         .idle_timeout_secs(config.rpc_pool_config.idle_timeout_secs)
         .max_retries(config.rpc_pool_config.max_retries)
         .initial_retry_delay_ms(config.rpc_pool_config.initial_retry_delay_ms)
-        .max_retry_delay_ms(config.rpc_pool_config.max_retry_delay_ms);
+        .max_retry_delay_ms(config.rpc_pool_config.max_retry_delay_ms)
+        .failure_threshold(config.rpc_pool_config.failure_threshold)
+        .primary_probe_interval_secs(config.rpc_pool_config.primary_probe_interval_secs);
 
     if let Some(limiter) = rpc_rate_limiter {
         builder = builder.rpc_rate_limiter(limiter);
@@ -434,6 +427,7 @@ pub async fn run_pipeline_with_run_id<R: Rpc + Indexer>(
     }
 
     let arc_pool = Arc::new(builder.build().await?);
+    let recovery_probe_handle = arc_pool.spawn_primary_recovery_probe();
     let arc_pool_clone = Arc::clone(&arc_pool);
 
     let (protocol_config, slot) = {
@@ -503,9 +497,13 @@ pub async fn run_pipeline_with_run_id<R: Rpc + Indexer>(
     )
     .await;
 
-    // Stop the SlotTracker task to prevent panic during shutdown
+    // Stop background tasks to prevent panics during shutdown
     tracing::debug!("Stopping SlotTracker task");
     slot_tracker_handle.abort();
+    if let Some(handle) = recovery_probe_handle {
+        tracing::debug!("Stopping primary RPC recovery probe");
+        handle.abort();
+    }
 
     result
 }

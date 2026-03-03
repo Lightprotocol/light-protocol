@@ -171,6 +171,22 @@ pub struct StartArgs {
     #[arg(long, env = "RPC_POOL_MAX_RETRY_DELAY_MS", default_value = "16000")]
     pub rpc_pool_max_retry_delay_ms: u64,
 
+    #[arg(
+        long,
+        env = "RPC_POOL_FAILURE_THRESHOLD",
+        default_value = "3",
+        help = "Consecutive health check failures before switching to fallback RPC"
+    )]
+    pub rpc_pool_failure_threshold: u64,
+
+    #[arg(
+        long,
+        env = "RPC_POOL_PRIMARY_PROBE_INTERVAL_SECS",
+        default_value = "30",
+        help = "Interval in seconds between probes to check if primary RPC has recovered"
+    )]
+    pub rpc_pool_primary_probe_interval_secs: u64,
+
     #[arg(long, env = "SLOT_UPDATE_INTERVAL_SECONDS", default_value = "10")]
     pub slot_update_interval_seconds: u64,
 
@@ -291,6 +307,20 @@ pub struct StartArgs {
         help = "Prometheus server URL for querying metrics (e.g. http://prometheus:9090)"
     )]
     pub prometheus_url: Option<String>,
+
+    #[arg(
+        long,
+        env = "FALLBACK_RPC_URL",
+        help = "Fallback RPC URL, used when primary RPC is unreachable for new pool connections"
+    )]
+    pub fallback_rpc_url: Option<String>,
+
+    #[arg(
+        long,
+        env = "FALLBACK_INDEXER_URL",
+        help = "Fallback Photon indexer URL, used when primary indexer is unreachable"
+    )]
+    pub fallback_indexer_url: Option<String>,
 }
 
 #[derive(Parser, Clone, Debug)]

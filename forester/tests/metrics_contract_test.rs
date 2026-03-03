@@ -71,9 +71,7 @@ fn extract_metric_names(source: &str) -> HashSet<String> {
                 }
                 let word = &line[start..i];
                 if prefixes.iter().any(|p| word.starts_with(p))
-                    && word
-                        .chars()
-                        .all(|c| c.is_ascii_alphanumeric() || c == '_')
+                    && word.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
                 {
                     names.insert(word.to_string());
                 }

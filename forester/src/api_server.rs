@@ -1174,13 +1174,11 @@ pub fn spawn_api_server(config: ApiServerConfig) -> ApiServerHandle {
                 .map(move || warp::reply::json(&*metrics_rx_clone.borrow()));
 
             // --- Prometheus text metrics route (scrape endpoint) ---
-            let prometheus_route = warp::path!("metrics")
-                .and(warp::get())
-                .and_then(|| async {
-                    crate::metrics::metrics_handler()
-                        .await
-                        .map_err(|_| warp::reject::reject())
-                });
+            let prometheus_route = warp::path!("metrics").and(warp::get()).and_then(|| async {
+                crate::metrics::metrics_handler()
+                    .await
+                    .map_err(|_| warp::reject::reject())
+            });
 
             // --- Compressible route (reads latest snapshot from watch channel) ---
             let compressible_rx_clone = compressible_rx.clone();
