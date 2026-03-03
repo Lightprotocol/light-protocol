@@ -682,12 +682,36 @@ describe('wrap action', () => {
         expect(ctokenBalance).toBe(BigInt(500));
     }, 60_000);
 
-    /**
-     * When maxTopUp is 0 and the ctoken ATA needs rent top-up, the wrap must fail
-     * with MaxTopUpExceeded (program error 18043 / 0x467b).
-     */
     it('should fail wrap with maxTopUp 0 when rent top-up is required', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
+
+        const ctokenAta = getAssociatedTokenAddressInterface(
+            mint,
+            owner.publicKey,
+        );
+
+        const minimalPrepayConfig: CompressibleConfig = {
+            tokenAccountVersion: 3,
+            rentPayment: 0,
+            compressionOnly: 1,
+            writeTopUp: 766,
+            compressToAccountPubkey: null,
+        };
+        await createAtaInterfaceIdempotent(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            false,
+            undefined,
+            undefined,
+            undefined,
+            {
+                compressibleConfig: minimalPrepayConfig,
+                configAccount: LIGHT_TOKEN_CONFIG,
+                rentPayerPda: LIGHT_TOKEN_RENT_SPONSOR,
+            },
+        );
 
         const splAta = await createAssociatedTokenAccount(
             rpc,
@@ -716,34 +740,6 @@ describe('wrap action', () => {
             owner,
             splAta,
             selectTokenPoolInfosForDecompression(tokenPoolInfos, bn(500)),
-        );
-
-        const ctokenAta = getAssociatedTokenAddressInterface(
-            mint,
-            owner.publicKey,
-        );
-
-        const minimalPrepayConfig: CompressibleConfig = {
-            tokenAccountVersion: 3,
-            rentPayment: 0,
-            compressionOnly: 1,
-            writeTopUp: 766,
-            compressToAccountPubkey: null,
-        };
-        await createAtaInterfaceIdempotent(
-            rpc,
-            payer,
-            mint,
-            owner.publicKey,
-            false,
-            undefined,
-            undefined,
-            undefined,
-            {
-                compressibleConfig: minimalPrepayConfig,
-                configAccount: LIGHT_TOKEN_CONFIG,
-                rentPayerPda: LIGHT_TOKEN_RENT_SPONSOR,
-            },
         );
 
         tokenPoolInfos = await getTokenPoolInfos(rpc, mint);

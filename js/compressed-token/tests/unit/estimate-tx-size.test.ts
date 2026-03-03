@@ -11,6 +11,7 @@ import {
 import {
     estimateTransactionSize,
     MAX_TRANSACTION_SIZE,
+    assertTransactionSizeWithinLimit,
 } from '../../src/v3/utils/estimate-tx-size';
 
 /**
@@ -394,5 +395,64 @@ describe('estimateTransactionSize', () => {
         const est2 = estimateTransactionSize([ix], 2);
         // 2 signers = 64 more bytes
         expect(est2 - est1).toBe(64);
+    });
+});
+
+describe('assertTransactionSizeWithinLimit', () => {
+    it('throws when estimated size exceeds Solana max transaction size', () => {
+        const owner = Keypair.generate().publicKey;
+        const program = Keypair.generate().publicKey;
+
+        const oversizedIxA = makeIx(
+            program,
+            Array.from({ length: 20 }, () => ({
+                pubkey: Keypair.generate().publicKey,
+                isSigner: false,
+                isWritable: true,
+            })),
+            800,
+        );
+        const oversizedIxB = makeIx(
+            program,
+            Array.from({ length: 20 }, () => ({
+                pubkey: Keypair.generate().publicKey,
+                isSigner: false,
+                isWritable: true,
+            })),
+            800,
+        );
+        const transferIx = makeIx(
+            Keypair.generate().publicKey,
+            [
+                { pubkey: owner, isSigner: true, isWritable: true },
+                {
+                    pubkey: SystemProgram.programId,
+                    isSigner: false,
+                    isWritable: false,
+                },
+            ],
+            16,
+        );
+
+        expect(() =>
+            assertTransactionSizeWithinLimit(
+                [oversizedIxA, oversizedIxB, transferIx],
+                2,
+                'RegressionBatch',
+            ),
+        ).toThrow(/exceeds max transaction size/);
+    });
+
+    it('does not throw when transaction estimate is within limit', () => {
+        const owner = Keypair.generate().publicKey;
+        const ix = makeIx(
+            Keypair.generate().publicKey,
+            [{ pubkey: owner, isSigner: true, isWritable: true }],
+            8,
+        );
+
+        expect(() =>
+            assertTransactionSizeWithinLimit([ix], 1, 'SmallBatch'),
+        ).not.toThrow();
     });
 });

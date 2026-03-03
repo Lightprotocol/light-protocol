@@ -13,14 +13,12 @@ import {
     LIGHT_TOKEN_PROGRAM_ID,
     MerkleContext,
     CompressedAccountWithMerkleContext,
-    deriveAddressV2,
-    bn,
-    getDefaultAddressTreeInfo,
     assertBetaEnabled,
 } from '@lightprotocol/stateless.js';
 import { Buffer } from 'buffer';
 import BN from 'bn.js';
 import { getAtaProgramId, checkAtaAddress } from './ata-utils';
+import { ERR_FETCH_BY_OWNER_REQUIRED } from './errors';
 export { Account, AccountState } from '@solana/spl-token';
 export { ParsedTokenAccount } from '@lightprotocol/stateless.js';
 
@@ -35,6 +33,18 @@ export const TokenAccountSourceType = {
 
 export type TokenAccountSourceTypeValue =
     (typeof TokenAccountSourceType)[keyof typeof TokenAccountSourceType];
+
+/** Cold (compressed) source types. Used for load/decompress and isCold. */
+export const COLD_SOURCE_TYPES: ReadonlySet<TokenAccountSourceTypeValue> =
+    new Set([
+        TokenAccountSourceType.CTokenCold,
+        TokenAccountSourceType.SplCold,
+        TokenAccountSourceType.Token2022Cold,
+    ]);
+
+function isColdSourceType(type: TokenAccountSourceTypeValue): boolean {
+    return COLD_SOURCE_TYPES.has(type);
+}
 
 /** @internal */
 export interface TokenAccountSource {
@@ -61,6 +71,19 @@ export interface AccountInterface {
     _owner?: PublicKey;
     /** Associated token account mint - set by getAtaInterface */
     _mint?: PublicKey;
+}
+
+export type FrozenOperation = 'load' | 'transfer' | 'unwrap';
+
+export function assertNotFrozen(
+    iface: AccountInterface,
+    operation: FrozenOperation,
+): void {
+    if (iface._anyFrozen) {
+        throw new Error(
+            `Account is frozen. One or more sources (hot or cold) are frozen; ${operation} is not allowed.`,
+        );
+    }
 }
 
 /** @internal */
@@ -485,52 +508,8 @@ async function _tryFetchCTokenColdByOwner(
 }
 
 /**
- * @internal
- * Fetch light-token account by deriving its compressed address from the on-chain address.
- * Uses deriveAddressV2(address, addressTree, LIGHT_TOKEN_PROGRAM_ID) to get the compressed address.
- *
- * Note: This only works for accounts that were **compressed from on-chain** (via compress_accounts_idempotent).
- * For tokens minted compressed (via mintTo), use getAtaInterface with owner+mint instead.
- */
-async function _tryFetchCTokenColdByAddress(
-    rpc: Rpc,
-    address: PublicKey,
-): Promise<{
-    accountInfo: AccountInfo<Buffer>;
-    loadContext: MerkleContext;
-    parsed: Account;
-    isCold: true;
-}> {
-    // Derive compressed address from on-chain token account address
-    const addressTree = getDefaultAddressTreeInfo().tree;
-    const compressedAddress = deriveAddressV2(
-        address.toBytes(),
-        addressTree,
-        LIGHT_TOKEN_PROGRAM_ID,
-    );
-
-    // Fetch by derived compressed address
-    const compressedAccount = await rpc.getCompressedAccount(
-        bn(compressedAddress.toBytes()),
-    );
-
-    if (!compressedAccount?.data?.data.length) {
-        throw new Error(
-            'Light-token account not found at derived address. ' +
-                'Note: getAccountInterface only finds compressed accounts that were ' +
-                'compressed from on-chain (via compress_accounts_idempotent). ' +
-                'For tokens minted compressed (via mintTo), use getAtaInterface with owner+mint.',
-        );
-    }
-    if (!compressedAccount.owner.equals(LIGHT_TOKEN_PROGRAM_ID)) {
-        throw new Error('Invalid owner for light-token');
-    }
-    return parseCTokenCold(address, compressedAccount);
-}
-
-/**
- * @internal
  * Retrieve information about a token account SPL/T22/light-token.
+ * @internal
  */
 async function _getAccountInterface(
     rpc: Rpc,
@@ -589,6 +568,7 @@ async function _getAccountInterface(
     throw new Error(`Unsupported program ID: ${programId.toBase58()}`);
 }
 
+/** @internal */
 async function getUnifiedAccountInterface(
     rpc: Rpc,
     address: PublicKey | undefined,
@@ -727,6 +707,7 @@ async function getUnifiedAccountInterface(
     return buildAccountInterfaceFromSources(sources, cTokenAta);
 }
 
+/** @internal */
 async function getCTokenAccountInterface(
     rpc: Rpc,
     address: PublicKey | undefined,
@@ -736,7 +717,7 @@ async function getCTokenAccountInterface(
     // Derive address if not provided
     if (!address) {
         if (!fetchByOwner) {
-            throw new Error('fetchByOwner is required');
+            throw new Error(ERR_FETCH_BY_OWNER_REQUIRED);
         }
         address = getAssociatedTokenAddressSync(
             fetchByOwner.mint,
@@ -812,6 +793,7 @@ async function getCTokenAccountInterface(
     return buildAccountInterfaceFromSources(sources, address);
 }
 
+/** @internal */
 async function getSplOrToken2022AccountInterface(
     rpc: Rpc,
     address: PublicKey | undefined,
@@ -821,7 +803,7 @@ async function getSplOrToken2022AccountInterface(
 ): Promise<AccountInterface> {
     if (!address) {
         if (!fetchByOwner) {
-            throw new Error('fetchByOwner is required');
+            throw new Error(ERR_FETCH_BY_OWNER_REQUIRED);
         }
         address = getAssociatedTokenAddressSync(
             fetchByOwner.mint,
@@ -904,7 +886,8 @@ async function getSplOrToken2022AccountInterface(
     return buildAccountInterfaceFromSources(sources, address);
 }
 
-function buildAccountInterfaceFromSources(
+/** @internal */
+export function buildAccountInterfaceFromSources(
     sources: TokenAccountSource[],
     canonicalAddress: PublicKey,
 ): AccountInterface {
@@ -918,27 +901,150 @@ function buildAccountInterfaceFromSources(
     const hasDelegate = sources.some(src => src.parsed.delegate !== null);
     const anyFrozen = sources.some(src => src.parsed.isFrozen);
     const needsConsolidation = sources.length > 1;
+    const delegateTotals = new Map<
+        string,
+        { delegate: PublicKey; total: bigint; firstIndex: number }
+    >();
+    for (let i = 0; i < sources.length; i++) {
+        const src = sources[i];
+        const delegate = src.parsed.delegate;
+        if (!delegate) continue;
+        const key = delegate.toBase58();
+        const delegated = src.parsed.delegatedAmount ?? src.amount;
+        const spendable = src.amount < delegated ? src.amount : delegated;
+        const existing = delegateTotals.get(key);
+        if (existing) {
+            existing.total += spendable;
+        } else {
+            delegateTotals.set(key, {
+                delegate,
+                total: spendable,
+                firstIndex: i,
+            });
+        }
+    }
+    let canonicalDelegate: PublicKey | null = null;
+    let canonicalDelegatedAmount = BigInt(0);
+    let canonicalFirstIndex = Number.MAX_SAFE_INTEGER;
+    for (const { delegate, total, firstIndex } of delegateTotals.values()) {
+        if (
+            total > canonicalDelegatedAmount ||
+            (total === canonicalDelegatedAmount &&
+                firstIndex < canonicalFirstIndex)
+        ) {
+            canonicalDelegate = delegate;
+            canonicalDelegatedAmount = total;
+            canonicalFirstIndex = firstIndex;
+        }
+    }
 
     const unifiedAccount: Account = {
         ...primarySource.parsed,
         address: canonicalAddress,
         amount: totalAmount,
+        delegate: canonicalDelegate,
+        delegatedAmount: canonicalDelegatedAmount,
+        ...(anyFrozen ? { state: AccountState.Frozen, isFrozen: true } : {}),
     };
-
-    const coldTypes: TokenAccountSource['type'][] = [
-        'ctoken-cold',
-        'spl-cold',
-        'token2022-cold',
-    ];
 
     return {
         accountInfo: primarySource.accountInfo!,
         parsed: unifiedAccount,
-        isCold: coldTypes.includes(primarySource.type),
+        isCold: isColdSourceType(primarySource.type),
         loadContext: primarySource.loadContext,
         _sources: sources,
         _needsConsolidation: needsConsolidation,
         _hasDelegate: hasDelegate,
         _anyFrozen: anyFrozen,
+    };
+}
+
+/**
+ * Spendable amount for a given authority (owner or delegate).
+ * - If authority equals the ATA owner: full parsed.amount.
+ * - If authority is the canonical delegate: parsed.delegatedAmount (bounded by parsed.amount).
+ * - Otherwise: 0.
+ * @internal
+ */
+export function spendableAmountForAuthority(
+    iface: AccountInterface,
+    authority: PublicKey,
+): bigint {
+    const owner = iface._owner;
+    if (owner && authority.equals(owner)) {
+        return iface.parsed.amount;
+    }
+    const delegate = iface.parsed.delegate;
+    if (delegate && authority.equals(delegate)) {
+        const delegated = iface.parsed.delegatedAmount ?? BigInt(0);
+        return delegated < iface.parsed.amount
+            ? delegated
+            : iface.parsed.amount;
+    }
+    return BigInt(0);
+}
+
+/**
+ * Whether the given authority can sign for this ATA (owner or canonical delegate).
+ * @internal
+ */
+export function isAuthorityForInterface(
+    iface: AccountInterface,
+    authority: PublicKey,
+): boolean {
+    const owner = iface._owner;
+    if (owner && authority.equals(owner)) return true;
+    const delegate = iface.parsed.delegate;
+    return delegate !== null && authority.equals(delegate);
+}
+
+/**
+ * @internal
+ * Canonical authority projection for owner/delegate checks.
+ */
+export function filterInterfaceForAuthority(
+    iface: AccountInterface,
+    authority: PublicKey,
+): AccountInterface {
+    const owner = iface._owner;
+    if (owner && authority.equals(owner)) {
+        return iface;
+    }
+    const spendable = spendableAmountForAuthority(iface, authority);
+    const canonicalDelegate = iface.parsed.delegate;
+    if (
+        spendable === BigInt(0) ||
+        canonicalDelegate === null ||
+        !authority.equals(canonicalDelegate)
+    ) {
+        return {
+            ...iface,
+            _sources: [],
+            _needsConsolidation: false,
+            parsed: { ...iface.parsed, amount: BigInt(0) },
+        };
+    }
+    const sources = iface._sources ?? [];
+    const filtered = sources.filter(
+        src =>
+            src.parsed.delegate !== null &&
+            src.parsed.delegate.equals(canonicalDelegate),
+    );
+    const primary = filtered[0];
+    return {
+        ...iface,
+        ...(primary
+            ? {
+                  accountInfo: primary.accountInfo!,
+                  isCold: isColdSourceType(primary.type),
+                  loadContext: primary.loadContext,
+              }
+            : {}),
+        _sources: filtered,
+        _needsConsolidation: filtered.length > 1,
+        parsed: {
+            ...iface.parsed,
+            amount: spendable,
+        },
     };
 }

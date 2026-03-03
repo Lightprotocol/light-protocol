@@ -52,6 +52,7 @@ interface EncodeUpdateMetadataInstructionParams {
     maxTopUp?: number;
 }
 
+/** @internal */
 function convertActionToBorsh(action: UpdateMetadataAction): Action {
     if (action.type === 'updateField') {
         return {
@@ -80,6 +81,7 @@ function convertActionToBorsh(action: UpdateMetadataAction): Action {
     }
 }
 
+/** @internal */
 function encodeUpdateMetadataInstructionData(
     params: EncodeUpdateMetadataInstructionParams,
 ): Buffer {
@@ -145,6 +147,7 @@ function encodeUpdateMetadataInstructionData(
     return encodeMintActionInstructionData(instructionData);
 }
 
+/** @internal */
 function createUpdateMetadataInstruction(
     mintInterface: MintInterface,
     authority: PublicKey,

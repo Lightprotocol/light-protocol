@@ -18,6 +18,7 @@ import {
 } from '@lightprotocol/stateless.js';
 import { createMintToCompressedInstruction } from '../instructions/mint-to-compressed';
 import { getMintInterface } from '../get-mint-interface';
+import { ERR_MINT_MISSING_MERKLE_CONTEXT } from '../errors';
 
 /**
  * Mint light-tokens directly to compressed accounts.
@@ -53,7 +54,7 @@ export async function mintToCompressed(
     );
 
     if (!mintInfo.merkleContext) {
-        throw new Error('Mint does not have MerkleContext');
+        throw new Error(ERR_MINT_MISSING_MERKLE_CONTEXT);
     }
 
     // Auto-fetch output state tree info if not provided

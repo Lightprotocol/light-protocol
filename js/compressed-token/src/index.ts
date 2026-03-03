@@ -22,30 +22,12 @@ export * from './program';
 export { CompressedTokenProgram as LightTokenProgram } from './program';
 export * from './types';
 import {
-    createLoadAccountsParams,
-    createLoadAtaInstructionsFromInterface,
     createLoadAtaInstructions as _createLoadAtaInstructions,
     loadAta as _loadAta,
-    calculateCompressibleLoadComputeUnits,
     selectInputsForAmount,
-    CompressibleAccountInput,
-    ParsedAccountInfoInterface,
-    CompressibleLoadParams,
-    PackedCompressedAccount,
-    LoadResult,
 } from './v3/actions/load-ata';
 
-export {
-    createLoadAccountsParams,
-    createLoadAtaInstructionsFromInterface,
-    calculateCompressibleLoadComputeUnits,
-    selectInputsForAmount,
-    CompressibleAccountInput,
-    ParsedAccountInfoInterface,
-    CompressibleLoadParams,
-    PackedCompressedAccount,
-    LoadResult,
-};
+export { selectInputsForAmount };
 
 export {
     estimateTransactionSize,
@@ -75,7 +57,8 @@ export {
     createWrapInstruction,
     createUnwrapInstruction,
     createUnwrapInstructions,
-    createDecompressInterfaceInstruction,
+    createCTokenFreezeAccountInstruction,
+    createCTokenThawAccountInstruction,
     createLightTokenTransferInstruction,
     // Types
     TokenMetadataInstructionData,
@@ -93,7 +76,6 @@ export {
     transferInterface,
     createTransferInterfaceInstructions,
     sliceLast,
-    decompressInterface,
     wrap,
     mintTo as mintToCToken,
     mintToCompressed,

@@ -56,8 +56,6 @@ export const ADD_TOKEN_POOL_DISCRIMINATOR = Buffer.from([
     114, 143, 210, 73, 96, 115, 1, 228,
 ]);
 
-export const DECOMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR = Buffer.from([107]);
-
 /**
  * Maximum lamports for rent top-up in a single instruction.
  * u16::MAX = no limit; 0 = no top-ups allowed.

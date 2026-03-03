@@ -1,9 +1,7 @@
 import {
-    ComputeBudgetProgram,
     ConfirmOptions,
     PublicKey,
     Signer,
-    TransactionInstruction,
     TransactionSignature,
 } from '@solana/web3.js';
 import {
@@ -13,229 +11,13 @@ import {
     dedupeSigner,
     assertBetaEnabled,
 } from '@lightprotocol/stateless.js';
-import { getMint, TokenAccountNotFoundError } from '@solana/spl-token';
+import { sliceLast } from './transfer-interface';
 import BN from 'bn.js';
-import { createUnwrapInstruction } from '../instructions/unwrap';
-import {
-    getSplInterfaceInfos,
-    SplInterfaceInfo,
-} from '../../utils/get-token-pool-infos';
-import { getAssociatedTokenAddressInterface } from '../get-associated-token-address-interface';
-import {
-    getAtaInterface as _getAtaInterface,
-    type AccountInterface,
-} from '../get-account-interface';
-import { _buildLoadBatches, calculateLoadBatchComputeUnits } from './load-ata';
-import { InterfaceOptions } from './transfer-interface';
-import {
-    estimateTransactionSize,
-    MAX_TRANSACTION_SIZE,
-} from '../utils/estimate-tx-size';
+import { createUnwrapInstructions } from '../instructions/unwrap';
+import { type SplInterfaceInfo } from '../../utils/get-token-pool-infos';
 
-/**
- * Build instruction batches for unwrapping light-tokens to SPL/T22 tokens.
- *
- * Returns `TransactionInstruction[][]` with the same shape as
- * `createLoadAtaInstructions` and `createTransferInterfaceInstructions`:
- * each inner array is one transaction. Load batches (if any) come first,
- * followed by one final unwrap transaction.
- *
- * Uses amount-aware input selection: only loads the cold inputs needed to
- * cover the unwrap amount (plus padding to fill a single proof batch).
- *
- * @param rpc               RPC connection
- * @param destination       Destination SPL/T22 token account (must exist)
- * @param owner             Owner of the light-token
- * @param mint              Mint address
- * @param amount            Amount to unwrap (defaults to full balance)
- * @param payer             Fee payer (defaults to owner)
- * @param splInterfaceInfo  Optional: SPL interface info
- * @param maxTopUp          Optional: cap on rent top-up (units of 1k lamports; default no cap)
- * @param interfaceOptions  Optional: interface options for load
- * @param wrap              Whether to use unified (wrap) mode for loading.
- *                          Default false.
- * @returns Instruction batches - each inner array is one transaction
- */
-export async function createUnwrapInstructions(
-    rpc: Rpc,
-    destination: PublicKey,
-    owner: PublicKey,
-    mint: PublicKey,
-    amount?: number | bigint | BN,
-    payer?: PublicKey,
-    splInterfaceInfo?: SplInterfaceInfo,
-    maxTopUp?: number,
-    interfaceOptions?: InterfaceOptions,
-    wrap = false,
-): Promise<TransactionInstruction[][]> {
-    assertBetaEnabled();
+export { createUnwrapInstructions } from '../instructions/unwrap';
 
-    payer ??= owner;
-
-    // 1. Resolve SPL interface info
-    let resolvedSplInterfaceInfo = splInterfaceInfo;
-    if (!resolvedSplInterfaceInfo) {
-        const splInterfaceInfos = await getSplInterfaceInfos(rpc, mint);
-        resolvedSplInterfaceInfo = splInterfaceInfos.find(
-            info => info.isInitialized,
-        );
-
-        if (!resolvedSplInterfaceInfo) {
-            throw new Error(
-                `No initialized SPL interface found for mint: ${mint.toBase58()}. ` +
-                    `Please create an SPL interface via createSplInterface().`,
-            );
-        }
-    }
-
-    // 2. Check destination exists
-    const destAtaInfo = await rpc.getAccountInfo(destination);
-    if (!destAtaInfo) {
-        throw new Error(
-            `Destination account does not exist: ${destination.toBase58()}. ` +
-                `Create it first using getOrCreateAssociatedTokenAccount or createAssociatedTokenAccountIdempotentInstruction.`,
-        );
-    }
-
-    // 3. Derive light-token associated token account and get account interface
-    const ctokenAta = getAssociatedTokenAddressInterface(mint, owner);
-
-    let accountInterface: AccountInterface;
-    try {
-        accountInterface = await _getAtaInterface(
-            rpc,
-            ctokenAta,
-            owner,
-            mint,
-            undefined,
-            undefined,
-            wrap,
-        );
-    } catch (error) {
-        if (error instanceof TokenAccountNotFoundError) {
-            throw new Error('No light-token balance to unwrap');
-        }
-        throw error;
-    }
-
-    const totalBalance = accountInterface.parsed.amount;
-    const unfrozenBalance = (accountInterface._sources ?? [])
-        .filter(s => !s.parsed.isFrozen)
-        .reduce((sum, s) => sum + s.amount, BigInt(0));
-
-    if (unfrozenBalance === BigInt(0)) {
-        if (totalBalance > BigInt(0)) {
-            throw new Error('All light-token balance is frozen');
-        }
-        throw new Error('No light-token balance to unwrap');
-    }
-
-    const unwrapAmount =
-        amount != null ? BigInt(amount.toString()) : unfrozenBalance;
-
-    if (unwrapAmount > unfrozenBalance) {
-        const frozenNote =
-            totalBalance > unfrozenBalance
-                ? ` (${totalBalance - unfrozenBalance} frozen, not usable)`
-                : '';
-        throw new Error(
-            `Insufficient light-token balance. Requested: ${unwrapAmount}, Available: ${unfrozenBalance}${frozenNote}`,
-        );
-    }
-
-    // 4. Build load batches with amount-aware selection.
-    // When amount is specified, pass it as targetAmount for selective loading.
-    // When amount is undefined (unwrap all), pass undefined to load everything.
-    const internalBatches = await _buildLoadBatches(
-        rpc,
-        payer,
-        accountInterface,
-        interfaceOptions,
-        wrap,
-        ctokenAta,
-        amount !== undefined ? unwrapAmount : undefined,
-    );
-
-    // 5. Get mint decimals
-    const mintInfo = await getMint(
-        rpc,
-        mint,
-        undefined,
-        resolvedSplInterfaceInfo.tokenProgram,
-    );
-
-    // 6. Build unwrap instruction
-    const ix = createUnwrapInstruction(
-        ctokenAta,
-        destination,
-        owner,
-        mint,
-        unwrapAmount,
-        resolvedSplInterfaceInfo,
-        mintInfo.decimals,
-        payer,
-        maxTopUp,
-    );
-
-    const unwrapBatch: TransactionInstruction[] = [
-        ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 }),
-        ix,
-    ];
-
-    // 7. Assemble: load batches with CU budgets + unwrap batch
-    const numSigners = payer.equals(owner) ? 1 : 2;
-    const result: TransactionInstruction[][] = [];
-
-    for (const batch of internalBatches) {
-        const cu = calculateLoadBatchComputeUnits(batch);
-        const txIxs = [
-            ComputeBudgetProgram.setComputeUnitLimit({ units: cu }),
-            ...batch.instructions,
-        ];
-        assertUnwrapTxSize(txIxs, numSigners);
-        result.push(txIxs);
-    }
-
-    assertUnwrapTxSize(unwrapBatch, numSigners);
-    result.push(unwrapBatch);
-
-    return result;
-}
-
-/**
- * Assert that a batch of instructions fits within the max transaction size.
- */
-function assertUnwrapTxSize(
-    instructions: TransactionInstruction[],
-    numSigners: number,
-): void {
-    const size = estimateTransactionSize(instructions, numSigners);
-    if (size > MAX_TRANSACTION_SIZE) {
-        throw new Error(
-            `Unwrap batch exceeds max transaction size: ${size} > ${MAX_TRANSACTION_SIZE}. ` +
-                `This indicates a bug in batch assembly.`,
-        );
-    }
-}
-
-/**
- * Unwrap light-tokens to SPL tokens.
- *
- * Loads cold state to the light-token associated token account, then unwraps to the destination
- * SPL/T22 token account. Uses `createUnwrapInstructions` internally.
- *
- * @param rpc                RPC connection
- * @param payer              Fee payer
- * @param destination        Destination SPL/T22 token account
- * @param owner              Owner of the light-token (signer)
- * @param mint               Mint address
- * @param amount             Amount to unwrap (defaults to all)
- * @param splInterfaceInfo   SPL interface info
- * @param maxTopUp           Optional: cap on rent top-up (units of 1k lamports; default no cap)
- * @param confirmOptions     Confirm options
- *
- * @returns Transaction signature of the unwrap transaction
- */
 export async function unwrap(
     rpc: Rpc,
     payer: Signer,
@@ -258,14 +40,18 @@ export async function unwrap(
         maxTopUp,
     );
 
-    let txId: TransactionSignature = '';
+    const additionalSigners = dedupeSigner(payer, [owner]);
+    const { rest: loads, last: unwrapIxs } = sliceLast(batches);
 
-    for (const ixs of batches) {
-        const { blockhash } = await rpc.getLatestBlockhash();
-        const additionalSigners = dedupeSigner(payer, [owner]);
-        const tx = buildAndSignTx(ixs, payer, blockhash, additionalSigners);
-        txId = await sendAndConfirmTx(rpc, tx, confirmOptions);
-    }
+    await Promise.all(
+        loads.map(async ixs => {
+            const { blockhash } = await rpc.getLatestBlockhash();
+            const tx = buildAndSignTx(ixs, payer, blockhash, additionalSigners);
+            return sendAndConfirmTx(rpc, tx, confirmOptions);
+        }),
+    );
 
-    return txId;
+    const { blockhash } = await rpc.getLatestBlockhash();
+    const tx = buildAndSignTx(unwrapIxs, payer, blockhash, additionalSigners);
+    return sendAndConfirmTx(rpc, tx, confirmOptions);
 }
