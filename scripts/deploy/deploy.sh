@@ -4,7 +4,6 @@
 
 # Array of program names
 # libraries=("account_compression" "light_compressed_token" "light_system_program_pinocchio" "light_registry")
-
 libraries=("light_registry")
 BUFFER_KEYPAIR_PATH="target/buffer"
 

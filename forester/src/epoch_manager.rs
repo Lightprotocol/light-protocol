@@ -54,7 +54,10 @@ use crate::{
         ChannelError, ForesterError, InitializationError, RegistrationError, WorkReportError,
     },
     logging::{should_emit_rate_limited_warning, ServiceHeartbeat},
-    metrics::{push_metrics, queue_metric_update, update_forester_sol_balance},
+    metrics::{
+        push_metrics, queue_metric_update, update_epoch_detected, update_epoch_registered,
+        update_forester_sol_balance,
+    },
     pagerduty::send_pagerduty_alert,
     processor::{
         tx_cache::ProcessedHashCache,
@@ -944,6 +947,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         });
 
         let phases = get_epoch_phases(&self.protocol_config, epoch);
+        update_epoch_detected(epoch);
 
         // Attempt to recover registration info
         debug!("Recovering registration info for epoch {}", epoch);
@@ -1004,6 +1008,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             }
         };
         debug!("Recovered registration info for epoch {}", epoch);
+        update_epoch_registered(epoch);
 
         // Wait for the active phase
         registration_info = self.wait_for_active_phase(&registration_info).await?;

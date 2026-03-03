@@ -22,6 +22,14 @@ lazy_static! {
         error!("Failed to create metric QUEUE_LENGTH: {:?}", e);
         std::process::exit(1);
     });
+    pub static ref QUEUE_CAPACITY: IntGaugeVec = IntGaugeVec::new(
+        prometheus::opts!("queue_capacity", "Maximum capacity of the queue"),
+        &["tree_type", "tree_pubkey"]
+    )
+    .unwrap_or_else(|e| {
+        error!("Failed to create metric QUEUE_CAPACITY: {:?}", e);
+        std::process::exit(1);
+    });
     pub static ref LAST_RUN_TIMESTAMP: IntGauge = IntGauge::new(
         "forester_last_run_timestamp",
         "Timestamp of the last Forester run"
@@ -82,6 +90,33 @@ lazy_static! {
         error!("Failed to create metric REGISTERED_FORESTERS: {:?}", e);
         std::process::exit(1);
     });
+    pub static ref TRANSACTIONS_FAILED: IntCounterVec = IntCounterVec::new(
+        prometheus::opts!(
+            "forester_transactions_failed_total",
+            "Total number of failed transactions"
+        ),
+        &["reason"]
+    )
+    .unwrap_or_else(|e| {
+        error!("Failed to create metric TRANSACTIONS_FAILED: {:?}", e);
+        std::process::exit(1);
+    });
+    pub static ref EPOCH_DETECTED: IntGauge = IntGauge::new(
+        "forester_epoch_detected",
+        "Latest epoch the forester has detected and attempted to register for"
+    )
+    .unwrap_or_else(|e| {
+        error!("Failed to create metric EPOCH_DETECTED: {:?}", e);
+        std::process::exit(1);
+    });
+    pub static ref EPOCH_REGISTERED: IntGauge = IntGauge::new(
+        "forester_epoch_registered",
+        "Latest epoch the forester has successfully registered for"
+    )
+    .unwrap_or_else(|e| {
+        error!("Failed to create metric EPOCH_REGISTERED: {:?}", e);
+        std::process::exit(1);
+    });
     pub static ref INDEXER_RESPONSE_TIME: HistogramVec = HistogramVec::new(
         prometheus::HistogramOpts::new(
             "forester_indexer_response_time_seconds",
@@ -99,7 +134,7 @@ lazy_static! {
             "forester_indexer_proof_count",
             "Number of proofs requested vs received from indexer"
         ),
-        &["tree_type", "metric"]
+        &["tree_type", "tree_pubkey", "metric"]
     )
     .unwrap_or_else(|e| {
         error!("Failed to create metric INDEXER_PROOF_COUNT: {:?}", e);
@@ -114,6 +149,9 @@ pub fn register_metrics() {
     INIT.call_once(|| {
         if let Err(e) = REGISTRY.register(Box::new(QUEUE_LENGTH.clone())) {
             error!("Failed to register metric QUEUE_LENGTH: {:?}", e);
+        }
+        if let Err(e) = REGISTRY.register(Box::new(QUEUE_CAPACITY.clone())) {
+            error!("Failed to register metric QUEUE_CAPACITY: {:?}", e);
         }
         if let Err(e) = REGISTRY.register(Box::new(LAST_RUN_TIMESTAMP.clone())) {
             error!("Failed to register metric LAST_RUN_TIMESTAMP: {:?}", e);
@@ -132,6 +170,15 @@ pub fn register_metrics() {
         }
         if let Err(e) = REGISTRY.register(Box::new(REGISTERED_FORESTERS.clone())) {
             error!("Failed to register metric REGISTERED_FORESTERS: {:?}", e);
+        }
+        if let Err(e) = REGISTRY.register(Box::new(TRANSACTIONS_FAILED.clone())) {
+            error!("Failed to register metric TRANSACTIONS_FAILED: {:?}", e);
+        }
+        if let Err(e) = REGISTRY.register(Box::new(EPOCH_DETECTED.clone())) {
+            error!("Failed to register metric EPOCH_DETECTED: {:?}", e);
+        }
+        if let Err(e) = REGISTRY.register(Box::new(EPOCH_REGISTERED.clone())) {
+            error!("Failed to register metric EPOCH_REGISTERED: {:?}", e);
         }
         if let Err(e) = REGISTRY.register(Box::new(INDEXER_RESPONSE_TIME.clone())) {
             error!("Failed to register metric INDEXER_RESPONSE_TIME: {:?}", e);
@@ -210,6 +257,22 @@ pub fn update_registered_foresters(epoch: u64, authority: &str) {
         .set(1.0);
 }
 
+pub fn increment_transactions_failed(reason: &str, count: u64) {
+    TRANSACTIONS_FAILED
+        .with_label_values(&[reason])
+        .inc_by(count);
+}
+
+pub fn update_epoch_detected(epoch: u64) {
+    EPOCH_DETECTED.set(epoch as i64);
+    debug!("Updated epoch detected: {}", epoch);
+}
+
+pub fn update_epoch_registered(epoch: u64) {
+    EPOCH_REGISTERED.set(epoch as i64);
+    debug!("Updated epoch registered: {}", epoch);
+}
+
 pub fn update_indexer_response_time(operation: &str, tree_type: &str, duration_secs: f64) {
     // Ensure metrics are registered before updating (idempotent via Once)
     register_metrics();
@@ -222,14 +285,19 @@ pub fn update_indexer_response_time(operation: &str, tree_type: &str, duration_s
     );
 }
 
-pub fn update_indexer_proof_count(tree_type: &str, requested: u64, received: u64) {
+pub fn update_indexer_proof_count(
+    tree_type: &str,
+    tree_pubkey: &str,
+    requested: u64,
+    received: u64,
+) {
     // Ensure metrics are registered before updating (idempotent via Once)
     register_metrics();
     INDEXER_PROOF_COUNT
-        .with_label_values(&[tree_type, "requested"])
+        .with_label_values(&[tree_type, tree_pubkey, "requested"])
         .inc_by(requested);
     INDEXER_PROOF_COUNT
-        .with_label_values(&[tree_type, "received"])
+        .with_label_values(&[tree_type, tree_pubkey, "received"])
         .inc_by(received);
 }
 
@@ -392,6 +460,10 @@ pub async fn query_prometheus_metrics(
 
 pub async fn metrics_handler() -> Result<impl warp::Reply> {
     use prometheus::Encoder;
+
+    // Flush queued metric updates so HTTP scrapes see them
+    process_queued_metrics();
+
     let encoder = TextEncoder::new();
 
     let mut buffer = Vec::new();
