@@ -141,6 +141,7 @@ pub async fn create_state_tree(options: Options) -> anyhow::Result<()> {
         println!("Payer balance: {:?}", balance);
         let tx_hash = create_state_merkle_tree_and_queue_account(
             &payer,
+            &payer,
             true,
             &mut rpc,
             merkle_tree_keypair,

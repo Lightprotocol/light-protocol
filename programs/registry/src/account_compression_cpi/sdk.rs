@@ -289,7 +289,7 @@ pub fn create_initialize_address_merkle_tree_and_queue_instruction(
 }
 
 pub fn create_initialize_merkle_tree_instruction(
-    payer: Pubkey,
+    authority: Pubkey,
     merkle_tree_pubkey: Pubkey,
     nullifier_queue_pubkey: Pubkey,
     cpi_context_pubkey: Pubkey,
@@ -309,7 +309,7 @@ pub fn create_initialize_merkle_tree_instruction(
         queue_config: nullifier_queue_config,
     };
     let accounts = crate::accounts::InitializeMerkleTreeAndQueue {
-        authority: payer,
+        authority,
         registered_program_pda: register_program_pda,
         merkle_tree: merkle_tree_pubkey,
         queue: nullifier_queue_pubkey,
@@ -327,7 +327,7 @@ pub fn create_initialize_merkle_tree_instruction(
 }
 
 pub fn create_initialize_batched_merkle_tree_instruction(
-    payer: Pubkey,
+    authority: Pubkey,
     merkle_tree_pubkey: Pubkey,
     queue_pubkey: Pubkey,
     cpi_context_pubkey: Pubkey,
@@ -341,7 +341,7 @@ pub fn create_initialize_batched_merkle_tree_instruction(
         params: params.try_to_vec().unwrap(),
     };
     let accounts = crate::accounts::InitializeBatchedStateMerkleTreeAndQueue {
-        authority: payer,
+        authority,
         registered_program_pda: register_program_pda,
         merkle_tree: merkle_tree_pubkey,
         queue: queue_pubkey,
@@ -460,7 +460,7 @@ pub fn create_rollover_batch_state_tree_instruction(
 }
 
 pub fn create_initialize_batched_address_merkle_tree_instruction(
-    payer: Pubkey,
+    authority: Pubkey,
     merkle_tree_pubkey: Pubkey,
     params: InitAddressTreeAccountsInstructionData,
 ) -> Instruction {
@@ -473,7 +473,7 @@ pub fn create_initialize_batched_address_merkle_tree_instruction(
     };
     let protocol_config_pda = get_protocol_config_pda_address().0;
     let accounts = crate::accounts::InitializeBatchedAddressTree {
-        authority: payer,
+        authority,
         registered_program_pda: register_program_pda,
         merkle_tree: merkle_tree_pubkey,
         cpi_authority,

@@ -129,6 +129,7 @@ pub async fn create_batch_state_tree(options: Options) -> anyhow::Result<()> {
         println!("Payer balance: {:?}", balance);
         let tx_hash = create_batched_state_merkle_tree(
             &payer,
+            &payer,
             true,
             &mut rpc,
             merkle_tree_keypair,

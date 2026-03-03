@@ -1246,6 +1246,7 @@ where
         println!("queue config: {:?}", queue_config);
         create_state_merkle_tree_and_queue_account(
             &self.payer,
+            &self.payer,
             true,
             &mut self.rpc,
             &merkle_tree_keypair,

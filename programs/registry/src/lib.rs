@@ -345,6 +345,9 @@ pub mod light_registry {
                 msg!("Forester pubkey must not be defined for trees serviced by light foresters.");
                 return err!(RegistryError::ForesterDefined);
             }
+            if ctx.accounts.authority.key() != ctx.accounts.protocol_config_pda.authority {
+                return err!(RegistryError::InvalidSigner);
+            }
         } else if forester.is_none() {
             msg!("Forester pubkey required for trees without a network fee.");
             msg!("Trees without a network fee will not be serviced by light foresters.");
@@ -518,6 +521,9 @@ pub mod light_registry {
         } else {
             return err!(RegistryError::InvalidNetworkFee);
         }
+        if ctx.accounts.authority.key() != ctx.accounts.protocol_config_pda.authority {
+            return err!(RegistryError::InvalidSigner);
+        }
         check_cpi_context(
             ctx.accounts.cpi_context_account.to_account_info(),
             &ctx.accounts.protocol_config_pda.config,
@@ -605,6 +611,9 @@ pub mod light_registry {
             }
         } else {
             return err!(RegistryError::InvalidNetworkFee);
+        }
+        if ctx.accounts.authority.key() != ctx.accounts.protocol_config_pda.authority {
+            return err!(RegistryError::InvalidSigner);
         }
         process_initialize_batched_address_merkle_tree(&ctx, bump, params.try_to_vec()?)
     }
