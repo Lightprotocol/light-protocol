@@ -1,0 +1,40 @@
+Implement the following plan:
+
+# Fix Tests After Registry Authority Checks
+
+## IMPORTANT - Autonomous Execution Mode
+
+- This plan must execute without user intervention
+- Use subagents for research, parallel work, or when stuck
+- If blocked, find alternative approach - do not stop
+- Keep working until ALL todos are complete
+- Goal: `cargo test-sbf -p system-test`, `registry-test`, `account-compression-test` all green
+- MUST NOT revert the protocol authority signer checks in registry program
+- The authority checks limit tree creation to protocol authority for batched trees and v1 state trees with network fees
+
+## Context
+
+The diff adds authority signer checks to the registry program and separates payer/authority params in tree creation SDK functions. Some tests fail because:
+1. Call sites may not pass the correct authority
+2. Test environments may use payer as authority but payer != protocol authority in some contexts
+3. Error expectations in tests may need updating if the error path changed
+
+## Phase 1: Research & Discovery
+
+1. Explore all call sites of changed functions and verify they pass correct authority
+2. Understand the MissingLegacyMerkleContext error in system-test
+3. Check registry-test and account-compression-test for issues
+
+## Phase 2: Fix Issues Found
+
+4. Fix each identified issue
+
+## Phase 3: Testing & Validation
+
+5. Run `cargo test-sbf -p system-test` - fix failures
+6. Run `cargo test-sbf -p registry-test` - fix failures
+7. Run `cargo test-sbf -p account-compression-test` - fix failures
+8. Iterate until all green
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/ananas/.REDACTED.jsonl

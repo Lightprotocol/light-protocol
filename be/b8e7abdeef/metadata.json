@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "beb8e7abdeef",
+  "strategy": "manual-commit",
+  "branch": "jorrit/chore-limit-tree-creations-to-protocol-auth",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "program-tests/system-test/tests/test.rs",
+    "sdk-libs/program-test/src/indexer/test_indexer.rs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/be/b8e7abdeef/0/metadata.json",
+      "transcript": "/be/b8e7abdeef/0/full.jsonl",
+      "context": "/be/b8e7abdeef/0/context.md",
+      "content_hash": "/be/b8e7abdeef/0/content_hash.txt",
+      "prompt": "/be/b8e7abdeef/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 150,
+    "cache_creation_tokens": 262779,
+    "cache_read_tokens": 15346275,
+    "output_tokens": 41589,
+    "api_call_count": 148
+  }
+}
