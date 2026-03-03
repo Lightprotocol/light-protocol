@@ -16,7 +16,7 @@ test-account-compression:
     RUSTFLAGS="-D warnings" cargo test-sbf -p account-compression-test
 
 test-registry:
-    RUSTFLAGS="-D warnings" cargo test-sbf -p registry-test
+    RUST_MIN_STACK=16777216 RUSTFLAGS="-D warnings" cargo test-sbf -p registry-test
 
 # System program tests
 test-system: test-system-address test-system-compression test-system-re-init
