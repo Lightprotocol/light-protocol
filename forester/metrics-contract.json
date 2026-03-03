@@ -1,0 +1,18 @@
+{
+  "description": "Forester metrics contract — single source of truth for metric names. Both the Rust forester crate and the k8s monitoring repo validate against this file.",
+  "metrics": [
+    { "name": "queue_length", "labels": ["tree_type", "tree_pubkey"] },
+    { "name": "queue_capacity", "labels": ["tree_type", "tree_pubkey"] },
+    { "name": "forester_last_run_timestamp", "labels": [] },
+    { "name": "forester_transactions_processed_total", "labels": ["epoch"] },
+    { "name": "forester_transaction_timestamp", "labels": ["epoch"] },
+    { "name": "forester_transaction_rate", "labels": ["epoch"] },
+    { "name": "forester_sol_balance", "labels": ["pubkey"] },
+    { "name": "registered_foresters", "labels": ["epoch", "authority"] },
+    { "name": "forester_transactions_failed_total", "labels": ["reason"] },
+    { "name": "forester_epoch_detected", "labels": [] },
+    { "name": "forester_epoch_registered", "labels": [] },
+    { "name": "forester_indexer_response_time_seconds", "labels": ["operation", "tree_type"] },
+    { "name": "forester_indexer_proof_count", "labels": ["tree_type", "tree_pubkey", "metric"] }
+  ]
+}

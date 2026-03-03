@@ -6,5 +6,6 @@ logs
 .env.mainnet
 *.json
 !package.json
+!metrics-contract.json
 spawn.sh
 spawn_devnet.sh
