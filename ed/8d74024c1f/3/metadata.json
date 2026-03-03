@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "ed8d74024c1f",
+  "session_id": "a3ba6276-ec38-4667-9dc3-8a56a98566e8",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-03T17:34:35.498394Z",
+  "branch": "jorrit/chore-limit-tree-creations-to-protocol-auth",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "program-tests/justfile"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "dc2b701d78ac",
+  "checkpoint_transcript_start": 1805,
+  "transcript_lines_at_start": 1805,
+  "token_usage": {
+    "input_tokens": 137,
+    "cache_creation_tokens": 210259,
+    "cache_read_tokens": 11820976,
+    "output_tokens": 49186,
+    "api_call_count": 126
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-03T17:34:34.374795Z",
+    "agent_lines": 1,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1,
+    "agent_percentage": 100
+  },
+  "transcript_path": ".claude/projects/-Users-ananas-dev-light-protocol3/a3ba6276-ec38-4667-9dc3-8a56a98566e8.jsonl"
+}
