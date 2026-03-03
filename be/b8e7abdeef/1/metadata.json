@@ -1,0 +1,46 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "beb8e7abdeef",
+  "session_id": "3926665a-b6e0-4261-9003-3cb9a1f432a7",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-03T16:55:13.843998Z",
+  "branch": "jorrit/chore-limit-tree-creations-to-protocol-auth",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "program-tests/account-compression-test/tests/batched_merkle_tree_test.rs",
+    "program-tests/system-test/tests/test.rs",
+    "programs/registry/src/lib.rs",
+    "sdk-libs/program-test/src/accounts/initialize.rs",
+    "sdk-libs/program-test/src/accounts/state_tree.rs",
+    "xtask/src/create_batch_state_tree.rs",
+    "xtask/src/create_state_tree.rs",
+    "program-tests/registry-test/tests/tests.rs",
+    "program-tests/utils/src/e2e_test_env.rs",
+    "xtask/src/new_deployment.rs",
+    "sdk-libs/program-test/src/accounts/address_tree_v2.rs",
+    "xtask/src/create_batch_address_tree.rs",
+    "programs/registry/src/account_compression_cpi/sdk.rs",
+    "sdk-libs/program-test/src/accounts/state_tree_v2.rs",
+    "sdk-libs/program-test/src/indexer/test_indexer.rs"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "998d1ce51a86",
+  "transcript_identifier_at_start": "21bb32e2-622d-420a-a35d-2322c068d56b",
+  "token_usage": {
+    "input_tokens": 122,
+    "cache_creation_tokens": 149689,
+    "cache_read_tokens": 12832925,
+    "output_tokens": 37343,
+    "api_call_count": 115
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-03T16:55:13.167658Z",
+    "agent_lines": 0,
+    "human_added": 2663,
+    "human_modified": 30,
+    "human_removed": 0,
+    "total_committed": 2663,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude/projects/-Users-ananas-dev-light-protocol3/3926665a-b6e0-4261-9003-3cb9a1f432a7.jsonl"
+}
