@@ -770,13 +770,9 @@ fn parse_tree_status(
             let queue_len = v2_info
                 .as_ref()
                 .map(|i| (i.input_pending_batches + i.output_pending_batches) * i.zkp_batch_size);
-            let queue_cap = v2_info.as_ref().map(|i| {
-                if i.zkp_batch_size > 0 {
-                    i.batches.len() as u64 * (i.batch_size / i.zkp_batch_size)
-                } else {
-                    0
-                }
-            });
+            let queue_cap = v2_info
+                .as_ref()
+                .map(|i| i.batches.len() as u64 * i.batch_size);
 
             (
                 fullness,
@@ -804,11 +800,7 @@ fn parse_tree_status(
 
             let v2_info = parse_address_v2_queue_info(&merkle_tree);
             let queue_len = Some(v2_info.input_pending_batches * v2_info.zkp_batch_size);
-            let queue_cap = if v2_info.zkp_batch_size > 0 {
-                Some(v2_info.batches.len() as u64 * (v2_info.batch_size / v2_info.zkp_batch_size))
-            } else {
-                Some(0)
-            };
+            let queue_cap = Some(v2_info.batches.len() as u64 * v2_info.batch_size);
 
             (
                 fullness,

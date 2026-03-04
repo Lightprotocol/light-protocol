@@ -175,6 +175,7 @@ pub struct StartArgs {
         long,
         env = "RPC_POOL_FAILURE_THRESHOLD",
         default_value = "3",
+        value_parser = clap::value_parser!(u64).range(1..),
         help = "Consecutive health check failures before switching to fallback RPC"
     )]
     pub rpc_pool_failure_threshold: u64,
@@ -183,6 +184,7 @@ pub struct StartArgs {
         long,
         env = "RPC_POOL_PRIMARY_PROBE_INTERVAL_SECS",
         default_value = "30",
+        value_parser = clap::value_parser!(u64).range(1..),
         help = "Interval in seconds between probes to check if primary RPC has recovered"
     )]
     pub rpc_pool_primary_probe_interval_secs: u64,

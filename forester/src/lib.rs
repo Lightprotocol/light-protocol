@@ -427,7 +427,6 @@ pub async fn run_pipeline_with_run_id<R: Rpc + Indexer>(
     }
 
     let arc_pool = Arc::new(builder.build().await?);
-    let recovery_probe_handle = arc_pool.spawn_primary_recovery_probe();
     let arc_pool_clone = Arc::clone(&arc_pool);
 
     let (protocol_config, slot) = {
@@ -479,6 +478,8 @@ pub async fn run_pipeline_with_run_id<R: Rpc + Indexer>(
         pda_tracker,
         mint_tracker,
     } = tracker_handles;
+
+    let recovery_probe_handle = arc_pool.spawn_primary_recovery_probe();
 
     debug!("Starting Forester pipeline");
     let result = run_service(

@@ -821,9 +821,9 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                         run_id = %self.run_id,
                         target_epoch,
                         error = ?e,
-                        "Failed to send target epoch for processing"
+                        "Failed to send target epoch for processing; channel closed"
                     );
-                    continue;
+                    return Err(anyhow!("Epoch channel closed: {}", e));
                 }
                 last_epoch = Some(target_epoch);
                 continue; // Re-check state after processing
