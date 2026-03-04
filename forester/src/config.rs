@@ -50,6 +50,8 @@ pub struct ExternalServicesConfig {
     pub rpc_rate_limit: Option<u32>,
     pub photon_rate_limit: Option<u32>,
     pub send_tx_rate_limit: Option<u32>,
+    pub fallback_rpc_url: Option<String>,
+    pub fallback_indexer_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -153,6 +155,8 @@ pub struct RpcPoolConfig {
     pub max_retries: u32,
     pub initial_retry_delay_ms: u64,
     pub max_retry_delay_ms: u64,
+    pub failure_threshold: u64,
+    pub primary_probe_interval_secs: u64,
 }
 
 impl Default for QueueConfig {
@@ -265,6 +269,8 @@ impl ForesterConfig {
                 rpc_rate_limit: args.rpc_rate_limit,
                 photon_rate_limit: args.photon_rate_limit,
                 send_tx_rate_limit: args.send_tx_rate_limit,
+                fallback_rpc_url: args.fallback_rpc_url.clone(),
+                fallback_indexer_url: args.fallback_indexer_url.clone(),
             },
             retry_config: RetryConfig {
                 max_retries: args.max_retries,
@@ -342,6 +348,8 @@ impl ForesterConfig {
                 max_retries: args.rpc_pool_max_retries,
                 initial_retry_delay_ms: args.rpc_pool_initial_retry_delay_ms,
                 max_retry_delay_ms: args.rpc_pool_max_retry_delay_ms,
+                failure_threshold: args.rpc_pool_failure_threshold,
+                primary_probe_interval_secs: args.rpc_pool_primary_probe_interval_secs,
             },
             registry_pubkey: Pubkey::from_str(&registry_pubkey).map_err(|e| {
                 ConfigError::InvalidArguments {
@@ -423,6 +431,8 @@ impl ForesterConfig {
                 rpc_rate_limit: None,
                 photon_rate_limit: None,
                 send_tx_rate_limit: None,
+                fallback_rpc_url: None,
+                fallback_indexer_url: None,
             },
             retry_config: RetryConfig::default(),
             queue_config: QueueConfig::default(),
@@ -441,6 +451,8 @@ impl ForesterConfig {
                 max_retries: 10,
                 initial_retry_delay_ms: 1000,
                 max_retry_delay_ms: 16000,
+                failure_threshold: 3,
+                primary_probe_interval_secs: 30,
             },
             registry_pubkey: Pubkey::default(),
             payer_keypair: Keypair::new(),

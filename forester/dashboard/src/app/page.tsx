@@ -66,6 +66,7 @@ export default function Dashboard() {
     warnings.push("No foresters registered for the active epoch");
   }
   if (
+    status.registration_is_open &&
     status.slots_until_next_registration < 1000 &&
     status.registration_epoch_foresters.length === 0
   ) {

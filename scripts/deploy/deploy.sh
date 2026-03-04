@@ -4,9 +4,7 @@
 
 # Array of program names
 libraries=("account_compression" "light_compressed_token" "light_system_program_pinocchio" "light_registry")
-
 BUFFER_KEYPAIR_PATH="target/buffer"
-
 
 create_buffer_account() {
     local max_retries=5

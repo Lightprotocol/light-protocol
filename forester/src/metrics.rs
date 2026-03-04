@@ -12,134 +12,151 @@ use tracing::{debug, error, log::trace};
 
 use crate::Result;
 
+macro_rules! define_metrics {
+    (
+        $(
+            metric($metric_name:literal, [$($label:literal),*])
+            static ref $IDENT:ident : $ty:ty = $init:expr;
+        )*
+    ) => {
+        lazy_static! {
+            $(
+                pub static ref $IDENT: $ty = ($init)
+                    .unwrap_or_else(|e| {
+                        error!("Failed to create metric {}: {:?}", stringify!($IDENT), e);
+                        std::process::exit(1);
+                    });
+            )*
+        }
+
+        /// (name, labels) for every metric — used by the contract test.
+        pub const METRIC_DESCRIPTORS: &[(&str, &[&str])] = &[
+            $(($metric_name, &[$($label),*]),)*
+        ];
+
+        pub fn register_metrics() {
+            INIT.call_once(|| {
+                $(
+                    if let Err(e) = REGISTRY.register(Box::new($IDENT.clone())) {
+                        error!("Failed to register metric {}: {:?}", stringify!($IDENT), e);
+                    }
+                )*
+            });
+        }
+    };
+}
+
 lazy_static! {
     pub static ref REGISTRY: Registry = Registry::new();
-    pub static ref QUEUE_LENGTH: IntGaugeVec = IntGaugeVec::new(
+}
+
+static INIT: Once = Once::new();
+
+define_metrics! {
+    metric("queue_length", ["tree_type", "tree_pubkey"])
+    static ref QUEUE_LENGTH: IntGaugeVec = IntGaugeVec::new(
         prometheus::opts!("queue_length", "Length of the queue"),
         &["tree_type", "tree_pubkey"]
-    )
-    .unwrap_or_else(|e| {
-        error!("Failed to create metric QUEUE_LENGTH: {:?}", e);
-        std::process::exit(1);
-    });
-    pub static ref LAST_RUN_TIMESTAMP: IntGauge = IntGauge::new(
+    );
+
+    metric("queue_capacity", ["tree_type", "tree_pubkey"])
+    static ref QUEUE_CAPACITY: IntGaugeVec = IntGaugeVec::new(
+        prometheus::opts!("queue_capacity", "Maximum capacity of the queue"),
+        &["tree_type", "tree_pubkey"]
+    );
+
+    metric("forester_last_run_timestamp", [])
+    static ref LAST_RUN_TIMESTAMP: IntGauge = IntGauge::new(
         "forester_last_run_timestamp",
         "Timestamp of the last Forester run"
-    )
-    .unwrap_or_else(|e| {
-        error!("Failed to create metric LAST_RUN_TIMESTAMP: {:?}", e);
-        std::process::exit(1);
-    });
-    pub static ref TRANSACTIONS_PROCESSED: IntCounterVec = IntCounterVec::new(
+    );
+
+    metric("forester_transactions_processed_total", ["epoch"])
+    static ref TRANSACTIONS_PROCESSED: IntCounterVec = IntCounterVec::new(
         prometheus::opts!(
             "forester_transactions_processed_total",
             "Total number of transactions processed"
         ),
         &["epoch"]
-    )
-    .unwrap_or_else(|e| {
-        error!("Failed to create metric TRANSACTIONS_PROCESSED: {:?}", e);
-        std::process::exit(1);
-    });
-    pub static ref TRANSACTION_TIMESTAMP: GaugeVec = GaugeVec::new(
+    );
+
+    metric("forester_transaction_timestamp", ["epoch"])
+    static ref TRANSACTION_TIMESTAMP: GaugeVec = GaugeVec::new(
         prometheus::opts!(
             "forester_transaction_timestamp",
             "Timestamp of the last processed transaction"
         ),
         &["epoch"]
-    )
-    .unwrap_or_else(|e| {
-        error!("Failed to create metric TRANSACTION_TIMESTAMP: {:?}", e);
-        std::process::exit(1);
-    });
-    pub static ref TRANSACTION_RATE: GaugeVec = GaugeVec::new(
+    );
+
+    metric("forester_transaction_rate", ["epoch"])
+    static ref TRANSACTION_RATE: GaugeVec = GaugeVec::new(
         prometheus::opts!(
             "forester_transaction_rate",
             "Rate of transactions processed per second"
         ),
         &["epoch"]
-    )
-    .unwrap_or_else(|e| {
-        error!("Failed to create metric TRANSACTION_RATE: {:?}", e);
-        std::process::exit(1);
-    });
-    pub static ref FORESTER_SOL_BALANCE: GaugeVec = GaugeVec::new(
+    );
+
+    metric("forester_sol_balance", ["pubkey"])
+    static ref FORESTER_SOL_BALANCE: GaugeVec = GaugeVec::new(
         prometheus::opts!(
             "forester_sol_balance",
             "Current SOL balance of the forester"
         ),
         &["pubkey"]
-    )
-    .unwrap_or_else(|e| {
-        error!("Failed to create metric FORESTER_SOL_BALANCE: {:?}", e);
-        std::process::exit(1);
-    });
-    pub static ref REGISTERED_FORESTERS: GaugeVec = GaugeVec::new(
+    );
+
+    metric("registered_foresters", ["epoch", "authority"])
+    static ref REGISTERED_FORESTERS: GaugeVec = GaugeVec::new(
         prometheus::opts!("registered_foresters", "Foresters registered per epoch"),
         &["epoch", "authority"]
-    )
-    .unwrap_or_else(|e| {
-        error!("Failed to create metric REGISTERED_FORESTERS: {:?}", e);
-        std::process::exit(1);
-    });
-    pub static ref INDEXER_RESPONSE_TIME: HistogramVec = HistogramVec::new(
+    );
+
+    metric("forester_transactions_failed_total", ["reason"])
+    static ref TRANSACTIONS_FAILED: IntCounterVec = IntCounterVec::new(
+        prometheus::opts!(
+            "forester_transactions_failed_total",
+            "Total number of failed transactions"
+        ),
+        &["reason"]
+    );
+
+    metric("forester_epoch_detected", [])
+    static ref EPOCH_DETECTED: IntGauge = IntGauge::new(
+        "forester_epoch_detected",
+        "Latest epoch the forester has detected and attempted to register for"
+    );
+
+    metric("forester_epoch_registered", [])
+    static ref EPOCH_REGISTERED: IntGauge = IntGauge::new(
+        "forester_epoch_registered",
+        "Latest epoch the forester has successfully registered for"
+    );
+
+    metric("forester_indexer_response_time_seconds", ["operation", "tree_type"])
+    static ref INDEXER_RESPONSE_TIME: HistogramVec = HistogramVec::new(
         prometheus::HistogramOpts::new(
             "forester_indexer_response_time_seconds",
             "Response time for indexer proof requests in seconds"
         )
         .buckets(vec![0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0]),
         &["operation", "tree_type"]
-    )
-    .unwrap_or_else(|e| {
-        error!("Failed to create metric INDEXER_RESPONSE_TIME: {:?}", e);
-        std::process::exit(1);
-    });
-    pub static ref INDEXER_PROOF_COUNT: IntCounterVec = IntCounterVec::new(
+    );
+
+    metric("forester_indexer_proof_count", ["tree_type", "tree_pubkey", "metric"])
+    static ref INDEXER_PROOF_COUNT: IntCounterVec = IntCounterVec::new(
         prometheus::opts!(
             "forester_indexer_proof_count",
             "Number of proofs requested vs received from indexer"
         ),
-        &["tree_type", "metric"]
-    )
-    .unwrap_or_else(|e| {
-        error!("Failed to create metric INDEXER_PROOF_COUNT: {:?}", e);
-        std::process::exit(1);
-    });
-    static ref METRIC_UPDATES: std::sync::Mutex<Vec<(u64, usize, std::time::Duration)>> =
-        std::sync::Mutex::new(Vec::new());
+        &["tree_type", "tree_pubkey", "metric"]
+    );
 }
 
-static INIT: Once = Once::new();
-pub fn register_metrics() {
-    INIT.call_once(|| {
-        if let Err(e) = REGISTRY.register(Box::new(QUEUE_LENGTH.clone())) {
-            error!("Failed to register metric QUEUE_LENGTH: {:?}", e);
-        }
-        if let Err(e) = REGISTRY.register(Box::new(LAST_RUN_TIMESTAMP.clone())) {
-            error!("Failed to register metric LAST_RUN_TIMESTAMP: {:?}", e);
-        }
-        if let Err(e) = REGISTRY.register(Box::new(TRANSACTIONS_PROCESSED.clone())) {
-            error!("Failed to register metric TRANSACTIONS_PROCESSED: {:?}", e);
-        }
-        if let Err(e) = REGISTRY.register(Box::new(TRANSACTION_TIMESTAMP.clone())) {
-            error!("Failed to register metric TRANSACTION_TIMESTAMP: {:?}", e);
-        }
-        if let Err(e) = REGISTRY.register(Box::new(TRANSACTION_RATE.clone())) {
-            error!("Failed to register metric TRANSACTION_RATE: {:?}", e);
-        }
-        if let Err(e) = REGISTRY.register(Box::new(FORESTER_SOL_BALANCE.clone())) {
-            error!("Failed to register metric FORESTER_SOL_BALANCE: {:?}", e);
-        }
-        if let Err(e) = REGISTRY.register(Box::new(REGISTERED_FORESTERS.clone())) {
-            error!("Failed to register metric REGISTERED_FORESTERS: {:?}", e);
-        }
-        if let Err(e) = REGISTRY.register(Box::new(INDEXER_RESPONSE_TIME.clone())) {
-            error!("Failed to register metric INDEXER_RESPONSE_TIME: {:?}", e);
-        }
-        if let Err(e) = REGISTRY.register(Box::new(INDEXER_PROOF_COUNT.clone())) {
-            error!("Failed to register metric INDEXER_PROOF_COUNT: {:?}", e);
-        }
-    });
+lazy_static! {
+    static ref METRIC_UPDATES: std::sync::Mutex<Vec<(u64, usize, std::time::Duration)>> =
+        std::sync::Mutex::new(Vec::new());
 }
 
 pub fn update_last_run_timestamp() {
@@ -210,6 +227,22 @@ pub fn update_registered_foresters(epoch: u64, authority: &str) {
         .set(1.0);
 }
 
+pub fn increment_transactions_failed(reason: &str, count: u64) {
+    TRANSACTIONS_FAILED
+        .with_label_values(&[reason])
+        .inc_by(count);
+}
+
+pub fn update_epoch_detected(epoch: u64) {
+    EPOCH_DETECTED.set(epoch as i64);
+    debug!("Updated epoch detected: {}", epoch);
+}
+
+pub fn update_epoch_registered(epoch: u64) {
+    EPOCH_REGISTERED.set(epoch as i64);
+    debug!("Updated epoch registered: {}", epoch);
+}
+
 pub fn update_indexer_response_time(operation: &str, tree_type: &str, duration_secs: f64) {
     // Ensure metrics are registered before updating (idempotent via Once)
     register_metrics();
@@ -222,14 +255,19 @@ pub fn update_indexer_response_time(operation: &str, tree_type: &str, duration_s
     );
 }
 
-pub fn update_indexer_proof_count(tree_type: &str, requested: u64, received: u64) {
+pub fn update_indexer_proof_count(
+    tree_type: &str,
+    tree_pubkey: &str,
+    requested: u64,
+    received: u64,
+) {
     // Ensure metrics are registered before updating (idempotent via Once)
     register_metrics();
     INDEXER_PROOF_COUNT
-        .with_label_values(&[tree_type, "requested"])
+        .with_label_values(&[tree_type, tree_pubkey, "requested"])
         .inc_by(requested);
     INDEXER_PROOF_COUNT
-        .with_label_values(&[tree_type, "received"])
+        .with_label_values(&[tree_type, tree_pubkey, "received"])
         .inc_by(received);
 }
 
@@ -392,6 +430,10 @@ pub async fn query_prometheus_metrics(
 
 pub async fn metrics_handler() -> Result<impl warp::Reply> {
     use prometheus::Encoder;
+
+    // Flush queued metric updates so HTTP scrapes see them
+    process_queued_metrics();
+
     let encoder = TextEncoder::new();
 
     let mut buffer = Vec::new();

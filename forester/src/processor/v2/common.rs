@@ -19,8 +19,8 @@ use tracing::{debug, error, info, warn};
 
 use super::{errors::V2Error, proof_worker::ProofJob};
 use crate::{
-    errors::ForesterError, processor::tx_cache::ProcessedHashCache, slot_tracker::SlotTracker,
-    Result,
+    errors::ForesterError, metrics::increment_transactions_failed,
+    processor::tx_cache::ProcessedHashCache, slot_tracker::SlotTracker, Result,
 };
 
 const SLOTS_STOP_THRESHOLD: u64 = 3;
@@ -196,6 +196,7 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
 
         if let Some(Some(status)) = statuses.first() {
             if let Some(err) = &status.err {
+                increment_transactions_failed("execution_failed", 1);
                 error!(
                     "transaction {} failed for tree {}: {:?}",
                     signature, context.merkle_tree, err
@@ -233,6 +234,7 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
         tokio::time::sleep(poll_interval).await;
     }
 
+    increment_transactions_failed("timeout", 1);
     warn!(
         "Transaction {} timed out waiting for confirmation for tree {}",
         signature, context.merkle_tree

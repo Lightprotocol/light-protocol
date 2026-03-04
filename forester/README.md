@@ -2,9 +2,7 @@
 
 ## Description
 
-Forester is a service for nullifying the state and address merkle trees.
-It subscribes to the nullifier queue and nullifies merkle tree leaves.
-
+Forester is a service that processes queued Merkle tree updates for Light Protocol's ZK Compression system on Solana. It reads pending nullifications and address insertions from queue accounts and submits batched transactions with ZK proofs to update the on-chain Merkle trees.
 
 ## Quick Start
 
@@ -17,9 +15,9 @@ cp .env.example .env
 
 3. Start the forester:
 ```bash
-cargo run start
+cargo run -- start
 # or with environment file
-source .env && cargo run start
+source .env && cargo run -- start
 ```
 
 ## Commands
@@ -28,179 +26,172 @@ source .env && cargo run start
 forester <COMMAND>
 ```
 
-Available commands:
-- `start` - Start the Forester service
-- `status` - Check the status of various components
-- `health` - Perform health checks on the system
-- `help` - Print help information
+| Command | Description |
+|---------|-------------|
+| `start` | Start the Forester service |
+| `status` | Check queue and protocol status |
+| `health` | Run health checks (balance, registration) |
+| `dashboard` | Run a standalone API server (no processing) |
 
 ## Configuration
 
-All configuration can be provided via command-line arguments or environment variables. Environment variables take the format `FORESTER_<OPTION_NAME>`.
+All configuration is provided via CLI arguments or environment variables. There is **no prefix** on env vars (e.g. `RPC_URL`, not `FORESTER_RPC_URL`).
 
-### Required Configuration
+### Required
 
-| Option | Environment Variable | Description |
-|--------|---------------------|-------------|
-| `--rpc-url` | `FORESTER_RPC_URL` | Solana RPC endpoint URL |
-| `--ws-rpc-url` | `FORESTER_WS_RPC_URL` | WebSocket RPC endpoint URL |
-| `--indexer-url` | `FORESTER_INDEXER_URL` | Photon indexer URL |
-| `--prover-url` | `FORESTER_PROVER_URL` | Light Protocol prover service URL |
-| `--payer` | `FORESTER_PAYER` | Keypair for transaction signing (JSON array format) |
-| `--derivation` | `FORESTER_DERIVATION_PUBKEY` | Derivation public key (JSON array format) |
-
-### Performance Configuration
-
-#### RPC Pool Settings
-Optimize connection pooling for better throughput:
-
-| Option | Default | Description |
+| Option | Env Var | Description |
 |--------|---------|-------------|
-| `--rpc-pool-size` | 10 | Number of RPC connections to maintain |
-| `--rpc-pool-connection-timeout-secs` | 15 | Connection timeout in seconds |
-| `--rpc-pool-idle-timeout-secs` | 300 | Idle connection timeout |
+| `--rpc-url` | `RPC_URL` | Solana RPC endpoint |
+| `--indexer-url` | `INDEXER_URL` | Photon indexer URL (supports `?api-key=KEY`) |
+| `--payer` | `PAYER` | Keypair for signing (JSON byte array) |
+| `--derivation` | `DERIVATION_PUBKEY` | Derivation pubkey (JSON byte array, 32 bytes) |
 
-#### Transaction V1 Processing
-Control transaction batching and concurrency:
+### Optional Services
 
-| Option | Default | Description |
+| Option | Env Var | Description |
 |--------|---------|-------------|
-| `--max-concurrent-sends` | 50 | Maximum concurrent transaction sends |
-| `--legacy-ixs-per-tx` | 1 | Instructions per transaction (max 1 for address nullification) |
-| `--transaction-max-concurrent-batches` | 20 | Maximum concurrent transaction batches |
-| `--cu-limit` | 1000000 | Compute unit limit per transaction |
-| `--enable-priority-fees` | false | Enable dynamic priority fee calculation |
-| `--enable-compressible` | false | Enable compressible account tracking and compression (requires `--ws-rpc-url`) |
+| `--ws-rpc-url` | `WS_RPC_URL` | WebSocket RPC (required for `--enable-compressible`) |
+| `--prover-url` | `PROVER_URL` | ZK prover service URL |
+| `--prover-append-url` | `PROVER_APPEND_URL` | Prover URL for append ops (falls back to `--prover-url`) |
+| `--prover-update-url` | `PROVER_UPDATE_URL` | Prover URL for update ops (falls back to `--prover-url`) |
+| `--prover-address-append-url` | `PROVER_ADDRESS_APPEND_URL` | Prover URL for address-append ops (falls back to `--prover-url`) |
+| `--prover-api-key` | `PROVER_API_KEY` | API key for the prover service |
+| `--photon-grpc-url` | `PHOTON_GRPC_URL` | Photon gRPC endpoint |
 
-#### Example
+### Resilience & Fallback
+
+When a fallback RPC URL is configured, the pool automatically switches to it if the primary becomes unhealthy, and switches back when the primary recovers.
+
+| Option | Env Var | Default | Description |
+|--------|---------|---------|-------------|
+| `--fallback-rpc-url` | `FALLBACK_RPC_URL` | | Fallback Solana RPC endpoint |
+| `--fallback-indexer-url` | `FALLBACK_INDEXER_URL` | | Fallback Photon indexer URL |
+| `--rpc-pool-failure-threshold` | `RPC_POOL_FAILURE_THRESHOLD` | 3 | Consecutive health check failures before switching to fallback |
+| `--rpc-pool-primary-probe-interval-secs` | `RPC_POOL_PRIMARY_PROBE_INTERVAL_SECS` | 30 | Seconds between probes to check if primary has recovered |
+
+**How it works:**
+1. The connection pool validates each connection via Solana `getHealth` before use
+2. After `failure_threshold` consecutive failures, all new connections route to the fallback URL
+3. Existing primary connections are eagerly dropped so they get replaced with fallback connections
+4. A background probe checks the primary every `primary_probe_interval_secs` seconds and auto-recovers
+
+### RPC Pool
+
+| Option | Env Var | Default | Description |
+|--------|---------|---------|-------------|
+| `--rpc-pool-size` | `RPC_POOL_SIZE` | 100 | Number of pooled RPC connections |
+| `--rpc-pool-connection-timeout-secs` | `RPC_POOL_CONNECTION_TIMEOUT_SECS` | 15 | Connection timeout |
+| `--rpc-pool-idle-timeout-secs` | `RPC_POOL_IDLE_TIMEOUT_SECS` | 300 | Idle connection timeout |
+| `--rpc-pool-max-retries` | `RPC_POOL_MAX_RETRIES` | 100 | Max retries to get a connection from the pool |
+| `--rpc-pool-initial-retry-delay-ms` | `RPC_POOL_INITIAL_RETRY_DELAY_MS` | 1000 | Initial backoff delay |
+| `--rpc-pool-max-retry-delay-ms` | `RPC_POOL_MAX_RETRY_DELAY_MS` | 16000 | Max backoff delay |
+
+### Processing
+
+| Option | Env Var | Default | Description |
+|--------|---------|---------|-------------|
+| `--processor-mode` | `PROCESSOR_MODE` | `all` | `v1`, `v2`, or `all` |
+| `--queue-polling-mode` | `QUEUE_POLLING_MODE` | `indexer` | `indexer` or `onchain` |
+| `--tree-id` | `TREE_IDS` | | Process only these tree pubkeys (comma-separated) |
+| `--group-authority` | `GROUP_AUTHORITY` | | Only process trees owned by this authority |
+| `--max-concurrent-sends` | `MAX_CONCURRENT_SENDS` | 50 | Concurrent transaction sends per batch |
+| `--transaction-max-concurrent-batches` | `TRANSACTION_MAX_CONCURRENT_BATCHES` | 20 | Concurrent transaction batches |
+| `--max-batches-per-tree` | `MAX_BATCHES_PER_TREE` | 4 | Max ZKP batches per tree per iteration |
+| `--legacy-ixs-per-tx` | `LEGACY_IXS_PER_TX` | 1 | Instructions per V1 transaction |
+| `--cu-limit` | `CU_LIMIT` | 1000000 | Compute unit limit per transaction |
+| `--enable-priority-fees` | `ENABLE_PRIORITY_FEES` | false | Enable dynamic priority fees |
+| `--lookup-table-address` | `LOOKUP_TABLE_ADDRESS` | | Address lookup table for versioned transactions |
+| `--helius-rpc` | `HELIUS_RPC` | false | Use Helius `getProgramAccountsV2` |
+
+### Compressible Accounts
+
+| Option | Env Var | Default | Description |
+|--------|---------|---------|-------------|
+| `--enable-compressible` | `ENABLE_COMPRESSIBLE` | false | Enable compressible account tracking (requires `--ws-rpc-url`) |
+| `--light-pda-program` | `LIGHT_PDA_PROGRAMS` | | PDA programs to track (`program_id:discriminator_base58`, comma-separated) |
+
+### Caching & Confirmation
+
+| Option | Env Var | Default | Description |
+|--------|---------|---------|-------------|
+| `--tx-cache-ttl-seconds` | `TX_CACHE_TTL_SECONDS` | 180 | Transaction deduplication cache TTL |
+| `--ops-cache-ttl-seconds` | `OPS_CACHE_TTL_SECONDS` | 180 | Operations cache TTL |
+| `--confirmation-max-attempts` | `CONFIRMATION_MAX_ATTEMPTS` | 60 | Max tx confirmation polling attempts |
+| `--confirmation-poll-interval-ms` | `CONFIRMATION_POLL_INTERVAL_MS` | 500 | Confirmation polling interval |
+
+### Monitoring
+
+| Option | Env Var | Description |
+|--------|---------|-------------|
+| `--push-gateway-url` | `PUSH_GATEWAY_URL` | Prometheus Pushgateway URL (enables metrics) |
+| `--pagerduty-routing-key` | `PAGERDUTY_ROUTING_KEY` | PagerDuty integration key |
+| `--prometheus-url` | `PROMETHEUS_URL` | Prometheus server URL for dashboard queries |
+| `--api-server-port` | `API_SERVER_PORT` | HTTP API server port (default: 8080) |
+| `--api-server-public-bind` | `API_SERVER_PUBLIC_BIND` | Bind to 0.0.0.0 instead of 127.0.0.1 |
+
+### Example
 
 ```bash
-cargo run start \
+cargo run -- start \
   --rpc-url "$RPC_URL" \
-  --ws-rpc-url "$WS_RPC_URL" \
   --indexer-url "$INDEXER_URL" \
   --prover-url "$PROVER_URL" \
-  --payer "$FORESTER_KEYPAIR" \
-  --derivation "$FORESTER_DERIVATION" \
+  --payer "$PAYER" \
+  --derivation "$DERIVATION_PUBKEY" \
+  --fallback-rpc-url "$FALLBACK_RPC_URL" \
+  --fallback-indexer-url "$FALLBACK_INDEXER_URL" \
   --rpc-pool-size 100 \
-  --max-concurrent-sends 500 \
+  --processor-mode v2 \
+  --max-concurrent-sends 200 \
   --cu-limit 400000 \
   --enable-priority-fees true
 ```
 
-
-### Prover V2 Endpoints
+## Status & Health
 
 ```bash
---prover-append-url "http://prover/append"
---prover-update-url "http://prover/update"
---prover-address-append-url "http://prover/address-append"
---prover-api-key "your-api-key"
+# Check queue and protocol status
+forester status --rpc-url <RPC_URL> [--full] [--protocol-config] [--queue]
+
+# Health checks
+forester health --rpc-url <RPC_URL> --payer <PAYER> --derivation <DERIVATION> \
+  [--check-balance] [--check-registration] [--min-balance 0.01]
 ```
 
-#### Cache Settings
-Control caching behavior:
+## Dashboard
+
+Run a standalone API server without forester processing:
 
 ```bash
---tx-cache-ttl-seconds 180  # Transaction deduplication cache
---ops-cache-ttl-seconds 180 # Operations cache
+forester dashboard --rpc-url <RPC_URL> \
+  [--port 8080] \
+  [--prometheus-url http://prometheus:9090] \
+  [--forester-api-url http://forester-a:8080,http://forester-b:8080]
 ```
 
-### Environment File
+## Environment File
 
-See `.env.example` for a complete list of configuration options with example values.
+See `.env.example` for a complete example configuration.
 
-## Checking Status
+## Testing
 
-To check the status of Forester:
-
-```bash
-forester status [OPTIONS] --rpc-url <RPC_URL>
-```
-
-### Status Options:
-
-- `--full` - Run comprehensive status checks including compressed token program tests
-- `--protocol-config` - Check protocol configuration
-- `--queue` - Check queue status
-- `--push-gateway-url` - Monitoring push gateway URL [env: FORESTER_PUSH_GATEWAY_URL]
-- `--pagerduty-routing-key` - PagerDuty integration key [env: FORESTER_PAGERDUTY_ROUTING_KEY]
-
-## Environment Variables
-
-All configuration options can be set using environment variables with the `FORESTER_` prefix. For example:
+See the [main CLAUDE.md](../CLAUDE.md) for test commands. Key forester-specific tests:
 
 ```bash
-export FORESTER_RPC_URL="your-rpc-url-here"
+# E2E test (requires local validator)
+TEST_MODE=local cargo test --package forester e2e_test -- --nocapture
+
+# Metrics contract test
+cargo test -p forester --test metrics_contract_test -- --nocapture
 ```
 
 ### Test Environment Variables
 
-The following environment variables are used for running the e2e_v2 tests:
-
-#### Test Mode
-
-- `TEST_MODE` - Specifies whether to run tests on local validator or devnet (values: `local` or `devnet`, default: `devnet`)
-
-#### Test Feature Flags
-
-Control which test scenarios to run (all default to `true`):
-
-- `TEST_V1_STATE` - Enable/disable V1 state tree testing (`true`/`false`)
-- `TEST_V2_STATE` - Enable/disable V2 state tree testing (`true`/`false`)
-- `TEST_V1_ADDRESS` - Enable/disable V1 address tree testing (`true`/`false`)
-- `TEST_V2_ADDRESS` - Enable/disable V2 address tree testing (`true`/`false`)
-
-#### Required for Devnet mode:
-
-- `PHOTON_RPC_URL` - Photon RPC endpoint URL
-- `PHOTON_WSS_RPC_URL` - Photon WebSocket RPC endpoint URL
-- `PHOTON_INDEXER_URL` - Photon indexer endpoint URL
-- `PHOTON_PROVER_URL` - Photon prover endpoint URL
-#### Required for both modes:
-
-- `FORESTER_KEYPAIR` - Keypair for testing (supports both base58 format and byte array format like `[1,2,3,...]`)
-
-#### Example configurations:
-
-**Local validator mode with all tests:**
-```bash
-export TEST_MODE="local"
-export FORESTER_KEYPAIR="your-base58-encoded-keypair"
-# OR using byte array format:
-# export FORESTER_KEYPAIR="[1,2,3,...]"
-```
-
-**Local validator mode with only V1 tests:**
-```bash
-export TEST_MODE="local"
-export TEST_V1_STATE="true"
-export TEST_V2_STATE="false"
-export TEST_V1_ADDRESS="true"
-export TEST_V2_ADDRESS="false"
-export FORESTER_KEYPAIR="your-base58-encoded-keypair"
-```
-
-**Devnet mode with only V2 tests:**
-```bash
-export TEST_MODE="devnet"
-export TEST_V1_STATE="false"
-export TEST_V2_STATE="true"
-export TEST_V1_ADDRESS="false"
-export TEST_V2_ADDRESS="true"
-export PHOTON_RPC_URL="https://devnet.helius-rpc.com/?api-key=your-key"
-export PHOTON_WSS_RPC_URL="wss://devnet.helius-rpc.com/?api-key=your-key"
-export PHOTON_INDEXER_URL="https://devnet.helius-rpc.com?api-key=your-key"
-export PHOTON_PROVER_URL="https://devnet.helius-rpc.com"
-export FORESTER_KEYPAIR="your-base58-encoded-keypair"
-```
-
-When running in local mode, the test will:
-- Spawn a local validator
-- Start a local prover service
-- Use predefined local URLs (localhost:8899 for RPC, localhost:8784 for indexer, etc.)
-
-The test will automatically:
-- Skip minting tokens for disabled test types
-- Skip executing transactions for disabled test types
-- Skip root verification for disabled test types
+| Variable | Description |
+|----------|-------------|
+| `TEST_MODE` | `local` or `devnet` (default: `devnet`) |
+| `TEST_V1_STATE` | Enable V1 state tree tests (default: `true`) |
+| `TEST_V2_STATE` | Enable V2 state tree tests (default: `true`) |
+| `TEST_V1_ADDRESS` | Enable V1 address tree tests (default: `true`) |
+| `TEST_V2_ADDRESS` | Enable V2 address tree tests (default: `true`) |
+| `FORESTER_KEYPAIR` | Test keypair (base58 or byte array format) |

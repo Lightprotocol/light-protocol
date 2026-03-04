@@ -21,13 +21,14 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use tokio::time::Instant;
-use tracing::{error, info, trace, warn};
+use tracing::{debug, error, info, trace, warn};
 
 const WORK_ITEM_BATCH_SIZE: usize = 100;
 
 use crate::{
     epoch_manager::WorkItem,
     errors::ForesterError,
+    metrics::increment_transactions_failed,
     processor::v1::{
         config::SendBatchedTransactionsConfig, helpers::request_priority_fee_estimate,
         tx_builder::TransactionBuilder,
@@ -101,6 +102,12 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
         max_concurrent_sends
     );
 
+    // Blockhash expires after ~150 blocks (~60s). Refresh every 30s to stay safe.
+    const BLOCKHASH_REFRESH_INTERVAL: std::time::Duration = std::time::Duration::from_secs(30);
+    let mut recent_blockhash = data.recent_blockhash;
+    let mut last_valid_block_height = data.last_valid_block_height;
+    let mut last_blockhash_refresh = Instant::now();
+
     for work_chunk in data.work_items.chunks(WORK_ITEM_BATCH_SIZE) {
         if operation_cancel_signal.load(Ordering::SeqCst) {
             trace!(tree = %tree_accounts.merkle_tree, "Global cancellation signal received, stopping batch processing.");
@@ -111,6 +118,26 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
             break;
         }
 
+        // Refresh blockhash if it's getting stale
+        if last_blockhash_refresh.elapsed() > BLOCKHASH_REFRESH_INTERVAL {
+            match pool.get_connection().await {
+                Ok(mut rpc) => match rpc.get_latest_blockhash().await {
+                    Ok((new_hash, new_height)) => {
+                        recent_blockhash = new_hash;
+                        last_valid_block_height = new_height + 150;
+                        last_blockhash_refresh = Instant::now();
+                        debug!(tree = %tree_accounts.merkle_tree, "Refreshed blockhash");
+                    }
+                    Err(e) => {
+                        warn!(tree = %tree_accounts.merkle_tree, "Failed to refresh blockhash: {:?}", e);
+                    }
+                },
+                Err(e) => {
+                    warn!(tree = %tree_accounts.merkle_tree, "Failed to get RPC for blockhash refresh: {:?}", e);
+                }
+            }
+        }
+
         trace!(tree = %tree_accounts.merkle_tree, "Processing chunk of size {}", work_chunk.len());
         let build_start_time = Instant::now();
 
@@ -118,8 +145,8 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
             .build_signed_transaction_batch(
                 payer,
                 derivation,
-                &data.recent_blockhash,
-                data.last_valid_block_height,
+                &recent_blockhash,
+                last_valid_block_height,
                 data.priority_fee,
                 work_chunk,
                 config.build_transaction_batch_config,
@@ -198,6 +225,7 @@ async fn prepare_batch_prerequisites<R: Rpc, T: TransactionBuilder>(
                     error: format!("Fetch queue data failed for {}: {}", tree_id_str, e),
                 }
             })?
+            .items
     };
 
     if queue_item_data.is_empty() {
@@ -339,6 +367,7 @@ async fn execute_transaction_chunk_sending<R: Rpc>(
                 trace!(tx.signature = %sig, "Transaction confirmed sent");
             }
             TransactionSendResult::Failure(err, sig_opt) => {
+                increment_transactions_failed("send_failed", 1);
                 if let Some(sig) = sig_opt {
                     error!(tx.signature = %sig, error = ?err, "Transaction failed to send");
                 } else {

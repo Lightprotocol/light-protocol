@@ -42,6 +42,7 @@ function useCountdown(slots: number): string {
 
 export function EpochCard({ status }: EpochCardProps) {
   const registrationClosingSoon =
+    status.registration_is_open &&
     status.slots_until_next_registration < 5000 &&
     status.registration_epoch_foresters.length === 0;
 
@@ -73,7 +74,7 @@ export function EpochCard({ status }: EpochCardProps) {
         <div>
           <div className="flex justify-between text-xs text-gray-600 mb-1">
             <span className="flex items-center gap-1.5">
-              <span className={`inline-block w-1.5 h-1.5 rounded-full ${registrationClosingSoon ? "bg-amber-500" : "bg-blue-500"}`} />
+              <span className={`inline-block w-1.5 h-1.5 rounded-full ${registrationClosingSoon ? "bg-amber-500" : status.registration_is_open ? "bg-blue-500" : "bg-gray-400"}`} />
               Registration Epoch {status.current_registration_epoch}
             </span>
             <span className={`font-mono tabular-nums ${registrationClosingSoon ? "text-amber-600 font-medium" : ""}`}>
@@ -81,9 +82,15 @@ export function EpochCard({ status }: EpochCardProps) {
             </span>
           </div>
           <div className="text-[10px] text-gray-400">
-            {status.registration_epoch_foresters.length} forester{status.registration_epoch_foresters.length !== 1 ? "s" : ""} registered
-            {registrationClosingSoon && (
-              <span className="text-amber-600 ml-1">— closing soon, no foresters!</span>
+            {status.registration_is_open ? (
+              <>
+                {status.registration_epoch_foresters.length} forester{status.registration_epoch_foresters.length !== 1 ? "s" : ""} registered
+                {registrationClosingSoon && (
+                  <span className="text-amber-600 ml-1">— closing soon, no foresters!</span>
+                )}
+              </>
+            ) : (
+              <span>Registration opens in {regCountdown}</span>
             )}
           </div>
         </div>

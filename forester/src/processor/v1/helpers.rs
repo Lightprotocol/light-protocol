@@ -214,7 +214,16 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
             "AddressV1",
             total_duration.as_secs_f64(),
         );
-        update_indexer_proof_count("AddressV1", total_addresses as u64, all_proofs.len() as u64);
+        let tree_pubkey_str = address_items
+            .first()
+            .map(|item| item.tree_account.merkle_tree.to_string())
+            .unwrap_or_default();
+        update_indexer_proof_count(
+            "AddressV1",
+            &tree_pubkey_str,
+            total_addresses as u64,
+            all_proofs.len() as u64,
+        );
 
         all_proofs
     } else {
@@ -281,8 +290,13 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
                         "StateV1",
                         duration.as_secs_f64(),
                     );
+                    let state_tree_pubkey_str = state_items
+                        .first()
+                        .map(|item| item.tree_account.merkle_tree.to_string())
+                        .unwrap_or_default();
                     update_indexer_proof_count(
                         "StateV1",
+                        &state_tree_pubkey_str,
                         total_states as u64,
                         proofs_received as u64,
                     );

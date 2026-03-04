@@ -124,7 +124,7 @@ export function TreeTable({
               <th className="py-2 pr-3 font-medium">Address</th>
               <th className="py-2 pr-3 font-medium">Fullness</th>
               <th className="py-2 pr-3 font-medium">Index / Cap</th>
-              <th className="py-2 pr-3 font-medium">Pending</th>
+              <th className="py-2 pr-3 font-medium">Queue</th>
               <th className="py-2 pr-3 font-medium">Forester</th>
               <th className="py-2 font-medium">Schedule</th>
             </tr>
@@ -177,22 +177,21 @@ export function TreeTable({
                     </td>
                     <td className="py-2 pr-3">
                       {tree.v2_queue_info ? (
-                        <span className={`font-mono ${pendingColor(tree.v2_queue_info.input_pending_batches + (tree.v2_queue_info.output_pending_batches ?? 0), true)}`}>
-                          {tree.tree_type === "StateV2" ? (
-                            <>
-                              I:{tree.v2_queue_info.input_pending_batches}{" "}
-                              O:{tree.v2_queue_info.output_pending_batches}
-                            </>
-                          ) : (
-                            tree.v2_queue_info.input_pending_batches
-                          )}
-                        </span>
+                        <V2QueueCell tree={tree} />
                       ) : (
-                        <span className={`font-mono ${pendingColor(tree.queue_length ?? 0, false)}`}>
-                          {tree.queue_length != null
-                            ? formatNumber(tree.queue_length)
-                            : "-"}
-                        </span>
+                        <div>
+                          <span className={`font-mono ${pendingColor(tree.queue_length ?? 0, false)}`}>
+                            {tree.queue_length != null
+                              ? formatNumber(tree.queue_length)
+                              : "-"}
+                          </span>
+                          {tree.queue_length != null && tree.queue_capacity != null && tree.queue_capacity > 0 && (
+                            <span className="text-[10px] text-gray-400 ml-1">
+                              / {formatNumber(tree.queue_capacity)}
+                              {" "}({formatPercentage(tree.queue_length / tree.queue_capacity * 100)})
+                            </span>
+                          )}
+                        </div>
                       )}
                     </td>
                     <td className="py-2 pr-3 font-mono">
@@ -240,6 +239,48 @@ export function TreeTable({
 }
 
 import { Fragment } from "react";
+
+function V2QueueCell({ tree }: { tree: TreeStatus }) {
+  const info = tree.v2_queue_info!;
+  const isState = tree.tree_type === "StateV2";
+
+  if (isState) {
+    return (
+      <div className="font-mono">
+        <span className={pendingColor(info.input_pending_batches, true)}>
+          I:{info.input_pending_batches}
+        </span>
+        {info.input_total_zkp_batches > 0 && (
+          <span className="text-[10px] text-gray-400">
+            /{info.input_total_zkp_batches}
+          </span>
+        )}
+        {" "}
+        <span className={pendingColor(info.output_pending_batches, true)}>
+          O:{info.output_pending_batches}
+        </span>
+        {info.output_total_zkp_batches > 0 && (
+          <span className="text-[10px] text-gray-400">
+            /{info.output_total_zkp_batches}
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="font-mono">
+      <span className={pendingColor(info.input_pending_batches, true)}>
+        {info.input_pending_batches}
+      </span>
+      {info.input_total_zkp_batches > 0 && (
+        <span className="text-[10px] text-gray-400">
+          /{info.input_total_zkp_batches}
+        </span>
+      )}
+    </div>
+  );
+}
 
 // Distinct colors for up to 8 foresters; cycles if more
 const FORESTER_COLORS = [
