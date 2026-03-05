@@ -11,6 +11,7 @@ use crate::utils::create_account::create_account_instruction;
 pub async fn create_batch_address_merkle_tree<R: Rpc>(
     rpc: &mut R,
     payer: &Keypair,
+    authority: &Keypair,
     new_address_merkle_tree_keypair: &Keypair,
     address_tree_params: InitAddressTreeAccountsInstructionData,
 ) -> Result<Signature, RpcError> {
@@ -34,14 +35,18 @@ pub async fn create_batch_address_merkle_tree<R: Rpc>(
     );
 
     let instruction = create_initialize_batched_address_merkle_tree_instruction(
-        payer.pubkey(),
+        authority.pubkey(),
         new_address_merkle_tree_keypair.pubkey(),
         address_tree_params,
     );
+    let mut signers: Vec<&Keypair> = vec![payer, new_address_merkle_tree_keypair];
+    if authority.pubkey() != payer.pubkey() {
+        signers.push(authority);
+    }
     rpc.create_and_send_transaction(
         &[create_mt_account_ix, instruction],
         &payer.pubkey(),
-        &[payer, new_address_merkle_tree_keypair],
+        &signers,
     )
     .await
 }

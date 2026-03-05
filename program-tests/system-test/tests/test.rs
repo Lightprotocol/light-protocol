@@ -20,7 +20,6 @@ use light_compressed_account::{
     },
     TreeType,
 };
-use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_program_test::{
     accounts::test_accounts::TestAccounts,
     indexer::{TestIndexer, TestIndexerExtensions},
@@ -623,7 +622,9 @@ pub async fn failing_transaction_address<R: Rpc>(
         .unwrap();
     }
 
-    // invalid address queue account
+    // invalid address queue account (replaced with nullifier queue)
+    // The system program hits MissingLegacyMerkleContext (error code 6066)
+    // when trying to look up the legacy context for the replaced queue account.
     {
         let inputs_struct = inputs_struct.clone();
         let mut remaining_accounts = remaining_accounts.clone();
@@ -639,7 +640,7 @@ pub async fn failing_transaction_address<R: Rpc>(
             payer,
             inputs_struct,
             remaining_accounts.clone(),
-            MerkleTreeMetadataError::InvalidQueueType.into(),
+            6066, // SystemProgramError::MissingLegacyMerkleContext
         )
         .await
         .unwrap();

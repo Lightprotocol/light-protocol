@@ -100,6 +100,10 @@ pub struct TestIndexer {
     pub state_merkle_trees: Vec<StateMerkleTreeBundle>,
     pub address_merkle_trees: Vec<AddressMerkleTreeBundle>,
     pub payer: Keypair,
+    /// Protocol authority keypair used as the `authority` signer when creating
+    /// new trees through the registry program (which enforces that the authority
+    /// matches `protocol_config_pda.authority`).
+    pub governance_authority: Keypair,
     pub group_pda: Pubkey,
     pub compressed_accounts: Vec<CompressedAccountWithMerkleContext>,
     pub nullified_compressed_accounts: Vec<CompressedAccountWithMerkleContext>,
@@ -116,6 +120,7 @@ impl Clone for TestIndexer {
             state_merkle_trees: self.state_merkle_trees.clone(),
             address_merkle_trees: self.address_merkle_trees.clone(),
             payer: self.payer.insecure_clone(),
+            governance_authority: self.governance_authority.insecure_clone(),
             group_pda: self.group_pda,
             compressed_accounts: self.compressed_accounts.clone(),
             nullified_compressed_accounts: self.nullified_compressed_accounts.clone(),
@@ -1286,6 +1291,7 @@ impl TestIndexer {
             state_merkle_tree_accounts,
             address_merkle_tree_accounts,
             payer.insecure_clone(),
+            env.protocol.governance_authority.insecure_clone(),
             env.protocol.group_pda,
             output_queue_batch_size,
         )
@@ -1296,6 +1302,7 @@ impl TestIndexer {
         state_merkle_tree_accounts: Vec<StateMerkleTreeAccounts>,
         address_merkle_tree_accounts: Vec<AddressMerkleTreeAccounts>,
         payer: Keypair,
+        governance_authority: Keypair,
         group_pda: Pubkey,
         output_queue_batch_size: usize,
     ) -> Self {
@@ -1347,6 +1354,7 @@ impl TestIndexer {
             state_merkle_trees,
             address_merkle_trees,
             payer,
+            governance_authority,
             compressed_accounts: vec![],
             nullified_compressed_accounts: vec![],
             events: vec![],
@@ -1575,7 +1583,14 @@ impl TestIndexer {
             "Creating batched address merkle tree {:?}",
             merkle_tree_keypair.pubkey()
         );
-        create_batch_address_merkle_tree(rpc, &self.payer, merkle_tree_keypair, params).await?;
+        create_batch_address_merkle_tree(
+            rpc,
+            &self.payer,
+            &self.governance_authority,
+            merkle_tree_keypair,
+            params,
+        )
+        .await?;
         info!(
             "Batched address merkle tree created {:?}",
             merkle_tree_keypair.pubkey()
@@ -1649,6 +1664,7 @@ impl TestIndexer {
                 };
                 create_state_merkle_tree_and_queue_account(
                     &self.payer,
+                    &self.governance_authority,
                     true,
                     rpc,
                     merkle_tree_keypair,
@@ -1678,6 +1694,7 @@ impl TestIndexer {
 
                     create_batched_state_merkle_tree(
                         &self.payer,
+                        &self.governance_authority,
                         true,
                         rpc,
                         merkle_tree_keypair,

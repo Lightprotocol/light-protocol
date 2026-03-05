@@ -380,6 +380,7 @@ async fn test_batch_state_merkle_tree() {
         let payer = context.get_payer().insecure_clone();
         create_batched_state_merkle_tree(
             &payer,
+            &payer,
             false,
             &mut context,
             &new_keypair_mt,

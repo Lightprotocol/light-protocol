@@ -31,6 +31,7 @@ use light_program_test::{
             deregister_program_with_registry_program, register_program_with_registry_program,
         },
         state_tree::create_state_merkle_tree_and_queue_account,
+        state_tree_v2::create_batched_state_merkle_tree,
         test_accounts::{TestAccounts, NOOP_PROGRAM_ID},
         test_keypairs::{GROUP_PDA_SEED_TEST_KEYPAIR, OLD_REGISTRY_ID_TEST_KEYPAIR},
     },
@@ -388,6 +389,7 @@ async fn test_initialize_protocol_config() {
         let cpi_context_keypair = Keypair::new();
         create_state_merkle_tree_and_queue_account(
             &payer,
+            &payer,
             true,
             &mut rpc,
             &merkle_tree_keypair,
@@ -411,6 +413,7 @@ async fn test_initialize_protocol_config() {
         let nullifier_queue_keypair = Keypair::new();
         let cpi_context_keypair = Keypair::new();
         let result = create_state_merkle_tree_and_queue_account(
+            &payer,
             &payer,
             true,
             &mut rpc,
@@ -436,6 +439,7 @@ async fn test_initialize_protocol_config() {
         let cpi_context_keypair = Keypair::new();
         create_state_merkle_tree_and_queue_account(
             &payer,
+            &updated_keypair,
             true,
             &mut rpc,
             &merkle_tree_keypair,
@@ -453,12 +457,38 @@ async fn test_initialize_protocol_config() {
         .await
         .unwrap();
     }
+    // FAIL: initialize a Merkle tree with network_fee but wrong authority
+    {
+        let merkle_tree_keypair = Keypair::new();
+        let nullifier_queue_keypair = Keypair::new();
+        let cpi_context_keypair = Keypair::new();
+        let result = create_state_merkle_tree_and_queue_account(
+            &payer,
+            &payer,
+            true,
+            &mut rpc,
+            &merkle_tree_keypair,
+            &nullifier_queue_keypair,
+            Some(&cpi_context_keypair),
+            None,
+            None,
+            1,
+            &StateMerkleTreeConfig {
+                network_fee: Some(5000),
+                ..Default::default()
+            },
+            &NullifierQueueConfig::default(),
+        )
+        .await;
+        assert_rpc_error(result, 3, RegistryError::InvalidSigner.into()).unwrap();
+    }
     // FAIL: initialize a Merkle tree with network_fee + forester (must be rejected)
     {
         let merkle_tree_keypair = Keypair::new();
         let nullifier_queue_keypair = Keypair::new();
         let cpi_context_keypair = Keypair::new();
         let result = create_state_merkle_tree_and_queue_account(
+            &payer,
             &payer,
             true,
             &mut rpc,
@@ -483,6 +513,7 @@ async fn test_initialize_protocol_config() {
         let nullifier_queue_keypair = Keypair::new();
         let cpi_context_keypair = Keypair::new();
         let result = create_state_merkle_tree_and_queue_account(
+            &payer,
             &payer,
             true,
             &mut rpc,
@@ -1875,10 +1906,47 @@ async fn test_batch_address_tree() {
             network_fee: Some(1),
             ..Default::default()
         };
-        let result =
-            create_batch_address_merkle_tree(&mut rpc, &payer, &new_merkle_tree, test_tree_params)
-                .await;
+        let result = create_batch_address_merkle_tree(
+            &mut rpc,
+            &payer,
+            &payer,
+            &new_merkle_tree,
+            test_tree_params,
+        )
+        .await;
         assert_rpc_error(result, 1, RegistryError::InvalidNetworkFee.into()).unwrap();
+    }
+    // FAIL: create batched address tree with correct fee but wrong authority
+    {
+        let new_merkle_tree = Keypair::new();
+        let test_tree_params = InitAddressTreeAccountsInstructionData::default();
+        let result = create_batch_address_merkle_tree(
+            &mut rpc,
+            &payer,
+            &payer,
+            &new_merkle_tree,
+            test_tree_params,
+        )
+        .await;
+        assert_rpc_error(result, 1, RegistryError::InvalidSigner.into()).unwrap();
+    }
+    // FAIL: create batched state tree with correct fee but wrong authority
+    {
+        let merkle_tree_keypair = Keypair::new();
+        let queue_keypair = Keypair::new();
+        let cpi_context_keypair = Keypair::new();
+        let result = create_batched_state_merkle_tree(
+            &payer,
+            &payer,
+            true,
+            &mut rpc,
+            &merkle_tree_keypair,
+            &queue_keypair,
+            &cpi_context_keypair,
+            InitStateTreeAccountsInstructionData::default(),
+        )
+        .await;
+        assert_rpc_error(result, 3, RegistryError::InvalidSigner.into()).unwrap();
     }
 
     for i in 0..tree_params.input_queue_batch_size * 2 {
