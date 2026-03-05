@@ -3,6 +3,7 @@ use light_client::{
         AddressWithTree, GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash, Indexer,
         IndexerRpcConfig, RetryConfig,
     },
+    interface::AccountToFetch,
     rpc::Rpc,
 };
 use light_compressed_account::hash_to_bn254_field_size_be;
@@ -14,7 +15,10 @@ use light_program_test::{
 };
 use light_sdk::address::{v1::derive_address, NewAddressParams};
 use light_test_utils::{system_program::create_invoke_instruction, RpcError};
-use light_token::compat::{AccountState, TokenData};
+use light_token::{
+    compat::{AccountState, TokenData},
+    instruction::derive_token_ata,
+};
 use solana_sdk::{
     compute_budget::ComputeBudgetInstruction,
     pubkey::Pubkey,
@@ -229,63 +233,9 @@ async fn test_all_endpoints() {
             "Second account should not exist"
         );
     }
-    // // 8. get_compressed_balance_by_owner
-    // {
-    //     let balance = rpc
-    //         .get_compressed_balance_by_owner(&payer_pubkey, None)
-    //         .await
-    //         .unwrap()
-    //         .value;
-    //     assert_eq!(balance, lamports + lamports_1);
-    // }
-    // // 8. get_compression_signatures_for_account
-    // {
-    //     let signatures = rpc
-    //         .get_compression_signatures_for_account(first_account.hash, None)
-    //         .await
-    //         .unwrap()
-    //         .value;
-    //     assert_eq!(signatures.items[0].signature, signature.to_string());
-    // }
-    // // 9. get_compression_signatures_for_address
-    // {
-    //     let signatures = rpc
-    //         .get_compression_signatures_for_address(&first_account.address.unwrap(), None, None)
-    //         .await
-    //         .unwrap()
-    //         .value;
-    //     assert_eq!(signatures.items[0].signature, signature.to_string());
-    // }
-    // // 10. get_compression_signatures_for_owner
-    // {
-    //     let signatures = rpc
-    //         .get_compression_signatures_for_owner(&owner, None, None)
-    //         .await
-    //         .unwrap()
-    //         .value;
-    //     assert_eq!(signatures.items.len(), 2);
-    //     assert!(signatures
-    //         .items
-    //         .iter()
-    //         .any(|s| s.signature == signature.to_string()));
-    //     assert!(signatures
-    //         .items
-    //         .iter()
-    //         .any(|s| s.signature == signature_1.to_string()));
-    //     let options = PaginatedOptions {
-    //         limit: Some(1),
-    //         cursor: None,
-    //     };
-    //     let signatures = rpc
-    //         .get_compression_signatures_for_owner(&owner, Some(options), None)
-    //         .await
-    //         .unwrap()
-    //         .value;
-    //     assert_eq!(signatures.items.len(), 1);
-    //     assert!(signatures.items.iter().any(
-    //         |s| s.signature == signature_1.to_string() || s.signature == signature.to_string()
-    //     ));
-    // }
+    // 8, 9, 10: get_compressed_balance_by_owner, get_compression_signatures_for_account,
+    // get_compression_signatures_for_address, get_compression_signatures_for_owner
+    // are not implemented in TestIndexer. See the #[ignore] tests below.
     // 11. get_multiple_compressed_account_proofs
     {
         let proofs = rpc
@@ -348,62 +298,8 @@ async fn test_token_api(rpc: &mut LightProgramTest, test_accounts: &TestAccounts
         &amounts,
     )
     .await;
-    // // 1. get_compressed_mint_token_holders
-    // for mint in [mint_1, mint_2] {
-    //     let res = rpc
-    //         .get_compressed_mint_token_holders(&mint, None, None)
-    //         .await
-    //         .unwrap()
-    //         .value
-    //         .items;
-    //     assert_eq!(res.len(), 5);
-
-    //     let mut owners = res.iter().map(|x| x.owner).collect::<Vec<_>>();
-    //     owners.sort();
-    //     owners.dedup();
-    //     assert_eq!(owners.len(), 5);
-    //     for (amount, recipient) in amounts.iter().zip(recipients.iter()) {
-    //         // * 2 because we mint two times the same amount per token mint (with and without lamports)
-    //         assert!(res
-    //             .iter()
-    //             .any(|item| item.balance == (*amount * 2) && item.owner == *recipient));
-    //     }
-    //     let option = PaginatedOptions {
-    //         limit: Some(1),
-    //         cursor: None,
-    //     };
-    //     let res = rpc
-    //         .get_compressed_mint_token_holders(&mint, Some(option), None)
-    //         .await
-    //         .unwrap()
-    //         .value
-    //         .items;
-    //     assert_eq!(res.len(), 1);
-    // }
-
-    // // 2. get_compression_signatures_for_token_owner
-    // for recipient in &recipients {
-    //     let res = rpc
-    //         .get_compression_signatures_for_token_owner(recipient, None, None)
-    //         .await
-    //         .unwrap()
-    //         .value
-    //         .items;
-    //     assert_eq!(res.len(), 2);
-    //     assert_eq!(res[0].signature, signatures[1].to_string());
-    //     assert_eq!(res[1].signature, signatures[0].to_string());
-    //     let option = PaginatedOptions {
-    //         limit: Some(1),
-    //         cursor: None,
-    //     };
-    //     let res = rpc
-    //         .get_compression_signatures_for_token_owner(recipient, Some(option), None)
-    //         .await
-    //         .unwrap()
-    //         .value
-    //         .items;
-    //     assert_eq!(res.len(), 1);
-    // }
+    // get_compressed_mint_token_holders and get_compression_signatures_for_token_owner
+    // are not implemented in TestIndexer. See the #[ignore] tests below.
 
     // 3. get_compressed_token_accounts_by_owner
     test_get_compressed_token_accounts_by_owner(
@@ -772,4 +668,212 @@ async fn test_get_compressed_token_balances_by_owner_v2(
                 .any(|balance| balance.mint == *mint && balance.balance == (*amount) * 2));
         }
     }
+}
+
+// ============ Phase 2 Tests ============
+
+/// B1: get_associated_token_account_interface
+///
+/// Mints a compressed token to the payer's ATA address (derive_token_ata(payer, mint)).
+/// Then calls get_associated_token_account_interface(payer, mint).
+/// The token was minted to the ATA pubkey as owner, so the cold path returns it.
+/// Asserts amount, owner, and is_cold (since TestIndexer returns cold compressed accounts).
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn test_get_associated_token_account_interface() {
+    let config = ProgramTestConfig::default();
+    let mut rpc = LightProgramTest::new(config).await.unwrap();
+    let test_accounts = rpc.test_accounts().clone();
+    let payer = rpc.get_payer().insecure_clone();
+    let payer_pubkey = payer.pubkey();
+
+    // Create a mint
+    let mint_kp = Keypair::new();
+    create_two_mints(&mut rpc, payer_pubkey, &mint_kp, &Keypair::new()).await;
+    let mint = mint_kp.pubkey();
+
+    // Derive the payer's ATA for this mint
+    let ata = derive_token_ata(&payer_pubkey, &mint);
+    let amount = 42_000u64;
+
+    // Mint the compressed token directly to the ATA address as the token owner.
+    // This way, get_associated_token_account_interface cold path finds it by
+    // querying compressed tokens owned by the ATA pubkey.
+    let mint_ix = create_mint_to_instruction(
+        &payer_pubkey,
+        &payer_pubkey,
+        &mint,
+        &test_accounts.v1_state_trees[0].merkle_tree,
+        vec![amount],
+        vec![ata],
+        None,
+        false,
+        0,
+    );
+    let compute_budget_ix = ComputeBudgetInstruction::set_compute_unit_limit(500_000);
+    let blockhash = rpc.get_latest_blockhash().await.unwrap().0;
+    let tx = Transaction::new_signed_with_payer(
+        &[compute_budget_ix, mint_ix],
+        Some(&payer_pubkey),
+        &[&payer],
+        blockhash,
+    );
+    rpc.process_transaction(tx).await.unwrap();
+
+    // Now query the ATA interface
+    let result = rpc
+        .get_associated_token_account_interface(&payer_pubkey, &mint, None)
+        .await
+        .unwrap()
+        .value
+        .expect("ATA should be found");
+
+    // The token was minted into a compressed account owned by the ATA address,
+    // so it comes back as a cold (compressed) account.
+    assert!(result.is_cold(), "Expected cold (compressed) ATA");
+    assert_eq!(result.amount(), amount);
+    // The owner returned should be the wallet owner (payer_pubkey) per owner_override in cold ctor
+    assert_eq!(result.owner(), payer_pubkey);
+    assert_eq!(result.mint(), mint);
+    assert!(!result.is_frozen(), "ATA should not be frozen");
+    assert!(result.delegate().is_none(), "ATA should have no delegate");
+    assert!(result.is_ata(), "Result should identify as an ATA");
+}
+
+/// B2: get_mint_interface
+///
+/// Uses an existing hot on-chain mint created by create_two_mints.
+/// Asserts the returned MintInterface is hot and present.
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn test_get_mint_interface() {
+    let config = ProgramTestConfig::default();
+    let mut rpc = LightProgramTest::new(config).await.unwrap();
+    let payer_pubkey = rpc.get_payer().pubkey();
+
+    let mint_kp = Keypair::new();
+    create_two_mints(&mut rpc, payer_pubkey, &mint_kp, &Keypair::new()).await;
+    let mint = mint_kp.pubkey();
+
+    let result = rpc
+        .get_mint_interface(&mint, None)
+        .await
+        .unwrap()
+        .value
+        .expect("mint should be found");
+
+    assert!(result.is_hot(), "Expected hot (on-chain) mint");
+    assert_eq!(result.mint, mint);
+    assert!(
+        result.account().is_some(),
+        "Hot mint should have on-chain account"
+    );
+    assert!(
+        result.compressed().is_none(),
+        "Hot mint should have no compressed data"
+    );
+}
+
+/// B3: fetch_accounts
+///
+/// Builds a vec of AccountToFetch descriptors (one Mint, one Ata) and calls
+/// rpc.fetch_accounts. Asserts the returned Vec<AccountInterface> has the
+/// correct length.
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn test_fetch_accounts() {
+    let config = ProgramTestConfig::default();
+    let mut rpc = LightProgramTest::new(config).await.unwrap();
+    let test_accounts = rpc.test_accounts().clone();
+    let payer = rpc.get_payer().insecure_clone();
+    let payer_pubkey = payer.pubkey();
+
+    let mint_kp = Keypair::new();
+    create_two_mints(&mut rpc, payer_pubkey, &mint_kp, &Keypair::new()).await;
+    let mint = mint_kp.pubkey();
+
+    // Mint compressed token to the ATA address so the ATA fetch succeeds
+    let ata = derive_token_ata(&payer_pubkey, &mint);
+    let amount = 1_000u64;
+    let mint_ix = create_mint_to_instruction(
+        &payer_pubkey,
+        &payer_pubkey,
+        &mint,
+        &test_accounts.v1_state_trees[0].merkle_tree,
+        vec![amount],
+        vec![ata],
+        None,
+        false,
+        0,
+    );
+    let compute_budget_ix = ComputeBudgetInstruction::set_compute_unit_limit(500_000);
+    let blockhash = rpc.get_latest_blockhash().await.unwrap().0;
+    let tx = Transaction::new_signed_with_payer(
+        &[compute_budget_ix, mint_ix],
+        Some(&payer_pubkey),
+        &[&payer],
+        blockhash,
+    );
+    rpc.process_transaction(tx).await.unwrap();
+
+    let accounts_to_fetch = vec![
+        AccountToFetch::mint(mint),
+        AccountToFetch::ata(payer_pubkey, mint),
+    ];
+
+    let result = rpc.fetch_accounts(&accounts_to_fetch, None).await.unwrap();
+
+    assert_eq!(result.len(), accounts_to_fetch.len());
+    assert!(result[0].is_hot(), "Mint should be hot (on-chain)");
+    assert_eq!(result[0].key, mint, "Mint key should match");
+    assert!(result[1].is_cold(), "ATA should be cold (compressed)");
+    assert_eq!(result[1].key, ata, "ATA key should match");
+}
+
+/// B4: get_indexer_health and get_indexer_slot
+///
+/// TestIndexer always returns healthy (true) and slot u64::MAX.
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn test_indexer_health_and_slot() {
+    let config = ProgramTestConfig::default();
+    let rpc = LightProgramTest::new(config).await.unwrap();
+
+    let indexer = rpc.indexer().unwrap();
+
+    let healthy = indexer.get_indexer_health(None).await.unwrap();
+    assert!(healthy, "TestIndexer should report healthy");
+
+    let slot = indexer.get_indexer_slot(None).await.unwrap();
+    assert_eq!(slot, u64::MAX, "TestIndexer returns u64::MAX as slot");
+}
+
+/// C3: create_and_send_transaction_with_event
+///
+/// Sends a no-op transaction and verifies the method compiles and runs without error.
+/// Uses PublicTransactionEvent as the event type.
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn test_create_and_send_transaction_with_event() {
+    use light_event::event::PublicTransactionEvent;
+
+    let config = ProgramTestConfig::default();
+    let mut rpc = LightProgramTest::new(config).await.unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+    let payer_pubkey = payer.pubkey();
+
+    // Use a compute budget instruction as a no-op that won't emit a
+    // PublicTransactionEvent. The method should return Ok(None).
+    let ix = ComputeBudgetInstruction::set_compute_unit_limit(200_000);
+
+    let result = rpc
+        .create_and_send_transaction_with_event::<PublicTransactionEvent>(
+            &[ix],
+            &payer_pubkey,
+            &[&payer],
+        )
+        .await
+        .unwrap();
+
+    // No PublicTransactionEvent is emitted by a compute budget instruction,
+    // so result is None.
+    assert!(
+        result.is_none(),
+        "Expected None when no PublicTransactionEvent is emitted"
+    );
 }
