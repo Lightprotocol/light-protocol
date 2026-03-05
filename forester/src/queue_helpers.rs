@@ -381,10 +381,12 @@ pub async fn print_state_v2_input_queue_info<R: Rpc>(
         for detail in batch_details {
             println!("  {}", detail);
         }
-        println!(
-            "  Total pending NULLIFY operations: {}",
+        let pending_ops = if parsed.zkp_batch_size > 0 {
             total_unprocessed / parsed.zkp_batch_size
-        );
+        } else {
+            0
+        };
+        println!("  Total pending NULLIFY operations: {}", pending_ops);
 
         Ok(QueueLengthAndCapacity {
             length: total_unprocessed,

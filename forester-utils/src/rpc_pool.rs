@@ -182,7 +182,7 @@ impl<R: Rpc + 'static> bb8::ManageConnection for SolanaConnectionManager<R> {
                         commitment_config: Some(self.commitment),
                         fetch_active_tree: false,
                     };
-                    R::new(fallback_config).await.map_err(|second_err| {
+                    let conn = R::new(fallback_config).await.map_err(|second_err| {
                         error!(
                             "Both RPC endpoints failed: first={}, second={}",
                             first_err, second_err
@@ -191,7 +191,16 @@ impl<R: Rpc + 'static> bb8::ManageConnection for SolanaConnectionManager<R> {
                             "first: {}, second: {}",
                             first_err, second_err
                         ))
-                    })
+                    })?;
+                    // If we were in fallback mode but the fallback URL failed
+                    // while the primary succeeded, recover to primary mode so
+                    // has_broken() won't immediately reject this connection.
+                    if self.health_state.is_fallback_active()
+                        && conn.get_url() == self.health_state.primary_url
+                    {
+                        self.health_state.recover_primary();
+                    }
+                    Ok(conn)
                 } else {
                     Err(PoolError::ClientCreation(first_err.to_string()))
                 }

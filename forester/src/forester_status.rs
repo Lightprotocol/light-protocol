@@ -162,20 +162,21 @@ pub async fn get_forester_status_with_options(
         .config
         .get_current_active_epoch_progress(slot);
     let active_phase_length = protocol_config_pda.config.active_phase_length;
-    let registration_phase_length = protocol_config_pda.config.registration_phase_length;
     let active_epoch_progress_percentage =
         active_epoch_progress as f64 / active_phase_length as f64 * 100f64;
 
     let hours_until_next_epoch =
         active_phase_length.saturating_sub(active_epoch_progress) * 460 / 1000 / 3600;
 
-    // Determine if registration is currently open
+    // Registration is relaxed: foresters can register at any time during the epoch,
+    // so registration is always open for the latest register epoch.
     let registration_is_open = protocol_config_pda
         .config
         .is_registration_phase(slot)
         .is_ok();
 
     // If registration is closed, show the next epoch as the registration target
+    let registration_phase_length = protocol_config_pda.config.registration_phase_length;
     let current_registration_epoch = if registration_is_open {
         latest_register_epoch
     } else {

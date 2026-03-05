@@ -74,13 +74,6 @@ pub enum RegistrationError {
         registration_start: u64,
     },
 
-    #[error("Too late to register for epoch {epoch}. Current slot: {current_slot}, Registration end: {registration_end}")]
-    RegistrationPhaseEnded {
-        epoch: u64,
-        current_slot: u64,
-        registration_end: u64,
-    },
-
     #[error("Cannot finalize registration for epoch {epoch}. Current slot: {current_slot}, active phase ended: {active_phase_end_slot}")]
     FinalizeRegistrationPhaseEnded {
         epoch: u64,
