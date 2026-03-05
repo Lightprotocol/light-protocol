@@ -1085,6 +1085,19 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         // TODO: implement
         // self.claim(&registration_info).await?;
 
+        // Clean up per-epoch state now that this epoch is complete.
+        // In-flight tasks still hold their own Arc clones, so removal is safe.
+        self.registration_trackers.remove(&epoch);
+        self.processing_epochs.remove(&epoch);
+        self.processed_items_per_epoch_count
+            .lock()
+            .await
+            .remove(&epoch);
+        self.processing_metrics_per_epoch
+            .lock()
+            .await
+            .remove(&epoch);
+
         info!(
             event = "process_epoch_completed",
             run_id = %self.run_id,
