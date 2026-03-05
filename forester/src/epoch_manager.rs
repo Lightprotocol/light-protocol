@@ -96,6 +96,7 @@ type ProcessorInitLockMap = Arc<DashMap<Pubkey, Arc<Mutex<()>>>>;
 /// Coordinates re-finalization across parallel `process_queue` tasks when new
 /// foresters register mid-epoch. Only one task performs the on-chain
 /// `finalize_registration` tx; others wait for it to complete.
+#[derive(Debug)]
 pub(crate) struct RegistrationTracker {
     cached_registered_weight: AtomicU64,
     refinalize_in_progress: AtomicBool,
@@ -275,6 +276,8 @@ pub struct EpochManager<R: Rpc + Indexer> {
     address_lookup_tables: Arc<Vec<AddressLookupTableAccount>>,
     heartbeat: Arc<ServiceHeartbeat>,
     run_id: Arc<str>,
+    /// Per-epoch registration trackers to coordinate re-finalization when new foresters register mid-epoch
+    registration_trackers: Arc<DashMap<u64, Arc<RegistrationTracker>>>,
 }
 
 impl<R: Rpc + Indexer> Clone for EpochManager<R> {
@@ -305,6 +308,7 @@ impl<R: Rpc + Indexer> Clone for EpochManager<R> {
             address_lookup_tables: self.address_lookup_tables.clone(),
             heartbeat: self.heartbeat.clone(),
             run_id: self.run_id.clone(),
+            registration_trackers: self.registration_trackers.clone(),
         }
     }
 }
@@ -355,6 +359,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             address_lookup_tables,
             heartbeat,
             run_id: Arc::<str>::from(run_id),
+            registration_trackers: Arc::new(DashMap::new()),
         })
     }
 
@@ -645,9 +650,16 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                     epoch_info.trees.push(tree_schedule.clone());
 
                     let self_clone = Arc::new(self.clone());
-                    let tracker = Arc::new(RegistrationTracker::new(
-                        epoch_info.epoch_pda.registered_weight,
-                    ));
+                    let tracker = self
+                        .registration_trackers
+                        .entry(current_epoch)
+                        .or_insert_with(|| {
+                            Arc::new(RegistrationTracker::new(
+                                epoch_info.epoch_pda.registered_weight,
+                            ))
+                        })
+                        .value()
+                        .clone();
 
                     info!(
                         event = "new_tree_processing_task_spawned",
@@ -1505,9 +1517,16 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         );
 
         let self_arc = Arc::new(self.clone());
-        let registration_tracker = Arc::new(RegistrationTracker::new(
-            epoch_info.epoch_pda.registered_weight,
-        ));
+        let registration_tracker = self
+            .registration_trackers
+            .entry(epoch_info.epoch.epoch)
+            .or_insert_with(|| {
+                Arc::new(RegistrationTracker::new(
+                    epoch_info.epoch_pda.registered_weight,
+                ))
+            })
+            .value()
+            .clone();
 
         let mut handles: Vec<JoinHandle<Result<()>>> = Vec::with_capacity(trees_to_process.len());
 
@@ -1765,14 +1784,24 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 .await
             {
                 Ok(_) => {
+                    // Re-fetch EpochPda after finalize to get authoritative
+                    // post-finalize weight (another forester may have registered
+                    // between our initial read and the finalize tx).
+                    let post_finalize_pda: EpochPda = rpc
+                        .get_anchor_account::<EpochPda>(&epoch_pda_address)
+                        .await?
+                        .ok_or_else(|| {
+                            anyhow!("EpochPda not found for epoch {}", epoch_info.epoch)
+                        })?;
+                    let post_finalize_weight = post_finalize_pda.registered_weight;
                     info!(
                         event = "refinalize_registration_success",
                         run_id = %self.run_id,
                         epoch = epoch_info.epoch,
-                        new_weight = on_chain_weight,
+                        new_weight = post_finalize_weight,
                         "Re-finalized registration on-chain"
                     );
-                    registration_tracker.complete_refinalize(on_chain_weight);
+                    registration_tracker.complete_refinalize(post_finalize_weight);
                 }
                 Err(e) => {
                     // Release the claim so a future check can retry
@@ -1785,7 +1814,12 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             registration_tracker.wait_for_refinalize().await;
         }
 
-        // All tasks: refresh ForesterEpochPda and recompute schedule
+        // All tasks: re-fetch both PDAs to get post-finalize on-chain state
+        // and recompute schedule.
+        let refreshed_epoch_pda: EpochPda = rpc
+            .get_anchor_account::<EpochPda>(&epoch_pda_address)
+            .await?
+            .ok_or_else(|| anyhow!("EpochPda not found for epoch {}", epoch_info.epoch))?;
         let updated_pda: ForesterEpochPda = rpc
             .get_anchor_account::<ForesterEpochPda>(&epoch_info.forester_epoch_pda)
             .await?
@@ -1801,7 +1835,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             &tree_schedule.tree_accounts,
             current_slot,
             &updated_pda,
-            &on_chain_epoch_pda,
+            &refreshed_epoch_pda,
         )?;
 
         *forester_epoch_pda = updated_pda;
