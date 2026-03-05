@@ -132,7 +132,14 @@ impl RegistrationTracker {
 
     /// Called by non-winners to block until re-finalization is done.
     async fn wait_for_refinalize(&self) {
-        self.refinalized.notified().await;
+        if !self.refinalize_in_progress.load(Ordering::Acquire) {
+            return;
+        }
+        let fut = self.refinalized.notified();
+        if !self.refinalize_in_progress.load(Ordering::Acquire) {
+            return;
+        }
+        fut.await;
     }
 }
 
@@ -656,7 +663,6 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                                 &epoch_info.epoch,
                                 epoch_info.forester_epoch_pda.clone(),
                                 tree_schedule,
-                                epoch_info.epoch_pda.clone(),
                                 tracker,
                             )
                             .await
@@ -1518,12 +1524,11 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             let self_clone = self_arc.clone();
             let epoch_clone = epoch_info.epoch.clone();
             let forester_epoch_pda = epoch_info.forester_epoch_pda.clone();
-            let epoch_pda = epoch_info.epoch_pda.clone();
             let tracker = registration_tracker.clone();
 
             let handle = tokio::spawn(async move {
                 self_clone
-                    .process_queue(&epoch_clone, forester_epoch_pda, tree, epoch_pda, tracker)
+                    .process_queue(&epoch_clone, forester_epoch_pda, tree, tracker)
                     .await
             });
 
@@ -1583,7 +1588,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
 
     #[instrument(
         level = "debug",
-        skip(self, epoch_info, forester_epoch_pda, tree_schedule, epoch_pda, registration_tracker),
+        skip(self, epoch_info, forester_epoch_pda, tree_schedule, registration_tracker),
         fields(forester = %self.config.payer_keypair.pubkey(), epoch = epoch_info.epoch,
         tree = %tree_schedule.tree_accounts.merkle_tree)
     )]
@@ -1592,7 +1597,6 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         epoch_info: &Epoch,
         mut forester_epoch_pda: ForesterEpochPda,
         mut tree_schedule: TreeForesterSchedule,
-        epoch_pda: EpochPda,
         registration_tracker: Arc<RegistrationTracker>,
     ) -> Result<()> {
         self.heartbeat.increment_queue_started();
@@ -1677,7 +1681,6 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                             epoch_info,
                             &mut forester_epoch_pda,
                             &mut tree_schedule,
-                            &epoch_pda,
                             &registration_tracker,
                         )
                         .await
@@ -1721,7 +1724,6 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         epoch_info: &Epoch,
         forester_epoch_pda: &mut ForesterEpochPda,
         tree_schedule: &mut TreeForesterSchedule,
-        epoch_pda: &EpochPda,
         registration_tracker: &RegistrationTracker,
     ) -> Result<()> {
         let mut rpc = self.rpc_pool.get_connection().await?;
@@ -1799,7 +1801,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             &tree_schedule.tree_accounts,
             current_slot,
             &updated_pda,
-            epoch_pda,
+            &on_chain_epoch_pda,
         )?;
 
         *forester_epoch_pda = updated_pda;
