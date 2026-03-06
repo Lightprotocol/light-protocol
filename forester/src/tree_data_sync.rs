@@ -84,10 +84,9 @@ pub async fn fetch_trees_filtered(rpc_url: &str) -> Result<Vec<TreeAccounts>> {
         Ok(accounts) => {
             debug!("Fetched {} batched tree accounts", accounts.len());
             for (pubkey, mut account) in accounts {
-                // Try state first, then address
-                if let Ok(tree) = process_batch_state_account(&mut account, pubkey) {
+                if let Ok(Some(tree)) = process_batch_state_account(&mut account, pubkey) {
                     all_trees.push(tree);
-                } else if let Ok(tree) = process_batch_address_account(&mut account, pubkey) {
+                } else if let Ok(Some(tree)) = process_batch_address_account(&mut account, pubkey) {
                     all_trees.push(tree);
                 }
             }
@@ -107,7 +106,7 @@ pub async fn fetch_trees_filtered(rpc_url: &str) -> Result<Vec<TreeAccounts>> {
         Ok(accounts) => {
             debug!("Fetched {} state V1 tree accounts", accounts.len());
             for (pubkey, account) in accounts {
-                if let Ok(tree) = process_state_account(&account, pubkey) {
+                if let Ok(Some(tree)) = process_state_account(&account, pubkey) {
                     all_trees.push(tree);
                 }
             }
@@ -127,7 +126,7 @@ pub async fn fetch_trees_filtered(rpc_url: &str) -> Result<Vec<TreeAccounts>> {
         Ok(accounts) => {
             debug!("Fetched {} address V1 tree accounts", accounts.len());
             for (pubkey, account) in accounts {
-                if let Ok(tree) = process_address_account(&account, pubkey) {
+                if let Ok(Some(tree)) = process_address_account(&account, pubkey) {
                     all_trees.push(tree);
                 }
             }
@@ -245,9 +244,10 @@ fn process_account(pubkey: Pubkey, mut account: Account) -> Option<TreeAccounts>
         .or_else(|_| process_address_account(&account, pubkey))
         .or_else(|_| process_batch_address_account(&mut account, pubkey))
         .ok()
+        .flatten()
 }
 
-fn process_state_account(account: &Account, pubkey: Pubkey) -> Result<TreeAccounts> {
+fn process_state_account(account: &Account, pubkey: Pubkey) -> Result<Option<TreeAccounts>> {
     check_discriminator::<StateMerkleTreeAccount>(&account.data)?;
     let tree_account = StateMerkleTreeAccount::deserialize(&mut &account.data[8..])?;
     Ok(create_tree_accounts(
@@ -257,7 +257,7 @@ fn process_state_account(account: &Account, pubkey: Pubkey) -> Result<TreeAccoun
     ))
 }
 
-fn process_address_account(account: &Account, pubkey: Pubkey) -> Result<TreeAccounts> {
+fn process_address_account(account: &Account, pubkey: Pubkey) -> Result<Option<TreeAccounts>> {
     check_discriminator::<AddressMerkleTreeAccount>(&account.data)?;
     let tree_account = AddressMerkleTreeAccount::deserialize(&mut &account.data[8..])?;
     Ok(create_tree_accounts(
@@ -267,7 +267,10 @@ fn process_address_account(account: &Account, pubkey: Pubkey) -> Result<TreeAcco
     ))
 }
 
-fn process_batch_state_account(account: &mut Account, pubkey: Pubkey) -> Result<TreeAccounts> {
+fn process_batch_state_account(
+    account: &mut Account,
+    pubkey: Pubkey,
+) -> Result<Option<TreeAccounts>> {
     light_account_checks::checks::check_discriminator::<BatchedMerkleTreeAccount>(&account.data)
         .map_err(|_| AccountDeserializationError::BatchStateMerkleTree {
             error: "Invalid discriminator".to_string(),
@@ -286,7 +289,10 @@ fn process_batch_state_account(account: &mut Account, pubkey: Pubkey) -> Result<
     ))
 }
 
-fn process_batch_address_account(account: &mut Account, pubkey: Pubkey) -> Result<TreeAccounts> {
+fn process_batch_address_account(
+    account: &mut Account,
+    pubkey: Pubkey,
+) -> Result<Option<TreeAccounts>> {
     light_account_checks::checks::check_discriminator::<BatchedMerkleTreeAccount>(&account.data)
         .map_err(|_| AccountDeserializationError::BatchAddressMerkleTree {
             error: "Invalid discriminator".to_string(),
@@ -309,7 +315,17 @@ fn create_tree_accounts(
     pubkey: Pubkey,
     metadata: &MerkleTreeMetadata,
     tree_type: TreeType,
-) -> TreeAccounts {
+) -> Option<TreeAccounts> {
+    if metadata.rollover_metadata.network_fee == 0 {
+        debug!(
+            event = "tree_skipped_no_network_fee",
+            tree = %pubkey,
+            tree_type = ?tree_type,
+            "Skipping tree with network_fee=0"
+        );
+        return None;
+    }
+
     let tree_accounts = TreeAccounts::new(
         pubkey,
         metadata.associated_queue.into(),
@@ -326,7 +342,7 @@ fn create_tree_accounts(
         tree_accounts.is_rolledover,
         tree_accounts.owner
     );
-    tree_accounts
+    Some(tree_accounts)
 }
 
 pub async fn fetch_protocol_group_authority<R: Rpc>(rpc: &R, run_id: &str) -> Result<Pubkey> {
