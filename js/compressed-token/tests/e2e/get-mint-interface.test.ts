@@ -7,6 +7,9 @@ import {
     VERSION,
     featureFlags,
     LIGHT_TOKEN_PROGRAM_ID,
+    deriveAddressV2,
+    getDefaultAddressTreeInfo,
+    bn,
 } from '@lightprotocol/stateless.js';
 import {
     TOKEN_PROGRAM_ID,
@@ -47,7 +50,7 @@ describe('getMintInterface', () => {
         payer = await newAccountWithLamports(rpc, 10e9);
     });
 
-    describe('CToken mint (LIGHT_TOKEN_PROGRAM_ID)', () => {
+    describe('LightToken mint (LIGHT_TOKEN_PROGRAM_ID)', () => {
         it('should fetch compressed mint with explicit programId', async () => {
             const mintSigner = Keypair.generate();
             const mintAuthority = Keypair.generate();
@@ -84,6 +87,50 @@ describe('getMintInterface', () => {
             );
             expect(result.merkleContext).toBeDefined();
             expect(result.mintContext).toBeDefined();
+        });
+
+        it('should read decompressed light mint account when compressed account is sentinel', async () => {
+            const mintSigner = Keypair.generate();
+            const mintAuthority = Keypair.generate();
+            const decimals = 9;
+            const [mintPda] = findMintAddress(mintSigner.publicKey);
+
+            await createMintInterface(
+                rpc,
+                payer,
+                mintAuthority,
+                null,
+                decimals,
+                mintSigner,
+                { skipPreflight: true },
+            );
+
+            const compressedAddress = deriveAddressV2(
+                mintPda.toBytes(),
+                getDefaultAddressTreeInfo().tree,
+                LIGHT_TOKEN_PROGRAM_ID,
+            );
+            const compressedAccount = await rpc.getCompressedAccount(
+                bn(compressedAddress.toBytes()),
+            );
+            expect(compressedAccount?.data?.data).toBeDefined();
+            // Sentinel account indicates decompressed mint flow.
+            expect(compressedAccount!.data!.data.length).toBeLessThan(64);
+
+            const onchainMint = await rpc.getAccountInfo(mintPda);
+            expect(onchainMint).not.toBeNull();
+            expect(onchainMint!.data.length).toBeGreaterThan(149);
+
+            const result = await getMintInterface(
+                rpc,
+                mintPda,
+                undefined,
+                LIGHT_TOKEN_PROGRAM_ID,
+            );
+            expect(result.mint.address.toBase58()).toBe(mintPda.toBase58());
+            expect(result.mintContext).toBeDefined();
+            expect(result.mintContext!.cmintDecompressed).toBe(true);
+            expect(result.mint.decimals).toBe(decimals);
         });
 
         it('should fetch compressed mint with freeze authority', async () => {
@@ -356,6 +403,45 @@ describe('getMintInterface', () => {
                 'Mint not found',
             );
         });
+
+        it('should continue auto-detect when one branch fails unexpectedly', async () => {
+            const mint = Keypair.generate().publicKey;
+            const mintAuthority = Keypair.generate().publicKey;
+            const mintData = Buffer.alloc(MINT_SIZE);
+            MintLayout.encode(
+                {
+                    mintAuthorityOption: 1,
+                    mintAuthority,
+                    supply: BigInt(777),
+                    decimals: 6,
+                    isInitialized: true,
+                    freezeAuthorityOption: 0,
+                    freezeAuthority: PublicKey.default,
+                },
+                mintData,
+            );
+
+            const mockRpc = {
+                getAccountInfo: async () =>
+                    ({
+                        data: mintData,
+                        executable: false,
+                        lamports: 1_000_000,
+                        owner: TOKEN_2022_PROGRAM_ID,
+                        rentEpoch: 0,
+                    }) as AccountInfo<Buffer>,
+                getCompressedAccount: async () => {
+                    throw new Error('simulated compressed-account RPC failure');
+                },
+            } as unknown as Rpc;
+
+            const result = await getMintInterface(mockRpc, mint);
+            expect(result.mint.address.toBase58()).toBe(mint.toBase58());
+            expect(result.programId.toBase58()).toBe(
+                TOKEN_2022_PROGRAM_ID.toBase58(),
+            );
+            expect(result.mint.supply).toBe(777n);
+        });
     });
 
     describe('mintContext validation', () => {
@@ -550,7 +636,7 @@ describe('unpackMintInterface', () => {
         });
     });
 
-    describe('CToken mint', () => {
+    describe('LightToken mint', () => {
         it('should unpack compressed mint data without extensions', () => {
             const mintAddress = Keypair.generate().publicKey;
             const mintAuthority = Keypair.generate().publicKey;

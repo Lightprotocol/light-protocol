@@ -1,3 +1,21 @@
+## [0.23.0-beta.10]
+
+### Breaking Changes
+
+- **`decompressInterface` removed.** Use `loadAta` (action) or `createLoadAtaInstructions` (instruction builder) instead. `decompressInterface` did not support >8 compressed inputs and has been fully removed.
+    - **Action (send transaction):** Replace `decompressInterface(rpc, payer, owner, mint, amount?, destinationAta?, destinationOwner?, splInterfaceInfo?, confirmOptions?)` with `loadAta(rpc, ata, owner, mint, payer?, confirmOptions?, interfaceOptions?, wrap?)`. Derive the target ATA with `getAssociatedTokenAddressInterface(mint, owner)` for light-token, or pass the SPL/T22 ATA to decompress to that program. `loadAta` loads all cold balance into the given ATA (no partial amount); it supports >8 inputs via batched transactions and creates the ATA if needed.
+    - **Instruction-level:** Use `createLoadAtaInstructions(rpc, ata, owner, mint, payer?, interfaceOptions?, wrap?)` to get `TransactionInstruction[][]` and send batches yourself. The single-instruction primitive is no longer exported; use the batched API only.
+
+- **CToken → LightToken renames.** Instruction and type names updated for consistency: `createAssociatedCTokenAccountInstruction` → `createAssociatedLightTokenAccountInstruction`, `CTokenConfig` → `LightTokenConfig`, `parseCTokenHot` → `parseLightTokenHot`, `parseCTokenCold` → `parseLightTokenCold`, `mintToCToken` → `mintToLightToken` (and related), `CTOKEN_PROGRAM_ID` → `LIGHT_TOKEN_PROGRAM_ID`. Use the new LightToken names in all call sites.
+
+- **Removed exports.** `createLoadAccountsParams`, `calculateCompressibleLoadComputeUnits`, and associated types are no longer exported. Use the batched `createLoadAtaInstructions` API and `calculateLoadBatchComputeUnits` where applicable.
+
+- **New freeze/thaw instructions.** `createLightTokenFreezeAccountInstruction` and `createLightTokenThawAccountInstruction` are available for native freeze/thaw of decompressed light-token accounts (discriminators 10 and 11).
+
+- **Synthetic delegate selection semantics updated.** In `getAtaInterface` / `getAccountInterface` synthetic account views:
+    - If a hot source has a delegate, that hot delegate is always canonical. Cold delegates only contribute to `delegatedAmount` when they match the hot delegate.
+    - If there is no hot delegate, canonical delegate is chosen from the most recent delegated cold source (source-order first), and `delegatedAmount` is the sum of all cold inputs for that delegate.
+
 ## [0.23.0-beta.9]
 
 ### Fixed

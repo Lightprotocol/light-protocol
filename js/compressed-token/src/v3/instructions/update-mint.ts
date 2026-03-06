@@ -35,6 +35,7 @@ interface EncodeUpdateMintInstructionParams {
     maxTopUp?: number;
 }
 
+/** @internal */
 function encodeUpdateMintInstructionData(
     params: EncodeUpdateMintInstructionParams,
 ): Buffer {

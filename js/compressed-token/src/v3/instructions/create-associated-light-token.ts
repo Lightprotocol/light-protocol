@@ -48,7 +48,7 @@ export interface CompressibleConfig {
     compressToAccountPubkey?: CompressToPubkey | null;
 }
 
-export interface CreateAssociatedCTokenAccountParams {
+export interface CreateAssociatedLightTokenAccountParams {
     compressibleConfig?: CompressibleConfig | null;
 }
 
@@ -69,7 +69,7 @@ export interface CreateAssociatedCTokenAccountParams {
  * - When account rent is below 2 epochs, fee payer pays 766 lamports top-up
  * - This keeps the account perpetually funded when actively used
  *
- * Rent calculation (272-byte compressible ctoken account):
+ * Rent calculation (272-byte compressible lightToken account):
  * - rent_per_epoch = base_rent (128) + bytes * rent_per_byte (272 * 1) = 400 lamports
  * - 16 epochs = 16 * 400 = 6,400 lamports (24 hours)
  * - 2 epochs = 2 * 400 = 800 lamports (~3 hours, writeTopUp = 766 is conservative)
@@ -91,7 +91,8 @@ export const DEFAULT_COMPRESSIBLE_CONFIG: CompressibleConfig = {
     compressToAccountPubkey: null, // Required null for ATAs
 };
 
-function getAssociatedCTokenAddress(
+/** @internal */
+function getAssociatedLightTokenAddress(
     owner: PublicKey,
     mint: PublicKey,
 ): PublicKey {
@@ -101,8 +102,9 @@ function getAssociatedCTokenAddress(
     )[0];
 }
 
-function encodeCreateAssociatedCTokenAccountData(
-    params: CreateAssociatedCTokenAccountParams,
+/** @internal */
+function encodeCreateAssociatedLightTokenAccountData(
+    params: CreateAssociatedLightTokenAccountParams,
     idempotent: boolean,
 ): Buffer {
     const buffer = Buffer.alloc(2000);
@@ -120,7 +122,7 @@ function encodeCreateAssociatedCTokenAccountData(
     return Buffer.concat([discriminator, buffer.subarray(0, len)]);
 }
 
-export interface CreateAssociatedCTokenAccountInstructionParams {
+export interface CreateAssociatedLightTokenAccountInstructionParams {
     feePayer: PublicKey;
     owner: PublicKey;
     mint: PublicKey;
@@ -140,8 +142,7 @@ export interface CreateAssociatedCTokenAccountInstructionParams {
  * @param configAccount     Config account (defaults to LIGHT_TOKEN_CONFIG).
  * @param rentPayerPda      Rent payer PDA (defaults to LIGHT_TOKEN_RENT_SPONSOR).
  */
-// TODO: use createAssociatedCTokenAccount2.
-export function createAssociatedCTokenAccountInstruction(
+export function createAssociatedLightTokenAccountInstruction(
     feePayer: PublicKey,
     owner: PublicKey,
     mint: PublicKey,
@@ -149,9 +150,9 @@ export function createAssociatedCTokenAccountInstruction(
     configAccount: PublicKey = LIGHT_TOKEN_CONFIG,
     rentPayerPda: PublicKey = LIGHT_TOKEN_RENT_SPONSOR,
 ): TransactionInstruction {
-    const associatedTokenAccount = getAssociatedCTokenAddress(owner, mint);
+    const associatedTokenAccount = getAssociatedLightTokenAddress(owner, mint);
 
-    const data = encodeCreateAssociatedCTokenAccountData(
+    const data = encodeCreateAssociatedLightTokenAccountData(
         {
             compressibleConfig,
         },
@@ -212,7 +213,7 @@ export function createAssociatedCTokenAccountInstruction(
  * @param configAccount     Config account (defaults to LIGHT_TOKEN_CONFIG).
  * @param rentPayerPda      Rent payer PDA (defaults to LIGHT_TOKEN_RENT_SPONSOR).
  */
-export function createAssociatedCTokenAccountIdempotentInstruction(
+export function createAssociatedLightTokenAccountIdempotentInstruction(
     feePayer: PublicKey,
     owner: PublicKey,
     mint: PublicKey,
@@ -220,9 +221,9 @@ export function createAssociatedCTokenAccountIdempotentInstruction(
     configAccount: PublicKey = LIGHT_TOKEN_CONFIG,
     rentPayerPda: PublicKey = LIGHT_TOKEN_RENT_SPONSOR,
 ): TransactionInstruction {
-    const associatedTokenAccount = getAssociatedCTokenAddress(owner, mint);
+    const associatedTokenAccount = getAssociatedLightTokenAddress(owner, mint);
 
-    const data = encodeCreateAssociatedCTokenAccountData(
+    const data = encodeCreateAssociatedLightTokenAccountData(
         {
             compressibleConfig,
         },

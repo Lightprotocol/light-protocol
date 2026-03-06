@@ -10,6 +10,7 @@ export { assertBetaEnabled };
 /**
  * Throws if any V1 compressed accounts are present.
  * v3 interface only supports V2 trees.
+ * @internal
  */
 export function assertV2Only(accounts: ParsedTokenAccount[]): void {
     const v1Count = accounts.filter(

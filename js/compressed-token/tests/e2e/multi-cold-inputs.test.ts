@@ -783,7 +783,7 @@ describe('Multi-Cold-Inputs', () => {
             const sources = ataInterface._sources ?? [];
             const coldSources = sources.filter(
                 s =>
-                    s.type === 'ctoken-cold' ||
+                    s.type === 'light-token-cold' ||
                     s.type === 'spl-cold' ||
                     s.type === 'token2022-cold',
             );

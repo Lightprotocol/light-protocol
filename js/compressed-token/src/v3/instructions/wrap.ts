@@ -10,7 +10,7 @@ import { SplInterfaceInfo } from '../../utils/get-token-pool-infos';
 import {
     encodeTransfer2InstructionData,
     createCompressSpl,
-    createDecompressCtoken,
+    createDecompressLightToken,
     Transfer2InstructionData,
     Compression,
 } from '../layout/layout-transfer2';
@@ -47,7 +47,7 @@ export function createWrapInstruction(
     const DESTINATION_INDEX = 3;
     const POOL_INDEX = 4;
     const _SPL_TOKEN_PROGRAM_INDEX = 5;
-    const CTOKEN_PROGRAM_INDEX = 6;
+    const LIGHT_TOKEN_PROGRAM_INDEX = 6;
 
     const compressions: Compression[] = [
         createCompressSpl(
@@ -60,11 +60,11 @@ export function createWrapInstruction(
             splInterfaceInfo.bump,
             decimals,
         ),
-        createDecompressCtoken(
+        createDecompressLightToken(
             amount,
             MINT_INDEX,
             DESTINATION_INDEX,
-            CTOKEN_PROGRAM_INDEX,
+            LIGHT_TOKEN_PROGRAM_INDEX,
         ),
     ];
 

@@ -1,14 +1,54 @@
 import {
+    ComputeBudgetProgram,
     PublicKey,
     TransactionInstruction,
     SystemProgram,
 } from '@solana/web3.js';
-import { LIGHT_TOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
+import {
+    Rpc,
+    assertBetaEnabled,
+    LIGHT_TOKEN_PROGRAM_ID,
+} from '@lightprotocol/stateless.js';
+import {
+    TOKEN_PROGRAM_ID,
+    TOKEN_2022_PROGRAM_ID,
+    createTransferCheckedInstruction,
+    getMint,
+    TokenAccountNotFoundError,
+} from '@solana/spl-token';
+import BN from 'bn.js';
+import { getAssociatedTokenAddressInterface } from '../get-associated-token-address-interface';
+import { createAssociatedTokenAccountInterfaceIdempotentInstruction } from './create-ata-interface';
+import { DEFAULT_COMPRESSIBLE_CONFIG } from './create-associated-light-token';
+import {
+    _buildLoadBatches,
+    rawLoadBatchComputeUnits,
+    calculateLoadBatchComputeUnits,
+    type InternalLoadBatch,
+} from './load-ata';
+import {
+    getAtaInterface as _getAtaInterface,
+    assertNotFrozen,
+    type AccountInterface,
+    spendableAmountForAuthority,
+    isAuthorityForInterface,
+    filterInterfaceForAuthority,
+} from '../get-account-interface';
+import { assertTransactionSizeWithinLimit } from '../utils/estimate-tx-size';
+import type { TransferOptions } from '../actions/transfer-interface';
 
-/**
- * Light token transfer instruction discriminator
- */
 const LIGHT_TOKEN_TRANSFER_DISCRIMINATOR = 3;
+
+const TRANSFER_BASE_CU = 10_000;
+const CU_BUFFER_FACTOR = 1.3;
+
+export function calculateTransferCU(
+    loadBatch: InternalLoadBatch | null,
+): number {
+    const rawLoadCu = loadBatch ? rawLoadBatchComputeUnits(loadBatch) : 0;
+    const cu = Math.ceil((TRANSFER_BASE_CU + rawLoadCu) * CU_BUFFER_FACTOR);
+    return Math.max(50_000, Math.min(1_400_000, cu));
+}
 
 /**
  * Create a light-token transfer instruction.
@@ -62,4 +102,200 @@ export function createLightTokenTransferInstruction(
         keys,
         data,
     });
+}
+
+export async function createTransferInterfaceInstructions(
+    rpc: Rpc,
+    payer: PublicKey,
+    mint: PublicKey,
+    amount: number | bigint | BN,
+    sender: PublicKey,
+    recipient: PublicKey,
+    options?: TransferOptions,
+): Promise<TransactionInstruction[][]> {
+    assertBetaEnabled();
+
+    const amountBigInt = BigInt(amount.toString());
+
+    if (amountBigInt <= BigInt(0)) {
+        throw new Error('Transfer amount must be greater than zero.');
+    }
+
+    const {
+        wrap = false,
+        programId = LIGHT_TOKEN_PROGRAM_ID,
+        ensureRecipientAta = true,
+        owner: optionsOwner,
+        ...interfaceOptions
+    } = options ?? {};
+
+    const effectiveOwner = optionsOwner ?? sender;
+
+    if (!PublicKey.isOnCurve(recipient.toBytes())) {
+        throw new Error(
+            `Recipient must be a wallet public key (on-curve), not a PDA or associated token account. ` +
+                `Got: ${recipient.toBase58()}`,
+        );
+    }
+
+    const isSplOrT22 =
+        programId.equals(TOKEN_PROGRAM_ID) ||
+        programId.equals(TOKEN_2022_PROGRAM_ID);
+
+    const senderAta = getAssociatedTokenAddressInterface(
+        mint,
+        effectiveOwner,
+        false,
+        programId,
+    );
+    const recipientAta = getAssociatedTokenAddressInterface(
+        mint,
+        recipient,
+        false,
+        programId,
+    );
+
+    let senderInterface: AccountInterface;
+    try {
+        senderInterface = await _getAtaInterface(
+            rpc,
+            senderAta,
+            effectiveOwner,
+            mint,
+            undefined,
+            programId.equals(LIGHT_TOKEN_PROGRAM_ID) ? undefined : programId,
+            wrap,
+        );
+    } catch (error) {
+        if (error instanceof TokenAccountNotFoundError) {
+            throw new Error('Sender has no token accounts for this mint.');
+        }
+        throw error;
+    }
+
+    assertNotFrozen(senderInterface, 'transfer');
+
+    const isDelegate = !effectiveOwner.equals(sender);
+    if (isDelegate) {
+        if (!isAuthorityForInterface(senderInterface, sender)) {
+            throw new Error(
+                'Signer is not the owner or a delegate of the sender account.',
+            );
+        }
+        const spendable = spendableAmountForAuthority(senderInterface, sender);
+        if (amountBigInt > spendable) {
+            throw new Error(
+                `Insufficient delegated balance. Required: ${amountBigInt}, Available (delegate): ${spendable}`,
+            );
+        }
+        senderInterface = filterInterfaceForAuthority(senderInterface, sender);
+    } else {
+        if (senderInterface.parsed.amount < amountBigInt) {
+            throw new Error(
+                `Insufficient balance. Required: ${amountBigInt}, Available: ${senderInterface.parsed.amount}`,
+            );
+        }
+    }
+
+    const internalBatches = await _buildLoadBatches(
+        rpc,
+        payer,
+        senderInterface,
+        interfaceOptions,
+        wrap,
+        senderAta,
+        amountBigInt,
+        sender,
+    );
+
+    let transferIx: TransactionInstruction;
+    if (isSplOrT22 && !wrap) {
+        const mintInfo = await getMint(rpc, mint, undefined, programId);
+        transferIx = createTransferCheckedInstruction(
+            senderAta,
+            mint,
+            recipientAta,
+            sender,
+            amountBigInt,
+            mintInfo.decimals,
+            [],
+            programId,
+        );
+    } else {
+        transferIx = createLightTokenTransferInstruction(
+            senderAta,
+            recipientAta,
+            sender,
+            amountBigInt,
+        );
+    }
+
+    const recipientAtaIxs: TransactionInstruction[] = [];
+    if (ensureRecipientAta) {
+        recipientAtaIxs.push(
+            createAssociatedTokenAccountInterfaceIdempotentInstruction(
+                payer,
+                recipientAta,
+                recipient,
+                mint,
+                programId,
+                undefined,
+                programId.equals(LIGHT_TOKEN_PROGRAM_ID)
+                    ? { compressibleConfig: DEFAULT_COMPRESSIBLE_CONFIG }
+                    : undefined,
+            ),
+        );
+    }
+
+    const numSigners = payer.equals(sender) ? 1 : 2;
+
+    if (internalBatches.length === 0) {
+        const cu = calculateTransferCU(null);
+        const txIxs = [
+            ComputeBudgetProgram.setComputeUnitLimit({ units: cu }),
+            ...recipientAtaIxs,
+            transferIx,
+        ];
+        assertTransactionSizeWithinLimit(txIxs, numSigners, 'Batch');
+        return [txIxs];
+    }
+
+    if (internalBatches.length === 1) {
+        const batch = internalBatches[0];
+        const cu = calculateTransferCU(batch);
+        const txIxs = [
+            ComputeBudgetProgram.setComputeUnitLimit({ units: cu }),
+            ...recipientAtaIxs,
+            ...batch.instructions,
+            transferIx,
+        ];
+        assertTransactionSizeWithinLimit(txIxs, numSigners, 'Batch');
+        return [txIxs];
+    }
+
+    const result: TransactionInstruction[][] = [];
+
+    for (let i = 0; i < internalBatches.length - 1; i++) {
+        const batch = internalBatches[i];
+        const cu = calculateLoadBatchComputeUnits(batch);
+        const txIxs = [
+            ComputeBudgetProgram.setComputeUnitLimit({ units: cu }),
+            ...batch.instructions,
+        ];
+        assertTransactionSizeWithinLimit(txIxs, numSigners, 'Batch');
+        result.push(txIxs);
+    }
+
+    const lastBatch = internalBatches[internalBatches.length - 1];
+    const lastCu = calculateTransferCU(lastBatch);
+    const lastTxIxs = [
+        ComputeBudgetProgram.setComputeUnitLimit({ units: lastCu }),
+        ...recipientAtaIxs,
+        ...lastBatch.instructions,
+        transferIx,
+    ];
+    assertTransactionSizeWithinLimit(lastTxIxs, numSigners, 'Batch');
+    result.push(lastTxIxs);
+
+    return result;
 }

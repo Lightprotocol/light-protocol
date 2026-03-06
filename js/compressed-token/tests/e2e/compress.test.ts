@@ -37,7 +37,7 @@ import {
 } from '../../src/utils/get-token-pool-infos';
 
 /**
- * Assert that we created recipient and change ctokens for the sender, with all
+ * Assert that we created recipient and change light-tokens for the sender, with all
  * amounts correctly accounted for
  */
 async function assertCompress(

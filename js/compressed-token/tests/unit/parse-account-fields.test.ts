@@ -5,7 +5,7 @@ import BN from 'bn.js';
 import { LIGHT_TOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
 import {
     convertTokenDataToAccount,
-    parseCTokenHot,
+    parseLightTokenHot,
 } from '../../src/v3/get-account-interface';
 
 /**
@@ -117,7 +117,7 @@ function buildTlvWithPrefixExtensions(
     return buf;
 }
 
-describe('parseCTokenHot - COption format correctness', () => {
+describe('parseLightTokenHot - COption format correctness', () => {
     it('should parse initialized state at offset 108 (regression: old parser read offset 105)', () => {
         const mint = Keypair.generate().publicKey;
         const owner = Keypair.generate().publicKey;
@@ -130,7 +130,7 @@ describe('parseCTokenHot - COption format correctness', () => {
             state: 1,
         });
 
-        const result = parseCTokenHot(address, {
+        const result = parseLightTokenHot(address, {
             executable: false,
             owner: LIGHT_TOKEN_PROGRAM_ID,
             lamports: 1_000_000,
@@ -156,7 +156,7 @@ describe('parseCTokenHot - COption format correctness', () => {
             state: 2,
         });
 
-        const result = parseCTokenHot(Keypair.generate().publicKey, {
+        const result = parseLightTokenHot(Keypair.generate().publicKey, {
             executable: false,
             owner: LIGHT_TOKEN_PROGRAM_ID,
             lamports: 1_000_000,
@@ -179,7 +179,7 @@ describe('parseCTokenHot - COption format correctness', () => {
             delegatedAmount: 3000,
         });
 
-        const result = parseCTokenHot(Keypair.generate().publicKey, {
+        const result = parseLightTokenHot(Keypair.generate().publicKey, {
             executable: false,
             owner: LIGHT_TOKEN_PROGRAM_ID,
             lamports: 1_000_000,
@@ -203,7 +203,7 @@ describe('parseCTokenHot - COption format correctness', () => {
             closeAuthority: closeAuth,
         });
 
-        const result = parseCTokenHot(Keypair.generate().publicKey, {
+        const result = parseLightTokenHot(Keypair.generate().publicKey, {
             executable: false,
             owner: LIGHT_TOKEN_PROGRAM_ID,
             lamports: 1_000_000,
@@ -225,7 +225,7 @@ describe('parseCTokenHot - COption format correctness', () => {
             isNative: 2039280,
         });
 
-        const result = parseCTokenHot(Keypair.generate().publicKey, {
+        const result = parseLightTokenHot(Keypair.generate().publicKey, {
             executable: false,
             owner: LIGHT_TOKEN_PROGRAM_ID,
             lamports: 1_000_000,
@@ -243,7 +243,7 @@ describe('parseCTokenHot - COption format correctness', () => {
         const address = Keypair.generate().publicKey;
         const data = buildSplTokenBuffer({ mint, owner, amount: 0, state: 1 });
 
-        const result = parseCTokenHot(address, {
+        const result = parseLightTokenHot(address, {
             executable: false,
             owner: LIGHT_TOKEN_PROGRAM_ID,
             lamports: 1_000_000,

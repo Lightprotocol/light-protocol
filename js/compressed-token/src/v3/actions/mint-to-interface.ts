@@ -67,7 +67,7 @@ export async function mintToInterface(
         authorityPubkey,
         payer.publicKey,
         amount,
-        undefined, // validityProof - not needed for simple CTokenMintTo
+        undefined, // validityProof - not needed for simple LightTokenMintTo
         multiSignerPubkeys,
     );
 

@@ -414,8 +414,8 @@ describe('getOrCreateAtaInterface', () => {
         });
     });
 
-    describe('c-token (LIGHT_TOKEN_PROGRAM_ID)', () => {
-        let ctokenMint: PublicKey;
+    describe('light-token (LIGHT_TOKEN_PROGRAM_ID)', () => {
+        let lightTokenMint: PublicKey;
         let mintAuthority: Keypair;
 
         beforeAll(async () => {
@@ -431,14 +431,14 @@ describe('getOrCreateAtaInterface', () => {
                 9,
                 mintSigner,
             );
-            ctokenMint = mintPda;
+            lightTokenMint = mintPda;
         });
 
-        it('should create c-token ATA when it does not exist (uninited)', async () => {
+        it('should create light-token ATA when it does not exist (uninited)', async () => {
             const owner = Keypair.generate();
 
             const expectedAddress = getAssociatedTokenAddressInterface(
-                ctokenMint,
+                lightTokenMint,
                 owner.publicKey,
                 false,
                 LIGHT_TOKEN_PROGRAM_ID,
@@ -452,7 +452,7 @@ describe('getOrCreateAtaInterface', () => {
             const account = await getOrCreateAtaInterface(
                 rpc,
                 payer,
-                ctokenMint,
+                lightTokenMint,
                 owner.publicKey,
                 false,
                 undefined,
@@ -463,7 +463,9 @@ describe('getOrCreateAtaInterface', () => {
             expect(account.parsed.address.toBase58()).toBe(
                 expectedAddress.toBase58(),
             );
-            expect(account.parsed.mint.toBase58()).toBe(ctokenMint.toBase58());
+            expect(account.parsed.mint.toBase58()).toBe(
+                lightTokenMint.toBase58(),
+            );
             expect(account.parsed.owner.toBase58()).toBe(
                 owner.publicKey.toBase58(),
             );
@@ -477,14 +479,14 @@ describe('getOrCreateAtaInterface', () => {
             );
         });
 
-        it('should return existing c-token hot ATA without creating new one', async () => {
+        it('should return existing light-token hot ATA without creating new one', async () => {
             const owner = Keypair.generate();
 
             // Pre-create the ATA using createAtaInterfaceIdempotent
             await createAtaInterfaceIdempotent(
                 rpc,
                 payer,
-                ctokenMint,
+                lightTokenMint,
                 owner.publicKey,
                 false,
                 undefined,
@@ -492,7 +494,7 @@ describe('getOrCreateAtaInterface', () => {
             );
 
             const expectedAddress = getAssociatedTokenAddressInterface(
-                ctokenMint,
+                lightTokenMint,
                 owner.publicKey,
                 false,
                 LIGHT_TOKEN_PROGRAM_ID,
@@ -502,7 +504,7 @@ describe('getOrCreateAtaInterface', () => {
             const account = await getOrCreateAtaInterface(
                 rpc,
                 payer,
-                ctokenMint,
+                lightTokenMint,
                 owner.publicKey,
                 false,
                 undefined,
@@ -513,20 +515,22 @@ describe('getOrCreateAtaInterface', () => {
             expect(account.parsed.address.toBase58()).toBe(
                 expectedAddress.toBase58(),
             );
-            expect(account.parsed.mint.toBase58()).toBe(ctokenMint.toBase58());
+            expect(account.parsed.mint.toBase58()).toBe(
+                lightTokenMint.toBase58(),
+            );
             expect(account.parsed.owner.toBase58()).toBe(
                 owner.publicKey.toBase58(),
             );
         });
 
-        it('should create c-token ATA for PDA owner with allowOwnerOffCurve=true', async () => {
+        it('should create light-token ATA for PDA owner with allowOwnerOffCurve=true', async () => {
             const [pdaOwner] = PublicKey.findProgramAddressSync(
-                [Buffer.from('test-pda-ctoken')],
+                [Buffer.from('test-pda-light-token')],
                 SystemProgram.programId,
             );
 
             const expectedAddress = getAssociatedTokenAddressInterface(
-                ctokenMint,
+                lightTokenMint,
                 pdaOwner,
                 true,
                 LIGHT_TOKEN_PROGRAM_ID,
@@ -535,7 +539,7 @@ describe('getOrCreateAtaInterface', () => {
             const account = await getOrCreateAtaInterface(
                 rpc,
                 payer,
-                ctokenMint,
+                lightTokenMint,
                 pdaOwner,
                 true,
                 undefined,
@@ -549,7 +553,7 @@ describe('getOrCreateAtaInterface', () => {
             expect(account.parsed.owner.toBase58()).toBe(pdaOwner.toBase58());
         });
 
-        it('should handle c-token hot ATA with balance', async () => {
+        it('should handle light-token hot ATA with balance', async () => {
             // Create a fresh mint and owner for this test
             const mintSigner = Keypair.generate();
             const testMintAuth = Keypair.generate();
@@ -583,7 +587,7 @@ describe('getOrCreateAtaInterface', () => {
                 LIGHT_TOKEN_PROGRAM_ID,
             );
 
-            // Note: Minting to c-token hot accounts uses mintToInterface which
+            // Note: Minting to light-token hot accounts uses mintToInterface which
             // requires the mint to be registered. We just verify the account exists.
             const account = await getOrCreateAtaInterface(
                 rpc,
@@ -807,7 +811,7 @@ describe('getOrCreateAtaInterface', () => {
     });
 
     describe('default programId (LIGHT_TOKEN_PROGRAM_ID)', () => {
-        let ctokenMint: PublicKey;
+        let lightTokenMint: PublicKey;
 
         beforeAll(async () => {
             const mintAuthority = Keypair.generate();
@@ -818,25 +822,25 @@ describe('getOrCreateAtaInterface', () => {
                 null,
                 9,
             );
-            ctokenMint = result.mint;
+            lightTokenMint = result.mint;
         });
 
         it('should default to LIGHT_TOKEN_PROGRAM_ID when programId not specified', async () => {
             const owner = Keypair.generate();
 
             const expectedAddress = getAssociatedTokenAddressSync(
-                ctokenMint,
+                lightTokenMint,
                 owner.publicKey,
                 false,
                 LIGHT_TOKEN_PROGRAM_ID,
-                LIGHT_TOKEN_PROGRAM_ID, // c-token uses LIGHT_TOKEN_PROGRAM_ID as ATA program
+                LIGHT_TOKEN_PROGRAM_ID, // light-token uses LIGHT_TOKEN_PROGRAM_ID as ATA program
             );
 
             // Call without specifying programId
             const account = await getOrCreateAtaInterface(
                 rpc,
                 payer,
-                ctokenMint,
+                lightTokenMint,
                 owner.publicKey,
             );
 
@@ -910,7 +914,7 @@ describe('getOrCreateAtaInterface', () => {
             );
         });
 
-        it('should be idempotent for c-token', async () => {
+        it('should be idempotent for light-token', async () => {
             const mintSigner = Keypair.generate();
             const testMintAuth = Keypair.generate();
             const [testMint] = findMintAddress(mintSigner.publicKey);
@@ -982,9 +986,9 @@ describe('getOrCreateAtaInterface', () => {
                 TOKEN_2022_PROGRAM_ID,
             );
 
-            // Create c-token mint
+            // Create light-token mint
             const mintSigner = Keypair.generate();
-            const [ctokenMint] = findMintAddress(mintSigner.publicKey);
+            const [lightTokenMint] = findMintAddress(mintSigner.publicKey);
             await createMintInterface(
                 rpc,
                 payer,
@@ -1017,10 +1021,10 @@ describe('getOrCreateAtaInterface', () => {
                 TOKEN_2022_PROGRAM_ID,
             );
 
-            const ctokenAccount = await getOrCreateAtaInterface(
+            const lightTokenAccount = await getOrCreateAtaInterface(
                 rpc,
                 payer,
-                ctokenMint,
+                lightTokenMint,
                 owner.publicKey,
                 false,
                 undefined,
@@ -1033,17 +1037,17 @@ describe('getOrCreateAtaInterface', () => {
                 t22Account.parsed.address.toBase58(),
             );
             expect(splAccount.parsed.address.toBase58()).not.toBe(
-                ctokenAccount.parsed.address.toBase58(),
+                lightTokenAccount.parsed.address.toBase58(),
             );
             expect(t22Account.parsed.address.toBase58()).not.toBe(
-                ctokenAccount.parsed.address.toBase58(),
+                lightTokenAccount.parsed.address.toBase58(),
             );
 
             // Verify each account's mint matches
             expect(splAccount.parsed.mint.toBase58()).toBe(splMint.toBase58());
             expect(t22Account.parsed.mint.toBase58()).toBe(t22Mint.toBase58());
-            expect(ctokenAccount.parsed.mint.toBase58()).toBe(
-                ctokenMint.toBase58(),
+            expect(lightTokenAccount.parsed.mint.toBase58()).toBe(
+                lightTokenMint.toBase58(),
             );
         });
     });

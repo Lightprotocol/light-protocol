@@ -87,7 +87,7 @@ export async function getOrCreateAtaInterface(
     );
 }
 
-/** Helper to check if owner is a Signer (has both publicKey and secretKey) */
+/** @internal */
 function isSigner(owner: PublicKey | Signer): owner is Signer {
     // Check for both publicKey and secretKey properties
     // A proper Signer (like Keypair) has secretKey as Uint8Array
@@ -101,7 +101,7 @@ function isSigner(owner: PublicKey | Signer): owner is Signer {
     );
 }
 
-/** Helper to get PublicKey from owner (which may be Signer or PublicKey) */
+/** @internal */
 function getOwnerPublicKey(owner: PublicKey | Signer): PublicKey {
     return isSigner(owner) ? owner.publicKey : owner;
 }
@@ -134,7 +134,7 @@ export async function _getOrCreateAtaInterface(
     // For light-token, use getAtaInterface which properly aggregates hot+cold balances
     // When wrap=true (unified path), also includes SPL/T22 balances
     if (programId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
-        return getOrCreateCTokenAta(
+        return getOrCreateLightTokenAta(
             rpc,
             payer,
             mint,
@@ -174,7 +174,7 @@ export async function _getOrCreateAtaInterface(
  *
  * @internal
  */
-async function getOrCreateCTokenAta(
+async function getOrCreateLightTokenAta(
     rpc: Rpc,
     payer: Signer,
     mint: PublicKey,
@@ -208,7 +208,7 @@ async function getOrCreateCTokenAta(
         // Check if we have a hot account
         hasHotAccount =
             accountInterface._sources?.some(
-                s => s.type === TokenAccountSourceType.CTokenHot,
+                s => s.type === TokenAccountSourceType.LightTokenHot,
             ) ?? false;
     } catch (error: unknown) {
         if (
@@ -216,7 +216,7 @@ async function getOrCreateCTokenAta(
             error instanceof TokenInvalidAccountOwnerError
         ) {
             // No account found (neither hot nor cold), create hot associated token account
-            await createCTokenAtaIdempotent(
+            await createLightTokenAtaIdempotent(
                 rpc,
                 payer,
                 mint,
@@ -244,7 +244,7 @@ async function getOrCreateCTokenAta(
 
     // If we only have cold balance (no hot associated token account), create the hot associated token account first
     if (!hasHotAccount) {
-        await createCTokenAtaIdempotent(
+        await createLightTokenAtaIdempotent(
             rpc,
             payer,
             mint,
@@ -262,7 +262,7 @@ async function getOrCreateCTokenAta(
         const sources = accountInterface._sources ?? [];
         const hasCold = sources.some(
             s =>
-                s.type === TokenAccountSourceType.CTokenCold &&
+                s.type === TokenAccountSourceType.LightTokenCold &&
                 s.amount > BigInt(0),
         );
         const hasSplToWrap =
@@ -324,7 +324,7 @@ async function getOrCreateCTokenAta(
  * Create light-token associated token account idempotently.
  * @internal
  */
-async function createCTokenAtaIdempotent(
+async function createLightTokenAtaIdempotent(
     rpc: Rpc,
     payer: Signer,
     mint: PublicKey,

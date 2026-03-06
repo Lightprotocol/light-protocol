@@ -37,7 +37,10 @@ featureFlags.version = VERSION.V2;
 
 const TEST_TOKEN_DECIMALS = 9;
 
-async function getCTokenBalance(rpc: Rpc, address: PublicKey): Promise<bigint> {
+async function getLightTokenBalance(
+    rpc: Rpc,
+    address: PublicKey,
+): Promise<bigint> {
     const accountInfo = await rpc.getAccountInfo(address);
     if (!accountInfo) return BigInt(0);
     return accountInfo.data.readBigUInt64LE(64);
@@ -84,7 +87,7 @@ describe('loadAta - All Sources Combined', () => {
         tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
     }, 60_000);
 
-    it('should load SPL + ctoken-cold all at once', async () => {
+    it('should load SPL + light-token-cold all at once', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
 
         const splAta = await createAssociatedTokenAccount(
@@ -127,13 +130,13 @@ describe('loadAta - All Sources Combined', () => {
             selectTokenPoolInfo(tokenPoolInfos),
         );
 
-        const ctokenAta = getAssociatedTokenAddressInterfaceUnified(
+        const lightTokenAta = getAssociatedTokenAddressInterfaceUnified(
             mint,
             owner.publicKey,
         );
-        await loadAtaUnified(rpc, ctokenAta, owner, mint);
+        await loadAtaUnified(rpc, lightTokenAta, owner, mint);
 
-        const hotBalance = await getCTokenBalance(rpc, ctokenAta);
+        const hotBalance = await getLightTokenBalance(rpc, lightTokenAta);
         expect(hotBalance).toBe(BigInt(3000));
 
         const splBalance = (await getAccount(rpc, splAta)).amount;
@@ -209,13 +212,13 @@ describe('loadAta - Export Path Verification', () => {
             selectTokenPoolInfosForDecompression(tokenPoolInfos, bn(1500)),
         );
 
-        const ctokenAta = getAssociatedTokenAddressInterface(
+        const lightTokenAta = getAssociatedTokenAddressInterface(
             mint,
             owner.publicKey,
         );
         const signature = await loadAtaStandard(
             rpc,
-            ctokenAta,
+            lightTokenAta,
             owner,
             mint,
             undefined,
@@ -229,7 +232,7 @@ describe('loadAta - Export Path Verification', () => {
         const splBalance = (await getAccount(rpc, splAta)).amount;
         expect(splBalance).toBe(BigInt(0));
 
-        const hotBalance = await getCTokenBalance(rpc, ctokenAta);
+        const hotBalance = await getLightTokenBalance(rpc, lightTokenAta);
         expect(hotBalance).toBe(BigInt(1500));
     });
 
@@ -265,16 +268,16 @@ describe('loadAta - Export Path Verification', () => {
             selectTokenPoolInfosForDecompression(tokenPoolInfos, bn(1200)),
         );
 
-        const ctokenAta = getAssociatedTokenAddressInterfaceUnified(
+        const lightTokenAta = getAssociatedTokenAddressInterfaceUnified(
             mint,
             owner.publicKey,
         );
-        await loadAtaUnified(rpc, ctokenAta, owner, mint);
+        await loadAtaUnified(rpc, lightTokenAta, owner, mint);
 
         const splBalance = (await getAccount(rpc, splAta)).amount;
         expect(splBalance).toBe(BigInt(0));
 
-        const hotBalance = await getCTokenBalance(rpc, ctokenAta);
+        const hotBalance = await getLightTokenBalance(rpc, lightTokenAta);
         expect(hotBalance).toBe(BigInt(1200));
     });
 });
@@ -334,7 +337,7 @@ describe('loadAta - Payer Handling', () => {
 
         expect(signature).not.toBeNull();
 
-        const hotBalance = await getCTokenBalance(rpc, ata);
+        const hotBalance = await getLightTokenBalance(rpc, ata);
         expect(hotBalance).toBe(BigInt(1000));
     });
 
@@ -357,7 +360,7 @@ describe('loadAta - Payer Handling', () => {
 
         expect(signature).not.toBeNull();
 
-        const hotBalance = await getCTokenBalance(rpc, ata);
+        const hotBalance = await getLightTokenBalance(rpc, ata);
         expect(hotBalance).toBe(BigInt(800));
     });
 });
@@ -416,7 +419,7 @@ describe('loadAta - Idempotency', () => {
         const sig3 = await loadAtaStandard(rpc, ata, owner, mint);
         expect(sig3).toBeNull();
 
-        const hotBalance = await getCTokenBalance(rpc, ata);
+        const hotBalance = await getLightTokenBalance(rpc, ata);
         expect(hotBalance).toBe(BigInt(2000));
     });
 });

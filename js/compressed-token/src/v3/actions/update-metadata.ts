@@ -20,6 +20,7 @@ import {
     createRemoveMetadataKeyInstruction,
 } from '../instructions/update-metadata';
 import { getMintInterface } from '../get-mint-interface';
+import { ERR_MINT_MISSING_TOKEN_METADATA } from '../errors';
 
 /**
  * Update a metadata field on a light-token mint.
@@ -56,7 +57,7 @@ export async function updateMetadataField(
     );
 
     if (!mintInterface.tokenMetadata || !mintInterface.merkleContext) {
-        throw new Error('Mint does not have TokenMetadata extension');
+        throw new Error(ERR_MINT_MISSING_TOKEN_METADATA);
     }
 
     // When light mint account exists (decompressed), no validity proof needed - program reads from light mint account
@@ -134,7 +135,7 @@ export async function updateMetadataAuthority(
     );
 
     if (!mintInterface.tokenMetadata || !mintInterface.merkleContext) {
-        throw new Error('Mint does not have TokenMetadata extension');
+        throw new Error(ERR_MINT_MISSING_TOKEN_METADATA);
     }
 
     // When light mint account exists (decompressed), no validity proof needed - program reads from light mint account
@@ -212,7 +213,7 @@ export async function removeMetadataKey(
     );
 
     if (!mintInterface.tokenMetadata || !mintInterface.merkleContext) {
-        throw new Error('Mint does not have TokenMetadata extension');
+        throw new Error(ERR_MINT_MISSING_TOKEN_METADATA);
     }
 
     // When light mint account exists (decompressed), no validity proof needed - program reads from light mint account

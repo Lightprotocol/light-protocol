@@ -415,22 +415,11 @@ export {
     // Note: Account is already exported from @solana/spl-token via get-account-interface
     AccountState,
     ParsedTokenAccount,
-    parseCTokenHot,
-    parseCTokenCold,
+    parseLightTokenHot,
+    parseLightTokenCold,
     toAccountInfo,
     convertTokenDataToAccount,
 } from '../get-account-interface';
-
-export {
-    createLoadAccountsParams,
-    createLoadAtaInstructionsFromInterface,
-    calculateCompressibleLoadComputeUnits,
-    CompressibleAccountInput,
-    ParsedAccountInfoInterface,
-    CompressibleLoadParams,
-    PackedCompressedAccount,
-    LoadResult,
-} from '../actions/load-ata';
 
 export { InterfaceOptions, sliceLast } from '../actions/transfer-interface';
 
@@ -447,8 +436,8 @@ export {
     // Instructions
     createMintInstruction,
     createTokenMetadata,
-    createAssociatedCTokenAccountInstruction,
-    createAssociatedCTokenAccountIdempotentInstruction,
+    createAssociatedLightTokenAccountInstruction,
+    createAssociatedLightTokenAccountIdempotentInstruction,
     createAssociatedTokenAccountInterfaceInstruction,
     createAssociatedTokenAccountInterfaceIdempotentInstruction,
     createAtaInterfaceIdempotentInstruction,
@@ -462,13 +451,14 @@ export {
     createRemoveMetadataKeyInstruction,
     createWrapInstruction,
     createUnwrapInstruction,
-    createDecompressInterfaceInstruction,
     createLightTokenTransferInstruction,
+    createLightTokenFreezeAccountInstruction,
+    createLightTokenThawAccountInstruction,
     // Types
     TokenMetadataInstructionData,
     CompressibleConfig,
-    CTokenConfig,
-    CreateAssociatedCTokenAccountParams,
+    LightTokenConfig,
+    CreateAssociatedLightTokenAccountParams,
     // Constants for rent sponsor
     DEFAULT_COMPRESSIBLE_CONFIG,
     // Actions
@@ -476,10 +466,9 @@ export {
     createAtaInterface,
     createAtaInterfaceIdempotent,
     // getOrCreateAtaInterface is defined locally with unified behavior
-    decompressInterface,
     wrap,
     // unwrap and createUnwrapInstructions are defined locally with unified behavior
-    mintTo as mintToCToken,
+    mintTo as mintToLightToken,
     mintToCompressed,
     mintToInterface,
     updateMintAuthority,

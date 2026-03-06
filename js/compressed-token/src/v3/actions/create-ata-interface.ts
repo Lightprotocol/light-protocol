@@ -16,13 +16,13 @@ import {
 import {
     createAssociatedTokenAccountInterfaceInstruction,
     createAssociatedTokenAccountInterfaceIdempotentInstruction,
-    CTokenConfig,
+    LightTokenConfig,
 } from '../instructions/create-ata-interface';
 import { getAtaProgramId } from '../ata-utils';
 import { getAssociatedTokenAddressInterface } from '../get-associated-token-address-interface';
 
 // Re-export types for backwards compatibility
-export type { CTokenConfig };
+export type { LightTokenConfig };
 
 /**
  * Create an associated token account for SPL/T22/light-token. Defaults to
@@ -38,7 +38,7 @@ export type { CTokenConfig };
  *                                  LIGHT_TOKEN_PROGRAM_ID)
  * @param associatedTokenProgramId  associated token account program ID
  *                                  (auto-derived if not provided)
- * @param ctokenConfig              Optional rent config
+ * @param lightTokenConfig              Optional rent config
  * @returns Address of the new associated token account
  */
 export async function createAtaInterface(
@@ -50,7 +50,7 @@ export async function createAtaInterface(
     confirmOptions?: ConfirmOptions,
     programId: PublicKey = LIGHT_TOKEN_PROGRAM_ID,
     associatedTokenProgramId?: PublicKey,
-    ctokenConfig?: CTokenConfig,
+    lightTokenConfig?: LightTokenConfig,
 ): Promise<PublicKey> {
     assertBetaEnabled();
 
@@ -72,7 +72,7 @@ export async function createAtaInterface(
         mint,
         programId,
         effectiveAtaProgramId,
-        ctokenConfig,
+        lightTokenConfig,
     );
 
     if (programId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
@@ -113,7 +113,7 @@ export async function createAtaInterface(
  *                                  LIGHT_TOKEN_PROGRAM_ID)
  * @param associatedTokenProgramId  associated token account program ID
  *                                  (auto-derived if not provided)
- * @param ctokenConfig              Optional light-token-specific configuration
+ * @param lightTokenConfig              Optional light-token-specific configuration
  *
  * @returns Address of the associated token account
  */
@@ -126,7 +126,7 @@ export async function createAtaInterfaceIdempotent(
     confirmOptions?: ConfirmOptions,
     programId: PublicKey = LIGHT_TOKEN_PROGRAM_ID,
     associatedTokenProgramId?: PublicKey,
-    ctokenConfig?: CTokenConfig,
+    lightTokenConfig?: LightTokenConfig,
 ): Promise<PublicKey> {
     assertBetaEnabled();
 
@@ -148,7 +148,7 @@ export async function createAtaInterfaceIdempotent(
         mint,
         programId,
         effectiveAtaProgramId,
-        ctokenConfig,
+        lightTokenConfig,
     );
 
     if (programId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
