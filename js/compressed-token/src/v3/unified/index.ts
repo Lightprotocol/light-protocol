@@ -452,6 +452,8 @@ export {
     createWrapInstruction,
     createUnwrapInstruction,
     createLightTokenTransferInstruction,
+    createLightTokenFreezeAccountInstruction,
+    createLightTokenThawAccountInstruction,
     // Types
     TokenMetadataInstructionData,
     CompressibleConfig,

@@ -38,30 +38,14 @@ import {
     createLightTokenFreezeAccountInstruction,
     createLightTokenThawAccountInstruction,
 } from '../../src/v3/instructions/freeze-thaw';
+import {
+    getLightTokenBalance,
+    getLightTokenState,
+} from './light-token-account-helpers';
 
 featureFlags.version = VERSION.V2;
 
 const TEST_TOKEN_DECIMALS = 9;
-
-/** Read the raw token account state byte at offset 108 (AccountState field). */
-async function getLightTokenState(
-    rpc: Rpc,
-    account: PublicKey,
-): Promise<number> {
-    const info = await rpc.getAccountInfo(account);
-    if (!info) throw new Error(`Account not found: ${account.toBase58()}`);
-    return info.data[108];
-}
-
-/** Read the amount from a light-token account (LE u64 at offset 64). */
-async function getLightTokenBalance(
-    rpc: Rpc,
-    address: PublicKey,
-): Promise<bigint> {
-    const info = await rpc.getAccountInfo(address);
-    if (!info) return BigInt(0);
-    return info.data.readBigUInt64LE(64);
-}
 
 /** Freeze a hot light-token account using the native LightTokenFreezeAccount instruction. */
 async function freezeLightTokenAccount(
@@ -643,7 +627,7 @@ describe('createUnwrapInstructions - freeze interactions', () => {
         expect(hotBalance).toBe(BigInt(300));
     }, 90_000);
 
-    it('should throw "Insufficient" when requested amount exceeds unfrozen balance (partial freeze)', async () => {
+    it('should throw when unwrapping from fully frozen account (all balance frozen)', async () => {
         const owner = await newAccountWithLamports(rpc, 1e9);
         const lightTokenAta = getAssociatedTokenAddressInterface(
             mint,

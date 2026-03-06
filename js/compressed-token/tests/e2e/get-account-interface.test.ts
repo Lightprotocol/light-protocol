@@ -950,7 +950,7 @@ describe('get-account-interface', () => {
                 );
             }, 120_000);
 
-            it('should choose canonical delegate by largest aggregated delegated amount', async () => {
+            it('should keep hot delegate as canonical when cold has a different delegate', async () => {
                 const owner = await newAccountWithLamports(rpc, 1e9);
                 const delegateA = await newAccountWithLamports(rpc, 1e9);
                 const delegateB = await newAccountWithLamports(rpc, 1e9);
@@ -1026,10 +1026,10 @@ describe('get-account-interface', () => {
                     lightTokenMint,
                 );
                 expect(result.parsed.delegate?.toBase58()).toBe(
-                    delegateB.publicKey.toBase58(),
+                    delegateA.publicKey.toBase58(),
                 );
                 expect(result.parsed.delegatedAmount).toBe(
-                    BigInt(coldAmountB.toString()),
+                    hotDelegatedA,
                 );
             }, 120_000);
 

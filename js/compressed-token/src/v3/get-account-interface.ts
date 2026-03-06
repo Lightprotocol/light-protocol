@@ -905,48 +905,58 @@ export function buildAccountInterfaceFromSources(
 
     const hasDelegate = sources.some(src => src.parsed.delegate !== null);
     const anyFrozen = sources.some(src => src.parsed.isFrozen);
+    const hasColdSource = sources.some(src => isColdSourceType(src.type));
     const needsConsolidation = sources.length > 1;
-    const delegateTotals = new Map<
-        string,
-        { delegate: PublicKey; total: bigint; firstIndex: number }
-    >();
-    for (let i = 0; i < sources.length; i++) {
-        const src = sources[i];
-        const delegate = src.parsed.delegate;
-        if (!delegate) continue;
-        const key = delegate.toBase58();
+    const delegatedContribution = (src: TokenAccountSource): bigint => {
         const delegated = src.parsed.delegatedAmount ?? src.amount;
-        const spendable = src.amount < delegated ? src.amount : delegated;
-        const existing = delegateTotals.get(key);
-        if (existing) {
-            existing.total += spendable;
-        } else {
-            delegateTotals.set(key, {
-                delegate,
-                total: spendable,
-                firstIndex: i,
-            });
-        }
-    }
+        return src.amount < delegated ? src.amount : delegated;
+    };
+
+    const sumForDelegate = (
+        candidate: PublicKey,
+        scope: (src: TokenAccountSource) => boolean,
+    ): bigint =>
+        sources.reduce((sum, src) => {
+            if (!scope(src)) return sum;
+            const delegate = src.parsed.delegate;
+            if (!delegate || !delegate.equals(candidate)) return sum;
+            return sum + delegatedContribution(src);
+        }, BigInt(0));
+
+    const hotDelegatedSource = sources.find(
+        src => !isColdSourceType(src.type) && src.parsed.delegate !== null,
+    );
+    const coldDelegatedSources = sources.filter(
+        src => isColdSourceType(src.type) && src.parsed.delegate !== null,
+    );
+
     let canonicalDelegate: PublicKey | null = null;
     let canonicalDelegatedAmount = BigInt(0);
-    let canonicalFirstIndex = Number.MAX_SAFE_INTEGER;
-    for (const { delegate, total, firstIndex } of delegateTotals.values()) {
-        if (
-            total > canonicalDelegatedAmount ||
-            (total === canonicalDelegatedAmount &&
-                firstIndex < canonicalFirstIndex)
-        ) {
-            canonicalDelegate = delegate;
-            canonicalDelegatedAmount = total;
-            canonicalFirstIndex = firstIndex;
-        }
+
+    if (hotDelegatedSource?.parsed.delegate) {
+        // If any hot source is delegated, it always determines canonical delegate.
+        // Cold delegates only contribute when they match this hot delegate.
+        canonicalDelegate = hotDelegatedSource.parsed.delegate;
+        canonicalDelegatedAmount = sumForDelegate(
+            canonicalDelegate,
+            () => true,
+        );
+    } else if (coldDelegatedSources.length > 0) {
+        // No hot delegate: canonical delegate is taken from the most recent
+        // delegated cold source in source order (source[0] is most recent).
+        canonicalDelegate = coldDelegatedSources[0].parsed.delegate!;
+        canonicalDelegatedAmount = sumForDelegate(
+            canonicalDelegate,
+            src => isColdSourceType(src.type),
+        );
     }
 
     const unifiedAccount: Account = {
         ...primarySource.parsed,
         address: canonicalAddress,
         amount: totalAmount,
+        // Synthetic ATA view models post-load state; any cold source implies initialized.
+        isInitialized: primarySource.parsed.isInitialized || hasColdSource,
         delegate: canonicalDelegate,
         delegatedAmount: canonicalDelegatedAmount,
         ...(anyFrozen ? { state: AccountState.Frozen, isFrozen: true } : {}),

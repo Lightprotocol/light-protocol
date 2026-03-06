@@ -1,10 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import {
-    PublicKey,
-    Keypair,
-    Signer,
-    ComputeBudgetProgram,
-} from '@solana/web3.js';
+import { PublicKey, Keypair, Signer } from '@solana/web3.js';
 import {
     Rpc,
     newAccountWithLamports,
@@ -17,10 +12,7 @@ import { createMintInterface } from '../../src/v3/actions';
 import { mintTo } from '../../src/v3/actions/mint-to';
 import { getMintInterface } from '../../src/v3/get-mint-interface';
 import { createAssociatedLightTokenAccount } from '../../src/v3/actions/create-associated-light-token';
-import {
-    getAssociatedLightTokenAddress,
-    findMintAddress,
-} from '../../src/v3/derivation';
+import { getAssociatedLightTokenAddress } from '../../src/v3/derivation';
 
 featureFlags.version = VERSION.V2;
 

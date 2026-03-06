@@ -68,7 +68,6 @@ export async function transferInterface(
             wrap,
             programId,
             ensureRecipientAta: true,
-            owner: options?.owner,
         },
     );
 

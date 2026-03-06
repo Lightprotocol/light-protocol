@@ -6,7 +6,7 @@ import {
     createRpc,
     VERSION,
     featureFlags,
-    getDefaultAddressTreeInfo,
+    LIGHT_TOKEN_PROGRAM_ID,
 } from '@lightprotocol/stateless.js';
 import { createMintInterface } from '../../src/v3/actions';
 import {
@@ -14,8 +14,10 @@ import {
     createAssociatedLightTokenAccountIdempotent,
 } from '../../src/v3/actions/create-associated-light-token';
 import { createTokenMetadata } from '../../src/v3/instructions';
-import { getAssociatedLightTokenAddress } from '../../src/v3/derivation';
-import { findMintAddress } from '../../src/v3/derivation';
+import {
+    getAssociatedLightTokenAddress,
+    findMintAddress,
+} from '../../src/v3/derivation';
 
 featureFlags.version = VERSION.V2;
 
@@ -33,7 +35,6 @@ describe('createAssociatedLightTokenAccount', () => {
         const mintAuthority = Keypair.generate();
         const owner = Keypair.generate();
         const decimals = 9;
-        const addressTreeInfo = getDefaultAddressTreeInfo();
         const [mintPda] = findMintAddress(mintSigner.publicKey);
 
         const { transactionSignature: createMintSig } =
@@ -63,7 +64,7 @@ describe('createAssociatedLightTokenAccount', () => {
         const accountInfo = await rpc.getAccountInfo(ataAddress);
         expect(accountInfo).not.toBe(null);
         expect(accountInfo?.owner.toString()).toBe(
-            'cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m',
+            LIGHT_TOKEN_PROGRAM_ID.toBase58(),
         );
     });
 
@@ -72,7 +73,6 @@ describe('createAssociatedLightTokenAccount', () => {
         const mintAuthority = Keypair.generate();
         const owner = Keypair.generate();
         const decimals = 6;
-        const addressTreeInfo = getDefaultAddressTreeInfo();
         const [mintPda] = findMintAddress(mintSigner.publicKey);
 
         const { transactionSignature: createMintSig } =
@@ -108,7 +108,6 @@ describe('createAssociatedLightTokenAccount', () => {
         const mintAuthority = Keypair.generate();
         const owner = Keypair.generate();
         const decimals = 9;
-        const addressTreeInfo = getDefaultAddressTreeInfo();
         const [mintPda] = findMintAddress(mintSigner.publicKey);
 
         const { transactionSignature: createMintSig } =
@@ -155,7 +154,6 @@ describe('createAssociatedLightTokenAccount', () => {
         const owner2 = Keypair.generate();
         const owner3 = Keypair.generate();
         const decimals = 9;
-        const addressTreeInfo = getDefaultAddressTreeInfo();
         const [mintPda] = findMintAddress(mintSigner.publicKey);
 
         const { transactionSignature: createMintSig } =
@@ -217,7 +215,6 @@ describe('createAssociatedLightTokenAccount', () => {
         const mintAuthority = Keypair.generate();
         const owner = Keypair.generate();
         const decimals = 6;
-        const addressTreeInfo = getDefaultAddressTreeInfo();
         const [mintPda] = findMintAddress(mintSigner.publicKey);
 
         const { transactionSignature: createMintSig } =
@@ -277,7 +274,6 @@ describe('createMint -> createAssociatedLightTokenAccount flow', () => {
         const mintSigner = Keypair.generate();
         const mintAuthority = Keypair.generate();
         const decimals = 9;
-        const addressTreeInfo = getDefaultAddressTreeInfo();
         const [mintPda] = findMintAddress(mintSigner.publicKey);
 
         const metadata = createTokenMetadata(
@@ -338,10 +334,10 @@ describe('createMint -> createAssociatedLightTokenAccount flow', () => {
         expect(account1Info).not.toBe(null);
         expect(account2Info).not.toBe(null);
         expect(account1Info?.owner.toString()).toBe(
-            'cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m',
+            LIGHT_TOKEN_PROGRAM_ID.toBase58(),
         );
         expect(account2Info?.owner.toString()).toBe(
-            'cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m',
+            LIGHT_TOKEN_PROGRAM_ID.toBase58(),
         );
     });
 
@@ -351,7 +347,6 @@ describe('createMint -> createAssociatedLightTokenAccount flow', () => {
         const freezeAuthority = Keypair.generate();
         const owner = Keypair.generate();
         const decimals = 6;
-        const addressTreeInfo = getDefaultAddressTreeInfo();
         const [mintPda] = findMintAddress(mintSigner.publicKey);
 
         const { mint, transactionSignature: createMintSig } =
@@ -382,7 +377,6 @@ describe('createMint -> createAssociatedLightTokenAccount flow', () => {
     it('should verify different mints produce different ATAs for same owner', async () => {
         const owner = Keypair.generate();
         const decimals = 9;
-        const addressTreeInfo = getDefaultAddressTreeInfo();
 
         const mintSigner1 = Keypair.generate();
         const mintAuthority1 = Keypair.generate();
@@ -447,7 +441,6 @@ describe('createMint -> createAssociatedLightTokenAccount flow', () => {
         const mintSigner = Keypair.generate();
         const mintAuthority = Keypair.generate();
         const decimals = 9;
-        const addressTreeInfo = getDefaultAddressTreeInfo();
         const [mintPda] = findMintAddress(mintSigner.publicKey);
 
         const { transactionSignature: createMintSig } =
@@ -460,8 +453,6 @@ describe('createMint -> createAssociatedLightTokenAccount flow', () => {
                 mintSigner,
             );
         await rpc.confirmTransaction(createMintSig, 'confirmed');
-
-        await new Promise(resolve => setTimeout(resolve, 1000));
 
         const owner = Keypair.generate();
         const ataAddress = await createAssociatedLightTokenAccount(
@@ -483,7 +474,6 @@ describe('createMint -> createAssociatedLightTokenAccount flow', () => {
         const mintAuthority = Keypair.generate();
         const owner = Keypair.generate();
         const decimals = 6;
-        const addressTreeInfo = getDefaultAddressTreeInfo();
         const [mintPda] = findMintAddress(mintSigner.publicKey);
 
         const { transactionSignature: createMintSig } =
@@ -531,12 +521,10 @@ describe('createMint -> createAssociatedLightTokenAccount flow', () => {
         const [expectedAddress, bump] = PublicKey.findProgramAddressSync(
             [
                 owner.toBuffer(),
-                new PublicKey(
-                    'cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m',
-                ).toBuffer(),
+                LIGHT_TOKEN_PROGRAM_ID.toBuffer(),
                 mint.toBuffer(),
             ],
-            new PublicKey('cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m'),
+            LIGHT_TOKEN_PROGRAM_ID,
         );
 
         expect(ataAddress.toString()).toBe(expectedAddress.toString());

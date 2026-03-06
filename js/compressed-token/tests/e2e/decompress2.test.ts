@@ -20,6 +20,7 @@ import {
 } from '../../src/utils/get-token-pool-infos';
 import { getAssociatedTokenAddressInterface, loadAta } from '../../src/';
 import { createDecompressInterfaceInstruction } from '../../src/v3/instructions/create-decompress-interface-instruction';
+import { getLightTokenBalance } from './light-token-account-helpers';
 
 featureFlags.version = VERSION.V2;
 
@@ -110,7 +111,7 @@ describe('decompressInterface', () => {
 
             const ataInfo = await rpc.getAccountInfo(lightTokenAta);
             expect(ataInfo).not.toBeNull();
-            const hotBalance = ataInfo!.data.readBigUInt64LE(64);
+            const hotBalance = await getLightTokenBalance(rpc, lightTokenAta);
             expect(hotBalance).toBe(BigInt(5000));
 
             // Verify compressed balance is gone
@@ -213,7 +214,7 @@ describe('decompressInterface', () => {
 
             const ataInfo = await rpc.getAccountInfo(lightTokenAta);
             expect(ataInfo).not.toBeNull();
-            const hotBalance = ataInfo!.data.readBigUInt64LE(64);
+            const hotBalance = await getLightTokenBalance(rpc, lightTokenAta);
             expect(hotBalance).toBe(BigInt(6000));
 
             // Verify all compressed accounts are gone
@@ -251,8 +252,9 @@ describe('decompressInterface', () => {
             );
 
             expect(signature).not.toBeNull();
-            const ataInfo = await rpc.getAccountInfo(lightTokenAta);
-            expect(ataInfo!.data.readBigUInt64LE(64)).toBe(BigInt(100));
+            expect(await getLightTokenBalance(rpc, lightTokenAta)).toBe(
+                BigInt(100),
+            );
         });
 
         it('should create LightToken ATA if not exists', async () => {
@@ -290,7 +292,7 @@ describe('decompressInterface', () => {
 
             const afterInfo = await rpc.getAccountInfo(lightTokenAta);
             expect(afterInfo).not.toBeNull();
-            const hotBalance = afterInfo!.data.readBigUInt64LE(64);
+            const hotBalance = await getLightTokenBalance(rpc, lightTokenAta);
             expect(hotBalance).toBe(BigInt(1000));
         });
 
@@ -315,8 +317,9 @@ describe('decompressInterface', () => {
             );
             await loadAta(rpc, lightTokenAta, owner, mint, payer);
 
-            const midInfo = await rpc.getAccountInfo(lightTokenAta);
-            expect(midInfo!.data.readBigUInt64LE(64)).toBe(BigInt(2000));
+            expect(await getLightTokenBalance(rpc, lightTokenAta)).toBe(
+                BigInt(2000),
+            );
 
             await mintTo(
                 rpc,
@@ -331,8 +334,9 @@ describe('decompressInterface', () => {
 
             await loadAta(rpc, lightTokenAta, owner, mint, payer);
 
-            const afterInfo = await rpc.getAccountInfo(lightTokenAta);
-            expect(afterInfo!.data.readBigUInt64LE(64)).toBe(BigInt(5000));
+            expect(await getLightTokenBalance(rpc, lightTokenAta)).toBe(
+                BigInt(5000),
+            );
         });
     });
 
@@ -588,10 +592,10 @@ describe('decompressInterface', () => {
 
             expect(signature).not.toBeNull();
 
-            const lightTokenAtaInfo = await rpc.getAccountInfo(lightTokenAta);
-            expect(lightTokenAtaInfo).not.toBeNull();
-            const lightTokenBalance =
-                lightTokenAtaInfo!.data.readBigUInt64LE(64);
+            const lightTokenBalance = await getLightTokenBalance(
+                rpc,
+                lightTokenAta,
+            );
             expect(lightTokenBalance).toBe(BigInt(5000));
 
             const compressedAfter = await rpc.getCompressedTokenAccountsByOwner(
@@ -621,10 +625,10 @@ describe('decompressInterface', () => {
             );
             await loadAta(rpc, lightTokenAta, owner, mint, payer);
 
-            const lightTokenAtaInfo = await rpc.getAccountInfo(lightTokenAta);
-            expect(lightTokenAtaInfo).not.toBeNull();
-            const lightTokenBalance =
-                lightTokenAtaInfo!.data.readBigUInt64LE(64);
+            const lightTokenBalance = await getLightTokenBalance(
+                rpc,
+                lightTokenAta,
+            );
             expect(lightTokenBalance).toBe(BigInt(8000));
 
             const compressedAfter = await rpc.getCompressedTokenAccountsByOwner(

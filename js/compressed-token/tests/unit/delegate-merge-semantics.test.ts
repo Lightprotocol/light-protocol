@@ -13,9 +13,9 @@
  *         but NOT to D_hot's delegatedAmount. D_cold is never set.
  *
  *   - If hot has NO delegate:
- *       * The FIRST cold account whose CompressedOnly-TLV delegate is non-null
- *         is adopted as the hot's new delegate.
- *       * Its delegatedAmount is added to the hot's delegatedAmount.
+ *       * The most recent delegated cold source (source-order first) is adopted
+ *         as canonical delegate.
+ *       * delegatedAmount is the sum of all cold inputs for that delegate.
  *
  * These tests assert that buildAccountInterfaceFromSources produces the correct
  * synthetic account data that matches the post-decompress on-chain state,
@@ -412,10 +412,12 @@ describe('buildAccountInterfaceFromSources – delegate merge semantics', () => 
         expect(result._hasDelegate).toBe(false);
     });
 
-    it('three cold accounts: choose canonical delegate by highest aggregated delegated amount', () => {
+    it('three cold accounts: choose canonical delegate from most recent delegated cold source', () => {
         /**
          * Multiple cold accounts with mixed delegate state.
-         * Canonical delegate should be chosen by highest aggregated delegated amount.
+         * Canonical delegate should be chosen from the most recent delegated
+         * cold source in source order, and delegatedAmount should aggregate only
+         * that delegate across cold sources.
          */
         const user1 = Keypair.generate().publicKey;
         const user2 = Keypair.generate().publicKey;
@@ -444,13 +446,13 @@ describe('buildAccountInterfaceFromSources – delegate merge semantics', () => 
         const result = buildAccountInterfaceFromSources(sources, ata);
 
         expect(result.parsed.amount).toBe(6_000n);
-        expect(result.parsed.delegate!.toBase58()).toBe(user2.toBase58());
-        expect(result.parsed.delegatedAmount).toBe(2_000n);
+        expect(result.parsed.delegate!.toBase58()).toBe(user1.toBase58());
+        expect(result.parsed.delegatedAmount).toBe(1_000n);
         expect(result._hasDelegate).toBe(true);
         expect(result._needsConsolidation).toBe(true);
     });
 
-    it('cold-only with differing delegates: aggregate by delegate pubkey, pick max aggregate', () => {
+    it('cold-only with differing delegates: pick most recent delegate, aggregate only that delegate', () => {
         const user1 = Keypair.generate().publicKey;
         const user2 = Keypair.generate().publicKey;
         const sources: TokenAccountSource[] = [
@@ -475,7 +477,8 @@ describe('buildAccountInterfaceFromSources – delegate merge semantics', () => 
         ];
 
         const result = buildAccountInterfaceFromSources(sources, ata);
-        // user1 aggregate = 700 + 800 = 1500, user2 aggregate = 1200
+        // Most recent delegated cold source is delegate=user1 (first source).
+        // delegatedAmount aggregates all cold inputs for user1.
         expect(result.parsed.delegate!.toBase58()).toBe(user1.toBase58());
         expect(result.parsed.delegatedAmount).toBe(1500n);
     });
@@ -1103,7 +1106,7 @@ describe('buildAccountInterfaceFromSources – frozen source inflation', () => {
 
         expect(result._anyFrozen).toBe(true);
         expect(result._hasDelegate).toBe(true);
-        // Canonical delegate is selected by highest aggregated delegated amount.
+        // Canonical delegate follows hot-priority and cold-recency rules.
         expect(result.parsed.delegate!.toBase58()).toBe(user1.toBase58());
     });
 });
@@ -1391,7 +1394,7 @@ describe('spendableAmountForAuthority, isAuthorityForInterface, filterInterfaceF
         expect(filteredE.parsed.amount).toBe(0n);
     });
 
-    it('filterInterfaceForAuthority(delegate) on mixed delegates with no hot: winner delegate sources only', () => {
+    it('filterInterfaceForAuthority(delegate) on mixed delegates with no hot: most-recent delegate sources only', () => {
         const sources: TokenAccountSource[] = [
             coldWithOwner({
                 amount: 900n,
@@ -1411,7 +1414,7 @@ describe('spendableAmountForAuthority, isAuthorityForInterface, filterInterfaceF
         ];
         const iface = buildAccountInterfaceFromSources(sources, ata);
         (iface as AccountInterface)._owner = owner;
-        // delegateD aggregate (1500) wins over delegateE (1200)
+        // delegateD is selected because it is the most recent delegated cold source.
         expect(iface.parsed.delegate!.toBase58()).toBe(delegateD.toBase58());
         expect(iface.parsed.delegatedAmount).toBe(1500n);
 
