@@ -186,8 +186,6 @@ export async function createLoadAtaInstructions(
         throw e;
     }
 
-    assertNotFrozen(accountInterface, 'load');
-
     const isDelegate = !effectiveOwner.equals(owner);
     if (isDelegate) {
         if (!isAuthorityForInterface(accountInterface, owner)) {

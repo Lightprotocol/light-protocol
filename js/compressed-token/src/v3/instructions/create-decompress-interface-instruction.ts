@@ -65,7 +65,11 @@ function parseCompressedOnlyFromTlv(
                 31: 17,
             };
             const size = SIZES[disc];
-            if (size === undefined) return null;
+            if (size === undefined) {
+                throw new Error(
+                    `parseCompressedOnlyFromTlv: unknown TLV extension discriminant ${disc}`,
+                );
+            }
             offset += size;
         }
     } catch {

@@ -46,6 +46,10 @@ import {
     createLightTokenFreezeAccountInstruction,
     createLightTokenThawAccountInstruction,
 } from '../../src/v3/instructions/freeze-thaw';
+import {
+    getLightTokenBalance,
+    getLightTokenState,
+} from './light-token-account-helpers';
 
 featureFlags.version = VERSION.V2;
 
@@ -54,24 +58,6 @@ const TEST_TOKEN_DECIMALS = 9;
 // ---------------------------------------------------------------------------
 // Shared helpers
 // ---------------------------------------------------------------------------
-
-async function getLightTokenBalance(
-    rpc: Rpc,
-    address: PublicKey,
-): Promise<bigint> {
-    const info = await rpc.getAccountInfo(address);
-    if (!info) return BigInt(0);
-    return info.data.readBigUInt64LE(64);
-}
-
-async function getLightTokenState(
-    rpc: Rpc,
-    account: PublicKey,
-): Promise<number> {
-    const info = await rpc.getAccountInfo(account);
-    if (!info) throw new Error(`Account not found: ${account.toBase58()}`);
-    return info.data[108];
-}
 
 async function getCompressedBalance(
     rpc: Rpc,
