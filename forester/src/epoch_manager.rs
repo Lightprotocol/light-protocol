@@ -40,7 +40,7 @@ use solana_sdk::{
     transaction::TransactionError,
 };
 use tokio::{
-    sync::{broadcast, broadcast::error::RecvError, mpsc, oneshot, Mutex},
+    sync::{mpsc, oneshot, Mutex},
     task::JoinHandle,
     time::{sleep, Instant, MissedTickBehavior},
 };
@@ -305,7 +305,6 @@ pub struct EpochManager<R: Rpc + Indexer> {
     trees: Arc<Mutex<Vec<TreeAccounts>>>,
     slot_tracker: Arc<SlotTracker>,
     processing_epochs: Arc<DashMap<u64, Arc<AtomicBool>>>,
-    new_tree_sender: broadcast::Sender<TreeAccounts>,
     tx_cache: Arc<Mutex<ProcessedHashCache>>,
     ops_cache: Arc<Mutex<ProcessedHashCache>>,
     /// Proof caches for pre-warming during idle slots
@@ -339,7 +338,6 @@ impl<R: Rpc + Indexer> Clone for EpochManager<R> {
             trees: self.trees.clone(),
             slot_tracker: self.slot_tracker.clone(),
             processing_epochs: self.processing_epochs.clone(),
-            new_tree_sender: self.new_tree_sender.clone(),
             tx_cache: self.tx_cache.clone(),
             ops_cache: self.ops_cache.clone(),
             proof_caches: self.proof_caches.clone(),
@@ -368,7 +366,6 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         work_report_sender: mpsc::Sender<WorkReport>,
         trees: Vec<TreeAccounts>,
         slot_tracker: Arc<SlotTracker>,
-        new_tree_sender: broadcast::Sender<TreeAccounts>,
         tx_cache: Arc<Mutex<ProcessedHashCache>>,
         ops_cache: Arc<Mutex<ProcessedHashCache>>,
         compressible_tracker: Option<Arc<CTokenAccountTracker>>,
@@ -390,7 +387,6 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             trees: Arc::new(Mutex::new(trees)),
             slot_tracker,
             processing_epochs: Arc::new(DashMap::new()),
-            new_tree_sender,
             tx_cache,
             ops_cache,
             proof_caches: Arc::new(DashMap::new()),
@@ -430,9 +426,9 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             }
         });
 
-        let new_tree_handle = tokio::spawn({
+        let tree_discovery_handle = tokio::spawn({
             let self_clone = Arc::clone(&self);
-            async move { self_clone.handle_new_trees().await }
+            async move { self_clone.discover_trees_periodically().await }
         });
 
         let balance_check_handle = tokio::spawn({
@@ -443,7 +439,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         let _guard = scopeguard::guard(
             (
                 current_previous_handle,
-                new_tree_handle,
+                tree_discovery_handle,
                 balance_check_handle,
             ),
             |(h2, h3, h4)| {
@@ -594,48 +590,87 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         }
     }
 
-    async fn handle_new_trees(self: Arc<Self>) -> Result<()> {
-        let mut receiver = self.new_tree_sender.subscribe();
+    /// Periodically fetches trees from on-chain and adds newly discovered ones.
+    async fn discover_trees_periodically(self: Arc<Self>) -> Result<()> {
+        let interval_secs = self.config.general_config.tree_discovery_interval_seconds;
+        if interval_secs == 0 {
+            info!(event = "tree_discovery_disabled", run_id = %self.run_id, "Tree discovery disabled (interval=0)");
+            return Ok(());
+        }
+        let mut interval = tokio::time::interval(Duration::from_secs(interval_secs));
+        // Skip the first immediate tick — initial trees are already loaded at startup
+        interval.tick().await;
+
+        info!(
+            event = "tree_discovery_started",
+            run_id = %self.run_id,
+            interval_secs,
+            "Starting periodic tree discovery"
+        );
+
+        let mut group_authority: Option<Pubkey> = self.config.general_config.group_authority;
+
         loop {
-            match receiver.recv().await {
-                Ok(new_tree) => {
-                    info!(
-                        event = "new_tree_received",
-                        run_id = %self.run_id,
-                        tree = %new_tree.merkle_tree,
-                        tree_type = ?new_tree.tree_type,
-                        "Received new tree"
-                    );
-                    if let Err(e) = self.add_new_tree(new_tree).await {
-                        error!(
-                            event = "new_tree_add_failed",
-                            run_id = %self.run_id,
-                            error = ?e,
-                            "Failed to add new tree"
-                        );
-                        // Continue processing other trees instead of crashing
-                    }
+            interval.tick().await;
+
+            let rpc = match self.rpc_pool.get_connection().await {
+                Ok(rpc) => rpc,
+                Err(e) => {
+                    warn!(event = "tree_discovery_rpc_failed", run_id = %self.run_id, error = ?e, "Tree discovery: failed to get RPC connection");
+                    continue;
                 }
-                Err(e) => match e {
-                    RecvError::Lagged(lag) => {
-                        warn!(
-                            event = "new_tree_receiver_lagged",
-                            run_id = %self.run_id,
-                            lag, "Lagged while receiving new trees"
-                        );
-                    }
-                    RecvError::Closed => {
-                        info!(
-                            event = "new_tree_receiver_closed",
-                            run_id = %self.run_id,
-                            "New tree receiver closed"
-                        );
-                        break;
-                    }
-                },
+            };
+
+            // Lazily resolve group authority (retry each tick until successful)
+            if group_authority.is_none() {
+                group_authority = fetch_protocol_group_authority(&*rpc, &self.run_id)
+                    .await
+                    .ok();
+            }
+
+            let mut fetched_trees = match fetch_trees(&*rpc).await {
+                Ok(trees) => trees,
+                Err(e) => {
+                    warn!(event = "tree_discovery_fetch_failed", run_id = %self.run_id, error = ?e, "Tree discovery: failed to fetch trees");
+                    continue;
+                }
+            };
+
+            if let Some(ga) = group_authority {
+                fetched_trees.retain(|tree| tree.owner == ga);
+            }
+            if !self.config.general_config.tree_ids.is_empty() {
+                let tree_ids = &self.config.general_config.tree_ids;
+                fetched_trees.retain(|tree| tree_ids.contains(&tree.merkle_tree));
+            }
+
+            let known_trees = self.trees.lock().await;
+            let known_pubkeys: std::collections::HashSet<Pubkey> =
+                known_trees.iter().map(|t| t.merkle_tree).collect();
+            drop(known_trees);
+
+            for tree in fetched_trees {
+                if known_pubkeys.contains(&tree.merkle_tree) {
+                    continue;
+                }
+                info!(
+                    event = "tree_discovery_new_tree",
+                    run_id = %self.run_id,
+                    tree = %tree.merkle_tree,
+                    tree_type = ?tree.tree_type,
+                    queue = %tree.queue,
+                    "Discovered new tree"
+                );
+                if let Err(e) = self.add_new_tree(tree).await {
+                    error!(
+                        event = "tree_discovery_add_failed",
+                        run_id = %self.run_id,
+                        error = ?e,
+                        "Failed to add discovered tree"
+                    );
+                }
             }
         }
-        Ok(())
     }
 
     async fn add_new_tree(&self, new_tree: TreeAccounts) -> Result<()> {
@@ -4255,8 +4290,6 @@ pub async fn run_service<R: Rpc + Indexer>(
             };
             trace!("Fetched initial trees: {:?}", trees);
 
-            let (new_tree_sender, _) = broadcast::channel(100);
-
             if !config.general_config.tree_ids.is_empty() {
                 info!(
                     event = "tree_discovery_limited_to_explicit_ids",
@@ -4304,7 +4337,6 @@ pub async fn run_service<R: Rpc + Indexer>(
                     work_report_sender.clone(),
                     trees.clone(),
                     slot_tracker.clone(),
-                    new_tree_sender.clone(),
                     tx_cache.clone(),
                     ops_cache.clone(),
                     compressible_tracker.clone(),
