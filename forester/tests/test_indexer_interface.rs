@@ -515,9 +515,16 @@ async fn test_indexer_interface_scenarios() {
     );
     println!("  PASSED: Token account interface resolved with correct token data");
 
-    // ============ Test 3: getMultipleAccountInterfaces batch lookup ============
-    println!("\nTest 3: getMultipleAccountInterfaces batch lookup...");
-    let batch_addresses = vec![&decompressed_mint_pda, &compressible_token_account];
+    // ============ Test 3: getMultipleAccountInterfaces batch lookup (4 accounts) ============
+    println!("\nTest 3: getMultipleAccountInterfaces batch lookup (4 accounts)...");
+    // Include: decompressed mint PDA, compressible token account, compressed mint PDA (not found),
+    // and the compressed mint seed pubkey (not a known on-chain account).
+    let batch_addresses = vec![
+        &decompressed_mint_pda,
+        &compressible_token_account,
+        &bob_ata,
+        &charlie_ata,
+    ];
 
     let batch_response = photon_indexer
         .get_multiple_account_interfaces(batch_addresses.clone(), None)
@@ -526,8 +533,8 @@ async fn test_indexer_interface_scenarios() {
 
     assert_eq!(
         batch_response.value.len(),
-        2,
-        "Batch response should have exactly 2 results"
+        4,
+        "Batch response should have exactly 4 results"
     );
 
     // First result: decompressed mint
@@ -560,7 +567,36 @@ async fn test_indexer_interface_scenarios() {
         batch_token.account.lamports > 0,
         "Batch token account should have lamports > 0"
     );
-    println!("  PASSED: Batch lookup returned correct results");
+
+    // Third result: Bob's ATA (on-chain token account)
+    let batch_bob_ata = batch_response.value[2]
+        .as_ref()
+        .expect("Bob's ATA should be found in batch");
+    assert!(batch_bob_ata.is_hot(), "Bob's ATA should be hot (on-chain)");
+    assert_eq!(batch_bob_ata.key, bob_ata, "Bob's ATA key should match");
+    assert!(
+        batch_bob_ata.account.lamports > 0,
+        "Bob's ATA should have lamports > 0"
+    );
+
+    // Fourth result: Charlie's ATA (on-chain token account)
+    let batch_charlie_ata = batch_response.value[3]
+        .as_ref()
+        .expect("Charlie's ATA should be found in batch");
+    assert!(
+        batch_charlie_ata.is_hot(),
+        "Charlie's ATA should be hot (on-chain)"
+    );
+    assert_eq!(
+        batch_charlie_ata.key, charlie_ata,
+        "Charlie's ATA key should match"
+    );
+    assert!(
+        batch_charlie_ata.account.lamports > 0,
+        "Charlie's ATA should have lamports > 0"
+    );
+
+    println!("  PASSED: Batch lookup returned correct results for 4 accounts");
 
     // ============ Test 4: Verify fully compressed mint via getAccountInterface returns None ============
     // Fully compressed mints (after CompressAndCloseMint) have full mint data in the compressed DB.

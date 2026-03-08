@@ -4,6 +4,7 @@ use anchor_lang::{AccountDeserialize, InstructionData};
 use anchor_spl::token::TokenAccount;
 use light_client::indexer::CompressedTokenAccount;
 use light_compressed_token_sdk::{
+    compat::{AccountState, TokenData},
     compressed_token::{
         batch_compress::{
             get_batch_compress_instruction_account_metas, BatchCompressMetaConfig, Recipient,
@@ -119,12 +120,18 @@ async fn test() {
     let compressed_account = &compressed_accounts[0];
 
     // Assert the compressed token account properties
-    assert_eq!(compressed_account.token.owner, payer.pubkey());
-    assert_eq!(compressed_account.token.mint, mint_pubkey);
-
-    // Verify the token amount (should match the compressed amount)
+    assert_eq!(
+        compressed_account.token,
+        TokenData {
+            mint: mint_pubkey,
+            owner: payer.pubkey(),
+            amount: compress_amount,
+            delegate: None,
+            state: AccountState::Initialized,
+            tlv: None,
+        }
+    );
     let amount = compressed_account.token.amount;
-    assert_eq!(amount, compress_amount);
 
     println!(
         "Verified compressed token account: owner={}, mint={}, amount={}",
@@ -181,9 +188,18 @@ async fn test() {
         "Recipient should have compressed token account"
     );
     let recipient_account = &recipient_accounts[0];
-    assert_eq!(recipient_account.token.owner, transfer_recipient.pubkey());
+    assert_eq!(
+        recipient_account.token,
+        TokenData {
+            mint: mint_pubkey,
+            owner: transfer_recipient.pubkey(),
+            amount: transfer_amount,
+            delegate: None,
+            state: AccountState::Initialized,
+            tlv: None,
+        }
+    );
     let recipient_amount = recipient_account.token.amount;
-    assert_eq!(recipient_amount, transfer_amount);
     println!("Verified recipient balance: {}", recipient_amount);
 
     // Now decompress some tokens from the recipient back to SPL token account
@@ -266,11 +282,18 @@ async fn test() {
 
     if !updated_recipient_accounts.is_empty() {
         let updated_recipient_account = &updated_recipient_accounts[0];
-        let remaining_compressed_amount = updated_recipient_account.token.amount;
         assert_eq!(
-            remaining_compressed_amount,
-            transfer_amount - decompress_amount
+            updated_recipient_account.token,
+            TokenData {
+                mint: mint_pubkey,
+                owner: transfer_recipient.pubkey(),
+                amount: transfer_amount - decompress_amount,
+                delegate: None,
+                state: AccountState::Initialized,
+                tlv: None,
+            }
         );
+        let remaining_compressed_amount = updated_recipient_account.token.amount;
         println!(
             "Verified remaining compressed balance: {}",
             remaining_compressed_amount
@@ -552,16 +575,23 @@ async fn test_batch_compress() {
         );
 
         let compressed_account = &compressed_accounts[0];
-        assert_eq!(compressed_account.token.owner, *recipient);
-        assert_eq!(compressed_account.token.mint, mint_pubkey);
-
         let expected_amount = match i {
             0 => 100_000,
             1 => 200_000,
             2 => 300_000,
             _ => unreachable!(),
         };
-        assert_eq!(compressed_account.token.amount, expected_amount);
+        assert_eq!(
+            compressed_account.token,
+            TokenData {
+                mint: mint_pubkey,
+                owner: *recipient,
+                amount: expected_amount,
+                delegate: None,
+                state: AccountState::Initialized,
+                tlv: None,
+            }
+        );
 
         println!(
             "Verified recipient {} received {} compressed tokens",
