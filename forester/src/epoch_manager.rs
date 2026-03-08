@@ -25,6 +25,7 @@ use light_registry::{
         create_batch_append_instruction, create_batch_nullify_instruction,
         create_batch_update_address_tree_instruction,
     },
+    errors::RegistryError,
     protocol_config::state::{EpochState, ProtocolConfig},
     sdk::{create_finalize_registration_instruction, create_report_work_instruction},
     utils::{get_epoch_pda_address, get_forester_epoch_pda_from_authority},
@@ -85,6 +86,51 @@ use crate::{
 
 fn is_v2_error(err: &anyhow::Error, predicate: impl FnOnce(&V2Error) -> bool) -> bool {
     err.downcast_ref::<V2Error>().is_some_and(predicate)
+}
+
+const FORESTER_NOT_ELIGIBLE_ERROR_CODE: u32 = RegistryError::ForesterNotEligible as u32;
+
+fn rpc_custom_error_code(error: &RpcError) -> Option<u32> {
+    match error {
+        RpcError::TransactionError(TransactionError::InstructionError(
+            _,
+            InstructionError::Custom(error_code),
+        )) => Some(*error_code),
+        RpcError::ClientError(client_error) => {
+            client_error
+                .get_transaction_error()
+                .and_then(|transaction_error| match transaction_error {
+                    TransactionError::InstructionError(_, InstructionError::Custom(error_code)) => {
+                        Some(error_code)
+                    }
+                    _ => None,
+                })
+        }
+        _ => None,
+    }
+}
+
+fn is_forester_not_eligible_error(err: &anyhow::Error) -> bool {
+    if let Some(ForesterError::NotEligible) = err.downcast_ref::<ForesterError>() {
+        return true;
+    }
+
+    if let Some(ForesterError::Rpc(rpc_error)) = err.downcast_ref::<ForesterError>() {
+        return rpc_custom_error_code(rpc_error) == Some(FORESTER_NOT_ELIGIBLE_ERROR_CODE);
+    }
+
+    if let Some(v2_error) = err.downcast_ref::<V2Error>() {
+        match v2_error {
+            V2Error::TransactionFailed { message, .. }
+            | V2Error::CircuitConstraint { message, .. } => {
+                return message.contains("Custom(6004)")
+                    || message.contains("custom program error: 0x1774");
+            }
+            _ => return false,
+        }
+    }
+
+    false
 }
 
 type StateBatchProcessorMap<R> =
@@ -1686,6 +1732,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                     }
                 };
 
+                let mut force_refinalize = false;
                 match result {
                     Ok(_) => {
                         trace!(
@@ -1694,6 +1741,16 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                         );
                     }
                     Err(e) => {
+                        force_refinalize = is_forester_not_eligible_error(&e);
+                        if force_refinalize {
+                            warn!(
+                                event = "light_slot_processing_stale_eligibility",
+                                run_id = %self.run_id,
+                                tree = %tree_schedule.tree_accounts.merkle_tree,
+                                light_slot = light_slot_details.slot,
+                                "Detected ForesterNotEligible; forcing immediate re-finalization"
+                            );
+                        }
                         error!(
                             event = "light_slot_processing_error",
                             run_id = %self.run_id,
@@ -1705,8 +1762,11 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 }
                 tree_schedule.slots[slot_idx] = None;
 
-                // Periodically check if new foresters registered and re-finalize
-                if last_weight_check.elapsed() >= WEIGHT_CHECK_INTERVAL {
+                // Check if re-finalization is needed: either forced (after
+                // ForesterNotEligible) or periodic (every WEIGHT_CHECK_INTERVAL).
+                // force=true bypasses the weight-change check to handle the case
+                // where cached_weight is correct but schedule was never recomputed.
+                if force_refinalize || last_weight_check.elapsed() >= WEIGHT_CHECK_INTERVAL {
                     last_weight_check = Instant::now();
                     if let Err(e) = self
                         .maybe_refinalize(
@@ -1714,12 +1774,14 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                             &mut forester_epoch_pda,
                             &mut tree_schedule,
                             &registration_tracker,
+                            force_refinalize,
                         )
                         .await
                     {
                         warn!(
                             event = "refinalize_check_failed",
                             run_id = %self.run_id,
+                            forced = force_refinalize,
                             error = ?e,
                             "Failed to check/perform re-finalization"
                         );
@@ -1751,12 +1813,16 @@ impl<R: Rpc + Indexer> EpochManager<R> {
     /// Check if `EpochPda.registered_weight` changed on-chain. If so,
     /// one task sends a `finalize_registration` tx while others wait,
     /// then all tasks refresh their `ForesterEpochPda` and recompute schedules.
+    ///
+    /// When `force` is true (e.g. after a ForesterNotEligible error), skips
+    /// the weight-change check and unconditionally refreshes the schedule.
     async fn maybe_refinalize(
         &self,
         epoch_info: &Epoch,
         forester_epoch_pda: &mut ForesterEpochPda,
         tree_schedule: &mut TreeForesterSchedule,
         registration_tracker: &RegistrationTracker,
+        force: bool,
     ) -> Result<()> {
         let mut rpc = self.rpc_pool.get_connection().await?;
         let epoch_pda_address = get_epoch_pda_address(epoch_info.epoch);
@@ -1767,68 +1833,71 @@ impl<R: Rpc + Indexer> EpochManager<R> {
 
         let on_chain_weight = on_chain_epoch_pda.registered_weight;
         let cached_weight = registration_tracker.cached_weight();
+        let weight_changed = on_chain_weight != cached_weight;
 
-        if on_chain_weight == cached_weight {
+        if !weight_changed && !force {
             return Ok(());
         }
 
-        info!(
-            event = "registered_weight_changed",
-            run_id = %self.run_id,
-            epoch = epoch_info.epoch,
-            old_weight = cached_weight,
-            new_weight = on_chain_weight,
-            "Detected new forester registration, re-finalizing"
-        );
-
-        if registration_tracker.try_claim_refinalize() {
-            // This task sends the finalize_registration tx
-            let ix = create_finalize_registration_instruction(
-                &self.config.payer_keypair.pubkey(),
-                &self.config.derivation_pubkey,
-                epoch_info.epoch,
+        if weight_changed {
+            info!(
+                event = "registered_weight_changed",
+                run_id = %self.run_id,
+                epoch = epoch_info.epoch,
+                old_weight = cached_weight,
+                new_weight = on_chain_weight,
+                "Detected new forester registration, re-finalizing"
             );
-            match rpc
-                .create_and_send_transaction(
-                    &[ix],
+
+            if registration_tracker.try_claim_refinalize() {
+                // This task sends the finalize_registration tx
+                let ix = create_finalize_registration_instruction(
                     &self.config.payer_keypair.pubkey(),
-                    &[&self.config.payer_keypair],
-                )
-                .await
-            {
-                Ok(_) => {
-                    // Re-fetch EpochPda after finalize to get authoritative
-                    // post-finalize weight (another forester may have registered
-                    // between our initial read and the finalize tx).
-                    let post_finalize_pda: EpochPda = rpc
-                        .get_anchor_account::<EpochPda>(&epoch_pda_address)
-                        .await?
-                        .ok_or_else(|| {
-                            anyhow!("EpochPda not found for epoch {}", epoch_info.epoch)
-                        })?;
-                    let post_finalize_weight = post_finalize_pda.registered_weight;
-                    info!(
-                        event = "refinalize_registration_success",
-                        run_id = %self.run_id,
-                        epoch = epoch_info.epoch,
-                        new_weight = post_finalize_weight,
-                        "Re-finalized registration on-chain"
-                    );
-                    registration_tracker.complete_refinalize(post_finalize_weight);
+                    &self.config.derivation_pubkey,
+                    epoch_info.epoch,
+                );
+                match rpc
+                    .create_and_send_transaction(
+                        &[ix],
+                        &self.config.payer_keypair.pubkey(),
+                        &[&self.config.payer_keypair],
+                    )
+                    .await
+                {
+                    Ok(_) => {
+                        // Re-fetch EpochPda after finalize to get authoritative
+                        // post-finalize weight (another forester may have registered
+                        // between our initial read and the finalize tx).
+                        // Fallback to on_chain_weight if re-fetch fails to avoid
+                        // deadlocking the RegistrationTracker.
+                        let post_finalize_weight =
+                            match rpc.get_anchor_account::<EpochPda>(&epoch_pda_address).await {
+                                Ok(Some(pda)) => pda.registered_weight,
+                                _ => on_chain_weight,
+                            };
+                        info!(
+                            event = "refinalize_registration_success",
+                            run_id = %self.run_id,
+                            epoch = epoch_info.epoch,
+                            new_weight = post_finalize_weight,
+                            "Re-finalized registration on-chain"
+                        );
+                        registration_tracker.complete_refinalize(post_finalize_weight);
+                    }
+                    Err(e) => {
+                        // Release the claim so a future check can retry
+                        registration_tracker.complete_refinalize(cached_weight);
+                        return Err(e.into());
+                    }
                 }
-                Err(e) => {
-                    // Release the claim so a future check can retry
-                    registration_tracker.complete_refinalize(cached_weight);
-                    return Err(e.into());
-                }
+            } else {
+                // Another task is already re-finalizing; wait for it
+                registration_tracker.wait_for_refinalize().await;
             }
-        } else {
-            // Another task is already re-finalizing; wait for it
-            registration_tracker.wait_for_refinalize().await;
         }
 
-        // All tasks: re-fetch both PDAs to get post-finalize on-chain state
-        // and recompute schedule.
+        // All tasks: re-fetch both PDAs to get latest on-chain state and
+        // recompute schedule (after finalize or forced refresh).
         let refreshed_epoch_pda: EpochPda = rpc
             .get_anchor_account::<EpochPda>(&epoch_pda_address)
             .await?

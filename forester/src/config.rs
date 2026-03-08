@@ -184,7 +184,7 @@ impl Default for TransactionConfig {
         Self {
             legacy_ixs_per_tx: 1,
             max_concurrent_batches: 60,
-            max_concurrent_sends: 50,
+            max_concurrent_sends: 12,
             cu_limit: 1_000_000,
             enable_priority_fees: false,
             tx_cache_ttl_seconds: 15,
