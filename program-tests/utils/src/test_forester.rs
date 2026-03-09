@@ -350,8 +350,7 @@ pub async fn empty_address_queue_test<R: Rpc>(
         .map_err(|_| RelayerUpdateError::RpcError)?
         .ok_or(RelayerUpdateError::RpcError)?;
     let address_tree_header: &AddressMerkleTreeAccount = bytemuck::from_bytes(
-        &address_tree_account.data
-            [8..8 + std::mem::size_of::<AddressMerkleTreeAccount>()],
+        &address_tree_account.data[8..8 + std::mem::size_of::<AddressMerkleTreeAccount>()],
     );
     let network_fee = address_tree_header.metadata.rollover_metadata.network_fee;
 
