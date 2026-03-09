@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "7423e3c1c43d",
+  "session_id": "3926665a-b6e0-4261-9003-3cb9a1f432a7",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-09T14:22:18.74677Z",
+  "branch": "jorrit/chore-add-v1-tree-deprecation-msg",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "program-tests/system-cpi-test/tests/test_program_owned_trees.rs",
+    "program-tests/system-test/tests/test.rs",
+    "program-tests/utils/src/e2e_test_env.rs",
+    "programs/system/src/context.rs",
+    "programs/system/src/processor/create_outputs_cpi_data.rs",
+    "sdk-libs/client/src/fee.rs"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "998d1ce51a86",
+  "transcript_identifier_at_start": "21bb32e2-622d-420a-a35d-2322c068d56b",
+  "checkpoint_transcript_start": 1571,
+  "transcript_lines_at_start": 1571,
+  "token_usage": {
+    "input_tokens": 122,
+    "cache_creation_tokens": 149689,
+    "cache_read_tokens": 12832925,
+    "output_tokens": 37343,
+    "api_call_count": 115
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-09T14:22:17.999392Z",
+    "agent_lines": 35,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 35,
+    "agent_percentage": 100
+  },
+  "transcript_path": ".claude/projects/-Users-ananas-dev-light-protocol3/3926665a-b6e0-4261-9003-3cb9a1f432a7.jsonl"
+}
