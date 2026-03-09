@@ -81,8 +81,8 @@ pub async fn nullify_compressed_accounts<R: Rpc + TestRpc + Indexer + Indexer>(
     );
     let network_fee = state_tree_header.metadata.rollover_metadata.network_fee;
 
-    let pre_queue_lamports = rpc
-        .get_account(state_tree_bundle.accounts.nullifier_queue)
+    let pre_merkle_tree_lamports = rpc
+        .get_account(state_tree_bundle.accounts.merkle_tree)
         .await
         .unwrap()
         .unwrap()
@@ -229,18 +229,19 @@ pub async fn nullify_compressed_accounts<R: Rpc + TestRpc + Indexer + Indexer>(
         .unwrap();
     }
 
-    // Assert network fee reimbursement from queue to forester.
+    // Assert network fee reimbursement from merkle tree to forester.
+    // V1 state tree network fees accumulate in the merkle tree account.
     if network_fee > 0 && num_nullified > 0 {
-        let post_queue_lamports = rpc
-            .get_account(state_tree_bundle.accounts.nullifier_queue)
+        let post_merkle_tree_lamports = rpc
+            .get_account(state_tree_bundle.accounts.merkle_tree)
             .await
             .unwrap()
             .unwrap()
             .lamports;
         assert_eq!(
-            pre_queue_lamports - post_queue_lamports,
+            pre_merkle_tree_lamports - post_merkle_tree_lamports,
             num_nullified * network_fee,
-            "Queue should have paid network_fee * num_nullified to forester"
+            "Merkle tree should have paid network_fee * num_nullified to forester"
         );
     }
 

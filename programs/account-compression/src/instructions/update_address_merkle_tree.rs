@@ -60,7 +60,7 @@ pub fn process_update_address_merkle_tree<'info>(
     let mut address_queue = address_queue.try_borrow_mut_data()?;
     let mut address_queue = unsafe { queue_from_bytes_zero_copy_mut(&mut address_queue)? };
 
-    {
+    let network_fee = {
         let merkle_tree = ctx.accounts.merkle_tree.load_mut()?;
         if merkle_tree.metadata.associated_queue != ctx.accounts.queue.key() {
             msg!(
@@ -74,7 +74,8 @@ pub fn process_update_address_merkle_tree<'info>(
             &ctx,
             &merkle_tree,
         )?;
-    }
+        merkle_tree.metadata.rollover_metadata.network_fee
+    };
 
     let merkle_tree = ctx.accounts.merkle_tree.to_account_info();
     let mut merkle_tree = merkle_tree.try_borrow_mut_data()?;
@@ -128,8 +129,6 @@ pub fn process_update_address_merkle_tree<'info>(
         .map_err(ProgramError::from)?;
 
     if let Some(fee_payer) = ctx.accounts.fee_payer.as_ref() {
-        let merkle_tree_account = ctx.accounts.merkle_tree.load()?;
-        let network_fee = merkle_tree_account.metadata.rollover_metadata.network_fee;
         if network_fee > 0 {
             transfer_lamports(
                 &ctx.accounts.queue.to_account_info(),

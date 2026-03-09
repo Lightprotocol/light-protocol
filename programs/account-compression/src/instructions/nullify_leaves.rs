@@ -90,6 +90,11 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
         );
         return Err(AccountCompressionErrorCode::ProofLengthMismatch.into());
     }
+    let network_fee = {
+        let merkle_tree_account = ctx.accounts.merkle_tree.load()?;
+        merkle_tree_account.metadata.rollover_metadata.network_fee
+    };
+
     insert_nullifier(
         proofs,
         change_log_indices,
@@ -99,11 +104,9 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
     )?;
 
     if let Some(fee_payer) = ctx.accounts.fee_payer.as_ref() {
-        let merkle_tree_account = ctx.accounts.merkle_tree.load()?;
-        let network_fee = merkle_tree_account.metadata.rollover_metadata.network_fee;
         if network_fee > 0 {
             transfer_lamports(
-                &ctx.accounts.nullifier_queue.to_account_info(),
+                &ctx.accounts.merkle_tree.to_account_info(),
                 &fee_payer.to_account_info(),
                 network_fee,
             )?;
