@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "7423e3c1c43d",
+  "session_id": "23ba8c9b-b75d-4793-a9e1-17a1e6c79ec2",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-09T14:22:00.110919Z",
+  "branch": "jorrit/chore-add-v1-tree-deprecation-msg",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "program-tests/system-test/tests/test.rs"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "c7e8fe62e176",
+  "checkpoint_transcript_start": 2056,
+  "transcript_lines_at_start": 2056,
+  "token_usage": {
+    "input_tokens": 237,
+    "cache_creation_tokens": 388041,
+    "cache_read_tokens": 16887748,
+    "output_tokens": 46555,
+    "api_call_count": 172
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-09T14:21:59.04525Z",
+    "agent_lines": 4,
+    "human_added": 31,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 35,
+    "agent_percentage": 11.428571428571429
+  },
+  "transcript_path": ".claude/projects/-Users-ananas-dev-light-protocol3/23ba8c9b-b75d-4793-a9e1-17a1e6c79ec2.jsonl"
+}
