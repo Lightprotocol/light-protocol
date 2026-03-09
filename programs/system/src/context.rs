@@ -159,14 +159,14 @@ impl<'info> SystemContext<'info> {
     }
 
     /// Network fee distribution:
-    /// - V1 state trees: charge per input (5000 lamports × num_inputs)
+    /// - V1 state trees: charge per input tree + per output tree (5000 lamports each)
     /// - V2 batched state trees: charge once per tree if inputs > 0 OR outputs > 0 (5000 lamports)
     /// - Address creation: charge per address (10000 lamports × num_addresses)
     ///
     /// Examples (V1 state trees):
-    /// 1. create account with 1 address, 0 inputs:     network fee 10,000 lamports
-    /// 2. token transfer (1 input, 1 output):          network fee 5,000 lamports
-    /// 3. transfer with 2 V1 inputs, 1 address:        network fee 20,000 lamports (2×5k + 1×10k)
+    /// 1. create account (0 inputs, 1 output tree, 1 address):     network fee 15,000 lamports (0x5k input + 1x5k output + 1x10k address)
+    /// 2. token transfer (1 input, 1 output, same tree):           network fee 10,000 lamports (1x5k input + 1x5k output)
+    /// 3. transfer with 2 V1 inputs, 1 output tree, 1 address:     network fee 25,000 lamports (2x5k input + 1x5k output + 1x10k address)
     ///
     /// Examples (V2 batched state trees):
     /// 1. token transfer (1 input, 0 output):          network fee 5,000 lamports (once per tree)

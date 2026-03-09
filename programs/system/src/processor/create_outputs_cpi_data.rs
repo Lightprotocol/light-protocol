@@ -103,6 +103,8 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
                         .ok_or(SystemProgramError::MissingLegacyMerkleContext)?;
                     hashed_merkle_tree = merkle_context.hashed_pubkey;
                     rollover_fee = merkle_context.rollover_fee;
+                    let network_fee = merkle_context.network_fee;
+                    context.set_network_fee_v1(network_fee, current_index as u8)?;
                     mt_next_index = tree.next_index() as u32;
                     is_batched = false;
                     *pubkey

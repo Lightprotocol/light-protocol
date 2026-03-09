@@ -930,6 +930,7 @@ async fn invoke_test() {
         Some(TransactionParams {
             v1_input_compressed_accounts: 0u8,
             v2_input_compressed_accounts: false,
+            v1_output_compressed_accounts: 1,
             num_output_compressed_accounts: 1,
             num_new_addresses: 0,
             compress: 0,
@@ -1071,6 +1072,7 @@ async fn invoke_test() {
         Some(TransactionParams {
             v1_input_compressed_accounts: 1,
             v2_input_compressed_accounts: false,
+            v1_output_compressed_accounts: 1,
             num_output_compressed_accounts: 1,
             num_new_addresses: 0,
             compress: 0,
@@ -2038,6 +2040,7 @@ async fn batch_invoke_test() {
             Some(TransactionParams {
                 v1_input_compressed_accounts: 1,
                 v2_input_compressed_accounts: true,
+                v1_output_compressed_accounts: 0,
                 num_output_compressed_accounts: 1,
                 num_new_addresses: 0,
                 compress: 0,
@@ -2658,6 +2661,7 @@ pub async fn create_output_accounts(
         Some(TransactionParams {
             v1_input_compressed_accounts: 0u8,
             v2_input_compressed_accounts: is_batched,
+            v1_output_compressed_accounts: if is_batched { 0 } else { 1 },
             num_output_compressed_accounts: num_accounts as u8,
             num_new_addresses: 0,
             compress: 0,
