@@ -11,8 +11,11 @@ use crate::{
         StateMerkleTreeAccount,
     },
     state_merkle_tree_from_bytes_zero_copy_mut,
-    utils::check_signer_is_registered_or_authority::{
-        check_signer_is_registered_or_authority, GroupAccess, GroupAccounts,
+    utils::{
+        check_signer_is_registered_or_authority::{
+            check_signer_is_registered_or_authority, GroupAccess, GroupAccounts,
+        },
+        transfer_lamports::transfer_lamports,
     },
     RegisteredProgram,
 };
@@ -28,6 +31,9 @@ pub struct NullifyLeaves<'info> {
     pub merkle_tree: AccountLoader<'info, StateMerkleTreeAccount>,
     #[account(mut)]
     pub nullifier_queue: AccountLoader<'info, QueueAccount>,
+    /// CHECK: receives network fee reimbursement.
+    #[account(mut)]
+    pub fee_payer: Option<UncheckedAccount<'info>>,
 }
 
 impl GroupAccess for StateMerkleTreeAccount {
@@ -91,6 +97,18 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
         leaf_indices,
         ctx,
     )?;
+
+    if let Some(fee_payer) = ctx.accounts.fee_payer.as_ref() {
+        let merkle_tree_account = ctx.accounts.merkle_tree.load()?;
+        let network_fee = merkle_tree_account.metadata.rollover_metadata.network_fee;
+        if network_fee > 0 {
+            transfer_lamports(
+                &ctx.accounts.nullifier_queue.to_account_info(),
+                &fee_payer.to_account_info(),
+                network_fee,
+            )?;
+        }
+    }
 
     Ok(())
 }
@@ -195,6 +213,7 @@ pub mod sdk_nullify {
         payer: &Pubkey,
         merkle_tree_pubkey: &Pubkey,
         nullifier_queue_pubkey: &Pubkey,
+        fee_payer: Option<&Pubkey>,
     ) -> Instruction {
         let instruction_data = crate::instruction::NullifyLeaves {
             leaves_queue_indices: leaves_queue_indices.to_vec(),
@@ -209,6 +228,7 @@ pub mod sdk_nullify {
             log_wrapper: Pubkey::new_from_array(NOOP_PUBKEY),
             merkle_tree: *merkle_tree_pubkey,
             nullifier_queue: *nullifier_queue_pubkey,
+            fee_payer: fee_payer.copied(),
         };
 
         Instruction {

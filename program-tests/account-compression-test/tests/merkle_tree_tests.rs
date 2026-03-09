@@ -1990,6 +1990,7 @@ pub async fn nullify<R: Rpc>(
             &rpc.get_payer().pubkey(),
             merkle_tree_pubkey,
             nullifier_queue_pubkey,
+            None,
         ),
     ];
 

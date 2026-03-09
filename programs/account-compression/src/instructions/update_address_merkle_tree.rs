@@ -8,8 +8,11 @@ use crate::{
     errors::AccountCompressionErrorCode,
     from_vec,
     state::{queue_from_bytes_zero_copy_mut, QueueAccount},
-    utils::check_signer_is_registered_or_authority::{
-        check_signer_is_registered_or_authority, GroupAccounts,
+    utils::{
+        check_signer_is_registered_or_authority::{
+            check_signer_is_registered_or_authority, GroupAccounts,
+        },
+        transfer_lamports::transfer_lamports,
     },
     AddressMerkleTreeAccount, RegisteredProgram,
 };
@@ -24,6 +27,9 @@ pub struct UpdateAddressMerkleTree<'info> {
     pub merkle_tree: AccountLoader<'info, AddressMerkleTreeAccount>,
     /// CHECK: when emitting event.
     pub log_wrapper: UncheckedAccount<'info>,
+    /// CHECK: receives network fee reimbursement.
+    #[account(mut)]
+    pub fee_payer: Option<UncheckedAccount<'info>>,
 }
 
 impl<'info> GroupAccounts<'info> for UpdateAddressMerkleTree<'info> {
@@ -120,6 +126,18 @@ pub fn process_update_address_merkle_tree<'info>(
     address_queue
         .mark_with_sequence_number(value_index as usize, merkle_tree.sequence_number())
         .map_err(ProgramError::from)?;
+
+    if let Some(fee_payer) = ctx.accounts.fee_payer.as_ref() {
+        let merkle_tree_account = ctx.accounts.merkle_tree.load()?;
+        let network_fee = merkle_tree_account.metadata.rollover_metadata.network_fee;
+        if network_fee > 0 {
+            transfer_lamports(
+                &ctx.accounts.queue.to_account_info(),
+                &fee_payer.to_account_info(),
+                network_fee,
+            )?;
+        }
+    }
 
     let address_event = MerkleTreeEvent::V3(IndexedMerkleTreeEvent {
         id: ctx.accounts.merkle_tree.key().to_bytes(),
