@@ -254,11 +254,13 @@ async function getOrCreateLightTokenAta(
         );
     }
 
-    // Only auto-load if owner is a Signer (we can sign the load transaction)
-    // Use direct type guard in the if condition for proper type narrowing
-    if (isSigner(owner)) {
-        // Check if we need to load tokens into the hot associated token account
-        // Load if: cold balance exists, or (wrap=true and SPL/T22 balance exists)
+    const ownerSigner: Signer | null = isSigner(owner)
+        ? owner
+        : payer.publicKey.equals(ownerPubkey)
+          ? payer
+          : null;
+
+    if (ownerSigner) {
         const sources = accountInterface._sources ?? [];
         const hasCold = sources.some(
             s =>
@@ -275,22 +277,19 @@ async function getOrCreateLightTokenAta(
             );
 
         if (hasCold || hasSplToWrap) {
-            // Verify owner is a valid Signer before loading
             if (
-                !(owner.secretKey instanceof Uint8Array) ||
-                owner.secretKey.length === 0
+                !(ownerSigner.secretKey instanceof Uint8Array) ||
+                ownerSigner.secretKey.length === 0
             ) {
                 throw new Error(
                     'Owner must be a valid Signer with secretKey to auto-load',
                 );
             }
 
-            // Load all tokens into hot associated token account (decompress cold, wrap SPL/T22 if
-            // wrap=true)
             await loadAta(
                 rpc,
                 associatedToken,
-                owner, // TypeScript now knows owner is Signer
+                ownerSigner,
                 mint,
                 payer,
                 confirmOptions,

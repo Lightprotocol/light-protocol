@@ -192,10 +192,6 @@ describe('Input Selection', () => {
             const tx = buildAndSignTx(batches[0], payer, blockhash, [sender]);
             await sendAndConfirmTx(rpc, tx);
 
-            const recipientAta = getAssociatedTokenAddressInterface(
-                mint,
-                recipient.publicKey,
-            );
             const recipientBalance = (await rpc.getAccountInfo(
                 recipientAta,
             ))!.data.readBigUInt64LE(64);
@@ -246,10 +242,6 @@ describe('Input Selection', () => {
             const tx = buildAndSignTx(batches[0], payer, blockhash, [sender]);
             await sendAndConfirmTx(rpc, tx);
 
-            const recipientAta = getAssociatedTokenAddressInterface(
-                mint,
-                recipient.publicKey,
-            );
             const recipientBalance = (await rpc.getAccountInfo(
                 recipientAta,
             ))!.data.readBigUInt64LE(64);
@@ -302,10 +294,6 @@ describe('Input Selection', () => {
             const tx = buildAndSignTx(batches[0], payer, blockhash, [sender]);
             await sendAndConfirmTx(rpc, tx);
 
-            const recipientAta = getAssociatedTokenAddressInterface(
-                mint,
-                recipient.publicKey,
-            );
             const recipientBalance = (await rpc.getAccountInfo(
                 recipientAta,
             ))!.data.readBigUInt64LE(64);
@@ -358,10 +346,6 @@ describe('Input Selection', () => {
             const tx = buildAndSignTx(batches[0], payer, blockhash, [sender]);
             await sendAndConfirmTx(rpc, tx);
 
-            const recipientAta = getAssociatedTokenAddressInterface(
-                mint,
-                recipient.publicKey,
-            );
             const recipientBalance = (await rpc.getAccountInfo(
                 recipientAta,
             ))!.data.readBigUInt64LE(64);
@@ -434,10 +418,6 @@ describe('Input Selection', () => {
             const tx = buildAndSignTx(transferIxs, payer, blockhash, [sender]);
             await sendAndConfirmTx(rpc, tx);
 
-            const recipientAta = getAssociatedTokenAddressInterface(
-                mint,
-                recipient.publicKey,
-            );
             const recipientBalance = (await rpc.getAccountInfo(
                 recipientAta,
             ))!.data.readBigUInt64LE(64);
@@ -490,10 +470,6 @@ describe('Input Selection', () => {
             await sendAndConfirmTx(rpc, tx);
 
             // Verify recipient ATA was created and has correct balance
-            const recipientAta = getAssociatedTokenAddressInterface(
-                mint,
-                recipient.publicKey,
-            );
             const recipientBalance = (await rpc.getAccountInfo(
                 recipientAta,
             ))!.data.readBigUInt64LE(64);
@@ -548,10 +524,6 @@ describe('Input Selection', () => {
             const tx = buildAndSignTx(batches[0], payer, blockhash, [sender]);
             await sendAndConfirmTx(rpc, tx);
 
-            const recipientAta = getAssociatedTokenAddressInterface(
-                mint,
-                recipient.publicKey,
-            );
             const recipientBalance = (await rpc.getAccountInfo(
                 recipientAta,
             ))!.data.readBigUInt64LE(64);

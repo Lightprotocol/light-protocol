@@ -655,10 +655,6 @@ describe('Payment Flows', () => {
             expect(sig).toBeDefined();
 
             // Verify
-            const recipientAta = getAssociatedTokenAddressInterface(
-                mint,
-                recipient.publicKey,
-            );
             const recipientBalance = (await rpc.getAccountInfo(
                 recipientAta,
             ))!.data.readBigUInt64LE(64);
@@ -726,10 +722,6 @@ describe('Payment Flows', () => {
             const sig = await sendAndConfirmTx(rpc, tx);
             expect(sig).toBeDefined();
 
-            const recipientAta = getAssociatedTokenAddressInterface(
-                mint,
-                recipient.publicKey,
-            );
             const recipientBalance = (await rpc.getAccountInfo(
                 recipientAta,
             ))!.data.readBigUInt64LE(64);
