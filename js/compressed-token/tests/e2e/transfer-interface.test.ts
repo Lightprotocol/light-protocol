@@ -45,6 +45,7 @@ import {
     createLoadAtaInstructions,
 } from '../../src/v3/actions/load-ata';
 import { createAtaInterfaceIdempotent } from '../../src/v3/actions/create-ata-interface';
+import { createAssociatedTokenAccountInterfaceIdempotentInstruction } from '../../src/v3/instructions/create-ata-interface';
 import { createLightTokenFreezeAccountInstruction } from '../../src/v3/instructions/freeze-thaw';
 import { createLightTokenTransferInstruction } from '../../src/v3/instructions/transfer-interface';
 import {
@@ -1280,20 +1281,57 @@ describe('transfer-interface', () => {
                 mint,
                 sender.publicKey,
             );
-
             const recipientAta = getAssociatedTokenAddressInterface(
                 mint,
                 recipient.publicKey,
             );
-            const signature = await transferInterface(
+
+            const batches = await createTransferInterfaceInstructions(
                 rpc,
-                payer,
-                senderAta,
+                payer.publicKey,
                 mint,
-                recipientAta,
-                sender,
                 BigInt(1500),
+                sender.publicKey,
+                recipientAta,
+                TEST_TOKEN_DECIMALS,
             );
+            const loads = batches.slice(0, -1);
+            const transferIxs = batches.at(-1)!;
+            const createRecipientIx =
+                createAssociatedTokenAccountInterfaceIdempotentInstruction(
+                    payer.publicKey,
+                    recipientAta,
+                    recipient.publicKey,
+                    mint,
+                    LIGHT_TOKEN_PROGRAM_ID,
+                );
+            const transferTxIxs = [
+                transferIxs[0],
+                createRecipientIx,
+                ...transferIxs.slice(1),
+            ];
+
+            const additionalSigners = dedupeSigner(payer, [sender]);
+            await Promise.all(
+                loads.map(async ixs => {
+                    const { blockhash } = await rpc.getLatestBlockhash();
+                    const tx = buildAndSignTx(
+                        ixs,
+                        payer,
+                        blockhash,
+                        additionalSigners,
+                    );
+                    return sendAndConfirmTx(rpc, tx);
+                }),
+            );
+            const { blockhash } = await rpc.getLatestBlockhash();
+            const tx = buildAndSignTx(
+                transferTxIxs,
+                payer,
+                blockhash,
+                additionalSigners,
+            );
+            const signature = await sendAndConfirmTx(rpc, tx);
 
             expect(signature).toBeDefined();
 
