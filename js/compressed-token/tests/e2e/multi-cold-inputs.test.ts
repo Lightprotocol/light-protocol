@@ -636,13 +636,16 @@ describe('Multi-Cold-Inputs', () => {
                 owner.publicKey,
             );
 
-            // Transfer should auto-load all cold accounts
+            const recipientAta = getAssociatedTokenAddressInterface(
+                mint,
+                recipient.publicKey,
+            );
             const signature = await transferInterface(
                 rpc,
                 payer,
                 sourceAta,
                 mint,
-                recipient.publicKey,
+                recipientAta,
                 owner,
                 totalAmount,
             );
@@ -680,13 +683,22 @@ describe('Multi-Cold-Inputs', () => {
                 mint,
                 owner.publicKey,
             );
-
+            await getOrCreateAtaInterface(
+                rpc,
+                payer,
+                mint,
+                recipient.publicKey,
+            );
+            const recipientAta = getAssociatedTokenAddressInterface(
+                mint,
+                recipient.publicKey,
+            );
             const signature = await transferInterface(
                 rpc,
                 payer,
                 sourceAta,
                 mint,
-                recipient.publicKey,
+                recipientAta,
                 owner,
                 totalAmount,
             );
@@ -723,13 +735,22 @@ describe('Multi-Cold-Inputs', () => {
                 mint,
                 owner.publicKey,
             );
-
+            await getOrCreateAtaInterface(
+                rpc,
+                payer,
+                mint,
+                recipient.publicKey,
+            );
+            const recipientAta = getAssociatedTokenAddressInterface(
+                mint,
+                recipient.publicKey,
+            );
             const signature = await transferInterface(
                 rpc,
                 payer,
                 sourceAta,
                 mint,
-                recipient.publicKey,
+                recipientAta,
                 owner,
                 totalAmount,
             );

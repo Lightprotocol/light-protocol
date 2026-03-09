@@ -212,7 +212,7 @@ export async function loadAta(
  * @param payer           Fee payer (signer)
  * @param source          Source light-token associated token account address
  * @param mint            Mint address
- * @param destination     Destination light-token associated token account address (must exist)
+ * @param destination     Destination token account address (must exist; derive via getAssociatedTokenAddressInterface)
  * @param owner           Source owner (signer)
  * @param amount          Amount to transfer
  * @param confirmOptions  Optional confirm options
@@ -314,7 +314,7 @@ export async function createTransferInterfaceInstructions(
     mint: PublicKey,
     amount: number | bigint | BN,
     sender: PublicKey,
-    recipient: PublicKey,
+    destination: PublicKey,
     options?: Omit<_TransferOptions, 'wrap'>,
 ): Promise<TransactionInstruction[][]> {
     const mintInterface = await getMintInterface(rpc, mint);
@@ -324,7 +324,7 @@ export async function createTransferInterfaceInstructions(
         mint,
         amount,
         sender,
-        recipient,
+        destination,
         mintInterface.mint.decimals,
         {
             ...options,

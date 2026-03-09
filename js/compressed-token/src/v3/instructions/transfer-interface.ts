@@ -17,8 +17,6 @@ import {
 } from '@solana/spl-token';
 import BN from 'bn.js';
 import { getAssociatedTokenAddressInterface } from '../get-associated-token-address-interface';
-import { createAssociatedTokenAccountInterfaceIdempotentInstruction } from './create-ata-interface';
-import { DEFAULT_COMPRESSIBLE_CONFIG } from './create-associated-light-token';
 import {
     _buildLoadBatches,
     rawLoadBatchComputeUnits,
@@ -148,7 +146,7 @@ export async function createTransferInterfaceInstructions(
     mint: PublicKey,
     amount: number | bigint | BN,
     sender: PublicKey,
-    recipient: PublicKey,
+    destination: PublicKey,
     decimals: number,
     options?: TransferOptions,
 ): Promise<TransactionInstruction[][]> {
@@ -163,19 +161,11 @@ export async function createTransferInterfaceInstructions(
     const {
         wrap = false,
         programId = LIGHT_TOKEN_PROGRAM_ID,
-        ensureRecipientAta = true,
         owner: optionsOwner,
         ...interfaceOptions
     } = options ?? {};
 
     const effectiveOwner = optionsOwner ?? sender;
-
-    if (!PublicKey.isOnCurve(recipient.toBytes())) {
-        throw new Error(
-            `Recipient must be a wallet public key (on-curve), not a PDA or associated token account. ` +
-                `Got: ${recipient.toBase58()}`,
-        );
-    }
 
     const isSplOrT22 =
         programId.equals(TOKEN_PROGRAM_ID) ||
@@ -184,12 +174,6 @@ export async function createTransferInterfaceInstructions(
     const senderAta = getAssociatedTokenAddressInterface(
         mint,
         effectiveOwner,
-        false,
-        programId,
-    );
-    const recipientAta = getAssociatedTokenAddressInterface(
-        mint,
-        recipient,
         false,
         programId,
     );
@@ -253,7 +237,7 @@ export async function createTransferInterfaceInstructions(
         transferIx = createTransferCheckedInstruction(
             senderAta,
             mint,
-            recipientAta,
+            destination,
             sender,
             amountBigInt,
             decimals,
@@ -263,29 +247,12 @@ export async function createTransferInterfaceInstructions(
     } else {
         transferIx = createLightTokenTransferCheckedInstruction(
             senderAta,
-            recipientAta,
+            destination,
             mint,
             sender,
             amountBigInt,
             decimals,
             payer,
-        );
-    }
-
-    const recipientAtaIxs: TransactionInstruction[] = [];
-    if (ensureRecipientAta) {
-        recipientAtaIxs.push(
-            createAssociatedTokenAccountInterfaceIdempotentInstruction(
-                payer,
-                recipientAta,
-                recipient,
-                mint,
-                programId,
-                undefined,
-                programId.equals(LIGHT_TOKEN_PROGRAM_ID)
-                    ? { compressibleConfig: DEFAULT_COMPRESSIBLE_CONFIG }
-                    : undefined,
-            ),
         );
     }
 
@@ -295,7 +262,6 @@ export async function createTransferInterfaceInstructions(
         const cu = calculateTransferCU(null);
         const txIxs = [
             ComputeBudgetProgram.setComputeUnitLimit({ units: cu }),
-            ...recipientAtaIxs,
             transferIx,
         ];
         assertTransactionSizeWithinLimit(txIxs, numSigners, 'Batch');
@@ -307,7 +273,6 @@ export async function createTransferInterfaceInstructions(
         const cu = calculateTransferCU(batch);
         const txIxs = [
             ComputeBudgetProgram.setComputeUnitLimit({ units: cu }),
-            ...recipientAtaIxs,
             ...batch.instructions,
             transferIx,
         ];
@@ -332,7 +297,6 @@ export async function createTransferInterfaceInstructions(
     const lastCu = calculateTransferCU(lastBatch);
     const lastTxIxs = [
         ComputeBudgetProgram.setComputeUnitLimit({ units: lastCu }),
-        ...recipientAtaIxs,
         ...lastBatch.instructions,
         transferIx,
     ];

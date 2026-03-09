@@ -106,7 +106,6 @@ describe('Payment Flows', () => {
                 recipient.publicKey,
             );
 
-            // STEP 2: transfer (auto-loads sender, auto-creates recipient ATA)
             const sourceAta = getAssociatedTokenAddressInterface(
                 mint,
                 sender.publicKey,
@@ -116,7 +115,7 @@ describe('Payment Flows', () => {
                 payer,
                 sourceAta,
                 mint,
-                recipient.publicKey,
+                recipientAta.parsed.address,
                 sender,
                 amount,
                 undefined,
@@ -157,7 +156,6 @@ describe('Payment Flows', () => {
                 recipient.publicKey,
             );
 
-            // Transfer - auto-loads sender, auto-creates recipient ATA
             const sourceAta = getAssociatedTokenAddressInterface(
                 mint,
                 sender.publicKey,
@@ -167,7 +165,7 @@ describe('Payment Flows', () => {
                 payer,
                 sourceAta,
                 mint,
-                recipient.publicKey,
+                recipientAta.parsed.address,
                 sender,
                 BigInt(2000),
                 undefined,
@@ -237,13 +235,12 @@ describe('Payment Flows', () => {
                 destAta,
             ))!.data.readBigUInt64LE(64);
 
-            // Transfer - no loading needed, pass wallet pubkey
             await transferInterface(
                 rpc,
                 payer,
                 sourceAta,
                 mint,
-                recipient.publicKey,
+                destAta,
                 sender,
                 BigInt(500),
             );
@@ -513,13 +510,17 @@ describe('Payment Flows', () => {
             );
 
             // Get transfer instructions
+            const recipientAta = getAssociatedTokenAddressInterface(
+                mint,
+                recipient.publicKey,
+            );
             const batches = await createTransferInterfaceInstructions(
                 rpc,
                 payer.publicKey,
                 mint,
                 amount,
                 sender.publicKey,
-                recipient.publicKey,
+                recipientAta,
                 TEST_TOKEN_DECIMALS,
             );
 
@@ -532,11 +533,6 @@ describe('Payment Flows', () => {
             const sig = await sendAndConfirmTx(rpc, tx);
             expect(sig).toBeDefined();
 
-            // Verify
-            const recipientAta = getAssociatedTokenAddressInterface(
-                mint,
-                recipient.publicKey,
-            );
             const recipientBalance = (await rpc.getAccountInfo(
                 recipientAta,
             ))!.data.readBigUInt64LE(64);
@@ -569,13 +565,17 @@ describe('Payment Flows', () => {
                 recipient.publicKey,
             );
 
+            const recipientAta = getAssociatedTokenAddressInterface(
+                mint,
+                recipient.publicKey,
+            );
             const batches = await createTransferInterfaceInstructions(
                 rpc,
                 payer.publicKey,
                 mint,
                 BigInt(2500),
                 sender.publicKey,
-                recipient.publicKey,
+                recipientAta,
                 TEST_TOKEN_DECIMALS,
             );
 
@@ -587,10 +587,6 @@ describe('Payment Flows', () => {
             const sig = await sendAndConfirmTx(rpc, tx);
             expect(sig).toBeDefined();
 
-            const recipientAta = getAssociatedTokenAddressInterface(
-                mint,
-                recipient.publicKey,
-            );
             const recipientBalance = (await rpc.getAccountInfo(
                 recipientAta,
             ))!.data.readBigUInt64LE(64);
@@ -623,13 +619,17 @@ describe('Payment Flows', () => {
                 recipient.publicKey,
             );
 
+            const recipientAta = getAssociatedTokenAddressInterface(
+                mint,
+                recipient.publicKey,
+            );
             const batches = await createTransferInterfaceInstructions(
                 rpc,
                 payer.publicKey,
                 mint,
                 BigInt(1100),
                 sender.publicKey,
-                recipient.publicKey,
+                recipientAta,
                 TEST_TOKEN_DECIMALS,
             );
 
@@ -691,13 +691,17 @@ describe('Payment Flows', () => {
                 recipient.publicKey,
             );
 
+            const recipientAta = getAssociatedTokenAddressInterface(
+                mint,
+                recipient.publicKey,
+            );
             const batches = await createTransferInterfaceInstructions(
                 rpc,
                 payer.publicKey,
                 mint,
                 BigInt(900),
                 sender.publicKey,
-                recipient.publicKey,
+                recipientAta,
                 TEST_TOKEN_DECIMALS,
             );
 

@@ -169,13 +169,17 @@ describe('Input Selection', () => {
                 recipient.publicKey,
             );
 
+            const recipientAta = getAssociatedTokenAddressInterface(
+                mint,
+                recipient.publicKey,
+            );
             const batches = await createTransferInterfaceInstructions(
                 rpc,
                 payer.publicKey,
                 mint,
                 BigInt(1000),
                 sender.publicKey,
-                recipient.publicKey,
+                recipientAta,
                 TEST_TOKEN_DECIMALS,
             );
 
@@ -220,13 +224,17 @@ describe('Input Selection', () => {
                 recipient.publicKey,
             );
 
+            const recipientAta = getAssociatedTokenAddressInterface(
+                mint,
+                recipient.publicKey,
+            );
             const batches = await createTransferInterfaceInstructions(
                 rpc,
                 payer.publicKey,
                 mint,
                 BigInt(2000),
                 sender.publicKey,
-                recipient.publicKey,
+                recipientAta,
                 TEST_TOKEN_DECIMALS,
             );
 
@@ -272,14 +280,17 @@ describe('Input Selection', () => {
                 recipient.publicKey,
             );
 
-            // Transfer only 500 (1 input would suffice, but pads to 8)
+            const recipientAta = getAssociatedTokenAddressInterface(
+                mint,
+                recipient.publicKey,
+            );
             const batches = await createTransferInterfaceInstructions(
                 rpc,
                 payer.publicKey,
                 mint,
                 BigInt(500),
                 sender.publicKey,
-                recipient.publicKey,
+                recipientAta,
                 TEST_TOKEN_DECIMALS,
             );
 
@@ -325,16 +336,17 @@ describe('Input Selection', () => {
                 recipient.publicKey,
             );
 
-            // Transfer 500: only 1 input needed, pads to 8.
-            // _buildLoadBatches returns 1 internal batch (8 inputs).
-            // Assembly combines load + transfer = 1 tx.
+            const recipientAta = getAssociatedTokenAddressInterface(
+                mint,
+                recipient.publicKey,
+            );
             const batches = await createTransferInterfaceInstructions(
                 rpc,
                 payer.publicKey,
                 mint,
                 BigInt(500),
                 sender.publicKey,
-                recipient.publicKey,
+                recipientAta,
                 TEST_TOKEN_DECIMALS,
             );
 
@@ -392,13 +404,17 @@ describe('Input Selection', () => {
 
             // Transfer 900: needs 18 inputs (18*50=900), selects all 20.
             // 20 inputs -> 3 internal batches (8+8+4) -> 3 txs
+            const recipientAta = getAssociatedTokenAddressInterface(
+                mint,
+                recipient.publicKey,
+            );
             const batches = await createTransferInterfaceInstructions(
                 rpc,
                 payer.publicKey,
                 mint,
                 BigInt(900),
                 sender.publicKey,
-                recipient.publicKey,
+                recipientAta,
                 TEST_TOKEN_DECIMALS,
             );
 
@@ -445,16 +461,24 @@ describe('Input Selection', () => {
                 tokenPoolInfos,
             );
 
-            // Do NOT create recipient ATA -- let transfer create it
+            await getOrCreateAtaInterface(
+                rpc,
+                payer,
+                mint,
+                recipient.publicKey,
+            );
+            const recipientAta = getAssociatedTokenAddressInterface(
+                mint,
+                recipient.publicKey,
+            );
             const batches = await createTransferInterfaceInstructions(
                 rpc,
                 payer.publicKey,
                 mint,
                 BigInt(1000),
                 sender.publicKey,
-                recipient.publicKey,
+                recipientAta,
                 TEST_TOKEN_DECIMALS,
-                // ensureRecipientAta defaults to true
             );
 
             // 3 cold inputs -> 1 internal batch, combined with transfer + ATA creation
@@ -503,13 +527,17 @@ describe('Input Selection', () => {
 
             // Transfer 2500: needs 1000+900+800 = 2700 >= 2500 (3 inputs).
             // Pads to 8 since only 1 batch needed.
+            const recipientAta = getAssociatedTokenAddressInterface(
+                mint,
+                recipient.publicKey,
+            );
             const batches = await createTransferInterfaceInstructions(
                 rpc,
                 payer.publicKey,
                 mint,
                 BigInt(2500),
                 sender.publicKey,
-                recipient.publicKey,
+                recipientAta,
                 TEST_TOKEN_DECIMALS,
             );
 

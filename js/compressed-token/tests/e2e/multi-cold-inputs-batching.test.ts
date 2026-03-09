@@ -506,9 +506,12 @@ describe('Multi-Cold-Inputs Batching', () => {
                 mint,
                 owner.publicKey,
             );
-
-            // createTransferInterfaceInstructions should produce
-            // batches with non-overlapping hashes
+            await getOrCreateAtaInterface(
+                rpc,
+                payer,
+                mint,
+                recipient.publicKey,
+            );
             const recipientAta = getAssociatedTokenAddressInterface(
                 mint,
                 recipient.publicKey,
@@ -520,7 +523,7 @@ describe('Multi-Cold-Inputs Batching', () => {
                 mint,
                 totalAmount,
                 owner.publicKey,
-                recipient.publicKey,
+                recipientAta,
                 TEST_TOKEN_DECIMALS,
             );
 
@@ -560,15 +563,11 @@ describe('Multi-Cold-Inputs Batching', () => {
         }, 180_000);
     });
 
-    // ---------------------------------------------------------------
-    // ensureRecipientAta (default true) -- no manual ATA creation
-    // ---------------------------------------------------------------
-    describe('ensureRecipientAta default', () => {
-        it('should create recipient ATA automatically via ensureRecipientAta (hot sender)', async () => {
+    describe('destination must exist', () => {
+        it('hot sender: create destination ATA first then transfer', async () => {
             const owner = await newAccountWithLamports(rpc, 3e9);
             const recipient = Keypair.generate();
 
-            // Mint compressed tokens then load to make sender hot
             await mintTo(
                 rpc,
                 payer,
@@ -586,40 +585,40 @@ describe('Multi-Cold-Inputs Batching', () => {
             await loadAta(rpc, senderAta, owner, mint);
 
             const transferAmount = BigInt(200);
-
-            // Build instructions -- do NOT manually create recipient ATA
+            await getOrCreateAtaInterface(
+                rpc,
+                payer,
+                mint,
+                recipient.publicKey,
+            );
+            const recipientAta = getAssociatedTokenAddressInterface(
+                mint,
+                recipient.publicKey,
+            );
             const batches = await createTransferInterfaceInstructions(
                 rpc,
                 payer.publicKey,
                 mint,
                 transferAmount,
                 owner.publicKey,
-                recipient.publicKey,
+                recipientAta,
                 TEST_TOKEN_DECIMALS,
-                // ensureRecipientAta defaults to true
             );
 
-            // Hot sender: single batch with CU + recipient ATA + transfer ix
             expect(batches.length).toBe(1);
-            expect(batches[0].length).toBe(3);
 
             const { blockhash } = await rpc.getLatestBlockhash();
             const tx = buildAndSignTx(batches[0], payer, blockhash, [owner]);
             const signature = await sendAndConfirmTx(rpc, tx);
             expect(signature).toBeDefined();
 
-            // Verify recipient ATA was created and has correct balance
-            const recipientAta = getAssociatedTokenAddressInterface(
-                mint,
-                recipient.publicKey,
-            );
             const recipientInfo = await rpc.getAccountInfo(recipientAta);
             expect(recipientInfo).not.toBeNull();
             const recipientBalance = recipientInfo!.data.readBigUInt64LE(64);
             expect(recipientBalance).toBe(transferAmount);
         }, 120_000);
 
-        it('should create recipient ATA automatically with cold inputs (10 cold)', async () => {
+        it('cold inputs (10): create destination ATA first then transfer', async () => {
             const owner = await newAccountWithLamports(rpc, 3e9);
             const recipient = Keypair.generate();
             const coldCount = 10;
@@ -638,14 +637,24 @@ describe('Multi-Cold-Inputs Batching', () => {
                 tokenPoolInfos,
             );
 
-            // Build instructions -- no manual recipient ATA creation
+            await getOrCreateAtaInterface(
+                rpc,
+                payer,
+                mint,
+                recipient.publicKey,
+            );
+            const recipientAta = getAssociatedTokenAddressInterface(
+                mint,
+                recipient.publicKey,
+            );
             const batches = await createTransferInterfaceInstructions(
                 rpc,
                 payer.publicKey,
                 mint,
                 totalAmount,
                 owner.publicKey,
-                recipient.publicKey,
+                recipientAta,
+                TEST_TOKEN_DECIMALS,
             );
 
             // 10 cold: 2 batches (load + transfer)
@@ -668,22 +677,16 @@ describe('Multi-Cold-Inputs Batching', () => {
             const signature = await sendAndConfirmTx(rpc, tx);
             expect(signature).toBeDefined();
 
-            // Verify recipient got the tokens
-            const recipientAta = getAssociatedTokenAddressInterface(
-                mint,
-                recipient.publicKey,
-            );
             const recipientBalance = (await rpc.getAccountInfo(
                 recipientAta,
             ))!.data.readBigUInt64LE(64);
             expect(recipientBalance).toBe(totalAmount);
         }, 180_000);
 
-        it('should allow opt-out with ensureRecipientAta: false', async () => {
+        it('hot sender: single batch with CU + transfer (no ATA creation)', async () => {
             const owner = await newAccountWithLamports(rpc, 2e9);
             const recipient = Keypair.generate();
 
-            // Mint compressed then load to make sender hot
             await mintTo(
                 rpc,
                 payer,
@@ -699,6 +702,16 @@ describe('Multi-Cold-Inputs Batching', () => {
                 owner.publicKey,
             );
             await loadAta(rpc, senderAta, owner, mint);
+            await getOrCreateAtaInterface(
+                rpc,
+                payer,
+                mint,
+                recipient.publicKey,
+            );
+            const recipientAta = getAssociatedTokenAddressInterface(
+                mint,
+                recipient.publicKey,
+            );
 
             const batches = await createTransferInterfaceInstructions(
                 rpc,
@@ -706,12 +719,10 @@ describe('Multi-Cold-Inputs Batching', () => {
                 mint,
                 BigInt(100),
                 owner.publicKey,
-                recipient.publicKey,
+                recipientAta,
                 TEST_TOKEN_DECIMALS,
-                { ensureRecipientAta: false },
             );
 
-            // Single batch with CU budget + transfer ix only (no ATA ix)
             expect(batches.length).toBe(1);
             expect(batches[0].length).toBe(2);
         }, 60_000);

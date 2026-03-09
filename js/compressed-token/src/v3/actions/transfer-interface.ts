@@ -72,7 +72,6 @@ export async function transferInterface(
             ...options,
             wrap,
             programId,
-            ensureRecipientAta: true,
         },
     );
 
@@ -95,7 +94,6 @@ export async function transferInterface(
 export interface TransferOptions extends InterfaceOptions {
     wrap?: boolean;
     programId?: PublicKey;
-    ensureRecipientAta?: boolean;
 }
 
 export function sliceLast<T>(items: T[]): { rest: T[]; last: T } {

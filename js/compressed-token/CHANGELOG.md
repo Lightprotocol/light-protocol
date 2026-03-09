@@ -1,3 +1,11 @@
+## [Unreleased]
+
+### Breaking Changes
+
+- **`transferInterface` and `createTransferInterfaceInstructions`**: `destination` is now the token account address (SPL-style), not the recipient wallet. `ensureRecipientAta` removed; caller must create the destination ATA before transfer via `getOrCreateAtaInterface` or `createAssociatedTokenAccountInterfaceIdempotentInstruction`.
+    - **Action:** `transferInterface(rpc, payer, source, mint, destination, owner, amount, ...)` — `destination` is the token account (e.g. `getAssociatedTokenAddressInterface(mint, recipient.publicKey)`).
+    - **Instruction builder:** `createTransferInterfaceInstructions(rpc, payer, mint, amount, sender, destination, decimals, options?)` — same `destination` semantics.
+
 ## [0.23.0-beta.10]
 
 ### Breaking Changes

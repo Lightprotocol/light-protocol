@@ -359,14 +359,17 @@ describe('v3-interface-v1-rejection', () => {
                 owner.publicKey,
             );
 
-            // transferInterface(rpc, payer, source, mint, recipientWallet, owner, amount)
+            const recipientAta = getAssociatedTokenAddressInterface(
+                mint,
+                recipient.publicKey,
+            );
             await expect(
                 transferInterface(
                     rpc,
                     payer,
                     sourceAta,
                     mint,
-                    recipient.publicKey,
+                    recipientAta,
                     owner,
                     BigInt(500),
                 ),

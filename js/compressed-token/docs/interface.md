@@ -11,7 +11,7 @@ Concise reference for the v3 interface surface: reads (`getAtaInterface`), loads
 | `createLoadAtaInstructions`           | v3              | Instruction batches for loading cold/wrap into ATA |
 | `loadAta`                             | v3              | Action: execute load, return signature             |
 | `createTransferInterfaceInstructions` | v3              | Instruction builder for transfers                  |
-| `transferInterface`                   | v3              | Action: load + transfer, creates recipient ATA     |
+| `transferInterface`                   | v3              | Action: load + transfer (destination must exist)    |
 | `createLightTokenTransferInstruction` | v3/instructions | Raw c-token transfer ix (no load/wrap)             |
 
 Unified (`/unified`): `wrap=true` default, aggregates SPL/T22 into c-token ATA. Standard (`v3`): `wrap=false` default.
@@ -112,10 +112,10 @@ _buildLoadBatches(senderInterface, wrap, targetAta)
 ### Transfer Flow (createTransferInterfaceInstructions)
 
 ```
-createTransferInterfaceInstructions(rpc, payer, mint, amount, sender, recipient, options?)
+createTransferInterfaceInstructions(rpc, payer, mint, amount, sender, destination, options?)
     |
     +- amount <= 0 -> throw
-    +- derive ATAs using programId
+    +- destination: token account address (must exist; derive via getAssociatedTokenAddressInterface)
     +- getAtaInterface(sender, wrap, programId)
     +- hot account frozen -> throw
     +- unfrozen balance < amount -> throw (reports frozen balance separately)
@@ -125,14 +125,11 @@ createTransferInterfaceInstructions(rpc, payer, mint, amount, sender, recipient,
     +- programId = SPL|T22 && !wrap -> createTransferCheckedInstruction
     +- else                         -> createLightTokenTransferInstruction
     |
-    +- ensureRecipientAta (default: true)
-    |   -> prepend idempotent recipient ATA creation ix (no RPC fetch)
-    |
     +- Returns TransactionInstruction[][]:
-    +- batches.length = 0 (hot) -> [[CU, ?ataIx, transferIx]]
-    +- batches.length = 1       -> [[CU, ?ataIx, ...batch0, transferIx]]
+    +- batches.length = 0 (hot) -> [[CU, transferIx]]
+    +- batches.length = 1       -> [[CU, ...batch0, transferIx]]
     +- batches.length > 1
-        -> [[CU, load0], [CU, load1], ..., [CU, ?ataIx, ...lastBatch, transferIx]]
+        -> [[CU, load0], [CU, load1], ..., [CU, ...lastBatch, transferIx]]
         -> send [0..n-2] in parallel, then [n-1] after all confirm
 ```
 
@@ -142,7 +139,8 @@ createTransferInterfaceInstructions(rpc, payer, mint, amount, sender, recipient,
 transferInterface(rpc, payer, source, mint, destination, owner, amount, programId?, confirmOptions?, options?, wrap?)
     |
     +- Validate source == getAssociatedTokenAddressInterface(mint, owner, programId)
-    +- batches = createTransferInterfaceInstructions(..., ensureRecipientAta: true)
+    +- destination: token account address (must exist; derive via getAssociatedTokenAddressInterface)
+    +- batches = createTransferInterfaceInstructions(..., destination)
     +- { rest: loads, last: transferIxs } = sliceLast(batches)
     +- Send loads in parallel (if any)
     +- Send transferIxs
@@ -182,10 +180,10 @@ Across concurrent calls for the same sender: not serialized. Both calls read the
 | Sender           | Recipient  | Status                            |
 | ---------------- | ---------- | --------------------------------- |
 | Hot only         | ATA exists | Works                             |
-| Hot only         | No ATA     | Works (transferInterface creates) |
+| Hot only         | No ATA     | Fails (destination must exist)     |
 | Cold <=8         | ATA exists | Works                             |
 | Cold >8          | ATA exists | Works (parallel loads + transfer) |
-| Cold             | No ATA     | Works (transferInterface creates) |
+| Cold             | No ATA     | Fails (destination must exist)     |
 | Hot + Cold       | Any        | Works                             |
 | SPL hot only     | Any        | Works (wrap)                      |
 | SPL + Cold       | Any        | Works                             |
