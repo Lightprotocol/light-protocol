@@ -3,7 +3,7 @@
   "checkpoint_id": "814bd0c10ab4",
   "strategy": "manual-commit",
   "branch": "jorrit/chore-add-v1-tree-deprecation-msg",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "programs/system/src/context.rs"
   ],
@@ -14,13 +14,20 @@
       "context": "/81/4bd0c10ab4/0/context.md",
       "content_hash": "/81/4bd0c10ab4/0/content_hash.txt",
       "prompt": "/81/4bd0c10ab4/0/prompt.txt"
+    },
+    {
+      "metadata": "/81/4bd0c10ab4/1/metadata.json",
+      "transcript": "/81/4bd0c10ab4/1/full.jsonl",
+      "context": "/81/4bd0c10ab4/1/context.md",
+      "content_hash": "/81/4bd0c10ab4/1/content_hash.txt",
+      "prompt": "/81/4bd0c10ab4/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 6183,
-    "cache_creation_tokens": 131486,
-    "cache_read_tokens": 6638020,
-    "output_tokens": 33221,
-    "api_call_count": 78
+    "input_tokens": 6201,
+    "cache_creation_tokens": 144898,
+    "cache_read_tokens": 8097356,
+    "output_tokens": 38341,
+    "api_call_count": 90
   }
 }
