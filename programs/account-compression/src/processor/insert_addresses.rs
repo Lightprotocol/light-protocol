@@ -122,6 +122,7 @@ fn process_address_v1<'info>(
     current_queue_index: u8,
     current_tree_index: u8,
 ) -> Result<usize> {
+    msg!("Warning: v1 address trees are deprecated. Migrate to v2: https://www.zkcompression.com/resources/migration-v1-to-v2");
     // 1. Filter for addresses with the same queue and tree indices.
     let addresses = addresses
         .iter()

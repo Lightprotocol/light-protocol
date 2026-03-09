@@ -63,3 +63,4 @@ solana-signature = { workspace = true }
 solana-instruction = { workspace = true }
 solana-msg = { workspace = true }
 borsh = { workspace = true }
+bytemuck = { workspace = true }

@@ -48,6 +48,7 @@ impl FeeConfig {
 pub struct TransactionParams {
     pub v1_input_compressed_accounts: u8,
     pub v2_input_compressed_accounts: bool,
+    pub v1_output_compressed_accounts: u8,
     pub num_output_compressed_accounts: u8,
     pub num_new_addresses: u8,
     pub compress: i64,
@@ -75,6 +76,11 @@ pub async fn assert_transaction_params(
                 * transaction_params.v1_input_compressed_accounts as i64;
         } else if transaction_params.v2_input_compressed_accounts {
             network_fee += transaction_params.fee_config.network_fee as i64;
+        }
+        // Charge per V1 output tree
+        if transaction_params.v1_output_compressed_accounts != 0 {
+            network_fee += transaction_params.fee_config.network_fee as i64
+                * transaction_params.v1_output_compressed_accounts as i64;
         }
         // Charge per address created
         if transaction_params.num_new_addresses != 0 {
