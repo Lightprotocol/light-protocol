@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "7423e3c1c43d",
+  "strategy": "manual-commit",
+  "branch": "jorrit/chore-add-v1-tree-deprecation-msg",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "program-tests/system-cpi-test/tests/test_program_owned_trees.rs",
+    "program-tests/system-test/tests/test.rs",
+    "program-tests/utils/src/e2e_test_env.rs",
+    "programs/system/src/context.rs",
+    "programs/system/src/processor/create_outputs_cpi_data.rs",
+    "sdk-libs/client/src/fee.rs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/74/23e3c1c43d/0/metadata.json",
+      "transcript": "/74/23e3c1c43d/0/full.jsonl",
+      "context": "/74/23e3c1c43d/0/context.md",
+      "content_hash": "/74/23e3c1c43d/0/content_hash.txt",
+      "prompt": "/74/23e3c1c43d/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 6160,
+    "cache_creation_tokens": 100512,
+    "cache_read_tokens": 4508055,
+    "output_tokens": 27772,
+    "api_call_count": 61
+  }
+}
