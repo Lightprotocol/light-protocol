@@ -57,6 +57,7 @@ pub fn insert_leaves<'a, 'b, 'c: 'info, 'info>(
                 }
             }
             AcpAccount::StateTree((_, merkle_tree)) => {
+                msg!("Warning: v1 state trees are deprecated. Migrate to v2: https://www.zkcompression.com/resources/migration-v1-to-v2");
                 merkle_tree
                     .append_batch(
                         &leaves[start..end]
