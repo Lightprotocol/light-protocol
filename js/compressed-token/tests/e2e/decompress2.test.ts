@@ -152,7 +152,7 @@ describe('decompressInterface', () => {
 
             const ataInfo = await rpc.getAccountInfo(lightTokenAta);
             expect(ataInfo).not.toBeNull();
-            const hotBalance = ataInfo!.data.readBigUInt64LE(64);
+            const hotBalance = await getLightTokenBalance(rpc, lightTokenAta);
             expect(hotBalance).toBe(BigInt(10000));
         });
 

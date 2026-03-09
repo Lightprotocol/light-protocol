@@ -73,6 +73,7 @@ function parseCompressedOnlyFromTlv(
             offset += size;
         }
     } catch {
+        // Ignoring unknown TLV extensions.
         return null;
     }
     return null;
