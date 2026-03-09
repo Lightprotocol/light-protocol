@@ -4438,6 +4438,7 @@ dependencies = [
  "anchor-spl",
  "base64 0.13.1",
  "borsh 0.10.4",
+ "bytemuck",
  "create-address-test-program",
  "forester-utils",
  "light-account-checks",

@@ -4,7 +4,7 @@ use account_compression::{
     utils::constants::{ADDRESS_MERKLE_TREE_HEIGHT, ADDRESS_MERKLE_TREE_ROOTS},
     AddressMerkleTreeAccount, StateMerkleTreeAccount, ID, SAFETY_MARGIN,
 };
-use anchor_lang::{system_program, AccountDeserialize, InstructionData, ToAccountMetas};
+use anchor_lang::{system_program, InstructionData, ToAccountMetas};
 use forester_utils::account_zero_copy::{
     get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree,
 };
@@ -76,12 +76,10 @@ pub async fn nullify_compressed_accounts<R: Rpc + TestRpc + Indexer + Indexer>(
         .await
         .unwrap()
         .unwrap();
-    let merkle_tree_deserialized =
-        StateMerkleTreeAccount::try_deserialize(&mut &merkle_tree_account.data[..]).unwrap();
-    let network_fee = merkle_tree_deserialized
-        .metadata
-        .rollover_metadata
-        .network_fee;
+    let state_tree_header: &StateMerkleTreeAccount = bytemuck::from_bytes(
+        &merkle_tree_account.data[8..8 + std::mem::size_of::<StateMerkleTreeAccount>()],
+    );
+    let network_fee = state_tree_header.metadata.rollover_metadata.network_fee;
 
     let pre_queue_lamports = rpc
         .get_account(state_tree_bundle.accounts.nullifier_queue)
@@ -351,13 +349,11 @@ pub async fn empty_address_queue_test<R: Rpc>(
         .await
         .map_err(|_| RelayerUpdateError::RpcError)?
         .ok_or(RelayerUpdateError::RpcError)?;
-    let address_tree_deserialized =
-        AddressMerkleTreeAccount::try_deserialize(&mut &address_tree_account.data[..])
-            .map_err(|_| RelayerUpdateError::RpcError)?;
-    let network_fee = address_tree_deserialized
-        .metadata
-        .rollover_metadata
-        .network_fee;
+    let address_tree_header: &AddressMerkleTreeAccount = bytemuck::from_bytes(
+        &address_tree_account.data
+            [8..8 + std::mem::size_of::<AddressMerkleTreeAccount>()],
+    );
+    let network_fee = address_tree_header.metadata.rollover_metadata.network_fee;
 
     let mut counter = 0;
     loop {
@@ -536,7 +532,9 @@ pub async fn empty_address_queue_test<R: Rpc>(
             }
 
             // Assert network fee reimbursement from queue to forester.
-            if network_fee > 0 {
+            // Only when going through registry (!signer_is_owner) since
+            // the signer_is_owner path passes fee_payer: None.
+            if network_fee > 0 && !signer_is_owner {
                 let post_queue_lamports = rpc
                     .get_account(address_queue_pubkey)
                     .await
@@ -721,6 +719,7 @@ pub async fn update_merkle_tree<R: Rpc>(
                 AccountMeta::new(address_queue_pubkey, false),
                 AccountMeta::new(address_merkle_tree_pubkey, false),
                 AccountMeta::new(NOOP_PROGRAM_ID, false),
+                AccountMeta::new(ID, false),
             ],
             data: instruction_data.data(),
         }
