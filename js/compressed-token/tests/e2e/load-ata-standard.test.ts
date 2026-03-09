@@ -299,6 +299,7 @@ describe('loadAta - Standard Path (wrap=false)', () => {
                 ata,
                 owner.publicKey,
                 mint,
+                TEST_TOKEN_DECIMALS,
                 payer.publicKey,
             );
             expect(batches.length).toBe(0);
@@ -324,6 +325,7 @@ describe('loadAta - Standard Path (wrap=false)', () => {
                 ata,
                 owner.publicKey,
                 mint,
+                TEST_TOKEN_DECIMALS,
                 payer.publicKey,
             );
 
@@ -353,6 +355,7 @@ describe('loadAta - Standard Path (wrap=false)', () => {
                 ata,
                 owner.publicKey,
                 mint,
+                TEST_TOKEN_DECIMALS,
                 payer.publicKey,
             );
 

@@ -197,6 +197,7 @@ describe('Multi-Cold-Inputs', () => {
                 ata,
                 owner.publicKey,
                 mint,
+                TEST_TOKEN_DECIMALS,
             );
 
             // 5 inputs < 8: single batch
@@ -269,6 +270,7 @@ describe('Multi-Cold-Inputs', () => {
                 ata,
                 owner.publicKey,
                 mint,
+                TEST_TOKEN_DECIMALS,
             );
 
             // 8 inputs = exactly MAX_INPUT_ACCOUNTS: single batch
@@ -349,6 +351,7 @@ describe('Multi-Cold-Inputs', () => {
                 ata,
                 owner.publicKey,
                 mint,
+                TEST_TOKEN_DECIMALS,
             );
 
             // 12 inputs = 8+4 for V2 = 2 batches

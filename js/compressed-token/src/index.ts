@@ -26,6 +26,7 @@ import {
     loadAta as _loadAta,
     selectInputsForAmount,
 } from './v3/actions/load-ata';
+import { getMintInterface } from './v3/get-mint-interface';
 
 export { selectInputsForAmount };
 
@@ -60,6 +61,7 @@ export {
     createLightTokenFreezeAccountInstruction,
     createLightTokenThawAccountInstruction,
     createLightTokenTransferInstruction,
+    createLightTokenTransferCheckedInstruction,
     // Types
     TokenMetadataInstructionData,
     CompressibleConfig,
@@ -163,11 +165,13 @@ export async function createLoadAtaInstructions(
     payer?: PublicKey,
     options?: InterfaceOptions,
 ): Promise<TransactionInstruction[][]> {
+    const mintInterface = await getMintInterface(rpc, mint);
     return _createLoadAtaInstructions(
         rpc,
         ata,
         owner,
         mint,
+        mintInterface.mint.decimals,
         payer,
         options,
         false,
@@ -194,6 +198,7 @@ export async function loadAta(
     payer?: Signer,
     confirmOptions?: ConfirmOptions,
     interfaceOptions?: InterfaceOptions,
+    decimals?: number,
 ): Promise<TransactionSignature | null> {
     return _loadAta(
         rpc,
@@ -204,5 +209,6 @@ export async function loadAta(
         confirmOptions,
         interfaceOptions,
         false,
+        decimals,
     );
 }

@@ -183,6 +183,7 @@ describe('v3-interface-v1-rejection', () => {
                     lightTokenAta,
                     owner.publicKey,
                     mint,
+                    TEST_TOKEN_DECIMALS,
                     payer.publicKey,
                 ),
             ).rejects.toThrow(
@@ -218,6 +219,7 @@ describe('v3-interface-v1-rejection', () => {
                     lightTokenAta,
                     owner.publicKey,
                     mint,
+                    TEST_TOKEN_DECIMALS,
                     payer.publicKey,
                 ),
             ).rejects.toThrow(
@@ -259,6 +261,7 @@ describe('v3-interface-v1-rejection', () => {
                     lightTokenAta,
                     owner.publicKey,
                     mint,
+                    TEST_TOKEN_DECIMALS,
                     payer.publicKey,
                 ),
             ).rejects.toThrow(

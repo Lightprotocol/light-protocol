@@ -13,6 +13,7 @@ import {
 } from '@solana/web3.js';
 import { createLoadAtaInstructions } from '../instructions/load-ata';
 import { InterfaceOptions } from './transfer-interface';
+import { getMintInterface } from '../get-mint-interface';
 
 export {
     createLoadAtaInstructions,
@@ -35,16 +36,20 @@ export async function loadAta(
     confirmOptions?: ConfirmOptions,
     interfaceOptions?: InterfaceOptions,
     wrap = false,
+    decimals?: number,
 ): Promise<TransactionSignature | null> {
     assertBetaEnabled();
 
     payer ??= owner;
 
+    const resolvedDecimals =
+        decimals ?? (await getMintInterface(rpc, mint)).mint.decimals;
     const batches = await createLoadAtaInstructions(
         rpc,
         ata,
         owner.publicKey,
         mint,
+        resolvedDecimals,
         payer.publicKey,
         interfaceOptions,
         wrap,

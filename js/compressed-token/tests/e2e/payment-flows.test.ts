@@ -291,6 +291,7 @@ describe('Payment Flows', () => {
                 senderAtaAddress,
                 sender.publicKey,
                 mint,
+                TEST_TOKEN_DECIMALS,
                 payer.publicKey,
                 { splInterfaceInfos: tokenPoolInfos },
             );
@@ -355,6 +356,7 @@ describe('Payment Flows', () => {
                 senderAtaAddress,
                 sender.publicKey,
                 mint,
+                TEST_TOKEN_DECIMALS,
                 payer.publicKey,
             );
             expect(loadBatches).toHaveLength(0);
@@ -518,6 +520,7 @@ describe('Payment Flows', () => {
                 amount,
                 sender.publicKey,
                 recipient.publicKey,
+                TEST_TOKEN_DECIMALS,
             );
 
             // Hot sender: single transaction (no loads)
@@ -573,6 +576,7 @@ describe('Payment Flows', () => {
                 BigInt(2500),
                 sender.publicKey,
                 recipient.publicKey,
+                TEST_TOKEN_DECIMALS,
             );
 
             // <=8 cold inputs: all fits in one transaction
@@ -626,6 +630,7 @@ describe('Payment Flows', () => {
                 BigInt(1100),
                 sender.publicKey,
                 recipient.publicKey,
+                TEST_TOKEN_DECIMALS,
             );
 
             // >8 inputs: 2 batches (load + transfer)
@@ -693,6 +698,7 @@ describe('Payment Flows', () => {
                 BigInt(900),
                 sender.publicKey,
                 recipient.publicKey,
+                TEST_TOKEN_DECIMALS,
             );
 
             // 20 inputs: 3 batches (8+8 loads + last 4 + transfer)

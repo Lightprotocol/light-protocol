@@ -146,6 +146,7 @@ describe('transfer-interface', () => {
                     0,
                     sender.publicKey,
                     recipient,
+                    TEST_TOKEN_DECIMALS,
                 ),
             ).rejects.toThrow('Transfer amount must be greater than zero.');
         });
@@ -162,6 +163,7 @@ describe('transfer-interface', () => {
                     -100,
                     sender.publicKey,
                     recipient,
+                    TEST_TOKEN_DECIMALS,
                 ),
             ).rejects.toThrow('Transfer amount must be greater than zero.');
         });
@@ -182,6 +184,7 @@ describe('transfer-interface', () => {
                     BigInt(100),
                     sender.publicKey,
                     pdaRecipient,
+                    TEST_TOKEN_DECIMALS,
                 ),
             ).rejects.toThrow(
                 /Recipient must be a wallet public key \(on-curve\), not a PDA or associated token account/,
@@ -323,6 +326,7 @@ describe('transfer-interface', () => {
                     BigInt(100),
                     sender.publicKey,
                     recipient,
+                    TEST_TOKEN_DECIMALS,
                     { wrap: true },
                 ),
             ).rejects.toThrow(/Account is frozen|transfer is not allowed/);
@@ -448,6 +452,7 @@ describe('transfer-interface', () => {
                 BigInt(500),
                 delegate.publicKey,
                 recipient,
+                TEST_TOKEN_DECIMALS,
                 { owner: owner.publicKey },
             );
 
@@ -532,6 +537,7 @@ describe('transfer-interface', () => {
                     BigInt(100),
                     other,
                     recipient,
+                    TEST_TOKEN_DECIMALS,
                     { owner: owner.publicKey },
                 ),
             ).rejects.toThrow(/Signer is not the owner or a delegate/);
@@ -562,6 +568,7 @@ describe('transfer-interface', () => {
                     BigInt(500),
                     delegate.publicKey,
                     recipient,
+                    TEST_TOKEN_DECIMALS,
                     { owner: owner.publicKey },
                 ),
             ).rejects.toThrow(/Insufficient delegated balance/);
@@ -581,6 +588,7 @@ describe('transfer-interface', () => {
                 ata,
                 owner.publicKey,
                 mint,
+                TEST_TOKEN_DECIMALS,
                 payer.publicKey,
             );
 
@@ -611,6 +619,7 @@ describe('transfer-interface', () => {
                 ata,
                 owner.publicKey,
                 mint,
+                TEST_TOKEN_DECIMALS,
             );
 
             expect(batches.length).toBeGreaterThan(0);
@@ -650,6 +659,7 @@ describe('transfer-interface', () => {
                 ata,
                 owner.publicKey,
                 mint,
+                TEST_TOKEN_DECIMALS,
             );
 
             expect(batches.length).toBeGreaterThan(0);
@@ -1233,6 +1243,7 @@ describe('transfer-interface', () => {
                     BigInt(99_999),
                     sender.publicKey,
                     recipient.publicKey,
+                    TEST_TOKEN_DECIMALS,
                 ),
             ).rejects.toThrow(
                 /Insufficient balance.*Required: 99999.*Available: 100$/,
@@ -1380,6 +1391,7 @@ describe('transfer-interface', () => {
                 BigInt(1000),
                 sender.publicKey,
                 recipient.publicKey,
+                TEST_TOKEN_DECIMALS,
                 {
                     programId: TOKEN_PROGRAM_ID,
                     splInterfaceInfos: tokenPoolInfos,

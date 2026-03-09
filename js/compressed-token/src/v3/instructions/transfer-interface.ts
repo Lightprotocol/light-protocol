@@ -13,7 +13,6 @@ import {
     TOKEN_PROGRAM_ID,
     TOKEN_2022_PROGRAM_ID,
     createTransferCheckedInstruction,
-    getMint,
     TokenAccountNotFoundError,
 } from '@solana/spl-token';
 import BN from 'bn.js';
@@ -38,6 +37,7 @@ import { assertTransactionSizeWithinLimit } from '../utils/estimate-tx-size';
 import type { TransferOptions } from '../actions/transfer-interface';
 
 const LIGHT_TOKEN_TRANSFER_DISCRIMINATOR = 3;
+const LIGHT_TOKEN_TRANSFER_CHECKED_DISCRIMINATOR = 12;
 
 const TRANSFER_BASE_CU = 10_000;
 const CU_BUFFER_FACTOR = 1.3;
@@ -104,6 +104,44 @@ export function createLightTokenTransferInstruction(
     });
 }
 
+/**
+ * Create a light-token transfer_checked instruction. Same semantics as SPL
+ * TransferChecked.
+ */
+export function createLightTokenTransferCheckedInstruction(
+    source: PublicKey,
+    destination: PublicKey,
+    mint: PublicKey,
+    owner: PublicKey,
+    amount: number | bigint,
+    decimals: number,
+    payer: PublicKey,
+): TransactionInstruction {
+    const data = Buffer.alloc(10);
+    data.writeUInt8(LIGHT_TOKEN_TRANSFER_CHECKED_DISCRIMINATOR, 0);
+    data.writeBigUInt64LE(BigInt(amount), 1);
+    data.writeUInt8(decimals, 9);
+
+    const keys = [
+        { pubkey: source, isSigner: false, isWritable: true },
+        { pubkey: mint, isSigner: false, isWritable: false },
+        { pubkey: destination, isSigner: false, isWritable: true },
+        { pubkey: owner, isSigner: true, isWritable: true },
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+        {
+            pubkey: payer,
+            isSigner: true,
+            isWritable: true,
+        },
+    ];
+
+    return new TransactionInstruction({
+        programId: LIGHT_TOKEN_PROGRAM_ID,
+        keys,
+        data,
+    });
+}
+
 export async function createTransferInterfaceInstructions(
     rpc: Rpc,
     payer: PublicKey,
@@ -111,6 +149,7 @@ export async function createTransferInterfaceInstructions(
     amount: number | bigint | BN,
     sender: PublicKey,
     recipient: PublicKey,
+    decimals: number,
     options?: TransferOptions,
 ): Promise<TransactionInstruction[][]> {
     assertBetaEnabled();
@@ -206,27 +245,30 @@ export async function createTransferInterfaceInstructions(
         senderAta,
         amountBigInt,
         sender,
+        decimals,
     );
 
     let transferIx: TransactionInstruction;
     if (isSplOrT22 && !wrap) {
-        const mintInfo = await getMint(rpc, mint, undefined, programId);
         transferIx = createTransferCheckedInstruction(
             senderAta,
             mint,
             recipientAta,
             sender,
             amountBigInt,
-            mintInfo.decimals,
+            decimals,
             [],
             programId,
         );
     } else {
-        transferIx = createLightTokenTransferInstruction(
+        transferIx = createLightTokenTransferCheckedInstruction(
             senderAta,
             recipientAta,
+            mint,
             sender,
             amountBigInt,
+            decimals,
+            payer,
         );
     }
 

@@ -15,6 +15,7 @@ import {
 import BN from 'bn.js';
 import { createTransferInterfaceInstructions } from '../instructions/transfer-interface';
 import { getAssociatedTokenAddressInterface } from '../get-associated-token-address-interface';
+import { getMintInterface } from '../get-mint-interface';
 import { type SplInterfaceInfo } from '../../utils/get-token-pool-infos';
 
 export interface InterfaceOptions {
@@ -38,6 +39,7 @@ export async function transferInterface(
     confirmOptions?: ConfirmOptions,
     options?: InterfaceOptions,
     wrap = false,
+    decimals?: number,
 ): Promise<TransactionSignature> {
     assertBetaEnabled();
 
@@ -56,6 +58,8 @@ export async function transferInterface(
 
     const amountBigInt = BigInt(amount.toString());
 
+    const resolvedDecimals =
+        decimals ?? (await getMintInterface(rpc, mint)).mint.decimals;
     const batches = await createTransferInterfaceInstructions(
         rpc,
         payer.publicKey,
@@ -63,6 +67,7 @@ export async function transferInterface(
         amountBigInt,
         owner.publicKey,
         destination,
+        resolvedDecimals,
         {
             ...options,
             wrap,

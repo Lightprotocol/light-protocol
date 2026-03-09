@@ -43,6 +43,7 @@ import {
 import { SplInterfaceInfo } from '../../utils/get-token-pool-infos';
 import { getAtaProgramId } from '../ata-utils';
 import { InterfaceOptions } from '..';
+import { getMintInterface } from '../get-mint-interface';
 
 /**
  * Get associated token account with unified balance
@@ -120,11 +121,13 @@ export async function createLoadAtaInstructions(
     payer?: PublicKey,
     options?: InterfaceOptions,
 ): Promise<TransactionInstruction[][]> {
+    const mintInterface = await getMintInterface(rpc, mint);
     return _createLoadAtaInstructions(
         rpc,
         ata,
         owner,
         mint,
+        mintInterface.mint.decimals,
         payer,
         options,
         true,
@@ -155,6 +158,7 @@ export async function loadAta(
     payer?: Signer,
     confirmOptions?: ConfirmOptions,
     interfaceOptions?: InterfaceOptions,
+    decimals?: number,
 ) {
     payer ??= owner;
 
@@ -167,6 +171,7 @@ export async function loadAta(
         confirmOptions,
         interfaceOptions,
         true,
+        decimals,
     );
 
     // If nothing to load, ensure ATA exists (idempotent).
@@ -224,6 +229,7 @@ export async function transferInterface(
     amount: number | bigint | BN,
     confirmOptions?: ConfirmOptions,
     options?: InterfaceOptions,
+    decimals?: number,
 ) {
     return _transferInterface(
         rpc,
@@ -237,6 +243,7 @@ export async function transferInterface(
         confirmOptions,
         options,
         true, // wrap=true for unified
+        decimals,
     );
 }
 
@@ -310,6 +317,7 @@ export async function createTransferInterfaceInstructions(
     recipient: PublicKey,
     options?: Omit<_TransferOptions, 'wrap'>,
 ): Promise<TransactionInstruction[][]> {
+    const mintInterface = await getMintInterface(rpc, mint);
     return _createTransferInterfaceInstructions(
         rpc,
         payer,
@@ -317,6 +325,7 @@ export async function createTransferInterfaceInstructions(
         amount,
         sender,
         recipient,
+        mintInterface.mint.decimals,
         {
             ...options,
             wrap: true,
@@ -353,11 +362,13 @@ export async function createUnwrapInstructions(
     splInterfaceInfo?: SplInterfaceInfo,
     interfaceOptions?: InterfaceOptions,
 ): Promise<TransactionInstruction[][]> {
+    const mintInterface = await getMintInterface(rpc, mint);
     return _createUnwrapInstructions(
         rpc,
         destination,
         owner,
         mint,
+        mintInterface.mint.decimals,
         amount,
         payer,
         splInterfaceInfo,
@@ -392,6 +403,7 @@ export async function unwrap(
     amount?: number | bigint | BN,
     splInterfaceInfo?: SplInterfaceInfo,
     confirmOptions?: ConfirmOptions,
+    decimals?: number,
 ): Promise<string> {
     return _unwrap(
         rpc,
@@ -403,6 +415,7 @@ export async function unwrap(
         splInterfaceInfo,
         undefined, // maxTopUp - use default
         confirmOptions,
+        decimals,
     );
 }
 
@@ -452,6 +465,7 @@ export {
     createWrapInstruction,
     createUnwrapInstruction,
     createLightTokenTransferInstruction,
+    createLightTokenTransferCheckedInstruction,
     createLightTokenFreezeAccountInstruction,
     createLightTokenThawAccountInstruction,
     // Types

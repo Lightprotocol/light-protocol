@@ -75,6 +75,7 @@ describe('compressible-load', () => {
                 ata,
                 owner.publicKey,
                 mint,
+                TEST_TOKEN_DECIMALS,
                 payer.publicKey,
                 { splInterfaceInfos: tokenPoolInfos },
             );
@@ -93,6 +94,7 @@ describe('compressible-load', () => {
                 ata,
                 owner.publicKey,
                 mint,
+                TEST_TOKEN_DECIMALS,
                 payer.publicKey,
             );
             expect(batches.length).toBe(0);

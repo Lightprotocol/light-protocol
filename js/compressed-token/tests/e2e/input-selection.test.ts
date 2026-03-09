@@ -176,6 +176,7 @@ describe('Input Selection', () => {
                 BigInt(1000),
                 sender.publicKey,
                 recipient.publicKey,
+                TEST_TOKEN_DECIMALS,
             );
 
             // Hot sender: single transfer tx, no loads
@@ -226,6 +227,7 @@ describe('Input Selection', () => {
                 BigInt(2000),
                 sender.publicKey,
                 recipient.publicKey,
+                TEST_TOKEN_DECIMALS,
             );
 
             // 1 cold input fits in single batch with transfer
@@ -278,6 +280,7 @@ describe('Input Selection', () => {
                 BigInt(500),
                 sender.publicKey,
                 recipient.publicKey,
+                TEST_TOKEN_DECIMALS,
             );
 
             // All 8 loaded (padding fills to MAX_INPUT_ACCOUNTS), combined with transfer
@@ -332,6 +335,7 @@ describe('Input Selection', () => {
                 BigInt(500),
                 sender.publicKey,
                 recipient.publicKey,
+                TEST_TOKEN_DECIMALS,
             );
 
             // KEY BEHAVIORAL CHANGE: 1 batch instead of 3
@@ -395,6 +399,7 @@ describe('Input Selection', () => {
                 BigInt(900),
                 sender.publicKey,
                 recipient.publicKey,
+                TEST_TOKEN_DECIMALS,
             );
 
             expect(batches.length).toBe(3);
@@ -448,6 +453,7 @@ describe('Input Selection', () => {
                 BigInt(1000),
                 sender.publicKey,
                 recipient.publicKey,
+                TEST_TOKEN_DECIMALS,
                 // ensureRecipientAta defaults to true
             );
 
@@ -504,6 +510,7 @@ describe('Input Selection', () => {
                 BigInt(2500),
                 sender.publicKey,
                 recipient.publicKey,
+                TEST_TOKEN_DECIMALS,
             );
 
             expect(batches.length).toBe(1);

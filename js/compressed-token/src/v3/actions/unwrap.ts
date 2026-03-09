@@ -14,6 +14,7 @@ import {
 import { sliceLast } from './transfer-interface';
 import BN from 'bn.js';
 import { createUnwrapInstructions } from '../instructions/unwrap';
+import { getMintInterface } from '../get-mint-interface';
 import { type SplInterfaceInfo } from '../../utils/get-token-pool-infos';
 
 export { createUnwrapInstructions } from '../instructions/unwrap';
@@ -28,12 +29,16 @@ export async function unwrap(
     splInterfaceInfo?: SplInterfaceInfo,
     maxTopUp?: number,
     confirmOptions?: ConfirmOptions,
+    decimals?: number,
 ): Promise<TransactionSignature> {
+    const resolvedDecimals =
+        decimals ?? (await getMintInterface(rpc, mint)).mint.decimals;
     const batches = await createUnwrapInstructions(
         rpc,
         destination,
         owner.publicKey,
         mint,
+        resolvedDecimals,
         amount,
         payer.publicKey,
         splInterfaceInfo,

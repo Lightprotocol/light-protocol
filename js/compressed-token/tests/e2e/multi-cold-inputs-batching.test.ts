@@ -158,6 +158,7 @@ describe('Multi-Cold-Inputs Batching', () => {
                 ata,
                 owner.publicKey,
                 mint,
+                TEST_TOKEN_DECIMALS,
             );
 
             expect(batches.length).toBeGreaterThan(0);
@@ -213,6 +214,7 @@ describe('Multi-Cold-Inputs Batching', () => {
                 ata,
                 owner.publicKey,
                 mint,
+                TEST_TOKEN_DECIMALS,
             );
 
             const ixs = batches[0];
@@ -287,6 +289,7 @@ describe('Multi-Cold-Inputs Batching', () => {
                 ata,
                 owner.publicKey,
                 mint,
+                TEST_TOKEN_DECIMALS,
             );
 
             // 15 = 8 + 7 (V2 valid proof sizes)
@@ -518,6 +521,7 @@ describe('Multi-Cold-Inputs Batching', () => {
                 totalAmount,
                 owner.publicKey,
                 recipient.publicKey,
+                TEST_TOKEN_DECIMALS,
             );
 
             // With 10 cold inputs: 2 batches (8+2 for V2).
@@ -591,6 +595,7 @@ describe('Multi-Cold-Inputs Batching', () => {
                 transferAmount,
                 owner.publicKey,
                 recipient.publicKey,
+                TEST_TOKEN_DECIMALS,
                 // ensureRecipientAta defaults to true
             );
 
@@ -702,6 +707,7 @@ describe('Multi-Cold-Inputs Batching', () => {
                 BigInt(100),
                 owner.publicKey,
                 recipient.publicKey,
+                TEST_TOKEN_DECIMALS,
                 { ensureRecipientAta: false },
             );
 

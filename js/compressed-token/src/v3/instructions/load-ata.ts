@@ -16,7 +16,6 @@ import {
     TOKEN_2022_PROGRAM_ID,
     getAssociatedTokenAddressSync,
     createAssociatedTokenAccountIdempotentInstruction,
-    getMint,
     TokenAccountNotFoundError,
 } from '@solana/spl-token';
 import {
@@ -159,6 +158,7 @@ export async function createLoadAtaInstructions(
     ata: PublicKey,
     owner: PublicKey,
     mint: PublicKey,
+    decimals: number,
     payer?: PublicKey,
     interfaceOptions?: InterfaceOptions,
     wrap = false,
@@ -205,6 +205,7 @@ export async function createLoadAtaInstructions(
         ata,
         undefined,
         owner,
+        decimals,
     );
 
     return internalBatches.map(batch => [
@@ -266,8 +267,9 @@ export async function _buildLoadBatches(
     options: InterfaceOptions | undefined,
     wrap: boolean,
     targetAta: PublicKey,
-    targetAmount?: bigint,
-    authority?: PublicKey,
+    targetAmount: bigint | undefined,
+    authority: PublicKey | undefined,
+    decimals: number,
 ): Promise<InternalLoadBatch[]> {
     if (!ata._isAta || !ata._owner || !ata._mint) {
         throw new Error(
@@ -339,7 +341,6 @@ export async function _buildLoadBatches(
         ataType === 'token2022' ||
         splBalance > BigInt(0) ||
         t22Balance > BigInt(0);
-    let decimals = 0;
     if (needsSplInfo) {
         try {
             const splInterfaceInfos =
@@ -348,15 +349,6 @@ export async function _buildLoadBatches(
             splInterfaceInfo = splInterfaceInfos.find(
                 (info: SplInterfaceInfo) => info.isInitialized,
             );
-            if (splInterfaceInfo) {
-                const mintInfo = await getMint(
-                    rpc,
-                    mint,
-                    undefined,
-                    splInterfaceInfo.tokenProgram,
-                );
-                decimals = mintInfo.decimals;
-            }
         } catch (e) {
             if (splBalance > BigInt(0) || t22Balance > BigInt(0)) {
                 throw e;

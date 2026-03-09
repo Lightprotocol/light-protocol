@@ -9,7 +9,7 @@ import {
     assertBetaEnabled,
     LIGHT_TOKEN_PROGRAM_ID,
 } from '@lightprotocol/stateless.js';
-import { getMint, TokenAccountNotFoundError } from '@solana/spl-token';
+import { TokenAccountNotFoundError } from '@solana/spl-token';
 import type BN from 'bn.js';
 import { MAX_TOP_UP } from '../../constants';
 import { CompressedTokenProgram } from '../../program';
@@ -156,6 +156,7 @@ export async function createUnwrapInstructions(
     destination: PublicKey,
     owner: PublicKey,
     mint: PublicKey,
+    decimals: number,
     amount?: number | bigint | BN,
     payer?: PublicKey,
     splInterfaceInfo?: SplInterfaceInfo,
@@ -238,13 +239,8 @@ export async function createUnwrapInstructions(
         wrap,
         lightTokenAta,
         amount != null ? unwrapAmount : undefined,
-    );
-
-    const mintInfo = await getMint(
-        rpc,
-        mint,
         undefined,
-        resolvedSplInterfaceInfo.tokenProgram,
+        decimals,
     );
 
     const ix = createUnwrapInstruction(
@@ -254,7 +250,7 @@ export async function createUnwrapInstructions(
         mint,
         unwrapAmount,
         resolvedSplInterfaceInfo,
-        mintInfo.decimals,
+        decimals,
         payer,
         maxTopUp,
     );
