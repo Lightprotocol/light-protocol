@@ -52,6 +52,12 @@ function txFees(
               ? STATE_MERKLE_TREE_NETWORK_FEE
               : bn(0);
 
+        /// V1 output network fee: charge once per output tree (tests use 1 tree)
+        const networkOutFee =
+            tx.out && !featureFlags.isV2()
+                ? STATE_MERKLE_TREE_NETWORK_FEE
+                : bn(0);
+
         /// Network fee charged per address created
         const networkAddressFee = tx.addr
             ? ADDRESS_TREE_NETWORK_FEE_V1.mul(bn(tx.addr))
@@ -67,6 +73,7 @@ function txFees(
                 .add(stateOutFee)
                 .add(addrFee)
                 .add(networkInFee)
+                .add(networkOutFee)
                 .add(networkAddressFee),
         );
     });
