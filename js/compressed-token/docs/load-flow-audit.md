@@ -69,14 +69,14 @@ So the same “transfer” or “load” has many code paths. That’s the fifth
 
 ## Where the complexity lives (map)
 
-| Layer | What | Why it exists |
-|-------|------|----------------|
-| **Unified read** | `getAtaInterface`, sources (hot/cold/SPL/T22), priority, `_sources` | One “balance” from many places. |
-| **Load engine** | `_buildLoadBatches`, chunking, proofs, setup vs decompress | Turn cold (and optionally SPL/T22) into hot (or into SPL/T22 ATA). |
-| **Instruction builders** | `createLoadAtaInstructions`, `createTransferInterfaceInstructions`, `createUnwrapInstructions` | Assemble 0..N load batches + final action. |
-| **Action wrappers** | `loadAta`, `transferInterface`, `unwrap` | Sign + send N txs (parallel or sequential). |
-| **Unified vs standard** | unified index (`wrap=true` default) vs v3 actions (`wrap=false` default) | Two APIs for “one balance” vs “one program only”. |
-| **ATA abstraction** | `getAssociatedTokenAddressInterface`, `createAssociatedTokenAccountInterfaceIdempotentInstruction`, `checkAtaAddress` | One API for three program types. |
+| Layer                    | What                                                                                                                  | Why it exists                                                      |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| **Unified read**         | `getAtaInterface`, sources (hot/cold/SPL/T22), priority, `_sources`                                                   | One “balance” from many places.                                    |
+| **Load engine**          | `_buildLoadBatches`, chunking, proofs, setup vs decompress                                                            | Turn cold (and optionally SPL/T22) into hot (or into SPL/T22 ATA). |
+| **Instruction builders** | `createLoadAtaInstructions`, `createTransferInterfaceInstructions`, `createUnwrapInstructions`                        | Assemble 0..N load batches + final action.                         |
+| **Action wrappers**      | `loadAta`, `transferInterface`, `unwrap`                                                                              | Sign + send N txs (parallel or sequential).                        |
+| **Unified vs standard**  | unified index (`wrap=true` default) vs v3 actions (`wrap=false` default)                                              | Two APIs for “one balance” vs “one program only”.                  |
+| **ATA abstraction**      | `getAssociatedTokenAddressInterface`, `createAssociatedTokenAccountInterfaceIdempotentInstruction`, `checkAtaAddress` | One API for three program types.                                   |
 
 The “mess” is the **stacking** of these: dual state → load step → batching → multi-program + wrap → many options → two entry points (unified vs v3).
 
@@ -106,9 +106,9 @@ Effect: Solana-like API: “transfer(amount)”. Multi-tx is an implementation d
 ### 3. Single entry point for “balance + actions”
 
 - Prefer **one** main entry (e.g. unified or a single “light token” facade) that:
-  - `getBalance(owner, mint)` → aggregated (hot + cold).
-  - `transfer(payer, owner, mint, recipient, amount)` → does load (if needed) + transfer.
-  - `unwrap(...)` → load (if needed) + unwrap.
+    - `getBalance(owner, mint)` → aggregated (hot + cold).
+    - `transfer(payer, owner, mint, recipient, amount)` → does load (if needed) + transfer.
+    - `unwrap(...)` → load (if needed) + unwrap.
 - Deprecate or narrow the surface where callers must choose between “v3” and “unified” and pass `wrap`/`programId` everywhere.
 
 Effect: Fewer “modes” and fewer knobs for the common case.
@@ -136,37 +136,37 @@ Effect: Predictable behavior; fewer “it sometimes failed” reports.
 
 ## Summary
 
-| Why it’s complex | Root cause | Simplification |
-|------------------|------------|----------------|
-| Many sources for “balance” | Hot + cold + optional SPL/T22 | Default = light-token only; aggregate hot+cold only. |
-| Load before transfer | Compressed must decompress first | Keep load internal to transfer/unwrap; don’t expose as separate concept by default. |
-| Many txs for one action | Chunking (8 inputs) + proofs | Accept N+1 txs internally; expose “instructions” or “plan” only when needed. |
-| programId / wrap / targetAta | Three programs, unified mode | One default (light-token); wrap/unified behind one opt-in. |
-| Options explosion | Flexibility for all combos | Minimal defaults; one “advanced” options object. |
-| Parallel load | Latency vs correctness | Sequential by default; parallel opt-in and documented. |
+| Why it’s complex             | Root cause                       | Simplification                                                                      |
+| ---------------------------- | -------------------------------- | ----------------------------------------------------------------------------------- |
+| Many sources for “balance”   | Hot + cold + optional SPL/T22    | Default = light-token only; aggregate hot+cold only.                                |
+| Load before transfer         | Compressed must decompress first | Keep load internal to transfer/unwrap; don’t expose as separate concept by default. |
+| Many txs for one action      | Chunking (8 inputs) + proofs     | Accept N+1 txs internally; expose “instructions” or “plan” only when needed.        |
+| programId / wrap / targetAta | Three programs, unified mode     | One default (light-token); wrap/unified behind one opt-in.                          |
+| Options explosion            | Flexibility for all combos       | Minimal defaults; one “advanced” options object.                                    |
+| Parallel load                | Latency vs correctness           | Sequential by default; parallel opt-in and documented.                              |
 
 ---
 
 ## Async calls in load / transfer / unwrap flows
 
-| Where | Call | Purpose |
-|-------|------|--------|
-| **get-account-interface** | `rpc.getAccountInfo(address)` | Fetch hot SPL/T22/light-token account. |
-| **get-account-interface** | `rpc.getCompressedTokenAccountsByOwner(...)` | List cold accounts for owner+mint. |
-| **get-account-interface** | `Promise.allSettled` / `Promise.all` | Parallel hot + cold fetches. |
-| **load-ata** | `_getAtaInterface(...)` | Aggregate balance; builds source list. |
-| **load-ata** | `_buildLoadBatches(...)` | Build load batches. |
-| **_buildLoadBatches** | `getSplInterfaceInfos(rpc, mint)` | SPL interface PDA + token program (wrap / decompress-to-SPL). |
-| **_buildLoadBatches** | `getMint(rpc, mint, ..., tokenProgram)` | **Decimals only** when `options.decimals` not set. |
-| **_buildLoadBatches** | `rpc.getValidityProofV0(proofInputs)` per chunk | ZK validity proofs per decompress chunk. |
-| **transfer-interface** | `_getAtaInterface(...)` | Sender balance/sources. |
-| **transfer-interface** | `_buildLoadBatches(...)` | Load batches. |
-| **transfer-interface** | `getMint` / `getMintInterface` | **Decimals only** when `options.decimals` not set. |
-| **unwrap** | `getSplInterfaceInfos(rpc, mint)` | Resolve SPL interface if not passed in. |
-| **unwrap** | `rpc.getAccountInfo(destination)` | Ensure destination ATA exists. |
-| **unwrap** | `_getAtaInterface(...)` | Source balance/sources. |
-| **unwrap** | `_buildLoadBatches(...)` | Load batches. |
-| **unwrap** | `getMint(rpc, mint, ..., tokenProgram)` | **Decimals only** when `interfaceOptions.decimals` not set. |
+| Where                     | Call                                            | Purpose                                                       |
+| ------------------------- | ----------------------------------------------- | ------------------------------------------------------------- |
+| **get-account-interface** | `rpc.getAccountInfo(address)`                   | Fetch hot SPL/T22/light-token account.                        |
+| **get-account-interface** | `rpc.getCompressedTokenAccountsByOwner(...)`    | List cold accounts for owner+mint.                            |
+| **get-account-interface** | `Promise.allSettled` / `Promise.all`            | Parallel hot + cold fetches.                                  |
+| **load-ata**              | `_getAtaInterface(...)`                         | Aggregate balance; builds source list.                        |
+| **load-ata**              | `_buildLoadBatches(...)`                        | Build load batches.                                           |
+| **\_buildLoadBatches**    | `getSplInterfaceInfos(rpc, mint)`               | SPL interface PDA + token program (wrap / decompress-to-SPL). |
+| **\_buildLoadBatches**    | `getMint(rpc, mint, ..., tokenProgram)`         | **Decimals only** when `options.decimals` not set.            |
+| **\_buildLoadBatches**    | `rpc.getValidityProofV0(proofInputs)` per chunk | ZK validity proofs per decompress chunk.                      |
+| **transfer-interface**    | `_getAtaInterface(...)`                         | Sender balance/sources.                                       |
+| **transfer-interface**    | `_buildLoadBatches(...)`                        | Load batches.                                                 |
+| **transfer-interface**    | `getMint` / `getMintInterface`                  | **Decimals only** when `options.decimals` not set.            |
+| **unwrap**                | `getSplInterfaceInfos(rpc, mint)`               | Resolve SPL interface if not passed in.                       |
+| **unwrap**                | `rpc.getAccountInfo(destination)`               | Ensure destination ATA exists.                                |
+| **unwrap**                | `_getAtaInterface(...)`                         | Source balance/sources.                                       |
+| **unwrap**                | `_buildLoadBatches(...)`                        | Load batches.                                                 |
+| **unwrap**                | `getMint(rpc, mint, ..., tokenProgram)`         | **Decimals only** when `interfaceOptions.decimals` not set.   |
 
 Passing `decimals` (e.g. `InterfaceOptions.decimals`) removes all four decimals-only RPC calls in those flows.
 

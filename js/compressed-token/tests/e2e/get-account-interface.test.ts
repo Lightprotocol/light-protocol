@@ -1028,9 +1028,7 @@ describe('get-account-interface', () => {
                 expect(result.parsed.delegate?.toBase58()).toBe(
                     delegateA.publicKey.toBase58(),
                 );
-                expect(result.parsed.delegatedAmount).toBe(
-                    hotDelegatedA,
-                );
+                expect(result.parsed.delegatedAmount).toBe(hotDelegatedA);
             }, 120_000);
 
             it('should return canonical delegate and delegatedAmount for cold-only (approve-style) sources', async () => {

@@ -30,7 +30,10 @@ import {
 
 ```typescript
 // 1. Ensure destination exists, then build instruction batches
-const destination = getAssociatedTokenAddressInterface(mint, recipient.publicKey);
+const destination = getAssociatedTokenAddressInterface(
+    mint,
+    recipient.publicKey,
+);
 await getOrCreateAtaInterface(rpc, payer, mint, recipient.publicKey);
 
 const batches = await createTransferInterfaceInstructions(
@@ -77,10 +80,10 @@ Use `sliceLast(batches)` to get `{ rest, last }` for clean send orchestration.
 
 ## What each transaction contains
 
-| Content                | Load transaction | Transfer transaction |
-| ---------------------- | :--------------: | :------------------: |
-| `ComputeBudgetProgram` |       yes        |         yes          |
-| Sender ATA creation    | yes (idempotent) |   yes (if needed)    |
+| Content                     | Load transaction | Transfer transaction |
+| --------------------------- | :--------------: | :------------------: |
+| `ComputeBudgetProgram`      |       yes        |         yes          |
+| Sender ATA creation         | yes (idempotent) |   yes (if needed)    |
 | Decompress instructions     |       yes        |   yes (if needed)    |
 | Wrap SPL/T22 (unified only) |   first batch    |          --          |
 | Transfer instruction        |        --        |         yes          |

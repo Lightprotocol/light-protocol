@@ -11,7 +11,7 @@ Concise reference for the v3 interface surface: reads (`getAtaInterface`), loads
 | `createLoadAtaInstructions`           | v3              | Instruction batches for loading cold/wrap into ATA |
 | `loadAta`                             | v3              | Action: execute load, return signature             |
 | `createTransferInterfaceInstructions` | v3              | Instruction builder for transfers                  |
-| `transferInterface`                   | v3              | Action: load + transfer (destination must exist)    |
+| `transferInterface`                   | v3              | Action: load + transfer (destination must exist)   |
 | `createLightTokenTransferInstruction` | v3/instructions | Raw c-token transfer ix (no load/wrap)             |
 
 Unified (`/unified`): `wrap=true` default, aggregates SPL/T22 into c-token ATA. Standard (`v3`): `wrap=false` default.
@@ -180,10 +180,10 @@ Across concurrent calls for the same sender: not serialized. Both calls read the
 | Sender           | Recipient  | Status                            |
 | ---------------- | ---------- | --------------------------------- |
 | Hot only         | ATA exists | Works                             |
-| Hot only         | No ATA     | Fails (destination must exist)     |
+| Hot only         | No ATA     | Fails (destination must exist)    |
 | Cold <=8         | ATA exists | Works                             |
 | Cold >8          | ATA exists | Works (parallel loads + transfer) |
-| Cold             | No ATA     | Fails (destination must exist)     |
+| Cold             | No ATA     | Fails (destination must exist)    |
 | Hot + Cold       | Any        | Works                             |
 | SPL hot only     | Any        | Works (wrap)                      |
 | SPL + Cold       | Any        | Works                             |

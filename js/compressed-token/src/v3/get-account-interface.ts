@@ -945,9 +945,8 @@ export function buildAccountInterfaceFromSources(
         // No hot delegate: canonical delegate is taken from the most recent
         // delegated cold source in source order (source[0] is most recent).
         canonicalDelegate = coldDelegatedSources[0].parsed.delegate!;
-        canonicalDelegatedAmount = sumForDelegate(
-            canonicalDelegate,
-            src => isColdSourceType(src.type),
+        canonicalDelegatedAmount = sumForDelegate(canonicalDelegate, src =>
+            isColdSourceType(src.type),
         );
     }
 
