@@ -259,6 +259,25 @@ export interface ParsedTokenAccount {
     parsed: TokenData;
 }
 
+/**
+ * Unified account interface result returned by Photon interface endpoints.
+ * `account` is the canonical hot/synthetic Solana account view, while `cold`
+ * contains raw compressed account inputs that can be loaded/decompressed.
+ */
+export interface PhotonAccountInterface {
+    key: PublicKey;
+    account: AccountInfo<Buffer>;
+    cold: CompressedAccountWithMerkleContext[] | null;
+}
+
+export type PhotonAccountInterfaceResult = WithContext<
+    PhotonAccountInterface | null
+>;
+
+export type PhotonMultipleAccountInterfacesResult = WithContext<
+    (PhotonAccountInterface | null)[]
+>;
+
 export type WithContext<T> = {
     /** context */
     context: {

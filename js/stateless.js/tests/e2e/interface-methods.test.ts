@@ -289,4 +289,40 @@ describe('interface-methods', () => {
             assert.isTrue(result.amount instanceof bn(0).constructor);
         });
     });
+
+    describe('raw account interface endpoints', () => {
+        it('getAccountInterface should return raw account envelope for existing address', async () => {
+            const result = await rpc.getAccountInterface(payer.publicKey);
+
+            expect(result.context.slot).toBeGreaterThan(0);
+            expect(result.value).not.toBeNull();
+            expect(result.value!.key.toBase58()).toBe(payer.publicKey.toBase58());
+            expect(result.value!.account.owner.toBase58()).toBe(
+                PublicKey.default.toBase58(),
+            );
+            expect(Buffer.isBuffer(result.value!.account.data)).toBe(true);
+        });
+
+        it('getAccountInterface should return null for missing address', async () => {
+            const missing = PublicKey.unique();
+            const result = await rpc.getAccountInterface(missing);
+
+            expect(result.context.slot).toBeGreaterThan(0);
+            expect(result.value).toBeNull();
+        });
+
+        it('getMultipleAccountInterfaces should preserve order and nullability', async () => {
+            const missing = PublicKey.unique();
+            const result = await rpc.getMultipleAccountInterfaces([
+                payer.publicKey,
+                missing,
+            ]);
+
+            expect(result.context.slot).toBeGreaterThan(0);
+            expect(result.value.length).toBe(2);
+            expect(result.value[0]).not.toBeNull();
+            expect(result.value[0]!.key.toBase58()).toBe(payer.publicKey.toBase58());
+            expect(result.value[1]).toBeNull();
+        });
+    });
 });
