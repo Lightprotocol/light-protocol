@@ -7,6 +7,7 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
+use anchor_lang::error::ERROR_CODE_OFFSET;
 use anyhow::{anyhow, Context};
 use borsh::BorshSerialize;
 use dashmap::DashMap;
@@ -88,7 +89,8 @@ fn is_v2_error(err: &anyhow::Error, predicate: impl FnOnce(&V2Error) -> bool) ->
     err.downcast_ref::<V2Error>().is_some_and(predicate)
 }
 
-const FORESTER_NOT_ELIGIBLE_ERROR_CODE: u32 = RegistryError::ForesterNotEligible as u32;
+const FORESTER_NOT_ELIGIBLE_ERROR_CODE: u32 =
+    ERROR_CODE_OFFSET + RegistryError::ForesterNotEligible as u32;
 
 fn rpc_custom_error_code(error: &RpcError) -> Option<u32> {
     match error {

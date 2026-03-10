@@ -7,6 +7,7 @@ use std::{
     vec,
 };
 
+use anchor_lang::error::ERROR_CODE_OFFSET;
 use forester_utils::{forester_epoch::TreeAccounts, rpc_pool::SolanaRpcPool};
 use futures::StreamExt;
 use light_client::rpc::{Rpc, RpcError};
@@ -28,7 +29,8 @@ use tracing::{debug, error, info, trace, warn};
 const WORK_ITEM_BATCH_SIZE: usize = 100;
 const STATUS_POLL_INTERVAL: Duration = Duration::from_millis(200);
 const STATUS_MAX_POLLS: usize = 12;
-const FORESTER_NOT_ELIGIBLE_CODE: u32 = RegistryError::ForesterNotEligible as u32;
+const FORESTER_NOT_ELIGIBLE_CODE: u32 =
+    ERROR_CODE_OFFSET + RegistryError::ForesterNotEligible as u32;
 
 use crate::{
     epoch_manager::WorkItem,
