@@ -27,8 +27,6 @@ use tokio::time::Instant;
 use tracing::{debug, error, info, trace, warn};
 
 const WORK_ITEM_BATCH_SIZE: usize = 100;
-const STATUS_POLL_INTERVAL: Duration = Duration::from_millis(200);
-const STATUS_MAX_POLLS: usize = 12;
 const FORESTER_NOT_ELIGIBLE_CODE: u32 =
     ERROR_CODE_OFFSET + RegistryError::ForesterNotEligible as u32;
 
@@ -188,6 +186,8 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
             data.timeout_deadline,
             Arc::clone(&operation_cancel_signal),
             Arc::clone(&num_sent_transactions),
+            config.confirmation_poll_interval,
+            config.confirmation_max_attempts,
         )
         .await
         {
@@ -369,8 +369,10 @@ async fn wait_for_transaction_execution<R: Rpc>(
     rpc: &R,
     signature: Signature,
     timeout_deadline: Instant,
+    poll_interval: Duration,
+    max_polls: usize,
 ) -> std::result::Result<(), ForesterError> {
-    for _ in 0..STATUS_MAX_POLLS {
+    for _ in 0..max_polls {
         if Instant::now() >= timeout_deadline {
             return Err(ForesterError::General {
                 error: format!(
@@ -396,13 +398,13 @@ async fn wait_for_transaction_execution<R: Rpc>(
             return Ok(());
         }
 
-        tokio::time::sleep(STATUS_POLL_INTERVAL).await;
+        tokio::time::sleep(poll_interval).await;
     }
 
     Err(ForesterError::General {
         error: format!(
             "Execution status not available after {} polls for tx {}",
-            STATUS_MAX_POLLS, signature
+            max_polls, signature
         ),
     })
 }
@@ -414,6 +416,8 @@ async fn execute_transaction_chunk_sending<R: Rpc>(
     timeout_deadline: Instant,
     cancel_signal: Arc<AtomicBool>,
     num_sent_transactions: Arc<AtomicUsize>,
+    confirmation_poll_interval: Duration,
+    confirmation_max_attempts: usize,
 ) -> std::result::Result<(), ForesterError> {
     if transactions.is_empty() {
         trace!("No transactions in this chunk to send.");
@@ -453,6 +457,8 @@ async fn execute_transaction_chunk_sending<R: Rpc>(
                                 &*rpc,
                                 signature,
                                 timeout_deadline,
+                                confirmation_poll_interval,
+                                confirmation_max_attempts,
                             )
                             .await
                             {

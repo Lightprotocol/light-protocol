@@ -625,9 +625,28 @@ impl<R: Rpc + Indexer> EpochManager<R> {
 
             // Lazily resolve group authority (retry each tick until successful)
             if group_authority.is_none() {
-                group_authority = fetch_protocol_group_authority(&*rpc, &self.run_id)
-                    .await
-                    .ok();
+                if let Ok(ga) = fetch_protocol_group_authority(&*rpc, &self.run_id).await {
+                    group_authority = Some(ga);
+                    // Retroactively filter already-tracked trees that were added
+                    // before group_authority was resolved.
+                    let mut trees = self.trees.lock().await;
+                    let before = trees.len();
+                    trees.retain(|t| t.owner == ga);
+                    if !self.config.general_config.tree_ids.is_empty() {
+                        let tree_ids = &self.config.general_config.tree_ids;
+                        trees.retain(|t| tree_ids.contains(&t.merkle_tree));
+                    }
+                    if trees.len() < before {
+                        info!(
+                            event = "tree_discovery_retroactive_filter",
+                            run_id = %self.run_id,
+                            group_authority = %ga,
+                            trees_before = before,
+                            trees_after = trees.len(),
+                            "Filtered existing trees after resolving group authority"
+                        );
+                    }
+                }
             }
 
             let mut fetched_trees = match fetch_trees(&*rpc).await {
@@ -653,6 +672,16 @@ impl<R: Rpc + Indexer> EpochManager<R> {
 
             for tree in fetched_trees {
                 if known_pubkeys.contains(&tree.merkle_tree) {
+                    continue;
+                }
+                if should_skip_tree(&self.config, &tree.tree_type) {
+                    debug!(
+                        event = "tree_discovery_skipped",
+                        run_id = %self.run_id,
+                        tree = %tree.merkle_tree,
+                        tree_type = ?tree.tree_type,
+                        "Skipping tree due to fee filter config"
+                    );
                     continue;
                 }
                 info!(
@@ -2055,6 +2084,9 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             {
                 Ok(count) => count,
                 Err(e) => {
+                    if is_forester_not_eligible_error(&e) {
+                        return Err(e);
+                    }
                     error!(
                         event = "light_slot_processing_failed",
                         run_id = %self.run_id,
@@ -2245,6 +2277,9 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                     }
                 }
                 Err(e) => {
+                    if is_forester_not_eligible_error(&e) {
+                        return Err(e);
+                    }
                     error!(
                         event = "v2_tree_processing_failed",
                         run_id = %self.run_id,
@@ -2931,6 +2966,11 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 ..self.config.retry_config
             },
             light_slot_length: epoch_pda.protocol_config.slot_length,
+            confirmation_poll_interval: Duration::from_millis(
+                self.config.transaction_config.confirmation_poll_interval_ms,
+            ),
+            confirmation_max_attempts: self.config.transaction_config.confirmation_max_attempts
+                as usize,
         };
 
         let transaction_builder = Arc::new(EpochManagerTransactions::new(
