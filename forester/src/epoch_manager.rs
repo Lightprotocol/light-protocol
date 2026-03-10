@@ -37,7 +37,7 @@ use solana_program::{
 };
 use solana_sdk::{
     address_lookup_table::AddressLookupTableAccount,
-    signature::{Keypair, Signer},
+    signature::{Keypair, Signature, Signer},
     transaction::TransactionError,
 };
 use tokio::{
