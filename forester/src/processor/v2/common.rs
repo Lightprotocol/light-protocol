@@ -8,19 +8,26 @@ use std::{
 
 use forester_utils::{forester_epoch::EpochPhases, rpc_pool::SolanaRpcPool};
 pub use forester_utils::{ParsedMerkleTreeData, ParsedQueueData};
-use light_client::rpc::Rpc;
-use light_registry::protocol_config::state::EpochState;
+use light_client::rpc::{Rpc, RpcError};
+use light_registry::{
+    protocol_config::state::EpochState, utils::get_forester_epoch_pda_from_authority,
+};
 use solana_sdk::{
     address_lookup_table::AddressLookupTableAccount, instruction::Instruction, pubkey::Pubkey,
     signature::Keypair, signer::Signer,
 };
 use tokio::sync::Mutex;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info};
 
 use super::{errors::V2Error, proof_worker::ProofJob};
 use crate::{
-    errors::ForesterError, metrics::increment_transactions_failed,
-    processor::tx_cache::ProcessedHashCache, slot_tracker::SlotTracker, Result,
+    errors::ForesterError,
+    metrics::increment_transactions_failed,
+    priority_fee::PriorityFeeConfig,
+    processor::tx_cache::ProcessedHashCache,
+    slot_tracker::SlotTracker,
+    smart_transaction::{send_smart_transaction, ComputeBudgetConfig, SendSmartTransactionConfig},
+    Result,
 };
 
 const SLOTS_STOP_THRESHOLD: u64 = 3;
@@ -92,6 +99,8 @@ pub struct BatchContext<R: Rpc> {
     pub num_proof_workers: usize,
     pub forester_eligibility_end_slot: Arc<AtomicU64>,
     pub address_lookup_tables: Arc<Vec<AddressLookupTableAccount>>,
+    pub compute_unit_limit: Option<u32>,
+    pub priority_fee_config: PriorityFeeConfig,
     /// Maximum attempts to confirm a transaction before timing out.
     pub confirmation_max_attempts: u32,
     /// Interval between confirmation polling attempts.
@@ -119,6 +128,8 @@ impl<R: Rpc> Clone for BatchContext<R> {
             num_proof_workers: self.num_proof_workers,
             forester_eligibility_end_slot: self.forester_eligibility_end_slot.clone(),
             address_lookup_tables: self.address_lookup_tables.clone(),
+            compute_unit_limit: self.compute_unit_limit,
+            priority_fee_config: self.priority_fee_config,
             confirmation_max_attempts: self.confirmation_max_attempts,
             confirmation_poll_interval: self.confirmation_poll_interval,
             max_batches_per_tree: self.max_batches_per_tree,
@@ -164,84 +175,80 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
         context.merkle_tree
     );
     let mut rpc = context.rpc_pool.get_connection().await?;
+    let forester_epoch_pda_pubkey =
+        get_forester_epoch_pda_from_authority(&context.derivation, context.epoch).0;
+    let priority_fee = context
+        .priority_fee_config
+        .resolve(
+            &*rpc,
+            vec![
+                context.authority.pubkey(),
+                forester_epoch_pda_pubkey,
+                context.output_queue,
+                context.merkle_tree,
+            ],
+        )
+        .await?;
+    let payer = context.authority.pubkey();
+    let signers = [context.authority.as_ref()];
+    let address_lookup_tables = context.address_lookup_tables.as_ref();
 
-    let signature = if !context.address_lookup_tables.is_empty() {
+    if !address_lookup_tables.is_empty() {
         debug!(
             "Using versioned transaction with {} lookup tables",
-            context.address_lookup_tables.len()
+            address_lookup_tables.len()
         );
-        rpc.create_and_send_versioned_transaction(
-            &instructions,
-            &context.authority.pubkey(),
-            &[context.authority.as_ref()],
-            &context.address_lookup_tables,
-        )
-        .await?
-    } else {
-        rpc.create_and_send_transaction(
-            &instructions,
-            &context.authority.pubkey(),
-            &[context.authority.as_ref()],
-        )
-        .await?
-    };
-
-    debug!("Waiting for transaction confirmation: {}", signature);
-
-    let max_attempts = context.confirmation_max_attempts;
-    let poll_interval = context.confirmation_poll_interval;
-
-    for attempt in 0..max_attempts {
-        let statuses = rpc.get_signature_statuses(&[signature]).await?;
-
-        if let Some(Some(status)) = statuses.first() {
-            if let Some(err) = &status.err {
-                increment_transactions_failed("execution_failed", 1);
-                error!(
-                    "transaction {} failed for tree {}: {:?}",
-                    signature, context.merkle_tree, err
-                );
-                return Err(V2Error::from_transaction_error(context.merkle_tree, err).into());
-            }
-
-            // Transaction succeeded - check confirmation status
-            // confirmations == None means finalized, Some(n) means n confirmations
-            let is_confirmed = status.confirmations.is_none() || status.confirmations >= Some(1);
-            if is_confirmed {
-                info!(
-                    "Transaction confirmed successfully: {} for tree: {} (slot: {}, confirmations: {:?})",
-                    signature, context.merkle_tree, status.slot, status.confirmations
-                );
-                return Ok(signature.to_string());
-            }
-
-            debug!(
-                "Transaction {} pending confirmation (attempt {}/{}, confirmations: {:?})",
-                signature,
-                attempt + 1,
-                max_attempts,
-                status.confirmations
-            );
-        } else {
-            debug!(
-                "Transaction {} not yet visible (attempt {}/{})",
-                signature,
-                attempt + 1,
-                max_attempts
-            );
-        }
-
-        tokio::time::sleep(poll_interval).await;
     }
 
-    increment_transactions_failed("timeout", 1);
-    warn!(
-        "Transaction {} timed out waiting for confirmation for tree {}",
+    let signature = send_smart_transaction(
+        &mut *rpc,
+        SendSmartTransactionConfig {
+            instructions,
+            payer: &payer,
+            signers: &signers,
+            address_lookup_tables,
+            compute_budget: ComputeBudgetConfig {
+                compute_unit_price: priority_fee,
+                compute_unit_limit: context.compute_unit_limit,
+            },
+        },
+    )
+    .await
+    .map_err(|error| map_send_error(context.merkle_tree, error))?;
+
+    info!(
+        "Transaction confirmed successfully: {} for tree: {}",
         signature, context.merkle_tree
     );
-    Err(V2Error::TransactionTimeout {
-        signature: signature.to_string(),
-        context: format!("waiting for confirmation for tree {}", context.merkle_tree),
+    Ok(signature.to_string())
+}
+
+fn map_send_error(tree: Pubkey, error: RpcError) -> anyhow::Error {
+    if let Some(transaction_error) = extract_transaction_error(&error) {
+        increment_transactions_failed("execution_failed", 1);
+        error!(
+            tree = %tree,
+            error = ?transaction_error,
+            "V2 transaction execution failed"
+        );
+        V2Error::from_transaction_error(tree, &transaction_error).into()
+    } else {
+        increment_transactions_failed("send_failed", 1);
+        error!(
+            tree = %tree,
+            error = ?error,
+            "V2 transaction send failed"
+        );
+        error.into()
     }
-    .into())
+}
+
+fn extract_transaction_error(
+    error: &RpcError,
+) -> Option<solana_sdk::transaction::TransactionError> {
+    match error {
+        RpcError::TransactionError(transaction_error) => Some(transaction_error.clone()),
+        RpcError::ClientError(client_error) => client_error.kind.get_transaction_error(),
+        _ => None,
+    }
 }

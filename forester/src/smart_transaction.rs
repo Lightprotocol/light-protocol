@@ -6,6 +6,7 @@ use forester_utils::rpc_pool::SolanaConnectionManager;
 use light_client::rpc::Rpc;
 use solana_client::rpc_config::RpcSendTransactionConfig;
 use solana_sdk::{
+    address_lookup_table::AddressLookupTableAccount,
     compute_budget::ComputeBudgetInstruction,
     hash::Hash,
     instruction::Instruction,
@@ -17,6 +18,12 @@ use solana_sdk::{
 use solana_transaction_status::TransactionConfirmationStatus;
 use tokio::time::sleep;
 
+#[derive(Debug, Clone, Copy, Default)]
+pub struct ComputeBudgetConfig {
+    pub compute_unit_price: Option<u64>,
+    pub compute_unit_limit: Option<u32>,
+}
+
 pub struct CreateSmartTransactionConfig {
     pub payer: Keypair,
     pub recent_blockhash: Hash,
@@ -24,6 +31,35 @@ pub struct CreateSmartTransactionConfig {
     pub compute_unit_limit: Option<u32>,
     pub instructions: Vec<Instruction>,
     pub last_valid_block_height: u64,
+}
+
+pub struct SendSmartTransactionConfig<'a> {
+    pub instructions: Vec<Instruction>,
+    pub payer: &'a Pubkey,
+    pub signers: &'a [&'a Keypair],
+    pub address_lookup_tables: &'a [AddressLookupTableAccount],
+    pub compute_budget: ComputeBudgetConfig,
+}
+
+fn with_compute_budget_instructions(
+    mut instructions: Vec<Instruction>,
+    compute_budget: ComputeBudgetConfig,
+) -> Vec<Instruction> {
+    let mut final_instructions = Vec::with_capacity(
+        instructions.len()
+            + usize::from(compute_budget.compute_unit_price.is_some())
+            + usize::from(compute_budget.compute_unit_limit.is_some()),
+    );
+
+    if let Some(price) = compute_budget.compute_unit_price {
+        final_instructions.push(ComputeBudgetInstruction::set_compute_unit_price(price));
+    }
+    if let Some(limit) = compute_budget.compute_unit_limit {
+        final_instructions.push(ComputeBudgetInstruction::set_compute_unit_limit(limit));
+    }
+    final_instructions.append(&mut instructions);
+
+    final_instructions
 }
 
 /// Poll a transaction to check whether it has been confirmed
@@ -126,18 +162,37 @@ pub async fn create_smart_transaction(
     config: CreateSmartTransactionConfig,
 ) -> Result<(Transaction, u64), light_client::rpc::RpcError> {
     let payer_pubkey: Pubkey = config.payer.pubkey();
-    let mut final_instructions: Vec<Instruction> = if let Some(price) = config.compute_unit_price {
-        vec![ComputeBudgetInstruction::set_compute_unit_price(price)]
-    } else {
-        vec![]
-    };
-    if let Some(limit) = config.compute_unit_limit {
-        final_instructions.push(ComputeBudgetInstruction::set_compute_unit_limit(limit));
-    }
-    final_instructions.extend(config.instructions);
+    let final_instructions = with_compute_budget_instructions(
+        config.instructions,
+        ComputeBudgetConfig {
+            compute_unit_price: config.compute_unit_price,
+            compute_unit_limit: config.compute_unit_limit,
+        },
+    );
 
     let mut tx = Transaction::new_with_payer(&final_instructions, Some(&payer_pubkey));
     tx.sign(&[&config.payer], config.recent_blockhash);
 
     Ok((tx, config.last_valid_block_height))
+}
+
+pub async fn send_smart_transaction<R: Rpc>(
+    rpc: &mut R,
+    config: SendSmartTransactionConfig<'_>,
+) -> Result<Signature, light_client::rpc::RpcError> {
+    let final_instructions =
+        with_compute_budget_instructions(config.instructions, config.compute_budget);
+
+    if config.address_lookup_tables.is_empty() {
+        rpc.create_and_send_transaction(&final_instructions, config.payer, config.signers)
+            .await
+    } else {
+        rpc.create_and_send_versioned_transaction(
+            &final_instructions,
+            config.payer,
+            config.signers,
+            config.address_lookup_tables,
+        )
+        .await
+    }
 }

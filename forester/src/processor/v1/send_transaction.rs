@@ -13,7 +13,6 @@ use futures::StreamExt;
 use light_client::rpc::{Rpc, RpcError};
 use light_compressed_account::TreeType;
 use light_registry::{errors::RegistryError, utils::get_forester_epoch_pda_from_authority};
-use reqwest::Url;
 use solana_client::rpc_config::RpcSendTransactionConfig;
 use solana_commitment_config::CommitmentLevel;
 use solana_sdk::{
@@ -34,10 +33,8 @@ use crate::{
     epoch_manager::WorkItem,
     errors::ForesterError,
     metrics::increment_transactions_failed,
-    processor::v1::{
-        config::SendBatchedTransactionsConfig, helpers::request_priority_fee_estimate,
-        tx_builder::TransactionBuilder,
-    },
+    priority_fee::PriorityFeeConfig,
+    processor::v1::{config::SendBatchedTransactionsConfig, tx_builder::TransactionBuilder},
     queue_helpers::fetch_queue_item_data,
     Result,
 };
@@ -46,7 +43,7 @@ struct PreparedBatchData {
     work_items: Vec<WorkItem>,
     recent_blockhash: Hash,
     last_valid_block_height: u64,
-    priority_fee: u64,
+    priority_fee: Option<u64>,
     timeout_deadline: Instant,
 }
 
@@ -281,14 +278,14 @@ async fn prepare_batch_prerequisites<R: Rpc, T: TransactionBuilder>(
             tree_accounts.queue,
             tree_accounts.merkle_tree,
         ];
-        let rpc_url_str = rpc_for_fee.get_url();
-        let url = Url::parse(&rpc_url_str).map_err(|e| {
-            error!(tree = %tree_id_str, "Failed to parse RPC URL for priority fee: {}, error: {:?}", rpc_url_str, e);
-            ForesterError::General { error: format!("Invalid RPC URL: {}", rpc_url_str) }
-        })?;
-        request_priority_fee_estimate(&url, account_keys).await?
+        PriorityFeeConfig {
+            compute_unit_price: config.build_transaction_batch_config.compute_unit_price,
+            enable_priority_fees: true,
+        }
+        .resolve(&*rpc_for_fee, account_keys)
+        .await?
     } else {
-        10_000
+        config.build_transaction_batch_config.compute_unit_price
     };
 
     let work_items: Vec<WorkItem> = queue_item_data

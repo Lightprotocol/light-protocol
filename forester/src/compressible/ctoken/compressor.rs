@@ -21,7 +21,9 @@ use tracing::debug;
 
 use super::{state::CTokenAccountTracker, types::CTokenAccountState};
 use crate::{
-    compressible::traits::{send_and_confirm_with_tracking, CompressibleTracker},
+    compressible::traits::{
+        send_and_confirm_with_tracking, CompressibleTracker, CompressibleTransactionConfig,
+    },
     Result,
 };
 
@@ -30,6 +32,7 @@ pub struct CTokenCompressor<R: Rpc + Indexer> {
     rpc_pool: Arc<SolanaRpcPool<R>>,
     tracker: Arc<CTokenAccountTracker>,
     payer_keypair: Keypair,
+    transaction_config: CompressibleTransactionConfig,
 }
 
 impl<R: Rpc + Indexer> Clone for CTokenCompressor<R> {
@@ -38,6 +41,7 @@ impl<R: Rpc + Indexer> Clone for CTokenCompressor<R> {
             rpc_pool: Arc::clone(&self.rpc_pool),
             tracker: Arc::clone(&self.tracker),
             payer_keypair: self.payer_keypair.insecure_clone(),
+            transaction_config: self.transaction_config,
         }
     }
 }
@@ -47,11 +51,13 @@ impl<R: Rpc + Indexer> CTokenCompressor<R> {
         rpc_pool: Arc<SolanaRpcPool<R>>,
         tracker: Arc<CTokenAccountTracker>,
         payer_keypair: Keypair,
+        transaction_config: CompressibleTransactionConfig,
     ) -> Self {
         Self {
             rpc_pool,
             tracker,
             payer_keypair,
+            transaction_config,
         }
     }
 
@@ -249,6 +255,7 @@ impl<R: Rpc + Indexer> CTokenCompressor<R> {
             &mut *rpc,
             &[ix],
             &self.payer_keypair,
+            self.transaction_config,
             &*self.tracker,
             &pubkeys,
             "compress_and_close",

@@ -19,8 +19,8 @@ use tracing::{debug, info};
 use super::{state::MintAccountTracker, types::MintAccountState};
 use crate::{
     compressible::traits::{
-        send_and_confirm_with_tracking, verify_transaction_execution, Cancelled,
-        CompressibleTracker,
+        send_and_confirm_with_tracking, send_with_transaction_policy, Cancelled,
+        CompressibleTracker, CompressibleTransactionConfig,
     },
     Result,
 };
@@ -30,6 +30,7 @@ pub struct MintCompressor<R: Rpc + Indexer> {
     rpc_pool: Arc<SolanaRpcPool<R>>,
     tracker: Arc<MintAccountTracker>,
     payer_keypair: Keypair,
+    transaction_config: CompressibleTransactionConfig,
 }
 
 impl<R: Rpc + Indexer> Clone for MintCompressor<R> {
@@ -38,6 +39,7 @@ impl<R: Rpc + Indexer> Clone for MintCompressor<R> {
             rpc_pool: Arc::clone(&self.rpc_pool),
             tracker: Arc::clone(&self.tracker),
             payer_keypair: self.payer_keypair.insecure_clone(),
+            transaction_config: self.transaction_config,
         }
     }
 }
@@ -47,11 +49,13 @@ impl<R: Rpc + Indexer> MintCompressor<R> {
         rpc_pool: Arc<SolanaRpcPool<R>>,
         tracker: Arc<MintAccountTracker>,
         payer_keypair: Keypair,
+        transaction_config: CompressibleTransactionConfig,
     ) -> Self {
         Self {
             rpc_pool,
             tracker,
             payer_keypair,
+            transaction_config,
         }
     }
 
@@ -113,6 +117,7 @@ impl<R: Rpc + Indexer> MintCompressor<R> {
             &mut *rpc,
             &instructions,
             &self.payer_keypair,
+            self.transaction_config,
             &*self.tracker,
             &pubkeys,
             "CompressAndCloseMint",
@@ -236,40 +241,19 @@ impl<R: Rpc + Indexer> MintCompressor<R> {
             mint_pda
         );
 
-        // Send transaction
-        let signature = rpc
-            .create_and_send_transaction(
-                &[ix],
-                &self.payer_keypair.pubkey(),
-                &[&self.payer_keypair],
-            )
-            .await
-            .map_err(|e| {
-                anyhow::anyhow!("Failed to send CompressAndCloseMint transaction: {:?}", e)
-            })?;
+        let signature = send_with_transaction_policy(
+            &mut *rpc,
+            &[ix],
+            &self.payer_keypair,
+            self.transaction_config,
+        )
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to send CompressAndCloseMint transaction: {:?}", e))?;
 
         info!(
-            "CompressAndCloseMint tx for Mint {} sent: {}",
+            "CompressAndCloseMint tx for Mint {} confirmed: {}",
             mint_pda, signature
         );
-
-        // Wait for confirmation
-        let confirmed = rpc
-            .confirm_transaction(signature)
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to confirm transaction: {:?}", e))?;
-
-        if confirmed {
-            verify_transaction_execution(&*rpc, signature).await?;
-
-            info!("CompressAndCloseMint tx for Mint {} confirmed", mint_pda);
-            Ok(signature)
-        } else {
-            Err(anyhow::anyhow!(
-                "Transaction {} not confirmed for Mint {}",
-                signature,
-                mint_pda
-            ))
-        }
+        Ok(signature)
     }
 }

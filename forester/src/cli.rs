@@ -150,8 +150,23 @@ pub struct StartArgs {
     #[arg(long, env = "CU_LIMIT", default_value = "1000000")]
     pub cu_limit: u32,
 
-    #[arg(long, env = "ENABLE_PRIORITY_FEES", default_value = "false")]
+    #[arg(
+        long,
+        env = "ENABLE_PRIORITY_FEES",
+        default_value = "false",
+        conflicts_with = "priority_fee_microlamports",
+        help = "Enable dynamic priority fees via RPC estimation"
+    )]
     pub enable_priority_fees: bool,
+
+    #[arg(
+        long,
+        env = "PRIORITY_FEE_MICROLAMPORTS",
+        value_parser = clap::value_parser!(u64).range(1..),
+        conflicts_with = "enable_priority_fees",
+        help = "Fixed priority fee in micro-lamports per compute unit"
+    )]
+    pub priority_fee_microlamports: Option<u64>,
 
     #[arg(long, env = "RPC_POOL_SIZE", default_value = "100")]
     pub rpc_pool_size: u32,
@@ -521,6 +536,34 @@ mod tests {
             "--indexer-url", "http://indexer.test.com",
             "--payer", "[1,2,3]",
             "--derivation", "[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32]"
+        ]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_priority_fee_parsing() {
+        let args = StartArgs::try_parse_from([
+            "forester",
+            "--rpc-url", "http://test.com",
+            "--indexer-url", "http://indexer.test.com",
+            "--payer", "[1,2,3]",
+            "--derivation", "[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32]",
+            "--priority-fee-microlamports", "25000"
+        ]).unwrap();
+        assert_eq!(args.priority_fee_microlamports, Some(25_000));
+        assert!(!args.enable_priority_fees);
+    }
+
+    #[test]
+    fn test_priority_fee_modes_conflict() {
+        let result = StartArgs::try_parse_from([
+            "forester",
+            "--rpc-url", "http://test.com",
+            "--indexer-url", "http://indexer.test.com",
+            "--payer", "[1,2,3]",
+            "--derivation", "[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32]",
+            "--enable-priority-fees", "true",
+            "--priority-fee-microlamports", "25000"
         ]);
         assert!(result.is_err());
     }

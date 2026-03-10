@@ -1,8 +1,8 @@
 use forester::{
     cli::{ProcessorMode, StartArgs},
+    priority_fee::request_priority_fee_estimate,
     processor::v1::{
-        config::CapConfig,
-        helpers::{get_capped_priority_fee, request_priority_fee_estimate},
+        config::CapConfig, helpers::get_capped_priority_fee,
     },
     ForesterConfig,
 };
@@ -51,6 +51,7 @@ async fn test_priority_fee_request() {
         ops_cache_ttl_seconds: 180,
         cu_limit: 1_000_000,
         enable_priority_fees: true,
+        priority_fee_microlamports: None,
         rpc_pool_size: 20,
         rpc_pool_connection_timeout_secs: 1,
         rpc_pool_idle_timeout_secs: 1,

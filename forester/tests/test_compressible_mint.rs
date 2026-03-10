@@ -398,7 +398,12 @@ async fn test_compressible_mint_compression() {
     );
 
     // Create compressor and compress
-    let compressor = MintCompressor::new(rpc_pool.clone(), tracker.clone(), payer.insecure_clone());
+    let compressor = MintCompressor::new(
+        rpc_pool.clone(),
+        tracker.clone(),
+        payer.insecure_clone(),
+        forester::compressible::traits::CompressibleTransactionConfig::default(),
+    );
 
     println!("Compressing Mint...");
     let compress_result = compressor.compress_batch(&ready_accounts).await;
@@ -603,7 +608,12 @@ async fn test_compressible_mint_subscription() {
     );
 
     // Compress just the first mint
-    let compressor = MintCompressor::new(rpc_pool.clone(), tracker.clone(), payer.insecure_clone());
+    let compressor = MintCompressor::new(
+        rpc_pool.clone(),
+        tracker.clone(),
+        payer.insecure_clone(),
+        forester::compressible::traits::CompressibleTransactionConfig::default(),
+    );
 
     // Compress only the first mint
     let first_mint_state = ready_accounts

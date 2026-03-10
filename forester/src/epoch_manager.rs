@@ -61,6 +61,7 @@ use crate::{
         update_forester_sol_balance,
     },
     pagerduty::send_pagerduty_alert,
+    priority_fee::PriorityFeeConfig,
     processor::{
         tx_cache::ProcessedHashCache,
         v1::{
@@ -81,6 +82,7 @@ use crate::{
         perform_state_merkle_tree_rollover_forester,
     },
     slot_tracker::{slot_duration, wait_until_slot_reached, SlotTracker},
+    smart_transaction::{send_smart_transaction, ComputeBudgetConfig, SendSmartTransactionConfig},
     tree_data_sync::{fetch_protocol_group_authority, fetch_trees},
     ForesterConfig, ForesterEpochInfo, Result,
 };
@@ -1543,12 +1545,11 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                     &self.config.derivation_pubkey,
                     epoch_info.epoch.epoch,
                 );
-                rpc.create_and_send_transaction(
-                    &[ix],
-                    &self.config.payer_keypair.pubkey(),
-                    &[&self.config.payer_keypair],
-                )
-                .await?;
+                let priority_fee = self
+                    .resolve_epoch_priority_fee(&*rpc, epoch_info.epoch.epoch)
+                    .await?;
+                self.send_configured_transaction(&mut *rpc, vec![ix], priority_fee)
+                    .await?;
             }
         }
 
@@ -1922,12 +1923,11 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                     &self.config.derivation_pubkey,
                     epoch_info.epoch,
                 );
-                match rpc
-                    .create_and_send_transaction(
-                        &[ix],
-                        &self.config.payer_keypair.pubkey(),
-                        &[&self.config.payer_keypair],
-                    )
+                let priority_fee = self
+                    .resolve_epoch_priority_fee(&*rpc, epoch_info.epoch)
+                    .await?;
+                match self
+                    .send_configured_transaction(&mut *rpc, vec![ix], priority_fee)
                     .await
                 {
                     Ok(_) => {
@@ -2492,6 +2492,10 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             self.rpc_pool.clone(),
             tracker.clone(),
             self.config.payer_keypair.insecure_clone(),
+            crate::compressible::traits::CompressibleTransactionConfig {
+                priority_fee_config: self.transaction_priority_fee_config(),
+                compute_unit_limit: Some(self.config.transaction_config.cu_limit),
+            },
         );
 
         // Derive registered forester PDA once for all batches
@@ -2754,6 +2758,10 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 self.rpc_pool.clone(),
                 pda_tracker.clone(),
                 self.config.payer_keypair.insecure_clone(),
+                crate::compressible::traits::CompressibleTransactionConfig {
+                    priority_fee_config: self.transaction_priority_fee_config(),
+                    compute_unit_limit: Some(self.config.transaction_config.cu_limit),
+                },
             );
 
             // Fetch and cache config once per program
@@ -2895,6 +2903,10 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             self.rpc_pool.clone(),
             mint_tracker.clone(),
             self.config.payer_keypair.insecure_clone(),
+            crate::compressible::traits::CompressibleTransactionConfig {
+                priority_fee_config: self.transaction_priority_fee_config(),
+                compute_unit_limit: Some(self.config.transaction_config.cu_limit),
+            },
         );
 
         // Shared cancellation flag
@@ -2955,7 +2967,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             num_batches: 1,
             build_transaction_batch_config: BuildTransactionBatchConfig {
                 batch_size: self.config.transaction_config.legacy_ixs_per_tx as u64,
-                compute_unit_price: Some(10_000), // is dynamic, sets max
+                compute_unit_price: self.config.transaction_config.priority_fee_microlamports,
                 compute_unit_limit: Some(self.config.transaction_config.cu_limit),
                 enable_priority_fees: self.config.transaction_config.enable_priority_fees,
                 max_concurrent_sends: Some(self.config.transaction_config.max_concurrent_sends),
@@ -3072,12 +3084,84 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             num_proof_workers: self.config.transaction_config.max_concurrent_batches,
             forester_eligibility_end_slot: Arc::new(AtomicU64::new(eligibility_end)),
             address_lookup_tables: self.address_lookup_tables.clone(),
+            compute_unit_limit: Some(self.config.transaction_config.cu_limit),
+            priority_fee_config: PriorityFeeConfig {
+                compute_unit_price: self.config.transaction_config.priority_fee_microlamports,
+                enable_priority_fees: self.config.transaction_config.enable_priority_fees,
+            },
             confirmation_max_attempts: self.config.transaction_config.confirmation_max_attempts,
             confirmation_poll_interval: Duration::from_millis(
                 self.config.transaction_config.confirmation_poll_interval_ms,
             ),
             max_batches_per_tree: self.config.transaction_config.max_batches_per_tree,
         }
+    }
+
+    fn transaction_priority_fee_config(&self) -> PriorityFeeConfig {
+        PriorityFeeConfig {
+            compute_unit_price: self.config.transaction_config.priority_fee_microlamports,
+            enable_priority_fees: self.config.transaction_config.enable_priority_fees,
+        }
+    }
+
+    async fn resolve_epoch_priority_fee<RpcT: Rpc>(
+        &self,
+        rpc: &RpcT,
+        epoch: u64,
+    ) -> Result<Option<u64>> {
+        self.transaction_priority_fee_config()
+            .resolve(
+                rpc,
+                vec![
+                    self.config.payer_keypair.pubkey(),
+                    get_forester_epoch_pda_from_authority(&self.config.derivation_pubkey, epoch).0,
+                ],
+            )
+            .await
+    }
+
+    async fn resolve_tree_priority_fee<RpcT: Rpc>(
+        &self,
+        rpc: &RpcT,
+        epoch: u64,
+        tree_accounts: &TreeAccounts,
+    ) -> Result<Option<u64>> {
+        self.transaction_priority_fee_config()
+            .resolve(
+                rpc,
+                vec![
+                    self.config.payer_keypair.pubkey(),
+                    get_forester_epoch_pda_from_authority(&self.config.derivation_pubkey, epoch).0,
+                    tree_accounts.queue,
+                    tree_accounts.merkle_tree,
+                ],
+            )
+            .await
+    }
+
+    async fn send_configured_transaction<RpcT: Rpc>(
+        &self,
+        rpc: &mut RpcT,
+        instructions: Vec<solana_sdk::instruction::Instruction>,
+        compute_unit_price: Option<u64>,
+    ) -> std::result::Result<Signature, RpcError> {
+        let payer = self.config.payer_keypair.pubkey();
+        let signers = [&self.config.payer_keypair];
+
+        send_smart_transaction(
+            rpc,
+            SendSmartTransactionConfig {
+                instructions,
+                payer: &payer,
+                signers: &signers,
+                address_lookup_tables: &[],
+                compute_budget: ComputeBudgetConfig {
+                    compute_unit_price,
+                    compute_unit_limit: Some(self.config.transaction_config.cu_limit),
+                },
+            },
+        )
+        .await
     }
 
     async fn get_or_create_state_processor(
@@ -3738,12 +3822,12 @@ impl<R: Rpc + Indexer> EpochManager<R> {
 
             if !instructions.is_empty() {
                 let mut rpc = self.rpc_pool.get_connection().await?;
-                match rpc
-                    .create_and_send_transaction(
-                        &instructions,
-                        &authority,
-                        &[&self.config.payer_keypair],
-                    )
+                let priority_fee = self
+                    .resolve_tree_priority_fee(&*rpc, epoch_info.epoch, tree_accounts)
+                    .await?;
+                let instruction_count = instructions.len();
+                match self
+                    .send_configured_transaction(&mut *rpc, instructions, priority_fee)
                     .await
                 {
                     Ok(sig) => {
@@ -3751,7 +3835,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                             event = "cached_proofs_tx_sent",
                             run_id = %self.run_id,
                             signature = %sig,
-                            instruction_count = instructions.len(),
+                            instruction_count,
                             "Sent cached proofs transaction"
                         );
                         total_items += chunk_items;
@@ -3898,12 +3982,11 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             epoch_info.epoch.epoch,
         );
 
-        match rpc
-            .create_and_send_transaction(
-                &[ix],
-                &self.config.payer_keypair.pubkey(),
-                &[&self.config.payer_keypair],
-            )
+        let priority_fee = self
+            .resolve_epoch_priority_fee(&rpc, epoch_info.epoch.epoch)
+            .await?;
+        match self
+            .send_configured_transaction(&mut rpc, vec![ix], priority_fee)
             .await
         {
             Ok(_) => {

@@ -14,7 +14,6 @@ use light_registry::account_compression_cpi::sdk::{
     create_nullify_instruction, create_update_address_merkle_tree_instruction,
     CreateNullifyInstructionInputs, UpdateAddressMerkleTreeInstructionInputs,
 };
-use reqwest::Url;
 use solana_program::instruction::Instruction;
 use tokio::time::Instant;
 use tracing::{info, warn};
@@ -31,10 +30,6 @@ const ADDRESS_PROOF_RETRY_BASE_DELAY_MS: u64 = 500;
 use crate::{
     epoch_manager::{MerkleProofType, WorkItem},
     errors::ForesterError,
-    helius_priority_fee_types::{
-        GetPriorityFeeEstimateOptions, GetPriorityFeeEstimateRequest,
-        GetPriorityFeeEstimateResponse, RpcRequest, RpcResponse,
-    },
     processor::v1::config::CapConfig,
 };
 
@@ -494,65 +489,6 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
     }
 
     Ok((proofs, instructions))
-}
-
-/// Request priority fee estimate from Helius RPC endpoint
-pub async fn request_priority_fee_estimate(
-    url: &Url,
-    account_keys: Vec<Pubkey>,
-) -> crate::Result<u64> {
-    if url.host_str() != Some("mainnet") {
-        return Ok(10_000);
-    }
-
-    let priority_fee_request = GetPriorityFeeEstimateRequest {
-        transaction: None,
-        account_keys: Some(
-            account_keys
-                .iter()
-                .map(|pubkey| bs58::encode(pubkey).into_string())
-                .collect(),
-        ),
-        options: Some(GetPriorityFeeEstimateOptions {
-            include_all_priority_fee_levels: None,
-            recommended: Some(true),
-            include_vote: None,
-            lookback_slots: None,
-            priority_level: None,
-            transaction_encoding: None,
-        }),
-    };
-
-    let rpc_request = RpcRequest::new(
-        "getPriorityFeeEstimate".to_string(),
-        serde_json::json!({
-            "get_priority_fee_estimate_request": priority_fee_request
-        }),
-    );
-
-    let client = reqwest::Client::new();
-    let response = client
-        .post(url.clone())
-        .header("Content-Type", "application/json")
-        .json(&rpc_request)
-        .send()
-        .await?;
-
-    let response_text = response.text().await?;
-
-    let response: RpcResponse<GetPriorityFeeEstimateResponse> =
-        serde_json::from_str(&response_text)?;
-
-    response
-        .result
-        .priority_fee_estimate
-        .map(|estimate| estimate as u64)
-        .ok_or(
-            ForesterError::General {
-                error: "Priority fee estimate not available".to_string(),
-            }
-            .into(),
-        )
 }
 
 /// Calculate the compute unit price in microLamports based on the target lamports and compute units

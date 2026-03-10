@@ -391,8 +391,12 @@ async fn test_compressible_ctoken_compression() {
         &ctx.forester_keypair.pubkey(),
         ctx.epoch.epoch,
     );
-    let compressor =
-        CTokenCompressor::new(ctx.rpc_pool.clone(), tracker.clone(), ctx.forester_keypair);
+    let compressor = CTokenCompressor::new(
+        ctx.rpc_pool.clone(),
+        tracker.clone(),
+        ctx.forester_keypair,
+        forester::compressible::traits::CompressibleTransactionConfig::default(),
+    );
     let compressor_handle = tokio::spawn(async move {
         compressor
             .compress_batch(&ready_accounts, registered_forester_pda)

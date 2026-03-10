@@ -29,8 +29,8 @@ use crate::{
     compressible::{
         config::PdaProgramConfig,
         traits::{
-            send_and_confirm_with_tracking, verify_transaction_execution, Cancelled,
-            CompressibleTracker,
+            send_and_confirm_with_tracking, send_with_transaction_policy, Cancelled,
+            CompressibleTracker, CompressibleTransactionConfig,
         },
     },
     Result,
@@ -52,6 +52,7 @@ pub struct PdaCompressor<R: Rpc + Indexer> {
     rpc_pool: Arc<SolanaRpcPool<R>>,
     tracker: Arc<PdaAccountTracker>,
     payer_keypair: Keypair,
+    transaction_config: CompressibleTransactionConfig,
 }
 
 impl<R: Rpc + Indexer> Clone for PdaCompressor<R> {
@@ -60,6 +61,7 @@ impl<R: Rpc + Indexer> Clone for PdaCompressor<R> {
             rpc_pool: Arc::clone(&self.rpc_pool),
             tracker: Arc::clone(&self.tracker),
             payer_keypair: self.payer_keypair.insecure_clone(),
+            transaction_config: self.transaction_config,
         }
     }
 }
@@ -69,11 +71,13 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
         rpc_pool: Arc<SolanaRpcPool<R>>,
         tracker: Arc<PdaAccountTracker>,
         payer_keypair: Keypair,
+        transaction_config: CompressibleTransactionConfig,
     ) -> Self {
         Self {
             rpc_pool,
             tracker,
             payer_keypair,
+            transaction_config,
         }
     }
 
@@ -302,6 +306,7 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
             &mut *rpc,
             &[ix],
             &self.payer_keypair,
+            self.transaction_config,
             &*self.tracker,
             &pubkeys,
             "compress_accounts_idempotent",
@@ -378,38 +383,19 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
             pda, program_id
         );
 
-        // Send transaction (pending is managed by the caller)
-        let signature = rpc
-            .create_and_send_transaction(
-                &[ix],
-                &self.payer_keypair.pubkey(),
-                &[&self.payer_keypair],
-            )
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to send transaction: {:?}", e))?;
+        let signature = send_with_transaction_policy(
+            &mut *rpc,
+            &[ix],
+            &self.payer_keypair,
+            self.transaction_config,
+        )
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to send transaction: {:?}", e))?;
 
         info!(
-            "compress_accounts_idempotent tx for PDA {} sent: {}",
+            "compress_accounts_idempotent tx for PDA {} confirmed: {}",
             pda, signature
         );
-
-        // Wait for confirmation
-        let confirmed = rpc
-            .confirm_transaction(signature)
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to confirm transaction: {:?}", e))?;
-
-        if confirmed {
-            verify_transaction_execution(&*rpc, signature).await?;
-
-            info!("compress_accounts_idempotent tx for PDA {} confirmed", pda);
-            Ok(signature)
-        } else {
-            Err(anyhow::anyhow!(
-                "Transaction {} not confirmed for PDA {}",
-                signature,
-                pda
-            ))
-        }
+        Ok(signature)
     }
 }

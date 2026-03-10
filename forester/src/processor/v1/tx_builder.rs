@@ -32,7 +32,7 @@ pub trait TransactionBuilder: Send + Sync {
         derivation: &Pubkey,
         recent_blockhash: &Hash,
         last_valid_block_height: u64,
-        priority_fee: u64,
+        priority_fee: Option<u64>,
         work_items: &[WorkItem],
         config: BuildTransactionBatchConfig,
     ) -> Result<(Vec<Transaction>, u64)>;
@@ -72,7 +72,7 @@ impl<R: Rpc> TransactionBuilder for EpochManagerTransactions<R> {
         derivation: &Pubkey,
         recent_blockhash: &Hash,
         last_valid_block_height: u64,
-        priority_fee: u64,
+        priority_fee: Option<u64>,
         work_items: &[WorkItem],
         config: BuildTransactionBatchConfig,
     ) -> Result<(Vec<Transaction>, u64)> {
@@ -149,7 +149,7 @@ impl<R: Rpc> TransactionBuilder for EpochManagerTransactions<R> {
                 payer: payer.insecure_clone(),
                 instructions: instruction_chunk.to_vec(),
                 recent_blockhash: *recent_blockhash,
-                compute_unit_price: Some(priority_fee),
+                compute_unit_price: priority_fee,
                 compute_unit_limit: config.compute_unit_limit,
                 last_valid_block_height,
             })
