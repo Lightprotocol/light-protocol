@@ -140,6 +140,7 @@ pub trait Rpc: Send + Sync + Debug + 'static {
 
     async fn get_balance(&self, pubkey: &Pubkey) -> Result<u64, RpcError>;
     async fn get_latest_blockhash(&mut self) -> Result<(Hash, u64), RpcError>;
+    async fn get_block_height(&self) -> Result<u64, RpcError>;
     async fn get_slot(&self) -> Result<u64, RpcError>;
     async fn get_transaction_slot(&self, signature: &Signature) -> Result<u64, RpcError>;
     async fn get_signature_statuses(

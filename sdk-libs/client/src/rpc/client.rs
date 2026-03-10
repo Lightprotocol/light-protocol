@@ -800,6 +800,11 @@ impl Rpc for LightClient {
         .await
     }
 
+    async fn get_block_height(&self) -> Result<u64, RpcError> {
+        self.retry(|| async { self.client.get_block_height().map_err(RpcError::from) })
+            .await
+    }
+
     async fn get_slot(&self) -> Result<u64, RpcError> {
         self.retry(|| async { self.client.get_slot().map_err(RpcError::from) })
             .await

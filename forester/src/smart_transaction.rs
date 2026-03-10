@@ -255,31 +255,36 @@ pub async fn send_transaction_with_policy<R: Rpc>(
     .await
 }
 
-enum PreparedTransaction {
+struct PreparedTransaction {
+    transaction: PreparedTransactionKind,
+    last_valid_block_height: u64,
+}
+
+enum PreparedTransactionKind {
     Legacy(Transaction),
     Versioned(VersionedTransaction),
 }
 
 impl PreparedTransaction {
-    fn signature(&self) -> Result<Signature, &'static str> {
-        match self {
-            Self::Legacy(transaction) => transaction
-                .signatures
-                .first()
-                .copied()
-                .ok_or("Prepared legacy transaction missing signature"),
-            Self::Versioned(transaction) => transaction
-                .signatures
-                .first()
-                .copied()
-                .ok_or("Prepared versioned transaction missing signature"),
+    fn signature(&self) -> Option<Signature> {
+        match &self.transaction {
+            PreparedTransactionKind::Legacy(transaction) => transaction.signatures.first().copied(),
+            PreparedTransactionKind::Versioned(transaction) => {
+                transaction.signatures.first().copied()
+            }
         }
     }
 
+    fn last_valid_block_height(&self) -> u64 {
+        self.last_valid_block_height
+    }
+
     async fn process<R: Rpc>(&self, rpc: &mut R) -> Result<Signature, RpcError> {
-        match self {
-            Self::Legacy(transaction) => rpc.process_transaction(transaction.clone()).await,
-            Self::Versioned(transaction) => {
+        match &self.transaction {
+            PreparedTransactionKind::Legacy(transaction) => {
+                rpc.process_transaction(transaction.clone()).await
+            }
+            PreparedTransactionKind::Versioned(transaction) => {
                 rpc.process_versioned_transaction(transaction.clone()).await
             }
         }
@@ -287,11 +292,11 @@ impl PreparedTransaction {
 
     async fn send_with_confirmation_config<R: Rpc>(&self, rpc: &R) -> Result<Signature, RpcError> {
         let config = confirmation_send_transaction_config();
-        match self {
-            Self::Legacy(transaction) => {
+        match &self.transaction {
+            PreparedTransactionKind::Legacy(transaction) => {
                 rpc.send_transaction_with_config(transaction, config).await
             }
-            Self::Versioned(transaction) => {
+            PreparedTransactionKind::Versioned(transaction) => {
                 rpc.send_versioned_transaction_with_config(transaction, config)
                     .await
             }
@@ -333,14 +338,17 @@ async fn prepare_transaction<R: Rpc>(
     compute_budget: ComputeBudgetConfig,
 ) -> Result<PreparedTransaction, RpcError> {
     let final_instructions = with_compute_budget_instructions(instructions, compute_budget);
-    let (blockhash, _) = rpc.get_latest_blockhash().await?;
+    let (blockhash, last_valid_block_height) = rpc.get_latest_blockhash().await?;
 
     if address_lookup_tables.is_empty() {
         let mut transaction = Transaction::new_with_payer(&final_instructions, Some(payer));
         transaction
             .try_sign(signers, blockhash)
             .map_err(|e| RpcError::SigningError(e.to_string()))?;
-        Ok(PreparedTransaction::Legacy(transaction))
+        Ok(PreparedTransaction {
+            transaction: PreparedTransactionKind::Legacy(transaction),
+            last_valid_block_height,
+        })
     } else {
         let message =
             v0::Message::try_compile(payer, &final_instructions, address_lookup_tables, blockhash)
@@ -349,7 +357,10 @@ async fn prepare_transaction<R: Rpc>(
                 })?;
         let transaction = VersionedTransaction::try_new(VersionedMessage::V0(message), signers)
             .map_err(|e| RpcError::SigningError(e.to_string()))?;
-        Ok(PreparedTransaction::Versioned(transaction))
+        Ok(PreparedTransaction {
+            transaction: PreparedTransactionKind::Versioned(transaction),
+            last_valid_block_height,
+        })
     }
 }
 
@@ -360,13 +371,17 @@ async fn send_prepared_transaction<R: Rpc>(
 ) -> Result<Signature, RpcError> {
     match confirmation {
         Some(confirmation) => {
-            let signature = transaction
-                .signature()
-                .map_err(|error| RpcError::CustomError(error.to_string()))?;
+            let signature = transaction.signature().ok_or_else(|| {
+                RpcError::CustomError("Prepared transaction missing signature".into())
+            })?;
             let rpc = &*rpc;
-            resend_until_confirmed(rpc, signature, confirmation, || {
-                transaction.send_with_confirmation_config(rpc)
-            })
+            resend_until_confirmed(
+                rpc,
+                signature,
+                transaction.last_valid_block_height(),
+                confirmation,
+                || transaction.send_with_confirmation_config(rpc),
+            )
             .await
         }
         None => transaction.process(rpc).await,
@@ -386,6 +401,7 @@ fn confirmation_send_transaction_config() -> RpcSendTransactionConfig {
 async fn resend_until_confirmed<R, F, Fut>(
     rpc: &R,
     signature: Signature,
+    last_valid_block_height: u64,
     confirmation: ConfirmationConfig,
     mut send_transaction: F,
 ) -> Result<Signature, RpcError>
@@ -401,6 +417,10 @@ where
     for attempt in 0..confirmation.max_attempts {
         if signature_is_confirmed(rpc, signature).await? {
             return Ok(signature);
+        }
+
+        if blockhash_has_expired(rpc, last_valid_block_height).await? {
+            return Err(blockhash_expired_error(signature, last_valid_block_height));
         }
 
         match send_transaction().await {
@@ -420,6 +440,10 @@ where
 
     if signature_is_confirmed(rpc, signature).await? {
         return Ok(signature);
+    }
+
+    if blockhash_has_expired(rpc, last_valid_block_height).await? {
+        return Err(blockhash_expired_error(signature, last_valid_block_height));
     }
 
     if let Some(error) = last_send_error {
@@ -448,4 +472,18 @@ async fn signature_is_confirmed<R: Rpc>(rpc: &R, signature: Signature) -> Result
     }
 
     Ok(false)
+}
+
+async fn blockhash_has_expired<R: Rpc>(
+    rpc: &R,
+    last_valid_block_height: u64,
+) -> Result<bool, RpcError> {
+    Ok(rpc.get_block_height().await? > last_valid_block_height)
+}
+
+fn blockhash_expired_error(signature: Signature, last_valid_block_height: u64) -> RpcError {
+    RpcError::CustomError(format!(
+        "Transaction {} blockhash expired at block height {} before confirmation",
+        signature, last_valid_block_height
+    ))
 }

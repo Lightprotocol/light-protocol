@@ -266,6 +266,30 @@ async fn test_all_endpoints() {
     test_token_api(&mut rpc, &test_accounts).await;
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn test_versioned_transaction_updates_compressed_account_lookup() {
+    let config = ProgramTestConfig::default();
+    let mut rpc = LightProgramTest::new(config).await.unwrap();
+    let owner = rpc.get_payer().pubkey();
+    let mt = rpc.test_accounts().v1_state_trees[0].merkle_tree;
+    let lamports = LAMPORTS_PER_SOL / 2;
+
+    let (address, _signature) = create_address_versioned(&mut rpc, lamports, owner, mt)
+        .await
+        .unwrap();
+
+    let compressed_account = rpc
+        .get_compressed_account(address, None)
+        .await
+        .unwrap()
+        .value
+        .expect("compressed account should be indexed after versioned send");
+
+    assert_eq!(compressed_account.owner, owner);
+    assert_eq!(compressed_account.address, Some(address));
+    assert_eq!(compressed_account.lamports, lamports);
+}
+
 /// Token API endpoints tested:
 /// 1. get_compressed_token_accounts_by_owner
 /// 2. get_compressed_token_account_balance
@@ -644,6 +668,72 @@ async fn create_address(
     );
     let signature = rpc
         .process_transaction(tx_create_compressed_account)
+        .await?;
+    Ok((address, signature))
+}
+
+async fn create_address_versioned(
+    rpc: &mut LightProgramTest,
+    lamports: u64,
+    owner: Pubkey,
+    merkle_tree: Pubkey,
+) -> Result<([u8; 32], Signature), RpcError> {
+    let address_merkle_tree = rpc.get_address_tree_v1();
+    let (address, address_seed) = derive_address(
+        &[Pubkey::new_unique().to_bytes().as_slice()],
+        &address_merkle_tree.tree,
+        &Pubkey::new_unique(),
+    );
+
+    let output_account = light_compressed_account::compressed_account::CompressedAccount {
+        lamports,
+        owner: owner.into(),
+        data: None,
+        address: Some(address),
+    };
+    let rpc_proof_result = rpc
+        .get_validity_proof(
+            vec![],
+            vec![AddressWithTree {
+                address,
+                tree: address_merkle_tree.tree,
+            }],
+            None,
+        )
+        .await
+        .unwrap();
+
+    let new_address_params = NewAddressParams {
+        seed: address_seed.into(),
+        address_queue_pubkey: address_merkle_tree.queue.into(),
+        address_merkle_tree_pubkey: address_merkle_tree.tree.into(),
+        address_merkle_tree_root_index: rpc_proof_result.value.addresses[0].root_index,
+    };
+    let compute_budget_ix = ComputeBudgetInstruction::set_compute_unit_limit(500_000);
+    let ix = create_invoke_instruction(
+        &rpc.get_payer().pubkey(),
+        &rpc.get_payer().pubkey(),
+        &[],
+        &[output_account],
+        &[],
+        &[merkle_tree],
+        &[],
+        &[new_address_params],
+        rpc_proof_result.value.proof.0,
+        Some(lamports),
+        true,
+        None,
+        true,
+    );
+
+    let payer = rpc.get_payer().insecure_clone();
+    let signature = rpc
+        .create_and_send_versioned_transaction(
+            &[compute_budget_ix, ix],
+            &payer.pubkey(),
+            &[&payer],
+            &[],
+        )
         .await?;
     Ok((address, signature))
 }

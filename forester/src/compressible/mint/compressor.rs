@@ -19,10 +19,7 @@ use tracing::{debug, info};
 use super::{state::MintAccountTracker, types::MintAccountState};
 use crate::{
     compressible::traits::{send_and_confirm_with_tracking, Cancelled, CompressibleTracker},
-    smart_transaction::{
-        collect_priority_fee_accounts, send_transaction_with_policy,
-        SendTransactionWithPolicyConfig, TransactionPolicy,
-    },
+    smart_transaction::TransactionPolicy,
     Result,
 };
 
@@ -242,20 +239,15 @@ impl<R: Rpc + Indexer> MintCompressor<R> {
             mint_pda
         );
 
-        let payer_pubkey = self.payer_keypair.pubkey();
-        let signers = [&self.payer_keypair];
-        let instructions = vec![ix];
-        let priority_fee_accounts = collect_priority_fee_accounts(payer_pubkey, &instructions);
-        let signature = send_transaction_with_policy(
+        let tracked_pubkeys = [*mint_pda];
+        let signature = send_and_confirm_with_tracking(
             &mut *rpc,
-            SendTransactionWithPolicyConfig {
-                instructions,
-                payer: &payer_pubkey,
-                signers: &signers,
-                address_lookup_tables: &[],
-                priority_fee_accounts,
-                policy: self.transaction_policy,
-            },
+            &[ix],
+            &self.payer_keypair,
+            self.transaction_policy,
+            &*self.tracker,
+            &tracked_pubkeys,
+            "CompressAndCloseMint",
         )
         .await
         .map_err(|e| anyhow::anyhow!("Failed to send CompressAndCloseMint transaction: {:?}", e))?;

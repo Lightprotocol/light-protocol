@@ -1,4 +1,4 @@
-use std::sync::LazyLock;
+use std::{sync::LazyLock, time::Duration};
 
 use light_client::rpc::Rpc;
 use serde::Deserialize;
@@ -6,7 +6,12 @@ use solana_sdk::pubkey::Pubkey;
 use thiserror::Error;
 use tracing::warn;
 
-static HTTP_CLIENT: LazyLock<reqwest::Client> = LazyLock::new(reqwest::Client::new);
+static HTTP_CLIENT: LazyLock<std::result::Result<reqwest::Client, String>> = LazyLock::new(|| {
+    reqwest::Client::builder()
+        .timeout(Duration::from_secs(15))
+        .build()
+        .map_err(|error| format!("failed to build priority fee HTTP client: {error}"))
+});
 
 use crate::{
     errors::ForesterError,
@@ -43,7 +48,7 @@ impl PriorityFeeConfig {
             Ok(priority_fee) => Ok(Some(priority_fee)),
             Err(error) => {
                 if let Some(priority_fee_error) = error.downcast_ref::<PriorityFeeEstimateError>() {
-                    if priority_fee_error.is_unsupported() {
+                    if priority_fee_error.is_fallbackable() {
                         let fallback_fee = self.fallback_priority_fee();
                         warn!(
                             rpc_url = %rpc_url,
@@ -89,6 +94,9 @@ enum PriorityFeeEstimateError {
 
     #[error("priority fee estimate response parse failed: {0}")]
     Parse(#[from] serde_json::Error),
+
+    #[error("priority fee HTTP client init failed: {0}")]
+    ClientBuild(String),
 }
 
 impl PriorityFeeEstimateError {
@@ -103,8 +111,11 @@ impl PriorityFeeEstimateError {
         }
     }
 
-    fn is_unsupported(&self) -> bool {
-        matches!(self, Self::UnsupportedMethod { .. })
+    fn is_fallbackable(&self) -> bool {
+        matches!(
+            self,
+            Self::UnsupportedMethod { .. } | Self::MissingEstimate | Self::InvalidEstimate(_)
+        )
     }
 }
 
@@ -196,7 +207,11 @@ pub async fn request_priority_fee_estimate(
         }),
     );
 
-    let response = HTTP_CLIENT
+    let http_client = HTTP_CLIENT
+        .as_ref()
+        .map_err(|error| PriorityFeeEstimateError::ClientBuild(error.clone()))?;
+
+    let response = http_client
         .post(url.clone())
         .header("Content-Type", "application/json")
         .json(&rpc_request)

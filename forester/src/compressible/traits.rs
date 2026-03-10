@@ -187,6 +187,13 @@ pub async fn send_and_confirm_with_tracking<S: CompressibleState>(
     pubkeys: &[Pubkey],
     tx_label: &str,
 ) -> Result<Signature> {
+    if transaction_policy.confirmation.is_none() {
+        return Err(anyhow::anyhow!(
+            "{} transaction requires confirmation to update tracker state safely",
+            tx_label
+        ));
+    }
+
     let pending = PendingAccountsGuard::<_, S>::new(tracker, pubkeys);
     let payer_pubkey = payer.pubkey();
     let signers = [payer];
