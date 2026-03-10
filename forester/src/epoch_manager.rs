@@ -7,6 +7,7 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
+use anchor_lang::error::ERROR_CODE_OFFSET;
 use anyhow::{anyhow, Context};
 use borsh::BorshSerialize;
 use dashmap::DashMap;
@@ -25,6 +26,7 @@ use light_registry::{
         create_batch_append_instruction, create_batch_nullify_instruction,
         create_batch_update_address_tree_instruction,
     },
+    errors::RegistryError,
     protocol_config::state::{EpochState, ProtocolConfig},
     sdk::{create_finalize_registration_instruction, create_report_work_instruction},
     utils::{get_epoch_pda_address, get_forester_epoch_pda_from_authority},
@@ -39,7 +41,7 @@ use solana_sdk::{
     transaction::TransactionError,
 };
 use tokio::{
-    sync::{broadcast, broadcast::error::RecvError, mpsc, oneshot, Mutex},
+    sync::{mpsc, oneshot, Mutex},
     task::JoinHandle,
     time::{sleep, Instant, MissedTickBehavior},
 };
@@ -85,6 +87,52 @@ use crate::{
 
 fn is_v2_error(err: &anyhow::Error, predicate: impl FnOnce(&V2Error) -> bool) -> bool {
     err.downcast_ref::<V2Error>().is_some_and(predicate)
+}
+
+const FORESTER_NOT_ELIGIBLE_ERROR_CODE: u32 =
+    ERROR_CODE_OFFSET + RegistryError::ForesterNotEligible as u32;
+
+fn rpc_custom_error_code(error: &RpcError) -> Option<u32> {
+    match error {
+        RpcError::TransactionError(TransactionError::InstructionError(
+            _,
+            InstructionError::Custom(error_code),
+        )) => Some(*error_code),
+        RpcError::ClientError(client_error) => {
+            client_error
+                .get_transaction_error()
+                .and_then(|transaction_error| match transaction_error {
+                    TransactionError::InstructionError(_, InstructionError::Custom(error_code)) => {
+                        Some(error_code)
+                    }
+                    _ => None,
+                })
+        }
+        _ => None,
+    }
+}
+
+fn is_forester_not_eligible_error(err: &anyhow::Error) -> bool {
+    if let Some(ForesterError::NotEligible) = err.downcast_ref::<ForesterError>() {
+        return true;
+    }
+
+    if let Some(ForesterError::Rpc(rpc_error)) = err.downcast_ref::<ForesterError>() {
+        return rpc_custom_error_code(rpc_error) == Some(FORESTER_NOT_ELIGIBLE_ERROR_CODE);
+    }
+
+    if let Some(v2_error) = err.downcast_ref::<V2Error>() {
+        match v2_error {
+            V2Error::TransactionFailed { message, .. }
+            | V2Error::CircuitConstraint { message, .. } => {
+                return message.contains("Custom(6004)")
+                    || message.contains("custom program error: 0x1774");
+            }
+            _ => return false,
+        }
+    }
+
+    false
 }
 
 type StateBatchProcessorMap<R> =
@@ -259,7 +307,6 @@ pub struct EpochManager<R: Rpc + Indexer> {
     trees: Arc<Mutex<Vec<TreeAccounts>>>,
     slot_tracker: Arc<SlotTracker>,
     processing_epochs: Arc<DashMap<u64, Arc<AtomicBool>>>,
-    new_tree_sender: broadcast::Sender<TreeAccounts>,
     tx_cache: Arc<Mutex<ProcessedHashCache>>,
     ops_cache: Arc<Mutex<ProcessedHashCache>>,
     /// Proof caches for pre-warming during idle slots
@@ -293,7 +340,6 @@ impl<R: Rpc + Indexer> Clone for EpochManager<R> {
             trees: self.trees.clone(),
             slot_tracker: self.slot_tracker.clone(),
             processing_epochs: self.processing_epochs.clone(),
-            new_tree_sender: self.new_tree_sender.clone(),
             tx_cache: self.tx_cache.clone(),
             ops_cache: self.ops_cache.clone(),
             proof_caches: self.proof_caches.clone(),
@@ -322,7 +368,6 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         work_report_sender: mpsc::Sender<WorkReport>,
         trees: Vec<TreeAccounts>,
         slot_tracker: Arc<SlotTracker>,
-        new_tree_sender: broadcast::Sender<TreeAccounts>,
         tx_cache: Arc<Mutex<ProcessedHashCache>>,
         ops_cache: Arc<Mutex<ProcessedHashCache>>,
         compressible_tracker: Option<Arc<CTokenAccountTracker>>,
@@ -344,7 +389,6 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             trees: Arc::new(Mutex::new(trees)),
             slot_tracker,
             processing_epochs: Arc::new(DashMap::new()),
-            new_tree_sender,
             tx_cache,
             ops_cache,
             proof_caches: Arc::new(DashMap::new()),
@@ -384,9 +428,9 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             }
         });
 
-        let new_tree_handle = tokio::spawn({
+        let tree_discovery_handle = tokio::spawn({
             let self_clone = Arc::clone(&self);
-            async move { self_clone.handle_new_trees().await }
+            async move { self_clone.discover_trees_periodically().await }
         });
 
         let balance_check_handle = tokio::spawn({
@@ -397,7 +441,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         let _guard = scopeguard::guard(
             (
                 current_previous_handle,
-                new_tree_handle,
+                tree_discovery_handle,
                 balance_check_handle,
             ),
             |(h2, h3, h4)| {
@@ -548,48 +592,116 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         }
     }
 
-    async fn handle_new_trees(self: Arc<Self>) -> Result<()> {
-        let mut receiver = self.new_tree_sender.subscribe();
+    /// Periodically fetches trees from on-chain and adds newly discovered ones.
+    async fn discover_trees_periodically(self: Arc<Self>) -> Result<()> {
+        let interval_secs = self.config.general_config.tree_discovery_interval_seconds;
+        if interval_secs == 0 {
+            info!(event = "tree_discovery_disabled", run_id = %self.run_id, "Tree discovery disabled (interval=0)");
+            return Ok(());
+        }
+        let mut interval = tokio::time::interval(Duration::from_secs(interval_secs));
+        // Skip the first immediate tick — initial trees are already loaded at startup
+        interval.tick().await;
+
+        info!(
+            event = "tree_discovery_started",
+            run_id = %self.run_id,
+            interval_secs,
+            "Starting periodic tree discovery"
+        );
+
+        let mut group_authority: Option<Pubkey> = self.config.general_config.group_authority;
+
         loop {
-            match receiver.recv().await {
-                Ok(new_tree) => {
-                    info!(
-                        event = "new_tree_received",
-                        run_id = %self.run_id,
-                        tree = %new_tree.merkle_tree,
-                        tree_type = ?new_tree.tree_type,
-                        "Received new tree"
-                    );
-                    if let Err(e) = self.add_new_tree(new_tree).await {
-                        error!(
-                            event = "new_tree_add_failed",
+            interval.tick().await;
+
+            let rpc = match self.rpc_pool.get_connection().await {
+                Ok(rpc) => rpc,
+                Err(e) => {
+                    warn!(event = "tree_discovery_rpc_failed", run_id = %self.run_id, error = ?e, "Tree discovery: failed to get RPC connection");
+                    continue;
+                }
+            };
+
+            // Lazily resolve group authority (retry each tick until successful)
+            if group_authority.is_none() {
+                if let Ok(ga) = fetch_protocol_group_authority(&*rpc, &self.run_id).await {
+                    group_authority = Some(ga);
+                    // Retroactively filter already-tracked trees that were added
+                    // before group_authority was resolved.
+                    let mut trees = self.trees.lock().await;
+                    let before = trees.len();
+                    trees.retain(|t| t.owner == ga);
+                    if !self.config.general_config.tree_ids.is_empty() {
+                        let tree_ids = &self.config.general_config.tree_ids;
+                        trees.retain(|t| tree_ids.contains(&t.merkle_tree));
+                    }
+                    if trees.len() < before {
+                        info!(
+                            event = "tree_discovery_retroactive_filter",
                             run_id = %self.run_id,
-                            error = ?e,
-                            "Failed to add new tree"
+                            group_authority = %ga,
+                            trees_before = before,
+                            trees_after = trees.len(),
+                            "Filtered existing trees after resolving group authority"
                         );
-                        // Continue processing other trees instead of crashing
                     }
                 }
-                Err(e) => match e {
-                    RecvError::Lagged(lag) => {
-                        warn!(
-                            event = "new_tree_receiver_lagged",
-                            run_id = %self.run_id,
-                            lag, "Lagged while receiving new trees"
-                        );
-                    }
-                    RecvError::Closed => {
-                        info!(
-                            event = "new_tree_receiver_closed",
-                            run_id = %self.run_id,
-                            "New tree receiver closed"
-                        );
-                        break;
-                    }
-                },
+            }
+
+            let mut fetched_trees = match fetch_trees(&*rpc).await {
+                Ok(trees) => trees,
+                Err(e) => {
+                    warn!(event = "tree_discovery_fetch_failed", run_id = %self.run_id, error = ?e, "Tree discovery: failed to fetch trees");
+                    continue;
+                }
+            };
+
+            if let Some(ga) = group_authority {
+                fetched_trees.retain(|tree| tree.owner == ga);
+            }
+            if !self.config.general_config.tree_ids.is_empty() {
+                let tree_ids = &self.config.general_config.tree_ids;
+                fetched_trees.retain(|tree| tree_ids.contains(&tree.merkle_tree));
+            }
+
+            let known_trees = self.trees.lock().await;
+            let known_pubkeys: std::collections::HashSet<Pubkey> =
+                known_trees.iter().map(|t| t.merkle_tree).collect();
+            drop(known_trees);
+
+            for tree in fetched_trees {
+                if known_pubkeys.contains(&tree.merkle_tree) {
+                    continue;
+                }
+                if should_skip_tree(&self.config, &tree.tree_type) {
+                    debug!(
+                        event = "tree_discovery_skipped",
+                        run_id = %self.run_id,
+                        tree = %tree.merkle_tree,
+                        tree_type = ?tree.tree_type,
+                        "Skipping tree due to fee filter config"
+                    );
+                    continue;
+                }
+                info!(
+                    event = "tree_discovery_new_tree",
+                    run_id = %self.run_id,
+                    tree = %tree.merkle_tree,
+                    tree_type = ?tree.tree_type,
+                    queue = %tree.queue,
+                    "Discovered new tree"
+                );
+                if let Err(e) = self.add_new_tree(tree).await {
+                    error!(
+                        event = "tree_discovery_add_failed",
+                        run_id = %self.run_id,
+                        error = ?e,
+                        "Failed to add discovered tree"
+                    );
+                }
             }
         }
-        Ok(())
     }
 
     async fn add_new_tree(&self, new_tree: TreeAccounts) -> Result<()> {
@@ -1686,6 +1798,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                     }
                 };
 
+                let mut force_refinalize = false;
                 match result {
                     Ok(_) => {
                         trace!(
@@ -1694,6 +1807,16 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                         );
                     }
                     Err(e) => {
+                        force_refinalize = is_forester_not_eligible_error(&e);
+                        if force_refinalize {
+                            warn!(
+                                event = "light_slot_processing_stale_eligibility",
+                                run_id = %self.run_id,
+                                tree = %tree_schedule.tree_accounts.merkle_tree,
+                                light_slot = light_slot_details.slot,
+                                "Detected ForesterNotEligible; forcing immediate re-finalization"
+                            );
+                        }
                         error!(
                             event = "light_slot_processing_error",
                             run_id = %self.run_id,
@@ -1705,8 +1828,11 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 }
                 tree_schedule.slots[slot_idx] = None;
 
-                // Periodically check if new foresters registered and re-finalize
-                if last_weight_check.elapsed() >= WEIGHT_CHECK_INTERVAL {
+                // Check if re-finalization is needed: either forced (after
+                // ForesterNotEligible) or periodic (every WEIGHT_CHECK_INTERVAL).
+                // force=true bypasses the weight-change check to handle the case
+                // where cached_weight is correct but schedule was never recomputed.
+                if force_refinalize || last_weight_check.elapsed() >= WEIGHT_CHECK_INTERVAL {
                     last_weight_check = Instant::now();
                     if let Err(e) = self
                         .maybe_refinalize(
@@ -1714,12 +1840,14 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                             &mut forester_epoch_pda,
                             &mut tree_schedule,
                             &registration_tracker,
+                            force_refinalize,
                         )
                         .await
                     {
                         warn!(
                             event = "refinalize_check_failed",
                             run_id = %self.run_id,
+                            forced = force_refinalize,
                             error = ?e,
                             "Failed to check/perform re-finalization"
                         );
@@ -1751,12 +1879,16 @@ impl<R: Rpc + Indexer> EpochManager<R> {
     /// Check if `EpochPda.registered_weight` changed on-chain. If so,
     /// one task sends a `finalize_registration` tx while others wait,
     /// then all tasks refresh their `ForesterEpochPda` and recompute schedules.
+    ///
+    /// When `force` is true (e.g. after a ForesterNotEligible error), skips
+    /// the weight-change check and unconditionally refreshes the schedule.
     async fn maybe_refinalize(
         &self,
         epoch_info: &Epoch,
         forester_epoch_pda: &mut ForesterEpochPda,
         tree_schedule: &mut TreeForesterSchedule,
         registration_tracker: &RegistrationTracker,
+        force: bool,
     ) -> Result<()> {
         let mut rpc = self.rpc_pool.get_connection().await?;
         let epoch_pda_address = get_epoch_pda_address(epoch_info.epoch);
@@ -1767,68 +1899,71 @@ impl<R: Rpc + Indexer> EpochManager<R> {
 
         let on_chain_weight = on_chain_epoch_pda.registered_weight;
         let cached_weight = registration_tracker.cached_weight();
+        let weight_changed = on_chain_weight != cached_weight;
 
-        if on_chain_weight == cached_weight {
+        if !weight_changed && !force {
             return Ok(());
         }
 
-        info!(
-            event = "registered_weight_changed",
-            run_id = %self.run_id,
-            epoch = epoch_info.epoch,
-            old_weight = cached_weight,
-            new_weight = on_chain_weight,
-            "Detected new forester registration, re-finalizing"
-        );
-
-        if registration_tracker.try_claim_refinalize() {
-            // This task sends the finalize_registration tx
-            let ix = create_finalize_registration_instruction(
-                &self.config.payer_keypair.pubkey(),
-                &self.config.derivation_pubkey,
-                epoch_info.epoch,
+        if weight_changed {
+            info!(
+                event = "registered_weight_changed",
+                run_id = %self.run_id,
+                epoch = epoch_info.epoch,
+                old_weight = cached_weight,
+                new_weight = on_chain_weight,
+                "Detected new forester registration, re-finalizing"
             );
-            match rpc
-                .create_and_send_transaction(
-                    &[ix],
+
+            if registration_tracker.try_claim_refinalize() {
+                // This task sends the finalize_registration tx
+                let ix = create_finalize_registration_instruction(
                     &self.config.payer_keypair.pubkey(),
-                    &[&self.config.payer_keypair],
-                )
-                .await
-            {
-                Ok(_) => {
-                    // Re-fetch EpochPda after finalize to get authoritative
-                    // post-finalize weight (another forester may have registered
-                    // between our initial read and the finalize tx).
-                    let post_finalize_pda: EpochPda = rpc
-                        .get_anchor_account::<EpochPda>(&epoch_pda_address)
-                        .await?
-                        .ok_or_else(|| {
-                            anyhow!("EpochPda not found for epoch {}", epoch_info.epoch)
-                        })?;
-                    let post_finalize_weight = post_finalize_pda.registered_weight;
-                    info!(
-                        event = "refinalize_registration_success",
-                        run_id = %self.run_id,
-                        epoch = epoch_info.epoch,
-                        new_weight = post_finalize_weight,
-                        "Re-finalized registration on-chain"
-                    );
-                    registration_tracker.complete_refinalize(post_finalize_weight);
+                    &self.config.derivation_pubkey,
+                    epoch_info.epoch,
+                );
+                match rpc
+                    .create_and_send_transaction(
+                        &[ix],
+                        &self.config.payer_keypair.pubkey(),
+                        &[&self.config.payer_keypair],
+                    )
+                    .await
+                {
+                    Ok(_) => {
+                        // Re-fetch EpochPda after finalize to get authoritative
+                        // post-finalize weight (another forester may have registered
+                        // between our initial read and the finalize tx).
+                        // Fallback to on_chain_weight if re-fetch fails to avoid
+                        // deadlocking the RegistrationTracker.
+                        let post_finalize_weight =
+                            match rpc.get_anchor_account::<EpochPda>(&epoch_pda_address).await {
+                                Ok(Some(pda)) => pda.registered_weight,
+                                _ => on_chain_weight,
+                            };
+                        info!(
+                            event = "refinalize_registration_success",
+                            run_id = %self.run_id,
+                            epoch = epoch_info.epoch,
+                            new_weight = post_finalize_weight,
+                            "Re-finalized registration on-chain"
+                        );
+                        registration_tracker.complete_refinalize(post_finalize_weight);
+                    }
+                    Err(e) => {
+                        // Release the claim so a future check can retry
+                        registration_tracker.complete_refinalize(cached_weight);
+                        return Err(e.into());
+                    }
                 }
-                Err(e) => {
-                    // Release the claim so a future check can retry
-                    registration_tracker.complete_refinalize(cached_weight);
-                    return Err(e.into());
-                }
+            } else {
+                // Another task is already re-finalizing; wait for it
+                registration_tracker.wait_for_refinalize().await;
             }
-        } else {
-            // Another task is already re-finalizing; wait for it
-            registration_tracker.wait_for_refinalize().await;
         }
 
-        // All tasks: re-fetch both PDAs to get post-finalize on-chain state
-        // and recompute schedule.
+        // All tasks: re-fetch both PDAs to get latest on-chain state and
+        // recompute schedule (after finalize or forced refresh).
         let refreshed_epoch_pda: EpochPda = rpc
             .get_anchor_account::<EpochPda>(&epoch_pda_address)
             .await?
@@ -1949,6 +2084,9 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             {
                 Ok(count) => count,
                 Err(e) => {
+                    if is_forester_not_eligible_error(&e) {
+                        return Err(e);
+                    }
                     error!(
                         event = "light_slot_processing_failed",
                         run_id = %self.run_id,
@@ -2139,6 +2277,9 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                     }
                 }
                 Err(e) => {
+                    if is_forester_not_eligible_error(&e) {
+                        return Err(e);
+                    }
                     error!(
                         event = "v2_tree_processing_failed",
                         run_id = %self.run_id,
@@ -2825,6 +2966,11 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 ..self.config.retry_config
             },
             light_slot_length: epoch_pda.protocol_config.slot_length,
+            confirmation_poll_interval: Duration::from_millis(
+                self.config.transaction_config.confirmation_poll_interval_ms,
+            ),
+            confirmation_max_attempts: self.config.transaction_config.confirmation_max_attempts
+                as usize,
         };
 
         let transaction_builder = Arc::new(EpochManagerTransactions::new(
@@ -4186,8 +4332,6 @@ pub async fn run_service<R: Rpc + Indexer>(
             };
             trace!("Fetched initial trees: {:?}", trees);
 
-            let (new_tree_sender, _) = broadcast::channel(100);
-
             if !config.general_config.tree_ids.is_empty() {
                 info!(
                     event = "tree_discovery_limited_to_explicit_ids",
@@ -4235,7 +4379,6 @@ pub async fn run_service<R: Rpc + Indexer>(
                     work_report_sender.clone(),
                     trees.clone(),
                     slot_tracker.clone(),
-                    new_tree_sender.clone(),
                     tx_cache.clone(),
                     ops_cache.clone(),
                     compressible_tracker.clone(),

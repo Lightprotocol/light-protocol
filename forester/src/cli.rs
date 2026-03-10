@@ -102,7 +102,7 @@ pub struct StartArgs {
     #[arg(
         long,
         env = "MAX_CONCURRENT_SENDS",
-        default_value = "50",
+        default_value = "12",
         help = "Maximum number of concurrent transaction sends per batch"
     )]
     pub max_concurrent_sends: usize,

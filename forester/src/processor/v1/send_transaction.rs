@@ -3,27 +3,32 @@ use std::{
         atomic::{AtomicBool, AtomicUsize, Ordering},
         Arc,
     },
+    time::Duration,
     vec,
 };
 
+use anchor_lang::error::ERROR_CODE_OFFSET;
 use forester_utils::{forester_epoch::TreeAccounts, rpc_pool::SolanaRpcPool};
 use futures::StreamExt;
-use light_client::rpc::Rpc;
+use light_client::rpc::{Rpc, RpcError};
 use light_compressed_account::TreeType;
-use light_registry::utils::get_forester_epoch_pda_from_authority;
+use light_registry::{errors::RegistryError, utils::get_forester_epoch_pda_from_authority};
 use reqwest::Url;
 use solana_client::rpc_config::RpcSendTransactionConfig;
 use solana_commitment_config::CommitmentLevel;
 use solana_sdk::{
     hash::Hash,
+    instruction::InstructionError,
     pubkey::Pubkey,
     signature::{Keypair, Signature, Signer},
-    transaction::Transaction,
+    transaction::{Transaction, TransactionError},
 };
 use tokio::time::Instant;
 use tracing::{debug, error, info, trace, warn};
 
 const WORK_ITEM_BATCH_SIZE: usize = 100;
+const FORESTER_NOT_ELIGIBLE_CODE: u32 =
+    ERROR_CODE_OFFSET + RegistryError::ForesterNotEligible as u32;
 
 use crate::{
     epoch_manager::WorkItem,
@@ -92,13 +97,16 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
         .max_concurrent_sends
         .unwrap_or(1)
         .max(1);
+    let effective_max_concurrent_sends =
+        compute_effective_max_concurrent_sends(config, max_concurrent_sends, data.work_items.len());
 
     info!(
         tree = %tree_accounts.merkle_tree,
-        "Starting transaction sending loop. work_items={}, work_batch_size={}, timeout={:?}, max_concurrent_sends={}",
+        "Starting transaction sending loop. work_items={}, work_batch_size={}, timeout={:?}, max_concurrent_sends={} (requested={})",
         data.work_items.len(),
         WORK_ITEM_BATCH_SIZE,
         config.retry_config.timeout,
+        effective_max_concurrent_sends,
         max_concurrent_sends
     );
 
@@ -171,15 +179,30 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
             continue;
         }
 
-        execute_transaction_chunk_sending(
+        if let Err(e) = execute_transaction_chunk_sending(
             transactions_to_send,
             Arc::clone(&pool),
-            max_concurrent_sends,
+            effective_max_concurrent_sends,
             data.timeout_deadline,
             Arc::clone(&operation_cancel_signal),
             Arc::clone(&num_sent_transactions),
+            config,
         )
-        .await;
+        .await
+        {
+            if is_forester_not_eligible_error(&e) {
+                warn!(
+                    tree = %tree_accounts.merkle_tree,
+                    "Detected ForesterNotEligible while sending V1 transactions; stopping batch loop for re-schedule"
+                );
+                return Err(ForesterError::NotEligible.into());
+            }
+            warn!(
+                tree = %tree_accounts.merkle_tree,
+                error = ?e,
+                "Chunk send finished with recoverable errors"
+            );
+        }
     }
 
     let total_sent_successfully = num_sent_transactions.load(Ordering::SeqCst);
@@ -287,6 +310,104 @@ async fn prepare_batch_prerequisites<R: Rpc, T: TransactionBuilder>(
     }))
 }
 
+fn compute_effective_max_concurrent_sends(
+    config: &SendBatchedTransactionsConfig,
+    configured_max: usize,
+    work_item_count: usize,
+) -> usize {
+    let mut effective = configured_max.max(1);
+
+    // Near slot boundary, reduce fan-out so stale-eligibility failures cannot drain fees quickly.
+    if config.retry_config.timeout <= Duration::from_secs(5) {
+        effective = effective.min(4);
+    } else if config.retry_config.timeout <= Duration::from_secs(15) {
+        effective = effective.min(8);
+    }
+
+    // Large backlog increases blast radius when eligibility changed mid-epoch.
+    if work_item_count >= 2_000 {
+        effective = effective.min(8);
+    } else if work_item_count >= 500 {
+        effective = effective.min(12);
+    }
+
+    effective.max(1)
+}
+
+fn rpc_custom_error_code(error: &RpcError) -> Option<u32> {
+    match error {
+        RpcError::TransactionError(TransactionError::InstructionError(
+            _,
+            InstructionError::Custom(code),
+        )) => Some(*code),
+        RpcError::ClientError(client_error) => {
+            client_error
+                .get_transaction_error()
+                .and_then(|transaction_error| match transaction_error {
+                    TransactionError::InstructionError(_, InstructionError::Custom(code)) => {
+                        Some(code)
+                    }
+                    _ => None,
+                })
+        }
+        _ => None,
+    }
+}
+
+fn is_forester_not_eligible_error(error: &ForesterError) -> bool {
+    match error {
+        ForesterError::NotEligible => true,
+        ForesterError::Rpc(rpc_error) => {
+            rpc_custom_error_code(rpc_error) == Some(FORESTER_NOT_ELIGIBLE_CODE)
+        }
+        _ => false,
+    }
+}
+
+async fn wait_for_transaction_execution<R: Rpc>(
+    rpc: &R,
+    signature: Signature,
+    timeout_deadline: Instant,
+    poll_interval: Duration,
+    max_polls: usize,
+) -> std::result::Result<(), ForesterError> {
+    for _ in 0..max_polls {
+        if Instant::now() >= timeout_deadline {
+            return Err(ForesterError::General {
+                error: format!(
+                    "Timed out waiting for execution status for tx {}",
+                    signature
+                ),
+            });
+        }
+
+        let statuses = rpc
+            .get_signature_statuses(&[signature])
+            .await
+            .map_err(ForesterError::from)?;
+
+        if let Some(Some(status)) = statuses.first() {
+            if let Some(execution_error) = status.err.clone() {
+                let rpc_error = RpcError::TransactionError(execution_error);
+                if rpc_custom_error_code(&rpc_error) == Some(FORESTER_NOT_ELIGIBLE_CODE) {
+                    return Err(ForesterError::NotEligible);
+                }
+                return Err(ForesterError::Rpc(rpc_error));
+            }
+            return Ok(());
+        }
+
+        tokio::time::sleep(poll_interval).await;
+    }
+
+    Err(ForesterError::General {
+        error: format!(
+            "Execution status not available after {} polls for tx {}",
+            max_polls, signature
+        ),
+    })
+}
+
 async fn execute_transaction_chunk_sending<R: Rpc>(
     transactions: Vec<Transaction>,
     pool: Arc<SolanaRpcPool<R>>,
@@ -294,10 +415,11 @@ async fn execute_transaction_chunk_sending<R: Rpc>(
     timeout_deadline: Instant,
     cancel_signal: Arc<AtomicBool>,
     num_sent_transactions: Arc<AtomicUsize>,
-) {
+    config: &SendBatchedTransactionsConfig,
+) -> std::result::Result<(), ForesterError> {
     if transactions.is_empty() {
         trace!("No transactions in this chunk to send.");
-        return;
+        return Ok(());
     }
 
     let transaction_send_futures = transactions.into_iter().map(|tx| {
@@ -329,13 +451,37 @@ async fn execute_transaction_chunk_sending<R: Rpc>(
                     let send_time = Instant::now();
                     match rpc.send_transaction_with_config(&tx, rpc_send_config).await {
                         Ok(signature) => {
-                            if !cancel_signal_clone.load(Ordering::SeqCst) {
-                                num_sent_transactions_clone.fetch_add(1, Ordering::SeqCst);
-                                trace!(tx.signature = %signature, elapsed = ?send_time.elapsed(), "Transaction sent successfully");
-                                TransactionSendResult::Success(signature)
-                            } else {
-                                trace!(tx.signature = %signature, "Transaction processed but run was cancelled post-send");
-                                TransactionSendResult::Cancelled
+                            match wait_for_transaction_execution(
+                                &*rpc,
+                                signature,
+                                timeout_deadline,
+                                config.confirmation_poll_interval,
+                                config.confirmation_max_attempts,
+                            )
+                            .await
+                            {
+                                Ok(()) => {
+                                    if !cancel_signal_clone.load(Ordering::SeqCst) {
+                                        num_sent_transactions_clone.fetch_add(1, Ordering::SeqCst);
+                                        trace!(
+                                            tx.signature = %signature,
+                                            elapsed = ?send_time.elapsed(),
+                                            "Transaction sent and executed successfully"
+                                        );
+                                        TransactionSendResult::Success(signature)
+                                    } else {
+                                        trace!(tx.signature = %signature, "Transaction executed but run was cancelled post-send");
+                                        TransactionSendResult::Cancelled
+                                    }
+                                }
+                                Err(e) => {
+                                    warn!(
+                                        tx.signature = %signature,
+                                        error = ?e,
+                                        "Transaction execution failed after send"
+                                    );
+                                    TransactionSendResult::Failure(e, Some(signature))
+                                }
                             }
                         }
                         Err(e) => {
@@ -361,6 +507,7 @@ async fn execute_transaction_chunk_sending<R: Rpc>(
         .buffer_unordered(max_concurrent_sends) // buffer_unordered for concurrency
         .collect::<Vec<TransactionSendResult>>()
         .await;
+    let mut saw_not_eligible = false;
     for res in result {
         match res {
             TransactionSendResult::Success(sig) => {
@@ -368,6 +515,10 @@ async fn execute_transaction_chunk_sending<R: Rpc>(
             }
             TransactionSendResult::Failure(err, sig_opt) => {
                 increment_transactions_failed("send_failed", 1);
+                if is_forester_not_eligible_error(&err) {
+                    saw_not_eligible = true;
+                    cancel_signal.store(true, Ordering::SeqCst);
+                }
                 if let Some(sig) = sig_opt {
                     error!(tx.signature = %sig, error = ?err, "Transaction failed to send");
                 } else {
@@ -383,4 +534,8 @@ async fn execute_transaction_chunk_sending<R: Rpc>(
         }
     }
     trace!("Finished executing batch in {:?}", exec_start.elapsed());
+    if saw_not_eligible {
+        return Err(ForesterError::NotEligible);
+    }
+    Ok(())
 }
