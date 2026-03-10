@@ -27,8 +27,7 @@ use crate::{
     processor::tx_cache::ProcessedHashCache,
     slot_tracker::SlotTracker,
     smart_transaction::{
-        send_smart_transaction, ComputeBudgetConfig, ConfirmationConfig,
-        SendSmartTransactionConfig,
+        send_smart_transaction, ComputeBudgetConfig, ConfirmationConfig, SendSmartTransactionConfig,
     },
     Result,
 };

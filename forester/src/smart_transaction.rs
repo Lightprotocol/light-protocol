@@ -192,7 +192,14 @@ pub async fn send_smart_transaction<R: Rpc>(
 
     if config.address_lookup_tables.is_empty() {
         if let Some(confirmation) = config.confirmation {
-            send_and_poll_confirmation(rpc, &final_instructions, config.payer, config.signers, confirmation).await
+            send_and_poll_confirmation(
+                rpc,
+                &final_instructions,
+                config.payer,
+                config.signers,
+                confirmation,
+            )
+            .await
         } else {
             rpc.create_and_send_transaction(&final_instructions, config.payer, config.signers)
                 .await
@@ -243,7 +250,10 @@ async fn send_and_poll_confirmation<R: Rpc>(
             }
             if matches!(
                 status.confirmation_status,
-                Some(TransactionConfirmationStatus::Confirmed | TransactionConfirmationStatus::Finalized)
+                Some(
+                    TransactionConfirmationStatus::Confirmed
+                        | TransactionConfirmationStatus::Finalized
+                )
             ) {
                 return Ok(signature);
             }
