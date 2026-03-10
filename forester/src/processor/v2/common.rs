@@ -26,7 +26,10 @@ use crate::{
     priority_fee::PriorityFeeConfig,
     processor::tx_cache::ProcessedHashCache,
     slot_tracker::SlotTracker,
-    smart_transaction::{send_smart_transaction, ComputeBudgetConfig, SendSmartTransactionConfig},
+    smart_transaction::{
+        send_smart_transaction, ComputeBudgetConfig, ConfirmationConfig,
+        SendSmartTransactionConfig,
+    },
     Result,
 };
 
@@ -211,6 +214,10 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
                 compute_unit_price: priority_fee,
                 compute_unit_limit: context.compute_unit_limit,
             },
+            confirmation: Some(ConfirmationConfig {
+                max_attempts: context.confirmation_max_attempts,
+                poll_interval: context.confirmation_poll_interval,
+            }),
         },
     )
     .await

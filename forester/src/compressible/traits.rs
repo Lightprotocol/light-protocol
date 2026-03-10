@@ -179,6 +179,7 @@ pub async fn send_with_transaction_policy(
                 compute_unit_price: priority_fee,
                 compute_unit_limit: transaction_config.compute_unit_limit,
             },
+            confirmation: None,
         },
     )
     .await

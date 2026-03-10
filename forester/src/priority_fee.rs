@@ -1,8 +1,12 @@
+use std::sync::LazyLock;
+
 use light_client::rpc::Rpc;
 use serde::Deserialize;
 use solana_sdk::pubkey::Pubkey;
 use thiserror::Error;
 use tracing::warn;
+
+static HTTP_CLIENT: LazyLock<reqwest::Client> = LazyLock::new(reqwest::Client::new);
 
 use crate::{
     errors::ForesterError,
@@ -181,8 +185,7 @@ pub async fn request_priority_fee_estimate(
         }),
     );
 
-    let client = reqwest::Client::new();
-    let response = client
+    let response = HTTP_CLIENT
         .post(url.clone())
         .header("Content-Type", "application/json")
         .json(&rpc_request)

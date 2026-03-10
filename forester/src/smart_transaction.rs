@@ -24,6 +24,12 @@ pub struct ComputeBudgetConfig {
     pub compute_unit_limit: Option<u32>,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct ConfirmationConfig {
+    pub max_attempts: u32,
+    pub poll_interval: Duration,
+}
+
 pub struct CreateSmartTransactionConfig {
     pub payer: Keypair,
     pub recent_blockhash: Hash,
@@ -39,6 +45,7 @@ pub struct SendSmartTransactionConfig<'a> {
     pub signers: &'a [&'a Keypair],
     pub address_lookup_tables: &'a [AddressLookupTableAccount],
     pub compute_budget: ComputeBudgetConfig,
+    pub confirmation: Option<ConfirmationConfig>,
 }
 
 fn with_compute_budget_instructions(
@@ -184,8 +191,12 @@ pub async fn send_smart_transaction<R: Rpc>(
         with_compute_budget_instructions(config.instructions, config.compute_budget);
 
     if config.address_lookup_tables.is_empty() {
-        rpc.create_and_send_transaction(&final_instructions, config.payer, config.signers)
-            .await
+        if let Some(confirmation) = config.confirmation {
+            send_and_poll_confirmation(rpc, &final_instructions, config.payer, config.signers, confirmation).await
+        } else {
+            rpc.create_and_send_transaction(&final_instructions, config.payer, config.signers)
+                .await
+        }
     } else {
         rpc.create_and_send_versioned_transaction(
             &final_instructions,
@@ -195,4 +206,52 @@ pub async fn send_smart_transaction<R: Rpc>(
         )
         .await
     }
+}
+
+/// Send a legacy transaction and poll for confirmation with configurable parameters.
+async fn send_and_poll_confirmation<R: Rpc>(
+    rpc: &mut R,
+    instructions: &[Instruction],
+    payer: &Pubkey,
+    signers: &[&Keypair],
+    confirmation: ConfirmationConfig,
+) -> Result<Signature, light_client::rpc::RpcError> {
+    let (blockhash, _) = rpc.get_latest_blockhash().await?;
+    let mut transaction = Transaction::new_with_payer(instructions, Some(payer));
+    transaction
+        .try_sign(&signers.iter().copied().collect::<Vec<_>>(), blockhash)
+        .map_err(|e| light_client::rpc::RpcError::SigningError(e.to_string()))?;
+
+    let signature = rpc
+        .send_transaction_with_config(
+            &transaction,
+            RpcSendTransactionConfig {
+                skip_preflight: true,
+                max_retries: Some(0),
+                ..Default::default()
+            },
+        )
+        .await?;
+
+    for _ in 0..confirmation.max_attempts {
+        sleep(confirmation.poll_interval).await;
+
+        let statuses = rpc.get_signature_statuses(&[signature]).await?;
+        if let Some(Some(status)) = statuses.first() {
+            if let Some(err) = &status.err {
+                return Err(light_client::rpc::RpcError::TransactionError(err.clone()));
+            }
+            if matches!(
+                status.confirmation_status,
+                Some(TransactionConfirmationStatus::Confirmed | TransactionConfirmationStatus::Finalized)
+            ) {
+                return Ok(signature);
+            }
+        }
+    }
+
+    Err(light_client::rpc::RpcError::CustomError(format!(
+        "Transaction {} confirmation timed out after {} attempts",
+        signature, confirmation.max_attempts
+    )))
 }

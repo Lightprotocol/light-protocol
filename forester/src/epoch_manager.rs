@@ -3154,11 +3154,12 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 instructions,
                 payer: &payer,
                 signers: &signers,
-                address_lookup_tables: &[],
+                address_lookup_tables: &self.address_lookup_tables,
                 compute_budget: ComputeBudgetConfig {
                     compute_unit_price,
                     compute_unit_limit: Some(self.config.transaction_config.cu_limit),
                 },
+                confirmation: None,
             },
         )
         .await

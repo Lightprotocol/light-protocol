@@ -199,6 +199,17 @@ impl Default for TransactionConfig {
 }
 impl ForesterConfig {
     pub fn new_for_start(args: &StartArgs) -> Result<Self> {
+        if args.enable_priority_fees && args.priority_fee_microlamports.is_some() {
+            return Err(ConfigError::InvalidArguments {
+                field: "priority_fee",
+                invalid_values: vec![
+                    "enable_priority_fees and priority_fee_microlamports are mutually exclusive"
+                        .to_string(),
+                ],
+            }
+            .into());
+        }
+
         let registry_pubkey = light_registry::program::LightRegistry::id().to_string();
 
         let payer: Vec<u8> = match &args.payer {
