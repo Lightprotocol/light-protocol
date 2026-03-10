@@ -104,7 +104,10 @@ pub fn should_emit_rate_limited_warning(key: impl Into<String>, interval: Durati
     let key = key.into();
     let now = Instant::now();
     let map = LAST_EMIT_AT.get_or_init(|| Mutex::new(HashMap::new()));
-    let mut map = map.lock().expect("rate limiter mutex poisoned");
+    let mut map = match map.lock() {
+        Ok(map) => map,
+        Err(poisoned) => poisoned.into_inner(),
+    };
 
     if map.len() > MAX_KEYS {
         let stale_after = interval.saturating_mul(4);

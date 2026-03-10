@@ -1063,10 +1063,21 @@ pub fn spawn_api_server(config: ApiServerConfig) -> ApiServerHandle {
             );
 
             // Shared HTTP client with timeout for external requests (Prometheus)
-            let http_client = reqwest::Client::builder()
+            let http_client = match reqwest::Client::builder()
                 .timeout(EXTERNAL_HTTP_TIMEOUT)
                 .build()
-                .expect("Failed to create HTTP client");
+            {
+                Ok(client) => client,
+                Err(error) => {
+                    error!(
+                        event = "api_server_http_client_create_failed",
+                        run_id = %run_id,
+                        error = %error,
+                        "Failed to create shared HTTP client for API server"
+                    );
+                    return;
+                }
+            };
 
             // Build trackers from config
             let trackers = config

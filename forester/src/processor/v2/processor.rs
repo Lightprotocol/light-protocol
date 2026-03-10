@@ -351,24 +351,27 @@ where
 
         drop(proof_tx);
 
-        let tx_result = tx_sender_handle
+        let tx_result = match tx_sender_handle
             .await
             .map_err(|e| anyhow!("Tx sender join error: {}", e))
-            .and_then(|res| res);
-
-        if let Err(ref e) = tx_result {
-            if let Some(v2) = e.downcast_ref::<V2Error>() {
-                if v2.is_constraint() {
-                    warn!(
-                        event = "v2_tx_sender_constraint_error",
-                        tree = %self.context.merkle_tree,
-                        error = %e,
-                        "Tx sender constraint error"
-                    );
-                    return Err(tx_result.unwrap_err());
+            .and_then(|res| res)
+        {
+            Err(error) => {
+                if let Some(v2) = error.downcast_ref::<V2Error>() {
+                    if v2.is_constraint() {
+                        warn!(
+                            event = "v2_tx_sender_constraint_error",
+                            tree = %self.context.merkle_tree,
+                            error = %error,
+                            "Tx sender constraint error"
+                        );
+                        return Err(error);
+                    }
                 }
+                Err(error)
             }
-        }
+            Ok(result) => Ok(result),
+        };
 
         let (tx_processed, proof_timings, tx_sending_duration) = match &tx_result {
             Ok(result) => (

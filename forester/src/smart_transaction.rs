@@ -261,18 +261,18 @@ enum PreparedTransaction {
 }
 
 impl PreparedTransaction {
-    fn signature(&self) -> Result<Signature, RpcError> {
+    fn signature(&self) -> Result<Signature, &'static str> {
         match self {
             Self::Legacy(transaction) => transaction
                 .signatures
                 .first()
                 .copied()
-                .ok_or_else(|| RpcError::CustomError("Transaction missing signature".into())),
-            Self::Versioned(transaction) => {
-                transaction.signatures.first().copied().ok_or_else(|| {
-                    RpcError::CustomError("Versioned transaction missing signature".into())
-                })
-            }
+                .ok_or("Prepared legacy transaction missing signature"),
+            Self::Versioned(transaction) => transaction
+                .signatures
+                .first()
+                .copied()
+                .ok_or("Prepared versioned transaction missing signature"),
         }
     }
 
@@ -360,7 +360,9 @@ async fn send_prepared_transaction<R: Rpc>(
 ) -> Result<Signature, RpcError> {
     match confirmation {
         Some(confirmation) => {
-            let signature = transaction.signature()?;
+            let signature = transaction
+                .signature()
+                .map_err(|error| RpcError::CustomError(error.to_string()))?;
             let rpc = &*rpc;
             resend_until_confirmed(rpc, signature, confirmation, || {
                 transaction.send_with_confirmation_config(rpc)
