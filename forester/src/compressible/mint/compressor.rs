@@ -18,9 +18,10 @@ use tracing::{debug, info};
 
 use super::{state::MintAccountTracker, types::MintAccountState};
 use crate::{
-    compressible::traits::{
-        send_and_confirm_with_tracking, send_with_transaction_policy, Cancelled,
-        CompressibleTracker, CompressibleTransactionConfig,
+    compressible::traits::{send_and_confirm_with_tracking, Cancelled, CompressibleTracker},
+    smart_transaction::{
+        collect_priority_fee_accounts, send_transaction_with_policy,
+        SendTransactionWithPolicyConfig, TransactionPolicy,
     },
     Result,
 };
@@ -30,7 +31,7 @@ pub struct MintCompressor<R: Rpc + Indexer> {
     rpc_pool: Arc<SolanaRpcPool<R>>,
     tracker: Arc<MintAccountTracker>,
     payer_keypair: Keypair,
-    transaction_config: CompressibleTransactionConfig,
+    transaction_policy: TransactionPolicy,
 }
 
 impl<R: Rpc + Indexer> Clone for MintCompressor<R> {
@@ -39,7 +40,7 @@ impl<R: Rpc + Indexer> Clone for MintCompressor<R> {
             rpc_pool: Arc::clone(&self.rpc_pool),
             tracker: Arc::clone(&self.tracker),
             payer_keypair: self.payer_keypair.insecure_clone(),
-            transaction_config: self.transaction_config,
+            transaction_policy: self.transaction_policy,
         }
     }
 }
@@ -49,13 +50,13 @@ impl<R: Rpc + Indexer> MintCompressor<R> {
         rpc_pool: Arc<SolanaRpcPool<R>>,
         tracker: Arc<MintAccountTracker>,
         payer_keypair: Keypair,
-        transaction_config: CompressibleTransactionConfig,
+        transaction_policy: TransactionPolicy,
     ) -> Self {
         Self {
             rpc_pool,
             tracker,
             payer_keypair,
-            transaction_config,
+            transaction_policy,
         }
     }
 
@@ -117,7 +118,7 @@ impl<R: Rpc + Indexer> MintCompressor<R> {
             &mut *rpc,
             &instructions,
             &self.payer_keypair,
-            self.transaction_config,
+            self.transaction_policy,
             &*self.tracker,
             &pubkeys,
             "CompressAndCloseMint",
@@ -241,11 +242,20 @@ impl<R: Rpc + Indexer> MintCompressor<R> {
             mint_pda
         );
 
-        let signature = send_with_transaction_policy(
+        let payer_pubkey = self.payer_keypair.pubkey();
+        let signers = [&self.payer_keypair];
+        let instructions = vec![ix];
+        let priority_fee_accounts = collect_priority_fee_accounts(payer_pubkey, &instructions);
+        let signature = send_transaction_with_policy(
             &mut *rpc,
-            &[ix],
-            &self.payer_keypair,
-            self.transaction_config,
+            SendTransactionWithPolicyConfig {
+                instructions,
+                payer: &payer_pubkey,
+                signers: &signers,
+                address_lookup_tables: &[],
+                priority_fee_accounts,
+                policy: self.transaction_policy,
+            },
         )
         .await
         .map_err(|e| anyhow::anyhow!("Failed to send CompressAndCloseMint transaction: {:?}", e))?;

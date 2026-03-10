@@ -81,6 +81,9 @@ enum PriorityFeeEstimateError {
     #[error("priority fee estimate not available")]
     MissingEstimate,
 
+    #[error("priority fee estimate invalid: {0}")]
+    InvalidEstimate(String),
+
     #[error("priority fee estimate request failed: {0}")]
     Request(#[from] reqwest::Error),
 
@@ -123,10 +126,20 @@ fn parse_priority_fee_estimate_response(
     let response: PriorityFeeEstimateRpcResponse = serde_json::from_str(response_text)?;
 
     if let Some(result) = response.result {
-        return result
+        let priority_fee_estimate = result
             .priority_fee_estimate
-            .map(|estimate| estimate as u64)
-            .ok_or(PriorityFeeEstimateError::MissingEstimate);
+            .ok_or(PriorityFeeEstimateError::MissingEstimate)?;
+
+        if !priority_fee_estimate.is_finite()
+            || priority_fee_estimate < 0.0
+            || priority_fee_estimate > u64::MAX as f64
+        {
+            return Err(PriorityFeeEstimateError::InvalidEstimate(format!(
+                "{priority_fee_estimate}"
+            )));
+        }
+
+        return Ok(priority_fee_estimate as u64);
     }
 
     if let Some(error) = response.error {
@@ -147,12 +160,10 @@ fn parse_priority_fee_estimate_response(
 }
 
 fn priority_fee_method_is_unsupported(code: i64, message: &str) -> bool {
-    if code == -32601 {
-        return true;
-    }
-
     let message = message.to_ascii_lowercase();
-    message.contains("method not found") || message.contains("unsupported")
+    (code == -32601 && message.contains("method not found"))
+        || message.contains("unsupported method")
+        || (message.contains("method ") && message.contains(" not supported"))
 }
 
 /// Request priority fee estimate from Helius RPC endpoint.
@@ -242,6 +253,51 @@ mod tests {
             "jsonrpc":"2.0",
             "id":"1",
             "error":{"code":-32000,"message":"upstream overloaded"}
+        }"#;
+
+        let error = parse_priority_fee_estimate_response(response).unwrap_err();
+        assert!(matches!(
+            error,
+            PriorityFeeEstimateError::Rpc { code: -32000, .. }
+        ));
+    }
+
+    #[test]
+    fn rejects_negative_priority_fee_estimates() {
+        let response = r#"{
+            "jsonrpc":"2.0",
+            "id":"1",
+            "result":{"priorityFeeEstimate":-1.0}
+        }"#;
+
+        let error = parse_priority_fee_estimate_response(response).unwrap_err();
+        assert!(matches!(
+            error,
+            PriorityFeeEstimateError::InvalidEstimate(_)
+        ));
+    }
+
+    #[test]
+    fn detects_explicitly_unsupported_priority_fee_messages() {
+        let response = r#"{
+            "jsonrpc":"2.0",
+            "id":"1",
+            "error":{"code":-32000,"message":"Method getPriorityFeeEstimate not supported by this provider"}
+        }"#;
+
+        let error = parse_priority_fee_estimate_response(response).unwrap_err();
+        assert!(matches!(
+            error,
+            PriorityFeeEstimateError::UnsupportedMethod { .. }
+        ));
+    }
+
+    #[test]
+    fn does_not_misclassify_generic_unsupported_errors() {
+        let response = r#"{
+            "jsonrpc":"2.0",
+            "id":"1",
+            "error":{"code":-32000,"message":"unsupported transaction version"}
         }"#;
 
         let error = parse_priority_fee_estimate_response(response).unwrap_err();

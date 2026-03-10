@@ -1,8 +1,8 @@
 //! Shared traits for compressible account tracking.
 
 use std::{
-    collections::HashSet,
     fmt,
+    marker::PhantomData,
     sync::atomic::{AtomicU64, Ordering},
 };
 
@@ -17,8 +17,10 @@ use solana_sdk::{
 use tracing::info;
 
 use crate::{
-    priority_fee::PriorityFeeConfig,
-    smart_transaction::{send_smart_transaction, ComputeBudgetConfig, SendSmartTransactionConfig},
+    smart_transaction::{
+        collect_priority_fee_accounts, send_transaction_with_policy,
+        SendTransactionWithPolicyConfig, TransactionPolicy,
+    },
     Result,
 };
 
@@ -127,63 +129,50 @@ pub trait SubscriptionHandler: Send + Sync {
     fn handle_removal(&self, pubkey: &Pubkey);
 }
 
-#[derive(Debug, Clone, Copy, Default)]
-pub struct CompressibleTransactionConfig {
-    pub priority_fee_config: PriorityFeeConfig,
-    pub compute_unit_limit: Option<u32>,
+struct PendingAccountsGuard<'a, T, S>
+where
+    T: CompressibleTracker<S> + ?Sized,
+    S: CompressibleState,
+{
+    tracker: &'a T,
+    pubkeys: &'a [Pubkey],
+    completed: bool,
+    state: PhantomData<S>,
 }
 
-fn collect_priority_fee_accounts(payer: Pubkey, instructions: &[Instruction]) -> Vec<Pubkey> {
-    let mut seen = HashSet::with_capacity(1 + instructions.len() * 4);
-    let mut account_keys = Vec::with_capacity(1 + instructions.len() * 4);
-
-    if seen.insert(payer) {
-        account_keys.push(payer);
-    }
-
-    for instruction in instructions {
-        for account_meta in &instruction.accounts {
-            if seen.insert(account_meta.pubkey) {
-                account_keys.push(account_meta.pubkey);
-            }
+impl<'a, T, S> PendingAccountsGuard<'a, T, S>
+where
+    T: CompressibleTracker<S> + ?Sized,
+    S: CompressibleState,
+{
+    fn new(tracker: &'a T, pubkeys: &'a [Pubkey]) -> Self {
+        tracker.mark_pending(pubkeys);
+        Self {
+            tracker,
+            pubkeys,
+            completed: false,
+            state: PhantomData,
         }
     }
 
-    account_keys
+    fn complete(mut self) {
+        for pubkey in self.pubkeys {
+            self.tracker.remove_compressed(pubkey);
+        }
+        self.completed = true;
+    }
 }
 
-pub async fn send_with_transaction_policy(
-    rpc: &mut impl Rpc,
-    instructions: &[Instruction],
-    payer: &Keypair,
-    transaction_config: CompressibleTransactionConfig,
-) -> Result<Signature> {
-    let payer_pubkey = payer.pubkey();
-    let priority_fee = transaction_config
-        .priority_fee_config
-        .resolve(
-            &*rpc,
-            collect_priority_fee_accounts(payer_pubkey, instructions),
-        )
-        .await?;
-    let signers = [payer];
-
-    send_smart_transaction(
-        rpc,
-        SendSmartTransactionConfig {
-            instructions: instructions.to_vec(),
-            payer: &payer_pubkey,
-            signers: &signers,
-            address_lookup_tables: &[],
-            compute_budget: ComputeBudgetConfig {
-                compute_unit_price: priority_fee,
-                compute_unit_limit: transaction_config.compute_unit_limit,
-            },
-            confirmation: None,
-        },
-    )
-    .await
-    .map_err(Into::into)
+impl<T, S> Drop for PendingAccountsGuard<'_, T, S>
+where
+    T: CompressibleTracker<S> + ?Sized,
+    S: CompressibleState,
+{
+    fn drop(&mut self) {
+        if !self.completed {
+            self.tracker.unmark_pending(self.pubkeys);
+        }
+    }
 }
 
 /// Marks `pubkeys` as pending, sends the transaction through the shared
@@ -193,31 +182,36 @@ pub async fn send_and_confirm_with_tracking<S: CompressibleState>(
     rpc: &mut impl Rpc,
     instructions: &[Instruction],
     payer: &Keypair,
-    transaction_config: CompressibleTransactionConfig,
+    transaction_policy: TransactionPolicy,
     tracker: &impl CompressibleTracker<S>,
     pubkeys: &[Pubkey],
     tx_label: &str,
 ) -> Result<Signature> {
-    tracker.mark_pending(pubkeys);
-
-    let signature =
-        match send_with_transaction_policy(rpc, instructions, payer, transaction_config).await {
-            Ok(sig) => sig,
-            Err(e) => {
-                tracker.unmark_pending(pubkeys);
-                return Err(anyhow::anyhow!(
-                    "Failed to send or confirm {} transaction: {:?}",
-                    tx_label,
-                    e
-                ));
-            }
-        };
+    let pending = PendingAccountsGuard::<_, S>::new(tracker, pubkeys);
+    let payer_pubkey = payer.pubkey();
+    let signers = [payer];
+    let signature = send_transaction_with_policy(
+        rpc,
+        SendTransactionWithPolicyConfig {
+            instructions: instructions.to_vec(),
+            payer: &payer_pubkey,
+            signers: &signers,
+            address_lookup_tables: &[],
+            priority_fee_accounts: collect_priority_fee_accounts(payer_pubkey, instructions),
+            policy: transaction_policy,
+        },
+    )
+    .await
+    .map_err(|e| {
+        anyhow::anyhow!(
+            "Failed to send or confirm {} transaction: {:?}",
+            tx_label,
+            e
+        )
+    })?;
 
     info!("{} tx sent: {}", tx_label, signature);
-
-    for pubkey in pubkeys {
-        tracker.remove_compressed(pubkey);
-    }
+    pending.complete();
     info!("{} tx confirmed: {}", tx_label, signature);
     Ok(signature)
 }

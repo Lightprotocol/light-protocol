@@ -28,10 +28,11 @@ use super::{state::PdaAccountTracker, types::PdaAccountState};
 use crate::{
     compressible::{
         config::PdaProgramConfig,
-        traits::{
-            send_and_confirm_with_tracking, send_with_transaction_policy, Cancelled,
-            CompressibleTracker, CompressibleTransactionConfig,
-        },
+        traits::{send_and_confirm_with_tracking, Cancelled, CompressibleTracker},
+    },
+    smart_transaction::{
+        collect_priority_fee_accounts, send_transaction_with_policy,
+        SendTransactionWithPolicyConfig, TransactionPolicy,
     },
     Result,
 };
@@ -52,7 +53,7 @@ pub struct PdaCompressor<R: Rpc + Indexer> {
     rpc_pool: Arc<SolanaRpcPool<R>>,
     tracker: Arc<PdaAccountTracker>,
     payer_keypair: Keypair,
-    transaction_config: CompressibleTransactionConfig,
+    transaction_policy: TransactionPolicy,
 }
 
 impl<R: Rpc + Indexer> Clone for PdaCompressor<R> {
@@ -61,7 +62,7 @@ impl<R: Rpc + Indexer> Clone for PdaCompressor<R> {
             rpc_pool: Arc::clone(&self.rpc_pool),
             tracker: Arc::clone(&self.tracker),
             payer_keypair: self.payer_keypair.insecure_clone(),
-            transaction_config: self.transaction_config,
+            transaction_policy: self.transaction_policy,
         }
     }
 }
@@ -71,13 +72,13 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
         rpc_pool: Arc<SolanaRpcPool<R>>,
         tracker: Arc<PdaAccountTracker>,
         payer_keypair: Keypair,
-        transaction_config: CompressibleTransactionConfig,
+        transaction_policy: TransactionPolicy,
     ) -> Self {
         Self {
             rpc_pool,
             tracker,
             payer_keypair,
-            transaction_config,
+            transaction_policy,
         }
     }
 
@@ -306,7 +307,7 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
             &mut *rpc,
             &[ix],
             &self.payer_keypair,
-            self.transaction_config,
+            self.transaction_policy,
             &*self.tracker,
             &pubkeys,
             "compress_accounts_idempotent",
@@ -383,11 +384,20 @@ impl<R: Rpc + Indexer> PdaCompressor<R> {
             pda, program_id
         );
 
-        let signature = send_with_transaction_policy(
+        let payer_pubkey = self.payer_keypair.pubkey();
+        let signers = [&self.payer_keypair];
+        let instructions = vec![ix];
+        let priority_fee_accounts = collect_priority_fee_accounts(payer_pubkey, &instructions);
+        let signature = send_transaction_with_policy(
             &mut *rpc,
-            &[ix],
-            &self.payer_keypair,
-            self.transaction_config,
+            SendTransactionWithPolicyConfig {
+                instructions,
+                payer: &payer_pubkey,
+                signers: &signers,
+                address_lookup_tables: &[],
+                priority_fee_accounts,
+                policy: self.transaction_policy,
+            },
         )
         .await
         .map_err(|e| anyhow::anyhow!("Failed to send transaction: {:?}", e))?;

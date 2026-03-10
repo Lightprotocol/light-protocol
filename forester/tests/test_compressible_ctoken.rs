@@ -395,7 +395,7 @@ async fn test_compressible_ctoken_compression() {
         ctx.rpc_pool.clone(),
         tracker.clone(),
         ctx.forester_keypair,
-        forester::compressible::traits::CompressibleTransactionConfig::default(),
+        forester::smart_transaction::TransactionPolicy::default(),
     );
     let compressor_handle = tokio::spawn(async move {
         compressor

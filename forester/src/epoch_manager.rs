@@ -82,7 +82,10 @@ use crate::{
         perform_state_merkle_tree_rollover_forester,
     },
     slot_tracker::{slot_duration, wait_until_slot_reached, SlotTracker},
-    smart_transaction::{send_smart_transaction, ComputeBudgetConfig, SendSmartTransactionConfig},
+    smart_transaction::{
+        send_smart_transaction, ComputeBudgetConfig, ConfirmationConfig,
+        SendSmartTransactionConfig, TransactionPolicy,
+    },
     tree_data_sync::{fetch_protocol_group_authority, fetch_trees},
     ForesterConfig, ForesterEpochInfo, Result,
 };
@@ -2492,10 +2495,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             self.rpc_pool.clone(),
             tracker.clone(),
             self.config.payer_keypair.insecure_clone(),
-            crate::compressible::traits::CompressibleTransactionConfig {
-                priority_fee_config: self.transaction_priority_fee_config(),
-                compute_unit_limit: Some(self.config.transaction_config.cu_limit),
-            },
+            self.transaction_policy(),
         );
 
         // Derive registered forester PDA once for all batches
@@ -2758,10 +2758,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                 self.rpc_pool.clone(),
                 pda_tracker.clone(),
                 self.config.payer_keypair.insecure_clone(),
-                crate::compressible::traits::CompressibleTransactionConfig {
-                    priority_fee_config: self.transaction_priority_fee_config(),
-                    compute_unit_limit: Some(self.config.transaction_config.cu_limit),
-                },
+                self.transaction_policy(),
             );
 
             // Fetch and cache config once per program
@@ -2903,10 +2900,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             self.rpc_pool.clone(),
             mint_tracker.clone(),
             self.config.payer_keypair.insecure_clone(),
-            crate::compressible::traits::CompressibleTransactionConfig {
-                priority_fee_config: self.transaction_priority_fee_config(),
-                compute_unit_limit: Some(self.config.transaction_config.cu_limit),
-            },
+            self.transaction_policy(),
         );
 
         // Shared cancellation flag
@@ -3084,16 +3078,17 @@ impl<R: Rpc + Indexer> EpochManager<R> {
             num_proof_workers: self.config.transaction_config.max_concurrent_batches,
             forester_eligibility_end_slot: Arc::new(AtomicU64::new(eligibility_end)),
             address_lookup_tables: self.address_lookup_tables.clone(),
-            compute_unit_limit: Some(self.config.transaction_config.cu_limit),
-            priority_fee_config: PriorityFeeConfig {
-                compute_unit_price: self.config.transaction_config.priority_fee_microlamports,
-                enable_priority_fees: self.config.transaction_config.enable_priority_fees,
-            },
-            confirmation_max_attempts: self.config.transaction_config.confirmation_max_attempts,
-            confirmation_poll_interval: Duration::from_millis(
+            transaction_policy: self.transaction_policy(),
+            max_batches_per_tree: self.config.transaction_config.max_batches_per_tree,
+        }
+    }
+
+    fn confirmation_config(&self) -> ConfirmationConfig {
+        ConfirmationConfig {
+            max_attempts: self.config.transaction_config.confirmation_max_attempts,
+            poll_interval: Duration::from_millis(
                 self.config.transaction_config.confirmation_poll_interval_ms,
             ),
-            max_batches_per_tree: self.config.transaction_config.max_batches_per_tree,
         }
     }
 
@@ -3101,6 +3096,14 @@ impl<R: Rpc + Indexer> EpochManager<R> {
         PriorityFeeConfig {
             compute_unit_price: self.config.transaction_config.priority_fee_microlamports,
             enable_priority_fees: self.config.transaction_config.enable_priority_fees,
+        }
+    }
+
+    fn transaction_policy(&self) -> TransactionPolicy {
+        TransactionPolicy {
+            priority_fee_config: self.transaction_priority_fee_config(),
+            compute_unit_limit: Some(self.config.transaction_config.cu_limit),
+            confirmation: Some(self.confirmation_config()),
         }
     }
 
@@ -3159,7 +3162,7 @@ impl<R: Rpc + Indexer> EpochManager<R> {
                     compute_unit_price,
                     compute_unit_limit: Some(self.config.transaction_config.cu_limit),
                 },
-                confirmation: None,
+                confirmation: Some(self.confirmation_config()),
             },
         )
         .await

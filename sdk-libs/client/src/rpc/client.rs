@@ -679,6 +679,18 @@ impl Rpc for LightClient {
         .await
     }
 
+    async fn process_versioned_transaction(
+        &mut self,
+        transaction: VersionedTransaction,
+    ) -> Result<Signature, RpcError> {
+        self.retry(|| async {
+            self.client
+                .send_and_confirm_transaction(&transaction)
+                .map_err(RpcError::from)
+        })
+        .await
+    }
+
     async fn process_transaction_with_context(
         &mut self,
         transaction: Transaction,
@@ -818,6 +830,19 @@ impl Rpc for LightClient {
         .await
     }
 
+    async fn send_versioned_transaction_with_config(
+        &self,
+        transaction: &VersionedTransaction,
+        config: RpcSendTransactionConfig,
+    ) -> Result<Signature, RpcError> {
+        self.retry(|| async {
+            self.client
+                .send_transaction_with_config(transaction, config)
+                .map_err(RpcError::from)
+        })
+        .await
+    }
+
     async fn get_transaction_slot(&self, signature: &Signature) -> Result<u64, RpcError> {
         self.retry(|| async {
             Ok(self
@@ -911,12 +936,7 @@ impl Rpc for LightClient {
         let transaction = VersionedTransaction::try_new(versioned_message, signers)
             .map_err(|e| RpcError::SigningError(e.to_string()))?;
 
-        self.retry(|| async {
-            self.client
-                .send_and_confirm_transaction(&transaction)
-                .map_err(RpcError::from)
-        })
-        .await
+        self.process_versioned_transaction(transaction).await
     }
 
     fn indexer(&self) -> Result<&impl Indexer, RpcError> {

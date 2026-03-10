@@ -24,7 +24,7 @@ use solana_sdk::{
     pubkey::Pubkey,
     rent::Rent,
     signature::{Keypair, Signature},
-    transaction::Transaction,
+    transaction::{Transaction, VersionedTransaction},
 };
 use solana_transaction_status_client_types::TransactionStatus;
 
@@ -158,6 +158,17 @@ impl Rpc for LightProgramTest {
         ))
     }
 
+    async fn send_versioned_transaction_with_config(
+        &self,
+        _transaction: &VersionedTransaction,
+        _config: RpcSendTransactionConfig,
+    ) -> Result<Signature, RpcError> {
+        Err(RpcError::CustomError(
+            "send_versioned_transaction_with_config is unimplemented for ProgramTestConnection"
+                .to_string(),
+        ))
+    }
+
     async fn process_transaction(
         &mut self,
         transaction: Transaction,
@@ -186,6 +197,27 @@ impl Rpc for LightProgramTest {
             // Update pre_context only after successful transaction execution
             self.pre_context = Some(pre_context_snapshot);
         }
+        Ok(sig)
+    }
+
+    async fn process_versioned_transaction(
+        &mut self,
+        transaction: VersionedTransaction,
+    ) -> Result<Signature, RpcError> {
+        let sig = *transaction.signatures.first().unwrap();
+        let pre_context_snapshot = self.context.clone();
+
+        self.transaction_counter += 1;
+        let _res = self.context.send_transaction(transaction).map_err(|x| {
+            if self.config.log_failed_tx {
+                println!("{}", x.meta.pretty_logs());
+            }
+            RpcError::TransactionError(x.err)
+        })?;
+
+        self.maybe_print_logs(_res.pretty_logs());
+        self.pre_context = Some(pre_context_snapshot);
+
         Ok(sig)
     }
 
@@ -358,14 +390,26 @@ impl Rpc for LightProgramTest {
 
     async fn create_and_send_versioned_transaction<'a>(
         &'a mut self,
-        _instructions: &'a [Instruction],
-        _payer: &'a Pubkey,
-        _signers: &'a [&'a Keypair],
-        _address_lookup_tables: &'a [AddressLookupTableAccount],
+        instructions: &'a [Instruction],
+        payer: &'a Pubkey,
+        signers: &'a [&'a Keypair],
+        address_lookup_tables: &'a [AddressLookupTableAccount],
     ) -> Result<Signature, RpcError> {
-        unimplemented!(
-            "create_and_send_versioned_transaction is unimplemented for LightProgramTest"
-        );
+        let blockhash = self.get_latest_blockhash().await?.0;
+        let message = solana_sdk::message::v0::Message::try_compile(
+            payer,
+            instructions,
+            address_lookup_tables,
+            blockhash,
+        )
+        .map_err(|e| RpcError::CustomError(format!("Failed to compile v0 message: {}", e)))?;
+        let transaction = VersionedTransaction::try_new(
+            solana_sdk::message::VersionedMessage::V0(message),
+            signers,
+        )
+        .map_err(|e| RpcError::SigningError(e.to_string()))?;
+
+        self.process_versioned_transaction(transaction).await
     }
 
     async fn get_account_interface(

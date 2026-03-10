@@ -402,7 +402,7 @@ async fn test_compressible_mint_compression() {
         rpc_pool.clone(),
         tracker.clone(),
         payer.insecure_clone(),
-        forester::compressible::traits::CompressibleTransactionConfig::default(),
+        forester::smart_transaction::TransactionPolicy::default(),
     );
 
     println!("Compressing Mint...");
@@ -612,7 +612,7 @@ async fn test_compressible_mint_subscription() {
         rpc_pool.clone(),
         tracker.clone(),
         payer.insecure_clone(),
-        forester::compressible::traits::CompressibleTransactionConfig::default(),
+        forester::smart_transaction::TransactionPolicy::default(),
     );
 
     // Compress only the first mint

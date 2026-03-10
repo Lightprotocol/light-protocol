@@ -23,11 +23,10 @@ use super::{errors::V2Error, proof_worker::ProofJob};
 use crate::{
     errors::ForesterError,
     metrics::increment_transactions_failed,
-    priority_fee::PriorityFeeConfig,
     processor::tx_cache::ProcessedHashCache,
     slot_tracker::SlotTracker,
     smart_transaction::{
-        send_smart_transaction, ComputeBudgetConfig, ConfirmationConfig, SendSmartTransactionConfig,
+        send_transaction_with_policy, SendTransactionWithPolicyConfig, TransactionPolicy,
     },
     Result,
 };
@@ -101,12 +100,7 @@ pub struct BatchContext<R: Rpc> {
     pub num_proof_workers: usize,
     pub forester_eligibility_end_slot: Arc<AtomicU64>,
     pub address_lookup_tables: Arc<Vec<AddressLookupTableAccount>>,
-    pub compute_unit_limit: Option<u32>,
-    pub priority_fee_config: PriorityFeeConfig,
-    /// Maximum attempts to confirm a transaction before timing out.
-    pub confirmation_max_attempts: u32,
-    /// Interval between confirmation polling attempts.
-    pub confirmation_poll_interval: Duration,
+    pub transaction_policy: TransactionPolicy,
     /// Maximum batches to process per tree per iteration
     pub max_batches_per_tree: usize,
 }
@@ -130,10 +124,7 @@ impl<R: Rpc> Clone for BatchContext<R> {
             num_proof_workers: self.num_proof_workers,
             forester_eligibility_end_slot: self.forester_eligibility_end_slot.clone(),
             address_lookup_tables: self.address_lookup_tables.clone(),
-            compute_unit_limit: self.compute_unit_limit,
-            priority_fee_config: self.priority_fee_config,
-            confirmation_max_attempts: self.confirmation_max_attempts,
-            confirmation_poll_interval: self.confirmation_poll_interval,
+            transaction_policy: self.transaction_policy,
             max_batches_per_tree: self.max_batches_per_tree,
         }
     }
@@ -179,18 +170,6 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
     let mut rpc = context.rpc_pool.get_connection().await?;
     let forester_epoch_pda_pubkey =
         get_forester_epoch_pda_from_authority(&context.derivation, context.epoch).0;
-    let priority_fee = context
-        .priority_fee_config
-        .resolve(
-            &*rpc,
-            vec![
-                context.authority.pubkey(),
-                forester_epoch_pda_pubkey,
-                context.output_queue,
-                context.merkle_tree,
-            ],
-        )
-        .await?;
     let payer = context.authority.pubkey();
     let signers = [context.authority.as_ref()];
     let address_lookup_tables = context.address_lookup_tables.as_ref();
@@ -202,21 +181,20 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
         );
     }
 
-    let signature = send_smart_transaction(
+    let signature = send_transaction_with_policy(
         &mut *rpc,
-        SendSmartTransactionConfig {
+        SendTransactionWithPolicyConfig {
             instructions,
             payer: &payer,
             signers: &signers,
             address_lookup_tables,
-            compute_budget: ComputeBudgetConfig {
-                compute_unit_price: priority_fee,
-                compute_unit_limit: context.compute_unit_limit,
-            },
-            confirmation: Some(ConfirmationConfig {
-                max_attempts: context.confirmation_max_attempts,
-                poll_interval: context.confirmation_poll_interval,
-            }),
+            priority_fee_accounts: vec![
+                context.authority.pubkey(),
+                forester_epoch_pda_pubkey,
+                context.output_queue,
+                context.merkle_tree,
+            ],
+            policy: context.transaction_policy,
         },
     )
     .await
