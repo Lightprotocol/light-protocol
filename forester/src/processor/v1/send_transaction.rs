@@ -186,8 +186,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'st
             data.timeout_deadline,
             Arc::clone(&operation_cancel_signal),
             Arc::clone(&num_sent_transactions),
-            config.confirmation_poll_interval,
-            config.confirmation_max_attempts,
+            config,
         )
         .await
         {
@@ -416,8 +415,7 @@ async fn execute_transaction_chunk_sending<R: Rpc>(
     timeout_deadline: Instant,
     cancel_signal: Arc<AtomicBool>,
     num_sent_transactions: Arc<AtomicUsize>,
-    confirmation_poll_interval: Duration,
-    confirmation_max_attempts: usize,
+    config: &SendBatchedTransactionsConfig,
 ) -> std::result::Result<(), ForesterError> {
     if transactions.is_empty() {
         trace!("No transactions in this chunk to send.");
@@ -457,8 +455,8 @@ async fn execute_transaction_chunk_sending<R: Rpc>(
                                 &*rpc,
                                 signature,
                                 timeout_deadline,
-                                confirmation_poll_interval,
-                                confirmation_max_attempts,
+                                config.confirmation_poll_interval,
+                                config.confirmation_max_attempts,
                             )
                             .await
                             {
