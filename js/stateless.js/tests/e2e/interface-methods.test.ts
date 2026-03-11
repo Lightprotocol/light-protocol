@@ -322,7 +322,12 @@ describe('interface-methods', () => {
     describe('raw account interface endpoints', () => {
         it('getAccountInterface should return SPL mint raw account data', async () => {
             const result = await rpc.getAccountInterface(splMint);
-            const mint = await getMint(rpc, splMint, 'confirmed', TOKEN_PROGRAM_ID);
+            const mint = await getMint(
+                rpc,
+                splMint,
+                'confirmed',
+                TOKEN_PROGRAM_ID,
+            );
 
             expect(result.context.slot).toBeGreaterThan(0);
             expect(result.value).not.toBeNull();
@@ -333,7 +338,9 @@ describe('interface-methods', () => {
             expect(result.value!.account.data.length).toBeGreaterThan(0);
             expect(result.value!.account.data.length).toBe(82);
             expect(mint.decimals).toBe(6);
-            expect(mint.mintAuthority?.toBase58()).toBe(payer.publicKey.toBase58());
+            expect(mint.mintAuthority?.toBase58()).toBe(
+                payer.publicKey.toBase58(),
+            );
         });
 
         it('getAccountInterface should return Token-2022 mint raw account data', async () => {
@@ -354,7 +361,9 @@ describe('interface-methods', () => {
             expect(result.value!.account.data.length).toBeGreaterThan(0);
             expect(result.value!.account.data.length).toBe(82);
             expect(mint.decimals).toBe(9);
-            expect(mint.mintAuthority?.toBase58()).toBe(payer.publicKey.toBase58());
+            expect(mint.mintAuthority?.toBase58()).toBe(
+                payer.publicKey.toBase58(),
+            );
         });
 
         it('getAccountInterface should return raw account envelope for existing address', async () => {
@@ -362,7 +371,9 @@ describe('interface-methods', () => {
 
             expect(result.context.slot).toBeGreaterThan(0);
             expect(result.value).not.toBeNull();
-            expect(result.value!.key.toBase58()).toBe(payer.publicKey.toBase58());
+            expect(result.value!.key.toBase58()).toBe(
+                payer.publicKey.toBase58(),
+            );
             expect(result.value!.account.owner.toBase58()).toBe(
                 PublicKey.default.toBase58(),
             );
@@ -390,7 +401,9 @@ describe('interface-methods', () => {
             expect(result.value[0]).not.toBeNull();
             expect(result.value[0]!.key.toBase58()).toBe(splMint.toBase58());
             expect(result.value[1]).not.toBeNull();
-            expect(result.value[1]!.key.toBase58()).toBe(token2022Mint.toBase58());
+            expect(result.value[1]!.key.toBase58()).toBe(
+                token2022Mint.toBase58(),
+            );
             expect(result.value[2]).toBeNull();
         });
     });

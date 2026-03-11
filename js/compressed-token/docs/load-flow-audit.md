@@ -142,7 +142,7 @@ Effect: Lower latency when multiple load batches exist; application must avoid c
 | Many txs for one action      | Chunking (8 inputs) + proofs     | Accept N+1 txs internally; expose “instructions” or “plan” only when needed.        |
 | programId / wrap / targetAta | Three programs, unified mode     | One default (light-token); wrap/unified behind one opt-in.                          |
 | Options explosion            | Flexibility for all combos       | Minimal defaults; one “advanced” options object.                                    |
-| Parallel load                | Latency vs correctness           | Parallel by default (Promise.all); no sequential mode in API.                        |
+| Parallel load                | Latency vs correctness           | Parallel by default (Promise.all); no sequential mode in API.                       |
 
 ---
 
@@ -160,13 +160,13 @@ Effect: Lower latency when multiple load batches exist; application must avoid c
 | **\_buildLoadBatches**    | `rpc.getValidityProofV0(proofInputs)` per chunk | ZK validity proofs per decompress chunk.                      |
 | **transfer-interface**    | `_getAtaInterface(...)`                         | Sender balance/sources.                                       |
 | **transfer-interface**    | `_buildLoadBatches(...)`                        | Load batches.                                                 |
-| **transfer-interface**    | `getMintInterface(rpc, mint)` in action wrapper | **Decimals only** when `decimals` not passed to action.        |
+| **transfer-interface**    | `getMintInterface(rpc, mint)` in action wrapper | **Decimals only** when `decimals` not passed to action.       |
 | **loadAta**               | `getMintInterface(rpc, mint)`                   | **Decimals only** when `decimals` not passed.                 |
 | **unwrap**                | `getSplInterfaceInfos(rpc, mint)`               | Resolve SPL interface if not passed in.                       |
 | **unwrap**                | `rpc.getAccountInfo(destination)`               | Ensure destination ATA exists.                                |
 | **unwrap**                | `_getAtaInterface(...)`                         | Source balance/sources.                                       |
 | **unwrap**                | `_buildLoadBatches(...)`                        | Load batches.                                                 |
-| **unwrap**                | `getMintInterface(rpc, mint)` in action wrapper | **Decimals only** when `decimals` not passed.                  |
+| **unwrap**                | `getMintInterface(rpc, mint)` in action wrapper | **Decimals only** when `decimals` not passed.                 |
 
 Passing `decimals` at the action level (e.g. `transferInterface(..., decimals)`) or to the instruction builder removes the decimals RPC calls; there is no `InterfaceOptions.decimals` (decimals is a separate top-level parameter).
 

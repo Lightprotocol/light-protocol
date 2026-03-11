@@ -217,10 +217,15 @@ function parsePhotonSolanaAccountData(value: any): AccountInfo<Buffer> {
     };
 }
 
-function parsePhotonColdAccount(value: any): CompressedAccountWithMerkleContext {
+function parsePhotonColdAccount(
+    value: any,
+): CompressedAccountWithMerkleContext {
     const data = value.data
         ? (() => {
-              const discriminator = bn(value.data.discriminator).toArray('le', 8);
+              const discriminator = bn(value.data.discriminator).toArray(
+                  'le',
+                  8,
+              );
               return {
                   discriminator,
                   data: Buffer.from(value.data.data, 'base64'),
@@ -234,13 +239,18 @@ function parsePhotonColdAccount(value: any): CompressedAccountWithMerkleContext 
         createMerkleContextLegacy(
             parsePhotonTreeInfo(value.merkleContext),
             bn(Array.from(bs58.decode(value.hash))),
-            toSafeNumber(parseU64Like(value.leafIndex, 'leafIndex'), 'leafIndex'),
+            toSafeNumber(
+                parseU64Like(value.leafIndex, 'leafIndex'),
+                'leafIndex',
+            ),
             Boolean(value.proveByIndex),
         ),
         new PublicKey(value.owner),
         bn(parseU64Like(value.lamports, 'lamports').toString()),
         data,
-        value.address ? Array.from(new PublicKey(value.address).toBytes()) : undefined,
+        value.address
+            ? Array.from(new PublicKey(value.address).toBytes())
+            : undefined,
     );
 }
 

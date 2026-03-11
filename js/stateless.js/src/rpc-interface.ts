@@ -270,9 +270,8 @@ export interface PhotonAccountInterface {
     cold: CompressedAccountWithMerkleContext[] | null;
 }
 
-export type PhotonAccountInterfaceResult = WithContext<
-    PhotonAccountInterface | null
->;
+export type PhotonAccountInterfaceResult =
+    WithContext<PhotonAccountInterface | null>;
 
 export type PhotonMultipleAccountInterfacesResult = WithContext<
     (PhotonAccountInterface | null)[]
