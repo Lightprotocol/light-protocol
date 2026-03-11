@@ -8,6 +8,7 @@ build:
     cd account-compression && cargo build-sbf --features 'test, migrate-state'
     cd registry && cargo build-sbf
     cd compressed-token/program && cargo build-sbf
+    cargo build-sbf --manifest-path ../program-tests/create-address-test-program/Cargo.toml
 
 build-compressed-token-small:
     cd compressed-token/program && cargo build-sbf --features cpi-without-program-ids

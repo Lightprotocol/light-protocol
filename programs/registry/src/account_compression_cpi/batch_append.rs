@@ -23,6 +23,9 @@ pub struct BatchAppend<'info> {
     /// CHECK: (account compression program).
     #[account(mut)]
     pub output_queue: AccountInfo<'info>,
+    /// CHECK: receives network fee reimbursement.
+    #[account(mut)]
+    pub fee_payer: UncheckedAccount<'info>,
 }
 
 pub fn process_batch_append(ctx: &Context<BatchAppend>, bump: u8, data: Vec<u8>) -> Result<()> {
@@ -35,6 +38,7 @@ pub fn process_batch_append(ctx: &Context<BatchAppend>, bump: u8, data: Vec<u8>)
         registered_program_pda: Some(ctx.accounts.registered_program_pda.clone()),
         log_wrapper: ctx.accounts.log_wrapper.to_account_info(),
         output_queue: ctx.accounts.output_queue.to_account_info(),
+        fee_payer: ctx.accounts.fee_payer.to_account_info(),
     };
 
     let cpi_ctx = CpiContext::new_with_signer(
