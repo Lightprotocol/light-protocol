@@ -106,7 +106,7 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
     if let Some(fee_payer) = ctx.accounts.fee_payer.as_ref() {
         if network_fee > 0 {
             transfer_lamports(
-                &ctx.accounts.merkle_tree.to_account_info(),
+                &ctx.accounts.nullifier_queue.to_account_info(),
                 &fee_payer.to_account_info(),
                 network_fee,
             )?;
