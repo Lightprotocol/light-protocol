@@ -888,7 +888,8 @@ async function getSplOrToken2022AccountInterface(
     const unexpectedErrors: unknown[] = [];
 
     const hotInfo = hotResult.status === 'fulfilled' ? hotResult.value : null;
-    if (hotResult.status === 'rejected') unexpectedErrors.push(hotResult.reason);
+    if (hotResult.status === 'rejected')
+        unexpectedErrors.push(hotResult.reason);
     const coldAccounts =
         coldResult.status === 'fulfilled'
             ? coldResult.value
