@@ -17,6 +17,7 @@ import { createTransferInterfaceInstructions } from '../instructions/transfer-in
 import { getAssociatedTokenAddressInterface } from '../get-associated-token-address-interface';
 import { getMintInterface } from '../get-mint-interface';
 import { type SplInterfaceInfo } from '../../utils/get-token-pool-infos';
+import { sliceLast } from './slice-last';
 
 export interface InterfaceOptions {
     splInterfaceInfos?: SplInterfaceInfo[];
@@ -96,12 +97,7 @@ export interface TransferOptions extends InterfaceOptions {
     programId?: PublicKey;
 }
 
-export function sliceLast<T>(items: T[]): { rest: T[]; last: T } {
-    if (items.length === 0) {
-        throw new Error('sliceLast: array must not be empty');
-    }
-    return { rest: items.slice(0, -1), last: items.at(-1)! };
-}
+export { sliceLast } from './slice-last';
 
 export {
     createTransferInterfaceInstructions,

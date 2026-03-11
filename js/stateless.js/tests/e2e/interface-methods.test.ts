@@ -1,5 +1,11 @@
 import { describe, it, assert, beforeAll, expect } from 'vitest';
 import { PublicKey, Signer } from '@solana/web3.js';
+import {
+    createMint,
+    getMint,
+    TOKEN_2022_PROGRAM_ID,
+    TOKEN_PROGRAM_ID,
+} from '@solana/spl-token';
 import { newAccountWithLamports } from '../../src/test-helpers/test-utils';
 import { Rpc, createRpc } from '../../src/rpc';
 import { bn, compress, selectStateTreeInfo, sleep, TreeInfo } from '../../src';
@@ -11,6 +17,8 @@ describe('interface-methods', () => {
     let rpc: Rpc;
     let stateTreeInfo: TreeInfo;
     let transferSignature: string;
+    let splMint: PublicKey;
+    let token2022Mint: PublicKey;
 
     beforeAll(async () => {
         rpc = createRpc();
@@ -31,6 +39,27 @@ describe('interface-methods', () => {
             1e5,
             payer,
             bob.publicKey,
+        );
+
+        splMint = await createMint(
+            rpc,
+            payer,
+            payer.publicKey,
+            null,
+            6,
+            undefined,
+            undefined,
+            TOKEN_PROGRAM_ID,
+        );
+        token2022Mint = await createMint(
+            rpc,
+            payer,
+            payer.publicKey,
+            null,
+            9,
+            undefined,
+            undefined,
+            TOKEN_2022_PROGRAM_ID,
         );
     });
 
@@ -287,6 +316,95 @@ describe('interface-methods', () => {
 
             // Amount should be BN
             assert.isTrue(result.amount instanceof bn(0).constructor);
+        });
+    });
+
+    describe('raw account interface endpoints', () => {
+        it('getAccountInterface should return SPL mint raw account data', async () => {
+            const result = await rpc.getAccountInterface(splMint);
+            const mint = await getMint(
+                rpc,
+                splMint,
+                'confirmed',
+                TOKEN_PROGRAM_ID,
+            );
+
+            expect(result.context.slot).toBeGreaterThan(0);
+            expect(result.value).not.toBeNull();
+            expect(result.value!.key.toBase58()).toBe(splMint.toBase58());
+            expect(result.value!.account.owner.toBase58()).toBe(
+                TOKEN_PROGRAM_ID.toBase58(),
+            );
+            expect(result.value!.account.data.length).toBeGreaterThan(0);
+            expect(result.value!.account.data.length).toBe(82);
+            expect(mint.decimals).toBe(6);
+            expect(mint.mintAuthority?.toBase58()).toBe(
+                payer.publicKey.toBase58(),
+            );
+        });
+
+        it('getAccountInterface should return Token-2022 mint raw account data', async () => {
+            const result = await rpc.getAccountInterface(token2022Mint);
+            const mint = await getMint(
+                rpc,
+                token2022Mint,
+                'confirmed',
+                TOKEN_2022_PROGRAM_ID,
+            );
+
+            expect(result.context.slot).toBeGreaterThan(0);
+            expect(result.value).not.toBeNull();
+            expect(result.value!.key.toBase58()).toBe(token2022Mint.toBase58());
+            expect(result.value!.account.owner.toBase58()).toBe(
+                TOKEN_2022_PROGRAM_ID.toBase58(),
+            );
+            expect(result.value!.account.data.length).toBeGreaterThan(0);
+            expect(result.value!.account.data.length).toBe(82);
+            expect(mint.decimals).toBe(9);
+            expect(mint.mintAuthority?.toBase58()).toBe(
+                payer.publicKey.toBase58(),
+            );
+        });
+
+        it('getAccountInterface should return raw account envelope for existing address', async () => {
+            const result = await rpc.getAccountInterface(payer.publicKey);
+
+            expect(result.context.slot).toBeGreaterThan(0);
+            expect(result.value).not.toBeNull();
+            expect(result.value!.key.toBase58()).toBe(
+                payer.publicKey.toBase58(),
+            );
+            expect(result.value!.account.owner.toBase58()).toBe(
+                PublicKey.default.toBase58(),
+            );
+            expect(Buffer.isBuffer(result.value!.account.data)).toBe(true);
+        });
+
+        it('getAccountInterface should return null for missing address', async () => {
+            const missing = PublicKey.unique();
+            const result = await rpc.getAccountInterface(missing);
+
+            expect(result.context.slot).toBeGreaterThan(0);
+            expect(result.value).toBeNull();
+        });
+
+        it('getMultipleAccountInterfaces should preserve order and nullability', async () => {
+            const missing = PublicKey.unique();
+            const result = await rpc.getMultipleAccountInterfaces([
+                splMint,
+                token2022Mint,
+                missing,
+            ]);
+
+            expect(result.context.slot).toBeGreaterThan(0);
+            expect(result.value.length).toBe(3);
+            expect(result.value[0]).not.toBeNull();
+            expect(result.value[0]!.key.toBase58()).toBe(splMint.toBase58());
+            expect(result.value[1]).not.toBeNull();
+            expect(result.value[1]!.key.toBase58()).toBe(
+                token2022Mint.toBase58(),
+            );
+            expect(result.value[2]).toBeNull();
         });
     });
 });

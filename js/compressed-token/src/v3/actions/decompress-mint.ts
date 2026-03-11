@@ -53,7 +53,7 @@ export async function decompressMint(
     authority?: Signer,
     params?: DecompressMintParams,
     confirmOptions?: ConfirmOptions,
-): Promise<TransactionSignature> {
+): Promise<TransactionSignature | null> {
     assertBetaEnabled();
 
     // Use payer as authority if not provided (decompressMint is permissionless)
@@ -73,16 +73,17 @@ export async function decompressMint(
     // Already decompressed (e.g. createMintInterface now does it atomically).
     // Return early instead of throwing so callers are idempotent.
     if (mintInterface.mintContext?.cmintDecompressed) {
-        return '' as TransactionSignature;
+        return null;
     }
 
+    const merkleContext = mintInterface.merkleContext;
     const validityProof = await rpc.getValidityProofV2(
         [
             {
-                hash: bn(mintInterface.merkleContext.hash),
-                leafIndex: mintInterface.merkleContext.leafIndex,
-                treeInfo: mintInterface.merkleContext.treeInfo,
-                proveByIndex: mintInterface.merkleContext.proveByIndex,
+                hash: bn(merkleContext.hash),
+                leafIndex: merkleContext.leafIndex,
+                treeInfo: merkleContext.treeInfo,
+                proveByIndex: merkleContext.proveByIndex,
             },
         ],
         [],

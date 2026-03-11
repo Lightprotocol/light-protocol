@@ -331,27 +331,23 @@ async function createLightTokenAtaIdempotent(
     associatedToken: PublicKey,
     confirmOptions?: ConfirmOptions,
 ): Promise<void> {
-    try {
-        const ix = createAssociatedTokenAccountInterfaceIdempotentInstruction(
-            payer.publicKey,
-            associatedToken,
-            owner,
-            mint,
-            LIGHT_TOKEN_PROGRAM_ID,
-        );
+    const ix = createAssociatedTokenAccountInterfaceIdempotentInstruction(
+        payer.publicKey,
+        associatedToken,
+        owner,
+        mint,
+        LIGHT_TOKEN_PROGRAM_ID,
+    );
 
-        const { blockhash } = await rpc.getLatestBlockhash();
-        const tx = buildAndSignTx(
-            [ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 }), ix],
-            payer,
-            blockhash,
-            [],
-        );
+    const { blockhash } = await rpc.getLatestBlockhash();
+    const tx = buildAndSignTx(
+        [ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 }), ix],
+        payer,
+        blockhash,
+        [],
+    );
 
-        await sendAndConfirmTx(rpc, tx, confirmOptions);
-    } catch {
-        // Ignore errors - associated token account may already exist
-    }
+    await sendAndConfirmTx(rpc, tx, confirmOptions);
 }
 
 /**
@@ -405,10 +401,18 @@ async function getOrCreateSplAta(
                     [payer],
                     confirmOptions,
                 );
-            } catch {
-                // Ignore all errors; for now there is no API-compatible way to
-                // selectively ignore the expected instruction error if the
-                // associated account exists already.
+            } catch (createError) {
+                // Accept race-condition "already exists" only if account can now be fetched.
+                try {
+                    await getAccountInterface(
+                        rpc,
+                        associatedToken,
+                        commitment,
+                        programId,
+                    );
+                } catch {
+                    throw createError;
+                }
             }
 
             // Now this should always succeed

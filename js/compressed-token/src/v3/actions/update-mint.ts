@@ -54,6 +54,7 @@ export async function updateMintAuthority(
     }
 
     // When light mint account exists (decompressed), no validity proof needed - program reads from light mint account
+    const merkleContext = mintInterface.merkleContext;
     const isDecompressed =
         mintInterface.mintContext?.cmintDecompressed ?? false;
     const validityProof = isDecompressed
@@ -61,10 +62,10 @@ export async function updateMintAuthority(
         : await rpc.getValidityProofV2(
               [
                   {
-                      hash: bn(mintInterface.merkleContext.hash),
-                      leafIndex: mintInterface.merkleContext.leafIndex,
-                      treeInfo: mintInterface.merkleContext.treeInfo,
-                      proveByIndex: mintInterface.merkleContext.proveByIndex,
+                      hash: bn(merkleContext.hash),
+                      leafIndex: merkleContext.leafIndex,
+                      treeInfo: merkleContext.treeInfo,
+                      proveByIndex: merkleContext.proveByIndex,
                   },
               ],
               [],
@@ -129,6 +130,7 @@ export async function updateFreezeAuthority(
     }
 
     // When light mint account exists (decompressed), no validity proof needed - program reads from light mint account
+    const merkleContext = mintInterface.merkleContext;
     const isDecompressed =
         mintInterface.mintContext?.cmintDecompressed ?? false;
     const validityProof = isDecompressed
@@ -136,10 +138,10 @@ export async function updateFreezeAuthority(
         : await rpc.getValidityProofV2(
               [
                   {
-                      hash: bn(mintInterface.merkleContext.hash),
-                      leafIndex: mintInterface.merkleContext.leafIndex,
-                      treeInfo: mintInterface.merkleContext.treeInfo,
-                      proveByIndex: mintInterface.merkleContext.proveByIndex,
+                      hash: bn(merkleContext.hash),
+                      leafIndex: merkleContext.leafIndex,
+                      treeInfo: merkleContext.treeInfo,
+                      proveByIndex: merkleContext.proveByIndex,
                   },
               ],
               [],

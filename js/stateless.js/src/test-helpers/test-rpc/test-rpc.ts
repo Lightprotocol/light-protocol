@@ -1,4 +1,9 @@
-import { Connection, ConnectionConfig, PublicKey } from '@solana/web3.js';
+import {
+    Connection,
+    ConnectionConfig,
+    PublicKey,
+    Commitment,
+} from '@solana/web3.js';
 import BN from 'bn.js';
 import {
     getCompressedAccountByHashTest,
@@ -29,6 +34,8 @@ import {
     SignatureWithMetadata,
     WithContext,
     WithCursor,
+    PhotonAccountInterfaceResult,
+    PhotonMultipleAccountInterfacesResult,
 } from '../../rpc-interface';
 import {
     ValidityProofWithContext,
@@ -1033,5 +1040,21 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         _commitment?: any,
     ): Promise<any> {
         throw new Error('getBalanceInterface not implemented in TestRpc');
+    }
+
+    async getAccountInterface(
+        _address: PublicKey,
+        _commitment?: Commitment,
+    ): Promise<PhotonAccountInterfaceResult> {
+        throw new Error('getAccountInterface not implemented in TestRpc');
+    }
+
+    async getMultipleAccountInterfaces(
+        _addresses: PublicKey[],
+        _commitment?: Commitment,
+    ): Promise<PhotonMultipleAccountInterfacesResult> {
+        throw new Error(
+            'getMultipleAccountInterfaces not implemented in TestRpc',
+        );
     }
 }

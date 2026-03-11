@@ -61,7 +61,7 @@ To support all of the above we added:
 - `targetAta` (where we’re loading to).
 - `targetAmount` (for transfer: only load what’s needed).
 - `interfaceOptions` (owner override, pre-fetched SPL interface info).
-- `ensureRecipientAta`, `sequentialLoad`, etc.
+- `decimals` (required for instruction builders; avoids extra RPC when passed).
 
 So the same “transfer” or “load” has many code paths. That’s the fifth layer: **combinatorics of options**.
 
@@ -74,7 +74,7 @@ So the same “transfer” or “load” has many code paths. That’s the fifth
 | **Unified read**         | `getAtaInterface`, sources (hot/cold/SPL/T22), priority, `_sources`                                                   | One “balance” from many places.                                    |
 | **Load engine**          | `_buildLoadBatches`, chunking, proofs, setup vs decompress                                                            | Turn cold (and optionally SPL/T22) into hot (or into SPL/T22 ATA). |
 | **Instruction builders** | `createLoadAtaInstructions`, `createTransferInterfaceInstructions`, `createUnwrapInstructions`                        | Assemble 0..N load batches + final action.                         |
-| **Action wrappers**      | `loadAta`, `transferInterface`, `unwrap`                                                                              | Sign + send N txs (parallel or sequential).                        |
+| **Action wrappers**      | `loadAta`, `transferInterface`, `unwrap`                                                                              | Sign + send N txs (parallel via Promise.all; no sequential mode).  |
 | **Unified vs standard**  | unified index (`wrap=true` default) vs v3 actions (`wrap=false` default)                                              | Two APIs for “one balance” vs “one program only”.                  |
 | **ATA abstraction**      | `getAssociatedTokenAddressInterface`, `createAssociatedTokenAccountInterfaceIdempotentInstruction`, `checkAtaAddress` | One API for three program types.                                   |
 
@@ -116,16 +116,15 @@ Effect: Fewer “modes” and fewer knobs for the common case.
 ### 4. Reduce options in the default path
 
 - **In defaults:** No `interfaceOptions` unless delegate/owner override is needed. No `splInterfaceInfos` (fetch when needed). No `targetAmount` in the public API for transfer (we compute it from amount).
-- **Keep options** for: delegate, custom payer, confirm options, and one “advanced” object for the rest (wrap, programId, sequential load, etc.).
+- **Keep options** for: delegate, custom payer, confirm options, and one “advanced” object for the rest (wrap, programId, etc.).
 
 Effect: Simple call sites; complexity behind one “options” bag and only when needed.
 
-### 5. Sequential load by default; parallel as opt-in
+### 5. Parallel load by default (no sequential mode)
 
-- Send load batches **sequentially** by default (same ATA = same account, avoid partial load on conflict).
-- Optional `parallelLoad: true` for advanced use. Document that parallel is best-effort and may require retries.
+- Action wrappers (`loadAta`, `transferInterface`, `unwrap`) send load batches via `Promise.all` (parallel). There is no `sequentialLoad` option in the current API.
 
-Effect: Predictable behavior; fewer “it sometimes failed” reports.
+Effect: Lower latency when multiple load batches exist; application must avoid concurrent same-sender transfers (UTXO double-spend).
 
 ### 6. Document the “Solana-like” contract
 
@@ -143,7 +142,7 @@ Effect: Predictable behavior; fewer “it sometimes failed” reports.
 | Many txs for one action      | Chunking (8 inputs) + proofs     | Accept N+1 txs internally; expose “instructions” or “plan” only when needed.        |
 | programId / wrap / targetAta | Three programs, unified mode     | One default (light-token); wrap/unified behind one opt-in.                          |
 | Options explosion            | Flexibility for all combos       | Minimal defaults; one “advanced” options object.                                    |
-| Parallel load                | Latency vs correctness           | Sequential by default; parallel opt-in and documented.                              |
+| Parallel load                | Latency vs correctness           | Parallel by default (Promise.all); no sequential mode in API.                       |
 
 ---
 
@@ -157,17 +156,18 @@ Effect: Predictable behavior; fewer “it sometimes failed” reports.
 | **load-ata**              | `_getAtaInterface(...)`                         | Aggregate balance; builds source list.                        |
 | **load-ata**              | `_buildLoadBatches(...)`                        | Build load batches.                                           |
 | **\_buildLoadBatches**    | `getSplInterfaceInfos(rpc, mint)`               | SPL interface PDA + token program (wrap / decompress-to-SPL). |
-| **\_buildLoadBatches**    | `getMint(rpc, mint, ..., tokenProgram)`         | **Decimals only** when `options.decimals` not set.            |
+| **\_buildLoadBatches**    | (none for decimals)                             | `decimals` is a required parameter; no internal getMint.      |
 | **\_buildLoadBatches**    | `rpc.getValidityProofV0(proofInputs)` per chunk | ZK validity proofs per decompress chunk.                      |
 | **transfer-interface**    | `_getAtaInterface(...)`                         | Sender balance/sources.                                       |
 | **transfer-interface**    | `_buildLoadBatches(...)`                        | Load batches.                                                 |
-| **transfer-interface**    | `getMint` / `getMintInterface`                  | **Decimals only** when `options.decimals` not set.            |
+| **transfer-interface**    | `getMintInterface(rpc, mint)` in action wrapper | **Decimals only** when `decimals` not passed to action.       |
+| **loadAta**               | `getMintInterface(rpc, mint)`                   | **Decimals only** when `decimals` not passed.                 |
 | **unwrap**                | `getSplInterfaceInfos(rpc, mint)`               | Resolve SPL interface if not passed in.                       |
 | **unwrap**                | `rpc.getAccountInfo(destination)`               | Ensure destination ATA exists.                                |
 | **unwrap**                | `_getAtaInterface(...)`                         | Source balance/sources.                                       |
 | **unwrap**                | `_buildLoadBatches(...)`                        | Load batches.                                                 |
-| **unwrap**                | `getMint(rpc, mint, ..., tokenProgram)`         | **Decimals only** when `interfaceOptions.decimals` not set.   |
+| **unwrap**                | `getMintInterface(rpc, mint)` in action wrapper | **Decimals only** when `decimals` not passed.                 |
 
-Passing `decimals` (e.g. `InterfaceOptions.decimals`) removes all four decimals-only RPC calls in those flows.
+Passing `decimals` at the action level (e.g. `transferInterface(..., decimals)`) or to the instruction builder removes the decimals RPC calls; there is no `InterfaceOptions.decimals` (decimals is a separate top-level parameter).
 
 **Target:** “As close to Solana UX as possible” = one balance, one action (transfer/unwrap), one or a few txs under the hood, with complexity opt-in and documented.

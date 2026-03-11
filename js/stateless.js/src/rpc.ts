@@ -65,6 +65,9 @@ import {
     UnifiedBalance,
     SignatureSource,
     SignatureSourceType,
+    PhotonAccountInterface,
+    PhotonAccountInterfaceResult,
+    PhotonMultipleAccountInterfacesResult,
 } from './rpc-interface';
 import {
     MerkleContextWithMerkleProof,
@@ -80,7 +83,7 @@ import {
     AddressTreeInfo,
     MerkleContext,
 } from './state';
-import { array, create, nullable } from 'superstruct';
+import { array, create, nullable, unknown } from 'superstruct';
 import {
     defaultTestStateTreeAccounts,
     localTestActiveStateTreeInfos,
@@ -96,6 +99,7 @@ import {
 import BN from 'bn.js';
 import { toCamelCase, toHex } from './utils/conversion';
 import { ConfirmedSignatureInfo } from '@solana/web3.js';
+import bs58 from 'bs58';
 
 import {
     proofFromJsonStruct,
@@ -124,6 +128,139 @@ export function parseAccountData({
         discriminator: discriminator.toArray('le', 8),
         data: Buffer.from(data, 'base64'),
         dataHash: dataHash.toArray('le', 32),
+    };
+}
+
+function parseU64Like(value: unknown, field: string): bigint {
+    if (typeof value === 'string') {
+        return BigInt(value);
+    }
+    if (typeof value === 'number') {
+        if (!Number.isFinite(value) || value < 0) {
+            throw new Error(`Invalid ${field}: ${value}`);
+        }
+        return BigInt(Math.trunc(value));
+    }
+    throw new Error(`Invalid ${field}: ${String(value)}`);
+}
+
+function toSafeNumber(value: bigint, field: string): number {
+    const max = BigInt(Number.MAX_SAFE_INTEGER);
+    if (value > max) {
+        throw new Error(
+            `${field} exceeds Number.MAX_SAFE_INTEGER: ${value.toString()}`,
+        );
+    }
+    return Number(value);
+}
+
+function normalizePhotonCommitment(
+    commitment?: Commitment,
+): 'processed' | 'confirmed' | 'finalized' | undefined {
+    if (!commitment) return undefined;
+    if (commitment === 'processed') return 'processed';
+    if (
+        commitment === 'confirmed' ||
+        commitment === 'single' ||
+        commitment === 'singleGossip'
+    ) {
+        return 'confirmed';
+    }
+    if (
+        commitment === 'finalized' ||
+        commitment === 'max' ||
+        commitment === 'root'
+    ) {
+        return 'finalized';
+    }
+    return undefined;
+}
+
+function parsePhotonTreeType(value: unknown): TreeType {
+    if (typeof value !== 'number') {
+        throw new Error(`Invalid treeType: ${String(value)}`);
+    }
+    switch (value) {
+        case TreeType.StateV1:
+        case TreeType.AddressV1:
+        case TreeType.StateV2:
+        case TreeType.AddressV2:
+            return value;
+        default:
+            throw new Error(`Unsupported treeType: ${value}`);
+    }
+}
+
+function parsePhotonTreeInfo(value: any): TreeInfo {
+    return {
+        tree: new PublicKey(value.tree),
+        queue: new PublicKey(value.queue),
+        treeType: parsePhotonTreeType(value.treeType),
+        cpiContext: value.cpiContext
+            ? new PublicKey(value.cpiContext)
+            : undefined,
+        nextTreeInfo: value.nextTreeContext
+            ? parsePhotonTreeInfo(value.nextTreeContext)
+            : null,
+    };
+}
+
+function parsePhotonSolanaAccountData(value: any): AccountInfo<Buffer> {
+    const lamports = parseU64Like(value.lamports, 'lamports');
+    const rentEpoch = parseU64Like(value.rentEpoch, 'rentEpoch');
+    return {
+        executable: Boolean(value.executable),
+        owner: new PublicKey(value.owner),
+        lamports: toSafeNumber(lamports, 'lamports'),
+        data: Buffer.from(value.data, 'base64'),
+        rentEpoch: toSafeNumber(rentEpoch, 'rentEpoch'),
+    };
+}
+
+function parsePhotonColdAccount(
+    value: any,
+): CompressedAccountWithMerkleContext {
+    const data = value.data
+        ? (() => {
+              const discriminator = bn(value.data.discriminator).toArray(
+                  'le',
+                  8,
+              );
+              return {
+                  discriminator,
+                  data: Buffer.from(value.data.data, 'base64'),
+                  dataHash: Array.from(
+                      bs58.decode(value.data.dataHash),
+                  ) as number[],
+              };
+          })()
+        : undefined;
+    return createCompressedAccountWithMerkleContextLegacy(
+        createMerkleContextLegacy(
+            parsePhotonTreeInfo(value.merkleContext),
+            bn(Array.from(bs58.decode(value.hash))),
+            toSafeNumber(
+                parseU64Like(value.leafIndex, 'leafIndex'),
+                'leafIndex',
+            ),
+            Boolean(value.proveByIndex),
+        ),
+        new PublicKey(value.owner),
+        bn(parseU64Like(value.lamports, 'lamports').toString()),
+        data,
+        value.address
+            ? Array.from(new PublicKey(value.address).toBytes())
+            : undefined,
+    );
+}
+
+function parsePhotonAccountInterface(value: any): PhotonAccountInterface {
+    return {
+        key: new PublicKey(value.key),
+        account: parsePhotonSolanaAccountData(value.account),
+        cold: value.cold
+            ? (value.cold as any[]).map(parsePhotonColdAccount)
+            : null,
     };
 }
 
@@ -2358,6 +2495,73 @@ export class Rpc extends Connection implements CompressionApiInterface {
             total,
 
             hasColdBalance: !compressedBalance.isZero(),
+        };
+    }
+
+    /**
+     * Fetch unified account interface from Photon.
+     */
+    async getAccountInterface(
+        address: PublicKey,
+        commitment?: Commitment,
+    ): Promise<PhotonAccountInterfaceResult> {
+        assertBetaEnabled();
+        const unsafeRes = await rpcRequest(
+            this.compressionApiEndpoint,
+            'getAccountInterface',
+            {
+                address: address.toBase58(),
+                commitment: normalizePhotonCommitment(commitment),
+            },
+        );
+        const res = create(
+            unsafeRes,
+            jsonRpcResultAndContext(nullable(unknown())),
+        );
+        if ('error' in res) {
+            throw new SolanaJSONRPCError(
+                res.error,
+                `failed to get account interface for ${address.toBase58()}`,
+            );
+        }
+        return {
+            context: res.result.context,
+            value: res.result.value
+                ? parsePhotonAccountInterface(res.result.value)
+                : null,
+        };
+    }
+
+    /**
+     * Fetch multiple unified account interfaces from Photon.
+     */
+    async getMultipleAccountInterfaces(
+        addresses: PublicKey[],
+        commitment?: Commitment,
+    ): Promise<PhotonMultipleAccountInterfacesResult> {
+        assertBetaEnabled();
+        const unsafeRes = await rpcRequest(
+            this.compressionApiEndpoint,
+            'getMultipleAccountInterfaces',
+            {
+                addresses: addresses.map(a => a.toBase58()),
+                commitment: normalizePhotonCommitment(commitment),
+            },
+        );
+        const res = create(
+            unsafeRes,
+            jsonRpcResultAndContext(nullable(unknown())),
+        );
+        if ('error' in res) {
+            throw new SolanaJSONRPCError(
+                res.error,
+                'failed to get multiple account interfaces',
+            );
+        }
+        const values = (res.result.value as any[]) ?? [];
+        return {
+            context: res.result.context,
+            value: values.map(v => (v ? parsePhotonAccountInterface(v) : null)),
         };
     }
 }

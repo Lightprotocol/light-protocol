@@ -163,17 +163,15 @@ export async function getMintInterface(
             compression: compressedMintData.compression,
         };
 
-        if (programId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
-            if (!result.merkleContext) {
-                throw new Error(
-                    `Invalid light mint: merkleContext is required for LIGHT_TOKEN_PROGRAM_ID`,
-                );
-            }
-            if (!result.mintContext) {
-                throw new Error(
-                    `Invalid light mint: mintContext is required for LIGHT_TOKEN_PROGRAM_ID`,
-                );
-            }
+        if (!result.merkleContext) {
+            throw new Error(
+                `Invalid light mint: merkleContext is required for LIGHT_TOKEN_PROGRAM_ID`,
+            );
+        }
+        if (!result.mintContext) {
+            throw new Error(
+                `Invalid light mint: mintContext is required for LIGHT_TOKEN_PROGRAM_ID`,
+            );
         }
 
         return result;
@@ -232,13 +230,11 @@ export function unpackMintInterface(
             compression: compressedMintData.compression,
         };
 
-        // Validate: LIGHT_TOKEN_PROGRAM_ID requires mintContext
-        if (programId.equals(LIGHT_TOKEN_PROGRAM_ID)) {
-            if (!result.mintContext) {
-                throw new Error(
-                    `Invalid light mint: mintContext is required for LIGHT_TOKEN_PROGRAM_ID`,
-                );
-            }
+        // Validate: light-token requires mintContext
+        if (!result.mintContext) {
+            throw new Error(
+                `Invalid light mint: mintContext is required for LIGHT_TOKEN_PROGRAM_ID`,
+            );
         }
 
         return result;
