@@ -935,6 +935,8 @@ async fn execute_test_transactions<R: Rpc>(
                     &env.v2_state_trees[0].output_queue,
                     payer,
                     mint_pubkey,
+                    i,
+                    "v2",
                     sender_batched_token_counter,
                 )
                 .await;
@@ -969,6 +971,8 @@ async fn execute_test_transactions<R: Rpc>(
                     &env.v1_state_trees[0].merkle_tree,
                     payer,
                     mint_pubkey,
+                    i,
+                    "v1",
                     sender_batched_token_counter,
                 )
                 .await;
@@ -1046,16 +1050,15 @@ async fn compressed_token_transfer<R: Rpc>(
     merkle_tree_pubkey: &Pubkey,
     payer: &Keypair,
     mint: &Pubkey,
+    iteration: usize,
+    branch: &'static str,
     counter: &mut u64,
 ) -> Signature {
-    expect_indexer_caught_up(
-        rpc,
-        format!(
-            "compressed_token_transfer tree={} mint={}",
-            merkle_tree_pubkey, mint
-        ),
-    )
-    .await;
+    let operation_context = format!(
+        "compressed_token_transfer iteration={} branch={} tree={} mint={}",
+        iteration, branch, merkle_tree_pubkey, mint
+    );
+    expect_indexer_caught_up(rpc, operation_context.clone()).await;
     let mut input_compressed_accounts: Vec<TokenDataWithMerkleContext> = rpc
         .indexer()
         .unwrap()
@@ -1072,6 +1075,10 @@ async fn compressed_token_transfer<R: Rpc>(
         .unwrap()
         .into();
     if input_compressed_accounts.is_empty() {
+        println!(
+            "{} skipped: no input compressed token accounts",
+            operation_context
+        );
         return Signature::default();
     }
 
@@ -1093,11 +1100,19 @@ async fn compressed_token_transfer<R: Rpc>(
         .unwrap();
 
     let root_indices = proof_for_compressed_accounts.value.get_root_indices();
+    let selected_leaf_index = input_compressed_accounts[0]
+        .compressed_account
+        .merkle_context
+        .leaf_index;
     let merkle_contexts = vec![
         input_compressed_accounts[0]
             .compressed_account
             .merkle_context,
     ];
+    println!(
+        "{} preparing tx with amount={} leaf_index={} root_indices={:?}",
+        operation_context, tokens, selected_leaf_index, root_indices
+    );
 
     let compressed_accounts = vec![TokenTransferOutputData {
         amount: tokens,
@@ -1157,6 +1172,7 @@ async fn compressed_token_transfer<R: Rpc>(
         .create_and_send_transaction(&instructions, &payer.pubkey(), &[payer])
         .await
         .unwrap();
+    println!("{} sent tx={}", operation_context, sig);
     *counter += compressed_accounts.len() as u64;
     *counter -= input_compressed_accounts.len() as u64;
     sig

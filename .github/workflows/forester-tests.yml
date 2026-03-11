@@ -82,7 +82,11 @@ jobs:
         run: just cli build
 
       - name: Test
-        run: just forester test
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p forester
+          just forester test 2>&1 | tee forester/ci.log
 
       - name: Dump Photon Logs On Failure
         if: failure()
@@ -99,12 +103,85 @@ jobs:
             echo "No photon.log files found under any test-ledger directory"
           fi
 
+      - name: Build Photon Gap Summary
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p forester
+          python3 - <<'PY'
+          from collections import deque
+          from pathlib import Path
+
+          output_path = Path("forester/photon-gap-summary.txt")
+          photon_logs = sorted(Path(".").glob("**/test-ledger/photon.log"))
+          surfpool_logs = sorted(Path(".").glob("**/test-ledger/surfpool.log"))
+
+          def relevant_lines(path: Path, patterns: tuple[str, ...], last_indexed_count: int = 0) -> list[str]:
+              matches = []
+              indexed = deque(maxlen=last_indexed_count)
+              with path.open("r", encoding="utf-8", errors="replace") as handle:
+                  for raw_line in handle:
+                      line = raw_line.rstrip("\n")
+                      if last_indexed_count and "Indexed slot " in line:
+                          indexed.append(line)
+                      if any(pattern in line for pattern in patterns):
+                          matches.append(line)
+              result = []
+              if indexed:
+                  result.append("Last indexed slot lines:")
+                  result.extend(indexed)
+              result.extend(matches[-200:])
+              return result
+
+          with output_path.open("w", encoding="utf-8") as output:
+              if not photon_logs and not surfpool_logs:
+                  output.write("No Photon or Surfpool logs found under any test-ledger directory.\n")
+              for log_path in photon_logs:
+                  output.write(f"=== {log_path} ===\n")
+                  lines = relevant_lines(
+                      log_path,
+                      (
+                          "Sequence gap detected",
+                          "Failed to index block batch",
+                          "Skipping failed transaction",
+                      ),
+                      last_indexed_count=10,
+                  )
+                  if lines:
+                      output.write("\n".join(lines))
+                      output.write("\n")
+                  else:
+                      output.write("No gap-related lines found.\n")
+              for log_path in surfpool_logs:
+                  output.write(f"=== {log_path} ===\n")
+                  lines = relevant_lines(
+                      log_path,
+                      (
+                          "Transaction execution failed",
+                          "Transaction simulation failed",
+                          "custom program error",
+                      ),
+                  )
+                  if lines:
+                      output.write("\n".join(lines))
+                      output.write("\n")
+                  else:
+                      output.write("No Surfpool transaction failure lines found.\n")
+          PY
+          echo "=== forester/photon-gap-summary.txt ==="
+          cat forester/photon-gap-summary.txt
+          echo "=== end forester/photon-gap-summary.txt ==="
+
       - name: Upload Forester Test Logs
         if: always()
         uses: actions/upload-artifact@v5
         with:
           name: forester-test-ledger
           path: |
+            forester/ci.log
+            test.log
+            forester/test.log
+            forester/photon-gap-summary.txt
             test-ledger
             forester/test-ledger
           if-no-files-found: ignore
