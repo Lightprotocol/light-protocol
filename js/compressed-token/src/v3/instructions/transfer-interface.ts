@@ -25,7 +25,7 @@ import {
 } from './load-ata';
 import {
     getAtaInterface as _getAtaInterface,
-    assertNotFrozen,
+    checkNotFrozen,
     type AccountInterface,
     spendableAmountForAuthority,
     isAuthorityForInterface,
@@ -80,13 +80,17 @@ export function createLightTokenTransferInstruction(
     // Account order per program:
     // 0: source (writable)
     // 1: destination (writable)
-    // 2: authority/owner (signer, writable for top-ups)
+    // 2: authority/owner (signer, writable only when paying top-ups)
     // 3: system_program (for top-ups via CPI)
     // 4: fee_payer (signer, writable - pays for top-ups)
     const keys = [
         { pubkey: source, isSigner: false, isWritable: true },
         { pubkey: destination, isSigner: false, isWritable: true },
-        { pubkey: owner, isSigner: true, isWritable: true },
+        {
+            pubkey: owner,
+            isSigner: true,
+            isWritable: effectiveFeePayer.equals(owner),
+        },
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
         {
             pubkey: effectiveFeePayer,
@@ -124,11 +128,11 @@ export function createLightTokenTransferCheckedInstruction(
         { pubkey: source, isSigner: false, isWritable: true },
         { pubkey: mint, isSigner: false, isWritable: false },
         { pubkey: destination, isSigner: false, isWritable: true },
-        { pubkey: owner, isSigner: true, isWritable: true },
+        { pubkey: owner, isSigner: true, isWritable: payer.equals(owner) },
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
         {
             pubkey: payer,
-            isSigner: true,
+            isSigner: !payer.equals(owner),
             isWritable: true,
         },
     ];
@@ -196,7 +200,7 @@ export async function createTransferInterfaceInstructions(
         throw error;
     }
 
-    assertNotFrozen(senderInterface, 'transfer');
+    checkNotFrozen(senderInterface, 'transfer');
 
     const isDelegate = !effectiveOwner.equals(sender);
     if (isDelegate) {

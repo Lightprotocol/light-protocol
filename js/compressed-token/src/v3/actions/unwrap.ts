@@ -2,6 +2,7 @@ import {
     ConfirmOptions,
     PublicKey,
     Signer,
+    TransactionInstruction,
     TransactionSignature,
 } from '@solana/web3.js';
 import {
@@ -30,7 +31,10 @@ export async function unwrap(
     maxTopUp?: number,
     confirmOptions?: ConfirmOptions,
     decimals?: number,
+    wrap = false,
 ): Promise<TransactionSignature> {
+    assertBetaEnabled();
+
     const resolvedDecimals =
         decimals ?? (await getMintInterface(rpc, mint)).mint.decimals;
     const batches = await createUnwrapInstructions(
@@ -43,13 +47,15 @@ export async function unwrap(
         payer.publicKey,
         splInterfaceInfo,
         maxTopUp,
+        undefined,
+        wrap,
     );
 
     const additionalSigners = dedupeSigner(payer, [owner]);
     const { rest: loads, last: unwrapIxs } = sliceLast(batches);
 
     await Promise.all(
-        loads.map(async ixs => {
+        loads.map(async (ixs: TransactionInstruction[]) => {
             const { blockhash } = await rpc.getLatestBlockhash();
             const tx = buildAndSignTx(ixs, payer, blockhash, additionalSigners);
             return sendAndConfirmTx(rpc, tx, confirmOptions);

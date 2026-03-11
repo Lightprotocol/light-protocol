@@ -20,7 +20,7 @@ import {
 import { getAssociatedTokenAddressInterface } from '../get-associated-token-address-interface';
 import {
     getAtaInterface as _getAtaInterface,
-    assertNotFrozen,
+    checkNotFrozen,
     type AccountInterface,
 } from '../get-account-interface';
 import { _buildLoadBatches, calculateLoadBatchComputeUnits } from './load-ata';
@@ -211,7 +211,7 @@ export async function createUnwrapInstructions(
         throw error;
     }
 
-    assertNotFrozen(accountInterface, 'unwrap');
+    checkNotFrozen(accountInterface, 'unwrap');
 
     const totalBalance = accountInterface.parsed.amount;
     if (totalBalance === BigInt(0)) {

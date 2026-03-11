@@ -1,11 +1,10 @@
 import { MINT_SIZE, MintLayout } from '@solana/spl-token';
 import { PublicKey } from '@solana/web3.js';
 import { Buffer } from 'buffer';
-import { struct, u8, u32 } from '@solana/buffer-layout';
+import { struct, u8 } from '@solana/buffer-layout';
 import { publicKey } from '@solana/buffer-layout-utils';
 import {
     struct as borshStruct,
-    option,
     vec,
     vecU8,
     publicKey as borshPublicKey,
@@ -343,7 +342,7 @@ export function deserializeMint(data: Buffer | Uint8Array): CompressedMint {
     const bump = buffer.readUInt8(offset);
     offset += BUMP_SIZE;
 
-    // 3. Read reserved bytes (49 bytes) for T22 compatibility
+    // 3. Read reserved bytes (16 bytes) for T22 compatibility
     const reserved = buffer.slice(offset, offset + RESERVED_SIZE);
     offset += RESERVED_SIZE;
 
@@ -351,7 +350,7 @@ export function deserializeMint(data: Buffer | Uint8Array): CompressedMint {
     const accountType = buffer.readUInt8(offset);
     offset += ACCOUNT_TYPE_SIZE;
 
-    // 5. Read CompressionInfo (88 bytes)
+    // 5. Read CompressionInfo (96 bytes)
     const [compression, compressionBytesRead] = deserializeCompressionInfo(
         buffer,
         offset,
@@ -514,7 +513,7 @@ export function serializeMint(mint: CompressedMint): Buffer {
     buffers.push(Buffer.from(mint.mintContext.mintSigner));
     buffers.push(Buffer.from([mint.mintContext.bump]));
 
-    // 3. Encode reserved bytes (49 bytes) - default to zeros
+    // 3. Encode reserved bytes (16 bytes) - default to zeros
     const reserved = mint.reserved ?? new Uint8Array(RESERVED_SIZE);
     buffers.push(Buffer.from(reserved));
 
@@ -522,7 +521,7 @@ export function serializeMint(mint: CompressedMint): Buffer {
     const accountType = mint.accountType ?? ACCOUNT_TYPE_MINT;
     buffers.push(Buffer.from([accountType]));
 
-    // 5. Encode CompressionInfo (88 bytes) - default to zeros
+    // 5. Encode CompressionInfo (96 bytes) - default to zeros
     if (mint.compression) {
         buffers.push(serializeCompressionInfo(mint.compression));
     } else {

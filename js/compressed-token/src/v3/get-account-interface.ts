@@ -75,7 +75,7 @@ export interface AccountInterface {
 
 export type FrozenOperation = 'load' | 'transfer' | 'unwrap';
 
-export function assertNotFrozen(
+export function checkNotFrozen(
     iface: AccountInterface,
     operation: FrozenOperation,
 ): void {

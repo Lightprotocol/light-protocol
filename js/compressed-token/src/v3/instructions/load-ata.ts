@@ -20,7 +20,7 @@ import {
 } from '@solana/spl-token';
 import {
     AccountInterface,
-    assertNotFrozen,
+    checkNotFrozen,
     COLD_SOURCE_TYPES,
     getAtaInterface as _getAtaInterface,
     TokenAccountSource,
@@ -277,7 +277,7 @@ export async function _buildLoadBatches(
         );
     }
 
-    assertNotFrozen(ata, 'load');
+    checkNotFrozen(ata, 'load');
 
     const owner = ata._owner;
     const mint = ata._mint;

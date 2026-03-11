@@ -42,8 +42,6 @@ type UpdateMetadataAction =
       };
 
 interface EncodeUpdateMetadataInstructionParams {
-    splMint: PublicKey;
-    addressTree: PublicKey;
     leafIndex: number;
     rootIndex: number;
     proof: { a: number[]; b: number[]; c: number[] } | null;
@@ -178,8 +176,6 @@ function createUpdateMetadataInstruction(
 
     const addressTreeInfo = getDefaultAddressTreeInfo();
     const data = encodeUpdateMetadataInstructionData({
-        splMint: mintInterface.mintContext.splMint,
-        addressTree: addressTreeInfo.tree,
         leafIndex: merkleContext.leafIndex,
         rootIndex: validityProof?.rootIndices[0] ?? 0,
         proof: isDecompressed ? null : (validityProof?.compressedProof ?? null),

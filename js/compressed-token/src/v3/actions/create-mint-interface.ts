@@ -139,7 +139,6 @@ export async function createMintInterface(
         additionalSigners,
     );
     const txId = await sendAndConfirmTx(rpc, tx);
-    console.log('txId', txId);
 
     const mint = findMintAddress(keypair.publicKey);
     return { mint: mint[0], transactionSignature: txId };
