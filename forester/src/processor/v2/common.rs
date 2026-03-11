@@ -209,13 +209,23 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
 
 fn map_send_error(tree: Pubkey, error: SmartTransactionError) -> ForesterError {
     if let Some(transaction_error) = error.transaction_error() {
-        increment_transactions_failed("execution_failed", 1);
-        error!(
-            tree = %tree,
-            error = ?transaction_error,
-            "V2 transaction execution failed"
-        );
-        V2Error::from_transaction_error(tree, &transaction_error).into()
+        let v2_error = V2Error::from_transaction_error(tree, &transaction_error);
+        if v2_error.is_batch_not_ready() {
+            increment_transactions_failed("batch_not_ready", 1);
+            warn!(
+                tree = %tree,
+                error = ?transaction_error,
+                "V2 transaction reached chain before the batch was ready; will retry"
+            );
+        } else {
+            increment_transactions_failed("execution_failed", 1);
+            error!(
+                tree = %tree,
+                error = ?transaction_error,
+                "V2 transaction execution failed"
+            );
+        }
+        v2_error.into()
     } else if error.is_confirmation_deadline_exceeded() {
         increment_transactions_failed("deadline_exceeded", 1);
         warn!(
