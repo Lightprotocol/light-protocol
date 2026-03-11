@@ -336,8 +336,8 @@ export async function createTransferInterfaceInstructions(
 /**
  * Build instruction batches for unwrapping light-tokens to SPL/T22.
  *
- * Unified variant: uses wrap=true for loading, so SPL/T22 balances are
- * consolidated before unwrapping.
+ * Load batches (cold -> hot) come first if needed, then one unwrap transaction.
+ * SPL/T22 balances are not consolidated; only light ATA (hot + cold) is unwrapped.
  *
  * Returns `TransactionInstruction[][]`. Load batches (if any) come first,
  * followed by one final unwrap transaction.
@@ -374,15 +374,15 @@ export async function createUnwrapInstructions(
         splInterfaceInfo,
         undefined, // maxTopUp - use default
         interfaceOptions,
-        true, // wrap=true for unified
+        false, // always no wrap on unwrap.
     );
 }
 
 /**
  * Unwrap light-tokens to SPL tokens.
  *
- * Unified variant: loads all cold + SPL/T22 balances to light-token associated token account first,
- * then unwraps to the destination SPL/T22 account.
+ * Loads cold into hot if needed, then unwraps from light ATA to destination SPL/T22.
+ * SPL/T22 balances are not consolidated; only light ATA balance is unwrapped.
  *
  * @param rpc                RPC connection
  * @param payer              Fee payer
@@ -416,7 +416,7 @@ export async function unwrap(
         undefined, // maxTopUp - use default
         confirmOptions,
         decimals,
-        true, // wrap=true for unified
+        false, // always no wrap on unwrap.
     );
 }
 
