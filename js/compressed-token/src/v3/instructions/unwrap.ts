@@ -23,7 +23,11 @@ import {
     checkNotFrozen,
     type AccountInterface,
 } from '../get-account-interface';
-import { _buildLoadBatches, calculateLoadBatchComputeUnits } from './load-ata';
+import {
+    _buildLoadBatches,
+    calculateLoadBatchComputeUnits,
+    type InternalLoadBatch,
+} from './load-ata';
 import type { InterfaceOptions } from '../actions/transfer-interface';
 import { assertTransactionSizeWithinLimit } from '../utils/estimate-tx-size';
 import { ERR_NO_LIGHT_TOKEN_BALANCE_UNWRAP } from '../errors';
@@ -34,6 +38,13 @@ import {
     Transfer2InstructionData,
     Compression,
 } from '../layout/layout-transfer2';
+import { calculateCombinedCU } from './calculate-combined-cu';
+
+const UNWRAP_BASE_CU = 10_000;
+
+function calculateUnwrapCU(loadBatch: InternalLoadBatch | null): number {
+    return calculateCombinedCU(UNWRAP_BASE_CU, loadBatch);
+}
 
 /**
  * Create an unwrap instruction that moves tokens from a light-token account to an
@@ -255,15 +266,34 @@ export async function createUnwrapInstructions(
         maxTopUp,
     );
 
-    const unwrapBatch: TransactionInstruction[] = [
-        ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 }),
-        ix,
-    ];
-
     const numSigners = payer.equals(owner) ? 1 : 2;
-    const result: TransactionInstruction[][] = [];
+    if (internalBatches.length === 0) {
+        const txIxs = [
+            ComputeBudgetProgram.setComputeUnitLimit({
+                units: calculateUnwrapCU(null),
+            }),
+            ix,
+        ];
+        assertTransactionSizeWithinLimit(txIxs, numSigners, 'Unwrap batch');
+        return [txIxs];
+    }
 
-    for (const batch of internalBatches) {
+    if (internalBatches.length === 1) {
+        const batch = internalBatches[0];
+        const txIxs = [
+            ComputeBudgetProgram.setComputeUnitLimit({
+                units: calculateUnwrapCU(batch),
+            }),
+            ...batch.instructions,
+            ix,
+        ];
+        assertTransactionSizeWithinLimit(txIxs, numSigners, 'Unwrap batch');
+        return [txIxs];
+    }
+
+    const result: TransactionInstruction[][] = [];
+    for (let i = 0; i < internalBatches.length - 1; i++) {
+        const batch = internalBatches[i];
         const cu = calculateLoadBatchComputeUnits(batch);
         const txIxs = [
             ComputeBudgetProgram.setComputeUnitLimit({ units: cu }),
@@ -273,8 +303,16 @@ export async function createUnwrapInstructions(
         result.push(txIxs);
     }
 
-    assertTransactionSizeWithinLimit(unwrapBatch, numSigners, 'Unwrap batch');
-    result.push(unwrapBatch);
+    const lastBatch = internalBatches[internalBatches.length - 1];
+    const lastTxIxs = [
+        ComputeBudgetProgram.setComputeUnitLimit({
+            units: calculateUnwrapCU(lastBatch),
+        }),
+        ...lastBatch.instructions,
+        ix,
+    ];
+    assertTransactionSizeWithinLimit(lastTxIxs, numSigners, 'Unwrap batch');
+    result.push(lastTxIxs);
 
     return result;
 }

@@ -19,7 +19,6 @@ import BN from 'bn.js';
 import { getAssociatedTokenAddressInterface } from '../get-associated-token-address-interface';
 import {
     _buildLoadBatches,
-    rawLoadBatchComputeUnits,
     calculateLoadBatchComputeUnits,
     type InternalLoadBatch,
 } from './load-ata';
@@ -33,19 +32,17 @@ import {
 } from '../get-account-interface';
 import { assertTransactionSizeWithinLimit } from '../utils/estimate-tx-size';
 import type { TransferOptions } from '../actions/transfer-interface';
+import { calculateCombinedCU } from './calculate-combined-cu';
 
 const LIGHT_TOKEN_TRANSFER_DISCRIMINATOR = 3;
 const LIGHT_TOKEN_TRANSFER_CHECKED_DISCRIMINATOR = 12;
 
 const TRANSFER_BASE_CU = 10_000;
-const CU_BUFFER_FACTOR = 1.3;
 
 export function calculateTransferCU(
     loadBatch: InternalLoadBatch | null,
 ): number {
-    const rawLoadCu = loadBatch ? rawLoadBatchComputeUnits(loadBatch) : 0;
-    const cu = Math.ceil((TRANSFER_BASE_CU + rawLoadCu) * CU_BUFFER_FACTOR);
-    return Math.max(50_000, Math.min(1_400_000, cu));
+    return calculateCombinedCU(TRANSFER_BASE_CU, loadBatch);
 }
 
 /**

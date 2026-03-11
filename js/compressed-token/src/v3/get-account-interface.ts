@@ -73,6 +73,21 @@ export interface AccountInterface {
     _mint?: PublicKey;
 }
 
+class ExpectedProbeMissError extends Error {}
+
+function isExpectedProbeMissError(error: unknown): boolean {
+    return error instanceof ExpectedProbeMissError;
+}
+
+function toErrorMessage(error: unknown): string {
+    if (error instanceof Error) return error.message;
+    return String(error);
+}
+
+function throwRpcFetchFailure(context: string, error: unknown): never {
+    throw new Error(`${context}: ${toErrorMessage(error)}`);
+}
+
 export type FrozenOperation = 'load' | 'transfer' | 'unwrap';
 
 export function checkNotFrozen(
@@ -422,7 +437,7 @@ async function _tryFetchSpl(
 }> {
     const info = await rpc.getAccountInfo(address, commitment);
     if (!info || !info.owner.equals(TOKEN_PROGRAM_ID)) {
-        throw new Error('Not a TOKEN_PROGRAM_ID account');
+        throw new ExpectedProbeMissError('Not a TOKEN_PROGRAM_ID account');
     }
     const account = unpackAccountSPL(address, info, TOKEN_PROGRAM_ID);
     return {
@@ -448,7 +463,7 @@ async function _tryFetchToken2022(
 }> {
     const info = await rpc.getAccountInfo(address, commitment);
     if (!info || !info.owner.equals(TOKEN_2022_PROGRAM_ID)) {
-        throw new Error('Not a TOKEN_2022_PROGRAM_ID account');
+        throw new ExpectedProbeMissError('Not a TOKEN_2022_PROGRAM_ID account');
     }
     const account = unpackAccountSPL(address, info, TOKEN_2022_PROGRAM_ID);
     return {
@@ -474,7 +489,7 @@ async function _tryFetchLightTokenHot(
 }> {
     const info = await rpc.getAccountInfo(address, commitment);
     if (!info || !info.owner.equals(LIGHT_TOKEN_PROGRAM_ID)) {
-        throw new Error('Not a LIGHT_TOKEN onchain account');
+        throw new ExpectedProbeMissError('Not a LIGHT_TOKEN onchain account');
     }
     return parseLightTokenHot(address, info);
 }
@@ -641,10 +656,15 @@ async function getUnifiedAccountInterface(
           })
         : rpc.getCompressedTokenAccountsByOwner(address!);
 
-    const [hotResults, coldResult] = await Promise.all([
-        Promise.allSettled(fetchPromises),
-        coldAccountsPromise.catch(() => ({ items: [] })),
-    ]);
+    const hotResults = await Promise.allSettled(fetchPromises);
+    const unexpectedErrors: unknown[] = [];
+
+    let coldResult: Awaited<typeof coldAccountsPromise> | null = null;
+    try {
+        coldResult = await coldAccountsPromise;
+    } catch (error) {
+        unexpectedErrors.push(error);
+    }
 
     // collect all successful hot results
     const sources: TokenAccountSource[] = [];
@@ -661,35 +681,45 @@ async function getUnifiedAccountInterface(
                 loadContext: value.loadContext,
                 parsed: value.parsed,
             });
+        } else if (!isExpectedProbeMissError(result.reason)) {
+            unexpectedErrors.push(result.reason);
         }
     }
 
     // Add ALL cold light-token accounts (handles both V1 and V2)
-    for (const item of coldResult.items) {
-        const compressedAccount = item.compressedAccount;
-        if (
-            compressedAccount &&
-            compressedAccount.data &&
-            compressedAccount.data.data.length > 0 &&
-            compressedAccount.owner.equals(LIGHT_TOKEN_PROGRAM_ID)
-        ) {
-            const parsed = parseLightTokenCold(
-                lightTokenAta,
-                compressedAccount,
-            );
-            sources.push({
-                type: TokenAccountSourceType.LightTokenCold,
-                address: lightTokenAta,
-                amount: parsed.parsed.amount,
-                accountInfo: parsed.accountInfo,
-                loadContext: parsed.loadContext,
-                parsed: parsed.parsed,
-            });
+    if (coldResult) {
+        for (const item of coldResult.items) {
+            const compressedAccount = item.compressedAccount;
+            if (
+                compressedAccount &&
+                compressedAccount.data &&
+                compressedAccount.data.data.length > 0 &&
+                compressedAccount.owner.equals(LIGHT_TOKEN_PROGRAM_ID)
+            ) {
+                const parsed = parseLightTokenCold(
+                    lightTokenAta,
+                    compressedAccount,
+                );
+                sources.push({
+                    type: TokenAccountSourceType.LightTokenCold,
+                    address: lightTokenAta,
+                    amount: parsed.parsed.amount,
+                    accountInfo: parsed.accountInfo,
+                    loadContext: parsed.loadContext,
+                    parsed: parsed.parsed,
+                });
+            }
         }
     }
 
     // account not found
     if (sources.length === 0) {
+        if (unexpectedErrors.length > 0) {
+            throwRpcFetchFailure(
+                'Failed to fetch token account data from RPC',
+                unexpectedErrors[0],
+            );
+        }
         throw new TokenAccountNotFoundError();
     }
 
@@ -740,13 +770,20 @@ async function getLightTokenAccountInterface(
               })
             : rpc.getCompressedTokenAccountsByOwner(address),
     ]);
+    const unexpectedErrors: unknown[] = [];
 
     const onchainAccount =
         onchainResult.status === 'fulfilled' ? onchainResult.value : null;
+    if (onchainResult.status === 'rejected') {
+        unexpectedErrors.push(onchainResult.reason);
+    }
     const compressedAccounts =
         compressedResult.status === 'fulfilled'
             ? compressedResult.value.items.map(item => item.compressedAccount)
             : [];
+    if (compressedResult.status === 'rejected') {
+        unexpectedErrors.push(compressedResult.reason);
+    }
 
     const sources: TokenAccountSource[] = [];
 
@@ -783,6 +820,12 @@ async function getLightTokenAccountInterface(
     }
 
     if (sources.length === 0) {
+        if (unexpectedErrors.length > 0) {
+            throwRpcFetchFailure(
+                'Failed to fetch token account data from RPC',
+                unexpectedErrors[0],
+            );
+        }
         throw new TokenAccountNotFoundError();
     }
 
@@ -832,20 +875,26 @@ async function getSplOrToken2022AccountInterface(
         : TokenAccountSourceType.Token2022Cold;
 
     // Fetch hot and cold in parallel (neither is required individually)
-    const hotPromise = rpc
-        .getAccountInfo(address, commitment)
-        .catch(() => null);
-    const coldPromise = fetchByOwner
-        ? rpc
-              .getCompressedTokenAccountsByOwner(fetchByOwner.owner, {
+    const [hotResult, coldResult] = await Promise.allSettled([
+        rpc.getAccountInfo(address, commitment),
+        fetchByOwner
+            ? rpc.getCompressedTokenAccountsByOwner(fetchByOwner.owner, {
                   mint: fetchByOwner.mint,
               })
-              .catch(() => ({ items: [] as any[] }))
-        : Promise.resolve({ items: [] as any[] });
-
-    const [hotInfo, coldResult] = await Promise.all([hotPromise, coldPromise]);
+            : Promise.resolve({ items: [] as any[] }),
+    ]);
 
     const sources: TokenAccountSource[] = [];
+    const unexpectedErrors: unknown[] = [];
+
+    const hotInfo = hotResult.status === 'fulfilled' ? hotResult.value : null;
+    if (hotResult.status === 'rejected') unexpectedErrors.push(hotResult.reason);
+    const coldAccounts =
+        coldResult.status === 'fulfilled'
+            ? coldResult.value
+            : ({ items: [] as any[] } as const);
+    if (coldResult.status === 'rejected')
+        unexpectedErrors.push(coldResult.reason);
 
     // Hot SPL/T22 account (may not exist)
     if (hotInfo) {
@@ -864,7 +913,7 @@ async function getSplOrToken2022AccountInterface(
     }
 
     // Cold (compressed) accounts
-    for (const item of coldResult.items) {
+    for (const item of coldAccounts.items) {
         const compressedAccount = item.compressedAccount;
         if (
             compressedAccount &&
@@ -885,6 +934,12 @@ async function getSplOrToken2022AccountInterface(
     }
 
     if (sources.length === 0) {
+        if (unexpectedErrors.length > 0) {
+            throwRpcFetchFailure(
+                'Failed to fetch token account data from RPC',
+                unexpectedErrors[0],
+            );
+        }
         throw new TokenAccountNotFoundError();
     }
 

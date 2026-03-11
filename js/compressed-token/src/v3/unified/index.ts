@@ -336,11 +336,12 @@ export async function createTransferInterfaceInstructions(
 /**
  * Build instruction batches for unwrapping light-tokens to SPL/T22.
  *
- * Load batches (cold -> hot) come first if needed, then one unwrap transaction.
+ * Load batches (cold -> hot) come first if needed; unwrap is bundled into the
+ * final batch.
  * SPL/T22 balances are not consolidated; only light ATA (hot + cold) is unwrapped.
  *
- * Returns `TransactionInstruction[][]`. Load batches (if any) come first,
- * followed by one final unwrap transaction.
+ * Returns `TransactionInstruction[][]`. Load-only batches (if any) come first;
+ * the last batch contains unwrap.
  *
  * @param rpc               RPC connection
  * @param destination       Destination SPL/T22 token account (must exist)
