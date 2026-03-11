@@ -6,9 +6,12 @@ use std::{
 
 use anyhow::{bail, Context};
 use clap::Parser;
-use serde_json::{json, Value};
-use solana_client::{rpc_client::RpcClient, rpc_request::RpcRequest};
+use serde_json::json;
+use solana_client::{rpc_client::RpcClient, rpc_config::RpcBlockConfig};
 use solana_sdk::commitment_config::CommitmentConfig;
+use solana_transaction_status::{
+    EncodedTransaction, EncodedTransactionWithStatusMeta, TransactionDetails, UiTransactionEncoding,
+};
 
 #[derive(Debug, Parser)]
 pub struct Options {
@@ -22,20 +25,21 @@ pub struct Options {
     end_slot: Option<u64>,
 }
 
-fn extract_signature(transaction: &Value) -> Option<&str> {
-    transaction
-        .get("transaction")?
-        .get("signatures")?
-        .as_array()?
-        .first()?
-        .as_str()
+fn extract_signature(transaction: &EncodedTransactionWithStatusMeta) -> Option<String> {
+    match &transaction.transaction {
+        EncodedTransaction::Json(ui_transaction) => ui_transaction.signatures.first().cloned(),
+        _ => transaction
+            .transaction
+            .decode()
+            .and_then(|decoded| decoded.signatures.first().map(ToString::to_string)),
+    }
 }
 
-fn transaction_failed(transaction: &Value) -> bool {
+fn transaction_failed(transaction: &EncodedTransactionWithStatusMeta) -> bool {
     transaction
-        .get("meta")
-        .and_then(|meta| meta.get("err"))
-        .is_some_and(|err| !err.is_null())
+        .meta
+        .as_ref()
+        .is_some_and(|meta| meta.err.is_some())
 }
 
 pub async fn dump_local_transactions(opt: Options) -> anyhow::Result<()> {
@@ -62,44 +66,38 @@ pub async fn dump_local_transactions(opt: Options) -> anyhow::Result<()> {
     fs::create_dir_all(&transactions_dir)
         .with_context(|| format!("failed to create {}", transactions_dir.display()))?;
 
-    let slots_value: Value = client.send(
-        RpcRequest::Custom {
-            method: "getBlocks",
-        },
-        json!([start_slot, end_slot]),
-    )?;
-    let slots: Vec<u64> =
-        serde_json::from_value(slots_value).context("failed to decode getBlocks response")?;
+    let slots = client
+        .get_blocks_with_commitment(start_slot, Some(end_slot), CommitmentConfig::confirmed())
+        .context("failed to fetch confirmed blocks")?;
 
     let mut slot_signatures = BTreeMap::<u64, Vec<String>>::new();
     let mut failed_signatures = Vec::<String>::new();
     let mut transactions_dumped = 0usize;
+    let blocks_scanned = slots.len();
 
     for slot in slots {
-        let block: Value = client.send(
-            RpcRequest::Custom { method: "getBlock" },
-            json!([
+        let block = client
+            .get_block_with_config(
                 slot,
-                {
-                    "encoding": "base64",
-                    "transactionDetails": "full",
-                    "rewards": false,
-                    "commitment": "confirmed",
-                    "maxSupportedTransactionVersion": 0
-                }
-            ]),
-        )?;
+                RpcBlockConfig {
+                    encoding: Some(UiTransactionEncoding::Json),
+                    transaction_details: Some(TransactionDetails::Full),
+                    rewards: Some(false),
+                    commitment: Some(CommitmentConfig::confirmed()),
+                    max_supported_transaction_version: Some(0),
+                },
+            )
+            .with_context(|| format!("failed to fetch block {}", slot))?;
 
-        let Some(transactions) = block.get("transactions").and_then(Value::as_array) else {
+        let Some(transactions) = block.transactions else {
             continue;
         };
 
         let mut signatures = Vec::with_capacity(transactions.len());
-        for transaction in transactions {
+        for transaction in &transactions {
             let Some(signature) = extract_signature(transaction) else {
                 continue;
             };
-            let signature = signature.to_string();
             let file_path = transactions_dir.join(format!("{signature}.json"));
             let file = File::create(&file_path)
                 .with_context(|| format!("failed to create {}", file_path.display()))?;
@@ -112,7 +110,9 @@ pub async fn dump_local_transactions(opt: Options) -> anyhow::Result<()> {
             transactions_dumped += 1;
         }
 
-        slot_signatures.insert(slot, signatures);
+        if !signatures.is_empty() {
+            slot_signatures.insert(slot, signatures);
+        }
     }
 
     let summary_path = output_folder.join("summary.json");
@@ -126,6 +126,7 @@ pub async fn dump_local_transactions(opt: Options) -> anyhow::Result<()> {
             "latest_confirmed_slot": latest_slot,
             "start_slot": start_slot,
             "end_slot": end_slot,
+            "blocks_scanned": blocks_scanned,
             "slots_dumped": slot_signatures.len(),
             "transactions_dumped": transactions_dumped,
             "failed_signatures": failed_signatures,
