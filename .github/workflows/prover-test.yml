@@ -26,7 +26,7 @@ on:
 jobs:
   build:
     if: github.event_name == 'push' || github.event.pull_request.draft == false
-    runs-on: buildjet-8vcpu-ubuntu-2204
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - name: Checkout sources
@@ -62,7 +62,7 @@ jobs:
 
   test-no-redis:
     needs: build
-    runs-on: buildjet-8vcpu-ubuntu-2204
+    runs-on: ubuntu-latest
     timeout-minutes: 90
     strategy:
       fail-fast: false
@@ -100,7 +100,7 @@ jobs:
 
   test-with-redis:
     needs: build
-    runs-on: buildjet-8vcpu-ubuntu-2204
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -157,7 +157,7 @@ jobs:
       (github.event_name == 'pull_request' &&
        github.event.pull_request.draft == false &&
        github.event.pull_request.base.ref == 'main')
-    runs-on: buildjet-8vcpu-ubuntu-2204
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - name: Checkout sources
@@ -190,7 +190,7 @@ jobs:
       (github.event_name == 'pull_request' &&
        github.event.pull_request.draft == false &&
        github.event.pull_request.base.ref == 'main')
-    runs-on: buildjet-8vcpu-ubuntu-2204
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - name: Checkout sources
@@ -222,7 +222,7 @@ jobs:
       github.event_name == 'pull_request' &&
       github.event.pull_request.draft == false &&
       startsWith(github.event.pull_request.base.ref, 'release')
-    runs-on: buildjet-8vcpu-ubuntu-2204
+    runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
       - name: Checkout sources
@@ -250,7 +250,7 @@ jobs:
 
   lean-verification:
     needs: build
-    runs-on: buildjet-8vcpu-ubuntu-2204
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - name: Checkout sources
