@@ -687,12 +687,9 @@ impl Rpc for LightClient {
         &mut self,
         transaction: VersionedTransaction,
     ) -> Result<Signature, RpcError> {
-        self.retry(|| async {
-            self.client
-                .send_and_confirm_transaction(&transaction)
-                .map_err(RpcError::from)
-        })
-        .await
+        self.client
+            .send_and_confirm_transaction(&transaction)
+            .map_err(RpcError::from)
     }
 
     async fn process_transaction_with_context(
@@ -932,20 +929,28 @@ impl Rpc for LightClient {
         signers: &'a [&'a Keypair],
         address_lookup_tables: &'a [AddressLookupTableAccount],
     ) -> Result<Signature, RpcError> {
-        let blockhash = self.get_latest_blockhash().await?.0;
+        self.retry(|| async {
+            let (blockhash, _) = self
+                .client
+                .get_latest_blockhash_with_commitment(CommitmentConfig::confirmed())
+                .map_err(RpcError::from)?;
 
-        let message =
-            v0::Message::try_compile(payer, instructions, address_lookup_tables, blockhash)
-                .map_err(|e| {
-                    RpcError::CustomError(format!("Failed to compile v0 message: {}", e))
-                })?;
+            let message =
+                v0::Message::try_compile(payer, instructions, address_lookup_tables, blockhash)
+                    .map_err(|e| {
+                        RpcError::CustomError(format!("Failed to compile v0 message: {}", e))
+                    })?;
 
-        let versioned_message = VersionedMessage::V0(message);
+            let versioned_message = VersionedMessage::V0(message);
 
-        let transaction = VersionedTransaction::try_new(versioned_message, signers)
-            .map_err(|e| RpcError::SigningError(e.to_string()))?;
+            let transaction = VersionedTransaction::try_new(versioned_message, signers)
+                .map_err(|e| RpcError::SigningError(e.to_string()))?;
 
-        self.process_versioned_transaction(transaction).await
+            self.client
+                .send_and_confirm_transaction(&transaction)
+                .map_err(RpcError::from)
+        })
+        .await
     }
 
     fn indexer(&self) -> Result<&impl Indexer, RpcError> {

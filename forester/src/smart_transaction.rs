@@ -37,11 +37,30 @@ pub struct ConfirmationConfig {
     pub poll_interval: Duration,
 }
 
-#[derive(Debug, Clone, Copy, Default)]
+impl Default for ConfirmationConfig {
+    fn default() -> Self {
+        Self {
+            max_attempts: 60,
+            poll_interval: Duration::from_millis(500),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct TransactionPolicy {
     pub priority_fee_config: PriorityFeeConfig,
     pub compute_unit_limit: Option<u32>,
     pub confirmation: Option<ConfirmationConfig>,
+}
+
+impl Default for TransactionPolicy {
+    fn default() -> Self {
+        Self {
+            priority_fee_config: PriorityFeeConfig::default(),
+            compute_unit_limit: None,
+            confirmation: Some(ConfirmationConfig::default()),
+        }
+    }
 }
 
 pub struct CreateSmartTransactionConfig {

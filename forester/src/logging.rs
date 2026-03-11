@@ -106,7 +106,11 @@ pub fn should_emit_rate_limited_warning(key: impl Into<String>, interval: Durati
     let map = LAST_EMIT_AT.get_or_init(|| Mutex::new(HashMap::new()));
     let mut map = match map.lock() {
         Ok(map) => map,
-        Err(poisoned) => poisoned.into_inner(),
+        Err(poisoned) => {
+            let guard = poisoned.into_inner();
+            map.clear_poison();
+            guard
+        }
     };
 
     if map.len() > MAX_KEYS {

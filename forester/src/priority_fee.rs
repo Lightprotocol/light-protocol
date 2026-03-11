@@ -202,9 +202,7 @@ pub async fn request_priority_fee_estimate(
 
     let rpc_request = RpcRequest::new(
         "getPriorityFeeEstimate".to_string(),
-        serde_json::json!({
-            "get_priority_fee_estimate_request": priority_fee_request
-        }),
+        serde_json::json!([priority_fee_request]),
     );
 
     let http_client = HTTP_CLIENT

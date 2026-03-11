@@ -1,4 +1,10 @@
-use std::{collections::HashMap, net::SocketAddr, sync::Arc, thread::JoinHandle, time::Duration};
+use std::{
+    collections::HashMap,
+    net::SocketAddr,
+    sync::{mpsc, Arc},
+    thread::JoinHandle,
+    time::Duration,
+};
 
 use serde::{Deserialize, Serialize};
 use tokio::sync::{broadcast, oneshot, watch};
@@ -1025,21 +1031,25 @@ async fn run_compressible_provider(
 ///
 /// # Returns
 /// An `ApiServerHandle` that can be used to trigger graceful shutdown
-pub fn spawn_api_server(config: ApiServerConfig) -> ApiServerHandle {
+pub fn spawn_api_server(config: ApiServerConfig) -> anyhow::Result<ApiServerHandle> {
     let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
+    let (startup_tx, startup_rx) = mpsc::sync_channel(1);
     let run_id_for_handle = config.run_id.clone();
 
     let thread_handle = std::thread::spawn(move || {
         let run_id = config.run_id.clone();
         let rt = match tokio::runtime::Runtime::new() {
             Ok(rt) => rt,
-            Err(e) => {
+            Err(error) => {
                 error!(
                     event = "api_server_runtime_create_failed",
                     run_id = %run_id,
-                    error = %e,
+                    error = %error,
                     "Failed to create tokio runtime for API server"
                 );
+                let _ = startup_tx.send(Err(anyhow::anyhow!(
+                    "Failed to create tokio runtime for API server: {error}"
+                )));
                 return;
             }
         };
@@ -1075,6 +1085,9 @@ pub fn spawn_api_server(config: ApiServerConfig) -> ApiServerHandle {
                         error = %error,
                         "Failed to create shared HTTP client for API server"
                     );
+                    let _ = startup_tx.send(Err(anyhow::anyhow!(
+                        "Failed to create shared HTTP client for API server: {error}"
+                    )));
                     return;
                 }
             };
@@ -1204,6 +1217,8 @@ pub fn spawn_api_server(config: ApiServerConfig) -> ApiServerHandle {
                 .or(compressible_route)
                 .with(cors);
 
+            let _ = startup_tx.send(Ok(()));
+
             warp::serve(routes)
                 .bind(addr)
                 .await
@@ -1230,10 +1245,22 @@ pub fn spawn_api_server(config: ApiServerConfig) -> ApiServerHandle {
         });
     });
 
-    ApiServerHandle {
-        thread_handle,
-        shutdown_tx,
-        run_id: run_id_for_handle,
+    match startup_rx.recv() {
+        Ok(Ok(())) => Ok(ApiServerHandle {
+            thread_handle,
+            shutdown_tx,
+            run_id: run_id_for_handle,
+        }),
+        Ok(Err(error)) => {
+            let _ = thread_handle.join();
+            Err(error)
+        }
+        Err(_) => {
+            let _ = thread_handle.join();
+            Err(anyhow::anyhow!(
+                "API server startup acknowledgment channel closed before initialization completed"
+            ))
+        }
     }
 }
 
