@@ -3863,7 +3863,7 @@ async fn test_d9_edge_many_literals() {
 #[tokio::test]
 async fn test_d9_edge_mixed() {
     use csdk_anchor_full_derived_test::d9_seeds::{
-        edge_cases::{_UNDERSCORE_CONST, AB, SEED_123},
+        edge_cases::{AB, SEED_123, _UNDERSCORE_CONST},
         D9EdgeMixedParams,
     };
 

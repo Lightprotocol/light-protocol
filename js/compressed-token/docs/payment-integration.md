@@ -80,18 +80,18 @@ Use `sliceLast(batches)` to get `{ rest, last }` for clean send orchestration.
 
 | Option      | Default                  | Description                                                                 |
 | ----------- | ------------------------ | --------------------------------------------------------------------------- |
-| `wrap`      | `false` (standard only)   | Standard path: opt-in. Unified path does not expose `wrap` (forced `true`).  |
+| `wrap`      | `false` (standard only)  | Standard path: opt-in. Unified path does not expose `wrap` (forced `true`). |
 | `programId` | `LIGHT_TOKEN_PROGRAM_ID` | Token program ID (SPL/T22/Light)                                            |
 
 ## What each transaction contains
 
-| Content                     | Load transaction | Transfer transaction |
-| --------------------------- | :--------------: | :------------------: |
-| `ComputeBudgetProgram`      |       yes        |         yes          |
-| Sender (owner) ATA creation | yes (idempotent) |   yes (if needed)    |
-| Decompress instructions     |       yes        |   yes (if needed)    |
-| Wrap SPL/T22 (unified only) | first load batch (when multiple batches); single batch = load + transfer together | -- |
-| Transfer instruction        |        --        |         yes          |
+| Content                     |                                 Load transaction                                  | Transfer transaction |
+| --------------------------- | :-------------------------------------------------------------------------------: | :------------------: |
+| `ComputeBudgetProgram`      |                                        yes                                        |         yes          |
+| Sender (owner) ATA creation |                                 yes (idempotent)                                  |   yes (if needed)    |
+| Decompress instructions     |                                        yes                                        |   yes (if needed)    |
+| Wrap SPL/T22 (unified only) | first load batch (when multiple batches); single batch = load + transfer together |          --          |
+| Transfer instruction        |                                        --                                         |         yes          |
 
 ## Signers
 
