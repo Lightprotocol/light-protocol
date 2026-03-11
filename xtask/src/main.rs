@@ -9,6 +9,7 @@ mod create_ctoken_account;
 mod create_state_tree;
 mod create_update_protocol_config_ix;
 mod create_vkeyrs_from_gnark_key;
+mod dump_local_transactions;
 mod export_photon_test_data;
 mod fee;
 mod fetch_accounts;
@@ -94,6 +95,8 @@ enum Command {
     /// Serializes the Close instruction as a bs58 message for the Squads TX builder.
     /// Example: cargo xtask close-buffer --buffer FMkzXMexKDUKGxAm7oGsjs4LGEMhzk9C6uuYJBwJbjiN
     CloseBuffer(close_buffer::Options),
+    /// Dump local validator transactions from a slot range into JSON files.
+    DumpLocalTransactions(dump_local_transactions::Options),
 }
 
 #[tokio::main]
@@ -137,5 +140,8 @@ async fn main() -> Result<(), anyhow::Error> {
             create_ctoken_account::create_ctoken_account(opts).await
         }
         Command::CloseBuffer(opts) => close_buffer::close_buffer(opts),
+        Command::DumpLocalTransactions(opts) => {
+            dump_local_transactions::dump_local_transactions(opts).await
+        }
     }
 }

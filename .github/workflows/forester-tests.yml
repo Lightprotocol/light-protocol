@@ -86,7 +86,22 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p forester
-          just forester test 2>&1 | tee forester/ci.log
+          if ! just forester test 2>&1 | tee forester/ci.log; then
+            echo "=== validator rpc health after test failure ==="
+            curl -sS -m 5 http://localhost:8899 \
+              -H "Content-Type: application/json" \
+              -d '{"jsonrpc":"2.0","id":1,"method":"getSlot"}' || true
+            echo
+            echo "=== validator processes after test failure ==="
+            pgrep -af "surfpool|solana-test-validator" || true
+            echo "=== validator listeners after test failure ==="
+            ss -lntp | grep -E '(:8899|:8900)' || true
+            echo "=== dumping local validator transactions ==="
+            cargo xtask dump-local-transactions \
+              --rpc-url http://localhost:8899 \
+              --output-folder forester/validator-transactions || true
+            exit 1
+          fi
 
       - name: Dump Photon Logs On Failure
         if: failure()
@@ -182,6 +197,7 @@ jobs:
             test.log
             forester/test.log
             forester/photon-gap-summary.txt
+            forester/validator-transactions
             test-ledger
             forester/test-ledger
           if-no-files-found: ignore

@@ -249,6 +249,9 @@ where
                 );
                 self.current_root = root;
                 self.cached_state = None;
+                if let Some(proof_cache) = &self.proof_cache {
+                    proof_cache.clear().await;
+                }
                 let total_batches = queue_data.num_batches;
                 let process_now = total_batches.min(self.context.max_batches_per_tree);
                 self.process_batches(queue_data, 0, process_now, total_batches)
@@ -265,6 +268,9 @@ where
                 );
                 self.current_root = root;
                 self.cached_state = None;
+                if let Some(proof_cache) = &self.proof_cache {
+                    proof_cache.clear().await;
+                }
                 Ok(ProcessingResult::default())
             }
         }
