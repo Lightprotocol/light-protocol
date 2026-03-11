@@ -88,12 +88,15 @@ jobs:
         if: failure()
         shell: bash
         run: |
-          if [ -f test-ledger/photon.log ]; then
-            echo "=== test-ledger/photon.log (tail -n 400) ==="
-            tail -n 400 test-ledger/photon.log
-            echo "=== end test-ledger/photon.log ==="
+          mapfile -t photon_logs < <(find . -path "*/test-ledger/photon.log" -type f | sort)
+          if [ "${#photon_logs[@]}" -gt 0 ]; then
+            for log in "${photon_logs[@]}"; do
+              echo "=== ${log} (tail -n 400) ==="
+              tail -n 400 "${log}"
+              echo "=== end ${log} ==="
+            done
           else
-            echo "test-ledger/photon.log not found"
+            echo "No photon.log files found under any test-ledger directory"
           fi
 
       - name: Upload Forester Test Logs
@@ -101,7 +104,9 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: forester-test-ledger
-          path: test-ledger
+          path: |
+            test-ledger
+            forester/test-ledger
           if-no-files-found: ignore
 
   compressible-tests:
