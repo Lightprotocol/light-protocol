@@ -99,8 +99,6 @@ struct BufferEntry {
     instruction: BatchInstruction,
     old_root: [u8; 32],
     new_root: [u8; 32],
-    round_trip_ms: u64,
-    proof_ms: u64,
     submitted_at: std::time::Instant,
 }
 
@@ -136,8 +134,6 @@ impl OrderedProofBuffer {
         instruction: BatchInstruction,
         old_root: [u8; 32],
         new_root: [u8; 32],
-        round_trip_ms: u64,
-        proof_ms: u64,
         submitted_at: std::time::Instant,
     ) -> bool {
         if seq < self.base_seq {
@@ -155,8 +151,6 @@ impl OrderedProofBuffer {
             instruction,
             old_root,
             new_root,
-            round_trip_ms,
-            proof_ms,
             submitted_at,
         });
         true
@@ -183,8 +177,6 @@ pub struct TxSender<R: Rpc> {
     zkp_batch_size: u64,
     last_seen_root: [u8; 32],
     pending_batch: Vec<(BatchInstruction, u64, [u8; 32], [u8; 32])>, // (instruction, seq, old_root, new_root)
-    pending_batch_round_trip_ms: u64,
-    pending_batch_proof_ms: u64,
     /// Earliest submission time in the pending batch (for end-to-end latency)
     pending_batch_earliest_submit: Option<std::time::Instant>,
     proof_timings: ProofTimings,
@@ -215,8 +207,6 @@ impl<R: Rpc> TxSender<R> {
             zkp_batch_size,
             last_seen_root,
             pending_batch: Vec::with_capacity(ixs_per_tx),
-            pending_batch_round_trip_ms: 0,
-            pending_batch_proof_ms: 0,
             pending_batch_earliest_submit: None,
             proof_timings: ProofTimings::default(),
             proof_cache,
@@ -253,7 +243,6 @@ impl<R: Rpc> TxSender<R> {
     async fn run(mut self, mut proof_rx: mpsc::Receiver<ProofJobResult>) -> TxSenderTaskResult {
         let (batch_tx, mut batch_rx) = mpsc::unbounded_channel::<(
             Vec<(BatchInstruction, u64, [u8; 32], [u8; 32])>,
-            u64,
             Option<std::time::Instant>,
         )>();
 
@@ -264,9 +253,7 @@ impl<R: Rpc> TxSender<R> {
         let sender_handle = tokio::spawn(async move {
             let mut sender_processed = 0usize;
             let mut total_tx_sending_duration = Duration::ZERO;
-            while let Some((batch, _batch_round_trip, batch_earliest_submit)) =
-                batch_rx.recv().await
-            {
+            while let Some((batch, batch_earliest_submit)) = batch_rx.recv().await {
                 let items_count: usize = batch
                     .iter()
                     .map(|(instr, _, _, _)| instr.items_count())
@@ -278,7 +265,6 @@ impl<R: Rpc> TxSender<R> {
                 let mut last_root: Option<[u8; 32]> = None;
                 let mut append_count = 0usize;
                 let mut nullify_count = 0usize;
-                let mut _address_append_count = 0usize;
 
                 for (instr, _seq, _, _) in &batch {
                     let res = match instr {
@@ -316,7 +302,6 @@ impl<R: Rpc> TxSender<R> {
                             (ix_res, proofs.last().map(|p| p.new_root))
                         }
                         BatchInstruction::AddressAppend(proofs) => {
-                            _address_append_count += 1;
                             let ix_res = proofs
                                 .iter()
                                 .map(|data| {
@@ -469,8 +454,6 @@ impl<R: Rpc> TxSender<R> {
                 instruction,
                 result.old_root,
                 result.new_root,
-                result.round_trip_ms,
-                result.proof_duration_ms,
                 result.submitted_at,
             ) {
                 warn!("Failed to insert proof seq={}", result.seq);
@@ -480,8 +463,6 @@ impl<R: Rpc> TxSender<R> {
                 let seq = self.buffer.expected_seq() - 1;
                 self.pending_batch
                     .push((entry.instruction, seq, entry.old_root, entry.new_root));
-                self.pending_batch_round_trip_ms += entry.round_trip_ms;
-                self.pending_batch_proof_ms += entry.proof_ms;
                 self.pending_batch_earliest_submit =
                     Some(match self.pending_batch_earliest_submit {
                         None => entry.submitted_at,
@@ -497,11 +478,9 @@ impl<R: Rpc> TxSender<R> {
                         &mut self.pending_batch,
                         Vec::with_capacity(self.ixs_per_tx),
                     );
-                    let round_trip = std::mem::replace(&mut self.pending_batch_round_trip_ms, 0);
-                    let _proof_ms = std::mem::replace(&mut self.pending_batch_proof_ms, 0);
                     let earliest = self.pending_batch_earliest_submit.take();
 
-                    if batch_tx.send((batch, round_trip, earliest)).is_err() {
+                    if batch_tx.send((batch, earliest)).is_err() {
                         break;
                     }
                 }
@@ -511,9 +490,8 @@ impl<R: Rpc> TxSender<R> {
         if !self.pending_batch.is_empty() {
             let batch =
                 std::mem::replace(&mut self.pending_batch, Vec::with_capacity(self.ixs_per_tx));
-            let round_trip = std::mem::replace(&mut self.pending_batch_round_trip_ms, 0);
             let earliest = self.pending_batch_earliest_submit.take();
-            let _ = batch_tx.send((batch, round_trip, earliest));
+            let _ = batch_tx.send((batch, earliest));
         }
 
         drop(batch_tx);

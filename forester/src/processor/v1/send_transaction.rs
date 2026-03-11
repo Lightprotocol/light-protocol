@@ -268,22 +268,18 @@ async fn prepare_batch_prerequisites<R: Rpc, T: TransactionBuilder>(
         return Ok(None); // Return None to indicate no work
     }
 
-    let (recent_blockhash, last_valid_block_height) = {
+    let (recent_blockhash, last_valid_block_height, priority_fee) = {
         let mut rpc = pool.get_connection().await.map_err(|e| {
-            error!(tree = %tree_id_str, "Failed to get RPC for blockhash: {:?}", e);
+            error!(
+                tree = %tree_id_str,
+                "Failed to get RPC for blockhash/priority fee: {:?}",
+                e
+            );
             ForesterError::RpcPool(e)
         })?;
         let r_blockhash = rpc.get_latest_blockhash().await.map_err(|e| {
             error!(tree = %tree_id_str, "Failed to get latest blockhash: {:?}", e);
             ForesterError::Rpc(e)
-        })?;
-        (r_blockhash.0, r_blockhash.1)
-    };
-
-    let priority_fee = if config.build_transaction_batch_config.enable_priority_fees {
-        let rpc_for_fee = pool.get_connection().await.map_err(|e| {
-            error!(tree = %tree_id_str, "Failed to get RPC for priority fee: {:?}", e);
-            ForesterError::RpcPool(e)
         })?;
         let forester_epoch_pda_pubkey =
             get_forester_epoch_pda_from_authority(derivation, transaction_builder.epoch()).0;
@@ -293,14 +289,13 @@ async fn prepare_batch_prerequisites<R: Rpc, T: TransactionBuilder>(
             tree_accounts.queue,
             tree_accounts.merkle_tree,
         ];
-        PriorityFeeConfig {
+        let priority_fee = PriorityFeeConfig {
             compute_unit_price: config.build_transaction_batch_config.compute_unit_price,
-            enable_priority_fees: true,
+            enable_priority_fees: config.build_transaction_batch_config.enable_priority_fees,
         }
-        .resolve(&*rpc_for_fee, account_keys)
-        .await?
-    } else {
-        config.build_transaction_batch_config.compute_unit_price
+        .resolve(&*rpc, account_keys)
+        .await?;
+        (r_blockhash.0, r_blockhash.1, priority_fee)
     };
 
     let work_items: Vec<WorkItem> = queue_item_data

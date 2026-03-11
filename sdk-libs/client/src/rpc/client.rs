@@ -920,7 +920,7 @@ impl Rpc for LightClient {
     /// loaded from the chain. Callers are responsible for resolving these accounts before
     /// calling this method. Unresolved or missing lookup tables will cause compilation to fail.
     ///
-    /// Returns `RpcError::CustomError` on message compilation failure,
+    /// Returns `RpcError::TransactionBuildError` on message compilation failure,
     /// `RpcError::SigningError` on signing failure.
     async fn create_and_send_versioned_transaction<'a>(
         &'a mut self,
@@ -938,7 +938,10 @@ impl Rpc for LightClient {
             let message =
                 v0::Message::try_compile(payer, instructions, address_lookup_tables, blockhash)
                     .map_err(|e| {
-                        RpcError::CustomError(format!("Failed to compile v0 message: {}", e))
+                        RpcError::TransactionBuildError(format!(
+                            "Failed to compile v0 message: {}",
+                            e
+                        ))
                     })?;
 
             let versioned_message = VersionedMessage::V0(message);

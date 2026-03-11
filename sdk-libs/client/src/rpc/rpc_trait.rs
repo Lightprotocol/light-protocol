@@ -80,8 +80,8 @@ pub trait Rpc: Send + Sync + Debug + 'static {
         match error {
             // Do not retry transaction errors.
             RpcError::ClientError(error) => error.kind.get_transaction_error().is_none(),
-            // Do not retry signing errors.
-            RpcError::SigningError(_) => false,
+            // Do not retry local transaction construction/signing errors.
+            RpcError::SigningError(_) | RpcError::TransactionBuildError(_) => false,
             _ => true,
         }
     }

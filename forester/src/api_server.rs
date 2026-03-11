@@ -1217,11 +1217,27 @@ pub fn spawn_api_server(config: ApiServerConfig) -> anyhow::Result<ApiServerHand
                 .or(compressible_route)
                 .with(cors);
 
+            let listener = match tokio::net::TcpListener::bind(addr).await {
+                Ok(listener) => listener,
+                Err(error) => {
+                    error!(
+                        event = "api_server_bind_failed",
+                        run_id = %run_id,
+                        address = %addr,
+                        error = %error,
+                        "Failed to bind API server socket"
+                    );
+                    let _ = startup_tx.send(Err(anyhow::anyhow!(
+                        "Failed to bind API server to {addr}: {error}"
+                    )));
+                    return;
+                }
+            };
+
             let _ = startup_tx.send(Ok(()));
 
             warp::serve(routes)
-                .bind(addr)
-                .await
+                .incoming(listener)
                 .graceful({
                     let run_id_for_shutdown = run_id.clone();
                     async move {
